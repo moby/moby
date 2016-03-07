@@ -273,6 +273,17 @@ func (s *DockerSuite) TestUserDefinedNetworkLinksWithRestart(c *check.C) {
 	c.Assert(err, check.IsNil)
 }
 
+func (s *DockerSuite) TestRunWithNetAliasOnDefaultNetworks(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
+
+	defaults := []string{"bridge", "host", "none"}
+	for _, net := range defaults {
+		out, _, err := dockerCmdWithError("run", "-d", "--net", net, "--net-alias", "alias_"+net, "busybox", "top")
+		c.Assert(err, checker.NotNil)
+		c.Assert(out, checker.Contains, runconfig.ErrUnsupportedNetworkAndAlias.Error())
+	}
+}
+
 func (s *DockerSuite) TestUserDefinedNetworkAlias(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
 	dockerCmd(c, "network", "create", "-d", "bridge", "net1")
