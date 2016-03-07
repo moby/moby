@@ -475,6 +475,30 @@ By default docker will pick up the zfs filesystem where docker graph
 
 Example use: `docker daemon -s zfs --storage-opt zfs.fsname=zroot/docker`
 
+#### dm.min_free_space
+
+Specifies the min free space percent in thin pool require for new device
+creation to succeed. This check applies to both free data space as well
+as free metadata space. Valid values are from 0% - 99%. Value 0% disables
+free space checking logic. If user does not specify a value for this optoin,
+then default value for this option is 10%.
+
+Whenever a new thin pool device is created (during docker pull or
+during container creation), docker will check minimum free space is
+available as specified by this parameter. If that is not the case, then
+device creation will fail and docker operation will fail.
+
+One will have to create more free space in thin pool to recover from the
+error. Either delete some of the images and containers from thin pool and
+create free space or add more storage to thin pool.
+
+For lvm thin pool, one can add more storage to volume group container thin
+pool and that should automatically resolve it. If loop devices are being
+used, then stop docker, grow the size of loop files and restart docker and
+that should resolve the issue.
+
+Example use: `docker daemon --storage-opt dm.min_free_space_percent=10%`
+
 # CLUSTER STORE OPTIONS
 
 The daemon uses libkv to advertise
