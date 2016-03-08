@@ -159,6 +159,10 @@ func Delete(path string, recs []Record) error {
 loop:
 	for s.Scan() {
 		b := s.Bytes()
+		if len(b) == 0 {
+			continue
+		}
+
 		if b[0] == '#' {
 			buf.Write(b)
 			buf.Write(eol)

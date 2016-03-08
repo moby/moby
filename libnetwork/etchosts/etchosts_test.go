@@ -331,6 +331,29 @@ func TestDeleteEmpty(t *testing.T) {
 	}
 }
 
+func TestDeleteNewline(t *testing.T) {
+	file, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(file.Name())
+
+	b := []byte("\n")
+	if _, err := file.Write(b); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := []Record{
+		{
+			Hosts: "prefix",
+			IP:    "2.2.2.2",
+		},
+	}
+	if err := Delete(file.Name(), rec); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDelete(t *testing.T) {
 	file, err := ioutil.TempFile("", "")
 	if err != nil {
