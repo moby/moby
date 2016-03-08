@@ -3396,6 +3396,62 @@ dir`,
 	}
 }
 
+func (s *DockerSuite) TestBuildDockerignoreRecursive(c *check.C) {
+	testRequires(c, DaemonIsLinux) // TODO Windows: This test passes on Windows,
+	// but currently adds a disproportionate amount of time for the value it has.
+	// Removing it from Windows CI for now, but this will be revisited in the
+	// TP5 timeframe when perf is better.
+	name := "testbuilddockerignorerecursive"
+	dockerfile := `
+        FROM busybox
+        ADD . /bla
+		RUN sh -c "[[ -f /bla/src/x.go ]]"
+		RUN sh -c "[[ -f /bla/Makefile ]]"
+		RUN sh -c "[[ ! -e /bla/src/_vendor ]]"
+		RUN sh -c "[[ ! -e /bla/.gitignore ]]"
+		RUN sh -c "[[ ! -e /bla/test/1/README.md ]]"
+		RUN sh -c "[[ ! -e /bla/test/2/README2.md ]]"
+		RUN sh -c "[[ ! -e /bla/README.md ]]"
+		RUN sh -c "[[ ! -e /bla/dir/foo ]]"
+		RUN sh -c "[[ ! -e /bla/foo ]]"
+		RUN sh -c "[[ ! -e /bla/.git ]]"
+		RUN sh -c "[[ ! -e v.cc ]]"
+		RUN sh -c "[[ ! -e src/v.cc ]]"
+		RUN sh -c "[[ ! -e src/_vendor/v.cc ]]"`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"Makefile":          "all:",
+		".git/HEAD":         "ref: foo",
+		"src/x.go":          "package main",
+		"src/_vendor/v.go":  "package main",
+		"src/_vendor/v.cc":  "package main",
+		"src/v.cc":          "package main",
+		"v.cc":              "package main",
+		"dir/foo":           "",
+		"test/1/.gitignore": "",
+		".gitignore":        "",
+		"README.md":         "readme",
+		".dockerignore": `
+.git
+pkg
+.gitignore
+*.md
+dir`,
+		"src/.dockerignore": `
+_vendor`,
+		"test/1/.dockerignore": `
+README*`,
+		"test/.dockerignore": `
+*README2.md`,
+	})
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer ctx.Close()
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		c.Fatal(err)
+	}
+}
+
 func (s *DockerSuite) TestBuildDockerignoreCleanPaths(c *check.C) {
 	name := "testbuilddockerignorecleanpaths"
 	dockerfile := `
@@ -3403,10 +3459,11 @@ func (s *DockerSuite) TestBuildDockerignoreCleanPaths(c *check.C) {
         ADD . /tmp/
         RUN sh -c "(! ls /tmp/foo) && (! ls /tmp/foo2) && (! ls /tmp/dir1/foo)"`
 	ctx, err := fakeContext(dockerfile, map[string]string{
-		"foo":           "foo",
-		"foo2":          "foo2",
-		"dir1/foo":      "foo in dir1",
-		".dockerignore": "./foo\ndir1//foo\n./dir1/../foo2",
+		"foo":                "foo",
+		"foo2":               "foo2",
+		"dir1/foo":           "foo in dir1",
+		".dockerignore":      "./foo",
+		"dir1/.dockerignore": "foo\n./../foo2",
 	})
 	if err != nil {
 		c.Fatal(err)
@@ -3752,6 +3809,92 @@ dir1/dir3/**
 **/file?A
 **/file\?B
 **/dir5/file.
+`,
+	})
+	c.Assert(err, check.IsNil)
+	defer ctx.Close()
+
+	_, err = buildImageFromContext("noname", ctx, true)
+	c.Assert(err, check.IsNil)
+}
+
+func (s *DockerSuite) TestBuildDockerignoringRecursiveDirs(c *check.C) {
+	testRequires(c, DaemonIsLinux) // TODO Windows: Fix this test; also perf
+
+	dockerfile := `
+        FROM busybox
+		COPY . /
+		#RUN sh -c "[[ -e /.dockerignore ]]"
+		RUN sh -c "[[ -e /Dockerfile ]]           && \
+		           [[ ! -e /file0 ]]              && \
+		           [[ ! -e /file1 ]]              && \
+		           [[   -e /file2 ]]              && \
+		           [[ ! -e /dir1/file0 ]]         && \
+		           [[ ! -e /dir1/file1 ]]         && \
+		           [[ ! -e /dir1/file2 ]]         && \
+		           [[ ! -e /dir1/dir2/file1 ]]    && \
+		           [[   -e /dir1/dir2/file2 ]]    && \
+		           [[ ! -e /dir1/dir2/file4 ]]    && \
+		           [[ ! -e /dir1/dir2/file5 ]]    && \
+		           [[ ! -e /dir1/dir2/file6 ]]    && \
+		           [[   -e /dir1/dir3 ]]          && \
+		           [[ ! -e /dir1/dir3/file7 ]]    && \
+		           [[ ! -e /dir1/dir3/file8 ]]    && \
+		           [[ ! -e /dir1/dir4/file9 ]]    && \
+		           [[ ! -e 'dir1/dir5/fileAA' ]]  && \
+		           [[   -e 'dir1/dir5/fileAB' ]]  && \
+		           [[   -e 'dir1/dir5/fileB' ]]   && \
+		           [[ ! -e /dir2/file0 ]]"   # "." in pattern means nothing
+
+		RUN echo all done!`
+
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"Dockerfile": "FROM scratch",
+		"file0":      "",
+		"file1":      "",
+		"file2":      "", // remains
+
+		"dir1/file0": "",
+		"dir1/file1": "",
+		"dir1/file2": "",
+
+		"dir1/dir2/file1": "",
+		"dir1/dir2/file2": "", // remains
+		"dir1/dir2/file4": "",
+		"dir1/dir2/file5": "",
+		"dir1/dir2/file6": "",
+
+		"dir1/dir3/file7": "",
+		"dir1/dir3/file8": "",
+
+		"dir1/dir4/file9": "",
+
+		"dir1/dir5/fileAA": "",
+		"dir1/dir5/fileAB": "", // remains
+		"dir1/dir5/fileB":  "", // remains
+
+		".dockerignore": `
+file0
+file1
+`,
+		"dir1/.dockerignore": `
+file0
+file1
+file2
+dir2/*
+!dir2/file2
+dir4
+`,
+		"dir1/dir3/.dockerignore": `
+*
+`,
+		"dir1/dir5/.dockerignore": `
+*
+!fileAB
+!fileB
+`,
+		"dir2/.dockerignore": `
+file0
 `,
 	})
 	c.Assert(err, check.IsNil)

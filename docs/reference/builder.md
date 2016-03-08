@@ -49,8 +49,9 @@ Dockerfile.
 To use a file in the build context, the `Dockerfile` refers to the file specified
 in an instruction, for example,  a `COPY` instruction. To increase the build's
 performance, exclude files and directories by adding a `.dockerignore` file to
-the context directory.  For information about how to [create a `.dockerignore`
-file](#dockerignore-file) see the documentation on this page.
+the context directory, or any of the subdirectories. For information about
+how to [create a `.dockerignore` file](#dockerignore-file) see the documentation
+on this page.
 
 Traditionally, the `Dockerfile` is called `Dockerfile` and located in the root
 of the context. You use the `-f` flag with `docker build` to point to a Dockerfile
@@ -195,19 +196,26 @@ that set `abc` to `bye`.
 ### .dockerignore file
 
 Before the docker CLI sends the context to the docker daemon, it looks
-for a file named `.dockerignore` in the root directory of the context.
-If this file exists, the CLI modifies the context to exclude files and
-directories that match patterns in it.  This helps to avoid
-unnecessarily sending large or sensitive files and directories to the
-daemon and potentially adding them to images using `ADD` or `COPY`.
+for a file named `.dockerignore` in the root directory, as well as any
+subdirectories of the context. If this file exists, the CLI modifies the
+context to exclude files and directories that match patterns in it.
+This helps to avoid unnecessarily sending large or sensitive files and
+directories to the daemon and potentially adding them to images using
+`ADD` or `COPY`.
 
 The CLI interprets the `.dockerignore` file as a newline-separated
 list of patterns similar to the file globs of Unix shells.  For the
-purposes of matching, the root of the context is considered to be both
-the working and the root directory.  For example, the patterns
-`/foo/bar` and `foo/bar` both exclude a file or directory named `bar`
-in the `foo` subdirectory of `PATH` or in the root of the git
-repository located at `URL`.  Neither excludes anything else.
+purposes of matching, the root of the context is considered to the
+root directory, and the working directory is the path of the `.dockerignore
+file`. For example, the patterns `/foo/bar` and `foo/bar` both exclude
+ a file or directory named `bar` in the `foo` subdirectory of `PATH`
+ or in the root of the git repository located at `URL`.  Neither
+ excludes anything else.
+
+Note that all relative paths listed in any `.dockerignore`
+file are relative to the directory that specific `.dockerignore` file is in.
+ For example, if the `.dockerignore` file located at `/foo/bar` had
+ `baz/text.txt`, the file to be ignored would be: `/foo/bar/baz/text.txt`.
 
 Here is an example `.dockerignore` file:
 
@@ -221,9 +229,10 @@ This file causes the following build behavior:
 
 | Rule           | Behavior                                                                                                                                                                     |
 |----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `*/temp*`      | Exclude files and directories whose names start with `temp` in any immediate subdirectory of the root.  For example, the plain file `/somedir/temporary.txt` is excluded, as is the directory `/somedir/temp`.                 |
-| `*/*/temp*`    | Exclude files and directories starting with `temp` from any subdirectory that is two levels below the root. For example, `/somedir/subdir/temporary.txt` is excluded. |
-| `temp?`        | Exclude files and directories in the root directory whose names are a one-character extension of `temp`.  For example, `/tempa` and `/tempb` are excluded.
+| `*/temp*`      | Exclude files and directories whose names start with `temp` in any immediate subdirectory of the working directory.  For example, the plain file `./somedir/temporary.txt` is excluded, as is the directory `./somedir/temp`.                 |
+| `*/*/temp*`    | Exclude files and directories starting with `temp` from any subdirectory that is two levels below the working directory. For example, `./somedir/subdir/temporary.txt` is excluded. |
+| `temp?`        | Exclude files and directories in the working directory directory whose names are a one-character extension of `temp`.  For example, `./tempa` and `./tempb` are excluded.
+| `/fromRoot.txt`| Exclude the text file "fromRoot" located in the *root* directory.
 
 
 Matching is done using Go's

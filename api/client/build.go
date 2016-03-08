@@ -125,14 +125,14 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			return fmt.Errorf("cannot canonicalize dockerfile path %s: %v", relDockerfile, err)
 		}
 
-		f, err := os.Open(filepath.Join(contextDir, ".dockerignore"))
+		_, err := os.Open(filepath.Join(contextDir, ".dockerignore"))
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
 
 		var excludes []string
 		if err == nil {
-			excludes, err = dockerignore.ReadAll(f)
+			excludes, err = dockerignore.ReadAllRecursive(contextDir, contextDir)
 			if err != nil {
 				return err
 			}
