@@ -49,7 +49,7 @@ func (s *DockerSuite) TestExecTTY(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	defer p.Close()
 
-	_, err = p.Write([]byte("cat /foo && sleep 2 && exit\n"))
+	_, err = p.Write([]byte("cat /foo && exit\n"))
 	c.Assert(err, checker.IsNil)
 
 	chErr := make(chan error)
