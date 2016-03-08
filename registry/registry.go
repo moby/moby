@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -25,12 +24,6 @@ var (
 	// already exists on the remote side
 	ErrAlreadyExists = errors.New("Image already exists")
 )
-
-func init() {
-	if runtime.GOOS != "linux" {
-		V2Only = true
-	}
-}
 
 func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
 	// PreferredServerCipherSuites should have no effect

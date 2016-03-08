@@ -12,7 +12,7 @@ func (s *Service) lookupV2Endpoints(hostname string) (endpoints []APIEndpoint, e
 	tlsConfig := &cfg
 	if hostname == DefaultNamespace {
 		// v2 mirrors
-		for _, mirror := range s.Config.Mirrors {
+		for _, mirror := range s.config.Mirrors {
 			if !strings.HasPrefix(mirror, "http://") && !strings.HasPrefix(mirror, "https://") {
 				mirror = "https://" + mirror
 			}
