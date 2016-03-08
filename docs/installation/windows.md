@@ -73,7 +73,7 @@ and virtualization support is enabled in BIOS and recognized by Windows.
 		
 	  Choose **Start > Control Panel > Programs and Features**. Click **Turn Windows features on or off**. Expand the 'Hyper-V' section and remove the checkbox next to 'Hyper-V' platform. 
 	  
-	  ![Disabled Hyper-V services](images/disabled-hyperv-services.png)
+	  ![Disabled Hyper-V services](images/disabled-hyper-v.png)
 
 	  Click OK and reboot your machine to finish configuring.
 
