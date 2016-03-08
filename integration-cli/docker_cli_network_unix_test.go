@@ -801,8 +801,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkAnonymousEndpoint(c *check.C) {
 	c.Assert(err, check.NotNil)
 }
 
-func (s *DockerNetworkSuite) TestDockerNetworkLinkOndefaultNetworkOnly(c *check.C) {
-	// Link feature must work only on default network, and not across networks
+func (s *DockerNetworkSuite) TestDockerNetworkLinkOnDefaultNetworkOnly(c *check.C) {
+	// Legacy Link feature must work only on default network, and not across networks
 	cnt1 := "container1"
 	cnt2 := "container2"
 	network := "anotherbridge"
@@ -1312,6 +1312,19 @@ func (s *DockerNetworkSuite) TestDockerNetworkDisconnectDefault(c *check.C) {
 	c.Assert(networks, checker.Contains, netWorkName1, check.Commentf(fmt.Sprintf("Should contain '%s' network", netWorkName1)))
 	c.Assert(networks, checker.Contains, netWorkName2, check.Commentf(fmt.Sprintf("Should contain '%s' network", netWorkName2)))
 	c.Assert(networks, checker.Not(checker.Contains), "bridge", check.Commentf("Should not contain 'bridge' network"))
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkConnectWithAliasOnDefaultNetworks(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
+
+	defaults := []string{"bridge", "host", "none"}
+	out, _ := dockerCmd(c, "run", "-d", "--net=none", "busybox", "top")
+	containerID := strings.TrimSpace(out)
+	for _, net := range defaults {
+		res, _, err := dockerCmdWithError("network", "connect", "--alias", "alias"+net, net, containerID)
+		c.Assert(err, checker.NotNil)
+		c.Assert(res, checker.Contains, runconfig.ErrUnsupportedNetworkAndAlias.Error())
+	}
 }
 
 func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectAlias(c *check.C) {

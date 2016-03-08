@@ -36,12 +36,16 @@ type MacPool struct {
 
 // HNSNetwork represents a network in HNS
 type HNSNetwork struct {
-	Id       string            `json:",omitempty"`
-	Name     string            `json:",omitempty"`
-	Type     string            `json:",omitempty"`
-	Policies []json.RawMessage `json:",omitempty"`
-	MacPools []MacPool         `json:",omitempty"`
-	Subnets  []Subnet          `json:",omitempty"`
+	Id                 string            `json:",omitempty"`
+	Name               string            `json:",omitempty"`
+	Type               string            `json:",omitempty"`
+	NetworkAdapterName string            `json:",omitempty"`
+	SourceMac          string            `json:",omitempty"`
+	Policies           []json.RawMessage `json:",omitempty"`
+	MacPools           []MacPool         `json:",omitempty"`
+	Subnets            []Subnet          `json:",omitempty"`
+	DNSSuffix          string            `json:",omitempty"`
+	DNSServerList      string            `json:",omitempty"`
 }
 
 // HNSEndpoint represents a network endpoint in HNS
@@ -53,6 +57,10 @@ type HNSEndpoint struct {
 	Policies           []json.RawMessage `json:",omitempty"`
 	MacAddress         string            `json:",omitempty"`
 	IPAddress          net.IP            `json:",omitempty"`
+	DNSSuffix          string            `json:",omitempty"`
+	DNSServerList      string            `json:",omitempty"`
+	GatewayAddress     string            `json:",omitempty"`
+	PrefixLength       uint8             `json:",omitempty"`
 }
 
 type hnsNetworkResponse struct {
