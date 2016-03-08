@@ -523,7 +523,7 @@ func TestParseRepositoryInfo(t *testing.T) {
 }
 
 func TestNewIndexInfo(t *testing.T) {
-	testIndexInfo := func(config *registrytypes.ServiceConfig, expectedIndexInfos map[string]*registrytypes.IndexInfo) {
+	testIndexInfo := func(config *serviceConfig, expectedIndexInfos map[string]*registrytypes.IndexInfo) {
 		for indexName, expectedIndexInfo := range expectedIndexInfos {
 			index, err := newIndexInfo(config, indexName)
 			if err != nil {
@@ -537,7 +537,7 @@ func TestNewIndexInfo(t *testing.T) {
 		}
 	}
 
-	config := NewServiceConfig(nil)
+	config := newServiceConfig(ServiceOptions{})
 	noMirrors := []string{}
 	expectedIndexInfos := map[string]*registrytypes.IndexInfo{
 		IndexName: {
@@ -661,7 +661,7 @@ func TestMirrorEndpointLookup(t *testing.T) {
 		}
 		return false
 	}
-	s := Service{Config: makeServiceConfig([]string{"my.mirror"}, nil)}
+	s := Service{config: makeServiceConfig([]string{"my.mirror"}, nil)}
 
 	imageName, err := reference.WithName(IndexName + "/test/image")
 	if err != nil {

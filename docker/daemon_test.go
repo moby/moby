@@ -4,6 +4,7 @@ package main
 
 import (
 	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 
@@ -63,8 +64,9 @@ func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	configFile := f.Name()
+	defer os.Remove(configFile)
+
 	f.Write([]byte(`{"labels": ["l3=foo"]}`))
 	f.Close()
 
@@ -103,8 +105,9 @@ func TestLoadDaemonCliConfigWithTLSVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	configFile := f.Name()
+	defer os.Remove(configFile)
+
 	f.Write([]byte(`{"tlsverify": true}`))
 	f.Close()
 
@@ -135,8 +138,9 @@ func TestLoadDaemonCliConfigWithExplicitTLSVerifyFalse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	configFile := f.Name()
+	defer os.Remove(configFile)
+
 	f.Write([]byte(`{"tlsverify": false}`))
 	f.Close()
 
@@ -167,8 +171,9 @@ func TestLoadDaemonCliConfigWithoutTLSVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	configFile := f.Name()
+	defer os.Remove(configFile)
+
 	f.Write([]byte(`{}`))
 	f.Close()
 
@@ -194,8 +199,9 @@ func TestLoadDaemonCliConfigWithLogLevel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	configFile := f.Name()
+	defer os.Remove(configFile)
+
 	f.Write([]byte(`{"log-level": "warn"}`))
 	f.Close()
 
@@ -220,6 +226,7 @@ func TestLoadDaemonCliConfigWithLogLevel(t *testing.T) {
 func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
 	c := &daemon.Config{}
 	common := &cli.CommonFlags{}
+
 	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
 	flags.String([]string{"-tlscacert"}, "", "")
 	flags.String([]string{"-log-driver"}, "", "")
@@ -228,8 +235,9 @@ func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	configFile := f.Name()
+	defer os.Remove(configFile)
+
 	f.Write([]byte(`{"tlscacert": "/etc/certs/ca.pem", "log-driver": "syslog"}`))
 	f.Close()
 
@@ -245,5 +253,44 @@ func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
 	}
 	if loadedConfig.LogConfig.Type != "syslog" {
 		t.Fatalf("expected LogConfig type syslog, got %v", loadedConfig.LogConfig.Type)
+	}
+}
+
+func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
+	c := &daemon.Config{}
+	common := &cli.CommonFlags{}
+	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+	c.ServiceOptions.InstallCliFlags(flags, absentFromHelp)
+
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	configFile := f.Name()
+	defer os.Remove(configFile)
+
+	f.Write([]byte(`{"registry-mirrors": ["https://mirrors.docker.com"], "insecure-registries": ["https://insecure.docker.com"], "disable-legacy-registry": true}`))
+	f.Close()
+
+	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loadedConfig == nil {
+		t.Fatal("expected configuration, got nil")
+	}
+
+	m := loadedConfig.Mirrors
+	if len(m) != 1 {
+		t.Fatalf("expected 1 mirror, got %d", len(m))
+	}
+
+	r := loadedConfig.InsecureRegistries
+	if len(r) != 1 {
+		t.Fatalf("expected 1 insecure registries, got %d", len(r))
+	}
+
+	if !loadedConfig.V2Only {
+		t.Fatal("expected disable-legacy-registry to be true, got false")
 	}
 }
