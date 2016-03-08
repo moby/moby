@@ -140,7 +140,9 @@ func (th *existingTokenHandler) AuthorizeRequest(req *http.Request, params map[s
 func retryOnError(err error) error {
 	switch v := err.(type) {
 	case errcode.Errors:
-		return retryOnError(v[0])
+		if len(v) != 0 {
+			return retryOnError(v[0])
+		}
 	case errcode.Error:
 		switch v.Code {
 		case errcode.ErrorCodeUnauthorized, errcode.ErrorCodeUnsupported, errcode.ErrorCodeDenied:
