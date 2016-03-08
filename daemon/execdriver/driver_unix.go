@@ -140,7 +140,7 @@ func InitContainer(c *Command) *configs.Config {
 	container.Hostname = getEnv("HOSTNAME", c.ProcessConfig.Env)
 	container.Cgroups.Name = c.ID
 	container.Cgroups.Resources.AllowedDevices = c.AllowedDevices
-	container.Devices = c.AutoCreatedDevices
+	container.Devices = filterDevices(c.AutoCreatedDevices, (c.RemappedRoot.UID != 0))
 	container.Rootfs = c.Rootfs
 	container.Readonlyfs = c.ReadonlyRootfs
 	// This can be overridden later by driver during mount setup based
@@ -152,6 +152,24 @@ func InitContainer(c *Command) *configs.Config {
 	container.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
 
 	return container
+}
+
+func filterDevices(devices []*configs.Device, userNamespacesEnabled bool) []*configs.Device {
+	if !userNamespacesEnabled {
+		return devices
+	}
+
+	filtered := []*configs.Device{}
+	// if we have user namespaces enabled, these devices will not be created
+	// because of the mknod limitation in the kernel for an unprivileged process.
+	// Rather, they will be bind-mounted, which will only work if they exist;
+	// check for existence and remove non-existent entries from the list
+	for _, device := range devices {
+		if _, err := os.Stat(device.Path); err == nil {
+			filtered = append(filtered, device)
+		}
+	}
+	return filtered
 }
 
 func getEnv(key string, env []string) string {

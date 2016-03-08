@@ -148,6 +148,61 @@ func (s *DockerSchema1RegistrySuite) TestPushEmptyLayer(c *check.C) {
 	testPushEmptyLayer(c)
 }
 
+// testConcurrentPush pushes multiple tags to the same repo
+// concurrently.
+func testConcurrentPush(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
+
+	repos := []string{}
+	for _, tag := range []string{"push1", "push2", "push3"} {
+		repo := fmt.Sprintf("%v:%v", repoName, tag)
+		_, err := buildImage(repo, fmt.Sprintf(`
+	FROM busybox
+	ENTRYPOINT ["/bin/echo"]
+	ENV FOO foo
+	ENV BAR bar
+	CMD echo %s
+`, repo), true)
+		c.Assert(err, checker.IsNil)
+		repos = append(repos, repo)
+	}
+
+	// Push tags, in parallel
+	results := make(chan error)
+
+	for _, repo := range repos {
+		go func(repo string) {
+			_, _, err := runCommandWithOutput(exec.Command(dockerBinary, "push", repo))
+			results <- err
+		}(repo)
+	}
+
+	for range repos {
+		err := <-results
+		c.Assert(err, checker.IsNil, check.Commentf("concurrent push failed with error: %v", err))
+	}
+
+	// Clear local images store.
+	args := append([]string{"rmi"}, repos...)
+	dockerCmd(c, args...)
+
+	// Re-pull and run individual tags, to make sure pushes succeeded
+	for _, repo := range repos {
+		dockerCmd(c, "pull", repo)
+		dockerCmd(c, "inspect", repo)
+		out, _ := dockerCmd(c, "run", "--rm", repo)
+		c.Assert(strings.TrimSpace(out), checker.Equals, "/bin/sh -c echo "+repo)
+	}
+}
+
+func (s *DockerRegistrySuite) TestConcurrentPush(c *check.C) {
+	testConcurrentPush(c)
+}
+
+func (s *DockerSchema1RegistrySuite) TestConcurrentPush(c *check.C) {
+	testConcurrentPush(c)
+}
+
 func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *check.C) {
 	sourceRepoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 	// tag the image to upload it to the private registry

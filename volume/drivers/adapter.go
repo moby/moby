@@ -1,6 +1,8 @@
 package volumedrivers
 
 import (
+	"fmt"
+
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/volume"
 )
@@ -68,6 +70,11 @@ func (a *volumeDriverAdapter) Get(name string) (volume.Volume, error) {
 			return nil, err
 		}
 		return a.Create(name, nil)
+	}
+
+	// plugin may have returned no volume and no error
+	if v == nil {
+		return nil, fmt.Errorf("no such volume")
 	}
 
 	return &volumeAdapter{

@@ -625,6 +625,11 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			Name:   "ipc",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "kill",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
@@ -863,6 +868,39 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Name:   "pause",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "personality",
+			Action: configs.Allow,
+			Args: []*configs.Arg{
+				{
+					Index: 0,
+					Value: 0x0,
+					Op:    configs.EqualTo,
+				},
+			},
+		},
+		{
+			Name:   "personality",
+			Action: configs.Allow,
+			Args: []*configs.Arg{
+				{
+					Index: 0,
+					Value: 0x0008,
+					Op:    configs.EqualTo,
+				},
+			},
+		},
+		{
+			Name:   "personality",
+			Action: configs.Allow,
+			Args: []*configs.Arg{
+				{
+					Index: 0,
+					Value: 0xffffffff,
+					Op:    configs.EqualTo,
+				},
+			},
 		},
 		{
 			Name:   "pipe",

@@ -25,6 +25,12 @@ set -e
 
 url='https://get.docker.com/'
 
+key_servers="
+ha.pool.sks-keyservers.net
+pgp.mit.edu
+keyserver.ubuntu.com
+"
+
 command_exists() {
 	command -v "$@" > /dev/null 2>&1
 }
@@ -99,7 +105,10 @@ rpm_import_repository_key() {
 	local key=$1; shift
 	local tmpdir=$(mktemp -d)
 	chmod 600 "$tmpdir"
-	gpg --homedir "$tmpdir" --keyserver ha.pool.sks-keyservers.net --recv-keys "$key"
+	for key_server in $key_servers ; do
+		gpg --homedir "$tmpdir" --keyserver "$key_server" --recv-keys "$key" && break
+	done
+	gpg --homedir "$tmpdir" -k "$key" >/dev/null
 	gpg --homedir "$tmpdir" --export --armor "$key" > "$tmpdir"/repo.key
 	rpm --import "$tmpdir"/repo.key
 	rm -rf "$tmpdir"
@@ -409,7 +418,10 @@ do_install() {
 			fi
 			(
 			set -x
-			$sh_c "apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D"
+			for key_server in $key_servers ; do
+				$sh_c "apt-key adv --keyserver hkp://${key_server}:80 --recv-keys ${gpg_fingerprint}" && break
+			done
+			$sh_c "apt-key adv -k ${gpg_fingerprint} >/dev/null"
 			$sh_c "mkdir -p /etc/apt/sources.list.d"
 			$sh_c "echo deb [arch=$(dpkg --print-architecture)] https://apt.dockerproject.org/repo ${lsb_dist}-${dist_version} ${repo} > /etc/apt/sources.list.d/docker.list"
 			$sh_c 'sleep 3; apt-get update; apt-get install -y -q docker-engine'
