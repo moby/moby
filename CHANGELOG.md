@@ -16,7 +16,8 @@ be found.
 
 ### Distribution
 
-- Fix a crash when pushing multiple images sharing the same layers to the same repository in parallel  [#20831](https://github.com/docker/docker/pull/20831)
+- Fix a crash when pushing multiple images sharing the same layers to the same repository in parallel [#20831](https://github.com/docker/docker/pull/20831)
+- Fix a panic when pushing images to a registry which uses a misconfigured token service [#21030](https://github.com/docker/docker/pull/21030)
 
 ### Plugin system
 
