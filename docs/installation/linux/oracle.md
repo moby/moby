@@ -113,15 +113,19 @@ To create the `docker` group and add your user:
 
 1. Log into Oracle Linux as a user with `sudo` privileges.
 
-2. Create the `docker` group and add your user.
+2. Create the `docker` group.
+
+        sudo groupadd docker
+
+3. Add your user to `docker` group.
 
         sudo usermod -aG docker username
 
-3. Log out and log back in.
+4. Log out and log back in.
 
     This ensures your user is running with the correct permissions.
 
-4. Verify your work by running `docker` without `sudo`.
+5. Verify your work by running `docker` without `sudo`.
 
         $ docker run hello-world
 

@@ -76,6 +76,7 @@ To use Docker, the `docker` daemon must be running as **root**.
 To use Docker as a **non-root** user, add yourself to the **docker**
 group by running the following command:
 
+    $ sudo groupadd docker
     $ sudo usermod -a -G docker user
 
 ### OpenRC
