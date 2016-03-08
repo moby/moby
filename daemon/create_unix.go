@@ -21,7 +21,8 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 	}
 	defer daemon.Unmount(container)
 
-	if err := container.SetupWorkingDirectory(); err != nil {
+	rootUID, rootGID := daemon.GetRemappedUIDGID()
+	if err := container.SetupWorkingDirectory(rootUID, rootGID); err != nil {
 		return err
 	}
 

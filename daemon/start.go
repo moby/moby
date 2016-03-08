@@ -126,7 +126,8 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 	if err != nil {
 		return err
 	}
-	if err := container.SetupWorkingDirectory(); err != nil {
+	rootUID, rootGID := daemon.GetRemappedUIDGID()
+	if err := container.SetupWorkingDirectory(rootUID, rootGID); err != nil {
 		return err
 	}
 	env := container.CreateDaemonEnvironment(linkedEnv)
