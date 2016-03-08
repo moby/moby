@@ -522,6 +522,7 @@ type suiteRunner struct {
 	reportedProblemLast       bool
 	benchTime                 time.Duration
 	benchMem                  bool
+	checkTimeout              time.Duration
 }
 
 type RunConf struct {
@@ -533,6 +534,7 @@ type RunConf struct {
 	BenchmarkTime time.Duration // Defaults to 1 second
 	BenchmarkMem  bool
 	KeepWorkDir   bool
+	CheckTimeout  time.Duration
 }
 
 // Create a new suiteRunner able to run all methods in the given suite.
@@ -553,14 +555,15 @@ func newSuiteRunner(suite interface{}, runConf *RunConf) *suiteRunner {
 	suiteValue := reflect.ValueOf(suite)
 
 	runner := &suiteRunner{
-		suite:     suite,
-		output:    newOutputWriter(conf.Output, conf.Stream, conf.Verbose),
-		tracker:   newResultTracker(),
-		benchTime: conf.BenchmarkTime,
-		benchMem:  conf.BenchmarkMem,
-		tempDir:   &tempDir{},
-		keepDir:   conf.KeepWorkDir,
-		tests:     make([]*methodType, 0, suiteNumMethods),
+		suite:        suite,
+		output:       newOutputWriter(conf.Output, conf.Stream, conf.Verbose),
+		tracker:      newResultTracker(),
+		benchTime:    conf.BenchmarkTime,
+		benchMem:     conf.BenchmarkMem,
+		tempDir:      &tempDir{},
+		keepDir:      conf.KeepWorkDir,
+		tests:        make([]*methodType, 0, suiteNumMethods),
+		checkTimeout: conf.CheckTimeout,
 	}
 	if runner.benchTime == 0 {
 		runner.benchTime = 1 * time.Second
@@ -670,8 +673,16 @@ func (runner *suiteRunner) forkCall(method *methodType, kind funcKind, testName 
 
 // Same as forkCall(), but wait for call to finish before returning.
 func (runner *suiteRunner) runFunc(method *methodType, kind funcKind, testName string, logb *logger, dispatcher func(c *C)) *C {
+	var timeout <-chan time.Time
+	if runner.checkTimeout != 0 {
+		timeout = time.After(runner.checkTimeout)
+	}
 	c := runner.forkCall(method, kind, testName, logb, dispatcher)
-	<-c.done
+	select {
+	case <-c.done:
+	case <-timeout:
+		panic(fmt.Sprintf("test timed out after %v", runner.checkTimeout))
+	}
 	return c
 }
 
@@ -806,8 +817,16 @@ func (runner *suiteRunner) forkTest(method *methodType) *C {
 
 // Same as forkTest(), but wait for the test to finish before returning.
 func (runner *suiteRunner) runTest(method *methodType) *C {
+	var timeout <-chan time.Time
+	if runner.checkTimeout != 0 {
+		timeout = time.After(runner.checkTimeout)
+	}
 	c := runner.forkTest(method)
-	<-c.done
+	select {
+	case <-c.done:
+	case <-timeout:
+		panic(fmt.Sprintf("test timed out after %v", runner.checkTimeout))
+	}
 	return c
 }
 
@@ -870,85 +889,4 @@ func (runner *suiteRunner) reportCallDone(c *C) {
 	case missedSt:
 		runner.output.WriteCallSuccess("MISS", c)
 	}
-}
-
-// -----------------------------------------------------------------------
-// Output writer manages atomic output writing according to settings.
-
-type outputWriter struct {
-	m                    sync.Mutex
-	writer               io.Writer
-	wroteCallProblemLast bool
-	Stream               bool
-	Verbose              bool
-}
-
-func newOutputWriter(writer io.Writer, stream, verbose bool) *outputWriter {
-	return &outputWriter{writer: writer, Stream: stream, Verbose: verbose}
-}
-
-func (ow *outputWriter) Write(content []byte) (n int, err error) {
-	ow.m.Lock()
-	n, err = ow.writer.Write(content)
-	ow.m.Unlock()
-	return
-}
-
-func (ow *outputWriter) WriteCallStarted(label string, c *C) {
-	if ow.Stream {
-		header := renderCallHeader(label, c, "", "\n")
-		ow.m.Lock()
-		ow.writer.Write([]byte(header))
-		ow.m.Unlock()
-	}
-}
-
-func (ow *outputWriter) WriteCallProblem(label string, c *C) {
-	var prefix string
-	if !ow.Stream {
-		prefix = "\n-----------------------------------" +
-			"-----------------------------------\n"
-	}
-	header := renderCallHeader(label, c, prefix, "\n\n")
-	ow.m.Lock()
-	ow.wroteCallProblemLast = true
-	ow.writer.Write([]byte(header))
-	if !ow.Stream {
-		c.logb.WriteTo(ow.writer)
-	}
-	ow.m.Unlock()
-}
-
-func (ow *outputWriter) WriteCallSuccess(label string, c *C) {
-	if ow.Stream || (ow.Verbose && c.kind == testKd) {
-		// TODO Use a buffer here.
-		var suffix string
-		if c.reason != "" {
-			suffix = " (" + c.reason + ")"
-		}
-		if c.status() == succeededSt {
-			suffix += "\t" + c.timerString()
-		}
-		suffix += "\n"
-		if ow.Stream {
-			suffix += "\n"
-		}
-		header := renderCallHeader(label, c, "", suffix)
-		ow.m.Lock()
-		// Resist temptation of using line as prefix above due to race.
-		if !ow.Stream && ow.wroteCallProblemLast {
-			header = "\n-----------------------------------" +
-				"-----------------------------------\n" +
-				header
-		}
-		ow.wroteCallProblemLast = false
-		ow.writer.Write([]byte(header))
-		ow.m.Unlock()
-	}
-}
-
-func renderCallHeader(label string, c *C, prefix, suffix string) string {
-	pc := c.method.PC()
-	return fmt.Sprintf("%s%s: %s: %s%s", prefix, label, niceFuncPath(pc),
-		niceFuncName(pc), suffix)
 }
