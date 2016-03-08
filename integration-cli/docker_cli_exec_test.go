@@ -313,13 +313,12 @@ func (s *DockerSuite) TestExecInspectID(c *check.C) {
 	tries := 10
 	for i := 0; i < tries; i++ {
 		// Since its still running we should see exec as part of the container
-		out = inspectField(c, id, "ExecIDs")
+		out = strings.TrimSpace(inspectField(c, id, "ExecIDs"))
 
-		out = strings.TrimSuffix(out, "\n")
 		if out != "[]" && out != "<no value>" {
 			break
 		}
-		c.Assert(i+1, checker.Not(checker.Equals), tries, check.Commentf("ExecIDs should be empty, got: %s", out))
+		c.Assert(i+1, checker.Not(checker.Equals), tries, check.Commentf("ExecIDs still empty after 10 second"))
 		time.Sleep(1 * time.Second)
 	}
 
@@ -336,11 +335,17 @@ func (s *DockerSuite) TestExecInspectID(c *check.C) {
 	// Wait for 1st exec to complete
 	cmd.Wait()
 
-	// All execs for the container should be gone now
-	out = inspectField(c, id, "ExecIDs")
+	// Give the exec 10 chances/seconds to stop then give up and stop the test
+	for i := 0; i < tries; i++ {
+		// Since its still running we should see exec as part of the container
+		out = strings.TrimSpace(inspectField(c, id, "ExecIDs"))
 
-	out = strings.TrimSuffix(out, "\n")
-	c.Assert(out == "[]" || out == "<no value>", checker.True)
+		if out == "[]" {
+			break
+		}
+		c.Assert(i+1, checker.Not(checker.Equals), tries, check.Commentf("ExecIDs still not empty after 10 second"))
+		time.Sleep(1 * time.Second)
+	}
 
 	// But we should still be able to query the execID
 	sc, body, err := sockRequest("GET", "/exec/"+execID+"/json", nil)
