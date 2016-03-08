@@ -1742,7 +1742,7 @@ func (s *DockerSuite) TestRunCleanupCmdOnEntrypoint(c *check.C) {
 // TestRunWorkdirExistsAndIsFile checks that if 'docker run -w' with existing file can be detected
 func (s *DockerSuite) TestRunWorkdirExistsAndIsFile(c *check.C) {
 	existingFile := "/bin/cat"
-	expected := "Cannot mkdir: /bin/cat is not a directory"
+	expected := "not a directory"
 	if daemonPlatform == "windows" {
 		existingFile = `\windows\system32\ntdll.dll`
 		expected = `Cannot mkdir: \windows\system32\ntdll.dll is not a directory.`
@@ -1750,7 +1750,7 @@ func (s *DockerSuite) TestRunWorkdirExistsAndIsFile(c *check.C) {
 
 	out, exitCode, err := dockerCmdWithError("run", "-w", existingFile, "busybox")
 	if !(err != nil && exitCode == 125 && strings.Contains(out, expected)) {
-		c.Fatalf("Docker must complains about making dir with exitCode 125 but we got out: %s, exitCode: %d", out, exitCode)
+		c.Fatalf("Existing binary as a directory should error out with exitCode 125; we got: %s, exitCode: %d", out, exitCode)
 	}
 }
 
