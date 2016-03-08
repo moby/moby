@@ -644,7 +644,7 @@ multiple plugins installed, at least one must allow the request for it to
 complete.
 
 For information about how to create an authorization plugin, see [authorization
-plugin](../../extend/authorization.md) section in the Docker extend section of this documentation.
+plugin](../../extend/plugins_authorization.md) section in the Docker extend section of this documentation.
 
 
 ## Daemon user namespace options
