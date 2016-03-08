@@ -75,7 +75,10 @@ TreeDefault {
 };
 EOF
 
-for suite in $(exec contrib/reprepro/suites.sh); do
+for dir in contrib/builder/deb/${PACKAGE_ARCH}/*/; do
+	version="$(basename "$dir")"
+	suite="${version//debootstrap-}"
+
 	cat <<-EOF
 	Tree "dists/${suite}" {
 		Sections "${components[*]}";
