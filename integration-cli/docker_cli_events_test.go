@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/docker/daemon/events/testutils"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
@@ -152,7 +153,7 @@ func (s *DockerSuite) TestEventsContainerEventsAttrSort(c *check.C) {
 	c.Assert(nEvents, checker.GreaterOrEqualThan, 3) //Missing expected event
 	matchedEvents := 0
 	for _, event := range events {
-		matches := parseEventText(event)
+		matches := eventstestutils.ScanMap(event)
 		if matches["id"] != containerID {
 			continue
 		}
@@ -201,7 +202,7 @@ func (s *DockerSuite) TestEventsImageTag(c *check.C) {
 	c.Assert(events, checker.HasLen, 1, check.Commentf("was expecting 1 event. out=%s", out))
 	event := strings.TrimSpace(events[0])
 
-	matches := parseEventText(event)
+	matches := eventstestutils.ScanMap(event)
 	c.Assert(matchEventID(matches, image), checker.True, check.Commentf("matches: %v\nout:\n%s", matches, out))
 	c.Assert(matches["action"], checker.Equals, "tag")
 }
@@ -220,7 +221,7 @@ func (s *DockerSuite) TestEventsImagePull(c *check.C) {
 
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	event := strings.TrimSpace(events[len(events)-1])
-	matches := parseEventText(event)
+	matches := eventstestutils.ScanMap(event)
 	c.Assert(matches["id"], checker.Equals, "hello-world:latest")
 	c.Assert(matches["action"], checker.Equals, "pull")
 
@@ -245,7 +246,7 @@ func (s *DockerSuite) TestEventsImageImport(c *check.C) {
 	out, _ = dockerCmd(c, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()), "--filter", "event=import")
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	c.Assert(events, checker.HasLen, 1)
-	matches := parseEventText(events[0])
+	matches := eventstestutils.ScanMap(events[0])
 	c.Assert(matches["id"], checker.Equals, imageRef, check.Commentf("matches: %v\nout:\n%s\n", matches, out))
 	c.Assert(matches["action"], checker.Equals, "import", check.Commentf("matches: %v\nout:\n%s\n", matches, out))
 }
@@ -370,7 +371,7 @@ func (s *DockerSuite) TestEventsFilterContainer(c *check.C) {
 			return fmt.Errorf("expected 4 events, got %v", events)
 		}
 		for _, event := range events {
-			matches := parseEventText(event)
+			matches := eventstestutils.ScanMap(event)
 			if !matchEventID(matches, id) {
 				return fmt.Errorf("expected event for container id %s: %s - parsed container id: %s", id, event, matches["id"])
 			}
