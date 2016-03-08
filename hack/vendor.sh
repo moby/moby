@@ -11,7 +11,7 @@ clone git github.com/Microsoft/hcsshim 116e0e9f5ced0cec94ae46d0aa1b3002a325f532
 clone git github.com/Microsoft/go-winio f778f05015353be65d242f3fedc18695756153bb
 clone git github.com/Sirupsen/logrus v0.9.0 # logrus is a common dependency among multiple deps
 clone git github.com/docker/libtrust 9cbd2a1374f46905c68a4eb3694a130610adc62a
-clone git github.com/go-check/check 11d3bc7aa68e238947792f30573146a3231fc0f1
+clone git github.com/go-check/check a625211d932a2a643d0d17352095f03fb7774663 https://github.com/cpuguy83/check.git
 clone git github.com/gorilla/context 14f550f51a
 clone git github.com/gorilla/mux e444e69cbd
 clone git github.com/kr/pty 5cf931ef8f
