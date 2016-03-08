@@ -73,8 +73,9 @@ type (
 
 var (
 	// ErrNotImplemented is the error message of function not implemented.
-	ErrNotImplemented = errors.New("Function not implemented")
-	defaultArchiver   = &Archiver{Untar: Untar, UIDMaps: nil, GIDMaps: nil}
+	ErrNotImplemented      = errors.New("Function not implemented")
+	errSkipFilePermissions = errors.New("Skipping file due to permissions")
+	defaultArchiver        = &Archiver{Untar: Untar, UIDMaps: nil, GIDMaps: nil}
 )
 
 const (
@@ -262,6 +263,12 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	link := ""
 	if fi.Mode()&os.ModeSymlink != 0 {
 		if link, err = os.Readlink(path); err != nil {
+			if runtime.GOOS == "windows" && os.IsPermission(err) && fi.IsDir() && fi.Mode()|os.ModeSymlink != 0 {
+				// GH18120. Do not follow junction directories on Windows. Golang
+				// is not capable of following long-path (\\?\...) junctions on Windows.
+				// eg c:\users\username\documents\My Music
+				return errSkipFilePermissions
+			}
 			return err
 		}
 	}
@@ -551,6 +558,13 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 			walkRoot := getWalkRoot(srcPath, include)
 			filepath.Walk(walkRoot, func(filePath string, f os.FileInfo, err error) error {
 				if err != nil {
+					// GH18120. Do not follow junction directories on Windows. Golang
+					// is not capable of following long-path (\\?\...) junctions on Windows.
+					// eg c:\users\username\documents\My Music
+					if runtime.GOOS == "windows" && os.IsPermission(err) && f.IsDir() && f.Mode()|os.ModeSymlink != 0 {
+						return nil
+					}
+
 					logrus.Errorf("Tar: Can't stat file %s to tar: %s", srcPath, err)
 					return nil
 				}
@@ -633,6 +647,9 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				}
 
 				if err := ta.addTarFile(filePath, relFilePath); err != nil {
+					if err == errSkipFilePermissions { // GH18120
+						return nil
+					}
 					logrus.Errorf("Can't add file %s to tar: %s", filePath, err)
 					// if pipe is broken, stop writting tar stream to it
 					if err == io.ErrClosedPipe {
