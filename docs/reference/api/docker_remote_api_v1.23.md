@@ -346,6 +346,7 @@ Json Parameters:
 -   **MemorySwappiness** - Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
 -   **OomKillDisable** - Boolean value, whether to disable OOM Killer for the container or not.
 -   **OomScoreAdj** - An integer value containing the score given to the container in order to tune OOM killer preferences.
+-   **PidsLimit** - Tune a container's pids limit. Set -1 for unlimited.
 -   **AttachStdin** - Boolean value, attaches to `stdin`.
 -   **AttachStdout** - Boolean value, attaches to `stdout`.
 -   **AttachStderr** - Boolean value, attaches to `stderr`.
@@ -823,6 +824,9 @@ This endpoint returns a live stream of a container's resource usage statistics.
 
       {
          "read" : "2015-01-08T22:57:31.547920715Z",
+         "pids_stats": {
+            "current": 3
+         },
          "networks": {
                  "eth0": {
                      "rx_bytes": 5338,
