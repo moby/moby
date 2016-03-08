@@ -306,6 +306,8 @@ func Exists(table Table, chain string, rule ...string) bool {
 		table = Filter
 	}
 
+	initCheck()
+
 	if supportsCOpt {
 		// if exit status is 0 then return true, the rule exists
 		_, err := Raw(append([]string{"-t", string(table), "-C", chain}, rule...)...)

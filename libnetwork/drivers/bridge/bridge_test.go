@@ -10,6 +10,7 @@ import (
 	"github.com/docker/libnetwork/ipamutils"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
 )
@@ -599,7 +600,9 @@ func TestLinkContainers(t *testing.T) {
 	}
 
 	sbOptions = make(map[string]interface{})
-	sbOptions[ChildEndpoints] = []string{"ep1"}
+	sbOptions[netlabel.GenericData] = options.Generic{
+		"ChildEndpoints": []string{"ep1"},
+	}
 
 	err = d.Join("net1", "ep2", "", te2, sbOptions)
 	if err != nil {
@@ -655,7 +658,9 @@ func TestLinkContainers(t *testing.T) {
 
 	// Error condition test with an invalid endpoint-id "ep4"
 	sbOptions = make(map[string]interface{})
-	sbOptions[ChildEndpoints] = []string{"ep1", "ep4"}
+	sbOptions[netlabel.GenericData] = options.Generic{
+		"ChildEndpoints": []string{"ep1", "ep4"},
+	}
 
 	err = d.Join("net1", "ep2", "", te2, sbOptions)
 	if err != nil {
