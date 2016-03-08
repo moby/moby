@@ -459,6 +459,8 @@ its root filesystem mounted as read only prohibiting any writes.
     "label:type:TYPE"   : Set the label type for the container
     "label:level:LEVEL" : Set the label level for the container
     "label:disable"     : Turn off label confinement for the container
+    "no-new-privileges" : Disable container processes from gaining additional privileges
+
 
 **--stop-signal**=*SIGTERM*
   Signal to stop a container. Default is SIGTERM.

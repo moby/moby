@@ -124,6 +124,7 @@ type Command struct {
 	SeccompProfile     string            `json:"seccomp_profile"`
 	UIDMapping         []idtools.IDMap   `json:"uidmapping"`
 	UTS                *UTS              `json:"uts"`
+	NoNewPrivileges    bool              `json:"no_new_privileges"`
 }
 
 // SetRootPropagation sets the root mount propagation mode.

@@ -500,8 +500,8 @@ func parseLoggingOpts(loggingDriver string, loggingOpts []string) (map[string]st
 func parseSecurityOpts(securityOpts []string) ([]string, error) {
 	for key, opt := range securityOpts {
 		con := strings.SplitN(opt, ":", 2)
-		if len(con) == 1 {
-			return securityOpts, fmt.Errorf("invalid --security-opt: %q", opt)
+		if len(con) == 1 && con[0] != "no-new-privileges" {
+			return securityOpts, fmt.Errorf("Invalid --security-opt: %q", opt)
 		}
 		if con[0] == "seccomp" && con[1] != "unconfined" {
 			f, err := ioutil.ReadFile(con[1])

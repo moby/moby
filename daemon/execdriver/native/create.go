@@ -122,6 +122,8 @@ func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) 
 
 	d.setupLabels(container, c)
 	d.setupRlimits(container, c)
+
+	container.NoNewPrivileges = c.NoNewPrivileges
 	return container, nil
 }
 
