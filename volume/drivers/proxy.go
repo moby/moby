@@ -97,6 +97,7 @@ func (pp *volumeDriverProxy) Path(name string) (mountpoint string, err error) {
 
 type volumeDriverProxyMountRequest struct {
 	Name string
+	ID   string
 }
 
 type volumeDriverProxyMountResponse struct {
@@ -104,13 +105,14 @@ type volumeDriverProxyMountResponse struct {
 	Err        string
 }
 
-func (pp *volumeDriverProxy) Mount(name string) (mountpoint string, err error) {
+func (pp *volumeDriverProxy) Mount(name string, id string) (mountpoint string, err error) {
 	var (
 		req volumeDriverProxyMountRequest
 		ret volumeDriverProxyMountResponse
 	)
 
 	req.Name = name
+	req.ID = id
 	if err = pp.Call("VolumeDriver.Mount", req, &ret); err != nil {
 		return
 	}
@@ -126,19 +128,21 @@ func (pp *volumeDriverProxy) Mount(name string) (mountpoint string, err error) {
 
 type volumeDriverProxyUnmountRequest struct {
 	Name string
+	ID   string
 }
 
 type volumeDriverProxyUnmountResponse struct {
 	Err string
 }
 
-func (pp *volumeDriverProxy) Unmount(name string) (err error) {
+func (pp *volumeDriverProxy) Unmount(name string, id string) (err error) {
 	var (
 		req volumeDriverProxyUnmountRequest
 		ret volumeDriverProxyUnmountResponse
 	)
 
 	req.Name = name
+	req.ID = id
 	if err = pp.Call("VolumeDriver.Unmount", req, &ret); err != nil {
 		return
 	}
