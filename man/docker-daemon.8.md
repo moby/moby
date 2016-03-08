@@ -521,7 +521,7 @@ multiple plugins installed, at least one must allow the request for it to
 complete.
 
 For information about how to create an authorization plugin, see [authorization
-plugin](https://docs.docker.com/engine/extend/authorization.md) section in the
+plugin](https://docs.docker.com/engine/extend/plugins_authorization.md) section in the
 Docker extend section of this documentation.
 
 
