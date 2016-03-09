@@ -40,7 +40,7 @@ type addrSpace struct {
 }
 
 // AddressRange specifies first and last ip ordinal which
-// identify a range in a a pool of addresses
+// identifies a range in a pool of addresses
 type AddressRange struct {
 	Sub        *net.IPNet
 	Start, End uint64
@@ -85,7 +85,7 @@ func (s *SubnetKey) String() string {
 	return k
 }
 
-// FromString populate the SubnetKey object reading it from string
+// FromString populates the SubnetKey object reading it from string
 func (s *SubnetKey) FromString(str string) error {
 	if str == "" || !strings.Contains(str, "/") {
 		return types.BadRequestErrorf("invalid string form for subnetkey: %s", str)

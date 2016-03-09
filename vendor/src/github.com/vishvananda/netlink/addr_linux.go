@@ -101,6 +101,10 @@ func AddrList(link Link, family int) ([]Addr, error) {
 			continue
 		}
 
+		if family != FAMILY_ALL && msg.Family != uint8(family) {
+			continue
+		}
+
 		attrs, err := nl.ParseRouteAttr(m[msg.Len():])
 		if err != nil {
 			return nil, err

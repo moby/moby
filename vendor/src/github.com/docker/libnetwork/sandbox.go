@@ -10,6 +10,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/etchosts"
+	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
 )
@@ -37,7 +38,7 @@ type Sandbox interface {
 	Delete() error
 	// ResolveName searches for the service name in the networks to which the sandbox
 	// is connected to.
-	ResolveName(name string) net.IP
+	ResolveName(name string) []net.IP
 	// ResolveIP returns the service name for the passed in IP. IP is in reverse dotted
 	// notation; the format used for DNS PTR records
 	ResolveIP(name string) string
@@ -118,6 +119,7 @@ type containerConfig struct {
 	useDefaultSandBox bool
 	useExternalKey    bool
 	prio              int // higher the value, more the priority
+	exposedPorts      []types.TransportPort
 }
 
 func (sb *sandbox) ID() string {
@@ -136,18 +138,27 @@ func (sb *sandbox) Key() string {
 }
 
 func (sb *sandbox) Labels() map[string]interface{} {
-	return sb.config.generic
+	sb.Lock()
+	sb.Unlock()
+	opts := make(map[string]interface{}, len(sb.config.generic))
+	for k, v := range sb.config.generic {
+		opts[k] = v
+	}
+	return opts
 }
 
 func (sb *sandbox) Statistics() (map[string]*types.InterfaceStatistics, error) {
 	m := make(map[string]*types.InterfaceStatistics)
 
-	if sb.osSbox == nil {
+	sb.Lock()
+	osb := sb.osSbox
+	sb.Unlock()
+	if osb == nil {
 		return m, nil
 	}
 
 	var err error
-	for _, i := range sb.osSbox.Info().Interfaces() {
+	for _, i := range osb.Info().Interfaces() {
 		if m[i.DstName()], err = i.Statistics(); err != nil {
 			return m, err
 		}
@@ -326,6 +337,18 @@ func (sb *sandbox) getConnectedEndpoints() []*endpoint {
 	return eps
 }
 
+func (sb *sandbox) removeEndpoint(ep *endpoint) {
+	sb.Lock()
+	defer sb.Unlock()
+
+	for i, e := range sb.endpoints {
+		if e == ep {
+			heap.Remove(&sb.endpoints, i)
+			return
+		}
+	}
+}
+
 func (sb *sandbox) getEndpoint(id string) *endpoint {
 	sb.Lock()
 	defer sb.Unlock()
@@ -391,8 +414,12 @@ func (sb *sandbox) ResolveIP(ip string) string {
 	return svc
 }
 
-func (sb *sandbox) ResolveName(name string) net.IP {
-	var ip net.IP
+func (sb *sandbox) execFunc(f func()) {
+	sb.osSbox.InvokeFunc(f)
+}
+
+func (sb *sandbox) ResolveName(name string) []net.IP {
+	var ip []net.IP
 
 	// Embedded server owns the docker network domain. Resolution should work
 	// for both container_name and container_name.network_name
@@ -440,7 +467,7 @@ func (sb *sandbox) ResolveName(name string) net.IP {
 	return nil
 }
 
-func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoint, alias bool) net.IP {
+func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoint, alias bool) []net.IP {
 	for _, ep := range epList {
 		name := req
 		n := ep.getNetwork()
@@ -463,7 +490,7 @@ func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoin
 			}
 		} else {
 			// If it is a regular lookup and if the requested name is an alias
-			// dont perform a svc lookup for this endpoint.
+			// don't perform a svc lookup for this endpoint.
 			ep.Lock()
 			if _, ok := ep.aliases[req]; ok {
 				ep.Unlock()
@@ -481,7 +508,7 @@ func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoin
 		ip, ok := sr.svcMap[name]
 		n.Unlock()
 		if ok {
-			return ip[0]
+			return ip
 		}
 	}
 	return nil
@@ -606,6 +633,9 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 		if i.addrv6 != nil && i.addrv6.IP.To16() != nil {
 			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().AddressIPv6(i.addrv6))
 		}
+		if i.mac != nil {
+			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().MacAddress(i.mac))
+		}
 
 		if err := sb.osSbox.AddInterface(i.srcName, i.dstPrefix, ifaceOptions...); err != nil {
 			return fmt.Errorf("failed to add interface %s to sandbox: %v", i.srcName, err)
@@ -621,14 +651,9 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 		}
 	}
 
-	for _, gwep := range sb.getConnectedEndpoints() {
-		if len(gwep.Gateway()) > 0 {
-			if gwep != ep {
-				break
-			}
-			if err := sb.updateGateway(gwep); err != nil {
-				return err
-			}
+	if ep == sb.getGatewayEndpoint() {
+		if err := sb.updateGateway(ep); err != nil {
+			return err
 		}
 	}
 
@@ -647,7 +672,7 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 	ep := sb.getEndpoint(origEp.id)
 	if ep == nil {
 		return fmt.Errorf("could not find the sandbox endpoint data for endpoint %s",
-			ep.name)
+			origEp.id)
 	}
 
 	sb.Lock()
@@ -737,6 +762,13 @@ func (sb *sandbox) joinLeaveEnd() {
 		close(sb.joinLeaveDone)
 		sb.joinLeaveDone = nil
 	}
+}
+
+func (sb *sandbox) hasPortConfigs() bool {
+	opts := sb.Labels()
+	_, hasExpPorts := opts[netlabel.ExposedPorts]
+	_, hasPortMaps := opts[netlabel.PortMap]
+	return hasExpPorts || hasPortMaps
 }
 
 // OptionHostname function returns an option setter for hostname option to
@@ -848,7 +880,42 @@ func OptionUseExternalKey() SandboxOption {
 // net container creation method. Container Labels are a good example.
 func OptionGeneric(generic map[string]interface{}) SandboxOption {
 	return func(sb *sandbox) {
-		sb.config.generic = generic
+		if sb.config.generic == nil {
+			sb.config.generic = make(map[string]interface{}, len(generic))
+		}
+		for k, v := range generic {
+			sb.config.generic[k] = v
+		}
+	}
+}
+
+// OptionExposedPorts function returns an option setter for the container exposed
+// ports option to be passed to container Create method.
+func OptionExposedPorts(exposedPorts []types.TransportPort) SandboxOption {
+	return func(sb *sandbox) {
+		if sb.config.generic == nil {
+			sb.config.generic = make(map[string]interface{})
+		}
+		// Defensive copy
+		eps := make([]types.TransportPort, len(exposedPorts))
+		copy(eps, exposedPorts)
+		// Store endpoint label and in generic because driver needs it
+		sb.config.exposedPorts = eps
+		sb.config.generic[netlabel.ExposedPorts] = eps
+	}
+}
+
+// OptionPortMapping function returns an option setter for the mapping
+// ports option to be passed to container Create method.
+func OptionPortMapping(portBindings []types.PortBinding) SandboxOption {
+	return func(sb *sandbox) {
+		if sb.config.generic == nil {
+			sb.config.generic = make(map[string]interface{})
+		}
+		// Store a copy of the bindings as generic data to pass to the driver
+		pbs := make([]types.PortBinding, len(portBindings))
+		copy(pbs, portBindings)
+		sb.config.generic[netlabel.PortMap] = pbs
 	}
 }
 

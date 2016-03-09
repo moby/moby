@@ -54,7 +54,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return err
 	}
 
-	ep.ifName = overlayIfName
+	ep.ifName = containerIfName
 
 	// Set the container interface and its peer MTU to 1450 to allow
 	// for 50 bytes vxlan encap (inner eth header(14) + outer IP(20) +
