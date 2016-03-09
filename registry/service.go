@@ -145,14 +145,14 @@ func (s *Service) tlsConfigForMirror(mirrorURL *url.URL) (*tls.Config, error) {
 	return s.TLSConfig(mirrorURL.Host)
 }
 
-// LookupPullEndpoints creates an list of endpoints to try to pull from, in order of preference.
+// LookupPullEndpoints creates a list of endpoints to try to pull from, in order of preference.
 // It gives preference to v2 endpoints over v1, mirrors over the actual
 // registry, and HTTPS over plain HTTP.
 func (s *Service) LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
 	return s.lookupEndpoints(hostname)
 }
 
-// LookupPushEndpoints creates an list of endpoints to try to push to, in order of preference.
+// LookupPushEndpoints creates a list of endpoints to try to push to, in order of preference.
 // It gives preference to v2 endpoints over v1, and HTTPS over plain HTTP.
 // Mirrors are not included.
 func (s *Service) LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
