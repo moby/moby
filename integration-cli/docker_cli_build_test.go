@@ -3837,21 +3837,18 @@ USER root
 RUN [ "$(id -G):$(id -Gn)" = '0 10:root wheel' ]
 
 # Setup dockerio user and group
-RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
-RUN echo 'dockerio:x:1001:' >> /etc/group
+RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd && \
+	echo 'dockerio:x:1001:' >> /etc/group
 
 # Make sure we can switch to our user and all the information is exactly as we expect it to be
 USER dockerio
-RUN id -G
-RUN id -Gn
 RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1001:1001/dockerio:dockerio/1001:dockerio' ]
 
 # Switch back to root and double check that worked exactly as we might expect it to
 USER root
-RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '0:0/root:root/0 10:root wheel' ]
-
-# Add a "supplementary" group for our dockerio user
-RUN echo 'supplementary:x:1002:dockerio' >> /etc/group
+RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '0:0/root:root/0 10:root wheel' ] && \
+	# Add a "supplementary" group for our dockerio user \
+	echo 'supplementary:x:1002:dockerio' >> /etc/group
 
 # ... and then go verify that we get it like we expect
 USER dockerio
