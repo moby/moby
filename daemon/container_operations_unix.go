@@ -1093,9 +1093,7 @@ func killProcessDirectly(container *container.Container) error {
 				if err != syscall.ESRCH {
 					return err
 				}
-				e := errNoSuchProcess{pid, 9}
-				logrus.Debug(e)
-				return e
+				logrus.Debugf("Cannot kill process (pid=%d) with signal 9: no such process.", pid)
 			}
 		}
 	}
