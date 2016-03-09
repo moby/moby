@@ -50,33 +50,23 @@ func (e *Events) Subscribe() ([]eventtypes.Message, chan interface{}, func()) {
 // of interface{}, so you need type assertion).
 func (e *Events) SubscribeTopic(since, sinceNano int64, ef *Filter) ([]eventtypes.Message, chan interface{}) {
 	e.mu.Lock()
-	defer e.mu.Unlock()
 
-	var buffered []eventtypes.Message
-	topic := func(m interface{}) bool {
-		return ef.Include(m.(eventtypes.Message))
+	var topic func(m interface{}) bool
+	if ef != nil && ef.filter.Len() > 0 {
+		topic = func(m interface{}) bool { return ef.Include(m.(eventtypes.Message)) }
 	}
 
-	if since != -1 {
-		for i := len(e.events) - 1; i >= 0; i-- {
-			ev := e.events[i]
-			if ev.Time < since || ((ev.Time == since) && (ev.TimeNano < sinceNano)) {
-				break
-			}
-			if ef.filter.Len() == 0 || topic(ev) {
-				buffered = append([]eventtypes.Message{ev}, buffered...)
-			}
-		}
-	}
+	buffered := e.loadBufferedEvents(since, sinceNano, topic)
 
 	var ch chan interface{}
-	if ef.filter.Len() > 0 {
+	if topic != nil {
 		ch = e.pub.SubscribeTopic(topic)
 	} else {
 		// Subscribe to all events if there are no filters
 		ch = e.pub.Subscribe()
 	}
 
+	e.mu.Unlock()
 	return buffered, ch
 }
 
@@ -123,4 +113,30 @@ func (e *Events) Log(action, eventType string, actor eventtypes.Actor) {
 // SubscribersCount returns number of event listeners
 func (e *Events) SubscribersCount() int {
 	return e.pub.Len()
+}
+
+// loadBufferedEvents iterates over the cached events in the buffer
+// and returns those that were emitted before a specific date.
+// The date is splitted in two values:
+//   - the `since` argument is a date timestamp without nanoseconds, or -1 to return an empty slice.
+//   - the `sinceNano` argument is the nanoseconds offset from the timestamp.
+// It uses `time.Unix(seconds, nanoseconds)` to generate a valid date with those two first arguments.
+// It filters those buffered messages with a topic function if it's not nil, otherwise it adds all messages.
+func (e *Events) loadBufferedEvents(since, sinceNano int64, topic func(interface{}) bool) []eventtypes.Message {
+	var buffered []eventtypes.Message
+	if since == -1 {
+		return buffered
+	}
+
+	sinceNanoUnix := time.Unix(since, sinceNano).UnixNano()
+	for i := len(e.events) - 1; i >= 0; i-- {
+		ev := e.events[i]
+		if ev.TimeNano < sinceNanoUnix {
+			break
+		}
+		if topic == nil || topic(ev) {
+			buffered = append([]eventtypes.Message{ev}, buffered...)
+		}
+	}
+	return buffered
 }
