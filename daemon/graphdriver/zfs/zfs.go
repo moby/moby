@@ -22,12 +22,6 @@ import (
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
-type activeMount struct {
-	count   int
-	path    string
-	mounted bool
-}
-
 type zfsOptions struct {
 	fsName    string
 	mountPath string
@@ -109,7 +103,6 @@ func Init(base string, opt []string, uidMaps, gidMaps []idtools.IDMap) (graphdri
 		dataset:          rootDataset,
 		options:          options,
 		filesystemsCache: filesystemsCache,
-		active:           make(map[string]*activeMount),
 		uidMaps:          uidMaps,
 		gidMaps:          gidMaps,
 	}
@@ -166,7 +159,6 @@ type Driver struct {
 	options          zfsOptions
 	sync.Mutex       // protects filesystem cache against concurrent access
 	filesystemsCache map[string]bool
-	active           map[string]*activeMount
 	uidMaps          []idtools.IDMap
 	gidMaps          []idtools.IDMap
 }
@@ -302,17 +294,6 @@ func (d *Driver) Remove(id string) error {
 
 // Get returns the mountpoint for the given id after creating the target directories if necessary.
 func (d *Driver) Get(id, mountLabel string) (string, error) {
-	d.Lock()
-	defer d.Unlock()
-
-	mnt := d.active[id]
-	if mnt != nil {
-		mnt.count++
-		return mnt.path, nil
-	}
-
-	mnt = &activeMount{count: 1}
-
 	mountpoint := d.mountPath(id)
 	filesystem := d.zfsPath(id)
 	options := label.FormatMountLabel("", mountLabel)
@@ -335,48 +316,29 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	if err := os.Chown(mountpoint, rootUID, rootGID); err != nil {
 		return "", fmt.Errorf("error modifying zfs mountpoint (%s) directory ownership: %v", mountpoint, err)
 	}
-	mnt.path = mountpoint
-	mnt.mounted = true
-	d.active[id] = mnt
 
 	return mountpoint, nil
 }
 
 // Put removes the existing mountpoint for the given id if it exists.
 func (d *Driver) Put(id string) error {
-	d.Lock()
-	defer d.Unlock()
-
-	mnt := d.active[id]
-	if mnt == nil {
-		logrus.Debugf("[zfs] Put on a non-mounted device %s", id)
-		// but it might be still here
-		if d.Exists(id) {
-			err := mount.Unmount(d.mountPath(id))
-			if err != nil {
-				logrus.Debugf("[zfs] Failed to unmount %s zfs fs: %v", id, err)
-			}
-		}
-		return nil
+	mountpoint := d.mountPath(id)
+	mounted, err := graphdriver.Mounted(graphdriver.FsMagicZfs, mountpoint)
+	if err != nil || !mounted {
+		return err
 	}
 
-	mnt.count--
-	if mnt.count > 0 {
-		return nil
-	}
+	logrus.Debugf(`[zfs] unmount("%s")`, mountpoint)
 
-	defer delete(d.active, id)
-	if mnt.mounted {
-		logrus.Debugf(`[zfs] unmount("%s")`, mnt.path)
-
-		if err := mount.Unmount(mnt.path); err != nil {
-			return fmt.Errorf("error unmounting to %s: %v", mnt.path, err)
-		}
+	if err := mount.Unmount(mountpoint); err != nil {
+		return fmt.Errorf("error unmounting to %s: %v", mountpoint, err)
 	}
 	return nil
 }
 
 // Exists checks to see if the cache entry exists for the given id.
 func (d *Driver) Exists(id string) bool {
+	d.Lock()
+	defer d.Unlock()
 	return d.filesystemsCache[d.zfsPath(id)] == true
 }
