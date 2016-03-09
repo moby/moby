@@ -11,8 +11,6 @@ be found.
 
 - Fix Docker client exiting with an "Unrecognized input header" error [#20706](https://github.com/docker/docker/pull/20706)
 - Fix Docker exiting if Exec is started with both `AttachStdin` and `Detach` [#20647](https://github.com/docker/docker/pull/20647)
-- Fix loss of output in short-lived containers [#20729](https://github.com/docker/docker/pull/20729)
-- Fix an issue that caused the client to hang if the container process died [#20967](https://github.com/docker/docker/pull/20967)
 
 ### Distribution
 
