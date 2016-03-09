@@ -844,6 +844,17 @@ RUN ls -l /new_dir`,
 	}
 }
 
+func (s *DockerSuite) TestBuildWorkdirIsContainerRoot(c *check.C) {
+	testRequires(c, DaemonIsLinux) // Linux specific test
+	name := "testworkdirownership"
+	if _, err := buildImage(name, `FROM busybox
+WORKDIR /new_dir
+RUN ls -l /
+RUN [ $(ls -l / | grep new_dir | awk '{print $3":"$4}') = 'root:root' ]`, true); err != nil {
+		c.Fatal(err)
+	}
+}
+
 func (s *DockerSuite) TestBuildAddMultipleFilesToFile(c *check.C) {
 	name := "testaddmultiplefilestofile"
 
