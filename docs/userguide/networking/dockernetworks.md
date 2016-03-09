@@ -46,7 +46,7 @@ by default. You can see this bridge as part of a host's network stack by using
 the `ifconfig` command on the host.
 
 ```
-ubuntu@ip-172-31-36-118:~$ ifconfig
+$ ifconfig
 docker0   Link encap:Ethernet  HWaddr 02:42:47:bc:3a:eb  
           inet addr:172.17.0.1  Bcast:0.0.0.0  Mask:255.255.0.0
           inet6 addr: fe80::42:47ff:febc:3aeb/64 Scope:Link
@@ -60,16 +60,16 @@ docker0   Link encap:Ethernet  HWaddr 02:42:47:bc:3a:eb
 The `none` network adds a container to a container-specific network stack. That container lacks a network interface. Attaching to such a container and looking at it's stack you see this:
 
 ```
-ubuntu@ip-172-31-36-118:~$ docker attach nonenetcontainer
+$ docker attach nonenetcontainer
 
-/ # cat /etc/hosts
+root@0cb243cd1293:/# cat /etc/hosts
 127.0.0.1	localhost
 ::1	localhost ip6-localhost ip6-loopback
 fe00::0	ip6-localnet
 ff00::0	ip6-mcastprefix
 ff02::1	ip6-allnodes
 ff02::2	ip6-allrouters
-/ # ifconfig
+root@0cb243cd1293:/# ifconfig
 lo        Link encap:Local Loopback  
           inet addr:127.0.0.1  Mask:255.0.0.0
           inet6 addr: ::1/128 Scope:Host
@@ -79,7 +79,7 @@ lo        Link encap:Local Loopback
           collisions:0 txqueuelen:0
           RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
 
-/ #
+root@0cb243cd1293:/#
 ```
 >**Note**: You can detach from the container and leave it running with `CTRL-p CTRL-q`.
 
@@ -190,7 +190,7 @@ You can `attach` to a running `container` and investigate its configuration:
 ```
 $ docker attach container1
 
-/ # ifconfig
+root@0cb243cd1293:/# ifconfig
 ifconfig
 eth0      Link encap:Ethernet  HWaddr 02:42:AC:11:00:02  
           inet addr:172.17.0.2  Bcast:0.0.0.0  Mask:255.255.0.0
@@ -214,7 +214,7 @@ lo        Link encap:Local Loopback
 Then use `ping` for about 3 seconds to test the connectivity of the containers on this `bridge` network.
 
 ```
-/ # ping -w3 172.17.0.3
+root@0cb243cd1293:/# ping -w3 172.17.0.3
 PING 172.17.0.3 (172.17.0.3): 56 data bytes
 64 bytes from 172.17.0.3: seq=0 ttl=64 time=0.096 ms
 64 bytes from 172.17.0.3: seq=1 ttl=64 time=0.080 ms
@@ -228,7 +228,7 @@ round-trip min/avg/max = 0.074/0.083/0.096 ms
 Finally, use the `cat` command to check the `container1` network configuration:
 
 ```
-/ # cat /etc/hosts
+root@0cb243cd1293:/# cat /etc/hosts
 172.17.0.2	3386a527aa08
 127.0.0.1	localhost
 ::1	localhost ip6-localhost ip6-loopback
@@ -242,7 +242,7 @@ To detach from a `container1` and leave it running use `CTRL-p CTRL-q`.Then, att
 ```
 $ docker attach container2
 
-/ # ifconfig
+root@0cb243cd1293:/# ifconfig
 eth0      Link encap:Ethernet  HWaddr 02:42:AC:11:00:03  
           inet addr:172.17.0.3  Bcast:0.0.0.0  Mask:255.255.0.0
           inet6 addr: fe80::42:acff:fe11:3/64 Scope:Link
@@ -261,7 +261,7 @@ lo        Link encap:Local Loopback
           collisions:0 txqueuelen:0
           RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
 
-/ # ping -w3 172.17.0.2
+root@0cb243cd1293:/# ping -w3 172.17.0.2
 PING 172.17.0.2 (172.17.0.2): 56 data bytes
 64 bytes from 172.17.0.2: seq=0 ttl=64 time=0.067 ms
 64 bytes from 172.17.0.2: seq=1 ttl=64 time=0.075 ms
