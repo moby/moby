@@ -149,9 +149,7 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		User: c.ProcessConfig.User,
 	}
 
-	wg := sync.WaitGroup{}
-	writers, err := setupPipes(container, &c.ProcessConfig, p, pipes, &wg)
-	if err != nil {
+	if err := setupPipes(container, &c.ProcessConfig, p, pipes); err != nil {
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
@@ -173,10 +171,6 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
-	//close the write end of any opened pipes now that they are dup'ed into the container
-	for _, writer := range writers {
-		writer.Close()
-	}
 	// 'oom' is used to emit 'oom' events to the eventstream, 'oomKilled' is used
 	// to set the 'OOMKilled' flag in state
 	oom := notifyOnOOM(cont)
@@ -205,9 +199,6 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		}
 		ps = execErr.ProcessState
 	}
-	// wait for all IO goroutine copiers to finish
-	wg.Wait()
-
 	cont.Destroy()
 	destroyed = true
 	// oomKilled will have an oom event if any process within the container was
@@ -494,26 +485,24 @@ func (t *TtyConsole) Close() error {
 	return t.console.Close()
 }
 
-func setupPipes(container *configs.Config, processConfig *execdriver.ProcessConfig, p *libcontainer.Process, pipes *execdriver.Pipes, wg *sync.WaitGroup) ([]io.WriteCloser, error) {
-
-	writers := []io.WriteCloser{}
+func setupPipes(container *configs.Config, processConfig *execdriver.ProcessConfig, p *libcontainer.Process, pipes *execdriver.Pipes) error {
 
 	rootuid, err := container.HostUID()
 	if err != nil {
-		return writers, err
+		return err
 	}
 
 	if processConfig.Tty {
 		cons, err := p.NewConsole(rootuid)
 		if err != nil {
-			return writers, err
+			return err
 		}
 		term, err := NewTtyConsole(cons, pipes)
 		if err != nil {
-			return writers, err
+			return err
 		}
 		processConfig.Terminal = term
-		return writers, nil
+		return nil
 	}
 	// not a tty--set up stdio pipes
 	term := &execdriver.StdConsole{}
@@ -528,7 +517,7 @@ func setupPipes(container *configs.Config, processConfig *execdriver.ProcessConf
 
 		r, w, err := os.Pipe()
 		if err != nil {
-			return writers, err
+			return err
 		}
 		if pipes.Stdin != nil {
 			go func() {
@@ -537,32 +526,23 @@ func setupPipes(container *configs.Config, processConfig *execdriver.ProcessConf
 			}()
 			p.Stdin = r
 		}
-		return writers, nil
+		return nil
 	}
 
 	// if we have user namespaces enabled (rootuid != 0), we will set
 	// up os pipes for stderr, stdout, stdin so we can chown them to
 	// the proper ownership to allow for proper access to the underlying
 	// fds
-	var fds []uintptr
-
-	copyPipes := func(out io.Writer, in io.ReadCloser) {
-		defer wg.Done()
-		io.Copy(out, in)
-		in.Close()
-	}
+	var fds []int
 
 	//setup stdout
 	r, w, err := os.Pipe()
 	if err != nil {
-		w.Close()
-		return writers, err
+		return err
 	}
-	writers = append(writers, w)
-	fds = append(fds, r.Fd(), w.Fd())
+	fds = append(fds, int(r.Fd()), int(w.Fd()))
 	if pipes.Stdout != nil {
-		wg.Add(1)
-		go copyPipes(pipes.Stdout, r)
+		go io.Copy(pipes.Stdout, r)
 	}
 	term.Closers = append(term.Closers, r)
 	p.Stdout = w
@@ -570,14 +550,11 @@ func setupPipes(container *configs.Config, processConfig *execdriver.ProcessConf
 	//setup stderr
 	r, w, err = os.Pipe()
 	if err != nil {
-		w.Close()
-		return writers, err
+		return err
 	}
-	writers = append(writers, w)
-	fds = append(fds, r.Fd(), w.Fd())
+	fds = append(fds, int(r.Fd()), int(w.Fd()))
 	if pipes.Stderr != nil {
-		wg.Add(1)
-		go copyPipes(pipes.Stderr, r)
+		go io.Copy(pipes.Stderr, r)
 	}
 	term.Closers = append(term.Closers, r)
 	p.Stderr = w
@@ -585,10 +562,9 @@ func setupPipes(container *configs.Config, processConfig *execdriver.ProcessConf
 	//setup stdin
 	r, w, err = os.Pipe()
 	if err != nil {
-		r.Close()
-		return writers, err
+		return err
 	}
-	fds = append(fds, r.Fd(), w.Fd())
+	fds = append(fds, int(r.Fd()), int(w.Fd()))
 	if pipes.Stdin != nil {
 		go func() {
 			io.Copy(w, pipes.Stdin)
@@ -597,11 +573,11 @@ func setupPipes(container *configs.Config, processConfig *execdriver.ProcessConf
 		p.Stdin = r
 	}
 	for _, fd := range fds {
-		if err := syscall.Fchown(int(fd), rootuid, rootuid); err != nil {
-			return writers, fmt.Errorf("Failed to chown pipes fd: %v", err)
+		if err := syscall.Fchown(fd, rootuid, rootuid); err != nil {
+			return fmt.Errorf("Failed to chown pipes fd: %v", err)
 		}
 	}
-	return writers, nil
+	return nil
 }
 
 // SupportsHooks implements the execdriver Driver interface.
