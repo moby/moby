@@ -40,6 +40,17 @@ type Namespace interface {
 	// which were filled.  'last' contains an offset in the catalog, and 'err' will be
 	// set to io.EOF if there are no more entries to obtain.
 	Repositories(ctx context.Context, repos []string, last string) (n int, err error)
+
+	// Blobs returns a blob enumerator to access all blobs
+	Blobs() BlobEnumerator
+
+	// BlobStatter returns a BlobStatter to control
+	BlobStatter() BlobStatter
+}
+
+// RepositoryEnumerator describes an operation to enumerate repositories
+type RepositoryEnumerator interface {
+	Enumerate(ctx context.Context, ingester func(string) error) error
 }
 
 // ManifestServiceOption is a function argument for Manifest Service methods
