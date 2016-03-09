@@ -149,9 +149,20 @@ var (
 				 */
 				return false
 			}
+
+			// We need extra check on redhat based distributions
+			if f, err := os.Open("/sys/module/user_namespace/parameters/enable"); err == nil {
+				b := make([]byte, 1)
+				_, _ = f.Read(b)
+				if string(b) == "N" {
+					return false
+				}
+				return true
+			}
+
 			return true
 		},
-		"Kernel must have user namespaces configured.",
+		"Kernel must have user namespaces configured and enabled.",
 	}
 	NotUserNamespace = testRequirement{
 		func() bool {
