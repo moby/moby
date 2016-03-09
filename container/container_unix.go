@@ -565,7 +565,7 @@ func updateCommand(c *execdriver.Command, resources containertypes.Resources) {
 }
 
 // UpdateContainer updates configuration of a container.
-func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfig) error {
+func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfig, labels map[string]string) error {
 	container.Lock()
 
 	// update resources of container
@@ -602,9 +602,15 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 		cResources.KernelMemory = resources.KernelMemory
 	}
 
-	// update HostConfig of container
+	// update HostConfig of the container
 	if hostConfig.RestartPolicy.Name != "" {
 		container.HostConfig.RestartPolicy = hostConfig.RestartPolicy
+	}
+
+	// update labels of the container
+	config := container.Config
+	if labels != nil {
+		config.Labels = labels
 	}
 	container.Unlock()
 

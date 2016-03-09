@@ -290,13 +290,13 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	}
 
 	// collect all the environment variables for the container
-	envVariables, err := readKVStrings(flEnvFile.GetAll(), flEnv.GetAll())
+	envVariables, err := ReadKVStrings(flEnvFile.GetAll(), flEnv.GetAll())
 	if err != nil {
 		return nil, nil, nil, cmd, err
 	}
 
 	// collect all the labels for the container
-	labels, err := readKVStrings(flLabelsFile.GetAll(), flLabels.GetAll())
+	labels, err := ReadKVStrings(flLabelsFile.GetAll(), flLabels.GetAll())
 	if err != nil {
 		return nil, nil, nil, cmd, err
 	}
@@ -459,8 +459,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	return config, hostConfig, networkingConfig, cmd, nil
 }
 
-// reads a file of line terminated key=value pairs and override that with override parameter
-func readKVStrings(files []string, override []string) ([]string, error) {
+// ReadKVStrings reads a file of line terminated key=value pairs and override that with override parameter
+func ReadKVStrings(files []string, override []string) ([]string, error) {
 	envVariables := []string{}
 	for _, ef := range files {
 		parsedVars, err := ParseEnvFile(ef)

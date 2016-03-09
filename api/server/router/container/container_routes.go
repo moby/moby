@@ -330,7 +330,7 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 	}
 
 	name := vars["name"]
-	warnings, err := s.backend.ContainerUpdate(name, hostConfig)
+	warnings, err := s.backend.ContainerUpdate(name, hostConfig, updateConfig.Labels)
 	if err != nil {
 		return err
 	}
