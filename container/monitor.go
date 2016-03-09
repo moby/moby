@@ -125,9 +125,6 @@ func (m *containerMonitor) Close() error {
 	// Cleanup networking and mounts
 	m.supervisor.Cleanup(m.container)
 
-	// FIXME: here is race condition between two RUN instructions in Dockerfile
-	// because they share same runconfig and change image. Must be fixed
-	// in builder/builder.go
 	if err := m.container.ToDisk(); err != nil {
 		logrus.Errorf("Error dumping container %s state to disk: %s", m.container.ID, err)
 
