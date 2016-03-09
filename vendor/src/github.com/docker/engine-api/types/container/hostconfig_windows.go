@@ -1,7 +1,6 @@
 package container
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -77,20 +76,6 @@ func (n NetworkMode) NetworkName() string {
 	}
 
 	return ""
-}
-
-// ValidateIsolation performs platform specific validation of the
-// isolation technology in the hostconfig structure. Windows supports 'default' (or
-// blank), 'process', or 'hyperv'.
-func ValidateIsolation(hc *HostConfig) error {
-	// We may not be passed a host config, such as in the case of docker commit
-	if hc == nil {
-		return nil
-	}
-	if !hc.Isolation.IsValid() {
-		return fmt.Errorf("invalid --isolation: %q. Windows supports 'default', 'process', or 'hyperv'", hc.Isolation)
-	}
-	return nil
 }
 
 //UserDefined indicates user-created network

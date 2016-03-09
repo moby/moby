@@ -239,6 +239,7 @@ type HostConfig struct {
 	NetworkMode     NetworkMode   // Network mode to use for the container
 	PortBindings    nat.PortMap   // Port mapping between the exposed port (container) and the host
 	RestartPolicy   RestartPolicy // Restart policy to be used for the container
+	AutoRemove      bool          // Automatically remove container when it exits
 	VolumeDriver    string        // Name of the volume driver used to mount volumes
 	VolumesFrom     []string      // List of volumes to take from other container
 
