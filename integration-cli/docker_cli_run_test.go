@@ -3002,29 +3002,51 @@ func (s *DockerSuite) TestRunUnshareProc(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
 	testRequires(c, Apparmor, DaemonIsLinux, NotUserNamespace)
 
-	name := "acidburn"
-	out, _, err := dockerCmdWithError("run", "--name", name, "--security-opt", "seccomp:unconfined", "debian:jessie", "unshare", "-p", "-m", "-f", "-r", "--mount-proc=/proc", "mount")
-	if err == nil ||
-		!(strings.Contains(strings.ToLower(out), "permission denied") ||
-			strings.Contains(strings.ToLower(out), "operation not permitted")) {
-		c.Fatalf("unshare with --mount-proc should have failed with 'permission denied' or 'operation not permitted', got: %s, %v", out, err)
-	}
+	// In this test goroutines are used to run test cases in parallel to prevent the test from taking a long time to run.
+	errChan := make(chan error)
 
-	name = "cereal"
-	out, _, err = dockerCmdWithError("run", "--name", name, "--security-opt", "seccomp:unconfined", "debian:jessie", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
-	if err == nil ||
-		!(strings.Contains(strings.ToLower(out), "mount: cannot mount none") ||
-			strings.Contains(strings.ToLower(out), "permission denied")) {
-		c.Fatalf("unshare and mount of /proc should have failed with 'mount: cannot mount none' or 'permission denied', got: %s, %v", out, err)
-	}
+	go func() {
+		name := "acidburn"
+		out, _, err := dockerCmdWithError("run", "--name", name, "--security-opt", "seccomp:unconfined", "debian:jessie", "unshare", "-p", "-m", "-f", "-r", "--mount-proc=/proc", "mount")
+		if err == nil ||
+			!(strings.Contains(strings.ToLower(out), "permission denied") ||
+				strings.Contains(strings.ToLower(out), "operation not permitted")) {
+			errChan <- fmt.Errorf("unshare with --mount-proc should have failed with 'permission denied' or 'operation not permitted', got: %s, %v", out, err)
+		} else {
+			errChan <- nil
+		}
+	}()
+
+	go func() {
+		name := "cereal"
+		out, _, err := dockerCmdWithError("run", "--name", name, "--security-opt", "seccomp:unconfined", "debian:jessie", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
+		if err == nil ||
+			!(strings.Contains(strings.ToLower(out), "mount: cannot mount none") ||
+				strings.Contains(strings.ToLower(out), "permission denied")) {
+			errChan <- fmt.Errorf("unshare and mount of /proc should have failed with 'mount: cannot mount none' or 'permission denied', got: %s, %v", out, err)
+		} else {
+			errChan <- nil
+		}
+	}()
 
 	/* Ensure still fails if running privileged with the default policy */
-	name = "crashoverride"
-	out, _, err = dockerCmdWithError("run", "--privileged", "--security-opt", "seccomp:unconfined", "--security-opt", "apparmor:docker-default", "--name", name, "debian:jessie", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
-	if err == nil ||
-		!(strings.Contains(strings.ToLower(out), "mount: cannot mount none") ||
-			strings.Contains(strings.ToLower(out), "permission denied")) {
-		c.Fatalf("privileged unshare with apparmor should have failed with 'mount: cannot mount none' or 'permission denied', got: %s, %v", out, err)
+	go func() {
+		name := "crashoverride"
+		out, _, err := dockerCmdWithError("run", "--privileged", "--security-opt", "seccomp:unconfined", "--security-opt", "apparmor:docker-default", "--name", name, "debian:jessie", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
+		if err == nil ||
+			!(strings.Contains(strings.ToLower(out), "mount: cannot mount none") ||
+				strings.Contains(strings.ToLower(out), "permission denied")) {
+			errChan <- fmt.Errorf("privileged unshare with apparmor should have failed with 'mount: cannot mount none' or 'permission denied', got: %s, %v", out, err)
+		} else {
+			errChan <- nil
+		}
+	}()
+
+	for i := 0; i < 3; i++ {
+		err := <-errChan
+		if err != nil {
+			c.Fatal(err)
+		}
 	}
 }
 
