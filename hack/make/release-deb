@@ -27,8 +27,9 @@ mkdir -p "$APTDIR/conf" "$APTDIR/db"
 arches=( amd64 i386 )
 
 # Preserve existing components but don't add any non-existing ones
-for component in main testing experimental ; do
-	if ls "$APTDIR/dists/*/$component" >/dev/null 2>&1 ; then
+default_components=( main testing experimental )
+for component in "${default_components[@]}" ; do
+	if ls "$APTDIR/dists/"*"/$component" >/dev/null 2>&1 ; then
 		components+=( $component )
 	fi
 done
