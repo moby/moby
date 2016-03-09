@@ -93,7 +93,7 @@ func (m *MountPoint) Path() string {
 	return m.Source
 }
 
-// ParseVolumesFrom ensure that the supplied volumes-from is valid.
+// ParseVolumesFrom ensures that the supplied volumes-from is valid.
 func ParseVolumesFrom(spec string) (string, string, error) {
 	if len(spec) == 0 {
 		return "", "", fmt.Errorf("malformed volumes-from specification: %s", spec)
