@@ -51,3 +51,18 @@ review sessions take place on a weekly basis, more frequent if needed:
 > a different procedure. Security releases are developed in a private
 > repository, released and tested under embargo before they become
 > publicly available.
+
+## Deciding on the content of a patch release
+
+When the criteria for moving forward with a patch release are met, the release
+manager will decide on the exact content of the release.
+
+- Fixes to all P0 issues *must* be included in the release.
+- Fixes to *some* P1, P2, and P3 issues *may* be included as part of the patch
+  release depending on the severity of the issue and the risk associated with
+  the patch.
+
+Any code delivered as part of a patch release should make life easier for a
+significant amount of users with zero chance of degrading anybody's experience.
+A good rule of thumb for that is to limit cherry-picking to small patches, which
+fix well-understood issues, and which come with verifiable tests.
