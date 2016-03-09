@@ -1432,7 +1432,7 @@ func (s *DockerSuite) TestDockerNetworkInternalMode(c *check.C) {
 	c.Assert(waitRun("second"), check.IsNil)
 	out, _, err := dockerCmdWithError("exec", "first", "ping", "-W", "4", "-c", "1", "www.google.com")
 	c.Assert(err, check.NotNil)
-	c.Assert(out, checker.Contains, "100% packet loss")
+	c.Assert(out, checker.Contains, "ping: bad address")
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
 	c.Assert(err, check.IsNil)
 }

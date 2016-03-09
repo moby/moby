@@ -163,7 +163,7 @@ func (s *sequence) toByteArray() ([]byte, error) {
 func (s *sequence) fromByteArray(data []byte) error {
 	l := len(data)
 	if l%12 != 0 {
-		return fmt.Errorf("cannot deserialize byte sequence of lenght %d (%v)", l, data)
+		return fmt.Errorf("cannot deserialize byte sequence of length %d (%v)", l, data)
 	}
 
 	p := s

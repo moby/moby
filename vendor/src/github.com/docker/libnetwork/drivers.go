@@ -9,6 +9,7 @@ import (
 	"github.com/docker/libnetwork/netlabel"
 
 	builtinIpam "github.com/docker/libnetwork/ipams/builtin"
+	nullIpam "github.com/docker/libnetwork/ipams/null"
 	remoteIpam "github.com/docker/libnetwork/ipams/remote"
 )
 
@@ -73,6 +74,7 @@ func initIpams(ic ipamapi.Callback, lDs, gDs interface{}) error {
 	for _, fn := range [](func(ipamapi.Callback, interface{}, interface{}) error){
 		builtinIpam.Init,
 		remoteIpam.Init,
+		nullIpam.Init,
 	} {
 		if err := fn(ic, lDs, gDs); err != nil {
 			return err

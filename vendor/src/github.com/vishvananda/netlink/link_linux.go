@@ -142,6 +142,54 @@ func LinkSetHardwareAddr(link Link, hwaddr net.HardwareAddr) error {
 	return err
 }
 
+// LinkSetVfHardwareAddr sets the hardware address of a vf for the link.
+// Equivalent to: `ip link set $link vf $vf mac $hwaddr`
+func LinkSetVfHardwareAddr(link Link, vf int, hwaddr net.HardwareAddr) error {
+	base := link.Attrs()
+	ensureIndex(base)
+	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	data := nl.NewRtAttr(nl.IFLA_VFINFO_LIST, nil)
+	info := nl.NewRtAttrChild(data, nl.IFLA_VF_INFO, nil)
+	vfmsg := nl.VfMac{
+		Vf: uint32(vf),
+	}
+	copy(vfmsg.Mac[:], []byte(hwaddr))
+	nl.NewRtAttrChild(info, nl.IFLA_VF_MAC, vfmsg.Serialize())
+	req.AddData(data)
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
+// LinkSetVfVlan sets the vlan of a vf for the link.
+// Equivalent to: `ip link set $link vf $vf vlan $vlan`
+func LinkSetVfVlan(link Link, vf, vlan int) error {
+	base := link.Attrs()
+	ensureIndex(base)
+	req := nl.NewNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+
+	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
+	msg.Index = int32(base.Index)
+	req.AddData(msg)
+
+	data := nl.NewRtAttr(nl.IFLA_VFINFO_LIST, nil)
+	info := nl.NewRtAttrChild(data, nl.IFLA_VF_INFO, nil)
+	vfmsg := nl.VfVlan{
+		Vf:   uint32(vf),
+		Vlan: uint32(vlan),
+	}
+	nl.NewRtAttrChild(info, nl.IFLA_VF_VLAN, vfmsg.Serialize())
+	req.AddData(data)
+
+	_, err := req.Execute(syscall.NETLINK_ROUTE, 0)
+	return err
+}
+
 // LinkSetMaster sets the master of the link device.
 // Equivalent to: `ip link set $link master $master`
 func LinkSetMaster(link Link, master *Bridge) error {
@@ -277,10 +325,12 @@ func addVxlanAttrs(vxlan *Vxlan, linkInfo *nl.RtAttr) {
 	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_L2MISS, boolAttr(vxlan.L2miss))
 	nl.NewRtAttrChild(data, nl.IFLA_VXLAN_L3MISS, boolAttr(vxlan.L3miss))
 
+	if vxlan.UDPCSum {
+		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_UDP_CSUM, boolAttr(vxlan.UDPCSum))
+	}
 	if vxlan.GBP {
 		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_GBP, boolAttr(vxlan.GBP))
 	}
-
 	if vxlan.NoAge {
 		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_AGEING, nl.Uint32Attr(0))
 	} else if vxlan.Age > 0 {
@@ -815,6 +865,7 @@ func LinkList() ([]Link, error) {
 // LinkUpdate is used to pass information back from LinkSubscribe()
 type LinkUpdate struct {
 	nl.IfInfomsg
+	Header syscall.NlMsghdr
 	Link
 }
 
@@ -844,7 +895,7 @@ func LinkSubscribe(ch chan<- LinkUpdate, done <-chan struct{}) error {
 				if err != nil {
 					return
 				}
-				ch <- LinkUpdate{IfInfomsg: *ifmsg, Link: link}
+				ch <- LinkUpdate{IfInfomsg: *ifmsg, Header: m.Header, Link: link}
 			}
 		}
 	}()
@@ -935,6 +986,8 @@ func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr) {
 			vxlan.L2miss = int8(datum.Value[0]) != 0
 		case nl.IFLA_VXLAN_L3MISS:
 			vxlan.L3miss = int8(datum.Value[0]) != 0
+		case nl.IFLA_VXLAN_UDP_CSUM:
+			vxlan.UDPCSum = int8(datum.Value[0]) != 0
 		case nl.IFLA_VXLAN_GBP:
 			vxlan.GBP = int8(datum.Value[0]) != 0
 		case nl.IFLA_VXLAN_AGEING:

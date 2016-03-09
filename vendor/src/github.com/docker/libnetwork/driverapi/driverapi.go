@@ -42,6 +42,14 @@ type Driver interface {
 	// Leave method is invoked when a Sandbox detaches from an endpoint.
 	Leave(nid, eid string) error
 
+	// ProgramExternalConnectivity invokes the driver method which does the necessary
+	// programming to allow the external connectivity dictated by the passed options
+	ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error
+
+	// RevokeExternalConnectivity aks the driver to remove any external connectivity
+	// programming that was done so far
+	RevokeExternalConnectivity(nid, eid string) error
+
 	// Type returns the the type of this driver, the network type this driver manages
 	Type() string
 }
@@ -88,8 +96,8 @@ type JoinInfo interface {
 	// SetGatewayIPv6 sets the default IPv6 gateway when a container joins the endpoint.
 	SetGatewayIPv6(net.IP) error
 
-	// AddStaticRoute adds a routes to the sandbox.
-	// It may be used in addtion to or instead of a default gateway (as above).
+	// AddStaticRoute adds a route to the sandbox.
+	// It may be used in addition to or instead of a default gateway (as above).
 	AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP) error
 
 	// DisableGatewayService tells libnetwork not to provide Default GW for the container

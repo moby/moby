@@ -31,7 +31,7 @@ type DataStore interface {
 	DeleteObjectAtomic(kvObject KVObject) error
 	// DeleteTree deletes a record
 	DeleteTree(kvObject KVObject) error
-	// Watchable returns whether the store is watchable are not
+	// Watchable returns whether the store is watchable or not
 	Watchable() bool
 	// Watch for changes on a KVObject
 	Watch(kvObject KVObject, stopCh <-chan struct{}) (<-chan KVObject, error)

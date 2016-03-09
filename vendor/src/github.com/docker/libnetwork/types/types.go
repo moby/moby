@@ -389,7 +389,7 @@ const (
 	// NEXTHOP indicates a StaticRoute with an IP next hop.
 	NEXTHOP = iota
 
-	// CONNECTED indicates a StaticRoute with a interface for directly connected peers.
+	// CONNECTED indicates a StaticRoute with an interface for directly connected peers.
 	CONNECTED
 )
 
@@ -458,25 +458,25 @@ type NotFoundError interface {
 	NotFound()
 }
 
-// ForbiddenError is an interface for errors which denote an valid request that cannot be honored
+// ForbiddenError is an interface for errors which denote a valid request that cannot be honored
 type ForbiddenError interface {
 	// Forbidden makes implementer into ForbiddenError type
 	Forbidden()
 }
 
-// NoServiceError  is an interface for errors returned when the required service is not available
+// NoServiceError is an interface for errors returned when the required service is not available
 type NoServiceError interface {
 	// NoService makes implementer into NoServiceError type
 	NoService()
 }
 
-// TimeoutError  is an interface for errors raised because of timeout
+// TimeoutError is an interface for errors raised because of timeout
 type TimeoutError interface {
 	// Timeout makes implementer into TimeoutError type
 	Timeout()
 }
 
-// NotImplementedError  is an interface for errors raised because of requested functionality is not yet implemented
+// NotImplementedError is an interface for errors raised because of requested functionality is not yet implemented
 type NotImplementedError interface {
 	// NotImplemented makes implementer into NotImplementedError type
 	NotImplemented()

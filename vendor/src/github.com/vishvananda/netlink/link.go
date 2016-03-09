@@ -204,6 +204,7 @@ type Vxlan struct {
 	RSC          bool
 	L2miss       bool
 	L3miss       bool
+	UDPCSum      bool
 	NoAge        bool
 	GBP          bool
 	Age          int

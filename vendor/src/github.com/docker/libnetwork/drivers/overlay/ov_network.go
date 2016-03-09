@@ -63,6 +63,9 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Dat
 	if id == "" {
 		return fmt.Errorf("invalid network id")
 	}
+	if len(ipV4Data) == 0 || ipV4Data[0].Pool.String() == "0.0.0.0/0" {
+		return types.BadRequestErrorf("ipv4 pool is empty")
+	}
 
 	// Since we perform lazy configuration make sure we try
 	// configuring the driver when we enter CreateNetwork
@@ -109,6 +112,14 @@ func (d *driver) DeleteNetwork(nid string) error {
 	d.deleteNetwork(nid)
 
 	return n.releaseVxlanID()
+}
+
+func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
+	return nil
+}
+
+func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
+	return nil
 }
 
 func (n *network) incEndpointCount() {

@@ -21,6 +21,7 @@ type nwIface struct {
 	dstName     string
 	master      string
 	dstMaster   string
+	mac         net.HardwareAddr
 	address     *net.IPNet
 	addressIPv6 *net.IPNet
 	routes      []*net.IPNet
@@ -62,6 +63,13 @@ func (i *nwIface) Master() string {
 	defer i.Unlock()
 
 	return i.master
+}
+
+func (i *nwIface) MacAddress() net.HardwareAddr {
+	i.Lock()
+	defer i.Unlock()
+
+	return types.GetMacCopy(i.mac)
 }
 
 func (i *nwIface) Address() *net.IPNet {
@@ -304,6 +312,7 @@ func configureInterface(iface netlink.Link, i *nwIface) error {
 		ErrMessage string
 	}{
 		{setInterfaceName, fmt.Sprintf("error renaming interface %q to %q", ifaceName, i.DstName())},
+		{setInterfaceMAC, fmt.Sprintf("error setting interface %q MAC to %q", ifaceName, i.MacAddress())},
 		{setInterfaceIP, fmt.Sprintf("error setting interface %q IP to %q", ifaceName, i.Address())},
 		{setInterfaceIPv6, fmt.Sprintf("error setting interface %q IPv6 to %q", ifaceName, i.AddressIPv6())},
 		{setInterfaceMaster, fmt.Sprintf("error setting interface %q master to %q", ifaceName, i.DstMaster())},
@@ -324,6 +333,13 @@ func setInterfaceMaster(iface netlink.Link, i *nwIface) error {
 
 	return netlink.LinkSetMaster(iface, &netlink.Bridge{
 		LinkAttrs: netlink.LinkAttrs{Name: i.DstMaster()}})
+}
+
+func setInterfaceMAC(iface netlink.Link, i *nwIface) error {
+	if i.MacAddress() == nil {
+		return nil
+	}
+	return netlink.LinkSetHardwareAddr(iface, i.MacAddress())
 }
 
 func setInterfaceIP(iface netlink.Link, i *nwIface) error {
