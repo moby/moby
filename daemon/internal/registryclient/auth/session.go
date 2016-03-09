@@ -19,6 +19,8 @@ import (
 // basic auth due to lack of credentials.
 var ErrNoBasicAuthCredentials = errors.New("no basic auth credentials")
 
+const defaultClientID = "registry-client"
+
 // AuthenticationHandler is an interface for authorizing a request from
 // params from a "WWW-Authenicate" header for a single scheme.
 type AuthenticationHandler interface {
@@ -272,7 +274,7 @@ func (th *tokenHandler) fetchTokenWithOAuth(realm *url.URL, refreshToken, servic
 	clientID := th.clientID
 	if clientID == "" {
 		// Use default client, this is a required field
-		clientID = "registry-client"
+		clientID = defaultClientID
 	}
 	form.Set("client_id", clientID)
 
@@ -355,6 +357,11 @@ func (th *tokenHandler) fetchTokenWithBasicAuth(realm *url.URL, service string, 
 
 	if th.offlineAccess {
 		reqParams.Add("offline_token", "true")
+		clientID := th.clientID
+		if clientID == "" {
+			clientID = defaultClientID
+		}
+		reqParams.Add("client_id", clientID)
 	}
 
 	if th.creds != nil {
