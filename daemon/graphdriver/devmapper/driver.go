@@ -19,7 +19,7 @@ import (
 )
 
 func init() {
-	graphdriver.Register("devicemapper", Init)
+	graphdriver.Register("devicemapper", graphdriver.NewFSBootstrap(validateDriver, initDriver))
 }
 
 // Driver contains the device set mounted and the home directory
@@ -30,8 +30,24 @@ type Driver struct {
 	gidMaps []idtools.IDMap
 }
 
-// Init creates a driver with the given home and the set of options.
-func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
+// validateDriver validates that DevMapper can be used in this host.
+// It returns an error if the kernel doesn't support DevMapper
+// or the driver capabilities are not valid.
+func validateDriver(_ string) error {
+	version, err := devicemapper.GetDriverVersion()
+	if err != nil {
+		return graphdriver.ErrNotSupported
+	}
+
+	if err := determineDriverCapabilities(version); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// initDriver creates a driver with the given home and the set of options.
+func initDriver(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 	deviceSet, err := NewDeviceSet(home, true, options, uidMaps, gidMaps)
 	if err != nil {
 		return nil, err
@@ -80,10 +96,10 @@ func (d *Driver) Status() [][2]string {
 		{"Deferred Deleted Device Count", fmt.Sprintf("%v", s.DeferredDeletedDeviceCount)},
 	}
 	if len(s.DataLoopback) > 0 {
-		status = append(status, [2]string{"Data loop file", s.DataLoopback})
+		status = append(status, [2]string{"Data Loop File", s.DataLoopback})
 	}
 	if len(s.MetadataLoopback) > 0 {
-		status = append(status, [2]string{"Metadata loop file", s.MetadataLoopback})
+		status = append(status, [2]string{"Metadata Loop File", s.MetadataLoopback})
 	}
 	if vStr, err := devicemapper.GetLibraryVersion(); err == nil {
 		status = append(status, [2]string{"Library Version", vStr})

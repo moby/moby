@@ -24,7 +24,7 @@ const (
 
 var (
 	// All registered drivers
-	drivers map[string]InitFunc
+	drivers map[string]Bootstrap
 
 	// ErrNotSupported returned when driver is not supported.
 	ErrNotSupported = errors.New("driver not supported")
@@ -33,9 +33,6 @@ var (
 	// ErrIncompatibleFS returned when file system is not supported.
 	ErrIncompatibleFS = fmt.Errorf("backing file system is unsupported for this graph driver")
 )
-
-// InitFunc initializes the storage driver.
-type InitFunc func(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (Driver, error)
 
 // ProtoDriver defines the basic capabilities of a driver.
 // This interface exists solely to be a minimum set of methods
@@ -111,26 +108,30 @@ type FileGetCloser interface {
 }
 
 func init() {
-	drivers = make(map[string]InitFunc)
+	drivers = make(map[string]Bootstrap)
 }
 
 // Register registers a InitFunc for the driver.
-func Register(name string, initFunc InitFunc) error {
+func Register(name string, bootstrap Bootstrap) error {
 	if _, exists := drivers[name]; exists {
 		return fmt.Errorf("Name already registered %s", name)
 	}
-	drivers[name] = initFunc
+	drivers[name] = bootstrap
 
 	return nil
 }
 
 // GetDriver initializes and returns the registered driver
 func GetDriver(name, home string, options []string, uidMaps, gidMaps []idtools.IDMap) (Driver, error) {
-	if initFunc, exists := drivers[name]; exists {
-		return initFunc(filepath.Join(home, name), options, uidMaps, gidMaps)
+	root := filepath.Join(home, name)
+	if bootstrap, exists := drivers[name]; exists {
+		if err := bootstrap.ValidateSupport(root); err != nil {
+			return nil, err
+		}
+		return bootstrap.Init(root, options, uidMaps, gidMaps)
 	}
-	if pluginDriver, err := lookupPlugin(name, home, options); err == nil {
-		return pluginDriver, nil
+	if pluginBootstrap, err := lookupPlugin(name); err == nil {
+		return pluginBootstrap.Init(root, options, uidMaps, gidMaps)
 	}
 	logrus.Errorf("Failed to GetDriver graph %s %s", name, home)
 	return nil, ErrNotSupported
@@ -138,8 +139,12 @@ func GetDriver(name, home string, options []string, uidMaps, gidMaps []idtools.I
 
 // getBuiltinDriver initializes and returns the registered driver, but does not try to load from plugins
 func getBuiltinDriver(name, home string, options []string, uidMaps, gidMaps []idtools.IDMap) (Driver, error) {
-	if initFunc, exists := drivers[name]; exists {
-		return initFunc(filepath.Join(home, name), options, uidMaps, gidMaps)
+	if bootstrap, exists := drivers[name]; exists {
+		root := filepath.Join(home, name)
+		if err := bootstrap.ValidateSupport(root); err != nil {
+			return nil, err
+		}
+		return bootstrap.Init(root, options, uidMaps, gidMaps)
 	}
 	logrus.Errorf("Failed to built-in GetDriver graph %s %s", name, home)
 	return nil, ErrNotSupported
@@ -201,12 +206,17 @@ func New(root string, name string, options []string, uidMaps, gidMaps []idtools.
 	}
 
 	// Check all registered drivers if no priority driver is found
-	for name, initFunc := range drivers {
-		driver, err := initFunc(filepath.Join(root, name), options, uidMaps, gidMaps)
+	for _, bootstrap := range drivers {
+		driverRoot := filepath.Join(root, name)
+		err := bootstrap.ValidateSupport(driverRoot)
 		if err != nil {
 			if isDriverNotSupported(err) {
 				continue
 			}
+			return nil, err
+		}
+		driver, err := bootstrap.Init(driverRoot, options, uidMaps, gidMaps)
+		if err != nil {
 			return nil, err
 		}
 		return driver, nil

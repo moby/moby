@@ -841,11 +841,15 @@ _docker_daemon() {
  			COMPREPLY=( $( compgen -W "ext4 xfs" -- "${cur##*=}" ) )
  			return
  			;;
- 		dm.thinpooldev)
+		dm.thinpooldev|zfs.loopback.path)
 			cur=${cur##*=}
  			_filedir
  			return
  			;;
+		zfs.loopback.generate)
+			COMPREPLY=( $( compgen -W "false true" -- "${cur##*=}" ) )
+			return
+			;;
  	esac
 
 	case "$prev" in
@@ -895,7 +899,13 @@ _docker_daemon() {
 				dm.use_deferred_deletion
 				dm.use_deferred_removal
 			"
-			local zfs_options="zfs.fsname"
+			local zfs_options="
+				zfs.fsname
+				zfs.loopback.generate
+				zfs.loopback.name
+				zfs.loopback.path
+				zfs.loopback.size
+			"
 
 			case $(__docker_value_of_option '--storage-driver|-s') in
 				'')

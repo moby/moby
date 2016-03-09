@@ -100,21 +100,20 @@ type Driver struct {
 var backingFs = "<unknown>"
 
 func init() {
-	graphdriver.Register("overlay", Init)
+	graphdriver.Register("overlay", graphdriver.NewFSBootstrap(validateDriver, initDriver))
 }
 
-// Init returns the NaiveDiffDriver, a native diff driver for overlay filesystem.
-// If overlay filesystem is not supported on the host, graphdriver.ErrNotSupported is returned as error.
-// If a overlay filesystem is not supported over a existing filesystem then error graphdriver.ErrIncompatibleFS is returned.
-func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
-
+// validateDriver validates that Overlay can be used in this host.
+// It returns an error if the kernel doesn't support Overlay
+// or the filesystem is incompatible
+func validateDriver(root string) error {
 	if err := supportsOverlay(); err != nil {
-		return nil, graphdriver.ErrNotSupported
+		return graphdriver.ErrNotSupported
 	}
 
-	fsMagic, err := graphdriver.GetFSMagic(home)
+	fsMagic, err := graphdriver.GetFSMagic(root)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if fsName, ok := graphdriver.FsNames[fsMagic]; ok {
 		backingFs = fsName
@@ -124,18 +123,25 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	switch fsMagic {
 	case graphdriver.FsMagicBtrfs:
 		logrus.Error("'overlay' is not supported over btrfs.")
-		return nil, graphdriver.ErrIncompatibleFS
+		return graphdriver.ErrIncompatibleFS
 	case graphdriver.FsMagicAufs:
 		logrus.Error("'overlay' is not supported over aufs.")
-		return nil, graphdriver.ErrIncompatibleFS
+		return graphdriver.ErrIncompatibleFS
 	case graphdriver.FsMagicZfs:
 		logrus.Error("'overlay' is not supported over zfs.")
-		return nil, graphdriver.ErrIncompatibleFS
+		return graphdriver.ErrIncompatibleFS
 	case graphdriver.FsMagicOverlay:
 		logrus.Error("'overlay' is not supported over overlay.")
-		return nil, graphdriver.ErrIncompatibleFS
+		return graphdriver.ErrIncompatibleFS
 	}
 
+	return nil
+}
+
+// initDriver returns the NaiveDiffDriver, a native diff driver for overlay filesystem.
+// If overlay filesystem is not supported on the host, graphdriver.ErrNotSupported is returned as error.
+// If a overlay filesystem is not supported over a existing filesystem then error graphdriver.ErrIncompatibleFS is returned.
+func initDriver(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
 	if err != nil {
 		return nil, err

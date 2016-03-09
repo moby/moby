@@ -624,40 +624,17 @@ func NewDaemon(config *Config, registryService *registry.Service, containerdRemo
 	// on Windows to dump Go routine stacks
 	setupDumpStackTrap()
 
-	uidMaps, gidMaps, err := setupRemappedRoot(config)
-	if err != nil {
-		return nil, err
-	}
-	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
-	if err != nil {
-		return nil, err
+	if err := configureMaxThreads(config); err != nil {
+		logrus.Warnf("Failed to configure golang's threads limit: %v", err)
 	}
 
-	// get the canonical path to the Docker root directory
-	var realRoot string
-	if _, err := os.Stat(config.Root); err != nil && os.IsNotExist(err) {
-		realRoot = config.Root
-	} else {
-		realRoot, err = fileutils.ReadSymlinkedDirectory(config.Root)
-		if err != nil {
-			return nil, fmt.Errorf("Unable to get the full path to root (%s): %s", config.Root, err)
+	// Verify logging driver type
+	if config.LogConfig.Type != "none" {
+		if _, err := logger.GetLogDriver(config.LogConfig.Type); err != nil {
+			return nil, fmt.Errorf("error finding the logging driver: %v", err)
 		}
 	}
-
-	if err = setupDaemonRoot(config, realRoot, rootUID, rootGID); err != nil {
-		return nil, err
-	}
-
-	// set up the tmpDir to use a canonical path
-	tmp, err := tempDir(config.Root, rootUID, rootGID)
-	if err != nil {
-		return nil, fmt.Errorf("Unable to get the TempDir under %s: %s", config.Root, err)
-	}
-	realTmp, err := fileutils.ReadSymlinkedDirectory(tmp)
-	if err != nil {
-		return nil, fmt.Errorf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
-	}
-	os.Setenv("TMPDIR", realTmp)
+	logrus.Debugf("Using default logging driver %s", config.LogConfig.Type)
 
 	d := &Daemon{configStore: config}
 	// Ensure the daemon is properly shutdown if there is a failure during
@@ -675,21 +652,26 @@ func NewDaemon(config *Config, registryService *registry.Service, containerdRemo
 		return nil, fmt.Errorf("error setting default isolation mode: %v", err)
 	}
 
-	// Verify logging driver type
-	if config.LogConfig.Type != "none" {
-		if _, err := logger.GetLogDriver(config.LogConfig.Type); err != nil {
-			return nil, fmt.Errorf("error finding the logging driver: %v", err)
+	installDefaultAppArmorProfile()
+
+	uidMaps, gidMaps, err := setupRemappedRoot(config)
+	if err != nil {
+		return nil, err
+	}
+
+	// get the canonical path to the Docker root directory
+	var realRoot string
+	if _, err := os.Stat(config.Root); err != nil && os.IsNotExist(err) {
+		realRoot = config.Root
+	} else {
+		realRoot, err = fileutils.ReadSymlinkedDirectory(config.Root)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to get the full path to root (%s): %s", config.Root, err)
 		}
 	}
-	logrus.Debugf("Using default logging driver %s", config.LogConfig.Type)
 
-	if err := configureMaxThreads(config); err != nil {
-		logrus.Warnf("Failed to configure golang's threads limit: %v", err)
-	}
-
-	installDefaultAppArmorProfile()
-	daemonRepo := filepath.Join(config.Root, "containers")
-	if err := idtools.MkdirAllAs(daemonRepo, 0700, rootUID, rootGID); err != nil && !os.IsExist(err) {
+	config.Root, err = getRealRemappedRoot(config, realRoot, uidMaps, gidMaps)
+	if err != nil {
 		return nil, err
 	}
 
@@ -706,6 +688,15 @@ func NewDaemon(config *Config, registryService *registry.Service, containerdRemo
 		GIDMaps:                   gidMaps,
 	})
 	if err != nil {
+		return nil, err
+	}
+
+	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := setupDaemonTmp(config.Root, rootUID, rootGID); err != nil {
 		return nil, err
 	}
 
@@ -788,7 +779,7 @@ func NewDaemon(config *Config, registryService *registry.Service, containerdRemo
 	}
 
 	d.ID = trustKey.PublicKey().KeyID()
-	d.repository = daemonRepo
+	d.repository = filepath.Join(config.Root, "containers")
 	d.containers = container.NewMemoryStore()
 	d.execCommands = exec.NewStore()
 	d.referenceStore = referenceStore
@@ -1380,15 +1371,6 @@ func (daemon *Daemon) GetCachedImageOnBuild(imgID string, cfg *containertypes.Co
 	return cache.ID().String(), nil
 }
 
-// tempDir returns the default directory to use for temporary files.
-func tempDir(rootDir string, rootUID, rootGID int) (string, error) {
-	var tmpDir string
-	if tmpDir = os.Getenv("DOCKER_TMPDIR"); tmpDir == "" {
-		tmpDir = filepath.Join(rootDir, "tmp")
-	}
-	return tmpDir, idtools.MkdirAllAs(tmpDir, 0700, rootUID, rootGID)
-}
-
 func (daemon *Daemon) setSecurityOptions(container *container.Container, hostConfig *containertypes.HostConfig) error {
 	container.Lock()
 	defer container.Unlock()
@@ -1726,4 +1708,26 @@ func copyBlkioEntry(entries []*containerd.BlkioStatsEntry) []types.BlkioStatEntr
 		}
 	}
 	return out
+}
+
+func setupDaemonTmp(root string, rootUID, rootGID int) error {
+	tmp, err := tempDir(root, rootUID, rootGID)
+	if err != nil {
+		return fmt.Errorf("Unable to get the TempDir under %s: %s", root, err)
+	}
+	realTmp, err := fileutils.ReadSymlinkedDirectory(tmp)
+	if err != nil {
+		return fmt.Errorf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
+	}
+	os.Setenv("TMPDIR", realTmp)
+	return nil
+}
+
+// tempDir returns the default directory to use for temporary files.
+func tempDir(rootDir string, rootUID, rootGID int) (string, error) {
+	var tmpDir string
+	if tmpDir = os.Getenv("DOCKER_TMPDIR"); tmpDir == "" {
+		tmpDir = filepath.Join(rootDir, "tmp")
+	}
+	return tmpDir, idtools.MkdirAllAs(tmpDir, 0700, rootUID, rootGID)
 }
