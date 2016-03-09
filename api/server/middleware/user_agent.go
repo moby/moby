@@ -6,6 +6,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/version"
 	"golang.org/x/net/context"
 )
@@ -16,6 +17,7 @@ func NewUserAgentMiddleware(versionCheck string) Middleware {
 
 	return func(handler httputils.APIFunc) httputils.APIFunc {
 		return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+			ctx = dockerversion.WithUserAgent(ctx, r.Header.Get("User-Agent"))
 			if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
 				userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
 
