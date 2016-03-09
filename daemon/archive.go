@@ -5,7 +5,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"syscall"
 
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
@@ -14,6 +16,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/engine-api/types"
+	"github.com/opencontainers/runc/libcontainer/user"
 )
 
 // ErrExtractPointNotDirectory is used to convey that the operation to extract
@@ -331,6 +334,53 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 	return reader, nil
 }
 
+// GetContainerUser evaluates the uid:gid of the given USER-style string using
+// the container's /etc/{passwd,group} files.
+func (daemon *Daemon) GetContainerUser(c *container.Container, userSpec string) (int, int, error) {
+	// Use same defaults as libcontainer. An empty userSpec will result in the
+	// following settings being returned.
+	defaultExecUser := user.ExecUser{
+		Uid:  syscall.Getuid(),
+		Gid:  syscall.Getgid(),
+		Home: "/",
+	}
+
+	// If we're on windows, don't bother with anything since we can't chown()
+	// anyway.
+	if runtime.GOOS == "windows" {
+		return defaultExecUser.Uid, defaultExecUser.Gid, nil
+	}
+
+	// Get the right path.
+	passwdPath, err := user.GetPasswdPath()
+	if err != nil {
+		return -1, -1, err
+	}
+	// Scope it to the container's filesystem.
+	passwdPath, err = c.GetResourcePath(passwdPath)
+	if err != nil {
+		return -1, -1, err
+	}
+
+	// Get the right path.
+	groupPath, err := user.GetGroupPath()
+	if err != nil {
+		return -1, -1, err
+	}
+	// Scope it to the container's filesystem.
+	groupPath, err = c.GetResourcePath(groupPath)
+	if err != nil {
+		return -1, -1, err
+	}
+
+	execUser, err := user.GetExecUserPath(userSpec, &defaultExecUser, passwdPath, groupPath)
+	if err != nil {
+		return -1, -1, err
+	}
+
+	return execUser.Uid, execUser.Gid, nil
+}
+
 // CopyOnBuild copies/extracts a source FileInfo to a destination path inside a container
 // specified by a container object.
 // TODO: make sure callers don't unnecessarily convert destPath with filepath.FromSlash (Copy does it already).
@@ -339,7 +389,6 @@ func (daemon *Daemon) CopyOnBuild(cID string, destPath string, src builder.FileI
 	srcPath := src.Path()
 	destExists := true
 	destDir := false
-	rootUID, rootGID := daemon.GetRemappedUIDGID()
 
 	// Work in daemon-local OS specific file paths
 	destPath = filepath.FromSlash(destPath)
@@ -377,7 +426,25 @@ func (daemon *Daemon) CopyOnBuild(cID string, destPath string, src builder.FileI
 		destExists = false
 	}
 
+	// Get the mappings required to convert container <-> host.
 	uidMaps, gidMaps := daemon.GetUIDGIDMaps()
+
+	// Get the UID and GID we should copy as, resolved to the host.
+	// This results in the USER directive correctly affecting the owner of all
+	// files ADD'd and COPY'd during a build (with the correct userns mapping).
+	copyUID, copyGID, err := daemon.GetContainerUser(c, c.Config.User)
+	if err != nil {
+		return err
+	}
+	copyUID, err = idtools.ToHost(copyUID, uidMaps)
+	if err != nil {
+		return err
+	}
+	copyGID, err = idtools.ToHost(copyGID, gidMaps)
+	if err != nil {
+		return err
+	}
+
 	archiver := &archive.Archiver{
 		Untar:   chrootarchive.Untar,
 		UIDMaps: uidMaps,
@@ -389,7 +456,7 @@ func (daemon *Daemon) CopyOnBuild(cID string, destPath string, src builder.FileI
 		if err := archiver.CopyWithTar(srcPath, destPath); err != nil {
 			return err
 		}
-		return fixPermissions(srcPath, destPath, rootUID, rootGID, destExists)
+		return fixPermissions(srcPath, destPath, copyUID, copyGID, destExists)
 	}
 	if decompress && archive.IsArchivePath(srcPath) {
 		// Only try to untar if it is a file and that we've been told to decompress (when ADD-ing a remote file)
@@ -418,12 +485,12 @@ func (daemon *Daemon) CopyOnBuild(cID string, destPath string, src builder.FileI
 		destPath = filepath.Join(destPath, src.Name())
 	}
 
-	if err := idtools.MkdirAllNewAs(filepath.Dir(destPath), 0755, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllNewAs(filepath.Dir(destPath), 0755, copyUID, copyGID); err != nil {
 		return err
 	}
 	if err := archiver.CopyFileWithTar(srcPath, destPath); err != nil {
 		return err
 	}
 
-	return fixPermissions(srcPath, destPath, rootUID, rootGID, destExists)
+	return fixPermissions(srcPath, destPath, copyUID, copyGID, destExists)
 }
