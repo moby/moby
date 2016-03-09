@@ -4,6 +4,7 @@ package daemon
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -25,10 +26,12 @@ import (
 	"github.com/docker/docker/runconfig"
 	containertypes "github.com/docker/engine-api/types/container"
 	networktypes "github.com/docker/engine-api/types/network"
+	"github.com/docker/go-connections/nat"
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
+	"github.com/docker/libnetwork/types"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/label"
@@ -320,6 +323,9 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container, n libn
 		dns         []string
 		dnsSearch   []string
 		dnsOptions  []string
+		bindings    = make(nat.PortMap)
+		pbList      []types.PortBinding
+		exposeList  []types.TransportPort
 	)
 
 	sboxOptions = append(sboxOptions, libnetwork.OptionHostname(container.Config.Hostname),
@@ -393,6 +399,59 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container, n libn
 		parts := strings.SplitN(extraHost, ":", 2)
 		sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(parts[0], parts[1]))
 	}
+
+	if container.HostConfig.PortBindings != nil {
+		for p, b := range container.HostConfig.PortBindings {
+			bindings[p] = []nat.PortBinding{}
+			for _, bb := range b {
+				bindings[p] = append(bindings[p], nat.PortBinding{
+					HostIP:   bb.HostIP,
+					HostPort: bb.HostPort,
+				})
+			}
+		}
+	}
+
+	portSpecs := container.Config.ExposedPorts
+	ports := make([]nat.Port, len(portSpecs))
+	var i int
+	for p := range portSpecs {
+		ports[i] = p
+		i++
+	}
+	nat.SortPortMap(ports, bindings)
+	for _, port := range ports {
+		expose := types.TransportPort{}
+		expose.Proto = types.ParseProtocol(port.Proto())
+		expose.Port = uint16(port.Int())
+		exposeList = append(exposeList, expose)
+
+		pb := types.PortBinding{Port: expose.Port, Proto: expose.Proto}
+		binding := bindings[port]
+		for i := 0; i < len(binding); i++ {
+			pbCopy := pb.GetCopy()
+			newP, err := nat.NewPort(nat.SplitProtoPort(binding[i].HostPort))
+			var portStart, portEnd int
+			if err == nil {
+				portStart, portEnd, err = newP.Range()
+			}
+			if err != nil {
+				return nil, fmt.Errorf("Error parsing HostPort value(%s):%v", binding[i].HostPort, err)
+			}
+			pbCopy.HostPort = uint16(portStart)
+			pbCopy.HostPortEnd = uint16(portEnd)
+			pbCopy.HostIP = net.ParseIP(binding[i].HostIP)
+			pbList = append(pbList, pbCopy)
+		}
+
+		if container.HostConfig.PublishAllPorts && len(binding) == 0 {
+			pbList = append(pbList, pb)
+		}
+	}
+
+	sboxOptions = append(sboxOptions,
+		libnetwork.OptionPortMapping(pbList),
+		libnetwork.OptionExposedPorts(exposeList))
 
 	// Link feature is supported only for the default bridge network.
 	// return if this call to build join options is not for default bridge network
