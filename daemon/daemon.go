@@ -1007,14 +1007,14 @@ func isBrokenPipe(e error) bool {
 
 // PullImage initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
-func (daemon *Daemon) PullImage(ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (daemon *Daemon) PullImage(ctx context.Context, ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	// Include a buffer so that slow client connections don't affect
 	// transfer performance.
 	progressChan := make(chan progress.Progress, 100)
 
 	writesDone := make(chan struct{})
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(ctx)
 
 	go func() {
 		writeDistributionProgress(cancelFunc, outStream, progressChan)
@@ -1062,7 +1062,7 @@ func (daemon *Daemon) PullOnBuild(name string, authConfigs map[string]types.Auth
 		pullRegistryAuth = &resolvedConfig
 	}
 
-	if err := daemon.PullImage(ref, nil, pullRegistryAuth, output); err != nil {
+	if err := daemon.PullImage(context.Background(), ref, nil, pullRegistryAuth, output); err != nil {
 		return nil, err
 	}
 	return daemon.GetImage(name)
@@ -1519,7 +1519,7 @@ func configureVolumes(config *Config, rootUID, rootGID int) (*store.VolumeStore,
 
 // AuthenticateToRegistry checks the validity of credentials in authConfig
 func (daemon *Daemon) AuthenticateToRegistry(authConfig *types.AuthConfig) (string, string, error) {
-	return daemon.RegistryService.Auth(authConfig, dockerversion.DockerUserAgent())
+	return daemon.RegistryService.Auth(authConfig, dockerversion.DockerUserAgent(""))
 }
 
 // SearchRegistryForImages queries the registry for images matching
@@ -1527,7 +1527,7 @@ func (daemon *Daemon) AuthenticateToRegistry(authConfig *types.AuthConfig) (stri
 func (daemon *Daemon) SearchRegistryForImages(term string,
 	authConfig *types.AuthConfig,
 	headers map[string][]string) (*registrytypes.SearchResults, error) {
-	return daemon.RegistryService.Search(term, authConfig, dockerversion.DockerUserAgent(), headers)
+	return daemon.RegistryService.Search(term, authConfig, dockerversion.DockerUserAgent(""), headers)
 }
 
 // IsShuttingDown tells whether the daemon is shutting down or not
