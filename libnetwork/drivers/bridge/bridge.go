@@ -1362,26 +1362,22 @@ func parseContainerOptions(cOptions map[string]interface{}) (*containerConfigura
 	if cOptions == nil {
 		return nil, nil
 	}
-
-	cc := &containerConfiguration{}
-
-	if opt, ok := cOptions[ParentEndpoints]; ok {
-		if pe, ok := opt.([]string); ok {
-			cc.ParentEndpoints = pe
-		} else {
-			return nil, types.BadRequestErrorf("Invalid parent endpoints data in sandbox configuration: %v", opt)
-		}
+	genericData := cOptions[netlabel.GenericData]
+	if genericData == nil {
+		return nil, nil
 	}
-
-	if opt, ok := cOptions[ChildEndpoints]; ok {
-		if ce, ok := opt.([]string); ok {
-			cc.ChildEndpoints = ce
-		} else {
-			return nil, types.BadRequestErrorf("Invalid child endpoints data in sandbox configuration: %v", opt)
+	switch opt := genericData.(type) {
+	case options.Generic:
+		opaqueConfig, err := options.GenerateFromModel(opt, &containerConfiguration{})
+		if err != nil {
+			return nil, err
 		}
+		return opaqueConfig.(*containerConfiguration), nil
+	case *containerConfiguration:
+		return opt, nil
+	default:
+		return nil, nil
 	}
-
-	return cc, nil
 }
 
 func parseConnectivityOptions(cOptions map[string]interface{}) (*connectivityConfiguration, error) {

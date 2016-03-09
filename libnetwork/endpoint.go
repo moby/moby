@@ -455,16 +455,26 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) error {
 	if moveExtConn {
 		if extEp != nil {
 			log.Debugf("Revoking external connectivity on endpoint %s (%s)", extEp.Name(), extEp.ID())
-			if err := d.RevokeExternalConnectivity(extEp.network.ID(), extEp.ID()); err != nil {
-				log.Warnf("driver failed revoking external connectivity on endpoint %s (%s): %v",
+			if err = d.RevokeExternalConnectivity(extEp.network.ID(), extEp.ID()); err != nil {
+				return types.InternalErrorf(
+					"driver failed revoking external connectivity on endpoint %s (%s): %v",
 					extEp.Name(), extEp.ID(), err)
 			}
+			defer func() {
+				if err != nil {
+					if e := d.ProgramExternalConnectivity(extEp.network.ID(), extEp.ID(), sb.Labels()); e != nil {
+						log.Warnf("Failed to roll-back external connectivity on endpoint %s (%s): %v",
+							extEp.Name(), extEp.ID(), e)
+					}
+				}
+			}()
 		}
 		if !n.internal {
 			log.Debugf("Programming external connectivity on endpoint %s (%s)", ep.Name(), ep.ID())
-			if err := d.ProgramExternalConnectivity(n.ID(), ep.ID(), sb.Labels()); err != nil {
-				log.Warnf("driver failed programming external connectivity on endpoint %s (%s): %v",
-					extEp.Name(), extEp.ID(), err)
+			if err = d.ProgramExternalConnectivity(n.ID(), ep.ID(), sb.Labels()); err != nil {
+				return types.InternalErrorf(
+					"driver failed programming external connectivity on endpoint %s (%s): %v",
+					ep.Name(), ep.ID(), err)
 			}
 		}
 	}
@@ -582,7 +592,7 @@ func (ep *endpoint) sbLeave(sb *sandbox, force bool, options ...EndpointOption) 
 		if moveExtConn {
 			log.Debugf("Revoking external connectivity on endpoint %s (%s)", ep.Name(), ep.ID())
 			if err := d.RevokeExternalConnectivity(n.id, ep.id); err != nil {
-				log.Warnf("driver failed removing external connectivity on endpoint %s (%s): %v",
+				log.Warnf("driver failed revoking external connectivity on endpoint %s (%s): %v",
 					ep.Name(), ep.ID(), err)
 			}
 		}

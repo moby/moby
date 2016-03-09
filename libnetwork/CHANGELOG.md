@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.0-dev.5 (2016-03-08)
+- Fixes https://github.com/docker/docker/issues/20847
+- Fixes https://github.com/docker/docker/issues/20997
+- Fixes issues unveiled by docker integ test over 0.7.0-dev.4
+
 ## 0.7.0-dev.4 (2016-03-07)
 - Changed ownership of exposed ports and port-mapping options from Endpoint to Sandbox
 - Implement DNS RR in the Docker embedded DNS server
