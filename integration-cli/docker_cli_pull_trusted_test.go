@@ -254,3 +254,56 @@ func (s *DockerTrustSuite) TestTrustedPullDelete(c *check.C) {
 	_, err = inspectFieldWithError(imageID, "Id")
 	c.Assert(err, checker.NotNil, check.Commentf("image should have been deleted"))
 }
+
+func (s *DockerTrustSuite) TestTrustedPullReadsFromReleasesRole(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockerclireleasesdelegationpulling/trusted", privateRegistryURL)
+	targetName := fmt.Sprintf("%s:latest", repoName)
+	pwd := "12345678"
+
+	// Push with targets first, initializing the repo
+	dockerCmd(c, "tag", "busybox", targetName)
+	pushCmd := exec.Command(dockerBinary, "push", targetName)
+	s.trustedCmdWithPassphrases(pushCmd, pwd, pwd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Try pull, check we retrieve from targets role
+	pullCmd := exec.Command(dockerBinary, "-D", "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "retrieving target for targets role")
+
+	// Now we'll create the releases role, and try pushing and pulling
+	s.notaryCreateDelegation(c, repoName, pwd, "targets/releases", s.not.keys[0].Public)
+	s.notaryImportKey(c, repoName, "targets/releases", s.not.keys[0].Private)
+	s.notaryPublish(c, repoName, pwd)
+
+	// Push, should sign with targets/releases
+	dockerCmd(c, "tag", "busybox", targetName)
+	pushCmd = exec.Command(dockerBinary, "push", targetName)
+	s.trustedCmdWithPassphrases(pushCmd, pwd, pwd)
+	out, _, err = runCommandWithOutput(pushCmd)
+
+	// Try pull, check we retrieve from targets/releases role
+	pullCmd = exec.Command(dockerBinary, "-D", "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(out, checker.Contains, "retrieving target for targets/releases role")
+
+	// Create another delegation that we'll sign with
+	s.notaryCreateDelegation(c, repoName, pwd, "targets/other", s.not.keys[1].Public)
+	s.notaryImportKey(c, repoName, "targets/other", s.not.keys[1].Private)
+	s.notaryPublish(c, repoName, pwd)
+
+	dockerCmd(c, "tag", "busybox", targetName)
+	pushCmd = exec.Command(dockerBinary, "push", targetName)
+	s.trustedCmdWithPassphrases(pushCmd, pwd, pwd)
+	out, _, err = runCommandWithOutput(pushCmd)
+
+	// Try pull, check we retrieve from targets/releases role
+	pullCmd = exec.Command(dockerBinary, "-D", "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(out, checker.Contains, "retrieving target for targets/releases role")
+}

@@ -339,6 +339,7 @@ func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registr
 		if err != nil {
 			return notaryError(repoInfo.FullName(), err)
 		}
+		logrus.Debugf("retrieving target for %s role\n", t.Role)
 		r, err := convertTarget(t.Target)
 		if err != nil {
 			return err
@@ -510,7 +511,6 @@ func (cli *DockerCli) addTargetToAllSignableRoles(repo *client.NotaryRepository,
 		// Also don't bother checking the keys if we can't add the target
 		// to this role due to path restrictions
 		if path.Dir(delegationRole.Name) != data.CanonicalTargetsRole || !delegationRole.CheckPaths(target.Name) {
-			fmt.Println("skipping", delegationRole.Name)
 			continue
 		}
 

@@ -631,7 +631,7 @@ func (s *DockerTrustSuite) TestTrustedPushDoesntSignTargetsIfDelegationsExist(c 
 	pushCmd := exec.Command(dockerBinary, "push", targetName)
 	s.trustedCmdWithPassphrases(pushCmd, pwd, pwd)
 	out, _, err := runCommandWithOutput(pushCmd)
-	c.Assert(err, check.Not(check.IsNil), check.Commentf("trusted push succeed but should have failed:\n%s", out))
+	c.Assert(err, check.Not(check.IsNil), check.Commentf("trusted push succeeded but should have failed:\n%s", out))
 	c.Assert(out, checker.Contains, "no valid signing keys",
 		check.Commentf("Missing expected output on trusted push without keys"))
 }
