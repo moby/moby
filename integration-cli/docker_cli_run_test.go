@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -4186,4 +4187,43 @@ func (s *DockerSuite) TestRunNamedVolumesFromNotRemoved(c *check.C) {
 	dockerCmd(c, "volume", "inspect", "test")
 	out, _ := dockerCmd(c, "volume", "ls", "-q")
 	c.Assert(strings.TrimSpace(out), checker.Equals, "test")
+}
+
+func (s *DockerSuite) TestRunAttachFailedNoLeak(c *check.C) {
+	type info struct {
+		NGoroutines int
+	}
+	getNGoroutines := func() int {
+		var i info
+		status, b, err := sockRequest("GET", "/info", nil)
+		c.Assert(err, checker.IsNil)
+		c.Assert(status, checker.Equals, 200)
+		c.Assert(json.Unmarshal(b, &i), checker.IsNil)
+		return i.NGoroutines
+	}
+	nroutines := getNGoroutines()
+
+	runSleepingContainer(c, "--name=test", "-p", "8000:8000")
+
+	out, _, err := dockerCmdWithError("run", "-p", "8000:8000", "busybox", "true")
+	c.Assert(err, checker.NotNil)
+	// check for windows error as well
+	c.Assert(strings.Contains(string(out), "port is already allocated") || strings.Contains(string(out), "were not connected because a duplicate name exists"), checker.Equals, true, check.Commentf("Output: %s", out))
+	dockerCmd(c, "rm", "-f", "test")
+
+	// NGoroutines is not updated right away, so we need to wait before failing
+	t := time.After(30 * time.Second)
+	for {
+		select {
+		case <-t:
+			n := getNGoroutines()
+			c.Assert(n <= nroutines, checker.Equals, true, check.Commentf("leaked goroutines: expected less than or equal to %d, got: %d", nroutines, n))
+
+		default:
+			if n := getNGoroutines(); n <= nroutines {
+				return
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+	}
 }
