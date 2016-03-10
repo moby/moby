@@ -170,7 +170,8 @@ func (s *DockerSuite) TestContainerApiGetChanges(c *check.C) {
 
 func (s *DockerSuite) TestContainerApiStartVolumeBinds(c *check.C) {
 	// TODO Windows CI: Investigate further why this fails on Windows to Windows CI.
-	testRequires(c, DaemonIsLinux)
+	// win2lin: non-local daemons for now, skip
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	path := "/foo"
 	if daemonPlatform == "windows" {
 		path = `c:\foo`
@@ -184,8 +185,8 @@ func (s *DockerSuite) TestContainerApiStartVolumeBinds(c *check.C) {
 	status, _, err := sockRequest("POST", "/containers/create?name="+name, config)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusCreated)
-
-	bindPath := randomTmpDirPath("test", daemonPlatform)
+	bindPath := getTestDir(c, "test-container-api-start-volume-binds")
+	defer os.RemoveAll(bindPath)
 	config = map[string]interface{}{
 		"Binds": []string{bindPath + ":" + path},
 	}
@@ -1615,4 +1616,29 @@ func (s *DockerSuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *che
 	if !strings.Contains(string(b), expected) {
 		c.Fatalf("Expected output to contain %q, got %q", expected, string(b))
 	}
+}
+
+func (s *DockerSuite) TestContainerApiStartNoAutoCreating(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	path := "/foo"
+	if daemonPlatform == "windows" {
+		path = `c:\foo`
+	}
+	name := "testing"
+	config := map[string]interface{}{
+		"Image":   "busybox",
+		"Volumes": map[string]struct{}{path: {}},
+	}
+
+	status, _, err := sockRequest("POST", "/containers/create?name="+name, config)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusCreated)
+
+	bindPath := randomTmpDirPath("test", daemonPlatform)
+	config = map[string]interface{}{
+		"Binds": []string{bindPath + ":" + path},
+	}
+	status, _, err = sockRequest("POST", "/containers/"+name+"/start", config)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusNotFound)
 }

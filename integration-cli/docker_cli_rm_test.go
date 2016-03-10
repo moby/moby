@@ -12,13 +12,11 @@ func (s *DockerSuite) TestRmContainerWithRemovedVolume(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-
 	tempDir, err := ioutil.TempDir("", "test-rm-container-with-removed-volume-")
 	if err != nil {
 		c.Fatalf("failed to create temporary directory: %s", tempDir)
 	}
 	defer os.RemoveAll(tempDir)
-
 	dockerCmd(c, "run", "--name", "losemyvolumes", "-v", tempDir+":"+prefix+slash+"test", "busybox", "true")
 
 	err = os.RemoveAll(tempDir)

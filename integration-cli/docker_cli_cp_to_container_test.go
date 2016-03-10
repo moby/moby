@@ -580,8 +580,10 @@ func (s *DockerSuite) TestCpToErrReadOnlyRootfs(c *check.C) {
 // The `docker cp` command should also ensure that you
 // cannot write to a volume that is mounted as read-only.
 func (s *DockerSuite) TestCpToErrReadOnlyVolume(c *check.C) {
+	// TODO
 	// --read-only + userns has remount issues
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	// win2lin: non-local daemons for now, skip
+	testRequires(c, DaemonIsLinux, NotUserNamespace, SameHostDaemon)
 	tmpDir := getTestDir(c, "test-cp-to-err-read-only-volume")
 	defer os.RemoveAll(tmpDir)
 

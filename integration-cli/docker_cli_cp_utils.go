@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/pkg/system"
 	"github.com/go-check/check"
 )
 
@@ -287,17 +288,20 @@ func containerStartOutputEquals(c *check.C, containerID, contents string) (err e
 
 	return
 }
-
 func defaultVolumes(tmpDir string) []string {
-	if SameHostDaemon.Condition() {
-		return []string{
-			"/vol1",
-			fmt.Sprintf("%s:/vol2", tmpDir),
-			fmt.Sprintf("%s:/vol3", filepath.Join(tmpDir, "vol3")),
-			fmt.Sprintf("%s:/vol_ro:ro", filepath.Join(tmpDir, "vol_ro")),
-		}
+
+	volumes := []string{
+		fmt.Sprintf("%s", filepath.Join(tmpDir, "vol1")),
+		fmt.Sprintf("%s:/vol2", tmpDir),
+		fmt.Sprintf("%s:/vol3", filepath.Join(tmpDir, "vol3")),
+		fmt.Sprintf("%s:/vol_ro:ro", filepath.Join(tmpDir, "vol_ro")),
 	}
 
-	// Can't bind-mount volumes with separate host daemon.
-	return []string{"/vol1", "/vol2", "/vol3", "/vol_ro:/vol_ro:ro"}
+	for _, volume := range volumes {
+		dir := strings.Split(volume, ":")
+		if dir != nil {
+			system.MkdirAll(dir[0], 0755)
+		}
+	}
+	return volumes
 }
