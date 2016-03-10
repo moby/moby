@@ -80,7 +80,7 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 	c.Assert(c2.Ulimits, checker.IsNil, check.Commentf("resource leaked from build for Ulimits"))
 }
 
-func (s *DockerSuite) TestBuildAddChangeOwnership(c *check.C) {
+func (s *DockerSuite) TestBuildAddThenChmod(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildaddown"
 
@@ -115,7 +115,89 @@ func (s *DockerSuite) TestBuildAddChangeOwnership(c *check.C) {
 	defer ctx.Close()
 
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
-		c.Fatalf("build failed to complete for TestBuildAddChangeOwnership: %v", err)
+		c.Fatalf("build failed to complete for TestBuildAddThenChmod: %v", err)
+	}
+}
+
+// Test for #6119.
+func (s *DockerSuite) TestBuildAddObeysUserConfig(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	name := "testbuildaddobeyuser"
+
+	ctx := func() *FakeContext {
+		dockerfile := `
+			FROM busybox
+			USER 1337:1337
+			ADD foo /bar/
+			RUN [ $(stat -c %u:%g "/bar") = '1337:1337' ]
+			RUN [ $(stat -c %u:%g "/bar/foo") = '1337:1337' ]
+			`
+		tmpDir, err := ioutil.TempDir("", "fake-context")
+		c.Assert(err, check.IsNil)
+		testFile, err := os.Create(filepath.Join(tmpDir, "foo"))
+		if err != nil {
+			c.Fatalf("failed to create foo file: %v", err)
+		}
+		defer testFile.Close()
+
+		chownCmd := exec.Command("chown", "daemon:daemon", "foo")
+		chownCmd.Dir = tmpDir
+		out, _, err := runCommandWithOutput(chownCmd)
+		if err != nil {
+			c.Fatal(err, out)
+		}
+
+		if err := ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
+			c.Fatalf("failed to open destination dockerfile: %v", err)
+		}
+		return fakeContextFromDir(tmpDir)
+	}()
+
+	defer ctx.Close()
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		c.Fatalf("build failed to complete for TestBuildAddObeysUserConfig: %v", err)
+	}
+}
+
+// Test for #6119.
+func (s *DockerSuite) TestBuildCopyObeysUserConfig(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	name := "testbuildcopyobeyuser"
+
+	ctx := func() *FakeContext {
+		dockerfile := `
+			FROM busybox
+			USER 1337:1337
+			COPY foo /bar/
+			RUN [ $(stat -c %u:%g "/bar") = '1337:1337' ]
+			RUN [ $(stat -c %u:%g "/bar/foo") = '1337:1337' ]
+			`
+		tmpDir, err := ioutil.TempDir("", "fake-context")
+		c.Assert(err, check.IsNil)
+		testFile, err := os.Create(filepath.Join(tmpDir, "foo"))
+		if err != nil {
+			c.Fatalf("failed to create foo file: %v", err)
+		}
+		defer testFile.Close()
+
+		chownCmd := exec.Command("chown", "daemon:daemon", "foo")
+		chownCmd.Dir = tmpDir
+		out, _, err := runCommandWithOutput(chownCmd)
+		if err != nil {
+			c.Fatal(err, out)
+		}
+
+		if err := ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
+			c.Fatalf("failed to open destination dockerfile: %v", err)
+		}
+		return fakeContextFromDir(tmpDir)
+	}()
+
+	defer ctx.Close()
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		c.Fatalf("build failed to complete for TestBuildCopyObeysUserConfig: %v", err)
 	}
 }
 
