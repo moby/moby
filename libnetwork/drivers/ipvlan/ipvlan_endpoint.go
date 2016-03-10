@@ -7,6 +7,7 @@ import (
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
@@ -14,6 +15,7 @@ import (
 // CreateEndpoint assigns the mac, ip and endpoint id for the new container
 func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	epOptions map[string]interface{}) error {
+	defer osl.InitOSContext()()
 
 	if err := validateID(nid, eid); err != nil {
 		return err
@@ -63,6 +65,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 
 // DeleteEndpoint remove the endpoint and associated netlink interface
 func (d *driver) DeleteEndpoint(nid, eid string) error {
+	defer osl.InitOSContext()()
 	if err := validateID(nid, eid); err != nil {
 		return err
 	}
