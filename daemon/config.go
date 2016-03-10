@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/discovery"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/registry"
 	"github.com/imdario/mergo"
 )
 
@@ -96,6 +97,7 @@ type CommonConfig struct {
 	CommonTLSOptions
 	LogConfig
 	bridgeConfig // bridgeConfig holds bridge network specific configuration.
+	registry.ServiceOptions
 
 	reloadLock sync.Mutex
 	valuesSet  map[string]interface{}
@@ -106,6 +108,8 @@ type CommonConfig struct {
 // Subsequent calls to `flag.Parse` will populate config with values parsed
 // from the command-line.
 func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string) string) {
+	config.ServiceOptions.InstallCliFlags(cmd, usageFn)
+
 	cmd.Var(opts.NewNamedListOptsRef("storage-opts", &config.GraphOptions, nil), []string{"-storage-opt"}, usageFn("Set storage driver options"))
 	cmd.Var(opts.NewNamedListOptsRef("authorization-plugins", &config.AuthorizationPlugins, nil), []string{"-authorization-plugin"}, usageFn("List authorization plugins in order from first evaluator to last"))
 	cmd.Var(opts.NewNamedListOptsRef("exec-opts", &config.ExecOptions, nil), []string{"-exec-opt"}, usageFn("Set exec driver options"))

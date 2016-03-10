@@ -883,7 +883,10 @@ This is a full example of the allowed configuration options in the file:
 	"default-gateway": "",
 	"default-gateway-v6": "",
 	"icc": false,
-	"raw-logs": false
+	"raw-logs": false,
+	"registry-mirrors": [],
+	"insecure-registries": [],
+	"disable-legacy-registry": false
 }
 ```
 
