@@ -23,7 +23,7 @@ build: ${build_image}.created
 
 build-local:
 	@mkdir -p "bin"
-	$(shell which godep) go build -o "bin/dnet" ./cmd/dnet
+	$(shell which godep) go build -tags experimental -o "bin/dnet" ./cmd/dnet
 
 clean:
 	@if [ -d bin ]; then \
