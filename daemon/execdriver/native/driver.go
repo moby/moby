@@ -441,12 +441,12 @@ type TtyConsole struct {
 }
 
 // NewTtyConsole returns a new TtyConsole struct.
-func NewTtyConsole(console libcontainer.Console, pipes *execdriver.Pipes) (*TtyConsole, error) {
+func NewTtyConsole(console libcontainer.Console, pipes *execdriver.Pipes, wg *sync.WaitGroup) (*TtyConsole, error) {
 	tty := &TtyConsole{
 		console: console,
 	}
 
-	if err := tty.AttachPipes(pipes); err != nil {
+	if err := tty.AttachPipes(pipes, wg); err != nil {
 		tty.Close()
 		return nil, err
 	}
@@ -460,8 +460,10 @@ func (t *TtyConsole) Resize(h, w int) error {
 }
 
 // AttachPipes attaches given pipes to TtyConsole
-func (t *TtyConsole) AttachPipes(pipes *execdriver.Pipes) error {
+func (t *TtyConsole) AttachPipes(pipes *execdriver.Pipes, wg *sync.WaitGroup) error {
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		if wb, ok := pipes.Stdout.(interface {
 			CloseWriters() error
 		}); ok {
@@ -501,7 +503,7 @@ func setupPipes(container *configs.Config, processConfig *execdriver.ProcessConf
 		if err != nil {
 			return writers, err
 		}
-		term, err := NewTtyConsole(cons, pipes)
+		term, err := NewTtyConsole(cons, pipes, wg)
 		if err != nil {
 			return writers, err
 		}
