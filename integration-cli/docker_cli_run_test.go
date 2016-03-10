@@ -2539,6 +2539,9 @@ func (s *DockerSuite) TestRunModeUTSHost(c *check.C) {
 	if hostUTS == out {
 		c.Fatalf("UTS should be different without --uts=host %s == %s\n", hostUTS, out)
 	}
+
+	out, _ = dockerCmdWithFail(c, "run", "-h=name", "--uts=host", "busybox", "ps")
+	c.Assert(out, checker.Contains, runconfig.ErrConflictUTSHostname.Error())
 }
 
 func (s *DockerSuite) TestRunTLSverify(c *check.C) {

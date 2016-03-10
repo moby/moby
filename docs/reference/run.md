@@ -237,14 +237,12 @@ $ docker run -it --rm --pid=host myhtop
 The UTS namespace is for setting the hostname and the domain that is visible
 to running processes in that namespace.  By default, all containers, including
 those with `--net=host`, have their own UTS namespace.  The `host` setting will
-result in the container using the same UTS namespace as the host.
+result in the container using the same UTS namespace as the host.  Note that
+`--hostname` is invalid in `host` UTS mode.
 
 You may wish to share the UTS namespace with the host if you would like the
 hostname of the container to change as the hostname of the host changes.  A
 more advanced use case would be changing the host's hostname from a container.
-
-> **Note**: `--uts="host"` gives the container full access to change the
-> hostname of the host and is therefore considered insecure.
 
 ## IPC settings (--ipc)
 
@@ -365,8 +363,11 @@ name, they must be linked.
 With the network set to `host` a container will share the host's
 network stack and all interfaces from the host will be available to the
 container.  The container's hostname will match the hostname on the host
-system.  Note that `--add-host` `--hostname`  `--dns` `--dns-search`
-`--dns-opt` and `--mac-address` are invalid in `host` netmode.
+system.  Note that `--add-host` `--dns` `--dns-search`
+`--dns-opt` and `--mac-address` are invalid in `host` netmode. Even in `host`
+network mode a container has its own UTS namespace by default. As such
+`--hostname` is allowed in `host` network mode and will only change the
+hostname inside the container.
 
 Compared to the default `bridge` mode, the `host` mode gives *significantly*
 better networking performance since it uses the host's native networking stack

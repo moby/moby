@@ -36,9 +36,6 @@ func (s *DockerSuite) TestNetHostname(c *check.C) {
 	out, _ = dockerCmd(c, "run", "-h=name", "--net=none", "busybox", "ps")
 	c.Assert(out, checker.Contains, stringCheckPS)
 
-	out, _ = dockerCmdWithFail(c, "run", "-h=name", "--net=host", "busybox", "ps")
-	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkHostname.Error())
-
 	out, _ = dockerCmdWithFail(c, "run", "-h=name", "--net=container:other", "busybox", "ps")
 	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkHostname.Error())
 
