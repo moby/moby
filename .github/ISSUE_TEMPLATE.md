@@ -19,33 +19,33 @@ Use the commands below to provide key information from your environment:
 You do NOT have to include this information if this is a FEATURE REQUEST
 -->
 
-Output of `docker version`:
+**Output of `docker version`:**
 
 ```
 (paste your output here)
 ```
 
 
-Output of `docker info`:
+**Output of `docker info`:**
 
 ```
 (paste your output here)
 ```
 
-Provide additional environment details (AWS, VirtualBox, physical, etc.):
+**Additional environment details (AWS, VirtualBox, physical, etc.):**
 
 
 
-List the steps to reproduce the issue:
+**Steps to reproduce the issue:**
 1.
 2.
 3.
 
 
-Describe the results you received:
+**Describe the results you received:**
 
 
-Describe the results you expected:
+**Describe the results you expected:**
 
 
-Provide additional info you think is important:
+**Additional information you deem important (e.g. issue happens only occasionally):**
