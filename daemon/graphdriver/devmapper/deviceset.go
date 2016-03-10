@@ -1621,7 +1621,10 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 
 	// https://github.com/docker/docker/issues/4036
 	if supported := devicemapper.UdevSetSyncSupport(true); !supported {
-		logrus.Warn("devmapper: Udev sync is not supported. This will lead to unexpected behavior, data loss and errors. For more information, see https://docs.docker.com/reference/commandline/daemon/#daemon-storage-driver-option")
+		logrus.Errorf("devmapper: Udev sync is not supported. This will lead to data loss and unexpected behavior. Install a dynamic binary to use devicemapper or select a different storage driver. For more information, see https://docs.docker.com/engine/reference/commandline/daemon/#daemon-storage-driver-option")
+		if !devices.overrideUdevSyncCheck {
+			return graphdriver.ErrNotSupported
+		}
 	}
 
 	//create the root dir of the devmapper driver ownership to match this
