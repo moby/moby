@@ -581,7 +581,11 @@ the source will be copied inside the destination container.
     ADD test relativeDir/          # adds "test" to `WORKDIR`/relativeDir/
     ADD test /absoluteDir/         # adds "test" to /absoluteDir/
 
-All new files and directories are created with a UID and GID of 0.
+All new files and directories are created with the owner being the same user as
+specified by the `USER` directive. If the user has not been set the default is
+the same as `RUN`, the user with a UID and GID of 0. The only exception to this
+being the unpacking of archives, which retains the owners of the files in the
+archive.
 
 In the case where `<src>` is a remote file URL, the destination will
 have permissions of 600. If the remote file being retrieved has an HTTP
@@ -693,7 +697,9 @@ the source will be copied inside the destination container.
     COPY test relativeDir/   # adds "test" to `WORKDIR`/relativeDir/
     COPY test /absoluteDir/  # adds "test" to /absoluteDir/
 
-All new files and directories are created with a UID and GID of 0.
+All new files and directories are created with the owner being the same user as
+specified by the `USER` directive. If the user has not been set the default is
+the same as `RUN`, the user with a UID and GID of 0.
 
 > **Note**:
 > If you build using STDIN (`docker build - < somefile`), there is no
