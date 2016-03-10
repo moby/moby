@@ -7,7 +7,7 @@ import (
 	networktypes "github.com/docker/engine-api/types/network"
 )
 
-// ContainerConfigWrapper is a Config wrapper that hold the container Config (portable)
+// ContainerConfigWrapper is a Config wrapper that holds the container Config (portable)
 // and the corresponding HostConfig (non-portable).
 type ContainerConfigWrapper struct {
 	*container.Config

@@ -71,7 +71,7 @@ func Register(extension volume.Driver, name string) bool {
 	return true
 }
 
-// Unregister dissociates the name from it's driver, if the association exists.
+// Unregister dissociates the name from its driver, if the association exists.
 func Unregister(name string) bool {
 	drivers.Lock()
 	defer drivers.Unlock()
@@ -114,7 +114,7 @@ func Lookup(name string) (volume.Driver, error) {
 	return d, nil
 }
 
-// GetDriver returns a volume driver by it's name.
+// GetDriver returns a volume driver by its name.
 // If the driver is empty, it looks for the local driver.
 func GetDriver(name string) (volume.Driver, error) {
 	if name == "" {

@@ -32,7 +32,7 @@ func GetPropagation(mode string) string {
 }
 
 // HasPropagation checks if there is a valid propagation mode present in
-// passed string. Returns true if a valid propagatio mode specifier is
+// passed string. Returns true if a valid propagation mode specifier is
 // present, false otherwise.
 func HasPropagation(mode string) bool {
 	for _, o := range strings.Split(mode, ",") {

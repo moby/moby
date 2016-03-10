@@ -161,7 +161,7 @@ func ValidMountMode(mode string) bool {
 
 // ReadWrite tells you if a mode string is a valid read-write mode or not.
 // If there are no specifications w.r.t read write mode, then by default
-// it returs true.
+// it returns true.
 func ReadWrite(mode string) bool {
 	if !ValidMountMode(mode) {
 		return false
