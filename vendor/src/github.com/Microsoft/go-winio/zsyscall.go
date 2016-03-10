@@ -266,15 +266,16 @@ func setFileInformationByHandle(h syscall.Handle, class uint32, buffer *byte, si
 	return
 }
 
-func adjustTokenPrivileges(token syscall.Handle, releaseAll bool, input *byte, outputSize uint32, output *byte, requiredSize *uint32) (err error) {
+func adjustTokenPrivileges(token syscall.Handle, releaseAll bool, input *byte, outputSize uint32, output *byte, requiredSize *uint32) (success bool, err error) {
 	var _p0 uint32
 	if releaseAll {
 		_p0 = 1
 	} else {
 		_p0 = 0
 	}
-	r1, _, e1 := syscall.Syscall6(procAdjustTokenPrivileges.Addr(), 6, uintptr(token), uintptr(_p0), uintptr(unsafe.Pointer(input)), uintptr(outputSize), uintptr(unsafe.Pointer(output)), uintptr(unsafe.Pointer(requiredSize)))
-	if r1 == 0 {
+	r0, _, e1 := syscall.Syscall6(procAdjustTokenPrivileges.Addr(), 6, uintptr(token), uintptr(_p0), uintptr(unsafe.Pointer(input)), uintptr(outputSize), uintptr(unsafe.Pointer(output)), uintptr(unsafe.Pointer(requiredSize)))
+	success = r0 != 0
+	if true {
 		if e1 != 0 {
 			err = error(e1)
 		} else {
