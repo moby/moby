@@ -20,7 +20,7 @@ import (
 // 1. validate uid/gid maps are set properly
 // 2. verify that files created are owned by remapped root
 func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, SameHostDaemon, UserNamespaceInKernel)
 
 	c.Assert(s.d.StartWithBusybox("--userns-remap", "default"), checker.IsNil)
 
