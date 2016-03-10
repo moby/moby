@@ -89,6 +89,7 @@ type containerInit struct {
 	MappedDirectories       []mappedDir // List of mapped directories (volumes/mounts)
 	SandboxPath             string      // Location of unmounted sandbox (used for Hyper-V containers, not Windows Server containers)
 	HvPartition             bool        // True if it a Hyper-V Container
+	EndpointList            []string    // List of endpoints to be attached to container
 }
 
 // defaultOwner is a tag passed to HCS to allow it to differentiate between
@@ -104,6 +105,7 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		err  error
 	)
 
+	// Allocate Network only if there is no network interface
 	cu := &containerInit{
 		SystemType:              "Container",
 		Name:                    c.ID,
@@ -114,6 +116,7 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		LayerFolderPath:         c.LayerFolder,
 		ProcessorWeight:         c.Resources.CPUShares,
 		HostName:                c.Hostname,
+		EndpointList:            c.EpList,
 	}
 
 	cu.HvPartition = c.HvPartition

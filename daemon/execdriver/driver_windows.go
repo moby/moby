@@ -56,6 +56,7 @@ type Command struct {
 	Isolation   string   `json:"isolation"`    // Isolation technology for the container
 	ArgsEscaped bool     `json:"args_escaped"` // True if args are already escaped
 	HvPartition bool     `json:"hv_partition"` // True if it's an hypervisor partition
+	EpList      []string `json:"endpoints"`    // List of network endpoints for HNS
 }
 
 // ExitStatus provides exit reasons for a container.
