@@ -72,6 +72,14 @@ func (d *driver) Type() string {
 	return ipvlanType
 }
 
+func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
+	return nil
+}
+
+func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
+	return nil
+}
+
 // DiscoverNew is a notification for a new discovery event.
 func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
 	return nil
