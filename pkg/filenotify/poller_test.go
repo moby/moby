@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"testing"
 	"time"
 
@@ -36,6 +37,9 @@ func TestPollerAddRemove(t *testing.T) {
 }
 
 func TestPollerEvent(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("No chmod on Windows")
+	}
 	w := NewPollingWatcher()
 
 	f, err := ioutil.TempFile("", "test-poller")
@@ -87,24 +91,6 @@ func TestPollerClose(t *testing.T) {
 	// test double-close
 	if err := w.Close(); err != nil {
 		t.Fatal(err)
-	}
-
-	select {
-	case _, open := <-w.Events():
-		if open {
-			t.Fatal("event chan should be closed")
-		}
-	default:
-		t.Fatal("event chan should be closed")
-	}
-
-	select {
-	case _, open := <-w.Errors():
-		if open {
-			t.Fatal("errors chan should be closed")
-		}
-	default:
-		t.Fatal("errors chan should be closed")
 	}
 
 	f, err := ioutil.TempFile("", "asdf")

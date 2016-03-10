@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/engine-api/types"
 	"github.com/go-check/check"
 )
 
@@ -59,6 +60,7 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 
 	type pluginRequest struct {
 		Name string
+		Opts map[string]string
 	}
 
 	type pluginResp struct {
@@ -69,6 +71,7 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 	type vol struct {
 		Name       string
 		Mountpoint string
+		Ninja      bool // hack used to trigger an null volume return on `Get`
 	}
 	var volList []vol
 
@@ -106,13 +109,21 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 			send(w, err)
 			return
 		}
-		volList = append(volList, vol{Name: pr.Name})
+		_, isNinja := pr.Opts["ninja"]
+		volList = append(volList, vol{Name: pr.Name, Ninja: isNinja})
 		send(w, nil)
 	})
 
 	mux.HandleFunc("/VolumeDriver.List", func(w http.ResponseWriter, r *http.Request) {
 		s.ec.lists++
-		send(w, map[string][]vol{"Volumes": volList})
+		vols := []vol{}
+		for _, v := range volList {
+			if v.Ninja {
+				continue
+			}
+			vols = append(vols, v)
+		}
+		send(w, map[string][]vol{"Volumes": vols})
 	})
 
 	mux.HandleFunc("/VolumeDriver.Get", func(w http.ResponseWriter, r *http.Request) {
@@ -125,6 +136,10 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 
 		for _, v := range volList {
 			if v.Name == pr.Name {
+				if v.Ninja {
+					send(w, map[string]vol{})
+					return
+				}
 				v.Mountpoint = hostVolumePath(pr.Name)
 				send(w, map[string]vol{"Volume": v})
 				return
@@ -141,15 +156,10 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 			return
 		}
 
-		if err := os.RemoveAll(hostVolumePath(pr.Name)); err != nil {
-			send(w, &pluginResp{Err: err.Error()})
-			return
-		}
-
 		for i, v := range volList {
 			if v.Name == pr.Name {
 				if err := os.RemoveAll(hostVolumePath(v.Name)); err != nil {
-					send(w, fmt.Sprintf(`{"Err": "%v"}`, err))
+					send(w, &pluginResp{Err: err.Error()})
 					return
 				}
 				volList = append(volList[:i], volList[i+1:]...)
@@ -258,11 +268,11 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverUnnamed(c *check.C) 
 	c.Assert(s.ec.unmounts, checker.Equals, 1)
 }
 
-func (s DockerExternalVolumeSuite) TestExternalVolumeDriverVolumesFrom(c *check.C) {
+func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverVolumesFrom(c *check.C) {
 	err := s.d.StartWithBusybox()
 	c.Assert(err, checker.IsNil)
 
-	out, err := s.d.Cmd("run", "-d", "--name", "vol-test1", "-v", "/foo", "--volume-driver", "test-external-volume-driver", "busybox:latest")
+	out, err := s.d.Cmd("run", "--name", "vol-test1", "-v", "/foo", "--volume-driver", "test-external-volume-driver", "busybox:latest")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	out, err = s.d.Cmd("run", "--rm", "--volumes-from", "vol-test1", "--name", "vol-test2", "busybox", "ls", "/tmp")
@@ -278,11 +288,11 @@ func (s DockerExternalVolumeSuite) TestExternalVolumeDriverVolumesFrom(c *check.
 	c.Assert(s.ec.unmounts, checker.Equals, 2)
 }
 
-func (s DockerExternalVolumeSuite) TestExternalVolumeDriverDeleteContainer(c *check.C) {
+func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverDeleteContainer(c *check.C) {
 	err := s.d.StartWithBusybox()
 	c.Assert(err, checker.IsNil)
 
-	out, err := s.d.Cmd("run", "-d", "--name", "vol-test1", "-v", "/foo", "--volume-driver", "test-external-volume-driver", "busybox:latest")
+	out, err := s.d.Cmd("run", "--name", "vol-test1", "-v", "/foo", "--volume-driver", "test-external-volume-driver", "busybox:latest")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	out, err = s.d.Cmd("rm", "-fv", "vol-test1")
@@ -390,8 +400,8 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverBindExternalVolume(c
 	c.Assert(mounts[0].Driver, checker.Equals, "test-external-volume-driver")
 }
 
-func (s *DockerExternalVolumeSuite) TesttExternalVolumeDriverList(c *check.C) {
-	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "--name", "abc")
+func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverList(c *check.C) {
+	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "--name", "abc3")
 	out, _ := dockerCmd(c, "volume", "ls")
 	ls := strings.Split(strings.TrimSpace(out), "\n")
 	c.Assert(len(ls), check.Equals, 2, check.Commentf("\n%s", out))
@@ -399,7 +409,7 @@ func (s *DockerExternalVolumeSuite) TesttExternalVolumeDriverList(c *check.C) {
 	vol := strings.Fields(ls[len(ls)-1])
 	c.Assert(len(vol), check.Equals, 2, check.Commentf("%v", vol))
 	c.Assert(vol[0], check.Equals, "test-external-volume-driver")
-	c.Assert(vol[1], check.Equals, "abc")
+	c.Assert(vol[1], check.Equals, "abc3")
 
 	c.Assert(s.ec.lists, check.Equals, 1)
 }
@@ -408,5 +418,26 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *check.C) {
 	out, _, err := dockerCmdWithError("volume", "inspect", "dummy")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(s.ec.gets, check.Equals, 1)
+	c.Assert(out, checker.Contains, "No such volume")
+}
+
+func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemnRestart(c *check.C) {
+	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "--name", "abc1")
+	err := s.d.Restart()
+	c.Assert(err, checker.IsNil)
+
+	dockerCmd(c, "run", "--name=test", "-v", "abc1:/foo", "busybox", "true")
+	var mounts []types.MountPoint
+	inspectFieldAndMarshall(c, "test", "Mounts", &mounts)
+	c.Assert(mounts, checker.HasLen, 1)
+	c.Assert(mounts[0].Driver, checker.Equals, "test-external-volume-driver")
+}
+
+// Ensures that the daemon handles when the plugin responds to a `Get` request with a null volume and a null error.
+// Prior the daemon would panic in this scenario.
+func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGetEmptyResponse(c *check.C) {
+	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "--name", "abc2", "--opt", "ninja=1")
+	out, _, err := dockerCmdWithError("volume", "inspect", "abc2")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "No such volume")
 }

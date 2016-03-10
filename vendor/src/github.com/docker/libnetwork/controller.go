@@ -56,6 +56,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/hostdiscovery"
 	"github.com/docker/libnetwork/ipamapi"
@@ -105,6 +106,9 @@ type NetworkController interface {
 
 	// Stop network controller
 	Stop()
+
+	// ReloadCondfiguration updates the controller configuration
+	ReloadConfiguration(cfgOptions ...config.Option) error
 }
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.
@@ -128,7 +132,6 @@ type ipamData struct {
 }
 
 type driverTable map[string]*driverData
-
 type ipamTable map[string]*ipamData
 type sandboxTable map[string]*sandbox
 
@@ -152,22 +155,9 @@ type controller struct {
 
 // New creates a new instance of network controller.
 func New(cfgOptions ...config.Option) (NetworkController, error) {
-	var cfg *config.Config
-	cfg = &config.Config{
-		Daemon: config.DaemonCfg{
-			DriverCfg: make(map[string]interface{}),
-		},
-		Scopes: make(map[string]*datastore.ScopeCfg),
-	}
-
-	if len(cfgOptions) > 0 {
-		cfg.ProcessOptions(cfgOptions...)
-	}
-	cfg.LoadDefaultScopes(cfg.Daemon.DataDir)
-
 	c := &controller{
 		id:          stringid.GenerateRandomID(),
-		cfg:         cfg,
+		cfg:         config.ParseConfigOptions(cfgOptions...),
 		sandboxes:   sandboxTable{},
 		drivers:     driverTable{},
 		ipamDrivers: ipamTable{},
@@ -178,9 +168,9 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		return nil, err
 	}
 
-	if cfg != nil && cfg.Cluster.Watcher != nil {
-		if err := c.initDiscovery(cfg.Cluster.Watcher); err != nil {
-			// Failing to initalize discovery is a bad situation to be in.
+	if c.cfg != nil && c.cfg.Cluster.Watcher != nil {
+		if err := c.initDiscovery(c.cfg.Cluster.Watcher); err != nil {
+			// Failing to initialize discovery is a bad situation to be in.
 			// But it cannot fail creating the Controller
 			log.Errorf("Failed to Initialize Discovery : %v", err)
 		}
@@ -203,6 +193,83 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 	}
 
 	return c, nil
+}
+
+var procReloadConfig = make(chan (bool), 1)
+
+func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
+	procReloadConfig <- true
+	defer func() { <-procReloadConfig }()
+
+	// For now we accept the configuration reload only as a mean to provide a global store config after boot.
+	// Refuse the configuration if it alters an existing datastore client configuration.
+	update := false
+	cfg := config.ParseConfigOptions(cfgOptions...)
+	for s := range c.cfg.Scopes {
+		if _, ok := cfg.Scopes[s]; !ok {
+			return types.ForbiddenErrorf("cannot accept new configuration because it removes an existing datastore client")
+		}
+	}
+	for s, nSCfg := range cfg.Scopes {
+		if eSCfg, ok := c.cfg.Scopes[s]; ok {
+			if eSCfg.Client.Provider != nSCfg.Client.Provider ||
+				eSCfg.Client.Address != nSCfg.Client.Address {
+				return types.ForbiddenErrorf("cannot accept new configuration because it modifies an existing datastore client")
+			}
+		} else {
+			update = true
+		}
+	}
+	if !update {
+		return nil
+	}
+
+	c.Lock()
+	c.cfg = cfg
+	c.Unlock()
+
+	if err := c.initStores(); err != nil {
+		return err
+	}
+
+	if c.discovery == nil && c.cfg.Cluster.Watcher != nil {
+		if err := c.initDiscovery(c.cfg.Cluster.Watcher); err != nil {
+			log.Errorf("Failed to Initialize Discovery after configuration update: %v", err)
+		}
+	}
+
+	var dsConfig *discoverapi.DatastoreConfigData
+	for scope, sCfg := range cfg.Scopes {
+		if scope == datastore.LocalScope || !sCfg.IsValid() {
+			continue
+		}
+		dsConfig = &discoverapi.DatastoreConfigData{
+			Scope:    scope,
+			Provider: sCfg.Client.Provider,
+			Address:  sCfg.Client.Address,
+			Config:   sCfg.Client.Config,
+		}
+		break
+	}
+	if dsConfig == nil {
+		return nil
+	}
+
+	for nm, id := range c.getIpamDrivers() {
+		err := id.driver.DiscoverNew(discoverapi.DatastoreConfig, *dsConfig)
+		if err != nil {
+			log.Errorf("Failed to set datastore in driver %s: %v", nm, err)
+		}
+	}
+
+	for nm, id := range c.getNetDrivers() {
+		err := id.driver.DiscoverNew(discoverapi.DatastoreConfig, *dsConfig)
+		if err != nil {
+			log.Errorf("Failed to set datastore in driver %s: %v", nm, err)
+		}
+	}
+
+	return nil
 }
 
 func (c *controller) ID() string {
@@ -288,12 +355,12 @@ func (c *controller) pushNodeDiscovery(d *driverData, nodes []net.IP, add bool) 
 		return
 	}
 	for _, node := range nodes {
-		nodeData := driverapi.NodeDiscoveryData{Address: node.String(), Self: node.Equal(self)}
+		nodeData := discoverapi.NodeDiscoveryData{Address: node.String(), Self: node.Equal(self)}
 		var err error
 		if add {
-			err = d.driver.DiscoverNew(driverapi.NodeDiscovery, nodeData)
+			err = d.driver.DiscoverNew(discoverapi.NodeDiscovery, nodeData)
 		} else {
-			err = d.driver.DiscoverDelete(driverapi.NodeDiscovery, nodeData)
+			err = d.driver.DiscoverDelete(discoverapi.NodeDiscovery, nodeData)
 		}
 		if err != nil {
 			log.Debugf("discovery notification error : %v", err)
@@ -723,6 +790,26 @@ func (c *controller) getIpamDriver(name string) (ipamapi.Ipam, error) {
 		return nil, err
 	}
 	return id.driver, nil
+}
+
+func (c *controller) getIpamDrivers() ipamTable {
+	c.Lock()
+	defer c.Unlock()
+	table := ipamTable{}
+	for i, d := range c.ipamDrivers {
+		table[i] = d
+	}
+	return table
+}
+
+func (c *controller) getNetDrivers() driverTable {
+	c.Lock()
+	defer c.Unlock()
+	table := driverTable{}
+	for i, d := range c.drivers {
+		table[i] = d
+	}
+	return table
 }
 
 func (c *controller) Stop() {

@@ -33,6 +33,12 @@ var (
 		},
 		"Test requires Oom control enabled.",
 	}
+	pidsLimit = testRequirement{
+		func() bool {
+			return SysInfo.PidsLimit
+		},
+		"Test requires pids limit enabled.",
+	}
 	kernelMemorySupport = testRequirement{
 		func() bool {
 			return SysInfo.KernelMemory
@@ -80,6 +86,18 @@ var (
 			return supportsSeccomp && SysInfo.Seccomp
 		},
 		"Test requires that seccomp support be enabled in the daemon.",
+	}
+	bridgeNfIptables = testRequirement{
+		func() bool {
+			return !SysInfo.BridgeNFCallIPTablesDisabled
+		},
+		"Test requires that bridge-nf-call-iptables support be enabled in the daemon.",
+	}
+	bridgeNfIP6tables = testRequirement{
+		func() bool {
+			return !SysInfo.BridgeNFCallIP6TablesDisabled
+		},
+		"Test requires that bridge-nf-call-ip6tables support be enabled in the daemon.",
 	}
 )
 

@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.7.0-dev.5 (2016-03-08)
+- Fixes https://github.com/docker/docker/issues/20847
+- Fixes https://github.com/docker/docker/issues/20997
+- Fixes issues unveiled by docker integ test over 0.7.0-dev.4
+
+## 0.7.0-dev.4 (2016-03-07)
+- Changed ownership of exposed ports and port-mapping options from Endpoint to Sandbox
+- Implement DNS RR in the Docker embedded DNS server
+- Fixes https://github.com/docker/libnetwork/issues/984 (multi container overlay veth leak)
+- Libnetwork to program container's interface MAC address
+- Fixed bug in iptables.Exists() logic
+- Fixes https://github.com/docker/docker/issues/20694
+- Source external DNS queries from container namespace
+- Added inbuilt nil IPAM driver
+- Windows drivers integration fixes
+- Extract hostname from (hostname.domainname). Related to https://github.com/docker/docker/issues/14282
+- Fixed race in sandbox statistics read
+- Fixes https://github.com/docker/libnetwork/issues/892 (docker start fails when ipv6.disable=1)
+- Fixed error message on bridge network creation conflict
+
+## 0.7.0-dev.3 (2016-02-17)
+- Fixes https://github.com/docker/docker/issues/20350
+- Fixes https://github.com/docker/docker/issues/20145
+- Initial Windows HNS integration
+- Allow passing global datastore config to libnetwork after boot
+- Set Recursion Available bit in DNS query responses
+- Make sure iptables chains are recreated on firewalld reload
+
+## 0.7.0-dev.2 (2016-02-11)
+- Fixes https://github.com/docker/docker/issues/20140
+
+## 0.7.0-dev.1 (2016-02-10)
+- Expose EnableIPV6 option
+- discoverapi refactoring
+- Fixed a few typos & docs update
+
+## 0.6.1-rc2 (2016-02-09)
+- Fixes https://github.com/docker/docker/issues/20132
+- Fixes https://github.com/docker/docker/issues/20140
+- Fixes https://github.com/docker/docker/issues/20019
+
 ## 0.6.1-rc1 (2016-02-05)
 - Fixes https://github.com/docker/docker/issues/20026
 
@@ -69,7 +110,7 @@
 - DEPRECATE service discovery from default bridge network
 - Introduced new network UX
 - Support for multiple networks in bridge driver
-- Local persistance with boltdb
+- Local persistence with boltdb
 
 ## 0.4.0 (2015-07-24)
 
@@ -82,6 +123,6 @@
 - Fixed a bunch of issues with osl namespace mgmt
 
 ## 0.3.0 (2015-05-27)
-
+ 
 - Introduce CNM (Container Networking Model)
 - Replace docker networking with CNM & Bridge driver

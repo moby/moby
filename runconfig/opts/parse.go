@@ -85,13 +85,14 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flIPv4Address       = cmd.String([]string{"-ip"}, "", "Container IPv4 address (e.g. 172.30.100.104)")
 		flIPv6Address       = cmd.String([]string{"-ip6"}, "", "Container IPv6 address (e.g. 2001:db8::33)")
 		flIpcMode           = cmd.String([]string{"-ipc"}, "", "IPC namespace to use")
+		flPidsLimit         = cmd.Int64([]string{"-pids-limit"}, 0, "Tune container pids limit (set -1 for unlimited)")
 		flRestartPolicy     = cmd.String([]string{"-restart"}, "no", "Restart policy to apply when a container exits")
 		flReadonlyRootfs    = cmd.Bool([]string{"-read-only"}, false, "Mount the container's root filesystem as read only")
 		flLoggingDriver     = cmd.String([]string{"-log-driver"}, "", "Logging driver for container")
 		flCgroupParent      = cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
 		flVolumeDriver      = cmd.String([]string{"-volume-driver"}, "", "Optional volume driver for the container")
 		flStopSignal        = cmd.String([]string{"-stop-signal"}, signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal))
-		flIsolation         = cmd.String([]string{"-isolation"}, "", "Container isolation level")
+		flIsolation         = cmd.String([]string{"-isolation"}, "", "Container isolation technology")
 		flShmSize           = cmd.String([]string{"-shm-size"}, "", "Size of /dev/shm, default value is 64MB")
 	)
 
@@ -191,7 +192,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 
 	swappiness := *flSwappiness
 	if swappiness != -1 && (swappiness < 0 || swappiness > 100) {
-		return nil, nil, nil, cmd, fmt.Errorf("Invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
+		return nil, nil, nil, cmd, fmt.Errorf("invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
 	}
 
 	var shmSize int64
@@ -228,15 +229,15 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 
 	var (
 		parsedArgs = cmd.Args()
-		runCmd     *strslice.StrSlice
-		entrypoint *strslice.StrSlice
+		runCmd     strslice.StrSlice
+		entrypoint strslice.StrSlice
 		image      = cmd.Arg(0)
 	)
 	if len(parsedArgs) > 1 {
-		runCmd = strslice.New(parsedArgs[1:]...)
+		runCmd = strslice.StrSlice(parsedArgs[1:])
 	}
 	if *flEntrypoint != "" {
-		entrypoint = strslice.New(*flEntrypoint)
+		entrypoint = strslice.StrSlice{*flEntrypoint}
 	}
 
 	var (
@@ -257,7 +258,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	// Merge in exposed ports to the map of published ports
 	for _, e := range flExpose.GetAll() {
 		if strings.Contains(e, ":") {
-			return nil, nil, nil, cmd, fmt.Errorf("Invalid port format for --expose: %s", e)
+			return nil, nil, nil, cmd, fmt.Errorf("invalid port format for --expose: %s", e)
 		}
 		//support two formats for expose, original format <portnum>/[<proto>] or <startport-endport>/[<proto>]
 		proto, port := nat.SplitProtoPort(e)
@@ -265,7 +266,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		//if expose a port, the start and end port are the same
 		start, end, err := nat.ParsePortRange(port)
 		if err != nil {
-			return nil, nil, nil, cmd, fmt.Errorf("Invalid range format for --expose: %s, error: %s", e, err)
+			return nil, nil, nil, cmd, fmt.Errorf("invalid range format for --expose: %s, error: %s", e, err)
 		}
 		for i := start; i <= end; i++ {
 			p, err := nat.NewPort(proto, strconv.FormatUint(i, 10))
@@ -343,6 +344,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		CpusetCpus:           *flCpusetCpus,
 		CpusetMems:           *flCpusetMems,
 		CPUQuota:             *flCPUQuota,
+		PidsLimit:            *flPidsLimit,
 		BlkioWeight:          *flBlkioWeight,
 		BlkioWeightDevice:    flBlkioWeightDevice.GetList(),
 		BlkioDeviceReadBps:   flDeviceReadBps.GetList(),
@@ -375,7 +377,9 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
 		Labels:          ConvertKVStringsToMap(labels),
-		StopSignal:      *flStopSignal,
+	}
+	if cmd.IsSet("-stop-signal") {
+		config.StopSignal = *flStopSignal
 	}
 
 	hostConfig := &container.HostConfig{
@@ -400,15 +404,15 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		IpcMode:        ipcMode,
 		PidMode:        pidMode,
 		UTSMode:        utsMode,
-		CapAdd:         strslice.New(flCapAdd.GetAll()...),
-		CapDrop:        strslice.New(flCapDrop.GetAll()...),
+		CapAdd:         strslice.StrSlice(flCapAdd.GetAll()),
+		CapDrop:        strslice.StrSlice(flCapDrop.GetAll()),
 		GroupAdd:       flGroupAdd.GetAll(),
 		RestartPolicy:  restartPolicy,
 		SecurityOpt:    securityOpts,
 		ReadonlyRootfs: *flReadonlyRootfs,
 		LogConfig:      container.LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
 		VolumeDriver:   *flVolumeDriver,
-		Isolation:      container.IsolationLevel(*flIsolation),
+		Isolation:      container.Isolation(*flIsolation),
 		ShmSize:        shmSize,
 		Resources:      resources,
 		Tmpfs:          tmpfs,
@@ -489,7 +493,7 @@ func ConvertKVStringsToMap(values []string) map[string]string {
 func parseLoggingOpts(loggingDriver string, loggingOpts []string) (map[string]string, error) {
 	loggingOptsMap := ConvertKVStringsToMap(loggingOpts)
 	if loggingDriver == "none" && len(loggingOpts) > 0 {
-		return map[string]string{}, fmt.Errorf("Invalid logging opts for driver %s", loggingDriver)
+		return map[string]string{}, fmt.Errorf("invalid logging opts for driver %s", loggingDriver)
 	}
 	return loggingOptsMap, nil
 }
@@ -498,17 +502,17 @@ func parseLoggingOpts(loggingDriver string, loggingOpts []string) (map[string]st
 func parseSecurityOpts(securityOpts []string) ([]string, error) {
 	for key, opt := range securityOpts {
 		con := strings.SplitN(opt, ":", 2)
-		if len(con) == 1 {
+		if len(con) == 1 && con[0] != "no-new-privileges" {
 			return securityOpts, fmt.Errorf("Invalid --security-opt: %q", opt)
 		}
 		if con[0] == "seccomp" && con[1] != "unconfined" {
 			f, err := ioutil.ReadFile(con[1])
 			if err != nil {
-				return securityOpts, fmt.Errorf("Opening seccomp profile (%s) failed: %v", con[1], err)
+				return securityOpts, fmt.Errorf("opening seccomp profile (%s) failed: %v", con[1], err)
 			}
 			b := bytes.NewBuffer(nil)
 			if err := json.Compact(b, f); err != nil {
-				return securityOpts, fmt.Errorf("Compacting json for seccomp profile (%s) failed: %v", con[1], err)
+				return securityOpts, fmt.Errorf("compacting json for seccomp profile (%s) failed: %v", con[1], err)
 			}
 			securityOpts[key] = fmt.Sprintf("seccomp:%s", b.Bytes())
 		}
@@ -577,7 +581,7 @@ func ParseDevice(device string) (container.DeviceMapping, error) {
 	case 1:
 		src = arr[0]
 	default:
-		return container.DeviceMapping{}, fmt.Errorf("Invalid device specification: %s", device)
+		return container.DeviceMapping{}, fmt.Errorf("invalid device specification: %s", device)
 	}
 
 	if dst == "" {

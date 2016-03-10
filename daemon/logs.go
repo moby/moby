@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"fmt"
 	"io"
 	"strconv"
 	"time"
@@ -10,9 +11,9 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stdcopy"
+	containertypes "github.com/docker/engine-api/types/container"
 	timetypes "github.com/docker/engine-api/types/time"
 )
 
@@ -21,11 +22,11 @@ import (
 func (daemon *Daemon) ContainerLogs(containerName string, config *backend.ContainerLogsConfig, started chan struct{}) error {
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {
-		return derr.ErrorCodeNoSuchContainer.WithArgs(containerName)
+		return err
 	}
 
 	if !(config.ShowStdout || config.ShowStderr) {
-		return derr.ErrorCodeNeedStream
+		return fmt.Errorf("You must choose at least one stream")
 	}
 
 	cLog, err := daemon.getLogger(container)
@@ -103,7 +104,7 @@ func (daemon *Daemon) getLogger(container *container.Container) (logger.Logger, 
 	if container.LogDriver != nil && container.IsRunning() {
 		return container.LogDriver, nil
 	}
-	cfg := container.GetLogConfig(daemon.defaultLogConfig)
+	cfg := daemon.getLogConfig(container.HostConfig.LogConfig)
 	if err := logger.ValidateLogOpts(cfg.Type, cfg.Config); err != nil {
 		return nil, err
 	}
@@ -112,7 +113,7 @@ func (daemon *Daemon) getLogger(container *container.Container) (logger.Logger, 
 
 // StartLogging initializes and starts the container logging stream.
 func (daemon *Daemon) StartLogging(container *container.Container) error {
-	cfg := container.GetLogConfig(daemon.defaultLogConfig)
+	cfg := daemon.getLogConfig(container.HostConfig.LogConfig)
 	if cfg.Type == "none" {
 		return nil // do not start logging routines
 	}
@@ -122,7 +123,7 @@ func (daemon *Daemon) StartLogging(container *container.Container) error {
 	}
 	l, err := container.StartLogger(cfg)
 	if err != nil {
-		return derr.ErrorCodeInitLogger.WithArgs(err)
+		return fmt.Errorf("Failed to initialize logging driver: %v", err)
 	}
 
 	copier := logger.NewCopier(container.ID, map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)
@@ -136,4 +137,17 @@ func (daemon *Daemon) StartLogging(container *container.Container) error {
 	}
 
 	return nil
+}
+
+// getLogConfig returns the log configuration for the container.
+func (daemon *Daemon) getLogConfig(cfg containertypes.LogConfig) containertypes.LogConfig {
+	if cfg.Type != "" || len(cfg.Config) > 0 { // container has log driver configured
+		if cfg.Type == "" {
+			cfg.Type = jsonfilelog.Name
+		}
+		return cfg
+	}
+
+	// Use daemon's default log config for containers
+	return daemon.defaultLogConfig
 }

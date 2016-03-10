@@ -17,7 +17,7 @@ MongoDB pre-installed.  We'll also see how to `push` that image to the
 [Docker Hub registry](https://hub.docker.com) and share it with others!
 
 > **Note:** This guide will show the mechanics of building a MongoDB container, but
-> you will probably want to use the official image on [Docker Hub]( https://registry.hub.docker.com/_/mongo/)
+> you will probably want to use the official image on [Docker Hub]( https://hub.docker.com/_/mongo/)
 
 Using Docker and containers for deploying [MongoDB](https://www.mongodb.org/)
 instances will bring several benefits, such as:
@@ -49,7 +49,7 @@ Although optional, it is handy to have comments at the beginning of a
 > the *parent* of your *Dockerized MongoDB* image.
 
 We will build our image using the latest version of Ubuntu from the
-[Docker Hub Ubuntu](https://registry.hub.docker.com/_/ubuntu/) repository.
+[Docker Hub Ubuntu](https://hub.docker.com/_/ubuntu/) repository.
 
     # Format: FROM    repository[:version]
     FROM       ubuntu:latest

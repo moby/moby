@@ -50,6 +50,7 @@ type Resources struct {
 	CPUPeriod                    int64                      `json:"cpu_period"`
 	Rlimits                      []*units.Rlimit            `json:"rlimits"`
 	OomKillDisable               bool                       `json:"oom_kill_disable"`
+	PidsLimit                    int64                      `json:"pids_limit"`
 	MemorySwappiness             int64                      `json:"memory_swappiness"`
 }
 
@@ -124,6 +125,7 @@ type Command struct {
 	SeccompProfile     string            `json:"seccomp_profile"`
 	UIDMapping         []idtools.IDMap   `json:"uidmapping"`
 	UTS                *UTS              `json:"uts"`
+	NoNewPrivileges    bool              `json:"no_new_privileges"`
 }
 
 // SetRootPropagation sets the root mount propagation mode.
@@ -140,7 +142,7 @@ func InitContainer(c *Command) *configs.Config {
 	container.Hostname = getEnv("HOSTNAME", c.ProcessConfig.Env)
 	container.Cgroups.Name = c.ID
 	container.Cgroups.Resources.AllowedDevices = c.AllowedDevices
-	container.Devices = c.AutoCreatedDevices
+	container.Devices = filterDevices(c.AutoCreatedDevices, (c.RemappedRoot.UID != 0))
 	container.Rootfs = c.Rootfs
 	container.Readonlyfs = c.ReadonlyRootfs
 	// This can be overridden later by driver during mount setup based
@@ -152,6 +154,24 @@ func InitContainer(c *Command) *configs.Config {
 	container.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
 
 	return container
+}
+
+func filterDevices(devices []*configs.Device, userNamespacesEnabled bool) []*configs.Device {
+	if !userNamespacesEnabled {
+		return devices
+	}
+
+	filtered := []*configs.Device{}
+	// if we have user namespaces enabled, these devices will not be created
+	// because of the mknod limitation in the kernel for an unprivileged process.
+	// Rather, they will be bind-mounted, which will only work if they exist;
+	// check for existence and remove non-existent entries from the list
+	for _, device := range devices {
+		if _, err := os.Stat(device.Path); err == nil {
+			filtered = append(filtered, device)
+		}
+	}
+	return filtered
 }
 
 func getEnv(key string, env []string) string {
@@ -183,6 +203,7 @@ func SetupCgroups(container *configs.Config, c *Command) error {
 		container.Cgroups.Resources.BlkioThrottleReadIOPSDevice = c.Resources.BlkioThrottleReadIOpsDevice
 		container.Cgroups.Resources.BlkioThrottleWriteIOPSDevice = c.Resources.BlkioThrottleWriteIOpsDevice
 		container.Cgroups.Resources.OomKillDisable = c.Resources.OomKillDisable
+		container.Cgroups.Resources.PidsLimit = c.Resources.PidsLimit
 		container.Cgroups.Resources.MemorySwappiness = c.Resources.MemorySwappiness
 	}
 

@@ -5,6 +5,7 @@ package libcontainer
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -87,6 +88,7 @@ func (p *setnsProcess) start() (err error) {
 	if err := utils.WriteJSON(p.parentPipe, p.config); err != nil {
 		return newSystemError(err)
 	}
+
 	if err := syscall.Shutdown(int(p.parentPipe.Fd()), syscall.SHUT_WR); err != nil {
 		return newSystemError(err)
 	}
@@ -96,6 +98,7 @@ func (p *setnsProcess) start() (err error) {
 	if err := json.NewDecoder(p.parentPipe).Decode(&ierr); err != nil && err != io.EOF {
 		return newSystemError(err)
 	}
+	// Must be done after Shutdown so the child will exit and we can wait for it.
 	if ierr != nil {
 		p.wait()
 		return newSystemError(ierr)
@@ -199,7 +202,6 @@ func (p *initProcess) start() (err error) {
 		return newSystemError(err)
 	}
 	p.setExternalDescriptors(fds)
-
 	// Do this before syncing with child so that no children
 	// can escape the cgroup
 	if err := p.manager.Apply(p.pid()); err != nil {
@@ -230,13 +232,54 @@ func (p *initProcess) start() (err error) {
 	if err := p.sendConfig(); err != nil {
 		return newSystemError(err)
 	}
-	// wait for the child process to fully complete and receive an error message
-	// if one was encoutered
-	var ierr *genericError
-	if err := json.NewDecoder(p.parentPipe).Decode(&ierr); err != nil && err != io.EOF {
+	var (
+		procSync syncT
+		sentRun  bool
+		ierr     *genericError
+	)
+
+loop:
+	for {
+		if err := json.NewDecoder(p.parentPipe).Decode(&procSync); err != nil {
+			if err == io.EOF {
+				break loop
+			}
+			return newSystemError(err)
+		}
+		switch procSync.Type {
+		case procReady:
+			if err := p.manager.Set(p.config.Config); err != nil {
+				return newSystemError(err)
+			}
+			// Sync with child.
+			if err := utils.WriteJSON(p.parentPipe, syncT{procRun}); err != nil {
+				return newSystemError(err)
+			}
+			sentRun = true
+		case procError:
+			// wait for the child process to fully complete and receive an error message
+			// if one was encoutered
+			if err := json.NewDecoder(p.parentPipe).Decode(&ierr); err != nil && err != io.EOF {
+				return newSystemError(err)
+			}
+			if ierr != nil {
+				break loop
+			}
+			// Programmer error.
+			panic("No error following JSON procError payload.")
+		default:
+			return newSystemError(fmt.Errorf("invalid JSON synchronisation payload from child"))
+		}
+	}
+	if !sentRun {
+		return newSystemError(fmt.Errorf("could not synchronise with container process"))
+	}
+	if err := syscall.Shutdown(int(p.parentPipe.Fd()), syscall.SHUT_WR); err != nil {
 		return newSystemError(err)
 	}
+	// Must be done after Shutdown so the child will exit and we can wait for it.
 	if ierr != nil {
+		p.wait()
 		return newSystemError(ierr)
 	}
 	return nil
@@ -270,12 +313,10 @@ func (p *initProcess) startTime() (string, error) {
 }
 
 func (p *initProcess) sendConfig() error {
-	// send the state to the container's init process then shutdown writes for the parent
-	if err := utils.WriteJSON(p.parentPipe, p.config); err != nil {
-		return err
-	}
-	// shutdown writes for the parent side of the pipe
-	return syscall.Shutdown(int(p.parentPipe.Fd()), syscall.SHUT_WR)
+	// send the config to the container's init process, we don't use JSON Encode
+	// here because there might be a problem in JSON decoder in some cases, see:
+	// https://github.com/docker/docker/issues/14203#issuecomment-174177790
+	return utils.WriteJSON(p.parentPipe, p.config)
 }
 
 func (p *initProcess) createNetworkInterfaces() error {

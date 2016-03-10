@@ -3,6 +3,7 @@ package distribution
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -43,9 +44,14 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 	}
 	defer os.RemoveAll(tmp)
 
+	uri, err := url.Parse(ts.URL)
+	if err != nil {
+		t.Fatalf("could not parse url from test server: %v", err)
+	}
+
 	endpoint := registry.APIEndpoint{
 		Mirror:       false,
-		URL:          ts.URL,
+		URL:          uri,
 		Version:      2,
 		Official:     false,
 		TrimHostname: false,

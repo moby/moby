@@ -111,8 +111,8 @@ func TestParseMountSpec(t *testing.T) {
 			"/path:ro":        "Invalid volume specification",
 			"/rw:rw":          "Invalid volume specification",
 			"path:ro":         "Invalid volume specification",
-			"/path:/path:sw":  `invalid mode: "sw"`,
-			"/path:/path:rwz": `invalid mode: "rwz"`,
+			"/path:/path:sw":  `invalid mode: sw`,
+			"/path:/path:rwz": `invalid mode: rwz`,
 		}
 	}
 
@@ -167,10 +167,10 @@ func TestParseMountSpecSplit(t *testing.T) {
 			{"/tmp:/tmp2:ro", "", "/tmp2", "/tmp", "", "", false, false},
 			{"/tmp:/tmp3:rw", "", "/tmp3", "/tmp", "", "", true, false},
 			{"/tmp:/tmp4:foo", "", "", "", "", "", false, true},
-			{"name:/named1", "", "/named1", "", "name", "local", true, false},
+			{"name:/named1", "", "/named1", "", "name", "", true, false},
 			{"name:/named2", "external", "/named2", "", "name", "external", true, false},
 			{"name:/named3:ro", "local", "/named3", "", "name", "local", false, false},
-			{"local/name:/tmp:rw", "", "/tmp", "", "local/name", "local", true, false},
+			{"local/name:/tmp:rw", "", "/tmp", "", "local/name", "", true, false},
 			{"/tmp:tmp", "", "", "", "", "", true, true},
 		}
 	}

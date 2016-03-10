@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -24,13 +25,13 @@ import (
 // the repo and tag arguments, respectively.
 func (daemon *Daemon) ImportImage(src string, newRef reference.Named, msg string, inConfig io.ReadCloser, outStream io.Writer, config *container.Config) error {
 	var (
-		sf      = streamformatter.NewJSONStreamFormatter()
-		archive io.ReadCloser
-		resp    *http.Response
+		sf   = streamformatter.NewJSONStreamFormatter()
+		rc   io.ReadCloser
+		resp *http.Response
 	)
 
 	if src == "-" {
-		archive = inConfig
+		rc = inConfig
 	} else {
 		inConfig.Close()
 		u, err := url.Parse(src)
@@ -48,15 +49,20 @@ func (daemon *Daemon) ImportImage(src string, newRef reference.Named, msg string
 			return err
 		}
 		progressOutput := sf.NewProgressOutput(outStream, true)
-		archive = progress.NewProgressReader(resp.Body, progressOutput, resp.ContentLength, "", "Importing")
+		rc = progress.NewProgressReader(resp.Body, progressOutput, resp.ContentLength, "", "Importing")
 	}
 
-	defer archive.Close()
+	defer rc.Close()
 	if len(msg) == 0 {
 		msg = "Imported from " + src
 	}
+
+	inflatedLayerData, err := archive.DecompressStream(rc)
+	if err != nil {
+		return err
+	}
 	// TODO: support windows baselayer?
-	l, err := daemon.layerStore.Register(archive, "")
+	l, err := daemon.layerStore.Register(inflatedLayerData, "")
 	if err != nil {
 		return err
 	}

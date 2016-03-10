@@ -20,11 +20,11 @@ profile /usr/bin/docker (attach_disconnected, complain) {
 
   umount,
   pivot_root,
-{{if ge .MajorVersion 2}}{{if ge .MinorVersion 9}}
+{{if ge .Version 209000}}
   signal (receive) peer=@{profile_name},
   signal (receive) peer=unconfined,
   signal (send),
-{{end}}{{end}}
+{{end}}
   network,
   capability,
   owner /** rw,
@@ -46,12 +46,12 @@ profile /usr/bin/docker (attach_disconnected, complain) {
   /etc/ld.so.cache r,
   /etc/passwd r,
 
-{{if ge .MajorVersion 2}}{{if ge .MinorVersion 9}}
+{{if ge .Version 209000}}
   ptrace peer=@{profile_name},
   ptrace (read) peer=docker-default,
   deny ptrace (trace) peer=docker-default,
   deny ptrace peer=/usr/bin/docker///bin/ps,
-{{end}}{{end}}
+{{end}}
 
   /usr/lib/** rm,
   /lib/** rm,
@@ -72,11 +72,11 @@ profile /usr/bin/docker (attach_disconnected, complain) {
   /sbin/zfs rCx,
   /sbin/apparmor_parser rCx,
 
-{{if ge .MajorVersion 2}}{{if ge .MinorVersion 9}}
+{{if ge .Version 209000}}
   # Transitions
   change_profile -> docker-*,
   change_profile -> unconfined,
-{{end}}{{end}}
+{{end}}
 
   profile /bin/cat (complain) {
     /etc/ld.so.cache r,
@@ -98,10 +98,10 @@ profile /usr/bin/docker (attach_disconnected, complain) {
     /dev/null rw,
     /bin/ps mr,
 
-{{if ge .MajorVersion 2}}{{if ge .MinorVersion 9}}
+{{if ge .Version 209000}}
     # We don't need ptrace so we'll deny and ignore the error.
     deny ptrace (read, trace),
-{{end}}{{end}}
+{{end}}
 
     # Quiet dac_override denials
     deny capability dac_override,
@@ -119,15 +119,15 @@ profile /usr/bin/docker (attach_disconnected, complain) {
     /proc/tty/drivers r,
   }
   profile /sbin/iptables (complain) {
-{{if ge .MajorVersion 2}}{{if ge .MinorVersion 9}}
+{{if ge .Version 209000}}
     signal (receive) peer=/usr/bin/docker,
-{{end}}{{end}}
+{{end}}
     capability net_admin,
   }
   profile /sbin/auplink flags=(attach_disconnected, complain) {
-{{if ge .MajorVersion 2}}{{if ge .MinorVersion 9}}
+{{if ge .Version 209000}}
     signal (receive) peer=/usr/bin/docker,
-{{end}}{{end}}
+{{end}}
     capability sys_admin,
     capability dac_override,
 
@@ -146,9 +146,9 @@ profile /usr/bin/docker (attach_disconnected, complain) {
     /proc/[0-9]*/mounts rw,
   }
   profile /sbin/modprobe /bin/kmod (complain) {
-{{if ge .MajorVersion 2}}{{if ge .MinorVersion 9}}
+{{if ge .Version 209000}}
     signal (receive) peer=/usr/bin/docker,
-{{end}}{{end}}
+{{end}}
     capability sys_module,
     /etc/ld.so.cache r,
     /lib/** rm,
@@ -162,9 +162,9 @@ profile /usr/bin/docker (attach_disconnected, complain) {
   }
   # xz works via pipes, so we do not need access to the filesystem.
   profile /usr/bin/xz (complain) {
-{{if ge .MajorVersion 2}}{{if ge .MinorVersion 9}}
+{{if ge .Version 209000}}
     signal (receive) peer=/usr/bin/docker,
-{{end}}{{end}}
+{{end}}
     /etc/ld.so.cache r,
     /lib/** rm,
     /usr/bin/xz rm,

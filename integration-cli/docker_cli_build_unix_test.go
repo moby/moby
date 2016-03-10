@@ -171,8 +171,8 @@ func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
 	}
 
 	testActions := map[string]chan bool{
-		"start": make(chan bool),
-		"die":   make(chan bool),
+		"start": make(chan bool, 1),
+		"die":   make(chan bool, 1),
 	}
 
 	matcher := matchEventLine(buildID, "container", testActions)

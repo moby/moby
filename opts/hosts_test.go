@@ -6,15 +6,16 @@ import (
 )
 
 func TestParseHost(t *testing.T) {
-	invalid := map[string]string{
-		"anything":              "Invalid bind address format: anything",
-		"something with spaces": "Invalid bind address format: something with spaces",
-		"://":                "Invalid bind address format: ://",
-		"unknown://":         "Invalid bind address format: unknown://",
-		"tcp://:port":        "Invalid bind address format: :port",
-		"tcp://invalid":      "Invalid bind address format: invalid",
-		"tcp://invalid:port": "Invalid bind address format: invalid:port",
+	invalid := []string{
+		"anything",
+		"something with spaces",
+		"://",
+		"unknown://",
+		"tcp://:port",
+		"tcp://invalid",
+		"tcp://invalid:port",
 	}
+
 	valid := map[string]string{
 		"":                         DefaultHost,
 		" ":                        DefaultHost,
@@ -37,11 +38,12 @@ func TestParseHost(t *testing.T) {
 		"npipe:////./pipe/foo":     "npipe:////./pipe/foo",
 	}
 
-	for value, errorMessage := range invalid {
-		if _, err := ParseHost(false, value); err == nil || err.Error() != errorMessage {
-			t.Errorf("Expected an error for %v with [%v], got [%v]", value, errorMessage, err)
+	for _, value := range invalid {
+		if _, err := ParseHost(false, value); err == nil {
+			t.Errorf("Expected an error for %v, got [nil]", value)
 		}
 	}
+
 	for value, expected := range valid {
 		if actual, err := ParseHost(false, value); err != nil || actual != expected {
 			t.Errorf("Expected for %v [%v], got [%v, %v]", value, expected, actual, err)

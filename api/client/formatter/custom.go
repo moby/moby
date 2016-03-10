@@ -31,6 +31,7 @@ const (
 	repositoryHeader   = "REPOSITORY"
 	tagHeader          = "TAG"
 	digestHeader       = "DIGEST"
+	mountsHeader       = "MOUNTS"
 )
 
 type containerContext struct {
@@ -140,6 +141,20 @@ func (c *containerContext) Label(name string) string {
 		return ""
 	}
 	return c.c.Labels[name]
+}
+
+func (c *containerContext) Mounts() string {
+	c.addHeader(mountsHeader)
+
+	var mounts []string
+	for _, m := range c.c.Mounts {
+		name := m.Name
+		if c.trunc {
+			name = stringutils.Truncate(name, 15)
+		}
+		mounts = append(mounts, name)
+	}
+	return strings.Join(mounts, ",")
 }
 
 type imageContext struct {

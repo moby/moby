@@ -64,7 +64,7 @@ or use it as part of your `FROM` line in your `Dockerfile(s)`.
     $ docker pull crux
     $ docker run -i -t crux
 
-There are also user contributed [CRUX based image(s)](https://registry.hub.docker.com/repos/crux/) on the Docker Hub.
+There are also user contributed [CRUX based image(s)](https://hub.docker.com/_/crux/) on the Docker Hub.
 
 
 ## Uninstallation

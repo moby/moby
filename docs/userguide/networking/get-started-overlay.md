@@ -19,6 +19,7 @@ some pre-existing conditions before you can create one. These conditions are:
 * Access to a key-value store. Docker supports Consul, Etcd, and ZooKeeper (Distributed store) key-value stores.
 * A cluster of hosts with connectivity to the key-value store.
 * A properly configured Engine `daemon` on each host in the cluster.
+* Hosts within the cluster must have unique hostnames because the key-value store uses the hostnames to identify cluster members.
 
 Though Docker Machine and Docker Swarm are not mandatory to experience Docker
 multi-host networking, this example uses them to illustrate how they are
@@ -54,21 +55,20 @@ key-value stores. This example uses Consul.
 	instance using the [consul image from Docker
 	Hub](https://hub.docker.com/r/progrium/consul/). You'll do this in the next step.
 
-3. Start a `progrium/consul` container running on the `mh-keystore` machine.
+3. Set your local environment to the `mh-keystore` machine.
 
-		$  docker $(docker-machine config mh-keystore) run -d \
+		$  eval "$(docker-machine env mh-keystore)"
+
+4. Start a `progrium/consul` container running on the `mh-keystore` machine.
+
+		$  docker run -d \
 			-p "8500:8500" \
 			-h "consul" \
 			progrium/consul -server -bootstrap
 
-	A bash expansion `$(docker-machine config mh-keystore)` is used to pass the
-	connection configuration to the `docker run` command.  The client starts a
-	`progrium/consul` image running in the `mh-keystore` machine. The server is
-	called `consul` and is listening on port `8500`.
-
-4. Set your local environment to the `mh-keystore` machine.
-
-		$  eval "$(docker-machine env mh-keystore)"
+	The client starts a `progrium/consul` image running in the
+	`mh-keystore` machine. The server is called `consul` and is
+	listening on port `8500`.
 
 5. Run the `docker ps` command to see the `consul` container.
 

@@ -5,7 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/daemon/events/testutils"
 	"github.com/docker/engine-api/types/events"
+	timetypes "github.com/docker/engine-api/types/time"
 )
 
 func TestEventsLog(t *testing.T) {
@@ -148,5 +150,47 @@ func TestLogEvents(t *testing.T) {
 	lastC := msgs[len(msgs)-1]
 	if lastC.Status != "action_89" {
 		t.Fatalf("Last action is %s, must be action_89", lastC.Status)
+	}
+}
+
+// https://github.com/docker/docker/issues/20999
+// Fixtures:
+//
+//2016-03-07T17:28:03.022433271+02:00 container die 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)
+//2016-03-07T17:28:03.091719377+02:00 network disconnect 19c5ed41acb798f26b751e0035cd7821741ab79e2bbd59a66b5fd8abf954eaa0 (type=bridge, container=0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079, name=bridge)
+//2016-03-07T17:28:03.129014751+02:00 container destroy 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)
+func TestLoadBufferedEvents(t *testing.T) {
+	now := time.Now()
+	f, err := timetypes.GetTimestamp("2016-03-07T17:28:03.100000000+02:00", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	since, sinceNano, err := timetypes.ParseTimestamps(f, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m1, err := eventstestutils.Scan("2016-03-07T17:28:03.022433271+02:00 container die 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m2, err := eventstestutils.Scan("2016-03-07T17:28:03.091719377+02:00 network disconnect 19c5ed41acb798f26b751e0035cd7821741ab79e2bbd59a66b5fd8abf954eaa0 (type=bridge, container=0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079, name=bridge)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m3, err := eventstestutils.Scan("2016-03-07T17:28:03.129014751+02:00 container destroy 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buffered := []events.Message{*m1, *m2, *m3}
+
+	events := &Events{
+		events: buffered,
+	}
+
+	out := events.loadBufferedEvents(since, sinceNano, nil)
+	if len(out) != 1 {
+		t.Fatalf("expected 1 message, got %d: %v", len(out), out)
 	}
 }

@@ -32,7 +32,7 @@ display your kernel version:
     $ uname -r
     3.10.0-229.el7.x86_64
 
-Finally, is it recommended that you fully update your system. Please keep in
+Finally, it is recommended that you fully update your system. Please keep in
 mind that your system should be fully patched to fix any potential kernel bugs.
 Any reported kernel bugs may have already been fixed on the latest kernel
 packages.
@@ -141,15 +141,19 @@ To create the `docker` group and add your user:
 
 1. Log into Centos as a user with `sudo` privileges.
 
-2. Create the `docker` group and add your user.
+2. Create the `docker` group.
+
+    `sudo groupadd docker`
+
+3. Add your user to `docker` group.
 
     `sudo usermod -aG docker your_username`
 
-3. Log out and log back in.
+4. Log out and log back in.
 
     This ensures your user is running with the correct permissions.
 
-4. Verify your work by running `docker` without `sudo`.
+5. Verify your work by running `docker` without `sudo`.
 
 		$ docker run hello-world
 

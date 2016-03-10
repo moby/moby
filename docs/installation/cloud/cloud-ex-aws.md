@@ -1,6 +1,6 @@
 <!--[metadata]>
 +++
-title = "Example: Manual install on a cloud provider"
+title = "Example: Manual install on cloud provider"
 description = "Example of a manual install of Docker Engine on a cloud provider, using Amazon Web Services (AWS) EC2. Shows how to create an EC2 instance, and install Docker Engine on it."
 keywords = ["cloud, docker, machine, documentation,  installation, AWS, EC2"]
 [menu.main]
@@ -8,7 +8,7 @@ parent = "install_cloud"
 +++
 <![end-metadata]-->
 
-# Example: Manual install on a cloud provider
+# Example: Manual install on cloud provider
 
 You can install Docker Engine directly to servers you have on cloud providers.  This example shows how to create an <a href="https://aws.amazon.com/" target="_blank"> Amazon Web Services (AWS)</a> EC2 instance, and install Docker Engine on it.
 
@@ -197,8 +197,12 @@ For Ubuntu Trusty (and some other versions), it’s recommended to install the `
 
 ## Where to go next
 
-* Would you like a quicker way to do Docker cloud installs? See [Digital Ocean Example: Use Docker Machine to provision Docker on cloud hosts](cloud-ex-aws.md).
+_Looking for a quicker way to do Docker cloud installs and provision multiple hosts?_ You can use [Docker Machine](https://docs.docker.com/machine/overview/) to provision hosts.
 
-* To learn more about options for installing Docker Engine on cloud providers, see [Understand cloud install options and choose one](cloud.md).
+  * [Use Docker Machine to provision hosts on cloud providers](https://docs.docker.com/machine/get-started-cloud/)
 
-* To get started with Docker, see <a href="https://docs.docker.com/engine/userguide/" target="_blank"> Docker User Guide </a>.
+  * [Docker Machine driver reference](https://docs.docker.com/machine/drivers/)
+
+*  [Install Docker Engine](../index.md)
+
+* [Docker User Guide](../../userguide/intro.md)

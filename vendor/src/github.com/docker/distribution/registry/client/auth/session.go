@@ -15,6 +15,10 @@ import (
 	"github.com/docker/distribution/registry/client/transport"
 )
 
+// ErrNoBasicAuthCredentials is returned if a request can't be authorized with
+// basic auth due to lack of credentials.
+var ErrNoBasicAuthCredentials = errors.New("no basic auth credentials")
+
 // AuthenticationHandler is an interface for authorizing a request from
 // params from a "WWW-Authenicate" header for a single scheme.
 type AuthenticationHandler interface {
@@ -322,5 +326,5 @@ func (bh *basicHandler) AuthorizeRequest(req *http.Request, params map[string]st
 			return nil
 		}
 	}
-	return errors.New("no basic auth credentials")
+	return ErrNoBasicAuthCredentials
 }

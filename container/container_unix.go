@@ -14,7 +14,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
@@ -34,6 +33,11 @@ import (
 // DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
 const DefaultSHMSize int64 = 67108864
 
+var (
+	errInvalidEndpoint = fmt.Errorf("invalid endpoint while building port map info")
+	errInvalidNetwork  = fmt.Errorf("invalid network settings while building port map info")
+)
+
 // Container holds the fields specific to unixen implementations.
 // See CommonContainer for standard fields common to all containers.
 type Container struct {
@@ -46,6 +50,7 @@ type Container struct {
 	ShmPath         string
 	ResolvConfPath  string
 	SeccompProfile  string
+	NoNewPrivileges bool
 }
 
 // CreateDaemonEnvironment returns the list of all environment variables given the list of
@@ -116,12 +121,12 @@ func (container *Container) GetEndpointInNetwork(n libnetwork.Network) (libnetwo
 
 func (container *Container) buildPortMapInfo(ep libnetwork.Endpoint) error {
 	if ep == nil {
-		return derr.ErrorCodeEmptyEndpoint
+		return errInvalidEndpoint
 	}
 
 	networkSettings := container.NetworkSettings
 	if networkSettings == nil {
-		return derr.ErrorCodeEmptyNetwork
+		return errInvalidNetwork
 	}
 
 	if len(networkSettings.Ports) == 0 {
@@ -151,7 +156,7 @@ func getEndpointPortMapInfo(ep libnetwork.Endpoint) (nat.PortMap, error) {
 			for _, tp := range exposedPorts {
 				natPort, err := nat.NewPort(tp.Proto.String(), strconv.Itoa(int(tp.Port)))
 				if err != nil {
-					return pm, derr.ErrorCodeParsingPort.WithArgs(tp.Port, err)
+					return pm, fmt.Errorf("Error parsing Port value(%v):%v", tp.Port, err)
 				}
 				pm[natPort] = nil
 			}
@@ -195,12 +200,12 @@ func getSandboxPortMapInfo(sb libnetwork.Sandbox) nat.PortMap {
 // BuildEndpointInfo sets endpoint-related fields on container.NetworkSettings based on the provided network and endpoint.
 func (container *Container) BuildEndpointInfo(n libnetwork.Network, ep libnetwork.Endpoint) error {
 	if ep == nil {
-		return derr.ErrorCodeEmptyEndpoint
+		return errInvalidEndpoint
 	}
 
 	networkSettings := container.NetworkSettings
 	if networkSettings == nil {
-		return derr.ErrorCodeEmptyNetwork
+		return errInvalidNetwork
 	}
 
 	epInfo := ep.Info()
@@ -285,7 +290,6 @@ func (container *Container) BuildJoinOptions(n libnetwork.Network) ([]libnetwork
 // BuildCreateEndpointOptions builds endpoint options from a given network.
 func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epConfig *network.EndpointSettings, sb libnetwork.Sandbox) ([]libnetwork.EndpointOption, error) {
 	var (
-		portSpecs     = make(nat.PortSet)
 		bindings      = make(nat.PortMap)
 		pbList        []types.PortBinding
 		exposeList    []types.TransportPort
@@ -338,10 +342,6 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 		return createOptions, nil
 	}
 
-	if container.Config.ExposedPorts != nil {
-		portSpecs = container.Config.ExposedPorts
-	}
-
 	if container.HostConfig.PortBindings != nil {
 		for p, b := range container.HostConfig.PortBindings {
 			bindings[p] = []nat.PortBinding{}
@@ -354,6 +354,7 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 		}
 	}
 
+	portSpecs := container.Config.ExposedPorts
 	ports := make([]nat.Port, len(portSpecs))
 	var i int
 	for p := range portSpecs {
@@ -377,7 +378,7 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 				portStart, portEnd, err = newP.Range()
 			}
 			if err != nil {
-				return nil, derr.ErrorCodeHostPort.WithArgs(binding[i].HostPort, err)
+				return nil, fmt.Errorf("Error parsing HostPort value(%s):%v", binding[i].HostPort, err)
 			}
 			pbCopy.HostPort = uint16(portStart)
 			pbCopy.HostPortEnd = uint16(portEnd)
@@ -498,11 +499,6 @@ func (container *Container) ShmResourcePath() (string, error) {
 	return container.GetRootResourcePath("shm")
 }
 
-// MqueueResourcePath returns path to mqueue
-func (container *Container) MqueueResourcePath() (string, error) {
-	return container.GetRootResourcePath("mqueue")
-}
-
 // HasMountFor checks if path is a mountpoint
 func (container *Container) HasMountFor(path string) bool {
 	_, exists := container.MountPoints[path]
@@ -564,10 +560,11 @@ func updateCommand(c *execdriver.Command, resources containertypes.Resources) {
 	c.Resources.KernelMemory = resources.KernelMemory
 }
 
-// UpdateContainer updates resources of a container.
+// UpdateContainer updates configuration of a container.
 func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfig) error {
 	container.Lock()
 
+	// update resources of container
 	resources := hostConfig.Resources
 	cResources := &container.HostConfig.Resources
 	if resources.BlkioWeight != 0 {
@@ -599,6 +596,11 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 	}
 	if resources.KernelMemory != 0 {
 		cResources.KernelMemory = resources.KernelMemory
+	}
+
+	// update HostConfig of container
+	if hostConfig.RestartPolicy.Name != "" {
+		container.HostConfig.RestartPolicy = hostConfig.RestartPolicy
 	}
 	container.Unlock()
 
@@ -721,4 +723,10 @@ func (container *Container) TmpfsMounts() []execdriver.Mount {
 // cleanResourcePath cleans a resource path and prepares to combine with mnt path
 func cleanResourcePath(path string) string {
 	return filepath.Join(string(os.PathSeparator), path)
+}
+
+// canMountFS determines if the file system for the container
+// can be mounted locally. A no-op on non-Windows platforms
+func (container *Container) canMountFS() bool {
+	return true
 }

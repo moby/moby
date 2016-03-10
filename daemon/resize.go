@@ -1,10 +1,6 @@
 package daemon
 
-import (
-	"fmt"
-
-	derr "github.com/docker/docker/errors"
-)
+import "fmt"
 
 // ContainerResize changes the size of the TTY of the process running
 // in the container with the given name to the given height and width.
@@ -15,7 +11,7 @@ func (daemon *Daemon) ContainerResize(name string, height, width int) error {
 	}
 
 	if !container.IsRunning() {
-		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
+		return errNotRunning{container.ID}
 	}
 
 	if err = container.Resize(height, width); err == nil {

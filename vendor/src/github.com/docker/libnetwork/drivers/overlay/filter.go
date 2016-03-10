@@ -78,7 +78,7 @@ func setFilters(cname, brName string, remove bool) error {
 		opt = "-D"
 	}
 
-	// Everytime we set filters for a new subnet make sure to move the global overlay hook to the top of the both the OUTPUT and forward chains
+	// Every time we set filters for a new subnet make sure to move the global overlay hook to the top of the both the OUTPUT and forward chains
 	if !remove {
 		for _, chain := range []string{"OUTPUT", "FORWARD"} {
 			exists := iptables.Exists(iptables.Filter, chain, "-j", globalChain)

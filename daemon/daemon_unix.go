@@ -16,7 +16,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
@@ -76,17 +75,23 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 	for _, opt := range config.SecurityOpt {
 		con := strings.SplitN(opt, ":", 2)
 		if len(con) == 1 {
-			return fmt.Errorf("Invalid --security-opt: %q", opt)
-		}
-		switch con[0] {
-		case "label":
-			labelOpts = append(labelOpts, con[1])
-		case "apparmor":
-			container.AppArmorProfile = con[1]
-		case "seccomp":
-			container.SeccompProfile = con[1]
-		default:
-			return fmt.Errorf("Invalid --security-opt: %q", opt)
+			switch con[0] {
+			case "no-new-privileges":
+				container.NoNewPrivileges = true
+			default:
+				return fmt.Errorf("Invalid --security-opt 1: %q", opt)
+			}
+		} else {
+			switch con[0] {
+			case "label":
+				labelOpts = append(labelOpts, con[1])
+			case "apparmor":
+				container.AppArmorProfile = con[1]
+			case "seccomp":
+				container.SeccompProfile = con[1]
+			default:
+				return fmt.Errorf("Invalid --security-opt 2: %q", opt)
+			}
 		}
 	}
 
@@ -221,7 +226,7 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 	return nil
 }
 
-func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysinfo.SysInfo) ([]string, error) {
+func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysinfo.SysInfo, update bool) ([]string, error) {
 	warnings := []string{}
 
 	// memory subsystem checks and adjustments
@@ -242,7 +247,7 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	if resources.Memory > 0 && resources.MemorySwap > 0 && resources.MemorySwap < resources.Memory {
 		return warnings, fmt.Errorf("Minimum memoryswap limit should be larger than memory limit, see usage.")
 	}
-	if resources.Memory == 0 && resources.MemorySwap > 0 {
+	if resources.Memory == 0 && resources.MemorySwap > 0 && !update {
 		return warnings, fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage.")
 	}
 	if resources.MemorySwappiness != nil && *resources.MemorySwappiness != -1 && !sysInfo.MemorySwappiness {
@@ -286,6 +291,12 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		resources.OomKillDisable = nil
 	}
 
+	if resources.PidsLimit != 0 && !sysInfo.PidsLimit {
+		warnings = append(warnings, "Your kernel does not support pids limit capabilities, pids limit discarded.")
+		logrus.Warnf("Your kernel does not support pids limit capabilities, pids limit discarded.")
+		resources.PidsLimit = 0
+	}
+
 	// cpu subsystem checks and adjustments
 	if resources.CPUShares > 0 && !sysInfo.CPUShares {
 		warnings = append(warnings, "Your kernel does not support CPU shares. Shares discarded.")
@@ -312,17 +323,17 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	}
 	cpusAvailable, err := sysInfo.IsCpusetCpusAvailable(resources.CpusetCpus)
 	if err != nil {
-		return warnings, derr.ErrorCodeInvalidCpusetCpus.WithArgs(resources.CpusetCpus)
+		return warnings, fmt.Errorf("Invalid value %s for cpuset cpus.", resources.CpusetCpus)
 	}
 	if !cpusAvailable {
-		return warnings, derr.ErrorCodeNotAvailableCpusetCpus.WithArgs(resources.CpusetCpus, sysInfo.Cpus)
+		return warnings, fmt.Errorf("Requested CPUs are not available - requested %s, available: %s.", resources.CpusetCpus, sysInfo.Cpus)
 	}
 	memsAvailable, err := sysInfo.IsCpusetMemsAvailable(resources.CpusetMems)
 	if err != nil {
-		return warnings, derr.ErrorCodeInvalidCpusetMems.WithArgs(resources.CpusetMems)
+		return warnings, fmt.Errorf("Invalid value %s for cpuset mems.", resources.CpusetMems)
 	}
 	if !memsAvailable {
-		return warnings, derr.ErrorCodeNotAvailableCpusetMems.WithArgs(resources.CpusetMems, sysInfo.Mems)
+		return warnings, fmt.Errorf("Requested memory nodes are not available - requested %s, available: %s.", resources.CpusetMems, sysInfo.Mems)
 	}
 
 	// blkio subsystem checks and adjustments
@@ -363,6 +374,14 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	return warnings, nil
 }
 
+func (daemon *Daemon) getCgroupDriver() string {
+	cgroupDriver := "cgroupfs"
+	if daemon.usingSystemd() {
+		cgroupDriver = "systemd"
+	}
+	return cgroupDriver
+}
+
 func usingSystemd(config *Config) bool {
 	for _, option := range config.ExecOptions {
 		key, val, err := parsers.ParseKeyValueOpt(option)
@@ -383,7 +402,7 @@ func (daemon *Daemon) usingSystemd() bool {
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
-func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, config *containertypes.Config) ([]string, error) {
+func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) ([]string, error) {
 	warnings := []string{}
 	sysInfo := sysinfo.New(true)
 
@@ -392,7 +411,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 		return warnings, err
 	}
 
-	w, err := verifyContainerResources(&hostConfig.Resources, sysInfo)
+	w, err := verifyContainerResources(&hostConfig.Resources, sysInfo, update)
 	if err != nil {
 		return warnings, err
 	}
@@ -694,10 +713,8 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 	}
 	// Initialize default network on "bridge" with the same name
 	_, err = controller.NewNetwork("bridge", "bridge",
-		libnetwork.NetworkOptionGeneric(options.Generic{
-			netlabel.GenericData: netOption,
-			netlabel.EnableIPv6:  config.bridgeConfig.EnableIPv6,
-		}),
+		libnetwork.NetworkOptionEnableIPv6(config.bridgeConfig.EnableIPv6),
+		libnetwork.NetworkOptionDriverOpts(netOption),
 		libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
 		libnetwork.NetworkOptionDeferIPv6Alloc(deferIPv6Alloc))
 	if err != nil {

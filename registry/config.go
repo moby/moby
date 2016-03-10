@@ -19,7 +19,7 @@ type Options struct {
 	InsecureRegistries opts.ListOpts
 }
 
-const (
+var (
 	// DefaultNamespace is the default namespace
 	DefaultNamespace = "docker.io"
 	// DefaultRegistryVersionHeader is the name of the default HTTP header
@@ -27,7 +27,7 @@ const (
 	DefaultRegistryVersionHeader = "Docker-Distribution-Api-Version"
 
 	// IndexServer is the v1 registry server used for user auth + account creation
-	IndexServer = DefaultV1Registry + "/v1/"
+	IndexServer = DefaultV1Registry.String() + "/v1/"
 	// IndexName is the name of the index
 	IndexName = "docker.io"
 
@@ -48,6 +48,9 @@ var (
 	// command line flag the daemon will not attempt to contact v1 legacy registries
 	V2Only = false
 )
+
+// for mocking in unit tests
+var lookupIP = net.LookupIP
 
 // InstallFlags adds command-line options to the top-level flag parser for
 // the current process.

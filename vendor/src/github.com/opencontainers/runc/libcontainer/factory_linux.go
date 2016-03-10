@@ -166,7 +166,7 @@ func (l *LinuxFactory) Create(id string, config *configs.Config) (Container, err
 	if err := os.MkdirAll(containerRoot, 0700); err != nil {
 		return nil, newGenericError(err, SystemError)
 	}
-	return &linuxContainer{
+	c := &linuxContainer{
 		id:            id,
 		root:          containerRoot,
 		config:        config,
@@ -174,7 +174,9 @@ func (l *LinuxFactory) Create(id string, config *configs.Config) (Container, err
 		initArgs:      l.InitArgs,
 		criuPath:      l.CriuPath,
 		cgroupManager: l.NewCgroupsManager(config.Cgroups, nil),
-	}, nil
+	}
+	c.state = &stoppedState{c: c}
+	return c, nil
 }
 
 func (l *LinuxFactory) Load(id string) (Container, error) {
@@ -191,7 +193,7 @@ func (l *LinuxFactory) Load(id string) (Container, error) {
 		processStartTime: state.InitProcessStartTime,
 		fds:              state.ExternalDescriptors,
 	}
-	return &linuxContainer{
+	c := &linuxContainer{
 		initProcess:   r,
 		id:            id,
 		config:        &state.Config,
@@ -200,7 +202,13 @@ func (l *LinuxFactory) Load(id string) (Container, error) {
 		criuPath:      l.CriuPath,
 		cgroupManager: l.NewCgroupsManager(state.Config.Cgroups, state.CgroupPaths),
 		root:          containerRoot,
-	}, nil
+		created:       state.Created,
+	}
+	c.state = &createdState{c: c, s: Created}
+	if err := c.refreshState(); err != nil {
+		return nil, err
+	}
+	return c, nil
 }
 
 func (l *LinuxFactory) Type() string {
@@ -222,18 +230,25 @@ func (l *LinuxFactory) StartInitialization() (err error) {
 	// clear the current process's environment to clean any libcontainer
 	// specific env vars.
 	os.Clearenv()
+	var i initer
 	defer func() {
-		// if we have an error during the initialization of the container's init then send it back to the
-		// parent process in the form of an initError.
-		if err != nil {
-			if err := utils.WriteJSON(pipe, newSystemError(err)); err != nil {
+		// We have an error during the initialization of the container's init,
+		// send it back to the parent process in the form of an initError.
+		// If container's init successed, syscall.Exec will not return, hence
+		// this defer function will never be called.
+		if _, ok := i.(*linuxStandardInit); ok {
+			//  Synchronisation only necessary for standard init.
+			if err := utils.WriteJSON(pipe, syncT{procError}); err != nil {
 				panic(err)
 			}
+		}
+		if err := utils.WriteJSON(pipe, newSystemError(err)); err != nil {
+			panic(err)
 		}
 		// ensure that this pipe is always closed
 		pipe.Close()
 	}()
-	i, err := newContainerInit(it, pipe)
+	i, err = newContainerInit(it, pipe)
 	if err != nil {
 		return err
 	}

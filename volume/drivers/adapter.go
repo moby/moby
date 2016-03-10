@@ -1,7 +1,8 @@
 package volumedrivers
 
 import (
-	"github.com/docker/docker/pkg/plugins"
+	"fmt"
+
 	"github.com/docker/docker/volume"
 )
 
@@ -15,21 +16,7 @@ func (a *volumeDriverAdapter) Name() string {
 }
 
 func (a *volumeDriverAdapter) Create(name string, opts map[string]string) (volume.Volume, error) {
-	// First try a Get. For drivers that support Get this will return any
-	// existing volume.
-	v, err := a.proxy.Get(name)
-	if v != nil {
-		return &volumeAdapter{
-			proxy:      a.proxy,
-			name:       v.Name,
-			driverName: a.Name(),
-			eMount:     v.Mountpoint,
-		}, nil
-	}
-
-	// Driver didn't support Get or volume didn't exist. Perform Create.
-	err = a.proxy.Create(name, opts)
-	if err != nil {
+	if err := a.proxy.Create(name, opts); err != nil {
 		return nil, err
 	}
 	return &volumeAdapter{
@@ -63,11 +50,12 @@ func (a *volumeDriverAdapter) List() ([]volume.Volume, error) {
 func (a *volumeDriverAdapter) Get(name string) (volume.Volume, error) {
 	v, err := a.proxy.Get(name)
 	if err != nil {
-		// TODO: remove this hack. Allows back compat with volume drivers that don't support this call
-		if !plugins.IsNotFound(err) {
-			return nil, err
-		}
-		return a.Create(name, nil)
+		return nil, err
+	}
+
+	// plugin may have returned no volume and no error
+	if v == nil {
+		return nil, fmt.Errorf("no such volume")
 	}
 
 	return &volumeAdapter{

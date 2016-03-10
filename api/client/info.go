@@ -50,6 +50,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	}
 	ioutils.FprintfIfNotEmpty(cli.out, "Execution Driver: %s\n", info.ExecutionDriver)
 	ioutils.FprintfIfNotEmpty(cli.out, "Logging Driver: %s\n", info.LoggingDriver)
+	ioutils.FprintfIfNotEmpty(cli.out, "Cgroup Driver: %s\n", info.CgroupDriver)
 
 	fmt.Fprintf(cli.out, "Plugins: \n")
 	fmt.Fprintf(cli.out, " Volume:")
@@ -73,7 +74,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	fmt.Fprintf(cli.out, "Total Memory: %s\n", units.BytesSize(float64(info.MemTotal)))
 	ioutils.FprintfIfNotEmpty(cli.out, "Name: %s\n", info.Name)
 	ioutils.FprintfIfNotEmpty(cli.out, "ID: %s\n", info.ID)
-
+	fmt.Fprintf(cli.out, "Docker Root Dir: %s\n", info.DockerRootDir)
 	fmt.Fprintf(cli.out, "Debug mode (client): %v\n", utils.IsDebugEnabled())
 	fmt.Fprintf(cli.out, "Debug mode (server): %v\n", info.Debug)
 
@@ -82,7 +83,6 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, " Goroutines: %d\n", info.NGoroutines)
 		fmt.Fprintf(cli.out, " System Time: %s\n", info.SystemTime)
 		fmt.Fprintf(cli.out, " EventsListeners: %d\n", info.NEventsListener)
-		fmt.Fprintf(cli.out, " Docker Root Dir: %s\n", info.DockerRootDir)
 	}
 
 	ioutils.FprintfIfNotEmpty(cli.out, "Http Proxy: %s\n", info.HTTPProxy)
@@ -104,6 +104,9 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		}
 		if !info.SwapLimit {
 			fmt.Fprintln(cli.err, "WARNING: No swap limit support")
+		}
+		if !info.KernelMemory {
+			fmt.Fprintln(cli.err, "WARNING: No kernel memory limit support")
 		}
 		if !info.OomKillDisable {
 			fmt.Fprintln(cli.err, "WARNING: No oom kill disable support")

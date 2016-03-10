@@ -3,13 +3,19 @@ package remote
 import (
 	"fmt"
 	"net"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/docker/libnetwork/types"
+)
+
+const (
+	missingMethod = "404 page not found"
 )
 
 type driver struct {
@@ -246,13 +252,42 @@ func (d *driver) Leave(nid, eid string) error {
 	return d.call("Leave", leave, &api.LeaveResponse{})
 }
 
+// ProgramExternalConnectivity is invoked to program the rules to allow external connectivity for the endpoint.
+func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
+	data := &api.ProgramExternalConnectivityRequest{
+		NetworkID:  nid,
+		EndpointID: eid,
+		Options:    options,
+	}
+	err := d.call("ProgramExternalConnectivity", data, &api.ProgramExternalConnectivityResponse{})
+	if err != nil && strings.Contains(err.Error(), missingMethod) {
+		// It is not mandatory yet to support this method
+		return nil
+	}
+	return err
+}
+
+// RevokeExternalConnectivity method is invoked to remove any external connectivity programming related to the endpoint.
+func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
+	data := &api.RevokeExternalConnectivityRequest{
+		NetworkID:  nid,
+		EndpointID: eid,
+	}
+	err := d.call("RevokeExternalConnectivity", data, &api.RevokeExternalConnectivityResponse{})
+	if err != nil && strings.Contains(err.Error(), missingMethod) {
+		// It is not mandatory yet to support this method
+		return nil
+	}
+	return err
+}
+
 func (d *driver) Type() string {
 	return d.networkType
 }
 
 // DiscoverNew is a notification for a new discovery event, such as a new node joining a cluster
-func (d *driver) DiscoverNew(dType driverapi.DiscoveryType, data interface{}) error {
-	if dType != driverapi.NodeDiscovery {
+func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
+	if dType != discoverapi.NodeDiscovery {
 		return fmt.Errorf("Unknown discovery type : %v", dType)
 	}
 	notif := &api.DiscoveryNotification{
@@ -263,8 +298,8 @@ func (d *driver) DiscoverNew(dType driverapi.DiscoveryType, data interface{}) er
 }
 
 // DiscoverDelete is a notification for a discovery delete event, such as a node leaving a cluster
-func (d *driver) DiscoverDelete(dType driverapi.DiscoveryType, data interface{}) error {
-	if dType != driverapi.NodeDiscovery {
+func (d *driver) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
+	if dType != discoverapi.NodeDiscovery {
 		return fmt.Errorf("Unknown discovery type : %v", dType)
 	}
 	notif := &api.DiscoveryNotification{

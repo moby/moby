@@ -1,7 +1,7 @@
 <!--[metadata]>
 +++
 aliases = ["/engine/userguide/basics/"]
-title = "Quickstart containers"
+title = "Quickstart"
 description = "Common usage and commands"
 keywords = ["Examples, Usage, basic commands, docker, documentation,  examples"]
 [menu.main]
@@ -10,14 +10,14 @@ weight=-90
 +++
 <![end-metadata]-->
 
-# Quickstart Docker Engine
+# Docker Engine Quickstart
 
-This quickstart assumes you have a working installation of Docker Engine. To verify Engine is installed, use the following command:
+This quickstart assumes you have a working installation of Docker Engine. To verify Engine is installed and configured, use the following command:
 
     # Check that you have a working install
     $ docker info
 
-If you get `docker: command not found` or something like
+If you have a successful install, the system information appears. If you get `docker: command not found` or something like
 `/var/lib/docker/repositories: permission denied` you may have an
 incomplete Docker installation or insufficient privileges to access
 Engine on your machine. With the default installation of Engine `docker`
@@ -25,9 +25,9 @@ commands need to be run by a user that is in the `docker` group or by the
 `root` user.
 
 Depending on your Engine system configuration, you may be required
-to preface each `docker` command with `sudo`. One way to avoid having to use
-`sudo` with the `docker` commands is to create a Unix group called `docker` and
-add users that will be entering `docker` commands to the 'docker' group.
+to preface each `docker` command with `sudo`. If you want to run without using
+`sudo` with the `docker` commands, then create a Unix group called `docker` and
+add the user to the 'docker' group.
 
 For more information about installing Docker Engine or `sudo` configuration, refer to
 the [installation](installation/index.md) instructions for your operating system.
@@ -35,20 +35,24 @@ the [installation](installation/index.md) instructions for your operating system
 
 ## Download a pre-built image
 
+To pull an `ubuntu` image, run:
+
     # Download an ubuntu image
     $ docker pull ubuntu
 
-This will find the `ubuntu` image by name on
-[*Docker Hub*](userguide/containers/dockerrepos.md#searching-for-images)
-and download it from [Docker Hub](https://hub.docker.com) to a local
-image cache.
+This downloads the `ubuntu` image by name from [Docker Hub](https://hub.docker.com) to a local
+image cache. To search for an image, run `docker search`. For more information, go to:
+[Searching images](userguide/containers/dockerrepos.md#searching-for-images)
+
 
 > **Note**:
 > When the image is successfully downloaded, you see a 12 character
 > hash `539c0211cd76: Download complete` which is the
-> short form of the image ID. These short image IDs are the first 12
-> characters of the full image ID - which can be found using
+> short form of the Image ID. These short Image IDs are the first 12
+> characters of the full Image ID. To view this information, run
 > `docker inspect` or `docker images --no-trunc=true`.
+
+To display a list of downloaded images, run `docker images`.
 
 ## Running an interactive shell
 
@@ -56,13 +60,15 @@ To run an interactive shell in the Ubuntu image:
 
     $ docker run -i -t ubuntu /bin/bash       
 
-The `-i` flag starts an interactive container. The `-t` flag creates a
-pseudo-TTY that attaches `stdin` and `stdout`.  
+The `-i` flag starts an interactive container.
+The `-t` flag creates a pseudo-TTY that attaches `stdin` and `stdout`.  
+The image is `ubuntu`.
+The command `/bin/bash` starts a shell you can log in.
 
 To detach the `tty` without exiting the shell, use the escape sequence
-`Ctrl-p` + `Ctrl-q`. The container will continue to exist in a stopped state
-once exited. To list all containers, stopped and running, use the `docker ps -a`
-command.
+`Ctrl-p` + `Ctrl-q`. The container continues to exist in a stopped state
+once exited. To list all running containers, run `docker ps`. To view stopped and running containers,
+run `docker ps -a`.
 
 ## Bind Docker to another host/port or a Unix socket
 
@@ -179,15 +185,13 @@ TCP and a Unix socket
 
 ## Committing (saving) a container state
 
-Save your containers state to an image, so the state can be
-re-used.
+To save the current state of a container as an image:
 
-When you commit your container, Docker only stores the diff (difference) between
-the source image and the current state of the container's image. To list images
-you already have, use the `docker images` command.
-
-    # Commit your container to a new named image
     $ docker commit <container> <some_name>
+
+When you commit your container, Docker Engine only stores the diff (difference) between
+the source image and the current state of the container's image. To list images
+you already have, run:
 
     # List your images
     $ docker images
@@ -196,6 +200,6 @@ You now have an image state from which you can create new instances.
 
 ## Where to go next
 
-* Work your way through the [Docker User Guide](userguide/index.md)
-* Read more about [*Share Images via Repositories*](userguide/containers/dockerrepos.md)
-* Review [*Command Line*](reference/commandline/cli.md)
+* Work your way through the [Docker Engine User Guide](userguide/index.md)
+* Read more about [Store Images on Docker Hub](userguide/containers/dockerrepos.md)
+* Review [Command Line](reference/commandline/cli.md)

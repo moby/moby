@@ -110,9 +110,6 @@ func XfrmStateDel(state *XfrmState) error {
 func XfrmStateList(family int) ([]XfrmState, error) {
 	req := nl.NewNetlinkRequest(nl.XFRM_MSG_GETSA, syscall.NLM_F_DUMP)
 
-	msg := nl.NewIfInfomsg(family)
-	req.AddData(msg)
-
 	msgs, err := req.Execute(syscall.NETLINK_XFRM, nl.XFRM_MSG_NEWSA)
 	if err != nil {
 		return nil, err

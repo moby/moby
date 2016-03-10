@@ -171,7 +171,7 @@ func parseSubidFile(path, username string) (ranges, error) {
 		}
 
 		text := strings.TrimSpace(s.Text())
-		if text == "" {
+		if text == "" || strings.HasPrefix(text, "#") {
 			continue
 		}
 		parts := strings.Split(text, ":")

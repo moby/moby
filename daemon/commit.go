@@ -70,8 +70,8 @@ func merge(userConf, imageConf *containertypes.Config) error {
 		userConf.Labels = imageConf.Labels
 	}
 
-	if userConf.Entrypoint.Len() == 0 {
-		if userConf.Cmd.Len() == 0 {
+	if len(userConf.Entrypoint) == 0 {
+		if len(userConf.Cmd) == 0 {
 			userConf.Cmd = imageConf.Cmd
 		}
 
@@ -88,6 +88,10 @@ func merge(userConf, imageConf *containertypes.Config) error {
 		for k, v := range imageConf.Volumes {
 			userConf.Volumes[k] = v
 		}
+	}
+
+	if userConf.StopSignal == "" {
+		userConf.StopSignal = imageConf.StopSignal
 	}
 	return nil
 }
@@ -147,7 +151,7 @@ func (daemon *Daemon) Commit(name string, c *types.ContainerCommitConfig) (strin
 	h := image.History{
 		Author:     c.Author,
 		Created:    time.Now().UTC(),
-		CreatedBy:  strings.Join(container.Config.Cmd.Slice(), " "),
+		CreatedBy:  strings.Join(container.Config.Cmd, " "),
 		Comment:    c.Comment,
 		EmptyLayer: true,
 	}

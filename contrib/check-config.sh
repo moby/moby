@@ -115,6 +115,17 @@ check_device() {
 	fi
 }
 
+check_distro_userns() {
+	source /etc/os-release 2>/dev/null || /bin/true
+	if [[ "${ID}" =~ ^(centos|rhel)$ && "${VERSION_ID}" =~ ^7 ]]; then
+		# this is a CentOS7 or RHEL7 system
+		grep -q "user_namespace.enable=1" /proc/cmdline || {
+			# no user namespace support enabled
+			wrap_bad "  (RHEL7/CentOS7" "User namespaces disabled; add 'user_namespace.enable=1' to boot command line)"
+		}
+	fi
+}
+
 if [ ! -e "$CONFIG" ]; then
 	wrap_warning "warning: $CONFIG does not exist, searching other paths for kernel config ..."
 	for tryConfig in "${possibleConfigs[@]}"; do
@@ -171,6 +182,7 @@ flags=(
 	NAMESPACES {NET,PID,IPC,UTS}_NS
 	DEVPTS_MULTIPLE_INSTANCES
 	CGROUPS CGROUP_CPUACCT CGROUP_DEVICE CGROUP_FREEZER CGROUP_SCHED CPUSETS MEMCG
+	KEYS
 	MACVLAN VETH BRIDGE BRIDGE_NETFILTER
 	NF_NAT_IPV4 IP_NF_FILTER IP_NF_TARGET_MASQUERADE
 	NETFILTER_XT_MATCH_{ADDRTYPE,CONNTRACK}
@@ -185,9 +197,13 @@ echo
 echo 'Optional Features:'
 {
 	check_flags USER_NS
+	check_distro_userns
 }
 {
 	check_flags SECCOMP
+}
+{
+	check_flags CGROUP_PIDS
 }
 {
 	check_flags MEMCG_KMEM MEMCG_SWAP MEMCG_SWAP_ENABLED

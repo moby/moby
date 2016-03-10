@@ -26,6 +26,8 @@ container's logging driver. The following options are supported:
 | `fluentd`   | Fluentd logging driver for Docker. Writes log messages to `fluentd` (forward input).                                          |
 | `awslogs`   | Amazon CloudWatch Logs logging driver for Docker. Writes log messages to Amazon CloudWatch Logs.                              |
 | `splunk`    | Splunk logging driver for Docker. Writes log messages to `splunk` using HTTP Event Collector.                                 |
+| `etwlogs`   | ETW logging driver for Docker on Windows. Writes log messages as ETW events.                                                  |
+| `gcplogs`   | Google Cloud Logging driver for Docker. Writes log messages to Google Cloud Logging.                                          |
 
 The `docker logs`command is available only for the `json-file` and `journald`
 logging drivers.
@@ -203,4 +205,23 @@ The Splunk logging driver requires the following options:
     --log-opt splunk-url=https://your_splunk_instance:8088
 
 For detailed information about working with this logging driver, see the [Splunk logging driver](splunk.md)
+reference documentation.
+
+## ETW logging driver options
+
+The etwlogs logging driver does not require any options to be specified. This logging driver will forward each log message
+as an ETW event. An ETW listener can then be created to listen for these events. 
+
+For detailed information on working with this logging driver, see [the ETW logging driver](etwlogs.md) reference documentation.
+
+## Google Cloud Logging
+
+The Google Cloud Logging driver supports the following options:
+
+    --log-opt gcp-project=<gcp_projext>
+    --log-opt labels=<label1>,<label2>
+    --log-opt env=<envvar1>,<envvar2>
+    --log-opt log-cmd=true
+
+For detailed information about working with this logging driver, see the [Google Cloud Logging driver](gcplogs.md).
 reference documentation.

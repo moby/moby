@@ -14,11 +14,11 @@ import (
 //go:generate go run -tags 'seccomp' generate.go
 
 // GetDefaultProfile returns the default seccomp profile.
-func GetDefaultProfile() *configs.Seccomp {
-	return defaultProfile
+func GetDefaultProfile() (*configs.Seccomp, error) {
+	return setupSeccomp(DefaultProfile)
 }
 
-// LoadProfile takes a file path a decodes the seccomp profile.
+// LoadProfile takes a file path and decodes the seccomp profile.
 func LoadProfile(body string) (*configs.Seccomp, error) {
 	var config types.Seccomp
 	if err := json.Unmarshal([]byte(body), &config); err != nil {

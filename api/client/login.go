@@ -9,13 +9,14 @@ import (
 	"strings"
 
 	Cli "github.com/docker/docker/cli"
+	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/cliconfig/credentials"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 )
 
-// CmdLogin logs in or registers a user to a Docker registry service.
+// CmdLogin logs in a user to a Docker registry service.
 //
 // If no server is specified, the user will be logged into or registered to the registry's index server.
 //
@@ -26,7 +27,9 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 
 	flUser := cmd.String([]string{"u", "-username"}, "", "Username")
 	flPassword := cmd.String([]string{"p", "-password"}, "", "Password")
-	flEmail := cmd.String([]string{"e", "-email"}, "", "Email")
+
+	// Deprecated in 1.11: Should be removed in docker 1.13
+	cmd.String([]string{"#e", "#-email"}, "", "Email")
 
 	cmd.ParseFlags(args, true)
 
@@ -36,32 +39,27 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	}
 
 	var serverAddress string
+	var isDefaultRegistry bool
 	if len(cmd.Args()) > 0 {
 		serverAddress = cmd.Arg(0)
 	} else {
 		serverAddress = cli.electAuthServer()
+		isDefaultRegistry = true
 	}
 
-	authConfig, err := cli.configureAuth(*flUser, *flPassword, *flEmail, serverAddress)
+	authConfig, err := cli.configureAuth(*flUser, *flPassword, serverAddress, isDefaultRegistry)
 	if err != nil {
 		return err
 	}
 
 	response, err := cli.client.RegistryLogin(authConfig)
 	if err != nil {
-		if client.IsErrUnauthorized(err) {
-			delete(cli.configFile.AuthConfigs, serverAddress)
-			if err2 := cli.configFile.Save(); err2 != nil {
-				fmt.Fprintf(cli.out, "WARNING: could not save config file: %v\n", err2)
-			}
-		}
 		return err
 	}
 
-	if err := cli.configFile.Save(); err != nil {
-		return fmt.Errorf("Error saving config file: %v", err)
+	if err := storeCredentials(cli.configFile, authConfig); err != nil {
+		return fmt.Errorf("Error saving credentials: %v", err)
 	}
-	fmt.Fprintf(cli.out, "WARNING: login credentials saved in %s\n", cli.configFile.Filename())
 
 	if response.Status != "" {
 		fmt.Fprintf(cli.out, "%s\n", response.Status)
@@ -77,14 +75,19 @@ func (cli *DockerCli) promptWithDefault(prompt string, configDefault string) {
 	}
 }
 
-func (cli *DockerCli) configureAuth(flUser, flPassword, flEmail, serverAddress string) (types.AuthConfig, error) {
-	authconfig, ok := cli.configFile.AuthConfigs[serverAddress]
-	if !ok {
-		authconfig = types.AuthConfig{}
+func (cli *DockerCli) configureAuth(flUser, flPassword, serverAddress string, isDefaultRegistry bool) (types.AuthConfig, error) {
+	authconfig, err := getCredentials(cli.configFile, serverAddress)
+	if err != nil {
+		return authconfig, err
 	}
+
 	authconfig.Username = strings.TrimSpace(authconfig.Username)
 
 	if flUser = strings.TrimSpace(flUser); flUser == "" {
+		if isDefaultRegistry {
+			// if this is a defauly registry (docker hub), then display the following message.
+			fmt.Fprintln(cli.out, "Login with your Docker ID to push and pull images from Docker Hub. If you don't have a Docker ID, head over to https://hub.docker.com to create one.")
+		}
 		cli.promptWithDefault("Username", authconfig.Username)
 		flUser = readInput(cli.in, cli.out)
 		flUser = strings.TrimSpace(flUser)
@@ -114,30 +117,10 @@ func (cli *DockerCli) configureAuth(flUser, flPassword, flEmail, serverAddress s
 		}
 	}
 
-	// Assume that a different username means they may not want to use
-	// the email from the config file, so prompt it
-	if flUser != authconfig.Username {
-		if flEmail == "" {
-			cli.promptWithDefault("Email", authconfig.Email)
-			flEmail = readInput(cli.in, cli.out)
-			if flEmail == "" {
-				flEmail = authconfig.Email
-			}
-		}
-	} else {
-		// However, if they don't override the username use the
-		// email from the cmd line if specified. IOW, allow
-		// then to change/override them.  And if not specified, just
-		// use what's in the config file
-		if flEmail == "" {
-			flEmail = authconfig.Email
-		}
-	}
 	authconfig.Username = flUser
 	authconfig.Password = flPassword
-	authconfig.Email = flEmail
 	authconfig.ServerAddress = serverAddress
-	cli.configFile.AuthConfigs[serverAddress] = authconfig
+
 	return authconfig, nil
 }
 
@@ -149,4 +132,39 @@ func readInput(in io.Reader, out io.Writer) string {
 		os.Exit(1)
 	}
 	return string(line)
+}
+
+// getCredentials loads the user credentials from a credentials store.
+// The store is determined by the config file settings.
+func getCredentials(c *cliconfig.ConfigFile, serverAddress string) (types.AuthConfig, error) {
+	s := loadCredentialsStore(c)
+	return s.Get(serverAddress)
+}
+
+func getAllCredentials(c *cliconfig.ConfigFile) (map[string]types.AuthConfig, error) {
+	s := loadCredentialsStore(c)
+	return s.GetAll()
+}
+
+// storeCredentials saves the user credentials in a credentials store.
+// The store is determined by the config file settings.
+func storeCredentials(c *cliconfig.ConfigFile, auth types.AuthConfig) error {
+	s := loadCredentialsStore(c)
+	return s.Store(auth)
+}
+
+// eraseCredentials removes the user credentials from a credentials store.
+// The store is determined by the config file settings.
+func eraseCredentials(c *cliconfig.ConfigFile, serverAddress string) error {
+	s := loadCredentialsStore(c)
+	return s.Erase(serverAddress)
+}
+
+// loadCredentialsStore initializes a new credentials store based
+// in the settings provided in the configuration file.
+func loadCredentialsStore(c *cliconfig.ConfigFile) credentials.Store {
+	if c.CredentialsStore != "" {
+		return credentials.NewNativeStore(c)
+	}
+	return credentials.NewFileStore(c)
 }

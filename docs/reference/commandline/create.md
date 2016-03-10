@@ -74,6 +74,7 @@ Creates a new container.
       -P, --publish-all             Publish all exposed ports to random ports
       -p, --publish=[]              Publish a container's port(s) to the host
       --pid=""                      PID namespace to use
+      --pids-limit=-1                Tune container pids limit (set -1 for unlimited), kernel >= 4.3
       --privileged                  Give extended privileges to this container
       --read-only                   Mount the container's root filesystem as read only
       --restart="no"                Restart policy (no, on-failure[:max-retry], always, unless-stopped)

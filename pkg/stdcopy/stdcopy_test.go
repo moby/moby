@@ -17,10 +17,9 @@ func TestNewStdWriter(t *testing.T) {
 }
 
 func TestWriteWithUnitializedStdWriter(t *testing.T) {
-	writer := StdWriter{
-		Writer:  nil,
-		prefix:  Stdout,
-		sizeBuf: make([]byte, 4),
+	writer := stdWriter{
+		Writer: nil,
+		prefix: byte(Stdout),
 	}
 	n, err := writer.Write([]byte("Something here"))
 	if n != 0 || err == nil {
@@ -72,7 +71,7 @@ func TestWriteWithWriterError(t *testing.T) {
 		t.Fatalf("Didn't get expected error.")
 	}
 	if n != expectedReturnedBytes {
-		t.Fatalf("Didn't get expected writen bytes %d, got %d.",
+		t.Fatalf("Didn't get expected written bytes %d, got %d.",
 			expectedReturnedBytes, n)
 	}
 }
@@ -180,7 +179,7 @@ func TestStdCopyDetectsCorruptedFrame(t *testing.T) {
 		src:          buffer}
 	written, err := StdCopy(ioutil.Discard, ioutil.Discard, reader)
 	if written != startingBufLen {
-		t.Fatalf("Expected 0 bytes read, got %d", written)
+		t.Fatalf("Expected %d bytes read, got %d", startingBufLen, written)
 	}
 	if err != nil {
 		t.Fatal("Didn't get nil error")

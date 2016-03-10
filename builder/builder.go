@@ -14,6 +14,11 @@ import (
 	"github.com/docker/engine-api/types/container"
 )
 
+const (
+	// DefaultDockerfileName is the Default filename with Docker commands, read by docker build
+	DefaultDockerfileName string = "Dockerfile"
+)
+
 // Context represents a file system tree.
 type Context interface {
 	// Close allows to signal that the filesystem tree won't be used anymore.
@@ -141,7 +146,7 @@ type Image interface {
 // ImageCache abstracts an image cache store.
 // (parent image, child runconfig) -> child image
 type ImageCache interface {
-	// GetCachedImage returns a reference to a cached image whose parent equals `parent`
+	// GetCachedImageOnBuild returns a reference to a cached image whose parent equals `parent`
 	// and runconfig equals `cfg`. A cache miss is expected to return an empty ID and a nil error.
 	GetCachedImageOnBuild(parentID string, cfg *container.Config) (imageID string, err error)
 }

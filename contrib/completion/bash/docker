@@ -395,7 +395,9 @@ __docker_complete_isolation() {
 __docker_complete_log_drivers() {
 	COMPREPLY=( $( compgen -W "
 		awslogs
+		etwlogs
 		fluentd
+		gcplogs
 		gelf
 		journald
 		json-file
@@ -409,13 +411,14 @@ __docker_complete_log_options() {
 	# see docs/reference/logging/index.md
 	local awslogs_options="awslogs-region awslogs-group awslogs-stream"
 	local fluentd_options="env fluentd-address labels tag"
+	local gcplogs_options="env gcp-log-cmd gcp-project labels"
 	local gelf_options="env gelf-address labels tag"
 	local journald_options="env labels tag"
 	local json_file_options="env labels max-file max-size"
 	local syslog_options="syslog-address syslog-tls-ca-cert syslog-tls-cert syslog-tls-key syslog-tls-skip-verify syslog-facility tag"
 	local splunk_options="env labels splunk-caname splunk-capath splunk-index splunk-insecureskipverify splunk-source splunk-sourcetype splunk-token splunk-url tag"
 
-	local all_options="$fluentd_options $gelf_options $journald_options $json_file_options $syslog_options $splunk_options"
+	local all_options="$fluentd_options $gcplogs_options $gelf_options $journald_options $json_file_options $syslog_options $splunk_options"
 
 	case $(__docker_value_of_option --log-driver) in
 		'')
@@ -426,6 +429,9 @@ __docker_complete_log_options() {
 			;;
 		fluentd)
 			COMPREPLY=( $( compgen -W "$fluentd_options" -S = -- "$cur" ) )
+			;;
+		gcplogs)
+			COMPREPLY=( $( compgen -W "$gcplogs_options" -S = -- "$cur" ) )
 			;;
 		gelf)
 			COMPREPLY=( $( compgen -W "$gelf_options" -S = -- "$cur" ) )
@@ -513,6 +519,22 @@ __docker_complete_log_driver_options() {
 
 __docker_complete_log_levels() {
 	COMPREPLY=( $( compgen -W "debug info warn error fatal" -- "$cur" ) )
+}
+
+__docker_complete_restart() {
+	case "$prev" in
+		--restart)
+			case "$cur" in
+				on-failure:*)
+					;;
+				*)
+					COMPREPLY=( $( compgen -W "always no on-failure on-failure: unless-stopped" -- "$cur") )
+					;;
+			esac
+			return
+			;;
+	esac
+	return 1
 }
 
 # a selection of the available signals that is most likely of interest in the
@@ -794,7 +816,7 @@ _docker_daemon() {
  			return
  			;;
  	esac
- 
+
  	local key=$(__docker_map_key_of_current_option '--storage-opt')
  	case "$key" in
  		dm.@(blkdiscard|override_udev_sync_check|use_deferred_@(removal|deletion)))
@@ -1188,14 +1210,14 @@ _docker_load() {
 
 _docker_login() {
 	case "$prev" in
-		--email|-e|--password|-p|--username|-u)
+		--password|-p|--username|-u)
 			return
 			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--email -e --help --password -p --username -u" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--help --password -p --username -u" -- "$cur" ) )
 			;;
 	esac
 }
@@ -1275,7 +1297,7 @@ _docker_network_connect() {
 
 _docker_network_create() {
 	case "$prev" in
-		--aux-address|--gateway|--ip-range|--ipam-opt|--opt|-o|--subnet)
+		--aux-address|--gateway|--internal|--ip-range|--ipam-opt|--ipv6|--opt|-o|--subnet)
 			return
 			;;
 		--ipam-driver)
@@ -1294,7 +1316,7 @@ _docker_network_create() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--aux-address --driver -d --gateway --help --internal --ip-range --ipam-driver --ipam-opt --opt -o --subnet" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--aux-address --driver -d --gateway --help --internal --ip-range --ipam-driver --ipam-opt --ipv6 --opt -o --subnet" -- "$cur" ) )
 			;;
 	esac
 }
@@ -1615,6 +1637,7 @@ _docker_run() {
 		--net-alias
 		--oom-score-adj
 		--pid
+		--pids-limit
 		--publish -p
 		--restart
 		--security-opt
@@ -1657,6 +1680,7 @@ _docker_run() {
 
 
 	__docker_complete_log_driver_options && return
+	__docker_complete_restart && return
 
 	case "$prev" in
 		--add-host)
@@ -1750,16 +1774,6 @@ _docker_run() {
 					if [ "${COMPREPLY[*]}" = "container:" ] ; then
 						__docker_nospace
 					fi
-					;;
-			esac
-			return
-			;;
-		--restart)
-			case "$cur" in
-				on-failure:*)
-					;;
-				*)
-					COMPREPLY=( $( compgen -W "always no on-failure on-failure: unless-stopped" -- "$cur") )
 					;;
 			esac
 			return
@@ -1938,6 +1952,7 @@ _docker_update() {
 		--memory -m
 		--memory-reservation
 		--memory-swap
+		--restart
 	"
 
 	local boolean_options="
@@ -1945,6 +1960,8 @@ _docker_update() {
 	"
 
 	local all_options="$options_with_args $boolean_options"
+
+	__docker_complete_restart && return
 
 	case "$prev" in
 		$(__docker_to_extglob "$options_with_args") )

@@ -75,6 +75,18 @@ func (s *DockerSuite) TestStatsAllRunningNoStream(c *check.C) {
 	if strings.Contains(out, id3) {
 		c.Fatalf("Did not expect %s in stats, got %s", id3, out)
 	}
+
+	// check output contains real data, but not all zeros
+	reg, _ := regexp.Compile("[1-9]+")
+	// split output with "\n", outLines[1] is id2's output
+	// outLines[2] is id1's output
+	outLines := strings.Split(out, "\n")
+	// check stat result of id2 contains real data
+	realData := reg.Find([]byte(outLines[1][12:]))
+	c.Assert(realData, checker.NotNil, check.Commentf("stat result are empty: %s", out))
+	// check stat result of id1 contains real data
+	realData = reg.Find([]byte(outLines[2][12:]))
+	c.Assert(realData, checker.NotNil, check.Commentf("stat result are empty: %s", out))
 }
 
 func (s *DockerSuite) TestStatsAllNoStream(c *check.C) {
@@ -93,16 +105,30 @@ func (s *DockerSuite) TestStatsAllNoStream(c *check.C) {
 	if !strings.Contains(out, id1) || !strings.Contains(out, id2) {
 		c.Fatalf("Expected stats output to contain both %s and %s, got %s", id1, id2, out)
 	}
+
+	// check output contains real data, but not all zeros
+	reg, _ := regexp.Compile("[1-9]+")
+	// split output with "\n", outLines[1] is id2's output
+	outLines := strings.Split(out, "\n")
+	// check stat result of id2 contains real data
+	realData := reg.Find([]byte(outLines[1][12:]))
+	c.Assert(realData, checker.NotNil, check.Commentf("stat result of %s is empty: %s", id2, out))
+	// check stat result of id1 contains all zero
+	realData = reg.Find([]byte(outLines[2][12:]))
+	c.Assert(realData, checker.IsNil, check.Commentf("stat result of %s should be empty : %s", id1, out))
 }
 
 func (s *DockerSuite) TestStatsAllNewContainersAdded(c *check.C) {
 	// Windows does not support stats
-	testRequires(c, DaemonIsLinux)
+	// TODO: remove SameHostDaemon
+	//	The reason it was added is because, there seems to be some race that makes this test fail
+	//	for remote daemons (namely in the win2lin CI). We highly welcome contributions to fix this.
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 
 	id := make(chan string)
 	addedChan := make(chan struct{})
 
-	dockerCmd(c, "run", "-d", "busybox", "top")
+	runSleepingContainer(c, "-d")
 	statsCmd := exec.Command(dockerBinary, "stats")
 	stdout, err := statsCmd.StdoutPipe()
 	c.Assert(err, check.IsNil)
@@ -118,16 +144,17 @@ func (s *DockerSuite) TestStatsAllNewContainersAdded(c *check.C) {
 			switch {
 			case matchID.MatchString(scanner.Text()):
 				close(addedChan)
+				return
 			}
 		}
 	}()
 
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out, _ := runSleepingContainer(c, "-d")
 	c.Assert(waitRun(strings.TrimSpace(out)), check.IsNil)
 	id <- strings.TrimSpace(out)[:12]
 
 	select {
-	case <-time.After(5 * time.Second):
+	case <-time.After(30 * time.Second):
 		c.Fatal("failed to observe new container created added to stats")
 	case <-addedChan:
 		// ignore, done

@@ -516,7 +516,7 @@ feature](../userguide/networking/index.md)).
     ENV <key>=<value> ...
 
 The `ENV` instruction sets the environment variable `<key>` to the value
-`<value>`. This value will be in the environment of all "descendent"
+`<value>`. This value will be in the environment of all "descendant"
 `Dockerfile` commands and can be [replaced inline](#environment-replacement) in
 many as well.
 
@@ -579,7 +579,7 @@ The `<dest>` is an absolute path, or a path relative to `WORKDIR`, into which
 the source will be copied inside the destination container.
 
     ADD test relativeDir/          # adds "test" to `WORKDIR`/relativeDir/
-    ADD test /absoluteDir          # adds "test" to /absoluteDir
+    ADD test /absoluteDir/         # adds "test" to /absoluteDir/
 
 All new files and directories are created with a UID and GID of 0.
 
@@ -646,7 +646,7 @@ guide](../userguide/eng-image/dockerfile_best-practices.md#build-cache) for more
 
   > **Note**:
   > Whether a file is identified as a recognized compression format or not
-  > is done soley based on the contents of the file, not the name of the file.
+  > is done solely based on the contents of the file, not the name of the file.
   > For example, if an empty file happens to end with `.tar.gz` this will not
   > be recognized as a compressed file and **will not** generate any kind of
   > decompression error message, rather the file will simply be copied to the
@@ -691,7 +691,7 @@ The `<dest>` is an absolute path, or a path relative to `WORKDIR`, into which
 the source will be copied inside the destination container.
 
     COPY test relativeDir/   # adds "test" to `WORKDIR`/relativeDir/
-    COPY test /absoluteDir   # adds "test" to /absoluteDir
+    COPY test /absoluteDir/  # adds "test" to /absoluteDir/
 
 All new files and directories are created with a UID and GID of 0.
 
@@ -949,6 +949,29 @@ If you then run `docker stop test`, the container will not exit cleanly - the
     real	0m 10.19s
     user	0m 0.04s
     sys	0m 0.03s
+
+### Understand how CMD and ENTRYPOINT interact
+
+Both `CMD` and `ENTRYPOINT` instructions define what command gets executed when running a container.
+There are few rules that describe their co-operation.
+
+1. Dockerfile should specify at least one of `CMD` or `ENTRYPOINT` commands.
+
+2. `ENTRYPOINT` should be defined when using the container as an executable.
+
+3. `CMD` should be used as a way of defining default arguments for an `ENTRYPOINT` command
+or for executing an ad-hoc command in a container.
+
+4. `CMD` will be overridden when running the container with alternative arguments.
+
+The table below shows what command is executed for different `ENTRYPOINT` / `CMD` combinations:
+
+|                                | No ENTRYPOINT              | ENTRYPOINT exec_entry p1_entry                            | ENTRYPOINT ["exec_entry", "p1_entry"]          |
+|--------------------------------|----------------------------|-----------------------------------------------------------|------------------------------------------------|
+| **No CMD**                     | *error, not allowed*       | /bin/sh -c exec_entry p1_entry                            | exec_entry p1_entry                            |
+| **CMD ["exec_cmd", "p1_cmd"]** | exec_cmd p1_cmd            | /bin/sh -c exec_entry p1_entry exec_cmd p1_cmd            | exec_entry p1_entry exec_cmd p1_cmd            |
+| **CMD ["p1_cmd", "p2_cmd"]**   | p1_cmd p2_cmd              | /bin/sh -c exec_entry p1_entry p1_cmd p2_cmd              | exec_entry p1_entry p1_cmd p2_cmd              |
+| **CMD exec_cmd p1_cmd**        | /bin/sh -c exec_cmd p1_cmd | /bin/sh -c exec_entry p1_entry /bin/sh -c exec_cmd p1_cmd | exec_entry p1_entry /bin/sh -c exec_cmd p1_cmd |
 
 ## VOLUME
 

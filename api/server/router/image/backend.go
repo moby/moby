@@ -20,7 +20,6 @@ type Backend interface {
 
 type containerBackend interface {
 	Commit(name string, config *types.ContainerCommitConfig) (imageID string, err error)
-	Exists(containerName string) bool
 }
 
 type imageBackend interface {

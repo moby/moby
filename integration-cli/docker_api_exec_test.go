@@ -58,7 +58,7 @@ func (s *DockerSuite) TestExecApiCreateContainerPaused(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusConflict)
 
-	comment := check.Commentf("Expected message when creating exec command with Container s% is paused", name)
+	comment := check.Commentf("Expected message when creating exec command with Container %s is paused", name)
 	c.Assert(string(body), checker.Contains, "Container "+name+" is paused, unpause the container before exec", comment)
 }
 
@@ -120,6 +120,36 @@ func (s *DockerSuite) TestExecApiStartMultipleTimesError(c *check.C) {
 	}
 
 	startExec(c, execID, http.StatusConflict)
+}
+
+// #20638
+func (s *DockerSuite) TestExecApiStartWithDetach(c *check.C) {
+	name := "foo"
+	runSleepingContainer(c, "-d", "-t", "--name", name)
+	data := map[string]interface{}{
+		"cmd":         []string{"true"},
+		"AttachStdin": true,
+	}
+	_, b, err := sockRequest("POST", fmt.Sprintf("/containers/%s/exec", name), data)
+	c.Assert(err, checker.IsNil, check.Commentf(string(b)))
+
+	createResp := struct {
+		ID string `json:"Id"`
+	}{}
+	c.Assert(json.Unmarshal(b, &createResp), checker.IsNil, check.Commentf(string(b)))
+
+	_, body, err := sockRequestRaw("POST", fmt.Sprintf("/exec/%s/start", createResp.ID), strings.NewReader(`{"Detach": true}`), "application/json")
+	c.Assert(err, checker.IsNil)
+
+	b, err = readBody(body)
+	comment := check.Commentf("response body: %s", b)
+	c.Assert(err, checker.IsNil, comment)
+
+	resp, _, err := sockRequestRaw("GET", "/_ping", nil, "")
+	c.Assert(err, checker.IsNil)
+	if resp.StatusCode != http.StatusOK {
+		c.Fatal("daemon is down, it should alive")
+	}
 }
 
 func createExec(c *check.C, name string) string {

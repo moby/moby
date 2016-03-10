@@ -10,32 +10,21 @@ docker-volume - Create a new volume
 
 # DESCRIPTION
 
-docker volume command manages content volumes for docker containers.
+docker volume has subcommands for managing data volumes.
 
 ## Data volumes
 
-A *data volume* is a specially-designated directory within one or more
-containers.
+The `docker volume` command has subcommands for managing data volumes. A data volume is a specially-designated directory that by-passes storage driver management.
 
-Data volumes provide several useful features for persistent or shared data:
+Data volumes persist data independent of a container's life cycle. When you delete a container, the Engine daemon does not delete any data volumes. You can share volumes across multiple containers. Moreover, you can share data volumes with other computing resources in your system.
 
-Volumes are initialized when a container is created. If the container's
-base image contains data at the specified mount point, that existing data is
-copied into the new volume upon volume initialization. (Note that this does
-not apply when [mounting a host directory](#mount-a-host-directory-as-a-data-volume).)
+To see help for a subcommand, use:
 
-Data volumes can be shared and reused among containers.
+```
+docker volume CMD help
+```
 
-Changes to a data volume are made directly.
-
-Changes to a data volume will not be included when you update an image.
-
-Data volumes persist even if the container itself is deleted.
-
-Data volumes are designed to persist data, independent of the container's life
-cycle. Docker therefore *never* automatically deletes volumes when you remove
-a container, nor will it "garbage collect" volumes that are no longer
-referenced by a container.
+For full details on using docker volume visit Docker's online documentation.
 
 # OPTIONS
 **--help**

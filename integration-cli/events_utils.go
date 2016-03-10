@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"io"
 	"os/exec"
 	"regexp"
@@ -11,20 +10,9 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/daemon/events/testutils"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
-)
-
-var (
-	reTimestamp  = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{9}(:?(:?(:?-|\+)\d{2}:\d{2})|Z)`
-	reEventType  = `(?P<eventType>\w+)`
-	reAction     = `(?P<action>\w+)`
-	reID         = `(?P<id>[^\s]+)`
-	reAttributes = `(\s\((?P<attributes>[^\)]+)\))?`
-	reString     = fmt.Sprintf(`\A%s\s%s\s%s\s%s%s\z`, reTimestamp, reEventType, reAction, reID, reAttributes)
-
-	// eventCliRegexp is a regular expression that matches all possible event outputs in the cli
-	eventCliRegexp = regexp.MustCompile(reString)
 )
 
 // eventMatcher is a function that tries to match an event input.
@@ -131,7 +119,7 @@ func (e *eventObserver) CheckEventError(c *check.C, id, event string, match even
 // It returns an empty map and false if there is no match.
 func matchEventLine(id, eventType string, actions map[string]chan bool) eventMatcher {
 	return func(text string) (map[string]string, bool) {
-		matches := parseEventText(text)
+		matches := eventstestutils.ScanMap(text)
 		if len(matches) == 0 {
 			return matches, false
 		}
@@ -149,31 +137,15 @@ func matchEventLine(id, eventType string, actions map[string]chan bool) eventMat
 func processEventMatch(actions map[string]chan bool) eventMatchProcessor {
 	return func(matches map[string]string) {
 		if ch, ok := actions[matches["action"]]; ok {
-			close(ch)
+			ch <- true
 		}
 	}
-}
-
-// parseEventText parses a line of events coming from the cli and returns
-// the matchers in a map.
-func parseEventText(text string) map[string]string {
-	matches := eventCliRegexp.FindAllStringSubmatch(text, -1)
-	md := map[string]string{}
-	if len(matches) == 0 {
-		return md
-	}
-
-	names := eventCliRegexp.SubexpNames()
-	for i, n := range matches[0] {
-		md[names[i]] = n
-	}
-	return md
 }
 
 // parseEventAction parses an event text and returns the action.
 // It fails if the text is not in the event format.
 func parseEventAction(c *check.C, text string) string {
-	matches := parseEventText(text)
+	matches := eventstestutils.ScanMap(text)
 	return matches["action"]
 }
 
@@ -182,7 +154,7 @@ func parseEventAction(c *check.C, text string) string {
 func eventActionsByIDAndType(c *check.C, events []string, id, eventType string) []string {
 	var filtered []string
 	for _, event := range events {
-		matches := parseEventText(event)
+		matches := eventstestutils.ScanMap(event)
 		c.Assert(matches, checker.Not(checker.IsNil))
 		if matchIDAndEventType(matches, id, eventType) {
 			filtered = append(filtered, matches["action"])
@@ -214,7 +186,7 @@ func matchEventID(matches map[string]string, id string) bool {
 func parseEvents(c *check.C, out, match string) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	for _, event := range events {
-		matches := parseEventText(event)
+		matches := eventstestutils.ScanMap(event)
 		matched, err := regexp.MatchString(match, matches["action"])
 		c.Assert(err, checker.IsNil)
 		c.Assert(matched, checker.True, check.Commentf("Matcher: %s did not match %s", match, matches["action"]))
@@ -224,7 +196,7 @@ func parseEvents(c *check.C, out, match string) {
 func parseEventsWithID(c *check.C, out, match, id string) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	for _, event := range events {
-		matches := parseEventText(event)
+		matches := eventstestutils.ScanMap(event)
 		c.Assert(matchEventID(matches, id), checker.True)
 
 		matched, err := regexp.MatchString(match, matches["action"])

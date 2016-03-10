@@ -44,14 +44,15 @@ func New(quiet bool) *SysInfo {
 		sysInfo.cgroupCPUInfo = checkCgroupCPU(cgMounts, quiet)
 		sysInfo.cgroupBlkioInfo = checkCgroupBlkioInfo(cgMounts, quiet)
 		sysInfo.cgroupCpusetInfo = checkCgroupCpusetInfo(cgMounts, quiet)
+		sysInfo.cgroupPids = checkCgroupPids(quiet)
 	}
 
 	_, ok := cgMounts["devices"]
 	sysInfo.CgroupDevicesEnabled = ok
 
 	sysInfo.IPv4ForwardingDisabled = !readProcBool("/proc/sys/net/ipv4/ip_forward")
-	sysInfo.BridgeNfCallIptablesDisabled = !readProcBool("/proc/sys/net/bridge/bridge-nf-call-iptables")
-	sysInfo.BridgeNfCallIP6tablesDisabled = !readProcBool("/proc/sys/net/bridge/bridge-nf-call-ip6tables")
+	sysInfo.BridgeNFCallIPTablesDisabled = !readProcBool("/proc/sys/net/bridge/bridge-nf-call-iptables")
+	sysInfo.BridgeNFCallIP6TablesDisabled = !readProcBool("/proc/sys/net/bridge/bridge-nf-call-ip6tables")
 
 	// Check if AppArmor is supported.
 	if _, err := os.Stat("/sys/kernel/security/apparmor"); !os.IsNotExist(err) {
@@ -213,6 +214,21 @@ func checkCgroupCpusetInfo(cgMounts map[string]string, quiet bool) cgroupCpusetI
 		Cpuset: true,
 		Cpus:   strings.TrimSpace(string(cpus)),
 		Mems:   strings.TrimSpace(string(mems)),
+	}
+}
+
+// checkCgroupPids reads the pids information from the pids cgroup mount point.
+func checkCgroupPids(quiet bool) cgroupPids {
+	_, err := cgroups.FindCgroupMountpoint("pids")
+	if err != nil {
+		if !quiet {
+			logrus.Warn(err)
+		}
+		return cgroupPids{}
+	}
+
+	return cgroupPids{
+		PidsLimit: true,
 	}
 }
 

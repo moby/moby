@@ -34,6 +34,7 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/vbatts/tar-split/tar/storage"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
@@ -227,10 +228,14 @@ func (a *Driver) Create(id, parent, mountLabel string) error {
 			}
 		}
 	}
+	a.Lock()
 	a.active[id] = &data{}
+	a.Unlock()
 	return nil
 }
 
+// createDirsFor creates two directories for the given id.
+// mnt and diff
 func (a *Driver) createDirsFor(id string) error {
 	paths := []string{
 		"mnt",
@@ -241,6 +246,9 @@ func (a *Driver) createDirsFor(id string) error {
 	if err != nil {
 		return err
 	}
+	// Directory permission is 0755.
+	// The path of directories are <aufs_root_path>/mnt/<image_id>
+	// and <aufs_root_path>/diff/<image_id>
 	for _, p := range paths {
 		if err := idtools.MkdirAllAs(path.Join(a.rootPath(), p, id), 0755, rootUID, rootGID); err != nil {
 			return err
@@ -285,20 +293,15 @@ func (a *Driver) Remove(id string) error {
 	if err := os.Remove(path.Join(a.rootPath(), "layers", id)); err != nil && !os.IsNotExist(err) {
 		return err
 	}
+	if m != nil {
+		delete(a.active, id)
+	}
 	return nil
 }
 
 // Get returns the rootfs path for the id.
 // This will mount the dir at it's given path
 func (a *Driver) Get(id, mountLabel string) (string, error) {
-	ids, err := getParentIds(a.rootPath(), id)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return "", err
-		}
-		ids = []string{}
-	}
-
 	// Protect the a.active from concurrent access
 	a.Lock()
 	defer a.Unlock()
@@ -309,13 +312,18 @@ func (a *Driver) Get(id, mountLabel string) (string, error) {
 		a.active[id] = m
 	}
 
+	parents, err := a.getParentLayerPaths(id)
+	if err != nil && !os.IsNotExist(err) {
+		return "", err
+	}
+
 	// If a dir does not have a parent ( no layers )do not try to mount
 	// just return the diff path to the data
 	m.path = path.Join(a.rootPath(), "diff", id)
-	if len(ids) > 0 {
+	if len(parents) > 0 {
 		m.path = path.Join(a.rootPath(), "mnt", id)
 		if m.referenceCount == 0 {
-			if err := a.mount(id, m, mountLabel); err != nil {
+			if err := a.mount(id, m, mountLabel, parents); err != nil {
 				return "", err
 			}
 		}
@@ -367,10 +375,19 @@ func (a *Driver) Diff(id, parent string) (archive.Archive, error) {
 	})
 }
 
-// DiffPath returns path to the directory that contains files for the layer
-// differences. Used for direct access for tar-split.
-func (a *Driver) DiffPath(id string) (string, func() error, error) {
-	return path.Join(a.rootPath(), "diff", id), func() error { return nil }, nil
+type fileGetNilCloser struct {
+	storage.FileGetter
+}
+
+func (f fileGetNilCloser) Close() error {
+	return nil
+}
+
+// DiffGetter returns a FileGetCloser that can read files from the directory that
+// contains files for the layer differences. Used for direct access for tar-split.
+func (a *Driver) DiffGetter(id string) (graphdriver.FileGetCloser, error) {
+	p := path.Join(a.rootPath(), "diff", id)
+	return fileGetNilCloser{storage.NewPathFileGetter(p)}, nil
 }
 
 func (a *Driver) applyDiff(id string, diff archive.Reader) error {
@@ -426,7 +443,7 @@ func (a *Driver) getParentLayerPaths(id string) ([]string, error) {
 	return layers, nil
 }
 
-func (a *Driver) mount(id string, m *data, mountLabel string) error {
+func (a *Driver) mount(id string, m *data, mountLabel string, layers []string) error {
 	// If the id is mounted or we get an error return
 	if mounted, err := a.mounted(m); err != nil || mounted {
 		return err
@@ -436,11 +453,6 @@ func (a *Driver) mount(id string, m *data, mountLabel string) error {
 		target = m.path
 		rw     = path.Join(a.rootPath(), "diff", id)
 	)
-
-	layers, err := a.getParentLayerPaths(id)
-	if err != nil {
-		return err
-	}
 
 	if err := a.aufsMount(layers, rw, target, mountLabel); err != nil {
 		return fmt.Errorf("error creating aufs mount to %s: %v", target, err)
@@ -456,7 +468,11 @@ func (a *Driver) unmount(m *data) error {
 }
 
 func (a *Driver) mounted(m *data) (bool, error) {
-	return mountpk.Mounted(m.path)
+	var buf syscall.Statfs_t
+	if err := syscall.Statfs(m.path, &buf); err != nil {
+		return false, nil
+	}
+	return graphdriver.FsMagic(buf.Type) == graphdriver.FsMagicAufs, nil
 }
 
 // Cleanup aufs and unmount all mountpoints

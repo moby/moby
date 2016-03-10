@@ -23,6 +23,7 @@ RUN apt-get update && apt-get install -y \
 	libcap-dev \
 	libsqlite3-dev \
 	mercurial \
+	net-tools \
 	parallel \
 	python-dev \
 	python-mock \

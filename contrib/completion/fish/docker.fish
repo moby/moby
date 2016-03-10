@@ -221,8 +221,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from load' -l help -d 'Print
 complete -c docker -A -f -n '__fish_seen_subcommand_from load' -s i -l input -d 'Read from a tar archive file, instead of STDIN'
 
 # login
-complete -c docker -f -n '__fish_docker_no_subcommand' -a login -d 'Register or log in to a Docker registry server'
-complete -c docker -A -f -n '__fish_seen_subcommand_from login' -s e -l email -d 'Email'
+complete -c docker -f -n '__fish_docker_no_subcommand' -a login -d 'Log in to a Docker registry server'
 complete -c docker -A -f -n '__fish_seen_subcommand_from login' -l help -d 'Print usage'
 complete -c docker -A -f -n '__fish_seen_subcommand_from login' -s p -l password -d 'Password'
 complete -c docker -A -f -n '__fish_seen_subcommand_from login' -s u -l username -d 'Username'
@@ -290,6 +289,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from rm' -l help -d 'Print u
 complete -c docker -A -f -n '__fish_seen_subcommand_from rm' -s l -l link -d 'Remove the specified link and not the underlying container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from rm' -s v -l volumes -d 'Remove the volumes associated with the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from rm' -a '(__fish_print_docker_containers stopped)' -d "Container"
+complete -c docker -A -f -n '__fish_seen_subcommand_from rm' -s f -l force -a '(__fish_print_docker_containers all)' -d "Container"
 
 # rmi
 complete -c docker -f -n '__fish_docker_no_subcommand' -a rmi -d 'Remove one or more images'
@@ -398,5 +398,3 @@ complete -c docker -f -n '__fish_docker_no_subcommand' -a version -d 'Show the D
 complete -c docker -f -n '__fish_docker_no_subcommand' -a wait -d 'Block until a container stops, then print its exit code'
 complete -c docker -A -f -n '__fish_seen_subcommand_from wait' -l help -d 'Print usage'
 complete -c docker -A -f -n '__fish_seen_subcommand_from wait' -a '(__fish_print_docker_containers running)' -d "Container"
-
-

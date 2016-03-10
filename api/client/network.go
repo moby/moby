@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"net"
+	"sort"
 	"strings"
 	"text/tabwriter"
 
@@ -50,6 +51,7 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	cmd.Var(flIpamOpt, []string{"-ipam-opt"}, "set IPAM driver specific options")
 
 	flInternal := cmd.Bool([]string{"-internal"}, false, "restricts external access to the network")
+	flIPv6 := cmd.Bool([]string{"-ipv6"}, false, "enable IPv6 networking")
 
 	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
@@ -77,6 +79,7 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 		Options:        flOpts.GetAll(),
 		CheckDuplicate: true,
 		Internal:       *flInternal,
+		EnableIPv6:     *flIPv6,
 	}
 
 	resp, err := cli.client.NetworkCreate(nc)
@@ -192,7 +195,7 @@ func (cli *DockerCli) CmdNetworkLs(args ...string) error {
 	if !*quiet {
 		fmt.Fprintln(wr, "NETWORK ID\tNAME\tDRIVER")
 	}
-
+	sort.Sort(byNetworkName(networkResources))
 	for _, networkResource := range networkResources {
 		ID := networkResource.ID
 		netName := networkResource.Name
@@ -213,6 +216,12 @@ func (cli *DockerCli) CmdNetworkLs(args ...string) error {
 	wr.Flush()
 	return nil
 }
+
+type byNetworkName []types.NetworkResource
+
+func (r byNetworkName) Len() int           { return len(r) }
+func (r byNetworkName) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r byNetworkName) Less(i, j int) bool { return r[i].Name < r[j].Name }
 
 // CmdNetworkInspect inspects the network object for more details
 //

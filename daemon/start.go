@@ -2,11 +2,12 @@ package daemon
 
 import (
 	"fmt"
+	"net/http"
 	"runtime"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
-	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/errors"
 	"github.com/docker/docker/runconfig"
 	containertypes "github.com/docker/engine-api/types/container"
 )
@@ -19,11 +20,12 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 	}
 
 	if container.IsPaused() {
-		return derr.ErrorCodeStartPaused
+		return fmt.Errorf("Cannot start a paused container, try unpause instead.")
 	}
 
 	if container.IsRunning() {
-		return derr.ErrorCodeAlreadyStarted
+		err := fmt.Errorf("Container already started")
+		return errors.NewErrorWithStatusCode(err, http.StatusNotModified)
 	}
 
 	// Windows does not have the backwards compatibility issue here.
@@ -52,13 +54,13 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 		}
 	} else {
 		if hostConfig != nil {
-			return derr.ErrorCodeHostConfigStart
+			return fmt.Errorf("Supplying a hostconfig on start is not supported. It should be supplied on create")
 		}
 	}
 
 	// check if hostConfig is in line with the current system settings.
 	// It may happen cgroups are umounted or the like.
-	if _, err = daemon.verifyContainerSettings(container.HostConfig, nil); err != nil {
+	if _, err = daemon.verifyContainerSettings(container.HostConfig, nil, false); err != nil {
 		return err
 	}
 	// Adapt for old containers in case we have updates in this function and
@@ -88,7 +90,7 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 	}
 
 	if container.RemovalInProgress || container.Dead {
-		return derr.ErrorCodeContainerBeingRemoved
+		return fmt.Errorf("Container is marked for removal and cannot be started.")
 	}
 
 	// if we encounter an error during start we need to ensure that any other
@@ -124,7 +126,8 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 	if err != nil {
 		return err
 	}
-	if err := container.SetupWorkingDirectory(); err != nil {
+	rootUID, rootGID := daemon.GetRemappedUIDGID()
+	if err := container.SetupWorkingDirectory(rootUID, rootGID); err != nil {
 		return err
 	}
 	env := container.CreateDaemonEnvironment(linkedEnv)
@@ -154,7 +157,7 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 }
 
 func (daemon *Daemon) waitForStart(container *container.Container) error {
-	return container.StartMonitor(daemon, container.HostConfig.RestartPolicy)
+	return container.StartMonitor(daemon)
 }
 
 // Cleanup releases any network resources allocated to the container along with any rules

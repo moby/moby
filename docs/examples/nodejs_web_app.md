@@ -67,7 +67,7 @@ Open the `Dockerfile` in your favorite text editor
 
 Define the parent image you want to use to build your own image on
 top of. Here, we'll use
-[CentOS](https://registry.hub.docker.com/_/centos/) (tag: `centos6`)
+[CentOS](https://hub.docker.com/_/centos/) (tag: `centos6`)
 available on the [Docker Hub](https://hub.docker.com/):
 
     FROM    centos:centos6
@@ -89,7 +89,7 @@ Install your app dependencies using the `npm` binary:
 
     # Install app dependencies
     COPY package.json /src/package.json
-    RUN cd /src; npm install
+    RUN cd /src; npm install --production
 
 To bundle your app's source code inside the Docker image, use the `COPY`
 instruction:
@@ -119,7 +119,7 @@ Your `Dockerfile` should now look like this:
 
     # Install app dependencies
     COPY package.json /src/package.json
-    RUN cd /src; npm install
+    RUN cd /src; npm install --production
 
     # Bundle app source
     COPY . /src

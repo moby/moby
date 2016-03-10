@@ -31,7 +31,7 @@ func (s *DockerSuite) TestTagUnprefixedRepoByID(c *check.C) {
 
 // ensure we don't allow the use of invalid repository names; these tag operations should fail
 func (s *DockerSuite) TestTagInvalidUnprefixedRepo(c *check.C) {
-	invalidRepos := []string{"fo$z$", "Foo@3cc", "Foo$3", "Foo*3", "Fo^3", "Foo!3", "F)xcz(", "fo%asd"}
+	invalidRepos := []string{"fo$z$", "Foo@3cc", "Foo$3", "Foo*3", "Fo^3", "Foo!3", "F)xcz(", "fo%asd", "FOO/bar"}
 
 	for _, repo := range invalidRepos {
 		out, _, err := dockerCmdWithError("tag", "busybox", repo)
@@ -61,7 +61,7 @@ func (s *DockerSuite) TestTagValidPrefixedRepo(c *check.C) {
 		}
 	}
 
-	validRepos := []string{"fooo/bar", "fooaa/test", "foooo:t"}
+	validRepos := []string{"fooo/bar", "fooaa/test", "foooo:t", "HOSTNAME.DOMAIN.COM:443/foo/bar"}
 
 	for _, repo := range validRepos {
 		_, _, err := dockerCmdWithError("tag", "busybox:latest", repo)

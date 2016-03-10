@@ -14,13 +14,13 @@ const (
 )
 
 // GetVersion returns the major and minor version of apparmor_parser.
-func GetVersion() (int, int, error) {
+func GetVersion() (int, error) {
 	output, err := cmd("", "--version")
 	if err != nil {
-		return -1, -1, err
+		return -1, err
 	}
 
-	return parseVersion(string(output))
+	return parseVersion(output)
 }
 
 // LoadProfile runs `apparmor_parser -r -W` on a specified apparmor profile to
@@ -47,30 +47,46 @@ func cmd(dir string, arg ...string) (string, error) {
 }
 
 // parseVersion takes the output from `apparmor_parser --version` and returns
-// the major and minor version for `apparor_parser`.
-func parseVersion(output string) (int, int, error) {
+// a representation of the {major, minor, patch} version as a single number of
+// the form MMmmPPP {major, minor, patch}.
+func parseVersion(output string) (int, error) {
 	// output is in the form of the following:
 	// AppArmor parser version 2.9.1
 	// Copyright (C) 1999-2008 Novell Inc.
 	// Copyright 2009-2012 Canonical Ltd.
+
 	lines := strings.SplitN(output, "\n", 2)
 	words := strings.Split(lines[0], " ")
 	version := words[len(words)-1]
 
 	// split by major minor version
 	v := strings.Split(version, ".")
-	if len(v) < 2 {
-		return -1, -1, fmt.Errorf("parsing major minor version failed for output: `%s`", output)
+	if len(v) == 0 || len(v) > 3 {
+		return -1, fmt.Errorf("parsing version failed for output: `%s`", output)
 	}
+
+	// Default the versions to 0.
+	var majorVersion, minorVersion, patchLevel int
 
 	majorVersion, err := strconv.Atoi(v[0])
 	if err != nil {
-		return -1, -1, err
-	}
-	minorVersion, err := strconv.Atoi(v[1])
-	if err != nil {
-		return -1, -1, err
+		return -1, err
 	}
 
-	return majorVersion, minorVersion, nil
+	if len(v) > 1 {
+		minorVersion, err = strconv.Atoi(v[1])
+		if err != nil {
+			return -1, err
+		}
+	}
+	if len(v) > 2 {
+		patchLevel, err = strconv.Atoi(v[2])
+		if err != nil {
+			return -1, err
+		}
+	}
+
+	// major*10^5 + minor*10^3 + patch*10^0
+	numericVersion := majorVersion*1e5 + minorVersion*1e3 + patchLevel
+	return numericVersion, nil
 }

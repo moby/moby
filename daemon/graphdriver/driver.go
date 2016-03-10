@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/vbatts/tar-split/tar/storage"
 
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
@@ -90,6 +91,23 @@ type Driver interface {
 	// and its parent and returns the size in bytes of the changes
 	// relative to its base filesystem directory.
 	DiffSize(id, parent string) (size int64, err error)
+}
+
+// DiffGetterDriver is the interface for layered file system drivers that
+// provide a specialized function for getting file contents for tar-split.
+type DiffGetterDriver interface {
+	Driver
+	// DiffGetter returns an interface to efficiently retrieve the contents
+	// of files in a layer.
+	DiffGetter(id string) (FileGetCloser, error)
+}
+
+// FileGetCloser extends the storage.FileGetter interface with a Close method
+// for cleaning up.
+type FileGetCloser interface {
+	storage.FileGetter
+	// Close cleans up any resources associated with the FileGetCloser.
+	Close() error
 }
 
 func init() {

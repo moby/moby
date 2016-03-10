@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,7 +16,6 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/docker/utils"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/go-units"
@@ -60,11 +58,11 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		options.ShmSize = shmSize
 	}
 
-	if i := container.IsolationLevel(r.FormValue("isolation")); i != "" {
-		if !container.IsolationLevel.IsValid(i) {
+	if i := container.Isolation(r.FormValue("isolation")); i != "" {
+		if !container.Isolation.IsValid(i) {
 			return nil, fmt.Errorf("Unsupported isolation: %q", i)
 		}
-		options.IsolationLevel = i
+		options.Isolation = i
 	}
 
 	var buildUlimits = []*units.Ulimit{}
@@ -117,7 +115,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		if !output.Flushed() {
 			return err
 		}
-		_, err = w.Write(sf.FormatError(errors.New(utils.GetErrorMessage(err))))
+		_, err = w.Write(sf.FormatError(err))
 		if err != nil {
 			logrus.Warnf("could not write error response: %v", err)
 		}
@@ -158,6 +156,8 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	if len(dockerfileName) > 0 {
 		buildOptions.Dockerfile = dockerfileName
 	}
+
+	buildOptions.AuthConfigs = authConfigs
 
 	out = output
 	if buildOptions.SuppressOutput {

@@ -33,15 +33,11 @@ Docker itself provides access to Docker Hub services via the `docker search`,
 ### Account creation and login
 Typically, you'll want to start by creating an account on Docker Hub (if you haven't
 already) and logging in. You can create your account directly on
-[Docker Hub](https://hub.docker.com/account/signup/), or by running:
+[Docker Hub](https://hub.docker.com/account/signup/).
 
     $ docker login
 
-This will prompt you for a user name, which will become the public namespace for your
-public repositories.
-If your user name is available, Docker will prompt you to enter a password and your
-e-mail address. It will then automatically log you in. You can now commit and
-push your own images up to your repos on Docker Hub.
+You can now commit and push your own images up to your repos on Docker Hub.
 
 > **Note:**
 > Your authentication credentials will be stored in the `~/.docker/config.json`
@@ -124,7 +120,7 @@ information [here](https://docs.docker.com/docker-hub/).
 
 Sometimes you have images you don't want to make public and share with
 everyone. So Docker Hub allows you to have private repositories. You can
-sign up for a plan [here](https://registry.hub.docker.com/plans/).
+sign up for a plan [here](https://hub.docker.com/account/billing-plans/).
 
 ### Organizations and teams
 
@@ -132,7 +128,7 @@ One of the useful aspects of private repositories is that you can share
 them only with members of your organization or team. Docker Hub lets you
 create organizations where you can collaborate with your colleagues and
 manage private repositories. You can learn how to create and manage an organization
-[here](https://registry.hub.docker.com/account/organizations/).
+[here](https://hub.docker.com/organizations/).
 
 ### Automated Builds
 
@@ -144,8 +140,8 @@ triggering a build and update when you push a commit.
 #### To setup an Automated Build
 
 1.  Create a [Docker Hub account](https://hub.docker.com/) and login.
-2.  Link your GitHub or Bitbucket account through the ["Link Accounts"](https://registry.hub.docker.com/account/accounts/) menu.
-3.  [Configure an Automated Build](https://registry.hub.docker.com/builds/add/).
+2.  Link your GitHub or Bitbucket account on the ["Linked Accounts &amp; Services"](https://hub.docker.com/account/authorized-services/) page.
+3.  Select "Create Automated Build" from the "Create" dropdown menu
 4.  Pick a GitHub or Bitbucket project that has a `Dockerfile` that you want to build.
 5.  Pick the branch you want to build (the default is the `master` branch).
 6.  Give the Automated Build a name.

@@ -144,9 +144,9 @@ installer.
 
 To run a Docker container, you:
 
-* create a new (or start an existing) Docker virtual machine
-* switch your environment to your new VM
-* use the `docker` client to create, load, and manage containers
+* Create a new (or start an existing) Docker virtual machine
+* Switch your environment to your new VM
+* Use the `docker` client to create, load, and manage containers
 
 Once you create a machine, you can reuse it as often as you like. Like any
 VirtualBox VM, it maintains its configuration between uses.
@@ -160,9 +160,9 @@ There are several ways to use the installed tools, from the Docker Quickstart Te
 
     The application:
 
-    * opens a terminal window
-    * creates a `default` VM if it doesn't exist, and starts the VM after
-    * points the terminal environment to this VM
+    * Opens a terminal window
+    * Creates a `default` VM if it doesn't exist, and starts the VM after
+    * Points the terminal environment to this VM
 
     Once the launch completes, you can run `docker` commands.
 
@@ -353,9 +353,9 @@ DHCP implementation.
 ## Login with PUTTY instead of using the CMD
 
 Docker Machine generates and uses the public/private key pair in your
-`%USERPROFILE%\.ssh` directory so to log in you need to use the private key from
-this same directory. The private key needs to be converted into the format PuTTY
-uses. You can do this with
+`%USERPROFILE%\.docker\machine\machines\<name_of_your_machine>` directory. To
+log in you need to use the private key from this same directory. The private key
+needs to be converted into the format PuTTY uses. You can do this with
 [puttygen](http://www.chiark.greenend.org.uk/~sgtatham/putty/download.html):
 
 1. Open `puttygen.exe` and load ("File"->"Load" menu) the private key from (you may need to change to the `All Files (*.*)` filter)
@@ -374,6 +374,6 @@ delete that file yourself.
 
 ## Learn more
 
-You can continue with the [Docker User Guide](../userguide/index.md). If you are
+You can continue with the [Docker Engine User Guide](../userguide/index.md). If you are
 interested in using the Kitematic GUI, see the [Kitematic user
 guide](https://docs.docker.com/kitematic/userguide/).

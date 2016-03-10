@@ -5,9 +5,8 @@ import (
 )
 
 type versionExpected struct {
-	output string
-	major  int
-	minor  int
+	output  string
+	version int
 }
 
 func TestParseVersion(t *testing.T) {
@@ -18,8 +17,7 @@ Copyright (C) 1999-2008 Novell Inc.
 Copyright 2009-2012 Canonical Ltd.
 
 `,
-			major: 2,
-			minor: 10,
+			version: 210000,
 		},
 		{
 			output: `AppArmor parser version 2.8
@@ -27,8 +25,7 @@ Copyright (C) 1999-2008 Novell Inc.
 Copyright 2009-2012 Canonical Ltd.
 
 `,
-			major: 2,
-			minor: 8,
+			version: 208000,
 		},
 		{
 			output: `AppArmor parser version 2.20
@@ -36,8 +33,7 @@ Copyright (C) 1999-2008 Novell Inc.
 Copyright 2009-2012 Canonical Ltd.
 
 `,
-			major: 2,
-			minor: 20,
+			version: 220000,
 		},
 		{
 			output: `AppArmor parser version 2.05
@@ -45,21 +41,33 @@ Copyright (C) 1999-2008 Novell Inc.
 Copyright 2009-2012 Canonical Ltd.
 
 `,
-			major: 2,
-			minor: 5,
+			version: 205000,
+		},
+		{
+			output: `AppArmor parser version 2.9.95
+Copyright (C) 1999-2008 Novell Inc.
+Copyright 2009-2012 Canonical Ltd.
+
+`,
+			version: 209095,
+		},
+		{
+			output: `AppArmor parser version 3.14.159
+Copyright (C) 1999-2008 Novell Inc.
+Copyright 2009-2012 Canonical Ltd.
+
+`,
+			version: 314159,
 		},
 	}
 
 	for _, v := range versions {
-		major, minor, err := parseVersion(v.output)
+		version, err := parseVersion(v.output)
 		if err != nil {
 			t.Fatalf("expected error to be nil for %#v, got: %v", v, err)
 		}
-		if major != v.major {
-			t.Fatalf("expected major version to be %d, was %d, for: %#v\n", v.major, major, v)
-		}
-		if minor != v.minor {
-			t.Fatalf("expected minor version to be %d, was %d, for: %#v\n", v.minor, minor, v)
+		if version != v.version {
+			t.Fatalf("expected version to be %d, was %d, for: %#v\n", v.version, version, v)
 		}
 	}
 }

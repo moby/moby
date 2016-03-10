@@ -33,6 +33,7 @@ For example:
      Dirperm1 Supported: true
     Execution Driver: native-0.2
     Logging Driver: json-file
+    Cgroup Driver: cgroupfs
     Plugins:
      Volume: local
      Network: bridge null host
@@ -44,6 +45,7 @@ For example:
     Total Memory: 62.86 GiB
     Name: docker
     ID: I54V:OLXT:HVMM:TPKO:JPHQ:CQCD:JNLC:O3BZ:4ZVJ:43XJ:PFHZ:6N2S
+    Docker Root Dir: /var/lib/docker
     Debug mode (client): true
     Debug mode (server): true
      File Descriptors: 59

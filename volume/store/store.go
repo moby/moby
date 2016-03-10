@@ -54,7 +54,7 @@ type VolumeStore struct {
 }
 
 // List proxies to all registered volume drivers to get the full list of volumes
-// If a driver returns a volume that has name which conflicts with a another volume from a different driver,
+// If a driver returns a volume that has name which conflicts with another volume from a different driver,
 // the first volume is chosen and the conflicting volume is dropped.
 func (s *VolumeStore) List() ([]volume.Volume, []string, error) {
 	vols, warnings, err := s.list()
@@ -168,7 +168,7 @@ func (s *VolumeStore) Create(name, driverName string, opts map[string]string) (v
 // create asks the given driver to create a volume with the name/opts.
 // If a volume with the name is already known, it will ask the stored driver for the volume.
 // If the passed in driver name does not match the driver name which is stored for the given volume name, an error is returned.
-// It is expected that callers of this function hold any neccessary locks.
+// It is expected that callers of this function hold any necessary locks.
 func (s *VolumeStore) create(name, driverName string, opts map[string]string) (volume.Volume, error) {
 	// Validate the name in a platform-specific manner
 	valid, err := volume.IsVolumeNameValid(name)
@@ -186,18 +186,31 @@ func (s *VolumeStore) create(name, driverName string, opts map[string]string) (v
 		return v, nil
 	}
 
-	logrus.Debugf("Registering new volume reference: driver %s, name %s", driverName, name)
+	// Since there isn't a specified driver name, let's see if any of the existing drivers have this volume name
+	if driverName == "" {
+		v, _ := s.getVolume(name)
+		if v != nil {
+			return v, nil
+		}
+	}
+
 	vd, err := volumedrivers.GetDriver(driverName)
+
 	if err != nil {
 		return nil, &OpErr{Op: "create", Name: name, Err: err}
 	}
 
+	logrus.Debugf("Registering new volume reference: driver %q, name %q", vd.Name(), name)
+
+	if v, _ := vd.Get(name); v != nil {
+		return v, nil
+	}
 	return vd.Create(name, opts)
 }
 
 // GetWithRef gets a volume with the given name from the passed in driver and stores the ref
 // This is just like Get(), but we store the reference while holding the lock.
-// This makes sure there are no races between checking for the existance of a volume and adding a reference for it
+// This makes sure there are no races between checking for the existence of a volume and adding a reference for it
 func (s *VolumeStore) GetWithRef(name, driverName, ref string) (volume.Volume, error) {
 	name = normaliseVolumeName(name)
 	s.locks.Lock(name)
@@ -231,9 +244,9 @@ func (s *VolumeStore) Get(name string) (volume.Volume, error) {
 	return v, nil
 }
 
-// get requests the volume, if the driver info is stored it just access that driver,
+// getVolume requests the volume, if the driver info is stored it just accesses that driver,
 // if the driver is unknown it probes all drivers until it finds the first volume with that name.
-// it is expected that callers of this function hold any neccessary locks
+// it is expected that callers of this function hold any necessary locks
 func (s *VolumeStore) getVolume(name string) (volume.Volume, error) {
 	logrus.Debugf("Getting volume reference for name: %s", name)
 	if v, exists := s.names[name]; exists {
@@ -291,16 +304,14 @@ func (s *VolumeStore) Dereference(v volume.Volume, ref string) {
 
 	s.globalLock.Lock()
 	defer s.globalLock.Unlock()
-	refs, exists := s.refs[v.Name()]
-	if !exists {
-		return
-	}
+	var refs []string
 
-	for i, r := range refs {
-		if r == ref {
-			s.refs[v.Name()] = append(s.refs[v.Name()][:i], s.refs[v.Name()][i+1:]...)
+	for _, r := range s.refs[v.Name()] {
+		if r != ref {
+			refs = append(refs, r)
 		}
 	}
+	s.refs[v.Name()] = refs
 }
 
 // Refs gets the current list of refs for the given volume

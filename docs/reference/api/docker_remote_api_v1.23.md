@@ -59,9 +59,15 @@ List containers
                  },
                  "SizeRw": 12288,
                  "SizeRootFs": 0,
+                 "HostConfig": {
+                         "NetworkMode": "default"
+                 },
                  "NetworkSettings": {
                          "Networks": {
                                  "bridge": {
+                                          "IPAMConfig": null,
+                                          "Links": null,
+                                          "Aliases": null,
                                           "NetworkID": "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812",
                                           "EndpointID": "2cdc4edb1ded3631c81f57966563e5c8525b81121bb3706a9a9a3ae102711f3f",
                                           "Gateway": "172.17.0.1",
@@ -73,7 +79,18 @@ List containers
                                           "MacAddress": "02:42:ac:11:00:02"
                                   }
                          }
-                 }
+                 },
+                 "Mounts": [
+                         {
+                                  "Name": "fac362...80535",
+                                  "Source": "/data",
+                                  "Destination": "/data",
+                                  "Driver": "local",
+                                  "Mode": "ro,Z",
+                                  "RW": false,
+                                  "Propagation": ""
+                         }
+                 ]
          },
          {
                  "Id": "9cd87474be90",
@@ -88,9 +105,15 @@ List containers
                  "Labels": {},
                  "SizeRw": 12288,
                  "SizeRootFs": 0,
+                 "HostConfig": {
+                         "NetworkMode": "default"
+                 },
                  "NetworkSettings": {
                          "Networks": {
                                  "bridge": {
+                                          "IPAMConfig": null,
+                                          "Links": null,
+                                          "Aliases": null,
                                           "NetworkID": "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812",
                                           "EndpointID": "88eaed7b37b38c2a3f0c4bc796494fdf51b270c2d22656412a2ca5d559a64d7a",
                                           "Gateway": "172.17.0.1",
@@ -102,8 +125,8 @@ List containers
                                           "MacAddress": "02:42:ac:11:00:08"
                                   }
                          }
-                 }
-
+                 },
+                 "Mounts": []
          },
          {
                  "Id": "3176a2479c92",
@@ -118,9 +141,15 @@ List containers
                  "Labels": {},
                  "SizeRw":12288,
                  "SizeRootFs":0,
+                 "HostConfig": {
+                         "NetworkMode": "default"
+                 },
                  "NetworkSettings": {
                          "Networks": {
                                  "bridge": {
+                                          "IPAMConfig": null,
+                                          "Links": null,
+                                          "Aliases": null,
                                           "NetworkID": "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812",
                                           "EndpointID": "8b27c041c30326d59cd6e6f510d4f8d1d570a228466f956edf7815508f78e30d",
                                           "Gateway": "172.17.0.1",
@@ -132,8 +161,8 @@ List containers
                                           "MacAddress": "02:42:ac:11:00:06"
                                   }
                          }
-                 }
-
+                 },
+                 "Mounts": []
          },
          {
                  "Id": "4cb07b47f9fb",
@@ -148,9 +177,15 @@ List containers
                  "Labels": {},
                  "SizeRw": 12288,
                  "SizeRootFs": 0,
+                 "HostConfig": {
+                         "NetworkMode": "default"
+                 },
                  "NetworkSettings": {
                          "Networks": {
                                  "bridge": {
+                                          "IPAMConfig": null,
+                                          "Links": null,
+                                          "Aliases": null,
                                           "NetworkID": "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812",
                                           "EndpointID": "d91c7b2f0644403d7ef3095985ea0e2370325cd2332ff3a3225c4247328e66e9",
                                           "Gateway": "172.17.0.1",
@@ -162,8 +197,8 @@ List containers
                                           "MacAddress": "02:42:ac:11:00:05"
                                   }
                          }
-                 }
-
+                 },
+                 "Mounts": []
          }
     ]
 
@@ -184,6 +219,10 @@ Query Parameters:
   -   `status=`(`created`|`restarting`|`running`|`paused`|`exited`|`dead`)
   -   `label=key` or `label="key=value"` of a container label
   -   `isolation=`(`default`|`process`|`hyperv`)   (Windows daemon only)
+  -   `ancestor`=(`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`)
+  -   `before`=(`<container id>` or `<container name>`)
+  -   `since`=(`<container id>` or `<container name>`)
+  -   `volume`=(`<volume name>` or `<mount point destination>`)
 
 Status Codes:
 
@@ -331,6 +370,7 @@ Json Parameters:
 -   **MemorySwappiness** - Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
 -   **OomKillDisable** - Boolean value, whether to disable OOM Killer for the container or not.
 -   **OomScoreAdj** - An integer value containing the score given to the container in order to tune OOM killer preferences.
+-   **PidsLimit** - Tune a container's pids limit. Set -1 for unlimited.
 -   **AttachStdin** - Boolean value, attaches to `stdin`.
 -   **AttachStdout** - Boolean value, attaches to `stdout`.
 -   **AttachStderr** - Boolean value, attaches to `stderr`.
@@ -390,7 +430,8 @@ Json Parameters:
             An ever increasing delay (double the previous delay, starting at 100mS)
             is added before each restart to prevent flooding the server.
     -   **NetworkMode** - Sets the networking mode for the container. Supported
-          values are: `bridge`, `host`, and `container:<name|id>`
+          standard values are: `bridge`, `host`, `none`, and `container:<name|id>`. Any other value is taken
+          as a custom network's name to which this container should connect to.
     -   **Devices** - A list of devices to add to the container specified as a JSON object in the
       form
           `{ "PathOnHost": "/dev/deviceName", "PathInContainer": "/dev/deviceName", "CgroupPermissions": "mrw"}`
@@ -401,7 +442,7 @@ Json Parameters:
         systems, such as SELinux.
     -   **LogConfig** - Log configuration for the container, specified as a JSON object in the form
           `{ "Type": "<driver_name>", "Config": {"key1": "val1"}}`.
-          Available types: `json-file`, `syslog`, `journald`, `gelf`, `awslogs`, `splunk`, `none`.
+          Available types: `json-file`, `syslog`, `journald`, `gelf`, `fluentd`, `awslogs`, `splunk`, `etwlogs`, `none`.
           `json-file` logging driver.
     -   **CgroupParent** - Path to `cgroups` under which the container's `cgroup` is created. If the path is not absolute, the path is considered to be relative to the `cgroups` path of the init process. Cgroups are created if they do not already exist.
     -   **VolumeDriver** - Driver that this container users to mount volumes.
@@ -421,7 +462,7 @@ Status Codes:
 
 ### Inspect a container
 
-`GET /containers/(id)/json`
+`GET /containers/(id or name)/json`
 
 Return low-level information on the container `id`
 
@@ -623,7 +664,7 @@ Status Codes:
 
 ### List processes running inside a container
 
-`GET /containers/(id)/top`
+`GET /containers/(id or name)/top`
 
 List processes running inside the container `id`. On Unix systems this
 is done by running the `ps` command. This endpoint is not
@@ -687,7 +728,7 @@ Status Codes:
 
 ### Get container logs
 
-`GET /containers/(id)/logs`
+`GET /containers/(id or name)/logs`
 
 Get `stdout` and `stderr` logs from the container ``id``
 
@@ -727,7 +768,7 @@ Status Codes:
 
 ### Inspect changes on a container's filesystem
 
-`GET /containers/(id)/changes`
+`GET /containers/(id or name)/changes`
 
 Inspect changes on container `id`'s filesystem
 
@@ -769,7 +810,7 @@ Status Codes:
 
 ### Export a container
 
-`GET /containers/(id)/export`
+`GET /containers/(id or name)/export`
 
 Export the contents of container `id`
 
@@ -792,7 +833,7 @@ Status Codes:
 
 ### Get container stats based on resource usage
 
-`GET /containers/(id)/stats`
+`GET /containers/(id or name)/stats`
 
 This endpoint returns a live stream of a container's resource usage statistics.
 
@@ -807,6 +848,9 @@ This endpoint returns a live stream of a container's resource usage statistics.
 
       {
          "read" : "2015-01-08T22:57:31.547920715Z",
+         "pids_stats": {
+            "current": 3
+         },
          "networks": {
                  "eth0": {
                      "rx_bytes": 5338,
@@ -870,19 +914,36 @@ This endpoint returns a live stream of a container's resource usage statistics.
          "cpu_stats" : {
             "cpu_usage" : {
                "percpu_usage" : [
-                  16970827,
-                  1839451,
-                  7107380,
-                  10571290
+                  8646879,
+                  24472255,
+                  36438778,
+                  30657443
                ],
-               "usage_in_usermode" : 10000000,
-               "total_usage" : 36488948,
-               "usage_in_kernelmode" : 20000000
+               "usage_in_usermode" : 50000000,
+               "total_usage" : 100215355,
+               "usage_in_kernelmode" : 30000000
             },
-            "system_cpu_usage" : 20091722000000000,
-            "throttling_data" : {}
+            "system_cpu_usage" : 739306590000000,
+            "throttling_data" : {"periods":0,"throttled_periods":0,"throttled_time":0}
+         },
+         "precpu_stats" : {
+            "cpu_usage" : {
+               "percpu_usage" : [
+                  8646879,
+                  24350896,
+                  36438778,
+                  30657443
+               ],
+               "usage_in_usermode" : 50000000,
+               "total_usage" : 100093996,
+               "usage_in_kernelmode" : 30000000
+            },
+            "system_cpu_usage" : 9492140000000,
+            "throttling_data" : {"periods":0,"throttled_periods":0,"throttled_time":0}
          }
       }
+
+The precpu_stats is the cpu statistic of last read, which is used for calculating the cpu usage percent. It is not the exact copy of the “cpu_stats” field.
 
 Query Parameters:
 
@@ -896,7 +957,7 @@ Status Codes:
 
 ### Resize a container TTY
 
-`POST /containers/(id)/resize`
+`POST /containers/(id or name)/resize`
 
 Resize the TTY for container with  `id`. The unit is number of characters. You must restart the container for the resize to take effect.
 
@@ -923,7 +984,7 @@ Status Codes:
 
 ### Start a container
 
-`POST /containers/(id)/start`
+`POST /containers/(id or name)/start`
 
 Start the container `id`
 
@@ -933,7 +994,7 @@ Start the container `id`
 
 **Example request**:
 
-    POST /containers/(id)/start HTTP/1.1
+    POST /containers/e90e34656806/start HTTP/1.1
 
 **Example response**:
 
@@ -954,7 +1015,7 @@ Status Codes:
 
 ### Stop a container
 
-`POST /containers/(id)/stop`
+`POST /containers/(id or name)/stop`
 
 Stop the container `id`
 
@@ -979,7 +1040,7 @@ Status Codes:
 
 ### Restart a container
 
-`POST /containers/(id)/restart`
+`POST /containers/(id or name)/restart`
 
 Restart the container `id`
 
@@ -1003,7 +1064,7 @@ Status Codes:
 
 ### Kill a container
 
-`POST /containers/(id)/kill`
+`POST /containers/(id or name)/kill`
 
 Kill the container `id`
 
@@ -1028,13 +1089,13 @@ Status Codes:
 
 ### Update a container
 
-`POST /containers/(id)/update`
+`POST /containers/(id or name)/update`
 
-Update resource configs of one or more containers.
+Update configuration of one or more containers.
 
 **Example request**:
 
-       POST /containers/(id)/update HTTP/1.1
+       POST /containers/e90e34656806/update HTTP/1.1
        Content-Type: application/json
 
        {
@@ -1048,6 +1109,10 @@ Update resource configs of one or more containers.
          "MemorySwap": 514288000,
          "MemoryReservation": 209715200,
          "KernelMemory": 52428800,
+         "RestartPolicy": {
+           "MaximumRetryCount": 4,
+           "Name": "on-failure"
+         },
        }
 
 **Example response**:
@@ -1068,7 +1133,7 @@ Status Codes:
 
 ### Rename a container
 
-`POST /containers/(id)/rename`
+`POST /containers/(id or name)/rename`
 
 Rename the container `id` to a `new_name`
 
@@ -1093,7 +1158,7 @@ Status Codes:
 
 ### Pause a container
 
-`POST /containers/(id)/pause`
+`POST /containers/(id or name)/pause`
 
 Pause the container `id`
 
@@ -1113,7 +1178,7 @@ Status Codes:
 
 ### Unpause a container
 
-`POST /containers/(id)/unpause`
+`POST /containers/(id or name)/unpause`
 
 Unpause the container `id`
 
@@ -1133,7 +1198,7 @@ Status Codes:
 
 ### Attach to a container
 
-`POST /containers/(id)/attach`
+`POST /containers/(id or name)/attach`
 
 Attach to the container `id`
 
@@ -1219,7 +1284,7 @@ Status Codes:
 
 ### Attach to a container (websocket)
 
-`GET /containers/(id)/attach/ws`
+`GET /containers/(id or name)/attach/ws`
 
 Attach to the container `id` via websocket
 
@@ -1257,7 +1322,7 @@ Status Codes:
 
 ### Wait a container
 
-`POST /containers/(id)/wait`
+`POST /containers/(id or name)/wait`
 
 Block until container `id` stops, then returns the exit code
 
@@ -1280,7 +1345,7 @@ Status Codes:
 
 ### Remove a container
 
-`DELETE /containers/(id)`
+`DELETE /containers/(id or name)`
 
 Remove the container `id` from the filesystem
 
@@ -1308,7 +1373,7 @@ Status Codes:
 
 ### Copy files or folders from a container
 
-`POST /containers/(id)/copy`
+`POST /containers/(id or name)/copy`
 
 Copy files or folders of container `id`
 
@@ -1338,14 +1403,14 @@ Status Codes:
 
 ### Retrieving information about files and folders in a container
 
-`HEAD /containers/(id)/archive`
+`HEAD /containers/(id or name)/archive`
 
 See the description of the `X-Docker-Container-Path-Stat` header in the
 following section.
 
 ### Get an archive of a filesystem resource in a container
 
-`GET /containers/(id)/archive`
+`GET /containers/(id or name)/archive`
 
 Get an tar archive of a resource in the filesystem of container `id`.
 
@@ -1406,7 +1471,7 @@ Status Codes:
 
 ### Extract an archive of files or folders to a directory in a container
 
-`PUT /containers/(id)/archive`
+`PUT /containers/(id or name)/archive`
 
 Upload a tar archive to be extracted to a path in the filesystem of container
 `id`.
@@ -2091,6 +2156,7 @@ Display system-wide information
 
     {
         "Architecture": "x86_64",
+        "CgroupDriver": "cgroupfs",
         "Containers": 11,
         "ContainersRunning": 7,
         "ContainersStopped": 3,
@@ -2123,6 +2189,7 @@ Display system-wide information
         "IndexServerAddress": "https://index.docker.io/v1/",
         "InitPath": "/usr/bin/docker",
         "InitSha1": "",
+        "KernelMemory": true,
         "KernelVersion": "3.12.0-1-amd64",
         "Labels": [
             "storage=ssd"
@@ -2484,7 +2551,7 @@ the root that contains a list of repository and tag names mapped to layer IDs.
 
 ### Exec Create
 
-`POST /containers/(id)/exec`
+`POST /containers/(id or name)/exec`
 
 Sets up an exec instance in a running container `id`
 
@@ -2570,7 +2637,7 @@ Status Codes:
 -   **409** - container is paused
 
     **Stream details**:
-    Similar to the stream behavior of `POST /container/(id)/attach` API
+    Similar to the stream behavior of `POST /containers/(id or name)/attach` API
 
 ### Exec Resize
 
@@ -2868,6 +2935,8 @@ Content-Type: application/json
     "Id": "f2de39df4171b0dc801e8002d1d999b77256983dfc63041c0f34030aa3977566",
     "Scope": "local",
     "Driver": "bridge",
+    "EnableIPv6": false,
+    "Internal": false,
     "IPAM": {
       "Driver": "default",
       "Config": [
@@ -2898,6 +2967,8 @@ Content-Type: application/json
     "Id": "e086a3893b05ab69242d3c44e49483a3bbbd3a26b46baa8f61ab797c1088d794",
     "Scope": "local",
     "Driver": "null",
+    "EnableIPv6": false,
+    "Internal": false,
     "IPAM": {
       "Driver": "default",
       "Config": []
@@ -2910,6 +2981,8 @@ Content-Type: application/json
     "Id": "13e871235c677f196c4e1ecebb9dc733b9b2d2ab589e30c539efeda84a24215e",
     "Scope": "local",
     "Driver": "host",
+    "EnableIPv6": false,
+    "Internal": false,
     "IPAM": {
       "Driver": "default",
       "Config": []
@@ -2951,6 +3024,7 @@ Content-Type: application/json
   "Id": "7d86d31b1478e7cca9ebed7e73aa0fdeec46c5ca29497431d3007d2d9e15ed99",
   "Scope": "local",
   "Driver": "bridge",
+  "EnableIPv6": false,
   "IPAM": {
     "Driver": "default",
     "Config": [
@@ -3004,6 +3078,7 @@ Content-Type: application/json
 {
   "Name":"isolated_nw",
   "Driver":"bridge",
+  "EnableIPv6": false,
   "IPAM":{
     "Config":[{
       "Subnet":"172.20.0.0/16",
@@ -3040,7 +3115,9 @@ JSON Parameters:
 
 - **Name** - The new network's name. this is a mandatory field
 - **Driver** - Name of the network driver plugin to use. Defaults to `bridge` driver
+- **Internal** - Restrict external access to the network
 - **IPAM** - Optional custom IP scheme for the network
+- **EnableIPv6** - Enable IPv6 on the network
 - **Options** - Network specific options to be used by the drivers
 - **CheckDuplicate** - Requests daemon to check for networks with same name
 
@@ -3059,7 +3136,7 @@ Content-Type: application/json
 {
   "Container":"3613f73ba0e4",
   "EndpointConfig": {
-    "test_nw": {
+    "IPAMConfig": {
         "IPv4Address":"172.24.56.89",
         "IPv6Address":"2001:db8::5689"
     }

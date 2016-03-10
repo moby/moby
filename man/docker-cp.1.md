@@ -20,7 +20,7 @@ You can copy from the container's file system to the local machine or the
 reverse, from the local filesystem to the container. If `-` is specified for
 either the `SRC_PATH` or `DEST_PATH`, you can also stream a tar archive from
 `STDIN` or to `STDOUT`. The `CONTAINER` can be a running or stopped container.
-The `SRC_PATH` or `DEST_PATH` be a file or directory.
+The `SRC_PATH` or `DEST_PATH` can be a file or directory.
 
 The `docker cp` command assumes container paths are relative to the container's 
 `/` (root) directory. This means supplying the initial forward slash is optional; 
@@ -36,7 +36,8 @@ the user and primary group at the destination. For example, files copied to a
 container are created with `UID:GID` of the root user. Files copied to the local
 machine are created with the `UID:GID` of the user which invoked the `docker cp`
 command.  If you specify the `-L` option, `docker cp` follows any symbolic link
-in the `SRC_PATH`.
+in the `SRC_PATH`. `docker cp` does *not* create parent directories for
+`DEST_PATH` if they do not exist.
 
 Assuming a path separator of `/`, a first argument of `SRC_PATH` and second
 argument of `DEST_PATH`, the behavior is as follows:
@@ -82,7 +83,7 @@ It is not possible to copy certain system files such as resources under
 Using `-` as the `SRC_PATH` streams the contents of `STDIN` as a tar archive.
 The command extracts the content of the tar to the `DEST_PATH` in container's
 filesystem. In this case, `DEST_PATH` must specify a directory. Using `-` as
-`DEST_PATH` streams the contents of the resource as a tar archive to `STDOUT`.
+the `DEST_PATH` streams the contents of the resource as a tar archive to `STDOUT`.
 
 # OPTIONS
 **-L**, **--follow-link**=*true*|*false*

@@ -16,13 +16,12 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/daemon/network"
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/symlink"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	containertypes "github.com/docker/engine-api/types/container"
@@ -185,10 +184,17 @@ func (container *Container) WriteHostConfig() error {
 }
 
 // SetupWorkingDirectory sets up the container's working directory as set in container.Config.WorkingDir
-func (container *Container) SetupWorkingDirectory() error {
+func (container *Container) SetupWorkingDirectory(rootUID, rootGID int) error {
 	if container.Config.WorkingDir == "" {
 		return nil
 	}
+
+	// If can't mount container FS at this point (eg Hyper-V Containers on
+	// Windows) bail out now with no action.
+	if !container.canMountFS() {
+		return nil
+	}
+
 	container.Config.WorkingDir = filepath.Clean(container.Config.WorkingDir)
 
 	pth, err := container.GetResourcePath(container.Config.WorkingDir)
@@ -196,10 +202,10 @@ func (container *Container) SetupWorkingDirectory() error {
 		return err
 	}
 
-	if err := system.MkdirAll(pth, 0755); err != nil {
+	if err := idtools.MkdirAllNewAs(pth, 0755, rootUID, rootGID); err != nil {
 		pthInfo, err2 := os.Stat(pth)
 		if err2 == nil && pthInfo != nil && !pthInfo.IsDir() {
-			return derr.ErrorCodeNotADir.WithArgs(container.Config.WorkingDir)
+			return fmt.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)
 		}
 
 		return err
@@ -277,37 +283,17 @@ func (container *Container) ConfigPath() (string, error) {
 	return container.GetRootResourcePath(configFileName)
 }
 
-func validateID(id string) error {
-	if id == "" {
-		return derr.ErrorCodeEmptyID
-	}
-	return nil
-}
-
 // Returns true if the container exposes a certain port
 func (container *Container) exposes(p nat.Port) bool {
 	_, exists := container.Config.ExposedPorts[p]
 	return exists
 }
 
-// GetLogConfig returns the log configuration for the container.
-func (container *Container) GetLogConfig(defaultConfig containertypes.LogConfig) containertypes.LogConfig {
-	cfg := container.HostConfig.LogConfig
-	if cfg.Type != "" || len(cfg.Config) > 0 { // container has log driver configured
-		if cfg.Type == "" {
-			cfg.Type = jsonfilelog.Name
-		}
-		return cfg
-	}
-	// Use daemon's default log config for containers
-	return defaultConfig
-}
-
 // StartLogger starts a new logger driver for the container.
 func (container *Container) StartLogger(cfg containertypes.LogConfig) (logger.Logger, error) {
 	c, err := logger.GetLogDriver(cfg.Type)
 	if err != nil {
-		return nil, derr.ErrorCodeLoggingFactory.WithArgs(err)
+		return nil, fmt.Errorf("Failed to get logging factory: %v", err)
 	}
 	ctx := logger.Context{
 		Config:              cfg.Config,
@@ -593,4 +579,21 @@ func (container *Container) InitDNSHostConfig() {
 	if container.HostConfig.DNSOptions == nil {
 		container.HostConfig.DNSOptions = make([]string, 0)
 	}
+}
+
+// UpdateMonitor updates monitor configure for running container
+func (container *Container) UpdateMonitor(restartPolicy containertypes.RestartPolicy) {
+	monitor := container.monitor
+	// No need to update monitor if container hasn't got one
+	// monitor will be generated correctly according to container
+	if monitor == nil {
+		return
+	}
+
+	monitor.mux.Lock()
+	// to check whether restart policy has changed.
+	if restartPolicy.Name != "" && !monitor.restartPolicy.IsSame(&restartPolicy) {
+		monitor.restartPolicy = restartPolicy
+	}
+	monitor.mux.Unlock()
 }

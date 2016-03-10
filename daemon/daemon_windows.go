@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/libnetwork"
+	nwconfig "github.com/docker/libnetwork/config"
 	blkiodev "github.com/opencontainers/runc/libcontainer/configs"
 )
 
@@ -64,6 +65,10 @@ func checkKernel() error {
 	return nil
 }
 
+func (daemon *Daemon) getCgroupDriver() string {
+	return ""
+}
+
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
 func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConfig, adjustCPUShares bool) error {
@@ -84,7 +89,7 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
-func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, config *containertypes.Config) ([]string, error) {
+func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) ([]string, error) {
 	return nil, nil
 }
 
@@ -250,4 +255,8 @@ func restoreCustomImage(is image.Store, ls layer.Store, rs reference.Store) erro
 		logrus.Debugf("Registered base layer %s as %s", ref, id)
 	}
 	return nil
+}
+
+func (daemon *Daemon) networkOptions(dconfig *Config) ([]nwconfig.Option, error) {
+	return nil, fmt.Errorf("Network controller config reload not aavailable on Windows yet")
 }

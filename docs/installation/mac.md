@@ -11,10 +11,6 @@ weight="-90"
 
 # Mac OS X
 
-> **Note**: This release of Docker deprecates the Boot2Docker command line in
-> favor of Docker Machine.  Use the Docker Toolbox to install Docker Machine as
-> well as the other Docker tools.
-
 You install Docker using Docker Toolbox. Docker Toolbox includes the following Docker tools:
 
 * Docker Machine for running the `docker-machine` binary
@@ -67,7 +63,7 @@ installer.
 
 1. Go to the [Docker Toolbox](https://www.docker.com/toolbox) page.
 
-2. Click the installer link to download.
+2. Click the Download link.
 
 3. Install Docker Toolbox by double-clicking the package or by right-clicking
 and choosing "Open" from the pop-up menu.
@@ -89,7 +85,7 @@ and choosing "Open" from the pop-up menu.
     * makes these binaries available to all users
     * installs VirtualBox; or updates any existing installation
 
-    Change these defaults by pressing "Customize" or "Change
+    To change these defaults, press "Customize" or "Change
     Install Location."
 
 5. Press "Install" to perform the standard installation.
@@ -107,16 +103,15 @@ and choosing "Open" from the pop-up menu.
 
 7. Press "Close" to exit.
 
-
 ## Running a Docker Container
 
 To run a Docker container, you:
 
-* create a new (or start an existing) virtual machine that runs Docker.
-* switch your environment to your new VM
-* use the `docker` client to create, load, and manage containers
+* Create a new (or start an existing) virtual machine
+* Switch your environment to your new VM
+* Use the `docker` client to create, load, and manage containers
 
-Once you create a machine, you can reuse it as often as you like. Like any
+You can reuse this virtual machine as often as you like. Like any
 VirtualBox VM, it maintains its configuration between uses.
 
 There are two ways to use the installed tools, from the Docker Quickstart Terminal or
@@ -130,9 +125,9 @@ There are two ways to use the installed tools, from the Docker Quickstart Termin
 
     The application:
 
-    * opens a terminal window
-    * creates a `default` VM if it doesn't exists, and starts the VM after
-    * points the terminal environment to this VM
+    * Opens a terminal window
+    * Creates a `default` VM if it doesn't exists, and starts the VM after
+    * Points the terminal environment to this VM
 
     Once the launch completes, the Docker Quickstart Terminal reports:
 
@@ -222,7 +217,6 @@ different shell such as C Shell but the commands are the same.
 
         $ docker run hello-world
 
-
 ## Learn about your Toolbox installation
 
 Toolbox installs the Docker Engine binary, the Docker binary on your system. When you
@@ -271,7 +265,7 @@ and what it does:
 | upgrade        | upgrade          | Upgrades a machine's Docker client to the latest stable release. |
 
 
-## Example of Docker on Mac OS X
+## Examples on Mac OS X
 
 Work through this section to try some practical container tasks on a VM. At this
 point, you should have a VM running and be connected to it through your shell.
@@ -361,7 +355,7 @@ The next exercise demonstrates how to do this.
         $ docker run -d -P -v $HOME/site:/usr/share/nginx/html \
           --name mysite nginx
 
-6. Get the `mysite` container's port.
+6. View the `mysite` container's port.
 
         $ docker port mysite
         80/tcp -> 0.0.0.0:49166
@@ -371,7 +365,7 @@ The next exercise demonstrates how to do this.
 
     ![My site page](images/newsite_view.png)
 
-8. Try adding a page to your `$HOME/site` in real time.
+8. Add a page to your `$HOME/site` in real time.
 
         $ echo "This is cool" > cool.html
 
@@ -391,7 +385,7 @@ The next exercise demonstrates how to do this.
 
 ## Upgrade Docker Toolbox
 
-To upgrade Docker Toolbox, download and re-run [the Docker Toolbox
+To upgrade Docker Toolbox, download and re-run the [Docker Toolbox
 installer](https://docker.com/toolbox/).
 
 
@@ -427,9 +421,9 @@ To uninstall, do the following:
 ## Learning more
 
 Use `docker-machine help` to list the full command line reference for Docker Machine. For more
-information about using SSH or SCP to access a VM, see [the Docker Machine
+information about using SSH or SCP to access a VM, see the [Docker Machine
 documentation](https://docs.docker.com/machine/).
 
-You can continue with the [Docker User Guide](../userguide/index.md). If you are
+You can continue with the [Docker Engine User Guide](../userguide/index.md). If you are
 interested in using the Kitematic GUI, see the [Kitematic user
 guide](https://docs.docker.com/kitematic/userguide/).

@@ -48,10 +48,9 @@ func makeOpenFiles(hs []syscall.Handle) (_ []io.ReadWriteCloser, err error) {
 // CreateProcessInComputeSystem starts a process in a container. This is invoked, for example,
 // as a result of docker run, docker exec, or RUN in Dockerfile. If successful,
 // it returns the PID of the process.
-func CreateProcessInComputeSystem(id string, useStdin bool, useStdout bool, useStderr bool, params CreateProcessParams) (_ uint32, _ io.WriteCloser, _ io.ReadCloser, _ io.ReadCloser, hr uint32, err error) {
+func CreateProcessInComputeSystem(id string, useStdin bool, useStdout bool, useStderr bool, params CreateProcessParams) (_ uint32, _ io.WriteCloser, _ io.ReadCloser, _ io.ReadCloser, err error) {
 	title := "HCSShim::CreateProcessInComputeSystem"
 	logrus.Debugf(title+" id=%s", id)
-	hr = 0xFFFFFFFF
 
 	// If we are not emulating a console, ignore any console size passed to us
 	if !params.EmulateConsole {
@@ -82,14 +81,13 @@ func CreateProcessInComputeSystem(id string, useStdin bool, useStdout bool, useS
 
 	err = createProcessWithStdHandlesInComputeSystem(id, string(paramsJson), &pid, stdinParam, stdoutParam, stderrParam)
 	if err != nil {
-		winerr := makeErrorf(err, title, "id=%s params=%v", id, params)
-		hr = winerr.HResult()
+		herr := makeErrorf(err, title, "id=%s params=%v", id, params)
 		// Windows TP4: Hyper-V Containers may return this error with more than one
 		// concurrent exec. Do not log it as an error
-		if hr != Win32InvalidArgument {
-			logrus.Error(winerr)
+		if err != WSAEINVAL {
+			logrus.Error(herr)
 		}
-		err = winerr
+		err = herr
 		return
 	}
 
@@ -99,5 +97,5 @@ func CreateProcessInComputeSystem(id string, useStdin bool, useStdout bool, useS
 	}
 
 	logrus.Debugf(title+" - succeeded id=%s params=%s pid=%d", id, paramsJson, pid)
-	return pid, pipes[0], pipes[1], pipes[2], 0, nil
+	return pid, pipes[0], pipes[1], pipes[2], nil
 }

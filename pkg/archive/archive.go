@@ -502,13 +502,13 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 		defer func() {
 			// Make sure to check the error on Close.
 			if err := ta.TarWriter.Close(); err != nil {
-				logrus.Debugf("Can't close tar writer: %s", err)
+				logrus.Errorf("Can't close tar writer: %s", err)
 			}
 			if err := compressWriter.Close(); err != nil {
-				logrus.Debugf("Can't close compress writer: %s", err)
+				logrus.Errorf("Can't close compress writer: %s", err)
 			}
 			if err := pipeWriter.Close(); err != nil {
-				logrus.Debugf("Can't close pipe writer: %s", err)
+				logrus.Errorf("Can't close pipe writer: %s", err)
 			}
 		}()
 
@@ -551,7 +551,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 			walkRoot := getWalkRoot(srcPath, include)
 			filepath.Walk(walkRoot, func(filePath string, f os.FileInfo, err error) error {
 				if err != nil {
-					logrus.Debugf("Tar: Can't stat file %s to tar: %s", srcPath, err)
+					logrus.Errorf("Tar: Can't stat file %s to tar: %s", srcPath, err)
 					return nil
 				}
 
@@ -576,16 +576,42 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				if include != relFilePath {
 					skip, err = fileutils.OptimizedMatches(relFilePath, patterns, patDirs)
 					if err != nil {
-						logrus.Debugf("Error matching %s: %v", relFilePath, err)
+						logrus.Errorf("Error matching %s: %v", relFilePath, err)
 						return err
 					}
 				}
 
 				if skip {
-					if !exceptions && f.IsDir() {
+					// If we want to skip this file and its a directory
+					// then we should first check to see if there's an
+					// excludes pattern (eg !dir/file) that starts with this
+					// dir. If so then we can't skip this dir.
+
+					// Its not a dir then so we can just return/skip.
+					if !f.IsDir() {
+						return nil
+					}
+
+					// No exceptions (!...) in patterns so just skip dir
+					if !exceptions {
 						return filepath.SkipDir
 					}
-					return nil
+
+					dirSlash := relFilePath + string(filepath.Separator)
+
+					for _, pat := range patterns {
+						if pat[0] != '!' {
+							continue
+						}
+						pat = pat[1:] + string(filepath.Separator)
+						if strings.HasPrefix(pat, dirSlash) {
+							// found a match - so can't skip this dir
+							return nil
+						}
+					}
+
+					// No matching exclusion dir so just skip dir
+					return filepath.SkipDir
 				}
 
 				if seen[relFilePath] {
@@ -607,7 +633,11 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				}
 
 				if err := ta.addTarFile(filePath, relFilePath); err != nil {
-					logrus.Debugf("Can't add file %s to tar: %s", filePath, err)
+					logrus.Errorf("Can't add file %s to tar: %s", filePath, err)
+					// if pipe is broken, stop writting tar stream to it
+					if err == io.ErrClosedPipe {
+						return err
+					}
 				}
 				return nil
 			})
@@ -660,7 +690,7 @@ loop:
 			parent := filepath.Dir(hdr.Name)
 			parentPath := filepath.Join(dest, parent)
 			if _, err := os.Lstat(parentPath); err != nil && os.IsNotExist(err) {
-				err = system.MkdirAll(parentPath, 0777)
+				err = idtools.MkdirAllNewAs(parentPath, 0777, remappedRootUID, remappedRootGID)
 				if err != nil {
 					return err
 				}

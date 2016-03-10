@@ -9,6 +9,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/volume"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
 	networktypes "github.com/docker/engine-api/types/network"
@@ -225,8 +226,24 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 // includeContainerInList decides whether a containers should be include in the output or not based in the filter.
 // It also decides if the iteration should be stopped or not.
 func includeContainerInList(container *container.Container, ctx *listContext) iterationAction {
+	// Do not include container if it's in the list before the filter container.
+	// Set the filter container to nil to include the rest of containers after this one.
+	if ctx.beforeFilter != nil {
+		if container.ID == ctx.beforeFilter.ID {
+			ctx.beforeFilter = nil
+		}
+		return excludeContainer
+	}
+
+	// Stop iteration when the container arrives to the filter container
+	if ctx.sinceFilter != nil {
+		if container.ID == ctx.sinceFilter.ID {
+			return stopIteration
+		}
+	}
+
 	// Do not include container if it's stopped and we're not filters
-	// FIXME remove the ctx.beforContainer part of the condition for 1.12 as --since and --before are deprecated
+	// FIXME remove the ctx.beforContainer and ctx.sinceContainer part of the condition for 1.12 as --since and --before are deprecated
 	if !container.Running && !ctx.All && ctx.Limit <= 0 && ctx.beforeContainer == nil && ctx.sinceContainer == nil {
 		return excludeContainer
 	}
@@ -246,7 +263,7 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 		return excludeContainer
 	}
 
-	// Do not include container if the isolation mode doesn't match
+	// Do not include container if isolation doesn't match
 	if excludeContainer == excludeByIsolation(container, ctx) {
 		return excludeContainer
 	}
@@ -262,22 +279,6 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 	// FIXME remove this for 1.12 as --since and --before are deprecated
 	if ctx.sinceContainer != nil {
 		if container.ID == ctx.sinceContainer.ID {
-			return stopIteration
-		}
-	}
-
-	// Do not include container if it's in the list before the filter container.
-	// Set the filter container to nil to include the rest of containers after this one.
-	if ctx.beforeFilter != nil {
-		if container.ID == ctx.beforeFilter.ID {
-			ctx.beforeFilter = nil
-		}
-		return excludeContainer
-	}
-
-	// Stop iteration when the container arrives to the filter container
-	if ctx.sinceFilter != nil {
-		if container.ID == ctx.sinceFilter.ID {
 			return stopIteration
 		}
 	}
@@ -304,6 +305,27 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 	// Do not include container if its status doesn't match the filter
 	if !ctx.filters.Match("status", container.State.StateString()) {
 		return excludeContainer
+	}
+
+	if ctx.filters.Include("volume") {
+		volumesByName := make(map[string]*volume.MountPoint)
+		for _, m := range container.MountPoints {
+			volumesByName[m.Name] = m
+		}
+
+		volumeExist := fmt.Errorf("volume mounted in container")
+		err := ctx.filters.WalkValues("volume", func(value string) error {
+			if _, exist := container.MountPoints[value]; exist {
+				return volumeExist
+			}
+			if _, exist := volumesByName[value]; exist {
+				return volumeExist
+			}
+			return nil
+		})
+		if err != volumeExist {
+			return excludeContainer
+		}
 	}
 
 	if ctx.ancestorFilter {
@@ -419,6 +441,7 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 		newC.SizeRootFs = sizeRootFs
 	}
 	newC.Labels = container.Config.Labels
+	newC.Mounts = addMountPoints(container)
 
 	return newC, nil
 }

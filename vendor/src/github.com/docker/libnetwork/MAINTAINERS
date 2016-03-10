@@ -16,6 +16,8 @@
 			"icecrime",
 			"mrjana",
 			"mavenugo",
+                        "sanimej",
+                        "chenchun",
 		]
 
 [people]
@@ -36,6 +38,11 @@
 	Email = "lk4d4@docker.com"
 	GitHub = "LK4D4"
 
+	[people.chenchun]
+	Name = "Chun Chen"
+	Email = "ramichen@tencent.com"
+	GitHub = "chenchun"
+
 	[people.icecrime]
 	Name = "Arnaud Porterie"
 	Email = "arnaud@docker.com"
@@ -50,3 +57,8 @@
 	Name = "Madhu Venugopal"
 	Email = "madhu@docker.com"
 	GitHub = "mavenugo"
+
+	[people.sanimej]
+	Name = "Santhosh Manohar"
+	Email = "santhosh@docker.com"
+	GitHub = "sanimej"

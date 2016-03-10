@@ -4,16 +4,15 @@ package windows
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/engine-api/types/container"
-	"golang.org/x/sys/windows/registry"
 )
 
 // TP4RetryHack is a hack to retry CreateComputeSystem if it fails with
@@ -28,11 +27,11 @@ var dummyMode bool
 // This allows the daemon to force kill (HCS terminate) rather than shutdown
 var forceKill bool
 
-// DefaultIsolation allows users to specify a default isolation mode for
+// DefaultIsolation allows users to specify a default isolation technology for
 // when running a container on Windows. For example docker daemon -D
 // --exec-opt isolation=hyperv will cause Windows to always run containers
 // as Hyper-V containers unless otherwise specified.
-var DefaultIsolation container.IsolationLevel = "process"
+var DefaultIsolation container.Isolation = "process"
 
 // Define name and version for windows
 var (
@@ -83,13 +82,13 @@ func NewDriver(root string, options []string) (*Driver, error) {
 			}
 
 		case "isolation":
-			if !container.IsolationLevel(val).IsValid() {
+			if !container.Isolation(val).IsValid() {
 				return nil, fmt.Errorf("Unrecognised exec driver option 'isolation':'%s'", val)
 			}
-			if container.IsolationLevel(val).IsHyperV() {
+			if container.Isolation(val).IsHyperV() {
 				DefaultIsolation = "hyperv"
 			}
-			logrus.Infof("Windows default isolation level: '%s'", val)
+			logrus.Infof("Windows default isolation: '%s'", val)
 		default:
 			return nil, fmt.Errorf("Unrecognised exec driver option %s\n", key)
 		}
@@ -98,33 +97,11 @@ func NewDriver(root string, options []string) (*Driver, error) {
 	// TODO Windows TP5 timeframe. Remove this next block of code once TP4
 	// is no longer supported. Also remove the workaround in run.go.
 	//
-	// Hack for TP4 - determine the version of Windows from the registry.
+	// Hack for TP4.
 	// This overcomes an issue on TP4 which causes CreateComputeSystem to
 	// intermittently fail. It's predominantly here to make Windows to Windows
 	// CI more reliable.
-	TP4RetryHack = false
-	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion`, registry.QUERY_VALUE)
-	if err != nil {
-		return &Driver{}, err
-	}
-	defer k.Close()
-
-	s, _, err := k.GetStringValue("BuildLab")
-	if err != nil {
-		return &Driver{}, err
-	}
-	parts := strings.Split(s, ".")
-	if len(parts) < 1 {
-		return &Driver{}, err
-	}
-	var val int
-	if val, err = strconv.Atoi(parts[0]); err != nil {
-		return &Driver{}, err
-	}
-	if val < 14250 {
-		TP4RetryHack = true
-	}
-	// End of Windows TP4 hack
+	TP4RetryHack = hcsshim.IsTP4()
 
 	return &Driver{
 		root:             root,

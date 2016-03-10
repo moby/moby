@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/cliconfig/credentials"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/term"
@@ -124,6 +125,9 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 		configFile, e := cliconfig.Load(cliconfig.ConfigDir())
 		if e != nil {
 			fmt.Fprintf(cli.err, "WARNING: Error loading config file:%v\n", e)
+		}
+		if !configFile.ContainsAuth() {
+			credentials.DetectDefaultStore(configFile)
 		}
 		cli.configFile = configFile
 

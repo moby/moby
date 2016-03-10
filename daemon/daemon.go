@@ -6,7 +6,6 @@
 package daemon
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/execdrivers"
+	"github.com/docker/docker/errors"
 	"github.com/docker/engine-api/types"
 	containertypes "github.com/docker/engine-api/types/container"
 	eventtypes "github.com/docker/engine-api/types/events"
@@ -43,7 +44,6 @@ import (
 	dmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/dockerversion"
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/image/tarexport"
 	"github.com/docker/docker/layer"
@@ -90,7 +90,7 @@ var (
 	validContainerNameChars   = utils.RestrictedNameChars
 	validContainerNamePattern = utils.RestrictedNamePattern
 
-	errSystemNotSupported = errors.New("The Docker daemon is not supported on this platform.")
+	errSystemNotSupported = fmt.Errorf("The Docker daemon is not supported on this platform.")
 )
 
 // ErrImageDoesNotExist is error returned when no image can be found for a reference.
@@ -157,7 +157,8 @@ func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, e
 	if indexError != nil {
 		// When truncindex defines an error type, use that instead
 		if indexError == truncindex.ErrNotExist {
-			return nil, derr.ErrorCodeNoSuchContainer.WithArgs(prefixOrName)
+			err := fmt.Errorf("No such container: %s", prefixOrName)
+			return nil, errors.NewRequestNotFoundError(err)
 		}
 		return nil, indexError
 	}
@@ -411,7 +412,7 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *i
 			return err
 		}
 	}
-	if config.Entrypoint.Len() == 0 && config.Cmd.Len() == 0 {
+	if len(config.Entrypoint) == 0 && len(config.Cmd) == 0 {
 		return fmt.Errorf("No command specified")
 	}
 	return nil
@@ -494,13 +495,11 @@ func (daemon *Daemon) generateHostname(id string, config *containertypes.Config)
 	}
 }
 
-func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint *strslice.StrSlice, configCmd *strslice.StrSlice) (string, []string) {
-	cmdSlice := configCmd.Slice()
-	if configEntrypoint.Len() != 0 {
-		eSlice := configEntrypoint.Slice()
-		return eSlice[0], append(eSlice[1:], cmdSlice...)
+func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint strslice.StrSlice, configCmd strslice.StrSlice) (string, []string) {
+	if len(configEntrypoint) != 0 {
+		return configEntrypoint[0], append(configEntrypoint[1:], configCmd...)
 	}
-	return cmdSlice[0], cmdSlice[1:]
+	return configCmd[0], configCmd[1:]
 }
 
 func (daemon *Daemon) newContainer(name string, config *containertypes.Config, imgID image.ID) (*container.Container, error) {
@@ -760,7 +759,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 
 	migrationStart := time.Now()
 	if err := v1.Migrate(config.Root, graphDriver, d.layerStore, d.imageStore, referenceStore, distributionMetadataStore); err != nil {
-		return nil, err
+		logrus.Errorf("Graph migration failed: %q. Your old graph data was found to be too inconsistent for upgrading to content-addressable storage. Some of the old data was probably not upgraded. We recommend starting over with a clean storage directory if possible.", err)
 	}
 	logrus.Infof("Graph migration to content-addressability took %.2f seconds", time.Since(migrationStart).Seconds())
 
@@ -1211,7 +1210,7 @@ func (daemon *Daemon) ImageHistory(name string) ([]*types.ImageHistory, error) {
 
 		if !h.EmptyLayer {
 			if len(img.RootFS.DiffIDs) <= layerCounter {
-				return nil, errors.New("too many non-empty layers in History section")
+				return nil, fmt.Errorf("too many non-empty layers in History section")
 			}
 
 			rootFS.Append(img.RootFS.DiffIDs[layerCounter])
@@ -1450,7 +1449,7 @@ func setDefaultMtu(config *Config) {
 
 // verifyContainerSettings performs validation of the hostconfig and config
 // structures.
-func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostConfig, config *containertypes.Config) ([]string, error) {
+func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) ([]string, error) {
 
 	// First perform verification of settings common across all platforms.
 	if config != nil {
@@ -1473,6 +1472,11 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 		return nil, nil
 	}
 
+	logCfg := daemon.getLogConfig(hostConfig.LogConfig)
+	if err := logger.ValidateLogOpts(logCfg.Type, logCfg.Config); err != nil {
+		return nil, err
+	}
+
 	for port := range hostConfig.PortBindings {
 		_, portStr := nat.SplitProtoPort(string(port))
 		if _, err := nat.ParsePort(portStr); err != nil {
@@ -1487,7 +1491,7 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 	}
 
 	// Now do platform-specific verification
-	return verifyPlatformContainerSettings(daemon, hostConfig, config)
+	return verifyPlatformContainerSettings(daemon, hostConfig, config, update)
 }
 
 // Checks if the client set configurations for more than one network while creating a container
@@ -1499,7 +1503,8 @@ func (daemon *Daemon) verifyNetworkingConfig(nwConfig *networktypes.NetworkingCo
 	for k := range nwConfig.EndpointsConfig {
 		l = append(l, k)
 	}
-	return derr.ErrorCodeMultipleNetworkConnect.WithArgs(fmt.Sprintf("%v", l))
+	err := fmt.Errorf("Container cannot be connected to network endpoints: %s", strings.Join(l, ", "))
+	return errors.NewBadRequestError(err)
 }
 
 func configureVolumes(config *Config, rootUID, rootGID int) (*store.VolumeStore, error) {
@@ -1598,28 +1603,41 @@ func (daemon *Daemon) initDiscovery(config *Config) error {
 // daemon according to those changes.
 // This are the settings that Reload changes:
 // - Daemon labels.
+// - Cluster discovery (reconfigure and restart).
 func (daemon *Daemon) Reload(config *Config) error {
 	daemon.configStore.reloadLock.Lock()
-	daemon.configStore.Labels = config.Labels
-	daemon.configStore.reloadLock.Unlock()
-
-	return nil
+	defer daemon.configStore.reloadLock.Unlock()
+	if config.IsValueSet("label") {
+		daemon.configStore.Labels = config.Labels
+	}
+	if config.IsValueSet("debug") {
+		daemon.configStore.Debug = config.Debug
+	}
+	return daemon.reloadClusterDiscovery(config)
 }
 
 func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
-	newAdvertise, err := parseClusterAdvertiseSettings(config.ClusterStore, config.ClusterAdvertise)
-	if err != nil && err != errDiscoveryDisabled {
-		return err
+	var err error
+	newAdvertise := daemon.configStore.ClusterAdvertise
+	newClusterStore := daemon.configStore.ClusterStore
+	if config.IsValueSet("cluster-advertise") {
+		if config.IsValueSet("cluster-store") {
+			newClusterStore = config.ClusterStore
+		}
+		newAdvertise, err = parseClusterAdvertiseSettings(newClusterStore, config.ClusterAdvertise)
+		if err != nil && err != errDiscoveryDisabled {
+			return err
+		}
 	}
 
 	// check discovery modifications
-	if !modifiedDiscoverySettings(daemon.configStore, newAdvertise, config.ClusterStore, config.ClusterOpts) {
+	if !modifiedDiscoverySettings(daemon.configStore, newAdvertise, newClusterStore, config.ClusterOpts) {
 		return nil
 	}
 
 	// enable discovery for the first time if it was not previously enabled
 	if daemon.discoveryWatcher == nil {
-		discoveryWatcher, err := initDiscovery(config.ClusterStore, newAdvertise, config.ClusterOpts)
+		discoveryWatcher, err := initDiscovery(newClusterStore, newAdvertise, config.ClusterOpts)
 		if err != nil {
 			return fmt.Errorf("discovery initialization failed (%v)", err)
 		}
@@ -1636,9 +1654,22 @@ func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
 		}
 	}
 
-	daemon.configStore.ClusterStore = config.ClusterStore
+	daemon.configStore.ClusterStore = newClusterStore
 	daemon.configStore.ClusterOpts = config.ClusterOpts
 	daemon.configStore.ClusterAdvertise = newAdvertise
+
+	if daemon.netController == nil {
+		return nil
+	}
+	netOptions, err := daemon.networkOptions(daemon.configStore)
+	if err != nil {
+		logrus.Warnf("Failed to reload configuration with network controller: %v", err)
+		return nil
+	}
+	err = daemon.netController.ReloadConfiguration(netOptions...)
+	if err != nil {
+		logrus.Warnf("Failed to reload configuration with network controller: %v", err)
+	}
 
 	return nil
 }
@@ -1658,7 +1689,7 @@ func convertLnNetworkStats(name string, stats *lntypes.InterfaceStatistics) *lib
 
 func validateID(id string) error {
 	if id == "" {
-		return derr.ErrorCodeEmptyID
+		return fmt.Errorf("Invalid empty id")
 	}
 	return nil
 }

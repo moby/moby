@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-
-	derr "github.com/docker/docker/errors"
 )
 
 // read-write modes
@@ -47,12 +45,12 @@ func ParseMountSpec(spec, volumeDriver string) (*MountPoint, error) {
 		Propagation: DefaultPropagationMode,
 	}
 	if strings.Count(spec, ":") > 2 {
-		return nil, derr.ErrorCodeVolumeInvalid.WithArgs(spec)
+		return nil, errInvalidSpec(spec)
 	}
 
 	arr := strings.SplitN(spec, ":", 3)
 	if arr[0] == "" {
-		return nil, derr.ErrorCodeVolumeInvalid.WithArgs(spec)
+		return nil, errInvalidSpec(spec)
 	}
 
 	switch len(arr) {
@@ -63,7 +61,7 @@ func ParseMountSpec(spec, volumeDriver string) (*MountPoint, error) {
 		if isValid := ValidMountMode(arr[1]); isValid {
 			// Destination + Mode is not a valid volume - volumes
 			// cannot include a mode. eg /foo:rw
-			return nil, derr.ErrorCodeVolumeInvalid.WithArgs(spec)
+			return nil, errInvalidSpec(spec)
 		}
 		// Host Source Path or Name + Destination
 		mp.Source = arr[0]
@@ -74,32 +72,29 @@ func ParseMountSpec(spec, volumeDriver string) (*MountPoint, error) {
 		mp.Destination = arr[1]
 		mp.Mode = arr[2] // Mode field is used by SELinux to decide whether to apply label
 		if !ValidMountMode(mp.Mode) {
-			return nil, derr.ErrorCodeVolumeInvalidMode.WithArgs(mp.Mode)
+			return nil, errInvalidMode(mp.Mode)
 		}
 		mp.RW = ReadWrite(mp.Mode)
 		mp.Propagation = GetPropagation(mp.Mode)
 	default:
-		return nil, derr.ErrorCodeVolumeInvalid.WithArgs(spec)
+		return nil, errInvalidSpec(spec)
 	}
 
 	//validate the volumes destination path
 	mp.Destination = filepath.Clean(mp.Destination)
 	if !filepath.IsAbs(mp.Destination) {
-		return nil, derr.ErrorCodeVolumeAbs.WithArgs(mp.Destination)
+		return nil, fmt.Errorf("Invalid volume destination path: '%s' mount path must be absolute.", mp.Destination)
 	}
 
 	// Destination cannot be "/"
 	if mp.Destination == "/" {
-		return nil, derr.ErrorCodeVolumeSlash.WithArgs(spec)
+		return nil, fmt.Errorf("Invalid specification: destination can't be '/' in '%s'", spec)
 	}
 
 	name, source := ParseVolumeSource(mp.Source)
 	if len(source) == 0 {
 		mp.Source = "" // Clear it out as we previously assumed it was not a name
 		mp.Driver = volumeDriver
-		if len(mp.Driver) == 0 {
-			mp.Driver = DefaultDriverName
-		}
 		// Named volumes can't have propagation properties specified.
 		// Their defaults will be decided by docker. This is just a
 		// safeguard. Don't want to get into situations where named
@@ -109,7 +104,7 @@ func ParseMountSpec(spec, volumeDriver string) (*MountPoint, error) {
 		// cleanup becomes an issue if container does not unmount
 		// submounts explicitly.
 		if HasPropagation(mp.Mode) {
-			return nil, derr.ErrorCodeVolumeInvalid.WithArgs(spec)
+			return nil, errInvalidSpec(spec)
 		}
 	} else {
 		mp.Source = filepath.Clean(source)
@@ -166,7 +161,7 @@ func ValidMountMode(mode string) bool {
 
 // ReadWrite tells you if a mode string is a valid read-write mode or not.
 // If there are no specifications w.r.t read write mode, then by default
-// it returs true.
+// it returns true.
 func ReadWrite(mode string) bool {
 	if !ValidMountMode(mode) {
 		return false

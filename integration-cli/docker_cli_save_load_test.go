@@ -167,6 +167,16 @@ func (s *DockerSuite) TestSaveAndLoadRepoFlags(c *check.C) {
 	c.Assert(before, checker.Equals, after, check.Commentf("inspect is not the same after a save / load"))
 }
 
+func (s *DockerSuite) TestSaveWithNoExistImage(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	imgName := "foobar-non-existing-image"
+
+	out, _, err := dockerCmdWithError("save", "-o", "test-img.tar", imgName)
+	c.Assert(err, checker.NotNil, check.Commentf("save image should fail for non-existing image"))
+	c.Assert(out, checker.Contains, fmt.Sprintf("No such image: %s", imgName))
+}
+
 func (s *DockerSuite) TestSaveMultipleNames(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	repoName := "foobar-save-multi-name-test"

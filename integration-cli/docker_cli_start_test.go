@@ -13,11 +13,10 @@ import (
 func (s *DockerSuite) TestStartAttachReturnsOnError(c *check.C) {
 	// Windows does not support link
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "-d", "--name", "test", "busybox")
-	dockerCmd(c, "wait", "test")
+	dockerCmd(c, "run", "--name", "test", "busybox")
 
 	// Expect this to fail because the above container is stopped, this is what we want
-	out, _, err := dockerCmdWithError("run", "-d", "--name", "test2", "--link", "test:test", "busybox")
+	out, _, err := dockerCmdWithError("run", "--name", "test2", "--link", "test:test", "busybox")
 	// err shouldn't be nil because container test2 try to link to stopped container
 	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
 
@@ -148,7 +147,7 @@ func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
 func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
 	// run  multiple containers to test
 	for _, container := range []string{"test1", "test2", "test3"} {
-		dockerCmd(c, "run", "-d", "--name", container, "busybox", "top")
+		runSleepingContainer(c, "--name", container)
 	}
 
 	// stop all the containers

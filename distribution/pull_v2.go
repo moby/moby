@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"runtime"
 
@@ -17,6 +18,8 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/client"
+	"github.com/docker/distribution/registry/client/auth"
+	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
@@ -31,6 +34,17 @@ import (
 )
 
 var errRootFSMismatch = errors.New("layers from manifest don't match image configuration")
+
+// ImageConfigPullError is an error pulling the image config blob
+// (only applies to schema2).
+type ImageConfigPullError struct {
+	Err error
+}
+
+// Error returns the error string for ImageConfigPullError.
+func (e ImageConfigPullError) Error() string {
+	return "error pulling image configuration: " + e.Err.Error()
+}
 
 type v2Puller struct {
 	V2MetadataService *metadata.V2MetadataService
@@ -48,16 +62,20 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named) (err error) {
 	p.repo, p.confirmedV2, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		logrus.Warnf("Error getting v2 registry: %v", err)
-		return fallbackError{err: err, confirmedV2: p.confirmedV2}
+		return err
 	}
 
 	if err = p.pullV2Repository(ctx, ref); err != nil {
 		if _, ok := err.(fallbackError); ok {
 			return err
 		}
-		if registry.ContinueOnError(err) {
-			logrus.Debugf("Error trying v2 registry: %v", err)
-			return fallbackError{err: err, confirmedV2: p.confirmedV2}
+		if continueOnError(err) {
+			logrus.Errorf("Error trying v2 registry: %v", err)
+			return fallbackError{
+				err:         err,
+				confirmedV2: p.confirmedV2,
+				transportOK: true,
+			}
 		}
 	}
 	return err
@@ -114,6 +132,8 @@ type v2LayerDescriptor struct {
 	repoInfo          *registry.RepositoryInfo
 	repo              distribution.Repository
 	V2MetadataService *metadata.V2MetadataService
+	tmpFile           *os.File
+	verifier          digest.Verifier
 }
 
 func (ld *v2LayerDescriptor) Key() string {
@@ -131,17 +151,56 @@ func (ld *v2LayerDescriptor) DiffID() (layer.DiffID, error) {
 func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progress.Output) (io.ReadCloser, int64, error) {
 	logrus.Debugf("pulling blob %q", ld.digest)
 
+	var (
+		err    error
+		offset int64
+	)
+
+	if ld.tmpFile == nil {
+		ld.tmpFile, err = createDownloadFile()
+		if err != nil {
+			return nil, 0, xfer.DoNotRetry{Err: err}
+		}
+	} else {
+		offset, err = ld.tmpFile.Seek(0, os.SEEK_END)
+		if err != nil {
+			logrus.Debugf("error seeking to end of download file: %v", err)
+			offset = 0
+
+			ld.tmpFile.Close()
+			if err := os.Remove(ld.tmpFile.Name()); err != nil {
+				logrus.Errorf("Failed to remove temp file: %s", ld.tmpFile.Name())
+			}
+			ld.tmpFile, err = createDownloadFile()
+			if err != nil {
+				return nil, 0, xfer.DoNotRetry{Err: err}
+			}
+		} else if offset != 0 {
+			logrus.Debugf("attempting to resume download of %q from %d bytes", ld.digest, offset)
+		}
+	}
+
+	tmpFile := ld.tmpFile
 	blobs := ld.repo.Blobs(ctx)
 
 	layerDownload, err := blobs.Open(ctx, ld.digest)
 	if err != nil {
-		logrus.Debugf("Error statting layer: %v", err)
+		logrus.Errorf("Error initiating layer download: %v", err)
 		if err == distribution.ErrBlobUnknown {
 			return nil, 0, xfer.DoNotRetry{Err: err}
 		}
 		return nil, 0, retryOnError(err)
 	}
 
+	if offset != 0 {
+		_, err := layerDownload.Seek(offset, os.SEEK_SET)
+		if err != nil {
+			if err := ld.truncateDownloadFile(); err != nil {
+				return nil, 0, xfer.DoNotRetry{Err: err}
+			}
+			return nil, 0, err
+		}
+	}
 	size, err := layerDownload.Seek(0, os.SEEK_END)
 	if err != nil {
 		// Seek failed, perhaps because there was no Content-Length
@@ -149,46 +208,59 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 		// still continue without a progress bar.
 		size = 0
 	} else {
-		// Restore the seek offset at the beginning of the stream.
-		_, err = layerDownload.Seek(0, os.SEEK_SET)
+		if size != 0 && offset > size {
+			logrus.Debugf("Partial download is larger than full blob. Starting over")
+			offset = 0
+			if err := ld.truncateDownloadFile(); err != nil {
+				return nil, 0, xfer.DoNotRetry{Err: err}
+			}
+		}
+
+		// Restore the seek offset either at the beginning of the
+		// stream, or just after the last byte we have from previous
+		// attempts.
+		_, err = layerDownload.Seek(offset, os.SEEK_SET)
 		if err != nil {
 			return nil, 0, err
 		}
 	}
 
-	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, layerDownload), progressOutput, size, ld.ID(), "Downloading")
+	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, layerDownload), progressOutput, size-offset, ld.ID(), "Downloading")
 	defer reader.Close()
 
-	verifier, err := digest.NewDigestVerifier(ld.digest)
-	if err != nil {
-		return nil, 0, xfer.DoNotRetry{Err: err}
+	if ld.verifier == nil {
+		ld.verifier, err = digest.NewDigestVerifier(ld.digest)
+		if err != nil {
+			return nil, 0, xfer.DoNotRetry{Err: err}
+		}
 	}
 
-	tmpFile, err := ioutil.TempFile("", "GetImageBlob")
+	_, err = io.Copy(tmpFile, io.TeeReader(reader, ld.verifier))
 	if err != nil {
-		return nil, 0, xfer.DoNotRetry{Err: err}
-	}
-
-	_, err = io.Copy(tmpFile, io.TeeReader(reader, verifier))
-	if err != nil {
-		tmpFile.Close()
-		if err := os.Remove(tmpFile.Name()); err != nil {
-			logrus.Errorf("Failed to remove temp file: %s", tmpFile.Name())
+		if err == transport.ErrWrongCodeForByteRange {
+			if err := ld.truncateDownloadFile(); err != nil {
+				return nil, 0, xfer.DoNotRetry{Err: err}
+			}
+			return nil, 0, err
 		}
 		return nil, 0, retryOnError(err)
 	}
 
 	progress.Update(progressOutput, ld.ID(), "Verifying Checksum")
 
-	if !verifier.Verified() {
+	if !ld.verifier.Verified() {
 		err = fmt.Errorf("filesystem layer verification failed for digest %s", ld.digest)
 		logrus.Error(err)
 
-		tmpFile.Close()
-		if err := os.Remove(tmpFile.Name()); err != nil {
-			logrus.Errorf("Failed to remove temp file: %s", tmpFile.Name())
-		}
+		// Allow a retry if this digest verification error happened
+		// after a resumed download.
+		if offset != 0 {
+			if err := ld.truncateDownloadFile(); err != nil {
+				return nil, 0, xfer.DoNotRetry{Err: err}
+			}
 
+			return nil, 0, err
+		}
 		return nil, 0, xfer.DoNotRetry{Err: err}
 	}
 
@@ -202,9 +274,37 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 		if err := os.Remove(tmpFile.Name()); err != nil {
 			logrus.Errorf("Failed to remove temp file: %s", tmpFile.Name())
 		}
+		ld.tmpFile = nil
+		ld.verifier = nil
 		return nil, 0, xfer.DoNotRetry{Err: err}
 	}
-	return ioutils.NewReadCloserWrapper(tmpFile, tmpFileCloser(tmpFile)), size, nil
+	return tmpFile, size, nil
+}
+
+func (ld *v2LayerDescriptor) Close() {
+	if ld.tmpFile != nil {
+		ld.tmpFile.Close()
+		if err := os.RemoveAll(ld.tmpFile.Name()); err != nil {
+			logrus.Errorf("Failed to remove temp file: %s", ld.tmpFile.Name())
+		}
+	}
+}
+
+func (ld *v2LayerDescriptor) truncateDownloadFile() error {
+	// Need a new hash context since we will be redoing the download
+	ld.verifier = nil
+
+	if _, err := ld.tmpFile.Seek(0, os.SEEK_SET); err != nil {
+		logrus.Errorf("error seeking to beginning of download file: %v", err)
+		return err
+	}
+
+	if err := ld.tmpFile.Truncate(0); err != nil {
+		logrus.Errorf("error truncating download file: %v", err)
+		return err
+	}
+
+	return nil
 }
 
 func (ld *v2LayerDescriptor) Registered(diffID layer.DiffID) {
@@ -399,7 +499,7 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	go func() {
 		configJSON, err := p.pullSchema2ImageConfig(ctx, target.Digest)
 		if err != nil {
-			errChan <- err
+			errChan <- ImageConfigPullError{Err: err}
 			cancel()
 			return
 		}
@@ -619,12 +719,24 @@ func allowV1Fallback(err error) error {
 	switch v := err.(type) {
 	case errcode.Errors:
 		if len(v) != 0 {
-			if v0, ok := v[0].(errcode.Error); ok && registry.ShouldV2Fallback(v0) {
-				return fallbackError{err: err, confirmedV2: false}
+			if v0, ok := v[0].(errcode.Error); ok && shouldV2Fallback(v0) {
+				return fallbackError{
+					err:         err,
+					confirmedV2: false,
+					transportOK: true,
+				}
 			}
 		}
 	case errcode.Error:
-		if registry.ShouldV2Fallback(v) {
+		if shouldV2Fallback(v) {
+			return fallbackError{
+				err:         err,
+				confirmedV2: false,
+				transportOK: true,
+			}
+		}
+	case *url.Error:
+		if v.Err == auth.ErrNoBasicAuthCredentials {
 			return fallbackError{err: err, confirmedV2: false}
 		}
 	}
@@ -710,4 +822,8 @@ func fixManifestLayers(m *schema1.Manifest) error {
 	}
 
 	return nil
+}
+
+func createDownloadFile() (*os.File, error) {
+	return ioutil.TempFile("", "GetImageBlob")
 }

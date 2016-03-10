@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+var wgPool = sync.Pool{New: func() interface{} { return new(sync.WaitGroup) }}
+
 // NewPublisher creates a new pub/sub publisher to broadcast messages.
 // The duration is used as the send timeout as to not block the publisher publishing
 // messages to other clients if one client is slow or unresponsive.
@@ -62,13 +64,18 @@ func (p *Publisher) Evict(sub chan interface{}) {
 // Publish sends the data in v to all subscribers currently registered with the publisher.
 func (p *Publisher) Publish(v interface{}) {
 	p.m.RLock()
-	wg := new(sync.WaitGroup)
+	if len(p.subscribers) == 0 {
+		p.m.RUnlock()
+		return
+	}
+
+	wg := wgPool.Get().(*sync.WaitGroup)
 	for sub, topic := range p.subscribers {
 		wg.Add(1)
-
 		go p.sendTopic(sub, topic, v, wg)
 	}
 	wg.Wait()
+	wgPool.Put(wg)
 	p.m.RUnlock()
 }
 

@@ -11,7 +11,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	Cli "github.com/docker/docker/cli"
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
@@ -19,6 +18,11 @@ import (
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/libnetwork/resolvconf/dns"
+)
+
+const (
+	errCmdNotFound          = "Container command not found or does not exist."
+	errCmdCouldNotBeInvoked = "Container command could not be invoked."
 )
 
 func (cid *cidFile) Close() error {
@@ -46,20 +50,13 @@ func (cid *cidFile) Write(id string) error {
 // return 125 for generic docker daemon failures
 func runStartContainerErr(err error) error {
 	trimmedErr := strings.Trim(err.Error(), "Error response from daemon: ")
-	statusError := Cli.StatusError{}
-	derrCmdNotFound := derr.ErrorCodeCmdNotFound.Message()
-	derrCouldNotInvoke := derr.ErrorCodeCmdCouldNotBeInvoked.Message()
-	derrNoSuchImage := derr.ErrorCodeNoSuchImageHash.Message()
-	derrNoSuchImageTag := derr.ErrorCodeNoSuchImageTag.Message()
+	statusError := Cli.StatusError{StatusCode: 125}
+
 	switch trimmedErr {
-	case derrCmdNotFound:
+	case errCmdNotFound:
 		statusError = Cli.StatusError{StatusCode: 127}
-	case derrCouldNotInvoke:
+	case errCmdCouldNotBeInvoked:
 		statusError = Cli.StatusError{StatusCode: 126}
-	case derrNoSuchImage, derrNoSuchImageTag:
-		statusError = Cli.StatusError{StatusCode: 125}
-	default:
-		statusError = Cli.StatusError{StatusCode: 125}
 	}
 	return statusError
 }

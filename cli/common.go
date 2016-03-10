@@ -19,7 +19,7 @@ type CommonFlags struct {
 	TrustKey   string
 }
 
-// Command is the struct contains command name and description
+// Command is the struct containing the command name and description
 type Command struct {
 	Name        string
 	Description string
@@ -42,7 +42,7 @@ var dockerCommands = []Command{
 	{"inspect", "Return low-level information on a container or image"},
 	{"kill", "Kill a running container"},
 	{"load", "Load an image from a tar archive or STDIN"},
-	{"login", "Register or log in to a Docker registry"},
+	{"login", "Log in to a Docker registry"},
 	{"logout", "Log out from a Docker registry"},
 	{"logs", "Fetch the logs of a container"},
 	{"network", "Manage Docker networks"},
@@ -64,7 +64,7 @@ var dockerCommands = []Command{
 	{"tag", "Tag an image into a repository"},
 	{"top", "Display the running processes of a container"},
 	{"unpause", "Unpause all processes within a container"},
-	{"update", "Update resources of one or more containers"},
+	{"update", "Update configuration of one or more containers"},
 	{"version", "Show the Docker version information"},
 	{"volume", "Manage Docker volumes"},
 	{"wait", "Block until a container stops, then print its exit code"},

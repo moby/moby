@@ -185,7 +185,7 @@ unix://[/path/to/socket] to use.
 **--label**="[]"
   Set key=value labels to the daemon (displayed in `docker info`)
 
-**--log-driver**="*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*awslogs*|*none*"
+**--log-driver**="*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*awslogs*|*splunk*|*etwlogs*|*gcplogs*|*none*"
   Default driver for container logs. Default is `json-file`.
   **Warning**: `docker logs` command works only for `json-file` logging driver.
 
@@ -244,9 +244,10 @@ internals) to create writable containers from images.  Many of these
 backends use operating system level technologies and can be
 configured.
 
-Specify options to the storage backend with **--storage-opt** flags. The only
-backend that currently takes options is *devicemapper*. Therefore use these
-flags with **-s=**devicemapper.
+Specify options to the storage backend with **--storage-opt** flags. The
+backends that currently take options are *devicemapper* and *zfs*.
+Options for *devicemapper* are prefixed with *dm* and options for *zfs*
+start with *zfs*.
 
 Specifically for devicemapper, the default is a "loopback" model which
 requires no pre-configuration, but is extremely inefficient.  Do not
@@ -258,7 +259,7 @@ more information see `man lvmthin`.  Then, use `--storage-opt
 dm.thinpooldev` to tell the Docker engine to use that pool for
 allocating images and container snapshots.
 
-Here is the list of *devicemapper* options:
+## Devicemapper options
 
 #### dm.thinpooldev
 
@@ -464,6 +465,16 @@ this topic, see
 Otherwise, set this flag for migrating existing Docker daemons to a
 daemon with a supported environment.
 
+## ZFS options
+
+#### zfs.fsname
+
+Set zfs filesystem under which docker will create its own datasets.
+By default docker will pick up the zfs filesystem where docker graph
+(`/var/lib/docker`) is located.
+
+Example use: `docker daemon -s zfs --storage-opt zfs.fsname=zroot/docker`
+
 # CLUSTER STORE OPTIONS
 
 The daemon uses libkv to advertise
@@ -510,7 +521,7 @@ multiple plugins installed, at least one must allow the request for it to
 complete.
 
 For information about how to create an authorization plugin, see [authorization
-plugin](https://docs.docker.com/engine/extend/authorization.md) section in the
+plugin](https://docs.docker.com/engine/extend/plugins_authorization.md) section in the
 Docker extend section of this documentation.
 
 

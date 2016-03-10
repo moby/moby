@@ -31,7 +31,7 @@ func setupImage(c *check.C) (digest.Digest, error) {
 func setupImageWithTag(c *check.C, tag string) (digest.Digest, error) {
 	containerName := "busyboxbydigest"
 
-	dockerCmd(c, "run", "-d", "-e", "digest=1", "--name", containerName, "busybox")
+	dockerCmd(c, "run", "-e", "digest=1", "--name", containerName, "busybox")
 
 	// tag the image to upload it to the private registry
 	repoAndTag := repoName + ":" + tag
@@ -354,17 +354,19 @@ func (s *DockerRegistrySuite) TestPsListContainersFilterAncestorImageByDigest(c 
 	c.Assert(err, checker.IsNil)
 
 	// run a container based on that
-	out, _ := dockerCmd(c, "run", "-d", imageReference, "echo", "hello")
-	expectedID := strings.TrimSpace(out)
+	dockerCmd(c, "run", "--name=test1", imageReference, "echo", "hello")
+	expectedID, err := getIDByName("test1")
+	c.Assert(err, check.IsNil)
 
 	// run a container based on the a descendant of that too
-	out, _ = dockerCmd(c, "run", "-d", imageName1, "echo", "hello")
-	expectedID1 := strings.TrimSpace(out)
+	dockerCmd(c, "run", "--name=test2", imageName1, "echo", "hello")
+	expectedID1, err := getIDByName("test2")
+	c.Assert(err, check.IsNil)
 
 	expectedIDs := []string{expectedID, expectedID1}
 
 	// Invalid imageReference
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", fmt.Sprintf("--filter=ancestor=busybox@%s", digest))
+	out, _ := dockerCmd(c, "ps", "-a", "-q", "--no-trunc", fmt.Sprintf("--filter=ancestor=busybox@%s", digest))
 	// Filter container for ancestor filter should be empty
 	c.Assert(strings.TrimSpace(out), checker.Equals, "")
 

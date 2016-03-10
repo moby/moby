@@ -67,7 +67,7 @@ The output will provide details on the container configurations including the
 volumes. The output should look something similar to the following:
 
     ...
-    Mounts": [
+    "Mounts": [
         {
             "Name": "fac362...80535",
             "Source": "/var/lib/docker/volumes/fac362...80535/_data",
@@ -158,6 +158,48 @@ user with access to host and its mounted directory.
 >reason, you can't mount a host directory from `Dockerfile` because built images
 >should be portable. A host directory wouldn't be available on all potential
 >hosts.
+
+### Mount a shared-storage volume as a data volume
+
+In addition to mounting a host directory in your container, some Docker
+[volume plugins](../../extend/plugins_volume.md) allow you to 
+provision and mount shared storage, such as iSCSI, NFS, or FC.
+
+A benefit of using shared volumes is that they are host-independent. This
+means that a volume can be made available on any host that a container is
+started on as long as it has access to the shared storage backend, and has
+the plugin installed.
+
+One way to use volume drivers is through the `docker run` command. 
+Volume drivers create volumes by name, instead of by path like in
+the other examples.
+
+The following command creates a named volume, called `my-named-volume`,
+using the `flocker` volume driver, and makes it available within the container
+at `/opt/webapp`:
+
+```bash
+$ docker run -d -P \
+  --volume-driver=flocker \
+  -v my-named-volume:/opt/webapp \
+  --name web training/webapp python app.py
+```
+
+You may also use the `docker volume create` command, to create a volume before
+using it in a container.
+
+The following example also creates the `my-named-volume` volume, this time
+using the `docker volume create` command.
+
+```bash
+$ docker volume create -d flocker --name my-named-volume -o size=20GB
+$ docker run -d -P \
+  -v my-named-volume:/opt/webapp \
+  --name web training/webapp python app.py
+```
+
+A list of available plugins, including volume plugins, is available
+[here](../../extend/plugins.md).
 
 ### Volume labels
 

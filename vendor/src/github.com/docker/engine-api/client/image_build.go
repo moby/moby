@@ -74,8 +74,8 @@ func imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, erro
 		query.Set("pull", "1")
 	}
 
-	if !container.IsolationLevel.IsDefault(options.IsolationLevel) {
-		query.Set("isolation", string(options.IsolationLevel))
+	if !container.Isolation.IsDefault(options.Isolation) {
+		query.Set("isolation", string(options.Isolation))
 	}
 
 	query.Set("cpusetcpus", options.CPUSetCPUs)

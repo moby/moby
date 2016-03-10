@@ -35,6 +35,7 @@ the running containers.
    - before=(<container-name>|<container-id>)
    - since=(<container-name>|<container-id>)
    - ancestor=(<image-name>[:tag]|<image-id>|<image@digest>) - containers created from an image or a descendant.
+   - volume=(<volume-name>|<mount-point-destination>)
 
 **--format**="*TEMPLATE*"
    Pretty-print containers using a Go template.
@@ -47,8 +48,10 @@ the running containers.
       .Ports - Exposed ports.
       .Status - Container status.
       .Size - Container disk size.
+      .Names - Container names.
       .Labels - All labels assigned to the container.
       .Label - Value of a specific label for this container. For example `{{.Label "com.docker.swarm.cpu"}}`
+      .Mounts - Names of the volumes mounted in this container.
 
 **--help**
   Print usage statement
@@ -116,6 +119,18 @@ the running containers.
     01946d9d34d8
     c1d3b0166030        debian
     41d50ecd2f57        fedora
+
+# Display containers with `remote-volume` mounted
+
+    $ docker ps --filter volume=remote-volume --format "table {{.ID}}\t{{.Mounts}}"
+    CONTAINER ID        MOUNTS
+    9c3527ed70ce        remote-volume
+
+# Display containers with a volume mounted in `/data`
+
+    $ docker ps --filter volume=/data --format "table {{.ID}}\t{{.Mounts}}"
+    CONTAINER ID        MOUNTS
+    9c3527ed70ce        remote-volume
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)

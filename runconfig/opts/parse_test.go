@@ -401,14 +401,14 @@ func TestParseHostname(t *testing.T) {
 
 func TestParseWithExpose(t *testing.T) {
 	invalids := map[string]string{
-		":":                   "Invalid port format for --expose: :",
-		"8080:9090":           "Invalid port format for --expose: 8080:9090",
-		"/tcp":                "Invalid range format for --expose: /tcp, error: Empty string specified for ports.",
-		"/udp":                "Invalid range format for --expose: /udp, error: Empty string specified for ports.",
-		"NaN/tcp":             `Invalid range format for --expose: NaN/tcp, error: strconv.ParseUint: parsing "NaN": invalid syntax`,
-		"NaN-NaN/tcp":         `Invalid range format for --expose: NaN-NaN/tcp, error: strconv.ParseUint: parsing "NaN": invalid syntax`,
-		"8080-NaN/tcp":        `Invalid range format for --expose: 8080-NaN/tcp, error: strconv.ParseUint: parsing "NaN": invalid syntax`,
-		"1234567890-8080/tcp": `Invalid range format for --expose: 1234567890-8080/tcp, error: strconv.ParseUint: parsing "1234567890": value out of range`,
+		":":                   "invalid port format for --expose: :",
+		"8080:9090":           "invalid port format for --expose: 8080:9090",
+		"/tcp":                "invalid range format for --expose: /tcp, error: Empty string specified for ports.",
+		"/udp":                "invalid range format for --expose: /udp, error: Empty string specified for ports.",
+		"NaN/tcp":             `invalid range format for --expose: NaN/tcp, error: strconv.ParseUint: parsing "NaN": invalid syntax`,
+		"NaN-NaN/tcp":         `invalid range format for --expose: NaN-NaN/tcp, error: strconv.ParseUint: parsing "NaN": invalid syntax`,
+		"8080-NaN/tcp":        `invalid range format for --expose: 8080-NaN/tcp, error: strconv.ParseUint: parsing "NaN": invalid syntax`,
+		"1234567890-8080/tcp": `invalid range format for --expose: 1234567890-8080/tcp, error: strconv.ParseUint: parsing "1234567890": value out of range`,
 	}
 	valids := map[string][]nat.Port{
 		"8080/tcp":      {"8080/tcp"},
@@ -578,8 +578,8 @@ func TestParseRestartPolicy(t *testing.T) {
 
 func TestParseLoggingOpts(t *testing.T) {
 	// logging opts ko
-	if _, _, _, _, err := parseRun([]string{"--log-driver=none", "--log-opt=anything", "img", "cmd"}); err == nil || err.Error() != "Invalid logging opts for driver none" {
-		t.Fatalf("Expected an error with message 'Invalid logging opts for driver none', got %v", err)
+	if _, _, _, _, err := parseRun([]string{"--log-driver=none", "--log-opt=anything", "img", "cmd"}); err == nil || err.Error() != "invalid logging opts for driver none" {
+		t.Fatalf("Expected an error with message 'invalid logging opts for driver none', got %v", err)
 	}
 	// logging opts ok
 	_, hostconfig, _, _, err := parseRun([]string{"--log-driver=syslog", "--log-opt=something", "img", "cmd"})
@@ -648,7 +648,7 @@ func TestParseEntryPoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if config.Entrypoint.Len() != 1 && config.Entrypoint.Slice()[0] != "anything" {
+	if len(config.Entrypoint) != 1 && config.Entrypoint[0] != "anything" {
 		t.Fatalf("Expected entrypoint 'anything', got %v", config.Entrypoint)
 	}
 }

@@ -148,6 +148,61 @@ func (s *DockerSchema1RegistrySuite) TestPushEmptyLayer(c *check.C) {
 	testPushEmptyLayer(c)
 }
 
+// testConcurrentPush pushes multiple tags to the same repo
+// concurrently.
+func testConcurrentPush(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
+
+	repos := []string{}
+	for _, tag := range []string{"push1", "push2", "push3"} {
+		repo := fmt.Sprintf("%v:%v", repoName, tag)
+		_, err := buildImage(repo, fmt.Sprintf(`
+	FROM busybox
+	ENTRYPOINT ["/bin/echo"]
+	ENV FOO foo
+	ENV BAR bar
+	CMD echo %s
+`, repo), true)
+		c.Assert(err, checker.IsNil)
+		repos = append(repos, repo)
+	}
+
+	// Push tags, in parallel
+	results := make(chan error)
+
+	for _, repo := range repos {
+		go func(repo string) {
+			_, _, err := runCommandWithOutput(exec.Command(dockerBinary, "push", repo))
+			results <- err
+		}(repo)
+	}
+
+	for range repos {
+		err := <-results
+		c.Assert(err, checker.IsNil, check.Commentf("concurrent push failed with error: %v", err))
+	}
+
+	// Clear local images store.
+	args := append([]string{"rmi"}, repos...)
+	dockerCmd(c, args...)
+
+	// Re-pull and run individual tags, to make sure pushes succeeded
+	for _, repo := range repos {
+		dockerCmd(c, "pull", repo)
+		dockerCmd(c, "inspect", repo)
+		out, _ := dockerCmd(c, "run", "--rm", repo)
+		c.Assert(strings.TrimSpace(out), checker.Equals, "/bin/sh -c echo "+repo)
+	}
+}
+
+func (s *DockerRegistrySuite) TestConcurrentPush(c *check.C) {
+	testConcurrentPush(c)
+}
+
+func (s *DockerSchema1RegistrySuite) TestConcurrentPush(c *check.C) {
+	testConcurrentPush(c)
+}
+
 func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *check.C) {
 	sourceRepoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 	// tag the image to upload it to the private registry
@@ -201,7 +256,7 @@ func (s *DockerSchema1RegistrySuite) TestCrossRepositoryLayerPushNotSupported(c 
 	out2, _, err := dockerCmdWithError("push", destRepoName)
 	c.Assert(err, check.IsNil, check.Commentf("pushing the image to the private registry has failed: %s", out2))
 	// schema1 registry should not support cross-repo layer mounts, so ensure that this does not happen
-	c.Assert(strings.Contains(out2, "Mounted from dockercli/busybox"), check.Equals, false)
+	c.Assert(strings.Contains(out2, "Mounted from"), check.Equals, false)
 
 	digest2 := digest.DigestRegexp.FindString(out2)
 	c.Assert(len(digest2), checker.GreaterThan, 0, check.Commentf("no digest found for pushed manifest"))
@@ -231,6 +286,12 @@ func (s *DockerTrustSuite) TestTrustedPush(c *check.C) {
 	out, _, err = runCommandWithOutput(pullCmd)
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf(out))
+
+	// Assert that we rotated the snapshot key to the server by checking our local keystore
+	contents, err := ioutil.ReadDir(filepath.Join(cliconfig.ConfigDir(), "trust/private/tuf_keys", privateRegistryURL, "dockerclitrusted/pushtest"))
+	c.Assert(err, check.IsNil, check.Commentf("Unable to read local tuf key files"))
+	// Check that we only have 1 key (targets key)
+	c.Assert(contents, checker.HasLen, 1)
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithEnvPasswords(c *check.C) {

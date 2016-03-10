@@ -125,6 +125,10 @@ func TestCopyFile(t *testing.T) {
 
 // Reading a symlink to a directory must return the directory
 func TestReadSymlinkedDirectoryExistingDirectory(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
 	var err error
 	if err = os.Mkdir("/tmp/testReadSymlinkToExistingDirectory", 0777); err != nil {
 		t.Errorf("failed to create directory: %s", err)
@@ -167,6 +171,10 @@ func TestReadSymlinkedDirectoryNonExistingSymlink(t *testing.T) {
 
 // Reading a symlink to a file must fail
 func TestReadSymlinkedDirectoryToFile(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
 	var err error
 	var file *os.File
 
@@ -301,6 +309,10 @@ func TestMatchesWithMalformedPatterns(t *testing.T) {
 
 // Test lots of variants of patterns & strings
 func TestMatches(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
 	tests := []struct {
 		pattern string
 		text    string

@@ -57,7 +57,10 @@ The currently supported filters are:
 * exited (int - the code of exited containers. Only useful with `--all`)
 * status (created|restarting|running|paused|exited|dead)
 * ancestor (`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`) - filters containers that were created from the given image or a descendant.
+* before (container's id or name) - filters containers created before given id or name
+* since (container's id or name) - filters containers created since given id or name
 * isolation (default|process|hyperv)   (Windows daemon only)
+* volume (volume name or mount point) - filters containers that mount volumes.
 
 
 #### Label
@@ -163,6 +166,46 @@ in it's layer stack.
     CONTAINER ID        IMAGE               COMMAND             CREATED              STATUS              PORTS               NAMES
     82a598284012        ubuntu:12.04.5      "top"               3 minutes ago        Up 3 minutes                            sleepy_bose
 
+#### Before
+
+The `before` filter shows only containers created before the container with given id or name. For example, 
+having these containers created:
+
+    $ docker ps
+    CONTAINER ID        IMAGE       COMMAND       CREATED              STATUS              PORTS              NAMES
+    9c3527ed70ce        busybox     "top"         14 seconds ago       Up 15 seconds                          desperate_dubinsky
+    4aace5031105        busybox     "top"         48 seconds ago       Up 49 seconds                          focused_hamilton
+    6e63f6ff38b0        busybox     "top"         About a minute ago   Up About a minute                      distracted_fermat
+
+Filtering with `before` would give:
+
+    $ docker ps -f before=9c3527ed70ce
+    CONTAINER ID        IMAGE       COMMAND       CREATED              STATUS              PORTS              NAMES
+    4aace5031105        busybox     "top"         About a minute ago   Up About a minute                      focused_hamilton
+    6e63f6ff38b0        busybox     "top"         About a minute ago   Up About a minute                      distracted_fermat
+
+#### Since
+
+The `since` filter shows only containers created since the container with given id or name. For example,
+with the same containers as in `before` filter:
+
+    $ docker ps -f since=6e63f6ff38b0
+    CONTAINER ID        IMAGE       COMMAND       CREATED             STATUS              PORTS               NAMES
+    9c3527ed70ce        busybox     "top"         10 minutes ago      Up 10 minutes                           desperate_dubinsky
+    4aace5031105        busybox     "top"         10 minutes ago      Up 10 minutes                           focused_hamilton
+
+#### Volume
+
+The `volume` filter shows only containers that mount a specific volume or have a volume mounted in a specific path:
+
+    $ docker ps --filter volume=remote-volume --format "table {{.ID}}\t{{.Mounts}}"
+    CONTAINER ID        MOUNTS
+    9c3527ed70ce        remote-volume
+
+    $ docker ps --filter volume=/data --format "table {{.ID}}\t{{.Mounts}}"
+    CONTAINER ID        MOUNTS
+    9c3527ed70ce        remote-volume
+
 
 ## Formatting
 
@@ -183,6 +226,7 @@ Placeholder | Description
 `.Names` | Container names.
 `.Labels` | All labels assigned to the container.
 `.Label` | Value of a specific label for this container. For example `{{.Label "com.docker.swarm.cpu"}}`
+`.Mounts` | Names of the volumes mounted in this container.
 
 When using the `--format` option, the `ps` command will either output the data exactly as the template
 declares or, when using the `table` directive, will include column headers as well.

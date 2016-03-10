@@ -3,12 +3,12 @@
 package daemon
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/stringid"
 	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/opencontainers/runc/libcontainer/label"
@@ -21,7 +21,8 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 	}
 	defer daemon.Unmount(container)
 
-	if err := container.SetupWorkingDirectory(); err != nil {
+	rootUID, rootGID := daemon.GetRemappedUIDGID()
+	if err := container.SetupWorkingDirectory(rootUID, rootGID); err != nil {
 		return err
 	}
 
@@ -41,7 +42,7 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 
 		stat, err := os.Stat(path)
 		if err == nil && !stat.IsDir() {
-			return derr.ErrorCodeMountOverFile.WithArgs(path)
+			return fmt.Errorf("cannot mount volume over existing file, file exists %s", path)
 		}
 
 		v, err := daemon.volumes.CreateWithRef(name, hostConfig.VolumeDriver, container.ID, nil)

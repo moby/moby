@@ -3,12 +3,13 @@
 package container
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/volume"
-	"github.com/docker/engine-api/types/container"
+	containertypes "github.com/docker/engine-api/types/container"
 )
 
 // Container holds fields specific to the Windows implementation. See
@@ -45,8 +46,22 @@ func (container *Container) TmpfsMounts() []execdriver.Mount {
 	return nil
 }
 
-// UpdateContainer updates resources of a container
-func (container *Container) UpdateContainer(hostConfig *container.HostConfig) error {
+// UpdateContainer updates configuration of a container
+func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfig) error {
+	container.Lock()
+	defer container.Unlock()
+	resources := hostConfig.Resources
+	if resources.BlkioWeight != 0 || resources.CPUShares != 0 ||
+		resources.CPUPeriod != 0 || resources.CPUQuota != 0 ||
+		resources.CpusetCpus != "" || resources.CpusetMems != "" ||
+		resources.Memory != 0 || resources.MemorySwap != 0 ||
+		resources.MemoryReservation != 0 || resources.KernelMemory != 0 {
+		return fmt.Errorf("Resource updating isn't supported on Windows")
+	}
+	// update HostConfig of container
+	if hostConfig.RestartPolicy.Name != "" {
+		container.HostConfig.RestartPolicy = hostConfig.RestartPolicy
+	}
 	return nil
 }
 
@@ -67,4 +82,11 @@ func cleanResourcePath(path string) string {
 		}
 	}
 	return filepath.Join(string(os.PathSeparator), path)
+}
+
+// canMountFS determines if the file system for the container
+// can be mounted locally. In the case of Windows, this is not possible
+// for Hyper-V containers during WORKDIR execution for example.
+func (container *Container) canMountFS() bool {
+	return !containertypes.Isolation.IsHyperV(container.HostConfig.Isolation)
 }

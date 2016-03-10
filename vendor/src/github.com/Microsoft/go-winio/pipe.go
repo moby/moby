@@ -213,7 +213,7 @@ func ListenPipe(path, sddl string) (net.Listener, error) {
 		err error
 	)
 	if sddl != "" {
-		sd, err = sddlToSecurityDescriptor(sddl)
+		sd, err = SddlToSecurityDescriptor(sddl)
 		if err != nil {
 			return nil, err
 		}

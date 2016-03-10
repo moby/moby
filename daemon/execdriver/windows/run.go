@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Microsoft/hcsshim"
@@ -19,6 +20,16 @@ import (
 // defaultContainerNAT is the default name of the container NAT device that is
 // preconfigured on the server.
 const defaultContainerNAT = "ContainerNAT"
+
+// Win32 error codes that are used for various workarounds
+// These really should be ALL_CAPS to match golangs syscall library and standard
+// Win32 error conventions, but golint insists on CamelCase.
+const (
+	CoEClassstring     = syscall.Errno(0x800401F3) // Invalid class string
+	ErrorNoNetwork     = syscall.Errno(1222)       // The network is not present or not started
+	ErrorBadPathname   = syscall.Errno(161)        // The specified path is invalid
+	ErrorInvalidObject = syscall.Errno(0x800710D8) // The object identifier does not represent a valid object
+)
 
 type layer struct {
 	ID   string
@@ -70,10 +81,10 @@ type containerInit struct {
 	IsDummy                 bool        // Used for development purposes.
 	VolumePath              string      // Windows volume path for scratch space
 	Devices                 []device    // Devices used by the container
-	IgnoreFlushesDuringBoot bool        // Optimisation hint for container startup in Windows
+	IgnoreFlushesDuringBoot bool        // Optimization hint for container startup in Windows
 	LayerFolderPath         string      // Where the layer folders are located
 	Layers                  []layer     // List of storage layers
-	ProcessorWeight         int64       `json:",omitempty"` // CPU Shares 0..10000 on Windows; where 0 will be ommited and HCS will default.
+	ProcessorWeight         int64       `json:",omitempty"` // CPU Shares 0..10000 on Windows; where 0 will be omitted and HCS will default.
 	HostName                string      // Hostname
 	MappedDirectories       []mappedDir // List of mapped directories (volumes/mounts)
 	SandboxPath             string      // Location of unmounted sandbox (used for Hyper-V containers, not Windows Server containers)
@@ -227,29 +238,29 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 	// TODO Windows TP5 timeframe. Remove when TP4 is no longer supported.
 	// The following a workaround for Windows TP4 which has a networking
 	// bug which fairly frequently returns an error. Back off and retry.
-	maxAttempts := 1
-	if TP4RetryHack {
-		maxAttempts = 5
-	}
-	i := 0
-	for i < maxAttempts {
-		i++
+	maxAttempts := 5
+	for i := 0; i < maxAttempts; i++ {
 		err = hcsshim.CreateComputeSystem(c.ID, configuration)
-		if err != nil {
-			if TP4RetryHack {
-				if !strings.Contains(err.Error(), `Win32 API call returned error r1=0x800401f3`) && // Invalid class string
-					!strings.Contains(err.Error(), `Win32 API call returned error r1=0x80070490`) && // Element not found
-					!strings.Contains(err.Error(), `Win32 API call returned error r1=0x80070002`) && // The system cannot find the file specified
-					!strings.Contains(err.Error(), `Win32 API call returned error r1=0x800704c6`) && // The network is not present or not started
-					!strings.Contains(err.Error(), `Win32 API call returned error r1=0x800700a1`) { // The specified path is invalid
-					logrus.Debugln("Failed to create temporary container ", err)
-					return execdriver.ExitStatus{ExitCode: -1}, err
-				}
-				logrus.Warnf("Invoking Windows TP4 retry hack (%d of %d)", i, maxAttempts-1)
-				time.Sleep(50 * time.Millisecond)
-			}
-		} else {
+		if err == nil {
 			break
+		}
+
+		if !TP4RetryHack {
+			return execdriver.ExitStatus{ExitCode: -1}, err
+		}
+
+		if herr, ok := err.(*hcsshim.HcsError); ok {
+			if herr.Err != syscall.ERROR_NOT_FOUND && // Element not found
+				herr.Err != syscall.ERROR_FILE_NOT_FOUND && // The system cannot find the file specified
+				herr.Err != ErrorNoNetwork && // The network is not present or not started
+				herr.Err != ErrorBadPathname && // The specified path is invalid
+				herr.Err != CoEClassstring && // Invalid class string
+				herr.Err != ErrorInvalidObject { // The object identifier does not represent a valid object
+				logrus.Debugln("Failed to create temporary container ", err)
+				return execdriver.ExitStatus{ExitCode: -1}, err
+			}
+			logrus.Warnf("Invoking Windows TP4 retry hack (%d of %d)", i, maxAttempts-1)
+			time.Sleep(50 * time.Millisecond)
 		}
 	}
 
@@ -264,16 +275,17 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		// Stop the container
 		if forceKill {
 			logrus.Debugf("Forcibly terminating container %s", c.ID)
-			if errno, err := hcsshim.TerminateComputeSystem(c.ID, hcsshim.TimeoutInfinite, "exec-run-defer"); err != nil {
-				logrus.Warnf("Ignoring error from TerminateComputeSystem 0x%X %s", errno, err)
+			if err := hcsshim.TerminateComputeSystem(c.ID, hcsshim.TimeoutInfinite, "exec-run-defer"); err != nil {
+				logrus.Warnf("Ignoring error from TerminateComputeSystem %s", err)
 			}
 		} else {
 			logrus.Debugf("Shutting down container %s", c.ID)
-			if errno, err := hcsshim.ShutdownComputeSystem(c.ID, hcsshim.TimeoutInfinite, "exec-run-defer"); err != nil {
-				if errno != hcsshim.Win32SystemShutdownIsInProgress &&
-					errno != hcsshim.Win32SpecifiedPathInvalid &&
-					errno != hcsshim.Win32SystemCannotFindThePathSpecified {
-					logrus.Warnf("Ignoring error from ShutdownComputeSystem 0x%X %s", errno, err)
+			if err := hcsshim.ShutdownComputeSystem(c.ID, hcsshim.TimeoutInfinite, "exec-run-defer"); err != nil {
+				if herr, ok := err.(*hcsshim.HcsError); !ok ||
+					(herr.Err != hcsshim.ERROR_SHUTDOWN_IN_PROGRESS &&
+						herr.Err != ErrorBadPathname &&
+						herr.Err != syscall.ERROR_PATH_NOT_FOUND) {
+					logrus.Warnf("Ignoring error from ShutdownComputeSystem %s", err)
 				}
 			}
 		}
@@ -295,7 +307,7 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 	}
 
 	// Start the command running in the container.
-	pid, stdin, stdout, stderr, _, err := hcsshim.CreateProcessInComputeSystem(c.ID, pipes.Stdin != nil, true, !c.ProcessConfig.Tty, createProcessParms)
+	pid, stdin, stdout, stderr, err := hcsshim.CreateProcessInComputeSystem(c.ID, pipes.Stdin != nil, true, !c.ProcessConfig.Tty, createProcessParms)
 	if err != nil {
 		logrus.Errorf("CreateProcessInComputeSystem() failed %s", err)
 		return execdriver.ExitStatus{ExitCode: -1}, err
@@ -332,13 +344,9 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		hooks.Start(&c.ProcessConfig, int(pid), chOOM)
 	}
 
-	var (
-		exitCode int32
-		errno    uint32
-	)
-	exitCode, errno, err = hcsshim.WaitForProcessInComputeSystem(c.ID, pid, hcsshim.TimeoutInfinite)
+	exitCode, err := hcsshim.WaitForProcessInComputeSystem(c.ID, pid, hcsshim.TimeoutInfinite)
 	if err != nil {
-		if errno != hcsshim.Win32PipeHasBeenEnded {
+		if herr, ok := err.(*hcsshim.HcsError); ok && herr.Err != syscall.ERROR_BROKEN_PIPE {
 			logrus.Warnf("WaitForProcessInComputeSystem failed (container may have been killed): %s", err)
 		}
 		// Do NOT return err here as the container would have

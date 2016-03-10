@@ -65,19 +65,34 @@ func (s *DockerSuite) TestVolumeCliInspectMulti(c *check.C) {
 
 func (s *DockerSuite) TestVolumeCliLs(c *check.C) {
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
-	out, _ := dockerCmd(c, "volume", "create")
-	id := strings.TrimSpace(out)
+	out, _ := dockerCmd(c, "volume", "create", "--name", "aaa")
 
 	dockerCmd(c, "volume", "create", "--name", "test")
-	dockerCmd(c, "run", "-v", prefix+"/foo", "busybox", "ls", "/")
+
+	dockerCmd(c, "volume", "create", "--name", "soo")
+	dockerCmd(c, "run", "-v", "soo:"+prefix+"/foo", "busybox", "ls", "/")
 
 	out, _ = dockerCmd(c, "volume", "ls")
 	outArr := strings.Split(strings.TrimSpace(out), "\n")
 	c.Assert(len(outArr), check.Equals, 4, check.Commentf("\n%s", out))
 
-	// Since there is no guarantee of ordering of volumes, we just make sure the names are in the output
-	c.Assert(strings.Contains(out, id+"\n"), check.Equals, true)
-	c.Assert(strings.Contains(out, "test\n"), check.Equals, true)
+	assertVolList(c, out, []string{"aaa", "soo", "test"})
+}
+
+// assertVolList checks volume retrieved with ls command
+// equals to expected volume list
+// note: out should be `volume ls [option]` result
+func assertVolList(c *check.C, out string, expectVols []string) {
+	lines := strings.Split(out, "\n")
+	var volList []string
+	for _, line := range lines[1 : len(lines)-1] {
+		volFields := strings.Fields(line)
+		// wrap all volume name in volList
+		volList = append(volList, volFields[1])
+	}
+
+	// volume ls should contains all expected volumes
+	c.Assert(volList, checker.DeepEquals, expectVols)
 }
 
 func (s *DockerSuite) TestVolumeCliLsFilterDangling(c *check.C) {
@@ -202,4 +217,27 @@ func (s *DockerSuite) TestVolumeCliInspectTmplError(c *check.C) {
 	c.Assert(err, checker.NotNil, check.Commentf("Output: %s", out))
 	c.Assert(exitCode, checker.Equals, 1, check.Commentf("Output: %s", out))
 	c.Assert(out, checker.Contains, "Template parsing error")
+}
+
+func (s *DockerSuite) TestVolumeCliCreateWithOpts(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	dockerCmd(c, "volume", "create", "-d", "local", "--name", "test", "--opt=type=tmpfs", "--opt=device=tmpfs", "--opt=o=size=1m,uid=1000")
+	out, _ := dockerCmd(c, "run", "-v", "test:/foo", "busybox", "mount")
+
+	mounts := strings.Split(out, "\n")
+	var found bool
+	for _, m := range mounts {
+		if strings.Contains(m, "/foo") {
+			found = true
+			info := strings.Fields(m)
+			// tmpfs on <path> type tmpfs (rw,relatime,size=1024k,uid=1000)
+			c.Assert(info[0], checker.Equals, "tmpfs")
+			c.Assert(info[2], checker.Equals, "/foo")
+			c.Assert(info[4], checker.Equals, "tmpfs")
+			c.Assert(info[5], checker.Contains, "uid=1000")
+			c.Assert(info[5], checker.Contains, "size=1024k")
+		}
+	}
+	c.Assert(found, checker.Equals, true)
 }

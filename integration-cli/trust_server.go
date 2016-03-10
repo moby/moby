@@ -237,7 +237,7 @@ func (s *DockerTrustSuite) setupDelegations(c *check.C, repoName, pwd string) {
 	if err != nil {
 		c.Fatalf("Error creating delegation key: %s\n", err)
 	}
-	err = nRepo.AddDelegation("targets/releases", 1, []data.PublicKey{delgKey}, []string{""})
+	err = nRepo.AddDelegation("targets/releases", []data.PublicKey{delgKey}, []string{""})
 	if err != nil {
 		c.Fatalf("Error creating delegation: %s\n", err)
 	}

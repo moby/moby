@@ -16,7 +16,7 @@ user-defined networks works differently compared to the containers connected
 to `default bridge` network.
 
 > **Note**: In order to maintain backward compatibility, the DNS configuration
-> in `default bridge` network is retained with no behaviorial change.
+> in `default bridge` network is retained with no behavioral change.
 > Please refer to the [DNS in default bridge network](default_network/configure-dns.md)
 > for more information on DNS configuration in the `default bridge` network.
 
@@ -75,7 +75,7 @@ Various container options that affect container domain name services.
       of the container identified by <code>CONTAINER_NAME</code>. When using <code>--link</code>
       the embedded DNS will guarantee that localized lookup result only on that
       container where the <code>--link</code> is used. This lets processes inside the new container 
-      connect to container without without having to know its name or IP.
+      connect to container without having to know its name or IP.
     </p>
     </td>
   </tr>

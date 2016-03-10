@@ -19,6 +19,11 @@ func (s *DiscoverySuite) TestNewEntry(c *check.C) {
 	c.Assert(entry.Equals(&Entry{Host: "127.0.0.1", Port: "2375"}), check.Equals, true)
 	c.Assert(entry.String(), check.Equals, "127.0.0.1:2375")
 
+	entry, err = NewEntry("[2001:db8:0:f101::2]:2375")
+	c.Assert(err, check.IsNil)
+	c.Assert(entry.Equals(&Entry{Host: "2001:db8:0:f101::2", Port: "2375"}), check.Equals, true)
+	c.Assert(entry.String(), check.Equals, "[2001:db8:0:f101::2]:2375")
+
 	_, err = NewEntry("127.0.0.1")
 	c.Assert(err, check.NotNil)
 }
@@ -50,11 +55,12 @@ func (s *DiscoverySuite) TestCreateEntries(c *check.C) {
 	c.Assert(entries, check.DeepEquals, Entries{})
 	c.Assert(err, check.IsNil)
 
-	entries, err = CreateEntries([]string{"127.0.0.1:2375", "127.0.0.2:2375", ""})
+	entries, err = CreateEntries([]string{"127.0.0.1:2375", "127.0.0.2:2375", "[2001:db8:0:f101::2]:2375", ""})
 	c.Assert(err, check.IsNil)
 	expected := Entries{
 		&Entry{Host: "127.0.0.1", Port: "2375"},
 		&Entry{Host: "127.0.0.2", Port: "2375"},
+		&Entry{Host: "2001:db8:0:f101::2", Port: "2375"},
 	}
 	c.Assert(entries.Equals(expected), check.Equals, true)
 

@@ -3,11 +3,11 @@
 package daemon
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/execdriver"
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/volume"
 )
 
@@ -27,7 +27,7 @@ func (daemon *Daemon) setupMounts(container *container.Container) ([]execdriver.
 			s = mount.Volume.Path()
 		}
 		if s == "" {
-			return nil, derr.ErrorCodeVolumeNoSourceForMount.WithArgs(mount.Name, mount.Driver, mount.Destination)
+			return nil, fmt.Errorf("No source for mount name '%s' driver %q destination '%s'", mount.Name, mount.Driver, mount.Destination)
 		}
 		mnts = append(mnts, execdriver.Mount{
 			Source:      s,

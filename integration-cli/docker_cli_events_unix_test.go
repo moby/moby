@@ -46,7 +46,7 @@ func (s *DockerSuite) TestEventsRedirectStdout(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsOOMDisableFalse(c *check.C) {
-	testRequires(c, DaemonIsLinux, oomControl, memoryLimitSupport, NotGCCGO)
+	testRequires(c, DaemonIsLinux, oomControl, memoryLimitSupport, NotGCCGO, swapMemorySupport)
 
 	errChan := make(chan error)
 	go func() {
@@ -76,7 +76,7 @@ func (s *DockerSuite) TestEventsOOMDisableFalse(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsOOMDisableTrue(c *check.C) {
-	testRequires(c, DaemonIsLinux, oomControl, memoryLimitSupport, NotGCCGO, NotArm)
+	testRequires(c, DaemonIsLinux, oomControl, memoryLimitSupport, NotGCCGO, NotArm, swapMemorySupport)
 
 	errChan := make(chan error)
 	observer, err := newEventObserver(c)
@@ -232,10 +232,10 @@ func (s *DockerSuite) TestEventsStreaming(c *check.C) {
 	containerID := strings.TrimSpace(out)
 
 	testActions := map[string]chan bool{
-		"create":  make(chan bool),
-		"start":   make(chan bool),
-		"die":     make(chan bool),
-		"destroy": make(chan bool),
+		"create":  make(chan bool, 1),
+		"start":   make(chan bool, 1),
+		"die":     make(chan bool, 1),
+		"destroy": make(chan bool, 1),
 	}
 
 	matcher := matchEventLine(containerID, "container", testActions)
@@ -291,8 +291,8 @@ func (s *DockerSuite) TestEventsImageUntagDelete(c *check.C) {
 	c.Assert(deleteImages(name), checker.IsNil)
 
 	testActions := map[string]chan bool{
-		"untag":  make(chan bool),
-		"delete": make(chan bool),
+		"untag":  make(chan bool, 1),
+		"delete": make(chan bool, 1),
 	}
 
 	matcher := matchEventLine(imageID, "image", testActions)

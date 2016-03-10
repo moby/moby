@@ -14,10 +14,19 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/uuid"
 	apiserver "github.com/docker/docker/api/server"
+	"github.com/docker/docker/api/server/router"
+	"github.com/docker/docker/api/server/router/build"
+	"github.com/docker/docker/api/server/router/container"
+	"github.com/docker/docker/api/server/router/image"
+	"github.com/docker/docker/api/server/router/network"
+	systemrouter "github.com/docker/docker/api/server/router/system"
+	"github.com/docker/docker/api/server/router/volume"
+	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/docker/listeners"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/jsonlog"
@@ -226,6 +235,9 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	if len(cli.Config.Hosts) == 0 {
 		cli.Config.Hosts = make([]string, 1)
 	}
+
+	api := apiserver.New(serverConfig)
+
 	for i := 0; i < len(cli.Config.Hosts); i++ {
 		var err error
 		if cli.Config.Hosts[i], err = opts.ParseHost(cli.Config.TLS, cli.Config.Hosts[i]); err != nil {
@@ -237,12 +249,13 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		if len(protoAddrParts) != 2 {
 			logrus.Fatalf("bad format %s, expected PROTO://ADDR", protoAddr)
 		}
-		serverConfig.Addrs = append(serverConfig.Addrs, apiserver.Addr{Proto: protoAddrParts[0], Addr: protoAddrParts[1]})
-	}
+		l, err := listeners.Init(protoAddrParts[0], protoAddrParts[1], serverConfig.SocketGroup, serverConfig.TLSConfig)
+		if err != nil {
+			logrus.Fatal(err)
+		}
 
-	api, err := apiserver.New(serverConfig)
-	if err != nil {
-		logrus.Fatal(err)
+		logrus.Debugf("Listener created for HTTP on %s (%s)", protoAddrParts[0], protoAddrParts[1])
+		api.Accept(protoAddrParts[1], l...)
 	}
 
 	if err := migrateKey(); err != nil {
@@ -270,14 +283,25 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		"graphdriver": d.GraphDriverName(),
 	}).Info("Docker daemon")
 
-	api.InitRouters(d)
+	initRouter(api, d)
 
 	reload := func(config *daemon.Config) {
 		if err := d.Reload(config); err != nil {
 			logrus.Errorf("Error reconfiguring the daemon: %v", err)
 			return
 		}
-		api.Reload(config)
+		if config.IsValueSet("debug") {
+			debugEnabled := utils.IsDebugEnabled()
+			switch {
+			case debugEnabled && !config.Debug: // disable debug
+				utils.DisableDebug()
+				api.DisableProfiler()
+			case config.Debug && !debugEnabled: // enable debug
+				utils.EnableDebug()
+				api.EnableProfiler()
+			}
+
+		}
 	}
 
 	setupConfigReloadTrap(*configFile, cli.flags, reload)
@@ -372,4 +396,19 @@ func loadDaemonCliConfig(config *daemon.Config, daemonFlags *flag.FlagSet, commo
 	setDaemonLogLevel(config.LogLevel)
 
 	return config, nil
+}
+
+func initRouter(s *apiserver.Server, d *daemon.Daemon) {
+	routers := []router.Router{
+		container.NewRouter(d),
+		image.NewRouter(d),
+		systemrouter.NewRouter(d),
+		volume.NewRouter(d),
+		build.NewRouter(dockerfile.NewBuildManager(d)),
+	}
+	if d.NetworkControllerEnabled() {
+		routers = append(routers, network.NewRouter(d))
+	}
+
+	s.InitRouter(utils.IsDebugEnabled(), routers...)
 }

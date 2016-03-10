@@ -644,7 +644,7 @@ multiple plugins installed, at least one must allow the request for it to
 complete.
 
 For information about how to create an authorization plugin, see [authorization
-plugin](../../extend/authorization.md) section in the Docker extend section of this documentation.
+plugin](../../extend/plugins_authorization.md) section in the Docker extend section of this documentation.
 
 
 ## Daemon user namespace options
@@ -696,11 +696,17 @@ these resources are name-based, not id-based.  If the numeric ID information
 provided does not exist as entries in `/etc/passwd` or `/etc/group`, daemon
 startup will fail with an error message.
 
+> **Note:** On Fedora 22, you have to `touch` the `/etc/subuid` and `/etc/subgid`
+> files to have ranges assigned when users are created.  This must be done
+> *before* the `--userns-remap` option is enabled. Once these files exist, the
+> daemon can be (re)started and range assignment on user creation works properly.
+
 *Example: starting with default Docker user management:*
 
+```bash
+$ docker daemon --userns-remap=default
 ```
-     $ docker daemon --userns-remap=default
-```    
+
 When `default` is provided, Docker will create - or find the existing - user and group
 named `dockremap`. If the user is created, and the Linux distribution has
 appropriate support, the `/etc/subuid` and `/etc/subgid` files will be populated
@@ -709,16 +715,11 @@ at an offset based on prior entries in those files.  For example, Ubuntu will
 create the following range, based on an existing user named `user1` already owning
 the first 65536 range:
 
+```bash
+$ cat /etc/subuid
+user1:100000:65536
+dockremap:165536:65536
 ```
-     $ cat /etc/subuid
-     user1:100000:65536
-     dockremap:165536:65536
-```
-
-> **Note:** On a fresh Fedora install, we had to `touch` the
-> `/etc/subuid` and `/etc/subgid` files to have ranges assigned when users
-> were created.  Once these files existed, range assignment on user creation
-> worked properly.
 
 If you have a preferred/self-managed user with subordinate ID mappings already
 configured, you can provide that username or uid to the `--userns-remap` flag.
@@ -802,8 +803,16 @@ cgroup.
 
 Assuming the daemon is running in cgroup `daemoncgroup`,
 `--cgroup-parent=/foobar` creates a cgroup in
-`/sys/fs/cgroup/memory/foobar`, wheras using `--cgroup-parent=foobar`
+`/sys/fs/cgroup/memory/foobar`, whereas using `--cgroup-parent=foobar`
 creates the cgroup in `/sys/fs/cgroup/memory/daemoncgroup/foobar`
+
+The systemd cgroup driver has different rules for `--cgroup-parent`. Systemd
+represents hierarchy by slice and the name of the slice encodes the location in
+the tree. So `--cgroup-parent` for systemd cgroups should be a slice name. A
+name can consist of a dash-separated series of names, which describes the path
+to the slice from the root slice. For example, `--cgroup-parent=user-a-b.slice`
+means the memory cgroup for the container is created in
+`/sys/fs/cgroup/memory/user.slice/user-a.slice/user-a-b.slice/docker-<id>.scope`.
 
 This setting can also be set per container, using the `--cgroup-parent`
 option on `docker create` and `docker run`, and takes precedence over
@@ -890,4 +899,15 @@ if there are conflicts, but it won't stop execution.
 The list of currently supported options that can be reconfigured is this:
 
 - `debug`: it changes the daemon to debug mode when set to true.
+- `cluster-store`: it reloads the discovery store with the new address.
+- `cluster-store-opts`: it uses the new options to reload the discovery store.
+- `cluster-advertise`: it modifies the address advertised after reloading.
 - `labels`: it replaces the daemon labels with a new set of labels.
+
+Updating and reloading the cluster configurations such as `--cluster-store`,
+`--cluster-advertise` and `--cluster-store-opts` will take effect only if
+these configurations were not previously configured. If `--cluster-store`
+has been provided in flags and `cluster-advertise` not, `cluster-advertise`
+can be added in the configuration file without accompanied by `--cluster-store`
+Configuration reload will log a warning message if it detects a change in
+previously configured cluster configurations.

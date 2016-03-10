@@ -605,6 +605,8 @@ with the same logic -- if the original volume was specified with a name it will 
     --security-opt="label:disable"     : Turn off label confinement for the container
     --security-opt="apparmor:PROFILE"  : Set the apparmor profile to be applied
                                          to the container
+    --security-opt="no-new-privileges" : Disable container processes from gaining
+                                         new privileges
 
 You can override the default labeling scheme for each container by specifying
 the `--security-opt` flag. For example, you can specify the MCS/MLS level, a
@@ -630,6 +632,13 @@ command:
     $ docker run --security-opt label:type:svirt_apache_t -it centos bash
 
 > **Note**: You would have to write policy defining a `svirt_apache_t` type.
+
+If you want to prevent your container processes from gaining additional
+privileges, you can execute the following command:
+
+    $ docker run --security-opt no-new-privileges -it centos bash
+
+For more details, see [kernel documentation](https://www.kernel.org/doc/Documentation/prctl/no_new_privs.txt).
 
 ## Specifying custom cgroups
 
@@ -1049,8 +1058,8 @@ By default, the docker container process runs with the supplementary groups look
 up for the specified user. If one wants to add more to that list of groups, then
 one can use this flag:
 
-    $ docker run -it --rm --group-add audio  --group-add dbus --group-add 777 busybox id
-    uid=0(root) gid=0(root) groups=10(wheel),29(audio),81(dbus),777
+    $ docker run --rm --group-add audio --group-add nogroup --group-add 777 busybox id
+    uid=0(root) gid=0(root) groups=10(wheel),29(audio),99(nogroup),777
 
 ## Runtime privilege and Linux capabilities
 
@@ -1058,6 +1067,14 @@ one can use this flag:
     --cap-drop: Drop Linux capabilities
     --privileged=false: Give extended privileges to this container
     --device=[]: Allows you to run devices inside the container without the --privileged flag.
+
+> **Note:**
+> With Docker 1.10 and greater, the default seccomp profile will also block
+> syscalls, regardless of `--cap-add` passed to the container. We recommend in
+> these cases to create your own custom seccomp profile based off our
+> [default](https://github.com/docker/docker/blob/master/profiles/seccomp/default.json).
+> Or if you don't want to run with the default seccomp profile, you can pass
+> `--security-opt=seccomp:unconfined` on run.
 
 By default, Docker containers are "unprivileged" and cannot, for
 example, run a Docker daemon inside a Docker container. This is because
@@ -1429,7 +1446,10 @@ The developer can set a default user to run the first process with the
 Dockerfile `USER` instruction. When starting a container, the operator can override
 the `USER` instruction by passing the `-u` option.
 
-    -u="": Username or UID
+    -u="", --user="": Sets the username or UID used and optionally the groupname or GID for the specified command.
+ 
+    The followings examples are all valid:
+    --user=[ user | user:group | uid | uid:gid | user:gid | uid:group ]
 
 > **Note:** if you pass a numeric uid, it must be in the range of 0-2147483647.
 

@@ -39,6 +39,10 @@ type ContainerUpdateResponse struct {
 type AuthResponse struct {
 	// Status is the authentication status
 	Status string `json:"Status"`
+
+	// IdentityToken is an opaque token used for authenticating
+	// a user after a successful login.
+	IdentityToken string `json:"IdentityToken,omitempty"`
 }
 
 // ContainerWaitResponse contains response of Remote API:
@@ -148,6 +152,7 @@ type Container struct {
 		NetworkMode string `json:",omitempty"`
 	}
 	NetworkSettings *SummaryNetworkSettings
+	Mounts          []MountPoint
 }
 
 // CopyConfig contains request body of Remote API:
@@ -203,6 +208,7 @@ type Info struct {
 	Plugins            PluginsInfo
 	MemoryLimit        bool
 	SwapLimit          bool
+	KernelMemory       bool
 	CPUCfsPeriod       bool `json:"CpuCfsPeriod"`
 	CPUCfsQuota        bool `json:"CpuCfsQuota"`
 	CPUShares          bool
@@ -217,6 +223,7 @@ type Info struct {
 	SystemTime         string
 	ExecutionDriver    string
 	LoggingDriver      string
+	CgroupDriver       string
 	NEventsListener    int
 	KernelVersion      string
 	OperatingSystem    string
@@ -238,8 +245,8 @@ type Info struct {
 	ClusterAdvertise   string
 }
 
-// PluginsInfo is temp struct holds Plugins name
-// registered with docker daemon. It used by Info struct
+// PluginsInfo is a temp struct holding Plugins name
+// registered with docker daemon. It is used by Info struct
 type PluginsInfo struct {
 	// List of Volume plugins registered
 	Volume []string

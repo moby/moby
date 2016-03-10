@@ -250,13 +250,13 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		return ErrRootFSReadOnly
 	}
 
+	uid, gid := daemon.GetRemappedUIDGID()
 	options := &archive.TarOptions{
-		ChownOpts: &archive.TarChownOptions{
-			UID: 0, GID: 0, // TODO: use config.User? Remap to userns root?
-		},
 		NoOverwriteDirNonDir: noOverwriteDirNonDir,
+		ChownOpts: &archive.TarChownOptions{
+			UID: uid, GID: gid, // TODO: should all ownership be set to root (either real or remapped)?
+		},
 	}
-
 	if err := chrootarchive.Untar(content, resolvedPath, options); err != nil {
 		return err
 	}

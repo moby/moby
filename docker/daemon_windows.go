@@ -50,7 +50,9 @@ func setupConfigReloadTrap(configFile string, flags *mflag.FlagSet, reload func(
 			logrus.Debugf("Config reload - waiting signal at %s", ev)
 			for {
 				syscall.WaitForSingleObject(h, syscall.INFINITE)
-				daemon.ReloadConfiguration(configFile, flags, reload)
+				if err := daemon.ReloadConfiguration(configFile, flags, reload); err != nil {
+					logrus.Error(err)
+				}
 			}
 		}
 	}()

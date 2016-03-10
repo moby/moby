@@ -2,7 +2,6 @@ package distribution
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
@@ -89,7 +88,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 		return err
 	}
 
-	endpoints, err := imagePullConfig.RegistryService.LookupPullEndpoints(repoInfo)
+	endpoints, err := imagePullConfig.RegistryService.LookupPullEndpoints(repoInfo.Hostname())
 	if err != nil {
 		return err
 	}
@@ -110,12 +109,25 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 		// confirm that it was talking to a v2 registry. This will
 		// prevent fallback to the v1 protocol.
 		confirmedV2 bool
+
+		// confirmedTLSRegistries is a map indicating which registries
+		// are known to be using TLS. There should never be a plaintext
+		// retry for any of these.
+		confirmedTLSRegistries = make(map[string]struct{})
 	)
 	for _, endpoint := range endpoints {
 		if confirmedV2 && endpoint.Version == registry.APIVersion1 {
 			logrus.Debugf("Skipping v1 endpoint %s because v2 registry was detected", endpoint.URL)
 			continue
 		}
+
+		if endpoint.URL.Scheme != "https" {
+			if _, confirmedTLS := confirmedTLSRegistries[endpoint.URL.Host]; confirmedTLS {
+				logrus.Debugf("Skipping non-TLS endpoint %s for host/port that appears to use TLS", endpoint.URL)
+				continue
+			}
+		}
+
 		logrus.Debugf("Trying to pull %s from %s %s", repoInfo.Name(), endpoint.URL, endpoint.Version)
 
 		puller, err := newPuller(endpoint, repoInfo, imagePullConfig)
@@ -133,11 +145,14 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 				if fallbackErr, ok := err.(fallbackError); ok {
 					fallback = true
 					confirmedV2 = confirmedV2 || fallbackErr.confirmedV2
+					if fallbackErr.transportOK && endpoint.URL.Scheme == "https" {
+						confirmedTLSRegistries[endpoint.URL.Host] = struct{}{}
+					}
 					err = fallbackErr.err
 				}
 			}
 			if fallback {
-				if _, ok := err.(registry.ErrNoSupport); !ok {
+				if _, ok := err.(ErrNoSupport); !ok {
 					// Because we found an error that's not ErrNoSupport, discard all subsequent ErrNoSupport errors.
 					discardNoSupportErrors = true
 					// append subsequent errors
@@ -148,9 +163,10 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 					// append subsequent errors
 					lastErr = err
 				}
+				logrus.Errorf("Attempting next endpoint for pull after error: %v", err)
 				continue
 			}
-			logrus.Debugf("Not continuing with error: %v", err)
+			logrus.Errorf("Not continuing with pull after error: %v", err)
 			return err
 		}
 
@@ -186,17 +202,4 @@ func validateRepoName(name string) error {
 		return fmt.Errorf("'%s' is a reserved name", api.NoBaseImageSpecifier)
 	}
 	return nil
-}
-
-// tmpFileClose creates a closer function for a temporary file that closes the file
-// and also deletes it.
-func tmpFileCloser(tmpFile *os.File) func() error {
-	return func() error {
-		tmpFile.Close()
-		if err := os.RemoveAll(tmpFile.Name()); err != nil {
-			logrus.Errorf("Failed to remove temp file: %s", tmpFile.Name())
-		}
-
-		return nil
-	}
 }

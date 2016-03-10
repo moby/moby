@@ -765,14 +765,14 @@ func (s *YubiKeyStore) ExportKey(keyID string) ([]byte, error) {
 // ImportKey imports a root key into a Yubikey
 func (s *YubiKeyStore) ImportKey(pemBytes []byte, keyPath string) error {
 	logrus.Debugf("Attempting to import: %s key inside of YubiKeyStore", keyPath)
+	if keyPath != data.CanonicalRootRole {
+		return fmt.Errorf("yubikey only supports storing root keys")
+	}
 	privKey, _, err := trustmanager.GetPasswdDecryptBytes(
 		s.passRetriever, pemBytes, "", "imported root")
 	if err != nil {
 		logrus.Debugf("Failed to get and retrieve a key from: %s", keyPath)
 		return err
-	}
-	if keyPath != data.CanonicalRootRole {
-		return fmt.Errorf("yubikey only supports storing root keys")
 	}
 	_, err = s.addKey(privKey.ID(), "root", privKey)
 	return err

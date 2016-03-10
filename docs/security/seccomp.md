@@ -16,48 +16,48 @@ restrict the actions available within the container. The `seccomp()` system
 call operates on the seccomp state of the calling process. You can use this
 feature to restrict your application's access.
 
-This feature is available only if the kernel is configured with `CONFIG_SECCOMP`
-enabled.
+This feature is available only if Docker has been built with seccomp and the
+kernel is configured with `CONFIG_SECCOMP` enabled. To check if your kernel
+supports seccomp:
 
-> **Note**: On Ubuntu 14.04, Debian Wheezy, and Debian Jessie, you must download
-> the [latest static Docker Linux binary](../installation/binaries.md) to use
-> seccomp.
+```bash
+$ cat /boot/config-`uname -r` | grep CONFIG_SECCOMP=
+CONFIG_SECCOMP=y
+```
+
+> **Note**: seccomp profiles require seccomp 2.2.1 and are only
+> available starting with Debian 9 "Stretch", Ubuntu 15.10 "Wily", and
+> Fedora 22. To use this feature on Ubuntu 14.04, Debian Wheezy, or
+> Debian Jessie, you must download the [latest static Docker Linux binary](../installation/binaries.md).
+> This feature is currently *not* available on other distributions.
 
 ## Passing a profile for a container
 
 The default seccomp profile provides a sane default for running containers with
-seccomp. It is moderately protective while providing wide application
-compatibility. The default Docker profile has layout in the following form:
+seccomp and disables around 44 system calls out of 300+. It is moderately protective while providing wide application
+compatibility. The default Docker profile (found [here](https://github.com/docker/docker/blob/master/profiles/seccomp/default.json) has a JSON layout in the following form:
 
-```
+```json
 {
-    "defaultAction": "SCMP_ACT_ALLOW",
-    "syscalls": [
-        {
-            "name": "getcwd",
-            "action": "SCMP_ACT_ERRNO"
-        },
-        {
-            "name": "mount",
-            "action": "SCMP_ACT_ERRNO"
-        },
-        {
-            "name": "setns",
-            "action": "SCMP_ACT_ERRNO"
-        },
-        {
-            "name": "create_module",
-            "action": "SCMP_ACT_ERRNO"
-        },
-        {
-            "name": "chown",
-            "action": "SCMP_ACT_ERRNO"
-        },
-        {
-            "name": "chmod",
-            "action": "SCMP_ACT_ERRNO"
-        }
-    ]
+	"defaultAction": "SCMP_ACT_ERRNO",
+	"architectures": [
+		"SCMP_ARCH_X86_64",
+		"SCMP_ARCH_X86",
+		"SCMP_ARCH_X32"
+	],
+	"syscalls": [
+		{
+			"name": "accept",
+			"action": "SCMP_ACT_ALLOW",
+			"args": []
+		},
+		{
+			"name": "accept4",
+			"action": "SCMP_ACT_ALLOW",
+			"args": []
+		},
+		...
+	]
 }
 ```
 
@@ -69,7 +69,7 @@ specifies the default policy:
 $ docker run --rm -it --security-opt seccomp:/path/to/seccomp/profile.json hello-world
 ```
 
-### Syscalls blocked by the default profile
+### Significant syscalls blocked by the default profile
 
 Docker's default seccomp profile is a whitelist which specifies the calls that
 are allowed. The table below lists the significant (but not all) syscalls that
