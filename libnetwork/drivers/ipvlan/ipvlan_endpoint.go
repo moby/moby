@@ -6,7 +6,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
@@ -35,12 +34,6 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 	if ep.addr == nil {
 		return fmt.Errorf("create endpoint was not passed an IP address")
-	}
-	if ep.mac == nil {
-		ep.mac = netutils.GenerateMACFromIP(ep.addr.IP)
-		if err := ifInfo.SetMacAddress(ep.mac); err != nil {
-			return err
-		}
 	}
 	// disallow port mapping -p
 	if opt, ok := epOptions[netlabel.PortMap]; ok {
