@@ -32,7 +32,7 @@ Server:
 
 // CmdVersion shows Docker version information.
 //
-// Available version information is shown for: client Docker version, client API version, client Go version, 
+// Available version information is shown for: client Docker version, client API version, client Go version,
 // client Git commit, client OS/Arch, server Docker version, server API version, server Go version,
 // server Git commit, and server OS/Arch.
 //
