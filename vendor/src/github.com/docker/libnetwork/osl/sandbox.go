@@ -76,6 +76,9 @@ type IfaceOptionSetter interface {
 	// Bridge returns an option setter to set if the interface is a bridge.
 	Bridge(bool) IfaceOption
 
+	// MacAddress returns an option setter to set the MAC address.
+	MacAddress(net.HardwareAddr) IfaceOption
+
 	// Address returns an option setter to set IPv4 address.
 	Address(*net.IPNet) IfaceOption
 

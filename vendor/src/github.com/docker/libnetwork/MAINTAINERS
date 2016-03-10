@@ -17,6 +17,7 @@
 			"mrjana",
 			"mavenugo",
                         "sanimej",
+                        "chenchun",
 		]
 
 [people]
@@ -36,6 +37,11 @@
 	Name = "Alexandr Morozov"
 	Email = "lk4d4@docker.com"
 	GitHub = "LK4D4"
+
+	[people.chenchun]
+	Name = "Chun Chen"
+	Email = "ramichen@tencent.com"
+	GitHub = "chenchun"
 
 	[people.icecrime]
 	Name = "Arnaud Porterie"

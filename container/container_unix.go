@@ -290,7 +290,6 @@ func (container *Container) BuildJoinOptions(n libnetwork.Network) ([]libnetwork
 // BuildCreateEndpointOptions builds endpoint options from a given network.
 func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epConfig *network.EndpointSettings, sb libnetwork.Sandbox) ([]libnetwork.EndpointOption, error) {
 	var (
-		portSpecs     = make(nat.PortSet)
 		bindings      = make(nat.PortMap)
 		pbList        []types.PortBinding
 		exposeList    []types.TransportPort
@@ -343,10 +342,6 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 		return createOptions, nil
 	}
 
-	if container.Config.ExposedPorts != nil {
-		portSpecs = container.Config.ExposedPorts
-	}
-
 	if container.HostConfig.PortBindings != nil {
 		for p, b := range container.HostConfig.PortBindings {
 			bindings[p] = []nat.PortBinding{}
@@ -359,6 +354,7 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 		}
 	}
 
+	portSpecs := container.Config.ExposedPorts
 	ports := make([]nat.Port, len(portSpecs))
 	var i int
 	for p := range portSpecs {

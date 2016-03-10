@@ -3,6 +3,7 @@ package remote
 import (
 	"fmt"
 	"net"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/plugins"
@@ -11,6 +12,10 @@ import (
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/docker/libnetwork/types"
+)
+
+const (
+	missingMethod = "404 page not found"
 )
 
 type driver struct {
@@ -245,6 +250,35 @@ func (d *driver) Leave(nid, eid string) error {
 		EndpointID: eid,
 	}
 	return d.call("Leave", leave, &api.LeaveResponse{})
+}
+
+// ProgramExternalConnectivity is invoked to program the rules to allow external connectivity for the endpoint.
+func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
+	data := &api.ProgramExternalConnectivityRequest{
+		NetworkID:  nid,
+		EndpointID: eid,
+		Options:    options,
+	}
+	err := d.call("ProgramExternalConnectivity", data, &api.ProgramExternalConnectivityResponse{})
+	if err != nil && strings.Contains(err.Error(), missingMethod) {
+		// It is not mandatory yet to support this method
+		return nil
+	}
+	return err
+}
+
+// RevokeExternalConnectivity method is invoked to remove any external connectivity programming related to the endpoint.
+func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
+	data := &api.RevokeExternalConnectivityRequest{
+		NetworkID:  nid,
+		EndpointID: eid,
+	}
+	err := d.call("RevokeExternalConnectivity", data, &api.RevokeExternalConnectivityResponse{})
+	if err != nil && strings.Contains(err.Error(), missingMethod) {
+		// It is not mandatory yet to support this method
+		return nil
+	}
+	return err
 }
 
 func (d *driver) Type() string {
