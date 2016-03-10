@@ -71,6 +71,7 @@ import (
 	"github.com/docker/docker/volume/store"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork"
+	nwconfig "github.com/docker/libnetwork/config"
 	lntypes "github.com/docker/libnetwork/types"
 	"github.com/docker/libtrust"
 	"github.com/opencontainers/runc/libcontainer"
@@ -1692,4 +1693,46 @@ func validateID(id string) error {
 		return fmt.Errorf("Invalid empty id")
 	}
 	return nil
+}
+
+func isBridgeNetworkDisabled(config *Config) bool {
+	return config.bridgeConfig.Iface == disableNetworkBridge
+}
+
+func (daemon *Daemon) networkOptions(dconfig *Config) ([]nwconfig.Option, error) {
+	options := []nwconfig.Option{}
+	if dconfig == nil {
+		return options, nil
+	}
+
+	options = append(options, nwconfig.OptionDataDir(dconfig.Root))
+
+	dd := runconfig.DefaultDaemonNetworkMode()
+	dn := runconfig.DefaultDaemonNetworkMode().NetworkName()
+	options = append(options, nwconfig.OptionDefaultDriver(string(dd)))
+	options = append(options, nwconfig.OptionDefaultNetwork(dn))
+
+	if strings.TrimSpace(dconfig.ClusterStore) != "" {
+		kv := strings.Split(dconfig.ClusterStore, "://")
+		if len(kv) != 2 {
+			return nil, fmt.Errorf("kv store daemon config must be of the form KV-PROVIDER://KV-URL")
+		}
+		options = append(options, nwconfig.OptionKVProvider(kv[0]))
+		options = append(options, nwconfig.OptionKVProviderURL(kv[1]))
+	}
+	if len(dconfig.ClusterOpts) > 0 {
+		options = append(options, nwconfig.OptionKVOpts(dconfig.ClusterOpts))
+	}
+
+	if daemon.discoveryWatcher != nil {
+		options = append(options, nwconfig.OptionDiscoveryWatcher(daemon.discoveryWatcher))
+	}
+
+	if dconfig.ClusterAdvertise != "" {
+		options = append(options, nwconfig.OptionDiscoveryAddress(dconfig.ClusterAdvertise))
+	}
+
+	options = append(options, nwconfig.OptionLabels(dconfig.Labels))
+	options = append(options, driverOptions(dconfig)...)
+	return options, nil
 }

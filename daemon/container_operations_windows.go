@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"strings"
 
+	networktypes "github.com/docker/engine-api/types/network"
+
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/windows"
 	"github.com/docker/docker/layer"
-	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/docker/libnetwork"
 )
 
@@ -18,28 +19,14 @@ func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]s
 	return nil, nil
 }
 
-// updateContainerNetworkSettings update the network settings
-func (daemon *Daemon) updateContainerNetworkSettings(container *container.Container, endpointsConfig map[string]*networktypes.EndpointSettings) error {
-	return nil
-}
-
-func (daemon *Daemon) initializeNetworking(container *container.Container) error {
-	return nil
-}
-
-// ConnectToNetwork connects a container to the network
+// ConnectToNetwork connects a container to a network
 func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings) error {
-	return nil
+	return fmt.Errorf("Windows does not support connecting a running container to a network")
 }
 
-// ForceEndpointDelete deletes an endpoing from a network forcefully
-func (daemon *Daemon) ForceEndpointDelete(name string, n libnetwork.Network) error {
-	return nil
-}
-
-// DisconnectFromNetwork disconnects a container from the network.
+// DisconnectFromNetwork disconnects container from a network.
 func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n libnetwork.Network, force bool) error {
-	return nil
+	return fmt.Errorf("Windows does not support disconnecting a running container from a network")
 }
 
 func (daemon *Daemon) populateCommand(c *container.Container, env []string) error {
@@ -47,24 +34,51 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		Interface: nil,
 	}
 
-	parts := strings.SplitN(string(c.HostConfig.NetworkMode), ":", 2)
-	switch parts[0] {
-	case "none":
-	case "default", "": // empty string to support existing containers
-		if !c.Config.NetworkDisabled {
-			en.Interface = &execdriver.NetworkInterface{
-				MacAddress:   c.Config.MacAddress,
-				Bridge:       daemon.configStore.bridgeConfig.VirtualSwitchName,
-				PortBindings: c.HostConfig.PortBindings,
+	var epList []string
 
-				// TODO Windows. Include IPAddress. There already is a
-				// property IPAddress on execDrive.CommonNetworkInterface,
-				// but there is no CLI option in docker to pass through
-				// an IPAddress on docker run.
+	// Connect all the libnetwork allocated networks to the container
+	if c.NetworkSettings != nil {
+		for n := range c.NetworkSettings.Networks {
+			sn, err := daemon.FindNetwork(n)
+			if err != nil {
+				continue
+			}
+
+			ep, err := c.GetEndpointInNetwork(sn)
+			if err != nil {
+				continue
+			}
+
+			data, err := ep.DriverInfo()
+			if err != nil {
+				continue
+			}
+			if data["hnsid"] != nil {
+				epList = append(epList, data["hnsid"].(string))
 			}
 		}
-	default:
-		return fmt.Errorf("invalid network mode: %s", c.HostConfig.NetworkMode)
+	}
+
+	if daemon.netController == nil {
+		parts := strings.SplitN(string(c.HostConfig.NetworkMode), ":", 2)
+		switch parts[0] {
+		case "none":
+		case "default", "": // empty string to support existing containers
+			if !c.Config.NetworkDisabled {
+				en.Interface = &execdriver.NetworkInterface{
+					MacAddress:   c.Config.MacAddress,
+					Bridge:       daemon.configStore.bridgeConfig.Iface,
+					PortBindings: c.HostConfig.PortBindings,
+
+					// TODO Windows. Include IPAddress. There already is a
+					// property IPAddress on execDrive.CommonNetworkInterface,
+					// but there is no CLI option in docker to pass through
+					// an IPAddress on docker run.
+				}
+			}
+		default:
+			return fmt.Errorf("invalid network mode: %s", c.HostConfig.NetworkMode)
+		}
 	}
 
 	// TODO Windows. More resource controls to be implemented later.
@@ -138,6 +152,7 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		Isolation:   string(c.HostConfig.Isolation),
 		ArgsEscaped: c.Config.ArgsEscaped,
 		HvPartition: hvPartition,
+		EpList:      epList,
 	}
 
 	return nil
@@ -152,18 +167,6 @@ func (daemon *Daemon) getSize(container *container.Container) (int64, int64) {
 // setNetworkNamespaceKey is a no-op on Windows.
 func (daemon *Daemon) setNetworkNamespaceKey(containerID string, pid int) error {
 	return nil
-}
-
-// allocateNetwork is a no-op on Windows.
-func (daemon *Daemon) allocateNetwork(container *container.Container) error {
-	return nil
-}
-
-func (daemon *Daemon) updateNetwork(container *container.Container) error {
-	return nil
-}
-
-func (daemon *Daemon) releaseNetwork(container *container.Container) {
 }
 
 func (daemon *Daemon) setupIpcDirs(container *container.Container) error {
@@ -186,4 +189,8 @@ func detachMounted(path string) error {
 
 func killProcessDirectly(container *container.Container) error {
 	return nil
+}
+
+func isLinkable(child *container.Container) bool {
+	return false
 }

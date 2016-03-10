@@ -101,6 +101,11 @@ bundles:
 
 cross: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross
+	
+	
+win: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh win
+
 
 deb: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-deb
