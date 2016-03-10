@@ -1,22 +1,14 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
-	"text/template"
 
 	"github.com/docker/docker/api/client/inspect"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/utils/templates"
 	"github.com/docker/engine-api/client"
 )
-
-var funcMap = template.FuncMap{
-	"json": func(v interface{}) string {
-		a, _ := json.Marshal(v)
-		return string(a)
-	},
-}
 
 // CmdInspect displays low-level information on one or more containers or images.
 //
@@ -123,7 +115,7 @@ func (cli *DockerCli) inspectErrorStatus(err error) (status int) {
 func (cli *DockerCli) newInspectorWithTemplate(tmplStr string) (inspect.Inspector, error) {
 	elementInspector := inspect.NewIndentedInspector(cli.out)
 	if tmplStr != "" {
-		tmpl, err := template.New("").Funcs(funcMap).Parse(tmplStr)
+		tmpl, err := templates.Parse(tmplStr)
 		if err != nil {
 			return nil, fmt.Errorf("Template parsing error: %s", err)
 		}
