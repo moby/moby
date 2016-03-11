@@ -141,6 +141,10 @@ clean() {
 	echo -n 'pruning unused files, '
 	$find vendor -type f -name '*_test.go' -exec rm -v '{}' ';'
 
+	# These are the files that are left over after fix_rewritten_imports is run.
+	echo -n 'pruning .orig files, '
+	$find vendor -type f -name '*.orig' -exec rm -v '{}' ';'
+
 	echo done
 }
 
@@ -151,5 +155,5 @@ fix_rewritten_imports () {
        local target="vendor/src/$pkg"
 
        echo "$pkg: fixing rewritten imports"
-       $find "$target" -name \*.go -exec sed -i -e "s|\"${remove}|\"|g" {} \;
+       $find "$target" -name \*.go -exec sed -i'.orig' -e "s|\"${remove}|\"|g" {} \;
 }
