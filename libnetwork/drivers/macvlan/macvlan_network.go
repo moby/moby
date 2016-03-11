@@ -20,7 +20,7 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, ipV4Da
 	if err != nil {
 		return fmt.Errorf("failed to check kernel version for %s driver support: %v", macvlanType, err)
 	}
-	// ensure Kernel version is greater then v3.9 for macvlan support
+	// ensure Kernel version is >= v3.9 for macvlan support
 	if kv.Kernel < macvlanKernelVer || (kv.Kernel == macvlanKernelVer && kv.Major < macvlanMajorVer) {
 		return fmt.Errorf("kernel version failed to meet the minimum macvlan kernel requirement of %d.%d, found %d.%d.%d",
 			macvlanKernelVer, macvlanMajorVer, kv.Kernel, kv.Major, kv.Minor)

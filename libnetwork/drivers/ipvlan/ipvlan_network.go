@@ -20,8 +20,8 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, ipV4Da
 	if err != nil {
 		return fmt.Errorf("Failed to check kernel version for %s driver support: %v", ipvlanType, err)
 	}
-	// ensure Kernel version is greater then v4.0 for ipvlan support
-	if kv.Kernel < ipvlanKernelVer {
+	// ensure Kernel version is >= v4.2 for ipvlan support
+	if kv.Kernel < ipvlanKernelVer || (kv.Kernel == ipvlanKernelVer && kv.Major < ipvlanMajorVer) {
 		return fmt.Errorf("kernel version failed to meet the minimum ipvlan kernel requirement of %d.%d, found %d.%d.%d",
 			ipvlanKernelVer, ipvlanMajorVer, kv.Kernel, kv.Major, kv.Minor)
 	}

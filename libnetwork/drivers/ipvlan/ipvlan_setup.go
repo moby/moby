@@ -15,7 +15,7 @@ import (
 const (
 	dummyPrefix     = "di-" // ipvlan prefix for dummy parent interface
 	ipvlanKernelVer = 4     // minimum ipvlan kernel support
-	ipvlanMajorVer  = 0     // minimum ipvlan major kernel support
+	ipvlanMajorVer  = 2     // minimum ipvlan major kernel support
 )
 
 // createIPVlan Create the ipvlan slave specifying the source name
