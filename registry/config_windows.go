@@ -1,28 +1,9 @@
 package registry
 
 import (
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
-)
-
-var (
-	// DefaultV1Registry is the URI of the default v1 registry
-	DefaultV1Registry = &url.URL{
-		Scheme: "https",
-		Host:   "registry-win-tp3.docker.io",
-	}
-
-	// DefaultV2Registry is the URI of the default (official) v2 registry.
-	// This is the windows-specific endpoint.
-	//
-	// Currently it is a TEMPORARY link that allows Microsoft to continue
-	// development of Docker Engine for Windows.
-	DefaultV2Registry = &url.URL{
-		Scheme: "https",
-		Host:   "registry-win-tp3.docker.io",
-	}
 )
 
 // CertsDir is the directory where certificates are stored
