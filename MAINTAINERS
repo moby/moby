@@ -34,6 +34,7 @@
 			"duglin",
 			"estesp",
 			"icecrime",
+			"jhowardmsft",
 			"jfrazelle",
 			"lk4d4",
 			"mhbauer",
@@ -161,6 +162,11 @@
 	Name = "James Turnbull"
 	Email = "james@lovedthanlost.net"
 	GitHub = "jamtur01"
+
+	[people.jhowardmsft]
+	Name = "John Howard"
+	Email = "jhoward@microsoft.com"
+	GitHub = "jhowardmsft"
 
 	[people.jfrazelle]
 	Name = "Jessie Frazelle"
