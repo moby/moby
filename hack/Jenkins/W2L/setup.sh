@@ -196,7 +196,7 @@ fi
 if [ $ec -eq 0 ]; then
 	echo "INFO: Starting local build of Windows binary..."
 	set -x
-	export TIMEOUT="120m"
+	export TIMEOUT="5m"
 	export DOCKER_HOST="tcp://$ip:$port_inner"
 	export DOCKER_TEST_HOST="tcp://$ip:$port_inner"
 	unset DOCKER_CLIENTONLY

@@ -169,14 +169,12 @@ BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
 # Test timeout.
 
 if [ "${DOCKER_ENGINE_GOARCH}" == "arm" ]; then
-	: ${TIMEOUT:=210m}
+	: ${TIMEOUT:=10m}
 elif [ "${DOCKER_ENGINE_GOARCH}" == "windows" ]; then
-	: ${TIMEOUT:=180m}
+	: ${TIMEOUT:=8m}
 else
-	: ${TIMEOUT:=120m}
+	: ${TIMEOUT:=5m}
 fi
-
-TESTFLAGS+=" -test.timeout=${TIMEOUT}"
 
 LDFLAGS_STATIC_DOCKER="
 	$LDFLAGS_STATIC
@@ -250,6 +248,7 @@ test_env() {
 		DOCKER_REMAP_ROOT="$DOCKER_REMAP_ROOT" \
 		DOCKER_REMOTE_DAEMON="$DOCKER_REMOTE_DAEMON" \
 		GOPATH="$GOPATH" \
+		GOTRACEBACK=all \
 		HOME="$ABS_DEST/fake-HOME" \
 		PATH="$PATH" \
 		TEMP="$TEMP" \
