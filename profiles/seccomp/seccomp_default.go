@@ -1029,6 +1029,11 @@ var DefaultProfile = &types.Seccomp{
 			Args:   []*types.Arg{},
 		},
 		{
+			Name:   "restart_syscall",
+			Action: types.ActAllow,
+			Args:   []*types.Arg{},
+		},
+		{
 			Name:   "rmdir",
 			Action: types.ActAllow,
 			Args:   []*types.Arg{},

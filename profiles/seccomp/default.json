@@ -1000,6 +1000,11 @@
 			"args": []
 		},
 		{
+			"name": "restart_syscall",
+			"action": "SCMP_ACT_ALLOW",
+			"args": []
+		},
+		{
 			"name": "rmdir",
 			"action": "SCMP_ACT_ALLOW",
 			"args": []
