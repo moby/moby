@@ -29,7 +29,7 @@ type V1Image struct {
 	Created time.Time `json:"created"`
 	// Container is the id of the container used to commit
 	Container string `json:"container,omitempty"`
-	// ContainerConfig  is the configuration of the container that is committed into the image
+	// ContainerConfig is the configuration of the container that is committed into the image
 	ContainerConfig container.Config `json:"container_config,omitempty"`
 	// DockerVersion specifies version on which image is built
 	DockerVersion string `json:"docker_version,omitempty"`
