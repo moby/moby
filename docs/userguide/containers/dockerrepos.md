@@ -31,17 +31,21 @@ Docker itself provides access to Docker Hub services via the `docker search`,
 `pull`, `login`, and `push` commands. This page will show you how these commands work.
 
 ### Account creation and login
-Typically, you'll want to start by creating an account on Docker Hub (if you haven't
-already) and logging in. You can create your account directly on
-[Docker Hub](https://hub.docker.com/account/signup/).
+Before you try an Engine CLI command, if you haven't already, create a Docker
+ID. You can do this through [Docker Hub](https://hub.docker.com/). Once you have
+a Docker ID, log into your account from the Engine CLI:
 
-    $ docker login
+```bash
+$ docker login
+```
 
-You can now commit and push your own images up to your repos on Docker Hub.
+The `login` command stores your Docker ID authentication credentials in the
+`$HOME/.docker/config.json` (Bash notation). For Windows `cmd` users the
+notation for this file is `%HOME%\.docker\config.json` ; for PowerShell users
+the notation is `$env:Home\.docker\config.json`. 
 
-> **Note:**
-> Your authentication credentials will be stored in the `~/.docker/config.json`
-> authentication file in your home directory.
+Once you have logged in from the command line, you can `commit` and `push`
+Engine subcommands to interact with your repos on Docker Hub.
 
 ## Searching for images
 
