@@ -208,3 +208,71 @@ func TestFindConfigurationConflictsWithMergedValues(t *testing.T) {
 		t.Fatalf("expected hosts conflict, got %v", err)
 	}
 }
+
+func TestValidateConfiguration(t *testing.T) {
+	c1 := &Config{
+		CommonConfig: CommonConfig{
+			Labels: []string{"one"},
+		},
+	}
+
+	err := validateConfiguration(c1)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	c2 := &Config{
+		CommonConfig: CommonConfig{
+			Labels: []string{"one=two"},
+		},
+	}
+
+	err = validateConfiguration(c2)
+	if err != nil {
+		t.Fatalf("expected no error, got error %v", err)
+	}
+
+	c3 := &Config{
+		CommonConfig: CommonConfig{
+			DNS: []string{"1.1.1.1"},
+		},
+	}
+
+	err = validateConfiguration(c3)
+	if err != nil {
+		t.Fatalf("expected no error, got error %v", err)
+	}
+
+	c4 := &Config{
+		CommonConfig: CommonConfig{
+			DNS: []string{"1.1.1.1o"},
+		},
+	}
+
+	err = validateConfiguration(c4)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	c5 := &Config{
+		CommonConfig: CommonConfig{
+			DNSSearch: []string{"a.b.c"},
+		},
+	}
+
+	err = validateConfiguration(c5)
+	if err != nil {
+		t.Fatalf("expected no error, got error %v", err)
+	}
+
+	c6 := &Config{
+		CommonConfig: CommonConfig{
+			DNSSearch: []string{"123456"},
+		},
+	}
+
+	err = validateConfiguration(c6)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}

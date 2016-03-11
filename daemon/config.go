@@ -164,6 +164,11 @@ func ReloadConfiguration(configFile string, flags *flag.FlagSet, reload func(*Co
 	if err != nil {
 		return err
 	}
+
+	if err := validateConfiguration(newConfig); err != nil {
+		return fmt.Errorf("file configuration validation failed (%v)", err)
+	}
+
 	reload(newConfig)
 	return nil
 }
@@ -182,6 +187,10 @@ func MergeDaemonConfigurations(flagsConfig *Config, flags *flag.FlagSet, configF
 	fileConfig, err := getConflictFreeConfiguration(configFile, flags)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := validateConfiguration(fileConfig); err != nil {
+		return nil, fmt.Errorf("file configuration validation failed (%v)", err)
 	}
 
 	// merge flags configuration on top of the file configuration
@@ -334,5 +343,32 @@ func findConfigurationConflicts(config map[string]interface{}, flags *flag.FlagS
 	if len(conflicts) > 0 {
 		return fmt.Errorf("the following directives are specified both as a flag and in the configuration file: %s", strings.Join(conflicts, ", "))
 	}
+	return nil
+}
+
+// validateConfiguration validates some specific configs.
+// such as config.DNS, config.Labels, config.DNSSearch
+func validateConfiguration(config *Config) error {
+	// validate DNS
+	for _, dns := range config.DNS {
+		if _, err := opts.ValidateIPAddress(dns); err != nil {
+			return err
+		}
+	}
+
+	// validate DNSSearch
+	for _, dnsSearch := range config.DNSSearch {
+		if _, err := opts.ValidateDNSSearch(dnsSearch); err != nil {
+			return err
+		}
+	}
+
+	// validate Labels
+	for _, label := range config.Labels {
+		if _, err := opts.ValidateLabel(label); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
