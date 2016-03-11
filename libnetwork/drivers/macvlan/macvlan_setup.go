@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/libnetwork/osl"
 	"github.com/vishvananda/netlink"
 )
 
@@ -21,8 +20,6 @@ const (
 
 // Create the macvlan slave specifying the source name
 func createMacVlan(containerIfName, parent, macvlanMode string) (string, error) {
-	defer osl.InitOSContext()()
-
 	// Set the macvlan mode. Default is bridge mode
 	mode, err := setMacVlanMode(macvlanMode)
 	if err != nil {

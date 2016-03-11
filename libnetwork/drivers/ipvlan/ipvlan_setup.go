@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/libnetwork/osl"
 	"github.com/vishvananda/netlink"
 )
 
@@ -21,8 +20,6 @@ const (
 
 // createIPVlan Create the ipvlan slave specifying the source name
 func createIPVlan(containerIfName, parent, ipvlanMode string) (string, error) {
-	defer osl.InitOSContext()()
-
 	// Set the ipvlan mode. Default is bridge mode
 	mode, err := setIPVlanMode(ipvlanMode)
 	if err != nil {

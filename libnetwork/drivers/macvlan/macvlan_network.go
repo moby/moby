@@ -9,11 +9,13 @@ import (
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
+	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
 )
 
 // CreateNetwork the network for the specified driver type
 func (d *driver) CreateNetwork(nid string, option map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+	defer osl.InitOSContext()()
 	kv, err := kernel.GetKernelVersion()
 	if err != nil {
 		return fmt.Errorf("failed to check kernel version for %s driver support: %v", macvlanType, err)
@@ -123,6 +125,7 @@ func (d *driver) createNetwork(config *configuration) error {
 
 // DeleteNetwork the network for the specified driver type
 func (d *driver) DeleteNetwork(nid string) error {
+	defer osl.InitOSContext()()
 	n := d.network(nid)
 	if n == nil {
 		return fmt.Errorf("network id %s not found", nid)
