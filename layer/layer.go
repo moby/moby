@@ -1,11 +1,11 @@
-// Package layer is package for managing read only
+// Package layer is package for managing read-only
 // and read-write mounts on the union file system
 // driver. Read-only mounts are referenced using a
 // content hash and are protected from mutation in
 // the exposed interface. The tar format is used
-// to create read only layers and export both
-// read only and writable layers. The exported
-// tar data for a read only layer should match
+// to create read-only layers and export both
+// read-only and writable layers. The exported
+// tar data for a read-only layer should match
 // the tar used to create the layer.
 package layer
 
@@ -75,7 +75,7 @@ type TarStreamer interface {
 	TarStream() (io.ReadCloser, error)
 }
 
-// Layer represents a read only layer
+// Layer represents a read-only layer
 type Layer interface {
 	TarStreamer
 
@@ -138,7 +138,7 @@ type RWLayer interface {
 }
 
 // Metadata holds information about a
-// read only layer
+// read-only layer
 type Metadata struct {
 	// ChainID is the content hash of the layer
 	ChainID ChainID
@@ -247,7 +247,7 @@ func ReleaseAndLog(ls Store, l Layer) {
 	LogReleaseMetadata(metadata)
 }
 
-// LogReleaseMetadata logs a metadata array, use this to
+// LogReleaseMetadata logs a metadata array, uses this to
 // ensure consistent logging for release metadata
 func LogReleaseMetadata(metadatas []Metadata) {
 	for _, metadata := range metadatas {

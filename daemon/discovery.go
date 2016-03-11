@@ -75,8 +75,8 @@ func discoveryOpts(clusterOpts map[string]string) (time.Duration, time.Duration,
 	return heartbeat, ttl, nil
 }
 
-// initDiscovery initialized the nodes discovery subsystem by connecting to the specified backend
-// and start a registration loop to advertise the current node under the specified address.
+// initDiscovery initializes the nodes discovery subsystem by connecting to the specified backend
+// and starts a registration loop to advertise the current node under the specified address.
 func initDiscovery(backendAddress, advertiseAddress string, clusterOpts map[string]string) (discoveryReloader, error) {
 	heartbeat, backend, err := parseDiscoveryOptions(backendAddress, clusterOpts)
 	if err != nil {
