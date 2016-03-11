@@ -26,12 +26,16 @@ import (
 // SystemInfo returns information about the host server the daemon is running on.
 func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	kernelVersion := "<unknown>"
-	if kv, err := kernel.GetKernelVersion(); err == nil {
+	if kv, err := kernel.GetKernelVersion(); err != nil {
+		logrus.Warnf("Could not get kernel version: %v", err)
+	} else {
 		kernelVersion = kv.String()
 	}
 
 	operatingSystem := "<unknown>"
-	if s, err := operatingsystem.GetOperatingSystem(); err == nil {
+	if s, err := operatingsystem.GetOperatingSystem(); err != nil {
+		logrus.Warnf("Could not get operating system name: %v", err)
+	} else {
 		operatingSystem = s
 	}
 
