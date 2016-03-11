@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
@@ -13,6 +14,15 @@ import (
 
 // CreateNetwork the network for the specified driver type
 func (d *driver) CreateNetwork(nid string, option map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+	kv, err := kernel.GetKernelVersion()
+	if err != nil {
+		return fmt.Errorf("failed to check kernel version for %s driver support: %v", macvlanType, err)
+	}
+	// ensure Kernel version is greater then v3.9 for macvlan support
+	if kv.Kernel < macvlanKernelVer || (kv.Kernel == macvlanKernelVer && kv.Major < macvlanMajorVer) {
+		return fmt.Errorf("kernel version failed to meet the minimum macvlan kernel requirement of %d.%d, found %d.%d.%d",
+			macvlanKernelVer, macvlanMajorVer, kv.Kernel, kv.Major, kv.Minor)
+	}
 	// parse and validate the config and bind to networkConfiguration
 	config, err := parseNetworkOptions(nid, option)
 	if err != nil {
