@@ -76,10 +76,6 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, ipV4Da
 
 // createNetwork is used by new network callbacks and persistent network cache
 func (d *driver) createNetwork(config *configuration) error {
-	// fail the network create if the macvlan kernel module is unavailable
-	if err := kernelSupport(macvlanType); err != nil {
-		return err
-	}
 	networkList := d.getNetworks()
 	for _, nw := range networkList {
 		if config.Parent == nw.config.Parent {

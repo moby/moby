@@ -1,10 +1,7 @@
 package ipvlan
 
 import (
-	"bufio"
 	"fmt"
-	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 
@@ -70,25 +67,6 @@ func parentExists(ifaceStr string) bool {
 	}
 
 	return true
-}
-
-// kernelSupport for the necessary kernel module for the driver type
-func kernelSupport(networkTpe string) error {
-	// attempt to load the module, silent if successful or already loaded
-	exec.Command("modprobe", ipvlanType).Run()
-	f, err := os.Open("/proc/modules")
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	s := bufio.NewScanner(f)
-	for s.Scan() {
-		if strings.Contains(s.Text(), ipvlanType) {
-			return nil
-		}
-	}
-
-	return fmt.Errorf("unable to load the Linux kernel module %s", ipvlanType)
 }
 
 // createVlanLink parses sub-interfaces and vlan id for creation
