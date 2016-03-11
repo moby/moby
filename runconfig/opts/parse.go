@@ -695,8 +695,12 @@ func validatePath(val string, validator func(string) bool) (string, error) {
 }
 
 // volumeSplitN splits raw into a maximum of n parts, separated by a separator colon.
-// A separator colon is the last `:` character in the regex `[/:\\]?[a-zA-Z]:` (note `\\` is `\` escaped).
-// This allows to correctly split strings such as `C:\foo:D:\:rw`.
+// A separator colon is the last `:` character in the regex `[:\\]?[a-zA-Z]:` (note `\\` is `\` escaped).
+// In Windows driver letter appears in two situations:
+// a. `^[a-zA-Z]:` (A colon followed  by `^[a-zA-Z]:` is OK as colon is the separator in volume option)
+// b. A string in the format like `\\?\C:\Windows\...` (UNC).
+// Therefore, a driver letter can only follow either a `:` or `\\`
+// This allows to correctly split strings such as `C:\foo:D:\:rw` or `/tmp/q:/foo`.
 func volumeSplitN(raw string, n int) []string {
 	var array []string
 	if len(raw) == 0 || raw[0] == ':' {
@@ -721,7 +725,8 @@ func volumeSplitN(raw string, n int) []string {
 		if (potentialDriveLetter >= 'A' && potentialDriveLetter <= 'Z') || (potentialDriveLetter >= 'a' && potentialDriveLetter <= 'z') {
 			if right > 1 {
 				beforePotentialDriveLetter := raw[right-2]
-				if beforePotentialDriveLetter != ':' && beforePotentialDriveLetter != '/' && beforePotentialDriveLetter != '\\' {
+				// Only `:` or `\\` are checked (`/` could fall into the case of `/tmp/q:/foo`)
+				if beforePotentialDriveLetter != ':' && beforePotentialDriveLetter != '\\' {
 					// e.g. `C:` is not preceded by any delimiter, therefore it was not a drive letter but a path ending with `C:`.
 					array = append(array, raw[left:right])
 					left = right + 1
