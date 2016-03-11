@@ -146,46 +146,53 @@ func getBuiltinDriver(name, home string, options []string, uidMaps, gidMaps []id
 }
 
 // New creates the driver and initializes it at the specified root.
-func New(root string, name string, options []string, uidMaps, gidMaps []idtools.IDMap) (driver Driver, err error) {
+func New(root string, name string, options []string, uidMaps, gidMaps []idtools.IDMap) (Driver, error) {
 	if name != "" {
 		logrus.Debugf("[graphdriver] trying provided driver %q", name) // so the logs show specified driver
 		return GetDriver(name, root, options, uidMaps, gidMaps)
 	}
 
 	// Guess for prior driver
-	priorDrivers := scanPriorDrivers(root)
+	driversMap := scanPriorDrivers(root)
 	for _, name := range priority {
 		if name == "vfs" {
 			// don't use vfs even if there is state present.
 			continue
 		}
-		for _, prior := range priorDrivers {
+		if _, prior := driversMap[name]; prior {
 			// of the state found from prior drivers, check in order of our priority
 			// which we would prefer
-			if prior == name {
-				driver, err = getBuiltinDriver(name, root, options, uidMaps, gidMaps)
-				if err != nil {
-					// unlike below, we will return error here, because there is prior
-					// state, and now it is no longer supported/prereq/compatible, so
-					// something changed and needs attention. Otherwise the daemon's
-					// images would just "disappear".
-					logrus.Errorf("[graphdriver] prior storage driver %q failed: %s", name, err)
-					return nil, err
-				}
-				if err := checkPriorDriver(name, root); err != nil {
-					return nil, err
-				}
-				logrus.Infof("[graphdriver] using prior storage driver %q", name)
-				return driver, nil
+			driver, err := getBuiltinDriver(name, root, options, uidMaps, gidMaps)
+			if err != nil {
+				// unlike below, we will return error here, because there is prior
+				// state, and now it is no longer supported/prereq/compatible, so
+				// something changed and needs attention. Otherwise the daemon's
+				// images would just "disappear".
+				logrus.Errorf("[graphdriver] prior storage driver %q failed: %s", name, err)
+				return nil, err
 			}
+
+			// abort starting when there are other prior configured drivers
+			// to ensure the user explicitly selects the driver to load
+			if len(driversMap)-1 > 0 {
+				var driversSlice []string
+				for name := range driversMap {
+					driversSlice = append(driversSlice, name)
+				}
+
+				return nil, fmt.Errorf("%q contains several valid graphdrivers: %s; Please cleanup or explicitly choose storage driver (-s <DRIVER>)", root, strings.Join(driversSlice, ", "))
+			}
+
+			logrus.Infof("[graphdriver] using prior storage driver %q", name)
+			return driver, nil
 		}
 	}
 
 	// Check for priority drivers first
 	for _, name := range priority {
-		driver, err = getBuiltinDriver(name, root, options, uidMaps, gidMaps)
+		driver, err := getBuiltinDriver(name, root, options, uidMaps, gidMaps)
 		if err != nil {
-			if err == ErrNotSupported || err == ErrPrerequisites || err == ErrIncompatibleFS {
+			if isDriverNotSupported(err) {
 				continue
 			}
 			return nil, err
@@ -194,9 +201,10 @@ func New(root string, name string, options []string, uidMaps, gidMaps []idtools.
 	}
 
 	// Check all registered drivers if no priority driver is found
-	for _, initFunc := range drivers {
-		if driver, err = initFunc(root, options, uidMaps, gidMaps); err != nil {
-			if err == ErrNotSupported || err == ErrPrerequisites || err == ErrIncompatibleFS {
+	for name, initFunc := range drivers {
+		driver, err := initFunc(filepath.Join(root, name), options, uidMaps, gidMaps)
+		if err != nil {
+			if isDriverNotSupported(err) {
 				continue
 			}
 			return nil, err
@@ -206,31 +214,21 @@ func New(root string, name string, options []string, uidMaps, gidMaps []idtools.
 	return nil, fmt.Errorf("No supported storage backend found")
 }
 
+// isDriverNotSupported returns true if the error initializing
+// the graph driver is a non-supported error.
+func isDriverNotSupported(err error) bool {
+	return err == ErrNotSupported || err == ErrPrerequisites || err == ErrIncompatibleFS
+}
+
 // scanPriorDrivers returns an un-ordered scan of directories of prior storage drivers
-func scanPriorDrivers(root string) []string {
-	priorDrivers := []string{}
+func scanPriorDrivers(root string) map[string]bool {
+	driversMap := make(map[string]bool)
+
 	for driver := range drivers {
 		p := filepath.Join(root, driver)
 		if _, err := os.Stat(p); err == nil && driver != "vfs" {
-			priorDrivers = append(priorDrivers, driver)
+			driversMap[driver] = true
 		}
 	}
-	return priorDrivers
-}
-
-func checkPriorDriver(name, root string) error {
-	priorDrivers := []string{}
-	for _, prior := range scanPriorDrivers(root) {
-		if prior != name && prior != "vfs" {
-			if _, err := os.Stat(filepath.Join(root, prior)); err == nil {
-				priorDrivers = append(priorDrivers, prior)
-			}
-		}
-	}
-
-	if len(priorDrivers) > 0 {
-
-		return fmt.Errorf("%q contains other graphdrivers: %s; Please cleanup or explicitly choose storage driver (-s <DRIVER>)", root, strings.Join(priorDrivers, ","))
-	}
-	return nil
+	return driversMap
 }
