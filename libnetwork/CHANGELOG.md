@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.0-dev.6 (2016-03-10)
+- Experimental support for macvlan and ipvlan drivers
+
 ## 0.7.0-dev.5 (2016-03-08)
 - Fixes https://github.com/docker/docker/issues/20847
 - Fixes https://github.com/docker/docker/issues/20997
