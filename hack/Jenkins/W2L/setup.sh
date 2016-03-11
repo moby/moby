@@ -1,9 +1,9 @@
 # Jenkins CI script for Windows to Linux CI.
 # Heavily modified by John Howard (@jhowardmsft) December 2015 to try to make it more reliable.
 set +xe
-SCRIPT_VER="Thu Feb 25 18:54:57 UTC 2016"
+SCRIPT_VER="Fri Feb 26 23:32:56 UTC 2016"
 
-# TODO to make (even) more resilient: 
+# TODO to make (even) more resilient:
 #  - Wait for daemon to be running before executing docker commands
 #  - Check if jq is installed
 #  - Make sure bash is v4.3 or later. Can't do until all Azure nodes on the latest version
@@ -78,7 +78,7 @@ if [ $ec -eq 0 ]; then
 		ping $ip
 	else
 		echo "INFO: The Linux nodes outer daemon replied to a ping. Good!"
-	fi 
+	fi
 fi
 
 # Get the version from the remote node. Note this may fail if jq is not installed.
@@ -126,24 +126,25 @@ fi
 # Tidy up time
 if [ $ec -eq 0 ]; then
 	echo INFO: Deleting pre-existing containers and images...
+
 	# Force remove all containers based on a previously built image with this commit
 	! docker rm -f $(docker ps -aq --filter "ancestor=docker:$COMMITHASH") &>/dev/null
 
 	# Force remove any container with this commithash as a name
 	! docker rm -f $(docker ps -aq --filter "name=docker-$COMMITHASH") &>/dev/null
 
-	# Force remove the image if it exists
-	! docker rmi -f "docker-$COMMITHASH" &>/dev/null
-	
 	# This SHOULD never happen, but just in case, also blow away any containers
-	# that might be around. 
-	! if [ ! `docker ps -aq | wc -l` -eq 0 ]; then
+	# that might be around.
+    ! if [ ! $(docker ps -aq | wc -l) -eq 0 ]; then
 		echo WARN: There were some leftover containers. Cleaning them up.
 		! docker rm -f $(docker ps -aq)
 	fi
+
+    # Force remove the image if it exists
+    ! docker rmi -f "docker-$COMMITHASH" &>/dev/null
 fi
 
-# Provide the docker version for debugging purposes. If these fail, game over. 
+# Provide the docker version for debugging purposes. If these fail, game over.
 # as the Linux box isn't responding for some reason.
 if [ $ec -eq 0 ]; then
 	echo INFO: Docker version and info of the outer daemon on the Linux node
@@ -167,24 +168,14 @@ if [ $ec -eq 0 ]; then
 	echo
 fi
 
-# build the daemon image
-if [ $ec -eq 0 ]; then
-	echo "INFO: Running docker build on Linux host at $DOCKER_HOST"
-	set -x
-	docker build --rm --force-rm -t "docker:$COMMITHASH" .
-	ec=$?
-	set +x
-	if [ 0 -ne $ec ]; then
-		echo "ERROR: docker build failed"
-	fi
-fi
+. hack/Jenkins/W2L/build-image.sh
 
 # Start the docker-in-docker daemon from the image we just built
 if [ $ec -eq 0 ]; then
 	echo "INFO: Starting build of a Linux daemon to test against, and starting it..."
 	set -x
 	# aufs in aufs is faster than vfs in aufs
-	docker run $run_extra_args -e DOCKER_GRAPHDRIVER=aufs --pid host --privileged -d --name "docker-$COMMITHASH" --net host "docker:$COMMITHASH" bash -c "echo 'INFO: Compiling' && date && hack/make.sh binary && echo 'INFO: Compile complete' && date && cp bundles/$(cat VERSION)/binary/docker /bin/docker && echo 'INFO: Starting daemon' && exec docker daemon -D -H tcp://0.0.0.0:$port_inner $daemon_extra_args"
+    docker run -d $run_extra_args -e DOCKER_GRAPHDRIVER=aufs --pid host --privileged --name "docker-$COMMITHASH" --net host "docker:$COMMITHASH"
 	ec=$?
 	set +x
 	if [ 0 -ne $ec ]; then
@@ -192,33 +183,7 @@ if [ $ec -eq 0 ]; then
 	fi
 fi
 
-# Build locally.
-if [ $ec -eq 0 ]; then
-	echo "INFO: Starting local build of Windows binary..."
-	set -x
-	export TIMEOUT="120m"
-	export DOCKER_HOST="tcp://$ip:$port_inner"
-	export DOCKER_TEST_HOST="tcp://$ip:$port_inner"
-	unset DOCKER_CLIENTONLY
-	export DOCKER_REMOTE_DAEMON=1
-	hack/make.sh binary 
-	ec=$?
-	set +x
-	if [ 0 -ne $ec ]; then
-	    echo "ERROR: Build of binary on Windows failed"
-	fi
-fi
-
-# Make a local copy of the built binary and ensure that is first in our path
-if [ $ec -eq 0 ]; then
-	VERSION=$(< ./VERSION)
-	cp bundles/$VERSION/binary/docker.exe $TEMP
-	ec=$?
-	if [ 0 -ne $ec ]; then
-		echo "ERROR: Failed to copy built binary to $TEMP"
-	fi
-	export PATH=$TEMP:$PATH
-fi
+. hack/Jenkins/W2L/build-binary.sh
 
 # Run the integration tests
 if [ $ec -eq 0 ]; then
@@ -232,7 +197,7 @@ if [ $ec -eq 0 ]; then
 	if [ 0 -ne $ec ]; then
 		echo "ERROR: CLI test failed."
 		# Next line is useful, but very long winded if included
-		# docker -H=$MAIN_DOCKER_HOST logs "docker-$COMMITHASH"
+        docker -H=$MAIN_DOCKER_HOST logs --tail 100 "docker-$COMMITHASH"
 	fi
 fi
 
@@ -267,7 +232,7 @@ fi
 
 # Tell the user how we did.
 if [ $ec -eq 0 ]; then
-	echo INFO: Completed successfully at `date`. 
+	echo INFO: Completed successfully at `date`.
 else
 	echo ERROR: Failed with exitcode $ec at `date`.
 fi
