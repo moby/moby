@@ -116,6 +116,7 @@ func (s *containerStats) Collect(cli client.APIClient, streamStats bool, waitFir
 			s.NetworkRx, s.NetworkTx = calculateNetwork(v.Networks)
 			s.BlockRead = float64(blkRead)
 			s.BlockWrite = float64(blkWrite)
+			s.PidsCurrent = v.PidsStats.Current
 			s.mu.Unlock()
 			u <- nil
 			if !streamStats {
@@ -137,6 +138,7 @@ func (s *containerStats) Collect(cli client.APIClient, streamStats bool, waitFir
 			s.NetworkTx = 0
 			s.BlockRead = 0
 			s.BlockWrite = 0
+			s.PidsCurrent = 0
 			s.mu.Unlock()
 			// if this is the first stat you get, release WaitGroup
 			if !getFirst {
