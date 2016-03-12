@@ -42,6 +42,7 @@ var (
 	newBenchMem    = flag.Bool("check.bmem", false, "Report memory benchmarks")
 	newListFlag    = flag.Bool("check.list", false, "List the names of all tests that will be run")
 	newWorkFlag    = flag.Bool("check.work", false, "Display and do not remove the test working directory")
+	checkTimeout   = flag.String("check.timeout", "", "Panic if test runs longer than specified duration")
 )
 
 // TestingT runs all test suites registered with the Suite function,
@@ -60,6 +61,13 @@ func TestingT(testingT *testing.T) {
 		BenchmarkTime: benchTime,
 		BenchmarkMem:  *newBenchMem,
 		KeepWorkDir:   *oldWorkFlag || *newWorkFlag,
+	}
+	if *checkTimeout != "" {
+		timeout, err := time.ParseDuration(*checkTimeout)
+		if err != nil {
+			testingT.Fatalf("error parsing specified timeout flag: %v", err)
+		}
+		conf.CheckTimeout = timeout
 	}
 	if *oldListFlag || *newListFlag {
 		w := bufio.NewWriter(os.Stdout)
