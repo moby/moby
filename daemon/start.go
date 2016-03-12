@@ -41,6 +41,9 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 			if err := daemon.setSecurityOptions(container, hostConfig); err != nil {
 				return err
 			}
+			if err := daemon.mergeAndVerifyLogConfig(&hostConfig.LogConfig); err != nil {
+				return err
+			}
 			if err := daemon.setHostConfig(container, hostConfig); err != nil {
 				return err
 			}

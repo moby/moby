@@ -1748,17 +1748,21 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithContainerWithRestartPolicyAlway
 }
 
 func (s *DockerDaemonSuite) TestDaemonWideLogConfig(c *check.C) {
-	if err := s.d.StartWithBusybox("--log-driver=json-file", "--log-opt=max-size=1k"); err != nil {
+	if err := s.d.StartWithBusybox("--log-opt=max-size=1k"); err != nil {
 		c.Fatal(err)
 	}
-	out, err := s.d.Cmd("run", "-d", "--name=logtest", "busybox", "top")
+	name := "logtest"
+	out, err := s.d.Cmd("run", "-d", "--log-opt=max-file=5", "--name", name, "busybox", "top")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s, err: %v", out, err))
-	out, err = s.d.Cmd("inspect", "-f", "{{ .HostConfig.LogConfig.Config }}", "logtest")
+
+	out, err = s.d.Cmd("inspect", "-f", "{{ .HostConfig.LogConfig.Config }}", name)
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
-	cfg := strings.TrimSpace(out)
-	if cfg != "map[max-size:1k]" {
-		c.Fatalf("Unexpected log-opt: %s, expected map[max-size:1k]", cfg)
-	}
+	c.Assert(out, checker.Contains, "max-size:1k")
+	c.Assert(out, checker.Contains, "max-file:5")
+
+	out, err = s.d.Cmd("inspect", "-f", "{{ .HostConfig.LogConfig.Type }}", name)
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+	c.Assert(strings.TrimSpace(out), checker.Equals, "json-file")
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithPausedContainer(c *check.C) {
