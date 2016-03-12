@@ -526,3 +526,12 @@ func (s *DockerTrustSuite) TestTrustedPushWithReleasesDelegation(c *check.C) {
 	c.Assert(err, check.IsNil, check.Commentf("Unable to read targets/releases metadata"))
 	c.Assert(string(contents), checker.Contains, `"latest"`, check.Commentf(string(contents)))
 }
+
+func (s *DockerRegistryAuthSuite) TestPushNoCredentialsNoRetry(c *check.C) {
+	repoName := fmt.Sprintf("%s/busybox", privateRegistryURL)
+	dockerCmd(c, "tag", "busybox", repoName)
+	out, _, err := dockerCmdWithError("push", repoName)
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, check.Not(checker.Contains), "Retrying")
+	c.Assert(out, checker.Contains, "no basic auth credentials")
+}
