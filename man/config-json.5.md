@@ -7,7 +7,7 @@ HOME/.docker/config.json - Default Docker configuration file
 # INTRODUCTION
 
 By default, the Docker command line stores its configuration files in a
-directory called `.docker` within your `HOME` directory.  Docker manages most of
+directory called `.docker` within your `$HOME` directory.  Docker manages most of
 the files in the configuration directory and you should not modify them.
 However, you *can modify* the `config.json` file to control certain aspects of
 how the `docker` command behaves.

@@ -67,7 +67,7 @@ variables.
 ## Configuration files
 
 By default, the Docker command line stores its configuration files in a
-directory called `.docker` within your `HOME` directory. However, you can
+directory called `.docker` within your `$HOME` directory. However, you can
 specify a different location via the `DOCKER_CONFIG` environment variable
 or the `--config` command line option. If both are specified, then the
 `--config` option overrides the `DOCKER_CONFIG` environment variable.
