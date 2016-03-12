@@ -1,6 +1,6 @@
 <!--[metadata]>
 +++
-aliases = ["/engine/articles/dockerfile_best-practices/"]
+aliases = ["/engine/articles/dockerfile_best-practices/", "/docker-cloud/getting-started/intermediate/optimize-dockerfiles/", "/docker-cloud/tutorials/optimize-dockerfiles/"]
 title = "Best practices for writing Dockerfiles"
 description = "Hints, tips and guidelines for writing clean, reliable Dockerfiles"
 keywords = ["Examples, Usage, base image, docker, documentation, dockerfile, best practices, hub,  official repo"]
