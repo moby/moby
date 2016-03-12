@@ -57,7 +57,7 @@ you can download them from:
 
 ### Usage
 
-You need to speficy the credentials store in `HOME/.docker/config.json`
+You need to speficy the credentials store in `$HOME/.docker/config.json`
 to tell the docker engine to use it:
 
 ```json
