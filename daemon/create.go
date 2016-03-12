@@ -69,6 +69,10 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig) (retC *containe
 		return nil, err
 	}
 
+	if err := daemon.mergeAndVerifyLogConfig(&params.HostConfig.LogConfig); err != nil {
+		return nil, err
+	}
+
 	if container, err = daemon.newContainer(params.Name, params.Config, imgID); err != nil {
 		return nil, err
 	}
