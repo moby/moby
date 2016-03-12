@@ -15,4 +15,4 @@ const (
 )
 
 // TODO Windows: In TP5, decrease this sleep time, as performance will be better
-var defaultSleepCommand = []string{"sleep", "120"}
+var defaultSleepCommand = []string{"sleep", "240"}
