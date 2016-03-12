@@ -535,3 +535,13 @@ func (s *DockerRegistryAuthSuite) TestPushNoCredentialsNoRetry(c *check.C) {
 	c.Assert(out, check.Not(checker.Contains), "Retrying")
 	c.Assert(out, checker.Contains, "no basic auth credentials")
 }
+
+// This may be flaky but it's needed not to regress on unauthorized push, see #21054
+func (s *DockerSuite) TestPushToCentralRegistryUnauthorized(c *check.C) {
+	testRequires(c, Network)
+	repoName := "test/busybox"
+	dockerCmd(c, "tag", "busybox", repoName)
+	out, _, err := dockerCmdWithError("push", repoName)
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "unauthorized: access to the requested resource is not authorized")
+}
