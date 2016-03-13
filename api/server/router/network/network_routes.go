@@ -147,7 +147,14 @@ func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.Respon
 }
 
 func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	return n.backend.DeleteNetwork(vars["id"])
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+	if err := n.backend.DeleteNetwork(vars["id"]); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
 }
 
 func buildNetworkResource(nw libnetwork.Network) *types.NetworkResource {
