@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0-dev.7 (2016-03-11)
+- Bumped up the minimum kernel version for ipvlan to 4.2
+- Removed modprobe from macvlan/ipvlan drivers to resolve docker IT failures
+- Close dbus connection if firewalld is not started
+
+## 0.7.0-dev.6 (2016-03-10)
+- Experimental support for macvlan and ipvlan drivers
+
 ## 0.7.0-dev.5 (2016-03-08)
 - Fixes https://github.com/docker/docker/issues/20847
 - Fixes https://github.com/docker/docker/issues/20997
