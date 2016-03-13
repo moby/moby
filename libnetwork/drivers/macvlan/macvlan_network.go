@@ -25,6 +25,10 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, ipV4Da
 		return fmt.Errorf("kernel version failed to meet the minimum macvlan kernel requirement of %d.%d, found %d.%d.%d",
 			macvlanKernelVer, macvlanMajorVer, kv.Kernel, kv.Major, kv.Minor)
 	}
+	// reject a null v4 network
+	if len(ipV4Data) == 0 || ipV4Data[0].Pool.String() == "0.0.0.0/0" {
+		return fmt.Errorf("ipv4 pool is empty")
+	}
 	// parse and validate the config and bind to networkConfiguration
 	config, err := parseNetworkOptions(nid, option)
 	if err != nil {
