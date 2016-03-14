@@ -450,3 +450,11 @@ func (s *DockerSuite) TestCreateWithInvalidLogOpts(c *check.C) {
 	out, _ = dockerCmd(c, "ps", "-a")
 	c.Assert(out, checker.Not(checker.Contains), name)
 }
+
+// #20972
+func (s *DockerSuite) TestCreate64ByteHexID(c *check.C) {
+	out := inspectField(c, "busybox", "Id")
+	imageID := strings.TrimPrefix(strings.TrimSpace(string(out)), "sha256:")
+
+	dockerCmd(c, "create", imageID)
+}
