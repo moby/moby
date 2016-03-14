@@ -91,6 +91,8 @@ type NetworkStats struct {
 type PidsStats struct {
 	// Current is the number of pids in the cgroup
 	Current uint64 `json:"current,omitempty"`
+	// Limit is the hard limit on the number of pids in the cgroup
+	Limit uint64 `json:"limit,omitempty"`
 }
 
 // Stats is Ultimate struct aggregating all types of stats of one container
