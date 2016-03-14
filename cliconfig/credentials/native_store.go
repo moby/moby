@@ -13,7 +13,10 @@ import (
 	"github.com/docker/engine-api/types"
 )
 
-const remoteCredentialsPrefix = "docker-credential-"
+const (
+	remoteCredentialsPrefix = "docker-credential-"
+	tokenUsername           = "<token>"
+)
 
 // Standarize the not found error, so every helper returns
 // the same message and docker can handle it properly.
@@ -29,14 +32,14 @@ type command interface {
 type credentialsRequest struct {
 	ServerURL string
 	Username  string
-	Password  string
+	Secret    string
 }
 
 // credentialsGetResponse is the information serialized from a remote store
 // when the plugin sends requests to get the user credentials.
 type credentialsGetResponse struct {
 	Username string
-	Password string
+	Secret   string
 }
 
 // nativeStore implements a credentials store
@@ -76,6 +79,7 @@ func (c *nativeStore) Get(serverAddress string) (types.AuthConfig, error) {
 		return auth, err
 	}
 	auth.Username = creds.Username
+	auth.IdentityToken = creds.IdentityToken
 	auth.Password = creds.Password
 
 	return auth, nil
@@ -89,6 +93,7 @@ func (c *nativeStore) GetAll() (map[string]types.AuthConfig, error) {
 		creds, _ := c.getCredentialsFromStore(s)
 		ac.Username = creds.Username
 		ac.Password = creds.Password
+		ac.IdentityToken = creds.IdentityToken
 		auths[s] = ac
 	}
 
@@ -102,6 +107,7 @@ func (c *nativeStore) Store(authConfig types.AuthConfig) error {
 	}
 	authConfig.Username = ""
 	authConfig.Password = ""
+	authConfig.IdentityToken = ""
 
 	// Fallback to old credential in plain text to save only the email
 	return c.fileStore.Store(authConfig)
@@ -113,7 +119,12 @@ func (c *nativeStore) storeCredentialsInStore(config types.AuthConfig) error {
 	creds := &credentialsRequest{
 		ServerURL: config.ServerAddress,
 		Username:  config.Username,
-		Password:  config.Password,
+		Secret:    config.Password,
+	}
+
+	if config.IdentityToken != "" {
+		creds.Username = tokenUsername
+		creds.Secret = config.IdentityToken
 	}
 
 	buffer := new(bytes.Buffer)
@@ -158,13 +169,18 @@ func (c *nativeStore) getCredentialsFromStore(serverAddress string) (types.AuthC
 		return ret, err
 	}
 
-	ret.Username = resp.Username
-	ret.Password = resp.Password
+	if resp.Username == tokenUsername {
+		ret.IdentityToken = resp.Secret
+	} else {
+		ret.Password = resp.Secret
+		ret.Username = resp.Username
+	}
+
 	ret.ServerAddress = serverAddress
 	return ret, nil
 }
 
-// eraseCredentialsFromStore executes the command to remove the server redentails from the native store.
+// eraseCredentialsFromStore executes the command to remove the server credentails from the native store.
 func (c *nativeStore) eraseCredentialsFromStore(serverURL string) error {
 	cmd := c.commandFn("erase")
 	cmd.Input(strings.NewReader(serverURL))

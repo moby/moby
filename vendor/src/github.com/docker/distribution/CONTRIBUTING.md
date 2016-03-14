@@ -90,7 +90,7 @@ It's mandatory to:
 
 Complying to these simple rules will greatly accelerate the review process, and will ensure you have a pleasant experience in contributing code to the Registry.
 
-Have a look at a great, succesful contribution: the [Ceph driver PR](https://github.com/docker/distribution/pull/443)
+Have a look at a great, successful contribution: the [Ceph driver PR](https://github.com/docker/distribution/pull/443)
 
 ## Coding Style
 

@@ -125,6 +125,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /info` now returns `KernelMemory` field, showing if "kernel memory limit" is supported.
 * `POST /containers/create` now takes `PidsLimit` field, if the kernel is >= 4.3 and the pids cgroup is supported.
 * `GET /containers/(id or name)/stats` now returns `pids_stats`, if the kernel is >= 4.3 and the pids cgroup is supported.
+* `POST /auth` now returns an `IdentityToken` when supported by a registry.
 
 ### v1.22 API changes
 

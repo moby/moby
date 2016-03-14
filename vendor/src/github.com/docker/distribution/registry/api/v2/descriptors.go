@@ -514,7 +514,7 @@ var routeDescriptors = []RouteDescriptor{
 									digestHeader,
 								},
 								Body: BodyDescriptor{
-									ContentType: "application/json; charset=utf-8",
+									ContentType: "<media type of manifest>",
 									Format:      manifestBody,
 								},
 							},
@@ -553,7 +553,7 @@ var routeDescriptors = []RouteDescriptor{
 							referenceParameterDescriptor,
 						},
 						Body: BodyDescriptor{
-							ContentType: "application/json; charset=utf-8",
+							ContentType: "<media type of manifest>",
 							Format:      manifestBody,
 						},
 						Successes: []ResponseDescriptor{
