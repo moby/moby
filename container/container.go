@@ -297,12 +297,6 @@ func (container *Container) ConfigPath() (string, error) {
 	return container.GetRootResourcePath(configFileName)
 }
 
-// Returns true if the container exposes a certain port
-func (container *Container) exposes(p nat.Port) bool {
-	_, exists := container.Config.ExposedPorts[p]
-	return exists
-}
-
 // StartLogger starts a new logger driver for the container.
 func (container *Container) StartLogger(cfg containertypes.LogConfig) (logger.Logger, error) {
 	c, err := logger.GetLogDriver(cfg.Type)
