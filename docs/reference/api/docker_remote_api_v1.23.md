@@ -276,6 +276,9 @@ Create a container
                "Propagation": ""
              }
            ],
+           "Volumes": {
+             "/volumes/data": {}
+           }
            "WorkingDir": "",
            "NetworkDisabled": false,
            "MacAddress": "12:34:56:78:9a:bc",
@@ -393,7 +396,6 @@ Json Parameters:
 -   **StopSignal** - Signal to stop a container as a string or unsigned integer. `SIGTERM` by default.
 -   **HostConfig**
     -   **Binds** – A list of volume bindings for this container. Each volume binding is a string in one of these forms:
-           + `container_path` to create a new volume for the container
            + `host_path:container_path` to bind-mount a host path into the container
            + `host_path:container_path:ro` to make the bind-mount read-only inside the container.
            + `volume_name:container_path` to bind-mount a volume managed by a volume plugin into the container.
@@ -511,7 +513,9 @@ Return low-level information on the container `id`
 			"StdinOnce": false,
 			"Tty": false,
 			"User": "",
-			"Volumes": null,
+			"Volumes": {
+                          "/volumes/data": {}
+                        },
 			"WorkingDir": "",
 			"StopSignal": "SIGTERM"
 		},
