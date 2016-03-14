@@ -12,6 +12,9 @@ docker-version-osarch() {
 		$1 ~ /^(Client|Server):$/ { section = 0 }
 		$1 == "'"$target"':" { section = 1; next }
 		section && $1 == "OS/Arch:" { print $2 }
+
+		# old versions of Docker
+		$1 == "OS/Arch" && $2 == "('"${target,,}"'):" { print $3 }
 	'
 }
 
