@@ -43,7 +43,7 @@ RUN cd /usr/local/lvm2 \
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
 # install seccomp: the version shipped in jessie is too old
-ENV SECCOMP_VERSION v2.2.3
+ENV SECCOMP_VERSION v2.3.0
 RUN set -x \
     && export SECCOMP_PATH=$(mktemp -d) \
     && git clone https://github.com/seccomp/libseccomp.git "$SECCOMP_PATH" \
