@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,6 +11,10 @@ import (
 	"github.com/docker/distribution/registry/api/errcode"
 )
 
+// ErrNoErrorsInBody is returned when a HTTP response body parses to an empty
+// errcode.Errors slice.
+var ErrNoErrorsInBody = errors.New("no error details found in HTTP response body")
+
 // UnexpectedHTTPStatusError is returned when an unexpected HTTP status is
 // returned when making a registry api call.
 type UnexpectedHTTPStatusError struct {
@@ -17,7 +22,7 @@ type UnexpectedHTTPStatusError struct {
 }
 
 func (e *UnexpectedHTTPStatusError) Error() string {
-	return fmt.Sprintf("Received unexpected HTTP status: %s", e.Status)
+	return fmt.Sprintf("received unexpected HTTP status: %s", e.Status)
 }
 
 // UnexpectedHTTPResponseError is returned when an expected HTTP status code
@@ -28,7 +33,7 @@ type UnexpectedHTTPResponseError struct {
 }
 
 func (e *UnexpectedHTTPResponseError) Error() string {
-	return fmt.Sprintf("Error parsing HTTP response: %s: %q", e.ParseErr.Error(), string(e.Response))
+	return fmt.Sprintf("error parsing HTTP response: %s: %q", e.ParseErr.Error(), string(e.Response))
 }
 
 func parseHTTPErrorResponse(statusCode int, r io.Reader) error {
@@ -57,6 +62,16 @@ func parseHTTPErrorResponse(statusCode int, r io.Reader) error {
 			Response: body,
 		}
 	}
+
+	if len(errors) == 0 {
+		// If there was no error specified in the body, return
+		// UnexpectedHTTPResponseError.
+		return &UnexpectedHTTPResponseError{
+			ParseErr: ErrNoErrorsInBody,
+			Response: body,
+		}
+	}
+
 	return errors
 }
 
