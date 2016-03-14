@@ -46,7 +46,10 @@ func untar() {
 		fatal(err)
 	}
 	// fully consume stdin in case it is zero padded
-	flush(os.Stdin)
+	if _, err := flush(os.Stdin); err != nil {
+		fatal(err)
+	}
+
 	os.Exit(0)
 }
 
