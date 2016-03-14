@@ -75,7 +75,7 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 			closeChan <- err
 		}
 		for _, container := range cs {
-			s := &containerStats{Name: container.ID[:12]}
+			s := &containerStats{ID: container.ID[:12], Name: strings.Trim(container.Names[0], "/")}
 			if cStats.add(s) {
 				waitFirst.Add(1)
 				go s.Collect(cli.client, !*noStream, waitFirst)
@@ -92,7 +92,11 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 		eh := eventHandler{handlers: make(map[string]func(events.Message))}
 		eh.Handle("create", func(e events.Message) {
 			if *all {
-				s := &containerStats{Name: e.ID[:12]}
+				cs, err := cli.client.ContainerInspect(e.ID)
+				if err != nil {
+					closeChan <- err
+				}
+				s := &containerStats{ID: cs.ID[:12], Name: strings.Trim(cs.Name, "/")}
 				if cStats.add(s) {
 					waitFirst.Add(1)
 					go s.Collect(cli.client, !*noStream, waitFirst)
@@ -101,7 +105,11 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 		})
 
 		eh.Handle("start", func(e events.Message) {
-			s := &containerStats{Name: e.ID[:12]}
+			cs, err := cli.client.ContainerInspect(e.ID)
+			if err != nil {
+                        	closeChan <- err
+                        }
+			s := &containerStats{ID: cs.ID[:12], Name: strings.Trim(cs.Name, "/")}
 			if cStats.add(s) {
 				waitFirst.Add(1)
 				go s.Collect(cli.client, !*noStream, waitFirst)
@@ -127,7 +135,11 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 		// Artificially send creation events for the containers we were asked to
 		// monitor (same code path than we use when monitoring all containers).
 		for _, name := range names {
-			s := &containerStats{Name: name}
+			cs, err := cli.client.ContainerInspect(name)
+			if err != nil {
+                        	closeChan <- err
+                        }
+			s := &containerStats{ID: cs.ID[:12], Name: strings.Trim(cs.Name, "/")}
 			if cStats.add(s) {
 				waitFirst.Add(1)
 				go s.Collect(cli.client, !*noStream, waitFirst)
@@ -164,7 +176,7 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 			fmt.Fprint(cli.out, "\033[2J")
 			fmt.Fprint(cli.out, "\033[H")
 		}
-		io.WriteString(w, "CONTAINER\tCPU %\tMEM USAGE / LIMIT\tMEM %\tNET I/O\tBLOCK I/O\tPIDS\n")
+		io.WriteString(w, "CONTAINER ID\tCPU %\tMEM USAGE / LIMIT\tMEM %\tNET I/O\tBLOCK I/O\tPIDS\tNAMES\n")
 	}
 
 	for range time.Tick(500 * time.Millisecond) {

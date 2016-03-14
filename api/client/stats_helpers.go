@@ -15,7 +15,7 @@ import (
 )
 
 type containerStats struct {
-	Name             string
+	ID               string
 	CPUPercentage    float64
 	Memory           float64
 	MemoryLimit      float64
@@ -25,6 +25,7 @@ type containerStats struct {
 	BlockRead        float64
 	BlockWrite       float64
 	PidsCurrent      uint64
+	Name		 string
 	mu               sync.RWMutex
 	err              error
 }
@@ -37,7 +38,7 @@ type stats struct {
 func (s *stats) add(cs *containerStats) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, exists := s.isKnownContainer(cs.Name); !exists {
+	if _, exists := s.isKnownContainer(cs.ID); !exists {
 		s.cs = append(s.cs, cs)
 		return true
 	}
@@ -54,7 +55,7 @@ func (s *stats) remove(id string) {
 
 func (s *stats) isKnownContainer(cid string) (int, bool) {
 	for i, c := range s.cs {
-		if c.Name == cid {
+		if c.ID == cid {
 			return i, true
 		}
 	}
@@ -77,7 +78,7 @@ func (s *containerStats) Collect(cli client.APIClient, streamStats bool, waitFir
 		}
 	}()
 
-	responseBody, err := cli.ContainerStats(context.Background(), s.Name, streamStats)
+	responseBody, err := cli.ContainerStats(context.Background(), s.ID, streamStats)
 	if err != nil {
 		s.mu.Lock()
 		s.err = err
@@ -170,14 +171,15 @@ func (s *containerStats) Display(w io.Writer) error {
 	if s.err != nil {
 		return s.err
 	}
-	fmt.Fprintf(w, "%s\t%.2f%%\t%s / %s\t%.2f%%\t%s / %s\t%s / %s\t%d\n",
-		s.Name,
+	fmt.Fprintf(w, "%s\t%.2f%%\t%s / %s\t%.2f%%\t%s / %s\t%s / %s\t%d\t%s\n",
+		s.ID,
 		s.CPUPercentage,
 		units.HumanSize(s.Memory), units.HumanSize(s.MemoryLimit),
 		s.MemoryPercentage,
 		units.HumanSize(s.NetworkRx), units.HumanSize(s.NetworkTx),
 		units.HumanSize(s.BlockRead), units.HumanSize(s.BlockWrite),
-		s.PidsCurrent)
+		s.PidsCurrent,
+		s.Name)
 	return nil
 }
 
