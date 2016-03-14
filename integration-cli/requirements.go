@@ -97,6 +97,16 @@ var (
 		},
 		fmt.Sprintf("Test requires an environment that can host %s in the same host", notaryBinary),
 	}
+	NotaryServerHosting = testRequirement{
+		func() bool {
+			// for now notary-server binary is built only if we're running inside
+			// container through `make test`. Figure that out by testing if
+			// notary-server binary is in PATH.
+			_, err := exec.LookPath(notaryServerBinary)
+			return err == nil
+		},
+		fmt.Sprintf("Test requires an environment that can host %s in the same host", notaryServerBinary),
+	}
 	NotOverlay = testRequirement{
 		func() bool {
 			cmd := exec.Command("grep", "^overlay / overlay", "/proc/mounts")

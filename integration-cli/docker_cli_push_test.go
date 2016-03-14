@@ -496,6 +496,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithExpiredTimestamp(c *check.C) {
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithReleasesDelegation(c *check.C) {
+	testRequires(c, NotaryHosting)
 	repoName := fmt.Sprintf("%v/dockerclireleasedelegation/trusted", privateRegistryURL)
 	targetName := fmt.Sprintf("%s:latest", repoName)
 	pwd := "12345678"

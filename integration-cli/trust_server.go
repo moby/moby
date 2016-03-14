@@ -19,8 +19,8 @@ import (
 	"github.com/go-check/check"
 )
 
-var notaryBinary = "notary-server"
-var notaryClientBinary = "notary"
+var notaryBinary = "notary"
+var notaryServerBinary = "notary-server"
 
 type testNotary struct {
 	cmd *exec.Cmd
@@ -91,7 +91,7 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 	}
 
 	// run notary-server
-	cmd := exec.Command(notaryBinary, "-config", confPath)
+	cmd := exec.Command(notaryServerBinary, "-config", confPath)
 	if err := cmd.Start(); err != nil {
 		os.RemoveAll(tmp)
 		if os.IsNotExist(err) {
@@ -221,7 +221,7 @@ func notaryClientEnv(cmd *exec.Cmd, rootPwd, repositoryPwd string) {
 }
 
 func (s *DockerTrustSuite) setupDelegations(c *check.C, repoName, pwd string) {
-	initCmd := exec.Command(notaryClientBinary, "-c", filepath.Join(s.not.dir, "client-config.json"), "init", repoName)
+	initCmd := exec.Command(notaryBinary, "-c", filepath.Join(s.not.dir, "client-config.json"), "init", repoName)
 	notaryClientEnv(initCmd, pwd, pwd)
 	out, _, err := runCommandWithOutput(initCmd)
 	if err != nil {
@@ -243,7 +243,7 @@ func (s *DockerTrustSuite) setupDelegations(c *check.C, repoName, pwd string) {
 	}
 
 	// publishing first simulates the client pushing to a repo that they have been given delegated access to
-	pubCmd := exec.Command(notaryClientBinary, "-c", filepath.Join(s.not.dir, "client-config.json"), "publish", repoName)
+	pubCmd := exec.Command(notaryBinary, "-c", filepath.Join(s.not.dir, "client-config.json"), "publish", repoName)
 	notaryClientEnv(pubCmd, pwd, pwd)
 	out, _, err = runCommandWithOutput(pubCmd)
 	if err != nil {
