@@ -181,11 +181,12 @@ func buildNetworkResource(nw libnetwork.Network) *types.NetworkResource {
 			continue
 		}
 		sb := ei.Sandbox()
-		if sb == nil {
-			continue
+		key := "ep-" + e.ID()
+		if sb != nil {
+			key = sb.ContainerID()
 		}
 
-		r.Containers[sb.ContainerID()] = buildEndpointResource(e)
+		r.Containers[key] = buildEndpointResource(e)
 	}
 	return r
 }
