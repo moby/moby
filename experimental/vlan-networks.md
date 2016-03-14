@@ -42,9 +42,9 @@ Macvlan Bridge mode has a unique MAC address per container used to track MAC to 
 
 - In Macvlan and Ipvlan L2 mode, containers on separate networks cannot reach one another without an external process routing between the two networks/subnets. This also applies to multiple subnets within the same `docker network`. See Ipvlan L3 mode for inter-subnet communications without a router.
 
-In the following example, `eth0` on the docker host has an IP on the `192.168.1.0/24` network and a default gateway of `192.168.1.1`. The gateway is an external router with an address of `192.168.1.1`. An IP address is not required on the Docker host interface `eth0` in `bridge` mode, it merely needs to be on the proper upstream network to get forwarded by a network switch or network router.
+In the following example, `eth0` on the docker host has an IP on the `172.16.86.0/24` network and a default gateway of `172.16.86.1`. The gateway is an external router with an address of `172.16.86.1`. An IP address is not required on the Docker host interface `eth0` in `bridge` mode, it merely needs to be on the proper upstream network to get forwarded by a network switch or network router.
 
-![Simple Macvlan Bridge Mode Example](../docs/userguide/networking/../docs/userguide/networking/images/macvlan_bridge_simple.png)
+![Simple Macvlan Bridge Mode Example](../docs/userguide/networking/images/macvlan_bridge_simple.png)
 
 
 **Note** For Macvlan bridge mode and Ipvlan L2 mode the subnet values need to match the NIC's interface of the Docker host. For example, Use the same subnet and gateway of the Docker host ethernet interface that is specified by the `-o parent=` option.
@@ -120,7 +120,7 @@ For more on Docker networking commands see [Working with Docker network commands
 
 The ipvlan `L2` mode example is virtually identical to the macvlan `bridge` mode example. The driver is specified with `-d driver_name` option. In this case `-d ipvlan`
 
-![Simple Ipvlan L2 Mode Example](../docs/userguide/networking/images/macvlan_bridge_simple.png)
+![Simple Ipvlan L2 Mode Example](../docs/userguide/networking/images/ipvlan_l2_simple.png)
 
 The parent interface in the next example `-o parent=eth0` is configured as followed:
 
