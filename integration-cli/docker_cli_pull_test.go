@@ -254,3 +254,12 @@ func (s *DockerHubPullSuite) TestPullClientDisconnect(c *check.C) {
 	_, err = s.CmdWithError("inspect", repoName)
 	c.Assert(err, checker.NotNil, check.Commentf("image was pulled after client disconnected"))
 }
+
+func (s *DockerRegistryAuthSuite) TestPullNoCredentialsNotFound(c *check.C) {
+	// we don't care about the actual image, we just want to see image not found
+	// because that means v2 call returned 401 and we fell back to v1 which usually
+	// gives a 404 (in this case the test registry doesn't handle v1 at all)
+	out, _, err := dockerCmdWithError("pull", privateRegistryURL+"/busybox")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Error: image busybox not found")
+}

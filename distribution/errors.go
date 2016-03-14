@@ -8,6 +8,7 @@ import (
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/client"
+	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/distribution/xfer"
 )
 
@@ -90,6 +91,9 @@ func retryOnError(err error) error {
 			return xfer.DoNotRetry{Err: err}
 		}
 	case *url.Error:
+		if v.Err == auth.ErrNoBasicAuthCredentials {
+			return xfer.DoNotRetry{Err: v.Err}
+		}
 		return retryOnError(v.Err)
 	case *client.UnexpectedHTTPResponseError:
 		return xfer.DoNotRetry{Err: err}
