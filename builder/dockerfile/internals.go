@@ -182,8 +182,30 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	} else if hit {
 		return nil
 	}
+	resources := container.Resources{
+		CgroupParent: b.options.CgroupParent,
+		CPUShares:    b.options.CPUShares,
+		CPUPeriod:    b.options.CPUPeriod,
+		CPUQuota:     b.options.CPUQuota,
+		CpusetCpus:   b.options.CPUSetCPUs,
+		CpusetMems:   b.options.CPUSetMems,
+		Memory:       b.options.Memory,
+		MemorySwap:   b.options.MemorySwap,
+		Ulimits:      b.options.Ulimits,
+	}
 
-	container, err := b.docker.ContainerCreate(types.ContainerCreateConfig{Config: b.runConfig})
+	// TODO: why not embed a hostconfig in builder?
+	hostConfig := &container.HostConfig{
+		Isolation:   b.options.Isolation,
+		ShmSize:     b.options.ShmSize,
+		Resources:   resources,
+		NetworkMode: container.NetworkMode(b.options.NetMode),
+	}
+
+	container, err := b.docker.ContainerCreate(types.ContainerCreateConfig{
+		Config:     b.runConfig,
+		HostConfig: hostConfig,
+	})
 	if err != nil {
 		return err
 	}
