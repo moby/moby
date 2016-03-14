@@ -19,7 +19,7 @@ func (s *DockerSuite) TestLoginWithoutTTY(c *check.C) {
 	c.Assert(err, checker.NotNil) //"Expected non nil err when loginning in & TTY not available"
 }
 
-func (s *DockerRegistryAuthSuite) TestLoginToPrivateRegistry(c *check.C) {
+func (s *DockerRegistryAuthHtpasswdSuite) TestLoginToPrivateRegistry(c *check.C) {
 	// wrong credentials
 	out, _, err := dockerCmdWithError("login", "-u", s.reg.username, "-p", "WRONGPASSWORD", privateRegistryURL)
 	c.Assert(err, checker.NotNil, check.Commentf(out))
@@ -29,7 +29,7 @@ func (s *DockerRegistryAuthSuite) TestLoginToPrivateRegistry(c *check.C) {
 	dockerCmd(c, "login", "-u", s.reg.username, "-p", s.reg.password, privateRegistryURL)
 }
 
-func (s *DockerRegistryAuthSuite) TestLoginToPrivateRegistryDeprecatedEmailFlag(c *check.C) {
+func (s *DockerRegistryAuthHtpasswdSuite) TestLoginToPrivateRegistryDeprecatedEmailFlag(c *check.C) {
 	// Test to make sure login still works with the deprecated -e and --email flags
 	// wrong credentials
 	out, _, err := dockerCmdWithError("login", "-u", s.reg.username, "-p", "WRONGPASSWORD", "-e", s.reg.email, privateRegistryURL)

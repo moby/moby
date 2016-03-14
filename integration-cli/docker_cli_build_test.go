@@ -6596,7 +6596,7 @@ func (s *DockerSuite) TestBuildWorkdirWindowsPath(c *check.C) {
 	}
 }
 
-func (s *DockerRegistryAuthSuite) TestBuildFromAuthenticatedRegistry(c *check.C) {
+func (s *DockerRegistryAuthHtpasswdSuite) TestBuildFromAuthenticatedRegistry(c *check.C) {
 	dockerCmd(c, "login", "-u", s.reg.username, "-p", s.reg.password, privateRegistryURL)
 
 	baseImage := privateRegistryURL + "/baseimage"
@@ -6619,7 +6619,7 @@ func (s *DockerRegistryAuthSuite) TestBuildFromAuthenticatedRegistry(c *check.C)
 	c.Assert(err, checker.IsNil)
 }
 
-func (s *DockerRegistryAuthSuite) TestBuildWithExternalAuth(c *check.C) {
+func (s *DockerRegistryAuthHtpasswdSuite) TestBuildWithExternalAuth(c *check.C) {
 	osPath := os.Getenv("PATH")
 	defer os.Setenv("PATH", osPath)
 

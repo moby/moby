@@ -255,7 +255,7 @@ func (s *DockerHubPullSuite) TestPullClientDisconnect(c *check.C) {
 	c.Assert(err, checker.NotNil, check.Commentf("image was pulled after client disconnected"))
 }
 
-func (s *DockerRegistryAuthSuite) TestPullNoCredentialsNotFound(c *check.C) {
+func (s *DockerRegistryAuthHtpasswdSuite) TestPullNoCredentialsNotFound(c *check.C) {
 	// we don't care about the actual image, we just want to see image not found
 	// because that means v2 call returned 401 and we fell back to v1 which usually
 	// gives a 404 (in this case the test registry doesn't handle v1 at all)
