@@ -121,6 +121,27 @@ func TestUTSModeTest(t *testing.T) {
 	}
 }
 
+func TestUsernsModeTest(t *testing.T) {
+	usrensMode := map[container.UsernsMode][]bool{
+		// private, host, valid
+		"":                {true, false, true},
+		"something:weird": {true, false, false},
+		"host":            {false, true, true},
+		"host:name":       {true, false, true},
+	}
+	for usernsMode, state := range usrensMode {
+		if usernsMode.IsPrivate() != state[0] {
+			t.Fatalf("UsernsMode.IsPrivate for %v should have been %v but was %v", usernsMode, state[0], usernsMode.IsPrivate())
+		}
+		if usernsMode.IsHost() != state[1] {
+			t.Fatalf("UsernsMode.IsHost for %v should have been %v but was %v", usernsMode, state[1], usernsMode.IsHost())
+		}
+		if usernsMode.Valid() != state[2] {
+			t.Fatalf("UsernsMode.Valid for %v should have been %v but was %v", usernsMode, state[2], usernsMode.Valid())
+		}
+	}
+}
+
 func TestPidModeTest(t *testing.T) {
 	pidModes := map[container.PidMode][]bool{
 		// private, host, valid

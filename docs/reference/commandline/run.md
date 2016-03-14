@@ -85,6 +85,9 @@ parent = "smn_cli"
       --stop-signal="SIGTERM"       Signal to stop a container
       -t, --tty                     Allocate a pseudo-TTY
       -u, --user=""                 Username or UID (format: <name|uid>[:<group|gid>])
+      --userns=""                   Container user namespace
+                                    'host': Use the Docker host user namespace
+                                    '': Use the Docker daemon user namespace specified by `--userns-remap` option.
       --ulimit=[]                   Ulimit options
       --uts=""                      UTS namespace to use
       -v, --volume=[host-src:]container-dest[:<options>]

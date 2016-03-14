@@ -37,11 +37,13 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *check.C) {
 	gid, err := strconv.Atoi(uidgid[1])
 	c.Assert(err, checker.IsNil, check.Commentf("Can't parse gid"))
 
-	//writeable by the remapped root UID/GID pair
+	// writable by the remapped root UID/GID pair
 	c.Assert(os.Chown(tmpDir, uid, gid), checker.IsNil)
 
 	out, err := s.d.Cmd("run", "-d", "--name", "userns", "-v", tmpDir+":/goofy", "busybox", "sh", "-c", "touch /goofy/testfile; top")
 	c.Assert(err, checker.IsNil, check.Commentf("Output: %s", out))
+	user := s.findUser(c, "userns")
+	c.Assert(uidgid[0], checker.Equals, user)
 
 	pid, err := s.d.Cmd("inspect", "--format='{{.State.Pid}}'", "userns")
 	c.Assert(err, checker.IsNil, check.Commentf("Could not inspect running container: out: %q", pid))
@@ -62,4 +64,23 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(stat.UID(), checker.Equals, uint32(uid), check.Commentf("Touched file not owned by remapped root UID"))
 	c.Assert(stat.GID(), checker.Equals, uint32(gid), check.Commentf("Touched file not owned by remapped root GID"))
+
+	// use host usernamespace
+	out, err = s.d.Cmd("run", "-d", "--name", "userns_skip", "--userns", "host", "busybox", "sh", "-c", "touch /goofy/testfile; top")
+	c.Assert(err, checker.IsNil, check.Commentf("Output: %s", out))
+	user = s.findUser(c, "userns_skip")
+	// userns are skipped, user is root
+	c.Assert(user, checker.Equals, "root")
+}
+
+// findUser finds the uid or name of the user of the first process that runs in a container
+func (s *DockerDaemonSuite) findUser(c *check.C, container string) string {
+	out, err := s.d.Cmd("top", container)
+	c.Assert(err, checker.IsNil, check.Commentf("Output: %s", out))
+	rows := strings.Split(out, "\n")
+	if len(rows) < 2 {
+		// No process rows founds
+		c.FailNow()
+	}
+	return strings.Fields(rows[1])[0]
 }

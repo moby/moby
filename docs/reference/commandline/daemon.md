@@ -750,6 +750,16 @@ following algorithm to create the mapping ranges:
 2. Map segments will be created from each range in increasing value with a length matching the length of each segment. Therefore the range segment with the lowest numeric starting value will be equal to the remapped root, and continue up through host uid/gid equal to the range segment length. As an example, if the lowest segment starts at ID 1000 and has a length of 100, then a map of 1000 -> 0 (the remapped root) up through 1100 -> 100 will be created from this segment. If the next segment starts at ID 10000, then the next map will start with mapping 10000 -> 101 up to the length of this second segment. This will continue until no more segments are found in the subordinate files for this user.
 3. If more than five range segments exist for a single user, only the first five will be utilized, matching the kernel's limitation of only five entries in `/proc/self/uid_map` and `proc/self/gid_map`.
 
+### Disable user namespace for a container
+
+If you enable user namespaces on the daemon, all containers are started
+with user namespaces enabled. In some situations you might want to disable
+this feature for a container, for example, to start a privileged container (see
+[user namespace known restrictions](#user-namespace-known-restrictions)).
+To enable those advanced features for a specific container use `--userns=host`
+in the `run/exec/create` command.
+This option will completely disable user namespace mapping for the container's user.
+
 ### User namespace known restrictions
 
 The following standard Docker features are currently incompatible when
