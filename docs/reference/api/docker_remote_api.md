@@ -29,7 +29,7 @@ later, as these versions have the `--unix-socket` flag available. To
 run `curl` against the daemon on the default socket, use the
 following:
 
-    curl --unix-socket /var/run/docker.sock http://containers/json
+    curl --unix-socket /var/run/docker.sock http:/containers/json
 
 If you have bound the Docker daemon to a different socket path or TCP
 port, you would reference that in your cURL rather than the
