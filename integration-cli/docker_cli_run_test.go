@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -4219,18 +4218,8 @@ func (s *DockerSuite) TestRunNamedVolumesFromNotRemoved(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunAttachFailedNoLeak(c *check.C) {
-	type info struct {
-		NGoroutines int
-	}
-	getNGoroutines := func() int {
-		var i info
-		status, b, err := sockRequest("GET", "/info", nil)
-		c.Assert(err, checker.IsNil)
-		c.Assert(status, checker.Equals, 200)
-		c.Assert(json.Unmarshal(b, &i), checker.IsNil)
-		return i.NGoroutines
-	}
-	nroutines := getNGoroutines()
+	nroutines, err := getGoroutineNumber()
+	c.Assert(err, checker.IsNil)
 
 	runSleepingContainer(c, "--name=test", "-p", "8000:8000")
 
@@ -4241,18 +4230,5 @@ func (s *DockerSuite) TestRunAttachFailedNoLeak(c *check.C) {
 	dockerCmd(c, "rm", "-f", "test")
 
 	// NGoroutines is not updated right away, so we need to wait before failing
-	t := time.After(30 * time.Second)
-	for {
-		select {
-		case <-t:
-			n := getNGoroutines()
-			c.Assert(n <= nroutines, checker.Equals, true, check.Commentf("leaked goroutines: expected less than or equal to %d, got: %d", nroutines, n))
-
-		default:
-			if n := getNGoroutines(); n <= nroutines {
-				return
-			}
-			time.Sleep(200 * time.Millisecond)
-		}
-	}
+	c.Assert(waitForGoroutines(nroutines), checker.IsNil)
 }

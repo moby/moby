@@ -1435,3 +1435,45 @@ func minimalBaseImage() string {
 	}
 	return "scratch"
 }
+
+func getGoroutineNumber() (int, error) {
+	i := struct {
+		NGoroutines int
+	}{}
+	status, b, err := sockRequest("GET", "/info", nil)
+	if err != nil {
+		return 0, err
+	}
+	if status != http.StatusOK {
+		return 0, fmt.Errorf("http status code: %d", status)
+	}
+	if err := json.Unmarshal(b, &i); err != nil {
+		return 0, err
+	}
+	return i.NGoroutines, nil
+}
+
+func waitForGoroutines(expected int) error {
+	t := time.After(30 * time.Second)
+	for {
+		select {
+		case <-t:
+			n, err := getGoroutineNumber()
+			if err != nil {
+				return err
+			}
+			if n > expected {
+				return fmt.Errorf("leaked goroutines: expected less than or equal to %d, got: %d", expected, n)
+			}
+		default:
+			n, err := getGoroutineNumber()
+			if err != nil {
+				return err
+			}
+			if n <= expected {
+				return nil
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+	}
+}

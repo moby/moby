@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os/exec"
@@ -265,20 +264,8 @@ func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *check.C) {
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
 
-	type info struct {
-		NGoroutines int
-	}
-	getNGoroutines := func() int {
-		var i info
-		status, b, err := sockRequest("GET", "/info", nil)
-		c.Assert(err, checker.IsNil)
-		c.Assert(status, checker.Equals, 200)
-		c.Assert(json.Unmarshal(b, &i), checker.IsNil)
-		return i.NGoroutines
-	}
-
-	nroutines := getNGoroutines()
-
+	nroutines, err := getGoroutineNumber()
+	c.Assert(err, checker.IsNil)
 	cmd := exec.Command(dockerBinary, "logs", "-f", id)
 	r, w := io.Pipe()
 	cmd.Stdout = w
@@ -295,20 +282,7 @@ func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *check.C) {
 	c.Assert(cmd.Process.Kill(), checker.IsNil)
 
 	// NGoroutines is not updated right away, so we need to wait before failing
-	t := time.After(30 * time.Second)
-	for {
-		select {
-		case <-t:
-			n := getNGoroutines()
-			c.Assert(n <= nroutines, checker.Equals, true, check.Commentf("leaked goroutines: expected less than or equal to %d, got: %d", nroutines, n))
-
-		default:
-			if n := getNGoroutines(); n <= nroutines {
-				return
-			}
-			time.Sleep(200 * time.Millisecond)
-		}
-	}
+	c.Assert(waitForGoroutines(nroutines), checker.IsNil)
 }
 
 func (s *DockerSuite) TestLogsFollowGoroutinesNoOutput(c *check.C) {
@@ -316,40 +290,15 @@ func (s *DockerSuite) TestLogsFollowGoroutinesNoOutput(c *check.C) {
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
 
-	type info struct {
-		NGoroutines int
-	}
-	getNGoroutines := func() int {
-		var i info
-		status, b, err := sockRequest("GET", "/info", nil)
-		c.Assert(err, checker.IsNil)
-		c.Assert(status, checker.Equals, 200)
-		c.Assert(json.Unmarshal(b, &i), checker.IsNil)
-		return i.NGoroutines
-	}
-
-	nroutines := getNGoroutines()
-
+	nroutines, err := getGoroutineNumber()
+	c.Assert(err, checker.IsNil)
 	cmd := exec.Command(dockerBinary, "logs", "-f", id)
 	c.Assert(cmd.Start(), checker.IsNil)
 	time.Sleep(200 * time.Millisecond)
 	c.Assert(cmd.Process.Kill(), checker.IsNil)
 
 	// NGoroutines is not updated right away, so we need to wait before failing
-	t := time.After(30 * time.Second)
-	for {
-		select {
-		case <-t:
-			n := getNGoroutines()
-			c.Assert(n <= nroutines, checker.Equals, true, check.Commentf("leaked goroutines: expected less than or equal to %d, got: %d", nroutines, n))
-
-		default:
-			if n := getNGoroutines(); n <= nroutines {
-				return
-			}
-			time.Sleep(200 * time.Millisecond)
-		}
-	}
+	c.Assert(waitForGoroutines(nroutines), checker.IsNil)
 }
 
 func (s *DockerSuite) TestLogsCLIContainerNotFound(c *check.C) {
