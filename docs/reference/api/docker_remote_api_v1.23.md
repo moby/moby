@@ -849,7 +849,8 @@ This endpoint returns a live stream of a container's resource usage statistics.
       {
          "read" : "2015-01-08T22:57:31.547920715Z",
          "pids_stats": {
-            "current": 3
+            "current": 3,
+            "limit": 16
          },
          "networks": {
                  "eth0": {
