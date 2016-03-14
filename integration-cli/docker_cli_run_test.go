@@ -2753,9 +2753,7 @@ func (s *DockerSuite) TestRunContainerWithReadonlyRootfs(c *check.C) {
 	// Not applicable on Windows which does not support --read-only
 	testRequires(c, DaemonIsLinux)
 
-	for _, f := range []string{"/file", "/etc/hosts", "/etc/resolv.conf", "/etc/hostname", "/sys/kernel", "/dev/.dont.touch.me"} {
-		testReadOnlyFile(f, c)
-	}
+	testReadOnlyFile(c, "/file", "/etc/hosts", "/etc/resolv.conf", "/etc/hostname", "/sys/kernel", "/dev/.dont.touch.me")
 }
 
 func (s *DockerSuite) TestPermissionsPtsReadonlyRootfs(c *check.C) {
@@ -2775,26 +2773,24 @@ func (s *DockerSuite) TestPermissionsPtsReadonlyRootfs(c *check.C) {
 	}
 }
 
-func testReadOnlyFile(filename string, c *check.C) {
+func testReadOnlyFile(c *check.C, filenames ...string) {
 	// Not applicable on Windows which does not support --read-only
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	touch := "touch " + strings.Join(filenames, " ")
+	out, _, err := dockerCmdWithError("run", "--read-only", "--rm", "busybox", "sh", "-c", touch)
+	c.Assert(err, checker.NotNil)
 
-	out, _, err := dockerCmdWithError("run", "--read-only", "--rm", "busybox", "touch", filename)
-	if err == nil {
-		c.Fatal("expected container to error on run with read only error")
-	}
-	expected := "Read-only file system"
-	if !strings.Contains(string(out), expected) {
-		c.Fatalf("expected output from failure to contain %s but contains %s", expected, out)
+	for _, f := range filenames {
+		expected := "touch: " + f + ": Read-only file system"
+		c.Assert(out, checker.Contains, expected)
 	}
 
-	out, _, err = dockerCmdWithError("run", "--read-only", "--privileged", "--rm", "busybox", "touch", filename)
-	if err == nil {
-		c.Fatal("expected container to error on run with read only error")
-	}
-	expected = "Read-only file system"
-	if !strings.Contains(string(out), expected) {
-		c.Fatalf("expected output from failure to contain %s but contains %s", expected, out)
+	out, _, err = dockerCmdWithError("run", "--read-only", "--privileged", "--rm", "busybox", "sh", "-c", touch)
+	c.Assert(err, checker.NotNil)
+
+	for _, f := range filenames {
+		expected := "touch: " + f + ": Read-only file system"
+		c.Assert(out, checker.Contains, expected)
 	}
 }
 
