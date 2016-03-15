@@ -20,6 +20,19 @@ var acceptedVolumeFilterTags = map[string]bool{
 	"dangling": true,
 }
 
+var acceptedPsFilterTags = map[string]bool{
+	"ancestor":  true,
+	"before":    true,
+	"exited":    true,
+	"id":        true,
+	"isolation": true,
+	"label":     true,
+	"name":      true,
+	"status":    true,
+	"since":     true,
+	"volume":    true,
+}
+
 // iterationAction represents possible outcomes happening during the container iteration.
 type iterationAction int
 
@@ -128,7 +141,12 @@ func (daemon *Daemon) reducePsContainer(container *container.Container, ctx *lis
 func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listContext, error) {
 	psFilters := config.Filter
 
+	if err := psFilters.Validate(acceptedPsFilterTags); err != nil {
+		return nil, err
+	}
+
 	var filtExited []int
+
 	err := psFilters.WalkValues("exited", func(value string) error {
 		code, err := strconv.Atoi(value)
 		if err != nil {
