@@ -43,11 +43,12 @@ var (
 	// We retry device removal so many a times that even error messages
 	// will fill up console during normal operation. So only log Fatal
 	// messages by default.
-	logLevel                     = devicemapper.LogLevelFatal
-	driverDeferredRemovalSupport = false
-	enableDeferredRemoval        = false
-	enableDeferredDeletion       = false
-	userBaseSize                 = false
+	logLevel                            = devicemapper.LogLevelFatal
+	driverDeferredRemovalSupport        = false
+	enableDeferredRemoval               = false
+	enableDeferredDeletion              = false
+	userBaseSize                        = false
+	defaultMinFreeSpacePercent   uint32 = 10
 )
 
 const deviceSetMetaFile string = "deviceset-metadata"
@@ -122,6 +123,7 @@ type DeviceSet struct {
 	deletionWorkerTicker  *time.Ticker
 	uidMaps               []idtools.IDMap
 	gidMaps               []idtools.IDMap
+	minFreeSpacePercent   uint32 //min free space percentage in thinpool
 }
 
 // DiskUsage contains information about disk usage and is used when reporting Status of a device.
@@ -753,6 +755,38 @@ func (devices *DeviceSet) getNextFreeDeviceID() (int, error) {
 	return 0, fmt.Errorf("devmapper: Unable to find a free device ID")
 }
 
+func (devices *DeviceSet) poolHasFreeSpace() error {
+	if devices.minFreeSpacePercent == 0 {
+		return nil
+	}
+
+	_, _, dataUsed, dataTotal, metadataUsed, metadataTotal, err := devices.poolStatus()
+	if err != nil {
+		return err
+	}
+
+	minFreeData := (dataTotal * uint64(devices.minFreeSpacePercent)) / 100
+	if minFreeData < 1 {
+		minFreeData = 1
+	}
+	dataFree := dataTotal - dataUsed
+	if dataFree < minFreeData {
+		return fmt.Errorf("devmapper: Thin Pool has %v free data blocks which is less than minimum required %v free data blocks. Create more free space in thin pool or use dm.min_free_space option to change behavior", (dataTotal - dataUsed), minFreeData)
+	}
+
+	minFreeMetadata := (metadataTotal * uint64(devices.minFreeSpacePercent)) / 100
+	if minFreeMetadata < 1 {
+		minFreeData = 1
+	}
+
+	metadataFree := metadataTotal - metadataUsed
+	if metadataFree < minFreeMetadata {
+		return fmt.Errorf("devmapper: Thin Pool has %v free metadata blocks which is less than minimum required %v free metadata blocks. Create more free metadata space in thin pool or use dm.min_free_space option to change behavior", (metadataTotal - metadataUsed), minFreeMetadata)
+	}
+
+	return nil
+}
+
 func (devices *DeviceSet) createRegisterDevice(hash string) (*devInfo, error) {
 	devices.Lock()
 	defer devices.Unlock()
@@ -809,6 +843,10 @@ func (devices *DeviceSet) createRegisterDevice(hash string) (*devInfo, error) {
 }
 
 func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *devInfo) error {
+	if err := devices.poolHasFreeSpace(); err != nil {
+		return err
+	}
+
 	deviceID, err := devices.getNextFreeDeviceID()
 	if err != nil {
 		return err
@@ -2437,6 +2475,7 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 		deletionWorkerTicker:  time.NewTicker(time.Second * 30),
 		uidMaps:               uidMaps,
 		gidMaps:               gidMaps,
+		minFreeSpacePercent:   defaultMinFreeSpacePercent,
 	}
 
 	foundBlkDiscard := false
@@ -2512,6 +2551,22 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 				return nil, err
 			}
 
+		case "dm.min_free_space":
+			if !strings.HasSuffix(val, "%") {
+				return nil, fmt.Errorf("devmapper: Option dm.min_free_space requires %% suffix")
+			}
+
+			valstring := strings.TrimSuffix(val, "%")
+			minFreeSpacePercent, err := strconv.ParseUint(valstring, 10, 32)
+			if err != nil {
+				return nil, err
+			}
+
+			if minFreeSpacePercent >= 100 {
+				return nil, fmt.Errorf("devmapper: Invalid value %v for option dm.min_free_space", val)
+			}
+
+			devices.minFreeSpacePercent = uint32(minFreeSpacePercent)
 		default:
 			return nil, fmt.Errorf("devmapper: Unknown option %s\n", key)
 		}
