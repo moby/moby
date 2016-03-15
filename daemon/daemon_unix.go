@@ -73,15 +73,21 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 	)
 
 	for _, opt := range config.SecurityOpt {
-		con := strings.SplitN(opt, ":", 2)
-		if len(con) == 1 {
-			switch con[0] {
-			case "no-new-privileges":
-				container.NoNewPrivileges = true
-			default:
+		if opt == "no-new-privileges" {
+			container.NoNewPrivileges = true
+		} else {
+			var con []string
+			if strings.Contains(opt, "=") {
+				con = strings.SplitN(opt, "=", 2)
+			} else if strings.Contains(opt, ":") {
+				con = strings.SplitN(opt, ":", 2)
+				logrus.Warnf("Security options with `:` as a separator are deprecated and will be completely unsupported in 1.13, use `=` instead.")
+			}
+
+			if len(con) != 2 {
 				return fmt.Errorf("Invalid --security-opt 1: %q", opt)
 			}
-		} else {
+
 			switch con[0] {
 			case "label":
 				labelOpts = append(labelOpts, con[1])

@@ -599,12 +599,12 @@ but the volume for `/bar` will not. Volumes inheritted via `--volumes-from` will
 with the same logic -- if the original volume was specified with a name it will **not** be removed.
 
 ## Security configuration
-    --security-opt="label:user:USER"   : Set the label user for the container
-    --security-opt="label:role:ROLE"   : Set the label role for the container
-    --security-opt="label:type:TYPE"   : Set the label type for the container
-    --security-opt="label:level:LEVEL" : Set the label level for the container
-    --security-opt="label:disable"     : Turn off label confinement for the container
-    --security-opt="apparmor:PROFILE"  : Set the apparmor profile to be applied
+    --security-opt="label=user:USER"   : Set the label user for the container
+    --security-opt="label=role:ROLE"   : Set the label role for the container
+    --security-opt="label=type:TYPE"   : Set the label type for the container
+    --security-opt="label=level:LEVEL" : Set the label level for the container
+    --security-opt="label=disable"     : Turn off label confinement for the container
+    --security-opt="apparmor=PROFILE"  : Set the apparmor profile to be applied
                                          to the container
     --security-opt="no-new-privileges" : Disable container processes from gaining
                                          new privileges
@@ -617,23 +617,23 @@ the `--security-opt` flag. For example, you can specify the MCS/MLS level, a
 requirement for MLS systems. Specifying the level in the following command
 allows you to share the same content between containers.
 
-    $ docker run --security-opt label:level:s0:c100,c200 -it fedora bash
+    $ docker run --security-opt label=level:s0:c100,c200 -it fedora bash
 
 An MLS example might be:
 
-    $ docker run --security-opt label:level:TopSecret -it rhel7 bash
+    $ docker run --security-opt label=level:TopSecret -it rhel7 bash
 
 To disable the security labeling for this container versus running with the
 `--permissive` flag, use the following command:
 
-    $ docker run --security-opt label:disable -it fedora bash
+    $ docker run --security-opt label=disable -it fedora bash
 
 If you want a tighter security policy on the processes within a container,
 you can specify an alternate type for the container. You could run a container
 that is only allowed to listen on Apache ports by executing the following
 command:
 
-    $ docker run --security-opt label:type:svirt_apache_t -it centos bash
+    $ docker run --security-opt label=type:svirt_apache_t -it centos bash
 
 > **Note**: You would have to write policy defining a `svirt_apache_t` type.
 
@@ -1078,7 +1078,7 @@ one can use this flag:
 > these cases to create your own custom seccomp profile based off our
 > [default](https://github.com/docker/docker/blob/master/profiles/seccomp/default.json).
 > Or if you don't want to run with the default seccomp profile, you can pass
-> `--security-opt=seccomp:unconfined` on run.
+> `--security-opt=seccomp=unconfined` on run.
 
 By default, Docker containers are "unprivileged" and cannot, for
 example, run a Docker daemon inside a Docker container. This is because

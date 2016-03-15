@@ -69,7 +69,7 @@ override it with the `security-opt` option. For example, the following
 explicitly specifies the default policy:
 
 ```bash
-$ docker run --rm -it --security-opt apparmor:docker-default hello-world
+$ docker run --rm -it --security-opt apparmor=docker-default hello-world
 ```
 
 ## Loading and Unloading Profiles
@@ -83,7 +83,7 @@ $ apparmor_parser -r -W /path/to/your_profile
 Then you can run the custom profile with `--security-opt` like so:
 
 ```bash
-$ docker run --rm -it --security-opt apparmor:your_profile hello-world
+$ docker run --rm -it --security-opt apparmor=your_profile hello-world
 ```
 
 To unload a profile from AppArmor:

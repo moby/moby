@@ -463,16 +463,18 @@ its root filesystem mounted as read only prohibiting any writes.
 **--security-opt**=[]
    Security Options
 
-   "label:user:USER"   : Set the label user for the container
-    "label:role:ROLE"   : Set the label role for the container
-    "label:type:TYPE"   : Set the label type for the container
-    "label:level:LEVEL" : Set the label level for the container
-    "label:disable"     : Turn off label confinement for the container
-
+    "label=user:USER"   : Set the label user for the container
+    "label=role:ROLE"   : Set the label role for the container
+    "label=type:TYPE"   : Set the label type for the container
+    "label=level:LEVEL" : Set the label level for the container
+    "label=disable"     : Turn off label confinement for the container
     "no-new-privileges" : Disable container processes from gaining additional privileges
 
-    "seccomp:unconfined" : Turn off seccomp confinement for the container
-    "seccomp:profile.json :  White listed syscalls seccomp Json file to be used as a seccomp filter
+    "seccomp=unconfined" : Turn off seccomp confinement for the container
+    "seccomp=profile.json :  White listed syscalls seccomp Json file to be used as a seccomp filter
+
+    "apparmor=unconfined" : Turn off apparmor confinement for the container
+    "apparmor=your-profile" : Set the apparmor confinement profile for the container
 
 **--stop-signal**=*SIGTERM*
   Signal to stop a container. Default is SIGTERM.
@@ -880,23 +882,23 @@ the `--security-opt` flag. For example, you can specify the MCS/MLS level, a
 requirement for MLS systems. Specifying the level in the following command
 allows you to share the same content between containers.
 
-    # docker run --security-opt label:level:s0:c100,c200 -i -t fedora bash
+    # docker run --security-opt label=level:s0:c100,c200 -i -t fedora bash
 
 An MLS example might be:
 
-    # docker run --security-opt label:level:TopSecret -i -t rhel7 bash
+    # docker run --security-opt label=level:TopSecret -i -t rhel7 bash
 
 To disable the security labeling for this container versus running with the
 `--permissive` flag, use the following command:
 
-    # docker run --security-opt label:disable -i -t fedora bash
+    # docker run --security-opt label=disable -i -t fedora bash
 
 If you want a tighter security policy on the processes within a container,
 you can specify an alternate type for the container. You could run a container
 that is only allowed to listen on Apache ports by executing the following
 command:
 
-    # docker run --security-opt label:type:svirt_apache_t -i -t centos bash
+    # docker run --security-opt label=type:svirt_apache_t -i -t centos bash
 
 Note:
 
