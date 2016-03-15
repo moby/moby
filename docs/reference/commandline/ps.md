@@ -24,6 +24,7 @@ parent = "smn_cli"
                             - before=(<container-name>|<container-id>)
                             - since=(<container-name>|<container-id>)
                             - ancestor=(<image-name>[:tag]|<image-id>|<image@digest>) - containers created from an image or a descendant.
+                            - volume=(<volume-name>|<mount-point>)
       --format=[]           Pretty-print containers using a Go template
       --help                Print usage
       -l, --latest          Show the latest created container (includes all states)
