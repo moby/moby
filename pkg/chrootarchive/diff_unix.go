@@ -65,8 +65,10 @@ func applyLayer() {
 		fatal(fmt.Errorf("unable to encode layerSize JSON: %s", err))
 	}
 
-	flush(os.Stdout)
-	flush(os.Stdin)
+	if _, err := flush(os.Stdin); err != nil {
+		fatal(err)
+	}
+
 	os.Exit(0)
 }
 
