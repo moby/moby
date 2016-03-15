@@ -3715,7 +3715,7 @@ func (s *DockerSuite) TestBuildDockerignoringBadExclusion(c *check.C) {
 	}
 
 	if err.Error() != "failed to build the image: Error checking context: 'Illegal exclusion pattern: !'.\n" {
-		c.Fatalf("Incorrect output, got:%q", err.Error())
+		c.Fatalf("Incorrect output, got: %s", err.Error())
 	}
 }
 

@@ -2,17 +2,16 @@ package dockerignore
 
 import (
 	"fmt"
+	"github.com/docker/docker/pkg/precompiledregexp"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 )
 
 func TestReadAll(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "dockerignore-test")
-	if err != nil {
-		t.Fatal(err)
-	}
+	tmpDir := createTmpDir(t, "", "dockerignore-test")
 	defer os.RemoveAll(tmpDir)
 
 	di, err := ReadAll(nil)
@@ -38,6 +37,10 @@ func TestReadAll(t *testing.T) {
 	di, err = ReadAll(diFd)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if len(di) != 4 {
+		t.Fatalf("Expected to have zero dockerignore entry, got %d", len(di))
 	}
 
 	if di[0] != "test1" {
@@ -66,46 +69,21 @@ func TestReadAllRecursiveEmpty(t *testing.T) {
 		>>> .dockerignore
 		>> subdir1_3E
 	*/
-	baseDir, err := ioutil.TempDir("", "dockerignore-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	dir0_0C := baseDir
-	subdir1_1E, err := ioutil.TempDir(dir0_0C, "subdir1_1E")
-	if err != nil {
-		t.Fatal(err)
-	}
-	subdir2_1C, err := ioutil.TempDir(subdir1_1E, "subdir2_1C")
-	if err != nil {
-		t.Fatal(err)
-	}
-	subdir1_2C, err := ioutil.TempDir(dir0_0C, "subdir1_2C")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = ioutil.TempDir(dir0_0C, "subdir1_3E")
-	if err != nil {
-		t.Fatal(err)
-	}
+	dir0_0C := createTmpDir(t, "", "dockerignore-test")
+	subdir1_1E := createTmpDir(t, dir0_0C, "subdir1_1E")
+	subdir2_1C := createTmpDir(t, subdir1_1E, "subdir2_1C")
+	subdir1_2C := createTmpDir(t, dir0_0C, "subdir1_2C")
+	ioutil.TempDir(dir0_0C, "subdir1_3E")
 	defer os.RemoveAll(dir0_0C)
 
 	// Write content to files
-	content := fmt.Sprintf("0_0File1\n/0_0File2\n!/dir/subdir/0_0file\n\n0_0lastfile")
-	content2 := fmt.Sprintf("2_1File1\n/2_1File2\n!/dir/subdir/2_1file\n\n2_1lastfile")
-	content3 := fmt.Sprintf("1_2File1\n/1_2File2\n!/dir/subdir/1_2file\n\n1_2lastfile")
+	content := fmt.Sprintf("0_0File1\n/0_0File2\n!/dir/subdir/0_0file\n\n0_0lastfile\n!")
+	content2 := fmt.Sprintf("2_1File1\n/2_1File2\n!/dir/subdir/2_1file\n\n2_1lastfile\n!")
+	content3 := fmt.Sprintf("1_2File1\n/1_2File2\n!/dir/subdir/1_2file\n\n1_2lastfile\n!")
 
-	err = ioutil.WriteFile(filepath.Join(dir0_0C, ".dockerignore"), []byte(content), 0777)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = ioutil.WriteFile(filepath.Join(subdir2_1C, ".dockerignore"), []byte(content2), 0777)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = ioutil.WriteFile(filepath.Join(subdir1_2C, ".dockerignore"), []byte(content3), 0777)
-	if err != nil {
-		t.Fatal(err)
-	}
+	writeFileHelper(t, filepath.Join(dir0_0C, ".dockerignore"), []byte(content), 0777)
+	writeFileHelper(t, filepath.Join(subdir2_1C, ".dockerignore"), []byte(content2), 0777)
+	writeFileHelper(t, filepath.Join(subdir1_2C, ".dockerignore"), []byte(content3), 0777)
 
 	// Read from current directory; should give nothing - everything is in /tmp
 	di, err := ReadAllRecursive("", "")
@@ -129,60 +107,21 @@ func TestReadAllRecursiveFromRoot(t *testing.T) {
 		>>> .dockerignore
 		>> subdir1_3E
 	*/
-	baseDir, err := ioutil.TempDir("", "dockerignore-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	dir0_0C := baseDir
-	subdir1_1E, err := ioutil.TempDir(dir0_0C, "subdir1_1E")
-	if err != nil {
-		t.Fatal(err)
-	}
-	subdir2_1C, err := ioutil.TempDir(subdir1_1E, "subdir2_1C")
-	if err != nil {
-		t.Fatal(err)
-	}
-	subdir1_2C, err := ioutil.TempDir(dir0_0C, "subdir1_2C")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = ioutil.TempDir(dir0_0C, "subdir1_3E")
-	if err != nil {
-		t.Fatal(err)
-	}
+	dir0_0C := createTmpDir(t, "", "dockerignore-test")
+	subdir1_1E := createTmpDir(t, dir0_0C, "subdir1_1E")
+	subdir2_1C := createTmpDir(t, subdir1_1E, "subdir2_1C")
+	subdir1_2C := createTmpDir(t, dir0_0C, "subdir1_2C")
+	ioutil.TempDir(dir0_0C, "subdir1_3E")
 	defer os.RemoveAll(dir0_0C)
 
-	// Convert all paths to relative paths from base testing directory
-	dir0_0CRel, err := filepath.Rel(baseDir, dir0_0C)
-	if err != nil {
-		t.Fatal(err)
-	}
-	subdir2_1CRel, err := filepath.Rel(baseDir, subdir2_1C)
-	if err != nil {
-		t.Fatal(err)
-	}
-	subdir1_2CRel, err := filepath.Rel(baseDir, subdir1_2C)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	// Write content to files
-	content := fmt.Sprintf("0_0File1\n/0_0File2\n!/dir/subdir/0_0file\n\n0_0lastfile")
-	content2 := fmt.Sprintf("2_1File1\n/2_1File2\n!/dir/subdir/2_1file\n\n2_1lastfile")
-	content3 := fmt.Sprintf("1_2File1\n/1_2File2\n!/dir/subdir/1_2file\n\n1_2lastfile")
+	content := fmt.Sprintf("0_0File1\n/0_0File2\n!/dir/subdir/0_0file\n\n0_0lastfile\n!")
+	content2 := fmt.Sprintf("2_1File1\n/2_1File2\n!/dir/subdir/2_1file\n\n2_1lastfile\n!")
+	content3 := fmt.Sprintf("1_2File1\n/1_2File2\n!/dir/subdir/1_2file\n\n1_2lastfile\n!")
 
-	err = ioutil.WriteFile(filepath.Join(dir0_0C, ".dockerignore"), []byte(content), 0777)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = ioutil.WriteFile(filepath.Join(subdir2_1C, ".dockerignore"), []byte(content2), 0777)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = ioutil.WriteFile(filepath.Join(subdir1_2C, ".dockerignore"), []byte(content3), 0777)
-	if err != nil {
-		t.Fatal(err)
-	}
+	writeFileHelper(t, filepath.Join(dir0_0C, ".dockerignore"), []byte(content), 0777)
+	writeFileHelper(t, filepath.Join(subdir2_1C, ".dockerignore"), []byte(content2), 0777)
+	writeFileHelper(t, filepath.Join(subdir1_2C, ".dockerignore"), []byte(content3), 0777)
 
 	// Read from root of item
 	di, err := ReadAllRecursive(dir0_0C, dir0_0C)
@@ -191,58 +130,58 @@ func TestReadAllRecursiveFromRoot(t *testing.T) {
 	}
 
 	// Check result length
-	if diLen := len(di); diLen != 12 {
+	if diLen := len(di); diLen != 15 {
 		t.Fatalf("Expected to have twelve dockerignore entries, got %d", diLen)
 	}
 
+	expectedStrings := []string{
+		getRelPath(t, dir0_0C, filepath.Join(dir0_0C, "0_0File1")),
+		getRelPath(t, dir0_0C, filepath.Join(dir0_0C, "0_0File2")),
+		"!" + getRelPath(t, dir0_0C, filepath.Join(dir0_0C, "/dir/subdir/0_0file")),
+		getRelPath(t, dir0_0C, filepath.Join(dir0_0C, "0_0lastfile")),
+		getRelPath(t, dir0_0C, filepath.Join(dir0_0C, "!")),
+		getRelPath(t, dir0_0C, filepath.Join(subdir2_1C, "2_1File1")),
+		getRelPath(t, dir0_0C, filepath.Join(subdir2_1C, "2_1File2")),
+		"!" + getRelPath(t, dir0_0C, filepath.Join(subdir2_1C, "/dir/subdir/2_1file")),
+		getRelPath(t, dir0_0C, filepath.Join(subdir2_1C, "2_1lastfile")),
+		"!" + getRelPath(t, dir0_0C, filepath.Join(subdir2_1C, "")),
+		getRelPath(t, dir0_0C, filepath.Join(subdir1_2C, "1_2File1")),
+		getRelPath(t, dir0_0C, filepath.Join(subdir1_2C, "1_2File2")),
+		"!" + getRelPath(t, dir0_0C, filepath.Join(subdir1_2C, "/dir/subdir/1_2file")),
+		getRelPath(t, dir0_0C, filepath.Join(subdir1_2C, "1_2lastfile")),
+		"!" + getRelPath(t, dir0_0C, filepath.Join(subdir1_2C, "")),
+	}
+
+	expectedNegVals := []bool{
+		false,
+		false,
+		true,
+		false,
+		true,
+		false,
+		false,
+		true,
+		false,
+		true,
+		false,
+		false,
+		true,
+		false,
+		true,
+	}
+
 	// Test to make sure all paths are correct, relative to base testing directory
-	expected := filepath.Join(dir0_0CRel, "0_0File1")
-	if di[0] != expected {
-		t.Fatalf("9th element is not " + expected)
-	}
-	expected = filepath.Join(dir0_0CRel, "/0_0File2")
-	if di[1] != expected {
-		t.Fatalf("10th element is not " + expected)
-	}
-	expected = "!" + filepath.Join(dir0_0CRel, "/dir/subdir/0_0file")
-	if di[2] != expected {
-		t.Fatalf("11th element is not " + expected)
-	}
-	expected = filepath.Join(dir0_0CRel, "0_0lastfile")
-	if di[3] != expected {
-		t.Fatalf("12th element is not " + expected)
-	}
-	expected = filepath.Join(subdir2_1CRel, "2_1File1")
-	if di[4] != expected {
-		t.Fatalf("1st element is not " + expected)
-	}
-	expected = filepath.Join(subdir2_1CRel, "/2_1File2")
-	if di[5] != expected {
-		t.Fatalf("2nd element is not " + expected)
-	}
-	expected = "!" + filepath.Join(subdir2_1CRel, "/dir/subdir/2_1file")
-	if di[6] != expected {
-		t.Fatalf("3rd element is not " + expected)
-	}
-	expected = filepath.Join(subdir2_1CRel, "2_1lastfile")
-	if di[7] != expected {
-		t.Fatalf("4th element is not " + expected)
-	}
-	expected = filepath.Join(subdir1_2CRel, "1_2File1")
-	if di[8] != expected {
-		t.Fatalf("5th element is not " + expected)
-	}
-	expected = filepath.Join(subdir1_2CRel, "/1_2File2")
-	if di[9] != expected {
-		t.Fatalf("6th element is not " + expected)
-	}
-	expected = "!" + filepath.Join(subdir1_2CRel, "/dir/subdir/1_2file")
-	if di[10] != expected {
-		t.Fatalf("7th element is not " + expected)
-	}
-	expected = filepath.Join(subdir1_2CRel, "1_2lastfile")
-	if di[11] != expected {
-		t.Fatalf("8th element is not " + expected)
+	for i := range di {
+		if di[i].Pattern() != expectedStrings[i] {
+			t.Fatalf("Element " + strconv.Itoa(i+1) + " is not " + expectedStrings[i] + ": " + di[i].Pattern())
+		}
+		if di[i].Negative() != expectedNegVals[i] {
+			if expectedNegVals[i] {
+				t.Fatalf("Element " + strconv.Itoa(i+1) + " expected to be negative")
+			} else {
+				t.Fatalf("Element " + strconv.Itoa(i+1) + " expected not to be negative")
+			}
+		}
 	}
 }
 func TestReadAllRecursiveFromSubDir1_1(t *testing.T) {
@@ -257,52 +196,21 @@ func TestReadAllRecursiveFromSubDir1_1(t *testing.T) {
 		>>> .dockerignore
 		>> subdir1_3E
 	*/
-	baseDir, err := ioutil.TempDir("", "dockerignore-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	dir0_0C := baseDir
-	subdir1_1E, err := ioutil.TempDir(dir0_0C, "subdir1_1E")
-	if err != nil {
-		t.Fatal(err)
-	}
-	subdir2_1C, err := ioutil.TempDir(subdir1_1E, "subdir2_1C")
-	if err != nil {
-		t.Fatal(err)
-	}
-	subdir1_2C, err := ioutil.TempDir(dir0_0C, "subdir1_2C")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = ioutil.TempDir(dir0_0C, "subdir1_3E")
-	if err != nil {
-		t.Fatal(err)
-	}
+	dir0_0C := createTmpDir(t, "", "dockerignore-test")
+	subdir1_1E := createTmpDir(t, dir0_0C, "subdir1_1E")
+	subdir2_1C := createTmpDir(t, subdir1_1E, "subdir2_1C")
+	subdir1_2C := createTmpDir(t, dir0_0C, "subdir1_2C")
+	ioutil.TempDir(dir0_0C, "subdir1_3E")
 	defer os.RemoveAll(dir0_0C)
 
-	// Convert all paths to relative paths from base testing directory
-	subdir2_1CRel, err := filepath.Rel(subdir1_1E, subdir2_1C)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	// Write content to files
-	content := fmt.Sprintf("0_0File1\n/0_0File2\n!/dir/subdir/0_0file\n\n0_0lastfile")
-	content2 := fmt.Sprintf("2_1File1\n/2_1File2\n!/dir/subdir/2_1file\n\n2_1lastfile")
-	content3 := fmt.Sprintf("1_2File1\n/1_2File2\n!/dir/subdir/1_2file\n\n1_2lastfile")
+	content := fmt.Sprintf("0_0File1\n/0_0File2\n!/dir/subdir/0_0file\n\n0_0lastfile\n!")
+	content2 := fmt.Sprintf("2_1File1\n/2_1File2\n!/dir/subdir/2_1file\n\n2_1lastfile\n!")
+	content3 := fmt.Sprintf("1_2File1\n/1_2File2\n!/dir/subdir/1_2file\n\n1_2lastfile\n!")
 
-	err = ioutil.WriteFile(filepath.Join(dir0_0C, ".dockerignore"), []byte(content), 0777)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = ioutil.WriteFile(filepath.Join(subdir2_1C, ".dockerignore"), []byte(content2), 0777)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = ioutil.WriteFile(filepath.Join(subdir1_2C, ".dockerignore"), []byte(content3), 0777)
-	if err != nil {
-		t.Fatal(err)
-	}
+	writeFileHelper(t, filepath.Join(dir0_0C, ".dockerignore"), []byte(content), 0777)
+	writeFileHelper(t, filepath.Join(subdir2_1C, ".dockerignore"), []byte(content2), 0777)
+	writeFileHelper(t, filepath.Join(subdir1_2C, ".dockerignore"), []byte(content3), 0777)
 
 	// Read starting from subdir1_1E
 	di, err := ReadAllRecursive(subdir1_1E, subdir1_1E)
@@ -311,25 +219,62 @@ func TestReadAllRecursiveFromSubDir1_1(t *testing.T) {
 	}
 
 	// Check length of result
-	if diLen := len(di); diLen != 4 {
+	if diLen := len(di); diLen != 5 {
 		t.Fatalf("Expected to have four dockerignore entries, got %d", diLen)
 	}
 
+	expectedStrings := []string{
+		getRelPath(t, subdir1_1E, filepath.Join(subdir2_1C, "2_1File1")),
+		getRelPath(t, subdir1_1E, filepath.Join(subdir2_1C, "/2_1File2")),
+		"!" + getRelPath(t, subdir1_1E, filepath.Join(subdir2_1C, "/dir/subdir/2_1file")),
+		getRelPath(t, subdir1_1E, filepath.Join(subdir2_1C, "2_1lastfile")),
+		"!" + getRelPath(t, subdir1_1E, filepath.Join(subdir2_1C, "")),
+	}
+
+	expectedNegVals := []bool{
+		false,
+		false,
+		true,
+		false,
+		true,
+	}
+
 	// Test to make sure all paths are correct, relative to base testing directory
-	expected := filepath.Join(subdir2_1CRel, "2_1File1")
-	if di[0] != expected {
-		t.Fatalf("1st element is not " + expected)
+	for i := range di {
+		if di[i].Pattern() != expectedStrings[i] {
+			t.Fatalf("Element " + strconv.Itoa(i+1) + " is not " + expectedStrings[i] + ": " + di[i].Pattern())
+		}
+		if di[i].Negative() != expectedNegVals[i] {
+			if expectedNegVals[i] {
+				t.Fatalf("Element " + strconv.Itoa(i+1) + " expected to be negative")
+			} else {
+				t.Fatalf("Element " + strconv.Itoa(i+1) + " expected not to be negative")
+			}
+		}
 	}
-	expected = filepath.Join(subdir2_1CRel, "/2_1File2")
-	if di[1] != expected {
-		t.Fatalf("2nd element is not " + expected)
+
+	fmt.Println(precompiledregexp.ToStringExpressions(di))
+}
+
+func writeFileHelper(t *testing.T, filename string, data []byte, perm os.FileMode) {
+	err := ioutil.WriteFile(filename, data, perm)
+	if err != nil {
+		t.Fatal(err)
 	}
-	expected = "!" + filepath.Join(subdir2_1CRel, "/dir/subdir/2_1file")
-	if di[2] != expected {
-		t.Fatalf("3rd element is not " + expected)
+}
+func createTmpDir(t *testing.T, dir string, prefix string) string {
+
+	result, err := ioutil.TempDir(dir, prefix)
+	if err != nil {
+		t.Fatal(err)
 	}
-	expected = filepath.Join(subdir2_1CRel, "2_1lastfile")
-	if di[3] != expected {
-		t.Fatalf("4th element is not " + expected)
+	return result
+}
+
+func getRelPath(t *testing.T, baseDir string, path string) string {
+	relPath, err := filepath.Rel(baseDir, path)
+	if err != nil {
+		t.Fatal(err)
 	}
+	return relPath
 }

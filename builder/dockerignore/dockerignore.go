@@ -3,7 +3,7 @@ package dockerignore
 import (
 	"bufio"
 	"fmt"
-	"github.com/docker/docker/pkg/fileutils"
+	"github.com/docker/docker/pkg/precompiledregexp"
 	"io"
 	"io/ioutil"
 	"os"
@@ -41,9 +41,9 @@ func ReadAll(reader io.ReadCloser) ([]string, error) {
 // reads all .dockerignore files in subdirectories and returns the list of file
 // patterns to ignore. Note this will trim whitespace from each line as well
 // as use GO's "clean" func to get the shortest/cleanest path for each.
-func ReadAllRecursive(baseDir string, directory string) ([]string, error) {
+func ReadAllRecursive(baseDir, directory string) ([]precompiledregexp.PrecompiledRegExp, error) {
 
-	var excludes []string
+	var excludes []precompiledregexp.PrecompiledRegExp
 
 	directory = filepath.Clean(directory)
 	directory = filepath.ToSlash(directory)
@@ -74,26 +74,51 @@ func ReadAllRecursive(baseDir string, directory string) ([]string, error) {
 			return nil, err
 		}
 
-		for i := range ignFiles {
-			isException := ignFiles[i][0] == '!'
-			if isException && len(ignFiles[i]) > 1 {
-				ignFiles[i] = "!" + filepath.Clean(filepath.Join(relDirectory, ignFiles[i][1:len(ignFiles[i])]))
-			} else {
-				ignFiles[i] = filepath.Clean(filepath.Join(relDirectory, ignFiles[i]))
-			}
+		if cap(excludes) < len(excludes)+len(ignFiles) {
+			newExcludes := make([]precompiledregexp.PrecompiledRegExp, len(excludes), (len(excludes)+len(ignFiles))*2)
+			copy(newExcludes, excludes)
 		}
-		excludes = append(excludes, ignFiles...)
+
+		for _, pattern := range ignFiles {
+			var regExpr *precompiledregexp.PrecompiledRegExp
+
+			isException := pattern[0] == '!'
+			if isException {
+				regExpr, err = precompiledregexp.NewPreCompiledRegExp(
+					filepath.Clean(filepath.Join(relDirectory, pattern[1:])), true)
+			} else {
+				regExpr, err = precompiledregexp.NewPreCompiledRegExp(
+					filepath.Clean(filepath.Join(relDirectory, pattern)), false)
+			}
+			if err != nil {
+				return nil, err
+			}
+
+			excludes = append(excludes, *regExpr)
+		}
 	}
 
 	files, _ := ioutil.ReadDir(directory)
 	for _, f := range files {
 		if f.IsDir() {
 			// Calculate subDir path
-			subDir := filepath.Clean(filepath.Join(directory, f.Name()))
-			// Calculate relative subDir path
-			relSubDir, _ := filepath.Rel(baseDir, subDir)
+			subDir := filepath.Join(directory, f.Name())
+			// Calculate relative path
+			relSubDir, err := filepath.Rel(baseDir, subDir)
+			if err != nil {
+				return nil, err
+			}
 			// Make sure relative subDir path not in exclusions.
-			matches, _ := fileutils.Matches(relSubDir, excludes)
+			matches := false
+			for _, entry := range excludes {
+				val, err := entry.Matches(relSubDir)
+				if err != nil && !strings.Contains(err.Error(), "Illegal exclusion pattern") {
+					return nil, err
+				}
+				if val {
+					matches = !entry.Negative()
+				}
+			}
 			// If not excluded, recurse in
 			if !matches {
 				subDirIgnFiles, err := ReadAllRecursive(baseDir, subDir)
@@ -105,6 +130,5 @@ func ReadAllRecursive(baseDir string, directory string) ([]string, error) {
 			}
 		}
 	}
-
 	return excludes, nil
 }

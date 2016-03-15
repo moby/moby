@@ -19,9 +19,9 @@ import (
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/precompiledregexp"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/urlutil"
@@ -130,15 +130,17 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			return err
 		}
 
-		var excludes []string
+		var regExpExcludes []precompiledregexp.PrecompiledRegExp
+		var stringExcludes []string
 		if err == nil {
-			excludes, err = dockerignore.ReadAllRecursive(contextDir, contextDir)
+			regExpExcludes, err = dockerignore.ReadAllRecursive(contextDir, contextDir)
+			stringExcludes = precompiledregexp.ToStringExpressions(regExpExcludes)
 			if err != nil {
 				return err
 			}
 		}
 
-		if err := builder.ValidateContextDirectory(contextDir, excludes); err != nil {
+		if err := builder.ValidateContextDirectory(contextDir, regExpExcludes); err != nil {
 			return fmt.Errorf("Error checking context: '%s'.", err)
 		}
 
@@ -150,15 +152,16 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		// parses the Dockerfile. Ignore errors here, as they will have been
 		// caught by validateContextDirectory above.
 		var includes = []string{"."}
-		keepThem1, _ := fileutils.Matches(".dockerignore", excludes)
-		keepThem2, _ := fileutils.Matches(relDockerfile, excludes)
+		keepThem1, _ := precompiledregexp.Matches(".dockerignore", regExpExcludes)
+		keepThem2, _ := precompiledregexp.Matches(relDockerfile, regExpExcludes)
 		if keepThem1 || keepThem2 {
 			includes = append(includes, ".dockerignore", relDockerfile)
 		}
 
+		// Tar the archive, using string exclusions. Works better for testing & API
 		ctx, err = archive.TarWithOptions(contextDir, &archive.TarOptions{
 			Compression:     archive.Uncompressed,
-			ExcludePatterns: excludes,
+			ExcludePatterns: stringExcludes,
 			IncludeFiles:    includes,
 		})
 		if err != nil {
