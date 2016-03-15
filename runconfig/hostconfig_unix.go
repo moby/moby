@@ -36,8 +36,12 @@ func ValidateNetMode(c *container.Config, hc *container.HostConfig) error {
 		}
 	}
 
-	if (hc.NetworkMode.IsHost() || hc.NetworkMode.IsContainer()) && c.Hostname != "" {
+	if hc.NetworkMode.IsContainer() && c.Hostname != "" {
 		return ErrConflictNetworkHostname
+	}
+
+	if hc.UTSMode.IsHost() && c.Hostname != "" {
+		return ErrConflictUTSHostname
 	}
 
 	if hc.NetworkMode.IsHost() && len(hc.Links) > 0 {
