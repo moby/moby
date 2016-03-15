@@ -68,7 +68,7 @@ clone git github.com/syndtr/gocapability 2c00daeb6c3b45114c80ac44119e7b8801fdd85
 clone git github.com/golang/protobuf f7137ae6b19afbfd61a94b746fda3b3fe0491874
 
 # gelf logging driver deps
-clone git github.com/Graylog2/go-gelf 6c62a85f1d47a67f2a5144c0e745b325889a8120
+clone git github.com/Graylog2/go-gelf aab2f594e4585d43468ac57287b0dece9d806883
 
 clone git github.com/fluent/fluent-logger-golang v1.0.0
 # fluent-logger-golang deps
