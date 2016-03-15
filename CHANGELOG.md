@@ -5,6 +5,33 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/misc/deprecated/ where target removal dates can also
 be found.
 
+## 1.10.3 (2016-03-10)
+
+### Runtime
+
+- Fix Docker client exiting with an "Unrecognized input header" error [#20706](https://github.com/docker/docker/pull/20706)
+- Fix Docker exiting if Exec is started with both `AttachStdin` and `Detach` [#20647](https://github.com/docker/docker/pull/20647)
+
+### Distribution
+
+- Fix a crash when pushing multiple images sharing the same layers to the same repository in parallel [#20831](https://github.com/docker/docker/pull/20831)
+- Fix a panic when pushing images to a registry which uses a misconfigured token service [#21030](https://github.com/docker/docker/pull/21030)
+
+### Plugin system
+
+- Fix issue preventing volume plugins to start when SELinux is enabled [#20834](https://github.com/docker/docker/pull/20834)
+- Prevent Docker from exiting if a volume plugin returns a null response for Get requests [#20682](https://github.com/docker/docker/pull/20682)
+- Fix plugin system leaking file descriptors if a plugin has an error [#20680](https://github.com/docker/docker/pull/20680)
+
+### Security
+
+- Fix linux32 emulation to fail during docker build [#20672](https://github.com/docker/docker/pull/20672)  
+  It was due to the `personality` syscall being blocked by the default seccomp profile.
+- Fix Oracle XE 10g failing to start in a container [#20981](https://github.com/docker/docker/pull/20981)  
+  It was due to the `ipc` syscall being blocked by the default seccomp profile.
+- Fix user namespaces not working on Linux From Scratch [#20685](https://github.com/docker/docker/pull/20685)
+- Fix issue preventing daemon to start if userns is enabled and the `subuid` or `subgid` files contain comments [#20725](https://github.com/docker/docker/pull/20725)
+
 ## 1.10.2 (2016-02-22)
 
 ### Runtime
