@@ -39,8 +39,7 @@ func New() *configs.Config {
 		Cgroups: &configs.Cgroup{
 			ScopePrefix: "docker", // systemd only
 			Resources: &configs.Resources{
-				AllowAllDevices:  false,
-				MemorySwappiness: -1,
+				AllowAllDevices: false,
 			},
 		},
 		Mounts: []*configs.Mount{

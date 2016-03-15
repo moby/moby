@@ -227,32 +227,40 @@ func (l *LinuxFactory) StartInitialization() (err error) {
 		pipe = os.NewFile(uintptr(pipefd), "pipe")
 		it   = initType(os.Getenv("_LIBCONTAINER_INITTYPE"))
 	)
+	defer pipe.Close()
 	// clear the current process's environment to clean any libcontainer
 	// specific env vars.
 	os.Clearenv()
-	var i initer
-	defer func() {
-		// We have an error during the initialization of the container's init,
-		// send it back to the parent process in the form of an initError.
-		// If container's init successed, syscall.Exec will not return, hence
-		// this defer function will never be called.
+	i, err := newContainerInit(it, pipe)
+	if err != nil {
+		l.sendError(nil, pipe, err)
+		return err
+	}
+	if err := i.Init(); err != nil {
+		if !isExecError(err) {
+			l.sendError(i, pipe, err)
+		}
+		return err
+	}
+	return nil
+}
+
+func (l *LinuxFactory) sendError(i initer, pipe *os.File, err error) {
+	// We have an error during the initialization of the container's init,
+	// send it back to the parent process in the form of an initError.
+	// If container's init successed, syscall.Exec will not return, hence
+	// this defer function will never be called.
+	if i != nil {
 		if _, ok := i.(*linuxStandardInit); ok {
 			//  Synchronisation only necessary for standard init.
 			if err := utils.WriteJSON(pipe, syncT{procError}); err != nil {
 				panic(err)
 			}
 		}
-		if err := utils.WriteJSON(pipe, newSystemError(err)); err != nil {
-			panic(err)
-		}
-		// ensure that this pipe is always closed
-		pipe.Close()
-	}()
-	i, err = newContainerInit(it, pipe)
-	if err != nil {
-		return err
 	}
-	return i.Init()
+	if err := utils.WriteJSON(pipe, newSystemError(err)); err != nil {
+		panic(err)
+	}
 }
 
 func (l *LinuxFactory) loadState(root string) (*State, error) {
@@ -279,4 +287,9 @@ func (l *LinuxFactory) validateID(id string) error {
 		return newGenericError(fmt.Errorf("invalid id format: %v", id), InvalidIdFormat)
 	}
 	return nil
+}
+
+func isExecError(err error) bool {
+	_, ok := err.(*exec.Error)
+	return ok
 }

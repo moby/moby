@@ -128,11 +128,11 @@ type Config struct {
 
 	// AppArmorProfile specifies the profile to apply to the process running in the container and is
 	// change at the time the process is execed
-	AppArmorProfile string `json:"apparmor_profile"`
+	AppArmorProfile string `json:"apparmor_profile,omitempty"`
 
 	// ProcessLabel specifies the label to apply to the process running in the container.  It is
 	// commonly used by selinux
-	ProcessLabel string `json:"process_label"`
+	ProcessLabel string `json:"process_label,omitempty"`
 
 	// Rlimits specifies the resource limits, such as max open files, to set in the container
 	// If Rlimits are not set, the container will inherit rlimits from the parent process
@@ -172,7 +172,7 @@ type Config struct {
 	Seccomp *Seccomp `json:"seccomp"`
 
 	// NoNewPrivileges controls whether processes in the container can gain additional privileges.
-	NoNewPrivileges bool `json:"no_new_privileges"`
+	NoNewPrivileges bool `json:"no_new_privileges,omitempty"`
 
 	// Hooks are a collection of actions to perform at various container lifecycle events.
 	// Hooks are not able to be marshaled to json but they are also not needed to.
@@ -180,6 +180,9 @@ type Config struct {
 
 	// Version is the version of opencontainer specification that is supported.
 	Version string `json:"version"`
+
+	// Labels are user defined metadata that is stored in the config and populated on the state
+	Labels []string `json:"labels"`
 }
 
 type Hooks struct {
