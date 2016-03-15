@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	glog "log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -101,12 +102,16 @@ func (b *BoltDB) reset() {
 }
 
 func (b *BoltDB) getDBhandle() (*bolt.DB, error) {
+	glog.Printf("> getDBhandle", time.Now().UnixNano())
+	defer func() { glog.Printf("< getDBhandle", time.Now().UnixNano()) }()
+
 	var (
 		db  *bolt.DB
 		err error
 	)
 	if !b.PersistConnection {
 		boltOptions := &bolt.Options{Timeout: b.timeout}
+		glog.Printf("new handle", time.Now().UnixNano())
 		if db, err = bolt.Open(b.path, filePerm, boltOptions); err != nil {
 			return nil, err
 		}
@@ -349,6 +354,9 @@ func (b *BoltDB) AtomicDelete(key string, previous *store.KVPair) (bool, error) 
 // AtomicPut puts a value at "key" if the key has not been
 // modified since the last Put, throws an error if this is the case
 func (b *BoltDB) AtomicPut(key string, value []byte, previous *store.KVPair, options *store.WriteOptions) (bool, *store.KVPair, error) {
+	glog.Printf("> AtomicPut %v %v %v", key, string(value), time.Now().UnixNano())
+	defer func() { glog.Printf("< AtomicPut", time.Now().UnixNano()) }()
+
 	var (
 		val     []byte
 		dbIndex uint64
@@ -366,6 +374,8 @@ func (b *BoltDB) AtomicPut(key string, value []byte, previous *store.KVPair, opt
 	defer b.releaseDBhandle()
 
 	err = db.Update(func(tx *bolt.Tx) error {
+		glog.Printf("> db.Update %v", time.Now().UnixNano())
+		defer func() { glog.Printf("< db.Update %v", time.Now().UnixNano()) }()
 		var err error
 		bucket := tx.Bucket(b.boltBucket)
 		if bucket == nil {
