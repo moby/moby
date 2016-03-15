@@ -68,7 +68,7 @@ func TestHandleErrorResponseExpectedStatusCode404EmptyErrorSlice(t *testing.T) {
 	}
 	err := HandleErrorResponse(response)
 
-	expectedMsg := `error parsing HTTP response: no error details found in HTTP response body: "{\"randomkey\": \"randomvalue\"}"`
+	expectedMsg := `error parsing HTTP 404 response body: no error details found in HTTP response body: "{\"randomkey\": \"randomvalue\"}"`
 	if !strings.Contains(err.Error(), expectedMsg) {
 		t.Errorf("Expected \"%s\", got: \"%s\"", expectedMsg, err.Error())
 	}
@@ -83,7 +83,7 @@ func TestHandleErrorResponseExpectedStatusCode404InvalidBody(t *testing.T) {
 	}
 	err := HandleErrorResponse(response)
 
-	expectedMsg := "error parsing HTTP response: invalid character 'i' looking for beginning of object key string: \"{invalid json}\""
+	expectedMsg := "error parsing HTTP 404 response body: invalid character 'i' looking for beginning of object key string: \"{invalid json}\""
 	if !strings.Contains(err.Error(), expectedMsg) {
 		t.Errorf("Expected \"%s\", got: \"%s\"", expectedMsg, err.Error())
 	}
