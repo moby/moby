@@ -114,7 +114,6 @@ the reason each syscall is blocked rather than white-listed.
 | `query_module`      | Deny manipulation and functions on kernel modules.                                                            |
 | `quotactl`          | Quota syscall which could let containers disable their own resource limits or process accounting. Also gated by `CAP_SYS_ADMIN`. |
 | `reboot`            | Don't let containers reboot the host. Also gated by `CAP_SYS_BOOT`.                                           |
-| `restart_syscall`   | Don't allow containers to restart a syscall. Possible seccomp bypass see: https://code.google.com/p/chromium/issues/detail?id=408827. |
 | `request_key`       | Prevent containers from using the kernel keyring, which is not namespaced.                                    |
 | `set_mempolicy`     | Syscall that modifies kernel memory and NUMA settings. Already gated by `CAP_SYS_NICE`.                       |
 | `setns`             | Deny associating a thread with a namespace. Also gated by `CAP_SYS_ADMIN`.                                    |
