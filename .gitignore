@@ -7,18 +7,8 @@
 *.test
 .*.swp
 .DS_Store
-.bashrc
-.dotcloud
-.flymake*
-.git/
 .gopath/
-.hg/
-.vagrant*
-Vagrantfile
-a.out
 autogen/
-bin
-build_src
 bundles/
 docker/docker
 dockerversion/version_autogen.go
@@ -34,5 +24,4 @@ docs/changed-files
 man/man1
 man/man5
 man/man8
-pyenv
 vendor/pkg/
