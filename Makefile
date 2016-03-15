@@ -84,16 +84,6 @@ binary: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary
 
 build: bundles
-ifeq ($(DOCKER_OSARCH), linux/arm)
-	# A few libnetwork integration tests require that the kernel be
-	# configured with "dummy" network interface and has the module
-	# loaded. However, the dummy module is not available by default
-	# on arm images. This ensures that it's built and loaded.
-	echo "Syncing kernel modules"
-	oc-sync-kernel-modules
-	depmod
-	modprobe dummy
-endif
 	docker build ${DOCKER_BUILD_ARGS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
 
 bundles:
@@ -101,8 +91,8 @@ bundles:
 
 cross: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross
-	
-	
+
+
 win: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh win
 
