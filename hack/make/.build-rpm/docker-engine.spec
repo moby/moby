@@ -60,7 +60,7 @@ Requires: device-mapper >= 1.02.90-2
 %global with_selinux 1
 %endif
 
-# yubico-piv-tool required
+# yubico-piv-tool recommends
 %if 0%{?fedora} >= 20 || 0%{?centos} >= 7 || 0%{?rhel} >= 7
 Requires: yubico-piv-tool >= 1.1.0
 %endif

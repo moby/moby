@@ -6,7 +6,7 @@ override_dh_gencontrol:
 	# if we're on Ubuntu, we need to Recommends: apparmor
 	echo 'apparmor:Recommends=$(shell dpkg-vendor --is Ubuntu && echo apparmor)' >> debian/docker-engine.substvars
 	# recommend yubico-piv-tool since we include pkcs11 by default
-	echo 'yubico:Recommends=$(echo "yubico-piv-tool (>= 1.1.0~)")' >> debian/docker-engine.substvars
+	echo 'yubico:Recommends="yubico-piv-tool (>= 1.1.0~)"' >> debian/docker-engine.substvars
 	dh_gencontrol
 
 override_dh_auto_build:
