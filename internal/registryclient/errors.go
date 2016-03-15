@@ -28,12 +28,13 @@ func (e *UnexpectedHTTPStatusError) Error() string {
 // UnexpectedHTTPResponseError is returned when an expected HTTP status code
 // is returned, but the content was unexpected and failed to be parsed.
 type UnexpectedHTTPResponseError struct {
-	ParseErr error
-	Response []byte
+	ParseErr   error
+	StatusCode int
+	Response   []byte
 }
 
 func (e *UnexpectedHTTPResponseError) Error() string {
-	return fmt.Sprintf("error parsing HTTP response: %s: %q", e.ParseErr.Error(), string(e.Response))
+	return fmt.Sprintf("error parsing HTTP %d response body: %s: %q", e.StatusCode, e.ParseErr.Error(), string(e.Response))
 }
 
 func parseHTTPErrorResponse(statusCode int, r io.Reader) error {
@@ -58,8 +59,9 @@ func parseHTTPErrorResponse(statusCode int, r io.Reader) error {
 
 	if err := json.Unmarshal(body, &errors); err != nil {
 		return &UnexpectedHTTPResponseError{
-			ParseErr: err,
-			Response: body,
+			ParseErr:   err,
+			StatusCode: statusCode,
+			Response:   body,
 		}
 	}
 
@@ -67,8 +69,9 @@ func parseHTTPErrorResponse(statusCode int, r io.Reader) error {
 		// If there was no error specified in the body, return
 		// UnexpectedHTTPResponseError.
 		return &UnexpectedHTTPResponseError{
-			ParseErr: ErrNoErrorsInBody,
-			Response: body,
+			ParseErr:   ErrNoErrorsInBody,
+			StatusCode: statusCode,
+			Response:   body,
 		}
 	}
 
