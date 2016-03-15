@@ -63,8 +63,7 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 // this is only called when the container is created.
 func (daemon *Daemon) populateVolumes(c *container.Container) error {
 	for _, mnt := range c.MountPoints {
-		// skip binds and volumes referenced by other containers (ie, volumes-from)
-		if mnt.Driver == "" || mnt.Volume == nil || len(daemon.volumes.Refs(mnt.Volume)) > 1 {
+		if !mnt.CopyData || mnt.Volume == nil {
 			continue
 		}
 

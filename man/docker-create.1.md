@@ -434,6 +434,10 @@ change propagation properties of source mount. Say `/` is source mount for
 > is `slave`, you may not be able to use the `shared` or `rshared` propagation on
 > a volume.
 
+
+To disable automatic copying of data from the container path to the volume, use
+the `nocopy` flag. The `nocopy` flag can be set on bind mounts and named volumes.
+
 **--volume-driver**=""
    Container's volume driver. This driver creates volumes specified either from
    a Dockerfile's `VOLUME` instruction or from the `docker run -v` flag.

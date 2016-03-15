@@ -552,6 +552,7 @@ func (container *Container) AddMountPointWithVolume(destination string, vol volu
 		Destination: destination,
 		RW:          rw,
 		Volume:      vol,
+		CopyData:    volume.DefaultCopyMode,
 	}
 }
 

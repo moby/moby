@@ -4249,6 +4249,44 @@ func (s *DockerSuite) TestRunVolumeWithOneCharacter(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
 	out, _ := dockerCmd(c, "run", "-v", "/tmp/q:/foo", "busybox", "sh", "-c", "find /foo")
-	fmt.Printf("OUTPUT: %+v", out)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "/foo")
+}
+
+func (s *DockerSuite) TestRunVolumeCopyFlag(c *check.C) {
+	testRequires(c, DaemonIsLinux) // Windows does not support copying data from image to the volume
+	_, err := buildImage("volumecopy",
+		`FROM busybox
+		RUN mkdir /foo && echo hello > /foo/bar
+		CMD cat /foo/bar`,
+		true,
+	)
+	c.Assert(err, checker.IsNil)
+
+	dockerCmd(c, "volume", "create", "--name=test")
+
+	// test with the nocopy flag
+	out, _, err := dockerCmdWithError("run", "-v", "test:/foo:nocopy", "volumecopy")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	// test default behavior which is to copy for non-binds
+	out, _ = dockerCmd(c, "run", "-v", "test:/foo", "volumecopy")
+	c.Assert(strings.TrimSpace(out), checker.Equals, "hello")
+	// error out when the volume is already populated
+	out, _, err = dockerCmdWithError("run", "-v", "test:/foo:copy", "volumecopy")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	// do not error out when copy isn't explicitly set even though it's already populated
+	out, _ = dockerCmd(c, "run", "-v", "test:/foo", "volumecopy")
+	c.Assert(strings.TrimSpace(out), checker.Equals, "hello")
+
+	// do not allow copy modes on volumes-from
+	dockerCmd(c, "run", "--name=test", "-v", "/foo", "busybox", "true")
+	out, _, err = dockerCmdWithError("run", "--volumes-from=test:copy", "busybox", "true")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	out, _, err = dockerCmdWithError("run", "--volumes-from=test:nocopy", "busybox", "true")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+
+	// do not allow copy modes on binds
+	out, _, err = dockerCmdWithError("run", "-v", "/foo:/bar:copy", "busybox", "true")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	out, _, err = dockerCmdWithError("run", "-v", "/foo:/bar:nocopy", "busybox", "true")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
 }
