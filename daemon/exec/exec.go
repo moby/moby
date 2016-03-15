@@ -29,6 +29,9 @@ type Config struct {
 
 	// waitStart will be closed immediately after the exec is really started.
 	waitStart chan struct{}
+
+	// waitResize will be closed after Resize is finished.
+	waitResize chan struct{}
 }
 
 // NewConfig initializes the a new exec configuration
@@ -37,6 +40,7 @@ func NewConfig() *Config {
 		ID:           stringid.GenerateNonCryptoID(),
 		StreamConfig: runconfig.NewStreamConfig(),
 		waitStart:    make(chan struct{}),
+		waitResize:   make(chan struct{}),
 	}
 }
 
@@ -106,13 +110,29 @@ func (c *Config) Wait(cErr chan error) error {
 	return nil
 }
 
+// WaitResize waits until terminal resize finishes or time out.
+func (c *Config) WaitResize() error {
+	select {
+	case <-c.waitResize:
+	case <-time.After(time.Second):
+		return fmt.Errorf("Terminal resize for exec %s time out.", c.ID)
+	}
+	return nil
+}
+
 // Close closes the wait channel for the progress.
 func (c *Config) Close() {
 	close(c.waitStart)
 }
 
+// CloseResize closes the wait channel for resizing terminal.
+func (c *Config) CloseResize() {
+	close(c.waitResize)
+}
+
 // Resize changes the size of the terminal for the exec process.
 func (c *Config) Resize(h, w int) error {
+	defer c.CloseResize()
 	select {
 	case <-c.waitStart:
 	case <-time.After(time.Second):

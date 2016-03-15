@@ -307,6 +307,9 @@ func (d *Daemon) monitorExec(container *container.Container, execConfig *exec.Co
 	}
 
 	if execConfig.ProcessConfig.Terminal != nil {
+		if err := execConfig.WaitResize(); err != nil {
+			logrus.Errorf("Error waiting for resize: %v", err)
+		}
 		if err := execConfig.ProcessConfig.Terminal.Close(); err != nil {
 			logrus.Errorf("Error closing terminal while running in container %s: %s", container.ID, err)
 		}
