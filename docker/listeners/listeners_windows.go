@@ -32,7 +32,13 @@ func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) (ls []net.List
 				sddl += fmt.Sprintf("(A;;GRGW;;;%s)", sid)
 			}
 		}
-		l, err := winio.ListenPipe(addr, sddl)
+		c := winio.PipeConfig{
+			SecurityDescriptor: sddl,
+			MessageMode:        true,  // Use message mode so that CloseWrite() is supported
+			InputBufferSize:    65536, // Use 64KB buffers to improve performance
+			OutputBufferSize:   65536,
+		}
+		l, err := winio.ListenPipe(addr, &c)
 		if err != nil {
 			return nil, err
 		}
