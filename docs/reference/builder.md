@@ -1189,12 +1189,10 @@ For example, consider these two Dockerfile:
 3 RUN echo hello
 ```
 If you specify `--build-arg CONT_IMG_VER=<value>` on the command line, in both
-cases, the specification on line 2 does not cause a cache miss; line 3 does cause
-a cache miss. The definition on line 2 has no impact on the resulting image. The
-`RUN` on line 3 executes a command and in doing so defines a set of environment
-variables, including `CONT_IMG_VER` if it has a value associated with it. At
-that point, the `ARG` variable may impact the resulting image, so a cache miss
-occurs.
+cases, the specification on line 2 does not cause a cache miss; line 3 does
+cause a cache miss.`ARG CONT_IMG_VER` causes the RUN line to be identified
+as the same as running CONT_IMG_VER=<value> echo hello, and so if the <value>
+changes, we get a cache miss.
 
 Consider another example under the same command line:
 
