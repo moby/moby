@@ -131,8 +131,8 @@ various instructions available for use in a `Dockerfile`.
 
 Whenever possible, use current Official Repositories as the basis for your
 image. We recommend the [Debian image](https://hub.docker.com/_/debian/)
-since it’s very tightly controlled and kept extremely minimal (currently under
-100 mb), while still being a full distribution.
+since it’s very tightly controlled and kept minimal (currently under 150 mb),
+while still being a full distribution.
 
 ### RUN
 
