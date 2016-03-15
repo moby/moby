@@ -16,6 +16,8 @@ type Writer struct {
 	network   string
 	raddr     string
 	tlsConfig *tls.Config
+	framer    Framer
+	formatter Formatter
 
 	conn serverConn
 }
@@ -32,13 +34,23 @@ func (w *Writer) connect() (err error) {
 	var conn serverConn
 	var hostname string
 	dialer := w.getDialer()
-	conn, hostname, err = dialer()
+	conn, hostname, err = dialer.Call()
 	if err == nil {
 		w.conn = conn
 		w.hostname = hostname
 	}
 
 	return
+}
+
+// SetFormatter changes the formatter function for subsequent messages.
+func (w *Writer) SetFormatter(f Formatter) {
+	w.formatter = f
+}
+
+// SetFramer changes the framer function for subsequent messages.
+func (w *Writer) SetFramer(f Framer) {
+	w.framer = f
 }
 
 // Write sends a log message to the syslog daemon using the default priority
@@ -133,15 +145,15 @@ func (w *Writer) writeAndRetry(p Priority, s string) (int, error) {
 	return w.write(pr, s)
 }
 
-// write generates and writes a syslog formatted string. The
-// format is as follows: <PRI>TIMESTAMP HOSTNAME TAG[PID]: MSG
+// write generates and writes a syslog formatted string. It formats the
+// message based on the current Formatter and Framer.
 func (w *Writer) write(p Priority, msg string) (int, error) {
 	// ensure it ends in a \n
 	if !strings.HasSuffix(msg, "\n") {
 		msg += "\n"
 	}
 
-	err := w.conn.writeString(p, w.hostname, w.tag, msg)
+	err := w.conn.writeString(w.framer, w.formatter, p, w.hostname, w.tag, msg)
 	if err != nil {
 		return 0, err
 	}

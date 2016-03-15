@@ -80,6 +80,7 @@ The following logging options are supported for the `syslog` logging driver:
     --log-opt syslog-tls-key=/etc/ca-certificates/custom/key.pem
     --log-opt syslog-tls-skip-verify=true
     --log-opt tag="mailer"
+    --log-opt syslog-format=[rfc5424|rfc3164] 
 
 `syslog-address` specifies the remote syslog server address where the driver connects to.
 If not specified it defaults to the local unix socket of the running system.
@@ -130,6 +131,11 @@ this option to `true`. This option is ignored if the address protocol is not `tc
 By default, Docker uses the first 12 characters of the container ID to tag log messages.
 Refer to the [log tag option documentation](log_tags.md) for customizing
 the log tag format.
+
+`syslog-format` specifies syslog message format to use when logging.
+If not specified it defaults to the local unix syslog format without hostname specification.
+Specify rfc3164 to perform logging in RFC-3164 compatible format. Specify rfc5424 to perform 
+logging in RFC-5424 compatible format
 
 
 ## journald options
