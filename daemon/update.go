@@ -25,6 +25,9 @@ func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostCon
 
 // ContainerUpdateCmdOnBuild updates Path and Args for the container with ID cID.
 func (daemon *Daemon) ContainerUpdateCmdOnBuild(cID string, cmd []string) error {
+	if len(cmd) == 0 {
+		return nil
+	}
 	c, err := daemon.GetContainer(cID)
 	if err != nil {
 		return err
