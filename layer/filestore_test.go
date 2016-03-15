@@ -47,17 +47,6 @@ func assertNotDirectoryError(t *testing.T, err error) {
 	}
 }
 
-func assertPermissionError(t *testing.T, err error) {
-	perr, ok := err.(*os.PathError)
-	if !ok {
-		t.Fatalf("Unexpected error %#v, expected path error", err)
-	}
-
-	if perr.Err != syscall.EACCES {
-		t.Fatalf("Unexpected error %s, expected %s", perr.Err, syscall.EACCES)
-	}
-}
-
 func TestCommitFailure(t *testing.T) {
 	fms, td, cleanup := newFileMetadataStore(t)
 	defer cleanup()
