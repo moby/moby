@@ -171,7 +171,7 @@ func TestGetRemoteImageJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertEqual(t, size, int64(154), "Expected size 154")
-	if len(json) <= 0 {
+	if len(json) == 0 {
 		t.Fatal("Expected non-empty json")
 	}
 

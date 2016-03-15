@@ -527,11 +527,9 @@ func (b *Builder) create() (string, error) {
 	b.tmpContainers[c.ID] = struct{}{}
 	fmt.Fprintf(b.Stdout, " ---> Running in %s\n", stringid.TruncateID(c.ID))
 
-	if len(config.Cmd) > 0 {
-		// override the entry point that may have been picked up from the base image
-		if err := b.docker.ContainerUpdateCmdOnBuild(c.ID, config.Cmd); err != nil {
-			return "", err
-		}
+	// override the entry point that may have been picked up from the base image
+	if err := b.docker.ContainerUpdateCmdOnBuild(c.ID, config.Cmd); err != nil {
+		return "", err
 	}
 
 	return c.ID, nil
