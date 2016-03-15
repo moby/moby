@@ -881,9 +881,17 @@ func (archiver *Archiver) CopyWithTar(src, dst string) error {
 	if !srcSt.IsDir() {
 		return archiver.CopyFileWithTar(src, dst)
 	}
+
+	// if this archiver is set up with ID mapping we need to create
+	// the new destination directory with the remapped root UID/GID pair
+	// as owner
+	rootUID, rootGID, err := idtools.GetRootUIDGID(archiver.UIDMaps, archiver.GIDMaps)
+	if err != nil {
+		return err
+	}
 	// Create dst, copy src's content into it
 	logrus.Debugf("Creating dest directory: %s", dst)
-	if err := system.MkdirAll(dst, 0755); err != nil {
+	if err := idtools.MkdirAllNewAs(dst, 0755, rootUID, rootGID); err != nil {
 		return err
 	}
 	logrus.Debugf("Calling TarUntar(%s, %s)", src, dst)

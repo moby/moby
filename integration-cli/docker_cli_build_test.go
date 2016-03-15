@@ -824,13 +824,15 @@ RUN [ $(ls -l /exists/exists_file | awk '{print $3":"$4}') = 'dockerio:dockerio'
 	}
 }
 
-func (s *DockerSuite) TestBuildCopyToNewParentDirectory(c *check.C) {
+// This test is mainly for user namespaces to verify that new directories
+// are created as the remapped root uid/gid pair
+func (s *DockerSuite) TestBuildAddToNewDestination(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Linux specific test
-	name := "testcopytonewdir"
+	name := "testaddtonewdest"
 	ctx, err := fakeContext(`FROM busybox
-COPY test_dir /new_dir
-RUN [ $(ls -l / | grep new_dir | awk '{print $3":"$4}') = 'root:root' ]
-RUN ls -l /new_dir`,
+ADD . /new_dir
+RUN ls -l /
+RUN [ $(ls -l / | grep new_dir | awk '{print $3":"$4}') = 'root:root' ]`,
 		map[string]string{
 			"test_dir/test_file": "test file",
 		})
@@ -844,6 +846,30 @@ RUN ls -l /new_dir`,
 	}
 }
 
+// This test is mainly for user namespaces to verify that new directories
+// are created as the remapped root uid/gid pair
+func (s *DockerSuite) TestBuildCopyToNewParentDirectory(c *check.C) {
+	testRequires(c, DaemonIsLinux) // Linux specific test
+	name := "testcopytonewdir"
+	ctx, err := fakeContext(`FROM busybox
+COPY test_dir /new_dir
+RUN ls -l /new_dir
+RUN [ $(ls -l / | grep new_dir | awk '{print $3":"$4}') = 'root:root' ]`,
+		map[string]string{
+			"test_dir/test_file": "test file",
+		})
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer ctx.Close()
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		c.Fatal(err)
+	}
+}
+
+// This test is mainly for user namespaces to verify that new directories
+// are created as the remapped root uid/gid pair
 func (s *DockerSuite) TestBuildWorkdirIsContainerRoot(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Linux specific test
 	name := "testworkdirownership"
