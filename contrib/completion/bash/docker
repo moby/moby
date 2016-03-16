@@ -412,7 +412,7 @@ __docker_complete_log_options() {
 	local awslogs_options="awslogs-region awslogs-group awslogs-stream"
 	local fluentd_options="env fluentd-address labels tag"
 	local gcplogs_options="env gcp-log-cmd gcp-project labels"
-	local gelf_options="env gelf-address labels tag"
+	local gelf_options="env gelf-address gelf-compression-level gelf-compression-type labels tag"
 	local journald_options="env labels tag"
 	local json_file_options="env labels max-file max-size"
 	local syslog_options="syslog-address syslog-tls-ca-cert syslog-tls-cert syslog-tls-key syslog-tls-skip-verify syslog-facility tag"
@@ -462,6 +462,14 @@ __docker_complete_log_driver_options() {
 		gelf-address)
 			COMPREPLY=( $( compgen -W "udp" -S "://" -- "${cur##*=}" ) )
 			__docker_nospace
+			return
+			;;
+		gelf-compression-level)
+			COMPREPLY=( $( compgen -W "1 2 3 4 5 6 7 8 9" -- "${cur##*=}" ) )
+			return
+			;;
+		gelf-compression-type)
+			COMPREPLY=( $( compgen -W "gzip none zlib" -- "${cur##*=}" ) )
 			return
 			;;
 		syslog-address)
