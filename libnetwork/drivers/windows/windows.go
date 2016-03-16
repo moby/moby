@@ -29,11 +29,12 @@ import (
 
 // networkConfiguration for network specific configuration
 type networkConfiguration struct {
-	ID    string
-	Type  string
-	Name  string
-	HnsID string
-	RDID  string
+	ID                 string
+	Type               string
+	Name               string
+	HnsID              string
+	RDID               string
+	NetworkAdapterName string
 }
 
 // endpointConfiguration represents the user specified configuration for the sandbox endpoint
@@ -125,6 +126,8 @@ func (d *driver) parseNetworkOptions(id string, genericOptions map[string]string
 			config.HnsID = value
 		case RoutingDomain:
 			config.RDID = value
+		case Interface:
+			config.NetworkAdapterName = value
 		}
 	}
 
@@ -197,9 +200,10 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Dat
 		}
 
 		network := &hcsshim.HNSNetwork{
-			Name:    config.Name,
-			Type:    d.name,
-			Subnets: subnets,
+			Name:               config.Name,
+			Type:               d.name,
+			Subnets:            subnets,
+			NetworkAdapterName: config.NetworkAdapterName,
 		}
 
 		if network.Name == "" {
@@ -364,8 +368,10 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 
 	ec, err := parseEndpointOptions(epOptions)
 
-	if err != nil {
-		return err
+	macAddress := ifInfo.MacAddress()
+	// Use the macaddress if it was provided
+	if macAddress != nil {
+		endpointStruct.MacAddress = strings.Replace(macAddress.String(), ":", "-", -1)
 	}
 
 	endpointStruct.Policies, err = convertPortBindings(ec.PortBindings)

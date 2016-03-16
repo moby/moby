@@ -9,21 +9,38 @@ var _ unsafe.Pointer
 
 var (
 	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
+	modwinmm    = syscall.NewLazyDLL("winmm.dll")
 	modadvapi32 = syscall.NewLazyDLL("advapi32.dll")
 
 	procCancelIoEx                                           = modkernel32.NewProc("CancelIoEx")
 	procCreateIoCompletionPort                               = modkernel32.NewProc("CreateIoCompletionPort")
 	procGetQueuedCompletionStatus                            = modkernel32.NewProc("GetQueuedCompletionStatus")
 	procSetFileCompletionNotificationModes                   = modkernel32.NewProc("SetFileCompletionNotificationModes")
+	proctimeBeginPeriod                                      = modwinmm.NewProc("timeBeginPeriod")
 	procConnectNamedPipe                                     = modkernel32.NewProc("ConnectNamedPipe")
 	procCreateNamedPipeW                                     = modkernel32.NewProc("CreateNamedPipeW")
 	procCreateFileW                                          = modkernel32.NewProc("CreateFileW")
 	procWaitNamedPipeW                                       = modkernel32.NewProc("WaitNamedPipeW")
+	procGetNamedPipeInfo                                     = modkernel32.NewProc("GetNamedPipeInfo")
+	procGetNamedPipeHandleStateW                             = modkernel32.NewProc("GetNamedPipeHandleStateW")
 	procLookupAccountNameW                                   = modadvapi32.NewProc("LookupAccountNameW")
 	procConvertSidToStringSidW                               = modadvapi32.NewProc("ConvertSidToStringSidW")
 	procConvertStringSecurityDescriptorToSecurityDescriptorW = modadvapi32.NewProc("ConvertStringSecurityDescriptorToSecurityDescriptorW")
+	procConvertSecurityDescriptorToStringSecurityDescriptorW = modadvapi32.NewProc("ConvertSecurityDescriptorToStringSecurityDescriptorW")
 	procLocalFree                                            = modkernel32.NewProc("LocalFree")
 	procGetSecurityDescriptorLength                          = modadvapi32.NewProc("GetSecurityDescriptorLength")
+	procGetFileInformationByHandleEx                         = modkernel32.NewProc("GetFileInformationByHandleEx")
+	procSetFileInformationByHandle                           = modkernel32.NewProc("SetFileInformationByHandle")
+	procAdjustTokenPrivileges                                = modadvapi32.NewProc("AdjustTokenPrivileges")
+	procImpersonateSelf                                      = modadvapi32.NewProc("ImpersonateSelf")
+	procRevertToSelf                                         = modadvapi32.NewProc("RevertToSelf")
+	procOpenThreadToken                                      = modadvapi32.NewProc("OpenThreadToken")
+	procGetCurrentThread                                     = modkernel32.NewProc("GetCurrentThread")
+	procLookupPrivilegeValueW                                = modadvapi32.NewProc("LookupPrivilegeValueW")
+	procLookupPrivilegeNameW                                 = modadvapi32.NewProc("LookupPrivilegeNameW")
+	procLookupPrivilegeDisplayNameW                          = modadvapi32.NewProc("LookupPrivilegeDisplayNameW")
+	procBackupRead                                           = modkernel32.NewProc("BackupRead")
+	procBackupWrite                                          = modkernel32.NewProc("BackupWrite")
 )
 
 func cancelIoEx(file syscall.Handle, o *syscall.Overlapped) (err error) {
@@ -72,6 +89,12 @@ func setFileCompletionNotificationModes(h syscall.Handle, flags uint8) (err erro
 			err = syscall.EINVAL
 		}
 	}
+	return
+}
+
+func timeBeginPeriod(period uint32) (n int32) {
+	r0, _, _ := syscall.Syscall(proctimeBeginPeriod.Addr(), 1, uintptr(period), 0, 0)
+	n = int32(r0)
 	return
 }
 
@@ -152,6 +175,30 @@ func _waitNamedPipe(name *uint16, timeout uint32) (err error) {
 	return
 }
 
+func getNamedPipeInfo(pipe syscall.Handle, flags *uint32, outSize *uint32, inSize *uint32, maxInstances *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procGetNamedPipeInfo.Addr(), 5, uintptr(pipe), uintptr(unsafe.Pointer(flags)), uintptr(unsafe.Pointer(outSize)), uintptr(unsafe.Pointer(inSize)), uintptr(unsafe.Pointer(maxInstances)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func getNamedPipeHandleState(pipe syscall.Handle, state *uint32, curInstances *uint32, maxCollectionCount *uint32, collectDataTimeout *uint32, userName *uint16, maxUserNameSize uint32) (err error) {
+	r1, _, e1 := syscall.Syscall9(procGetNamedPipeHandleStateW.Addr(), 7, uintptr(pipe), uintptr(unsafe.Pointer(state)), uintptr(unsafe.Pointer(curInstances)), uintptr(unsafe.Pointer(maxCollectionCount)), uintptr(unsafe.Pointer(collectDataTimeout)), uintptr(unsafe.Pointer(userName)), uintptr(maxUserNameSize), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
 func lookupAccountName(systemName *uint16, accountName string, sid *byte, sidSize *uint32, refDomain *uint16, refDomainSize *uint32, sidNameUse *uint32) (err error) {
 	var _p0 *uint16
 	_p0, err = syscall.UTF16PtrFromString(accountName)
@@ -206,6 +253,18 @@ func _convertStringSecurityDescriptorToSecurityDescriptor(str *uint16, revision 
 	return
 }
 
+func convertSecurityDescriptorToStringSecurityDescriptor(sd *byte, revision uint32, secInfo uint32, sddl **uint16, sddlSize *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procConvertSecurityDescriptorToStringSecurityDescriptorW.Addr(), 5, uintptr(unsafe.Pointer(sd)), uintptr(revision), uintptr(secInfo), uintptr(unsafe.Pointer(sddl)), uintptr(unsafe.Pointer(sddlSize)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
 func localFree(mem uintptr) {
 	syscall.Syscall(procLocalFree.Addr(), 1, uintptr(mem), 0, 0)
 	return
@@ -214,5 +273,220 @@ func localFree(mem uintptr) {
 func getSecurityDescriptorLength(sd uintptr) (len uint32) {
 	r0, _, _ := syscall.Syscall(procGetSecurityDescriptorLength.Addr(), 1, uintptr(sd), 0, 0)
 	len = uint32(r0)
+	return
+}
+
+func getFileInformationByHandleEx(h syscall.Handle, class uint32, buffer *byte, size uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procGetFileInformationByHandleEx.Addr(), 4, uintptr(h), uintptr(class), uintptr(unsafe.Pointer(buffer)), uintptr(size), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func setFileInformationByHandle(h syscall.Handle, class uint32, buffer *byte, size uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procSetFileInformationByHandle.Addr(), 4, uintptr(h), uintptr(class), uintptr(unsafe.Pointer(buffer)), uintptr(size), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func adjustTokenPrivileges(token syscall.Handle, releaseAll bool, input *byte, outputSize uint32, output *byte, requiredSize *uint32) (success bool, err error) {
+	var _p0 uint32
+	if releaseAll {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r0, _, e1 := syscall.Syscall6(procAdjustTokenPrivileges.Addr(), 6, uintptr(token), uintptr(_p0), uintptr(unsafe.Pointer(input)), uintptr(outputSize), uintptr(unsafe.Pointer(output)), uintptr(unsafe.Pointer(requiredSize)))
+	success = r0 != 0
+	if true {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func impersonateSelf(level uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procImpersonateSelf.Addr(), 1, uintptr(level), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func revertToSelf() (err error) {
+	r1, _, e1 := syscall.Syscall(procRevertToSelf.Addr(), 0, 0, 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func openThreadToken(thread syscall.Handle, accessMask uint32, openAsSelf bool, token *syscall.Handle) (err error) {
+	var _p0 uint32
+	if openAsSelf {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r1, _, e1 := syscall.Syscall6(procOpenThreadToken.Addr(), 4, uintptr(thread), uintptr(accessMask), uintptr(_p0), uintptr(unsafe.Pointer(token)), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func getCurrentThread() (h syscall.Handle) {
+	r0, _, _ := syscall.Syscall(procGetCurrentThread.Addr(), 0, 0, 0, 0)
+	h = syscall.Handle(r0)
+	return
+}
+
+func lookupPrivilegeValue(systemName string, name string, luid *uint64) (err error) {
+	var _p0 *uint16
+	_p0, err = syscall.UTF16PtrFromString(systemName)
+	if err != nil {
+		return
+	}
+	var _p1 *uint16
+	_p1, err = syscall.UTF16PtrFromString(name)
+	if err != nil {
+		return
+	}
+	return _lookupPrivilegeValue(_p0, _p1, luid)
+}
+
+func _lookupPrivilegeValue(systemName *uint16, name *uint16, luid *uint64) (err error) {
+	r1, _, e1 := syscall.Syscall(procLookupPrivilegeValueW.Addr(), 3, uintptr(unsafe.Pointer(systemName)), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(luid)))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func lookupPrivilegeName(systemName string, luid *uint64, buffer *uint16, size *uint32) (err error) {
+	var _p0 *uint16
+	_p0, err = syscall.UTF16PtrFromString(systemName)
+	if err != nil {
+		return
+	}
+	return _lookupPrivilegeName(_p0, luid, buffer, size)
+}
+
+func _lookupPrivilegeName(systemName *uint16, luid *uint64, buffer *uint16, size *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procLookupPrivilegeNameW.Addr(), 4, uintptr(unsafe.Pointer(systemName)), uintptr(unsafe.Pointer(luid)), uintptr(unsafe.Pointer(buffer)), uintptr(unsafe.Pointer(size)), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func lookupPrivilegeDisplayName(systemName string, name *uint16, buffer *uint16, size *uint32, languageId *uint32) (err error) {
+	var _p0 *uint16
+	_p0, err = syscall.UTF16PtrFromString(systemName)
+	if err != nil {
+		return
+	}
+	return _lookupPrivilegeDisplayName(_p0, name, buffer, size, languageId)
+}
+
+func _lookupPrivilegeDisplayName(systemName *uint16, name *uint16, buffer *uint16, size *uint32, languageId *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procLookupPrivilegeDisplayNameW.Addr(), 5, uintptr(unsafe.Pointer(systemName)), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(buffer)), uintptr(unsafe.Pointer(size)), uintptr(unsafe.Pointer(languageId)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func backupRead(h syscall.Handle, b []byte, bytesRead *uint32, abort bool, processSecurity bool, context *uintptr) (err error) {
+	var _p0 *byte
+	if len(b) > 0 {
+		_p0 = &b[0]
+	}
+	var _p1 uint32
+	if abort {
+		_p1 = 1
+	} else {
+		_p1 = 0
+	}
+	var _p2 uint32
+	if processSecurity {
+		_p2 = 1
+	} else {
+		_p2 = 0
+	}
+	r1, _, e1 := syscall.Syscall9(procBackupRead.Addr(), 7, uintptr(h), uintptr(unsafe.Pointer(_p0)), uintptr(len(b)), uintptr(unsafe.Pointer(bytesRead)), uintptr(_p1), uintptr(_p2), uintptr(unsafe.Pointer(context)), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func backupWrite(h syscall.Handle, b []byte, bytesWritten *uint32, abort bool, processSecurity bool, context *uintptr) (err error) {
+	var _p0 *byte
+	if len(b) > 0 {
+		_p0 = &b[0]
+	}
+	var _p1 uint32
+	if abort {
+		_p1 = 1
+	} else {
+		_p1 = 0
+	}
+	var _p2 uint32
+	if processSecurity {
+		_p2 = 1
+	} else {
+		_p2 = 0
+	}
+	r1, _, e1 := syscall.Syscall9(procBackupWrite.Addr(), 7, uintptr(h), uintptr(unsafe.Pointer(_p0)), uintptr(len(b)), uintptr(unsafe.Pointer(bytesWritten)), uintptr(_p1), uintptr(_p2), uintptr(unsafe.Pointer(context)), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
 	return
 }

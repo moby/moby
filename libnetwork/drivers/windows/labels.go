@@ -9,4 +9,7 @@ const (
 
 	// RoutingDomain of the network
 	RoutingDomain = "com.docker.network.windowsshim.routingdomain"
+
+	// Interface of the network
+	Interface = "com.docker.network.windowsshim.interface"
 )
