@@ -4,6 +4,8 @@ import (
 	"net"
 	"testing"
 
+	"github.com/docker/libnetwork/ipamapi"
+	"github.com/docker/libnetwork/netlabel"
 	_ "github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
 )
@@ -56,6 +58,17 @@ func TestWindowsIPAM(t *testing.T) {
 	}
 
 	ip, _, err = a.RequestAddress(requestPool.String(), requestAddress, map[string]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !ip.IP.Equal(requestAddress) {
+		t.Fatalf("Unexpected data returned. Expected %v . Got: %v ", requestAddress, ip.IP)
+	}
+
+	requestOptions := map[string]string{}
+	requestOptions[ipamapi.RequestAddressType] = netlabel.Gateway
+	ip, _, err = a.RequestAddress(requestPool.String(), requestAddress, requestOptions)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -11,11 +11,11 @@
 		},
 		{
 			"ImportPath": "github.com/Microsoft/hcsshim",
-			"Rev": "43858ef3c5c944dfaaabfbe8b6ea093da7f28dba"
+			"Rev": "116e0e9f5ced0cec94ae46d0aa1b3002a325f532"
 		},
 		{
 			"ImportPath": "github.com/Microsoft/go-winio",
-			"Rev": "eb176a9831c54b88eaf9eb4fbc24b94080d910ad"
+			"Rev": "8f9387ea7efabb228a981b9c381142be7667967f"
 		},
 		{
 			"ImportPath": "github.com/BurntSushi/toml",
