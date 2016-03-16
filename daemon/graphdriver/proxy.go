@@ -161,7 +161,6 @@ func (d *graphDriverProxy) Diff(id, parent string) (archive.Archive, error) {
 	}
 	body, err := d.client.Stream("GraphDriver.Diff", args)
 	if err != nil {
-		body.Close()
 		return nil, err
 	}
 	return archive.Archive(body), nil

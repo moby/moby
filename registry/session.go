@@ -284,6 +284,7 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, imgSize int64) (io
 	res, err = r.client.Do(req)
 	if err != nil {
 		logrus.Debugf("Error contacting registry %s: %v", registry, err)
+		// the only case err != nil && res != nil is https://golang.org/src/net/http/client.go#L515
 		if res != nil {
 			if res.Body != nil {
 				res.Body.Close()
