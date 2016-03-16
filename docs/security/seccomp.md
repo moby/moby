@@ -127,6 +127,7 @@ the reason each syscall is blocked rather than white-listed.
 | `umount2`           | Should be a privileged operation.                                                                             |
 | `unshare`           | Deny cloning new namespaces for processes. Also gated by `CAP_SYS_ADMIN`, with the exception of `unshare --user`. |
 | `uselib`            | Older syscall related to shared libraries, unused for a long time.                                            |
+| `userfaultfd`       | Userspace page fault handling, largely needed for process migration.                                          |
 | `ustat`             | Obsolete syscall.                                                                                             |
 | `vm86`              | In kernel x86 real mode virtual machine. Also gated by `CAP_SYS_ADMIN`.                                       |
 | `vm86old`           | In kernel x86 real mode virtual machine. Also gated by `CAP_SYS_ADMIN`.                                       |

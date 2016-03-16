@@ -146,6 +146,11 @@ var DefaultProfile = &types.Seccomp{
 			Args:   []*types.Arg{},
 		},
 		{
+			Name:   "copy_file_range",
+			Action: types.ActAllow,
+			Args:   []*types.Arg{},
+		},
+		{
 			Name:   "creat",
 			Action: types.ActAllow,
 			Args:   []*types.Arg{},
@@ -742,6 +747,11 @@ var DefaultProfile = &types.Seccomp{
 		},
 		{
 			Name:   "mlock",
+			Action: types.ActAllow,
+			Args:   []*types.Arg{},
+		},
+		{
+			Name:   "mlock2",
 			Action: types.ActAllow,
 			Args:   []*types.Arg{},
 		},
