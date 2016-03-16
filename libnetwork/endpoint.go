@@ -1000,5 +1000,17 @@ func (c *controller) cleanupLocalEndpoints() {
 				log.Warnf("Could not delete local endpoint %s during endpoint cleanup: %v", ep.name, err)
 			}
 		}
+
+		epl, err = n.getEndpointsFromStore()
+		if err != nil {
+			log.Warnf("Could not get list of endpoints in network %s for count update: %v", n.name, err)
+			continue
+		}
+
+		epCnt := n.getEpCnt().EndpointCnt()
+		if epCnt != uint64(len(epl)) {
+			log.Warnf("Inconsistent endpoint_cnt for network %s. Expected=%d, Actual=%d", n.name, len(epl), epCnt)
+			n.getEpCnt().setCnt(uint64(len(epl)))
+		}
 	}
 }
