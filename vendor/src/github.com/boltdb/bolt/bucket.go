@@ -3,6 +3,8 @@ package bolt
 import (
 	"bytes"
 	"fmt"
+	"log"
+	"time"
 	"unsafe"
 )
 
@@ -11,7 +13,7 @@ const (
 	MaxKeySize = 32768
 
 	// MaxValueSize is the maximum length of a value, in bytes.
-	MaxValueSize = 4294967295
+	MaxValueSize = (1 << 31) - 2
 )
 
 const (
@@ -273,6 +275,7 @@ func (b *Bucket) Get(key []byte) []byte {
 
 // Put sets the value for a key in the bucket.
 // If the key exist then its previous value will be overwritten.
+// Supplied value must remain valid for the life of the transaction.
 // Returns an error if the bucket was created from a read-only transaction, if the key is blank, if the key is too large, or if the value is too large.
 func (b *Bucket) Put(key []byte, value []byte) error {
 	if b.tx.db == nil {
@@ -494,6 +497,13 @@ func (b *Bucket) _forEachPageNode(pgid pgid, depth int, fn func(*page, *node, in
 
 // spill writes all the nodes for this bucket to dirty pages.
 func (b *Bucket) spill() error {
+	start := time.Now().UnixNano()
+	defer func() {
+		takenms := (time.Now().UnixNano() - start) / 1e6
+		if takenms > 1e3 {
+			log.Printf("   spill TOOK %vms", takenms)
+		}
+	}()
 	// Spill all child buckets first.
 	for name, child := range b.buckets {
 		// If the child bucket is small enough and it has no child buckets then
@@ -601,6 +611,13 @@ func (b *Bucket) write() []byte {
 
 // rebalance attempts to balance all nodes.
 func (b *Bucket) rebalance() {
+	start := time.Now().UnixNano()
+	defer func() {
+		takenms := (time.Now().UnixNano() - start) / 1e6
+		if takenms > 1e3 {
+			log.Printf("   rebalance TOOK %vms", takenms)
+		}
+	}()
 	for _, n := range b.nodes {
 		n.rebalance()
 	}
