@@ -4,6 +4,8 @@ import (
 	"archive/tar"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -528,7 +530,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithReleasesDelegation(c *check.C) {
 	c.Assert(string(contents), checker.Contains, `"latest"`, check.Commentf(string(contents)))
 }
 
-func (s *DockerRegistryAuthSuite) TestPushNoCredentialsNoRetry(c *check.C) {
+func (s *DockerRegistryAuthHtpasswdSuite) TestPushNoCredentialsNoRetry(c *check.C) {
 	repoName := fmt.Sprintf("%s/busybox", privateRegistryURL)
 	dockerCmd(c, "tag", "busybox", repoName)
 	out, _, err := dockerCmdWithError("push", repoName)
@@ -545,4 +547,34 @@ func (s *DockerSuite) TestPushToCentralRegistryUnauthorized(c *check.C) {
 	out, _, err := dockerCmdWithError("push", repoName)
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "unauthorized: access to the requested resource is not authorized")
+}
+
+func (s *DockerRegistryAuthTokenSuite) TestPushTokenServiceUnauthResponse(c *check.C) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"errors": [{"Code":"UNAUTHORIZED", "message": "a message", "detail": null}]}`))
+	}))
+	defer ts.Close()
+	s.setupRegistryWithTokenService(c, ts.URL)
+	repoName := fmt.Sprintf("%s/busybox", privateRegistryURL)
+	dockerCmd(c, "tag", "busybox", repoName)
+	out, _, err := dockerCmdWithError("push", repoName)
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "unauthorized: a message")
+}
+
+func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponse(c *check.C) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json")
+		// this will make the daemon panics if no check is performed in retryOnError
+		w.Write([]byte(`{"error": "unauthorized"}`))
+	}))
+	defer ts.Close()
+	s.setupRegistryWithTokenService(c, ts.URL)
+	repoName := fmt.Sprintf("%s/busybox", privateRegistryURL)
+	dockerCmd(c, "tag", "busybox", repoName)
+	out, _, err := dockerCmdWithError("push", repoName)
+	c.Assert(err, check.NotNil, check.Commentf(out))
 }

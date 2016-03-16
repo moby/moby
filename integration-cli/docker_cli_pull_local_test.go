@@ -387,7 +387,7 @@ func (s *DockerRegistrySuite) TestPullManifestList(c *check.C) {
 	dockerCmd(c, "rmi", repoName)
 }
 
-func (s *DockerRegistryAuthSuite) TestPullWithExternalAuth(c *check.C) {
+func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuth(c *check.C) {
 	osPath := os.Getenv("PATH")
 	defer os.Setenv("PATH", osPath)
 

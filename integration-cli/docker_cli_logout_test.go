@@ -10,7 +10,7 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerRegistryAuthSuite) TestLogoutWithExternalAuth(c *check.C) {
+func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithExternalAuth(c *check.C) {
 	osPath := os.Getenv("PATH")
 	defer os.Setenv("PATH", osPath)
 

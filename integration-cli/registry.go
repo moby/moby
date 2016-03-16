@@ -20,12 +20,13 @@ const (
 type testRegistryV2 struct {
 	cmd      *exec.Cmd
 	dir      string
+	auth     string
 	username string
 	password string
 	email    string
 }
 
-func newTestRegistryV2(c *check.C, schema1, auth bool) (*testRegistryV2, error) {
+func newTestRegistryV2(c *check.C, schema1 bool, auth, tokenURL string) (*testRegistryV2, error) {
 	tmp, err := ioutil.TempDir("", "registry-test-")
 	if err != nil {
 		return nil, err
@@ -39,12 +40,13 @@ http:
     addr: %s
 %s`
 	var (
-		htpasswd string
-		username string
-		password string
-		email    string
+		authTemplate string
+		username     string
+		password     string
+		email        string
 	)
-	if auth {
+	switch auth {
+	case "htpasswd":
 		htpasswdPath := filepath.Join(tmp, "htpasswd")
 		// generated with: htpasswd -Bbn testuser testpassword
 		userpasswd := "testuser:$2y$05$sBsSqk0OpSD1uTZkHXc4FeJ0Z70wLQdAX/82UiHuQOKbNbBrzs63m"
@@ -54,11 +56,19 @@ http:
 		if err := ioutil.WriteFile(htpasswdPath, []byte(userpasswd), os.FileMode(0644)); err != nil {
 			return nil, err
 		}
-		htpasswd = fmt.Sprintf(`auth:
+		authTemplate = fmt.Sprintf(`auth:
     htpasswd:
         realm: basic-realm
         path: %s
 `, htpasswdPath)
+	case "token":
+		authTemplate = fmt.Sprintf(`auth:
+    token:
+        realm: %s
+        service: "registry"
+        issuer: "auth-registry"
+        rootcertbundle: "fixtures/registry/cert.pem"
+`, tokenURL)
 	}
 
 	confPath := filepath.Join(tmp, "config.yaml")
@@ -66,7 +76,7 @@ http:
 	if err != nil {
 		return nil, err
 	}
-	if _, err := fmt.Fprintf(config, template, tmp, privateRegistryURL, htpasswd); err != nil {
+	if _, err := fmt.Fprintf(config, template, tmp, privateRegistryURL, authTemplate); err != nil {
 		os.RemoveAll(tmp)
 		return nil, err
 	}
@@ -86,6 +96,7 @@ http:
 	return &testRegistryV2{
 		cmd:      cmd,
 		dir:      tmp,
+		auth:     auth,
 		username: username,
 		password: password,
 		email:    email,
@@ -101,7 +112,7 @@ func (t *testRegistryV2) Ping() error {
 	resp.Body.Close()
 
 	fail := resp.StatusCode != http.StatusOK
-	if t.username != "" {
+	if t.auth != "" {
 		// unauthorized is a _good_ status when pinging v2/ and it needs auth
 		fail = fail && resp.StatusCode != http.StatusUnauthorized
 	}
