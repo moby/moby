@@ -67,3 +67,11 @@ type ExecProcessConfig struct {
 	Privileged *bool    `json:"privileged,omitempty"`
 	User       string   `json:"user,omitempty"`
 }
+
+// ContainerCommitConfig is a wrapper around
+// types.ContainerCommitConfig that also
+// transports configuration changes for a container.
+type ContainerCommitConfig struct {
+	types.ContainerCommitConfig
+	Changes []string
+}

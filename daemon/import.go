@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -23,13 +24,17 @@ import (
 // inConfig (if src is "-"), or from a URI specified in src. Progress output is
 // written to outStream. Repository and tag names can optionally be given in
 // the repo and tag arguments, respectively.
-func (daemon *Daemon) ImportImage(src string, newRef reference.Named, msg string, inConfig io.ReadCloser, outStream io.Writer, config *container.Config) error {
+func (daemon *Daemon) ImportImage(src string, newRef reference.Named, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
 	var (
 		sf   = streamformatter.NewJSONStreamFormatter()
 		rc   io.ReadCloser
 		resp *http.Response
 	)
 
+	config, err := dockerfile.BuildFromConfig(&container.Config{}, changes)
+	if err != nil {
+		return err
+	}
 	if src == "-" {
 		rc = inConfig
 	} else {

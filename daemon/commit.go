@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
@@ -14,7 +16,6 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types"
 	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/docker/go-connections/nat"
 )
@@ -98,7 +99,7 @@ func merge(userConf, imageConf *containertypes.Config) error {
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository.
-func (daemon *Daemon) Commit(name string, c *types.ContainerCommitConfig) (string, error) {
+func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (string, error) {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return "", err
@@ -114,8 +115,13 @@ func (daemon *Daemon) Commit(name string, c *types.ContainerCommitConfig) (strin
 		defer daemon.containerUnpause(container)
 	}
 
+	newConfig, err := dockerfile.BuildFromConfig(c.Config, c.Changes)
+	if err != nil {
+		return "", err
+	}
+
 	if c.MergeConfigs {
-		if err := merge(c.Config, container.Config); err != nil {
+		if err := merge(newConfig, container.Config); err != nil {
 			return "", err
 		}
 	}
@@ -166,7 +172,7 @@ func (daemon *Daemon) Commit(name string, c *types.ContainerCommitConfig) (strin
 	config, err := json.Marshal(&image.Image{
 		V1Image: image.V1Image{
 			DockerVersion:   dockerversion.Version,
-			Config:          c.Config,
+			Config:          newConfig,
 			Architecture:    runtime.GOARCH,
 			OS:              runtime.GOOS,
 			Container:       container.ID,

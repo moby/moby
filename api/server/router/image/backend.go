@@ -3,9 +3,9 @@ package image
 import (
 	"io"
 
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/registry"
 )
 
@@ -19,7 +19,7 @@ type Backend interface {
 }
 
 type containerBackend interface {
-	Commit(name string, config *types.ContainerCommitConfig) (imageID string, err error)
+	Commit(name string, config *backend.ContainerCommitConfig) (imageID string, err error)
 }
 
 type imageBackend interface {
@@ -32,7 +32,7 @@ type imageBackend interface {
 
 type importExportBackend interface {
 	LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error
-	ImportImage(src string, newRef reference.Named, msg string, inConfig io.ReadCloser, outStream io.Writer, config *container.Config) error
+	ImportImage(src string, newRef reference.Named, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error
 	ExportImage(names []string, outStream io.Writer) error
 }
 
