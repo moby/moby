@@ -14,6 +14,11 @@ import (
 
 // ContainerStart starts a container.
 func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.HostConfig) error {
+	return daemon.ContainerStartWithCommand(name, hostConfig, nil)
+}
+
+// ContainerStartWithCommand starts a container, overriding the cmd (if not nil
+func (daemon *Daemon) ContainerStartWithCommand(name string, hostConfig *containertypes.HostConfig, cmd []string) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -67,6 +72,22 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 	// old containers never have chance to call the new function in create stage.
 	if err := daemon.adaptContainerSettings(container.HostConfig, false); err != nil {
 		return err
+	}
+
+	if len(cmd) != 0 && cmd[0] != "" {
+		container.Path = cmd[0]
+		if len(cmd) > 1 {
+			container.Args = cmd[1:]
+		} else {
+			container.Args = []string{}
+		}
+	} else {
+		// If we're not changing the cmd to run then grab what was
+		// specified in the config in case we didn't shutdown the
+		// container nicely last time and didn't ge a chance to reset it
+		cfg := container.Config
+		container.Path, container.Args =
+			runconfig.GetEntrypointAndArgs(cfg.Entrypoint, cfg.Cmd)
 	}
 
 	return daemon.containerStart(container)

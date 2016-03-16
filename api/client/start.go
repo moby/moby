@@ -50,9 +50,17 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	attach := cmd.Bool([]string{"a", "-attach"}, false, "Attach STDOUT/STDERR and forward signals")
 	openStdin := cmd.Bool([]string{"i", "-interactive"}, false, "Attach container's STDIN")
 	detachKeys := cmd.String([]string{"-detach-keys"}, "", "Override the key sequence for detaching a container")
+	cmdToRun := cmd.String([]string{"c", "-cmd"}, "", "Command to run")
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)
+
+	if cmd.IsSet("cmd") {
+		*cmdToRun = strings.TrimSpace(*cmdToRun)
+		if *cmdToRun == "" {
+			return fmt.Errorf("Command can not be an empty string")
+		}
+	}
 
 	if *attach || *openStdin {
 		// We're going to attach to a container.
@@ -108,7 +116,12 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		})
 
 		// 3. Start the container.
-		if err := cli.client.ContainerStart(containerID); err != nil {
+		if *cmdToRun != "" {
+			err = cli.client.ContainerStartWithCommand(containerID, *cmdToRun)
+		} else {
+			err = cli.client.ContainerStart(containerID)
+		}
+		if err != nil {
 			return err
 		}
 
@@ -131,16 +144,24 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	} else {
 		// We're not going to attach to anything.
 		// Start as many containers as we want.
-		return cli.startContainersWithoutAttachments(cmd.Args())
+		return cli.startContainersWithoutAttachments(cmd.Args(), *cmdToRun)
 	}
 
 	return nil
 }
 
-func (cli *DockerCli) startContainersWithoutAttachments(containerIDs []string) error {
+func (cli *DockerCli) startContainersWithoutAttachments(containerIDs []string, cmdToRun string) error {
 	var failedContainers []string
+	var err error
+
 	for _, containerID := range containerIDs {
-		if err := cli.client.ContainerStart(containerID); err != nil {
+		if cmdToRun != "" {
+			err = cli.client.ContainerStartWithCommand(containerID, cmdToRun)
+		} else {
+			err = cli.client.ContainerStart(containerID)
+		}
+
+		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			failedContainers = append(failedContainers, containerID)
 		} else {

@@ -1012,6 +1012,8 @@ Query Parameters:
         container. Format is a single character `[a-Z]` or `ctrl-<value>`
         where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 
+-   **cmd** - Override the command to run in the container.
+
 Status Codes:
 
 -   **204** – no error

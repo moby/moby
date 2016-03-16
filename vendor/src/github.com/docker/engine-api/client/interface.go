@@ -38,6 +38,7 @@ type APIClient interface {
 	ContainerStatPath(containerID, path string) (types.ContainerPathStat, error)
 	ContainerStats(ctx context.Context, containerID string, stream bool) (io.ReadCloser, error)
 	ContainerStart(containerID string) error
+	ContainerStartWithCommand(containerID string, cmd string) error
 	ContainerStop(containerID string, timeout int) error
 	ContainerTop(containerID string, arguments []string) (types.ContainerProcessList, error)
 	ContainerUnpause(containerID string) error

@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/engine-api/types/container"
 )
 
@@ -146,6 +147,12 @@ func (m *containerMonitor) start() error {
 
 	// ensure that when the monitor finally exits we release the networking and unmount the rootfs
 	defer func() {
+		// Reset the cmd to the config's version in case we changed it
+		// during the 'docker start' cmd
+		cfg := m.container.Config
+		m.container.Path, m.container.Args =
+			runconfig.GetEntrypointAndArgs(cfg.Entrypoint, cfg.Cmd)
+
 		if afterRun {
 			m.container.Lock()
 			defer m.container.Unlock()

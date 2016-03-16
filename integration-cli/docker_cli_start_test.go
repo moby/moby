@@ -171,3 +171,27 @@ func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
 		c.Assert(out, checker.Equals, expected)
 	}
 }
+
+func (s *DockerSuite) TestStartCmd(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out, err, ec := dockerCmdWithStdoutStderr(c, "create", "-ti", "--name=test", "busybox", "echo", "hi")
+	c.Assert(ec, checker.Equals, 0, check.Commentf("err(%d):", ec, err))
+
+	// Verify our base-line "hi\n"
+	out, err, ec = dockerCmdWithStdoutStderr(c, "start", "-a", "test")
+	out = strings.TrimSpace(out)
+	c.Assert(ec, checker.Equals, 0, check.Commentf("err(%d):", ec, err))
+	c.Assert(out, checker.Equals, "hi", check.Commentf("err: %s\n", err))
+
+	// Now do some other command
+	out, err, ec = dockerCmdWithStdoutStderr(c, "start", "-a", "--cmd=echo bye", "test")
+	out = strings.TrimSpace(out)
+	c.Assert(ec, checker.Equals, 0, check.Commentf("err(%d):", ec, err))
+	c.Assert(out, checker.Equals, "bye", check.Commentf("out: %s\n", out))
+
+	// Make sure we didn't persist the cmd
+	out, err, ec = dockerCmdWithStdoutStderr(c, "start", "-a", "test")
+	out = strings.TrimSpace(out)
+	c.Assert(ec, checker.Equals, 0, check.Commentf("err(%d):", ec, err))
+	c.Assert(out, checker.Equals, "hi", check.Commentf("out: %s\n", out))
+}

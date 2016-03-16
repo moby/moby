@@ -15,6 +15,7 @@ parent = "smn_cli"
     Start one or more containers
 
       -a, --attach               Attach STDOUT/STDERR and forward signals
+      -c, --cmd                  Override the command to run in the container
       --detach-keys              Specify the escape key sequence used to detach a container
       --help                     Print usage
       -i, --interactive          Attach container's STDIN

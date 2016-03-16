@@ -369,6 +369,8 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 		saveCmd = strslice.StrSlice(append(tmpEnv, saveCmd...))
 	}
 
+	// set the command string to have the build-time env vars in
+	// it (if any) so that future cache look-ups
 	b.runConfig.Cmd = saveCmd
 	hit, err := b.probeCache()
 	if err != nil {
@@ -378,11 +380,9 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 		return nil
 	}
 
-	// set Cmd manually, this is special case only for Dockerfiles
-	b.runConfig.Cmd = config.Cmd
 	// set build-time environment for 'run'.
 	b.runConfig.Env = append(b.runConfig.Env, cmdBuildEnv...)
-	// set config as already being escaped, this prevents double escaping on windows
+	// set config as already being escaped to prevent double escaping on windows
 	b.runConfig.ArgsEscaped = true
 
 	logrus.Debugf("[BUILDER] Command to be executed: %v", b.runConfig.Cmd)
@@ -392,7 +392,8 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 		return err
 	}
 
-	if err := b.run(cID); err != nil {
+	// Run the actual command within the container
+	if err := b.run(cID, config.Cmd); err != nil {
 		return err
 	}
 
@@ -400,7 +401,6 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	// have the build-time env vars in it (if any) so that future cache look-ups
 	// properly match it.
 	b.runConfig.Env = env
-	b.runConfig.Cmd = saveCmd
 	return b.commit(cID, cmd, "run")
 }
 

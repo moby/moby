@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -137,6 +138,10 @@ func (s *containerRouter) getContainersExport(ctx context.Context, w http.Respon
 }
 
 func (s *containerRouter) postContainersStart(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
 	// If contentLength is -1, we can assumed chunked encoding
 	// or more technically that the length is unknown
 	// https://golang.org/src/pkg/net/http/request.go#L139
@@ -157,7 +162,25 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 		hostConfig = c
 	}
 
-	if err := s.backend.ContainerStart(vars["name"], hostConfig); err != nil {
+	var cmdArray = []string{}
+	cmd := strings.TrimSpace(r.FormValue("cmd"))
+	if cmd != "" {
+		if err := json.NewDecoder(strings.NewReader(cmd)).Decode(&cmdArray); err != nil {
+			if runtime.GOOS != "windows" {
+				cmdArray = []string{"/bin/sh", "-c", cmd}
+			} else {
+				cmdArray = []string{"cmd", "/S", "/C"}
+			}
+		}
+	}
+
+	var err error
+	if len(cmdArray) == 0 {
+		err = s.backend.ContainerStart(vars["name"], hostConfig)
+	} else {
+		err = s.backend.ContainerStartWithCommand(vars["name"], hostConfig, cmdArray)
+	}
+	if err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)

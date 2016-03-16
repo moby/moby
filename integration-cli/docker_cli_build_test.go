@@ -6660,3 +6660,18 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestBuildWithExternalAuth(c *check.C) 
 	out, _, err := runCommandWithOutput(buildCmd)
 	c.Assert(err, check.IsNil, check.Commentf(out))
 }
+
+// TestBuildEarlyEntrypoint tests that ENTRYPOINT before RUN doesn't
+// interfere with the RUN - seen cases where the RUN is appended to the EP
+func (s *DockerSuite) TestBuildEarlyEntrypoint(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+
+	_, err := buildImage("earlyep", `
+	FROM busybox
+	ENTRYPOINT exit 1
+	RUN echo HI`, true)
+
+	if err != nil {
+		c.Fatal(err)
+	}
+}
