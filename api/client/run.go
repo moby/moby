@@ -203,7 +203,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			DetachKeys:  cli.configFile.DetachKeys,
 		}
 
-		resp, err := cli.client.ContainerAttach(options)
+		resp, err := cli.client.ContainerAttach(context.Background(), options)
 		if err != nil {
 			return err
 		}
@@ -227,7 +227,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	//start the container
-	if err := cli.client.ContainerStart(createResponse.ID); err != nil {
+	if err := cli.client.ContainerStart(context.Background(), createResponse.ID); err != nil {
 		cmd.ReportError(err.Error(), false)
 		return runStartContainerErr(err)
 	}
@@ -257,7 +257,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	// Attached mode
 	if *flAutoRemove {
 		// Warn user if they detached us
-		js, err := cli.client.ContainerInspect(createResponse.ID)
+		js, err := cli.client.ContainerInspect(context.Background(), createResponse.ID)
 		if err != nil {
 			return runStartContainerErr(err)
 		}

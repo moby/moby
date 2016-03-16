@@ -70,7 +70,7 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 		options := types.ContainerListOptions{
 			All: *all,
 		}
-		cs, err := cli.client.ContainerList(options)
+		cs, err := cli.client.ContainerList(context.Background(), options)
 		if err != nil {
 			closeChan <- err
 		}

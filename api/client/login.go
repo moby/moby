@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strings"
 
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/cliconfig/credentials"
@@ -52,7 +54,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		return err
 	}
 
-	response, err := cli.client.RegistryLogin(authConfig)
+	response, err := cli.client.RegistryLogin(context.Background(), authConfig)
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 )
@@ -23,7 +25,7 @@ func (cli *DockerCli) CmdTop(args ...string) error {
 		arguments = cmd.Args()[1:]
 	}
 
-	procList, err := cli.client.ContainerTop(cmd.Arg(0), arguments)
+	procList, err := cli.client.ContainerTop(context.Background(), cmd.Arg(0), arguments)
 	if err != nil {
 		return err
 	}

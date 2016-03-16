@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/registry/client/auth"
@@ -276,7 +278,7 @@ func (cli *DockerCli) tagTrusted(trustedRef reference.Canonical, ref reference.N
 		Force:          true,
 	}
 
-	return cli.client.ImageTag(options)
+	return cli.client.ImageTag(context.Background(), options)
 }
 
 func notaryError(repoName string, err error) error {

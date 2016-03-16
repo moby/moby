@@ -127,7 +127,7 @@ func splitCpArg(arg string) (container, path string) {
 }
 
 func (cli *DockerCli) statContainerPath(containerName, path string) (types.ContainerPathStat, error) {
-	return cli.client.ContainerStatPath(containerName, path)
+	return cli.client.ContainerStatPath(context.Background(), containerName, path)
 }
 
 func resolveLocalPath(localPath string) (absPath string, err error) {

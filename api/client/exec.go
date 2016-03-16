@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 
+	"golang.org/x/net/context"
+
 	"github.com/Sirupsen/logrus"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -31,7 +33,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 	// Send client escape keys
 	execConfig.DetachKeys = cli.configFile.DetachKeys
 
-	response, err := cli.client.ContainerExecCreate(*execConfig)
+	response, err := cli.client.ContainerExecCreate(context.Background(), *execConfig)
 	if err != nil {
 		return err
 	}
@@ -53,7 +55,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 			Tty:    execConfig.Tty,
 		}
 
-		if err := cli.client.ContainerExecStart(execID, execStartCheck); err != nil {
+		if err := cli.client.ContainerExecStart(context.Background(), execID, execStartCheck); err != nil {
 			return err
 		}
 		// For now don't print this - wait for when we support exec wait()
@@ -82,7 +84,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 		}
 	}
 
-	resp, err := cli.client.ContainerExecAttach(execID, *execConfig)
+	resp, err := cli.client.ContainerExecAttach(context.Background(), execID, *execConfig)
 	if err != nil {
 		return err
 	}

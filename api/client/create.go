@@ -111,7 +111,7 @@ func (cli *DockerCli) createContainer(config *container.Config, hostConfig *cont
 	}
 
 	//create the container
-	response, err := cli.client.ContainerCreate(config, hostConfig, networkingConfig, name)
+	response, err := cli.client.ContainerCreate(context.Background(), config, hostConfig, networkingConfig, name)
 
 	//if image not found try to pull it
 	if err != nil {
@@ -129,7 +129,7 @@ func (cli *DockerCli) createContainer(config *container.Config, hostConfig *cont
 			}
 			// Retry
 			var retryErr error
-			response, retryErr = cli.client.ContainerCreate(config, hostConfig, networkingConfig, name)
+			response, retryErr = cli.client.ContainerCreate(context.Background(), config, hostConfig, networkingConfig, name)
 			if retryErr != nil {
 				return nil, retryErr
 			}

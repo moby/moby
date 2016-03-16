@@ -3,6 +3,8 @@ package client
 import (
 	"errors"
 
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/reference"
@@ -40,5 +42,5 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 		Force:          *force,
 	}
 
-	return cli.client.ImageTag(options)
+	return cli.client.ImageTag(context.Background(), options)
 }
