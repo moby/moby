@@ -9,25 +9,9 @@ images=(
 	hello-world:latest
 )
 
-imagePrefix=
-case "$DOCKER_ENGINE_OSARCH" in
-	linux/arm)
-		imagePrefix='armhf'
-		;;
-	linux/arm64)
-		imagePrefix='aarch64'
-		;;
-	linux/ppc64le)
-		imagePrefix='ppc64le'
-		;;
-	linux/s390x)
-		imagePrefix='s390x'
-		;;
-esac
-
-if [ "$imagePrefix" ]; then
+if [ "$TEST_IMAGE_NAMESPACE" ]; then
 	for (( i = 0; i < ${#images[@]}; i++ )); do
-		images[$i]="$imagePrefix/${images[$i]}"
+		images[$i]="$TEST_IMAGE_NAMESPACE/${images[$i]}"
 	done
 fi
 
@@ -58,7 +42,7 @@ if ! docker inspect "${images[@]}" &> /dev/null; then
 					inCont = 0;
 				}
 			}
-		' "${DOCKERFILE:=Dockerfile}" | sh -x
+		' "$DOCKERFILE" | sh -x
 		# Do not use a subshell for the following command. Windows to Linux CI
 		# runs bash 3.x so will not trap an error in a subshell.
 		# http://stackoverflow.com/questions/22630363/how-does-set-e-work-with-subshells
@@ -66,9 +50,9 @@ if ! docker inspect "${images[@]}" &> /dev/null; then
 	fi
 fi
 
-if [ "$imagePrefix" ]; then
+if [ "$TEST_IMAGE_NAMESPACE" ]; then
 	for image in "${images[@]}"; do
-		target="${image#$imagePrefix/}"
+		target="${image#$TEST_IMAGE_NAMESPACE/}"
 		if [ "$target" != "$image" ]; then
 			# tag images to ensure that all integrations work with the defined image names
 			docker tag "$image" "$target"
