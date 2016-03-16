@@ -20,6 +20,10 @@ func (s *DockerSuite) TestRestartStoppedContainer(c *check.C) {
 
 	dockerCmd(c, "restart", cleanedContainerID)
 
+	// Wait until the container has stopped
+	err = waitInspect(cleanedContainerID, "{{.State.Running}}", "false", 20*time.Second)
+	c.Assert(err, checker.IsNil)
+
 	out, _ = dockerCmd(c, "logs", cleanedContainerID)
 	c.Assert(out, checker.Equals, "foobar\nfoobar\n")
 }
