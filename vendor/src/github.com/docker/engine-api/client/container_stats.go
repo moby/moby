@@ -16,7 +16,7 @@ func (cli *Client) ContainerStats(ctx context.Context, containerID string, strea
 		query.Set("stream", "1")
 	}
 
-	resp, err := cli.getWithContext(ctx, "/containers/"+containerID+"/stats", query, nil)
+	resp, err := cli.get(ctx, "/containers/"+containerID+"/stats", query, nil)
 	if err != nil {
 		return nil, err
 	}

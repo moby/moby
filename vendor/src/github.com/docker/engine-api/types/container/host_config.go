@@ -89,6 +89,27 @@ func (n UsernsMode) Valid() bool {
 	return true
 }
 
+// Cgroup Spec represents the cgroup to use for the container.
+type CgroupSpec string
+
+func (c CgroupSpec) IsContainer() bool {
+	parts := strings.SplitN(string(c), ":", 2)
+	return len(parts) > 1 && parts[0] == "container"
+}
+
+func (c CgroupSpec) Valid() bool {
+	return c.IsContainer() || c == ""
+}
+
+// Container returns the name of the container whose cgroup will be used.
+func (c CgroupSpec) Container() string {
+	parts := strings.SplitN(string(c), ":", 2)
+	if len(parts) > 1 {
+		return parts[1]
+	}
+	return ""
+}
+
 // UTSMode represents the UTS namespace of the container.
 type UTSMode string
 
@@ -215,6 +236,8 @@ type Resources struct {
 	Ulimits              []*units.Ulimit // List of ulimits to be set in the container
 
 	// Applicable to Windows
+	CPUCount    int64  `json:"CpuCount"`   // CPU count
+	CPUPercent  int64  `json:"CpuPercent"` // CPU percent
 	BlkioIOps   uint64 // Maximum IOps for the container system drive
 	BlkioBps    uint64 // Maximum Bytes per second for the container system drive
 	SandboxSize uint64 // System drive will be expanded to at least this size (in bytes)
@@ -252,6 +275,7 @@ type HostConfig struct {
 	ExtraHosts      []string          // List of extra hosts
 	GroupAdd        []string          // List of additional groups that the container process will run as
 	IpcMode         IpcMode           // IPC namespace to use for the container
+	Cgroup          CgroupSpec        // Cgroup to use for the container
 	Links           []string          // List of links (in the name:alias form)
 	OomScoreAdj     int               // Container preference for OOM-killing
 	PidMode         PidMode           // PID namespace to use for the container
@@ -259,7 +283,7 @@ type HostConfig struct {
 	PublishAllPorts bool              // Should docker publish all exposed port for the container
 	ReadonlyRootfs  bool              // Is the container root filesystem in read-only
 	SecurityOpt     []string          // List of string values to customize labels for MLS systems, such as SELinux.
-	StorageOpt      []string          // Storage driver options per container.
+	StorageOpt      map[string]string // Storage driver options per container.
 	Tmpfs           map[string]string `json:",omitempty"` // List of tmpfs (mounts) used for the container
 	UTSMode         UTSMode           // UTS namespace to use for the container
 	UsernsMode      UsernsMode        // The user namespace to use for the container

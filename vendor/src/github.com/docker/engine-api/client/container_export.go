@@ -11,7 +11,7 @@ import (
 // and returns them as a io.ReadCloser. It's up to the caller
 // to close the stream.
 func (cli *Client) ContainerExport(ctx context.Context, containerID string) (io.ReadCloser, error) {
-	serverResp, err := cli.getWithContext(ctx, "/containers/"+containerID+"/export", url.Values{}, nil)
+	serverResp, err := cli.get(ctx, "/containers/"+containerID+"/export", url.Values{}, nil)
 	if err != nil {
 		return nil, err
 	}

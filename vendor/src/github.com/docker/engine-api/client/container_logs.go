@@ -40,7 +40,7 @@ func (cli *Client) ContainerLogs(ctx context.Context, options types.ContainerLog
 	}
 	query.Set("tail", options.Tail)
 
-	resp, err := cli.getWithContext(ctx, "/containers/"+options.ContainerID+"/logs", query, nil)
+	resp, err := cli.get(ctx, "/containers/"+options.ContainerID+"/logs", query, nil)
 	if err != nil {
 		return nil, err
 	}

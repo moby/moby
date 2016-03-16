@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/engine-api/types"
 	"github.com/docker/go-connections/sockets"
+	"golang.org/x/net/context"
 )
 
 // tlsClientCon holds tls information and a dialed connection.
@@ -30,7 +31,7 @@ func (c *tlsClientCon) CloseWrite() error {
 }
 
 // postHijacked sends a POST request and hijacks the connection.
-func (cli *Client) postHijacked(path string, query url.Values, body interface{}, headers map[string][]string) (types.HijackedResponse, error) {
+func (cli *Client) postHijacked(ctx context.Context, path string, query url.Values, body interface{}, headers map[string][]string) (types.HijackedResponse, error) {
 	bodyEncoded, err := encodeData(body)
 	if err != nil {
 		return types.HijackedResponse{}, err
@@ -45,7 +46,8 @@ func (cli *Client) postHijacked(path string, query url.Values, body interface{},
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", "tcp")
 
-	conn, err := dial(cli.proto, cli.addr, cli.transport.TLSConfig())
+	tlsConfig := cli.transport.TLSConfig()
+	conn, err := dial(cli.proto, cli.addr, tlsConfig)
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
 			return types.HijackedResponse{}, fmt.Errorf("Cannot connect to the Docker daemon. Is 'docker daemon' running on this host?")
@@ -122,21 +124,6 @@ func tlsDialWithDialer(dialer *net.Dialer, network, addr string, config *tls.Con
 	if tcpConn, ok := rawConn.(*net.TCPConn); ok {
 		tcpConn.SetKeepAlive(true)
 		tcpConn.SetKeepAlivePeriod(30 * time.Second)
-	}
-
-	colonPos := strings.LastIndex(addr, ":")
-	if colonPos == -1 {
-		colonPos = len(addr)
-	}
-	hostname := addr[:colonPos]
-
-	// If no ServerName is set, infer the ServerName
-	// from the hostname we're connecting to.
-	if config.ServerName == "" {
-		// Make a copy to avoid polluting argument or default.
-		c := *config
-		c.ServerName = hostname
-		config = &c
 	}
 
 	conn := tls.Client(rawConn, config)

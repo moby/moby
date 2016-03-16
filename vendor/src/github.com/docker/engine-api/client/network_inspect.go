@@ -5,12 +5,13 @@ import (
 	"net/http"
 
 	"github.com/docker/engine-api/types"
+	"golang.org/x/net/context"
 )
 
 // NetworkInspect returns the information for a specific network configured in the docker host.
-func (cli *Client) NetworkInspect(networkID string) (types.NetworkResource, error) {
+func (cli *Client) NetworkInspect(ctx context.Context, networkID string) (types.NetworkResource, error) {
 	var networkResource types.NetworkResource
-	resp, err := cli.get("/networks/"+networkID, nil, nil)
+	resp, err := cli.get(ctx, "/networks/"+networkID, nil, nil)
 	if err != nil {
 		if resp.statusCode == http.StatusNotFound {
 			return networkResource, networkNotFoundError{networkID}
