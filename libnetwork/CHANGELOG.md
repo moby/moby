@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0-dev.8 (2016-03-16)
+- Windows driver to respect user set MAC address.
+- Fix possible nil pointer reference in ServeDNS() with concurrent go routines.
+- Fix netns path setting from hook (for containerd integration)
+- Clear cached udp connections on resolver Stop()
+- Avoid network/endpoint count inconsistences and remove stale networks after ungraceful shutdown
+- Fix possible endpoint count inconsistency after ungraceful shutdown
+- Reject a null v4 IPAM slice in exp vlan drivers
+- Removed experimental drivers modprobe check
+
 ## 0.7.0-dev.7 (2016-03-11)
 - Bumped up the minimum kernel version for ipvlan to 4.2
 - Removed modprobe from macvlan/ipvlan drivers to resolve docker IT failures
