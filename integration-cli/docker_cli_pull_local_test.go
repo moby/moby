@@ -279,6 +279,31 @@ func (s *DockerSchema1RegistrySuite) TestPullIDStability(c *check.C) {
 	testPullIDStability(c)
 }
 
+// #21213
+func testPullNoLayers(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/scratch", privateRegistryURL)
+
+	_, err := buildImage(repoName, `
+	FROM scratch
+	ENV foo bar`,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	dockerCmd(c, "push", repoName)
+	dockerCmd(c, "rmi", repoName)
+	dockerCmd(c, "pull", repoName)
+}
+
+func (s *DockerRegistrySuite) TestPullNoLayers(c *check.C) {
+	testPullNoLayers(c)
+}
+
+func (s *DockerSchema1RegistrySuite) TestPullNoLayers(c *check.C) {
+	testPullNoLayers(c)
+}
+
 func (s *DockerRegistrySuite) TestPullManifestList(c *check.C) {
 	testRequires(c, NotArm)
 	pushDigest, err := setupImage(c)
