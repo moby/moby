@@ -167,6 +167,7 @@ type network struct {
 	stopWatchCh  chan struct{}
 	drvOnce      *sync.Once
 	internal     bool
+	inDelete     bool
 	sync.Mutex
 }
 
@@ -306,6 +307,7 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 	dstN.dbExists = n.dbExists
 	dstN.drvOnce = n.drvOnce
 	dstN.internal = n.internal
+	dstN.inDelete = n.inDelete
 
 	for _, v4conf := range n.ipamV4Config {
 		dstV4Conf := &IpamConf{}
@@ -394,6 +396,7 @@ func (n *network) MarshalJSON() ([]byte, error) {
 		netMap["ipamV6Info"] = string(iis)
 	}
 	netMap["internal"] = n.internal
+	netMap["inDelete"] = n.inDelete
 	return json.Marshal(netMap)
 }
 
@@ -462,6 +465,9 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 	}
 	if s, ok := netMap["scope"]; ok {
 		n.scope = s.(string)
+	}
+	if v, ok := netMap["inDelete"]; ok {
+		n.inDelete = v.(bool)
 	}
 	return nil
 }
@@ -611,6 +617,10 @@ func (n *network) driver(load bool) (driverapi.Driver, error) {
 }
 
 func (n *network) Delete() error {
+	return n.delete(false)
+}
+
+func (n *network) delete(force bool) error {
 	n.Lock()
 	c := n.ctrlr
 	name := n.name
@@ -622,33 +632,39 @@ func (n *network) Delete() error {
 		return &UnknownNetworkError{name: name, id: id}
 	}
 
-	numEps := n.getEpCnt().EndpointCnt()
-	if numEps != 0 {
+	if !force && n.getEpCnt().EndpointCnt() != 0 {
 		return &ActiveEndpointsError{name: n.name, id: n.id}
 	}
 
-	if err = n.deleteNetwork(); err != nil {
-		return err
+	// Mark the network for deletion
+	n.inDelete = true
+	if err = c.updateToStore(n); err != nil {
+		return fmt.Errorf("error marking network %s (%s) for deletion: %v", n.Name(), n.ID(), err)
 	}
-	defer func() {
-		if err != nil {
-			if e := c.addNetwork(n); e != nil {
-				log.Warnf("failed to rollback deleteNetwork for network %s: %v",
-					n.Name(), err)
-			}
+
+	if err = n.deleteNetwork(); err != nil {
+		if !force {
+			return err
 		}
-	}()
+		log.Debugf("driver failed to delete stale network %s (%s): %v", n.Name(), n.ID(), err)
+	}
+
+	n.ipamRelease()
+	if err = c.updateToStore(n); err != nil {
+		log.Warnf("Failed to update store after ipam release for network %s (%s): %v", n.Name(), n.ID(), err)
+	}
 
 	// deleteFromStore performs an atomic delete operation and the
 	// network.epCnt will help prevent any possible
 	// race between endpoint join and network delete
-	if err = n.getController().deleteFromStore(n.getEpCnt()); err != nil {
-		return fmt.Errorf("error deleting network endpoint count from store: %v", err)
+	if err = c.deleteFromStore(n.getEpCnt()); err != nil {
+		if !force {
+			return fmt.Errorf("error deleting network endpoint count from store: %v", err)
+		}
+		log.Debugf("Error deleting endpoint count from store for stale network %s (%s) for deletion: %v", n.Name(), n.ID(), err)
 	}
 
-	n.ipamRelease()
-
-	if err = n.getController().deleteFromStore(n); err != nil {
+	if err = c.deleteFromStore(n); err != nil {
 		return fmt.Errorf("error deleting network from store: %v", err)
 	}
 
@@ -1098,25 +1114,25 @@ func (n *network) ipamRelease() {
 }
 
 func (n *network) ipamReleaseVersion(ipVer int, ipam ipamapi.Ipam) {
-	var infoList []*IpamInfo
+	var infoList *[]*IpamInfo
 
 	switch ipVer {
 	case 4:
-		infoList = n.ipamV4Info
+		infoList = &n.ipamV4Info
 	case 6:
-		infoList = n.ipamV6Info
+		infoList = &n.ipamV6Info
 	default:
 		log.Warnf("incorrect ip version passed to ipam release: %d", ipVer)
 		return
 	}
 
-	if infoList == nil {
+	if *infoList == nil {
 		return
 	}
 
 	log.Debugf("releasing IPv%d pools from network %s (%s)", ipVer, n.Name(), n.ID())
 
-	for _, d := range infoList {
+	for _, d := range *infoList {
 		if d.Gateway != nil {
 			if err := ipam.ReleaseAddress(d.PoolID, d.Gateway.IP); err != nil {
 				log.Warnf("Failed to release gateway ip address %s on delete of network %s (%s): %v", d.Gateway.IP, n.Name(), n.ID(), err)
@@ -1135,6 +1151,8 @@ func (n *network) ipamReleaseVersion(ipVer int, ipam ipamapi.Ipam) {
 			log.Warnf("Failed to release address pool %s on delete of network %s (%s): %v", d.PoolID, n.Name(), n.ID(), err)
 		}
 	}
+
+	*infoList = nil
 }
 
 func (n *network) getIPInfo(ipVer int) []*IpamInfo {

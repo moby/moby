@@ -139,6 +139,11 @@ func (r *resolver) Start() error {
 }
 
 func (r *resolver) Stop() {
+	for i := 0; i < maxExtDNS; i++ {
+		r.extDNSList[i].extConn = nil
+		r.extDNSList[i].extOnce = sync.Once{}
+	}
+
 	if r.server != nil {
 		r.server.Shutdown()
 	}
@@ -318,6 +323,13 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 					log.Debugf("Connect failed, %s", err)
 					continue
 				}
+			}
+			// If two go routines are executing in parralel one will
+			// block on the Once.Do and in case of error connecting
+			// to the external server it will end up with a nil err
+			// but extConn also being nil.
+			if extConn == nil {
+				continue
 			}
 
 			// Timeout has to be set for every IO operation.

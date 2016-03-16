@@ -74,12 +74,13 @@ func (a *allocator) RequestAddress(poolID string, prefAddress net.IP, opts map[s
 
 	// TODO Windows: Remove this once the bug in docker daemon is fixed
 	// that causes it to throw an exception on nil gateway
-	if opts[ipamapi.RequestAddressType] == netlabel.Gateway {
+	if prefAddress != nil {
+		return &net.IPNet{IP: prefAddress, Mask: ipNet.Mask}, nil, nil
+	} else if opts[ipamapi.RequestAddressType] == netlabel.Gateway {
 		return ipNet, nil, nil
-	} else if prefAddress == nil {
+	} else {
 		return nil, nil, nil
 	}
-	return &net.IPNet{IP: prefAddress, Mask: ipNet.Mask}, nil, nil
 }
 
 // ReleaseAddress releases the address - always succeeds
