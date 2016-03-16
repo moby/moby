@@ -21,8 +21,7 @@ type V1Endpoint struct {
 	IsSecure bool
 }
 
-// NewV1Endpoint parses the given address to return a registry endpoint.  v can be used to
-// specify a specific endpoint version
+// NewV1Endpoint parses the given address to return a registry endpoint.
 func NewV1Endpoint(index *registrytypes.IndexInfo, userAgent string, metaHeaders http.Header) (*V1Endpoint, error) {
 	tlsConfig, err := newTLSConfig(index.Name, index.Secure)
 	if err != nil {
