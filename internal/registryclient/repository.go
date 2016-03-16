@@ -308,6 +308,7 @@ check:
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}
+	defer resp.Body.Close()
 
 	switch {
 	case resp.StatusCode >= 200 && resp.StatusCode < 400:
