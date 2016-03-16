@@ -4,6 +4,7 @@ package bolt
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"syscall"
 	"time"
@@ -46,22 +47,29 @@ func funlock(f *os.File) error {
 
 // mmap memory maps a DB's data file.
 func mmap(db *DB, sz int) error {
+	log.Println(">  mmap", time.Now().UnixNano())
+	defer func() { log.Println("<  mmap", time.Now().UnixNano()) }()
+
 	// Truncate and fsync to ensure file size metadata is flushed.
 	// https://github.com/boltdb/bolt/issues/284
 	if !db.NoGrowSync && !db.readOnly {
+		log.Println(">  db.file.Truncate", time.Now().UnixNano())
 		if err := db.file.Truncate(int64(sz)); err != nil {
 			return fmt.Errorf("file resize error: %s", err)
 		}
+		log.Println("> db.file.Sync", time.Now().UnixNano())
 		if err := db.file.Sync(); err != nil {
 			return fmt.Errorf("file sync error: %s", err)
 		}
 	}
+	log.Println(">  syscall.Mmap", time.Now().UnixNano())
 
 	// Map the data file to memory.
 	b, err := syscall.Mmap(int(db.file.Fd()), 0, sz, syscall.PROT_READ, syscall.MAP_SHARED)
 	if err != nil {
 		return err
 	}
+	log.Println(">  madvise", time.Now().UnixNano())
 
 	// Advise the kernel that the mmap is accessed randomly.
 	if err := madvise(b, syscall.MADV_RANDOM); err != nil {

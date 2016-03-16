@@ -1,5 +1,13 @@
 #!/bin/bash
+
+set -x
+set +e
+out=$(docker run busybox ls)
+echo "log: $out"
+cat /tmp/daemon.log
+set +x
 set -e
+
 
 # Build a C binary for testing no-new-privileges
 # and compile it for target daemon

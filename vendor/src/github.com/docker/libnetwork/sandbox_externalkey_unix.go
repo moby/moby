@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	glog "log"
 	"net"
 	"os"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/types"
@@ -137,6 +139,10 @@ func (c *controller) acceptClientConnections(sock string, l net.Listener) {
 			continue
 		}
 		go func() {
+			glog.Printf("> accept", time.Now().UnixNano())
+			defer glog.Printf("< accept", time.Now().UnixNano())
+
+			defer conn.Close()
 			err := c.processExternalKey(conn)
 			ret := success
 			if err != nil {
@@ -152,6 +158,9 @@ func (c *controller) acceptClientConnections(sock string, l net.Listener) {
 }
 
 func (c *controller) processExternalKey(conn net.Conn) error {
+	glog.Printf("> processExternalKey", time.Now().UnixNano())
+	defer glog.Printf("< processExternalKey", time.Now().UnixNano())
+
 	buf := make([]byte, 1280)
 	nr, err := conn.Read(buf)
 	if err != nil {

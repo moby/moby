@@ -2,6 +2,8 @@ package libnetwork
 
 import (
 	"fmt"
+	glog "log"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
@@ -198,12 +200,13 @@ func (n *network) getEndpointsFromStore() ([]*endpoint, error) {
 }
 
 func (c *controller) updateToStore(kvObject datastore.KVObject) error {
+	glog.Printf("> updateToStore", time.Now().UnixNano())
+	defer func() { glog.Printf("< updateToStore", time.Now().UnixNano()) }()
 	cs := c.getStore(kvObject.DataScope())
 	if cs == nil {
 		log.Warnf("datastore for scope %s not initialized. kv object %s is not added to the store", kvObject.DataScope(), datastore.Key(kvObject.Key()...))
 		return nil
 	}
-
 	if err := cs.PutObjectAtomic(kvObject); err != nil {
 		if err == datastore.ErrKeyModified {
 			return err

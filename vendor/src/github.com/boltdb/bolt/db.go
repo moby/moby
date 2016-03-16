@@ -3,6 +3,7 @@ package bolt
 import (
 	"fmt"
 	"hash/fnv"
+	"log"
 	"os"
 	"runtime"
 	"runtime/debug"
@@ -162,10 +163,13 @@ func Open(path string, mode os.FileMode, options *Options) (*DB, error) {
 	// if !options.ReadOnly.
 	// The database file is locked using the shared lock (more than one process may
 	// hold a lock at the same time) otherwise (options.ReadOnly is set).
+	log.Println("> flock", time.Now().UnixNano())
 	if err := flock(db.file, !db.readOnly, options.Timeout); err != nil {
+		log.Println("err flock", time.Now().UnixNano())
 		_ = db.close()
 		return nil, err
 	}
+	log.Println("< flock", time.Now().UnixNano())
 
 	// Default values for test hooks
 	db.ops.writeAt = db.file.WriteAt
@@ -174,21 +178,31 @@ func Open(path string, mode os.FileMode, options *Options) (*DB, error) {
 	if info, err := db.file.Stat(); err != nil {
 		return nil, fmt.Errorf("stat error: %s", err)
 	} else if info.Size() == 0 {
+		log.Println(">  db.init()", time.Now().UnixNano())
+
 		// Initialize new files with meta pages.
 		if err := db.init(); err != nil {
 			return nil, err
 		}
+		log.Println("<  db.init()", time.Now().UnixNano())
+
 	} else {
+		log.Println(">  readAt", time.Now().UnixNano())
+
 		// Read the first meta page to determine the page size.
 		var buf [0x1000]byte
 		if _, err := db.file.ReadAt(buf[:], 0); err == nil {
+			log.Println(">  pageInBuffer", time.Now().UnixNano())
 			m := db.pageInBuffer(buf[:], 0).meta()
+			log.Println(">  validate", time.Now().UnixNano())
 			if err := m.validate(); err != nil {
 				return nil, fmt.Errorf("meta0 error: %s", err)
 			}
 			db.pageSize = int(m.pageSize)
 		}
+
 	}
+	log.Println(">  mmap", time.Now().UnixNano())
 
 	// Memory map the data file.
 	if err := db.mmap(0); err != nil {
@@ -196,6 +210,7 @@ func Open(path string, mode os.FileMode, options *Options) (*DB, error) {
 		return nil, err
 	}
 
+	log.Println(">  freelist", time.Now().UnixNano())
 	// Read in the freelist.
 	db.freelist = newFreelist()
 	db.freelist.read(db.page(db.meta().freelist))
@@ -385,6 +400,7 @@ func (db *DB) close() error {
 			_ = funlock(db.file)
 		}
 
+		log.Printf("closing db", time.Now().UnixNano())
 		// Close the file descriptor.
 		if err := db.file.Close(); err != nil {
 			return fmt.Errorf("db file close: %s", err)

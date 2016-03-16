@@ -4,9 +4,11 @@ import (
 	"container/heap"
 	"encoding/json"
 	"fmt"
+	glog "log"
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/etchosts"
@@ -609,6 +611,8 @@ func (sb *sandbox) releaseOSSbox() {
 }
 
 func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
+	glog.Printf("> populateNetworkResources", time.Now().UnixNano())
+	defer func() { glog.Printf("< populateNetworkResources", time.Now().UnixNano()) }()
 	sb.Lock()
 	if sb.osSbox == nil {
 		sb.Unlock()

@@ -3,7 +3,9 @@ package libnetwork
 import (
 	"container/heap"
 	"encoding/json"
+	glog "log"
 	"sync"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
@@ -119,6 +121,9 @@ func (sbs *sbState) DataScope() string {
 }
 
 func (sb *sandbox) storeUpdate() error {
+
+	glog.Printf("> storeUpdate", time.Now().UnixNano())
+	defer func() { glog.Printf("< storeUpdate", time.Now().UnixNano()) }()
 	sbs := &sbState{
 		c:   sb.controller,
 		ID:  sb.id,
@@ -126,6 +131,7 @@ func (sb *sandbox) storeUpdate() error {
 	}
 
 retry:
+	glog.Printf("> storeUpdate.loop", time.Now().UnixNano())
 	sbs.Eps = nil
 	for _, ep := range sb.getConnectedEndpoints() {
 		// If the endpoint is not persisted then do not add it to
@@ -141,8 +147,9 @@ retry:
 
 		sbs.Eps = append(sbs.Eps, eps)
 	}
-
+	glog.Printf("> controller.updateToStore")
 	err := sb.controller.updateToStore(sbs)
+	glog.Printf("< controller.updateToStore %v", err)
 	if err == datastore.ErrKeyModified {
 		// When we get ErrKeyModified it is sufficient to just
 		// go back and retry.  No need to get the object from
