@@ -140,6 +140,7 @@ clean() {
 
 	echo -n 'pruning unused files, '
 	$find vendor -type f -name '*_test.go' -exec rm -v '{}' ';'
+	$find vendor -type f -name 'Vagrantfile' -exec rm -v '{}' ';'
 
 	# These are the files that are left over after fix_rewritten_imports is run.
 	echo -n 'pruning .orig files, '

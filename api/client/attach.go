@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 
+	"golang.org/x/net/context"
+
 	"github.com/Sirupsen/logrus"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -24,7 +26,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	c, err := cli.client.ContainerInspect(cmd.Arg(0))
+	c, err := cli.client.ContainerInspect(context.Background(), cmd.Arg(0))
 	if err != nil {
 		return err
 	}
@@ -64,7 +66,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		defer signal.StopCatch(sigc)
 	}
 
-	resp, err := cli.client.ContainerAttach(options)
+	resp, err := cli.client.ContainerAttach(context.Background(), options)
 	if err != nil {
 		return err
 	}

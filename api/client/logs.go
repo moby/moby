@@ -32,7 +32,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 
 	name := cmd.Arg(0)
 
-	c, err := cli.client.ContainerInspect(name)
+	c, err := cli.client.ContainerInspect(context.Background(), name)
 	if err != nil {
 		return err
 	}

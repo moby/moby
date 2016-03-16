@@ -5,24 +5,25 @@ import (
 	"strconv"
 
 	"github.com/docker/engine-api/types"
+	"golang.org/x/net/context"
 )
 
 // ContainerResize changes the size of the tty for a container.
-func (cli *Client) ContainerResize(options types.ResizeOptions) error {
-	return cli.resize("/containers/"+options.ID, options.Height, options.Width)
+func (cli *Client) ContainerResize(ctx context.Context, options types.ResizeOptions) error {
+	return cli.resize(ctx, "/containers/"+options.ID, options.Height, options.Width)
 }
 
 // ContainerExecResize changes the size of the tty for an exec process running inside a container.
-func (cli *Client) ContainerExecResize(options types.ResizeOptions) error {
-	return cli.resize("/exec/"+options.ID, options.Height, options.Width)
+func (cli *Client) ContainerExecResize(ctx context.Context, options types.ResizeOptions) error {
+	return cli.resize(ctx, "/exec/"+options.ID, options.Height, options.Width)
 }
 
-func (cli *Client) resize(basePath string, height, width int) error {
+func (cli *Client) resize(ctx context.Context, basePath string, height, width int) error {
 	query := url.Values{}
 	query.Set("h", strconv.Itoa(height))
 	query.Set("w", strconv.Itoa(width))
 
-	resp, err := cli.post(basePath+"/resize", query, nil, nil)
+	resp, err := cli.post(ctx, basePath+"/resize", query, nil, nil)
 	ensureReaderClosed(resp)
 	return err
 }

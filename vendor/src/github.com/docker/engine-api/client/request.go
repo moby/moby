@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/docker/engine-api/client/transport/cancellable"
-
 	"golang.org/x/net/context"
 )
 
@@ -23,57 +22,41 @@ type serverResponse struct {
 }
 
 // head sends an http request to the docker API using the method HEAD.
-func (cli *Client) head(path string, query url.Values, headers map[string][]string) (*serverResponse, error) {
-	return cli.sendRequest(context.Background(), "HEAD", path, query, nil, headers)
-}
-
-// get sends an http request to the docker API using the method GET.
-func (cli *Client) get(path string, query url.Values, headers map[string][]string) (*serverResponse, error) {
-	return cli.getWithContext(context.Background(), path, query, headers)
+func (cli *Client) head(ctx context.Context, path string, query url.Values, headers map[string][]string) (*serverResponse, error) {
+	return cli.sendRequest(ctx, "HEAD", path, query, nil, headers)
 }
 
 // getWithContext sends an http request to the docker API using the method GET with a specific go context.
-func (cli *Client) getWithContext(ctx context.Context, path string, query url.Values, headers map[string][]string) (*serverResponse, error) {
+func (cli *Client) get(ctx context.Context, path string, query url.Values, headers map[string][]string) (*serverResponse, error) {
 	return cli.sendRequest(ctx, "GET", path, query, nil, headers)
 }
 
-// post sends an http request to the docker API using the method POST.
-func (cli *Client) post(path string, query url.Values, body interface{}, headers map[string][]string) (*serverResponse, error) {
-	return cli.postWithContext(context.Background(), path, query, body, headers)
-}
-
 // postWithContext sends an http request to the docker API using the method POST with a specific go context.
-func (cli *Client) postWithContext(ctx context.Context, path string, query url.Values, body interface{}, headers map[string][]string) (*serverResponse, error) {
-	return cli.sendRequest(ctx, "POST", path, query, body, headers)
+func (cli *Client) post(ctx context.Context, path string, query url.Values, obj interface{}, headers map[string][]string) (*serverResponse, error) {
+	return cli.sendRequest(ctx, "POST", path, query, obj, headers)
 }
 
-// postRaw sends the raw input to the docker API using the method POST with a specific go context.
 func (cli *Client) postRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers map[string][]string) (*serverResponse, error) {
 	return cli.sendClientRequest(ctx, "POST", path, query, body, headers)
 }
 
 // put sends an http request to the docker API using the method PUT.
-func (cli *Client) put(path string, query url.Values, body interface{}, headers map[string][]string) (*serverResponse, error) {
-	return cli.sendRequest(context.Background(), "PUT", path, query, body, headers)
+func (cli *Client) put(ctx context.Context, path string, query url.Values, obj interface{}, headers map[string][]string) (*serverResponse, error) {
+	return cli.sendRequest(ctx, "PUT", path, query, obj, headers)
 }
 
-// putRaw sends the raw input to the docker API using the method PUT.
-func (cli *Client) putRaw(path string, query url.Values, body io.Reader, headers map[string][]string) (*serverResponse, error) {
-	return cli.putRawWithContext(context.Background(), path, query, body, headers)
-}
-
-// putRawWithContext sends the raw input to the docker API using the method PUT with a specific go context.
-func (cli *Client) putRawWithContext(ctx context.Context, path string, query url.Values, body io.Reader, headers map[string][]string) (*serverResponse, error) {
+// put sends an http request to the docker API using the method PUT.
+func (cli *Client) putRaw(ctx context.Context, path string, query url.Values, body io.Reader, headers map[string][]string) (*serverResponse, error) {
 	return cli.sendClientRequest(ctx, "PUT", path, query, body, headers)
 }
 
 // delete sends an http request to the docker API using the method DELETE.
-func (cli *Client) delete(path string, query url.Values, headers map[string][]string) (*serverResponse, error) {
-	return cli.sendRequest(context.Background(), "DELETE", path, query, nil, headers)
+func (cli *Client) delete(ctx context.Context, path string, query url.Values, headers map[string][]string) (*serverResponse, error) {
+	return cli.sendRequest(ctx, "DELETE", path, query, nil, headers)
 }
 
-func (cli *Client) sendRequest(ctx context.Context, method, path string, query url.Values, body interface{}, headers map[string][]string) (*serverResponse, error) {
-	params, err := encodeData(body)
+func (cli *Client) sendRequest(ctx context.Context, method, path string, query url.Values, obj interface{}, headers map[string][]string) (*serverResponse, error) {
+	body, err := encodeData(obj)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +68,7 @@ func (cli *Client) sendRequest(ctx context.Context, method, path string, query u
 		headers["Content-Type"] = []string{"application/json"}
 	}
 
-	return cli.sendClientRequest(ctx, method, path, query, params, headers)
+	return cli.sendClientRequest(ctx, method, path, query, body, headers)
 }
 
 func (cli *Client) sendClientRequest(ctx context.Context, method, path string, query url.Values, body io.Reader, headers map[string][]string) (*serverResponse, error) {

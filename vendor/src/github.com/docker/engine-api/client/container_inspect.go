@@ -8,11 +8,12 @@ import (
 	"net/url"
 
 	"github.com/docker/engine-api/types"
+	"golang.org/x/net/context"
 )
 
 // ContainerInspect returns the container information.
-func (cli *Client) ContainerInspect(containerID string) (types.ContainerJSON, error) {
-	serverResp, err := cli.get("/containers/"+containerID+"/json", nil, nil)
+func (cli *Client) ContainerInspect(ctx context.Context, containerID string) (types.ContainerJSON, error) {
+	serverResp, err := cli.get(ctx, "/containers/"+containerID+"/json", nil, nil)
 	if err != nil {
 		if serverResp.statusCode == http.StatusNotFound {
 			return types.ContainerJSON{}, containerNotFoundError{containerID}
@@ -27,12 +28,12 @@ func (cli *Client) ContainerInspect(containerID string) (types.ContainerJSON, er
 }
 
 // ContainerInspectWithRaw returns the container information and it's raw representation.
-func (cli *Client) ContainerInspectWithRaw(containerID string, getSize bool) (types.ContainerJSON, []byte, error) {
+func (cli *Client) ContainerInspectWithRaw(ctx context.Context, containerID string, getSize bool) (types.ContainerJSON, []byte, error) {
 	query := url.Values{}
 	if getSize {
 		query.Set("size", "1")
 	}
-	serverResp, err := cli.get("/containers/"+containerID+"/json", query, nil)
+	serverResp, err := cli.get(ctx, "/containers/"+containerID+"/json", query, nil)
 	if err != nil {
 		if serverResp.statusCode == http.StatusNotFound {
 			return types.ContainerJSON{}, nil, containerNotFoundError{containerID}
@@ -52,8 +53,8 @@ func (cli *Client) ContainerInspectWithRaw(containerID string, getSize bool) (ty
 	return response, body, err
 }
 
-func (cli *Client) containerInspectWithResponse(containerID string, query url.Values) (types.ContainerJSON, *serverResponse, error) {
-	serverResp, err := cli.get("/containers/"+containerID+"/json", nil, nil)
+func (cli *Client) containerInspectWithResponse(ctx context.Context, containerID string, query url.Values) (types.ContainerJSON, *serverResponse, error) {
+	serverResp, err := cli.get(ctx, "/containers/"+containerID+"/json", nil, nil)
 	if err != nil {
 		return types.ContainerJSON{}, serverResp, err
 	}

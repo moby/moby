@@ -4,6 +4,7 @@ package transport
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/docker/go-connections/sockets"
 )
@@ -34,6 +35,10 @@ func NewTransportWithHTTP(proto, addr string, client *http.Client) (Client, erro
 		}
 	}
 
+	if transport.TLSClientConfig != nil && transport.TLSClientConfig.ServerName == "" {
+		transport.TLSClientConfig.ServerName = hostname(addr)
+	}
+
 	return &apiTransport{
 		Client:    client,
 		tlsInfo:   &tlsInfo{transport.TLSClientConfig},
@@ -52,6 +57,14 @@ func defaultTransport(proto, addr string) *http.Transport {
 	tr := new(http.Transport)
 	sockets.ConfigureTransport(tr, proto, addr)
 	return tr
+}
+
+func hostname(addr string) string {
+	colonPos := strings.LastIndex(addr, ":")
+	if colonPos == -1 {
+		return addr
+	}
+	return addr[:colonPos]
 }
 
 var _ Client = &apiTransport{}

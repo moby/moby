@@ -5,12 +5,13 @@ import (
 	"net/url"
 
 	"github.com/docker/engine-api/types"
+	"golang.org/x/net/context"
 )
 
 // ImageHistory returns the changes in an image in history format.
-func (cli *Client) ImageHistory(imageID string) ([]types.ImageHistory, error) {
+func (cli *Client) ImageHistory(ctx context.Context, imageID string) ([]types.ImageHistory, error) {
 	var history []types.ImageHistory
-	serverResp, err := cli.get("/images/"+imageID+"/history", url.Values{}, nil)
+	serverResp, err := cli.get(ctx, "/images/"+imageID+"/history", url.Values{}, nil)
 	if err != nil {
 		return history, err
 	}

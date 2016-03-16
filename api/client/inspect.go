@@ -3,6 +3,8 @@ package client
 import (
 	"fmt"
 
+	"golang.org/x/net/context"
+
 	"github.com/docker/docker/api/client/inspect"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -41,23 +43,23 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 
 func (cli *DockerCli) inspectContainers(getSize bool) inspectSearcher {
 	return func(ref string) (interface{}, []byte, error) {
-		return cli.client.ContainerInspectWithRaw(ref, getSize)
+		return cli.client.ContainerInspectWithRaw(context.Background(), ref, getSize)
 	}
 }
 
 func (cli *DockerCli) inspectImages(getSize bool) inspectSearcher {
 	return func(ref string) (interface{}, []byte, error) {
-		return cli.client.ImageInspectWithRaw(ref, getSize)
+		return cli.client.ImageInspectWithRaw(context.Background(), ref, getSize)
 	}
 }
 
 func (cli *DockerCli) inspectAll(getSize bool) inspectSearcher {
 	return func(ref string) (interface{}, []byte, error) {
-		c, rawContainer, err := cli.client.ContainerInspectWithRaw(ref, getSize)
+		c, rawContainer, err := cli.client.ContainerInspectWithRaw(context.Background(), ref, getSize)
 		if err != nil {
 			// Search for image with that id if a container doesn't exist.
 			if client.IsErrContainerNotFound(err) {
-				i, rawImage, err := cli.client.ImageInspectWithRaw(ref, getSize)
+				i, rawImage, err := cli.client.ImageInspectWithRaw(context.Background(), ref, getSize)
 				if err != nil {
 					if client.IsErrImageNotFound(err) {
 						return nil, nil, fmt.Errorf("Error: No such image or container: %s", ref)

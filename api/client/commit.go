@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -73,7 +75,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 		Config:         config,
 	}
 
-	response, err := cli.client.ContainerCommit(options)
+	response, err := cli.client.ContainerCommit(context.Background(), options)
 	if err != nil {
 		return err
 	}

@@ -72,7 +72,7 @@ func (e volumeNotFoundError) Error() string {
 // IsErrVolumeNotFound returns true if the error is caused
 // when a volume is not found in the docker host.
 func IsErrVolumeNotFound(err error) bool {
-	_, ok := err.(networkNotFoundError)
+	_, ok := err.(volumeNotFoundError)
 	return ok
 }
 

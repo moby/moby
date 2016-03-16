@@ -14,7 +14,7 @@ func (cli *Client) ImageSave(ctx context.Context, imageIDs []string) (io.ReadClo
 		"names": imageIDs,
 	}
 
-	resp, err := cli.getWithContext(ctx, "/images/get", query, nil)
+	resp, err := cli.get(ctx, "/images/get", query, nil)
 	if err != nil {
 		return nil, err
 	}

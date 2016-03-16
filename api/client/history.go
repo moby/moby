@@ -7,6 +7,8 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/stringid"
@@ -26,7 +28,7 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	history, err := cli.client.ImageHistory(cmd.Arg(0))
+	history, err := cli.client.ImageHistory(context.Background(), cmd.Arg(0))
 	if err != nil {
 		return err
 	}

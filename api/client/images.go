@@ -1,6 +1,8 @@
 package client
 
 import (
+	"golang.org/x/net/context"
+
 	"github.com/docker/docker/api/client/formatter"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
@@ -48,7 +50,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		Filters:   imageFilterArgs,
 	}
 
-	images, err := cli.client.ImageList(options)
+	images, err := cli.client.ImageList(context.Background(), options)
 	if err != nil {
 		return err
 	}

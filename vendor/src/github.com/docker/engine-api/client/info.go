@@ -6,12 +6,13 @@ import (
 	"net/url"
 
 	"github.com/docker/engine-api/types"
+	"golang.org/x/net/context"
 )
 
 // Info returns information about the docker server.
-func (cli *Client) Info() (types.Info, error) {
+func (cli *Client) Info(ctx context.Context) (types.Info, error) {
 	var info types.Info
-	serverResp, err := cli.get("/info", url.Values{}, nil)
+	serverResp, err := cli.get(ctx, "/info", url.Values{}, nil)
 	if err != nil {
 		return info, err
 	}

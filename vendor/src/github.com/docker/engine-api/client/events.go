@@ -40,7 +40,7 @@ func (cli *Client) Events(ctx context.Context, options types.EventsOptions) (io.
 		query.Set("filters", filterJSON)
 	}
 
-	serverResponse, err := cli.getWithContext(ctx, "/events", query, nil)
+	serverResponse, err := cli.get(ctx, "/events", query, nil)
 	if err != nil {
 		return nil, err
 	}

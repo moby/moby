@@ -3,6 +3,8 @@ package client
 import (
 	"fmt"
 
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/archive"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -25,7 +27,7 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 		return fmt.Errorf("Container name cannot be empty")
 	}
 
-	changes, err := cli.client.ContainerDiff(cmd.Arg(0))
+	changes, err := cli.client.ContainerDiff(context.Background(), cmd.Arg(0))
 	if err != nil {
 		return err
 	}
