@@ -4,9 +4,9 @@
 
 ### Getting Started
 
-The Macvlan and Ipvlan drivers are currently in experimental mode in order to incubate Docker users use cases and vet the implementation to ensure a hardened, production ready driver in a future release. Libnetwork now gives users total control over both IPv4 and IPv6 adressing. The VLAN drivers build on top of that in giving operators complete control of layer 2 VLAN tagging and even Ipvlan L3 routing for users interested in underlay network integration. For overlay deployments that abstract away physical constraints see the [multi-host overlay ](https://docs.docker.com/engine/userguide/networking/get-started-overlay/) driver.
+The Macvlan and Ipvlan drivers are currently in experimental mode in order to incubate Docker users use cases and vet the implementation to ensure a hardened, production ready driver in a future release. Libnetwork now gives users total control over both IPv4 and IPv6 addressing. The VLAN drivers build on top of that in giving operators complete control of layer 2 VLAN tagging and even Ipvlan L3 routing for users interested in underlay network integration. For overlay deployments that abstract away physical constraints see the [multi-host overlay ](https://docs.docker.com/engine/userguide/networking/get-started-overlay/) driver.
 
-Macvlan and Ipvlan are a new twist on the tried and true network virtualization technique. The Linux implementations are extremely lightweight because rather than using the traditional Linux bridge for isolation, they are simply associated to a Linux Ethernet interface or sub-interface to enforce seperation between networks and connectivity to the physical network.
+Macvlan and Ipvlan are a new twist on the tried and true network virtualization technique. The Linux implementations are extremely lightweight because rather than using the traditional Linux bridge for isolation, they are simply associated to a Linux Ethernet interface or sub-interface to enforce separation between networks and connectivity to the physical network.
 
 Macvlan and Ipvlan offer a number of unique features and plenty of room for further innovations with the various modes. Two high level advantages of these approaches are, the positive performance implications of bypassing the Linux bridge and the simplicity of having less moving parts. Removing the bridge that traditionally resides in between the Docker host NIC and container interface leaves a very simple setup consisting of container interfaces, attached directly to the Docker host interface. This result is easy access for external facing services as there is no port mappings in these scenarios.
 
@@ -44,7 +44,7 @@ Macvlan Bridge mode has a unique MAC address per container used to track MAC to 
 
 In the following example, `eth0` on the docker host has an IP on the `172.16.86.0/24` network and a default gateway of `172.16.86.1`. The gateway is an external router with an address of `172.16.86.1`. An IP address is not required on the Docker host interface `eth0` in `bridge` mode, it merely needs to be on the proper upstream network to get forwarded by a network switch or network router.
 
-![Simple Macvlan Bridge Mode Example](../docs/userguide/networking/images/macvlan_bridge_simple.png)
+![Simple Macvlan Bridge Mode Example](images/macvlan_bridge_simple.png)
 
 
 **Note** For Macvlan bridge mode and Ipvlan L2 mode the subnet values need to match the NIC's interface of the Docker host. For example, Use the same subnet and gateway of the Docker host ethernet interface that is specified by the `-o parent=` option.
@@ -77,16 +77,20 @@ docker  run --net=pub_net --ip=172.16.86.10 -itd alpine /bin/sh
 docker  run --net=pub_net -it --rm alpine /bin/sh
 ping -c 4 172.16.86.10
 
-# Take a look at the containers ip and routing table
+```
+
+ Take a look at the containers ip and routing table:
+ 
+```
 
 ip a show eth0
     eth0@if3: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue state UNKNOWN
     link/ether 46:b2:6b:26:2f:69 brd ff:ff:ff:ff:ff:ff
-    inet 172.16.86.1/24 scope global eth0
+    inet 172.16.86.2/24 scope global eth0
     
 ip route
-    default via 172.16.86.2 dev eth0
-    172.16.86.0/24 dev eth0  src 172.16.86.1
+    default via 172.16.86.1 dev eth0
+    172.16.86.0/24 dev eth0  src 172.16.86.2
 
 # NOTE: the containers can NOT ping the underlying host interfaces as
 # they are intentionally filtered by Linux for additional isolation.
@@ -106,10 +110,23 @@ docker network create -d macvlan \
     -o parent=eth0 pub_net
 ```
 
+Another option for subpool IP address selection in a network provided by the default Docker IPAM driver is to use `--ip-range=`. This specifies the driver to allocate container addresses from this pool rather then the broader range from the `--subnet=` argument from a network create as seen in the following example that will allocate addresses beginning at `192.168.32.128` and increment upwards from there.
+
+```
+docker network create -d macvlan  \
+    --subnet=192.168.32.0/24  \
+    --ip-range=192.168.32.128/25 \
+    --gateway=192.168.32.254  \
+    -o parent=eth0 macnet32
+
+# Start a container and verify the address is 192.168.32.128
+docker run --net=macnet32 -it --rm alpine /bin/sh
+```
+
 The network can then be deleted with:
 
 ```
-docker network rm pub_net
+docker network rm <network_name or id>
 ```
 
 - **Note:** In both Macvlan and Ipvlan you are not able to ping or communicate with the default namespace IP address. For example, if you create a container and try to ping the Docker host's `eth0` it will **not** work. That traffic is explicitly filtered by the kernel modules themselves to offer additional provider isolation and security.
@@ -120,7 +137,7 @@ For more on Docker networking commands see [Working with Docker network commands
 
 The ipvlan `L2` mode example is virtually identical to the macvlan `bridge` mode example. The driver is specified with `-d driver_name` option. In this case `-d ipvlan`
 
-![Simple Ipvlan L2 Mode Example](../docs/userguide/networking/images/ipvlan_l2_simple.png)
+![Simple Ipvlan L2 Mode Example](images/ipvlan_l2_simple.png)
 
 The parent interface in the next example `-o parent=eth0` is configured as followed:
 
@@ -150,6 +167,10 @@ docker  run --net=db_net -it --rm alpine /bin/sh
 ```
 
 The default mode for Ipvlan is `l2`. The default mode for Macvlan is `bridge`. If `-o ipvlan_mode=` or `-o macvlan_mode=` are left unspecified, the default modes will be used. Similarly, if the `--gateway` is left empty, the first usable address on the network will be set as the gateway. For example, if the subnet provided in the network create is `--subnet=192.168.1.0/24` then the gateway the container receives is `192.168.1.1`.
+
+To help understand how this mode interacts with other hosts, the following figure shows the same layer 2 segment between two Docker hosts that applies to both Macvlan Bride mode and Ipvlan L2 mode.
+
+![Multiple Ipvlan and Macvlan Hosts](images/macvlan-bridge-ipvlan-l2.png)
 
 The following will create the exact same network as the network `db_net` created prior, with the driver defaults for `--gateway=192.168.1.1` and `-o ipvlan_mode=l2`.
 
@@ -204,9 +225,9 @@ VLANs (Virtual Local Area Networks) have long been a primary means of virtualizi
 
 It is very common to have a compute host requirement of running multiple virtual networks concurrently on a host. Linux networking has long supported VLAN tagging, also known by it's standard 802.1q, for maintaining datapath isolation between networks. The Ethernet link connected to a Docker host can be configured to support the 802.1q VLAN IDs, by creating Linux sub-interfaces, each one dedicated to a unique VLAN ID.
 
-![Simple Ipvlan L2 Mode Example](../docs/userguide/networking/images/multi_tenant_8021q_vlans.png)
+![Simple Ipvlan L2 Mode Example](images/multi_tenant_8021q_vlans.png)
 
-Trunking 802.1q to a host is notoriously painful. It requires configuration file changes in order to be persistent through a reboot and if a bridge is involved a physical NIC needs to be moved into the bridge and the bridge then gets the IP address or risk being cut off from the network.
+Trunking 802.1q to a Linux host is notoriously painful for many in operations. It requires configuration file changes in order to be persistent through a reboot. If a bridge is involved, a physical NIC needs to be moved into the bridge and the bridge then gets the IP address. This has lead to many a stranded servers since the risk of cutting off access during that convoluted process is high.
 
 Like all of the Docker network drivers, the overarching goal is to alleviate the operational pains of managing network resources. To that end, when a network receives a sub-interface as the parent that does not exist, the drivers create the VLAN tagged interfaces while creating the network.
 
@@ -280,7 +301,9 @@ docker run --net=ipvlan210 --ip=192.168.212.9 -it --rm alpine ping -c 2 192.168.
 
 Architecturally, Ipvlan L2 mode trunking is the same as Macvlan with regard to gateways and L2 path isolation. There are nuances that can be advantageous for CAM table pressure in ToR switches, one MAC per port and MAC exhaustion on a host's parent NIC to name a few. The 802.1q trunk scenario looks the same. Both modes adhere to tagging standards and have seamless integration with the physical network for underlay integration and hardware vendor plugin integrations.
 
-![Simple Ipvlan L2 Mode Example](../docs/userguide/networking/images/multi_tenant_8021q_vlans.png)
+Hosts on the same VLAN are typically on the same subnet and almost always are grouped together based on their security policy. In most scenarios, a multi-tier application is tiered into different subnets because the security profile of each process requires some form of isolation. For example, hosting your credit card processing on the same virtual network as the frontend webserver would be a regulatory compliance issue, along with circumventing the long standing best practice of layered defense in depth architectures. VLANs or the equivocal VNI (Virtual Network Identifier) when using the Overlay driver, are the first step in isolating tenant traffic.
+
+![Docker VLANs in Depth](images/vlans-deeper-look.png)
 
 The Linux sub-interface tagged with a vlan can either already exist or will be created when you call a `docker network create`. `docker network rm` will delete the sub-interface. Parent interfaces such as `eth0` are not deleted, only sub-interfaces with a netlink parent index > 0.
 
@@ -366,9 +389,11 @@ An example being, NetOps provides VLAN ID and the associated subnets for VLANs b
 
 ### IPVlan L3 Mode Example
 
-IPVlan will require routes to be distributed to each endpoint. The driver only builds the Ipvlan L3 mode port and attaches the container to the interface. Route distribution throughout a cluster is beyond the initial implementation of this single host scoped driver. In L3 mode the Docker host is very similar to a router starting new networks in the container. They are on networks that the upstream network will not know about without route distribution. For those curious how Ipvlan L3 will fit into container networking see the following examples.
+IPVlan will require routes to be distributed to each endpoint. The driver only builds the Ipvlan L3 mode port and attaches the container to the interface. Route distribution throughout a cluster is beyond the initial implementation of this single host scoped driver. In L3 mode, the Docker host is very similar to a router starting new networks in the container. They are on networks that the upstream network will not know about without route distribution. For those curious how Ipvlan L3 will fit into container networking see the following examples.
 
-- Ipvlan L3 mode drops all broadcast and multicast traffic.
+![Docker Ipvlan L2 Mode](images/ipvlan-l3.png)
+
+Ipvlan L3 mode drops all broadcast and multicast traffic. This reason alone makes Ipvlan L3 mode a prime candidate for those looking for massive scale and predictable network integrations. It is predictable and in turn will lead to greater uptimes because there is no bridging involved. Bridging loops have been responsible for high profile outages that can be hard to pinpoint depending on the size of the failure domain. This is due to the cascading nature of BPDUs (Bridge Port Data Units) that are flooded throughout a broadcast domain (VLAN) to find and block topology loops. Eliminating bridging domains, or at the least, keeping them isolated to a pair of ToRs (top of rack switches) will reduce hard to troubleshoot bridging instabilities. Macvlan Bridge and Ipvlan L2 modes are well suited for isolated VLANs only trunked into a pair of ToRs that can provide a loop-free non-blocking fabric. The next step further is to route at the edge via Ipvlan L3 mode that reduces a failure domain to a local host only. 
 
 - L3 mode needs to be on a separate subnet as the default namespace since it requires a netlink route in the default namespace pointing to the Ipvlan parent interface.
 
@@ -386,6 +411,8 @@ ip a show eth0
 -A traditional gateway doesn't mean much to an L3 mode Ipvlan interface since there is no broadcast traffic allowed. Because of that, the container default gateway simply point the the containers `eth0` device. See below for CLI output of `ip route` or `ip -6 route` from inside an L3 container for details.
 
 The mode ` -o ipvlan_mode=l3` must be explicitly specified since the default ipvlan mode is `l2`.
+
+The following example does not specify a parent interface. The network drivers will create a dummy type link for the user rather then rejecting the network creation and isolating containers from only communicating with one another.
 
 ```
 # Create the Ipvlan L3 network
@@ -430,10 +457,19 @@ docker network  create  -d macvlan \
      -o parent=eth0.218 \
      -o macvlan_mode=bridge macvlan216
 
+# Start a container on the first subnet 192.168.216.0/24
 docker run --net=macvlan216 --name=macnet216_test --ip=192.168.216.10 -itd alpine /bin/sh
+
+# Start a container on the second subnet 192.168.218.0/24
 docker run --net=macvlan216 --name=macnet216_test --ip=192.168.218.10 -itd alpine /bin/sh
+
+# Ping the first container started on the 192.168.216.0/24 subnet
 docker run --net=macvlan216 --ip=192.168.216.11 -it --rm alpine /bin/sh
+ping 192.168.216.10
+
+# Ping the first container started on the 192.168.218.0/24 subnet
 docker run --net=macvlan216 --ip=192.168.218.11 -it --rm alpine /bin/sh
+ping 192.168.218.10
 ```
 
 View the details of one of the containers:
@@ -575,9 +611,9 @@ docker run --net=ipvlan140 --ip=192.168.140.10 -it --rm alpine /bin/sh
 
 **Example:** IpVlan L3 Mode Dual Stack IPv4/IPv6, Multi-Subnet w/ 802.1q Vlan Tag:118
 
-As in all of the examples, a tagged VLAN interface does not have to be used. The sub-interfaces can be swapped with `eth0`, `eth1` or any other valid interface on the host other then the `lo` loopback.
+As in all of the examples, a tagged VLAN interface does not have to be used. The sub-interfaces can be swapped with `eth0`, `eth1`, `bond0` or any other valid interface on the host other then the `lo` loopback.
 
-The primary difference you will see is that L3 mode does not create a default route with a next-hop but rather sets a default route pointing to `dev eth` only since ARP/Broadcasts/Multicast are all filtered by Linux as per the design.
+The primary difference you will see is that L3 mode does not create a default route with a next-hop but rather sets a default route pointing to `dev eth` only since ARP/Broadcasts/Multicast are all filtered by Linux as per the design. Since the parent interface is essentially acting as a router, the parent interface IP and subnet needs to be different from the container networks. That is the opposite of bridge and L2 modes, which need to be on the same subnet (broadcast domain) in order to forward broadcast and multicast packets.
 
 ```
 # Create an IPv6+IPv4 Dual Stack Ipvlan L3 network 
@@ -586,7 +622,7 @@ docker network  create  -d ipvlan \
     --subnet=192.168.110.0/24 \
     --subnet=192.168.112.0/24 \
     --subnet=2001:db8:abc6::/64 \
-     -o parent=eth0.118 \
+     -o parent=eth0 \
      -o ipvlan_mode=l3 ipnet110
 
 
