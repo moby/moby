@@ -6596,6 +6596,134 @@ func (s *DockerSuite) TestBuildWorkdirWindowsPath(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestBuildLabel(c *check.C) {
+	name := "testbuildlabel"
+	testLabel := "foo"
+
+	_, err := buildImage(name, `
+  FROM `+minimalBaseImage()+`
+  LABEL default foo
+`, false, []string{"--label", testLabel}...)
+
+	if err != nil {
+		c.Fatal("error building image with labels", err)
+	}
+
+	res := inspectFieldJSON(c, name, "Config.Labels")
+
+	var labels map[string]string
+
+	if err := json.Unmarshal([]byte(res), &labels); err != nil {
+		c.Fatal(err)
+	}
+
+	if _, ok := labels[testLabel]; !ok {
+		c.Fatal("label not found in image")
+	}
+}
+
+func (s *DockerSuite) TestBuildLabelCacheCommit(c *check.C) {
+	name := "testbuildlabelcachecommit"
+	testLabel := "foo"
+
+	if _, err := buildImage(name, `
+  FROM `+minimalBaseImage()+`
+  LABEL default foo
+  `, false); err != nil {
+		c.Fatal(err)
+	}
+
+	_, err := buildImage(name, `
+  FROM `+minimalBaseImage()+`
+  LABEL default foo
+`, true, []string{"--label", testLabel}...)
+
+	if err != nil {
+		c.Fatal("error building image with labels", err)
+	}
+
+	res := inspectFieldJSON(c, name, "Config.Labels")
+
+	var labels map[string]string
+
+	if err := json.Unmarshal([]byte(res), &labels); err != nil {
+		c.Fatal(err)
+	}
+
+	if _, ok := labels[testLabel]; !ok {
+		c.Fatal("label not found in image")
+	}
+}
+
+func (s *DockerSuite) TestBuildLabelMultiple(c *check.C) {
+	name := "testbuildlabelmultiple"
+	testLabels := map[string]string{
+		"foo": "bar",
+		"123": "456",
+	}
+
+	labelArgs := []string{}
+
+	for k, v := range testLabels {
+		labelArgs = append(labelArgs, "--label", k+"="+v)
+	}
+
+	_, err := buildImage(name, `
+  FROM `+minimalBaseImage()+`
+  LABEL default foo
+`, false, labelArgs...)
+
+	if err != nil {
+		c.Fatal("error building image with labels", err)
+	}
+
+	res := inspectFieldJSON(c, name, "Config.Labels")
+
+	var labels map[string]string
+
+	if err := json.Unmarshal([]byte(res), &labels); err != nil {
+		c.Fatal(err)
+	}
+
+	for k, v := range testLabels {
+		if x, ok := labels[k]; !ok || x != v {
+			c.Fatalf("label %s=%s not found in image", k, v)
+		}
+	}
+}
+
+func (s *DockerSuite) TestBuildLabelOverwrite(c *check.C) {
+	name := "testbuildlabeloverwrite"
+	testLabel := "foo"
+	testValue := "bar"
+
+	_, err := buildImage(name, `
+  FROM `+minimalBaseImage()+`
+  LABEL `+testLabel+`+ foo
+`, false, []string{"--label", testLabel + "=" + testValue}...)
+
+	if err != nil {
+		c.Fatal("error building image with labels", err)
+	}
+
+	res := inspectFieldJSON(c, name, "Config.Labels")
+
+	var labels map[string]string
+
+	if err := json.Unmarshal([]byte(res), &labels); err != nil {
+		c.Fatal(err)
+	}
+
+	v, ok := labels[testLabel]
+	if !ok {
+		c.Fatal("label not found in image")
+	}
+
+	if v != testValue {
+		c.Fatal("label not overwritten")
+	}
+}
+
 func (s *DockerRegistryAuthHtpasswdSuite) TestBuildFromAuthenticatedRegistry(c *check.C) {
 	dockerCmd(c, "login", "-u", s.reg.username, "-p", s.reg.password, privateRegistryURL)
 

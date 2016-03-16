@@ -47,7 +47,7 @@ func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWri
 		return err
 	}
 
-	volume, err := v.backend.VolumeCreate(req.Name, req.Driver, req.DriverOpts)
+	volume, err := v.backend.VolumeCreate(req.Name, req.Driver, req.DriverOpts, req.Labels)
 	if err != nil {
 		return err
 	}

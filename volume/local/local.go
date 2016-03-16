@@ -77,6 +77,10 @@ func New(scope string, rootUID, rootGID int) (*Root, error) {
 	}
 
 	for _, d := range dirs {
+		if !d.IsDir() {
+			continue
+		}
+
 		name := filepath.Base(d.Name())
 		v := &localVolume{
 			driverName: r.Name(),
@@ -198,7 +202,7 @@ func (r *Root) Remove(v volume.Volume) error {
 
 	lv, ok := v.(*localVolume)
 	if !ok {
-		return fmt.Errorf("unknown volume type")
+		return fmt.Errorf("unknown volume type %T", v)
 	}
 
 	realPath, err := filepath.EvalSymlinks(lv.path)

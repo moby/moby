@@ -241,3 +241,43 @@ func (s *DockerSuite) TestVolumeCliCreateWithOpts(c *check.C) {
 	}
 	c.Assert(found, checker.Equals, true)
 }
+
+func (s *DockerSuite) TestVolumeCliCreateLabel(c *check.C) {
+	testVol := "testvolcreatelabel"
+	testLabel := "foo"
+	testValue := "bar"
+
+	out, _, err := dockerCmdWithError("volume", "create", "--label", testLabel+"="+testValue, "--name", testVol)
+	c.Assert(err, check.IsNil)
+
+	out, _ = dockerCmd(c, "volume", "inspect", "--format='{{ .Labels."+testLabel+" }}'", testVol)
+	c.Assert(strings.TrimSpace(out), check.Equals, testValue)
+}
+
+func (s *DockerSuite) TestVolumeCliCreateLabelMultiple(c *check.C) {
+	testVol := "testvolcreatelabel"
+
+	testLabels := map[string]string{
+		"foo": "bar",
+		"baz": "foo",
+	}
+
+	args := []string{
+		"volume",
+		"create",
+		"--name",
+		testVol,
+	}
+
+	for k, v := range testLabels {
+		args = append(args, "--label", k+"="+v)
+	}
+
+	out, _, err := dockerCmdWithError(args...)
+	c.Assert(err, check.IsNil)
+
+	for k, v := range testLabels {
+		out, _ = dockerCmd(c, "volume", "inspect", "--format='{{ .Labels."+k+" }}'", testVol)
+		c.Assert(strings.TrimSpace(out), check.Equals, v)
+	}
+}

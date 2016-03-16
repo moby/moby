@@ -21,7 +21,7 @@ const extName = "VolumeDriver"
 // NewVolumeDriver returns a driver has the given name mapped on the given client.
 func NewVolumeDriver(name string, c client) volume.Driver {
 	proxy := &volumeDriverProxy{c}
-	return &volumeDriverAdapter{name, proxy}
+	return &volumeDriverAdapter{name: name, proxy: proxy}
 }
 
 type opts map[string]string

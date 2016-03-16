@@ -1,9 +1,5 @@
-FROM golang:1.4-cross
+FROM golang:1.5.3
 RUN apt-get update && apt-get -y install iptables
-
-RUN cd /go/src && mkdir -p golang.org/x && \
-    cd golang.org/x && git clone https://github.com/golang/tools && \
-    cd tools && git checkout release-branch.go1.5
 
 RUN go get github.com/tools/godep \
 		github.com/golang/lint/golint \

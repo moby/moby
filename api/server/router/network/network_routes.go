@@ -91,7 +91,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		warning = fmt.Sprintf("Network with name %s (id : %s) already exists", nw.Name(), nw.ID())
 	}
 
-	nw, err = n.backend.CreateNetwork(create.Name, create.Driver, create.IPAM, create.Options, create.Internal, create.EnableIPv6)
+	nw, err = n.backend.CreateNetwork(create.Name, create.Driver, create.IPAM, create.Options, create.Labels, create.Internal, create.EnableIPv6)
 	if err != nil {
 		return err
 	}
@@ -163,16 +163,18 @@ func buildNetworkResource(nw libnetwork.Network) *types.NetworkResource {
 		return r
 	}
 
+	info := nw.Info()
 	r.Name = nw.Name()
 	r.ID = nw.ID()
-	r.Scope = nw.Info().Scope()
+	r.Scope = info.Scope()
 	r.Driver = nw.Type()
-	r.EnableIPv6 = nw.Info().IPv6Enabled()
-	r.Internal = nw.Info().Internal()
-	r.Options = nw.Info().DriverOptions()
+	r.EnableIPv6 = info.IPv6Enabled()
+	r.Internal = info.Internal()
+	r.Options = info.DriverOptions()
 	r.Containers = make(map[string]types.EndpointResource)
-	buildIpamResources(r, nw)
-	r.Internal = nw.Info().Internal()
+	buildIpamResources(r, info)
+	r.Internal = info.Internal()
+	r.Labels = info.Labels()
 
 	epl := nw.Endpoints()
 	for _, e := range epl {
@@ -191,10 +193,10 @@ func buildNetworkResource(nw libnetwork.Network) *types.NetworkResource {
 	return r
 }
 
-func buildIpamResources(r *types.NetworkResource, nw libnetwork.Network) {
-	id, opts, ipv4conf, ipv6conf := nw.Info().IpamConfig()
+func buildIpamResources(r *types.NetworkResource, nwInfo libnetwork.NetworkInfo) {
+	id, opts, ipv4conf, ipv6conf := nwInfo.IpamConfig()
 
-	ipv4Info, ipv6Info := nw.Info().IpamInfo()
+	ipv4Info, ipv6Info := nwInfo.IpamInfo()
 
 	r.IPAM.Driver = id
 

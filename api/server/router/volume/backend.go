@@ -10,7 +10,6 @@ import (
 type Backend interface {
 	Volumes(filter string) ([]*types.Volume, []string, error)
 	VolumeInspect(name string) (*types.Volume, error)
-	VolumeCreate(name, driverName string,
-		opts map[string]string) (*types.Volume, error)
+	VolumeCreate(name, driverName string, opts, labels map[string]string) (*types.Volume, error)
 	VolumeRm(name string) error
 }

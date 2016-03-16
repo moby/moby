@@ -44,6 +44,7 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	flIpamGateway := opts.NewListOpts(nil)
 	flIpamAux := opts.NewMapOpts(nil, nil)
 	flIpamOpt := opts.NewMapOpts(nil, nil)
+	flLabels := opts.NewListOpts(nil)
 
 	cmd.Var(&flIpamSubnet, []string{"-subnet"}, "subnet in CIDR format that represents a network segment")
 	cmd.Var(&flIpamIPRange, []string{"-ip-range"}, "allocate container ip from a sub-range")
@@ -51,6 +52,7 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	cmd.Var(flIpamAux, []string{"-aux-address"}, "auxiliary ipv4 or ipv6 addresses used by Network driver")
 	cmd.Var(flOpts, []string{"o", "-opt"}, "set driver specific options")
 	cmd.Var(flIpamOpt, []string{"-ipam-opt"}, "set IPAM driver specific options")
+	cmd.Var(&flLabels, []string{"-label"}, "set metadata on a network")
 
 	flInternal := cmd.Bool([]string{"-internal"}, false, "restricts external access to the network")
 	flIPv6 := cmd.Bool([]string{"-ipv6"}, false, "enable IPv6 networking")
@@ -82,6 +84,7 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 		CheckDuplicate: true,
 		Internal:       *flInternal,
 		EnableIPv6:     *flIPv6,
+		Labels:         runconfigopts.ConvertKVStringsToMap(flLabels.GetAll()),
 	}
 
 	resp, err := cli.client.NetworkCreate(context.Background(), nc)

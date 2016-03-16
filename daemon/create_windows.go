@@ -33,7 +33,7 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 
 		// Create the volume in the volume driver. If it doesn't exist,
 		// a new one will be created.
-		v, err := daemon.volumes.CreateWithRef(mp.Name, volumeDriver, container.ID, nil)
+		v, err := daemon.volumes.CreateWithRef(mp.Name, volumeDriver, container.ID, nil, nil)
 		if err != nil {
 			return err
 		}

@@ -341,6 +341,22 @@ func (s *DockerNetworkSuite) TestDockerNetworkCreateDelete(c *check.C) {
 	assertNwNotAvailable(c, "test")
 }
 
+func (s *DockerNetworkSuite) TestDockerNetworkCreateLabel(c *check.C) {
+	testNet := "testnetcreatelabel"
+	testLabel := "foo"
+	testValue := "bar"
+
+	dockerCmd(c, "network", "create", "--label", testLabel+"="+testValue, testNet)
+	assertNwIsAvailable(c, testNet)
+
+	out, _, err := dockerCmdWithError("network", "inspect", "--format='{{ .Labels."+testLabel+" }}'", testNet)
+	c.Assert(err, check.IsNil)
+	c.Assert(strings.TrimSpace(out), check.Equals, testValue)
+
+	dockerCmd(c, "network", "rm", testNet)
+	assertNwNotAvailable(c, testNet)
+}
+
 func (s *DockerSuite) TestDockerNetworkDeleteNotExists(c *check.C) {
 	out, _, err := dockerCmdWithError("network", "rm", "test")
 	c.Assert(err, checker.NotNil, check.Commentf("%v", out))

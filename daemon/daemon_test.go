@@ -118,10 +118,14 @@ func TestGetContainer(t *testing.T) {
 }
 
 func initDaemonWithVolumeStore(tmp string) (*Daemon, error) {
+	var err error
 	daemon := &Daemon{
 		repository: tmp,
 		root:       tmp,
-		volumes:    store.New(),
+	}
+	daemon.volumes, err = store.New(tmp)
+	if err != nil {
+		return nil, err
 	}
 
 	volumesDriver, err := local.New(tmp, 0, 0)

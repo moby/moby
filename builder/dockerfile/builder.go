@@ -215,6 +215,10 @@ func (b *Builder) build(config *types.ImageBuildOptions, context builder.Context
 
 	var shortImgID string
 	for i, n := range b.dockerfile.Children {
+		// we only want to add labels to the last layer
+		if i == len(b.dockerfile.Children)-1 {
+			b.addLabels()
+		}
 		select {
 		case <-b.cancelled:
 			logrus.Debug("Builder: build cancelled!")

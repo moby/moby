@@ -82,6 +82,15 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		}
 		options.BuildArgs = buildArgs
 	}
+	var labels = map[string]string{}
+	labelsJSON := r.FormValue("labels")
+	if labelsJSON != "" {
+		if err := json.NewDecoder(strings.NewReader(labelsJSON)).Decode(&labels); err != nil {
+			return nil, err
+		}
+		options.Labels = labels
+	}
+
 	return options, nil
 }
 

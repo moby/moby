@@ -10,6 +10,7 @@ import (
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
 )
@@ -128,6 +129,9 @@ func (cli *DockerCli) CmdVolumeCreate(args ...string) error {
 	flDriverOpts := opts.NewMapOpts(nil, nil)
 	cmd.Var(flDriverOpts, []string{"o", "-opt"}, "Set driver specific options")
 
+	flLabels := opts.NewListOpts(nil)
+	cmd.Var(&flLabels, []string{"-label"}, "Set metadata for a volume")
+
 	cmd.Require(flag.Exact, 0)
 	cmd.ParseFlags(args, true)
 
@@ -135,6 +139,7 @@ func (cli *DockerCli) CmdVolumeCreate(args ...string) error {
 		Driver:     *flDriver,
 		DriverOpts: flDriverOpts.GetAll(),
 		Name:       *flName,
+		Labels:     runconfigopts.ConvertKVStringsToMap(flLabels.GetAll()),
 	}
 
 	vol, err := cli.client.VolumeCreate(context.Background(), volReq)
