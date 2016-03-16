@@ -123,6 +123,13 @@ func (ec *endpointCnt) updateStore() error {
 	}
 }
 
+func (ec *endpointCnt) setCnt(cnt uint64) error {
+	ec.Lock()
+	ec.Count = cnt
+	ec.Unlock()
+	return ec.updateStore()
+}
+
 func (ec *endpointCnt) atomicIncDecEpCnt(inc bool) error {
 retry:
 	ec.Lock()
