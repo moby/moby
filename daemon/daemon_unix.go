@@ -870,7 +870,7 @@ func setupRemappedRoot(config *Config) ([]idtools.IDMap, []idtools.IDMap, error)
 
 func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error {
 	config.Root = rootDir
-	// the docker root metadata directory needs to have execute permissions for all users (o+x)
+	// the docker root metadata directory needs to have execute permissions for all users (g+x,o+x)
 	// so that syscalls executing as non-root, operating on subdirectories of the graph root
 	// (e.g. mounted layers of a container) can traverse this path.
 	// The user namespace support will create subdirectories for the remapped root host uid:gid
@@ -878,12 +878,12 @@ func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error
 	// layer content subtrees.
 	if _, err := os.Stat(rootDir); err == nil {
 		// root current exists; verify the access bits are correct by setting them
-		if err = os.Chmod(rootDir, 0701); err != nil {
+		if err = os.Chmod(rootDir, 0711); err != nil {
 			return err
 		}
 	} else if os.IsNotExist(err) {
-		// no root exists yet, create it 0701 with root:root ownership
-		if err := os.MkdirAll(rootDir, 0701); err != nil {
+		// no root exists yet, create it 0711 with root:root ownership
+		if err := os.MkdirAll(rootDir, 0711); err != nil {
 			return err
 		}
 	}
