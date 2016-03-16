@@ -139,6 +139,11 @@ func (r *resolver) Start() error {
 }
 
 func (r *resolver) Stop() {
+	for i := 0; i < maxExtDNS; i++ {
+		r.extDNSList[i].extConn = nil
+		r.extDNSList[i].extOnce = sync.Once{}
+	}
+
 	if r.server != nil {
 		r.server.Shutdown()
 	}
