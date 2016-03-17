@@ -174,9 +174,7 @@ func (l *splunkLogger) Log(msg *logger.Message) error {
 	if err != nil {
 		return err
 	}
-	if res.Body != nil {
-		defer res.Body.Close()
-	}
+	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
 		var body []byte
 		body, err = ioutil.ReadAll(res.Body)

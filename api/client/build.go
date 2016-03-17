@@ -236,6 +236,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	if err != nil {
 		return err
 	}
+	defer response.Body.Close()
 
 	err = jsonmessage.DisplayJSONMessagesStream(response.Body, buildBuff, cli.outFd, cli.isTerminalOut, nil)
 	if err != nil {
