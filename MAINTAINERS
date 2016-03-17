@@ -71,6 +71,7 @@
 	# - close an issue or pull request when it's inappropriate or off-topic
 
 		people = [
+			"programmerq",
 			"thajeztah"
 		]
 
@@ -187,6 +188,11 @@
 	Name = "Mary Anthony"
 	Email = "mary.anthony@docker.com"
 	GitHub = "moxiegirl"
+
+	[people.programmerq]
+	Name = "Jeff Anderson"
+	Email = "jeff@docker.com"
+	GitHub = "programmerq"
 
 	[people.runcom]
 	Name = "Antonio Murdaca"
