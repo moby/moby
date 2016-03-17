@@ -3,10 +3,7 @@ package signed
 import (
 	"crypto/rand"
 	"errors"
-	"io"
-	"io/ioutil"
 
-	"github.com/agl/ed25519"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/data"
 )
@@ -27,6 +24,12 @@ func NewEd25519() *Ed25519 {
 	return &Ed25519{
 		make(map[string]edCryptoKey),
 	}
+}
+
+// AddKey allows you to add a private key
+func (e *Ed25519) AddKey(role, gun string, k data.PrivateKey) error {
+	e.addKey(role, k)
+	return nil
 }
 
 // addKey allows you to add a private key
@@ -64,7 +67,7 @@ func (e *Ed25519) ListAllKeys() map[string]string {
 }
 
 // Create generates a new key and returns the public part
-func (e *Ed25519) Create(role, algorithm string) (data.PublicKey, error) {
+func (e *Ed25519) Create(role, gun, algorithm string) (data.PublicKey, error) {
 	if algorithm != data.ED25519Key {
 		return nil, errors.New("only ED25519 supported by this cryptoservice")
 	}
@@ -101,23 +104,4 @@ func (e *Ed25519) GetPrivateKey(keyID string) (data.PrivateKey, string, error) {
 		return k.privKey, k.role, nil
 	}
 	return nil, "", trustmanager.ErrKeyNotFound{KeyID: keyID}
-}
-
-// ImportRootKey adds an Ed25519 key to the store as a root key
-func (e *Ed25519) ImportRootKey(r io.Reader) error {
-	raw, err := ioutil.ReadAll(r)
-	if err != nil {
-		return err
-	}
-	dataSize := ed25519.PublicKeySize + ed25519.PrivateKeySize
-	if len(raw) < dataSize || len(raw) > dataSize {
-		return errors.New("Wrong length of data for Ed25519 Key Import")
-	}
-	public := data.NewED25519PublicKey(raw[:ed25519.PublicKeySize])
-	private, err := data.NewED25519PrivateKey(*public, raw[ed25519.PublicKeySize:])
-	e.keys[private.ID()] = edCryptoKey{
-		role:    "root",
-		privKey: private,
-	}
-	return nil
 }

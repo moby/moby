@@ -20,7 +20,7 @@ GO_EXC = go
 NOTARYDIR := /go/src/github.com/docker/notary
 
 # check to be sure pkcs11 lib is always imported with a build tag
-GO_LIST_PKCS11 := $(shell go list -e -f '{{join .Deps "\n"}}' ./... | xargs go list -e -f '{{if not .Standard}}{{.ImportPath}}{{end}}' | grep -q pkcs11)
+GO_LIST_PKCS11 := $(shell go list -e -f '{{join .Deps "\n"}}' ./... | grep -v /vendor/ | xargs go list -e -f '{{if not .Standard}}{{.ImportPath}}{{end}}' | grep -q pkcs11)
 ifeq ($(GO_LIST_PKCS11),)
 $(info pkcs11 import was not found anywhere without a build tag, yay)
 else
@@ -34,7 +34,7 @@ _space := $(empty) $(empty)
 COVERDIR=.cover
 COVERPROFILE?=$(COVERDIR)/cover.out
 COVERMODE=count
-PKGS ?= $(shell go list ./... | tr '\n' ' ')
+PKGS ?= $(shell go list ./... | grep -v /vendor/ | tr '\n' ' ')
 
 GO_VERSION = $(shell go version | awk '{print $$3}')
 
@@ -79,22 +79,22 @@ ${PREFIX}/bin/static/notary-signer: NOTARY_VERSION $(shell find . -type f -name 
 	@godep go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary-signer
 endif
 
-vet: 
+vet:
 	@echo "+ $@"
 ifeq ($(shell uname -s), Darwin)
-	@test -z "$(shell find . -iname *test*.go | grep -v _test.go | grep -v Godeps | xargs echo "This file should end with '_test':"  | tee /dev/stderr)"
+	@test -z "$(shell find . -iname *test*.go | grep -v _test.go | grep -v vendor | xargs echo "This file should end with '_test':"  | tee /dev/stderr)"
 else
-	@test -z "$(shell find . -iname *test*.go | grep -v _test.go | grep -v Godeps | xargs -r echo "This file should end with '_test':"  | tee /dev/stderr)"
+	@test -z "$(shell find . -iname *test*.go | grep -v _test.go | grep -v vendor | xargs -r echo "This file should end with '_test':"  | tee /dev/stderr)"
 endif
-	@test -z "$$(go tool vet -printf=false . 2>&1 | grep -v Godeps/_workspace/src/ | tee /dev/stderr)"
+	@test -z "$$(go tool vet -printf=false . 2>&1 | grep -v vendor/ | tee /dev/stderr)"
 
 fmt:
 	@echo "+ $@"
-	@test -z "$$(gofmt -s -l .| grep -v .pb. | grep -v Godeps/_workspace/src/ | tee /dev/stderr)"
+	@test -z "$$(gofmt -s -l .| grep -v .pb. | grep -v vendor/ | tee /dev/stderr)"
 
 lint:
 	@echo "+ $@"
-	@test -z "$$(golint ./... | grep -v .pb. | grep -v Godeps/_workspace/src/ | tee /dev/stderr)"
+	@test -z "$$(golint ./... | grep -v .pb. | grep -v vendor/ | tee /dev/stderr)"
 
 # Requires that the following:
 # go get -u github.com/client9/misspell/cmd/misspell
@@ -104,27 +104,27 @@ lint:
 # misspell target, don't include Godeps, binaries, python tests, or git files
 misspell:
 	@echo "+ $@"
-	@test -z "$$(find . -name '*' | grep -v Godeps/_workspace/src/ | grep -v bin/ | grep -v misc/ | grep -v .git/ | xargs misspell | tee /dev/stderr)"
+	@test -z "$$(find . -name '*' | grep -v vendor/ | grep -v bin/ | grep -v misc/ | grep -v .git/ | xargs misspell | tee /dev/stderr)"
 
 build:
 	@echo "+ $@"
-	@go build -tags "${NOTARY_BUILDTAGS}" -v ${GO_LDFLAGS} ./...
+	@go build -tags "${NOTARY_BUILDTAGS}" -v ${GO_LDFLAGS} $(PKGS)
 
 # When running `go test ./...`, it runs all the suites in parallel, which causes
 # problems when running with a yubikey
 test: TESTOPTS =
-test: 
+test:
 	@echo Note: when testing with a yubikey plugged in, make sure to include 'TESTOPTS="-p 1"'
 	@echo "+ $@ $(TESTOPTS)"
 	@echo
-	go test -tags "${NOTARY_BUILDTAGS}" $(TESTOPTS) ./...
+	go test -tags "${NOTARY_BUILDTAGS}" $(TESTOPTS) $(PKGS)
 
 test-full: TESTOPTS =
 test-full: vet lint
 	@echo Note: when testing with a yubikey plugged in, make sure to include 'TESTOPTS="-p 1"'
 	@echo "+ $@"
 	@echo
-	go test -tags "${NOTARY_BUILDTAGS}" $(TESTOPTS) -v ./...
+	go test -tags "${NOTARY_BUILDTAGS}" $(TESTOPTS) -v $(PKGS)
 
 protos:
 	@protoc --go_out=plugins=grpc:. proto/*.proto
@@ -139,7 +139,7 @@ define gocover
 $(GO_EXC) test $(OPTS) $(TESTOPTS) -covermode="$(COVERMODE)" -coverprofile="$(COVERDIR)/$(subst /,-,$(1)).$(subst $(_space),.,$(NOTARY_BUILDTAGS)).coverage.txt" "$(1)" || exit 1;
 endef
 
-gen-cover: 
+gen-cover:
 	@mkdir -p "$(COVERDIR)"
 	$(foreach PKG,$(PKGS),$(call gocover,$(PKG)))
 	rm -f "$(COVERDIR)"/*testutils*.coverage.txt
@@ -179,7 +179,7 @@ mkdir -p ${PREFIX}/cross/$(1)/$(2);
 GOOS=$(1) GOARCH=$(2) CGO_ENABLED=0 go build -o ${PREFIX}/cross/$(1)/$(2)/notary -a -tags "static_build netgo" -installsuffix netgo ${GO_LDFLAGS_STATIC} ./cmd/notary;
 endef
 
-cross: 
+cross:
 	$(foreach GOARCH,$(GOARCHS),$(foreach GOOS,$(GOOSES),$(call template,$(GOOS),$(GOARCH))))
 
 

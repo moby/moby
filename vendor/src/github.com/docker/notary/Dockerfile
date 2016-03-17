@@ -1,4 +1,4 @@
-FROM golang:1.5.1
+FROM golang:1.6.0
 
 RUN apt-get update && apt-get install -y \
 	libltdl-dev \
@@ -11,7 +11,5 @@ RUN go get golang.org/x/tools/cmd/vet \
 	&& go get github.com/tools/godep
 
 COPY . /go/src/github.com/docker/notary
-
-ENV GOPATH /go/src/github.com/docker/notary/Godeps/_workspace:$GOPATH
 
 WORKDIR /go/src/github.com/docker/notary

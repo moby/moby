@@ -1,4 +1,4 @@
-FROM golang:1.5.3
+FROM golang:1.6.0
 MAINTAINER David Lawrence "david.lawrence@docker.com"
 
 RUN apt-get update && apt-get install -y \
@@ -12,7 +12,6 @@ EXPOSE 4444
 RUN go get github.com/mattes/migrate
 
 ENV NOTARYPKG github.com/docker/notary
-ENV GOPATH /go/src/${NOTARYPKG}/Godeps/_workspace:$GOPATH
 ENV NOTARY_SIGNER_DEFAULT_ALIAS="timestamp_1"
 ENV NOTARY_SIGNER_TIMESTAMP_1="testpassword"
 
