@@ -186,6 +186,8 @@ func (s *journald) followJournal(logWatcher *logger.LogWatcher, config logger.Re
 		s.readers.mu.Lock()
 		delete(s.readers.readers, logWatcher)
 		s.readers.mu.Unlock()
+		C.sd_journal_close(j)
+		close(logWatcher.Msg)
 	}()
 	// Wait until we're told to stop.
 	select {
@@ -203,14 +205,24 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 	var pipes [2]C.int
 	cursor := ""
 
-	defer close(logWatcher.Msg)
 	// Get a handle to the journal.
 	rc := C.sd_journal_open(&j, C.int(0))
 	if rc != 0 {
 		logWatcher.Err <- fmt.Errorf("error opening journal")
+		close(logWatcher.Msg)
 		return
 	}
-	defer C.sd_journal_close(j)
+	// If we end up following the log, we can set the journal context
+	// pointer and the channel pointer to nil so that we won't close them
+	// here, potentially while the goroutine that uses them is still
+	// running.  Otherwise, close them when we return from this function.
+	following := false
+	defer func(pfollowing *bool) {
+		if !*pfollowing {
+			C.sd_journal_close(j)
+			close(logWatcher.Msg)
+		}
+	}(&following)
 	// Remove limits on the size of data items that we'll retrieve.
 	rc = C.sd_journal_set_data_threshold(j, C.size_t(0))
 	if rc != 0 {
@@ -286,6 +298,9 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 			logWatcher.Err <- fmt.Errorf("error opening journald close notification pipe")
 		} else {
 			s.followJournal(logWatcher, config, j, pipes, cursor)
+			// Let followJournal handle freeing the journal context
+			// object and closing the channel.
+			following = true
 		}
 	}
 	return
