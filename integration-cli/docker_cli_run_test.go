@@ -4226,6 +4226,9 @@ func (s *DockerSuite) TestRunAttachFailedNoLeak(c *check.C) {
 
 	runSleepingContainer(c, "--name=test", "-p", "8000:8000")
 
+	// Wait until container is fully up and running
+	c.Assert(waitRun("test"), check.IsNil)
+
 	out, _, err := dockerCmdWithError("run", "-p", "8000:8000", "busybox", "true")
 	c.Assert(err, checker.NotNil)
 	// check for windows error as well
