@@ -29,6 +29,23 @@ func openFileOrDir(path string, mode uint32, createDisposition uint32) (file *os
 	return
 }
 
+func makeLongAbsPath(path string) (string, error) {
+	if strings.HasPrefix(path, `\\?\`) || strings.HasPrefix(path, `\\.\`) {
+		return path, nil
+	}
+	if !filepath.IsAbs(path) {
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			return "", err
+		}
+		path = absPath
+	}
+	if strings.HasPrefix(path, `\\`) {
+		return `\\?\UNC\` + path[2:], nil
+	}
+	return `\\?\` + path, nil
+}
+
 type fileEntry struct {
 	path string
 	fi   os.FileInfo
@@ -81,15 +98,16 @@ func readTombstones(path string) (map[string]([]string), error) {
 	return ts, nil
 }
 
-func (r *LegacyLayerReader) walk() {
-	defer close(r.result)
-	if !<-r.proceed {
-		return
+func (r *LegacyLayerReader) walkUntilCancelled() error {
+	root, err := makeLongAbsPath(r.root)
+	if err != nil {
+		return err
 	}
 
+	r.root = root
 	ts, err := readTombstones(r.root)
 	if err != nil {
-		goto ErrorLoop
+		return err
 	}
 
 	err = filepath.Walk(r.root, func(path string, info os.FileInfo, err error) error {
@@ -122,17 +140,27 @@ func (r *LegacyLayerReader) walk() {
 		return nil
 	})
 	if err == errorIterationCanceled {
-		return
+		return nil
 	}
 	if err == nil {
-		err = io.EOF
+		return io.EOF
+	}
+	return err
+}
+
+func (r *LegacyLayerReader) walk() {
+	defer close(r.result)
+	if !<-r.proceed {
+		return
 	}
 
-ErrorLoop:
-	for {
-		r.result <- &fileEntry{err: err}
-		if !<-r.proceed {
-			break
+	err := r.walkUntilCancelled()
+	if err != nil {
+		for {
+			r.result <- &fileEntry{err: err}
+			if !<-r.proceed {
+				return
+			}
 		}
 	}
 }
@@ -287,6 +315,7 @@ type LegacyLayerWriter struct {
 	backupWriter *winio.BackupFileWriter
 	tombstones   []string
 	isTP4Format  bool
+	pathFixed    bool
 }
 
 // NewLegacyLayerWriter returns a LayerWriter that can write the TP4 transport format
@@ -296,6 +325,18 @@ func NewLegacyLayerWriter(root string) *LegacyLayerWriter {
 		root:        root,
 		isTP4Format: IsTP4(),
 	}
+}
+
+func (w *LegacyLayerWriter) init() error {
+	if !w.pathFixed {
+		path, err := makeLongAbsPath(w.root)
+		if err != nil {
+			return err
+		}
+		w.root = path
+		w.pathFixed = true
+	}
+	return nil
 }
 
 func (w *LegacyLayerWriter) reset() {
@@ -311,6 +352,10 @@ func (w *LegacyLayerWriter) reset() {
 
 func (w *LegacyLayerWriter) Add(name string, fileInfo *winio.FileBasicInfo) error {
 	w.reset()
+	err := w.init()
+	if err != nil {
+		return err
+	}
 	path := filepath.Join(w.root, name)
 
 	createDisposition := uint32(syscall.CREATE_NEW)
@@ -374,6 +419,10 @@ func (w *LegacyLayerWriter) Write(b []byte) (int, error) {
 
 func (w *LegacyLayerWriter) Close() error {
 	w.reset()
+	err := w.init()
+	if err != nil {
+		return err
+	}
 	tf, err := os.Create(filepath.Join(w.root, "tombstones.txt"))
 	if err != nil {
 		return err
