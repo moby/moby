@@ -48,9 +48,11 @@ type V1Image struct {
 // Image stores the image configuration
 type Image struct {
 	V1Image
-	Parent  ID        `json:"parent,omitempty"`
-	RootFS  *RootFS   `json:"rootfs,omitempty"`
-	History []History `json:"history,omitempty"`
+	Parent     ID        `json:"parent,omitempty"`
+	RootFS     *RootFS   `json:"rootfs,omitempty"`
+	History    []History `json:"history,omitempty"`
+	OSVersion  string    `json:"os.version,omitempty"`
+	OSFeatures []string  `json:"os.features,omitempty"`
 
 	// rawJSON caches the immutable JSON associated with this image.
 	rawJSON []byte

@@ -110,10 +110,7 @@ func verifyDaemonSettings(config *Config) error {
 func checkSystem() error {
 	// Validate the OS version. Note that docker.exe must be manifested for this
 	// call to return the correct version.
-	osv, err := system.GetOSVersion()
-	if err != nil {
-		return err
-	}
+	osv := system.GetOSVersion()
 	if osv.MajorVersion < 10 {
 		return fmt.Errorf("This version of Windows does not support the docker daemon")
 	}
@@ -135,10 +132,7 @@ func configureMaxThreads(config *Config) error {
 
 func (daemon *Daemon) initNetworkController(config *Config) (libnetwork.NetworkController, error) {
 	// TODO Windows: Remove this check once TP4 is no longer supported
-	osv, err := system.GetOSVersion()
-	if err != nil {
-		return nil, err
-	}
+	osv := system.GetOSVersion()
 
 	if osv.Build < 14260 {
 		// Set the name of the virtual switch if not specified by -b on daemon start
@@ -364,8 +358,8 @@ func restoreCustomImage(is image.Store, ls layer.Store, rs reference.Store) erro
 	}
 
 	// Convert imageData to valid image configuration
-	for i := range imageInfos {
-		name := strings.ToLower(imageInfos[i].Name)
+	for _, info := range imageInfos {
+		name := strings.ToLower(info.Name)
 
 		type registrar interface {
 			RegisterDiffID(graphID string, size int64) (layer.Layer, error)
@@ -374,13 +368,13 @@ func restoreCustomImage(is image.Store, ls layer.Store, rs reference.Store) erro
 		if !ok {
 			return errors.New("Layerstore doesn't support RegisterDiffID")
 		}
-		if _, err := r.RegisterDiffID(imageInfos[i].ID, imageInfos[i].Size); err != nil {
+		if _, err := r.RegisterDiffID(info.ID, info.Size); err != nil {
 			return err
 		}
 		// layer is intentionally not released
 
 		rootFS := image.NewRootFS()
-		rootFS.BaseLayer = filepath.Base(imageInfos[i].Path)
+		rootFS.BaseLayer = filepath.Base(info.Path)
 
 		// Create history for base layer
 		config, err := json.Marshal(&image.Image{
@@ -388,10 +382,12 @@ func restoreCustomImage(is image.Store, ls layer.Store, rs reference.Store) erro
 				DockerVersion: dockerversion.Version,
 				Architecture:  runtime.GOARCH,
 				OS:            runtime.GOOS,
-				Created:       imageInfos[i].CreatedTime,
+				Created:       info.CreatedTime,
 			},
-			RootFS:  rootFS,
-			History: []image.History{},
+			RootFS:     rootFS,
+			History:    []image.History{},
+			OSVersion:  info.OSVersion,
+			OSFeatures: info.OSFeatures,
 		})
 
 		named, err := reference.ParseNamed(name)
@@ -399,7 +395,7 @@ func restoreCustomImage(is image.Store, ls layer.Store, rs reference.Store) erro
 			return err
 		}
 
-		ref, err := reference.WithTag(named, imageInfos[i].Version)
+		ref, err := reference.WithTag(named, info.Version)
 		if err != nil {
 			return err
 		}

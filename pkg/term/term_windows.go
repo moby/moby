@@ -59,10 +59,7 @@ func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
 // console which supports ANSI emulation, or fall-back to the golang emulator
 // (github.com/azure/go-ansiterm).
 func useNativeConsole() bool {
-	osv, err := system.GetOSVersion()
-	if err != nil {
-		return false
-	}
+	osv := system.GetOSVersion()
 
 	// Native console is not available before major version 10
 	if osv.MajorVersion < 10 {
