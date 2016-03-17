@@ -81,7 +81,7 @@ Docker image comprising four layers.
     Status: Downloaded newer image for ubuntu:latest
 
 Each image layer has it's own directory under `/var/lib/docker/overlay/`. This 
-is where the the contents of each image layer are stored. 
+is where the contents of each image layer are stored. 
 
 The output of the command below shows the four directories that store the 
 contents of each image layer just pulled. However, as can be seen, the image 

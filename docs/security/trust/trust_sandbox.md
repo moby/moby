@@ -318,7 +318,7 @@ data. Then, you try and pull it.
         a9539b34a6ab: Pulling fs layer
         filesystem layer verification failed for digest sha256:aac0c133338db2b18ff054943cee3267fe50c75cdee969aed88b1992539ed042
 
-      You'll see the the pull did not complete because the trust system was
+      You'll see the pull did not complete because the trust system was
       unable to verify the image.
 
 ## More play in the sandbox
