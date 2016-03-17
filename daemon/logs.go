@@ -84,6 +84,7 @@ func (daemon *Daemon) ContainerLogs(containerName string, config *backend.Contai
 		case msg, ok := <-logs.Msg:
 			if !ok {
 				logrus.Debugf("logs: end stream")
+				logs.Close()
 				return nil
 			}
 			logLine := msg.Line

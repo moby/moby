@@ -93,6 +93,8 @@ func (daemon *Daemon) containerAttach(container *container.Container, stdin io.R
 				break LogLoop
 			}
 		}
+
+		logs.Close()
 	}
 
 	daemon.LogContainerEvent(container, "attach")
