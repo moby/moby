@@ -309,8 +309,7 @@ The `ACTIVE` machine, in this case `default`, is the one your environment is poi
     ![Bad Address](images/bad_host.png)
 
     This didn't work. The reason it doesn't work is your `DOCKER_HOST` address is
-    not the localhost address (0.0.0.0) but is instead the address of the
-    your Docker VM.
+    not the localhost address (0.0.0.0) but is instead the address of your Docker VM.
 
 5. Get the address of the `default` VM.
 

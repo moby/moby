@@ -30,7 +30,7 @@ ability to use digital signatures for data sent to and received from remote
 Docker registries. These signatures allow client-side verification of the
 integrity and publisher of specific image tags.
 
-Currently, content trust is disabled by default. You must enabled it by setting
+Currently, content trust is disabled by default. You must enable it by setting
 the `DOCKER_CONTENT_TRUST` environment variable. Refer to the
 [environment variables](../../reference/commandline/cli.md#environment-variables)
 and [Notary](../../reference/commandline/cli.md#notary) configuration
