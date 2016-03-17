@@ -4,31 +4,31 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
-	"syscall"
 )
 
 // add a user and/or group to Linux /etc/passwd, /etc/group using standard
 // Linux distribution commands:
-// adduser --uid <id> --shell /bin/login --no-create-home --disabled-login --ingroup <groupname> <username>
-// useradd -M -u <id> -s /bin/nologin -N -g <groupname> <username>
-// addgroup --gid <id> <groupname>
-// groupadd -g <id> <groupname>
-
-const baseUID int = 10000
-const baseGID int = 10000
-const idMAX int = 65534
+// adduser --system --shell /bin/false --disabled-login --disabled-password --no-create-home --group <username>
+// useradd -r -s /bin/false <username>
 
 var (
-	userCommand  string
-	groupCommand string
+	userCommand string
 
 	cmdTemplates = map[string]string{
-		"adduser":  "--uid %d --shell /bin/false --no-create-home --disabled-login --ingroup %s %s",
-		"useradd":  "-M -u %d -s /bin/false -N -g %s %s",
-		"addgroup": "--gid %d %s",
-		"groupadd": "-g %d %s",
+		"adduser": "--system --shell /bin/false --no-create-home --disabled-login --disabled-password --group %s",
+		"useradd": "-r -s /bin/false %s",
+		"usermod": "-%s %d-%d %s",
 	}
+
+	idOutRegexp = regexp.MustCompile(`uid=([0-9]+).*gid=([0-9]+)`)
+	// default length for a UID/GID subordinate range
+	defaultRangeLen   = 65536
+	defaultRangeStart = 100000
+	userMod           = "usermod"
 )
 
 func init() {
@@ -37,11 +37,6 @@ func init() {
 		userCommand = "adduser"
 	} else if _, err := resolveBinary("useradd"); err == nil {
 		userCommand = "useradd"
-	}
-	if _, err := resolveBinary("addgroup"); err == nil {
-		groupCommand = "addgroup"
-	} else if _, err := resolveBinary("groupadd"); err == nil {
-		groupCommand = "groupadd"
 	}
 }
 
@@ -62,94 +57,132 @@ func resolveBinary(binname string) (string, error) {
 	return "", fmt.Errorf("Binary %q does not resolve to a binary of that name in $PATH (%q)", binname, resolvedPath)
 }
 
-// AddNamespaceRangesUser takes a name and finds an unused uid, gid pair
-// and calls the appropriate helper function to add the group and then
-// the user to the group in /etc/group and /etc/passwd respectively.
-// This new user's /etc/sub{uid,gid} ranges will be used for user namespace
+// AddNamespaceRangesUser takes a username and uses the standard system
+// utility to create a system user/group pair used to hold the
+// /etc/sub{uid,gid} ranges which will be used for user namespace
 // mapping ranges in containers.
 func AddNamespaceRangesUser(name string) (int, int, error) {
-	// Find unused uid, gid pair
-	uid, err := findUnusedUID(baseUID)
-	if err != nil {
-		return -1, -1, fmt.Errorf("Unable to find unused UID: %v", err)
-	}
-	gid, err := findUnusedGID(baseGID)
-	if err != nil {
-		return -1, -1, fmt.Errorf("Unable to find unused GID: %v", err)
+	if err := addUser(name); err != nil {
+		return -1, -1, fmt.Errorf("Error adding user %q: %v", name, err)
 	}
 
-	// First add the group that we will use
-	if err := addGroup(name, gid); err != nil {
-		return -1, -1, fmt.Errorf("Error adding group %q: %v", name, err)
+	// Query the system for the created uid and gid pair
+	out, err := execCmd("id", name)
+	if err != nil {
+		return -1, -1, fmt.Errorf("Error trying to find uid/gid for new user %q: %v", name, err)
 	}
-	// Add the user as a member of the group
-	if err := addUser(name, uid, name); err != nil {
-		return -1, -1, fmt.Errorf("Error adding user %q: %v", name, err)
+	matches := idOutRegexp.FindStringSubmatch(strings.TrimSpace(string(out)))
+	if len(matches) != 3 {
+		return -1, -1, fmt.Errorf("Can't find uid, gid from `id` output: %q", string(out))
+	}
+	uid, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return -1, -1, fmt.Errorf("Can't convert found uid (%s) to int: %v", matches[1], err)
+	}
+	gid, err := strconv.Atoi(matches[2])
+	if err != nil {
+		return -1, -1, fmt.Errorf("Can't convert found gid (%s) to int: %v", matches[2], err)
+	}
+
+	// Now we need to create the subuid/subgid ranges for our new user/group (system users
+	// do not get auto-created ranges in subuid/subgid)
+
+	if err := createSubordinateRanges(name); err != nil {
+		return -1, -1, fmt.Errorf("Couldn't create subordinate ID ranges: %v", err)
 	}
 	return uid, gid, nil
 }
 
-func addUser(userName string, uid int, groupName string) error {
+func addUser(userName string) error {
 
 	if userCommand == "" {
 		return fmt.Errorf("Cannot add user; no useradd/adduser binary found")
 	}
-	args := fmt.Sprintf(cmdTemplates[userCommand], uid, groupName, userName)
-	return execAddCmd(userCommand, args)
-}
-
-func addGroup(groupName string, gid int) error {
-
-	if groupCommand == "" {
-		return fmt.Errorf("Cannot add group; no groupadd/addgroup binary found")
-	}
-	args := fmt.Sprintf(cmdTemplates[groupCommand], gid, groupName)
-	// only error out if the error isn't that the group already exists
-	// if the group exists then our needs are already met
-	if err := execAddCmd(groupCommand, args); err != nil && !strings.Contains(err.Error(), "already exists") {
-		return err
-	}
-	return nil
-}
-
-func execAddCmd(cmd, args string) error {
-	execCmd := exec.Command(cmd, strings.Split(args, " ")...)
-	out, err := execCmd.CombinedOutput()
+	args := fmt.Sprintf(cmdTemplates[userCommand], userName)
+	out, err := execCmd(userCommand, args)
 	if err != nil {
-		return fmt.Errorf("Failed to add user/group with error: %v; output: %q", err, string(out))
+		return fmt.Errorf("Failed to add user with error: %v; output: %q", err, string(out))
 	}
 	return nil
 }
 
-func findUnusedUID(startUID int) (int, error) {
-	return findUnused("passwd", startUID)
-}
+func createSubordinateRanges(name string) error {
 
-func findUnusedGID(startGID int) (int, error) {
-	return findUnused("group", startGID)
-}
-
-func findUnused(file string, id int) (int, error) {
-	for {
-		cmdStr := fmt.Sprintf("cat /etc/%s | cut -d: -f3 | grep '^%d$'", file, id)
-		cmd := exec.Command("sh", "-c", cmdStr)
-		if err := cmd.Run(); err != nil {
-			// if a non-zero return code occurs, then we know the ID was not found
-			// and is usable
-			if exiterr, ok := err.(*exec.ExitError); ok {
-				// The program has exited with an exit code != 0
-				if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-					if status.ExitStatus() == 1 {
-						//no match, we can use this ID
-						return id, nil
-					}
-				}
-			}
-			return -1, fmt.Errorf("Error looking in /etc/%s for unused ID: %v", file, err)
+	// first, we should verify that ranges weren't automatically created
+	// by the distro tooling
+	ranges, err := parseSubuid(name)
+	if err != nil {
+		return fmt.Errorf("Error while looking for subuid ranges for user %q: %v", name, err)
+	}
+	if len(ranges) == 0 {
+		// no UID ranges; let's create one
+		startID, err := findNextUIDRange()
+		if err != nil {
+			return fmt.Errorf("Can't find available subuid range: %v", err)
 		}
-		id++
-		if id > idMAX {
-			return -1, fmt.Errorf("Maximum id in %q reached with finding unused numeric ID", file)
+		out, err := execCmd(userMod, fmt.Sprintf(cmdTemplates[userMod], "v", startID, startID+defaultRangeLen-1, name))
+		if err != nil {
+			return fmt.Errorf("Unable to add subuid range to user: %q; output: %s, err: %v", name, out, err)
 		}
 	}
+
+	ranges, err = parseSubgid(name)
+	if err != nil {
+		return fmt.Errorf("Error while looking for subgid ranges for user %q: %v", name, err)
+	}
+	if len(ranges) == 0 {
+		// no GID ranges; let's create one
+		startID, err := findNextGIDRange()
+		if err != nil {
+			return fmt.Errorf("Can't find available subgid range: %v", err)
+		}
+		out, err := execCmd(userMod, fmt.Sprintf(cmdTemplates[userMod], "w", startID, startID+defaultRangeLen-1, name))
+		if err != nil {
+			return fmt.Errorf("Unable to add subgid range to user: %q; output: %s, err: %v", name, out, err)
+		}
+	}
+	return nil
+}
+
+func findNextUIDRange() (int, error) {
+	ranges, err := parseSubuid("ALL")
+	if err != nil {
+		return -1, fmt.Errorf("Couldn't parse all ranges in /etc/subuid file: %v", err)
+	}
+	sort.Sort(ranges)
+	return findNextRangeStart(ranges)
+}
+
+func findNextGIDRange() (int, error) {
+	ranges, err := parseSubgid("ALL")
+	if err != nil {
+		return -1, fmt.Errorf("Couldn't parse all ranges in /etc/subgid file: %v", err)
+	}
+	sort.Sort(ranges)
+	return findNextRangeStart(ranges)
+}
+
+func findNextRangeStart(rangeList ranges) (int, error) {
+	startID := defaultRangeStart
+	for _, arange := range rangeList {
+		if wouldOverlap(arange, startID) {
+			startID = arange.Start + arange.Length
+		}
+	}
+	return startID, nil
+}
+
+func wouldOverlap(arange subIDRange, ID int) bool {
+	low := ID
+	high := ID + defaultRangeLen
+	if (low >= arange.Start && low <= arange.Start+arange.Length) ||
+		(high <= arange.Start+arange.Length && high >= arange.Start) {
+		return true
+	}
+	return false
+}
+
+func execCmd(cmd, args string) ([]byte, error) {
+	execCmd := exec.Command(cmd, strings.Split(args, " ")...)
+	return execCmd.CombinedOutput()
 }

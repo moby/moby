@@ -155,6 +155,9 @@ func parseSubgid(username string) (ranges, error) {
 	return parseSubidFile(subgidFileName, username)
 }
 
+// parseSubidFile will read the appropriate file (/etc/subuid or /etc/subgid)
+// and return all found ranges for a specified username. If the special value
+// "ALL" is supplied for username, then all ranges in the file will be returned
 func parseSubidFile(path, username string) (ranges, error) {
 	var rangeList ranges
 
@@ -178,8 +181,7 @@ func parseSubidFile(path, username string) (ranges, error) {
 		if len(parts) != 3 {
 			return rangeList, fmt.Errorf("Cannot parse subuid/gid information: Format not correct for %s file", path)
 		}
-		if parts[0] == username {
-			// return the first entry for a user; ignores potential for multiple ranges per user
+		if parts[0] == username || username == "ALL" {
 			startid, err := strconv.Atoi(parts[1])
 			if err != nil {
 				return rangeList, fmt.Errorf("String to int conversion failed during subuid/gid parsing of %s: %v", path, err)
