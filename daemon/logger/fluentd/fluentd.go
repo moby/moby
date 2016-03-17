@@ -24,12 +24,10 @@ type fluentd struct {
 }
 
 const (
-	name                             = "fluentd"
-	defaultHostName                  = "localhost"
-	defaultPort                      = 24224
-	defaultTagPrefix                 = "docker"
-	defaultIgnoreConnectErrorOnStart = false           // So that we do not break existing behaviour
-	defaultBufferLimit               = 1 * 1024 * 1024 // 1M buffer by default
+	name               = "fluentd"
+	defaultHostName    = "localhost"
+	defaultPort        = 24224
+	defaultBufferLimit = 1 * 1024 * 1024 // 1M buffer by default
 )
 
 func init() {

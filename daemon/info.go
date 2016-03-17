@@ -3,7 +3,6 @@ package daemon
 import (
 	"os"
 	"runtime"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -162,14 +161,4 @@ func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {
 	pluginsInfo.Authorization = daemon.configStore.AuthorizationPlugins
 
 	return pluginsInfo
-}
-
-// The uppercase and the lowercase are available for the proxy settings.
-// See the Go specification for details on these variables. https://golang.org/pkg/net/http/
-func getProxyEnv(key string) string {
-	proxyValue := os.Getenv(strings.ToUpper(key))
-	if proxyValue == "" {
-		return os.Getenv(strings.ToLower(key))
-	}
-	return proxyValue
 }

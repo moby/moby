@@ -287,22 +287,6 @@ func validateTag(rawRepo string) (string, error) {
 	return rawRepo, nil
 }
 
-// writeToFile copies from the given reader and writes it to a file with the
-// given filename.
-func writeToFile(r io.Reader, filename string) error {
-	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0600))
-	if err != nil {
-		return fmt.Errorf("unable to create file: %v", err)
-	}
-	defer file.Close()
-
-	if _, err := io.Copy(file, r); err != nil {
-		return fmt.Errorf("unable to write file: %v", err)
-	}
-
-	return nil
-}
-
 var dockerfileFromLinePattern = regexp.MustCompile(`(?i)^[\s]*FROM[ \f\r\t\v]+(?P<image>[^ \f\r\t\v\n#]+)`)
 
 // resolvedTag records the repository, tag, and resolved digest reference

@@ -36,10 +36,6 @@ type layer struct {
 	Path string
 }
 
-type defConfig struct {
-	DefFile string
-}
-
 type portBinding struct {
 	Protocol     string
 	InternalPort int

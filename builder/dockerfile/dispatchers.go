@@ -27,11 +27,6 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-// dispatch with no layer / parsing. This is effectively not a command.
-func nullDispatch(b *Builder, args []string, attributes map[string]bool, original string) error {
-	return nil
-}
-
 // ENV foo bar
 //
 // Sets the environment variable foo to bar, also makes interpolation
