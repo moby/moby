@@ -3,6 +3,7 @@ package hcsshim
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"runtime"
 
 	"github.com/Microsoft/go-winio"
@@ -110,13 +111,22 @@ type legacyLayerWriterWrapper struct {
 	*LegacyLayerWriter
 	info             DriverInfo
 	layerId          string
+	path             string
 	parentLayerPaths []string
 }
 
 func (r *legacyLayerWriterWrapper) Close() error {
 	err := r.LegacyLayerWriter.Close()
 	if err == nil {
-		err = ImportLayer(r.info, r.layerId, r.root, r.parentLayerPaths)
+		// Use the original path here because ImportLayer does not support long paths for the source in TP5.
+		// But do use a long path for the destination to work around another bug with directories
+		// with MAX_PATH - 12 < length < MAX_PATH.
+		info := r.info
+		fullPath, err := makeLongAbsPath(filepath.Join(info.HomeDir, r.layerId))
+		if err == nil {
+			info.HomeDir = ""
+			err = ImportLayer(info, fullPath, r.path, r.parentLayerPaths)
+		}
 	}
 	os.RemoveAll(r.root)
 	return err
@@ -131,7 +141,13 @@ func NewLayerWriter(info DriverInfo, layerId string, parentLayerPaths []string) 
 		if err != nil {
 			return nil, err
 		}
-		return &legacyLayerWriterWrapper{NewLegacyLayerWriter(path), info, layerId, parentLayerPaths}, nil
+		return &legacyLayerWriterWrapper{
+			LegacyLayerWriter: NewLegacyLayerWriter(path),
+			info:              info,
+			layerId:           layerId,
+			path:              path,
+			parentLayerPaths:  parentLayerPaths,
+		}, nil
 	}
 	layers, err := layerPathsToDescriptors(parentLayerPaths)
 	if err != nil {
