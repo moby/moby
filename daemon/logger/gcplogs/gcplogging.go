@@ -2,6 +2,7 @@ package gcplogs
 
 import (
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -26,7 +27,7 @@ var (
 	// The number of logs the gcplogs driver has dropped.
 	droppedLogs uint64
 
-	onGCE = metadata.OnGCE()
+	onGCE bool
 
 	// instance metadata populated from the metadata server if available
 	projectID    string
@@ -36,16 +37,6 @@ var (
 )
 
 func init() {
-	if onGCE {
-		// These will fail on instances if the metadata service is
-		// down or the client is compiled with an API version that
-		// has been removed. Since these are not vital, let's ignore
-		// them and make their fields in the dockeLogEntry ,omitempty
-		projectID, _ = metadata.ProjectID()
-		zone, _ = metadata.Zone()
-		instanceName, _ = metadata.InstanceName()
-		instanceID, _ = metadata.InstanceID()
-	}
 
 	if err := logger.RegisterLogDriver(name, New); err != nil {
 		logrus.Fatal(err)
@@ -84,11 +75,30 @@ type containerInfo struct {
 	Metadata  map[string]string `json:"metadata,omitempty"`
 }
 
+var initGCPOnce sync.Once
+
+func initGCP() {
+	initGCPOnce.Do(func() {
+		onGCE = metadata.OnGCE()
+		if onGCE {
+			// These will fail on instances if the metadata service is
+			// down or the client is compiled with an API version that
+			// has been removed. Since these are not vital, let's ignore
+			// them and make their fields in the dockeLogEntry ,omitempty
+			projectID, _ = metadata.ProjectID()
+			zone, _ = metadata.Zone()
+			instanceName, _ = metadata.InstanceName()
+			instanceID, _ = metadata.InstanceID()
+		}
+	})
+}
+
 // New creates a new logger that logs to Google Cloud Logging using the application
 // default credentials.
 //
 // See https://developers.google.com/identity/protocols/application-default-credentials
 func New(ctx logger.Context) (logger.Logger, error) {
+	initGCP()
 
 	var project string
 	if projectID != "" {
