@@ -501,10 +501,9 @@ func (s *DockerTrustSuite) TestTrustedPushWithReleasesDelegationOnly(c *check.C)
 	testRequires(c, NotaryHosting)
 	repoName := fmt.Sprintf("%v/dockerclireleasedelegationinitfirst/trusted", privateRegistryURL)
 	targetName := fmt.Sprintf("%s:latest", repoName)
-	pwd := "12345678"
-	s.notaryInitRepo(c, repoName, pwd)
-	s.notaryCreateDelegation(c, repoName, pwd, "targets/releases", s.not.keys[0].Public)
-	s.notaryPublish(c, repoName, pwd)
+	s.notaryInitRepo(c, repoName)
+	s.notaryCreateDelegation(c, repoName, "targets/releases", s.not.keys[0].Public)
+	s.notaryPublish(c, repoName)
 
 	s.notaryImportKey(c, repoName, "targets/releases", s.not.keys[0].Private)
 
@@ -512,10 +511,13 @@ func (s *DockerTrustSuite) TestTrustedPushWithReleasesDelegationOnly(c *check.C)
 	dockerCmd(c, "tag", "busybox", targetName)
 
 	pushCmd := exec.Command(dockerBinary, "push", targetName)
-	s.trustedCmdWithPassphrases(pushCmd, pwd, pwd)
+	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
 	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
 	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push with existing tag"))
+	// check to make sure that the target has been added to targets/releases and not targets
+	s.assertTargetInRoles(c, repoName, "latest", "targets/releases")
+	s.assertTargetNotInRoles(c, repoName, "latest", "targets")
 
 	// Try pull after push
 	os.RemoveAll(filepath.Join(cliconfig.ConfigDir(), "trust"))
@@ -525,103 +527,99 @@ func (s *DockerTrustSuite) TestTrustedPushWithReleasesDelegationOnly(c *check.C)
 	out, _, err = runCommandWithOutput(pullCmd)
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf(out))
-
-	// check to make sure that the target has been added to targets/releases and not targets
-	s.assertTargetInDelegationRoles(c, repoName, "latest", "targets/releases")
 }
 
 func (s *DockerTrustSuite) TestTrustedPushSignsAllFirstLevelRolesWeHaveKeysFor(c *check.C) {
 	testRequires(c, NotaryHosting)
 	repoName := fmt.Sprintf("%v/dockerclimanyroles/trusted", privateRegistryURL)
 	targetName := fmt.Sprintf("%s:latest", repoName)
-	pwd := "12345678"
-	s.notaryInitRepo(c, repoName, pwd)
-	s.notaryCreateDelegation(c, repoName, pwd, "targets/role1", s.not.keys[0].Public)
-	s.notaryCreateDelegation(c, repoName, pwd, "targets/role2", s.not.keys[1].Public)
-	s.notaryCreateDelegation(c, repoName, pwd, "targets/role3", s.not.keys[2].Public)
+	s.notaryInitRepo(c, repoName)
+	s.notaryCreateDelegation(c, repoName, "targets/role1", s.not.keys[0].Public)
+	s.notaryCreateDelegation(c, repoName, "targets/role2", s.not.keys[1].Public)
+	s.notaryCreateDelegation(c, repoName, "targets/role3", s.not.keys[2].Public)
 
 	// import everything except the third key
 	s.notaryImportKey(c, repoName, "targets/role1", s.not.keys[0].Private)
 	s.notaryImportKey(c, repoName, "targets/role2", s.not.keys[1].Private)
 
-	s.notaryCreateDelegation(c, repoName, pwd, "targets/role1/subrole", s.not.keys[3].Public)
+	s.notaryCreateDelegation(c, repoName, "targets/role1/subrole", s.not.keys[3].Public)
 	s.notaryImportKey(c, repoName, "targets/role1/subrole", s.not.keys[3].Private)
 
-	s.notaryPublish(c, repoName, pwd)
+	s.notaryPublish(c, repoName)
 
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", targetName)
 
 	pushCmd := exec.Command(dockerBinary, "push", targetName)
-	s.trustedCmdWithPassphrases(pushCmd, pwd, pwd)
+	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
 	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
 	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push with existing tag"))
 
-	// Try pull after push
-	os.RemoveAll(filepath.Join(cliconfig.ConfigDir(), "trust"))
-
-	pullCmd := exec.Command(dockerBinary, "pull", targetName)
-	s.trustedCmd(pullCmd)
-	out, _, err = runCommandWithOutput(pullCmd)
-	c.Assert(err, check.IsNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf(out))
-
 	// check to make sure that the target has been added to targets/role1 and targets/role2, and
 	// not targets (because there are delegations) or targets/role3 (due to missing key) or
 	// targets/role1/subrole (due to it being a second level delegation)
-	s.assertTargetInDelegationRoles(c, repoName, "latest", "targets/role1", "targets/role2")
+	s.assertTargetInRoles(c, repoName, "latest", "targets/role1", "targets/role2")
+	s.assertTargetNotInRoles(c, repoName, "latest", "targets")
+
+	// Try pull after push
+	os.RemoveAll(filepath.Join(cliconfig.ConfigDir(), "trust"))
+
+	// pull should fail because none of these are the releases role
+	pullCmd := exec.Command(dockerBinary, "pull", targetName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(err, check.NotNil, check.Commentf(out))
 }
 
 func (s *DockerTrustSuite) TestTrustedPushSignsForRolesWithKeysAndValidPaths(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockerclirolesbykeysandpaths/trusted", privateRegistryURL)
 	targetName := fmt.Sprintf("%s:latest", repoName)
-	pwd := "12345678"
-	s.notaryInitRepo(c, repoName, pwd)
-	s.notaryCreateDelegation(c, repoName, pwd, "targets/role1", s.not.keys[0].Public, "l", "z")
-	s.notaryCreateDelegation(c, repoName, pwd, "targets/role2", s.not.keys[1].Public, "x", "y")
-	s.notaryCreateDelegation(c, repoName, pwd, "targets/role3", s.not.keys[2].Public, "latest")
-	s.notaryCreateDelegation(c, repoName, pwd, "targets/role4", s.not.keys[3].Public, "latest")
+	s.notaryInitRepo(c, repoName)
+	s.notaryCreateDelegation(c, repoName, "targets/role1", s.not.keys[0].Public, "l", "z")
+	s.notaryCreateDelegation(c, repoName, "targets/role2", s.not.keys[1].Public, "x", "y")
+	s.notaryCreateDelegation(c, repoName, "targets/role3", s.not.keys[2].Public, "latest")
+	s.notaryCreateDelegation(c, repoName, "targets/role4", s.not.keys[3].Public, "latest")
 
 	// import everything except the third key
 	s.notaryImportKey(c, repoName, "targets/role1", s.not.keys[0].Private)
 	s.notaryImportKey(c, repoName, "targets/role2", s.not.keys[1].Private)
 	s.notaryImportKey(c, repoName, "targets/role4", s.not.keys[3].Private)
 
-	s.notaryPublish(c, repoName, pwd)
+	s.notaryPublish(c, repoName)
 
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", targetName)
 
 	pushCmd := exec.Command(dockerBinary, "push", targetName)
-	s.trustedCmdWithPassphrases(pushCmd, pwd, pwd)
+	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
 	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
 	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push with existing tag"))
 
-	// Try pull after push
-	os.RemoveAll(filepath.Join(cliconfig.ConfigDir(), "trust"))
-
-	pullCmd := exec.Command(dockerBinary, "pull", targetName)
-	s.trustedCmd(pullCmd)
-	out, _, err = runCommandWithOutput(pullCmd)
-	c.Assert(err, check.IsNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf(out))
-
 	// check to make sure that the target has been added to targets/role1 and targets/role4, and
 	// not targets (because there are delegations) or targets/role2 (due to path restrictions) or
 	// targets/role3 (due to missing key)
-	s.assertTargetInDelegationRoles(c, repoName, "latest", "targets/role1", "targets/role4")
+	s.assertTargetInRoles(c, repoName, "latest", "targets/role1", "targets/role4")
+	s.assertTargetNotInRoles(c, repoName, "latest", "targets")
+
+	// Try pull after push
+	os.RemoveAll(filepath.Join(cliconfig.ConfigDir(), "trust"))
+
+	// pull should fail because none of these are the releases role
+	pullCmd := exec.Command(dockerBinary, "pull", targetName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(err, check.NotNil, check.Commentf(out))
 }
 
 func (s *DockerTrustSuite) TestTrustedPushDoesntSignTargetsIfDelegationsExist(c *check.C) {
 	testRequires(c, NotaryHosting)
 	repoName := fmt.Sprintf("%v/dockerclireleasedelegationnotsignable/trusted", privateRegistryURL)
 	targetName := fmt.Sprintf("%s:latest", repoName)
-	pwd := "12345678"
-	s.notaryInitRepo(c, repoName, pwd)
-	s.notaryCreateDelegation(c, repoName, pwd, "targets/role1", s.not.keys[0].Public)
-	s.notaryPublish(c, repoName, pwd)
+	s.notaryInitRepo(c, repoName)
+	s.notaryCreateDelegation(c, repoName, "targets/role1", s.not.keys[0].Public)
+	s.notaryPublish(c, repoName)
 
 	// do not import any delegations key
 
@@ -629,11 +627,13 @@ func (s *DockerTrustSuite) TestTrustedPushDoesntSignTargetsIfDelegationsExist(c 
 	dockerCmd(c, "tag", "busybox", targetName)
 
 	pushCmd := exec.Command(dockerBinary, "push", targetName)
-	s.trustedCmdWithPassphrases(pushCmd, pwd, pwd)
+	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
-	c.Assert(err, check.Not(check.IsNil), check.Commentf("trusted push succeeded but should have failed:\n%s", out))
+	c.Assert(err, check.NotNil, check.Commentf("trusted push succeeded but should have failed:\n%s", out))
 	c.Assert(out, checker.Contains, "no valid signing keys",
 		check.Commentf("Missing expected output on trusted push without keys"))
+
+	s.assertTargetNotInRoles(c, repoName, "latest", "targets", "targets/role1")
 }
 
 func (s *DockerRegistryAuthHtpasswdSuite) TestPushNoCredentialsNoRetry(c *check.C) {

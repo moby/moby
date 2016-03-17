@@ -5799,6 +5799,83 @@ func (s *DockerTrustSuite) TestBuildContextDirIsSymlink(c *check.C) {
 	}
 }
 
+func (s *DockerTrustSuite) TestTrustedBuildTagFromReleasesRole(c *check.C) {
+	testRequires(c, NotaryHosting)
+
+	latestTag := s.setupTrustedImage(c, "trusted-build-releases-role")
+	repoName := strings.TrimSuffix(latestTag, ":latest")
+
+	// Now create the releases role
+	s.notaryCreateDelegation(c, repoName, "targets/releases", s.not.keys[0].Public)
+	s.notaryImportKey(c, repoName, "targets/releases", s.not.keys[0].Private)
+	s.notaryPublish(c, repoName)
+
+	// push a different tag to the releases role
+	otherTag := fmt.Sprintf("%s:other", repoName)
+	dockerCmd(c, "tag", "busybox", otherTag)
+
+	pushCmd := exec.Command(dockerBinary, "push", otherTag)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	c.Assert(err, check.IsNil, check.Commentf("Trusted push failed: %s", out))
+	s.assertTargetInRoles(c, repoName, "other", "targets/releases")
+	s.assertTargetNotInRoles(c, repoName, "other", "targets")
+
+	out, status := dockerCmd(c, "rmi", otherTag)
+	c.Assert(status, check.Equals, 0, check.Commentf("docker rmi failed: %s", out))
+
+	dockerFile := fmt.Sprintf(`
+  FROM %s
+  RUN []
+    `, otherTag)
+
+	name := "testtrustedbuildreleasesrole"
+
+	buildCmd := buildImageCmd(name, dockerFile, true)
+	s.trustedCmd(buildCmd)
+	out, _, err = runCommandWithOutput(buildCmd)
+	c.Assert(err, check.IsNil, check.Commentf("Trusted build failed: %s", out))
+	c.Assert(out, checker.Contains, fmt.Sprintf("FROM %s@sha", repoName))
+}
+
+func (s *DockerTrustSuite) TestTrustedBuildTagIgnoresOtherDelegationRoles(c *check.C) {
+	testRequires(c, NotaryHosting)
+
+	latestTag := s.setupTrustedImage(c, "trusted-build-releases-role")
+	repoName := strings.TrimSuffix(latestTag, ":latest")
+
+	// Now create a non-releases delegation role
+	s.notaryCreateDelegation(c, repoName, "targets/other", s.not.keys[0].Public)
+	s.notaryImportKey(c, repoName, "targets/other", s.not.keys[0].Private)
+	s.notaryPublish(c, repoName)
+
+	// push a different tag to the other role
+	otherTag := fmt.Sprintf("%s:other", repoName)
+	dockerCmd(c, "tag", "busybox", otherTag)
+
+	pushCmd := exec.Command(dockerBinary, "push", otherTag)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	c.Assert(err, check.IsNil, check.Commentf("Trusted push failed: %s", out))
+	s.assertTargetInRoles(c, repoName, "other", "targets/other")
+	s.assertTargetNotInRoles(c, repoName, "other", "targets")
+
+	out, status := dockerCmd(c, "rmi", otherTag)
+	c.Assert(status, check.Equals, 0, check.Commentf("docker rmi failed: %s", out))
+
+	dockerFile := fmt.Sprintf(`
+  FROM %s
+  RUN []
+    `, otherTag)
+
+	name := "testtrustedbuildotherrole"
+
+	buildCmd := buildImageCmd(name, dockerFile, true)
+	s.trustedCmd(buildCmd)
+	out, _, err = runCommandWithOutput(buildCmd)
+	c.Assert(err, check.NotNil, check.Commentf("Trusted build expected to fail: %s", out))
+}
+
 // Issue #15634: COPY fails when path starts with "null"
 func (s *DockerSuite) TestBuildNullStringInAddCopyVolume(c *check.C) {
 	name := "testbuildnullstringinaddcopyvolume"

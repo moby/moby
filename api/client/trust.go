@@ -259,6 +259,11 @@ func (cli *DockerCli) trustedReference(ref reference.NamedTagged) (reference.Can
 	if err != nil {
 		return nil, err
 	}
+	// Only list tags in the top level targets role or the releases delegation role - ignore
+	// all other delegation roles
+	if t.Role != releasesRole && t.Role != data.CanonicalTargetsRole {
+		return nil, notaryError(repoInfo.FullName(), fmt.Errorf("No trust data for %s", ref.Tag()))
+	}
 	r, err := convertTarget(t.Target)
 	if err != nil {
 		return nil, err
@@ -332,13 +337,27 @@ func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registr
 				fmt.Fprintf(cli.out, "Skipping target for %q\n", repoInfo.Name())
 				continue
 			}
+			// Only list tags in the top level targets role or the releases delegation role - ignore
+			// all other delegation roles
+			if tgt.Role != releasesRole && tgt.Role != data.CanonicalTargetsRole {
+				continue
+			}
 			refs = append(refs, t)
+		}
+		if len(refs) == 0 {
+			return notaryError(repoInfo.FullName(), fmt.Errorf("No trusted tags for %s", repoInfo.FullName()))
 		}
 	} else {
 		t, err := notaryRepo.GetTargetByName(ref.String(), releasesRole, data.CanonicalTargetsRole)
 		if err != nil {
 			return notaryError(repoInfo.FullName(), err)
 		}
+		// Only get the tag if it's in the top level targets role or the releases delegation role
+		// ignore it if it's in any other delegation roles
+		if t.Role != releasesRole && t.Role != data.CanonicalTargetsRole {
+			return notaryError(repoInfo.FullName(), fmt.Errorf("No trust data for %s", ref.String()))
+		}
+
 		logrus.Debugf("retrieving target for %s role\n", t.Role)
 		r, err := convertTarget(t.Target)
 		if err != nil {
@@ -496,9 +515,9 @@ func (cli *DockerCli) addTargetToAllSignableRoles(repo *client.NotaryRepository,
 	var signableRoles []string
 
 	// translate the full key names, which includes the GUN, into just the key IDs
-	allCanonicalKeyIDs := make(map[string]string)
+	allCanonicalKeyIDs := make(map[string]struct{})
 	for fullKeyID := range repo.CryptoService.ListAllKeys() {
-		allCanonicalKeyIDs[path.Base(fullKeyID)] = ""
+		allCanonicalKeyIDs[path.Base(fullKeyID)] = struct{}{}
 	}
 
 	allDelegationRoles, err := repo.GetDelegationRoles()
@@ -506,6 +525,13 @@ func (cli *DockerCli) addTargetToAllSignableRoles(repo *client.NotaryRepository,
 		return err
 	}
 
+	// if there are no delegation roles, then just try to sign it into the targets role
+	if len(allDelegationRoles) == 0 {
+		return repo.AddTarget(target, data.CanonicalTargetsRole)
+	}
+
+	// there are delegation roles, find every delegation role we have a key for, and
+	// attempt to sign into into all those roles.
 	for _, delegationRole := range allDelegationRoles {
 		// We do not support signing any delegation role that isn't a direct child of the targets role.
 		// Also don't bother checking the keys if we can't add the target
@@ -517,11 +543,12 @@ func (cli *DockerCli) addTargetToAllSignableRoles(repo *client.NotaryRepository,
 		for _, canonicalKeyID := range delegationRole.KeyIDs {
 			if _, ok := allCanonicalKeyIDs[canonicalKeyID]; ok {
 				signableRoles = append(signableRoles, delegationRole.Name)
+				break
 			}
 		}
 	}
 
-	if len(allDelegationRoles) > 0 && len(signableRoles) == 0 {
+	if len(signableRoles) == 0 {
 		return fmt.Errorf("no valid signing keys for delegation roles")
 	}
 
