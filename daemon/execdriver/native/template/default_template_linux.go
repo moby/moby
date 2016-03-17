@@ -87,6 +87,7 @@ func New() *configs.Config {
 			"/proc/kcore",
 			"/proc/latency_stats",
 			"/proc/timer_stats",
+			"/proc/sched_debug",
 		},
 		ReadonlyPaths: []string{
 			"/proc/asound",
