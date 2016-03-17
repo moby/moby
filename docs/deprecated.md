@@ -134,7 +134,7 @@ The following double-dash options are deprecated and have no replacement:
 ### Auto-creating missing host paths for bind mounts
 **Deprecated in Release: v1.9**
 
-**Target for Removal in Release: 1.11**
+**Removed in Release: 1.11**
 
 When creating a container with a bind-mounted volume-- `docker run -v /host/path:/container/path` --
 docker was automatically creating the `/host/path` if it didn't already exist.

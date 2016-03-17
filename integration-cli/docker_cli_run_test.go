@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringutils"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork/netutils"
@@ -485,16 +486,19 @@ func (s *DockerSuite) TestRunVolumesFromInReadWriteMode(c *check.C) {
 func (s *DockerSuite) TestVolumesFromGetsProperMode(c *check.C) {
 	// TODO Windows: This test cannot yet run on a Windows daemon as Windows does
 	// not support read-only bind mounts as at TP4
-	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "--name", "parent", "-v", "/test:/test:ro", "busybox", "true")
+	// win2lin: non-local daemons for now, skip
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 
+	tmpDir := getTestDir(c, "test-volumes-from-gets-proper-mode")
+	defer os.RemoveAll(tmpDir)
+
+	dockerCmd(c, "run", "--name", "parent", "-v", tmpDir+":/test:ro", "busybox", "true")
 	// Expect this "rw" mode to be be ignored since the inherited volume is "ro"
 	if _, _, err := dockerCmdWithError("run", "--volumes-from", "parent:rw", "busybox", "touch", "/test/file"); err == nil {
 		c.Fatal("Expected volumes-from to inherit read-only volume even when passing in `rw`")
 	}
 
-	dockerCmd(c, "run", "--name", "parent2", "-v", "/test:/test:ro", "busybox", "true")
-
+	dockerCmd(c, "run", "--name", "parent2", "-v", tmpDir+":/test:ro", "busybox", "true")
 	// Expect this to be read-only since both are "ro"
 	if _, _, err := dockerCmdWithError("run", "--volumes-from", "parent2:ro", "busybox", "touch", "/test/file"); err == nil {
 		c.Fatal("Expected volumes-from to inherit read-only volume even when passing in `ro`")
@@ -2218,7 +2222,13 @@ func (s *DockerSuite) TestRunCreateVolumeEtc(c *check.C) {
 func (s *DockerSuite) TestVolumesNoCopyData(c *check.C) {
 	// TODO Windows (Post TP4). Windows does not support volumes which
 	// are pre-populated such as is built in the dockerfile used in this test.
-	testRequires(c, DaemonIsLinux)
+	// win2lin: non-local daemons for now, skip
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
+
+	tmpDir := randomTmpDirPath("test", daemonPlatform)
+	system.MkdirAll(tmpDir, 0755)
+	defer os.RemoveAll(tmpDir)
+
 	if _, err := buildImage("dataimage",
 		`FROM busybox
 		RUN mkdir -p /foo
@@ -2226,14 +2236,11 @@ func (s *DockerSuite) TestVolumesNoCopyData(c *check.C) {
 		true); err != nil {
 		c.Fatal(err)
 	}
-
-	dockerCmd(c, "run", "--name", "test", "-v", "/foo", "busybox")
+	dockerCmd(c, "run", "--name", "test", "-v", tmpDir+":/foo", "busybox")
 
 	if out, _, err := dockerCmdWithError("run", "--volumes-from", "test", "dataimage", "ls", "-lh", "/foo/bar"); err == nil || !strings.Contains(out, "No such file or directory") {
 		c.Fatalf("Data was copied on volumes-from but shouldn't be:\n%q", out)
 	}
-
-	tmpDir := randomTmpDirPath("docker_test_bind_mount_copy_data", daemonPlatform)
 	if out, _, err := dockerCmdWithError("run", "-v", tmpDir+":/foo", "dataimage", "ls", "-lh", "/foo/bar"); err == nil || !strings.Contains(out, "No such file or directory") {
 		c.Fatalf("Data was copied on bind-mount but shouldn't be:\n%q", out)
 	}
