@@ -87,7 +87,7 @@ images.
 
 If you look closely at the diagram you'll see that it's snapshots all the way 
 down. Each image layer is a snapshot of the layer below it. The lowest layer of
- each image is a snapshot of the the base device that exists in the pool. This 
+ each image is a snapshot of the base device that exists in the pool. This 
 base device is a `Device Mapper` artifact and not a Docker image layer.
 
 A container is a snapshot of the image it is created from. The diagram below 

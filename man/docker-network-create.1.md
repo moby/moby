@@ -96,7 +96,7 @@ disconnect` command.
 When you create a network, Engine creates a non-overlapping subnetwork for the
 network by default. This subnetwork is not a subdivision of an existing network.
 It is purely for ip-addressing purposes. You can override this default and
-specify subnetwork values directly using the the `--subnet` option. On a
+specify subnetwork values directly using the `--subnet` option. On a
 `bridge` network you can only create a single subnet:
 
 ```bash

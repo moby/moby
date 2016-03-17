@@ -241,7 +241,7 @@ should automatically load with the `btrfs` storage driver.
     The procedure for starting the Docker daemon may differ depending on the
     Linux distribution you are using.
 
-    You can force the the Docker daemon to start with the `btrfs` storage 
+    You can force the Docker daemon to start with the `btrfs` storage 
 driver by either passing the `--storage-driver=btrfs` flag to the `docker 
 daemon` at startup, or adding it to the `DOCKER_OPTS` line to the Docker config
  file.

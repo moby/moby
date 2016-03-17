@@ -78,7 +78,7 @@ management that can assist your implementation.
 
 When you create a network, Engine creates a non-overlapping subnetwork for the
 network by default. You can override this default and specify a subnetwork
-directly using the the `--subnet` option. On a `bridge` network you can only
+directly using the `--subnet` option. On a `bridge` network you can only
 specify a single subnet. An `overlay` network supports multiple subnets.
 
 > **Note** : It is highly recommended to use the `--subnet` option while creating
