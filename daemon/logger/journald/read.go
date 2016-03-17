@@ -63,11 +63,11 @@ package journald
 //		fds[0].events = POLLHUP;
 //		fds[1].fd = sd_journal_get_fd(j);
 //		if (fds[1].fd < 0) {
-//			return -1;
+//			return fds[1].fd;
 //		}
 //		jevents = sd_journal_get_events(j);
 //		if (jevents < 0) {
-//			return -1;
+//			return jevents;
 //		}
 //		fds[1].events = jevents;
 //		sd_journal_get_timeout(j, &when);
@@ -81,7 +81,7 @@ package journald
 //		i = poll(fds, 2, timeout);
 //		if ((i == -1) && (errno != EINTR)) {
 //			/* An unexpected error. */
-//			return -1;
+//			return (errno != 0) ? -errno : -EINTR;
 //		}
 //		if (fds[0].revents & POLLHUP) {
 //			/* The close notification pipe was closed. */
@@ -101,6 +101,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/coreos/go-systemd/journal"
 	"github.com/docker/docker/daemon/logger"
 )
@@ -177,9 +178,18 @@ func (s *journald) followJournal(logWatcher *logger.LogWatcher, config logger.Re
 	s.readers.readers[logWatcher] = logWatcher
 	s.readers.mu.Unlock()
 	go func() {
-		// Keep copying journal data out until we're notified to stop.
-		for C.wait_for_data_or_close(j, pfd[0]) == 1 {
+		// Keep copying journal data out until we're notified to stop
+		// or we hit an error.
+		status := C.wait_for_data_or_close(j, pfd[0])
+		for status == 1 {
 			cursor = s.drainJournal(logWatcher, config, j, cursor)
+			status = C.wait_for_data_or_close(j, pfd[0])
+		}
+		if status < 0 {
+			cerrstr := C.strerror(C.int(-status))
+			errstr := C.GoString(cerrstr)
+			fmtstr := "error %q while attempting to follow journal for container %q"
+			logrus.Errorf(fmtstr, errstr, s.vars["CONTAINER_ID_FULL"])
 		}
 		// Clean up.
 		C.close(pfd[0])
