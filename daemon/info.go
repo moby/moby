@@ -141,9 +141,13 @@ func (daemon *Daemon) SystemVersion() types.Version {
 		Experimental: utils.ExperimentalBuild(),
 	}
 
-	if kernelVersion, err := kernel.GetKernelVersion(); err == nil {
-		v.KernelVersion = kernelVersion.String()
+	kernelVersion := "<unknown>"
+	if kv, err := kernel.GetKernelVersion(); err != nil {
+		logrus.Warnf("Could not get kernel version: %v", err)
+	} else {
+		kernelVersion = kv.String()
 	}
+	v.KernelVersion = kernelVersion
 
 	return v
 }
