@@ -3,7 +3,7 @@ Triaging of issues
 
 Triage provides an important way to contribute to an open source project.  Triage helps ensure issues resolve quickly by:
 
-- Describing the issue's intent and purpose is conveyed precisely. This is necessary because it can be difficult for an issue to explain how an end user experiences an problem and what actions they took.
+- Describing the issue's intent and purpose is conveyed precisely. This is necessary because it can be difficult for an issue to explain how an end user experiences a problem and what actions they took.
 - Giving a contributor the information they need before they commit to resolving an issue.
 - Lowering the issue count by preventing duplicate issues.
 - Streamlining the development process by preventing duplicate discussions.
