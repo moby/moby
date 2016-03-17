@@ -38,8 +38,3 @@ func initializer() {
 
 	panic("unreachable")
 }
-
-func writeError(err error) {
-	fmt.Fprint(os.Stderr, err)
-	os.Exit(1)
-}
