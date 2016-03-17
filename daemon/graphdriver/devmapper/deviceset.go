@@ -776,7 +776,7 @@ func (devices *DeviceSet) poolHasFreeSpace() error {
 
 	minFreeMetadata := (metadataTotal * uint64(devices.minFreeSpacePercent)) / 100
 	if minFreeMetadata < 1 {
-		minFreeData = 1
+		minFreeMetadata = 1
 	}
 
 	metadataFree := metadataTotal - metadataUsed
