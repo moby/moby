@@ -226,6 +226,7 @@ func (c *controller) sandboxCleanup() {
 			heap.Push(&sb.endpoints, ep)
 		}
 
+		logrus.Infof("Removing stale sandbox %s (%s)", sb.id, sb.containerID)
 		if err := sb.delete(true); err != nil {
 			logrus.Errorf("failed to delete sandbox %s while trying to cleanup: %v", sb.id, err)
 		}

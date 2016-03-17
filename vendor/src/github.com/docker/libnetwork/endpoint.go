@@ -996,9 +996,22 @@ func (c *controller) cleanupLocalEndpoints() {
 		}
 
 		for _, ep := range epl {
+			log.Infof("Removing stale endpoint %s (%s)", ep.name, ep.id)
 			if err := ep.Delete(true); err != nil {
 				log.Warnf("Could not delete local endpoint %s during endpoint cleanup: %v", ep.name, err)
 			}
+		}
+
+		epl, err = n.getEndpointsFromStore()
+		if err != nil {
+			log.Warnf("Could not get list of endpoints in network %s for count update: %v", n.name, err)
+			continue
+		}
+
+		epCnt := n.getEpCnt().EndpointCnt()
+		if epCnt != uint64(len(epl)) {
+			log.Infof("Fixing inconsistent endpoint_cnt for network %s. Expected=%d, Actual=%d", n.name, len(epl), epCnt)
+			n.getEpCnt().setCnt(uint64(len(epl)))
 		}
 	}
 }
