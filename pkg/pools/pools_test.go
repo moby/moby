@@ -112,8 +112,7 @@ func TestBufioWriterPoolPutAndGet(t *testing.T) {
 	buf.Reset()
 	BufioWriter32KPool.Put(writer)
 	// Try to write something
-	written, err = writer.Write([]byte("barfoo"))
-	if err != nil {
+	if _, err = writer.Write([]byte("barfoo")); err != nil {
 		t.Fatal(err)
 	}
 	// If we now try to flush it, it should panic (the writer is nil)

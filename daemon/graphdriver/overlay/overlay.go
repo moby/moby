@@ -371,6 +371,10 @@ func (d *Driver) Get(id string, mountLabel string) (string, error) {
 	// chown "workdir/work" to the remapped root UID/GID. Overlay fs inside a
 	// user namespace requires this to move a directory from lower to upper.
 	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
+	if err != nil {
+		return "", err
+	}
+
 	if err := os.Chown(path.Join(workDir, "work"), rootUID, rootGID); err != nil {
 		return "", err
 	}

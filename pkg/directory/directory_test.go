@@ -168,6 +168,9 @@ func TestMoveToSubdir(t *testing.T) {
 	}
 	// validate that the files were moved to the subdirectory
 	infos, err := ioutil.ReadDir(subDir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(infos) != 4 {
 		t.Fatalf("Should be four files in the subdir after the migration: actual length: %d", len(infos))
 	}

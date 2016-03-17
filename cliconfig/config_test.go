@@ -378,12 +378,14 @@ func TestJsonWithPsFormat(t *testing.T) {
 
 // Save it and make sure it shows up in new form
 func saveConfigAndValidateNewFormat(t *testing.T, config *ConfigFile, homeFolder string) string {
-	err := config.Save()
-	if err != nil {
+	if err := config.Save(); err != nil {
 		t.Fatalf("Failed to save: %q", err)
 	}
 
 	buf, err := ioutil.ReadFile(filepath.Join(homeFolder, ConfigFileName))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !strings.Contains(string(buf), `"auths":`) {
 		t.Fatalf("Should have save in new form: %s", string(buf))
 	}
@@ -487,6 +489,9 @@ func TestJsonSaveWithNoFile(t *testing.T) {
 		t.Fatalf("Failed saving to file: %q", err)
 	}
 	buf, err := ioutil.ReadFile(filepath.Join(tmpHome, ConfigFileName))
+	if err != nil {
+		t.Fatal(err)
+	}
 	expConfStr := `{
 	"auths": {
 		"https://index.docker.io/v1/": {
@@ -517,11 +522,13 @@ func TestLegacyJsonSaveWithNoFile(t *testing.T) {
 
 	fn := filepath.Join(tmpHome, ConfigFileName)
 	f, _ := os.OpenFile(fn, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-	err = config.SaveToWriter(f)
-	if err != nil {
+	if err = config.SaveToWriter(f); err != nil {
 		t.Fatalf("Failed saving to file: %q", err)
 	}
 	buf, err := ioutil.ReadFile(filepath.Join(tmpHome, ConfigFileName))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	expConfStr := `{
 	"auths": {

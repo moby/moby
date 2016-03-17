@@ -136,7 +136,7 @@ func Parse(rwc io.Reader) (*Node, error) {
 				}
 			}
 			if child == nil && line != "" {
-				line, child, err = parseLine(line)
+				_, child, err = parseLine(line)
 				if err != nil {
 					return nil, err
 				}

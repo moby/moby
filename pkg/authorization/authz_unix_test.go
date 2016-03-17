@@ -241,7 +241,7 @@ func (t *authZPluginTestServer) start() {
 	r.HandleFunc("/Plugin.Activate", t.activate)
 	r.HandleFunc("/"+AuthZApiRequest, t.auth)
 	r.HandleFunc("/"+AuthZApiResponse, t.auth)
-	t.listener, err = net.Listen("tcp", pluginAddress)
+	t.listener, _ = net.Listen("tcp", pluginAddress)
 	server := http.Server{Handler: r, Addr: pluginAddress}
 	server.Serve(l)
 }
