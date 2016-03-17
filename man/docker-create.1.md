@@ -316,6 +316,15 @@ unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
 **--security-opt**=[]
    Security Options
 
+   "label:user:USER"   : Set the label user for the container
+    "label:role:ROLE"   : Set the label role for the container
+    "label:type:TYPE"   : Set the label type for the container
+    "label:level:LEVEL" : Set the label level for the container
+    "label:disable"     : Turn off label confinement for the container
+    "no-new-privileges" : Disable container processes from gaining additional privileges
+    "seccomp:unconfined" : Turn off seccomp confinement for the container
+    "seccomp:profile.json :  White listed syscalls seccomp Json file to be used as a seccomp filter
+
 **--stop-signal**=*SIGTERM*
   Signal to stop a container. Default is SIGTERM.
 
