@@ -63,6 +63,7 @@ type NetworkInfo interface {
 	Scope() string
 	IPv6Enabled() bool
 	Internal() bool
+	Labels() map[string]string
 }
 
 // EndpointWalker is a client provided function which will be used to walk the Endpoints.
@@ -150,6 +151,7 @@ type network struct {
 	networkType  string
 	id           string
 	scope        string
+	labels       map[string]string
 	ipamType     string
 	ipamOptions  map[string]string
 	addrSpace    string
@@ -309,6 +311,14 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 	dstN.internal = n.internal
 	dstN.inDelete = n.inDelete
 
+	// copy labels
+	if dstN.labels == nil {
+		dstN.labels = make(map[string]string, len(n.labels))
+	}
+	for k, v := range n.labels {
+		dstN.labels[k] = v
+	}
+
 	for _, v4conf := range n.ipamV4Config {
 		dstV4Conf := &IpamConf{}
 		v4conf.CopyTo(dstV4Conf)
@@ -359,6 +369,7 @@ func (n *network) MarshalJSON() ([]byte, error) {
 	netMap["id"] = n.id
 	netMap["networkType"] = n.networkType
 	netMap["scope"] = n.scope
+	netMap["labels"] = n.labels
 	netMap["ipamType"] = n.ipamType
 	netMap["addrSpace"] = n.addrSpace
 	netMap["enableIPv6"] = n.enableIPv6
@@ -410,6 +421,15 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 	n.id = netMap["id"].(string)
 	n.networkType = netMap["networkType"].(string)
 	n.enableIPv6 = netMap["enableIPv6"].(bool)
+
+	// if we weren't unmarshaling to netMap we could simply set n.labels
+	// unfortunately, we can't because map[string]interface{} != map[string]string
+	if labels, ok := netMap["labels"].(map[string]interface{}); ok {
+		n.labels = make(map[string]string, len(labels))
+		for label, value := range labels {
+			n.labels[label] = value.(string)
+		}
+	}
 
 	if v, ok := netMap["generic"]; ok {
 		n.generic = v.(map[string]interface{})
@@ -539,7 +559,7 @@ func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ip
 	}
 }
 
-// NetworkOptionDriverOpts function returns an option setter for any parameter described by a map
+// NetworkOptionDriverOpts function returns an option setter for any driver parameter described by a map
 func NetworkOptionDriverOpts(opts map[string]string) NetworkOption {
 	return func(n *network) {
 		if n.generic == nil {
@@ -550,6 +570,13 @@ func NetworkOptionDriverOpts(opts map[string]string) NetworkOption {
 		}
 		// Store the options
 		n.generic[netlabel.GenericData] = opts
+	}
+}
+
+// NetworkOptionLabels function returns an option setter for labels specific to a network
+func NetworkOptionLabels(labels map[string]string) NetworkOption {
+	return func(n *network) {
+		n.labels = labels
 	}
 }
 
@@ -1284,4 +1311,16 @@ func (n *network) IPv6Enabled() bool {
 	defer n.Unlock()
 
 	return n.enableIPv6
+}
+
+func (n *network) Labels() map[string]string {
+	n.Lock()
+	defer n.Unlock()
+
+	var lbls = make(map[string]string, len(n.labels))
+	for k, v := range n.labels {
+		lbls[k] = v
+	}
+
+	return lbls
 }
