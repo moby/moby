@@ -146,9 +146,14 @@ func (c *containerContext) Label(name string) string {
 func (c *containerContext) Mounts() string {
 	c.addHeader(mountsHeader)
 
+	var name string
 	var mounts []string
 	for _, m := range c.c.Mounts {
-		name := m.Name
+		if m.Name == "" {
+			name = m.Source
+		} else {
+			name = m.Name
+		}
 		if c.trunc {
 			name = stringutils.Truncate(name, 15)
 		}

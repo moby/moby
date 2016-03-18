@@ -328,7 +328,11 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 	if ctx.filters.Include("volume") {
 		volumesByName := make(map[string]*volume.MountPoint)
 		for _, m := range container.MountPoints {
-			volumesByName[m.Name] = m
+			if m.Name != "" {
+				volumesByName[m.Name] = m
+			} else {
+				volumesByName[m.Source] = m
+			}
 		}
 
 		volumeExist := fmt.Errorf("volume mounted in container")
