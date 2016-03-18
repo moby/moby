@@ -241,7 +241,7 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 	}, nil
 }
 
-// includeContainerInList decides whether a containers should be include in the output or not based in the filter.
+// includeContainerInList decides whether a container should be included in the output or not based in the filter.
 // It also decides if the iteration should be stopped or not.
 func includeContainerInList(container *container.Container, ctx *listContext) iterationAction {
 	// Do not include container if it's in the list before the filter container.
@@ -366,7 +366,7 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 		ImageID: container.ImageID.String(),
 	}
 	if newC.Names == nil {
-		// Dead containers will often have no name, so make sure the response isn't  null
+		// Dead containers will often have no name, so make sure the response isn't null
 		newC.Names = []string{}
 	}
 

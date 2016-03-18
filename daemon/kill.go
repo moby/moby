@@ -27,7 +27,7 @@ func isErrNoSuchProcess(err error) bool {
 	return ok
 }
 
-// ContainerKill send signal to the container
+// ContainerKill sends signal to the container
 // If no signal is given (sig 0), then Kill with SIGKILL and wait
 // for the container to exit.
 // If a signal is given, then just send it to the container and return.
