@@ -391,11 +391,11 @@ func TestParseHostname(t *testing.T) {
 	if config, _ := mustParse(t, hostname); config.Hostname != "hostname" && config.Domainname != "" {
 		t.Fatalf("Expected the config to have 'hostname' as hostname, got '%v'", config.Hostname)
 	}
-	if config, _ := mustParse(t, hostnameWithDomain); config.Hostname != "hostname" && config.Domainname != "domainname" {
-		t.Fatalf("Expected the config to have 'hostname' as hostname, got '%v'", config.Hostname)
+	if config, _ := mustParse(t, hostnameWithDomain); config.Hostname != "hostname.domainname" && config.Domainname != "" {
+		t.Fatalf("Expected the config to have 'hostname' as hostname.domainname, got '%v'", config.Hostname)
 	}
-	if config, _ := mustParse(t, hostnameWithDomainTld); config.Hostname != "hostname" && config.Domainname != "domainname.tld" {
-		t.Fatalf("Expected the config to have 'hostname' as hostname, got '%v'", config.Hostname)
+	if config, _ := mustParse(t, hostnameWithDomainTld); config.Hostname != "hostname.domainname.tld" && config.Domainname != "" {
+		t.Fatalf("Expected the config to have 'hostname' as hostname.domainname.tld, got '%v'", config.Hostname)
 	}
 }
 

@@ -241,16 +241,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		entrypoint = strslice.StrSlice{*flEntrypoint}
 	}
 
-	var (
-		domainname string
-		hostname   = *flHostname
-		parts      = strings.SplitN(hostname, ".", 2)
-	)
-	if len(parts) > 1 {
-		hostname = parts[0]
-		domainname = parts[1]
-	}
-
 	ports, portBindings, err := nat.ParsePortSpecs(flPublish.GetAll())
 	if err != nil {
 		return nil, nil, nil, cmd, err
@@ -362,8 +352,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	}
 
 	config := &container.Config{
-		Hostname:     hostname,
-		Domainname:   domainname,
+		Hostname:     *flHostname,
 		ExposedPorts: ports,
 		User:         *flUser,
 		Tty:          *flTty,
