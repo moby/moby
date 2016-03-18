@@ -163,22 +163,6 @@ func (t *http2Server) operateHeaders(hDec *hpackDecoder, s *Stream, frame header
 	if !endHeaders {
 		return s
 	}
-	t.mu.Lock()
-	if t.state != reachable {
-		t.mu.Unlock()
-		return nil
-	}
-	if uint32(len(t.activeStreams)) >= t.maxStreams {
-		t.mu.Unlock()
-		t.controlBuf.put(&resetStream{s.id, http2.ErrCodeRefusedStream})
-		return nil
-	}
-	s.sendQuotaPool = newQuotaPool(int(t.streamSendQuota))
-	t.activeStreams[s.id] = s
-	t.mu.Unlock()
-	s.windowHandler = func(n int) {
-		t.updateWindow(s, uint32(n))
-	}
 	if hDec.state.timeoutSet {
 		s.ctx, s.cancel = context.WithTimeout(context.TODO(), hDec.state.timeout)
 	} else {
@@ -202,6 +186,22 @@ func (t *http2Server) operateHeaders(hDec *hpackDecoder, s *Stream, frame header
 		recv: s.buf,
 	}
 	s.method = hDec.state.method
+	t.mu.Lock()
+	if t.state != reachable {
+		t.mu.Unlock()
+		return nil
+	}
+	if uint32(len(t.activeStreams)) >= t.maxStreams {
+		t.mu.Unlock()
+		t.controlBuf.put(&resetStream{s.id, http2.ErrCodeRefusedStream})
+		return nil
+	}
+	s.sendQuotaPool = newQuotaPool(int(t.streamSendQuota))
+	t.activeStreams[s.id] = s
+	t.mu.Unlock()
+	s.windowHandler = func(n int) {
+		t.updateWindow(s, uint32(n))
+	}
 	handle(s)
 	return nil
 }
@@ -268,7 +268,7 @@ func (t *http2Server) HandleStreams(handle func(*Stream)) {
 			endStream := frame.Header().Flags.Has(http2.FlagHeadersEndStream)
 			curStream = t.operateHeaders(hDec, curStream, frame, endStream, handle)
 		case *http2.ContinuationFrame:
-			curStream = t.operateHeaders(hDec, curStream, frame, false, handle)
+			curStream = t.operateHeaders(hDec, curStream, frame, frame.HeadersEnded(), handle)
 		case *http2.DataFrame:
 			t.handleData(frame)
 		case *http2.RSTStreamFrame:
@@ -377,7 +377,9 @@ func (t *http2Server) handleSettings(f *http2.SettingsFrame) {
 }
 
 func (t *http2Server) handlePing(f *http2.PingFrame) {
-	t.controlBuf.put(&ping{true})
+	pingAck := &ping{ack: true}
+	copy(pingAck.data[:], f.Data[:])
+	t.controlBuf.put(pingAck)
 }
 
 func (t *http2Server) handleWindowUpdate(f *http2.WindowUpdateFrame) {
@@ -628,9 +630,7 @@ func (t *http2Server) controller() {
 				case *flushIO:
 					t.framer.flushWrite()
 				case *ping:
-					// TODO(zhaoq): Ack with all-0 data now. will change to some
-					// meaningful content when this is actually in use.
-					t.framer.writePing(true, i.ack, [8]byte{})
+					t.framer.writePing(true, i.ack, i.data)
 				default:
 					grpclog.Printf("transport: http2Server.controller got unexpected item type %v\n", i)
 				}
@@ -660,9 +660,9 @@ func (t *http2Server) Close() (err error) {
 	t.mu.Unlock()
 	close(t.shutdownChan)
 	err = t.conn.Close()
-	// Notify all active streams.
+	// Cancel all active streams.
 	for _, s := range streams {
-		s.write(recvMsg{err: ErrConnClosing})
+		s.cancel()
 	}
 	return
 }
@@ -684,9 +684,8 @@ func (t *http2Server) closeStream(s *Stream) {
 	s.state = streamDone
 	s.mu.Unlock()
 	// In case stream sending and receiving are invoked in separate
-	// goroutines (e.g., bi-directional streaming), the caller needs
-	// to call cancel on the stream to interrupt the blocking on
-	// other goroutines.
+	// goroutines (e.g., bi-directional streaming), cancel needs to be
+	// called to interrupt the potential blocking on other goroutines.
 	s.cancel()
 }
 

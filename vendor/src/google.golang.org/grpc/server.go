@@ -410,11 +410,11 @@ func (s *Server) processStreamingRPC(t transport.ServerTransport, stream *transp
 		defer func() {
 			ss.mu.Lock()
 			if err != nil && err != io.EOF {
-				trInfo.tr.LazyLog(&fmtStringer{"%v", []interface{}{err}}, true)
-				trInfo.tr.SetError()
+				ss.trInfo.tr.LazyLog(&fmtStringer{"%v", []interface{}{err}}, true)
+				ss.trInfo.tr.SetError()
 			}
-			trInfo.tr.Finish()
-			trInfo.tr = nil
+			ss.trInfo.tr.Finish()
+			ss.trInfo.tr = nil
 			ss.mu.Unlock()
 		}()
 	}
@@ -430,10 +430,10 @@ func (s *Server) processStreamingRPC(t transport.ServerTransport, stream *transp
 	if trInfo != nil {
 		ss.mu.Lock()
 		if ss.statusCode != codes.OK {
-			trInfo.tr.LazyLog(stringer(ss.statusDesc), true)
-			trInfo.tr.SetError()
+			ss.trInfo.tr.LazyLog(stringer(ss.statusDesc), true)
+			ss.trInfo.tr.SetError()
 		} else {
-			trInfo.tr.LazyLog(stringer("OK"), false)
+			ss.trInfo.tr.LazyLog(stringer("OK"), false)
 		}
 		ss.mu.Unlock()
 	}
@@ -448,8 +448,19 @@ func (s *Server) handleStream(t transport.ServerTransport, stream *transport.Str
 	}
 	pos := strings.LastIndex(sm, "/")
 	if pos == -1 {
+		if trInfo != nil {
+			trInfo.tr.LazyLog(&fmtStringer{"Malformed method name %q", []interface{}{sm}}, true)
+			trInfo.tr.SetError()
+		}
 		if err := t.WriteStatus(stream, codes.InvalidArgument, fmt.Sprintf("malformed method name: %q", stream.Method())); err != nil {
+			if trInfo != nil {
+				trInfo.tr.LazyLog(&fmtStringer{"%v", []interface{}{err}}, true)
+				trInfo.tr.SetError()
+			}
 			grpclog.Printf("grpc: Server.handleStream failed to write status: %v", err)
+		}
+		if trInfo != nil {
+			trInfo.tr.Finish()
 		}
 		return
 	}
@@ -457,8 +468,19 @@ func (s *Server) handleStream(t transport.ServerTransport, stream *transport.Str
 	method := sm[pos+1:]
 	srv, ok := s.m[service]
 	if !ok {
+		if trInfo != nil {
+			trInfo.tr.LazyLog(&fmtStringer{"Unknown service %v", []interface{}{service}}, true)
+			trInfo.tr.SetError()
+		}
 		if err := t.WriteStatus(stream, codes.Unimplemented, fmt.Sprintf("unknown service %v", service)); err != nil {
+			if trInfo != nil {
+				trInfo.tr.LazyLog(&fmtStringer{"%v", []interface{}{err}}, true)
+				trInfo.tr.SetError()
+			}
 			grpclog.Printf("grpc: Server.handleStream failed to write status: %v", err)
+		}
+		if trInfo != nil {
+			trInfo.tr.Finish()
 		}
 		return
 	}
@@ -471,8 +493,19 @@ func (s *Server) handleStream(t transport.ServerTransport, stream *transport.Str
 		s.processStreamingRPC(t, stream, srv, sd, trInfo)
 		return
 	}
+	if trInfo != nil {
+		trInfo.tr.LazyLog(&fmtStringer{"Unknown method %v", []interface{}{method}}, true)
+		trInfo.tr.SetError()
+	}
 	if err := t.WriteStatus(stream, codes.Unimplemented, fmt.Sprintf("unknown method %v", method)); err != nil {
+		if trInfo != nil {
+			trInfo.tr.LazyLog(&fmtStringer{"%v", []interface{}{err}}, true)
+			trInfo.tr.SetError()
+		}
 		grpclog.Printf("grpc: Server.handleStream failed to write status: %v", err)
+	}
+	if trInfo != nil {
+		trInfo.tr.Finish()
 	}
 }
 
