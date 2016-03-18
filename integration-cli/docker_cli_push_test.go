@@ -546,6 +546,7 @@ func (s *DockerSuite) TestPushToCentralRegistryUnauthorized(c *check.C) {
 	dockerCmd(c, "tag", "busybox", repoName)
 	out, _, err := dockerCmdWithError("push", repoName)
 	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, check.Not(checker.Contains), "Retrying")
 	c.Assert(out, checker.Contains, "unauthorized: access to the requested resource is not authorized")
 }
 
@@ -606,4 +607,17 @@ func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponse
 	c.Assert(out, checker.Not(checker.Contains), "Retrying")
 	split := strings.Split(out, "\n")
 	c.Assert(split[len(split)-2], checker.Contains, "error parsing HTTP 403 response body: ")
+}
+
+func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponseNoToken(c *check.C) {
+	ts := getTestTokenService(http.StatusOK, `{"something": "wrong"}`)
+	defer ts.Close()
+	s.setupRegistryWithTokenService(c, ts.URL)
+	repoName := fmt.Sprintf("%s/busybox", privateRegistryURL)
+	dockerCmd(c, "tag", "busybox", repoName)
+	out, _, err := dockerCmdWithError("push", repoName)
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Not(checker.Contains), "Retrying")
+	split := strings.Split(out, "\n")
+	c.Assert(split[len(split)-2], check.Equals, "authorization server did not include a token in the response")
 }
