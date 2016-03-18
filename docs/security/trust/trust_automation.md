@@ -73,7 +73,8 @@ unable to process Dockerfile: No trust data for notrust
 
 ## Related information
 
-* [Content trust in Docker](content_trust.md) 
+* [Content trust in Docker](content_trust.md)
 * [Manage keys for content trust](trust_key_mng.md)
+* [Delegations for content trust](trust_delegation.md)
 * [Play in a content trust sandbox](trust_sandbox.md)
 
