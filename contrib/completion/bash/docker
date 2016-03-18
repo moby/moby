@@ -1788,17 +1788,17 @@ _docker_run() {
 			;;
 		--security-opt)
 			case "$cur" in
-				label:*:*)
+				label=*:*)
 					;;
-				label:*)
-					local cur=${cur##*:}
+				label=*)
+					local cur=${cur##*=}
 					COMPREPLY=( $( compgen -W "user: role: type: level: disable" -- "$cur") )
 					if [ "${COMPREPLY[*]}" != "disable" ] ; then
 						__docker_nospace
 					fi
 					;;
-				seccomp:*)
-					local cur=${cur##*:}
+				seccomp=*)
+					local cur=${cur##*=}
 					_filedir
 					COMPREPLY+=( $( compgen -W "unconfined" -- "$cur" ) )
 					;;

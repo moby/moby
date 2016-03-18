@@ -90,12 +90,12 @@ func TestAdjustCPUSharesNoAdjustment(t *testing.T) {
 }
 
 // Unix test as uses settings which are not available on Windows
-func TestParseSecurityOpt(t *testing.T) {
+func TestParseSecurityOptWithDeprecatedColon(t *testing.T) {
 	container := &container.Container{}
 	config := &containertypes.HostConfig{}
 
 	// test apparmor
-	config.SecurityOpt = []string{"apparmor:test_profile"}
+	config.SecurityOpt = []string{"apparmor=test_profile"}
 	if err := parseSecurityOpt(container, config); err != nil {
 		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestParseSecurityOpt(t *testing.T) {
 
 	// test seccomp
 	sp := "/path/to/seccomp_test.json"
-	config.SecurityOpt = []string{"seccomp:" + sp}
+	config.SecurityOpt = []string{"seccomp=" + sp}
 	if err := parseSecurityOpt(container, config); err != nil {
 		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
@@ -114,7 +114,49 @@ func TestParseSecurityOpt(t *testing.T) {
 	}
 
 	// test valid label
-	config.SecurityOpt = []string{"label:user:USER"}
+	config.SecurityOpt = []string{"label=user:USER"}
+	if err := parseSecurityOpt(container, config); err != nil {
+		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
+	}
+
+	// test invalid label
+	config.SecurityOpt = []string{"label"}
+	if err := parseSecurityOpt(container, config); err == nil {
+		t.Fatal("Expected parseSecurityOpt error, got nil")
+	}
+
+	// test invalid opt
+	config.SecurityOpt = []string{"test"}
+	if err := parseSecurityOpt(container, config); err == nil {
+		t.Fatal("Expected parseSecurityOpt error, got nil")
+	}
+}
+
+func TestParseSecurityOpt(t *testing.T) {
+	container := &container.Container{}
+	config := &containertypes.HostConfig{}
+
+	// test apparmor
+	config.SecurityOpt = []string{"apparmor=test_profile"}
+	if err := parseSecurityOpt(container, config); err != nil {
+		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
+	}
+	if container.AppArmorProfile != "test_profile" {
+		t.Fatalf("Unexpected AppArmorProfile, expected: \"test_profile\", got %q", container.AppArmorProfile)
+	}
+
+	// test seccomp
+	sp := "/path/to/seccomp_test.json"
+	config.SecurityOpt = []string{"seccomp=" + sp}
+	if err := parseSecurityOpt(container, config); err != nil {
+		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
+	}
+	if container.SeccompProfile != sp {
+		t.Fatalf("Unexpected SeccompProfile, expected: %q, got %q", sp, container.SeccompProfile)
+	}
+
+	// test valid label
+	config.SecurityOpt = []string{"label=user:USER"}
 	if err := parseSecurityOpt(container, config); err != nil {
 		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
