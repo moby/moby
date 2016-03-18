@@ -39,7 +39,7 @@ An issue can have multiple of the following labels.
 | kind/bug         | Bugs are bugs. The cause may or may not be known at triage time so debugging should be taken account into the time estimate.    |
 | kind/docs        | Writing documentation, man pages, articles, blogs, or other significant word-driven task.                                       |
 | kind/enhancement | Enhancement are not bugs or new features but can drastically improve usability or performance of a project component.           |
-| kind/feature     | Functionality or other elements that the project does not currently support.  Features are new and shinny.                      |
+| kind/feature     | Functionality or other elements that the project does not currently support.  Features are new and shiny.                      |
 | kind/question    | Contains a user or contributor question requiring a response.                                                                   |
 
 #### Functional area
