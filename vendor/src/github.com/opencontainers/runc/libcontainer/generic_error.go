@@ -15,6 +15,8 @@ const (
 	procReady syncType = iota
 	procError
 	procRun
+	procHooks
+	procResume
 )
 
 type syncT struct {

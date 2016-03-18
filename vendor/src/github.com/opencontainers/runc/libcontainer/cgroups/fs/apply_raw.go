@@ -130,6 +130,8 @@ func (m *Manager) Apply(pid int) (err error) {
 		return cgroups.EnterPid(m.Paths, pid)
 	}
 
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	paths := make(map[string]string)
 	for _, sys := range subsystems {
 		if err := sys.Apply(d); err != nil {

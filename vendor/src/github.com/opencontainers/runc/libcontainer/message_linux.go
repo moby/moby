@@ -12,8 +12,12 @@ import (
 // The number is randomly chosen to not conflict with known netlink types
 const (
 	InitMsg         uint16 = 62000
-	PidAttr         uint16 = 27281
+	CloneFlagsAttr  uint16 = 27281
 	ConsolePathAttr uint16 = 27282
+	NsPathsAttr     uint16 = 27283
+	UidmapAttr      uint16 = 27284
+	GidmapAttr      uint16 = 27285
+	SetgroupAttr    uint16 = 27286
 	// When syscall.NLA_HDRLEN is in gccgo, take this out.
 	syscall_NLA_HDRLEN = (syscall.SizeofNlAttr + syscall.NLA_ALIGNTO - 1) & ^(syscall.NLA_ALIGNTO - 1)
 )
@@ -59,4 +63,26 @@ func (msg *Bytemsg) Serialize() []byte {
 
 func (msg *Bytemsg) Len() int {
 	return syscall_NLA_HDRLEN + len(msg.Value) + 1 // null-terminated
+}
+
+type Boolmsg struct {
+	Type  uint16
+	Value bool
+}
+
+func (msg *Boolmsg) Serialize() []byte {
+	buf := make([]byte, msg.Len())
+	native := nl.NativeEndian()
+	native.PutUint16(buf[0:2], uint16(msg.Len()))
+	native.PutUint16(buf[2:4], msg.Type)
+	if msg.Value {
+		buf[4] = 1
+	} else {
+		buf[4] = 0
+	}
+	return buf
+}
+
+func (msg *Boolmsg) Len() int {
+	return syscall_NLA_HDRLEN + 1
 }

@@ -59,7 +59,8 @@ clone git github.com/miekg/pkcs11 df8ae6ca730422dba20c768ff38ef7d79077a59f
 clone git github.com/docker/go v1.5.1-1-1-gbaf439e
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
-clone git github.com/opencontainers/runc 2c3115481ee1782ad687a9e0b4834f89533c2acf # libcontainer
+clone git github.com/opencontainers/runc 7b6c4c418d5090f4f11eee949fdf49afd15838c9 # libcontainer
+clone git github.com/opencontainers/specs 3ce138b1934bf227a418e241ead496c383eaba1c # specs
 clone git github.com/seccomp/libseccomp-golang 1b506fc7c24eec5a3693cdcbed40d9c226cfc6a1
 # libcontainer deps (see src/github.com/opencontainers/runc/Godeps/Godeps.json)
 clone git github.com/coreos/go-systemd v4
@@ -87,4 +88,6 @@ clone git golang.org/x/oauth2 2baa8a1b9338cf13d9eeb27696d761155fa480be https://g
 clone git google.golang.org/api dc6d2353af16e2a2b0ff6986af051d473a4ed468 https://code.googlesource.com/google-api-go-client
 clone git google.golang.org/cloud dae7e3d993bc3812a2185af60552bb6b847e52a0 https://code.googlesource.com/gocloud
 
+# containerd
+clone git github.com/docker/containerd ab5eae56bf3a800e062c6d63fb94f766a732813f
 clean

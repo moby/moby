@@ -86,14 +86,14 @@ func (s *MemoryGroup) Set(path string, cgroup *configs.Cgroup) error {
 			return err
 		}
 	}
-	if cgroup.Resources.MemorySwappiness >= 0 && cgroup.Resources.MemorySwappiness <= 100 {
-		if err := writeFile(path, "memory.swappiness", strconv.FormatInt(cgroup.Resources.MemorySwappiness, 10)); err != nil {
+	if cgroup.Resources.MemorySwappiness == nil || int64(*cgroup.Resources.MemorySwappiness) == -1 {
+		return nil
+	} else if int64(*cgroup.Resources.MemorySwappiness) >= 0 && int64(*cgroup.Resources.MemorySwappiness) <= 100 {
+		if err := writeFile(path, "memory.swappiness", strconv.FormatInt(*cgroup.Resources.MemorySwappiness, 10)); err != nil {
 			return err
 		}
-	} else if cgroup.Resources.MemorySwappiness == -1 {
-		return nil
 	} else {
-		return fmt.Errorf("invalid value:%d. valid memory swappiness range is 0-100", cgroup.Resources.MemorySwappiness)
+		return fmt.Errorf("invalid value:%d. valid memory swappiness range is 0-100", int64(*cgroup.Resources.MemorySwappiness))
 	}
 
 	return nil
@@ -149,7 +149,7 @@ func memoryAssigned(cgroup *configs.Cgroup) bool {
 		cgroup.Resources.MemorySwap > 0 ||
 		cgroup.Resources.KernelMemory > 0 ||
 		cgroup.Resources.OomKillDisable ||
-		cgroup.Resources.MemorySwappiness != -1
+		(cgroup.Resources.MemorySwappiness != nil && *cgroup.Resources.MemorySwappiness != -1)
 }
 
 func getMemoryData(path, name string) (cgroups.MemoryData, error) {

@@ -48,6 +48,16 @@ type Process struct {
 	// All capabilities not specified will be dropped from the processes capability mask
 	Capabilities []string
 
+	// AppArmorProfile specifies the profile to apply to the process and is
+	// changed at the time the process is execed
+	AppArmorProfile string
+
+	// Label specifies the label to apply to the process.  It is commonly used by selinux
+	Label string
+
+	// NoNewPrivileges controls whether processes can gain additional privileges.
+	NoNewPrivileges *bool
+
 	ops processOperations
 }
 
