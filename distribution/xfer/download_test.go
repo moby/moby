@@ -112,12 +112,13 @@ func (ls *mockLayerStore) CreateRWLayer(string, layer.ChainID, string, layer.Mou
 
 func (ls *mockLayerStore) GetRWLayer(string) (layer.RWLayer, error) {
 	return nil, errors.New("not implemented")
-
 }
 
 func (ls *mockLayerStore) ReleaseRWLayer(layer.RWLayer) ([]layer.Metadata, error) {
 	return nil, errors.New("not implemented")
-
+}
+func (ls *mockLayerStore) GetMountID(string) (string, error) {
+	return "", errors.New("not implemented")
 }
 
 func (ls *mockLayerStore) Cleanup() error {

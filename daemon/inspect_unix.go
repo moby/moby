@@ -82,10 +82,10 @@ func addMountPoints(container *container.Container) []types.MountPoint {
 
 func inspectExecProcessConfig(e *exec.Config) *backend.ExecProcessConfig {
 	return &backend.ExecProcessConfig{
-		Tty:        e.ProcessConfig.Tty,
-		Entrypoint: e.ProcessConfig.Entrypoint,
-		Arguments:  e.ProcessConfig.Arguments,
-		Privileged: &e.ProcessConfig.Privileged,
-		User:       e.ProcessConfig.User,
+		Tty:        e.Tty,
+		Entrypoint: e.Entrypoint,
+		Arguments:  e.Args,
+		Privileged: &e.Privileged,
+		User:       e.User,
 	}
 }

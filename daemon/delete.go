@@ -129,9 +129,6 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 		return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", daemon.GraphDriverName(), container.ID, err)
 	}
 
-	if err = daemon.execDriver.Clean(container.ID); err != nil {
-		return fmt.Errorf("Unable to remove execdriver data for %s: %s", container.ID, err)
-	}
 	return nil
 }
 

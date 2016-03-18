@@ -17,7 +17,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/exec"
-	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/daemon/network"
@@ -27,6 +26,7 @@ import (
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/symlink"
+	"github.com/docker/docker/restartmanager"
 	"github.com/docker/docker/runconfig"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/docker/volume"
@@ -74,13 +74,12 @@ type CommonContainer struct {
 	HasBeenManuallyStopped bool // used for unless-stopped restart policy
 	MountPoints            map[string]*volume.MountPoint
 	HostConfig             *containertypes.HostConfig `json:"-"` // do not serialize the host config in the json, otherwise we'll make the container unportable
-	Command                *execdriver.Command        `json:"-"`
-	monitor                *containerMonitor
-	ExecCommands           *exec.Store `json:"-"`
+	ExecCommands           *exec.Store                `json:"-"`
 	// logDriver for closing
-	LogDriver     logger.Logger  `json:"-"`
-	LogCopier     *logger.Copier `json:"-"`
-	attachContext *attachContext
+	LogDriver      logger.Logger  `json:"-"`
+	LogCopier      *logger.Copier `json:"-"`
+	restartManager restartmanager.RestartManager
+	attachContext  *attachContext
 }
 
 // NewBaseContainer creates a new container with its
@@ -276,19 +275,9 @@ func (container *Container) GetRootResourcePath(path string) (string, error) {
 // ExitOnNext signals to the monitor that it should not restart the container
 // after we send the kill signal.
 func (container *Container) ExitOnNext() {
-	container.monitor.ExitOnNext()
-}
-
-// Resize changes the TTY of the process running inside the container
-// to the given height and width. The container must be running.
-func (container *Container) Resize(h, w int) error {
-	if container.Command.ProcessConfig.Terminal == nil {
-		return fmt.Errorf("Container %s does not have a terminal ready", container.ID)
+	if container.restartManager != nil {
+		container.restartManager.Cancel()
 	}
-	if err := container.Command.ProcessConfig.Terminal.Resize(h, w); err != nil {
-		return err
-	}
-	return nil
 }
 
 // HostConfigPath returns the path to the container's JSON hostconfig
@@ -897,19 +886,33 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 
 // UpdateMonitor updates monitor configure for running container
 func (container *Container) UpdateMonitor(restartPolicy containertypes.RestartPolicy) {
-	monitor := container.monitor
-	// No need to update monitor if container hasn't got one
-	// monitor will be generated correctly according to container
-	if monitor == nil {
-		return
+	type policySetter interface {
+		SetPolicy(containertypes.RestartPolicy)
 	}
 
-	monitor.mux.Lock()
-	// to check whether restart policy has changed.
-	if restartPolicy.Name != "" && !monitor.restartPolicy.IsSame(&restartPolicy) {
-		monitor.restartPolicy = restartPolicy
+	if rm, ok := container.RestartManager(false).(policySetter); ok {
+		rm.SetPolicy(restartPolicy)
 	}
-	monitor.mux.Unlock()
+}
+
+// FullHostname returns hostname and optional domain appended to it.
+func (container *Container) FullHostname() string {
+	fullHostname := container.Config.Hostname
+	if container.Config.Domainname != "" {
+		fullHostname = fmt.Sprintf("%s.%s", fullHostname, container.Config.Domainname)
+	}
+	return fullHostname
+}
+
+// RestartManager returns the current restartmanager instace connected to container.
+func (container *Container) RestartManager(reset bool) restartmanager.RestartManager {
+	if reset {
+		container.RestartCount = 0
+	}
+	if container.restartManager == nil {
+		container.restartManager = restartmanager.New(container.HostConfig.RestartPolicy)
+	}
+	return container.restartManager
 }
 
 type attachContext struct {
