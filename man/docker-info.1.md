@@ -36,9 +36,10 @@ Here is a sample output:
      Paused: 1
      Stopped: 10
     Images: 52
-    Server Version: 1.9.0
-    Storage Driver: aufs
-     Root Dir: /var/lib/docker/aufs
+    Server Version: 1.10.2
+    Storage Driver: overlay
+     Backing Filesystem: extfs
+     Root Dir: /var/lib/docker/overlay
      Dirs: 80
     Execution Driver: native-0.2
     Logging Driver: json-file
@@ -46,12 +47,12 @@ Here is a sample output:
     Plugins:
      Volume: local
      Network: bridge null host
-    Kernel Version: 3.13.0-24-generic
-    Operating System: Ubuntu 14.04 LTS
+    Kernel Version: 3.19.0-15-generic
+    Operating System: Ubuntu 15.10
     OSType: linux
     Architecture: x86_64
     CPUs: 1
-    Total Memory: 2 GiB
+    Total Memory: 3.753 GiB
     Name: docker
     ID: I54V:OLXT:HVMM:TPKO:JPHQ:CQCD:JNLC:O3BZ:4ZVJ:43XJ:PFHZ:6N2S
     Docker Root Dir: /var/lib/docker
