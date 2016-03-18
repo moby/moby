@@ -18,11 +18,13 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/runconfig"
-	containertypes "github.com/docker/engine-api/types/container"
 	// register the windows graph driver
 	"github.com/docker/docker/daemon/graphdriver/windows"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/engine-api/types"
+	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
 	winlibnetwork "github.com/docker/libnetwork/drivers/windows"
@@ -39,7 +41,7 @@ const (
 	windowsMaxCPUShares  = 10000
 )
 
-func getBlkioWeightDevices(config *containertypes.HostConfig) ([]*blkiodev.WeightDevice, error) {
+func getBlkioWeightDevices(config *containertypes.HostConfig) ([]blkiodev.WeightDevice, error) {
 	return nil, nil
 }
 
@@ -47,19 +49,19 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 	return nil
 }
 
-func getBlkioReadIOpsDevices(config *containertypes.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+func getBlkioReadIOpsDevices(config *containertypes.HostConfig) ([]blkiodev.ThrottleDevice, error) {
 	return nil, nil
 }
 
-func getBlkioWriteIOpsDevices(config *containertypes.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+func getBlkioWriteIOpsDevices(config *containertypes.HostConfig) ([]blkiodev.ThrottleDevice, error) {
 	return nil, nil
 }
 
-func getBlkioReadBpsDevices(config *containertypes.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+func getBlkioReadBpsDevices(config *containertypes.HostConfig) ([]blkiodev.ThrottleDevice, error) {
 	return nil, nil
 }
 
-func getBlkioWriteBpsDevices(config *containertypes.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+func getBlkioWriteBpsDevices(config *containertypes.HostConfig) ([]blkiodev.ThrottleDevice, error) {
 	return nil, nil
 }
 
@@ -287,6 +289,10 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 	return nil
 }
 
+func (daemon *Daemon) cleanupMountsByID(in string) error {
+	return nil
+}
+
 func (daemon *Daemon) cleanupMounts() error {
 	return nil
 }
@@ -307,8 +313,19 @@ func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error
 // conditionalMountOnStart is a platform specific helper function during the
 // container start to call mount.
 func (daemon *Daemon) conditionalMountOnStart(container *container.Container) error {
+
+	// Are we going to run as a Hyper-V container?
+	hv := false
+	if container.HostConfig.Isolation.IsDefault() {
+		// Container is set to use the default, so take the default from the daemon configuration
+		hv = daemon.defaultIsolation.IsHyperV()
+	} else {
+		// Container is requesting an isolation mode. Honour it.
+		hv = container.HostConfig.Isolation.IsHyperV()
+	}
+
 	// We do not mount if a Hyper-V container
-	if !container.HostConfig.Isolation.IsHyperV() {
+	if !hv {
 		if err := daemon.Mount(container); err != nil {
 			return err
 		}
@@ -318,11 +335,12 @@ func (daemon *Daemon) conditionalMountOnStart(container *container.Container) er
 
 // conditionalUnmountOnCleanup is a platform specific helper function called
 // during the cleanup of a container to unmount.
-func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container) {
+func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container) error {
 	// We do not unmount if a Hyper-V container
 	if !container.HostConfig.Isolation.IsHyperV() {
-		daemon.Unmount(container)
+		return daemon.Unmount(container)
 	}
+	return nil
 }
 
 func restoreCustomImage(is image.Store, ls layer.Store, rs reference.Store) error {
@@ -403,4 +421,36 @@ func restoreCustomImage(is image.Store, ls layer.Store, rs reference.Store) erro
 
 func driverOptions(config *Config) []nwconfig.Option {
 	return []nwconfig.Option{}
+}
+
+func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
+	return nil, nil
+}
+
+// setDefaultIsolation determine the default isolation mode for the
+// daemon to run in. This is only applicable on Windows
+func (daemon *Daemon) setDefaultIsolation() error {
+	daemon.defaultIsolation = containertypes.Isolation("process")
+	for _, option := range daemon.configStore.ExecOptions {
+		key, val, err := parsers.ParseKeyValueOpt(option)
+		if err != nil {
+			return err
+		}
+		key = strings.ToLower(key)
+		switch key {
+
+		case "isolation":
+			if !containertypes.Isolation(val).IsValid() {
+				return fmt.Errorf("Invalid exec-opt value for 'isolation':'%s'", val)
+			}
+			if containertypes.Isolation(val).IsHyperV() {
+				daemon.defaultIsolation = containertypes.Isolation("hyperv")
+			}
+		default:
+			return fmt.Errorf("Unrecognised exec-opt '%s'\n", key)
+		}
+	}
+
+	logrus.Infof("Windows default isolation mode: %s", daemon.defaultIsolation)
+	return nil
 }

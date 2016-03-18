@@ -7,18 +7,22 @@ import (
 	"sort"
 
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/volume"
 )
 
 // setupMounts configures the mount points for a container by appending each
-// of the configured mounts on the container to the execdriver mount structure
+// of the configured mounts on the container to the oci mount structure
 // which will ultimately be passed into the exec driver during container creation.
 // It also ensures each of the mounts are lexographically sorted.
-func (daemon *Daemon) setupMounts(container *container.Container) ([]execdriver.Mount, error) {
-	var mnts []execdriver.Mount
-	for _, mount := range container.MountPoints { // type is volume.MountPoint
-		if err := daemon.lazyInitializeVolume(container.ID, mount); err != nil {
+
+// BUGBUG TODO Windows containerd. This would be much better if it returned
+// an array of windowsoci mounts, not container mounts. Then no need to
+// do multiple transitions.
+
+func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, error) {
+	var mnts []container.Mount
+	for _, mount := range c.MountPoints { // type is volume.MountPoint
+		if err := daemon.lazyInitializeVolume(c.ID, mount); err != nil {
 			return nil, err
 		}
 		// If there is no source, take it from the volume path
@@ -29,7 +33,7 @@ func (daemon *Daemon) setupMounts(container *container.Container) ([]execdriver.
 		if s == "" {
 			return nil, fmt.Errorf("No source for mount name '%s' driver %q destination '%s'", mount.Name, mount.Driver, mount.Destination)
 		}
-		mnts = append(mnts, execdriver.Mount{
+		mnts = append(mnts, container.Mount{
 			Source:      s,
 			Destination: mount.Destination,
 			Writable:    mount.RW,

@@ -4,14 +4,9 @@ package daemon
 
 import (
 	"fmt"
-	"strings"
-
-	networktypes "github.com/docker/engine-api/types/network"
 
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/docker/daemon/execdriver/windows"
-	"github.com/docker/docker/layer"
+	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/docker/libnetwork"
 )
 
@@ -27,135 +22,6 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 // DisconnectFromNetwork disconnects container from a network.
 func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n libnetwork.Network, force bool) error {
 	return fmt.Errorf("Windows does not support disconnecting a running container from a network")
-}
-
-func (daemon *Daemon) populateCommand(c *container.Container, env []string) error {
-	en := &execdriver.Network{
-		Interface: nil,
-	}
-
-	var epList []string
-
-	// Connect all the libnetwork allocated networks to the container
-	if c.NetworkSettings != nil {
-		for n := range c.NetworkSettings.Networks {
-			sn, err := daemon.FindNetwork(n)
-			if err != nil {
-				continue
-			}
-
-			ep, err := c.GetEndpointInNetwork(sn)
-			if err != nil {
-				continue
-			}
-
-			data, err := ep.DriverInfo()
-			if err != nil {
-				continue
-			}
-			if data["hnsid"] != nil {
-				epList = append(epList, data["hnsid"].(string))
-			}
-		}
-	}
-
-	if daemon.netController == nil {
-		parts := strings.SplitN(string(c.HostConfig.NetworkMode), ":", 2)
-		switch parts[0] {
-		case "none":
-		case "default", "": // empty string to support existing containers
-			if !c.Config.NetworkDisabled {
-				en.Interface = &execdriver.NetworkInterface{
-					MacAddress:   c.Config.MacAddress,
-					Bridge:       daemon.configStore.bridgeConfig.Iface,
-					PortBindings: c.HostConfig.PortBindings,
-
-					// TODO Windows. Include IPAddress. There already is a
-					// property IPAddress on execDrive.CommonNetworkInterface,
-					// but there is no CLI option in docker to pass through
-					// an IPAddress on docker run.
-				}
-			}
-		default:
-			return fmt.Errorf("invalid network mode: %s", c.HostConfig.NetworkMode)
-		}
-	}
-
-	// TODO Windows. More resource controls to be implemented later.
-	resources := &execdriver.Resources{
-		CommonResources: execdriver.CommonResources{
-			CPUShares: c.HostConfig.CPUShares,
-		},
-	}
-
-	processConfig := execdriver.ProcessConfig{
-		CommonProcessConfig: execdriver.CommonProcessConfig{
-			Entrypoint: c.Path,
-			Arguments:  c.Args,
-			Tty:        c.Config.Tty,
-		},
-		ConsoleSize: c.HostConfig.ConsoleSize,
-	}
-
-	processConfig.Env = env
-
-	var layerPaths []string
-	img, err := daemon.imageStore.Get(c.ImageID)
-	if err != nil {
-		return fmt.Errorf("Failed to graph.Get on ImageID %s - %s", c.ImageID, err)
-	}
-
-	if img.RootFS != nil && img.RootFS.Type == "layers+base" {
-		max := len(img.RootFS.DiffIDs)
-		for i := 0; i <= max; i++ {
-			img.RootFS.DiffIDs = img.RootFS.DiffIDs[:i]
-			path, err := layer.GetLayerPath(daemon.layerStore, img.RootFS.ChainID())
-			if err != nil {
-				return fmt.Errorf("Failed to get layer path from graphdriver %s for ImageID %s - %s", daemon.layerStore, img.RootFS.ChainID(), err)
-			}
-			// Reverse order, expecting parent most first
-			layerPaths = append([]string{path}, layerPaths...)
-		}
-	}
-
-	m, err := c.RWLayer.Metadata()
-	if err != nil {
-		return fmt.Errorf("Failed to get layer metadata - %s", err)
-	}
-	layerFolder := m["dir"]
-
-	var hvPartition bool
-	// Work out the isolation (whether it is a hypervisor partition)
-	if c.HostConfig.Isolation.IsDefault() {
-		// Not specified by caller. Take daemon default
-		hvPartition = windows.DefaultIsolation.IsHyperV()
-	} else {
-		// Take value specified by caller
-		hvPartition = c.HostConfig.Isolation.IsHyperV()
-	}
-
-	c.Command = &execdriver.Command{
-		CommonCommand: execdriver.CommonCommand{
-			ID:            c.ID,
-			Rootfs:        c.BaseFS,
-			WorkingDir:    c.Config.WorkingDir,
-			Network:       en,
-			MountLabel:    c.GetMountLabel(),
-			Resources:     resources,
-			ProcessConfig: processConfig,
-			ProcessLabel:  c.GetProcessLabel(),
-		},
-		FirstStart:  !c.HasBeenStartedBefore,
-		LayerFolder: layerFolder,
-		LayerPaths:  layerPaths,
-		Hostname:    c.Config.Hostname,
-		Isolation:   string(c.HostConfig.Isolation),
-		ArgsEscaped: c.Config.ArgsEscaped,
-		HvPartition: hvPartition,
-		EpList:      epList,
-	}
-
-	return nil
 }
 
 // getSize returns real size & virtual size
