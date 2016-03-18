@@ -1030,7 +1030,7 @@ func (daemon *Daemon) PullImage(ctx context.Context, ref reference.Named, metaHe
 }
 
 // PullOnBuild tells Docker to pull image referenced by `name`.
-func (daemon *Daemon) PullOnBuild(name string, authConfigs map[string]types.AuthConfig, output io.Writer) (builder.Image, error) {
+func (daemon *Daemon) PullOnBuild(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer) (builder.Image, error) {
 	ref, err := reference.ParseNamed(name)
 	if err != nil {
 		return nil, err
@@ -1052,7 +1052,7 @@ func (daemon *Daemon) PullOnBuild(name string, authConfigs map[string]types.Auth
 		pullRegistryAuth = &resolvedConfig
 	}
 
-	if err := daemon.PullImage(context.Background(), ref, nil, pullRegistryAuth, output); err != nil {
+	if err := daemon.PullImage(ctx, ref, nil, pullRegistryAuth, output); err != nil {
 		return nil, err
 	}
 	return daemon.GetImage(name)
@@ -1069,14 +1069,14 @@ func (daemon *Daemon) ExportImage(names []string, outStream io.Writer) error {
 }
 
 // PushImage initiates a push operation on the repository named localName.
-func (daemon *Daemon) PushImage(ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (daemon *Daemon) PushImage(ctx context.Context, ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	// Include a buffer so that slow client connections don't affect
 	// transfer performance.
 	progressChan := make(chan progress.Progress, 100)
 
 	writesDone := make(chan struct{})
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	ctx, cancelFunc := context.WithCancel(ctx)
 
 	go func() {
 		writeDistributionProgress(cancelFunc, outStream, progressChan)
@@ -1502,16 +1502,16 @@ func configureVolumes(config *Config, rootUID, rootGID int) (*store.VolumeStore,
 }
 
 // AuthenticateToRegistry checks the validity of credentials in authConfig
-func (daemon *Daemon) AuthenticateToRegistry(authConfig *types.AuthConfig) (string, string, error) {
-	return daemon.RegistryService.Auth(authConfig, dockerversion.DockerUserAgent(""))
+func (daemon *Daemon) AuthenticateToRegistry(ctx context.Context, authConfig *types.AuthConfig) (string, string, error) {
+	return daemon.RegistryService.Auth(authConfig, dockerversion.DockerUserAgent(ctx))
 }
 
 // SearchRegistryForImages queries the registry for images matching
 // term. authConfig is used to login.
-func (daemon *Daemon) SearchRegistryForImages(term string,
+func (daemon *Daemon) SearchRegistryForImages(ctx context.Context, term string,
 	authConfig *types.AuthConfig,
 	headers map[string][]string) (*registrytypes.SearchResults, error) {
-	return daemon.RegistryService.Search(term, authConfig, dockerversion.DockerUserAgent(""), headers)
+	return daemon.RegistryService.Search(term, authConfig, dockerversion.DockerUserAgent(ctx), headers)
 }
 
 // IsShuttingDown tells whether the daemon is shutting down or not

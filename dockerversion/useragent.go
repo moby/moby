@@ -13,7 +13,7 @@ import (
 // DockerUserAgent is the User-Agent the Docker client uses to identify itself.
 // In accordance with RFC 7231 (5.5.3) is of the form:
 //    [docker client's UA] UpstreamClient([upstream client's UA])
-func DockerUserAgent(upstreamUA string) string {
+func DockerUserAgent(ctx context.Context) string {
 	httpVersion := make([]useragent.VersionInfo, 0, 6)
 	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "docker", Version: Version})
 	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "go", Version: runtime.Version()})
@@ -25,6 +25,7 @@ func DockerUserAgent(upstreamUA string) string {
 	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "arch", Version: runtime.GOARCH})
 
 	dockerUA := useragent.AppendVersions("", httpVersion...)
+	upstreamUA := getUserAgentFromContext(ctx)
 	if len(upstreamUA) > 0 {
 		ret := insertUpstreamUserAgent(upstreamUA, dockerUA)
 		return ret
@@ -32,8 +33,8 @@ func DockerUserAgent(upstreamUA string) string {
 	return dockerUA
 }
 
-// GetUserAgentFromContext returns the previously saved user-agent context stored in ctx, if one exists
-func GetUserAgentFromContext(ctx context.Context) string {
+// getUserAgentFromContext returns the previously saved user-agent context stored in ctx, if one exists
+func getUserAgentFromContext(ctx context.Context) string {
 	var upstreamUA string
 	if ctx != nil {
 		var ki interface{} = ctx.Value(httputils.UAStringKey)
@@ -51,7 +52,7 @@ func escapeStr(s string, charsToEscape string) string {
 		appended := false
 		for _, escapeableRune := range charsToEscape {
 			if currRune == escapeableRune {
-				ret += "\\" + string(currRune)
+				ret += `\` + string(currRune)
 				appended = true
 				break
 			}
@@ -67,7 +68,7 @@ func escapeStr(s string, charsToEscape string) string {
 // string of the form:
 //   $dockerUA UpstreamClient($upstreamUA)
 func insertUpstreamUserAgent(upstreamUA string, dockerUA string) string {
-	charsToEscape := "();\\" //["\\", ";", "(", ")"]string
+	charsToEscape := `();\`
 	upstreamUAEscaped := escapeStr(upstreamUA, charsToEscape)
 	return fmt.Sprintf("%s UpstreamClient(%s)", dockerUA, upstreamUAEscaped)
 }

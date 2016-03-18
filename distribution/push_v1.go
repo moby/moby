@@ -38,10 +38,10 @@ func (p *v1Pusher) Push(ctx context.Context) error {
 	tr := transport.NewTransport(
 		// TODO(tiborvass): was NoTimeout
 		registry.NewTransport(tlsConfig),
-		registry.DockerHeaders(dockerversion.DockerUserAgent(""), p.config.MetaHeaders)...,
+		registry.DockerHeaders(dockerversion.DockerUserAgent(ctx), p.config.MetaHeaders)...,
 	)
 	client := registry.HTTPClient(tr)
-	v1Endpoint, err := p.endpoint.ToV1Endpoint(dockerversion.DockerUserAgent(""), p.config.MetaHeaders)
+	v1Endpoint, err := p.endpoint.ToV1Endpoint(dockerversion.DockerUserAgent(ctx), p.config.MetaHeaders)
 	if err != nil {
 		logrus.Debugf("Could not get v1 endpoint: %v", err)
 		return fallbackError{err: err}

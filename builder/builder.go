@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -109,7 +110,7 @@ type Backend interface {
 	// Tag an image with newTag
 	TagImage(newTag reference.Named, imageName string) error
 	// Pull tells Docker to pull image referenced by `name`.
-	PullOnBuild(name string, authConfigs map[string]types.AuthConfig, output io.Writer) (Image, error)
+	PullOnBuild(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer) (Image, error)
 	// ContainerAttach attaches to container.
 	ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool) error
 	// ContainerCreate creates a new Docker container and returns potential warnings

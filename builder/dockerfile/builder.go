@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
+	"golang.org/x/net/context"
 )
 
 var validCommitCommands = map[string]bool{
@@ -52,8 +53,9 @@ type Builder struct {
 	Stderr io.Writer
 	Output io.Writer
 
-	docker  builder.Backend
-	context builder.Context
+	docker    builder.Backend
+	context   builder.Context
+	clientCtx context.Context
 
 	dockerfile       *parser.Node
 	runConfig        *container.Config // runconfig for cmd, run, entrypoint etc.
@@ -86,7 +88,7 @@ func NewBuildManager(b builder.Backend) (bm *BuildManager) {
 // NewBuilder creates a new Dockerfile builder from an optional dockerfile and a Config.
 // If dockerfile is nil, the Dockerfile specified by Config.DockerfileName,
 // will be read from the Context passed to Build().
-func NewBuilder(config *types.ImageBuildOptions, backend builder.Backend, context builder.Context, dockerfile io.ReadCloser) (b *Builder, err error) {
+func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, backend builder.Backend, context builder.Context, dockerfile io.ReadCloser) (b *Builder, err error) {
 	if config == nil {
 		config = new(types.ImageBuildOptions)
 	}
@@ -94,6 +96,7 @@ func NewBuilder(config *types.ImageBuildOptions, backend builder.Backend, contex
 		config.BuildArgs = make(map[string]string)
 	}
 	b = &Builder{
+		clientCtx:        clientCtx,
 		options:          config,
 		Stdout:           os.Stdout,
 		Stderr:           os.Stderr,
@@ -158,8 +161,8 @@ func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
 }
 
 // Build creates a NewBuilder, which builds the image.
-func (bm *BuildManager) Build(config *types.ImageBuildOptions, context builder.Context, stdout io.Writer, stderr io.Writer, out io.Writer, clientGone <-chan bool) (string, error) {
-	b, err := NewBuilder(config, bm.backend, context, nil)
+func (bm *BuildManager) Build(clientCtx context.Context, config *types.ImageBuildOptions, context builder.Context, stdout io.Writer, stderr io.Writer, out io.Writer, clientGone <-chan bool) (string, error) {
+	b, err := NewBuilder(clientCtx, config, bm.backend, context, nil)
 	if err != nil {
 		return "", err
 	}
@@ -291,7 +294,7 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 		}
 	}
 
-	b, err := NewBuilder(nil, nil, nil, nil)
+	b, err := NewBuilder(context.Background(), nil, nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}

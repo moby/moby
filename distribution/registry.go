@@ -37,8 +37,6 @@ func (dcs dumbCredentialStore) SetRefreshToken(*url.URL, string, string) {
 // providing timeout settings and authentication support, and also verifies the
 // remote API version.
 func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, endpoint registry.APIEndpoint, metaHeaders http.Header, authConfig *types.AuthConfig, actions ...string) (repo distribution.Repository, foundVersion bool, err error) {
-	upstreamUA := dockerversion.GetUserAgentFromContext(ctx)
-
 	repoName := repoInfo.FullName()
 	// If endpoint does not support CanonicalName, use the RemoteName instead
 	if endpoint.TrimHostname {
@@ -59,7 +57,7 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 		DisableKeepAlives: true,
 	}
 
-	modifiers := registry.DockerHeaders(dockerversion.DockerUserAgent(upstreamUA), metaHeaders)
+	modifiers := registry.DockerHeaders(dockerversion.DockerUserAgent(ctx), metaHeaders)
 	authTransport := transport.NewTransport(base, modifiers...)
 
 	challengeManager, foundVersion, err := registry.PingV2Registry(endpoint, authTransport)
