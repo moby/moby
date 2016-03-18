@@ -303,14 +303,21 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 	}
 	cursor = s.drainJournal(logWatcher, config, j, "")
 	if config.Follow {
-		// Create a pipe that we can poll at the same time as the journald descriptor.
-		if C.pipe(&pipes[0]) == C.int(-1) {
-			logWatcher.Err <- fmt.Errorf("error opening journald close notification pipe")
+		// Allocate a descriptor for following the journal, if we'll
+		// need one.  Do it here so that we can report if it fails.
+		if fd := C.sd_journal_get_fd(j); fd < C.int(0) {
+			logWatcher.Err <- fmt.Errorf("error opening journald follow descriptor: %q", C.GoString(C.strerror(-fd)))
 		} else {
-			s.followJournal(logWatcher, config, j, pipes, cursor)
-			// Let followJournal handle freeing the journal context
-			// object and closing the channel.
-			following = true
+			// Create a pipe that we can poll at the same time as
+			// the journald descriptor.
+			if C.pipe(&pipes[0]) == C.int(-1) {
+				logWatcher.Err <- fmt.Errorf("error opening journald close notification pipe")
+			} else {
+				s.followJournal(logWatcher, config, j, pipes, cursor)
+				// Let followJournal handle freeing the journal context
+				// object and closing the channel.
+				following = true
+			}
 		}
 	}
 	return
