@@ -51,6 +51,10 @@ const (
 	// constants for remapped root settings
 	defaultIDSpecifier string = "default"
 	defaultRemappedID  string = "dockremap"
+
+	// constant for cgroup drivers
+	cgroupFsDriver      = "cgroupfs"
+	cgroupSystemdDriver = "systemd"
 )
 
 func getMemoryResources(config containertypes.Resources) *specs.Memory {
@@ -460,29 +464,30 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 }
 
 func (daemon *Daemon) getCgroupDriver() string {
-	cgroupDriver := "cgroupfs"
-	if daemon.usingSystemd() {
-		cgroupDriver = "systemd"
-	}
-	return cgroupDriver
-}
+	cgroupDriver := cgroupFsDriver
 
-func usingSystemd(config *Config) bool {
-	for _, option := range config.ExecOptions {
+	// No other cgroup drivers are supported at the moment. Warn the
+	// user if they tried to set one other than cgroupfs
+	for _, option := range daemon.configStore.ExecOptions {
 		key, val, err := parsers.ParseKeyValueOpt(option)
 		if err != nil || !strings.EqualFold(key, "native.cgroupdriver") {
 			continue
 		}
-		if val == "systemd" {
-			return true
+		if val != cgroupFsDriver {
+			logrus.Warnf("cgroupdriver '%s' is not supported", val)
 		}
 	}
 
+	return cgroupDriver
+}
+
+func usingSystemd(config *Config) bool {
+	// No support for systemd cgroup atm
 	return false
 }
 
 func (daemon *Daemon) usingSystemd() bool {
-	return usingSystemd(daemon.configStore)
+	return daemon.getCgroupDriver() == cgroupSystemdDriver
 }
 
 // verifyPlatformContainerSettings performs platform-specific validation of the

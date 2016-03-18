@@ -51,7 +51,7 @@ complete -c docker -f -n '__fish_docker_no_subcommand' -s d -l daemon -d 'Enable
 complete -c docker -f -n '__fish_docker_no_subcommand' -l dns -d 'Force Docker to use specific DNS servers'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l dns-opt -d 'Force Docker to use specific DNS options'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l dns-search -d 'Force Docker to use specific DNS search domains'
-complete -c docker -f -n '__fish_docker_no_subcommand' -l exec-opt -d 'Set exec driver options'
+complete -c docker -f -n '__fish_docker_no_subcommand' -l exec-opt -d 'Set runtime execution options'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l fixed-cidr -d 'IPv4 subnet for fixed IPs (e.g. 10.20.0.0/16)'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l fixed-cidr-v6 -d 'IPv6 subnet for fixed IPs (e.g.: 2001:a02b/48)'
 complete -c docker -f -n '__fish_docker_no_subcommand' -s G -l group -d 'Group to assign the unix socket specified by -H when running in daemon mode'

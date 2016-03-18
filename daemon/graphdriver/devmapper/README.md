@@ -9,21 +9,21 @@ daemon via the `--storage-opt dm.thinpooldev` option.
 
 As a fallback if no thin pool is provided, loopback files will be
 created.  Loopback is very slow, but can be used without any
-pre-configuration of storage.  It is strongly recommended that you do 
+pre-configuration of storage.  It is strongly recommended that you do
 not use loopback in production.  Ensure your Docker daemon has a
 `--storage-opt dm.thinpooldev` argument provided.
 
 In loopback, a thin pool is created at `/var/lib/docker/devicemapper`
-(devicemapper graph location) based on two block devices, one for 
-data and one for metadata. By default these block devices are created 
-automatically by using loopback mounts of automatically created sparse 
+(devicemapper graph location) based on two block devices, one for
+data and one for metadata. By default these block devices are created
+automatically by using loopback mounts of automatically created sparse
 files.
 
-The default loopback files used are 
-`/var/lib/docker/devicemapper/devicemapper/data` and 
-`/var/lib/docker/devicemapper/devicemapper/metadata`. Additional metadata 
-required to map from docker entities to the corresponding devicemapper 
-volumes is stored in the `/var/lib/docker/devicemapper/devicemapper/json` 
+The default loopback files used are
+`/var/lib/docker/devicemapper/devicemapper/data` and
+`/var/lib/docker/devicemapper/devicemapper/metadata`. Additional metadata
+required to map from docker entities to the corresponding devicemapper
+volumes is stored in the `/var/lib/docker/devicemapper/devicemapper/json`
 file (encoded as Json).
 
 In order to support multiple devicemapper graphs on a system, the thin
@@ -92,6 +92,5 @@ This uses the `dm` prefix and would be used something like `docker daemon --stor
 
 These options are currently documented both in [the man
 page](../../../man/docker.1.md) and in [the online
-documentation](https://docs.docker.com/reference/commandline/daemon/#docker-
-execdriver-option).  If you add an options, update both the `man` page and the
-documentation.
+documentation](https://docs.docker.com/reference/commandline/daemon/#storage-driver-options).
+If you add an options, update both the `man` page and the documentation.

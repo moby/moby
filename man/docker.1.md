@@ -224,15 +224,14 @@ inside it)
   See **docker-wait(1)** for full documentation on the **wait** command.
 
 
-# EXEC DRIVER OPTIONS
+# RUNTIME EXECUTION OPTIONS
 
 Use the **--exec-opt** flags to specify options to the execution driver.
 The following options are available:
 
 #### native.cgroupdriver
-Specifies the management of the container's `cgroups`. You can specify 
-`cgroupfs` or `systemd`. If you specify `systemd` and it is not available, the 
-system uses `cgroupfs`.
+Specifies the management of the container's `cgroups`. Only `cgroupfs` can be specified
+`cgroupfs` at the moment.
 
 #### Client
 For specific client examples please see the man page for the specific Docker

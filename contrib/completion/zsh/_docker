@@ -650,8 +650,8 @@ __docker_subcommand() {
                 "($help)*--dns-opt=[DNS options to use]:DNS option: " \
                 "($help)*--default-ulimit=[Default ulimit settings for containers]:ulimit: " \
                 "($help)--disable-legacy-registry[Do not contact legacy registries]" \
-                "($help)*--exec-opt=[Exec driver options]:exec driver options: " \
-                "($help)--exec-root=[Root of the Docker execdriver]:path:_directories" \
+                "($help)*--exec-opt=[Runtime execution options]:runtime execution options: " \
+                "($help)--exec-root=[Root directory for execution state files]:path:_directories" \
                 "($help)--fixed-cidr=[IPv4 subnet for fixed IPs]:IPv4 subnet: " \
                 "($help)--fixed-cidr-v6=[IPv6 subnet for fixed IPs]:IPv6 subnet: " \
                 "($help -G --group)"{-G=,--group=}"[Group for the unix socket]:group:_groups" \
