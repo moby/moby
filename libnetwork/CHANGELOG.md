@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.0-dev.9 (2016-03-18)
+- Support labels on networks
+
 ## 0.7.0-dev.8 (2016-03-16)
 - Windows driver to respect user set MAC address.
 - Fix possible nil pointer reference in ServeDNS() with concurrent go routines.
