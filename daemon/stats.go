@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"runtime"
+	"time"
 
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/daemon/execdriver"
@@ -40,15 +41,24 @@ func (daemon *Daemon) ContainerStats(prefixOrName string, config *backend.Contai
 		outStream = wf
 	}
 
-	var preCPUStats types.CPUStats
+	var (
+		preCPUStats   types.CPUStats
+		preBlkioStats types.BlkioStats
+		preRead       time.Time
+	)
+
 	getStatJSON := func(v interface{}) *types.StatsJSON {
 		update := v.(*execdriver.ResourceStats)
 		ss := convertStatsToAPITypes(update.Stats)
 		ss.PreCPUStats = preCPUStats
+		ss.PreBlkioStats = preBlkioStats
+		ss.PreRead = preRead
 		ss.MemoryStats.Limit = uint64(update.MemoryLimit)
 		ss.Read = update.Read
 		ss.CPUStats.SystemUsage = update.SystemUsage
 		preCPUStats = ss.CPUStats
+		preBlkioStats = ss.BlkioStats
+		preRead = ss.Read
 		return ss
 	}
 
