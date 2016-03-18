@@ -261,7 +261,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		if err != nil {
 			return runStartContainerErr(err)
 		}
-		if js.State.Running == true || js.State.Paused == true {
+		if js.State.Running || js.State.Paused {
 			fmt.Fprintf(cli.out, "Detached from %s, awaiting its termination in order to uphold \"--rm\".\n",
 				stringid.TruncateID(createResponse.ID))
 		}

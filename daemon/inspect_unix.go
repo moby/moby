@@ -30,7 +30,9 @@ func (daemon *Daemon) containerInspectPre120(name string) (*v1p19.ContainerJSON,
 	container.Lock()
 	defer container.Unlock()
 
-	base, err := daemon.getInspectData(container, false)
+	// feed getInspectData with a fake version number 1.19
+	// any number less than 1.20 is OK here
+	base, err := daemon.getInspectData(container, false, "1.19")
 	if err != nil {
 		return nil, err
 	}

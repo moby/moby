@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/container/state"
 )
 
 // ContainerUnpause unpauses a container
@@ -25,13 +26,8 @@ func (daemon *Daemon) containerUnpause(container *container.Container) error {
 	container.Lock()
 	defer container.Unlock()
 
-	// We cannot unpause the container which is not running
-	if !container.Running {
-		return errNotRunning{container.ID}
-	}
-
 	// We cannot unpause the container which is not paused
-	if !container.Paused {
+	if !container.IsPaused() {
 		return fmt.Errorf("Container %s is not paused", container.ID)
 	}
 
@@ -39,7 +35,7 @@ func (daemon *Daemon) containerUnpause(container *container.Container) error {
 		return fmt.Errorf("Cannot unpause container %s: %s", container.ID, err)
 	}
 
-	container.Paused = false
+	container.SetRawState(state.Running)
 	daemon.LogContainerEvent(container, "unpause")
 	return nil
 }

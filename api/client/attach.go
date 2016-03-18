@@ -32,11 +32,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	}
 
 	if !c.State.Running {
-		return fmt.Errorf("You cannot attach to a stopped container, start it first")
-	}
-
-	if c.State.Paused {
-		return fmt.Errorf("You cannot attach to a paused container, unpause it first")
+		return fmt.Errorf("You can only attach to a running container")
 	}
 
 	if err := cli.CheckTtyInput(!*noStdin, c.Config.Tty); err != nil {

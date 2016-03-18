@@ -105,11 +105,12 @@ func (daemon *Daemon) Commit(name string, c *types.ContainerCommitConfig) (strin
 	}
 
 	// It is not possible to commit a running container on Windows
-	if runtime.GOOS == "windows" && container.IsRunning() {
+	if runtime.GOOS == "windows" &&
+		(container.IsRunningLocking() || container.IsPausedLocking() || container.IsRestartingLocking()) {
 		return "", fmt.Errorf("Windows does not support commit of a running container")
 	}
 
-	if c.Pause && !container.IsPaused() {
+	if c.Pause && !container.IsPausedLocking() {
 		daemon.containerPause(container)
 		defer daemon.containerUnpause(container)
 	}

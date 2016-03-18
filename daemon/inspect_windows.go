@@ -28,7 +28,9 @@ func addMountPoints(container *container.Container) []types.MountPoint {
 
 // containerInspectPre120 get containers for pre 1.20 APIs.
 func (daemon *Daemon) containerInspectPre120(name string) (*types.ContainerJSON, error) {
-	return daemon.containerInspectCurrent(name, false)
+	// feed getInspectData with a fake version number 1.19
+	// any number less than 1.20 is OK here
+	return daemon.containerInspectCurrent(name, false, "1.19")
 }
 
 func inspectExecProcessConfig(e *exec.Config) *backend.ExecProcessConfig {

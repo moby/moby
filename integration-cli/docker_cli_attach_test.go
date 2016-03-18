@@ -158,5 +158,5 @@ func (s *DockerSuite) TestAttachPausedContainer(c *check.C) {
 	dockerCmd(c, "pause", "test")
 	out, _, err := dockerCmdWithError("attach", "test")
 	c.Assert(err, checker.NotNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "You cannot attach to a paused container, unpause it first")
+	c.Assert(out, checker.Contains, "You can only attach to a running container")
 }

@@ -21,7 +21,7 @@ func (daemon *Daemon) ContainerStop(name string, seconds int) error {
 	if err != nil {
 		return err
 	}
-	if !container.IsRunning() {
+	if !container.IsRunning() && !container.IsPaused() && !container.IsRestarting() {
 		err := fmt.Errorf("Container %s is already stopped", name)
 		return errors.NewErrorWithStatusCode(err, http.StatusNotModified)
 	}
@@ -37,7 +37,7 @@ func (daemon *Daemon) ContainerStop(name string, seconds int) error {
 // for the initial signal forever. If the container is not running Stop returns
 // immediately.
 func (daemon *Daemon) containerStop(container *container.Container, seconds int) error {
-	if !container.IsRunning() {
+	if !container.IsRunning() && !container.IsPaused() && !container.IsRestarting() {
 		return nil
 	}
 

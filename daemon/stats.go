@@ -28,7 +28,7 @@ func (daemon *Daemon) ContainerStats(prefixOrName string, config *backend.Contai
 	}
 
 	// If the container is not running and requires no stream, return an empty stats.
-	if !container.IsRunning() && !config.Stream {
+	if !container.IsRunningLocking() && !container.IsPausedLocking() && !config.Stream {
 		return json.NewEncoder(config.OutStream).Encode(&types.Stats{})
 	}
 

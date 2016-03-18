@@ -58,11 +58,12 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 		}
 	}()
 
-	if container.RemovalInProgress || container.Dead {
+	if container.RemovalInProgress || container.IsDead() {
 		return errCannotUpdate(container.ID, fmt.Errorf("Container is marked for removal and cannot be \"update\"."))
 	}
 
-	if container.IsRunning() && hostConfig.KernelMemory != 0 {
+	if (container.IsRunningLocking() || container.IsPausedLocking() || container.IsRestartingLocking()) &&
+		hostConfig.KernelMemory != 0 {
 		return errCannotUpdate(container.ID, fmt.Errorf("Can not update kernel memory to a running container, please stop it first."))
 	}
 
@@ -83,7 +84,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 	// resources will be updated when the container is started again.
 	// If container is running (including paused), we need to update configs
 	// to the real world.
-	if container.IsRunning() && !container.IsRestarting() {
+	if container.IsRunningLocking() || container.IsPausedLocking() {
 		if err := daemon.execDriver.Update(container.Command); err != nil {
 			restoreConfig = true
 			return errCannotUpdate(container.ID, err)

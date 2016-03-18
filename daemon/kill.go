@@ -59,11 +59,11 @@ func (daemon *Daemon) killWithSignal(container *container.Container, sig int) er
 	defer container.Unlock()
 
 	// We could unpause the container for them rather than returning this error
-	if container.Paused {
+	if container.IsPaused() {
 		return fmt.Errorf("Container %s is paused. Unpause the container before stopping", container.ID)
 	}
 
-	if !container.Running {
+	if !container.IsRunning() && !container.IsRestarting() {
 		return errNotRunning{container.ID}
 	}
 
@@ -72,7 +72,7 @@ func (daemon *Daemon) killWithSignal(container *container.Container, sig int) er
 	// if the container is currently restarting we do not need to send the signal
 	// to the process.  Telling the monitor that it should exit on it's next event
 	// loop is enough
-	if container.Restarting {
+	if container.IsRestarting() {
 		return nil
 	}
 
@@ -89,7 +89,9 @@ func (daemon *Daemon) killWithSignal(container *container.Container, sig int) er
 
 // Kill forcefully terminates a container.
 func (daemon *Daemon) Kill(container *container.Container) error {
-	if !container.IsRunning() {
+	if !container.IsRunningLocking() &&
+		!container.IsPausedLocking() &&
+		!container.IsRestartingLocking() {
 		return errNotRunning{container.ID}
 	}
 
@@ -109,9 +111,14 @@ func (daemon *Daemon) Kill(container *container.Container) error {
 			return nil
 		}
 
-		if container.IsRunning() {
+		if container.IsRunningLocking() ||
+			container.IsPausedLocking() ||
+			container.IsRestartingLocking() {
 			container.WaitStop(2 * time.Second)
-			if container.IsRunning() {
+
+			if container.IsRunningLocking() ||
+				container.IsPausedLocking() ||
+				container.IsRestartingLocking() {
 				return err
 			}
 		}
