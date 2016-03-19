@@ -27,3 +27,18 @@ echo "Created binary: $DEST/$BINARY_FULLNAME"
 ln -sf "$BINARY_FULLNAME" "$DEST/docker$BINARY_EXTENSION"
 
 hash_files "$DEST/$BINARY_FULLNAME"
+
+# Add nested executables to bundle dir so we have complete set of
+# them available, but only if the native OS/ARCH is the same as the
+# OS/ARCH of the build target
+if [ "$(go env GOOS)/$(go env GOARCH)" == "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
+    echo "Copying nested executables into $DEST"
+    (set -x
+    if [ -x /usr/local/bin/runc ]; then
+        cp /usr/local/bin/runc $DEST/
+        cp /usr/local/bin/ctr $DEST/
+        cp /usr/local/bin/containerd $DEST/
+        cp /usr/local/bin/containerd-shim $DEST/
+    fi
+    )
+fi
