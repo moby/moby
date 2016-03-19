@@ -76,7 +76,7 @@ Some simple rules to ensure quick merge:
 You are heavily encouraged to first discuss what you want to do. You can do so on the irc channel, or by opening an issue that clearly describes the use case you want to fulfill, or the problem you are trying to solve.
 
 If this is a major new feature, you should then submit a proposal that describes your technical solution and reasoning.
-If you did discuss it first, this will likely be greenlighted very fast. It's advisable to address all feedback on this proposal before starting actual work. 
+If you did discuss it first, this will likely be greenlighted very fast. It's advisable to address all feedback on this proposal before starting actual work.
 
 Then you should submit your implementation, clearly linking to the issue (and possible proposal).
 
@@ -90,7 +90,7 @@ It's mandatory to:
 
 Complying to these simple rules will greatly accelerate the review process, and will ensure you have a pleasant experience in contributing code to the Registry.
 
-Have a look at a great, successful contribution: the [Ceph driver PR](https://github.com/docker/distribution/pull/443)
+Have a look at a great, successful contribution: the [Swift driver PR](https://github.com/docker/distribution/pull/493)
 
 ## Coding Style
 

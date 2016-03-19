@@ -15,9 +15,15 @@ import (
 	"github.com/docker/distribution/registry/client/transport"
 )
 
-// ErrNoBasicAuthCredentials is returned if a request can't be authorized with
-// basic auth due to lack of credentials.
-var ErrNoBasicAuthCredentials = errors.New("no basic auth credentials")
+var (
+	// ErrNoBasicAuthCredentials is returned if a request can't be authorized with
+	// basic auth due to lack of credentials.
+	ErrNoBasicAuthCredentials = errors.New("no basic auth credentials")
+
+	// ErrNoToken is returned if a request is successful but the body does not
+	// contain an authorization token.
+	ErrNoToken = errors.New("authorization server did not include a token in the response")
+)
 
 const defaultClientID = "registry-client"
 
@@ -77,9 +83,7 @@ func (ea *endpointAuthorizer) ModifyRequest(req *http.Request) error {
 		Path:   req.URL.Path[:v2Root+4],
 	}
 
-	pingEndpoint := ping.String()
-
-	challenges, err := ea.challenges.GetChallenges(pingEndpoint)
+	challenges, err := ea.challenges.GetChallenges(ping)
 	if err != nil {
 		return err
 	}
@@ -404,7 +408,7 @@ func (th *tokenHandler) fetchTokenWithBasicAuth(realm *url.URL, service string, 
 	}
 
 	if tr.Token == "" {
-		return "", time.Time{}, errors.New("authorization server did not include a token in the response")
+		return "", time.Time{}, ErrNoToken
 	}
 
 	if tr.ExpiresIn < minimumTokenLifetimeSeconds {
