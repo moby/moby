@@ -4230,8 +4230,11 @@ func (s *DockerSuite) TestRunAttachFailedNoLeak(c *check.C) {
 	// Wait until container is fully up and running
 	c.Assert(waitRun("test"), check.IsNil)
 
-	out, _, err := dockerCmdWithError("run", "-p", "8000:8000", "busybox", "true")
-	c.Assert(err, checker.NotNil)
+	out, _, err := dockerCmdWithError("run", "--name=fail", "-p", "8000:8000", "busybox", "true")
+	// We will need the following `inspect` to diagnose the issue if test fails (#21247)
+	out1, err1 := dockerCmd(c, "inspect", "--format", "{{json .State}}", "test")
+	out2, err2 := dockerCmd(c, "inspect", "--format", "{{json .State}}", "fail")
+	c.Assert(err, checker.NotNil, check.Commentf("Command should have failed but succeeded with: %s\nContainer 'test' [%+v]: %s\nContainer 'fail' [%+v]: %s", out, err1, out1, err2, out2))
 	// check for windows error as well
 	// TODO Windows Post TP5. Fix the error message string
 	c.Assert(strings.Contains(string(out), "port is already allocated") ||
