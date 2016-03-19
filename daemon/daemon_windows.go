@@ -310,25 +310,24 @@ func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error
 	return nil
 }
 
+// runasHyperVContainer returns true if we are going to run as a Hyper-V container
+func (daemon *Daemon) runAsHyperVContainer(container *container.Container) bool {
+	if container.HostConfig.Isolation.IsDefault() {
+		// Container is set to use the default, so take the default from the daemon configuration
+		return daemon.defaultIsolation.IsHyperV()
+	}
+
+	// Container is requesting an isolation mode. Honour it.
+	return container.HostConfig.Isolation.IsHyperV()
+
+}
+
 // conditionalMountOnStart is a platform specific helper function during the
 // container start to call mount.
 func (daemon *Daemon) conditionalMountOnStart(container *container.Container) error {
-
-	// Are we going to run as a Hyper-V container?
-	hv := false
-	if container.HostConfig.Isolation.IsDefault() {
-		// Container is set to use the default, so take the default from the daemon configuration
-		hv = daemon.defaultIsolation.IsHyperV()
-	} else {
-		// Container is requesting an isolation mode. Honour it.
-		hv = container.HostConfig.Isolation.IsHyperV()
-	}
-
 	// We do not mount if a Hyper-V container
-	if !hv {
-		if err := daemon.Mount(container); err != nil {
-			return err
-		}
+	if !daemon.runAsHyperVContainer(container) {
+		return daemon.Mount(container)
 	}
 	return nil
 }
@@ -337,7 +336,7 @@ func (daemon *Daemon) conditionalMountOnStart(container *container.Container) er
 // during the cleanup of a container to unmount.
 func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container) error {
 	// We do not unmount if a Hyper-V container
-	if !container.HostConfig.Isolation.IsHyperV() {
+	if !daemon.runAsHyperVContainer(container) {
 		return daemon.Unmount(container)
 	}
 	return nil
