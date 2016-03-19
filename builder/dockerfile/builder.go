@@ -142,6 +142,9 @@ func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
 
 		if _, isTagged := ref.(reference.NamedTagged); !isTagged {
 			ref, err = reference.WithTag(ref, reference.DefaultTag)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		nameWithTag := ref.String()

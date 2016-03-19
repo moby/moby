@@ -883,7 +883,6 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 			}
 			return "", "", fmt.Errorf("Error during %q user creation: %v", defaultRemappedID, err)
 		}
-		userID = luser.Uid
 		username = luser.Name
 		if len(idparts) == 1 {
 			// we only have a string username, and no group specified; look up gid from username as group
@@ -909,11 +908,9 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 			groupname = lgrp.Name
 		} else {
 			// not a number; attempt a lookup
-			group, err := user.LookupGroup(idparts[1])
-			if err != nil {
-				return "", "", fmt.Errorf("Error during gid lookup for %q: %v", idparts[1], err)
+			if _, err := user.LookupGroup(idparts[1]); err != nil {
+				return "", "", fmt.Errorf("Error during groupname lookup for %q: %v", idparts[1], err)
 			}
-			groupID = group.Gid
 			groupname = idparts[1]
 		}
 	}
