@@ -1,4 +1,4 @@
-// +build linux freebsd darwin
+// +build linux freebsd darwin openbsd
 
 package layer
 
