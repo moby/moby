@@ -58,8 +58,7 @@ type natSettings struct {
 
 type networkConnection struct {
 	NetworkName string
-	//EnableNat bool
-	Nat natSettings
+	Nat         natSettings
 }
 type networkSettings struct {
 	MacAddress string
@@ -77,7 +76,7 @@ type mappedDir struct {
 	ReadOnly      bool
 }
 
-// TODO Windows RTM: @darrenstahlmsft Add ProcessorCount
+// TODO Windows: @darrenstahlmsft Add ProcessorCount
 type containerInit struct {
 	SystemType              string      // HCS requires this to be hard-coded to "Container"
 	Name                    string      // Name of the container. We use the docker ID.
@@ -153,10 +152,13 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 		}
 	}
 
-	// TODO Ultimately need to set the path from HvRuntime.ImagePath
 	cu.HvPartition = (spec.Windows.HvRuntime != nil)
+
+	// TODO Windows @jhowardmsft. FIXME post TP5.
 	//	if spec.Windows.HvRuntime != nil {
-	//		cu.HvPartition = len(spec.Windows.HvRuntime.ImagePath) > 0
+	//		if spec.WIndows.HVRuntime.ImagePath != "" {
+	//			cu.TBD = spec.Windows.HvRuntime.ImagePath
+	//		}
 	//	}
 
 	if cu.HvPartition {
@@ -498,73 +500,12 @@ func (clnt *client) Stats(containerID string) (*Stats, error) {
 
 // Restore is the handler for restoring a container
 func (clnt *client) Restore(containerID string, unusedOnWindows ...CreateOption) error {
-
+	// TODO Windows: Implement this. For now, just tell the backend the container exited.
 	logrus.Debugf("lcd Restore %s", containerID)
 	return clnt.backend.StateChanged(containerID, StateInfo{
 		State:    StateExit,
 		ExitCode: 1 << 31,
 	})
-
-	//	var err error
-	//	clnt.lock(containerID)
-	//	defer clnt.unlock(containerID)
-
-	//	logrus.Debugf("restore container %s state %s", containerID)
-
-	//	if _, err := clnt.getContainer(containerID); err == nil {
-	//		return fmt.Errorf("container %s is aleady active", containerID)
-	//	}
-
-	//	defer func() {
-	//		if err != nil {
-	//			clnt.deleteContainer(containerID)
-	//		}
-	//	}()
-
-	//	// ====> BUGBUG Where does linux get the pid from				systemPid:    pid,
-	//	container := &container{
-	//		containerCommon: containerCommon{
-	//			process: process{
-	//				processCommon: processCommon{
-	//					containerID:  containerID,
-	//					client:       clnt,
-	//					friendlyName: InitFriendlyName,
-	//				},
-	//			},
-	//			processes: make(map[string]*process),
-	//		},
-	//	}
-
-	//	container.systemPid = systemPid(cont)
-
-	//	var terminal bool
-	//	for _, p := range cont.Processes {
-	//		if p.Pid == InitFriendlyName {
-	//			terminal = p.Terminal
-	//		}
-	//	}
-
-	//	iopipe, err := container.openFifos(terminal)
-	//	if err != nil {
-	//		return err
-	//	}
-
-	//	if err := clnt.backend.AttachStreams(containerID, *iopipe); err != nil {
-	//		return err
-	//	}
-
-	//	clnt.appendContainer(container)
-
-	//	err = clnt.backend.StateChanged(containerID, StateInfo{
-	//		State: StateRestore,
-	//		Pid:   container.systemPid,
-	//	})
-
-	//	if err != nil {
-	//		return err
-	//	}
-
-	//	return nil
 }
 
 // GetPidsForContainers is not implemented on Windows.
@@ -572,6 +513,7 @@ func (clnt *client) GetPidsForContainer(containerID string) ([]int, error) {
 	return nil, errors.New("GetPidsForContainer: GetPidsForContainer() not implemented")
 }
 
+// UpdateResources updates resources for a running container.
 func (clnt *client) UpdateResources(containerID string, resources Resources) error {
 	// Updating resource isn't supported on Windows
 	// but we should return nil for enabling updating container
