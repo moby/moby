@@ -70,9 +70,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
-	lntypes "github.com/docker/libnetwork/types"
 	"github.com/docker/libtrust"
-	"github.com/opencontainers/runc/libcontainer"
 	"golang.org/x/net/context"
 )
 
@@ -1528,50 +1526,40 @@ func (daemon *Daemon) GetContainerStats(container *container.Container) (*types.
 		return nil, err
 	}
 
-	// Retrieve the nw statistics from libnetwork and inject them in the Stats
-	var nwStats []*libcontainer.NetworkInterface
-	if nwStats, err = daemon.getNetworkStats(container); err != nil {
+	if stats.Networks, err = daemon.getNetworkStats(container); err != nil {
 		return nil, err
-	}
-
-	stats.Networks = make(map[string]types.NetworkStats)
-	for _, iface := range nwStats {
-		// For API Version >= 1.21, the original data of network will
-		// be returned.
-		stats.Networks[iface.Name] = types.NetworkStats{
-			RxBytes:   iface.RxBytes,
-			RxPackets: iface.RxPackets,
-			RxErrors:  iface.RxErrors,
-			RxDropped: iface.RxDropped,
-			TxBytes:   iface.TxBytes,
-			TxPackets: iface.TxPackets,
-			TxErrors:  iface.TxErrors,
-			TxDropped: iface.TxDropped,
-		}
 	}
 
 	return stats, nil
 }
 
-func (daemon *Daemon) getNetworkStats(c *container.Container) ([]*libcontainer.NetworkInterface, error) {
-	var list []*libcontainer.NetworkInterface
-
+func (daemon *Daemon) getNetworkStats(c *container.Container) (map[string]types.NetworkStats, error) {
 	sb, err := daemon.netController.SandboxByID(c.NetworkSettings.SandboxID)
 	if err != nil {
-		return list, err
+		return nil, err
 	}
 
-	stats, err := sb.Statistics()
+	lnstats, err := sb.Statistics()
 	if err != nil {
-		return list, err
+		return nil, err
 	}
 
-	// Convert libnetwork nw stats into libcontainer nw stats
-	for ifName, ifStats := range stats {
-		list = append(list, convertLnNetworkStats(ifName, ifStats))
+	stats := make(map[string]types.NetworkStats)
+	// Convert libnetwork nw stats into engine-api stats
+	for ifName, ifStats := range lnstats {
+		stats[ifName] = types.NetworkStats{
+			RxBytes:   ifStats.RxBytes,
+			RxPackets: ifStats.RxPackets,
+			RxErrors:  ifStats.RxErrors,
+			RxDropped: ifStats.RxDropped,
+			TxBytes:   ifStats.TxBytes,
+			TxPackets: ifStats.TxPackets,
+			TxErrors:  ifStats.TxErrors,
+			TxDropped: ifStats.TxDropped,
+		}
 	}
 
-	return list, nil
+	return stats, nil
 }
 
 // newBaseContainer creates a new container with its initial
@@ -1673,19 +1661,6 @@ func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
 	}
 
 	return nil
-}
-
-func convertLnNetworkStats(name string, stats *lntypes.InterfaceStatistics) *libcontainer.NetworkInterface {
-	n := &libcontainer.NetworkInterface{Name: name}
-	n.RxBytes = stats.RxBytes
-	n.RxPackets = stats.RxPackets
-	n.RxErrors = stats.RxErrors
-	n.RxDropped = stats.RxDropped
-	n.TxBytes = stats.TxBytes
-	n.TxPackets = stats.TxPackets
-	n.TxErrors = stats.TxErrors
-	n.TxDropped = stats.TxDropped
-	return n
 }
 
 func validateID(id string) error {
