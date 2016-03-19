@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/volume"
 	containertypes "github.com/docker/engine-api/types/container"
 )
@@ -23,6 +22,12 @@ type Container struct {
 	// Fields below here are platform specific.
 }
 
+// ExitStatus provides exit reasons for a container.
+type ExitStatus struct {
+	// The exit code with which the container exited.
+	ExitCode int
+}
+
 // CreateDaemonEnvironment creates a new environment variable slice for this container.
 func (container *Container) CreateDaemonEnvironment(linkedEnv []string) []string {
 	// On Windows, nothing to link. Just return the container environment.
@@ -35,7 +40,7 @@ func (container *Container) UnmountIpcMounts(unmount func(pth string) error) {
 }
 
 // IpcMounts returns the list of Ipc related mounts.
-func (container *Container) IpcMounts() []execdriver.Mount {
+func (container *Container) IpcMounts() []Mount {
 	return nil
 }
 
@@ -45,7 +50,7 @@ func (container *Container) UnmountVolumes(forceSyscall bool, volumeEventLog fun
 }
 
 // TmpfsMounts returns the list of tmpfs mounts
-func (container *Container) TmpfsMounts() []execdriver.Mount {
+func (container *Container) TmpfsMounts() []Mount {
 	return nil
 }
 

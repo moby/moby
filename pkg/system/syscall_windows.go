@@ -3,6 +3,7 @@ package system
 import (
 	"fmt"
 	"syscall"
+	"unsafe"
 )
 
 // OSVersion is a wrapper for Windows version information
@@ -33,4 +34,27 @@ func GetOSVersion() (OSVersion, error) {
 // the unmount syscall. Not supported on Windows
 func Unmount(dest string) error {
 	return nil
+}
+
+// CommandLineToArgv wraps the Windows syscall to turn a commandline into an argument array.
+func CommandLineToArgv(commandLine string) ([]string, error) {
+	var argc int32
+
+	argsPtr, err := syscall.UTF16PtrFromString(commandLine)
+	if err != nil {
+		return nil, err
+	}
+
+	argv, err := syscall.CommandLineToArgv(argsPtr, &argc)
+	if err != nil {
+		return nil, err
+	}
+	defer syscall.LocalFree(syscall.Handle(uintptr(unsafe.Pointer(argv))))
+
+	newArgs := make([]string, argc)
+	for i, v := range (*argv)[:argc] {
+		newArgs[i] = string(syscall.UTF16ToString((*v)[:]))
+	}
+
+	return newArgs, nil
 }

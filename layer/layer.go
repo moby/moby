@@ -169,6 +169,7 @@ type Store interface {
 
 	CreateRWLayer(id string, parent ChainID, mountLabel string, initFunc MountInit) (RWLayer, error)
 	GetRWLayer(id string) (RWLayer, error)
+	GetMountID(id string) (string, error)
 	ReleaseRWLayer(RWLayer) ([]Metadata, error)
 
 	Cleanup() error

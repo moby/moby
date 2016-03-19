@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -373,57 +372,6 @@ func (s *DockerSuite) TestLinksPingLinkedContainersOnRename(c *check.C) {
 	dockerCmd(c, "exec", "container2", "ping", "-c", "1", "alias1", "-W", "1")
 	dockerCmd(c, "rename", "container1", "container_new")
 	dockerCmd(c, "exec", "container2", "ping", "-c", "1", "alias1", "-W", "1")
-}
-
-func (s *DockerSuite) TestExecDir(c *check.C) {
-	// TODO Windows CI. This requires some work to port as it uses execDriverPath
-	// which is currently (and incorrectly) hard coded as a string assuming
-	// the daemon is running Linux :(
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
-
-	out, _ := runSleepingContainer(c, "-d")
-	id := strings.TrimSpace(out)
-
-	execDir := filepath.Join(execDriverPath, id)
-	stateFile := filepath.Join(execDir, "state.json")
-
-	{
-		fi, err := os.Stat(execDir)
-		c.Assert(err, checker.IsNil)
-		if !fi.IsDir() {
-			c.Fatalf("%q must be a directory", execDir)
-		}
-		fi, err = os.Stat(stateFile)
-		c.Assert(err, checker.IsNil)
-	}
-
-	dockerCmd(c, "stop", id)
-	{
-		_, err := os.Stat(execDir)
-		c.Assert(err, checker.NotNil)
-		c.Assert(err, checker.NotNil, check.Commentf("Exec directory %q exists for removed container!", execDir))
-		if !os.IsNotExist(err) {
-			c.Fatalf("Error should be about non-existing, got %s", err)
-		}
-	}
-	dockerCmd(c, "start", id)
-	{
-		fi, err := os.Stat(execDir)
-		c.Assert(err, checker.IsNil)
-		if !fi.IsDir() {
-			c.Fatalf("%q must be a directory", execDir)
-		}
-		fi, err = os.Stat(stateFile)
-		c.Assert(err, checker.IsNil)
-	}
-	dockerCmd(c, "rm", "-f", id)
-	{
-		_, err := os.Stat(execDir)
-		c.Assert(err, checker.NotNil, check.Commentf("Exec directory %q exists for removed container!", execDir))
-		if !os.IsNotExist(err) {
-			c.Fatalf("Error should be about non-existing, got %s", err)
-		}
-	}
 }
 
 func (s *DockerSuite) TestRunMutableNetworkFiles(c *check.C) {

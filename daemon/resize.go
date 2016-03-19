@@ -1,6 +1,10 @@
 package daemon
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/docker/docker/libcontainerd"
+)
 
 // ContainerResize changes the size of the TTY of the process running
 // in the container with the given name to the given height and width.
@@ -14,7 +18,7 @@ func (daemon *Daemon) ContainerResize(name string, height, width int) error {
 		return errNotRunning{container.ID}
 	}
 
-	if err = container.Resize(height, width); err == nil {
+	if err = daemon.containerd.Resize(container.ID, libcontainerd.InitFriendlyName, width, height); err == nil {
 		attributes := map[string]string{
 			"height": fmt.Sprintf("%d", height),
 			"width":  fmt.Sprintf("%d", width),
@@ -28,10 +32,9 @@ func (daemon *Daemon) ContainerResize(name string, height, width int) error {
 // running in the exec with the given name to the given height and
 // width.
 func (daemon *Daemon) ContainerExecResize(name string, height, width int) error {
-	ExecConfig, err := daemon.getExecConfig(name)
+	ec, err := daemon.getExecConfig(name)
 	if err != nil {
 		return err
 	}
-
-	return ExecConfig.Resize(height, width)
+	return daemon.containerd.Resize(ec.ContainerID, ec.ID, width, height)
 }

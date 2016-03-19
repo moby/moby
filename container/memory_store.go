@@ -5,7 +5,7 @@ import "sync"
 // memoryStore implements a Store in memory.
 type memoryStore struct {
 	s map[string]*Container
-	sync.Mutex
+	sync.RWMutex
 }
 
 // NewMemoryStore initializes a new memory store.
@@ -25,9 +25,9 @@ func (c *memoryStore) Add(id string, cont *Container) {
 
 // Get returns a container from the store by id.
 func (c *memoryStore) Get(id string) *Container {
-	c.Lock()
+	c.RLock()
 	res := c.s[id]
-	c.Unlock()
+	c.RUnlock()
 	return res
 }
 
@@ -42,26 +42,26 @@ func (c *memoryStore) Delete(id string) {
 // The containers are ordered by creation date.
 func (c *memoryStore) List() []*Container {
 	containers := new(History)
-	c.Lock()
+	c.RLock()
 	for _, cont := range c.s {
 		containers.Add(cont)
 	}
-	c.Unlock()
+	c.RUnlock()
 	containers.sort()
 	return *containers
 }
 
 // Size returns the number of containers in the store.
 func (c *memoryStore) Size() int {
-	c.Lock()
-	defer c.Unlock()
+	c.RLock()
+	defer c.RUnlock()
 	return len(c.s)
 }
 
 // First returns the first container found in the store by a given filter.
 func (c *memoryStore) First(filter StoreFilter) *Container {
-	c.Lock()
-	defer c.Unlock()
+	c.RLock()
+	defer c.RUnlock()
 	for _, cont := range c.s {
 		if filter(cont) {
 			return cont
@@ -72,9 +72,10 @@ func (c *memoryStore) First(filter StoreFilter) *Container {
 
 // ApplyAll calls the reducer function with every container in the store.
 // This operation is asyncronous in the memory store.
+// NOTE: Modifications to the store MUST NOT be done by the StoreReducer.
 func (c *memoryStore) ApplyAll(apply StoreReducer) {
-	c.Lock()
-	defer c.Unlock()
+	c.RLock()
+	defer c.RUnlock()
 
 	wg := new(sync.WaitGroup)
 	for _, cont := range c.s {

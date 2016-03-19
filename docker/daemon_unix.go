@@ -11,10 +11,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	apiserver "github.com/docker/docker/api/server"
 	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/system"
-
-	_ "github.com/docker/docker/daemon/execdriver/native"
 )
 
 const defaultDaemonConfigFile = "/etc/docker/daemon.json"
@@ -64,4 +63,16 @@ func setupConfigReloadTrap(configFile string, flags *mflag.FlagSet, reload func(
 			}
 		}
 	}()
+}
+
+func (cli *DaemonCli) getPlatformRemoteOptions() []libcontainerd.RemoteOption {
+	opts := []libcontainerd.RemoteOption{
+		libcontainerd.WithDebugLog(cli.Config.Debug),
+	}
+	if cli.Config.ContainerdAddr != "" {
+		opts = append(opts, libcontainerd.WithRemoteAddr(cli.Config.ContainerdAddr))
+	} else {
+		opts = append(opts, libcontainerd.WithStartDaemon(true))
+	}
+	return opts
 }

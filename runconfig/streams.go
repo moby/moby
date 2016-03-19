@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"strings"
+	"sync"
 
 	"github.com/docker/docker/pkg/broadcaster"
 	"github.com/docker/docker/pkg/ioutils"
@@ -20,6 +21,7 @@ import (
 // copied and delivered to all StdoutPipe and StderrPipe consumers, using
 // a kind of "broadcaster".
 type StreamConfig struct {
+	sync.WaitGroup
 	stdout    *broadcaster.Unbuffered
 	stderr    *broadcaster.Unbuffered
 	stdin     io.ReadCloser

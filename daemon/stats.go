@@ -6,7 +6,6 @@ import (
 	"runtime"
 
 	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/engine-api/types"
@@ -42,12 +41,9 @@ func (daemon *Daemon) ContainerStats(prefixOrName string, config *backend.Contai
 
 	var preCPUStats types.CPUStats
 	getStatJSON := func(v interface{}) *types.StatsJSON {
-		update := v.(*execdriver.ResourceStats)
-		ss := convertStatsToAPITypes(update.Stats)
+		ss := v.(*types.StatsJSON)
 		ss.PreCPUStats = preCPUStats
-		ss.MemoryStats.Limit = uint64(update.MemoryLimit)
-		ss.Read = update.Read
-		ss.CPUStats.SystemUsage = update.SystemUsage
+		// ss.MemoryStats.Limit = uint64(update.MemoryLimit)
 		preCPUStats = ss.CPUStats
 		return ss
 	}

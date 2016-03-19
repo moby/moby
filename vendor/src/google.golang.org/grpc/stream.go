@@ -149,7 +149,7 @@ type clientStream struct {
 
 	tracing bool // set to EnableTracing when the clientStream is created.
 
-	mu sync.Mutex
+	mu     sync.Mutex
 	closed bool
 	// trInfo.tr is set when the clientStream is created (if EnableTracing is true),
 	// and is set to nil when the clientStream's finish method is called.

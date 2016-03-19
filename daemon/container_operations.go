@@ -48,11 +48,10 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container, n libn
 		sboxOptions = append(sboxOptions, libnetwork.OptionUseDefaultSandbox())
 		sboxOptions = append(sboxOptions, libnetwork.OptionOriginHostsPath("/etc/hosts"))
 		sboxOptions = append(sboxOptions, libnetwork.OptionOriginResolvConfPath("/etc/resolv.conf"))
-	} else if daemon.execDriver.SupportsHooks() {
-		// OptionUseExternalKey is mandatory for userns support.
-		// But optional for non-userns support
-		sboxOptions = append(sboxOptions, libnetwork.OptionUseExternalKey())
 	}
+	// OptionUseExternalKey is mandatory for userns support.
+	// But optional for non-userns support
+	sboxOptions = append(sboxOptions, libnetwork.OptionUseExternalKey())
 
 	container.HostsPath, err = container.GetRootResourcePath("hosts")
 	if err != nil {

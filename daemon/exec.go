@@ -11,10 +11,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
-	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/errors"
+	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/pools"
-	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/strslice"
@@ -106,33 +105,31 @@ func (d *Daemon) ContainerExecCreate(config *types.ExecConfig) (string, error) {
 		}
 	}
 
-	processConfig := &execdriver.ProcessConfig{
-		CommonProcessConfig: execdriver.CommonProcessConfig{
-			Tty:        config.Tty,
-			Entrypoint: entrypoint,
-			Arguments:  args,
-		},
-	}
-	setPlatformSpecificExecProcessConfig(config, container, processConfig)
-
 	execConfig := exec.NewConfig()
 	execConfig.OpenStdin = config.AttachStdin
 	execConfig.OpenStdout = config.AttachStdout
 	execConfig.OpenStderr = config.AttachStderr
-	execConfig.ProcessConfig = processConfig
 	execConfig.ContainerID = container.ID
 	execConfig.DetachKeys = keys
+	execConfig.Entrypoint = entrypoint
+	execConfig.Args = args
+	execConfig.Tty = config.Tty
+	execConfig.Privileged = config.Privileged
+	execConfig.User = config.User
+	if len(execConfig.User) == 0 {
+		execConfig.User = container.Config.User
+	}
 
 	d.registerExecCommand(container, execConfig)
 
-	d.LogContainerEvent(container, "exec_create: "+execConfig.ProcessConfig.Entrypoint+" "+strings.Join(execConfig.ProcessConfig.Arguments, " "))
+	d.LogContainerEvent(container, "exec_create: "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " "))
 
 	return execConfig.ID, nil
 }
 
 // ContainerExecStart starts a previously set up exec instance. The
 // std streams are set up.
-func (d *Daemon) ContainerExecStart(name string, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) error {
+func (d *Daemon) ContainerExecStart(name string, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) (err error) {
 	var (
 		cStdin           io.ReadCloser
 		cStdout, cStderr io.Writer
@@ -155,11 +152,18 @@ func (d *Daemon) ContainerExecStart(name string, stdin io.ReadCloser, stdout io.
 		return fmt.Errorf("Error: Exec command %s is already running", ec.ID)
 	}
 	ec.Running = true
+	defer func() {
+		if err != nil {
+			ec.Running = false
+			exitCode := 126
+			ec.ExitCode = &exitCode
+		}
+	}()
 	ec.Unlock()
 
 	c := d.containers.Get(ec.ContainerID)
 	logrus.Debugf("starting exec command %s in container %s", ec.ID, c.ID)
-	d.LogContainerEvent(c, "exec_start: "+ec.ProcessConfig.Entrypoint+" "+strings.Join(ec.ProcessConfig.Arguments, " "))
+	d.LogContainerEvent(c, "exec_start: "+ec.Entrypoint+" "+strings.Join(ec.Args, " "))
 
 	if ec.OpenStdin && stdin != nil {
 		r, w := io.Pipe()
@@ -183,56 +187,26 @@ func (d *Daemon) ContainerExecStart(name string, stdin io.ReadCloser, stdout io.
 		ec.NewNopInputPipe()
 	}
 
-	attachErr := container.AttachStreams(context.Background(), ec.StreamConfig, ec.OpenStdin, true, ec.ProcessConfig.Tty, cStdin, cStdout, cStderr, ec.DetachKeys)
+	p := libcontainerd.Process{
+		Args:     append([]string{ec.Entrypoint}, ec.Args...),
+		Terminal: ec.Tty,
+	}
 
-	execErr := make(chan error)
-
-	// Note, the ExecConfig data will be removed when the container
-	// itself is deleted.  This allows us to query it (for things like
-	// the exitStatus) even after the cmd is done running.
-
-	go func() {
-		execErr <- d.containerExec(c, ec)
-	}()
-
-	select {
-	case err := <-attachErr:
-		if err != nil {
-			return fmt.Errorf("attach failed with error: %v", err)
-		}
+	if err := execSetPlatformOpt(c, ec, &p); err != nil {
 		return nil
-	case err := <-execErr:
-		if aErr := <-attachErr; aErr != nil && err == nil {
-			return fmt.Errorf("attach failed with error: %v", aErr)
-		}
-		if err == nil {
-			return nil
-		}
-
-		// Maybe the container stopped while we were trying to exec
-		if !c.IsRunning() {
-			return fmt.Errorf("container stopped while running exec: %s", c.ID)
-		}
-		return fmt.Errorf("Cannot run exec command %s in container %s: %s", ec.ID, c.ID, err)
-	}
-}
-
-// Exec calls the underlying exec driver to run
-func (d *Daemon) Exec(c *container.Container, execConfig *exec.Config, pipes *execdriver.Pipes, startCallback execdriver.DriverCallback) (int, error) {
-	hooks := execdriver.Hooks{
-		Start: startCallback,
-	}
-	exitStatus, err := d.execDriver.Exec(c.Command, execConfig.ProcessConfig, pipes, hooks)
-
-	// On err, make sure we don't leave ExitCode at zero
-	if err != nil && exitStatus == 0 {
-		exitStatus = 128
 	}
 
-	execConfig.ExitCode = &exitStatus
-	execConfig.Running = false
+	attachErr := container.AttachStreams(context.Background(), ec.StreamConfig, ec.OpenStdin, true, ec.Tty, cStdin, cStdout, cStderr, ec.DetachKeys)
 
-	return exitStatus, err
+	if err := d.containerd.AddProcess(c.ID, name, p); err != nil {
+		return err
+	}
+
+	err = <-attachErr
+	if err != nil {
+		return fmt.Errorf("attach failed with error: %v", err)
+	}
+	return nil
 }
 
 // execCommandGC runs a ticker to clean up the daemon references
@@ -269,53 +243,4 @@ func (d *Daemon) containerExecIds() map[string]struct{} {
 		}
 	}
 	return ids
-}
-
-func (d *Daemon) containerExec(container *container.Container, ec *exec.Config) error {
-	container.Lock()
-	defer container.Unlock()
-
-	callback := func(processConfig *execdriver.ProcessConfig, pid int, chOOM <-chan struct{}) error {
-		if processConfig.Tty {
-			// The callback is called after the process Start()
-			// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlave
-			// which we close here.
-			if c, ok := processConfig.Stdout.(io.Closer); ok {
-				c.Close()
-			}
-		}
-		ec.Close()
-		return nil
-	}
-
-	// We use a callback here instead of a goroutine and an chan for
-	// synchronization purposes
-	cErr := promise.Go(func() error { return d.monitorExec(container, ec, callback) })
-	return ec.Wait(cErr)
-}
-
-func (d *Daemon) monitorExec(container *container.Container, execConfig *exec.Config, callback execdriver.DriverCallback) error {
-	pipes := execdriver.NewPipes(execConfig.Stdin(), execConfig.Stdout(), execConfig.Stderr(), execConfig.OpenStdin)
-	exitCode, err := d.Exec(container, execConfig, pipes, callback)
-	if err != nil {
-		logrus.Errorf("Error running command in existing container %s: %s", container.ID, err)
-	}
-	logrus.Debugf("Exec task in container %s exited with code %d", container.ID, exitCode)
-
-	if err := execConfig.CloseStreams(); err != nil {
-		logrus.Errorf("%s: %s", container.ID, err)
-	}
-
-	if execConfig.ProcessConfig.Terminal != nil {
-		if err := execConfig.WaitResize(); err != nil {
-			logrus.Errorf("Error waiting for resize: %v", err)
-		}
-		if err := execConfig.ProcessConfig.Terminal.Close(); err != nil {
-			logrus.Errorf("Error closing terminal while running in container %s: %s", container.ID, err)
-		}
-	}
-	// remove the exec command from the container's store only and not the
-	// daemon's store so that the exec command can be inspected.
-	container.ExecCommands.Delete(execConfig.ID)
-	return err
 }

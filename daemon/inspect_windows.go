@@ -33,8 +33,8 @@ func (daemon *Daemon) containerInspectPre120(name string) (*types.ContainerJSON,
 
 func inspectExecProcessConfig(e *exec.Config) *backend.ExecProcessConfig {
 	return &backend.ExecProcessConfig{
-		Tty:        e.ProcessConfig.Tty,
-		Entrypoint: e.ProcessConfig.Entrypoint,
-		Arguments:  e.ProcessConfig.Arguments,
+		Tty:        e.Tty,
+		Entrypoint: e.Entrypoint,
+		Arguments:  e.Args,
 	}
 }

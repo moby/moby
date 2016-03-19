@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"net/http"
 	"runtime"
+	"strings"
+	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errors"
+	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/runconfig"
 	containertypes "github.com/docker/engine-api/types/container"
 )
@@ -122,42 +125,34 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 	if err := daemon.initializeNetworking(container); err != nil {
 		return err
 	}
-	linkedEnv, err := daemon.setupLinkedContainers(container)
+
+	spec, err := daemon.createSpec(container)
 	if err != nil {
 		return err
 	}
-	rootUID, rootGID := daemon.GetRemappedUIDGID()
-	if err := container.SetupWorkingDirectory(rootUID, rootGID); err != nil {
-		return err
-	}
-	env := container.CreateDaemonEnvironment(linkedEnv)
-	if err := daemon.populateCommand(container, env); err != nil {
-		return err
-	}
 
-	if !container.HostConfig.IpcMode.IsContainer() && !container.HostConfig.IpcMode.IsHost() {
-		if err := daemon.setupIpcDirs(container); err != nil {
-			return err
+	defer daemon.LogContainerEvent(container, "start") // this is logged even on error
+	if err := daemon.containerd.Create(container.ID, *spec, libcontainerd.WithRestartManager(container.RestartManager(true))); err != nil {
+		// if we receive an internal error from the initial start of a container then lets
+		// return it instead of entering the restart loop
+		// set to 127 for container cmd not found/does not exist)
+		if strings.Contains(err.Error(), "executable file not found") ||
+			strings.Contains(err.Error(), "no such file or directory") ||
+			strings.Contains(err.Error(), "system cannot find the file specified") {
+			container.ExitCode = 127
+			err = fmt.Errorf("Container command not found or does not exist.")
 		}
-	}
+		// set to 126 for container cmd can't be invoked errors
+		if strings.Contains(err.Error(), syscall.EACCES.Error()) {
+			container.ExitCode = 126
+			err = fmt.Errorf("Container command could not be invoked.")
+		}
 
-	mounts, err := daemon.setupMounts(container)
-	if err != nil {
+		container.Reset(false)
 		return err
 	}
-	mounts = append(mounts, container.IpcMounts()...)
-	mounts = append(mounts, container.TmpfsMounts()...)
 
-	container.Command.Mounts = mounts
-	if err := daemon.waitForStart(container); err != nil {
-		return err
-	}
-	container.HasBeenStartedBefore = true
 	return nil
-}
-
-func (daemon *Daemon) waitForStart(container *container.Container) error {
-	return container.StartMonitor(daemon)
 }
 
 // Cleanup releases any network resources allocated to the container along with any rules
@@ -167,7 +162,13 @@ func (daemon *Daemon) Cleanup(container *container.Container) {
 
 	container.UnmountIpcMounts(detachMounted)
 
-	daemon.conditionalUnmountOnCleanup(container)
+	if err := daemon.conditionalUnmountOnCleanup(container); err != nil {
+		// FIXME: remove once reference counting for graphdrivers has been refactored
+		// Ensure that all the mounts are gone
+		if mountid, err := daemon.layerStore.GetMountID(container.ID); err == nil {
+			daemon.cleanupMountsByID(mountid)
+		}
+	}
 
 	for _, eConfig := range container.ExecCommands.Commands() {
 		daemon.unregisterExecCommand(container, eConfig)

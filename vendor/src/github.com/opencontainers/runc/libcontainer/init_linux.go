@@ -48,11 +48,15 @@ type initConfig struct {
 	Env              []string        `json:"env"`
 	Cwd              string          `json:"cwd"`
 	Capabilities     []string        `json:"capabilities"`
+	ProcessLabel     string          `json:"process_label"`
+	AppArmorProfile  string          `json:"apparmor_profile"`
+	NoNewPrivileges  bool            `json:"no_new_privileges"`
 	User             string          `json:"user"`
 	Config           *configs.Config `json:"config"`
 	Console          string          `json:"console"`
 	Networks         []*network      `json:"network"`
 	PassedFilesCount int             `json:"passed_files_count"`
+	ContainerId      string          `json:"containerid"`
 }
 
 type initer interface {
@@ -163,20 +167,22 @@ func syncParentReady(pipe io.ReadWriter) error {
 	return nil
 }
 
-// joinExistingNamespaces gets all the namespace paths specified for the container and
-// does a setns on the namespace fd so that the current process joins the namespace.
-func joinExistingNamespaces(namespaces []configs.Namespace) error {
-	for _, ns := range namespaces {
-		if ns.Path != "" {
-			f, err := os.OpenFile(ns.Path, os.O_RDONLY, 0)
-			if err != nil {
-				return err
-			}
-			err = system.Setns(f.Fd(), uintptr(ns.Syscall()))
-			f.Close()
-			if err != nil {
-				return err
-			}
+// syncParentHooks sends to the given pipe a JSON payload which indicates that
+// the parent should execute pre-start hooks. It then waits for the parent to
+// indicate that it is cleared to resume.
+func syncParentHooks(pipe io.ReadWriter) error {
+	// Tell parent.
+	if err := utils.WriteJSON(pipe, syncT{procHooks}); err != nil {
+		return err
+	}
+	// Wait for parent to give the all-clear.
+	var procSync syncT
+	if err := json.NewDecoder(pipe).Decode(&procSync); err != nil {
+		if err == io.EOF {
+			return fmt.Errorf("parent closed synchronisation channel")
+		}
+		if procSync.Type != procResume {
+			return fmt.Errorf("invalid synchronisation flag from parent")
 		}
 	}
 	return nil
@@ -319,9 +325,10 @@ func setupRlimits(config *configs.Config) error {
 	return nil
 }
 
-func setOomScoreAdj(oomScoreAdj int) error {
-	path := "/proc/self/oom_score_adj"
-	return ioutil.WriteFile(path, []byte(strconv.Itoa(oomScoreAdj)), 0700)
+func setOomScoreAdj(oomScoreAdj int, pid int) error {
+	path := fmt.Sprintf("/proc/%d/oom_score_adj", pid)
+
+	return ioutil.WriteFile(path, []byte(strconv.Itoa(oomScoreAdj)), 0600)
 }
 
 // killCgroupProcesses freezes then iterates over all the processes inside the

@@ -35,11 +35,9 @@ func (daemon *Daemon) containerUnpause(container *container.Container) error {
 		return fmt.Errorf("Container %s is not paused", container.ID)
 	}
 
-	if err := daemon.execDriver.Unpause(container.Command); err != nil {
+	if err := daemon.containerd.Resume(container.ID); err != nil {
 		return fmt.Errorf("Cannot unpause container %s: %s", container.ID, err)
 	}
 
-	container.Paused = false
-	daemon.LogContainerEvent(container, "unpause")
 	return nil
 }

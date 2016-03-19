@@ -86,7 +86,8 @@ func (flushIO) isItem() bool {
 }
 
 type ping struct {
-	ack bool
+	ack  bool
+	data [8]byte
 }
 
 func (ping) isItem() bool {

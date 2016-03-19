@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
@@ -25,6 +26,7 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/runconfig"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/docker/engine-api/types"
 	pblkiodev "github.com/docker/engine-api/types/blkiodev"
 	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/docker/libnetwork"
@@ -33,10 +35,10 @@ import (
 	"github.com/docker/libnetwork/ipamutils"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
-	"github.com/docker/libnetwork/types"
-	blkiodev "github.com/opencontainers/runc/libcontainer/configs"
+	lntypes "github.com/docker/libnetwork/types"
 	"github.com/opencontainers/runc/libcontainer/label"
 	"github.com/opencontainers/runc/libcontainer/user"
+	"github.com/opencontainers/specs/specs-go"
 )
 
 const (
@@ -51,16 +53,81 @@ const (
 	defaultRemappedID  string = "dockremap"
 )
 
-func getBlkioWeightDevices(config *containertypes.HostConfig) ([]*blkiodev.WeightDevice, error) {
+func getMemoryResources(config containertypes.Resources) *specs.Memory {
+	memory := specs.Memory{}
+
+	if config.Memory > 0 {
+		limit := uint64(config.Memory)
+		memory.Limit = &limit
+	}
+
+	if config.MemoryReservation > 0 {
+		reservation := uint64(config.MemoryReservation)
+		memory.Reservation = &reservation
+	}
+
+	if config.MemorySwap != 0 {
+		swap := uint64(config.MemorySwap)
+		memory.Swap = &swap
+	}
+
+	if config.MemorySwappiness != nil {
+		swappiness := uint64(*config.MemorySwappiness)
+		memory.Swappiness = &swappiness
+	}
+
+	if config.KernelMemory != 0 {
+		kernelMemory := uint64(config.KernelMemory)
+		memory.Kernel = &kernelMemory
+	}
+
+	return &memory
+}
+
+func getCPUResources(config containertypes.Resources) *specs.CPU {
+	cpu := specs.CPU{}
+
+	if config.CPUShares != 0 {
+		shares := uint64(config.CPUShares)
+		cpu.Shares = &shares
+	}
+
+	if config.CpusetCpus != "" {
+		cpuset := config.CpusetCpus
+		cpu.Cpus = &cpuset
+	}
+
+	if config.CpusetMems != "" {
+		cpuset := config.CpusetMems
+		cpu.Mems = &cpuset
+	}
+
+	if config.CPUPeriod != 0 {
+		period := uint64(config.CPUPeriod)
+		cpu.Period = &period
+	}
+
+	if config.CPUQuota != 0 {
+		quota := uint64(config.CPUQuota)
+		cpu.Quota = &quota
+	}
+
+	return &cpu
+}
+
+func getBlkioWeightDevices(config containertypes.Resources) ([]specs.WeightDevice, error) {
 	var stat syscall.Stat_t
-	var blkioWeightDevices []*blkiodev.WeightDevice
+	var blkioWeightDevices []specs.WeightDevice
 
 	for _, weightDevice := range config.BlkioWeightDevice {
 		if err := syscall.Stat(weightDevice.Path, &stat); err != nil {
 			return nil, err
 		}
-		weightDevice := blkiodev.NewWeightDevice(int64(stat.Rdev/256), int64(stat.Rdev%256), weightDevice.Weight, 0)
-		blkioWeightDevices = append(blkioWeightDevices, weightDevice)
+		weight := weightDevice.Weight
+		d := specs.WeightDevice{Weight: &weight}
+		d.Major = int64(stat.Rdev / 256)
+		d.Major = int64(stat.Rdev % 256)
+		blkioWeightDevices = append(blkioWeightDevices, d)
 	}
 
 	return blkioWeightDevices, nil
@@ -105,61 +172,73 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 	return err
 }
 
-func getBlkioReadIOpsDevices(config *containertypes.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
-	var blkioReadIOpsDevice []*blkiodev.ThrottleDevice
+func getBlkioReadIOpsDevices(config containertypes.Resources) ([]specs.ThrottleDevice, error) {
+	var blkioReadIOpsDevice []specs.ThrottleDevice
 	var stat syscall.Stat_t
 
 	for _, iopsDevice := range config.BlkioDeviceReadIOps {
 		if err := syscall.Stat(iopsDevice.Path, &stat); err != nil {
 			return nil, err
 		}
-		readIOpsDevice := blkiodev.NewThrottleDevice(int64(stat.Rdev/256), int64(stat.Rdev%256), iopsDevice.Rate)
-		blkioReadIOpsDevice = append(blkioReadIOpsDevice, readIOpsDevice)
+		rate := iopsDevice.Rate
+		d := specs.ThrottleDevice{Rate: &rate}
+		d.Major = int64(stat.Rdev / 256)
+		d.Major = int64(stat.Rdev % 256)
+		blkioReadIOpsDevice = append(blkioReadIOpsDevice, d)
 	}
 
 	return blkioReadIOpsDevice, nil
 }
 
-func getBlkioWriteIOpsDevices(config *containertypes.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
-	var blkioWriteIOpsDevice []*blkiodev.ThrottleDevice
+func getBlkioWriteIOpsDevices(config containertypes.Resources) ([]specs.ThrottleDevice, error) {
+	var blkioWriteIOpsDevice []specs.ThrottleDevice
 	var stat syscall.Stat_t
 
 	for _, iopsDevice := range config.BlkioDeviceWriteIOps {
 		if err := syscall.Stat(iopsDevice.Path, &stat); err != nil {
 			return nil, err
 		}
-		writeIOpsDevice := blkiodev.NewThrottleDevice(int64(stat.Rdev/256), int64(stat.Rdev%256), iopsDevice.Rate)
-		blkioWriteIOpsDevice = append(blkioWriteIOpsDevice, writeIOpsDevice)
+		rate := iopsDevice.Rate
+		d := specs.ThrottleDevice{Rate: &rate}
+		d.Major = int64(stat.Rdev / 256)
+		d.Major = int64(stat.Rdev % 256)
+		blkioWriteIOpsDevice = append(blkioWriteIOpsDevice, d)
 	}
 
 	return blkioWriteIOpsDevice, nil
 }
 
-func getBlkioReadBpsDevices(config *containertypes.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
-	var blkioReadBpsDevice []*blkiodev.ThrottleDevice
+func getBlkioReadBpsDevices(config containertypes.Resources) ([]specs.ThrottleDevice, error) {
+	var blkioReadBpsDevice []specs.ThrottleDevice
 	var stat syscall.Stat_t
 
 	for _, bpsDevice := range config.BlkioDeviceReadBps {
 		if err := syscall.Stat(bpsDevice.Path, &stat); err != nil {
 			return nil, err
 		}
-		readBpsDevice := blkiodev.NewThrottleDevice(int64(stat.Rdev/256), int64(stat.Rdev%256), bpsDevice.Rate)
-		blkioReadBpsDevice = append(blkioReadBpsDevice, readBpsDevice)
+		rate := bpsDevice.Rate
+		d := specs.ThrottleDevice{Rate: &rate}
+		d.Major = int64(stat.Rdev / 256)
+		d.Major = int64(stat.Rdev % 256)
+		blkioReadBpsDevice = append(blkioReadBpsDevice, d)
 	}
 
 	return blkioReadBpsDevice, nil
 }
 
-func getBlkioWriteBpsDevices(config *containertypes.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
-	var blkioWriteBpsDevice []*blkiodev.ThrottleDevice
+func getBlkioWriteBpsDevices(config containertypes.Resources) ([]specs.ThrottleDevice, error) {
+	var blkioWriteBpsDevice []specs.ThrottleDevice
 	var stat syscall.Stat_t
 
 	for _, bpsDevice := range config.BlkioDeviceWriteBps {
 		if err := syscall.Stat(bpsDevice.Path, &stat); err != nil {
 			return nil, err
 		}
-		writeBpsDevice := blkiodev.NewThrottleDevice(int64(stat.Rdev/256), int64(stat.Rdev%256), bpsDevice.Rate)
-		blkioWriteBpsDevice = append(blkioWriteBpsDevice, writeBpsDevice)
+		rate := bpsDevice.Rate
+		d := specs.ThrottleDevice{Rate: &rate}
+		d.Major = int64(stat.Rdev / 256)
+		d.Major = int64(stat.Rdev % 256)
+		blkioWriteBpsDevice = append(blkioWriteBpsDevice, d)
 	}
 
 	return blkioWriteBpsDevice, nil
@@ -600,8 +679,8 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 
 	nw, nw6List, err := ipamutils.ElectInterfaceAddresses(bridgeName)
 	if err == nil {
-		ipamV4Conf.PreferredPool = types.GetIPNetCanonical(nw).String()
-		hip, _ := types.GetHostPartIP(nw.IP, nw.Mask)
+		ipamV4Conf.PreferredPool = lntypes.GetIPNetCanonical(nw).String()
+		hip, _ := lntypes.GetHostPartIP(nw.IP, nw.Mask)
 		if hip.IsGlobalUnicast() {
 			ipamV4Conf.Gateway = nw.IP.String()
 		}
@@ -953,11 +1032,69 @@ func (daemon *Daemon) conditionalMountOnStart(container *container.Container) er
 
 // conditionalUnmountOnCleanup is a platform specific helper function called
 // during the cleanup of a container to unmount.
-func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container) {
-	daemon.Unmount(container)
+func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container) error {
+	return daemon.Unmount(container)
 }
 
 func restoreCustomImage(is image.Store, ls layer.Store, rs reference.Store) error {
 	// Unix has no custom images to register
+	return nil
+}
+
+func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
+	if !c.IsRunning() {
+		return nil, errNotRunning{c.ID}
+	}
+	stats, err := daemon.containerd.Stats(c.ID)
+	if err != nil {
+		return nil, err
+	}
+	s := &types.StatsJSON{}
+	cgs := stats.CgroupStats
+	if cgs != nil {
+		s.BlkioStats = types.BlkioStats{
+			IoServiceBytesRecursive: copyBlkioEntry(cgs.BlkioStats.IoServiceBytesRecursive),
+			IoServicedRecursive:     copyBlkioEntry(cgs.BlkioStats.IoServicedRecursive),
+			IoQueuedRecursive:       copyBlkioEntry(cgs.BlkioStats.IoQueuedRecursive),
+			IoServiceTimeRecursive:  copyBlkioEntry(cgs.BlkioStats.IoServiceTimeRecursive),
+			IoWaitTimeRecursive:     copyBlkioEntry(cgs.BlkioStats.IoWaitTimeRecursive),
+			IoMergedRecursive:       copyBlkioEntry(cgs.BlkioStats.IoMergedRecursive),
+			IoTimeRecursive:         copyBlkioEntry(cgs.BlkioStats.IoTimeRecursive),
+			SectorsRecursive:        copyBlkioEntry(cgs.BlkioStats.SectorsRecursive),
+		}
+		cpu := cgs.CpuStats
+		s.CPUStats = types.CPUStats{
+			CPUUsage: types.CPUUsage{
+				TotalUsage:        cpu.CpuUsage.TotalUsage,
+				PercpuUsage:       cpu.CpuUsage.PercpuUsage,
+				UsageInKernelmode: cpu.CpuUsage.UsageInKernelmode,
+				UsageInUsermode:   cpu.CpuUsage.UsageInUsermode,
+			},
+			ThrottlingData: types.ThrottlingData{
+				Periods:          cpu.ThrottlingData.Periods,
+				ThrottledPeriods: cpu.ThrottlingData.ThrottledPeriods,
+				ThrottledTime:    cpu.ThrottlingData.ThrottledTime,
+			},
+		}
+		mem := cgs.MemoryStats.Usage
+		s.MemoryStats = types.MemoryStats{
+			Usage:    mem.Usage,
+			MaxUsage: mem.MaxUsage,
+			Stats:    cgs.MemoryStats.Stats,
+			Failcnt:  mem.Failcnt,
+		}
+		if cgs.PidsStats != nil {
+			s.PidsStats = types.PidsStats{
+				Current: cgs.PidsStats.Current,
+			}
+		}
+	}
+	s.Read = time.Unix(int64(stats.Timestamp), 0)
+	return s, nil
+}
+
+// setDefaultIsolation determine the default isolation mode for the
+// daemon to run in. This is only applicable on Windows
+func (daemon *Daemon) setDefaultIsolation() error {
 	return nil
 }

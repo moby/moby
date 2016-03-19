@@ -480,6 +480,18 @@ func (ls *layerStore) GetRWLayer(id string) (RWLayer, error) {
 	return mount.getReference(), nil
 }
 
+func (ls *layerStore) GetMountID(id string) (string, error) {
+	ls.mountL.Lock()
+	defer ls.mountL.Unlock()
+	mount, ok := ls.mounts[id]
+	if !ok {
+		return "", ErrMountDoesNotExist
+	}
+	logrus.Debugf("GetRWLayer id: %s -> mountID: %s", id, mount.mountID)
+
+	return mount.mountID, nil
+}
+
 func (ls *layerStore) ReleaseRWLayer(l RWLayer) ([]Metadata, error) {
 	ls.mountL.Lock()
 	defer ls.mountL.Unlock()
