@@ -7,19 +7,18 @@ import (
 	"fmt"
 
 	"github.com/docker/engine-api/types"
-	"github.com/opencontainers/runc/libcontainer/configs"
-	"github.com/opencontainers/runc/libcontainer/seccomp"
+	"github.com/opencontainers/specs/specs-go"
 )
 
 //go:generate go run -tags 'seccomp' generate.go
 
 // GetDefaultProfile returns the default seccomp profile.
-func GetDefaultProfile() (*configs.Seccomp, error) {
+func GetDefaultProfile() (*specs.Seccomp, error) {
 	return setupSeccomp(DefaultProfile)
 }
 
 // LoadProfile takes a file path and decodes the seccomp profile.
-func LoadProfile(body string) (*configs.Seccomp, error) {
+func LoadProfile(body string) (*specs.Seccomp, error) {
 	var config types.Seccomp
 	if err := json.Unmarshal([]byte(body), &config); err != nil {
 		return nil, fmt.Errorf("Decoding seccomp profile failed: %v", err)
@@ -28,7 +27,7 @@ func LoadProfile(body string) (*configs.Seccomp, error) {
 	return setupSeccomp(&config)
 }
 
-func setupSeccomp(config *types.Seccomp) (newConfig *configs.Seccomp, err error) {
+func setupSeccomp(config *types.Seccomp) (newConfig *specs.Seccomp, err error) {
 	if config == nil {
 		return nil, nil
 	}
@@ -38,58 +37,37 @@ func setupSeccomp(config *types.Seccomp) (newConfig *configs.Seccomp, err error)
 		return nil, nil
 	}
 
-	newConfig = new(configs.Seccomp)
-	newConfig.Syscalls = []*configs.Syscall{}
+	newConfig = &specs.Seccomp{}
 
 	// if config.Architectures == 0 then libseccomp will figure out the architecture to use
 	if len(config.Architectures) > 0 {
-		newConfig.Architectures = []string{}
 		for _, arch := range config.Architectures {
-			newArch, err := seccomp.ConvertStringToArch(string(arch))
-			if err != nil {
-				return nil, err
-			}
-			newConfig.Architectures = append(newConfig.Architectures, newArch)
+			newConfig.Architectures = append(newConfig.Architectures, specs.Arch(arch))
 		}
 	}
 
-	// Convert default action from string representation
-	newConfig.DefaultAction, err = seccomp.ConvertStringToAction(string(config.DefaultAction))
-	if err != nil {
-		return nil, err
-	}
+	newConfig.DefaultAction = specs.Action(config.DefaultAction)
 
 	// Loop through all syscall blocks and convert them to libcontainer format
 	for _, call := range config.Syscalls {
-		newAction, err := seccomp.ConvertStringToAction(string(call.Action))
-		if err != nil {
-			return nil, err
-		}
-
-		newCall := configs.Syscall{
+		newCall := specs.Syscall{
 			Name:   call.Name,
-			Action: newAction,
-			Args:   []*configs.Arg{},
+			Action: specs.Action(call.Action),
 		}
 
 		// Loop through all the arguments of the syscall and convert them
 		for _, arg := range call.Args {
-			newOp, err := seccomp.ConvertStringToOperator(string(arg.Op))
-			if err != nil {
-				return nil, err
-			}
-
-			newArg := configs.Arg{
+			newArg := specs.Arg{
 				Index:    arg.Index,
 				Value:    arg.Value,
 				ValueTwo: arg.ValueTwo,
-				Op:       newOp,
+				Op:       specs.Operator(arg.Op),
 			}
 
-			newCall.Args = append(newCall.Args, &newArg)
+			newCall.Args = append(newCall.Args, newArg)
 		}
 
-		newConfig.Syscalls = append(newConfig.Syscalls, &newCall)
+		newConfig.Syscalls = append(newConfig.Syscalls, newCall)
 	}
 
 	return newConfig, nil
