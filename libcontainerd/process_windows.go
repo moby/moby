@@ -5,10 +5,10 @@ import (
 )
 
 // process keeps the state for both main container process and exec process.
-
-// process keeps the state for both main container process and exec process.
 type process struct {
 	processCommon
+
+	// Platform specific fields are below here. There are none presently on Windows.
 }
 
 func openReaderFromPipe(p io.ReadCloser) io.Reader {

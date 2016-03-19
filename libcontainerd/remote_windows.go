@@ -16,13 +16,12 @@ func (r *remote) Client(b Backend) (Client, error) {
 	return c, nil
 }
 
-// Cleanup is a no-op on Windows. It is here to implement the same interface
-// to meet compilation requirements.
+// Cleanup is a no-op on Windows. It is here to implement the interface.
 func (r *remote) Cleanup() {
 }
 
-// New creates a fresh instance of libcontainerd remote. This is largely
-// a no-op on Windows.
+// New creates a fresh instance of libcontainerd remote. On Windows,
+// this is not used as there is no remote containerd process.
 func New(_ string, _ ...RemoteOption) (Remote, error) {
 	return &remote{}, nil
 }
