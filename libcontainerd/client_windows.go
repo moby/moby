@@ -303,6 +303,7 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 					client:       clnt,
 					friendlyName: InitFriendlyName,
 				},
+				commandLine: strings.Join(spec.Process.Args, " "),
 			},
 			processes: make(map[string]*process),
 		},
@@ -396,6 +397,7 @@ func (clnt *client) AddProcess(containerID, processFriendlyName string, procToAd
 				client:       clnt,
 				systemPid:    pid,
 			},
+			commandLine: createProcessParms.CommandLine,
 		}
 
 	// Make sure the lock is not held while calling back into the daemon
@@ -508,9 +510,53 @@ func (clnt *client) Restore(containerID string, unusedOnWindows ...CreateOption)
 	})
 }
 
-// GetPidsForContainers is not implemented on Windows.
+// GetPidsForContainer returns a list of process IDs running in a container.
+// Although implemented, this is not used in Windows.
 func (clnt *client) GetPidsForContainer(containerID string) ([]int, error) {
-	return nil, errors.New("GetPidsForContainer: GetPidsForContainer() not implemented")
+	var pids []int
+	clnt.lock(containerID)
+	defer clnt.unlock(containerID)
+	cont, err := clnt.getContainer(containerID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the first process
+	pids = append(pids, int(cont.containerCommon.systemPid))
+	// And add all the exec'd processes
+	for _, p := range cont.processes {
+		pids = append(pids, int(p.processCommon.systemPid))
+	}
+	return pids, nil
+}
+
+// Summary returns a summary of the processes running in a container.
+// This is present in Windows to support docker top. In linux, the
+// engine shells out to ps to get process information. On Windows, as
+// the containers could be Hyper-V containers, they would not be
+// visible on the container host. However, libcontainerd does have
+// that information.
+func (clnt *client) Summary(containerID string) ([]Summary, error) {
+	var s []Summary
+	clnt.lock(containerID)
+	defer clnt.unlock(containerID)
+	cont, err := clnt.getContainer(containerID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add the first process
+	s = append(s, Summary{
+		Pid:     cont.containerCommon.systemPid,
+		Command: cont.ociSpec.Process.Args[0]})
+	// And add all the exec'd processes
+	for _, p := range cont.processes {
+		s = append(s, Summary{
+			Pid:     p.processCommon.systemPid,
+			Command: p.commandLine})
+	}
+	return s, nil
+
 }
 
 // UpdateResources updates resources for a running container.

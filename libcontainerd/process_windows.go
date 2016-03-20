@@ -8,7 +8,10 @@ import (
 type process struct {
 	processCommon
 
-	// Platform specific fields are below here. There are none presently on Windows.
+	// Platform specific fields are below here.
+
+	// commandLine is to support returning summary information for docker top
+	commandLine string
 }
 
 func openReaderFromPipe(p io.ReadCloser) io.Reader {

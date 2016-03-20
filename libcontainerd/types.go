@@ -42,6 +42,7 @@ type Client interface {
 	Restore(containerID string, options ...CreateOption) error
 	Stats(containerID string) (*Stats, error)
 	GetPidsForContainer(containerID string) ([]int, error)
+	Summary(containerID string) ([]Summary, error)
 	UpdateResources(containerID string, resources Resources) error
 }
 
