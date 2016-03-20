@@ -36,7 +36,7 @@ if [ "$(go env GOOS)" == "linux" ] ; then
 	esac
 fi
 
-if [ "$IAMSTATIC" == "true" ] && [ "$(go env GOHOSTOS)" == "linux" ]; then
+if [ "$IAMSTATIC" == "true" ] && [ "$(go env GOHOSTOS)" == "linux" ] && [ "$DOCKER_EXPERIMENTAL" ]; then
 	if  [ "${GOOS}/${GOARCH}" == "darwin/amd64" ]; then
 		export CGO_ENABLED=1
 		export CC=o64-clang
