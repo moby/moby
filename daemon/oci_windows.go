@@ -175,23 +175,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 		//TODO SandboxSize: ...,
 		},
 	}
-
-	// BUGBUG - Next problem. This was an exec opt. Where do we now get these?
-	// Come back to this when add Xenon support.
-	//	var hvPartition bool
-	//	// Work out the isolation (whether it is a hypervisor partition)
-	//	if c.HostConfig.Isolation.IsDefault() {
-	//		// Not specified by caller. Take daemon default
-	//		hvPartition = windows.DefaultIsolation.IsHyperV()
-	//	} else {
-	//		// Take value specified by caller
-	//		hvPartition = c.HostConfig.Isolation.IsHyperV()
-	//	}
-
-	//		Isolation:   string(c.HostConfig.Isolation),
-	//		HvPartition: hvPartition,
-	//	}
-
 	return (*libcontainerd.Spec)(&s), nil
 }
 
