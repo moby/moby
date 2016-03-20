@@ -489,6 +489,10 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 	if v, ok := netMap["inDelete"]; ok {
 		n.inDelete = v.(bool)
 	}
+	// Reconcile old networks with the recently added `--ipv6` flag
+	if !n.enableIPv6 {
+		n.enableIPv6 = len(n.ipamV6Info) > 0
+	}
 	return nil
 }
 
@@ -779,7 +783,7 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 		ep.ipamOptions[netlabel.MacAddress] = ep.iface.mac.String()
 	}
 
-	if err = ep.assignAddress(ipam.driver, true, !n.postIPv6); err != nil {
+	if err = ep.assignAddress(ipam.driver, true, n.enableIPv6 && !n.postIPv6); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -799,7 +803,7 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 		}
 	}()
 
-	if err = ep.assignAddress(ipam.driver, false, n.postIPv6); err != nil {
+	if err = ep.assignAddress(ipam.driver, false, n.enableIPv6 && n.postIPv6); err != nil {
 		return nil, err
 	}
 
@@ -1033,6 +1037,10 @@ func (n *network) ipamAllocate() error {
 		}
 	}()
 
+	if !n.enableIPv6 {
+		return nil
+	}
+
 	return n.ipamAllocateVersion(6, ipam)
 }
 
@@ -1153,7 +1161,7 @@ func (n *network) ipamReleaseVersion(ipVer int, ipam ipamapi.Ipam) {
 		return
 	}
 
-	if *infoList == nil {
+	if len(*infoList) == 0 {
 		return
 	}
 
