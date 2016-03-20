@@ -116,6 +116,8 @@ This section lists each version from latest to oldest.  Each listing includes a 
 
 [Docker Remote API v1.24](docker_remote_api_v1.24.md) documentation
 
+* `POST /containers/create` now takes `StorageOpt` field.
+
 ### v1.23 API changes
 
 [Docker Remote API v1.23](docker_remote_api_v1.23.md) documentation

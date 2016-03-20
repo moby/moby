@@ -55,6 +55,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flCapDrop           = opts.NewListOpts(nil)
 		flGroupAdd          = opts.NewListOpts(nil)
 		flSecurityOpt       = opts.NewListOpts(nil)
+		flStorageOpt        = opts.NewListOpts(nil)
 		flLabelsFile        = opts.NewListOpts(nil)
 		flLoggingOpts       = opts.NewListOpts(nil)
 		flPrivileged        = cmd.Bool([]string{"-privileged"}, false, "Give extended privileges to this container")
@@ -124,6 +125,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	cmd.Var(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capabilities")
 	cmd.Var(&flGroupAdd, []string{"-group-add"}, "Add additional groups to join")
 	cmd.Var(&flSecurityOpt, []string{"-security-opt"}, "Security Options")
+	cmd.Var(&flStorageOpt, []string{"-storage-opt"}, "Set storage driver options per container")
 	cmd.Var(flUlimits, []string{"-ulimit"}, "Ulimit options")
 	cmd.Var(&flLoggingOpts, []string{"-log-opt"}, "Log driver options")
 
@@ -337,6 +339,11 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		return nil, nil, nil, cmd, err
 	}
 
+	storageOpts, err := parseStorageOpts(flStorageOpt.GetAll())
+	if err != nil {
+		return nil, nil, nil, cmd, err
+	}
+
 	resources := container.Resources{
 		CgroupParent:         *flCgroupParent,
 		Memory:               flMemory,
@@ -415,6 +422,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		GroupAdd:       flGroupAdd.GetAll(),
 		RestartPolicy:  restartPolicy,
 		SecurityOpt:    securityOpts,
+		StorageOpt:     storageOpts,
 		ReadonlyRootfs: *flReadonlyRootfs,
 		LogConfig:      container.LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
 		VolumeDriver:   *flVolumeDriver,
@@ -529,6 +537,20 @@ func parseSecurityOpts(securityOpts []string) ([]string, error) {
 	}
 
 	return securityOpts, nil
+}
+
+// parse storage options per container into a map
+func parseStorageOpts(storageOpts []string) (map[string]string, error) {
+	m := make(map[string]string)
+	for _, option := range storageOpts {
+		if strings.Contains(option, "=") {
+			opt := strings.SplitN(option, "=", 2)
+			m[opt[0]] = opt[1]
+		} else {
+			return nil, fmt.Errorf("Invalid storage option.")
+		}
+	}
+	return m, nil
 }
 
 // ParseRestartPolicy returns the parsed policy or an error indicating what is incorrect

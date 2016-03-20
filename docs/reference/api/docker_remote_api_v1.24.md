@@ -325,6 +325,7 @@ Create a container
              "Ulimits": [{}],
              "LogConfig": { "Type": "json-file", "Config": {} },
              "SecurityOpt": [""],
+             "StorageOpt": {},
              "CgroupParent": "",
              "VolumeDriver": "",
              "ShmSize": 67108864
@@ -444,6 +445,8 @@ Json Parameters:
           `Ulimits: { "Name": "nofile", "Soft": 1024, "Hard": 2048 }`
     -   **SecurityOpt**: A list of string values to customize labels for MLS
         systems, such as SELinux.
+    -   **StorageOpt**: Storage driver options per container. Options can be passed in the form
+        `{"size":"120G"}`
     -   **LogConfig** - Log configuration for the container, specified as a JSON object in the form
           `{ "Type": "<driver_name>", "Config": {"key1": "val1"}}`.
           Available types: `json-file`, `syslog`, `journald`, `gelf`, `fluentd`, `awslogs`, `splunk`, `etwlogs`, `none`.
@@ -568,6 +571,7 @@ Return low-level information on the container `id`
 				"Type": "json-file"
 			},
 			"SecurityOpt": null,
+			"StorageOpt": null,
 			"VolumesFrom": null,
 			"Ulimits": [{}],
 			"VolumeDriver": "",

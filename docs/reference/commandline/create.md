@@ -81,6 +81,7 @@ Creates a new container.
       --security-opt=[]             Security options
       --stop-signal="SIGTERM"       Signal to stop a container
       --shm-size=[]                 Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.  Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`.
+      --storage-opt=[]              Set storage driver options per container
       -t, --tty                     Allocate a pseudo-TTY
       -u, --user=""                 Username or UID
       --userns=""                   Container user namespace
@@ -144,6 +145,13 @@ then be used from the subsequent container:
     -rw-r--r--  1 1000 staff  920 Nov 28 11:51 .profile
     drwx--S---  2 1000 staff  460 Dec  5 00:51 .ssh
     drwxr-xr-x 32 1000 staff 1140 Dec  5 04:01 docker
+
+Set storage driver options per container. 
+
+    $ docker create -it --storage-opt size=120G fedora /bin/bash
+
+This (size) will allow to set the container rootfs size to 120G at creation time. 
+User cannot pass a size less than the Default BaseFS Size. 
 
 ### Specify isolation technology for container (--isolation)
 

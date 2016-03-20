@@ -222,7 +222,12 @@ func (d *Driver) Cleanup() error {
 
 // Create is used to create the upper, lower, and merge directories required for overlay fs for a given id.
 // The parent filesystem is used to configure these directories for the overlay.
-func (d *Driver) Create(id, parent, mountLabel string) (retErr error) {
+func (d *Driver) Create(id, parent, mountLabel string, storageOpt map[string]string) (retErr error) {
+
+	if len(storageOpt) != 0 {
+		return fmt.Errorf("--storage-opt is not supported for overlay")
+	}
+
 	dir := d.dir(id)
 
 	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
