@@ -38,14 +38,23 @@ func (p *profileData) generateDefault(out io.Writer) error {
 	if err != nil {
 		return err
 	}
+
 	if macroExists("tunables/global") {
 		p.Imports = append(p.Imports, "#include <tunables/global>")
 	} else {
 		p.Imports = append(p.Imports, "@{PROC}=/proc/")
 	}
+
 	if macroExists("abstractions/base") {
 		p.InnerImports = append(p.InnerImports, "#include <abstractions/base>")
 	}
+
+	ver, err := aaparser.GetVersion()
+	if err != nil {
+		return err
+	}
+	p.Version = ver
+
 	if err := compiled.Execute(out, p); err != nil {
 		return err
 	}
