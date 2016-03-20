@@ -28,8 +28,12 @@ type Resolver interface {
 	// NameServer() returns the IP of the DNS resolver for the
 	// containers.
 	NameServer() string
-	// To configure external name servers the resolver should use
+	// SetExtServers configures the external nameservers the resolver
+	// should use to forward queries
 	SetExtServers([]string)
+	// FlushExtServers clears the cached UDP connections to external
+	// nameservers
+	FlushExtServers()
 	// ResolverOptions returns resolv.conf options that should be set
 	ResolverOptions() []string
 }
@@ -139,11 +143,15 @@ func (r *resolver) Start() error {
 	return nil
 }
 
-func (r *resolver) Stop() {
+func (r *resolver) FlushExtServers() {
 	for i := 0; i < maxExtDNS; i++ {
 		r.extDNSList[i].extConn = nil
 		r.extDNSList[i].extOnce = sync.Once{}
 	}
+}
+
+func (r *resolver) Stop() {
+	r.FlushExtServers()
 
 	if r.server != nil {
 		r.server.Shutdown()
