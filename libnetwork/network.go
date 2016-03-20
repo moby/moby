@@ -71,8 +71,9 @@ type NetworkInfo interface {
 type EndpointWalker func(ep Endpoint) bool
 
 type svcInfo struct {
-	svcMap map[string][]net.IP
-	ipMap  map[string]string
+	svcMap     map[string][]net.IP
+	svcIPv6Map map[string][]net.IP
+	ipMap      map[string]string
 }
 
 // IpamConf contains all the ipam related configurations for a network
@@ -894,68 +895,103 @@ func (n *network) EndpointByID(id string) (Endpoint, error) {
 }
 
 func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool) {
+	var ipv6 net.IP
 	epName := ep.Name()
 	if iface := ep.Iface(); iface.Address() != nil {
 		myAliases := ep.MyAliases()
+		if iface.AddressIPv6() != nil {
+			ipv6 = iface.AddressIPv6().IP
+		}
+
 		if isAdd {
 			// If anonymous endpoint has an alias use the first alias
 			// for ip->name mapping. Not having the reverse mapping
 			// breaks some apps
 			if ep.isAnonymous() {
 				if len(myAliases) > 0 {
-					n.addSvcRecords(myAliases[0], iface.Address().IP, true)
+					n.addSvcRecords(myAliases[0], iface.Address().IP, ipv6, true)
 				}
 			} else {
-				n.addSvcRecords(epName, iface.Address().IP, true)
+				n.addSvcRecords(epName, iface.Address().IP, ipv6, true)
 			}
 			for _, alias := range myAliases {
-				n.addSvcRecords(alias, iface.Address().IP, false)
+				n.addSvcRecords(alias, iface.Address().IP, ipv6, false)
 			}
 		} else {
 			if ep.isAnonymous() {
 				if len(myAliases) > 0 {
-					n.deleteSvcRecords(myAliases[0], iface.Address().IP, true)
+					n.deleteSvcRecords(myAliases[0], iface.Address().IP, ipv6, true)
 				}
 			} else {
-				n.deleteSvcRecords(epName, iface.Address().IP, true)
+				n.deleteSvcRecords(epName, iface.Address().IP, ipv6, true)
 			}
 			for _, alias := range myAliases {
-				n.deleteSvcRecords(alias, iface.Address().IP, false)
+				n.deleteSvcRecords(alias, iface.Address().IP, ipv6, false)
 			}
 		}
 	}
 }
 
-func (n *network) addSvcRecords(name string, epIP net.IP, ipMapUpdate bool) {
+func addIPToName(ipMap map[string]string, name string, ip net.IP) {
+	reverseIP := netutils.ReverseIP(ip.String())
+	if _, ok := ipMap[reverseIP]; !ok {
+		ipMap[reverseIP] = name
+	}
+}
+
+func addNameToIP(svcMap map[string][]net.IP, name string, epIP net.IP) {
+	ipList := svcMap[name]
+	for _, ip := range ipList {
+		if ip.Equal(epIP) {
+			return
+		}
+	}
+	svcMap[name] = append(svcMap[name], epIP)
+}
+
+func delNameToIP(svcMap map[string][]net.IP, name string, epIP net.IP) {
+	ipList := svcMap[name]
+	for i, ip := range ipList {
+		if ip.Equal(epIP) {
+			ipList = append(ipList[:i], ipList[i+1:]...)
+			break
+		}
+	}
+	svcMap[name] = ipList
+
+	if len(ipList) == 0 {
+		delete(svcMap, name)
+	}
+}
+
+func (n *network) addSvcRecords(name string, epIP net.IP, epIPv6 net.IP, ipMapUpdate bool) {
 	c := n.getController()
 	c.Lock()
 	defer c.Unlock()
 	sr, ok := c.svcDb[n.ID()]
 	if !ok {
 		sr = svcInfo{
-			svcMap: make(map[string][]net.IP),
-			ipMap:  make(map[string]string),
+			svcMap:     make(map[string][]net.IP),
+			svcIPv6Map: make(map[string][]net.IP),
+			ipMap:      make(map[string]string),
 		}
 		c.svcDb[n.ID()] = sr
 	}
 
 	if ipMapUpdate {
-		reverseIP := netutils.ReverseIP(epIP.String())
-		if _, ok := sr.ipMap[reverseIP]; !ok {
-			sr.ipMap[reverseIP] = name
+		addIPToName(sr.ipMap, name, epIP)
+		if epIPv6 != nil {
+			addIPToName(sr.ipMap, name, epIPv6)
 		}
 	}
 
-	ipList := sr.svcMap[name]
-	for _, ip := range ipList {
-		if ip.Equal(epIP) {
-			return
-		}
+	addNameToIP(sr.svcMap, name, epIP)
+	if epIPv6 != nil {
+		addNameToIP(sr.svcIPv6Map, name, epIPv6)
 	}
-	sr.svcMap[name] = append(sr.svcMap[name], epIP)
 }
 
-func (n *network) deleteSvcRecords(name string, epIP net.IP, ipMapUpdate bool) {
+func (n *network) deleteSvcRecords(name string, epIP net.IP, epIPv6 net.IP, ipMapUpdate bool) {
 	c := n.getController()
 	c.Lock()
 	defer c.Unlock()
@@ -966,19 +1002,16 @@ func (n *network) deleteSvcRecords(name string, epIP net.IP, ipMapUpdate bool) {
 
 	if ipMapUpdate {
 		delete(sr.ipMap, netutils.ReverseIP(epIP.String()))
-	}
 
-	ipList := sr.svcMap[name]
-	for i, ip := range ipList {
-		if ip.Equal(epIP) {
-			ipList = append(ipList[:i], ipList[i+1:]...)
-			break
+		if epIPv6 != nil {
+			delete(sr.ipMap, netutils.ReverseIP(epIPv6.String()))
 		}
 	}
-	sr.svcMap[name] = ipList
 
-	if len(ipList) == 0 {
-		delete(sr.svcMap, name)
+	delNameToIP(sr.svcMap, name, epIP)
+
+	if epIPv6 != nil {
+		delNameToIP(sr.svcIPv6Map, name, epIPv6)
 	}
 }
 
