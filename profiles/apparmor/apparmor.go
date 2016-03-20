@@ -24,8 +24,6 @@ var (
 type profileData struct {
 	// Name is profile name.
 	Name string
-	// ExecPath is the path to the docker binary.
-	ExecPath string
 	// Imports defines the apparmor functions to import, before defining the profile.
 	Imports []string
 	// InnerImports defines the apparmor functions to import in the profile.
