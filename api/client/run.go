@@ -20,8 +20,8 @@ import (
 )
 
 const (
-	errCmdNotFound          = "Container command not found or does not exist."
-	errCmdCouldNotBeInvoked = "Container command could not be invoked."
+	errCmdNotFound          = "not found or does not exist."
+	errCmdCouldNotBeInvoked = "could not be invoked."
 )
 
 func (cid *cidFile) Close() error {
@@ -51,12 +51,14 @@ func runStartContainerErr(err error) error {
 	trimmedErr := strings.Trim(err.Error(), "Error response from daemon: ")
 	statusError := Cli.StatusError{StatusCode: 125}
 
-	switch trimmedErr {
-	case errCmdNotFound:
-		statusError = Cli.StatusError{StatusCode: 127}
-	case errCmdCouldNotBeInvoked:
-		statusError = Cli.StatusError{StatusCode: 126}
+	if strings.HasPrefix(trimmedErr, "Container command") {
+		if strings.Contains(trimmedErr, errCmdNotFound) {
+			statusError = Cli.StatusError{StatusCode: 127}
+		} else if strings.Contains(trimmedErr, errCmdCouldNotBeInvoked) {
+			statusError = Cli.StatusError{StatusCode: 126}
+		}
 	}
+
 	return statusError
 }
 
