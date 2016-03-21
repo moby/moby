@@ -1790,12 +1790,12 @@ Return low-level information on the image `name`
     Content-Type: application/json
 
     {
-       "Id" : "85f05633ddc1c50679be2b16a0479ab6f7637f8884e0cfe0f4d20e1ebb3d6e7c",
+       "Id" : "sha256:85f05633ddc1c50679be2b16a0479ab6f7637f8884e0cfe0f4d20e1ebb3d6e7c",
        "Container" : "cb91e48a60d01f1e27028b4fc6819f4f290b3cf12496c8176ec714d0d390984a",
        "Comment" : "",
        "Os" : "linux",
        "Architecture" : "amd64",
-       "Parent" : "91e54dfb11794fad694460162bf0cb0a4fa710cfa3f60979c177d920813e267c",
+       "Parent" : "sha256:91e54dfb11794fad694460162bf0cb0a4fa710cfa3f60979c177d920813e267c",
        "ContainerConfig" : {
           "Tty" : false,
           "Hostname" : "e611e15f9c9d",
@@ -1876,6 +1876,13 @@ Return low-level information on the image `name`
           "AttachStderr" : false,
           "WorkingDir" : "",
           "User" : ""
+       },
+       "RootFS": {
+           "Type": "layers",
+           "Layers": [
+               "sha256:1834950e52ce4d5a88a1bbd131c537f4d0e56d10ff0dd69e66be3b7dfa9df7e6",
+               "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef"
+           ]
        }
     }
 

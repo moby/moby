@@ -1164,6 +1164,7 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 		Os:              img.OS,
 		Size:            size,
 		VirtualSize:     size, // TODO: field unused, deprecate
+		RootFS:          rootFSToAPIType(img.RootFS),
 	}
 
 	imageInspect.GraphDriver.Name = daemon.GraphDriverName()

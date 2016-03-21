@@ -1092,3 +1092,14 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 func (daemon *Daemon) setDefaultIsolation() error {
 	return nil
 }
+
+func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
+	var layers []string
+	for _, l := range rootfs.DiffIDs {
+		layers = append(layers, l.String())
+	}
+	return types.RootFS{
+		Type:   rootfs.Type,
+		Layers: layers,
+	}
+}

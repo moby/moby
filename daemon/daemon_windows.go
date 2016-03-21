@@ -453,3 +453,15 @@ func (daemon *Daemon) setDefaultIsolation() error {
 	logrus.Infof("Windows default isolation mode: %s", daemon.defaultIsolation)
 	return nil
 }
+
+func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
+	var layers []string
+	for _, l := range rootfs.DiffIDs {
+		layers = append(layers, l.String())
+	}
+	return types.RootFS{
+		Type:      rootfs.Type,
+		Layers:    layers,
+		BaseLayer: rootfs.BaseLayer,
+	}
+}
