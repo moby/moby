@@ -186,18 +186,29 @@ func shuffleAddr(addr []net.IP) []net.IP {
 	return addr
 }
 
+func createRespMsg(query *dns.Msg) *dns.Msg {
+	resp := new(dns.Msg)
+	resp.SetReply(query)
+	setCommonFlags(resp)
+
+	return resp
+}
+
 func (r *resolver) handleIPQuery(name string, query *dns.Msg, ipType int) (*dns.Msg, error) {
-	addr := r.sb.ResolveName(name, ipType)
+	addr, ipv6Miss := r.sb.ResolveName(name, ipType)
+	if addr == nil && ipv6Miss {
+		// Send a reply without any Answer sections
+		log.Debugf("Lookup name %s present without IPv6 address", name)
+		resp := createRespMsg(query)
+		return resp, nil
+	}
 	if addr == nil {
 		return nil, nil
 	}
 
 	log.Debugf("Lookup for %s: IP %v", name, addr)
 
-	resp := new(dns.Msg)
-	resp.SetReply(query)
-	setCommonFlags(resp)
-
+	resp := createRespMsg(query)
 	if len(addr) > 1 {
 		addr = shuffleAddr(addr)
 	}

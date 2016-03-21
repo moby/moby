@@ -1216,8 +1216,8 @@ func (f *fakeSandbox) SetKey(key string) error {
 	return nil
 }
 
-func (f *fakeSandbox) ResolveName(name string, ipType int) []net.IP {
-	return nil
+func (f *fakeSandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
+	return nil, false
 }
 
 func (f *fakeSandbox) ResolveIP(ip string) string {
