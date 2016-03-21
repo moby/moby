@@ -311,3 +311,42 @@ func (s *DockerSuite) TestLoadZeroSizeLayer(c *check.C) {
 
 	dockerCmd(c, "load", "-i", "fixtures/load/emptyLayer.tar")
 }
+
+func (s *DockerSuite) TestSaveLoadParents(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	makeImage := func(from string, addfile string) string {
+		var (
+			out string
+		)
+		out, _ = dockerCmd(c, "run", "-d", from, "touch", addfile)
+		cleanedContainerID := strings.TrimSpace(out)
+
+		out, _ = dockerCmd(c, "commit", cleanedContainerID)
+		imageID := strings.TrimSpace(out)
+
+		dockerCmd(c, "rm", cleanedContainerID)
+		return imageID
+	}
+
+	idFoo := makeImage("busybox", "foo")
+	idBar := makeImage(idFoo, "bar")
+
+	tmpDir, err := ioutil.TempDir("", "save-load-parents")
+	c.Assert(err, checker.IsNil)
+	defer os.RemoveAll(tmpDir)
+
+	c.Log("tmpdir", tmpDir)
+
+	outfile := filepath.Join(tmpDir, "out.tar")
+
+	dockerCmd(c, "save", "-o", outfile, idBar, idFoo)
+	dockerCmd(c, "rmi", idBar)
+	dockerCmd(c, "load", "-i", outfile)
+
+	inspectOut := inspectField(c, idBar, "Parent")
+	c.Assert(inspectOut, checker.Equals, idFoo)
+
+	inspectOut = inspectField(c, idFoo, "Parent")
+	c.Assert(inspectOut, checker.Equals, "")
+}

@@ -128,6 +128,7 @@ func (s *saveSession) save(outStream io.Writer) error {
 	reposLegacy := make(map[string]map[string]string)
 
 	var manifest []manifestItem
+	var parentLinks []parentLink
 
 	for id, imageDescr := range s.images {
 		if err = s.saveImage(id); err != nil {
@@ -154,6 +155,15 @@ func (s *saveSession) save(outStream io.Writer) error {
 			RepoTags: repoTags,
 			Layers:   layers,
 		})
+
+		parentID, _ := s.is.GetParent(id)
+		parentLinks = append(parentLinks, parentLink{id, parentID})
+	}
+
+	for i, p := range validatedParentLinks(parentLinks) {
+		if p.parentID != "" {
+			manifest[i].Parent = p.parentID
+		}
 	}
 
 	if len(reposLegacy) > 0 {
