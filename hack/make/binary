@@ -61,4 +61,12 @@ go build \
 echo "Created binary: $DEST/$BINARY_FULLNAME"
 ln -sf "$BINARY_FULLNAME" "$DEST/docker$BINARY_EXTENSION"
 
+if [ "$(go env GOOS)/$(go env GOARCH)" == "linux/amd64" ]; then
+    # copy the runc and containerd binaries into the bundle
+    cp "/usr/local/bin/runc" "$DEST/runc$BINARY_EXTENSION"
+    cp "/usr/local/bin/containerd" "$DEST/containerd$BINARY_EXTENSION"
+    cp "/usr/local/bin/ctr" "$DEST/ctr$BINARY_EXTENSION"
+    cp "/usr/local/bin/containerd-shim" "$DEST/containerd-shim$BINARY_EXTENSION"
+fi
+
 hash_files "$DEST/$BINARY_FULLNAME"
