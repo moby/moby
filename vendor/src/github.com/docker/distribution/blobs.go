@@ -189,9 +189,11 @@ type BlobCreateOption interface {
 // BlobWriteService.Resume. If supported by the store, a writer can be
 // recovered with the id.
 type BlobWriter interface {
-	io.WriteSeeker
+	io.WriteCloser
 	io.ReaderFrom
-	io.Closer
+
+	// Size returns the number of bytes written to this blob.
+	Size() int64
 
 	// ID returns the identifier for this writer. The ID can be used with the
 	// Blob service to later resume the write.
@@ -216,9 +218,6 @@ type BlobWriter interface {
 	// result in a no-op. This allows use of Cancel in a defer statement,
 	// increasing the assurance that it is correctly called.
 	Cancel(ctx context.Context) error
-
-	// Get a reader to the blob being written by this BlobWriter
-	Reader() (io.ReadCloser, error)
 }
 
 // BlobService combines the operations to access, read and write blobs. This

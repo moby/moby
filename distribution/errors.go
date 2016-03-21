@@ -93,7 +93,8 @@ func retryOnError(err error) error {
 			return xfer.DoNotRetry{Err: err}
 		}
 	case *url.Error:
-		if v.Err == auth.ErrNoBasicAuthCredentials {
+		switch v.Err {
+		case auth.ErrNoBasicAuthCredentials, auth.ErrNoToken:
 			return xfer.DoNotRetry{Err: v.Err}
 		}
 		return retryOnError(v.Err)
