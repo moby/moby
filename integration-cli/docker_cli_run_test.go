@@ -4243,3 +4243,12 @@ func (s *DockerSuite) TestRunAttachFailedNoLeak(c *check.C) {
 	// NGoroutines is not updated right away, so we need to wait before failing
 	c.Assert(waitForGoroutines(nroutines), checker.IsNil)
 }
+
+// Test for one character directory name case (#20122)
+func (s *DockerSuite) TestRunVolumeWithOneCharacter(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	out, _ := dockerCmd(c, "run", "-v", "/tmp/q:/foo", "busybox", "sh", "-c", "find /foo")
+	fmt.Printf("OUTPUT: %+v", out)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "/foo")
+}
