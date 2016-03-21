@@ -16,6 +16,8 @@ func NewUserAgentMiddleware(versionCheck string) Middleware {
 
 	return func(handler httputils.APIFunc) httputils.APIFunc {
 		return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+			ctx = context.WithValue(ctx, httputils.UAStringKey, r.Header.Get("User-Agent"))
+
 			if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
 				userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
 

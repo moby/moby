@@ -129,7 +129,7 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 					}
 				}
 
-				err = s.backend.PullImage(ref, metaHeaders, authConfig, output)
+				err = s.backend.PullImage(ctx, ref, metaHeaders, authConfig, output)
 			}
 		}
 		// Check the error from pulling an image to make sure the request
