@@ -138,6 +138,24 @@ func (s *DockerSuite) TestVolumeCliLsFilterDangling(c *check.C) {
 	c.Assert(out, check.Not(checker.Contains), "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
 	c.Assert(out, checker.Contains, "testisinuse1\n", check.Commentf("expected volume 'testisinuse1' in output"))
 	c.Assert(out, checker.Contains, "testisinuse2\n", check.Commentf("expected volume 'testisinuse2' in output"))
+
+	out, _ = dockerCmd(c, "volume", "ls", "--filter", "name=testisin")
+	c.Assert(out, check.Not(checker.Contains), "testnotinuse1\n", check.Commentf("expected volume 'testnotinuse1' in output"))
+	c.Assert(out, checker.Contains, "testisinuse1\n", check.Commentf("execpeted volume 'testisinuse1' in output"))
+	c.Assert(out, checker.Contains, "testisinuse2\n", check.Commentf("expected volume 'testisinuse2' in output"))
+
+	out, _ = dockerCmd(c, "volume", "ls", "--filter", "driver=invalidDriver")
+	outArr := strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(outArr), check.Equals, 1, check.Commentf("%s\n", out))
+
+	out, _ = dockerCmd(c, "volume", "ls", "--filter", "driver=local")
+	outArr = strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(outArr), check.Equals, 4, check.Commentf("\n%s", out))
+
+	out, _ = dockerCmd(c, "volume", "ls", "--filter", "driver=loc")
+	outArr = strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(outArr), check.Equals, 4, check.Commentf("\n%s", out))
+
 }
 
 func (s *DockerSuite) TestVolumeCliLsErrorWithInvalidFilterName(c *check.C) {

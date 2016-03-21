@@ -2837,7 +2837,10 @@ Status Codes:
 
 Query Parameters:
 
-- **filters** - JSON encoded value of the filters (a `map[string][]string`) to process on the volumes list. There is one available filter: `dangling=true`
+- **filters** - JSON encoded value of the filters (a `map[string][]string`) to process on the volumes list. Available filters:
+  -   `name=<volume-name>` Matches all or part of a volume name.
+  -   `dangling=<boolean>` When set to `true` (or `1`), returns all volumes that are "dangling" (not in use by a container). When set to `false` (or `0`), only volumes that are in use by one or more containers are returned.
+  -   `driver=<volume-driver-name>` Matches all or part of a volume driver name.
 
 Status Codes:
 
