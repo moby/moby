@@ -189,17 +189,20 @@ run slower but compress more. Default value is 1 (BestSpeed).
 You can use the `--log-opt NAME=VALUE` flag to specify these additional Fluentd logging driver options.
 
  - `fluentd-address`: specify `host:port` to connect [localhost:24224]
- - `tag`: specify tag for `fluentd` message,
- - `fail-on-startup-error`: true/false; Should the logging driver fail container startup in case of connect error during startup. Default: true (backwards compatible)
- - `buffer-limit`: Size limit (bytes) for the buffer which is used to buffer messages in case of connection outages. Default: 1M
+ - `tag`: specify tag for `fluentd` message
+ - `fluentd-buffer-limit`: specify the maximum size of the fluentd log buffer [8MB]
+ - `fluentd-retry-wait`: initial delay before a connection retry (after which it increases exponentially) [1000ms]
+ - `fluentd-max-retries`: maximum number of connection retries before abrupt failure of docker [1073741824]
+ - `fluentd-async-connect`: whether to block on initial connection or not [false]
 
 For example, to specify both additional options:
 
 `docker run --log-driver=fluentd --log-opt fluentd-address=localhost:24224 --log-opt tag=docker.{{.Name}}`
 
-If container cannot connect to the Fluentd daemon on the specified address,
-the container stops immediately. For detailed information on working with this
-logging driver, see [the fluentd logging driver](fluentd.md)
+If container cannot connect to the Fluentd daemon on the specified address and
+`fluentd-async-connect` is not enabled, the container stops immediately.
+For detailed information on working with this logging driver,
+see [the fluentd logging driver](fluentd.md)
 
 
 ## Specify Amazon CloudWatch Logs options

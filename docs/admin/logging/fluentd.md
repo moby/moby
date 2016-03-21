@@ -35,8 +35,7 @@ Some options are supported by specifying `--log-opt` as many times as needed:
 
  - `fluentd-address`: specify `host:port` to connect `localhost:24224`
  - `tag`: specify tag for fluentd message, which interpret some markup, ex `{{.ID}}`, `{{.FullID}}` or `{{.Name}}` `docker.{{.ID}}`
- - `fail-on-startup-error`: true/false; Should the logging driver fail container startup in case of connect error during startup. Default: true (backwards compatible)
- - `buffer-limit`: Size limit (bytes) for the buffer which is used to buffer messages in case of connection outages. Default: 1M
+
 
 Configure the default logging driver by passing the
 `--log-driver` option to the Docker daemon:
@@ -55,7 +54,7 @@ connects to this daemon through `localhost:24224` by default. Use the
     docker run --log-driver=fluentd --log-opt fluentd-address=myhost.local:24224
 
 If container cannot connect to the Fluentd daemon, the container stops
-immediately.
+immediately unless the `fluentd-async-connect` option is used.
 
 ## Options
 
@@ -79,20 +78,9 @@ the log tag format.
 
 The `labels` and `env` options each take a comma-separated list of keys. If there is collision between `label` and `env` keys, the value of the `env` takes precedence. Both options add additional fields to the extra attributes of a logging message.
 
-### fail-on-startup-error
+### fluentd-async-connect
 
-By default, if the logging driver cannot connect to the backend it will fail the entire startup of the container. If you wish to ignore potential connect error during container startup supply the `fail-on-startup-error` flag.
-
-    docker run --log-driver=fluentd --log-opt fail-on-startup-error=false
-
-
-### buffer-limit
-
-When fluent driver loses connection, or cannot connect at container startup, it will buffer the log events locally for re-transmission. Buffer limit option controls how much data will be buffered locally, **per container**. Specified in bytes.
-
-    docker run --log-driver=fluentd --log-opt buffer-limit=5242880
-
-The above would result to use 5M buffer locally. Keep in mind that during possible connection errors all your containers will start buffering locally and thus might result in considerable memory usage.
+Docker connects to Fluentd in the background. Messages are buffered until the connection is established.
 
 ## Fluentd daemon management with Docker
 
