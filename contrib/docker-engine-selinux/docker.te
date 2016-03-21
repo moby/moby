@@ -405,3 +405,10 @@ optional_policy(`
 
      dontaudit svirt_sandbox_domain domain:key {search link};
 ')
+
+optional_policy(`
+	gen_require(`
+		type pcp_pmcd_t;
+	')
+	docker_manage_lib_files(pcp_pmcd_t)
+')
