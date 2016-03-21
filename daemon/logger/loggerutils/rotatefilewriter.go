@@ -87,31 +87,15 @@ func rotate(name string, maxFiles int) error {
 	for i := maxFiles - 1; i > 1; i-- {
 		toPath := name + "." + strconv.Itoa(i)
 		fromPath := name + "." + strconv.Itoa(i-1)
-		if err := backup(fromPath, toPath); err != nil && !os.IsNotExist(err) {
+		if err := os.Rename(fromPath, toPath); err != nil && !os.IsNotExist(err) {
 			return err
 		}
 	}
 
-	if err := backup(name, name+".1"); err != nil {
+	if err := os.Rename(name, name+".1"); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return nil
-}
-
-// backup renames a file from fromPath to toPath
-func backup(fromPath, toPath string) error {
-	if _, err := os.Stat(fromPath); os.IsNotExist(err) {
-		return err
-	}
-
-	if _, err := os.Stat(toPath); !os.IsNotExist(err) {
-		err := os.Remove(toPath)
-		if err != nil {
-			return err
-		}
-	}
-
-	return os.Rename(fromPath, toPath)
 }
 
 // LogPath returns the location the given writer logs to.
