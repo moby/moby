@@ -11,7 +11,7 @@ import (
 )
 
 // flock acquires an advisory lock on a file descriptor.
-func flock(f *os.File, exclusive bool, timeout time.Duration) error {
+func flock(db *DB, mode os.FileMode, exclusive bool, timeout time.Duration) error {
 	var t time.Time
 	for {
 		// If we're beyond our timeout then return an error.
@@ -27,7 +27,7 @@ func flock(f *os.File, exclusive bool, timeout time.Duration) error {
 		}
 
 		// Otherwise attempt to obtain an exclusive lock.
-		err := syscall.Flock(int(f.Fd()), flag|syscall.LOCK_NB)
+		err := syscall.Flock(int(db.file.Fd()), flag|syscall.LOCK_NB)
 		if err == nil {
 			return nil
 		} else if err != syscall.EWOULDBLOCK {
@@ -40,25 +40,14 @@ func flock(f *os.File, exclusive bool, timeout time.Duration) error {
 }
 
 // funlock releases an advisory lock on a file descriptor.
-func funlock(f *os.File) error {
-	return syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+func funlock(db *DB) error {
+	return syscall.Flock(int(db.file.Fd()), syscall.LOCK_UN)
 }
 
 // mmap memory maps a DB's data file.
 func mmap(db *DB, sz int) error {
-	// Truncate and fsync to ensure file size metadata is flushed.
-	// https://github.com/boltdb/bolt/issues/284
-	if !db.NoGrowSync && !db.readOnly {
-		if err := db.file.Truncate(int64(sz)); err != nil {
-			return fmt.Errorf("file resize error: %s", err)
-		}
-		if err := db.file.Sync(); err != nil {
-			return fmt.Errorf("file sync error: %s", err)
-		}
-	}
-
 	// Map the data file to memory.
-	b, err := syscall.Mmap(int(db.file.Fd()), 0, sz, syscall.PROT_READ, syscall.MAP_SHARED)
+	b, err := syscall.Mmap(int(db.file.Fd()), 0, sz, syscall.PROT_READ, syscall.MAP_SHARED|db.MmapFlags)
 	if err != nil {
 		return err
 	}

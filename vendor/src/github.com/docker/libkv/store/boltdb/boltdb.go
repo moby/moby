@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	glog "log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -357,6 +358,13 @@ func (b *BoltDB) AtomicPut(key string, value []byte, previous *store.KVPair, opt
 	)
 	b.Lock()
 	defer b.Unlock()
+	start := time.Now().UnixNano()
+	defer func() {
+		takenms := (time.Now().UnixNano() - start) / 1e6
+		if takenms > 1e3 {
+			glog.Printf("AtomicPut TOOK %vms\n\nKey:%s\nVal:%s\n\n", takenms, key, string(value))
+		}
+	}()
 
 	dbval := make([]byte, libkvmetadatalen)
 
