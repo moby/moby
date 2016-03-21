@@ -2167,6 +2167,7 @@ Display system-wide information
 
     {
         "Architecture": "x86_64",
+        "ClusterStore": "etcd://localhost:2379",
         "CgroupDriver": "cgroupfs",
         "Containers": 11,
         "ContainersRunning": 7,
@@ -2175,21 +2176,9 @@ Display system-wide information
         "CpuCfsPeriod": true,
         "CpuCfsQuota": true,
         "Debug": false,
-        "DiscoveryBackend": "etcd://localhost:2379",
         "DockerRootDir": "/var/lib/docker",
         "Driver": "btrfs",
         "DriverStatus": [[""]],
-        "SystemStatus": [["State", "Healthy"]],
-        "Plugins": {
-            "Volume": [
-                "local"
-            ],
-            "Network": [
-                "null",
-                "host",
-                "bridge"
-            ]
-        },
         "ExecutionDriver": "native-0.1",
         "ExperimentalBuild": false,
         "HttpProxy": "http://test:test@localhost:8080",
@@ -2215,8 +2204,17 @@ Display system-wide information
         "NoProxy": "9.81.1.160",
         "OomKillDisable": true,
         "OSType": "linux",
-        "OomScoreAdj": 500,
         "OperatingSystem": "Boot2Docker",
+        "Plugins": {
+            "Volume": [
+                "local"
+            ],
+            "Network": [
+                "null",
+                "host",
+                "bridge"
+            ]
+        },
         "RegistryConfig": {
             "IndexConfigs": {
                 "docker.io": {
@@ -2230,9 +2228,10 @@ Display system-wide information
                 "127.0.0.0/8"
             ]
         },
+        "ServerVersion": "1.9.0",
         "SwapLimit": false,
+        "SystemStatus": [["State", "Healthy"]],
         "SystemTime": "2015-03-10T11:11:23.730591467-07:00"
-        "ServerVersion": "1.9.0"
     }
 
 Status Codes:

@@ -1921,11 +1921,11 @@ Display system-wide information
     Content-Type: application/json
 
     {
+        "ClusterStore": "etcd://localhost:2379",
         "Containers": 11,
         "CpuCfsPeriod": true,
         "CpuCfsQuota": true,
         "Debug": false,
-        "DiscoveryBackend": "etcd://localhost:2379",
         "DockerRootDir": "/var/lib/docker",
         "Driver": "btrfs",
         "DriverStatus": [[""]],
@@ -1966,9 +1966,9 @@ Display system-wide information
                 "127.0.0.0/8"
             ]
         },
+        "ServerVersion": "1.9.0",
         "SwapLimit": false,
         "SystemTime": "2015-03-10T11:11:23.730591467-07:00"
-        "ServerVersion": "1.9.0"
     }
 
 Status Codes:
@@ -2796,7 +2796,7 @@ JSON Parameters:
 
 `POST /networks/(id)/connect`
 
-Connects a container to a network
+Connect a container to a network
 
 **Example request**:
 
@@ -2827,7 +2827,7 @@ JSON Parameters:
 
 `POST /networks/(id)/disconnect`
 
-Disconnects a container from a network
+Disconnect a container from a network
 
 **Example request**:
 
