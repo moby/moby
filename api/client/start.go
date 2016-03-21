@@ -21,7 +21,7 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 	signal.CatchAll(sigc)
 	go func() {
 		for s := range sigc {
-			if s == signal.SIGCHLD {
+			if s == signal.SIGCHLD || s == signal.SIGPIPE {
 				continue
 			}
 			var sig string
