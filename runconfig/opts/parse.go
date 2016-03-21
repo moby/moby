@@ -242,6 +242,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		entrypoint = strslice.StrSlice{*flEntrypoint}
 	}
 	// Validate if the given hostname is RFC 1123 (https://tools.ietf.org/html/rfc1123) compliant.
+	hostname := *flHostname
 	if hostname != "" {
 		matched, _ := regexp.MatchString("^(([[:alnum:]]|[[:alnum:]][[:alnum:]\\-]*[[:alnum:]])\\.)*([[:alnum:]]|[[:alnum:]][[:alnum:]\\-]*[[:alnum:]])$", hostname)
 		if !matched {
