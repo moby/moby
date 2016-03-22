@@ -161,17 +161,12 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		return progress.NewProgressReader(in, progressOutput, r.ContentLength, "Downloading context", remoteURL)
 	}
 
-	var (
-		context        builder.ModifiableContext
-		dockerfileName string
-		out            io.Writer
-	)
-	context, dockerfileName, err = builder.DetectContextFromRemoteURL(r.Body, remoteURL, createProgressReader)
+	buildContext, dockerfileName, err := builder.DetectContextFromRemoteURL(r.Body, remoteURL, createProgressReader)
 	if err != nil {
 		return errf(err)
 	}
 	defer func() {
-		if err := context.Close(); err != nil {
+		if err := buildContext.Close(); err != nil {
 			logrus.Debugf("[BUILDER] failed to remove temporary context: %v", err)
 		}
 	}()
@@ -181,7 +176,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 
 	buildOptions.AuthConfigs = authConfigs
 
-	out = output
+	var out io.Writer = output
 	if buildOptions.SuppressOutput {
 		out = notVerboseBuffer
 	}
@@ -189,15 +184,24 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	stdout := &streamformatter.StdoutFormatter{Writer: out, StreamFormatter: sf}
 	stderr := &streamformatter.StderrFormatter{Writer: out, StreamFormatter: sf}
 
-	closeNotifier := make(<-chan bool)
+	finished := make(chan struct{})
+	defer close(finished)
 	if notifier, ok := w.(http.CloseNotifier); ok {
-		closeNotifier = notifier.CloseNotify()
+		notifyContext, cancel := context.WithCancel(ctx)
+		closeNotifier := notifier.CloseNotify()
+		go func() {
+			select {
+			case <-closeNotifier:
+				cancel()
+			case <-finished:
+			}
+		}()
+		ctx = notifyContext
 	}
 
 	imgID, err := br.backend.Build(ctx, buildOptions,
-		builder.DockerIgnoreContext{ModifiableContext: context},
-		stdout, stderr, out,
-		closeNotifier)
+		builder.DockerIgnoreContext{ModifiableContext: buildContext},
+		stdout, stderr, out)
 	if err != nil {
 		return errf(err)
 	}

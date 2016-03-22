@@ -6,6 +6,7 @@ package dockerfile
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -16,6 +17,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -553,6 +555,8 @@ func (b *Builder) create() (string, error) {
 	return c.ID, nil
 }
 
+var errCancelled = errors.New("build cancelled")
+
 func (b *Builder) run(cID string) (err error) {
 	errCh := make(chan error)
 	go func() {
@@ -560,14 +564,19 @@ func (b *Builder) run(cID string) (err error) {
 	}()
 
 	finished := make(chan struct{})
-	defer close(finished)
+	var once sync.Once
+	finish := func() { close(finished) }
+	cancelErrCh := make(chan error, 1)
+	defer once.Do(finish)
 	go func() {
 		select {
-		case <-b.cancelled:
+		case <-b.clientCtx.Done():
 			logrus.Debugln("Build cancelled, killing and removing container:", cID)
 			b.docker.ContainerKill(cID, 0)
 			b.removeContainer(cID)
+			cancelErrCh <- errCancelled
 		case <-finished:
+			cancelErrCh <- nil
 		}
 	}()
 
@@ -587,8 +596,8 @@ func (b *Builder) run(cID string) (err error) {
 			Code:    ret,
 		}
 	}
-
-	return nil
+	once.Do(finish)
+	return <-cancelErrCh
 }
 
 func (b *Builder) removeContainer(c string) error {
