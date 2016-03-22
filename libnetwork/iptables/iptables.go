@@ -42,6 +42,8 @@ var (
 	bestEffortLock sync.Mutex
 	// ErrIptablesNotFound is returned when the rule is not found.
 	ErrIptablesNotFound = errors.New("Iptables not found")
+	probeOnce           sync.Once
+	firewalldOnce       sync.Once
 )
 
 // ChainInfo defines the iptables chain.
@@ -61,8 +63,25 @@ func (e ChainError) Error() string {
 	return fmt.Sprintf("Error iptables %s: %s", e.Chain, string(e.Output))
 }
 
+func probe() {
+	if out, err := exec.Command("modprobe", "-va", "nf_nat").CombinedOutput(); err != nil {
+		logrus.Warnf("Running modprobe nf_nat failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
+	}
+	if out, err := exec.Command("modprobe", "-va", "xt_conntrack").CombinedOutput(); err != nil {
+		logrus.Warnf("Running modprobe xt_conntrack failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
+	}
+}
+
+func initFirewalld() {
+	if err := FirewalldInit(); err != nil {
+		logrus.Debugf("Fail to initialize firewalld: %v, using raw iptables instead", err)
+	}
+}
+
 func initCheck() error {
 	if iptablesPath == "" {
+		probeOnce.Do(probe)
+		firewalldOnce.Do(initFirewalld)
 		path, err := exec.LookPath("iptables")
 		if err != nil {
 			return ErrIptablesNotFound
