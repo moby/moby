@@ -26,5 +26,5 @@ go build -compiler=gccgo \
 echo "Created binary: $DEST/$BINARY_FULLNAME"
 ln -sf "$BINARY_FULLNAME" "$DEST/docker$BINARY_EXTENSION"
 
-copy_containerd "$DEST"
+copy_containerd "$DEST" "hash"
 hash_files "$DEST/$BINARY_FULLNAME"

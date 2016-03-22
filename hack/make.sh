@@ -302,10 +302,12 @@ copy_containerd() {
             cp /usr/local/bin/ctr "$dir/"
             cp /usr/local/bin/containerd "$dir/"
             cp /usr/local/bin/containerd-shim "$dir/"
-            hash_files "$dir/runc"
-            hash_files "$dir/ctr"
-            hash_files "$dir/containerd"
-            hash_files "$dir/containerd-shim"
+            if [ "$2" == "hash" ]; then
+                hash_files "$dir/runc"
+                hash_files "$dir/ctr"
+                hash_files "$dir/containerd"
+                hash_files "$dir/containerd-shim"
+            fi
         fi
         )
     fi
