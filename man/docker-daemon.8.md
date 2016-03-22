@@ -465,16 +465,6 @@ this topic, see
 Otherwise, set this flag for migrating existing Docker daemons to a
 daemon with a supported environment.
 
-## ZFS options
-
-#### zfs.fsname
-
-Set zfs filesystem under which docker will create its own datasets.
-By default docker will pick up the zfs filesystem where docker graph
-(`/var/lib/docker`) is located.
-
-Example use: `docker daemon -s zfs --storage-opt zfs.fsname=zroot/docker`
-
 #### dm.min_free_space
 
 Specifies the min free space percent in thin pool require for new device
@@ -498,6 +488,16 @@ used, then stop docker, grow the size of loop files and restart docker and
 that should resolve the issue.
 
 Example use: `docker daemon --storage-opt dm.min_free_space_percent=10%`
+
+## ZFS options
+
+#### zfs.fsname
+
+Set zfs filesystem under which docker will create its own datasets.
+By default docker will pick up the zfs filesystem where docker graph
+(`/var/lib/docker`) is located.
+
+Example use: `docker daemon -s zfs --storage-opt zfs.fsname=zroot/docker`
 
 # CLUSTER STORE OPTIONS
 
