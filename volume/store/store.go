@@ -67,20 +67,40 @@ func (s *VolumeStore) List() ([]volume.Volume, []string, error) {
 		name := normaliseVolumeName(v.Name())
 
 		s.locks.Lock(name)
-		storedV, exists := s.getNamed(name)
-		if !exists {
+		// make sure that this volume still exists after grabbing a lock on its name
+		// this is to prevent a race where you can delete a volume between when it's
+		// listed above and cached below because the lock on its name is not held
+		if !s.existsInDriver(v) {
+			s.locks.Unlock(name)
+			continue
+		}
+		storedV, existsInCache := s.getNamed(name)
+		if !existsInCache {
 			s.setNamed(v, "")
 		}
-		if exists && storedV.DriverName() != v.DriverName() {
+		if existsInCache && storedV.DriverName() != v.DriverName() {
 			logrus.Warnf("Volume name %s already exists for driver %s, not including volume returned by %s", v.Name(), storedV.DriverName(), v.DriverName())
-			s.locks.Unlock(v.Name())
+			s.locks.Unlock(name)
 			continue
 		}
 
 		out = append(out, v)
-		s.locks.Unlock(v.Name())
+		s.locks.Unlock(name)
 	}
 	return out, warnings, nil
+}
+
+func (s *VolumeStore) existsInDriver(vol volume.Volume) bool {
+	vd, err := volumedrivers.GetDriver(vol.DriverName())
+	if err != nil {
+		return false
+	}
+	name := normaliseVolumeName(vol.Name())
+	_, err = vd.Get(name)
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 // list goes through each volume driver and asks for its list of volumes.
