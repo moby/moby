@@ -39,6 +39,7 @@ for version in "${versions[@]}"; do
 	echo >> "$version/Dockerfile"
 
 	extraBuildTags=
+	runcBuildTags=
 
 	case "$from" in
 		centos:*)
@@ -77,6 +78,7 @@ for version in "${versions[@]}"; do
 		sqlite-devel # for "sqlite3.h"
 		systemd-devel # for "sd-journal.h" and libraries
 		tar # older versions of dev-tools do not have tar
+		git # required for containerd and runc clone
 	)
 
 	case "$from" in
@@ -98,9 +100,11 @@ for version in "${versions[@]}"; do
 	case "$from" in
 		opensuse:*|oraclelinux:*|centos:7)
 			packages=( "${packages[@]/libseccomp-devel}" )
+			runcBuildTags="selinux"
 			;;
 		*)
 			extraBuildTags+=' seccomp'
+			runcBuildTags="seccomp selinux"
 			;;
 	esac
 
@@ -148,6 +152,7 @@ for version in "${versions[@]}"; do
 	buildTags=$( echo "selinux $extraBuildTags" | xargs -n1 | sort -n | tr '\n' ' ' | sed -e 's/[[:space:]]*$//' )
 
 	echo "ENV DOCKER_BUILDTAGS $buildTags" >> "$version/Dockerfile"
+	echo "ENV RUNC_BUILDTAGS $runcBuildTags" >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"
 
 	case "$from" in
