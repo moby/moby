@@ -22,6 +22,10 @@ override_dh_strip:
 override_dh_auto_install:
 	mkdir -p debian/docker-engine/usr/bin
 	cp -aT "$$(readlink -f bundles/$(VERSION)/dynbinary/docker)" debian/docker-engine/usr/bin/docker
+	cp -aT /usr/local/bin/containerd debian/docker-engine/usr/bin/docker-containerd
+	cp -aT /usr/local/bin/containerd-shim debian/docker-engine/usr/bin/docker-containerd-shim
+	cp -aT /usr/local/bin/ctr debian/docker-engine/usr/bin/docker-containerd-ctr
+	cp -aT /usr/local/bin/runc debian/docker-engine/usr/bin/docker-runc
 	mkdir -p debian/docker-engine/usr/lib/docker
 
 override_dh_installinit:
@@ -35,6 +39,9 @@ override_dh_installudev:
 override_dh_install:
 	dh_install
 	dh_apparmor --profile-name=docker-engine -pdocker-engine
+
+override_dh_shlibdeps:
+	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info
 
 %:
 	dh $@ --with=bash-completion $(shell command -v dh_systemd_enable > /dev/null 2>&1 && echo --with=systemd)
