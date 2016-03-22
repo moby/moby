@@ -180,8 +180,8 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		return nil, err
 	}
 
-	if err := initIpams(c, c.getStore(datastore.LocalScope),
-		c.getStore(datastore.GlobalScope)); err != nil {
+	if err := initIpams(c, c.GetStore(datastore.LocalScope),
+		c.GetStore(datastore.GlobalScope)); err != nil {
 		return nil, err
 	}
 
@@ -319,7 +319,7 @@ func (c *controller) initDiscovery(watcher discovery.Watcher) error {
 }
 
 func (c *controller) activeCallback() {
-	ds := c.getStore(datastore.GlobalScope)
+	ds := c.GetStore(datastore.GlobalScope)
 	if ds != nil && !ds.Active() {
 		ds.RestartWatch()
 	}

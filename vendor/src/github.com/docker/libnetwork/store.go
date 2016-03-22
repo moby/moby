@@ -37,7 +37,8 @@ func (c *controller) closeStores() {
 	}
 }
 
-func (c *controller) getStore(scope string) datastore.DataStore {
+// GetStore returns the datastore for the given scope.
+func (c *controller) GetStore(scope string) datastore.DataStore {
 	c.Lock()
 	defer c.Unlock()
 
@@ -86,7 +87,7 @@ func (c *controller) getNetworkFromStore(nid string) (*network, error) {
 func (c *controller) getNetworksForScope(scope string) ([]*network, error) {
 	var nl []*network
 
-	store := c.getStore(scope)
+	store := c.GetStore(scope)
 	if store == nil {
 		return nil, nil
 	}
@@ -198,7 +199,7 @@ func (n *network) getEndpointsFromStore() ([]*endpoint, error) {
 }
 
 func (c *controller) updateToStore(kvObject datastore.KVObject) error {
-	cs := c.getStore(kvObject.DataScope())
+	cs := c.GetStore(kvObject.DataScope())
 	if cs == nil {
 		log.Warnf("datastore for scope %s not initialized. kv object %s is not added to the store", kvObject.DataScope(), datastore.Key(kvObject.Key()...))
 		return nil
@@ -215,7 +216,7 @@ func (c *controller) updateToStore(kvObject datastore.KVObject) error {
 }
 
 func (c *controller) deleteFromStore(kvObject datastore.KVObject) error {
-	cs := c.getStore(kvObject.DataScope())
+	cs := c.GetStore(kvObject.DataScope())
 	if cs == nil {
 		log.Debugf("datastore for scope %s not initialized. kv object %s is not deleted from datastore", kvObject.DataScope(), datastore.Key(kvObject.Key()...))
 		return nil
@@ -362,7 +363,7 @@ func (c *controller) processEndpointCreate(nmap map[string]*netWatch, ep *endpoi
 	nw.stopCh = make(chan struct{})
 	c.Unlock()
 
-	store := c.getStore(ep.getNetwork().DataScope())
+	store := c.GetStore(ep.getNetwork().DataScope())
 	if store == nil {
 		return
 	}
