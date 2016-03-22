@@ -19,55 +19,55 @@ type initializer struct {
 }
 
 func initDrivers(c *controller) error {
+	scopesConfig := make(map[string]interface{})
+
+	for k, v := range c.cfg.Scopes {
+		if v.PersistConnection() {
+			scopesConfig[netlabel.MakeKVStore(k)] = c.GetStore(k)
+		} else {
+			if !v.IsValid() {
+				continue
+			}
+
+			scopesConfig[netlabel.MakeKVClient(k)] = discoverapi.DatastoreConfigData{
+				Scope:    k,
+				Provider: v.Client.Provider,
+				Address:  v.Client.Address,
+				Config:   v.Client.Config,
+			}
+		}
+	}
+
 	for _, i := range getInitializers() {
-		if err := i.fn(c, makeDriverConfig(c, i.ntype)); err != nil {
+		config := make(map[string]interface{})
+
+		if drvCfg, ok := c.cfg.Daemon.DriverCfg[i.ntype]; ok {
+			for k, v := range drvCfg.(map[string]interface{}) {
+				config[k] = v
+			}
+		}
+
+		for _, label := range c.cfg.Daemon.Labels {
+			if !strings.HasPrefix(netlabel.Key(label), netlabel.DriverPrefix+"."+i.ntype) {
+				continue
+			}
+
+			config[netlabel.Key(label)] = netlabel.Value(label)
+		}
+
+		// We don't send datastore configs to external plugins
+		if i.ntype != "remote" {
+			for sk, sv := range scopesConfig {
+				config[sk] = sv
+			}
+		}
+
+		if err := i.fn(c, config); err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-func makeDriverConfig(c *controller, ntype string) map[string]interface{} {
-	if c.cfg == nil {
-		return nil
-	}
-
-	config := make(map[string]interface{})
-
-	for _, label := range c.cfg.Daemon.Labels {
-		if !strings.HasPrefix(netlabel.Key(label), netlabel.DriverPrefix+"."+ntype) {
-			continue
-		}
-
-		config[netlabel.Key(label)] = netlabel.Value(label)
-	}
-
-	drvCfg, ok := c.cfg.Daemon.DriverCfg[ntype]
-	if ok {
-		for k, v := range drvCfg.(map[string]interface{}) {
-			config[k] = v
-		}
-	}
-
-	// We don't send datastore configs to external plugins
-	if ntype == "remote" {
-		return config
-	}
-
-	for k, v := range c.cfg.Scopes {
-		if !v.IsValid() {
-			continue
-		}
-		config[netlabel.MakeKVClient(k)] = discoverapi.DatastoreConfigData{
-			Scope:    k,
-			Provider: v.Client.Provider,
-			Address:  v.Client.Address,
-			Config:   v.Client.Config,
-		}
-	}
-
-	return config
 }
 
 func initIpams(ic ipamapi.Callback, lDs, gDs interface{}) error {

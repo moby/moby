@@ -51,6 +51,11 @@ func (d *driver) initStore(option map[string]interface{}) error {
 			return types.InternalErrorf("ipvlan driver failed to initialize data store: %v", err)
 		}
 
+	} else if store, ok := option[netlabel.LocalKVStore]; ok {
+		d.store = store.(datastore.DataStore)
+	}
+
+	if d.store != nil {
 		return d.populateNetworks()
 	}
 

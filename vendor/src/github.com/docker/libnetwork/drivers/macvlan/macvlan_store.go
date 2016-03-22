@@ -50,7 +50,11 @@ func (d *driver) initStore(option map[string]interface{}) error {
 		if err != nil {
 			return types.InternalErrorf("macvlan driver failed to initialize data store: %v", err)
 		}
+	} else if store, ok := option[netlabel.LocalKVStore]; ok {
+		d.store = store.(datastore.DataStore)
+	}
 
+	if d.store != nil {
 		return d.populateNetworks()
 	}
 
