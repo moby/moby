@@ -1440,7 +1440,7 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 		if config.WorkingDir != "" {
 			config.WorkingDir = filepath.FromSlash(config.WorkingDir) // Ensure in platform semantics
 			if !system.IsAbs(config.WorkingDir) {
-				return nil, fmt.Errorf("The working directory '%s' is invalid. It needs to be an absolute path.", config.WorkingDir)
+				return nil, fmt.Errorf("The working directory '%s' is invalid. It needs to be an absolute path", config.WorkingDir)
 			}
 		}
 
