@@ -103,6 +103,13 @@ type GraphDriverData struct {
 	Data map[string]string
 }
 
+// RootFS returns Image's RootFS description including the layer IDs.
+type RootFS struct {
+	Type      string
+	Layers    []string `json:",omitempty"`
+	BaseLayer string   `json:",omitempty"`
+}
+
 // ImageInspect contains response of Remote API:
 // GET "/images/{name:.*}/json"
 type ImageInspect struct {
@@ -122,6 +129,7 @@ type ImageInspect struct {
 	Size            int64
 	VirtualSize     int64
 	GraphDriver     GraphDriverData
+	RootFS          RootFS
 }
 
 // Port stores open ports info of container
@@ -372,6 +380,7 @@ type Volume struct {
 	Driver     string                 // Driver is the Driver name used to create the volume
 	Mountpoint string                 // Mountpoint is the location on disk of the volume
 	Status     map[string]interface{} `json:",omitempty"` // Status provides low-level status information about the volume
+	Labels     map[string]string      // Labels is metadata specific to the volume
 }
 
 // VolumesListResponse contains the response for the remote API:
@@ -387,6 +396,7 @@ type VolumeCreateRequest struct {
 	Name       string            // Name is the requested name of the volume
 	Driver     string            // Driver is the name of the driver that should be used to create the volume
 	DriverOpts map[string]string // DriverOpts holds the driver specific options to use for when creating the volume.
+	Labels     map[string]string // Labels holds metadata specific to the volume being created.
 }
 
 // NetworkResource is the body of the "get network" http response message
@@ -400,6 +410,7 @@ type NetworkResource struct {
 	Internal   bool
 	Containers map[string]EndpointResource
 	Options    map[string]string
+	Labels     map[string]string
 }
 
 // EndpointResource contains network resources allocated and used for a container in a network
@@ -420,6 +431,7 @@ type NetworkCreate struct {
 	IPAM           network.IPAM
 	Internal       bool
 	Options        map[string]string
+	Labels         map[string]string
 }
 
 // NetworkCreateResponse is the response message sent by the server for network create call

@@ -1498,7 +1498,7 @@ func configureVolumes(config *Config, rootUID, rootGID int) (*store.VolumeStore,
 	}
 
 	volumedrivers.Register(volumesDriver, volumesDriver.Name())
-	return store.New(), nil
+	return store.New(config.Root)
 }
 
 // AuthenticateToRegistry checks the validity of credentials in authConfig

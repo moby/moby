@@ -22,7 +22,8 @@ func (a *volumeDriverAdapter) Create(name string, opts map[string]string) (volum
 	return &volumeAdapter{
 		proxy:      a.proxy,
 		name:       name,
-		driverName: a.name}, nil
+		driverName: a.name,
+	}, nil
 }
 
 func (a *volumeDriverAdapter) Remove(v volume.Volume) error {

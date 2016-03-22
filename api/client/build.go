@@ -62,6 +62,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	cmd.Var(&flBuildArg, []string{"-build-arg"}, "Set build-time variables")
 	isolation := cmd.String([]string{"-isolation"}, "", "Container isolation technology")
 
+	flLabels := opts.NewListOpts(nil)
+	cmd.Var(&flLabels, []string{"-label"}, "Set metadata for an image")
+
 	ulimits := make(map[string]*units.Ulimit)
 	flUlimits := runconfigopts.NewUlimitOpt(&ulimits)
 	cmd.Var(flUlimits, []string{"-ulimit"}, "Ulimit options")
@@ -230,6 +233,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		Ulimits:        flUlimits.GetList(),
 		BuildArgs:      runconfigopts.ConvertKVStringsToMap(flBuildArg.GetAll()),
 		AuthConfigs:    cli.retrieveAuthConfigs(),
+		Labels:         runconfigopts.ConvertKVStringsToMap(flLabels.GetAll()),
 	}
 
 	response, err := cli.client.ImageBuild(context.Background(), options)

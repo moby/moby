@@ -37,6 +37,19 @@ import (
 	"github.com/docker/engine-api/types/strslice"
 )
 
+func (b *Builder) addLabels() {
+	// merge labels
+	if len(b.options.Labels) > 0 {
+		logrus.Debugf("[BUILDER] setting labels %v", b.options.Labels)
+		if b.runConfig.Labels == nil {
+			b.runConfig.Labels = make(map[string]string)
+		}
+		for kL, vL := range b.options.Labels {
+			b.runConfig.Labels[kL] = vL
+		}
+	}
+}
+
 func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) error {
 	if b.disableCommit {
 		return nil
@@ -45,6 +58,7 @@ func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) e
 		return fmt.Errorf("Please provide a source image with `from` prior to commit")
 	}
 	b.runConfig.Image = b.image
+
 	if id == "" {
 		cmd := b.runConfig.Cmd
 		if runtime.GOOS != "windows" {
@@ -81,6 +95,7 @@ func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) e
 	if err != nil {
 		return err
 	}
+
 	b.image = imageID
 	return nil
 }

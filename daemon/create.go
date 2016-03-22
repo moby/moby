@@ -167,12 +167,12 @@ func (daemon *Daemon) setRWLayer(container *container.Container) error {
 
 // VolumeCreate creates a volume with the specified name, driver, and opts
 // This is called directly from the remote API
-func (daemon *Daemon) VolumeCreate(name, driverName string, opts map[string]string) (*types.Volume, error) {
+func (daemon *Daemon) VolumeCreate(name, driverName string, opts, labels map[string]string) (*types.Volume, error) {
 	if name == "" {
 		name = stringid.GenerateNonCryptoID()
 	}
 
-	v, err := daemon.volumes.Create(name, driverName, opts)
+	v, err := daemon.volumes.Create(name, driverName, opts, labels)
 	if err != nil {
 		if volumestore.IsNameConflict(err) {
 			return nil, fmt.Errorf("A volume named %s already exists. Choose a different volume name.", name)
