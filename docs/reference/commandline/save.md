@@ -12,7 +12,7 @@ parent = "smn_cli"
 
     Usage: docker save [OPTIONS] IMAGE [IMAGE...]
 
-    Save images to a tar archive (streamed to STDOUT by default)
+    Save one or more images to a tar archive (streamed to STDOUT by default)
 
       --help             Print usage
       -o, --output=""    Write to a file, instead of STDOUT

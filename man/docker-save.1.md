@@ -2,7 +2,7 @@
 % Docker Community
 % JUNE 2014
 # NAME
-docker-save - Save images to a tar archive (streamed to STDOUT by default)
+docker-save - Save one or more images to a tar archive (streamed to STDOUT by default)
 
 # SYNOPSIS
 **docker save**
