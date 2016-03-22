@@ -117,9 +117,11 @@ type Root struct {
 // List lists all the volumes
 func (r *Root) List() ([]volume.Volume, error) {
 	var ls []volume.Volume
+	r.m.Lock()
 	for _, v := range r.volumes {
 		ls = append(ls, v)
 	}
+	r.m.Unlock()
 	return ls, nil
 }
 
