@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/go-check/check"
 )
@@ -206,5 +209,8 @@ func (s *DockerTrustSuite) TearDownTest(c *check.C) {
 	if s.not != nil {
 		s.not.Close()
 	}
+
+	// Remove trusted keys and metadata after test
+	os.RemoveAll(filepath.Join(cliconfig.ConfigDir(), "trust"))
 	s.ds.TearDownTest(c)
 }

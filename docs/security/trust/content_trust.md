@@ -108,19 +108,13 @@ $ docker pull someimage@sha256:d149ab53f8718e987c3a3024bb8aa0e2caadf6c0328f1d9d8
 ```
 
 Trust for an image tag is managed through the use of signing keys. A key set is
-created when an operation using content trust is first invoked. Docker's content
-trust makes use of four different keys:
+created when an operation using content trust is first invoked. A key set consists
+of the following classes of keys:
 
-| Key                 | Description                                                                                                                                                                                                                                                                                                                                                                         |
-|---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| root key         | Root of content trust for a image tag. When content trust is enabled, you create the root key once. |
-| target and snapshot | These two keys are known together as the "repository" key. When content trust is enabled, you create this key when you add a new image repository. If you have the root key, you can export the repository key and allow other publishers to sign the image tags.    |
-| timestamp           | This key applies to a repository. It allows Docker repositories to have freshness security guarantees without requiring periodic content refreshes on the client's side.                                                                                                              |
-
-With the exception of the timestamp, all the keys are generated and stored locally
-client-side. The timestamp is safely generated and stored in a signing server that
-is deployed alongside the Docker registry. All keys are generated in a backend
-service that isn't directly exposed to the internet and are encrypted at rest.
+- an offline key that is the root of content trust for a image tag
+- repository or tagging keys that sign tags
+- server-managed keys such as the timestamp key, which provides freshness
+	security guarantees for your repository
 
 The following image depicts the various signing keys and their relationships:
 
@@ -133,9 +127,9 @@ The following image depicts the various signing keys and their relationships:
 >tag from this repository prior to the loss.
 
 You should backup the root key somewhere safe. Given that it is only required
-to create new repositories, it is a good idea to store it offline. Make sure you
-read [Manage keys for content trust](trust_key_mng.md) information
-for details on securing, and backing up your keys. 
+to create new repositories, it is a good idea to store it offline.
+For details on securing, and backing up your keys, make sure you
+read how to [manage keys for content trust](trust_key_mng.md).
 
 ## Survey of typical content trust operations
 
@@ -302,4 +296,5 @@ $  docker push --disable-content-trust docker/trusttest:untrusted
 
 * [Manage keys for content trust](trust_key_mng.md)
 * [Automation with content trust](trust_automation.md)
+* [Delegations for content trust](trust_delegation.md)
 * [Play in a content trust sandbox](trust_sandbox.md)

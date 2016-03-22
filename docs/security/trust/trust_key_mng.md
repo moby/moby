@@ -11,18 +11,34 @@ parent= "smn_content_trust"
 # Manage keys for content trust
 
 Trust for an image tag is managed through the use of keys. Docker's content
-trust makes use four different keys:
+trust makes use of five different types of keys:
 
 | Key                 | Description                                                                                                                                                                                                                                                                                                                                                                         |
 |---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| root key         | Root of content trust for a image tag. When content trust is enabled, you create the root key once. |
-| target and snapshot | These two keys are known together as the "repository" key. When content trust is enabled, you create this key when you add a new image repository. If you have the root key, you can export the repository key and allow other publishers to sign the image tags.    |
-| timestamp           | This key applies to a repository. It allows Docker repositories to have freshness security guarantees without requiring periodic content refreshes on the client's side.                                                                                                              |
+| root key         | Root of content trust for a image tag. When content trust is enabled, you create the root key once. Also known as the offline key, because it should be kept offline. |
+| targets          | This key allows you to sign image tags, to manage delegations including delegated keys or permitted delegation paths. Also known as the repository key, since this key determines what tags can be signed into an image repository. |
+| snapshot         | This key signs the current collection of image tags, preventing mix and match attacks.
+| timestamp        | This key allows Docker image repositories to have freshness security guarantees without requiring periodic content refreshes on the client's side. |
+| delegation       | Delegation keys are optional tagging keys and allow you to delegate signing image tags to other publishers without having to share your targets key. |
 
-With the exception of the timestamp, all the keys are generated and stored locally
-client-side. The timestamp is safely generated and stored in a signing server that
-is deployed alongside the Docker registry. All keys are generated in a backend
-service that isn't directly exposed to the internet and are encrypted at rest.
+When doing a `docker push` with Content Trust enabled for the first time, the
+root, targets, snapshot, and timestamp keys are generated automatically for
+the image repository:
+
+- The root and targets key are generated and stored locally client-side.
+
+- The timestamp and snapshot keys are safely generated and stored in a signing server
+	that is deployed alongside the Docker registry. These keys are generated in a backend
+	service that isn't directly exposed to the internet and are encrypted at rest.
+
+Delegation keys are optional, and not generated as part of the normal `docker`
+workflow.  They need to be
+[manually generated and added to the repository](trust_delegation.md#generating-delegation-keys).
+
+Note: Prior to Docker Engine 1.11, the snapshot key was also generated and stored
+locally client-side. [Use the Notary CLI to manage your snapshot key locally
+again](https://docs.docker.com/notary/advanced_usage/#rotate-keys) for
+repositories created with newer versions of Docker.
 
 ## Choosing a passphrase
 
@@ -68,6 +84,7 @@ the new key.
 
 ## Related information
 
-* [Content trust in Docker](content_trust.md) 
+* [Content trust in Docker](content_trust.md)
 * [Automation with content trust](trust_automation.md)
+* [Delegations for content trust](trust_delegation.md)
 * [Play in a content trust sandbox](trust_sandbox.md)

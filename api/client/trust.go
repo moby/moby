@@ -258,6 +258,11 @@ func (cli *DockerCli) trustedReference(ref reference.NamedTagged) (reference.Can
 	if err != nil {
 		return nil, err
 	}
+	// Only list tags in the top level targets role or the releases delegation role - ignore
+	// all other delegation roles
+	if t.Role != releasesRole && t.Role != data.CanonicalTargetsRole {
+		return nil, notaryError(repoInfo.FullName(), fmt.Errorf("No trust data for %s", ref.Tag()))
+	}
 	r, err := convertTarget(t.Target)
 	if err != nil {
 		return nil, err
@@ -331,13 +336,28 @@ func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registr
 				fmt.Fprintf(cli.out, "Skipping target for %q\n", repoInfo.Name())
 				continue
 			}
+			// Only list tags in the top level targets role or the releases delegation role - ignore
+			// all other delegation roles
+			if tgt.Role != releasesRole && tgt.Role != data.CanonicalTargetsRole {
+				continue
+			}
 			refs = append(refs, t)
+		}
+		if len(refs) == 0 {
+			return notaryError(repoInfo.FullName(), fmt.Errorf("No trusted tags for %s", repoInfo.FullName()))
 		}
 	} else {
 		t, err := notaryRepo.GetTargetByName(ref.String(), releasesRole, data.CanonicalTargetsRole)
 		if err != nil {
 			return notaryError(repoInfo.FullName(), err)
 		}
+		// Only get the tag if it's in the top level targets role or the releases delegation role
+		// ignore it if it's in any other delegation roles
+		if t.Role != releasesRole && t.Role != data.CanonicalTargetsRole {
+			return notaryError(repoInfo.FullName(), fmt.Errorf("No trust data for %s", ref.String()))
+		}
+
+		logrus.Debugf("retrieving target for %s role\n", t.Role)
 		r, err := convertTarget(t.Target)
 		if err != nil {
 			return err
@@ -441,39 +461,95 @@ func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string,
 		return err
 	}
 
-	if err := repo.AddTarget(target, releasesRole); err != nil {
-		return err
+	// get the latest repository metadata so we can figure out which roles to sign
+	_, err = repo.Update(false)
+
+	switch err.(type) {
+	case client.ErrRepoNotInitialized, client.ErrRepositoryNotExist:
+		keys := repo.CryptoService.ListKeys(data.CanonicalRootRole)
+		var rootKeyID string
+		// always select the first root key
+		if len(keys) > 0 {
+			sort.Strings(keys)
+			rootKeyID = keys[0]
+		} else {
+			rootPublicKey, err := repo.CryptoService.Create(data.CanonicalRootRole, data.ECDSAKey)
+			if err != nil {
+				return err
+			}
+			rootKeyID = rootPublicKey.ID()
+		}
+
+		// Initialize the notary repository with a remotely managed snapshot key
+		if err := repo.Initialize(rootKeyID, data.CanonicalSnapshotRole); err != nil {
+			return notaryError(repoInfo.FullName(), err)
+		}
+		fmt.Fprintf(cli.out, "Finished initializing %q\n", repoInfo.FullName())
+		err = repo.AddTarget(target, data.CanonicalTargetsRole)
+	case nil:
+		// already initialized and we have successfully downloaded the latest metadata
+		err = cli.addTargetToAllSignableRoles(repo, target)
+	default:
+		return notaryError(repoInfo.FullName(), err)
 	}
 
-	err = repo.Publish()
 	if err == nil {
-		fmt.Fprintf(cli.out, "Successfully signed %q:%s\n", repoInfo.FullName(), tag)
-		return nil
-	} else if _, ok := err.(client.ErrRepoNotInitialized); !ok {
+		err = repo.Publish()
+	}
+
+	if err != nil {
 		fmt.Fprintf(cli.out, "Failed to sign %q:%s - %s\n", repoInfo.FullName(), tag, err.Error())
 		return notaryError(repoInfo.FullName(), err)
 	}
 
-	keys := repo.CryptoService.ListKeys(data.CanonicalRootRole)
+	fmt.Fprintf(cli.out, "Successfully signed %q:%s\n", repoInfo.FullName(), tag)
+	return nil
+}
 
-	var rootKeyID string
-	// always select the first root key
-	if len(keys) > 0 {
-		sort.Strings(keys)
-		rootKeyID = keys[0]
-	} else {
-		rootPublicKey, err := repo.CryptoService.Create(data.CanonicalRootRole, data.ECDSAKey)
-		if err != nil {
-			return err
+// Attempt to add the image target to all the top level delegation roles we can
+// (based on whether we have the signing key and whether the role's path allows
+// us to).
+// If there are no delegation roles, we add to the targets role.
+func (cli *DockerCli) addTargetToAllSignableRoles(repo *client.NotaryRepository, target *client.Target) error {
+	var signableRoles []string
+
+	// translate the full key names, which includes the GUN, into just the key IDs
+	allCanonicalKeyIDs := make(map[string]struct{})
+	for fullKeyID := range repo.CryptoService.ListAllKeys() {
+		allCanonicalKeyIDs[path.Base(fullKeyID)] = struct{}{}
+	}
+
+	allDelegationRoles, err := repo.GetDelegationRoles()
+	if err != nil {
+		return err
+	}
+
+	// if there are no delegation roles, then just try to sign it into the targets role
+	if len(allDelegationRoles) == 0 {
+		return repo.AddTarget(target, data.CanonicalTargetsRole)
+	}
+
+	// there are delegation roles, find every delegation role we have a key for, and
+	// attempt to sign into into all those roles.
+	for _, delegationRole := range allDelegationRoles {
+		// We do not support signing any delegation role that isn't a direct child of the targets role.
+		// Also don't bother checking the keys if we can't add the target
+		// to this role due to path restrictions
+		if path.Dir(delegationRole.Name) != data.CanonicalTargetsRole || !delegationRole.CheckPaths(target.Name) {
+			continue
 		}
-		rootKeyID = rootPublicKey.ID()
+
+		for _, canonicalKeyID := range delegationRole.KeyIDs {
+			if _, ok := allCanonicalKeyIDs[canonicalKeyID]; ok {
+				signableRoles = append(signableRoles, delegationRole.Name)
+				break
+			}
+		}
 	}
 
-	// Initialize the notary repository with a remotely managed snapshot key
-	if err := repo.Initialize(rootKeyID, data.CanonicalSnapshotRole); err != nil {
-		return notaryError(repoInfo.FullName(), err)
+	if len(signableRoles) == 0 {
+		return fmt.Errorf("no valid signing keys for delegation roles")
 	}
-	fmt.Fprintf(cli.out, "Finished initializing %q\n", repoInfo.FullName())
 
-	return notaryError(repoInfo.FullName(), repo.Publish())
+	return repo.AddTarget(target, signableRoles...)
 }

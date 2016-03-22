@@ -254,3 +254,112 @@ func (s *DockerTrustSuite) TestTrustedPullDelete(c *check.C) {
 	_, err = inspectFieldWithError(imageID, "Id")
 	c.Assert(err, checker.NotNil, check.Commentf("image should have been deleted"))
 }
+
+func (s *DockerTrustSuite) TestTrustedPullReadsFromReleasesRole(c *check.C) {
+	testRequires(c, NotaryHosting)
+	repoName := fmt.Sprintf("%v/dockerclireleasesdelegationpulling/trusted", privateRegistryURL)
+	targetName := fmt.Sprintf("%s:latest", repoName)
+
+	// Push with targets first, initializing the repo
+	dockerCmd(c, "tag", "busybox", targetName)
+	pushCmd := exec.Command(dockerBinary, "push", targetName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	s.assertTargetInRoles(c, repoName, "latest", "targets")
+
+	// Try pull, check we retrieve from targets role
+	pullCmd := exec.Command(dockerBinary, "-D", "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "retrieving target for targets role")
+
+	// Now we'll create the releases role, and try pushing and pulling
+	s.notaryCreateDelegation(c, repoName, "targets/releases", s.not.keys[0].Public)
+	s.notaryImportKey(c, repoName, "targets/releases", s.not.keys[0].Private)
+	s.notaryPublish(c, repoName)
+
+	// try a pull, check that we can still pull because we can still read the
+	// old tag in the targets role
+	pullCmd = exec.Command(dockerBinary, "-D", "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "retrieving target for targets role")
+
+	// try a pull -a, check that it succeeds because we can still pull from the
+	// targets role
+	pullCmd = exec.Command(dockerBinary, "-D", "pull", "-a", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Push, should sign with targets/releases
+	dockerCmd(c, "tag", "busybox", targetName)
+	pushCmd = exec.Command(dockerBinary, "push", targetName)
+	s.trustedCmd(pushCmd)
+	out, _, err = runCommandWithOutput(pushCmd)
+	s.assertTargetInRoles(c, repoName, "latest", "targets", "targets/releases")
+
+	// Try pull, check we retrieve from targets/releases role
+	pullCmd = exec.Command(dockerBinary, "-D", "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(out, checker.Contains, "retrieving target for targets/releases role")
+
+	// Create another delegation that we'll sign with
+	s.notaryCreateDelegation(c, repoName, "targets/other", s.not.keys[1].Public)
+	s.notaryImportKey(c, repoName, "targets/other", s.not.keys[1].Private)
+	s.notaryPublish(c, repoName)
+
+	dockerCmd(c, "tag", "busybox", targetName)
+	pushCmd = exec.Command(dockerBinary, "push", targetName)
+	s.trustedCmd(pushCmd)
+	out, _, err = runCommandWithOutput(pushCmd)
+	s.assertTargetInRoles(c, repoName, "latest", "targets", "targets/releases", "targets/other")
+
+	// Try pull, check we retrieve from targets/releases role
+	pullCmd = exec.Command(dockerBinary, "-D", "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(out, checker.Contains, "retrieving target for targets/releases role")
+}
+
+func (s *DockerTrustSuite) TestTrustedPullIgnoresOtherDelegationRoles(c *check.C) {
+	testRequires(c, NotaryHosting)
+	repoName := fmt.Sprintf("%v/dockerclipullotherdelegation/trusted", privateRegistryURL)
+	targetName := fmt.Sprintf("%s:latest", repoName)
+
+	// We'll create a repo first with a non-release delegation role, so that when we
+	// push we'll sign it into the delegation role
+	s.notaryInitRepo(c, repoName)
+	s.notaryCreateDelegation(c, repoName, "targets/other", s.not.keys[0].Public)
+	s.notaryImportKey(c, repoName, "targets/other", s.not.keys[0].Private)
+	s.notaryPublish(c, repoName)
+
+	// Push should write to the delegation role, not targets
+	dockerCmd(c, "tag", "busybox", targetName)
+	pushCmd := exec.Command(dockerBinary, "push", targetName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	s.assertTargetInRoles(c, repoName, "latest", "targets/other")
+	s.assertTargetNotInRoles(c, repoName, "latest", "targets")
+
+	// Try pull - we should fail, since pull will only pull from the targets/releases
+	// role or the targets role
+	pullCmd := exec.Command(dockerBinary, "-D", "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "No trust data for")
+
+	// try a pull -a: we should fail since pull will only pull from the targets/releases
+	// role or the targets role
+	pullCmd = exec.Command(dockerBinary, "-D", "pull", "-a", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "No trusted tags for")
+}
