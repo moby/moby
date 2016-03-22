@@ -109,7 +109,7 @@ func (ec *endpointCnt) EndpointCnt() uint64 {
 }
 
 func (ec *endpointCnt) updateStore() error {
-	store := ec.n.getController().getStore(ec.DataScope())
+	store := ec.n.getController().GetStore(ec.DataScope())
 	if store == nil {
 		return fmt.Errorf("store not found for scope %s on endpoint count update", ec.DataScope())
 	}
@@ -140,7 +140,7 @@ retry:
 	}
 	ec.Unlock()
 
-	store := ec.n.getController().getStore(ec.DataScope())
+	store := ec.n.getController().GetStore(ec.DataScope())
 	if store == nil {
 		return fmt.Errorf("store not found for scope %s", ec.DataScope())
 	}

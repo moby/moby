@@ -171,6 +171,13 @@ func OptionKVOpts(opts map[string]string) Option {
 	}
 }
 
+// OptionKVStore function returns an option setter for a cluster store scope.
+func OptionKVStore(scope string, store *datastore.ScopeCfg) Option {
+	return func(c *Config) {
+		c.Scopes[scope] = store
+	}
+}
+
 // OptionDiscoveryWatcher function returns an option setter for discovery watcher
 func OptionDiscoveryWatcher(watcher discovery.Watcher) Option {
 	return func(c *Config) {
