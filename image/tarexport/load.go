@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/image"
@@ -57,6 +58,8 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 	if err := json.NewDecoder(manifestFile).Decode(&manifest); err != nil {
 		return err
 	}
+
+	var parentLinks []parentLink
 
 	for _, m := range manifest {
 		configPath, err := safePath(tmpDir, m.Config)
@@ -117,9 +120,33 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 			l.setLoadedTag(ref, imgID, outStream)
 		}
 
+		parentLinks = append(parentLinks, parentLink{imgID, m.Parent})
+	}
+
+	for _, p := range validatedParentLinks(parentLinks) {
+		if p.parentID != "" {
+			if err := l.setParentID(p.id, p.parentID); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
+}
+
+func (l *tarexporter) setParentID(id, parentID image.ID) error {
+	img, err := l.is.Get(id)
+	if err != nil {
+		return err
+	}
+	parent, err := l.is.Get(parentID)
+	if err != nil {
+		return err
+	}
+	if !checkValidParent(img, parent) {
+		return fmt.Errorf("image %v is not a valid parent for %v", parent.ID, img.ID)
+	}
+	return l.is.SetParent(id, parentID)
 }
 
 func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string, progressOutput progress.Output) (layer.Layer, error) {
@@ -308,4 +335,37 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 
 func safePath(base, path string) (string, error) {
 	return symlink.FollowSymlinkInScope(filepath.Join(base, path), base)
+}
+
+type parentLink struct {
+	id, parentID image.ID
+}
+
+func validatedParentLinks(pl []parentLink) (ret []parentLink) {
+mainloop:
+	for i, p := range pl {
+		ret = append(ret, p)
+		for _, p2 := range pl {
+			if p2.id == p.parentID && p2.id != p.id {
+				continue mainloop
+			}
+		}
+		ret[i].parentID = ""
+	}
+	return
+}
+
+func checkValidParent(img, parent *image.Image) bool {
+	if len(img.History) == 0 && len(parent.History) == 0 {
+		return true // having history is not mandatory
+	}
+	if len(img.History)-len(parent.History) != 1 {
+		return false
+	}
+	for i, h := range parent.History {
+		if !reflect.DeepEqual(h, img.History[i]) {
+			return false
+		}
+	}
+	return true
 }

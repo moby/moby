@@ -18,6 +18,7 @@ type manifestItem struct {
 	Config   string
 	RepoTags []string
 	Layers   []string
+	Parent   image.ID `json:",omitempty"`
 }
 
 type tarexporter struct {
