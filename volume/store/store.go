@@ -127,9 +127,8 @@ func (s *VolumeStore) List() ([]volume.Volume, []string, error) {
 
 		s.locks.Lock(name)
 		storedV, exists := s.getNamed(name)
-		if !exists {
-			s.setNamed(v, "")
-		}
+		// Note: it's not safe to populate the cache here because the volume may have been
+		// deleted before we acquire a lock on its name
 		if exists && storedV.DriverName() != v.DriverName() {
 			logrus.Warnf("Volume name %s already exists for driver %s, not including volume returned by %s", v.Name(), storedV.DriverName(), v.DriverName())
 			s.locks.Unlock(v.Name())
