@@ -517,7 +517,7 @@ func EncryptPrivateKey(key data.PrivateKey, role, passphrase string) ([]byte, er
 // ReadRoleFromPEM returns the value from the role PEM header, if it exists
 func ReadRoleFromPEM(pemBytes []byte) string {
 	pemBlock, _ := pem.Decode(pemBytes)
-	if pemBlock.Headers == nil {
+	if pemBlock == nil || pemBlock.Headers == nil {
 		return ""
 	}
 	role, ok := pemBlock.Headers["role"]

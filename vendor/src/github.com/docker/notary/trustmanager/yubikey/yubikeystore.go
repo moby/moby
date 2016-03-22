@@ -617,7 +617,7 @@ func (s *YubiKeyStore) setLibLoader(loader pkcs11LibLoader) {
 	s.libLoader = loader
 }
 
-func (s *YubiKeyStore) ListKeys() map[string]string {
+func (s *YubiKeyStore) ListKeys() map[string]trustmanager.KeyInfo {
 	if len(s.keys) > 0 {
 		return buildKeyMap(s.keys)
 	}
@@ -639,15 +639,15 @@ func (s *YubiKeyStore) ListKeys() map[string]string {
 }
 
 // AddKey puts a key inside the Yubikey, as well as writing it to the backup store
-func (s *YubiKeyStore) AddKey(keyID, role string, privKey data.PrivateKey) error {
-	added, err := s.addKey(keyID, role, privKey)
+func (s *YubiKeyStore) AddKey(keyInfo trustmanager.KeyInfo, privKey data.PrivateKey) error {
+	added, err := s.addKey(privKey.ID(), keyInfo.Role, privKey)
 	if err != nil {
 		return err
 	}
-	if added {
-		err = s.backupStore.AddKey(privKey.ID(), role, privKey)
+	if added && s.backupStore != nil {
+		err = s.backupStore.AddKey(keyInfo, privKey)
 		if err != nil {
-			defer s.RemoveKey(keyID)
+			defer s.RemoveKey(privKey.ID())
 			return ErrBackupFailed{err: err.Error()}
 		}
 	}
@@ -762,20 +762,9 @@ func (s *YubiKeyStore) ExportKey(keyID string) ([]byte, error) {
 	return nil, errors.New("Keys cannot be exported from a Yubikey.")
 }
 
-// ImportKey imports a root key into a Yubikey
-func (s *YubiKeyStore) ImportKey(pemBytes []byte, keyPath string) error {
-	logrus.Debugf("Attempting to import: %s key inside of YubiKeyStore", keyPath)
-	if keyPath != data.CanonicalRootRole {
-		return fmt.Errorf("yubikey only supports storing root keys")
-	}
-	privKey, _, err := trustmanager.GetPasswdDecryptBytes(
-		s.passRetriever, pemBytes, "", "imported root")
-	if err != nil {
-		logrus.Debugf("Failed to get and retrieve a key from: %s", keyPath)
-		return err
-	}
-	_, err = s.addKey(privKey.ID(), "root", privKey)
-	return err
+// Not yet implemented
+func (s *YubiKeyStore) GetKeyInfo(keyID string) (trustmanager.KeyInfo, error) {
+	return trustmanager.KeyInfo{}, fmt.Errorf("Not yet implemented")
 }
 
 func cleanup(ctx IPKCS11Ctx, session pkcs11.SessionHandle) {
@@ -890,10 +879,10 @@ func login(ctx IPKCS11Ctx, session pkcs11.SessionHandle, passRetriever passphras
 	return nil
 }
 
-func buildKeyMap(keys map[string]yubiSlot) map[string]string {
-	res := make(map[string]string)
+func buildKeyMap(keys map[string]yubiSlot) map[string]trustmanager.KeyInfo {
+	res := make(map[string]trustmanager.KeyInfo)
 	for k, v := range keys {
-		res[k] = v.role
+		res[k] = trustmanager.KeyInfo{Role: v.role, Gun: ""}
 	}
 	return res
 }

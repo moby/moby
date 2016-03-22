@@ -39,14 +39,25 @@ func (err ErrRepoNotInitialized) Error() string {
 }
 
 // ErrInvalidRemoteRole is returned when the server is requested to manage
-// an unsupported key type
+// a key type that is not permitted
 type ErrInvalidRemoteRole struct {
 	Role string
 }
 
 func (err ErrInvalidRemoteRole) Error() string {
 	return fmt.Sprintf(
-		"notary does not support the server managing the %s key", err.Role)
+		"notary does not permit the server managing the %s key", err.Role)
+}
+
+// ErrInvalidLocalRole is returned when the client wants to manage
+// a key type that is not permitted
+type ErrInvalidLocalRole struct {
+	Role string
+}
+
+func (err ErrInvalidLocalRole) Error() string {
+	return fmt.Sprintf(
+		"notary does not permit the client managing the %s key", err.Role)
 }
 
 // ErrRepositoryNotExist is returned when an action is taken on a remote
@@ -93,7 +104,7 @@ func repositoryFromKeystores(baseDir, gun, baseURL string, rt http.RoundTripper,
 		return nil, err
 	}
 
-	cryptoService := cryptoservice.NewCryptoService(gun, keyStores...)
+	cryptoService := cryptoservice.NewCryptoService(keyStores...)
 
 	nRepo := &NotaryRepository{
 		gun:           gun,
@@ -140,7 +151,7 @@ func NewTarget(targetName string, targetPath string) (*Target, error) {
 		return nil, err
 	}
 
-	meta, err := data.NewFileMeta(bytes.NewBuffer(b))
+	meta, err := data.NewFileMeta(bytes.NewBuffer(b), data.NotaryDefaultHashes...)
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +234,7 @@ func (r *NotaryRepository) Initialize(rootKeyID string, serverManagedRoles ...st
 	// make unnecessary network calls
 	for _, role := range locallyManagedKeys {
 		// This is currently hardcoding the keys to ECDSA.
-		key, err := r.CryptoService.Create(role, data.ECDSAKey)
+		key, err := r.CryptoService.Create(role, r.gun, data.ECDSAKey)
 		if err != nil {
 			return err
 		}
@@ -520,6 +531,25 @@ func (r *NotaryRepository) ListRoles() ([]RoleWithSignatures, error) {
 // Publish pushes the local changes in signed material to the remote notary-server
 // Conceptually it performs an operation similar to a `git rebase`
 func (r *NotaryRepository) Publish() error {
+	cl, err := r.GetChangelist()
+	if err != nil {
+		return err
+	}
+	if err = r.publish(cl); err != nil {
+		return err
+	}
+	if err = cl.Clear(""); err != nil {
+		// This is not a critical problem when only a single host is pushing
+		// but will cause weird behaviour if changelist cleanup is failing
+		// and there are multiple hosts writing to the repo.
+		logrus.Warn("Unable to clear changelist. You may want to manually delete the folder ", filepath.Join(r.tufRepoPath, "changelist"))
+	}
+	return nil
+}
+
+// publish pushes the changes in the given changelist to the remote notary-server
+// Conceptually it performs an operation similar to a `git rebase`
+func (r *NotaryRepository) publish(cl changelist.Changelist) error {
 	var initialPublish bool
 	// update first before publishing
 	_, err := r.Update(true)
@@ -543,14 +573,9 @@ func (r *NotaryRepository) Publish() error {
 			initialPublish = true
 		} else {
 			// We could not update, so we cannot publish.
-			logrus.Error("Could not publish Repository: ", err.Error())
+			logrus.Error("Could not publish Repository since we could not update: ", err.Error())
 			return err
 		}
-	}
-
-	cl, err := r.GetChangelist()
-	if err != nil {
-		return err
 	}
 	// apply the changelist to the repo
 	err = applyChangelist(r.tufRepo, cl)
@@ -622,25 +647,14 @@ func (r *NotaryRepository) Publish() error {
 		return err
 	}
 
-	err = remote.SetMultiMeta(updatedFiles)
-	if err != nil {
-		return err
-	}
-	err = cl.Clear("")
-	if err != nil {
-		// This is not a critical problem when only a single host is pushing
-		// but will cause weird behaviour if changelist cleanup is failing
-		// and there are multiple hosts writing to the repo.
-		logrus.Warn("Unable to clear changelist. You may want to manually delete the folder ", filepath.Join(r.tufRepoPath, "changelist"))
-	}
-	return nil
+	return remote.SetMultiMeta(updatedFiles)
 }
 
 // bootstrapRepo loads the repository from the local file system.  This attempts
 // to load metadata for all roles.  Since server snapshots are supported,
 // if the snapshot metadata fails to load, that's ok.
 // This can also be unified with some cache reading tools from tuf/client.
-// This assumes that bootstrapRepo is only used by Publish()
+// This assumes that bootstrapRepo is only used by Publish() or RotateKey()
 func (r *NotaryRepository) bootstrapRepo() error {
 	tufRepo := tuf.NewRepo(r.CryptoService)
 
@@ -858,37 +872,53 @@ func (r *NotaryRepository) validateRoot(rootJSON []byte) (*data.SignedRoot, erro
 // creates and adds one new key or delegates managing the key to the server.
 // These changes are staged in a changelist until publish is called.
 func (r *NotaryRepository) RotateKey(role string, serverManagesKey bool) error {
-	if role == data.CanonicalRootRole || role == data.CanonicalTimestampRole {
-		return fmt.Errorf(
-			"notary does not currently support rotating the %s key", role)
-	}
-	if serverManagesKey && role == data.CanonicalTargetsRole {
+	switch {
+	// We currently support locally or remotely managing snapshot keys...
+	case role == data.CanonicalSnapshotRole:
+		break
+
+	// locally managing targets keys only
+	case role == data.CanonicalTargetsRole && !serverManagesKey:
+		break
+	case role == data.CanonicalTargetsRole && serverManagesKey:
 		return ErrInvalidRemoteRole{Role: data.CanonicalTargetsRole}
+
+	// and remotely managing timestamp keys only
+	case role == data.CanonicalTimestampRole && serverManagesKey:
+		break
+	case role == data.CanonicalTimestampRole && !serverManagesKey:
+		return ErrInvalidLocalRole{Role: data.CanonicalTimestampRole}
+
+	default:
+		return fmt.Errorf("notary does not currently permit rotating the %s key", role)
 	}
 
 	var (
-		pubKey data.PublicKey
-		err    error
+		pubKey    data.PublicKey
+		err       error
+		errFmtMsg string
 	)
-	if serverManagesKey {
+	switch serverManagesKey {
+	case true:
 		pubKey, err = getRemoteKey(r.baseURL, r.gun, role, r.roundTrip)
-	} else {
-		pubKey, err = r.CryptoService.Create(role, data.ECDSAKey)
-	}
-	if err != nil {
-		return err
+		errFmtMsg = "unable to rotate remote key: %s"
+	default:
+		pubKey, err = r.CryptoService.Create(role, r.gun, data.ECDSAKey)
+		errFmtMsg = "unable to generate key: %s"
 	}
 
-	return r.rootFileKeyChange(role, changelist.ActionCreate, pubKey)
+	if err != nil {
+		return fmt.Errorf(errFmtMsg, err)
+	}
+
+	cl := changelist.NewMemChangelist()
+	if err := r.rootFileKeyChange(cl, role, changelist.ActionCreate, pubKey); err != nil {
+		return err
+	}
+	return r.publish(cl)
 }
 
-func (r *NotaryRepository) rootFileKeyChange(role, action string, key data.PublicKey) error {
-	cl, err := changelist.NewFileChangelist(filepath.Join(r.tufRepoPath, "changelist"))
-	if err != nil {
-		return err
-	}
-	defer cl.Close()
-
+func (r *NotaryRepository) rootFileKeyChange(cl changelist.Changelist, role, action string, key data.PublicKey) error {
 	kl := make(data.KeyList, 0, 1)
 	kl = append(kl, key)
 	meta := changelist.TufRootData{
@@ -907,11 +937,7 @@ func (r *NotaryRepository) rootFileKeyChange(role, action string, key data.Publi
 		role,
 		metaJSON,
 	)
-	err = cl.Add(c)
-	if err != nil {
-		return err
-	}
-	return nil
+	return cl.Add(c)
 }
 
 // DeleteTrustData removes the trust data stored for this repo in the TUF cache and certificate store on the client side

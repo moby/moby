@@ -22,10 +22,13 @@ import (
 
 // Sign takes a data.Signed and a key, calculated and adds the signature
 // to the data.Signed
+// N.B. All public keys for a role should be passed so that this function
+//      can correctly clean up signatures that are no longer valid.
 func Sign(service CryptoService, s *data.Signed, keys ...data.PublicKey) error {
 	logrus.Debugf("sign called with %d keys", len(keys))
 	signatures := make([]data.Signature, 0, len(s.Signatures)+1)
 	signingKeyIDs := make(map[string]struct{})
+	tufIDs := make(map[string]data.PublicKey)
 	ids := make([]string, 0, len(keys))
 
 	privKeys := make(map[string]data.PrivateKey)
@@ -34,6 +37,7 @@ func Sign(service CryptoService, s *data.Signed, keys ...data.PublicKey) error {
 	for _, key := range keys {
 		canonicalID, err := utils.CanonicalKeyID(key)
 		ids = append(ids, canonicalID)
+		tufIDs[key.ID()] = key
 		if err != nil {
 			continue
 		}
@@ -51,7 +55,7 @@ func Sign(service CryptoService, s *data.Signed, keys ...data.PublicKey) error {
 
 	// Do signing and generate list of signatures
 	for keyID, pk := range privKeys {
-		sig, err := pk.Sign(rand.Reader, s.Signed, nil)
+		sig, err := pk.Sign(rand.Reader, *s.Signed, nil)
 		if err != nil {
 			logrus.Debugf("Failed to sign with key: %s. Reason: %v", keyID, err)
 			continue
@@ -78,6 +82,20 @@ func Sign(service CryptoService, s *data.Signed, keys ...data.PublicKey) error {
 			// key is in the set of key IDs for which a signature has been created
 			continue
 		}
+		var (
+			k  data.PublicKey
+			ok bool
+		)
+		if k, ok = tufIDs[sig.KeyID]; !ok {
+			// key is no longer a valid signing key
+			continue
+		}
+		if err := VerifySignature(*s.Signed, sig, k); err != nil {
+			// signature is no longer valid
+			continue
+		}
+		// keep any signatures that still represent valid keys and are
+		// themselves valid
 		signatures = append(signatures, sig)
 	}
 	s.Signatures = signatures

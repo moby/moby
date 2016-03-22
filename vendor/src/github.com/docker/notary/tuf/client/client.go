@@ -1,8 +1,6 @@
 package client
 
 import (
-	"bytes"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"path"
@@ -92,16 +90,16 @@ func (c *Client) update() error {
 func (c Client) checkRoot() error {
 	role := data.CanonicalRootRole
 	size := c.local.Snapshot.Signed.Meta[role].Length
-	hashSha256 := c.local.Snapshot.Signed.Meta[role].Hashes["sha256"]
+
+	expectedHashes := c.local.Snapshot.Signed.Meta[role].Hashes
 
 	raw, err := c.cache.GetMeta("root", size)
 	if err != nil {
 		return err
 	}
 
-	hash := sha256.Sum256(raw)
-	if !bytes.Equal(hash[:], hashSha256) {
-		return fmt.Errorf("Cached root sha256 did not match snapshot root sha256")
+	if err := data.CheckHashes(raw, expectedHashes); err != nil {
+		return fmt.Errorf("Cached root hashes did not match snapshot root hashes")
 	}
 
 	if int64(len(raw)) != size {
@@ -127,11 +125,19 @@ func (c *Client) downloadRoot() error {
 	// We can't read an exact size for the root metadata without risking getting stuck in the TUF update cycle
 	// since it's possible that downloading timestamp/snapshot metadata may fail due to a signature mismatch
 	var size int64 = -1
-	var expectedSha256 []byte
+
+	// We could not expect what the "snapshot" meta has specified.
+	//
+	// In some old clients, there is only the "sha256",
+	// but both "sha256" and "sha512" in the newer ones.
+	//
+	// And possibly more in the future.
+	var expectedHashes data.Hashes
+
 	if c.local.Snapshot != nil {
 		if prevRootMeta, ok := c.local.Snapshot.Signed.Meta[role]; ok {
 			size = prevRootMeta.Length
-			expectedSha256 = prevRootMeta.Hashes["sha256"]
+			expectedHashes = prevRootMeta.Hashes
 		}
 	}
 
@@ -144,8 +150,9 @@ func (c *Client) downloadRoot() error {
 	old := &data.Signed{}
 	version := 0
 
-	if expectedSha256 != nil {
-		// can only trust cache if we have an expected sha256 to trust
+	// Due to the same reason, we don't really know how many hashes are there.
+	if len(expectedHashes) != 0 {
+		// can only trust cache if we have an expected sha256(for example) to trust
 		cachedRoot, err = c.cache.GetMeta(role, size)
 	}
 
@@ -153,11 +160,11 @@ func (c *Client) downloadRoot() error {
 		logrus.Debug("didn't find a cached root, must download")
 		download = true
 	} else {
-		hash := sha256.Sum256(cachedRoot)
-		if !bytes.Equal(hash[:], expectedSha256) {
+		if err := data.CheckHashes(cachedRoot, expectedHashes); err != nil {
 			logrus.Debug("cached root's hash didn't match expected, must download")
 			download = true
 		}
+
 		err := json.Unmarshal(cachedRoot, old)
 		if err == nil {
 			root, err := data.RootFromSigned(old)
@@ -176,7 +183,7 @@ func (c *Client) downloadRoot() error {
 	var raw []byte
 	if download {
 		// use consistent download if we have the checksum.
-		raw, s, err = c.downloadSigned(role, size, expectedSha256)
+		raw, s, err = c.downloadSigned(role, size, expectedHashes)
 		if err != nil {
 			return err
 		}
@@ -322,8 +329,8 @@ func (c *Client) downloadSnapshot() error {
 		return tuf.ErrNotLoaded{Role: data.CanonicalTimestampRole}
 	}
 	size := c.local.Timestamp.Signed.Meta[role].Length
-	expectedSha256, ok := c.local.Timestamp.Signed.Meta[role].Hashes["sha256"]
-	if !ok {
+	expectedHashes := c.local.Timestamp.Signed.Meta[role].Hashes
+	if len(expectedHashes) == 0 {
 		return data.ErrMissingMeta{Role: "snapshot"}
 	}
 
@@ -336,11 +343,11 @@ func (c *Client) downloadSnapshot() error {
 		download = true
 	} else {
 		// file may have been tampered with on disk. Always check the hash!
-		genHash := sha256.Sum256(raw)
-		if !bytes.Equal(genHash[:], expectedSha256) {
+		if err := data.CheckHashes(raw, expectedHashes); err != nil {
 			logrus.Debug("hash of snapshot in cache did not match expected hash, must download")
 			download = true
 		}
+
 		err := json.Unmarshal(raw, old)
 		if err == nil {
 			snap, err := data.SnapshotFromSigned(old)
@@ -357,7 +364,7 @@ func (c *Client) downloadSnapshot() error {
 	}
 	var s *data.Signed
 	if download {
-		raw, s, err = c.downloadSigned(role, size, expectedSha256)
+		raw, s, err = c.downloadSigned(role, size, expectedHashes)
 		if err != nil {
 			return err
 		}
@@ -439,18 +446,19 @@ func (c *Client) downloadTargets(role string) error {
 	return nil
 }
 
-func (c *Client) downloadSigned(role string, size int64, expectedSha256 []byte) ([]byte, *data.Signed, error) {
-	rolePath := utils.ConsistentName(role, expectedSha256)
+func (c *Client) downloadSigned(role string, size int64, expectedHashes data.Hashes) ([]byte, *data.Signed, error) {
+	rolePath := utils.ConsistentName(role, expectedHashes["sha256"])
 	raw, err := c.remote.GetMeta(rolePath, size)
 	if err != nil {
 		return nil, nil, err
 	}
-	if expectedSha256 != nil {
-		genHash := sha256.Sum256(raw)
-		if !bytes.Equal(genHash[:], expectedSha256) {
+
+	if expectedHashes != nil {
+		if err := data.CheckHashes(raw, expectedHashes); err != nil {
 			return nil, nil, ErrChecksumMismatch{role: role}
 		}
 	}
+
 	s := &data.Signed{}
 	err = json.Unmarshal(raw, s)
 	if err != nil {
@@ -465,8 +473,8 @@ func (c Client) getTargetsFile(role string, snapshotMeta data.Files, consistent 
 	if !ok {
 		return nil, data.ErrMissingMeta{Role: role}
 	}
-	expectedSha256, ok := snapshotMeta[role].Hashes["sha256"]
-	if !ok {
+	expectedHashes := snapshotMeta[role].Hashes
+	if len(expectedHashes) == 0 {
 		return nil, data.ErrMissingMeta{Role: role}
 	}
 
@@ -480,10 +488,10 @@ func (c Client) getTargetsFile(role string, snapshotMeta data.Files, consistent 
 		download = true
 	} else {
 		// file may have been tampered with on disk. Always check the hash!
-		genHash := sha256.Sum256(raw)
-		if !bytes.Equal(genHash[:], expectedSha256) {
+		if err := data.CheckHashes(raw, expectedHashes); err != nil {
 			download = true
 		}
+
 		err := json.Unmarshal(raw, old)
 		if err == nil {
 			targ, err := data.TargetsFromSigned(old, role)
@@ -500,7 +508,7 @@ func (c Client) getTargetsFile(role string, snapshotMeta data.Files, consistent 
 	size := snapshotMeta[role].Length
 	var s *data.Signed
 	if download {
-		raw, s, err = c.downloadSigned(role, size, expectedSha256)
+		raw, s, err = c.downloadSigned(role, size, expectedHashes)
 		if err != nil {
 			return nil, err
 		}

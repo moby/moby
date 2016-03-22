@@ -2,11 +2,11 @@ package data
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"fmt"
 	"time"
 
 	"github.com/docker/go/canonical/json"
+	"github.com/docker/notary"
 )
 
 // SignedTimestamp is a fully unpacked timestamp.json
@@ -37,10 +37,17 @@ func isValidTimestampStructure(t Timestamp) error {
 	// Meta is a map of FileMeta, so if the role isn't in the map it returns
 	// an empty FileMeta, which has an empty map, and you can check on keys
 	// from an empty map.
-	if cs, ok := t.Meta[CanonicalSnapshotRole].Hashes["sha256"]; !ok || len(cs) != sha256.Size {
+	//
+	// For now sha256 is required and sha512 is not.
+	if _, ok := t.Meta[CanonicalSnapshotRole].Hashes[notary.SHA256]; !ok {
 		return ErrInvalidMetadata{
-			role: CanonicalTimestampRole, msg: "missing or invalid snapshot sha256 checksum information"}
+			role: CanonicalTimestampRole, msg: "missing snapshot sha256 checksum information"}
 	}
+	if err := CheckValidHashStructures(t.Meta[CanonicalSnapshotRole].Hashes); err != nil {
+		return ErrInvalidMetadata{
+			role: CanonicalTimestampRole, msg: fmt.Sprintf("invalid snapshot checksum information, %v", err)}
+	}
+
 	return nil
 }
 
@@ -50,7 +57,7 @@ func NewTimestamp(snapshot *Signed) (*SignedTimestamp, error) {
 	if err != nil {
 		return nil, err
 	}
-	snapshotMeta, err := NewFileMeta(bytes.NewReader(snapshotJSON), "sha256")
+	snapshotMeta, err := NewFileMeta(bytes.NewReader(snapshotJSON), NotaryDefaultHashes...)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +90,7 @@ func (ts *SignedTimestamp) ToSigned() (*Signed, error) {
 	copy(sigs, ts.Signatures)
 	return &Signed{
 		Signatures: sigs,
-		Signed:     signed,
+		Signed:     &signed,
 	}, nil
 }
 
@@ -110,7 +117,7 @@ func (ts *SignedTimestamp) MarshalJSON() ([]byte, error) {
 // SignedTimestamp
 func TimestampFromSigned(s *Signed) (*SignedTimestamp, error) {
 	ts := Timestamp{}
-	if err := defaultSerializer.Unmarshal(s.Signed, &ts); err != nil {
+	if err := defaultSerializer.Unmarshal(*s.Signed, &ts); err != nil {
 		return nil, err
 	}
 	if err := isValidTimestampStructure(ts); err != nil {

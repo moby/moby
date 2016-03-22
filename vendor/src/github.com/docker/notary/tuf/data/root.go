@@ -129,7 +129,7 @@ func (r SignedRoot) ToSigned() (*Signed, error) {
 	copy(sigs, r.Signatures)
 	return &Signed{
 		Signatures: sigs,
-		Signed:     signed,
+		Signed:     &signed,
 	}, nil
 }
 
@@ -146,7 +146,7 @@ func (r SignedRoot) MarshalJSON() ([]byte, error) {
 // that it is a valid SignedRoot
 func RootFromSigned(s *Signed) (*SignedRoot, error) {
 	r := Root{}
-	if err := defaultSerializer.Unmarshal(s.Signed, &r); err != nil {
+	if err := defaultSerializer.Unmarshal(*s.Signed, &r); err != nil {
 		return nil, err
 	}
 	if err := isValidRootStructure(r); err != nil {

@@ -2,7 +2,6 @@ package signed
 
 import (
 	"github.com/docker/notary/tuf/data"
-	"io"
 )
 
 // KeyService provides management of keys locally. It will never
@@ -11,9 +10,10 @@ import (
 type KeyService interface {
 	// Create issues a new key pair and is responsible for loading
 	// the private key into the appropriate signing service.
-	// The role isn't currently used for anything, but it's here to support
-	// future features
-	Create(role, algorithm string) (data.PublicKey, error)
+	Create(role, gun, algorithm string) (data.PublicKey, error)
+
+	// AddKey adds a private key to the specified role and gun
+	AddKey(role, gun string, key data.PrivateKey) error
 
 	// GetKey retrieves the public key if present, otherwise it returns nil
 	GetKey(keyID string) data.PublicKey
@@ -30,10 +30,6 @@ type KeyService interface {
 
 	// ListAllKeys returns a map of all available signing key IDs to role
 	ListAllKeys() map[string]string
-
-	// ImportRootKey imports a root key to the highest priority keystore associated with
-	// the cryptoservice
-	ImportRootKey(source io.Reader) error
 }
 
 // CryptoService is deprecated and all instances of its use should be

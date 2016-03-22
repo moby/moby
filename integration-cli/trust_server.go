@@ -232,6 +232,7 @@ func notaryClientEnv(cmd *exec.Cmd) {
 		fmt.Sprintf("NOTARY_ROOT_PASSPHRASE=%s", pwd),
 		fmt.Sprintf("NOTARY_TARGETS_PASSPHRASE=%s", pwd),
 		fmt.Sprintf("NOTARY_SNAPSHOT_PASSPHRASE=%s", pwd),
+		fmt.Sprintf("NOTARY_DELEGATION_PASSPHRASE=%s", pwd),
 	}
 	cmd.Env = append(os.Environ(), env...)
 }

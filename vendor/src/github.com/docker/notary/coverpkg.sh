@@ -5,6 +5,6 @@
 # subpackage's dependencies within the containing package, as well as the
 # subpackage itself.
 
-DEPENDENCIES="$(go list -f $'{{range $f := .Deps}}{{$f}}\n{{end}}' ${1} | grep ${2})"
+DEPENDENCIES="$(go list -f $'{{range $f := .Deps}}{{$f}}\n{{end}}' ${1} | grep ${2} | grep -v ${2}/vendor)"
 
 echo "${1} ${DEPENDENCIES}" | xargs echo -n | tr ' ' ','

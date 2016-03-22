@@ -162,7 +162,7 @@ func (t *SignedTargets) ToSigned() (*Signed, error) {
 	copy(sigs, t.Signatures)
 	return &Signed{
 		Signatures: sigs,
-		Signed:     signed,
+		Signed:     &signed,
 	}, nil
 }
 
@@ -179,7 +179,7 @@ func (t *SignedTargets) MarshalJSON() ([]byte, error) {
 // a role name (so it can validate the SignedTargets object)
 func TargetsFromSigned(s *Signed, roleName string) (*SignedTargets, error) {
 	t := Targets{}
-	if err := defaultSerializer.Unmarshal(s.Signed, &t); err != nil {
+	if err := defaultSerializer.Unmarshal(*s.Signed, &t); err != nil {
 		return nil, err
 	}
 	if err := isValidTargetsStructure(t, roleName); err != nil {
