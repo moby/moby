@@ -11,6 +11,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
 )
@@ -36,9 +37,11 @@ type Sandbox interface {
 	Rename(name string) error
 	// Delete destroys this container after detaching it from all connected endpoints.
 	Delete() error
-	// ResolveName searches for the service name in the networks to which the sandbox
-	// is connected to.
-	ResolveName(name string) []net.IP
+	// ResolveName resolves a service name to an IPv4 or IPv6 address by searching
+	// the networks the sandbox is connected to. For IPv6 queries, second  return
+	// value will be true if the name exists in docker domain but doesn't have an
+	// IPv6 address. Such queries shouldn't be forwarded  to external nameservers.
+	ResolveName(name string, iplen int) ([]net.IP, bool)
 	// ResolveIP returns the service name for the passed in IP. IP is in reverse dotted
 	// notation; the format used for DNS PTR records
 	ResolveIP(name string) string
@@ -418,9 +421,7 @@ func (sb *sandbox) execFunc(f func()) {
 	sb.osSbox.InvokeFunc(f)
 }
 
-func (sb *sandbox) ResolveName(name string) []net.IP {
-	var ip []net.IP
-
+func (sb *sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 	// Embedded server owns the docker network domain. Resolution should work
 	// for both container_name and container_name.network_name
 	// We allow '.' in service name and network name. For a name a.b.c.d the
@@ -453,21 +454,29 @@ func (sb *sandbox) ResolveName(name string) []net.IP {
 		log.Debugf("To resolve: %v in %v", reqName[i], networkName[i])
 
 		// First check for local container alias
-		ip = sb.resolveName(reqName[i], networkName[i], epList, true)
+		ip, ipv6Miss := sb.resolveName(reqName[i], networkName[i], epList, true, ipType)
 		if ip != nil {
-			return ip
+			return ip, false
+		}
+		if ipv6Miss {
+			return ip, ipv6Miss
 		}
 
 		// Resolve the actual container name
-		ip = sb.resolveName(reqName[i], networkName[i], epList, false)
+		ip, ipv6Miss = sb.resolveName(reqName[i], networkName[i], epList, false, ipType)
 		if ip != nil {
-			return ip
+			return ip, false
+		}
+		if ipv6Miss {
+			return ip, ipv6Miss
 		}
 	}
-	return nil
+	return nil, false
 }
 
-func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoint, alias bool) []net.IP {
+func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoint, alias bool, ipType int) ([]net.IP, bool) {
+	var ipv6Miss bool
+
 	for _, ep := range epList {
 		name := req
 		n := ep.getNetwork()
@@ -504,14 +513,26 @@ func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoin
 			continue
 		}
 
+		var ip []net.IP
 		n.Lock()
-		ip, ok := sr.svcMap[name]
+		ip, ok = sr.svcMap[name]
+
+		if ipType == netutils.IPv6 {
+			// If the name resolved to v4 address then its a valid name in
+			// the docker network domain. If the network is not v6 enabled
+			// set ipv6Miss to filter the DNS query from going to external
+			// resolvers.
+			if ok && n.enableIPv6 == false {
+				ipv6Miss = true
+			}
+			ip = sr.svcIPv6Map[name]
+		}
 		n.Unlock()
-		if ok {
-			return ip
+		if ip != nil {
+			return ip, false
 		}
 	}
-	return nil
+	return nil, ipv6Miss
 }
 
 func (sb *sandbox) SetKey(basePath string) error {
