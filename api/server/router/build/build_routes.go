@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
@@ -94,6 +95,18 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	return options, nil
 }
 
+type syncWriter struct {
+	w  io.Writer
+	mu sync.Mutex
+}
+
+func (s *syncWriter) Write(b []byte) (count int, err error) {
+	s.mu.Lock()
+	count, err = s.w.Write(b)
+	s.mu.Unlock()
+	return
+}
+
 func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var (
 		authConfigs        = map[string]types.AuthConfig{}
@@ -172,6 +185,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	if buildOptions.SuppressOutput {
 		out = notVerboseBuffer
 	}
+	out = &syncWriter{w: out}
 	stdout := &streamformatter.StdoutFormatter{Writer: out, StreamFormatter: sf}
 	stderr := &streamformatter.StderrFormatter{Writer: out, StreamFormatter: sf}
 
