@@ -10,6 +10,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/iptables"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/miekg/dns"
 )
 
@@ -185,27 +186,46 @@ func shuffleAddr(addr []net.IP) []net.IP {
 	return addr
 }
 
-func (r *resolver) handleIPv4Query(name string, query *dns.Msg) (*dns.Msg, error) {
-	addr := r.sb.ResolveName(name)
+func createRespMsg(query *dns.Msg) *dns.Msg {
+	resp := new(dns.Msg)
+	resp.SetReply(query)
+	setCommonFlags(resp)
+
+	return resp
+}
+
+func (r *resolver) handleIPQuery(name string, query *dns.Msg, ipType int) (*dns.Msg, error) {
+	addr, ipv6Miss := r.sb.ResolveName(name, ipType)
+	if addr == nil && ipv6Miss {
+		// Send a reply without any Answer sections
+		log.Debugf("Lookup name %s present without IPv6 address", name)
+		resp := createRespMsg(query)
+		return resp, nil
+	}
 	if addr == nil {
 		return nil, nil
 	}
 
 	log.Debugf("Lookup for %s: IP %v", name, addr)
 
-	resp := new(dns.Msg)
-	resp.SetReply(query)
-	setCommonFlags(resp)
-
+	resp := createRespMsg(query)
 	if len(addr) > 1 {
 		addr = shuffleAddr(addr)
 	}
-
-	for _, ip := range addr {
-		rr := new(dns.A)
-		rr.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: respTTL}
-		rr.A = ip
-		resp.Answer = append(resp.Answer, rr)
+	if ipType == netutils.IPv4 {
+		for _, ip := range addr {
+			rr := new(dns.A)
+			rr.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: respTTL}
+			rr.A = ip
+			resp.Answer = append(resp.Answer, rr)
+		}
+	} else {
+		for _, ip := range addr {
+			rr := new(dns.AAAA)
+			rr.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: respTTL}
+			rr.AAAA = ip
+			resp.Answer = append(resp.Answer, rr)
+		}
 	}
 	return resp, nil
 }
@@ -264,7 +284,9 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 	}
 	name := query.Question[0].Name
 	if query.Question[0].Qtype == dns.TypeA {
-		resp, err = r.handleIPv4Query(name, query)
+		resp, err = r.handleIPQuery(name, query, netutils.IPv4)
+	} else if query.Question[0].Qtype == dns.TypeAAAA {
+		resp, err = r.handleIPQuery(name, query, netutils.IPv6)
 	} else if query.Question[0].Qtype == dns.TypePTR {
 		resp, err = r.handlePTRQuery(name, query)
 	}

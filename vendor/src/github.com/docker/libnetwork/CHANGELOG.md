@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.0-dev.10 (2016-03-21)
+- Add IPv6 service discovery (AAAA records) in embedded DNS server
+- Honor enableIPv6 flag in network create for the IP allocation
+- Avoid V6 queries in docker domain going to external nameservers
+
 ## 0.7.0-dev.9 (2016-03-18)
 - Support labels on networks
 

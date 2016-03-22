@@ -1144,10 +1144,10 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnectToStoppedContaine
 
 func (s *DockerNetworkSuite) TestDockerNetworkConnectPreferredIP(c *check.C) {
 	// create two networks
-	dockerCmd(c, "network", "create", "--subnet=172.28.0.0/16", "--subnet=2001:db8:1234::/64", "n0")
+	dockerCmd(c, "network", "create", "--ipv6", "--subnet=172.28.0.0/16", "--subnet=2001:db8:1234::/64", "n0")
 	assertNwIsAvailable(c, "n0")
 
-	dockerCmd(c, "network", "create", "--subnet=172.30.0.0/16", "--ip-range=172.30.5.0/24", "--subnet=2001:db8:abcd::/64", "--ip-range=2001:db8:abcd::/80", "n1")
+	dockerCmd(c, "network", "create", "--ipv6", "--subnet=172.30.0.0/16", "--ip-range=172.30.5.0/24", "--subnet=2001:db8:abcd::/64", "--ip-range=2001:db8:abcd::/80", "n1")
 	assertNwIsAvailable(c, "n1")
 
 	// run a container on first network specifying the ip addresses
@@ -1183,7 +1183,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectPreferredIPStoppedContainer
 	dockerCmd(c, "create", "--name", "c0", "busybox", "top")
 
 	// create a network
-	dockerCmd(c, "network", "create", "--subnet=172.30.0.0/16", "--subnet=2001:db8:abcd::/64", "n0")
+	dockerCmd(c, "network", "create", "--ipv6", "--subnet=172.30.0.0/16", "--subnet=2001:db8:abcd::/64", "n0")
 	assertNwIsAvailable(c, "n0")
 
 	// connect the container to the network specifying an ip addresses
