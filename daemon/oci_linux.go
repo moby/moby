@@ -230,6 +230,18 @@ func delNamespace(s *specs.Spec, nsType specs.NamespaceType) {
 }
 
 func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error {
+	userNS := false
+	// user
+	if c.HostConfig.UsernsMode.IsPrivate() {
+		uidMap, gidMap := daemon.GetUIDGIDMaps()
+		if uidMap != nil {
+			userNS = true
+			ns := specs.Namespace{Type: "user"}
+			setNamespace(s, ns)
+			s.Linux.UIDMappings = specMapping(uidMap)
+			s.Linux.GIDMappings = specMapping(gidMap)
+		}
+	}
 	// network
 	if !c.Config.NetworkDisabled {
 		ns := specs.Namespace{Type: "network"}
@@ -240,6 +252,12 @@ func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error 
 				return err
 			}
 			ns.Path = fmt.Sprintf("/proc/%d/ns/net", nc.State.GetPID())
+			if userNS {
+				// to share a net namespace, they must also share a user namespace
+				nsUser := specs.Namespace{Type: "user"}
+				nsUser.Path = fmt.Sprintf("/proc/%d/ns/user", nc.State.GetPID())
+				setNamespace(s, nsUser)
+			}
 		} else if c.HostConfig.NetworkMode.IsHost() {
 			ns.Path = c.NetworkSettings.SandboxKey
 		}
@@ -254,6 +272,12 @@ func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error 
 		}
 		ns.Path = fmt.Sprintf("/proc/%d/ns/ipc", ic.State.GetPID())
 		setNamespace(s, ns)
+		if userNS {
+			// to share an IPC namespace, they must also share a user namespace
+			nsUser := specs.Namespace{Type: "user"}
+			nsUser.Path = fmt.Sprintf("/proc/%d/ns/user", ic.State.GetPID())
+			setNamespace(s, nsUser)
+		}
 	} else if c.HostConfig.IpcMode.IsHost() {
 		delNamespace(s, specs.NamespaceType("ipc"))
 	} else {
@@ -268,16 +292,6 @@ func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error 
 	if c.HostConfig.UTSMode.IsHost() {
 		delNamespace(s, specs.NamespaceType("uts"))
 		s.Hostname = ""
-	}
-	// user
-	if c.HostConfig.UsernsMode.IsPrivate() {
-		uidMap, gidMap := daemon.GetUIDGIDMaps()
-		if uidMap != nil {
-			ns := specs.Namespace{Type: "user"}
-			setNamespace(s, ns)
-			s.Linux.UIDMappings = specMapping(uidMap)
-			s.Linux.GIDMappings = specMapping(gidMap)
-		}
 	}
 
 	return nil

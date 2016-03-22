@@ -792,11 +792,9 @@ The following standard Docker features are currently incompatible when
 running a Docker daemon with user namespaces enabled:
 
  - sharing PID or NET namespaces with the host (`--pid=host` or `--net=host`)
- - sharing a network namespace with an existing container (`--net=container:*other*`)
- - sharing an IPC namespace with an existing container (`--ipc=container:*other*`)
  - A `--readonly` container filesystem (this is a Linux kernel restriction against remounting with modified flags of a currently mounted filesystem when inside a user namespace)
  - external (volume or graph) drivers which are unaware/incapable of using daemon user mappings
- - Using `--privileged` mode flag on `docker run`
+ - Using `--privileged` mode flag on `docker run` (unless also specifying `--userns=host`)
 
 In general, user namespaces are an advanced feature and will require
 coordination with other capabilities. For example, if volumes are mounted from
