@@ -185,12 +185,8 @@ func (container *Container) CopyImagePathContent(v volume.Volume, destination st
 	if err != nil {
 		return err
 	}
-
-	if err := copyExistingContents(rootfs, path); err != nil {
-		return err
-	}
-
-	return v.Unmount()
+	defer v.Unmount()
+	return copyExistingContents(rootfs, path)
 }
 
 // ShmResourcePath returns path to shm

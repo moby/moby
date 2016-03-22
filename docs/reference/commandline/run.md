@@ -92,10 +92,10 @@ parent = "smn_cli"
       --uts=""                      UTS namespace to use
       -v, --volume=[host-src:]container-dest[:<options>]
                                     Bind mount a volume. The comma-delimited
-                                    `options` are [rw|ro], [z|Z], or
-                                    [[r]shared|[r]slave|[r]private]. The
-                                    'host-src' is an absolute path or a name
-                                    value.
+                                    `options` are [rw|ro], [z|Z],
+                                    [[r]shared|[r]slave|[r]private], and
+                                    [nocopy]. The 'host-src' is an absolute path
+                                    or a name value.
       --volume-driver=""            Container's volume driver
       --volumes-from=[]             Mount volumes from the specified container(s)
       -w, --workdir=""              Working directory inside the container
