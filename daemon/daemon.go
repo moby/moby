@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -34,6 +35,7 @@ import (
 	networktypes "github.com/docker/engine-api/types/network"
 	registrytypes "github.com/docker/engine-api/types/registry"
 	"github.com/docker/engine-api/types/strslice"
+	kvstore "github.com/docker/libkv/store"
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
 	"github.com/docker/docker/daemon/logger"
@@ -70,6 +72,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libtrust"
 	"golang.org/x/net/context"
 )
@@ -81,6 +84,8 @@ const (
 	// maxUploadConcurrency is the maximum number of uploads that
 	// may take place at a time for each push.
 	maxUploadConcurrency = 5
+
+	defaultLocalKVTimeout = time.Duration(1) * time.Second
 )
 
 var (
@@ -1692,12 +1697,40 @@ func (daemon *Daemon) networkOptions(dconfig *Config) ([]nwconfig.Option, error)
 		if len(kv) != 2 {
 			return nil, fmt.Errorf("kv store daemon config must be of the form KV-PROVIDER://KV-URL")
 		}
+
 		options = append(options, nwconfig.OptionKVProvider(kv[0]))
 		options = append(options, nwconfig.OptionKVProviderURL(kv[1]))
 	}
+
+	localKvStore := &datastore.ScopeCfg{
+		Client: datastore.ScopeClientCfg{
+			Provider: string(kvstore.BOLTDB),
+			Address:  filepath.Join(dconfig.Root, "network", "files", "local-kv.db"),
+			Config: &kvstore.Config{
+				Bucket:            "libnetwork",
+				PersistConnection: true,
+			},
+		},
+	}
+
 	if len(dconfig.ClusterOpts) > 0 {
 		options = append(options, nwconfig.OptionKVOpts(dconfig.ClusterOpts))
+
+		if t, ok := dconfig.ClusterOpts["localkv.timeout"]; ok {
+			var connectionTimeout time.Duration
+			if timeout, err := strconv.Atoi(t); err == nil {
+				connectionTimeout = time.Duration(timeout) * time.Second
+			} else {
+				logrus.Warnf("Invalid local-kv connection timeout : %s (%v). Using default %s", t, err, defaultLocalKVTimeout)
+				connectionTimeout = defaultLocalKVTimeout
+			}
+			localKvStore.Client.Config.ConnectionTimeout = connectionTimeout
+		} else {
+			localKvStore.Client.Config.ConnectionTimeout = defaultLocalKVTimeout
+		}
 	}
+
+	options = append(options, nwconfig.OptionKVStore(datastore.LocalScope, localKvStore))
 
 	if daemon.discoveryWatcher != nil {
 		options = append(options, nwconfig.OptionDiscoveryWatcher(daemon.discoveryWatcher))
