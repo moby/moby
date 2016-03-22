@@ -171,7 +171,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		closeNotifier = notifier.CloseNotify()
 	}
 
-	imgID, err := br.backend.Build(buildOptions,
+	imgID, err := br.backend.Build(ctx, buildOptions,
 		builder.DockerIgnoreContext{ModifiableContext: context},
 		stdout, stderr, out,
 		closeNotifier)

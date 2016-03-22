@@ -228,7 +228,7 @@ func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter,
 
 	w.Header().Set("Content-Type", "application/json")
 
-	if err := s.backend.PushImage(ref, metaHeaders, authConfig, output); err != nil {
+	if err := s.backend.PushImage(ctx, ref, metaHeaders, authConfig, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -373,7 +373,7 @@ func (s *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter
 			headers[k] = v
 		}
 	}
-	query, err := s.backend.SearchRegistryForImages(r.Form.Get("term"), config, headers)
+	query, err := s.backend.SearchRegistryForImages(ctx, r.Form.Get("term"), config, headers)
 	if err != nil {
 		return err
 	}

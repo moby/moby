@@ -140,7 +140,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 		if customHeaders == nil {
 			customHeaders = map[string]string{}
 		}
-		customHeaders["User-Agent"] = "Docker-Client/" + dockerversion.Version + " (" + runtime.GOOS + ")"
+		customHeaders["User-Agent"] = clientUserAgent()
 
 		verStr := api.DefaultVersion.String()
 		if tmpStr := os.Getenv("DOCKER_API_VERSION"); tmpStr != "" {
@@ -208,4 +208,8 @@ func newHTTPClient(host string, tlsOptions *tlsconfig.Options) (*http.Client, er
 	return &http.Client{
 		Transport: tr,
 	}, nil
+}
+
+func clientUserAgent() string {
+	return "Docker-Client/" + dockerversion.Version + " (" + runtime.GOOS + ")"
 }

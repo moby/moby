@@ -115,7 +115,7 @@ func (s *systemRouter) postAuth(ctx context.Context, w http.ResponseWriter, r *h
 	if err != nil {
 		return err
 	}
-	status, token, err := s.backend.AuthenticateToRegistry(config)
+	status, token, err := s.backend.AuthenticateToRegistry(ctx, config)
 	if err != nil {
 		return err
 	}

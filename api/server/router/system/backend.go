@@ -4,6 +4,7 @@ import (
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/events"
 	"github.com/docker/engine-api/types/filters"
+	"golang.org/x/net/context"
 )
 
 // Backend is the methods that need to be implemented to provide
@@ -13,5 +14,5 @@ type Backend interface {
 	SystemVersion() types.Version
 	SubscribeToEvents(since, sinceNano int64, ef filters.Args) ([]events.Message, chan interface{})
 	UnsubscribeFromEvents(chan interface{})
-	AuthenticateToRegistry(authConfig *types.AuthConfig) (string, string, error)
+	AuthenticateToRegistry(ctx context.Context, authConfig *types.AuthConfig) (string, string, error)
 }
