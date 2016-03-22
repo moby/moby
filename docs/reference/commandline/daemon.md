@@ -32,8 +32,8 @@ weight = -1
       --dns-opt=[]                           DNS options to use
       --dns-search=[]                        DNS search domains to use
       --default-ulimit=[]                    Set default ulimit settings for containers
-      --exec-opt=[]                          Set exec driver options
-      --exec-root="/var/run/docker"          Root of the Docker execdriver
+      --exec-opt=[]                          Set runtime execution options
+      --exec-root="/var/run/docker"          Root directory for execution state files
       --fixed-cidr=""                        IPv4 subnet for fixed IPs
       --fixed-cidr-v6=""                     IPv6 subnet for fixed IPs
       -G, --group="docker"                   Group for the unix socket
@@ -476,24 +476,26 @@ Currently supported options of `zfs`:
 
         $ docker daemon -s zfs --storage-opt zfs.fsname=zroot/docker
 
-## Docker execdriver option
+## Docker runtime execution options
 
-The Docker daemon uses a specifically built `libcontainer` execution driver as
-its interface to the Linux kernel `namespaces`, `cgroups`, and `SELinux`.
+The Docker daemon relies on a
+[OCI](https://github.com/opencontainers/specs) compliant runtime
+(invoked via the `containerd` daemon) as its interface to the Linux
+kernel `namespaces`, `cgroups`, and `SELinux`.
 
-## Options for the native execdriver
+## Options for the runtime
 
-You can configure the `native` (libcontainer) execdriver using options specified
+You can configure the runtime using options specified
 with the `--exec-opt` flag. All the flag's options have the `native` prefix. A
 single `native.cgroupdriver` option is available.
 
 The `native.cgroupdriver` option specifies the management of the container's
-cgroups. You can specify `cgroupfs` or `systemd`. If you specify `systemd` and
-it is not available, the system uses `cgroupfs`. If you omit the
+cgroups. You can specify only specify `cgroupfs` at the moment.  If you omit the
 `native.cgroupdriver` option,` cgroupfs` is used.
-This example sets the `cgroupdriver` to `systemd`:
 
-    $ sudo docker daemon --exec-opt native.cgroupdriver=systemd
+This example explicitely sets the `cgroupdriver` to `cgroupfs`:
+
+    $ sudo docker daemon --exec-opt native.cgroupdriver=cgroupfs
 
 Setting this option applies to all containers the daemon launches.
 

@@ -126,10 +126,10 @@ format.
   DNS search domains to use.
 
 **--exec-opt**=[]
-  Set exec driver options. See EXEC DRIVER OPTIONS.
+  Set runtime execution options. See RUNTIME EXECUTION OPTIONS.
 
 **--exec-root**=""
-  Path to use as the root of the Docker exec driver. Default is `/var/run/docker`.
+  Path to use as the root of the Docker execution state files. Default is `/var/run/docker`.
 
 **--fixed-cidr**=""
   IPv4 subnet for fixed IPs (e.g., 10.20.0.0/16); this subnet must be nested in the bridge subnet (which is defined by \-b or \-\-bip)
@@ -289,13 +289,13 @@ will use more space for base images the larger the device
 is.
 
 The base device size can be increased at daemon restart which will allow
-all future images and containers (based on those new images) to be of the 
+all future images and containers (based on those new images) to be of the
 new base device size.
 
-Example use: `docker daemon --storage-opt dm.basesize=50G` 
+Example use: `docker daemon --storage-opt dm.basesize=50G`
 
-This will increase the base device size to 50G. The Docker daemon will throw an 
-error if existing base device size is larger than 50G. A user can use 
+This will increase the base device size to 50G. The Docker daemon will throw an
+error if existing base device size is larger than 50G. A user can use
 this option to expand the base device size however shrinking is not permitted.
 
 This value affects the system-wide "base" empty filesystem that may already

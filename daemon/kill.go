@@ -103,7 +103,7 @@ func (daemon *Daemon) Kill(container *container.Container) error {
 		// because if we can't stop the container by this point then
 		// its probably because its already stopped. Meaning, between
 		// the time of the IsRunning() call above and now it stopped.
-		// Also, since the err return will be exec driver specific we can't
+		// Also, since the err return will be environment specific we can't
 		// look for any particular (common) error that would indicate
 		// that the process is already dead vs something else going wrong.
 		// So, instead we'll give it up to 2 more seconds to complete and if

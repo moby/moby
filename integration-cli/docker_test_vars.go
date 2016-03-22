@@ -21,8 +21,7 @@ var (
 
 	// TODO Windows CI. These are incorrect and need fixing into
 	// platform specific pieces.
-	runtimePath    = "/var/run/docker"
-	execDriverPath = runtimePath + "/execdriver/native"
+	runtimePath = "/var/run/docker"
 
 	workingDirectory string
 
