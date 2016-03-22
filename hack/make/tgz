@@ -19,8 +19,6 @@ for d in "$CROSS/"*/*; do
 	mkdir -p "$DEST/$GOOS/$GOARCH"
 	TGZ="$DEST/$GOOS/$GOARCH/$BINARY_NAME.tgz"
 
-	mkdir -p "$DEST/build"
-
 	mkdir -p "$DEST/build/usr/local/bin"
 	cp -L "$d/$BINARY_FULLNAME" "$DEST/build/usr/local/bin/docker$BINARY_EXTENSION"
 	copy_containerd "$DEST/build/usr/local/bin/"
