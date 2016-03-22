@@ -11,6 +11,12 @@ type Process windowsoci.Process
 // User specifies user information for the containers main process.
 type User windowsoci.User
 
+// Summary container a container summary from containerd
+type Summary struct {
+	Pid     uint32
+	Command string
+}
+
 // Stats contains a stats properties from containerd.
 type Stats struct{}
 

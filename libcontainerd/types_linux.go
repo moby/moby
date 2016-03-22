@@ -36,6 +36,9 @@ type Process struct {
 // Stats contains a stats properties from containerd.
 type Stats containerd.StatsResponse
 
+// Summary container a container summary from containerd
+type Summary struct{}
+
 // User specifies linux specific user and group information for the container's
 // main process.
 type User specs.User
