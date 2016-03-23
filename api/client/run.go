@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"io"
+	"net/http/httputil"
 	"os"
 	"runtime"
 	"strings"
@@ -205,19 +206,26 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			DetachKeys:  cli.configFile.DetachKeys,
 		}
 
-		resp, err := cli.client.ContainerAttach(context.Background(), options)
-		if err != nil {
-			return err
+		resp, errAttach := cli.client.ContainerAttach(context.Background(), options)
+		if errAttach != nil && errAttach != httputil.ErrPersistEOF {
+			// ContainerAttach returns an ErrPersistEOF (connection closed)
+			// means server met an error and put it in Hijacked connection
+			// keep the error and read detailed error message from hijacked connection later
+			return errAttach
 		}
 		ctx, cancelFun = context.WithCancel(context.Background())
 		errCh = promise.Go(func() error {
-			return cli.holdHijackedConnection(ctx, config.Tty, in, out, stderr, resp)
+			errHijack := cli.holdHijackedConnection(ctx, config.Tty, in, out, stderr, resp)
+			if errHijack == nil {
+				return errAttach
+			}
+			return errHijack
 		})
 	}
 
 	if *flAutoRemove {
 		defer func() {
-			if err := cli.removeContainer(createResponse.ID, true, false, false); err != nil {
+			if err := cli.removeContainer(createResponse.ID, true, false, true); err != nil {
 				fmt.Fprintf(cli.err, "%v\n", err)
 			}
 		}()

@@ -101,7 +101,8 @@ func (d *Daemon) ContainerExecCreate(config *types.ExecConfig) (string, error) {
 	if config.DetachKeys != "" {
 		keys, err = term.ToBytes(config.DetachKeys)
 		if err != nil {
-			logrus.Warnf("Wrong escape keys provided (%s, error: %s) using default : ctrl-p ctrl-q", config.DetachKeys, err.Error())
+			err = fmt.Errorf("Invalid escape keys (%s) provided", config.DetachKeys)
+			return "", err
 		}
 	}
 
