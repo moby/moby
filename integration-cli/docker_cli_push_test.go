@@ -653,7 +653,12 @@ func (s *DockerSuite) TestPushToCentralRegistryUnauthorized(c *check.C) {
 	out, _, err := dockerCmdWithError("push", repoName)
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(out, check.Not(checker.Contains), "Retrying")
-	c.Assert(out, checker.Contains, "unauthorized: authentication required")
+	// Docker registry >= v2.3 responds with "access to the requested resource.."
+	// Docker registry < v2.3 responds with "authentication required"
+	if !strings.Contains(out, "unauthorized: authentication required") &&
+		!strings.Contains(out, "unauthorized: access to the requested resource is not authorized") {
+		c.Fatalf("Expected unauthorized message; got %q", out)
+	}
 }
 
 func getTestTokenService(status int, body string) *httptest.Server {
