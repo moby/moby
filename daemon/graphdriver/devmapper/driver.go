@@ -108,7 +108,7 @@ func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 
 // Cleanup unmounts a device.
 func (d *Driver) Cleanup() error {
-	err := d.DeviceSet.Shutdown(d.home)
+	err := d.DeviceSet.Shutdown()
 
 	if err2 := mount.Unmount(d.home); err == nil {
 		err = err2

@@ -42,8 +42,6 @@ const (
 	FsMagicXfs = FsMagic(0x58465342)
 	// FsMagicZfs filesystem id for Zfs
 	FsMagicZfs = FsMagic(0x2fc12fc1)
-	// FsMagicOverlay filesystem id for overlay
-	FsMagicOverlay = FsMagic(0x794C7630)
 )
 
 var (
@@ -87,13 +85,4 @@ func GetFSMagic(rootpath string) (FsMagic, error) {
 		return 0, err
 	}
 	return FsMagic(buf.Type), nil
-}
-
-// Mounted checks if the given path is mounted as the fs type
-func Mounted(fsType FsMagic, mountPath string) (bool, error) {
-	var buf syscall.Statfs_t
-	if err := syscall.Statfs(mountPath, &buf); err != nil {
-		return false, err
-	}
-	return FsMagic(buf.Type) == fsType, nil
 }
