@@ -290,23 +290,21 @@ bundle() {
 }
 
 copy_containerd() {
-    dir="$1"
-    # Add nested executables to bundle dir so we have complete set of
-    # them available, but only if the native OS/ARCH is the same as the
-    # OS/ARCH of the build target
-    if [ "$(go env GOOS)/$(go env GOARCH)" == "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
-        (set -x
-        if [ -x /usr/local/bin/docker-runc ]; then
-            echo "Copying nested executables into $dir"
-	    for file in containerd containerd-shim containerd-ctr runc; do
-                cp "/usr/local/bin/docker-$file" "$dir/"
-                if [ "$2" == "hash" ]; then
-                    hash_files "$dir/docker-$file"
+	dir="$1"
+	# Add nested executables to bundle dir so we have complete set of
+	# them available, but only if the native OS/ARCH is the same as the
+	# OS/ARCH of the build target
+	if [ "$(go env GOOS)/$(go env GOARCH)" == "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
+		if [ -x /usr/local/bin/docker-runc ]; then
+			echo "Copying nested executables into $dir"
+			for file in containerd containerd-shim containerd-ctr runc; do
+				cp "/usr/local/bin/docker-$file" "$dir/"
+				if [ "$2" == "hash" ]; then
+					hash_files "$dir/docker-$file"
+				fi
+			done
 		fi
-            done
-        fi
-        )
-    fi
+	fi
 }
 
 main() {
