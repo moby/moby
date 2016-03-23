@@ -33,7 +33,7 @@ func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) (ls []net.List
 		if err != nil {
 			return nil, fmt.Errorf("can't create unix socket %s: %v", addr, err)
 		}
-		ls = append(ls, l)
+		ls = append(ls, &LookMaNoHands{l})
 	default:
 		return nil, fmt.Errorf("Invalid protocol format: %q", proto)
 	}
