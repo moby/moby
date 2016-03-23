@@ -13,6 +13,9 @@ var (
 	// the docker binary to use
 	dockerBinary = "docker"
 
+	// path to containerd's ctr binary
+	ctrBinary = "docker-containerd-ctr"
+
 	// the private registry image to use for tests involving the registry
 	registryImageName = "registry"
 

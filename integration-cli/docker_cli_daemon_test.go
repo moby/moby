@@ -1510,7 +1510,7 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterCrash(c *check.C) {
 	c.Assert(s.d.Kill(), check.IsNil)
 
 	// kill the container
-	runCmd := exec.Command("ctr", "--address", "/var/run/docker/libcontainerd/containerd.sock", "containers", "kill", id)
+	runCmd := exec.Command(ctrBinary, "--address", "/var/run/docker/libcontainerd/docker-containerd.sock", "containers", "kill", id)
 	if out, ec, err := runCommandWithOutput(runCmd); err != nil {
 		c.Fatalf("Failed to run ctr, ExitCode: %d, err: '%v' output: '%s' cid: '%s'\n", ec, err, out, id)
 	}
