@@ -242,16 +242,12 @@ release_build() {
 		latestTgz="$s3Dir/$latestBase.tgz"
 	fi
 
-	if [ ! -x "$binDir/$binary" ]; then
-		echo >&2 "error: can't find $binDir/$binary - was it compiled properly?"
-		exit 1
-	fi
 	if [ ! -f "$tgzDir/$tgz" ]; then
 		echo >&2 "error: can't find $tgzDir/$tgz - was it packaged properly?"
 		exit 1
 	fi
-
-	upload_release_build "$binDir/$binary" "$s3Dir/$binary" "$latest"
+	# disable binary uploads for now. Only providing tgz downloads
+	# upload_release_build "$binDir/$binary" "$s3Dir/$binary" "$latest"
 	upload_release_build "$tgzDir/$tgz" "$s3Dir/$tgz" "$latestTgz"
 }
 
@@ -318,9 +314,8 @@ echo "Use the following text to announce the release:"
 echo
 echo "We have just pushed $VERSION to $(s3_url). You can download it with the following:"
 echo
-echo "Linux 64bit binary: $(s3_url)/builds/Linux/x86_64/docker-$VERSION"
-echo "Darwin/OSX 64bit client binary: $(s3_url)/builds/Darwin/x86_64/docker-$VERSION"
+echo "Darwin/OSX 64bit client tgz: $(s3_url)/builds/Darwin/x86_64/docker-$VERSION.tgz"
 echo "Linux 64bit tgz: $(s3_url)/builds/Linux/x86_64/docker-$VERSION.tgz"
-echo "Windows 64bit client binary: $(s3_url)/builds/Windows/x86_64/docker-$VERSION.exe"
-echo "Windows 32bit client binary: $(s3_url)/builds/Windows/i386/docker-$VERSION.exe"
+echo "Windows 64bit client tgz: $(s3_url)/builds/Windows/x86_64/docker-$VERSION.tgz"
+echo "Windows 32bit client tgz: $(s3_url)/builds/Windows/i386/docker-$VERSION.tgz"
 echo
