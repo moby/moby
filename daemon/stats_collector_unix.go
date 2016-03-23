@@ -120,7 +120,7 @@ func (s *statsCollector) run() {
 		for _, pair := range pairs {
 			stats, err := s.supervisor.GetContainerStats(pair.container)
 			if err != nil {
-				if err, ok := err.(errNotRunning); ok {
+				if _, ok := err.(errNotRunning); !ok {
 					logrus.Errorf("collecting stats for %s: %v", pair.container.ID, err)
 				}
 				continue
