@@ -379,3 +379,15 @@ func (s *DockerSuite) TestInspectContainerNetworkCustom(c *check.C) {
 	out = inspectField(c, "container1", "NetworkSettings.Networks.net1.NetworkID")
 	c.Assert(strings.TrimSpace(out), checker.Equals, strings.TrimSpace(netOut))
 }
+
+func (s *DockerSuite) TestInspectRootFS(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out, _, err := dockerCmdWithError("inspect", "busybox")
+	c.Assert(err, check.IsNil)
+
+	var imageJSON []types.ImageInspect
+	err = json.Unmarshal([]byte(out), &imageJSON)
+	c.Assert(err, checker.IsNil)
+
+	c.Assert(len(imageJSON[0].RootFS.Layers), checker.GreaterOrEqualThan, 1)
+}
