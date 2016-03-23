@@ -200,7 +200,7 @@ func TestMountedFalseResponse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	response, err := d.mounted(d.getDiffPath("1"))
+	response, err := d.mounted(d.active["1"])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,7 +227,7 @@ func TestMountedTrueReponse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	response, err := d.mounted(d.pathCache["2"])
+	response, err := d.mounted(d.active["2"])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -293,7 +293,7 @@ func TestRemoveMountedDir(t *testing.T) {
 		t.Fatal("mntPath should not be empty string")
 	}
 
-	mounted, err := d.mounted(d.pathCache["2"])
+	mounted, err := d.mounted(d.active["2"])
 	if err != nil {
 		t.Fatal(err)
 	}
