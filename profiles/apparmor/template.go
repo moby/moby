@@ -42,9 +42,5 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   # suppress ptrace denials when using 'docker ps' or using 'ps' inside a container
   ptrace (trace,read) peer=docker-default,
 {{end}}
-{{if ge .Version 209000}}
-  # docker daemon confinement requires explict allow rule for signal
-  signal (receive) set=(kill,term) peer={{.ExecPath}},
-{{end}}
 }
 `

@@ -24,8 +24,6 @@ var (
 type profileData struct {
 	// Name is profile name.
 	Name string
-	// ExecPath is the path to the docker binary.
-	ExecPath string
 	// Imports defines the apparmor functions to import, before defining the profile.
 	Imports []string
 	// InnerImports defines the apparmor functions to import in the profile.
@@ -40,14 +38,23 @@ func (p *profileData) generateDefault(out io.Writer) error {
 	if err != nil {
 		return err
 	}
+
 	if macroExists("tunables/global") {
 		p.Imports = append(p.Imports, "#include <tunables/global>")
 	} else {
 		p.Imports = append(p.Imports, "@{PROC}=/proc/")
 	}
+
 	if macroExists("abstractions/base") {
 		p.InnerImports = append(p.InnerImports, "#include <abstractions/base>")
 	}
+
+	ver, err := aaparser.GetVersion()
+	if err != nil {
+		return err
+	}
+	p.Version = ver
+
 	if err := compiled.Execute(out, p); err != nil {
 		return err
 	}
