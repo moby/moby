@@ -365,6 +365,16 @@ func (d *Driver) Get(id string, mountLabel string) (string, error) {
 	mergedDir := path.Join(dir, "merged")
 
 	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir)
+
+	// if it's mounted already, just return
+	mounted, err := d.mounted(mergedDir)
+	if err != nil {
+		return "", err
+	}
+	if mounted {
+		return mergedDir, nil
+	}
+
 	if err := syscall.Mount("overlay", mergedDir, "overlay", 0, label.FormatMountLabel(opts, mountLabel)); err != nil {
 		return "", fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, err)
 	}
