@@ -253,19 +253,23 @@ RUN set -x \
 ENV RUNC_COMMIT bbde9c426ff363d813b8722f0744115c13b408b6
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
-  && git clone git://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
+	&& git clone git://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
 	&& cd "$GOPATH/src/github.com/opencontainers/runc" \
 	&& git checkout -q "$RUNC_COMMIT" \
-	&& make BUILDTAGS="seccomp apparmor selinux" && make install
+	&& make static BUILDTAGS="seccomp apparmor selinux" \
+	&& cp runc /usr/local/bin/docker-runc
 
 # Install containerd
-ENV CONTAINERD_COMMIT 7146b01a3d7aaa146414cdfb0a6c96cfba5d9091
+ENV CONTAINERD_COMMIT 142e22a4dce86f3b8ce068a0b043489d21976bb8
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
-  && git clone git://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \
+	&& git clone git://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \
 	&& cd "$GOPATH/src/github.com/docker/containerd" \
 	&& git checkout -q "$CONTAINERD_COMMIT" \
-	&& make && make install
+	&& make static \
+	&& cp bin/containerd /usr/local/bin/docker-containerd \
+	&& cp bin/containerd-shim /usr/local/bin/docker-containerd-shim \
+	&& cp bin/ctr /usr/local/bin/docker-containerd-ctr
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]

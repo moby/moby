@@ -24,9 +24,9 @@ const (
 	maxConnectionRetryCount   = 3
 	connectionRetryDelay      = 3 * time.Second
 	containerdShutdownTimeout = 15 * time.Second
-	containerdBinary          = "containerd"
-	containerdPidFilename     = "containerd.pid"
-	containerdSockFilename    = "containerd.sock"
+	containerdBinary          = "docker-containerd"
+	containerdPidFilename     = "docker-containerd.pid"
+	containerdSockFilename    = "docker-containerd.sock"
 	eventTimestampFilename    = "event.ts"
 )
 
@@ -333,7 +333,7 @@ func (r *remote) runContainerdDaemon() error {
 	}
 
 	// Start a new instance
-	args := []string{"-l", r.rpcAddr}
+	args := []string{"-l", r.rpcAddr, "--runtime", "docker-runc"}
 	if r.debugLog {
 		args = append(args, "--debug", "true")
 	}
