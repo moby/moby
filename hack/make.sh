@@ -298,12 +298,13 @@ copy_containerd() {
         (set -x
         if [ -x /usr/local/bin/docker-runc ]; then
             echo "Copying nested executables into $dir"
-	    for file in containerd containerd-shim containerd-ctr runc; do
+    	    for file in containerd containerd-shim containerd-ctr runc; do
                 cp "/usr/local/bin/docker-$file" "$dir/"
                 if [ "$2" == "hash" ]; then
                     hash_files "$dir/docker-$file"
-		fi
+                fi
             done
+            echo "Finished copying containerd execs into $dir"
         fi
         )
     fi
