@@ -128,7 +128,10 @@ func (cli *Client) sendClientRequest(ctx context.Context, method, path string, q
 
 func (cli *Client) newRequest(method, path string, query url.Values, body io.Reader, headers map[string][]string) (*http.Request, error) {
 	apiPath := cli.getAPIPath(path, query)
-	req, err := http.NewRequest(method, apiPath, body)
+
+	// The apiPath needs to be sanitized.
+	apiPathURL := &url.URL{Path: apiPath}
+	req, err := http.NewRequest(method, apiPathURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
