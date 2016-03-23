@@ -296,7 +296,7 @@ copy_containerd() {
     # OS/ARCH of the build target
     if [ "$(go env GOOS)/$(go env GOARCH)" == "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
         (set -x
-        if [ -x /usr/local/bin/runc ]; then
+        if [ -x /usr/local/bin/docker-runc ]; then
             echo "Copying nested executables into $dir"
 	    for file in containerd containerd-shim containerd-ctr runc; do
                 cp "/usr/local/bin/docker-$file" "$dir/"
