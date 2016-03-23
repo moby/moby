@@ -289,6 +289,30 @@ bundle() {
 	source "$SCRIPTDIR/make/$bundle" "$@"
 }
 
+copy_containerd() {
+    dir="$1"
+    # Add nested executables to bundle dir so we have complete set of
+    # them available, but only if the native OS/ARCH is the same as the
+    # OS/ARCH of the build target
+    if [ "$(go env GOOS)/$(go env GOARCH)" == "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
+        (set -x
+        if [ -x /usr/local/bin/runc ]; then
+            echo "Copying nested executables into $dir"
+            cp /usr/local/bin/runc "$dir/"
+            cp /usr/local/bin/ctr "$dir/"
+            cp /usr/local/bin/containerd "$dir/"
+            cp /usr/local/bin/containerd-shim "$dir/"
+            if [ "$2" == "hash" ]; then
+                hash_files "$dir/runc"
+                hash_files "$dir/ctr"
+                hash_files "$dir/containerd"
+                hash_files "$dir/containerd-shim"
+            fi
+        fi
+        )
+    fi
+}
+
 main() {
 	# We want this to fail if the bundles already exist and cannot be removed.
 	# This is to avoid mixing bundles from different versions of the code.

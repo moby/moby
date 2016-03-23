@@ -9,9 +9,10 @@ if [ ! -d "$CROSS/linux/amd64" ]; then
 	false
 fi
 
+(
 for d in "$CROSS/"*/*; do
-	GOARCH="$(basename "$d")"
-	GOOS="$(basename "$(dirname "$d")")"
+	export GOARCH="$(basename "$d")"
+	export GOOS="$(basename "$(dirname "$d")")"
 	BINARY_NAME="docker-$VERSION"
 	BINARY_EXTENSION="$(export GOOS && binary_extension)"
 	BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
@@ -22,6 +23,7 @@ for d in "$CROSS/"*/*; do
 
 	mkdir -p "$DEST/build/usr/local/bin"
 	cp -L "$d/$BINARY_FULLNAME" "$DEST/build/usr/local/bin/docker$BINARY_EXTENSION"
+	copy_containerd "$DEST/build/usr/local/bin/"
 
 	tar --numeric-owner --owner 0 -C "$DEST/build" -czf "$TGZ" usr
 
@@ -31,3 +33,4 @@ for d in "$CROSS/"*/*; do
 
 	echo "Created tgz: $TGZ"
 done
+)
