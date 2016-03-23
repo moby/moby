@@ -5,7 +5,6 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/middleware"
-	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/authorization"
 )
 
@@ -15,7 +14,7 @@ import (
 func (s *Server) handleWithGlobalMiddlewares(handler httputils.APIFunc) httputils.APIFunc {
 	next := handler
 
-	handleVersion := middleware.NewVersionMiddleware(dockerversion.Version, api.DefaultVersion, api.MinVersion)
+	handleVersion := middleware.NewVersionMiddleware(s.cfg.Version, api.DefaultVersion, api.MinVersion)
 	next = handleVersion(next)
 
 	if s.cfg.EnableCors {
