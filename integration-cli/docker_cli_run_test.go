@@ -4290,3 +4290,21 @@ func (s *DockerSuite) TestRunVolumeCopyFlag(c *check.C) {
 	out, _, err = dockerCmdWithError("run", "-v", "/foo:/bar:nocopy", "busybox", "true")
 	c.Assert(err, checker.NotNil, check.Commentf(out))
 }
+
+func (s *DockerSuite) TestRunTooLongHostname(c *check.C) {
+	// Test case in #21445
+	hostname1 := "this-is-a-way-too-long-hostname-but-it-should-give-a-nice-error.local"
+	out, _, err := dockerCmdWithError("run", "--hostname", hostname1, "busybox", "echo", "test")
+	c.Assert(err, checker.NotNil, check.Commentf("Expected docker run to fail!"))
+	c.Assert(out, checker.Contains, "invalid hostname format for --hostname:", check.Commentf("Expected to have 'invalid hostname format for --hostname:' in the output, get: %s!", out))
+
+	// HOST_NAME_MAX=64 so 65 bytes will fail
+	hostname2 := "this-is-a-hostname-with-65-bytes-so-it-should-give-an-error.local"
+	out, _, err = dockerCmdWithError("run", "--hostname", hostname2, "busybox", "echo", "test")
+	c.Assert(err, checker.NotNil, check.Commentf("Expected docker run to fail!"))
+	c.Assert(out, checker.Contains, "invalid hostname format for --hostname:", check.Commentf("Expected to have 'invalid hostname format for --hostname:' in the output, get: %s!", out))
+
+	// 64 bytes will be OK
+	hostname3 := "this-is-a-hostname-with-64-bytes-so-will-not-give-an-error.local"
+	dockerCmd(c, "run", "--hostname", hostname3, "busybox", "echo", "test")
+}
