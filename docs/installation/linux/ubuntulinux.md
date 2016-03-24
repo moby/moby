@@ -14,6 +14,7 @@ weight = -6
 
 Docker is supported on these Ubuntu operating systems:
 
+- Ubuntu Xenial 16.04 (LTS)
 - Ubuntu Wily 15.10
 - Ubuntu Trusty 14.04 (LTS)
 - Ubuntu Precise 12.04 (LTS)
@@ -85,6 +86,10 @@ packages from the new repository:
 
             deb https://apt.dockerproject.org/repo ubuntu-wily main
 
+    - Ubuntu Xenial 16.04 (LTS)
+
+            deb https://apt.dockerproject.org/repo ubuntu-xenial main
+
     > **Note**: Docker does not provide packages for all architectures. You can find
 	> nightly built binaries in https://master.dockerproject.org. To install docker on
     > a multi-architecture system, add an `[arch=...]` clause to the entry. Refer to the
@@ -109,10 +114,11 @@ packages from the new repository:
 
 ### Prerequisites by Ubuntu Version
 
+- Ubuntu Xenial 16.04 (LTS)
 - Ubuntu Wily 15.10
 - Ubuntu Trusty 14.04 (LTS)
 
-For Ubuntu Trusty and Wily, it's recommended to install the
+For Ubuntu Trusty, Wily, and Xenial, it's recommended to install the
 `linux-image-extra` kernel package. The `linux-image-extra` package
 allows you use the `aufs` storage driver.
 
