@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/docker/docker/pkg/homedir"
@@ -979,4 +980,30 @@ func (s *DockerSuite) TestRunPidsLimit(c *check.C) {
 
 	out = inspectField(c, "skittles", "HostConfig.PidsLimit")
 	c.Assert(out, checker.Equals, "2", check.Commentf("setting the pids limit failed"))
+}
+
+func (s *DockerSuite) TestRunPrivilegedAllowedDevices(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	file := "/sys/fs/cgroup/devices/devices.list"
+	out, _ := dockerCmd(c, "run", "--privileged", "busybox", "cat", file)
+	c.Logf("out: %q", out)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "a *:* rwm")
+}
+
+func (s *DockerSuite) TestRunUserDeviceAllowed(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	fi, err := os.Stat("/dev/snd/timer")
+	if err != nil {
+		c.Skip("Host does not have /dev/snd/timer")
+	}
+	stat, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok {
+		c.Skip("Could not stat /dev/snd/timer")
+	}
+
+	file := "/sys/fs/cgroup/devices/devices.list"
+	out, _ := dockerCmd(c, "run", "--device", "/dev/snd/timer:w", "busybox", "cat", file)
+	c.Assert(out, checker.Contains, fmt.Sprintf("c %d:%d w", stat.Rdev/256, stat.Rdev%256))
 }
