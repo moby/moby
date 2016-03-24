@@ -1419,7 +1419,7 @@ func (s *DockerSuite) TestPostContainersCreateWithWrongCpusetValues(c *check.C) 
 	status, body, err := sockRequest("POST", "/containers/create?name="+name, c1)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusInternalServerError)
-	expected := "Invalid value 1-42,, for cpuset cpus.\n"
+	expected := "Invalid value 1-42,, for cpuset cpus\n"
 	c.Assert(string(body), checker.Equals, expected)
 
 	c2 := struct {
@@ -1430,7 +1430,7 @@ func (s *DockerSuite) TestPostContainersCreateWithWrongCpusetValues(c *check.C) 
 	status, body, err = sockRequest("POST", "/containers/create?name="+name, c2)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusInternalServerError)
-	expected = "Invalid value 42-3,1-- for cpuset mems.\n"
+	expected = "Invalid value 42-3,1-- for cpuset mems\n"
 	c.Assert(string(body), checker.Equals, expected)
 }
 
@@ -1598,7 +1598,7 @@ func (s *DockerSuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *che
 	status, b, err := sockRequest("POST", "/containers/create?name="+name, config)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusInternalServerError)
-	expected := "Invalid value 1001, range for oom score adj is [-1000, 1000]."
+	expected := "Invalid value 1001, range for oom score adj is [-1000, 1000]"
 	if !strings.Contains(string(b), expected) {
 		c.Fatalf("Expected output to contain %q, got %q", expected, string(b))
 	}
@@ -1611,7 +1611,7 @@ func (s *DockerSuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *che
 	status, b, err = sockRequest("POST", "/containers/create?name="+name, config)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusInternalServerError)
-	expected = "Invalid value -1001, range for oom score adj is [-1000, 1000]."
+	expected = "Invalid value -1001, range for oom score adj is [-1000, 1000]"
 	if !strings.Contains(string(b), expected) {
 		c.Fatalf("Expected output to contain %q, got %q", expected, string(b))
 	}

@@ -334,10 +334,10 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		resources.MemorySwap = -1
 	}
 	if resources.Memory > 0 && resources.MemorySwap > 0 && resources.MemorySwap < resources.Memory {
-		return warnings, fmt.Errorf("Minimum memoryswap limit should be larger than memory limit, see usage.")
+		return warnings, fmt.Errorf("Minimum memoryswap limit should be larger than memory limit, see usage")
 	}
 	if resources.Memory == 0 && resources.MemorySwap > 0 && !update {
-		return warnings, fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage.")
+		return warnings, fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage")
 	}
 	if resources.MemorySwappiness != nil && *resources.MemorySwappiness != -1 && !sysInfo.MemorySwappiness {
 		warnings = append(warnings, "Your kernel does not support memory swappiness capabilities, memory swappiness discarded.")
@@ -347,7 +347,7 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	if resources.MemorySwappiness != nil {
 		swappiness := *resources.MemorySwappiness
 		if swappiness < -1 || swappiness > 100 {
-			return warnings, fmt.Errorf("Invalid value: %v, valid memory swappiness range is 0-100.", swappiness)
+			return warnings, fmt.Errorf("Invalid value: %v, valid memory swappiness range is 0-100", swappiness)
 		}
 	}
 	if resources.MemoryReservation > 0 && !sysInfo.MemoryReservation {
@@ -356,7 +356,7 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		resources.MemoryReservation = 0
 	}
 	if resources.Memory > 0 && resources.MemoryReservation > 0 && resources.Memory < resources.MemoryReservation {
-		return warnings, fmt.Errorf("Minimum memory limit should be larger than memory reservation limit, see usage.")
+		return warnings, fmt.Errorf("Minimum memory limit should be larger than memory reservation limit, see usage")
 	}
 	if resources.KernelMemory > 0 && !sysInfo.KernelMemory {
 		warnings = append(warnings, "Your kernel does not support kernel memory limit capabilities. Limitation discarded.")
@@ -397,10 +397,16 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		logrus.Warnf("Your kernel does not support CPU cfs period. Period discarded.")
 		resources.CPUPeriod = 0
 	}
+	if resources.CPUPeriod > 0 && (resources.CPUPeriod < 1000 || resources.CPUQuota > 1000000) {
+		return warnings, fmt.Errorf("CPU cfs period can not be less than 1ms (i.e. 1000) or larger than 1s (i.e. 1000000)")
+	}
 	if resources.CPUQuota > 0 && !sysInfo.CPUCfsQuota {
 		warnings = append(warnings, "Your kernel does not support CPU cfs quota. Quota discarded.")
 		logrus.Warnf("Your kernel does not support CPU cfs quota. Quota discarded.")
 		resources.CPUQuota = 0
+	}
+	if resources.CPUQuota > 0 && resources.CPUQuota < 1000 {
+		return warnings, fmt.Errorf("CPU cfs quota can not be less than 1ms (i.e. 1000)")
 	}
 
 	// cpuset subsystem checks and adjustments
@@ -412,17 +418,17 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	}
 	cpusAvailable, err := sysInfo.IsCpusetCpusAvailable(resources.CpusetCpus)
 	if err != nil {
-		return warnings, fmt.Errorf("Invalid value %s for cpuset cpus.", resources.CpusetCpus)
+		return warnings, fmt.Errorf("Invalid value %s for cpuset cpus", resources.CpusetCpus)
 	}
 	if !cpusAvailable {
-		return warnings, fmt.Errorf("Requested CPUs are not available - requested %s, available: %s.", resources.CpusetCpus, sysInfo.Cpus)
+		return warnings, fmt.Errorf("Requested CPUs are not available - requested %s, available: %s", resources.CpusetCpus, sysInfo.Cpus)
 	}
 	memsAvailable, err := sysInfo.IsCpusetMemsAvailable(resources.CpusetMems)
 	if err != nil {
-		return warnings, fmt.Errorf("Invalid value %s for cpuset mems.", resources.CpusetMems)
+		return warnings, fmt.Errorf("Invalid value %s for cpuset mems", resources.CpusetMems)
 	}
 	if !memsAvailable {
-		return warnings, fmt.Errorf("Requested memory nodes are not available - requested %s, available: %s.", resources.CpusetMems, sysInfo.Mems)
+		return warnings, fmt.Errorf("Requested memory nodes are not available - requested %s, available: %s", resources.CpusetMems, sysInfo.Mems)
 	}
 
 	// blkio subsystem checks and adjustments
@@ -432,7 +438,7 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		resources.BlkioWeight = 0
 	}
 	if resources.BlkioWeight > 0 && (resources.BlkioWeight < 10 || resources.BlkioWeight > 1000) {
-		return warnings, fmt.Errorf("Range of blkio weight is from 10 to 1000.")
+		return warnings, fmt.Errorf("Range of blkio weight is from 10 to 1000")
 	}
 	if len(resources.BlkioWeightDevice) > 0 && !sysInfo.BlkioWeightDevice {
 		warnings = append(warnings, "Your kernel does not support Block I/O weight_device.")
@@ -512,7 +518,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	}
 
 	if hostConfig.OomScoreAdj < -1000 || hostConfig.OomScoreAdj > 1000 {
-		return warnings, fmt.Errorf("Invalid value %d, range for oom score adj is [-1000, 1000].", hostConfig.OomScoreAdj)
+		return warnings, fmt.Errorf("Invalid value %d, range for oom score adj is [-1000, 1000]", hostConfig.OomScoreAdj)
 	}
 	if sysInfo.IPv4ForwardingDisabled {
 		warnings = append(warnings, "IPv4 forwarding is disabled. Networking will not work.")
