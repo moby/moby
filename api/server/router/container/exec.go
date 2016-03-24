@@ -112,7 +112,6 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 		}
 		stdout.Write([]byte(err.Error()))
 		logrus.Errorf("Error running exec in container: %v\n", err)
-		return err
 	}
 	return nil
 }
