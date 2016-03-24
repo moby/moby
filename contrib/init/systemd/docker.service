@@ -14,6 +14,9 @@ MountFlags=slave
 LimitNOFILE=1048576
 LimitNPROC=1048576
 LimitCORE=infinity
+# Uncomment TasksMax if your systemd version supports it.
+# Only systemd 226 and above support this version.
+#TasksMax=infinity
 TimeoutStartSec=0
 # set delegate yes so that systemd does not reset the cgroups of docker containers
 Delegate=yes
