@@ -587,7 +587,7 @@ func configureMaxThreads(config *Config) error {
 	return nil
 }
 
-// configureKernelSecuritySupport configures and validate security support for the kernel
+// configureKernelSecuritySupport configures and validates security support for the kernel
 func configureKernelSecuritySupport(config *Config, driverName string) error {
 	if config.EnableSelinuxSupport {
 		if selinuxEnabled() {
@@ -899,7 +899,7 @@ func parseRemappedRoot(usergrp string) (string, string, error) {
 
 	if len(idparts) == 2 {
 		// groupname or gid is separately specified and must be resolved
-		// to a unsigned 32-bit gid
+		// to an unsigned 32-bit gid
 		if gid, err := strconv.ParseInt(idparts[1], 10, 32); err == nil {
 			// must be a gid, take it as valid
 			groupID = int(gid)
@@ -979,7 +979,7 @@ func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error
 	if config.RemappedRoot != "" {
 		config.Root = filepath.Join(rootDir, fmt.Sprintf("%d.%d", rootUID, rootGID))
 		logrus.Debugf("Creating user namespaced daemon root: %s", config.Root)
-		// Create the root directory if it doesn't exists
+		// Create the root directory if it doesn't exist
 		if err := idtools.MkdirAllAs(config.Root, 0700, rootUID, rootGID); err != nil {
 			return fmt.Errorf("Cannot create daemon root: %s: %v", config.Root, err)
 		}
@@ -1092,7 +1092,7 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 	return s, nil
 }
 
-// setDefaultIsolation determine the default isolation mode for the
+// setDefaultIsolation determines the default isolation mode for the
 // daemon to run in. This is only applicable on Windows
 func (daemon *Daemon) setDefaultIsolation() error {
 	return nil
