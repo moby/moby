@@ -13,7 +13,7 @@ import (
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/builder/dockerfile"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/reference"
@@ -48,19 +48,17 @@ func (s *imageRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *
 		c = &container.Config{}
 	}
 
-	newConfig, err := dockerfile.BuildFromConfig(c, r.Form["changes"])
-	if err != nil {
-		return err
-	}
-
-	commitCfg := &types.ContainerCommitConfig{
-		Pause:        pause,
-		Repo:         r.Form.Get("repo"),
-		Tag:          r.Form.Get("tag"),
-		Author:       r.Form.Get("author"),
-		Comment:      r.Form.Get("comment"),
-		Config:       newConfig,
-		MergeConfigs: true,
+	commitCfg := &backend.ContainerCommitConfig{
+		ContainerCommitConfig: types.ContainerCommitConfig{
+			Pause:        pause,
+			Repo:         r.Form.Get("repo"),
+			Tag:          r.Form.Get("tag"),
+			Author:       r.Form.Get("author"),
+			Comment:      r.Form.Get("comment"),
+			Config:       c,
+			MergeConfigs: true,
+		},
+		Changes: r.Form["changes"],
 	}
 
 	imgID, err := s.backend.Commit(cname, commitCfg)
@@ -160,17 +158,10 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 		}
 
 		src := r.Form.Get("fromSrc")
-
 		// 'err' MUST NOT be defined within this block, we need any error
 		// generated from the download to be available to the output
 		// stream processing below
-		var newConfig *container.Config
-		newConfig, err = dockerfile.BuildFromConfig(&container.Config{}, r.Form["changes"])
-		if err != nil {
-			return err
-		}
-
-		err = s.backend.ImportImage(src, newRef, message, r.Body, output, newConfig)
+		err = s.backend.ImportImage(src, newRef, message, r.Body, output, r.Form["changes"])
 	}
 	if err != nil {
 		if !output.Flushed() {
