@@ -711,6 +711,10 @@ func NewDaemon(config *Config, registryService *registry.Service, containerdRemo
 	graphDriver := d.layerStore.DriverName()
 	imageRoot := filepath.Join(config.Root, "image", graphDriver)
 
+	if graphDriver != "devicemapper" && len(config.GraphOptions) != 0 {
+		return nil, fmt.Errorf("--storage-opt is not supported for %s", graphDriver)
+	}
+
 	// Configure and validate the kernels security support
 	if err := configureKernelSecuritySupport(config, graphDriver); err != nil {
 		return nil, err
