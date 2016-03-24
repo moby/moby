@@ -157,8 +157,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpvlanOverlapParent(c *check.C) {
 
 func (s *DockerNetworkSuite) TestDockerNetworkMacvlanMultiSubnet(c *check.C) {
 	// create a dual stack multi-subnet Macvlan bridge mode network and validate connectivity between four containers, two on each subnet
-	testRequires(c, DaemonIsLinux, MacvlanKernelSupport, NotUserNamespace, NotArm)
-	dockerCmd(c, "network", "create", "--driver=macvlan", "--subnet=172.28.100.0/24", "--subnet=172.28.102.0/24", "--gateway=172.28.102.254",
+	testRequires(c, DaemonIsLinux, IPv6, MacvlanKernelSupport, NotUserNamespace, NotArm)
+	dockerCmd(c, "network", "create", "--driver=macvlan", "--ipv6", "--subnet=172.28.100.0/24", "--subnet=172.28.102.0/24", "--gateway=172.28.102.254",
 		"--subnet=2001:db8:abc2::/64", "--subnet=2001:db8:abc4::/64", "--gateway=2001:db8:abc4::254", "dualstackbridge")
 	// Ensure the network was created
 	assertNwIsAvailable(c, "dualstackbridge")
@@ -212,8 +212,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkMacvlanMultiSubnet(c *check.C) {
 
 func (s *DockerNetworkSuite) TestDockerNetworkIpvlanL2MultiSubnet(c *check.C) {
 	// create a dual stack multi-subnet Ipvlan L2 network and validate connectivity within the subnets, two on each subnet
-	testRequires(c, DaemonIsLinux, IpvlanKernelSupport, NotUserNamespace, NotArm)
-	dockerCmd(c, "network", "create", "--driver=ipvlan", "--subnet=172.28.200.0/24", "--subnet=172.28.202.0/24", "--gateway=172.28.202.254",
+	testRequires(c, DaemonIsLinux, IPv6, IpvlanKernelSupport, NotUserNamespace, NotArm)
+	dockerCmd(c, "network", "create", "--driver=ipvlan", "--ipv6", "--subnet=172.28.200.0/24", "--subnet=172.28.202.0/24", "--gateway=172.28.202.254",
 		"--subnet=2001:db8:abc8::/64", "--subnet=2001:db8:abc6::/64", "--gateway=2001:db8:abc6::254", "dualstackl2")
 	// Ensure the network was created
 	assertNwIsAvailable(c, "dualstackl2")
@@ -266,8 +266,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpvlanL2MultiSubnet(c *check.C) {
 
 func (s *DockerNetworkSuite) TestDockerNetworkIpvlanL3MultiSubnet(c *check.C) {
 	// create a dual stack multi-subnet Ipvlan L3 network and validate connectivity between all four containers per L3 mode
-	testRequires(c, DaemonIsLinux, IpvlanKernelSupport, NotUserNamespace, NotArm)
-	dockerCmd(c, "network", "create", "--driver=ipvlan", "--subnet=172.28.10.0/24", "--subnet=172.28.12.0/24", "--gateway=172.28.12.254",
+	testRequires(c, DaemonIsLinux, IPv6, IpvlanKernelSupport, NotUserNamespace, NotArm, IPv6)
+	dockerCmd(c, "network", "create", "--driver=ipvlan", "--ipv6", "--subnet=172.28.10.0/24", "--subnet=172.28.12.0/24", "--gateway=172.28.12.254",
 		"--subnet=2001:db8:abc9::/64", "--subnet=2001:db8:abc7::/64", "--gateway=2001:db8:abc7::254", "-o", "ipvlan_mode=l3", "dualstackl3")
 	// Ensure the network was created
 	assertNwIsAvailable(c, "dualstackl3")
@@ -325,8 +325,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpvlanL3MultiSubnet(c *check.C) {
 
 func (s *DockerNetworkSuite) TestDockerNetworkIpvlanAddressing(c *check.C) {
 	// Ensure the default gateways, next-hops and default dev devices are properly set
-	testRequires(c, DaemonIsLinux, IpvlanKernelSupport, NotUserNamespace, NotArm)
-	dockerCmd(c, "network", "create", "--driver=macvlan", "--subnet=172.28.130.0/24",
+	testRequires(c, DaemonIsLinux, IPv6, IpvlanKernelSupport, NotUserNamespace, NotArm)
+	dockerCmd(c, "network", "create", "--driver=macvlan", "--ipv6", "--subnet=172.28.130.0/24",
 		"--subnet=2001:db8:abca::/64", "--gateway=2001:db8:abca::254", "-o", "macvlan_mode=bridge", "dualstackbridge")
 	assertNwIsAvailable(c, "dualstackbridge")
 	dockerCmd(c, "run", "-d", "--net=dualstackbridge", "--name=first", "busybox", "top")
@@ -341,7 +341,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpvlanAddressing(c *check.C) {
 
 	// Verify ipvlan l2 mode sets the proper default gateway routes via netlink
 	// for either an explicitly set route by the user or inferred via default IPAM
-	dockerCmd(c, "network", "create", "--driver=ipvlan", "--subnet=172.28.140.0/24", "--gateway=172.28.140.254",
+	dockerCmd(c, "network", "create", "--driver=ipvlan", "--ipv6", "--subnet=172.28.140.0/24", "--gateway=172.28.140.254",
 		"--subnet=2001:db8:abcb::/64", "-o", "ipvlan_mode=l2", "dualstackl2")
 	assertNwIsAvailable(c, "dualstackl2")
 	dockerCmd(c, "run", "-d", "--net=dualstackl2", "--name=second", "busybox", "top")
@@ -355,7 +355,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpvlanAddressing(c *check.C) {
 	c.Assert(out, checker.Contains, "default via 2001:db8:abcb::1 dev eth0")
 
 	// Validate ipvlan l3 mode sets the v4 gateway to dev eth0 and disregards any explicit or inferred next-hops
-	dockerCmd(c, "network", "create", "--driver=ipvlan", "--subnet=172.28.160.0/24", "--gateway=172.28.160.254",
+	dockerCmd(c, "network", "create", "--driver=ipvlan", "--ipv6", "--subnet=172.28.160.0/24", "--gateway=172.28.160.254",
 		"--subnet=2001:db8:abcd::/64", "--gateway=2001:db8:abcd::254", "-o", "ipvlan_mode=l3", "dualstackl3")
 	assertNwIsAvailable(c, "dualstackl3")
 	dockerCmd(c, "run", "-d", "--net=dualstackl3", "--name=third", "busybox", "top")
