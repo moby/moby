@@ -265,8 +265,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	cli.TrustKeyPath = commonFlags.TrustKey
 
 	registryService := registry.NewService(cli.Config.ServiceOptions)
-
-	containerdRemote, err := libcontainerd.New(filepath.Join(cli.Config.ExecRoot, "libcontainerd"), cli.getPlatformRemoteOptions()...)
+	containerdRemote, err := libcontainerd.New(cli.getLibcontainerdRoot(), cli.getPlatformRemoteOptions()...)
 	if err != nil {
 		logrus.Fatal(err)
 	}
