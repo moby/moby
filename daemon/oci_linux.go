@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/caps"
 	"github.com/docker/docker/libcontainerd"
@@ -583,16 +584,24 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 	}
 
 	var cgroupsPath string
+	scopePrefix := "docker"
+	parent := "/docker"
+	useSystemd := UsingSystemd(daemon.configStore)
+	if useSystemd {
+		parent = "system.slice"
+	}
+
 	if c.HostConfig.CgroupParent != "" {
-		cgroupsPath = filepath.Join(c.HostConfig.CgroupParent, c.ID)
+		parent = c.HostConfig.CgroupParent
+	} else if daemon.configStore.CgroupParent != "" {
+		parent = daemon.configStore.CgroupParent
+	}
+
+	if useSystemd {
+		cgroupsPath = parent + ":" + scopePrefix + ":" + c.ID
+		logrus.Debugf("createSpec: cgroupsPath: %s", cgroupsPath)
 	} else {
-		defaultCgroupParent := "/docker"
-		if daemon.configStore.CgroupParent != "" {
-			defaultCgroupParent = daemon.configStore.CgroupParent
-		} else if daemon.usingSystemd() {
-			defaultCgroupParent = "system.slice"
-		}
-		cgroupsPath = filepath.Join(defaultCgroupParent, c.ID)
+		cgroupsPath = filepath.Join(parent, c.ID)
 	}
 	s.Linux.CgroupsPath = &cgroupsPath
 
