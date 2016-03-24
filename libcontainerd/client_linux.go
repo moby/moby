@@ -79,6 +79,7 @@ func (clnt *client) AddProcess(containerID, processFriendlyName string, specp Pr
 		ApparmorProfile: sp.ApparmorProfile,
 		SelinuxLabel:    sp.SelinuxLabel,
 		NoNewPrivileges: sp.NoNewPrivileges,
+		Rlimits:         convertRlimits(sp.Rlimits),
 	}
 
 	iopipe, err := p.openFifos(sp.Terminal)
