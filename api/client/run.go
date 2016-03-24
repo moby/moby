@@ -260,7 +260,11 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		// Autoremove: wait for the container to finish, retrieve
 		// the exit code and remove the container
 		if status, err = cli.client.ContainerWait(context.Background(), createResponse.ID); err != nil {
-			return runStartContainerErr(err)
+			tmpErr := runStartContainerErr(err)
+			if se, ok := tmpErr.(Cli.StatusError); ok && se.StatusCode == 125 {
+				fmt.Fprintf(cli.err, "Container did not execute successfully: %v\n", err)
+			}
+			return tmpErr
 		}
 		if _, status, err = getExitCode(cli, createResponse.ID); err != nil {
 			return err
