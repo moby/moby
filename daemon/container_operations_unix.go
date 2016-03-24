@@ -295,7 +295,18 @@ func specDevice(d *configs.Device) specs.Device {
 	}
 }
 
-func getDevicesFromPath(deviceMapping containertypes.DeviceMapping) (devs []specs.Device, err error) {
+func specDeviceCgroup(d *configs.Device) specs.DeviceCgroup {
+	t := string(d.Type)
+	return specs.DeviceCgroup{
+		Allow:  true,
+		Type:   &t,
+		Major:  &d.Major,
+		Minor:  &d.Minor,
+		Access: &d.Permissions,
+	}
+}
+
+func getDevicesFromPath(deviceMapping containertypes.DeviceMapping) (devs []specs.Device, devPermissions []specs.DeviceCgroup, err error) {
 	resolvedPathOnHost := deviceMapping.PathOnHost
 
 	// check if it is a symbolic link
@@ -309,7 +320,7 @@ func getDevicesFromPath(deviceMapping containertypes.DeviceMapping) (devs []spec
 	// if there was no error, return the device
 	if err == nil {
 		device.Path = deviceMapping.PathInContainer
-		return append(devs, specDevice(device)), nil
+		return append(devs, specDevice(device)), append(devPermissions, specDeviceCgroup(device)), nil
 	}
 
 	// if the device is not a device node
@@ -330,6 +341,7 @@ func getDevicesFromPath(deviceMapping containertypes.DeviceMapping) (devs []spec
 				// add the device to userSpecified devices
 				childDevice.Path = strings.Replace(dpath, resolvedPathOnHost, deviceMapping.PathInContainer, 1)
 				devs = append(devs, specDevice(childDevice))
+				devPermissions = append(devPermissions, specDeviceCgroup(childDevice))
 
 				return nil
 			})
@@ -337,10 +349,10 @@ func getDevicesFromPath(deviceMapping containertypes.DeviceMapping) (devs []spec
 	}
 
 	if len(devs) > 0 {
-		return devs, nil
+		return devs, devPermissions, nil
 	}
 
-	return devs, fmt.Errorf("error gathering device information while adding custom device %q: %s", deviceMapping.PathOnHost, err)
+	return devs, devPermissions, fmt.Errorf("error gathering device information while adding custom device %q: %s", deviceMapping.PathOnHost, err)
 }
 
 func mergeDevices(defaultDevices, userDevices []*configs.Device) []*configs.Device {
