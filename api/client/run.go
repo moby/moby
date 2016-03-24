@@ -20,8 +20,8 @@ import (
 )
 
 const (
-	errCmdNotFound          = "not found or does not exist."
-	errCmdCouldNotBeInvoked = "could not be invoked."
+	errCmdNotFound          = "not found or does not exist"
+	errCmdCouldNotBeInvoked = "could not be invoked"
 )
 
 func (cid *cidFile) Close() error {
@@ -48,9 +48,8 @@ func (cid *cidFile) Write(id string) error {
 // if container start fails with 'command cannot be invoked' error, return 126
 // return 125 for generic docker daemon failures
 func runStartContainerErr(err error) error {
-	trimmedErr := strings.Trim(err.Error(), "Error response from daemon: ")
+	trimmedErr := strings.TrimPrefix(err.Error(), "Error response from daemon: ")
 	statusError := Cli.StatusError{StatusCode: 125}
-
 	if strings.HasPrefix(trimmedErr, "Container command") {
 		if strings.Contains(trimmedErr, errCmdNotFound) {
 			statusError = Cli.StatusError{StatusCode: 127}
