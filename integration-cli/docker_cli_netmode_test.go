@@ -21,13 +21,17 @@ func dockerCmdWithFail(c *check.C, args ...string) (string, int) {
 	return out, status
 }
 
-func (s *DockerSuite) TestNetHostname(c *check.C) {
+func (s *DockerSuite) TestNetHostnameWithNetHost(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
-	out, _ := dockerCmd(c, "run", "-h=name", "busybox", "ps")
+	out, _ := dockerCmd(c, "run", "--net=host", "busybox", "ps")
 	c.Assert(out, checker.Contains, stringCheckPS)
+}
 
-	out, _ = dockerCmd(c, "run", "--net=host", "busybox", "ps")
+func (s *DockerSuite) TestNetHostname(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	out, _ := dockerCmd(c, "run", "-h=name", "busybox", "ps")
 	c.Assert(out, checker.Contains, stringCheckPS)
 
 	out, _ = dockerCmd(c, "run", "-h=name", "--net=bridge", "busybox", "ps")
@@ -47,32 +51,40 @@ func (s *DockerSuite) TestNetHostname(c *check.C) {
 }
 
 func (s *DockerSuite) TestConflictContainerNetworkAndLinks(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux)
 
 	out, _ := dockerCmdWithFail(c, "run", "--net=container:other", "--link=zip:zap", "busybox", "ps")
 	c.Assert(out, checker.Contains, runconfig.ErrConflictContainerNetworkAndLinks.Error())
+}
 
-	out, _ = dockerCmdWithFail(c, "run", "--net=host", "--link=zip:zap", "busybox", "ps")
+func (s *DockerSuite) TestConflictContainerNetworkHostAndLinks(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
+
+	out, _ := dockerCmdWithFail(c, "run", "--net=host", "--link=zip:zap", "busybox", "ps")
 	c.Assert(out, checker.Contains, runconfig.ErrConflictHostNetworkAndLinks.Error())
 }
 
-func (s *DockerSuite) TestConflictNetworkModeAndOptions(c *check.C) {
+func (s *DockerSuite) TestConflictNetworkModeNetHostAndOptions(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	out, _ := dockerCmdWithFail(c, "run", "--net=host", "--dns=8.8.8.8", "busybox", "ps")
 	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkAndDNS.Error())
 
-	out, _ = dockerCmdWithFail(c, "run", "--net=container:other", "--dns=8.8.8.8", "busybox", "ps")
-	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkAndDNS.Error())
-
 	out, _ = dockerCmdWithFail(c, "run", "--net=host", "--add-host=name:8.8.8.8", "busybox", "ps")
-	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkHosts.Error())
-
-	out, _ = dockerCmdWithFail(c, "run", "--net=container:other", "--add-host=name:8.8.8.8", "busybox", "ps")
 	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkHosts.Error())
 
 	out, _ = dockerCmdWithFail(c, "run", "--net=host", "--mac-address=92:d0:c6:0a:29:33", "busybox", "ps")
 	c.Assert(out, checker.Contains, runconfig.ErrConflictContainerNetworkAndMac.Error())
+}
+
+func (s *DockerSuite) TestConflictNetworkModeAndOptions(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	out, _ := dockerCmdWithFail(c, "run", "--net=container:other", "--dns=8.8.8.8", "busybox", "ps")
+	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkAndDNS.Error())
+
+	out, _ = dockerCmdWithFail(c, "run", "--net=container:other", "--add-host=name:8.8.8.8", "busybox", "ps")
+	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkHosts.Error())
 
 	out, _ = dockerCmdWithFail(c, "run", "--net=container:other", "--mac-address=92:d0:c6:0a:29:33", "busybox", "ps")
 	c.Assert(out, checker.Contains, runconfig.ErrConflictContainerNetworkAndMac.Error())
