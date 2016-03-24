@@ -38,9 +38,9 @@
 FROM windowsservercore
 
 # Environment variable notes:
-#  - GOLANG_VERSION must consistent with 'Dockerfile' used by Linux'.
+#  - GO_VERSION must consistent with 'Dockerfile' used by Linux'.
 #  - FROM_DOCKERFILE is used for detection of building within a container.
-ENV GOLANG_VERSION=1.6 \
+ENV GO_VERSION=1.5.3 \
     GIT_LOCATION=https://github.com/git-for-windows/git/releases/download/v2.7.2.windows.1/Git-2.7.2-64-bit.exe \
     RSRC_COMMIT=ba14da1f827188454a4591717fff29999010887f \
     GOPATH=C:/go;C:/go/src/github.com/docker/docker/vendor \
@@ -63,7 +63,7 @@ RUN \
   Download-File %GIT_LOCATION% gitsetup.exe; \
   \
   Write-Host INFO: Downloading go...; \
-  Download-File https://storage.googleapis.com/golang/go%GOLANG_VERSION%.windows-amd64.msi go.msi; \
+  Download-File https://storage.googleapis.com/golang/go%GO_VERSION%.windows-amd64.msi go.msi; \
   \
   Write-Host INFO: Downloading compiler 1 of 3...; \
   Download-File https://raw.githubusercontent.com/jhowardmsft/docker-tdmgcc/master/gcc.zip gcc.zip; \

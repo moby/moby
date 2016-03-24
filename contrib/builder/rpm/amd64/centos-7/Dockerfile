@@ -8,7 +8,7 @@ RUN yum groupinstall -y "Development Tools"
 RUN yum -y swap -- remove systemd-container systemd-container-libs -- install systemd systemd-libs
 RUN yum install -y btrfs-progs-devel device-mapper-devel glibc-static  libselinux-devel libtool-ltdl-devel pkgconfig selinux-policy selinux-policy-devel sqlite-devel systemd-devel tar git
 
-ENV GO_VERSION 1.6
+ENV GO_VERSION 1.5.3
 RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local
 ENV PATH $PATH:/usr/local/go/bin
 
