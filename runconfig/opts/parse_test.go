@@ -390,6 +390,7 @@ func TestParseHostname(t *testing.T) {
 		"host-name":   "host-name",
 		"hostname123": "hostname123",
 		"123hostname": "123hostname",
+		"hostname-of-64-bytes-long-should-be-valid-and-without-any-errors": "hostname-of-64-bytes-long-should-be-valid-and-without-any-errors",
 	}
 	invalidHostnames := map[string]string{
 		"^hostname": "invalid hostname format for --hostname: ^hostname",
@@ -397,6 +398,7 @@ func TestParseHostname(t *testing.T) {
 		"host&name": "invalid hostname format for --hostname: host&name",
 		"-hostname": "invalid hostname format for --hostname: -hostname",
 		"host_name": "invalid hostname format for --hostname: host_name",
+		"hostname-of-65-bytes-long-should-be-invalid-and-be-given-an-error": "invalid hostname format for --hostname: hostname-of-65-bytes-long-should-be-invalid-and-be-given-an-error",
 	}
 	hostnameWithDomain := "--hostname=hostname.domainname"
 	hostnameWithDomainTld := "--hostname=hostname.domainname.tld"
