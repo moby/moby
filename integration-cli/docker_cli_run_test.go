@@ -76,12 +76,8 @@ func (s *DockerSuite) TestRunExitCodeZero(c *check.C) {
 // the exit code should be 1
 func (s *DockerSuite) TestRunExitCodeOne(c *check.C) {
 	_, exitCode, err := dockerCmdWithError("run", "busybox", "false")
-	if err != nil && !strings.Contains("exit status 1", fmt.Sprintf("%s", err)) {
-		c.Fatal(err)
-	}
-	if exitCode != 1 {
-		c.Errorf("container should've exited with exit code 1. Got %d", exitCode)
-	}
+	c.Assert(err, checker.NotNil)
+	c.Assert(exitCode, checker.Equals, 1)
 }
 
 // it should be possible to pipe in data via stdin to a process running in a container
@@ -3907,6 +3903,9 @@ func (s *DockerSuite) TestRunStdinBlockedAfterContainerExit(c *check.C) {
 	in, err := cmd.StdinPipe()
 	c.Assert(err, check.IsNil)
 	defer in.Close()
+	stdout := bytes.NewBuffer(nil)
+	cmd.Stdout = stdout
+	cmd.Stderr = stdout
 	c.Assert(cmd.Start(), check.IsNil)
 
 	waitChan := make(chan error)
@@ -3916,7 +3915,7 @@ func (s *DockerSuite) TestRunStdinBlockedAfterContainerExit(c *check.C) {
 
 	select {
 	case err := <-waitChan:
-		c.Assert(err, check.IsNil)
+		c.Assert(err, check.IsNil, check.Commentf(stdout.String()))
 	case <-time.After(30 * time.Second):
 		c.Fatal("timeout waiting for command to exit")
 	}

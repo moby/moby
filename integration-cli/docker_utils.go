@@ -468,7 +468,11 @@ func dockerCmdWithError(args ...string) (string, int, error) {
 	if err := validateArgs(args...); err != nil {
 		return "", 0, err
 	}
-	return integration.DockerCmdWithError(dockerBinary, args...)
+	out, code, err := integration.DockerCmdWithError(dockerBinary, args...)
+	if err != nil {
+		err = fmt.Errorf("%v: %s", err, out)
+	}
+	return out, code, err
 }
 
 func dockerCmdWithStdoutStderr(c *check.C, args ...string) (string, string, int) {
