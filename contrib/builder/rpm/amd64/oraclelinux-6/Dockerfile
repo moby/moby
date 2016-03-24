@@ -10,7 +10,7 @@ RUN yum install -y btrfs-progs-devel device-mapper-devel glibc-static  libselinu
 RUN yum install -y yum-utils && curl -o /etc/yum.repos.d/public-yum-ol6.repo http://yum.oracle.com/public-yum-ol6.repo && yum-config-manager -q --enable ol6_UEKR4
 RUN yum install -y kernel-uek-devel-4.1.12-32.el6uek
 
-ENV GO_VERSION 1.6
+ENV GO_VERSION 1.5.3
 RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local
 ENV PATH $PATH:/usr/local/go/bin
 
