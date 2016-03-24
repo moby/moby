@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -27,6 +28,7 @@ var (
 
 const (
 	filePerm os.FileMode = 0644
+	thr_ms               = 1e3
 )
 
 //BoltDB type implements the Store interface
@@ -314,6 +316,13 @@ func (b *BoltDB) AtomicDelete(key string, previous *store.KVPair) (bool, error) 
 	)
 	b.Lock()
 	defer b.Unlock()
+	start := time.Now().UnixNano()
+	defer func() {
+		takenms := (time.Now().UnixNano() - start) / 1e6
+		if takenms > thr_ms {
+			log.Printf("AtomicDelete TOOK %vms\n\nKey:%s\n\n", takenms, key)
+		}
+	}()
 
 	if previous == nil {
 		return false, store.ErrPreviousNotSpecified
@@ -358,6 +367,14 @@ func (b *BoltDB) AtomicPut(key string, value []byte, previous *store.KVPair, opt
 	b.Lock()
 	defer b.Unlock()
 
+	start := time.Now().UnixNano()
+	defer func() {
+		takenms := (time.Now().UnixNano() - start) / 1e6
+		if takenms > thr_ms {
+			log.Printf("AtomicPut TOOK %vms\n\nKey:%s\nVal:%s\n\n", takenms, key, string(value))
+		}
+	}()
+
 	dbval := make([]byte, libkvmetadatalen)
 
 	if db, err = b.getDBhandle(); err != nil {
@@ -381,7 +398,7 @@ func (b *BoltDB) AtomicPut(key string, value []byte, previous *store.KVPair, opt
 		// doesn't exist in the DB.
 		val = bucket.Get([]byte(key))
 		if previous == nil && len(val) != 0 {
-			return store.ErrKeyModified
+			return store.ErrKeyExists
 		}
 		if previous != nil {
 			if len(val) == 0 {
@@ -431,6 +448,14 @@ func (b *BoltDB) DeleteTree(keyPrefix string) error {
 	)
 	b.Lock()
 	defer b.Unlock()
+
+	start := time.Now().UnixNano()
+	defer func() {
+		takenms := (time.Now().UnixNano() - start) / 1e6
+		if takenms > thr_ms {
+			log.Printf("DeleteTree TOOK %vms\n\nKeyPrefix:%s\n\n", takenms, keyPrefix)
+		}
+	}()
 
 	if db, err = b.getDBhandle(); err != nil {
 		return err

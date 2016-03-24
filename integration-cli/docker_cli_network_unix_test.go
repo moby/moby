@@ -37,6 +37,36 @@ func init() {
 	})
 }
 
+func (s *DockerSuite) TestCento(c *check.C) {
+	for i := 0; i < 20; i++ {
+		nw := fmt.Sprintf("nw%d", i)
+		dockerCmd(c, "network", "create", nw)
+		for j := 0; j < 5; j++ {
+			dockerCmd(c, "run", "-d", "--name", fmt.Sprintf("c%d", j), "--net", nw, "busybox", "top")
+		}
+		for j := 0; j < 5; j++ {
+			dockerCmd(c, "run", "-d", "--name", fmt.Sprintf("c0%d", j), "busybox", "top")
+		}
+		dockerCmd(c, "rm", "-f", "c0", "c1", "c2", "c3", "c4")
+		dockerCmd(c, "rm", "-f", "c00", "c01", "c02", "c03", "c04")
+		dockerCmd(c, "network", "rm", nw)
+	}
+}
+
+func (s *DockerSuite) TestCento2(c *check.C) {
+	for i := 0; i < 20; i++ {
+		nw := fmt.Sprintf("nw%d", i)
+		dockerCmd(c, "network", "create", nw)
+		for j := 0; j < 5; j++ {
+			dockerCmd(c, "run", "-d", "--name", fmt.Sprintf("c%d", j), "--net", nw, "busybox", "top")
+			dockerCmd(c, "run", "-d", "--name", fmt.Sprintf("c0%d", j), "busybox", "top")
+		}
+		dockerCmd(c, "rm", "-f", "c0", "c1", "c2", "c3", "c4")
+		dockerCmd(c, "rm", "-f", "c00", "c01", "c02", "c03", "c04")
+		dockerCmd(c, "network", "rm", nw)
+	}
+}
+
 type DockerNetworkSuite struct {
 	server *httptest.Server
 	ds     *DockerSuite
