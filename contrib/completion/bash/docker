@@ -1476,6 +1476,11 @@ _docker_ps() {
 			COMPREPLY=( $( compgen -W "created dead exited paused restarting running" -- "${cur##*=}" ) )
 			return
 			;;
+		volume)
+			cur="${cur##*=}"
+			__docker_complete_volumes
+			return
+			;;
 	esac
 
 	case "$prev" in
@@ -1483,7 +1488,7 @@ _docker_ps() {
 			__docker_complete_containers_all
 			;;
 		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "ancestor exited id label name status" -- "$cur" ) )
+			COMPREPLY=( $( compgen -S = -W "ancestor exited id label name status volume" -- "$cur" ) )
 			__docker_nospace
 			return
 			;;
