@@ -45,6 +45,7 @@ type remote struct {
 	clients     []*client
 	eventTsPath string
 	pastEvents  map[string]*containerd.Event
+	runtimeArgs []string
 }
 
 // New creates a fresh instance of libcontainerd remote.
@@ -340,7 +341,14 @@ func (r *remote) runContainerdDaemon() error {
 	// Start a new instance
 	args := []string{"-l", r.rpcAddr, "--runtime", "docker-runc"}
 	if r.debugLog {
-		args = append(args, "--debug", "true")
+		args = append(args, "--debug")
+	}
+	if len(r.runtimeArgs) > 0 {
+		for _, v := range r.runtimeArgs {
+			args = append(args, "--runtime-args")
+			args = append(args, v)
+		}
+		logrus.Debugf("runContainerdDaemon: runtimeArgs: %s", args)
 	}
 	cmd := exec.Command(containerdBinary, args...)
 	// TODO: store logs?
@@ -373,6 +381,21 @@ func (a rpcAddr) Apply(r Remote) error {
 		return nil
 	}
 	return fmt.Errorf("WithRemoteAddr option not supported for this remote")
+}
+
+// WithRuntimeArgs sets the list of runtime args passed to containerd
+func WithRuntimeArgs(args []string) RemoteOption {
+	return runtimeArgs(args)
+}
+
+type runtimeArgs []string
+
+func (rt runtimeArgs) Apply(r Remote) error {
+	if remote, ok := r.(*remote); ok {
+		remote.runtimeArgs = rt
+		return nil
+	}
+	return fmt.Errorf("WithRuntimeArgs option not supported for this remote")
 }
 
 // WithStartDaemon defines if libcontainerd should also run containerd daemon.

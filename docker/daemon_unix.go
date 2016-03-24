@@ -75,6 +75,10 @@ func (cli *DaemonCli) getPlatformRemoteOptions() []libcontainerd.RemoteOption {
 	} else {
 		opts = append(opts, libcontainerd.WithStartDaemon(true))
 	}
+	if daemon.UsingSystemd(cli.Config) {
+		args := []string{"--systemd-cgroup=true"}
+		opts = append(opts, libcontainerd.WithRuntimeArgs(args))
+	}
 	return opts
 }
 
