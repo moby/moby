@@ -200,7 +200,7 @@ __docker_get_log_options() {
     local -a awslogs_options fluentd_options gelf_options journald_options json_file_options syslog_options splunk_options
 
     awslogs_options=("awslogs-region" "awslogs-group" "awslogs-stream")
-    fluentd_options=("env" "fluentd-address" "labels" "tag")
+    fluentd_options=("env" "fluentd-address" "fluentd-async-connect" "fluentd-buffer-limit" "fluentd-retry-wait" "fluentd-max-retries" "labels" "tag")
     gcplogs_options=("env" "gcp-log-cmd" "gcp-project" "labels")
     gelf_options=("env" "gelf-address" "labels" "tag")
     journald_options=("env" "labels")
