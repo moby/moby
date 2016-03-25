@@ -24,8 +24,8 @@ func (s *DockerSuite) TestStartAttachReturnsOnError(c *check.C) {
 	go func() {
 		// Attempt to start attached to the container that won't start
 		// This should return an error immediately since the container can't be started
-		if _, _, err := dockerCmdWithError("start", "-a", "test2"); err == nil {
-			ch <- fmt.Errorf("Expected error but got none")
+		if out, _, err := dockerCmdWithError("start", "-a", "test2"); err == nil {
+			ch <- fmt.Errorf("Expected error but got none:\n%s", out)
 		}
 		close(ch)
 	}()

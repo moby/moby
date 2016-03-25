@@ -104,7 +104,11 @@ func (s *DockerSuite) TestEventsLimit(c *check.C) {
 		waitGroup.Add(1)
 		go func() {
 			defer waitGroup.Done()
-			errChan <- exec.Command(dockerBinary, args...).Run()
+			out, err := exec.Command(dockerBinary, args...).CombinedOutput()
+			if err != nil {
+				err = fmt.Errorf("%v: %s", err, string(out))
+			}
+			errChan <- err
 		}()
 	}
 
