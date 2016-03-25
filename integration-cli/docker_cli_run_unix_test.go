@@ -983,7 +983,7 @@ func (s *DockerSuite) TestRunPidsLimit(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunPrivilegedAllowedDevices(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	file := "/sys/fs/cgroup/devices/devices.list"
 	out, _ := dockerCmd(c, "run", "--privileged", "busybox", "cat", file)
