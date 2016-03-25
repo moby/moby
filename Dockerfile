@@ -38,9 +38,11 @@ RUN echo deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty main > /etc/apt/s
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
 	apparmor \
+	apt-utils \
 	aufs-tools \
 	automake \
 	bash-completion \
+	bsdmainutils \
 	btrfs-tools \
 	build-essential \
 	clang-3.8 \
@@ -64,12 +66,12 @@ RUN apt-get update && apt-get install -y \
 	python-mock \
 	python-pip \
 	python-websocket \
-	s3cmd=1.5.0* \
 	ubuntu-zfs \
 	xfsprogs \
 	libzfs-dev \
 	tar \
 	--no-install-recommends \
+	&& pip install awscli==1.10.15 \
 	&& ln -snf /usr/bin/clang-3.8 /usr/local/bin/clang \
 	&& ln -snf /usr/bin/clang++-3.8 /usr/local/bin/clang++
 
@@ -186,13 +188,6 @@ RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT \
 	&& pip install -r test-requirements.txt
-
-# Setup s3cmd config
-RUN { \
-		echo '[default]'; \
-		echo 'access_key=$AWS_ACCESS_KEY'; \
-		echo 'secret_key=$AWS_SECRET_KEY'; \
-	} > ~/.s3cfg
 
 # Set user.email so crosbymichael's in-container merge commits go smoothly
 RUN git config --global user.email 'docker-dummy@example.com'

@@ -43,7 +43,7 @@ cd /go/src/github.com/docker/docker
 [ -x hack/make.sh ] || usage
 
 export AWS_DEFAULT_REGION
-: ${AWS_DEFAULT_REGION:=us-west-2}
+: ${AWS_DEFAULT_REGION:=us-west-1}
 
 RELEASE_BUNDLES=(
 	binary
@@ -79,8 +79,6 @@ fi
 
 setup_s3() {
 	echo "Setting up S3"
-	# TODO: Move to Dockerfile
-	pip install awscli==1.10.15
 	# Try creating the bucket. Ignore errors (it might already exist).
 	aws s3 mb "s3://$BUCKET" 2>/dev/null || true
 	# Check access to the bucket.
@@ -104,8 +102,7 @@ s3_url() {
 			echo "https://$BUCKET_PATH"
 			;;
 		*)
-			# TODO: remove s3cmd dependency
-			BASE_URL=$( s3cmd ws-info s3://$BUCKET | awk -v 'FS=: +' '/http:\/\/'$BUCKET'/ { gsub(/\/+$/, "", $2); print $2 }' )
+			BASE_URL="http://${BUCKET}.s3-website-${AWS_DEFAULT_REGION}.amazonaws.com"
 			if [[ -n "$AWS_S3_BUCKET_PATH" ]] ; then
 				echo "$BASE_URL/$AWS_S3_BUCKET_PATH"
 			else
