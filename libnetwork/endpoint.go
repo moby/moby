@@ -547,6 +547,10 @@ func (ep *endpoint) Leave(sbox Sandbox, options ...EndpointOption) error {
 	sb.joinLeaveStart()
 	defer sb.joinLeaveEnd()
 
+	if sb.resolver != nil {
+		sb.resolver.FlushExtServers()
+	}
+
 	return ep.sbLeave(sb, false, options...)
 }
 
