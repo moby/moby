@@ -9,6 +9,13 @@ if ! command -v docker &> /dev/null; then
 	false
 fi
 
+if [ -z "$DOCKER_TEST_HOST" ]; then
+	if docker version &> /dev/null; then
+		echo >&2 'skipping daemon start, since daemon appears to be already started'
+		return
+	fi
+fi
+
 # intentionally open a couple bogus file descriptors to help test that they get scrubbed in containers
 exec 41>&1 42>&2
 
