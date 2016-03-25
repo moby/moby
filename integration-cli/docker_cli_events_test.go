@@ -102,10 +102,14 @@ func (s *DockerSuite) TestEventsLimit(c *check.C) {
 	args := []string{"run", "--rm", "busybox", "true"}
 	for i := 0; i < 17; i++ {
 		waitGroup.Add(1)
-		go func() {
+		go func(i int) {
 			defer waitGroup.Done()
-			errChan <- exec.Command(dockerBinary, args...).Run()
-		}()
+			out, err := exec.Command(dockerBinary, args...).CombinedOutput()
+			if err != nil {
+				fmt.Printf("Container %d failed: %v -- %s\n", i, err, string(out))
+			}
+			errChan <- err
+		}(i)
 	}
 
 	waitGroup.Wait()
