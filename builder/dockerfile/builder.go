@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/builder"
@@ -56,6 +55,7 @@ type Builder struct {
 	docker    builder.Backend
 	context   builder.Context
 	clientCtx context.Context
+	cancel    context.CancelFunc
 
 	dockerfile       *parser.Node
 	runConfig        *container.Config // runconfig for cmd, run, entrypoint etc.
@@ -67,8 +67,6 @@ type Builder struct {
 	cmdSet           bool
 	disableCommit    bool
 	cacheBusted      bool
-	cancelled        chan struct{}
-	cancelOnce       sync.Once
 	allowedBuildArgs map[string]bool // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
 
 	// TODO: remove once docker.Commit can receive a tag
@@ -88,23 +86,24 @@ func NewBuildManager(b builder.Backend) (bm *BuildManager) {
 // NewBuilder creates a new Dockerfile builder from an optional dockerfile and a Config.
 // If dockerfile is nil, the Dockerfile specified by Config.DockerfileName,
 // will be read from the Context passed to Build().
-func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, backend builder.Backend, context builder.Context, dockerfile io.ReadCloser) (b *Builder, err error) {
+func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, backend builder.Backend, buildContext builder.Context, dockerfile io.ReadCloser) (b *Builder, err error) {
 	if config == nil {
 		config = new(types.ImageBuildOptions)
 	}
 	if config.BuildArgs == nil {
 		config.BuildArgs = make(map[string]string)
 	}
+	ctx, cancel := context.WithCancel(clientCtx)
 	b = &Builder{
-		clientCtx:        clientCtx,
+		clientCtx:        ctx,
+		cancel:           cancel,
 		options:          config,
 		Stdout:           os.Stdout,
 		Stderr:           os.Stderr,
 		docker:           backend,
-		context:          context,
+		context:          buildContext,
 		runConfig:        new(container.Config),
 		tmpContainers:    map[string]struct{}{},
-		cancelled:        make(chan struct{}),
 		id:               stringid.GenerateNonCryptoID(),
 		allowedBuildArgs: make(map[string]bool),
 	}
@@ -161,12 +160,12 @@ func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
 }
 
 // Build creates a NewBuilder, which builds the image.
-func (bm *BuildManager) Build(clientCtx context.Context, config *types.ImageBuildOptions, context builder.Context, stdout io.Writer, stderr io.Writer, out io.Writer, clientGone <-chan bool) (string, error) {
+func (bm *BuildManager) Build(clientCtx context.Context, config *types.ImageBuildOptions, context builder.Context, stdout io.Writer, stderr io.Writer, out io.Writer) (string, error) {
 	b, err := NewBuilder(clientCtx, config, bm.backend, context, nil)
 	if err != nil {
 		return "", err
 	}
-	img, err := b.build(config, context, stdout, stderr, out, clientGone)
+	img, err := b.build(config, context, stdout, stderr, out)
 	return img, err
 
 }
@@ -184,7 +183,7 @@ func (bm *BuildManager) Build(clientCtx context.Context, config *types.ImageBuil
 // * Tag image, if applicable.
 // * Print a happy message and return the image ID.
 //
-func (b *Builder) build(config *types.ImageBuildOptions, context builder.Context, stdout io.Writer, stderr io.Writer, out io.Writer, clientGone <-chan bool) (string, error) {
+func (b *Builder) build(config *types.ImageBuildOptions, context builder.Context, stdout io.Writer, stderr io.Writer, out io.Writer) (string, error) {
 	b.options = config
 	b.context = context
 	b.Stdout = stdout
@@ -198,19 +197,6 @@ func (b *Builder) build(config *types.ImageBuildOptions, context builder.Context
 		}
 	}
 
-	finished := make(chan struct{})
-	defer close(finished)
-	go func() {
-		select {
-		case <-finished:
-		case <-clientGone:
-			b.cancelOnce.Do(func() {
-				close(b.cancelled)
-			})
-		}
-
-	}()
-
 	repoAndTags, err := sanitizeRepoAndTags(config.Tags)
 	if err != nil {
 		return "", err
@@ -223,7 +209,7 @@ func (b *Builder) build(config *types.ImageBuildOptions, context builder.Context
 			b.addLabels()
 		}
 		select {
-		case <-b.cancelled:
+		case <-b.clientCtx.Done():
 			logrus.Debug("Builder: build cancelled!")
 			fmt.Fprintf(b.Stdout, "Build cancelled")
 			return "", fmt.Errorf("Build cancelled")
@@ -271,9 +257,7 @@ func (b *Builder) build(config *types.ImageBuildOptions, context builder.Context
 
 // Cancel cancels an ongoing Dockerfile build.
 func (b *Builder) Cancel() {
-	b.cancelOnce.Do(func() {
-		close(b.cancelled)
-	})
+	b.cancel()
 }
 
 // BuildFromConfig builds directly from `changes`, treating it as if it were the contents of a Dockerfile

@@ -16,5 +16,5 @@ type Backend interface {
 	// by the caller.
 	//
 	// TODO: make this return a reference instead of string
-	Build(clientCtx context.Context, config *types.ImageBuildOptions, context builder.Context, stdout io.Writer, stderr io.Writer, out io.Writer, clientGone <-chan bool) (string, error)
+	Build(clientCtx context.Context, config *types.ImageBuildOptions, context builder.Context, stdout io.Writer, stderr io.Writer, out io.Writer) (string, error)
 }
