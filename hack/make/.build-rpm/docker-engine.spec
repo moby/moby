@@ -60,9 +60,11 @@ Requires: device-mapper >= 1.02.90-2
 %global with_selinux 1
 %endif
 
-# yubico-piv-tool recommends
+%if 0%{?_experimental}
+# yubico-piv-tool conditional
 %if 0%{?fedora} >= 20 || 0%{?centos} >= 7 || 0%{?rhel} >= 7
 Requires: yubico-piv-tool >= 1.1.0
+%endif
 %endif
 
 # start if with_selinux
