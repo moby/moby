@@ -410,7 +410,7 @@ __docker_complete_log_drivers() {
 __docker_complete_log_options() {
 	# see docs/reference/logging/index.md
 	local awslogs_options="awslogs-region awslogs-group awslogs-stream"
-	local fluentd_options="env fluentd-address labels tag"
+	local fluentd_options="env fluentd-address fluentd-async-connect fluentd-buffer-limit fluentd-retry-wait fluentd-max-retries labels tag"
 	local gcplogs_options="env gcp-log-cmd gcp-project labels"
 	local gelf_options="env gelf-address gelf-compression-level gelf-compression-type labels tag"
 	local journald_options="env labels tag"
@@ -459,6 +459,10 @@ __docker_complete_log_options() {
 __docker_complete_log_driver_options() {
 	local key=$(__docker_map_key_of_current_option '--log-opt')
 	case "$key" in
+		fluentd-async-connect)
+			COMPREPLY=( $( compgen -W "false true" -- "${cur##*=}" ) )
+			return
+			;;
 		gelf-address)
 			COMPREPLY=( $( compgen -W "udp" -S "://" -- "${cur##*=}" ) )
 			__docker_nospace
