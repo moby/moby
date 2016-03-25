@@ -23,6 +23,7 @@ parent = "smn_cli"
     --ipam-driver=default    IP Address Management Driver
     --ipam-opt=map[]         Set custom IPAM driver specific options
     --ipv6                   Enable IPv6 networking
+    --label=[]               Set metadata on a network
     -o --opt=map[]           Set custom driver specific options
     --subnet=[]              Subnet in CIDR format that represents a network segment
 
