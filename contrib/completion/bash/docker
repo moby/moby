@@ -633,6 +633,7 @@ _docker_build() {
 		--cpu-quota
 		--file -f
 		--isolation
+		--label
 		--memory -m
 		--memory-swap
 		--shm-size
@@ -1320,11 +1321,14 @@ _docker_network_create() {
 			COMPREPLY=( $(compgen -W "$plugins" -- "$cur") )
 			return
 			;;
+		--label)
+			return
+			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--aux-address --driver -d --gateway --help --internal --ip-range --ipam-driver --ipam-opt --ipv6 --opt -o --subnet" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--aux-address --driver -d --gateway --help --internal --ip-range --ipam-driver --ipam-opt --ipv6 --label --opt -o --subnet" -- "$cur" ) )
 			;;
 	esac
 }
@@ -2020,14 +2024,14 @@ _docker_volume_create() {
 			__docker_complete_plugins Volume
 			return
 			;;
-		--name|--opt|-o)
+		--label|--name|--opt|-o)
 			return
 			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--driver -d --help --name --opt -o" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--driver -d --help --label --name --opt -o" -- "$cur" ) )
 			;;
 	esac
 }
