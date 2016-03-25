@@ -130,7 +130,7 @@ func getBlkioWeightDevices(config containertypes.Resources) ([]specs.WeightDevic
 		weight := weightDevice.Weight
 		d := specs.WeightDevice{Weight: &weight}
 		d.Major = int64(stat.Rdev / 256)
-		d.Major = int64(stat.Rdev % 256)
+		d.Minor = int64(stat.Rdev % 256)
 		blkioWeightDevices = append(blkioWeightDevices, d)
 	}
 
@@ -187,7 +187,7 @@ func getBlkioReadIOpsDevices(config containertypes.Resources) ([]specs.ThrottleD
 		rate := iopsDevice.Rate
 		d := specs.ThrottleDevice{Rate: &rate}
 		d.Major = int64(stat.Rdev / 256)
-		d.Major = int64(stat.Rdev % 256)
+		d.Minor = int64(stat.Rdev % 256)
 		blkioReadIOpsDevice = append(blkioReadIOpsDevice, d)
 	}
 
@@ -205,7 +205,7 @@ func getBlkioWriteIOpsDevices(config containertypes.Resources) ([]specs.Throttle
 		rate := iopsDevice.Rate
 		d := specs.ThrottleDevice{Rate: &rate}
 		d.Major = int64(stat.Rdev / 256)
-		d.Major = int64(stat.Rdev % 256)
+		d.Minor = int64(stat.Rdev % 256)
 		blkioWriteIOpsDevice = append(blkioWriteIOpsDevice, d)
 	}
 
@@ -223,7 +223,7 @@ func getBlkioReadBpsDevices(config containertypes.Resources) ([]specs.ThrottleDe
 		rate := bpsDevice.Rate
 		d := specs.ThrottleDevice{Rate: &rate}
 		d.Major = int64(stat.Rdev / 256)
-		d.Major = int64(stat.Rdev % 256)
+		d.Minor = int64(stat.Rdev % 256)
 		blkioReadBpsDevice = append(blkioReadBpsDevice, d)
 	}
 
@@ -241,7 +241,7 @@ func getBlkioWriteBpsDevices(config containertypes.Resources) ([]specs.ThrottleD
 		rate := bpsDevice.Rate
 		d := specs.ThrottleDevice{Rate: &rate}
 		d.Major = int64(stat.Rdev / 256)
-		d.Major = int64(stat.Rdev % 256)
+		d.Minor = int64(stat.Rdev % 256)
 		blkioWriteBpsDevice = append(blkioWriteBpsDevice, d)
 	}
 
