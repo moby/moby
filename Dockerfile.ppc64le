@@ -74,8 +74,8 @@ RUN cd /usr/local/lvm2 \
 # TODO install Go, using gccgo as GOROOT_BOOTSTRAP (Go 1.5+ supports ppc64le properly)
 # possibly a ppc64le/golang image?
 
-## BUILD GOLANG 1.6
-ENV GO_VERSION 1.6
+## BUILD GOLANG 1.5.3
+ENV GO_VERSION 1.5.3
 ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz
 ENV GO_DOWNLOAD_SHA256 a96cce8ce43a9bf9b2a4c7d470bc7ee0cb00410da815980681c8353218dcf146
 ENV GOROOT_BOOTSTRAP /usr/local
@@ -129,12 +129,13 @@ RUN set -x \
 # Install notary and notary-server
 ENV NOTARY_VERSION docker-v1.11-3
 RUN set -x \
+	&& export GO15VENDOREXPERIMENT=1 \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
 	&& (cd "$GOPATH/src/github.com/docker/notary" && git checkout -q "$NOTARY_VERSION") \
-	&& GOPATH="$GOPATH/src/github.com/docker/notary/Godeps/_workspace:$GOPATH" \
+	&& GOPATH="$GOPATH/src/github.com/docker/notary/vendor:$GOPATH" \
 		go build -o /usr/local/bin/notary-server github.com/docker/notary/cmd/notary-server \
-	&& GOPATH="$GOPATH/src/github.com/docker/notary/Godeps/_workspace:$GOPATH" \
+	&& GOPATH="$GOPATH/src/github.com/docker/notary/vendor:$GOPATH" \
 		go build -o /usr/local/bin/notary github.com/docker/notary/cmd/notary \
 	&& rm -rf "$GOPATH"
 
@@ -154,7 +155,7 @@ RUN useradd --create-home --gid docker unprivilegeduser
 
 VOLUME /var/lib/docker
 WORKDIR /go/src/github.com/docker/docker
-ENV DOCKER_BUILDTAGS apparmor pkcs11 selinux
+ENV DOCKER_BUILDTAGS apparmor selinux
 
 # Let us use a .bashrc file
 RUN ln -sfv $PWD/.bashrc ~/.bashrc
@@ -198,17 +199,17 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install runc
-ENV RUNC_COMMIT bbde9c426ff363d813b8722f0744115c13b408b6
+ENV RUNC_COMMIT d563bd134293c1026976a8f5764d5df5612f1dbf
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone git://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
 	&& cd "$GOPATH/src/github.com/opencontainers/runc" \
 	&& git checkout -q "$RUNC_COMMIT" \
-	&& make static BUILDTAGS="seccomp apparmor selinux" \
+	&& make static BUILDTAGS="apparmor selinux" \
 	&& cp runc /usr/local/bin/docker-runc
 
 # Install containerd
-ENV CONTAINERD_COMMIT 142e22a4dce86f3b8ce068a0b043489d21976bb8
+ENV CONTAINERD_COMMIT c761085e92be09df9d5298f852c328b538f5dc2f
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone git://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \

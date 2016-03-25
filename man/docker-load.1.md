@@ -8,7 +8,7 @@ docker-load - Load an image from a tar archive or STDIN
 **docker load**
 [**--help**]
 [**-i**|**--input**[=*INPUT*]]
-
+[**-q**|**--quiet**]
 
 # DESCRIPTION
 
@@ -21,6 +21,9 @@ Restores both images and tags.
 
 **-i**, **--input**=""
    Read from a tar archive file, instead of STDIN. The tarball may be compressed with gzip, bzip, or xz.
+
+**-q**, **--quiet**
+   Suppress the load output. Without this option, a progress bar is displayed.
 
 # EXAMPLES
 

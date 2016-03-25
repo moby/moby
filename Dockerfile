@@ -119,7 +119,7 @@ RUN set -x \
 # IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines
 #            will need updating, to avoid errors. Ping #docker-maintainers on IRC
 #            with a heads-up.
-ENV GO_VERSION 1.6
+ENV GO_VERSION 1.5.3
 RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" \
 	| tar -xzC /usr/local
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
@@ -170,12 +170,13 @@ RUN set -x \
 # Install notary server
 ENV NOTARY_VERSION docker-v1.11-3
 RUN set -x \
+	&& export GO15VENDOREXPERIMENT=1 \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
 	&& (cd "$GOPATH/src/github.com/docker/notary" && git checkout -q "$NOTARY_VERSION") \
-	&& GOPATH="$GOPATH/src/github.com/docker/notary/Godeps/_workspace:$GOPATH" \
+	&& GOPATH="$GOPATH/src/github.com/docker/notary/vendor:$GOPATH" \
 		go build -o /usr/local/bin/notary-server github.com/docker/notary/cmd/notary-server \
-	&& GOPATH="$GOPATH/src/github.com/docker/notary/Godeps/_workspace:$GOPATH" \
+	&& GOPATH="$GOPATH/src/github.com/docker/notary/vendor:$GOPATH" \
 		go build -o /usr/local/bin/notary github.com/docker/notary/cmd/notary \
 	&& rm -rf "$GOPATH"
 
@@ -202,7 +203,7 @@ RUN useradd --create-home --gid docker unprivilegeduser
 
 VOLUME /var/lib/docker
 WORKDIR /go/src/github.com/docker/docker
-ENV DOCKER_BUILDTAGS apparmor pkcs11 seccomp selinux
+ENV DOCKER_BUILDTAGS apparmor seccomp selinux
 
 # Let us use a .bashrc file
 RUN ln -sfv $PWD/.bashrc ~/.bashrc
@@ -247,7 +248,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install runc
-ENV RUNC_COMMIT bbde9c426ff363d813b8722f0744115c13b408b6
+ENV RUNC_COMMIT d563bd134293c1026976a8f5764d5df5612f1dbf
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone git://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
@@ -257,7 +258,7 @@ RUN set -x \
 	&& cp runc /usr/local/bin/docker-runc
 
 # Install containerd
-ENV CONTAINERD_COMMIT 142e22a4dce86f3b8ce068a0b043489d21976bb8
+ENV CONTAINERD_COMMIT c761085e92be09df9d5298f852c328b538f5dc2f
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone git://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \

@@ -653,7 +653,6 @@ func (s *DockerSuite) TestPushToCentralRegistryUnauthorized(c *check.C) {
 	out, _, err := dockerCmdWithError("push", repoName)
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(out, check.Not(checker.Contains), "Retrying")
-	c.Assert(out, checker.Contains, "unauthorized: authentication required")
 }
 
 func getTestTokenService(status int, body string) *httptest.Server {

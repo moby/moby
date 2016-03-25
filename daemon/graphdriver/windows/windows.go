@@ -13,7 +13,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -47,10 +46,6 @@ const (
 type Driver struct {
 	// info stores the shim driver information
 	info hcsshim.DriverInfo
-	// Mutex protects concurrent modification to active
-	sync.Mutex
-	// active stores references to the activated layers
-	active map[string]int
 }
 
 var _ graphdriver.DiffGetterDriver = &Driver{}
@@ -63,7 +58,6 @@ func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap)
 			HomeDir: home,
 			Flavour: filterDriver,
 		},
-		active: make(map[string]int),
 	}
 	return d, nil
 }
@@ -76,7 +70,6 @@ func InitDiff(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (
 			HomeDir: home,
 			Flavour: diffDriver,
 		},
-		active: make(map[string]int),
 	}
 	return d, nil
 }
@@ -189,9 +182,6 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	logrus.Debugf("WindowsGraphDriver Get() id %s mountLabel %s", id, mountLabel)
 	var dir string
 
-	d.Lock()
-	defer d.Unlock()
-
 	rID, err := d.resolveID(id)
 	if err != nil {
 		return "", err
@@ -203,16 +193,14 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 		return "", err
 	}
 
-	if d.active[rID] == 0 {
-		if err := hcsshim.ActivateLayer(d.info, rID); err != nil {
-			return "", err
+	if err := hcsshim.ActivateLayer(d.info, rID); err != nil {
+		return "", err
+	}
+	if err := hcsshim.PrepareLayer(d.info, rID, layerChain); err != nil {
+		if err2 := hcsshim.DeactivateLayer(d.info, rID); err2 != nil {
+			logrus.Warnf("Failed to Deactivate %s: %s", id, err)
 		}
-		if err := hcsshim.PrepareLayer(d.info, rID, layerChain); err != nil {
-			if err2 := hcsshim.DeactivateLayer(d.info, rID); err2 != nil {
-				logrus.Warnf("Failed to Deactivate %s: %s", id, err)
-			}
-			return "", err
-		}
+		return "", err
 	}
 
 	mountPath, err := hcsshim.GetLayerMountPath(d.info, rID)
@@ -222,8 +210,6 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 		}
 		return "", err
 	}
-
-	d.active[rID]++
 
 	// If the layer has a mount path, use that. Otherwise, use the
 	// folder path.
@@ -245,22 +231,10 @@ func (d *Driver) Put(id string) error {
 		return err
 	}
 
-	d.Lock()
-	defer d.Unlock()
-
-	if d.active[rID] > 1 {
-		d.active[rID]--
-	} else if d.active[rID] == 1 {
-		if err := hcsshim.UnprepareLayer(d.info, rID); err != nil {
-			return err
-		}
-		if err := hcsshim.DeactivateLayer(d.info, rID); err != nil {
-			return err
-		}
-		delete(d.active, rID)
+	if err := hcsshim.UnprepareLayer(d.info, rID); err != nil {
+		return err
 	}
-
-	return nil
+	return hcsshim.DeactivateLayer(d.info, rID)
 }
 
 // Cleanup ensures the information the driver stores is properly removed.
@@ -270,62 +244,40 @@ func (d *Driver) Cleanup() error {
 
 // Diff produces an archive of the changes between the specified
 // layer and its parent layer which may be "".
+// The layer should be mounted when calling this function
 func (d *Driver) Diff(id, parent string) (_ archive.Archive, err error) {
 	rID, err := d.resolveID(id)
 	if err != nil {
 		return
 	}
 
-	// Getting the layer paths must be done outside of the lock.
 	layerChain, err := d.getLayerChain(rID)
 	if err != nil {
 		return
 	}
 
-	var undo func()
-
-	d.Lock()
-
-	// To support export, a layer must be activated but not prepared.
-	if d.info.Flavour == filterDriver {
-		if d.active[rID] == 0 {
-			if err = hcsshim.ActivateLayer(d.info, rID); err != nil {
-				d.Unlock()
-				return
-			}
-			undo = func() {
-				if err := hcsshim.DeactivateLayer(d.info, rID); err != nil {
-					logrus.Warnf("Failed to Deactivate %s: %s", rID, err)
-				}
-			}
-		} else {
-			if err = hcsshim.UnprepareLayer(d.info, rID); err != nil {
-				d.Unlock()
-				return
-			}
-			undo = func() {
-				if err := hcsshim.PrepareLayer(d.info, rID, layerChain); err != nil {
-					logrus.Warnf("Failed to re-PrepareLayer %s: %s", rID, err)
-				}
-			}
-		}
+	// this is assuming that the layer is unmounted
+	if err := hcsshim.UnprepareLayer(d.info, rID); err != nil {
+		return nil, err
 	}
-
-	d.Unlock()
+	defer func() {
+		if err := hcsshim.PrepareLayer(d.info, rID, layerChain); err != nil {
+			logrus.Warnf("Failed to Deactivate %s: %s", rID, err)
+		}
+	}()
 
 	arch, err := d.exportLayer(rID, layerChain)
 	if err != nil {
-		undo()
 		return
 	}
 	return ioutils.NewReadCloserWrapper(arch, func() error {
-		defer undo()
 		return arch.Close()
 	}), nil
 }
 
 // Changes produces a list of changes between the specified layer
 // and its parent layer. If parent is "", then all changes will be ADD changes.
+// The layer should be mounted when calling this function
 func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 	rID, err := d.resolveID(id)
 	if err != nil {
@@ -336,31 +288,15 @@ func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 		return nil, err
 	}
 
-	d.Lock()
-	if d.info.Flavour == filterDriver {
-		if d.active[rID] == 0 {
-			if err = hcsshim.ActivateLayer(d.info, rID); err != nil {
-				d.Unlock()
-				return nil, err
-			}
-			defer func() {
-				if err := hcsshim.DeactivateLayer(d.info, rID); err != nil {
-					logrus.Warnf("Failed to Deactivate %s: %s", rID, err)
-				}
-			}()
-		} else {
-			if err = hcsshim.UnprepareLayer(d.info, rID); err != nil {
-				d.Unlock()
-				return nil, err
-			}
-			defer func() {
-				if err := hcsshim.PrepareLayer(d.info, rID, parentChain); err != nil {
-					logrus.Warnf("Failed to re-PrepareLayer %s: %s", rID, err)
-				}
-			}()
-		}
+	// this is assuming that the layer is unmounted
+	if err := hcsshim.UnprepareLayer(d.info, rID); err != nil {
+		return nil, err
 	}
-	d.Unlock()
+	defer func() {
+		if err := hcsshim.PrepareLayer(d.info, rID, parentChain); err != nil {
+			logrus.Warnf("Failed to Deactivate %s: %s", rID, err)
+		}
+	}()
 
 	r, err := hcsshim.NewLayerReader(d.info, id, parentChain)
 	if err != nil {
@@ -391,6 +327,7 @@ func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 // ApplyDiff extracts the changeset from the given diff into the
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
+// The layer should not be mounted when calling this function
 func (d *Driver) ApplyDiff(id, parent string, diff archive.Reader) (size int64, err error) {
 	rPId, err := d.resolveID(parent)
 	if err != nil {
