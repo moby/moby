@@ -18,11 +18,7 @@ import (
 	networktypes "github.com/docker/engine-api/types/network"
 )
 
-func (cli *DockerCli) pullImage(image string) error {
-	return cli.pullImageCustomOut(image, cli.out)
-}
-
-func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
+func (cli *DockerCli) pullImage(image string, out io.Writer) error {
 	ref, err := reference.ParseNamed(image)
 	if err != nil {
 		return err
@@ -119,7 +115,7 @@ func (cli *DockerCli) createContainer(config *container.Config, hostConfig *cont
 			fmt.Fprintf(cli.err, "Unable to find image '%s' locally\n", ref.String())
 
 			// we don't want to write to stdout anything apart from container.ID
-			if err = cli.pullImageCustomOut(config.Image, cli.err); err != nil {
+			if err = cli.pullImage(config.Image, cli.err); err != nil {
 				return nil, err
 			}
 			if ref, ok := ref.(reference.NamedTagged); ok && trustedRef != nil {
