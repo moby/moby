@@ -810,7 +810,8 @@ __docker_subcommand() {
         (load)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help -i --input)"{-i=,--input=}"[Read from tar archive file]:archive file:_files -g "*.((tar|TAR)(.gz|.GZ|.Z|.bz2|.lzma|.xz|)|(tbz|tgz|txz))(-.)"" && ret=0
+                "($help -i --input)"{-i=,--input=}"[Read from tar archive file]:archive file:_files -g \"*.((tar|TAR)(.gz|.GZ|.Z|.bz2|.lzma|.xz|)|(tbz|tgz|txz))(-.)\"" \
+                "($help -q --quiet)"{-q,--quiet}"[Suppress the load output]" && ret=0
             ;;
         (login)
             _arguments $(__docker_arguments) \
