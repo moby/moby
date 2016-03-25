@@ -47,7 +47,7 @@ func (s *DockerSuite) TestDiffEnsureInitLayerFilesAreIgnored(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestDiffEnsureOnlyKmsgAndPtmx(c *check.C) {
+func (s *DockerSuite) TestDiffEnsureDefaultDevs(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sleep", "0")
 
@@ -75,7 +75,7 @@ func (s *DockerSuite) TestDiffEnsureOnlyKmsgAndPtmx(c *check.C) {
 	}
 
 	for _, line := range strings.Split(out, "\n") {
-		c.Assert(line == "" || expected[line], checker.True)
+		c.Assert(line == "" || expected[line], checker.True, check.Commentf(line))
 	}
 }
 
