@@ -134,6 +134,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /containers/create` now allows specifying `nocopy` for named volumes, which disables automatic copying from the container path to the volume.
 * `POST /auth` now returns an `IdentityToken` when supported by a registry.
 * `POST /containers/create` with both `Hostname` and `Domainname` fields specified will result in the container's hostname being set to `Hostname`, rather than `Hostname.Domainname`.
+* `GET /volumes` now supports more filters, new added filters are `name` and `driver`.
 
 ### v1.22 API changes
 
