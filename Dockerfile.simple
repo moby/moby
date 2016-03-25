@@ -12,10 +12,11 @@ FROM debian:jessie
 # https://github.com/docker/docker/blob/master/project/PACKAGERS.md#runtime-dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
 		btrfs-tools \
+		build-essential \
 		curl \
 		gcc \
 		git \
-		golang \
+		libapparmor-dev \
 		libdevmapper-dev \
 		libsqlite3-dev \
 		\
@@ -28,6 +29,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		\
 		aufs-tools \
 	&& rm -rf /var/lib/apt/lists/*
+
+# install seccomp: the version shipped in trusty is too old
+ENV SECCOMP_VERSION 2.3.0
+RUN set -x \
+	&& export SECCOMP_PATH="$(mktemp -d)" \
+	&& curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
+		| tar -xzC "$SECCOMP_PATH" --strip-components=1 \
+	&& ( \
+		cd "$SECCOMP_PATH" \
+		&& ./configure --prefix=/usr/local \
+		&& make \
+		&& make install \
+		&& ldconfig \
+	) \
+	&& rm -rf "$SECCOMP_PATH"
+
+# Install Go
+# IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines
+#            will need updating, to avoid errors. Ping #docker-maintainers on IRC
+#            with a heads-up.
+ENV GO_VERSION 1.5.3
+RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" \
+	| tar -xzC /usr/local
+ENV PATH /go/bin:/usr/local/go/bin:$PATH
+ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
+ENV CGO_LDFLAGS -L/lib
 
 # Install runc
 ENV RUNC_COMMIT d563bd134293c1026976a8f5764d5df5612f1dbf
