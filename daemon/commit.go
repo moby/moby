@@ -222,6 +222,7 @@ func (daemon *Daemon) exportContainerRw(container *container.Container) (archive
 
 	archive, err := container.RWLayer.TarStream()
 	if err != nil {
+		daemon.Unmount(container) // logging is already handled in the `Unmount` function
 		return nil, err
 	}
 	return ioutils.NewReadCloserWrapper(archive, func() error {

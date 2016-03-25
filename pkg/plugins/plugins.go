@@ -65,23 +65,36 @@ type Plugin struct {
 	// Manifest of the plugin (see above)
 	Manifest *Manifest `json:"-"`
 
-	activatErr   error
-	activateOnce sync.Once
+	// error produced by activation
+	activateErr error
+	// specifies if the activation sequence is completed (not if it is sucessful or not)
+	activated bool
+	// wait for activation to finish
+	activateWait *sync.Cond
 }
 
 func newLocalPlugin(name, addr string) *Plugin {
 	return &Plugin{
-		Name:      name,
-		Addr:      addr,
-		TLSConfig: tlsconfig.Options{InsecureSkipVerify: true},
+		Name:         name,
+		Addr:         addr,
+		TLSConfig:    tlsconfig.Options{InsecureSkipVerify: true},
+		activateWait: sync.NewCond(&sync.Mutex{}),
 	}
 }
 
 func (p *Plugin) activate() error {
-	p.activateOnce.Do(func() {
-		p.activatErr = p.activateWithLock()
-	})
-	return p.activatErr
+	p.activateWait.L.Lock()
+	if p.activated {
+		p.activateWait.L.Unlock()
+		return p.activateErr
+	}
+
+	p.activateErr = p.activateWithLock()
+	p.activated = true
+
+	p.activateWait.L.Unlock()
+	p.activateWait.Broadcast()
+	return p.activateErr
 }
 
 func (p *Plugin) activateWithLock() error {
@@ -108,7 +121,19 @@ func (p *Plugin) activateWithLock() error {
 	return nil
 }
 
+func (p *Plugin) waitActive() error {
+	p.activateWait.L.Lock()
+	for !p.activated {
+		p.activateWait.Wait()
+	}
+	p.activateWait.L.Unlock()
+	return p.activateErr
+}
+
 func (p *Plugin) implements(kind string) bool {
+	if err := p.waitActive(); err != nil {
+		return false
+	}
 	for _, driver := range p.Manifest.Implements {
 		if driver == kind {
 			return true
@@ -221,7 +246,7 @@ func GetAll(imp string) ([]*Plugin, error) {
 	var out []*Plugin
 	for pl := range chPl {
 		if pl.err != nil {
-			logrus.Error(err)
+			logrus.Error(pl.err)
 			continue
 		}
 		if pl.pl.implements(imp) {

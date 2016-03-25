@@ -3,6 +3,8 @@ package libcontainerd
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -18,6 +20,7 @@ import (
 	"github.com/docker/docker/utils"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/grpclog"
 )
 
 const (
@@ -77,6 +80,8 @@ func New(stateDir string, options ...RemoteOption) (_ Remote, err error) {
 		}
 	}
 
+	// don't output the grpc reconnect logging
+	grpclog.SetLogger(log.New(ioutil.Discard, "", log.LstdFlags))
 	dialOpts := append([]grpc.DialOption{grpc.WithInsecure()},
 		grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
 			return net.DialTimeout("unix", addr, timeout)

@@ -39,3 +39,14 @@ func systemPid(ctr *containerd.Container) uint32 {
 	}
 	return pid
 }
+
+func convertRlimits(sr []specs.Rlimit) (cr []*containerd.Rlimit) {
+	for _, r := range sr {
+		cr = append(cr, &containerd.Rlimit{
+			Type: r.Type,
+			Hard: r.Hard,
+			Soft: r.Soft,
+		})
+	}
+	return
+}

@@ -26,19 +26,20 @@ func (NoopVolume) Unmount() error { return nil }
 
 // FakeVolume is a fake volume with a random name
 type FakeVolume struct {
-	name string
+	name       string
+	driverName string
 }
 
 // NewFakeVolume creates a new fake volume for testing
-func NewFakeVolume(name string) volume.Volume {
-	return FakeVolume{name: name}
+func NewFakeVolume(name string, driverName string) volume.Volume {
+	return FakeVolume{name: name, driverName: driverName}
 }
 
 // Name is the name of the volume
 func (f FakeVolume) Name() string { return f.name }
 
 // DriverName is the name of the driver
-func (FakeVolume) DriverName() string { return "fake" }
+func (f FakeVolume) DriverName() string { return f.driverName }
 
 // Path is the filesystem path to the volume
 func (FakeVolume) Path() string { return "fake" }
@@ -72,7 +73,7 @@ func (d *FakeDriver) Create(name string, opts map[string]string) (volume.Volume,
 	if opts != nil && opts["error"] != "" {
 		return nil, fmt.Errorf(opts["error"])
 	}
-	v := NewFakeVolume(name)
+	v := NewFakeVolume(name, d.name)
 	d.vols[name] = v
 	return v, nil
 }

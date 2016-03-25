@@ -97,10 +97,14 @@ func (cli *Client) getAPIPath(p string, query url.Values) string {
 	} else {
 		apiPath = fmt.Sprintf("%s%s", cli.basePath, p)
 	}
-	if len(query) > 0 {
-		apiPath += "?" + query.Encode()
+
+	u := &url.URL{
+		Path: apiPath,
 	}
-	return apiPath
+	if len(query) > 0 {
+		u.RawQuery = query.Encode()
+	}
+	return u.String()
 }
 
 // ClientVersion returns the version string associated with this

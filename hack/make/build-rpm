@@ -87,6 +87,26 @@ set -e
 		cat > "$DEST/$version/Dockerfile.build" <<-EOF
 			FROM $image
 			COPY . /usr/src/${rpmName}
+			RUN mkdir -p /go/src/github.com/docker && mkdir -p /go/src/github.com/opencontainers
+		EOF
+
+		# get the RUNC and CONTAINERD commit from the root Dockerfile, this keeps the commits in sync
+		awk '$1 == "ENV" && $2 == "RUNC_COMMIT" { print; exit }' Dockerfile >> "$DEST/$version/Dockerfile.build"
+		awk '$1 == "ENV" && $2 == "CONTAINERD_COMMIT" { print; exit }' Dockerfile >> "$DEST/$version/Dockerfile.build"
+
+		# add runc and containerd compile and install
+		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
+			# Install runc
+			RUN git clone git://github.com/opencontainers/runc.git "/go/src/github.com/opencontainers/runc" \
+					&& cd "/go/src/github.com/opencontainers/runc" \
+					&& git checkout -q "\$RUNC_COMMIT"
+			RUN set -x && export GOPATH="/go" && cd "/go/src/github.com/opencontainers/runc" \
+					&& make BUILDTAGS="\$RUNC_BUILDTAGS" && make install
+			# Install containerd
+			RUN git clone git://github.com/docker/containerd.git "/go/src/github.com/docker/containerd" \
+					&& cd "/go/src/github.com/docker/containerd" \
+					&& git checkout -q "\$CONTAINERD_COMMIT"
+			RUN set -x && export GOPATH="/go" && cd "/go/src/github.com/docker/containerd" && make && make install
 		EOF
 		if [ "$DOCKER_EXPERIMENTAL" ]; then
 			echo 'ENV DOCKER_EXPERIMENTAL 1' >> "$DEST/$version/Dockerfile.build"
@@ -97,7 +117,10 @@ set -e
 			WORKDIR /root/rpmbuild
 			RUN ln -sfv /usr/src/${rpmName}/hack/make/.build-rpm SPECS
 			WORKDIR /root/rpmbuild/SPECS
-			RUN tar -cz -C /usr/src -f /root/rpmbuild/SOURCES/${rpmName}.tar.gz ${rpmName}
+			RUN tar -r -C /usr/src -f /root/rpmbuild/SOURCES/${rpmName}.tar ${rpmName}
+			RUN tar -r -C /go/src/github.com/docker -f /root/rpmbuild/SOURCES/${rpmName}.tar containerd
+			RUN tar -r -C /go/src/github.com/opencontainers -f /root/rpmbuild/SOURCES/${rpmName}.tar runc
+			RUN gzip /root/rpmbuild/SOURCES/${rpmName}.tar
 			RUN { cat /usr/src/${rpmName}/contrib/builder/rpm/${PACKAGE_ARCH}/changelog; } >> ${rpmName}.spec && tail >&2 ${rpmName}.spec
 			RUN rpmbuild -ba \
 				--define '_gitcommit $DOCKER_GITCOMMIT' \
