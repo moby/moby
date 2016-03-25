@@ -2390,7 +2390,7 @@ func (s *DockerSuite) TestRunModeIpcHost(c *check.C) {
 
 func (s *DockerSuite) TestRunModeIpcContainer(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
-	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "echo -n test > /dev/shm/test && touch /dev/mqueue/toto && top")
 
@@ -2432,7 +2432,7 @@ func (s *DockerSuite) TestRunModeIpcContainer(c *check.C) {
 
 func (s *DockerSuite) TestRunModeIpcContainerNotExists(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "-d", "--ipc", "container:abcd1234", "busybox", "top")
 	if !strings.Contains(out, "abcd1234") || err == nil {
 		c.Fatalf("run IPC from a non exists container should with correct error out")
@@ -2441,7 +2441,7 @@ func (s *DockerSuite) TestRunModeIpcContainerNotExists(c *check.C) {
 
 func (s *DockerSuite) TestRunModeIpcContainerNotRunning(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
-	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	out, _ := dockerCmd(c, "create", "busybox")
 
@@ -2478,7 +2478,7 @@ func (s *DockerSuite) TestRunMountShmMqueueFromHost(c *check.C) {
 
 func (s *DockerSuite) TestContainerNetworkMode(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
-	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
@@ -3614,7 +3614,7 @@ func (s *DockerSuite) TestRunContainerWithCgroupMountRO(c *check.C) {
 
 func (s *DockerSuite) TestRunContainerNetworkModeToSelf(c *check.C) {
 	// Not applicable on Windows which does not support --net=container
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "--name=me", "--net=container:me", "busybox", "true")
 	if err == nil || !strings.Contains(out, "cannot join own network") {
 		c.Fatalf("using container net mode to self should result in an error\nerr: %q\nout: %s", err, out)
@@ -3623,7 +3623,7 @@ func (s *DockerSuite) TestRunContainerNetworkModeToSelf(c *check.C) {
 
 func (s *DockerSuite) TestRunContainerNetModeWithDnsMacHosts(c *check.C) {
 	// Not applicable on Windows which does not support --net=container
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "-d", "--name", "parent", "busybox", "top")
 	if err != nil {
 		c.Fatalf("failed to run container: %v, output: %q", err, out)
@@ -3647,7 +3647,7 @@ func (s *DockerSuite) TestRunContainerNetModeWithDnsMacHosts(c *check.C) {
 
 func (s *DockerSuite) TestRunContainerNetModeWithExposePort(c *check.C) {
 	// Not applicable on Windows which does not support --net=container
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "parent", "busybox", "top")
 
 	out, _, err := dockerCmdWithError("run", "-p", "5000:5000", "--net=container:parent", "busybox")
@@ -3668,7 +3668,7 @@ func (s *DockerSuite) TestRunContainerNetModeWithExposePort(c *check.C) {
 
 func (s *DockerSuite) TestRunLinkToContainerNetMode(c *check.C) {
 	// Not applicable on Windows which does not support --net=container or --link
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "test", "-d", "busybox", "top")
 	dockerCmd(c, "run", "--name", "parent", "-d", "--net=container:test", "busybox", "top")
 	dockerCmd(c, "run", "-d", "--link=parent:parent", "busybox", "top")
@@ -3712,7 +3712,7 @@ func (s *DockerSuite) TestRunLoopbackWhenNetworkDisabled(c *check.C) {
 
 func (s *DockerSuite) TestRunModeNetContainerHostname(c *check.C) {
 	// Windows does not support --net=container
-	testRequires(c, DaemonIsLinux, ExecSupport, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, ExecSupport)
 
 	dockerCmd(c, "run", "-i", "-d", "--name", "parent", "busybox", "top")
 	out, _ := dockerCmd(c, "exec", "parent", "cat", "/etc/hostname")
@@ -3863,7 +3863,7 @@ func (s *DockerSuite) TestContainerWithConflictingHostNetworks(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerWithConflictingSharedNetwork(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name=first", "busybox", "top")
 	c.Assert(waitRun("first"), check.IsNil)
 	// Run second container in first container's network namespace
@@ -3880,7 +3880,7 @@ func (s *DockerSuite) TestContainerWithConflictingSharedNetwork(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerWithConflictingNoneNetwork(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--net=none", "--name=first", "busybox", "top")
 	c.Assert(waitRun("first"), check.IsNil)
 
@@ -4289,4 +4289,22 @@ func (s *DockerSuite) TestRunVolumeCopyFlag(c *check.C) {
 	c.Assert(err, checker.NotNil, check.Commentf(out))
 	out, _, err = dockerCmdWithError("run", "-v", "/foo:/bar:nocopy", "busybox", "true")
 	c.Assert(err, checker.NotNil, check.Commentf(out))
+}
+
+func (s *DockerSuite) TestRunTooLongHostname(c *check.C) {
+	// Test case in #21445
+	hostname1 := "this-is-a-way-too-long-hostname-but-it-should-give-a-nice-error.local"
+	out, _, err := dockerCmdWithError("run", "--hostname", hostname1, "busybox", "echo", "test")
+	c.Assert(err, checker.NotNil, check.Commentf("Expected docker run to fail!"))
+	c.Assert(out, checker.Contains, "invalid hostname format for --hostname:", check.Commentf("Expected to have 'invalid hostname format for --hostname:' in the output, get: %s!", out))
+
+	// HOST_NAME_MAX=64 so 65 bytes will fail
+	hostname2 := "this-is-a-hostname-with-65-bytes-so-it-should-give-an-error.local"
+	out, _, err = dockerCmdWithError("run", "--hostname", hostname2, "busybox", "echo", "test")
+	c.Assert(err, checker.NotNil, check.Commentf("Expected docker run to fail!"))
+	c.Assert(out, checker.Contains, "invalid hostname format for --hostname:", check.Commentf("Expected to have 'invalid hostname format for --hostname:' in the output, get: %s!", out))
+
+	// 64 bytes will be OK
+	hostname3 := "this-is-a-hostname-with-64-bytes-so-will-not-give-an-error.local"
+	dockerCmd(c, "run", "--hostname", hostname3, "busybox", "echo", "test")
 }

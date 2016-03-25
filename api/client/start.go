@@ -89,6 +89,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		}
 
 		var in io.ReadCloser
+
 		if options.Stdin {
 			in = cli.in
 		}
@@ -98,19 +99,15 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			return err
 		}
 		defer resp.Close()
-		if in != nil && c.Config.Tty {
-			if err := cli.setRawTerminal(); err != nil {
-				return err
-			}
-			defer cli.restoreTerminal(in)
-		}
-
+		ctx, cancelFun := context.WithCancel(context.Background())
 		cErr := promise.Go(func() error {
-			return cli.holdHijackedConnection(c.Config.Tty, in, cli.out, cli.err, resp)
+			return cli.holdHijackedConnection(ctx, c.Config.Tty, in, cli.out, cli.err, resp)
 		})
 
 		// 3. Start the container.
 		if err := cli.client.ContainerStart(context.Background(), containerID); err != nil {
+			cancelFun()
+			<-cErr
 			return err
 		}
 

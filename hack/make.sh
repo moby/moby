@@ -81,6 +81,14 @@ if command -v git &> /dev/null && git rev-parse &> /dev/null; then
 	GITCOMMIT=$(git rev-parse --short HEAD)
 	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
 		GITCOMMIT="$GITCOMMIT-unsupported"
+		echo "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+		echo "# GITCOMMIT = $GITCOMMIT"
+		echo "# The version you are building is listed as unsupported because"
+		echo "# there are some files in the git repository that are in an uncommited state."
+		echo "# Commit these changes, or add to .gitignore to remove the -unsupported from the version."
+		echo "# Here is the current list:"
+		git status --porcelain --untracked-files=no
+		echo "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 	fi
 	! BUILDTIME=$(date --rfc-3339 ns | sed -e 's/ /T/') &> /dev/null
 	if [ -z $BUILDTIME ]; then
@@ -113,7 +121,7 @@ fi
 if [ "$DOCKER_EXPERIMENTAL" ]; then
 	echo >&2 '# WARNING! DOCKER_EXPERIMENTAL is set: building experimental features'
 	echo >&2
-	DOCKER_BUILDTAGS+=" experimental"
+	DOCKER_BUILDTAGS+=" experimental pkcs11"
 fi
 
 if [ -z "$DOCKER_CLIENTONLY" ]; then
@@ -290,23 +298,21 @@ bundle() {
 }
 
 copy_containerd() {
-    dir="$1"
-    # Add nested executables to bundle dir so we have complete set of
-    # them available, but only if the native OS/ARCH is the same as the
-    # OS/ARCH of the build target
-    if [ "$(go env GOOS)/$(go env GOARCH)" == "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
-        (set -x
-        if [ -x /usr/local/bin/docker-runc ]; then
-            echo "Copying nested executables into $dir"
-	    for file in containerd containerd-shim containerd-ctr runc; do
-                cp "/usr/local/bin/docker-$file" "$dir/"
-                if [ "$2" == "hash" ]; then
-                    hash_files "$dir/docker-$file"
+	dir="$1"
+	# Add nested executables to bundle dir so we have complete set of
+	# them available, but only if the native OS/ARCH is the same as the
+	# OS/ARCH of the build target
+	if [ "$(go env GOOS)/$(go env GOARCH)" == "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
+		if [ -x /usr/local/bin/docker-runc ]; then
+			echo "Copying nested executables into $dir"
+			for file in containerd containerd-shim containerd-ctr runc; do
+				cp "/usr/local/bin/docker-$file" "$dir/"
+				if [ "$2" == "hash" ]; then
+					hash_files "$dir/docker-$file"
+				fi
+			done
 		fi
-            done
-        fi
-        )
-    fi
+	fi
 }
 
 main() {

@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
@@ -118,7 +119,7 @@ type Backend interface {
 	// ContainerRm removes a container specified by `id`.
 	ContainerRm(name string, config *types.ContainerRmConfig) error
 	// Commit creates a new Docker image from an existing Docker container.
-	Commit(string, *types.ContainerCommitConfig) (string, error)
+	Commit(string, *backend.ContainerCommitConfig) (string, error)
 	// Kill stops the container execution abruptly.
 	ContainerKill(containerID string, sig uint64) error
 	// Start starts a new container

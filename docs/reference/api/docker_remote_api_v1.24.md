@@ -1,6 +1,6 @@
 <!--[metadata]>
 +++
-title = "Remote API v1.23"
+title = "Remote API v1.24"
 description = "API Documentation for Docker"
 keywords = ["API, Docker, rcli, REST,  documentation"]
 [menu.main]
@@ -9,7 +9,7 @@ weight=-4
 +++
 <![end-metadata]-->
 
-# Docker Remote API v1.23
+# Docker Remote API v1.24
 
 ## 1. Brief introduction
 
@@ -2265,10 +2265,10 @@ Show the docker version information
          "Version": "1.10.0-dev",
          "Os": "linux",
          "KernelVersion": "3.19.0-23-generic",
-         "GoVersion": "go1.4.2",
+         "GoVersion": "go1.4.3",
          "GitCommit": "e75da4b",
          "Arch": "amd64",
-         "ApiVersion": "1.23",
+         "ApiVersion": "1.24",
          "BuildTime": "2015-12-01T07:09:13.444803460+00:00",
          "Experimental": true
     }
@@ -2837,10 +2837,7 @@ Status Codes:
 
 Query Parameters:
 
-- **filters** - JSON encoded value of the filters (a `map[string][]string`) to process on the volumes list. Available filters:
-  -   `name=<volume-name>` Matches all or part of a volume name.
-  -   `dangling=<boolean>` When set to `true` (or `1`), returns all volumes that are "dangling" (not in use by a container). When set to `false` (or `0`), only volumes that are in use by one or more containers are returned.
-  -   `driver=<volume-driver-name>` Matches all or part of a volume driver name.
+- **filters** - JSON encoded value of the filters (a `map[string][]string`) to process on the volumes list. There is one available filter: `dangling=true`
 
 Status Codes:
 

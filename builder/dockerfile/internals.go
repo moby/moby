@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/pkg/archive"
@@ -84,10 +85,12 @@ func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) e
 	autoConfig := *b.runConfig
 	autoConfig.Cmd = autoCmd
 
-	commitCfg := &types.ContainerCommitConfig{
-		Author: b.maintainer,
-		Pause:  true,
-		Config: &autoConfig,
+	commitCfg := &backend.ContainerCommitConfig{
+		ContainerCommitConfig: types.ContainerCommitConfig{
+			Author: b.maintainer,
+			Pause:  true,
+			Config: &autoConfig,
+		},
 	}
 
 	// Commit the container
