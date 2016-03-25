@@ -15,6 +15,7 @@ docker-network-create - create a new network
 [**--ipam-driver**=*default*]
 [**--ipam-opt**=*map[]*]
 [**--ipv6**]
+[**--label**[=*[]*]]
 [**-o**|**--opt**=*map[]*]
 [**--subnet**=*[]*]
 NETWORK-NAME
@@ -155,6 +156,9 @@ If you want to create an externally isolated `overlay` network, you can specify 
 
 **--ipv6**
   Enable IPv6 networking
+
+**--label**=*label*
+   Set metadata for a network
 
 **-o**, **--opt**=map[]
   Set custom driver options

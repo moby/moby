@@ -16,6 +16,7 @@ parent = "smn_cli"
 
       -d, --driver=local    Specify volume driver name
       --help                Print usage
+      --label=[]            Set metadata for a volume
       --name=               Specify volume name
       -o, --opt=map[]       Set driver specific options
 

@@ -8,6 +8,7 @@ docker-volume-create - Create a new volume
 **docker volume create**
 [**-d**|**--driver**[=*DRIVER*]]
 [**--help**]
+[**--label**[=*[]*]]
 [**--name**[=*NAME*]]
 [**-o**|**--opt**[=*[]*]]
 
@@ -50,6 +51,9 @@ Another example:
 
 **--help**
   Print usage statement
+
+**--label**=*label*
+   Set metadata for a volume
 
 **--name**=""
   Specify volume name
