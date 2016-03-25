@@ -335,6 +335,7 @@ __docker_network_subcommand() {
                 "($help)--ipam-driver=[IP Address Management Driver]:driver:(default)" \
                 "($help)*--ipam-opt=[Custom IPAM plugin options]:opt=value: " \
                 "($help)--ipv6[Enable IPv6 networking]" \
+                "($help)*--label=[Set metadata on a network]:label=value: " \
                 "($help)*"{-o=,--opt=}"[Driver specific options]:opt=value: " \
                 "($help)*--subnet=[Subnet in CIDR format that represents a network segment]:IP/mask: " \
                 "($help -)1:Network Name: " && ret=0
@@ -425,6 +426,7 @@ __docker_volume_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -d --driver)"{-d=,--driver=}"[Volume driver name]:Driver name:(local)" \
+                "($help)*--label=[Set metadata for a volume]:label=value: " \
                 "($help)--name=[Volume name]" \
                 "($help)*"{-o=,--opt=}"[Driver specific options]:Driver option: " && ret=0
             ;;
@@ -576,6 +578,7 @@ __docker_subcommand() {
                 "($help)*--build-arg[Build-time variables]:<varname>=<value>: " \
                 "($help -f --file)"{-f=,--file=}"[Name of the Dockerfile]:Dockerfile:_files" \
                 "($help)--force-rm[Always remove intermediate containers]" \
+                "($help)*--label=[Set metadata for an image]:label=value: " \
                 "($help)--no-cache[Do not use cache when building the image]" \
                 "($help)--pull[Attempt to pull a newer version of the image]" \
                 "($help -q --quiet)"{-q,--quiet}"[Suppress verbose build output]" \
