@@ -5,6 +5,8 @@ import (
 	"errors"
 	"runtime"
 
+	"golang.org/x/net/context"
+
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/version"
@@ -14,7 +16,7 @@ import (
 
 // ContainerStats writes information about the container to the stream
 // given in the config object.
-func (daemon *Daemon) ContainerStats(prefixOrName string, config *backend.ContainerStatsConfig) error {
+func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, config *backend.ContainerStatsConfig) error {
 	if runtime.GOOS == "windows" {
 		return errors.New("Windows does not support stats")
 	}
@@ -114,7 +116,7 @@ func (daemon *Daemon) ContainerStats(prefixOrName string, config *backend.Contai
 			if !config.Stream {
 				return nil
 			}
-		case <-config.Stop:
+		case <-ctx.Done():
 			return nil
 		}
 	}

@@ -24,6 +24,6 @@ func (r *buildRouter) Routes() []router.Route {
 
 func (r *buildRouter) initRoutes() {
 	r.routes = []router.Route{
-		router.NewPostRoute("/build", r.postBuild),
+		router.Cancellable(router.NewPostRoute("/build", r.postBuild)),
 	}
 }

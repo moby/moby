@@ -4,6 +4,8 @@ import (
 	"io"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/version"
@@ -49,8 +51,8 @@ type stateBackend interface {
 type monitorBackend interface {
 	ContainerChanges(name string) ([]archive.Change, error)
 	ContainerInspect(name string, size bool, version version.Version) (interface{}, error)
-	ContainerLogs(name string, config *backend.ContainerLogsConfig, started chan struct{}) error
-	ContainerStats(name string, config *backend.ContainerStatsConfig) error
+	ContainerLogs(ctx context.Context, name string, config *backend.ContainerLogsConfig, started chan struct{}) error
+	ContainerStats(ctx context.Context, name string, config *backend.ContainerStatsConfig) error
 	ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error)
 
 	Containers(config *types.ContainerListOptions) ([]*types.Container, error)

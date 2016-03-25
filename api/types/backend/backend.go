@@ -31,7 +31,6 @@ type ContainerAttachConfig struct {
 type ContainerLogsConfig struct {
 	types.ContainerLogsOptions
 	OutStream io.Writer
-	Stop      <-chan bool
 }
 
 // ContainerStatsConfig holds information for configuring the runtime
@@ -39,7 +38,6 @@ type ContainerLogsConfig struct {
 type ContainerStatsConfig struct {
 	Stream    bool
 	OutStream io.Writer
-	Stop      <-chan bool
 	Version   string
 }
 

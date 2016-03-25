@@ -184,21 +184,6 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	stdout := &streamformatter.StdoutFormatter{Writer: out, StreamFormatter: sf}
 	stderr := &streamformatter.StderrFormatter{Writer: out, StreamFormatter: sf}
 
-	finished := make(chan struct{})
-	defer close(finished)
-	if notifier, ok := w.(http.CloseNotifier); ok {
-		notifyContext, cancel := context.WithCancel(ctx)
-		closeNotifier := notifier.CloseNotify()
-		go func() {
-			select {
-			case <-closeNotifier:
-				cancel()
-			case <-finished:
-			}
-		}()
-		ctx = notifyContext
-	}
-
 	imgID, err := br.backend.Build(ctx, buildOptions,
 		builder.DockerIgnoreContext{ModifiableContext: buildContext},
 		stdout, stderr, out)
