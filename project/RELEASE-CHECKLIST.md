@@ -270,8 +270,9 @@ docker build -t docker .
 # static binaries are still pushed to s3
 docker run \
     -e AWS_S3_BUCKET=test.docker.com \
-    -e AWS_ACCESS_KEY \
-    -e AWS_SECRET_KEY \
+    -e AWS_ACCESS_KEY_ID \
+    -e AWS_SECRET_ACCESS_KEY \
+    -e AWS_DEFAULT_REGION \
     -i -t --privileged \
     docker \
     hack/release.sh
@@ -434,8 +435,9 @@ docker build -t docker .
 # static binaries are still pushed to s3
 docker run \
     -e AWS_S3_BUCKET=get.docker.com \
-    -e AWS_ACCESS_KEY \
-    -e AWS_SECRET_KEY \
+    -e AWS_ACCESS_KEY_ID \
+    -e AWS_SECRET_ACCESS_KEY \
+    -e AWS_DEFAULT_REGION \
     -i -t --privileged \
     docker \
     hack/release.sh

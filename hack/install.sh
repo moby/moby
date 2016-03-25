@@ -20,7 +20,7 @@ set -e
 #   To update this script on https://get.docker.com,
 #   use hack/release.sh during a normal release,
 #   or the following one-liner for script hotfixes:
-#     s3cmd put --acl-public -P hack/install.sh s3://get.docker.com/index
+#     aws s3 cp --acl public-read hack/install.sh s3://get.docker.com/index
 #
 
 url="https://get.docker.com/"
