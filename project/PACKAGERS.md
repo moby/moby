@@ -60,7 +60,7 @@ To build the Docker daemon, you will additionally need:
 * btrfs-progs version 3.16.1 or later (unless using an older version is
   absolutely necessary, in which case 3.8 is the minimum)
 * libseccomp version 2.2.1 or later (for build tag seccomp)
-* yubico-piv-tool version 1.1.0 or later
+* yubico-piv-tool version 1.1.0 or later (for experimental)
 
 Be sure to also check out Docker's Dockerfile for the most up-to-date list of
 these build-time dependencies.
