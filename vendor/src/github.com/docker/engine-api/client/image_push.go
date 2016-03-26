@@ -10,7 +10,7 @@ import (
 	"github.com/docker/engine-api/types"
 )
 
-// ImagePush request the docker host to push an image to a remote registry.
+// ImagePush requests the docker host to push an image to a remote registry.
 // It executes the privileged function if the operation is unauthorized
 // and it tries one more time.
 // It's up to the caller to handle the io.ReadCloser and close it properly.

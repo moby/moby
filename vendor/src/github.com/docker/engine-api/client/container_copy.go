@@ -53,7 +53,7 @@ func (cli *Client) CopyToContainer(ctx context.Context, options types.CopyToCont
 	return nil
 }
 
-// CopyFromContainer get the content from the container and return it as a Reader
+// CopyFromContainer gets the content from the container and returns it as a Reader
 // to manipulate it in the host. It's up to the caller to close the reader.
 func (cli *Client) CopyFromContainer(ctx context.Context, containerID, srcPath string) (io.ReadCloser, types.ContainerPathStat, error) {
 	query := make(url.Values, 1)
