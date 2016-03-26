@@ -50,11 +50,11 @@ __docker_arguments() {
 __docker_get_containers() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
-    local kind
-    declare -a running stopped lines args
+    local kind type line s
+    declare -a running stopped lines args names
 
-    kind=$1
-    shift
+    kind=$1; shift
+    type=$1; shift
     [[ $kind = (stopped|all) ]] && args=($args -a)
 
     lines=(${(f)"$(_call_program commands docker $docker_options ps --no-trunc $args)"})
@@ -73,39 +73,40 @@ __docker_get_containers() {
     lines=(${lines[2,-1]})
 
     # Container ID
-    local line
-    local s
-    for line in $lines; do
-        s="${${line[${begin[CONTAINER ID]},${end[CONTAINER ID]}]%% ##}[0,12]}"
-        s="$s:${(l:15:: :::)${${line[${begin[CREATED]},${end[CREATED]}]/ ago/}%% ##}}"
-        s="$s, ${${${line[${begin[IMAGE]},${end[IMAGE]}]}/:/\\:}%% ##}"
-        if [[ ${line[${begin[STATUS]},${end[STATUS]}]} = Exit* ]]; then
-            stopped=($stopped $s)
-        else
-            running=($running $s)
-        fi
-    done
+    if [[ $type = (ids|all) ]]; then
+        for line in $lines; do
+            s="${${line[${begin[CONTAINER ID]},${end[CONTAINER ID]}]%% ##}[0,12]}"
+            s="$s:${(l:15:: :::)${${line[${begin[CREATED]},${end[CREATED]}]/ ago/}%% ##}}"
+            s="$s, ${${${line[${begin[IMAGE]},${end[IMAGE]}]}/:/\\:}%% ##}"
+            if [[ ${line[${begin[STATUS]},${end[STATUS]}]} = Exit* ]]; then
+                stopped=($stopped $s)
+            else
+                running=($running $s)
+            fi
+        done
+    fi
 
     # Names: we only display the one without slash. All other names
     # are generated and may clutter the completion. However, with
     # Swarm, all names may be prefixed by the swarm node name.
-    local -a names
-    for line in $lines; do
-        names=(${(ps:,:)${${line[${begin[NAMES]},${end[NAMES]}]}%% *}})
-        # First step: find a common prefix and strip it (swarm node case)
-        (( ${#${(u)names%%/*}} == 1 )) && names=${names#${names[1]%%/*}/}
-        # Second step: only keep the first name without a /
-        s=${${names:#*/*}[1]}
-        # If no name, well give up.
-        (( $#s != 0 )) || continue
-        s="$s:${(l:15:: :::)${${line[${begin[CREATED]},${end[CREATED]}]/ ago/}%% ##}}"
-        s="$s, ${${${line[${begin[IMAGE]},${end[IMAGE]}]}/:/\\:}%% ##}"
-        if [[ ${line[${begin[STATUS]},${end[STATUS]}]} = Exit* ]]; then
-            stopped=($stopped $s)
-        else
-            running=($running $s)
-        fi
-    done
+    if [[ $type = (names|all) ]]; then
+        for line in $lines; do
+            names=(${(ps:,:)${${line[${begin[NAMES]},${end[NAMES]}]}%% *}})
+            # First step: find a common prefix and strip it (swarm node case)
+            (( ${#${(u)names%%/*}} == 1 )) && names=${names#${names[1]%%/*}/}
+            # Second step: only keep the first name without a /
+            s=${${names:#*/*}[1]}
+            # If no name, well give up.
+            (( $#s != 0 )) || continue
+            s="$s:${(l:15:: :::)${${line[${begin[CREATED]},${end[CREATED]}]/ ago/}%% ##}}"
+            s="$s, ${${${line[${begin[IMAGE]},${end[IMAGE]}]}/:/\\:}%% ##}"
+            if [[ ${line[${begin[STATUS]},${end[STATUS]}]} = Exit* ]]; then
+                stopped=($stopped $s)
+            else
+                running=($running $s)
+            fi
+        done
+    fi
 
     [[ $kind = (running|all) ]] && _describe -t containers-running "running containers" running "$@" && ret=0
     [[ $kind = (stopped|all) ]] && _describe -t containers-stopped "stopped containers" stopped "$@" && ret=0
@@ -114,17 +115,27 @@ __docker_get_containers() {
 
 __docker_stoppedcontainers() {
     [[ $PREFIX = -* ]] && return 1
-    __docker_get_containers stopped "$@"
+    __docker_get_containers stopped all "$@"
 }
 
 __docker_runningcontainers() {
     [[ $PREFIX = -* ]] && return 1
-    __docker_get_containers running "$@"
+    __docker_get_containers running all "$@"
 }
 
 __docker_containers() {
     [[ $PREFIX = -* ]] && return 1
-    __docker_get_containers all "$@"
+    __docker_get_containers all all "$@"
+}
+
+__docker_containers_ids() {
+    [[ $PREFIX = -* ]] && return 1
+    __docker_get_containers all ids "$@"
+}
+
+__docker_containers_names() {
+    [[ $PREFIX = -* ]] && return 1
+    __docker_get_containers all names "$@"
 }
 
 __docker_images() {
@@ -242,6 +253,43 @@ __docker_complete_detach_keys() {
     ctrl_keys=(${:-ctrl-{{a-z},{@,'[','\\','^',']',_}}})
     _describe -t detach_keys "[a-z]" keys -qS "," && ret=0
     _describe -t detach_keys-ctrl "'ctrl-' + 'a-z @ [ \\\\ ] ^ _'" ctrl_keys -qS "," && ret=0
+}
+
+__docker_complete_ps_filters() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+
+    if compset -P '*='; then
+        case "${${words[-1]%=*}#*=}" in
+            (ancestor)
+                __docker_images && ret=0
+                ;;
+            (before|since)
+                __docker_containers && ret=0
+                ;;
+            (id)
+                __docker_containers_ids && ret=0
+                ;;
+            (name)
+                __docker_containers_names && ret=0
+                ;;
+            (status)
+                status_opts=('created' 'dead' 'exited' 'paused' 'restarting' 'running')
+                _describe -t status-filter-opts "Status Filter Options" status_opts && ret=0
+                ;;
+            (volume)
+                __docker_volumes && ret=0
+                ;;
+            *)
+                _message 'value' && ret=0
+                ;;
+        esac
+    else
+        opts=('ancestor' 'before' 'exited' 'id' 'label' 'name' 'since' 'status' 'volume')
+        _describe -t filter-opts "Filter Options" opts -qS "=" && ret=0
+    fi
+
+    return ret
 }
 
 __docker_networks() {
@@ -870,7 +918,7 @@ __docker_subcommand() {
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Show all containers]" \
                 "($help)--before=[Show only container created before...]:containers:__docker_containers" \
-                "($help)*"{-f=,--filter=}"[Filter values]:filter: " \
+                "($help)*"{-f=,--filter=}"[Filter values]:filter:->filter-options" \
                 "($help)--format[Pretty-print containers using a Go template]:format: " \
                 "($help -l --latest)"{-l,--latest}"[Show only the latest created container]" \
                 "($help)-n[Show n last created containers, include non-running one]:n:(1 5 10 25 50)" \
@@ -878,6 +926,12 @@ __docker_subcommand() {
                 "($help -q --quiet)"{-q,--quiet}"[Only show numeric IDs]" \
                 "($help -s --size)"{-s,--size}"[Display total file sizes]" \
                 "($help)--since=[Show only containers created since...]:containers:__docker_containers" && ret=0
+
+            case $state in
+                (filter-options)
+                    __docker_complete_ps_filters && ret=0
+                    ;;
+            esac
             ;;
         (pull)
             _arguments $(__docker_arguments) \
