@@ -653,7 +653,22 @@ func (s *DockerSuite) TestPsFormatMultiNames(c *check.C) {
 		truncNames = append(truncNames, l)
 	}
 	c.Assert(expected, checker.DeepEquals, truncNames, check.Commentf("Expected array with truncated names: %v, got: %v", expected, truncNames))
+}
 
+// Test for GitHub issue #21772
+func (s *DockerSuite) TestPsNamesMultipleTime(c *check.C) {
+	runSleepingContainer(c, "--name=test1")
+	runSleepingContainer(c, "--name=test2")
+
+	//use the new format capabilities to list the names twice
+	out, _ := dockerCmd(c, "ps", "--format", "{{.Names}} {{.Names}}")
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	expected := []string{"test2 test2", "test1 test1"}
+	var names []string
+	for _, l := range lines {
+		names = append(names, l)
+	}
+	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with names displayed twice: %v, got: %v", expected, names))
 }
 
 func (s *DockerSuite) TestPsFormatHeaders(c *check.C) {
