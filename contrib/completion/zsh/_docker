@@ -542,7 +542,6 @@ __docker_subcommand() {
         "($help)--pid=[PID namespace to use]:PID: "
         "($help)--privileged[Give extended privileges to this container]"
         "($help)--read-only[Mount the container's root filesystem as read only]"
-        "($help)--restart=[Restart policy]:restart policy:(no on-failure always unless-stopped)"
         "($help)*--security-opt=[Security options]:security option: "
         "($help -t --tty)"{-t,--tty}"[Allocate a pseudo-tty]"
         "($help -u --user)"{-u=,--user=}"[Username or UID]:user:_users"
@@ -556,6 +555,7 @@ __docker_subcommand() {
         "($help)--blkio-weight=[Block IO (relative weight), between 10 and 1000]:Block IO weight:(10 100 500 1000)"
         "($help)--kernel-memory=[Kernel memory limit in bytes]:Memory limit: "
         "($help)--memory-reservation=[Memory soft limit]:Memory limit: "
+        "($help)--restart=[Restart policy]:restart policy:(no on-failure always unless-stopped)"
     )
     opts_attach_exec_run_start=(
         "($help)--detach-keys=[Escape key sequence used to detach a container]:sequence:__docker_complete_detach_keys"
