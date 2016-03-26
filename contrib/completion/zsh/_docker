@@ -213,7 +213,7 @@ __docker_get_log_options() {
     awslogs_options=("awslogs-region" "awslogs-group" "awslogs-stream")
     fluentd_options=("env" "fluentd-address" "fluentd-async-connect" "fluentd-buffer-limit" "fluentd-retry-wait" "fluentd-max-retries" "labels" "tag")
     gcplogs_options=("env" "gcp-log-cmd" "gcp-project" "labels")
-    gelf_options=("env" "gelf-address" "labels" "tag")
+    gelf_options=("env" "gelf-address" "gelf-compression-level" "gelf-compression-type" "labels" "tag")
     journald_options=("env" "labels" "tag")
     json_file_options=("env" "labels" "max-file" "max-size")
     syslog_options=("syslog-address" "syslog-tls-ca-cert" "syslog-tls-cert" "syslog-tls-key" "syslog-tls-skip-verify" "syslog-facility" "tag")
