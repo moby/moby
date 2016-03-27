@@ -53,6 +53,8 @@ type authorizationController struct {
 	psRequestCnt  int                    // psRequestCnt counts the number of calls to list container request api
 	psResponseCnt int                    // psResponseCnt counts the number of calls to list containers response API
 	requestsURIs  []string               // requestsURIs stores all request URIs that are sent to the authorization controller
+	reqUser       string
+	resUser       string
 }
 
 func (s *DockerAuthzSuite) SetUpTest(c *check.C) {
@@ -104,6 +106,7 @@ func (s *DockerAuthzSuite) SetUpSuite(c *check.C) {
 		}
 		b, err := json.Marshal(reqRes)
 		c.Assert(err, check.IsNil)
+		s.ctrl.reqUser = authReq.User
 		w.Write(b)
 	})
 
@@ -131,6 +134,7 @@ func (s *DockerAuthzSuite) SetUpSuite(c *check.C) {
 		}
 		b, err := json.Marshal(resRes)
 		c.Assert(err, check.IsNil)
+		s.ctrl.resUser = authReq.User
 		w.Write(b)
 	})
 
@@ -211,6 +215,45 @@ func (s *DockerAuthzSuite) TestAuthZPluginAllowRequest(c *check.C) {
 	c.Assert(assertContainerList(out, []string{id}), check.Equals, true)
 	c.Assert(s.ctrl.psRequestCnt, check.Equals, 1)
 	c.Assert(s.ctrl.psResponseCnt, check.Equals, 1)
+}
+
+func (s *DockerAuthzSuite) TestAuthZPluginTls(c *check.C) {
+
+	const testDaemonHTTPSAddr = "tcp://localhost:4271"
+	// start the daemon and load busybox, --net=none build fails otherwise
+	// cause it needs to pull busybox
+	if err := s.d.Start(
+		"--authorization-plugin="+testAuthZPlugin,
+		"--tlsverify",
+		"--tlscacert",
+		"fixtures/https/ca.pem",
+		"--tlscert",
+		"fixtures/https/server-cert.pem",
+		"--tlskey",
+		"fixtures/https/server-key.pem",
+		"-H", testDaemonHTTPSAddr); err != nil {
+		c.Fatalf("Could not start daemon with busybox: %v", err)
+	}
+
+	s.ctrl.reqRes.Allow = true
+	s.ctrl.resRes.Allow = true
+
+	out, _ := dockerCmd(
+		c,
+		"--tlsverify",
+		"--tlscacert", "fixtures/https/ca.pem",
+		"--tlscert", "fixtures/https/client-cert.pem",
+		"--tlskey", "fixtures/https/client-key.pem",
+		"-H",
+		testDaemonHTTPSAddr,
+		"version",
+	)
+	if !strings.Contains(out, "Server") {
+		c.Fatalf("docker version should return information of server side")
+	}
+
+	c.Assert(s.ctrl.reqUser, check.Equals, "client")
+	c.Assert(s.ctrl.resUser, check.Equals, "client")
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginDenyRequest(c *check.C) {

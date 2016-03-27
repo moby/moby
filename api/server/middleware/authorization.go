@@ -13,11 +13,19 @@ import (
 func NewAuthorizationMiddleware(plugins []authorization.Plugin) Middleware {
 	return func(handler httputils.APIFunc) httputils.APIFunc {
 		return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-			// FIXME: fill when authN gets in
-			// User and UserAuthNMethod are taken from AuthN plugins
-			// Currently tracked in https://github.com/docker/docker/pull/13994
+
 			user := ""
 			userAuthNMethod := ""
+
+			// Default authorization using existing TLS connection credentials
+			// FIXME: Non trivial authorization mechanisms (such as advanced certificate validations, kerberos support
+			// and ldap) will be extracted using AuthN feature, which is tracked under:
+			// https://github.com/docker/docker/pull/20883
+			if r.TLS != nil && len(r.TLS.PeerCertificates) > 0 {
+				user = r.TLS.PeerCertificates[0].Subject.CommonName
+				userAuthNMethod = "TLS"
+			}
+
 			authCtx := authorization.NewCtx(plugins, user, userAuthNMethod, r.Method, r.RequestURI)
 
 			if err := authCtx.AuthZRequest(w, r); err != nil {
