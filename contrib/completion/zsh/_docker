@@ -203,7 +203,7 @@ __docker_get_log_options() {
     fluentd_options=("env" "fluentd-address" "fluentd-async-connect" "fluentd-buffer-limit" "fluentd-retry-wait" "fluentd-max-retries" "labels" "tag")
     gcplogs_options=("env" "gcp-log-cmd" "gcp-project" "labels")
     gelf_options=("env" "gelf-address" "labels" "tag")
-    journald_options=("env" "labels")
+    journald_options=("env" "labels" "tag")
     json_file_options=("env" "labels" "max-file" "max-size")
     syslog_options=("syslog-address" "syslog-tls-ca-cert" "syslog-tls-cert" "syslog-tls-key" "syslog-tls-skip-verify" "syslog-facility" "tag")
     splunk_options=("env" "labels" "splunk-caname" "splunk-capath" "splunk-index" "splunk-insecureskipverify" "splunk-source" "splunk-sourcetype" "splunk-token" "splunk-url" "tag")
