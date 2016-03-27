@@ -2,7 +2,7 @@
 set -e
 
 bundle_test_integration_cli() {
-	TESTFLAGS="$TESTFLAGS -check.v -check.timeout=${TIMEOUT} -timeout=360m"
+	TESTFLAGS="$TESTFLAGS -check.v -check.timeout=${TIMEOUT} -test.timeout=360m"
 	go_test_dir ./integration-cli
 }
 
