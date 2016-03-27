@@ -883,11 +883,13 @@ __docker_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -a --all-tags)"{-a,--all-tags}"[Download all tagged images]" \
+                "($help)--disable-content-trust[Skip image verification]" \
                 "($help -):name:__docker_search" && ret=0
             ;;
         (push)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                "($help)--disable-content-trust[Skip image signing]" \
                 "($help -): :__docker_images" && ret=0
             ;;
         (rename)
