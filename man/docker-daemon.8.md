@@ -487,7 +487,7 @@ pool and that should automatically resolve it. If loop devices are being
 used, then stop docker, grow the size of loop files and restart docker and
 that should resolve the issue.
 
-Example use: `docker daemon --storage-opt dm.min_free_space_percent=10%`
+Example use: `docker daemon --storage-opt dm.min_free_space=10%`
 
 ## ZFS options
 
