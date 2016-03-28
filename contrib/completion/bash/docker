@@ -887,6 +887,7 @@ _docker_daemon() {
 				dm.fs
 				dm.loopdatasize
 				dm.loopmetadatasize
+				dm.min_free_space
 				dm.mkfsarg
 				dm.mountopt
 				dm.override_udev_sync_check

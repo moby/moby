@@ -462,7 +462,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker daemon --storage-opt dm.min_free_space_percent=10%
+        $ docker daemon --storage-opt dm.min_free_space=10%
 
 Currently supported options of `zfs`:
 
