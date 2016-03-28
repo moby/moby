@@ -18,7 +18,10 @@ There is a single supported filter `dangling=value` which takes a boolean of `tr
 
 # OPTIONS
 **-f**, **--filter**=""
-  Provide filter values (i.e. 'dangling=true')
+  Filter output based on these conditions:
+  - dangling=<boolean> a volume if referenced or not
+  - driver=<string> a volume's driver name
+  - name=<string> a volume's name
 
 **--help**
   Print usage statement
