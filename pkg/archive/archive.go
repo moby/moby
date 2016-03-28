@@ -425,10 +425,19 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		}
 	}
 
+	var errors []string
 	for key, value := range hdr.Xattrs {
 		if err := system.Lsetxattr(path, key, []byte(value), 0); err != nil {
-			return err
+			// We ignore errors here because not all graphdrivers support xattrs.
+			errors = append(errors, err.Error())
 		}
+
+	}
+
+	if len(errors) > 0 {
+		logrus.WithFields(logrus.Fields{
+			"errors": errors,
+		}).Warn("ignored xattrs in archive: underlying filesystem doesn't support them")
 	}
 
 	// There is no LChmod, so ignore mode for symlink. Also, this
