@@ -690,6 +690,7 @@ __docker_subcommand() {
                 "($help -b --bridge)"{-b=,--bridge=}"[Attach containers to a network bridge]:bridge:_net_interfaces" \
                 "($help)--bip=[Network bridge IP]:IP address: " \
                 "($help)--cgroup-parent=[Parent cgroup for all containers]:cgroup: " \
+                "($help)--containerd=[Path to containerd socket]:socket:_files -g \"*.sock\"" \
                 "($help -D --debug)"{-D,--debug}"[Enable debug mode]" \
                 "($help)--default-gateway[Container default gateway IPv4 address]:IPv4 address: " \
                 "($help)--default-gateway-v6[Container default gateway IPv6 address]:IPv6 address: " \
@@ -727,9 +728,9 @@ __docker_subcommand() {
                 "($help)--selinux-enabled[Enable selinux support]" \
                 "($help)*--storage-opt=[Storage driver options]:storage driver options: " \
                 "($help)--tls[Use TLS]" \
-                "($help)--tlscacert=[Trust certs signed only by this CA]:PEM file:_files -g "*.(pem|crt)"" \
-                "($help)--tlscert=[Path to TLS certificate file]:PEM file:_files -g "*.(pem|crt)"" \
-                "($help)--tlskey=[Path to TLS key file]:Key file:_files -g "*.(pem|key)"" \
+                "($help)--tlscacert=[Trust certs signed only by this CA]:PEM file:_files -g \"*.(pem|crt)\"" \
+                "($help)--tlscert=[Path to TLS certificate file]:PEM file:_files -g \"*.(pem|crt)\"" \
+                "($help)--tlskey=[Path to TLS key file]:Key file:_files -g \"*.(pem|key)\"" \
                 "($help)--tlsverify[Use TLS and verify the remote]" \
                 "($help)--userns-remap=[User/Group setting for user namespaces]:user\:group:->users-groups" \
                 "($help)--userland-proxy[Use userland proxy for loopback traffic]" && ret=0
