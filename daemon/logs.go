@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/container"
@@ -19,7 +21,7 @@ import (
 
 // ContainerLogs hooks up a container's stdout and stderr streams
 // configured with the given struct.
-func (daemon *Daemon) ContainerLogs(containerName string, config *backend.ContainerLogsConfig, started chan struct{}) error {
+func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, config *backend.ContainerLogsConfig, started chan struct{}) error {
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return err
@@ -78,7 +80,7 @@ func (daemon *Daemon) ContainerLogs(containerName string, config *backend.Contai
 		case err := <-logs.Err:
 			logrus.Errorf("Error streaming logs: %v", err)
 			return nil
-		case <-config.Stop:
+		case <-ctx.Done():
 			logs.Close()
 			return nil
 		case msg, ok := <-logs.Msg:

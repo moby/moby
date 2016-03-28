@@ -67,19 +67,13 @@ func (s *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 		w.Header().Set("Content-Type", "application/json")
 	}
 
-	var closeNotifier <-chan bool
-	if notifier, ok := w.(http.CloseNotifier); ok {
-		closeNotifier = notifier.CloseNotify()
-	}
-
 	config := &backend.ContainerStatsConfig{
 		Stream:    stream,
 		OutStream: w,
-		Stop:      closeNotifier,
 		Version:   string(httputils.VersionFromContext(ctx)),
 	}
 
-	return s.backend.ContainerStats(vars["name"], config)
+	return s.backend.ContainerStats(ctx, vars["name"], config)
 }
 
 func (s *containerRouter) getContainersLogs(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -97,11 +91,6 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 		return fmt.Errorf("Bad parameters: you must choose at least one stream")
 	}
 
-	var closeNotifier <-chan bool
-	if notifier, ok := w.(http.CloseNotifier); ok {
-		closeNotifier = notifier.CloseNotify()
-	}
-
 	containerName := vars["name"]
 	logsConfig := &backend.ContainerLogsConfig{
 		ContainerLogsOptions: types.ContainerLogsOptions{
@@ -113,11 +102,10 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 			ShowStderr: stderr,
 		},
 		OutStream: w,
-		Stop:      closeNotifier,
 	}
 
 	chStarted := make(chan struct{})
-	if err := s.backend.ContainerLogs(containerName, logsConfig, chStarted); err != nil {
+	if err := s.backend.ContainerLogs(ctx, containerName, logsConfig, chStarted); err != nil {
 		select {
 		case <-chStarted:
 			// The client may be expecting all of the data we're sending to
