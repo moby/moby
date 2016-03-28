@@ -6,7 +6,7 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
-	psignal "github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
 )
 
@@ -23,7 +23,7 @@ func setupDumpStackTrap() {
 			logrus.Debugf("Stackdump - waiting signal at %s", ev)
 			for {
 				syscall.WaitForSingleObject(h, syscall.INFINITE)
-				psignal.DumpStacks()
+				signal.DumpStacks()
 			}
 		}
 	}()
