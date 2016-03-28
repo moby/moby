@@ -12,6 +12,11 @@ import (
 // UUID represents a globally unique ID of various resources like network and endpoint
 type UUID string
 
+// QosPolicy represents a quality of service policy on an endpoint
+type QosPolicy struct {
+	MaxEgressBandwidth uint64
+}
+
 // TransportPort represent a local Layer 4 endpoint
 type TransportPort struct {
 	Proto Protocol

@@ -12,4 +12,7 @@ const (
 
 	// Interface of the network
 	Interface = "com.docker.network.windowsshim.interface"
+
+	// QosPolicies of the endpoint
+	QosPolicies = "com.docker.endpoint.windowsshim.qospolicies"
 )
