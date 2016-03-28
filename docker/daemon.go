@@ -37,6 +37,7 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 	"github.com/docker/go-connections/tlsconfig"
 )
@@ -405,9 +406,11 @@ func loadDaemonCliConfig(config *daemon.Config, daemonFlags *flag.FlagSet, commo
 }
 
 func initRouter(s *apiserver.Server, d *daemon.Daemon) {
+	decoder := runconfig.ContainerDecoder{}
+
 	routers := []router.Router{
-		container.NewRouter(d),
-		image.NewRouter(d),
+		container.NewRouter(d, decoder),
+		image.NewRouter(d, decoder),
 		systemrouter.NewRouter(d),
 		volume.NewRouter(d),
 		build.NewRouter(dockerfile.NewBuildManager(d)),

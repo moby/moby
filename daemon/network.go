@@ -231,6 +231,8 @@ func (daemon *Daemon) DeleteNetwork(networkID string) error {
 	return nil
 }
 
+// FilterNetworks returns a list of networks filtered by the given arguments.
+// It returns an error if the filters are not included in the list of accepted filters.
 func (daemon *Daemon) FilterNetworks(netFilters filters.Args) ([]libnetwork.Network, error) {
 	if netFilters.Len() != 0 {
 		if err := netFilters.Validate(netsettings.AcceptedFilters); err != nil {

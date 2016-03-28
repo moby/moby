@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/filters"
@@ -149,7 +148,7 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 			return err
 		}
 
-		c, err := runconfig.DecodeHostConfig(r.Body)
+		c, err := s.decoder.DecodeHostConfig(r.Body)
 		if err != nil {
 			return err
 		}
@@ -350,7 +349,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 
 	name := r.Form.Get("name")
 
-	config, hostConfig, networkingConfig, err := runconfig.DecodeContainerConfig(r.Body)
+	config, hostConfig, networkingConfig, err := s.decoder.DecodeConfig(r.Body)
 	if err != nil {
 		return err
 	}
