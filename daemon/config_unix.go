@@ -38,15 +38,16 @@ type Config struct {
 // bridgeConfig stores all the bridge driver specific
 // configuration.
 type bridgeConfig struct {
+	commonBridgeConfig
+
+	// Fields below here are platform specific.
 	EnableIPv6                  bool   `json:"ipv6,omitempty"`
 	EnableIPTables              bool   `json:"iptables,omitempty"`
 	EnableIPForward             bool   `json:"ip-forward,omitempty"`
 	EnableIPMasq                bool   `json:"ip-mask,omitempty"`
 	EnableUserlandProxy         bool   `json:"userland-proxy,omitempty"`
 	DefaultIP                   net.IP `json:"ip,omitempty"`
-	Iface                       string `json:"bridge,omitempty"`
 	IP                          string `json:"bip,omitempty"`
-	FixedCIDR                   string `json:"fixed-cidr,omitempty"`
 	FixedCIDRv6                 string `json:"fixed-cidr-v6,omitempty"`
 	DefaultGatewayIPv4          net.IP `json:"default-gateway,omitempty"`
 	DefaultGatewayIPv6          net.IP `json:"default-gateway-v6,omitempty"`
