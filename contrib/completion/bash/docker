@@ -1704,6 +1704,24 @@ _docker_run() {
 	__docker_complete_log_driver_options && return
 	__docker_complete_restart && return
 
+	local key=$(__docker_map_key_of_current_option '--security-opt')
+	case "$key" in
+		label)
+			[[ $cur == *: ]] && return
+			COMPREPLY=( $( compgen -W "user: role: type: level: disable" -- "${cur##*=}") )
+			if [ "${COMPREPLY[*]}" != "disable" ] ; then
+				__docker_nospace
+			fi
+			return
+			;;
+		seccomp)
+			local cur=${cur##*=}
+			_filedir
+			COMPREPLY+=( $( compgen -W "unconfined" -- "$cur" ) )
+			return
+			;;
+	esac
+
 	case "$prev" in
 		--add-host)
 			case "$cur" in
@@ -1801,26 +1819,8 @@ _docker_run() {
 			return
 			;;
 		--security-opt)
-			case "$cur" in
-				label=*:*)
-					;;
-				label=*)
-					local cur=${cur##*=}
-					COMPREPLY=( $( compgen -W "user: role: type: level: disable" -- "$cur") )
-					if [ "${COMPREPLY[*]}" != "disable" ] ; then
-						__docker_nospace
-					fi
-					;;
-				seccomp=*)
-					local cur=${cur##*=}
-					_filedir
-					COMPREPLY+=( $( compgen -W "unconfined" -- "$cur" ) )
-					;;
-				*)
-					COMPREPLY=( $( compgen -W "label apparmor seccomp" -S ":" -- "$cur") )
-					__docker_nospace
-					;;
-			esac
+			COMPREPLY=( $( compgen -W "apparmor label seccomp" -S "=" -- "$cur") )
+			__docker_nospace
 			return
 			;;
 		--user|-u)
