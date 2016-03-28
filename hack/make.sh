@@ -27,6 +27,8 @@ export DOCKER_PKG='github.com/docker/docker'
 export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export MAKEDIR="$SCRIPTDIR/make"
 
+: ${TEST_REPEAT:=0}
+
 # We're a nice, sexy, little shell script, and people might try to run us;
 # but really, they shouldn't. We want to be in a container!
 inContainer="AssumeSoInitially"
@@ -229,18 +231,29 @@ go_test_dir() {
 	dir=$1
 	coverpkg=$2
 	testcover=()
+	testcoverprofile=()
+	testbinary="$DEST/test.main"
 	if [ "$HAVE_GO_TEST_COVER" ]; then
 		# if our current go install has -cover, we want to use it :)
 		mkdir -p "$DEST/coverprofiles"
 		coverprofile="docker${dir#.}"
 		coverprofile="$ABS_DEST/coverprofiles/${coverprofile//\//-}"
-		testcover=( -cover -coverprofile "$coverprofile" $coverpkg )
+		testcover=( -test.cover )
+		testcoverprofile=( -test.coverprofile "$coverprofile" $coverpkg )
 	fi
 	(
 		echo '+ go test' $TESTFLAGS "${DOCKER_PKG}${dir#.}"
 		cd "$dir"
 		export DEST="$ABS_DEST" # we're in a subshell, so this is safe -- our integration-cli tests need DEST, and "cd" screws it up
-		test_env go test ${testcover[@]} -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS
+		go test -c -o "$testbinary" ${testcover[@]} -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}"
+		i=0
+		while ((++i)); do
+			test_env "$testbinary" ${testcoverprofile[@]} $TESTFLAGS
+			if [ $i -gt "$TEST_REPEAT" ]; then
+				break
+			fi
+			echo "Repeating test ($i)"
+		done
 	)
 }
 test_env() {
