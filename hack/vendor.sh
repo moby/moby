@@ -44,7 +44,7 @@ clone git github.com/coreos/etcd v2.2.0
 fix_rewritten_imports github.com/coreos/etcd
 clone git github.com/ugorji/go 5abd4e96a45c386928ed2ca2a7ef63e2533e18ec
 clone git github.com/hashicorp/consul v0.5.2
-clone git github.com/boltdb/bolt v1.1.0
+clone git github.com/boltdb/bolt v1.2.0
 clone git github.com/miekg/dns 75e6e86cc601825c5dbcd4e0c209eab180997cd7
 
 # get graph and distribution packages
