@@ -2129,6 +2129,6 @@ func (s *DockerSuite) TestDaemonDiscoveryBackendConfigReload(c *check.C) {
 
 	out, err := d.Cmd("info")
 	c.Assert(err, checker.IsNil)
-	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster store: consul://consuladdr:consulport/some/path"))
-	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster advertise: 192.168.56.100:0"))
+	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Store: consul://consuladdr:consulport/some/path"))
+	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Advertise: 192.168.56.100:0"))
 }

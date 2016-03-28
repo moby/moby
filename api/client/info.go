@@ -77,8 +77,8 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	ioutils.FprintfIfNotEmpty(cli.out, "Name: %s\n", info.Name)
 	ioutils.FprintfIfNotEmpty(cli.out, "ID: %s\n", info.ID)
 	fmt.Fprintf(cli.out, "Docker Root Dir: %s\n", info.DockerRootDir)
-	fmt.Fprintf(cli.out, "Debug mode (client): %v\n", utils.IsDebugEnabled())
-	fmt.Fprintf(cli.out, "Debug mode (server): %v\n", info.Debug)
+	fmt.Fprintf(cli.out, "Debug Mode (client): %v\n", utils.IsDebugEnabled())
+	fmt.Fprintf(cli.out, "Debug Mode (server): %v\n", info.Debug)
 
 	if info.Debug {
 		fmt.Fprintf(cli.out, " File Descriptors: %d\n", info.NFd)
@@ -145,11 +145,11 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 
 	ioutils.FprintfIfTrue(cli.out, "Experimental: %v\n", info.ExperimentalBuild)
 	if info.ClusterStore != "" {
-		fmt.Fprintf(cli.out, "Cluster store: %s\n", info.ClusterStore)
+		fmt.Fprintf(cli.out, "Cluster Store: %s\n", info.ClusterStore)
 	}
 
 	if info.ClusterAdvertise != "" {
-		fmt.Fprintf(cli.out, "Cluster advertise: %s\n", info.ClusterAdvertise)
+		fmt.Fprintf(cli.out, "Cluster Advertise: %s\n", info.ClusterAdvertise)
 	}
 	return nil
 }

@@ -57,8 +57,8 @@ func (s *DockerSuite) TestInfoDiscoveryBackend(c *check.C) {
 
 	out, err := d.Cmd("info")
 	c.Assert(err, checker.IsNil)
-	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster store: %s\n", discoveryBackend))
-	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster advertise: %s\n", discoveryAdvertise))
+	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Store: %s\n", discoveryBackend))
+	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Advertise: %s\n", discoveryAdvertise))
 }
 
 // TestInfoDiscoveryInvalidAdvertise verifies that a daemon run with
@@ -101,8 +101,8 @@ func (s *DockerSuite) TestInfoDiscoveryAdvertiseInterfaceName(c *check.C) {
 
 	out, err := d.Cmd("info")
 	c.Assert(err, checker.IsNil)
-	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster store: %s\n", discoveryBackend))
-	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster advertise: %s:2375\n", ip.String()))
+	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Store: %s\n", discoveryBackend))
+	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Advertise: %s:2375\n", ip.String()))
 }
 
 func (s *DockerSuite) TestInfoDisplaysRunningContainers(c *check.C) {
@@ -156,8 +156,8 @@ func (s *DockerSuite) TestInfoDebug(c *check.C) {
 
 	out, err := d.Cmd("--debug", "info")
 	c.Assert(err, checker.IsNil)
-	c.Assert(out, checker.Contains, "Debug mode (client): true\n")
-	c.Assert(out, checker.Contains, "Debug mode (server): true\n")
+	c.Assert(out, checker.Contains, "Debug Mode (client): true\n")
+	c.Assert(out, checker.Contains, "Debug Mode (server): true\n")
 	c.Assert(out, checker.Contains, "File Descriptors")
 	c.Assert(out, checker.Contains, "Goroutines")
 	c.Assert(out, checker.Contains, "System Time")
