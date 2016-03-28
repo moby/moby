@@ -1591,8 +1591,9 @@ func (daemon *Daemon) initDiscovery(config *Config) error {
 
 // Reload reads configuration changes and modifies the
 // daemon according to those changes.
-// This are the settings that Reload changes:
+// These are the settings that Reload changes:
 // - Daemon labels.
+// - Daemon debug log level.
 // - Cluster discovery (reconfigure and restart).
 func (daemon *Daemon) Reload(config *Config) error {
 	daemon.configStore.reloadLock.Lock()
