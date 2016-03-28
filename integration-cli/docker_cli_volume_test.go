@@ -344,3 +344,33 @@ func (s *DockerSuite) TestVolumeCliCreateLabelMultiple(c *check.C) {
 		c.Assert(strings.TrimSpace(out), check.Equals, v)
 	}
 }
+
+func (s *DockerSuite) TestVolumeCliLsFilterLabels(c *check.C) {
+	testVol1 := "testvolcreatelabel-1"
+	out, _, err := dockerCmdWithError("volume", "create", "--label", "foo=bar1", "--name", testVol1)
+	c.Assert(err, check.IsNil)
+
+	testVol2 := "testvolcreatelabel-2"
+	out, _, err = dockerCmdWithError("volume", "create", "--label", "foo=bar2", "--name", testVol2)
+	c.Assert(err, check.IsNil)
+
+	out, _ = dockerCmd(c, "volume", "ls", "--filter", "label=foo")
+
+	// filter with label=key
+	c.Assert(out, checker.Contains, "testvolcreatelabel-1\n", check.Commentf("expected volume 'testvolcreatelabel-1' in output"))
+	c.Assert(out, checker.Contains, "testvolcreatelabel-2\n", check.Commentf("expected volume 'testvolcreatelabel-2' in output"))
+
+	out, _ = dockerCmd(c, "volume", "ls", "--filter", "label=foo=bar1")
+
+	// filter with label=key=value
+	c.Assert(out, checker.Contains, "testvolcreatelabel-1\n", check.Commentf("expected volume 'testvolcreatelabel-1' in output"))
+	c.Assert(out, check.Not(checker.Contains), "testvolcreatelabel-2\n", check.Commentf("expected volume 'testvolcreatelabel-2 in output"))
+
+	out, _ = dockerCmd(c, "volume", "ls", "--filter", "label=non-exist")
+	outArr := strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(outArr), check.Equals, 1, check.Commentf("\n%s", out))
+
+	out, _ = dockerCmd(c, "volume", "ls", "--filter", "label=foo=non-exist")
+	outArr = strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(outArr), check.Equals, 1, check.Commentf("\n%s", out))
+}
