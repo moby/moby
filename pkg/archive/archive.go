@@ -634,7 +634,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 
 				if err := ta.addTarFile(filePath, relFilePath); err != nil {
 					logrus.Errorf("Can't add file %s to tar: %s", filePath, err)
-					// if pipe is broken, stop writting tar stream to it
+					// if pipe is broken, stop writing tar stream to it
 					if err == io.ErrClosedPipe {
 						return err
 					}
