@@ -1668,6 +1668,7 @@ _docker_run() {
 		--tmpfs
 		--ulimit
 		--user -u
+		--userns
 		--uts
 		--volume-driver
 		--volumes-from
@@ -1825,6 +1826,10 @@ _docker_run() {
 			;;
 		--user|-u)
 			__docker_complete_user_group
+			return
+			;;
+		--userns)
+			COMPREPLY=( $( compgen -W "host" -- "$cur" ) )
 			return
 			;;
 		--volume-driver)
