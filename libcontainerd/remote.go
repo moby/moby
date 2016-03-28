@@ -11,7 +11,7 @@ type Remote interface {
 	Cleanup()
 }
 
-// RemoteOption allows to configure paramters of remotes.
+// RemoteOption allows to configure parameters of remotes.
 // This is unused on Windows.
 type RemoteOption interface {
 	Apply(Remote) error

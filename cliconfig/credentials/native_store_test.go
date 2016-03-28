@@ -29,7 +29,7 @@ type mockCommand struct {
 }
 
 // Output returns responses from the remote credentials helper.
-// It mocks those reponses based in the input in the mock.
+// It mocks those responses based in the input in the mock.
 func (m *mockCommand) Output() ([]byte, error) {
 	in, err := ioutil.ReadAll(m.input)
 	if err != nil {
