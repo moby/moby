@@ -15,8 +15,7 @@ Recommends: aufs-tools,
             cgroupfs-mount | cgroup-lite,
             git,
             xz-utils,
-            ${apparmor:Recommends},
-            ${yubico:Recommends}
+            ${apparmor:Recommends}
 Conflicts: docker (<< 1.5~), docker.io, lxc-docker, lxc-docker-virtual-package, docker-engine-cs
 Description: Docker: the open-source application container engine
  Docker is an open source project to build, ship and run any application as a
