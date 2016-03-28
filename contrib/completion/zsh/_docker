@@ -539,6 +539,7 @@ __docker_subcommand() {
         "($help)--isolation=[Container isolation technology]:isolation:(default hyperv process)"
         "($help)*--shm-size=[Size of '/dev/shm' (format is '<number><unit>')]:shm size: "
         "($help)*--ulimit=[ulimit options]:ulimit: "
+        "($help)--userns=[Container user namespace]:user namespace:(host)"
     )
     opts_build_create_run_update=(
         "($help)--cpu-shares=[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)"
