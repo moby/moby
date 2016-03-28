@@ -6,8 +6,11 @@ import (
 	"net/http"
 	"strings"
 
+	netsettings "github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errors"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/engine-api/types/network"
 	"github.com/docker/libnetwork"
 )
@@ -77,8 +80,8 @@ func (daemon *Daemon) GetNetworksByID(partialID string) []libnetwork.Network {
 	return list
 }
 
-// GetAllNetworks returns a list containing all networks
-func (daemon *Daemon) GetAllNetworks() []libnetwork.Network {
+// getAllNetworks returns a list containing all networks
+func (daemon *Daemon) getAllNetworks() []libnetwork.Network {
 	c := daemon.netController
 	list := []libnetwork.Network{}
 	l := func(nw libnetwork.Network) bool {
@@ -91,12 +94,33 @@ func (daemon *Daemon) GetAllNetworks() []libnetwork.Network {
 }
 
 // CreateNetwork creates a network with the given name, driver and other optional parameters
-func (daemon *Daemon) CreateNetwork(name, driver string, ipam network.IPAM, netOption map[string]string, labels map[string]string, internal bool, enableIPv6 bool) (libnetwork.Network, error) {
+func (daemon *Daemon) CreateNetwork(create types.NetworkCreate) (*types.NetworkCreateResponse, error) {
+	if runconfig.IsPreDefinedNetwork(create.Name) {
+		err := fmt.Errorf("%s is a pre-defined network and cannot be created", create.Name)
+		return nil, errors.NewErrorWithStatusCode(err, http.StatusForbidden)
+	}
+
+	var warning string
+	nw, err := daemon.GetNetworkByName(create.Name)
+	if err != nil {
+		if _, ok := err.(libnetwork.ErrNoSuchNetwork); !ok {
+			return nil, err
+		}
+	}
+	if nw != nil {
+		if create.CheckDuplicate {
+			return nil, libnetwork.NetworkNameError(create.Name)
+		}
+		warning = fmt.Sprintf("Network with name %s (id : %s) already exists", nw.Name(), nw.ID())
+	}
+
 	c := daemon.netController
+	driver := create.Driver
 	if driver == "" {
 		driver = c.Config().Daemon.DefaultDriver
 	}
 
+	ipam := create.IPAM
 	v4Conf, v6Conf, err := getIpamConfig(ipam.Config)
 	if err != nil {
 		return nil, err
@@ -104,20 +128,23 @@ func (daemon *Daemon) CreateNetwork(name, driver string, ipam network.IPAM, netO
 
 	nwOptions := []libnetwork.NetworkOption{
 		libnetwork.NetworkOptionIpam(ipam.Driver, "", v4Conf, v6Conf, ipam.Options),
-		libnetwork.NetworkOptionEnableIPv6(enableIPv6),
-		libnetwork.NetworkOptionDriverOpts(netOption),
-		libnetwork.NetworkOptionLabels(labels),
+		libnetwork.NetworkOptionEnableIPv6(create.EnableIPv6),
+		libnetwork.NetworkOptionDriverOpts(create.Options),
+		libnetwork.NetworkOptionLabels(create.Labels),
 	}
-	if internal {
+	if create.Internal {
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionInternalNetwork())
 	}
-	n, err := c.NewNetwork(driver, name, nwOptions...)
+	n, err := c.NewNetwork(driver, create.Name, nwOptions...)
 	if err != nil {
 		return nil, err
 	}
 
 	daemon.LogNetworkEvent(n, "create")
-	return n, nil
+	return &types.NetworkCreateResponse{
+		ID:      n.ID(),
+		Warning: warning,
+	}, nil
 }
 
 func getIpamConfig(data []network.IPAMConfig) ([]*libnetwork.IpamConf, []*libnetwork.IpamConf, error) {
@@ -202,4 +229,14 @@ func (daemon *Daemon) DeleteNetwork(networkID string) error {
 	}
 	daemon.LogNetworkEvent(nw, "destroy")
 	return nil
+}
+
+func (daemon *Daemon) FilterNetworks(netFilters filters.Args) ([]libnetwork.Network, error) {
+	if netFilters.Len() != 0 {
+		if err := netFilters.Validate(netsettings.AcceptedFilters); err != nil {
+			return nil, err
+		}
+	}
+	nwList := daemon.getAllNetworks()
+	return netsettings.FilterNetworks(nwList, netFilters)
 }

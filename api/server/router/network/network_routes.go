@@ -2,13 +2,11 @@ package network
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/engine-api/types/network"
@@ -26,21 +24,14 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 		return err
 	}
 
-	if netFilters.Len() != 0 {
-		if err := netFilters.Validate(acceptedFilters); err != nil {
-			return err
-		}
-	}
-
 	list := []*types.NetworkResource{}
 
-	nwList := n.backend.GetAllNetworks()
-	displayable, err := filterNetworks(nwList, netFilters)
+	nwList, err := n.backend.FilterNetworks(netFilters)
 	if err != nil {
 		return err
 	}
 
-	for _, nw := range displayable {
+	for _, nw := range nwList {
 		list = append(list, buildNetworkResource(nw))
 	}
 
@@ -61,7 +52,6 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 
 func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var create types.NetworkCreate
-	var warning string
 
 	if err := httputils.ParseForm(r); err != nil {
 		return err
@@ -75,31 +65,12 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		return err
 	}
 
-	if runconfig.IsPreDefinedNetwork(create.Name) {
-		return httputils.WriteJSON(w, http.StatusForbidden,
-			fmt.Sprintf("%s is a pre-defined network and cannot be created", create.Name))
-	}
-
-	nw, err := n.backend.GetNetworkByName(create.Name)
-	if _, ok := err.(libnetwork.ErrNoSuchNetwork); err != nil && !ok {
-		return err
-	}
-	if nw != nil {
-		if create.CheckDuplicate {
-			return libnetwork.NetworkNameError(create.Name)
-		}
-		warning = fmt.Sprintf("Network with name %s (id : %s) already exists", nw.Name(), nw.ID())
-	}
-
-	nw, err = n.backend.CreateNetwork(create.Name, create.Driver, create.IPAM, create.Options, create.Labels, create.Internal, create.EnableIPv6)
+	nw, err := n.backend.CreateNetwork(create)
 	if err != nil {
 		return err
 	}
 
-	return httputils.WriteJSON(w, http.StatusCreated, &types.NetworkCreateResponse{
-		ID:      nw.ID(),
-		Warning: warning,
-	})
+	return httputils.WriteJSON(w, http.StatusCreated, nw)
 }
 
 func (n *networkRouter) postNetworkConnect(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
