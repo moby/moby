@@ -34,9 +34,9 @@ func (r *imageRouter) initRoutes() {
 		router.NewGetRoute("/images/{name:.*}/json", r.getImagesByName),
 		// POST
 		router.NewPostRoute("/commit", r.postCommit),
-		router.NewPostRoute("/images/create", r.postImagesCreate),
 		router.NewPostRoute("/images/load", r.postImagesLoad),
-		router.NewPostRoute("/images/{name:.*}/push", r.postImagesPush),
+		router.Cancellable(router.NewPostRoute("/images/create", r.postImagesCreate)),
+		router.Cancellable(router.NewPostRoute("/images/{name:.*}/push", r.postImagesPush)),
 		router.NewPostRoute("/images/{name:.*}/tag", r.postImagesTag),
 		// DELETE
 		router.NewDeleteRoute("/images/{name:.*}", r.deleteImages),
