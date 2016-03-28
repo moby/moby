@@ -275,6 +275,7 @@ Create a container
                    "22/tcp": {}
            },
            "StopSignal": "SIGTERM",
+           "MaxBandwidth": 1000,
            "HostConfig": {
              "Binds": ["/tmp:/tmp"],
              "Links": ["redis3:redis"],
@@ -398,6 +399,7 @@ Json Parameters:
 -   **ExposedPorts** - An object mapping ports to an empty object in the form of:
       `"ExposedPorts": { "<port>/<tcp|udp>: {}" }`
 -   **StopSignal** - Signal to stop a container as a string or unsigned integer. `SIGTERM` by default.
+-   **MaxBandwidth** - Maximum network egress bandwidth of the container in bytes per second (Windows daemon only).
 -   **HostConfig**
     -   **Binds** – A list of volume bindings for this container. Each volume binding is a string in one of these forms:
            + `host_path:container_path` to bind-mount a host path into the container
@@ -525,7 +527,8 @@ Return low-level information on the container `id`
 				"/volumes/data": {}
 			},
 			"WorkingDir": "",
-			"StopSignal": "SIGTERM"
+			"StopSignal": "SIGTERM",
+			"MaxBandwidth": 1000,
 		},
 		"Created": "2015-01-06T15:47:31.485331387Z",
 		"Driver": "devicemapper",

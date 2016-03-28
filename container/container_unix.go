@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
 	containertypes "github.com/docker/engine-api/types/container"
+	"github.com/docker/libnetwork"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
@@ -402,4 +403,10 @@ func cleanResourcePath(path string) string {
 // can be mounted locally. A no-op on non-Windows platforms
 func (container *Container) canMountFS() bool {
 	return true
+}
+
+// buildGenericEndpointOptions builds the platform specific generic endpoint options.
+// There are currently no platform specific endpoint options on Unix.
+func (container *Container) buildGenericEndpointOptions(n libnetwork.Network) []libnetwork.EndpointOption {
+	return []libnetwork.EndpointOption{}
 }

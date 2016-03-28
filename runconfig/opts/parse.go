@@ -86,6 +86,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flBlkioWeight       = cmd.Uint16([]string{"-blkio-weight"}, 0, "Block IO (relative weight), between 10 and 1000")
 		flSwappiness        = cmd.Int64([]string{"-memory-swappiness"}, -1, "Tune container memory swappiness (0 to 100)")
 		flNetMode           = cmd.String([]string{"-net"}, "default", "Connect a container to a network")
+		flNetMaxBandwidth   = cmd.String([]string{"-net-maxbandwidth"}, "", "Maximum network egress bandwidth")
 		flMacAddress        = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
 		flIPv4Address       = cmd.String([]string{"-ip"}, "", "Container IPv4 address (e.g. 172.30.100.104)")
 		flIPv6Address       = cmd.String([]string{"-ip6"}, "", "Container IPv6 address (e.g. 2001:db8::33)")
@@ -207,6 +208,17 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		shmSize, err = units.RAMInBytes(*flShmSize)
 		if err != nil {
 			return nil, nil, nil, cmd, err
+		}
+	}
+
+	var netBandwidth int64
+	if *flNetMaxBandwidth != "" {
+		netBandwidth, err = units.RAMInBytes(*flNetMaxBandwidth)
+		if err != nil {
+			return nil, nil, nil, cmd, err
+		}
+		if netBandwidth < 0 {
+			netBandwidth = 0
 		}
 	}
 
@@ -348,28 +360,29 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	}
 
 	resources := container.Resources{
-		CgroupParent:         *flCgroupParent,
-		Memory:               flMemory,
-		MemoryReservation:    MemoryReservation,
-		MemorySwap:           memorySwap,
-		MemorySwappiness:     flSwappiness,
-		KernelMemory:         KernelMemory,
-		OomKillDisable:       flOomKillDisable,
-		CPUPercent:           *flCPUPercent,
-		CPUShares:            *flCPUShares,
-		CPUPeriod:            *flCPUPeriod,
-		CpusetCpus:           *flCpusetCpus,
-		CpusetMems:           *flCpusetMems,
-		CPUQuota:             *flCPUQuota,
-		PidsLimit:            *flPidsLimit,
-		BlkioWeight:          *flBlkioWeight,
-		BlkioWeightDevice:    flBlkioWeightDevice.GetList(),
-		BlkioDeviceReadBps:   flDeviceReadBps.GetList(),
-		BlkioDeviceWriteBps:  flDeviceWriteBps.GetList(),
-		BlkioDeviceReadIOps:  flDeviceReadIOps.GetList(),
-		BlkioDeviceWriteIOps: flDeviceWriteIOps.GetList(),
-		Ulimits:              flUlimits.GetList(),
-		Devices:              deviceMappings,
+		CgroupParent:            *flCgroupParent,
+		Memory:                  flMemory,
+		MemoryReservation:       MemoryReservation,
+		MemorySwap:              memorySwap,
+		MemorySwappiness:        flSwappiness,
+		KernelMemory:            KernelMemory,
+		OomKillDisable:          flOomKillDisable,
+		CPUPercent:              *flCPUPercent,
+		CPUShares:               *flCPUShares,
+		CPUPeriod:               *flCPUPeriod,
+		CpusetCpus:              *flCpusetCpus,
+		CpusetMems:              *flCpusetMems,
+		CPUQuota:                *flCPUQuota,
+		PidsLimit:               *flPidsLimit,
+		BlkioWeight:             *flBlkioWeight,
+		NetworkMaximumBandwidth: uint64(netBandwidth),
+		BlkioWeightDevice:       flBlkioWeightDevice.GetList(),
+		BlkioDeviceReadBps:      flDeviceReadBps.GetList(),
+		BlkioDeviceWriteBps:     flDeviceWriteBps.GetList(),
+		BlkioDeviceReadIOps:     flDeviceReadIOps.GetList(),
+		BlkioDeviceWriteIOps:    flDeviceWriteIOps.GetList(),
+		Ulimits:                 flUlimits.GetList(),
+		Devices:                 deviceMappings,
 	}
 
 	config := &container.Config{
