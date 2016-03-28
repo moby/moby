@@ -87,7 +87,7 @@ specify a single subnet. An `overlay` network supports multiple subnets.
 > in your infrastructure that is not managed by docker. Such overlaps can cause
 > connectivity issues or failures when containers are connected to that network.
 
-In addition to the `--subnetwork` option, you also specify the `--gateway` `--ip-range` and `--aux-address` options.
+In addition to the `--subnet` option, you also specify the `--gateway` `--ip-range` and `--aux-address` options.
 
 ```bash
 $ docker network create -d overlay
