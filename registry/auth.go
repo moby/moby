@@ -29,7 +29,7 @@ func loginV1(authConfig *types.AuthConfig, apiEndpoint APIEndpoint, userAgent st
 
 	serverAddress := registryEndpoint.String()
 
-	logrus.Debugf("attempting v1 login to registry endpoint %s", registryEndpoint)
+	logrus.Debugf("attempting v1 login to registry endpoint %s", serverAddress)
 
 	if serverAddress == "" {
 		return "", "", fmt.Errorf("Server Error: Server Address not set.")
@@ -103,7 +103,7 @@ func (err fallbackError) Error() string {
 // endpoint will be pinged to get authorization challenges. These challenges
 // will be used to authenticate against the registry to validate credentials.
 func loginV2(authConfig *types.AuthConfig, endpoint APIEndpoint, userAgent string) (string, string, error) {
-	logrus.Debugf("attempting v2 login to registry endpoint %s", endpoint)
+	logrus.Debugf("attempting v2 login to registry endpoint %s", strings.TrimRight(endpoint.URL.String(), "/")+"/v2/")
 
 	modifiers := DockerHeaders(userAgent, nil)
 	authTransport := transport.NewTransport(NewTransport(endpoint.TLSConfig), modifiers...)
