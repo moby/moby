@@ -2239,6 +2239,11 @@ Display system-wide information
                 "127.0.0.0/8"
             ]
         },
+        "SecurityOptions": [
+            "apparmor",
+            "seccomp",
+            "selinux"
+        ],
         "ServerVersion": "1.9.0",
         "SwapLimit": false,
         "SystemStatus": [["State", "Healthy"]],

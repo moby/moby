@@ -67,6 +67,17 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		}
 	})
 
+	var securityOptions []string
+	if sysInfo.AppArmor {
+		securityOptions = append(securityOptions, "apparmor")
+	}
+	if sysInfo.Seccomp {
+		securityOptions = append(securityOptions, "seccomp")
+	}
+	if selinuxEnabled() {
+		securityOptions = append(securityOptions, "selinux")
+	}
+
 	v := &types.Info{
 		ID:                 daemon.ID,
 		Containers:         int(cRunning + cPaused + cStopped),
@@ -104,6 +115,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		HTTPProxy:          sockets.GetProxyEnv("http_proxy"),
 		HTTPSProxy:         sockets.GetProxyEnv("https_proxy"),
 		NoProxy:            sockets.GetProxyEnv("no_proxy"),
+		SecurityOptions:    securityOptions,
 	}
 
 	// TODO Windows. Refactor this more once sysinfo is refactored into
