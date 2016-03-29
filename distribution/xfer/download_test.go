@@ -106,7 +106,7 @@ func (ls *mockLayerStore) Get(chainID layer.ChainID) (layer.Layer, error) {
 func (ls *mockLayerStore) Release(l layer.Layer) ([]layer.Metadata, error) {
 	return []layer.Metadata{}, nil
 }
-func (ls *mockLayerStore) CreateRWLayer(string, layer.ChainID, string, layer.MountInit) (layer.RWLayer, error) {
+func (ls *mockLayerStore) CreateRWLayer(string, layer.ChainID, string, layer.MountInit, map[string]string) (layer.RWLayer, error) {
 	return nil, errors.New("not implemented")
 }
 

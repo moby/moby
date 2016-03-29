@@ -241,7 +241,11 @@ func (d *Driver) mountPath(id string) string {
 }
 
 // Create prepares the dataset and filesystem for the ZFS driver for the given id under the parent.
-func (d *Driver) Create(id string, parent string, mountLabel string) error {
+func (d *Driver) Create(id string, parent string, mountLabel string, storageOpt map[string]string) error {
+	if len(storageOpt) != 0 {
+		return fmt.Errorf("--storage-opt is not supported for zfs")
+	}
+
 	err := d.create(id, parent)
 	if err == nil {
 		return nil

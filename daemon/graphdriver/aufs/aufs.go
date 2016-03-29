@@ -196,7 +196,12 @@ func (a *Driver) Exists(id string) bool {
 
 // Create three folders for each id
 // mnt, layers, and diff
-func (a *Driver) Create(id, parent, mountLabel string) error {
+func (a *Driver) Create(id, parent, mountLabel string, storageOpt map[string]string) error {
+
+	if len(storageOpt) != 0 {
+		return fmt.Errorf("--storage-opt is not supported for aufs")
+	}
+
 	if err := a.createDirsFor(id); err != nil {
 		return err
 	}

@@ -60,6 +60,27 @@ func (s *DockerSuite) TestCreateArgs(c *check.C) {
 
 }
 
+// Make sure we can grow the container's rootfs at creation time.
+func (s *DockerSuite) TestCreateGrowRootfs(c *check.C) {
+	testRequires(c, Devicemapper)
+	out, _ := dockerCmd(c, "create", "--storage-opt", "size=120G", "busybox")
+
+	cleanedContainerID := strings.TrimSpace(out)
+
+	inspectOut := inspectField(c, cleanedContainerID, "HostConfig.StorageOpt")
+	c.Assert(inspectOut, checker.Equals, "[size=120G]")
+}
+
+// Make sure we cannot shrink the container's rootfs at creation time.
+func (s *DockerSuite) TestCreateShrinkRootfs(c *check.C) {
+	testRequires(c, Devicemapper)
+
+	// Ensure this fails
+	out, _, err := dockerCmdWithError("create", "--storage-opt", "size=80G", "busybox")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Container size cannot be smaller than")
+}
+
 // Make sure we can set hostconfig options too
 func (s *DockerSuite) TestCreateHostConfig(c *check.C) {
 	out, _ := dockerCmd(c, "create", "-P", "busybox", "echo")
