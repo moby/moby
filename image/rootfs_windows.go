@@ -10,6 +10,9 @@ import (
 	"github.com/docker/docker/layer"
 )
 
+// TypeLayersWithBase is used for RootFS.Type for Windows filesystems that have layers and a centrally-stored base layer.
+const TypeLayersWithBase = "layers+base"
+
 // RootFS describes images root filesystem
 // This is currently a placeholder that only supports layers. In the future
 // this can be made into an interface that supports different implementations.
@@ -21,17 +24,25 @@ type RootFS struct {
 
 // BaseLayerID returns the 64 byte hex ID for the baselayer name.
 func (r *RootFS) BaseLayerID() string {
+	if r.Type != TypeLayersWithBase {
+		panic("tried to get base layer ID without a base layer")
+	}
 	baseID := sha512.Sum384([]byte(r.BaseLayer))
 	return fmt.Sprintf("%x", baseID[:32])
 }
 
 // ChainID returns the ChainID for the top layer in RootFS.
 func (r *RootFS) ChainID() layer.ChainID {
-	baseDiffID := digest.FromBytes([]byte(r.BaseLayerID()))
-	return layer.CreateChainID(append([]layer.DiffID{layer.DiffID(baseDiffID)}, r.DiffIDs...))
+	ids := r.DiffIDs
+	if r.Type == TypeLayersWithBase {
+		// Add an extra ID for the base.
+		baseDiffID := layer.DiffID(digest.FromBytes([]byte(r.BaseLayerID())))
+		ids = append([]layer.DiffID{baseDiffID}, ids...)
+	}
+	return layer.CreateChainID(ids)
 }
 
-// NewRootFS returns empty RootFS struct
-func NewRootFS() *RootFS {
-	return &RootFS{Type: "layers+base"}
+// NewRootFSWithBaseLayer returns a RootFS struct with a base layer
+func NewRootFSWithBaseLayer(baseLayer string) *RootFS {
+	return &RootFS{Type: TypeLayersWithBase, BaseLayer: baseLayer}
 }
