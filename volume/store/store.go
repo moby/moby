@@ -267,7 +267,9 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 	if err != nil {
 		return nil, err
 	}
+	s.globalLock.Lock()
 	s.labels[name] = labels
+	s.globalLock.Unlock()
 
 	if s.db != nil {
 		metadata := &volumeMetadata{
@@ -362,7 +364,10 @@ func (s *VolumeStore) getVolume(name string) (volume.Volume, error) {
 	}
 
 	logrus.Debugf("Getting volume reference for name: %s", name)
-	if v, exists := s.names[name]; exists {
+	s.globalLock.Lock()
+	v, exists := s.names[name]
+	s.globalLock.Unlock()
+	if exists {
 		vd, err := volumedrivers.GetDriver(v.DriverName())
 		if err != nil {
 			return nil, err
