@@ -39,6 +39,13 @@ type LogConfig struct {
 	Config map[string]string `json:"log-opts,omitempty"`
 }
 
+// commonBridgeConfig stores all the platform-common bridge driver specific
+// configuration.
+type commonBridgeConfig struct {
+	Iface     string `json:"bridge,omitempty"`
+	FixedCIDR string `json:"fixed-cidr,omitempty"`
+}
+
 // CommonTLSOptions defines TLS configuration for the daemon server.
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line uses.
