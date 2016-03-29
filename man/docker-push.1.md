@@ -44,6 +44,8 @@ Check that this worked by running:
 You should see both `rhel-httpd` and `registry-host:5000/myadmin/rhel-httpd`
 listed.
 
+Registry credentials are managed by **docker-login(1)**.
+
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
