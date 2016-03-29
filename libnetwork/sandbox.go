@@ -7,6 +7,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/etchosts"
@@ -536,6 +537,11 @@ func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoin
 }
 
 func (sb *sandbox) SetKey(basePath string) error {
+	start := time.Now()
+	defer func() {
+		log.Debugf("sandbox set key processing took %s for container %s", time.Now().Sub(start), sb.ContainerID())
+	}()
+
 	if basePath == "" {
 		return types.BadRequestErrorf("invalid sandbox key")
 	}
