@@ -177,7 +177,7 @@ you must use `--rm=false`. This does not affect the build cache.
 This will clone the GitHub repository and use the cloned repository as context.
 The Dockerfile at the root of the repository is used as Dockerfile. Note that
 you can specify an arbitrary Git repository by using the `git://` or `git@`
-schema.
+scheme.
 
 ### Build with -
 

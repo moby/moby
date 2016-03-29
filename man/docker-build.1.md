@@ -277,7 +277,7 @@ repository.
 
     docker build github.com/scollier/purpletest
 
-Note: You can set an arbitrary Git repository via the `git://` schema.
+Note: You can set an arbitrary Git repository via the `git://` scheme.
 
 ## Building an image using a URL to a tarball'ed context
 
