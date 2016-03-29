@@ -6,6 +6,7 @@ package backend
 import (
 	"io"
 
+	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/engine-api/types"
 )
 
@@ -72,4 +73,13 @@ type ExecProcessConfig struct {
 type ContainerCommitConfig struct {
 	types.ContainerCommitConfig
 	Changes []string
+}
+
+// ProgressWriter is an interface
+// to transport progress streams.
+type ProgressWriter struct {
+	Output             io.Writer
+	StdoutFormatter    *streamformatter.StdoutFormatter
+	StderrFormatter    *streamformatter.StderrFormatter
+	ProgressReaderFunc func(io.ReadCloser) io.ReadCloser
 }
