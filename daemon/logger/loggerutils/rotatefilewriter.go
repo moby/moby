@@ -6,7 +6,10 @@ import (
 	"sync"
 
 	"github.com/docker/docker/pkg/pubsub"
+	"github.com/opencontainers/runc/libcontainer/label"
 )
+
+const logLabel = "system_u:object_r:docker_log_t:s0"
 
 // RotateFileWriter is Logger implementation for default Docker logging.
 type RotateFileWriter struct {
@@ -24,6 +27,8 @@ func NewRotateFileWriter(logPath string, capacity int64, maxFiles int) (*RotateF
 	if err != nil {
 		return nil, err
 	}
+
+	label.Relabel(logPath, logLabel, true)
 
 	size, err := log.Seek(0, os.SEEK_END)
 	if err != nil {
@@ -72,6 +77,7 @@ func (w *RotateFileWriter) checkCapacityAndRotate() error {
 		if err != nil {
 			return err
 		}
+		label.Relabel(name, logLabel, true)
 		w.f = file
 		w.currentSize = 0
 		w.notifyRotate.Publish(struct{}{})
