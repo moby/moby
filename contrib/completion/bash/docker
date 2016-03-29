@@ -615,7 +615,7 @@ _docker_attach() {
 
  	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--detach-keys --help --no-stdin --sig-proxy" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--detach-keys --help --no-stdin --sig-proxy=false" -- "$cur" ) )
 			;;
 		*)
 			local counter=$(__docker_pos_first_nonflag '--detach-keys')
@@ -702,7 +702,7 @@ _docker_commit() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--author -a --change -c --help --message -m --pause -p" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--author -a --change -c --help --message -m --pause=false -p=false" -- "$cur" ) )
 			;;
 		*)
 			local counter=$(__docker_pos_first_nonflag '--author|-a|--change|-c|--message|-m')
