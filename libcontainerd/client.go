@@ -4,35 +4,23 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/locker"
 )
 
 // clientCommon contains the platform agnostic fields used in the client structure
 type clientCommon struct {
-	backend          Backend
-	containers       map[string]*container
-	containerMutexes map[string]*sync.Mutex // lock by container ID
-	mapMutex         sync.RWMutex           // protects read/write oprations from containers map
-	sync.Mutex                              // lock for containerMutexes map access
+	backend    Backend
+	containers map[string]*container
+	locker     *locker.Locker
+	mapMutex   sync.RWMutex // protects read/write oprations from containers map
 }
 
 func (clnt *client) lock(containerID string) {
-	clnt.Lock()
-	if _, ok := clnt.containerMutexes[containerID]; !ok {
-		clnt.containerMutexes[containerID] = &sync.Mutex{}
-	}
-	clnt.Unlock()
-	clnt.containerMutexes[containerID].Lock()
+	clnt.locker.Lock(containerID)
 }
 
 func (clnt *client) unlock(containerID string) {
-	clnt.Lock()
-	if l, ok := clnt.containerMutexes[containerID]; ok {
-		l.Unlock()
-	} else {
-		logrus.Warnf("unlock of non-existing mutex: %s", containerID)
-	}
-	clnt.Unlock()
+	clnt.locker.Unlock(containerID)
 }
 
 // must hold a lock for cont.containerID
