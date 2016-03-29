@@ -16,6 +16,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	containerd "github.com/docker/containerd/api/grpc/types"
+	"github.com/docker/docker/pkg/locker"
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/utils"
 	"golang.org/x/net/context"
@@ -169,9 +170,9 @@ func (r *remote) Cleanup() {
 func (r *remote) Client(b Backend) (Client, error) {
 	c := &client{
 		clientCommon: clientCommon{
-			backend:          b,
-			containerMutexes: make(map[string]*sync.Mutex),
-			containers:       make(map[string]*container),
+			backend:    b,
+			containers: make(map[string]*container),
+			locker:     locker.New(),
 		},
 		remote:        r,
 		exitNotifiers: make(map[string]*exitNotifier),
