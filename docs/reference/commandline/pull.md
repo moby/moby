@@ -165,6 +165,8 @@ listening on port 5000 (`myregistry.local:5000`):
 $ docker pull myregistry.local:5000/testing/test-image
 ```
 
+Registry credentials are managed by [docker login](login.md).
+
 Docker uses the `https://` protocol to communicate with a registry, unless the
 registry is allowed to be accessed over an insecure connection. Refer to the
 [insecure registries](daemon.md#insecure-registries) section for more information.

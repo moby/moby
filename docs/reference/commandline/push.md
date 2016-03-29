@@ -22,3 +22,5 @@ registry or to a self-hosted one.
 
 Killing the `docker push` process, for example by pressing `CTRL-c` while it is
 running in a terminal, will terminate the push operation.
+
+Registry credentials are managed by [docker login](login.md).
