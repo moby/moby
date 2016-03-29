@@ -75,6 +75,10 @@ func (h *Handle) CopyTo(o datastore.KVObject) error {
 	defer h.Unlock()
 
 	dstH := o.(*Handle)
+	if h == dstH {
+		return nil
+	}
+	dstH.Lock()
 	dstH.bits = h.bits
 	dstH.unselected = h.unselected
 	dstH.head = h.head.getCopy()
@@ -83,6 +87,7 @@ func (h *Handle) CopyTo(o datastore.KVObject) error {
 	dstH.dbIndex = h.dbIndex
 	dstH.dbExists = h.dbExists
 	dstH.store = h.store
+	dstH.Unlock()
 
 	return nil
 }
