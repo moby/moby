@@ -144,6 +144,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		d.Command,
 		"--containerd", "/var/run/docker/libcontainerd/docker-containerd.sock",
 		"--graph", d.root,
+		"--exec-root", filepath.Join(d.folder, "exec-root"),
 		"--pidfile", fmt.Sprintf("%s/docker.pid", d.folder),
 		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
 	)
