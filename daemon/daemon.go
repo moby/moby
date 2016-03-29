@@ -304,10 +304,6 @@ func (daemon *Daemon) restore() error {
 				mapLock.Lock()
 				restartContainers[c] = make(chan struct{})
 				mapLock.Unlock()
-			} else if !c.IsRunning() && !c.IsPaused() {
-				if mountid, err := daemon.layerStore.GetMountID(c.ID); err == nil {
-					daemon.cleanupMountsByID(mountid)
-				}
 			}
 
 			// if c.hostConfig.Links is nil (not just empty), then it is using the old sqlite links and needs to be migrated
