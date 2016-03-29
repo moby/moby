@@ -250,7 +250,7 @@ RUN set -x \
 ENV RUNC_COMMIT d563bd134293c1026976a8f5764d5df5612f1dbf
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
-	&& git clone git://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
+	&& git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
 	&& cd "$GOPATH/src/github.com/opencontainers/runc" \
 	&& git checkout -q "$RUNC_COMMIT" \
 	&& make static BUILDTAGS="seccomp apparmor selinux" \
@@ -260,7 +260,7 @@ RUN set -x \
 ENV CONTAINERD_COMMIT c761085e92be09df9d5298f852c328b538f5dc2f
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
-	&& git clone git://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \
+	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \
 	&& cd "$GOPATH/src/github.com/docker/containerd" \
 	&& git checkout -q "$CONTAINERD_COMMIT" \
 	&& make static \
