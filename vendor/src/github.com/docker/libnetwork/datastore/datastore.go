@@ -104,6 +104,13 @@ type ScopeCfg struct {
 	Client ScopeClientCfg
 }
 
+func (s *ScopeCfg) PersistConnection() bool {
+	if s.Client.Config == nil {
+		return false
+	}
+	return s.Client.Config.PersistConnection
+}
+
 // ScopeClientCfg represents Datastore Client-only mode configuration
 type ScopeClientCfg struct {
 	Provider string

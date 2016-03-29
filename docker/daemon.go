@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -145,6 +146,9 @@ func getGlobalFlag() (globalFlag *flag.Flag) {
 func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	// warn from uuid package when running the daemon
 	uuid.Loggerf = logrus.Warnf
+
+	f, _ := os.OpenFile("/tmp/daemon.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	log.SetOutput(f)
 
 	if !commonFlags.FlagSet.IsEmpty() || !clientFlags.FlagSet.IsEmpty() {
 		// deny `docker -D daemon`

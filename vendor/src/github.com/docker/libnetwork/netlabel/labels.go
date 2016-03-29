@@ -59,6 +59,9 @@ var (
 	// GlobalKVClient constants represents the global kv store client
 	GlobalKVClient = MakeKVClient("global")
 
+	// GlobalKVStore containt represents the global kv store connection
+	GlobalKVStore = MakeKVStore("global")
+
 	// LocalKVProvider constant represents the KV provider backend
 	LocalKVProvider = MakeKVProvider("local")
 
@@ -68,8 +71,11 @@ var (
 	// LocalKVProviderConfig constant represents the KV provider Config
 	LocalKVProviderConfig = MakeKVProviderConfig("local")
 
-	// LocalKVClient constants represents the local kv store client
+	// LocalKVClient constant represents the local kv store client
 	LocalKVClient = MakeKVClient("local")
+
+	// LocalKVStore containt represents the local kv store connection
+	LocalKVStore = MakeKVStore("local")
 )
 
 // MakeKVProvider returns the kvprovider label for the scope
@@ -90,6 +96,11 @@ func MakeKVProviderConfig(scope string) string {
 // MakeKVClient returns the kv client label for the scope
 func MakeKVClient(scope string) string {
 	return DriverPrivatePrefix + scope + "kv_client"
+}
+
+// MakeKVStore returns the kv store label for the scope
+func MakeKVStore(scope string) string {
+	return DriverPrivatePrefix + scope + "kv_store"
 }
 
 // Key extracts the key portion of the label
