@@ -210,7 +210,7 @@ func (r *remote) getLastEventTimestamp() int64 {
 	t := time.Now()
 
 	fi, err := os.Stat(r.eventTsPath)
-	if os.IsNotExist(err) {
+	if os.IsNotExist(err) || fi.Size() == 0 {
 		return t.Unix()
 	}
 
