@@ -233,6 +233,8 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 				return fmt.Errorf("[%s] error querying daemon for root directory: %v", d.id, err)
 			}
 			return nil
+		case <-d.wait:
+			return fmt.Errorf("[%s] Daemon exited during startup", d.id)
 		}
 	}
 }
