@@ -74,6 +74,7 @@ The following logging options are supported for the `syslog` logging driver:
 
     --log-opt syslog-address=[tcp|udp|tcp+tls]://host:port
     --log-opt syslog-address=unix://path
+    --log-opt syslog-address=unixgram://path
     --log-opt syslog-facility=daemon
     --log-opt syslog-tls-ca-cert=/etc/ca-certificates/custom/ca.pem
     --log-opt syslog-tls-cert=/etc/ca-certificates/custom/cert.pem

@@ -152,8 +152,8 @@ func parseAddress(address string) (string, string, error) {
 		return "", "", err
 	}
 
-	// unix socket validation
-	if url.Scheme == "unix" {
+	// unix and unixgram socket validation
+	if url.Scheme == "unix" || url.Scheme == "unixgram" {
 		if _, err := os.Stat(url.Path); err != nil {
 			return "", "", err
 		}
