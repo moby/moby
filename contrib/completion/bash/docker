@@ -1821,8 +1821,10 @@ _docker_run() {
 			return
 			;;
 		--security-opt)
-			COMPREPLY=( $( compgen -W "apparmor label seccomp" -S "=" -- "$cur") )
-			__docker_nospace
+			COMPREPLY=( $( compgen -W "apparmor= label= no-new-privileges seccomp=" -- "$cur") )
+			if [ "${COMPREPLY[*]}" != "no-new-privileges" ] ; then
+				__docker_nospace
+			fi
 			return
 			;;
 		--user|-u)
