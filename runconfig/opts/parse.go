@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -242,15 +241,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	}
 	if *flEntrypoint != "" {
 		entrypoint = strslice.StrSlice{*flEntrypoint}
-	}
-	// Validate if the given hostname is RFC 1123 (https://tools.ietf.org/html/rfc1123) compliant.
-	hostname := *flHostname
-	if hostname != "" {
-		// Linux hostname is limited to HOST_NAME_MAX=64, not including the terminating null byte.
-		matched, _ := regexp.MatchString("^(([[:alnum:]]|[[:alnum:]][[:alnum:]\\-]*[[:alnum:]])\\.)*([[:alnum:]]|[[:alnum:]][[:alnum:]\\-]*[[:alnum:]])$", hostname)
-		if len(hostname) > 64 || !matched {
-			return nil, nil, nil, cmd, fmt.Errorf("invalid hostname format for --hostname: %s", hostname)
-		}
 	}
 
 	ports, portBindings, err := nat.ParsePortSpecs(flPublish.GetAll())
