@@ -1,17 +1,22 @@
 package image
 
-import "github.com/docker/docker/api/server/router"
+import (
+	"github.com/docker/docker/api/server/httputils"
+	"github.com/docker/docker/api/server/router"
+)
 
 // imageRouter is a router to talk with the image controller
 type imageRouter struct {
 	backend Backend
+	decoder httputils.ContainerDecoder
 	routes  []router.Route
 }
 
 // NewRouter initializes a new image router
-func NewRouter(backend Backend) router.Router {
+func NewRouter(backend Backend, decoder httputils.ContainerDecoder) router.Router {
 	r := &imageRouter{
 		backend: backend,
+		decoder: decoder,
 	}
 	r.initRoutes()
 	return r

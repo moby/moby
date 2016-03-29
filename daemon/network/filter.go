@@ -20,14 +20,14 @@ var (
 		"id":   filterNetworkByID,
 	}
 
-	// acceptFilters is an acceptable filter flag list
+	// AcceptedFilters is an acceptable filter flag list
 	// generated for validation. e.g.
 	// acceptedFilters = map[string]bool{
 	//     "type": true,
 	//     "name": true,
 	//     "id":   true,
 	// }
-	acceptedFilters = func() map[string]bool {
+	AcceptedFilters = func() map[string]bool {
 		ret := make(map[string]bool)
 		for k := range supportedFilters {
 			ret[k] = true
@@ -84,9 +84,9 @@ func filterNetworkByID(nws []libnetwork.Network, id string) (retNws []libnetwork
 	return retNws, nil
 }
 
-// filterAllNetworks filters network list according to user specified filter
+// FilterNetworks filters network list according to user specified filter
 // and returns user chosen networks
-func filterNetworks(nws []libnetwork.Network, filter filters.Args) ([]libnetwork.Network, error) {
+func FilterNetworks(nws []libnetwork.Network, filter filters.Args) ([]libnetwork.Network, error) {
 	// if filter is empty, return original network list
 	if filter.Len() == 0 {
 		return nws, nil

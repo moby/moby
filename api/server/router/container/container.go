@@ -1,17 +1,22 @@
 package container
 
-import "github.com/docker/docker/api/server/router"
+import (
+	"github.com/docker/docker/api/server/httputils"
+	"github.com/docker/docker/api/server/router"
+)
 
 // containerRouter is a router to talk with the container controller
 type containerRouter struct {
 	backend Backend
+	decoder httputils.ContainerDecoder
 	routes  []router.Route
 }
 
 // NewRouter initializes a new container router
-func NewRouter(b Backend) router.Router {
+func NewRouter(b Backend, decoder httputils.ContainerDecoder) router.Router {
 	r := &containerRouter{
 		backend: b,
+		decoder: decoder,
 	}
 	r.initRoutes()
 	return r

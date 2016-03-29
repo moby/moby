@@ -17,7 +17,6 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/reference"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	"golang.org/x/net/context"
@@ -40,7 +39,7 @@ func (s *imageRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *
 		pause = true
 	}
 
-	c, _, _, err := runconfig.DecodeContainerConfig(r.Body)
+	c, _, _, err := s.decoder.DecodeConfig(r.Body)
 	if err != nil && err != io.EOF { //Do not fail if body is empty.
 		return err
 	}

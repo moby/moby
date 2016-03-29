@@ -296,8 +296,8 @@ func createNetwork(c *check.C, config types.NetworkCreate, shouldSucceed bool) s
 		return ""
 	}
 
-	c.Assert(status, checker.Equals, http.StatusCreated)
 	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusCreated)
 
 	var nr types.NetworkCreateResponse
 	err = json.Unmarshal(resp, &nr)
