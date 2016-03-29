@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strings"
 	"time"
 	"unsafe"
 )
@@ -29,6 +30,14 @@ type Tx struct {
 	pages          map[pgid]*page
 	stats          TxStats
 	commitHandlers []func()
+
+	// WriteFlag specifies the flag for write-related methods like WriteTo().
+	// Tx opens the database file with the specified flag to copy the data.
+	//
+	// By default, the flag is unset, which works well for mostly in-memory
+	// workloads. For databases that are much larger than available RAM,
+	// set the flag to syscall.O_DIRECT to avoid trashing the page cache.
+	WriteFlag int
 }
 
 // init initializes the transaction.
@@ -160,6 +169,8 @@ func (tx *Tx) Commit() error {
 	// Free the old root bucket.
 	tx.meta.root.root = tx.root.root
 
+	opgid := tx.meta.pgid
+
 	// Free the freelist and allocate new pages for it. This will overestimate
 	// the size of the freelist but not underestimate the size (which would be bad).
 	tx.db.freelist.free(tx.meta.txid, tx.db.page(tx.meta.freelist))
@@ -174,6 +185,14 @@ func (tx *Tx) Commit() error {
 	}
 	tx.meta.freelist = p.id
 
+	// If the high water mark has moved up then attempt to grow the database.
+	if tx.meta.pgid > opgid {
+		if err := tx.db.grow(int(tx.meta.pgid+1) * tx.db.pageSize); err != nil {
+			tx.rollback()
+			return err
+		}
+	}
+
 	// Write dirty pages to disk.
 	startTime = time.Now()
 	if err := tx.write(); err != nil {
@@ -184,8 +203,17 @@ func (tx *Tx) Commit() error {
 	// If strict mode is enabled then perform a consistency check.
 	// Only the first consistency error is reported in the panic.
 	if tx.db.StrictMode {
-		if err, ok := <-tx.Check(); ok {
-			panic("check fail: " + err.Error())
+		ch := tx.Check()
+		var errs []string
+		for {
+			err, ok := <-ch
+			if !ok {
+				break
+			}
+			errs = append(errs, err.Error())
+		}
+		if len(errs) > 0 {
+			panic("check fail: " + strings.Join(errs, "\n"))
 		}
 	}
 
@@ -263,7 +291,7 @@ func (tx *Tx) close() {
 }
 
 // Copy writes the entire database to a writer.
-// This function exists for backwards compatibility. Use WriteTo() in
+// This function exists for backwards compatibility. Use WriteTo() instead.
 func (tx *Tx) Copy(w io.Writer) error {
 	_, err := tx.WriteTo(w)
 	return err
@@ -272,29 +300,47 @@ func (tx *Tx) Copy(w io.Writer) error {
 // WriteTo writes the entire database to a writer.
 // If err == nil then exactly tx.Size() bytes will be written into the writer.
 func (tx *Tx) WriteTo(w io.Writer) (n int64, err error) {
-	// Attempt to open reader directly.
-	var f *os.File
-	if f, err = os.OpenFile(tx.db.path, os.O_RDONLY|odirect, 0); err != nil {
-		// Fallback to a regular open if that doesn't work.
-		if f, err = os.OpenFile(tx.db.path, os.O_RDONLY, 0); err != nil {
-			return 0, err
-		}
+	// Attempt to open reader with WriteFlag
+	f, err := os.OpenFile(tx.db.path, os.O_RDONLY|tx.WriteFlag, 0)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = f.Close() }()
+
+	// Generate a meta page. We use the same page data for both meta pages.
+	buf := make([]byte, tx.db.pageSize)
+	page := (*page)(unsafe.Pointer(&buf[0]))
+	page.flags = metaPageFlag
+	*page.meta() = *tx.meta
+
+	// Write meta 0.
+	page.id = 0
+	page.meta().checksum = page.meta().sum64()
+	nn, err := w.Write(buf)
+	n += int64(nn)
+	if err != nil {
+		return n, fmt.Errorf("meta 0 copy: %s", err)
 	}
 
-	// Copy the meta pages.
-	tx.db.metalock.Lock()
-	n, err = io.CopyN(w, f, int64(tx.db.pageSize*2))
-	tx.db.metalock.Unlock()
+	// Write meta 1 with a lower transaction id.
+	page.id = 1
+	page.meta().txid -= 1
+	page.meta().checksum = page.meta().sum64()
+	nn, err = w.Write(buf)
+	n += int64(nn)
 	if err != nil {
-		_ = f.Close()
-		return n, fmt.Errorf("meta copy: %s", err)
+		return n, fmt.Errorf("meta 1 copy: %s", err)
+	}
+
+	// Move past the meta pages in the file.
+	if _, err := f.Seek(int64(tx.db.pageSize*2), os.SEEK_SET); err != nil {
+		return n, fmt.Errorf("seek: %s", err)
 	}
 
 	// Copy data pages.
 	wn, err := io.CopyN(w, f, tx.Size()-int64(tx.db.pageSize*2))
 	n += wn
 	if err != nil {
-		_ = f.Close()
 		return n, err
 	}
 
@@ -501,7 +547,7 @@ func (tx *Tx) writeMeta() error {
 }
 
 // page returns a reference to the page with a given id.
-// If page has been written to then a temporary bufferred page is returned.
+// If page has been written to then a temporary buffered page is returned.
 func (tx *Tx) page(id pgid) *page {
 	// Check the dirty pages first.
 	if tx.pages != nil {
