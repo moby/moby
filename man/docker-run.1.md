@@ -71,6 +71,7 @@ docker-run - Run a command in a new container
 [**--stop-signal**[=*SIGNAL*]]
 [**--shm-size**[=*[]*]]
 [**--sig-proxy**[=*true*]]
+[**--sysctl**[=*[]*]]
 [**-t**|**--tty**]
 [**--tmpfs**[=*[CONTAINER-DIR[:<OPTIONS>]*]]
 [**-u**|**--user**[=*USER*]]
@@ -491,6 +492,21 @@ its root filesystem mounted as read only prohibiting any writes.
    Size of `/dev/shm`. The format is `<number><unit>`.
    `number` must be greater than `0`.  Unit is optional and can be `b` (bytes), `k` (kilobytes), `m`(megabytes), or `g` (gigabytes).
    If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`.
+
+**--sysctl**=SYSCTL
+  Configure namespaced kernel parameters at runtime
+
+  IPC Namespace - current sysctls allowed:
+
+  kernel.msgmax, kernel.msgmnb, kernel.msgmni, kernel.sem, kernel.shmall, kernel.shmmax, kernel.shmmni, kernel.shm_rmid_forced
+  Sysctls beginning with fs.mqueue.*
+
+  If you use the `--ipc=host` option these sysctls will not be allowed.
+
+  Network Namespace - current sysctls allowed:
+      Sysctls beginning with net.*
+
+  If you use the `--net=host` option these sysctls will not be allowed.
 
 **--sig-proxy**=*true*|*false*
    Proxy received signals to the process (non-TTY mode only). SIGCHLD, SIGSTOP, and SIGKILL are not proxied. The default is *true*.
@@ -954,6 +970,23 @@ If you have set the `--exec-opt isolation=hyperv` option on the Docker `daemon`,
 $ docker run -d --isolation default busybox top
 $ docker run -d --isolation hyperv busybox top
 ```
+
+## Setting Namespaced Kernel Parameters (Sysctls)
+
+The `--sysctl` sets namespaced kernel parameters (sysctls) in the
+container. For example, to turn on IP forwarding in the containers
+network namespace, run this command:
+
+    $ docker run --sysctl net.ipv4.ip_forward=1 someimage
+
+Note:
+
+Not all sysctls are namespaced. docker does not support changing sysctls
+inside of a container that also modify the host system. As the kernel 
+evolves we expect to see more sysctls become namespaced.
+
+See the definition of the `--sysctl` option above for the current list of 
+supported sysctls.
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
