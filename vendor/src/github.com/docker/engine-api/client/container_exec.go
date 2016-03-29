@@ -19,7 +19,7 @@ func (cli *Client) ContainerExecCreate(ctx context.Context, config types.ExecCon
 	return response, err
 }
 
-// ContainerExecStart starts an exec process already create in the docker host.
+// ContainerExecStart starts an exec process already created in the docker host.
 func (cli *Client) ContainerExecStart(ctx context.Context, execID string, config types.ExecStartCheck) error {
 	resp, err := cli.post(ctx, "/exec/"+execID+"/start", nil, config, nil)
 	ensureReaderClosed(resp)

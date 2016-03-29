@@ -11,9 +11,9 @@ import (
 )
 
 // Args stores filter arguments as map key:{map key: bool}.
-// It contains a aggregation of the map of arguments (which are in the form
-// of -f 'key=value') based on the key, and store values for the same key
-// in an map with string keys and boolean values.
+// It contains an aggregation of the map of arguments (which are in the form
+// of -f 'key=value') based on the key, and stores values for the same key
+// in a map with string keys and boolean values.
 // e.g given -f 'label=label1=1' -f 'label=label2=2' -f 'image.name=ubuntu'
 // the args will be {"image.name":{"ubuntu":true},"label":{"label1=1":true,"label2=2":true}}
 type Args struct {
@@ -54,7 +54,7 @@ func ParseFlag(arg string, prev Args) (Args, error) {
 // ErrBadFormat is an error returned in case of bad format for a filter.
 var ErrBadFormat = errors.New("bad format of filter (expected name=value)")
 
-// ToParam packs the Args into an string for easy transport from client to server.
+// ToParam packs the Args into a string for easy transport from client to server.
 func ToParam(a Args) (string, error) {
 	// this way we don't URL encode {}, just empty space
 	if a.Len() == 0 {
@@ -190,7 +190,7 @@ func (filters Args) ExactMatch(field, source string) bool {
 		return true
 	}
 
-	// try to march full name value to avoid O(N) regular expression matching
+	// try to match full name value to avoid O(N) regular expression matching
 	if fieldValues[source] {
 		return true
 	}

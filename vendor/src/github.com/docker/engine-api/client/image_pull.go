@@ -10,7 +10,7 @@ import (
 	"github.com/docker/engine-api/types"
 )
 
-// ImagePull request the docker host to pull an image from a remote registry.
+// ImagePull requests the docker host to pull an image from a remote registry.
 // It executes the privileged function if the operation is unauthorized
 // and it tries one more time.
 // It's up to the caller to handle the io.ReadCloser and close it properly.
