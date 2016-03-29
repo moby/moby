@@ -75,9 +75,14 @@ func (p *v1Puller) Pull(ctx context.Context, ref reference.Named) error {
 func (p *v1Puller) pullRepository(ctx context.Context, ref reference.Named) error {
 	progress.Message(p.config.ProgressOutput, "", "Pulling repository "+p.repoInfo.FullName())
 
+	tagged, isTagged := ref.(reference.NamedTagged)
+
 	repoData, err := p.session.GetRepositoryData(p.repoInfo)
 	if err != nil {
 		if strings.Contains(err.Error(), "HTTP code: 404") {
+			if isTagged {
+				return fmt.Errorf("Error: image %s:%s not found", p.repoInfo.RemoteName(), tagged.Tag())
+			}
 			return fmt.Errorf("Error: image %s not found", p.repoInfo.RemoteName())
 		}
 		// Unexpected HTTP error
@@ -86,7 +91,6 @@ func (p *v1Puller) pullRepository(ctx context.Context, ref reference.Named) erro
 
 	logrus.Debugf("Retrieving the tag list")
 	var tagsList map[string]string
-	tagged, isTagged := ref.(reference.NamedTagged)
 	if !isTagged {
 		tagsList, err = p.session.GetRemoteTags(repoData.Endpoints, p.repoInfo)
 	} else {
