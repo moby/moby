@@ -472,28 +472,36 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 func (daemon *Daemon) getCgroupDriver() string {
 	cgroupDriver := cgroupFsDriver
 
-	// No other cgroup drivers are supported at the moment. Warn the
-	// user if they tried to set one other than cgroupfs
-	for _, option := range daemon.configStore.ExecOptions {
+	if UsingSystemd(daemon.configStore) {
+		cgroupDriver = cgroupSystemdDriver
+	}
+	return cgroupDriver
+}
+
+// getCD gets the raw value of the native.cgroupdriver option, if set.
+func getCD(config *Config) string {
+	for _, option := range config.ExecOptions {
 		key, val, err := parsers.ParseKeyValueOpt(option)
 		if err != nil || !strings.EqualFold(key, "native.cgroupdriver") {
 			continue
 		}
-		if val != cgroupFsDriver {
-			logrus.Warnf("cgroupdriver '%s' is not supported", val)
-		}
+		return val
 	}
-
-	return cgroupDriver
+	return ""
 }
 
-func usingSystemd(config *Config) bool {
-	// No support for systemd cgroup atm
-	return false
+// VerifyCgroupDriver validates native.cgroupdriver
+func VerifyCgroupDriver(config *Config) error {
+	cd := getCD(config)
+	if cd == "" || cd == cgroupFsDriver || cd == cgroupSystemdDriver {
+		return nil
+	}
+	return fmt.Errorf("native.cgroupdriver option %s not supported", cd)
 }
 
-func (daemon *Daemon) usingSystemd() bool {
-	return daemon.getCgroupDriver() == cgroupSystemdDriver
+// UsingSystemd returns true if cli option includes native.cgroupdriver=systemd
+func UsingSystemd(config *Config) bool {
+	return getCD(config) == cgroupSystemdDriver
 }
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
@@ -539,7 +547,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 			return warnings, fmt.Errorf("Cannot use the --read-only option when user namespaces are enabled")
 		}
 	}
-	if hostConfig.CgroupParent != "" && daemon.usingSystemd() {
+	if hostConfig.CgroupParent != "" && UsingSystemd(daemon.configStore) {
 		// CgroupParent for systemd cgroup should be named as "xxx.slice"
 		if len(hostConfig.CgroupParent) <= 6 || !strings.HasSuffix(hostConfig.CgroupParent, ".slice") {
 			return warnings, fmt.Errorf("cgroup-parent for systemd cgroup should be a valid slice named as \"xxx.slice\"")
@@ -560,7 +568,10 @@ func verifyDaemonSettings(config *Config) error {
 	if !config.bridgeConfig.EnableIPTables && config.bridgeConfig.EnableIPMasq {
 		config.bridgeConfig.EnableIPMasq = false
 	}
-	if config.CgroupParent != "" && usingSystemd(config) {
+	if err := VerifyCgroupDriver(config); err != nil {
+		return err
+	}
+	if config.CgroupParent != "" && UsingSystemd(config) {
 		if len(config.CgroupParent) <= 6 || !strings.HasSuffix(config.CgroupParent, ".slice") {
 			return fmt.Errorf("cgroup-parent for systemd cgroup should be a valid slice named as \"xxx.slice\"")
 		}
