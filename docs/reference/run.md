@@ -1415,9 +1415,6 @@ The example below mounts an empty tmpfs into the container with the `rw`,
     --volumes-from="": Mount all volumes from the given container(s)
 
 > **Note**:
-> The auto-creation of the host path has been [*deprecated*](../deprecated.md#auto-creating-missing-host-paths-for-bind-mounts).
-
-> **Note**:
 > When using systemd to manage the Docker daemon's start and stop, in the systemd
 > unit file there is an option to control mount propagation for the Docker daemon
 > itself, called `MountFlags`. The value of this setting may cause Docker to not
