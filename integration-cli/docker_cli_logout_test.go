@@ -52,5 +52,5 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithExternalAuth(c *check.C)
 	// check I cannot pull anymore
 	out, _, err := dockerCmdWithError("--config", tmp, "pull", repoName)
 	c.Assert(err, check.NotNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, fmt.Sprintf("Error: image dockercli/busybox not found"))
+	c.Assert(out, checker.Contains, "Error: image dockercli/busybox:authtest not found")
 }

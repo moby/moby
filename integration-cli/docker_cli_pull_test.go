@@ -42,17 +42,18 @@ func (s *DockerHubPullSuite) TestPullNonExistingImage(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
 	type entry struct {
-		Repo  string
-		Alias string
+		repo  string
+		alias string
+		tag   string
 	}
 
 	entries := []entry{
-		{"library/asdfasdf", "asdfasdf:foobar"},
-		{"library/asdfasdf", "library/asdfasdf:foobar"},
-		{"library/asdfasdf", "asdfasdf"},
-		{"library/asdfasdf", "asdfasdf:latest"},
-		{"library/asdfasdf", "library/asdfasdf"},
-		{"library/asdfasdf", "library/asdfasdf:latest"},
+		{"library/asdfasdf", "asdfasdf", "foobar"},
+		{"library/asdfasdf", "library/asdfasdf", "foobar"},
+		{"library/asdfasdf", "asdfasdf", ""},
+		{"library/asdfasdf", "asdfasdf", "latest"},
+		{"library/asdfasdf", "library/asdfasdf", ""},
+		{"library/asdfasdf", "library/asdfasdf", "latest"},
 	}
 
 	// The option field indicates "-a" or not.
@@ -71,15 +72,19 @@ func (s *DockerHubPullSuite) TestPullNonExistingImage(c *check.C) {
 		group.Add(1)
 		go func(e entry) {
 			defer group.Done()
-			out, err := s.CmdWithError("pull", e.Alias)
+			repoName := e.alias
+			if e.tag != "" {
+				repoName += ":" + e.tag
+			}
+			out, err := s.CmdWithError("pull", repoName)
 			recordChan <- record{e, "", out, err}
 		}(e)
-		if !strings.ContainsRune(e.Alias, ':') {
+		if e.tag == "" {
 			// pull -a on a nonexistent registry should fall back as well
 			group.Add(1)
 			go func(e entry) {
 				defer group.Done()
-				out, err := s.CmdWithError("pull", "-a", e.Alias)
+				out, err := s.CmdWithError("pull", "-a", e.alias)
 				recordChan <- record{e, "-a", out, err}
 			}(e)
 		}
@@ -96,11 +101,15 @@ func (s *DockerHubPullSuite) TestPullNonExistingImage(c *check.C) {
 			// Hub returns 401 rather than 404 for nonexistent repos over
 			// the v2 protocol - but we should end up falling back to v1,
 			// which does return a 404.
-			c.Assert(record.out, checker.Contains, fmt.Sprintf("Error: image %s not found", record.e.Repo), check.Commentf("expected image not found error messages"))
+			tag := record.e.tag
+			if tag == "" {
+				tag = "latest"
+			}
+			c.Assert(record.out, checker.Contains, fmt.Sprintf("Error: image %s:%s not found", record.e.repo, tag), check.Commentf("expected image not found error messages"))
 		} else {
 			// pull -a on a nonexistent registry should fall back as well
 			c.Assert(record.err, checker.NotNil, check.Commentf("expected non-zero exit status when pulling non-existing image: %s", record.out))
-			c.Assert(record.out, checker.Contains, fmt.Sprintf("Error: image %s not found", record.e.Repo), check.Commentf("expected image not found error messages"))
+			c.Assert(record.out, checker.Contains, fmt.Sprintf("Error: image %s not found", record.e.repo), check.Commentf("expected image not found error messages"))
 			c.Assert(record.out, checker.Not(checker.Contains), "unauthorized", check.Commentf(`message should not contain "unauthorized"`))
 		}
 	}
@@ -261,5 +270,5 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPullNoCredentialsNotFound(c *check
 	// gives a 404 (in this case the test registry doesn't handle v1 at all)
 	out, _, err := dockerCmdWithError("pull", privateRegistryURL+"/busybox")
 	c.Assert(err, check.NotNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "Error: image busybox not found")
+	c.Assert(out, checker.Contains, "Error: image busybox:latest not found")
 }
