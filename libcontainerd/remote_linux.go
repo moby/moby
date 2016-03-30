@@ -342,7 +342,7 @@ func (r *remote) runContainerdDaemon() error {
 	// Start a new instance
 	args := []string{"-l", r.rpcAddr, "--runtime", "docker-runc"}
 	if r.debugLog {
-		args = append(args, "--debug")
+		args = append(args, "--debug", "--metrics-interval=0")
 	}
 	if len(r.runtimeArgs) > 0 {
 		for _, v := range r.runtimeArgs {
@@ -352,7 +352,9 @@ func (r *remote) runContainerdDaemon() error {
 		logrus.Debugf("runContainerdDaemon: runtimeArgs: %s", args)
 	}
 	cmd := exec.Command(containerdBinary, args...)
-	// TODO: store logs?
+	// redirect containerd logs to docker logs
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	if err := cmd.Start(); err != nil {
 		return err
