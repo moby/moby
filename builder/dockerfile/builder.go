@@ -222,6 +222,17 @@ func (b *Builder) build(config *types.ImageBuildOptions, context builder.Context
 			}
 			return "", err
 		}
+
+		// Commit the layer when there are only one children in
+		// the dockerfile, this is only the `FROM` tag, and
+		// build labels. Otherwise, the new image won't be
+		// labeled properly.
+		// Commit here, so the ID of the final image is reported
+		// properly.
+		if len(b.dockerfile.Children) == 1 && len(b.options.Labels) > 0 {
+			b.commit("", b.runConfig.Cmd, "")
+		}
+
 		shortImgID = stringid.TruncateID(b.image)
 		fmt.Fprintf(b.Stdout, " ---> %s\n", shortImgID)
 		if b.options.Remove {

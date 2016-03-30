@@ -418,7 +418,20 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 		b.image = img.ImageID()
 
 		if img.RunConfig() != nil {
-			b.runConfig = img.RunConfig()
+			imgConfig := *img.RunConfig()
+			// inherit runConfig labels from the current
+			// state if they've been set already.
+			// Ensures that images with only a FROM
+			// get the labels populated properly.
+			if b.runConfig.Labels != nil {
+				if imgConfig.Labels == nil {
+					imgConfig.Labels = make(map[string]string)
+				}
+				for k, v := range b.runConfig.Labels {
+					imgConfig.Labels[k] = v
+				}
+			}
+			b.runConfig = &imgConfig
 		}
 	}
 

@@ -890,6 +890,21 @@ func inspectMountPointJSON(j, destination string) (types.MountPoint, error) {
 	return *m, nil
 }
 
+func inspectImage(name, filter string) (string, error) {
+	args := []string{"inspect", "--type", "image"}
+	if filter != "" {
+		format := fmt.Sprintf("{{%s}}", filter)
+		args = append(args, "-f", format)
+	}
+	args = append(args, name)
+	inspectCmd := exec.Command(dockerBinary, args...)
+	out, exitCode, err := runCommandWithOutput(inspectCmd)
+	if err != nil || exitCode != 0 {
+		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
+	}
+	return strings.TrimSpace(out), nil
+}
+
 func getIDByName(name string) (string, error) {
 	return inspectFieldWithError(name, "Id")
 }
