@@ -47,7 +47,7 @@ type formatter struct {
 }
 
 // NewWriter creates a new Writer writing to w.
-func NewWriter(w io.Writer) *Writer { return &Writer{w: w} }
+func NewWriter(w io.Writer) *Writer { return &Writer{w: w, preferPax: true} }
 
 // Flush finishes writing the current file (optional).
 func (tw *Writer) Flush() error {
@@ -201,23 +201,29 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
 		tw.usedBinary = true
 		f.formatNumeric(b, x)
 	}
+	var formatTime = func(b []byte, t time.Time, paxKeyword string) {
+		var unixTime int64
+		if !t.Before(minTime) && !t.After(maxTime) {
+			unixTime = t.Unix()
+		}
+		formatNumeric(b, unixTime, paxNone)
+
+		// Write a PAX header if the time didn't fit precisely.
+		if paxKeyword != "" && tw.preferPax && allowPax && (t.Nanosecond() != 0 || !t.Before(minTime) || !t.After(maxTime)) {
+			paxHeaders[paxKeyword] = formatPAXTime(t)
+		}
+	}
 
 	// keep a reference to the filename to allow to overwrite it later if we detect that we can use ustar longnames instead of pax
 	pathHeaderBytes := s.next(fileNameSize)
 
 	formatString(pathHeaderBytes, hdr.Name, paxPath)
 
-	// Handle out of range ModTime carefully.
-	var modTime int64
-	if !hdr.ModTime.Before(minTime) && !hdr.ModTime.After(maxTime) {
-		modTime = hdr.ModTime.Unix()
-	}
-
 	f.formatOctal(s.next(8), hdr.Mode)               // 100:108
 	formatNumeric(s.next(8), int64(hdr.Uid), paxUid) // 108:116
 	formatNumeric(s.next(8), int64(hdr.Gid), paxGid) // 116:124
 	formatNumeric(s.next(12), hdr.Size, paxSize)     // 124:136
-	formatNumeric(s.next(12), modTime, paxNone)      // 136:148 --- consider using pax for finer granularity
+	formatTime(s.next(12), hdr.ModTime, paxMtime)    // 136:148
 	s.next(8)                                        // chksum (148:156)
 	s.next(1)[0] = hdr.Typeflag                      // 156:157
 
@@ -265,6 +271,15 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
 	}
 
 	if allowPax {
+		if !hdr.AccessTime.IsZero() {
+			paxHeaders[paxAtime] = formatPAXTime(hdr.AccessTime)
+		}
+		if !hdr.ChangeTime.IsZero() {
+			paxHeaders[paxCtime] = formatPAXTime(hdr.ChangeTime)
+		}
+		if !hdr.CreationTime.IsZero() {
+			paxHeaders[paxCreationTime] = formatPAXTime(hdr.CreationTime)
+		}
 		for k, v := range hdr.Xattrs {
 			paxHeaders[paxXattr+k] = v
 		}
@@ -286,6 +301,16 @@ func (tw *Writer) writeHeader(hdr *Header, allowPax bool) error {
 
 	_, tw.err = tw.w.Write(header)
 	return tw.err
+}
+
+func formatPAXTime(t time.Time) string {
+	sec := t.Unix()
+	usec := t.Nanosecond()
+	s := strconv.FormatInt(sec, 10)
+	if usec != 0 {
+		s = fmt.Sprintf("%s.%09d", s, usec)
+	}
+	return s
 }
 
 // splitUSTARPath splits a path according to USTAR prefix and suffix rules.

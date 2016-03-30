@@ -125,7 +125,7 @@ func NewLayerReader(info DriverInfo, layerId string, parentLayerPaths []string) 
 			os.RemoveAll(path)
 			return nil, err
 		}
-		return &legacyLayerReaderWrapper{NewLegacyLayerReader(path)}, nil
+		return &legacyLayerReaderWrapper{newLegacyLayerReader(path)}, nil
 	}
 
 	layers, err := layerPathsToDescriptors(parentLayerPaths)
@@ -146,11 +146,11 @@ func NewLayerReader(info DriverInfo, layerId string, parentLayerPaths []string) 
 }
 
 type legacyLayerReaderWrapper struct {
-	*LegacyLayerReader
+	*legacyLayerReader
 }
 
 func (r *legacyLayerReaderWrapper) Close() error {
-	err := r.LegacyLayerReader.Close()
+	err := r.legacyLayerReader.Close()
 	os.RemoveAll(r.root)
 	return err
 }
