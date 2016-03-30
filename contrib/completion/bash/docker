@@ -1078,7 +1078,7 @@ _docker_help() {
 _docker_history() {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --no-trunc --quiet -q" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--help --human=false -H=false --no-trunc --quiet -q" -- "$cur" ) )
 			;;
 		*)
 			local counter=$(__docker_pos_first_nonflag)
