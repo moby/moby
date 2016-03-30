@@ -300,13 +300,15 @@ func (daemon *Daemon) restore() error {
 			}
 			// fixme: only if not running
 			// get list of containers we need to restart
-			if daemon.configStore.AutoRestart && !c.IsRunning() && !c.IsPaused() && c.ShouldRestart() {
-				mapLock.Lock()
-				restartContainers[c] = make(chan struct{})
-				mapLock.Unlock()
-			} else if !c.IsRunning() && !c.IsPaused() {
-				if mountid, err := daemon.layerStore.GetMountID(c.ID); err == nil {
-					daemon.cleanupMountsByID(mountid)
+			if !c.IsRunning() && !c.IsPaused() {
+				if c.ShouldRestart() {
+					mapLock.Lock()
+					restartContainers[c] = make(chan struct{})
+					mapLock.Unlock()
+				} else {
+					if mountid, err := daemon.layerStore.GetMountID(c.ID); err == nil {
+						daemon.cleanupMountsByID(mountid)
+					}
 				}
 			}
 

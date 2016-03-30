@@ -22,7 +22,6 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 
 	c := &Config{
 		CommonConfig: CommonConfig{
-			AutoRestart: true,
 			LogConfig: LogConfig{
 				Type:   "syslog",
 				Config: map[string]string{"tag": "test"},
@@ -36,9 +35,6 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 	}
 	if !cc.Debug {
 		t.Fatalf("expected %v, got %v\n", true, cc.Debug)
-	}
-	if !cc.AutoRestart {
-		t.Fatalf("expected %v, got %v\n", true, cc.AutoRestart)
 	}
 	if cc.LogConfig.Type != "syslog" {
 		t.Fatalf("expected syslog config, got %q\n", cc.LogConfig)
