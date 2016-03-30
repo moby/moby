@@ -45,3 +45,29 @@ func TestCalculBlockIO(t *testing.T) {
 		t.Fatalf("blkWrite = %d, want 579", blkWrite)
 	}
 }
+
+func TestCalculateCPUPercent(t *testing.T) {
+	var (
+		cpuPercent float64
+		cpuStats   = &types.StatsJSON{
+			Stats: types.Stats{
+				CPUStats: types.CPUStats{
+					CPUUsage: types.CPUUsage{
+						TotalUsage:  100,
+						PercpuUsage: []uint64{1, 2, 3},
+					},
+					SystemUsage: 200,
+				},
+			},
+		}
+	)
+	cpuPercent = calculateCPUPercent(50, 100, cpuStats)
+	if cpuPercent != 150.00 {
+		t.Fatalf("cpuPercent = %f, want 150.00", cpuPercent)
+	}
+
+	cpuPercent = calculateCPUPercent(100, 200, cpuStats)
+	if cpuPercent != 0.0 {
+		t.Fatalf("cpuPercent = %f, want 0.0", cpuPercent)
+	}
+}

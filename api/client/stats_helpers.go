@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/big"
 	"strings"
 	"sync"
 	"time"
@@ -185,13 +186,26 @@ func calculateCPUPercent(previousCPU, previousSystem uint64, v *types.StatsJSON)
 	var (
 		cpuPercent = 0.0
 		// calculate the change for the cpu usage of the container in between readings
-		cpuDelta = float64(v.CPUStats.CPUUsage.TotalUsage) - float64(previousCPU)
+		cpuDelta = v.CPUStats.CPUUsage.TotalUsage - previousCPU
 		// calculate the change for the entire system between readings
-		systemDelta = float64(v.CPUStats.SystemUsage) - float64(previousSystem)
+		systemDelta = v.CPUStats.SystemUsage - previousSystem
 	)
 
-	if systemDelta > 0.0 && cpuDelta > 0.0 {
-		cpuPercent = (cpuDelta / systemDelta) * float64(len(v.CPUStats.CPUUsage.PercpuUsage)) * 100.0
+	if systemDelta > 0 && cpuDelta > 0 {
+		// We use the math/big package to avoid having to convert the uint64s to floats
+		// and potentially suffering overflows due to the differences in precision between the types.
+		var (
+			preciseCPUDelta    = new(big.Float)
+			preciseSystemDelta = new(big.Float)
+			preciseCPUPercent  = new(big.Float)
+		)
+		preciseCPUDelta.SetUint64(cpuDelta)
+		preciseSystemDelta.SetUint64(systemDelta)
+		preciseCPUPercent.Quo(preciseCPUDelta, preciseSystemDelta)
+
+		// Now that we've shrunk the value to a quotient, we aren't worried about precsion loss.
+		cpuPercent, _ = preciseCPUPercent.Float64()
+		cpuPercent *= float64(len(v.CPUStats.CPUUsage.PercpuUsage)) * 100.0
 	}
 	return cpuPercent
 }
