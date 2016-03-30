@@ -148,9 +148,6 @@ on servers for running them. To get started, [check out the installation
 instructions in the
 documentation](https://docs.docker.com/engine/installation/).
 
-We also offer an [interactive tutorial](https://www.docker.com/tryit/)
-for quickly learning the basics of using Docker.
-
 Usage examples
 ==============
 
