@@ -143,7 +143,14 @@ type endpointJoinInfo struct {
 	gw                    net.IP
 	gw6                   net.IP
 	StaticRoutes          []*types.StaticRoute
+	driverTableEntries    []*tableEntry
 	disableGatewayService bool
+}
+
+type tableEntry struct {
+	tableName string
+	key       string
+	value     []byte
 }
 
 func (ep *endpoint) Info() EndpointInfo {
@@ -293,6 +300,15 @@ func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHo
 }
 
 func (ep *endpoint) AddTableEntry(tableName, key string, value []byte) error {
+	ep.Lock()
+	defer ep.Unlock()
+
+	ep.joinInfo.driverTableEntries = append(ep.joinInfo.driverTableEntries, &tableEntry{
+		tableName: tableName,
+		key:       key,
+		value:     value,
+	})
+
 	return nil
 }
 

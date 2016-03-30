@@ -171,6 +171,7 @@ type network struct {
 	drvOnce      *sync.Once
 	internal     bool
 	inDelete     bool
+	driverTables []string
 	sync.Mutex
 }
 
@@ -662,8 +663,15 @@ func (n *network) driver(load bool) (driverapi.Driver, error) {
 		return nil, err
 	}
 
+	c := n.getController()
 	n.Lock()
 	n.scope = cap.DataScope
+	if c.cfg.Daemon.IsAgent {
+		// If we are running in agent mode then all networks
+		// in libnetwork are local scope regardless of the
+		// backing driver.
+		n.scope = datastore.LocalScope
+	}
 	n.Unlock()
 	return d, nil
 }
@@ -718,6 +726,12 @@ func (n *network) delete(force bool) error {
 
 	if err = c.deleteFromStore(n); err != nil {
 		return fmt.Errorf("error deleting network from store: %v", err)
+	}
+
+	n.cancelDriverWatches()
+
+	if err = n.leaveCluster(); err != nil {
+		log.Errorf("Failed leaving network %s from the agent cluster: %v", n.Name(), err)
 	}
 
 	return nil
@@ -1423,4 +1437,12 @@ func (n *network) Labels() map[string]string {
 	}
 
 	return lbls
+}
+
+func (n *network) TableEventRegister(tableName string) error {
+	n.Lock()
+	defer n.Unlock()
+
+	n.driverTables = append(n.driverTables, tableName)
+	return nil
 }

@@ -136,6 +136,7 @@ type controller struct {
 	nmap           map[string]*netWatch
 	defOsSbox      osl.Sandbox
 	sboxOnce       sync.Once
+	agent          *agent
 	sync.Mutex
 }
 
@@ -151,6 +152,14 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		cfg:       config.ParseConfigOptions(cfgOptions...),
 		sandboxes: sandboxTable{},
 		svcDb:     make(map[string]svcInfo),
+	}
+
+	if err := c.agentInit(c.cfg.Daemon.Bind); err != nil {
+		return nil, err
+	}
+
+	if err := c.agentJoin(c.cfg.Daemon.Neighbors); err != nil {
+		return nil, err
 	}
 
 	if err := c.initStores(); err != nil {
@@ -235,6 +244,28 @@ func (c *controller) makeDriverConfig(ntype string) map[string]interface{} {
 
 var procReloadConfig = make(chan (bool), 1)
 
+func (c *controller) processAgentConfig(cfg *config.Config) (bool, error) {
+	if c.cfg.Daemon.IsAgent == cfg.Daemon.IsAgent {
+		// Agent configuration not changed
+		return false, nil
+	}
+
+	c.Lock()
+	c.cfg = cfg
+	c.Unlock()
+
+	if err := c.agentInit(c.cfg.Daemon.Bind); err != nil {
+		return false, err
+	}
+
+	if err := c.agentJoin(c.cfg.Daemon.Neighbors); err != nil {
+		c.agentClose()
+		return false, err
+	}
+
+	return true, nil
+}
+
 func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 	procReloadConfig <- true
 	defer func() { <-procReloadConfig }()
@@ -243,6 +274,16 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 	// Refuse the configuration if it alters an existing datastore client configuration.
 	update := false
 	cfg := config.ParseConfigOptions(cfgOptions...)
+
+	isAgentConfig, err := c.processAgentConfig(cfg)
+	if err != nil {
+		return err
+	}
+
+	if isAgentConfig {
+		return nil
+	}
+
 	for s := range c.cfg.Scopes {
 		if _, ok := cfg.Scopes[s]; !ok {
 			return types.ForbiddenErrorf("cannot accept new configuration because it removes an existing datastore client")
@@ -263,16 +304,6 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 	}
 	if !update {
 		return nil
-	}
-
-	c.Lock()
-	c.cfg = cfg
-	c.Unlock()
-
-	if c.discovery == nil && c.cfg.Cluster.Watcher != nil {
-		if err := c.initDiscovery(c.cfg.Cluster.Watcher); err != nil {
-			log.Errorf("Failed to Initialize Discovery after configuration update: %v", err)
-		}
 	}
 
 	var dsConfig *discoverapi.DatastoreConfigData
@@ -307,6 +338,12 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 		}
 		return false
 	})
+
+	if c.discovery == nil && c.cfg.Cluster.Watcher != nil {
+		if err := c.initDiscovery(c.cfg.Cluster.Watcher); err != nil {
+			log.Errorf("Failed to Initialize Discovery after configuration update: %v", err)
+		}
+	}
 
 	return nil
 }
@@ -421,6 +458,7 @@ func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver,
 		c.pushNodeDiscovery(driver, capability, hd.Fetch(), true)
 	}
 
+	c.agentDriverNotify(driver)
 	return nil
 }
 
@@ -465,7 +503,8 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		}
 	}()
 
-	if err = c.addNetwork(network); err != nil {
+	err = c.addNetwork(network)
+	if err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -496,6 +535,12 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		return nil, err
 	}
 
+	if err = network.joinCluster(); err != nil {
+		log.Errorf("Failed to join network %s into agent cluster: %v", name, err)
+	}
+
+	network.addDriverWatches()
+
 	return network, nil
 }
 
@@ -506,7 +551,7 @@ func (c *controller) addNetwork(n *network) error {
 	}
 
 	// Create the network
-	if err := d.CreateNetwork(n.id, n.generic, nil, n.getIPData(4), n.getIPData(6)); err != nil {
+	if err := d.CreateNetwork(n.id, n.generic, n, n.getIPData(4), n.getIPData(6)); err != nil {
 		return err
 	}
 
