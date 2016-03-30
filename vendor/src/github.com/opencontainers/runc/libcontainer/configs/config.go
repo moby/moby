@@ -3,7 +3,11 @@ package configs
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os/exec"
+	"time"
+
+	"github.com/Sirupsen/logrus"
 )
 
 type Rlimit struct {
@@ -136,7 +140,7 @@ type Config struct {
 
 	// Rlimits specifies the resource limits, such as max open files, to set in the container
 	// If Rlimits are not set, the container will inherit rlimits from the parent process
-	Rlimits []Rlimit `json:"rlimits"`
+	Rlimits []Rlimit `json:"rlimits,omitempty"`
 
 	// OomScoreAdj specifies the adjustment to be made by the kernel when calculating oom scores
 	// for a process. Valid values are between the range [-1000, '1000'], where processes with
@@ -175,8 +179,8 @@ type Config struct {
 	NoNewPrivileges bool `json:"no_new_privileges,omitempty"`
 
 	// Hooks are a collection of actions to perform at various container lifecycle events.
-	// Hooks are not able to be marshaled to json but they are also not needed to.
-	Hooks *Hooks `json:"-"`
+	// CommandHooks are serialized to JSON, but other hooks are not.
+	Hooks *Hooks
 
 	// Version is the version of opencontainer specification that is supported.
 	Version string `json:"version"`
@@ -195,6 +199,52 @@ type Hooks struct {
 
 	// Poststop commands are executed after the container init process exits.
 	Poststop []Hook
+}
+
+func (hooks *Hooks) UnmarshalJSON(b []byte) error {
+	var state struct {
+		Prestart  []CommandHook
+		Poststart []CommandHook
+		Poststop  []CommandHook
+	}
+
+	if err := json.Unmarshal(b, &state); err != nil {
+		return err
+	}
+
+	deserialize := func(shooks []CommandHook) (hooks []Hook) {
+		for _, shook := range shooks {
+			hooks = append(hooks, shook)
+		}
+
+		return hooks
+	}
+
+	hooks.Prestart = deserialize(state.Prestart)
+	hooks.Poststart = deserialize(state.Poststart)
+	hooks.Poststop = deserialize(state.Poststop)
+	return nil
+}
+
+func (hooks Hooks) MarshalJSON() ([]byte, error) {
+	serialize := func(hooks []Hook) (serializableHooks []CommandHook) {
+		for _, hook := range hooks {
+			switch chook := hook.(type) {
+			case CommandHook:
+				serializableHooks = append(serializableHooks, chook)
+			default:
+				logrus.Warnf("cannot serialize hook of type %T, skipping", hook)
+			}
+		}
+
+		return serializableHooks
+	}
+
+	return json.Marshal(map[string]interface{}{
+		"prestart":  serialize(hooks.Prestart),
+		"poststart": serialize(hooks.Poststart),
+		"poststop":  serialize(hooks.Poststop),
+	})
 }
 
 // HookState is the payload provided to a hook on execution.
@@ -226,10 +276,11 @@ func (f FuncHook) Run(s HookState) error {
 }
 
 type Command struct {
-	Path string   `json:"path"`
-	Args []string `json:"args"`
-	Env  []string `json:"env"`
-	Dir  string   `json:"dir"`
+	Path    string         `json:"path"`
+	Args    []string       `json:"args"`
+	Env     []string       `json:"env"`
+	Dir     string         `json:"dir"`
+	Timeout *time.Duration `json:"timeout"`
 }
 
 // NewCommandHooks will execute the provided command when the hook is run.
@@ -254,5 +305,19 @@ func (c Command) Run(s HookState) error {
 		Env:   c.Env,
 		Stdin: bytes.NewReader(b),
 	}
-	return cmd.Run()
+	errC := make(chan error, 1)
+	go func() {
+		errC <- cmd.Run()
+	}()
+	if c.Timeout != nil {
+		select {
+		case err := <-errC:
+			return err
+		case <-time.After(*c.Timeout):
+			cmd.Process.Kill()
+			cmd.Wait()
+			return fmt.Errorf("hook ran past specified timeout of %.1fs", c.Timeout.Seconds())
+		}
+	}
+	return <-errC
 }
