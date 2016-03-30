@@ -61,7 +61,6 @@ type CommonTLSOptions struct {
 // using the same names that the flags in the command line uses.
 type CommonConfig struct {
 	AuthorizationPlugins []string            `json:"authorization-plugins,omitempty"` // AuthorizationPlugins holds list of authorization plugins
-	AutoRestart          bool                `json:"-"`
 	Context              map[string][]string `json:"-"`
 	DisableBridge        bool                `json:"-"`
 	DNS                  []string            `json:"dns,omitempty"`
@@ -121,7 +120,6 @@ func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string)
 	cmd.Var(opts.NewNamedListOptsRef("exec-opts", &config.ExecOptions, nil), []string{"-exec-opt"}, usageFn("Set runtime execution options"))
 	cmd.StringVar(&config.Pidfile, []string{"p", "-pidfile"}, defaultPidFile, usageFn("Path to use for daemon PID file"))
 	cmd.StringVar(&config.Root, []string{"g", "-graph"}, defaultGraph, usageFn("Root of the Docker runtime"))
-	cmd.BoolVar(&config.AutoRestart, []string{"#r", "#-restart"}, true, usageFn("--restart on the daemon has been deprecated in favor of --restart policies on docker run"))
 	cmd.StringVar(&config.GraphDriver, []string{"s", "-storage-driver"}, "", usageFn("Storage driver to use"))
 	cmd.IntVar(&config.Mtu, []string{"#mtu", "-mtu"}, 0, usageFn("Set the containers network MTU"))
 	cmd.BoolVar(&config.RawLogs, []string{"-raw-logs"}, false, usageFn("Full timestamps without ANSI coloring"))
