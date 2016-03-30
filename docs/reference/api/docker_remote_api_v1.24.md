@@ -2836,7 +2836,8 @@ Status Codes:
           "Driver": "local",
           "Mountpoint": "/var/lib/docker/volumes/tardis"
         }
-      ]
+      ],
+      "Warnings": []
     }
 
 Query Parameters:
