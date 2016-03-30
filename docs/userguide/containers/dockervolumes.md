@@ -144,7 +144,7 @@ Mounting a host directory can be useful for testing. For example, you can mount
 source code inside a container. Then, change the source code and see its effect
 on the application in real time. The directory on the host must be specified as
 an absolute path and if the directory doesn't exist the Engine daemon automatically
-creates it for you.  This auto-creation of the host path has been [*deprecated*](../../deprecated.md#auto-creating-missing-host-paths-for-bind-mounts).
+creates it for you.
 
 Docker volumes default to mount in read-write mode, but you can also set it to
 be mounted read-only.
