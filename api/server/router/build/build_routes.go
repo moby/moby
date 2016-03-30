@@ -13,7 +13,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/builder"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -148,6 +148,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	if err != nil {
 		return errf(err)
 	}
+	buildOptions.AuthConfigs = authConfigs
 
 	remoteURL := r.FormValue("remote")
 
@@ -161,21 +162,6 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		return progress.NewProgressReader(in, progressOutput, r.ContentLength, "Downloading context", remoteURL)
 	}
 
-	buildContext, dockerfileName, err := builder.DetectContextFromRemoteURL(r.Body, remoteURL, createProgressReader)
-	if err != nil {
-		return errf(err)
-	}
-	defer func() {
-		if err := buildContext.Close(); err != nil {
-			logrus.Debugf("[BUILDER] failed to remove temporary context: %v", err)
-		}
-	}()
-	if len(dockerfileName) > 0 {
-		buildOptions.Dockerfile = dockerfileName
-	}
-
-	buildOptions.AuthConfigs = authConfigs
-
 	var out io.Writer = output
 	if buildOptions.SuppressOutput {
 		out = notVerboseBuffer
@@ -184,9 +170,14 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	stdout := &streamformatter.StdoutFormatter{Writer: out, StreamFormatter: sf}
 	stderr := &streamformatter.StderrFormatter{Writer: out, StreamFormatter: sf}
 
-	imgID, err := br.backend.Build(ctx, buildOptions,
-		builder.DockerIgnoreContext{ModifiableContext: buildContext},
-		stdout, stderr, out)
+	pg := backend.ProgressWriter{
+		Output:             out,
+		StdoutFormatter:    stdout,
+		StderrFormatter:    stderr,
+		ProgressReaderFunc: createProgressReader,
+	}
+
+	imgID, err := br.backend.BuildFromContext(ctx, r.Body, remoteURL, buildOptions, pg)
 	if err != nil {
 		return errf(err)
 	}
