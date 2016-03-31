@@ -218,6 +218,9 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 				return types.ForbiddenErrorf("cannot accept new configuration because it modifies an existing datastore client")
 			}
 		} else {
+			if err := c.initScopedStore(s, nSCfg); err != nil {
+				return err
+			}
 			update = true
 		}
 	}
@@ -228,10 +231,6 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 	c.Lock()
 	c.cfg = cfg
 	c.Unlock()
-
-	if err := c.initStores(); err != nil {
-		return err
-	}
 
 	if c.discovery == nil && c.cfg.Cluster.Watcher != nil {
 		if err := c.initDiscovery(c.cfg.Cluster.Watcher); err != nil {
