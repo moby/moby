@@ -813,7 +813,7 @@ func (s *DockerSuite) TestRunEnvironment(c *check.C) {
 	}
 	sort.Strings(goodEnv)
 	if len(goodEnv) != len(actualEnv) {
-		c.Fatalf("Wrong environment: should be %d variables, not: %q\n", len(goodEnv), strings.Join(actualEnv, ", "))
+		c.Fatalf("Wrong environment: should be %d variables, not %d: %q", len(goodEnv), len(actualEnv), strings.Join(actualEnv, ", "))
 	}
 	for i := range goodEnv {
 		if actualEnv[i] != goodEnv[i] {
@@ -848,7 +848,7 @@ func (s *DockerSuite) TestRunEnvironmentErase(c *check.C) {
 	}
 	sort.Strings(goodEnv)
 	if len(goodEnv) != len(actualEnv) {
-		c.Fatalf("Wrong environment: should be %d variables, not: %q\n", len(goodEnv), strings.Join(actualEnv, ", "))
+		c.Fatalf("Wrong environment: should be %d variables, not %d: %q", len(goodEnv), len(actualEnv), strings.Join(actualEnv, ", "))
 	}
 	for i := range goodEnv {
 		if actualEnv[i] != goodEnv[i] {
@@ -883,7 +883,7 @@ func (s *DockerSuite) TestRunEnvironmentOverride(c *check.C) {
 	}
 	sort.Strings(goodEnv)
 	if len(goodEnv) != len(actualEnv) {
-		c.Fatalf("Wrong environment: should be %d variables, not: %q\n", len(goodEnv), strings.Join(actualEnv, ", "))
+		c.Fatalf("Wrong environment: should be %d variables, not %d: %q", len(goodEnv), len(actualEnv), strings.Join(actualEnv, ", "))
 	}
 	for i := range goodEnv {
 		if actualEnv[i] != goodEnv[i] {
