@@ -36,7 +36,7 @@ func (s *DockerSuite) TestGetContainersAttachWebsocket(c *check.C) {
 
 	outChan := make(chan error)
 	go func() {
-		_, err := ws.Read(actual)
+		_, err := io.ReadFull(ws, actual)
 		outChan <- err
 		close(outChan)
 	}()
