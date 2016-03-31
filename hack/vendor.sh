@@ -59,7 +59,7 @@ clone git github.com/miekg/pkcs11 df8ae6ca730422dba20c768ff38ef7d79077a59f
 clone git github.com/docker/go v1.5.1-1-1-gbaf439e
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
-clone git github.com/opencontainers/runc 7b6c4c418d5090f4f11eee949fdf49afd15838c9 # libcontainer
+clone git github.com/opencontainers/runc 2441732d6fcc0fb0a542671a4372e0c7bc99c19e # libcontainer
 clone git github.com/opencontainers/specs 3ce138b1934bf227a418e241ead496c383eaba1c # specs
 clone git github.com/seccomp/libseccomp-golang 1b506fc7c24eec5a3693cdcbed40d9c226cfc6a1
 # libcontainer deps (see src/github.com/opencontainers/runc/Godeps/Godeps.json)
