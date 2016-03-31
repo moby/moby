@@ -1,10 +1,12 @@
 package stdcopy
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -28,6 +30,8 @@ const (
 	startingBufLen = 32*1024 + stdWriterPrefixLen + 1
 )
 
+var bufPool = &sync.Pool{New: func() interface{} { return bytes.NewBuffer(nil) }}
+
 // stdWriter is wrapper of io.Writer with extra customized info.
 type stdWriter struct {
 	io.Writer
@@ -35,28 +39,31 @@ type stdWriter struct {
 }
 
 // Write sends the buffer to the underneath writer.
-// It insert the prefix header before the buffer,
+// It inserts the prefix header before the buffer,
 // so stdcopy.StdCopy knows where to multiplex the output.
 // It makes stdWriter to implement io.Writer.
-func (w *stdWriter) Write(buf []byte) (n int, err error) {
+func (w *stdWriter) Write(p []byte) (n int, err error) {
 	if w == nil || w.Writer == nil {
 		return 0, errors.New("Writer not instantiated")
 	}
-	if buf == nil {
+	if p == nil {
 		return 0, nil
 	}
 
 	header := [stdWriterPrefixLen]byte{stdWriterFdIndex: w.prefix}
-	binary.BigEndian.PutUint32(header[stdWriterSizeIndex:], uint32(len(buf)))
+	binary.BigEndian.PutUint32(header[stdWriterSizeIndex:], uint32(len(p)))
+	buf := bufPool.Get().(*bytes.Buffer)
+	buf.Write(header[:])
+	buf.Write(p)
 
-	line := append(header[:], buf...)
-
-	n, err = w.Writer.Write(line)
+	n, err = w.Writer.Write(buf.Bytes())
 	n -= stdWriterPrefixLen
-
 	if n < 0 {
 		n = 0
 	}
+
+	buf.Reset()
+	bufPool.Put(buf)
 	return
 }
 
