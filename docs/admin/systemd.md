@@ -56,14 +56,14 @@ directory including the following:
 
 To check if the `docker.service` uses an `EnvironmentFile`:
 
-    $ sudo systemctl show docker | grep EnvironmentFile
+    $ systemctl show docker | grep EnvironmentFile
     EnvironmentFile=-/etc/sysconfig/docker (ignore_errors=yes)
 
 Alternatively, find out where the service file is located:
 
-    $ sudo systemctl status docker | grep Loaded
-       Loaded: loaded (/usr/lib/systemd/system/docker.service; enabled)
-    $ sudo grep EnvironmentFile /usr/lib/systemd/system/docker.service
+    $ systemctl show --property=FragmentPath docker
+    FragmentPath=/usr/lib/systemd/system/docker.service
+    $ grep EnvironmentFile /usr/lib/systemd/system/docker.service
     EnvironmentFile=-/etc/sysconfig/docker
 
 You can customize the Docker daemon options using override files as explained in the
@@ -143,7 +143,7 @@ Flush changes:
 
 Verify that the configuration has been loaded:
 
-    $ sudo systemctl show docker --property Environment
+    $ systemctl show --property=Environment docker
     Environment=HTTP_PROXY=http://proxy.example.com:80/
 
 Restart Docker:

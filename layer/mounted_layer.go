@@ -83,6 +83,18 @@ func (ml *mountedLayer) hasReferences() bool {
 	return len(ml.references) > 0
 }
 
+func (ml *mountedLayer) incActivityCount(ref RWLayer) error {
+	rl, ok := ml.references[ref]
+	if !ok {
+		return ErrLayerNotRetained
+	}
+
+	if err := rl.acquire(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (ml *mountedLayer) deleteReference(ref RWLayer) error {
 	rl, ok := ml.references[ref]
 	if !ok {
@@ -109,6 +121,15 @@ type referencedRWLayer struct {
 
 	activityL     sync.Mutex
 	activityCount int
+}
+
+func (rl *referencedRWLayer) acquire() error {
+	rl.activityL.Lock()
+	defer rl.activityL.Unlock()
+
+	rl.activityCount++
+
+	return nil
 }
 
 func (rl *referencedRWLayer) release() error {
