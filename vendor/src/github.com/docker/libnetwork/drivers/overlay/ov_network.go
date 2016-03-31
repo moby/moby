@@ -149,9 +149,9 @@ func (n *network) joinSubnetSandbox(s *subnet) error {
 
 func (n *network) leaveSandbox() {
 	n.Lock()
+	defer n.Unlock()
 	n.joinCnt--
 	if n.joinCnt != 0 {
-		n.Unlock()
 		return
 	}
 
@@ -162,15 +162,14 @@ func (n *network) leaveSandbox() {
 	for _, s := range n.subnets {
 		s.once = &sync.Once{}
 	}
-	n.Unlock()
 
 	n.destroySandbox()
 }
 
+// to be called while holding network lock
 func (n *network) destroySandbox() {
-	sbox := n.sandbox()
-	if sbox != nil {
-		for _, iface := range sbox.Info().Interfaces() {
+	if n.sbox != nil {
+		for _, iface := range n.sbox.Info().Interfaces() {
 			if err := iface.Remove(); err != nil {
 				logrus.Debugf("Remove interface %s failed: %v", iface.SrcName(), err)
 			}
@@ -197,8 +196,8 @@ func (n *network) destroySandbox() {
 			}
 		}
 
-		sbox.Destroy()
-		n.setSandbox(nil)
+		n.sbox.Destroy()
+		n.sbox = nil
 	}
 }
 

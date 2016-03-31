@@ -129,8 +129,8 @@ func (d *driver) Leave(nid, eid string) error {
 	if d.notifyCh != nil {
 		d.notifyCh <- ovNotify{
 			action: "leave",
-			nid:    nid,
-			eid:    eid,
+			nw:     n,
+			ep:     ep,
 		}
 	}
 

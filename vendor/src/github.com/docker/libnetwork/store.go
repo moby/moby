@@ -7,6 +7,18 @@ import (
 	"github.com/docker/libnetwork/datastore"
 )
 
+func (c *controller) initScopedStore(scope string, scfg *datastore.ScopeCfg) error {
+	store, err := datastore.NewDataStore(scope, scfg)
+	if err != nil {
+		return err
+	}
+	c.Lock()
+	c.stores = append(c.stores, store)
+	c.Unlock()
+
+	return nil
+}
+
 func (c *controller) initStores() error {
 	c.Lock()
 	if c.cfg == nil {
@@ -18,13 +30,9 @@ func (c *controller) initStores() error {
 	c.Unlock()
 
 	for scope, scfg := range scopeConfigs {
-		store, err := datastore.NewDataStore(scope, scfg)
-		if err != nil {
+		if err := c.initScopedStore(scope, scfg); err != nil {
 			return err
 		}
-		c.Lock()
-		c.stores = append(c.stores, store)
-		c.Unlock()
 	}
 
 	c.startWatch()
