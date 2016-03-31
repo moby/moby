@@ -1408,7 +1408,7 @@ Tag the image `name` into a repository
 
 **Example response**:
 
-        HTTP/1.1 201 OK
+        HTTP/1.1 201 Created
 
 Query Parameters:
 
@@ -1887,7 +1887,7 @@ Sets up an exec instance in a running container `id`
 
 **Example response**:
 
-        HTTP/1.1 201 OK
+        HTTP/1.1 201 Created
         Content-Type: application/json
 
         {
@@ -1929,8 +1929,8 @@ interactive session with the `exec` command.
 
 **Example response**:
 
-        HTTP/1.1 201 OK
-        Content-Type: application/json
+        HTTP/1.1 200 OK
+        Content-Type: application/vnd.docker.raw-stream
 
         {{ STREAM }}
 
@@ -1961,7 +1961,7 @@ This API is valid only if `tty` was specified as part of creating and starting t
 
 **Example response**:
 
-        HTTP/1.1 201 OK
+        HTTP/1.1 201 Created
         Content-Type: text/plain
 
 Query Parameters:
