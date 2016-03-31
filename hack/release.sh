@@ -181,7 +181,9 @@ release_build() {
 	binDir=bundles/$VERSION/cross/$GOOS/$GOARCH
 	tgzDir=bundles/$VERSION/tgz/$GOOS/$GOARCH
 	binary=docker-$VERSION
-	tgz=docker-$VERSION.tgz
+	zipExt=".tgz"
+	binaryExt=""
+	tgz=$binary$zipExt
 
 	latestBase=
 	if [ -z "$NOLATEST" ]; then
@@ -204,11 +206,12 @@ release_build() {
 			s3Os=Linux
 			;;
 		windows)
+			# this is windows use the .zip and .exe extentions for the files.
 			s3Os=Windows
-			binary+='.exe'
-			if [ "$latestBase" ]; then
-				latestBase+='.exe'
-			fi
+			zipExt=".zip"
+			binaryExt=".exe"
+			tgz=$binary$zipExt
+			binary+=$binaryExt
 			;;
 		*)
 			echo >&2 "error: can't convert $s3Os to an appropriate value for 'uname -s'"
@@ -235,11 +238,13 @@ release_build() {
 	esac
 
 	s3Dir="s3://$BUCKET_PATH/builds/$s3Os/$s3Arch"
-	latest=
+	# latest=
 	latestTgz=
 	if [ "$latestBase" ]; then
-		latest="$s3Dir/$latestBase"
-		latestTgz="$s3Dir/$latestBase.tgz"
+		# commented out since we aren't uploading binaries right now.
+		# latest="$s3Dir/$latestBase$binaryExt"
+		# we don't include the $binaryExt because we don't want docker.exe.zip
+		latestTgz="$s3Dir/$latestBase$zipExt"
 	fi
 
 	if [ ! -f "$tgzDir/$tgz" ]; then
@@ -308,6 +313,6 @@ echo "We have just pushed $VERSION to $(s3_url). You can download it with the fo
 echo
 echo "Darwin/OSX 64bit client tgz: $(s3_url)/builds/Darwin/x86_64/docker-$VERSION.tgz"
 echo "Linux 64bit tgz: $(s3_url)/builds/Linux/x86_64/docker-$VERSION.tgz"
-echo "Windows 64bit client tgz: $(s3_url)/builds/Windows/x86_64/docker-$VERSION.tgz"
-echo "Windows 32bit client tgz: $(s3_url)/builds/Windows/i386/docker-$VERSION.tgz"
+echo "Windows 64bit client tgz: $(s3_url)/builds/Windows/x86_64/docker-$VERSION.zip"
+echo "Windows 32bit client tgz: $(s3_url)/builds/Windows/i386/docker-$VERSION.zip"
 echo
