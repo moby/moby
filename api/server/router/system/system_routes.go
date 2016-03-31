@@ -55,11 +55,10 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 
-	timer := time.NewTimer(0)
-	timer.Stop()
+	var timeout <-chan time.Time
 	if until > 0 || untilNano > 0 {
 		dur := time.Unix(until, untilNano).Sub(time.Now())
-		timer = time.NewTimer(dur)
+		timeout = time.NewTimer(dur).C
 	}
 
 	ef, err := filters.FromParam(r.Form.Get("filters"))
@@ -94,7 +93,7 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 			if err := enc.Encode(jev); err != nil {
 				return err
 			}
-		case <-timer.C:
+		case <-timeout:
 			return nil
 		case <-ctx.Done():
 			logrus.Debug("Client context cancelled, stop sending events")
