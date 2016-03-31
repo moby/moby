@@ -996,7 +996,7 @@ Tag the image `name` into a repository
 
 **Example response**:
 
-        HTTP/1.1 201 OK
+        HTTP/1.1 201 Created
 
 Query Parameters:
 
