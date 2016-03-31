@@ -1874,8 +1874,8 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string, storageOpt map[string
 		return err
 	}
 
-	// Grow the container rootfs.
-	if devinfo.Size > 0 {
+	// Grow the container rootfs when size is a mismatch
+	if devinfo.Size > 0 && devinfo.Size != baseInfo.Size {
 		info, err := devices.lookupDevice(hash)
 		if err != nil {
 			return err
