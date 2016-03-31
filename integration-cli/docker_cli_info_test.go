@@ -164,3 +164,21 @@ func (s *DockerSuite) TestInfoDebug(c *check.C) {
 	c.Assert(out, checker.Contains, "EventsListeners")
 	c.Assert(out, checker.Contains, "Docker Root Dir")
 }
+
+func (s *DockerSuite) TestInsecureRegistries(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	registryCIDR := "192.168.1.0/24"
+	registryHost := "insecurehost.com:5000"
+
+	d := NewDaemon(c)
+	err := d.Start("--insecure-registry="+registryCIDR, "--insecure-registry="+registryHost)
+	c.Assert(err, checker.IsNil)
+	defer d.Stop()
+
+	out, err := d.Cmd("info")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "Insecure registries:\n")
+	c.Assert(out, checker.Contains, fmt.Sprintf(" %s\n", registryHost))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" %s\n", registryCIDR))
+}

@@ -59,6 +59,9 @@ Here is a sample output:
     Debug mode (server): false
     Username: xyz
     Registry: https://index.docker.io/v1/
+    Insecure registries:
+     myinsecurehost:5000
+     127.0.0.0/8
 	
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)

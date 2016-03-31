@@ -151,5 +151,19 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	if info.ClusterAdvertise != "" {
 		fmt.Fprintf(cli.out, "Cluster Advertise: %s\n", info.ClusterAdvertise)
 	}
+
+	if info.RegistryConfig != nil && (len(info.RegistryConfig.InsecureRegistryCIDRs) > 0 || len(info.RegistryConfig.IndexConfigs) > 0) {
+		fmt.Fprintln(cli.out, "Insecure registries:")
+		for _, registry := range info.RegistryConfig.IndexConfigs {
+			if registry.Secure == false {
+				fmt.Fprintf(cli.out, " %s\n", registry.Name)
+			}
+		}
+
+		for _, registry := range info.RegistryConfig.InsecureRegistryCIDRs {
+			mask, _ := registry.Mask.Size()
+			fmt.Fprintf(cli.out, " %s/%d\n", registry.IP.String(), mask)
+		}
+	}
 	return nil
 }
