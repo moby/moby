@@ -35,6 +35,7 @@ message CreateContainerRequest {
 	string stdout = 5; // path to file where stdout will be written (optional)
 	string stderr = 6; // path to file where stderr will be written (optional)
 	repeated string labels = 7;
+	bool noPivotRoot = 8;
 }
 
 message CreateContainerResponse {
