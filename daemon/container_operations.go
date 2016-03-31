@@ -720,7 +720,7 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 
 	sb, err := daemon.netController.SandboxByID(sid)
 	if err != nil {
-		logrus.Errorf("error locating sandbox id %s: %v", sid, err)
+		logrus.Warnf("error locating sandbox id %s: %v", sid, err)
 		return
 	}
 

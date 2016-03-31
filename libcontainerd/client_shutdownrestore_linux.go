@@ -31,8 +31,10 @@ func (clnt *client) Restore(containerID string, options ...CreateOption) error {
 			select {
 			case <-time.After(2 * time.Second):
 			case <-w.wait():
+				return nil
 			}
 		case <-w.wait():
+			return nil
 		}
 	}
 	return clnt.setExited(containerID)
