@@ -64,6 +64,8 @@ func (ctr *container) start() error {
 		Stdin:      ctr.fifo(syscall.Stdin),
 		Stdout:     ctr.fifo(syscall.Stdout),
 		Stderr:     ctr.fifo(syscall.Stderr),
+		// check to see if we are running in ramdisk to disable pivot root
+		NoPivotRoot: os.Getenv("DOCKER_RAMDISK") != "",
 	}
 	ctr.client.appendContainer(ctr)
 
