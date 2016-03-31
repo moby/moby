@@ -334,7 +334,10 @@ func (ls *layerStore) get(l ChainID) *roLayer {
 }
 
 func (ls *layerStore) Get(l ChainID) (Layer, error) {
-	layer := ls.get(l)
+	ls.layerL.Lock()
+	defer ls.layerL.Unlock()
+
+	layer := ls.getWithoutLock(l)
 	if layer == nil {
 		return nil, ErrLayerDoesNotExist
 	}
