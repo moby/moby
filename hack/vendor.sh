@@ -89,5 +89,5 @@ clone git google.golang.org/api dc6d2353af16e2a2b0ff6986af051d473a4ed468 https:/
 clone git google.golang.org/cloud dae7e3d993bc3812a2185af60552bb6b847e52a0 https://code.googlesource.com/gocloud
 
 # containerd
-clone git github.com/docker/containerd 142e22a4dce86f3b8ce068a0b043489d21976bb8
+clone git github.com/docker/containerd 07c95162cdcead88dfe4ca0ffb3cea02375ec54d
 clean
