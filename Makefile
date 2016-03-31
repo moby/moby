@@ -72,10 +72,11 @@ bundles:
 cross: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross
 
-
 win: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh win
 
+tgz: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross tgz
 
 deb: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-deb
