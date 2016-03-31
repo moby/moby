@@ -331,7 +331,7 @@ func (s *DockerSuite) TestRunWithVolumesFromExited(c *check.C) {
 
 	// Create a file in a volume
 	if daemonPlatform == "windows" {
-		out, exitCode = dockerCmd(c, "run", "--name", "test-data", "--volume", `c:\some\dir`, WindowsBaseImage, `cmd /c echo hello > c:\some\dir\file`)
+		out, exitCode = dockerCmd(c, "run", "--name", "test-data", "--volume", `c:\some\dir`, WindowsBaseImage, "cmd", "/c", `echo hello > c:\some\dir\file`)
 	} else {
 		out, exitCode = dockerCmd(c, "run", "--name", "test-data", "--volume", "/some/dir", "busybox", "touch", "/some/dir/file")
 	}
@@ -341,7 +341,7 @@ func (s *DockerSuite) TestRunWithVolumesFromExited(c *check.C) {
 
 	// Read the file from another container using --volumes-from to access the volume in the second container
 	if daemonPlatform == "windows" {
-		out, exitCode = dockerCmd(c, "run", "--volumes-from", "test-data", WindowsBaseImage, `cmd /c type c:\some\dir\file`)
+		out, exitCode = dockerCmd(c, "run", "--volumes-from", "test-data", WindowsBaseImage, "cmd", "/c", `type c:\some\dir\file`)
 	} else {
 		out, exitCode = dockerCmd(c, "run", "--volumes-from", "test-data", "busybox", "cat", "/some/dir/file")
 	}
@@ -1901,15 +1901,8 @@ func (s *DockerSuite) TestRunWithBadDevice(c *check.C) {
 func (s *DockerSuite) TestRunEntrypoint(c *check.C) {
 	name := "entrypoint"
 
-	// Note Windows does not have an echo.exe built in.
-	var out, expected string
-	if daemonPlatform == "windows" {
-		out, _ = dockerCmd(c, "run", "--name", name, "--entrypoint", "cmd /s /c echo", "busybox", "foobar")
-		expected = "foobar\r\n"
-	} else {
-		out, _ = dockerCmd(c, "run", "--name", name, "--entrypoint", "/bin/echo", "busybox", "-n", "foobar")
-		expected = "foobar"
-	}
+	out, _ := dockerCmd(c, "run", "--name", name, "--entrypoint", "echo", "busybox", "-n", "foobar")
+	expected := "foobar"
 
 	if out != expected {
 		c.Fatalf("Output should be %q, actual out: %q", expected, out)
@@ -2623,18 +2616,17 @@ func (s *DockerSuite) TestRunTTYWithPipe(c *check.C) {
 
 func (s *DockerSuite) TestRunNonLocalMacAddress(c *check.C) {
 	addr := "00:16:3E:08:00:50"
-	cmd := "ifconfig"
-	image := "busybox"
+	args := []string{"run", "--mac-address", addr}
 	expected := addr
 
-	if daemonPlatform == "windows" {
-		cmd = "ipconfig /all"
-		image = WindowsBaseImage
+	if daemonPlatform != "windows" {
+		args = append(args, "busybox", "ifconfig")
+	} else {
+		args = append(args, WindowsBaseImage, "ipconfig", "/all")
 		expected = strings.Replace(strings.ToUpper(addr), ":", "-", -1)
-
 	}
 
-	if out, _ := dockerCmd(c, "run", "--mac-address", addr, image, cmd); !strings.Contains(out, expected) {
+	if out, _ := dockerCmd(c, args...); !strings.Contains(out, expected) {
 		c.Fatalf("Output should have contained %q: %s", expected, out)
 	}
 }
