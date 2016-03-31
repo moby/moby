@@ -36,7 +36,7 @@ func (opts *ListOpts) String() string {
 	return fmt.Sprintf("%v", []string((*opts.values)))
 }
 
-// Set validates if needed the input value and add it to the
+// Set validates if needed the input value and adds it to the
 // internal slice.
 func (opts *ListOpts) Set(value string) error {
 	if opts.validator != nil {

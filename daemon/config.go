@@ -33,7 +33,7 @@ var flatOptions = map[string]bool{
 
 // LogConfig represents the default log configuration.
 // It includes json tags to deserialize configuration from a file
-// using the same names that the flags in the command line uses.
+// using the same names that the flags in the command line use.
 type LogConfig struct {
 	Type   string            `json:"log-driver,omitempty"`
 	Config map[string]string `json:"log-opts,omitempty"`
@@ -48,17 +48,17 @@ type commonBridgeConfig struct {
 
 // CommonTLSOptions defines TLS configuration for the daemon server.
 // It includes json tags to deserialize configuration from a file
-// using the same names that the flags in the command line uses.
+// using the same names that the flags in the command line use.
 type CommonTLSOptions struct {
 	CAFile   string `json:"tlscacert,omitempty"`
 	CertFile string `json:"tlscert,omitempty"`
 	KeyFile  string `json:"tlskey,omitempty"`
 }
 
-// CommonConfig defines the configuration of a docker daemon which are
+// CommonConfig defines the configuration of a docker daemon which is
 // common across platforms.
 // It includes json tags to deserialize configuration from a file
-// using the same names that the flags in the command line uses.
+// using the same names that the flags in the command line use.
 type CommonConfig struct {
 	AuthorizationPlugins []string            `json:"authorization-plugins,omitempty"` // AuthorizationPlugins holds list of authorization plugins
 	AutoRestart          bool                `json:"-"`
