@@ -23,8 +23,6 @@ type State struct {
 type Winsize struct {
 	Height uint16
 	Width  uint16
-	x      uint16
-	y      uint16
 }
 
 const (
@@ -194,8 +192,7 @@ func GetWinsize(fd uintptr) (*Winsize, error) {
 	winsize := &Winsize{
 		Width:  uint16(info.Window.Right - info.Window.Left + 1),
 		Height: uint16(info.Window.Bottom - info.Window.Top + 1),
-		x:      0,
-		y:      0}
+	}
 
 	return winsize, nil
 }

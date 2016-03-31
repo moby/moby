@@ -5,9 +5,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/Sirupsen/logrus"
 	"net"
 	"net/http"
+
+	"github.com/Sirupsen/logrus"
 )
 
 // ResponseModifier allows authorization plugins to read and modify the content of the http.response
@@ -51,10 +52,6 @@ func NewResponseModifier(rw http.ResponseWriter) ResponseModifier {
 type responseModifier struct {
 	// The original response writer
 	rw http.ResponseWriter
-
-	r *http.Request
-
-	status int
 	// body holds the response body
 	body []byte
 	// header holds the response header

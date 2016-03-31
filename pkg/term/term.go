@@ -27,8 +27,6 @@ type State struct {
 type Winsize struct {
 	Height uint16
 	Width  uint16
-	x      uint16
-	y      uint16
 }
 
 // StdStreams returns the standard streams (stdin, stdout, stedrr).
