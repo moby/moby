@@ -68,9 +68,3 @@ func (m *mockmetadataclient) Region() (string, error) {
 	output := <-m.regionResult
 	return output.successResult, output.errorResult
 }
-
-func test() {
-	_ = &logStream{
-		client: newMockClient(),
-	}
-}
