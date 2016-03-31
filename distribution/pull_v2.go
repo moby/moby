@@ -278,7 +278,19 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 		ld.verifier = nil
 		return nil, 0, xfer.DoNotRetry{Err: err}
 	}
-	return tmpFile, size, nil
+
+	// hand off the temporary file to the download manager, so it will only
+	// be closed once
+	ld.tmpFile = nil
+
+	return ioutils.NewReadCloserWrapper(tmpFile, func() error {
+		tmpFile.Close()
+		err := os.RemoveAll(tmpFile.Name())
+		if err != nil {
+			logrus.Errorf("Failed to remove temp file: %s", tmpFile.Name())
+		}
+		return err
+	}), size, nil
 }
 
 func (ld *v2LayerDescriptor) Close() {
