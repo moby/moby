@@ -1501,25 +1501,54 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithSocketAsVolume(c *check.C) {
 	c.Assert(s.d.Restart(), check.IsNil)
 }
 
-func (s *DockerDaemonSuite) TestCleanupMountsAfterCrash(c *check.C) {
+// os.Kill should kill daemon ungracefully, leaving behind container mounts.
+// A subsequent daemon restart shoud clean up said mounts.
+func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *check.C) {
 	c.Assert(s.d.StartWithBusybox(), check.IsNil)
 
 	out, err := s.d.Cmd("run", "-d", "busybox", "top")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
 	id := strings.TrimSpace(out)
-	c.Assert(s.d.Kill(), check.IsNil)
+	c.Assert(s.d.cmd.Process.Signal(os.Kill), check.IsNil)
+	mountOut, err := ioutil.ReadFile("/proc/self/mountinfo")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
+
+	// container mounts should exist even after daemon has crashed.
+	comment := check.Commentf("%s should stay mounted from older daemon start:\nDaemon root repository %s\n%s", id, s.d.folder, mountOut)
+	c.Assert(strings.Contains(string(mountOut), id), check.Equals, true, comment)
 
 	// kill the container
 	runCmd := exec.Command(ctrBinary, "--address", "/var/run/docker/libcontainerd/docker-containerd.sock", "containers", "kill", id)
 	if out, ec, err := runCommandWithOutput(runCmd); err != nil {
-		c.Fatalf("Failed to run ctr, ExitCode: %d, err: '%v' output: '%s' cid: '%s'\n", ec, err, out, id)
+		c.Fatalf("Failed to run ctr, ExitCode: %d, err: %v output: %s id: %s\n", ec, err, out, id)
 	}
 
-	// Give time to containerd to process the command if we don't
-	// the exit event might be received after we do the inspect
+	// restart daemon.
+	if err := s.d.Restart(); err != nil {
+		c.Fatal(err)
+	}
+
+	// Now, container mounts should be gone.
+	mountOut, err = ioutil.ReadFile("/proc/self/mountinfo")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
+	comment = check.Commentf("%s is still mounted from older daemon start:\nDaemon root repository %s\n%s", id, s.d.folder, mountOut)
+	c.Assert(strings.Contains(string(mountOut), id), check.Equals, false, comment)
+}
+
+// os.Interrupt should perform a graceful daemon shutdown and hence cleanup mounts.
+func (s *DockerDaemonSuite) TestCleanupMountsAfterGracefulShutdown(c *check.C) {
+	c.Assert(s.d.StartWithBusybox(), check.IsNil)
+
+	out, err := s.d.Cmd("run", "-d", "busybox", "top")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+	id := strings.TrimSpace(out)
+
+	// Send SIGINT and daemon should clean up
+	c.Assert(s.d.cmd.Process.Signal(os.Interrupt), check.IsNil)
+
+	// Wait a bit for the daemon to handle cleanups.
 	time.Sleep(3 * time.Second)
 
-	c.Assert(s.d.Start(), check.IsNil)
 	mountOut, err := ioutil.ReadFile("/proc/self/mountinfo")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
 

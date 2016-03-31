@@ -487,9 +487,28 @@ func (ls *layerStore) GetMountID(id string) (string, error) {
 	if !ok {
 		return "", ErrMountDoesNotExist
 	}
-	logrus.Debugf("GetRWLayer id: %s -> mountID: %s", id, mount.mountID)
+	logrus.Debugf("GetMountID id: %s -> mountID: %s", id, mount.mountID)
 
 	return mount.mountID, nil
+}
+
+// ReinitRWLayer reinitializes a given mount to the layerstore, specifically
+// initializing the usage count. It should strictly only be used in the
+// daemon's restore path to restore state of live containers.
+func (ls *layerStore) ReinitRWLayer(l RWLayer) error {
+	ls.mountL.Lock()
+	defer ls.mountL.Unlock()
+
+	m, ok := ls.mounts[l.Name()]
+	if !ok {
+		return ErrMountDoesNotExist
+	}
+
+	if err := m.incActivityCount(l); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (ls *layerStore) ReleaseRWLayer(l RWLayer) ([]Metadata, error) {
