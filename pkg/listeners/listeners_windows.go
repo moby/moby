@@ -2,7 +2,6 @@ package listeners
 
 import (
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -45,7 +44,7 @@ func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) (ls []net.List
 		ls = append(ls, l)
 
 	default:
-		return nil, errors.New("Invalid protocol format. Windows only supports tcp and npipe.")
+		return nil, fmt.Errorf("invalid protocol format: windows only supports tcp and npipe")
 	}
 
 	return
