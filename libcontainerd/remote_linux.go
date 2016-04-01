@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -351,11 +352,19 @@ func (r *remote) runContainerdDaemon() error {
 		}
 		logrus.Debugf("runContainerdDaemon: runtimeArgs: %s", args)
 	}
+
 	cmd := exec.Command(containerdBinary, args...)
 	// redirect containerd logs to docker logs
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	cmd.Env = nil
+	// clear the NOTIFY_SOCKET from the env when starting containerd
+	for _, e := range os.Environ() {
+		if !strings.HasPrefix(e, "NOTIFY_SOCKET") {
+			cmd.Env = append(cmd.Env, e)
+		}
+	}
 	if err := cmd.Start(); err != nil {
 		return err
 	}
