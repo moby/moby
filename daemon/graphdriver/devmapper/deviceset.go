@@ -1862,26 +1862,25 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string, storageOpt map[string
 		return fmt.Errorf("devmapper: device %s already exists. Deleted=%v", hash, info.Deleted)
 	}
 
-	devinfo := &devInfo{}
-
-	if err := devices.parseStorageOpt(storageOpt, devinfo); err != nil {
+	size, err := devices.parseStorageOpt(storageOpt)
+	if err != nil {
 		return err
 	}
 
-	if devinfo.Size == 0 {
-		devinfo.Size = baseInfo.Size
+	if size == 0 {
+		size = baseInfo.Size
 	}
 
-	if devinfo.Size < baseInfo.Size {
+	if size < baseInfo.Size {
 		return fmt.Errorf("devmapper: Container size cannot be smaller than %s", units.HumanSize(float64(baseInfo.Size)))
 	}
 
-	if err := devices.createRegisterSnapDevice(hash, baseInfo, devinfo.Size); err != nil {
+	if err := devices.createRegisterSnapDevice(hash, baseInfo, size); err != nil {
 		return err
 	}
 
 	// Grow the container rootfs.
-	if devinfo.Size > 0 {
+	if size > 0 {
 		info, err := devices.lookupDevice(hash)
 		if err != nil {
 			return err
@@ -1895,7 +1894,7 @@ func (devices *DeviceSet) AddDevice(hash, baseHash string, storageOpt map[string
 	return nil
 }
 
-func (devices *DeviceSet) parseStorageOpt(storageOpt map[string]string, devinfo *devInfo) error {
+func (devices *DeviceSet) parseStorageOpt(storageOpt map[string]string) (uint64, error) {
 
 	// Read size to change the block device size per container.
 	for key, val := range storageOpt {
@@ -1904,15 +1903,15 @@ func (devices *DeviceSet) parseStorageOpt(storageOpt map[string]string, devinfo 
 		case "size":
 			size, err := units.RAMInBytes(val)
 			if err != nil {
-				return err
+				return 0, err
 			}
-			devinfo.Size = uint64(size)
+			return uint64(size), nil
 		default:
-			return fmt.Errorf("Unknown option %s", key)
+			return 0, fmt.Errorf("Unknown option %s", key)
 		}
 	}
 
-	return nil
+	return 0, nil
 }
 
 func (devices *DeviceSet) markForDeferredDeletion(info *devInfo) error {
