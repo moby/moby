@@ -188,6 +188,8 @@ func parseAddress(address string) (string, string, error) {
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
+		case "env":
+		case "labels":
 		case "syslog-address":
 		case "syslog-facility":
 		case "syslog-tag":
