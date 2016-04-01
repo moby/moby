@@ -4,6 +4,8 @@ import (
 	"archive/tar"
 	"bytes"
 	"net/http"
+	"regexp"
+	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
@@ -254,4 +256,61 @@ func (s *DockerSuite) TestBuildApiDockerfileSymlink(c *check.C) {
 	// Dockerfile -> /etc/passwd becomes etc/passwd from the context which is
 	// a nonexistent file.
 	c.Assert(string(out), checker.Contains, "Cannot locate specified Dockerfile: Dockerfile", check.Commentf("Didn't complain about leaving build context"))
+}
+
+func (s *DockerSuite) TestBuildApiUnnormalizedTarPaths(c *check.C) {
+	// Make sure that build context tars with entries of the form
+	// x/./y don't cause caching false positives.
+
+	buildFromTarContext := func(fileContents []byte) string {
+		buffer := new(bytes.Buffer)
+		tw := tar.NewWriter(buffer)
+		defer tw.Close()
+
+		dockerfile := []byte(`FROM busybox
+	COPY dir /dir/`)
+		err := tw.WriteHeader(&tar.Header{
+			Name: "Dockerfile",
+			Size: int64(len(dockerfile)),
+		})
+		//failed to write tar file header
+		c.Assert(err, checker.IsNil)
+
+		_, err = tw.Write(dockerfile)
+		// failed to write Dockerfile in tar file content
+		c.Assert(err, checker.IsNil)
+
+		err = tw.WriteHeader(&tar.Header{
+			Name: "dir/./file",
+			Size: int64(len(fileContents)),
+		})
+		//failed to write tar file header
+		c.Assert(err, checker.IsNil)
+
+		_, err = tw.Write(fileContents)
+		// failed to write file contents in tar file content
+		c.Assert(err, checker.IsNil)
+
+		// failed to close tar archive
+		c.Assert(tw.Close(), checker.IsNil)
+
+		res, body, err := sockRequestRaw("POST", "/build", buffer, "application/x-tar")
+		c.Assert(err, checker.IsNil)
+		c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
+
+		out, err := readBody(body)
+		c.Assert(err, checker.IsNil)
+		lines := strings.Split(string(out), "\n")
+		c.Assert(len(lines), checker.GreaterThan, 1)
+		c.Assert(lines[len(lines)-2], checker.Matches, ".*Successfully built [0-9a-f]{12}.*")
+
+		re := regexp.MustCompile("Successfully built ([0-9a-f]{12})")
+		matches := re.FindStringSubmatch(lines[len(lines)-2])
+		return matches[1]
+	}
+
+	imageA := buildFromTarContext([]byte("abc"))
+	imageB := buildFromTarContext([]byte("def"))
+
+	c.Assert(imageA, checker.Not(checker.Equals), imageB)
 }
