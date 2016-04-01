@@ -372,19 +372,19 @@ func subnetMatches(subnet, data string) (bool, error) {
 }
 
 func networkUsage() string {
-	networkCommands := map[string]string{
-		"create":     "Create a network",
-		"connect":    "Connect container to a network",
-		"disconnect": "Disconnect container from a network",
-		"inspect":    "Display detailed network information",
-		"ls":         "List all networks",
-		"rm":         "Remove a network",
+	networkCommands := [][]string{
+		{"create", "Create a network"},
+		{"connect", "Connect container to a network"},
+		{"disconnect", "Disconnect container from a network"},
+		{"inspect", "Display detailed network information"},
+		{"ls", "List all networks"},
+		{"rm", "Remove a network"},
 	}
 
 	help := "Commands:\n"
 
-	for cmd, description := range networkCommands {
-		help += fmt.Sprintf("  %-25.25s%s\n", cmd, description)
+	for _, cmd := range networkCommands {
+		help += fmt.Sprintf("  %-25.25s%s\n", cmd[0], cmd[1])
 	}
 
 	help += fmt.Sprintf("\nRun 'docker network COMMAND --help' for more information on a command.")
