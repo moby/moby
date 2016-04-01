@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"text/tabwriter"
 
 	flag "github.com/docker/docker/pkg/mflag"
@@ -42,8 +43,13 @@ func (cli *NetworkCli) CmdNetwork(chain string, args ...string) error {
 func (cli *NetworkCli) CmdNetworkCreate(chain string, args ...string) error {
 	cmd := cli.Subcmd(chain, "create", "NETWORK-NAME", "Creates a new network with a name specified by the user", false)
 	flDriver := cmd.String([]string{"d", "-driver"}, "", "Driver to manage the Network")
+	flID := cmd.String([]string{"-id"}, "", "Network ID string")
+	flOpts := cmd.String([]string{"o", "-opt"}, "", "Network options")
 	flInternal := cmd.Bool([]string{"-internal"}, false, "Config the network to be internal")
 	flIPv6 := cmd.Bool([]string{"-ipv6"}, false, "Enable IPv6 on the network")
+	flSubnet := cmd.String([]string{"-subnet"}, "", "Subnet option")
+	flRange := cmd.String([]string{"-ip-range"}, "", "Range option")
+
 	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
@@ -56,9 +62,30 @@ func (cli *NetworkCli) CmdNetworkCreate(chain string, args ...string) error {
 	if *flIPv6 {
 		networkOpts[netlabel.EnableIPv6] = "true"
 	}
+
+	driverOpts := make(map[string]string)
+	if *flOpts != "" {
+		opts := strings.Split(*flOpts, ",")
+		for _, opt := range opts {
+			driverOpts[netlabel.Key(opt)] = netlabel.Value(opt)
+		}
+	}
+
+	var icList []ipamConf
+	if *flSubnet != "" {
+		ic := ipamConf{
+			PreferredPool: *flSubnet,
+		}
+
+		if *flRange != "" {
+			ic.SubPool = *flRange
+		}
+
+		icList = append(icList, ic)
+	}
+
 	// Construct network create request body
-	var driverOpts []string
-	nc := networkCreate{Name: cmd.Arg(0), NetworkType: *flDriver, DriverOpts: driverOpts, NetworkOpts: networkOpts}
+	nc := networkCreate{Name: cmd.Arg(0), NetworkType: *flDriver, ID: *flID, IPv4Conf: icList, DriverOpts: driverOpts, NetworkOpts: networkOpts}
 	obj, _, err := readBody(cli.call("POST", "/networks", nc, nil))
 	if err != nil {
 		return err

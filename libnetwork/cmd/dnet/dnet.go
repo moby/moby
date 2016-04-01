@@ -91,6 +91,15 @@ func processConfig(cfg *config.Config) []config.Option {
 		dd = cfg.Daemon.DefaultDriver
 	}
 	options = append(options, config.OptionDefaultDriver(dd))
+	if cfg.Daemon.IsAgent {
+		options = append(options, config.OptionAgent())
+	}
+
+	if cfg.Daemon.Bind != "" {
+		options = append(options, config.OptionBind(cfg.Daemon.Bind))
+	}
+
+	options = append(options, config.OptionNeighbors(cfg.Daemon.Neighbors))
 
 	if cfg.Daemon.Labels != nil {
 		options = append(options, config.OptionLabels(cfg.Daemon.Labels))
