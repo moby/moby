@@ -230,8 +230,9 @@ Use the **--exec-opt** flags to specify options to the execution driver.
 The following options are available:
 
 #### native.cgroupdriver
-Specifies the management of the container's `cgroups`. Only `cgroupfs` can be specified
-`cgroupfs` at the moment.
+Specifies the management of the container's `cgroups`. You can specify `cgroupfs`
+or `systemd`. If you specify `systemd` and it is not available, the system errors
+out.
 
 #### Client
 For specific client examples please see the man page for the specific Docker

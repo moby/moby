@@ -26,6 +26,7 @@ parent = "smn_cli"
       --force-rm                      Always remove intermediate containers
       --help                          Print usage
       --isolation=""                  Container isolation technology
+      --label=[]                      Set metadata for an image
       -m, --memory=""                 Memory limit for all build containers
       --memory-swap=""                A positive integer equal to memory plus swap. Specify -1 to enable unlimited swap.
       --no-cache                      Do not use cache when building the image

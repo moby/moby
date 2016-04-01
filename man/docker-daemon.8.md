@@ -15,6 +15,7 @@ docker-daemon - Enable daemon mode
 [**--cluster-advertise**[=*[]*]]
 [**--cluster-store-opt**[=*map[]*]]
 [**--config-file**[=*/etc/docker/daemon.json*]]
+[**--containerd**[=*SOCKET-PATH*]]
 [**-D**|**--debug**]
 [**--default-gateway**[=*DEFAULT-GATEWAY*]]
 [**--default-gateway-v6**[=*DEFAULT-GATEWAY-V6*]]
@@ -100,6 +101,9 @@ format.
 
 **--config-file**="/etc/docker/daemon.json"
   Specifies the JSON file path to load the configuration from.
+
+**--containerd**=""
+  Path to containerd socket.
 
 **-D**, **--debug**=*true*|*false*
   Enable debug mode. Default is false.
@@ -487,7 +491,7 @@ pool and that should automatically resolve it. If loop devices are being
 used, then stop docker, grow the size of loop files and restart docker and
 that should resolve the issue.
 
-Example use: `docker daemon --storage-opt dm.min_free_space_percent=10%`
+Example use: `docker daemon --storage-opt dm.min_free_space=10%`
 
 ## ZFS options
 

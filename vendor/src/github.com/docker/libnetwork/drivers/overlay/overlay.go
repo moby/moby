@@ -180,13 +180,24 @@ func (d *driver) nodeJoin(node string, self bool) {
 }
 
 func (d *driver) pushLocalEndpointEvent(action, nid, eid string) {
+	n := d.network(nid)
+	if n == nil {
+		logrus.Debugf("Error pushing local endpoint event for network %s", nid)
+		return
+	}
+	ep := n.endpoint(eid)
+	if ep == nil {
+		logrus.Debugf("Error pushing local endpoint event for ep %s / %s", nid, eid)
+		return
+	}
+
 	if !d.isSerfAlive() {
 		return
 	}
 	d.notifyCh <- ovNotify{
 		action: "join",
-		nid:    nid,
-		eid:    eid,
+		nw:     n,
+		ep:     ep,
 	}
 }
 

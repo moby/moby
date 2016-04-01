@@ -74,6 +74,7 @@ RUN apt-get update && apt-get install -y \
 	xfsprogs \
 	libzfs-dev \
 	tar \
+	zip \
 	--no-install-recommends \
 	&& pip install awscli==1.10.15 \
 	&& ln -snf /usr/bin/clang-3.8 /usr/local/bin/clang \
@@ -102,7 +103,7 @@ RUN set -x \
 	&& export OSXCROSS_PATH="/osxcross" \
 	&& git clone https://github.com/tpoechtrager/osxcross.git $OSXCROSS_PATH \
 	&& ( cd $OSXCROSS_PATH && git checkout -q $OSX_CROSS_COMMIT) \
-	&& curl -sSL https://s3.dockerproject.org/darwin/${OSX_SDK}.tar.xz -o "${OSXCROSS_PATH}/tarballs/${OSX_SDK}.tar.xz" \
+	&& curl -sSL https://s3.dockerproject.org/darwin/v2/${OSX_SDK}.tar.xz -o "${OSXCROSS_PATH}/tarballs/${OSX_SDK}.tar.xz" \
 	&& UNATTENDED=yes OSX_VERSION_MIN=10.6 ${OSXCROSS_PATH}/build.sh
 ENV PATH /osxcross/target/bin:$PATH
 
@@ -202,7 +203,7 @@ RUN useradd --create-home --gid docker unprivilegeduser
 
 VOLUME /var/lib/docker
 WORKDIR /go/src/github.com/docker/docker
-ENV DOCKER_BUILDTAGS apparmor seccomp selinux
+ENV DOCKER_BUILDTAGS apparmor pkcs11 seccomp selinux
 
 # Let us use a .bashrc file
 RUN ln -sfv $PWD/.bashrc ~/.bashrc
@@ -247,7 +248,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install runc
-ENV RUNC_COMMIT d563bd134293c1026976a8f5764d5df5612f1dbf
+ENV RUNC_COMMIT 0c1c615ebd6a15545b6a82ead01d2745ea49b242
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone git://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
@@ -257,7 +258,7 @@ RUN set -x \
 	&& cp runc /usr/local/bin/docker-runc
 
 # Install containerd
-ENV CONTAINERD_COMMIT c761085e92be09df9d5298f852c328b538f5dc2f
+ENV CONTAINERD_COMMIT 07c95162cdcead88dfe4ca0ffb3cea02375ec54d
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone git://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \

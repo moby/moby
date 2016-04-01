@@ -13,6 +13,7 @@ docker-build - Build a new image from the source code at PATH
 [**-f**|**--file**[=*PATH/Dockerfile*]]
 [**--force-rm**]
 [**--isolation**[=*default*]]
+[**--label**[=*[]*]]
 [**--no-cache**]
 [**--pull**]
 [**-q**|**--quiet**]
@@ -70,6 +71,9 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
 
 **--isolation**="*default*"
    Isolation specifies the type of isolation technology used by containers. 
+
+**--label**=*label*
+   Set metadata for an image
 
 **--no-cache**=*true*|*false*
    Do not use cache when building the image. The default is *false*.

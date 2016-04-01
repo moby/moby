@@ -121,6 +121,10 @@ func (ls *mockLayerStore) GetMountID(string) (string, error) {
 	return "", errors.New("not implemented")
 }
 
+func (ls *mockLayerStore) ReinitRWLayer(layer.RWLayer) error {
+	return errors.New("not implemented")
+}
+
 func (ls *mockLayerStore) Cleanup() error {
 	return nil
 }

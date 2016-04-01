@@ -10,12 +10,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	containerd "github.com/docker/containerd/api/grpc/types"
+	"github.com/docker/docker/pkg/locker"
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/utils"
 	"golang.org/x/net/context"
@@ -45,6 +47,7 @@ type remote struct {
 	clients     []*client
 	eventTsPath string
 	pastEvents  map[string]*containerd.Event
+	runtimeArgs []string
 }
 
 // New creates a fresh instance of libcontainerd remote.
@@ -169,9 +172,9 @@ func (r *remote) Cleanup() {
 func (r *remote) Client(b Backend) (Client, error) {
 	c := &client{
 		clientCommon: clientCommon{
-			backend:          b,
-			containerMutexes: make(map[string]*sync.Mutex),
-			containers:       make(map[string]*container),
+			backend:    b,
+			containers: make(map[string]*container),
+			locker:     locker.New(),
 		},
 		remote:        r,
 		exitNotifiers: make(map[string]*exitNotifier),
@@ -210,7 +213,7 @@ func (r *remote) getLastEventTimestamp() int64 {
 	t := time.Now()
 
 	fi, err := os.Stat(r.eventTsPath)
-	if os.IsNotExist(err) {
+	if os.IsNotExist(err) || fi.Size() == 0 {
 		return t.Unix()
 	}
 
@@ -340,11 +343,28 @@ func (r *remote) runContainerdDaemon() error {
 	// Start a new instance
 	args := []string{"-l", r.rpcAddr, "--runtime", "docker-runc"}
 	if r.debugLog {
-		args = append(args, "--debug", "true")
+		args = append(args, "--debug", "--metrics-interval=0")
 	}
+	if len(r.runtimeArgs) > 0 {
+		for _, v := range r.runtimeArgs {
+			args = append(args, "--runtime-args")
+			args = append(args, v)
+		}
+		logrus.Debugf("runContainerdDaemon: runtimeArgs: %s", args)
+	}
+
 	cmd := exec.Command(containerdBinary, args...)
-	// TODO: store logs?
+	// redirect containerd logs to docker logs
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	cmd.Env = nil
+	// clear the NOTIFY_SOCKET from the env when starting containerd
+	for _, e := range os.Environ() {
+		if !strings.HasPrefix(e, "NOTIFY_SOCKET") {
+			cmd.Env = append(cmd.Env, e)
+		}
+	}
 	if err := cmd.Start(); err != nil {
 		return err
 	}
@@ -373,6 +393,21 @@ func (a rpcAddr) Apply(r Remote) error {
 		return nil
 	}
 	return fmt.Errorf("WithRemoteAddr option not supported for this remote")
+}
+
+// WithRuntimeArgs sets the list of runtime args passed to containerd
+func WithRuntimeArgs(args []string) RemoteOption {
+	return runtimeArgs(args)
+}
+
+type runtimeArgs []string
+
+func (rt runtimeArgs) Apply(r Remote) error {
+	if remote, ok := r.(*remote); ok {
+		remote.runtimeArgs = rt
+		return nil
+	}
+	return fmt.Errorf("WithRuntimeArgs option not supported for this remote")
 }
 
 // WithStartDaemon defines if libcontainerd should also run containerd daemon.

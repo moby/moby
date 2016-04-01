@@ -21,13 +21,14 @@ weight = -1
       -b, --bridge=""                        Attach containers to a network bridge
       --bip=""                               Specify network bridge IP
       --cgroup-parent=                       Set parent cgroup for all containers
-      -D, --debug                            Enable debug mode
-      --default-gateway=""                   Container default gateway IPv4 address
-      --default-gateway-v6=""                Container default gateway IPv6 address
       --cluster-store=""                     URL of the distributed storage backend
       --cluster-advertise=""                 Address of the daemon instance on the cluster
       --cluster-store-opt=map[]              Set cluster options
       --config-file=/etc/docker/daemon.json  Daemon configuration file
+      --containerd                           Path to containerd socket
+      -D, --debug                            Enable debug mode
+      --default-gateway=""                   Container default gateway IPv4 address
+      --default-gateway-v6=""                Container default gateway IPv6 address
       --dns=[]                               DNS server to use
       --dns-opt=[]                           DNS options to use
       --dns-search=[]                        DNS search domains to use
@@ -462,7 +463,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker daemon --storage-opt dm.min_free_space_percent=10%
+        $ docker daemon --storage-opt dm.min_free_space=10%
 
 Currently supported options of `zfs`:
 
@@ -490,12 +491,13 @@ with the `--exec-opt` flag. All the flag's options have the `native` prefix. A
 single `native.cgroupdriver` option is available.
 
 The `native.cgroupdriver` option specifies the management of the container's
-cgroups. You can specify only specify `cgroupfs` at the moment.  If you omit the
+cgroups. You can specify only specify `cgroupfs` or `systemd`. If you specify
+`systemd` and it is not available, the system errors out. If you omit the
 `native.cgroupdriver` option,` cgroupfs` is used.
 
-This example explicitely sets the `cgroupdriver` to `cgroupfs`:
+This example sets the `cgroupdriver` to `systemd`:
 
-    $ sudo docker daemon --exec-opt native.cgroupdriver=cgroupfs
+    $ sudo docker daemon --exec-opt native.cgroupdriver=systemd
 
 Setting this option applies to all containers the daemon launches.
 

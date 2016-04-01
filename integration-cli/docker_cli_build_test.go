@@ -6680,11 +6680,9 @@ func (s *DockerSuite) TestBuildLabel(c *check.C) {
 	_, err := buildImage(name, `
   FROM `+minimalBaseImage()+`
   LABEL default foo
-`, false, []string{"--label", testLabel}...)
+`, false, "--label", testLabel)
 
-	if err != nil {
-		c.Fatal("error building image with labels", err)
-	}
+	c.Assert(err, checker.IsNil)
 
 	res := inspectFieldJSON(c, name, "Config.Labels")
 
@@ -6697,6 +6695,28 @@ func (s *DockerSuite) TestBuildLabel(c *check.C) {
 	if _, ok := labels[testLabel]; !ok {
 		c.Fatal("label not found in image")
 	}
+}
+
+func (s *DockerSuite) TestBuildLabelOneNode(c *check.C) {
+	name := "testbuildlabel"
+
+	_, err := buildImage(name, "FROM busybox", false, "--label", "foo=bar")
+
+	c.Assert(err, checker.IsNil)
+
+	res, err := inspectImage(name, "json .Config.Labels")
+	c.Assert(err, checker.IsNil)
+	var labels map[string]string
+
+	if err := json.Unmarshal([]byte(res), &labels); err != nil {
+		c.Fatal(err)
+	}
+
+	v, ok := labels["foo"]
+	if !ok {
+		c.Fatal("label `foo` not found in image")
+	}
+	c.Assert(v, checker.Equals, "bar")
 }
 
 func (s *DockerSuite) TestBuildLabelCacheCommit(c *check.C) {
@@ -6713,11 +6733,9 @@ func (s *DockerSuite) TestBuildLabelCacheCommit(c *check.C) {
 	_, err := buildImage(name, `
   FROM `+minimalBaseImage()+`
   LABEL default foo
-`, true, []string{"--label", testLabel}...)
+`, true, "--label", testLabel)
 
-	if err != nil {
-		c.Fatal("error building image with labels", err)
-	}
+	c.Assert(err, checker.IsNil)
 
 	res := inspectFieldJSON(c, name, "Config.Labels")
 
