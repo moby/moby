@@ -214,6 +214,13 @@ func (fms *fileMetadataStore) SetMountID(mount string, mountID string) error {
 	return ioutil.WriteFile(fms.getMountFilename(mount, "mount-id"), []byte(mountID), 0644)
 }
 
+func (fms *fileMetadataStore) SetMountPath(mount string, mountPath string) error {
+	if err := os.MkdirAll(fms.getMountDirectory(mount), 0755); err != nil {
+		return err
+	}
+	return ioutil.WriteFile(fms.getMountFilename(mount, "mount-path"), []byte(mountPath), 0644)
+}
+
 func (fms *fileMetadataStore) SetInitID(mount string, init string) error {
 	if err := os.MkdirAll(fms.getMountDirectory(mount), 0755); err != nil {
 		return err
@@ -226,6 +233,20 @@ func (fms *fileMetadataStore) SetMountParent(mount string, parent ChainID) error
 		return err
 	}
 	return ioutil.WriteFile(fms.getMountFilename(mount, "parent"), []byte(digest.Digest(parent).String()), 0644)
+}
+
+func (fms *fileMetadataStore) GetMountPath(mount string) (string, error) {
+	contentBytes, err := ioutil.ReadFile(fms.getMountFilename(mount, "mount-path"))
+	if err != nil {
+		return "", err
+	}
+
+	mountPath := strings.TrimSpace(string(contentBytes))
+	if _, err := os.Stat(mountPath); err != nil {
+		return "", err
+	}
+
+	return mountPath, nil
 }
 
 func (fms *fileMetadataStore) GetMountID(mount string) (string, error) {

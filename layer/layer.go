@@ -210,10 +210,12 @@ type MetadataStore interface {
 	GetCacheID(ChainID) (string, error)
 	TarSplitReader(ChainID) (io.ReadCloser, error)
 
+	SetMountPath(string, string) error
 	SetMountID(string, string) error
 	SetInitID(string, string) error
 	SetMountParent(string, ChainID) error
 
+	GetMountPath(string) (string, error)
 	GetMountID(string) (string, error)
 	GetInitID(string) (string, error)
 	GetMountParent(string) (ChainID, error)

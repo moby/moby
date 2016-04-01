@@ -4,18 +4,21 @@ import (
 	"io"
 	"sync"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/archive"
 )
 
 type mountedLayer struct {
-	name       string
-	mountID    string
-	initID     string
-	parent     *roLayer
-	path       string
-	layerStore *layerStore
-
-	references map[RWLayer]*referencedRWLayer
+	name         string
+	mountID      string
+	initID       string
+	parent       *roLayer
+	path         string
+	pathCache    string
+	layerStore   *layerStore
+	activeMount  int
+	activeMountL sync.Mutex
+	references   map[RWLayer]*referencedRWLayer
 }
 
 func (ml *mountedLayer) cacheParent() string {
@@ -50,11 +53,68 @@ func (ml *mountedLayer) Parent() Layer {
 	return nil
 }
 
+func (ml *mountedLayer) incActiveMount() {
+	ml.activeMountL.Lock()
+	ml.activeMount++
+	ml.activeMountL.Unlock()
+}
+
+func (ml *mountedLayer) decActiveMount() {
+	ml.activeMountL.Lock()
+	ml.activeMount--
+	ml.activeMountL.Unlock()
+}
+
 func (ml *mountedLayer) Mount(mountLabel string) (string, error) {
-	return ml.layerStore.driver.Get(ml.mountID, mountLabel)
+	var path string
+	var err error
+
+	ml.activeMountL.Lock()
+	activeMount := ml.activeMount
+	ml.activeMountL.Unlock()
+
+	if activeMount > 0 {
+		path = ml.pathCache // load from cache.
+		if path == "" {
+			path, err = ml.layerStore.store.GetMountPath(ml.name) // load from disk
+			if err != nil {
+				logrus.Debugf("mountedLayer GetMountPath failed with err %s", err)
+				return "", err
+			}
+		}
+		ml.incActiveMount()
+		return path, nil
+	}
+
+	path, err = ml.layerStore.driver.Get(ml.mountID, mountLabel)
+	if err != nil {
+		logrus.Debugf("mountedLayer Mount Get failed due to err: %s", err)
+		return "", err
+	}
+
+	if ml.pathCache == "" {
+		err = ml.layerStore.store.SetMountPath(ml.name, path) // save in disk
+		if err != nil {
+			logrus.Debugf("mountedLayer Mount SetMountPath failed due to err: %s", err)
+			return "", err
+
+		}
+		ml.pathCache = path // save in cache
+	}
+
+	ml.incActiveMount()
+	return path, nil
 }
 
 func (ml *mountedLayer) Unmount() error {
+	ml.activeMountL.Lock()
+	activeMount := ml.activeMount
+	ml.activeMountL.Unlock()
+
+	if activeMount > 0 {
+		ml.decActiveMount()
+		return nil
+	}
 	return ml.layerStore.driver.Put(ml.mountID)
 }
 
@@ -128,6 +188,7 @@ func (rl *referencedRWLayer) acquire() error {
 	defer rl.activityL.Unlock()
 
 	rl.activityCount++
+	rl.mountedLayer.incActiveMount()
 
 	return nil
 }
@@ -153,17 +214,14 @@ func (rl *referencedRWLayer) Mount(mountLabel string) (string, error) {
 		return "", ErrLayerNotRetained
 	}
 
-	if rl.activityCount > 0 {
-		rl.activityCount++
-		return rl.path, nil
-	}
-
 	m, err := rl.mountedLayer.Mount(mountLabel)
-	if err == nil {
-		rl.activityCount++
-		rl.path = m
+	if err != nil {
+		return "", err
 	}
-	return m, err
+	rl.activityCount++
+	rl.path = m
+	return rl.path, nil
+
 }
 
 // Unmount decrements the activity count and unmounts the underlying layer
@@ -180,9 +238,6 @@ func (rl *referencedRWLayer) Unmount() error {
 	}
 
 	rl.activityCount--
-	if rl.activityCount > 0 {
-		return nil
-	}
 
 	return rl.mountedLayer.Unmount()
 }

@@ -54,7 +54,6 @@ func (daemon *Daemon) cleanupMountsFromReaderByID(reader io.Reader, id string, u
 		return fmt.Errorf("Error cleaning up mounts:\n%v", strings.Join(errors, "\n"))
 	}
 
-	logrus.Debugf("Cleaning up old mountid %v: done.", id)
 	return nil
 }
 

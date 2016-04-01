@@ -490,7 +490,6 @@ func (ls *layerStore) GetMountID(id string) (string, error) {
 	if !ok {
 		return "", ErrMountDoesNotExist
 	}
-	logrus.Debugf("GetMountID id: %s -> mountID: %s", id, mount.mountID)
 
 	return mount.mountID, nil
 }
