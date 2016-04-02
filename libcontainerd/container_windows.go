@@ -103,9 +103,10 @@ func (ctr *container) start() error {
 
 	// Tell the docker engine that the container has started.
 	si := StateInfo{
-		State: StateStart,
-		Pid:   ctr.systemPid, // Not sure this is needed? Double-check monitor.go in daemon BUGBUG @jhowardmsft
-	}
+		CommonStateInfo: CommonStateInfo{
+			State: StateStart,
+			Pid:   ctr.systemPid, // Not sure this is needed? Double-check monitor.go in daemon BUGBUG @jhowardmsft
+		}}
 	return ctr.client.backend.StateChanged(ctr.containerID, si)
 
 }
@@ -129,10 +130,13 @@ func (ctr *container) waitExit(pid uint32, processFriendlyName string, isFirstPr
 
 	// Assume the container has exited
 	si := StateInfo{
-		State:     StateExit,
-		ExitCode:  uint32(exitCode),
-		Pid:       pid,
-		ProcessID: processFriendlyName,
+		CommonStateInfo: CommonStateInfo{
+			State:     StateExit,
+			ExitCode:  uint32(exitCode),
+			Pid:       pid,
+			ProcessID: processFriendlyName,
+		},
+		UpdatePending: false,
 	}
 
 	// But it could have been an exec'd process which exited
@@ -143,6 +147,11 @@ func (ctr *container) waitExit(pid uint32, processFriendlyName string, isFirstPr
 	// If this is the init process, always call into vmcompute.dll to
 	// shutdown the container after we have completed.
 	if isFirstProcessToStart {
+
+		// TODO Windows - add call into hcsshim to check if an update
+		// is pending once that is available.
+		//si.UpdatePending = CHECK IF UPDATE NEEDED
+
 		logrus.Debugf("Shutting down container %s", ctr.containerID)
 		// Explicit timeout here rather than hcsshim.TimeoutInfinte to avoid a
 		// (remote) possibility that ShutdownComputeSystem hangs indefinitely.

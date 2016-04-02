@@ -269,9 +269,10 @@ func (clnt *client) setExited(containerID string) error {
 	}
 
 	err := clnt.backend.StateChanged(containerID, StateInfo{
-		State:    StateExit,
-		ExitCode: exitCode,
-	})
+		CommonStateInfo: CommonStateInfo{
+			State:    StateExit,
+			ExitCode: exitCode,
+		}})
 
 	// Unmount and delete the bundle folder
 	if mts, err := mount.GetMounts(); err == nil {

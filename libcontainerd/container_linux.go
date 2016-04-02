@@ -81,9 +81,10 @@ func (ctr *container) start() error {
 	ctr.systemPid = systemPid(resp.Container)
 
 	return ctr.client.backend.StateChanged(ctr.containerID, StateInfo{
-		State: StateStart,
-		Pid:   ctr.systemPid,
-	})
+		CommonStateInfo: CommonStateInfo{
+			State: StateStart,
+			Pid:   ctr.systemPid,
+		}})
 }
 
 func (ctr *container) newProcess(friendlyName string) *process {
@@ -103,8 +104,10 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 	switch e.Type {
 	case StateExit, StatePause, StateResume, StateOOM:
 		st := StateInfo{
-			State:     e.Type,
-			ExitCode:  e.Status,
+			CommonStateInfo: CommonStateInfo{
+				State:    e.Type,
+				ExitCode: e.Status,
+			},
 			OOMKilled: e.Type == StateExit && ctr.oom,
 		}
 		if e.Type == StateOOM {
