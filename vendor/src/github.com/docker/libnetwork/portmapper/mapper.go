@@ -61,12 +61,12 @@ func (pm *PortMapper) SetIptablesChain(c *iptables.ChainInfo, bridgeName string)
 }
 
 // Map maps the specified container transport address to the host's network address and transport port
-func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int, useProxy bool) (host net.Addr, err error) {
-	return pm.MapRange(container, hostIP, hostPort, hostPort, useProxy)
+func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int, useProxy bool, proxyBin string) (host net.Addr, err error) {
+	return pm.MapRange(container, hostIP, hostPort, hostPort, useProxy, proxyBin)
 }
 
 // MapRange maps the specified container transport address to the host's network address and transport port range
-func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart, hostPortEnd int, useProxy bool) (host net.Addr, err error) {
+func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart, hostPortEnd int, useProxy bool, proxyBin string) (host net.Addr, err error) {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
 
@@ -90,7 +90,7 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		}
 
 		if useProxy {
-			m.userlandProxy = newProxy(proto, hostIP, allocatedHostPort, container.(*net.TCPAddr).IP, container.(*net.TCPAddr).Port)
+			m.userlandProxy = newProxy(proxyBin, proto, hostIP, allocatedHostPort, container.(*net.TCPAddr).IP, container.(*net.TCPAddr).Port)
 		} else {
 			m.userlandProxy = newDummyProxy(proto, hostIP, allocatedHostPort)
 		}
@@ -107,7 +107,7 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		}
 
 		if useProxy {
-			m.userlandProxy = newProxy(proto, hostIP, allocatedHostPort, container.(*net.UDPAddr).IP, container.(*net.UDPAddr).Port)
+			m.userlandProxy = newProxy(proxyBin, proto, hostIP, allocatedHostPort, container.(*net.UDPAddr).IP, container.(*net.UDPAddr).Port)
 		} else {
 			m.userlandProxy = newDummyProxy(proto, hostIP, allocatedHostPort)
 		}

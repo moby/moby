@@ -50,6 +50,7 @@ type configuration struct {
 	EnableIPForwarding  bool
 	EnableIPTables      bool
 	EnableUserlandProxy bool
+	UserlandProxyBin    string
 }
 
 // networkConfiguration for network specific configuration
@@ -1211,7 +1212,7 @@ func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string
 	}
 
 	// Program any required port mapping and store them in the endpoint
-	endpoint.portMapping, err = network.allocatePorts(endpoint, network.config.DefaultBindingIP, d.config.EnableUserlandProxy)
+	endpoint.portMapping, err = network.allocatePorts(endpoint, network.config.DefaultBindingIP, d.config.EnableUserlandProxy, d.config.UserlandProxyBin)
 	if err != nil {
 		return err
 	}

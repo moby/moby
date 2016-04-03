@@ -92,9 +92,14 @@ func handleStopSignals(p proxy.Proxy) {
 	}
 }
 
-func newProxyCommand(proto string, hostIP net.IP, hostPort int, containerIP net.IP, containerPort int) userlandProxy {
+func newProxyCommand(userlandProxyBin string, proto string, hostIP net.IP, hostPort int, containerIP net.IP, containerPort int) userlandProxy {
+	path := userlandProxyBin
+	if userlandProxyBin == "" {
+		userlandProxyBin = userlandProxyCommandName
+		path = reexec.Self()
+	}
 	args := []string{
-		userlandProxyCommandName,
+		userlandProxyBin,
 		"-proto", proto,
 		"-host-ip", hostIP.String(),
 		"-host-port", strconv.Itoa(hostPort),
@@ -104,7 +109,7 @@ func newProxyCommand(proto string, hostIP net.IP, hostPort int, containerIP net.
 
 	return &proxyCommand{
 		cmd: &exec.Cmd{
-			Path: reexec.Self(),
+			Path: path,
 			Args: args,
 			SysProcAttr: &syscall.SysProcAttr{
 				Pdeathsig: syscall.SIGTERM, // send a sigterm to the proxy if the daemon process dies

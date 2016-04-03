@@ -67,6 +67,7 @@ weight = -1
       --tlsverify                            Use TLS and verify the remote
       --userns-remap="default"               Enable user namespace remapping
       --userland-proxy=true                  Use userland proxy for loopback traffic
+      --userland-proxy-bin=""                Use this userland proxy binary, if userland-proxy is set
 
 Options with [] may be specified multiple times.
 

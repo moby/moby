@@ -46,6 +46,7 @@ type bridgeConfig struct {
 	EnableIPForward             bool   `json:"ip-forward,omitempty"`
 	EnableIPMasq                bool   `json:"ip-mask,omitempty"`
 	EnableUserlandProxy         bool   `json:"userland-proxy,omitempty"`
+	UserlandProxyBin            string `json:"userland-proxy-bin,omitempty"`
 	DefaultIP                   net.IP `json:"ip,omitempty"`
 	IP                          string `json:"bip,omitempty"`
 	FixedCIDRv6                 string `json:"fixed-cidr-v6,omitempty"`
@@ -81,6 +82,7 @@ func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) strin
 	cmd.BoolVar(&config.bridgeConfig.InterContainerCommunication, []string{"#icc", "-icc"}, true, usageFn("Enable inter-container communication"))
 	cmd.Var(opts.NewIPOpt(&config.bridgeConfig.DefaultIP, "0.0.0.0"), []string{"#ip", "-ip"}, usageFn("Default IP when binding container ports"))
 	cmd.BoolVar(&config.bridgeConfig.EnableUserlandProxy, []string{"-userland-proxy"}, true, usageFn("Use userland proxy for loopback traffic"))
+	cmd.StringVar(&config.bridgeConfig.UserlandProxyBin, []string{"-userland-proxy-bin"}, "", usageFn("Use specific userland proxy binary if in userland proxy mode"))
 	cmd.BoolVar(&config.EnableCors, []string{"#api-enable-cors", "#-api-enable-cors"}, false, usageFn("Enable CORS headers in the remote API, this is deprecated by --api-cors-header"))
 	cmd.StringVar(&config.CorsHeaders, []string{"-api-cors-header"}, "", usageFn("Set CORS headers in the remote API"))
 	cmd.StringVar(&config.CgroupParent, []string{"-cgroup-parent"}, "", usageFn("Set parent cgroup for all containers"))
