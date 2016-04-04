@@ -96,9 +96,10 @@ type Mount struct {
 
 // Hook specifies a command that is run at a particular event in the lifecycle of a container
 type Hook struct {
-	Path string   `json:"path"`
-	Args []string `json:"args,omitempty"`
-	Env  []string `json:"env,omitempty"`
+	Path    string   `json:"path"`
+	Args    []string `json:"args,omitempty"`
+	Env     []string `json:"env,omitempty"`
+	Timeout *int     `json:"timeout,omitempty"`
 }
 
 // Hooks for container setup and teardown
@@ -128,13 +129,17 @@ type Linux struct {
 	// If resources are specified, the cgroups at CgroupsPath will be updated based on resources.
 	CgroupsPath *string `json:"cgroupsPath,omitempty"`
 	// Namespaces contains the namespaces that are created and/or joined by the container
-	Namespaces []Namespace `json:"namespaces"`
+	Namespaces []Namespace `json:"namespaces,omitempty"`
 	// Devices are a list of device nodes that are created for the container
-	Devices []Device `json:"devices"`
+	Devices []Device `json:"devices,omitempty"`
 	// Seccomp specifies the seccomp security settings for the container.
 	Seccomp *Seccomp `json:"seccomp,omitempty"`
 	// RootfsPropagation is the rootfs mount propagation mode for the container.
 	RootfsPropagation string `json:"rootfsPropagation,omitempty"`
+	// MaskedPaths masks over the provided paths inside the container.
+	MaskedPaths []string `json:"maskedPaths,omitempty"`
+	// ReadonlyPaths sets the provided paths as RO inside the container.
+	ReadonlyPaths []string `json:"readonlyPaths,omitempty"`
 }
 
 // Namespace is the configuration for a Linux namespace
