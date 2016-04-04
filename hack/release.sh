@@ -313,6 +313,6 @@ echo "We have just pushed $VERSION to $(s3_url). You can download it with the fo
 echo
 echo "Darwin/OSX 64bit client tgz: $(s3_url)/builds/Darwin/x86_64/docker-$VERSION.tgz"
 echo "Linux 64bit tgz: $(s3_url)/builds/Linux/x86_64/docker-$VERSION.tgz"
-echo "Windows 64bit client tgz: $(s3_url)/builds/Windows/x86_64/docker-$VERSION.zip"
-echo "Windows 32bit client tgz: $(s3_url)/builds/Windows/i386/docker-$VERSION.zip"
+echo "Windows 64bit client zip: $(s3_url)/builds/Windows/x86_64/docker-$VERSION.zip"
+echo "Windows 32bit client zip: $(s3_url)/builds/Windows/i386/docker-$VERSION.zip"
 echo
