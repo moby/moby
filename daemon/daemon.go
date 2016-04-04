@@ -1062,7 +1062,8 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 // ball containing images and metadata.
 func (daemon *Daemon) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
 	imageExporter := tarexport.NewTarExporter(daemon.imageStore, daemon.layerStore, daemon.referenceStore, daemon)
-	return imageExporter.Load(inTar, outStream, quiet)
+	_, err := imageExporter.Load(inTar, outStream, quiet)
+	return err
 }
 
 // ImageHistory returns a slice of ImageHistory structures for the specified image

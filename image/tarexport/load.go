@@ -22,7 +22,7 @@ import (
 	"github.com/docker/docker/reference"
 )
 
-func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
+func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool) ([]image.ID, error) {
 	var (
 		sf             = streamformatter.NewJSONStreamFormatter()
 		progressOutput progress.Output
@@ -34,59 +34,61 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 
 	tmpDir, err := ioutil.TempDir("", "docker-import-")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer os.RemoveAll(tmpDir)
 
 	if err := chrootarchive.Untar(inTar, tmpDir, nil); err != nil {
-		return err
+		return nil, err
 	}
 	// read manifest, if no file then load in legacy mode
 	manifestPath, err := safePath(tmpDir, manifestFileName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	manifestFile, err := os.Open(manifestPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return l.legacyLoad(tmpDir, outStream, progressOutput)
+			return nil, l.legacyLoad(tmpDir, outStream, progressOutput)
 		}
-		return manifestFile.Close()
+		return nil, manifestFile.Close()
 	}
 	defer manifestFile.Close()
 
 	var manifest []manifestItem
 	if err := json.NewDecoder(manifestFile).Decode(&manifest); err != nil {
-		return err
+		return nil, err
 	}
 
 	var parentLinks []parentLink
+	var images []image.ID
 
 	for _, m := range manifest {
 		configPath, err := safePath(tmpDir, m.Config)
 		if err != nil {
-			return err
+			return images, err
 		}
 		config, err := ioutil.ReadFile(configPath)
 		if err != nil {
-			return err
+			return images, err
 		}
 		img, err := image.NewFromJSON(config)
 		if err != nil {
-			return err
+			return images, err
 		}
+
 		var rootFS image.RootFS
 		rootFS = *img.RootFS
 		rootFS.DiffIDs = nil
 
 		if expected, actual := len(m.Layers), len(img.RootFS.DiffIDs); expected != actual {
-			return fmt.Errorf("invalid manifest, layers length mismatch: expected %q, got %q", expected, actual)
+			return images, fmt.Errorf("invalid manifest, layers length mismatch: expected %q, got %q", expected, actual)
 		}
 
 		for i, diffID := range img.RootFS.DiffIDs {
 			layerPath, err := safePath(tmpDir, m.Layers[i])
 			if err != nil {
-				return err
+				return images, err
 			}
 			r := rootFS
 			r.Append(diffID)
@@ -94,29 +96,33 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 			if err != nil {
 				newLayer, err = l.loadLayer(layerPath, rootFS, diffID.String(), progressOutput)
 				if err != nil {
-					return err
+					return images, err
 				}
 			}
 			defer layer.ReleaseAndLog(l.ls, newLayer)
 			if expected, actual := diffID, newLayer.DiffID(); expected != actual {
-				return fmt.Errorf("invalid diffID for layer %d: expected %q, got %q", i, expected, actual)
+				return images, fmt.Errorf("invalid diffID for layer %d: expected %q, got %q", i, expected, actual)
 			}
 			rootFS.Append(diffID)
 		}
 
 		imgID, err := l.is.Create(config)
 		if err != nil {
-			return err
+			return images, err
 		}
+		if progressOutput != nil {
+			progress.Message(progressOutput, "", fmt.Sprintf("Successfully loaded image: %q", imgID))
+		}
+		images = append(images, imgID)
 
 		for _, repoTag := range m.RepoTags {
 			named, err := reference.ParseNamed(repoTag)
 			if err != nil {
-				return err
+				return images, err
 			}
 			ref, ok := named.(reference.NamedTagged)
 			if !ok {
-				return fmt.Errorf("invalid tag %q", repoTag)
+				return images, fmt.Errorf("invalid tag %q", repoTag)
 			}
 			l.setLoadedTag(ref, imgID, outStream)
 		}
@@ -128,12 +134,12 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 	for _, p := range validatedParentLinks(parentLinks) {
 		if p.parentID != "" {
 			if err := l.setParentID(p.id, p.parentID); err != nil {
-				return err
+				return images, err
 			}
 		}
 	}
 
-	return nil
+	return images, nil
 }
 
 func (l *tarexporter) setParentID(id, parentID image.ID) error {
