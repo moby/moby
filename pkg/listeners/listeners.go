@@ -10,6 +10,8 @@ import (
 
 func initTCPSocket(addr string, tlsConfig *tls.Config) (l net.Listener, err error) {
 	if tlsConfig == nil || tlsConfig.ClientAuth != tls.RequireAndVerifyClientCert {
+		// TODO: Move this outside pkg/listeners since it's Docker-specific.
+		//       ... and slightly scary.
 		logrus.Warn("/!\\ DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 	}
 	if l, err = sockets.NewTCPSocket(addr, tlsConfig); err != nil {
