@@ -46,6 +46,7 @@ func randomLocalStore() (datastore.DataStore, error) {
 }
 
 func getAllocator() (*Allocator, error) {
+	ipamutils.InitNetworks()
 	ds, err := randomLocalStore()
 	if err != nil {
 		return nil, err

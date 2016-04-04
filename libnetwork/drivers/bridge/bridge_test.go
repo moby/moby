@@ -15,6 +15,10 @@ import (
 	"github.com/docker/libnetwork/types"
 )
 
+func init() {
+	ipamutils.InitNetworks()
+}
+
 func getIPv4Data(t *testing.T) []driverapi.IPAMData {
 	ipd := driverapi.IPAMData{AddressSpace: "full"}
 	nw, _, err := ipamutils.ElectInterfaceAddresses("")

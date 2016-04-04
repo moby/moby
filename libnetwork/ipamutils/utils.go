@@ -1,7 +1,10 @@
 // Package ipamutils provides utililty functions for ipam management
 package ipamutils
 
-import "net"
+import (
+	"net"
+	"sync"
+)
 
 var (
 	// PredefinedBroadNetworks contains a list of 31 IPv4 private networks with host size 16 and 12
@@ -10,11 +13,16 @@ var (
 	// PredefinedGranularNetworks contains a list of 64K IPv4 private networks with host size 8
 	// (10.x.x.x/24) which do not overlap with the networks in `PredefinedBroadNetworks`
 	PredefinedGranularNetworks []*net.IPNet
+
+	initNetworksOnce sync.Once
 )
 
-func init() {
-	PredefinedBroadNetworks = initBroadPredefinedNetworks()
-	PredefinedGranularNetworks = initGranularPredefinedNetworks()
+// InitNetworks initializes the pre-defined networks used by the  built-in IP allocator
+func InitNetworks() {
+	initNetworksOnce.Do(func() {
+		PredefinedBroadNetworks = initBroadPredefinedNetworks()
+		PredefinedGranularNetworks = initGranularPredefinedNetworks()
+	})
 }
 
 func initBroadPredefinedNetworks() []*net.IPNet {
