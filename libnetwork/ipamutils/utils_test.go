@@ -9,6 +9,10 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
+func init() {
+	InitNetworks()
+}
+
 func TestGranularPredefined(t *testing.T) {
 	for _, nw := range PredefinedGranularNetworks {
 		if ones, bits := nw.Mask.Size(); bits != 32 || ones != 24 {
