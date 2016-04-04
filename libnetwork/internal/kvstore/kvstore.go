@@ -46,6 +46,8 @@ type Config struct {
 	ConnectionTimeout time.Duration
 	Bucket            string
 	PersistConnection bool
+	Username          string
+	Password          string
 }
 
 // ClientTLSConfig contains data for a Client TLS configuration in the form
