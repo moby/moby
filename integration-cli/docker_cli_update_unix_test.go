@@ -116,8 +116,7 @@ func (s *DockerSuite) TestUpdateContainerWithoutFlags(c *check.C) {
 }
 
 func (s *DockerSuite) TestUpdateKernelMemory(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	testRequires(c, kernelMemorySupport)
+	testRequires(c, DaemonIsLinux, kernelMemorySupport)
 
 	name := "test-update-container"
 	dockerCmd(c, "run", "-d", "--name", name, "--kernel-memory", "50M", "busybox", "top")
@@ -127,6 +126,12 @@ func (s *DockerSuite) TestUpdateKernelMemory(c *check.C) {
 
 	// Update kernel memory to a running container with failure should not change HostConfig
 	c.Assert(inspectField(c, name, "HostConfig.KernelMemory"), checker.Equals, "52428800")
+
+	dockerCmd(c, "pause", name)
+	_, _, err = dockerCmdWithError("update", "--kernel-memory", "100M", name)
+	c.Assert(err, check.NotNil)
+	c.Assert(inspectField(c, name, "HostConfig.KernelMemory"), checker.Equals, "52428800")
+	dockerCmd(c, "unpause", name)
 
 	dockerCmd(c, "stop", name)
 	dockerCmd(c, "update", "--kernel-memory", "100M", name)
