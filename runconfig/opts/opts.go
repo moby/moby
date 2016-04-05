@@ -47,7 +47,7 @@ func doesEnvExist(name string) bool {
 }
 
 // ValidateExtraHost validates that the specified string is a valid extrahost and returns it.
-// ExtraHost are in the form of name:ip where the ip has to be a valid ip (ipv4 or ipv6).
+// ExtraHost is in the form of name:ip where the ip has to be a valid ip (ipv4 or ipv6).
 func ValidateExtraHost(val string) (string, error) {
 	// allow for IPv6 addresses in extra hosts by only splitting on first ":"
 	arr := strings.SplitN(val, ":", 2)

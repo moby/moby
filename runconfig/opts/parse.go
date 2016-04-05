@@ -150,7 +150,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	if *flStdin {
 		attachStdin = true
 	}
-	// If -a is not set attach to the output stdio
+	// If -a is not set, attach to stdout and stderr
 	if flAttach.Len() == 0 {
 		attachStdout = true
 		attachStderr = true
@@ -246,7 +246,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	// Validate if the given hostname is RFC 1123 (https://tools.ietf.org/html/rfc1123) compliant.
 	hostname := *flHostname
 	if hostname != "" {
-		// Linux hostname is limited to HOST_NAME_MAX=64, not not including the terminating null byte.
+		// Linux hostname is limited to HOST_NAME_MAX=64, not including the terminating null byte.
 		matched, _ := regexp.MatchString("^(([[:alnum:]]|[[:alnum:]][[:alnum:]\\-]*[[:alnum:]])\\.)*([[:alnum:]]|[[:alnum:]][[:alnum:]\\-]*[[:alnum:]])$", hostname)
 		if len(hostname) > 64 || !matched {
 			return nil, nil, nil, cmd, fmt.Errorf("invalid hostname format for --hostname: %s", hostname)
@@ -473,7 +473,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	return config, hostConfig, networkingConfig, cmd, nil
 }
 
-// reads a file of line terminated key=value pairs and override that with override parameter
+// reads a file of line terminated key=value pairs, and overrides any keys
+// present in the file with additional pairs specified in the override parameter
 func readKVStrings(files []string, override []string) ([]string, error) {
 	envVariables := []string{}
 	for _, ef := range files {
@@ -539,7 +540,7 @@ func parseSecurityOpts(securityOpts []string) ([]string, error) {
 	return securityOpts, nil
 }
 
-// parse storage options per container into a map
+// parses storage options per container into a map
 func parseStorageOpts(storageOpts []string) (map[string]string, error) {
 	m := make(map[string]string)
 	for _, option := range storageOpts {
@@ -640,7 +641,7 @@ func ParseLink(val string) (string, string, error) {
 	if len(arr) == 1 {
 		return val, val, nil
 	}
-	// This is kept because we can actually get an HostConfig with links
+	// This is kept because we can actually get a HostConfig with links
 	// from an already created container and the format is not `foo:bar`
 	// but `/foo:/c1/bar`
 	if strings.HasPrefix(arr[0], "/") {
