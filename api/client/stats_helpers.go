@@ -173,7 +173,7 @@ func (s *containerStats) Display(w io.Writer) error {
 	fmt.Fprintf(w, "%s\t%.2f%%\t%s / %s\t%.2f%%\t%s / %s\t%s / %s\t%d\n",
 		s.Name,
 		s.CPUPercentage,
-		units.HumanSize(s.Memory), units.HumanSize(s.MemoryLimit),
+		units.BytesSize(s.Memory), units.BytesSize(s.MemoryLimit),
 		s.MemoryPercentage,
 		units.HumanSize(s.NetworkRx), units.HumanSize(s.NetworkTx),
 		units.HumanSize(s.BlockRead), units.HumanSize(s.BlockWrite),
