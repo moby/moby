@@ -359,7 +359,9 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir(c *check.C) {
 		containerPath string
 		cmd           string
 	)
-	testRequires(c, SameHostDaemon)
+	// TODO Windows (Post TP5): This test cannot run on a Windows daemon as
+	// Windows does not support symlinks inside a volume path
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
 	name := "test-volume-symlink"
 
 	dir, err := ioutil.TempDir("", name)
@@ -404,7 +406,9 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir2(c *check.C) {
 		containerPath string
 		cmd           string
 	)
-	testRequires(c, SameHostDaemon)
+	// TODO Windows (Post TP5): This test cannot run on a Windows daemon as
+	// Windows does not support symlinks inside a volume path
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
 	name := "test-volume-symlink2"
 
 	if daemonPlatform == "windows" {
@@ -614,6 +618,9 @@ func (s *DockerSuite) TestRunCreateVolumeWithSymlink(c *check.C) {
 
 // Tests that a volume path that has a symlink exists in a container mounting it with `--volumes-from`.
 func (s *DockerSuite) TestRunVolumesFromSymlinkPath(c *check.C) {
+	// TODO Windows (Post TP5): This test cannot run on a Windows daemon as
+	// Windows does not support symlinks inside a volume path
+	testRequires(c, DaemonIsLinux)
 	name := "docker-test-volumesfromsymlinkpath"
 	prefix := ""
 	dfContents := `FROM busybox
