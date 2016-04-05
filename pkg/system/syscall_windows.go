@@ -1,9 +1,12 @@
 package system
 
 import (
-	"fmt"
 	"syscall"
 	"unsafe"
+)
+
+var (
+	ntuserApiset = syscall.NewLazyDLL("ext-ms-win-ntuser-window-l1-1-0")
 )
 
 // OSVersion is a wrapper for Windows version information
@@ -17,17 +20,18 @@ type OSVersion struct {
 
 // GetOSVersion gets the operating system version on Windows. Note that
 // docker.exe must be manifested to get the correct version information.
-func GetOSVersion() (OSVersion, error) {
+func GetOSVersion() OSVersion {
 	var err error
 	osv := OSVersion{}
 	osv.Version, err = syscall.GetVersion()
 	if err != nil {
-		return osv, fmt.Errorf("Failed to call GetVersion()")
+		// GetVersion never fails.
+		panic(err)
 	}
 	osv.MajorVersion = uint8(osv.Version & 0xFF)
 	osv.MinorVersion = uint8(osv.Version >> 8 & 0xFF)
 	osv.Build = uint16(osv.Version >> 16)
-	return osv, nil
+	return osv
 }
 
 // Unmount is a platform-specific helper function to call
@@ -57,4 +61,13 @@ func CommandLineToArgv(commandLine string) ([]string, error) {
 	}
 
 	return newArgs, nil
+}
+
+// HasWin32KSupport determines whether containers that depend on win32k can
+// run on this machine. Win32k is the driver used to implement windowing.
+func HasWin32KSupport() bool {
+	// For now, check for ntuser API support on the host. In the future, a host
+	// may support win32k in containers even if the host does not support ntuser
+	// APIs.
+	return ntuserApiset.Load() == nil
 }

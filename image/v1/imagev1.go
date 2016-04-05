@@ -3,6 +3,7 @@ package v1
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -118,8 +119,15 @@ func MakeV1ConfigFromConfig(img *image.Image, v1ID, parentV1ID string, throwaway
 	}
 
 	// Delete fields that didn't exist in old manifest
-	delete(configAsMap, "rootfs")
-	delete(configAsMap, "history")
+	imageType := reflect.TypeOf(img).Elem()
+	for i := 0; i < imageType.NumField(); i++ {
+		f := imageType.Field(i)
+		jsonName := strings.Split(f.Tag.Get("json"), ",")[0]
+		// Parent is handled specially below.
+		if jsonName != "" && jsonName != "parent" {
+			delete(configAsMap, jsonName)
+		}
+	}
 	configAsMap["id"] = rawJSON(v1ID)
 	if parentV1ID != "" {
 		configAsMap["parent"] = rawJSON(parentV1ID)

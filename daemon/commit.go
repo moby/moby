@@ -138,6 +138,8 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 
 	var history []image.History
 	rootFS := image.NewRootFS()
+	osVersion := ""
+	var osFeatures []string
 
 	if container.ImageID != "" {
 		img, err := daemon.imageStore.Get(container.ImageID)
@@ -146,6 +148,8 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		}
 		history = img.History
 		rootFS = img.RootFS
+		osVersion = img.OSVersion
+		osFeatures = img.OSFeatures
 	}
 
 	l, err := daemon.layerStore.Register(rwTar, rootFS.ChainID())
@@ -180,8 +184,10 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 			Author:          c.Author,
 			Created:         h.Created,
 		},
-		RootFS:  rootFS,
-		History: history,
+		RootFS:     rootFS,
+		History:    history,
+		OSFeatures: osFeatures,
+		OSVersion:  osVersion,
 	})
 
 	if err != nil {

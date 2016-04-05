@@ -405,6 +405,8 @@ type CustomImageInfo struct {
 	Path        string
 	Size        int64
 	CreatedTime time.Time
+	OSVersion   string   `json:"-"`
+	OSFeatures  []string `json:"-"`
 }
 
 // GetCustomImageInfos returns the image infos for window specific
@@ -445,6 +447,21 @@ func (d *Driver) GetCustomImageInfos() ([]CustomImageInfo, error) {
 		}
 
 		imageData.ID = id
+
+		// For now, hard code that all base images except nanoserver depend on win32k support
+		if imageData.Name != "nanoserver" {
+			imageData.OSFeatures = append(imageData.OSFeatures, "win32k")
+		}
+
+		versionData := strings.Split(imageData.Version, ".")
+		if len(versionData) != 4 {
+			logrus.Warn("Could not parse Windows version %s", imageData.Version)
+		} else {
+			// Include just major.minor.build, skip the fourth version field, which does not influence
+			// OS compatibility.
+			imageData.OSVersion = strings.Join(versionData[:3], ".")
+		}
+
 		images = append(images, imageData)
 	}
 
