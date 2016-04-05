@@ -60,7 +60,7 @@ func (streamConfig *StreamConfig) StdinPipe() io.WriteCloser {
 // StdoutPipe creates a new io.ReadCloser with an empty bytes pipe.
 // It adds this new out pipe to the Stdout broadcaster.
 func (streamConfig *StreamConfig) StdoutPipe() io.ReadCloser {
-	bytesPipe := ioutils.NewBytesPipe(nil)
+	bytesPipe := ioutils.NewBytesPipe()
 	streamConfig.stdout.Add(bytesPipe)
 	return bytesPipe
 }
@@ -68,7 +68,7 @@ func (streamConfig *StreamConfig) StdoutPipe() io.ReadCloser {
 // StderrPipe creates a new io.ReadCloser with an empty bytes pipe.
 // It adds this new err pipe to the Stderr broadcaster.
 func (streamConfig *StreamConfig) StderrPipe() io.ReadCloser {
-	bytesPipe := ioutils.NewBytesPipe(nil)
+	bytesPipe := ioutils.NewBytesPipe()
 	streamConfig.stderr.Add(bytesPipe)
 	return bytesPipe
 }
