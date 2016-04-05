@@ -397,6 +397,172 @@ there are two key directories. The `/var/lib/docker/devicemapper/mnt` directory
 image layer and container snapshot. The files contain metadata about each
 snapshot in JSON format.
 
+## Increase capacity on a running device
+
+You can increase the capacity of the pool on a running thin-pool device. This is
+useful if the data's logical volume is full and the volume group is at full
+capacity.
+
+### For a loop-lvm configuration
+
+In this scenario, the thin pool is configured to use `loop-lvm` mode. To show the specifics of the existing configuration use `docker info`:
+
+```bash
+$ sudo docker info
+Containers: 0
+ Running: 0
+ Paused: 0
+ Stopped: 0
+Images: 2
+Server Version: 1.11.0-rc2
+Storage Driver: devicemapper
+ Pool Name: docker-8:1-123141-pool
+ Pool Blocksize: 65.54 kB
+ Base Device Size: 10.74 GB
+ Backing Filesystem: ext4
+ Data file: /dev/loop0
+ Metadata file: /dev/loop1
+ Data Space Used: 1.202 GB
+ Data Space Total: 107.4 GB
+ Data Space Available: 4.506 GB
+ Metadata Space Used: 1.729 MB
+ Metadata Space Total: 2.147 GB
+ Metadata Space Available: 2.146 GB
+ Udev Sync Supported: true
+ Deferred Removal Enabled: false
+ Deferred Deletion Enabled: false
+ Deferred Deleted Device Count: 0
+ Data loop file: /var/lib/docker/devicemapper/devicemapper/data
+ WARNING: Usage of loopback devices is strongly discouraged for production use. Either use `--storage-opt dm.thinpooldev` or use `--storage-opt dm.no_warn_on_loop_devices=true` to suppress this warning.
+ Metadata loop file: /var/lib/docker/devicemapper/devicemapper/metadata
+ Library Version: 1.02.90 (2014-09-01)
+Logging Driver: json-file
+[...]
+```
+
+The `Data Space` values show that the pool is 100GiB total. This example extends the pool to 200GiB.
+
+1. List the sizes of the devices.
+
+	```bash
+	$ sudo ls -lh /var/lib/docker/devicemapper/devicemapper/
+	total 1.2G
+	-rw------- 1 root root 100G Apr 14 08:47 data
+	-rw------- 1 root root 2.0G Apr 19 13:27 metadata
+	```
+
+2. Truncate `data` file to 200GiB.
+
+	```bash
+	$ sudo truncate -s 214748364800 /var/lib/docker/devicemapper/devicemapper/data
+	```
+
+3. Verify the file size changed.
+
+	```bash
+	$ sudo ls -lh /var/lib/docker/devicemapper/devicemapper/
+	total 1.2G
+	-rw------- 1 root root 200G Apr 14 08:47 data
+	-rw------- 1 root root 2.0G Apr 19 13:27 metadata
+	```
+
+4. Reload data loop device
+
+	```bash
+	$ sudo blockdev --getsize64 /dev/loop0
+	107374182400
+	$ sudo losetup -c /dev/loop0
+	$ sudo blockdev --getsize64 /dev/loop0
+	214748364800
+	```
+
+5. Reload devicemapper thin pool.
+
+	a. Get the pool name first.
+
+		$ sudo dmsetup status | grep pool
+		docker-8:1-123141-pool: 0 209715200 thin-pool 91 422/524288 18338/1638400 - rw discard_passdown queue_if_no_space -
+
+		The name is the string before the colon.
+
+	b. Dump the device mapper table first.
+
+		$ sudo dmsetup table docker-8:1-123141-pool
+		0 209715200 thin-pool 7:1 7:0 128 32768 1 skip_block_zeroing
+
+	c. Calculate the real total sectors of the thin pool now.
+
+		Change the second number of the table info (i.e. the number of sectors) to reflect the new number of 512 byte sectors in the disk. For example, as the new loop size is 200GiB, change the second number to 419430400.
+
+	d. Reload the thin pool with the new sector number
+
+		$ sudo dmsetup suspend docker-8:1-123141-pool && sudo dmsetup reload docker-8:1-123141-pool --table '0 419430400 thin-pool 7:1 7:0 128 32768 1 skip_block_zeroing' && sudo dmsetup resume docker-8:1-123141-pool
+
+#### The device_tool
+
+The Docker's projects `contrib` directory contains not part of the core
+distribution. These tools that are often useful but can also be out-of-date. <a
+href="https://goo.gl/wNfDTi">In this directory, is the `device_tool.go`</a>
+which you can also resize the loop-lvm thin pool.
+
+To use the tool, compile it first. Then, do the following to resize the pool:
+
+```bash
+$ ./device_tool resize 200GB
+```
+
+### For a direct-lvm mode configuration
+
+In this example, you extend the capacity of a running device that uses the
+`direct-lvm` configuration.  This example assumes you are using the `/dev/sdh1`
+disk partition.
+
+1. Extend the volume group (VG) `vg-docker`.
+
+	```bash
+	$ sudo vgextend vg-docker /dev/sdh1
+	Volume group "vg-docker" successfully extended
+	```
+
+	Your volume group may use a different name.
+
+2. Extend the `data` logical volume(LV) `vg-docker/data`
+
+	```bash
+	$ sudo lvextend  -l+100%FREE -n vg-docker/data
+	Extending logical volume data to 200 GiB
+	Logical volume data successfully resized
+	```
+
+3. Reload devicemapper thin pool.
+
+	a. Get the pool name.
+
+		$ sudo dmsetup status | grep pool
+		docker-253:17-1835016-pool: 0 96460800 thin-pool 51593 6270/1048576 701943/753600 - rw no_discard_passdown queue_if_no_space
+
+		The name is the string before the colon.
+
+	b. Dump the device mapper table.
+
+		$ sudo dmsetup table docker-253:17-1835016-pool
+		0 96460800 thin-pool 252:0 252:1 128 32768 1 skip_block_zeroing
+
+	c. Calculate the real total sectors of the thin pool now. we can use `blockdev` to get the real size of data lv.
+
+		Change the second number of the table info (i.e. the number of sectors) to
+		reflect the new number of 512 byte sectors in the disk. For example, as the
+		new data `lv` size is `264132100096` bytes, change the second number to
+		`515883008`.
+
+		$ sudo blockdev --getsize64 /dev/vg-docker/data
+		264132100096
+
+	d. Then reload the thin pool with the new sector number.
+
+		$ sudo dmsetup suspend docker-253:17-1835016-pool && sudo dmsetup reload docker-253:17-1835016-pool --table  '0 515883008 thin-pool 252:0 252:1 128 32768 1 skip_block_zeroing' && sudo dmsetup resume docker-253:17-1835016-pool
+
+
 ## Device Mapper and Docker performance
 
 It is important to understand the impact that allocate-on-demand and
