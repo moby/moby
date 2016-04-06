@@ -1056,7 +1056,7 @@ Both flags take limits in the `<device-path>:<limit>` format. Both read and
 write rates must be a positive integer.
 
 ## Additional groups
-    --group-add: Add Linux capabilities
+    --group-add: Add additional groups to run as 
 
 By default, the docker container process runs with the supplementary groups looked
 up for the specified user. If one wants to add more to that list of groups, then
