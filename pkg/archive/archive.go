@@ -33,6 +33,8 @@ type (
 	Reader io.Reader
 	// Compression is the state represents if compressed or not.
 	Compression int
+	// WhiteoutFormat is the format of whiteouts unpacked
+	WhiteoutFormat int
 	// TarChownOptions wraps the chown options UID and GID.
 	TarChownOptions struct {
 		UID, GID int
@@ -47,9 +49,10 @@ type (
 		GIDMaps          []idtools.IDMap
 		ChownOpts        *TarChownOptions
 		IncludeSourceDir bool
-		// When unpacking convert whiteouts and opaque dirs from aufs format to overlayfs format
-		// When packing convert whiteouts and opaque dirs from overlayfs format to aufs format
-		OverlayFormat bool
+		// WhiteoutFormat is the expected on disk format for whiteout files.
+		// This format will be converted to the standard format on pack
+		// and from the standard format on unpack.
+		WhiteoutFormat WhiteoutFormat
 		// When unpacking, specifies whether overwriting a directory with a
 		// non-directory is allowed and vice versa.
 		NoOverwriteDirNonDir bool
@@ -94,6 +97,14 @@ const (
 	Gzip
 	// Xz is xz compression algorithm.
 	Xz
+)
+
+const (
+	// AUFSWhiteoutFormat is the default format for whitesouts
+	AUFSWhiteoutFormat WhiteoutFormat = iota
+	// OverlayWhiteoutFormat formats whiteout according to the overlay
+	// standard.
+	OverlayWhiteoutFormat
 )
 
 // IsArchive checks for the magic bytes of a tar or any supported compression
@@ -231,6 +242,11 @@ func (compression *Compression) Extension() string {
 	return ""
 }
 
+type tarWhiteoutConverter interface {
+	ConvertWrite(*tar.Header, string, os.FileInfo) error
+	ConvertRead(*tar.Header, string) (bool, error)
+}
+
 type tarAppender struct {
 	TarWriter *tar.Writer
 	Buffer    *bufio.Writer
@@ -240,10 +256,11 @@ type tarAppender struct {
 	UIDMaps   []idtools.IDMap
 	GIDMaps   []idtools.IDMap
 
-	// `overlayFormat` controls whether to interpret character devices with numbers 0,0
-	// and directories with the attribute `trusted.overlay.opaque` using their overlayfs
-	// meanings and remap them to AUFS format
-	OverlayFormat bool
+	// For packing and unpacking whiteout files in the
+	// non standard format. The whiteout files defined
+	// by the AUFS standard are used as the tar whiteout
+	// standard.
+	WhiteoutConverter tarWhiteoutConverter
 }
 
 // canonicalTarName provides a platform-independent and consistent posix-style
@@ -332,13 +349,9 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		hdr.Gid = xGID
 	}
 
-	if ta.OverlayFormat {
-		// convert whiteouts to AUFS format
-		if fi.Mode()&os.ModeCharDevice != 0 && hdr.Devmajor == 0 && hdr.Devminor == 0 {
-			// we just rename the file and make it normal
-			hdr.Name = WhiteoutPrefix + hdr.Name
-			hdr.Mode = 0600
-			hdr.Typeflag = tar.TypeReg
+	if ta.WhiteoutConverter != nil {
+		if err := ta.WhiteoutConverter.ConvertWrite(hdr, path, fi); err != nil {
+			return err
 		}
 	}
 
@@ -362,30 +375,6 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		err = ta.Buffer.Flush()
 		if err != nil {
 			return err
-		}
-	}
-
-	if ta.OverlayFormat {
-		// convert opaque dirs to AUFS format by writing an empty file with the prefix
-		opaque, _ := system.Lgetxattr(path, "trusted.overlay.opaque")
-		if opaque != nil && len(opaque) == 1 && opaque[0] == 'y' {
-			// create a header for the whiteout file
-			// it should inherit some properties from the parent, but be a regular file
-			whHdr := &tar.Header{
-				Typeflag:   tar.TypeReg,
-				Mode:       hdr.Mode & int64(os.ModePerm),
-				Name:       filepath.Join(name, WhiteoutOpaqueDir),
-				Size:       0,
-				Uid:        hdr.Uid,
-				Uname:      hdr.Uname,
-				Gid:        hdr.Gid,
-				Gname:      hdr.Gname,
-				AccessTime: hdr.AccessTime,
-				ChangeTime: hdr.ChangeTime,
-			}
-			if err := ta.TarWriter.WriteHeader(whHdr); err != nil {
-				return err
-			}
 		}
 	}
 
@@ -544,12 +533,12 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 
 	go func() {
 		ta := &tarAppender{
-			TarWriter:     tar.NewWriter(compressWriter),
-			Buffer:        pools.BufioWriter32KPool.Get(nil),
-			SeenFiles:     make(map[uint64]string),
-			UIDMaps:       options.UIDMaps,
-			GIDMaps:       options.GIDMaps,
-			OverlayFormat: options.OverlayFormat,
+			TarWriter:         tar.NewWriter(compressWriter),
+			Buffer:            pools.BufioWriter32KPool.Get(nil),
+			SeenFiles:         make(map[uint64]string),
+			UIDMaps:           options.UIDMaps,
+			GIDMaps:           options.GIDMaps,
+			WhiteoutConverter: getWhiteoutConverter(options.WhiteoutFormat),
 		}
 
 		defer func() {
@@ -711,6 +700,7 @@ func Unpack(decompressedArchive io.Reader, dest string, options *TarOptions) err
 	if err != nil {
 		return err
 	}
+	whiteoutConverter := getWhiteoutConverter(options.WhiteoutFormat)
 
 	// Iterate through the files in the archive.
 loop:
@@ -810,33 +800,12 @@ loop:
 			hdr.Gid = xGID
 		}
 
-		base := filepath.Base(path)
-		dir := filepath.Dir(path)
-
-		if options.OverlayFormat {
-			// if a directory is marked as opaque by the AUFS special file, we need to translate that to overlay
-			if base == WhiteoutOpaqueDir {
-				if err := syscall.Setxattr(dir, "trusted.overlay.opaque", []byte{'y'}, 0); err != nil {
-					return err
-				}
-
-				// don't write the file itself
-				continue
+		if whiteoutConverter != nil {
+			writeFile, err := whiteoutConverter.ConvertRead(hdr, path)
+			if err != nil {
+				return err
 			}
-
-			// if a file was deleted and we are using overlay, we need to create a character device
-			if strings.HasPrefix(base, WhiteoutPrefix) {
-				originalBase := base[len(WhiteoutPrefix):]
-				originalPath := filepath.Join(dir, originalBase)
-
-				if err := syscall.Mknod(originalPath, syscall.S_IFCHR, 0); err != nil {
-					return err
-				}
-				if err := os.Chown(originalPath, hdr.Uid, hdr.Gid); err != nil {
-					return err
-				}
-
-				// don't write the file itself
+			if !writeFile {
 				continue
 			}
 		}
