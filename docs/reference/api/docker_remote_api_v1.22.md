@@ -246,17 +246,6 @@ Create a container
                    "com.example.license": "GPL",
                    "com.example.version": "1.0"
            },
-           "Mounts": [
-             {
-               "Name": "fac362...80535",
-               "Source": "/data",
-               "Destination": "/data",
-               "Driver": "local",
-               "Mode": "ro,Z",
-               "RW": false,
-               "Propagation": ""
-             }
-           ],
            "Volumes": {
              "/volumes/data": {}
            }
@@ -366,7 +355,8 @@ Json Parameters:
 -   **Entrypoint** - Set the entry point for the container as a string or an array
       of strings.
 -   **Image** - A string specifying the image name to use for the container.
--   **Mounts** - An array of mount points in the container.
+-   **Volumes** - An object mapping mount point paths (strings) inside the
+      container to empty objects.
 -   **WorkingDir** - A string specifying the working directory for commands to
       run in.
 -   **NetworkDisabled** - Boolean value, when true disables networking for the
