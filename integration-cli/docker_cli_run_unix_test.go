@@ -197,6 +197,38 @@ func (s *DockerSuite) TestRunAttachDetachFromFlag(c *check.C) {
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 }
 
+// TestRunDetach checks attaching and detaching with the escape sequence specified via flags.
+func (s *DockerSuite) TestRunAttachDetachFromInvalidFlag(c *check.C) {
+	name := "attach-detach"
+	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "top")
+	c.Assert(waitRun(name), check.IsNil)
+
+	// specify an invalid detach key, container will ignore it and use default
+	cmd := exec.Command(dockerBinary, "attach", "--detach-keys='ctrl-A,a'", name)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		c.Fatal(err)
+	}
+	cpty, tty, err := pty.Open()
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer cpty.Close()
+	cmd.Stdin = tty
+	if err := cmd.Start(); err != nil {
+		c.Fatal(err)
+	}
+
+	bufReader := bufio.NewReader(stdout)
+	out, err := bufReader.ReadString('\n')
+	if err != nil {
+		c.Fatal(err)
+	}
+	// it should print a warning to indicate the detach key flag is invalid
+	errStr := "Invalid escape keys (ctrl-A,a) provided"
+	c.Assert(strings.TrimSpace(out), checker.Equals, errStr)
+}
+
 // TestRunDetach checks attaching and detaching with the escape sequence specified via config file.
 func (s *DockerSuite) TestRunAttachDetachFromConfig(c *check.C) {
 	keyCtrlA := []byte{1}

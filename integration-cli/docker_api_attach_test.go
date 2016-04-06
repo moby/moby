@@ -67,11 +67,18 @@ func (s *DockerSuite) TestGetContainersAttachWebsocket(c *check.C) {
 
 // regression gh14320
 func (s *DockerSuite) TestPostContainersAttachContainerNotFound(c *check.C) {
-	status, body, err := sockRequest("POST", "/containers/doesnotexist/attach", nil)
-	c.Assert(status, checker.Equals, http.StatusNotFound)
+	req, client, err := newRequestClient("POST", "/containers/doesnotexist/attach", nil, "")
 	c.Assert(err, checker.IsNil)
-	expected := "No such container: doesnotexist\n"
-	c.Assert(string(body), checker.Contains, expected)
+
+	resp, err := client.Do(req)
+	// connection will shutdown, err should be "persistent connection closed"
+	c.Assert(err, checker.NotNil) // Server shutdown connection
+
+	body, err := readBody(resp.Body)
+	c.Assert(err, checker.IsNil)
+	c.Assert(resp.StatusCode, checker.Equals, http.StatusNotFound)
+	expected := "No such container: doesnotexist\r\n"
+	c.Assert(string(body), checker.Equals, expected)
 }
 
 func (s *DockerSuite) TestGetContainersWsAttachContainerNotFound(c *check.C) {
