@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0-rc.3 (2016-04-05)
+- Revert fix for default gateway endoint join/leave. Needs to be reworked.
+- Persist the network internal mode for bridge networks
+
+## 0.7.0-rc.2 (2016-04-05)
+- Fixes https://github.com/docker/libnetwork/issues/1070
+- Move IPAM resource initialization out of init()
+- Initialize overlay driver before network delete 
+- Fix the handling for default gateway Endpoint join/lean 
+
 ## 0.7.0-rc.1 (2016-03-30)
 - Fixes https://github.com/docker/libnetwork/issues/985
 - Fixes https://github.com/docker/libnetwork/issues/945

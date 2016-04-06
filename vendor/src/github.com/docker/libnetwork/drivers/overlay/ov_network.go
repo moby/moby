@@ -104,6 +104,11 @@ func (d *driver) DeleteNetwork(nid string) error {
 		return fmt.Errorf("invalid network id")
 	}
 
+	// Make sure driver resources are initialized before proceeding
+	if err := d.configure(); err != nil {
+		return err
+	}
+
 	n := d.network(nid)
 	if n == nil {
 		return fmt.Errorf("could not find network with id %s", nid)

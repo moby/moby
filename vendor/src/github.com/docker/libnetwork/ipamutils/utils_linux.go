@@ -22,6 +22,8 @@ func ElectInterfaceAddresses(name string) (*net.IPNet, []*net.IPNet, error) {
 		err    error
 	)
 
+	InitNetworks()
+
 	defer osl.InitOSContext()()
 
 	link, _ := netlink.LinkByName(name)
