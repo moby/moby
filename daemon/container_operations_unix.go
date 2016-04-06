@@ -153,20 +153,6 @@ func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n li
 	return nil
 }
 
-// called from the libcontainer pre-start hook to set the network
-// namespace configuration linkage to the libnetwork "sandbox" entity
-func (daemon *Daemon) setNetworkNamespaceKey(containerID string, pid int) error {
-	path := fmt.Sprintf("/proc/%d/ns/net", pid)
-	var sandbox libnetwork.Sandbox
-	search := libnetwork.SandboxContainerWalker(&sandbox, containerID)
-	daemon.netController.WalkSandboxes(search)
-	if sandbox == nil {
-		return fmt.Errorf("error locating sandbox id %s: no sandbox found", containerID)
-	}
-
-	return sandbox.SetKey(path)
-}
-
 func (daemon *Daemon) getIpcContainer(container *container.Container) (*container.Container, error) {
 	containerID := container.HostConfig.IpcMode.Container()
 	c, err := daemon.GetContainer(containerID)
@@ -353,25 +339,6 @@ func getDevicesFromPath(deviceMapping containertypes.DeviceMapping) (devs []spec
 	}
 
 	return devs, devPermissions, fmt.Errorf("error gathering device information while adding custom device %q: %s", deviceMapping.PathOnHost, err)
-}
-
-func mergeDevices(defaultDevices, userDevices []*configs.Device) []*configs.Device {
-	if len(userDevices) == 0 {
-		return defaultDevices
-	}
-
-	paths := map[string]*configs.Device{}
-	for _, d := range userDevices {
-		paths[d.Path] = d
-	}
-
-	var devs []*configs.Device
-	for _, d := range defaultDevices {
-		if _, defined := paths[d.Path]; !defined {
-			devs = append(devs, d)
-		}
-	}
-	return append(devs, userDevices...)
 }
 
 func detachMounted(path string) error {
