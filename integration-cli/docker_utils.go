@@ -34,58 +34,39 @@ import (
 )
 
 func init() {
-	cmd := exec.Command(dockerBinary, "images")
+	cmd := exec.Command(dockerBinary, "images", "-f", "dangling=false", "--format", "{{.Repository}}:{{.Tag}}")
 	cmd.Env = appendBaseEnv(true)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		panic(fmt.Errorf("err=%v\nout=%s\n", err, out))
 	}
-	lines := strings.Split(string(out), "\n")[1:]
-	for _, l := range lines {
-		if l == "" {
-			continue
-		}
-		fields := strings.Fields(l)
-		imgTag := fields[0] + ":" + fields[1]
-		// just for case if we have dangling images in tested daemon
-		if imgTag != "<none>:<none>" {
-			protectedImages[imgTag] = struct{}{}
-		}
+	images := strings.Split(strings.TrimSpace(string(out)), "\n")
+	for _, img := range images {
+		protectedImages[img] = struct{}{}
 	}
 
-	// Obtain the daemon platform so that it can be used by tests to make
-	// intelligent decisions about how to configure themselves, and validate
-	// that the target platform is valid.
-	res, _, err := sockRequestRaw("GET", "/version", nil, "application/json")
-	if err != nil || res == nil || (res != nil && res.StatusCode != http.StatusOK) {
-		panic(fmt.Errorf("Init failed to get version: %v. Res=%v", err.Error(), res))
+	res, body, err := sockRequestRaw("GET", "/info", nil, "application/json")
+	if err != nil {
+		panic(fmt.Errorf("Init failed to get /info: %v", err))
 	}
+	defer body.Close()
+	if res.StatusCode != http.StatusOK {
+		panic(fmt.Errorf("Init failed to get /info. Res=%v", res))
+	}
+
 	svrHeader, _ := httputils.ParseServerHeader(res.Header.Get("Server"))
 	daemonPlatform = svrHeader.OS
 	if daemonPlatform != "linux" && daemonPlatform != "windows" {
 		panic("Cannot run tests against platform: " + daemonPlatform)
 	}
 
-	// On Windows, extract out the version as we need to make selective
-	// decisions during integration testing as and when features are implemented.
-	if daemonPlatform == "windows" {
-		if body, err := ioutil.ReadAll(res.Body); err == nil {
-			var server types.Version
-			if err := json.Unmarshal(body, &server); err == nil {
-				// eg in "10.0 10550 (10550.1000.amd64fre.branch.date-time)" we want 10550
-				windowsDaemonKV, _ = strconv.Atoi(strings.Split(server.KernelVersion, " ")[1])
-			}
-		}
-	}
-
 	// Now we know the daemon platform, can set paths used by tests.
-	_, body, err := sockRequest("GET", "/info", nil)
+	var info types.Info
+	err = json.NewDecoder(body).Decode(&info)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("Init failed to unmarshal docker info: %v", err))
 	}
 
-	var info types.Info
-	err = json.Unmarshal(body, &info)
 	dockerBasePath = info.DockerRootDir
 	volumesConfigPath = filepath.Join(dockerBasePath, "volumes")
 	containerStoragePath = filepath.Join(dockerBasePath, "containers")
@@ -94,6 +75,10 @@ func init() {
 	if daemonPlatform == "windows" {
 		volumesConfigPath = strings.Replace(volumesConfigPath, `/`, `\`, -1)
 		containerStoragePath = strings.Replace(containerStoragePath, `/`, `\`, -1)
+		// On Windows, extract out the version as we need to make selective
+		// decisions during integration testing as and when features are implemented.
+		// eg in "10.0 10550 (10550.1000.amd64fre.branch.date-time)" we want 10550
+		windowsDaemonKV, _ = strconv.Atoi(strings.Split(info.KernelVersion, " ")[1])
 	} else {
 		volumesConfigPath = strings.Replace(volumesConfigPath, `\`, `/`, -1)
 		containerStoragePath = strings.Replace(containerStoragePath, `\`, `/`, -1)
