@@ -56,12 +56,14 @@ func (cli *Client) delete(ctx context.Context, path string, query url.Values, he
 }
 
 func (cli *Client) sendRequest(ctx context.Context, method, path string, query url.Values, obj interface{}, headers map[string][]string) (*serverResponse, error) {
-	body, err := encodeData(obj)
-	if err != nil {
-		return nil, err
-	}
+	var body io.Reader
 
-	if body != nil {
+	if obj != nil {
+		var err error
+		body, err = encodeData(obj)
+		if err != nil {
+			return nil, err
+		}
 		if headers == nil {
 			headers = make(map[string][]string)
 		}
