@@ -5,8 +5,14 @@ package btrfs
 /*
 #include <stdlib.h>
 #include <dirent.h>
-#include <btrfs/ioctl.h>
-#include <btrfs/ctree.h>
+#include <linux/btrfs.h>
+#include <btrfs/version.h>
+
+// Values taken from <btrfs/ctree.h>
+// We can't use that header because it redefines everything in <linux/btrfs.h>.
+#define BTRFS_FIRST_FREE_OBJECTID 256ULL
+#define BTRFS_LAST_FREE_OBJECTID -256ULL
+#define BTRFS_FIRST_CHUNK_TREE_OBJECTID 256ULL
 */
 import "C"
 
