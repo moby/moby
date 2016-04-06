@@ -86,6 +86,7 @@ func init() {
 
 	var info types.Info
 	err = json.Unmarshal(body, &info)
+	daemonStorageDriver = info.Driver
 	dockerBasePath = info.DockerRootDir
 	volumesConfigPath = filepath.Join(dockerBasePath, "volumes")
 	containerStoragePath = filepath.Join(dockerBasePath, "containers")
