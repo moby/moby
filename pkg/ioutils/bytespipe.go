@@ -49,6 +49,7 @@ func (bp *BytesPipe) Write(p []byte) (int, error) {
 	bp.mu.Lock()
 	defer bp.mu.Unlock()
 	written := 0
+loop0:
 	for {
 		if bp.closeErr != nil {
 			return written, ErrClosed
@@ -75,6 +76,9 @@ func (bp *BytesPipe) Write(p []byte) (int, error) {
 		// block if too much data is still in the buffer
 		for bp.bufLen >= blockThreshold {
 			bp.wait.Wait()
+			if bp.closeErr != nil {
+				continue loop0
+			}
 		}
 
 		// allocate slice that has twice the size of the last unless maximum reached
