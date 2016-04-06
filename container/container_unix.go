@@ -214,7 +214,7 @@ func (container *Container) UnmountIpcMounts(unmount func(pth string) error) {
 			logrus.Error(err)
 			warnings = append(warnings, err.Error())
 		} else if shmPath != "" {
-			if err := unmount(shmPath); err != nil {
+			if err := unmount(shmPath); err != nil && !os.IsNotExist(err) {
 				warnings = append(warnings, fmt.Sprintf("failed to umount %s: %v", shmPath, err))
 			}
 
