@@ -2,140 +2,136 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
-	"testing"
+
+	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/stringutils"
+	"github.com/go-check/check"
 )
 
 // tagging a named image in a new unprefixed repo should work
-func TestTagUnprefixedRepoByName(t *testing.T) {
-	if err := pullImageIfNotExist("busybox:latest"); err != nil {
-		t.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
+func (s *DockerSuite) TestTagUnprefixedRepoByName(c *check.C) {
+	// Don't attempt to pull on Windows as not in hub. It's installed
+	// as an image through .ensure-frozen-images-windows
+	if daemonPlatform != "windows" {
+		if err := pullImageIfNotExist("busybox:latest"); err != nil {
+			c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
+		}
 	}
 
-	tagCmd := exec.Command(dockerBinary, "tag", "busybox:latest", "testfoobarbaz")
-	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
-		t.Fatal(out, err)
-	}
-
-	deleteImages("testfoobarbaz")
-
-	logDone("tag - busybox -> testfoobarbaz")
+	dockerCmd(c, "tag", "busybox:latest", "testfoobarbaz")
 }
 
 // tagging an image by ID in a new unprefixed repo should work
-func TestTagUnprefixedRepoByID(t *testing.T) {
-	getIDCmd := exec.Command(dockerBinary, "inspect", "-f", "{{.Id}}", "busybox")
-	out, _, err := runCommandWithOutput(getIDCmd)
-	if err != nil {
-		t.Fatalf("failed to get the image ID of busybox: %s, %v", out, err)
-	}
-
-	cleanedImageID := stripTrailingCharacters(out)
-	tagCmd := exec.Command(dockerBinary, "tag", cleanedImageID, "testfoobarbaz")
-	if out, _, err = runCommandWithOutput(tagCmd); err != nil {
-		t.Fatal(out, err)
-	}
-
-	deleteImages("testfoobarbaz")
-
-	logDone("tag - busybox's image ID -> testfoobarbaz")
+func (s *DockerSuite) TestTagUnprefixedRepoByID(c *check.C) {
+	imageID := inspectField(c, "busybox", "Id")
+	dockerCmd(c, "tag", imageID, "testfoobarbaz")
 }
 
 // ensure we don't allow the use of invalid repository names; these tag operations should fail
-func TestTagInvalidUnprefixedRepo(t *testing.T) {
-
-	invalidRepos := []string{"fo$z$", "Foo@3cc", "Foo$3", "Foo*3", "Fo^3", "Foo!3", "F)xcz(", "fo%asd"}
+func (s *DockerSuite) TestTagInvalidUnprefixedRepo(c *check.C) {
+	invalidRepos := []string{"fo$z$", "Foo@3cc", "Foo$3", "Foo*3", "Fo^3", "Foo!3", "F)xcz(", "fo%asd", "FOO/bar"}
 
 	for _, repo := range invalidRepos {
-		tagCmd := exec.Command(dockerBinary, "tag", "busybox", repo)
-		_, _, err := runCommandWithOutput(tagCmd)
-		if err == nil {
-			t.Fatalf("tag busybox %v should have failed", repo)
-		}
+		out, _, err := dockerCmdWithError("tag", "busybox", repo)
+		c.Assert(err, checker.NotNil, check.Commentf("tag busybox %v should have failed : %v", repo, out))
 	}
-	logDone("tag - busybox invalid repo names --> must not work")
 }
 
 // ensure we don't allow the use of invalid tags; these tag operations should fail
-func TestTagInvalidPrefixedRepo(t *testing.T) {
-	long_tag := makeRandomString(121)
+func (s *DockerSuite) TestTagInvalidPrefixedRepo(c *check.C) {
+	longTag := stringutils.GenerateRandomAlphaOnlyString(121)
 
-	invalidTags := []string{"repo:fo$z$", "repo:Foo@3cc", "repo:Foo$3", "repo:Foo*3", "repo:Fo^3", "repo:Foo!3", "repo:%goodbye", "repo:#hashtagit", "repo:F)xcz(", "repo:-foo", "repo:..", long_tag}
+	invalidTags := []string{"repo:fo$z$", "repo:Foo@3cc", "repo:Foo$3", "repo:Foo*3", "repo:Fo^3", "repo:Foo!3", "repo:%goodbye", "repo:#hashtagit", "repo:F)xcz(", "repo:-foo", "repo:..", longTag}
 
 	for _, repotag := range invalidTags {
-		tagCmd := exec.Command(dockerBinary, "tag", "busybox", repotag)
-		_, _, err := runCommandWithOutput(tagCmd)
-		if err == nil {
-			t.Fatalf("tag busybox %v should have failed", repotag)
-		}
+		out, _, err := dockerCmdWithError("tag", "busybox", repotag)
+		c.Assert(err, checker.NotNil, check.Commentf("tag busybox %v should have failed : %v", repotag, out))
 	}
-	logDone("tag - busybox with invalid repo:tagnames --> must not work")
 }
 
 // ensure we allow the use of valid tags
-func TestTagValidPrefixedRepo(t *testing.T) {
-	if err := pullImageIfNotExist("busybox:latest"); err != nil {
-		t.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
+func (s *DockerSuite) TestTagValidPrefixedRepo(c *check.C) {
+	// Don't attempt to pull on Windows as not in hub. It's installed
+	// as an image through .ensure-frozen-images-windows
+	if daemonPlatform != "windows" {
+		if err := pullImageIfNotExist("busybox:latest"); err != nil {
+			c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
+		}
 	}
 
-	validRepos := []string{"fooo/bar", "fooaa/test", "foooo:t"}
+	validRepos := []string{"fooo/bar", "fooaa/test", "foooo:t", "HOSTNAME.DOMAIN.COM:443/foo/bar"}
 
 	for _, repo := range validRepos {
-		tagCmd := exec.Command(dockerBinary, "tag", "busybox:latest", repo)
-		_, _, err := runCommandWithOutput(tagCmd)
+		_, _, err := dockerCmdWithError("tag", "busybox:latest", repo)
 		if err != nil {
-			t.Errorf("tag busybox %v should have worked: %s", repo, err)
+			c.Errorf("tag busybox %v should have worked: %s", repo, err)
 			continue
 		}
 		deleteImages(repo)
-		logMessage := fmt.Sprintf("tag - busybox %v", repo)
-		logDone(logMessage)
 	}
 }
 
-// tag an image with an existed tag name without -f option should fail
-func TestTagExistedNameWithoutForce(t *testing.T) {
-	if err := pullImageIfNotExist("busybox:latest"); err != nil {
-		t.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
+// tag an image with an existed tag name without -f option should work
+func (s *DockerSuite) TestTagExistedNameWithoutForce(c *check.C) {
+	// Don't attempt to pull on Windows as not in hub. It's installed
+	// as an image through .ensure-frozen-images-windows
+	if daemonPlatform != "windows" {
+		if err := pullImageIfNotExist("busybox:latest"); err != nil {
+			c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
+		}
 	}
 
-	tagCmd := exec.Command(dockerBinary, "tag", "busybox:latest", "busybox:test")
-	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
-		t.Fatal(out, err)
-	}
-	tagCmd = exec.Command(dockerBinary, "tag", "busybox:latest", "busybox:test")
-	out, _, err := runCommandWithOutput(tagCmd)
-	if err == nil || !strings.Contains(out, "Conflict: Tag test is already set to image") {
-		t.Fatal("tag busybox busybox:test should have failed,because busybox:test is existed")
-	}
-	deleteImages("busybox:test")
-
-	logDone("tag - busybox with an existed tag name without -f option --> must not work")
+	dockerCmd(c, "tag", "busybox:latest", "busybox:test")
 }
 
 // tag an image with an existed tag name with -f option should work
-func TestTagExistedNameWithForce(t *testing.T) {
-	if err := pullImageIfNotExist("busybox:latest"); err != nil {
-		t.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
+func (s *DockerSuite) TestTagExistedNameWithForce(c *check.C) {
+	// Don't attempt to pull on Windows as not in hub. It's installed
+	// as an image through .ensure-frozen-images-windows
+	if daemonPlatform != "windows" {
+		if err := pullImageIfNotExist("busybox:latest"); err != nil {
+			c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
+		}
 	}
+	dockerCmd(c, "tag", "busybox:latest", "busybox:test")
+	dockerCmd(c, "tag", "-f", "busybox:latest", "busybox:test")
+}
 
-	tagCmd := exec.Command(dockerBinary, "tag", "busybox:latest", "busybox:test")
-	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
-		t.Fatal(out, err)
+func (s *DockerSuite) TestTagWithPrefixHyphen(c *check.C) {
+	// TODO Windows CI. This fails on TP4 docker, but has since been fixed.
+	// Enable these tests for TP5.
+	testRequires(c, DaemonIsLinux)
+	// Don't attempt to pull on Windows as not in hub. It's installed
+	// as an image through .ensure-frozen-images-windows
+	if daemonPlatform != "windows" {
+		if err := pullImageIfNotExist("busybox:latest"); err != nil {
+			c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
+		}
 	}
-	tagCmd = exec.Command(dockerBinary, "tag", "-f", "busybox:latest", "busybox:test")
-	if out, _, err := runCommandWithOutput(tagCmd); err != nil {
-		t.Fatal(out, err)
-	}
-	deleteImages("busybox:test")
+	// test repository name begin with '-'
+	out, _, err := dockerCmdWithError("tag", "busybox:latest", "-busybox:test")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Error parsing reference", check.Commentf("tag a name begin with '-' should failed"))
 
-	logDone("tag - busybox with an existed tag name with -f option work")
+	// test namespace name begin with '-'
+	out, _, err = dockerCmdWithError("tag", "busybox:latest", "-test/busybox:test")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Error parsing reference", check.Commentf("tag a name begin with '-' should failed"))
+
+	// test index name begin with '-'
+	out, _, err = dockerCmdWithError("tag", "busybox:latest", "-index:5000/busybox:test")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Error parsing reference", check.Commentf("tag a name begin with '-' should failed"))
 }
 
 // ensure tagging using official names works
 // ensure all tags result in the same name
-func TestTagOfficialNames(t *testing.T) {
+func (s *DockerSuite) TestTagOfficialNames(c *check.C) {
+	// TODO Windows CI. This fails on TP4 docker, but has since been fixed.
+	// Enable these tests for TP5.
+	testRequires(c, DaemonIsLinux)
 	names := []string{
 		"docker.io/busybox",
 		"index.docker.io/busybox",
@@ -145,36 +141,111 @@ func TestTagOfficialNames(t *testing.T) {
 	}
 
 	for _, name := range names {
-		tagCmd := exec.Command(dockerBinary, "tag", "-f", "busybox:latest", name+":latest")
-		out, exitCode, err := runCommandWithOutput(tagCmd)
+		out, exitCode, err := dockerCmdWithError("tag", "busybox:latest", name+":latest")
 		if err != nil || exitCode != 0 {
-			t.Errorf("tag busybox %v should have worked: %s, %s", name, err, out)
+			c.Errorf("tag busybox %v should have worked: %s, %s", name, err, out)
 			continue
 		}
 
 		// ensure we don't have multiple tag names.
-		imagesCmd := exec.Command(dockerBinary, "images")
-		out, _, err = runCommandWithOutput(imagesCmd)
+		out, _, err = dockerCmdWithError("images")
 		if err != nil {
-			t.Errorf("listing images failed with errors: %v, %s", err, out)
+			c.Errorf("listing images failed with errors: %v, %s", err, out)
 		} else if strings.Contains(out, name) {
-			t.Errorf("images should not have listed '%s'", name)
+			c.Errorf("images should not have listed '%s'", name)
 			deleteImages(name + ":latest")
-		} else {
-			logMessage := fmt.Sprintf("tag official name - busybox %v", name)
-			logDone(logMessage)
 		}
 	}
 
 	for _, name := range names {
-		tagCmd := exec.Command(dockerBinary, "tag", "-f", name+":latest", "fooo/bar:latest")
-		_, exitCode, err := runCommandWithOutput(tagCmd)
+		_, exitCode, err := dockerCmdWithError("tag", name+":latest", "fooo/bar:latest")
 		if err != nil || exitCode != 0 {
-			t.Errorf("tag %v fooo/bar should have worked: %s", name, err)
+			c.Errorf("tag %v fooo/bar should have worked: %s", name, err)
 			continue
 		}
 		deleteImages("fooo/bar:latest")
-		logMessage := fmt.Sprintf("tag official name - %v fooo/bar", name)
-		logDone(logMessage)
 	}
+}
+
+// ensure tags can not match digests
+func (s *DockerSuite) TestTagMatchesDigest(c *check.C) {
+	// TODO Windows CI. This can be enabled for TP5, but will fail on TP4.
+	// This is due to the content addressibility changes which are not
+	// in the TP4 version of Docker.
+	testRequires(c, DaemonIsLinux)
+	// Don't attempt to pull on Windows as not in hub. It's installed
+	// as an image through .ensure-frozen-images-windows
+	if daemonPlatform != "windows" {
+		if err := pullImageIfNotExist("busybox:latest"); err != nil {
+			c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
+		}
+	}
+	digest := "busybox@sha256:abcdef76720241213f5303bda7704ec4c2ef75613173910a56fb1b6e20251507"
+	// test setting tag fails
+	_, _, err := dockerCmdWithError("tag", "busybox:latest", digest)
+	if err == nil {
+		c.Fatal("digest tag a name should have failed")
+	}
+	// check that no new image matches the digest
+	_, _, err = dockerCmdWithError("inspect", digest)
+	if err == nil {
+		c.Fatal("inspecting by digest should have failed")
+	}
+}
+
+func (s *DockerSuite) TestTagInvalidRepoName(c *check.C) {
+	// TODO Windows CI. This can be enabled for TP5, but will fail on the
+	// TP4 version of docker.
+	testRequires(c, DaemonIsLinux)
+	// Don't attempt to pull on Windows as not in hub. It's installed
+	// as an image through .ensure-frozen-images-windows
+	if daemonPlatform != "windows" {
+		if err := pullImageIfNotExist("busybox:latest"); err != nil {
+			c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
+		}
+	}
+
+	// test setting tag fails
+	_, _, err := dockerCmdWithError("tag", "busybox:latest", "sha256:sometag")
+	if err == nil {
+		c.Fatal("tagging with image named \"sha256\" should have failed")
+	}
+}
+
+// ensure tags cannot create ambiguity with image ids
+func (s *DockerSuite) TestTagTruncationAmbiguity(c *check.C) {
+	//testRequires(c, DaemonIsLinux)
+	// Don't attempt to pull on Windows as not in hub. It's installed
+	// as an image through .ensure-frozen-images-windows
+	if daemonPlatform != "windows" {
+		if err := pullImageIfNotExist("busybox:latest"); err != nil {
+			c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
+		}
+	}
+	imageID, err := buildImage("notbusybox:latest",
+		`FROM busybox
+		MAINTAINER dockerio`,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	truncatedImageID := stringid.TruncateID(imageID)
+	truncatedTag := fmt.Sprintf("notbusybox:%s", truncatedImageID)
+
+	id := inspectField(c, truncatedTag, "Id")
+
+	// Ensure inspect by image id returns image for image id
+	c.Assert(id, checker.Equals, imageID)
+	c.Logf("Built image: %s", imageID)
+
+	// test setting tag fails
+	_, _, err = dockerCmdWithError("tag", "busybox:latest", truncatedTag)
+	if err != nil {
+		c.Fatalf("Error tagging with an image id: %s", err)
+	}
+
+	id = inspectField(c, truncatedTag, "Id")
+
+	// Ensure id is imageID and not busybox:latest
+	c.Assert(id, checker.Not(checker.Equals), imageID)
 }

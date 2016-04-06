@@ -1,32 +1,123 @@
 package main
 
 import (
-	"fmt"
+	"bufio"
+	"compress/gzip"
+	"io/ioutil"
+	"os"
 	"os/exec"
+	"regexp"
 	"strings"
-	"testing"
+
+	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/go-check/check"
 )
 
-func TestImportDisplay(t *testing.T) {
-	server, err := fileServer(map[string]string{
-		"/cirros.tar.gz": "/cirros.tar.gz",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer server.Close()
-	fileURL := fmt.Sprintf("%s/cirros.tar.gz", server.URL)
-	importCmd := exec.Command(dockerBinary, "import", fileURL, "cirros")
-	out, _, err := runCommandWithOutput(importCmd)
-	if err != nil {
-		t.Errorf("import failed with errors: %v, output: %q", err, out)
-	}
+func (s *DockerSuite) TestImportDisplay(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
+	cleanedContainerID := strings.TrimSpace(out)
 
-	if n := strings.Count(out, "\n"); n != 2 {
-		t.Fatalf("display is messed up: %d '\\n' instead of 2", n)
-	}
+	out, _, err := runCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "export", cleanedContainerID),
+		exec.Command(dockerBinary, "import", "-"),
+	)
+	c.Assert(err, checker.IsNil)
 
-	deleteImages("cirros")
+	c.Assert(out, checker.Count, "\n", 1, check.Commentf("display is expected 1 '\\n' but didn't"))
 
-	logDone("import - cirros was imported and display is fine")
+	image := strings.TrimSpace(out)
+	out, _ = dockerCmd(c, "run", "--rm", image, "true")
+	c.Assert(out, checker.Equals, "", check.Commentf("command output should've been nothing."))
+}
+
+func (s *DockerSuite) TestImportBadURL(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out, _, err := dockerCmdWithError("import", "http://nourl/bad")
+	c.Assert(err, checker.NotNil, check.Commentf("import was supposed to fail but didn't"))
+	c.Assert(out, checker.Contains, "dial tcp", check.Commentf("expected an error msg but didn't get one"))
+}
+
+func (s *DockerSuite) TestImportFile(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
+
+	temporaryFile, err := ioutil.TempFile("", "exportImportTest")
+	c.Assert(err, checker.IsNil, check.Commentf("failed to create temporary file"))
+	defer os.Remove(temporaryFile.Name())
+
+	runCmd := exec.Command(dockerBinary, "export", "test-import")
+	runCmd.Stdout = bufio.NewWriter(temporaryFile)
+
+	_, err = runCommand(runCmd)
+	c.Assert(err, checker.IsNil, check.Commentf("failed to export a container"))
+
+	out, _ := dockerCmd(c, "import", temporaryFile.Name())
+	c.Assert(out, checker.Count, "\n", 1, check.Commentf("display is expected 1 '\\n' but didn't"))
+	image := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "run", "--rm", image, "true")
+	c.Assert(out, checker.Equals, "", check.Commentf("command output should've been nothing."))
+}
+
+func (s *DockerSuite) TestImportGzipped(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
+
+	temporaryFile, err := ioutil.TempFile("", "exportImportTest")
+	c.Assert(err, checker.IsNil, check.Commentf("failed to create temporary file"))
+	defer os.Remove(temporaryFile.Name())
+
+	runCmd := exec.Command(dockerBinary, "export", "test-import")
+	w := gzip.NewWriter(temporaryFile)
+	runCmd.Stdout = w
+
+	_, err = runCommand(runCmd)
+	c.Assert(err, checker.IsNil, check.Commentf("failed to export a container"))
+	err = w.Close()
+	c.Assert(err, checker.IsNil, check.Commentf("failed to close gzip writer"))
+	temporaryFile.Close()
+	out, _ := dockerCmd(c, "import", temporaryFile.Name())
+	c.Assert(out, checker.Count, "\n", 1, check.Commentf("display is expected 1 '\\n' but didn't"))
+	image := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "run", "--rm", image, "true")
+	c.Assert(out, checker.Equals, "", check.Commentf("command output should've been nothing."))
+}
+
+func (s *DockerSuite) TestImportFileWithMessage(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
+
+	temporaryFile, err := ioutil.TempFile("", "exportImportTest")
+	c.Assert(err, checker.IsNil, check.Commentf("failed to create temporary file"))
+	defer os.Remove(temporaryFile.Name())
+
+	runCmd := exec.Command(dockerBinary, "export", "test-import")
+	runCmd.Stdout = bufio.NewWriter(temporaryFile)
+
+	_, err = runCommand(runCmd)
+	c.Assert(err, checker.IsNil, check.Commentf("failed to export a container"))
+
+	message := "Testing commit message"
+	out, _ := dockerCmd(c, "import", "-m", message, temporaryFile.Name())
+	c.Assert(out, checker.Count, "\n", 1, check.Commentf("display is expected 1 '\\n' but didn't"))
+	image := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "history", image)
+	split := strings.Split(out, "\n")
+
+	c.Assert(split, checker.HasLen, 3, check.Commentf("expected 3 lines from image history"))
+	r := regexp.MustCompile("[\\s]{2,}")
+	split = r.Split(split[1], -1)
+
+	c.Assert(message, checker.Equals, split[3], check.Commentf("didn't get expected value in commit message"))
+
+	out, _ = dockerCmd(c, "run", "--rm", image, "true")
+	c.Assert(out, checker.Equals, "", check.Commentf("command output should've been nothing"))
+}
+
+func (s *DockerSuite) TestImportFileNonExistentFile(c *check.C) {
+	_, _, err := dockerCmdWithError("import", "example.com/myImage.tar")
+	c.Assert(err, checker.NotNil, check.Commentf("import non-existing file must failed"))
 }

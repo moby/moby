@@ -61,7 +61,7 @@ func TestHardLinkOrder(t *testing.T) {
 	sort.Sort(changesByPath(changes))
 
 	// ExportChanges
-	ar, err := ExportChanges(dest, changes)
+	ar, err := ExportChanges(dest, changes, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestHardLinkOrder(t *testing.T) {
 	// reverse sort
 	sort.Sort(sort.Reverse(changesByPath(changes)))
 	// ExportChanges
-	arRev, err := ExportChanges(dest, changes)
+	arRev, err := ExportChanges(dest, changes, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

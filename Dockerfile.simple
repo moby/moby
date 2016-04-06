@@ -1,0 +1,83 @@
+# docker build -t docker:simple -f Dockerfile.simple .
+# docker run --rm docker:simple hack/make.sh dynbinary
+# docker run --rm --privileged docker:simple hack/dind hack/make.sh test-unit
+# docker run --rm --privileged -v /var/lib/docker docker:simple hack/dind hack/make.sh dynbinary test-integration-cli
+
+# This represents the bare minimum required to build and test Docker.
+
+FROM debian:jessie
+
+# compile and runtime deps
+# https://github.com/docker/docker/blob/master/project/PACKAGERS.md#build-dependencies
+# https://github.com/docker/docker/blob/master/project/PACKAGERS.md#runtime-dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+		btrfs-tools \
+		build-essential \
+		curl \
+		gcc \
+		git \
+		libapparmor-dev \
+		libdevmapper-dev \
+		libsqlite3-dev \
+		\
+		ca-certificates \
+		e2fsprogs \
+		iptables \
+		procps \
+		xfsprogs \
+		xz-utils \
+		\
+		aufs-tools \
+	&& rm -rf /var/lib/apt/lists/*
+
+# install seccomp: the version shipped in trusty is too old
+ENV SECCOMP_VERSION 2.3.0
+RUN set -x \
+	&& export SECCOMP_PATH="$(mktemp -d)" \
+	&& curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
+		| tar -xzC "$SECCOMP_PATH" --strip-components=1 \
+	&& ( \
+		cd "$SECCOMP_PATH" \
+		&& ./configure --prefix=/usr/local \
+		&& make \
+		&& make install \
+		&& ldconfig \
+	) \
+	&& rm -rf "$SECCOMP_PATH"
+
+# Install Go
+# IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines
+#            will need updating, to avoid errors. Ping #docker-maintainers on IRC
+#            with a heads-up.
+ENV GO_VERSION 1.5.3
+RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" \
+	| tar -xzC /usr/local
+ENV PATH /go/bin:/usr/local/go/bin:$PATH
+ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
+ENV CGO_LDFLAGS -L/lib
+
+# Install runc
+ENV RUNC_COMMIT 6c88a526cdd74aab90cc88018368c452c7294a06
+RUN set -x \
+	&& export GOPATH="$(mktemp -d)" \
+	&& git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
+	&& cd "$GOPATH/src/github.com/opencontainers/runc" \
+	&& git checkout -q "$RUNC_COMMIT" \
+	&& make static BUILDTAGS="seccomp apparmor selinux" \
+	&& cp runc /usr/local/bin/docker-runc
+
+# Install containerd
+ENV CONTAINERD_COMMIT 07c95162cdcead88dfe4ca0ffb3cea02375ec54d
+RUN set -x \
+	&& export GOPATH="$(mktemp -d)" \
+	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \
+	&& cd "$GOPATH/src/github.com/docker/containerd" \
+	&& git checkout -q "$CONTAINERD_COMMIT" \
+	&& make static \
+	&& cp bin/containerd /usr/local/bin/docker-containerd \
+	&& cp bin/containerd-shim /usr/local/bin/docker-containerd-shim \
+	&& cp bin/ctr /usr/local/bin/docker-containerd-ctr
+
+ENV AUTO_GOPATH 1
+WORKDIR /usr/src/docker
+COPY . /usr/src/docker

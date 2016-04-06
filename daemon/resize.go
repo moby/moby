@@ -1,53 +1,40 @@
 package daemon
 
 import (
-	"strconv"
+	"fmt"
 
-	"github.com/docker/docker/engine"
+	"github.com/docker/docker/libcontainerd"
 )
 
-func (daemon *Daemon) ContainerResize(job *engine.Job) engine.Status {
-	if len(job.Args) != 3 {
-		return job.Errorf("Not enough arguments. Usage: %s CONTAINER HEIGHT WIDTH\n", job.Name)
-	}
-	name := job.Args[0]
-	height, err := strconv.Atoi(job.Args[1])
+// ContainerResize changes the size of the TTY of the process running
+// in the container with the given name to the given height and width.
+func (daemon *Daemon) ContainerResize(name string, height, width int) error {
+	container, err := daemon.GetContainer(name)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
-	width, err := strconv.Atoi(job.Args[2])
-	if err != nil {
-		return job.Error(err)
+
+	if !container.IsRunning() {
+		return errNotRunning{container.ID}
 	}
-	container, err := daemon.Get(name)
-	if err != nil {
-		return job.Error(err)
+
+	if err = daemon.containerd.Resize(container.ID, libcontainerd.InitFriendlyName, width, height); err == nil {
+		attributes := map[string]string{
+			"height": fmt.Sprintf("%d", height),
+			"width":  fmt.Sprintf("%d", width),
+		}
+		daemon.LogContainerEventWithAttributes(container, "resize", attributes)
 	}
-	if err := container.Resize(height, width); err != nil {
-		return job.Error(err)
-	}
-	return engine.StatusOK
+	return err
 }
 
-func (daemon *Daemon) ContainerExecResize(job *engine.Job) engine.Status {
-	if len(job.Args) != 3 {
-		return job.Errorf("Not enough arguments. Usage: %s EXEC HEIGHT WIDTH\n", job.Name)
-	}
-	name := job.Args[0]
-	height, err := strconv.Atoi(job.Args[1])
+// ContainerExecResize changes the size of the TTY of the process
+// running in the exec with the given name to the given height and
+// width.
+func (daemon *Daemon) ContainerExecResize(name string, height, width int) error {
+	ec, err := daemon.getExecConfig(name)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
-	width, err := strconv.Atoi(job.Args[2])
-	if err != nil {
-		return job.Error(err)
-	}
-	execConfig, err := daemon.getExecConfig(name)
-	if err != nil {
-		return job.Error(err)
-	}
-	if err := execConfig.Resize(height, width); err != nil {
-		return job.Error(err)
-	}
-	return engine.StatusOK
+	return daemon.containerd.Resize(ec.ContainerID, ec.ID, width, height)
 }

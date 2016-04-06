@@ -4,18 +4,19 @@ package overlay
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"syscall"
+	"time"
 
+	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 )
 
-type CopyFlags int
+type copyFlags int
 
 const (
-	CopyHardlink CopyFlags = 1 << iota
+	copyHardlink copyFlags = 1 << iota
 )
 
 func copyRegular(srcPath, dstPath string, mode os.FileMode) error {
@@ -31,7 +32,7 @@ func copyRegular(srcPath, dstPath string, mode os.FileMode) error {
 	}
 	defer dstFile.Close()
 
-	_, err = io.Copy(dstFile, srcFile)
+	_, err = pools.Copy(dstFile, srcFile)
 
 	return err
 }
@@ -49,7 +50,7 @@ func copyXattr(srcPath, dstPath, attr string) error {
 	return nil
 }
 
-func copyDir(srcDir, dstDir string, flags CopyFlags) error {
+func copyDir(srcDir, dstDir string, flags copyFlags) error {
 	err := filepath.Walk(srcDir, func(srcPath string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -71,9 +72,12 @@ func copyDir(srcDir, dstDir string, flags CopyFlags) error {
 			return fmt.Errorf("Unable to get raw syscall.Stat_t data for %s", srcPath)
 		}
 
+		isHardlink := false
+
 		switch f.Mode() & os.ModeType {
 		case 0: // Regular file
-			if flags&CopyHardlink != 0 {
+			if flags&copyHardlink != 0 {
+				isHardlink = true
 				if err := os.Link(srcPath, dstPath); err != nil {
 					return err
 				}
@@ -114,6 +118,12 @@ func copyDir(srcDir, dstDir string, flags CopyFlags) error {
 			return fmt.Errorf("Unknown file type for %s\n", srcPath)
 		}
 
+		// Everything below is copying metadata from src to dst. All this metadata
+		// already shares an inode for hardlinks.
+		if isHardlink {
+			return nil
+		}
+
 		if err := os.Lchown(dstPath, int(stat.Uid), int(stat.Gid)); err != nil {
 			return err
 		}
@@ -140,13 +150,15 @@ func copyDir(srcDir, dstDir string, flags CopyFlags) error {
 			}
 		}
 
-		ts := []syscall.Timespec{stat.Atim, stat.Mtim}
-		// syscall.UtimesNano doesn't support a NOFOLLOW flag atm, and
+		// system.Chtimes doesn't support a NOFOLLOW flag atm
 		if !isSymlink {
-			if err := system.UtimesNano(dstPath, ts); err != nil {
+			aTime := time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
+			mTime := time.Unix(int64(stat.Mtim.Sec), int64(stat.Mtim.Nsec))
+			if err := system.Chtimes(dstPath, aTime, mTime); err != nil {
 				return err
 			}
 		} else {
+			ts := []syscall.Timespec{stat.Atim, stat.Mtim}
 			if err := system.LUtimesNano(dstPath, ts); err != nil {
 				return err
 			}

@@ -1,53 +1,44 @@
 package main
 
 import (
-	"os/exec"
+	"net/http"
 	"strings"
-	"testing"
+
+	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/go-check/check"
 )
 
-func TestResizeApiResponse(t *testing.T) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		t.Fatalf(out, err)
-	}
-	defer deleteAllContainers()
-	cleanedContainerID := stripTrailingCharacters(out)
+func (s *DockerSuite) TestResizeApiResponse(c *check.C) {
+	out, _ := runSleepingContainer(c, "-d")
+	cleanedContainerID := strings.TrimSpace(out)
 
 	endpoint := "/containers/" + cleanedContainerID + "/resize?h=40&w=40"
-	_, err = sockRequest("POST", endpoint, nil)
-	if err != nil {
-		t.Fatalf("resize Request failed %v", err)
-	}
-
-	logDone("container resize - when started")
+	status, _, err := sockRequest("POST", endpoint, nil)
+	c.Assert(status, check.Equals, http.StatusOK)
+	c.Assert(err, check.IsNil)
 }
 
-func TestResizeApiResponseWhenContainerNotStarted(t *testing.T) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		t.Fatalf(out, err)
-	}
-	defer deleteAllContainers()
-	cleanedContainerID := stripTrailingCharacters(out)
+func (s *DockerSuite) TestResizeApiHeightWidthNoInt(c *check.C) {
+	out, _ := runSleepingContainer(c, "-d")
+	cleanedContainerID := strings.TrimSpace(out)
 
-	// make sure the exited cintainer is not running
-	runCmd = exec.Command(dockerBinary, "wait", cleanedContainerID)
-	out, _, err = runCommandWithOutput(runCmd)
-	if err != nil {
-		t.Fatalf(out, err)
-	}
+	endpoint := "/containers/" + cleanedContainerID + "/resize?h=foo&w=bar"
+	status, _, err := sockRequest("POST", endpoint, nil)
+	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(err, check.IsNil)
+}
+
+func (s *DockerSuite) TestResizeApiResponseWhenContainerNotStarted(c *check.C) {
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
+	cleanedContainerID := strings.TrimSpace(out)
+
+	// make sure the exited container is not running
+	dockerCmd(c, "wait", cleanedContainerID)
 
 	endpoint := "/containers/" + cleanedContainerID + "/resize?h=40&w=40"
-	body, err := sockRequest("POST", endpoint, nil)
-	if err == nil {
-		t.Fatalf("resize should fail when container is not started")
-	}
-	if !strings.Contains(string(body), "Cannot resize container") && !strings.Contains(string(body), cleanedContainerID) {
-		t.Fatalf("resize should fail with message 'Cannot resize container' but instead received %s", string(body))
-	}
+	status, body, err := sockRequest("POST", endpoint, nil)
+	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(err, check.IsNil)
 
-	logDone("container resize - when not started should not resize")
+	c.Assert(string(body), checker.Contains, "is not running", check.Commentf("resize should fail with message 'Container is not running'"))
 }

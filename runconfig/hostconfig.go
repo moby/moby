@@ -1,186 +1,35 @@
 package runconfig
 
 import (
-	"strings"
+	"encoding/json"
+	"io"
 
-	"github.com/docker/docker/engine"
-	"github.com/docker/docker/nat"
-	"github.com/docker/docker/utils"
+	"github.com/docker/engine-api/types/container"
 )
 
-type NetworkMode string
+// DecodeHostConfig creates a HostConfig based on the specified Reader.
+// It assumes the content of the reader will be JSON, and decodes it.
+func DecodeHostConfig(src io.Reader) (*container.HostConfig, error) {
+	decoder := json.NewDecoder(src)
 
-// IsPrivate indicates whether container use it's private network stack
-func (n NetworkMode) IsPrivate() bool {
-	return !(n.IsHost() || n.IsContainer() || n.IsNone())
+	var w ContainerConfigWrapper
+	if err := decoder.Decode(&w); err != nil {
+		return nil, err
+	}
+
+	hc := w.getHostConfig()
+	return hc, nil
 }
 
-func (n NetworkMode) IsHost() bool {
-	return n == "host"
-}
-
-func (n NetworkMode) IsContainer() bool {
-	parts := strings.SplitN(string(n), ":", 2)
-	return len(parts) > 1 && parts[0] == "container"
-}
-
-func (n NetworkMode) IsNone() bool {
-	return n == "none"
-}
-
-type IpcMode string
-
-// IsPrivate indicates whether container use it's private ipc stack
-func (n IpcMode) IsPrivate() bool {
-	return !(n.IsHost() || n.IsContainer())
-}
-
-func (n IpcMode) IsHost() bool {
-	return n == "host"
-}
-
-func (n IpcMode) IsContainer() bool {
-	parts := strings.SplitN(string(n), ":", 2)
-	return len(parts) > 1 && parts[0] == "container"
-}
-
-func (n IpcMode) Valid() bool {
-	parts := strings.Split(string(n), ":")
-	switch mode := parts[0]; mode {
-	case "", "host":
-	case "container":
-		if len(parts) != 2 || parts[1] == "" {
-			return false
+// SetDefaultNetModeIfBlank changes the NetworkMode in a HostConfig structure
+// to default if it is not populated. This ensures backwards compatibility after
+// the validation of the network mode was moved from the docker CLI to the
+// docker daemon.
+func SetDefaultNetModeIfBlank(hc *container.HostConfig) *container.HostConfig {
+	if hc != nil {
+		if hc.NetworkMode == container.NetworkMode("") {
+			hc.NetworkMode = container.NetworkMode("default")
 		}
-	default:
-		return false
 	}
-	return true
-}
-
-func (n IpcMode) Container() string {
-	parts := strings.SplitN(string(n), ":", 2)
-	if len(parts) > 1 {
-		return parts[1]
-	}
-	return ""
-}
-
-type PidMode string
-
-// IsPrivate indicates whether container use it's private pid stack
-func (n PidMode) IsPrivate() bool {
-	return !(n.IsHost())
-}
-
-func (n PidMode) IsHost() bool {
-	return n == "host"
-}
-
-func (n PidMode) Valid() bool {
-	parts := strings.Split(string(n), ":")
-	switch mode := parts[0]; mode {
-	case "", "host":
-	default:
-		return false
-	}
-	return true
-}
-
-type DeviceMapping struct {
-	PathOnHost        string
-	PathInContainer   string
-	CgroupPermissions string
-}
-
-type RestartPolicy struct {
-	Name              string
-	MaximumRetryCount int
-}
-
-type HostConfig struct {
-	Binds           []string
-	ContainerIDFile string
-	LxcConf         []utils.KeyValuePair
-	Privileged      bool
-	PortBindings    nat.PortMap
-	Links           []string
-	PublishAllPorts bool
-	Dns             []string
-	DnsSearch       []string
-	ExtraHosts      []string
-	VolumesFrom     []string
-	Devices         []DeviceMapping
-	NetworkMode     NetworkMode
-	IpcMode         IpcMode
-	PidMode         PidMode
-	CapAdd          []string
-	CapDrop         []string
-	RestartPolicy   RestartPolicy
-	SecurityOpt     []string
-	ReadonlyRootfs  bool
-}
-
-// This is used by the create command when you want to set both the
-// Config and the HostConfig in the same call
-type ConfigAndHostConfig struct {
-	Config
-	HostConfig HostConfig
-}
-
-func MergeConfigs(config *Config, hostConfig *HostConfig) *ConfigAndHostConfig {
-	return &ConfigAndHostConfig{
-		*config,
-		*hostConfig,
-	}
-}
-
-func ContainerHostConfigFromJob(job *engine.Job) *HostConfig {
-	if job.EnvExists("HostConfig") {
-		hostConfig := HostConfig{}
-		job.GetenvJson("HostConfig", &hostConfig)
-		return &hostConfig
-	}
-
-	hostConfig := &HostConfig{
-		ContainerIDFile: job.Getenv("ContainerIDFile"),
-		Privileged:      job.GetenvBool("Privileged"),
-		PublishAllPorts: job.GetenvBool("PublishAllPorts"),
-		NetworkMode:     NetworkMode(job.Getenv("NetworkMode")),
-		IpcMode:         IpcMode(job.Getenv("IpcMode")),
-		PidMode:         PidMode(job.Getenv("PidMode")),
-		ReadonlyRootfs:  job.GetenvBool("ReadonlyRootfs"),
-	}
-
-	job.GetenvJson("LxcConf", &hostConfig.LxcConf)
-	job.GetenvJson("PortBindings", &hostConfig.PortBindings)
-	job.GetenvJson("Devices", &hostConfig.Devices)
-	job.GetenvJson("RestartPolicy", &hostConfig.RestartPolicy)
-	hostConfig.SecurityOpt = job.GetenvList("SecurityOpt")
-	if Binds := job.GetenvList("Binds"); Binds != nil {
-		hostConfig.Binds = Binds
-	}
-	if Links := job.GetenvList("Links"); Links != nil {
-		hostConfig.Links = Links
-	}
-	if Dns := job.GetenvList("Dns"); Dns != nil {
-		hostConfig.Dns = Dns
-	}
-	if DnsSearch := job.GetenvList("DnsSearch"); DnsSearch != nil {
-		hostConfig.DnsSearch = DnsSearch
-	}
-	if ExtraHosts := job.GetenvList("ExtraHosts"); ExtraHosts != nil {
-		hostConfig.ExtraHosts = ExtraHosts
-	}
-	if VolumesFrom := job.GetenvList("VolumesFrom"); VolumesFrom != nil {
-		hostConfig.VolumesFrom = VolumesFrom
-	}
-	if CapAdd := job.GetenvList("CapAdd"); CapAdd != nil {
-		hostConfig.CapAdd = CapAdd
-	}
-	if CapDrop := job.GetenvList("CapDrop"); CapDrop != nil {
-		hostConfig.CapDrop = CapDrop
-	}
-
-	return hostConfig
+	return hc
 }

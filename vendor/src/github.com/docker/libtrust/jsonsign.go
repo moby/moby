@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 	"unicode"
 )
@@ -31,9 +32,25 @@ type jsHeader struct {
 }
 
 type jsSignature struct {
-	Header    *jsHeader `json:"header"`
-	Signature string    `json:"signature"`
-	Protected string    `json:"protected,omitempty"`
+	Header    jsHeader `json:"header"`
+	Signature string   `json:"signature"`
+	Protected string   `json:"protected,omitempty"`
+}
+
+type jsSignaturesSorted []jsSignature
+
+func (jsbkid jsSignaturesSorted) Swap(i, j int) { jsbkid[i], jsbkid[j] = jsbkid[j], jsbkid[i] }
+func (jsbkid jsSignaturesSorted) Len() int      { return len(jsbkid) }
+
+func (jsbkid jsSignaturesSorted) Less(i, j int) bool {
+	ki, kj := jsbkid[i].Header.JWK.KeyID(), jsbkid[j].Header.JWK.KeyID()
+	si, sj := jsbkid[i].Signature, jsbkid[j].Signature
+
+	if ki == kj {
+		return si < sj
+	}
+
+	return ki < kj
 }
 
 type signKey struct {
@@ -44,7 +61,7 @@ type signKey struct {
 // JSONSignature represents a signature of a json object.
 type JSONSignature struct {
 	payload      string
-	signatures   []*jsSignature
+	signatures   []jsSignature
 	indent       string
 	formatLength int
 	formatTail   []byte
@@ -52,7 +69,7 @@ type JSONSignature struct {
 
 func newJSONSignature() *JSONSignature {
 	return &JSONSignature{
-		signatures: make([]*jsSignature, 0, 1),
+		signatures: make([]jsSignature, 0, 1),
 	}
 }
 
@@ -99,17 +116,14 @@ func (js *JSONSignature) Sign(key PrivateKey) error {
 		return err
 	}
 
-	header := &jsHeader{
-		JWK:       key.PublicKey(),
-		Algorithm: algorithm,
-	}
-	sig := &jsSignature{
-		Header:    header,
+	js.signatures = append(js.signatures, jsSignature{
+		Header: jsHeader{
+			JWK:       key.PublicKey(),
+			Algorithm: algorithm,
+		},
 		Signature: joseBase64UrlEncode(sigBytes),
 		Protected: protected,
-	}
-
-	js.signatures = append(js.signatures, sig)
+	})
 
 	return nil
 }
@@ -136,7 +150,7 @@ func (js *JSONSignature) SignWithChain(key PrivateKey, chain []*x509.Certificate
 		return err
 	}
 
-	header := &jsHeader{
+	header := jsHeader{
 		Chain:     make([]string, len(chain)),
 		Algorithm: algorithm,
 	}
@@ -145,13 +159,11 @@ func (js *JSONSignature) SignWithChain(key PrivateKey, chain []*x509.Certificate
 		header.Chain[i] = base64.StdEncoding.EncodeToString(cert.Raw)
 	}
 
-	sig := &jsSignature{
+	js.signatures = append(js.signatures, jsSignature{
 		Header:    header,
 		Signature: joseBase64UrlEncode(sigBytes),
 		Protected: protected,
-	}
-
-	js.signatures = append(js.signatures, sig)
+	})
 
 	return nil
 }
@@ -272,6 +284,9 @@ func (js *JSONSignature) JWS() ([]byte, error) {
 	if len(js.signatures) == 0 {
 		return nil, errors.New("missing signature")
 	}
+
+	sort.Sort(jsSignaturesSorted(js.signatures))
+
 	jsonMap := map[string]interface{}{
 		"payload":    js.payload,
 		"signatures": js.signatures,
@@ -301,16 +316,16 @@ type jsParsedHeader struct {
 }
 
 type jsParsedSignature struct {
-	Header    *jsParsedHeader `json:"header"`
-	Signature string          `json:"signature"`
-	Protected string          `json:"protected"`
+	Header    jsParsedHeader `json:"header"`
+	Signature string         `json:"signature"`
+	Protected string         `json:"protected"`
 }
 
 // ParseJWS parses a JWS serialized JSON object into a Json Signature.
 func ParseJWS(content []byte) (*JSONSignature, error) {
 	type jsParsed struct {
-		Payload    string               `json:"payload"`
-		Signatures []*jsParsedSignature `json:"signatures"`
+		Payload    string              `json:"payload"`
+		Signatures []jsParsedSignature `json:"signatures"`
 	}
 	parsed := &jsParsed{}
 	err := json.Unmarshal(content, parsed)
@@ -329,9 +344,9 @@ func ParseJWS(content []byte) (*JSONSignature, error) {
 	if err != nil {
 		return nil, err
 	}
-	js.signatures = make([]*jsSignature, len(parsed.Signatures))
+	js.signatures = make([]jsSignature, len(parsed.Signatures))
 	for i, signature := range parsed.Signatures {
-		header := &jsHeader{
+		header := jsHeader{
 			Algorithm: signature.Header.Algorithm,
 		}
 		if signature.Header.Chain != nil {
@@ -344,7 +359,7 @@ func ParseJWS(content []byte) (*JSONSignature, error) {
 			}
 			header.JWK = publicKey
 		}
-		js.signatures[i] = &jsSignature{
+		js.signatures[i] = jsSignature{
 			Header:    header,
 			Signature: signature.Signature,
 			Protected: signature.Protected,
@@ -356,7 +371,11 @@ func ParseJWS(content []byte) (*JSONSignature, error) {
 
 // NewJSONSignature returns a new unsigned JWS from a json byte array.
 // JSONSignature will need to be signed before serializing or storing.
-func NewJSONSignature(content []byte) (*JSONSignature, error) {
+// Optionally, one or more signatures can be provided as byte buffers,
+// containing serialized JWS signatures, to assemble a fully signed JWS
+// package. It is the callers responsibility to ensure uniqueness of the
+// provided signatures.
+func NewJSONSignature(content []byte, signatures ...[]byte) (*JSONSignature, error) {
 	var dataMap map[string]interface{}
 	err := json.Unmarshal(content, &dataMap)
 	if err != nil {
@@ -379,6 +398,40 @@ func NewJSONSignature(content []byte) (*JSONSignature, error) {
 	}
 	js.formatLength = lastRuneIndex + 1
 	js.formatTail = content[js.formatLength:]
+
+	if len(signatures) > 0 {
+		for _, signature := range signatures {
+			var parsedJSig jsParsedSignature
+
+			if err := json.Unmarshal(signature, &parsedJSig); err != nil {
+				return nil, err
+			}
+
+			// TODO(stevvooe): A lot of the code below is repeated in
+			// ParseJWS. It will require more refactoring to fix that.
+			jsig := jsSignature{
+				Header: jsHeader{
+					Algorithm: parsedJSig.Header.Algorithm,
+				},
+				Signature: parsedJSig.Signature,
+				Protected: parsedJSig.Protected,
+			}
+
+			if parsedJSig.Header.Chain != nil {
+				jsig.Header.Chain = parsedJSig.Header.Chain
+			}
+
+			if parsedJSig.Header.JWK != nil {
+				publicKey, err := UnmarshalPublicKeyJWK([]byte(parsedJSig.Header.JWK))
+				if err != nil {
+					return nil, err
+				}
+				jsig.Header.JWK = publicKey
+			}
+
+			js.signatures = append(js.signatures, jsig)
+		}
+	}
 
 	return js, nil
 }
@@ -455,7 +508,7 @@ func ParsePrettySignature(content []byte, signatureKey string) (*JSONSignature, 
 	}
 
 	js := newJSONSignature()
-	js.signatures = make([]*jsSignature, len(signatureBlocks))
+	js.signatures = make([]jsSignature, len(signatureBlocks))
 
 	for i, signatureBlock := range signatureBlocks {
 		protectedBytes, err := joseBase64UrlDecode(signatureBlock.Protected)
@@ -491,7 +544,7 @@ func ParsePrettySignature(content []byte, signatureKey string) (*JSONSignature, 
 			return nil, errors.New("conflicting format tail")
 		}
 
-		header := &jsHeader{
+		header := jsHeader{
 			Algorithm: signatureBlock.Header.Algorithm,
 			Chain:     signatureBlock.Header.Chain,
 		}
@@ -502,7 +555,7 @@ func ParsePrettySignature(content []byte, signatureKey string) (*JSONSignature, 
 			}
 			header.JWK = publicKey
 		}
-		js.signatures[i] = &jsSignature{
+		js.signatures[i] = jsSignature{
 			Header:    header,
 			Signature: signatureBlock.Signature,
 			Protected: signatureBlock.Protected,
@@ -531,6 +584,8 @@ func (js *JSONSignature) PrettySignature(signatureKey string) ([]byte, error) {
 		return nil, err
 	}
 	payload = payload[:js.formatLength]
+
+	sort.Sort(jsSignaturesSorted(js.signatures))
 
 	var marshalled []byte
 	var marshallErr error
@@ -563,4 +618,40 @@ func (js *JSONSignature) PrettySignature(signatureKey string) ([]byte, error) {
 	buf.WriteByte('}')
 
 	return buf.Bytes(), nil
+}
+
+// Signatures provides the signatures on this JWS as opaque blobs, sorted by
+// keyID. These blobs can be stored and reassembled with payloads. Internally,
+// they are simply marshaled json web signatures but implementations should
+// not rely on this.
+func (js *JSONSignature) Signatures() ([][]byte, error) {
+	sort.Sort(jsSignaturesSorted(js.signatures))
+
+	var sb [][]byte
+	for _, jsig := range js.signatures {
+		p, err := json.Marshal(jsig)
+		if err != nil {
+			return nil, err
+		}
+
+		sb = append(sb, p)
+	}
+
+	return sb, nil
+}
+
+// Merge combines the signatures from one or more other signatures into the
+// method receiver. If the payloads differ for any argument, an error will be
+// returned and the receiver will not be modified.
+func (js *JSONSignature) Merge(others ...*JSONSignature) error {
+	merged := js.signatures
+	for _, other := range others {
+		if js.payload != other.payload {
+			return fmt.Errorf("payloads differ from merge target")
+		}
+		merged = append(merged, other.signatures...)
+	}
+
+	js.signatures = merged
+	return nil
 }

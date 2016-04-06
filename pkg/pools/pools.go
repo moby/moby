@@ -1,5 +1,3 @@
-// +build go1.3
-
 // Package pools provides a collection of pools which provide various
 // data types with buffers. These can be used to lower the number of
 // memory allocations and reuse buffers.
@@ -20,14 +18,15 @@ import (
 )
 
 var (
-	// Pool which returns bufio.Reader with a 32K buffer
+	// BufioReader32KPool is a pool which returns bufio.Reader with a 32K buffer.
 	BufioReader32KPool *BufioReaderPool
-	// Pool which returns bufio.Writer with a 32K buffer
+	// BufioWriter32KPool is a pool which returns bufio.Writer with a 32K buffer.
 	BufioWriter32KPool *BufioWriterPool
 )
 
 const buffer32K = 32 * 1024
 
+// BufioReaderPool is a bufio reader that uses sync.Pool.
 type BufioReaderPool struct {
 	pool sync.Pool
 }
@@ -59,6 +58,14 @@ func (bufPool *BufioReaderPool) Put(b *bufio.Reader) {
 	bufPool.pool.Put(b)
 }
 
+// Copy is a convenience wrapper which uses a buffer to avoid allocation in io.Copy.
+func Copy(dst io.Writer, src io.Reader) (written int64, err error) {
+	buf := BufioReader32KPool.Get(src)
+	written, err = io.Copy(dst, buf)
+	BufioReader32KPool.Put(buf)
+	return
+}
+
 // NewReadCloserWrapper returns a wrapper which puts the bufio.Reader back
 // into the pool and closes the reader if it's an io.ReadCloser.
 func (bufPool *BufioReaderPool) NewReadCloserWrapper(buf *bufio.Reader, r io.Reader) io.ReadCloser {
@@ -71,6 +78,7 @@ func (bufPool *BufioReaderPool) NewReadCloserWrapper(buf *bufio.Reader, r io.Rea
 	})
 }
 
+// BufioWriterPool is a bufio writer that uses sync.Pool.
 type BufioWriterPool struct {
 	pool sync.Pool
 }

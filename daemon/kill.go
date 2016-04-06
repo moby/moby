@@ -1,60 +1,145 @@
 package daemon
 
 import (
-	"strconv"
-	"strings"
+	"fmt"
+	"runtime"
 	"syscall"
+	"time"
 
-	"github.com/docker/docker/engine"
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/signal"
 )
 
-// ContainerKill send signal to the container
+type errNoSuchProcess struct {
+	pid    int
+	signal int
+}
+
+func (e errNoSuchProcess) Error() string {
+	return fmt.Sprintf("Cannot kill process (pid=%d) with signal %d: no such process.", e.pid, e.signal)
+}
+
+// isErrNoSuchProcess returns true if the error
+// is an instance of errNoSuchProcess.
+func isErrNoSuchProcess(err error) bool {
+	_, ok := err.(errNoSuchProcess)
+	return ok
+}
+
+// ContainerKill sends signal to the container
 // If no signal is given (sig 0), then Kill with SIGKILL and wait
 // for the container to exit.
 // If a signal is given, then just send it to the container and return.
-func (daemon *Daemon) ContainerKill(job *engine.Job) engine.Status {
-	if n := len(job.Args); n < 1 || n > 2 {
-		return job.Errorf("Usage: %s CONTAINER [SIGNAL]", job.Name)
-	}
-	var (
-		name = job.Args[0]
-		sig  uint64
-		err  error
-	)
-
-	// If we have a signal, look at it. Otherwise, do nothing
-	if len(job.Args) == 2 && job.Args[1] != "" {
-		// Check if we passed the signal as a number:
-		// The largest legal signal is 31, so let's parse on 5 bits
-		sig, err = strconv.ParseUint(job.Args[1], 10, 5)
-		if err != nil {
-			// The signal is not a number, treat it as a string (either like "KILL" or like "SIGKILL")
-			sig = uint64(signal.SignalMap[strings.TrimPrefix(job.Args[1], "SIG")])
-		}
-
-		if sig == 0 {
-			return job.Errorf("Invalid signal: %s", job.Args[1])
-		}
-	}
-
-	container, err := daemon.Get(name)
+func (daemon *Daemon) ContainerKill(name string, sig uint64) error {
+	container, err := daemon.GetContainer(name)
 	if err != nil {
-		return job.Error(err)
+		return err
+	}
+
+	if sig != 0 && !signal.ValidSignalForPlatform(syscall.Signal(sig)) {
+		return fmt.Errorf("The %s daemon does not support signal %d", runtime.GOOS, sig)
 	}
 
 	// If no signal is passed, or SIGKILL, perform regular Kill (SIGKILL + wait())
 	if sig == 0 || syscall.Signal(sig) == syscall.SIGKILL {
-		if err := container.Kill(); err != nil {
-			return job.Errorf("Cannot kill container %s: %s", name, err)
-		}
-		container.LogEvent("kill")
-	} else {
-		// Otherwise, just send the requested signal
-		if err := container.KillSig(int(sig)); err != nil {
-			return job.Errorf("Cannot kill container %s: %s", name, err)
-		}
-		// FIXME: Add event for signals
+		return daemon.Kill(container)
 	}
-	return engine.StatusOK
+	return daemon.killWithSignal(container, int(sig))
+}
+
+// killWithSignal sends the container the given signal. This wrapper for the
+// host specific kill command prepares the container before attempting
+// to send the signal. An error is returned if the container is paused
+// or not running, or if there is a problem returned from the
+// underlying kill command.
+func (daemon *Daemon) killWithSignal(container *container.Container, sig int) error {
+	logrus.Debugf("Sending %d to %s", sig, container.ID)
+	container.Lock()
+	defer container.Unlock()
+
+	// We could unpause the container for them rather than returning this error
+	if container.Paused {
+		return fmt.Errorf("Container %s is paused. Unpause the container before stopping", container.ID)
+	}
+
+	if !container.Running {
+		return errNotRunning{container.ID}
+	}
+
+	container.ExitOnNext()
+
+	if !daemon.IsShuttingDown() {
+		container.HasBeenManuallyStopped = true
+	}
+
+	// if the container is currently restarting we do not need to send the signal
+	// to the process.  Telling the monitor that it should exit on it's next event
+	// loop is enough
+	if container.Restarting {
+		return nil
+	}
+
+	if err := daemon.kill(container, sig); err != nil {
+		return fmt.Errorf("Cannot kill container %s: %s", container.ID, err)
+	}
+
+	attributes := map[string]string{
+		"signal": fmt.Sprintf("%d", sig),
+	}
+	daemon.LogContainerEventWithAttributes(container, "kill", attributes)
+	return nil
+}
+
+// Kill forcefully terminates a container.
+func (daemon *Daemon) Kill(container *container.Container) error {
+	if !container.IsRunning() {
+		return errNotRunning{container.ID}
+	}
+
+	// 1. Send SIGKILL
+	if err := daemon.killPossiblyDeadProcess(container, int(syscall.SIGKILL)); err != nil {
+		// While normally we might "return err" here we're not going to
+		// because if we can't stop the container by this point then
+		// its probably because its already stopped. Meaning, between
+		// the time of the IsRunning() call above and now it stopped.
+		// Also, since the err return will be environment specific we can't
+		// look for any particular (common) error that would indicate
+		// that the process is already dead vs something else going wrong.
+		// So, instead we'll give it up to 2 more seconds to complete and if
+		// by that time the container is still running, then the error
+		// we got is probably valid and so we return it to the caller.
+		if isErrNoSuchProcess(err) {
+			return nil
+		}
+
+		if container.IsRunning() {
+			container.WaitStop(2 * time.Second)
+			if container.IsRunning() {
+				return err
+			}
+		}
+	}
+
+	// 2. Wait for the process to die, in last resort, try to kill the process directly
+	if err := killProcessDirectly(container); err != nil {
+		if isErrNoSuchProcess(err) {
+			return nil
+		}
+		return err
+	}
+
+	container.WaitStop(-1 * time.Second)
+	return nil
+}
+
+// killPossibleDeadProcess is a wrapper around killSig() suppressing "no such process" error.
+func (daemon *Daemon) killPossiblyDeadProcess(container *container.Container, sig int) error {
+	err := daemon.killWithSignal(container, sig)
+	if err == syscall.ESRCH {
+		e := errNoSuchProcess{container.GetPID(), sig}
+		logrus.Debug(e)
+		return e
+	}
+	return err
 }

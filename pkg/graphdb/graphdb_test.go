@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"runtime"
 	"strconv"
 	"testing"
 
-	_ "code.google.com/p/gosqlite/sqlite3"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func newTestDb(t *testing.T) (*Database, string) {
@@ -52,7 +53,7 @@ func TestGetRootEntity(t *testing.T) {
 		t.Fatal("Entity should not be nil")
 	}
 	if e.ID() != "0" {
-		t.Fatalf("Enity id should be 0, got %s", e.ID())
+		t.Fatalf("Entity id should be 0, got %s", e.ID())
 	}
 }
 
@@ -74,7 +75,7 @@ func TestSetDuplicateEntity(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := db.Set("/foo", "43"); err == nil {
-		t.Fatalf("Creating an entry with a duplciate path did not cause an error")
+		t.Fatalf("Creating an entry with a duplicate path did not cause an error")
 	}
 }
 
@@ -121,7 +122,7 @@ func TestParents(t *testing.T) {
 		}
 
 		if len(parents) != 1 {
-			t.Fatalf("Expected 2 entries for %s got %d", key, len(parents))
+			t.Fatalf("Expected 1 entry for %s got %d", key, len(parents))
 		}
 
 		if parents[0] != p {
@@ -131,6 +132,10 @@ func TestParents(t *testing.T) {
 }
 
 func TestChildren(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
 	db, dbpath := newTestDb(t)
 	defer destroyTestDb(dbpath)
 
@@ -173,6 +178,11 @@ func TestChildren(t *testing.T) {
 }
 
 func TestListAllRootChildren(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
+
 	db, dbpath := newTestDb(t)
 	defer destroyTestDb(dbpath)
 
@@ -189,6 +199,10 @@ func TestListAllRootChildren(t *testing.T) {
 }
 
 func TestListAllSubChildren(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
 	db, dbpath := newTestDb(t)
 	defer destroyTestDb(dbpath)
 
@@ -231,6 +245,10 @@ func TestListAllSubChildren(t *testing.T) {
 }
 
 func TestAddSelfAsChild(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
 	db, dbpath := newTestDb(t)
 	defer destroyTestDb(dbpath)
 
@@ -243,7 +261,7 @@ func TestAddSelfAsChild(t *testing.T) {
 	}
 }
 
-func TestAddChildToNonExistantRoot(t *testing.T) {
+func TestAddChildToNonExistentRoot(t *testing.T) {
 	db, dbpath := newTestDb(t)
 	defer destroyTestDb(dbpath)
 
@@ -257,6 +275,10 @@ func TestAddChildToNonExistantRoot(t *testing.T) {
 }
 
 func TestWalkAll(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
 	db, dbpath := newTestDb(t)
 	defer destroyTestDb(dbpath)
 	_, err := db.Set("/webapp", "1")
@@ -303,6 +325,10 @@ func TestWalkAll(t *testing.T) {
 }
 
 func TestGetEntityByPath(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
 	db, dbpath := newTestDb(t)
 	defer destroyTestDb(dbpath)
 	_, err := db.Set("/webapp", "1")
@@ -350,6 +376,10 @@ func TestGetEntityByPath(t *testing.T) {
 }
 
 func TestEnitiesPaths(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
 	db, dbpath := newTestDb(t)
 	defer destroyTestDb(dbpath)
 	_, err := db.Set("/webapp", "1")
@@ -403,6 +433,10 @@ func TestDeleteRootEntity(t *testing.T) {
 }
 
 func TestDeleteEntity(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
 	db, dbpath := newTestDb(t)
 	defer destroyTestDb(dbpath)
 	_, err := db.Set("/webapp", "1")
@@ -450,6 +484,10 @@ func TestDeleteEntity(t *testing.T) {
 }
 
 func TestCountRefs(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
 	db, dbpath := newTestDb(t)
 	defer destroyTestDb(dbpath)
 
@@ -467,13 +505,18 @@ func TestCountRefs(t *testing.T) {
 }
 
 func TestPurgeId(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
+
 	db, dbpath := newTestDb(t)
 	defer destroyTestDb(dbpath)
 
 	db.Set("/webapp", "1")
 
-	if db.Refs("1") != 1 {
-		t.Fatal("Expect reference count to be 1")
+	if c := db.Refs("1"); c != 1 {
+		t.Fatalf("Expect reference count to be 1, got %d", c)
 	}
 
 	db.Set("/db", "2")
@@ -484,11 +527,57 @@ func TestPurgeId(t *testing.T) {
 		t.Fatal(err)
 	}
 	if count != 2 {
-		t.Fatal("Expected 2 references to be removed")
+		t.Fatalf("Expected 2 references to be removed, got %d", count)
+	}
+}
+
+// Regression test https://github.com/docker/docker/issues/12334
+func TestPurgeIdRefPaths(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
+	db, dbpath := newTestDb(t)
+	defer destroyTestDb(dbpath)
+
+	db.Set("/webapp", "1")
+	db.Set("/db", "2")
+
+	db.Set("/db/webapp", "1")
+
+	if c := db.Refs("1"); c != 2 {
+		t.Fatalf("Expected 2 reference for webapp, got %d", c)
+	}
+	if c := db.Refs("2"); c != 1 {
+		t.Fatalf("Expected 1 reference for db, got %d", c)
+	}
+
+	if rp := db.RefPaths("2"); len(rp) != 1 {
+		t.Fatalf("Expected 1 reference path for db, got %d", len(rp))
+	}
+
+	count, err := db.Purge("2")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if count != 2 {
+		t.Fatalf("Expected 2 rows to be removed, got %d", count)
+	}
+
+	if c := db.Refs("2"); c != 0 {
+		t.Fatalf("Expected 0 reference for db, got %d", c)
+	}
+	if c := db.Refs("1"); c != 1 {
+		t.Fatalf("Expected 1 reference for webapp, got %d", c)
 	}
 }
 
 func TestRename(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
 	db, dbpath := newTestDb(t)
 	defer destroyTestDb(dbpath)
 
@@ -518,6 +607,11 @@ func TestRename(t *testing.T) {
 }
 
 func TestCreateMultipleNames(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
+
 	db, dbpath := newTestDb(t)
 	defer destroyTestDb(dbpath)
 
@@ -559,6 +653,10 @@ func TestExistsTrue(t *testing.T) {
 }
 
 func TestExistsFalse(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
 	db, dbpath := newTestDb(t)
 	defer destroyTestDb(dbpath)
 
@@ -583,6 +681,10 @@ func TestGetNameWithTrailingSlash(t *testing.T) {
 }
 
 func TestConcurrentWrites(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
 	db, dbpath := newTestDb(t)
 	defer destroyTestDb(dbpath)
 

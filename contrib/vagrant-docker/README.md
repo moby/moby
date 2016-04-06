@@ -25,13 +25,13 @@ The initial Docker upstart script will not work because it runs on `127.0.0.1`, 
 ```
 description     "Docker daemon"
 
-start on filesystem and started lxc-net
+start on filesystem
 stop on runlevel [!2345]
 
 respawn
 
 script
-    /usr/bin/docker -d -H=tcp://0.0.0.0:2375
+    /usr/bin/docker daemon -H=tcp://0.0.0.0:2375
 end script
 ```
 

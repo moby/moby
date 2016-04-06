@@ -1,0 +1,11 @@
+machine:
+  services:
+    - docker
+
+dependencies:
+  override:
+    - make validate
+
+test:
+  override:
+    - make test-unit

@@ -14,7 +14,7 @@ possibleConfigs=(
 if [ $# -gt 0 ]; then
 	CONFIG="$1"
 else
-	CONFIG="${possibleConfigs[0]}"
+	: ${CONFIG:="${possibleConfigs[0]}"}
 fi
 
 if ! command -v zgrep &> /dev/null; then
@@ -23,32 +23,46 @@ if ! command -v zgrep &> /dev/null; then
 	}
 fi
 
+kernelVersion="$(uname -r)"
+kernelMajor="${kernelVersion%%.*}"
+kernelMinor="${kernelVersion#$kernelMajor.}"
+kernelMinor="${kernelMinor%%.*}"
+
 is_set() {
 	zgrep "CONFIG_$1=[y|m]" "$CONFIG" > /dev/null
 }
+is_set_in_kernel() {
+	zgrep "CONFIG_$1=y" "$CONFIG" > /dev/null
+}
+is_set_as_module() {
+	zgrep "CONFIG_$1=m" "$CONFIG" > /dev/null
+}
 
-# see http://en.wikipedia.org/wiki/ANSI_escape_code#Colors
-declare -A colors=(
-	[black]=30
-	[red]=31
-	[green]=32
-	[yellow]=33
-	[blue]=34
-	[magenta]=35
-	[cyan]=36
-	[white]=37
-)
 color() {
-	color=()
+	local codes=()
 	if [ "$1" = 'bold' ]; then
-		color+=( '1' )
+		codes=( "${codes[@]}" '1' )
 		shift
 	fi
-	if [ $# -gt 0 ] && [ "${colors[$1]}" ]; then
-		color+=( "${colors[$1]}" )
+	if [ "$#" -gt 0 ]; then
+		local code=
+		case "$1" in
+			# see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
+			black) code=30 ;;
+			red) code=31 ;;
+			green) code=32 ;;
+			yellow) code=33 ;;
+			blue) code=34 ;;
+			magenta) code=35 ;;
+			cyan) code=36 ;;
+			white) code=37 ;;
+		esac
+		if [ "$code" ]; then
+			codes=( "${codes[@]}" "$code" )
+		fi
 	fi
 	local IFS=';'
-	echo -en '\033['"${color[*]}"m
+	echo -en '\033['"${codes[*]}"'m'
 }
 wrap_color() {
 	text="$1"
@@ -70,8 +84,10 @@ wrap_warning() {
 }
 
 check_flag() {
-	if is_set "$1"; then
+	if is_set_in_kernel "$1"; then
 		wrap_good "CONFIG_$1" 'enabled'
+	elif is_set_as_module "$1"; then
+		wrap_good "CONFIG_$1" 'enabled (as module)'
 	else
 		wrap_bad "CONFIG_$1" 'missing'
 	fi
@@ -83,8 +99,35 @@ check_flags() {
 	done
 }
 
+check_command() {
+	if command -v "$1" >/dev/null 2>&1; then
+		wrap_good "$1 command" 'available'
+	else
+		wrap_bad "$1 command" 'missing'
+	fi
+}
+
+check_device() {
+	if [ -c "$1" ]; then
+		wrap_good "$1" 'present'
+	else
+		wrap_bad "$1" 'missing'
+	fi
+}
+
+check_distro_userns() {
+	source /etc/os-release 2>/dev/null || /bin/true
+	if [[ "${ID}" =~ ^(centos|rhel)$ && "${VERSION_ID}" =~ ^7 ]]; then
+		# this is a CentOS7 or RHEL7 system
+		grep -q "user_namespace.enable=1" /proc/cmdline || {
+			# no user namespace support enabled
+			wrap_bad "  (RHEL7/CentOS7" "User namespaces disabled; add 'user_namespace.enable=1' to boot command line)"
+		}
+	fi
+}
+
 if [ ! -e "$CONFIG" ]; then
-	wrap_warning "warning: $CONFIG does not exist, searching other paths for kernel config..."
+	wrap_warning "warning: $CONFIG does not exist, searching other paths for kernel config ..."
 	for tryConfig in "${possibleConfigs[@]}"; do
 		if [ -e "$tryConfig" ]; then
 			CONFIG="$tryConfig"
@@ -94,7 +137,7 @@ if [ ! -e "$CONFIG" ]; then
 	if [ ! -e "$CONFIG" ]; then
 		wrap_warning "error: cannot find kernel config"
 		wrap_warning "  try running this script again, specifying the kernel config:"
-		wrap_warning "    CONFIG=/path/to/kernel/.config $0"
+		wrap_warning "    CONFIG=/path/to/kernel/.config $0 or $0 /path/to/kernel/.config"
 		exit 1
 	fi
 fi
@@ -138,8 +181,9 @@ fi
 flags=(
 	NAMESPACES {NET,PID,IPC,UTS}_NS
 	DEVPTS_MULTIPLE_INSTANCES
-	CGROUPS CGROUP_CPUACCT CGROUP_DEVICE CGROUP_FREEZER CGROUP_SCHED
-	MACVLAN VETH BRIDGE
+	CGROUPS CGROUP_CPUACCT CGROUP_DEVICE CGROUP_FREEZER CGROUP_SCHED CPUSETS MEMCG
+	KEYS
+	MACVLAN VETH BRIDGE BRIDGE_NETFILTER
 	NF_NAT_IPV4 IP_NF_FILTER IP_NF_TARGET_MASQUERADE
 	NETFILTER_XT_MATCH_{ADDRTYPE,CONNTRACK}
 	NF_NAT NF_NAT_NEEDED
@@ -151,12 +195,51 @@ check_flags "${flags[@]}"
 echo
 
 echo 'Optional Features:'
+{
+	check_flags USER_NS
+	check_distro_userns
+}
+{
+	check_flags SECCOMP
+}
+{
+	check_flags CGROUP_PIDS
+}
+{
+	check_flags MEMCG_KMEM MEMCG_SWAP MEMCG_SWAP_ENABLED
+	if  is_set MEMCG_SWAP && ! is_set MEMCG_SWAP_ENABLED; then
+		echo "    $(wrap_color '(note that cgroup swap accounting is not enabled in your kernel config, you can enable it by setting boot option "swapaccount=1")' bold black)"
+	fi
+}
+
+if [ "$kernelMajor" -lt 3 ] || [ "$kernelMajor" -eq 3 -a "$kernelMinor" -le 18 ]; then
+	check_flags RESOURCE_COUNTERS
+fi
+
+if [ "$kernelMajor" -lt 3 ] || [ "$kernelMajor" -eq 3 -a "$kernelMinor" -le 13 ]; then
+	netprio=NETPRIO_CGROUP
+else
+	netprio=CGROUP_NET_PRIO
+fi
+
 flags=(
-	MEMCG_SWAP
-	RESOURCE_COUNTERS
+	BLK_CGROUP IOSCHED_CFQ BLK_DEV_THROTTLING
 	CGROUP_PERF
+	CGROUP_HUGETLB
+	NET_CLS_CGROUP $netprio
+	CFS_BANDWIDTH FAIR_GROUP_SCHED RT_GROUP_SCHED
 )
 check_flags "${flags[@]}"
+
+check_flags EXT3_FS EXT3_FS_XATTR EXT3_FS_POSIX_ACL EXT3_FS_SECURITY
+if ! is_set EXT3_FS || ! is_set EXT3_FS_XATTR || ! is_set EXT3_FS_POSIX_ACL || ! is_set EXT3_FS_SECURITY; then
+	echo "    $(wrap_color '(enable these ext3 configs if you are using ext3 as backing filesystem)' bold black)"
+fi
+
+check_flags EXT4_FS EXT4_FS_POSIX_ACL EXT4_FS_SECURITY
+if ! is_set EXT4_FS || ! is_set EXT4_FS_POSIX_ACL || ! is_set EXT4_FS_SECURITY; then
+	echo "    $(wrap_color 'enable these ext4 configs if you are using ext4 as backing filesystem' bold black)"
+fi
 
 echo '- Storage Drivers:'
 {
@@ -165,19 +248,20 @@ echo '- Storage Drivers:'
 	if ! is_set AUFS_FS && grep -q aufs /proc/filesystems; then
 		echo "    $(wrap_color '(note that some kernels include AUFS patches but not the AUFS_FS flag)' bold black)"
 	fi
-	check_flags EXT4_FS_POSIX_ACL EXT4_FS_SECURITY | sed 's/^/  /'
 
 	echo '- "'$(wrap_color 'btrfs' blue)'":'
 	check_flags BTRFS_FS | sed 's/^/  /'
 
 	echo '- "'$(wrap_color 'devicemapper' blue)'":'
-	check_flags BLK_DEV_DM DM_THIN_PROVISIONING EXT4_FS EXT4_FS_POSIX_ACL EXT4_FS_SECURITY | sed 's/^/  /'
+	check_flags BLK_DEV_DM DM_THIN_PROVISIONING | sed 's/^/  /'
 
 	echo '- "'$(wrap_color 'overlay' blue)'":'
 	check_flags OVERLAY_FS | sed 's/^/  /'
+
+	echo '- "'$(wrap_color 'zfs' blue)'":'
+	echo "  - $(check_device /dev/zfs)"
+	echo "  - $(check_command zfs)"
+	echo "  - $(check_command zpool)"
 } | sed 's/^/  /'
 echo
 
-#echo 'Potential Future Features:'
-#check_flags USER_NS
-#echo

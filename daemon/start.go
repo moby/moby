@@ -2,80 +2,182 @@ package daemon
 
 import (
 	"fmt"
-	"os"
+	"net/http"
+	"runtime"
 	"strings"
+	"syscall"
 
-	"github.com/docker/docker/engine"
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/container"
+	"github.com/docker/docker/errors"
+	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/runconfig"
+	containertypes "github.com/docker/engine-api/types/container"
 )
 
-func (daemon *Daemon) ContainerStart(job *engine.Job) engine.Status {
-	if len(job.Args) < 1 {
-		return job.Errorf("Usage: %s container_id", job.Name)
-	}
-	var (
-		name = job.Args[0]
-	)
-
-	container, err := daemon.Get(name)
+// ContainerStart starts a container.
+func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.HostConfig) error {
+	container, err := daemon.GetContainer(name)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	if container.IsPaused() {
-		return job.Errorf("Cannot start a paused container, try unpause instead.")
+		return fmt.Errorf("Cannot start a paused container, try unpause instead.")
 	}
 
 	if container.IsRunning() {
-		return job.Errorf("Container already started")
+		err := fmt.Errorf("Container already started")
+		return errors.NewErrorWithStatusCode(err, http.StatusNotModified)
 	}
 
-	// If no environment was set, then no hostconfig was passed.
-	// This is kept for backward compatibility - hostconfig should be passed when
-	// creating a container, not during start.
-	if len(job.Environ()) > 0 {
-		hostConfig := runconfig.ContainerHostConfigFromJob(job)
-		if err := daemon.setHostConfig(container, hostConfig); err != nil {
-			return job.Error(err)
+	// Windows does not have the backwards compatibility issue here.
+	if runtime.GOOS != "windows" {
+		// This is kept for backward compatibility - hostconfig should be passed when
+		// creating a container, not during start.
+		if hostConfig != nil {
+			logrus.Warn("DEPRECATED: Setting host configuration options when the container starts is deprecated and will be removed in Docker 1.12")
+			oldNetworkMode := container.HostConfig.NetworkMode
+			if err := daemon.setSecurityOptions(container, hostConfig); err != nil {
+				return err
+			}
+			if err := daemon.setHostConfig(container, hostConfig); err != nil {
+				return err
+			}
+			newNetworkMode := container.HostConfig.NetworkMode
+			if string(oldNetworkMode) != string(newNetworkMode) {
+				// if user has change the network mode on starting, clean up the
+				// old networks. It is a deprecated feature and will be removed in Docker 1.12
+				container.NetworkSettings.Networks = nil
+				if err := container.ToDisk(); err != nil {
+					return err
+				}
+			}
+			container.InitDNSHostConfig()
+		}
+	} else {
+		if hostConfig != nil {
+			return fmt.Errorf("Supplying a hostconfig on start is not supported. It should be supplied on create")
 		}
 	}
-	if err := container.Start(); err != nil {
-		container.LogEvent("die")
-		return job.Errorf("Cannot start container %s: %s", name, err)
+
+	// check if hostConfig is in line with the current system settings.
+	// It may happen cgroups are umounted or the like.
+	if _, err = daemon.verifyContainerSettings(container.HostConfig, nil, false); err != nil {
+		return err
+	}
+	// Adapt for old containers in case we have updates in this function and
+	// old containers never have chance to call the new function in create stage.
+	if err := daemon.adaptContainerSettings(container.HostConfig, false); err != nil {
+		return err
 	}
 
-	return engine.StatusOK
+	return daemon.containerStart(container)
 }
 
-func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.HostConfig) error {
+// Start starts a container
+func (daemon *Daemon) Start(container *container.Container) error {
+	return daemon.containerStart(container)
+}
+
+// containerStart prepares the container to run by setting up everything the
+// container needs, such as storage and networking, as well as links
+// between containers. The container is left waiting for a signal to
+// begin running.
+func (daemon *Daemon) containerStart(container *container.Container) (err error) {
 	container.Lock()
 	defer container.Unlock()
-	if err := parseSecurityOpt(container, hostConfig); err != nil {
-		return err
+
+	if container.Running {
+		return nil
 	}
 
-	// FIXME: this should be handled by the volume subsystem
-	// Validate the HostConfig binds. Make sure that:
-	// the source exists
-	for _, bind := range hostConfig.Binds {
-		splitBind := strings.Split(bind, ":")
-		source := splitBind[0]
+	if container.RemovalInProgress || container.Dead {
+		return fmt.Errorf("Container is marked for removal and cannot be started.")
+	}
 
-		// ensure the source exists on the host
-		_, err := os.Stat(source)
-		if err != nil && os.IsNotExist(err) {
-			err = os.MkdirAll(source, 0755)
-			if err != nil {
-				return fmt.Errorf("Could not create local directory '%s' for bind mount: %s!", source, err.Error())
+	// if we encounter an error during start we need to ensure that any other
+	// setup has been cleaned up properly
+	defer func() {
+		if err != nil {
+			container.SetError(err)
+			// if no one else has set it, make sure we don't leave it at zero
+			if container.ExitCode == 0 {
+				container.ExitCode = 128
 			}
+			container.ToDisk()
+			daemon.Cleanup(container)
+			attributes := map[string]string{
+				"exitCode": fmt.Sprintf("%d", container.ExitCode),
+			}
+			daemon.LogContainerEventWithAttributes(container, "die", attributes)
 		}
-	}
-	// Register any links from the host config before starting the container
-	if err := daemon.RegisterLinks(container, hostConfig); err != nil {
+	}()
+
+	if err := daemon.conditionalMountOnStart(container); err != nil {
 		return err
 	}
-	container.hostConfig = hostConfig
-	container.toDisk()
+
+	// Make sure NetworkMode has an acceptable value. We do this to ensure
+	// backwards API compatibility.
+	container.HostConfig = runconfig.SetDefaultNetModeIfBlank(container.HostConfig)
+
+	if err := daemon.initializeNetworking(container); err != nil {
+		return err
+	}
+
+	spec, err := daemon.createSpec(container)
+	if err != nil {
+		return err
+	}
+
+	defer daemon.LogContainerEvent(container, "start") // this is logged even on error
+	if err := daemon.containerd.Create(container.ID, *spec, libcontainerd.WithRestartManager(container.RestartManager(true))); err != nil {
+		// if we receive an internal error from the initial start of a container then lets
+		// return it instead of entering the restart loop
+		// set to 127 for container cmd not found/does not exist)
+		if strings.Contains(err.Error(), "executable file not found") ||
+			strings.Contains(err.Error(), "no such file or directory") ||
+			strings.Contains(err.Error(), "system cannot find the file specified") {
+			container.ExitCode = 127
+			err = fmt.Errorf("Container command '%s' not found or does not exist", container.Path)
+		}
+		// set to 126 for container cmd can't be invoked errors
+		if strings.Contains(err.Error(), syscall.EACCES.Error()) {
+			container.ExitCode = 126
+			err = fmt.Errorf("Container command '%s' could not be invoked", container.Path)
+		}
+
+		container.Reset(false)
+		return err
+	}
 
 	return nil
+}
+
+// Cleanup releases any network resources allocated to the container along with any rules
+// around how containers are linked together.  It also unmounts the container's root filesystem.
+func (daemon *Daemon) Cleanup(container *container.Container) {
+	daemon.releaseNetwork(container)
+
+	container.UnmountIpcMounts(detachMounted)
+
+	if err := daemon.conditionalUnmountOnCleanup(container); err != nil {
+		// FIXME: remove once reference counting for graphdrivers has been refactored
+		// Ensure that all the mounts are gone
+		if mountid, err := daemon.layerStore.GetMountID(container.ID); err == nil {
+			daemon.cleanupMountsByID(mountid)
+		}
+	}
+
+	for _, eConfig := range container.ExecCommands.Commands() {
+		daemon.unregisterExecCommand(container, eConfig)
+	}
+
+	if container.BaseFS != "" {
+		if err := container.UnmountVolumes(false, daemon.LogVolumeEvent); err != nil {
+			logrus.Warnf("%s cleanup: Failed to umount volumes: %v", container.ID, err)
+		}
+	}
+	container.CancelAttachContext()
 }

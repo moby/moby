@@ -1,18 +1,23 @@
+// Package tailfile provides helper functions to read the nth lines of any
+// ReadSeeker.
 package tailfile
 
 import (
 	"bytes"
 	"errors"
+	"io"
 	"os"
 )
 
 const blockSize = 1024
 
 var eol = []byte("\n")
-var ErrNonPositiveLinesNumber = errors.New("Lines number must be positive")
 
-//TailFile returns last n lines of file f
-func TailFile(f *os.File, n int) ([][]byte, error) {
+// ErrNonPositiveLinesNumber is an error returned if the lines number was negative.
+var ErrNonPositiveLinesNumber = errors.New("The number of lines to extract from the file must be positive")
+
+//TailFile returns last n lines of reader f (could be a fil).
+func TailFile(f io.ReadSeeker, n int) ([][]byte, error) {
 	if n <= 0 {
 		return nil, ErrNonPositiveLinesNumber
 	}

@@ -1,0 +1,69 @@
+#!/bin/bash
+
+CROSS="$DEST/../cross"
+
+set -e
+
+if [ ! -d "$CROSS/linux/amd64" ]; then
+	echo >&2 'error: binary and cross must be run before tgz'
+	false
+fi
+
+(
+for d in "$CROSS/"*/*; do
+	export GOARCH="$(basename "$d")"
+	export GOOS="$(basename "$(dirname "$d")")"
+	BINARY_NAME="docker-$VERSION"
+	BINARY_EXTENSION="$(export GOOS && binary_extension)"
+	if [ "$GOOS" = 'windows' ]; then
+		# if windows use a zip, not tgz
+		BUNDLE_EXTENSION=".zip"
+		IS_TAR="false"
+	else
+		BUNDLE_EXTENSION=".tgz"
+		IS_TAR="true"
+	fi
+	BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
+	mkdir -p "$DEST/$GOOS/$GOARCH"
+	TGZ="$DEST/$GOOS/$GOARCH/$BINARY_NAME$BUNDLE_EXTENSION"
+
+	# The staging directory for the files in the tgz
+	BUILD_PATH="$DEST/build"
+
+	# The directory that is at the root of the tar file
+	TAR_BASE_DIRECTORY="docker"
+
+	# $DEST/build/docker
+	TAR_PATH="$BUILD_PATH/$TAR_BASE_DIRECTORY"
+
+	# Copy the correct docker binary
+	mkdir -p $TAR_PATH
+	cp -L "$d/$BINARY_FULLNAME" "$TAR_PATH/docker$BINARY_EXTENSION"
+
+	# copy over all the containerd binaries
+	copy_containerd $TAR_PATH
+
+	if [ "$IS_TAR" == "true" ]; then
+		echo "Creating tgz from $BUILD_PATH and naming it $TGZ"
+		tar --numeric-owner --owner 0 -C "$BUILD_PATH" -czf "$TGZ" $TAR_BASE_DIRECTORY
+	else
+		# ZIP needs to full absolute dir path, not the absolute path
+		ZIP=`pwd`"/$TGZ"
+		# keep track of where we are, for later.
+		pushd .
+		# go into the BUILD_PATH since zip does not have a -C equivalent.
+		cd $BUILD_PATH
+		echo "Creating zip from $BUILD_PATH and naming it $ZIP"
+		zip -q -r $ZIP $TAR_BASE_DIRECTORY
+		# go back to where we started
+		popd
+	fi
+
+	hash_files "$TGZ"
+
+	# cleanup after ourselves
+	rm -rf "$BUILD_PATH"
+
+	echo "Created tgz: $TGZ"
+done
+)

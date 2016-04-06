@@ -22,6 +22,8 @@
       <item> CMD </item>
       <item> WORKDIR </item>
       <item> USER </item>
+      <item> LABEL </item>
+      <item> STOPSIGNAL </item>
     </list>
 
     <contexts>

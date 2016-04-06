@@ -10,6 +10,11 @@ This document describes the algorithms used in performing the TarSum checksum
 calculation on filesystem layers, the need for this method over existing
 methods, and the versioning of this calculation.
 
+## Warning
+
+This checksum algorithm is for best-effort comparison of file trees with fuzzy logic.
+
+This is _not_ a cryptographic attestation, and should not be considered secure.
 
 ## Introduction
 
@@ -167,7 +172,7 @@ order ( and the corresponding representation of its value):
 * 'devmajor' - string of the integer
 * 'devminor' - string of the integer
 
-For >= Version1, the extented attribute headers ("SCHILY.xattr." prefixed pax
+For >= Version1, the extended attribute headers ("SCHILY.xattr." prefixed pax
 headers) included after the above list. These xattrs key/values are first
 sorted by the keys.
 
@@ -218,7 +223,7 @@ with matching paths, and orders the list of file sums accordingly [3].
 * [2] Tar http://en.wikipedia.org/wiki/Tar_%28computing%29
 * [3] Name collision https://github.com/docker/docker/commit/c5e6362c53cbbc09ddbabd5a7323e04438b57d31
 
-## Acknowledgements
+## Acknowledgments
 
 Joffrey F (shin-) and Guillaume J. Charmes (creack) on the initial work of the
 TarSum calculation.

@@ -1,6 +1,6 @@
 *dockerfile.txt*  Syntax highlighting for Dockerfiles
 
-Author: Honza Pokorny <http://honza.ca>
+Author: Honza Pokorny <https://honza.ca>
 License: BSD
 
 INSTALLATION                                                     *installation*

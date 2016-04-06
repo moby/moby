@@ -6,7 +6,7 @@ In the design and development of Docker we try to follow these principles:
 
 * Don't try to replace every tool. Instead, be an ingredient to improve them.
 * Less code is better.
-* Less components is better. Do you really need to add one more class?
+* Fewer components are better. Do you really need to add one more class?
 * 50 lines of straightforward, readable code is better than 10 lines of magic that nobody can understand.
 * Don't do later what you can do now. "//FIXME: refactor" is not acceptable in new code.
 * When hesitating between 2 options, choose the one that is easier to reverse.

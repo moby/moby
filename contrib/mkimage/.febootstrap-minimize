@@ -10,7 +10,7 @@ shift
 	# effectively: febootstrap-minimize --keep-zoneinfo --keep-rpmdb --keep-services "$target"
 	#  locales
 	rm -rf usr/{{lib,share}/locale,{lib,lib64}/gconv,bin/localedef,sbin/build-locale-archive}
-	#  docs
+	#  docs and man pages
 	rm -rf usr/share/{man,doc,info,gnome/help}
 	#  cracklib
 	rm -rf usr/share/cracklib

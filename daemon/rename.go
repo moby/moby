@@ -1,34 +1,85 @@
 package daemon
 
 import (
-	"github.com/docker/docker/engine"
+	"fmt"
+	"strings"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/libnetwork"
 )
 
-func (daemon *Daemon) ContainerRename(job *engine.Job) engine.Status {
-	if len(job.Args) != 2 {
-		return job.Errorf("usage: %s OLD_NAME NEW_NAME", job.Name)
-	}
-	oldName := job.Args[0]
-	newName := job.Args[1]
+// ContainerRename changes the name of a container, using the oldName
+// to find the container. An error is returned if newName is already
+// reserved.
+func (daemon *Daemon) ContainerRename(oldName, newName string) error {
+	var (
+		sid string
+		sb  libnetwork.Sandbox
+	)
 
-	container, err := daemon.Get(oldName)
+	if oldName == "" || newName == "" {
+		return fmt.Errorf("Neither old nor new names may be empty")
+	}
+
+	container, err := daemon.GetContainer(oldName)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 
 	oldName = container.Name
 
 	container.Lock()
 	defer container.Unlock()
-	if _, err := daemon.reserveName(container.ID, newName); err != nil {
-		return job.Errorf("Error when allocating new name: %s", err)
+	if newName, err = daemon.reserveName(container.ID, newName); err != nil {
+		return fmt.Errorf("Error when allocating new name: %v", err)
 	}
 
 	container.Name = newName
 
-	if err := daemon.containerGraph.Delete(oldName); err != nil {
-		return job.Errorf("Failed to delete container %q: %v", oldName, err)
+	defer func() {
+		if err != nil {
+			container.Name = oldName
+			daemon.reserveName(container.ID, oldName)
+			daemon.releaseName(newName)
+		}
+	}()
+
+	daemon.releaseName(oldName)
+	if err = container.ToDisk(); err != nil {
+		return err
 	}
 
-	return engine.StatusOK
+	attributes := map[string]string{
+		"oldName": oldName,
+	}
+
+	if !container.Running {
+		daemon.LogContainerEventWithAttributes(container, "rename", attributes)
+		return nil
+	}
+
+	defer func() {
+		if err != nil {
+			container.Name = oldName
+			if e := container.ToDisk(); e != nil {
+				logrus.Errorf("%s: Failed in writing to Disk on rename failure: %v", container.ID, e)
+			}
+		}
+	}()
+
+	sid = container.NetworkSettings.SandboxID
+	if daemon.netController != nil {
+		sb, err = daemon.netController.SandboxByID(sid)
+		if err != nil {
+			return err
+		}
+
+		err = sb.Rename(strings.TrimPrefix(container.Name, "/"))
+		if err != nil {
+			return err
+		}
+	}
+
+	daemon.LogContainerEventWithAttributes(container, "rename", attributes)
+	return nil
 }

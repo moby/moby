@@ -1,9 +1,11 @@
 package archive
 
 import (
+	"archive/tar"
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -11,37 +13,47 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
-
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 )
 
+// ChangeType represents the change type.
 type ChangeType int
 
 const (
+	// ChangeModify represents the modify operation.
 	ChangeModify = iota
+	// ChangeAdd represents the add operation.
 	ChangeAdd
+	// ChangeDelete represents the delete operation.
 	ChangeDelete
 )
 
+func (c ChangeType) String() string {
+	switch c {
+	case ChangeModify:
+		return "C"
+	case ChangeAdd:
+		return "A"
+	case ChangeDelete:
+		return "D"
+	}
+	return ""
+}
+
+// Change represents a change, it wraps the change type and path.
+// It describes changes of the files in the path respect to the
+// parent layers. The change could be modify, add, delete.
+// This is used for layer diff.
 type Change struct {
 	Path string
 	Kind ChangeType
 }
 
 func (change *Change) String() string {
-	var kind string
-	switch change.Kind {
-	case ChangeModify:
-		kind = "C"
-	case ChangeAdd:
-		kind = "A"
-	case ChangeDelete:
-		kind = "D"
-	}
-	return fmt.Sprintf("%s %s", kind, change.Path)
+	return fmt.Sprintf("%s %s", change.Kind, change.Path)
 }
 
 // for sort.Sort
@@ -69,7 +81,11 @@ func sameFsTimeSpec(a, b syscall.Timespec) bool {
 // Changes walks the path rw and determines changes for the files in the path,
 // with respect to the parent layers
 func Changes(layers []string, rw string) ([]Change, error) {
-	var changes []Change
+	var (
+		changes     []Change
+		changedDirs = make(map[string]struct{})
+	)
+
 	err := filepath.Walk(rw, func(path string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -80,15 +96,17 @@ func Changes(layers []string, rw string) ([]Change, error) {
 		if err != nil {
 			return err
 		}
-		path = filepath.Join("/", path)
+
+		// As this runs on the daemon side, file paths are OS specific.
+		path = filepath.Join(string(os.PathSeparator), path)
 
 		// Skip root
-		if path == "/" {
+		if path == string(os.PathSeparator) {
 			return nil
 		}
 
 		// Skip AUFS metadata
-		if matched, err := filepath.Match("/.wh..wh.*", path); err != nil || matched {
+		if matched, err := filepath.Match(string(os.PathSeparator)+WhiteoutMetaPrefix+"*", path); err != nil || matched {
 			return err
 		}
 
@@ -99,8 +117,8 @@ func Changes(layers []string, rw string) ([]Change, error) {
 		// Find out what kind of modification happened
 		file := filepath.Base(path)
 		// If there is a whiteout, then the file was removed
-		if strings.HasPrefix(file, ".wh.") {
-			originalFile := file[len(".wh."):]
+		if strings.HasPrefix(file, WhiteoutPrefix) {
+			originalFile := file[len(WhiteoutPrefix):]
 			change.Path = filepath.Join(filepath.Dir(path), originalFile)
 			change.Kind = ChangeDelete
 		} else {
@@ -130,6 +148,21 @@ func Changes(layers []string, rw string) ([]Change, error) {
 			}
 		}
 
+		// If /foo/bar/file.txt is modified, then /foo/bar must be part of the changed files.
+		// This block is here to ensure the change is recorded even if the
+		// modify time, mode and size of the parent directory in the rw and ro layers are all equal.
+		// Check https://github.com/docker/docker/pull/13590 for details.
+		if f.IsDir() {
+			changedDirs[path] = struct{}{}
+		}
+		if change.Kind == ChangeAdd || change.Kind == ChangeDelete {
+			parent := filepath.Dir(path)
+			if _, ok := changedDirs[parent]; !ok && parent != "/" {
+				changes = append(changes, Change{Path: parent, Kind: ChangeModify})
+				changedDirs[parent] = struct{}{}
+			}
+		}
+
 		// Record change
 		changes = append(changes, change)
 		return nil
@@ -140,22 +173,25 @@ func Changes(layers []string, rw string) ([]Change, error) {
 	return changes, nil
 }
 
+// FileInfo describes the information of a file.
 type FileInfo struct {
 	parent     *FileInfo
 	name       string
-	stat       *system.Stat
+	stat       *system.StatT
 	children   map[string]*FileInfo
 	capability []byte
 	added      bool
 }
 
-func (root *FileInfo) LookUp(path string) *FileInfo {
-	parent := root
-	if path == "/" {
-		return root
+// LookUp looks up the file information of a file.
+func (info *FileInfo) LookUp(path string) *FileInfo {
+	// As this runs on the daemon side, file paths are OS specific.
+	parent := info
+	if path == string(os.PathSeparator) {
+		return info
 	}
 
-	pathElements := strings.Split(path, "/")
+	pathElements := strings.Split(path, string(os.PathSeparator))
 	for _, elem := range pathElements {
 		if elem != "" {
 			child := parent.children[elem]
@@ -170,13 +206,10 @@ func (root *FileInfo) LookUp(path string) *FileInfo {
 
 func (info *FileInfo) path() string {
 	if info.parent == nil {
-		return "/"
+		// As this runs on the daemon side, file paths are OS specific.
+		return string(os.PathSeparator)
 	}
 	return filepath.Join(info.parent.path(), info.name)
-}
-
-func (info *FileInfo) isDir() bool {
-	return info.parent == nil || info.stat.Mode()&syscall.S_IFDIR == syscall.S_IFDIR
 }
 
 func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
@@ -215,13 +248,7 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 			// be visible when actually comparing the stat fields. The only time this
 			// breaks down is if some code intentionally hides a change by setting
 			// back mtime
-			if oldStat.Mode() != newStat.Mode() ||
-				oldStat.Uid() != newStat.Uid() ||
-				oldStat.Gid() != newStat.Gid() ||
-				oldStat.Rdev() != newStat.Rdev() ||
-				// Don't look at size for dirs, its not a good measure of change
-				(oldStat.Size() != newStat.Size() && oldStat.Mode()&syscall.S_IFDIR != syscall.S_IFDIR) ||
-				!sameFsTimeSpec(oldStat.Mtim(), newStat.Mtim()) ||
+			if statDifferent(oldStat, newStat) ||
 				bytes.Compare(oldChild.capability, newChild.capability) != 0 {
 				change := Change{
 					Path: newChild.path(),
@@ -248,7 +275,8 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 
 	// If there were changes inside this directory, we need to add it, even if the directory
 	// itself wasn't changed. This is needed to properly save and restore filesystem permissions.
-	if len(*changes) > sizeAtEntry && info.isDir() && !info.added && info.path() != "/" {
+	// As this runs on the daemon side, file paths are OS specific.
+	if len(*changes) > sizeAtEntry && info.isDir() && !info.added && info.path() != string(os.PathSeparator) {
 		change := Change{
 			Path: info.path(),
 			Kind: ChangeModify,
@@ -261,6 +289,7 @@ func (info *FileInfo) addChanges(oldInfo *FileInfo, changes *[]Change) {
 
 }
 
+// Changes add changes to file information.
 func (info *FileInfo) Changes(oldInfo *FileInfo) []Change {
 	var changes []Change
 
@@ -270,59 +299,12 @@ func (info *FileInfo) Changes(oldInfo *FileInfo) []Change {
 }
 
 func newRootFileInfo() *FileInfo {
+	// As this runs on the daemon side, file paths are OS specific.
 	root := &FileInfo{
-		name:     "/",
+		name:     string(os.PathSeparator),
 		children: make(map[string]*FileInfo),
 	}
 	return root
-}
-
-func collectFileInfo(sourceDir string) (*FileInfo, error) {
-	root := newRootFileInfo()
-
-	err := filepath.Walk(sourceDir, func(path string, f os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Rebase path
-		relPath, err := filepath.Rel(sourceDir, path)
-		if err != nil {
-			return err
-		}
-		relPath = filepath.Join("/", relPath)
-
-		if relPath == "/" {
-			return nil
-		}
-
-		parent := root.LookUp(filepath.Dir(relPath))
-		if parent == nil {
-			return fmt.Errorf("collectFileInfo: Unexpectedly no parent for %s", relPath)
-		}
-
-		info := &FileInfo{
-			name:     filepath.Base(relPath),
-			children: make(map[string]*FileInfo),
-			parent:   parent,
-		}
-
-		s, err := system.Lstat(path)
-		if err != nil {
-			return err
-		}
-		info.stat = s
-
-		info.capability, _ = system.Lgetxattr(path, "security.capability")
-
-		parent.children[info.name] = info
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return root, nil
 }
 
 // ChangesDirs compares two directories and generates an array of Change objects describing the changes.
@@ -330,25 +312,18 @@ func collectFileInfo(sourceDir string) (*FileInfo, error) {
 func ChangesDirs(newDir, oldDir string) ([]Change, error) {
 	var (
 		oldRoot, newRoot *FileInfo
-		err1, err2       error
-		errs             = make(chan error, 2)
 	)
-	go func() {
-		if oldDir != "" {
-			oldRoot, err1 = collectFileInfo(oldDir)
-		}
-		errs <- err1
-	}()
-	go func() {
-		newRoot, err2 = collectFileInfo(newDir)
-		errs <- err2
-	}()
-
-	// block until both routines have returned
-	for i := 0; i < 2; i++ {
-		if err := <-errs; err != nil {
+	if oldDir == "" {
+		emptyDir, err := ioutil.TempDir("", "empty")
+		if err != nil {
 			return nil, err
 		}
+		defer os.Remove(emptyDir)
+		oldDir = emptyDir
+	}
+	oldRoot, newRoot, err := collectFileInfoForChanges(oldDir, newDir)
+	if err != nil {
+		return nil, err
 	}
 
 	return newRoot.Changes(oldRoot), nil
@@ -356,13 +331,29 @@ func ChangesDirs(newDir, oldDir string) ([]Change, error) {
 
 // ChangesSize calculates the size in bytes of the provided changes, based on newDir.
 func ChangesSize(newDir string, changes []Change) int64 {
-	var size int64
+	var (
+		size int64
+		sf   = make(map[uint64]struct{})
+	)
 	for _, change := range changes {
 		if change.Kind == ChangeModify || change.Kind == ChangeAdd {
 			file := filepath.Join(newDir, change.Path)
-			fileInfo, _ := os.Lstat(file)
+			fileInfo, err := os.Lstat(file)
+			if err != nil {
+				logrus.Errorf("Can not stat %q: %s", file, err)
+				continue
+			}
+
 			if fileInfo != nil && !fileInfo.IsDir() {
-				size += fileInfo.Size()
+				if hasHardlinks(fileInfo) {
+					inode := getIno(fileInfo)
+					if _, ok := sf[inode]; !ok {
+						size += fileInfo.Size()
+						sf[inode] = struct{}{}
+					}
+				} else {
+					size += fileInfo.Size()
+				}
 			}
 		}
 	}
@@ -370,13 +361,15 @@ func ChangesSize(newDir string, changes []Change) int64 {
 }
 
 // ExportChanges produces an Archive from the provided changes, relative to dir.
-func ExportChanges(dir string, changes []Change) (Archive, error) {
+func ExportChanges(dir string, changes []Change, uidMaps, gidMaps []idtools.IDMap) (Archive, error) {
 	reader, writer := io.Pipe()
 	go func() {
 		ta := &tarAppender{
 			TarWriter: tar.NewWriter(writer),
 			Buffer:    pools.BufioWriter32KPool.Get(nil),
 			SeenFiles: make(map[uint64]string),
+			UIDMaps:   uidMaps,
+			GIDMaps:   gidMaps,
 		}
 		// this buffer is needed for the duration of this piped stream
 		defer pools.BufioWriter32KPool.Put(ta.Buffer)
@@ -391,7 +384,7 @@ func ExportChanges(dir string, changes []Change) (Archive, error) {
 			if change.Kind == ChangeDelete {
 				whiteOutDir := filepath.Dir(change.Path)
 				whiteOutBase := filepath.Base(change.Path)
-				whiteOut := filepath.Join(whiteOutDir, ".wh."+whiteOutBase)
+				whiteOut := filepath.Join(whiteOutDir, WhiteoutPrefix+whiteOutBase)
 				timestamp := time.Now()
 				hdr := &tar.Header{
 					Name:       whiteOut[1:],
@@ -401,22 +394,22 @@ func ExportChanges(dir string, changes []Change) (Archive, error) {
 					ChangeTime: timestamp,
 				}
 				if err := ta.TarWriter.WriteHeader(hdr); err != nil {
-					log.Debugf("Can't write whiteout header: %s", err)
+					logrus.Debugf("Can't write whiteout header: %s", err)
 				}
 			} else {
 				path := filepath.Join(dir, change.Path)
 				if err := ta.addTarFile(path, change.Path[1:]); err != nil {
-					log.Debugf("Can't add file %s to tar: %s", path, err)
+					logrus.Debugf("Can't add file %s to tar: %s", path, err)
 				}
 			}
 		}
 
 		// Make sure to check the error on Close.
 		if err := ta.TarWriter.Close(); err != nil {
-			log.Debugf("Can't close layer: %s", err)
+			logrus.Debugf("Can't close layer: %s", err)
 		}
 		if err := writer.Close(); err != nil {
-			log.Debugf("failed close Changes writer: %s", err)
+			logrus.Debugf("failed close Changes writer: %s", err)
 		}
 	}()
 	return reader, nil

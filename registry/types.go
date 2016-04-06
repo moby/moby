@@ -1,109 +1,70 @@
 package registry
 
-type SearchResult struct {
-	StarCount   int    `json:"star_count"`
-	IsOfficial  bool   `json:"is_official"`
-	Name        string `json:"name"`
-	IsTrusted   bool   `json:"is_trusted"`
-	Description string `json:"description"`
-}
+import (
+	"github.com/docker/docker/reference"
+	registrytypes "github.com/docker/engine-api/types/registry"
+)
 
-type SearchResults struct {
-	Query      string         `json:"query"`
-	NumResults int            `json:"num_results"`
-	Results    []SearchResult `json:"results"`
-}
-
+// RepositoryData tracks the image list, list of endpoints, and list of tokens
+// for a repository
 type RepositoryData struct {
-	ImgList   map[string]*ImgData
+	// ImgList is a list of images in the repository
+	ImgList map[string]*ImgData
+	// Endpoints is a list of endpoints returned in X-Docker-Endpoints
 	Endpoints []string
-	Tokens    []string
+	// Tokens is currently unused (remove it?)
+	Tokens []string
 }
 
+// ImgData is used to transfer image checksums to and from the registry
 type ImgData struct {
+	// ID is an opaque string that identifies the image
 	ID              string `json:"id"`
 	Checksum        string `json:"checksum,omitempty"`
 	ChecksumPayload string `json:"-"`
 	Tag             string `json:",omitempty"`
 }
 
-type RegistryInfo struct {
-	Version    string `json:"version"`
-	Standalone bool   `json:"standalone"`
+// PingResult contains the information returned when pinging a registry. It
+// indicates the registry's version and whether the registry claims to be a
+// standalone registry.
+type PingResult struct {
+	// Version is the registry version supplied by the registry in a HTTP
+	// header
+	Version string `json:"version"`
+	// Standalone is set to true if the registry indicates it is a
+	// standalone registry in the X-Docker-Registry-Standalone
+	// header
+	Standalone bool `json:"standalone"`
 }
 
-type FSLayer struct {
-	BlobSum string `json:"blobSum"`
-}
-
-type ManifestHistory struct {
-	V1Compatibility string `json:"v1Compatibility"`
-}
-
-type ManifestData struct {
-	Name          string             `json:"name"`
-	Tag           string             `json:"tag"`
-	Architecture  string             `json:"architecture"`
-	FSLayers      []*FSLayer         `json:"fsLayers"`
-	History       []*ManifestHistory `json:"history"`
-	SchemaVersion int                `json:"schemaVersion"`
-}
-
+// APIVersion is an integral representation of an API version (presently
+// either 1 or 2)
 type APIVersion int
 
 func (av APIVersion) String() string {
 	return apiVersions[av]
 }
 
-var apiVersions = map[APIVersion]string{
-	1: "v1",
-	2: "v2",
-}
-
 // API Version identifiers.
 const (
-	APIVersionUnknown = iota
-	APIVersion1
+	_                      = iota
+	APIVersion1 APIVersion = iota
 	APIVersion2
 )
 
-// RepositoryInfo Examples:
-// {
-//   "Index" : {
-//     "Name" : "docker.io",
-//     "Mirrors" : ["https://registry-2.docker.io/v1/", "https://registry-3.docker.io/v1/"],
-//     "Secure" : true,
-//     "Official" : true,
-//   },
-//   "RemoteName" : "library/debian",
-//   "LocalName" : "debian",
-//   "CanonicalName" : "docker.io/debian"
-//   "Official" : true,
-// }
-
-// {
-//   "Index" : {
-//     "Name" : "127.0.0.1:5000",
-//     "Mirrors" : [],
-//     "Secure" : false,
-//     "Official" : false,
-//   },
-//   "RemoteName" : "user/repo",
-//   "LocalName" : "127.0.0.1:5000/user/repo",
-//   "CanonicalName" : "127.0.0.1:5000/user/repo",
-//   "Official" : false,
-// }
-type IndexInfo struct {
-	Name     string
-	Mirrors  []string
-	Secure   bool
-	Official bool
+var apiVersions = map[APIVersion]string{
+	APIVersion1: "v1",
+	APIVersion2: "v2",
 }
 
+// RepositoryInfo describes a repository
 type RepositoryInfo struct {
-	Index         *IndexInfo
-	RemoteName    string
-	LocalName     string
-	CanonicalName string
-	Official      bool
+	reference.Named
+	// Index points to registry information
+	Index *registrytypes.IndexInfo
+	// Official indicates whether the repository is considered official.
+	// If the registry is official, and the normalized name does not
+	// contain a '/' (e.g. "foo"), then it is considered an official repo.
+	Official bool
 }

@@ -1,37 +1,49 @@
 package daemon
 
 import (
-	"github.com/docker/docker/engine"
+	"fmt"
+
+	"github.com/docker/docker/container"
 )
 
-func (daemon *Daemon) ContainerPause(job *engine.Job) engine.Status {
-	if len(job.Args) != 1 {
-		return job.Errorf("Usage: %s CONTAINER", job.Name)
-	}
-	name := job.Args[0]
-	container, err := daemon.Get(name)
+// ContainerPause pauses a container
+func (daemon *Daemon) ContainerPause(name string) error {
+	container, err := daemon.GetContainer(name)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
-	if err := container.Pause(); err != nil {
-		return job.Errorf("Cannot pause container %s: %s", name, err)
+
+	if err := daemon.containerPause(container); err != nil {
+		return err
 	}
-	container.LogEvent("pause")
-	return engine.StatusOK
+
+	return nil
 }
 
-func (daemon *Daemon) ContainerUnpause(job *engine.Job) engine.Status {
-	if n := len(job.Args); n < 1 || n > 2 {
-		return job.Errorf("Usage: %s CONTAINER", job.Name)
+// containerPause pauses the container execution without stopping the process.
+// The execution can be resumed by calling containerUnpause.
+func (daemon *Daemon) containerPause(container *container.Container) error {
+	container.Lock()
+	defer container.Unlock()
+
+	// We cannot Pause the container which is not running
+	if !container.Running {
+		return errNotRunning{container.ID}
 	}
-	name := job.Args[0]
-	container, err := daemon.Get(name)
-	if err != nil {
-		return job.Error(err)
+
+	// We cannot Pause the container which is already paused
+	if container.Paused {
+		return fmt.Errorf("Container %s is already paused", container.ID)
 	}
-	if err := container.Unpause(); err != nil {
-		return job.Errorf("Cannot unpause container %s: %s", name, err)
+
+	// We cannot Pause the container which is restarting
+	if container.Restarting {
+		return errContainerIsRestarting(container.ID)
 	}
-	container.LogEvent("unpause")
-	return engine.StatusOK
+
+	if err := daemon.containerd.Pause(container.ID); err != nil {
+		return fmt.Errorf("Cannot pause container %s: %s", container.ID, err)
+	}
+
+	return nil
 }

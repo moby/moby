@@ -41,7 +41,14 @@ prestart() {
 }
 
 start() {
-    [ -x $exec ] || exit 5
+    if [ ! -x $exec ]; then
+      if [ ! -e $exec ]; then
+        echo "Docker executable $exec not found"
+      else
+        echo "You do not have permission to execute the Docker executable $exec"
+      fi	      
+      exit 5
+    fi
 
     check_for_cleanup
 
@@ -49,7 +56,7 @@ start() {
         prestart
         printf "Starting $prog:\t"
         echo "\n$(date)\n" >> $logfile
-        "$unshare" -m -- $exec -d $other_args &>> $logfile &
+        "$unshare" -m -- $exec daemon $other_args >> $logfile 2>&1 &
         pid=$!
         touch $lockfile
         # wait up to 10 seconds for the pidfile to exist.  see
@@ -58,7 +65,13 @@ start() {
         while [ ! -f $pidfile -a $tries -lt 10 ]; do
             sleep 1
             tries=$((tries + 1))
+            echo -n '.'
         done
+        if [ ! -f $pidfile ]; then
+          failure
+          echo
+          exit 1
+        fi
         success
         echo
     else

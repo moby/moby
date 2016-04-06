@@ -1,4 +1,4 @@
-// +build !linux,!windows
+// +build !linux,!windows,!freebsd,!solaris,!openbsd
 
 package system
 
@@ -6,8 +6,9 @@ import (
 	"syscall"
 )
 
-func fromStatT(s *syscall.Stat_t) (*Stat, error) {
-	return &Stat{size: s.Size,
+// fromStatT creates a system.StatT type from a syscall.Stat_t type
+func fromStatT(s *syscall.Stat_t) (*StatT, error) {
+	return &StatT{size: s.Size,
 		mode: uint32(s.Mode),
 		uid:  s.Uid,
 		gid:  s.Gid,

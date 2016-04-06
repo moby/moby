@@ -1,147 +1,86 @@
 package main
 
 import (
+	"io/ioutil"
 	"os"
-	"os/exec"
-	"strings"
-	"testing"
+
+	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/go-check/check"
 )
 
-func TestRmContainerWithRemovedVolume(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "--name", "losemyvolumes", "-v", "/tmp/testing:/test", "busybox", "true")
-	if _, err := runCommand(cmd); err != nil {
-		t.Fatal(err)
+func (s *DockerSuite) TestRmContainerWithRemovedVolume(c *check.C) {
+	testRequires(c, SameHostDaemon)
+
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
+
+	tempDir, err := ioutil.TempDir("", "test-rm-container-with-removed-volume-")
+	if err != nil {
+		c.Fatalf("failed to create temporary directory: %s", tempDir)
 	}
+	defer os.RemoveAll(tempDir)
 
-	if err := os.Remove("/tmp/testing"); err != nil {
-		t.Fatal(err)
-	}
+	dockerCmd(c, "run", "--name", "losemyvolumes", "-v", tempDir+":"+prefix+slash+"test", "busybox", "true")
 
-	cmd = exec.Command(dockerBinary, "rm", "-v", "losemyvolumes")
-	if out, _, err := runCommandWithOutput(cmd); err != nil {
-		t.Fatal(out, err)
-	}
+	err = os.RemoveAll(tempDir)
+	c.Assert(err, check.IsNil)
 
-	deleteAllContainers()
-
-	logDone("rm - removed volume")
+	dockerCmd(c, "rm", "-v", "losemyvolumes")
 }
 
-func TestRmContainerWithVolume(t *testing.T) {
-	cmd := exec.Command(dockerBinary, "run", "--name", "foo", "-v", "/srv", "busybox", "true")
-	if _, err := runCommand(cmd); err != nil {
-		t.Fatal(err)
-	}
+func (s *DockerSuite) TestRmContainerWithVolume(c *check.C) {
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
-	cmd = exec.Command(dockerBinary, "rm", "-v", "foo")
-	if _, err := runCommand(cmd); err != nil {
-		t.Fatal(err)
-	}
+	dockerCmd(c, "run", "--name", "foo", "-v", prefix+slash+"srv", "busybox", "true")
 
-	deleteAllContainers()
-
-	logDone("rm - volume")
+	dockerCmd(c, "rm", "-v", "foo")
 }
 
-func TestRmRunningContainer(t *testing.T) {
-	createRunningContainer(t, "foo")
+func (s *DockerSuite) TestRmContainerRunning(c *check.C) {
+	createRunningContainer(c, "foo")
 
-	// Test cannot remove running container
-	cmd := exec.Command(dockerBinary, "rm", "foo")
-	if _, err := runCommand(cmd); err == nil {
-		t.Fatalf("Expected error, can't rm a running container")
-	}
-
-	deleteAllContainers()
-
-	logDone("rm - running container")
+	_, _, err := dockerCmdWithError("rm", "foo")
+	c.Assert(err, checker.NotNil, check.Commentf("Expected error, can't rm a running container"))
 }
 
-func TestRmRunningContainerCheckError409(t *testing.T) {
-	createRunningContainer(t, "foo")
-
-	endpoint := "/containers/foo"
-	_, err := sockRequest("DELETE", endpoint, nil)
-
-	if err == nil {
-		t.Fatalf("Expected error, can't rm a running container")
-	}
-	if !strings.Contains(err.Error(), "409 Conflict") {
-		t.Fatalf("Expected error to contain '409 Conflict' but found %s", err)
-	}
-
-	deleteAllContainers()
-
-	logDone("rm - running container")
-}
-
-func TestRmForceRemoveRunningContainer(t *testing.T) {
-	createRunningContainer(t, "foo")
+func (s *DockerSuite) TestRmContainerForceRemoveRunning(c *check.C) {
+	createRunningContainer(c, "foo")
 
 	// Stop then remove with -s
-	cmd := exec.Command(dockerBinary, "rm", "-f", "foo")
-	if _, err := runCommand(cmd); err != nil {
-		t.Fatal(err)
-	}
-
-	deleteAllContainers()
-
-	logDone("rm - running container with --force=true")
+	dockerCmd(c, "rm", "-f", "foo")
 }
 
-func TestRmContainerOrphaning(t *testing.T) {
+func (s *DockerSuite) TestRmContainerOrphaning(c *check.C) {
 	dockerfile1 := `FROM busybox:latest
-	ENTRYPOINT ["/bin/true"]`
+	ENTRYPOINT ["true"]`
 	img := "test-container-orphaning"
 	dockerfile2 := `FROM busybox:latest
-	ENTRYPOINT ["/bin/true"]
+	ENTRYPOINT ["true"]
 	MAINTAINER Integration Tests`
 
 	// build first dockerfile
 	img1, err := buildImage(img, dockerfile1, true)
-	if err != nil {
-		t.Fatalf("Could not build image %s: %v", img, err)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("Could not build image %s", img))
 	// run container on first image
-	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "run", img)); err != nil {
-		t.Fatalf("Could not run image %s: %v: %s", img, err, out)
-	}
+	dockerCmd(c, "run", img)
 	// rebuild dockerfile with a small addition at the end
-	if _, err := buildImage(img, dockerfile2, true); err != nil {
-		t.Fatalf("Could not rebuild image %s: %v", img, err)
-	}
-	// try to remove the image, should error out.
-	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "rmi", img)); err == nil {
-		t.Fatalf("Expected to error out removing the image, but succeeded: %s", out)
-	}
+	_, err = buildImage(img, dockerfile2, true)
+	c.Assert(err, check.IsNil, check.Commentf("Could not rebuild image %s", img))
+	// try to remove the image, should not error out.
+	out, _, err := dockerCmdWithError("rmi", img)
+	c.Assert(err, check.IsNil, check.Commentf("Expected to removing the image, but failed: %s", out))
+
 	// check if we deleted the first image
-	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "images", "-q", "--no-trunc"))
-	if err != nil {
-		t.Fatalf("%v: %s", err, out)
-	}
-	if !strings.Contains(out, img1) {
-		t.Fatalf("Orphaned container (could not find %q in docker images): %s", img1, out)
-	}
+	out, _ = dockerCmd(c, "images", "-q", "--no-trunc")
+	c.Assert(out, checker.Contains, img1, check.Commentf("Orphaned container (could not find %q in docker images): %s", img1, out))
 
-	deleteAllContainers()
-	deleteImages(img1)
-
-	logDone("rm - container orphaning")
 }
 
-func TestRmInvalidContainer(t *testing.T) {
-	if out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "rm", "unknown")); err == nil {
-		t.Fatal("Expected error on rm unknown container, got none")
-	} else if !strings.Contains(out, "failed to remove one or more containers") {
-		t.Fatalf("Expected output to contain 'failed to remove one or more containers', got %q", out)
-	}
-
-	logDone("rm - delete unknown container")
+func (s *DockerSuite) TestRmInvalidContainer(c *check.C) {
+	out, _, err := dockerCmdWithError("rm", "unknown")
+	c.Assert(err, checker.NotNil, check.Commentf("Expected error on rm unknown container, got none"))
+	c.Assert(out, checker.Contains, "No such container")
 }
 
-func createRunningContainer(t *testing.T, name string) {
-	cmd := exec.Command(dockerBinary, "run", "-dt", "--name", name, "busybox", "top")
-	if _, err := runCommand(cmd); err != nil {
-		t.Fatal(err)
-	}
+func createRunningContainer(c *check.C, name string) {
+	runSleepingContainer(c, "-dt", "--name", name)
 }

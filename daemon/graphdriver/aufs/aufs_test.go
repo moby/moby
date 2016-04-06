@@ -1,3 +1,5 @@
+// +build linux
+
 package aufs
 
 import (
@@ -7,11 +9,13 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"sync"
 	"testing"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/docker/pkg/stringid"
 )
 
 var (
@@ -23,8 +27,8 @@ func init() {
 	reexec.Init()
 }
 
-func testInit(dir string, t *testing.T) graphdriver.Driver {
-	d, err := Init(dir, nil)
+func testInit(dir string, t testing.TB) graphdriver.Driver {
+	d, err := Init(dir, nil, nil, nil)
 	if err != nil {
 		if err == graphdriver.ErrNotSupported {
 			t.Skip(err)
@@ -35,7 +39,7 @@ func testInit(dir string, t *testing.T) graphdriver.Driver {
 	return d
 }
 
-func newDriver(t *testing.T) *Driver {
+func newDriver(t testing.TB) *Driver {
 	if err := os.MkdirAll(tmp, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +101,7 @@ func TestCreateNewDir(t *testing.T) {
 	d := newDriver(t)
 	defer os.RemoveAll(tmp)
 
-	if err := d.Create("1", ""); err != nil {
+	if err := d.Create("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -106,7 +110,7 @@ func TestCreateNewDirStructure(t *testing.T) {
 	d := newDriver(t)
 	defer os.RemoveAll(tmp)
 
-	if err := d.Create("1", ""); err != nil {
+	if err := d.Create("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -127,7 +131,7 @@ func TestRemoveImage(t *testing.T) {
 	d := newDriver(t)
 	defer os.RemoveAll(tmp)
 
-	if err := d.Create("1", ""); err != nil {
+	if err := d.Create("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -152,7 +156,7 @@ func TestGetWithoutParent(t *testing.T) {
 	d := newDriver(t)
 	defer os.RemoveAll(tmp)
 
-	if err := d.Create("1", ""); err != nil {
+	if err := d.Create("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -179,7 +183,7 @@ func TestCleanupWithDir(t *testing.T) {
 	d := newDriver(t)
 	defer os.RemoveAll(tmp)
 
-	if err := d.Create("1", ""); err != nil {
+	if err := d.Create("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -192,11 +196,11 @@ func TestMountedFalseResponse(t *testing.T) {
 	d := newDriver(t)
 	defer os.RemoveAll(tmp)
 
-	if err := d.Create("1", ""); err != nil {
+	if err := d.Create("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
-	response, err := d.mounted("1")
+	response, err := d.mounted(d.getDiffPath("1"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,10 +215,10 @@ func TestMountedTrueReponse(t *testing.T) {
 	defer os.RemoveAll(tmp)
 	defer d.Cleanup()
 
-	if err := d.Create("1", ""); err != nil {
+	if err := d.Create("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
-	if err := d.Create("2", "1"); err != nil {
+	if err := d.Create("2", "1", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -223,7 +227,7 @@ func TestMountedTrueReponse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	response, err := d.mounted("2")
+	response, err := d.mounted(d.pathCache["2"])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -237,10 +241,10 @@ func TestMountWithParent(t *testing.T) {
 	d := newDriver(t)
 	defer os.RemoveAll(tmp)
 
-	if err := d.Create("1", ""); err != nil {
+	if err := d.Create("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
-	if err := d.Create("2", "1"); err != nil {
+	if err := d.Create("2", "1", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -268,10 +272,10 @@ func TestRemoveMountedDir(t *testing.T) {
 	d := newDriver(t)
 	defer os.RemoveAll(tmp)
 
-	if err := d.Create("1", ""); err != nil {
+	if err := d.Create("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
-	if err := d.Create("2", "1"); err != nil {
+	if err := d.Create("2", "1", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -289,7 +293,7 @@ func TestRemoveMountedDir(t *testing.T) {
 		t.Fatal("mntPath should not be empty string")
 	}
 
-	mounted, err := d.mounted("2")
+	mounted, err := d.mounted(d.pathCache["2"])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -307,7 +311,7 @@ func TestCreateWithInvalidParent(t *testing.T) {
 	d := newDriver(t)
 	defer os.RemoveAll(tmp)
 
-	if err := d.Create("1", "docker"); err == nil {
+	if err := d.Create("1", "docker", "", nil); err == nil {
 		t.Fatalf("Error should not be nil with parent does not exist")
 	}
 }
@@ -316,7 +320,7 @@ func TestGetDiff(t *testing.T) {
 	d := newDriver(t)
 	defer os.RemoveAll(tmp)
 
-	if err := d.Create("1", ""); err != nil {
+	if err := d.Create("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -350,10 +354,10 @@ func TestChanges(t *testing.T) {
 	d := newDriver(t)
 	defer os.RemoveAll(tmp)
 
-	if err := d.Create("1", ""); err != nil {
+	if err := d.Create("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
-	if err := d.Create("2", "1"); err != nil {
+	if err := d.Create("2", "1", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -399,7 +403,7 @@ func TestChanges(t *testing.T) {
 		t.Fatalf("Change kind should be ChangeAdd got %s", change.Kind)
 	}
 
-	if err := d.Create("3", "2"); err != nil {
+	if err := d.Create("3", "2", "", nil); err != nil {
 		t.Fatal(err)
 	}
 	mntPoint, err = d.Get("3", "")
@@ -444,7 +448,7 @@ func TestDiffSize(t *testing.T) {
 	d := newDriver(t)
 	defer os.RemoveAll(tmp)
 
-	if err := d.Create("1", ""); err != nil {
+	if err := d.Create("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -486,7 +490,7 @@ func TestChildDiffSize(t *testing.T) {
 	defer os.RemoveAll(tmp)
 	defer d.Cleanup()
 
-	if err := d.Create("1", ""); err != nil {
+	if err := d.Create("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -522,7 +526,7 @@ func TestChildDiffSize(t *testing.T) {
 		t.Fatalf("Expected size to be %d got %d", size, diffSize)
 	}
 
-	if err := d.Create("2", "1"); err != nil {
+	if err := d.Create("2", "1", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -541,7 +545,7 @@ func TestExists(t *testing.T) {
 	defer os.RemoveAll(tmp)
 	defer d.Cleanup()
 
-	if err := d.Create("1", ""); err != nil {
+	if err := d.Create("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -559,7 +563,7 @@ func TestStatus(t *testing.T) {
 	defer os.RemoveAll(tmp)
 	defer d.Cleanup()
 
-	if err := d.Create("1", ""); err != nil {
+	if err := d.Create("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -588,7 +592,7 @@ func TestApplyDiff(t *testing.T) {
 	defer os.RemoveAll(tmp)
 	defer d.Cleanup()
 
-	if err := d.Create("1", ""); err != nil {
+	if err := d.Create("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -614,10 +618,10 @@ func TestApplyDiff(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := d.Create("2", ""); err != nil {
+	if err := d.Create("2", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
-	if err := d.Create("3", "2"); err != nil {
+	if err := d.Create("3", "2", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -667,7 +671,7 @@ func testMountMoreThan42Layers(t *testing.T, mountPath string) {
 		}
 		current = hash(current)
 
-		if err := d.Create(current, parent); err != nil {
+		if err := d.Create(current, parent, "", nil); err != nil {
 			t.Logf("Current layer %d", i)
 			t.Error(err)
 		}
@@ -728,5 +732,70 @@ func TestMountMoreThan42LayersMatchingPathLength(t *testing.T) {
 			return
 		}
 		zeroes += "0"
+	}
+}
+
+func BenchmarkConcurrentAccess(b *testing.B) {
+	b.StopTimer()
+	b.ResetTimer()
+
+	d := newDriver(b)
+	defer os.RemoveAll(tmp)
+	defer d.Cleanup()
+
+	numConcurent := 256
+	// create a bunch of ids
+	var ids []string
+	for i := 0; i < numConcurent; i++ {
+		ids = append(ids, stringid.GenerateNonCryptoID())
+	}
+
+	if err := d.Create(ids[0], "", "", nil); err != nil {
+		b.Fatal(err)
+	}
+
+	if err := d.Create(ids[1], ids[0], "", nil); err != nil {
+		b.Fatal(err)
+	}
+
+	parent := ids[1]
+	ids = append(ids[2:])
+
+	chErr := make(chan error, numConcurent)
+	var outerGroup sync.WaitGroup
+	outerGroup.Add(len(ids))
+	b.StartTimer()
+
+	// here's the actual bench
+	for _, id := range ids {
+		go func(id string) {
+			defer outerGroup.Done()
+			if err := d.Create(id, parent, "", nil); err != nil {
+				b.Logf("Create %s failed", id)
+				chErr <- err
+				return
+			}
+			var innerGroup sync.WaitGroup
+			for i := 0; i < b.N; i++ {
+				innerGroup.Add(1)
+				go func() {
+					d.Get(id, "")
+					d.Put(id)
+					innerGroup.Done()
+				}()
+			}
+			innerGroup.Wait()
+			d.Remove(id)
+		}(id)
+	}
+
+	outerGroup.Wait()
+	b.StopTimer()
+	close(chErr)
+	for err := range chErr {
+		if err != nil {
+			b.Log(err)
+			b.Fail()
+		}
 	}
 }

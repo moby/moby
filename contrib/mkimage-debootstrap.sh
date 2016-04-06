@@ -14,9 +14,9 @@ justTar=
 
 usage() {
 	echo >&2
-	
+
 	echo >&2 "usage: $0 [options] repo suite [mirror]"
-	
+
 	echo >&2
 	echo >&2 'options: (not recommended)'
 	echo >&2 "  -p set an http_proxy for debootstrap"
@@ -26,20 +26,20 @@ usage() {
 	echo >&2 "  -s # skip version detection and tagging (ie, precise also tagged as 12.04)"
 	echo >&2 "     # note that this will also skip adding universe and/or security/updates to sources.list"
 	echo >&2 "  -t # just create a tarball, especially for dockerbrew (uses repo as tarball name)"
-	
+
 	echo >&2
 	echo >&2 "   ie: $0 username/debian squeeze"
 	echo >&2 "       $0 username/debian squeeze http://ftp.uk.debian.org/debian/"
-	
+
 	echo >&2
 	echo >&2 "   ie: $0 username/ubuntu precise"
 	echo >&2 "       $0 username/ubuntu precise http://mirrors.melbourne.co.uk/ubuntu/"
-	
+
 	echo >&2
 	echo >&2 "   ie: $0 -t precise.tar.bz2 precise"
 	echo >&2 "       $0 -t wheezy.tgz wheezy"
 	echo >&2 "       $0 -t wheezy-uk.tar.xz wheezy http://ftp.uk.debian.org/debian/"
-	
+
 	echo >&2
 }
 
@@ -145,10 +145,10 @@ if [ -z "$strictDebootstrap" ]; then
 	sudo chroot . dpkg-divert --local --rename --add /sbin/initctl
 	sudo ln -sf /bin/true sbin/initctl
 	# see https://github.com/docker/docker/issues/446#issuecomment-16953173
-	
+
 	# shrink the image, since apt makes us fat (wheezy: ~157.5MB vs ~120MB)
 	sudo chroot . apt-get clean
-	
+
 	if strings usr/bin/dpkg | grep -q unsafe-io; then
 		# while we're at it, apt is unnecessarily slow inside containers
 		#  this forces dpkg not to call sync() after package extraction and speeds up install
@@ -159,7 +159,7 @@ if [ -z "$strictDebootstrap" ]; then
 		# (see http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=584254#82),
 		# and ubuntu lucid/10.04 only has 1.15.5.6
 	fi
-	
+
 	# we want to effectively run "apt-get clean" after every install to keep images small (see output of "apt-get clean -s" for context)
 	{
 		aptGetClean='"rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true";'
@@ -167,17 +167,17 @@ if [ -z "$strictDebootstrap" ]; then
 		echo "APT::Update::Post-Invoke { ${aptGetClean} };"
 		echo 'Dir::Cache::pkgcache ""; Dir::Cache::srcpkgcache "";'
 	} | sudo tee etc/apt/apt.conf.d/no-cache > /dev/null
-	
+
 	# and remove the translations, too
 	echo 'Acquire::Languages "none";' | sudo tee etc/apt/apt.conf.d/no-languages > /dev/null
-	
+
 	# helpful undo lines for each the above tweaks (for lack of a better home to keep track of them):
 	#  rm /usr/sbin/policy-rc.d
 	#  rm /sbin/initctl; dpkg-divert --rename --remove /sbin/initctl
 	#  rm /etc/dpkg/dpkg.cfg.d/02apt-speedup
 	#  rm /etc/apt/apt.conf.d/no-cache
 	#  rm /etc/apt/apt.conf.d/no-languages
-	
+
 	if [ -z "$skipDetection" ]; then
 		# see also rudimentary platform detection in hack/install.sh
 		lsbDist=''
@@ -187,14 +187,14 @@ if [ -z "$strictDebootstrap" ]; then
 		if [ -z "$lsbDist" ] && [ -r etc/debian_version ]; then
 			lsbDist='Debian'
 		fi
-		
+
 		case "$lsbDist" in
 			Debian)
 				# add the updates and security repositories
 				if [ "$suite" != "$debianUnstable" -a "$suite" != 'unstable' ]; then
 					# ${suite}-updates only applies to non-unstable
 					sudo sed -i "p; s/ $suite main$/ ${suite}-updates main/" etc/apt/sources.list
-					
+
 					# same for security updates
 					echo "deb http://security.debian.org/ $suite/updates main" | sudo tee -a etc/apt/sources.list > /dev/null
 				fi
@@ -220,7 +220,7 @@ if [ -z "$strictDebootstrap" ]; then
 				;;
 		esac
 	fi
-	
+
 	# make sure our packages lists are as up to date as we can get them
 	sudo chroot . apt-get update
 	sudo chroot . apt-get dist-upgrade -y
@@ -229,23 +229,23 @@ fi
 if [ "$justTar" ]; then
 	# create the tarball file so it has the right permissions (ie, not root)
 	touch "$repo"
-	
+
 	# fill the tarball
 	sudo tar --numeric-owner -caf "$repo" .
 else
 	# create the image (and tag $repo:$suite)
 	sudo tar --numeric-owner -c . | $docker import - $repo:$suite
-	
+
 	# test the image
 	$docker run -i -t $repo:$suite echo success
-	
+
 	if [ -z "$skipDetection" ]; then
 		case "$lsbDist" in
 			Debian)
 				if [ "$suite" = "$debianStable" -o "$suite" = 'stable' ] && [ -r etc/debian_version ]; then
 					# tag latest
 					$docker tag $repo:$suite $repo:latest
-					
+
 					if [ -r etc/debian_version ]; then
 						# tag the specific debian release version (which is only reasonable to tag on debian stable)
 						ver=$(cat etc/debian_version)

@@ -1,27 +1,30 @@
 package main
 
 import (
+	"bufio"
+	"fmt"
 	"io"
 	"os/exec"
 	"strings"
 	"sync"
-	"testing"
 	"time"
+
+	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/go-check/check"
 )
 
 const attachWait = 5 * time.Second
 
-func TestAttachMultipleAndRestart(t *testing.T) {
-	defer deleteAllContainers()
+func (s *DockerSuite) TestAttachMultipleAndRestart(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 
 	endGroup := &sync.WaitGroup{}
 	startGroup := &sync.WaitGroup{}
 	endGroup.Add(3)
 	startGroup.Add(3)
 
-	if err := waitForContainer("attacher", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 1; echo hello; done"); err != nil {
-		t.Fatal(err)
-	}
+	err := waitForContainer("attacher", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 1; echo hello; done")
+	c.Assert(err, check.IsNil)
 
 	startDone := make(chan struct{})
 	endDone := make(chan struct{})
@@ -38,32 +41,32 @@ func TestAttachMultipleAndRestart(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		go func() {
-			c := exec.Command(dockerBinary, "attach", "attacher")
+			cmd := exec.Command(dockerBinary, "attach", "attacher")
 
 			defer func() {
-				c.Wait()
+				cmd.Wait()
 				endGroup.Done()
 			}()
 
-			out, err := c.StdoutPipe()
+			out, err := cmd.StdoutPipe()
 			if err != nil {
-				t.Fatal(err)
+				c.Fatal(err)
 			}
 
-			if err := c.Start(); err != nil {
-				t.Fatal(err)
+			if err := cmd.Start(); err != nil {
+				c.Fatal(err)
 			}
 
 			buf := make([]byte, 1024)
 
 			if _, err := out.Read(buf); err != nil && err != io.EOF {
-				t.Fatal(err)
+				c.Fatal(err)
 			}
 
 			startGroup.Done()
 
 			if !strings.Contains(string(buf), "hello") {
-				t.Fatalf("unexpected output %s expected hello\n", string(buf))
+				c.Fatalf("unexpected output %s expected hello\n", string(buf))
 			}
 		}()
 	}
@@ -71,66 +74,89 @@ func TestAttachMultipleAndRestart(t *testing.T) {
 	select {
 	case <-startDone:
 	case <-time.After(attachWait):
-		t.Fatalf("Attaches did not initialize properly")
+		c.Fatalf("Attaches did not initialize properly")
 	}
 
-	cmd := exec.Command(dockerBinary, "kill", "attacher")
-	if _, err := runCommand(cmd); err != nil {
-		t.Fatal(err)
-	}
+	dockerCmd(c, "kill", "attacher")
 
 	select {
 	case <-endDone:
 	case <-time.After(attachWait):
-		t.Fatalf("Attaches did not finish properly")
+		c.Fatalf("Attaches did not finish properly")
 	}
-
-	logDone("attach - multiple attach")
 }
 
-func TestAttachTtyWithoutStdin(t *testing.T) {
-	defer deleteAllContainers()
-
-	cmd := exec.Command(dockerBinary, "run", "-d", "-ti", "busybox")
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		t.Fatalf("failed to start container: %v (%v)", out, err)
-	}
+func (s *DockerSuite) TestAttachTTYWithoutStdin(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out, _ := dockerCmd(c, "run", "-d", "-ti", "busybox")
 
 	id := strings.TrimSpace(out)
-	if err := waitRun(id); err != nil {
-		t.Fatal(err)
-	}
+	c.Assert(waitRun(id), check.IsNil)
 
-	defer func() {
-		cmd := exec.Command(dockerBinary, "kill", id)
-		if out, _, err := runCommandWithOutput(cmd); err != nil {
-			t.Fatalf("failed to kill container: %v (%v)", out, err)
-		}
-	}()
-
-	done := make(chan struct{})
+	done := make(chan error)
 	go func() {
 		defer close(done)
 
 		cmd := exec.Command(dockerBinary, "attach", id)
 		if _, err := cmd.StdinPipe(); err != nil {
-			t.Fatal(err)
+			done <- err
+			return
 		}
 
 		expected := "cannot enable tty mode"
 		if out, _, err := runCommandWithOutput(cmd); err == nil {
-			t.Fatal("attach should have failed")
+			done <- fmt.Errorf("attach should have failed")
+			return
 		} else if !strings.Contains(out, expected) {
-			t.Fatalf("attach failed with error %q: expected %q", out, expected)
+			done <- fmt.Errorf("attach failed with error %q: expected %q", out, expected)
+			return
 		}
 	}()
 
 	select {
-	case <-done:
+	case err := <-done:
+		c.Assert(err, check.IsNil)
 	case <-time.After(attachWait):
-		t.Fatal("attach is running but should have failed")
+		c.Fatal("attach is running but should have failed")
 	}
+}
 
-	logDone("attach - forbid piped stdin to tty enabled container")
+func (s *DockerSuite) TestAttachDisconnect(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out, _ := dockerCmd(c, "run", "-di", "busybox", "/bin/cat")
+	id := strings.TrimSpace(out)
+
+	cmd := exec.Command(dockerBinary, "attach", id)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer stdin.Close()
+	stdout, err := cmd.StdoutPipe()
+	c.Assert(err, check.IsNil)
+	defer stdout.Close()
+	c.Assert(cmd.Start(), check.IsNil)
+	defer cmd.Process.Kill()
+
+	_, err = stdin.Write([]byte("hello\n"))
+	c.Assert(err, check.IsNil)
+	out, err = bufio.NewReader(stdout).ReadString('\n')
+	c.Assert(err, check.IsNil)
+	c.Assert(strings.TrimSpace(out), check.Equals, "hello")
+
+	c.Assert(stdin.Close(), check.IsNil)
+
+	// Expect container to still be running after stdin is closed
+	running := inspectField(c, id, "State.Running")
+	c.Assert(running, check.Equals, "true")
+}
+
+func (s *DockerSuite) TestAttachPausedContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux) // Containers cannot be paused on Windows
+	defer unpauseAllContainers()
+	dockerCmd(c, "run", "-d", "--name=test", "busybox", "top")
+	dockerCmd(c, "pause", "test")
+	out, _, err := dockerCmdWithError("attach", "test")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "You cannot attach to a paused container, unpause it first")
 }

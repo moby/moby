@@ -52,7 +52,7 @@ done
 # now, let's go destroy individual btrfs subvolumes, if any exist
 if command -v btrfs > /dev/null 2>&1; then
 	root="$(df "$dir" | awk 'NR>1 { print $NF }')"
-	root="${root#/}" # if root is "/", we want it to become ""
+	root="${root%/}" # if root is "/", we want it to become ""
 	for subvol in $(btrfs subvolume list -o "$root/" 2>/dev/null | awk -F' path ' '{ print $2 }' | sort -r); do
 		subvolDir="$root/$subvol"
 		if dir_in_dir "$subvolDir" "$dir"; then

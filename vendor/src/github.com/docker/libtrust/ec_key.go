@@ -142,7 +142,7 @@ func (k *ecPublicKey) PEMBlock() (*pem.Block, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to serialize EC PublicKey to DER-encoded PKIX format: %s", err)
 	}
-	k.extended["keyID"] = k.KeyID() // For display purposes.
+	k.extended["kid"] = k.KeyID() // For display purposes.
 	return createPemBlock("PUBLIC KEY", derBytes, k.extended)
 }
 

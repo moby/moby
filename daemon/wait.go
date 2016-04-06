@@ -1,21 +1,17 @@
 package daemon
 
-import (
-	"time"
+import "time"
 
-	"github.com/docker/docker/engine"
-)
-
-func (daemon *Daemon) ContainerWait(job *engine.Job) engine.Status {
-	if len(job.Args) != 1 {
-		return job.Errorf("Usage: %s", job.Name)
-	}
-	name := job.Args[0]
-	container, err := daemon.Get(name)
+// ContainerWait stops processing until the given container is
+// stopped. If the container is not found, an error is returned. On a
+// successful stop, the exit code of the container is returned. On a
+// timeout, an error is returned. If you want to wait forever, supply
+// a negative duration for the timeout.
+func (daemon *Daemon) ContainerWait(name string, timeout time.Duration) (int, error) {
+	container, err := daemon.GetContainer(name)
 	if err != nil {
-		return job.Errorf("%s: %s", job.Name, err.Error())
+		return -1, err
 	}
-	status, _ := container.WaitStop(-1 * time.Second)
-	job.Printf("%d\n", status)
-	return engine.StatusOK
+
+	return container.WaitStop(timeout)
 }

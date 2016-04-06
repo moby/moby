@@ -1,3 +1,5 @@
+// Package proxy provides a network Proxy interface and implementations for TCP
+// and UDP.
 package proxy
 
 import (
@@ -5,18 +7,24 @@ import (
 	"net"
 )
 
+// Proxy defines the behavior of a proxy. It forwards traffic back and forth
+// between two endpoints : the frontend and the backend.
+// It can be used to do software port-mapping between two addresses.
+// e.g. forward all traffic between the frontend (host) 127.0.0.1:3000
+// to the backend (container) at 172.17.42.108:4000.
 type Proxy interface {
-	// Start forwarding traffic back and forth the front and back-end
-	// addresses.
+	// Run starts forwarding traffic back and forth between the front
+	// and back-end addresses.
 	Run()
-	// Stop forwarding traffic and close both ends of the Proxy.
+	// Close stops forwarding traffic and close both ends of the Proxy.
 	Close()
-	// Return the address on which the proxy is listening.
+	// FrontendAddr returns the address on which the proxy is listening.
 	FrontendAddr() net.Addr
-	// Return the proxied address.
+	// BackendAddr returns the proxied address.
 	BackendAddr() net.Addr
 }
 
+// NewProxy creates a Proxy according to the specified frontendAddr and backendAddr.
 func NewProxy(frontendAddr, backendAddr net.Addr) (Proxy, error) {
 	switch frontendAddr.(type) {
 	case *net.UDPAddr:

@@ -107,7 +107,7 @@ func TestSubtreePrivate(t *testing.T) {
 }
 
 // Testing that when a target is a shared mount,
-// then child mounts propogate to the source
+// then child mounts propagate to the source
 func TestSubtreeShared(t *testing.T) {
 	tmp := path.Join(os.TempDir(), "mount-tests")
 	if err := os.MkdirAll(tmp, 0777); err != nil {
@@ -168,7 +168,7 @@ func TestSubtreeShared(t *testing.T) {
 		}
 	}()
 
-	// NOW, check that the file from the outside directory is avaible in the source directory
+	// NOW, check that the file from the outside directory is available in the source directory
 	if _, err := os.Stat(sourceCheckPath); err != nil {
 		t.Fatal(err)
 	}

@@ -1,6 +1,6 @@
 # Docker.tmbundle
 
-Dockerfile syntaxt highlighting for TextMate and Sublime Text.
+Dockerfile syntax highlighting for TextMate and Sublime Text.
 
 ## Install
 
@@ -11,6 +11,7 @@ Search for *Dockerfile Syntax Highlighting*
 
 ### TextMate 2
 
-Copy the directory `Docker.tmbundle` (showed as a Package in OSX) to `~/Library/Application Support/TextMate/Managed/Bundles`
+You can install this bundle in TextMate by opening the preferences and going to the bundles tab. After installation it will be automatically updated for you.
 
 enjoy.
+
