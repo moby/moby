@@ -21,7 +21,6 @@ package dockerfile
 
 import (
 	"fmt"
-	"runtime"
 	"strings"
 
 	"github.com/docker/docker/builder/dockerfile/command"
@@ -199,17 +198,4 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 	}
 
 	return fmt.Errorf("Unknown instruction: %s", upperCasedCmd)
-}
-
-// platformSupports is a short-term function to give users a quality error
-// message if a Dockerfile uses a command not supported on the platform.
-func platformSupports(command string) error {
-	if runtime.GOOS != "windows" {
-		return nil
-	}
-	switch command {
-	case "expose", "user", "stopsignal", "arg":
-		return fmt.Errorf("The daemon on this platform does not support the command '%s'", command)
-	}
-	return nil
 }
