@@ -174,7 +174,7 @@ func GetContextFromLocalDir(localDir, dockerfileName string) (absContextDir, rel
 // the dockerfile in that context directory, and a non-nil error on success.
 func getDockerfileRelPath(givenContextDir, givenDockerfile string) (absContextDir, relDockerfile string, err error) {
 	if absContextDir, err = filepath.Abs(givenContextDir); err != nil {
-		return "", "", fmt.Errorf("unable to get absolute context directory: %v", err)
+		return "", "", fmt.Errorf("unable to get absolute context directory of given context directory %q: %v", givenContextDir, err)
 	}
 
 	// The context dir might be a symbolic link, so follow it to the actual

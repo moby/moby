@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -53,7 +54,6 @@ func testValidateContextDirectory(t *testing.T, prepare func(t *testing.T) strin
 	contextDir := prepare(t)
 
 	defer os.RemoveAll(contextDir)
-
 	err := ValidateContextDirectory(contextDir, excludes)
 
 	if err != nil {
@@ -166,8 +166,7 @@ func TestGetContextFromLocalDirWithNoDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error when changing directory to %s: %s", contextDir, err)
 	}
-
-	absContextDir, relDockerfile, err := GetContextFromLocalDir("", "")
+	absContextDir, relDockerfile, err := GetContextFromLocalDir(contextDir, "")
 
 	if err != nil {
 		t.Fatalf("Error when getting context from local dir: %s", err)
@@ -400,6 +399,14 @@ func TestGetContextFromReaderTar(t *testing.T) {
 }
 
 func TestValidateContextDirectoryEmptyContext(t *testing.T) {
+	// This isn't a valid test on Windows. See https://play.golang.org/p/RR6z6jxR81.
+	// The test will ultimately end up calling filepath.Abs(""). On Windows,
+	// golang will error. On Linux, golang will return /. Due to there being
+	// drive letters on Windows, this is probably the correct behaviour for
+	// Windows.
+	if runtime.GOOS == "windows" {
+		t.Skip("Invalid test on Windows")
+	}
 	testValidateContextDirectory(t, prepareEmpty, []string{})
 }
 
