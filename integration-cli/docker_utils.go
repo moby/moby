@@ -283,6 +283,10 @@ func deleteAllNetworks() error {
 		if n.Name == "bridge" || n.Name == "none" || n.Name == "host" {
 			continue
 		}
+		if daemonPlatform == "windows" && strings.ToLower(n.Name) == "nat" {
+			// nat is a pre-defined network on Windows and cannot be removed
+			continue
+		}
 		status, b, err := sockRequest("DELETE", "/networks/"+n.Name, nil)
 		if err != nil {
 			errors = append(errors, err.Error())
