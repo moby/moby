@@ -11,6 +11,7 @@ be found.
 
 ### Builder
 
+- Fix docker not sending credentials during build if content trust is enabled ([#21693](https://github.com/docker/docker/pull/21693))
 - Fix a bug where Docker would not used the correct uid/gid when processing the `WORKDIR` command ([#21033](https://github.com/docker/docker/pull/21033))
 - Fix a bug where copy operations with userns would not use the proper uid/gid ([#20782](https://github.com/docker/docker/pull/20782), [#21162](https://github.com/docker/docker/pull/21162))
 
@@ -36,6 +37,7 @@ be found.
 
 ### Distribution
 
+- Fix the download manager closing the tempfile twice ([#21676](https://github.com/docker/docker/pull/21676))
 - Fix a panic that occurred when pulling an images with 0 layers ([#21222](https://github.com/docker/docker/pull/21222))
 - Fix a panic that could occur on error while pushing to a registry with a misconfigured token service ([#21212](https://github.com/docker/docker/pull/21212))
 + All first-level delegation roles are now signed when doing a trusted push ([#21046](https://github.com/docker/docker/pull/21046))
@@ -75,6 +77,9 @@ be found.
 
 ### Networking
 
+- Fix panic if a node is forcibly removed from the cluster ([#21671](https://github.com/docker/docker/pull/21671))
+- Fix "error creating vxlan interface" when starting a container in a Swarm cluster ([#21671](https://github.com/docker/docker/pull/21671))
+- Fix `host` and `none` networks to disappear until restart when SIGHUP is used to reload cluster configuration ([#21671](https://github.com/docker/docker/pull/21671))
 - Fix a bug where IPv6 addresses were not properly handled ([#20842](https://github.com/docker/docker/pull/20842))
 * `docker network inspect` will now report all endpoints whether they have an active container or not ([#21160](https://github.com/docker/docker/pull/21160))
 + Experimental support for the MacVlan and IPVlan network drivers have been added ([#21122](https://github.com/docker/docker/pull/21122))
@@ -92,6 +97,12 @@ be found.
 
 ### Runtime
 
+- Fix a panic that could occur when cleanup after a container started with invalid parameters ([#21716](https://github.com/docker/docker/pull/21716))
+- Fix a race with event timers stopping early ([#21692](https://github.com/docker/docker/pull/21692))
+- Fix race conditions in the layer store, potentially corrupting the map and crashing the process ([#21677](https://github.com/docker/docker/pull/21677))
+- Un-deprecate auto-creation of host directories for mounts. This feature was marked deprecated in ([#21666](https://github.com/docker/docker/pull/21666))  
+  Docker 1.9, but was decided to be too much of an backward-incompatible change, so it was decided to keep the feature.
+- Fix an issue where parallel aufs mount calls produce invalid argument error ([#21552](https://github.com/docker/docker/pull/21552))
 + It is now possible for containers to share the NET and IPC namespaces when `userns` is enabled ([#21383](https://github.com/docker/docker/pull/21383))
 + `docker inspect <image-id>` will now expose the rootfs layers ([#21370](https://github.com/docker/docker/pull/21370))
 + Docker Windows gained a minimal `top` implementation ([#21354](https://github.com/docker/docker/pull/21354))
