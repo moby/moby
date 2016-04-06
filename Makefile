@@ -1,4 +1,4 @@
-.PHONY: all binary build build-gccgo cross default docs docs-build docs-shell shell gccgo test test-docker-py test-integration-cli test-unit validate
+.PHONY: all binary build build-gccgo cross default docs docs-build docs-shell shell gccgo test test-docker-py test-integration-cli test-unit validate help
 
 # set the graph driver as the current graphdriver if not set
 DOCKER_GRAPHDRIVER := $(if $(DOCKER_GRAPHDRIVER),$(DOCKER_GRAPHDRIVER),$(shell docker info | grep "Storage Driver" | sed 's/.*: //'))
@@ -57,10 +57,10 @@ DOCKER_RUN_DOCKER := $(DOCKER_FLAGS) "$(DOCKER_IMAGE)"
 
 default: binary
 
-all: build
+all: build ## validate all checks, build linux binaries, run all tests\ncross build non-linux binaries and generate archives
 	$(DOCKER_RUN_DOCKER) hack/make.sh
 
-binary: build
+binary: build ## build the linux binaries
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary
 
 build: bundles
@@ -72,41 +72,45 @@ build-gccgo: bundles
 bundles:
 	mkdir bundles
 
-cross: build
+cross: build ## cross build the binaries for darwin, freebsd and\nwindows
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross
 
-win: build
+win: build ## cross build the binary for windows
 	$(DOCKER_RUN_DOCKER) hack/make.sh win
 
-tgz: build
+tgz: build ## build the archives (.zip on windows and .tgz\notherwise) containing the binaries
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross tgz
 
-deb: build
+deb: build  ## build the deb packages
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-deb
 
-docs:
+docs: ## build the docs
 	$(MAKE) -C docs docs
 
-gccgo: build-gccgo
+gccgo: build-gccgo ## build the gcc-go linux binaries
 	$(DOCKER_FLAGS) "$(DOCKER_IMAGE)-gccgo" hack/make.sh gccgo
 
-rpm: build
+rpm: build ## build the rpm packages
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-rpm
 
-shell: build
+shell: build ## start a shell inside the build env
 	$(DOCKER_RUN_DOCKER) bash
 
-test: build
+test: build ## un the unit, integration and docker-py tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary cross test-unit test-integration-cli test-docker-py
 
-test-docker-py: build
+test-docker-py: build ## run the docker-py tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-docker-py
 
-test-integration-cli: build
+test-integration-cli: build ## run the integration tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-integration-cli
 
-test-unit: build
+test-unit: build ## run the unit tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh test-unit
 
-validate: build
+validate: build ## validate DCO, Seccomp profile generation, gofmt,\n./pkg/ isolation, golint, tests, tomls, go vet and vendor 
 	$(DOCKER_RUN_DOCKER) hack/make.sh validate-dco validate-default-seccomp validate-gofmt validate-pkg validate-lint validate-test validate-toml validate-vet validate-vendor
+
+help: ## this help
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {sub("\\\\n",sprintf("\n%22c"," "), $$2);printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
