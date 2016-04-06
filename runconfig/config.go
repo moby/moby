@@ -25,7 +25,7 @@ func (r ContainerDecoder) DecodeHostConfig(src io.Reader) (*container.HostConfig
 }
 
 // DecodeContainerConfig decodes a json encoded config into a ContainerConfigWrapper
-// struct and returns both a Config and an HostConfig struct
+// struct and returns both a Config and a HostConfig struct
 // Be aware this function is not checking whether the resulted structs are nil,
 // it's your business to do so
 func DecodeContainerConfig(src io.Reader) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
