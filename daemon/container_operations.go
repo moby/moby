@@ -322,13 +322,6 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 		err error
 	)
 
-	// TODO Windows: Remove this once TP4 builds are not supported
-	// Windows TP4 build don't support libnetwork and in that case
-	// daemon.netController will be nil
-	if daemon.netController == nil {
-		return nil
-	}
-
 	mode := container.HostConfig.NetworkMode
 	if container.Config.NetworkDisabled || mode.IsContainer() {
 		return nil
@@ -511,13 +504,6 @@ func (daemon *Daemon) updateNetworkConfig(container *container.Container, idOrNa
 }
 
 func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings, updateSettings bool) (err error) {
-	// TODO Windows: Remove this once TP4 builds are not supported
-	// Windows TP4 build don't support libnetwork and in that case
-	// daemon.netController will be nil
-	if daemon.netController == nil {
-		return nil
-	}
-
 	n, err := daemon.updateNetworkConfig(container, idOrName, endpointConfig, updateSettings)
 	if err != nil {
 		return err
@@ -643,13 +629,6 @@ func disconnectFromNetwork(container *container.Container, n libnetwork.Network,
 
 func (daemon *Daemon) initializeNetworking(container *container.Container) error {
 	var err error
-
-	// TODO Windows: Remove this once TP4 builds are not supported
-	// Windows TP4 build don't support libnetwork and in that case
-	// daemon.netController will be nil
-	if daemon.netController == nil {
-		return nil
-	}
 
 	if container.HostConfig.NetworkMode.IsContainer() {
 		// we need to get the hosts files from the container to join

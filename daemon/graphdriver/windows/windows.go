@@ -506,34 +506,6 @@ func writeTarFromLayer(r hcsshim.LayerReader, w io.Writer) error {
 
 // exportLayer generates an archive from a layer based on the given ID.
 func (d *Driver) exportLayer(id string, parentLayerPaths []string) (archive.Archive, error) {
-	if hcsshim.IsTP4() {
-		// Export in TP4 format to maintain compatibility with existing images and
-		// because ExportLayer is somewhat broken on TP4 and can't work with the new
-		// scheme.
-		tempFolder, err := ioutil.TempDir("", "hcs")
-		if err != nil {
-			return nil, err
-		}
-		defer func() {
-			if err != nil {
-				os.RemoveAll(tempFolder)
-			}
-		}()
-
-		if err = hcsshim.ExportLayer(d.info, id, tempFolder, parentLayerPaths); err != nil {
-			return nil, err
-		}
-		archive, err := archive.Tar(tempFolder, archive.Uncompressed)
-		if err != nil {
-			return nil, err
-		}
-		return ioutils.NewReadCloserWrapper(archive, func() error {
-			err := archive.Close()
-			os.RemoveAll(tempFolder)
-			return err
-		}), nil
-	}
-
 	var r hcsshim.LayerReader
 	r, err := hcsshim.NewLayerReader(d.info, id, parentLayerPaths)
 	if err != nil {
@@ -598,24 +570,6 @@ func writeLayerFromTar(r archive.Reader, w hcsshim.LayerWriter) (int64, error) {
 
 // importLayer adds a new layer to the tag and graph store based on the given data.
 func (d *Driver) importLayer(id string, layerData archive.Reader, parentLayerPaths []string) (size int64, err error) {
-	if hcsshim.IsTP4() {
-		// Import from TP4 format to maintain compatibility with existing images.
-		var tempFolder string
-		tempFolder, err = ioutil.TempDir("", "hcs")
-		if err != nil {
-			return
-		}
-		defer os.RemoveAll(tempFolder)
-
-		if size, err = chrootarchive.ApplyLayer(tempFolder, layerData); err != nil {
-			return
-		}
-		if err = hcsshim.ImportLayer(d.info, id, tempFolder, parentLayerPaths); err != nil {
-			return
-		}
-		return
-	}
-
 	var w hcsshim.LayerWriter
 	w, err = hcsshim.NewLayerWriter(d.info, id, parentLayerPaths)
 	if err != nil {
@@ -734,32 +688,6 @@ func (d *Driver) DiffGetter(id string) (graphdriver.FileGetCloser, error) {
 	id, err := d.resolveID(id)
 	if err != nil {
 		return nil, err
-	}
-
-	if hcsshim.IsTP4() {
-		// The export format for TP4 is different from the contents of the layer, so
-		// fall back to exporting the layer and getting file contents from there.
-		layerChain, err := d.getLayerChain(id)
-		if err != nil {
-			return nil, err
-		}
-
-		var tempFolder string
-		tempFolder, err = ioutil.TempDir("", "hcs")
-		if err != nil {
-			return nil, err
-		}
-		defer func() {
-			if err != nil {
-				os.RemoveAll(tempFolder)
-			}
-		}()
-
-		if err = hcsshim.ExportLayer(d.info, id, tempFolder, layerChain); err != nil {
-			return nil, err
-		}
-
-		return &fileGetDestroyCloser{storage.NewPathFileGetter(tempFolder), tempFolder}, nil
 	}
 
 	return &fileGetCloserWithBackupPrivileges{d.dir(id)}, nil

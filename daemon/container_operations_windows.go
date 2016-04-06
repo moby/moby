@@ -39,7 +39,7 @@ func (daemon *Daemon) setupIpcDirs(container *container.Container) error {
 	return nil
 }
 
-// TODO Windows: Fix Post-TP4. This is a hack to allow docker cp to work
+// TODO Windows: Fix Post-TP5. This is a hack to allow docker cp to work
 // against containers which have volumes. You will still be able to cp
 // to somewhere on the container drive, but not to any mounted volumes
 // inside the container. Without this fix, docker cp is broken to any
