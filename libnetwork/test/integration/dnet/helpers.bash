@@ -345,6 +345,10 @@ function test_overlay() {
             # Disconnect from overlay network
             net_disconnect ${start} container_${start} multihost
 
+            # Make sure external connectivity works
+            runc $(dnet_container_name ${start} $dnet_suffix) $(get_sbox_id ${start} container_${start}) \
+                "ping -c 1 www.google.com"
+
             # Connect to overlay network again
             net_connect ${start} container_${start} multihost
 
