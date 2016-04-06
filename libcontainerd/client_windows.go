@@ -405,9 +405,10 @@ func (clnt *client) Restore(containerID string, unusedOnWindows ...CreateOption)
 	// TODO Windows: Implement this. For now, just tell the backend the container exited.
 	logrus.Debugf("lcd Restore %s", containerID)
 	return clnt.backend.StateChanged(containerID, StateInfo{
-		State:    StateExit,
-		ExitCode: 1 << 31,
-	})
+		CommonStateInfo: CommonStateInfo{
+			State:    StateExit,
+			ExitCode: 1 << 31,
+		}})
 }
 
 // GetPidsForContainer returns a list of process IDs running in a container.

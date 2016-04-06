@@ -33,6 +33,14 @@ type Process struct {
 	SelinuxLabel *string `json:"selinuxLabel,omitempty"`
 }
 
+// StateInfo contains description about the new state container has entered.
+type StateInfo struct {
+	CommonStateInfo
+
+	// Platform specific StateInfo
+	OOMKilled bool
+}
+
 // Stats contains a stats properties from containerd.
 type Stats containerd.StatsResponse
 
