@@ -424,7 +424,7 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir2(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunVolumesMountedAsReadonly(c *check.C) {
-	// TODO Windows (Post TP4): This test cannot run on a Windows daemon as
+	// TODO Windows (Post TP5): This test cannot run on a Windows daemon as
 	// Windows does not support read-only bind mounts.
 	testRequires(c, DaemonIsLinux)
 	if _, code, err := dockerCmdWithError("run", "-v", "/test:/test:ro", "busybox", "touch", "/test/somefile"); err == nil || code == 0 {
@@ -433,7 +433,7 @@ func (s *DockerSuite) TestRunVolumesMountedAsReadonly(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunVolumesFromInReadonlyModeFails(c *check.C) {
-	// TODO Windows (Post TP4): This test cannot run on a Windows daemon as
+	// TODO Windows (Post TP5): This test cannot run on a Windows daemon as
 	// Windows does not support read-only bind mounts. Modified for when ro is supported.
 	testRequires(c, DaemonIsLinux)
 	var (
@@ -481,7 +481,7 @@ func (s *DockerSuite) TestRunVolumesFromInReadWriteMode(c *check.C) {
 
 func (s *DockerSuite) TestVolumesFromGetsProperMode(c *check.C) {
 	// TODO Windows: This test cannot yet run on a Windows daemon as Windows does
-	// not support read-only bind mounts as at TP4
+	// not support read-only bind mounts as at TP5
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "parent", "-v", "/test:/test:ro", "busybox", "true")
 
@@ -667,12 +667,7 @@ func (s *DockerSuite) TestRunExitCode(c *check.C) {
 func (s *DockerSuite) TestRunUserDefaults(c *check.C) {
 	expected := "uid=0(root) gid=0(root)"
 	if daemonPlatform == "windows" {
-		// TODO Windows: Remove this check once TP4 is no longer supported.
-		if windowsDaemonKV < 14250 {
-			expected = "uid=1000(SYSTEM) gid=1000(SYSTEM)"
-		} else {
-			expected = "uid=1000(ContainerAdministrator) gid=1000(ContainerAdministrator)"
-		}
+		expected = "uid=1000(ContainerAdministrator) gid=1000(ContainerAdministrator)"
 	}
 	out, _ := dockerCmd(c, "run", "busybox", "id")
 	if !strings.Contains(out, expected) {
@@ -750,18 +745,9 @@ func (s *DockerSuite) TestRunUserNotFound(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunTwoConcurrentContainers(c *check.C) {
-	// TODO Windows. There are two bugs in TP4 which means this test cannot
-	// be reliably enabled. The first is a race condition where sometimes
-	// HCS CreateComputeSystem() will fail "Invalid class string". #4985252 and
-	// #4493430.
-	//
-	// The second, which is seen more readily by increasing the number of concurrent
-	// containers to 5 or more, is that CSRSS hangs. This may fixed in the TP4 ZDP.
-	// #4898773.
-	testRequires(c, DaemonIsLinux)
 	sleepTime := "2"
 	if daemonPlatform == "windows" {
-		sleepTime = "5" // Make more reliable on Windows
+		sleepTime = "20" // Make more reliable on Windows
 	}
 	group := sync.WaitGroup{}
 	group.Add(2)
@@ -1688,7 +1674,7 @@ func (s *DockerSuite) TestRunCopyVolumeUidGid(c *check.C) {
 
 // Test for #1582
 func (s *DockerSuite) TestRunCopyVolumeContent(c *check.C) {
-	// TODO Windows, post TP4. Windows does not yet support volume functionality
+	// TODO Windows, post TP5. Windows does not yet support volume functionality
 	// that copies from the image to the volume.
 	testRequires(c, DaemonIsLinux)
 	name := "testruncopyvolumecontent"
@@ -1724,12 +1710,7 @@ func (s *DockerSuite) TestRunCleanupCmdOnEntrypoint(c *check.C) {
 	out = strings.TrimSpace(out)
 	expected := "root"
 	if daemonPlatform == "windows" {
-		// TODO Windows: Remove this check once TP4 is no longer supported.
-		if windowsDaemonKV < 14250 {
-			expected = `nt authority\system`
-		} else {
-			expected = `user manager\containeradministrator`
-		}
+		expected = `user manager\containeradministrator`
 	}
 	if out != expected {
 		c.Fatalf("Expected output %s, got %q", expected, out)
@@ -1924,7 +1905,7 @@ func (s *DockerSuite) TestRunBindMounts(c *check.C) {
 	defer os.RemoveAll(tmpDir)
 	writeFile(path.Join(tmpDir, "touch-me"), "", c)
 
-	// TODO Windows Post TP4. Windows does not yet support :ro binds
+	// TODO Windows Post TP5. Windows does not yet support :ro binds
 	if daemonPlatform != "windows" {
 		// Test reading from a read-only bind mount
 		out, _ := dockerCmd(c, "run", "-v", fmt.Sprintf("%s:/tmp:ro", tmpDir), "busybox", "ls", "/tmp")
@@ -2114,7 +2095,7 @@ func (s *DockerSuite) TestRunAllocatePortInReservedRange(c *check.C) {
 
 // Regression test for #7792
 func (s *DockerSuite) TestRunMountOrdering(c *check.C) {
-	// TODO Windows: Post TP4. Updated, but Windows does not support nested mounts currently.
+	// TODO Windows: Post TP5. Updated, but Windows does not support nested mounts currently.
 	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
@@ -2206,7 +2187,7 @@ func (s *DockerSuite) TestRunCreateVolumeEtc(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumesNoCopyData(c *check.C) {
-	// TODO Windows (Post TP4). Windows does not support volumes which
+	// TODO Windows (Post TP5). Windows does not support volumes which
 	// are pre-populated such as is built in the dockerfile used in this test.
 	testRequires(c, DaemonIsLinux)
 	if _, err := buildImage("dataimage",
@@ -3077,7 +3058,7 @@ func (s *DockerSuite) TestRunCapAddCHOWN(c *check.C) {
 
 // https://github.com/docker/docker/pull/14498
 func (s *DockerSuite) TestVolumeFromMixedRWOptions(c *check.C) {
-	// TODO Windows post TP4. Enable the read-only bits once they are
+	// TODO Windows post TP5. Enable the read-only bits once they are
 	// supported on the platform.
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 

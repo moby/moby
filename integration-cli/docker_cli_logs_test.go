@@ -194,8 +194,6 @@ func (s *DockerSuite) TestLogsSince(c *check.C) {
 }
 
 func (s *DockerSuite) TestLogsSinceFutureFollow(c *check.C) {
-	// TODO Windows: Flakey on TP4. Enable for next technical preview.
-	testRequires(c, DaemonIsLinux)
 	name := "testlogssincefuturefollow"
 	out, _ := dockerCmd(c, "run", "-d", "--name", name, "busybox", "/bin/sh", "-c", `for i in $(seq 1 5); do echo log$i; sleep 1; done`)
 
@@ -228,7 +226,7 @@ func (s *DockerSuite) TestLogsSinceFutureFollow(c *check.C) {
 
 // Regression test for #8832
 func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
-	// TODO Windows: Consider enabling post-TP4. Too expensive to run on TP4
+	// TODO Windows: Fix this test for TP5.
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", `usleep 600000;yes X | head -c 200000`)
 

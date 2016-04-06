@@ -690,7 +690,7 @@ func (s *DockerSuite) TestRunWithShmSize(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunTmpfsMounts(c *check.C) {
-	// TODO Windows (Post TP4): This test cannot run on a Windows daemon as
+	// TODO Windows (Post TP5): This test cannot run on a Windows daemon as
 	// Windows does not support tmpfs mounts.
 	testRequires(c, DaemonIsLinux)
 	if out, _, err := dockerCmdWithError("run", "--tmpfs", "/run", "busybox", "touch", "/run/somefile"); err != nil {

@@ -91,11 +91,6 @@ func (s *DockerSuite) TestEventsContainerFailStartDie(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsLimit(c *check.C) {
-	// TODO Windows CI: This test is not reliable enough on Windows TP4. Reports
-	// multiple errors in the analytic log sometimes.
-	// [NetSetupHelper::InstallVirtualMiniport()@2153] NetSetup install of ROOT\VMS_MP\0001 failed with error 0x80070002
-	// This should be able to be enabled on TP5.
-	testRequires(c, DaemonIsLinux)
 	var waitGroup sync.WaitGroup
 	errChan := make(chan error, 17)
 
@@ -460,7 +455,7 @@ func (s *DockerSuite) TestEventsResize(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsAttach(c *check.C) {
-	// TODO Windows CI: Figure out why this test fails intermittently (TP4 and TP5).
+	// TODO Windows CI: Figure out why this test fails intermittently (TP5).
 	testRequires(c, DaemonIsLinux)
 	since := daemonTime(c).Unix()
 
@@ -527,8 +522,8 @@ func (s *DockerSuite) TestEventsDefaultEmpty(c *check.C) {
 
 // #14316
 func (s *DockerRegistrySuite) TestEventsImageFilterPush(c *check.C) {
-	// Problematic to port for Windows CI during TP4/TP5 timeframe while
-	// not supporting push
+	// Problematic to port for Windows CI during TP5 timeframe until
+	// supporting push
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, Network)
 	since := daemonTime(c).Unix()

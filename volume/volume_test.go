@@ -18,7 +18,7 @@ func TestParseMountSpec(t *testing.T) {
 			`d:`,
 			`d:\path`,
 			`d:\path with space`,
-			// TODO Windows post TP4 - readonly support `d:\pathandmode:ro`,
+			// TODO Windows post TP5 - readonly support `d:\pathandmode:ro`,
 			`c:\:d:\`,
 			`c:\windows\:d:`,
 			`c:\windows:d:\s p a c e`,
@@ -29,9 +29,9 @@ func TestParseMountSpec(t *testing.T) {
 			`name:D:`,
 			`name:D::rW`,
 			`name:D::RW`,
-			// TODO Windows post TP4 - readonly support `name:D::RO`,
+			// TODO Windows post TP5 - readonly support `name:D::RO`,
 			`c:/:d:/forward/slashes/are/good/too`,
-			// TODO Windows post TP4 - readonly support `c:/:d:/including with/spaces:ro`,
+			// TODO Windows post TP5 - readonly support `c:/:d:/including with/spaces:ro`,
 			`c:\Windows`,             // With capital
 			`c:\Program Files (x86)`, // With capitals and brackets
 		}
@@ -152,12 +152,12 @@ func TestParseMountSpecSplit(t *testing.T) {
 		cases = []testParseMountSpec{
 			{`c:\:d:`, "local", `d:`, `c:\`, ``, "", true, false},
 			{`c:\:d:\`, "local", `d:\`, `c:\`, ``, "", true, false},
-			// TODO Windows post TP4 - Add readonly support {`c:\:d:\:ro`, "local", `d:\`, `c:\`, ``, "", false, false},
+			// TODO Windows post TP5 - Add readonly support {`c:\:d:\:ro`, "local", `d:\`, `c:\`, ``, "", false, false},
 			{`c:\:d:\:rw`, "local", `d:\`, `c:\`, ``, "", true, false},
 			{`c:\:d:\:foo`, "local", `d:\`, `c:\`, ``, "", false, true},
 			{`name:d::rw`, "local", `d:`, ``, `name`, "local", true, false},
 			{`name:d:`, "local", `d:`, ``, `name`, "local", true, false},
-			// TODO Windows post TP4 - Add readonly support {`name:d::ro`, "local", `d:`, ``, `name`, "local", false, false},
+			// TODO Windows post TP5 - Add readonly support {`name:d::ro`, "local", `d:`, ``, `name`, "local", false, false},
 			{`name:c:`, "", ``, ``, ``, "", true, true},
 			{`driver/name:c:`, "", ``, ``, ``, "", true, true},
 		}

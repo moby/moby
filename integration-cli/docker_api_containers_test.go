@@ -908,7 +908,7 @@ func (s *DockerSuite) TestStartWithTooLowMemoryLimit(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiRename(c *check.C) {
-	// TODO Windows: Enable for TP5. Fails on TP4.
+	// TODO Windows: Debug why this sometimes fails on TP5. For now, leave disabled
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "--name", "TestContainerApiRename", "-d", "busybox", "sh")
 
