@@ -51,6 +51,7 @@ func (bp *BytesPipe) Write(p []byte) (int, error) {
 	bp.mu.Lock()
 
 	written := 0
+loop0:
 	for {
 		if bp.closeErr != nil {
 			bp.mu.Unlock()
@@ -85,6 +86,9 @@ func (bp *BytesPipe) Write(p []byte) (int, error) {
 		// make sure the buffer doesn't grow too big from this write
 		for bp.bufLen >= blockThreshold {
 			bp.wait.Wait()
+			if bp.closeErr != nil {
+				continue loop0
+			}
 		}
 
 		// add new byte slice to the buffers slice and continue writing
