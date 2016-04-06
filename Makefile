@@ -1,4 +1,4 @@
-.PHONY: all binary build cross default docs docs-build docs-shell shell test test-docker-py test-integration-cli test-unit validate
+.PHONY: all binary build build-gccgo cross default docs docs-build docs-shell shell gccgo test test-docker-py test-integration-cli test-unit validate
 
 # set the graph driver as the current graphdriver if not set
 DOCKER_GRAPHDRIVER := $(if $(DOCKER_GRAPHDRIVER),$(DOCKER_GRAPHDRIVER),$(shell docker info | grep "Storage Driver" | sed 's/.*: //'))
@@ -66,6 +66,9 @@ binary: build
 build: bundles
 	docker build ${DOCKER_BUILD_ARGS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
 
+build-gccgo: bundles
+	docker build ${DOCKER_BUILD_ARGS} -t "$(DOCKER_IMAGE)-gccgo" -f Dockerfile.gccgo .
+
 bundles:
 	mkdir bundles
 
@@ -84,8 +87,8 @@ deb: build
 docs:
 	$(MAKE) -C docs docs
 
-gccgo: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh gccgo
+gccgo: build-gccgo
+	$(DOCKER_FLAGS) "$(DOCKER_IMAGE)-gccgo" hack/make.sh gccgo
 
 rpm: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-rpm
