@@ -67,6 +67,7 @@ func init() {
 		panic(fmt.Errorf("Init failed to unmarshal docker info: %v", err))
 	}
 
+	daemonStorageDriver = info.Driver
 	dockerBasePath = info.DockerRootDir
 	volumesConfigPath = filepath.Join(dockerBasePath, "volumes")
 	containerStoragePath = filepath.Join(dockerBasePath, "containers")

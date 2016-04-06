@@ -109,22 +109,14 @@ var (
 	}
 	NotOverlay = testRequirement{
 		func() bool {
-			cmd := exec.Command("grep", "^overlay / overlay", "/proc/mounts")
-			if err := cmd.Run(); err != nil {
-				return true
-			}
-			return false
+			return !strings.HasPrefix(daemonStorageDriver, "overlay")
 		},
 		"Test requires underlying root filesystem not be backed by overlay.",
 	}
 
 	Devicemapper = testRequirement{
 		func() bool {
-			cmd := exec.Command("grep", "^devicemapper / devicemapper", "/proc/mounts")
-			if err := cmd.Run(); err != nil {
-				return false
-			}
-			return true
+			return strings.HasPrefix(daemonStorageDriver, "devicemapper")
 		},
 		"Test requires underlying root filesystem to be backed by devicemapper.",
 	}
