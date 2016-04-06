@@ -6,11 +6,8 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"strconv"
 	"strings"
-
 	"syscall"
-	"time"
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
@@ -21,10 +18,6 @@ type client struct {
 
 	// Platform specific properties below here (none presently on Windows)
 }
-
-// defaultContainerNAT is the default name of the container NAT device that is
-// preconfigured on the server. TODO Windows - Remove for TP5 support as not needed.
-const defaultContainerNAT = "ContainerNAT"
 
 // Win32 error codes that are used for various workarounds
 // These really should be ALL_CAPS to match golangs syscall library and standard
@@ -190,108 +183,15 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 	}
 	cu.MappedDirectories = mds
 
-	// TODO Windows: vv START OF TP4 BLOCK OF CODE. REMOVE ONCE TP4 IS NO LONGER SUPPORTED
-	if hcsshim.IsTP4() &&
-		spec.Windows.Networking != nil &&
-		spec.Windows.Networking.Bridge != "" {
-		// Enumerate through the port bindings specified by the user and convert
-		// them into the internal structure matching the JSON blob that can be
-		// understood by the HCS.
-		var pbs []portBinding
-		for i, v := range spec.Windows.Networking.PortBindings {
-			proto := strings.ToUpper(i.Proto())
-			if proto != "TCP" && proto != "UDP" {
-				return fmt.Errorf("invalid protocol %s", i.Proto())
-			}
-
-			if len(v) > 1 {
-				return fmt.Errorf("Windows does not support more than one host port in NAT settings")
-			}
-
-			for _, v2 := range v {
-				var (
-					iPort, ePort int
-					err          error
-				)
-				if len(v2.HostIP) != 0 {
-					return fmt.Errorf("Windows does not support host IP addresses in NAT settings")
-				}
-				if ePort, err = strconv.Atoi(v2.HostPort); err != nil {
-					return fmt.Errorf("invalid container port %s: %s", v2.HostPort, err)
-				}
-				if iPort, err = strconv.Atoi(i.Port()); err != nil {
-					return fmt.Errorf("invalid internal port %s: %s", i.Port(), err)
-				}
-				if iPort < 0 || iPort > 65535 || ePort < 0 || ePort > 65535 {
-					return fmt.Errorf("specified NAT port is not in allowed range")
-				}
-				pbs = append(pbs,
-					portBinding{ExternalPort: ePort,
-						InternalPort: iPort,
-						Protocol:     proto})
-			}
-		}
-
-		dev := device{
-			DeviceType: "Network",
-			Connection: &networkConnection{
-				NetworkName: spec.Windows.Networking.Bridge,
-				Nat: natSettings{
-					Name:         defaultContainerNAT,
-					PortBindings: pbs,
-				},
-			},
-		}
-
-		if spec.Windows.Networking.MacAddress != "" {
-			windowsStyleMAC := strings.Replace(
-				spec.Windows.Networking.MacAddress, ":", "-", -1)
-			dev.Settings = networkSettings{
-				MacAddress: windowsStyleMAC,
-			}
-		}
-		cu.Devices = append(cu.Devices, dev)
-	} else {
-		logrus.Debugln("No network interface")
-	}
-	// TODO Windows: ^^ END OF TP4 BLOCK OF CODE. REMOVE ONCE TP4 IS NO LONGER SUPPORTED
-
 	configurationb, err := json.Marshal(cu)
 	if err != nil {
 		return err
 	}
 
+	// Create the compute system
 	configuration := string(configurationb)
-
-	// TODO Windows TP5 timeframe. Remove when TP4 is no longer supported.
-	// The following a workaround for Windows TP4 which has a networking
-	// bug which fairly frequently returns an error. Back off and retry.
-	if !hcsshim.IsTP4() {
-		if err := hcsshim.CreateComputeSystem(containerID, configuration); err != nil {
-			return err
-		}
-	} else {
-		maxAttempts := 5
-		for i := 1; i <= maxAttempts; i++ {
-			err = hcsshim.CreateComputeSystem(containerID, configuration)
-			if err == nil {
-				break
-			}
-
-			if herr, ok := err.(*hcsshim.HcsError); ok {
-				if herr.Err != syscall.ERROR_NOT_FOUND && // Element not found
-					herr.Err != syscall.ERROR_FILE_NOT_FOUND && // The system cannot find the file specified
-					herr.Err != ErrorNoNetwork && // The network is not present or not started
-					herr.Err != ErrorBadPathname && // The specified path is invalid
-					herr.Err != CoEClassstring && // Invalid class string
-					herr.Err != ErrorInvalidObject { // The object identifier does not represent a valid object
-					logrus.Debugln("Failed to create temporary container ", err)
-					return err
-				}
-				logrus.Warnf("Invoking Windows TP4 retry hack (%d of %d)", i, maxAttempts-1)
-				time.Sleep(50 * time.Millisecond)
-			}
-		}
+	if err := hcsshim.CreateComputeSystem(containerID, configuration); err != nil {
+		return err
 	}
 
 	// Construct a container object for calling start on it.

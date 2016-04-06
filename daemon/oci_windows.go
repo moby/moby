@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"fmt"
-	"strings"
 	"syscall"
 
 	"github.com/docker/docker/container"
@@ -103,7 +102,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 	}
 	s.Windows.LayerPaths = layerPaths
 
-	// In s.Windows.Networking (TP5+ libnetwork way of doing things)
+	// In s.Windows.Networking
 	// Connect all the libnetwork allocated networks to the container
 	var epList []string
 	if c.NetworkSettings != nil {
@@ -129,26 +128,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 	}
 	s.Windows.Networking = &windowsoci.Networking{
 		EndpointList: epList,
-	}
-
-	// In s.Windows.Networking (TP4 back compat)
-	// TODO Windows: Post TP4 - Remove this along with definitions from spec
-	// and changes to libcontainerd to not read these fields.
-	if daemon.netController == nil {
-		parts := strings.SplitN(string(c.HostConfig.NetworkMode), ":", 2)
-		switch parts[0] {
-		case "none":
-		case "default", "": // empty string to support existing containers
-			if !c.Config.NetworkDisabled {
-				s.Windows.Networking = &windowsoci.Networking{
-					MacAddress:   c.Config.MacAddress,
-					Bridge:       daemon.configStore.bridgeConfig.Iface,
-					PortBindings: c.HostConfig.PortBindings,
-				}
-			}
-		default:
-			return nil, fmt.Errorf("invalid network mode: %s", c.HostConfig.NetworkMode)
-		}
 	}
 
 	// In s.Windows.Resources
