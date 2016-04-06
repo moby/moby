@@ -197,10 +197,6 @@ func (sb *sandbox) delete(force bool) error {
 	// Detach from all endpoints
 	retain := false
 	for _, ep := range sb.getConnectedEndpoints() {
-		// gw network endpoint detach and removal are automatic
-		if ep.endpointInGWNetwork() {
-			continue
-		}
 		// Retain the sanbdox if we can't obtain the network from store.
 		if _, err := c.getNetworkFromStore(ep.getNetwork().ID()); err != nil {
 			retain = true

@@ -65,13 +65,20 @@ func (sb *sandbox) setupDefaultGW() error {
 	return nil
 }
 
-// If present, detach and remove the endpoint connecting the sandbox to the default gw network.
+// If present, removes the endpoint connecting the sandbox to the default gw network.
+// Unless it is the endpoint designated to provide the external connectivity.
+// If the sandbox is being deleted, removes the endpoint unconditionally.
 func (sb *sandbox) clearDefaultGW() error {
 	var ep *endpoint
 
 	if ep = sb.getEndpointInGWNetwork(); ep == nil {
 		return nil
 	}
+
+	if ep == sb.getGatewayEndpoint() && !sb.inDelete {
+		return nil
+	}
+
 	if err := ep.sbLeave(sb, false); err != nil {
 		return fmt.Errorf("container %s: endpoint leaving GW Network failed: %v", sb.containerID, err)
 	}
@@ -81,27 +88,20 @@ func (sb *sandbox) clearDefaultGW() error {
 	return nil
 }
 
-// Evaluate whether the sandbox needs to be attached to the default
-// gateway network.
 func (sb *sandbox) needDefaultGW() bool {
 	var needGW bool
 
-	if sb.inDelete {
-		return false
-	}
-
 	for _, ep := range sb.getConnectedEndpoints() {
 		if ep.endpointInGWNetwork() {
-			continue
+			return false
 		}
 		if ep.getNetwork().Type() == "null" || ep.getNetwork().Type() == "host" {
 			continue
 		}
 		if ep.getNetwork().Internal() {
-			continue
+			return false
 		}
-		// During stale sandbox cleanup, joinInfo may be nil
-		if ep.joinInfo != nil && ep.joinInfo.disableGatewayService {
+		if ep.joinInfo.disableGatewayService {
 			return false
 		}
 		// TODO v6 needs to be handled.
@@ -115,7 +115,6 @@ func (sb *sandbox) needDefaultGW() bool {
 		}
 		needGW = true
 	}
-
 	return needGW
 }
 
