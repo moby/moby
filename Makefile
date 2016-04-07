@@ -96,7 +96,7 @@ rpm: build ## build the rpm packages
 shell: build ## start a shell inside the build env
 	$(DOCKER_RUN_DOCKER) bash
 
-test: build ## un the unit, integration and docker-py tests
+test: build ## run the unit, integration and docker-py tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary cross test-unit test-integration-cli test-docker-py
 
 test-docker-py: build ## run the docker-py tests
