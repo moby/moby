@@ -608,8 +608,8 @@ with the same logic -- if the original volume was specified with a name it will 
                                          to the container
     --security-opt="no-new-privileges" : Disable container processes from gaining
                                          new privileges
-    --security-opt="seccomp:unconfined": Turn off seccomp confinement for the container
-    --security-opt="seccomp:profile.json: White listed syscalls seccomp Json file to be used as a seccomp filter
+    --security-opt="seccomp=unconfined": Turn off seccomp confinement for the container
+    --security-opt="seccomp=profile.json: White listed syscalls seccomp Json file to be used as a seccomp filter
 
 
 You can override the default labeling scheme for each container by specifying
