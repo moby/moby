@@ -10,10 +10,11 @@ import (
 )
 
 type baseLayerWriter struct {
-	root string
-	f    *os.File
-	bw   *winio.BackupFileWriter
-	err  error
+	root         string
+	f            *os.File
+	bw           *winio.BackupFileWriter
+	err          error
+	hasUtilityVM bool
 }
 
 func (w *baseLayerWriter) closeCurrentFile() error {
@@ -42,6 +43,10 @@ func (w *baseLayerWriter) Add(name string, fileInfo *winio.FileBasicInfo) (err e
 	err = w.closeCurrentFile()
 	if err != nil {
 		return err
+	}
+
+	if filepath.ToSlash(name) == `UtilityVM/Files` {
+		w.hasUtilityVM = true
 	}
 
 	path := filepath.Join(w.root, name)
@@ -138,6 +143,13 @@ func (w *baseLayerWriter) Close() error {
 		err = ProcessBaseLayer(w.root)
 		if err != nil {
 			return err
+		}
+
+		if w.hasUtilityVM {
+			err = ProcessUtilityVMImage(filepath.Join(w.root, "UtilityVM"))
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return w.err
