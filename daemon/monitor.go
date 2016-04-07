@@ -77,6 +77,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 			c.Reset(false)
 			return err
 		}
+		daemon.LogContainerEvent(c, "start")
 	case libcontainerd.StatePause:
 		c.Paused = true
 		daemon.LogContainerEvent(c, "pause")

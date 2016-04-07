@@ -131,7 +131,6 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 		return err
 	}
 
-	defer daemon.LogContainerEvent(container, "start") // this is logged even on error
 	if err := daemon.containerd.Create(container.ID, *spec, libcontainerd.WithRestartManager(container.RestartManager(true))); err != nil {
 		// if we receive an internal error from the initial start of a container then lets
 		// return it instead of entering the restart loop
@@ -149,6 +148,9 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 		}
 
 		container.Reset(false)
+
+		// start event is logged even on error
+		daemon.LogContainerEvent(container, "start")
 		return err
 	}
 
