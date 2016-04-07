@@ -138,7 +138,7 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 			ctr.restartManager.Cancel()
 			ctr.clean()
 		} else {
-			return fmt.Errorf("Container %s is aleady active", containerID)
+			return fmt.Errorf("Container %s is already active", containerID)
 		}
 	}
 

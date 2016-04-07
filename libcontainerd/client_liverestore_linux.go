@@ -17,7 +17,7 @@ func (clnt *client) restore(cont *containerd.Container, options ...CreateOption)
 
 	containerID := cont.Id
 	if _, err := clnt.getContainer(containerID); err == nil {
-		return fmt.Errorf("container %s is aleady active", containerID)
+		return fmt.Errorf("container %s is already active", containerID)
 	}
 
 	defer func() {
