@@ -18,14 +18,13 @@ import (
 )
 
 func (s *DockerSuite) TestEventsTimestampFormats(c *check.C) {
-	image := "busybox"
+	name := "events-time-format-test"
 
 	// Start stopwatch, generate an event
-	time.Sleep(1 * time.Second) // so that we don't grab events from previous test occurred in the same second
 	start := daemonTime(c)
-	dockerCmd(c, "tag", image, "timestamptest:1")
-	dockerCmd(c, "rmi", "timestamptest:1")
-	time.Sleep(1 * time.Second) // so that until > since
+	time.Sleep(1100 * time.Millisecond) // so that first event occur in different second from since (just for the case)
+	dockerCmd(c, "run", "--rm", "--name", name, "busybox", "true")
+	time.Sleep(1100 * time.Millisecond) // so that until > since
 	end := daemonTime(c)
 
 	// List of available time formats to --since
@@ -37,9 +36,19 @@ func (s *DockerSuite) TestEventsTimestampFormats(c *check.C) {
 	for _, f := range []func(time.Time) string{unixTs, rfc3339, duration} {
 		since, until := f(start), f(end)
 		out, _ := dockerCmd(c, "events", "--since="+since, "--until="+until)
-		events := strings.Split(strings.TrimSpace(out), "\n")
-		c.Assert(events, checker.HasLen, 2, check.Commentf("unexpected events, was expecting only 2 events tag/untag (since=%s, until=%s) out=%s", since, until, out))
-		c.Assert(out, checker.Contains, "untag", check.Commentf("expected 'untag' event not found (since=%s, until=%s)", since, until))
+		events := strings.Split(out, "\n")
+		events = events[:len(events)-1]
+
+		nEvents := len(events)
+		c.Assert(nEvents, checker.GreaterOrEqualThan, 5) //Missing expected event
+		containerEvents := eventActionsByIDAndType(c, events, name, "container")
+		c.Assert(containerEvents, checker.HasLen, 5, check.Commentf("events: %v", events))
+
+		c.Assert(containerEvents[0], checker.Equals, "create", check.Commentf(out))
+		c.Assert(containerEvents[1], checker.Equals, "attach", check.Commentf(out))
+		c.Assert(containerEvents[2], checker.Equals, "start", check.Commentf(out))
+		c.Assert(containerEvents[3], checker.Equals, "die", check.Commentf(out))
+		c.Assert(containerEvents[4], checker.Equals, "destroy", check.Commentf(out))
 	}
 
 }
