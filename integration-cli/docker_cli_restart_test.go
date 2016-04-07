@@ -218,3 +218,32 @@ func (s *DockerSuite) TestRestartPolicyAfterRestart(c *check.C) {
 	err = waitInspect(id, "{{.State.Status}}", "running", 30*time.Second)
 	c.Assert(err, check.IsNil)
 }
+
+func (s *DockerSuite) TestRestartContainerwithRestartPolicy(c *check.C) {
+	out1, _ := dockerCmd(c, "run", "-d", "--restart=on-failure:3", "busybox", "false")
+	out2, _ := dockerCmd(c, "run", "-d", "--restart=always", "busybox", "false")
+
+	id1 := strings.TrimSpace(string(out1))
+	id2 := strings.TrimSpace(string(out2))
+	err := waitInspect(id1, "{{ .State.Restarting }} {{ .State.Running }}", "false false", 30*time.Second)
+	c.Assert(err, checker.IsNil)
+
+	// TODO: fix racey problem during restart:
+	// https://jenkins.dockerproject.org/job/Docker-PRs-Win2Lin/24665/console
+	// Error response from daemon: Cannot restart container 6655f620d90b390527db23c0a15b3e46d86a58ecec20a5697ab228d860174251: remove /var/run/docker/libcontainerd/6655f620d90b390527db23c0a15b3e46d86a58ecec20a5697ab228d860174251/rootfs: device or resource busy
+	if _, _, err := dockerCmdWithError("restart", id1); err != nil {
+		// if restart met racey problem, try again
+		time.Sleep(500 * time.Millisecond)
+		dockerCmd(c, "restart", id1)
+	}
+	if _, _, err := dockerCmdWithError("restart", id2); err != nil {
+		// if restart met racey problem, try again
+		time.Sleep(500 * time.Millisecond)
+		dockerCmd(c, "restart", id2)
+	}
+
+	dockerCmd(c, "stop", id1)
+	dockerCmd(c, "stop", id2)
+	dockerCmd(c, "start", id1)
+	dockerCmd(c, "start", id2)
+}

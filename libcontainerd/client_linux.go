@@ -134,7 +134,7 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 	defer clnt.unlock(containerID)
 
 	if ctr, err := clnt.getContainer(containerID); err == nil {
-		if ctr.restarting { // docker doesn't actually call start if restart is on atm, but probably should in the future
+		if ctr.restarting {
 			ctr.restartManager.Cancel()
 			ctr.clean()
 		} else {

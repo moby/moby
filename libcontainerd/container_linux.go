@@ -124,6 +124,7 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 			} else if restart {
 				st.State = StateRestart
 				ctr.restarting = true
+				ctr.client.deleteContainer(e.Id)
 				go func() {
 					err := <-wait
 					ctr.restarting = false
