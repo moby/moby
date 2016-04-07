@@ -909,6 +909,7 @@ func (container *Container) FullHostname() string {
 func (container *Container) RestartManager(reset bool) restartmanager.RestartManager {
 	if reset {
 		container.RestartCount = 0
+		container.restartManager = nil
 	}
 	if container.restartManager == nil {
 		container.restartManager = restartmanager.New(container.HostConfig.RestartPolicy)

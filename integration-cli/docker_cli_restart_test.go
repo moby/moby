@@ -188,3 +188,33 @@ func (s *DockerSuite) TestRestartWithPolicyUserDefinedNetwork(c *check.C) {
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo")
 	c.Assert(err, check.IsNil)
 }
+
+func (s *DockerSuite) TestRestartPolicyAfterRestart(c *check.C) {
+	testRequires(c, SameHostDaemon)
+
+	out, _ := runSleepingContainer(c, "-d", "--restart=always")
+	id := strings.TrimSpace(out)
+	c.Assert(waitRun(id), check.IsNil)
+
+	dockerCmd(c, "restart", id)
+
+	c.Assert(waitRun(id), check.IsNil)
+
+	pidStr := inspectField(c, id, "State.Pid")
+
+	pid, err := strconv.Atoi(pidStr)
+	c.Assert(err, check.IsNil)
+
+	p, err := os.FindProcess(pid)
+	c.Assert(err, check.IsNil)
+	c.Assert(p, check.NotNil)
+
+	err = p.Kill()
+	c.Assert(err, check.IsNil)
+
+	err = waitInspect(id, "{{.RestartCount}}", "1", 30*time.Second)
+	c.Assert(err, check.IsNil)
+
+	err = waitInspect(id, "{{.State.Status}}", "running", 30*time.Second)
+	c.Assert(err, check.IsNil)
+}
