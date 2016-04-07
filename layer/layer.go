@@ -168,6 +168,7 @@ type MountInit func(root string) error
 // read-only and read-write layers.
 type Store interface {
 	Register(io.Reader, ChainID) (Layer, error)
+	RegisterCustom(io.Reader, ChainID, io.Reader) (Layer, error)
 	Get(ChainID) (Layer, error)
 	Release(Layer) ([]Metadata, error)
 

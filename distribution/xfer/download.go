@@ -47,6 +47,35 @@ func (d *downloadTransfer) result() (layer.Layer, error) {
 	return d.layer, d.err
 }
 
+// ReadReaderAt provides both io.Reader and io.ReaderAt interfaces.
+type ReadReaderAt interface {
+	io.Reader
+	io.ReaderAt
+}
+
+// ReadReadAtCloser provides both ReadReaderAt and io.Closer interfaces.
+type ReadReadAtCloser interface {
+	ReadReaderAt
+	io.Closer
+}
+
+type readReadAtCloserWrapper struct {
+	ReadReaderAt
+	closer func() error
+}
+
+func (r *readReadAtCloserWrapper) Close() error {
+	return r.closer()
+}
+
+// NewReadReadAtCloserWrapper returns a ReadReadAtCloser from a ReadReaderAt and a close function.
+func NewReadReadAtCloserWrapper(r ReadReaderAt, closer func() error) ReadReadAtCloser {
+	return &readReadAtCloserWrapper{
+		ReadReaderAt: r,
+		closer:       closer,
+	}
+}
+
 // A DownloadDescriptor references a layer that may need to be downloaded.
 type DownloadDescriptor interface {
 	// Key returns the key used to deduplicate downloads.
@@ -58,7 +87,7 @@ type DownloadDescriptor interface {
 	// before).
 	DiffID() (layer.DiffID, error)
 	// Download is called to perform the download.
-	Download(ctx context.Context, progressOutput progress.Output) (io.ReadCloser, int64, error)
+	Download(ctx context.Context, progressOutput progress.Output) (ReadReadAtCloser, int64, error)
 	// Close is called when the download manager is finished with this
 	// descriptor and will not call Download again or read from the reader
 	// that Download returned.
@@ -231,7 +260,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 			}
 
 			var (
-				downloadReader io.ReadCloser
+				downloadReader ReadReadAtCloser
 				size           int64
 				err            error
 				retries        int
@@ -304,16 +333,33 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				parentLayer = l.ChainID()
 			}
 
-			reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(d.Transfer.Context(), downloadReader), progressOutput, size, descriptor.ID(), "Extracting")
-			defer reader.Close()
-
-			inflatedLayerData, err := archive.DecompressStream(reader)
+			custom, size, err := layer.TarFromNonTar(downloadReader, size)
 			if err != nil {
-				d.err = fmt.Errorf("could not get decompression stream: %v", err)
+				downloadReader.Close()
+				d.err = err
 				return
 			}
 
-			d.layer, err = d.layerStore.Register(inflatedLayerData, parentLayer)
+			reader := io.ReadCloser(downloadReader)
+			if custom != nil {
+				reader = custom
+				defer downloadReader.Close()
+			}
+
+			reader = progress.NewProgressReader(ioutils.NewCancelReadCloser(d.Transfer.Context(), reader), progressOutput, size, descriptor.ID(), "Extracting")
+			defer reader.Close()
+
+			if custom != nil {
+				d.layer, err = d.layerStore.RegisterCustom(reader, parentLayer, downloadReader)
+			} else {
+				reader, err = archive.DecompressStream(reader)
+				if err != nil {
+					d.err = fmt.Errorf("could not get decompression stream: %v", err)
+					return
+				}
+
+				d.layer, err = d.layerStore.Register(reader, parentLayer)
+			}
 			if err != nil {
 				select {
 				case <-d.Transfer.Context().Done():
