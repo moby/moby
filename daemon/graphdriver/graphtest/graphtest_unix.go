@@ -67,7 +67,7 @@ func getBaseLoopStats() (*syscall.Stat_t, error) {
 }
 
 func newDriver(t *testing.T, name string) *Driver {
-	root, err := ioutil.TempDir("/var/tmp", "docker-graphtest-")
+	root, err := ioutil.TempDir("", "docker-graphtest-")
 	if err != nil {
 		t.Fatal(err)
 	}
