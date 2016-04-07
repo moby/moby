@@ -232,7 +232,7 @@ func Render(w io.Writer, req *http.Request, sensitive bool) {
 
 	completedMu.RLock()
 	defer completedMu.RUnlock()
-	if err := pageTmpl.ExecuteTemplate(w, "Page", data); err != nil {
+	if err := pageTmpl().ExecuteTemplate(w, "Page", data); err != nil {
 		log.Printf("net/trace: Failed executing template: %v", err)
 	}
 }
@@ -888,10 +888,18 @@ func elapsed(d time.Duration) string {
 	return string(b)
 }
 
-var pageTmpl = template.Must(template.New("Page").Funcs(template.FuncMap{
-	"elapsed": elapsed,
-	"add":     func(a, b int) int { return a + b },
-}).Parse(pageHTML))
+var pageTmplCache *template.Template
+var pageTmplOnce sync.Once
+
+func pageTmpl() *template.Template {
+	pageTmplOnce.Do(func() {
+		pageTmplCache = template.Must(template.New("Page").Funcs(template.FuncMap{
+			"elapsed": elapsed,
+			"add":     func(a, b int) int { return a + b },
+		}).Parse(pageHTML))
+	})
+	return pageTmplCache
+}
 
 const pageHTML = `
 {{template "Prolog" .}}
