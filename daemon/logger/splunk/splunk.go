@@ -55,7 +55,7 @@ type splunkMessage struct {
 
 type splunkMessageEvent struct {
 	Line   string            `json:"line"`
-	Source string            `json:"source"`
+	Origin string            `json:"origin"`
 	Tag    string            `json:"tag,omitempty"`
 	Attrs  map[string]string `json:"attrs,omitempty"`
 }
@@ -159,7 +159,7 @@ func (l *splunkLogger) Log(msg *logger.Message) error {
 	message := *l.nullMessage
 	message.Time = fmt.Sprintf("%f", float64(msg.Timestamp.UnixNano())/1000000000)
 	message.Event.Line = string(msg.Line)
-	message.Event.Source = msg.Source
+	message.Event.Origin = msg.Origin
 
 	jsonEvent, err := json.Marshal(&message)
 	if err != nil {
