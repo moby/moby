@@ -320,6 +320,13 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 		dstN.labels[k] = v
 	}
 
+	if n.ipamOptions != nil {
+		dstN.ipamOptions = make(map[string]string, len(n.ipamOptions))
+		for k, v := range n.ipamOptions {
+			dstN.ipamOptions[k] = v
+		}
+	}
+
 	for _, v4conf := range n.ipamV4Config {
 		dstV4Conf := &IpamConf{}
 		v4conf.CopyTo(dstV4Conf)
@@ -372,6 +379,7 @@ func (n *network) MarshalJSON() ([]byte, error) {
 	netMap["scope"] = n.scope
 	netMap["labels"] = n.labels
 	netMap["ipamType"] = n.ipamType
+	netMap["ipamOptions"] = n.ipamOptions
 	netMap["addrSpace"] = n.addrSpace
 	netMap["enableIPv6"] = n.enableIPv6
 	if n.generic != nil {
@@ -429,6 +437,15 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 		n.labels = make(map[string]string, len(labels))
 		for label, value := range labels {
 			n.labels[label] = value.(string)
+		}
+	}
+
+	if v, ok := netMap["ipamOptions"]; ok {
+		if iOpts, ok := v.(map[string]interface{}); ok {
+			n.ipamOptions = make(map[string]string, len(iOpts))
+			for k, v := range iOpts {
+				n.ipamOptions[k] = v.(string)
+			}
 		}
 	}
 
