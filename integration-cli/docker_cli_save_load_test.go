@@ -325,7 +325,7 @@ func (s *DockerSuite) TestSaveLoadParents(c *check.C) {
 		out, _ = dockerCmd(c, "commit", cleanedContainerID)
 		imageID := strings.TrimSpace(out)
 
-		dockerCmd(c, "rm", cleanedContainerID)
+		dockerCmd(c, "rm", "-f", cleanedContainerID)
 		return imageID
 	}
 
