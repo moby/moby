@@ -449,7 +449,7 @@ func (d *Driver) GetCustomImageInfos() ([]CustomImageInfo, error) {
 		imageData.ID = id
 
 		// For now, hard code that all base images except nanoserver depend on win32k support
-		if imageData.Name != "nanoserver" {
+		if imageData.Name != "NanoServer" {
 			imageData.OSFeatures = append(imageData.OSFeatures, "win32k")
 		}
 
