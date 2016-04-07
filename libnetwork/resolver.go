@@ -45,7 +45,7 @@ const (
 	ptrIPv6domain   = ".ip6.arpa."
 	respTTL         = 600
 	maxExtDNS       = 3 //max number of external servers to try
-	extIOTimeout    = 3 * time.Second
+	extIOTimeout    = 4 * time.Second
 	defaultRespSize = 512
 	maxConcurrent   = 50
 	logInterval     = 2 * time.Second
@@ -344,9 +344,6 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 			if extDNS.ipStr == "" {
 				break
 			}
-			log.Debugf("Query %s[%d] from %s, forwarding to %s:%s", name, query.Question[0].Qtype,
-				w.LocalAddr().String(), proto, extDNS.ipStr)
-
 			extConnect := func() {
 				addr := fmt.Sprintf("%s:%d", extDNS.ipStr, 53)
 				extConn, err = net.DialTimeout(proto, addr, extIOTimeout)
@@ -378,6 +375,8 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 			if extConn == nil {
 				continue
 			}
+			log.Debugf("Query %s[%d] from %s, forwarding to %s:%s", name, query.Question[0].Qtype,
+				extConn.LocalAddr().String(), proto, extDNS.ipStr)
 
 			// Timeout has to be set for every IO operation.
 			extConn.SetDeadline(time.Now().Add(extIOTimeout))
@@ -424,7 +423,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 			break
 		}
 
-		if resp == nil {
+		if resp == nil || w == nil {
 			return
 		}
 	}
