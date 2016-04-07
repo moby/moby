@@ -29,7 +29,7 @@ clone git github.com/RackSec/srslog 259aed10dfa74ea2961eddd1d9847619f6e98837
 clone git github.com/imdario/mergo 0.2.1
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork v0.7.0-rc.1
+clone git github.com/docker/libnetwork v0.7.0-rc.4
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
 clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
 clone git github.com/hashicorp/memberlist 9a1e242e454d2443df330bdd51a436d5a9058fc4
@@ -60,7 +60,7 @@ clone git github.com/docker/go v1.5.1-1-1-gbaf439e
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
 clone git github.com/opencontainers/runc 7b6c4c418d5090f4f11eee949fdf49afd15838c9 # libcontainer
-clone git github.com/opencontainers/specs 3ce138b1934bf227a418e241ead496c383eaba1c # specs
+clone git github.com/opencontainers/specs 93ca97e83ca7fb4fba6d9e30d5470f99ddc02d11 # specs
 clone git github.com/seccomp/libseccomp-golang 1b506fc7c24eec5a3693cdcbed40d9c226cfc6a1
 # libcontainer deps (see src/github.com/opencontainers/runc/Godeps/Godeps.json)
 clone git github.com/coreos/go-systemd v4

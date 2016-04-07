@@ -102,7 +102,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	// Save container state to disk. So that if error happens before
 	// container meta file got removed from disk, then a restart of
 	// docker should not make a dead container alive.
-	if err := container.ToDiskLocking(); err != nil {
+	if err := container.ToDiskLocking(); err != nil && !os.IsNotExist(err) {
 		logrus.Errorf("Error saving dying container to disk: %v", err)
 	}
 
@@ -123,10 +123,14 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 		return fmt.Errorf("Unable to remove filesystem for %v: %v", container.ID, err)
 	}
 
-	metadata, err := daemon.layerStore.ReleaseRWLayer(container.RWLayer)
-	layer.LogReleaseMetadata(metadata)
-	if err != nil && err != layer.ErrMountDoesNotExist {
-		return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", daemon.GraphDriverName(), container.ID, err)
+	// When container creation fails and `RWLayer` has not been created yet, we
+	// do not call `ReleaseRWLayer`
+	if container.RWLayer != nil {
+		metadata, err := daemon.layerStore.ReleaseRWLayer(container.RWLayer)
+		layer.LogReleaseMetadata(metadata)
+		if err != nil && err != layer.ErrMountDoesNotExist {
+			return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", daemon.GraphDriverName(), container.ID, err)
+		}
 	}
 
 	return nil

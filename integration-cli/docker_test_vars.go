@@ -54,6 +54,11 @@ var (
 	dockerBasePath       string
 	volumesConfigPath    string
 	containerStoragePath string
+
+	// daemonStorageDriver is held globally so that tests can know the storage
+	// driver of the daemon. This is initialized in docker_utils by sending
+	// a version call to the daemon and examining the response header.
+	daemonStorageDriver string
 )
 
 const (

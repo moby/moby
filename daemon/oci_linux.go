@@ -536,6 +536,8 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 				}
 			}
 		}
+		s.Linux.ReadonlyPaths = nil
+		s.Linux.MaskedPaths = nil
 	}
 
 	// TODO: until a kernel/mount solution exists for handling remount in a user namespace,
@@ -660,10 +662,10 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 
 	if apparmor.IsEnabled() {
 		appArmorProfile := "docker-default"
-		if c.HostConfig.Privileged {
-			appArmorProfile = "unconfined"
-		} else if len(c.AppArmorProfile) > 0 {
+		if len(c.AppArmorProfile) > 0 {
 			appArmorProfile = c.AppArmorProfile
+		} else if c.HostConfig.Privileged {
+			appArmorProfile = "unconfined"
 		}
 		s.Process.ApparmorProfile = appArmorProfile
 	}
