@@ -608,3 +608,44 @@ func (s *DockerSuite) TestEventsFilterImageInContainerAction(c *check.C) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	c.Assert(len(events), checker.GreaterThan, 1, check.Commentf(out))
 }
+
+func (s *DockerSuite) TestEventsContainerRestart(c *check.C) {
+	dockerCmd(c, "run", "-d", "--name=testEvent", "--restart=on-failure:3", "busybox", "false")
+
+	// wait until test2 is auto removed.
+	waitTime := 10 * time.Second
+	if daemonPlatform == "windows" {
+		// nslookup isn't present in Windows busybox. Is built-in.
+		waitTime = 90 * time.Second
+	}
+
+	err := waitInspect("testEvent", "{{ .State.Restarting }} {{ .State.Running }}", "false false", waitTime)
+	c.Assert(err, checker.IsNil)
+
+	var (
+		createCount int
+		startCount  int
+		dieCount    int
+	)
+	out, _ := dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()), "-f", "container=testEvent")
+	events := strings.Split(strings.TrimSpace(out), "\n")
+
+	nEvents := len(events)
+	c.Assert(nEvents, checker.GreaterOrEqualThan, 1) //Missing expected event
+	actions := eventActionsByIDAndType(c, events, "testEvent", "container")
+
+	for _, a := range actions {
+		switch a {
+		case "create":
+			createCount++
+		case "start":
+			startCount++
+		case "die":
+			dieCount++
+		}
+	}
+	c.Assert(createCount, checker.Equals, 1, check.Commentf("testEvent should be created 1 times: %v", actions))
+	c.Assert(startCount, checker.Equals, 4, check.Commentf("testEvent should start 4 times: %v", actions))
+	c.Assert(dieCount, checker.Equals, 4, check.Commentf("testEvent should die 4 times: %v", actions))
+
+}
