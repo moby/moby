@@ -30,10 +30,6 @@ const (
 
 const (
 	hdrFileAttributes     = "fileattr"
-	hdrAccessTime         = "accesstime"
-	hdrChangeTime         = "changetime"
-	hdrCreateTime         = "createtime"
-	hdrWriteTime          = "writetime"
 	hdrSecurityDescriptor = "sd"
 	hdrMountPoint         = "mountpoint"
 )
@@ -82,21 +78,29 @@ func copySparse(t *tar.Writer, br *winio.BackupStreamReader) error {
 	return nil
 }
 
-func win32TimeFromTar(key string, hdrs map[string]string, unixTime time.Time) syscall.Filetime {
-	if s, ok := hdrs[key]; ok {
-		n, err := strconv.ParseUint(s, 10, 64)
-		if err == nil {
-			return syscall.Filetime{uint32(n & 0xffffffff), uint32(n >> 32)}
-		}
+// BasicInfoHeader creates a tar header from basic file information.
+func BasicInfoHeader(name string, size int64, fileInfo *winio.FileBasicInfo) *tar.Header {
+	hdr := &tar.Header{
+		Name:         filepath.ToSlash(name),
+		Size:         size,
+		Typeflag:     tar.TypeReg,
+		ModTime:      time.Unix(0, fileInfo.LastWriteTime.Nanoseconds()),
+		ChangeTime:   time.Unix(0, fileInfo.ChangeTime.Nanoseconds()),
+		AccessTime:   time.Unix(0, fileInfo.LastAccessTime.Nanoseconds()),
+		CreationTime: time.Unix(0, fileInfo.CreationTime.Nanoseconds()),
+		Winheaders:   make(map[string]string),
 	}
-	return syscall.NsecToFiletime(unixTime.UnixNano())
+	hdr.Winheaders[hdrFileAttributes] = fmt.Sprintf("%d", fileInfo.FileAttributes)
+
+	if (fileInfo.FileAttributes & syscall.FILE_ATTRIBUTE_DIRECTORY) != 0 {
+		hdr.Mode |= c_ISDIR
+		hdr.Size = 0
+		hdr.Typeflag = tar.TypeDir
+	}
+	return hdr
 }
 
-func win32TimeToTar(ft syscall.Filetime) (string, time.Time) {
-	return fmt.Sprintf("%d", uint64(ft.LowDateTime)+(uint64(ft.HighDateTime)<<32)), time.Unix(0, ft.Nanoseconds())
-}
-
-// Writes a file to a tar writer using data from a Win32 backup stream.
+// WriteTarFileFromBackupStream writes a file to a tar writer using data from a Win32 backup stream.
 //
 // This encodes Win32 metadata as tar pax vendor extensions starting with MSWINDOWS.
 //
@@ -104,37 +108,12 @@ func win32TimeToTar(ft syscall.Filetime) (string, time.Time) {
 //
 // MSWINDOWS.fileattr: The Win32 file attributes, as a decimal value
 //
-// MSWINDOWS.accesstime: The last access time, as a Filetime expressed as a 64-bit decimal value.
-//
-// MSWINDOWS.createtime: The creation time, as a Filetime expressed as a 64-bit decimal value.
-//
-// MSWINDOWS.changetime: The creation time, as a Filetime expressed as a 64-bit decimal value.
-//
-// MSWINDOWS.writetime: The creation time, as a Filetime expressed as a 64-bit decimal value.
-//
 // MSWINDOWS.sd: The Win32 security descriptor, in SDDL (string) format
 //
 // MSWINDOWS.mountpoint: If present, this is a mount point and not a symlink, even though the type is '2' (symlink)
 func WriteTarFileFromBackupStream(t *tar.Writer, r io.Reader, name string, size int64, fileInfo *winio.FileBasicInfo) error {
 	name = filepath.ToSlash(name)
-	hdr := &tar.Header{
-		Name:       name,
-		Size:       size,
-		Typeflag:   tar.TypeReg,
-		Winheaders: make(map[string]string),
-	}
-	hdr.Winheaders[hdrFileAttributes] = fmt.Sprintf("%d", fileInfo.FileAttributes)
-	hdr.Winheaders[hdrAccessTime], hdr.AccessTime = win32TimeToTar(fileInfo.LastAccessTime)
-	hdr.Winheaders[hdrChangeTime], hdr.ChangeTime = win32TimeToTar(fileInfo.ChangeTime)
-	hdr.Winheaders[hdrCreateTime], _ = win32TimeToTar(fileInfo.CreationTime)
-	hdr.Winheaders[hdrWriteTime], hdr.ModTime = win32TimeToTar(fileInfo.LastWriteTime)
-
-	if (fileInfo.FileAttributes & syscall.FILE_ATTRIBUTE_DIRECTORY) != 0 {
-		hdr.Mode |= c_ISDIR
-		hdr.Size = 0
-		hdr.Typeflag = tar.TypeDir
-	}
-
+	hdr := BasicInfoHeader(name, size, fileInfo)
 	br := winio.NewBackupStreamReader(r)
 	var dataHdr *winio.BackupHeader
 	for dataHdr == nil {
@@ -252,7 +231,7 @@ func WriteTarFileFromBackupStream(t *tar.Writer, r io.Reader, name string, size 
 	return nil
 }
 
-// Retrieves basic Win32 file information from a tar header, using the additional metadata written by
+// FileInfoFromHeader retrieves basic Win32 file information from a tar header, using the additional metadata written by
 // WriteTarFileFromBackupStream.
 func FileInfoFromHeader(hdr *tar.Header) (name string, size int64, fileInfo *winio.FileBasicInfo, err error) {
 	name = hdr.Name
@@ -260,10 +239,10 @@ func FileInfoFromHeader(hdr *tar.Header) (name string, size int64, fileInfo *win
 		size = hdr.Size
 	}
 	fileInfo = &winio.FileBasicInfo{
-		LastAccessTime: win32TimeFromTar(hdrAccessTime, hdr.Winheaders, hdr.AccessTime),
-		LastWriteTime:  win32TimeFromTar(hdrWriteTime, hdr.Winheaders, hdr.ModTime),
-		ChangeTime:     win32TimeFromTar(hdrChangeTime, hdr.Winheaders, hdr.ChangeTime),
-		CreationTime:   win32TimeFromTar(hdrCreateTime, hdr.Winheaders, hdr.ModTime),
+		LastAccessTime: syscall.NsecToFiletime(hdr.AccessTime.UnixNano()),
+		LastWriteTime:  syscall.NsecToFiletime(hdr.ModTime.UnixNano()),
+		ChangeTime:     syscall.NsecToFiletime(hdr.ChangeTime.UnixNano()),
+		CreationTime:   syscall.NsecToFiletime(hdr.CreationTime.UnixNano()),
 	}
 	if attrStr, ok := hdr.Winheaders[hdrFileAttributes]; ok {
 		attr, err := strconv.ParseUint(attrStr, 10, 32)
@@ -279,7 +258,7 @@ func FileInfoFromHeader(hdr *tar.Header) (name string, size int64, fileInfo *win
 	return
 }
 
-// Writes a Win32 backup stream from the current tar file. Since this function may process multiple
+// WriteBackupStreamFromTarFile writes a Win32 backup stream from the current tar file. Since this function may process multiple
 // tar file entries in order to collect all the alternate data streams for the file, it returns the next
 // tar file that was not processed, or io.EOF is there are no more.
 func WriteBackupStreamFromTarFile(w io.Writer, t *tar.Reader, hdr *tar.Header) (*tar.Header, error) {

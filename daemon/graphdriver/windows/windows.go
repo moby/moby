@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/longpath"
 	"github.com/vbatts/tar-split/tar/storage"
 )
 
@@ -319,10 +320,10 @@ func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 		}
 		name = filepath.ToSlash(name)
 		if fileInfo == nil {
-			changes = append(changes, archive.Change{name, archive.ChangeDelete})
+			changes = append(changes, archive.Change{Path: name, Kind: archive.ChangeDelete})
 		} else {
 			// Currently there is no way to tell between an add and a modify.
-			changes = append(changes, archive.Change{name, archive.ChangeModify})
+			changes = append(changes, archive.Change{Path: name, Kind: archive.ChangeModify})
 		}
 	}
 	return changes, nil
@@ -332,45 +333,49 @@ func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
 // The layer should not be mounted when calling this function
-func (d *Driver) ApplyDiff(id, parent string, diff archive.Reader) (size int64, err error) {
-	rPId, err := d.resolveID(parent)
-	if err != nil {
-		return
-	}
-
+func (d *Driver) ApplyDiff(id, parent string, diff archive.Reader) (int64, error) {
 	if d.info.Flavour == diffDriver {
 		start := time.Now().UTC()
 		logrus.Debugf("WindowsGraphDriver ApplyDiff: Start untar layer")
 		destination := d.dir(id)
 		destination = filepath.Dir(destination)
-		if size, err = chrootarchive.ApplyUncompressedLayer(destination, diff, nil); err != nil {
-			return
+		size, err := chrootarchive.ApplyUncompressedLayer(destination, diff, nil)
+		if err != nil {
+			return 0, err
 		}
 		logrus.Debugf("WindowsGraphDriver ApplyDiff: Untar time: %vs", time.Now().UTC().Sub(start).Seconds())
 
-		return
+		return size, nil
 	}
 
-	parentChain, err := d.getLayerChain(rPId)
-	if err != nil {
-		return
+	var layerChain []string
+	if parent != "" {
+		rPId, err := d.resolveID(parent)
+		if err != nil {
+			return 0, err
+		}
+		parentChain, err := d.getLayerChain(rPId)
+		if err != nil {
+			return 0, err
+		}
+		parentPath, err := hcsshim.GetLayerMountPath(d.info, rPId)
+		if err != nil {
+			return 0, err
+		}
+		layerChain = append(layerChain, parentPath)
+		layerChain = append(layerChain, parentChain...)
 	}
-	parentPath, err := hcsshim.GetLayerMountPath(d.info, rPId)
-	if err != nil {
-		return
-	}
-	layerChain := []string{parentPath}
-	layerChain = append(layerChain, parentChain...)
 
-	if size, err = d.importLayer(id, diff, layerChain); err != nil {
-		return
+	size, err := d.importLayer(id, diff, layerChain)
+	if err != nil {
+		return 0, err
 	}
 
 	if err = d.setLayerChain(id, layerChain); err != nil {
-		return
+		return 0, err
 	}
 
-	return
+	return size, nil
 }
 
 // DiffSize calculates the changes between the specified layer
@@ -539,6 +544,12 @@ func writeLayerFromTar(r archive.Reader, w hcsshim.LayerWriter) (int64, error) {
 				return 0, err
 			}
 			hdr, err = t.Next()
+		} else if hdr.Typeflag == tar.TypeLink {
+			err = w.AddLink(filepath.FromSlash(hdr.Name), filepath.FromSlash(hdr.Linkname))
+			if err != nil {
+				return 0, err
+			}
+			hdr, err = t.Next()
 		} else {
 			var (
 				name     string
@@ -575,7 +586,6 @@ func (d *Driver) importLayer(id string, layerData archive.Reader, parentLayerPat
 	if err != nil {
 		return
 	}
-
 	size, err = writeLayerFromTar(layerData, w)
 	if err != nil {
 		w.Close()
@@ -653,7 +663,7 @@ func (fg *fileGetCloserWithBackupPrivileges) Get(filename string) (io.ReadCloser
 	// file can be opened even if the caller does not actually have access to it according
 	// to the security descriptor.
 	err := winio.RunWithPrivilege(winio.SeBackupPrivilege, func() error {
-		path := filepath.Join(fg.path, filename)
+		path := longpath.AddPrefix(filepath.Join(fg.path, filename))
 		p, err := syscall.UTF16FromString(path)
 		if err != nil {
 			return err

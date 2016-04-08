@@ -373,8 +373,7 @@ func restoreCustomImage(is image.Store, ls layer.Store, rs reference.Store) erro
 		}
 		// layer is intentionally not released
 
-		rootFS := image.NewRootFS()
-		rootFS.BaseLayer = filepath.Base(info.Path)
+		rootFS := image.NewRootFSWithBaseLayer(filepath.Base(info.Path))
 
 		// Create history for base layer
 		config, err := json.Marshal(&image.Image{

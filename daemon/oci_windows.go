@@ -5,6 +5,7 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/libcontainerd/windowsoci"
@@ -88,9 +89,15 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 
 	// s.Windows.LayerPaths
 	var layerPaths []string
-	if img.RootFS != nil && img.RootFS.Type == "layers+base" {
+	if img.RootFS != nil && (img.RootFS.Type == image.TypeLayers || img.RootFS.Type == image.TypeLayersWithBase) {
+		// Get the layer path for each layer.
+		start := 1
+		if img.RootFS.Type == image.TypeLayersWithBase {
+			// Include an empty slice to get the base layer ID.
+			start = 0
+		}
 		max := len(img.RootFS.DiffIDs)
-		for i := 0; i <= max; i++ {
+		for i := start; i <= max; i++ {
 			img.RootFS.DiffIDs = img.RootFS.DiffIDs[:i]
 			path, err := layer.GetLayerPath(daemon.layerStore, img.RootFS.ChainID())
 			if err != nil {
