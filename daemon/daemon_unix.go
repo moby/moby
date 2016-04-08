@@ -355,6 +355,9 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		logrus.Warnf("Your kernel does not support memory soft limit capabilities. Limitation discarded.")
 		resources.MemoryReservation = 0
 	}
+	if resources.MemoryReservation > 0 && resources.MemoryReservation < linuxMinMemory {
+		return warnings, fmt.Errorf("Minimum memory reservation allowed is 4MB")
+	}
 	if resources.Memory > 0 && resources.MemoryReservation > 0 && resources.Memory < resources.MemoryReservation {
 		return warnings, fmt.Errorf("Minimum memory limit should be larger than memory reservation limit, see usage")
 	}
