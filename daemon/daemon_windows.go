@@ -34,11 +34,10 @@ import (
 )
 
 const (
-	defaultVirtualSwitch = "Virtual Switch"
-	defaultNetworkSpace  = "172.16.0.0/12"
-	platformSupported    = true
-	windowsMinCPUShares  = 1
-	windowsMaxCPUShares  = 10000
+	defaultNetworkSpace = "172.16.0.0/12"
+	platformSupported   = true
+	windowsMinCPUShares = 1
+	windowsMaxCPUShares = 10000
 )
 
 func getBlkioWeightDevices(config *containertypes.HostConfig) ([]blkiodev.WeightDevice, error) {
@@ -114,8 +113,8 @@ func checkSystem() error {
 	if osv.MajorVersion < 10 {
 		return fmt.Errorf("This version of Windows does not support the docker daemon")
 	}
-	if osv.Build < 10586 {
-		return fmt.Errorf("The Windows daemon requires Windows Server 2016 Technical Preview 4, build 10586 or later")
+	if osv.Build < 14300 {
+		return fmt.Errorf("The Windows daemon requires Windows Server 2016 Technical Preview 5 build 14300 or later")
 	}
 	return nil
 }
@@ -131,18 +130,6 @@ func configureMaxThreads(config *Config) error {
 }
 
 func (daemon *Daemon) initNetworkController(config *Config) (libnetwork.NetworkController, error) {
-	// TODO Windows: Remove this check once TP4 is no longer supported
-	osv := system.GetOSVersion()
-
-	if osv.Build < 14260 {
-		// Set the name of the virtual switch if not specified by -b on daemon start
-		if config.bridgeConfig.Iface == "" {
-			config.bridgeConfig.Iface = defaultVirtualSwitch
-		}
-		logrus.Warnf("Network controller is not supported by the current platform build version")
-		return nil, nil
-	}
-
 	netOptions, err := daemon.networkOptions(config)
 	if err != nil {
 		return nil, err
