@@ -2077,11 +2077,21 @@ _docker_volume_ls() {
 			COMPREPLY=( $( compgen -W "true false" -- "${cur##*=}" ) )
 			return
 			;;
+		driver)
+			cur=${cur##*=}
+			__docker_complete_plugins Volume
+			return
+			;;
+		name)
+			cur=${cur##*=}
+			__docker_complete_volumes
+			return
+			;;
 	esac
 
 	case "$prev" in
 		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "dangling" -- "$cur" ) )
+			COMPREPLY=( $( compgen -S = -W "dangling driver name" -- "$cur" ) )
 			__docker_nospace
 			return
 			;;
