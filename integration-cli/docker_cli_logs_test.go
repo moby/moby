@@ -307,3 +307,16 @@ func (s *DockerSuite) TestLogsCLIContainerNotFound(c *check.C) {
 	message := fmt.Sprintf("Error: No such container: %s\n", name)
 	c.Assert(out, checker.Equals, message)
 }
+
+func (s *DockerSuite) TestLogsWithDetails(c *check.C) {
+	dockerCmd(c, "run", "--name=test", "--label", "foo=bar", "-e", "baz=qux", "--log-opt", "labels=foo", "--log-opt", "env=baz", "busybox", "echo", "hello")
+	out, _ := dockerCmd(c, "logs", "--details", "--timestamps", "test")
+
+	logFields := strings.Fields(strings.TrimSpace(out))
+	c.Assert(len(logFields), checker.Equals, 3, check.Commentf(out))
+
+	details := strings.Split(logFields[1], ",")
+	c.Assert(details, checker.HasLen, 2)
+	c.Assert(details[0], checker.Equals, "baz=qux")
+	c.Assert(details[1], checker.Equals, "foo=bar")
+}

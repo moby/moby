@@ -136,6 +136,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /auth` now returns an `IdentityToken` when supported by a registry.
 * `POST /containers/create` with both `Hostname` and `Domainname` fields specified will result in the container's hostname being set to `Hostname`, rather than `Hostname.Domainname`.
 * `GET /volumes` now supports more filters, new added filters are `name` and `driver`.
+* `GET /containers/(id or name)/logs` now accepts a `details` query parameter to stream the extra attributes that were provided to the containers `LogOpts`, such as environment variables and labels, with the logs.
 
 ### v1.22 API changes
 

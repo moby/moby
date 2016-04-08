@@ -90,6 +90,9 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 				return nil
 			}
 			logLine := msg.Line
+			if config.Details {
+				logLine = append([]byte(msg.Attrs.String()+" "), logLine...)
+			}
 			if config.Timestamps {
 				logLine = append([]byte(msg.Timestamp.Format(logger.TimeFormat)+" "), logLine...)
 			}
