@@ -3,13 +3,8 @@ package opts
 import (
 	"fmt"
 	"net"
-	"os"
 	"regexp"
-	"strconv"
 	"strings"
-
-	"github.com/docker/docker/api/types/blkiodev"
-	"github.com/docker/go-units"
 )
 
 var (
@@ -105,6 +100,35 @@ func (opts *ListOpts) Len() int {
 	return len((*opts.values))
 }
 
+// NamedOption is an interface that list and map options
+// with names implement.
+type NamedOption interface {
+	Name() string
+}
+
+// NamedListOpts is a ListOpts with a configuration name.
+// This struct is useful to keep reference to the assigned
+// field name in the internal configuration struct.
+type NamedListOpts struct {
+	name string
+	ListOpts
+}
+
+var _ NamedOption = &NamedListOpts{}
+
+// NewNamedListOptsRef creates a reference to a new NamedListOpts struct.
+func NewNamedListOptsRef(name string, values *[]string, validator ValidatorFctType) *NamedListOpts {
+	return &NamedListOpts{
+		name:     name,
+		ListOpts: *NewListOptsRef(values, validator),
+	}
+}
+
+// Name returns the name of the NamedListOpts in the configuration.
+func (o *NamedListOpts) Name() string {
+	return o.name
+}
+
 //MapOpts holds a map of values and a validation function.
 type MapOpts struct {
 	values    map[string]string
@@ -150,114 +174,34 @@ func NewMapOpts(values map[string]string, validator ValidatorFctType) *MapOpts {
 	}
 }
 
+// NamedMapOpts is a MapOpts struct with a configuration name.
+// This struct is useful to keep reference to the assigned
+// field name in the internal configuration struct.
+type NamedMapOpts struct {
+	name string
+	MapOpts
+}
+
+var _ NamedOption = &NamedMapOpts{}
+
+// NewNamedMapOpts creates a reference to a new NamedMapOpts struct.
+func NewNamedMapOpts(name string, values map[string]string, validator ValidatorFctType) *NamedMapOpts {
+	return &NamedMapOpts{
+		name:    name,
+		MapOpts: *NewMapOpts(values, validator),
+	}
+}
+
+// Name returns the name of the NamedMapOpts in the configuration.
+func (o *NamedMapOpts) Name() string {
+	return o.name
+}
+
 // ValidatorFctType defines a validator function that returns a validated string and/or an error.
 type ValidatorFctType func(val string) (string, error)
 
-// ValidatorWeightFctType defines a validator function that returns a validated struct and/or an error.
-type ValidatorWeightFctType func(val string) (*blkiodev.WeightDevice, error)
-
-// ValidatorThrottleFctType defines a validator function that returns a validated struct and/or an error.
-type ValidatorThrottleFctType func(val string) (*blkiodev.ThrottleDevice, error)
-
 // ValidatorFctListType defines a validator function that returns a validated list of string and/or an error
 type ValidatorFctListType func(val string) ([]string, error)
-
-// ValidateAttach validates that the specified string is a valid attach option.
-func ValidateAttach(val string) (string, error) {
-	s := strings.ToLower(val)
-	for _, str := range []string{"stdin", "stdout", "stderr"} {
-		if s == str {
-			return s, nil
-		}
-	}
-	return val, fmt.Errorf("valid streams are STDIN, STDOUT and STDERR")
-}
-
-// ValidateWeightDevice validates that the specified string has a valid device-weight format.
-func ValidateWeightDevice(val string) (*blkiodev.WeightDevice, error) {
-	split := strings.SplitN(val, ":", 2)
-	if len(split) != 2 {
-		return nil, fmt.Errorf("bad format: %s", val)
-	}
-	if !strings.HasPrefix(split[0], "/dev/") {
-		return nil, fmt.Errorf("bad format for device path: %s", val)
-	}
-	weight, err := strconv.ParseUint(split[1], 10, 0)
-	if err != nil {
-		return nil, fmt.Errorf("invalid weight for device: %s", val)
-	}
-	if weight > 0 && (weight < 10 || weight > 1000) {
-		return nil, fmt.Errorf("invalid weight for device: %s", val)
-	}
-
-	return &blkiodev.WeightDevice{
-		Path:   split[0],
-		Weight: uint16(weight),
-	}, nil
-}
-
-// ValidateThrottleBpsDevice validates that the specified string has a valid device-rate format.
-func ValidateThrottleBpsDevice(val string) (*blkiodev.ThrottleDevice, error) {
-	split := strings.SplitN(val, ":", 2)
-	if len(split) != 2 {
-		return nil, fmt.Errorf("bad format: %s", val)
-	}
-	if !strings.HasPrefix(split[0], "/dev/") {
-		return nil, fmt.Errorf("bad format for device path: %s", val)
-	}
-	rate, err := units.RAMInBytes(split[1])
-	if err != nil {
-		return nil, fmt.Errorf("invalid rate for device: %s. The correct format is <device-path>:<number>[<unit>]. Number must be a positive integer. Unit is optional and can be kb, mb, or gb", val)
-	}
-	if rate < 0 {
-		return nil, fmt.Errorf("invalid rate for device: %s. The correct format is <device-path>:<number>[<unit>]. Number must be a positive integer. Unit is optional and can be kb, mb, or gb", val)
-	}
-
-	return &blkiodev.ThrottleDevice{
-		Path: split[0],
-		Rate: uint64(rate),
-	}, nil
-}
-
-// ValidateThrottleIOpsDevice validates that the specified string has a valid device-rate format.
-func ValidateThrottleIOpsDevice(val string) (*blkiodev.ThrottleDevice, error) {
-	split := strings.SplitN(val, ":", 2)
-	if len(split) != 2 {
-		return nil, fmt.Errorf("bad format: %s", val)
-	}
-	if !strings.HasPrefix(split[0], "/dev/") {
-		return nil, fmt.Errorf("bad format for device path: %s", val)
-	}
-	rate, err := strconv.ParseUint(split[1], 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("invalid rate for device: %s. The correct format is <device-path>:<number>. Number must be a positive integer", val)
-	}
-	if rate < 0 {
-		return nil, fmt.Errorf("invalid rate for device: %s. The correct format is <device-path>:<number>. Number must be a positive integer", val)
-	}
-
-	return &blkiodev.ThrottleDevice{
-		Path: split[0],
-		Rate: uint64(rate),
-	}, nil
-}
-
-// ValidateEnv validates an environment variable and returns it.
-// If no value is specified, it returns the current value using os.Getenv.
-//
-// As on ParseEnvFile and related to #16585, environment variable names
-// are not validate what so ever, it's up to application inside docker
-// to validate them or not.
-func ValidateEnv(val string) (string, error) {
-	arr := strings.Split(val, "=")
-	if len(arr) > 1 {
-		return val, nil
-	}
-	if !doesEnvExist(val) {
-		return val, nil
-	}
-	return fmt.Sprintf("%s=%s", val, os.Getenv(val)), nil
-}
 
 // ValidateIPAddress validates an Ip address.
 func ValidateIPAddress(val string) (string, error) {
@@ -266,15 +210,6 @@ func ValidateIPAddress(val string) (string, error) {
 		return ip.String(), nil
 	}
 	return "", fmt.Errorf("%s is not an ip address", val)
-}
-
-// ValidateMACAddress validates a MAC address.
-func ValidateMACAddress(val string) (string, error) {
-	_, err := net.ParseMAC(strings.TrimSpace(val))
-	if err != nil {
-		return "", err
-	}
-	return val, nil
 }
 
 // ValidateDNSSearch validates domain for resolvconf search configuration.
@@ -297,20 +232,6 @@ func validateDomain(val string) (string, error) {
 	return "", fmt.Errorf("%s is not a valid domain", val)
 }
 
-// ValidateExtraHost validates that the specified string is a valid extrahost and returns it.
-// ExtraHost are in the form of name:ip where the ip has to be a valid ip (ipv4 or ipv6).
-func ValidateExtraHost(val string) (string, error) {
-	// allow for IPv6 addresses in extra hosts by only splitting on first ":"
-	arr := strings.SplitN(val, ":", 2)
-	if len(arr) != 2 || len(arr[0]) == 0 {
-		return "", fmt.Errorf("bad format for add-host: %q", val)
-	}
-	if _, err := ValidateIPAddress(arr[1]); err != nil {
-		return "", fmt.Errorf("invalid IP address in add-host: %q", arr[1])
-	}
-	return val, nil
-}
-
 // ValidateLabel validates that the specified string is a valid label, and returns it.
 // Labels are in the form on key=value.
 func ValidateLabel(val string) (string, error) {
@@ -318,14 +239,4 @@ func ValidateLabel(val string) (string, error) {
 		return "", fmt.Errorf("bad attribute format: %s", val)
 	}
 	return val, nil
-}
-
-func doesEnvExist(name string) bool {
-	for _, entry := range os.Environ() {
-		parts := strings.SplitN(entry, "=", 2)
-		if parts[0] == name {
-			return true
-		}
-	}
-	return false
 }

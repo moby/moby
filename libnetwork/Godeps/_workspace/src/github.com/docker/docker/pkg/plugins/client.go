@@ -3,21 +3,20 @@ package plugins
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
-	"strings"
+	"net/url"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/sockets"
-	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/docker/pkg/plugins/transport"
+	"github.com/docker/go-connections/sockets"
+	"github.com/docker/go-connections/tlsconfig"
 )
 
 const (
-	versionMimetype = "application/vnd.docker.plugins.v1.1+json"
-	defaultTimeOut  = 30
+	defaultTimeOut = 30
 )
 
 // NewClient creates a new plugin client (http).
@@ -30,21 +29,38 @@ func NewClient(addr string, tlsConfig tlsconfig.Options) (*Client, error) {
 	}
 	tr.TLSClientConfig = c
 
-	protoAndAddr := strings.Split(addr, "://")
-	sockets.ConfigureTCPTransport(tr, protoAndAddr[0], protoAndAddr[1])
-
-	scheme := protoAndAddr[0]
-	if scheme != "https" {
-		scheme = "http"
+	u, err := url.Parse(addr)
+	if err != nil {
+		return nil, err
 	}
-	return &Client{&http.Client{Transport: tr}, scheme, protoAndAddr[1]}, nil
+	socket := u.Host
+	if socket == "" {
+		// valid local socket addresses have the host empty.
+		socket = u.Path
+	}
+	if err := sockets.ConfigureTransport(tr, u.Scheme, socket); err != nil {
+		return nil, err
+	}
+	scheme := httpScheme(u)
+
+	clientTransport := transport.NewHTTPTransport(tr, scheme, socket)
+	return NewClientWithTransport(clientTransport), nil
+}
+
+// NewClientWithTransport creates a new plugin client with a given transport.
+func NewClientWithTransport(tr transport.Transport) *Client {
+	return &Client{
+		http: &http.Client{
+			Transport: tr,
+		},
+		requestFactory: tr,
+	}
 }
 
 // Client represents a plugin client.
 type Client struct {
-	http   *http.Client // http client to use
-	scheme string       // scheme protocol of the plugin
-	addr   string       // http address of the plugin
+	http           *http.Client // http client to use
+	requestFactory transport.RequestFactory
 }
 
 // Call calls the specified method with the specified arguments for the plugin.
@@ -85,6 +101,7 @@ func (c *Client) SendFile(serviceMethod string, data io.Reader, ret interface{})
 	if err != nil {
 		return err
 	}
+	defer body.Close()
 	if err := json.NewDecoder(body).Decode(&ret); err != nil {
 		logrus.Errorf("%s: error reading plugin resp: %v", serviceMethod, err)
 		return err
@@ -93,13 +110,10 @@ func (c *Client) SendFile(serviceMethod string, data io.Reader, ret interface{})
 }
 
 func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool) (io.ReadCloser, error) {
-	req, err := http.NewRequest("POST", "/"+serviceMethod, data)
+	req, err := c.requestFactory.NewRequest(serviceMethod, data)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("Accept", versionMimetype)
-	req.URL.Scheme = c.scheme
-	req.URL.Host = c.addr
 
 	var retries int
 	start := time.Now()
@@ -116,15 +130,16 @@ func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool)
 				return nil, err
 			}
 			retries++
-			logrus.Warnf("Unable to connect to plugin: %s, retrying in %v", c.addr, timeOff)
+			logrus.Warnf("Unable to connect to plugin: %s:%s, retrying in %v", req.URL.Host, req.URL.Path, timeOff)
 			time.Sleep(timeOff)
 			continue
 		}
 
 		if resp.StatusCode != http.StatusOK {
 			b, err := ioutil.ReadAll(resp.Body)
+			resp.Body.Close()
 			if err != nil {
-				return nil, fmt.Errorf("%s: %s", serviceMethod, err)
+				return nil, &statusError{resp.StatusCode, serviceMethod, err.Error()}
 			}
 
 			// Plugins' Response(s) should have an Err field indicating what went
@@ -134,14 +149,13 @@ func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool)
 				Err string
 			}
 			remoteErr := responseErr{}
-			if err := json.Unmarshal(b, &remoteErr); err != nil {
-				return nil, fmt.Errorf("%s: %s", serviceMethod, err)
-			}
-			if remoteErr.Err != "" {
-				return nil, fmt.Errorf("%s: %s", serviceMethod, remoteErr.Err)
+			if err := json.Unmarshal(b, &remoteErr); err == nil {
+				if remoteErr.Err != "" {
+					return nil, &statusError{resp.StatusCode, serviceMethod, remoteErr.Err}
+				}
 			}
 			// old way...
-			return nil, fmt.Errorf("%s: %s", serviceMethod, string(b))
+			return nil, &statusError{resp.StatusCode, serviceMethod, string(b)}
 		}
 		return resp.Body, nil
 	}
@@ -161,4 +175,12 @@ func backoff(retries int) time.Duration {
 
 func abort(start time.Time, timeOff time.Duration) bool {
 	return timeOff+time.Since(start) >= time.Duration(defaultTimeOut)*time.Second
+}
+
+func httpScheme(u *url.URL) string {
+	scheme := u.Scheme
+	if scheme != "https" {
+		scheme = "http"
+	}
+	return scheme
 }

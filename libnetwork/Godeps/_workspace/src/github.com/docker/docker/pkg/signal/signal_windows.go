@@ -11,6 +11,7 @@ import (
 const (
 	SIGCHLD  = syscall.Signal(0xff)
 	SIGWINCH = syscall.Signal(0xff)
+	SIGPIPE  = syscall.Signal(0xff)
 	// DefaultStopSignal is the syscall signal used to stop a container in windows systems.
 	DefaultStopSignal = "15"
 )
