@@ -1098,6 +1098,11 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 			MaxUsage: mem.MaxUsage,
 			Stats:    cgs.MemoryStats.Stats,
 			Failcnt:  mem.Failcnt,
+			Limit:    mem.Limit,
+		}
+		// if the container does not set memory limit, use the machineMemory
+		if mem.Limit > daemon.statsCollector.machineMemory && daemon.statsCollector.machineMemory > 0 {
+			s.MemoryStats.Limit = daemon.statsCollector.machineMemory
 		}
 		if cgs.PidsStats != nil {
 			s.PidsStats = types.PidsStats{

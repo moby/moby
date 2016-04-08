@@ -14,6 +14,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/pubsub"
+	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/engine-api/types"
 	"github.com/opencontainers/runc/libcontainer/system"
 )
@@ -35,6 +36,11 @@ func (daemon *Daemon) newStatsCollector(interval time.Duration) *statsCollector 
 		clockTicksPerSecond: uint64(system.GetClockTicks()),
 		bufReader:           bufio.NewReaderSize(nil, 128),
 	}
+	meminfo, err := sysinfo.ReadMemInfo()
+	if err == nil && meminfo.MemTotal > 0 {
+		s.machineMemory = uint64(meminfo.MemTotal)
+	}
+
 	go s.run()
 	return s
 }
@@ -47,6 +53,7 @@ type statsCollector struct {
 	clockTicksPerSecond uint64
 	publishers          map[*container.Container]*pubsub.Publisher
 	bufReader           *bufio.Reader
+	machineMemory       uint64
 }
 
 // collect registers the container with the collector and adds it to
