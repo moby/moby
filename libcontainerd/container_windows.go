@@ -4,6 +4,7 @@ import (
 	"io"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
@@ -60,13 +61,27 @@ func (ctr *container) start() error {
 	// is only created if it we're not -t.
 	var pid uint32
 	var stdout, stderr io.ReadCloser
+
 	pid, iopipe.Stdin, stdout, stderr, err = hcsshim.CreateProcessInComputeSystem(
 		ctr.containerID,
 		true,
 		true,
 		!ctr.ociSpec.Process.Terminal,
 		createProcessParms)
+	//		if err != nil && strings.Contains(err.Error(), "The system cannot find the file specified. (0x2)") {
+	//			retry++
+	//			if retry == 10 {
+	//				logrus.Errorf("Retry hack for CreateComputeSystem failed after 10 retries")
+	//				break
+	//			}
+	//			logrus.Errorf("Retry hack for 'CreateComputeSystem cannot find the file specified' %d", retry)
+	//			time.Sleep(1 * time.Second)
+	//			continue
+	//		}
+	//		break
+
 	if err != nil {
+		logrus.Errorf("JJH JJH DEBUG JJH JJH Error CPIPC", err)
 		logrus.Errorf("CreateProcessInComputeSystem() failed %s", err)
 
 		// Explicitly terminate the compute system here.

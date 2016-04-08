@@ -276,6 +276,7 @@ func (clnt *client) AddProcess(containerID, processFriendlyName string, procToAd
 		!procToAdd.Terminal,
 		createProcessParms)
 	if err != nil {
+		logrus.Errorf("JJH JJH DEBUG JJH JJH Error2 CPIPC", err)
 		logrus.Errorf("AddProcess %s CreateProcessInComputeSystem() failed %s", containerID, err)
 		return err
 	}
