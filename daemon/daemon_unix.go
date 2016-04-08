@@ -1098,6 +1098,7 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 			MaxUsage: mem.MaxUsage,
 			Stats:    cgs.MemoryStats.Stats,
 			Failcnt:  mem.Failcnt,
+			Limit:    mem.Limit,
 		}
 		if cgs.PidsStats != nil {
 			s.PidsStats = types.PidsStats{
