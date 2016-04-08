@@ -905,7 +905,7 @@ func (container *Container) FullHostname() string {
 	return fullHostname
 }
 
-// RestartManager returns the current restartmanager instace connected to container.
+// RestartManager returns the current restartmanager instance connected to container.
 func (container *Container) RestartManager(reset bool) restartmanager.RestartManager {
 	if reset {
 		container.RestartCount = 0
