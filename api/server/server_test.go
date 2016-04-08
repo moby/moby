@@ -6,7 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/server/httputils"
+	"github.com/docker/docker/api/server/middleware"
+	"github.com/docker/docker/pkg/version"
 
 	"golang.org/x/net/context"
 )
@@ -18,6 +21,8 @@ func TestMiddlewares(t *testing.T) {
 	srv := &Server{
 		cfg: cfg,
 	}
+
+	srv.UseMiddleware(middleware.NewVersionMiddleware(version.Version("0.1omega2"), api.DefaultVersion, api.MinVersion))
 
 	req, _ := http.NewRequest("GET", "/containers/json", nil)
 	resp := httptest.NewRecorder()

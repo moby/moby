@@ -10,28 +10,38 @@ import (
 	"golang.org/x/net/context"
 )
 
-// NewUserAgentMiddleware creates a new UserAgent middleware.
-func NewUserAgentMiddleware(versionCheck string) Middleware {
-	serverVersion := version.Version(versionCheck)
+// UserAgentMiddleware is a middleware that
+// validates the client user-agent.
+type UserAgentMiddleware struct {
+	serverVersion version.Version
+}
 
-	return func(handler httputils.APIFunc) httputils.APIFunc {
-		return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-			ctx = context.WithValue(ctx, httputils.UAStringKey, r.Header.Get("User-Agent"))
+// NewUserAgentMiddleware creates a new UserAgentMiddleware
+// with the server version.
+func NewUserAgentMiddleware(s version.Version) UserAgentMiddleware {
+	return UserAgentMiddleware{
+		serverVersion: s,
+	}
+}
 
-			if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
-				userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
+// WrapHandler returns a new handler function wrapping the previous one in the request chain.
+func (u UserAgentMiddleware) WrapHandler(handler func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error) func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+		ctx = context.WithValue(ctx, httputils.UAStringKey, r.Header.Get("User-Agent"))
 
-				// v1.20 onwards includes the GOOS of the client after the version
-				// such as Docker/1.7.0 (linux)
-				if len(userAgent) == 2 && strings.Contains(userAgent[1], " ") {
-					userAgent[1] = strings.Split(userAgent[1], " ")[0]
-				}
+		if strings.Contains(r.Header.Get("User-Agent"), "Docker-Client/") {
+			userAgent := strings.Split(r.Header.Get("User-Agent"), "/")
 
-				if len(userAgent) == 2 && !serverVersion.Equal(version.Version(userAgent[1])) {
-					logrus.Debugf("Client and server don't have the same version (client: %s, server: %s)", userAgent[1], serverVersion)
-				}
+			// v1.20 onwards includes the GOOS of the client after the version
+			// such as Docker/1.7.0 (linux)
+			if len(userAgent) == 2 && strings.Contains(userAgent[1], " ") {
+				userAgent[1] = strings.Split(userAgent[1], " ")[0]
 			}
-			return handler(ctx, w, r, vars)
+
+			if len(userAgent) == 2 && !u.serverVersion.Equal(version.Version(userAgent[1])) {
+				logrus.Debugf("Client and server don't have the same version (client: %s, server: %s)", userAgent[1], u.serverVersion)
+			}
 		}
+		return handler(ctx, w, r, vars)
 	}
 }

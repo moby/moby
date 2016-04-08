@@ -14,7 +14,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/uuid"
+	"github.com/docker/docker/api"
 	apiserver "github.com/docker/docker/api/server"
+	"github.com/docker/docker/api/server/middleware"
 	"github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/api/server/router/build"
 	"github.com/docker/docker/api/server/router/container"
@@ -29,12 +31,14 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/listeners"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -208,10 +212,9 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	}
 
 	serverConfig := &apiserver.Config{
-		AuthorizationPluginNames: cli.Config.AuthorizationPlugins,
-		Logging:                  true,
-		SocketGroup:              cli.Config.SocketGroup,
-		Version:                  dockerversion.Version,
+		Logging:     true,
+		SocketGroup: cli.Config.SocketGroup,
+		Version:     dockerversion.Version,
 	}
 	serverConfig = setPlatformServerConfig(serverConfig, cli.Config)
 
@@ -288,6 +291,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		"graphdriver": d.GraphDriverName(),
 	}).Info("Docker daemon")
 
+	cli.initMiddlewares(api, serverConfig)
 	initRouter(api, d)
 
 	reload := func(config *daemon.Config) {
@@ -419,4 +423,25 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon) {
 	}
 
 	s.InitRouter(utils.IsDebugEnabled(), routers...)
+}
+
+func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config) {
+	v := version.Version(cfg.Version)
+
+	vm := middleware.NewVersionMiddleware(v, api.DefaultVersion, api.MinVersion)
+	s.UseMiddleware(vm)
+
+	if cfg.EnableCors {
+		c := middleware.NewCORSMiddleware(cfg.CorsHeaders)
+		s.UseMiddleware(c)
+	}
+
+	u := middleware.NewUserAgentMiddleware(v)
+	s.UseMiddleware(u)
+
+	if len(cli.Config.AuthorizationPlugins) > 0 {
+		authZPlugins := authorization.NewPlugins(cli.Config.AuthorizationPlugins)
+		handleAuthorization := authorization.NewMiddleware(authZPlugins)
+		s.UseMiddleware(handleAuthorization)
+	}
 }
