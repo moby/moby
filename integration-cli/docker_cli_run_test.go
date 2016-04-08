@@ -20,6 +20,7 @@ import (
 
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
@@ -285,11 +286,21 @@ func (s *DockerSuite) TestUserDefinedNetworkAlias(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
 	dockerCmd(c, "network", "create", "-d", "bridge", "net1")
 
-	dockerCmd(c, "run", "-d", "--net=net1", "--name=first", "--net-alias=foo1", "--net-alias=foo2", "busybox", "top")
+	cid1, _ := dockerCmd(c, "run", "-d", "--net=net1", "--name=first", "--net-alias=foo1", "--net-alias=foo2", "busybox", "top")
 	c.Assert(waitRun("first"), check.IsNil)
 
-	dockerCmd(c, "run", "-d", "--net=net1", "--name=second", "busybox", "top")
+	// Check if default short-id alias is added automatically
+	id := strings.TrimSpace(cid1)
+	aliases := inspectField(c, id, "NetworkSettings.Networks.net1.Aliases")
+	c.Assert(aliases, checker.Contains, stringid.TruncateID(id))
+
+	cid2, _ := dockerCmd(c, "run", "-d", "--net=net1", "--name=second", "busybox", "top")
 	c.Assert(waitRun("second"), check.IsNil)
+
+	// Check if default short-id alias is added automatically
+	id = strings.TrimSpace(cid2)
+	aliases = inspectField(c, id, "NetworkSettings.Networks.net1.Aliases")
+	c.Assert(aliases, checker.Contains, stringid.TruncateID(id))
 
 	// ping to first and its network-scoped aliases
 	_, _, err := dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
@@ -297,6 +308,9 @@ func (s *DockerSuite) TestUserDefinedNetworkAlias(c *check.C) {
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo1")
 	c.Assert(err, check.IsNil)
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo2")
+	c.Assert(err, check.IsNil)
+	// ping first container's short-id alias
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", stringid.TruncateID(cid1))
 	c.Assert(err, check.IsNil)
 
 	// Restart first container
@@ -309,6 +323,9 @@ func (s *DockerSuite) TestUserDefinedNetworkAlias(c *check.C) {
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo1")
 	c.Assert(err, check.IsNil)
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo2")
+	c.Assert(err, check.IsNil)
+	// ping first container's short-id alias
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", stringid.TruncateID(cid1))
 	c.Assert(err, check.IsNil)
 }
 
