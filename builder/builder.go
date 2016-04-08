@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
@@ -109,7 +110,7 @@ type Backend interface {
 	// GetImageOnBuild looks up a Docker image referenced by `name`.
 	GetImageOnBuild(name string) (Image, error)
 	// TagImage tags an image with newTag
-	TagImage(newTag reference.Named, imageName string) error
+	TagImageWithReference(image.ID, reference.Named) error
 	// PullOnBuild tells Docker to pull image referenced by `name`.
 	PullOnBuild(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer) (Image, error)
 	// ContainerAttachRaw attaches to container.

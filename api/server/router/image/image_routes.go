@@ -3,20 +3,17 @@ package image
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 
-	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	"golang.org/x/net/context"
@@ -89,46 +86,26 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 	w.Header().Set("Content-Type", "application/json")
 
 	if image != "" { //pull
-		// Special case: "pull -a" may send an image name with a
-		// trailing :. This is ugly, but let's not break API
-		// compatibility.
-		image = strings.TrimSuffix(image, ":")
-
-		var ref reference.Named
-		ref, err = reference.ParseNamed(image)
-		if err == nil {
-			if tag != "" {
-				// The "tag" could actually be a digest.
-				var dgst digest.Digest
-				dgst, err = digest.ParseDigest(tag)
-				if err == nil {
-					ref, err = reference.WithDigest(ref, dgst)
-				} else {
-					ref, err = reference.WithTag(ref, tag)
-				}
-			}
-			if err == nil {
-				metaHeaders := map[string][]string{}
-				for k, v := range r.Header {
-					if strings.HasPrefix(k, "X-Meta-") {
-						metaHeaders[k] = v
-					}
-				}
-
-				authEncoded := r.Header.Get("X-Registry-Auth")
-				authConfig := &types.AuthConfig{}
-				if authEncoded != "" {
-					authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
-					if err := json.NewDecoder(authJSON).Decode(authConfig); err != nil {
-						// for a pull it is not an error if no auth was given
-						// to increase compatibility with the existing api it is defaulting to be empty
-						authConfig = &types.AuthConfig{}
-					}
-				}
-
-				err = s.backend.PullImage(ctx, ref, metaHeaders, authConfig, output)
+		metaHeaders := map[string][]string{}
+		for k, v := range r.Header {
+			if strings.HasPrefix(k, "X-Meta-") {
+				metaHeaders[k] = v
 			}
 		}
+
+		authEncoded := r.Header.Get("X-Registry-Auth")
+		authConfig := &types.AuthConfig{}
+		if authEncoded != "" {
+			authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
+			if err := json.NewDecoder(authJSON).Decode(authConfig); err != nil {
+				// for a pull it is not an error if no auth was given
+				// to increase compatibility with the existing api it is defaulting to be empty
+				authConfig = &types.AuthConfig{}
+			}
+		}
+
+		err = s.backend.PullImage(ctx, image, tag, metaHeaders, authConfig, output)
+
 		// Check the error from pulling an image to make sure the request
 		// was authorized. Modify the status if the request was
 		// unauthorized to respond with 401 rather than 500.
@@ -136,31 +113,11 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 			err = errcode.ErrorCodeUnauthorized.WithMessage(fmt.Sprintf("Authentication is required: %s", err))
 		}
 	} else { //import
-		var newRef reference.Named
-		if repo != "" {
-			var err error
-			newRef, err = reference.ParseNamed(repo)
-			if err != nil {
-				return err
-			}
-
-			if _, isCanonical := newRef.(reference.Canonical); isCanonical {
-				return errors.New("cannot import digest reference")
-			}
-
-			if tag != "" {
-				newRef, err = reference.WithTag(newRef, tag)
-				if err != nil {
-					return err
-				}
-			}
-		}
-
 		src := r.Form.Get("fromSrc")
 		// 'err' MUST NOT be defined within this block, we need any error
 		// generated from the download to be available to the output
 		// stream processing below
-		err = s.backend.ImportImage(src, newRef, message, r.Body, output, r.Form["changes"])
+		err = s.backend.ImportImage(src, repo, tag, message, r.Body, output, r.Form["changes"])
 	}
 	if err != nil {
 		if !output.Flushed() {
@@ -200,25 +157,15 @@ func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter,
 		}
 	}
 
-	ref, err := reference.ParseNamed(vars["name"])
-	if err != nil {
-		return err
-	}
+	image := vars["name"]
 	tag := r.Form.Get("tag")
-	if tag != "" {
-		// Push by digest is not supported, so only tags are supported.
-		ref, err = reference.WithTag(ref, tag)
-		if err != nil {
-			return err
-		}
-	}
 
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
 
 	w.Header().Set("Content-Type", "application/json")
 
-	if err := s.backend.PushImage(ctx, ref, metaHeaders, authConfig, output); err != nil {
+	if err := s.backend.PushImage(ctx, image, tag, metaHeaders, authConfig, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -322,18 +269,7 @@ func (s *imageRouter) postImagesTag(ctx context.Context, w http.ResponseWriter, 
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	repo := r.Form.Get("repo")
-	tag := r.Form.Get("tag")
-	newTag, err := reference.WithName(repo)
-	if err != nil {
-		return err
-	}
-	if tag != "" {
-		if newTag, err = reference.WithTag(newTag, tag); err != nil {
-			return err
-		}
-	}
-	if err := s.backend.TagImage(newTag, vars["name"]); err != nil {
+	if err := s.backend.TagImage(vars["name"], r.Form.Get("repo"), r.Form.Get("tag")); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusCreated)

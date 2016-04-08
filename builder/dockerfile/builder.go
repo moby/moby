@@ -12,6 +12,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
@@ -256,8 +257,9 @@ func (b *Builder) build(config *types.ImageBuildOptions, context builder.Context
 		return "", fmt.Errorf("No image was generated. Is your Dockerfile empty?")
 	}
 
+	imageID := image.ID(b.image)
 	for _, rt := range repoAndTags {
-		if err := b.docker.TagImage(rt, b.image); err != nil {
+		if err := b.docker.TagImageWithReference(imageID, rt); err != nil {
 			return "", err
 		}
 	}
