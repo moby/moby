@@ -15,6 +15,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unsafe"
 
 	"github.com/Microsoft/go-winio"
 	"github.com/Microsoft/go-winio/archive/tar"
@@ -27,6 +28,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/longpath"
+	"github.com/docker/docker/pkg/system"
 	"github.com/vbatts/tar-split/tar/storage"
 )
 
@@ -50,6 +52,10 @@ type Driver struct {
 }
 
 var _ graphdriver.DiffGetterDriver = &Driver{}
+
+func isTP5OrOlder() bool {
+	return system.GetOSVersion().Build <= 14300
+}
 
 // InitFilter returns a new Windows storage filter driver.
 func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
@@ -158,6 +164,30 @@ func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt
 		if len(layerChain) != 0 {
 			parentPath = layerChain[0]
 		}
+
+		if isTP5OrOlder() {
+			// Pre-create the layer directory, providing an ACL to give the Hyper-V Virtual Machines
+			// group access. This is necessary to ensure that Hyper-V containers can access the
+			// virtual machine data. This is not necessary post-TP5.
+			path, err := syscall.UTF16FromString(filepath.Join(d.info.HomeDir, id))
+			if err != nil {
+				return err
+			}
+			// Give system and administrators full control, and VMs read, write, and execute.
+			// Mark these ACEs as inherited.
+			sd, err := winio.SddlToSecurityDescriptor("D:(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FRFWFX;;;S-1-5-83-0)")
+			if err != nil {
+				return err
+			}
+			err = syscall.CreateDirectory(&path[0], &syscall.SecurityAttributes{
+				Length:             uint32(unsafe.Sizeof(syscall.SecurityAttributes{})),
+				SecurityDescriptor: uintptr(unsafe.Pointer(&sd[0])),
+			})
+			if err != nil {
+				return err
+			}
+		}
+
 		if err := hcsshim.CreateSandboxLayer(d.info, id, parentPath, layerChain); err != nil {
 			return err
 		}
@@ -578,6 +608,24 @@ func writeLayerFromTar(r archive.Reader, w hcsshim.LayerWriter) (int64, error) {
 				return 0, err
 			}
 			buf.Reset(w)
+
+			// Add the Hyper-V Virutal Machine group ACE to the security descriptor
+			// for TP5 so that Xenons can access all files. This is not necessary
+			// for post-TP5 builds.
+			if isTP5OrOlder() {
+				if sddl, ok := hdr.Winheaders["sd"]; ok {
+					var ace string
+					if hdr.Typeflag == tar.TypeDir {
+						ace = "(A;OICI;0x1200a9;;;S-1-5-83-0)"
+					} else {
+						ace = "(A;;0x1200a9;;;S-1-5-83-0)"
+					}
+					if hdr.Winheaders["sd"], ok = addAceToSddlDacl(sddl, ace); !ok {
+						logrus.Debugf("failed to add VM ACE to %s", sddl)
+					}
+				}
+			}
+
 			hdr, err = backuptar.WriteBackupStreamFromTarFile(buf, t, hdr)
 			ferr := buf.Flush()
 			if ferr != nil {
@@ -590,6 +638,46 @@ func writeLayerFromTar(r archive.Reader, w hcsshim.LayerWriter) (int64, error) {
 		return 0, err
 	}
 	return totalSize, nil
+}
+
+func addAceToSddlDacl(sddl, ace string) (string, bool) {
+	daclStart := strings.Index(sddl, "D:")
+	if daclStart < 0 {
+		return sddl, false
+	}
+
+	dacl := sddl[daclStart:]
+	daclEnd := strings.Index(dacl, "S:")
+	if daclEnd < 0 {
+		daclEnd = len(dacl)
+	}
+	dacl = dacl[:daclEnd]
+
+	if strings.Contains(dacl, ace) {
+		return sddl, true
+	}
+
+	i := 2
+	for i+1 < len(dacl) {
+		if dacl[i] != '(' {
+			return sddl, false
+		}
+
+		if dacl[i+1] == 'A' {
+			break
+		}
+
+		i += 2
+		for p := 1; i < len(dacl) && p > 0; i++ {
+			if dacl[i] == '(' {
+				p++
+			} else if dacl[i] == ')' {
+				p--
+			}
+		}
+	}
+
+	return sddl[:daclStart+i] + ace + sddl[daclStart+i:], true
 }
 
 // importLayer adds a new layer to the tag and graph store based on the given data.
