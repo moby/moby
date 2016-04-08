@@ -70,6 +70,7 @@ func TestNetworkMarshalling(t *testing.T) {
 		persist:     true,
 		ipamOptions: map[string]string{
 			netlabel.MacAddress: "a:b:c:d:e:f",
+			"primary":           "",
 		},
 		ipamV4Config: []*IpamConf{
 			{
@@ -153,6 +154,10 @@ func TestNetworkMarshalling(t *testing.T) {
 				},
 			},
 		},
+		labels: map[string]string{
+			"color":        "blue",
+			"superimposed": "",
+		},
 	}
 
 	b, err := json.Marshal(n)
@@ -170,7 +175,9 @@ func TestNetworkMarshalling(t *testing.T) {
 		n.addrSpace != nn.addrSpace || n.enableIPv6 != nn.enableIPv6 ||
 		n.persist != nn.persist || !compareIpamConfList(n.ipamV4Config, nn.ipamV4Config) ||
 		!compareIpamInfoList(n.ipamV4Info, nn.ipamV4Info) || !compareIpamConfList(n.ipamV6Config, nn.ipamV6Config) ||
-		!compareIpamInfoList(n.ipamV6Info, nn.ipamV6Info) {
+		!compareIpamInfoList(n.ipamV6Info, nn.ipamV6Info) ||
+		!compareStringMaps(n.ipamOptions, nn.ipamOptions) ||
+		!compareStringMaps(n.labels, nn.labels) {
 		t.Fatalf("JSON marsh/unmarsh failed."+
 			"\nOriginal:\n%#v\nDecoded:\n%#v"+
 			"\nOriginal ipamV4Conf: %#v\n\nDecoded ipamV4Conf: %#v"+
