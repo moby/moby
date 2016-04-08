@@ -159,7 +159,7 @@ func (l *splunkLogger) Log(msg *logger.Message) error {
 	message := *l.nullMessage
 	message.Time = fmt.Sprintf("%f", float64(msg.Timestamp.UnixNano())/1000000000)
 	message.Event.Line = string(msg.Line)
-	message.Event.Origin = msg.Origin
+	message.Event.Origin = msg.Source
 
 	jsonEvent, err := json.Marshal(&message)
 	if err != nil {
