@@ -1174,8 +1174,9 @@ To use these, simply pass them on the command line using the `--build-arg
 `ARG` variables are not persisted into the built image as `ENV` variables are.
 However, `ARG` variables do impact the build cache in similar ways. If a
 Dockerfile defines an `ARG` variable whose value is different from a previous
-build, then a "cache miss" occurs upon first use of the `ARG` variable. The
-declaration of the `ARG` variable does not count as a use.
+build, then a "cache miss" occurs upon its first usage, not its definition. In
+particular, all `RUN` instructions following an `ARG` instruction use the `ARG`
+variable implicitly (as an environment variable), thus can cause a cache miss.
 
 For example, consider these two Dockerfile:
 
