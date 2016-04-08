@@ -13,6 +13,7 @@ import (
 	"unicode"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	engineEvents "github.com/docker/engine-api/types/events"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
 )
@@ -63,7 +64,7 @@ func (s *DockerSuite) TestEventsOOMDisableFalse(c *check.C) {
 		c.Fatal("Timeout waiting for container to die on OOM")
 	}
 
-	out, _ := dockerCmd(c, "events", "--since=0", "-f", "container=oomFalse", "--until", daemonUnixTime(c))
+	out, _ := dockerCmd(c, "events", "--since=0", "-f", engineEvents.ContainerEventKey+"=oomFalse", "--until", daemonUnixTime(c))
 	events := strings.Split(strings.TrimSuffix(out, "\n"), "\n")
 	nEvents := len(events)
 
@@ -131,7 +132,7 @@ func (s *DockerSuite) TestEventsContainerFilterByName(c *check.C) {
 	cOut, _ = dockerCmd(c, "run", "--name=bar", "-d", "busybox", "top")
 	c2 := strings.TrimSpace(cOut)
 	waitRun("bar")
-	out, _ := dockerCmd(c, "events", "-f", "container=foo", "--since=0", "--until", daemonUnixTime(c))
+	out, _ := dockerCmd(c, "events", "-f", "-f", engineEvents.ContainerEventKey+"=foo", "--since=0", "--until", daemonUnixTime(c))
 	c.Assert(out, checker.Contains, c1, check.Commentf(out))
 	c.Assert(out, checker.Not(checker.Contains), c2, check.Commentf(out))
 }
@@ -159,7 +160,7 @@ func (s *DockerSuite) TestEventsContainerFilterBeforeCreate(c *check.C) {
 		// make sure the new container shows up even when
 		// the event stream was created before the container.
 		t := daemonTime(c).Add(2 * duration)
-		out, _ = dockerCmd(c, "events", "-f", "container=foo", "--since=0", "--until", parseEventTime(t))
+		out, _ = dockerCmd(c, "events", "-f", engineEvents.ContainerEventKey+"=foo", "--since=0", "--until", parseEventTime(t))
 		close(ch)
 	}()
 	// Sleep 2 second to wait docker event to start
@@ -217,7 +218,7 @@ func (s *DockerSuite) TestNetworkEvents(c *check.C) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	c.Assert(len(events), checker.GreaterThan, 4)
 
-	netEvents := eventActionsByIDAndType(c, events, "test-event-network-local", "network")
+	netEvents := eventActionsByIDAndType(c, events, "test-event-network-local", engineEvents.NetworkEventType)
 	c.Assert(netEvents, checker.HasLen, 4)
 	c.Assert(netEvents[0], checker.Equals, "create")
 	c.Assert(netEvents[1], checker.Equals, "connect")
@@ -332,8 +333,8 @@ func (s *DockerSuite) TestEventsFilterVolumeAndNetworkType(c *check.C) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	c.Assert(len(events), checker.GreaterOrEqualThan, 2, check.Commentf(out))
 
-	networkActions := eventActionsByIDAndType(c, events, "test-event-network-type", "network")
-	volumeActions := eventActionsByIDAndType(c, events, "test-event-volume-type", "volume")
+	networkActions := eventActionsByIDAndType(c, events, "test-event-network-type", engineEvents.NetworkEventType)
+	volumeActions := eventActionsByIDAndType(c, events, "test-event-volume-type", engineEvents.VolumeEventType)
 
 	c.Assert(volumeActions[0], checker.Equals, "create")
 	c.Assert(networkActions[0], checker.Equals, "create")
@@ -345,7 +346,7 @@ func (s *DockerSuite) TestEventsFilterVolumeID(c *check.C) {
 	since := daemonUnixTime(c)
 
 	dockerCmd(c, "volume", "create", "--name", "test-event-volume-id")
-	out, _ := dockerCmd(c, "events", "--filter", "volume=test-event-volume-id", "--since", since, "--until", daemonUnixTime(c))
+	out, _ := dockerCmd(c, "events", "--filter", engineEvents.VolumeEventKey+"=test-event-volume-id", "--since", since, "--until", daemonUnixTime(c))
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	c.Assert(events, checker.HasLen, 1)
 
@@ -359,7 +360,7 @@ func (s *DockerSuite) TestEventsFilterNetworkID(c *check.C) {
 	since := daemonUnixTime(c)
 
 	dockerCmd(c, "network", "create", "test-event-network-local")
-	out, _ := dockerCmd(c, "events", "--filter", "network=test-event-network-local", "--since", since, "--until", daemonUnixTime(c))
+	out, _ := dockerCmd(c, "events", "--filter", engineEvents.NetworkEventKey+"=test-event-network-local", "--since", since, "--until", daemonUnixTime(c))
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	c.Assert(events, checker.HasLen, 1)
 

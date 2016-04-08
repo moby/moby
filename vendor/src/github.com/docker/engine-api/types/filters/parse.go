@@ -211,7 +211,7 @@ func (filters Args) ExactMatch(field, source string) bool {
 	fieldValues, ok := filters.fields[field]
 	//do not filter if there is no filter set or cannot determine filter
 	if !ok || len(fieldValues) == 0 {
-		return true
+		return false
 	}
 
 	// try to match full name value to avoid O(N) regular expression matching
