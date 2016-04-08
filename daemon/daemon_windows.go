@@ -388,7 +388,7 @@ func restoreCustomImage(is image.Store, ls layer.Store, rs reference.Store) erro
 
 		id, err := is.Create(config)
 		if err != nil {
-			logrus.Warnf("Failed to restore custom image %s with error: %s.", name, err.Error)
+			logrus.Warnf("Failed to restore custom image %s with error: %s.", name, err)
 			logrus.Warnf("Skipping image %s...", name)
 			continue
 		}
