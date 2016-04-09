@@ -3,7 +3,6 @@ package remote
 import (
 	"fmt"
 	"net"
-	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/plugins"
@@ -12,10 +11,6 @@ import (
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/docker/libnetwork/types"
-)
-
-const (
-	missingMethod = "404 page not found"
 )
 
 type driver struct {
@@ -260,7 +255,7 @@ func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string
 		Options:    options,
 	}
 	err := d.call("ProgramExternalConnectivity", data, &api.ProgramExternalConnectivityResponse{})
-	if err != nil && strings.Contains(err.Error(), missingMethod) {
+	if err != nil && plugins.IsNotFound(err) {
 		// It is not mandatory yet to support this method
 		return nil
 	}
@@ -274,7 +269,7 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 		EndpointID: eid,
 	}
 	err := d.call("RevokeExternalConnectivity", data, &api.RevokeExternalConnectivityResponse{})
-	if err != nil && strings.Contains(err.Error(), missingMethod) {
+	if err != nil && plugins.IsNotFound(err) {
 		// It is not mandatory yet to support this method
 		return nil
 	}
