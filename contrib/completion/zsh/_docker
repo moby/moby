@@ -138,6 +138,17 @@ __docker_containers_names() {
     __docker_get_containers all names "$@"
 }
 
+__docker_plugins() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+    emulate -L zsh
+    setopt extendedglob
+    local -a plugins
+    plugins=(${(ps: :)${(M)${(f)${${"$(_call_program commands docker $docker_options info)"##*$'\n'Plugins:}%%$'\n'^ *}}:# $1: *}## $1: })
+    _describe -t plugins "$1 plugins" plugins && ret=0
+    return ret
+}
+
 __docker_images() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
@@ -427,6 +438,34 @@ __docker_network_subcommand() {
     return ret
 }
 
+__docker_volume_complete_ls_filters() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+
+    if compset -P '*='; then
+        case "${${words[-1]%=*}#*=}" in
+            (dangling)
+                dangling_opts=('true' 'false')
+                _describe -t dangling-filter-opts "Dangling Filter Options" dangling_opts && ret=0
+                ;;
+            (driver)
+                __docker_plugins Volume && ret=0
+                ;;
+            (name)
+                __docker_volumes && ret=0
+                ;;
+            *)
+                _message 'value' && ret=0
+                ;;
+        esac
+    else
+        opts=('dangling' 'driver' 'name')
+        _describe -t filter-opts "Filter Options" opts -qS "=" && ret=0
+    fi
+
+    return ret
+}
+
 __docker_volumes() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
@@ -495,8 +534,13 @@ __docker_volume_subcommand() {
         (ls)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)*"{-f=,--filter=}"[Provide filter values (i.e. 'dangling=true')]:filter: " \
+                "($help)*"{-f=,--filter=}"[Provide filter values]:filter:->filter-options" \
                 "($help -q --quiet)"{-q,--quiet}"[Only display volume names]" && ret=0
+            case $state in
+                (filter-options)
+                    __docker_volume_complete_ls_filters && ret=0
+                    ;;
+            esac
             ;;
         (rm)
             _arguments $(__docker_arguments) \
