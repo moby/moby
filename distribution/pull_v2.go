@@ -628,9 +628,7 @@ func (p *v2Puller) pullManifestList(ctx context.Context, ref reference.Named, mf
 		// TODO(aaronl): The manifest list spec supports optional
 		// "features" and "variant" fields. These are not yet used.
 		// Once they are, their values should be interpreted here.
-		// TODO(jstarks): Once os.version and os.features are present,
-		// pass these, too.
-		if image.ValidateOSCompatibility(manifestDescriptor.Platform.OS, manifestDescriptor.Platform.Architecture, "", nil) == nil {
+		if manifestDescriptor.Platform.Architecture == runtime.GOARCH && manifestDescriptor.Platform.OS == runtime.GOOS {
 			manifestDigest = manifestDescriptor.Digest
 			break
 		}
