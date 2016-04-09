@@ -194,6 +194,12 @@ func (a *Driver) Exists(id string) bool {
 	return true
 }
 
+// CreateReadWrite creates a layer that is writable for use as a container
+// file system.
+func (a *Driver) CreateReadWrite(id, parent, mountLabel string, storageOpt map[string]string) error {
+	return a.Create(id, parent, mountLabel, storageOpt)
+}
+
 // Create three folders for each id
 // mnt, layers, and diff
 func (a *Driver) Create(id, parent, mountLabel string, storageOpt map[string]string) error {

@@ -54,6 +54,22 @@ func (d *graphDriverProxy) String() string {
 	return d.name
 }
 
+func (d *graphDriverProxy) CreateReadWrite(id, parent, mountLabel string, storageOpt map[string]string) error {
+	args := &graphDriverRequest{
+		ID:         id,
+		Parent:     parent,
+		MountLabel: mountLabel,
+	}
+	var ret graphDriverResponse
+	if err := d.client.Call("GraphDriver.CreateReadWrite", args, &ret); err != nil {
+		return err
+	}
+	if ret.Err != "" {
+		return errors.New(ret.Err)
+	}
+	return nil
+}
+
 func (d *graphDriverProxy) Create(id, parent, mountLabel string, storageOpt map[string]string) error {
 	args := &graphDriverRequest{
 		ID:         id,

@@ -215,7 +215,7 @@ func createBase(t *testing.T, driver graphdriver.Driver, name string) {
 	oldmask := syscall.Umask(0)
 	defer syscall.Umask(oldmask)
 
-	if err := driver.Create(name, "", "", nil); err != nil {
+	if err := driver.CreateReadWrite(name, "", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
