@@ -477,6 +477,10 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) error {
 					ep.Name(), ep.ID(), err)
 			}
 		}
+
+		if sb.resolver != nil {
+			sb.resolver.FlushExtServers()
+		}
 	}
 
 	if !sb.needDefaultGW() {
