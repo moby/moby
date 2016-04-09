@@ -20,7 +20,7 @@ func GenerateRandomAlphaOnlyString(n int) string {
 	return string(b)
 }
 
-// GenerateRandomASCIIString generates an ASCII random stirng with length n.
+// GenerateRandomASCIIString generates an ASCII random string with length n.
 func GenerateRandomASCIIString(n int) string {
 	chars := "abcdefghijklmnopqrstuvwxyz" +
 		"ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
@@ -74,7 +74,7 @@ func quote(word string, buf *bytes.Buffer) {
 }
 
 // ShellQuoteArguments takes a list of strings and escapes them so they will be
-// handled right when passed as arguments to an program via a shell
+// handled right when passed as arguments to a program via a shell
 func ShellQuoteArguments(args []string) string {
 	var buf bytes.Buffer
 	for i, arg := range args {
