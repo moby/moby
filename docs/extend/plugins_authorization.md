@@ -149,7 +149,7 @@ should implement the following two methods:
     "User":              "The user identification",
     "UserAuthNMethod":   "The authentication method used",
     "RequestMethod":     "The HTTP method",
-    "RequestUri":        "The HTTP request URI",
+    "RequestURI":        "The HTTP request URI",
     "RequestBody":       "Byte array containing the raw HTTP request body",
     "RequestHeader":     "Byte array containing the raw HTTP request header as a map[string][]string ",
     "RequestStatusCode": "Request status code"
@@ -174,7 +174,7 @@ should implement the following two methods:
     "User":              "The user identification",
     "UserAuthNMethod":   "The authentication method used",
     "RequestMethod":     "The HTTP method",
-    "RequestUri":        "The HTTP request URI",
+    "RequestURI":        "The HTTP request URI",
     "RequestBody":       "Byte array containing the raw HTTP request body",
     "RequestHeader":     "Byte array containing the raw HTTP request header as a map[string][]string",
     "RequestStatusCode": "Request status code",
