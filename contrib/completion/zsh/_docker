@@ -216,7 +216,7 @@ __docker_get_log_options() {
     gelf_options=("env" "gelf-address" "gelf-compression-level" "gelf-compression-type" "labels" "tag")
     journald_options=("env" "labels" "tag")
     json_file_options=("env" "labels" "max-file" "max-size")
-    syslog_options=("syslog-address" "syslog-tls-ca-cert" "syslog-tls-cert" "syslog-tls-key" "syslog-tls-skip-verify" "syslog-facility" "tag")
+    syslog_options=("syslog-address" "syslog-format" "syslog-tls-ca-cert" "syslog-tls-cert" "syslog-tls-key" "syslog-tls-skip-verify" "syslog-facility" "tag")
     splunk_options=("env" "labels" "splunk-caname" "splunk-capath" "splunk-index" "splunk-insecureskipverify" "splunk-source" "splunk-sourcetype" "splunk-token" "splunk-url" "tag")
 
     [[ $log_driver = (awslogs|all) ]] && _describe -t awslogs-options "awslogs options" awslogs_options "$@" && ret=0
@@ -236,7 +236,15 @@ __docker_log_options() {
     integer ret=1
 
     if compset -P '*='; then
-        _message 'value' && ret=0
+        case "${${words[-1]%=*}#*=}" in
+            (syslog-format)
+                syslog_format_opts=('rfc3164' 'rfc5424')
+                _describe -t syslog-format-opts "Syslog format Options" syslog_format_opts && ret=0
+                ;;
+            *)
+                _message 'value' && ret=0
+                ;;
+        esac
     else
         __docker_get_log_options -qS "=" && ret=0
     fi
