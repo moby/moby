@@ -43,7 +43,7 @@ func (s *DockerSuite) TestPushUnprefixedRepo(c *check.C) {
 
 func testPushUntagged(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
-	expected := "Repository does not exist"
+	expected := "An image does not exist locally with the tag"
 
 	out, _, err := dockerCmdWithError("push", repoName)
 	c.Assert(err, check.NotNil, check.Commentf("pushing the image to the private registry should have failed: output %q", out))
