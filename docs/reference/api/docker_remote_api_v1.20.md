@@ -156,7 +156,7 @@ Create a container
            },
            "Volumes": {
              "/volumes/data": {}
-           }
+           },
            "WorkingDir": "",
            "NetworkDisabled": false,
            "MacAddress": "12:34:56:78:9a:bc",
@@ -193,7 +193,7 @@ Create a container
              "Devices": [],
              "Ulimits": [{}],
              "LogConfig": { "Type": "json-file", "Config": {} },
-             "SecurityOpt": [""],
+             "SecurityOpt": [],
              "CgroupParent": ""
           }
       }
