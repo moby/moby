@@ -238,7 +238,7 @@ __docker_log_options() {
     if compset -P '*='; then
         case "${${words[-1]%=*}#*=}" in
             (syslog-format)
-                syslog_format_opts=('rfc3164' 'rfc5424')
+                syslog_format_opts=('rfc3164' 'rfc5424' 'rfc5424micro')
                 _describe -t syslog-format-opts "Syslog format Options" syslog_format_opts && ret=0
                 ;;
             *)
