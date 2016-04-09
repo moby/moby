@@ -3,21 +3,20 @@
 package term
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/Azure/go-ansiterm/winterm"
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term/windows"
 )
 
 // State holds the console mode for the terminal.
 type State struct {
-	mode uint32
+	inMode, outMode     uint32
+	inHandle, outHandle syscall.Handle
 }
 
 // Winsize is used for window size.
@@ -28,17 +27,28 @@ type Winsize struct {
 	y      uint16
 }
 
+const (
+	// https://msdn.microsoft.com/en-us/library/windows/desktop/ms683167(v=vs.85).aspx
+	enableVirtualTerminalInput      = 0x0200
+	enableVirtualTerminalProcessing = 0x0004
+	disableNewlineAutoReturn        = 0x0008
+)
+
+// usingNativeConsole is true if we are using the Windows native console
+var usingNativeConsole bool
+
 // StdStreams returns the standard streams (stdin, stdout, stedrr).
 func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
 	switch {
 	case os.Getenv("ConEmuANSI") == "ON":
-		// The ConEmu shell emulates ANSI well by default.
-		return os.Stdin, os.Stdout, os.Stderr
+		// The ConEmu terminal emulates ANSI on output streams well.
+		return windows.ConEmuStreams()
 	case os.Getenv("MSYSTEM") != "":
 		// MSYS (mingw) does not emulate ANSI well.
 		return windows.ConsoleStreams()
 	default:
 		if useNativeConsole() {
+			usingNativeConsole = true
 			return os.Stdin, os.Stdout, os.Stderr
 		}
 		return windows.ConsoleStreams()
@@ -54,13 +64,24 @@ func useNativeConsole() bool {
 		return false
 	}
 
-	// Native console is not available major version 10
+	// Native console is not available before major version 10
 	if osv.MajorVersion < 10 {
 		return false
 	}
 
 	// Must have a late pre-release TP4 build of Windows Server 2016/Windows 10 TH2 or later
 	if osv.Build < 10578 {
+		return false
+	}
+
+	// Get the console modes. If this fails, we can't use the native console
+	state, err := getNativeConsole()
+	if err != nil {
+		return false
+	}
+
+	// Probe the console to see if it can be enabled.
+	if nil != probeNativeConsole(state) {
 		return false
 	}
 
@@ -72,30 +93,90 @@ func useNativeConsole() bool {
 		return false
 	}
 
-	// Get the handle to stdout
-	stdOutHandle, err := syscall.GetStdHandle(syscall.STD_OUTPUT_HANDLE)
-	if err != nil {
-		return false
-	}
-
-	// Get the console mode from the consoles stdout handle
-	var mode uint32
-	if err := syscall.GetConsoleMode(stdOutHandle, &mode); err != nil {
-		return false
-	}
-
-	// Legacy mode does not have native ANSI emulation.
-	// https://msdn.microsoft.com/en-us/library/windows/desktop/ms683167(v=vs.85).aspx
-	const enableVirtualTerminalProcessing = 0x0004
-	if mode&enableVirtualTerminalProcessing == 0 {
-		return false
-	}
-
-	// TODO Windows (Post TP4). The native emulator still has issues which
+	// TODO Windows. The native emulator still has issues which
 	// mean it shouldn't be enabled for everyone. Change this next line to true
 	// to change the default to "enable if available". In the meantime, users
 	// can still try it out by using USE_NATIVE_CONSOLE env variable.
 	return false
+}
+
+// getNativeConsole returns the console modes ('state') for the native Windows console
+func getNativeConsole() (State, error) {
+	var (
+		err   error
+		state State
+	)
+
+	// Get the handle to stdout
+	if state.outHandle, err = syscall.GetStdHandle(syscall.STD_OUTPUT_HANDLE); err != nil {
+		return state, err
+	}
+
+	// Get the console mode from the consoles stdout handle
+	if err = syscall.GetConsoleMode(state.outHandle, &state.outMode); err != nil {
+		return state, err
+	}
+
+	// Get the handle to stdin
+	if state.inHandle, err = syscall.GetStdHandle(syscall.STD_INPUT_HANDLE); err != nil {
+		return state, err
+	}
+
+	// Get the console mode from the consoles stdin handle
+	if err = syscall.GetConsoleMode(state.inHandle, &state.inMode); err != nil {
+		return state, err
+	}
+
+	return state, nil
+}
+
+// probeNativeConsole probes the console to determine if native can be supported,
+func probeNativeConsole(state State) error {
+	if err := winterm.SetConsoleMode(uintptr(state.outHandle), state.outMode|enableVirtualTerminalProcessing); err != nil {
+		return err
+	}
+	defer winterm.SetConsoleMode(uintptr(state.outHandle), state.outMode)
+
+	if err := winterm.SetConsoleMode(uintptr(state.inHandle), state.inMode|enableVirtualTerminalInput); err != nil {
+		return err
+	}
+	defer winterm.SetConsoleMode(uintptr(state.inHandle), state.inMode)
+
+	return nil
+}
+
+// enableNativeConsole turns on native console mode
+func enableNativeConsole(state State) error {
+	// First attempt both enableVirtualTerminalProcessing and disableNewlineAutoReturn
+	if err := winterm.SetConsoleMode(uintptr(state.outHandle),
+		state.outMode|(enableVirtualTerminalProcessing|disableNewlineAutoReturn)); err != nil {
+
+		// That may fail, so fallback to trying just enableVirtualTerminalProcessing
+		if err := winterm.SetConsoleMode(uintptr(state.outHandle), state.outMode|enableVirtualTerminalProcessing); err != nil {
+			return err
+		}
+	}
+
+	if err := winterm.SetConsoleMode(uintptr(state.inHandle), state.inMode|enableVirtualTerminalInput); err != nil {
+		winterm.SetConsoleMode(uintptr(state.outHandle), state.outMode) // restore out if we can
+		return err
+	}
+
+	return nil
+}
+
+// disableNativeConsole turns off native console mode
+func disableNativeConsole(state *State) error {
+	// Try and restore both in an out before error checking.
+	errout := winterm.SetConsoleMode(uintptr(state.outHandle), state.outMode)
+	errin := winterm.SetConsoleMode(uintptr(state.inHandle), state.inMode)
+	if errout != nil {
+		return errout
+	}
+	if errin != nil {
+		return errin
+	}
+	return nil
 }
 
 // GetFdInfo returns the file descriptor for an os.File and indicates whether the file represents a terminal.
@@ -105,7 +186,6 @@ func GetFdInfo(in interface{}) (uintptr, bool) {
 
 // GetWinsize returns the window size based on the specified file descriptor.
 func GetWinsize(fd uintptr) (*Winsize, error) {
-
 	info, err := winterm.GetConsoleScreenBufferInfo(fd)
 	if err != nil {
 		return nil, err
@@ -117,56 +197,7 @@ func GetWinsize(fd uintptr) (*Winsize, error) {
 		x:      0,
 		y:      0}
 
-	// Note: GetWinsize is called frequently -- uncomment only for excessive details
-	// logrus.Debugf("[windows] GetWinsize: Console(%v)", info.String())
-	// logrus.Debugf("[windows] GetWinsize: Width(%v), Height(%v), x(%v), y(%v)", winsize.Width, winsize.Height, winsize.x, winsize.y)
 	return winsize, nil
-}
-
-// SetWinsize tries to set the specified window size for the specified file descriptor.
-func SetWinsize(fd uintptr, ws *Winsize) error {
-
-	// Ensure the requested dimensions are no larger than the maximum window size
-	info, err := winterm.GetConsoleScreenBufferInfo(fd)
-	if err != nil {
-		return err
-	}
-
-	if ws.Width == 0 || ws.Height == 0 || ws.Width > uint16(info.MaximumWindowSize.X) || ws.Height > uint16(info.MaximumWindowSize.Y) {
-		return fmt.Errorf("Illegal window size: (%v,%v) -- Maximum allow: (%v,%v)",
-			ws.Width, ws.Height, info.MaximumWindowSize.X, info.MaximumWindowSize.Y)
-	}
-
-	// Narrow the sizes to that used by Windows
-	width := winterm.SHORT(ws.Width)
-	height := winterm.SHORT(ws.Height)
-
-	// Set the dimensions while ensuring they remain within the bounds of the backing console buffer
-	// -- Shrinking will always succeed. Growing may push the edges past the buffer boundary. When that occurs,
-	//    shift the upper left just enough to keep the new window within the buffer.
-	rect := info.Window
-	if width < rect.Right-rect.Left+1 {
-		rect.Right = rect.Left + width - 1
-	} else if width > rect.Right-rect.Left+1 {
-		rect.Right = rect.Left + width - 1
-		if rect.Right >= info.Size.X {
-			rect.Left = info.Size.X - width
-			rect.Right = info.Size.X - 1
-		}
-	}
-
-	if height < rect.Bottom-rect.Top+1 {
-		rect.Bottom = rect.Top + height - 1
-	} else if height > rect.Bottom-rect.Top+1 {
-		rect.Bottom = rect.Top + height - 1
-		if rect.Bottom >= info.Size.Y {
-			rect.Top = info.Size.Y - height
-			rect.Bottom = info.Size.Y - 1
-		}
-	}
-	logrus.Debugf("[windows] SetWinsize: Requested((%v,%v)) Actual(%v)", ws.Width, ws.Height, rect)
-
-	return winterm.SetConsoleWindowInfo(fd, true, rect)
 }
 
 // IsTerminal returns true if the given file descriptor is a terminal.
@@ -177,25 +208,36 @@ func IsTerminal(fd uintptr) bool {
 // RestoreTerminal restores the terminal connected to the given file descriptor
 // to a previous state.
 func RestoreTerminal(fd uintptr, state *State) error {
-	return winterm.SetConsoleMode(fd, state.mode)
+	if usingNativeConsole {
+		return disableNativeConsole(state)
+	}
+	return winterm.SetConsoleMode(fd, state.outMode)
 }
 
 // SaveState saves the state of the terminal connected to the given file descriptor.
 func SaveState(fd uintptr) (*State, error) {
+	if usingNativeConsole {
+		state, err := getNativeConsole()
+		if err != nil {
+			return nil, err
+		}
+		return &state, nil
+	}
+
 	mode, e := winterm.GetConsoleMode(fd)
 	if e != nil {
 		return nil, e
 	}
-	return &State{mode}, nil
+
+	return &State{outMode: mode}, nil
 }
 
 // DisableEcho disables echo for the terminal connected to the given file descriptor.
 // -- See https://msdn.microsoft.com/en-us/library/windows/desktop/ms683462(v=vs.85).aspx
 func DisableEcho(fd uintptr, state *State) error {
-	mode := state.mode
+	mode := state.inMode
 	mode &^= winterm.ENABLE_ECHO_INPUT
 	mode |= winterm.ENABLE_PROCESSED_INPUT | winterm.ENABLE_LINE_INPUT
-
 	err := winterm.SetConsoleMode(fd, mode)
 	if err != nil {
 		return err
@@ -227,10 +269,17 @@ func MakeRaw(fd uintptr) (*State, error) {
 		return nil, err
 	}
 
+	mode := state.inMode
+	if usingNativeConsole {
+		if err := enableNativeConsole(*state); err != nil {
+			return nil, err
+		}
+		mode |= enableVirtualTerminalInput
+	}
+
 	// See
 	// -- https://msdn.microsoft.com/en-us/library/windows/desktop/ms686033(v=vs.85).aspx
 	// -- https://msdn.microsoft.com/en-us/library/windows/desktop/ms683462(v=vs.85).aspx
-	mode := state.mode
 
 	// Disable these modes
 	mode &^= winterm.ENABLE_ECHO_INPUT

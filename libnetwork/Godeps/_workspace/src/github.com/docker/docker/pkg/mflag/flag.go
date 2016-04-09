@@ -1,4 +1,4 @@
-// Copyright 2014-2015 The Docker & Go Authors. All rights reserved.
+// Copyright 2014-2016 The Docker & Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -571,10 +571,7 @@ func (fs *FlagSet) PrintDefaults() {
 				format := "  -%s=%s"
 				fmt.Fprintf(writer, format, strings.Join(names, ", -"), val)
 			}
-			for i, line := range strings.Split(flag.Usage, "\n") {
-				if i != 0 {
-					line = "  " + line
-				}
+			for _, line := range strings.Split(flag.Usage, "\n") {
 				fmt.Fprintln(writer, "\t", line)
 			}
 		}
@@ -1166,7 +1163,7 @@ func (fs *FlagSet) ReportError(str string, withHelp bool) {
 			str += ".\nSee '" + os.Args[0] + " " + fs.Name() + " --help'"
 		}
 	}
-	fmt.Fprintf(fs.Out(), "docker: %s.\n", str)
+	fmt.Fprintf(fs.Out(), "%s: %s.\n", os.Args[0], str)
 }
 
 // Parsed reports whether fs.Parse has been called.
@@ -1226,11 +1223,27 @@ func (v mergeVal) IsBoolFlag() bool {
 	return false
 }
 
+// Name returns the name of a mergeVal.
+// If the original value had a name, return the original name,
+// otherwise, return the key asinged to this mergeVal.
+func (v mergeVal) Name() string {
+	type namedValue interface {
+		Name() string
+	}
+	if nVal, ok := v.Value.(namedValue); ok {
+		return nVal.Name()
+	}
+	return v.key
+}
+
 // Merge is an helper function that merges n FlagSets into a single dest FlagSet
 // In case of name collision between the flagsets it will apply
 // the destination FlagSet's errorHandling behavior.
 func Merge(dest *FlagSet, flagsets ...*FlagSet) error {
 	for _, fset := range flagsets {
+		if fset.formal == nil {
+			continue
+		}
 		for k, f := range fset.formal {
 			if _, ok := dest.formal[k]; ok {
 				var err error
@@ -1252,6 +1265,9 @@ func Merge(dest *FlagSet, flagsets ...*FlagSet) error {
 			}
 			newF := *f
 			newF.Value = mergeVal{f.Value, k, fset}
+			if dest.formal == nil {
+				dest.formal = make(map[string]*Flag)
+			}
 			dest.formal[k] = &newF
 		}
 	}
