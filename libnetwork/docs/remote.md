@@ -31,6 +31,8 @@ The remote driver protocol is a set of RPCs, issued as HTTP POSTs with JSON payl
 
 If the remote process cannot decode, or otherwise detects a syntactic problem with the HTTP request or payload, it must respond with an HTTP error status (4xx or 5xx).
 
+If the remote process http server receives a request for an unknown URI, it should respond with the HTTP StatusCode `404 Not Found`. This allows libnetwork to detect when a remote driver does not implement yet a newly added method, therefore not to deem the request as failed.
+
 If the remote process can decode the request, but cannot complete the operation, it must send a response in the form
 
     {
