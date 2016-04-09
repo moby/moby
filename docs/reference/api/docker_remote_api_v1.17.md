@@ -168,7 +168,7 @@ Create a container
                "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
                "NetworkMode": "bridge",
                "Devices": [],
-               "SecurityOpt": [""]
+               "SecurityOpt": []
             }
         }
 
