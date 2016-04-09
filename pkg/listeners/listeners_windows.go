@@ -7,13 +7,16 @@ import (
 	"strings"
 
 	"github.com/Microsoft/go-winio"
+	"github.com/docker/go-connections/sockets"
 )
 
 // Init creates new listeners for the server.
-func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) (ls []net.Listener, err error) {
+func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) ([]net.Listener, error) {
+	ls := []net.Listener{}
+
 	switch proto {
 	case "tcp":
-		l, err := initTCPSocket(addr, tlsConfig)
+		l, err := sockets.NewTCPSocket(addr, tlsConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -47,11 +50,5 @@ func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) (ls []net.List
 		return nil, fmt.Errorf("invalid protocol format: windows only supports tcp and npipe")
 	}
 
-	return
-}
-
-// allocateDaemonPort ensures that there are no containers
-// that try to use any port allocated for the docker server.
-func allocateDaemonPort(addr string) error {
-	return nil
+	return ls, nil
 }

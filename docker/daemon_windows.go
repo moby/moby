@@ -69,3 +69,7 @@ func (cli *DaemonCli) getPlatformRemoteOptions() []libcontainerd.RemoteOption {
 func (cli *DaemonCli) getLibcontainerdRoot() string {
 	return ""
 }
+
+func allocateDaemonPort(addr string) error {
+	return nil
+}
