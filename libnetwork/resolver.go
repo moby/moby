@@ -158,6 +158,10 @@ func (r *resolver) Start() error {
 
 func (r *resolver) FlushExtServers() {
 	for i := 0; i < maxExtDNS; i++ {
+		if r.extDNSList[i].extConn != nil {
+			r.extDNSList[i].extConn.Close()
+		}
+
 		r.extDNSList[i].extConn = nil
 		r.extDNSList[i].extOnce = sync.Once{}
 	}
