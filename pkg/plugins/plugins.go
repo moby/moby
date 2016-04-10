@@ -67,7 +67,7 @@ type Plugin struct {
 
 	// error produced by activation
 	activateErr error
-	// specifies if the activation sequence is completed (not if it is sucessful or not)
+	// specifies if the activation sequence is completed (not if it is successful or not)
 	activated bool
 	// wait for activation to finish
 	activateWait *sync.Cond

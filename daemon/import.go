@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -24,12 +25,32 @@ import (
 // inConfig (if src is "-"), or from a URI specified in src. Progress output is
 // written to outStream. Repository and tag names can optionally be given in
 // the repo and tag arguments, respectively.
-func (daemon *Daemon) ImportImage(src string, newRef reference.Named, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
+func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
 	var (
-		sf   = streamformatter.NewJSONStreamFormatter()
-		rc   io.ReadCloser
-		resp *http.Response
+		sf     = streamformatter.NewJSONStreamFormatter()
+		rc     io.ReadCloser
+		resp   *http.Response
+		newRef reference.Named
 	)
+
+	if repository != "" {
+		var err error
+		newRef, err = reference.ParseNamed(repository)
+		if err != nil {
+			return err
+		}
+
+		if _, isCanonical := newRef.(reference.Canonical); isCanonical {
+			return errors.New("cannot import digest reference")
+		}
+
+		if tag != "" {
+			newRef, err = reference.WithTag(newRef, tag)
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	config, err := dockerfile.BuildFromConfig(&container.Config{}, changes)
 	if err != nil {
@@ -103,7 +124,7 @@ func (daemon *Daemon) ImportImage(src string, newRef reference.Named, msg string
 
 	// FIXME: connect with commit code and call refstore directly
 	if newRef != nil {
-		if err := daemon.TagImage(newRef, id.String()); err != nil {
+		if err := daemon.TagImageWithReference(id, newRef); err != nil {
 			return err
 		}
 	}

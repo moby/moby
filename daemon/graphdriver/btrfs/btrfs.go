@@ -7,6 +7,10 @@ package btrfs
 #include <dirent.h>
 #include <btrfs/ioctl.h>
 #include <btrfs/ctree.h>
+
+static void set_name_btrfs_ioctl_vol_args_v2(struct btrfs_ioctl_vol_args_v2* btrfs_struct, const char* value) {
+    snprintf(btrfs_struct->name, BTRFS_SUBVOL_NAME_MAX, "%s", value);
+}
 */
 import "C"
 
@@ -159,9 +163,10 @@ func subvolSnapshot(src, dest, name string) error {
 
 	var args C.struct_btrfs_ioctl_vol_args_v2
 	args.fd = C.__s64(getDirFd(srcDir))
-	for i, c := range []byte(name) {
-		args.name[i] = C.char(c)
-	}
+
+	var cs = C.CString(name)
+	C.set_name_btrfs_ioctl_vol_args_v2(&args, cs)
+	C.free(unsafe.Pointer(cs))
 
 	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(destDir), C.BTRFS_IOC_SNAP_CREATE_V2,
 		uintptr(unsafe.Pointer(&args)))
@@ -239,6 +244,12 @@ func (d *Driver) subvolumesDir() string {
 
 func (d *Driver) subvolumesDirID(id string) string {
 	return path.Join(d.subvolumesDir(), id)
+}
+
+// CreateReadWrite creates a layer that is writable for use as a container
+// file system.
+func (d *Driver) CreateReadWrite(id, parent, mountLabel string, storageOpt map[string]string) error {
+	return d.Create(id, parent, mountLabel, storageOpt)
 }
 
 // Create the filesystem with given id.

@@ -19,6 +19,12 @@ func TestParseLogFormat(t *testing.T) {
 		t.Fatal("Failed to parse rfc5424 format", err, formatter, framer)
 	}
 
+	formatter, framer, err = parseLogFormat("rfc5424micro")
+	if err != nil || !functionMatches(rfc5424microformatterWithAppNameAsTag, formatter) ||
+		!functionMatches(syslog.RFC5425MessageLengthFramer, framer) {
+		t.Fatal("Failed to parse rfc5424 (microsecond) format", err, formatter, framer)
+	}
+
 	formatter, framer, err = parseLogFormat("rfc3164")
 	if err != nil || !functionMatches(syslog.RFC3164Formatter, formatter) ||
 		!functionMatches(syslog.DefaultFramer, framer) {

@@ -20,8 +20,9 @@ func detectBaseLayer(is image.Store, m *schema1.Manifest, rootFS *image.RootFS) 
 	}
 	// There must be an image that already references the baselayer.
 	for _, img := range is.Map() {
-		if img.RootFS.BaseLayerID() == v1img.Parent {
+		if img.RootFS.Type == image.TypeLayersWithBase && img.RootFS.BaseLayerID() == v1img.Parent {
 			rootFS.BaseLayer = img.RootFS.BaseLayer
+			rootFS.Type = image.TypeLayersWithBase
 			return nil
 		}
 	}

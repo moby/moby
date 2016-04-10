@@ -461,7 +461,7 @@ func (ls *layerStore) CreateRWLayer(name string, parent ChainID, mountLabel stri
 		m.initID = pid
 	}
 
-	if err = ls.driver.Create(m.mountID, pid, "", storageOpt); err != nil {
+	if err = ls.driver.CreateReadWrite(m.mountID, pid, "", storageOpt); err != nil {
 		return nil, err
 	}
 

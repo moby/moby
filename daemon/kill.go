@@ -3,6 +3,7 @@ package daemon
 import (
 	"fmt"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -81,7 +82,14 @@ func (daemon *Daemon) killWithSignal(container *container.Container, sig int) er
 	}
 
 	if err := daemon.kill(container, sig); err != nil {
-		return fmt.Errorf("Cannot kill container %s: %s", container.ID, err)
+		err = fmt.Errorf("Cannot kill container %s: %s", container.ID, err)
+		// if container or process not exists, ignore the error
+		if strings.Contains(err.Error(), "container not found") ||
+			strings.Contains(err.Error(), "no such process") {
+			logrus.Warnf("%s", err.Error())
+		} else {
+			return err
+		}
 	}
 
 	attributes := map[string]string{

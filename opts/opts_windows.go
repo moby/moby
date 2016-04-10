@@ -1,10 +1,10 @@
 package opts
 
-// TODO Windows. Identify bug in GOLang 1.5.1 and/or Windows Server 2016 TP4.
+// TODO Windows. Identify bug in GOLang 1.5.1+ and/or Windows Server 2016 TP5.
 // @jhowardmsft, @swernli.
 //
 // On Windows, this mitigates a problem with the default options of running
-// a docker client against a local docker daemon on TP4.
+// a docker client against a local docker daemon on TP5.
 //
 // What was found that if the default host is "localhost", even if the client
 // (and daemon as this is local) is not physically on a network, and the DNS
@@ -35,7 +35,7 @@ package opts
 // time="2015-11-06T13:38:38.326882500-08:00" level=info msg="POST /v1.22/containers/984758282b842f779e805664b2c95d563adc9a979c8a3973e68c807843ee4757/attach?stderr=1&stdin=1&stdout=1&stream=1"
 //
 // We suspect this is either a bug introduced in GOLang 1.5.1, or that a change
-// in GOLang 1.5.1 (from 1.4.3) is exposing a bug in Windows TP4. In theory,
+// in GOLang 1.5.1 (from 1.4.3) is exposing a bug in Windows. In theory,
 // the Windows networking stack is supposed to resolve "localhost" internally,
 // without hitting DNS, or even reading the hosts file (which is why localhost
 // is commented out in the hosts file on Windows).
@@ -44,12 +44,12 @@ package opts
 // address does not cause the delay.
 //
 // This does not occur with the docker client built with 1.4.3 on the same
-// Windows TP4 build, regardless of whether the daemon is built using 1.5.1
+// Windows build, regardless of whether the daemon is built using 1.5.1
 // or 1.4.3. It does not occur on Linux. We also verified we see the same thing
 // on a cross-compiled Windows binary (from Linux).
 //
 // Final note: This is a mitigation, not a 'real' fix. It is still susceptible
-// to the delay in TP4 if a user were to do 'docker run -H=tcp://localhost:2375...'
+// to the delay if a user were to do 'docker run -H=tcp://localhost:2375...'
 // explicitly.
 
 // DefaultHTTPHost Default HTTP Host used if only port is provided to -H flag e.g. docker daemon -H tcp://:8080

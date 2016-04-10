@@ -67,6 +67,7 @@ func (s *DockerExternalGraphdriverSuite) SetUpSuite(c *check.C) {
 		ID         string `json:",omitempty"`
 		Parent     string `json:",omitempty"`
 		MountLabel string `json:",omitempty"`
+		ReadOnly   bool   `json:",omitempty"`
 	}
 
 	type graphDriverResponse struct {
@@ -112,6 +113,20 @@ func (s *DockerExternalGraphdriverSuite) SetUpSuite(c *check.C) {
 
 	mux.HandleFunc("/GraphDriver.Init", func(w http.ResponseWriter, r *http.Request) {
 		s.ec.init++
+		respond(w, "{}")
+	})
+
+	mux.HandleFunc("/GraphDriver.CreateReadWrite", func(w http.ResponseWriter, r *http.Request) {
+		s.ec.creations++
+
+		var req graphDriverRequest
+		if err := decReq(r.Body, &req, w); err != nil {
+			return
+		}
+		if err := driver.CreateReadWrite(req.ID, req.Parent, "", nil); err != nil {
+			respond(w, err)
+			return
+		}
 		respond(w, "{}")
 	})
 

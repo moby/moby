@@ -2,10 +2,10 @@ package daemon
 
 import (
 	"fmt"
-	"strings"
 	"syscall"
 
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/libcontainerd/windowsoci"
@@ -89,9 +89,15 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 
 	// s.Windows.LayerPaths
 	var layerPaths []string
-	if img.RootFS != nil && img.RootFS.Type == "layers+base" {
+	if img.RootFS != nil && (img.RootFS.Type == image.TypeLayers || img.RootFS.Type == image.TypeLayersWithBase) {
+		// Get the layer path for each layer.
+		start := 1
+		if img.RootFS.Type == image.TypeLayersWithBase {
+			// Include an empty slice to get the base layer ID.
+			start = 0
+		}
 		max := len(img.RootFS.DiffIDs)
-		for i := 0; i <= max; i++ {
+		for i := start; i <= max; i++ {
 			img.RootFS.DiffIDs = img.RootFS.DiffIDs[:i]
 			path, err := layer.GetLayerPath(daemon.layerStore, img.RootFS.ChainID())
 			if err != nil {
@@ -103,7 +109,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 	}
 	s.Windows.LayerPaths = layerPaths
 
-	// In s.Windows.Networking (TP5+ libnetwork way of doing things)
+	// In s.Windows.Networking
 	// Connect all the libnetwork allocated networks to the container
 	var epList []string
 	if c.NetworkSettings != nil {
@@ -129,26 +135,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 	}
 	s.Windows.Networking = &windowsoci.Networking{
 		EndpointList: epList,
-	}
-
-	// In s.Windows.Networking (TP4 back compat)
-	// TODO Windows: Post TP4 - Remove this along with definitions from spec
-	// and changes to libcontainerd to not read these fields.
-	if daemon.netController == nil {
-		parts := strings.SplitN(string(c.HostConfig.NetworkMode), ":", 2)
-		switch parts[0] {
-		case "none":
-		case "default", "": // empty string to support existing containers
-			if !c.Config.NetworkDisabled {
-				s.Windows.Networking = &windowsoci.Networking{
-					MacAddress:   c.Config.MacAddress,
-					Bridge:       daemon.configStore.bridgeConfig.Iface,
-					PortBindings: c.HostConfig.PortBindings,
-				}
-			}
-		default:
-			return nil, fmt.Errorf("invalid network mode: %s", c.HostConfig.NetworkMode)
-		}
 	}
 
 	// In s.Windows.Resources

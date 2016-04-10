@@ -134,11 +134,11 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 	defer clnt.unlock(containerID)
 
 	if ctr, err := clnt.getContainer(containerID); err == nil {
-		if ctr.restarting { // docker doesn't actually call start if restart is on atm, but probably should in the future
+		if ctr.restarting {
 			ctr.restartManager.Cancel()
 			ctr.clean()
 		} else {
-			return fmt.Errorf("Container %s is aleady active", containerID)
+			return fmt.Errorf("Container %s is already active", containerID)
 		}
 	}
 
@@ -269,9 +269,10 @@ func (clnt *client) setExited(containerID string) error {
 	}
 
 	err := clnt.backend.StateChanged(containerID, StateInfo{
-		State:    StateExit,
-		ExitCode: exitCode,
-	})
+		CommonStateInfo: CommonStateInfo{
+			State:    StateExit,
+			ExitCode: exitCode,
+		}})
 
 	// Unmount and delete the bundle folder
 	if mts, err := mount.GetMounts(); err == nil {

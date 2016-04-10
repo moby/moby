@@ -355,6 +355,9 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		logrus.Warnf("Your kernel does not support memory soft limit capabilities. Limitation discarded.")
 		resources.MemoryReservation = 0
 	}
+	if resources.MemoryReservation > 0 && resources.MemoryReservation < linuxMinMemory {
+		return warnings, fmt.Errorf("Minimum memory reservation allowed is 4MB")
+	}
 	if resources.Memory > 0 && resources.MemoryReservation > 0 && resources.Memory < resources.MemoryReservation {
 		return warnings, fmt.Errorf("Minimum memory limit should be larger than memory reservation limit, see usage")
 	}
@@ -1098,6 +1101,11 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 			MaxUsage: mem.MaxUsage,
 			Stats:    cgs.MemoryStats.Stats,
 			Failcnt:  mem.Failcnt,
+			Limit:    mem.Limit,
+		}
+		// if the container does not set memory limit, use the machineMemory
+		if mem.Limit > daemon.statsCollector.machineMemory && daemon.statsCollector.machineMemory > 0 {
+			s.MemoryStats.Limit = daemon.statsCollector.machineMemory
 		}
 		if cgs.PidsStats != nil {
 			s.PidsStats = types.PidsStats{

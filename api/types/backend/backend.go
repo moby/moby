@@ -18,7 +18,7 @@ type ContainerAttachConfig struct {
 	UseStderr  bool
 	Logs       bool
 	Stream     bool
-	DetachKeys []byte
+	DetachKeys string
 
 	// Used to signify that streams are multiplexed and therefore need a StdWriter to encode stdout/sderr messages accordingly.
 	// TODO @cpuguy83: This shouldn't be needed. It was only added so that http and websocket endpoints can use the same function, and the websocket function was not using a stdwriter prior to this change...

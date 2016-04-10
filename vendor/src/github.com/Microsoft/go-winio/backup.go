@@ -26,8 +26,16 @@ const (
 	BackupReparseData
 	BackupSparseBlock
 	BackupTxfsData
+)
 
+const (
 	StreamSparseAttributes = uint32(8)
+)
+
+const (
+	WRITE_DAC              = 0x40000
+	WRITE_OWNER            = 0x80000
+	ACCESS_SYSTEM_SECURITY = 0x1000000
 )
 
 // BackupHeader represents a backup stream of a file.
@@ -238,4 +246,21 @@ func (w *BackupFileWriter) Close() error {
 		w.ctx = 0
 	}
 	return nil
+}
+
+// OpenForBackup opens a file or directory, potentially skipping access checks if the backup
+// or restore privileges have been acquired.
+//
+// If the file opened was a directory, it cannot be used with Readdir().
+func OpenForBackup(path string, access uint32, share uint32, createmode uint32) (*os.File, error) {
+	winPath, err := syscall.UTF16FromString(path)
+	if err != nil {
+		return nil, err
+	}
+	h, err := syscall.CreateFile(&winPath[0], access, share, nil, createmode, syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
+	if err != nil {
+		err = &os.PathError{Op: "open", Path: path, Err: err}
+		return nil, err
+	}
+	return os.NewFile(uintptr(h), path), nil
 }

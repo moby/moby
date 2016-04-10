@@ -1,6 +1,7 @@
 package hcsshim
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -14,9 +15,9 @@ import (
 // that into a layer with the id layerId.  Note that in order to correctly populate
 // the layer and interperet the transport format, all parent layers must already
 // be present on the system at the paths provided in parentLayerPaths.
-func ImportLayer(info DriverInfo, layerId string, importFolderPath string, parentLayerPaths []string) error {
+func ImportLayer(info DriverInfo, layerID string, importFolderPath string, parentLayerPaths []string) error {
 	title := "hcsshim::ImportLayer "
-	logrus.Debugf(title+"flavour %d layerId %s folder %s", info.Flavour, layerId, importFolderPath)
+	logrus.Debugf(title+"flavour %d layerId %s folder %s", info.Flavour, layerID, importFolderPath)
 
 	// Generate layer descriptors
 	layers, err := layerPathsToDescriptors(parentLayerPaths)
@@ -31,21 +32,29 @@ func ImportLayer(info DriverInfo, layerId string, importFolderPath string, paren
 		return err
 	}
 
-	err = importLayer(&infop, layerId, importFolderPath, layers)
+	err = importLayer(&infop, layerID, importFolderPath, layers)
 	if err != nil {
-		err = makeErrorf(err, title, "layerId=%s flavour=%d folder=%s", layerId, info.Flavour, importFolderPath)
+		err = makeErrorf(err, title, "layerId=%s flavour=%d folder=%s", layerID, info.Flavour, importFolderPath)
 		logrus.Error(err)
 		return err
 	}
 
-	logrus.Debugf(title+"succeeded flavour=%d layerId=%s folder=%s", info.Flavour, layerId, importFolderPath)
+	logrus.Debugf(title+"succeeded flavour=%d layerId=%s folder=%s", info.Flavour, layerID, importFolderPath)
 	return nil
 }
 
+// LayerWriter is an interface that supports writing a new container image layer.
 type LayerWriter interface {
+	// Add adds a file to the layer with given metadata.
 	Add(name string, fileInfo *winio.FileBasicInfo) error
+	// AddLink adds a hard link to the layer. The target must already have been added.
+	AddLink(name string, target string) error
+	// Remove removes a file that was present in a parent layer from the layer.
 	Remove(name string) error
+	// Write writes data to the current file. The data must be in the format of a Win32
+	// backup stream.
 	Write(b []byte) (int, error)
+	// Close finishes the layer writing process and releases any resources.
 	Close() error
 }
 
@@ -68,6 +77,11 @@ func (w *FilterLayerWriter) Add(name string, fileInfo *winio.FileBasicInfo) erro
 		return makeError(err, "ImportLayerNext", "")
 	}
 	return nil
+}
+
+// AddLink adds a hard link to the layer. The target of the link must have already been added.
+func (w *FilterLayerWriter) AddLink(name string, target string) error {
+	return errors.New("hard links not yet supported")
 }
 
 // Remove removes a file from the layer. The file must have been present in the parent layer.
@@ -108,21 +122,22 @@ func (w *FilterLayerWriter) Close() (err error) {
 }
 
 type legacyLayerWriterWrapper struct {
-	*LegacyLayerWriter
+	*legacyLayerWriter
 	info             DriverInfo
-	layerId          string
+	layerID          string
 	path             string
 	parentLayerPaths []string
 }
 
 func (r *legacyLayerWriterWrapper) Close() error {
-	err := r.LegacyLayerWriter.Close()
+	err := r.legacyLayerWriter.Close()
 	if err == nil {
+		var fullPath string
 		// Use the original path here because ImportLayer does not support long paths for the source in TP5.
 		// But do use a long path for the destination to work around another bug with directories
 		// with MAX_PATH - 12 < length < MAX_PATH.
 		info := r.info
-		fullPath, err := makeLongAbsPath(filepath.Join(info.HomeDir, r.layerId))
+		fullPath, err = makeLongAbsPath(filepath.Join(info.HomeDir, r.layerID))
 		if err == nil {
 			info.HomeDir = ""
 			err = ImportLayer(info, fullPath, r.path, r.parentLayerPaths)
@@ -133,7 +148,14 @@ func (r *legacyLayerWriterWrapper) Close() error {
 }
 
 // NewLayerWriter returns a new layer writer for creating a layer on disk.
-func NewLayerWriter(info DriverInfo, layerId string, parentLayerPaths []string) (LayerWriter, error) {
+func NewLayerWriter(info DriverInfo, layerID string, parentLayerPaths []string) (LayerWriter, error) {
+	if len(parentLayerPaths) == 0 {
+		// This is a base layer. It gets imported differently.
+		return &baseLayerWriter{
+			root: filepath.Join(info.HomeDir, layerID),
+		}, nil
+	}
+
 	if procImportLayerBegin.Find() != nil {
 		// The new layer reader is not available on this Windows build. Fall back to the
 		// legacy export code path.
@@ -142,9 +164,9 @@ func NewLayerWriter(info DriverInfo, layerId string, parentLayerPaths []string) 
 			return nil, err
 		}
 		return &legacyLayerWriterWrapper{
-			LegacyLayerWriter: NewLegacyLayerWriter(path),
+			legacyLayerWriter: newLegacyLayerWriter(path),
 			info:              info,
-			layerId:           layerId,
+			layerID:           layerID,
 			path:              path,
 			parentLayerPaths:  parentLayerPaths,
 		}, nil
@@ -160,7 +182,7 @@ func NewLayerWriter(info DriverInfo, layerId string, parentLayerPaths []string) 
 	}
 
 	w := &FilterLayerWriter{}
-	err = importLayerBegin(&infop, layerId, layers, &w.context)
+	err = importLayerBegin(&infop, layerID, layers, &w.context)
 	if err != nil {
 		return nil, makeError(err, "ImportLayerStart", "")
 	}

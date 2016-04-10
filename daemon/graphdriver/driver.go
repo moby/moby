@@ -46,6 +46,9 @@ type InitFunc func(root string, options []string, uidMaps, gidMaps []idtools.IDM
 type ProtoDriver interface {
 	// String returns a string representation of this driver.
 	String() string
+	// CreateReadWrite creates a new, empty filesystem layer that is ready
+	// to be used as the storage for a container.
+	CreateReadWrite(id, parent, mountLabel string, storageOpt map[string]string) error
 	// Create creates a new, empty, filesystem layer with the
 	// specified id and parent and mountLabel. Parent and mountLabel may be "".
 	Create(id, parent, mountLabel string, storageOpt map[string]string) error

@@ -120,7 +120,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		backingFs = fsName
 	}
 
-	// check if they are running over btrfs or aufs
+	// check if they are running over btrfs, aufs, zfs or overlay
 	switch fsMagic {
 	case graphdriver.FsMagicBtrfs:
 		logrus.Error("'overlay' is not supported over btrfs.")
@@ -130,6 +130,9 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, graphdriver.ErrIncompatibleFS
 	case graphdriver.FsMagicZfs:
 		logrus.Error("'overlay' is not supported over zfs.")
+		return nil, graphdriver.ErrIncompatibleFS
+	case graphdriver.FsMagicOverlay:
+		logrus.Error("'overlay' is not supported over overlay.")
 		return nil, graphdriver.ErrIncompatibleFS
 	}
 
@@ -218,6 +221,12 @@ func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 // This is required to satisfy the graphdriver.Driver interface.
 func (d *Driver) Cleanup() error {
 	return nil
+}
+
+// CreateReadWrite creates a layer that is writable for use as a container
+// file system.
+func (d *Driver) CreateReadWrite(id, parent, mountLabel string, storageOpt map[string]string) error {
+	return d.Create(id, parent, mountLabel, storageOpt)
 }
 
 // Create is used to create the upper, lower, and merge directories required for overlay fs for a given id.

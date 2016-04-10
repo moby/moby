@@ -67,7 +67,7 @@ func getBaseLoopStats() (*syscall.Stat_t, error) {
 }
 
 func newDriver(t *testing.T, name string) *Driver {
-	root, err := ioutil.TempDir("/var/tmp", "docker-graphtest-")
+	root, err := ioutil.TempDir("", "docker-graphtest-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +215,7 @@ func createBase(t *testing.T, driver graphdriver.Driver, name string) {
 	oldmask := syscall.Umask(0)
 	defer syscall.Umask(oldmask)
 
-	if err := driver.Create(name, "", "", nil); err != nil {
+	if err := driver.CreateReadWrite(name, "", "", nil); err != nil {
 		t.Fatal(err)
 	}
 

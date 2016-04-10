@@ -51,7 +51,7 @@ func (rm *restartManager) ShouldRestart(exitCode uint32) (bool, chan error, erro
 	}()
 
 	if rm.canceled {
-		return false, nil, nil
+		return false, nil, fmt.Errorf("restartmanager canceled")
 	}
 
 	if rm.active {

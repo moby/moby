@@ -30,16 +30,11 @@ func (daemon *Daemon) getSize(container *container.Container) (int64, int64) {
 	return 0, 0
 }
 
-// setNetworkNamespaceKey is a no-op on Windows.
-func (daemon *Daemon) setNetworkNamespaceKey(containerID string, pid int) error {
-	return nil
-}
-
 func (daemon *Daemon) setupIpcDirs(container *container.Container) error {
 	return nil
 }
 
-// TODO Windows: Fix Post-TP4. This is a hack to allow docker cp to work
+// TODO Windows: Fix Post-TP5. This is a hack to allow docker cp to work
 // against containers which have volumes. You will still be able to cp
 // to somewhere on the container drive, but not to any mounted volumes
 // inside the container. Without this fix, docker cp is broken to any

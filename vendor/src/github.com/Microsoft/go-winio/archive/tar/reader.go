@@ -302,6 +302,12 @@ func mergePAX(hdr *Header, headers map[string]string) error {
 				return err
 			}
 			hdr.ChangeTime = t
+		case paxCreationTime:
+			t, err := parsePAXTime(v)
+			if err != nil {
+				return err
+			}
+			hdr.CreationTime = t
 		case paxSize:
 			size, err := strconv.ParseInt(v, 10, 0)
 			if err != nil {

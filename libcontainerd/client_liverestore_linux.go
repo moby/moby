@@ -17,7 +17,7 @@ func (clnt *client) restore(cont *containerd.Container, options ...CreateOption)
 
 	containerID := cont.Id
 	if _, err := clnt.getContainer(containerID); err == nil {
-		return fmt.Errorf("container %s is aleady active", containerID)
+		return fmt.Errorf("container %s is already active", containerID)
 	}
 
 	defer func() {
@@ -48,9 +48,10 @@ func (clnt *client) restore(cont *containerd.Container, options ...CreateOption)
 	clnt.appendContainer(container)
 
 	err = clnt.backend.StateChanged(containerID, StateInfo{
-		State: StateRestore,
-		Pid:   container.systemPid,
-	})
+		CommonStateInfo: CommonStateInfo{
+			State: StateRestore,
+			Pid:   container.systemPid,
+		}})
 
 	if err != nil {
 		return err
@@ -60,9 +61,10 @@ func (clnt *client) restore(cont *containerd.Container, options ...CreateOption)
 		// This should only be a pause or resume event
 		if event.Type == StatePause || event.Type == StateResume {
 			return clnt.backend.StateChanged(containerID, StateInfo{
-				State: event.Type,
-				Pid:   container.systemPid,
-			})
+				CommonStateInfo: CommonStateInfo{
+					State: event.Type,
+					Pid:   container.systemPid,
+				}})
 		}
 
 		logrus.Warnf("unexpected backlog event: %#v", event)

@@ -7,7 +7,7 @@ import "github.com/docker/docker/container"
 // cannot be configured with a read-only rootfs.
 //
 // This is a no-op on Windows which does not support read-only volumes, or
-// extracting to a mount point inside a volume. TODO Windows: FIXME Post-TP4
+// extracting to a mount point inside a volume. TODO Windows: FIXME Post-TP5
 func checkIfPathIsInAVolume(container *container.Container, absPath string) (bool, error) {
 	return false, nil
 }

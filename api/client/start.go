@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"io"
+	"net/http/httputil"
 	"os"
 	"strings"
 
@@ -94,14 +95,21 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			in = cli.in
 		}
 
-		resp, err := cli.client.ContainerAttach(context.Background(), options)
-		if err != nil {
-			return err
+		resp, errAttach := cli.client.ContainerAttach(context.Background(), options)
+		if errAttach != nil && errAttach != httputil.ErrPersistEOF {
+			// ContainerAttach return an ErrPersistEOF (connection closed)
+			// means server met an error and put it in Hijacked connection
+			// keep the error and read detailed error message from hijacked connection
+			return errAttach
 		}
 		defer resp.Close()
 		ctx, cancelFun := context.WithCancel(context.Background())
 		cErr := promise.Go(func() error {
-			return cli.holdHijackedConnection(ctx, c.Config.Tty, in, cli.out, cli.err, resp)
+			errHijack := cli.holdHijackedConnection(ctx, c.Config.Tty, in, cli.out, cli.err, resp)
+			if errHijack == nil {
+				return errAttach
+			}
+			return errHijack
 		})
 
 		// 3. Start the container.

@@ -64,11 +64,6 @@ func useNativeConsole() bool {
 		return false
 	}
 
-	// Must have a late pre-release TP4 build of Windows Server 2016/Windows 10 TH2 or later
-	if osv.Build < 10578 {
-		return false
-	}
-
 	// Get the console modes. If this fails, we can't use the native console
 	state, err := getNativeConsole()
 	if err != nil {

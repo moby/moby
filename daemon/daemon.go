@@ -38,7 +38,6 @@ import (
 	_ "github.com/docker/docker/daemon/graphdriver/register"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/distribution"
 	dmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/dockerversion"
@@ -951,21 +950,6 @@ func (daemon *Daemon) changes(container *container.Container) ([]archive.Change,
 	return container.RWLayer.Changes()
 }
 
-// TagImage creates the tag specified by newTag, pointing to the image named
-// imageName (alternatively, imageName can also be an image ID).
-func (daemon *Daemon) TagImage(newTag reference.Named, imageName string) error {
-	imageID, err := daemon.GetImageID(imageName)
-	if err != nil {
-		return err
-	}
-	if err := daemon.referenceStore.AddTag(newTag, imageID, true); err != nil {
-		return err
-	}
-
-	daemon.LogImageEvent(imageID.String(), newTag.String(), "tag")
-	return nil
-}
-
 func writeDistributionProgress(cancelFunc func(), outStream io.Writer, progressChan <-chan progress.Progress) {
 	progressOutput := streamformatter.NewJSONStreamFormatter().NewProgressOutput(outStream, false)
 	operationCancelled := false
@@ -996,69 +980,6 @@ func isBrokenPipe(e error) bool {
 	return e == syscall.EPIPE
 }
 
-// PullImage initiates a pull operation. image is the repository name to pull, and
-// tag may be either empty, or indicate a specific tag to pull.
-func (daemon *Daemon) PullImage(ctx context.Context, ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
-	// Include a buffer so that slow client connections don't affect
-	// transfer performance.
-	progressChan := make(chan progress.Progress, 100)
-
-	writesDone := make(chan struct{})
-
-	ctx, cancelFunc := context.WithCancel(ctx)
-
-	go func() {
-		writeDistributionProgress(cancelFunc, outStream, progressChan)
-		close(writesDone)
-	}()
-
-	imagePullConfig := &distribution.ImagePullConfig{
-		MetaHeaders:      metaHeaders,
-		AuthConfig:       authConfig,
-		ProgressOutput:   progress.ChanOutput(progressChan),
-		RegistryService:  daemon.RegistryService,
-		ImageEventLogger: daemon.LogImageEvent,
-		MetadataStore:    daemon.distributionMetadataStore,
-		ImageStore:       daemon.imageStore,
-		ReferenceStore:   daemon.referenceStore,
-		DownloadManager:  daemon.downloadManager,
-	}
-
-	err := distribution.Pull(ctx, ref, imagePullConfig)
-	close(progressChan)
-	<-writesDone
-	return err
-}
-
-// PullOnBuild tells Docker to pull image referenced by `name`.
-func (daemon *Daemon) PullOnBuild(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer) (builder.Image, error) {
-	ref, err := reference.ParseNamed(name)
-	if err != nil {
-		return nil, err
-	}
-	ref = reference.WithDefaultTag(ref)
-
-	pullRegistryAuth := &types.AuthConfig{}
-	if len(authConfigs) > 0 {
-		// The request came with a full auth config file, we prefer to use that
-		repoInfo, err := daemon.RegistryService.ResolveRepository(ref)
-		if err != nil {
-			return nil, err
-		}
-
-		resolvedConfig := registry.ResolveAuthConfig(
-			authConfigs,
-			repoInfo.Index,
-		)
-		pullRegistryAuth = &resolvedConfig
-	}
-
-	if err := daemon.PullImage(ctx, ref, nil, pullRegistryAuth, output); err != nil {
-		return nil, err
-	}
-	return daemon.GetImage(name)
-}
-
 // ExportImage exports a list of images to the given output stream. The
 // exported images are archived into a tar when written to the output
 // stream. All images with the given tag and all versions containing
@@ -1067,41 +988,6 @@ func (daemon *Daemon) PullOnBuild(ctx context.Context, name string, authConfigs 
 func (daemon *Daemon) ExportImage(names []string, outStream io.Writer) error {
 	imageExporter := tarexport.NewTarExporter(daemon.imageStore, daemon.layerStore, daemon.referenceStore)
 	return imageExporter.Save(names, outStream)
-}
-
-// PushImage initiates a push operation on the repository named localName.
-func (daemon *Daemon) PushImage(ctx context.Context, ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
-	// Include a buffer so that slow client connections don't affect
-	// transfer performance.
-	progressChan := make(chan progress.Progress, 100)
-
-	writesDone := make(chan struct{})
-
-	ctx, cancelFunc := context.WithCancel(ctx)
-
-	go func() {
-		writeDistributionProgress(cancelFunc, outStream, progressChan)
-		close(writesDone)
-	}()
-
-	imagePushConfig := &distribution.ImagePushConfig{
-		MetaHeaders:      metaHeaders,
-		AuthConfig:       authConfig,
-		ProgressOutput:   progress.ChanOutput(progressChan),
-		RegistryService:  daemon.RegistryService,
-		ImageEventLogger: daemon.LogImageEvent,
-		MetadataStore:    daemon.distributionMetadataStore,
-		LayerStore:       daemon.layerStore,
-		ImageStore:       daemon.imageStore,
-		ReferenceStore:   daemon.referenceStore,
-		TrustKey:         daemon.trustKey,
-		UploadManager:    daemon.uploadManager,
-	}
-
-	err := distribution.Push(ctx, ref, imagePushConfig)
-	close(progressChan)
-	<-writesDone
-	return err
 }
 
 // LookupImage looks up an image by name and returns it as an ImageInspect

@@ -17,6 +17,14 @@ type Summary struct {
 	Command string
 }
 
+// StateInfo contains description about the new state container has entered.
+type StateInfo struct {
+	CommonStateInfo
+
+	// Platform specific StateInfo
+	UpdatePending bool
+}
+
 // Stats contains a stats properties from containerd.
 type Stats struct{}
 
