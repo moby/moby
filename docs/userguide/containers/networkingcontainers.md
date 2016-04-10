@@ -35,7 +35,7 @@ You name your container by using the `--name` flag, for example launch a new con
 
     $ docker run -d -P --name web training/webapp python app.py
 
-Use the `docker ps` command to see check the name:
+Use the `docker ps` command to check the name:
 
     $ docker ps -l
     CONTAINER ID  IMAGE                  COMMAND        CREATED       STATUS       PORTS                    NAMES
