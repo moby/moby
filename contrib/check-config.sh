@@ -241,6 +241,12 @@ if ! is_set EXT4_FS || ! is_set EXT4_FS_POSIX_ACL || ! is_set EXT4_FS_SECURITY; 
 	echo "    $(wrap_color 'enable these ext4 configs if you are using ext4 as backing filesystem' bold black)"
 fi
 
+echo '- Network Drivers:'
+{
+	echo '- "'$(wrap_color 'overlay' blue)'":'
+	check_flags VXLAN | sed 's/^/  /'
+} | sed 's/^/  /'
+
 echo '- Storage Drivers:'
 {
 	echo '- "'$(wrap_color 'aufs' blue)'":'
