@@ -6450,7 +6450,7 @@ func (s *DockerSuite) TestBuildNoNamedVolume(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildTagEvent(c *check.C) {
-	since := daemonTime(c).Unix()
+	since := daemonUnixTime(c)
 
 	dockerFile := `FROM busybox
 	RUN echo events
@@ -6458,7 +6458,8 @@ func (s *DockerSuite) TestBuildTagEvent(c *check.C) {
 	_, err := buildImage("test", dockerFile, false)
 	c.Assert(err, check.IsNil)
 
-	out, _ := dockerCmd(c, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()), "--filter", "type=image")
+	until := daemonUnixTime(c)
+	out, _ := dockerCmd(c, "events", "--since", since, "--until", until, "--filter", "type=image")
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	actions := eventActionsByIDAndType(c, events, "test:latest", "image")
 	var foundTag bool
