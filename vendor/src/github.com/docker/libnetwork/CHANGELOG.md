@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0-rc.6 (2016-04-10)
+- Flush cached resolver socket on default gateway change
+
+## 0.7.0-rc.5 (2016-04-08)
+- Persist ipam driver options
+- Fixes https://github.com/docker/libnetwork/issues/1087
+- Use go vet from go tool 
+- Godep update to pick up latest docker/docker packages
+- Validate remote driver response using docker plugins package method.
+
 ## 0.7.0-rc.4 (2016-04-06)
 - Fix the handling for default gateway Endpoint join/leave.
 
