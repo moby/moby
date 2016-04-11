@@ -284,7 +284,7 @@ func WriteBackupStreamFromTarFile(w io.Writer, t *tar.Reader, hdr *tar.Header) (
 	if hdr.Typeflag == tar.TypeSymlink {
 		_, isMountPoint := hdr.Winheaders[hdrMountPoint]
 		rp := winio.ReparsePoint{
-			Target:       hdr.Linkname,
+			Target:       filepath.FromSlash(hdr.Linkname),
 			IsMountPoint: isMountPoint,
 		}
 		reparse := winio.EncodeReparsePoint(&rp)
