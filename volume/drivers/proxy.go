@@ -2,7 +2,10 @@
 
 package volumedrivers
 
-import "errors"
+import (
+	"errors"
+	"github.com/docker/docker/volume"
+)
 
 type client interface {
 	Call(string, interface{}, interface{}) error
@@ -202,6 +205,33 @@ func (pp *volumeDriverProxy) Get(name string) (volume *proxyVolume, err error) {
 	}
 
 	volume = ret.Volume
+
+	if ret.Err != "" {
+		err = errors.New(ret.Err)
+	}
+
+	return
+}
+
+type volumeDriverProxyCapabilitiesRequest struct {
+}
+
+type volumeDriverProxyCapabilitiesResponse struct {
+	Capabilities volume.Capability
+	Err          string
+}
+
+func (pp *volumeDriverProxy) Capabilities() (capabilities volume.Capability, err error) {
+	var (
+		req volumeDriverProxyCapabilitiesRequest
+		ret volumeDriverProxyCapabilitiesResponse
+	)
+
+	if err = pp.Call("VolumeDriver.Capabilities", req, &ret); err != nil {
+		return
+	}
+
+	capabilities = ret.Capabilities
 
 	if ret.Err != "" {
 		err = errors.New(ret.Err)

@@ -13,7 +13,14 @@ import (
 
 // DefaultDriverName is the driver name used for the driver
 // implemented in the local package.
-const DefaultDriverName string = "local"
+const DefaultDriverName = "local"
+
+// Scopes define if a volume has is cluster-wide (global) or local only.
+// Scopes are returned by the volume driver when it is queried for capabilities and then set on a volume
+const (
+	LocalScope  = "local"
+	GlobalScope = "global"
+)
 
 // Driver is for creating and removing volumes.
 type Driver interface {
@@ -27,6 +34,18 @@ type Driver interface {
 	List() ([]Volume, error)
 	// Get retrieves the volume with the requested name
 	Get(name string) (Volume, error)
+	// Scope returns the scope of the driver (e.g. `golbal` or `local`).
+	// Scope determines how the driver is handled at a cluster level
+	Scope() string
+}
+
+// Capability defines a set of capabilities that a driver is able to handle.
+type Capability struct {
+	// Scope is the scope of the driver, `global` or `local`
+	// A `global` scope indicates that the driver manages volumes across the cluster
+	// A `local` scope indicates that the driver only manages volumes resources local to the host
+	// Scope is declared by the driver
+	Scope string
 }
 
 // Volume is a place to store data. It is backed by a specific driver, and can be mounted.
@@ -44,6 +63,18 @@ type Volume interface {
 	Unmount(id string) error
 	// Status returns low-level status information about a volume
 	Status() map[string]interface{}
+}
+
+// LabeledVolume wraps a Volume with user-defined labels
+type LabeledVolume interface {
+	Labels() map[string]string
+	Volume
+}
+
+// ScopedVolume wraps a volume with a cluster scope (e.g., `local` or `global`)
+type ScopedVolume interface {
+	Scope() string
+	Volume
 }
 
 // MountPoint is the intersection point between a volume and a container. It

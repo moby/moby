@@ -248,6 +248,11 @@ func (r *Root) Get(name string) (volume.Volume, error) {
 	return v, nil
 }
 
+// Scope returns the local volume scope
+func (r *Root) Scope() string {
+	return volume.LocalScope
+}
+
 func (r *Root) validateName(name string) error {
 	if !volumeNameRegex.MatchString(name) {
 		return validationError{fmt.Errorf("%q includes invalid characters for a local volume name, only %q are allowed", name, utils.RestrictedNameChars)}

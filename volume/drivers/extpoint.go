@@ -42,6 +42,8 @@ type volumeDriver interface {
 	List() (volumes []*proxyVolume, err error)
 	// Get retrieves the volume with the requested name
 	Get(name string) (volume *proxyVolume, err error)
+	// Capabilities gets the list of capabilities of the driver
+	Capabilities() (capabilities volume.Capability, err error)
 }
 
 type driverExtpoint struct {
@@ -64,6 +66,11 @@ func Register(extension volume.Driver, name string) bool {
 	if exists {
 		return false
 	}
+
+	if err := validateDriver(extension); err != nil {
+		return false
+	}
+
 	drivers.extensions[name] = extension
 	return true
 }
@@ -107,8 +114,20 @@ func Lookup(name string) (volume.Driver, error) {
 	}
 
 	d := NewVolumeDriver(name, pl.Client)
+	if err := validateDriver(d); err != nil {
+		return nil, err
+	}
+
 	drivers.extensions[name] = d
 	return d, nil
+}
+
+func validateDriver(vd volume.Driver) error {
+	scope := vd.Scope()
+	if scope != volume.LocalScope && scope != volume.GlobalScope {
+		return fmt.Errorf("Driver %q provided an invalid capability scope: %s", vd.Name(), scope)
+	}
+	return nil
 }
 
 // GetDriver returns a volume driver by its name.
