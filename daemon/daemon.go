@@ -291,13 +291,14 @@ func (daemon *Daemon) restore() error {
 		wg.Add(1)
 		go func(c *container.Container) {
 			defer wg.Done()
+			rm := c.RestartManager(false)
 			if c.IsRunning() || c.IsPaused() {
 				// Fix activityCount such that graph mounts can be unmounted later
 				if err := daemon.layerStore.ReinitRWLayer(c.RWLayer); err != nil {
 					logrus.Errorf("Failed to ReinitRWLayer for %s due to %s", c.ID, err)
 					return
 				}
-				if err := daemon.containerd.Restore(c.ID, libcontainerd.WithRestartManager(c.RestartManager(true))); err != nil {
+				if err := daemon.containerd.Restore(c.ID, libcontainerd.WithRestartManager(rm)); err != nil {
 					logrus.Errorf("Failed to restore with containerd: %q", err)
 					return
 				}

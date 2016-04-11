@@ -118,7 +118,7 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 			st.State = StateExitProcess
 		}
 		if st.State == StateExit && ctr.restartManager != nil {
-			restart, wait, err := ctr.restartManager.ShouldRestart(e.Status)
+			restart, wait, err := ctr.restartManager.ShouldRestart(e.Status, false)
 			if err != nil {
 				logrus.Error(err)
 			} else if restart {

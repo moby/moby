@@ -519,9 +519,8 @@ func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64
 // ShouldRestart decides whether the daemon should restart the container or not.
 // This is based on the container's restart policy.
 func (container *Container) ShouldRestart() bool {
-	return container.HostConfig.RestartPolicy.Name == "always" ||
-		(container.HostConfig.RestartPolicy.Name == "unless-stopped" && !container.HasBeenManuallyStopped) ||
-		(container.HostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0)
+	shouldRestart, _, _ := container.restartManager.ShouldRestart(uint32(container.ExitCode), container.HasBeenManuallyStopped)
+	return shouldRestart
 }
 
 // AddBindMountPoint adds a new bind mount point configuration to the container.
@@ -912,8 +911,9 @@ func (container *Container) RestartManager(reset bool) restartmanager.RestartMan
 		container.restartManager = nil
 	}
 	if container.restartManager == nil {
-		container.restartManager = restartmanager.New(container.HostConfig.RestartPolicy)
+		container.restartManager = restartmanager.New(container.HostConfig.RestartPolicy, container.RestartCount)
 	}
+
 	return container.restartManager
 }
 

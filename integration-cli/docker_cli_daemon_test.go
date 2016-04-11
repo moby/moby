@@ -150,6 +150,37 @@ func (s *DockerDaemonSuite) TestDaemonRestartUnlessStopped(c *check.C) {
 
 }
 
+func (s *DockerDaemonSuite) TestDaemonRestartOnFailure(c *check.C) {
+	err := s.d.StartWithBusybox()
+	c.Assert(err, check.IsNil)
+
+	out, err := s.d.Cmd("run", "-d", "--name", "test1", "--restart", "on-failure:3", "busybox:latest", "false")
+	c.Assert(err, check.IsNil, check.Commentf("run top1: %v", out))
+
+	// wait test1 to stop
+	hostArgs := []string{"--host", s.d.sock()}
+	err = waitInspectWithArgs("test1", "{{.State.Running}} {{.State.Restarting}}", "false false", 10*time.Second, hostArgs...)
+	c.Assert(err, checker.IsNil, check.Commentf("test1 should exit but not"))
+
+	// record last start time
+	out, err = s.d.Cmd("inspect", "-f={{.State.StartedAt}}", "test1")
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+	lastStartTime := out
+
+	err = s.d.Restart()
+	c.Assert(err, check.IsNil)
+
+	// test1 shouldn't restart at all
+	err = waitInspectWithArgs("test1", "{{.State.Running}} {{.State.Restarting}}", "false false", 0, hostArgs...)
+	c.Assert(err, checker.IsNil, check.Commentf("test1 should exit but not"))
+
+	// make sure test1 isn't restarted when daemon restart
+	// if "StartAt" time updates, means test1 was once restarted.
+	out, err = s.d.Cmd("inspect", "-f={{.State.StartedAt}}", "test1")
+	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
+	c.Assert(out, checker.Equals, lastStartTime, check.Commentf("test1 shouldn't start after daemon restarts"))
+}
+
 func (s *DockerDaemonSuite) TestDaemonStartIptablesFalse(c *check.C) {
 	if err := s.d.Start("--iptables=false"); err != nil {
 		c.Fatalf("we should have been able to start the daemon with passing iptables=false: %v", err)
