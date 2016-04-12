@@ -250,11 +250,24 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		if len(protoAddrParts) != 2 {
 			logrus.Fatalf("bad format %s, expected PROTO://ADDR", protoAddr)
 		}
-		l, err := listeners.Init(protoAddrParts[0], protoAddrParts[1], serverConfig.SocketGroup, serverConfig.TLSConfig)
+
+		proto := protoAddrParts[0]
+		addr := protoAddrParts[1]
+
+		// It's a bad idea to bind to TCP without tlsverify.
+		if proto == "tcp" && (serverConfig.TLSConfig == nil || serverConfig.TLSConfig.ClientAuth != tls.RequireAndVerifyClientCert) {
+			logrus.Warn("[!] DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING [!]")
+		}
+		l, err := listeners.Init(proto, addr, serverConfig.SocketGroup, serverConfig.TLSConfig)
 		if err != nil {
 			logrus.Fatal(err)
 		}
-
+		// If we're binding to a TCP port, make sure that a container doesn't try to use it.
+		if proto == "tcp" {
+			if err := allocateDaemonPort(addr); err != nil {
+				logrus.Fatal(err)
+			}
+		}
 		logrus.Debugf("Listener created for HTTP on %s (%s)", protoAddrParts[0], protoAddrParts[1])
 		api.Accept(protoAddrParts[1], l...)
 	}
