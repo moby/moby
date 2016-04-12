@@ -324,10 +324,6 @@ func (*DockerSuite) TestRmiParentImageFail(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiWithParentInUse(c *check.C) {
-	// TODO Windows. There is a bug either in Windows TP4, or the TP4 compatible
-	// docker which means this test fails. It has been verified to have been fixed
-	// in TP5 and docker/master, hence enable it once CI switch to TP5.
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "create", "busybox")
 	cID := strings.TrimSpace(out)
 
@@ -345,10 +341,6 @@ func (s *DockerSuite) TestRmiWithParentInUse(c *check.C) {
 
 // #18873
 func (s *DockerSuite) TestRmiByIDHardConflict(c *check.C) {
-	// TODO Windows CI. This will work on a TP5 compatible docker which
-	// has content addressibility fixes. Do not run this on TP4 as it
-	// will end up deleting the busybox image causing subsequent tests to fail.
-	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "create", "busybox")
 
 	imgID := inspectField(c, "busybox:latest", "Id")

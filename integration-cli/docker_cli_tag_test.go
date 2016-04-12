@@ -100,9 +100,6 @@ func (s *DockerSuite) TestTagExistedNameWithForce(c *check.C) {
 }
 
 func (s *DockerSuite) TestTagWithPrefixHyphen(c *check.C) {
-	// TODO Windows CI. This fails on TP4 docker, but has since been fixed.
-	// Enable these tests for TP5.
-	testRequires(c, DaemonIsLinux)
 	// Don't attempt to pull on Windows as not in hub. It's installed
 	// as an image through .ensure-frozen-images-windows
 	if daemonPlatform != "windows" {
@@ -129,9 +126,6 @@ func (s *DockerSuite) TestTagWithPrefixHyphen(c *check.C) {
 // ensure tagging using official names works
 // ensure all tags result in the same name
 func (s *DockerSuite) TestTagOfficialNames(c *check.C) {
-	// TODO Windows CI. This fails on TP4 docker, but has since been fixed.
-	// Enable these tests for TP5.
-	testRequires(c, DaemonIsLinux)
 	names := []string{
 		"docker.io/busybox",
 		"index.docker.io/busybox",
@@ -169,10 +163,6 @@ func (s *DockerSuite) TestTagOfficialNames(c *check.C) {
 
 // ensure tags can not match digests
 func (s *DockerSuite) TestTagMatchesDigest(c *check.C) {
-	// TODO Windows CI. This can be enabled for TP5, but will fail on TP4.
-	// This is due to the content addressibility changes which are not
-	// in the TP4 version of Docker.
-	testRequires(c, DaemonIsLinux)
 	// Don't attempt to pull on Windows as not in hub. It's installed
 	// as an image through .ensure-frozen-images-windows
 	if daemonPlatform != "windows" {
@@ -194,9 +184,6 @@ func (s *DockerSuite) TestTagMatchesDigest(c *check.C) {
 }
 
 func (s *DockerSuite) TestTagInvalidRepoName(c *check.C) {
-	// TODO Windows CI. This can be enabled for TP5, but will fail on the
-	// TP4 version of docker.
-	testRequires(c, DaemonIsLinux)
 	// Don't attempt to pull on Windows as not in hub. It's installed
 	// as an image through .ensure-frozen-images-windows
 	if daemonPlatform != "windows" {
