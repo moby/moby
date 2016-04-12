@@ -194,6 +194,8 @@ func (s *DockerSuite) TestLogsSince(c *check.C) {
 }
 
 func (s *DockerSuite) TestLogsSinceFutureFollow(c *check.C) {
+	// TODO Windows TP5 - Figure out why this test is so flakey. Disabled for now.
+	testRequires(c, DaemonIsLinux)
 	name := "testlogssincefuturefollow"
 	out, _ := dockerCmd(c, "run", "-d", "--name", name, "busybox", "/bin/sh", "-c", `for i in $(seq 1 5); do echo log$i; sleep 1; done`)
 
