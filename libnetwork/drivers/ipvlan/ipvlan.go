@@ -8,6 +8,7 @@ import (
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/osl"
+	"github.com/docker/libnetwork/types"
 )
 
 const (
@@ -62,6 +63,14 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	d.initStore(config)
 
 	return dc.RegisterDriver(ipvlanType, d, c)
+}
+
+func (d *driver) NetworkAllocate(id string, option map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
+	return nil, types.NotImplementedErrorf("not implemented")
+}
+
+func (d *driver) NetworkFree(id string) error {
+	return types.NotImplementedErrorf("not implemented")
 }
 
 func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
