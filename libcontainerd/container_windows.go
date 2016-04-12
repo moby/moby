@@ -167,11 +167,6 @@ func (ctr *container) waitExit(pid uint32, processFriendlyName string, isFirstPr
 			logrus.Debugf("Completed shutting down container %s", ctr.containerID)
 		}
 
-		// BUGBUG - Is taking the lock necessary here? Should it just be taken for
-		// the deleteContainer call, not for the restart logic? @jhowardmsft
-		ctr.client.lock(ctr.containerID)
-		defer ctr.client.unlock(ctr.containerID)
-
 		if si.State == StateExit && ctr.restartManager != nil {
 			restart, wait, err := ctr.restartManager.ShouldRestart(uint32(exitCode), false)
 			if err != nil {
@@ -182,6 +177,7 @@ func (ctr *container) waitExit(pid uint32, processFriendlyName string, isFirstPr
 				go func() {
 					err := <-wait
 					ctr.restarting = false
+					ctr.client.deleteContainer(ctr.friendlyName)
 					if err != nil {
 						si.State = StateExit
 						if err := ctr.client.backend.StateChanged(ctr.containerID, si); err != nil {
