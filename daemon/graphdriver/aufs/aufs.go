@@ -46,11 +46,14 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 
 	"github.com/opencontainers/runc/libcontainer/label"
+	rsystem "github.com/opencontainers/runc/libcontainer/system"
 )
 
 var (
 	// ErrAufsNotSupported is returned if aufs is not supported by the host.
 	ErrAufsNotSupported = fmt.Errorf("AUFS was not found in /proc/filesystems")
+	// ErrAufsNested means aufs cannot be used bc we are in a user namespace
+	ErrAufsNested       = fmt.Errorf("AUFS cannot be used in non-init user namespace")
 	incompatibleFsMagic = []graphdriver.FsMagic{
 		graphdriver.FsMagicBtrfs,
 		graphdriver.FsMagicAufs,
@@ -145,6 +148,10 @@ func supportsAufs() error {
 	// We can try to modprobe aufs first before looking at
 	// proc/filesystems for when aufs is supported
 	exec.Command("modprobe", "aufs").Run()
+
+	if rsystem.RunningInUserNS() {
+		return ErrAufsNested
+	}
 
 	f, err := os.Open("/proc/filesystems")
 	if err != nil {
