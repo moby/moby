@@ -1,7 +1,10 @@
 package daemon
 
 import (
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"syscall"
 
 	"github.com/docker/docker/container"
@@ -45,21 +48,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 			Destination: mount.Destination,
 			Readonly:    !mount.Writable,
 		})
-	}
-
-	// Are we going to run as a Hyper-V container?
-	hv := false
-	if c.HostConfig.Isolation.IsDefault() {
-		// Container is set to use the default, so take the default from the daemon configuration
-		hv = daemon.defaultIsolation.IsHyperV()
-	} else {
-		// Container is requesting an isolation mode. Honour it.
-		hv = c.HostConfig.Isolation.IsHyperV()
-	}
-	if hv {
-		// TODO We don't yet have the ImagePath hooked up. But set to
-		// something non-nil to pickup in libcontainerd.
-		s.Windows.HvRuntime = &windowsoci.HvRuntime{}
 	}
 
 	// In s.Process
@@ -108,6 +96,36 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 		}
 	}
 	s.Windows.LayerPaths = layerPaths
+
+	// Are we going to run as a Hyper-V container?
+	hv := false
+	if c.HostConfig.Isolation.IsDefault() {
+		// Container is set to use the default, so take the default from the daemon configuration
+		hv = daemon.defaultIsolation.IsHyperV()
+	} else {
+		// Container is requesting an isolation mode. Honour it.
+		hv = c.HostConfig.Isolation.IsHyperV()
+	}
+	if hv {
+		hvr := &windowsoci.HvRuntime{}
+		if img.RootFS != nil && img.RootFS.Type == image.TypeLayers {
+			// For TP5, the utility VM is part of the base layer.
+			// TODO-jstarks: Add support for separate utility VM images
+			// once it is decided how they can be stored.
+			uvmpath := filepath.Join(layerPaths[len(layerPaths)-1], "UtilityVM")
+			_, err = os.Stat(uvmpath)
+			if err != nil {
+				if os.IsNotExist(err) {
+					err = errors.New("container image does not contain a utility VM")
+				}
+				return nil, err
+			}
+
+			hvr.ImagePath = uvmpath
+		}
+
+		s.Windows.HvRuntime = hvr
+	}
 
 	// In s.Windows.Networking
 	// Connect all the libnetwork allocated networks to the container

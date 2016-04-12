@@ -69,6 +69,10 @@ type mappedDir struct {
 	ReadOnly      bool
 }
 
+type hvRuntime struct {
+	ImagePath string `json:",omitempty"`
+}
+
 // TODO Windows: @darrenstahlmsft Add ProcessorCount
 type containerInit struct {
 	SystemType              string      // HCS requires this to be hard-coded to "Container"
@@ -91,6 +95,7 @@ type containerInit struct {
 	SandboxPath             string      // Location of unmounted sandbox (used for Hyper-V containers)
 	HvPartition             bool        // True if it a Hyper-V Container
 	EndpointList            []string    // List of networking endpoints to be attached to container
+	HvRuntime               *hvRuntime  // Hyper-V container settings
 }
 
 // defaultOwner is a tag passed to HCS to allow it to differentiate between
@@ -145,14 +150,12 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 		}
 	}
 
-	cu.HvPartition = (spec.Windows.HvRuntime != nil)
-
-	// TODO Windows @jhowardmsft. FIXME post TP5.
-	//	if spec.Windows.HvRuntime != nil {
-	//		if spec.WIndows.HVRuntime.ImagePath != "" {
-	//			cu.TBD = spec.Windows.HvRuntime.ImagePath
-	//		}
-	//	}
+	if spec.Windows.HvRuntime != nil {
+		cu.HvPartition = true
+		cu.HvRuntime = &hvRuntime{
+			ImagePath: spec.Windows.HvRuntime.ImagePath,
+		}
+	}
 
 	if cu.HvPartition {
 		cu.SandboxPath = filepath.Dir(spec.Windows.LayerFolder)
