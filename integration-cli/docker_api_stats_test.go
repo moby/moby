@@ -255,3 +255,42 @@ func (s *DockerSuite) TestApiStatsContainerGetMemoryLimit(c *check.C) {
 	body.Close()
 	c.Assert(fmt.Sprintf("%d", v.MemoryStats.Limit), checker.Equals, fmt.Sprintf("%d", info.MemTotal))
 }
+
+func (s *DockerSuite) TestApiStatsNoStreamConnectedContainers(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	out1, _ := runSleepingContainer(c)
+	id1 := strings.TrimSpace(out1)
+	c.Assert(waitRun(id1), checker.IsNil)
+
+	out2, _ := runSleepingContainer(c, "--net", "container:"+id1)
+	id2 := strings.TrimSpace(out2)
+	c.Assert(waitRun(id2), checker.IsNil)
+
+	ch := make(chan error)
+	go func() {
+		resp, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", id2), nil, "")
+		defer body.Close()
+		if err != nil {
+			ch <- err
+		}
+		if resp.StatusCode != http.StatusOK {
+			ch <- fmt.Errorf("Invalid StatusCode %v", resp.StatusCode)
+		}
+		if resp.Header.Get("Content-Type") != "application/json" {
+			ch <- fmt.Errorf("Invalid 'Content-Type' %v", resp.Header.Get("Content-Type"))
+		}
+		var v *types.Stats
+		if err := json.NewDecoder(body).Decode(&v); err != nil {
+			ch <- err
+		}
+		ch <- nil
+	}()
+
+	select {
+	case err := <-ch:
+		c.Assert(err, checker.IsNil, check.Commentf("Error in stats remote API: %v", err))
+	case <-time.After(15 * time.Second):
+		c.Fatalf("Stats did not return after timeout")
+	}
+}
