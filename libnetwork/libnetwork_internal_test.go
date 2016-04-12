@@ -15,50 +15,6 @@ import (
 	"github.com/docker/libnetwork/types"
 )
 
-func TestDriverRegistration(t *testing.T) {
-	bridgeNetType := "bridge"
-	c, err := New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Stop()
-	err = c.(*controller).RegisterDriver(bridgeNetType, nil, driverapi.Capability{})
-	if err == nil {
-		t.Fatalf("Expecting the RegisterDriver to fail for %s", bridgeNetType)
-	}
-	if _, ok := err.(driverapi.ErrActiveRegistration); !ok {
-		t.Fatalf("Failed for unexpected reason: %v", err)
-	}
-	err = c.(*controller).RegisterDriver("test-dummy", nil, driverapi.Capability{})
-	if err != nil {
-		t.Fatalf("Test failed with an error %v", err)
-	}
-}
-
-func TestIpamDriverRegistration(t *testing.T) {
-	c, err := New()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Stop()
-
-	err = c.(*controller).RegisterIpamDriver("", nil)
-	if err == nil {
-		t.Fatalf("Expected failure, but succeeded")
-	}
-	if _, ok := err.(types.BadRequestError); !ok {
-		t.Fatalf("Failed for unexpected reason: %v", err)
-	}
-
-	err = c.(*controller).RegisterIpamDriver(ipamapi.DefaultIPAM, nil)
-	if err == nil {
-		t.Fatalf("Expected failure, but succeeded")
-	}
-	if _, ok := err.(types.ForbiddenError); !ok {
-		t.Fatalf("Failed for unexpected reason: %v", err)
-	}
-}
-
 func TestNetworkMarshalling(t *testing.T) {
 	n := &network{
 		name:        "Miao",
@@ -375,8 +331,10 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	defer c.Stop()
 
 	cc := c.(*controller)
-	bd := badDriver{failNetworkCreation: true}
-	cc.drivers[badDriverName] = &driverData{driver: &bd, capability: driverapi.Capability{DataScope: datastore.LocalScope}}
+
+	if err := cc.drvRegistry.AddDriver(badDriverName, badDriverInit, nil); err != nil {
+		t.Fatal(err)
+	}
 
 	// Test whether ipam state release is invoked  on network create failure from net driver
 	// by checking whether subsequent network creation requesting same gateway IP succeeds
@@ -427,6 +385,12 @@ var badDriverName = "bad network driver"
 
 type badDriver struct {
 	failNetworkCreation bool
+}
+
+var bd = badDriver{failNetworkCreation: true}
+
+func badDriverInit(reg driverapi.DriverCallback, opt map[string]interface{}) error {
+	return reg.RegisterDriver(badDriverName, &bd, driverapi.Capability{DataScope: datastore.LocalScope})
 }
 
 func (b *badDriver) CreateNetwork(nid string, options map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) error {

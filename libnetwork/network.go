@@ -620,49 +620,52 @@ func (n *network) processOptions(options ...NetworkOption) {
 	}
 }
 
-func (n *network) driverScope() string {
+func (n *network) resolveDriver(name string, load bool) (driverapi.Driver, *driverapi.Capability, error) {
 	c := n.getController()
 
-	c.Lock()
 	// Check if a driver for the specified network type is available
-	dd, ok := c.drivers[n.networkType]
-	c.Unlock()
+	d, cap := c.drvRegistry.Driver(name)
+	if d == nil {
+		if load {
+			var err error
+			err = c.loadDriver(name)
+			if err != nil {
+				return nil, nil, err
+			}
 
-	if !ok {
-		var err error
-		dd, err = c.loadDriver(n.networkType)
-		if err != nil {
-			// If driver could not be resolved simply return an empty string
-			return ""
+			d, cap = c.drvRegistry.Driver(name)
+			if d == nil {
+				return nil, nil, fmt.Errorf("could not resolve driver %s in registry", name)
+			}
+		} else {
+			// don't fail if driver loading is not required
+			return nil, nil, nil
 		}
 	}
 
-	return dd.capability.DataScope
+	return d, cap, nil
+}
+
+func (n *network) driverScope() string {
+	_, cap, err := n.resolveDriver(n.networkType, true)
+	if err != nil {
+		// If driver could not be resolved simply return an empty string
+		return ""
+	}
+
+	return cap.DataScope
 }
 
 func (n *network) driver(load bool) (driverapi.Driver, error) {
-	c := n.getController()
-
-	c.Lock()
-	// Check if a driver for the specified network type is available
-	dd, ok := c.drivers[n.networkType]
-	c.Unlock()
-
-	if !ok && load {
-		var err error
-		dd, err = c.loadDriver(n.networkType)
-		if err != nil {
-			return nil, err
-		}
-	} else if !ok {
-		// don't fail if driver loading is not required
-		return nil, nil
+	d, cap, err := n.resolveDriver(n.networkType, load)
+	if err != nil {
+		return nil, err
 	}
 
 	n.Lock()
-	n.scope = dd.capability.DataScope
+	n.scope = cap.DataScope
 	n.Unlock()
-	return dd.driver, nil
+	return d, nil
 }
 
 func (n *network) Delete() error {
@@ -786,12 +789,12 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 		}
 	}
 
-	ipam, err := n.getController().getIPAM(n.ipamType)
+	ipam, cap, err := n.getController().getIPAMDriver(n.ipamType)
 	if err != nil {
 		return nil, err
 	}
 
-	if ipam.capability.RequiresMACAddress {
+	if cap.RequiresMACAddress {
 		if ep.iface.mac == nil {
 			ep.iface.mac = netutils.GenerateRandomMAC()
 		}
@@ -801,7 +804,7 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 		ep.ipamOptions[netlabel.MacAddress] = ep.iface.mac.String()
 	}
 
-	if err = ep.assignAddress(ipam.driver, true, n.enableIPv6 && !n.postIPv6); err != nil {
+	if err = ep.assignAddress(ipam, true, n.enableIPv6 && !n.postIPv6); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -821,7 +824,7 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 		}
 	}()
 
-	if err = ep.assignAddress(ipam.driver, false, n.enableIPv6 && n.postIPv6); err != nil {
+	if err = ep.assignAddress(ipam, false, n.enableIPv6 && n.postIPv6); err != nil {
 		return nil, err
 	}
 
@@ -1065,7 +1068,7 @@ func (n *network) ipamAllocate() error {
 		return nil
 	}
 
-	ipam, err := n.getController().getIpamDriver(n.ipamType)
+	ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
 	if err != nil {
 		return err
 	}
@@ -1189,7 +1192,7 @@ func (n *network) ipamRelease() {
 	if n.Type() == "host" || n.Type() == "null" {
 		return
 	}
-	ipam, err := n.getController().getIpamDriver(n.ipamType)
+	ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
 	if err != nil {
 		log.Warnf("Failed to retrieve ipam driver to release address pool(s) on delete of network %s (%s): %v", n.Name(), n.ID(), err)
 		return
@@ -1279,17 +1282,14 @@ func (n *network) getIPData(ipVer int) []driverapi.IPAMData {
 }
 
 func (n *network) deriveAddressSpace() (string, error) {
-	c := n.getController()
-	c.Lock()
-	ipd, ok := c.ipamDrivers[n.ipamType]
-	c.Unlock()
-	if !ok {
-		return "", types.NotFoundErrorf("could not find ipam driver %s to get default address space", n.ipamType)
+	local, global, err := n.getController().drvRegistry.IPAMDefaultAddressSpaces(n.ipamType)
+	if err != nil {
+		return "", types.NotFoundErrorf("failed to get default address space: %v", err)
 	}
 	if n.DataScope() == datastore.GlobalScope {
-		return ipd.defaultGlobalAddressSpace, nil
+		return global, nil
 	}
-	return ipd.defaultLocalAddressSpace, nil
+	return local, nil
 }
 
 func (n *network) Info() NetworkInfo {
