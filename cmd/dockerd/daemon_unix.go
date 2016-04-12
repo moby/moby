@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/docker/docker/cmd/dockerd/hack"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/system"
@@ -110,4 +111,18 @@ func allocateDaemonPort(addr string) error {
 
 // notifyShutdown is called after the daemon shuts down but before the process exits.
 func notifyShutdown(err error) {
+}
+
+func wrapListeners(proto string, ls []net.Listener) []net.Listener {
+	if os.Getenv("DOCKER_HTTP_HOST_COMPAT") != "" {
+		switch proto {
+		case "unix":
+			ls[0] = &hack.MalformedHostHeaderOverride{ls[0]}
+		case "fd":
+			for i := range ls {
+				ls[i] = &hack.MalformedHostHeaderOverride{ls[i]}
+			}
+		}
+	}
+	return ls
 }
