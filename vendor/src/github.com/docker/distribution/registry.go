@@ -58,6 +58,20 @@ type ManifestServiceOption interface {
 	Apply(ManifestService) error
 }
 
+// WithTag allows a tag to be passed into Put
+func WithTag(tag string) ManifestServiceOption {
+	return WithTagOption{tag}
+}
+
+// WithTagOption holds a tag
+type WithTagOption struct{ Tag string }
+
+// Apply conforms to the ManifestServiceOption interface
+func (o WithTagOption) Apply(m ManifestService) error {
+	// no implementation
+	return nil
+}
+
 // Repository is a named collection of manifests and layers.
 type Repository interface {
 	// Named returns the name of the repository.

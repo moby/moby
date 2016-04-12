@@ -8,7 +8,7 @@ machine:
 
   post:
   # go
-    - gvm install go1.5.3 --prefer-binary --name=stable
+    - gvm install go1.6 --prefer-binary --name=stable
 
   environment:
   # Convenient shortcuts to "common" locations
@@ -49,26 +49,30 @@ test:
     # - gvm use old && go version
     - gvm use stable && go version
 
+  # Ensure validation of dependencies
+    - gvm use stable && if test -n "`git diff --stat=1000 master | grep -Ei \"vendor|godeps\"`"; then make dep-validate; fi:
+        pwd: $BASE_STABLE
+
   # First thing: build everything. This will catch compile errors, and it's
   # also necessary for go vet to work properly (see #807).
-    - gvm use stable && godep go install ./...:
+    - gvm use stable && godep go install $(go list ./... | grep -v "/vendor/"):
         pwd: $BASE_STABLE
 
   # FMT
-    - gvm use stable && test -z "$(gofmt -s -l . | grep -v Godeps/_workspace/src/ | tee /dev/stderr)":
+    - gvm use stable && make fmt:
         pwd: $BASE_STABLE
 
    # VET
-    - gvm use stable && go vet ./...:
+    - gvm use stable && make vet:
         pwd: $BASE_STABLE
 
   # LINT
-    - gvm use stable && test -z "$(golint ./... | grep -v Godeps/_workspace/src/ | tee /dev/stderr)":
+    - gvm use stable && make lint:
         pwd: $BASE_STABLE
 
   override:
   # Test stable, and report
-     - gvm use stable; export ROOT_PACKAGE=$(go list .); go list -tags "$DOCKER_BUILDTAGS" ./... | xargs -L 1 -I{} bash -c 'export PACKAGE={}; godep go test -tags "$DOCKER_BUILDTAGS" -test.short -coverprofile=$GOPATH/src/$PACKAGE/coverage.out -coverpkg=$(./coverpkg.sh $PACKAGE $ROOT_PACKAGE) $PACKAGE':
+     - gvm use stable; export ROOT_PACKAGE=$(go list .); go list -tags "$DOCKER_BUILDTAGS" ./... | grep -v "/vendor/" | xargs -L 1 -I{} bash -c 'export PACKAGE={}; godep go test -tags "$DOCKER_BUILDTAGS" -test.short -coverprofile=$GOPATH/src/$PACKAGE/coverage.out -coverpkg=$(./coverpkg.sh $PACKAGE $ROOT_PACKAGE) $PACKAGE':
          timeout: 600
          pwd: $BASE_STABLE
 
