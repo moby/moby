@@ -8,8 +8,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
+	"github.com/docker/docker/api/server/middleware"
 	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/pkg/authorization"
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 )
@@ -20,13 +20,12 @@ const versionMatcher = "/v{version:[0-9.]+}"
 
 // Config provides the configuration for the API server
 type Config struct {
-	Logging                  bool
-	EnableCors               bool
-	CorsHeaders              string
-	AuthorizationPluginNames []string
-	Version                  string
-	SocketGroup              string
-	TLSConfig                *tls.Config
+	Logging     bool
+	EnableCors  bool
+	CorsHeaders string
+	Version     string
+	SocketGroup string
+	TLSConfig   *tls.Config
 }
 
 // Server contains instance details for the server
@@ -34,8 +33,8 @@ type Server struct {
 	cfg           *Config
 	servers       []*HTTPServer
 	routers       []router.Router
-	authZPlugins  []authorization.Plugin
 	routerSwapper *routerSwapper
+	middlewares   []middleware.Middleware
 }
 
 // New returns a new instance of the server based on the specified configuration.
@@ -44,6 +43,12 @@ func New(cfg *Config) *Server {
 	return &Server{
 		cfg: cfg,
 	}
+}
+
+// UseMiddleware appends a new middleware to the request chain.
+// This needs to be called before the API routes are configured.
+func (s *Server) UseMiddleware(m middleware.Middleware) {
+	s.middlewares = append(s.middlewares, m)
 }
 
 // Accept sets a listener the server accepts connections into.

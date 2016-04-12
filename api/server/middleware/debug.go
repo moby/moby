@@ -13,7 +13,7 @@ import (
 )
 
 // DebugRequestMiddleware dumps the request to logger
-func DebugRequestMiddleware(handler httputils.APIFunc) httputils.APIFunc {
+func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error) func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		logrus.Debugf("Calling %s %s", r.Method, r.RequestURI)
 
