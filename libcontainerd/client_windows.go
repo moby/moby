@@ -96,6 +96,7 @@ type containerInit struct {
 	HvPartition             bool        // True if it a Hyper-V Container
 	EndpointList            []string    // List of networking endpoints to be attached to container
 	HvRuntime               *hvRuntime  // Hyper-V container settings
+	Servicing               bool        // True if this container is for servicing
 }
 
 // defaultOwner is a tag passed to HCS to allow it to differentiate between
@@ -154,6 +155,13 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 		cu.HvPartition = true
 		cu.HvRuntime = &hvRuntime{
 			ImagePath: spec.Windows.HvRuntime.ImagePath,
+		}
+	}
+
+	for _, option := range options {
+		if s, ok := option.(*ServicingOption); ok {
+			cu.Servicing = s.IsServicing
+			break
 		}
 	}
 
