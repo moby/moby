@@ -9,7 +9,7 @@ weight = 110
 +++
 <![end-metadata]-->
 
-# Binaries
+# Installation from binaries
 
 **This instruction set is meant for hackers who want to try out Docker
 on a variety of environments.**
@@ -85,90 +85,137 @@ exhibit unexpected behaviour.
 > vendor for the system, and might break regulations and security
 > policies in heavily regulated environments.
 
-## Get the Docker binary
+## Get the Docker Engine binaries
 
-You can download either the latest release binary or a specific version.
-After downloading a binary file, you must set the file's execute bit to run it.
+You can download either the latest release binaries or a specific version. To get
+the list of stable release version numbers from GitHub, view the `docker/docker`
+[releases page](https://github.com/docker/docker/releases). You can get the MD5
+and SHA256 hashes by appending .md5 and .sha256 to the URLs respectively
 
-To set the file's execute bit on Linux and OS X:
 
-    $ chmod +x docker
-
-To get the list of stable release version numbers from GitHub, view the
-`docker/docker` [releases page](https://github.com/docker/docker/releases).
-
-> **Note**
->
-> 1) You can get the MD5 and SHA256 hashes by appending .md5 and .sha256 to the URLs respectively
->
-> 2) You can get the compressed binaries by appending .tgz to the URLs
-
-### Get the Linux binary
+### Get the Linux binaries
 
 To download the latest version for Linux, use the
 following URLs:
 
-    https://get.docker.com/builds/Linux/i386/docker-latest
+    https://get.docker.com/builds/Linux/i386/docker-latest.tgz
 
-    https://get.docker.com/builds/Linux/x86_64/docker-latest
+    https://get.docker.com/builds/Linux/x86_64/docker-latest.tgz
 
 To download a specific version for Linux, use the
 following URL patterns:
 
-    https://get.docker.com/builds/Linux/i386/docker-<version>
+    https://get.docker.com/builds/Linux/i386/docker-<version>.tgz
 
-    https://get.docker.com/builds/Linux/x86_64/docker-<version>
+    https://get.docker.com/builds/Linux/x86_64/docker-<version>.tgz
 
 For example:
 
-    https://get.docker.com/builds/Linux/i386/docker-1.9.1
+    https://get.docker.com/builds/Linux/i386/docker-1.11.0.tgz
 
-    https://get.docker.com/builds/Linux/x86_64/docker-1.9.1
+    https://get.docker.com/builds/Linux/x86_64/docker-1.11.0.tgz
 
+> **Note** These instructions are for Docker Engine 1.11 and up. Engine 1.10 and
+> under consists of a single binary, and instructions for those versions are
+> different. To install version 1.10 or below, follow the instructions in the 
+> <a href="/v1.10/engine/installation/binaries/" target="_blank">1.10 documentation</a>.
+
+
+#### Install the Linux binaries
+
+After downloading, you extract the archive, which puts the binaries in a
+directory named `docker` in your current location.
+
+```bash
+$ tar -xvzf docker-latest.tgz
+
+docker/
+docker/docker-containerd-ctr
+docker/docker
+docker/docker-containerd
+docker/docker-runc
+docker/docker-containerd-shim
+```
+
+Engine requires these binaries to be installed in your host's `$PATH`.
+For example, to install the binaries in `/usr/bin`:
+
+```bash
+$ mv docker/* /usr/bin/
+```
+
+> **Note**: If you already have Engine installed on your host, make sure you
+> stop Engine before installing (`killall docker`), and install the binaries
+> in the same location. You can find the location of the current installation
+> with `dirname $(which docker)`.
+
+#### Run the Engine daemon on Linux
+
+You can manually start the Engine in daemon mode using:
+
+```bash
+$ sudo docker daemon &
+```
+
+The GitHub repository provides samples of init-scripts you can use to control
+the daemon through a process manager, such as upstart or systemd. You can find
+these scripts in the <a href="https://github.com/docker/docker/tree/master/contrib/init">
+contrib directory</a>.
+
+For additional information about running the Engine in daemon mode, refer to
+the [daemon command](../reference/commandline/daemon.md) in the Engine command
+line reference.
 
 ### Get the Mac OS X binary
 
 The Mac OS X binary is only a client. You cannot use it to run the `docker`
 daemon. To download the latest version for Mac OS X, use the following URLs:
 
-    https://get.docker.com/builds/Darwin/x86_64/docker-latest
+    https://get.docker.com/builds/Darwin/x86_64/docker-latest.tgz
 
 To download a specific version for Mac OS X, use the
-following URL patterns:
+following URL pattern:
 
-    https://get.docker.com/builds/Darwin/x86_64/docker-<version>
+    https://get.docker.com/builds/Darwin/x86_64/docker-<version>.tgz
 
 For example:
 
-    https://get.docker.com/builds/Darwin/x86_64/docker-1.9.1
+    https://get.docker.com/builds/Darwin/x86_64/docker-1.11.0.tgz
+
+You can extract the downloaded archive either by double-clicking the downloaded
+`.tgz` or on the command line, using `tar -xvzf docker-1.11.0.tgz`. The client
+binary can be executed from any location on your filesystem.
+
 
 ### Get the Windows binary
 
-You can only download the Windows client binary for version `1.9.1` onwards.
-Moreover, the binary is only a client, you cannot use it to run the `docker` daemon.
+You can only download the Windows binary for version `1.9.1` onwards.
+Moreover, the 32-bit (`i386`) binary is only a client, you cannot use it to
+run the `docker` daemon. The 64-bit binary (`x86_64`) is both a client and
+daemon.
+
 To download the latest version for Windows, use the following URLs:
 
-    https://get.docker.com/builds/Windows/i386/docker-latest.exe
+    https://get.docker.com/builds/Windows/i386/docker-latest.zip
 
-    https://get.docker.com/builds/Windows/x86_64/docker-latest.exe
+    https://get.docker.com/builds/Windows/x86_64/docker-latest.zip
 
 To download a specific version for Windows, use the following URL pattern:
 
-    https://get.docker.com/builds/Windows/i386/docker-<version>.exe
+    https://get.docker.com/builds/Windows/i386/docker-<version>.zip
 
-    https://get.docker.com/builds/Windows/x86_64/docker-<version>.exe
+    https://get.docker.com/builds/Windows/x86_64/docker-<version>.zip
 
 For example:
 
-    https://get.docker.com/builds/Windows/i386/docker-1.9.1.exe
+    https://get.docker.com/builds/Windows/i386/docker-1.11.0.zip
 
-    https://get.docker.com/builds/Windows/x86_64/docker-1.9.1.exe
+    https://get.docker.com/builds/Windows/x86_64/docker-1.11.0.zip
 
 
-## Run the Docker daemon
-
-    # start the docker in daemon mode from the directory you unpacked
-    $ sudo ./docker daemon &
+> **Note** These instructions are for Engine 1.11 and up. Instructions for older
+> versions are slightly different. To install version 1.10 or below, follow the
+> instructions in the <a href="/v1.10/engine/installation/binaries/" target="_blank">1.10 documentation</a>.
 
 ## Giving non-root access
 
@@ -188,21 +235,15 @@ need to add `sudo` to all the client commands.
 > The *docker* group (or the group specified with `-G`) is root-equivalent;
 > see [*Docker Daemon Attack Surface*](../security/security.md#docker-daemon-attack-surface) details.
 
-## Upgrades
+## Upgrade Docker Engine
 
-To upgrade your manual installation of Docker, first kill the docker
+To upgrade your manual installation of Docker Engine on Linux, first kill the docker
 daemon:
 
     $ killall docker
 
-Then follow the regular installation steps.
+Then follow the [regular installation steps](#get-the-linux-binaries).
 
-## Run your first container!
-
-    # check your docker version
-    $ sudo ./docker version
-
-    # run a container and open an interactive shell in the container
-    $ sudo ./docker run -i -t ubuntu /bin/bash
+## Next steps
 
 Continue with the [User Guide](../userguide/index.md).
