@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/api/server/router/network"
 	systemrouter "github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/server/router/volume"
+	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
@@ -429,7 +430,7 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon) {
 		image.NewRouter(d, decoder),
 		systemrouter.NewRouter(d),
 		volume.NewRouter(d),
-		build.NewRouter(d),
+		build.NewRouter(dockerfile.NewBuildManager(d)),
 	}
 	if d.NetworkControllerEnabled() {
 		routers = append(routers, network.NewRouter(d))
