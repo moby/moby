@@ -5,13 +5,12 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
-## 1.11.0 (2016-04-12)
+## 1.11.0 (2016-04-13)
 
 **IMPORTANT**: With Docker 1.11, a Linux docker installation is now made of 4 binaries (`docker`, [`docker-containerd`](https://github.com/docker/containerd), [`docker-containerd-shim`](https://github.com/docker/containerd) and [`docker-runc`](https://github.com/opencontainers/runc)). If you have scripts relying on docker being a single static binaries, please make sure to update them. Interaction with the daemon stay the same otherwise, the usage of the other binaries should be transparent. A Windows docker installation remains a single binary, `docker.exe`.
 
 ### Builder
 
-- Fix docker not sending credentials during build if content trust is enabled ([#21693](https://github.com/docker/docker/pull/21693))
 - Fix a bug where Docker would not used the correct uid/gid when processing the `WORKDIR` command ([#21033](https://github.com/docker/docker/pull/21033))
 - Fix a bug where copy operations with userns would not use the proper uid/gid ([#20782](https://github.com/docker/docker/pull/20782), [#21162](https://github.com/docker/docker/pull/21162))
 
@@ -37,7 +36,6 @@ be found.
 
 ### Distribution
 
-- Fix the download manager closing the tempfile twice ([#21676](https://github.com/docker/docker/pull/21676))
 - Fix a panic that occurred when pulling an images with 0 layers ([#21222](https://github.com/docker/docker/pull/21222))
 - Fix a panic that could occur on error while pushing to a registry with a misconfigured token service ([#21212](https://github.com/docker/docker/pull/21212))
 + All first-level delegation roles are now signed when doing a trusted push ([#21046](https://github.com/docker/docker/pull/21046))
@@ -47,6 +45,7 @@ be found.
 * Docker will now fallback to registry V1 if no basic auth credentials are available ([#20241](https://github.com/docker/docker/pull/20241))
 * Docker will now try to resume layer download where it left off after a network error/timeout ([#19840](https://github.com/docker/docker/pull/19840))
 - Fix generated manifest mediaType when pushing cross-repository ([#19509](https://github.com/docker/docker/pull/19509))
+- Fix docker requesting additional push credentials when pulling an image if Content Trust is enabled ([#20382](https://github.com/docker/docker/pull/20382))
 
 ### Logging
 
@@ -101,7 +100,7 @@ be found.
 - Fix a panic when deleting an entry from /etc/hosts file  ([#21019](https://github.com/docker/docker/pull/21019))
 - Source the forwarded DNS queries from the container net namespace  ([#21019](https://github.com/docker/docker/pull/21019))
 - Fix to retain the network internal mode config for bridge networks on daemon reload ([#21780] (https://github.com/docker/docker/pull/21780))
-- Fix to retain ipam driver option configs on daemon reload ([#21914] (https://github.com/docker/docker/pull/21914))
+- Fix to retain IPAM driver option configs on daemon reload ([#21914] (https://github.com/docker/docker/pull/21914))
 
 ### Plugins
 
@@ -143,12 +142,16 @@ be found.
 + Docker learned to limit the number of active pids (i.e. processes) within the container via the `pids-limit` flags. NOTE: This requires `CGROUP_PIDS=y` to be in the kernel configuration. ([#18697](https://github.com/docker/docker/pull/18697))
 - `docker load` now has a `--quiet` option to suppress the load output ([#20078](https://github.com/docker/docker/pull/20078))
 - Fix a bug in neighbor discovery for IPv6 peers ([#20842](https://github.com/docker/docker/pull/20842))
+- Fix a panic during cleanup if a container was started with invalid options ([#21802](https://github.com/docker/docker/pull/21802))
+- Fix a situation where a container cannot be stopped if the terminal is closed ([#21840](https://github.com/docker/docker/pull/21840))
 
 ### Security
 
 * Object with the `pcp_pmcd_t` selinux type were given management access to `/var/lib/docker(/.*)?` ([#21370](https://github.com/docker/docker/pull/21370))
 * `restart_syscall`, `copy_file_range`, `mlock2` joined the list of allowed calls in the default seccomp profile ([#21117](https://github.com/docker/docker/pull/21117), [#21262](https://github.com/docker/docker/pull/21262))
 * `send`, `recv` and `x32` were added to the list of allowed syscalls and arch in the default seccomp profile ([#19432](https://github.com/docker/docker/pull/19432))
+* Docker Content Trust now requests the server to perform snapshot signing ([#21046](https://github.com/docker/docker/pull/21046))
+* Support for using YubiKeys for Content Trust signing has been moved out of experimental ([#21591](https://github.com/docker/docker/pull/21591))
 
 ### Volumes
 
