@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/image"
@@ -82,6 +83,27 @@ type BuildManager struct {
 // NewBuildManager creates a BuildManager.
 func NewBuildManager(b builder.Backend) (bm *BuildManager) {
 	return &BuildManager{backend: b}
+}
+
+// BuildFromContext builds a new image from a given context.
+func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser, remote string, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (string, error) {
+	buildContext, dockerfileName, err := builder.DetectContextFromRemoteURL(src, remote, pg.ProgressReaderFunc)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if err := buildContext.Close(); err != nil {
+			logrus.Debugf("[BUILDER] failed to remove temporary context: %v", err)
+		}
+	}()
+	if len(dockerfileName) > 0 {
+		buildOptions.Dockerfile = dockerfileName
+	}
+	b, err := NewBuilder(ctx, buildOptions, bm.backend, builder.DockerIgnoreContext{ModifiableContext: buildContext}, nil)
+	if err != nil {
+		return "", err
+	}
+	return b.build(pg.StdoutFormatter, pg.StderrFormatter, pg.Output)
 }
 
 // NewBuilder creates a new Dockerfile builder from an optional dockerfile and a Config.
@@ -160,17 +182,6 @@ func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
 	return repoAndTags, nil
 }
 
-// Build creates a NewBuilder, which builds the image.
-func (bm *BuildManager) Build(clientCtx context.Context, config *types.ImageBuildOptions, context builder.Context, stdout io.Writer, stderr io.Writer, out io.Writer) (string, error) {
-	b, err := NewBuilder(clientCtx, config, bm.backend, context, nil)
-	if err != nil {
-		return "", err
-	}
-	img, err := b.build(config, context, stdout, stderr, out)
-	return img, err
-
-}
-
 // build runs the Dockerfile builder from a context and a docker object that allows to make calls
 // to Docker.
 //
@@ -184,9 +195,7 @@ func (bm *BuildManager) Build(clientCtx context.Context, config *types.ImageBuil
 // * Tag image, if applicable.
 // * Print a happy message and return the image ID.
 //
-func (b *Builder) build(config *types.ImageBuildOptions, context builder.Context, stdout io.Writer, stderr io.Writer, out io.Writer) (string, error) {
-	b.options = config
-	b.context = context
+func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (string, error) {
 	b.Stdout = stdout
 	b.Stderr = stderr
 	b.Output = out
@@ -198,7 +207,7 @@ func (b *Builder) build(config *types.ImageBuildOptions, context builder.Context
 		}
 	}
 
-	repoAndTags, err := sanitizeRepoAndTags(config.Tags)
+	repoAndTags, err := sanitizeRepoAndTags(b.options.Tags)
 	if err != nil {
 		return "", err
 	}
