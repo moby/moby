@@ -65,6 +65,8 @@ RUN cd /usr/local/lvm2 \
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
 # Install Go
+# TODO Update to 1.5.4 once available, or build from source, as these builds
+# are marked "end of life", see http://dave.cheney.net/unofficial-arm-tarballs
 ENV GO_VERSION 1.5.3
 RUN curl -fsSL "http://dave.cheney.net/paste/go${GO_VERSION}.linux-arm.tar.gz" \
 	| tar -xzC /usr/local
