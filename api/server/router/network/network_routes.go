@@ -51,7 +51,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 }
 
 func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var create types.NetworkCreate
+	var create types.NetworkCreateRequest
 
 	if err := httputils.ParseForm(r); err != nil {
 		return err

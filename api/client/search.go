@@ -47,11 +47,11 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	}
 
 	options := types.ImageSearchOptions{
-		Term:         name,
-		RegistryAuth: encodedAuth,
+		RegistryAuth:  encodedAuth,
+		PrivilegeFunc: requestPrivilege,
 	}
 
-	unorderedResults, err := cli.client.ImageSearch(context.Background(), options, requestPrivilege)
+	unorderedResults, err := cli.client.ImageSearch(context.Background(), name, options)
 	if err != nil {
 		return err
 	}

@@ -48,13 +48,14 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		cli.configFile.DetachKeys = *detachKeys
 	}
 
+	container := cmd.Arg(0)
+
 	options := types.ContainerAttachOptions{
-		ContainerID: cmd.Arg(0),
-		Stream:      true,
-		Stdin:       !*noStdin && c.Config.OpenStdin,
-		Stdout:      true,
-		Stderr:      true,
-		DetachKeys:  cli.configFile.DetachKeys,
+		Stream:     true,
+		Stdin:      !*noStdin && c.Config.OpenStdin,
+		Stdout:     true,
+		Stderr:     true,
+		DetachKeys: cli.configFile.DetachKeys,
 	}
 
 	var in io.ReadCloser
@@ -63,11 +64,11 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	}
 
 	if *proxy && !c.Config.Tty {
-		sigc := cli.forwardAllSignals(options.ContainerID)
+		sigc := cli.forwardAllSignals(container)
 		defer signal.StopCatch(sigc)
 	}
 
-	resp, errAttach := cli.client.ContainerAttach(context.Background(), options)
+	resp, errAttach := cli.client.ContainerAttach(context.Background(), container, options)
 	if errAttach != nil && errAttach != httputil.ErrPersistEOF {
 		// ContainerAttach returns an ErrPersistEOF (connection closed)
 		// means server met an error and put it in Hijacked connection
@@ -98,7 +99,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return errAttach
 	}
 
-	_, status, err := getExitCode(cli, options.ContainerID)
+	_, status, err := getExitCode(cli, container)
 	if err != nil {
 		return err
 	}

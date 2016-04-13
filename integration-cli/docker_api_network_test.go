@@ -28,9 +28,11 @@ func (s *DockerSuite) TestApiNetworkCreateDelete(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// Create a network
 	name := "testnetwork"
-	config := types.NetworkCreate{
-		Name:           name,
-		CheckDuplicate: true,
+	config := types.NetworkCreateRequest{
+		Name: name,
+		NetworkCreate: types.NetworkCreate{
+			CheckDuplicate: true,
+		},
 	}
 	id := createNetwork(c, config, true)
 	c.Assert(isNetworkAvailable(c, name), checker.Equals, true)
@@ -43,13 +45,17 @@ func (s *DockerSuite) TestApiNetworkCreateDelete(c *check.C) {
 func (s *DockerSuite) TestApiNetworkCreateCheckDuplicate(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testcheckduplicate"
-	configOnCheck := types.NetworkCreate{
-		Name:           name,
-		CheckDuplicate: true,
+	configOnCheck := types.NetworkCreateRequest{
+		Name: name,
+		NetworkCreate: types.NetworkCreate{
+			CheckDuplicate: true,
+		},
 	}
-	configNotCheck := types.NetworkCreate{
-		Name:           name,
-		CheckDuplicate: false,
+	configNotCheck := types.NetworkCreateRequest{
+		Name: name,
+		NetworkCreate: types.NetworkCreate{
+			CheckDuplicate: false,
+		},
 	}
 
 	// Creating a new network first
@@ -99,11 +105,13 @@ func (s *DockerSuite) TestApiNetworkInspect(c *check.C) {
 		Driver: "default",
 		Config: []network.IPAMConfig{{Subnet: "172.28.0.0/16", IPRange: "172.28.5.0/24", Gateway: "172.28.5.254"}},
 	}
-	config := types.NetworkCreate{
-		Name:    "br0",
-		Driver:  "bridge",
-		IPAM:    ipam,
-		Options: map[string]string{"foo": "bar", "opts": "dopts"},
+	config := types.NetworkCreateRequest{
+		Name: "br0",
+		NetworkCreate: types.NetworkCreate{
+			Driver:  "bridge",
+			IPAM:    ipam,
+			Options: map[string]string{"foo": "bar", "opts": "dopts"},
+		},
 	}
 	id0 := createNetwork(c, config, true)
 	c.Assert(isNetworkAvailable(c, "br0"), checker.Equals, true)
@@ -125,7 +133,7 @@ func (s *DockerSuite) TestApiNetworkConnectDisconnect(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// Create test network
 	name := "testnetwork"
-	config := types.NetworkCreate{
+	config := types.NetworkCreateRequest{
 		Name: name,
 	}
 	id := createNetwork(c, config, true)
@@ -169,10 +177,12 @@ func (s *DockerSuite) TestApiNetworkIpamMultipleBridgeNetworks(c *check.C) {
 		Driver: "default",
 		Config: []network.IPAMConfig{{Subnet: "192.178.0.0/16", IPRange: "192.178.128.0/17", Gateway: "192.178.138.100"}},
 	}
-	config0 := types.NetworkCreate{
-		Name:   "test0",
-		Driver: "bridge",
-		IPAM:   ipam0,
+	config0 := types.NetworkCreateRequest{
+		Name: "test0",
+		NetworkCreate: types.NetworkCreate{
+			Driver: "bridge",
+			IPAM:   ipam0,
+		},
 	}
 	id0 := createNetwork(c, config0, true)
 	c.Assert(isNetworkAvailable(c, "test0"), checker.Equals, true)
@@ -182,10 +192,12 @@ func (s *DockerSuite) TestApiNetworkIpamMultipleBridgeNetworks(c *check.C) {
 		Config: []network.IPAMConfig{{Subnet: "192.178.128.0/17", Gateway: "192.178.128.1"}},
 	}
 	// test1 bridge network overlaps with test0
-	config1 := types.NetworkCreate{
-		Name:   "test1",
-		Driver: "bridge",
-		IPAM:   ipam1,
+	config1 := types.NetworkCreateRequest{
+		Name: "test1",
+		NetworkCreate: types.NetworkCreate{
+			Driver: "bridge",
+			IPAM:   ipam1,
+		},
 	}
 	createNetwork(c, config1, false)
 	c.Assert(isNetworkAvailable(c, "test1"), checker.Equals, false)
@@ -195,10 +207,12 @@ func (s *DockerSuite) TestApiNetworkIpamMultipleBridgeNetworks(c *check.C) {
 		Config: []network.IPAMConfig{{Subnet: "192.169.0.0/16", Gateway: "192.169.100.100"}},
 	}
 	// test2 bridge network does not overlap
-	config2 := types.NetworkCreate{
-		Name:   "test2",
-		Driver: "bridge",
-		IPAM:   ipam2,
+	config2 := types.NetworkCreateRequest{
+		Name: "test2",
+		NetworkCreate: types.NetworkCreate{
+			Driver: "bridge",
+			IPAM:   ipam2,
+		},
 	}
 	createNetwork(c, config2, true)
 	c.Assert(isNetworkAvailable(c, "test2"), checker.Equals, true)
@@ -209,11 +223,11 @@ func (s *DockerSuite) TestApiNetworkIpamMultipleBridgeNetworks(c *check.C) {
 	c.Assert(isNetworkAvailable(c, "test1"), checker.Equals, true)
 
 	// for networks w/o ipam specified, docker will choose proper non-overlapping subnets
-	createNetwork(c, types.NetworkCreate{Name: "test3"}, true)
+	createNetwork(c, types.NetworkCreateRequest{Name: "test3"}, true)
 	c.Assert(isNetworkAvailable(c, "test3"), checker.Equals, true)
-	createNetwork(c, types.NetworkCreate{Name: "test4"}, true)
+	createNetwork(c, types.NetworkCreateRequest{Name: "test4"}, true)
 	c.Assert(isNetworkAvailable(c, "test4"), checker.Equals, true)
-	createNetwork(c, types.NetworkCreate{Name: "test5"}, true)
+	createNetwork(c, types.NetworkCreateRequest{Name: "test5"}, true)
 	c.Assert(isNetworkAvailable(c, "test5"), checker.Equals, true)
 
 	for i := 1; i < 6; i++ {
@@ -230,9 +244,11 @@ func (s *DockerSuite) TestApiCreateDeletePredefinedNetworks(c *check.C) {
 
 func createDeletePredefinedNetwork(c *check.C, name string) {
 	// Create pre-defined network
-	config := types.NetworkCreate{
-		Name:           name,
-		CheckDuplicate: true,
+	config := types.NetworkCreateRequest{
+		Name: name,
+		NetworkCreate: types.NetworkCreate{
+			CheckDuplicate: true,
+		},
 	}
 	shouldSucceed := false
 	createNetwork(c, config, shouldSucceed)
@@ -289,7 +305,7 @@ func getNetworkResource(c *check.C, id string) *types.NetworkResource {
 	return &nr
 }
 
-func createNetwork(c *check.C, config types.NetworkCreate, shouldSucceed bool) string {
+func createNetwork(c *check.C, config types.NetworkCreateRequest, shouldSucceed bool) string {
 	status, resp, err := sockRequest("POST", "/networks/create", config)
 	if !shouldSucceed {
 		c.Assert(status, checker.Not(checker.Equals), http.StatusCreated)

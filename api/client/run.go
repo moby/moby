@@ -198,15 +198,14 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		}
 
 		options := types.ContainerAttachOptions{
-			ContainerID: createResponse.ID,
-			Stream:      true,
-			Stdin:       config.AttachStdin,
-			Stdout:      config.AttachStdout,
-			Stderr:      config.AttachStderr,
-			DetachKeys:  cli.configFile.DetachKeys,
+			Stream:     true,
+			Stdin:      config.AttachStdin,
+			Stdout:     config.AttachStdout,
+			Stderr:     config.AttachStderr,
+			DetachKeys: cli.configFile.DetachKeys,
 		}
 
-		resp, errAttach := cli.client.ContainerAttach(context.Background(), options)
+		resp, errAttach := cli.client.ContainerAttach(context.Background(), createResponse.ID, options)
 		if errAttach != nil && errAttach != httputil.ErrPersistEOF {
 			// ContainerAttach returns an ErrPersistEOF (connection closed)
 			// means server met an error and put it in Hijacked connection
