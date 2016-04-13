@@ -226,7 +226,7 @@ Where:
 
 This API is for releasing an IP address.
 
-For this API, the remote driver will receive a POST message to the URL `/IpamDriver.RleaseAddress` with the following payload:
+For this API, the remote driver will receive a POST message to the URL `/IpamDriver.ReleaseAddress` with the following payload:
 
     {
 		"PoolID": string
