@@ -61,7 +61,7 @@ layer.
 **Response**:
 ```
 {
-  "Err: null
+  "Err": null
 }
 ```
 
@@ -82,7 +82,7 @@ Remove the filesystem layer with this given `ID`.
 **Response**:
 ```
 {
-  "Err: null
+  "Err": null
 }
 ```
 
@@ -126,7 +126,7 @@ filesystem layer.
 **Response**:
 ```
 {
-  "Err: null
+  "Err": null
 }
 ```
 
@@ -210,7 +210,7 @@ unmounting all the layered file systems.
 **Response**:
 ```
 {
-  "Err: null
+  "Err": null
 }
 ```
 
