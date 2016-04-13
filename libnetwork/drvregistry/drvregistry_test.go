@@ -73,6 +73,14 @@ func (m *mockDriver) RevokeExternalConnectivity(nid, eid string) error {
 	return nil
 }
 
+func (m *mockDriver) NetworkAllocate(id string, option map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
+	return nil, nil
+}
+
+func (m *mockDriver) NetworkFree(id string) error {
+	return nil
+}
+
 func getNew(t *testing.T) *DrvRegistry {
 	reg, err := New(nil, nil, nil, nil)
 	if err != nil {
