@@ -269,19 +269,27 @@ allocating images and container snapshots.
 
 Specifies a custom block storage device to use for the thin pool.
 
-If using a block device for device mapper storage, it is best to use
-`lvm` to create and manage the thin-pool volume. This volume is then
-handed to Docker to create snapshot volumes needed for images and
-containers.
+If using a block device for device mapper storage, it is best to use `lvm`
+to create and manage the thin-pool volume. This volume is then handed to Docker
+to exclusively create snapshot volumes needed for images and containers.
 
-Managing the thin-pool outside of Docker makes for the most feature-rich method
-of having Docker utilize device mapper thin provisioning as the backing storage
-for Docker's containers. The highlights of the LVM-based thin-pool management
-feature include: automatic or interactive thin-pool resize support, dynamically
-changing thin-pool features, automatic thinp metadata checking when lvm activates
-the thin-pool, etc.
+Managing the thin-pool outside of Engine makes for the most feature-rich
+method of having Docker utilize device mapper thin provisioning as the
+backing storage for Docker containers. The highlights of the lvm-based
+thin-pool management feature include: automatic or interactive thin-pool
+resize support, dynamically changing thin-pool features, automatic thinp
+metadata checking when lvm activates the thin-pool, etc.
 
-Example use: `docker daemon --storage-opt dm.thinpooldev=/dev/mapper/thin-pool`
+As a fallback if no thin pool is provided, loopback files are
+created. Loopback is very slow, but can be used without any
+pre-configuration of storage. It is strongly recommended that you do
+not use loopback in production. Ensure your Engine daemon has a
+`--storage-opt dm.thinpooldev` argument provided.
+
+Example use:
+
+   $ docker daemon \
+         --storage-opt dm.thinpooldev=/dev/mapper/thin-pool
 
 #### dm.basesize
 
@@ -471,27 +479,29 @@ daemon with a supported environment.
 
 #### dm.min_free_space
 
-Specifies the min free space percent in thin pool require for new device
+Specifies the min free space percent in a thin pool require for new device
 creation to succeed. This check applies to both free data space as well
 as free metadata space. Valid values are from 0% - 99%. Value 0% disables
-free space checking logic. If user does not specify a value for this optoin,
-then default value for this option is 10%.
+free space checking logic. If user does not specify a value for this option,
+the Engine uses a default value of 10%.
 
-Whenever a new thin pool device is created (during docker pull or
-during container creation), docker will check minimum free space is
-available as specified by this parameter. If that is not the case, then
-device creation will fail and docker operation will fail.
+Whenever a new a thin pool device is created (during `docker pull` or during
+container creation), the Engine checks if the minimum free space is
+available. If the space is unavailable, then device creation fails and any
+relevant `docker` operation fails.
 
-One will have to create more free space in thin pool to recover from the
-error. Either delete some of the images and containers from thin pool and
-create free space or add more storage to thin pool.
+To recover from this error, you must create more free space in the thin pool to
+recover from the error. You can create free space by deleting some images
+and containers from tge thin pool. You can also add
+more storage to the thin pool.
 
-For lvm thin pool, one can add more storage to volume group container thin
-pool and that should automatically resolve it. If loop devices are being
-used, then stop docker, grow the size of loop files and restart docker and
-that should resolve the issue.
+To add more space to an LVM (logical volume management) thin pool, just add
+more storage to the  group container thin pool; this should automatically
+resolve any errors. If your configuration uses loop devices, then stop the
+Engine daemon, grow the size of loop files and restart the daemon to resolve
+the issue.
 
-Example use: `docker daemon --storage-opt dm.min_free_space=10%`
+Example use:: `docker daemon --storage-opt dm.min_free_space=10%`
 
 ## ZFS options
 
