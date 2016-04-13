@@ -9,7 +9,6 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/types"
 	"github.com/miekg/dns"
 )
@@ -105,8 +104,6 @@ func (r *resolver) SetupFunc() func() {
 			r.err = fmt.Errorf("error in opening name server socket %v", err)
 			return
 		}
-		laddr := r.conn.LocalAddr()
-		_, ipPort, _ := net.SplitHostPort(laddr.String())
 
 		// Listen on a TCP as well
 		tcpaddr := &net.TCPAddr{
@@ -118,21 +115,6 @@ func (r *resolver) SetupFunc() func() {
 			r.err = fmt.Errorf("error in opening name TCP server socket %v", err)
 			return
 		}
-		ltcpaddr := r.tcpListen.Addr()
-		_, tcpPort, _ := net.SplitHostPort(ltcpaddr.String())
-		rules := [][]string{
-			{"-t", "nat", "-A", "OUTPUT", "-d", resolverIP, "-p", "udp", "--dport", dnsPort, "-j", "DNAT", "--to-destination", laddr.String()},
-			{"-t", "nat", "-A", "POSTROUTING", "-s", resolverIP, "-p", "udp", "--sport", ipPort, "-j", "SNAT", "--to-source", ":" + dnsPort},
-			{"-t", "nat", "-A", "OUTPUT", "-d", resolverIP, "-p", "tcp", "--dport", dnsPort, "-j", "DNAT", "--to-destination", ltcpaddr.String()},
-			{"-t", "nat", "-A", "POSTROUTING", "-s", resolverIP, "-p", "tcp", "--sport", tcpPort, "-j", "SNAT", "--to-source", ":" + dnsPort},
-		}
-
-		for _, rule := range rules {
-			r.err = iptables.RawCombinedOutputNative(rule...)
-			if r.err != nil {
-				return
-			}
-		}
 		r.err = nil
 	})
 }
@@ -142,6 +124,11 @@ func (r *resolver) Start() error {
 	if r.err != nil {
 		return r.err
 	}
+
+	if err := r.setupIPTable(); err != nil {
+		return fmt.Errorf("setting up IP table rules failed: %v", err)
+	}
+
 	s := &dns.Server{Handler: r, PacketConn: r.conn}
 	r.server = s
 	go func() {
