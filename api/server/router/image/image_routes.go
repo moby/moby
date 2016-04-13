@@ -206,7 +206,17 @@ func (s *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 	quiet := httputils.BoolValueOrDefault(r, "quiet", true)
-	w.Header().Set("Content-Type", "application/json")
+
+	if !quiet {
+		w.Header().Set("Content-Type", "application/json")
+
+		output := ioutils.NewWriteFlusher(w)
+		defer output.Close()
+		if err := s.backend.LoadImage(r.Body, output, quiet); err != nil {
+			output.Write(streamformatter.NewJSONStreamFormatter().FormatError(err))
+		}
+		return nil
+	}
 	return s.backend.LoadImage(r.Body, w, quiet)
 }
 
