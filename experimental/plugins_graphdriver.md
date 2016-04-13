@@ -68,6 +68,18 @@ which would indicate that there is no parent layer.
 
 Respond with a non-empty string error if an error occurred.
 
+### /GraphDriver.CreateReadWrite
+
+**Request**:
+```
+{
+  "ID": "46fe8644f2572fd1e505364f7581e0c9dbc7f14640bd1fb6ce97714fb6fc5187",
+  "Parent": "2cd9c322cb78a55e8212aa3ea8425a4180236d7106938ec921d0935a4b8ca142"
+  "MountLabel": ""
+}
+```
+
+Similar to `/GraphDriver.Create` but creates a read-write filesystem layer.
 
 ### /GraphDriver.Remove
 
