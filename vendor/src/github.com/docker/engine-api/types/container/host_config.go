@@ -92,11 +92,13 @@ func (n UsernsMode) Valid() bool {
 // CgroupSpec represents the cgroup to use for the container.
 type CgroupSpec string
 
+// IsContainer indicates whether the container is using another container cgroup
 func (c CgroupSpec) IsContainer() bool {
 	parts := strings.SplitN(string(c), ":", 2)
 	return len(parts) > 1 && parts[0] == "container"
 }
 
+// Valid indicates whether the cgroup spec is valid.
 func (c CgroupSpec) Valid() bool {
 	return c.IsContainer() || c == ""
 }

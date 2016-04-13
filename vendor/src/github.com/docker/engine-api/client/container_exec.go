@@ -8,9 +8,9 @@ import (
 )
 
 // ContainerExecCreate creates a new exec configuration to run an exec process.
-func (cli *Client) ContainerExecCreate(ctx context.Context, config types.ExecConfig) (types.ContainerExecCreateResponse, error) {
+func (cli *Client) ContainerExecCreate(ctx context.Context, container string, config types.ExecConfig) (types.ContainerExecCreateResponse, error) {
 	var response types.ContainerExecCreateResponse
-	resp, err := cli.post(ctx, "/containers/"+config.Container+"/exec", nil, config, nil)
+	resp, err := cli.post(ctx, "/containers/"+container+"/exec", nil, config, nil)
 	if err != nil {
 		return response, err
 	}
