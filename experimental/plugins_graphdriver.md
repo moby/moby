@@ -37,11 +37,11 @@ through from the user.
 **Response**:
 ```
 {
-  "Err": null
+  "Err": ""
 }
 ```
 
-Respond with a string error if an error occurred.
+Respond with a non-empty string error if an error occurred.
 
 
 ### /GraphDriver.Create
@@ -61,11 +61,11 @@ layer.
 **Response**:
 ```
 {
-  "Err": null
+  "Err": ""
 }
 ```
 
-Respond with a string error if an error occurred.
+Respond with a non-empty string error if an error occurred.
 
 
 ### /GraphDriver.Remove
@@ -82,11 +82,11 @@ Remove the filesystem layer with this given `ID`.
 **Response**:
 ```
 {
-  "Err": null
+  "Err": ""
 }
 ```
 
-Respond with a string error if an error occurred.
+Respond with a non-empty string error if an error occurred.
 
 ### /GraphDriver.Get
 
@@ -109,7 +109,7 @@ Get the mountpoint for the layered filesystem referred to by the given `ID`.
 ```
 
 Respond with the absolute path to the mounted layered filesystem.
-Respond with a string error if an error occurred.
+Respond with a non-empty string error if an error occurred.
 
 ### /GraphDriver.Put
 
@@ -126,11 +126,11 @@ filesystem layer.
 **Response**:
 ```
 {
-  "Err": null
+  "Err": ""
 }
 ```
 
-Respond with a string error if an error occurred.
+Respond with a non-empty string error if an error occurred.
 
 ### /GraphDriver.Exists
 
@@ -189,13 +189,13 @@ with the specified `ID`
 ```
 {
   "Metadata": {},
-  "Err": null
+  "Err": ""
 }
 ```
 
 Respond with a set of key/value pairs containing the low-level diagnostic
 information about the layered filesystem.
-Respond with a string error if an error occurred.
+Respond with a non-empty string error if an error occurred.
 
 ### /GraphDriver.Cleanup
 
@@ -210,11 +210,11 @@ unmounting all the layered file systems.
 **Response**:
 ```
 {
-  "Err": null
+  "Err": ""
 }
 ```
 
-Respond with a string error if an error occurred.
+Respond with a non-empty string error if an error occurred.
 
 
 ### /GraphDriver.Diff
@@ -252,7 +252,7 @@ Get a list of changes between the filesystem layers specified by the `ID` and
 ```
 {
   "Changes": [{}],
-  "Err": null
+  "Err": ""
 }
 ```
 
@@ -269,7 +269,7 @@ changed and `Kind` is an integer specifying the type of change that occurred:
 - 1 - Added
 - 2 - Deleted
 
-Respond with a string error if an error occurred.
+Respond with a non-empty string error if an error occurred.
 
 ### /GraphDriver.ApplyDiff
 
@@ -290,12 +290,12 @@ and `Parent`
 ```
 {
   "Size": 512366,
-  "Err": null
+  "Err": ""
 }
 ```
 
 Respond with the size of the new layer in bytes.
-Respond with a string error if an error occurred.
+Respond with a non-empty string error if an error occurred.
 
 ### /GraphDriver.DiffSize
 
@@ -313,9 +313,9 @@ Calculate the changes between the specified `ID`
 ```
 {
   "Size": 512366,
-  "Err": null
+  "Err": ""
 }
 ```
 
 Respond with the size changes between the specified `ID` and `Parent`
-Respond with a string error if an error occurred.
+Respond with a non-empty string error if an error occurred.
