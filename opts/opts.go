@@ -240,3 +240,35 @@ func ValidateLabel(val string) (string, error) {
 	}
 	return val, nil
 }
+
+// ValidateSysctl validates an sysctl and returns it.
+func ValidateSysctl(val string) (string, error) {
+	validSysctlMap := map[string]bool{
+		"kernel.msgmax":          true,
+		"kernel.msgmnb":          true,
+		"kernel.msgmni":          true,
+		"kernel.sem":             true,
+		"kernel.shmall":          true,
+		"kernel.shmmax":          true,
+		"kernel.shmmni":          true,
+		"kernel.shm_rmid_forced": true,
+	}
+	validSysctlPrefixes := []string{
+		"net.",
+		"fs.mqueue.",
+	}
+	arr := strings.Split(val, "=")
+	if len(arr) < 2 {
+		return "", fmt.Errorf("sysctl '%s' is not whitelisted", val)
+	}
+	if validSysctlMap[arr[0]] {
+		return val, nil
+	}
+
+	for _, vp := range validSysctlPrefixes {
+		if strings.HasPrefix(arr[0], vp) {
+			return val, nil
+		}
+	}
+	return "", fmt.Errorf("sysctl '%s' is not whitelisted", val)
+}
