@@ -59,6 +59,8 @@ could be added:
 $ iptables -I DOCKER -i ext_if ! -s 8.8.8.8 -j DROP
 ```
 
+where *ext_if* is the name of the interface providing external connectivity to the host.
+
 ##  Communication between containers
 
 Whether two containers can communicate is governed, at the operating system level, by two factors.

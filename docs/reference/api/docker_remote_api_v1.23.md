@@ -317,6 +317,17 @@ Create a container
              "CgroupParent": "",
              "VolumeDriver": "",
              "ShmSize": 67108864
+          },
+          "NetworkingConfig": {
+          "EndpointsConfig": {
+              "isolated_nw" : {
+                  "IPAMConfig": {
+                      "IPv4Address":"172.20.30.33",
+                      "IPv6Address":"2001:db8:abcd::3033"
+                  },
+                  "Links":["container_1", "container_2"],
+                  "Aliases":["server_x", "server_y"]
+              }
           }
       }
 
@@ -3005,13 +3016,19 @@ Content-Type: application/json
 {
   "Name":"isolated_nw",
   "Driver":"bridge",
-  "EnableIPv6": false,
+  "EnableIPv6": true,
   "IPAM":{
-    "Config":[{
-      "Subnet":"172.20.0.0/16",
-      "IPRange":"172.20.10.0/24",
-      "Gateway":"172.20.10.11"
-    }],
+    "Config":[
+       {
+          "Subnet":"172.20.0.0/16",
+          "IPRange":"172.20.10.0/24",
+          "Gateway":"172.20.10.11"
+        },
+        {
+          "Subnet":"2001:db8:abcd::/64",
+          "Gateway":"2001:db8:abcd::1011"
+        }
+    ],
     "Options": {
         "foo": "bar"
     }
