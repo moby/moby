@@ -8,12 +8,15 @@ Alex Elman <aelman@indeed.com>
 amitshukla <ashukla73@hotmail.com>
 Amy Lindburg <amy.lindburg@docker.com>
 Andrew Meredith <andymeredith@gmail.com>
+Andrew T Nguyen <andrew.nguyen@docker.com>
 Andrey Kostov <kostov.andrey@gmail.com>
 Andy Goldstein <agoldste@redhat.com>
 Anton Tiurin <noxiouz@yandex.ru>
 Antonio Mercado <amercado@thinknode.com>
+Antonio Murdaca <runcom@redhat.com>
 Arnaud Porterie <arnaud.porterie@docker.com>
 Arthur Baars <arthur@semmle.com>
+Asuka Suzuki <hello@tanksuzuki.com>
 Avi Miller <avi.miller@oracle.com>
 Ayose Cazorla <ayosec@gmail.com>
 BadZen <dave.trombley@gmail.com>
@@ -37,7 +40,9 @@ Diogo Mónica <diogo.monica@gmail.com>
 DJ Enriquez <dj.enriquez@infospace.com>
 Donald Huang <don.hcd@gmail.com>
 Doug Davis <dug@us.ibm.com>
+Eric Yang <windfarer@gmail.com>
 farmerworking <farmerworking@gmail.com>
+Felix Yan <felixonmars@archlinux.org>
 Florentin Raud <florentin.raud@gmail.com>
 Frederick F. Kautz IV <fkautz@alumni.cmu.edu>
 gabriell nascimento <gabriell@bluesoft.com.br>
@@ -45,29 +50,36 @@ harche <p.harshal@gmail.com>
 Henri Gomez <henri.gomez@gmail.com>
 Hu Keping <hukeping@huawei.com>
 Hua Wang <wanghua.humble@gmail.com>
+HuKeping <hukeping@huawei.com>
 Ian Babrou <ibobrik@gmail.com>
+igayoso <igayoso@gmail.com>
 Jack Griffin <jackpg14@gmail.com>
 Jason Freidman <jason.freidman@gmail.com>
 Jeff Nickoloff <jeff@allingeek.com>
 Jessie Frazelle <jessie@docker.com>
 Jianqing Wang <tsing@jianqing.org>
+John Starks <jostarks@microsoft.com>
 Jon Poler <jonathan.poler@apcera.com>
 Jonathan Boulle <jonathanboulle@gmail.com>
 Jordan Liggitt <jliggitt@redhat.com>
 Josh Hawn <josh.hawn@docker.com>
 Julien Fernandez <julien.fernandez@gmail.com>
+Keerthan Mala <kmala@engineyard.com>
 Kelsey Hightower <kelsey.hightower@gmail.com>
 Kenneth Lim <kennethlimcp@gmail.com>
 Kenny Leung <kleung@google.com>
 Li Yi <denverdino@gmail.com>
 Liu Hua <sdu.liu@huawei.com>
+liuchang0812 <liuchang0812@gmail.com>
 Louis Kottmann <louis.kottmann@gmail.com>
 Luke Carpenter <x@rubynerd.net>
 Mary Anthony <mary@docker.com>
 Matt Bentley <mbentley@mbentley.net>
+Matt Duch <matt@learnmetrics.com>
 Matt Moore <mattmoor@google.com>
 Matt Robenolt <matt@ydekproductions.com>
 Michael Prokop <mika@grml.org>
+Michal Minar <miminar@redhat.com>
 Miquel Sabaté <msabate@suse.com>
 Morgan Bauer <mbauer@us.ibm.com>
 moxiegirl <mary@docker.com>
@@ -78,6 +90,7 @@ Nuutti Kotivuori <nuutti.kotivuori@poplatek.fi>
 Oilbeater <liumengxinfly@gmail.com>
 Olivier Gambier <olivier@docker.com>
 Olivier Jacques <olivier.jacques@hp.com>
+Omer Cohen <git@omer.io>
 Patrick Devine <patrick.devine@docker.com>
 Philip Misiowiec <philip@atlashealth.com>
 Richard Scothern <richard.scothern@docker.com>
@@ -90,6 +103,7 @@ Shawn Falkner-Horine <dreadpirateshawn@gmail.com>
 Shreyas Karnik <karnik.shreyas@gmail.com>
 Simon Thulbourn <simon+github@thulbourn.com>
 Spencer Rinehart <anubis@overthemonkey.com>
+Stefan Weil <sw@weilnetz.de>
 Stephen J Day <stephen.day@docker.com>
 Sungho Moon <sungho.moon@navercorp.com>
 Sven Dowideit <SvenDowideit@home.org.au>
@@ -111,3 +125,4 @@ xg.song <xg.song@venusource.com>
 xiekeyang <xiekeyang@huawei.com>
 Yann ROBERT <yann.robert@anantaplex.fr>
 yuzou <zouyu7@huawei.com>
+姜继忠 <jizhong.jiangjz@alibaba-inc.com>

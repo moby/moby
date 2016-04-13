@@ -166,7 +166,7 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, ima
 		return err
 	}
 
-	putOptions := []distribution.ManifestServiceOption{client.WithTag(ref.Tag())}
+	putOptions := []distribution.ManifestServiceOption{distribution.WithTag(ref.Tag())}
 	if _, err = manSvc.Put(ctx, manifest, putOptions...); err != nil {
 		logrus.Warnf("failed to upload schema2 manifest: %v - falling back to schema1", err)
 
