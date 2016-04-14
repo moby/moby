@@ -41,7 +41,7 @@ for version in "${versions[@]}"; do
 
 	echo >> "$version/Dockerfile"
 
-	extraBuildTags=
+	extraBuildTags='pkcs11'
 	runcBuildTags=
 
 	# this list is sorted alphabetically; please keep it that way
