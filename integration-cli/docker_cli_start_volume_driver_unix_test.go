@@ -441,3 +441,22 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGetEmptyResponse(c *
 	c.Assert(err, checker.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "No such volume")
 }
+
+// Ensure only cached paths are used in volume list to prevent N+1 calls to `VolumeDriver.Path`
+func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverPathCalls(c *check.C) {
+	c.Assert(s.d.Start(), checker.IsNil)
+	c.Assert(s.ec.paths, checker.Equals, 0)
+
+	out, err := s.d.Cmd("volume", "create", "--name=test", "--driver=test-external-volume-driver")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(s.ec.paths, checker.Equals, 1)
+
+	out, err = s.d.Cmd("volume", "ls")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(s.ec.paths, checker.Equals, 1)
+
+	out, err = s.d.Cmd("volume", "inspect", "--format='{{.Mountpoint}}'", "test")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	c.Assert(s.ec.paths, checker.Equals, 1)
+}

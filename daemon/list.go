@@ -491,7 +491,15 @@ func (daemon *Daemon) Volumes(filter string) ([]*types.Volume, []string, error) 
 		return nil, nil, err
 	}
 	for _, v := range filterVolumes {
-		volumesOut = append(volumesOut, volumeToAPIType(v))
+		apiV := volumeToAPIType(v)
+		if vv, ok := v.(interface {
+			CachedPath() string
+		}); ok {
+			apiV.Mountpoint = vv.CachedPath()
+		} else {
+			apiV.Mountpoint = v.Path()
+		}
+		volumesOut = append(volumesOut, apiV)
 	}
 	return volumesOut, warnings, nil
 }

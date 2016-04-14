@@ -183,5 +183,7 @@ func (daemon *Daemon) VolumeCreate(name, driverName string, opts, labels map[str
 	}
 
 	daemon.LogVolumeEvent(v.Name(), "create", map[string]string{"driver": v.DriverName()})
-	return volumeToAPIType(v), nil
+	apiV := volumeToAPIType(v)
+	apiV.Mountpoint = v.Path()
+	return apiV, nil
 }
