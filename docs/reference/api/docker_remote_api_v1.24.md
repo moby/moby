@@ -522,8 +522,8 @@ Return low-level information on the container `id`
 			"Tty": false,
 			"User": "",
 			"Volumes": {
-                          "/volumes/data": {}
-                        },
+				"/volumes/data": {}
+			},
 			"WorkingDir": "",
 			"StopSignal": "SIGTERM"
 		},
@@ -1667,7 +1667,7 @@ Query Parameters:
         You can provide one or more `t` parameters.
 -   **remote** – A Git repository URI or HTTP/HTTPS URI build source. If the
         URI specifies a filename, the file's contents are placed into a file
-		called `Dockerfile`.
+        called `Dockerfile`.
 -   **q** – Suppress verbose build output.
 -   **nocache** – Do not use the cache when building the image.
 -   **pull** - Attempt to pull the image even if an older image exists locally.
@@ -1685,6 +1685,7 @@ Query Parameters:
         variable expansion in other Dockerfile instructions. This is not meant for
         passing secret values. [Read more about the buildargs instruction](../../reference/builder.md#arg)
 -   **shmsize** - Size of `/dev/shm` in bytes. The size must be greater than 0.  If omitted the system uses 64MB.
+-   **labels** – JSON map of string pairs for labels to set on the image.
 
     Request Headers:
 
@@ -2789,7 +2790,11 @@ Create a volume
     Content-Type: application/json
 
     {
-      "Name": "tardis"
+      "Name": "tardis",
+      "Labels": {
+        "com.example.some-label": "some-value",
+        "com.example.some-other-label": "some-other-value"
+      },
     }
 
 **Example response**:
@@ -2801,7 +2806,11 @@ Create a volume
       "Name": "tardis",
       "Driver": "local",
       "Mountpoint": "/var/lib/docker/volumes/tardis",
-      "Status": null
+      "Status": null,
+      "Labels": {
+        "com.example.some-label": "some-value",
+        "com.example.some-other-label": "some-other-value"
+      },
     }
 
 Status Codes:
@@ -2815,6 +2824,7 @@ JSON Parameters:
 - **Driver** - Name of the volume driver to use. Defaults to `local` for the name.
 - **DriverOpts** - A mapping of driver options and values. These options are
     passed directly to the driver and are driver specific.
+- **Labels** - Labels to set on the volume, specified as a map: `{"key":"value" [,"key2":"value2"]}`
 
 ### Inspect a volume
 
@@ -2832,9 +2842,13 @@ Return low-level information on the volume `name`
     Content-Type: application/json
 
     {
-      "Name": "tardis",
-      "Driver": "local",
-      "Mountpoint": "/var/lib/docker/volumes/tardis"
+        "Name": "tardis",
+        "Driver": "local",
+        "Mountpoint": "/var/lib/docker/volumes/tardis/_data",
+        "Labels": {
+            "com.example.some-label": "some-value",
+            "com.example.some-other-label": "some-other-value"
+        }
     }
 
 Status Codes:
@@ -3005,6 +3019,10 @@ Content-Type: application/json
     "com.docker.network.bridge.host_binding_ipv4": "0.0.0.0",
     "com.docker.network.bridge.name": "docker0",
     "com.docker.network.driver.mtu": "1500"
+  },
+  "Labels": {
+    "com.example.some-label": "some-value",
+    "com.example.some-other-label": "some-other-value"
   }
 }
 ```
@@ -3028,6 +3046,7 @@ Content-Type: application/json
 
 {
   "Name":"isolated_nw",
+  "CheckDuplicate":false,
   "Driver":"bridge",
   "EnableIPv6": true,
   "IPAM":{
@@ -3046,7 +3065,19 @@ Content-Type: application/json
         "foo": "bar"
     }
   },
-  "Internal":true
+  "Internal":true,
+  "Options": {
+    "com.docker.network.bridge.default_bridge": "true",
+    "com.docker.network.bridge.enable_icc": "true",
+    "com.docker.network.bridge.enable_ip_masquerade": "true",
+    "com.docker.network.bridge.host_binding_ipv4": "0.0.0.0",
+    "com.docker.network.bridge.name": "docker0",
+    "com.docker.network.driver.mtu": "1500"
+  },
+  "Labels": {
+    "com.example.some-label": "some-value",
+    "com.example.some-other-label": "some-other-value"
+  }
 }
 ```
 
@@ -3071,12 +3102,13 @@ Status Codes:
 JSON Parameters:
 
 - **Name** - The new network's name. this is a mandatory field
+- **CheckDuplicate** - Requests daemon to check for networks with same name
 - **Driver** - Name of the network driver plugin to use. Defaults to `bridge` driver
 - **Internal** - Restrict external access to the network
 - **IPAM** - Optional custom IP scheme for the network
 - **EnableIPv6** - Enable IPv6 on the network
 - **Options** - Network specific options to be used by the drivers
-- **CheckDuplicate** - Requests daemon to check for networks with same name
+- **Labels** - Labels to set on the network, specified as a map: `{"key":"value" [,"key2":"value2"]}`
 
 ### Connect a container to a network
 
