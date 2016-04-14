@@ -6,7 +6,7 @@ container_env = -e "INSIDECONTAINER=-incontainer=true"
 docker = docker run --rm -it ${dockerargs} $$EXTRA_ARGS ${container_env} ${build_image}
 ciargs = -e CIRCLECI -e "COVERALLS_TOKEN=$$COVERALLS_TOKEN" -e "INSIDECONTAINER=-incontainer=true"
 cidocker = docker run ${dockerargs} ${ciargs} ${container_env} ${build_image}
-CROSS_PLATFORMS = linux/amd64 linux/386 linux/arm windows/amd64 windows/386
+CROSS_PLATFORMS = linux/amd64 linux/386 linux/arm windows/amd64 windows/386 solaris/amd64 solaris/386
 
 all: ${build_image}.created build check integration-tests clean
 
@@ -102,4 +102,4 @@ circle-ci-check: ${build_image}.created
 circle-ci-build: ${build_image}.created
 	@${cidocker} make build-local
 
-circle-ci: circle-ci-check circle-ci-build integration-tests
+circle-ci: circle-ci-check circle-ci-cross circle-ci-build integration-tests
