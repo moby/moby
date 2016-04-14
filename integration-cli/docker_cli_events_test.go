@@ -95,8 +95,16 @@ func (s *DockerSuite) TestEventsContainerFailStartDie(c *check.C) {
 			dieEvent = true
 		}
 	}
-	c.Assert(startEvent, checker.True, check.Commentf("Start event not found: %v\n%v", actions, events))
-	c.Assert(dieEvent, checker.True, check.Commentf("Die event not found: %v\n%v", actions, events))
+
+	// Windows platform is different from Linux, it will start container whatever
+	// so Windows can get start/die event but Linux can't
+	if daemonPlatform == "windows" {
+		c.Assert(startEvent, checker.True, check.Commentf("Start event not found: %v\n%v", actions, events))
+		c.Assert(dieEvent, checker.True, check.Commentf("Die event not found: %v\n%v", actions, events))
+	} else {
+		c.Assert(startEvent, checker.False, check.Commentf("Start event not expected: %v\n%v", actions, events))
+		c.Assert(dieEvent, checker.False, check.Commentf("Die event not expected: %v\n%v", actions, events))
+	}
 }
 
 func (s *DockerSuite) TestEventsLimit(c *check.C) {
