@@ -523,26 +523,6 @@ func (container *Container) ShouldRestart() bool {
 	return shouldRestart
 }
 
-// AddBindMountPoint adds a new bind mount point configuration to the container.
-func (container *Container) AddBindMountPoint(name, source, destination string, rw bool) {
-	container.MountPoints[destination] = &volume.MountPoint{
-		Name:        name,
-		Source:      source,
-		Destination: destination,
-		RW:          rw,
-	}
-}
-
-// AddLocalMountPoint adds a new local mount point configuration to the container.
-func (container *Container) AddLocalMountPoint(name, destination string, rw bool) {
-	container.MountPoints[destination] = &volume.MountPoint{
-		Name:        name,
-		Driver:      volume.DefaultDriverName,
-		Destination: destination,
-		RW:          rw,
-	}
-}
-
 // AddMountPointWithVolume adds a new mount point configured with a volume to the container.
 func (container *Container) AddMountPointWithVolume(destination string, vol volume.Volume, rw bool) {
 	container.MountPoints[destination] = &volume.MountPoint{

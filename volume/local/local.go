@@ -258,8 +258,7 @@ func (r *Root) validateName(name string) error {
 // localVolume implements the Volume interface from the volume package and
 // represents the volumes created by Root.
 type localVolume struct {
-	m         sync.Mutex
-	usedCount int
+	m sync.Mutex
 	// unique name of the volume
 	name string
 	// path is the path on the host where the data lives
