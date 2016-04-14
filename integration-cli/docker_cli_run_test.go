@@ -1743,10 +1743,9 @@ func (s *DockerSuite) TestRunExitOnStdinClose(c *check.C) {
 	name := "testrunexitonstdinclose"
 
 	meow := "/bin/cat"
-	delay := 1
+	delay := 60
 	if daemonPlatform == "windows" {
 		meow = "cat"
-		delay = 60
 	}
 	runCmd := exec.Command(dockerBinary, "run", "--name", name, "-i", "busybox", meow)
 
