@@ -165,7 +165,12 @@ func (ep *endpoint) addToCluster() error {
 
 	c := n.getController()
 	if !ep.isAnonymous() && ep.Iface().Address() != nil {
-		if err := c.agent.networkDB.CreateEntry("endpoint_table", n.ID(), ep.ID(), []byte(fmt.Sprintf("%s=%s", ep.Name(), ep.Iface().Address().IP))); err != nil {
+		if err := c.addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.Iface().Address().IP); err != nil {
+			return err
+		}
+
+		if err := c.agent.networkDB.CreateEntry("endpoint_table", n.ID(), ep.ID(), []byte(fmt.Sprintf("%s,%s,%s,%s", ep.Name(), ep.svcName,
+			ep.svcID, ep.Iface().Address().IP))); err != nil {
 			return err
 		}
 	}
@@ -187,6 +192,12 @@ func (ep *endpoint) deleteFromCluster() error {
 
 	c := n.getController()
 	if !ep.isAnonymous() {
+		if ep.Iface().Address() != nil {
+			if err := c.rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.Iface().Address().IP); err != nil {
+				return err
+			}
+		}
+
 		if err := c.agent.networkDB.DeleteEntry("endpoint_table", n.ID(), ep.ID()); err != nil {
 			return err
 		}
@@ -297,38 +308,43 @@ func (n *network) handleDriverTableEvent(ev events.Event) {
 
 func (c *controller) handleEpTableEvent(ev events.Event) {
 	var (
-		id    string
+		nid   string
+		eid   string
 		value string
 		isAdd bool
 	)
 
 	switch event := ev.(type) {
 	case networkdb.CreateEvent:
-		id = event.NetworkID
+		nid = event.NetworkID
+		eid = event.Key
 		value = string(event.Value)
 		isAdd = true
 	case networkdb.DeleteEvent:
-		id = event.NetworkID
+		nid = event.NetworkID
+		eid = event.Key
 		value = string(event.Value)
 	case networkdb.UpdateEvent:
 		logrus.Errorf("Unexpected update service table event = %#v", event)
 	}
 
-	nw, err := c.NetworkByID(id)
+	nw, err := c.NetworkByID(nid)
 	if err != nil {
-		logrus.Errorf("Could not find network %s while handling service table event: %v", id, err)
+		logrus.Errorf("Could not find network %s while handling service table event: %v", nid, err)
 		return
 	}
 	n := nw.(*network)
 
-	pair := strings.Split(value, "=")
-	if len(pair) < 2 {
+	vals := strings.Split(value, ",")
+	if len(vals) < 4 {
 		logrus.Errorf("Incorrect service table value = %s", value)
 		return
 	}
 
-	name := pair[0]
-	ip := net.ParseIP(pair[1])
+	name := vals[0]
+	svcName := vals[1]
+	svcID := vals[2]
+	ip := net.ParseIP(vals[3])
 
 	if name == "" || ip == nil {
 		logrus.Errorf("Invalid endpoint name/ip received while handling service table event %s", value)
@@ -336,8 +352,18 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 	}
 
 	if isAdd {
+		if err := c.addServiceBinding(svcName, svcID, nid, eid, ip); err != nil {
+			logrus.Errorf("Failed adding service binding for value %s: %v", value, err)
+			return
+		}
+
 		n.addSvcRecords(name, ip, nil, true)
 	} else {
+		if err := c.rmServiceBinding(svcName, svcID, nid, eid, ip); err != nil {
+			logrus.Errorf("Failed adding service binding for value %s: %v", value, err)
+			return
+		}
+
 		n.deleteSvcRecords(name, ip, nil, true)
 	}
 }

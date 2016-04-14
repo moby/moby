@@ -405,7 +405,7 @@ func (sb *sandbox) ResolveIP(ip string) string {
 	for _, ep := range sb.getConnectedEndpoints() {
 		n := ep.getNetwork()
 
-		sr, ok := n.getController().svcDb[n.ID()]
+		sr, ok := n.getController().svcRecords[n.ID()]
 		if !ok {
 			continue
 		}
@@ -512,7 +512,7 @@ func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoin
 			ep.Unlock()
 		}
 
-		sr, ok := n.getController().svcDb[n.ID()]
+		sr, ok := n.getController().svcRecords[n.ID()]
 		if !ok {
 			continue
 		}

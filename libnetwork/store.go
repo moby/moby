@@ -420,7 +420,7 @@ func (c *controller) processEndpointDelete(nmap map[string]*netWatch, ep *endpoi
 
 			// This is the last container going away for the network. Destroy
 			// this network's svc db entry
-			delete(c.svcDb, ep.getNetwork().ID())
+			delete(c.svcRecords, ep.getNetwork().ID())
 
 			delete(nmap, ep.getNetwork().ID())
 		}

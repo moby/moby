@@ -67,6 +67,8 @@ type endpoint struct {
 	ipamOptions       map[string]string
 	aliases           map[string]string
 	myAliases         []string
+	svcID             string
+	svcName           string
 	dbIndex           uint64
 	dbExists          bool
 	sync.Mutex
@@ -89,6 +91,9 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 	epMap["anonymous"] = ep.anonymous
 	epMap["disableResolution"] = ep.disableResolution
 	epMap["myAliases"] = ep.myAliases
+	epMap["svcName"] = ep.svcName
+	epMap["svcID"] = ep.svcID
+
 	return json.Marshal(epMap)
 }
 
@@ -172,6 +177,15 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 	if l, ok := epMap["locator"]; ok {
 		ep.locator = l.(string)
 	}
+
+	if sn, ok := epMap["svcName"]; ok {
+		ep.svcName = sn.(string)
+	}
+
+	if si, ok := epMap["svcID"]; ok {
+		ep.svcID = si.(string)
+	}
+
 	ma, _ := json.Marshal(epMap["myAliases"])
 	var myAliases []string
 	json.Unmarshal(ma, &myAliases)
@@ -196,6 +210,8 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp.dbExists = ep.dbExists
 	dstEp.anonymous = ep.anonymous
 	dstEp.disableResolution = ep.disableResolution
+	dstEp.svcName = ep.svcName
+	dstEp.svcID = ep.svcID
 
 	if ep.iface != nil {
 		dstEp.iface = &endpointInterface{}
@@ -413,7 +429,9 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) error {
 	}()
 
 	// Watch for service records
-	n.getController().watchSvcRecord(ep)
+	if !n.getController().cfg.Daemon.IsAgent {
+		n.getController().watchSvcRecord(ep)
+	}
 
 	address := ""
 	if ip := ep.getFirstInterfaceAddress(); ip != nil {
@@ -738,7 +756,9 @@ func (ep *endpoint) Delete(force bool) error {
 	}()
 
 	// unwatch for service records
-	n.getController().unWatchSvcRecord(ep)
+	if !n.getController().cfg.Daemon.IsAgent {
+		n.getController().unWatchSvcRecord(ep)
+	}
 
 	if err = ep.deleteEndpoint(force); err != nil && !force {
 		return err
@@ -868,6 +888,14 @@ func CreateOptionAlias(name string, alias string) EndpointOption {
 			ep.aliases = make(map[string]string)
 		}
 		ep.aliases[alias] = name
+	}
+}
+
+// CreateOptionService function returns an option setter for setting service binding configuration
+func CreateOptionService(name, id string) EndpointOption {
+	return func(ep *endpoint) {
+		ep.svcName = name
+		ep.svcID = id
 	}
 }
 

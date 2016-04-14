@@ -1002,14 +1002,14 @@ func (n *network) addSvcRecords(name string, epIP net.IP, epIPv6 net.IP, ipMapUp
 	c := n.getController()
 	c.Lock()
 	defer c.Unlock()
-	sr, ok := c.svcDb[n.ID()]
+	sr, ok := c.svcRecords[n.ID()]
 	if !ok {
 		sr = svcInfo{
 			svcMap:     make(map[string][]net.IP),
 			svcIPv6Map: make(map[string][]net.IP),
 			ipMap:      make(map[string]string),
 		}
-		c.svcDb[n.ID()] = sr
+		c.svcRecords[n.ID()] = sr
 	}
 
 	if ipMapUpdate {
@@ -1029,7 +1029,7 @@ func (n *network) deleteSvcRecords(name string, epIP net.IP, epIPv6 net.IP, ipMa
 	c := n.getController()
 	c.Lock()
 	defer c.Unlock()
-	sr, ok := c.svcDb[n.ID()]
+	sr, ok := c.svcRecords[n.ID()]
 	if !ok {
 		return
 	}
@@ -1054,7 +1054,7 @@ func (n *network) getSvcRecords(ep *endpoint) []etchosts.Record {
 	defer n.Unlock()
 
 	var recs []etchosts.Record
-	sr, _ := n.ctrlr.svcDb[n.id]
+	sr, _ := n.ctrlr.svcRecords[n.id]
 
 	for h, ip := range sr.svcMap {
 		if ep != nil && strings.Split(h, ".")[0] == ep.Name() {
