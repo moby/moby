@@ -117,6 +117,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 [Docker Remote API v1.24](docker_remote_api_v1.24.md) documentation
 
 * `POST /containers/create` now takes `StorageOpt` field.
+* `GET /info` now returns `SecurityOptions` field, showing if `apparmor`, `seccomp`, or `selinux` is supported.
 
 ### v1.23 API changes
 
