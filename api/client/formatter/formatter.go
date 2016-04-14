@@ -98,7 +98,8 @@ func (c *Context) contextFormat(tmpl *template.Template, subContext subContext) 
 type ContainerContext struct {
 	Context
 	// Size when set to true will display the size of the output.
-	Size bool
+	Size            bool
+	SizeSetByFormat bool
 	// Containers
 	Containers []types.Container
 }
@@ -129,19 +130,19 @@ created_at: {{.CreatedAt}}
 status: {{.Status}}
 names: {{.Names}}
 labels: {{.Labels}}
-ports: {{.Ports}}
-`
-			if ctx.Size {
-				ctx.Format += `size: {{.Size}}
-`
-			}
+ports: {{.Ports}}`
 		}
 	}
 
 	ctx.buffer = bytes.NewBufferString("")
 	ctx.preformat()
-	if ctx.table && ctx.Size {
-		ctx.finalFormat += "\t{{.Size}}"
+	if ctx.Size && !ctx.SizeSetByFormat {
+		if ctx.table {
+			ctx.finalFormat += "\t{{.Size}}"
+		} else {
+			ctx.finalFormat += `
+size: {{.Size}}`
+		}
 	}
 
 	tmpl, err := ctx.parseFormat()
