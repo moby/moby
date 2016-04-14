@@ -114,35 +114,27 @@ type ImageContext struct {
 func (ctx ContainerContext) Write() {
 	switch ctx.Format {
 	case tableFormatKey:
-		ctx.Format = defaultContainerTableFormat
 		if ctx.Quiet {
 			ctx.Format = defaultQuietFormat
+		} else {
+			ctx.Format = defaultContainerTableFormat
+			if ctx.Size {
+				ctx.Format += `\t{{.Size}}`
+			}
 		}
 	case rawFormatKey:
 		if ctx.Quiet {
 			ctx.Format = `container_id: {{.ID}}`
 		} else {
-			ctx.Format = `container_id: {{.ID}}
-image: {{.Image}}
-command: {{.Command}}
-created_at: {{.CreatedAt}}
-status: {{.Status}}
-names: {{.Names}}
-labels: {{.Labels}}
-ports: {{.Ports}}
-`
+			ctx.Format = `container_id: {{.ID}}\nimage: {{.Image}}\ncommand: {{.Command}}\ncreated_at: {{.CreatedAt}}\nstatus: {{.Status}}\nnames: {{.Names}}\nlabels: {{.Labels}}\nports: {{.Ports}}\n`
 			if ctx.Size {
-				ctx.Format += `size: {{.Size}}
-`
+				ctx.Format += `size: {{.Size}}\n`
 			}
 		}
 	}
 
 	ctx.buffer = bytes.NewBufferString("")
 	ctx.preformat()
-	if ctx.table && ctx.Size {
-		ctx.finalFormat += "\t{{.Size}}"
-	}
 
 	tmpl, err := ctx.parseFormat()
 	if err != nil {

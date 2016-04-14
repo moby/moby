@@ -787,3 +787,20 @@ func (s *DockerSuite) TestPsShowMounts(c *check.C) {
 	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+prefix+slash+"this-path-was-never-mounted")
 	c.Assert(strings.TrimSpace(string(out)), checker.HasLen, 0)
 }
+
+func (s *DockerSuite) TestPsFormatSize(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	runSleepingContainer(c)
+
+	out, _ := dockerCmd(c, "ps", "--format", "table {{.Size}}")
+	lines := strings.Split(out, "\n")
+	c.Assert(lines[1], checker.Not(checker.Equals), "0 B", check.Commentf("Should not display a size of 0 B"))
+
+	out, _ = dockerCmd(c, "ps", "--size", "--format", "table {{.Size}}")
+	lines = strings.Split(out, "\n")
+	c.Assert(lines[0], checker.Equals, "SIZE", check.Commentf("Should only have one size column"))
+
+	out, _ = dockerCmd(c, "ps", "--size", "--format", "raw")
+	lines = strings.Split(out, "\n")
+	c.Assert(lines[8], checker.HasPrefix, "size:", check.Commentf("Size should be appended on a newline"))
+}

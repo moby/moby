@@ -63,7 +63,7 @@ containerID2        ubuntu              ""                  24 hours ago        
 				},
 				Size: true,
 			},
-			"IMAGE               SIZE\nubuntu              0 B\nubuntu              0 B\n",
+			"IMAGE\nubuntu\nubuntu\n",
 		},
 		{
 			ContainerContext{
@@ -226,6 +226,25 @@ func TestContainerContextWriteWithNoContainers(t *testing.T) {
 			ContainerContext{
 				Context: Context{
 					Format: "table {{.Image}}",
+					Output: out,
+				},
+				Size: true,
+			},
+			"IMAGE\n",
+		},
+		{
+			ContainerContext{
+				Context: Context{
+					Format: "table {{.Image}}\t{{.Size}}",
+					Output: out,
+				},
+			},
+			"IMAGE               SIZE\n",
+		},
+		{
+			ContainerContext{
+				Context: Context{
+					Format: "table {{.Image}}\t{{.Size}}",
 					Output: out,
 				},
 				Size: true,
