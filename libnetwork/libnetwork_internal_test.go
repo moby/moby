@@ -433,7 +433,7 @@ func (b *badDriver) RevokeExternalConnectivity(nid, eid string) error {
 	return nil
 }
 
-func (b *badDriver) NetworkAllocate(id string, option map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
+func (b *badDriver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
 	return nil, types.NotImplementedErrorf("not implemented")
 }
 
