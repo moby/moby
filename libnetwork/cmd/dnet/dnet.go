@@ -201,7 +201,7 @@ func createDefaultNetwork(c libnetwork.NetworkController) {
 			}
 		}
 
-		_, err := c.NewNetwork(d, nw, createOptions...)
+		_, err := c.NewNetwork(d, nw, "", createOptions...)
 		if err != nil {
 			logrus.Errorf("Error creating default network : %s : %v", nw, err)
 		}
