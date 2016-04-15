@@ -403,9 +403,10 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 				continue
 			}
 
-			if neigh.IP.To16() != nil {
+			if neigh.IP.To4() == nil {
 				continue
 			}
+			logrus.Debugf("miss notification for dest IP, %v", neigh.IP.String())
 
 			if neigh.State&(netlink.NUD_STALE|netlink.NUD_INCOMPLETE) == 0 {
 				continue
