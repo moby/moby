@@ -39,6 +39,7 @@ dockerd - Enable daemon mode
 [**--ip-masq**[=*true*]]
 [**--iptables**[=*true*]]
 [**--ipv6**]
+[**--isolation**[=*default*]]
 [**-l**|**--log-level**[=*info*]]
 [**--label**[=*[]*]]
 [**--log-driver**[=*json-file*]]
@@ -182,6 +183,11 @@ unix://[/path/to/socket] to use.
 
 **--ipv6**=*true*|*false*
   Enable IPv6 support. Default is false. Docker will create an IPv6-enabled bridge with address fe80::1 which will allow you to create IPv6-enabled containers. Use together with `--fixed-cidr-v6` to provide globally routable IPv6 addresses. IPv6 forwarding will be enabled if not used with `--ip-forward=false`. This may collide with your host's current IPv6 settings. For more information please consult the documentation about "Advanced Networking - IPv6".
+
+**--isolation**="*default*"
+   Isolation specifies the type of isolation technology used by containers. Note
+that the default on Windows server is `process`, and the default on Windows client
+is `hyperv`. Linux only supports `default`.
 
 **-l**, **--log-level**="*debug*|*info*|*warn*|*error*|*fatal*"
   Set the logging level. Default is `info`.

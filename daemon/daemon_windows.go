@@ -470,6 +470,10 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 // daemon to run in. This is only applicable on Windows
 func (daemon *Daemon) setDefaultIsolation() error {
 	daemon.defaultIsolation = containertypes.Isolation("process")
+	// On client SKUs, default to Hyper-V
+	if system.IsWindowsClient() {
+		daemon.defaultIsolation = containertypes.Isolation("hyperv")
+	}
 	for _, option := range daemon.configStore.ExecOptions {
 		key, val, err := parsers.ParseKeyValueOpt(option)
 		if err != nil {
@@ -484,6 +488,12 @@ func (daemon *Daemon) setDefaultIsolation() error {
 			}
 			if containertypes.Isolation(val).IsHyperV() {
 				daemon.defaultIsolation = containertypes.Isolation("hyperv")
+			}
+			if containertypes.Isolation(val).IsProcess() {
+				if system.IsWindowsClient() {
+					return fmt.Errorf("Windows client operating systems only support Hyper-V containers")
+				}
+				daemon.defaultIsolation = containertypes.Isolation("process")
 			}
 		default:
 			return fmt.Errorf("Unrecognised exec-opt '%s'\n", key)
