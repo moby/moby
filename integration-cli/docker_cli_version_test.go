@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 
+	"encoding/json"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
@@ -24,6 +25,14 @@ func (s *DockerSuite) TestVersionEnsureSucceeds(c *check.C) {
 	for k, v := range stringsToCheck {
 		c.Assert(strings.Count(out, k), checker.Equals, v, check.Commentf("The count of %v in %s does not match excepted", k, out))
 	}
+}
+
+func (s *DockerSuite) TestVersionJsonEnsureSucceeds(c *check.C) {
+	out, _ := dockerCmd(c, "version --json")
+	var version map[string]interface{}
+	json.Unmarshal([]byte(out), &version)
+	c.Assert(version["Client"], checker.NotNil)
+	c.Assert(version["Server"], checker.NotNil)
 }
 
 // ensure the Windows daemon return the correct platform string
