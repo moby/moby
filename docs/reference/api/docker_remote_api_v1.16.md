@@ -151,7 +151,7 @@ Create a container
              "ExposedPorts": {
                      "22/tcp": {}
              },
-             "SecurityOpts": [],
+             "SecurityOpt": [],
              "HostConfig": {
                "Binds": ["/tmp:/tmp"],
                "Links": ["redis3:redis"],
@@ -212,7 +212,7 @@ Json Parameters:
       container
 -   **ExposedPorts** - An object mapping ports to an empty object in the form of:
       `"ExposedPorts": { "<port>/<tcp|udp>: {}" }`
--   **SecurityOpts**: A list of string values to customize labels for MLS
+-   **SecurityOpt**: A list of string values to customize labels for MLS
       systems, such as SELinux.
 -   **HostConfig**
   -   **Binds** – A list of volume bindings for this container.  Each volume
