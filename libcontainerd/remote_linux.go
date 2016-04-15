@@ -23,6 +23,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
+	"google.golang.org/grpc/transport"
 )
 
 const (
@@ -37,17 +38,18 @@ const (
 
 type remote struct {
 	sync.RWMutex
-	apiClient   containerd.APIClient
-	daemonPid   int
-	stateDir    string
-	rpcAddr     string
-	startDaemon bool
-	debugLog    bool
-	rpcConn     *grpc.ClientConn
-	clients     []*client
-	eventTsPath string
-	pastEvents  map[string]*containerd.Event
-	runtimeArgs []string
+	apiClient     containerd.APIClient
+	daemonPid     int
+	stateDir      string
+	rpcAddr       string
+	startDaemon   bool
+	closeManually bool
+	debugLog      bool
+	rpcConn       *grpc.ClientConn
+	clients       []*client
+	eventTsPath   string
+	pastEvents    map[string]*containerd.Event
+	runtimeArgs   []string
 }
 
 // New creates a fresh instance of libcontainerd remote.
@@ -147,6 +149,7 @@ func (r *remote) Cleanup() {
 	if r.daemonPid == -1 {
 		return
 	}
+	r.closeManually = true
 	r.rpcConn.Close()
 	// Ask the daemon to quit
 	syscall.Kill(r.daemonPid, syscall.SIGTERM)
@@ -254,6 +257,11 @@ func (r *remote) handleEventStream(events containerd.API_EventsClient) {
 	for {
 		e, err := events.Recv()
 		if err != nil {
+			if grpc.ErrorDesc(err) == transport.ErrConnClosing.Desc &&
+				r.closeManually {
+				// ignore error if grpc remote connection is closed manually
+				return
+			}
 			logrus.Errorf("failed to receive event from containerd: %v", err)
 			go r.startEventsMonitor()
 			return
