@@ -85,20 +85,7 @@ func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 	if *isJson {
 		err2 = renderJson(cli.out, vd)
 	} else {
-		templateFormat := versionTemplate
-		if *tmplStr != "" {
-			templateFormat = *tmplStr
-		}
-
-		var tmpl *template.Template
-		if tmpl, err = templates.Parse(templateFormat); err != nil {
-			return Cli.StatusError{StatusCode: 64,
-				Status: "Template parsing error: " + err.Error()}
-		}
-
-		if err2 := tmpl.Execute(cli.out, vd); err2 != nil && err == nil {
-			err = err2
-		}
+		err2 = renderTemplate(cli.out, *tmplStr, vd)
 	}
 
 	if err2 != nil && err == nil {
@@ -115,5 +102,20 @@ func renderJson(out io.Writer, vd types.VersionResponse) error {
 	return err
 }
 
-//func renderTemplate(out io.Writer, templateFormat string, vd types.VersionResponse) error {
-//}
+func renderTemplate(out io.Writer, templateString string, vd types.VersionResponse) error {
+	templateFormat := versionTemplate
+	if templateString != "" {
+		templateFormat = templateString
+	}
+
+	var (
+		tmpl *template.Template
+		err  error
+	)
+	if tmpl, err = templates.Parse(templateFormat); err != nil {
+		return Cli.StatusError{StatusCode: 64,
+			Status: "Template parsing error: " + err.Error()}
+	}
+
+	return tmpl.Execute(out, vd)
+}
