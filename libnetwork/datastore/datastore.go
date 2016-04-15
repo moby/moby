@@ -9,10 +9,6 @@ import (
 
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
-	"github.com/docker/libkv/store/boltdb"
-	"github.com/docker/libkv/store/consul"
-	"github.com/docker/libkv/store/etcd"
-	"github.com/docker/libkv/store/zookeeper"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/types"
 )
@@ -147,13 +143,6 @@ func makeDefaultScopes() map[string]*ScopeCfg {
 
 var defaultRootChain = []string{"docker", "network", "v1.0"}
 var rootChain = defaultRootChain
-
-func init() {
-	consul.Register()
-	zookeeper.Register()
-	etcd.Register()
-	boltdb.Register()
-}
 
 // DefaultScopes returns a map of default scopes and it's config for clients to use.
 func DefaultScopes(dataDir string) map[string]*ScopeCfg {
@@ -411,6 +400,9 @@ func (ds *datastore) PutObjectAtomic(kvObject KVObject) error {
 
 	_, pair, err = ds.store.AtomicPut(Key(kvObject.Key()...), kvObjValue, previous, nil)
 	if err != nil {
+		if err == store.ErrKeyExists {
+			return ErrKeyModified
+		}
 		return err
 	}
 
@@ -571,6 +563,9 @@ func (ds *datastore) DeleteObjectAtomic(kvObject KVObject) error {
 	}
 
 	if _, err := ds.store.AtomicDelete(Key(kvObject.Key()...), previous); err != nil {
+		if err == store.ErrKeyExists {
+			return ErrKeyModified
+		}
 		return err
 	}
 

@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/libkv/store/boltdb"
 	"github.com/docker/libnetwork/bitseq"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
@@ -24,6 +25,10 @@ const (
 	dsConfigKey = "ipam/" + ipamapi.DefaultIPAM + "/config"
 	dsDataKey   = "ipam/" + ipamapi.DefaultIPAM + "/data"
 )
+
+func init() {
+	boltdb.Register()
+}
 
 // Allocator provides per address space ipv4/ipv6 book keeping
 type Allocator struct {
