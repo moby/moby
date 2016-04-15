@@ -160,9 +160,8 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 	cpuShares := uint64(c.HostConfig.CPUShares)
 	s.Windows.Resources = &windowsoci.Resources{
 		CPU: &windowsoci.CPU{
-			//TODO Count: ...,
-			//TODO Percent: ...,
-			Shares: &cpuShares,
+			Percent: &c.HostConfig.CPUPercent,
+			Shares:  &cpuShares,
 		},
 		Memory: &windowsoci.Memory{
 		//TODO Limit: ...,

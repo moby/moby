@@ -282,6 +282,7 @@ Create a container
              "MemorySwap": 0,
              "MemoryReservation": 0,
              "KernelMemory": 0,
+             "CpuPercent": 80,
              "CpuShares": 512,
              "CpuPeriod": 100000,
              "CpuQuota": 50000,
@@ -354,6 +355,7 @@ Json Parameters:
       You must use this with `memory` and make the swap value larger than `memory`.
 -   **MemoryReservation** - Memory soft limit in bytes.
 -   **KernelMemory** - Kernel memory limit in bytes.
+-   **CpuPercent** - An integer value containing the usable percentage of the available CPUs. (Windows daemon only)
 -   **CpuShares** - An integer value containing the container's CPU Shares
       (ie. the relative weight vs other containers).
 -   **CpuPeriod** - The length of a CPU period in microseconds.
@@ -542,6 +544,7 @@ Return low-level information on the container `id`
 			"ContainerIDFile": "",
 			"CpusetCpus": "",
 			"CpusetMems": "",
+			"CpuPercent": 80,
 			"CpuShares": 0,
 			"CpuPeriod": 100000,
 			"Devices": [],
