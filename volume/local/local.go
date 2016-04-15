@@ -327,3 +327,7 @@ func validateOpts(opts map[string]string) error {
 	}
 	return nil
 }
+
+func (v *localVolume) Status() map[string]interface{} {
+	return nil
+}

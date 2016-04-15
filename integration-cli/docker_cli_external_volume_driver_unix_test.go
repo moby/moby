@@ -72,6 +72,7 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 		Name       string
 		Mountpoint string
 		Ninja      bool // hack used to trigger an null volume return on `Get`
+		Status     map[string]interface{}
 	}
 	var volList []vol
 
@@ -110,7 +111,8 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 			return
 		}
 		_, isNinja := pr.Opts["ninja"]
-		volList = append(volList, vol{Name: pr.Name, Ninja: isNinja})
+		status := map[string]interface{}{"Hello": "world"}
+		volList = append(volList, vol{Name: pr.Name, Ninja: isNinja, Status: status})
 		send(w, nil)
 	})
 
@@ -140,6 +142,7 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 					send(w, map[string]vol{})
 					return
 				}
+
 				v.Mountpoint = hostVolumePath(pr.Name)
 				send(w, map[string]vol{"Volume": v})
 				return
@@ -419,6 +422,19 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *check.C) {
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(s.ec.gets, check.Equals, 1)
 	c.Assert(out, checker.Contains, "No such volume")
+
+	dockerCmd(c, "volume", "create", "--name", "test", "-d", "test-external-volume-driver")
+	out, _ = dockerCmd(c, "volume", "inspect", "test")
+
+	type vol struct {
+		Status map[string]string
+	}
+	var st []vol
+
+	c.Assert(json.Unmarshal([]byte(out), &st), checker.IsNil)
+	c.Assert(st, checker.HasLen, 1)
+	c.Assert(st[0].Status, checker.HasLen, 1, check.Commentf("%v", st[0]))
+	c.Assert(st[0].Status["Hello"], checker.Equals, "world", check.Commentf("%v", st[0].Status))
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemnRestart(c *check.C) {

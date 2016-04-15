@@ -64,6 +64,7 @@ func (a *volumeDriverAdapter) Get(name string) (volume.Volume, error) {
 		name:       v.Name,
 		driverName: a.Name(),
 		eMount:     v.Mountpoint,
+		status:     v.Status,
 	}, nil
 }
 
@@ -72,11 +73,13 @@ type volumeAdapter struct {
 	name       string
 	driverName string
 	eMount     string // ephemeral host volume path
+	status     map[string]interface{}
 }
 
 type proxyVolume struct {
 	Name       string
 	Mountpoint string
+	Status     map[string]interface{}
 }
 
 func (a *volumeAdapter) Name() string {
@@ -110,4 +113,12 @@ func (a *volumeAdapter) Unmount() error {
 		a.eMount = ""
 	}
 	return err
+}
+
+func (a *volumeAdapter) Status() map[string]interface{} {
+	out := make(map[string]interface{}, len(a.status))
+	for k, v := range a.status {
+		out[k] = v
+	}
+	return out
 }
