@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/docker/libkv/store"
+	"github.com/docker/libkv/store/boltdb"
 	"github.com/docker/libnetwork/bitseq"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/ipamapi"
@@ -23,6 +24,10 @@ import (
 const (
 	defaultPrefix = "/tmp/libnetwork/test/ipam"
 )
+
+func init() {
+	boltdb.Register()
+}
 
 // OptionBoltdbWithRandomDBFile function returns a random dir for local store backend
 func randomLocalStore() (datastore.DataStore, error) {
