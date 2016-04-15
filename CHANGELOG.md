@@ -11,7 +11,7 @@ be found.
 
 ### Builder
 
-- Fix a bug where Docker would not used the correct uid/gid when processing the `WORKDIR` command ([#21033](https://github.com/docker/docker/pull/21033))
+- Fix a bug where Docker would not use the correct uid/gid when processing the `WORKDIR` command ([#21033](https://github.com/docker/docker/pull/21033))
 - Fix a bug where copy operations with userns would not use the proper uid/gid ([#20782](https://github.com/docker/docker/pull/20782), [#21162](https://github.com/docker/docker/pull/21162))
 
 ### Client
@@ -27,16 +27,16 @@ be found.
 + Docker learned how to use a SOCKS proxy ([#20366](https://github.com/docker/docker/pull/20366), [#18373](https://github.com/docker/docker/pull/18373))
 + Docker now supports external credential stores ([#20107](https://github.com/docker/docker/pull/20107))
 * `docker ps` now supports displaying the list of volumes mounted inside a container ([#20017](https://github.com/docker/docker/pull/20017))
-* `docker info` now also report Docker's root directory location ([#19986](https://github.com/docker/docker/pull/19986))
+* `docker info` now also reports Docker's root directory location ([#19986](https://github.com/docker/docker/pull/19986))
 - Docker now prohibits login in with an empty username (spaces are trimmed) ([#19806](https://github.com/docker/docker/pull/19806))
 * Docker events attributes are now sorted by key ([#19761](https://github.com/docker/docker/pull/19761))
-* `docker ps` no longer show exported port for stopped containers ([#19483](https://github.com/docker/docker/pull/19483))
+* `docker ps` no longer shows exported port for stopped containers ([#19483](https://github.com/docker/docker/pull/19483))
 - Docker now cleans after itself if a save/export command fails ([#17849](https://github.com/docker/docker/pull/17849))
 * Docker load learned how to display a progress bar ([#17329](https://github.com/docker/docker/pull/17329), [#120078](https://github.com/docker/docker/pull/20078))
 
 ### Distribution
 
-- Fix a panic that occurred when pulling an images with 0 layers ([#21222](https://github.com/docker/docker/pull/21222))
+- Fix a panic that occurred when pulling an image with 0 layers ([#21222](https://github.com/docker/docker/pull/21222))
 - Fix a panic that could occur on error while pushing to a registry with a misconfigured token service ([#21212](https://github.com/docker/docker/pull/21212))
 + All first-level delegation roles are now signed when doing a trusted push ([#21046](https://github.com/docker/docker/pull/21046))
 + OAuth support for registries was added ([#20970](https://github.com/docker/docker/pull/20970))
@@ -67,8 +67,8 @@ be found.
 * The `dockremap` is now created as a system user ([#21266](https://github.com/docker/docker/pull/21266))
 - Fix a few response body leaks ([#21258](https://github.com/docker/docker/pull/21258))
 - Docker, when run as a service with systemd, will now properly manage its processes cgroups ([#20633](https://github.com/docker/docker/pull/20633))
-* Docker info now reports the value of cgroup KernelMemory or emits a warning if it is not supported ([#20863](https://github.com/docker/docker/pull/20863))
-* Docker info now also reports the cgroup driver in use ([#20388](https://github.com/docker/docker/pull/20388))
+* `docker info` now reports the value of cgroup KernelMemory or emits a warning if it is not supported ([#20863](https://github.com/docker/docker/pull/20863))
+* `docker info` now also reports the cgroup driver in use ([#20388](https://github.com/docker/docker/pull/20388))
 * Docker completion is now available on PowerShell ([#19894](https://github.com/docker/docker/pull/19894))
 * `dockerinit` is no more ([#19490](https://github.com/docker/docker/pull/19490),[#19851](https://github.com/docker/docker/pull/19851))
 + Support for building Docker on arm64 was added ([#19013](https://github.com/docker/docker/pull/19013))
@@ -79,7 +79,7 @@ be found.
 - Fix panic if a node is forcibly removed from the cluster ([#21671](https://github.com/docker/docker/pull/21671))
 - Fix "error creating vxlan interface" when starting a container in a Swarm cluster ([#21671](https://github.com/docker/docker/pull/21671))
 * `docker network inspect` will now report all endpoints whether they have an active container or not ([#21160](https://github.com/docker/docker/pull/21160))
-+ Experimental support for the MacVlan and IPVlan network drivers have been added ([#21122](https://github.com/docker/docker/pull/21122))
++ Experimental support for the MacVlan and IPVlan network drivers has been added ([#21122](https://github.com/docker/docker/pull/21122))
 * Output of `docker network ls` is now sorted by network name ([#20383](https://github.com/docker/docker/pull/20383))
 - Fix a bug where Docker would allow a network to be created with the reserved `default` name ([#19431](https://github.com/docker/docker/pull/19431))
 * `docker network inspect` returns whether a network is internal or not ([#19357](https://github.com/docker/docker/pull/19357))
@@ -113,7 +113,7 @@ be found.
 - Fix a race with event timers stopping early ([#21692](https://github.com/docker/docker/pull/21692))
 - Fix race conditions in the layer store, potentially corrupting the map and crashing the process ([#21677](https://github.com/docker/docker/pull/21677))
 - Un-deprecate auto-creation of host directories for mounts. This feature was marked deprecated in ([#21666](https://github.com/docker/docker/pull/21666))  
-  Docker 1.9, but was decided to be too much of an backward-incompatible change, so it was decided to keep the feature.
+  Docker 1.9, but was decided to be too much of a backward-incompatible change, so it was decided to keep the feature.
 + It is now possible for containers to share the NET and IPC namespaces when `userns` is enabled ([#21383](https://github.com/docker/docker/pull/21383))
 + `docker inspect <image-id>` will now expose the rootfs layers ([#21370](https://github.com/docker/docker/pull/21370))
 + Docker Windows gained a minimal `top` implementation ([#21354](https://github.com/docker/docker/pull/21354))
@@ -156,9 +156,9 @@ be found.
 ### Volumes
 
 * Output of `docker volume ls` is now sorted by volume name ([#20389](https://github.com/docker/docker/pull/20389))
-* Local volumes can now accepts options similar to the unix `mount` tool ([#20262](https://github.com/docker/docker/pull/20262))
+* Local volumes can now accept options similar to the unix `mount` tool ([#20262](https://github.com/docker/docker/pull/20262))
 - Fix an issue where one letter directory name could not be used as source for volumes ([#21106](https://github.com/docker/docker/pull/21106))
-+ `docker run -v` now accepts a new flag `nocopy`. This tell the runtime not to copy the container path content into the volume (which is the default behavior) ([#21223](https://github.com/docker/docker/pull/21223))
++ `docker run -v` now accepts a new flag `nocopy`. This tells the runtime not to copy the container path content into the volume (which is the default behavior) ([#21223](https://github.com/docker/docker/pull/21223))
 
 ## 1.10.3 (2016-03-10)
 
