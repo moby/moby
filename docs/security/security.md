@@ -106,7 +106,7 @@ arbitrary containers.
 For this reason, the REST API endpoint (used by the Docker CLI to
 communicate with the Docker daemon) changed in Docker 0.5.2, and now
 uses a UNIX socket instead of a TCP socket bound on 127.0.0.1 (the
-latter being prone to cross-site-scripting attacks if you happen to run
+latter being prone to cross-site request forgery attacks if you happen to run
 Docker directly on your local machine, outside of a VM). You can then
 use traditional UNIX permission checks to limit access to the control
 socket.
