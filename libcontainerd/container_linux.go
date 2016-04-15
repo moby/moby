@@ -120,7 +120,7 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 		if st.State == StateExit && ctr.restartManager != nil {
 			restart, wait, err := ctr.restartManager.ShouldRestart(e.Status, false)
 			if err != nil {
-				logrus.Error(err)
+				logrus.Warnf("container %s %v", ctr.containerID, err)
 			} else if restart {
 				st.State = StateRestart
 				ctr.restarting = true
