@@ -15,7 +15,6 @@ import (
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"
 
 	"github.com/docker/docker/pkg/mount"
@@ -426,7 +425,7 @@ func (d *Driver) ApplyDiff(id string, parent string, diff archive.Reader) (size 
 	}
 
 	options := &archive.TarOptions{UIDMaps: d.uidMaps, GIDMaps: d.gidMaps}
-	if size, err = chrootarchive.ApplyUncompressedLayer(tmpRootDir, diff, options); err != nil {
+	if size, err = graphdriver.ApplyUncompressedLayer(tmpRootDir, diff, options); err != nil {
 		return 0, err
 	}
 
