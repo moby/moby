@@ -43,7 +43,7 @@ Server:
 func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 	cmd := Cli.Subcmd("version", nil, Cli.DockerCommands["version"].Description, true)
 	tmplStr := cmd.String([]string{"f", "#format", "-format"}, "", "Format the output using the given go template")
-	isJson := cmd.Bool([]string{"j", "#json", "-json"}, false, "Output in JSON format")
+	isJSON := cmd.Bool([]string{"j", "#json", "-json"}, false, "Output in JSON format")
 
 	cmd.Require(flag.Exact, 0)
 
@@ -82,8 +82,8 @@ func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 
 	var err2 error
 
-	if *isJson {
-		err2 = renderJson(cli.out, vd)
+	if *isJSON {
+		err2 = renderJSON(cli.out, vd)
 	} else {
 		err2 = renderTemplate(cli.out, *tmplStr, vd)
 	}
@@ -96,7 +96,7 @@ func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 	return err
 }
 
-func renderJson(out io.Writer, vd types.VersionResponse) error {
+func renderJSON(out io.Writer, vd types.VersionResponse) error {
 	output, err := json.MarshalIndent(vd, "", "    ")
 	out.Write(output)
 	return err
