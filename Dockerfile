@@ -255,7 +255,8 @@ RUN set -x \
 	&& cd "$GOPATH/src/github.com/opencontainers/runc" \
 	&& git checkout -q "$RUNC_COMMIT" \
 	&& make static BUILDTAGS="seccomp apparmor selinux" \
-	&& cp runc /usr/local/bin/docker-runc
+	&& cp runc /usr/local/bin/docker-runc \
+	&& rm -rf "$GOPATH"
 
 # Install containerd
 ENV CONTAINERD_COMMIT 07c95162cdcead88dfe4ca0ffb3cea02375ec54d
@@ -267,7 +268,8 @@ RUN set -x \
 	&& make static \
 	&& cp bin/containerd /usr/local/bin/docker-containerd \
 	&& cp bin/containerd-shim /usr/local/bin/docker-containerd-shim \
-	&& cp bin/ctr /usr/local/bin/docker-containerd-ctr
+	&& cp bin/ctr /usr/local/bin/docker-containerd-ctr \
+	&& rm -rf "$GOPATH"
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]
