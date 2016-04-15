@@ -25,6 +25,11 @@ load helpers
     test_overlay consul skip_add
 }
 
+@test "Test overlay network internal network with consul" {
+    skip_for_circleci
+    test_overlay consul internal
+}
+
 @test "Test overlay network with dnet ungraceful shutdown" {
     skip_for_circleci
     dnet_cmd $(inst_id2port 1) network create -d overlay multihost
@@ -32,8 +37,8 @@ load helpers
     end=3
     for i in `seq ${start} ${end}`;
     do
-        dnet_cmd $(inst_id2port $i) container create container_${i}
-        net_connect ${i} container_${i} multihost
+	dnet_cmd $(inst_id2port $i) container create container_${i}
+	net_connect ${i} container_${i} multihost
     done
 
     hrun runc $(dnet_container_name 1 consul) $(get_sbox_id 1 container_1) "ifconfig eth0"
@@ -51,11 +56,6 @@ load helpers
     container_1_new_ip=$(echo ${output} | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')
 
     if [ "$container_1_ip" != "$container_1_new_ip" ]; then
-        exit 1
+	exit 1
     fi
-}
-
-@test "Test overlay network internal network with consul" {
-    skip_for_circleci
-    test_overlay consul internal
 }

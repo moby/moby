@@ -10,7 +10,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/iptables"
-	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/types"
 	"github.com/miekg/dns"
 )
 
@@ -240,7 +240,7 @@ func (r *resolver) handleIPQuery(name string, query *dns.Msg, ipType int) (*dns.
 	if len(addr) > 1 {
 		addr = shuffleAddr(addr)
 	}
-	if ipType == netutils.IPv4 {
+	if ipType == types.IPv4 {
 		for _, ip := range addr {
 			rr := new(dns.A)
 			rr.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: respTTL}
@@ -312,9 +312,9 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 	}
 	name := query.Question[0].Name
 	if query.Question[0].Qtype == dns.TypeA {
-		resp, err = r.handleIPQuery(name, query, netutils.IPv4)
+		resp, err = r.handleIPQuery(name, query, types.IPv4)
 	} else if query.Question[0].Qtype == dns.TypeAAAA {
-		resp, err = r.handleIPQuery(name, query, netutils.IPv6)
+		resp, err = r.handleIPQuery(name, query, types.IPv6)
 	} else if query.Question[0].Qtype == dns.TypePTR {
 		resp, err = r.handlePTRQuery(name, query)
 	}
