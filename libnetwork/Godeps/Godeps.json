@@ -205,27 +205,33 @@
 		},
 		{
 			"ImportPath": "github.com/docker/libkv",
-			"Rev": "c2aac5dbbaa5c872211edea7c0f32b3bd67e7410"
+			"Comment": "v0.1.0-35-g7283ef2",
+			"Rev": "7283ef27ed32fe267388510a91709b307bb9942c"
 		},
 		{
 			"ImportPath": "github.com/docker/libkv/store",
-			"Rev": "c2aac5dbbaa5c872211edea7c0f32b3bd67e7410"
+			"Comment": "v0.1.0-35-g7283ef2",
+			"Rev": "7283ef27ed32fe267388510a91709b307bb9942c"
 		},
 		{
 			"ImportPath": "github.com/docker/libkv/store/boltdb",
-			"Rev": "c2aac5dbbaa5c872211edea7c0f32b3bd67e7410"
+			"Comment": "v0.1.0-35-g7283ef2",
+			"Rev": "7283ef27ed32fe267388510a91709b307bb9942c"
 		},
 		{
 			"ImportPath": "github.com/docker/libkv/store/consul",
-			"Rev": "c2aac5dbbaa5c872211edea7c0f32b3bd67e7410"
+			"Comment": "v0.1.0-35-g7283ef2",
+			"Rev": "7283ef27ed32fe267388510a91709b307bb9942c"
 		},
 		{
 			"ImportPath": "github.com/docker/libkv/store/etcd",
-			"Rev": "c2aac5dbbaa5c872211edea7c0f32b3bd67e7410"
+			"Comment": "v0.1.0-35-g7283ef2",
+			"Rev": "7283ef27ed32fe267388510a91709b307bb9942c"
 		},
 		{
 			"ImportPath": "github.com/docker/libkv/store/zookeeper",
-			"Rev": "c2aac5dbbaa5c872211edea7c0f32b3bd67e7410"
+			"Comment": "v0.1.0-35-g7283ef2",
+			"Rev": "7283ef27ed32fe267388510a91709b307bb9942c"
 		},
 		{
 			"ImportPath": "github.com/godbus/dbus",

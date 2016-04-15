@@ -35,6 +35,8 @@ var (
 	ErrKeyNotFound = errors.New("Key not found in store")
 	// ErrPreviousNotSpecified is thrown when the previous value is not specified for an atomic operation
 	ErrPreviousNotSpecified = errors.New("Previous K/V pair should be provided for the Atomic operation")
+	// ErrKeyExists is thrown when the previous value exists in the case of an AtomicPut
+	ErrKeyExists = errors.New("Previous K/V pair exists, cannot complete Atomic operation")
 )
 
 // Config contains the options for a storage client
@@ -44,6 +46,8 @@ type Config struct {
 	ConnectionTimeout time.Duration
 	Bucket            string
 	PersistConnection bool
+	Username          string
+	Password          string
 }
 
 // ClientTLSConfig contains data for a Client TLS configuration in the form
