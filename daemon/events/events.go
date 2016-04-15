@@ -48,7 +48,7 @@ func (e *Events) Subscribe() ([]eventtypes.Message, chan interface{}, func()) {
 // SubscribeTopic adds new listener to events, returns slice of 64 stored
 // last events, a channel in which you can expect new events (in form
 // of interface{}, so you need type assertion).
-func (e *Events) SubscribeTopic(since, sinceNano int64, ef *Filter) ([]eventtypes.Message, chan interface{}) {
+func (e *Events) SubscribeTopic(since, until time.Time, ef *Filter) ([]eventtypes.Message, chan interface{}) {
 	e.mu.Lock()
 
 	var topic func(m interface{}) bool
@@ -56,7 +56,7 @@ func (e *Events) SubscribeTopic(since, sinceNano int64, ef *Filter) ([]eventtype
 		topic = func(m interface{}) bool { return ef.Include(m.(eventtypes.Message)) }
 	}
 
-	buffered := e.loadBufferedEvents(since, sinceNano, topic)
+	buffered := e.loadBufferedEvents(since, until, topic)
 
 	var ch chan interface{}
 	if topic != nil {
@@ -116,24 +116,36 @@ func (e *Events) SubscribersCount() int {
 }
 
 // loadBufferedEvents iterates over the cached events in the buffer
-// and returns those that were emitted before a specific date.
-// The date is splitted in two values:
-//   - the `since` argument is a date timestamp without nanoseconds, or -1 to return an empty slice.
-//   - the `sinceNano` argument is the nanoseconds offset from the timestamp.
-// It uses `time.Unix(seconds, nanoseconds)` to generate a valid date with those two first arguments.
+// and returns those that were emitted between two specific dates.
+// It uses `time.Unix(seconds, nanoseconds)` to generate valid dates with those arguments.
 // It filters those buffered messages with a topic function if it's not nil, otherwise it adds all messages.
-func (e *Events) loadBufferedEvents(since, sinceNano int64, topic func(interface{}) bool) []eventtypes.Message {
+func (e *Events) loadBufferedEvents(since, until time.Time, topic func(interface{}) bool) []eventtypes.Message {
 	var buffered []eventtypes.Message
-	if since == -1 {
+	if since.IsZero() && until.IsZero() {
 		return buffered
 	}
 
-	sinceNanoUnix := time.Unix(since, sinceNano).UnixNano()
+	var sinceNanoUnix int64
+	if !since.IsZero() {
+		sinceNanoUnix = since.UnixNano()
+	}
+
+	var untilNanoUnix int64
+	if !until.IsZero() {
+		untilNanoUnix = until.UnixNano()
+	}
+
 	for i := len(e.events) - 1; i >= 0; i-- {
 		ev := e.events[i]
+
 		if ev.TimeNano < sinceNanoUnix {
 			break
 		}
+
+		if untilNanoUnix > 0 && ev.TimeNano > untilNanoUnix {
+			continue
+		}
+
 		if topic == nil || topic(ev) {
 			buffered = append([]eventtypes.Message{ev}, buffered...)
 		}

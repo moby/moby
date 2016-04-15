@@ -1246,6 +1246,16 @@ func daemonTime(c *check.C) time.Time {
 	return dt
 }
 
+// daemonUnixTime returns the current time on the daemon host with nanoseconds precission.
+// It return the time formatted how the client sends timestamps to the server.
+func daemonUnixTime(c *check.C) string {
+	return parseEventTime(daemonTime(c))
+}
+
+func parseEventTime(t time.Time) string {
+	return fmt.Sprintf("%d.%09d", t.Unix(), int64(t.Nanosecond()))
+}
+
 func setupRegistry(c *check.C, schema1 bool, auth, tokenURL string) *testRegistryV2 {
 	reg, err := newTestRegistryV2(c, schema1, auth, tokenURL)
 	c.Assert(err, check.IsNil)

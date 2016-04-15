@@ -2,9 +2,12 @@ package daemon
 
 import (
 	"strings"
+	"time"
 
 	"github.com/docker/docker/container"
+	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/engine-api/types/events"
+	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/libnetwork"
 )
 
@@ -75,6 +78,18 @@ func (daemon *Daemon) LogNetworkEventWithAttributes(nw libnetwork.Network, actio
 		Attributes: attributes,
 	}
 	daemon.EventsService.Log(action, events.NetworkEventType, actor)
+}
+
+// SubscribeToEvents returns the currently record of events, a channel to stream new events from, and a function to cancel the stream of events.
+func (daemon *Daemon) SubscribeToEvents(since, until time.Time, filter filters.Args) ([]events.Message, chan interface{}) {
+	ef := daemonevents.NewFilter(filter)
+	return daemon.EventsService.SubscribeTopic(since, until, ef)
+}
+
+// UnsubscribeFromEvents stops the event subscription for a client by closing the
+// channel where the daemon sends events to.
+func (daemon *Daemon) UnsubscribeFromEvents(listener chan interface{}) {
+	daemon.EventsService.Evict(listener)
 }
 
 // copyAttributes guarantees that labels are not mutated by event triggers.
