@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/Sirupsen/logrus"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/events"
@@ -169,19 +170,11 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 
 	for range time.Tick(500 * time.Millisecond) {
 		printHeader()
-		toRemove := []int{}
 		cStats.mu.Lock()
-		for i, s := range cStats.cs {
+		for _, s := range cStats.cs {
 			if err := s.Display(w); err != nil && !*noStream {
-				toRemove = append(toRemove, i)
+				logrus.Debugf("stats: got error for %s: %v", s.Name, err)
 			}
-		}
-		for j := len(toRemove) - 1; j >= 0; j-- {
-			i := toRemove[j]
-			cStats.cs = append(cStats.cs[:i], cStats.cs[i+1:]...)
-		}
-		if len(cStats.cs) == 0 && !showAll {
-			return nil
 		}
 		cStats.mu.Unlock()
 		w.Flush()

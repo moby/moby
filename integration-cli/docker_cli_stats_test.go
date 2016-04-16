@@ -120,10 +120,7 @@ func (s *DockerSuite) TestStatsAllNoStream(c *check.C) {
 
 func (s *DockerSuite) TestStatsAllNewContainersAdded(c *check.C) {
 	// Windows does not support stats
-	// TODO: remove SameHostDaemon
-	//	The reason it was added is because, there seems to be some race that makes this test fail
-	//	for remote daemons (namely in the win2lin CI). We highly welcome contributions to fix this.
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux)
 
 	id := make(chan string)
 	addedChan := make(chan struct{})
