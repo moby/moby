@@ -23,7 +23,7 @@ override_dh_auto_install:
 	cp -aT /usr/local/bin/containerd debian/docker-engine/usr/bin/docker-containerd
 	cp -aT /usr/local/bin/containerd-shim debian/docker-engine/usr/bin/docker-containerd-shim
 	cp -aT /usr/local/bin/ctr debian/docker-engine/usr/bin/docker-containerd-ctr
-	cp -aT /usr/local/bin/runc debian/docker-engine/usr/bin/docker-runc
+	cp -aT /usr/local/sbin/runc debian/docker-engine/usr/bin/docker-runc
 	mkdir -p debian/docker-engine/usr/lib/docker
 
 override_dh_installinit:
