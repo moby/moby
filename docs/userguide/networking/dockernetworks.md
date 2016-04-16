@@ -293,7 +293,9 @@ specifications.
 You can create multiple networks. You can add containers to more than one
 network. Containers can only communicate within networks but not across
 networks. A container attached to two networks can communicate with member
-containers in either network.
+containers in either network. When a container is connected to multiple
+networks, its external connectivity is provided via the first non-internal
+network, in lexical order.
 
 The next few sections describe each of Docker's built-in network drivers in
 greater detail.
