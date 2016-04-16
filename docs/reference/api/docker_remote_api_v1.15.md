@@ -994,7 +994,6 @@ Query Parameters:
         can be retrieved or `-` to read the image from the request body.
 -   **repo** – repository
 -   **tag** – tag
--   **registry** – the registry to pull from
 
     Request Headers:
 
