@@ -294,3 +294,31 @@ performance. This is because they bypass the storage driver and do not incur
 any of the potential overheads introduced by thin provisioning and 
 copy-on-write. For this reason, you should place heavy write workloads on data 
 volumes.
+
+## Loopback Zpool
+
+Docker can generate a loopback Zpool on a sparse file for you if you want to
+test the ZFS driver without compromising any of your disks.
+
+Before starting the Docker engine, make sure you don't have already the graph
+directory created in your host. You can move the directory to another place
+if you can create a quick backup:
+
+	$ mv /var/lib/docker /var/lib/docker.backup
+
+Then, you can start the engine again with `--storage-driver zfs` and the 
+option `--storage-opt zfs.loopback.generate=true`.
+
+Docker will generate a 10GB sparse file in `/var/lib/docker.img` for you
+and use it to create a Zpool and a Dataset called `zroot-docker-lo/dataset`:
+
+	$ zfs list -t all
+	NAME                      USED  AVAIL  REFER  MOUNTPOINT
+	zroot-docker-lo           107K  9.78G    19K  none
+	zroot-docker-lo/dataset    19K  9.78G    19K  /var/lib/docker
+
+You can change the default values to create this dataset with the following options:
+
+- `zfs.loopback.name`: Is the Zpool name, `zroot-docker-lo` by default.
+- `zfs.loopback.path`: Is the absolute path to the sparse file, `/var/lib/docker.img` by default.
+- `zfs.loopback.size`: Is the size of the sparse file, `10GB` by default.

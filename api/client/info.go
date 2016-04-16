@@ -39,8 +39,15 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 			fmt.Fprintf(cli.out, " %s: %s\n", pair[0], pair[1])
 
 			// print a warning if devicemapper is using a loopback file
-			if pair[0] == "Data loop file" {
-				fmt.Fprintln(cli.err, " WARNING: Usage of loopback devices is strongly discouraged for production use. Either use `--storage-opt dm.thinpooldev` or use `--storage-opt dm.no_warn_on_loop_devices=true` to suppress this warning.")
+			if pair[0] == "Data Loop File" {
+				var options string
+				switch info.Driver {
+				case "devicemapper":
+					options = " Use `--storage-opt dm.thinpooldev` to configure a production thin pool."
+				case "zfs":
+					options = " Remove `--storage-opt zfs.loopback.generate` and configure the zpool on a Disk vdev."
+				}
+				fmt.Fprintf(cli.err, " WARNING: Usage of loopback devices is strongly discouraged for production use.%s\n", options)
 			}
 		}
 

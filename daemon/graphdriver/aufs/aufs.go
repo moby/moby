@@ -65,7 +65,7 @@ var (
 )
 
 func init() {
-	graphdriver.Register("aufs", Init)
+	graphdriver.Register("aufs", graphdriver.NewFSBootstrap(validateDriver, initDriver))
 }
 
 // Driver contains information about the filesystem mounted.
@@ -78,18 +78,18 @@ type Driver struct {
 	pathCache     map[string]string
 }
 
-// Init returns a new AUFS driver.
-// An error is returned if AUFS is not supported.
-func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
-
+// validateDriver validates that AUFS can be used in this host.
+// It returns an error if the kernel doesn't support AUFS
+// or the filesystem is incompatible.
+func validateDriver(root string) error {
 	// Try to load the aufs kernel module
 	if err := supportsAufs(); err != nil {
-		return nil, graphdriver.ErrNotSupported
+		return graphdriver.ErrNotSupported
 	}
 
 	fsMagic, err := graphdriver.GetFSMagic(root)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if fsName, ok := graphdriver.FsNames[fsMagic]; ok {
 		backingFs = fsName
@@ -97,10 +97,16 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 
 	for _, magic := range incompatibleFsMagic {
 		if fsMagic == magic {
-			return nil, graphdriver.ErrIncompatibleFS
+			return graphdriver.ErrIncompatibleFS
 		}
 	}
 
+	return nil
+}
+
+// initDriver returns a new AUFS driver.
+// An error is returned if AUFS is not supported.
+func initDriver(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 	paths := []string{
 		"mnt",
 		"diff",

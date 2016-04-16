@@ -34,8 +34,8 @@ import (
 
 // init registers the windows graph drivers to the register.
 func init() {
-	graphdriver.Register("windowsfilter", InitFilter)
-	graphdriver.Register("windowsdiff", InitDiff)
+	graphdriver.Register("windowsfilter", graphdriver.NewAlwaysValidFSBootstrap(InitFilter))
+	graphdriver.Register("windowsdiff", graphdriver.NewAlwaysValidFSBootstrap(InitDiff))
 }
 
 const (

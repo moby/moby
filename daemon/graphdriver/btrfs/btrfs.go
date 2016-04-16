@@ -29,22 +29,28 @@ import (
 )
 
 func init() {
-	graphdriver.Register("btrfs", Init)
+	graphdriver.Register("btrfs", graphdriver.NewFSBootstrap(validateDriver, initDriver))
 }
 
-// Init returns a new BTRFS driver.
-// An error is returned if BTRFS is not supported.
-func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
-
-	fsMagic, err := graphdriver.GetFSMagic(home)
+// validateDriver validates that BTRFS can be used in this host.
+// It returns an error if the kernel doesn't support BTRFS
+// or the filesystem is incompatible.
+func validateDriver(root string) error {
+	fsMagic, err := graphdriver.GetFSMagic(root)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if fsMagic != graphdriver.FsMagicBtrfs {
-		return nil, graphdriver.ErrPrerequisites
+		return graphdriver.ErrPrerequisites
 	}
 
+	return nil
+}
+
+// initDriver returns a new BTRFS driver.
+// An error is returned if BTRFS is not supported.
+func initDriver(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
 	if err != nil {
 		return nil, err

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -307,13 +306,8 @@ func setupRemappedRoot(config *Config) ([]idtools.IDMap, []idtools.IDMap, error)
 	return nil, nil, nil
 }
 
-func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error {
-	config.Root = rootDir
-	// Create the root directory if it doesn't exists
-	if err := system.MkdirAll(config.Root, 0700); err != nil && !os.IsExist(err) {
-		return err
-	}
-	return nil
+func getRealRemappedRoot(config *Config, realRoot string, uidMaps, gidMaps []idtools.IDMap) (string, error) {
+	return realRoot, nil
 }
 
 // runasHyperVContainer returns true if we are going to run as a Hyper-V container

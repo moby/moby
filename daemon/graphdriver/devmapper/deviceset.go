@@ -1624,16 +1624,6 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	// give ourselves to libdm as a log handler
 	devicemapper.LogInit(devices)
 
-	version, err := devicemapper.GetDriverVersion()
-	if err != nil {
-		// Can't even get driver version, assume not supported
-		return graphdriver.ErrNotSupported
-	}
-
-	if err := determineDriverCapabilities(version); err != nil {
-		return graphdriver.ErrNotSupported
-	}
-
 	// If user asked for deferred removal then check both libdm library
 	// and kernel driver support deferred removal otherwise error out.
 	if enableDeferredRemoval {

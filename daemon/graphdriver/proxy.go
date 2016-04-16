@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/idtools"
 )
 
 type graphDriverProxy struct {
@@ -33,6 +34,13 @@ type graphDriverResponse struct {
 type graphDriverInitRequest struct {
 	Home string
 	Opts []string
+}
+
+func (d *graphDriverProxy) InitBootstrap(root string, options []string, _, _ []idtools.IDMap) (Driver, error) {
+	if err := d.Init(root, options); err != nil {
+		return nil, err
+	}
+	return d, nil
 }
 
 func (d *graphDriverProxy) Init(home string, opts []string) error {

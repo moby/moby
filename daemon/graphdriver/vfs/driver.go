@@ -18,7 +18,7 @@ var (
 )
 
 func init() {
-	graphdriver.Register("vfs", Init)
+	graphdriver.Register("vfs", graphdriver.NewAlwaysValidFSBootstrap(Init))
 }
 
 // Init returns a new VFS driver.

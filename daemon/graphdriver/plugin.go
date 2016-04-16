@@ -18,15 +18,12 @@ type pluginClient interface {
 	SendFile(string, io.Reader, interface{}) error
 }
 
-func lookupPlugin(name, home string, opts []string) (Driver, error) {
+func lookupPlugin(name string) (Bootstrap, error) {
 	pl, err := plugins.Get(name, "GraphDriver")
 	if err != nil {
 		return nil, fmt.Errorf("Error looking up graphdriver plugin %s: %v", name, err)
 	}
-	return newPluginDriver(name, home, opts, pl.Client)
-}
 
-func newPluginDriver(name, home string, opts []string, c pluginClient) (Driver, error) {
-	proxy := &graphDriverProxy{name, c}
-	return proxy, proxy.Init(home, opts)
+	proxy := &graphDriverProxy{name, pl.Client}
+	return NewAlwaysValidFSBootstrap(proxy.InitBootstrap), nil
 }

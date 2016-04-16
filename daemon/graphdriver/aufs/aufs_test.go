@@ -28,7 +28,7 @@ func init() {
 }
 
 func testInit(dir string, t testing.TB) graphdriver.Driver {
-	d, err := Init(dir, nil, nil, nil)
+	d, err := initDriver(dir, nil, nil, nil)
 	if err != nil {
 		if err == graphdriver.ErrNotSupported {
 			t.Skip(err)
