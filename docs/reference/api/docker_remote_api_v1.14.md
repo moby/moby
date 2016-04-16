@@ -844,7 +844,6 @@ Query Parameters:
 -   **fromSrc** – source to import, - means stdin
 -   **repo** – repository
 -   **tag** – tag
--   **registry** – the registry to pull from
 
 Request Headers:
 
