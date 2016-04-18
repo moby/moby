@@ -71,18 +71,21 @@ RUN cd /usr/local/lvm2 \
 	&& make install_device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
-## BUILD GOLANG 1.6
+# Set user.email so crosbymichael's in-container merge commits go smoothly
+RUN git config --global user.email 'docker-dummy@example.com'
+
+## BUILD GOLANG 1.6.1
 # NOTE: ppc64le has compatibility issues with older versions of go, so make sure the version >= 1.6
+# This commit fixes epoll struct required for containerd / runc to work on ppc64le for docker version 1.11+
+ENV GO_COMMIT 44f80f6d4925ae59b519ced3a626170099258904
 ENV GO_VERSION 1.6.1
-ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz
-ENV GO_DOWNLOAD_SHA256 1d4b53cdee51b2298afcf50926a7fa44b286f0bf24ff8323ce690a66daa7193f
 ENV GOROOT_BOOTSTRAP /usr/local
 
-RUN curl -fsSL "$GO_DOWNLOAD_URL" -o golang.tar.gz \
-    && echo "$GO_DOWNLOAD_SHA256  golang.tar.gz" | sha256sum -c - \
-    && tar -C /usr/src -xzf golang.tar.gz \
-    && rm golang.tar.gz \
-    && cd /usr/src/go/src && ./make.bash 2>&1
+RUN git clone https://github.com/golang/go /usr/src/go \
+	&& cd /usr/src/go/src \
+	&& git checkout "go$GO_VERSION" \
+	&& git cherry-pick "$GO_COMMIT" \
+	&& ./make.bash 2>&1
 
 ENV GOROOT_BOOTSTRAP /usr/src/
 
@@ -142,9 +145,6 @@ RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT \
 	&& pip install -r test-requirements.txt
-
-# Set user.email so crosbymichael's in-container merge commits go smoothly
-RUN git config --global user.email 'docker-dummy@example.com'
 
 # Add an unprivileged user to be used for tests which need it
 RUN groupadd -r docker
