@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	containerd "github.com/docker/containerd/api/grpc/types"
@@ -74,6 +75,7 @@ func (ctr *container) start() error {
 		ctr.closeFifos(iopipe)
 		return err
 	}
+	ctr.startedAt = time.Now()
 
 	if err := ctr.client.backend.AttachStreams(ctr.containerID, *iopipe); err != nil {
 		return err
@@ -118,7 +120,7 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 			st.State = StateExitProcess
 		}
 		if st.State == StateExit && ctr.restartManager != nil {
-			restart, wait, err := ctr.restartManager.ShouldRestart(e.Status, false)
+			restart, wait, err := ctr.restartManager.ShouldRestart(e.Status, false, time.Since(ctr.startedAt))
 			if err != nil {
 				logrus.Warnf("container %s %v", ctr.containerID, err)
 			} else if restart {

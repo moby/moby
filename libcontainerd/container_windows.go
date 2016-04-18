@@ -4,6 +4,7 @@ import (
 	"io"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
@@ -78,6 +79,7 @@ func (ctr *container) start() error {
 		}
 		return err
 	}
+	ctr.startedAt = time.Now()
 
 	// Convert io.ReadClosers to io.Readers
 	if stdout != nil {
@@ -168,7 +170,7 @@ func (ctr *container) waitExit(pid uint32, processFriendlyName string, isFirstPr
 		}
 
 		if si.State == StateExit && ctr.restartManager != nil {
-			restart, wait, err := ctr.restartManager.ShouldRestart(uint32(exitCode), false)
+			restart, wait, err := ctr.restartManager.ShouldRestart(uint32(exitCode), false, time.Since(ctr.startedAt))
 			if err != nil {
 				logrus.Error(err)
 			} else if restart {

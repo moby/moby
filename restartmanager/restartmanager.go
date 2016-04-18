@@ -16,7 +16,7 @@ const (
 // RestartManager defines object that controls container restarting rules.
 type RestartManager interface {
 	Cancel() error
-	ShouldRestart(exitCode uint32, hasBeenManuallyStopped bool) (bool, chan error, error)
+	ShouldRestart(exitCode uint32, hasBeenManuallyStopped bool, executionDuration time.Duration) (bool, chan error, error)
 }
 
 type restartManager struct {
@@ -41,7 +41,7 @@ func (rm *restartManager) SetPolicy(policy container.RestartPolicy) {
 	rm.Unlock()
 }
 
-func (rm *restartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped bool) (bool, chan error, error) {
+func (rm *restartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped bool, executionDuration time.Duration) (bool, chan error, error) {
 	if rm.policy.IsNone() {
 		return false, nil, nil
 	}
@@ -60,7 +60,11 @@ func (rm *restartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped 
 	if rm.active {
 		return false, nil, fmt.Errorf("invalid call on active restartmanager")
 	}
-
+	// if the container ran for more than 10s, reguardless of status and policy reset the
+	// the timeout back to the default.
+	if executionDuration.Seconds() >= 10 {
+		rm.timeout = 0
+	}
 	if rm.timeout == 0 {
 		rm.timeout = defaultTimeout
 	} else {
