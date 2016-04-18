@@ -56,6 +56,16 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 		s.Process.Args = escapeArgs(s.Process.Args)
 	}
 	s.Process.Cwd = c.Config.WorkingDir
+	if len(s.Process.Cwd) == 0 {
+		// We default to C:\ to workaround the oddity of the case that the
+		// default directory for cmd running as LocalSystem (or
+		// ContainerAdministrator) is c:\windows\system32. Hence docker run
+		// <image> cmd will by default end in c:\windows\system32, rather
+		// than 'root' (/) on Linux. The oddity is that if you have a dockerfile
+		// which has no WORKDIR and has a COPY file ., . will be interpreted
+		// as c:\. Hence, setting it to default of c:\ makes for consistency.
+		s.Process.Cwd = `C:\`
+	}
 	s.Process.Env = c.CreateDaemonEnvironment(linkedEnv)
 	s.Process.InitialConsoleSize = c.HostConfig.ConsoleSize
 	s.Process.Terminal = c.Config.Tty
