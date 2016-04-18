@@ -95,6 +95,7 @@ type Driver struct {
 	pathCache     map[string]string
 	uidMaps       []idtools.IDMap
 	gidMaps       []idtools.IDMap
+	ctr           *graphdriver.RefCounter
 }
 
 var backingFs = "<unknown>"
@@ -147,6 +148,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		pathCache: make(map[string]string),
 		uidMaps:   uidMaps,
 		gidMaps:   gidMaps,
+		ctr:       graphdriver.NewRefCounter(),
 	}
 
 	return NaiveDiffDriverWithApply(d, uidMaps, gidMaps), nil
@@ -348,28 +350,39 @@ func (d *Driver) Get(id string, mountLabel string) (string, error) {
 	workDir := path.Join(dir, "work")
 	mergedDir := path.Join(dir, "merged")
 
+	if count := d.ctr.Increment(id); count > 1 {
+		return mergedDir, nil
+	}
+
 	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir)
 
 	// if it's mounted already, just return
 	mounted, err := d.mounted(mergedDir)
 	if err != nil {
+		d.ctr.Decrement(id)
 		return "", err
 	}
 	if mounted {
+		d.ctr.Decrement(id)
 		return mergedDir, nil
 	}
 
 	if err := syscall.Mount("overlay", mergedDir, "overlay", 0, label.FormatMountLabel(opts, mountLabel)); err != nil {
+		d.ctr.Decrement(id)
 		return "", fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, err)
 	}
 	// chown "workdir/work" to the remapped root UID/GID. Overlay fs inside a
 	// user namespace requires this to move a directory from lower to upper.
 	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
 	if err != nil {
+		d.ctr.Decrement(id)
+		syscall.Unmount(mergedDir, 0)
 		return "", err
 	}
 
 	if err := os.Chown(path.Join(workDir, "work"), rootUID, rootGID); err != nil {
+		d.ctr.Decrement(id)
+		syscall.Unmount(mergedDir, 0)
 		return "", err
 	}
 
@@ -386,6 +399,9 @@ func (d *Driver) mounted(dir string) (bool, error) {
 
 // Put unmounts the mount path created for the give id.
 func (d *Driver) Put(id string) error {
+	if count := d.ctr.Decrement(id); count > 0 {
+		return nil
+	}
 	d.pathCacheLock.Lock()
 	mountpoint, exists := d.pathCache[id]
 	d.pathCacheLock.Unlock()
