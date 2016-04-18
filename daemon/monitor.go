@@ -25,6 +25,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		if runtime.GOOS == "windows" {
 			return errors.New("Received StateOOM from libcontainerd on Windows. This should never happen.")
 		}
+		daemon.updateHealthMonitor(c)
 		daemon.LogContainerEvent(c, "oom")
 	case libcontainerd.StateExit:
 		c.Lock()
@@ -35,6 +36,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		attributes := map[string]string{
 			"exitCode": strconv.Itoa(int(e.ExitCode)),
 		}
+		daemon.updateHealthMonitor(c)
 		daemon.LogContainerEventWithAttributes(c, "die", attributes)
 		daemon.Cleanup(c)
 		// FIXME: here is race condition between two RUN instructions in Dockerfile
@@ -54,6 +56,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 			"exitCode": strconv.Itoa(int(e.ExitCode)),
 		}
 		daemon.LogContainerEventWithAttributes(c, "die", attributes)
+		daemon.updateHealthMonitor(c)
 		return c.ToDisk()
 	case libcontainerd.StateExitProcess:
 		c.Lock()
@@ -74,18 +77,24 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 			logrus.Warnf("Ignoring StateExitProcess for %v but no exec command found", e)
 		}
 	case libcontainerd.StateStart, libcontainerd.StateRestore:
+		// Container is already locked in this case
 		c.SetRunning(int(e.Pid), e.State == libcontainerd.StateStart)
 		c.HasBeenManuallyStopped = false
 		if err := c.ToDisk(); err != nil {
 			c.Reset(false)
 			return err
 		}
+		daemon.initHealthMonitor(c)
 		daemon.LogContainerEvent(c, "start")
 	case libcontainerd.StatePause:
+		// Container is already locked in this case
 		c.Paused = true
+		daemon.updateHealthMonitor(c)
 		daemon.LogContainerEvent(c, "pause")
 	case libcontainerd.StateResume:
+		// Container is already locked in this case
 		c.Paused = false
+		daemon.updateHealthMonitor(c)
 		daemon.LogContainerEvent(c, "unpause")
 	}
 

@@ -12,7 +12,9 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
@@ -421,6 +423,119 @@ func cmd(b *Builder, args []string, attributes map[string]bool, original string)
 
 	if len(args) != 0 {
 		b.cmdSet = true
+	}
+
+	return nil
+}
+
+// parseOptInterval(flag) is the floating-point value of flag.Value, or nil if
+// empty. An error is reported if the value is not a positive float.
+func parseOptInterval(f *Flag) (*float64, error) {
+	s := f.Value
+	if s == "" {
+		return nil, nil
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return nil, err
+	}
+	v := d.Seconds()
+	if v < 0 {
+		return nil, fmt.Errorf("Interval %#v must not be negative", f.name)
+	}
+	return &v, nil
+}
+
+// HEALTHCHECK foo
+//
+// Set the default healthcheck command to run in the container (which may be empty).
+// Argument handling is the same as RUN.
+//
+func healthcheck(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("HEALTHCHECK requires an argument")
+	}
+	typ := strings.ToUpper(args[0])
+	args = args[1:]
+	if typ == "NONE" {
+		if len(args) != 0 {
+			return fmt.Errorf("HEALTHCHECK NONE takes no arguments")
+		}
+		test := strslice.StrSlice{typ}
+		b.runConfig.Healthcheck = &container.HealthConfig{
+			Test: test,
+		}
+	} else {
+		healthcheck := container.HealthConfig{}
+
+		flGracePeriod := b.flags.AddString("grace", "")
+		flInterval := b.flags.AddString("interval", "")
+		flTimeout := b.flags.AddString("timeout", "")
+		flRetries := b.flags.AddString("retries", "")
+		flExitOnUnhealthy := b.flags.AddBool("exit-on-unhealthy", false)
+		flExitOnUnhealthy.Value = ""
+
+		if err := b.flags.Parse(); err != nil {
+			return err
+		}
+
+		switch typ {
+		case "CMD":
+			cmdSlice := handleJSONArgs(args, attributes)
+			if len(cmdSlice) == 0 {
+				return fmt.Errorf("Missing command after HEALTHCHECK CMD")
+			}
+
+			if !attributes["json"] {
+				typ = "CMD-SHELL"
+			}
+
+			healthcheck.Test = strslice.StrSlice(append([]string{typ}, cmdSlice...))
+		default:
+			return fmt.Errorf("Unknown type %#v in HEALTHCHECK (try CMD)", typ)
+		}
+
+		grace, err := parseOptInterval(flGracePeriod)
+		if err != nil {
+			return err
+		}
+		healthcheck.GracePeriod = grace
+
+		interval, err := parseOptInterval(flInterval)
+		if err != nil {
+			return err
+		}
+		healthcheck.Interval = interval
+
+		timeout, err := parseOptInterval(flTimeout)
+		if err != nil {
+			return err
+		}
+		healthcheck.Timeout = timeout
+
+		if flRetries.Value != "" {
+			retries, err := strconv.ParseUint(flRetries.Value, 10, 32)
+			if err != nil {
+				return err
+			}
+			if retries < 1 {
+				return fmt.Errorf("--retries must be at least 1 (not %d)", retries)
+			}
+			healthcheck.Retries = uint(retries)
+		} else {
+			healthcheck.Retries = 0
+		}
+
+		if flExitOnUnhealthy.Value != "" {
+			b := flExitOnUnhealthy.IsTrue()
+			healthcheck.ExitOnUnhealthy = &b
+		}
+
+		b.runConfig.Healthcheck = &healthcheck
+	}
+
+	if err := b.commit("", b.runConfig.Cmd, fmt.Sprintf("HEALTHCHECK %q", b.runConfig.Healthcheck)); err != nil {
+		return err
 	}
 
 	return nil

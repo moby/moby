@@ -190,6 +190,17 @@ func (clnt *client) Signal(containerID string, sig int) error {
 	return err
 }
 
+func (clnt *client) SignalProcess(containerID string, pid string, sig int) error {
+	clnt.lock(containerID)
+	defer clnt.unlock(containerID)
+	_, err := clnt.remote.apiClient.Signal(context.Background(), &containerd.SignalRequest{
+		Id:     containerID,
+		Pid:    pid,
+		Signal: uint32(sig),
+	})
+	return err
+}
+
 func (clnt *client) Resize(containerID, processFriendlyName string, width, height int) error {
 	clnt.lock(containerID)
 	defer clnt.unlock(containerID)

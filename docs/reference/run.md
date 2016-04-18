@@ -1247,6 +1247,7 @@ Dockerfile instruction and how the operator can override that setting.
     #entrypoint-default-command-to-execute-at-runtime)
  - [EXPOSE (Incoming Ports)](#expose-incoming-ports)
  - [ENV (Environment Variables)](#env-environment-variables)
+ - [HEALTHCHECK](#healthcheck)
  - [VOLUME (Shared Filesystems)](#volume-shared-filesystems)
  - [USER](#user)
  - [WORKDIR](#workdir)
@@ -1394,6 +1395,40 @@ above, or already defined by the developer with a Dockerfile `ENV`:
     declare -x deep="purple"
 
 Similarly the operator can set the **hostname** with `-h`.
+
+### HEALTHCHECK
+
+```
+  --exit-on-unhealthy     Kill container if it becomes unhealthy
+  --health-cmd            Command to run to check health
+  --health-grace          Time to allow for container to start
+  --health-interval       Time between running the check
+  --health-retries        Consecutive failures needed to report unhealthy
+  --health-timeout        Maximum time to allow one check to run
+  --no-healthcheck        Disable any container-specified HEALTHCHECK
+```
+
+Example:
+
+    $ docker run --name=test -d \
+        --health-cmd='stat /etc/passwd' \
+        --health-interval=2s \
+        --exit-on-unhealthy=false \
+        busybox sleep 1d
+    $ sleep 2; docker inspect --format='{{.State.Health.Status}}' test
+    healthy
+    $ docker exec test rm /etc/passwd
+    $ sleep 2; docker inspect --format='{{json .State.Health}}' test
+    {
+      "Status":"unhealthy",
+      "FailingStreak":1,
+      "LastCheckStart":"2016-05-09T11:09:09.673709108Z",
+      "LastCheckEnd":"2016-05-09T11:09:09.786146142Z",
+      "LastExitCode":1,
+      "LastOutput":"stat: can't stat '/etc/passwd': No such file or directory\n"
+    }
+
+The health status is also displayed in the `docker ps` output.
 
 ### TMPFS (mount tmpfs filesystems)
 

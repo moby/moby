@@ -8,6 +8,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -20,10 +21,37 @@ import (
 	"github.com/docker/go-units"
 )
 
+type tristate struct {
+	isSet bool
+	value bool
+}
+
+func (t *tristate) String() string {
+	if t.isSet {
+		return strconv.FormatBool(t.value)
+	}
+	return ""
+}
+
+func (t *tristate) Set(v string) error {
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		return err
+	}
+	t.isSet = true
+	t.value = b
+	return nil
+}
+
+func (*tristate) IsBoolFlag() bool {
+	return true
+}
+
 // Parse parses the specified args for the specified command and generates a Config,
 // a HostConfig and returns them with the specified command.
 // If the specified args are not valid, it will return an error.
 func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, *flag.FlagSet, error) {
+	const noDuration = -1 * time.Second
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
 		flAttach            = opts.NewListOpts(ValidateAttach)
@@ -100,6 +128,14 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flStopSignal        = cmd.String([]string{"-stop-signal"}, signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal))
 		flIsolation         = cmd.String([]string{"-isolation"}, "", "Container isolation technology")
 		flShmSize           = cmd.String([]string{"-shm-size"}, "", "Size of /dev/shm, default value is 64MB")
+		// Healthcheck
+		flNoHealthcheck  = cmd.Bool([]string{"-no-healthcheck"}, false, "Disable any container-specified HEALTHCHECK")
+		flHealthCmd      = cmd.String([]string{"-health-cmd"}, "", "Command to run to check health")
+		flHealthInterval = cmd.Duration([]string{"-health-interval"}, noDuration, "Time between running the check")
+		flHealthTimeout  = cmd.Duration([]string{"-health-timeout"}, noDuration, "Maximum time to allow one check to run")
+		flHealthGrace    = cmd.Duration([]string{"-health-grace"}, noDuration, "Time to allow for container to start")
+		flHealthRetries  = cmd.Uint([]string{"-health-retries"}, 0, "Consecutive failures needed to report unhealthy")
+		flHealthExit     = tristate{}
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
@@ -132,6 +168,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	cmd.Var(flUlimits, []string{"-ulimit"}, "Ulimit options")
 	cmd.Var(flSysctls, []string{"-sysctl"}, "Sysctl options")
 	cmd.Var(&flLoggingOpts, []string{"-log-opt"}, "Log driver options")
+	cmd.Var(&flHealthExit, []string{"-exit-on-unhealthy"}, "Kill container if it becomes unhealthy")
 
 	cmd.Require(flag.Min, 1)
 
@@ -351,6 +388,57 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		return nil, nil, nil, cmd, err
 	}
 
+	// Healthcheck
+	var healthConfig *container.HealthConfig
+	haveHealthSettings := *flHealthCmd != "" ||
+		*flHealthInterval != noDuration ||
+		*flHealthTimeout != noDuration ||
+		*flHealthGrace != noDuration ||
+		*flHealthRetries != 0 ||
+		flHealthExit.isSet
+	if *flNoHealthcheck {
+		if haveHealthSettings {
+			return nil, nil, nil, cmd, fmt.Errorf("--no-healthcheck conflicts with --health-* options")
+		}
+		test := strslice.StrSlice{"NONE"}
+		healthConfig = &container.HealthConfig{Test: test}
+	} else if haveHealthSettings {
+		var exitOnUnhealthy *bool
+		var probe strslice.StrSlice
+		if *flHealthCmd != "" {
+			args := []string{"CMD-SHELL", *flHealthCmd}
+			probe = strslice.StrSlice(args)
+		}
+		if *flHealthInterval < 0 && *flHealthInterval != noDuration {
+			return nil, nil, nil, cmd, fmt.Errorf("--health-interval cannot be negative")
+		}
+		if *flHealthTimeout < 0 && *flHealthTimeout != noDuration {
+			return nil, nil, nil, cmd, fmt.Errorf("--health-timeout cannot be negative")
+		}
+		if *flHealthGrace < 0 && *flHealthGrace != noDuration {
+			return nil, nil, nil, cmd, fmt.Errorf("--health-grace cannot be negative")
+		}
+		if flHealthExit.isSet {
+			exitOnUnhealthy = &flHealthExit.value
+		}
+
+		optDuration := func(v time.Duration) *float64 {
+			if v == noDuration {
+				return nil
+			}
+			s := v.Seconds()
+			return &s
+		}
+		healthConfig = &container.HealthConfig{
+			Test:            probe,
+			Interval:        optDuration(*flHealthInterval),
+			Timeout:         optDuration(*flHealthTimeout),
+			GracePeriod:     optDuration(*flHealthGrace),
+			Retries:         *flHealthRetries,
+			ExitOnUnhealthy: exitOnUnhealthy,
+		}
+	}
+
 	resources := container.Resources{
 		CgroupParent:         *flCgroupParent,
 		Memory:               flMemory,
@@ -399,6 +487,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
 		Labels:          ConvertKVStringsToMap(labels),
+		Healthcheck:     healthConfig,
 	}
 	if cmd.IsSet("-stop-signal") {
 		config.StopSignal = *flStopSignal

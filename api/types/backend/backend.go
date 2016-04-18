@@ -83,3 +83,10 @@ type ProgressWriter struct {
 	StderrFormatter    *streamformatter.StderrFormatter
 	ProgressReaderFunc func(io.ReadCloser) io.ReadCloser
 }
+
+// ShutdownFlags holds flags to be passed to ContainerKill and ContainerStop.
+type ShutdownFlags struct {
+	// Do not prevent the restart manager from restarting the container.
+	// Normally, a manual shutdown will temporarily disable the restart manager.
+	AllowAutoRestart bool
+}

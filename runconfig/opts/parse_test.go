@@ -584,6 +584,58 @@ func TestParseRestartPolicy(t *testing.T) {
 	}
 }
 
+func TestParseHealth(t *testing.T) {
+	checkOk := func(args ...string) *container.HealthConfig {
+		config, _, _, _, err := parseRun(args)
+		if err != nil {
+			t.Fatalf("%#v: %v", args, err)
+		}
+		return config.Healthcheck
+	}
+	checkError := func(expected string, args ...string) {
+		config, _, _, _, err := parseRun(args)
+		if err == nil {
+			t.Fatalf("Expected error, but got %#v", config)
+		}
+		if err.Error() != expected {
+			t.Fatalf("Expected %#v, got %#v", expected, err)
+		}
+	}
+	health := checkOk("--no-healthcheck", "img", "cmd")
+	if health == nil || len(health.Test) != 1 || health.Test[0] != "NONE" {
+		t.Fatalf("--no-healthcheck failed: %#v", health)
+	}
+
+	health = checkOk("--health-cmd=/check.sh -q", "img", "cmd")
+	if len(health.Test) != 2 || health.Test[0] != "CMD-SHELL" || health.Test[1] != "/check.sh -q" {
+		t.Fatalf("--health-cmd: got %#v", health.Test)
+	}
+	if health.Timeout != nil {
+		t.Fatalf("--health-cmd: timeout = %f", *health.Timeout)
+	}
+
+	checkError("--no-healthcheck conflicts with --health-* options",
+		"--no-healthcheck", "--health-cmd=/check.sh -q", "img", "cmd")
+
+	health = checkOk("--health-grace=1s", "--health-timeout=2s", "--health-retries=3", "--health-interval=4.5s", "img", "cmd")
+	if *health.GracePeriod != 1 || *health.Timeout != 2 || health.Retries != 3 || *health.Interval != 4.5 {
+		t.Fatalf("--health-*: got %#v", health)
+	}
+
+	health = checkOk("--health-retries=1", "img", "cmd")
+	if health.ExitOnUnhealthy != nil {
+		t.Fatalf("ExitOnUnhealthy shouldn't be set")
+	}
+	health = checkOk("--exit-on-unhealthy", "img", "cmd")
+	if *health.ExitOnUnhealthy != true {
+		t.Fatalf("ExitOnUnhealthy should be true")
+	}
+	health = checkOk("--exit-on-unhealthy=false", "img", "cmd")
+	if *health.ExitOnUnhealthy != false {
+		t.Fatalf("ExitOnUnhealthy should be false")
+	}
+}
+
 func TestParseLoggingOpts(t *testing.T) {
 	// logging opts ko
 	if _, _, _, _, err := parseRun([]string{"--log-driver=none", "--log-opt=anything", "img", "cmd"}); err == nil || err.Error() != "invalid logging opts for driver none" {

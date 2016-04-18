@@ -369,6 +369,10 @@ func (clnt *client) Signal(containerID string, sig int) error {
 	return nil
 }
 
+func (clnt *client) SignalProcess(containerID string, pid string, sig int) error {
+	return fmt.Errorf("SignalProcess not implemented on Windows")
+}
+
 // Resize handles a CLI event to resize an interactive docker run or docker exec
 // window.
 func (clnt *client) Resize(containerID, processFriendlyName string, width, height int) error {

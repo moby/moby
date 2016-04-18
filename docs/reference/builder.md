@@ -1300,6 +1300,74 @@ The `STOPSIGNAL` instruction sets the system call signal that will be sent to th
 This signal can be a valid unsigned number that matches a position in the kernel's syscall table, for instance 9,
 or a signal name in the format SIGNAME, for instance SIGKILL.
 
+## HEALTHCHECK
+
+The `HEALTHCHECK` instruction has two forms:
+
+* `HEALTHCHECK [OPTIONS] CMD command` (check container health by running a command inside the container)
+* `HEALTHCHECK NONE` (disable any healthcheck inherited from the base image)
+
+The `HEALTHCHECK` instruction tells Docker how to test a container to check that
+it is still working. This can detect cases such as a web server that is stuck in
+an infinite loop and unable to handle new connections, even though the server
+process is still running.
+
+When a container has a healthcheck specified, it has a _health status_ in
+addition to its normal status. This status is initially `starting`. When a
+health check passes, it becomes `healthy` (whatever state it was previously in).
+After a certain number of consecutive failures, it becomes `unhealthy`.
+
+The options that can appear before `CMD` are:
+
+* `--interval=DURATION` (default: `30s`)
+* `--timeout=DURATION` (default: `30s`)
+* `--grace=DURATION` (default: `30s`)
+* `--retries=N` (default: `1`)
+* `--exit-on-unhealthy=X` (default: `true`)
+
+The health check will first run **interval** seconds after the container is
+started, and then again **interval** seconds after each previous check completes.
+
+If a single run of the check takes longer than **timeout** seconds then the check
+is considered to have failed.
+
+If the health state is `starting` and a check started within **grace** seconds
+of the container's start time fails, the failure is ignored and the health
+state remains `starting`.
+
+It takes **retries** consecutive failures of the health check for the container
+to be considered `unhealthy`.
+
+If `--exit-on-unhealthy` is `true` then the container will exit as soon as it
+becomes unhealthy. The container may then be automatically restarted, depending
+on its restart policy.
+
+For example, to check every five minutes or so that a web-server is able to
+serve the site's main page within three seconds:
+
+    HEALTHCHECK --interval=5m --grace=20s --timeout=3s --exit-on-unhealthy \
+      CMD curl -f http://localhost/
+
+There can only be one `HEALTHCHECK` instruction in a Dockerfile. If you list
+more than one then only the last `HEALTHCHECK` will take effect.
+
+The command after the `CMD` keyword can be either a shell command (e.g. `HEALTHCHECK
+CMD /bin/check-running`) or an _exec_ array (as with other Dockerfile commands;
+see e.g. `ENTRYPOINT` for details).
+
+The command should return with an exit status of zero for success, or any other
+value for failure. To help debug failing probes, any output the command writes
+on stdout or stderr will be stored in the health status and can be queried
+with `docker inspect`. Such output should be kept short (only the first 255
+bytes are stored currently).
+
+When the health status of a container changes, a `health_status` event is
+generated with the new status.
+
+The `HEALTHCHECK` feature was added in Docker 1.12.
+
+
+
 ## Dockerfile examples
 
 Below you can see some examples of Dockerfile syntax. If you're interested in

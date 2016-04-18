@@ -159,7 +159,7 @@ func (s *containerRouter) postContainersStop(ctx context.Context, w http.Respons
 
 	seconds, _ := strconv.Atoi(r.Form.Get("t"))
 
-	if err := s.backend.ContainerStop(vars["name"], seconds); err != nil {
+	if err := s.backend.ContainerStop(vars["name"], seconds, &backend.ShutdownFlags{}); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -187,7 +187,7 @@ func (s *containerRouter) postContainersKill(ctx context.Context, w http.Respons
 		}
 	}
 
-	if err := s.backend.ContainerKill(name, uint64(sig)); err != nil {
+	if err := s.backend.ContainerKill(name, uint64(sig), &backend.ShutdownFlags{}); err != nil {
 		var isStopped bool
 		if e, ok := err.(errContainerIsRunning); ok {
 			isStopped = !e.ContainerIsRunning()

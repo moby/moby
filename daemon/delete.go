@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errors"
 	"github.com/docker/docker/layer"
@@ -83,7 +84,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 			err := fmt.Errorf("You cannot remove a running container %s. Stop the container before attempting removal or use -f", container.ID)
 			return errors.NewRequestConflictError(err)
 		}
-		if err := daemon.Kill(container); err != nil {
+		if err := daemon.Kill(container, &backend.ShutdownFlags{}); err != nil {
 			return fmt.Errorf("Could not kill running container %s, cannot remove - %v", container.ID, err)
 		}
 	}
@@ -92,7 +93,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	// if stats are currently getting collected.
 	daemon.statsCollector.stopCollection(container)
 
-	if err = daemon.containerStop(container, 3); err != nil {
+	if err = daemon.containerStop(container, 3, &backend.ShutdownFlags{}); err != nil {
 		return err
 	}
 
