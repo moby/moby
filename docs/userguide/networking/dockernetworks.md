@@ -18,7 +18,7 @@ applications run on. Docker container networks give you that control.
 
 This section provides an overview of the default networking behavior that Docker
 Engine delivers natively. It describes the type of networks created by default
-and how to create your own, user--defined networks. It also describes the
+and how to create your own, user-defined networks. It also describes the
 resources required to create networks on a single host or across a cluster of
 hosts.
 
