@@ -42,6 +42,7 @@ type endpointConfiguration struct {
 	MacAddress   net.HardwareAddr
 	PortBindings []types.PortBinding
 	ExposedPorts []types.TransportPort
+	QosPolicies  []types.QosPolicy
 }
 
 type hnsEndpoint struct {
@@ -257,6 +258,26 @@ func (d *driver) DeleteNetwork(nid string) error {
 	return nil
 }
 
+func convertQosPolicies(qosPolicies []types.QosPolicy) ([]json.RawMessage, error) {
+	var qps []json.RawMessage
+
+	// Enumerate through the qos policies specified by the user and convert
+	// them into the internal structure matching the JSON blob that can be
+	// understood by the HCS.
+	for _, elem := range qosPolicies {
+		encodedPolicy, err := json.Marshal(hcsshim.QosPolicy{
+			Type: "QOS",
+			MaximumOutgoingBandwidthInBytes: elem.MaxEgressBandwidth,
+		})
+
+		if err != nil {
+			return nil, err
+		}
+		qps = append(qps, encodedPolicy)
+	}
+	return qps, nil
+}
+
 func convertPortBindings(portBindings []types.PortBinding) ([]json.RawMessage, error) {
 	var pbs []json.RawMessage
 
@@ -347,6 +368,14 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*endpointConfigurat
 		}
 	}
 
+	if opt, ok := epOptions[QosPolicies]; ok {
+		if policies, ok := opt.([]types.QosPolicy); ok {
+			ec.QosPolicies = policies
+		} else {
+			return nil, fmt.Errorf("Invalid endpoint configuration")
+		}
+	}
+
 	return ec, nil
 }
 
@@ -375,10 +404,15 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 
 	endpointStruct.Policies, err = convertPortBindings(ec.PortBindings)
-
 	if err != nil {
 		return err
 	}
+
+	qosPolicies, err := convertQosPolicies(ec.QosPolicies)
+	if err != nil {
+		return err
+	}
+	endpointStruct.Policies = append(endpointStruct.Policies, qosPolicies...)
 
 	configurationb, err := json.Marshal(endpointStruct)
 	if err != nil {
