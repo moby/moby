@@ -29,6 +29,12 @@ for platform in $DOCKER_CROSSPLATFORMS; do
 			export LDFLAGS_STATIC_DOCKER="" # we just need a simple client for these platforms
 			export BUILDFLAGS=( "${ORIG_BUILDFLAGS[@]/ daemon/}" ) # remove the "daemon" build tag from platforms that aren't supported
 		fi
+		# !!! TEMPORARY HACK !!!
+		# See Dockerfile
+		if [ "$platform" == "windows/amd64" ]; then
+			export GOROOT="/usr/local/go${HACK_GO_VERSION}"
+			export PATH=$(echo "$PATH" | sed "s,:/usr/local/go/bin:,:/usr/local/go${HACK_GO_VERSION}/bin:,")
+		fi
 		source "${MAKEDIR}/binary"
 	)
 done
