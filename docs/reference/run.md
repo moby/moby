@@ -1250,6 +1250,7 @@ Dockerfile instruction and how the operator can override that setting.
     #entrypoint-default-command-to-execute-at-runtime)
  - [EXPOSE (Incoming Ports)](#expose-incoming-ports)
  - [ENV (Environment Variables)](#env-environment-variables)
+ - [HEALTHCHECK](#healthcheck)
  - [VOLUME (Shared Filesystems)](#volume-shared-filesystems)
  - [USER](#user)
  - [WORKDIR](#workdir)
@@ -1397,6 +1398,65 @@ above, or already defined by the developer with a Dockerfile `ENV`:
     declare -x deep="purple"
 
 Similarly the operator can set the **hostname** with `-h`.
+
+### HEALTHCHECK
+
+```
+  --health-cmd            Command to run to check health
+  --health-interval       Time between running the check
+  --health-retries        Consecutive failures needed to report unhealthy
+  --health-timeout        Maximum time to allow one check to run
+  --no-healthcheck        Disable any container-specified HEALTHCHECK
+```
+
+Example:
+
+    $ docker run --name=test -d \
+        --health-cmd='stat /etc/passwd || exit 1' \
+        --health-interval=2s \
+        busybox sleep 1d
+    $ sleep 2; docker inspect --format='{{.State.Health.Status}}' test
+    healthy
+    $ docker exec test rm /etc/passwd
+    $ sleep 2; docker inspect --format='{{json .State.Health}}' test
+    {
+      "Status": "unhealthy",
+      "FailingStreak": 3,
+      "Log": [
+        {
+          "Start": "2016-05-25T17:22:04.635478668Z",
+          "End": "2016-05-25T17:22:04.7272552Z",
+          "ExitCode": 0,
+          "Output": "  File: /etc/passwd\n  Size: 334       \tBlocks: 8          IO Block: 4096   regular file\nDevice: 32h/50d\tInode: 12          Links: 1\nAccess: (0664/-rw-rw-r--)  Uid: (    0/    root)   Gid: (    0/    root)\nAccess: 2015-12-05 22:05:32.000000000\nModify: 2015..."
+        },
+        {
+          "Start": "2016-05-25T17:22:06.732900633Z",
+          "End": "2016-05-25T17:22:06.822168935Z",
+          "ExitCode": 0,
+          "Output": "  File: /etc/passwd\n  Size: 334       \tBlocks: 8          IO Block: 4096   regular file\nDevice: 32h/50d\tInode: 12          Links: 1\nAccess: (0664/-rw-rw-r--)  Uid: (    0/    root)   Gid: (    0/    root)\nAccess: 2015-12-05 22:05:32.000000000\nModify: 2015..."
+        },
+        {
+          "Start": "2016-05-25T17:22:08.823956535Z",
+          "End": "2016-05-25T17:22:08.897359124Z",
+          "ExitCode": 1,
+          "Output": "stat: can't stat '/etc/passwd': No such file or directory\n"
+        },
+        {
+          "Start": "2016-05-25T17:22:10.898802931Z",
+          "End": "2016-05-25T17:22:10.969631866Z",
+          "ExitCode": 1,
+          "Output": "stat: can't stat '/etc/passwd': No such file or directory\n"
+        },
+        {
+          "Start": "2016-05-25T17:22:12.971033523Z",
+          "End": "2016-05-25T17:22:13.082015516Z",
+          "ExitCode": 1,
+          "Output": "stat: can't stat '/etc/passwd': No such file or directory\n"
+        }
+      ]
+    }
+
+The health status is also displayed in the `docker ps` output.
 
 ### TMPFS (mount tmpfs filesystems)
 

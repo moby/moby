@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/runconfig"
@@ -581,6 +582,45 @@ func TestParseRestartPolicy(t *testing.T) {
 		if hostconfig.RestartPolicy != expected {
 			t.Fatalf("Expected %v, got %v", expected, hostconfig.RestartPolicy)
 		}
+	}
+}
+
+func TestParseHealth(t *testing.T) {
+	checkOk := func(args ...string) *container.HealthConfig {
+		config, _, _, _, err := parseRun(args)
+		if err != nil {
+			t.Fatalf("%#v: %v", args, err)
+		}
+		return config.Healthcheck
+	}
+	checkError := func(expected string, args ...string) {
+		config, _, _, _, err := parseRun(args)
+		if err == nil {
+			t.Fatalf("Expected error, but got %#v", config)
+		}
+		if err.Error() != expected {
+			t.Fatalf("Expected %#v, got %#v", expected, err)
+		}
+	}
+	health := checkOk("--no-healthcheck", "img", "cmd")
+	if health == nil || len(health.Test) != 1 || health.Test[0] != "NONE" {
+		t.Fatalf("--no-healthcheck failed: %#v", health)
+	}
+
+	health = checkOk("--health-cmd=/check.sh -q", "img", "cmd")
+	if len(health.Test) != 2 || health.Test[0] != "CMD-SHELL" || health.Test[1] != "/check.sh -q" {
+		t.Fatalf("--health-cmd: got %#v", health.Test)
+	}
+	if health.Timeout != 0 {
+		t.Fatalf("--health-cmd: timeout = %f", health.Timeout)
+	}
+
+	checkError("--no-healthcheck conflicts with --health-* options",
+		"--no-healthcheck", "--health-cmd=/check.sh -q", "img", "cmd")
+
+	health = checkOk("--health-timeout=2s", "--health-retries=3", "--health-interval=4.5s", "img", "cmd")
+	if health.Timeout != 2*time.Second || health.Retries != 3 || health.Interval != 4500*time.Millisecond {
+		t.Fatalf("--health-*: got %#v", health)
 	}
 }
 

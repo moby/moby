@@ -100,6 +100,12 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flStopSignal        = cmd.String([]string{"-stop-signal"}, signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal))
 		flIsolation         = cmd.String([]string{"-isolation"}, "", "Container isolation technology")
 		flShmSize           = cmd.String([]string{"-shm-size"}, "", "Size of /dev/shm, default value is 64MB")
+		// Healthcheck
+		flNoHealthcheck  = cmd.Bool([]string{"-no-healthcheck"}, false, "Disable any container-specified HEALTHCHECK")
+		flHealthCmd      = cmd.String([]string{"-health-cmd"}, "", "Command to run to check health")
+		flHealthInterval = cmd.Duration([]string{"-health-interval"}, 0, "Time between running the check")
+		flHealthTimeout  = cmd.Duration([]string{"-health-timeout"}, 0, "Maximum time to allow one check to run")
+		flHealthRetries  = cmd.Int([]string{"-health-retries"}, 0, "Consecutive failures needed to report unhealthy")
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
@@ -351,6 +357,39 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		return nil, nil, nil, cmd, err
 	}
 
+	// Healthcheck
+	var healthConfig *container.HealthConfig
+	haveHealthSettings := *flHealthCmd != "" ||
+		*flHealthInterval != 0 ||
+		*flHealthTimeout != 0 ||
+		*flHealthRetries != 0
+	if *flNoHealthcheck {
+		if haveHealthSettings {
+			return nil, nil, nil, cmd, fmt.Errorf("--no-healthcheck conflicts with --health-* options")
+		}
+		test := strslice.StrSlice{"NONE"}
+		healthConfig = &container.HealthConfig{Test: test}
+	} else if haveHealthSettings {
+		var probe strslice.StrSlice
+		if *flHealthCmd != "" {
+			args := []string{"CMD-SHELL", *flHealthCmd}
+			probe = strslice.StrSlice(args)
+		}
+		if *flHealthInterval < 0 {
+			return nil, nil, nil, cmd, fmt.Errorf("--health-interval cannot be negative")
+		}
+		if *flHealthTimeout < 0 {
+			return nil, nil, nil, cmd, fmt.Errorf("--health-timeout cannot be negative")
+		}
+
+		healthConfig = &container.HealthConfig{
+			Test:     probe,
+			Interval: *flHealthInterval,
+			Timeout:  *flHealthTimeout,
+			Retries:  *flHealthRetries,
+		}
+	}
+
 	resources := container.Resources{
 		CgroupParent:         *flCgroupParent,
 		Memory:               flMemory,
@@ -399,6 +438,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
 		Labels:          ConvertKVStringsToMap(labels),
+		Healthcheck:     healthConfig,
 	}
 	if cmd.IsSet("-stop-signal") {
 		config.StopSignal = *flStopSignal
