@@ -249,6 +249,7 @@ During registration, the remote driver will receive a POST message to the URL `/
 
 	{
 		"RequiresMACAddress": bool
+		"RequiresRequestReplay": bool
 	}
 	
 	
@@ -262,6 +263,10 @@ As of now libnetwork accepts the following capabilities:
 
 It is a boolean value which tells libnetwork whether the ipam driver needs to know the interface MAC address in order to properly process the `RequestAddress()` call.
 If true, on `CreateEndpoint()` request, libnetwork will generate a random MAC address for the endpoint (if an explicit MAC address was not already provided by the user) and pass it to `RequestAddress()` when requesting the IP address inside the options map. The key will be the `netlabel.MacAddress` constant: `"com.docker.network.endpoint.macaddress"`.
+
+### RequiresRequestReplay
+
+It is a boolean value which tells libnetwork whether the ipam driver needs to receive the replay of the `RequestPool()` and `RequestAddress()` requests on daemon reload.  When libnetwork controller is initializing, it retrieves from local store the list of current local scope networks and, if this capability flag is set, it allows the IPAM driver to reconstruct the database of pools by replaying the `RequestPool()` requests for each pool and the `RequestAddress()` for each network gateway owned by the local networks. This can be useful to ipam drivers which decide not to persist the pools allocated to local scope networks.
 
 
 ## Appendix
