@@ -42,6 +42,9 @@ func (rm *restartManager) SetPolicy(policy container.RestartPolicy) {
 }
 
 func (rm *restartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped bool) (bool, chan error, error) {
+	if rm.policy.IsNone() {
+		return false, nil, nil
+	}
 	rm.Lock()
 	unlockOnExit := true
 	defer func() {
