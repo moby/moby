@@ -2,10 +2,24 @@ sudo: false
 language: go
 
 go:
-  - 1.4.1
+  - 1.5.4
+  - 1.6.1
+  - tip
+
+matrix:
+  allow_failures:
+    - go: tip
 
 before_script:
-  - FIXED=$(go fmt ./... | wc -l); if [ $FIXED -gt 0 ]; then echo "gofmt - $FIXED file(s) not formatted correctly, please run gofmt to fix this." && exit 1; fi
+  - go get -u github.com/golang/lint/golint
+
+script:
+  - go test -v --race ./...
+
+after_script:
+  - test -z "$(gofmt -s -l -w . | tee /dev/stderr)"
+  - test -z "$(golint ./...     | tee /dev/stderr)"
+  - go vet ./...
 
 os:
   - linux
