@@ -2074,8 +2074,18 @@ func (s *DockerSuite) TestBuildRelativeWorkdir(c *check.C) {
 		expected4     string
 		expectedFinal string
 	)
+	// TODO Windows: The expectedFinal needs fixing to match Windows
+	// filepath semantics. However, this is a non-trivial change. @jhowardmsft
+	// Short story - need to make the configuration file platform semantically
+	// consistent, so even if `WORKDIR /test2/test3` is specified in a Dockerfile,
+	// the configuration should be stored as C:\test2\test3. Something similar to
+	// 	if runtime.GOOS == "windows" && len(workdir) > 2 && string(workdir[0]) == `\` {
+	//		workdir = "C:" + workdir
+	//  }
+	// in builder\dockerfile\dispatchers.go, function workdir(), but also
+	// ironing out all other cases where this causes other failures.
 	if daemonPlatform == "windows" {
-		expected1 = `C:/Windows/system32`
+		expected1 = `C:/`
 		expected2 = `C:/test1`
 		expected3 = `C:/test2`
 		expected4 = `C:/test2/test3`
@@ -2090,13 +2100,13 @@ func (s *DockerSuite) TestBuildRelativeWorkdir(c *check.C) {
 
 	_, err := buildImage(name,
 		`FROM busybox
-		RUN sh -c "[ "$PWD" = '`+expected1+`' ]"
+		RUN sh -c "[ "$PWD" = "`+expected1+`" ]"
 		WORKDIR test1
-		RUN sh -c "[ "$PWD" = '`+expected2+`' ]"
+		RUN sh -c "[ "$PWD" = "`+expected2+`" ]"
 		WORKDIR /test2
-		RUN sh -c "[ "$PWD" = '`+expected3+`' ]"
+		RUN sh -c "[ "$PWD" = "`+expected3+`" ]"
 		WORKDIR test3
-		RUN sh -c "[ "$PWD" = '`+expected4+`' ]"`,
+		RUN sh -c "[ "$PWD" = "`+expected4+`" ]"`,
 		true)
 	if err != nil {
 		c.Fatal(err)
