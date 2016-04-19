@@ -36,6 +36,19 @@ func (ctr *container) clean() error {
 	return nil
 }
 
+// cleanProcess removes the fifos used by an additional process.
+// Caller needs to lock container ID before calling this method.
+func (ctr *container) cleanProcess(id string) {
+	if p, ok := ctr.processes[id]; ok {
+		for _, i := range []int{syscall.Stdin, syscall.Stdout, syscall.Stderr} {
+			if err := os.Remove(p.fifo(i)); err != nil {
+				logrus.Warnf("failed to remove %v for process %v: %v", p.fifo(i), id, err)
+			}
+		}
+	}
+	delete(ctr.processes, id)
+}
+
 func (ctr *container) spec() (*specs.Spec, error) {
 	var spec specs.Spec
 	dt, err := ioutil.ReadFile(filepath.Join(ctr.dir, configFilename))
@@ -145,11 +158,14 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 
 		// Remove process from list if we have exited
 		// We need to do so here in case the Message Handler decides to restart it.
-		if st.State == StateExit {
+		switch st.State {
+		case StateExit:
 			if os.Getenv("LIBCONTAINERD_NOCLEAN") != "1" {
 				ctr.clean()
 			}
 			ctr.client.deleteContainer(e.Id)
+		case StateExitProcess:
+			ctr.cleanProcess(st.ProcessID)
 		}
 		ctr.client.q.append(e.Id, func() {
 			if err := ctr.client.backend.StateChanged(e.Id, st); err != nil {
