@@ -292,6 +292,10 @@ func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int, nextHo
 	return nil
 }
 
+func (ep *endpoint) AddTableEntry(tableName, key string, value []byte) error {
+	return nil
+}
+
 func (ep *endpoint) Sandbox() Sandbox {
 	cnt, ok := ep.getSandbox()
 	if !ok {

@@ -199,6 +199,10 @@ func (test *testEndpoint) DisableGatewayService() {
 	test.disableGatewayService = true
 }
 
+func (test *testEndpoint) AddTableEntry(tableName string, key string, value []byte) error {
+	return nil
+}
+
 func TestGetEmptyCapabilities(t *testing.T) {
 	var plugin = "test-net-driver-empty-cap"
 
@@ -400,7 +404,7 @@ func TestRemoteDriver(t *testing.T) {
 	}
 
 	netID := "dummy-network"
-	err = d.CreateNetwork(netID, map[string]interface{}{}, nil, nil)
+	err = d.CreateNetwork(netID, map[string]interface{}{}, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

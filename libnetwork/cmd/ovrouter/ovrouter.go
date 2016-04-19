@@ -92,6 +92,10 @@ func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int,
 	return nil
 }
 
+func (ep *endpoint) AddTableEntry(tableName string, key string, value []byte) error {
+	return nil
+}
+
 func (ep *endpoint) DisableGatewayService() {}
 
 func main() {
@@ -120,7 +124,7 @@ func main() {
 	}
 
 	if err := r.d.CreateNetwork("testnetwork",
-		map[string]interface{}{}, nil, nil); err != nil {
+		map[string]interface{}{}, nil, nil, nil); err != nil {
 		fmt.Printf("Failed to create network in the driver: %v\n", err)
 		os.Exit(1)
 	}
