@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0-rc.7 (2016-04-22)
+- Fixes https://github.com/docker/libnetwork/issues/1113
+- Fixes https://github.com/docker/libnetwork/issues/1069
+- Fxies https://github.com/docker/libnetwork/issues/1117
+- Increase the concurrent query rate-limit count.
+
 ## 0.7.0-rc.6 (2016-04-10)
 - Flush cached resolver socket on default gateway change
 
