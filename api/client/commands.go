@@ -49,11 +49,6 @@ func (cli *DockerCli) Command(name string) func(...string) error {
 		"unpause":            cli.CmdUnpause,
 		"update":             cli.CmdUpdate,
 		"version":            cli.CmdVersion,
-		"volume":             cli.CmdVolume,
-		"volume create":      cli.CmdVolumeCreate,
-		"volume inspect":     cli.CmdVolumeInspect,
-		"volume ls":          cli.CmdVolumeLs,
-		"volume rm":          cli.CmdVolumeRm,
 		"wait":               cli.CmdWait,
 	}[name]
 }

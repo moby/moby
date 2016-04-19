@@ -60,6 +60,21 @@ func (cli *DockerCli) Initialize() error {
 	return cli.init()
 }
 
+// Client returns the APIClient
+func (cli *DockerCli) Client() client.APIClient {
+	return cli.client
+}
+
+// Out returns the writer used for stdout
+func (cli *DockerCli) Out() io.Writer {
+	return cli.out
+}
+
+// Err returns the writer used for stderr
+func (cli *DockerCli) Err() io.Writer {
+	return cli.err
+}
+
 // CheckTtyInput checks if we are trying to attach to a container tty
 // from a non-tty client input stream, and if so, returns an error.
 func (cli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
@@ -127,40 +142,13 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cliflags.Cl
 
 	cli.init = func() error {
 		clientFlags.PostParse()
-		configFile, e := cliconfig.Load(cliconfig.ConfigDir())
-		if e != nil {
-			fmt.Fprintf(cli.err, "WARNING: Error loading config file:%v\n", e)
-		}
-		if !configFile.ContainsAuth() {
-			credentials.DetectDefaultStore(configFile)
-		}
-		cli.configFile = configFile
+		cli.configFile = LoadDefaultConfigFile(err)
 
-		host, err := getServerHost(clientFlags.Common.Hosts, clientFlags.Common.TLSOptions)
+		client, err := NewAPIClientFromFlags(clientFlags, cli.configFile)
 		if err != nil {
 			return err
 		}
 
-		customHeaders := cli.configFile.HTTPHeaders
-		if customHeaders == nil {
-			customHeaders = map[string]string{}
-		}
-		customHeaders["User-Agent"] = clientUserAgent()
-
-		verStr := api.DefaultVersion
-		if tmpStr := os.Getenv("DOCKER_API_VERSION"); tmpStr != "" {
-			verStr = tmpStr
-		}
-
-		httpClient, err := newHTTPClient(host, clientFlags.Common.TLSOptions)
-		if err != nil {
-			return err
-		}
-
-		client, err := client.NewClient(host, verStr, httpClient, customHeaders)
-		if err != nil {
-			return err
-		}
 		cli.client = client
 
 		if cli.in != nil {
@@ -174,6 +162,45 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cliflags.Cl
 	}
 
 	return cli
+}
+
+// LoadDefaultConfigFile attempts to load the default config file and returns
+// an initialized ConfigFile struct if none is found.
+func LoadDefaultConfigFile(err io.Writer) *configfile.ConfigFile {
+	configFile, e := cliconfig.Load(cliconfig.ConfigDir())
+	if e != nil {
+		fmt.Fprintf(err, "WARNING: Error loading config file:%v\n", e)
+	}
+	if !configFile.ContainsAuth() {
+		credentials.DetectDefaultStore(configFile)
+	}
+	return configFile
+}
+
+// NewAPIClientFromFlags creates a new APIClient from command line flags
+func NewAPIClientFromFlags(clientFlags *cliflags.ClientFlags, configFile *configfile.ConfigFile) (client.APIClient, error) {
+	host, err := getServerHost(clientFlags.Common.Hosts, clientFlags.Common.TLSOptions)
+	if err != nil {
+		return &client.Client{}, err
+	}
+
+	customHeaders := configFile.HTTPHeaders
+	if customHeaders == nil {
+		customHeaders = map[string]string{}
+	}
+	customHeaders["User-Agent"] = clientUserAgent()
+
+	verStr := api.DefaultVersion
+	if tmpStr := os.Getenv("DOCKER_API_VERSION"); tmpStr != "" {
+		verStr = tmpStr
+	}
+
+	httpClient, err := newHTTPClient(host, clientFlags.Common.TLSOptions)
+	if err != nil {
+		return &client.Client{}, err
+	}
+
+	return client.NewClient(host, verStr, httpClient, customHeaders)
 }
 
 func getServerHost(hosts []string, tlsOptions *tlsconfig.Options) (host string, err error) {
