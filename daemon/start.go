@@ -107,10 +107,6 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 			}
 			container.ToDisk()
 			daemon.Cleanup(container)
-			attributes := map[string]string{
-				"exitCode": fmt.Sprintf("%d", container.ExitCode),
-			}
-			daemon.LogContainerEventWithAttributes(container, "die", attributes)
 		}
 	}()
 
@@ -149,8 +145,6 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 
 		container.Reset(false)
 
-		// start event is logged even on error
-		daemon.LogContainerEvent(container, "start")
 		return err
 	}
 
