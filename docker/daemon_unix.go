@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
@@ -88,7 +89,11 @@ func (cli *DaemonCli) getPlatformRemoteOptions() []libcontainerd.RemoteOption {
 // getLibcontainerdRoot gets the root directory for libcontainerd/containerd to
 // store their state.
 func (cli *DaemonCli) getLibcontainerdRoot() string {
-	return filepath.Join(cli.Config.ExecRoot, "libcontainerd")
+	execRootPath := filepath.Join(cli.Config.ExecRoot, "libcontainerd")
+	if infos, _ := ioutil.ReadDir(execRootPath); len(infos) > 0 {
+		return execRootPath
+	}
+	return filepath.Join(cli.Config.Root, "libcontainerd")
 }
 
 // allocateDaemonPort ensures that there are no containers
