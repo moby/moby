@@ -2961,8 +2961,9 @@ Content-Type: application/json
 Query Parameters:
 
 - **filters** - JSON encoded network list filter. The filter value is one of:
-  -   `name=<network-name>` Matches all or part of a network name.
   -   `id=<network-id>` Matches all or part of a network id.
+  -   `label=<key>` or `label=<key>=<value>` of a network label.
+  -   `name=<network-name>` Matches all or part of a network name.
   -   `type=["custom"|"builtin"]` Filters networks by type. The `custom` keyword returns all user-defined networks.
 
 Status Codes:

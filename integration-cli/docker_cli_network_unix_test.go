@@ -309,16 +309,23 @@ func (s *DockerNetworkSuite) TestDockerNetworkRmPredefined(c *check.C) {
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkLsFilter(c *check.C) {
+	testNet := "testnet1"
+	testLabel := "foo"
+	testValue := "bar"
 	out, _ := dockerCmd(c, "network", "create", "dev")
 	defer func() {
 		dockerCmd(c, "network", "rm", "dev")
+		dockerCmd(c, "network", "rm", testNet)
 	}()
 	networkID := strings.TrimSpace(out)
 
-	// filter with partial ID and partial name
-	// only show 'bridge' and 'dev' network
-	out, _ = dockerCmd(c, "network", "ls", "-f", "id="+networkID[0:5], "-f", "name=dge")
-	assertNwList(c, out, []string{"bridge", "dev"})
+	// filter with partial ID
+	// only show 'dev' network
+	out, _ = dockerCmd(c, "network", "ls", "-f", "id="+networkID[0:5])
+	assertNwList(c, out, []string{"dev"})
+
+	out, _ = dockerCmd(c, "network", "ls", "-f", "name=dge")
+	assertNwList(c, out, []string{"bridge"})
 
 	// only show built-in network (bridge, none, host)
 	out, _ = dockerCmd(c, "network", "ls", "-f", "type=builtin")
@@ -332,6 +339,19 @@ func (s *DockerNetworkSuite) TestDockerNetworkLsFilter(c *check.C) {
 	// it should be equivalent of ls without option
 	out, _ = dockerCmd(c, "network", "ls", "-f", "type=custom", "-f", "type=builtin")
 	assertNwList(c, out, []string{"bridge", "dev", "host", "none"})
+
+	out, _ = dockerCmd(c, "network", "create", "--label", testLabel+"="+testValue, testNet)
+	assertNwIsAvailable(c, testNet)
+
+	out, _ = dockerCmd(c, "network", "ls", "-f", "label="+testLabel)
+	assertNwList(c, out, []string{testNet})
+
+	out, _ = dockerCmd(c, "network", "ls", "-f", "label="+testLabel+"="+testValue)
+	assertNwList(c, out, []string{testNet})
+
+	out, _ = dockerCmd(c, "network", "ls", "-f", "label=nonexistent")
+	outArr := strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(outArr), check.Equals, 1, check.Commentf("%s\n", out))
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkCreateDelete(c *check.C) {
