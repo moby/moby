@@ -2,8 +2,35 @@
 set -e
 
 cd "$(dirname "$BASH_SOURCE")/.."
-rm -rf vendor/
 source 'hack/.vendor-helpers.sh'
+
+case $# in
+0)
+	rm -rf vendor/
+	;;
+# If user passed arguments to the script
+1)
+	eval "$(grep -E "^clone [^ ]+ $1" "$0")"
+	clean
+	exit 0
+	;;
+2)
+	rm -rf "vendor/src/$1"
+	clone git "$1" "$2"
+	clean
+	exit 0
+	;;
+[34])
+	rm -rf "vendor/src/$2"
+	clone "$@"
+	clean
+	exit 0
+	;;
+*)
+	>&2 echo "error: unexpected parameters"
+	exit 1
+	;;
+esac
 
 # the following lines are in sorted order, FYI
 clone git github.com/Azure/go-ansiterm 70b2c90b260171e829f1ebd7c17f600c11858dbe
