@@ -8,7 +8,6 @@ import (
 
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/version"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 )
@@ -50,7 +49,7 @@ type stateBackend interface {
 // monitorBackend includes functions to implement to provide containers monitoring functionality.
 type monitorBackend interface {
 	ContainerChanges(name string) ([]archive.Change, error)
-	ContainerInspect(name string, size bool, version version.Version) (interface{}, error)
+	ContainerInspect(name string, size bool, version string) (interface{}, error)
 	ContainerLogs(ctx context.Context, name string, config *backend.ContainerLogsConfig, started chan struct{}) error
 	ContainerStats(ctx context.Context, name string, config *backend.ContainerStatsConfig) error
 	ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error)

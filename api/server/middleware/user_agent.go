@@ -6,19 +6,19 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/pkg/version"
+	"github.com/docker/engine-api/types/versions"
 	"golang.org/x/net/context"
 )
 
 // UserAgentMiddleware is a middleware that
 // validates the client user-agent.
 type UserAgentMiddleware struct {
-	serverVersion version.Version
+	serverVersion string
 }
 
 // NewUserAgentMiddleware creates a new UserAgentMiddleware
 // with the server version.
-func NewUserAgentMiddleware(s version.Version) UserAgentMiddleware {
+func NewUserAgentMiddleware(s string) UserAgentMiddleware {
 	return UserAgentMiddleware{
 		serverVersion: s,
 	}
@@ -38,7 +38,7 @@ func (u UserAgentMiddleware) WrapHandler(handler func(ctx context.Context, w htt
 				userAgent[1] = strings.Split(userAgent[1], " ")[0]
 			}
 
-			if len(userAgent) == 2 && !u.serverVersion.Equal(version.Version(userAgent[1])) {
+			if len(userAgent) == 2 && !versions.Equal(u.serverVersion, userAgent[1]) {
 				logrus.Debugf("Client and server don't have the same version (client: %s, server: %s)", userAgent[1], u.serverVersion)
 			}
 		}
