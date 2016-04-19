@@ -980,7 +980,7 @@ func isBrokenPipe(e error) bool {
 // the same tag are exported. names is the set of tags to export, and
 // outStream is the writer which the images are written to.
 func (daemon *Daemon) ExportImage(names []string, outStream io.Writer) error {
-	imageExporter := tarexport.NewTarExporter(daemon.imageStore, daemon.layerStore, daemon.referenceStore)
+	imageExporter := tarexport.NewTarExporter(daemon.imageStore, daemon.layerStore, daemon.referenceStore, daemon)
 	return imageExporter.Save(names, outStream)
 }
 
@@ -1059,7 +1059,7 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 // complement of ImageExport.  The input stream is an uncompressed tar
 // ball containing images and metadata.
 func (daemon *Daemon) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
-	imageExporter := tarexport.NewTarExporter(daemon.imageStore, daemon.layerStore, daemon.referenceStore)
+	imageExporter := tarexport.NewTarExporter(daemon.imageStore, daemon.layerStore, daemon.referenceStore, daemon)
 	return imageExporter.Load(inTar, outStream, quiet)
 }
 
