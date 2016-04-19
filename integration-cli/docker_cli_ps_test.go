@@ -117,86 +117,8 @@ func (s *DockerSuite) TestPsListContainersBase(c *check.C) {
 
 }
 
-// FIXME remove this for 1.12 as --since and --before are deprecated
-func (s *DockerSuite) TestPsListContainersDeprecatedSinceAndBefore(c *check.C) {
-	out, _ := runSleepingContainer(c, "-d")
-	firstID := strings.TrimSpace(out)
-
-	out, _ = runSleepingContainer(c, "-d")
-	secondID := strings.TrimSpace(out)
-
-	// not long running
-	out, _ = dockerCmd(c, "run", "-d", "busybox", "true")
-	thirdID := strings.TrimSpace(out)
-
-	out, _ = runSleepingContainer(c, "-d")
-	fourthID := strings.TrimSpace(out)
-
-	// make sure the second is running
-	c.Assert(waitRun(secondID), checker.IsNil)
-
-	// make sure third one is not running
-	dockerCmd(c, "wait", thirdID)
-
-	// make sure the forth is running
-	c.Assert(waitRun(fourthID), checker.IsNil)
-
-	// since
-	out, _ = dockerCmd(c, "ps", "--since="+firstID, "-a")
-	expected := []string{fourthID, thirdID, secondID}
-	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE & ALL: Container list is not in the correct order: %v \n%s", expected, out))
-
-	out, _ = dockerCmd(c, "ps", "--since="+firstID)
-	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE: Container list is not in the correct order: %v \n%s", expected, out))
-
-	// before
-	out, _ = dockerCmd(c, "ps", "--before="+thirdID, "-a")
-	expected = []string{secondID, firstID}
-	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("BEFORE & ALL: Container list is not in the correct order: %v \n%s", expected, out))
-
-	out, _ = dockerCmd(c, "ps", "--before="+thirdID)
-	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("BEFORE: Container list is not in the correct order: %v \n%s", expected, out))
-
-	// since & before
-	out, _ = dockerCmd(c, "ps", "--since="+firstID, "--before="+fourthID, "-a")
-	expected = []string{thirdID, secondID}
-	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE, BEFORE & ALL: Container list is not in the correct order: %v \n%s", expected, out))
-
-	out, _ = dockerCmd(c, "ps", "--since="+firstID, "--before="+fourthID)
-	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE, BEFORE: Container list is not in the correct order: %v \n%s", expected, out))
-
-	// since & limit
-	out, _ = dockerCmd(c, "ps", "--since="+firstID, "-n=2", "-a")
-	expected = []string{fourthID, thirdID}
-	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE, LIMIT & ALL: Container list is not in the correct order: %v \n%s", expected, out))
-
-	out, _ = dockerCmd(c, "ps", "--since="+firstID, "-n=2")
-	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE, LIMIT: Container list is not in the correct order: %v \n%s", expected, out))
-
-	// before & limit
-	out, _ = dockerCmd(c, "ps", "--before="+fourthID, "-n=1", "-a")
-	expected = []string{thirdID}
-	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("BEFORE, LIMIT & ALL: Container list is not in the correct order: %v \n%s", expected, out))
-
-	out, _ = dockerCmd(c, "ps", "--before="+fourthID, "-n=1")
-	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("BEFORE, LIMIT: Container list is not in the correct order: %v \n%s", expected, out))
-
-	// since & before & limit
-	out, _ = dockerCmd(c, "ps", "--since="+firstID, "--before="+fourthID, "-n=1", "-a")
-	expected = []string{thirdID}
-	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE, BEFORE, LIMIT & ALL: Container list is not in the correct order: %v \n%s", expected, out))
-
-}
-
 func assertContainerList(out string, expected []string) bool {
 	lines := strings.Split(strings.Trim(out, "\n "), "\n")
-	// FIXME remove this for 1.12 as --since and --before are deprecated
-	// This is here to remove potential Warning: lines (printed out with deprecated flags)
-	for i := 0; i < 2; i++ {
-		if strings.Contains(lines[0], "Warning:") {
-			lines = lines[1:]
-		}
-	}
 
 	if len(lines)-1 != len(expected) {
 		return false
