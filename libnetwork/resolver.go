@@ -46,7 +46,7 @@ const (
 	maxExtDNS       = 3 //max number of external servers to try
 	extIOTimeout    = 4 * time.Second
 	defaultRespSize = 512
-	maxConcurrent   = 50
+	maxConcurrent   = 100
 	logInterval     = 2 * time.Second
 	maxDNSID        = 65536
 )
@@ -382,7 +382,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 				old := r.tStamp
 				r.tStamp = time.Now()
 				if r.tStamp.Sub(old) > logInterval {
-					log.Errorf("More than %v concurrent queries from %s", maxConcurrent, w.LocalAddr().String())
+					log.Errorf("More than %v concurrent queries from %s", maxConcurrent, extConn.LocalAddr().String())
 				}
 				continue
 			}
@@ -453,7 +453,7 @@ func (r *resolver) forwardQueryStart(w dns.ResponseWriter, msg *dns.Msg, queryID
 		for ok := true; ok == true; dnsID = uint16(rand.Intn(maxDNSID)) {
 			_, ok = r.client[dnsID]
 		}
-		log.Debugf("client dns id %v, changed id %v", msg.Id, dnsID)
+		log.Debugf("client dns id %v, changed id %v", queryID, dnsID)
 		r.client[dnsID] = cc
 		msg.Id = dnsID
 	default:
@@ -488,6 +488,7 @@ func (r *resolver) forwardQueryEnd(w dns.ResponseWriter, msg *dns.Msg) dns.Respo
 			log.Debugf("Can't retrieve client context for dns id %v", msg.Id)
 			return nil
 		}
+		log.Debugf("dns msg id %v, client id %v", msg.Id, cc.dnsID)
 		delete(r.client, msg.Id)
 		msg.Id = cc.dnsID
 		w = cc.respWriter
