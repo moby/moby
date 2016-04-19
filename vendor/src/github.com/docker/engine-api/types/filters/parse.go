@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -62,6 +63,28 @@ func ToParam(a Args) (string, error) {
 	}
 
 	buf, err := json.Marshal(a.fields)
+	if err != nil {
+		return "", err
+	}
+	return string(buf), nil
+}
+
+// ToParamWithVersion packs the Args into a string for easy transport from client to server.
+// The generated string will depend on the specified version (corresponding to the API version).
+func ToParamWithVersion(version string, a Args) (string, error) {
+	// this way we don't URL encode {}, just empty space
+	if a.Len() == 0 {
+		return "", nil
+	}
+
+	// for daemons older than v1.10, filter must be of the form map[string][]string
+	buf := []byte{}
+	err := errors.New("")
+	if version != "" && compareTo(version, "1.22") == -1 {
+		buf, err = json.Marshal(convertArgsToSlice(a.fields))
+	} else {
+		buf, err = json.Marshal(a.fields)
+	}
 	if err != nil {
 		return "", err
 	}
@@ -254,4 +277,49 @@ func deprecatedArgs(d map[string][]string) map[string]map[string]bool {
 		m[k] = values
 	}
 	return m
+}
+
+func convertArgsToSlice(f map[string]map[string]bool) map[string][]string {
+	m := map[string][]string{}
+	for k, v := range f {
+		values := []string{}
+		for kk := range v {
+			if v[kk] {
+				values = append(values, kk)
+			}
+		}
+		m[k] = values
+	}
+	return m
+}
+
+// compareTo compares two version strings
+// returns -1 if v1 < v2, 1 if v1 > v2, 0 otherwise
+func compareTo(v1, v2 string) int {
+	var (
+		currTab  = strings.Split(v1, ".")
+		otherTab = strings.Split(v2, ".")
+	)
+
+	max := len(currTab)
+	if len(otherTab) > max {
+		max = len(otherTab)
+	}
+	for i := 0; i < max; i++ {
+		var currInt, otherInt int
+
+		if len(currTab) > i {
+			currInt, _ = strconv.Atoi(currTab[i])
+		}
+		if len(otherTab) > i {
+			otherInt, _ = strconv.Atoi(otherTab[i])
+		}
+		if currInt > otherInt {
+			return 1
+		}
+		if otherInt > currInt {
+			return -1
+		}
+	}
+	return 0
 }

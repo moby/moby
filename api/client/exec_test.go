@@ -23,7 +23,6 @@ func TestParseExec(t *testing.T) {
 		&arguments{
 			[]string{"container", "command"},
 		}: {
-			Container:    "container",
 			Cmd:          []string{"command"},
 			AttachStdout: true,
 			AttachStderr: true,
@@ -31,7 +30,6 @@ func TestParseExec(t *testing.T) {
 		&arguments{
 			[]string{"container", "command1", "command2"},
 		}: {
-			Container:    "container",
 			Cmd:          []string{"command1", "command2"},
 			AttachStdout: true,
 			AttachStderr: true,
@@ -44,7 +42,6 @@ func TestParseExec(t *testing.T) {
 			AttachStdout: true,
 			AttachStderr: true,
 			Tty:          true,
-			Container:    "container",
 			Cmd:          []string{"command"},
 		},
 		&arguments{
@@ -54,7 +51,6 @@ func TestParseExec(t *testing.T) {
 			AttachStdout: false,
 			AttachStderr: false,
 			Detach:       true,
-			Container:    "container",
 			Cmd:          []string{"command"},
 		},
 		&arguments{
@@ -65,7 +61,6 @@ func TestParseExec(t *testing.T) {
 			AttachStderr: false,
 			Detach:       true,
 			Tty:          true,
-			Container:    "container",
 			Cmd:          []string{"command"},
 		},
 	}
@@ -101,9 +96,6 @@ func compareExecConfig(config1 *types.ExecConfig, config2 *types.ExecConfig) boo
 		return false
 	}
 	if config1.AttachStdout != config2.AttachStdout {
-		return false
-	}
-	if config1.Container != config2.Container {
 		return false
 	}
 	if config1.Detach != config2.Detach {

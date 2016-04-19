@@ -290,7 +290,7 @@ type ContainerState struct {
 	FinishedAt string
 }
 
-// NodeData stores information about the node that a container
+// ContainerNode stores information about the node that a container
 // is running on.  It's only available in Docker Swarm
 type ContainerNode struct {
 	ID        string
@@ -438,7 +438,6 @@ type EndpointResource struct {
 
 // NetworkCreate is the expected body of the "create network" http request message
 type NetworkCreate struct {
-	Name           string
 	CheckDuplicate bool
 	Driver         string
 	EnableIPv6     bool
@@ -446,6 +445,12 @@ type NetworkCreate struct {
 	Internal       bool
 	Options        map[string]string
 	Labels         map[string]string
+}
+
+// NetworkCreateRequest is the request message sent to the server for network create call.
+type NetworkCreateRequest struct {
+	NetworkCreate
+	Name string
 }
 
 // NetworkCreateResponse is the response message sent by the server for network create call

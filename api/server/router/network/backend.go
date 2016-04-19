@@ -14,7 +14,7 @@ type Backend interface {
 	GetNetworkByName(idName string) (libnetwork.Network, error)
 	GetNetworksByID(partialID string) []libnetwork.Network
 	FilterNetworks(netFilters filters.Args) ([]libnetwork.Network, error)
-	CreateNetwork(types.NetworkCreate) (*types.NetworkCreateResponse, error)
+	CreateNetwork(nc types.NetworkCreateRequest) (*types.NetworkCreateResponse, error)
 	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error
 	DisconnectContainerFromNetwork(containerName string, network libnetwork.Network, force bool) error
 	DeleteNetwork(name string) error

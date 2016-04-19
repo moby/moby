@@ -212,7 +212,6 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 
 	options := types.ImageBuildOptions{
-		Context:        body,
 		Memory:         memory,
 		MemorySwap:     memorySwap,
 		Tags:           flTags.GetAll(),
@@ -236,7 +235,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		Labels:         runconfigopts.ConvertKVStringsToMap(flLabels.GetAll()),
 	}
 
-	response, err := cli.client.ImageBuild(context.Background(), options)
+	response, err := cli.client.ImageBuild(context.Background(), body, options)
 	if err != nil {
 		return err
 	}

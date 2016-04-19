@@ -1,13 +1,10 @@
 package client
 
 import (
-	"errors"
-
 	"golang.org/x/net/context"
 
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 )
 
@@ -21,26 +18,9 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	ref, err := reference.ParseNamed(cmd.Arg(1))
-	if err != nil {
-		return err
-	}
-
-	if _, isCanonical := ref.(reference.Canonical); isCanonical {
-		return errors.New("refusing to create a tag with a digest reference")
-	}
-
-	var tag string
-	if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
-		tag = tagged.Tag()
-	}
-
 	options := types.ImageTagOptions{
-		ImageID:        cmd.Arg(0),
-		RepositoryName: ref.Name(),
-		Tag:            tag,
-		Force:          *force,
+		Force: *force,
 	}
 
-	return cli.client.ImageTag(context.Background(), options)
+	return cli.client.ImageTag(context.Background(), cmd.Arg(0), cmd.Arg(1), options)
 }

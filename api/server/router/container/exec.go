@@ -36,14 +36,13 @@ func (s *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 	if err := json.NewDecoder(r.Body).Decode(execConfig); err != nil {
 		return err
 	}
-	execConfig.Container = name
 
 	if len(execConfig.Cmd) == 0 {
 		return fmt.Errorf("No exec command specified")
 	}
 
 	// Register an instance of Exec in container.
-	id, err := s.backend.ContainerExecCreate(execConfig)
+	id, err := s.backend.ContainerExecCreate(name, execConfig)
 	if err != nil {
 		logrus.Errorf("Error setting up exec command in container %s: %v", name, err)
 		return err

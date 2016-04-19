@@ -9,6 +9,7 @@ import (
 
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/jsonmessage"
+	// FIXME migrate to docker/distribution/reference
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
@@ -24,14 +25,6 @@ func (cli *DockerCli) pullImage(image string, out io.Writer) error {
 		return err
 	}
 
-	var tag string
-	switch x := reference.WithDefaultTag(ref).(type) {
-	case reference.Canonical:
-		tag = x.Digest().String()
-	case reference.NamedTagged:
-		tag = x.Tag()
-	}
-
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := registry.ParseRepositoryInfo(ref)
 	if err != nil {
@@ -45,12 +38,10 @@ func (cli *DockerCli) pullImage(image string, out io.Writer) error {
 	}
 
 	options := types.ImageCreateOptions{
-		Parent:       ref.Name(),
-		Tag:          tag,
 		RegistryAuth: encodedAuth,
 	}
 
-	responseBody, err := cli.client.ImageCreate(context.Background(), options)
+	responseBody, err := cli.client.ImageCreate(context.Background(), image, options)
 	if err != nil {
 		return err
 	}

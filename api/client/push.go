@@ -1,7 +1,6 @@
 package client
 
 import (
-	"errors"
 	"io"
 
 	"golang.org/x/net/context"
@@ -11,7 +10,6 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
-	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 )
 
@@ -30,14 +28,6 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		return err
 	}
 
-	var tag string
-	switch x := ref.(type) {
-	case reference.Canonical:
-		return errors.New("cannot push a digest reference")
-	case reference.NamedTagged:
-		tag = x.Tag()
-	}
-
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := registry.ParseRepositoryInfo(ref)
 	if err != nil {
@@ -48,10 +38,10 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 
 	requestPrivilege := cli.registryAuthenticationPrivilegedFunc(repoInfo.Index, "push")
 	if isTrusted() {
-		return cli.trustedPush(repoInfo, tag, authConfig, requestPrivilege)
+		return cli.trustedPush(repoInfo, ref, authConfig, requestPrivilege)
 	}
 
-	responseBody, err := cli.imagePushPrivileged(authConfig, ref.Name(), tag, requestPrivilege)
+	responseBody, err := cli.imagePushPrivileged(authConfig, ref.String(), requestPrivilege)
 	if err != nil {
 		return err
 	}
@@ -61,16 +51,15 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	return jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut, nil)
 }
 
-func (cli *DockerCli) imagePushPrivileged(authConfig types.AuthConfig, imageID, tag string, requestPrivilege client.RequestPrivilegeFunc) (io.ReadCloser, error) {
+func (cli *DockerCli) imagePushPrivileged(authConfig types.AuthConfig, ref string, requestPrivilege types.RequestPrivilegeFunc) (io.ReadCloser, error) {
 	encodedAuth, err := encodeAuthToBase64(authConfig)
 	if err != nil {
 		return nil, err
 	}
 	options := types.ImagePushOptions{
-		ImageID:      imageID,
-		Tag:          tag,
-		RegistryAuth: encodedAuth,
+		RegistryAuth:  encodedAuth,
+		PrivilegeFunc: requestPrivilege,
 	}
 
-	return cli.client.ImagePush(context.Background(), options, requestPrivilege)
+	return cli.client.ImagePush(context.Background(), ref, options)
 }

@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/urlutil"
-	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 )
 
@@ -31,24 +30,18 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 	cmd.ParseFlags(args, true)
 
 	var (
-		in         io.Reader
-		tag        string
-		src        = cmd.Arg(0)
-		srcName    = src
-		repository = cmd.Arg(1)
-		changes    = flChanges.GetAll()
+		in      io.Reader
+		tag     string
+		src     = cmd.Arg(0)
+		srcName = src
+		ref     = cmd.Arg(1)
+		changes = flChanges.GetAll()
 	)
 
 	if cmd.NArg() == 3 {
+		// FIXME(vdemeester) Which version has this been deprecated ? should we remove it ?
 		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'file|URL|- [REPOSITORY [TAG]]' has been deprecated. Please use file|URL|- [REPOSITORY[:TAG]]\n")
 		tag = cmd.Arg(2)
-	}
-
-	if repository != "" {
-		//Check if the given image name can be resolved
-		if _, err := reference.ParseNamed(repository); err != nil {
-			return err
-		}
 	}
 
 	if src == "-" {
@@ -63,16 +56,18 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 		in = file
 	}
 
-	options := types.ImageImportOptions{
-		Source:         in,
-		SourceName:     srcName,
-		RepositoryName: repository,
-		Message:        *message,
-		Tag:            tag,
-		Changes:        changes,
+	source := types.ImageImportSource{
+		Source:     in,
+		SourceName: srcName,
 	}
 
-	responseBody, err := cli.client.ImageImport(context.Background(), options)
+	options := types.ImageImportOptions{
+		Message: *message,
+		Tag:     tag,
+		Changes: changes,
+	}
+
+	responseBody, err := cli.client.ImageImport(context.Background(), source, ref, options)
 	if err != nil {
 		return err
 	}

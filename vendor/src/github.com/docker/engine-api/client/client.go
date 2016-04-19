@@ -114,6 +114,12 @@ func (cli *Client) ClientVersion() string {
 	return cli.version
 }
 
+// UpdateClientVersion updates the version string associated with this
+// instance of the Client.
+func (cli *Client) UpdateClientVersion(v string) {
+	cli.version = v
+}
+
 // ParseHost verifies that the given host strings is valid.
 func ParseHost(host string) (string, string, string, error) {
 	protoAddrParts := strings.SplitN(host, "://", 2)
