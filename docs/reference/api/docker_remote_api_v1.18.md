@@ -206,13 +206,6 @@ Json Parameters:
 -   **Domainname** - A string value containing the desired domain name to use
       for the container.
 -   **User** - A string value containing the user to use inside the container.
--   **Memory** - Memory limit in bytes.
--   **MemorySwap** - Total memory limit (memory + swap); set `-1` to enable unlimited swap.
-      You must use this with `memory` and make the swap value larger than `memory`.
--   **CpuShares** - An integer value containing the CPU Shares for container
-      (ie. the relative weight vs other containers).
--   **Cpuset** - The same as CpusetCpus, but deprecated, please don't use.
--   **CpusetCpus** - String value containing the cgroups CpusetCpus to use.
 -   **AttachStdin** - Boolean value, attaches to stdin.
 -   **AttachStdout** - Boolean value, attaches to stdout.
 -   **AttachStderr** - Boolean value, attaches to stderr.
@@ -243,6 +236,12 @@ Json Parameters:
           in the form of `container_name:alias`.
     -   **LxcConf** - LXC specific configurations. These configurations will only
           work when using the `lxc` execution driver.
+    -   **Memory** - Memory limit in bytes.
+    -   **MemorySwap** - Total memory limit (memory + swap); set `-1` to enable unlimited swap.
+          You must use this with `memory` and make the swap value larger than `memory`.
+    -   **CpuShares** - An integer value containing the CPU Shares for container
+          (ie. the relative weight vs other containers).
+    -   **CpusetCpus** - String value containing the cgroups CpusetCpus to use.
     -   **PortBindings** - A map of exposed container ports and the host port they
           should map to. It should be specified in the form
           `{ <port>/<protocol>: [{ "HostPort": "<port>" }] }`

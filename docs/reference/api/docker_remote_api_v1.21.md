@@ -225,21 +225,6 @@ Json Parameters:
 -   **Domainname** - A string value containing the domain name to use
       for the container.
 -   **User** - A string value specifying the user inside the container.
--   **Memory** - Memory limit in bytes.
--   **MemorySwap** - Total memory limit (memory + swap); set `-1` to enable unlimited swap.
-      You must use this with `memory` and make the swap value larger than `memory`.
--   **MemoryReservation** - Memory soft limit in bytes.
--   **KernelMemory** - Kernel memory limit in bytes.
--   **CpuShares** - An integer value containing the container's CPU Shares
-      (ie. the relative weight vs other containers).
--   **CpuPeriod** - The length of a CPU period in microseconds.
--   **CpuQuota** - Microseconds of CPU time that the container can get in a CPU period.
--   **Cpuset** - Deprecated please don't use. Use `CpusetCpus` instead.
--   **CpusetCpus** - String value containing the `cgroups CpusetCpus` to use.
--   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
--   **BlkioWeight** - Block IO weight (relative weight) accepts a weight value between 10 and 1000.
--   **MemorySwappiness** - Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
--   **OomKillDisable** - Boolean value, whether to disable OOM Killer for the container or not.
 -   **AttachStdin** - Boolean value, attaches to `stdin`.
 -   **AttachStdout** - Boolean value, attaches to `stdout`.
 -   **AttachStderr** - Boolean value, attaches to `stderr`.
@@ -272,6 +257,20 @@ Json Parameters:
           in the form of `container_name:alias`.
     -   **LxcConf** - LXC specific configurations. These configurations only
           work when using the `lxc` execution driver.
+    -   **Memory** - Memory limit in bytes.
+    -   **MemorySwap** - Total memory limit (memory + swap); set `-1` to enable unlimited swap.
+          You must use this with `memory` and make the swap value larger than `memory`.
+    -   **MemoryReservation** - Memory soft limit in bytes.
+    -   **KernelMemory** - Kernel memory limit in bytes.
+    -   **CpuShares** - An integer value containing the container's CPU Shares
+          (ie. the relative weight vs other containers).
+    -   **CpuPeriod** - The length of a CPU period in microseconds.
+    -   **CpuQuota** - Microseconds of CPU time that the container can get in a CPU period.
+    -   **CpusetCpus** - String value containing the `cgroups CpusetCpus` to use.
+    -   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
+    -   **BlkioWeight** - Block IO weight (relative weight) accepts a weight value between 10 and 1000.
+    -   **MemorySwappiness** - Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
+    -   **OomKillDisable** - Boolean value, whether to disable OOM Killer for the container or not.
     -   **PortBindings** - A map of exposed container ports and the host port they
           should map to. A JSON object in the form
           `{ <port>/<protocol>: [{ "HostPort": "<port>" }] }`
