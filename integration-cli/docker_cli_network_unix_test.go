@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/versions/v1p20"
@@ -1348,7 +1349,7 @@ func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectAlias(c *check.C) {
 	dockerCmd(c, "network", "create", "-d", "bridge", "net1")
 	dockerCmd(c, "network", "create", "-d", "bridge", "net2")
 
-	dockerCmd(c, "run", "-d", "--net=net1", "--name=first", "--net-alias=foo", "busybox", "top")
+	cid, _ := dockerCmd(c, "run", "-d", "--net=net1", "--name=first", "--net-alias=foo", "busybox", "top")
 	c.Assert(waitRun("first"), check.IsNil)
 
 	dockerCmd(c, "run", "-d", "--net=net1", "--name=second", "busybox", "top")
@@ -1358,6 +1359,10 @@ func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectAlias(c *check.C) {
 	_, _, err := dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
 	c.Assert(err, check.IsNil)
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo")
+	c.Assert(err, check.IsNil)
+
+	// ping first container's short-id alias
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", stringid.TruncateID(cid))
 	c.Assert(err, check.IsNil)
 
 	// connect first container to net2 network
@@ -1378,6 +1383,9 @@ func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectAlias(c *check.C) {
 
 	// ping to net2 scoped alias "bar" must still succeed
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "bar")
+	c.Assert(err, check.IsNil)
+	// ping to net2 scoped alias short-id must still succeed
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", stringid.TruncateID(cid))
 	c.Assert(err, check.IsNil)
 
 	// verify the alias option is rejected when running on predefined network

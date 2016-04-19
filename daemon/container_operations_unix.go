@@ -101,6 +101,9 @@ func (daemon *Daemon) getSize(container *container.Container) (int64, int64) {
 
 // ConnectToNetwork connects a container to a network
 func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings) error {
+	if endpointConfig == nil {
+		endpointConfig = &networktypes.EndpointSettings{}
+	}
 	if !container.Running {
 		if container.RemovalInProgress || container.Dead {
 			return errRemovalContainer(container.ID)
@@ -108,9 +111,7 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 		if _, err := daemon.updateNetworkConfig(container, idOrName, endpointConfig, true); err != nil {
 			return err
 		}
-		if endpointConfig != nil {
-			container.NetworkSettings.Networks[idOrName] = endpointConfig
-		}
+		container.NetworkSettings.Networks[idOrName] = endpointConfig
 	} else {
 		if err := daemon.connectToNetwork(container, idOrName, endpointConfig, true); err != nil {
 			return err
