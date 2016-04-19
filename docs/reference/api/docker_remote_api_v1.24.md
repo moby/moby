@@ -297,6 +297,7 @@ Create a container
              "MemorySwappiness": 60,
              "OomKillDisable": false,
              "OomScoreAdj": 500,
+             "PidsLimit": -1,
              "PortBindings": { "22/tcp": [{ "HostPort": "11022" }] },
              "PublishAllPorts": false,
              "Privileged": false,
@@ -350,33 +351,6 @@ Json Parameters:
 -   **Domainname** - A string value containing the domain name to use
       for the container.
 -   **User** - A string value specifying the user inside the container.
--   **Memory** - Memory limit in bytes.
--   **MemorySwap** - Total memory limit (memory + swap); set `-1` to enable unlimited swap.
-      You must use this with `memory` and make the swap value larger than `memory`.
--   **MemoryReservation** - Memory soft limit in bytes.
--   **KernelMemory** - Kernel memory limit in bytes.
--   **CpuPercent** - An integer value containing the usable percentage of the available CPUs. (Windows daemon only)
--   **CpuShares** - An integer value containing the container's CPU Shares
-      (ie. the relative weight vs other containers).
--   **CpuPeriod** - The length of a CPU period in microseconds.
--   **CpuQuota** - Microseconds of CPU time that the container can get in a CPU period.
--   **Cpuset** - Deprecated please don't use. Use `CpusetCpus` instead.
--   **CpusetCpus** - String value containing the `cgroups CpusetCpus` to use.
--   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
--   **BlkioWeight** - Block IO weight (relative weight) accepts a weight value between 10 and 1000.
--   **BlkioWeightDevice** - Block IO weight (relative device weight) in the form of:        `"BlkioWeightDevice": [{"Path": "device_path", "Weight": weight}]`
--   **BlkioDeviceReadBps** - Limit read rate (bytes per second) from a device in the form of:	`"BlkioDeviceReadBps": [{"Path": "device_path", "Rate": rate}]`, for example:
-	`"BlkioDeviceReadBps": [{"Path": "/dev/sda", "Rate": "1024"}]"`
--   **BlkioDeviceWriteBps** - Limit write rate (bytes per second) to a device in the form of:	`"BlkioDeviceWriteBps": [{"Path": "device_path", "Rate": rate}]`, for example:
-	`"BlkioDeviceWriteBps": [{"Path": "/dev/sda", "Rate": "1024"}]"`
--   **BlkioDeviceReadIOps** - Limit read rate (IO per second) from a device in the form of:	`"BlkioDeviceReadIOps": [{"Path": "device_path", "Rate": rate}]`, for example:
-	`"BlkioDeviceReadIOps": [{"Path": "/dev/sda", "Rate": "1000"}]`
--   **BlkioDeviceWiiteIOps** - Limit write rate (IO per second) to a device in the form of:	`"BlkioDeviceWriteIOps": [{"Path": "device_path", "Rate": rate}]`, for example:
-	`"BlkioDeviceWriteIOps": [{"Path": "/dev/sda", "Rate": "1000"}]`
--   **MemorySwappiness** - Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
--   **OomKillDisable** - Boolean value, whether to disable OOM Killer for the container or not.
--   **OomScoreAdj** - An integer value containing the score given to the container in order to tune OOM killer preferences.
--   **PidsLimit** - Tune a container's pids limit. Set -1 for unlimited.
 -   **AttachStdin** - Boolean value, attaches to `stdin`.
 -   **AttachStdout** - Boolean value, attaches to `stdout`.
 -   **AttachStderr** - Boolean value, attaches to `stderr`.
@@ -406,6 +380,32 @@ Json Parameters:
            + `volume_name:container_path:ro` to make the bind mount read-only inside the container.
     -   **Links** - A list of links for the container. Each link entry should be
           in the form of `container_name:alias`.
+    -   **Memory** - Memory limit in bytes.
+    -   **MemorySwap** - Total memory limit (memory + swap); set `-1` to enable unlimited swap.
+          You must use this with `memory` and make the swap value larger than `memory`.
+    -   **MemoryReservation** - Memory soft limit in bytes.
+    -   **KernelMemory** - Kernel memory limit in bytes.
+    -   **CpuPercent** - An integer value containing the usable percentage of the available CPUs. (Windows daemon only)
+    -   **CpuShares** - An integer value containing the container's CPU Shares
+          (ie. the relative weight vs other containers).
+    -   **CpuPeriod** - The length of a CPU period in microseconds.
+    -   **CpuQuota** - Microseconds of CPU time that the container can get in a CPU period.
+    -   **CpusetCpus** - String value containing the `cgroups CpusetCpus` to use.
+    -   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
+    -   **BlkioWeight** - Block IO weight (relative weight) accepts a weight value between 10 and 1000.
+    -   **BlkioWeightDevice** - Block IO weight (relative device weight) in the form of:        `"BlkioWeightDevice": [{"Path": "device_path", "Weight": weight}]`
+    -   **BlkioDeviceReadBps** - Limit read rate (bytes per second) from a device in the form of:	`"BlkioDeviceReadBps": [{"Path": "device_path", "Rate": rate}]`, for example:
+        `"BlkioDeviceReadBps": [{"Path": "/dev/sda", "Rate": "1024"}]"`
+    -   **BlkioDeviceWriteBps** - Limit write rate (bytes per second) to a device in the form of:	`"BlkioDeviceWriteBps": [{"Path": "device_path", "Rate": rate}]`, for example:
+        `"BlkioDeviceWriteBps": [{"Path": "/dev/sda", "Rate": "1024"}]"`
+    -   **BlkioDeviceReadIOps** - Limit read rate (IO per second) from a device in the form of:	`"BlkioDeviceReadIOps": [{"Path": "device_path", "Rate": rate}]`, for example:
+        `"BlkioDeviceReadIOps": [{"Path": "/dev/sda", "Rate": "1000"}]`
+    -   **BlkioDeviceWiiteIOps** - Limit write rate (IO per second) to a device in the form of:	`"BlkioDeviceWriteIOps": [{"Path": "device_path", "Rate": rate}]`, for example:
+        `"BlkioDeviceWriteIOps": [{"Path": "/dev/sda", "Rate": "1000"}]`
+    -   **MemorySwappiness** - Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
+    -   **OomKillDisable** - Boolean value, whether to disable OOM Killer for the container or not.
+    -   **OomScoreAdj** - An integer value containing the score given to the container in order to tune OOM killer preferences.
+    -   **PidsLimit** - Tune a container's pids limit. Set -1 for unlimited.
     -   **PortBindings** - A map of exposed container ports and the host port they
           should map to. A JSON object in the form
           `{ <port>/<protocol>: [{ "HostPort": "<port>" }] }`
