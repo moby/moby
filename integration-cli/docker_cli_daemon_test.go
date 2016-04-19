@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libtrust"
@@ -1909,27 +1910,24 @@ func (s *DockerDaemonSuite) TestBridgeIPIsExcludedFromAllocatorPool(c *check.C) 
 }
 
 // Test daemon for no space left on device error
-func (s *DockerDaemonSuite) TestDaemonNoSpaceleftOnDeviceError(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux, Network)
 
+	testDir, err := ioutil.TempDir("", "no-space-left-on-device-test")
+	c.Assert(err, checker.IsNil)
+	defer os.RemoveAll(testDir)
+	c.Assert(mount.MakeRShared(testDir), checker.IsNil)
+	defer mount.Unmount(testDir)
+	defer mount.Unmount(filepath.Join(testDir, "test-mount"))
+
 	// create a 2MiB image and mount it as graph root
-	cmd := exec.Command("dd", "of=/tmp/testfs.img", "bs=1M", "seek=2", "count=0")
-	out, err := cmd.CombinedOutput()
-	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+	// Why in a container? Because `mount` sometimes behaves weirdly and often fails outright on this test in debian:jessie (which is what the test suite runs under if run from the Makefile)
+	dockerCmd(c, "run", "--rm", "-v", testDir+":/test", "busybox", "sh", "-c", "dd of=/test/testfs.img bs=1M seek=2 count=0")
+	out, _, err := runCommandWithOutput(exec.Command("mkfs.ext4", "-F", filepath.Join(testDir, "testfs.img"))) // `mkfs.ext4` is not in busybox
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	dockerCmd(c, "run", "--privileged", "--rm", "-v", testDir+":/test:shared", "busybox", "sh", "-c", "mkdir -p /test/test-mount && mount -t ext4 -no loop,rw /test/testfs.img /test/test-mount")
 
-	cmd = exec.Command("mkfs.ext4", "-F", "/tmp/testfs.img")
-	out, err = cmd.CombinedOutput()
-	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
-
-	cmd = exec.Command("mkdir", "-p", "/tmp/testfs-mount")
-	out, err = cmd.CombinedOutput()
-	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
-
-	cmd = exec.Command("mount", "-t", "ext4", "-no", "loop,rw", "/tmp/testfs.img", "/tmp/testfs-mount")
-	out, err = cmd.CombinedOutput()
-	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
-
-	err = s.d.Start("--graph", "/tmp/testfs-mount")
+	err = s.d.Start("--graph", filepath.Join(testDir, "test-mount"))
 	c.Assert(err, check.IsNil)
 
 	// pull a repository large enough to fill the mount point
