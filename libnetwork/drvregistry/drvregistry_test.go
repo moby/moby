@@ -25,7 +25,7 @@ func mockDriverInit(reg driverapi.DriverCallback, opt map[string]interface{}) er
 	return reg.RegisterDriver(mockDriverName, &md, driverapi.Capability{DataScope: datastore.LocalScope})
 }
 
-func (m *mockDriver) CreateNetwork(nid string, options map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (m *mockDriver) CreateNetwork(nid string, options map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	return nil
 }
 
@@ -79,6 +79,9 @@ func (m *mockDriver) NetworkAllocate(id string, option map[string]string, ipV4Da
 
 func (m *mockDriver) NetworkFree(id string) error {
 	return nil
+}
+
+func (m *mockDriver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
 }
 
 func getNew(t *testing.T) *DrvRegistry {

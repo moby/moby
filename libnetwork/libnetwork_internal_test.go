@@ -393,7 +393,7 @@ func badDriverInit(reg driverapi.DriverCallback, opt map[string]interface{}) err
 	return reg.RegisterDriver(badDriverName, &bd, driverapi.Capability{DataScope: datastore.LocalScope})
 }
 
-func (b *badDriver) CreateNetwork(nid string, options map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (b *badDriver) CreateNetwork(nid string, options map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	if b.failNetworkCreation {
 		return fmt.Errorf("I will not create any network")
 	}
@@ -439,4 +439,7 @@ func (b *badDriver) NetworkAllocate(id string, option map[string]string, ipV4Dat
 
 func (b *badDriver) NetworkFree(id string) error {
 	return types.NotImplementedErrorf("not implemented")
+}
+
+func (b *badDriver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
 }

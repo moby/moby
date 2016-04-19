@@ -45,7 +45,7 @@ func TestPortMappingConfig(t *testing.T) {
 	netOptions[netlabel.GenericData] = netConfig
 
 	ipdList := getIPv4Data(t)
-	err := d.CreateNetwork("dummy", netOptions, ipdList, nil)
+	err := d.CreateNetwork("dummy", netOptions, nil, ipdList, nil)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
