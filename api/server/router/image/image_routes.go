@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/versions"
 	"golang.org/x/net/context"
 )
 
@@ -32,7 +33,7 @@ func (s *imageRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *
 
 	pause := httputils.BoolValue(r, "pause")
 	version := httputils.VersionFromContext(ctx)
-	if r.FormValue("pause") == "" && version.GreaterThanOrEqualTo("1.13") {
+	if r.FormValue("pause") == "" && versions.GreaterThanOrEqualTo(version, "1.13") {
 		pause = true
 	}
 
