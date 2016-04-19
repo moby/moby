@@ -7,20 +7,20 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/pkg/version"
 	"github.com/docker/engine-api/types"
 	networktypes "github.com/docker/engine-api/types/network"
+	"github.com/docker/engine-api/types/versions"
 	"github.com/docker/engine-api/types/versions/v1p20"
 )
 
 // ContainerInspect returns low-level information about a
 // container. Returns an error if the container cannot be found, or if
 // there is an error getting the data.
-func (daemon *Daemon) ContainerInspect(name string, size bool, version version.Version) (interface{}, error) {
+func (daemon *Daemon) ContainerInspect(name string, size bool, version string) (interface{}, error) {
 	switch {
-	case version.LessThan("1.20"):
+	case versions.LessThan(version, "1.20"):
 		return daemon.containerInspectPre120(name)
-	case version.Equal("1.20"):
+	case versions.Equal(version, "1.20"):
 		return daemon.containerInspect120(name)
 	}
 	return daemon.containerInspectCurrent(name, size)

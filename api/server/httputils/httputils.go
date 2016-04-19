@@ -10,7 +10,6 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/pkg/version"
 )
 
 // APIVersionKey is the client's requested API version.
@@ -95,7 +94,7 @@ func WriteJSON(w http.ResponseWriter, code int, v interface{}) error {
 
 // VersionFromContext returns an API version from the context using APIVersionKey.
 // It panics if the context value does not have version.Version type.
-func VersionFromContext(ctx context.Context) (ver version.Version) {
+func VersionFromContext(ctx context.Context) (ver string) {
 	if ctx == nil {
 		return
 	}
@@ -103,5 +102,5 @@ func VersionFromContext(ctx context.Context) (ver version.Version) {
 	if val == nil {
 		return
 	}
-	return val.(version.Version)
+	return val.(string)
 }

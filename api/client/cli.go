@@ -142,7 +142,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 		}
 		customHeaders["User-Agent"] = clientUserAgent()
 
-		verStr := api.DefaultVersion.String()
+		verStr := api.DefaultVersion
 		if tmpStr := os.Getenv("DOCKER_API_VERSION"); tmpStr != "" {
 			verStr = tmpStr
 		}
