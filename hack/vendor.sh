@@ -92,3 +92,9 @@ clone git google.golang.org/cloud dae7e3d993bc3812a2185af60552bb6b847e52a0 https
 # containerd
 clone git github.com/docker/containerd v0.2.1
 clean
+
+# colors
+
+clone git github.com/fatih/color 533cd7fd8a85905f67a1753afb4deddc85ea174f
+clone git github.com/mattn/go-colorable 9cbef7c35391cca05f15f8181dc0b18bc9736dbb
+clone git github.com/mattn/go-isatty 56b76bdf51f7708750eac80fa38b952bb9f32639
