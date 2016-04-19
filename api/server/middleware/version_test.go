@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/pkg/version"
 	"golang.org/x/net/context"
 )
 
@@ -19,8 +18,8 @@ func TestVersionMiddleware(t *testing.T) {
 		return nil
 	}
 
-	defaultVersion := version.Version("1.10.0")
-	minVersion := version.Version("1.2.0")
+	defaultVersion := "1.10.0"
+	minVersion := "1.2.0"
 	m := NewVersionMiddleware(defaultVersion, defaultVersion, minVersion)
 	h := m.WrapHandler(handler)
 
@@ -40,8 +39,8 @@ func TestVersionMiddlewareWithErrors(t *testing.T) {
 		return nil
 	}
 
-	defaultVersion := version.Version("1.10.0")
-	minVersion := version.Version("1.2.0")
+	defaultVersion := "1.10.0"
+	minVersion := "1.2.0"
 	m := NewVersionMiddleware(defaultVersion, defaultVersion, minVersion)
 	h := m.WrapHandler(handler)
 

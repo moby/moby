@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/versions"
 	"github.com/docker/go-units"
 	"golang.org/x/net/context"
 )
@@ -26,14 +27,14 @@ import (
 func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBuildOptions, error) {
 	version := httputils.VersionFromContext(ctx)
 	options := &types.ImageBuildOptions{}
-	if httputils.BoolValue(r, "forcerm") && version.GreaterThanOrEqualTo("1.12") {
+	if httputils.BoolValue(r, "forcerm") && versions.GreaterThanOrEqualTo(version, "1.12") {
 		options.Remove = true
-	} else if r.FormValue("rm") == "" && version.GreaterThanOrEqualTo("1.12") {
+	} else if r.FormValue("rm") == "" && versions.GreaterThanOrEqualTo(version, "1.12") {
 		options.Remove = true
 	} else {
 		options.Remove = httputils.BoolValue(r, "rm")
 	}
-	if httputils.BoolValue(r, "pull") && version.GreaterThanOrEqualTo("1.16") {
+	if httputils.BoolValue(r, "pull") && versions.GreaterThanOrEqualTo(version, "1.16") {
 		options.PullParent = true
 	}
 

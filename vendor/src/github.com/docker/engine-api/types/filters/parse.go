@@ -7,8 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
+
+	"github.com/docker/engine-api/types/versions"
 )
 
 // Args stores filter arguments as map key:{map key: bool}.
@@ -80,7 +81,7 @@ func ToParamWithVersion(version string, a Args) (string, error) {
 	// for daemons older than v1.10, filter must be of the form map[string][]string
 	buf := []byte{}
 	err := errors.New("")
-	if version != "" && compareTo(version, "1.22") == -1 {
+	if version != "" && versions.LessThan(version, "1.22") {
 		buf, err = json.Marshal(convertArgsToSlice(a.fields))
 	} else {
 		buf, err = json.Marshal(a.fields)
@@ -291,35 +292,4 @@ func convertArgsToSlice(f map[string]map[string]bool) map[string][]string {
 		m[k] = values
 	}
 	return m
-}
-
-// compareTo compares two version strings
-// returns -1 if v1 < v2, 1 if v1 > v2, 0 otherwise
-func compareTo(v1, v2 string) int {
-	var (
-		currTab  = strings.Split(v1, ".")
-		otherTab = strings.Split(v2, ".")
-	)
-
-	max := len(currTab)
-	if len(otherTab) > max {
-		max = len(otherTab)
-	}
-	for i := 0; i < max; i++ {
-		var currInt, otherInt int
-
-		if len(currTab) > i {
-			currInt, _ = strconv.Atoi(currTab[i])
-		}
-		if len(otherTab) > i {
-			otherInt, _ = strconv.Atoi(otherTab[i])
-		}
-		if currInt > otherInt {
-			return 1
-		}
-		if otherInt > currInt {
-			return -1
-		}
-	}
-	return 0
 }

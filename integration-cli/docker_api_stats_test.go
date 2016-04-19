@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/docker/pkg/version"
 	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/versions"
 	"github.com/go-check/check"
 )
 
@@ -136,7 +136,7 @@ func (s *DockerSuite) TestApiStatsNetworkStatsVersioning(c *check.C) {
 	for i := 17; i <= 21; i++ {
 		apiVersion := fmt.Sprintf("v1.%d", i)
 		statsJSONBlob := getVersionedStats(c, id, apiVersion)
-		if version.Version(apiVersion).LessThan("v1.21") {
+		if versions.LessThan(apiVersion, "v1.21") {
 			c.Assert(jsonBlobHasLTv121NetworkStats(statsJSONBlob), checker.Equals, true,
 				check.Commentf("Stats JSON blob from API %s %#v does not look like a <v1.21 API stats structure", apiVersion, statsJSONBlob))
 		} else {

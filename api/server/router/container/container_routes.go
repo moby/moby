@@ -18,6 +18,7 @@ import (
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/filters"
+	"github.com/docker/engine-api/types/versions"
 	"golang.org/x/net/context"
 	"golang.org/x/net/websocket"
 )
@@ -195,7 +196,7 @@ func (s *containerRouter) postContainersKill(ctx context.Context, w http.Respons
 		// Return error if the container is not running and the api is >= 1.20
 		// to keep backwards compatibility.
 		version := httputils.VersionFromContext(ctx)
-		if version.GreaterThanOrEqualTo("1.20") || !isStopped {
+		if versions.GreaterThanOrEqualTo(version, "1.20") || !isStopped {
 			return fmt.Errorf("Cannot kill container %s: %v", name, err)
 		}
 	}
@@ -341,7 +342,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		return err
 	}
 	version := httputils.VersionFromContext(ctx)
-	adjustCPUShares := version.LessThan("1.19")
+	adjustCPUShares := versions.LessThan(version, "1.19")
 
 	ccr, err := s.backend.ContainerCreate(types.ContainerCreateConfig{
 		Name:             name,

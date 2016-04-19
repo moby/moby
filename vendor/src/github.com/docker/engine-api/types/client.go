@@ -69,9 +69,6 @@ type ContainerRemoveOptions struct {
 // CopyToContainerOptions holds information
 // about files to copy into a container
 type CopyToContainerOptions struct {
-	ContainerID               string
-	Path                      string
-	Content                   io.Reader
 	AllowOverwriteDirWithFile bool
 }
 

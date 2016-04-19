@@ -39,7 +39,6 @@ import (
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -440,7 +439,7 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon) {
 }
 
 func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config) {
-	v := version.Version(cfg.Version)
+	v := cfg.Version
 
 	vm := middleware.NewVersionMiddleware(v, api.DefaultVersion, api.MinVersion)
 	s.UseMiddleware(vm)
