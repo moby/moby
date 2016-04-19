@@ -50,10 +50,6 @@ Docker version  | API version                        | Changes
 1.8.x           | [1.20](docker_remote_api_v1.20.md) | [API changes](docker_remote_api.md#v1-20-api-changes)
 1.7.x           | [1.19](docker_remote_api_v1.19.md) | [API changes](docker_remote_api.md#v1-19-api-changes)
 1.6.x           | [1.18](docker_remote_api_v1.18.md) | [API changes](docker_remote_api.md#v1-18-api-changes)
-1.5.x           | [1.17](docker_remote_api_v1.17.md) | [API changes](docker_remote_api.md#v1-17-api-changes)
-1.4.x           | [1.16](docker_remote_api_v1.16.md) | [API changes](docker_remote_api.md#v1-16-api-changes)
-1.3.x           | [1.15](docker_remote_api_v1.15.md) | [API changes](docker_remote_api.md#v1-15-api-changes)
-1.2.x           | [1.14](docker_remote_api_v1.14.md) | [API changes](docker_remote_api.md#v1-14-api-changes)
 
 Refer to the [GitHub repository](
 https://github.com/docker/docker/tree/master/docs/reference/api) for
@@ -61,12 +57,12 @@ older releases.
 
 ## Authentication
 
-Since API version 1.2, the auth configuration is now handled client side, so the
+Authentication configuration is handled client side, so the
 client has to send the `authConfig` as a `POST` in `/images/(name)/push`. The
 `authConfig`, set as the `X-Registry-Auth` header, is currently a Base64 encoded
 (JSON) string with the following structure:
 
-```
+```JSON
 {"username": "string", "password": "string", "email": "string",
    "serveraddress" : "string", "auth": ""}
 ```
@@ -250,53 +246,3 @@ end point now returns the new boolean fields `CpuCfsPeriod`, `CpuCfsQuota`, and
 * `POST /build` closing the HTTP request cancels the build
 * `POST /containers/(id)/exec` includes `Warnings` field to response.
 
-### v1.17 API changes
-
-[Docker Remote API v1.17](docker_remote_api_v1.17.md) documentation
-
-* The build supports `LABEL` command. Use this to add metadata to an image. For
-example you could add data describing the content of an image. `LABEL
-"com.example.vendor"="ACME Incorporated"`
-* `POST /containers/(id)/attach` and `POST /exec/(id)/start`
-* The Docker client now hints potential proxies about connection hijacking using HTTP Upgrade headers.
-* `POST /containers/create` sets labels on container create describing the container.
-* `GET /containers/json` returns the labels associated with the containers (`Labels`).
-* `GET /containers/(id)/json` returns the list current execs associated with the
-container (`ExecIDs`). This endpoint now returns the container labels
-(`Config.Labels`).
-* `POST /containers/(id)/rename` renames a container `id` to a new name.*
-* `POST /containers/create` and `POST /containers/(id)/start` callers can pass
-`ReadonlyRootfs` in the host config to mount the container's root filesystem as
-read only.
-* `GET /containers/(id)/stats` returns a live stream of a container's resource usage statistics.
-* `GET /images/json` returns the labels associated with each image (`Labels`).
-
-
-### v1.16 API changes
-
-[Docker Remote API v1.16](docker_remote_api_v1.16.md)
-
-* `GET /info` returns the number of CPUs available on the machine (`NCPU`),
-total memory available (`MemTotal`), a user-friendly name describing the running Docker daemon (`Name`), a unique ID identifying the daemon (`ID`), and
-a list of daemon labels (`Labels`).
-* `POST /containers/create` callers can set the new container's MAC address explicitly.
-* Volumes are now initialized when the container is created.
-* `POST /containers/(id)/copy` copies data which is contained in a volume.
-
-### v1.15 API changes
-
-[Docker Remote API v1.15](docker_remote_api_v1.15.md) documentation
-
-`POST /containers/create` you can set a container's `HostConfig` when creating a
-container. Previously this was only available when starting a container.
-
-### v1.14 API changes
-
-[Docker Remote API v1.14](docker_remote_api_v1.14.md) documentation
-
-* `DELETE /containers/(id)` when using `force`, the container will be immediately killed with SIGKILL.
-* `POST /containers/(id)/start` the `HostConfig` option accepts the field `CapAdd`, which specifies a list of capabilities
-to add, and the field `CapDrop`, which specifies a list of capabilities to drop.
-* `POST /images/create` th `fromImage` and `repo` parameters support the
-`repo:tag` format. Consequently,  the `tag` parameter is now obsolete. Using the
-new format and the `tag` parameter at the same time will return an error.
