@@ -1,6 +1,7 @@
 package restartmanager
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -12,6 +13,10 @@ const (
 	backoffMultiplier = 2
 	defaultTimeout    = 100 * time.Millisecond
 )
+
+// ErrRestartCanceled is returned when the restart manager has been
+// canceled and will no longer restart the container.
+var ErrRestartCanceled = errors.New("restart canceled")
 
 // RestartManager defines object that controls container restarting rules.
 type RestartManager interface {
@@ -54,7 +59,7 @@ func (rm *restartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped 
 	}()
 
 	if rm.canceled {
-		return false, nil, fmt.Errorf("restartmanager canceled")
+		return false, nil, ErrRestartCanceled
 	}
 
 	if rm.active {
@@ -95,7 +100,7 @@ func (rm *restartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped 
 	go func() {
 		select {
 		case <-rm.cancel:
-			ch <- fmt.Errorf("restartmanager canceled")
+			ch <- ErrRestartCanceled
 			close(ch)
 		case <-time.After(rm.timeout):
 			rm.Lock()

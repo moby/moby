@@ -9,6 +9,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	containerd "github.com/docker/containerd/api/grpc/types"
+	"github.com/docker/docker/restartmanager"
 	"github.com/opencontainers/specs/specs-go"
 	"golang.org/x/net/context"
 )
@@ -148,7 +149,9 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 								logrus.Error(err)
 							}
 						})
-						logrus.Error(err)
+						if err != restartmanager.ErrRestartCanceled {
+							logrus.Error(err)
+						}
 					} else {
 						ctr.start()
 					}
