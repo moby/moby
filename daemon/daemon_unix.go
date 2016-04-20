@@ -531,7 +531,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	}
 	warnings = append(warnings, w...)
 
-	if hostConfig.ShmSize < 0 {
+	if hostConfig.ShmSize <= 0 {
 		return warnings, fmt.Errorf("SHM size must be greater than 0")
 	}
 

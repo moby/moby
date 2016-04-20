@@ -1454,12 +1454,22 @@ func (s *DockerSuite) TestStartWithNilDNS(c *check.C) {
 func (s *DockerSuite) TestPostContainersCreateShmSizeNegative(c *check.C) {
 	// ShmSize is not supported on Windows
 	testRequires(c, DaemonIsLinux)
-	config := map[string]interface{}{
+	config1 := map[string]interface{}{
 		"Image":      "busybox",
 		"HostConfig": map[string]interface{}{"ShmSize": -1},
 	}
 
-	status, body, err := sockRequest("POST", "/containers/create", config)
+	status, body, err := sockRequest("POST", "/containers/create", config1)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	c.Assert(string(body), checker.Contains, "SHM size must be greater than 0")
+
+	config2 := map[string]interface{}{
+		"Image":      "busybox",
+		"HostConfig": map[string]interface{}{"ShmSize": 0},
+	}
+
+	status, body, err = sockRequest("POST", "/containers/create", config2)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusInternalServerError)
 	c.Assert(string(body), checker.Contains, "SHM size must be greater than 0")
