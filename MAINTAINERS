@@ -37,6 +37,7 @@
 			"jhowardmsft",
 			"jfrazelle",
 			"lk4d4",
+			"mavenugo",
 			"mhbauer",
 			"runcom",
 			"tianon",
@@ -178,6 +179,11 @@
 	Name = "Alexander Morozov"
 	Email = "lk4d4@docker.com"
 	GitHub = "lk4d4"
+
+	[people.mavenugo]
+	Name = "Madhu Venugopal"
+	Email = "madhu@docker.com"
+	GitHub = "mavenugo"
 
 	[people.mhbauer]
 	Name = "Morgan Bauer"
