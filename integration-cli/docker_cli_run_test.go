@@ -114,10 +114,7 @@ func (s *DockerSuite) TestRunDetachedContainerIDPrinting(c *check.C) {
 
 	rmOut, _ := dockerCmd(c, "rm", out)
 
-	rmOut = strings.TrimSpace(rmOut)
-	if rmOut != out {
-		c.Errorf("rm didn't print the container ID %s %s", out, rmOut)
-	}
+	c.Assert(strings.TrimSpace(rmOut), checker.Contains, out, check.Commentf("rm didn't print the container ID %s", out))
 }
 
 // the working directory should be set correctly
