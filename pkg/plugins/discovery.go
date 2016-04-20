@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 var (
@@ -118,6 +119,7 @@ func readPluginJSONInfo(name, path string) (*Plugin, error) {
 	if len(p.TLSConfig.CAFile) == 0 {
 		p.TLSConfig.InsecureSkipVerify = true
 	}
+	p.activateWait = sync.NewCond(&sync.Mutex{})
 
 	return &p, nil
 }
