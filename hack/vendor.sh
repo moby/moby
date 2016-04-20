@@ -65,7 +65,7 @@ clone git github.com/opencontainers/specs 93ca97e83ca7fb4fba6d9e30d5470f99ddc02d
 clone git github.com/seccomp/libseccomp-golang 1b506fc7c24eec5a3693cdcbed40d9c226cfc6a1
 # libcontainer deps (see src/github.com/opencontainers/runc/Godeps/Godeps.json)
 clone git github.com/coreos/go-systemd v4
-clone git github.com/godbus/dbus v3
+clone git github.com/godbus/dbus v4.0.0
 clone git github.com/syndtr/gocapability 2c00daeb6c3b45114c80ac44119e7b8801fdd852
 clone git github.com/golang/protobuf 68415e7123da32b07eab49c96d2c4d6158360e9b
 
