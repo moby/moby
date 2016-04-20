@@ -250,6 +250,13 @@ func (container *Container) GetResourcePath(path string) (string, error) {
 
 	cleanPath := cleanResourcePath(path)
 	r, e := symlink.FollowSymlinkInScope(filepath.Join(container.BaseFS, cleanPath), container.BaseFS)
+
+	// Log this here on the daemon side as there's otherwise no indication apart
+	// from the error being propagated all the way back to the client. This makes
+	// debugging significantly easier and clearly indicates the error comes from the daemon.
+	if e != nil {
+		logrus.Errorf("Failed to FollowSymlinkInScope BaseFS %s cleanPath %s path %s %s\n", container.BaseFS, cleanPath, path, e)
+	}
 	return r, e
 }
 
