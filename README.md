@@ -24,7 +24,7 @@ applications and databases.
 
 Security is very important to us. If you have any issue regarding security, 
 please disclose the information responsibly by sending an email to 
-security@docker.com and not by creating a github issue.
+security@docker.com and not by creating a GitHub issue.
 
 ## Better than VMs
 
@@ -40,7 +40,7 @@ In practice, that almost never happens, for a few reasons:
   * *Performance*: running VMs consumes significant CPU and memory,
     which makes them impractical in many scenarios, for example local
     development of multi-tier applications, and large-scale deployment
-    of cpu and memory-intensive applications on large numbers of
+    of CPU and memory-intensive applications on large numbers of
     machines.
   * *Portability*: competing VM environments don't play well with each
      other. Although conversion tools do exist, they are limited and
@@ -66,7 +66,7 @@ and FreeBSD with
 Docker builds on top of these low-level primitives to offer developers a
 portable format and runtime environment that solves all four problems.
 Docker containers are small (and their transfer can be optimized with
-layers), they have basically zero memory and cpu overhead, they are
+layers), they have basically zero memory and CPU overhead, they are
 completely portable, and are designed from the ground up with an
 application-centric design.
 
@@ -78,7 +78,7 @@ run inside a VM!
 Docker does not require you to buy into a particular programming
 language, framework, packaging system, or configuration language.
 
-Is your application a Unix process? Does it use files, tcp connections,
+Is your application a Unix process? Does it use files, TCP connections,
 environment variables, standard Unix streams and command-line arguments
 as inputs and outputs? Then Docker can run it.
 
@@ -175,7 +175,7 @@ Under the hood, Docker is built on the following components:
 Contributing to Docker [![GoDoc](https://godoc.org/github.com/docker/docker?status.svg)](https://godoc.org/github.com/docker/docker)
 ======================
 
-| **Master** (Linux) | **Experimental** (linux) | **Windows** | **FreeBSD** |
+| **Master** (Linux) | **Experimental** (Linux) | **Windows** | **FreeBSD** |
 |------------------|----------------------|---------|---------|
 | [![Jenkins Build Status](https://jenkins.dockerproject.org/view/Docker/job/Docker%20Master/badge/icon)](https://jenkins.dockerproject.org/view/Docker/job/Docker%20Master/) | [![Jenkins Build Status](https://jenkins.dockerproject.org/view/Docker/job/Docker%20Master%20%28experimental%29/badge/icon)](https://jenkins.dockerproject.org/view/Docker/job/Docker%20Master%20%28experimental%29/) | [![Build Status](http://jenkins.dockerproject.org/job/Docker%20Master%20(windows)/badge/icon)](http://jenkins.dockerproject.org/job/Docker%20Master%20(windows)/) | [![Build Status](http://jenkins.dockerproject.org/job/Docker%20Master%20(freebsd)/badge/icon)](http://jenkins.dockerproject.org/job/Docker%20Master%20(freebsd)/) |
 
@@ -231,8 +231,8 @@ We are always open to suggestions on process improvements, and are always lookin
       The <a href="https://groups.google.com/forum/#!forum/docker-dev" target="_blank">docker-dev</a>
       group is for contributors and other people contributing to the Docker
       project.
-      You can join them without an google account by sending an email to e.g. "docker-user+subscribe@googlegroups.com".
-      After receiving the join-request message, you can simply reply to that to confirm the subscribtion.
+      You can join them without a Google account by sending an email to e.g. "docker-user+subscribe@googlegroups.com".
+      After receiving the join-request message, you can simply reply to that to confirm the subscription.
     </td>
   </tr>
   <tr>
