@@ -1,27 +1,27 @@
 #!/bin/bash
 
-if [ ! "$(go env GOOS)" = 'windows' ]; then
-	trap - EXIT # reset EXIT trap applied in .integration-daemon-start
+# Both Windows to Linux and Windows to Windows CIs start/stop the daemon
+# through their CI script. Hence this is a no-op on Windows.
+if [ "$(go env GOOS)" = 'windows' ]; then
+	return
+fi
 
-	for pidFile in $(find "$DEST" -name docker.pid); do
-		pid=$(set -x; cat "$pidFile")
-		( set -x; kill "$pid" )
-		if ! wait "$pid"; then
-			echo >&2 "warning: PID $pid from $pidFile had a nonzero exit code"
-		fi
-	done
+trap - EXIT # reset EXIT trap applied in .integration-daemon-start
 
-	if [ -z "$DOCKER_TEST_HOST" ]; then
-		# Stop apparmor if it is enabled
-		if [ -e "/sys/module/apparmor/parameters/enabled" ] && [ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]; then
-			(
-				set -x
-				/etc/init.d/apparmor stop
-			)
-		fi
+for pidFile in $(find "$DEST" -name docker.pid); do
+	pid=$(set -x; cat "$pidFile")
+	( set -x; kill "$pid" )
+	if ! wait "$pid"; then
+		echo >&2 "warning: PID $pid from $pidFile had a nonzero exit code"
 	fi
-else
-	# Note this script is not actionable on Windows to Linux CI. Instead the 
-	# DIND daemon under test is torn down by the Jenkins tear-down script
-	echo "INFO: Not stopping daemon on Windows CI"
+done
+
+if [ -z "$DOCKER_TEST_HOST" ]; then
+	# Stop apparmor if it is enabled
+	if [ -e "/sys/module/apparmor/parameters/enabled" ] && [ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]; then
+		(
+			set -x
+			/etc/init.d/apparmor stop
+		)
+	fi
 fi
