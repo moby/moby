@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api"
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/cliconfig/configfile"
 	"github.com/docker/docker/cliconfig/credentials"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/opts"
@@ -27,7 +28,7 @@ type DockerCli struct {
 	init func() error
 
 	// configFile has the client configuration file
-	configFile *cliconfig.ConfigFile
+	configFile *configfile.ConfigFile
 	// in holds the input stream and closer (io.ReadCloser) for the client.
 	in io.ReadCloser
 	// out holds the output stream (io.Writer) for the client.
