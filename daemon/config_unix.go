@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	defaultPidFile  = "/var/run/docker.pid"
-	defaultGraph    = "/var/lib/docker"
-	defaultExecRoot = "/var/run/docker"
+	defaultPidFile     = "/var/run/docker.pid"
+	defaultRuntimeRoot = "/var/lib/docker"
+	defaultExecRoot    = "/var/run/docker"
 )
 
 // Config defines the configuration of a docker daemon.
