@@ -138,7 +138,7 @@ $ docker run -itd --name=container2 busybox
 94447ca479852d29aeddca75c28f7104df3c3196d7b6d83061879e339946805c
 ```
 
-Inspecting the `bridge` network again after starting two containers shows both newly launched containers in the network. Their ids show up in the container
+Inspecting the `bridge` network again after starting two containers shows both newly launched containers in the network. Their ids show up in the "Containers" section of `docker network inspect`:
 
 ```
 $ docker network inspect bridge
