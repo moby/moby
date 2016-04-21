@@ -19,6 +19,8 @@ func main() {
 		return
 	}
 
+	// FAKE CHANGE
+
 	// Set terminal emulation based on platform as required.
 	stdin, stdout, stderr := term.StdStreams()
 
