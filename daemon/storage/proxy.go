@@ -9,18 +9,18 @@ import (
 	"github.com/docker/docker/pkg/archive"
 )
 
-type graphDriverProxy struct {
+type storageDriverProxy struct {
 	name   string
 	client pluginClient
 }
 
-type graphDriverRequest struct {
+type storageDriverRequest struct {
 	ID         string `json:",omitempty"`
 	Parent     string `json:",omitempty"`
 	MountLabel string `json:",omitempty"`
 }
 
-type graphDriverResponse struct {
+type storageDriverResponse struct {
 	Err      string            `json:",omitempty"`
 	Dir      string            `json:",omitempty"`
 	Exists   bool              `json:",omitempty"`
@@ -30,18 +30,18 @@ type graphDriverResponse struct {
 	Metadata map[string]string `json:",omitempty"`
 }
 
-type graphDriverInitRequest struct {
+type storageDriverInitRequest struct {
 	Home string
 	Opts []string
 }
 
-func (d *graphDriverProxy) Init(home string, opts []string) error {
-	args := &graphDriverInitRequest{
+func (d *storageDriverProxy) Init(home string, opts []string) error {
+	args := &storageDriverInitRequest{
 		Home: home,
 		Opts: opts,
 	}
-	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.Init", args, &ret); err != nil {
+	var ret storageDriverResponse
+	if err := d.client.Call("StorageDriver.Init", args, &ret); err != nil {
 		return err
 	}
 	if ret.Err != "" {
@@ -50,18 +50,18 @@ func (d *graphDriverProxy) Init(home string, opts []string) error {
 	return nil
 }
 
-func (d *graphDriverProxy) String() string {
+func (d *storageDriverProxy) String() string {
 	return d.name
 }
 
-func (d *graphDriverProxy) CreateReadWrite(id, parent, mountLabel string, storageOpt map[string]string) error {
-	args := &graphDriverRequest{
+func (d *storageDriverProxy) CreateReadWrite(id, parent, mountLabel string, storageOpt map[string]string) error {
+	args := &storageDriverRequest{
 		ID:         id,
 		Parent:     parent,
 		MountLabel: mountLabel,
 	}
-	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.CreateReadWrite", args, &ret); err != nil {
+	var ret storageDriverResponse
+	if err := d.client.Call("StorageDriver.CreateReadWrite", args, &ret); err != nil {
 		return err
 	}
 	if ret.Err != "" {
@@ -70,14 +70,14 @@ func (d *graphDriverProxy) CreateReadWrite(id, parent, mountLabel string, storag
 	return nil
 }
 
-func (d *graphDriverProxy) Create(id, parent, mountLabel string, storageOpt map[string]string) error {
-	args := &graphDriverRequest{
+func (d *storageDriverProxy) Create(id, parent, mountLabel string, storageOpt map[string]string) error {
+	args := &storageDriverRequest{
 		ID:         id,
 		Parent:     parent,
 		MountLabel: mountLabel,
 	}
-	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.Create", args, &ret); err != nil {
+	var ret storageDriverResponse
+	if err := d.client.Call("StorageDriver.Create", args, &ret); err != nil {
 		return err
 	}
 	if ret.Err != "" {
@@ -86,10 +86,10 @@ func (d *graphDriverProxy) Create(id, parent, mountLabel string, storageOpt map[
 	return nil
 }
 
-func (d *graphDriverProxy) Remove(id string) error {
-	args := &graphDriverRequest{ID: id}
-	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.Remove", args, &ret); err != nil {
+func (d *storageDriverProxy) Remove(id string) error {
+	args := &storageDriverRequest{ID: id}
+	var ret storageDriverResponse
+	if err := d.client.Call("StorageDriver.Remove", args, &ret); err != nil {
 		return err
 	}
 	if ret.Err != "" {
@@ -98,13 +98,13 @@ func (d *graphDriverProxy) Remove(id string) error {
 	return nil
 }
 
-func (d *graphDriverProxy) Get(id, mountLabel string) (string, error) {
-	args := &graphDriverRequest{
+func (d *storageDriverProxy) Get(id, mountLabel string) (string, error) {
+	args := &storageDriverRequest{
 		ID:         id,
 		MountLabel: mountLabel,
 	}
-	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.Get", args, &ret); err != nil {
+	var ret storageDriverResponse
+	if err := d.client.Call("StorageDriver.Get", args, &ret); err != nil {
 		return "", err
 	}
 	var err error
@@ -114,10 +114,10 @@ func (d *graphDriverProxy) Get(id, mountLabel string) (string, error) {
 	return ret.Dir, err
 }
 
-func (d *graphDriverProxy) Put(id string) error {
-	args := &graphDriverRequest{ID: id}
-	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.Put", args, &ret); err != nil {
+func (d *storageDriverProxy) Put(id string) error {
+	args := &storageDriverRequest{ID: id}
+	var ret storageDriverResponse
+	if err := d.client.Call("StorageDriver.Put", args, &ret); err != nil {
 		return err
 	}
 	if ret.Err != "" {
@@ -126,30 +126,30 @@ func (d *graphDriverProxy) Put(id string) error {
 	return nil
 }
 
-func (d *graphDriverProxy) Exists(id string) bool {
-	args := &graphDriverRequest{ID: id}
-	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.Exists", args, &ret); err != nil {
+func (d *storageDriverProxy) Exists(id string) bool {
+	args := &storageDriverRequest{ID: id}
+	var ret storageDriverResponse
+	if err := d.client.Call("StorageDriver.Exists", args, &ret); err != nil {
 		return false
 	}
 	return ret.Exists
 }
 
-func (d *graphDriverProxy) Status() [][2]string {
-	args := &graphDriverRequest{}
-	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.Status", args, &ret); err != nil {
+func (d *storageDriverProxy) Status() [][2]string {
+	args := &storageDriverRequest{}
+	var ret storageDriverResponse
+	if err := d.client.Call("StorageDriver.Status", args, &ret); err != nil {
 		return nil
 	}
 	return ret.Status
 }
 
-func (d *graphDriverProxy) GetMetadata(id string) (map[string]string, error) {
-	args := &graphDriverRequest{
+func (d *storageDriverProxy) GetMetadata(id string) (map[string]string, error) {
+	args := &storageDriverRequest{
 		ID: id,
 	}
-	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.GetMetadata", args, &ret); err != nil {
+	var ret storageDriverResponse
+	if err := d.client.Call("StorageDriver.GetMetadata", args, &ret); err != nil {
 		return nil, err
 	}
 	if ret.Err != "" {
@@ -158,10 +158,10 @@ func (d *graphDriverProxy) GetMetadata(id string) (map[string]string, error) {
 	return ret.Metadata, nil
 }
 
-func (d *graphDriverProxy) Cleanup() error {
-	args := &graphDriverRequest{}
-	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.Cleanup", args, &ret); err != nil {
+func (d *storageDriverProxy) Cleanup() error {
+	args := &storageDriverRequest{}
+	var ret storageDriverResponse
+	if err := d.client.Call("StorageDriver.Cleanup", args, &ret); err != nil {
 		return nil
 	}
 	if ret.Err != "" {
@@ -170,25 +170,25 @@ func (d *graphDriverProxy) Cleanup() error {
 	return nil
 }
 
-func (d *graphDriverProxy) Diff(id, parent string) (archive.Archive, error) {
-	args := &graphDriverRequest{
+func (d *storageDriverProxy) Diff(id, parent string) (archive.Archive, error) {
+	args := &storageDriverRequest{
 		ID:     id,
 		Parent: parent,
 	}
-	body, err := d.client.Stream("GraphDriver.Diff", args)
+	body, err := d.client.Stream("StorageDriver.Diff", args)
 	if err != nil {
 		return nil, err
 	}
 	return archive.Archive(body), nil
 }
 
-func (d *graphDriverProxy) Changes(id, parent string) ([]archive.Change, error) {
-	args := &graphDriverRequest{
+func (d *storageDriverProxy) Changes(id, parent string) ([]archive.Change, error) {
+	args := &storageDriverRequest{
 		ID:     id,
 		Parent: parent,
 	}
-	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.Changes", args, &ret); err != nil {
+	var ret storageDriverResponse
+	if err := d.client.Call("StorageDriver.Changes", args, &ret); err != nil {
 		return nil, err
 	}
 	if ret.Err != "" {
@@ -198,9 +198,9 @@ func (d *graphDriverProxy) Changes(id, parent string) ([]archive.Change, error) 
 	return ret.Changes, nil
 }
 
-func (d *graphDriverProxy) ApplyDiff(id, parent string, diff archive.Reader) (int64, error) {
-	var ret graphDriverResponse
-	if err := d.client.SendFile(fmt.Sprintf("GraphDriver.ApplyDiff?id=%s&parent=%s", id, parent), diff, &ret); err != nil {
+func (d *storageDriverProxy) ApplyDiff(id, parent string, diff archive.Reader) (int64, error) {
+	var ret storageDriverResponse
+	if err := d.client.SendFile(fmt.Sprintf("StorageDriver.ApplyDiff?id=%s&parent=%s", id, parent), diff, &ret); err != nil {
 		return -1, err
 	}
 	if ret.Err != "" {
@@ -209,13 +209,13 @@ func (d *graphDriverProxy) ApplyDiff(id, parent string, diff archive.Reader) (in
 	return ret.Size, nil
 }
 
-func (d *graphDriverProxy) DiffSize(id, parent string) (int64, error) {
-	args := &graphDriverRequest{
+func (d *storageDriverProxy) DiffSize(id, parent string) (int64, error) {
+	args := &storageDriverRequest{
 		ID:     id,
 		Parent: parent,
 	}
-	var ret graphDriverResponse
-	if err := d.client.Call("GraphDriver.DiffSize", args, &ret); err != nil {
+	var ret storageDriverResponse
+	if err := d.client.Call("StorageDriver.DiffSize", args, &ret); err != nil {
 		return -1, err
 	}
 	if ret.Err != "" {
