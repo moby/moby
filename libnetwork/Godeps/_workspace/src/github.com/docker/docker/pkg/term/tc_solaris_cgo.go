@@ -1,4 +1,4 @@
-// +build linux,cgo
+// +build solaris,cgo
 
 package term
 
@@ -26,7 +26,20 @@ func MakeRaw(fd uintptr) (*State, error) {
 
 	newState := oldState.termios
 
-	C.cfmakeraw((*C.struct_termios)(unsafe.Pointer(&newState)))
+	newState.Iflag &^= (syscall.IGNBRK | syscall.BRKINT | syscall.PARMRK | syscall.ISTRIP | syscall.INLCR | syscall.IGNCR | syscall.ICRNL | syscall.IXON | syscall.IXANY)
+	newState.Oflag &^= syscall.OPOST
+	newState.Lflag &^= (syscall.ECHO | syscall.ECHONL | syscall.ICANON | syscall.ISIG | syscall.IEXTEN)
+	newState.Cflag &^= (syscall.CSIZE | syscall.PARENB)
+	newState.Cflag |= syscall.CS8
+
+	/*
+		VMIN is the minimum number of characters that needs to be read in non-canonical mode for it to be returned
+		Since VMIN is overloaded with another element in canonical mode when we switch modes it defaults to 4. It
+		needs to be explicitly set to 1.
+	*/
+	newState.Cc[C.VMIN] = 1
+	newState.Cc[C.VTIME] = 0
+
 	if err := tcset(fd, &newState); err != 0 {
 		return nil, err
 	}
