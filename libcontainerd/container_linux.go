@@ -23,6 +23,9 @@ type container struct {
 }
 
 func (ctr *container) clean() error {
+	if os.Getenv("LIBCONTAINERD_NOCLEAN") == "1" {
+		return nil
+	}
 	if _, err := os.Lstat(ctr.dir); err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -141,9 +144,12 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 				ctr.client.deleteContainer(e.Id)
 				go func() {
 					err := <-wait
+					ctr.client.lock(ctr.containerID)
+					defer ctr.client.unlock(ctr.containerID)
 					ctr.restarting = false
 					if err != nil {
 						st.State = StateExit
+						ctr.clean()
 						ctr.client.q.append(e.Id, func() {
 							if err := ctr.client.backend.StateChanged(e.Id, st); err != nil {
 								logrus.Error(err)
@@ -163,9 +169,7 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 		// We need to do so here in case the Message Handler decides to restart it.
 		switch st.State {
 		case StateExit:
-			if os.Getenv("LIBCONTAINERD_NOCLEAN") != "1" {
-				ctr.clean()
-			}
+			ctr.clean()
 			ctr.client.deleteContainer(e.Id)
 		case StateExitProcess:
 			ctr.cleanProcess(st.ProcessID)
