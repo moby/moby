@@ -1,35 +1,35 @@
-# Experimental: Docker graph driver plugins
+# Experimental: Docker storage driver plugins
 
-Docker graph driver plugins enable admins to use an external/out-of-process
-graph driver for use with Docker engine. This is an alternative to using the
+Docker storage driver plugins enable admins to use an external/out-of-process
+storage driver for use with Docker engine. This is an alternative to using the
 built-in storage drivers, such as aufs/overlay/devicemapper/btrfs.
 
-A graph driver plugin is used for image and container fs storage, as such
+A storage driver plugin is used for image and container fs storage, as such
 the plugin must be started and available for connections prior to Docker Engine
 being started.
 
-# Write a graph driver plugin
+# Write a storage driver plugin
 
 See the [plugin documentation](/docs/extend/plugins.md) for detailed information
 on the underlying plugin protocol.
 
 
-## Graph Driver plugin protocol
+## Storage Driver plugin protocol
 
-If a plugin registers itself as a `GraphDriver` when activated, then it is
+If a plugin registers itself as a `StorageDriver` when activated, then it is
 expected to provide the rootfs for containers as well as image layer storage.
 
-### /GraphDriver.Init
+### /StorageDriver.Init
 
 **Request**:
 ```
 {
-  "Home": "/graph/home/path",
+  "Home": "/path/to/storage/root",
   "Opts": []
 }
 ```
 
-Initialize the graph driver plugin with a home directory and array of options.
+Initialize the storage driver plugin with a home directory and array of options.
 Plugins are not required to accept these options as the Docker Engine does not
 require that the plugin use this path or options, they are only being passed
 through from the user.
@@ -44,7 +44,7 @@ through from the user.
 Respond with a non-empty string error if an error occurred.
 
 
-### /GraphDriver.Create
+### /StorageDriver.Create
 
 **Request**:
 ```
@@ -68,7 +68,7 @@ which would indicate that there is no parent layer.
 
 Respond with a non-empty string error if an error occurred.
 
-### /GraphDriver.CreateReadWrite
+### /StorageDriver.CreateReadWrite
 
 **Request**:
 ```
@@ -79,9 +79,9 @@ Respond with a non-empty string error if an error occurred.
 }
 ```
 
-Similar to `/GraphDriver.Create` but creates a read-write filesystem layer.
+Similar to `/StorageDriver.Create` but creates a read-write filesystem layer.
 
-### /GraphDriver.Remove
+### /StorageDriver.Remove
 
 **Request**:
 ```
@@ -101,7 +101,7 @@ Remove the filesystem layer with this given `ID`.
 
 Respond with a non-empty string error if an error occurred.
 
-### /GraphDriver.Get
+### /StorageDriver.Get
 
 **Request**:
 ```
@@ -116,7 +116,7 @@ Get the mountpoint for the layered filesystem referred to by the given `ID`.
 **Response**:
 ```
 {
-  "Dir": "/var/mygraph/46fe8644f2572fd1e505364f7581e0c9dbc7f14640bd1fb6ce97714fb6fc5187",
+  "Dir": "/var/mystorage/46fe8644f2572fd1e505364f7581e0c9dbc7f14640bd1fb6ce97714fb6fc5187",
   "Err": ""
 }
 ```
@@ -124,7 +124,7 @@ Get the mountpoint for the layered filesystem referred to by the given `ID`.
 Respond with the absolute path to the mounted layered filesystem.
 Respond with a non-empty string error if an error occurred.
 
-### /GraphDriver.Put
+### /StorageDriver.Put
 
 **Request**:
 ```
@@ -145,7 +145,7 @@ filesystem layer.
 
 Respond with a non-empty string error if an error occurred.
 
-### /GraphDriver.Exists
+### /StorageDriver.Exists
 
 **Request**:
 ```
@@ -166,14 +166,14 @@ Determine if a filesystem layer with the specified `ID` exists.
 Respond with a boolean for whether or not the filesystem layer with the specified
 `ID` exists.
 
-### /GraphDriver.Status
+### /StorageDriver.Status
 
 **Request**:
 ```
 {}
 ```
 
-Get low-level diagnostic information about the graph driver.
+Get low-level diagnostic information about the storage driver.
 
 **Response**:
 ```
@@ -186,7 +186,7 @@ Respond with a 2-D array with key/value pairs for the underlying status
 information.
 
 
-### /GraphDriver.GetMetadata
+### /StorageDriver.GetMetadata
 
 **Request**:
 ```
@@ -210,7 +210,7 @@ Respond with a set of key/value pairs containing the low-level diagnostic
 information about the layered filesystem.
 Respond with a non-empty string error if an error occurred.
 
-### /GraphDriver.Cleanup
+### /StorageDriver.Cleanup
 
 **Request**:
 ```
@@ -230,7 +230,7 @@ unmounting all the layered file systems.
 Respond with a non-empty string error if an error occurred.
 
 
-### /GraphDriver.Diff
+### /StorageDriver.Diff
 
 **Request**:
 ```
@@ -248,7 +248,7 @@ and `Parent`. `Parent` may be an empty string, in which case there is no parent.
 {{ TAR STREAM }}
 ```
 
-### /GraphDriver.Changes
+### /StorageDriver.Changes
 
 **Request**:
 ```
@@ -284,7 +284,7 @@ changed and `Kind` is an integer specifying the type of change that occurred:
 
 Respond with a non-empty string error if an error occurred.
 
-### /GraphDriver.ApplyDiff
+### /StorageDriver.ApplyDiff
 
 **Request**:
 ```
@@ -310,7 +310,7 @@ and `Parent`
 Respond with the size of the new layer in bytes.
 Respond with a non-empty string error if an error occurred.
 
-### /GraphDriver.DiffSize
+### /StorageDriver.DiffSize
 
 **Request**:
 ```
