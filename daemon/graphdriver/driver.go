@@ -78,9 +78,8 @@ type ProtoDriver interface {
 	Cleanup() error
 }
 
-// Driver is the interface for layered/snapshot file system drivers.
-type Driver interface {
-	ProtoDriver
+// DiffDriver is the interface to use to implement graph diffs
+type DiffDriver interface {
 	// Diff produces an archive of the changes between the specified
 	// layer and its parent layer which may be "".
 	Diff(id, parent string) (io.ReadCloser, error)
@@ -96,6 +95,12 @@ type Driver interface {
 	// and its parent and returns the size in bytes of the changes
 	// relative to its base filesystem directory.
 	DiffSize(id, parent string) (size int64, err error)
+}
+
+// Driver is the interface for layered/snapshot file system drivers.
+type Driver interface {
+	ProtoDriver
+	DiffDriver
 }
 
 // DiffGetterDriver is the interface for layered file system drivers that

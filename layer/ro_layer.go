@@ -21,6 +21,8 @@ type roLayer struct {
 	references     map[Layer]struct{}
 }
 
+// TarStream for roLayer guarentees that the data that is produced is the exact
+// data that the layer was registered with.
 func (rl *roLayer) TarStream() (io.ReadCloser, error) {
 	r, err := rl.layerStore.store.TarSplitReader(rl.chainID)
 	if err != nil {
@@ -41,6 +43,24 @@ func (rl *roLayer) TarStream() (io.ReadCloser, error) {
 		return nil, err
 	}
 	return rc, nil
+}
+
+// TarStreamFrom does not make any guarentees to the correctness of the produced
+// data. As such it should not be used when the layer content must be verified
+// to be an exact match to the registered layer.
+func (rl *roLayer) TarStreamFrom(parent ChainID) (io.ReadCloser, error) {
+	var parentCacheID string
+	for pl := rl.parent; pl != nil; pl = pl.parent {
+		if pl.chainID == parent {
+			parentCacheID = pl.cacheID
+			break
+		}
+	}
+
+	if parent != ChainID("") && parentCacheID == "" {
+		return nil, fmt.Errorf("layer ID '%s' is not a parent of the specified layer: cannot provide diff to non-parent", parent)
+	}
+	return rl.layerStore.driver.Diff(rl.cacheID, parentCacheID)
 }
 
 func (rl *roLayer) ChainID() ChainID {

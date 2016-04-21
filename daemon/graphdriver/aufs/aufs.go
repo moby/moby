@@ -74,6 +74,7 @@ type Driver struct {
 	ctr           *graphdriver.RefCounter
 	pathCacheLock sync.Mutex
 	pathCache     map[string]string
+	naiveDiff     graphdriver.DiffDriver
 }
 
 // Init returns a new AUFS driver.
@@ -137,6 +138,8 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 			return nil, err
 		}
 	}
+
+	a.naiveDiff = graphdriver.NewNaiveDiffDriver(a, uidMaps, gidMaps)
 	return a, nil
 }
 
@@ -225,7 +228,7 @@ func (a *Driver) Create(id, parent, mountLabel string, storageOpt map[string]str
 	defer f.Close()
 
 	if parent != "" {
-		ids, err := getParentIds(a.rootPath(), parent)
+		ids, err := getParentIDs(a.rootPath(), parent)
 		if err != nil {
 			return err
 		}
@@ -427,9 +430,22 @@ func (a *Driver) Put(id string) error {
 	return err
 }
 
+// isParent returns if the passed in parent is the direct parent of the passed in layer
+func (a *Driver) isParent(id, parent string) bool {
+	parents, _ := getParentIDs(a.rootPath(), id)
+	if parent == "" && len(parents) > 0 {
+		return false
+	}
+	return !(len(parents) > 0 && parent != parents[0])
+}
+
 // Diff produces an archive of the changes between the specified
 // layer and its parent layer which may be "".
 func (a *Driver) Diff(id, parent string) (io.ReadCloser, error) {
+	if !a.isParent(id, parent) {
+		return a.naiveDiff.Diff(id, parent)
+	}
+
 	// AUFS doesn't need the parent layer to produce a diff.
 	return archive.TarWithOptions(path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
 		Compression:     archive.Uncompressed,
@@ -465,6 +481,9 @@ func (a *Driver) applyDiff(id string, diff io.Reader) error {
 // and its parent and returns the size in bytes of the changes
 // relative to its base filesystem directory.
 func (a *Driver) DiffSize(id, parent string) (size int64, err error) {
+	if !a.isParent(id, parent) {
+		return a.naiveDiff.DiffSize(id, parent)
+	}
 	// AUFS doesn't need the parent layer to calculate the diff size.
 	return directory.Size(path.Join(a.rootPath(), "diff", id))
 }
@@ -473,7 +492,11 @@ func (a *Driver) DiffSize(id, parent string) (size int64, err error) {
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
 func (a *Driver) ApplyDiff(id, parent string, diff io.Reader) (size int64, err error) {
-	// AUFS doesn't need the parent id to apply the diff.
+	if !a.isParent(id, parent) {
+		return a.naiveDiff.ApplyDiff(id, parent, diff)
+	}
+
+	// AUFS doesn't need the parent id to apply the diff if it is the direct parent.
 	if err = a.applyDiff(id, diff); err != nil {
 		return
 	}
@@ -484,6 +507,10 @@ func (a *Driver) ApplyDiff(id, parent string, diff io.Reader) (size int64, err e
 // Changes produces a list of changes between the specified layer
 // and its parent layer. If parent is "", then all changes will be ADD changes.
 func (a *Driver) Changes(id, parent string) ([]archive.Change, error) {
+	if !a.isParent(id, parent) {
+		return a.naiveDiff.Changes(id, parent)
+	}
+
 	// AUFS doesn't have snapshots, so we need to get changes from all parent
 	// layers.
 	layers, err := a.getParentLayerPaths(id)
@@ -494,7 +521,7 @@ func (a *Driver) Changes(id, parent string) ([]archive.Change, error) {
 }
 
 func (a *Driver) getParentLayerPaths(id string) ([]string, error) {
-	parentIds, err := getParentIds(a.rootPath(), id)
+	parentIds, err := getParentIDs(a.rootPath(), id)
 	if err != nil {
 		return nil, err
 	}

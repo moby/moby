@@ -135,9 +135,15 @@ type Backend interface {
 	// TODO: make an Extract method instead of passing `decompress`
 	// TODO: do not pass a FileInfo, instead refactor the archive package to export a Walk function that can be used
 	// with Context.Walk
-	//ContainerCopy(name string, res string) (io.ReadCloser, error)
+	// ContainerCopy(name string, res string) (io.ReadCloser, error)
 	// TODO: use copyBackend api
 	CopyOnBuild(containerID string, destPath string, src FileInfo, decompress bool) error
+
+	// HasExperimental checks if the backend supports experimental features
+	HasExperimental() bool
+
+	// SquashImage squashes the fs layers from the provided image down to the specified `to` image
+	SquashImage(from string, to string) (string, error)
 }
 
 // Image represents a Docker image used by the builder.

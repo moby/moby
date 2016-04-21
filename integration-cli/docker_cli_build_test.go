@@ -7195,3 +7195,44 @@ RUN ["cat", "/foo/file"]
 		c.Fatal(err)
 	}
 }
+
+func (s *DockerSuite) TestBuildSquashParent(c *check.C) {
+	testRequires(c, ExperimentalDaemon)
+	dockerFile := `
+		FROM busybox
+		RUN echo hello > /hello
+		RUN echo world >> /hello
+		RUN echo hello > /remove_me
+		ENV HELLO world
+		RUN rm /remove_me
+		`
+	// build and get the ID that we can use later for history comparison
+	origID, err := buildImage("test", dockerFile, false)
+	c.Assert(err, checker.IsNil)
+
+	// build with squash
+	id, err := buildImage("test", dockerFile, true, "--squash")
+	c.Assert(err, checker.IsNil)
+
+	out, _ := dockerCmd(c, "run", "--rm", id, "/bin/sh", "-c", "cat /hello")
+	c.Assert(strings.TrimSpace(out), checker.Equals, "hello\nworld")
+
+	dockerCmd(c, "run", "--rm", id, "/bin/sh", "-c", "[ ! -f /remove_me ]")
+	dockerCmd(c, "run", "--rm", id, "/bin/sh", "-c", `[ "$(echo $HELLO)" == "world" ]`)
+
+	// make sure the ID produced is the ID of the tag we specified
+	inspectID, err := inspectImage("test", ".ID")
+	c.Assert(err, checker.IsNil)
+	c.Assert(inspectID, checker.Equals, id)
+
+	origHistory, _ := dockerCmd(c, "history", origID)
+	testHistory, _ := dockerCmd(c, "history", "test")
+
+	splitOrigHistory := strings.Split(strings.TrimSpace(origHistory), "\n")
+	splitTestHistory := strings.Split(strings.TrimSpace(testHistory), "\n")
+	c.Assert(len(splitTestHistory), checker.Equals, len(splitOrigHistory)+1)
+
+	out, err = inspectImage(id, "len .RootFS.Layers")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "3")
+}
