@@ -9,6 +9,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
+	"github.com/docker/docker/pkg/ioutils"
 )
 
 // IDWalkFunc is function called by StoreBackend.Walk
@@ -118,12 +119,7 @@ func (s *fs) Set(data []byte) (ID, error) {
 	}
 
 	id := ID(digest.FromBytes(data))
-	filePath := s.contentFile(id)
-	tempFilePath := s.contentFile(id) + ".tmp"
-	if err := ioutil.WriteFile(tempFilePath, data, 0600); err != nil {
-		return "", err
-	}
-	if err := os.Rename(tempFilePath, filePath); err != nil {
+	if err := ioutils.AtomicWriteFile(s.contentFile(id), data, 0600); err != nil {
 		return "", err
 	}
 
@@ -156,12 +152,7 @@ func (s *fs) SetMetadata(id ID, key string, data []byte) error {
 	if err := os.MkdirAll(baseDir, 0700); err != nil {
 		return err
 	}
-	filePath := filepath.Join(s.metadataDir(id), key)
-	tempFilePath := filePath + ".tmp"
-	if err := ioutil.WriteFile(tempFilePath, data, 0600); err != nil {
-		return err
-	}
-	return os.Rename(tempFilePath, filePath)
+	return ioutils.AtomicWriteFile(filepath.Join(s.metadataDir(id), key), data, 0600)
 }
 
 // GetMetadata returns metadata for a given ID.
