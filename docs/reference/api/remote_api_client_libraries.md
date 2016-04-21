@@ -41,7 +41,7 @@ will add the libraries here.
     <tr>
       <td>C++</td>
       <td>lasote/docker_client</td>
-      <td><a class="reference external" href="http://www.biicode.com/lasote/docker_client">http://www.biicode.com/lasote/docker_client (Biicode C++ dependency manager)</a></td>
+      <td><a class="reference external" href="https://github.com/lasote/docker_client">https://github.com/lasote/docker_client</a></td>
       <td>Active</td>
     </tr>
     <tr>
