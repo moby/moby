@@ -109,6 +109,7 @@ The following command shows how to start the Docker daemon with the
      Metadata Space Used: 1.479 MB
      Metadata Space Total: 2.147 GB
      Metadata Space Available: 2.146 GB
+     Thin Pool Minimum Free Space: 10.74 GB
      Udev Sync Supported: true
      Deferred Removal Enabled: false
      Data loop file: /var/lib/docker/devicemapper/devicemapper/data

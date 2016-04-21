@@ -74,6 +74,7 @@ func (d *Driver) Status() [][2]string {
 		{"Metadata Space Used", fmt.Sprintf("%s", units.HumanSize(float64(s.Metadata.Used)))},
 		{"Metadata Space Total", fmt.Sprintf("%s", units.HumanSize(float64(s.Metadata.Total)))},
 		{"Metadata Space Available", fmt.Sprintf("%s", units.HumanSize(float64(s.Metadata.Available)))},
+		{"Thin Pool Minimum Free Space", fmt.Sprintf("%s", units.HumanSize(float64(s.MinFreeSpace)))},
 		{"Udev Sync Supported", fmt.Sprintf("%v", s.UdevSyncSupported)},
 		{"Deferred Removal Enabled", fmt.Sprintf("%v", s.DeferredRemoveEnabled)},
 		{"Deferred Deletion Enabled", fmt.Sprintf("%v", s.DeferredDeleteEnabled)},
