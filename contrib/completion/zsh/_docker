@@ -589,6 +589,7 @@ __docker_subcommand() {
     opts_build_create_run=(
         "($help)--cgroup-parent=[Parent cgroup for the container]:cgroup: "
         "($help)--isolation=[Container isolation technology]:isolation:(default hyperv process)"
+        "($help)--disable-content-trust[Skip image verification]"
         "($help)*--shm-size=[Size of '/dev/shm' (format is '<number><unit>')]:shm size: "
         "($help)*--ulimit=[ulimit options]:ulimit: "
         "($help)--userns=[Container user namespace]:user namespace:(host)"
