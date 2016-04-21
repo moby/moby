@@ -14,7 +14,7 @@ var (
 	defaultBindingIP = net.IPv4(0, 0, 0, 0)
 )
 
-func (n *bridgeNetwork) allocatePorts(ep *bridgeEndpoint, reqDefBindIP net.IP, ulPxyEnabled bool, pxyBin string) ([]types.PortBinding, error) {
+func (n *bridgeNetwork) allocatePorts(ep *bridgeEndpoint, reqDefBindIP net.IP, ulPxyEnabled bool, pxyPath string) ([]types.PortBinding, error) {
 	if ep.extConnConfig == nil || ep.extConnConfig.PortBindings == nil {
 		return nil, nil
 	}
@@ -24,14 +24,14 @@ func (n *bridgeNetwork) allocatePorts(ep *bridgeEndpoint, reqDefBindIP net.IP, u
 		defHostIP = reqDefBindIP
 	}
 
-	return n.allocatePortsInternal(ep.extConnConfig.PortBindings, ep.addr.IP, defHostIP, ulPxyEnabled, pxyBin)
+	return n.allocatePortsInternal(ep.extConnConfig.PortBindings, ep.addr.IP, defHostIP, ulPxyEnabled, pxyPath)
 }
 
-func (n *bridgeNetwork) allocatePortsInternal(bindings []types.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool, pxyBin string) ([]types.PortBinding, error) {
+func (n *bridgeNetwork) allocatePortsInternal(bindings []types.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool, pxyPath string) ([]types.PortBinding, error) {
 	bs := make([]types.PortBinding, 0, len(bindings))
 	for _, c := range bindings {
 		b := c.GetCopy()
-		if err := n.allocatePort(&b, containerIP, defHostIP, ulPxyEnabled, pxyBin); err != nil {
+		if err := n.allocatePort(&b, containerIP, defHostIP, ulPxyEnabled, pxyPath); err != nil {
 			// On allocation failure, release previously allocated ports. On cleanup error, just log a warning message
 			if cuErr := n.releasePortsInternal(bs); cuErr != nil {
 				logrus.Warnf("Upon allocation failure for %v, failed to clear previously allocated port bindings: %v", b, cuErr)
@@ -43,7 +43,7 @@ func (n *bridgeNetwork) allocatePortsInternal(bindings []types.PortBinding, cont
 	return bs, nil
 }
 
-func (n *bridgeNetwork) allocatePort(bnd *types.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool, pxyBin string) error {
+func (n *bridgeNetwork) allocatePort(bnd *types.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool, pxyPath string) error {
 	var (
 		host net.Addr
 		err  error
@@ -70,7 +70,7 @@ func (n *bridgeNetwork) allocatePort(bnd *types.PortBinding, containerIP, defHos
 
 	// Try up to maxAllocatePortAttempts times to get a port that's not already allocated.
 	for i := 0; i < maxAllocatePortAttempts; i++ {
-		if host, err = n.portMapper.MapRange(container, bnd.HostIP, int(bnd.HostPort), int(bnd.HostPortEnd), ulPxyEnabled, pxyBin); err == nil {
+		if host, err = n.portMapper.MapRange(container, bnd.HostIP, int(bnd.HostPort), int(bnd.HostPortEnd), ulPxyEnabled, pxyPath); err == nil {
 			break
 		}
 		// There is no point in immediately retrying to map an explicitly chosen port.

@@ -92,14 +92,14 @@ func handleStopSignals(p proxy.Proxy) {
 	}
 }
 
-func newProxyCommand(userlandProxyBin string, proto string, hostIP net.IP, hostPort int, containerIP net.IP, containerPort int) userlandProxy {
-	path := userlandProxyBin
-	if userlandProxyBin == "" {
-		userlandProxyBin = userlandProxyCommandName
+func newProxyCommand(userlandProxyPath string, proto string, hostIP net.IP, hostPort int, containerIP net.IP, containerPort int) userlandProxy {
+	path := userlandProxyPath
+	if userlandProxyPath == "" {
+		userlandProxyPath = userlandProxyCommandName
 		path = reexec.Self()
 	}
 	args := []string{
-		userlandProxyBin,
+		userlandProxyPath,
 		"-proto", proto,
 		"-host-ip", hostIP.String(),
 		"-host-port", strconv.Itoa(hostPort),
