@@ -14,9 +14,9 @@ import (
 	"github.com/go-check/check"
 )
 
-func checkValidGraphDriver(c *check.C, name string) {
+func checkValidStorageDriver(c *check.C, name string) {
 	if name != "devicemapper" && name != "overlay" && name != "vfs" && name != "zfs" && name != "btrfs" && name != "aufs" {
-		c.Fatalf("%v is not a valid graph driver name", name)
+		c.Fatalf("%v is not a valid strorage driver name", name)
 	}
 }
 
@@ -165,12 +165,12 @@ func (s *DockerSuite) TestInspectContainerFilterInt(c *check.C) {
 	c.Assert(result, checker.Equals, true)
 }
 
-func (s *DockerSuite) TestInspectImageGraphDriver(c *check.C) {
+func (s *DockerSuite) TestInspectImageStorageDriver(c *check.C) {
 	testRequires(c, DaemonIsLinux, Devicemapper)
 	imageTest := "emptyfs"
 	name := inspectField(c, imageTest, "GraphDriver.Name")
 
-	checkValidGraphDriver(c, name)
+	checkValidStorageDriver(c, name)
 
 	deviceID := inspectField(c, imageTest, "GraphDriver.Data.DeviceId")
 
@@ -183,7 +183,7 @@ func (s *DockerSuite) TestInspectImageGraphDriver(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf("failed to inspect DeviceSize of the image: %s, %v", deviceSize, err))
 }
 
-func (s *DockerSuite) TestInspectContainerGraphDriver(c *check.C) {
+func (s *DockerSuite) TestInspectContainerStorageDriver(c *check.C) {
 	testRequires(c, DaemonIsLinux, Devicemapper)
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
@@ -191,7 +191,7 @@ func (s *DockerSuite) TestInspectContainerGraphDriver(c *check.C) {
 
 	name := inspectField(c, out, "GraphDriver.Name")
 
-	checkValidGraphDriver(c, name)
+	checkValidStorageDriver(c, name)
 
 	imageDeviceID := inspectField(c, "busybox", "GraphDriver.Data.DeviceId")
 

@@ -64,7 +64,7 @@ func (s *DockerSuite) BenchmarkConcurrentContainerActions(c *check.C) {
 						chErr <- fmt.Errorf(out)
 					}
 
-					// don't do an rm -f here since it can potentially ignore errors from the graphdriver
+					// don't do an rm -f here since it can potentially ignore errors from the storage driver
 					out, _, err = dockerCmdWithError("rm", id)
 					if err != nil {
 						chErr <- fmt.Errorf(out)
