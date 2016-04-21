@@ -1,24 +1,5 @@
 package cli
 
-import (
-	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/go-connections/tlsconfig"
-)
-
-// CommonFlags represents flags that are common to both the client and the daemon.
-type CommonFlags struct {
-	FlagSet   *flag.FlagSet
-	PostParse func()
-
-	Debug      bool
-	Hosts      []string
-	LogLevel   string
-	TLS        bool
-	TLSVerify  bool
-	TLSOptions *tlsconfig.Options
-	TrustKey   string
-}
-
 // Command is the struct containing the command name and description
 type Command struct {
 	Name        string

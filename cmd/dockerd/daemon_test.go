@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/cli"
+	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/mflag"
@@ -16,7 +16,7 @@ import (
 
 func TestLoadDaemonCliConfigWithoutOverriding(t *testing.T) {
 	c := &daemon.Config{}
-	common := &cli.CommonFlags{
+	common := &cliflags.CommonFlags{
 		Debug: true,
 	}
 
@@ -35,7 +35,7 @@ func TestLoadDaemonCliConfigWithoutOverriding(t *testing.T) {
 
 func TestLoadDaemonCliConfigWithTLS(t *testing.T) {
 	c := &daemon.Config{}
-	common := &cli.CommonFlags{
+	common := &cliflags.CommonFlags{
 		TLS: true,
 		TLSOptions: &tlsconfig.Options{
 			CAFile: "/tmp/ca.pem",
@@ -57,7 +57,7 @@ func TestLoadDaemonCliConfigWithTLS(t *testing.T) {
 
 func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
 	c := &daemon.Config{}
-	common := &cli.CommonFlags{}
+	common := &cliflags.CommonFlags{}
 	f, err := ioutil.TempFile("", "docker-config-")
 	if err != nil {
 		t.Fatal(err)
@@ -93,7 +93,7 @@ func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
 
 func TestLoadDaemonCliConfigWithTLSVerify(t *testing.T) {
 	c := &daemon.Config{}
-	common := &cli.CommonFlags{
+	common := &cliflags.CommonFlags{
 		TLSOptions: &tlsconfig.Options{
 			CAFile: "/tmp/ca.pem",
 		},
@@ -126,7 +126,7 @@ func TestLoadDaemonCliConfigWithTLSVerify(t *testing.T) {
 
 func TestLoadDaemonCliConfigWithExplicitTLSVerifyFalse(t *testing.T) {
 	c := &daemon.Config{}
-	common := &cli.CommonFlags{
+	common := &cliflags.CommonFlags{
 		TLSOptions: &tlsconfig.Options{
 			CAFile: "/tmp/ca.pem",
 		},
@@ -159,7 +159,7 @@ func TestLoadDaemonCliConfigWithExplicitTLSVerifyFalse(t *testing.T) {
 
 func TestLoadDaemonCliConfigWithoutTLSVerify(t *testing.T) {
 	c := &daemon.Config{}
-	common := &cli.CommonFlags{
+	common := &cliflags.CommonFlags{
 		TLSOptions: &tlsconfig.Options{
 			CAFile: "/tmp/ca.pem",
 		},
@@ -191,7 +191,7 @@ func TestLoadDaemonCliConfigWithoutTLSVerify(t *testing.T) {
 
 func TestLoadDaemonCliConfigWithLogLevel(t *testing.T) {
 	c := &daemon.Config{}
-	common := &cli.CommonFlags{}
+	common := &cliflags.CommonFlags{}
 
 	f, err := ioutil.TempFile("", "docker-config-")
 	if err != nil {
@@ -223,7 +223,7 @@ func TestLoadDaemonCliConfigWithLogLevel(t *testing.T) {
 
 func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
 	c := &daemon.Config{}
-	common := &cli.CommonFlags{}
+	common := &cliflags.CommonFlags{}
 
 	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
 	flags.String([]string{"-tlscacert"}, "", "")
@@ -256,7 +256,7 @@ func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
 
 func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
 	c := &daemon.Config{}
-	common := &cli.CommonFlags{}
+	common := &cliflags.CommonFlags{}
 	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
 	c.ServiceOptions.InstallCliFlags(flags, absentFromHelp)
 

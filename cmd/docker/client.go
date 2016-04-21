@@ -3,7 +3,6 @@ package main
 import (
 	"path/filepath"
 
-	"github.com/docker/docker/cli"
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/cliconfig"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -12,7 +11,7 @@ import (
 
 var (
 	commonFlags = cliflags.InitCommonFlags()
-	clientFlags = &cli.ClientFlags{FlagSet: new(flag.FlagSet), Common: commonFlags}
+	clientFlags = &cliflags.ClientFlags{FlagSet: new(flag.FlagSet), Common: commonFlags}
 )
 
 func init() {

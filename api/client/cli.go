@@ -9,7 +9,7 @@ import (
 	"runtime"
 
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/cli"
+	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/cliconfig/credentials"
 	"github.com/docker/docker/dockerversion"
@@ -112,7 +112,7 @@ func (cli *DockerCli) restoreTerminal(in io.Closer) error {
 // The key file, protocol (i.e. unix) and address are passed in as strings, along with the tls.Config. If the tls.Config
 // is set the client scheme will be set to https.
 // The client will be given a 32-second timeout (see https://github.com/docker/docker/pull/8035).
-func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientFlags) *DockerCli {
+func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cliflags.ClientFlags) *DockerCli {
 	cli := &DockerCli{
 		in:      in,
 		out:     out,

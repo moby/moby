@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/docker/docker/cli"
+	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/mflag"
@@ -14,7 +14,7 @@ import (
 
 func TestLoadDaemonCliConfigWithDaemonFlags(t *testing.T) {
 	c := &daemon.Config{}
-	common := &cli.CommonFlags{
+	common := &cliflags.CommonFlags{
 		Debug:    true,
 		LogLevel: "info",
 	}
@@ -61,7 +61,7 @@ func TestLoadDaemonCliConfigWithDaemonFlags(t *testing.T) {
 
 func TestLoadDaemonConfigWithNetwork(t *testing.T) {
 	c := &daemon.Config{}
-	common := &cli.CommonFlags{}
+	common := &cliflags.CommonFlags{}
 	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
 	flags.String([]string{"-bip"}, "", "")
 	flags.String([]string{"-ip"}, "", "")
@@ -92,7 +92,7 @@ func TestLoadDaemonConfigWithNetwork(t *testing.T) {
 
 func TestLoadDaemonConfigWithMapOptions(t *testing.T) {
 	c := &daemon.Config{}
-	common := &cli.CommonFlags{}
+	common := &cliflags.CommonFlags{}
 	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
 
 	flags.Var(opts.NewNamedMapOpts("cluster-store-opts", c.ClusterOpts, nil), []string{"-cluster-store-opt"}, "")
@@ -136,7 +136,7 @@ func TestLoadDaemonConfigWithMapOptions(t *testing.T) {
 
 func TestLoadDaemonConfigWithTrueDefaultValues(t *testing.T) {
 	c := &daemon.Config{}
-	common := &cli.CommonFlags{}
+	common := &cliflags.CommonFlags{}
 	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
 	flags.BoolVar(&c.EnableUserlandProxy, []string{"-userland-proxy"}, true, "")
 
@@ -181,7 +181,7 @@ func TestLoadDaemonConfigWithTrueDefaultValues(t *testing.T) {
 
 func TestLoadDaemonConfigWithTrueDefaultValuesLeaveDefaults(t *testing.T) {
 	c := &daemon.Config{}
-	common := &cli.CommonFlags{}
+	common := &cliflags.CommonFlags{}
 	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
 	flags.BoolVar(&c.EnableUserlandProxy, []string{"-userland-proxy"}, true, "")
 
