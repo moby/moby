@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 
 	"github.com/Sirupsen/logrus"
-	psignal "github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/api"
@@ -261,16 +260,6 @@ func (d *dnetConnection) dnetDaemon(cfgFile string) error {
 	setupDumpStackTrap()
 
 	return http.ListenAndServe(d.addr, r)
-}
-
-func setupDumpStackTrap() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGUSR1)
-	go func() {
-		for range c {
-			psignal.DumpStacks()
-		}
-	}()
 }
 
 func handleSignals(controller libnetwork.NetworkController) {
