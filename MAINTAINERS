@@ -43,7 +43,6 @@
 			"tibor",
 			"tonistiigi",
 			"unclejack",
-			"vbatts",
 			"vdemeester"
 		]
 
@@ -89,6 +88,20 @@
 			# in his own repository https://github.com/erikh. You may
 			# still stumble into him in our issue tracker, or on IRC.
 			"erikh",
+
+			# Vincent "vbatts!" Batts made his first contribution to the project
+			# in November 2013, to become a maintainer a few months later, on 
+			# May 10, 2014 (https://github.com/docker/docker/commit/d6e666a87a01a5634c250358a94c814bf26cb778).
+			# As a maintainer, Vincent made important contributions to core elements
+			# of Docker, such as "distribution" (tarsum) and graphdrivers (btrfs, devicemapper).
+			# He also contributed the "tar-split" library, an important element
+			# for the content-addressable store.
+			# Vincent is currently a member of the Open Containers Initiative
+			# Technical Oversight Board (TOB), besides his work at Red Hat and
+			# Project Atomic. You can still find him regularly hanging out in
+			# our repository and the #docker-dev and #docker-maintainers IRC channels
+			# for a chat, as he's always a lot of fun.
+			"vbatts",
 
 			# Victor is one of the earliest contributors to Docker, having worked on the
 			# project when it was still "dotCloud" in April 2013. He's been responsible
