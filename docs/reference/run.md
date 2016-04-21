@@ -562,20 +562,18 @@ the exit codes follow the `chroot` standard, see below:
 **_126_** if the **_contained command_** cannot be invoked
 
     $ docker run busybox /etc; echo $?
-    # exec: "/etc": permission denied
-      docker: Error response from daemon: Contained command could not be invoked
+    # docker: Error response from daemon: Container command '/etc' could not be invoked.
       126
 
 **_127_** if the **_contained command_** cannot be found
 
     $ docker run busybox foo; echo $?
-    # exec: "foo": executable file not found in $PATH
-      docker: Error response from daemon: Contained command not found or does not exist
+    # docker: Error response from daemon: Container command 'foo' not found or does not exist.
       127
 
 **_Exit code_** of **_contained command_** otherwise
 
-    $ docker run busybox /bin/sh -c 'exit 3'
+    $ docker run busybox /bin/sh -c 'exit 3'; echo $?
     # 3
 
 ## Clean up (--rm)
