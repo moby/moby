@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/symlink"
@@ -131,7 +132,7 @@ func (container *Container) ToDisk() error {
 		return err
 	}
 
-	jsonSource, err := os.Create(pth)
+	jsonSource, err := ioutils.NewAtomicFileWriter(pth, 0666)
 	if err != nil {
 		return err
 	}
@@ -191,7 +192,7 @@ func (container *Container) WriteHostConfig() error {
 		return err
 	}
 
-	f, err := os.Create(pth)
+	f, err := ioutils.NewAtomicFileWriter(pth, 0666)
 	if err != nil {
 		return err
 	}
