@@ -13,28 +13,28 @@ import (
 	"os"
 	"strings"
 
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/daemon/graphdriver/vfs"
+	"github.com/docker/docker/daemon/storage"
+	"github.com/docker/docker/daemon/storage/vfs"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/go-check/check"
 )
 
 func init() {
-	check.Suite(&DockerExternalGraphdriverSuite{
+	check.Suite(&DockerExternalStorageDriverSuite{
 		ds: &DockerSuite{},
 	})
 }
 
-type DockerExternalGraphdriverSuite struct {
+type DockerExternalStorageDriverSuite struct {
 	server  *httptest.Server
 	jserver *httptest.Server
 	ds      *DockerSuite
 	d       *Daemon
-	ec      map[string]*graphEventsCounter
+	ec      map[string]*storageEventsCounter
 }
 
-type graphEventsCounter struct {
+type storageEventsCounter struct {
 	activations int
 	creations   int
 	removals    int
@@ -51,48 +51,48 @@ type graphEventsCounter struct {
 	diffsize    int
 }
 
-func (s *DockerExternalGraphdriverSuite) SetUpTest(c *check.C) {
+func (s *DockerExternalStorageDriverSuite) SetUpTest(c *check.C) {
 	s.d = NewDaemon(c)
 }
 
-func (s *DockerExternalGraphdriverSuite) TearDownTest(c *check.C) {
+func (s *DockerExternalStorageDriverSuite) TearDownTest(c *check.C) {
 	s.d.Stop()
 	s.ds.TearDownTest(c)
 }
 
-func (s *DockerExternalGraphdriverSuite) SetUpSuite(c *check.C) {
-	s.ec = make(map[string]*graphEventsCounter)
+func (s *DockerExternalStorageDriverSuite) SetUpSuite(c *check.C) {
+	s.ec = make(map[string]*storageEventsCounter)
 	s.setUpPluginViaSpecFile(c)
 	s.setUpPluginViaJSONFile(c)
 }
 
-func (s *DockerExternalGraphdriverSuite) setUpPluginViaSpecFile(c *check.C) {
+func (s *DockerExternalStorageDriverSuite) setUpPluginViaSpecFile(c *check.C) {
 	mux := http.NewServeMux()
 	s.server = httptest.NewServer(mux)
 
-	s.setUpPlugin(c, "test-external-graph-driver", "spec", mux, []byte(s.server.URL))
+	s.setUpPlugin(c, "test-external-storage-driver", "spec", mux, []byte(s.server.URL))
 }
 
-func (s *DockerExternalGraphdriverSuite) setUpPluginViaJSONFile(c *check.C) {
+func (s *DockerExternalStorageDriverSuite) setUpPluginViaJSONFile(c *check.C) {
 	mux := http.NewServeMux()
 	s.jserver = httptest.NewServer(mux)
 
-	p := plugins.Plugin{Name: "json-external-graph-driver", Addr: s.jserver.URL}
+	p := plugins.Plugin{Name: "json-external-storage-driver", Addr: s.jserver.URL}
 	b, err := json.Marshal(p)
 	c.Assert(err, check.IsNil)
 
-	s.setUpPlugin(c, "json-external-graph-driver", "json", mux, b)
+	s.setUpPlugin(c, "json-external-storage-driver", "json", mux, b)
 }
 
-func (s *DockerExternalGraphdriverSuite) setUpPlugin(c *check.C, name string, ext string, mux *http.ServeMux, b []byte) {
-	type graphDriverRequest struct {
+func (s *DockerExternalStorageDriverSuite) setUpPlugin(c *check.C, name string, ext string, mux *http.ServeMux, b []byte) {
+	type storageDriverRequest struct {
 		ID         string `json:",omitempty"`
 		Parent     string `json:",omitempty"`
 		MountLabel string `json:",omitempty"`
 		ReadOnly   bool   `json:",omitempty"`
 	}
 
-	type graphDriverResponse struct {
+	type storageDriverResponse struct {
 		Err      error             `json:",omitempty"`
 		Dir      string            `json:",omitempty"`
 		Exists   bool              `json:",omitempty"`
@@ -125,24 +125,24 @@ func (s *DockerExternalGraphdriverSuite) setUpPlugin(c *check.C, name string, ex
 	base, err := ioutil.TempDir("", name)
 	c.Assert(err, check.IsNil)
 	vfsProto, err := vfs.Init(base, []string{}, nil, nil)
-	c.Assert(err, check.IsNil, check.Commentf("error initializing graph driver"))
-	driver := graphdriver.NewNaiveDiffDriver(vfsProto, nil, nil)
+	c.Assert(err, check.IsNil, check.Commentf("error initializing storage driver"))
+	driver := storage.NewNaiveDiffDriver(vfsProto, nil, nil)
 
-	s.ec[ext] = &graphEventsCounter{}
+	s.ec[ext] = &storageEventsCounter{}
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		s.ec[ext].activations++
-		respond(w, `{"Implements": ["GraphDriver"]}`)
+		respond(w, `{"Implements": ["StorageDriver"]}`)
 	})
 
-	mux.HandleFunc("/GraphDriver.Init", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/StorageDriver.Init", func(w http.ResponseWriter, r *http.Request) {
 		s.ec[ext].init++
 		respond(w, "{}")
 	})
 
-	mux.HandleFunc("/GraphDriver.CreateReadWrite", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/StorageDriver.CreateReadWrite", func(w http.ResponseWriter, r *http.Request) {
 		s.ec[ext].creations++
 
-		var req graphDriverRequest
+		var req storageDriverRequest
 		if err := decReq(r.Body, &req, w); err != nil {
 			return
 		}
@@ -153,10 +153,10 @@ func (s *DockerExternalGraphdriverSuite) setUpPlugin(c *check.C, name string, ex
 		respond(w, "{}")
 	})
 
-	mux.HandleFunc("/GraphDriver.Create", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/StorageDriver.Create", func(w http.ResponseWriter, r *http.Request) {
 		s.ec[ext].creations++
 
-		var req graphDriverRequest
+		var req storageDriverRequest
 		if err := decReq(r.Body, &req, w); err != nil {
 			return
 		}
@@ -167,10 +167,10 @@ func (s *DockerExternalGraphdriverSuite) setUpPlugin(c *check.C, name string, ex
 		respond(w, "{}")
 	})
 
-	mux.HandleFunc("/GraphDriver.Remove", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/StorageDriver.Remove", func(w http.ResponseWriter, r *http.Request) {
 		s.ec[ext].removals++
 
-		var req graphDriverRequest
+		var req storageDriverRequest
 		if err := decReq(r.Body, &req, w); err != nil {
 			return
 		}
@@ -182,10 +182,10 @@ func (s *DockerExternalGraphdriverSuite) setUpPlugin(c *check.C, name string, ex
 		respond(w, "{}")
 	})
 
-	mux.HandleFunc("/GraphDriver.Get", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/StorageDriver.Get", func(w http.ResponseWriter, r *http.Request) {
 		s.ec[ext].gets++
 
-		var req graphDriverRequest
+		var req storageDriverRequest
 		if err := decReq(r.Body, &req, w); err != nil {
 			return
 		}
@@ -195,13 +195,13 @@ func (s *DockerExternalGraphdriverSuite) setUpPlugin(c *check.C, name string, ex
 			respond(w, err)
 			return
 		}
-		respond(w, &graphDriverResponse{Dir: dir})
+		respond(w, &storageDriverResponse{Dir: dir})
 	})
 
-	mux.HandleFunc("/GraphDriver.Put", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/StorageDriver.Put", func(w http.ResponseWriter, r *http.Request) {
 		s.ec[ext].puts++
 
-		var req graphDriverRequest
+		var req storageDriverRequest
 		if err := decReq(r.Body, &req, w); err != nil {
 			return
 		}
@@ -213,22 +213,22 @@ func (s *DockerExternalGraphdriverSuite) setUpPlugin(c *check.C, name string, ex
 		respond(w, "{}")
 	})
 
-	mux.HandleFunc("/GraphDriver.Exists", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/StorageDriver.Exists", func(w http.ResponseWriter, r *http.Request) {
 		s.ec[ext].exists++
 
-		var req graphDriverRequest
+		var req storageDriverRequest
 		if err := decReq(r.Body, &req, w); err != nil {
 			return
 		}
-		respond(w, &graphDriverResponse{Exists: driver.Exists(req.ID)})
+		respond(w, &storageDriverResponse{Exists: driver.Exists(req.ID)})
 	})
 
-	mux.HandleFunc("/GraphDriver.Status", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/StorageDriver.Status", func(w http.ResponseWriter, r *http.Request) {
 		s.ec[ext].stats++
-		respond(w, &graphDriverResponse{Status: driver.Status()})
+		respond(w, &storageDriverResponse{Status: driver.Status()})
 	})
 
-	mux.HandleFunc("/GraphDriver.Cleanup", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/StorageDriver.Cleanup", func(w http.ResponseWriter, r *http.Request) {
 		s.ec[ext].cleanups++
 		err := driver.Cleanup()
 		if err != nil {
@@ -238,10 +238,10 @@ func (s *DockerExternalGraphdriverSuite) setUpPlugin(c *check.C, name string, ex
 		respond(w, `{}`)
 	})
 
-	mux.HandleFunc("/GraphDriver.GetMetadata", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/StorageDriver.GetMetadata", func(w http.ResponseWriter, r *http.Request) {
 		s.ec[ext].metadata++
 
-		var req graphDriverRequest
+		var req storageDriverRequest
 		if err := decReq(r.Body, &req, w); err != nil {
 			return
 		}
@@ -251,13 +251,13 @@ func (s *DockerExternalGraphdriverSuite) setUpPlugin(c *check.C, name string, ex
 			respond(w, err)
 			return
 		}
-		respond(w, &graphDriverResponse{Metadata: data})
+		respond(w, &storageDriverResponse{Metadata: data})
 	})
 
-	mux.HandleFunc("/GraphDriver.Diff", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/StorageDriver.Diff", func(w http.ResponseWriter, r *http.Request) {
 		s.ec[ext].diff++
 
-		var req graphDriverRequest
+		var req storageDriverRequest
 		if err := decReq(r.Body, &req, w); err != nil {
 			return
 		}
@@ -270,9 +270,9 @@ func (s *DockerExternalGraphdriverSuite) setUpPlugin(c *check.C, name string, ex
 		io.Copy(w, diff)
 	})
 
-	mux.HandleFunc("/GraphDriver.Changes", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/StorageDriver.Changes", func(w http.ResponseWriter, r *http.Request) {
 		s.ec[ext].changes++
-		var req graphDriverRequest
+		var req storageDriverRequest
 		if err := decReq(r.Body, &req, w); err != nil {
 			return
 		}
@@ -282,10 +282,10 @@ func (s *DockerExternalGraphdriverSuite) setUpPlugin(c *check.C, name string, ex
 			respond(w, err)
 			return
 		}
-		respond(w, &graphDriverResponse{Changes: changes})
+		respond(w, &storageDriverResponse{Changes: changes})
 	})
 
-	mux.HandleFunc("/GraphDriver.ApplyDiff", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/StorageDriver.ApplyDiff", func(w http.ResponseWriter, r *http.Request) {
 		s.ec[ext].applydiff++
 		var diff archive.Reader = r.Body
 		defer r.Body.Close()
@@ -302,13 +302,13 @@ func (s *DockerExternalGraphdriverSuite) setUpPlugin(c *check.C, name string, ex
 			respond(w, err)
 			return
 		}
-		respond(w, &graphDriverResponse{Size: size})
+		respond(w, &storageDriverResponse{Size: size})
 	})
 
-	mux.HandleFunc("/GraphDriver.DiffSize", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/StorageDriver.DiffSize", func(w http.ResponseWriter, r *http.Request) {
 		s.ec[ext].diffsize++
 
-		var req graphDriverRequest
+		var req storageDriverRequest
 		if err := decReq(r.Body, &req, w); err != nil {
 			return
 		}
@@ -318,7 +318,7 @@ func (s *DockerExternalGraphdriverSuite) setUpPlugin(c *check.C, name string, ex
 			respond(w, err)
 			return
 		}
-		respond(w, &graphDriverResponse{Size: size})
+		respond(w, &storageDriverResponse{Size: size})
 	})
 
 	err = os.MkdirAll("/etc/docker/plugins", 0755)
@@ -329,7 +329,7 @@ func (s *DockerExternalGraphdriverSuite) setUpPlugin(c *check.C, name string, ex
 	c.Assert(err, check.IsNil, check.Commentf("error writing to %s", specFile))
 }
 
-func (s *DockerExternalGraphdriverSuite) TearDownSuite(c *check.C) {
+func (s *DockerExternalStorageDriverSuite) TearDownSuite(c *check.C) {
 	s.server.Close()
 	s.jserver.Close()
 
@@ -337,31 +337,31 @@ func (s *DockerExternalGraphdriverSuite) TearDownSuite(c *check.C) {
 	c.Assert(err, check.IsNil, check.Commentf("error removing /etc/docker/plugins"))
 }
 
-func (s *DockerExternalGraphdriverSuite) TestExternalGraphDriver(c *check.C) {
-	s.testExternalGraphDriver("test-external-graph-driver", "spec", c)
-	s.testExternalGraphDriver("json-external-graph-driver", "json", c)
+func (s *DockerExternalStorageDriverSuite) TestExternalStorageDriver(c *check.C) {
+	s.testExternalStorageDriver("test-external-storage-driver", "spec", c)
+	s.testExternalStorageDriver("json-external-storage-driver", "json", c)
 }
 
-func (s *DockerExternalGraphdriverSuite) testExternalGraphDriver(name string, ext string, c *check.C) {
+func (s *DockerExternalStorageDriverSuite) testExternalStorageDriver(name string, ext string, c *check.C) {
 	if err := s.d.StartWithBusybox("-s", name); err != nil {
 		b, _ := ioutil.ReadFile(s.d.LogFileName())
 		c.Assert(err, check.IsNil, check.Commentf("\n%s", string(b)))
 	}
 
-	out, err := s.d.Cmd("run", "-d", "--name=graphtest", "busybox", "sh", "-c", "echo hello > /hello")
+	out, err := s.d.Cmd("run", "-d", "--name=storagetest", "busybox", "sh", "-c", "echo hello > /hello")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 
 	err = s.d.Restart("-s", name)
 
-	out, err = s.d.Cmd("inspect", "--format='{{.GraphDriver.Name}}'", "graphtest")
+	out, err = s.d.Cmd("inspect", "--format='{{.GraphDriver.Name}}'", "storagetest")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), check.Equals, name)
 
-	out, err = s.d.Cmd("diff", "graphtest")
+	out, err = s.d.Cmd("diff", "storagetest")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	c.Assert(strings.Contains(out, "A /hello"), check.Equals, true)
 
-	out, err = s.d.Cmd("rm", "-f", "graphtest")
+	out, err = s.d.Cmd("rm", "-f", "storagetest")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 
 	out, err = s.d.Cmd("info")
@@ -387,7 +387,7 @@ func (s *DockerExternalGraphdriverSuite) testExternalGraphDriver(name string, ex
 	c.Assert(s.ec[ext].metadata, check.Equals, 1)
 }
 
-func (s *DockerExternalGraphdriverSuite) TestExternalGraphDriverPull(c *check.C) {
+func (s *DockerExternalStorageDriverSuite) TestExternalStorageDriverPull(c *check.C) {
 	testRequires(c, Network)
 	c.Assert(s.d.Start(), check.IsNil)
 
