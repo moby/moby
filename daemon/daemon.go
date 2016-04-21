@@ -137,6 +137,10 @@ type Daemon struct {
 //    unique enough to only return a single container object
 //  If none of these searches succeed, an error is returned
 func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, error) {
+	if len(prefixOrName) == 0 {
+		return nil, errors.NewBadRequestError(fmt.Errorf("No container name or ID supplied"))
+	}
+
 	if containerByID := daemon.containers.Get(prefixOrName); containerByID != nil {
 		// prefix is an exact match to a full container ID
 		return containerByID, nil
@@ -530,6 +534,9 @@ func (daemon *Daemon) newContainer(name string, config *containertypes.Config, i
 
 // GetByName returns a container given a name.
 func (daemon *Daemon) GetByName(name string) (*container.Container, error) {
+	if len(name) == 0 {
+		return nil, fmt.Errorf("No container name supplied")
+	}
 	fullName := name
 	if name[0] != '/' {
 		fullName = "/" + name
