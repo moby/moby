@@ -415,8 +415,27 @@ func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--cpu-period", "50000", "--name", "test", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "50000")
 
+	out, _ = dockerCmd(c, "run", "--cpu-period", "0", "busybox", "cat", file)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "100000")
+
 	out = inspectField(c, "test", "HostConfig.CpuPeriod")
 	c.Assert(out, checker.Equals, "50000", check.Commentf("setting the CPU CFS period failed"))
+}
+
+func (s *DockerSuite) TestRunWithInvalidCpuPeriod(c *check.C) {
+	testRequires(c, cpuCfsPeriod)
+	out, _, err := dockerCmdWithError("run", "--cpu-period", "900", "busybox", "true")
+	c.Assert(err, check.NotNil)
+	expected := "CPU cfs period can not be less than 1ms (i.e. 1000) or larger than 1s (i.e. 1000000)"
+	c.Assert(out, checker.Contains, expected)
+
+	out, _, err = dockerCmdWithError("run", "--cpu-period", "2000000", "busybox", "true")
+	c.Assert(err, check.NotNil)
+	c.Assert(out, checker.Contains, expected)
+
+	out, _, err = dockerCmdWithError("run", "--cpu-period", "-3", "busybox", "true")
+	c.Assert(err, check.NotNil)
+	c.Assert(out, checker.Contains, expected)
 }
 
 func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
