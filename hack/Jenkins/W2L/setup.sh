@@ -188,7 +188,7 @@ if [ $ec -eq 0 ]; then
 	ec=$?
 	set +x
 	if [ 0 -ne $ec ]; then
-	    	echo "ERROR: Failed to compile and start the linux daemon"
+		echo "ERROR: Failed to compile and start the linux daemon"
 	fi
 fi
 
@@ -199,7 +199,7 @@ if [ $ec -eq 0 ]; then
 	export TIMEOUT="5m"
 	export DOCKER_HOST="tcp://$ip:$port_inner"
 	export DOCKER_TEST_HOST="tcp://$ip:$port_inner"
-    unset DOCKER_CLIENTONLY
+	unset DOCKER_CLIENTONLY
 	export DOCKER_REMOTE_DAEMON=1
 	hack/make.sh binary
 	ec=$?

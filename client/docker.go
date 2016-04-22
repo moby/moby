@@ -9,16 +9,11 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/dockerversion"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
 )
 
 func main() {
-	if reexec.Init() {
-		return
-	}
-
 	// Set terminal emulation based on platform as required.
 	stdin, stdout, stderr := term.StdStreams()
 
