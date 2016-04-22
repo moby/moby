@@ -94,12 +94,12 @@ func parseWords(rest string) []string {
 				blankOK = true
 				phase = inQuote
 			}
-			if ch == '\\' {
+			if ch == tokenEscape {
 				if pos+1 == len(rest) {
-					continue // just skip \ at end
+					continue // just skip an escape token at end of line
 				}
-				// If we're not quoted and we see a \, then always just
-				// add \ plus the char to the word, even if the char
+				// If we're not quoted and we see an escape token, then always just
+				// add the escape token plus the char to the word, even if the char
 				// is a quote.
 				word += string(ch)
 				pos++
@@ -112,11 +112,11 @@ func parseWords(rest string) []string {
 			if ch == quote {
 				phase = inWord
 			}
-			// \ is special except for ' quotes - can't escape anything for '
-			if ch == '\\' && quote != '\'' {
+			// The escape token is special except for ' quotes - can't escape anything for '
+			if ch == tokenEscape && quote != '\'' {
 				if pos+1 == len(rest) {
 					phase = inWord
-					continue // just skip \ at end
+					continue // just skip the escape token at end
 				}
 				pos++
 				nextCh := rune(rest[pos])
