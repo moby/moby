@@ -163,15 +163,9 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 		}
 	}()
 
-	// uid/gid
-	rootfsDir := filepath.Join(container.dir, "rootfs")
-	if err := idtools.MkdirAllAs(rootfsDir, 0700, uid, gid); err != nil && !os.IsExist(err) {
+	if err := idtools.MkdirAllAs(container.dir, 0700, uid, gid); err != nil && !os.IsExist(err) {
 		return err
 	}
-	if err := syscall.Mount(spec.Root.Path, rootfsDir, "bind", syscall.MS_REC|syscall.MS_BIND, ""); err != nil {
-		return err
-	}
-	spec.Root.Path = "rootfs"
 
 	f, err := os.Create(filepath.Join(container.dir, configFilename))
 	if err != nil {
@@ -258,6 +252,22 @@ func (clnt *client) Stats(containerID string) (*Stats, error) {
 	return (*Stats)(resp), nil
 }
 
+// Take care of the old 1.11.0 behavior in case the version upgrade
+// happenned without a clean daemon shutdown
+func (clnt *client) cleanupOldRootfs(containerID string) {
+	// Unmount and delete the bundle folder
+	if mts, err := mount.GetMounts(); err == nil {
+		for _, mts := range mts {
+			if strings.HasSuffix(mts.Mountpoint, containerID+"/rootfs") {
+				if err := syscall.Unmount(mts.Mountpoint, syscall.MNT_DETACH); err == nil {
+					os.RemoveAll(strings.TrimSuffix(mts.Mountpoint, "/rootfs"))
+				}
+				break
+			}
+		}
+	}
+}
+
 func (clnt *client) setExited(containerID string) error {
 	clnt.lock(containerID)
 	defer clnt.unlock(containerID)
@@ -274,17 +284,7 @@ func (clnt *client) setExited(containerID string) error {
 			ExitCode: exitCode,
 		}})
 
-	// Unmount and delete the bundle folder
-	if mts, err := mount.GetMounts(); err == nil {
-		for _, mts := range mts {
-			if strings.HasSuffix(mts.Mountpoint, containerID+"/rootfs") {
-				if err := syscall.Unmount(mts.Mountpoint, syscall.MNT_DETACH); err == nil {
-					os.RemoveAll(strings.TrimSuffix(mts.Mountpoint, "/rootfs"))
-				}
-				break
-			}
-		}
-	}
+	clnt.cleanupOldRootfs(containerID)
 
 	return err
 }
