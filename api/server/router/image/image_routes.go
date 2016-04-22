@@ -7,11 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/pkg/ioutils"
@@ -131,12 +129,6 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 
 				err = s.backend.PullImage(ctx, ref, metaHeaders, authConfig, output)
 			}
-		}
-		// Check the error from pulling an image to make sure the request
-		// was authorized. Modify the status if the request was
-		// unauthorized to respond with 401 rather than 500.
-		if err != nil && isAuthorizedError(err) {
-			err = errcode.ErrorCodeUnauthorized.WithMessage(fmt.Sprintf("Authentication is required: %s", err))
 		}
 	} else { //import
 		var newRef reference.Named
@@ -388,17 +380,4 @@ func (s *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, query.Results)
-}
-
-func isAuthorizedError(err error) bool {
-	if urlError, ok := err.(*url.Error); ok {
-		err = urlError.Err
-	}
-
-	if dError, ok := err.(errcode.Error); ok {
-		if dError.ErrorCode() == errcode.ErrorCodeUnauthorized {
-			return true
-		}
-	}
-	return false
 }
