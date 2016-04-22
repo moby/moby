@@ -5,6 +5,41 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
+## 1.11.1 (2016-04-26)
+
+### Distribution
+
+- Fix schema2 manifest media type to be of type `application/vnd.docker.container.image.v1+json` ([#21949](https://github.com/docker/docker/pull/21949))
+
+### Documentation
+
++ Add missing API documentation for changes introduced with 1.11.0 ([#22048](https://github.com/docker/docker/pull/22048))
+
+### Builder
+
+* Append label passed to `docker build` as arguments as an implicit `LABEL` command at the end of the processed `Dockerfile` ([#22184](https://github.com/docker/docker/pull/22184))
+
+### Networking
+
+- Fix a panic that would occur when forwarding DNS query ([#22261](https://github.com/docker/docker/pull/22261))
+- Fix an issue where OS threads could end up within an incorrect network namespace when using user defined networks ([#22261](https://github.com/docker/docker/pull/22261))
+
+### Runtime
+
+- Fix a bug preventing labels configuration to be reloaded via the config file ([#22299](https://github.com/docker/docker/pull/22299))
+- Fix a regression where container mounting `/var/run` would prevent other containers from being removed ([#22256](https://github.com/docker/docker/pull/22256))
+- Fix an issue where it would be impossible to update both `memory-swap` and `memory` value together ([#22255](https://github.com/docker/docker/pull/22255))
+- Fix a regression from 1.11.0 where the `/auth` endpoint would not initialize `serveraddress` if it is not provided ([#22254](https://github.com/docker/docker/pull/22254))
+- Add missing cleanup of container temporary files when cancelling a schedule restart ([#22237](https://github.com/docker/docker/pull/22237))
+- Removed scary error message when no restart policy is specified ([#21993](https://github.com/docker/docker/pull/21993))
+- Fix a panic that would occur when the plugins were activated via the json spec ([#22191](https://github.com/docker/docker/pull/22191))
+- Fix restart backoff logic to correctly reset delay if container ran for at least 10secs ([#22125](https://github.com/docker/docker/pull/22125))
+- Remove error message when a container restart get cancelled ([#22123](https://github.com/docker/docker/pull/22123))
+- Fix an issue where `docker` would not correcly clean up after `docker exec` ([#22121](https://github.com/docker/docker/pull/22121))
+- Fix a panic that could occur when servicing concurrent `docker stats` commands ([#22120](https://github.com/docker/docker/pull/22120))`
+- Revert deprecation of non-existing host directories auto-creation ([#22065](https://github.com/docker/docker/pull/22065))
+- Hide misleading rpc error on daemon shutdown ([#22058](https://github.com/docker/docker/pull/22058))
+
 ## 1.11.0 (2016-04-13)
 
 **IMPORTANT**: With Docker 1.11, a Linux docker installation is now made of 4 binaries (`docker`, [`docker-containerd`](https://github.com/docker/containerd), [`docker-containerd-shim`](https://github.com/docker/containerd) and [`docker-runc`](https://github.com/opencontainers/runc)). If you have scripts relying on docker being a single static binaries, please make sure to update them. Interaction with the daemon stay the same otherwise, the usage of the other binaries should be transparent. A Windows docker installation remains a single binary, `docker.exe`.
