@@ -435,6 +435,7 @@ func (sb *sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 	// {a.b in network c.d},
 	// {a in network b.c.d},
 
+	log.Debugf("Name To resolve: %v", name)
 	name = strings.TrimSuffix(name, ".")
 	reqName := []string{name}
 	networkName := []string{""}
@@ -455,7 +456,6 @@ func (sb *sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 
 	epList := sb.getConnectedEndpoints()
 	for i := 0; i < len(reqName); i++ {
-		log.Debugf("To resolve: %v in %v", reqName[i], networkName[i])
 
 		// First check for local container alias
 		ip, ipv6Miss := sb.resolveName(reqName[i], networkName[i], epList, true, ipType)
