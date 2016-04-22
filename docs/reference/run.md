@@ -291,7 +291,8 @@ you can override this with `--dns`.
 
 By default, the MAC address is generated using the IP address allocated to the
 container. You can set the container's MAC address explicitly by providing a
-MAC address via the `--mac-address` parameter (format:`12:34:56:78:9a:bc`).
+MAC address via the `--mac-address` parameter (format:`12:34:56:78:9a:bc`).Be
+aware that Docker does not check if manually specified MAC addresses are unique.
 
 Supported networks :
 
