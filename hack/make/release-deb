@@ -116,8 +116,12 @@ for dir in contrib/builder/deb/${PACKAGE_ARCH}/*/; do
 	mkdir -p "$APTDIR/pool/$component/d/docker-engine/"
 	cp "${DEBFILE[@]}" "$APTDIR/pool/$component/d/docker-engine/"
 
+	# build the right directory structure, needed for apt-ftparchive
+	for arch in "${arches[@]}"; do
+		mkdir -p "$APTDIR/dists/$codename/$component/binary-$arch"
+	done
+
 	# update the filelist for this codename/component
-	mkdir -p "$APTDIR/dists/$codename/$component"
 	find "$APTDIR/pool/$component" \
 		-name *~${codename#*-}*.deb > "$APTDIR/dists/$codename/$component/filelist"
 done
@@ -137,7 +141,6 @@ for dir in contrib/builder/deb/${PACKAGE_ARCH}/*/; do
 		"$APTDIR/dists/$codename" > "$APTDIR/dists/$codename/Release"
 
 	for arch in "${arches[@]}"; do
-		mkdir -p "$APTDIR/dists/$codename/$component/binary-$arch"
 		apt-ftparchive \
 			-o "APT::FTPArchive::Release::Codename=$codename" \
 			-o "APT::FTPArchive::Release::Suite=$codename" \
