@@ -38,7 +38,7 @@ for version in "${versions[@]}"; do
 
 	echo >> "$version/Dockerfile"
 
-	extraBuildTags=
+	extraBuildTags='pkcs11'
 	runcBuildTags=
 
 	case "$from" in
