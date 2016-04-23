@@ -6894,3 +6894,94 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestBuildWithExternalAuth(c *check.C) 
 	out, _, err := runCommandWithOutput(buildCmd)
 	c.Assert(err, check.IsNil, check.Commentf(out))
 }
+
+// Test cases in #22036
+func (s *DockerSuite) TestBuildLabelsOverride(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	// Command line option labels will always override
+	name := "scratchy"
+	expected := `{"bar":"from-flag","foo":"from-flag"}`
+	_, err := buildImage(name,
+		`FROM scratch
+                LABEL foo=from-dockerfile`,
+		true, "--label", "foo=from-flag", "--label", "bar=from-flag")
+	c.Assert(err, check.IsNil)
+
+	res := inspectFieldJSON(c, name, "Config.Labels")
+	if res != expected {
+		c.Fatalf("Labels %s, expected %s", res, expected)
+	}
+
+	name = "from"
+	expected = `{"foo":"from-dockerfile"}`
+	_, err = buildImage(name,
+		`FROM scratch
+                LABEL foo from-dockerfile`,
+		true)
+	c.Assert(err, check.IsNil)
+
+	res = inspectFieldJSON(c, name, "Config.Labels")
+	if res != expected {
+		c.Fatalf("Labels %s, expected %s", res, expected)
+	}
+
+	// Command line option label will override even via `FROM`
+	name = "new"
+	expected = `{"bar":"from-dockerfile2","foo":"new"}`
+	_, err = buildImage(name,
+		`FROM from
+                LABEL bar from-dockerfile2`,
+		true, "--label", "foo=new")
+	c.Assert(err, check.IsNil)
+
+	res = inspectFieldJSON(c, name, "Config.Labels")
+	if res != expected {
+		c.Fatalf("Labels %s, expected %s", res, expected)
+	}
+
+	// Command line option without a value set (--label foo, --label bar=)
+	// will be treated as --label foo="", --label bar=""
+	name = "scratchy2"
+	expected = `{"bar":"","foo":""}`
+	_, err = buildImage(name,
+		`FROM scratch
+                LABEL foo=from-dockerfile`,
+		true, "--label", "foo", "--label", "bar=")
+	c.Assert(err, check.IsNil)
+
+	res = inspectFieldJSON(c, name, "Config.Labels")
+	if res != expected {
+		c.Fatalf("Labels %s, expected %s", res, expected)
+	}
+
+	// Command line option without a value set (--label foo, --label bar=)
+	// will be treated as --label foo="", --label bar=""
+	// This time is for inherited images
+	name = "new2"
+	expected = `{"bar":"","foo":""}`
+	_, err = buildImage(name,
+		`FROM from
+                LABEL bar from-dockerfile2`,
+		true, "--label", "foo=", "--label", "bar")
+	c.Assert(err, check.IsNil)
+
+	res = inspectFieldJSON(c, name, "Config.Labels")
+	if res != expected {
+		c.Fatalf("Labels %s, expected %s", res, expected)
+	}
+
+	// Command line option labels with only `FROM`
+	name = "scratchy"
+	expected = `{"bar":"from-flag","foo":"from-flag"}`
+	_, err = buildImage(name,
+		`FROM scratch`,
+		true, "--label", "foo=from-flag", "--label", "bar=from-flag")
+	c.Assert(err, check.IsNil)
+
+	res = inspectFieldJSON(c, name, "Config.Labels")
+	if res != expected {
+		c.Fatalf("Labels %s, expected %s", res, expected)
+	}
+
+}

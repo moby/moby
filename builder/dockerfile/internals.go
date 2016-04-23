@@ -40,19 +40,6 @@ import (
 	"github.com/docker/engine-api/types/strslice"
 )
 
-func (b *Builder) addLabels() {
-	// merge labels
-	if len(b.options.Labels) > 0 {
-		logrus.Debugf("[BUILDER] setting labels %v", b.options.Labels)
-		if b.runConfig.Labels == nil {
-			b.runConfig.Labels = make(map[string]string)
-		}
-		for kL, vL := range b.options.Labels {
-			b.runConfig.Labels[kL] = vL
-		}
-	}
-}
-
 func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) error {
 	if b.disableCommit {
 		return nil
@@ -418,20 +405,7 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 		b.image = img.ImageID()
 
 		if img.RunConfig() != nil {
-			imgConfig := *img.RunConfig()
-			// inherit runConfig labels from the current
-			// state if they've been set already.
-			// Ensures that images with only a FROM
-			// get the labels populated properly.
-			if b.runConfig.Labels != nil {
-				if imgConfig.Labels == nil {
-					imgConfig.Labels = make(map[string]string)
-				}
-				for k, v := range b.runConfig.Labels {
-					imgConfig.Labels[k] = v
-				}
-			}
-			b.runConfig = &imgConfig
+			b.runConfig = img.RunConfig()
 		}
 	}
 
