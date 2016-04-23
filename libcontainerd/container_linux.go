@@ -33,7 +33,6 @@ func (ctr *container) clean() error {
 		return err
 	}
 
-	syscall.Unmount(filepath.Join(ctr.dir, "rootfs"), syscall.MNT_DETACH) // ignore error
 	if err := os.RemoveAll(ctr.dir); err != nil {
 		return err
 	}
