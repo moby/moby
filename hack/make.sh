@@ -66,7 +66,8 @@ DEFAULT_BUNDLES=(
 	validate-toml
 	validate-vet
 
-	binary
+	binary-client
+	binary-daemon
 	dynbinary
 
 	test-unit
@@ -126,13 +127,10 @@ if [ "$DOCKER_EXPERIMENTAL" ]; then
 	DOCKER_BUILDTAGS+=" experimental"
 fi
 
-if [ -z "$DOCKER_CLIENTONLY" ]; then
-	DOCKER_BUILDTAGS+=" daemon"
-	if pkg-config 'libsystemd >= 209' 2> /dev/null ; then
-		DOCKER_BUILDTAGS+=" journald"
-	elif pkg-config 'libsystemd-journal' 2> /dev/null ; then
-		DOCKER_BUILDTAGS+=" journald journald_compat"
-	fi
+if pkg-config 'libsystemd >= 209' 2> /dev/null ; then
+	DOCKER_BUILDTAGS+=" journald"
+elif pkg-config 'libsystemd-journal' 2> /dev/null ; then
+	DOCKER_BUILDTAGS+=" journald journald_compat"
 fi
 
 # test whether "btrfs/version.h" exists and apply btrfs_noversion appropriately

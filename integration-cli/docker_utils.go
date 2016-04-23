@@ -1290,6 +1290,9 @@ func appendBaseEnv(isTLS bool, env ...string) []string {
 		// windows: requires preserving SystemRoot, otherwise dial tcp fails
 		// with "GetAddrInfoW: A non-recoverable error occurred during a database lookup."
 		"SystemRoot",
+
+		// testing help text requires the $PATH to dockerd is set
+		"PATH",
 	}
 	if isTLS {
 		preserveList = append(preserveList, "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH")

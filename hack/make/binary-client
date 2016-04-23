@@ -1,0 +1,7 @@
+#!/bin/bash
+set -e
+
+BINARY_SHORT_NAME="docker"
+SOURCE_PATH="./client"
+
+source "${MAKEDIR}/.binary"

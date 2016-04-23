@@ -8,14 +8,13 @@ DOCKER_OSARCH := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo
 DOCKERFILE := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKERFILE}')
 
 # env vars passed through directly to Docker's build scripts
-# to allow things like `make DOCKER_CLIENTONLY=1 binary` easily
+# to allow things like `make KEEPBUNDLE=1 binary` easily
 # `docs/sources/contributing/devenvironment.md ` and `project/PACKAGERS.md` have some limited documentation of some of these
 DOCKER_ENVS := \
 	-e BUILDFLAGS \
 	-e KEEPBUNDLE \
 	-e DOCKER_BUILD_GOGC \
 	-e DOCKER_BUILD_PKGS \
-	-e DOCKER_CLIENTONLY \
 	-e DOCKER_DEBUG \
 	-e DOCKER_EXPERIMENTAL \
 	-e DOCKER_GITCOMMIT \

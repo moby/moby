@@ -5,45 +5,40 @@ import (
 	"os"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/cli"
 	"github.com/docker/docker/dockerversion"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
 )
 
-var (
-	daemonCli = NewDaemonCli()
-	flHelp    = flag.Bool([]string{"h", "-help"}, false, "Print usage")
-	flVersion = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
-)
-
 func main() {
-	if reexec.Init() {
-		return
-	}
-
 	// Set terminal emulation based on platform as required.
-	_, stdout, stderr := term.StdStreams()
+	stdin, stdout, stderr := term.StdStreams()
 
 	logrus.SetOutput(stderr)
 
-	flag.Merge(flag.CommandLine, daemonCli.commonFlags.FlagSet)
+	flag.Merge(flag.CommandLine, clientFlags.FlagSet, commonFlags.FlagSet)
 
 	flag.Usage = func() {
-		fmt.Fprint(stdout, "Usage: dockerd [ --help | -v | --version ]\n\n")
+		fmt.Fprint(stdout, "Usage: docker [OPTIONS] COMMAND [arg...]\n       docker [ --help | -v | --version ]\n\n")
 		fmt.Fprint(stdout, "A self-sufficient runtime for containers.\n\nOptions:\n")
 
 		flag.CommandLine.SetOutput(stdout)
 		flag.PrintDefaults()
-	}
-	flag.CommandLine.ShortUsage = func() {
-		fmt.Fprint(stderr, "\nUsage:\tdockerd [OPTIONS]\n")
+
+		help := "\nCommands:\n"
+
+		for _, cmd := range dockerCommands {
+			help += fmt.Sprintf("    %-10.10s%s\n", cmd.Name, cmd.Description)
+		}
+
+		help += "\nRun 'docker COMMAND --help' for more information on a command."
+		fmt.Fprintf(stdout, "%s\n", help)
 	}
 
-	if err := flag.CommandLine.ParseFlags(os.Args[1:], false); err != nil {
-		os.Exit(1)
-	}
+	flag.Parse()
 
 	if *flVersion {
 		showVersion()
@@ -56,7 +51,21 @@ func main() {
 		flag.Usage()
 		return
 	}
-	daemonCli.start()
+
+	clientCli := client.NewDockerCli(stdin, stdout, stderr, clientFlags)
+
+	c := cli.New(clientCli, NewDaemonProxy())
+	if err := c.Run(flag.Args()...); err != nil {
+		if sterr, ok := err.(cli.StatusError); ok {
+			if sterr.Status != "" {
+				fmt.Fprintln(stderr, sterr.Status)
+				os.Exit(1)
+			}
+			os.Exit(sterr.StatusCode)
+		}
+		fmt.Fprintln(stderr, err)
+		os.Exit(1)
+	}
 }
 
 func showVersion() {

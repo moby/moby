@@ -216,10 +216,10 @@ the file "./VERSION". This binary is usually installed somewhere like
 
 ### Dynamic Daemon / Client-only Binary
 
-If you are only interested in a Docker client binary, set `DOCKER_CLIENTONLY` to a non-empty value using something similar to the following:
+If you are only interested in a Docker client binary, you can build using:
 
 ```bash
-export DOCKER_CLIENTONLY=1
+./hack/make.sh binary-client
 ```
 
 If you need to (due to distro policy, distro library availability, or for other
@@ -228,10 +228,10 @@ interested in creating a client binary for Docker, use something similar to the
 following:
 
 ```bash
-./hack/make.sh dynbinary
+./hack/make.sh dynbinary-client
 ```
 
-This will create "./bundles/$VERSION/dynbinary/docker-$VERSION", which for
+This will create "./bundles/$VERSION/dynbinary-client/docker-$VERSION", which for
 client-only builds is the important file to grab and install as appropriate.
 
 ## System Dependencies

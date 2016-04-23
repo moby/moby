@@ -3,7 +3,7 @@
 set +xe
 SCRIPT_VER="Thu Feb 25 18:54:57 UTC 2016"
 
-# TODO to make (even) more resilient: 
+# TODO to make (even) more resilient:
 #  - Wait for daemon to be running before executing docker commands
 #  - Check if jq is installed
 #  - Make sure bash is v4.3 or later. Can't do until all Azure nodes on the latest version
@@ -78,7 +78,7 @@ if [ $ec -eq 0 ]; then
 		ping $ip
 	else
 		echo "INFO: The Linux nodes outer daemon replied to a ping. Good!"
-	fi 
+	fi
 fi
 
 # Get the version from the remote node. Note this may fail if jq is not installed.
@@ -134,16 +134,16 @@ if [ $ec -eq 0 ]; then
 
 	# Force remove the image if it exists
 	! docker rmi -f "docker-$COMMITHASH" &>/dev/null
-	
+
 	# This SHOULD never happen, but just in case, also blow away any containers
-	# that might be around. 
+	# that might be around.
 	! if [ ! `docker ps -aq | wc -l` -eq 0 ]; then
 		echo WARN: There were some leftover containers. Cleaning them up.
 		! docker rm -f $(docker ps -aq)
 	fi
 fi
 
-# Provide the docker version for debugging purposes. If these fail, game over. 
+# Provide the docker version for debugging purposes. If these fail, game over.
 # as the Linux box isn't responding for some reason.
 if [ $ec -eq 0 ]; then
 	echo INFO: Docker version and info of the outer daemon on the Linux node
@@ -188,7 +188,7 @@ if [ $ec -eq 0 ]; then
 	ec=$?
 	set +x
 	if [ 0 -ne $ec ]; then
-	    	echo "ERROR: Failed to compile and start the linux daemon"
+		echo "ERROR: Failed to compile and start the linux daemon"
 	fi
 fi
 
@@ -201,7 +201,7 @@ if [ $ec -eq 0 ]; then
 	export DOCKER_TEST_HOST="tcp://$ip:$port_inner"
 	unset DOCKER_CLIENTONLY
 	export DOCKER_REMOTE_DAEMON=1
-	hack/make.sh binary 
+	hack/make.sh binary
 	ec=$?
 	set +x
 	if [ 0 -ne $ec ]; then
@@ -267,7 +267,7 @@ fi
 
 # Tell the user how we did.
 if [ $ec -eq 0 ]; then
-	echo INFO: Completed successfully at `date`. 
+	echo INFO: Completed successfully at `date`.
 else
 	echo ERROR: Failed with exitcode $ec at `date`.
 fi
