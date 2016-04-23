@@ -34,7 +34,7 @@ func parseSubCommand(rest string) (*Node, map[string]bool, error) {
 		return nil, nil, nil
 	}
 
-	_, child, err := parseLine(rest)
+	_, child, err := ParseLine(rest)
 	if err != nil {
 		return nil, nil, err
 	}
