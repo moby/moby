@@ -46,6 +46,7 @@ RUN apt-get update && apt-get install -y \
 	aufs-tools \
 	automake \
 	bash-completion \
+	binutils-mingw-w64 \
 	bsdmainutils \
 	btrfs-tools \
 	build-essential \
@@ -246,15 +247,6 @@ RUN set -x \
 	&& git clone https://github.com/BurntSushi/toml.git "$GOPATH/src/github.com/BurntSushi/toml" \
 	&& (cd "$GOPATH/src/github.com/BurntSushi/toml" && git checkout -q "$TOMLV_COMMIT") \
 	&& go build -v -o /usr/local/bin/tomlv github.com/BurntSushi/toml/cmd/tomlv \
-	&& rm -rf "$GOPATH"
-
-# Build/install the tool for embedding resources in Windows binaries
-ENV RSRC_COMMIT ba14da1f827188454a4591717fff29999010887f
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone https://github.com/akavel/rsrc.git "$GOPATH/src/github.com/akavel/rsrc" \
-	&& (cd "$GOPATH/src/github.com/akavel/rsrc" && git checkout -q "$RSRC_COMMIT") \
-	&& go build -v -o /usr/local/bin/rsrc github.com/akavel/rsrc \
 	&& rm -rf "$GOPATH"
 
 # Install runc

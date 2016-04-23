@@ -169,14 +169,6 @@ RUN set -x \
 	&& go build -v -o /usr/local/bin/tomlv github.com/BurntSushi/toml/cmd/tomlv \
 	&& rm -rf "$GOPATH"
 
-# Build/install the tool for embedding resources in Windows binaries
-ENV RSRC_VERSION v2
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone --depth 1 -b "$RSRC_VERSION" https://github.com/akavel/rsrc.git "$GOPATH/src/github.com/akavel/rsrc" \
-	&& go build -v -o /usr/local/bin/rsrc github.com/akavel/rsrc \
-	&& rm -rf "$GOPATH"
-
 # Install runc
 ENV RUNC_COMMIT e87436998478d222be209707503c27f6f91be0c5
 RUN set -x \
