@@ -198,7 +198,6 @@ if [ $ec -eq 0 ]; then
 	set -x
 	export TIMEOUT="5m"
 	export DOCKER_HOST="tcp://$ip:$port_inner"
-	export DOCKER_TEST_HOST="tcp://$ip:$port_inner"
 	unset DOCKER_CLIENTONLY
 	export DOCKER_REMOTE_DAEMON=1
 	hack/make.sh binary 
