@@ -107,12 +107,12 @@ for version in "${versions[@]}"; do
 
 		# - libdevmapper-dev is missing critical structs (too old)
 		packages=( "${packages[@]/libdevmapper-dev}" )
-		extraBuildTags+=' exclude_graphdriver_devicemapper'
+		extraBuildTags+=' exclude_storage_devicemapper'
 
 		# - btrfs-tools is missing "ioctl.h" (too old), so it's useless
 		#   (since kernels on precise are old too, just skip btrfs entirely)
 		packages=( "${packages[@]/btrfs-tools}" )
-		extraBuildTags+=' exclude_graphdriver_btrfs'
+		extraBuildTags+=' exclude_storage_btrfs'
 	fi
 
 	if [ "$suite" = 'wheezy' ]; then
