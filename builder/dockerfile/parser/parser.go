@@ -68,8 +68,8 @@ func init() {
 	}
 }
 
-// parse a line and return the remainder.
-func parseLine(line string) (string, *Node, error) {
+// ParseLine parse a line and return the remainder.
+func ParseLine(line string) (string, *Node, error) {
 	if line = stripComments(line); line == "" {
 		return "", nil, nil
 	}
@@ -111,7 +111,7 @@ func Parse(rwc io.Reader) (*Node, error) {
 	for scanner.Scan() {
 		scannedLine := strings.TrimLeftFunc(scanner.Text(), unicode.IsSpace)
 		currentLine++
-		line, child, err := parseLine(scannedLine)
+		line, child, err := ParseLine(scannedLine)
 		if err != nil {
 			return nil, err
 		}
@@ -126,7 +126,7 @@ func Parse(rwc io.Reader) (*Node, error) {
 					continue
 				}
 
-				line, child, err = parseLine(line + newline)
+				line, child, err = ParseLine(line + newline)
 				if err != nil {
 					return nil, err
 				}
@@ -136,7 +136,7 @@ func Parse(rwc io.Reader) (*Node, error) {
 				}
 			}
 			if child == nil && line != "" {
-				_, child, err = parseLine(line)
+				_, child, err = ParseLine(line)
 				if err != nil {
 					return nil, err
 				}
