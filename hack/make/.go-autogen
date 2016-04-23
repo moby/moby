@@ -27,9 +27,11 @@ if [ "$(go env GOOS)" = "windows" ]; then
 
 	if [ "$(go env GOHOSTOS)" == "windows" ]; then
 		WINDRES=windres
+		WINDMC=windmc
 	else
 		# Cross compiling
 		WINDRES=x86_64-w64-mingw32-windres
+		WINDMC=x86_64-w64-mingw32-windmc
 	fi
 
 	# Generate a Windows file version of the form major,minor,patch,build (with any part optional)
@@ -50,6 +52,11 @@ if [ "$(go env GOOS)" = "windows" ]; then
 			-I autogen/winresources/tmp \
 			$defs
 	}
+
+	$WINDMC \
+		hack/make/.resources-windows/event_messages.mc \
+		-h autogen/winresources/tmp \
+		-r autogen/winresources/tmp
 
 	makeres docker.rc pe-x86-64 autogen/winresources/docker/rsrc_amd64.syso
 	makeres docker.rc pe-i386 autogen/winresources/docker/rsrc_386.syso

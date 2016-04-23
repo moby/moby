@@ -53,6 +53,9 @@ type DaemonCli struct {
 	*daemon.Config
 	commonFlags *cli.CommonFlags
 	configFile  *string
+
+	api *apiserver.Server
+	d   *daemon.Daemon
 }
 
 func presentInHelp(usage string) string { return usage }
@@ -121,7 +124,10 @@ func migrateKey() (err error) {
 	return nil
 }
 
-func (cli *DaemonCli) start() {
+func (cli *DaemonCli) start() (err error) {
+	stopc := make(chan bool)
+	defer close(stopc)
+
 	// warn from uuid package when running the daemon
 	uuid.Loggerf = logrus.Warnf
 
@@ -133,8 +139,7 @@ func (cli *DaemonCli) start() {
 	}
 	cliConfig, err := loadDaemonCliConfig(cli.Config, flags, cli.commonFlags, *cli.configFile)
 	if err != nil {
-		fmt.Fprint(os.Stderr, err)
-		os.Exit(1)
+		return err
 	}
 	cli.Config = cliConfig
 
@@ -152,24 +157,22 @@ func (cli *DaemonCli) start() {
 	})
 
 	if err := setDefaultUmask(); err != nil {
-		logrus.Fatalf("Failed to set umask: %v", err)
+		return fmt.Errorf("Failed to set umask: %v", err)
 	}
 
 	if len(cli.LogConfig.Config) > 0 {
 		if err := logger.ValidateLogOpts(cli.LogConfig.Type, cli.LogConfig.Config); err != nil {
-			logrus.Fatalf("Failed to set log opts: %v", err)
+			return fmt.Errorf("Failed to set log opts: %v", err)
 		}
 	}
 
-	var pfile *pidfile.PIDFile
 	if cli.Pidfile != "" {
 		pf, err := pidfile.New(cli.Pidfile)
 		if err != nil {
-			logrus.Fatalf("Error starting daemon: %v", err)
+			return fmt.Errorf("Error starting daemon: %v", err)
 		}
-		pfile = pf
 		defer func() {
-			if err := pfile.Remove(); err != nil {
+			if err := pf.Remove(); err != nil {
 				logrus.Error(err)
 			}
 		}()
@@ -196,7 +199,7 @@ func (cli *DaemonCli) start() {
 		}
 		tlsConfig, err := tlsconfig.Server(tlsOptions)
 		if err != nil {
-			logrus.Fatal(err)
+			return err
 		}
 		serverConfig.TLSConfig = tlsConfig
 	}
@@ -210,13 +213,13 @@ func (cli *DaemonCli) start() {
 	for i := 0; i < len(cli.Config.Hosts); i++ {
 		var err error
 		if cli.Config.Hosts[i], err = opts.ParseHost(cli.Config.TLS, cli.Config.Hosts[i]); err != nil {
-			logrus.Fatalf("error parsing -H %s : %v", cli.Config.Hosts[i], err)
+			return fmt.Errorf("error parsing -H %s : %v", cli.Config.Hosts[i], err)
 		}
 
 		protoAddr := cli.Config.Hosts[i]
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
 		if len(protoAddrParts) != 2 {
-			logrus.Fatalf("bad format %s, expected PROTO://ADDR", protoAddr)
+			return fmt.Errorf("bad format %s, expected PROTO://ADDR", protoAddr)
 		}
 
 		proto := protoAddrParts[0]
@@ -228,12 +231,12 @@ func (cli *DaemonCli) start() {
 		}
 		l, err := listeners.Init(proto, addr, serverConfig.SocketGroup, serverConfig.TLSConfig)
 		if err != nil {
-			logrus.Fatal(err)
+			return err
 		}
 		// If we're binding to a TCP port, make sure that a container doesn't try to use it.
 		if proto == "tcp" {
 			if err := allocateDaemonPort(addr); err != nil {
-				logrus.Fatal(err)
+				return err
 			}
 		}
 		logrus.Debugf("Listener created for HTTP on %s (%s)", protoAddrParts[0], protoAddrParts[1])
@@ -241,24 +244,19 @@ func (cli *DaemonCli) start() {
 	}
 
 	if err := migrateKey(); err != nil {
-		logrus.Fatal(err)
+		return err
 	}
 	cli.TrustKeyPath = cli.commonFlags.TrustKey
 
 	registryService := registry.NewService(cli.Config.ServiceOptions)
 	containerdRemote, err := libcontainerd.New(cli.getLibcontainerdRoot(), cli.getPlatformRemoteOptions()...)
 	if err != nil {
-		logrus.Fatal(err)
+		return err
 	}
 
 	d, err := daemon.NewDaemon(cli.Config, registryService, containerdRemote)
 	if err != nil {
-		if pfile != nil {
-			if err := pfile.Remove(); err != nil {
-				logrus.Error(err)
-			}
-		}
-		logrus.Fatalf("Error starting daemon: %v", err)
+		return fmt.Errorf("Error starting daemon: %v", err)
 	}
 
 	logrus.Info("Daemon has completed initialization")
@@ -272,26 +270,9 @@ func (cli *DaemonCli) start() {
 	cli.initMiddlewares(api, serverConfig)
 	initRouter(api, d)
 
-	reload := func(config *daemon.Config) {
-		if err := d.Reload(config); err != nil {
-			logrus.Errorf("Error reconfiguring the daemon: %v", err)
-			return
-		}
-		if config.IsValueSet("debug") {
-			debugEnabled := utils.IsDebugEnabled()
-			switch {
-			case debugEnabled && !config.Debug: // disable debug
-				utils.DisableDebug()
-				api.DisableProfiler()
-			case config.Debug && !debugEnabled: // enable debug
-				utils.EnableDebug()
-				api.EnableProfiler()
-			}
-
-		}
-	}
-
-	setupConfigReloadTrap(*cli.configFile, flags, reload)
+	cli.d = d
+	cli.api = api
+	cli.setupConfigReloadTrap()
 
 	// The serve API routine never exits unless an error occurs
 	// We need to start it as a goroutine and wait on it so
@@ -300,14 +281,8 @@ func (cli *DaemonCli) start() {
 	go api.Wait(serveAPIWait)
 
 	signal.Trap(func() {
-		api.Close()
-		<-serveAPIWait
-		shutdownDaemon(d, 15)
-		if pfile != nil {
-			if err := pfile.Remove(); err != nil {
-				logrus.Error(err)
-			}
-		}
+		cli.stop()
+		<-stopc // wait for daemonCli.start() to return
 	})
 
 	// after the daemon is done setting up we can notify systemd api
@@ -319,13 +294,39 @@ func (cli *DaemonCli) start() {
 	shutdownDaemon(d, 15)
 	containerdRemote.Cleanup()
 	if errAPI != nil {
-		if pfile != nil {
-			if err := pfile.Remove(); err != nil {
-				logrus.Error(err)
-			}
-		}
-		logrus.Fatalf("Shutting down due to ServeAPI error: %v", errAPI)
+		return fmt.Errorf("Shutting down due to ServeAPI error: %v", errAPI)
 	}
+
+	return nil
+}
+
+func (cli *DaemonCli) reloadConfig() {
+	reload := func(config *daemon.Config) {
+		if err := cli.d.Reload(config); err != nil {
+			logrus.Errorf("Error reconfiguring the daemon: %v", err)
+			return
+		}
+		if config.IsValueSet("debug") {
+			debugEnabled := utils.IsDebugEnabled()
+			switch {
+			case debugEnabled && !config.Debug: // disable debug
+				utils.DisableDebug()
+				cli.api.DisableProfiler()
+			case config.Debug && !debugEnabled: // enable debug
+				utils.EnableDebug()
+				cli.api.EnableProfiler()
+			}
+
+		}
+	}
+
+	if err := daemon.ReloadConfiguration(*cli.configFile, flag.CommandLine, reload); err != nil {
+		logrus.Error(err)
+	}
+}
+
+func (cli *DaemonCli) stop() {
+	cli.api.Close()
 }
 
 // shutdownDaemon just wraps daemon.Shutdown() to handle a timeout in case

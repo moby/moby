@@ -1,5 +1,5 @@
 package main
 
 import (
-	_ "github.com/docker/docker/autogen/winresources/docker"
+	_ "github.com/docker/docker/autogen/winresources/dockerd"
 )
