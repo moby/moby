@@ -3,6 +3,6 @@ set -e
 
 (
 	export BINARY_SHORT_NAME='docker'
-	export SOURCE_PATH='./client'
+	export SOURCE_PATH='./cmd/docker'
 	source "${MAKEDIR}/.binary"
 )
