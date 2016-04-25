@@ -6,7 +6,7 @@ const (
 	// VersionMajor is for an API incompatible changes
 	VersionMajor = 0
 	// VersionMinor is for functionality in a backwards-compatible manner
-	VersionMinor = 5
+	VersionMinor = 6
 	// VersionPatch is for backwards-compatible bug fixes
 	VersionPatch = 0
 
