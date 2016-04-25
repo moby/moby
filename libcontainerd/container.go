@@ -2,6 +2,7 @@ package libcontainerd
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/docker/docker/restartmanager"
 )
@@ -18,6 +19,7 @@ type containerCommon struct {
 	restartManager restartmanager.RestartManager
 	restarting     bool
 	processes      map[string]*process
+	startedAt      time.Time
 }
 
 // WithRestartManager sets the restartmanager to be used with the container.
