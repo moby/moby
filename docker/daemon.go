@@ -179,8 +179,9 @@ func (cli *DaemonCli) start() {
 		Logging:     true,
 		SocketGroup: cli.Config.SocketGroup,
 		Version:     dockerversion.Version,
+		EnableCors:  cli.Config.EnableCors,
+		CorsHeaders: cli.Config.CorsHeaders,
 	}
-	serverConfig = setPlatformServerConfig(serverConfig, cli.Config)
 
 	if cli.Config.TLS {
 		tlsOptions := tlsconfig.Options{

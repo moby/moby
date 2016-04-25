@@ -77,6 +77,8 @@ type CommonConfig struct {
 	Root                 string              `json:"graph,omitempty"`
 	SocketGroup          string              `json:"group,omitempty"`
 	TrustKeyPath         string              `json:"-"`
+	CorsHeaders          string              `json:"api-cors-headers,omitempty"`
+	EnableCors           bool                `json:"api-enable-cors,omitempty"`
 
 	// ClusterStore is the storage backend used for the cluster information. It is used by both
 	// multihost networking (to store networks and endpoints information) and by the node discovery
@@ -135,6 +137,7 @@ func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string)
 	cmd.StringVar(&config.ClusterAdvertise, []string{"-cluster-advertise"}, "", usageFn("Address or interface name to advertise"))
 	cmd.StringVar(&config.ClusterStore, []string{"-cluster-store"}, "", usageFn("Set the cluster store"))
 	cmd.Var(opts.NewNamedMapOpts("cluster-store-opts", config.ClusterOpts, nil), []string{"-cluster-store-opt"}, usageFn("Set cluster store options"))
+	cmd.StringVar(&config.CorsHeaders, []string{"-api-cors-header"}, "", usageFn("Set CORS headers in the remote API"))
 }
 
 // IsValueSet returns true if a configuration value

@@ -24,11 +24,8 @@ type Config struct {
 	CommonConfig
 
 	// Fields below here are platform specific.
-
 	CgroupParent         string                   `json:"cgroup-parent,omitempty"`
 	ContainerdAddr       string                   `json:"containerd,omitempty"`
-	CorsHeaders          string                   `json:"api-cors-headers,omitempty"`
-	EnableCors           bool                     `json:"api-enable-cors,omitempty"`
 	EnableSelinuxSupport bool                     `json:"selinux-enabled,omitempty"`
 	ExecRoot             string                   `json:"exec-root,omitempty"`
 	RemappedRoot         string                   `json:"userns-remap,omitempty"`
@@ -82,7 +79,6 @@ func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) strin
 	cmd.Var(opts.NewIPOpt(&config.bridgeConfig.DefaultIP, "0.0.0.0"), []string{"#ip", "-ip"}, usageFn("Default IP when binding container ports"))
 	cmd.BoolVar(&config.bridgeConfig.EnableUserlandProxy, []string{"-userland-proxy"}, true, usageFn("Use userland proxy for loopback traffic"))
 	cmd.BoolVar(&config.EnableCors, []string{"#api-enable-cors", "#-api-enable-cors"}, false, usageFn("Enable CORS headers in the remote API, this is deprecated by --api-cors-header"))
-	cmd.StringVar(&config.CorsHeaders, []string{"-api-cors-header"}, "", usageFn("Set CORS headers in the remote API"))
 	cmd.StringVar(&config.CgroupParent, []string{"-cgroup-parent"}, "", usageFn("Set parent cgroup for all containers"))
 	cmd.StringVar(&config.RemappedRoot, []string{"-userns-remap"}, "", usageFn("User/Group setting for user namespaces"))
 	cmd.StringVar(&config.ContainerdAddr, []string{"-containerd"}, "", usageFn("Path to containerd socket"))
