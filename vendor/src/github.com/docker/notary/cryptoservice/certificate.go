@@ -21,13 +21,6 @@ func GenerateCertificate(rootKey data.PrivateKey, gun string, startTime, endTime
 	return generateCertificate(signer, gun, startTime, endTime)
 }
 
-// GenerateTestingCertificate generates a non-expired X509 Certificate from a template, given a GUN.
-// Good enough for tests where expiration does not really matter; do not use if you care about the policy.
-func GenerateTestingCertificate(signer crypto.Signer, gun string) (*x509.Certificate, error) {
-	startTime := time.Now()
-	return generateCertificate(signer, gun, startTime, startTime.AddDate(10, 0, 0))
-}
-
 func generateCertificate(signer crypto.Signer, gun string, startTime, endTime time.Time) (*x509.Certificate, error) {
 	template, err := trustmanager.NewCertificate(gun, startTime, endTime)
 	if err != nil {

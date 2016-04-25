@@ -3,7 +3,6 @@ package data
 import (
 	"bytes"
 	"fmt"
-	"time"
 
 	"github.com/docker/go/canonical/json"
 	"github.com/docker/notary"
@@ -18,10 +17,8 @@ type SignedTimestamp struct {
 
 // Timestamp is the Signed component of a timestamp.json
 type Timestamp struct {
-	Type    string    `json:"_type"`
-	Version int       `json:"version"`
-	Expires time.Time `json:"expires"`
-	Meta    Files     `json:"meta"`
+	SignedCommon
+	Meta Files `json:"meta"`
 }
 
 // isValidTimestampStructure returns an error, or nil, depending on whether the content of the struct
@@ -32,6 +29,11 @@ func isValidTimestampStructure(t Timestamp) error {
 	if t.Type != expectedType {
 		return ErrInvalidMetadata{
 			role: CanonicalTimestampRole, msg: fmt.Sprintf("expected type %s, not %s", expectedType, t.Type)}
+	}
+
+	if t.Version < 0 {
+		return ErrInvalidMetadata{
+			role: CanonicalTimestampRole, msg: "version cannot be negative"}
 	}
 
 	// Meta is a map of FileMeta, so if the role isn't in the map it returns
@@ -64,9 +66,11 @@ func NewTimestamp(snapshot *Signed) (*SignedTimestamp, error) {
 	return &SignedTimestamp{
 		Signatures: make([]Signature, 0),
 		Signed: Timestamp{
-			Type:    TUFTypes["timestamp"],
-			Version: 0,
-			Expires: DefaultExpires("timestamp"),
+			SignedCommon: SignedCommon{
+				Type:    TUFTypes[CanonicalTimestampRole],
+				Version: 0,
+				Expires: DefaultExpires(CanonicalTimestampRole),
+			},
 			Meta: Files{
 				CanonicalSnapshotRole: snapshotMeta,
 			},
