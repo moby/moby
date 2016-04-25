@@ -48,6 +48,7 @@ var (
 	procTerminateComputeSystem                     = modvmcompute.NewProc("TerminateComputeSystem")
 	procTerminateProcessInComputeSystem            = modvmcompute.NewProc("TerminateProcessInComputeSystem")
 	procWaitForProcessInComputeSystem              = modvmcompute.NewProc("WaitForProcessInComputeSystem")
+	procGetComputeSystemProperties                 = modvmcompute.NewProc("GetComputeSystemProperties")
 	procHNSCall                                    = modvmcompute.NewProc("HNSCall")
 )
 
@@ -707,6 +708,26 @@ func _waitForProcessInComputeSystem(id *uint16, pid uint32, timeout uint32, exit
 		return
 	}
 	r0, _, _ := syscall.Syscall6(procWaitForProcessInComputeSystem.Addr(), 4, uintptr(unsafe.Pointer(id)), uintptr(pid), uintptr(timeout), uintptr(unsafe.Pointer(exitCode)), 0, 0)
+	if int32(r0) < 0 {
+		hr = syscall.Errno(win32FromHresult(r0))
+	}
+	return
+}
+
+func getComputeSystemProperties(id string, flags uint32, properties **uint16) (hr error) {
+	var _p0 *uint16
+	_p0, hr = syscall.UTF16PtrFromString(id)
+	if hr != nil {
+		return
+	}
+	return _getComputeSystemProperties(_p0, flags, properties)
+}
+
+func _getComputeSystemProperties(id *uint16, flags uint32, properties **uint16) (hr error) {
+	if hr = procGetComputeSystemProperties.Find(); hr != nil {
+		return
+	}
+	r0, _, _ := syscall.Syscall(procGetComputeSystemProperties.Addr(), 3, uintptr(unsafe.Pointer(id)), uintptr(flags), uintptr(unsafe.Pointer(properties)))
 	if int32(r0) < 0 {
 		hr = syscall.Errno(win32FromHresult(r0))
 	}

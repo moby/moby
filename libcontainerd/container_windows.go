@@ -35,11 +35,30 @@ func (ctr *container) newProcess(friendlyName string) *process {
 func (ctr *container) start() error {
 	var err error
 
-	// Start the container
+	// Start the container.  If this is a servicing container, this call will block
+	// until the container is done with the servicing execution.
 	logrus.Debugln("Starting container ", ctr.containerID)
 	if err = hcsshim.StartComputeSystem(ctr.containerID); err != nil {
 		logrus.Errorf("Failed to start compute system: %s", err)
 		return err
+	}
+
+	for _, option := range ctr.options {
+		if s, ok := option.(*ServicingOption); ok && s.IsServicing {
+			// Since the servicing operation is complete when StartCommputeSystem returns without error,
+			// we can shutdown (which triggers merge) and exit early.
+			const shutdownTimeout = 5 * 60 * 1000  // 4 minutes
+			const terminateTimeout = 1 * 60 * 1000 // 1 minute
+			if err := hcsshim.ShutdownComputeSystem(ctr.containerID, shutdownTimeout, ""); err != nil {
+				logrus.Errorf("Failed during cleanup of servicing container: %s", err)
+				// Terminate the container, ignoring errors.
+				if err2 := hcsshim.TerminateComputeSystem(ctr.containerID, terminateTimeout, ""); err2 != nil {
+					logrus.Errorf("Failed to terminate container %s after shutdown failure: %q", ctr.containerID, err2)
+				}
+				return err
+			}
+			return nil
+		}
 	}
 
 	createProcessParms := hcsshim.CreateProcessParams{
@@ -149,10 +168,13 @@ func (ctr *container) waitExit(pid uint32, processFriendlyName string, isFirstPr
 	// If this is the init process, always call into vmcompute.dll to
 	// shutdown the container after we have completed.
 	if isFirstProcessToStart {
-
-		// TODO Windows - add call into hcsshim to check if an update
-		// is pending once that is available.
-		//si.UpdatePending = CHECK IF UPDATE NEEDED
+		propertyCheckFlag := 1 // Include update pending check.
+		csProperties, err := hcsshim.GetComputeSystemProperties(ctr.containerID, uint32(propertyCheckFlag))
+		if err != nil {
+			logrus.Warnf("GetComputeSystemProperties failed (container may have been killed): %s", err)
+		} else {
+			si.UpdatePending = csProperties.AreUpdatesPending
+		}
 
 		logrus.Debugf("Shutting down container %s", ctr.containerID)
 		// Explicit timeout here rather than hcsshim.TimeoutInfinte to avoid a
