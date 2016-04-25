@@ -10,6 +10,7 @@ import (
 
 // Test case for #22244
 func (s *DockerSuite) TestAuthApi(c *check.C) {
+	testRequires(c, Network)
 	config := types.AuthConfig{
 		Username: "no-user",
 		Password: "no-password",
