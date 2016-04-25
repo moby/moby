@@ -1498,7 +1498,7 @@ func (daemon *Daemon) initDiscovery(config *Config) error {
 func (daemon *Daemon) Reload(config *Config) error {
 	daemon.configStore.reloadLock.Lock()
 	defer daemon.configStore.reloadLock.Unlock()
-	if config.IsValueSet("label") {
+	if config.IsValueSet("labels") {
 		daemon.configStore.Labels = config.Labels
 	}
 	if config.IsValueSet("debug") {
