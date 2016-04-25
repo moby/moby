@@ -2967,6 +2967,7 @@ Content-Type: application/json
 Query Parameters:
 
 - **filters** - JSON encoded network list filter. The filter value is one of:
+  -   `driver=<driver-name>` Matches a network's driver.
   -   `id=<network-id>` Matches all or part of a network id.
   -   `label=<key>` or `label=<key>=<value>` of a network label.
   -   `name=<network-name>` Matches all or part of a network name.

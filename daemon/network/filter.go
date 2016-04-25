@@ -13,10 +13,11 @@ type filterHandler func([]libnetwork.Network, string) ([]libnetwork.Network, err
 var (
 	// AcceptedFilters is an acceptable filters for validation
 	AcceptedFilters = map[string]bool{
-		"type":  true,
-		"name":  true,
-		"id":    true,
-		"label": true,
+		"driver": true,
+		"type":   true,
+		"name":   true,
+		"id":     true,
+		"label":  true,
 	}
 )
 
@@ -50,6 +51,11 @@ func FilterNetworks(nws []libnetwork.Network, filter filters.Args) ([]libnetwork
 
 	var displayNet []libnetwork.Network
 	for _, nw := range nws {
+		if filter.Include("driver") {
+			if !filter.ExactMatch("driver", nw.Type()) {
+				continue
+			}
+		}
 		if filter.Include("name") {
 			if !filter.Match("name", nw.Name()) {
 				continue

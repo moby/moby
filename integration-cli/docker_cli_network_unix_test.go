@@ -352,6 +352,15 @@ func (s *DockerNetworkSuite) TestDockerNetworkLsFilter(c *check.C) {
 	out, _ = dockerCmd(c, "network", "ls", "-f", "label=nonexistent")
 	outArr := strings.Split(strings.TrimSpace(out), "\n")
 	c.Assert(len(outArr), check.Equals, 1, check.Commentf("%s\n", out))
+
+	out, _ = dockerCmd(c, "network", "ls", "-f", "driver=null")
+	assertNwList(c, out, []string{"none"})
+
+	out, _ = dockerCmd(c, "network", "ls", "-f", "driver=host")
+	assertNwList(c, out, []string{"host"})
+
+	out, _ = dockerCmd(c, "network", "ls", "-f", "driver=bridge")
+	assertNwList(c, out, []string{"bridge", "dev", testNet})
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkCreateDelete(c *check.C) {
