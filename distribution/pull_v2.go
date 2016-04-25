@@ -147,7 +147,7 @@ func (ld *v2LayerDescriptor) DiffID() (layer.DiffID, error) {
 	return ld.V2MetadataService.GetDiffID(ld.digest)
 }
 
-func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progress.Output) (io.ReadCloser, int64, error) {
+func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progress.Output) (xfer.ReadReadAtCloser, int64, error) {
 	logrus.Debugf("pulling blob %q", ld.digest)
 
 	var (
@@ -282,7 +282,7 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 	// be closed once
 	ld.tmpFile = nil
 
-	return ioutils.NewReadCloserWrapper(tmpFile, func() error {
+	return xfer.NewReadReadAtCloserWrapper(tmpFile, func() error {
 		tmpFile.Close()
 		err := os.RemoveAll(tmpFile.Name())
 		if err != nil {

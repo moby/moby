@@ -299,7 +299,7 @@ func (ld *v1LayerDescriptor) DiffID() (layer.DiffID, error) {
 	return ld.v1IDService.Get(ld.v1LayerID, ld.indexName)
 }
 
-func (ld *v1LayerDescriptor) Download(ctx context.Context, progressOutput progress.Output) (io.ReadCloser, int64, error) {
+func (ld *v1LayerDescriptor) Download(ctx context.Context, progressOutput progress.Output) (xfer.ReadReadAtCloser, int64, error) {
 	progress.Update(progressOutput, ld.ID(), "Pulling fs layer")
 	layerReader, err := ld.session.GetRemoteImageLayer(ld.v1LayerID, ld.endpoint, ld.layerSize)
 	if err != nil {
@@ -340,7 +340,7 @@ func (ld *v1LayerDescriptor) Download(ctx context.Context, progressOutput progre
 	tmpFile := ld.tmpFile
 	ld.tmpFile = nil
 
-	return ioutils.NewReadCloserWrapper(tmpFile, func() error {
+	return xfer.NewReadReadAtCloserWrapper(tmpFile, func() error {
 		tmpFile.Close()
 		err := os.RemoveAll(tmpFile.Name())
 		if err != nil {

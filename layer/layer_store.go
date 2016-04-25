@@ -193,31 +193,39 @@ func (ls *layerStore) loadMount(mount string) error {
 	return nil
 }
 
-func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent string, layer *roLayer) error {
+func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent string, layer *roLayer, source io.Reader) error {
 	digester := digest.Canonical.New()
-	tr := io.TeeReader(ts, digester.Hash())
+	if source == nil {
+		ts = io.TeeReader(ts, digester.Hash())
+		tsw, err := tx.TarSplitWriter(true)
+		if err != nil {
+			return err
+		}
+		metaPacker := storage.NewJSONPacker(tsw)
+		defer tsw.Close()
 
-	tsw, err := tx.TarSplitWriter(true)
-	if err != nil {
-		return err
+		// we're passing nil here for the file putter, because the ApplyDiff will
+		// handle the extraction of the archive
+		ts, err = asm.NewInputTarStream(ts, metaPacker, nil)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Get a digest of the source. For now, don't save the source separately;
+		// this means that save and push will not work for this layer.
+		_, err := io.Copy(digester.Hash(), source)
+		if err != nil {
+			return err
+		}
 	}
-	metaPacker := storage.NewJSONPacker(tsw)
-	defer tsw.Close()
 
-	// we're passing nil here for the file putter, because the ApplyDiff will
-	// handle the extraction of the archive
-	rdr, err := asm.NewInputTarStream(tr, metaPacker, nil)
-	if err != nil {
-		return err
-	}
-
-	applySize, err := ls.driver.ApplyDiff(layer.cacheID, parent, archive.Reader(rdr))
+	applySize, err := ls.driver.ApplyDiff(layer.cacheID, parent, archive.Reader(ts))
 	if err != nil {
 		return err
 	}
 
 	// Discard trailing data but ensure metadata is picked up to reconstruct stream
-	io.Copy(ioutil.Discard, rdr) // ignore error as reader may be closed
+	io.Copy(ioutil.Discard, ts) // ignore error as reader may be closed
 
 	layer.size = applySize
 	layer.diffID = DiffID(digester.Digest())
@@ -228,6 +236,14 @@ func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent stri
 }
 
 func (ls *layerStore) Register(ts io.Reader, parent ChainID) (Layer, error) {
+	return ls.register(ts, parent, nil)
+}
+
+func (ls *layerStore) RegisterCustom(ts io.Reader, parent ChainID, source io.Reader) (Layer, error) {
+	return ls.register(ts, parent, source)
+}
+
+func (ls *layerStore) register(ts io.Reader, parent ChainID, source io.Reader) (Layer, error) {
 	// err is used to hold the error which will always trigger
 	// cleanup of creates sources but may not be an error returned
 	// to the caller (already exists).
@@ -284,7 +300,7 @@ func (ls *layerStore) Register(ts io.Reader, parent ChainID) (Layer, error) {
 		}
 	}()
 
-	if err = ls.applyTar(tx, ts, pid, layer); err != nil {
+	if err = ls.applyTar(tx, ts, pid, layer, source); err != nil {
 		return nil, err
 	}
 
