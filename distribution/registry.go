@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/registry"
 	"github.com/docker/engine-api/types"
+	"github.com/docker/go-connections/sockets"
 	"golang.org/x/net/context"
 )
 
@@ -43,18 +44,25 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 		repoName = repoInfo.RemoteName()
 	}
 
+	direct := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+		DualStack: true,
+	}
+
 	// TODO(dmcgowan): Call close idle connections when complete, use keep alive
 	base := &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		Dial: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-			DualStack: true,
-		}).Dial,
+		Proxy:               http.ProxyFromEnvironment,
+		Dial:                direct.Dial,
 		TLSHandshakeTimeout: 10 * time.Second,
 		TLSClientConfig:     endpoint.TLSConfig,
 		// TODO(dmcgowan): Call close idle connections when complete and use keep alive
 		DisableKeepAlives: true,
+	}
+
+	proxyDialer, err := sockets.DialerFromEnvironment(direct)
+	if err == nil {
+		base.Dial = proxyDialer.Dial
 	}
 
 	modifiers := registry.DockerHeaders(dockerversion.DockerUserAgent(ctx), metaHeaders)
