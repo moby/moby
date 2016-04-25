@@ -1021,7 +1021,7 @@ func (s *DockerSuite) TestRunSeccompWithDefaultProfile(c *check.C) {
 	c.Assert(strings.TrimSpace(out), checker.Equals, "unshare: unshare failed: Operation not permitted")
 }
 
-// TestRunDeviceSymlink checks run with device that follows symlink (#13840)
+// TestRunDeviceSymlink checks run with device that follows symlink (#13840 and #22271)
 func (s *DockerSuite) TestRunDeviceSymlink(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm, SameHostDaemon)
 	if _, err := os.Stat("/dev/zero"); err != nil {
@@ -1048,6 +1048,14 @@ func (s *DockerSuite) TestRunDeviceSymlink(c *check.C) {
 	err = os.Symlink(tmpFile, symFile)
 	c.Assert(err, checker.IsNil)
 
+	// Create a symbolic link to /dev/zero, this time with a relative path (#22271)
+	err = os.Symlink("zero", "/dev/symzero")
+	if err != nil {
+		c.Fatal("/dev/symzero creation failed")
+	}
+	// We need to remove this symbolic link here as it is created in /dev/, not temporary directory as above
+	defer os.Remove("/dev/symzero")
+
 	// md5sum of 'dd if=/dev/zero bs=4K count=8' is bb7df04e1b0a2570657527a7e108ae23
 	out, _ := dockerCmd(c, "run", "--device", symZero+":/dev/symzero", "busybox", "sh", "-c", "dd if=/dev/symzero bs=4K count=8 | md5sum")
 	c.Assert(strings.Trim(out, "\r\n"), checker.Contains, "bb7df04e1b0a2570657527a7e108ae23", check.Commentf("expected output bb7df04e1b0a2570657527a7e108ae23"))
@@ -1056,6 +1064,10 @@ func (s *DockerSuite) TestRunDeviceSymlink(c *check.C) {
 	out, _, err = dockerCmdWithError("run", "--device", symFile+":/dev/symzero", "busybox", "sh", "-c", "dd if=/dev/symzero bs=4K count=8 | md5sum")
 	c.Assert(err, check.NotNil)
 	c.Assert(strings.Trim(out, "\r\n"), checker.Contains, "not a device node", check.Commentf("expected output 'not a device node'"))
+
+	// md5sum of 'dd if=/dev/zero bs=4K count=8' is bb7df04e1b0a2570657527a7e108ae23 (this time check with relative path backed, see #22271)
+	out, _ = dockerCmd(c, "run", "--device", "/dev/symzero:/dev/symzero", "busybox", "sh", "-c", "dd if=/dev/symzero bs=4K count=8 | md5sum")
+	c.Assert(strings.Trim(out, "\r\n"), checker.Contains, "bb7df04e1b0a2570657527a7e108ae23", check.Commentf("expected output bb7df04e1b0a2570657527a7e108ae23"))
 }
 
 // TestRunPidsLimit makes sure the pids cgroup is set with --pids-limit

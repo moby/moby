@@ -311,7 +311,7 @@ func getDevicesFromPath(deviceMapping containertypes.DeviceMapping) (devs []spec
 
 	// check if it is a symbolic link
 	if src, e := os.Lstat(deviceMapping.PathOnHost); e == nil && src.Mode()&os.ModeSymlink == os.ModeSymlink {
-		if linkedPathOnHost, e := os.Readlink(deviceMapping.PathOnHost); e == nil {
+		if linkedPathOnHost, e := filepath.EvalSymlinks(deviceMapping.PathOnHost); e == nil {
 			resolvedPathOnHost = linkedPathOnHost
 		}
 	}
