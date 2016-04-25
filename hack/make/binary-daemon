@@ -1,8 +1,9 @@
 #!/bin/bash
 set -e
 
-BINARY_SHORT_NAME="dockerd"
-SOURCE_PATH="./docker"
-
-source "${MAKEDIR}/.binary"
-copy_containerd "$DEST" "hash"
+(
+	export BINARY_SHORT_NAME='dockerd'
+	export SOURCE_PATH='./docker'
+	source "${MAKEDIR}/.binary"
+	copy_containerd "$DEST" 'hash'
+)
