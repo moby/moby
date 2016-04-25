@@ -320,7 +320,7 @@ func TestDaemonReloadLabels(t *testing.T) {
 	}
 
 	valuesSets := make(map[string]interface{})
-	valuesSets["label"] = "foo:baz"
+	valuesSets["labels"] = "foo:baz"
 	newConfig := &Config{
 		CommonConfig: CommonConfig{
 			Labels:    []string{"foo:baz"},
@@ -345,7 +345,7 @@ func TestDaemonReloadNotAffectOthers(t *testing.T) {
 	}
 
 	valuesSets := make(map[string]interface{})
-	valuesSets["label"] = "foo:baz"
+	valuesSets["labels"] = "foo:baz"
 	newConfig := &Config{
 		CommonConfig: CommonConfig{
 			Labels:    []string{"foo:baz"},
