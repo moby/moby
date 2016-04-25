@@ -2,7 +2,7 @@
 set -e
 
 (
-    export BINARY_SHORT_NAME="docker-client"
+    export BINARY_SHORT_NAME="docker"
     export SOURCE_PATH="./client"
 	export IAMSTATIC="false"
 	export LDFLAGS_STATIC_DOCKER=''
