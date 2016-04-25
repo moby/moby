@@ -178,7 +178,7 @@ func (s *DockerSuite) TestInsecureRegistries(c *check.C) {
 
 	out, err := d.Cmd("info")
 	c.Assert(err, checker.IsNil)
-	c.Assert(out, checker.Contains, "Insecure registries:\n")
+	c.Assert(out, checker.Contains, "Insecure Registries:\n")
 	c.Assert(out, checker.Contains, fmt.Sprintf(" %s\n", registryHost))
 	c.Assert(out, checker.Contains, fmt.Sprintf(" %s\n", registryCIDR))
 }
