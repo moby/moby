@@ -672,6 +672,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 	}
 	s.Process.SelinuxLabel = c.GetProcessLabel()
 	s.Process.NoNewPrivileges = c.NoNewPrivileges
+	s.Linux.MountLabel = c.MountLabel
 
 	return (*libcontainerd.Spec)(&s), nil
 }

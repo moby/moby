@@ -49,7 +49,7 @@ type Process struct {
 
 	// ApparmorProfile specified the apparmor profile for the container. (this field is platform dependent)
 	ApparmorProfile string `json:"apparmorProfile,omitempty" platform:"linux"`
-	// SelinuxProcessLabel specifies the selinux context that the container process is run as. (this field is platform dependent)
+	// SelinuxLabel specifies the selinux context that the container process is run as. (this field is platform dependent)
 	SelinuxLabel string `json:"selinuxLabel,omitempty" platform:"linux"`
 }
 
@@ -140,6 +140,8 @@ type Linux struct {
 	MaskedPaths []string `json:"maskedPaths,omitempty"`
 	// ReadonlyPaths sets the provided paths as RO inside the container.
 	ReadonlyPaths []string `json:"readonlyPaths,omitempty"`
+	// MountLabel specifies the selinux context for the mounts in the container.
+	MountLabel string `json:"mountLabel,omitempty"`
 }
 
 // Namespace is the configuration for a Linux namespace
