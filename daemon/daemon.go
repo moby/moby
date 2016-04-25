@@ -273,6 +273,7 @@ func (daemon *Daemon) restore() error {
 
 	var migrateLegacyLinks bool
 	restartContainers := make(map[*container.Container]chan struct{})
+	oldRunningContainers := make(map[*container.Container]interface{})
 	for _, c := range containers {
 		if err := daemon.registerName(c); err != nil {
 			logrus.Errorf("Failed to register container %s: %s", c.ID, err)
@@ -300,6 +301,9 @@ func (daemon *Daemon) restore() error {
 					logrus.Errorf("Failed to restore with containerd: %q", err)
 					return
 				}
+				if !(c.HostConfig.NetworkMode.IsContainer() || c.HostConfig.NetworkMode.IsHost() || c.HostConfig.NetworkMode.IsNone()) {
+					oldRunningContainers[c] = true
+				}
 			}
 			// fixme: only if not running
 			// get list of containers we need to restart
@@ -316,6 +320,33 @@ func (daemon *Daemon) restore() error {
 		}(c)
 	}
 	wg.Wait()
+
+	// restore the network of old running containers
+	if libcontainerd.EnableLiveRestore() {
+		oldRunningContainerIds := make(map[string]interface{})
+		for c := range oldRunningContainers {
+			oldRunningContainerIds[c.ID] = true
+		}
+		restored, _ := daemon.netController.RestoreSandbox(oldRunningContainerIds)
+		// kill the restore failed container
+		for c := range oldRunningContainers {
+			if _, ok := restored[c.ID]; !ok {
+				logrus.Debugf("restore old running container %s networking failed, kill it", c.ID)
+				daemon.shutdownContainer(c)
+			}
+		}
+		// if no container restored, re-create default driver "bridge", so we can make the new config of brige take affect
+		if len(restored) == 0 && !daemon.configStore.DisableBridge {
+			if err := initBridgeDriver(daemon.netController, daemon.configStore); err != nil {
+				return err
+			}
+		}
+		if len(restored) > 0 {
+			// TODO: if there are no old running containers on default bridge network, we still can re-create bridge network
+			// to make the new config take affect
+			logrus.Warnf("there are old running containers, use exist default bridge network, new config of bridge not take affect")
+		}
+	}
 
 	// migrate any legacy links from sqlite
 	linkdbFile := filepath.Join(daemon.root, "linkgraph.db")
@@ -1604,6 +1635,7 @@ func (daemon *Daemon) networkOptions(dconfig *Config) ([]nwconfig.Option, error)
 
 	options = append(options, nwconfig.OptionLabels(dconfig.Labels))
 	options = append(options, driverOptions(dconfig)...)
+	options = append(options, nwconfig.OptionRestoreNetwork(libcontainerd.EnableLiveRestore()))
 	return options, nil
 }
 

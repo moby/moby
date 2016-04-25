@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
@@ -654,9 +655,11 @@ func (daemon *Daemon) initNetworkController(config *Config) (libnetwork.NetworkC
 	}
 
 	if !config.DisableBridge {
-		// Initialize default driver "bridge"
-		if err := initBridgeDriver(controller, config); err != nil {
-			return nil, err
+		if !libcontainerd.EnableLiveRestore() {
+			// Initialize default driver "bridge"
+			if err := initBridgeDriver(controller, config); err != nil {
+				return nil, err
+			}
 		}
 	}
 

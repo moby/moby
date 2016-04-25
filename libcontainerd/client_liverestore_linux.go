@@ -9,6 +9,11 @@ import (
 	containerd "github.com/docker/containerd/api/grpc/types"
 )
 
+// EnableLiveRestore return true for experimental
+func EnableLiveRestore() bool {
+	return true
+}
+
 func (clnt *client) restore(cont *containerd.Container, options ...CreateOption) (err error) {
 	clnt.lock(cont.Id)
 	defer clnt.unlock(cont.Id)
