@@ -3,7 +3,7 @@
 # see test-integration-cli for example usage of this script
 
 base="$ABS_DEST/.."
-export PATH="$base/binary-client:$base/binary-daemon:$base/dynbinary:$base/gccgo:$base/dyngccgo:$PATH"
+export PATH="$base/binary-client:$base/binary-daemon:$base/dynbinary-client:$base/dynbinary-daemon:$base/gccgo:$base/dyngccgo:$PATH"
 
 if ! command -v docker &> /dev/null; then
 	echo >&2 'error: binary-client or dynbinary-client must be run before .integration-daemon-start'
@@ -94,14 +94,14 @@ while ! docker version &> /dev/null; do
 			docker version >&2 || true
 			# Additional Windows CI debugging as this is a common error as of
 			# January 2016
-			if [ "$(go env GOOS)" = 'windows' ]; then	
+			if [ "$(go env GOOS)" = 'windows' ]; then
 				echo >&2 "Container log below:"
 				echo >&2 "---"
 				# Important - use the docker on the CI host, not the one built locally
 				# which is currently in our path.
 				! /c/bin/docker -H=$MAIN_DOCKER_HOST logs docker-$COMMITHASH
 				echo >&2 "---"
-			fi			
+			fi
 		fi
 		false
 	fi
