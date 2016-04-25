@@ -91,6 +91,11 @@ func NewResolver(sb *sandbox) Resolver {
 	}
 }
 
+const (
+	OUTPUT_CHAIN      = "DOCKER_OUTPUT"
+	POSTTOUTING_CHAIN = "DOCKER_POSTROUTING"
+)
+
 func (r *resolver) SetupFunc() func() {
 	return (func() {
 		var err error
@@ -120,11 +125,27 @@ func (r *resolver) SetupFunc() func() {
 		}
 		ltcpaddr := r.tcpListen.Addr()
 		_, tcpPort, _ := net.SplitHostPort(ltcpaddr.String())
+
+		err = iptables.RawCombinedOutputNative("-t", "nat", "-C", "OUTPUT", "-d", resolverIP, "-j", OUTPUT_CHAIN)
+		if err == nil {
+			iptables.RawCombinedOutputNative("-t", "nat", "-F", OUTPUT_CHAIN)
+		} else {
+			iptables.RawCombinedOutputNative("-t", "nat", "-N", OUTPUT_CHAIN)
+			iptables.RawCombinedOutputNative("-t", "nat", "-I", "OUTPUT", "-d", resolverIP, "-j", OUTPUT_CHAIN)
+		}
+
+		err = iptables.RawCombinedOutputNative("-t", "nat", "-C", "POSTROUTING", "-d", resolverIP, "-j", POSTTOUTING_CHAIN)
+		if err == nil {
+			iptables.RawCombinedOutputNative("-t", "nat", "-F", POSTTOUTING_CHAIN)
+		} else {
+			iptables.RawCombinedOutputNative("-t", "nat", "-N", POSTTOUTING_CHAIN)
+			iptables.RawCombinedOutputNative("-t", "nat", "-I", "POSTROUTING", "-d", resolverIP, "-j", POSTTOUTING_CHAIN)
+		}
 		rules := [][]string{
-			{"-t", "nat", "-A", "OUTPUT", "-d", resolverIP, "-p", "udp", "--dport", dnsPort, "-j", "DNAT", "--to-destination", laddr.String()},
-			{"-t", "nat", "-A", "POSTROUTING", "-s", resolverIP, "-p", "udp", "--sport", ipPort, "-j", "SNAT", "--to-source", ":" + dnsPort},
-			{"-t", "nat", "-A", "OUTPUT", "-d", resolverIP, "-p", "tcp", "--dport", dnsPort, "-j", "DNAT", "--to-destination", ltcpaddr.String()},
-			{"-t", "nat", "-A", "POSTROUTING", "-s", resolverIP, "-p", "tcp", "--sport", tcpPort, "-j", "SNAT", "--to-source", ":" + dnsPort},
+			{"-t", "nat", "-I", OUTPUT_CHAIN, "-d", resolverIP, "-p", "udp", "--dport", dnsPort, "-j", "DNAT", "--to-destination", laddr.String()},
+			{"-t", "nat", "-I", POSTTOUTING_CHAIN, "-s", resolverIP, "-p", "udp", "--sport", ipPort, "-j", "SNAT", "--to-source", ":" + dnsPort},
+			{"-t", "nat", "-I", OUTPUT_CHAIN, "-d", resolverIP, "-p", "tcp", "--dport", dnsPort, "-j", "DNAT", "--to-destination", ltcpaddr.String()},
+			{"-t", "nat", "-I", POSTTOUTING_CHAIN, "-s", resolverIP, "-p", "tcp", "--sport", tcpPort, "-j", "SNAT", "--to-source", ":" + dnsPort},
 		}
 
 		for _, rule := range rules {

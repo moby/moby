@@ -1,6 +1,7 @@
 package osl
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os/exec"
@@ -28,6 +29,86 @@ type nwIface struct {
 	bridge      bool
 	ns          *networkNamespace
 	sync.Mutex
+}
+
+func (i *nwIface) MarshalJSON() ([]byte, error) {
+	iMap := make(map[string]interface{})
+	iMap["srcName"] = i.srcName
+	iMap["dstName"] = i.dstName
+	iMap["master"] = i.master
+	iMap["dstMaster"] = i.dstMaster
+	if i.mac != nil {
+		iMap["mac"] = i.mac.String()
+	}
+	if i.address != nil {
+		iMap["address"] = i.address.String()
+	}
+	if i.addressIPv6 != nil {
+		iMap["addressIPv6"] = i.addressIPv6.String()
+	}
+
+	var routes []string
+	for _, route := range i.routes {
+		routes = append(routes, route.String())
+	}
+	iMap["routes"] = routes
+
+	iMap["bridge"] = i.bridge
+
+	return json.Marshal(iMap)
+}
+
+func (i *nwIface) UnmarshalJSON(b []byte) error {
+	var iMap map[string]interface{}
+	if err := json.Unmarshal(b, &iMap); err != nil {
+		return err
+	}
+	i.srcName = iMap["srcName"].(string)
+	i.dstName = iMap["dstName"].(string)
+	i.master = iMap["master"].(string)
+	i.dstMaster = iMap["dstMaster"].(string)
+	if v, ok := iMap["mac"]; ok {
+		mac, err := net.ParseMAC(v.(string))
+		if err != nil {
+			return err
+		}
+		i.mac = mac
+	}
+
+	if v, ok := iMap["address"]; ok {
+		_, address, err := net.ParseCIDR(v.(string))
+		if err != nil {
+			return err
+		}
+		i.address = address
+	}
+
+	if v, ok := iMap["addressIPv6"]; ok {
+		_, address6, err := net.ParseCIDR(v.(string))
+		if err != nil {
+			return err
+		}
+		i.addressIPv6 = address6
+	}
+
+	var routes []*net.IPNet
+	if v, ok := iMap["routes"]; ok {
+		rs, _ := json.Marshal(v)
+		var routetrs []string
+		json.Unmarshal(rs, &routetrs)
+		for _, route := range routetrs {
+			_, r, err := net.ParseCIDR(route)
+			if err != nil {
+				return err
+			}
+			routes = append(routes, r)
+		}
+	}
+	i.routes = routes
+
+	i.bridge = iMap["bridge"].(bool)
+
+	return nil
 }
 
 func (i *nwIface) SrcName() string {
@@ -121,25 +202,21 @@ func (i *nwIface) Remove() error {
 	path := n.path
 	isDefault := n.isDefault
 	n.Unlock()
-
 	return nsInvoke(path, func(nsFD int) error { return nil }, func(callerFD int) error {
 		// Find the network inteerface identified by the DstName attribute.
 		iface, err := netlink.LinkByName(i.DstName())
 		if err != nil {
 			return err
 		}
-
 		// Down the interface before configuring
 		if err := netlink.LinkSetDown(iface); err != nil {
 			return err
 		}
-
 		err = netlink.LinkSetName(iface, i.SrcName())
 		if err != nil {
 			log.Debugf("LinkSetName failed for interface %s: %v", i.SrcName(), err)
 			return err
 		}
-
 		// if it is a bridge just delete it.
 		if i.Bridge() {
 			if err := netlink.LinkDel(iface); err != nil {
@@ -154,6 +231,7 @@ func (i *nwIface) Remove() error {
 		}
 
 		n.Lock()
+
 		for index, intf := range n.iFaces {
 			if intf == i {
 				n.iFaces = append(n.iFaces[:index], n.iFaces[index+1:]...)
@@ -161,7 +239,6 @@ func (i *nwIface) Remove() error {
 			}
 		}
 		n.Unlock()
-
 		return nil
 	})
 }

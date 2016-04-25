@@ -20,12 +20,17 @@ type epState struct {
 }
 
 type sbState struct {
-	ID       string
-	Cid      string
-	c        *controller
-	dbIndex  uint64
-	dbExists bool
-	Eps      []epState
+	ID         string
+	Cid        string
+	c          *controller
+	dbIndex    uint64
+	dbExists   bool
+	IsStub     bool
+	Config     containerConfig
+	RefCnt     int
+	EpPriority map[string]int
+	Eps        []epState
+	ExtDNS     []string
 }
 
 func (sbs *sbState) Key() []string {
@@ -106,7 +111,12 @@ func (sbs *sbState) CopyTo(o datastore.KVObject) error {
 	dstSbs.Cid = sbs.Cid
 	dstSbs.dbIndex = sbs.dbIndex
 	dstSbs.dbExists = sbs.dbExists
-
+	dstSbs.RefCnt = sbs.RefCnt
+	dstSbs.IsStub = sbs.IsStub
+	dstSbs.Config = sbs.Config
+	dstSbs.EpPriority = sbs.EpPriority
+	dstSbs.ExtDNS = make([]string, len(sbs.ExtDNS))
+	copy(dstSbs.ExtDNS, sbs.ExtDNS)
 	for _, eps := range sbs.Eps {
 		dstSbs.Eps = append(dstSbs.Eps, eps)
 	}
@@ -120,10 +130,16 @@ func (sbs *sbState) DataScope() string {
 
 func (sb *sandbox) storeUpdate() error {
 	sbs := &sbState{
-		c:   sb.controller,
-		ID:  sb.id,
-		Cid: sb.containerID,
+		c:          sb.controller,
+		ID:         sb.id,
+		Cid:        sb.containerID,
+		RefCnt:     sb.refCnt,
+		IsStub:     sb.isStub,
+		Config:     sb.config,
+		EpPriority: sb.epPriority,
 	}
+	sbs.ExtDNS = make([]string, len(sb.extDNS))
+	copy(sbs.ExtDNS, sb.extDNS)
 
 retry:
 	sbs.Eps = nil
@@ -150,7 +166,13 @@ retry:
 		// state from in memory sandbox state
 		goto retry
 	}
-
+retry2:
+	if sb.osSbox != nil && sb.osSbox != sbs.c.defOsSbox {
+		err = sb.osSbox.UpdateToStore(sb.controller)
+		if err == datastore.ErrKeyModified {
+			goto retry2
+		}
+	}
 	return err
 }
 
@@ -162,7 +184,12 @@ func (sb *sandbox) storeDelete() error {
 		dbIndex:  sb.dbIndex,
 		dbExists: sb.dbExists,
 	}
-
+	if sb.osSbox != nil {
+		err := sb.osSbox.DeleteFromStore(sb.controller)
+		if err != nil {
+			logrus.Errorf("failed to delete oslsandbox %s from store: %v", sb.Key(), err)
+		}
+	}
 	return sb.controller.deleteFromStore(sbs)
 }
 
@@ -230,5 +257,63 @@ func (c *controller) sandboxCleanup() {
 		if err := sb.delete(true); err != nil {
 			logrus.Errorf("failed to delete sandbox %s while trying to cleanup: %v", sb.id, err)
 		}
+	}
+}
+
+func (c *controller) sandboxRestore() {
+	store := c.getStore(datastore.LocalScope)
+	if store == nil {
+		logrus.Errorf("Could not find local scope store while trying to cleanup sandboxes")
+		return
+	}
+
+	kvol, err := store.List(datastore.Key(sandboxPrefix), &sbState{c: c})
+	if err != nil && err != datastore.ErrKeyNotFound {
+		logrus.Errorf("failed to get sandboxes for scope %s: %v", store.Scope(), err)
+		return
+	}
+	for _, kvo := range kvol {
+		sbs := kvo.(*sbState)
+		sb := &sandbox{
+			id:          sbs.ID,
+			controller:  sbs.c,
+			containerID: sbs.Cid,
+			endpoints:   epHeap{},
+			epPriority:  sbs.EpPriority,
+			dbIndex:     sbs.dbIndex,
+			isStub:      sbs.IsStub,
+			refCnt:      sbs.RefCnt,
+			dbExists:    true,
+			config:      sbs.Config,
+		}
+		sb.extDNS = make([]string, len(sbs.ExtDNS))
+		copy(sb.extDNS, sbs.ExtDNS)
+		oslSandbox := osl.NewNullSandbox(sb.Key())
+		err = oslSandbox.GetFromStore(store)
+		if err != nil && err != datastore.ErrKeyNotFound {
+			logrus.Errorf("failed to get oslsandbox %s from scope %s:%v", sb.Key(), store.Scope(), err)
+		}
+		sb.osSbox = oslSandbox
+		for _, eps := range sbs.Eps {
+			n, err := c.getNetworkFromStore(eps.Nid)
+			var ep *endpoint
+			if err != nil {
+				logrus.Errorf("getNetworkFromStore for nid %s failed while trying to build sandbox for cleanup: %v", eps.Nid, err)
+				n = &network{id: eps.Nid, ctrlr: c, drvOnce: &sync.Once{}}
+				ep = &endpoint{id: eps.Eid, network: n, sandboxID: sbs.ID}
+			} else {
+				ep, err = n.getEndpointFromStore(eps.Eid)
+				if err != nil {
+					logrus.Errorf("getEndpointFromStore for eid %s failed while trying to build sandbox for cleanup: %v", eps.Eid, err)
+					ep = &endpoint{id: eps.Eid, network: n, sandboxID: sbs.ID}
+				}
+			}
+
+			heap.Push(&sb.endpoints, ep)
+		}
+
+		c.Lock()
+		c.sandboxes[sb.id] = sb
+		c.Unlock()
 	}
 }

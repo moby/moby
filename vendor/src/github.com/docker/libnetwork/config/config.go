@@ -17,6 +17,7 @@ type Config struct {
 	Daemon  DaemonCfg
 	Cluster ClusterCfg
 	Scopes  map[string]*datastore.ScopeCfg
+	Restore bool
 }
 
 // DaemonCfg represents libnetwork core configuration
@@ -182,6 +183,13 @@ func OptionDiscoveryWatcher(watcher discovery.Watcher) Option {
 func OptionDiscoveryAddress(address string) Option {
 	return func(c *Config) {
 		c.Cluster.Address = address
+	}
+}
+
+// OptionRestoreNetwork function returns an option setter for restore network
+func OptionRestoreNetwork(restore bool) Option {
+	return func(c *Config) {
+		c.Restore = restore
 	}
 }
 

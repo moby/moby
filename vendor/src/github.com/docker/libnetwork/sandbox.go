@@ -13,6 +13,7 @@ import (
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
 )
@@ -101,9 +102,55 @@ type parentUpdate struct {
 	ip   string
 }
 
+func (pU *parentUpdate) MarshalJSON() ([]byte, error) {
+	pMap := make(map[string]interface{})
+	pMap["cid"] = pU.cid
+	pMap["name"] = pU.name
+	pMap["ip"] = pU.ip
+	return json.Marshal(pMap)
+}
+
+func (pU *parentUpdate) UnmarshalJSON(b []byte) (err error) {
+	var pMap map[string]interface{}
+	if err := json.Unmarshal(b, &pMap); err != nil {
+		return err
+	}
+	if v, ok := pMap["cid"]; ok {
+		pU.cid = v.(string)
+	}
+	if v, ok := pMap["name"]; ok {
+		pU.name = v.(string)
+	}
+	if v, ok := pMap["ip"]; ok {
+		pU.ip = v.(string)
+	}
+	return nil
+}
+
 type extraHost struct {
 	name string
 	IP   string
+}
+
+func (eH *extraHost) MarshalJSON() ([]byte, error) {
+	eMap := make(map[string]interface{})
+	eMap["name"] = eH.name
+	eMap["IP"] = eH.IP
+	return json.Marshal(eMap)
+}
+
+func (eH *extraHost) UnmarshalJSON(b []byte) (err error) {
+	var eMap map[string]interface{}
+	if err := json.Unmarshal(b, &eMap); err != nil {
+		return err
+	}
+	if v, ok := eMap["name"]; ok {
+		eH.name = v.(string)
+	}
+	if v, ok := eMap["IP"]; ok {
+		eH.IP = v.(string)
+	}
+	return nil
 }
 
 // These are the container configs used to customize container /etc/resolv.conf file.
@@ -124,6 +171,180 @@ type containerConfig struct {
 	useExternalKey    bool
 	prio              int // higher the value, more the priority
 	exposedPorts      []types.TransportPort
+}
+
+func (conConfig *containerConfig) MarshalJSON() ([]byte, error) {
+	cMap := make(map[string]interface{})
+	cMap["useDefaultSandBox"] = conConfig.useDefaultSandBox
+	cMap["useExternalKey"] = conConfig.useExternalKey
+	cMap["prio"] = conConfig.prio
+	if conConfig.generic != nil {
+		cMap["generic"] = conConfig.generic
+	}
+	cMap["exposedPorts"] = conConfig.exposedPorts
+
+	// hostsPathConfig
+	cMap["hostName"] = conConfig.hostName
+	cMap["domainName"] = conConfig.domainName
+	cMap["hostsPath"] = conConfig.hostsPath
+	cMap["originHostsPath"] = conConfig.originHostsPath
+	cMap["extraHosts"] = conConfig.extraHosts
+	cMap["parentUpdates"] = conConfig.parentUpdates
+
+	// resolvConfPathConfig
+	cMap["resolvConfPath"] = conConfig.resolvConfPath
+	cMap["originResolvConfPath"] = conConfig.originResolvConfPath
+	cMap["resolvConfHashFile"] = conConfig.resolvConfHashFile
+	cMap["dnsList"] = conConfig.dnsList
+	cMap["dnsSearchList"] = conConfig.dnsSearchList
+	cMap["dnsOptionsList"] = conConfig.dnsOptionsList
+	return json.Marshal(cMap)
+}
+
+func (conConfig *containerConfig) UnmarshalJSON(b []byte) (err error) {
+	var cMap map[string]interface{}
+	if err := json.Unmarshal(b, &cMap); err != nil {
+		return err
+	}
+	conConfig.useDefaultSandBox = cMap["useDefaultSandBox"].(bool)
+	conConfig.useExternalKey = cMap["useExternalKey"].(bool)
+	conConfig.prio = int(cMap["prio"].(float64))
+
+	tb, _ := json.Marshal(cMap["exposed_ports"])
+	var tPorts []types.TransportPort
+	json.Unmarshal(tb, &tPorts)
+	conConfig.exposedPorts = tPorts
+
+	// unmarsahl hostsPathConfig
+	if v, ok := cMap["hostName"]; ok {
+		conConfig.hostName = v.(string)
+	}
+	if v, ok := cMap["domainName"]; ok {
+		conConfig.domainName = v.(string)
+	}
+	if v, ok := cMap["hostsPath"]; ok {
+		conConfig.hostsPath = v.(string)
+	}
+	if v, ok := cMap["originHostsPath"]; ok {
+		conConfig.originHostsPath = v.(string)
+	}
+	if v, ok := cMap["extraHosts"]; ok {
+		eb, _ := json.Marshal(v)
+		var extraHosts []extraHost
+		json.Unmarshal(eb, &extraHosts)
+		conConfig.extraHosts = extraHosts
+	}
+	if v, ok := cMap["parentUpdates"]; ok {
+		pb, _ := json.Marshal(v)
+		var parentUpdates []parentUpdate
+		json.Unmarshal(pb, &parentUpdates)
+		conConfig.parentUpdates = parentUpdates
+	}
+	// unmarshal resolvConfPathConfig
+	if v, ok := cMap["resolvConfPath"]; ok {
+		conConfig.resolvConfPath = v.(string)
+	}
+	if v, ok := cMap["originResolvConfPath"]; ok {
+		conConfig.originResolvConfPath = v.(string)
+	}
+	if v, ok := cMap["resolvConfHashFile"]; ok {
+		conConfig.resolvConfHashFile = v.(string)
+	}
+
+	if v, ok := cMap["dnsList"]; ok {
+		dL, _ := json.Marshal(v)
+		var dnsList []string
+		json.Unmarshal(dL, &dnsList)
+		conConfig.dnsList = dnsList
+	}
+
+	if v, ok := cMap["dnsSearchList"]; ok {
+		dSL, _ := json.Marshal(v)
+		var dnsSearchList []string
+		json.Unmarshal(dSL, &dnsSearchList)
+		conConfig.dnsSearchList = dnsSearchList
+	}
+
+	if v, ok := cMap["dnsOptionsList"]; ok {
+		dOL, _ := json.Marshal(v)
+		var dnsOptionsList []string
+		json.Unmarshal(dOL, &dnsOptionsList)
+		conConfig.dnsOptionsList = dnsOptionsList
+	}
+
+	if v, ok := cMap["generic"]; ok {
+		conConfig.generic = v.(map[string]interface{})
+
+		if opt, ok := conConfig.generic[netlabel.PortMap]; ok {
+			pblist := []types.PortBinding{}
+
+			for i := 0; i < len(opt.([]interface{})); i++ {
+				pb := types.PortBinding{}
+				tmp := opt.([]interface{})[i].(map[string]interface{})
+
+				bytes, err := json.Marshal(tmp)
+				if err != nil {
+					log.Error(err)
+					break
+				}
+				err = json.Unmarshal(bytes, &pb)
+				if err != nil {
+					log.Error(err)
+					break
+				}
+				pblist = append(pblist, pb)
+			}
+			conConfig.generic[netlabel.PortMap] = pblist
+		}
+
+		if opt, ok := conConfig.generic[netlabel.ExposedPorts]; ok {
+			tplist := []types.TransportPort{}
+
+			for i := 0; i < len(opt.([]interface{})); i++ {
+				tp := types.TransportPort{}
+				tmp := opt.([]interface{})[i].(map[string]interface{})
+
+				bytes, err := json.Marshal(tmp)
+				if err != nil {
+					log.Error(err)
+					break
+				}
+				err = json.Unmarshal(bytes, &tp)
+				if err != nil {
+					log.Error(err)
+					break
+				}
+				tplist = append(tplist, tp)
+			}
+			conConfig.generic[netlabel.ExposedPorts] = tplist
+
+		}
+		if v, ok := conConfig.generic[netlabel.GenericData]; ok {
+			generic := make(options.Generic)
+			if opt, ok := v.(map[string]interface{})["ParentEndpoints"]; ok {
+				parentList := []string{}
+				if opt != nil {
+					for i := 0; i < len(opt.([]interface{})); i++ {
+						parentList = append(parentList, opt.([]interface{})[i].(string))
+					}
+					generic["ParentEndpoints"] = parentList
+					conConfig.generic[netlabel.GenericData] = generic
+				}
+			}
+			if opt, ok := v.(map[string]interface{})["ChildEndpoints"]; ok {
+				childList := []string{}
+				if opt != nil {
+					for i := 0; i < len(opt.([]interface{})); i++ {
+						childList = append(childList, opt.([]interface{})[i].(string))
+					}
+					generic["ChildEndpoints"] = childList
+					conConfig.generic[netlabel.GenericData] = generic
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func (sb *sandbox) ID() string {
@@ -634,6 +855,12 @@ func (sb *sandbox) releaseOSSbox() {
 
 	for _, ep := range sb.getConnectedEndpoints() {
 		releaseOSSboxResources(osSbox, ep)
+	}
+	if sb.controller != nil && osSbox != nil {
+		err := osSbox.DeleteFromStore(sb.controller)
+		if err != nil {
+			log.Errorf("failed to delete oslsandbox %s from store: %v", sb.Key(), err)
+		}
 	}
 
 	osSbox.Destroy()

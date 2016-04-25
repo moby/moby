@@ -109,6 +109,10 @@ type NetworkController interface {
 
 	// ReloadCondfiguration updates the controller configuration
 	ReloadConfiguration(cfgOptions ...config.Option) error
+
+	// RestoreSandbox restore the sandbox of old running containers
+	// and return the container ids which has been successfully restored
+	RestoreSandbox(sbids map[string]interface{}) (map[string]interface{}, error)
 }
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.
@@ -175,7 +179,6 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 			log.Errorf("Failed to Initialize Discovery : %v", err)
 		}
 	}
-
 	if err := initDrivers(c); err != nil {
 		return nil, err
 	}
@@ -184,16 +187,144 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		c.getStore(datastore.GlobalScope)); err != nil {
 		return nil, err
 	}
-
-	c.sandboxCleanup()
-	c.cleanupLocalEndpoints()
-	c.networkCleanup()
-
+	if c.cfg != nil && c.cfg.Restore {
+		// Restore sandbox
+		c.sandboxRestore()
+		networks, err := c.getNetworksFromStore()
+		if err != nil {
+			log.Errorf("failed to get networks from store: %v", err)
+		}
+		for _, n := range networks {
+			log.Debugf("restore network: %v", n.Name())
+			if err := c.registerNetwork(n); err != nil {
+				log.Errorf("faild to restore network: %v, error: %v", n.Name(), err)
+				n.Delete()
+			}
+		}
+	} else {
+		c.sandboxCleanup()
+		c.cleanupLocalEndpoints()
+		c.networkCleanup()
+	}
 	if err := c.startExternalKeyListener(); err != nil {
 		return nil, err
 	}
-
 	return c, nil
+}
+
+func (c *controller) registerNetwork(n Network) error {
+	if err := c.addNetwork(n.(*network)); err != nil && !strings.Contains(err.Error(), "exists") {
+		return err
+	}
+	d, err := n.(*network).driver(true)
+	if err != nil {
+		return fmt.Errorf("failed to add endpoint: %v", err)
+	}
+
+	endpoints := n.Endpoints()
+	for _, ep := range endpoints {
+		log.Debugf("restore endpoint %s", ep.Name())
+		c.watchSvcRecord(ep.(*endpoint))
+		options := ep.(*endpoint).generic
+		options["restore"] = true
+		err = d.CreateEndpoint(n.(*network).id, ep.(*endpoint).id, ep.(*endpoint).Interface(), options)
+		if err != nil {
+			log.Errorf("failed to register existed endpoint %s\n", ep.Name())
+			ep.Delete(true)
+			return err
+		}
+
+	}
+	return c.updateToStore(n.(*network).epCnt)
+}
+
+func (c *controller) RestoreSandbox(sbids map[string]interface{}) (map[string]interface{}, error) {
+	if len(sbids) == 0 {
+		// no sandbox to restore, then cleanup all sandbox and endpoints
+		c.sandboxCleanup()
+		c.cleanupLocalEndpoints()
+		c.networkCleanup()
+		return nil, nil
+	}
+	restored := make(map[string]interface{})
+	eps := make(map[string]interface{})
+	// cleanup unused sandbox first
+	for id, sb := range c.sandboxes {
+		if _, ok := sbids[sb.containerID]; !ok {
+			log.Debugf("clean up sandbox %s", id)
+			if err := sb.delete(true); err != nil {
+				log.Errorf("failed to delete sandbox %s while trying to cleanup: %v", id, err)
+			}
+			delete(c.sandboxes, id)
+		}
+	}
+
+	// restore the sandbox of old running container
+	for _, sb := range c.sandboxes {
+		log.Infof("restore sandbox %s of container %s", sb.ID(), sb.ContainerID())
+		extEp := sb.getGatewayEndpoint()
+		options := extEp.generic
+		options["restore"] = true
+
+		n, err := extEp.getNetworkFromStore()
+		if err != nil {
+			log.Errorf("Restore sandbox: failed to get network from store during join: %v", err)
+			continue
+		}
+		d, err := n.driver(true)
+		if err != nil {
+			log.Errorf("Resore sandbox: failed to join endpoint: %v", err)
+			continue
+		}
+
+		if !n.internal {
+			err = d.ProgramExternalConnectivity(n.id, extEp.id, options)
+			if err != nil {
+				log.Errorf("Restore sandbox: failed to program external connectivity")
+				continue
+			}
+		}
+		for _, ep := range sb.endpoints {
+			if ep.needResolver() {
+				sb.startResolver()
+			}
+			net, err := ep.getNetworkFromStore()
+			if err != nil {
+				log.Errorf("Restore sandbox: failed to get network from store during join: %v", err)
+				continue
+			}
+			err = d.Join(n.ID(), ep.id, sb.Key(), ep, sb.Labels())
+			if err != nil {
+				log.Errorf("Restore sandbox: failed to join endpoint %s to network %s : %v", ep.Name(), net.Name(), err)
+				continue
+			}
+			eps[ep.name] = true
+
+		}
+		restored[sb.ContainerID()] = true
+	}
+
+	// we have stored the used endpoint in eps
+	// cleanup the unsed endpoint
+	networks, err := c.getNetworksFromStore()
+	if err != nil {
+		log.Errorf("failed to get networks from store: %v", err)
+		return nil, err
+	}
+	for _, n := range networks {
+		endpoints := n.Endpoints()
+		for _, ep := range endpoints {
+			if _, ok := eps[ep.Name()]; !ok {
+				log.Debugf("Clean up endpoints %s in network %s", ep.Name(), n.Name())
+				err := ep.Delete(true)
+				if err != nil {
+					log.Errorf("failed to clean up old endpoints: %s in network %s", ep.(*endpoint).name, n.Name())
+				}
+			}
+		}
+	}
+	// TODO: clean up unused iptalbes rule
+	return restored, nil
 }
 
 var procReloadConfig = make(chan (bool), 1)

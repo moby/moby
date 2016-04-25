@@ -205,6 +205,10 @@ func (n *network) getEndpointsFromStore() ([]*endpoint, error) {
 	return epl, nil
 }
 
+func (c *controller) UpdateToStore(kvObject datastore.KVObject) error {
+	return c.updateToStore(kvObject)
+}
+
 func (c *controller) updateToStore(kvObject datastore.KVObject) error {
 	cs := c.getStore(kvObject.DataScope())
 	if cs == nil {
@@ -220,6 +224,10 @@ func (c *controller) updateToStore(kvObject datastore.KVObject) error {
 	}
 
 	return nil
+}
+
+func (c *controller) DeleteFromStore(kvObject datastore.KVObject) error {
+	return c.deleteFromStore(kvObject)
 }
 
 func (c *controller) deleteFromStore(kvObject datastore.KVObject) error {

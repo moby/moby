@@ -347,6 +347,32 @@ func existsRaw(table Table, chain string, rule ...string) bool {
 
 // Raw calls 'iptables' system command, passing supplied arguments.
 func Raw(args ...string) ([]byte, error) {
+	// check if the rule exists
+	var (
+		doCheck bool
+	)
+	check := make([]string, len(args))
+	for i, n := range args {
+		check[i] = n
+		if n == "-A" || n == "-I" {
+			check[i] = "-C"
+			doCheck = true
+		} else if n == "-D" || n == "-C" {
+			doCheck = false
+			break
+		}
+	}
+	if doCheck {
+		var err error
+		if firewalldRunning {
+			Passthrough(Iptables, check...)
+		} else {
+			_, err = raw(check...)
+		}
+		if err == nil {
+			return nil, nil
+		}
+	}
 	if firewalldRunning {
 		output, err := Passthrough(Iptables, args...)
 		if err == nil || !strings.Contains(err.Error(), "was not provided by any .service files") {
