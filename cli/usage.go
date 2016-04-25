@@ -6,7 +6,8 @@ type Command struct {
 	Description string
 }
 
-var dockerCommands = []Command{
+// DockerCommandUsage lists the top level docker commands and their short usage
+var DockerCommandUsage = []Command{
 	{"attach", "Attach to a running container"},
 	{"build", "Build an image from a Dockerfile"},
 	{"commit", "Create a new image from a container's changes"},
@@ -55,7 +56,7 @@ var dockerCommands = []Command{
 var DockerCommands = make(map[string]Command)
 
 func init() {
-	for _, cmd := range dockerCommands {
+	for _, cmd := range DockerCommandUsage {
 		DockerCommands[cmd.Name] = cmd
 	}
 }
