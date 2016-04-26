@@ -1,7 +1,6 @@
-Pull request reviewing process
-==============================
+# Pull request reviewing process
 
-# Labels
+## Labels
 
 Labels are carefully picked to optimize for:
 
@@ -12,11 +11,11 @@ Labels are carefully picked to optimize for:
 A pull request should only be attributed labels documented in this section: other labels that may
 exist on the repository should apply to issues.
 
-## DCO labels
+### DCO labels
 
  * `dco/no`: automatically set by a bot when one of the commits lacks proper signature
 
-## Status labels
+### Status labels
 
  * `status/0-triage`
  * `status/1-design-review`
@@ -29,7 +28,7 @@ Special status labels:
  * `status/failing-ci`: indicates that the PR in its current state fails the test suite
  * `status/needs-attention`: calls for a collective discussion during a review session
 
-## Specialty group labels
+### Specialty group labels
 
 Those labels are used to raise awareness of a particular specialty group, either because we need
 help in reviewing the PR, or because of the potential impact of the PR on their work:
@@ -39,7 +38,7 @@ help in reviewing the PR, or because of the potential impact of the PR on their 
  * `group/security`
  * `group/windows`
 
-## Impact labels (apply to merged pull requests)
+### Impact labels (apply to merged pull requests)
 
  * `impact/api`
  * `impact/changelog`
@@ -48,12 +47,26 @@ help in reviewing the PR, or because of the potential impact of the PR on their 
  * `impact/distribution`
  * `impact/dockerfile`
 
-# Workflow
+### Process labels (apply to merged pull requests)
+
+Process labels are to assist in preparing (patch) releases. These labels should only be used for pull requests.
+
+Label                           | Use for
+------------------------------- | -------------------------------------------------------------------------
+`process/cherry-pick`           | PRs that should be cherry-picked in the bump/release branch. These pull-requests must also be assigned to a milestone.
+`process/cherry-picked`         | PRs that have been cherry-picked. This label is helpful to find PR's that have been added to release-candidates, and to update the change log
+`process/docs-cherry-pick`      | PRs that should be cherry-picked in the docs branch. Only apply this label for changes that apply to the *current* release, and generic documentation fixes, such as Markdown and spelling fixes.
+`process/docs-cherry-picked`    | PRs that have been cherry-picked in the docs branch
+`process/merge-to-master`       | PRs that are opened directly on the bump/release branch, but also need to be merged back to "master"
+`process/merged-to-master`      | PRs that have been merged back to "master"
+
+
+## Workflow
 
 An opened pull request can be in 1 of 5 distinct states, for each of which there is a corresponding
 label that needs to be applied.
 
-## Triage - `status/0-triage`
+### Triage - `status/0-triage`
 
 Maintainers are expected to triage new incoming pull requests by removing the `status/0-triage`
 label and adding the correct labels (e.g. `status/1-design-review`) before any other interaction
@@ -74,7 +87,7 @@ Possible transitions from this state:
  * `status/2-code-review`: e.g. trivial bugfix
  * `status/3-docs-review`: non-proposal documentation-only change
 
-## Design review - `status/1-design-review`
+### Design review - `status/1-design-review`
 
 Maintainers are expected to comment on the design of the pull request.  Review of documentation is
 expected only in the context of design validation, not for stylistic changes.
@@ -94,7 +107,7 @@ Possible transitions from this state:
  * `status/2-code-review`: general case
  * `status/3-docs-review`: proposals with only documentation changes
 
-## Code review - `status/2-code-review`
+### Code review - `status/2-code-review`
 
 Maintainers are expected to review the code and ensure that it is good quality and in accordance
 with the documentation in the PR.
@@ -117,7 +130,7 @@ Possible transitions from this state:
  * `status/3-docs-review`: general case
  * `status/4-ready-to-merge`: change not impacting documentation
 
-## Docs review - `status/3-docs-review`
+### Docs review - `status/3-docs-review`
 
 Maintainers are expected to review the documentation in its bigger context, ensuring consistency,
 completeness, validity, and breadth of coverage across all existing and new documentation.
@@ -139,7 +152,7 @@ Possible transitions from this state:
  * `status/2-code-review`: requires more code changes
  * `status/4-ready-to-merge`: general case
 
-## Merge - `status/4-ready-to-merge`
+### Merge - `status/4-ready-to-merge`
 
 Maintainers are expected to merge this pull request as soon as possible. They can ask for a rebase
 or carry the pull request themselves.
@@ -158,7 +171,7 @@ to ease future classification:
  * `impact/dockerfile` signifies the patch impacted the Dockerfile syntax
  * `impact/deprecation` signifies the patch participates in deprecating an existing feature
 
-## Close
+### Close
 
 If a pull request is closed it is expected that sufficient justification will be provided. In
 particular, if there are alternative ways of achieving the same net result then those needs to be
@@ -170,7 +183,7 @@ assume that the group of maintainers is bound by mutual trust and respect, and t
 any single maintainer should be taken into consideration. Similarly, we expect maintainers to
 justify their reasoning and to accept debating.
 
-# Escalation process
+## Escalation process
 
 Despite the previously described reviewing process, some PR might not show any progress for various
 reasons:
@@ -193,3 +206,4 @@ review session. The goal of that session is to agree on one of the following out
    attention)
  * Escalate to Solomon by formulating a few specific questions on which his answers will allow
    maintainers to decide.
+
