@@ -15,9 +15,9 @@ parent = "smn_cli"
     Log in to a Docker registry server, if no server is
 	specified "https://index.docker.io/v1/" is the default.
 
-      --help               Print usage
-      -p, --password=""    Password
-      -u, --username=""    Username
+          --help               Print usage
+      -p, --password=STRING    Password
+      -u, --username=STRING    Username
 
 If you want to login to a self-hosted registry you can specify this by
 adding the server name.

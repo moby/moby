@@ -15,7 +15,7 @@ parent = "smn_cli"
 
     Display system-wide information
 
-      --help              Print usage
+          --help         Print usage
 
 
 This command displays system wide information regarding the Docker installation.

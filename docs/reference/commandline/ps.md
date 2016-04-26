@@ -14,24 +14,15 @@ parent = "smn_cli"
 
     List containers
 
-      -a, --all             Show all containers (default shows just running)
-      -f, --filter=[]       Filter output based on these conditions:
-                            - exited=<int> an exit code of <int>
-                            - label=<key> or label=<key>=<value>
-                            - status=(created|restarting|running|paused|exited)
-                            - name=<string> a container's name
-                            - id=<ID> a container's ID
-                            - before=(<container-name>|<container-id>)
-                            - since=(<container-name>|<container-id>)
-                            - ancestor=(<image-name>[:tag]|<image-id>|<image@digest>) - containers created from an image or a descendant.
-                            - volume=(<volume-name>|<mount-point>)
-      --format=[]           Pretty-print containers using a Go template
-      --help                Print usage
-      -l, --latest          Show the latest created container (includes all states)
-      -n=-1                 Show n last created containers (includes all states)
-      --no-trunc            Don't truncate output
-      -q, --quiet           Only display numeric IDs
-      -s, --size            Display total file sizes
+      -a, --all              Show all containers (default shows just running)
+      -f, --filter=LIST      Filter output based on conditions provided
+          --format=STRING    Pretty-print containers using a Go template
+          --help             Print usage
+      -l, --latest           Show the latest created container (includes all states)
+      -n=INT                 Show n last created containers (includes all states), default is '-1'
+          --no-trunc         Don't truncate output
+      -q, --quiet            Only display numeric IDs
+      -s, --size             Display total file sizes
 
 Running `docker ps --no-trunc` showing 2 linked containers.
 
@@ -169,7 +160,7 @@ in it's layer stack.
 
 #### Before
 
-The `before` filter shows only containers created before the container with given id or name. For example, 
+The `before` filter shows only containers created before the container with given id or name. For example,
 having these containers created:
 
     $ docker ps

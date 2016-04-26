@@ -17,57 +17,59 @@ weight = -1
     A self-sufficient runtime for linux containers.
 
     Options:
-      --api-cors-header=""                   Set CORS headers in the remote API
-      --authorization-plugin=[]              Set authorization plugins to load
-      -b, --bridge=""                        Attach containers to a network bridge
-      --bip=""                               Specify network bridge IP
-      --cgroup-parent=                       Set parent cgroup for all containers
-      --cluster-store=""                     URL of the distributed storage backend
-      --cluster-advertise=""                 Address of the daemon instance on the cluster
-      --cluster-store-opt=map[]              Set cluster options
-      --config-file=/etc/docker/daemon.json  Daemon configuration file
-      --containerd                           Path to containerd socket
-      -D, --debug                            Enable debug mode
-      --default-gateway=""                   Container default gateway IPv4 address
-      --default-gateway-v6=""                Container default gateway IPv6 address
-      --dns=[]                               DNS server to use
-      --dns-opt=[]                           DNS options to use
-      --dns-search=[]                        DNS search domains to use
-      --default-ulimit=[]                    Set default ulimit settings for containers
-      --exec-opt=[]                          Set runtime execution options
-      --exec-root="/var/run/docker"          Root directory for execution state files
-      --fixed-cidr=""                        IPv4 subnet for fixed IPs
-      --fixed-cidr-v6=""                     IPv6 subnet for fixed IPs
-      -G, --group="docker"                   Group for the unix socket
-      -g, --graph="/var/lib/docker"          Root of the Docker runtime
-      -H, --host=[]                          Daemon socket(s) to connect to
-      --help                                 Print usage
-      --icc=true                             Enable inter-container communication
-      --insecure-registry=[]                 Enable insecure registry communication
-      --ip=0.0.0.0                           Default IP when binding container ports
-      --ip-forward=true                      Enable net.ipv4.ip_forward
-      --ip-masq=true                         Enable IP masquerading
-      --iptables=true                        Enable addition of iptables rules
-      --ipv6                                 Enable IPv6 networking
-      -l, --log-level="info"                 Set the logging level
-      --label=[]                             Set key=value labels to the daemon
-      --log-driver="json-file"               Default driver for container logs
-      --log-opt=[]                           Log driver specific options
-      --mtu=0                                Set the containers network MTU
-      --disable-legacy-registry              Do not contact legacy registries
-      -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
-      --raw-logs                             Full timestamps without ANSI coloring
-      --registry-mirror=[]                   Preferred Docker registry mirror
-      -s, --storage-driver=""                Storage driver to use
-      --selinux-enabled                      Enable selinux support
-      --storage-opt=[]                       Set storage driver options
-      --tls                                  Use TLS; implied by --tlsverify
-      --tlscacert="~/.docker/ca.pem"         Trust certs signed only by this CA
-      --tlscert="~/.docker/cert.pem"         Path to TLS certificate file
-      --tlskey="~/.docker/key.pem"           Path to TLS key file
-      --tlsverify                            Use TLS and verify the remote
-      --userns-remap="default"               Enable user namespace remapping
-      --userland-proxy=true                  Use userland proxy for loopback traffic
+
+          --api-cors-header=STRING       Set CORS headers in the remote API
+          --authorization-plugin=LIST    List authorization plugins in order from first evaluator to last
+      -b, --bridge=STRING                Attach containers to a network bridge
+          --bip=STRING                   Specify network bridge IP
+          --cgroup-parent=STRING         Set parent cgroup for all containers
+          --cluster-advertise=STRING     Address or interface name to advertise
+          --cluster-store=STRING         Set the cluster store
+          --cluster-store-opt=MAP        Set cluster store options
+          --config-file=STRING           Daemon configuration file, default is '/etc/docker/daemon.json'
+          --containerd=STRING            Path to containerd socket
+      -D, --debug                        Enable debug mode
+          --default-gateway=IP           Container default gateway IPv4 address
+          --default-gateway-v6=IP        Container default gateway IPv6 address
+          --default-ulimit=ULIMIT        Set default ulimits for containers
+          --disable-legacy-registry      Do not contact legacy registries
+          --dns=LIST                     DNS server to use
+          --dns-opt=LIST                 DNS options to use
+          --dns-search=LIST              DNS search domains to use
+          --exec-opt=LIST                Set runtime execution options
+          --exec-root=STRING             Root dir for execution state files, default is '/var/run/docker'
+          --fixed-cidr=STRING            IPv4 subnet for fixed IPs
+          --fixed-cidr-v6=STRING         IPv6 subnet for fixed IPs
+      -G, --group=STRING                 Group for the unix socket, default is 'docker'
+      -g, --graph=STRING                 Root of the Docker runtime, default is '/var/lib/docker'
+      -H, --host=LIST                    Daemon socket(s) to connect to
+      -h, --help                         Print usage
+          --icc=BOOL                     Enable inter-container communication, default is 'true'
+          --insecure-registry=LIST       Enable insecure registry communication
+          --ip=IP                        Default IP when binding container ports, default is '0.0.0.0'
+          --ip-forward=BOOL              Enable net.ipv4.ip_forward, default is 'true'
+          --ip-masq=BOOL                 Enable IP masquerading, default is 'true'
+          --iptables=BOOL                Enable addition of iptables rules, default is 'true'
+          --ipv6                         Enable IPv6 networking
+      -l, --log-level=STRING             Set the logging level, default is 'info'
+          --label=LIST                   Set key=value labels to the daemon
+          --log-driver=STRING            Default driver for container logs, default is 'json-file'
+          --log-opt=MAP                  Set log driver options
+          --mtu=INT                      Set the containers network MTU
+      -p, --pidfile=STRING               Path to use for daemon PID file, default is '/var/run/docker.pid'
+          --raw-logs                     Full timestamps without ANSI coloring
+          --registry-mirror=LIST         Preferred Docker registry mirror
+      -s, --storage-driver=STRING        Storage driver to use
+          --selinux-enabled              Enable selinux support
+          --storage-opt=LIST             Set storage driver options
+          --tls                          Use TLS; implied by --tlsverify
+          --tlscacert=STRING             Path to trusted CA file, default is '~/.docker/ca.pem'
+          --tlscert=STRING               Path to TLS cert file, default is '~/.docker/cert.pem'
+          --tlskey=STRING                Path to TLS key file, default is '~/.docker/key.pem'
+          --tlsverify                    Use TLS and verify the remote
+          --userland-proxy=BOOL          Use userland proxy for loopback traffic, default is 'true'
+          --userns-remap=STRING          User/Group setting for user namespaces
+      -v, --version                      Print version information and quit
 
 Options with [] may be specified multiple times.
 

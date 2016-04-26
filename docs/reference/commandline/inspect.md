@@ -14,11 +14,10 @@ parent = "smn_cli"
 
     Return low-level information on a container or image
 
-      -f, --format=""         Format the output using the given go template
-      --help                  Print usage
-      --type=container|image  Return JSON for specified type, permissible
-                              values are "image" or "container"
-      -s, --size              Display total file sizes if the type is container
+      -f, --format=STRING    Format the output using the given go template
+          --help             Print usage
+      -s, --size             Display total file sizes if the type is container
+          --type=STRING      Return JSON for specified type, (e.g image or container)
 
 By default, this will render all results in a JSON array. If the container and
 image have the same name, this will return container JSON for unspecified type.

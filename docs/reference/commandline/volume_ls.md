@@ -14,11 +14,8 @@ parent = "smn_cli"
 
     List volumes
 
-      -f, --filter=[]      Filter output based on these conditions:
-                           - dangling=<boolean> a volume if referenced or not
-                           - driver=<string> a volume's driver name
-                           - name=<string> a volume's name
-      --help               Print usage
+      -f, --filter=LIST    Provide filter values (i.e. 'dangling=true')
+          --help           Print usage
       -q, --quiet          Only display volume names
 
 Lists all the volumes Docker knows about. You can filter using the `-f` or `--filter` flag. Refer to the [filtering](#filtering) section for more information about available filter options.

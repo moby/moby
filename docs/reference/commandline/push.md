@@ -14,8 +14,8 @@ parent = "smn_cli"
 
     Push an image or a repository to the registry
 
-      --disable-content-trust=true   Skip image signing
-      --help                         Print usage
+          --disable-content-trust=BOOL    Skip image signing, default is 'true'
+          --help                          Print usage
 
 Use `docker push` to share your images to the [Docker Hub](https://hub.docker.com)
 registry or to a self-hosted one.

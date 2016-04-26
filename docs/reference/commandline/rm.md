@@ -14,10 +14,10 @@ parent = "smn_cli"
 
     Remove one or more containers
 
-      -f, --force            Force the removal of a running container (uses SIGKILL)
-      --help                 Print usage
-      -l, --link             Remove the specified link
-      -v, --volumes          Remove the volumes associated with the container
+      -f, --force        Force the removal of a running container (uses SIGKILL)
+          --help         Print usage
+      -l, --link         Remove the specified link
+      -v, --volumes      Remove the volumes associated with the container
 
 ## Examples
 

@@ -82,3 +82,6 @@ func (opt *WeightdeviceOpt) GetList() []*blkiodev.WeightDevice {
 
 	return weightdevice
 }
+
+// Type returns a human readable string describing a WeightdeviceOpt.
+func (opt *WeightdeviceOpt) Type() string { return "WEIGHT" }

@@ -14,12 +14,13 @@ parent = "smn_cli"
 
     List images
 
-      -a, --all            Show all images (default hides intermediate images)
-      --digests            Show digests
-      -f, --filter=[]      Filter output based on conditions provided
-      --help               Print usage
-      --no-trunc           Don't truncate output
-      -q, --quiet          Only show numeric IDs
+      -a, --all              Show all images (default hides intermediate images)
+          --digests          Show digests
+      -f, --filter=LIST      Filter output based on conditions provided
+          --format=STRING    Pretty-print images using a Go template
+          --help             Print usage
+          --no-trunc         Don't truncate output
+      -q, --quiet            Only show numeric IDs
 
 The default `docker images` will show all top level
 images, their repository and tags, and their size.

@@ -14,8 +14,8 @@ parent = "smn_cli"
 
     Return low-level information on a volume
 
-      -f, --format=       Format the output using the given go template.
-      --help              Print usage
+      -f, --format=STRING    Format the output using the given go template
+          --help             Print usage
 
 Returns information about a volume. By default, this command renders all results
 in a JSON array. You can specify an alternate format to execute a

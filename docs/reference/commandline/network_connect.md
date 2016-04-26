@@ -14,11 +14,11 @@ parent = "smn_cli"
 
     Connects a container to a network
 
-      --alias=[]         Add network-scoped alias for the container
-      --help             Print usage
-      --ip               IPv4 Address
-      --ip6              IPv6 Address
-      --link=[]          Add a link to another container
+          --alias=LIST    Add network-scoped alias for the container
+          --help          Print usage
+          --ip=STRING     IP Address
+          --ip6=STRING    IPv6 Address
+          --link=LIST     Add link to another container
 
 Connects a container to a network. You can connect a container by name
 or by ID. Once connected, the container can communicate with other containers in
