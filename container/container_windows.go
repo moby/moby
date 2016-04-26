@@ -9,6 +9,10 @@ import (
 
 	"github.com/docker/docker/volume"
 	containertypes "github.com/docker/engine-api/types/container"
+	"github.com/docker/libnetwork"
+	winlibnetwork "github.com/docker/libnetwork/drivers/windows"
+	"github.com/docker/libnetwork/options"
+	"github.com/docker/libnetwork/types"
 )
 
 // Container holds fields specific to the Windows implementation. See
@@ -102,4 +106,20 @@ func (container *Container) BuildHostnameFile() error {
 // for Hyper-V containers during WORKDIR execution for example.
 func (container *Container) canMountFS() bool {
 	return !containertypes.Isolation.IsHyperV(container.HostConfig.Isolation)
+}
+
+// buildGenericEndpointOptions builds the platform specific generic endpoint options.
+func (container *Container) buildGenericEndpointOptions(n libnetwork.Network) (genericOptions []libnetwork.EndpointOption) {
+	bandwidth := container.HostConfig.Resources.NetworkMaximumBandwidth
+	if bandwidth != 0 {
+		genericOption := options.Generic{
+			winlibnetwork.QosPolicies: []types.QosPolicy{
+				{
+					MaxEgressBandwidth: bandwidth,
+				},
+			},
+		}
+		genericOptions = append(genericOptions, libnetwork.EndpointOptionGeneric(genericOption))
+	}
+	return genericOptions
 }

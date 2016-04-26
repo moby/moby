@@ -69,6 +69,7 @@ parent = "smn_cli"
                                     'container:<name|id>': reuse another container's network stack
                                     'host': use the Docker host network stack
                                     '<network-name>|<network-id>': connect to a user-defined network
+      --net-maxbandwidth=0          Maximum network egress bandwidth in bytes per second
       --net-alias=[]                Add network-scoped alias for the container
       --oom-kill-disable            Whether to disable OOM Killer for the container or not
       --oom-score-adj=0             Tune the host's OOM preferences for containers (accepts -1000 to 1000)

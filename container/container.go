@@ -803,6 +803,9 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 		}
 	}
 
+	// Platform specific generic options
+	createOptions = append(createOptions, container.buildGenericEndpointOptions(n)...)
+
 	// Port-mapping rules belong to the container & applicable only to non-internal networks
 	portmaps := getSandboxPortMapInfo(sb)
 	if n.Info().Internal() || len(portmaps) > 0 {
