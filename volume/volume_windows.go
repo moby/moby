@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/engine-api/types/container"
 )
 
 // read-write modes
@@ -85,6 +86,59 @@ const (
 // Windows volumes are never backwards compatible.
 func (m *MountPoint) BackwardsCompatible() bool {
 	return false
+}
+
+func ParseMountConfig(cfg *container.MountConfig) (*MountPoint, error) {
+	if err := validateMountConfig(cfg); err != nil {
+		return nil, err
+	}
+
+	mp := &mountPoint{
+		RW:          true,
+		Source:      filepath.Clean(cfg.Source),
+		Destination: filepath.Clean(cfg.Target),
+		Mode:        cfg.Mask,
+		Type:        cfg.Type,
+		Name:        cfg.Name,
+	}
+
+	if strings.ToLower(matchgroups["mode"]) == "ro" {
+		mp.RW = false
+	}
+
+	if filepath.VolumeName(mp.Destination) == mp.Destination {
+		// Ensure the destination path, if a drive letter, is not the c drive
+		if strings.ToLower(mp.Destination) == "c:" {
+			return nil, fmt.Errorf("Destination drive letter in '%s' cannot be c:", spec)
+		}
+	} else {
+		// Ensure the destination path, if a path, is not the c root directory
+		if strings.ToLower(mp.Destination) == `c:\` {
+			return nil, fmt.Errorf(`Destination path in '%s' cannot be c:\`, spec)
+		}
+	}
+
+	switch cfg.Type {
+	case MountTypeEphemeral:
+		if HasPropagation(mp.Mode) {
+			return nil, errInvalidMode(mp.Mode)
+		}
+		if isSet {
+			return nil, errInvalidMode(mp.Mode)
+		}
+	case MountTypeHostBind:
+		mp.Propagation = GetPropagation(mp.Mode)
+		if isSet {
+			return nil, errInvalidMode(mp.Mode)
+		}
+	case MountTypePersistent:
+		if HasPropagation(mp.Mode) {
+			return nil, errInvalidMode(mp.Mode)
+		}
+		mp.CopyData = copyMode
+	}
+
+	return mp, nil
 }
 
 // ParseMountSpec validates the configuration of mount information is valid.

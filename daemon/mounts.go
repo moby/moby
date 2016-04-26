@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/volume"
 	volumestore "github.com/docker/docker/volume/store"
 )
 
@@ -24,10 +25,10 @@ func (daemon *Daemon) removeMountPoints(container *container.Container, rm bool)
 			continue
 		}
 		daemon.volumes.Dereference(m.Volume, container.ID)
-		if rm {
+		if rm || m.Type == volume.MountTypeEphemeral {
 			// Do not remove named mountpoints
 			// these are mountpoints specified like `docker run -v <name>:/foo`
-			if m.Named {
+			if m.Named || m.Type == volume.MountTypePersistent {
 				continue
 			}
 			err := daemon.volumes.Remove(m.Volume)

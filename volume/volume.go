@@ -11,6 +11,15 @@ import (
 // implemented in the local package.
 const DefaultDriverName string = "local"
 
+const (
+	// MountTypeEphemeral is for volume mounts that will be removed when the container is removed.
+	MountTypeEphemeral = "ephemeral"
+	// MountTypePersistent is for volume mounts that stay around when the container is removed
+	MountTypePersistent = "persistent"
+	// MountTypeHostBind is for mounts from the host fs.
+	MountTypeHostBind = "hostbind"
+)
+
 // Driver is for creating and removing volumes.
 type Driver interface {
 	// Name returns the name of the volume driver.
@@ -51,6 +60,7 @@ type MountPoint struct {
 	RW          bool   // True if writable
 	Name        string // Name set by user
 	Driver      string // Volume driver to use
+	Type        string // Type of mount to use, see `MountType<foo>` definitions
 	Volume      Volume `json:"-"`
 
 	// Note Mode is not used on Windows
@@ -61,8 +71,6 @@ type MountPoint struct {
 	Named       bool   // specifies if the mountpoint was specified by name
 
 	// Specifies if data should be copied from the container before the first mount
-	// Use a pointer here so we can tell if the user set this value explicitly
-	// This allows us to error out when the user explicitly enabled copy but we can't copy due to the volume being populated
 	CopyData bool `json:"-"`
 }
 

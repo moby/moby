@@ -46,6 +46,6 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 
 // setBindModeIfNull is platform specific processing which is a no-op on
 // Windows.
-func setBindModeIfNull(bind *volume.MountPoint) *volume.MountPoint {
-	return bind
+func setBindModeIfNull(bind *volume.MountPoint) {
+	return
 }

@@ -132,8 +132,8 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			// bind.Name is an already existing volume, we need to use that here
 			bind.Driver = v.DriverName()
 			bind.Named = true
-			if bind.Driver == "local" {
-				bind = setBindModeIfNull(bind)
+			if bind.Driver == volume.DefaultDriverName {
+				setBindModeIfNull(bind)
 			}
 		}
 
@@ -144,6 +144,40 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 		}
 		binds[bind.Destination] = true
 		mountPoints[bind.Destination] = bind
+	}
+
+	for _, cfg := range hostConfig.Mounts {
+		mp, err := volume.ParseMountConfig(&cfg)
+		if err != nil {
+			return err
+		}
+
+		if binds[mp.Destination] {
+			return fmt.Errorf("Duplicate mount point '%s'", cfg.Destination)
+		}
+
+		switch mp.Type {
+		case volume.MountTypeEphemeral, volume.MountTypePersistent:
+			v, err := daemon.volumes.CreateWithRef(mp.Name, volume.DefaultDriverName, container.ID, cfg.CreateOpts, nil)
+			if err != nil {
+				return err
+			}
+			mp.Volume = v
+			mp.Source = v.Path()
+			mp.Name = v.Name()
+			if mp.Driver == volume.DefaultDriverName {
+				setBindModeIfNull(mp)
+			}
+
+			if label.RelabelNeeded(mp.Mode) {
+				if err := label.Relabel(mp.Source, container.MountLabel, label.IsShared(mp.Mode)); err != nil {
+					return err
+				}
+			}
+		}
+
+		binds[mp.Destination] = true
+		mountPoints[mp.Destination] = mp
 	}
 
 	container.Lock()

@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/engine-api/types/container"
 )
 
 // read-write modes
@@ -36,6 +39,56 @@ func (m *MountPoint) HasResource(absolutePath string) bool {
 	return err == nil && relPath != ".." && !strings.HasPrefix(relPath, fmt.Sprintf("..%c", filepath.Separator))
 }
 
+// ParseMountConfig reads a mount config, validates it, and configures a mountpoint from it.
+func ParseMountConfig(cfg *container.MountConfig) (*MountPoint, error) {
+	if err := validateMountConfig(cfg); err != nil {
+		return nil, err
+	}
+
+	mp := &MountPoint{
+		RW:          true,
+		Propagation: DefaultPropagationMode,
+		Source:      filepath.ToSlash(cfg.Source),
+		Destination: filepath.Clean(filepath.ToSlash(cfg.Destination)),
+		Mode:        cfg.Mode,
+		Type:        cfg.Type,
+		Name:        cfg.Name,
+	}
+
+	if !filepath.IsAbs(mp.Destination) {
+		return nil, fmt.Errorf("Invalid volume destination path: '%s' mount path must be absolute.", mp.Destination)
+	}
+
+	// Destination cannot be "/"
+	if mp.Destination == "/" {
+		return nil, fmt.Errorf("Invalid specification: destination can't be '/'")
+	}
+
+	copyMode, isSet := getCopyMode(mp.Mode)
+
+	switch cfg.Type {
+	case MountTypeEphemeral:
+		if ValidMountMode(mp.Mode) {
+			return nil, errInvalidMode(mp.Mode)
+		}
+		mp.Name = stringid.GenerateNonCryptoID()
+	case MountTypeHostBind:
+		mp.Propagation = GetPropagation(mp.Mode)
+		if isSet {
+			return nil, errInvalidMode(mp.Mode)
+		}
+	case MountTypePersistent:
+		if HasPropagation(mp.Mode) {
+			return nil, errInvalidMode(mp.Mode)
+		}
+		mp.CopyData = copyMode
+	}
+
+	mp.RW = ReadWrite(mp.Mode)
+
+	return mp, nil
+}
+
 // ParseMountSpec validates the configuration of mount information is valid.
 func ParseMountSpec(spec, volumeDriver string) (*MountPoint, error) {
 	spec = filepath.ToSlash(spec)
@@ -56,7 +109,7 @@ func ParseMountSpec(spec, volumeDriver string) (*MountPoint, error) {
 	switch len(arr) {
 	case 1:
 		// Just a destination path in the container
-		mp.Destination = filepath.Clean(arr[0])
+		mp.Destination = arr[0]
 	case 2:
 		if isValid := ValidMountMode(arr[1]); isValid {
 			// Destination + Mode is not a valid volume - volumes

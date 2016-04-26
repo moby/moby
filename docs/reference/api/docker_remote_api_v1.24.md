@@ -319,7 +319,8 @@ Create a container
              "StorageOpt": {},
              "CgroupParent": "",
              "VolumeDriver": "",
-             "ShmSize": 67108864
+             "ShmSize": 67108864,
+             "Mounts": []
           },
           "NetworkingConfig": {
           "EndpointsConfig": {
@@ -457,6 +458,20 @@ Json Parameters:
     -   **CgroupParent** - Path to `cgroups` under which the container's `cgroup` is created. If the path is not absolute, the path is considered to be relative to the `cgroups` path of the init process. Cgroups are created if they do not already exist.
     -   **VolumeDriver** - Driver that this container users to mount volumes.
     -   **ShmSize** - Size of `/dev/shm` in bytes. The size must be greater than 0.  If omitted the system uses 64MB.
+    -   **Mounts** - List of mount configurations to create the container with. This replaces `Binds` and `Volumes`. If `Mounts` is specified along with either `Binds` or `Volumes`, the request will be rejected. Fields for a mount configuration:
+          + **Type** - String specifying the type of mount, e.g. `hostbind`, `ephemeral`, or `persistent` (required)
+          + **Source** - String specifying the host path to use for the mount. Path must exist. (required, `hostbind` only)
+          + **Destination** - String specifying the container destination path for the mount (required)
+          + **Driver** - String specifying the driver to use when creating a volume (required, `persistent` only)
+          + **Name** - String specifying the name of the volume to create (required, `persistent` only)
+          + **Mode** - comma sepparated list of mount modes, e.g. `ro`, `rw`, `nocopy`
+          + **CreateOpts** - A map of key/value pairs (strings) to use when creating the volume, passed directly to the volume driver. (`persistent only)
+
+          Mount types:
+            + **hostbind** - Mounts a file or directory from the host into the container. Must exist prior to creating the container.
+            + **ephemeral** - Creates a new volume with default options on the default driver. These volumes are removed when the container is removed
+            + **persistent** - Creates a volume with the given name and options (or uses a pre-existing volume with the same name and options). These are **not** removed when the container is removed.
+
 
 Query Parameters:
 
@@ -579,7 +594,8 @@ Return low-level information on the container `id`
 			"VolumesFrom": null,
 			"Ulimits": [{}],
 			"VolumeDriver": "",
-			"ShmSize": 67108864
+			"ShmSize": 67108864,
+      "Mounts": []
 		},
 		"HostnamePath": "/var/lib/docker/containers/ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39/hostname",
 		"HostsPath": "/var/lib/docker/containers/ba033ac4401106a3b513bc9d639eee123ad78ca3616b921167cd74b20e25ed39/hosts",

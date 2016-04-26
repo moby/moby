@@ -253,6 +253,19 @@ type UpdateConfig struct {
 	RestartPolicy RestartPolicy
 }
 
+// MountConfig holds attributes for configuring a container mount
+// This replaces the `Binds` field (kept for back-compat)
+// Not all fields are used in all cases, and some fields conflict based on `Type`
+type MountConfig struct {
+	Type        string            // Type of mount, e.g. 'hostbind', 'ephemeral'
+	Source      string            `json:",omitempty"` // Path on the host to mount from
+	Destination string            // Path in the container to mount to
+	Driver      string            `json:",omitempty"` // Driver to use
+	Name        string            `json:",omitempty"` // Name of the volume to use
+	Mode        string            `json:",omitempty"` // ro,rw,nocopy, z, Z
+	CreateOpts  map[string]string `json:",omitempty"` // Options that get passed to the driver if the volume name is not found
+}
+
 // HostConfig the non-portable Config structure of a container.
 // Here, "non-portable" means "dependent of the host we are running on".
 // Portable information *should* appear in Config.
@@ -298,4 +311,5 @@ type HostConfig struct {
 
 	// Contains container's resources (cgroups, ulimits)
 	Resources
+	Mounts []MountConfig
 }

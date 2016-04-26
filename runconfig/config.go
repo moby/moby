@@ -68,6 +68,19 @@ func DecodeContainerConfig(src io.Reader) (*container.Config, *container.HostCon
 // validateVolumesAndBindSettings validates each of the volumes and bind settings
 // passed by the caller to ensure they are valid.
 func validateVolumesAndBindSettings(c *container.Config, hc *container.HostConfig) error {
+	if len(hc.Mounts) > 0 {
+		if len(hc.Binds) > 0 {
+			return fmt.Errorf("Must not specify both `Binds` and `Mounts`")
+		}
+
+		if len(c.Volumes) > 0 {
+			return fmt.Errorf("Must not specify both `Volumes` and `Mounts`")
+		}
+
+		if len(hc.VolumeDriver) > 0 {
+			return fmt.Errorf("Must not specify both `VolumeDriver` and `Mounts`")
+		}
+	}
 
 	// Ensure all volumes and binds are valid.
 	for spec := range c.Volumes {

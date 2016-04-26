@@ -115,6 +115,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /containers/create` now takes `StorageOpt` field.
 * `GET /info` now returns `SecurityOptions` field, showing if `apparmor`, `seccomp`, or `selinux` is supported.
 * `GET /networks` now supports filtering by `label`.
+* `POST /containers/create` now takes a `Mounts` field in `HostConfig` which replaces `Binds` and `Volumes`. *note*: `Binds` and `Volumes` are still available but are exclussive with `Mounts`
 
 ### v1.23 API changes
 
