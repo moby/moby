@@ -1,0 +1,3 @@
+#define DOCKER_NAME "Docker Engine"
+
+#include "common.rc"

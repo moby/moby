@@ -1,10 +1,10 @@
-# This file describes the standard way to build Docker, using a docker container on Windows 
+# This file describes the standard way to build Docker, using a docker container on Windows
 # Server 2016
 #
 # Usage:
 #
 # # Assemble the full dev environment. This is slow the first time. Run this from
-# # a directory containing the sources you are validating. For example from 
+# # a directory containing the sources you are validating. For example from
 # # c:\go\src\github.com\docker\docker
 #
 # docker build -t docker -f Dockerfile.windows .
@@ -21,7 +21,7 @@
 #
 # The posix utilities from GIT aren't usable interactively as at January 2016. This
 # is because they require a console window which isn't present in a container in Windows.
-# See the example at the top of this file. Do NOT use -it in that docker run!!! 
+# See the example at the top of this file. Do NOT use -it in that docker run!!!
 #
 # Don't try to use a volume for passing the source through. The posix utilities will
 # balk at reparse points. Again, see the example at the top of this file on how use a volume
@@ -36,7 +36,6 @@ FROM windowsservercore
 #  - FROM_DOCKERFILE is used for detection of building within a container.
 ENV GO_VERSION=1.5.3 \
     GIT_LOCATION=https://github.com/git-for-windows/git/releases/download/v2.7.2.windows.1/Git-2.7.2-64-bit.exe \
-    RSRC_COMMIT=ba14da1f827188454a4591717fff29999010887f \
     GOPATH=C:/go;C:/go/src/github.com/docker/docker/vendor \
     FROM_DOCKERFILE=1
 
@@ -52,7 +51,7 @@ RUN \
    $wc = New-Object net.webclient; $wc.Downloadfile($source, $target) \
   } \
   \
-  Write-Host INFO: Downloading git...; \		
+  Write-Host INFO: Downloading git...; \
   Download-File %GIT_LOCATION% gitsetup.exe; \
   \
   Write-Host INFO: Downloading go...; \
@@ -83,12 +82,8 @@ RUN \
   Remove-Item go.msi; \
   Remove-Item gitsetup.exe; \
   \
-  Write-Host INFO: Cloning and installing RSRC; \
-  c:\git\bin\git.exe clone https://github.com/akavel/rsrc.git c:\go\src\github.com\akavel\rsrc; \
-  cd \go\src\github.com\akavel\rsrc; c:\git\bin\git.exe checkout -q %RSRC_COMMIT%; c:\go\bin\go.exe install -v; \
-  \
   Write-Host INFO: Completed
-  
+
 # Prepare for building
 COPY . /go/src/github.com/docker/docker
 
