@@ -17,33 +17,35 @@ import (
 // under "/foo/v2/...". Most application will only provide a schema, host and
 // port, such as "https://localhost:5000/".
 type URLBuilder struct {
-	root   *url.URL // url root (ie http://localhost/)
-	router *mux.Router
+	root     *url.URL // url root (ie http://localhost/)
+	router   *mux.Router
+	relative bool
 }
 
 // NewURLBuilder creates a URLBuilder with provided root url object.
-func NewURLBuilder(root *url.URL) *URLBuilder {
+func NewURLBuilder(root *url.URL, relative bool) *URLBuilder {
 	return &URLBuilder{
-		root:   root,
-		router: Router(),
+		root:     root,
+		router:   Router(),
+		relative: relative,
 	}
 }
 
 // NewURLBuilderFromString workes identically to NewURLBuilder except it takes
 // a string argument for the root, returning an error if it is not a valid
 // url.
-func NewURLBuilderFromString(root string) (*URLBuilder, error) {
+func NewURLBuilderFromString(root string, relative bool) (*URLBuilder, error) {
 	u, err := url.Parse(root)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewURLBuilder(u), nil
+	return NewURLBuilder(u, relative), nil
 }
 
 // NewURLBuilderFromRequest uses information from an *http.Request to
 // construct the root url.
-func NewURLBuilderFromRequest(r *http.Request) *URLBuilder {
+func NewURLBuilderFromRequest(r *http.Request, relative bool) *URLBuilder {
 	var scheme string
 
 	forwardedProto := r.Header.Get("X-Forwarded-Proto")
@@ -85,7 +87,7 @@ func NewURLBuilderFromRequest(r *http.Request) *URLBuilder {
 		u.Path = requestPath[0 : index+1]
 	}
 
-	return NewURLBuilder(u)
+	return NewURLBuilder(u, relative)
 }
 
 // BuildBaseURL constructs a base url for the API, typically just "/v2/".
@@ -194,18 +196,23 @@ func (ub *URLBuilder) cloneRoute(name string) clonedRoute {
 	*route = *ub.router.GetRoute(name) // clone the route
 	*root = *ub.root
 
-	return clonedRoute{Route: route, root: root}
+	return clonedRoute{Route: route, root: root, relative: ub.relative}
 }
 
 type clonedRoute struct {
 	*mux.Route
-	root *url.URL
+	root     *url.URL
+	relative bool
 }
 
 func (cr clonedRoute) URL(pairs ...string) (*url.URL, error) {
 	routeURL, err := cr.Route.URL(pairs...)
 	if err != nil {
 		return nil, err
+	}
+
+	if cr.relative {
+		return routeURL, nil
 	}
 
 	if routeURL.Scheme == "" && routeURL.User == nil && routeURL.Host == "" {

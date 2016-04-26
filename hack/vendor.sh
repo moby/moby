@@ -49,7 +49,7 @@ clone git github.com/boltdb/bolt v1.2.0
 clone git github.com/miekg/dns 75e6e86cc601825c5dbcd4e0c209eab180997cd7
 
 # get graph and distribution packages
-clone git github.com/docker/distribution d06d6d3b093302c02a93153ac7b06ebc0ffd1793
+clone git github.com/docker/distribution 467fc068d88aa6610691b7f1a677271a3fac4aac
 clone git github.com/vbatts/tar-split v0.9.11
 
 # get desired notary commit, might also need to be updated in Dockerfile
@@ -61,7 +61,7 @@ clone git github.com/docker/go v1.5.1-1-1-gbaf439e
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
 clone git github.com/opencontainers/runc 7b6c4c418d5090f4f11eee949fdf49afd15838c9 # libcontainer
-clone git github.com/opencontainers/specs 93ca97e83ca7fb4fba6d9e30d5470f99ddc02d11 # specs
+clone git github.com/opencontainers/specs f955d90e70a98ddfb886bd930ffd076da9b67998 # specs
 clone git github.com/seccomp/libseccomp-golang 1b506fc7c24eec5a3693cdcbed40d9c226cfc6a1
 # libcontainer deps (see src/github.com/opencontainers/runc/Godeps/Godeps.json)
 clone git github.com/coreos/go-systemd v4
@@ -90,5 +90,5 @@ clone git google.golang.org/api dc6d2353af16e2a2b0ff6986af051d473a4ed468 https:/
 clone git google.golang.org/cloud dae7e3d993bc3812a2185af60552bb6b847e52a0 https://code.googlesource.com/gocloud
 
 # containerd
-clone git github.com/docker/containerd 07c95162cdcead88dfe4ca0ffb3cea02375ec54d
+clone git github.com/docker/containerd v0.2.1
 clean

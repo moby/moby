@@ -135,7 +135,7 @@ func (s *statsCollector) run() {
 			// FIXME: move to containerd
 			stats.CPUStats.SystemUsage = systemUsage
 
-			pair.publisher.Publish(stats)
+			pair.publisher.Publish(*stats)
 		}
 	}
 }

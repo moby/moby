@@ -140,6 +140,10 @@ type Daemon struct {
 //    unique enough to only return a single container object
 //  If none of these searches succeed, an error is returned
 func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, error) {
+	if len(prefixOrName) == 0 {
+		return nil, errors.NewBadRequestError(fmt.Errorf("No container name or ID supplied"))
+	}
+
 	if containerByID := daemon.containers.Get(prefixOrName); containerByID != nil {
 		// prefix is an exact match to a full container ID
 		return containerByID, nil
@@ -305,7 +309,7 @@ func (daemon *Daemon) restore() error {
 			}
 			// fixme: only if not running
 			// get list of containers we need to restart
-			if daemon.configStore.AutoRestart && !c.IsRunning() && !c.IsPaused() && c.ShouldRestart() {
+			if daemon.configStore.AutoRestart && !c.IsRunning() && !c.IsPaused() && c.ShouldRestartOnBoot() {
 				mapLock.Lock()
 				restartContainers[c] = make(chan struct{})
 				mapLock.Unlock()
@@ -532,6 +536,9 @@ func (daemon *Daemon) newContainer(name string, config *containertypes.Config, i
 
 // GetByName returns a container given a name.
 func (daemon *Daemon) GetByName(name string) (*container.Container, error) {
+	if len(name) == 0 {
+		return nil, fmt.Errorf("No container name supplied")
+	}
 	fullName := name
 	if name[0] != '/' {
 		fullName = "/" + name
@@ -1598,7 +1605,7 @@ func (daemon *Daemon) initDiscovery(config *Config) error {
 func (daemon *Daemon) Reload(config *Config) error {
 	daemon.configStore.reloadLock.Lock()
 	defer daemon.configStore.reloadLock.Unlock()
-	if config.IsValueSet("label") {
+	if config.IsValueSet("labels") {
 		daemon.configStore.Labels = config.Labels
 	}
 	if config.IsValueSet("debug") {

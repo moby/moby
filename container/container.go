@@ -516,9 +516,9 @@ func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64
 	return written, err
 }
 
-// ShouldRestart decides whether the daemon should restart the container or not.
+// ShouldRestartOnBoot decides whether the daemon should restart the container or not.
 // This is based on the container's restart policy.
-func (container *Container) ShouldRestart() bool {
+func (container *Container) ShouldRestartOnBoot() bool {
 	return container.HostConfig.RestartPolicy.Name == "always" ||
 		(container.HostConfig.RestartPolicy.Name == "unless-stopped" && !container.HasBeenManuallyStopped) ||
 		(container.HostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0)
