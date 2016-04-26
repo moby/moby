@@ -486,6 +486,24 @@ Create a container
     -   **CgroupParent** - Path to `cgroups` under which the container's `cgroup` is created. If the path is not absolute, the path is considered to be relative to the `cgroups` path of the init process. Cgroups are created if they do not already exist.
     -   **VolumeDriver** - Driver that this container users to mount volumes.
     -   **ShmSize** - Size of `/dev/shm` in bytes. The size must be greater than 0.  If omitted the system uses 64MB.
+    -   **Mounts** – Specification for mounts to be added to the container.
+        - **Target** – Container path.
+        - **Source** – Mount source (e.g. a volume name, a host path).
+        - **Type** – The mount type (`bind`, or `volume`).
+          Available types (for the `Type` field):
+          - **bind** - Mounts a file or directory from the host into the container. Must exist prior to creating the container.
+          - **volume** - Creates a volume with the given name and options (or uses a pre-existing volume with the same name and options). These are **not** removed when the container is removed.
+        - **ReadOnly** – A boolean indicating whether the mount should be read-only.
+        - **BindOptions** - Optional configuration for the `bind` type.
+          - **Propagation** – A propagation mode with the value `[r]private`, `[r]shared`, or `[r]slave`.
+        - **VolumeOptions** – Optional configuration for the `volume` type.
+            - **NoCopy** – A boolean indicating if volume should be
+              populated with the data from the target. (Default false)
+            - **Labels** – User-defined name and labels for the volume as key/value pairs: `{"name": "value"}`
+            - **DriverConfig** – Map of driver-specific options.
+              - **Name** - Name of the driver to use to create the volume.
+              - **Options** - key/value map of driver specific options.
+
 
 **Query parameters**:
 

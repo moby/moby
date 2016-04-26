@@ -10,9 +10,9 @@ import (
 
 // DefaultPropagationMode defines what propagation mode should be used by
 // default if user has not specified one explicitly.
-const DefaultPropagationMode mounttypes.Propagation = "rprivate"
-
 // propagation modes
+const DefaultPropagationMode = mounttypes.PropagationRPrivate
+
 var propagationModes = map[mounttypes.Propagation]bool{
 	mounttypes.PropagationPrivate:  true,
 	mounttypes.PropagationRPrivate: true,
