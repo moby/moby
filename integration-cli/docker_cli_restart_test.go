@@ -233,12 +233,12 @@ func (s *DockerSuite) TestRestartContainerwithRestartPolicy(c *check.C) {
 	// Error response from daemon: Cannot restart container 6655f620d90b390527db23c0a15b3e46d86a58ecec20a5697ab228d860174251: remove /var/run/docker/libcontainerd/6655f620d90b390527db23c0a15b3e46d86a58ecec20a5697ab228d860174251/rootfs: device or resource busy
 	if _, _, err := dockerCmdWithError("restart", id1); err != nil {
 		// if restart met racey problem, try again
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(3 * time.Second)
 		dockerCmd(c, "restart", id1)
 	}
 	if _, _, err := dockerCmdWithError("restart", id2); err != nil {
 		// if restart met racey problem, try again
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(3 * time.Second)
 		dockerCmd(c, "restart", id2)
 	}
 
