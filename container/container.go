@@ -17,6 +17,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	containertypes "github.com/docker/docker/api/types/container"
+	mounttypes "github.com/docker/docker/api/types/mount"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/logger"
@@ -551,6 +552,7 @@ func (container *Container) ShouldRestart() bool {
 // AddMountPointWithVolume adds a new mount point configured with a volume to the container.
 func (container *Container) AddMountPointWithVolume(destination string, vol volume.Volume, rw bool) {
 	container.MountPoints[destination] = &volume.MountPoint{
+		Type:        mounttypes.TypeVolume,
 		Name:        vol.Name(),
 		Driver:      vol.DriverName(),
 		Destination: destination,

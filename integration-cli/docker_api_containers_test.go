@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -17,10 +19,14 @@ import (
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	mounttypes "github.com/docker/docker/api/types/mount"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/integration"
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/volume"
 	"github.com/go-check/check"
 )
 
@@ -1523,5 +1529,214 @@ func (s *DockerSuite) TestContainerApiStatsWithNetworkDisabled(c *check.C) {
 		var s *types.Stats
 		dec := json.NewDecoder(bytes.NewBuffer(sr.body))
 		c.Assert(dec.Decode(&s), checker.IsNil)
+	}
+}
+
+func (s *DockerSuite) TestContainersApiCreateMountsValidation(c *check.C) {
+	type m mounttypes.Mount
+	type hc struct{ Mounts []m }
+	type cfg struct {
+		Image      string
+		HostConfig hc
+	}
+	type testCase struct {
+		config cfg
+		status int
+		msg    string
+	}
+
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
+	destPath := prefix + slash + "foo"
+	notExistPath := prefix + slash + "notexist"
+
+	cases := []testCase{
+		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "notreal", Target: destPath}}}}, http.StatusBadRequest, "mount type unknown"},
+		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "bind"}}}}, http.StatusBadRequest, "Target must not be empty"},
+		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "bind", Target: destPath}}}}, http.StatusBadRequest, "Source must not be empty"},
+		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "bind", Source: notExistPath, Target: destPath}}}}, http.StatusBadRequest, "bind source path does not exist"},
+		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "volume"}}}}, http.StatusBadRequest, "Target must not be empty"},
+		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "volume", Source: "hello", Target: destPath}}}}, http.StatusCreated, ""},
+		{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "volume", Source: "hello2", Target: destPath, VolumeOptions: &mounttypes.VolumeOptions{DriverConfig: &mounttypes.Driver{Name: "local"}}}}}}, http.StatusCreated, ""},
+	}
+
+	if SameHostDaemon.Condition() {
+		tmpDir, err := ioutils.TempDir("", "test-mounts-api")
+		c.Assert(err, checker.IsNil)
+		defer os.RemoveAll(tmpDir)
+		cases = append(cases, []testCase{
+			{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "bind", Source: tmpDir, Target: destPath}}}}, http.StatusCreated, ""},
+			{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "bind", Source: tmpDir, Target: destPath, VolumeOptions: &mounttypes.VolumeOptions{}}}}}, http.StatusBadRequest, "VolumeOptions must not be specified"},
+		}...)
+	}
+
+	if DaemonIsLinux.Condition() {
+		cases = append(cases, []testCase{
+			{cfg{Image: "busybox", HostConfig: hc{Mounts: []m{{Type: "volume", Source: "hello3", Target: destPath, VolumeOptions: &mounttypes.VolumeOptions{DriverConfig: &mounttypes.Driver{Name: "local", Options: map[string]string{"o": "size=1"}}}}}}}, http.StatusCreated, ""},
+		}...)
+
+	}
+
+	for i, x := range cases {
+		c.Logf("case %d", i)
+		status, b, err := sockRequest("POST", "/containers/create", x.config)
+		c.Assert(err, checker.IsNil)
+		c.Assert(status, checker.Equals, x.status, check.Commentf("%s\n%v", string(b), cases[i].config))
+		if len(x.msg) > 0 {
+			c.Assert(string(b), checker.Contains, x.msg, check.Commentf("%v", cases[i].config))
+		}
+	}
+}
+
+func (s *DockerSuite) TestContainerApiCreateMountsBindRead(c *check.C) {
+	testRequires(c, NotUserNamespace, SameHostDaemon)
+	// also with data in the host side
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
+	destPath := prefix + slash + "foo"
+	tmpDir, err := ioutil.TempDir("", "test-mounts-api-bind")
+	c.Assert(err, checker.IsNil)
+	defer os.RemoveAll(tmpDir)
+	err = ioutil.WriteFile(filepath.Join(tmpDir, "bar"), []byte("hello"), 666)
+	c.Assert(err, checker.IsNil)
+
+	data := map[string]interface{}{
+		"Image":      "busybox",
+		"Cmd":        []string{"/bin/sh", "-c", "cat /foo/bar"},
+		"HostConfig": map[string]interface{}{"Mounts": []map[string]interface{}{{"Type": "bind", "Source": tmpDir, "Target": destPath}}},
+	}
+	status, resp, err := sockRequest("POST", "/containers/create?name=test", data)
+	c.Assert(err, checker.IsNil, check.Commentf(string(resp)))
+	c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf(string(resp)))
+
+	out, _ := dockerCmd(c, "start", "-a", "test")
+	c.Assert(out, checker.Equals, "hello")
+}
+
+// Test Mounts comes out as expected for the MountPoint
+func (s *DockerSuite) TestContainersApiCreateMountsCreate(c *check.C) {
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
+	destPath := prefix + slash + "foo"
+
+	var (
+		err     error
+		testImg string
+	)
+	if daemonPlatform != "windows" {
+		testImg, err = buildImage("test-mount-config", `
+	FROM busybox
+	RUN mkdir `+destPath+` && touch `+destPath+slash+`bar
+	CMD cat `+destPath+slash+`bar
+	`, true)
+	} else {
+		testImg = "busybox"
+	}
+	c.Assert(err, checker.IsNil)
+
+	type testCase struct {
+		cfg      mounttypes.Mount
+		expected types.MountPoint
+	}
+
+	cases := []testCase{
+		// use literal strings here for `Type` instead of the defined constants in the volume package to keep this honest
+		// Validation of the actual `Mount` struct is done in another test is not needed here
+		{mounttypes.Mount{Type: "volume", Target: destPath}, types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath}},
+		{mounttypes.Mount{Type: "volume", Target: destPath + slash}, types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath}},
+		{mounttypes.Mount{Type: "volume", Target: destPath, Source: "test1"}, types.MountPoint{Type: "volume", Name: "test1", RW: true, Destination: destPath}},
+		{mounttypes.Mount{Type: "volume", Target: destPath, ReadOnly: true, Source: "test2"}, types.MountPoint{Type: "volume", Name: "test2", RW: false, Destination: destPath}},
+		{mounttypes.Mount{Type: "volume", Target: destPath, Source: "test3", VolumeOptions: &mounttypes.VolumeOptions{DriverConfig: &mounttypes.Driver{Name: volume.DefaultDriverName}}}, types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", Name: "test3", RW: true, Destination: destPath}},
+	}
+
+	if SameHostDaemon.Condition() {
+		// setup temp dir for testing binds
+		tmpDir1, err := ioutil.TempDir("", "test-mounts-api-1")
+		c.Assert(err, checker.IsNil)
+		defer os.RemoveAll(tmpDir1)
+		cases = append(cases, []testCase{
+			{mounttypes.Mount{Type: "bind", Source: tmpDir1, Target: destPath}, types.MountPoint{Type: "bind", RW: true, Destination: destPath, Source: tmpDir1}},
+			{mounttypes.Mount{Type: "bind", Source: tmpDir1, Target: destPath, ReadOnly: true}, types.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir1}},
+		}...)
+
+		// for modes only supported on Linux
+		if DaemonIsLinux.Condition() {
+			tmpDir3, err := ioutils.TempDir("", "test-mounts-api-3")
+			c.Assert(err, checker.IsNil)
+			defer os.RemoveAll(tmpDir3)
+
+			c.Assert(mount.Mount(tmpDir3, tmpDir3, "none", "bind,rw"), checker.IsNil)
+			c.Assert(mount.ForceMount("", tmpDir3, "none", "shared"), checker.IsNil)
+
+			cases = append(cases, []testCase{
+				{mounttypes.Mount{Type: "bind", Source: tmpDir3, Target: destPath}, types.MountPoint{Type: "bind", RW: true, Destination: destPath, Source: tmpDir3}},
+				{mounttypes.Mount{Type: "bind", Source: tmpDir3, Target: destPath, ReadOnly: true}, types.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir3}},
+				{mounttypes.Mount{Type: "bind", Source: tmpDir3, Target: destPath, ReadOnly: true, BindOptions: &mounttypes.BindOptions{Propagation: "shared"}}, types.MountPoint{Type: "bind", RW: false, Destination: destPath, Source: tmpDir3, Propagation: "shared"}},
+			}...)
+		}
+	}
+
+	if daemonPlatform != "windows" { // Windows does not support volume populate
+		cases = append(cases, []testCase{
+			{mounttypes.Mount{Type: "volume", Target: destPath, VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}}, types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath}},
+			{mounttypes.Mount{Type: "volume", Target: destPath + slash, VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}}, types.MountPoint{Driver: volume.DefaultDriverName, Type: "volume", RW: true, Destination: destPath}},
+			{mounttypes.Mount{Type: "volume", Target: destPath, Source: "test4", VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}}, types.MountPoint{Type: "volume", Name: "test4", RW: true, Destination: destPath}},
+			{mounttypes.Mount{Type: "volume", Target: destPath, Source: "test5", ReadOnly: true, VolumeOptions: &mounttypes.VolumeOptions{NoCopy: true}}, types.MountPoint{Type: "volume", Name: "test5", RW: false, Destination: destPath}},
+		}...)
+	}
+
+	type wrapper struct {
+		containertypes.Config
+		HostConfig containertypes.HostConfig
+	}
+	type createResp struct {
+		ID string `json:"Id"`
+	}
+	for i, x := range cases {
+		c.Logf("case %d - config: %v", i, x.cfg)
+		status, data, err := sockRequest("POST", "/containers/create", wrapper{containertypes.Config{Image: testImg}, containertypes.HostConfig{Mounts: []mounttypes.Mount{x.cfg}}})
+		c.Assert(err, checker.IsNil, check.Commentf(string(data)))
+		c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf(string(data)))
+
+		var resp createResp
+		err = json.Unmarshal(data, &resp)
+		c.Assert(err, checker.IsNil, check.Commentf(string(data)))
+		id := resp.ID
+
+		var mps []types.MountPoint
+		err = json.NewDecoder(strings.NewReader(inspectFieldJSON(c, id, "Mounts"))).Decode(&mps)
+		c.Assert(err, checker.IsNil)
+		c.Assert(mps, checker.HasLen, 1)
+		c.Assert(mps[0].Destination, checker.Equals, x.expected.Destination)
+
+		if len(x.expected.Source) > 0 {
+			c.Assert(mps[0].Source, checker.Equals, x.expected.Source)
+		}
+		if len(x.expected.Name) > 0 {
+			c.Assert(mps[0].Name, checker.Equals, x.expected.Name)
+		}
+		if len(x.expected.Driver) > 0 {
+			c.Assert(mps[0].Driver, checker.Equals, x.expected.Driver)
+		}
+		c.Assert(mps[0].RW, checker.Equals, x.expected.RW)
+		c.Assert(mps[0].Type, checker.Equals, x.expected.Type)
+		c.Assert(mps[0].Mode, checker.Equals, x.expected.Mode)
+		if len(x.expected.Propagation) > 0 {
+			c.Assert(mps[0].Propagation, checker.Equals, x.expected.Propagation)
+		}
+
+		out, _, err := dockerCmdWithError("start", "-a", id)
+		if (x.cfg.Type != "volume" || (x.cfg.VolumeOptions != nil && x.cfg.VolumeOptions.NoCopy)) && daemonPlatform != "windows" {
+			c.Assert(err, checker.NotNil, check.Commentf("%s\n%v", out, mps[0]))
+		} else {
+			c.Assert(err, checker.IsNil, check.Commentf("%s\n%v", out, mps[0]))
+		}
+
+		dockerCmd(c, "rm", "-fv", id)
+		if x.cfg.Type == "volume" && len(x.cfg.Source) > 0 {
+			// This should still exist even though we removed the container
+			dockerCmd(c, "volume", "inspect", mps[0].Name)
+		} else {
+			// This should be removed automatically when we removed the container
+			out, _, err := dockerCmdWithError("volume", "inspect", mps[0].Name)
+			c.Assert(err, checker.NotNil, check.Commentf(out))
+		}
 	}
 }

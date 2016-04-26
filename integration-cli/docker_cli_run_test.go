@@ -4272,15 +4272,9 @@ func (s *DockerSuite) TestRunVolumesMountedAsSlave(c *check.C) {
 
 func (s *DockerSuite) TestRunNamedVolumesMountedAsShared(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
-	out, exitcode, _ := dockerCmdWithError("run", "-v", "foo:/test:shared", "busybox", "touch", "/test/somefile")
-
-	if exitcode == 0 {
-		c.Fatalf("expected non-zero exit code; received %d", exitcode)
-	}
-
-	if expected := "Invalid volume specification"; !strings.Contains(out, expected) {
-		c.Fatalf(`Expected %q in output; got: %s`, expected, out)
-	}
+	out, exitCode, _ := dockerCmdWithError("run", "-v", "foo:/test:shared", "busybox", "touch", "/test/somefile")
+	c.Assert(exitCode, checker.Not(checker.Equals), 0)
+	c.Assert(out, checker.Contains, "invalid mount config")
 }
 
 func (s *DockerSuite) TestRunNamedVolumeCopyImageData(c *check.C) {

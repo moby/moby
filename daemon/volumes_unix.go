@@ -85,11 +85,10 @@ func sortMounts(m []container.Mount) []container.Mount {
 // setBindModeIfNull is platform specific processing to ensure the
 // shared mode is set to 'z' if it is null. This is called in the case
 // of processing a named volume and not a typical bind.
-func setBindModeIfNull(bind *volume.MountPoint) *volume.MountPoint {
+func setBindModeIfNull(bind *volume.MountPoint) {
 	if bind.Mode == "" {
 		bind.Mode = "z"
 	}
-	return bind
 }
 
 // migrateVolume links the contents of a volume created pre Docker 1.7

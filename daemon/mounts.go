@@ -27,7 +27,7 @@ func (daemon *Daemon) removeMountPoints(container *container.Container, rm bool)
 		if rm {
 			// Do not remove named mountpoints
 			// these are mountpoints specified like `docker run -v <name>:/foo`
-			if m.Named {
+			if m.Spec.Source != "" {
 				continue
 			}
 			err := daemon.volumes.Remove(m.Volume)
