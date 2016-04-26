@@ -31,12 +31,12 @@ func (daemon *Daemon) LogContainerEventWithAttributes(container *container.Conta
 	daemon.EventsService.Log(action, events.ContainerEventType, actor)
 }
 
-// LogImageEvent generates an event related to a container with only the default attributes.
+// LogImageEvent generates an event related to an image with only the default attributes.
 func (daemon *Daemon) LogImageEvent(imageID, refName, action string) {
 	daemon.LogImageEventWithAttributes(imageID, refName, action, map[string]string{})
 }
 
-// LogImageEventWithAttributes generates an event related to a container with specific given attributes.
+// LogImageEventWithAttributes generates an event related to an image with specific given attributes.
 func (daemon *Daemon) LogImageEventWithAttributes(imageID, refName, action string, attributes map[string]string) {
 	img, err := daemon.GetImage(imageID)
 	if err == nil && img.Config != nil {
