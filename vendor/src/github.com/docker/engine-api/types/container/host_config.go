@@ -25,7 +25,7 @@ func (i Isolation) IsDefault() bool {
 // IpcMode represents the container ipc stack.
 type IpcMode string
 
-// IsPrivate indicates whether the container uses it's private ipc stack.
+// IsPrivate indicates whether the container uses its private ipc stack.
 func (n IpcMode) IsPrivate() bool {
 	return !(n.IsHost() || n.IsContainer())
 }
@@ -186,7 +186,7 @@ func (rp *RestartPolicy) IsAlways() bool {
 }
 
 // IsOnFailure indicates whether the container has the "on-failure" restart policy.
-// This means the contain will automatically restart of exiting with a non-zero exit status.
+// This means the container will automatically restart of exiting with a non-zero exit status.
 func (rp *RestartPolicy) IsOnFailure() bool {
 	return rp.Name == "on-failure"
 }

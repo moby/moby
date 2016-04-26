@@ -38,7 +38,7 @@ type ContainerCommitConfig struct {
 	Config       *container.Config
 }
 
-// ExecConfig is a small subset of the Config struct that hold the configuration
+// ExecConfig is a small subset of the Config struct that holds the configuration
 // for the exec feature of docker.
 type ExecConfig struct {
 	User         string   // User that will run the command

@@ -21,7 +21,7 @@ type Client struct {
 	addr string
 	// basePath holds the path to prepend to the requests.
 	basePath string
-	// transport is the interface to sends request with, it implements transport.Client.
+	// transport is the interface to send request with, it implements transport.Client.
 	transport transport.Client
 	// version of the server to talk to.
 	version string
