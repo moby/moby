@@ -288,6 +288,8 @@ Create a container
              "CpuQuota": 50000,
              "CpusetCpus": "0,1",
              "CpusetMems": "0,1",
+             "MaximumIOps": 0,
+             "MaximumIOBps": 0,
              "BlkioWeight": 300,
              "BlkioWeightDevice": [{}],
              "BlkioDeviceReadBps": [{}],
@@ -392,6 +394,8 @@ Json Parameters:
     -   **CpuQuota** - Microseconds of CPU time that the container can get in a CPU period.
     -   **CpusetCpus** - String value containing the `cgroups CpusetCpus` to use.
     -   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
+    -   **MaximumIOps** - Maximum IO absolute rate in terms of IOps. MaximumIOps and MaximumIOBps are mutually exclusive settings.
+    -   **MaximumIOBps** - Maximum IO absolute rate in terms of bytes per second. MaximumIOps and MaximumIOBps are mutually exclusive settings.
     -   **BlkioWeight** - Block IO weight (relative weight) accepts a weight value between 10 and 1000.
     -   **BlkioWeightDevice** - Block IO weight (relative device weight) in the form of:        `"BlkioWeightDevice": [{"Path": "device_path", "Weight": weight}]`
     -   **BlkioDeviceReadBps** - Limit read rate (bytes per second) from a device in the form of:	`"BlkioDeviceReadBps": [{"Path": "device_path", "Rate": rate}]`, for example:
@@ -533,6 +537,8 @@ Return low-level information on the container `id`
 		"ExecIDs": null,
 		"HostConfig": {
 			"Binds": null,
+			"MaximumIOps": 0,
+			"MaximumIOBps": 0,
 			"BlkioWeight": 0,
 			"BlkioWeightDevice": [{}],
 			"BlkioDeviceReadBps": [{}],
