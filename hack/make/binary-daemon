@@ -3,7 +3,7 @@ set -e
 
 (
 	export BINARY_SHORT_NAME='dockerd'
-	export SOURCE_PATH='./docker'
+	export SOURCE_PATH='./cmd/dockerd'
 	source "${MAKEDIR}/.binary"
 	copy_containerd "$DEST" 'hash'
 )

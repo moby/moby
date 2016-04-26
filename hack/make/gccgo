@@ -24,7 +24,7 @@ go build -compiler=gccgo \
 		-ldl
 		-pthread
 	" \
-	./docker
+	./cmd/dockerd
 
 echo "Created binary: $DEST/$BINARY_FULLNAME"
 ln -sf "$BINARY_FULLNAME" "$DEST/dockerd$BINARY_EXTENSION"
@@ -42,7 +42,7 @@ go build -compiler=gccgo \
 		-ldl
 		-pthread
 	" \
-	./client
+	./cmd/docker
 
 echo "Created binary: $DEST/$CLIENTBIN_FULLNAME"
 ln -sf "$CLIENTBIN_FULLNAME" "$DEST/docker$BINARY_EXTENSION"
