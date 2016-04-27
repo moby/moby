@@ -746,6 +746,14 @@ func (s *DockerSuite) TestRunWithShmSize(c *check.C) {
 	c.Assert(shmSize, check.Equals, "1073741824")
 }
 
+func (s *DockerSuite) TestRunTmpfsMountsEnsureOrdered(c *check.C) {
+	tmpFile, err := ioutil.TempFile("", "test")
+	c.Assert(err, check.IsNil)
+	defer tmpFile.Close()
+	out, _ := dockerCmd(c, "run", "--tmpfs", "/run", "-v", tmpFile.Name()+":/run/test", "busybox", "ls", "/run")
+	c.Assert(out, checker.Contains, "test")
+}
+
 func (s *DockerSuite) TestRunTmpfsMounts(c *check.C) {
 	// TODO Windows (Post TP5): This test cannot run on a Windows daemon as
 	// Windows does not support tmpfs mounts.
@@ -839,10 +847,8 @@ func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *check.C) {
 	]
 }`
 	tmpFile, err := ioutil.TempFile("", "profile.json")
+	c.Assert(err, check.IsNil)
 	defer tmpFile.Close()
-	if err != nil {
-		c.Fatal(err)
-	}
 
 	if _, err := tmpFile.Write([]byte(jsonData)); err != nil {
 		c.Fatal(err)
