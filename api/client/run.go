@@ -212,6 +212,8 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			// keep the error and read detailed error message from hijacked connection later
 			return errAttach
 		}
+		defer resp.Close()
+
 		ctx, cancelFun = context.WithCancel(context.Background())
 		errCh = promise.Go(func() error {
 			errHijack := cli.holdHijackedConnection(ctx, config.Tty, in, out, stderr, resp)
