@@ -127,6 +127,7 @@ if [ "$DOCKER_EXPERIMENTAL" ]; then
 	DOCKER_BUILDTAGS+=" experimental"
 fi
 
+DOCKER_BUILDTAGS+=" daemon"
 if pkg-config 'libsystemd >= 209' 2> /dev/null ; then
 	DOCKER_BUILDTAGS+=" journald"
 elif pkg-config 'libsystemd-journal' 2> /dev/null ; then
