@@ -41,6 +41,15 @@ for version in "${versions[@]}"; do
 
 	echo >> "$version/Dockerfile"
 
+	if [ "$distro" = "debian" ]; then
+		cat >> "$version/Dockerfile" <<-'EOF'
+			# allow replacing httpredir mirror
+			ARG APT_MIRROR=httpredir.debian.org
+			RUN sed -i s/httpredir.debian.org/$APT_MIRROR/g /etc/apt/sources.list
+
+		EOF
+	fi
+
 	extraBuildTags='pkcs11'
 	runcBuildTags=
 
