@@ -18,7 +18,7 @@ sharing your repository key (a combination of your targets and snapshot keys -
 please see "[Manage keys for content trust](trust_key_mng.md)" for more information).
 A collaborator can keep their own delegation key private.
 
-The `targest/releases` delegation is currently an optional feature - in order
+The `targets/releases` delegation is currently an optional feature - in order
 to set up delegations, you must use the Notary CLI:
 
 1. [Download the client](https://github.com/docker/notary/releases) and ensure that it is
@@ -40,7 +40,7 @@ available on your path
 
 For more detailed information about how to use Notary outside of the default
 Docker Content Trust use cases, please refer to the
-[the Notary CLI documentation](https://docs.docker.com/notary/getting_started/).
+[the Notary CLI documentation](/notary/getting_started.md).
 
 Note that when publishing and listing delegation changes using the Notary client,
 your Docker Hub credentials are required.

@@ -13,14 +13,10 @@ weight=-1
 
 When transferring data among networked systems, *trust* is a central concern. In
 particular, when communicating over an untrusted medium such as the internet, it
-is critical to ensure the integrity and publisher of all the data a system
-operates on. You use Docker to push and pull images (data) to a registry. Content trust
-gives you the ability to both verify the integrity and the publisher of all the
+is critical to ensure the integrity and the publisher of all the data a system
+operates on. You use Docker Engine to push and pull images (data) to a public or private registry. Content trust
+gives you the ability to verify both the integrity and the publisher of all the
 data received from a registry over any channel.
-
-Content trust is currently only available for users of the public Docker Hub. It
-is currently not available for the Docker Trusted Registry or for private
-registries.
 
 ## Understand trust in Docker
 
@@ -82,7 +78,7 @@ desirable, unsigned image tags are "invisible" to them.
 
 ![Trust view](images/trust_view.png)
 
-To the consumer who does not enabled content trust, nothing about how they
+To the consumer who has not enabled content trust, nothing about how they
 work with Docker images changes. Every image is visible regardless of whether it
 is signed or not.
 
@@ -127,7 +123,7 @@ The following image depicts the various signing keys and their relationships:
 >tag from this repository prior to the loss.
 
 You should backup the root key somewhere safe. Given that it is only required
-to create new repositories, it is a good idea to store it offline.
+to create new repositories, it is a good idea to store it offline in hardware.
 For details on securing, and backing up your keys, make sure you
 read how to [manage keys for content trust](trust_key_mng.md).
 
@@ -198,11 +194,12 @@ When you push your first tagged image with content trust enabled, the  `docker`
 client recognizes this is your first push and:
 
  - alerts you that it will create a new root key
- - requests a passphrase for the key
+ - requests a passphrase for the root key
  - generates a root key in the `~/.docker/trust` directory
+ - requests a passphrase for the repository key
  - generates a repository key for in the `~/.docker/trust` directory
 
-The passphrase you chose for both the root key and your content key-pair
+The passphrase you chose for both the root key and your repository key-pair
 should be randomly generated and stored in a *password manager*.
 
 > **NOTE**: If you omit the `latest` tag, content trust is skipped. This is true
@@ -267,7 +264,7 @@ Because the tag `docker/cliffs:latest` is not trusted, the `pull` fails.
 
 ### Disable content trust for specific operations
 
-A user that wants to disable content trust for a particular operation can use the
+A user who wants to disable content trust for a particular operation can use the
 `--disable-content-trust` flag. **Warning: this flag disables content trust for
 this operation**. With this flag, Docker will ignore content-trust and allow all
 operations to be done without verifying any signatures. If we wanted the
