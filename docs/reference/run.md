@@ -1083,7 +1083,7 @@ By default, Docker containers are "unprivileged" and cannot, for
 example, run a Docker daemon inside a Docker container. This is because
 by default a container is not allowed to access any devices, but a
 "privileged" container is given access to all devices (see
-the documentation on [cgroups devices](https://www.kernel.org/doc/Documentation/cgroups/devices.txt)).
+the documentation on [cgroups devices](https://www.kernel.org/doc/Documentation/cgroup-v1/devices.txt)).
 
 When the operator executes `docker run --privileged`, Docker will enable
 to access to all devices on the host as well as set some configuration
