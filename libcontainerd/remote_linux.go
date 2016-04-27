@@ -376,7 +376,7 @@ func (r *remote) runContainerdDaemon() error {
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	logrus.Infof("New containerd process, pid: %d\n", cmd.Process.Pid)
+	logrus.Infof("New containerd process, pid: %d", cmd.Process.Pid)
 
 	if _, err := f.WriteString(fmt.Sprintf("%d", cmd.Process.Pid)); err != nil {
 		utils.KillProcess(cmd.Process.Pid)
