@@ -25,7 +25,7 @@ Docker containers report the following events:
 
 Docker images report the following events:
 
-    delete, import, pull, push, tag, untag
+    delete, import, load, pull, push, save, tag, untag
 
 Docker volumes report the following events:
 

@@ -258,6 +258,45 @@ func (s *DockerSuite) TestEventsImageImport(c *check.C) {
 	c.Assert(matches["action"], checker.Equals, "import", check.Commentf("matches: %v\nout:\n%s\n", matches, out))
 }
 
+func (s *DockerSuite) TestEventsImageLoad(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	myImageName := "footest:v1"
+	dockerCmd(c, "tag", "busybox", myImageName)
+	since := daemonUnixTime(c)
+
+	out, _ := dockerCmd(c, "images", "-q", "--no-trunc", myImageName)
+	longImageID := strings.TrimSpace(out)
+	c.Assert(longImageID, checker.Not(check.Equals), "", check.Commentf("Id should not be empty"))
+
+	dockerCmd(c, "save", "-o", "saveimg.tar", myImageName)
+	dockerCmd(c, "rmi", myImageName)
+	out, _ = dockerCmd(c, "images", "-q", myImageName)
+	noImageID := strings.TrimSpace(out)
+	c.Assert(noImageID, checker.Equals, "", check.Commentf("Should not have any image"))
+	dockerCmd(c, "load", "-i", "saveimg.tar")
+
+	cmd := exec.Command("rm", "-rf", "saveimg.tar")
+	runCommand(cmd)
+
+	out, _ = dockerCmd(c, "images", "-q", "--no-trunc", myImageName)
+	imageID := strings.TrimSpace(out)
+	c.Assert(imageID, checker.Equals, longImageID, check.Commentf("Should have same image id as before"))
+
+	out, _ = dockerCmd(c, "events", "--since", since, "--until", daemonUnixTime(c), "--filter", "event=load")
+	events := strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(events, checker.HasLen, 1)
+	matches := eventstestutils.ScanMap(events[0])
+	c.Assert(matches["id"], checker.Equals, imageID, check.Commentf("matches: %v\nout:\n%s\n", matches, out))
+	c.Assert(matches["action"], checker.Equals, "load", check.Commentf("matches: %v\nout:\n%s\n", matches, out))
+
+	out, _ = dockerCmd(c, "events", "--since", since, "--until", daemonUnixTime(c), "--filter", "event=save")
+	events = strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(events, checker.HasLen, 1)
+	matches = eventstestutils.ScanMap(events[0])
+	c.Assert(matches["id"], checker.Equals, imageID, check.Commentf("matches: %v\nout:\n%s\n", matches, out))
+	c.Assert(matches["action"], checker.Equals, "save", check.Commentf("matches: %v\nout:\n%s\n", matches, out))
+}
+
 func (s *DockerSuite) TestEventsFilters(c *check.C) {
 	since := daemonUnixTime(c)
 	dockerCmd(c, "run", "--rm", "busybox", "true")
