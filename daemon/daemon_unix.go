@@ -644,22 +644,25 @@ func (daemon *Daemon) initNetworkController(config *Config) (libnetwork.NetworkC
 		return nil, fmt.Errorf("error obtaining controller instance: %v", err)
 	}
 
+	// if enable live restore, we don't initialize the default network just use the old
+	if libcontainerd.EnableLiveRestore() {
+		return controller, nil
+	}
+
 	// Initialize default network on "null"
-	if _, err := controller.NewNetwork("null", "none", libnetwork.NetworkOptionPersist(false)); err != nil {
+	if _, err := controller.NewNetwork("null", "none", libnetwork.NetworkOptionPersist(libcontainerd.EnableLiveRestore())); err != nil {
 		return nil, fmt.Errorf("Error creating default \"null\" network: %v", err)
 	}
 
 	// Initialize default network on "host"
-	if _, err := controller.NewNetwork("host", "host", libnetwork.NetworkOptionPersist(false)); err != nil {
+	if _, err := controller.NewNetwork("host", "host", libnetwork.NetworkOptionPersist(libcontainerd.EnableLiveRestore())); err != nil {
 		return nil, fmt.Errorf("Error creating default \"host\" network: %v", err)
 	}
 
 	if !config.DisableBridge {
-		if !libcontainerd.EnableLiveRestore() {
-			// Initialize default driver "bridge"
-			if err := initBridgeDriver(controller, config); err != nil {
-				return nil, err
-			}
+		// Initialize default driver "bridge"
+		if err := initBridgeDriver(controller, config); err != nil {
+			return nil, err
 		}
 	}
 

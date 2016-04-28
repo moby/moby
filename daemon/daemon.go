@@ -301,7 +301,7 @@ func (daemon *Daemon) restore() error {
 					logrus.Errorf("Failed to restore with containerd: %q", err)
 					return
 				}
-				if !(c.HostConfig.NetworkMode.IsContainer() || c.HostConfig.NetworkMode.IsHost() || c.HostConfig.NetworkMode.IsNone()) {
+				if !c.HostConfig.NetworkMode.IsContainer() {
 					oldRunningContainers[c] = true
 				}
 			}
@@ -336,9 +336,26 @@ func (daemon *Daemon) restore() error {
 			}
 		}
 		// if no container restored, re-create default driver "bridge", so we can make the new config of brige take affect
-		if len(restored) == 0 && !daemon.configStore.DisableBridge {
-			if err := initBridgeDriver(daemon.netController, daemon.configStore); err != nil {
-				return err
+		if len(restored) == 0 {
+			// Initialize default network on "null"
+			if n, _ := daemon.netController.NetworkByName("none"); n == nil {
+				if _, err := daemon.netController.NewNetwork("null", "none", libnetwork.NetworkOptionPersist(true)); err != nil {
+					return fmt.Errorf("Error creating default \"null\" network: %v", err)
+				}
+			}
+
+			// Initialize default network on "host"
+			if n, _ := daemon.netController.NetworkByName("host"); n == nil {
+				if _, err := daemon.netController.NewNetwork("host", "host", libnetwork.NetworkOptionPersist(true)); err != nil {
+					return fmt.Errorf("Error creating default \"host\" network: %v", err)
+				}
+			}
+
+			// Initilize default network on "bridge"
+			if !daemon.configStore.DisableBridge {
+				if err := initBridgeDriver(daemon.netController, daemon.configStore); err != nil {
+					return err
+				}
 			}
 		}
 		if len(restored) > 0 {
