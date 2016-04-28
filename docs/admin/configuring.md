@@ -22,10 +22,10 @@ or `systemd` to manage the `docker` daemon's start and stop.
 
 ### Running the docker daemon directly
 
-The `docker` daemon can be run directly using the `docker daemon` command. By default it listens on
+The `docker` daemon can be run directly using the `dockerd` command. By default it listens on
 the Unix socket `unix:///var/run/docker.sock`
 
-    $ docker daemon
+    $ dockerd
 
     INFO[0000] +job init_networkdriver()
     INFO[0000] +job serveapi(unix:///var/run/docker.sock)
@@ -50,7 +50,7 @@ Some of the daemon's options are:
 
 Here is a an example of running the `docker` daemon with configuration options:
 
-    $ docker daemon -D --tls=true --tlscert=/var/docker/server.pem --tlskey=/var/docker/serverkey.pem -H tcp://192.168.59.3:2376
+    $ dockerd -D --tls=true --tlscert=/var/docker/server.pem --tlskey=/var/docker/serverkey.pem -H tcp://192.168.59.3:2376
 
 These options :
 
@@ -58,7 +58,7 @@ These options :
 - Set `tls` to true with the server certificate and key specified using `--tlscert` and `--tlskey` respectively
 - Listen for connections on `tcp://192.168.59.3:2376`
 
-The command line reference has the [complete list of daemon flags](../reference/commandline/daemon.md)
+The command line reference has the [complete list of daemon flags](../reference/commandline/dockerd.md)
 with explanations.
 
 ### Daemon debugging
@@ -137,7 +137,7 @@ These options :
 - Set `tls` to true with the server certificate and key specified using `--tlscert` and `--tlskey` respectively
 - Listen for connections on `tcp://192.168.59.3:2376`
 
-The command line reference has the [complete list of daemon flags](../reference/commandline/daemon.md)
+The command line reference has the [complete list of daemon flags](../reference/commandline/dockerd.md)
 with explanations.
 
 
@@ -228,7 +228,7 @@ an empty configuration followed by a new one as follows:
 ```
 [Service]
 ExecStart=
-ExecStart=/usr/bin/docker daemon -H fd:// -D --tls=true --tlscert=/var/docker/server.pem --tlskey=/var/docker/serverkey.pem -H tcp://192.168.59.3:2376
+ExecStart=/usr/bin/dockerd -H fd:// -D --tls=true --tlscert=/var/docker/server.pem --tlskey=/var/docker/serverkey.pem -H tcp://192.168.59.3:2376
 ```
 
 These options :
@@ -237,7 +237,7 @@ These options :
 - Set `tls` to true with the server certificate and key specified using `--tlscert` and `--tlskey` respectively
 - Listen for connections on `tcp://192.168.59.3:2376`
 
-The command line reference has the [complete list of daemon flags](../reference/commandline/daemon.md)
+The command line reference has the [complete list of daemon flags](../reference/commandline/dockerd.md)
 with explanations.
 
 6. Save and close the file.

@@ -354,7 +354,7 @@ If you run into repeated problems with thin pool, you can use the
 `dm.min_free_space` option to tune the Engine behavior. This value ensures that
 operations fail with a warning when the free space is at or near the minimum.
 For information, see <a
-href="https://docs.docker.com/engine/reference/commandline/daemon/#storage-driver-options"
+href="https://docs.docker.com/engine/reference/commandline/dockerd/#storage-driver-options"
 target="_blank">the storage driver options in the Engine daemon reference</a>.
 
 
@@ -630,4 +630,4 @@ data volumes.
 * [Select a storage driver](selectadriver.md)
 * [AUFS storage driver in practice](aufs-driver.md)
 * [Btrfs storage driver in practice](btrfs-driver.md)
-* [daemon reference](../../reference/commandline/daemon#storage-driver-options)
+* [daemon reference](../../reference/commandline/dockerd#storage-driver-options)

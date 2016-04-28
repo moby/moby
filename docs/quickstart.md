@@ -116,7 +116,7 @@ when no `-H` was passed in.
 
 Run Docker in daemon mode:
 
-    $ sudo <path to>/docker daemon -H 0.0.0.0:5555 &
+    $ sudo <path to>/dockerd -H 0.0.0.0:5555 &
 
 Download an `ubuntu` image:
 
@@ -126,7 +126,7 @@ You can use multiple `-H`, for example, if you want to listen on both
 TCP and a Unix socket
 
     # Run docker in daemon mode
-    $ sudo <path to>/docker daemon -H tcp://127.0.0.1:2375 -H unix:///var/run/docker.sock &
+    $ sudo <path to>/dockerd -H tcp://127.0.0.1:2375 -H unix:///var/run/docker.sock &
     # Download an ubuntu image, use default Unix socket
     $ docker pull ubuntu
     # OR use the TCP port

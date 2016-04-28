@@ -1,6 +1,7 @@
 <!--[metadata]>
 +++
-title = "daemon"
+title = "dockerd"
+aliases = ["/engine/reference/commandline/daemon/"]
 description = "The daemon command description and usage"
 keywords = ["container, daemon, runtime"]
 [menu.main]
@@ -11,7 +12,7 @@ weight = -1
 
 # daemon
 
-    Usage: docker daemon [OPTIONS]
+    Usage: dockerd [OPTIONS]
 
     A self-sufficient runtime for linux containers.
 
@@ -70,11 +71,11 @@ weight = -1
 
 Options with [] may be specified multiple times.
 
-The Docker daemon is the persistent process that manages containers. Docker
-uses the same binary for both the daemon and client. To run the daemon you
-type `docker daemon`.
+dockerd is the persistent process that manages containers. Docker
+uses different binaries for the daemon and client. To run the daemon you
+type `dockerd`.
 
-To run the daemon with debug output, use `docker daemon -D`.
+To run the daemon with debug output, use `dockerd -D`.
 
 ## Daemon socket option
 
@@ -102,8 +103,8 @@ communication with the daemon.
 
 On Systemd based systems, you can communicate with the daemon via
 [Systemd socket activation](http://0pointer.de/blog/projects/socket-activation.html),
-use `docker daemon -H fd://`. Using `fd://` will work perfectly for most setups but
-you can also specify individual sockets: `docker daemon -H fd://3`. If the
+use `dockerd -H fd://`. Using `fd://` will work perfectly for most setups but
+you can also specify individual sockets: `dockerd -H fd://3`. If the
 specified socket activated files aren't found, then Docker will exit. You can
 find examples of using Systemd socket activation with Docker and Systemd in the
 [Docker source tree](https://github.com/docker/docker/tree/master/contrib/init/systemd/).
@@ -112,7 +113,7 @@ You can configure the Docker daemon to listen to multiple sockets at the same
 time using multiple `-H` options:
 
     # listen using the default unix socket, and on 2 specific IP addresses on this host.
-    docker daemon -H unix:///var/run/docker.sock -H tcp://192.168.59.106 -H tcp://10.10.10.2
+    dockerd -H unix:///var/run/docker.sock -H tcp://192.168.59.106 -H tcp://10.10.10.2
 
 The Docker client will honor the `DOCKER_HOST` environment variable to set the
 `-H` flag for the client.
@@ -160,16 +161,16 @@ article explains how to tune your existing setup without the use of options.
 
 The `btrfs` driver is very fast for `docker build` - but like `devicemapper`
 does not share executable memory between devices. Use
-`docker daemon -s btrfs -g /mnt/btrfs_partition`.
+`dockerd -s btrfs -g /mnt/btrfs_partition`.
 
 The `zfs` driver is probably not as fast as `btrfs` but has a longer track record
 on stability. Thanks to `Single Copy ARC` shared blocks between clones will be
-cached only once. Use `docker daemon -s zfs`. To select a different zfs filesystem
+cached only once. Use `dockerd -s zfs`. To select a different zfs filesystem
 set `zfs.fsname` option as described in [Storage driver options](#storage-driver-options).
 
 The `overlay` is a very fast union filesystem. It is now merged in the main
 Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137). Call
-`docker daemon -s overlay` to use it.
+`dockerd -s overlay` to use it.
 
 > **Note:**
 > As promising as `overlay` is, the feature is still quite young and should not
@@ -210,7 +211,7 @@ options for `zfs` start with `zfs`.
 
      Example use:
 
-        $ docker daemon \
+        $ dockerd \
               --storage-opt dm.thinpooldev=/dev/mapper/thin-pool
 
 *  `dm.basesize`
@@ -227,7 +228,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker daemon --storage-opt dm.basesize=50G
+        $ dockerd --storage-opt dm.basesize=50G
 
     This will increase the base device size to 50G. The Docker daemon will throw an
     error if existing base device size is larger than 50G. A user can use
@@ -243,7 +244,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker daemon --storage-opt dm.basesize=20G
+        $ dockerd --storage-opt dm.basesize=20G
 
 *  `dm.loopdatasize`
 
@@ -258,7 +259,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker daemon --storage-opt dm.loopdatasize=200G
+        $ dockerd --storage-opt dm.loopdatasize=200G
 
 *  `dm.loopmetadatasize`
 
@@ -273,7 +274,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker daemon --storage-opt dm.loopmetadatasize=4G
+        $ dockerd --storage-opt dm.loopmetadatasize=4G
 
 *  `dm.fs`
 
@@ -282,7 +283,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker daemon --storage-opt dm.fs=ext4
+        $ dockerd --storage-opt dm.fs=ext4
 
 *  `dm.mkfsarg`
 
@@ -290,7 +291,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker daemon --storage-opt "dm.mkfsarg=-O ^has_journal"
+        $ dockerd --storage-opt "dm.mkfsarg=-O ^has_journal"
 
 *  `dm.mountopt`
 
@@ -298,7 +299,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker daemon --storage-opt dm.mountopt=nodiscard
+        $ dockerd --storage-opt dm.mountopt=nodiscard
 
 *  `dm.datadev`
 
@@ -312,7 +313,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker daemon \
+        $ dockerd \
               --storage-opt dm.datadev=/dev/sdb1 \
               --storage-opt dm.metadatadev=/dev/sdc1
 
@@ -332,7 +333,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker daemon \
+        $ dockerd \
               --storage-opt dm.datadev=/dev/sdb1 \
               --storage-opt dm.metadatadev=/dev/sdc1
 
@@ -343,7 +344,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker daemon --storage-opt dm.blocksize=512K
+        $ dockerd --storage-opt dm.blocksize=512K
 
 *  `dm.blkdiscard`
 
@@ -357,7 +358,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker daemon --storage-opt dm.blkdiscard=false
+        $ dockerd --storage-opt dm.blkdiscard=false
 
 *  `dm.override_udev_sync_check`
 
@@ -383,7 +384,7 @@ options for `zfs` start with `zfs`.
     To allow the `docker` daemon to start, regardless of `udev` sync not being
     supported, set `dm.override_udev_sync_check` to true:
 
-        $ docker daemon --storage-opt dm.override_udev_sync_check=true
+        $ dockerd --storage-opt dm.override_udev_sync_check=true
 
     When this value is `true`, the  `devicemapper` continues and simply warns
     you the errors are happening.
@@ -413,7 +414,7 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker daemon --storage-opt dm.use_deferred_removal=true
+        $ dockerd --storage-opt dm.use_deferred_removal=true
 
 *  `dm.use_deferred_deletion`
 
@@ -427,7 +428,7 @@ options for `zfs` start with `zfs`.
     To avoid this failure, enable both deferred device deletion and deferred
     device removal on the daemon.
 
-        $ docker daemon \
+        $ dockerd \
               --storage-opt dm.use_deferred_deletion=true \
               --storage-opt dm.use_deferred_removal=true
 
@@ -466,7 +467,7 @@ options for `zfs` start with `zfs`.
     Example use:
 
     ```bash
-    $ docker daemon --storage-opt dm.min_free_space=10%
+    $ dockerd --storage-opt dm.min_free_space=10%
     ```
 
 Currently supported options of `zfs`:
@@ -479,7 +480,7 @@ Currently supported options of `zfs`:
 
     Example use:
 
-        $ docker daemon -s zfs --storage-opt zfs.fsname=zroot/docker
+        $ dockerd -s zfs --storage-opt zfs.fsname=zroot/docker
 
 ## Docker runtime execution options
 
@@ -501,14 +502,14 @@ cgroups. You can specify only specify `cgroupfs` or `systemd`. If you specify
 
 This example sets the `cgroupdriver` to `systemd`:
 
-    $ sudo docker daemon --exec-opt native.cgroupdriver=systemd
+    $ sudo dockerd --exec-opt native.cgroupdriver=systemd
 
 Setting this option applies to all containers the daemon launches.
 
 Also Windows Container makes use of `--exec-opt` for special purpose. Docker user
 can specify default container isolation technology with this, for example:
 
-    $ docker daemon --exec-opt isolation=hyperv
+    $ dockerd --exec-opt isolation=hyperv
 
 Will make `hyperv` the default isolation technology on Windows, without specifying
 isolation value on daemon start, Windows isolation technology will default to `process`.
@@ -516,10 +517,10 @@ isolation value on daemon start, Windows isolation technology will default to `p
 ## Daemon DNS options
 
 To set the DNS server for all Docker containers, use
-`docker daemon --dns 8.8.8.8`.
+`dockerd --dns 8.8.8.8`.
 
 To set the DNS search domain for all Docker containers, use
-`docker daemon --dns-search example.com`.
+`dockerd --dns-search example.com`.
 
 ## Insecure registries
 
@@ -578,7 +579,7 @@ need to be added to your Docker host's configuration:
 1. Install the `ca-certificates` package for your distribution
 2. Ask your network admin for the proxy's CA certificate and append them to
    `/etc/pki/tls/certs/ca-bundle.crt`
-3. Then start your Docker daemon with `HTTPS_PROXY=http://username:password@proxy:port/ docker daemon`.
+3. Then start your Docker daemon with `HTTPS_PROXY=http://username:password@proxy:port/ dockerd`.
    The `username:` and `password@` are optional - and are only needed if your
    proxy is set up to require authentication.
 
@@ -614,7 +615,7 @@ using the `--cluster-store-opt` flag, specifying the paths to PEM encoded
 files. For example:
 
 ```bash
-docker daemon \
+dockerd \
     --cluster-advertise 192.168.1.2:2376 \
     --cluster-store etcd://192.168.1.2:2379 \
     --cluster-store-opt kv.cacertfile=/path/to/ca.pem \
@@ -664,7 +665,7 @@ authorization plugins when you start the Docker `daemon` using the
 `--authorization-plugin=PLUGIN_ID` option.
 
 ```bash
-docker daemon --authorization-plugin=plugin1 --authorization-plugin=plugin2,...
+dockerd --authorization-plugin=plugin1 --authorization-plugin=plugin2,...
 ```
 
 The `PLUGIN_ID` value is either the plugin's name or a path to its specification
@@ -738,7 +739,7 @@ startup will fail with an error message.
 *Example: starting with default Docker user management:*
 
 ```bash
-$ docker daemon --userns-remap=default
+$ dockerd --userns-remap=default
 ```
 
 When `default` is provided, Docker will create - or find the existing - user and group
@@ -827,10 +828,10 @@ Docker supports softlinks for the Docker data directory (`/var/lib/docker`) and
 for `/var/lib/docker/tmp`. The `DOCKER_TMPDIR` and the data directory can be
 set like this:
 
-    DOCKER_TMPDIR=/mnt/disk2/tmp /usr/local/bin/docker daemon -D -g /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
+    DOCKER_TMPDIR=/mnt/disk2/tmp /usr/local/bin/dockerd -D -g /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
     # or
     export DOCKER_TMPDIR=/mnt/disk2/tmp
-    /usr/local/bin/docker daemon -D -g /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
+    /usr/local/bin/dockerd -D -g /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
 
 
 ## Default cgroup parent
