@@ -197,9 +197,14 @@ func (nDB *NetworkDB) gossip() {
 		broadcastQ := nDB.networks[nDB.config.NodeName][nid].tableBroadcasts
 		nDB.RUnlock()
 
+		if broadcastQ == nil {
+			logrus.Errorf("Invalid broadcastQ encountered while gossiping for network %s", nid)
+			continue
+		}
+
 		msgs := broadcastQ.GetBroadcasts(compoundOverhead, bytesAvail)
 		if len(msgs) == 0 {
-			break
+			continue
 		}
 
 		// Create a compound message

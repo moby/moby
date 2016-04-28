@@ -336,10 +336,6 @@ func (nDB *NetworkDB) WalkTable(tname string, fn func(string, string, []byte) bo
 func (nDB *NetworkDB) JoinNetwork(nid string) error {
 	ltime := nDB.networkClock.Increment()
 
-	if err := nDB.sendNetworkEvent(nid, networkJoin, ltime); err != nil {
-		return fmt.Errorf("failed to send leave network event for %s: %v", nid, err)
-	}
-
 	nDB.Lock()
 	nodeNetworks, ok := nDB.networks[nDB.config.NodeName]
 	if !ok {
@@ -355,6 +351,10 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 	}
 	nDB.networkNodes[nid] = append(nDB.networkNodes[nid], nDB.config.NodeName)
 	nDB.Unlock()
+
+	if err := nDB.sendNetworkEvent(nid, networkJoin, ltime); err != nil {
+		return fmt.Errorf("failed to send leave network event for %s: %v", nid, err)
+	}
 
 	logrus.Debugf("%s: joined network %s", nDB.config.NodeName, nid)
 	if _, err := nDB.bulkSync(nid, true); err != nil {
