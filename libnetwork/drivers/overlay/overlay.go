@@ -88,7 +88,7 @@ func Fini(drv driverapi.Driver) {
 
 func (d *driver) configure() error {
 	if d.store == nil {
-		return types.NoServiceErrorf("datastore is not available")
+		return nil
 	}
 
 	if d.vxlanIdm == nil {
