@@ -214,8 +214,7 @@ In order, Docker Engine does the following:
 - **Pulls the `ubuntu` image:** Docker Engine checks for the presence of the `ubuntu`
 image. If the image already exists, then Docker Engine uses it for the new container.
 If it doesn't exist locally on the host, then Docker Engine pulls it from
-[Docker Hub](https://hub.docker.com). If the image already exists, then Docker Engine
-uses it for the new container.
+[Docker Hub](https://hub.docker.com).
 - **Creates a new container:** Once Docker Engine has the image, it uses it to create a
 container.
 - **Allocates a filesystem and mounts a read-write _layer_:** The container is created in
