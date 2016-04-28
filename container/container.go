@@ -315,6 +315,7 @@ func (container *Container) StartLogger(cfg containertypes.LogConfig) (logger.Lo
 		ContainerCreated:    container.Created,
 		ContainerEnv:        container.Config.Env,
 		ContainerLabels:     container.Config.Labels,
+		DaemonName:          "docker",
 	}
 
 	// Set logging file for "json-logger"

@@ -30,6 +30,7 @@ Docker supports some special template markup you can use when specifying a tag's
 | `{{.ImageID}}`     | The first 12 characters of the container's image id. |
 | `{{.ImageFullID}}` | The container's full image identifier.               |
 | `{{.ImageName}}`   | The name of the image used by the container.         |
+| `{{.DaemonName}}`  | The name of the docker program (`docker`).           |
 
 For example, specifying a `--log-opt tag="{{.ImageName}}/{{.Name}}/{{.ID}}"` value yields `syslog` log lines like:
 
