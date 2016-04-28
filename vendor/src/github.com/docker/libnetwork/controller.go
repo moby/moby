@@ -263,25 +263,27 @@ func (c *controller) RestoreSandbox(sbids map[string]interface{}) (map[string]in
 	for _, sb := range c.sandboxes {
 		log.Infof("restore sandbox %s of container %s", sb.ID(), sb.ContainerID())
 		extEp := sb.getGatewayEndpoint()
-		options := extEp.generic
-		options["restore"] = true
+		if extEp != nil {
+			options := extEp.generic
+			options["restore"] = true
 
-		n, err := extEp.getNetworkFromStore()
-		if err != nil {
-			log.Errorf("Restore sandbox: failed to get network from store during join: %v", err)
-			continue
-		}
-		d, err := n.driver(true)
-		if err != nil {
-			log.Errorf("Resore sandbox: failed to join endpoint: %v", err)
-			continue
-		}
-
-		if !n.internal {
-			err = d.ProgramExternalConnectivity(n.id, extEp.id, options)
+			n, err := extEp.getNetworkFromStore()
 			if err != nil {
-				log.Errorf("Restore sandbox: failed to program external connectivity")
+				log.Errorf("Restore sandbox: failed to get network from store during join: %v", err)
 				continue
+			}
+			d, err := n.driver(true)
+			if err != nil {
+				log.Errorf("Resore sandbox: failed to join endpoint: %v", err)
+				continue
+			}
+
+			if !n.internal {
+				err = d.ProgramExternalConnectivity(n.id, extEp.id, options)
+				if err != nil {
+					log.Errorf("Restore sandbox: failed to program external connectivity")
+					continue
+				}
 			}
 		}
 		for _, ep := range sb.endpoints {
@@ -293,7 +295,11 @@ func (c *controller) RestoreSandbox(sbids map[string]interface{}) (map[string]in
 				log.Errorf("Restore sandbox: failed to get network from store during join: %v", err)
 				continue
 			}
-			err = d.Join(n.ID(), ep.id, sb.Key(), ep, sb.Labels())
+			d, err := net.driver(true)
+			if err != nil {
+				log.Errorf("Resore sandbox: failed to get driver of  endpoint %s: %v", err, ep.Name())
+			}
+			err = d.Join(net.ID(), ep.id, sb.Key(), ep, sb.Labels())
 			if err != nil {
 				log.Errorf("Restore sandbox: failed to join endpoint %s to network %s : %v", ep.Name(), net.Name(), err)
 				continue
