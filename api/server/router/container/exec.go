@@ -110,8 +110,8 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 		if execStartCheck.Detach {
 			return err
 		}
-		stdout.Write([]byte(err.Error()))
-		logrus.Errorf("Error running exec in container: %v\n", err)
+		stdout.Write([]byte(err.Error() + "\r\n"))
+		logrus.Errorf("Error running exec in container: %v", err)
 	}
 	return nil
 }
