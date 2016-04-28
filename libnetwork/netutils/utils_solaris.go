@@ -1,10 +1,11 @@
-// Package ipamutils provides utililty functions for ipam management
-package ipamutils
+package netutils
 
 // Solaris: TODO
 
 import (
 	"net"
+
+	"github.com/docker/libnetwork/ipamutils"
 )
 
 // ElectInterfaceAddresses looks for an interface on the OS with the specified name
@@ -17,7 +18,7 @@ func ElectInterfaceAddresses(name string) (*net.IPNet, []*net.IPNet, error) {
 		err   error
 	)
 
-	v4Net, err = FindAvailableNetwork(PredefinedBroadNetworks)
+	v4Net, err = FindAvailableNetwork(ipamutils.PredefinedBroadNetworks)
 	if err != nil {
 		return nil, nil, err
 	}
