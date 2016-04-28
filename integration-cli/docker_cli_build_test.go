@@ -5096,6 +5096,23 @@ func (s *DockerSuite) TestBuildNotVerboseSuccess(c *check.C) {
 
 }
 
+func (s *DockerSuite) TestBuildNotVerboseFailureWithNonExistImage(c *check.C) {
+	// This test makes sure that -q works correctly when build fails by
+	// comparing between the stderr output in quiet mode and in stdout
+	// and stderr output in verbose mode
+	testRequires(c, Network)
+	testName := "quiet_build_not_exists_image"
+	buildCmd := "FROM busybox11"
+	_, _, qstderr, qerr := buildImageWithStdoutStderr(testName, buildCmd, false, "-q", "--force-rm", "--rm")
+	_, vstdout, vstderr, verr := buildImageWithStdoutStderr(testName, buildCmd, false, "--force-rm", "--rm")
+	if verr == nil || qerr == nil {
+		c.Fatal(fmt.Errorf("Test [%s] expected to fail but didn't", testName))
+	}
+	if qstderr != vstdout+vstderr {
+		c.Fatal(fmt.Errorf("Test[%s] expected that quiet stderr and verbose stdout are equal; quiet [%v], verbose [%v]", testName, qstderr, vstdout+vstderr))
+	}
+}
+
 func (s *DockerSuite) TestBuildNotVerboseFailure(c *check.C) {
 	// This test makes sure that -q works correctly when build fails by
 	// comparing between the stderr output in quiet mode and in stdout
@@ -5106,7 +5123,6 @@ func (s *DockerSuite) TestBuildNotVerboseFailure(c *check.C) {
 	}{
 		{"quiet_build_no_from_at_the_beginning", "RUN whoami"},
 		{"quiet_build_unknown_instr", "FROMD busybox"},
-		{"quiet_build_not_exists_image", "FROM busybox11"},
 	}
 
 	for _, te := range tt {
