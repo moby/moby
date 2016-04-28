@@ -11,7 +11,7 @@ var (
 	validPrefixes = map[string][]string{
 		"url":       {"http://", "https://"},
 		"git":       {"git://", "github.com/", "git@"},
-		"transport": {"tcp://", "tcp+tls://", "udp://", "unix://"},
+		"transport": {"tcp://", "tcp+tls://", "udp://", "unix://", "unixgram://"},
 	}
 	urlPathWithFragmentSuffix = regexp.MustCompile(".git(?:#.+)?$")
 )

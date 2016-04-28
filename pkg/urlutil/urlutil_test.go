@@ -23,6 +23,7 @@ var (
 		"tcp+tls://example.com",
 		"udp://example.com",
 		"unix:///example",
+		"unixgram:///example",
 	}
 )
 
