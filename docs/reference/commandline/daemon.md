@@ -888,7 +888,7 @@ This is a full example of the allowed configuration options in the file:
 	"exec-opts": [],
 	"exec-root": "",
 	"storage-driver": "",
-	"storage-opts": "",
+	"storage-opts": [],
 	"labels": [],
 	"log-driver": "",
 	"log-opts": [],

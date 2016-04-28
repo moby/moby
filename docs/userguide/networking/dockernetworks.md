@@ -18,7 +18,7 @@ applications run on. Docker container networks give you that control.
 
 This section provides an overview of the default networking behavior that Docker
 Engine delivers natively. It describes the type of networks created by default
-and how to create your own, user--defined networks. It also describes the
+and how to create your own, user-defined networks. It also describes the
 resources required to create networks on a single host or across a cluster of
 hosts.
 
@@ -138,7 +138,7 @@ $ docker run -itd --name=container2 busybox
 94447ca479852d29aeddca75c28f7104df3c3196d7b6d83061879e339946805c
 ```
 
-Inspecting the `bridge` network again after starting two containers shows both newly launched containers in the network. Their ids show up in the container
+Inspecting the `bridge` network again after starting two containers shows both newly launched containers in the network. Their ids show up in the "Containers" section of `docker network inspect`:
 
 ```
 $ docker network inspect bridge
@@ -293,7 +293,9 @@ specifications.
 You can create multiple networks. You can add containers to more than one
 network. Containers can only communicate within networks but not across
 networks. A container attached to two networks can communicate with member
-containers in either network.
+containers in either network. When a container is connected to multiple
+networks, its external connectivity is provided via the first non-internal
+network, in lexical order.
 
 The next few sections describe each of Docker's built-in network drivers in
 greater detail.
