@@ -96,9 +96,8 @@ for version in "${versions[@]}"; do
 	esac
 
 	# opensuse & oraclelinx:6 do not have the right libseccomp libs
-	# centos:7 and oraclelinux:7 have a libseccomp < 2.2.1 :(
 	case "$from" in
-		opensuse:*|oraclelinux:*|centos:7)
+		opensuse:*|oraclelinux:6)
 			packages=( "${packages[@]/libseccomp-devel}" )
 			runcBuildTags="selinux"
 			;;
