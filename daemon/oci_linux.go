@@ -31,19 +31,19 @@ func setResources(s *specs.Spec, r containertypes.Resources) error {
 	if err != nil {
 		return err
 	}
-	readBpsDevice, err := getBlkioReadBpsDevices(r)
+	readBpsDevice, err := getBlkioThrottleDevices(r.BlkioDeviceReadBps)
 	if err != nil {
 		return err
 	}
-	writeBpsDevice, err := getBlkioWriteBpsDevices(r)
+	writeBpsDevice, err := getBlkioThrottleDevices(r.BlkioDeviceWriteBps)
 	if err != nil {
 		return err
 	}
-	readIOpsDevice, err := getBlkioReadIOpsDevices(r)
+	readIOpsDevice, err := getBlkioThrottleDevices(r.BlkioDeviceReadIOps)
 	if err != nil {
 		return err
 	}
-	writeIOpsDevice, err := getBlkioWriteIOpsDevices(r)
+	writeIOpsDevice, err := getBlkioThrottleDevices(r.BlkioDeviceWriteIOps)
 	if err != nil {
 		return err
 	}
