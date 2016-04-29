@@ -112,17 +112,24 @@ RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint 
 	&& go install -v github.com/golang/lint/golint
 
 
-# Install registry
-ENV REGISTRY_COMMIT ec87e9b6971d831f0eff752ddb54fb64693e51cd
+# Install two versions of the registry. The first is an older version that
+# only supports schema1 manifests. The second is a newer version that supports
+# both. This allows integration-cli tests to cover push/pull with both schema1
+# and schema2 manifests.
+ENV REGISTRY_COMMIT_SCHEMA1 ec87e9b6971d831f0eff752ddb54fb64693e51cd
+ENV REGISTRY_COMMIT 47a064d4195a9b56133891bbb13620c3ac83a827
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/distribution.git "$GOPATH/src/github.com/docker/distribution" \
 	&& (cd "$GOPATH/src/github.com/docker/distribution" && git checkout -q "$REGISTRY_COMMIT") \
 	&& GOPATH="$GOPATH/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
 		go build -o /usr/local/bin/registry-v2 github.com/docker/distribution/cmd/registry \
+	&& (cd "$GOPATH/src/github.com/docker/distribution" && git checkout -q "$REGISTRY_COMMIT_SCHEMA1") \
+	&& GOPATH="$GOPATH/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
+		go build -o /usr/local/bin/registry-v2-schema1 github.com/docker/distribution/cmd/registry \
 	&& rm -rf "$GOPATH"
 
-# Install notary server
+# Install notary and notary-server
 ENV NOTARY_VERSION docker-v1.11-3
 RUN set -x \
 	&& export GO15VENDOREXPERIMENT=1 \
@@ -131,6 +138,8 @@ RUN set -x \
 	&& (cd "$GOPATH/src/github.com/docker/notary" && git checkout -q "$NOTARY_VERSION" && ln -s . vendor/src) \
 	&& GOPATH="$GOPATH/src/github.com/docker/notary/vendor:$GOPATH" \
 		go build -o /usr/local/bin/notary-server github.com/docker/notary/cmd/notary-server \
+	&& GOPATH="$GOPATH/src/github.com/docker/notary/vendor:$GOPATH" \
+		go build -o /usr/local/bin/notary github.com/docker/notary/cmd/notary \
 	&& rm -rf "$GOPATH"
 
 # Get the "docker-py" source so we can run their integration tests
