@@ -382,11 +382,14 @@ name, they must be linked.
 With the network set to `host` a container will share the host's
 network stack and all interfaces from the host will be available to the
 container.  The container's hostname will match the hostname on the host
-system.  Note that `--add-host` `--dns` `--dns-search`
-`--dns-opt` and `--mac-address` are invalid in `host` netmode. Even in `host`
+system.  Note that `--add-host` and `--mac-address` are invalid in `host` netmode. Even in `host`
 network mode a container has its own UTS namespace by default. As such
 `--hostname` is allowed in `host` network mode and will only change the
 hostname inside the container.
+Note also that `--dns`, `--dns-search` and `--dns-opt` are
+valid in `host` mode and `/etc/resolv.conf` will be updated accordingly. However, the
+update in `/etc/resolv.conf` only happens inside the container. No change will be
+made for `/etc/resolv.conf` in host.
 
 Compared to the default `bridge` mode, the `host` mode gives *significantly*
 better networking performance since it uses the host's native networking stack
