@@ -8,7 +8,6 @@ import (
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	_ "github.com/docker/libnetwork/testutils"
-	"github.com/docker/libnetwork/types"
 )
 
 type driverTester struct {
@@ -22,14 +21,6 @@ func setupDriver(t *testing.T) *driverTester {
 	dt := &driverTester{t: t}
 	if err := Init(dt, nil); err != nil {
 		t.Fatal(err)
-	}
-
-	err := dt.d.configure()
-	if err == nil {
-		t.Fatalf("Failed to detect nil store")
-	}
-	if _, ok := err.(types.NoServiceError); !ok {
-		t.Fatalf("Unexpected error type: %v", err)
 	}
 
 	iface, err := net.InterfaceByName("eth0")
@@ -88,23 +79,6 @@ func TestOverlayFiniWithoutConfig(t *testing.T) {
 	dt := &driverTester{t: t}
 	if err := Init(dt, nil); err != nil {
 		t.Fatal(err)
-	}
-
-	cleanupDriver(t, dt)
-}
-
-func TestOverlayNilConfig(t *testing.T) {
-	dt := &driverTester{t: t}
-	if err := Init(dt, nil); err != nil {
-		t.Fatal(err)
-	}
-
-	err := dt.d.configure()
-	if err == nil {
-		t.Fatalf("Failed to detect nil store")
-	}
-	if _, ok := err.(types.NoServiceError); !ok {
-		t.Fatalf("Unexpected error type: %v", err)
 	}
 
 	cleanupDriver(t, dt)
