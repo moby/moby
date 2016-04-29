@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"reflect"
 	"strings"
 
 	flag "github.com/docker/docker/pkg/mflag"
@@ -21,7 +20,9 @@ type Cli struct {
 // Handler holds the different commands Cli will call
 // It should have methods with names starting with `Cmd` like:
 // 	func (h myHandler) CmdFoo(args ...string) error
-type Handler interface{}
+type Handler interface {
+	Command(name string) func(...string) error
+}
 
 // Initializer can be optionally implemented by a Handler to
 // initialize before each call to one of its commands.
@@ -50,22 +51,13 @@ func (cli *Cli) command(args ...string) (func(...string) error, error) {
 		if c == nil {
 			continue
 		}
-		camelArgs := make([]string, len(args))
-		for i, s := range args {
-			if len(s) == 0 {
-				return nil, errors.New("empty command")
-			}
-			camelArgs[i] = strings.ToUpper(s[:1]) + strings.ToLower(s[1:])
-		}
-		methodName := "Cmd" + strings.Join(camelArgs, "")
-		method := reflect.ValueOf(c).MethodByName(methodName)
-		if method.IsValid() {
-			if c, ok := c.(Initializer); ok {
-				if err := c.Initialize(); err != nil {
+		if cmd := c.Command(strings.Join(args, " ")); cmd != nil {
+			if ci, ok := c.(Initializer); ok {
+				if err := ci.Initialize(); err != nil {
 					return nil, initErr{err}
 				}
 			}
-			return method.Interface().(func(...string) error), nil
+			return cmd, nil
 		}
 	}
 	return nil, errors.New("command not found")
@@ -101,6 +93,13 @@ func (cli *Cli) noSuchCommand(command string) {
 	}
 	fmt.Fprintf(cli.Stderr, "docker: '%s' is not a docker command.\nSee 'docker --help'.\n", command)
 	os.Exit(1)
+}
+
+// Command returns a command handler, or nil if the command does not exist
+func (cli *Cli) Command(name string) func(...string) error {
+	return map[string]func(...string) error{
+		"help": cli.CmdHelp,
+	}[name]
 }
 
 // CmdHelp displays information on a Docker command.
