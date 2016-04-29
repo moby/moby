@@ -317,6 +317,9 @@ __docker_network_complete_ls_filters() {
 
     if compset -P '*='; then
         case "${${words[-1]%=*}#*=}" in
+            (driver)
+                __docker_plugins Network && ret=0
+                ;;
             (id)
                 __docker_networks_ids && ret=0
                 ;;
@@ -332,7 +335,7 @@ __docker_network_complete_ls_filters() {
                 ;;
         esac
     else
-        opts=('id' 'name' 'type')
+        opts=('driver' 'id' 'name' 'type')
         _describe -t filter-opts "Filter Options" opts -qS "=" && ret=0
     fi
 
