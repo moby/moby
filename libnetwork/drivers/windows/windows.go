@@ -417,6 +417,10 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 	endpointStruct.Policies = append(endpointStruct.Policies, qosPolicies...)
 
+	if ifInfo.Address() != nil {
+		endpointStruct.IPAddress = ifInfo.Address().IP
+	}
+
 	configurationb, err := json.Marshal(endpointStruct)
 	if err != nil {
 		return err
@@ -452,8 +456,13 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	n.endpoints[eid] = endpoint
 	n.Unlock()
 
-	ifInfo.SetIPAddress(endpoint.addr)
-	ifInfo.SetMacAddress(endpoint.macAddress)
+	if ifInfo.Address() == nil {
+		ifInfo.SetIPAddress(endpoint.addr)
+	}
+
+	if macAddress == nil {
+		ifInfo.SetMacAddress(endpoint.macAddress)
+	}
 
 	return nil
 }
