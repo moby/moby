@@ -311,10 +311,41 @@ __docker_complete_ps_filters() {
     return ret
 }
 
-__docker_networks() {
+__docker_network_complete_ls_filters() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
+
+    if compset -P '*='; then
+        case "${${words[-1]%=*}#*=}" in
+            (id)
+                __docker_networks_ids && ret=0
+                ;;
+            (name)
+                __docker_networks_names && ret=0
+                ;;
+            (type)
+                type_opts=('builtin' 'custom')
+                _describe -t type-filter-opts "Type Filter Options" type_opts && ret=0
+                ;;
+            *)
+                _message 'value' && ret=0
+                ;;
+        esac
+    else
+        opts=('id' 'name' 'type')
+        _describe -t filter-opts "Filter Options" opts -qS "=" && ret=0
+    fi
+
+    return ret
+}
+
+__docker_get_networks() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+    local line s
     declare -a lines networks
+
+    type=$1; shift
 
     lines=(${(f)"$(_call_program commands docker $docker_options network ls)"})
 
@@ -332,22 +363,40 @@ __docker_networks() {
     lines=(${lines[2,-1]})
 
     # Network ID
-    local line s
-    for line in $lines; do
-        s="${line[${begin[NETWORK ID]},${end[NETWORK ID]}]%% ##}"
-        s="$s:${(l:7:: :::)${${line[${begin[DRIVER]},${end[DRIVER]}]}%% ##}}"
-        networks=($networks $s)
-    done
+    if [[ $type = (ids|all) ]]; then
+        for line in $lines; do
+            s="${line[${begin[NETWORK ID]},${end[NETWORK ID]}]%% ##}"
+            s="$s:${(l:7:: :::)${${line[${begin[DRIVER]},${end[DRIVER]}]}%% ##}}"
+            networks=($networks $s)
+        done
+    fi
 
     # Names
-    for line in $lines; do
-        s="${line[${begin[NAME]},${end[NAME]}]%% ##}"
-        s="$s:${(l:7:: :::)${${line[${begin[DRIVER]},${end[DRIVER]}]}%% ##}}"
-        networks=($networks $s)
-    done
+    if [[ $type = (names|all) ]]; then
+        for line in $lines; do
+            s="${line[${begin[NAME]},${end[NAME]}]%% ##}"
+            s="$s:${(l:7:: :::)${${line[${begin[DRIVER]},${end[DRIVER]}]}%% ##}}"
+            networks=($networks $s)
+        done
+    fi
 
-    _describe -t networks-list "networks" networks && ret=0
+    _describe -t networks-list "networks" networks "$@" && ret=0
     return ret
+}
+
+__docker_networks() {
+    [[ $PREFIX = -* ]] && return 1
+    __docker_get_networks all "$@"
+}
+
+__docker_networks_ids() {
+    [[ $PREFIX = -* ]] && return 1
+    __docker_get_networks ids "$@"
+}
+
+__docker_networks_names() {
+    [[ $PREFIX = -* ]] && return 1
+    __docker_get_networks names "$@"
 }
 
 __docker_network_commands() {
@@ -423,7 +472,13 @@ __docker_network_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help)--no-trunc[Do not truncate the output]" \
+                "($help)*"{-f=,--filter=}"[Provide filter values]:filter:->filter-options" \
                 "($help -q --quiet)"{-q,--quiet}"[Only display numeric IDs]" && ret=0
+            case $state in
+                (filter-options)
+                    __docker_network_complete_ls_filters && ret=0
+                    ;;
+            esac
             ;;
         (rm)
             _arguments $(__docker_arguments) \
