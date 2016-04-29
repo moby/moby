@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/blkiodev"
 	pblkiodev "github.com/docker/engine-api/types/blkiodev"
 	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/docker/libnetwork"
@@ -176,76 +177,22 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 	return err
 }
 
-func getBlkioReadIOpsDevices(config containertypes.Resources) ([]specs.ThrottleDevice, error) {
-	var blkioReadIOpsDevice []specs.ThrottleDevice
+func getBlkioThrottleDevices(devs []*blkiodev.ThrottleDevice) ([]specs.ThrottleDevice, error) {
+	var throttleDevices []specs.ThrottleDevice
 	var stat syscall.Stat_t
 
-	for _, iopsDevice := range config.BlkioDeviceReadIOps {
-		if err := syscall.Stat(iopsDevice.Path, &stat); err != nil {
+	for _, d := range devs {
+		if err := syscall.Stat(d.Path, &stat); err != nil {
 			return nil, err
 		}
-		rate := iopsDevice.Rate
+		rate := d.Rate
 		d := specs.ThrottleDevice{Rate: &rate}
 		d.Major = int64(stat.Rdev / 256)
 		d.Minor = int64(stat.Rdev % 256)
-		blkioReadIOpsDevice = append(blkioReadIOpsDevice, d)
+		throttleDevices = append(throttleDevices, d)
 	}
 
-	return blkioReadIOpsDevice, nil
-}
-
-func getBlkioWriteIOpsDevices(config containertypes.Resources) ([]specs.ThrottleDevice, error) {
-	var blkioWriteIOpsDevice []specs.ThrottleDevice
-	var stat syscall.Stat_t
-
-	for _, iopsDevice := range config.BlkioDeviceWriteIOps {
-		if err := syscall.Stat(iopsDevice.Path, &stat); err != nil {
-			return nil, err
-		}
-		rate := iopsDevice.Rate
-		d := specs.ThrottleDevice{Rate: &rate}
-		d.Major = int64(stat.Rdev / 256)
-		d.Minor = int64(stat.Rdev % 256)
-		blkioWriteIOpsDevice = append(blkioWriteIOpsDevice, d)
-	}
-
-	return blkioWriteIOpsDevice, nil
-}
-
-func getBlkioReadBpsDevices(config containertypes.Resources) ([]specs.ThrottleDevice, error) {
-	var blkioReadBpsDevice []specs.ThrottleDevice
-	var stat syscall.Stat_t
-
-	for _, bpsDevice := range config.BlkioDeviceReadBps {
-		if err := syscall.Stat(bpsDevice.Path, &stat); err != nil {
-			return nil, err
-		}
-		rate := bpsDevice.Rate
-		d := specs.ThrottleDevice{Rate: &rate}
-		d.Major = int64(stat.Rdev / 256)
-		d.Minor = int64(stat.Rdev % 256)
-		blkioReadBpsDevice = append(blkioReadBpsDevice, d)
-	}
-
-	return blkioReadBpsDevice, nil
-}
-
-func getBlkioWriteBpsDevices(config containertypes.Resources) ([]specs.ThrottleDevice, error) {
-	var blkioWriteBpsDevice []specs.ThrottleDevice
-	var stat syscall.Stat_t
-
-	for _, bpsDevice := range config.BlkioDeviceWriteBps {
-		if err := syscall.Stat(bpsDevice.Path, &stat); err != nil {
-			return nil, err
-		}
-		rate := bpsDevice.Rate
-		d := specs.ThrottleDevice{Rate: &rate}
-		d.Major = int64(stat.Rdev / 256)
-		d.Minor = int64(stat.Rdev % 256)
-		blkioWriteBpsDevice = append(blkioWriteBpsDevice, d)
-	}
-
-	return blkioWriteBpsDevice, nil
+	return throttleDevices, nil
 }
 
 func checkKernelVersion(k, major, minor int) bool {
