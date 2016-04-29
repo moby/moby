@@ -971,6 +971,14 @@ func (eh epHeap) Less(i, j int) bool {
 		return true
 	}
 
+	if epi.getNetwork().Internal() {
+		return false
+	}
+
+	if epj.getNetwork().Internal() {
+		return true
+	}
+
 	if ci != nil {
 		cip, ok = ci.epPriority[eh[i].ID()]
 		if !ok {
