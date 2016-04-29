@@ -185,7 +185,7 @@ RUN set -x \
 		go build -o /usr/local/bin/registry-v2-schema1 github.com/docker/distribution/cmd/registry \
 	&& rm -rf "$GOPATH"
 
-# Install notary server
+# Install notary and notary-server
 ENV NOTARY_VERSION docker-v1.11-3
 RUN set -x \
 	&& export GO15VENDOREXPERIMENT=1 \
