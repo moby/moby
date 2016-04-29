@@ -31,13 +31,13 @@ be found.
 - Fix an issue where it would be impossible to update both `memory-swap` and `memory` value together ([#22255](https://github.com/docker/docker/pull/22255))
 - Fix a regression from 1.11.0 where the `/auth` endpoint would not initialize `serveraddress` if it is not provided ([#22254](https://github.com/docker/docker/pull/22254))
 - Add missing cleanup of container temporary files when cancelling a schedule restart ([#22237](https://github.com/docker/docker/pull/22237))
-- Removed scary error message when no restart policy is specified ([#21993](https://github.com/docker/docker/pull/21993))
+- Remove scary error message when no restart policy is specified ([#21993](https://github.com/docker/docker/pull/21993))
 - Fix a panic that would occur when the plugins were activated via the json spec ([#22191](https://github.com/docker/docker/pull/22191))
 - Fix restart backoff logic to correctly reset delay if container ran for at least 10secs ([#22125](https://github.com/docker/docker/pull/22125))
 - Remove error message when a container restart get cancelled ([#22123](https://github.com/docker/docker/pull/22123))
-- Fix an issue where `docker` would not correcly clean up after `docker exec` ([#22121](https://github.com/docker/docker/pull/22121))
-- Fix a panic that could occur when servicing concurrent `docker stats` commands ([#22120](https://github.com/docker/docker/pull/22120))`
-- Revert deprecation of non-existing host directories auto-creation ([#22065](https://github.com/docker/docker/pull/22065))
+- Fix an issue where `docker` would not correctly clean up after `docker exec` ([#22121](https://github.com/docker/docker/pull/22121))
+- Fix a panic that could occur when serving concurrent `docker stats` commands ([#22120](https://github.com/docker/docker/pull/22120))`
+- Revert deprecation of non-existent host directories auto-creation ([#22065](https://github.com/docker/docker/pull/22065))
 - Hide misleading rpc error on daemon shutdown ([#22058](https://github.com/docker/docker/pull/22058))
 
 ## 1.11.0 (2016-04-13)
@@ -1080,7 +1080,7 @@ by another client (#15489)
 
 #### Runtime
 * Support hairpin NAT without going through Docker server.
-- devicemapper: succeed immediately when removing non-existing devices.
+- devicemapper: succeed immediately when removing non-existent devices.
 - devicemapper: improve handling of devicemapper devices (add per device lock, increase sleep time and unlock while sleeping).
 - devicemapper: increase timeout in waitClose to 10 seconds.
 - devicemapper: ensure we shut down thin pool cleanly.
@@ -1201,7 +1201,7 @@ by another client (#15489)
 - Improve deprecation message.
 - Fix attach exit on darwin.
 - devicemapper: improve handling of devicemapper devices (add per device lock, increase sleep time, unlock while sleeping).
-- devicemapper: succeed immediately when removing non-existing devices.
+- devicemapper: succeed immediately when removing non-existent devices.
 - devicemapper: increase timeout in waitClose to 10 seconds.
 - Remove goroutine leak on error.
 - Update parseLxcInfo to comply with new lxc1.0 format.
