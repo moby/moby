@@ -9,3 +9,10 @@ type DaemonProxy struct{}
 func NewDaemonProxy() DaemonProxy {
 	return DaemonProxy{}
 }
+
+// Command returns a cli command handler if one exists
+func (p DaemonProxy) Command(name string) func(...string) error {
+	return map[string]func(...string) error{
+		"daemon": p.CmdDaemon,
+	}[name]
+}
