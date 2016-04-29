@@ -11,10 +11,8 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/libcontainerd"
-	"github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/libnetwork/portallocator"
 )
@@ -49,14 +47,12 @@ func getDaemonConfDir() string {
 }
 
 // setupConfigReloadTrap configures the USR2 signal to reload the configuration.
-func setupConfigReloadTrap(configFile string, flags *mflag.FlagSet, reload func(*daemon.Config)) {
+func (cli *DaemonCli) setupConfigReloadTrap() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGHUP)
 	go func() {
 		for range c {
-			if err := daemon.ReloadConfiguration(configFile, flags, reload); err != nil {
-				logrus.Error(err)
-			}
+			cli.reloadConfig()
 		}
 	}()
 }
@@ -110,4 +106,8 @@ func allocateDaemonPort(addr string) error {
 		}
 	}
 	return nil
+}
+
+// notifyShutdown is called after the daemon shuts down but before the process exits.
+func notifyShutdown(err error) {
 }

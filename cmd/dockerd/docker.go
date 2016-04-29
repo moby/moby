@@ -56,7 +56,21 @@ func main() {
 		flag.Usage()
 		return
 	}
-	daemonCli.start()
+
+	// On Windows, this may be launching as a service or with an option to
+	// register the service.
+	stop, err := initService()
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
+	if !stop {
+		err = daemonCli.start()
+		notifyShutdown(err)
+		if err != nil {
+			logrus.Fatal(err)
+		}
+	}
 }
 
 func showVersion() {
