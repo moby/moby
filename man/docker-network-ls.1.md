@@ -46,10 +46,24 @@ Multiple filter flags are combined as an `OR` filter. For example,
 
 The currently supported filters are:
 
+* driver
 * id (network's id)
 * label (`label=<key>` or `label=<key>=<value>`)
 * name (network's name)
 * type (custom|builtin)
+
+#### Driver
+
+The `driver` filter matches networks based on their driver.
+
+The following example matches networks with the `bridge` driver:
+
+```bash
+$ docker network ls --filter driver=bridge
+NETWORK ID          NAME                DRIVER
+db9db329f835        test1               bridge
+f6e212da9dfd        test2               bridge
+```
 
 #### ID
 
@@ -78,7 +92,7 @@ NETWORK ID          NAME                DRIVER
 
 #### Label
 
-The `label` filter matches containers based on the presence of a `label` alone or a `label` and a
+The `label` filter matches networks based on the presence of a `label` alone or a `label` and a
 value.
 
 The following filter matches networks with the `usage` label regardless of its value.
@@ -90,7 +104,7 @@ db9db329f835        test1               bridge
 f6e212da9dfd        test2               bridge
 ```
 
-The following filter matches containers with the `usage` label with the `prod` value.
+The following filter matches networks with the `usage` label with the `prod` value.
 
 ```bash
 $ docker network ls -f "label=usage=prod"
