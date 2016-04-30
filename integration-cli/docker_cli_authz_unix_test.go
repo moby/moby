@@ -391,6 +391,28 @@ func (s *DockerAuthzSuite) TestAuthZPluginEnsureNoDuplicatePluginRegistration(c 
 	c.Assert(s.ctrl.psResponseCnt, check.Equals, 1)
 }
 
+// Test case for #22428
+func (s *DockerAuthzSuite) TestAuthZPlugin403Forbidden(c *check.C) {
+	// Start the daemon with plugin
+	err := s.d.Start("--authorization-plugin=" + testAuthZPlugin)
+	c.Assert(err, check.IsNil)
+	s.ctrl.reqRes.Allow = false
+	s.ctrl.reqRes.Msg = errorMessage
+
+	// Save the information for old daemon
+	tmpHost := os.Getenv("DOCKER_HOST")
+	defer func() {
+		os.Setenv("DOCKER_HOST", tmpHost)
+	}()
+	// We need to set DOCKER_HOST so that sockRequest could point to the new daemon.
+	os.Setenv("DOCKER_HOST", s.d.sock())
+
+	status, body, err := sockRequest("GET", "/containers/json?all=1", nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, checker.Equals, http.StatusForbidden)
+	c.Assert(string(body), checker.Contains, fmt.Sprintf("authorization denied by plugin %s: %s", testAuthZPlugin, errorMessage))
+}
+
 // assertURIRecorded verifies that the given URI was sent and recorded in the authz plugin
 func assertURIRecorded(c *check.C, uris []string, uri string) {
 	var found bool
