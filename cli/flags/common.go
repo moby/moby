@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -31,9 +30,23 @@ var (
 	dockerTLSVerify = os.Getenv("DOCKER_TLS_VERIFY") != ""
 )
 
+// CommonFlags are flags common to both the client and the daemon.
+type CommonFlags struct {
+	FlagSet   *flag.FlagSet
+	PostParse func()
+
+	Debug      bool
+	Hosts      []string
+	LogLevel   string
+	TLS        bool
+	TLSVerify  bool
+	TLSOptions *tlsconfig.Options
+	TrustKey   string
+}
+
 // InitCommonFlags initializes flags common to both client and daemon
-func InitCommonFlags() *cli.CommonFlags {
-	var commonFlags = &cli.CommonFlags{FlagSet: new(flag.FlagSet)}
+func InitCommonFlags() *CommonFlags {
+	var commonFlags = &CommonFlags{FlagSet: new(flag.FlagSet)}
 
 	if dockerCertPath == "" {
 		dockerCertPath = cliconfig.ConfigDir()
@@ -60,7 +73,7 @@ func InitCommonFlags() *cli.CommonFlags {
 	return commonFlags
 }
 
-func postParseCommon(commonFlags *cli.CommonFlags) {
+func postParseCommon(commonFlags *CommonFlags) {
 	cmd := commonFlags.FlagSet
 
 	SetDaemonLogLevel(commonFlags.LogLevel)

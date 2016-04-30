@@ -1,4 +1,4 @@
-package cli
+package flags
 
 import flag "github.com/docker/docker/pkg/mflag"
 

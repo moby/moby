@@ -11,7 +11,7 @@ import (
 	"golang.org/x/net/context"
 
 	Cli "github.com/docker/docker/cli"
-	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/cliconfig/configfile"
 	"github.com/docker/docker/cliconfig/credentials"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"
@@ -143,33 +143,33 @@ func readInput(in io.Reader, out io.Writer) string {
 
 // getCredentials loads the user credentials from a credentials store.
 // The store is determined by the config file settings.
-func getCredentials(c *cliconfig.ConfigFile, serverAddress string) (types.AuthConfig, error) {
+func getCredentials(c *configfile.ConfigFile, serverAddress string) (types.AuthConfig, error) {
 	s := loadCredentialsStore(c)
 	return s.Get(serverAddress)
 }
 
-func getAllCredentials(c *cliconfig.ConfigFile) (map[string]types.AuthConfig, error) {
+func getAllCredentials(c *configfile.ConfigFile) (map[string]types.AuthConfig, error) {
 	s := loadCredentialsStore(c)
 	return s.GetAll()
 }
 
 // storeCredentials saves the user credentials in a credentials store.
 // The store is determined by the config file settings.
-func storeCredentials(c *cliconfig.ConfigFile, auth types.AuthConfig) error {
+func storeCredentials(c *configfile.ConfigFile, auth types.AuthConfig) error {
 	s := loadCredentialsStore(c)
 	return s.Store(auth)
 }
 
 // eraseCredentials removes the user credentials from a credentials store.
 // The store is determined by the config file settings.
-func eraseCredentials(c *cliconfig.ConfigFile, serverAddress string) error {
+func eraseCredentials(c *configfile.ConfigFile, serverAddress string) error {
 	s := loadCredentialsStore(c)
 	return s.Erase(serverAddress)
 }
 
 // loadCredentialsStore initializes a new credentials store based
 // in the settings provided in the configuration file.
-func loadCredentialsStore(c *cliconfig.ConfigFile) credentials.Store {
+func loadCredentialsStore(c *configfile.ConfigFile) credentials.Store {
 	if c.CredentialsStore != "" {
 		return credentials.NewNativeStore(c)
 	}

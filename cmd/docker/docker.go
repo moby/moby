@@ -3,14 +3,24 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	cliflags "github.com/docker/docker/cli/flags"
+	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/dockerversion"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
+)
+
+var (
+	commonFlags = cliflags.InitCommonFlags()
+	clientFlags = initClientFlags(commonFlags)
+	flHelp      = flag.Bool([]string{"h", "-help"}, false, "Print usage")
+	flVersion   = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
 )
 
 func main() {
@@ -30,6 +40,7 @@ func main() {
 
 		help := "\nCommands:\n"
 
+		dockerCommands := sortCommands(cli.DockerCommandUsage)
 		for _, cmd := range dockerCommands {
 			help += fmt.Sprintf("    %-10.10s%s\n", cmd.Name, cmd.Description)
 		}
@@ -74,4 +85,27 @@ func showVersion() {
 	} else {
 		fmt.Printf("Docker version %s, build %s\n", dockerversion.Version, dockerversion.GitCommit)
 	}
+}
+
+func initClientFlags(commonFlags *cliflags.CommonFlags) *cliflags.ClientFlags {
+	clientFlags := &cliflags.ClientFlags{FlagSet: new(flag.FlagSet), Common: commonFlags}
+	client := clientFlags.FlagSet
+	client.StringVar(&clientFlags.ConfigDir, []string{"-config"}, cliconfig.ConfigDir(), "Location of client config files")
+
+	clientFlags.PostParse = func() {
+		clientFlags.Common.PostParse()
+
+		if clientFlags.ConfigDir != "" {
+			cliconfig.SetConfigDir(clientFlags.ConfigDir)
+		}
+
+		if clientFlags.Common.TrustKey == "" {
+			clientFlags.Common.TrustKey = filepath.Join(cliconfig.ConfigDir(), cliflags.DefaultTrustKeyFile)
+		}
+
+		if clientFlags.Common.Debug {
+			utils.EnableDebug()
+		}
+	}
+	return clientFlags
 }
