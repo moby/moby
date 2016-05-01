@@ -2,8 +2,17 @@ package builder
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/httputils"
 )
 
 var textPlainDockerfile = "FROM busybox"
@@ -142,5 +151,71 @@ func TestInspectResponseEmptyContentType(t *testing.T) {
 	}
 	if string(body) != textPlainDockerfile {
 		t.Fatalf("Corrupted response body %s", body)
+	}
+}
+
+func TestMakeRemoteContext(t *testing.T) {
+	contextDir, err := ioutil.TempDir("", "builder-remote-test")
+
+	if err != nil {
+		t.Fatalf("Error with creating temporary directory: %s", err)
+	}
+
+	defer os.RemoveAll(contextDir)
+
+	testFilename := filepath.Join(contextDir, DefaultDockerfileName)
+	err = ioutil.WriteFile(testFilename, []byte(textPlainDockerfile), 0777)
+
+	if err != nil {
+		t.Fatalf("Error when writing file (%s) contents: %s", testFilename, err)
+	}
+
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	serverURL, _ := url.Parse(server.URL)
+
+	serverURL.Path = "/" + DefaultDockerfileName
+	remoteURL := serverURL.String()
+
+	mux.Handle("/", http.FileServer(http.Dir(contextDir)))
+
+	remoteContext, err := MakeRemoteContext(remoteURL, map[string]func(io.ReadCloser) (io.ReadCloser, error){
+		httputils.MimeTypes.TextPlain: func(rc io.ReadCloser) (io.ReadCloser, error) {
+			dockerfile, err := ioutil.ReadAll(rc)
+			if err != nil {
+				return nil, err
+			}
+			return archive.Generate(DefaultDockerfileName, string(dockerfile))
+		},
+	})
+
+	if err != nil {
+		t.Fatalf("Error when executing DetectContextFromRemoteURL: %s", err)
+	}
+
+	if remoteContext == nil {
+		t.Fatalf("Remote context should not be nil")
+	}
+
+	tarSumCtx, ok := remoteContext.(*tarSumContext)
+
+	if !ok {
+		t.Fatalf("Cast error, remote context should be casted to tarSumContext")
+	}
+
+	fileInfoSums := tarSumCtx.sums
+
+	if fileInfoSums.Len() != 1 {
+		t.Fatalf("Size of file info sums should be 1, got: %d", fileInfoSums.Len())
+	}
+
+	fileInfo := fileInfoSums.GetFile(DefaultDockerfileName)
+
+	if fileInfo == nil {
+		t.Fatalf("There should be file named %s in fileInfoSums", DefaultDockerfileName)
+	}
+
+	if fileInfo.Pos() != 0 {
+		t.Fatalf("File %s should have position 0, got %d", DefaultDockerfileName, fileInfo.Pos())
 	}
 }
