@@ -377,7 +377,7 @@ func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registr
 		if err != nil {
 			return err
 		}
-		if err := cli.imagePullPrivileged(authConfig, ref.String(), requestPrivilege); err != nil {
+		if err := cli.imagePullPrivileged(authConfig, ref.String(), requestPrivilege, false); err != nil {
 			return err
 		}
 

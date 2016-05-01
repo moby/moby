@@ -63,10 +63,10 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 		return cli.trustedPull(repoInfo, registryRef, authConfig, requestPrivilege)
 	}
 
-	return cli.imagePullPrivileged(authConfig, distributionRef.String(), requestPrivilege)
+	return cli.imagePullPrivileged(authConfig, distributionRef.String(), requestPrivilege, *allTags)
 }
 
-func (cli *DockerCli) imagePullPrivileged(authConfig types.AuthConfig, ref string, requestPrivilege types.RequestPrivilegeFunc) error {
+func (cli *DockerCli) imagePullPrivileged(authConfig types.AuthConfig, ref string, requestPrivilege types.RequestPrivilegeFunc, all bool) error {
 
 	encodedAuth, err := encodeAuthToBase64(authConfig)
 	if err != nil {
@@ -75,6 +75,7 @@ func (cli *DockerCli) imagePullPrivileged(authConfig types.AuthConfig, ref strin
 	options := types.ImagePullOptions{
 		RegistryAuth:  encodedAuth,
 		PrivilegeFunc: requestPrivilege,
+		All:           all,
 	}
 
 	responseBody, err := cli.client.ImagePull(context.Background(), ref, options)
