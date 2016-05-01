@@ -90,6 +90,10 @@ func (sb *sandbox) buildHostsFile() error {
 func (sb *sandbox) updateHostsFile(ifaceIP string) error {
 	var mhost string
 
+	if ifaceIP == "" {
+		return nil
+	}
+
 	if sb.config.originHostsPath != "" {
 		return nil
 	}
