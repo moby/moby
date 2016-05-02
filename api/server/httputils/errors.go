@@ -46,14 +46,15 @@ func GetHTTPErrorStatusCode(err error) int {
 		// we should create appropriate error types that implement the httpStatusError interface.
 		errStr := strings.ToLower(errMsg)
 		for keyword, status := range map[string]int{
-			"not found":             http.StatusNotFound,
-			"no such":               http.StatusNotFound,
-			"bad parameter":         http.StatusBadRequest,
-			"conflict":              http.StatusConflict,
-			"impossible":            http.StatusNotAcceptable,
-			"wrong login/password":  http.StatusUnauthorized,
-			"unauthorized":          http.StatusUnauthorized,
-			"hasn't been activated": http.StatusForbidden,
+			"not found":               http.StatusNotFound,
+			"no such":                 http.StatusNotFound,
+			"bad parameter":           http.StatusBadRequest,
+			"conflict":                http.StatusConflict,
+			"impossible":              http.StatusNotAcceptable,
+			"wrong login/password":    http.StatusUnauthorized,
+			"unauthorized":            http.StatusUnauthorized,
+			"authorization denied by": http.StatusForbidden,
+			"hasn't been activated":   http.StatusForbidden,
 		} {
 			if strings.Contains(errStr, keyword) {
 				statusCode = status
