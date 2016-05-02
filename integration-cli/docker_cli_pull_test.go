@@ -237,20 +237,6 @@ func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *check.C) {
 	c.Assert(splitLatest, checker.DeepEquals, splitCurrent, check.Commentf("busybox:latest was changed after pulling all tags"))
 }
 
-// TestRunImplicitPullWithNoTagOnlyPullDefaultTag should pull implicitely only the default tag (latest)
-func (s *DockerHubPullSuite) TestRunImplicitPullWithNoTagOnlyPullDefaultTag(c *check.C) {
-	// run with an image we don't have
-	testRequires(c, DaemonIsLinux)
-	out := s.Cmd(c, "run", "busybox")
-
-	c.Assert(out, checker.Contains, "Unable to find image 'busybox:latest' locally")
-
-	// There should be only one line for busybox, the one with busybox:latest
-	outImageCmd := s.Cmd(c, "images", "busybox")
-	splitOutImageCmd := strings.Split(strings.TrimSpace(outImageCmd), "\n")
-	c.Assert(splitOutImageCmd, checker.HasLen, 2)
-}
-
 // TestPullClientDisconnect kills the client during a pull operation and verifies that the operation
 // gets cancelled.
 //
