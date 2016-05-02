@@ -21,6 +21,9 @@ import (
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/go-check/check"
+	"net"
+	"net/http/httputil"
+	"net/url"
 )
 
 const (
@@ -270,6 +273,27 @@ func (s *DockerAuthzSuite) TestAuthZPluginDenyRequest(c *check.C) {
 
 	// Ensure unauthorized message appears in response
 	c.Assert(res, check.Equals, fmt.Sprintf("Error response from daemon: authorization denied by plugin %s: %s\n", testAuthZPlugin, unauthorizedMessage))
+}
+
+// TestAuthZPluginApiDenyResponse validates that when authorization plugin deny the request, the status code is forbidden
+func (s *DockerAuthzSuite) TestAuthZPluginApiDenyResponse(c *check.C) {
+	err := s.d.Start("--authorization-plugin=" + testAuthZPlugin)
+	c.Assert(err, check.IsNil)
+	s.ctrl.reqRes.Allow = false
+	s.ctrl.resRes.Msg = unauthorizedMessage
+
+	daemonURL, err := url.Parse(s.d.sock())
+
+	conn, err := net.DialTimeout(daemonURL.Scheme, daemonURL.Path, time.Second*10)
+	c.Assert(err, check.IsNil)
+	client := httputil.NewClientConn(conn, nil)
+	req, err := http.NewRequest("GET", "/version", nil)
+	c.Assert(err, check.IsNil)
+	resp, err := client.Do(req)
+
+	c.Assert(err, check.IsNil)
+	c.Assert(resp.StatusCode, checker.Equals, http.StatusForbidden)
+	c.Assert(err, checker.IsNil)
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginDenyResponse(c *check.C) {
