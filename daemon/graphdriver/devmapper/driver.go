@@ -160,35 +160,35 @@ func (d *Driver) Remove(id string) error {
 // Get mounts a device with given id into the root filesystem
 func (d *Driver) Get(id, mountLabel string) (string, error) {
 	mp := path.Join(d.home, "mnt", id)
-	if count := d.ctr.Increment(id); count > 1 {
+	if count := d.ctr.Increment(mp); count > 1 {
 		return mp, nil
 	}
 
 	uid, gid, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
 	if err != nil {
-		d.ctr.Decrement(id)
+		d.ctr.Decrement(mp)
 		return "", err
 	}
 
 	// Create the target directories if they don't exist
 	if err := idtools.MkdirAllAs(path.Join(d.home, "mnt"), 0755, uid, gid); err != nil && !os.IsExist(err) {
-		d.ctr.Decrement(id)
+		d.ctr.Decrement(mp)
 		return "", err
 	}
 	if err := idtools.MkdirAs(mp, 0755, uid, gid); err != nil && !os.IsExist(err) {
-		d.ctr.Decrement(id)
+		d.ctr.Decrement(mp)
 		return "", err
 	}
 
 	// Mount the device
 	if err := d.DeviceSet.MountDevice(id, mp, mountLabel); err != nil {
-		d.ctr.Decrement(id)
+		d.ctr.Decrement(mp)
 		return "", err
 	}
 
 	rootFs := path.Join(mp, "rootfs")
 	if err := idtools.MkdirAllAs(rootFs, 0755, uid, gid); err != nil && !os.IsExist(err) {
-		d.ctr.Decrement(id)
+		d.ctr.Decrement(mp)
 		d.DeviceSet.UnmountDevice(id, mp)
 		return "", err
 	}
@@ -198,7 +198,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 		// Create an "id" file with the container/image id in it to help reconstruct this in case
 		// of later problems
 		if err := ioutil.WriteFile(idFile, []byte(id), 0600); err != nil {
-			d.ctr.Decrement(id)
+			d.ctr.Decrement(mp)
 			d.DeviceSet.UnmountDevice(id, mp)
 			return "", err
 		}
@@ -209,10 +209,10 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 
 // Put unmounts a device and removes it.
 func (d *Driver) Put(id string) error {
-	if count := d.ctr.Decrement(id); count > 0 {
+	mp := path.Join(d.home, "mnt", id)
+	if count := d.ctr.Decrement(mp); count > 0 {
 		return nil
 	}
-	mp := path.Join(d.home, "mnt", id)
 	err := d.DeviceSet.UnmountDevice(id, mp)
 	if err != nil {
 		logrus.Errorf("devmapper: Error unmounting device %s: %s", id, err)
