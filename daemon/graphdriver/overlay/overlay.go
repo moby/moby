@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"sync"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
@@ -92,12 +91,10 @@ func (d *naiveDiffDriverWithApply) ApplyDiff(id, parent string, diff archive.Rea
 
 // Driver contains information about the home directory and the list of active mounts that are created using this driver.
 type Driver struct {
-	home          string
-	pathCacheLock sync.Mutex
-	pathCache     map[string]string
-	uidMaps       []idtools.IDMap
-	gidMaps       []idtools.IDMap
-	ctr           *graphdriver.RefCounter
+	home    string
+	uidMaps []idtools.IDMap
+	gidMaps []idtools.IDMap
+	ctr     *graphdriver.RefCounter
 }
 
 func init() {
@@ -141,11 +138,10 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	}
 
 	d := &Driver{
-		home:      home,
-		pathCache: make(map[string]string),
-		uidMaps:   uidMaps,
-		gidMaps:   gidMaps,
-		ctr:       graphdriver.NewRefCounter(),
+		home:    home,
+		uidMaps: uidMaps,
+		gidMaps: gidMaps,
+		ctr:     graphdriver.NewRefCounter(),
 	}
 
 	return NaiveDiffDriverWithApply(d, uidMaps, gidMaps), nil
@@ -328,14 +324,11 @@ func (d *Driver) Remove(id string) error {
 	if err := os.RemoveAll(d.dir(id)); err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	d.pathCacheLock.Lock()
-	delete(d.pathCache, id)
-	d.pathCacheLock.Unlock()
 	return nil
 }
 
 // Get creates and mounts the required file system for the given id and returns the mount path.
-func (d *Driver) Get(id string, mountLabel string) (string, error) {
+func (d *Driver) Get(id string, mountLabel string) (s string, err error) {
 	dir := d.dir(id)
 	if _, err := os.Stat(dir); err != nil {
 		return "", err
@@ -344,13 +337,16 @@ func (d *Driver) Get(id string, mountLabel string) (string, error) {
 	if count := d.ctr.Increment(mergedDir); count > 1 {
 		return mergedDir, nil
 	}
+	defer func() {
+		if err != nil {
+			d.ctr.Decrement(mergedDir)
+			syscall.Unmount(mergedDir, 0)
+		}
+	}()
 
 	// If id has a root, just return it
 	rootDir := path.Join(dir, "root")
 	if _, err := os.Stat(rootDir); err == nil {
-		d.pathCacheLock.Lock()
-		d.pathCache[id] = rootDir
-		d.pathCacheLock.Unlock()
 		return rootDir, nil
 	}
 
@@ -358,35 +354,24 @@ func (d *Driver) Get(id string, mountLabel string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	lowerDir := path.Join(d.dir(string(lowerID)), "root")
-	upperDir := path.Join(dir, "upper")
-	workDir := path.Join(dir, "work")
-
-	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir)
-
+	var (
+		lowerDir = path.Join(d.dir(string(lowerID)), "root")
+		upperDir = path.Join(dir, "upper")
+		workDir  = path.Join(dir, "work")
+		opts     = fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDir, upperDir, workDir)
+	)
 	if err := syscall.Mount("overlay", mergedDir, "overlay", 0, label.FormatMountLabel(opts, mountLabel)); err != nil {
-		d.ctr.Decrement(mergedDir)
 		return "", fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, err)
 	}
 	// chown "workdir/work" to the remapped root UID/GID. Overlay fs inside a
 	// user namespace requires this to move a directory from lower to upper.
 	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
 	if err != nil {
-		d.ctr.Decrement(mergedDir)
-		syscall.Unmount(mergedDir, 0)
 		return "", err
 	}
-
 	if err := os.Chown(path.Join(workDir, "work"), rootUID, rootGID); err != nil {
-		d.ctr.Decrement(mergedDir)
-		syscall.Unmount(mergedDir, 0)
 		return "", err
 	}
-
-	d.pathCacheLock.Lock()
-	d.pathCache[id] = mergedDir
-	d.pathCacheLock.Unlock()
-
 	return mergedDir, nil
 }
 
@@ -396,31 +381,12 @@ func (d *Driver) mounted(dir string) (bool, error) {
 
 // Put unmounts the mount path created for the give id.
 func (d *Driver) Put(id string) error {
-	d.pathCacheLock.Lock()
-	mountpoint, exists := d.pathCache[id]
-	d.pathCacheLock.Unlock()
-
+	mountpoint := path.Join(d.dir(id), "merged")
 	if count := d.ctr.Decrement(mountpoint); count > 0 {
 		return nil
 	}
-
-	if !exists {
-		logrus.Debugf("Put on a non-mounted device %s", id)
-		// but it might be still here
-		if d.Exists(id) {
-			mountpoint = path.Join(d.dir(id), "merged")
-		}
-
-		d.pathCacheLock.Lock()
-		d.pathCache[id] = mountpoint
-		d.pathCacheLock.Unlock()
-	}
-
-	if mounted, err := d.mounted(mountpoint); mounted || err != nil {
-		if err = syscall.Unmount(mountpoint, 0); err != nil {
-			logrus.Debugf("Failed to unmount %s overlay: %v", id, err)
-		}
-		return err
+	if err := syscall.Unmount(mountpoint, 0); err != nil {
+		logrus.Debugf("Failed to unmount %s overlay: %v", id, err)
 	}
 	return nil
 }
