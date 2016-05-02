@@ -1,3 +1,5 @@
+// +build !daemon
+
 package main
 
 import (
@@ -9,7 +11,7 @@ func TestCmdDaemon(t *testing.T) {
 	proxy := NewDaemonProxy()
 	err := proxy.CmdDaemon("--help")
 	if err == nil {
-		t.Fatal("Expected CmdDaemon to fail in Windows.")
+		t.Fatal("Expected CmdDaemon to fail on Windows.")
 	}
 
 	if !strings.Contains(err.Error(), "Please run `dockerd`") {
