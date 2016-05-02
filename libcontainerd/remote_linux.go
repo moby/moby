@@ -357,7 +357,7 @@ func (r *remote) runContainerdDaemon() error {
 	// redirect containerd logs to docker logs
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true, Pdeathsig: syscall.SIGKILL}
 	cmd.Env = nil
 	// clear the NOTIFY_SOCKET from the env when starting containerd
 	for _, e := range os.Environ() {
