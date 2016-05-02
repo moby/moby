@@ -78,7 +78,19 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 			// Break up the data that we've buffered up into lines, and log each in turn.
 			p := 0
 			for q := bytes.Index(buf[p:n], []byte{'\n'}); q >= 0; q = bytes.Index(buf[p:n], []byte{'\n'}) {
-				msg.Line = buf[p : p+q]
+
+				// When running a container with a tty (-t / -tty),
+				// the TTY automatically converts LF to CRLF.
+				// Strip those trailing CR's as they are not part of
+				// the original output. This also prevents the systemd journal
+				// from treating those log-entries as "blob data"
+				// see https://github.com/docker/docker/issues/15722
+				if q > 0 && buf[p+q-1] == '\r' {
+					msg.Line = buf[p : p+q-1]
+				} else {
+					msg.Line = buf[p : p+q]
+				}
+
 				msg.Timestamp = time.Now().UTC()
 				msg.Partial = false
 				select {
