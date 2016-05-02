@@ -168,6 +168,11 @@ var (
 		// Seymour Roger Cray was an American electrical engineer and supercomputer architect who designed a series of computers that were the fastest in the world for decades. https://en.wikipedia.org/wiki/Seymour_Cray
 		"cray",
 
+		// This entry reflects a husband and wife team who worked together:
+		// Joan Curran was a Welsh scientist who developed radar and invented chaff, a radar countermeasure. https://en.wikipedia.org/wiki/Joan_Curran
+		// Samuel Curran was an Irish physicist who worked alongside his wife during WWII and invented the proximity fuse. https://en.wikipedia.org/wiki/Samuel_Curran
+		"curran",
+
 		// Marie Curie discovered radioactivity. https://en.wikipedia.org/wiki/Marie_Curie.
 		"curie",
 
