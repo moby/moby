@@ -85,7 +85,7 @@ func (ctx *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) error {
 		}
 
 		if !authRes.Allow {
-			return fmt.Errorf("authorization denied by plugin %s: %s", plugin.Name(), authRes.Msg)
+			return newAuthorizationError(plugin.Name(), authRes.Msg)
 		}
 	}
 
@@ -110,7 +110,7 @@ func (ctx *Ctx) AuthZResponse(rm ResponseModifier, r *http.Request) error {
 		}
 
 		if !authRes.Allow {
-			return fmt.Errorf("authorization denied by plugin %s: %s", plugin.Name(), authRes.Msg)
+			return newAuthorizationError(plugin.Name(), authRes.Msg)
 		}
 	}
 
@@ -162,4 +162,18 @@ func headers(header http.Header) map[string]string {
 		}
 	}
 	return v
+}
+
+// authorizationError represents an authorization deny error
+type authorizationError struct {
+	error
+}
+
+// HTTPErrorStatusCode returns the authorization error status code (forbidden)
+func (e authorizationError) HTTPErrorStatusCode() int {
+	return http.StatusForbidden
+}
+
+func newAuthorizationError(plugin, msg string) authorizationError {
+	return authorizationError{error: fmt.Errorf("authorization denied by plugin %s: %s", plugin, msg)}
 }
