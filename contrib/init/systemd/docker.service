@@ -10,6 +10,7 @@ Type=notify
 # exists and systemd currently does not support the cgroup feature set required
 # for containers run by docker
 ExecStart=/usr/bin/docker daemon -H fd://
+ExecReload=/bin/kill -s HUP $MAINPID
 MountFlags=slave
 LimitNOFILE=1048576
 LimitNPROC=1048576
