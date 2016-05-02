@@ -85,6 +85,11 @@ func (cli *Client) sendClientRequest(ctx context.Context, method, path string, q
 	}
 
 	req, err := cli.newRequest(method, path, query, body, headers)
+	if cli.proto == "unix" || cli.proto == "npipe" {
+		// For local communications, it doesn't matter what the host is. We just
+		// need a valid and meaningful host name. (See #189)
+		req.Host = "docker"
+	}
 	req.URL.Host = cli.addr
 	req.URL.Scheme = cli.transport.Scheme()
 
