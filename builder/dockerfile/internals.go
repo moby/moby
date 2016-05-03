@@ -14,7 +14,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -51,11 +50,7 @@ func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) e
 
 	if id == "" {
 		cmd := b.runConfig.Cmd
-		if runtime.GOOS != "windows" {
-			b.runConfig.Cmd = strslice.StrSlice{"/bin/sh", "-c", "#(nop) " + comment}
-		} else {
-			b.runConfig.Cmd = strslice.StrSlice{"cmd", "/S /C", "REM (nop) " + comment}
-		}
+		b.runConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), "#(nop) ", comment))
 		defer func(cmd strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
 
 		hit, err := b.probeCache()
@@ -177,11 +172,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	}
 
 	cmd := b.runConfig.Cmd
-	if runtime.GOOS != "windows" {
-		b.runConfig.Cmd = strslice.StrSlice{"/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest)}
-	} else {
-		b.runConfig.Cmd = strslice.StrSlice{"cmd", "/S", "/C", fmt.Sprintf("REM (nop) %s %s in %s", cmdName, srcHash, dest)}
-	}
+	b.runConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), "#(nop) %s %s in %s ", cmdName, srcHash, dest))
 	defer func(cmd strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
 
 	if hit, err := b.probeCache(); err != nil {

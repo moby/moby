@@ -67,23 +67,24 @@ func init() {
 	// functions. Errors are propagated up by Parse() and the resulting AST can
 	// be incorporated directly into the existing AST as a next.
 	dispatch = map[string]func(string) (*Node, map[string]bool, error){
-		command.User:        parseString,
-		command.Onbuild:     parseSubCommand,
-		command.Workdir:     parseString,
+		command.Add:         parseMaybeJSONToList,
+		command.Arg:         parseNameOrNameVal,
+		command.Cmd:         parseMaybeJSON,
+		command.Copy:        parseMaybeJSONToList,
+		command.Entrypoint:  parseMaybeJSON,
 		command.Env:         parseEnv,
+		command.Expose:      parseStringsWhitespaceDelimited,
+		command.From:        parseString,
+		command.Healthcheck: parseHealthConfig,
 		command.Label:       parseLabel,
 		command.Maintainer:  parseString,
-		command.From:        parseString,
-		command.Add:         parseMaybeJSONToList,
-		command.Copy:        parseMaybeJSONToList,
+		command.Onbuild:     parseSubCommand,
 		command.Run:         parseMaybeJSON,
-		command.Cmd:         parseMaybeJSON,
-		command.Entrypoint:  parseMaybeJSON,
-		command.Expose:      parseStringsWhitespaceDelimited,
-		command.Volume:      parseMaybeJSONToList,
+		command.Shell:       parseMaybeJSON,
 		command.StopSignal:  parseString,
-		command.Arg:         parseNameOrNameVal,
-		command.Healthcheck: parseHealthConfig,
+		command.User:        parseString,
+		command.Volume:      parseMaybeJSONToList,
+		command.Workdir:     parseString,
 	}
 }
 
