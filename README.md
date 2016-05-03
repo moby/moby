@@ -13,12 +13,12 @@ databases, and backend services without depending on a particular stack
 or provider.
 
 Docker began as an open-source implementation of the deployment engine which
-powers [dotCloud](https://www.dotcloud.com), a popular Platform-as-a-Service.
-It benefits directly from the experience accumulated over several years
-of large-scale operation and support of hundreds of thousands of
-applications and databases.
+powered [dotCloud](http://web.archive.org/web/20130530031104/https://www.dotcloud.com/),
+a popular Platform-as-a-Service. It benefits directly from the experience
+accumulated over several years of large-scale operation and support of hundreds
+of thousands of applications and databases.
 
-![](docs/static_files/docker-logo-compressed.png "Docker")
+![Docker logo](docs/static_files/docker-logo-compressed.png "Docker")
 
 ## Security Disclosure
 
