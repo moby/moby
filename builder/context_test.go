@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -14,46 +13,24 @@ import (
 	"github.com/docker/docker/pkg/archive"
 )
 
-const (
-	dockerfileTestName = "Dockerfile-test"
-	dockerfileContent  = "FROM busybox"
-)
-
-var prepareEmpty = func(t *testing.T) string {
-	return ""
+var prepareEmpty = func(t *testing.T) (string, func()) {
+	return "", func() {}
 }
 
-var prepareNoFiles = func(t *testing.T) string {
-	contextDir, err := ioutil.TempDir("", "builder-context-test")
-
-	if err != nil {
-		t.Fatalf("Error when creating temporary directory: %s", err)
-	}
-
-	return contextDir
+var prepareNoFiles = func(t *testing.T) (string, func()) {
+	return createTestTempDir(t, "", "builder-context-test")
 }
 
-var prepareOneFile = func(t *testing.T) string {
-	contextDir, err := ioutil.TempDir("", "builder-context-test")
-
-	if err != nil {
-		t.Fatalf("Error when creating temporary directory: %s", err)
-	}
-
-	dockerfileFilename := filepath.Join(contextDir, dockerfileTestName)
-	err = ioutil.WriteFile(dockerfileFilename, []byte(dockerfileContent), 0777)
-
-	if err != nil {
-		t.Fatalf("Error with writing to file: %s", err)
-	}
-
-	return contextDir
+var prepareOneFile = func(t *testing.T) (string, func()) {
+	contextDir, cleanup := createTestTempDir(t, "", "builder-context-test")
+	createTestTempFile(t, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
+	return contextDir, cleanup
 }
 
-func testValidateContextDirectory(t *testing.T, prepare func(t *testing.T) string, excludes []string) {
-	contextDir := prepare(t)
+func testValidateContextDirectory(t *testing.T, prepare func(t *testing.T) (string, func()), excludes []string) {
+	contextDir, cleanup := prepare(t)
+	defer cleanup()
 
-	defer os.RemoveAll(contextDir)
 	err := ValidateContextDirectory(contextDir, excludes)
 
 	if err != nil {
@@ -62,13 +39,8 @@ func testValidateContextDirectory(t *testing.T, prepare func(t *testing.T) strin
 }
 
 func TestGetContextFromLocalDirNoDockerfile(t *testing.T) {
-	contextDir, err := ioutil.TempDir("", "builder-context-test")
-
-	defer os.RemoveAll(contextDir)
-
-	if err != nil {
-		t.Fatalf("Error with creating temporary directory: %s", err)
-	}
+	contextDir, cleanup := createTestTempDir(t, "", "builder-context-test")
+	defer cleanup()
 
 	absContextDir, relDockerfile, err := GetContextFromLocalDir(contextDir, "")
 
@@ -86,13 +58,8 @@ func TestGetContextFromLocalDirNoDockerfile(t *testing.T) {
 }
 
 func TestGetContextFromLocalDirNotExistingDir(t *testing.T) {
-	contextDir, err := ioutil.TempDir("", "builder-context-test")
-
-	if err != nil {
-		t.Fatalf("Error with creating temporary directory: %s", err)
-	}
-
-	defer os.RemoveAll(contextDir)
+	contextDir, cleanup := createTestTempDir(t, "", "builder-context-test")
+	defer cleanup()
 
 	fakePath := filepath.Join(contextDir, "fake")
 
@@ -112,13 +79,8 @@ func TestGetContextFromLocalDirNotExistingDir(t *testing.T) {
 }
 
 func TestGetContextFromLocalDirNotExistingDockerfile(t *testing.T) {
-	contextDir, err := ioutil.TempDir("", "builder-context-test")
-
-	if err != nil {
-		t.Fatalf("Error with creating temporary directory: %s", err)
-	}
-
-	defer os.RemoveAll(contextDir)
+	contextDir, cleanup := createTestTempDir(t, "", "builder-context-test")
+	defer cleanup()
 
 	fakePath := filepath.Join(contextDir, "fake")
 
@@ -138,34 +100,14 @@ func TestGetContextFromLocalDirNotExistingDockerfile(t *testing.T) {
 }
 
 func TestGetContextFromLocalDirWithNoDirectory(t *testing.T) {
-	contextDir, err := ioutil.TempDir("", "builder-context-test")
+	contextDir, dirCleanup := createTestTempDir(t, "", "builder-context-test")
+	defer dirCleanup()
 
-	if err != nil {
-		t.Fatalf("Error with creating temporary directory: %s", err)
-	}
+	createTestTempFile(t, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
 
-	defer os.RemoveAll(contextDir)
+	chdirCleanup := chdir(t, contextDir)
+	defer chdirCleanup()
 
-	dockerfileFilename := filepath.Join(contextDir, DefaultDockerfileName)
-	err = ioutil.WriteFile(dockerfileFilename, []byte(dockerfileContent), 0777)
-
-	if err != nil {
-		t.Fatalf("Error when writing file (%s) contents: %s", dockerfileFilename, err)
-	}
-
-	workingDirectory, err := os.Getwd()
-
-	if err != nil {
-		t.Fatalf("Error when retrieving working directory: %s", err)
-	}
-
-	defer os.Chdir(workingDirectory)
-
-	err = os.Chdir(contextDir)
-
-	if err != nil {
-		t.Fatalf("Error when changing directory to %s: %s", contextDir, err)
-	}
 	absContextDir, relDockerfile, err := GetContextFromLocalDir(contextDir, "")
 
 	if err != nil {
@@ -182,20 +124,10 @@ func TestGetContextFromLocalDirWithNoDirectory(t *testing.T) {
 }
 
 func TestGetContextFromLocalDirWithDockerfile(t *testing.T) {
-	contextDir, err := ioutil.TempDir("", "builder-context-test")
+	contextDir, cleanup := createTestTempDir(t, "", "builder-context-test")
+	defer cleanup()
 
-	if err != nil {
-		t.Fatalf("Error with creating temporary directory: %s", err)
-	}
-
-	defer os.RemoveAll(contextDir)
-
-	dockerfileFilename := filepath.Join(contextDir, DefaultDockerfileName)
-	err = ioutil.WriteFile(dockerfileFilename, []byte(dockerfileContent), 0777)
-
-	if err != nil {
-		t.Fatalf("Error when writing file (%s) contents: %s", dockerfileFilename, err)
-	}
+	createTestTempFile(t, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
 
 	absContextDir, relDockerfile, err := GetContextFromLocalDir(contextDir, "")
 
@@ -213,28 +145,11 @@ func TestGetContextFromLocalDirWithDockerfile(t *testing.T) {
 }
 
 func TestGetContextFromLocalDirLocalFile(t *testing.T) {
-	contextDir, err := ioutil.TempDir("", "builder-context-test")
+	contextDir, cleanup := createTestTempDir(t, "", "builder-context-test")
+	defer cleanup()
 
-	if err != nil {
-		t.Fatalf("Error with creating temporary directory: %s", err)
-	}
-
-	defer os.RemoveAll(contextDir)
-
-	dockerfileFilename := filepath.Join(contextDir, DefaultDockerfileName)
-	err = ioutil.WriteFile(dockerfileFilename, []byte(dockerfileContent), 0777)
-
-	if err != nil {
-		t.Fatalf("Error when writing file (%s) contents: %s", dockerfileFilename, err)
-	}
-
-	testFilename := filepath.Join(contextDir, "tmpTest")
-	testContent := "test"
-	err = ioutil.WriteFile(testFilename, []byte(testContent), 0777)
-
-	if err != nil {
-		t.Fatalf("Error when writing file (%s) contents: %s", testFilename, err)
-	}
+	createTestTempFile(t, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
+	testFilename := createTestTempFile(t, contextDir, "tmpTest", "test", 0777)
 
 	absContextDir, relDockerfile, err := GetContextFromLocalDir(testFilename, "")
 
@@ -252,36 +167,15 @@ func TestGetContextFromLocalDirLocalFile(t *testing.T) {
 }
 
 func TestGetContextFromLocalDirWithCustomDockerfile(t *testing.T) {
-	contextDir, err := ioutil.TempDir("", "builder-context-test")
+	contextDir, cleanup := createTestTempDir(t, "", "builder-context-test")
+	defer cleanup()
 
-	if err != nil {
-		t.Fatalf("Error with creating temporary directory: %s", err)
-	}
+	chdirCleanup := chdir(t, contextDir)
+	defer chdirCleanup()
 
-	defer os.RemoveAll(contextDir)
+	createTestTempFile(t, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
 
-	workingDirectory, err := os.Getwd()
-
-	if err != nil {
-		t.Fatalf("Error when retrieving working directory: %s", err)
-	}
-
-	defer os.Chdir(workingDirectory)
-
-	err = os.Chdir(contextDir)
-
-	if err != nil {
-		t.Fatalf("Error when changing directory to %s: %s", contextDir, err)
-	}
-
-	dockerfileFilename := filepath.Join(contextDir, dockerfileTestName)
-	err = ioutil.WriteFile(dockerfileFilename, []byte(dockerfileContent), 0777)
-
-	if err != nil {
-		t.Fatalf("Error when writing file (%s) contents: %s", dockerfileFilename, err)
-	}
-
-	absContextDir, relDockerfile, err := GetContextFromLocalDir(contextDir, dockerfileTestName)
+	absContextDir, relDockerfile, err := GetContextFromLocalDir(contextDir, DefaultDockerfileName)
 
 	if err != nil {
 		t.Fatalf("Error when getting context from local dir: %s", err)
@@ -291,14 +185,14 @@ func TestGetContextFromLocalDirWithCustomDockerfile(t *testing.T) {
 		t.Fatalf("Absolute directory path should be equal to %s, got: %s", contextDir, absContextDir)
 	}
 
-	if relDockerfile != dockerfileTestName {
-		t.Fatalf("Relative path to dockerfile should be equal to %s, got: %s", dockerfileTestName, relDockerfile)
+	if relDockerfile != DefaultDockerfileName {
+		t.Fatalf("Relative path to dockerfile should be equal to %s, got: %s", DefaultDockerfileName, relDockerfile)
 	}
 
 }
 
 func TestGetContextFromReaderString(t *testing.T) {
-	tarArchive, relDockerfile, err := GetContextFromReader(ioutil.NopCloser(strings.NewReader(dockerfileContent)), "")
+	tarArchive, relDockerfile, err := GetContextFromReader(ioutil.NopCloser(strings.NewReader(dockerfileContents)), "")
 
 	if err != nil {
 		t.Fatalf("Error when executing GetContextFromReader: %s", err)
@@ -326,8 +220,8 @@ func TestGetContextFromReaderString(t *testing.T) {
 		t.Fatalf("Error when closing tar stream: %s", err)
 	}
 
-	if dockerfileContent != contents {
-		t.Fatalf("Uncompressed tar archive does not equal: %s, got: %s", dockerfileContent, contents)
+	if dockerfileContents != contents {
+		t.Fatalf("Uncompressed tar archive does not equal: %s, got: %s", dockerfileContents, contents)
 	}
 
 	if relDockerfile != DefaultDockerfileName {
@@ -336,20 +230,10 @@ func TestGetContextFromReaderString(t *testing.T) {
 }
 
 func TestGetContextFromReaderTar(t *testing.T) {
-	contextDir, err := ioutil.TempDir("", "builder-context-test")
+	contextDir, cleanup := createTestTempDir(t, "", "builder-context-test")
+	defer cleanup()
 
-	if err != nil {
-		t.Fatalf("Error with creating temporary directory: %s", err)
-	}
-
-	defer os.RemoveAll(contextDir)
-
-	dockerfileFilename := filepath.Join(contextDir, dockerfileTestName)
-	err = ioutil.WriteFile(dockerfileFilename, []byte(dockerfileContent), 0777)
-
-	if err != nil {
-		t.Fatalf("Error when writing file (%s) contents: %s", dockerfileFilename, err)
-	}
+	createTestTempFile(t, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
 
 	tarStream, err := archive.Tar(contextDir, archive.Uncompressed)
 
@@ -357,7 +241,7 @@ func TestGetContextFromReaderTar(t *testing.T) {
 		t.Fatalf("Error when creating tar: %s", err)
 	}
 
-	tarArchive, relDockerfile, err := GetContextFromReader(tarStream, dockerfileTestName)
+	tarArchive, relDockerfile, err := GetContextFromReader(tarStream, DefaultDockerfileName)
 
 	if err != nil {
 		t.Fatalf("Error when executing GetContextFromReader: %s", err)
@@ -371,8 +255,8 @@ func TestGetContextFromReaderTar(t *testing.T) {
 		t.Fatalf("Error when reading tar archive: %s", err)
 	}
 
-	if header.Name != dockerfileTestName {
-		t.Fatalf("Dockerfile name should be: %s, got: %s", dockerfileTestName, header.Name)
+	if header.Name != DefaultDockerfileName {
+		t.Fatalf("Dockerfile name should be: %s, got: %s", DefaultDockerfileName, header.Name)
 	}
 
 	buff := new(bytes.Buffer)
@@ -389,12 +273,12 @@ func TestGetContextFromReaderTar(t *testing.T) {
 		t.Fatalf("Error when closing tar stream: %s", err)
 	}
 
-	if dockerfileContent != contents {
-		t.Fatalf("Uncompressed tar archive does not equal: %s, got: %s", dockerfileContent, contents)
+	if dockerfileContents != contents {
+		t.Fatalf("Uncompressed tar archive does not equal: %s, got: %s", dockerfileContents, contents)
 	}
 
-	if relDockerfile != dockerfileTestName {
-		t.Fatalf("Relative path not equals %s, got: %s", dockerfileTestName, relDockerfile)
+	if relDockerfile != DefaultDockerfileName {
+		t.Fatalf("Relative path not equals %s, got: %s", DefaultDockerfileName, relDockerfile)
 	}
 }
 
@@ -419,5 +303,5 @@ func TestValidateContextDirectoryWithOneFile(t *testing.T) {
 }
 
 func TestValidateContextDirectoryWithOneFileExcludes(t *testing.T) {
-	testValidateContextDirectory(t, prepareOneFile, []string{dockerfileTestName})
+	testValidateContextDirectory(t, prepareOneFile, []string{DefaultDockerfileName})
 }

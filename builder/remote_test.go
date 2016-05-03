@@ -7,15 +7,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/httputils"
 )
 
-var textPlainDockerfile = "FROM busybox"
 var binaryContext = []byte{0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00} //xz magic
 
 func TestSelectAcceptableMIME(t *testing.T) {
@@ -95,10 +92,10 @@ func TestInspectResponseBinary(t *testing.T) {
 }
 
 func TestResponseUnsupportedContentType(t *testing.T) {
-	content := []byte(textPlainDockerfile)
+	content := []byte(dockerfileContents)
 	ct := "application/json"
 	br := ioutil.NopCloser(bytes.NewReader(content))
-	contentType, bReader, err := inspectResponse(ct, br, int64(len(textPlainDockerfile)))
+	contentType, bReader, err := inspectResponse(ct, br, int64(len(dockerfileContents)))
 
 	if err == nil {
 		t.Fatal("Should have returned an error on content-type 'application/json'")
@@ -110,13 +107,13 @@ func TestResponseUnsupportedContentType(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(body) != textPlainDockerfile {
+	if string(body) != dockerfileContents {
 		t.Fatalf("Corrupted response body %s", body)
 	}
 }
 
 func TestInspectResponseTextSimple(t *testing.T) {
-	content := []byte(textPlainDockerfile)
+	content := []byte(dockerfileContents)
 	ct := "text/plain"
 	br := ioutil.NopCloser(bytes.NewReader(content))
 	contentType, bReader, err := inspectResponse(ct, br, int64(len(content)))
@@ -130,13 +127,13 @@ func TestInspectResponseTextSimple(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(body) != textPlainDockerfile {
+	if string(body) != dockerfileContents {
 		t.Fatalf("Corrupted response body %s", body)
 	}
 }
 
 func TestInspectResponseEmptyContentType(t *testing.T) {
-	content := []byte(textPlainDockerfile)
+	content := []byte(dockerfileContents)
 	br := ioutil.NopCloser(bytes.NewReader(content))
 	contentType, bodyReader, err := inspectResponse("", br, int64(len(content)))
 	if err != nil {
@@ -149,26 +146,16 @@ func TestInspectResponseEmptyContentType(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(body) != textPlainDockerfile {
+	if string(body) != dockerfileContents {
 		t.Fatalf("Corrupted response body %s", body)
 	}
 }
 
 func TestMakeRemoteContext(t *testing.T) {
-	contextDir, err := ioutil.TempDir("", "builder-remote-test")
+	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
+	defer cleanup()
 
-	if err != nil {
-		t.Fatalf("Error with creating temporary directory: %s", err)
-	}
-
-	defer os.RemoveAll(contextDir)
-
-	testFilename := filepath.Join(contextDir, DefaultDockerfileName)
-	err = ioutil.WriteFile(testFilename, []byte(textPlainDockerfile), 0777)
-
-	if err != nil {
-		t.Fatalf("Error when writing file (%s) contents: %s", testFilename, err)
-	}
+	createTestTempFile(t, contextDir, DefaultDockerfileName, dockerfileContents, 0777)
 
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
