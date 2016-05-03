@@ -51,10 +51,14 @@ func parseHTTPErrorResponse(statusCode int, r io.Reader) error {
 	}
 	err = json.Unmarshal(body, &detailsErr)
 	if err == nil && detailsErr.Details != "" {
-		if statusCode == http.StatusUnauthorized {
+		switch statusCode {
+		case http.StatusUnauthorized:
 			return errcode.ErrorCodeUnauthorized.WithMessage(detailsErr.Details)
+		case http.StatusTooManyRequests:
+			return errcode.ErrorCodeTooManyRequests.WithMessage(detailsErr.Details)
+		default:
+			return errcode.ErrorCodeUnknown.WithMessage(detailsErr.Details)
 		}
-		return errcode.ErrorCodeUnknown.WithMessage(detailsErr.Details)
 	}
 
 	if err := json.Unmarshal(body, &errors); err != nil {
