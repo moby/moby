@@ -9,8 +9,6 @@ package dockerfile
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"regexp"
 	"runtime"
 	"sort"
@@ -20,7 +18,6 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/docker/pkg/system"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/strslice"
@@ -257,45 +254,17 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 		return errExactlyOneArgument("WORKDIR")
 	}
 
-	if err := b.flags.Parse(); err != nil {
+	err := b.flags.Parse()
+	if err != nil {
 		return err
 	}
 
 	// This is from the Dockerfile and will not necessarily be in platform
 	// specific semantics, hence ensure it is converted.
-	workdir := filepath.FromSlash(args[0])
-	current := filepath.FromSlash(b.runConfig.WorkingDir)
-	if runtime.GOOS == "windows" {
-		// Windows is a little more complicated than Linux. This code ensures
-		// we end up with a workdir which is consistent in terms of platform
-		// semantics. This means C:\somefolder, specifically in the format:
-		// UPPERCASEDriveLetter-Colon-Backslash-FolderName. We are already
-		// guaranteed that `current`, if set, is consistent. This allows us to
-		// cope correctly with any of the following in a Dockerfile:
-		//	WORKDIR a                       --> C:\a
-		//	WORKDIR c:\\foo                 --> C:\foo
-		//	WORKDIR \\foo                   --> C:\foo
-		//	WORKDIR /foo                    --> C:\foo
-		//	WORKDIR c:\\foo \ WORKDIR bar   --> C:\foo --> C:\foo\bar
-		//	WORKDIR C:/foo \ WORKDIR bar    --> C:\foo --> C:\foo\bar
-		//	WORKDIR C:/foo \ WORKDIR \\bar  --> C:\foo --> C:\bar
-		//	WORKDIR /foo \ WORKDIR c:/bar   --> C:\foo --> C:\bar
-		if len(current) == 0 || system.IsAbs(workdir) {
-			if (workdir[0] == os.PathSeparator) ||
-				(len(workdir) > 1 && string(workdir[1]) != ":") ||
-				(len(workdir) == 1) {
-				workdir = filepath.Join(`C:\`, workdir)
-			}
-		} else {
-			workdir = filepath.Join(current, workdir)
-		}
-		workdir = strings.ToUpper(string(workdir[0])) + workdir[1:] // Upper-case drive letter
-	} else {
-		if !filepath.IsAbs(workdir) {
-			workdir = filepath.Join(string(os.PathSeparator), current, workdir)
-		}
+	b.runConfig.WorkingDir, err = normaliseWorkdir(b.runConfig.WorkingDir, args[0])
+	if err != nil {
+		return err
 	}
-	b.runConfig.WorkingDir = workdir
 
 	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("WORKDIR %v", workdir))
 }
