@@ -770,9 +770,6 @@ func (s *DockerSuite) TestRunUserNotFound(c *check.C) {
 
 func (s *DockerSuite) TestRunTwoConcurrentContainers(c *check.C) {
 	sleepTime := "2"
-	if daemonPlatform == "windows" {
-		sleepTime = "20" // Make more reliable on Windows
-	}
 	group := sync.WaitGroup{}
 	group.Add(2)
 
