@@ -27,7 +27,7 @@ func (c *RefCounter) Increment(path string) int {
 	c.mu.Lock()
 	m := c.counts[path]
 	if m == nil {
-		m = &minfo{check: true}
+		m = &minfo{}
 		c.counts[path] = m
 	}
 	// if we are checking this path for the first time check to make sure
@@ -50,7 +50,7 @@ func (c *RefCounter) Decrement(path string) int {
 	c.mu.Lock()
 	m := c.counts[path]
 	if m == nil {
-		m = &minfo{check: true}
+		m = &minfo{}
 		c.counts[path] = m
 	}
 	// if we are checking this path for the first time check to make sure
