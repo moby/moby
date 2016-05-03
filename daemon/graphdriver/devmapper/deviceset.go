@@ -167,6 +167,7 @@ type Status struct {
 	// thin pool and it can't be activated again.
 	DeferredDeleteEnabled      bool
 	DeferredDeletedDeviceCount uint
+	MinFreeSpace               uint64
 }
 
 // Structure used to export image/container metadata in docker inspect.
@@ -2469,6 +2470,9 @@ func (devices *DeviceSet) Status() *Status {
 				status.Metadata.Available = actualSpace
 			}
 		}
+
+		minFreeData := (dataTotal * uint64(devices.minFreeSpacePercent)) / 100
+		status.MinFreeSpace = minFreeData * blockSizeInSectors * 512
 	}
 
 	return status
