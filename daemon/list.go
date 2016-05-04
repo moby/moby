@@ -276,7 +276,7 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 	if len(ctx.exitAllowed) > 0 {
 		shouldSkip := true
 		for _, code := range ctx.exitAllowed {
-			if code == container.ExitCode && !container.Running {
+			if code == container.ExitCode && !container.Running && !container.StartedAt.IsZero() {
 				shouldSkip = false
 				break
 			}
