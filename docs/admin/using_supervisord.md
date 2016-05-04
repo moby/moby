@@ -90,7 +90,7 @@ to start Supervisor when our container launches.
     EXPOSE 22 80
     CMD ["/usr/bin/supervisord"]
 
-Here We've exposed ports 22 and 80 on the container and we're running
+Here we've exposed ports 22 and 80 on the container and we're running
 the `/usr/bin/supervisord` binary when the container
 launches.
 
@@ -102,7 +102,7 @@ We can now build our new image.
 
 ## Running our Supervisor container
 
-Once We've got a built image we can launch a container from it.
+Once we've got a built image we can launch a container from it.
 
     $ docker run -p 22 -p 80 -t -i <yourname>/supervisord
     2013-11-25 18:53:22,312 CRIT Supervisor running as root (no user in config file)
