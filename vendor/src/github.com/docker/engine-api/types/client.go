@@ -57,6 +57,7 @@ type ContainerLogsOptions struct {
 	Timestamps bool
 	Follow     bool
 	Tail       string
+	Details    bool
 }
 
 // ContainerRemoveOptions holds parameters to remove containers.
@@ -172,6 +173,7 @@ type ImageListOptions struct {
 
 // ImageLoadResponse returns information to the client about a load process.
 type ImageLoadResponse struct {
+	// Body must be closed to avoid a resource leak
 	Body io.ReadCloser
 	JSON bool
 }
