@@ -6171,17 +6171,24 @@ func (s *DockerSuite) TestBuildStopSignal(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArg(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
-	args := []string{
-		"--build-arg", fmt.Sprintf("%s=%s", envKey, envVal),
+	args := []string{"--build-arg", fmt.Sprintf("%s=%s", envKey, envVal)}
+	var dockerfile string
+	if daemonPlatform == "windows" {
+		// Bugs in Windows busybox port - use the default base image and native cmd stuff
+		dockerfile = fmt.Sprintf(`FROM `+minimalBaseImage()+`
+			ARG %s
+			RUN echo %%%s%%
+			CMD setlocal enableextensions && if defined %s (echo %%%s%%)`, envKey, envKey, envKey, envKey)
+	} else {
+		dockerfile = fmt.Sprintf(`FROM busybox
+			ARG %s
+			RUN echo $%s
+			CMD echo $%s`, envKey, envKey, envKey)
+
 	}
-	dockerfile := fmt.Sprintf(`FROM busybox
-		ARG %s
-		RUN echo $%s
-		CMD echo $%s`, envKey, envKey, envKey)
 
 	if _, out, err := buildImageWithOut(imgName, dockerfile, true, args...); err != nil || !strings.Contains(out, envVal) {
 		if err != nil {
@@ -6191,7 +6198,9 @@ func (s *DockerSuite) TestBuildBuildTimeArg(c *check.C) {
 	}
 
 	containerName := "bldargCont"
-	if out, _ := dockerCmd(c, "run", "--name", containerName, imgName); out != "\n" {
+	out, _ := dockerCmd(c, "run", "--name", containerName, imgName)
+	out = strings.Trim(out, " \r\n'")
+	if out != "" {
 		c.Fatalf("run produced invalid output: %q, expected empty string", out)
 	}
 }
