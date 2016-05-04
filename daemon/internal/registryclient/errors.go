@@ -54,7 +54,10 @@ func parseHTTPErrorResponse(statusCode int, r io.Reader) error {
 		switch statusCode {
 		case http.StatusUnauthorized:
 			return errcode.ErrorCodeUnauthorized.WithMessage(detailsErr.Details)
-		case http.StatusTooManyRequests:
+		// FIXME: go1.5 doesn't export http.StatusTooManyRequests while
+		// go1.6 does. Update the hardcoded value to the constant once
+		// Docker updates golang version to 1.6.
+		case 429:
 			return errcode.ErrorCodeTooManyRequests.WithMessage(detailsErr.Details)
 		default:
 			return errcode.ErrorCodeUnknown.WithMessage(detailsErr.Details)
