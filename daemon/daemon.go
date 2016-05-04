@@ -827,7 +827,7 @@ func NewDaemon(config *Config, registryService *registry.Service, containerdRemo
 	return d, nil
 }
 
-func (daemon *Daemon) shutdownContainer(c *container.Container) error {
+func (daemon *Daemon) shutdownContainer(c *container.Container, shutdownTimeout int) error {
 	// TODO(windows): Handle docker restart with paused containers
 	if c.IsPaused() {
 		// To terminate a process in freezer cgroup, we should send
@@ -844,8 +844,8 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 		if err := daemon.containerUnpause(c); err != nil {
 			return fmt.Errorf("Failed to unpause container %s with error: %v", c.ID, err)
 		}
-		if _, err := c.WaitStop(10 * time.Second); err != nil {
-			logrus.Debugf("container %s failed to exit in 10 second of SIGTERM, sending SIGKILL to force", c.ID)
+		if _, err := c.WaitStop(time.Duration(shutdownTimeout) * time.Second); err != nil {
+			logrus.Debugf("container %s failed to exit in %s second of SIGTERM, sending SIGKILL to force", c.ID, shutdownTimeout)
 			sig, ok := signal.SignalMap["KILL"]
 			if !ok {
 				return fmt.Errorf("System does not support SIGKILL")
@@ -857,8 +857,8 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 			return err
 		}
 	}
-	// If container failed to exit in 10 seconds of SIGTERM, then using the force
-	if err := daemon.containerStop(c, 10); err != nil {
+	// If container failed to exit in shutdownTimeout seconds of SIGTERM, then using the force
+	if err := daemon.containerStop(c, shutdownTimeout); err != nil {
 		return fmt.Errorf("Stop container %s with error: %v", c.ID, err)
 	}
 
@@ -870,13 +870,14 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 func (daemon *Daemon) Shutdown() error {
 	daemon.shutdown = true
 	if daemon.containers != nil {
-		logrus.Debug("starting clean shutdown of all containers...")
+		shutdownTimeout := daemon.configStore.ShutdownTimeout
+		logrus.Debugf("starting clean shutdown of all containers in %d seconds...", shutdownTimeout)
 		daemon.containers.ApplyAll(func(c *container.Container) {
 			if !c.IsRunning() {
 				return
 			}
 			logrus.Debugf("stopping %s", c.ID)
-			if err := daemon.shutdownContainer(c); err != nil {
+			if err := daemon.shutdownContainer(c, shutdownTimeout); err != nil {
 				logrus.Errorf("Stop container error: %v", err)
 				return
 			}
@@ -1511,6 +1512,7 @@ func (daemon *Daemon) initDiscovery(config *Config) error {
 // - Daemon labels.
 // - Daemon debug log level.
 // - Cluster discovery (reconfigure and restart).
+// - Daemon shutdown timeout (in seconds).
 func (daemon *Daemon) Reload(config *Config) error {
 	daemon.configStore.reloadLock.Lock()
 	defer daemon.configStore.reloadLock.Unlock()
@@ -1519,6 +1521,10 @@ func (daemon *Daemon) Reload(config *Config) error {
 	}
 	if config.IsValueSet("debug") {
 		daemon.configStore.Debug = config.Debug
+	}
+	if config.IsValueSet("shutdown-timeout") {
+		daemon.configStore.ShutdownTimeout = config.ShutdownTimeout
+		logrus.Debugf("Reset Shutdown Timeout: %d", daemon.configStore.ShutdownTimeout)
 	}
 	return daemon.reloadClusterDiscovery(config)
 }

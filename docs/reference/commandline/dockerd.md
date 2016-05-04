@@ -54,6 +54,7 @@ weight = -1
       --log-driver="json-file"               Default driver for container logs
       --log-opt=[]                           Log driver specific options
       --mtu=0                                Set the containers network MTU
+      --shutdown-timeout=10                  Set the shutdown timeout value in seconds
       --disable-legacy-registry              Do not contact legacy registries
       -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
       --raw-logs                             Full timestamps without ANSI coloring
@@ -894,6 +895,7 @@ This is a full example of the allowed configuration options in the file:
 	"log-driver": "",
 	"log-opts": [],
 	"mtu": 0,
+	"shutdown-timeout": 10,
 	"pidfile": "",
 	"graph": "",
 	"cluster-store": "",
