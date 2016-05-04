@@ -222,7 +222,7 @@ Once ZFS is installed and loaded, you're ready to configure ZFS for Docker.
     The procedure for starting the Docker daemon may differ depending on the
     Linux distribution you are using. It is possible to force the Docker daemon
     to start with the `zfs` storage driver by passing the 
-    `--storage-driver=zfs`flag to the `docker daemon` command, or to the 
+    `--storage-driver=zfs`flag to the `dockerd` command, or to the 
     `DOCKER_OPTS` line in the Docker config file.
 
 6. Verify that the daemon is using the `zfs` storage driver.

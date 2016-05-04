@@ -2,10 +2,10 @@
 % Shishir Mahajan
 % SEPTEMBER 2015
 # NAME
-docker-daemon - Enable daemon mode
+dockerd - Enable daemon mode
 
 # SYNOPSIS
-**docker daemon**
+**dockerd**
 [**--api-cors-header**=[=*API-CORS-HEADER*]]
 [**--authorization-plugin**[=*[]*]]
 [**-b**|**--bridge**[=*BRIDGE*]]
@@ -59,17 +59,15 @@ docker-daemon - Enable daemon mode
 [**--userns-remap**[=*default*]]
 
 # DESCRIPTION
-**docker** has two distinct functions. It is used for starting the Docker
-daemon and to run the CLI (i.e., to command the daemon to manage images,
-containers etc.) So **docker** is both a server, as a daemon, and a client
-to the daemon, through the CLI.
+**dockerd** is used for starting the Docker daemon(i.e., to command the daemon to manage images,
+containers etc.) So **dockerd** is a server, as a daemon.
 
-To run the Docker daemon you can specify **docker daemon**.
-You can check the daemon options using **docker daemon --help**.
-Daemon options should be specified after the **daemon** keyword in the following
+To run the Docker daemon you can specify **dockerd**.
+You can check the daemon options using **dockerd --help**.
+Daemon options should be specified after the **dockerd** keyword in the following
 format.
 
-**docker daemon [OPTIONS]**
+**dockerd [OPTIONS]**
 
 # OPTIONS
 
@@ -288,7 +286,7 @@ not use loopback in production. Ensure your Engine daemon has a
 
 Example use:
 
-   $ docker daemon \
+   $ dockerd \
          --storage-opt dm.thinpooldev=/dev/mapper/thin-pool
 
 #### dm.basesize
@@ -304,7 +302,7 @@ The base device size can be increased at daemon restart which will allow
 all future images and containers (based on those new images) to be of the
 new base device size.
 
-Example use: `docker daemon --storage-opt dm.basesize=50G`
+Example use: `dockerd --storage-opt dm.basesize=50G`
 
 This will increase the base device size to 50G. The Docker daemon will throw an
 error if existing base device size is larger than 50G. A user can use
@@ -318,26 +316,26 @@ value requires additional steps to take effect:
         $ sudo rm -rf /var/lib/docker
         $ sudo service docker start
 
-Example use: `docker daemon --storage-opt dm.basesize=20G`
+Example use: `dockerd --storage-opt dm.basesize=20G`
 
 #### dm.fs
 
 Specifies the filesystem type to use for the base device. The
 supported options are `ext4` and `xfs`. The default is `ext4`.
 
-Example use: `docker daemon --storage-opt dm.fs=xfs`
+Example use: `dockerd --storage-opt dm.fs=xfs`
 
 #### dm.mkfsarg
 
 Specifies extra mkfs arguments to be used when creating the base device.
 
-Example use: `docker daemon --storage-opt "dm.mkfsarg=-O ^has_journal"`
+Example use: `dockerd --storage-opt "dm.mkfsarg=-O ^has_journal"`
 
 #### dm.mountopt
 
 Specifies extra mount options used when mounting the thin devices.
 
-Example use: `docker daemon --storage-opt dm.mountopt=nodiscard`
+Example use: `dockerd --storage-opt dm.mountopt=nodiscard`
 
 #### dm.use_deferred_removal
 
@@ -355,7 +353,7 @@ the container exit still succeeds and this option causes the system to schedule
 the device for deferred removal. It does not wait in a loop trying to remove a busy
 device.
 
-Example use: `docker daemon --storage-opt dm.use_deferred_removal=true`
+Example use: `dockerd --storage-opt dm.use_deferred_removal=true`
 
 #### dm.use_deferred_deletion
 
@@ -369,7 +367,7 @@ remove a device, the container deletion fails and daemon returns.
 To avoid this failure, enable both deferred device deletion and deferred
 device removal on the daemon.
 
-`docker daemon --storage-opt dm.use_deferred_deletion=true --storage-opt dm.use_deferred_removal=true`
+`dockerd --storage-opt dm.use_deferred_deletion=true --storage-opt dm.use_deferred_removal=true`
 
 With these two options enabled, if a device is busy when the driver is
 deleting a container, the driver marks the device as deleted. Later, when the
@@ -388,7 +386,7 @@ Specifies the size to use when creating the loopback file for the
 100G. The file is sparse, so it will not initially take up
 this much space.
 
-Example use: `docker daemon --storage-opt dm.loopdatasize=200G`
+Example use: `dockerd --storage-opt dm.loopdatasize=200G`
 
 #### dm.loopmetadatasize
 
@@ -399,7 +397,7 @@ Specifies the size to use when creating the loopback file for the
 is 2G. The file is sparse, so it will not initially take up
 this much space.
 
-Example use: `docker daemon --storage-opt dm.loopmetadatasize=4G`
+Example use: `dockerd --storage-opt dm.loopmetadatasize=4G`
 
 #### dm.datadev
 
@@ -422,7 +420,7 @@ deprecated.
 Specifies a custom blocksize to use for the thin pool.  The default
 blocksize is 64K.
 
-Example use: `docker daemon --storage-opt dm.blocksize=512K`
+Example use: `dockerd --storage-opt dm.blocksize=512K`
 
 #### dm.blkdiscard
 
@@ -436,7 +434,7 @@ times, but it also prevents the space used in `/var/lib/docker` directory
 from being returned to the system for other use when containers are
 removed.
 
-Example use: `docker daemon --storage-opt dm.blkdiscard=false`
+Example use: `dockerd --storage-opt dm.blkdiscard=false`
 
 #### dm.override_udev_sync_check
 
@@ -465,7 +463,7 @@ failures, see
 To allow the `docker` daemon to start, regardless of whether `udev` sync is
 `false`, set `dm.override_udev_sync_check` to true:
 
-        $ docker daemon --storage-opt dm.override_udev_sync_check=true
+        $ dockerd --storage-opt dm.override_udev_sync_check=true
 
 When this value is `true`, the driver continues and simply warns you
 the errors are happening.
@@ -501,7 +499,7 @@ resolve any errors. If your configuration uses loop devices, then stop the
 Engine daemon, grow the size of loop files and restart the daemon to resolve
 the issue.
 
-Example use:: `docker daemon --storage-opt dm.min_free_space=10%`
+Example use:: `dockerd --storage-opt dm.min_free_space=10%`
 
 ## ZFS options
 
@@ -511,7 +509,7 @@ Set zfs filesystem under which docker will create its own datasets.
 By default docker will pick up the zfs filesystem where docker graph
 (`/var/lib/docker`) is located.
 
-Example use: `docker daemon -s zfs --storage-opt zfs.fsname=zroot/docker`
+Example use: `dockerd -s zfs --storage-opt zfs.fsname=zroot/docker`
 
 # CLUSTER STORE OPTIONS
 
@@ -545,7 +543,7 @@ authorization plugins when you start the Docker `daemon` using the
 `--authorization-plugin=PLUGIN_ID` option.
 
 ```bash
-docker daemon --authorization-plugin=plugin1 --authorization-plugin=plugin2,...
+dockerd --authorization-plugin=plugin1 --authorization-plugin=plugin2,...
 ```
 
 The `PLUGIN_ID` value is either the plugin's name or a path to its specification
