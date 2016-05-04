@@ -313,6 +313,21 @@ func (daemon *Daemon) restore() error {
 				mapLock.Unlock()
 			}
 
+			if c.RemovalInProgress {
+				// We probably crashed in the middle of a removal, reset
+				// the flag.
+				//
+				// We DO NOT remove the container here as we do not
+				// know if the user had requested for either the
+				// associated volumes, network links or both to also
+				// be removed. So we put the container in the "dead"
+				// state and leave further processing up to them.
+				logrus.Debugf("Resetting RemovalInProgress flag from %v", c.ID)
+				c.ResetRemovalInProgress()
+				c.SetDead()
+				c.ToDisk()
+			}
+
 			// if c.hostConfig.Links is nil (not just empty), then it is using the old sqlite links and needs to be migrated
 			if c.HostConfig != nil && c.HostConfig.Links == nil {
 				migrateLegacyLinks = true
