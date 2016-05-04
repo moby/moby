@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"bufio"
@@ -17,13 +18,14 @@ import (
 	"strconv"
 	"time"
 
+	"net"
+	"net/http/httputil"
+	"net/url"
+
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/go-check/check"
-	"net"
-	"net/http/httputil"
-	"net/url"
 )
 
 const (
@@ -413,6 +415,33 @@ func (s *DockerAuthzSuite) TestAuthZPluginEnsureNoDuplicatePluginRegistration(c 
 	// assert plugin is only called once..
 	c.Assert(s.ctrl.psRequestCnt, check.Equals, 1)
 	c.Assert(s.ctrl.psResponseCnt, check.Equals, 1)
+}
+
+func (s *DockerAuthzSuite) TestAuthZPluginEnsureLoadImportWorking(c *check.C) {
+	c.Assert(s.d.Start("--authorization-plugin="+testAuthZPlugin, "--authorization-plugin="+testAuthZPlugin), check.IsNil)
+	s.ctrl.reqRes.Allow = true
+	s.ctrl.resRes.Allow = true
+	c.Assert(s.d.LoadBusybox(), check.IsNil)
+
+	tmp, err := ioutil.TempDir("", "test-authz-load-import")
+	c.Assert(err, check.IsNil)
+	defer os.RemoveAll(tmp)
+
+	savedImagePath := filepath.Join(tmp, "save.tar")
+
+	out, err := s.d.Cmd("save", "-o", savedImagePath, "busybox")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	out, err = s.d.Cmd("load", "--input", savedImagePath)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	exportedImagePath := filepath.Join(tmp, "export.tar")
+
+	out, err = s.d.Cmd("run", "-d", "--name", "testexport", "busybox")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	out, err = s.d.Cmd("export", "-o", exportedImagePath, "testexport")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	out, err = s.d.Cmd("import", exportedImagePath)
+	c.Assert(err, check.IsNil, check.Commentf(out))
 }
 
 // assertURIRecorded verifies that the given URI was sent and recorded in the authz plugin
