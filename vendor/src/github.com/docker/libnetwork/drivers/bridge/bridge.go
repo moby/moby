@@ -49,6 +49,7 @@ type configuration struct {
 	EnableIPForwarding  bool
 	EnableIPTables      bool
 	EnableUserlandProxy bool
+	UserlandProxyPath   string
 }
 
 // networkConfiguration for network specific configuration
@@ -587,7 +588,7 @@ func (d *driver) createNetwork(config *networkConfiguration) error {
 		id:         config.ID,
 		endpoints:  make(map[string]*bridgeEndpoint),
 		config:     config,
-		portMapper: portmapper.New(),
+		portMapper: portmapper.New(d.config.UserlandProxyPath),
 		driver:     d,
 	}
 
