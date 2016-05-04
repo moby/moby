@@ -250,7 +250,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install runc
-ENV RUNC_COMMIT baf6536d6259209c3edfa2b22237af82942d3dfa
+ENV RUNC_COMMIT d49ece5a83da3dcb820121d6850e2b61bd0a5fbe
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
@@ -261,7 +261,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install containerd
-ENV CONTAINERD_COMMIT v0.2.1
+ENV CONTAINERD_COMMIT 57b7c3da915ebe943bd304c00890959b191e5264
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \

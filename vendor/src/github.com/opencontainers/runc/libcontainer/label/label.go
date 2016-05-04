@@ -21,6 +21,10 @@ func SetProcessLabel(processLabel string) error {
 	return nil
 }
 
+func GetFileLabel(path string) (string, error) {
+	return "", nil
+}
+
 func SetFileLabel(path string, fileLabel string) error {
 	return nil
 }
