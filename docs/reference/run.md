@@ -1331,7 +1331,7 @@ If the operator uses `--link` when starting a new client container in the
 default bridge network, then the client container can access the exposed
 port via a private networking interface.
 If `--link` is used when starting a container in a user-defined network as
-described in [*Docker network overview*""](../userguide/networking/index.md)),
+described in [*Docker network overview*](../userguide/networking/index.md)),
 it will provide a named alias for the container being linked to.
 
 ### ENV (environment variables)
