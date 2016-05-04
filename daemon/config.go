@@ -22,6 +22,10 @@ const (
 	disableNetworkBridge = "none"
 )
 
+const (
+	defaultShutdownTimeout = 10
+)
+
 // flatOptions contains configuration keys
 // that MUST NOT be parsed as deep structures.
 // Use this to differentiate these options
@@ -94,6 +98,10 @@ type CommonConfig struct {
 	// reachable by other hosts.
 	ClusterAdvertise string `json:"cluster-advertise,omitempty"`
 
+	// ShutdownTimeout is the timeout value (in seconds) the daemon will wait for the container
+	// to stop when daemon is being shutdown
+	ShutdownTimeout int `json:"shutdown-timeout,omitempty"`
+
 	Debug     bool     `json:"debug,omitempty"`
 	Hosts     []string `json:"hosts,omitempty"`
 	LogLevel  string   `json:"log-level,omitempty"`
@@ -138,6 +146,7 @@ func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string)
 	cmd.StringVar(&config.ClusterStore, []string{"-cluster-store"}, "", usageFn("Set the cluster store"))
 	cmd.Var(opts.NewNamedMapOpts("cluster-store-opts", config.ClusterOpts, nil), []string{"-cluster-store-opt"}, usageFn("Set cluster store options"))
 	cmd.StringVar(&config.CorsHeaders, []string{"-api-cors-header"}, "", usageFn("Set CORS headers in the remote API"))
+	cmd.IntVar(&config.ShutdownTimeout, []string{"-shutdown-timeout"}, defaultShutdownTimeout, usageFn("Set the default shutdown timeout"))
 }
 
 // IsValueSet returns true if a configuration value
