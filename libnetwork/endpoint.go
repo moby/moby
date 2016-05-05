@@ -446,6 +446,10 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) error {
 		return err
 	}
 
+	if e := ep.addToCluster(); e != nil {
+		log.Errorf("Could not update state for endpoint %s into cluster: %v", ep.Name(), e)
+	}
+
 	if sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
 		return sb.setupDefaultGW()
 	}
@@ -630,6 +634,10 @@ func (ep *endpoint) sbLeave(sb *sandbox, force bool, options ...EndpointOption) 
 	// detach but after store has been updated.
 	if err := n.getController().updateToStore(ep); err != nil {
 		return err
+	}
+
+	if e := ep.deleteFromCluster(); e != nil {
+		log.Errorf("Could not delete state for endpoint %s from cluster: %v", ep.Name(), e)
 	}
 
 	sb.deleteHostsEntries(n.getSvcRecords(ep))

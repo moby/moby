@@ -307,7 +307,17 @@ func procCreateNetwork(c libnetwork.NetworkController, vars map[string]string, b
 	if len(create.DriverOpts) > 0 {
 		options = append(options, libnetwork.NetworkOptionDriverOpts(create.DriverOpts))
 	}
-	nw, err := c.NewNetwork(create.NetworkType, create.Name, "", options...)
+
+	if len(create.IPv4Conf) > 0 {
+		ipamV4Conf := &libnetwork.IpamConf{
+			PreferredPool: create.IPv4Conf[0].PreferredPool,
+			SubPool:       create.IPv4Conf[0].SubPool,
+		}
+
+		options = append(options, libnetwork.NetworkOptionIpam("default", "", []*libnetwork.IpamConf{ipamV4Conf}, nil, nil))
+	}
+
+	nw, err := c.NewNetwork(create.NetworkType, create.Name, create.ID, options...)
 	if err != nil {
 		return nil, convertNetworkError(err)
 	}
@@ -697,6 +707,7 @@ func procAttachBackend(c libnetwork.NetworkController, vars map[string]string, b
 	if err != nil {
 		return nil, convertNetworkError(err)
 	}
+
 	return sb.Key(), &successResponse
 }
 

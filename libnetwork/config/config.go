@@ -22,9 +22,12 @@ type Config struct {
 // DaemonCfg represents libnetwork core configuration
 type DaemonCfg struct {
 	Debug          bool
+	IsAgent        bool
 	DataDir        string
 	DefaultNetwork string
 	DefaultDriver  string
+	Bind           string
+	Neighbors      []string
 	Labels         []string
 	DriverCfg      map[string]interface{}
 }
@@ -80,6 +83,27 @@ func ParseConfigOptions(cfgOptions ...Option) *Config {
 // Option is an option setter function type used to pass various configurations
 // to the controller
 type Option func(c *Config)
+
+// OptionBind function returns an option setter for setting a bind interface or address
+func OptionBind(bind string) Option {
+	return func(c *Config) {
+		c.Daemon.Bind = bind
+	}
+}
+
+// OptionAgent function returns an option setter for setting agent mode
+func OptionAgent() Option {
+	return func(c *Config) {
+		c.Daemon.IsAgent = true
+	}
+}
+
+// OptionNeighbors function returns an option setter for setting a list of neighbors to join.
+func OptionNeighbors(neighbors []string) Option {
+	return func(c *Config) {
+		c.Daemon.Neighbors = neighbors
+	}
+}
 
 // OptionDefaultNetwork function returns an option setter for a default network
 func OptionDefaultNetwork(dn string) Option {

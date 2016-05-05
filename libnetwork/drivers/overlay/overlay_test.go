@@ -5,10 +5,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/libkv/store/consul"
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/netlabel"
 	_ "github.com/docker/libnetwork/testutils"
 )
+
+func init() {
+	consul.Register()
+}
 
 type driverTester struct {
 	t *testing.T
@@ -19,7 +26,14 @@ const testNetworkType = "overlay"
 
 func setupDriver(t *testing.T) *driverTester {
 	dt := &driverTester{t: t}
-	if err := Init(dt, nil); err != nil {
+	config := make(map[string]interface{})
+	config[netlabel.GlobalKVClient] = discoverapi.DatastoreConfigData{
+		Scope:    datastore.GlobalScope,
+		Provider: "consul",
+		Address:  "127.0.0.01:8500",
+	}
+
+	if err := Init(dt, config); err != nil {
 		t.Fatal(err)
 	}
 
