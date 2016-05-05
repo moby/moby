@@ -19,17 +19,30 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"unsafe"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/go-units"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 func init() {
 	graphdriver.Register("btrfs", Init)
+}
+
+var (
+	quotaEnabled  = false
+	userDiskQuota = false
+)
+
+type btrfsOptions struct {
+	minSpace uint64
+	size     uint64
 }
 
 // Init returns a new BTRFS driver.
@@ -57,13 +70,49 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, err
 	}
 
+	opt, err := parseOptions(options)
+	if err != nil {
+		return nil, err
+	}
+
+	if userDiskQuota {
+		if err := subvolEnableQuota(home); err != nil {
+			return nil, err
+		}
+		quotaEnabled = true
+	}
+
 	driver := &Driver{
 		home:    home,
 		uidMaps: uidMaps,
 		gidMaps: gidMaps,
+		options: opt,
 	}
 
 	return graphdriver.NewNaiveDiffDriver(driver, uidMaps, gidMaps), nil
+}
+
+func parseOptions(opt []string) (btrfsOptions, error) {
+	var options btrfsOptions
+	for _, option := range opt {
+		key, val, err := parsers.ParseKeyValueOpt(option)
+		if err != nil {
+			return options, err
+		}
+		key = strings.ToLower(key)
+		switch key {
+		case "btrfs.min_space":
+			minSpace, err := units.RAMInBytes(val)
+			if err != nil {
+				return options, err
+			}
+			userDiskQuota = true
+			options.minSpace = uint64(minSpace)
+		default:
+			return options, fmt.Errorf("Unknown option %s", key)
+		}
+	}
+	return options, nil
 }
 
 // Driver contains information about the filesystem mounted.
@@ -72,6 +121,7 @@ type Driver struct {
 	home    string
 	uidMaps []idtools.IDMap
 	gidMaps []idtools.IDMap
+	options btrfsOptions
 }
 
 // String prints the name of the driver (btrfs).
@@ -100,6 +150,12 @@ func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 
 // Cleanup unmounts the home directory.
 func (d *Driver) Cleanup() error {
+	if quotaEnabled {
+		if err := subvolDisableQuota(d.home); err != nil {
+			return err
+		}
+	}
+
 	return mount.Unmount(d.home)
 }
 
@@ -238,6 +294,78 @@ func subvolDelete(dirpath, name string) error {
 	return nil
 }
 
+func subvolEnableQuota(path string) error {
+	dir, err := openDir(path)
+	if err != nil {
+		return err
+	}
+	defer closeDir(dir)
+
+	var args C.struct_btrfs_ioctl_quota_ctl_args
+	args.cmd = C.BTRFS_QUOTA_CTL_ENABLE
+	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_CTL,
+		uintptr(unsafe.Pointer(&args)))
+	if errno != 0 {
+		return fmt.Errorf("Failed to enable btrfs quota for %s: %v", dir, errno.Error())
+	}
+
+	return nil
+}
+
+func subvolDisableQuota(path string) error {
+	dir, err := openDir(path)
+	if err != nil {
+		return err
+	}
+	defer closeDir(dir)
+
+	var args C.struct_btrfs_ioctl_quota_ctl_args
+	args.cmd = C.BTRFS_QUOTA_CTL_DISABLE
+	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_CTL,
+		uintptr(unsafe.Pointer(&args)))
+	if errno != 0 {
+		return fmt.Errorf("Failed to disable btrfs quota for %s: %v", dir, errno.Error())
+	}
+
+	return nil
+}
+
+func subvolRescanQuota(path string) error {
+	dir, err := openDir(path)
+	if err != nil {
+		return err
+	}
+	defer closeDir(dir)
+
+	var args C.struct_btrfs_ioctl_quota_rescan_args
+	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QUOTA_RESCAN_WAIT,
+		uintptr(unsafe.Pointer(&args)))
+	if errno != 0 {
+		return fmt.Errorf("Failed to rescan btrfs quota for %s: %v", dir, errno.Error())
+	}
+
+	return nil
+}
+
+func subvolLimitQgroup(path string, size uint64) error {
+	dir, err := openDir(path)
+	if err != nil {
+		return err
+	}
+	defer closeDir(dir)
+
+	var args C.struct_btrfs_ioctl_qgroup_limit_args
+	args.lim.max_referenced = C.__u64(size)
+	args.lim.flags = C.BTRFS_QGROUP_LIMIT_MAX_RFER
+	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_LIMIT,
+		uintptr(unsafe.Pointer(&args)))
+	if errno != 0 {
+		return fmt.Errorf("Failed to limit qgroup for %s: %v", dir, errno.Error())
+	}
+
+	return nil
+}
+
 func (d *Driver) subvolumesDir() string {
 	return path.Join(d.home, "subvolumes")
 }
@@ -254,11 +382,6 @@ func (d *Driver) CreateReadWrite(id, parent, mountLabel string, storageOpt map[s
 
 // Create the filesystem with given id.
 func (d *Driver) Create(id, parent, mountLabel string, storageOpt map[string]string) error {
-
-	if len(storageOpt) != 0 {
-		return fmt.Errorf("--storage-opt is not supported for btrfs")
-	}
-
 	subvolumes := path.Join(d.home, "subvolumes")
 	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
 	if err != nil {
@@ -285,6 +408,16 @@ func (d *Driver) Create(id, parent, mountLabel string, storageOpt map[string]str
 		}
 	}
 
+	if _, ok := storageOpt["size"]; ok {
+		driver := &Driver{}
+		if err := d.parseStorageOpt(storageOpt, driver); err != nil {
+			return err
+		}
+		if err := d.setStorageSize(path.Join(subvolumes, id), driver); err != nil {
+			return err
+		}
+	}
+
 	// if we have a remapped root (user namespaces enabled), change the created snapshot
 	// dir ownership to match
 	if rootUID != 0 || rootGID != 0 {
@@ -294,6 +427,49 @@ func (d *Driver) Create(id, parent, mountLabel string, storageOpt map[string]str
 	}
 
 	return label.Relabel(path.Join(subvolumes, id), mountLabel, false)
+}
+
+// Parse btrfs storage options
+func (d *Driver) parseStorageOpt(storageOpt map[string]string, driver *Driver) error {
+	// Read size to change the subvolume disk quota per container
+	for key, val := range storageOpt {
+		key := strings.ToLower(key)
+		switch key {
+		case "size":
+			size, err := units.RAMInBytes(val)
+			if err != nil {
+				return err
+			}
+			driver.options.size = uint64(size)
+		default:
+			return fmt.Errorf("Unknown option %s", key)
+		}
+	}
+
+	return nil
+}
+
+// Set btrfs storage size
+func (d *Driver) setStorageSize(dir string, driver *Driver) error {
+	if driver.options.size <= 0 {
+		return fmt.Errorf("btrfs: invalid storage size: %s", units.HumanSize(float64(driver.options.size)))
+	}
+	if d.options.minSpace > 0 && driver.options.size < d.options.minSpace {
+		return fmt.Errorf("btrfs: storage size cannot be less than %s", units.HumanSize(float64(d.options.minSpace)))
+	}
+
+	if !quotaEnabled {
+		if err := subvolEnableQuota(d.home); err != nil {
+			return err
+		}
+		quotaEnabled = true
+	}
+
+	if err := subvolLimitQgroup(dir, driver.options.size); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Remove the filesystem with given id.
@@ -306,6 +482,9 @@ func (d *Driver) Remove(id string) error {
 		return err
 	}
 	if err := os.RemoveAll(dir); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	if err := subvolRescanQuota(d.home); err != nil {
 		return err
 	}
 	return nil

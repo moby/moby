@@ -247,9 +247,9 @@ backends use operating system level technologies and can be
 configured.
 
 Specify options to the storage backend with **--storage-opt** flags. The
-backends that currently take options are *devicemapper* and *zfs*.
-Options for *devicemapper* are prefixed with *dm* and options for *zfs*
-start with *zfs*.
+backends that currently take options are *devicemapper*, *zfs* and *btrfs*.
+Options for *devicemapper* are prefixed with *dm*, options for *zfs*
+start with *zfs* and options for *btrfs* start with *btrfs*.
 
 Specifically for devicemapper, the default is a "loopback" model which
 requires no pre-configuration, but is extremely inefficient.  Do not
@@ -510,6 +510,17 @@ By default docker will pick up the zfs filesystem where docker graph
 (`/var/lib/docker`) is located.
 
 Example use: `dockerd -s zfs --storage-opt zfs.fsname=zroot/docker`
+
+## Btrfs options
+
+#### btrfs.min_space
+
+Specifies the mininum size to use when creating the subvolume which is used
+for containers. If user uses disk quota for btrfs when creating or running
+a container with **--storage-opt size** option, docker should ensure the
+**size** cannot be smaller than **btrfs.min_space**.
+
+Example use: `docker daemon -s btrfs --storage-opt btrfs.min_space=10G`
 
 # CLUSTER STORE OPTIONS
 
