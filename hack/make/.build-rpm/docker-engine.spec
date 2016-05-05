@@ -176,6 +176,7 @@ install -p -m 644 contrib/syntax/nano/Dockerfile.nanorc $RPM_BUILD_ROOT/usr/shar
 %files
 %doc AUTHORS CHANGELOG.md CONTRIBUTING.md LICENSE MAINTAINERS NOTICE README.md
 /%{_bindir}/docker
+/%{_bindir}/dockerd
 /%{_bindir}/docker-containerd
 /%{_bindir}/docker-containerd-shim
 /%{_bindir}/docker-containerd-ctr
