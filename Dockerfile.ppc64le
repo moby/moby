@@ -71,6 +71,22 @@ RUN cd /usr/local/lvm2 \
 	&& make install_device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
+# install seccomp: the version shipped in jessie is too old
+ENV SECCOMP_VERSION 2.3.0
+RUN set -x \
+        && export SECCOMP_PATH="$(mktemp -d)" \
+        && curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
+                | tar -xzC "$SECCOMP_PATH" --strip-components=1 \
+        && ( \
+                cd "$SECCOMP_PATH" \
+                && ./configure --prefix=/usr/local \
+                && make \
+                && make install \
+                && ldconfig \
+        ) \
+        && rm -rf "$SECCOMP_PATH"
+
+
 ## BUILD GOLANG 1.6
 # NOTE: ppc64le has compatibility issues with older versions of go, so make sure the version >= 1.6
 ENV GO_VERSION 1.6.2
@@ -152,7 +168,7 @@ RUN useradd --create-home --gid docker unprivilegeduser
 
 VOLUME /var/lib/docker
 WORKDIR /go/src/github.com/docker/docker
-ENV DOCKER_BUILDTAGS apparmor pkcs11 selinux
+ENV DOCKER_BUILDTAGS apparmor pkcs11 seccomp selinux
 
 # Let us use a .bashrc file
 RUN ln -sfv $PWD/.bashrc ~/.bashrc
@@ -194,7 +210,7 @@ RUN set -x \
 	&& git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
 	&& cd "$GOPATH/src/github.com/opencontainers/runc" \
 	&& git checkout -q "$RUNC_COMMIT" \
-	&& make static BUILDTAGS="apparmor selinux" \
+	&& make static BUILDTAGS="apparmor seccomp selinux" \
 	&& cp runc /usr/local/bin/docker-runc \
 	&& rm -rf "$GOPATH"
 
