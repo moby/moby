@@ -345,7 +345,7 @@ source. When the container is deleted, you should instruction the Engine daemon
 to clean up anonymous volumes. To do this, use the `--rm` option, for example:
 
 ```bash
-$ docker run --rm -v /foo -v awesome:/bar busybox top,
+$ docker run --rm -v /foo -v awesome:/bar busybox top
 ```
 
 This command creates an anonymous `/foo` volume. When the container is removed,
