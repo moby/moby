@@ -997,11 +997,19 @@ func (daemon *Daemon) Reload(config *Config) error {
 		return err
 	}
 
+	// We always unset the value if not specified so that
+	// users know what to expect based on the config file
+	// to be loaded, instead of the previous state of the
+	// daemon (before reload).
 	if config.IsValueSet("labels") {
 		daemon.configStore.Labels = config.Labels
+	} else {
+		daemon.configStore.Labels = []string{}
 	}
 	if config.IsValueSet("debug") {
 		daemon.configStore.Debug = config.Debug
+	} else {
+		daemon.configStore.Debug = false
 	}
 
 	// If no value is set for max-concurrent-downloads we assume it is the default value

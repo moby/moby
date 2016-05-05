@@ -306,18 +306,24 @@ func (cli *DaemonCli) reloadConfig() {
 			logrus.Errorf("Error reconfiguring the daemon: %v", err)
 			return
 		}
+		// We always unset the value if not specified so that
+		// users know what to expect based on the config file
+		// to be loaded, instead of the previous state of the
+		// daemon (before reload).
+		configDebug := false
 		if config.IsValueSet("debug") {
-			debugEnabled := utils.IsDebugEnabled()
-			switch {
-			case debugEnabled && !config.Debug: // disable debug
-				utils.DisableDebug()
-				cli.api.DisableProfiler()
-			case config.Debug && !debugEnabled: // enable debug
-				utils.EnableDebug()
-				cli.api.EnableProfiler()
-			}
-
+			configDebug = config.Debug
 		}
+		debugEnabled := utils.IsDebugEnabled()
+		switch {
+		case debugEnabled && !configDebug: // disable debug
+			utils.DisableDebug()
+			cli.api.DisableProfiler()
+		case configDebug && !debugEnabled: // enable debug
+			utils.EnableDebug()
+			cli.api.EnableProfiler()
+		}
+
 	}
 
 	if err := daemon.ReloadConfiguration(*cli.configFile, flag.CommandLine, reload); err != nil {
