@@ -76,7 +76,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 
 		}
 		fmt.Fprint(w, "\t")
-		if res.IsAutomated || res.IsTrusted {
+		if res.IsAutomated {
 			fmt.Fprint(w, "[OK]")
 		}
 		fmt.Fprint(w, "\n")
