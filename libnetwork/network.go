@@ -1094,7 +1094,12 @@ func (n *network) ipamAllocate() error {
 		return nil
 	}
 
-	return n.ipamAllocateVersion(6, ipam)
+	err = n.ipamAllocateVersion(6, ipam)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (n *network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, preferredPool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
