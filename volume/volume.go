@@ -5,6 +5,8 @@ import (
 	"os"
 	"runtime"
 	"strings"
+
+	"github.com/docker/docker/pkg/stringid"
 )
 
 // DefaultDriverName is the driver name used for the driver
@@ -35,9 +37,9 @@ type Volume interface {
 	Path() string
 	// Mount mounts the volume and returns the absolute path to
 	// where it can be consumed.
-	Mount() (string, error)
+	Mount(id string) (string, error)
 	// Unmount unmounts the volume when it is no longer in use.
-	Unmount() error
+	Unmount(id string) error
 	// Status returns low-level status information about a volume
 	Status() map[string]interface{}
 }
@@ -64,13 +66,19 @@ type MountPoint struct {
 	// Use a pointer here so we can tell if the user set this value explicitly
 	// This allows us to error out when the user explicitly enabled copy but we can't copy due to the volume being populated
 	CopyData bool `json:"-"`
+	// ID is the opaque ID used to pass to the volume driver.
+	// This should be set by calls to `Mount` and unset by calls to `Unmount`
+	ID string
 }
 
 // Setup sets up a mount point by either mounting the volume if it is
 // configured, or creating the source directory if supplied.
 func (m *MountPoint) Setup() (string, error) {
 	if m.Volume != nil {
-		return m.Volume.Mount()
+		if m.ID == "" {
+			m.ID = stringid.GenerateNonCryptoID()
+		}
+		return m.Volume.Mount(m.ID)
 	}
 	if len(m.Source) > 0 {
 		if _, err := os.Stat(m.Source); err != nil {

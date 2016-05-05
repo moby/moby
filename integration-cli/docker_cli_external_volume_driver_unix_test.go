@@ -61,6 +61,7 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 	type pluginRequest struct {
 		Name string
 		Opts map[string]string
+		ID   string
 	}
 
 	type pluginResp struct {
@@ -200,6 +201,11 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 		}
 
 		if err := ioutil.WriteFile(filepath.Join(p, "test"), []byte(s.server.URL), 0644); err != nil {
+			send(w, err)
+			return
+		}
+
+		if err := ioutil.WriteFile(filepath.Join(p, "mountID"), []byte(pr.ID), 0644); err != nil {
 			send(w, err)
 			return
 		}
@@ -475,4 +481,13 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverPathCalls(c *check.C
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 	c.Assert(s.ec.paths, checker.Equals, 1)
+}
+
+func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverMountID(c *check.C) {
+	err := s.d.StartWithBusybox()
+	c.Assert(err, checker.IsNil)
+
+	out, err := s.d.Cmd("run", "--rm", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", "test-external-volume-driver", "busybox:latest", "cat", "/tmp/external-volume-test/test")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 }

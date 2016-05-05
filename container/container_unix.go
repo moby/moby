@@ -12,6 +12,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/utils"
@@ -181,11 +182,17 @@ func (container *Container) CopyImagePathContent(v volume.Volume, destination st
 		return err
 	}
 
-	path, err := v.Mount()
+	id := stringid.GenerateNonCryptoID()
+	path, err := v.Mount(id)
 	if err != nil {
 		return err
 	}
-	defer v.Unmount()
+
+	defer func() {
+		if err := v.Unmount(id); err != nil {
+			logrus.Warnf("error while unmounting volume %s: %v", v.Name(), err)
+		}
+	}()
 	return copyExistingContents(rootfs, path)
 }
 
@@ -328,9 +335,10 @@ func (container *Container) UnmountVolumes(forceSyscall bool, volumeEventLog fun
 		}
 
 		if volumeMount.Volume != nil {
-			if err := volumeMount.Volume.Unmount(); err != nil {
+			if err := volumeMount.Volume.Unmount(volumeMount.ID); err != nil {
 				return err
 			}
+			volumeMount.ID = ""
 
 			attributes := map[string]string{
 				"driver":    volumeMount.Volume.DriverName(),

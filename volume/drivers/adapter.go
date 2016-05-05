@@ -101,14 +101,14 @@ func (a *volumeAdapter) CachedPath() string {
 	return a.eMount
 }
 
-func (a *volumeAdapter) Mount() (string, error) {
+func (a *volumeAdapter) Mount(id string) (string, error) {
 	var err error
-	a.eMount, err = a.proxy.Mount(a.name)
+	a.eMount, err = a.proxy.Mount(a.name, id)
 	return a.eMount, err
 }
 
-func (a *volumeAdapter) Unmount() error {
-	err := a.proxy.Unmount(a.name)
+func (a *volumeAdapter) Unmount(id string) error {
+	err := a.proxy.Unmount(a.name, id)
 	if err == nil {
 		a.eMount = ""
 	}

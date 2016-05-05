@@ -19,10 +19,10 @@ func (NoopVolume) DriverName() string { return "noop" }
 func (NoopVolume) Path() string { return "noop" }
 
 // Mount mounts the volume in the container
-func (NoopVolume) Mount() (string, error) { return "noop", nil }
+func (NoopVolume) Mount(_ string) (string, error) { return "noop", nil }
 
 // Unmount unmounts the volume from the container
-func (NoopVolume) Unmount() error { return nil }
+func (NoopVolume) Unmount(_ string) error { return nil }
 
 // Status proivdes low-level details about the volume
 func (NoopVolume) Status() map[string]interface{} { return nil }
@@ -48,10 +48,10 @@ func (f FakeVolume) DriverName() string { return f.driverName }
 func (FakeVolume) Path() string { return "fake" }
 
 // Mount mounts the volume in the container
-func (FakeVolume) Mount() (string, error) { return "fake", nil }
+func (FakeVolume) Mount(_ string) (string, error) { return "fake", nil }
 
 // Unmount unmounts the volume from the container
-func (FakeVolume) Unmount() error { return nil }
+func (FakeVolume) Unmount(_ string) error { return nil }
 
 // Status proivdes low-level details about the volume
 func (FakeVolume) Status() map[string]interface{} { return nil }
