@@ -4,11 +4,11 @@
 
 FROM oraclelinux:6
 
-RUN yum groupinstall -y "Development Tools"
-RUN yum install -y btrfs-progs-devel device-mapper-devel glibc-static  libselinux-devel libtool-ltdl-devel pkgconfig selinux-policy selinux-policy-devel sqlite-devel  tar git
-
 RUN yum install -y yum-utils && curl -o /etc/yum.repos.d/public-yum-ol6.repo http://yum.oracle.com/public-yum-ol6.repo && yum-config-manager -q --enable ol6_UEKR4
 RUN yum install -y kernel-uek-devel-4.1.12-32.el6uek
+
+RUN yum groupinstall -y "Development Tools"
+RUN yum install -y btrfs-progs-devel device-mapper-devel glibc-static  libselinux-devel libtool-ltdl-devel pkgconfig selinux-policy selinux-policy-devel sqlite-devel  tar git
 
 ENV GO_VERSION 1.5.4
 RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local
