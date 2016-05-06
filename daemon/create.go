@@ -142,13 +142,40 @@ func (daemon *Daemon) generateSecurityOpt(ipcMode containertypes.IpcMode, pidMod
 	if ipcMode.IsHost() || pidMode.IsHost() {
 		return label.DisableSecOpt(), nil
 	}
-	if ipcContainer := ipcMode.Container(); ipcContainer != "" {
+
+	var ipcLabel []string
+	var pidLabel []string
+	ipcContainer := ipcMode.Container()
+	pidContainer := pidMode.Container()
+	if ipcContainer != "" {
 		c, err := daemon.GetContainer(ipcContainer)
 		if err != nil {
 			return nil, err
 		}
+		ipcLabel = label.DupSecOpt(c.ProcessLabel)
+		if pidContainer == "" {
+			return ipcLabel, err
+		}
+	}
+	if pidContainer != "" {
+		c, err := daemon.GetContainer(pidContainer)
+		if err != nil {
+			return nil, err
+		}
 
-		return label.DupSecOpt(c.ProcessLabel), nil
+		pidLabel = label.DupSecOpt(c.ProcessLabel)
+		if ipcContainer == "" {
+			return pidLabel, err
+		}
+	}
+
+	if pidLabel != nil && ipcLabel != nil {
+		for i := 0; i < len(pidLabel); i++ {
+			if pidLabel[i] != ipcLabel[i] {
+				return nil, fmt.Errorf("--ipc and --pid containers SELinux labels aren't the same")
+			}
+		}
+		return pidLabel, nil
 	}
 	return nil, nil
 }

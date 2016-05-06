@@ -193,7 +193,8 @@ the digest value is predictable and referenceable.
 ## PID settings (--pid)
 
     --pid=""  : Set the PID (Process) Namespace mode for the container,
-           'host': use the host's PID namespace inside the container
+                 'container:<name|id>': joins another container's PID namespace
+                 'host': use the host's PID namespace inside the container
 
 By default, all containers have the PID namespace enabled.
 
@@ -227,6 +228,23 @@ Use the following command to run `htop` inside a container:
 
 ```
 $ docker run -it --rm --pid=host myhtop
+```
+
+Joining another container's pid namespace can be used for debugging that container.
+
+### Example
+
+Start a container running a redis server:
+
+```bash
+$ docker run --name my-redis -d redis
+```
+
+Debug the redis container by running another container that has strace in it:
+
+```bash
+$ docker run --it --pid=container:my-redis bash
+$ strace -p 1
 ```
 
 ## UTS settings (--uts)

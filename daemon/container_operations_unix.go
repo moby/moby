@@ -169,6 +169,21 @@ func (daemon *Daemon) getIpcContainer(container *container.Container) (*containe
 	return c, nil
 }
 
+func (daemon *Daemon) getPidContainer(container *container.Container) (*container.Container, error) {
+	containerID := container.HostConfig.PidMode.Container()
+	c, err := daemon.GetContainer(containerID)
+	if err != nil {
+		return nil, err
+	}
+	if !c.IsRunning() {
+		return nil, fmt.Errorf("cannot join PID of a non running container: %s", containerID)
+	}
+	if c.IsRestarting() {
+		return nil, errContainerIsRestarting(container.ID)
+	}
+	return c, nil
+}
+
 func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 	var err error
 

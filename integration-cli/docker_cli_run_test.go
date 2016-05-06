@@ -2443,6 +2443,53 @@ func (s *DockerSuite) TestRunModeIpcContainerNotRunning(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunModePidContainer(c *check.C) {
+	// Not applicable on Windows as uses Unix-specific capabilities
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "top")
+
+	id := strings.TrimSpace(out)
+	state := inspectField(c, id, "State.Running")
+	if state != "true" {
+		c.Fatal("Container state is 'not running'")
+	}
+	pid1 := inspectField(c, id, "State.Pid")
+
+	parentContainerPid, err := os.Readlink(fmt.Sprintf("/proc/%s/ns/pid", pid1))
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	out, _ = dockerCmd(c, "run", fmt.Sprintf("--pid=container:%s", id), "busybox", "readlink", "/proc/self/ns/pid")
+	out = strings.Trim(out, "\n")
+	if parentContainerPid != out {
+		c.Fatalf("PID different with --pid=container:%s %s != %s\n", id, parentContainerPid, out)
+	}
+}
+
+func (s *DockerSuite) TestRunModePidContainerNotExists(c *check.C) {
+	// Not applicable on Windows as uses Unix-specific capabilities
+	testRequires(c, DaemonIsLinux)
+	out, _, err := dockerCmdWithError("run", "-d", "--pid", "container:abcd1234", "busybox", "top")
+	if !strings.Contains(out, "abcd1234") || err == nil {
+		c.Fatalf("run PID from a non exists container should with correct error out")
+	}
+}
+
+func (s *DockerSuite) TestRunModePidContainerNotRunning(c *check.C) {
+	// Not applicable on Windows as uses Unix-specific capabilities
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	out, _ := dockerCmd(c, "create", "busybox")
+
+	id := strings.TrimSpace(out)
+	out, _, err := dockerCmdWithError("run", fmt.Sprintf("--pid=container:%s", id), "busybox")
+	if err == nil {
+		c.Fatalf("Run container with pid mode container should fail with non running container: %s\n%s", out, err)
+	}
+}
+
 func (s *DockerSuite) TestRunMountShmMqueueFromHost(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
 	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
