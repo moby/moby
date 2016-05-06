@@ -25,7 +25,7 @@ clone git golang.org/x/net 78cb2c067747f08b343f20614155233ab4ea2ad3 https://gith
 clone git golang.org/x/sys eb2c74142fd19a79b3f237334c7384d5167b1b46 https://github.com/golang/sys.git
 clone git github.com/docker/go-units 651fc226e7441360384da338d0fd37f2440ffbe3
 clone git github.com/docker/go-connections v0.2.0
-clone git github.com/docker/engine-api 009426d98aa84d199210a897dbb60bfee541877d
+clone git github.com/docker/engine-api 1fb8f09960cc32b9648495a422c960fb2a4f8a09
 clone git github.com/RackSec/srslog 259aed10dfa74ea2961eddd1d9847619f6e98837
 clone git github.com/imdario/mergo 0.2.1
 
