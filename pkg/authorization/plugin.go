@@ -8,14 +8,14 @@ type Plugin interface {
 	// Name returns the registered plugin name
 	Name() string
 
-	// AuthZRequest authorize the request from the client to the daemon
+	// AuthZRequest authorizes the request from the client to the daemon
 	AuthZRequest(*Request) (*Response, error)
 
-	// AuthZResponse authorize the response from the daemon to the client
+	// AuthZResponse authorizes the response from the daemon to the client
 	AuthZResponse(*Request) (*Response, error)
 }
 
-// NewPlugins constructs and initialize the authorization plugins based on plugin names
+// NewPlugins constructs and initializes the authorization plugins based on plugin names
 func NewPlugins(names []string) []Plugin {
 	plugins := []Plugin{}
 	pluginsMap := make(map[string]struct{})
@@ -69,7 +69,7 @@ func (a *authorizationPlugin) AuthZResponse(authReq *Request) (*Response, error)
 	return authRes, nil
 }
 
-// initPlugin initialize the authorization plugin if needed
+// initPlugin initializes the authorization plugin if needed
 func (a *authorizationPlugin) initPlugin() error {
 	// Lazy loading of plugins
 	if a.plugin == nil {
