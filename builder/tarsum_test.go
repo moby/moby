@@ -45,20 +45,10 @@ func TestCloseRootDirectory(t *testing.T) {
 }
 
 func TestOpenFile(t *testing.T) {
-	contextDir, err := ioutil.TempDir("", "builder-tarsum-test")
+	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
+	defer cleanup()
 
-	if err != nil {
-		t.Fatalf("Error with creating temporary directory: %s", err)
-	}
-
-	defer os.RemoveAll(contextDir)
-
-	testFilename := filepath.Join(contextDir, filename)
-	err = ioutil.WriteFile(testFilename, []byte(contents), 0777)
-
-	if err != nil {
-		t.Fatalf("Error when writing file (%s) contents: %s", testFilename, err)
-	}
+	createTestTempFile(t, contextDir, filename, contents, 0777)
 
 	tarSum := &tarSumContext{root: contextDir}
 
@@ -84,13 +74,8 @@ func TestOpenFile(t *testing.T) {
 }
 
 func TestOpenNotExisting(t *testing.T) {
-	contextDir, err := ioutil.TempDir("", "builder-tarsum-test")
-
-	if err != nil {
-		t.Fatalf("Error with creating temporary directory: %s", err)
-	}
-
-	defer os.RemoveAll(contextDir)
+	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
+	defer cleanup()
 
 	tarSum := &tarSumContext{root: contextDir}
 
@@ -106,20 +91,10 @@ func TestOpenNotExisting(t *testing.T) {
 }
 
 func TestStatFile(t *testing.T) {
-	contextDir, err := ioutil.TempDir("", "builder-tarsum-test")
+	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
+	defer cleanup()
 
-	if err != nil {
-		t.Fatalf("Error with creating temporary directory: %s", err)
-	}
-
-	defer os.RemoveAll(contextDir)
-
-	testFilename := filepath.Join(contextDir, filename)
-	err = ioutil.WriteFile(testFilename, []byte(contents), 0777)
-
-	if err != nil {
-		t.Fatalf("Error when writing file (%s) contents: %s", testFilename, err)
-	}
+	testFilename := createTestTempFile(t, contextDir, filename, contents, 0777)
 
 	tarSum := &tarSumContext{root: contextDir}
 
@@ -139,26 +114,12 @@ func TestStatFile(t *testing.T) {
 }
 
 func TestStatSubdir(t *testing.T) {
-	contextDir, err := ioutil.TempDir("", "builder-tarsum-test")
+	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
+	defer cleanup()
 
-	if err != nil {
-		t.Fatalf("Error with creating temporary directory: %s", err)
-	}
+	contextSubdir := createTestTempSubdir(t, contextDir, "builder-tarsum-test-subdir")
 
-	defer os.RemoveAll(contextDir)
-
-	contextSubdir, err := ioutil.TempDir(contextDir, "builder-tarsum-test-subdir")
-
-	if err != nil {
-		t.Fatalf("Error with creating temporary subdirectory: %s", err)
-	}
-
-	testFilename := filepath.Join(contextSubdir, filename)
-	err = ioutil.WriteFile(testFilename, []byte(contents), 0777)
-
-	if err != nil {
-		t.Fatalf("Error when writing file (%s) contents: %s", testFilename, err)
-	}
+	testFilename := createTestTempFile(t, contextSubdir, filename, contents, 0777)
 
 	tarSum := &tarSumContext{root: contextDir}
 
@@ -184,13 +145,8 @@ func TestStatSubdir(t *testing.T) {
 }
 
 func TestStatNotExisting(t *testing.T) {
-	contextDir, err := ioutil.TempDir("", "builder-tarsum-test")
-
-	if err != nil {
-		t.Fatalf("Error with creating temporary directory: %s", err)
-	}
-
-	defer os.RemoveAll(contextDir)
+	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
+	defer cleanup()
 
 	tarSum := &tarSumContext{root: contextDir}
 
@@ -210,19 +166,10 @@ func TestStatNotExisting(t *testing.T) {
 }
 
 func TestRemoveDirectory(t *testing.T) {
-	contextDir, err := ioutil.TempDir("", "builder-tarsum-test")
+	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
+	defer cleanup()
 
-	if err != nil {
-		t.Fatalf("Error with creating temporary directory: %s", err)
-	}
-
-	defer os.RemoveAll(contextDir)
-
-	contextSubdir, err := ioutil.TempDir(contextDir, "builder-tarsum-test-subdir")
-
-	if err != nil {
-		t.Fatalf("Error with creating temporary subdirectory: %s", err)
-	}
+	contextSubdir := createTestTempSubdir(t, contextDir, "builder-tarsum-test-subdir")
 
 	relativePath, err := filepath.Rel(contextDir, contextSubdir)
 
@@ -246,20 +193,10 @@ func TestRemoveDirectory(t *testing.T) {
 }
 
 func TestMakeSumTarContext(t *testing.T) {
-	contextDir, err := ioutil.TempDir("", "builder-tarsum-test")
+	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
+	defer cleanup()
 
-	if err != nil {
-		t.Fatalf("Error with creating temporary directory: %s", err)
-	}
-
-	defer os.RemoveAll(contextDir)
-
-	testFilename := filepath.Join(contextDir, filename)
-	err = ioutil.WriteFile(testFilename, []byte(contents), 0644)
-
-	if err != nil {
-		t.Fatalf("Error when writing file (%s) contents: %s", testFilename, err)
-	}
+	createTestTempFile(t, contextDir, filename, contents, 0777)
 
 	tarStream, err := archive.Tar(contextDir, archive.Uncompressed)
 
@@ -281,26 +218,12 @@ func TestMakeSumTarContext(t *testing.T) {
 }
 
 func TestWalkWithoutError(t *testing.T) {
-	contextDir, err := ioutil.TempDir("", "builder-tarsum-test")
+	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
+	defer cleanup()
 
-	if err != nil {
-		t.Fatalf("Error with creating temporary directory: %s", err)
-	}
+	contextSubdir := createTestTempSubdir(t, contextDir, "builder-tarsum-test-subdir")
 
-	defer os.RemoveAll(contextDir)
-
-	contextSubdir, err := ioutil.TempDir(contextDir, "builder-tarsum-test-subdir")
-
-	if err != nil {
-		t.Fatalf("Error with creating temporary subdirectory: %s", err)
-	}
-
-	testFilename := filepath.Join(contextSubdir, filename)
-	err = ioutil.WriteFile(testFilename, []byte(contents), 0777)
-
-	if err != nil {
-		t.Fatalf("Error when writing file (%s) contents: %s", testFilename, err)
-	}
+	createTestTempFile(t, contextSubdir, filename, contents, 0777)
 
 	tarSum := &tarSumContext{root: contextDir}
 
@@ -308,7 +231,7 @@ func TestWalkWithoutError(t *testing.T) {
 		return nil
 	}
 
-	err = tarSum.Walk(contextSubdir, walkFun)
+	err := tarSum.Walk(contextSubdir, walkFun)
 
 	if err != nil {
 		t.Fatalf("Error when executing Walk: %s", err)
@@ -323,19 +246,10 @@ func (we WalkError) Error() string {
 }
 
 func TestWalkWithError(t *testing.T) {
-	contextDir, err := ioutil.TempDir("", "builder-tarsum-test")
+	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
+	defer cleanup()
 
-	if err != nil {
-		t.Fatalf("Error with creating temporary directory: %s", err)
-	}
-
-	defer os.RemoveAll(contextDir)
-
-	contextSubdir, err := ioutil.TempDir(contextDir, "builder-tarsum-test-subdir")
-
-	if err != nil {
-		t.Fatalf("Error with creating temporary subdirectory: %s", err)
-	}
+	contextSubdir := createTestTempSubdir(t, contextDir, "builder-tarsum-test-subdir")
 
 	tarSum := &tarSumContext{root: contextDir}
 
@@ -343,7 +257,7 @@ func TestWalkWithError(t *testing.T) {
 		return WalkError{}
 	}
 
-	err = tarSum.Walk(contextSubdir, walkFun)
+	err := tarSum.Walk(contextSubdir, walkFun)
 
 	if err == nil {
 		t.Fatalf("Error should not be nil")
