@@ -61,6 +61,7 @@ set -e
 			FROM $image
 			WORKDIR /usr/src/docker
 			COPY . /usr/src/docker
+			ENV DOCKER_GITCOMMIT $GITCOMMIT
 			RUN mkdir -p /go/src/github.com/docker && mkdir -p /go/src/github.com/opencontainers \
 				&& ln -snf /usr/src/docker /go/src/github.com/docker/docker
 		EOF
@@ -99,7 +100,7 @@ set -e
 			;;
 		esac
 		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
-			RUN dpkg-buildpackage -uc -us
+			RUN dpkg-buildpackage -uc -us -I.git
 		EOF
 		tempImage="docker-temp/build-deb:$version"
 		( set -x && docker build -t "$tempImage" -f "$DEST/$version/Dockerfile.build" . )
