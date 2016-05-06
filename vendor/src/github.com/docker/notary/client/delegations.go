@@ -240,7 +240,7 @@ func newDeleteDelegationChange(name string, content []byte) *changelist.TufChang
 // Also converts key IDs to canonical key IDs to keep consistent with signing prompts
 func (r *NotaryRepository) GetDelegationRoles() ([]*data.Role, error) {
 	// Update state of the repo to latest
-	if _, err := r.Update(false); err != nil {
+	if err := r.Update(false); err != nil {
 		return nil, err
 	}
 

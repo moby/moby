@@ -33,6 +33,7 @@ import (
 	"github.com/docker/notary/client"
 	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/trustmanager"
+	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/store"
@@ -184,7 +185,9 @@ func (cli *DockerCli) getNotaryRepository(repoInfo *registry.RepositoryInfo, aut
 	modifiers = append(modifiers, transport.RequestModifier(auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler)))
 	tr := transport.NewTransport(base, modifiers...)
 
-	return client.NewNotaryRepository(cli.trustDirectory(), repoInfo.FullName(), server, tr, cli.getPassphraseRetriever())
+	return client.NewNotaryRepository(
+		cli.trustDirectory(), repoInfo.FullName(), server, tr, cli.getPassphraseRetriever(),
+		trustpinning.TrustPinConfig{})
 }
 
 func convertTarget(t client.Target) (target, error) {
@@ -474,7 +477,7 @@ func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, ref referen
 	}
 
 	// get the latest repository metadata so we can figure out which roles to sign
-	_, err = repo.Update(false)
+	err = repo.Update(false)
 
 	switch err.(type) {
 	case client.ErrRepoNotInitialized, client.ErrRepositoryNotExist:

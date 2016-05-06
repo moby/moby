@@ -1,9 +1,10 @@
-package certs
+package trustpinning
 
 import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -36,6 +37,18 @@ func (err ErrRootRotationFail) Error() string {
 	return fmt.Sprintf("could not rotate trust to a new trusted root: %s", err.Reason)
 }
 
+func prettyFormatCertIDs(certs []*x509.Certificate) string {
+	ids := make([]string, 0, len(certs))
+	for _, cert := range certs {
+		id, err := trustmanager.FingerprintCert(cert)
+		if err != nil {
+			id = fmt.Sprintf("[Error %s]", err)
+		}
+		ids = append(ids, id)
+	}
+	return strings.Join(ids, ", ")
+}
+
 /*
 ValidateRoot receives a new root, validates its correctness and attempts to
 do root key rotation if needed.
@@ -45,40 +58,56 @@ that list is non-empty means that we've already seen this repository before, and
 have a list of trusted certificates for it. In this case, we use this list of
 certificates to attempt to validate this root file.
 
-If the previous validation succeeds, or in the case where we found no trusted
-certificates for this particular GUN, we check the integrity of the root by
+If the previous validation succeeds, we check the integrity of the root by
 making sure that it is validated by itself. This means that we will attempt to
 validate the root data with the certificates that are included in the root keys
 themselves.
 
-If this last steps succeeds, we attempt to do root rotation, by ensuring that
-we only trust the certificates that are present in the new root.
+However, if we do not have any current trusted certificates for this GUN, we
+check if there are any pinned certificates specified in the trust_pinning section
+of the notary client config.  If this section specifies a Certs section with this
+GUN, we attempt to validate that the certificates present in the downloaded root
+file match the pinned ID.
 
-This mechanism of operation is essentially Trust On First Use (TOFU): if we
-have never seen a certificate for a particular CN, we trust it. If later we see
-a different certificate for that certificate, we return an ErrValidationFailed error.
+If the Certs section is empty for this GUN, we check if the trust_pinning
+section specifies a CA section specified in the config for this GUN.  If so, we check
+that the specified CA is valid and has signed a certificate included in the downloaded
+root file.  The specified CA can be a prefix for this GUN.
+
+If both the Certs and CA configs do not match this GUN, we fall back to the TOFU
+section in the config: if true, we trust certificates specified in the root for
+this GUN. If later we see a different certificate for that certificate, we return
+an ErrValidationFailed error.
 
 Note that since we only allow trust data to be downloaded over an HTTPS channel
 we are using the current public PKI to validate the first download of the certificate
 adding an extra layer of security over the normal (SSH style) trust model.
 We shall call this: TOFUS.
+
+Validation failure at any step will result in an ErrValidationFailed error.
 */
-func ValidateRoot(certStore trustmanager.X509Store, root *data.Signed, gun string) error {
+func ValidateRoot(certStore trustmanager.X509Store, root *data.Signed, gun string, trustPinning TrustPinConfig) error {
 	logrus.Debugf("entered ValidateRoot with dns: %s", gun)
 	signedRoot, err := data.RootFromSigned(root)
 	if err != nil {
 		return err
 	}
 
-	// Retrieve all the leaf certificates in root for which the CN matches the GUN
-	allValidCerts, err := validRootLeafCerts(signedRoot, gun)
+	rootRole, err := signedRoot.BuildBaseRole(data.CanonicalRootRole)
+	if err != nil {
+		return err
+	}
+
+	// Retrieve all the leaf and intermediate certificates in root for which the CN matches the GUN
+	allLeafCerts, allIntCerts := parseAllCerts(signedRoot)
+	certsFromRoot, err := validRootLeafCerts(allLeafCerts, gun)
 	if err != nil {
 		logrus.Debugf("error retrieving valid leaf certificates for: %s, %v", gun, err)
 		return &ErrValidationFail{Reason: "unable to retrieve valid leaf certificates"}
 	}
 
 	// Retrieve all the trusted certificates that match this gun
-	certsForCN, err := certStore.GetCertificatesByCN(gun)
+	trustedCerts, err := certStore.GetCertificatesByCN(gun)
 	if err != nil {
 		// If the error that we get back is different than ErrNoCertificatesFound
 		// we couldn't check if there are any certificates with this CN already
@@ -88,35 +117,60 @@ func ValidateRoot(certStore trustmanager.X509Store, root *data.Signed, gun strin
 			return &ErrValidationFail{Reason: "unable to retrieve trusted certificates"}
 		}
 	}
-
 	// If we have certificates that match this specific GUN, let's make sure to
 	// use them first to validate that this new root is valid.
-	if len(certsForCN) != 0 {
-		logrus.Debugf("found %d valid root certificates for %s", len(certsForCN), gun)
-		err = signed.VerifyRoot(root, 0, trustmanager.CertsToKeys(certsForCN))
+	if len(trustedCerts) != 0 {
+		logrus.Debugf("found %d valid root certificates for %s: %s", len(trustedCerts), gun,
+			prettyFormatCertIDs(trustedCerts))
+		err = signed.VerifySignatures(
+			root, data.BaseRole{Keys: trustmanager.CertsToKeys(trustedCerts, allIntCerts), Threshold: 1})
 		if err != nil {
 			logrus.Debugf("failed to verify TUF data for: %s, %v", gun, err)
 			return &ErrValidationFail{Reason: "failed to validate data with current trusted certificates"}
 		}
 	} else {
-		logrus.Debugf("found no currently valid root certificates for %s", gun)
+		logrus.Debugf("found no currently valid root certificates for %s, using trust_pinning config to bootstrap trust", gun)
+		trustPinCheckFunc, err := NewTrustPinChecker(trustPinning, gun)
+		if err != nil {
+			return &ErrValidationFail{Reason: err.Error()}
+		}
+
+		validPinnedCerts := []*x509.Certificate{}
+		for _, cert := range certsFromRoot {
+			certID, err := trustmanager.FingerprintCert(cert)
+			if err != nil {
+				continue
+			}
+			if ok := trustPinCheckFunc(cert, allIntCerts[certID]); !ok {
+				continue
+			}
+			validPinnedCerts = append(validPinnedCerts, cert)
+		}
+		if len(validPinnedCerts) == 0 {
+			return &ErrValidationFail{Reason: "unable to match any certificates to trust_pinning config"}
+		}
+		certsFromRoot = validPinnedCerts
 	}
 
 	// Validate the integrity of the new root (does it have valid signatures)
-	err = signed.VerifyRoot(root, 0, trustmanager.CertsToKeys(allValidCerts))
+	// Note that certsFromRoot is guaranteed to be unchanged only if we had prior cert data for this GUN or enabled TOFUS
+	// If we attempted to pin a certain certificate or CA, certsFromRoot could have been pruned accordingly
+	err = signed.VerifySignatures(root, data.BaseRole{
+		Keys: trustmanager.CertsToKeys(certsFromRoot, allIntCerts), Threshold: rootRole.Threshold})
 	if err != nil {
 		logrus.Debugf("failed to verify TUF data for: %s, %v", gun, err)
 		return &ErrValidationFail{Reason: "failed to validate integrity of roots"}
 	}
 
-	// Getting here means A) we had trusted certificates and both the
-	// old and new validated this root; or B) we had no trusted certificates but
-	// the new set of certificates has integrity (self-signed)
+	// Getting here means:
+	// A) we had trusted certificates and both the old and new validated this root.
+	// or
+	// B) we had no trusted certificates but the new set of certificates has integrity (self-signed).
 	logrus.Debugf("entering root certificate rotation for: %s", gun)
 
 	// Do root certificate rotation: we trust only the certs present in the new root
 	// First we add all the new certificates (even if they already exist)
-	for _, cert := range allValidCerts {
+	for _, cert := range certsFromRoot {
 		err := certStore.AddCert(cert)
 		if err != nil {
 			// If the error is already exists we don't fail the rotation
@@ -129,7 +183,12 @@ func ValidateRoot(certStore trustmanager.X509Store, root *data.Signed, gun strin
 	}
 
 	// Now we delete old certificates that aren't present in the new root
-	for certID, cert := range certsToRemove(certsForCN, allValidCerts) {
+	oldCertsToRemove, err := certsToRemove(trustedCerts, certsFromRoot)
+	if err != nil {
+		logrus.Debugf("inconsistency when removing old certificates: %v", err)
+		return err
+	}
+	for certID, cert := range oldCertsToRemove {
 		logrus.Debugf("removing certificate with certID: %s", certID)
 		err = certStore.RemoveCert(cert)
 		if err != nil {
@@ -142,11 +201,10 @@ func ValidateRoot(certStore trustmanager.X509Store, root *data.Signed, gun strin
 	return nil
 }
 
-// validRootLeafCerts returns a list of non-exipired, non-sha1 certificates whose
-// Common-Names match the provided GUN
-func validRootLeafCerts(root *data.SignedRoot, gun string) ([]*x509.Certificate, error) {
-	// Get a list of all of the leaf certificates present in root
-	allLeafCerts, _ := parseAllCerts(root)
+// validRootLeafCerts returns a list of non-expired, non-sha1 certificates
+// found in root whose Common-Names match the provided GUN. Note that this
+// "validity" alone does not imply any measure of trust.
+func validRootLeafCerts(allLeafCerts map[string]*x509.Certificate, gun string) ([]*x509.Certificate, error) {
 	var validLeafCerts []*x509.Certificate
 
 	// Go through every leaf certificate and check that the CN matches the gun
@@ -180,7 +238,8 @@ func validRootLeafCerts(root *data.SignedRoot, gun string) ([]*x509.Certificate,
 		return nil, errors.New("no valid leaf certificates found in any of the root keys")
 	}
 
-	logrus.Debugf("found %d valid leaf certificates for %s", len(validLeafCerts), gun)
+	logrus.Debugf("found %d valid leaf certificates for %s: %s", len(validLeafCerts), gun,
+		prettyFormatCertIDs(validLeafCerts))
 	return validLeafCerts, nil
 }
 
@@ -223,6 +282,11 @@ func parseAllCerts(signedRoot *data.SignedRoot) (map[string]*x509.Certificate, m
 			logrus.Debugf("invalid chain due to leaf certificate missing or too many leaf certificates for keyID: %s", keyID)
 			continue
 		}
+		// If we found a leaf certificate, assert that the cert bundle started with a leaf
+		if decodedCerts[0].IsCA {
+			logrus.Debugf("invalid chain due to leaf certificate not being first certificate for keyID: %s", keyID)
+			continue
+		}
 
 		// Get the ID of the leaf certificate
 		leafCert := leafCertList[0]
@@ -243,15 +307,11 @@ func parseAllCerts(signedRoot *data.SignedRoot) (map[string]*x509.Certificate, m
 	return leafCerts, intCerts
 }
 
-// certsToRemove returns all the certifificates from oldCerts that aren't present
-// in newCerts
-func certsToRemove(oldCerts, newCerts []*x509.Certificate) map[string]*x509.Certificate {
+// certsToRemove returns all the certificates from oldCerts that aren't present
+// in newCerts.  Note that newCerts should never be empty, else this function will error.
+// We expect newCerts to come from validateRootLeafCerts, which does not return empty sets.
+func certsToRemove(oldCerts, newCerts []*x509.Certificate) (map[string]*x509.Certificate, error) {
 	certsToRemove := make(map[string]*x509.Certificate)
-
-	// If no newCerts were provided
-	if len(newCerts) == 0 {
-		return certsToRemove
-	}
 
 	// Populate a map with all the IDs from newCert
 	var newCertMap = make(map[string]struct{})
@@ -262,6 +322,14 @@ func certsToRemove(oldCerts, newCerts []*x509.Certificate) map[string]*x509.Cert
 			continue
 		}
 		newCertMap[certID] = struct{}{}
+	}
+
+	// We don't want to "rotate" certificates to an empty set, nor keep old certificates if the
+	// new root does not trust them.  newCerts should come from validRootLeafCerts, which refuses
+	// to return an empty set, and they should all be fingerprintable, so this should never happen
+	// - fail just to be sure.
+	if len(newCertMap) == 0 {
+		return nil, &ErrRootRotationFail{Reason: "internal error, got no certificates to rotate to"}
 	}
 
 	// Iterate over all the old certificates and check to see if we should remove them
@@ -276,5 +344,5 @@ func certsToRemove(oldCerts, newCerts []*x509.Certificate) map[string]*x509.Cert
 		}
 	}
 
-	return certsToRemove
+	return certsToRemove, nil
 }

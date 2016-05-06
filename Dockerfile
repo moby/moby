@@ -186,7 +186,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install notary and notary-server
-ENV NOTARY_VERSION docker-v1.11-3
+ENV NOTARY_VERSION v0.3.0-RC1
 RUN set -x \
 	&& export GO15VENDOREXPERIMENT=1 \
 	&& export GOPATH="$(mktemp -d)" \

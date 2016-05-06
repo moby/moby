@@ -2,7 +2,6 @@ package data
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/docker/go/canonical/json"
 )
@@ -16,9 +15,7 @@ type SignedRoot struct {
 
 // Root is the Signed component of a root.json
 type Root struct {
-	Type               string               `json:"_type"`
-	Version            int                  `json:"version"`
-	Expires            time.Time            `json:"expires"`
+	SignedCommon
 	Keys               Keys                 `json:"keys"`
 	Roles              map[string]*RootRole `json:"roles"`
 	ConsistentSnapshot bool                 `json:"consistent_snapshot"`
@@ -32,6 +29,11 @@ func isValidRootStructure(r Root) error {
 	if r.Type != expectedType {
 		return ErrInvalidMetadata{
 			role: CanonicalRootRole, msg: fmt.Sprintf("expected type %s, not %s", expectedType, r.Type)}
+	}
+
+	if r.Version < 0 {
+		return ErrInvalidMetadata{
+			role: CanonicalRootRole, msg: "version cannot be negative"}
 	}
 
 	// all the base roles MUST appear in the root.json - other roles are allowed,
@@ -72,9 +74,11 @@ func NewRoot(keys map[string]PublicKey, roles map[string]*RootRole, consistent b
 	signedRoot := &SignedRoot{
 		Signatures: make([]Signature, 0),
 		Signed: Root{
-			Type:               TUFTypes[CanonicalRootRole],
-			Version:            0,
-			Expires:            DefaultExpires(CanonicalRootRole),
+			SignedCommon: SignedCommon{
+				Type:    TUFTypes[CanonicalRootRole],
+				Version: 0,
+				Expires: DefaultExpires(CanonicalRootRole),
+			},
 			Keys:               keys,
 			Roles:              roles,
 			ConsistentSnapshot: consistent,
@@ -146,6 +150,12 @@ func (r SignedRoot) MarshalJSON() ([]byte, error) {
 // that it is a valid SignedRoot
 func RootFromSigned(s *Signed) (*SignedRoot, error) {
 	r := Root{}
+	if s.Signed == nil {
+		return nil, ErrInvalidMetadata{
+			role: CanonicalRootRole,
+			msg:  "root file contained an empty payload",
+		}
+	}
 	if err := defaultSerializer.Unmarshal(*s.Signed, &r); err != nil {
 		return nil, err
 	}

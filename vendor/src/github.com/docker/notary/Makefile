@@ -13,14 +13,18 @@ endif
 CTIMEVAR=-X $(NOTARY_PKG)/version.GitCommit=$(GITCOMMIT) -X $(NOTARY_PKG)/version.NotaryVersion=$(NOTARY_VERSION)
 GO_LDFLAGS=-ldflags "-w $(CTIMEVAR)"
 GO_LDFLAGS_STATIC=-ldflags "-w $(CTIMEVAR) -extldflags -static"
-GOOSES = darwin freebsd linux
-GOARCHS = amd64
+GOOSES = darwin linux
 NOTARY_BUILDTAGS ?= pkcs11
-GO_EXC = go
 NOTARYDIR := /go/src/github.com/docker/notary
 
+GO_VERSION := $(shell go version | grep "1\.[6-9]\(\.[0-9]+\)*")
+# check to make sure we have the right version
+ifeq ($(strip $(GO_VERSION)),)
+$(error Bad Go version - please install Go >= 1.6)
+endif
+
 # check to be sure pkcs11 lib is always imported with a build tag
-GO_LIST_PKCS11 := $(shell go list -e -f '{{join .Deps "\n"}}' ./... | grep -v /vendor/ | xargs go list -e -f '{{if not .Standard}}{{.ImportPath}}{{end}}' | grep -q pkcs11)
+GO_LIST_PKCS11 := $(shell go list -tags "${NOTARY_BUILDTAGS}" -e -f '{{join .Deps "\n"}}' ./... | grep -v /vendor/ | xargs go list -e -f '{{if not .Standard}}{{.ImportPath}}{{end}}' | grep -q pkcs11)
 ifeq ($(GO_LIST_PKCS11),)
 $(info pkcs11 import was not found anywhere without a build tag, yay)
 else
@@ -34,7 +38,7 @@ _space := $(empty) $(empty)
 COVERDIR=.cover
 COVERPROFILE?=$(COVERDIR)/cover.out
 COVERMODE=count
-PKGS ?= $(shell go list ./... | grep -v /vendor/ | tr '\n' ' ')
+PKGS ?= $(shell go list -tags "${NOTARY_BUILDTAGS}" ./... | grep -v /vendor/ | tr '\n' ' ')
 
 GO_VERSION = $(shell go version | awk '{print $$3}')
 
@@ -53,15 +57,15 @@ version/version.go:
 
 ${PREFIX}/bin/notary-server: NOTARY_VERSION $(shell find . -type f -name '*.go')
 	@echo "+ $@"
-	@godep go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS} ./cmd/notary-server
+	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS} ./cmd/notary-server
 
 ${PREFIX}/bin/notary: NOTARY_VERSION $(shell find . -type f -name '*.go')
 	@echo "+ $@"
-	@godep go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS} ./cmd/notary
+	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS} ./cmd/notary
 
 ${PREFIX}/bin/notary-signer: NOTARY_VERSION $(shell find . -type f -name '*.go')
 	@echo "+ $@"
-	@godep go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS} ./cmd/notary-signer
+	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS} ./cmd/notary-signer
 
 ifeq ($(shell uname -s),Darwin)
 ${PREFIX}/bin/static/notary-server:
@@ -72,11 +76,11 @@ ${PREFIX}/bin/static/notary-signer:
 else
 ${PREFIX}/bin/static/notary-server: NOTARY_VERSION $(shell find . -type f -name '*.go')
 	@echo "+ $@"
-	@godep go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary-server
+	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary-server
 
 ${PREFIX}/bin/static/notary-signer: NOTARY_VERSION $(shell find . -type f -name '*.go')
 	@echo "+ $@"
-	@godep go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary-signer
+	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary-signer
 endif
 
 vet:
@@ -94,7 +98,7 @@ fmt:
 
 lint:
 	@echo "+ $@"
-	@test -z "$$(golint ./... | grep -v .pb. | grep -v vendor/ | tee /dev/stderr)"
+	@test -z "$(shell find . -type f -name "*.go" -not -path "./vendor/*" -not -name "*.pb.*" -exec golint {} \; | tee /dev/stderr)"
 
 # Requires that the following:
 # go get -u github.com/client9/misspell/cmd/misspell
@@ -126,6 +130,9 @@ test-full: vet lint
 	@echo
 	go test -tags "${NOTARY_BUILDTAGS}" $(TESTOPTS) -v $(PKGS)
 
+integration:
+	buildscripts/integrationtest.sh development.yml
+
 protos:
 	@protoc --go_out=plugins=grpc:. proto/*.proto
 
@@ -136,7 +143,7 @@ protos:
 # be run first
 
 define gocover
-$(GO_EXC) test $(OPTS) $(TESTOPTS) -covermode="$(COVERMODE)" -coverprofile="$(COVERDIR)/$(subst /,-,$(1)).$(subst $(_space),.,$(NOTARY_BUILDTAGS)).coverage.txt" "$(1)" || exit 1;
+go test $(OPTS) $(TESTOPTS) -covermode="$(COVERMODE)" -coverprofile="$(COVERDIR)/$(subst /,-,$(1)).$(subst $(_space),.,$(NOTARY_BUILDTAGS)).coverage.txt" "$(1)" || exit 1;
 endef
 
 gen-cover:
@@ -146,15 +153,13 @@ gen-cover:
 
 # Generates the cover binaries and runs them all in serial, so this can be used
 # run all tests with a yubikey without any problems
-cover: GO_EXC := go
-       OPTS = -tags "${NOTARY_BUILDTAGS}" -coverpkg "$(shell ./coverpkg.sh $(1) $(NOTARY_PKG))"
+cover: OPTS = -tags "${NOTARY_BUILDTAGS}" -coverpkg "$(shell ./coverpkg.sh $(1) $(NOTARY_PKG))"
 cover: gen-cover covmerge
 	@go tool cover -html="$(COVERPROFILE)"
 
 # Generates the cover binaries and runs them all in serial, so this can be used
 # run all tests with a yubikey without any problems
 ci: OPTS = -tags "${NOTARY_BUILDTAGS}" -race -coverpkg "$(shell ./coverpkg.sh $(1) $(NOTARY_PKG))"
-    GO_EXC := godep go
 # Codecov knows how to merge multiple coverage files, so covmerge is not needed
 ci: gen-cover
 
@@ -168,20 +173,14 @@ covmerge:
 clean-protos:
 	@rm proto/*.pb.go
 
+client: ${PREFIX}/bin/notary
+	@echo "+ $@"
+
 binaries: ${PREFIX}/bin/notary-server ${PREFIX}/bin/notary ${PREFIX}/bin/notary-signer
 	@echo "+ $@"
 
 static: ${PREFIX}/bin/static/notary-server ${PREFIX}/bin/static/notary-signer
 	@echo "+ $@"
-
-define template
-mkdir -p ${PREFIX}/cross/$(1)/$(2);
-GOOS=$(1) GOARCH=$(2) CGO_ENABLED=0 go build -o ${PREFIX}/cross/$(1)/$(2)/notary -a -tags "static_build netgo" -installsuffix netgo ${GO_LDFLAGS_STATIC} ./cmd/notary;
-endef
-
-cross:
-	$(foreach GOARCH,$(GOARCHS),$(foreach GOOS,$(GOOSES),$(call template,$(GOOS),$(GOARCH))))
-
 
 notary-dockerfile:
 	@docker build --rm --force-rm -t notary .
@@ -196,6 +195,10 @@ docker-images: notary-dockerfile server-dockerfile signer-dockerfile
 
 shell: notary-dockerfile
 	docker run --rm -it -v $(CURDIR)/cross:$(NOTARYDIR)/cross -v $(CURDIR)/bin:$(NOTARYDIR)/bin notary bash
+
+cross: notary-dockerfile
+	@rm -rf $(CURDIR)/cross
+	docker run --rm -v $(CURDIR)/cross:$(NOTARYDIR)/cross -e NOTARY_BUILDTAGS=$(NOTARY_BUILDTAGS) notary buildscripts/cross.sh $(GOOSES)
 
 
 clean:

@@ -75,7 +75,7 @@ func (c *Client) update() error {
 		return err
 	}
 	// will always need top level targets at a minimum
-	err = c.downloadTargets("targets")
+	err = c.downloadTargets(data.CanonicalTargetsRole)
 	if err != nil {
 		logrus.Debugf("Client Update (Targets): %s", err.Error())
 		return err
@@ -93,7 +93,7 @@ func (c Client) checkRoot() error {
 
 	expectedHashes := c.local.Snapshot.Signed.Meta[role].Hashes
 
-	raw, err := c.cache.GetMeta("root", size)
+	raw, err := c.cache.GetMeta(data.CanonicalRootRole, size)
 	if err != nil {
 		return err
 	}
@@ -331,7 +331,7 @@ func (c *Client) downloadSnapshot() error {
 	size := c.local.Timestamp.Signed.Meta[role].Length
 	expectedHashes := c.local.Timestamp.Signed.Meta[role].Hashes
 	if len(expectedHashes) == 0 {
-		return data.ErrMissingMeta{Role: "snapshot"}
+		return data.ErrMissingMeta{Role: data.CanonicalSnapshotRole}
 	}
 
 	var download bool

@@ -116,6 +116,22 @@ func (b BaseRole) ListKeyIDs() []string {
 	return listKeyIDs(b.Keys)
 }
 
+// Equals returns whether this BaseRole equals another BaseRole
+func (b BaseRole) Equals(o BaseRole) bool {
+	if b.Threshold != o.Threshold || b.Name != o.Name || len(b.Keys) != len(o.Keys) {
+		return false
+	}
+
+	for keyID, key := range b.Keys {
+		oKey, ok := o.Keys[keyID]
+		if !ok || key.ID() != oKey.ID() {
+			return false
+		}
+	}
+
+	return true
+}
+
 // DelegationRole is an internal representation of a delegation role, with its public keys included
 type DelegationRole struct {
 	BaseRole
