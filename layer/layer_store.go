@@ -502,15 +502,9 @@ func (ls *layerStore) ReinitRWLayer(l RWLayer) error {
 	ls.mountL.Lock()
 	defer ls.mountL.Unlock()
 
-	m, ok := ls.mounts[l.Name()]
-	if !ok {
+	if _, ok := ls.mounts[l.Name()]; !ok {
 		return ErrMountDoesNotExist
 	}
-
-	if err := m.incActivityCount(l); err != nil {
-		return err
-	}
-
 	return nil
 }
 
