@@ -44,6 +44,8 @@ dockerd - Enable daemon mode
 [**--log-driver**[=*json-file*]]
 [**--log-opt**[=*map[]*]]
 [**--mtu**[=*0*]]
+[**--max-concurrent-downloads**[=*3*]]
+[**--max-concurrent-uploads**[=*5*]]
 [**-p**|**--pidfile**[=*/var/run/docker.pid*]]
 [**--raw-logs**]
 [**--registry-mirror**[=*[]*]]
@@ -196,6 +198,12 @@ unix://[/path/to/socket] to use.
 
 **--mtu**=*0*
   Set the containers network mtu. Default is `0`.
+
+**--max-concurrent-downloads**=*3*
+  Set the max concurrent downloads for each pull. Default is `3`.
+
+**--max-concurrent-uploads**=*5*
+  Set the max concurrent uploads for each push. Default is `5`.
 
 **-p**, **--pidfile**=""
   Path to use for daemon PID file. Default is `/var/run/docker.pid`
