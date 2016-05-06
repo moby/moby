@@ -141,7 +141,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		home:    home,
 		uidMaps: uidMaps,
 		gidMaps: gidMaps,
-		ctr:     graphdriver.NewRefCounter(),
+		ctr:     graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicOverlay)),
 	}
 
 	return NaiveDiffDriverWithApply(d, uidMaps, gidMaps), nil

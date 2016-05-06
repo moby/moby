@@ -5,6 +5,8 @@ package graphdriver
 import (
 	"path/filepath"
 	"syscall"
+
+	"github.com/docker/docker/pkg/mount"
 )
 
 const (
@@ -87,6 +89,36 @@ func GetFSMagic(rootpath string) (FsMagic, error) {
 		return 0, err
 	}
 	return FsMagic(buf.Type), nil
+}
+
+// Checker makes checks on specified filesystems.
+type Checker interface {
+	// IsMounted returns true if the provided path is mounted for the specific checker
+	IsMounted(path string) bool
+}
+
+// NewFsChecker returns a checker configured for the provied FsMagic
+func NewFsChecker(t FsMagic) Checker {
+	return &fsChecker{
+		t: t,
+	}
+}
+
+type fsChecker struct {
+	t FsMagic
+}
+
+func (c *fsChecker) IsMounted(path string) bool {
+	m, _ := Mounted(c.t, path)
+	return m
+}
+
+type defaultChecker struct {
+}
+
+func (c *defaultChecker) IsMounted(path string) bool {
+	m, _ := mount.Mounted(path)
+	return m
 }
 
 // Mounted checks if the given path is mounted as the fs type
