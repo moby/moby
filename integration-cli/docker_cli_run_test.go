@@ -4444,3 +4444,17 @@ func (s *DockerSuite) TestRunHostnameInHostMode(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--net=host", "--hostname=foobar", "busybox", "sh", "-c", `echo $HOSTNAME && hostname`)
 	c.Assert(strings.TrimSpace(out), checker.Equals, expectedOutput)
 }
+
+func (s *DockerSuite) TestRunAddDeviceCgroupRule(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	deviceRule := "c 7:128 rwm"
+
+	out, _ := dockerCmd(c, "run", "--rm", "busybox", "cat", "/sys/fs/cgroup/devices/devices.list")
+	if strings.Contains(out, deviceRule) {
+		c.Fatalf("%s shouldn't been in the device.list", deviceRule)
+	}
+
+	out, _ = dockerCmd(c, "run", "--rm", fmt.Sprintf("--device-cgroup-rule=%s", deviceRule), "busybox", "grep", deviceRule, "/sys/fs/cgroup/devices/devices.list")
+	c.Assert(strings.TrimSpace(out), checker.Equals, deviceRule)
+}

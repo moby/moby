@@ -27,6 +27,7 @@ docker-run - Run a command in a new container
 [**-d**|**--detach**]
 [**--detach-keys**[=*[]*]]
 [**--device**[=*[]*]]
+[**--device-cgroup-rule**[=*[]*]]
 [**--device-read-bps**[=*[]*]]
 [**--device-read-iops**[=*[]*]]
 [**--device-write-bps**[=*[]*]]
@@ -245,6 +246,16 @@ See **config-json(5)** for documentation on using a configuration file.
 
 **--device**=[]
    Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
+
+**--device-cgroup-rule**=[]
+   Add a rule to the cgroup allowed devices list.
+   
+   The rule is expected to be in the format specified in the Linux kernel documentation (Documentation/cgroup-v1/devices.txt):
+     - type: `a` (all), `c` (char) or `b` (block)
+     - major and minor: either a number or `*` for all
+     - permission: a composition of `r` (read), `w` (write) and `m` (mknod)
+
+   Example: `c 1:3 mr`: allow for character device with major `1` and minor `3` to be created (`m`) and read (`r`)
 
 **--device-read-bps**=[]
    Limit read rate from a device (e.g. --device-read-bps=/dev/sda:1mb)

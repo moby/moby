@@ -1346,6 +1346,7 @@ _docker_container_run() {
 		--cpuset-mems
 		--cpu-shares -c
 		--device
+		--device-cgroup-rule
 		--device-read-bps
 		--device-read-iops
 		--device-write-bps

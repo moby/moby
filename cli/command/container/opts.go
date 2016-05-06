@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -19,6 +20,10 @@ import (
 	"github.com/docker/go-connections/nat"
 	units "github.com/docker/go-units"
 	"github.com/spf13/pflag"
+)
+
+var (
+	deviceCgroupRuleRegexp = regexp.MustCompile("^[acb] ([0-9]+|\\*):([0-9]+|\\*) [rwm]{1,3}$")
 )
 
 // containerOptions is a data object with all the options for creating a container
@@ -36,6 +41,7 @@ type containerOptions struct {
 	deviceWriteIOps    opts.ThrottledeviceOpt
 	env                opts.ListOpts
 	labels             opts.ListOpts
+	deviceCgroupRules  opts.ListOpts
 	devices            opts.ListOpts
 	ulimits            *opts.UlimitOpt
 	sysctls            *opts.MapOpts
@@ -127,6 +133,7 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 		dns:               opts.NewListOpts(opts.ValidateIPAddress),
 		dnsOptions:        opts.NewListOpts(nil),
 		dnsSearch:         opts.NewListOpts(opts.ValidateDNSSearch),
+		deviceCgroupRules: opts.NewListOpts(validateDeviceCgroupRule),
 		deviceReadBps:     opts.NewThrottledeviceOpt(opts.ValidateThrottleBpsDevice),
 		deviceReadIOps:    opts.NewThrottledeviceOpt(opts.ValidateThrottleIOpsDevice),
 		deviceWriteBps:    opts.NewThrottledeviceOpt(opts.ValidateThrottleBpsDevice),
@@ -154,6 +161,7 @@ func addFlags(flags *pflag.FlagSet) *containerOptions {
 
 	// General purpose flags
 	flags.VarP(&copts.attach, "attach", "a", "Attach to STDIN, STDOUT or STDERR")
+	flags.Var(&copts.deviceCgroupRules, "device-cgroup-rule", "Add a rule to the cgroup allowed devices list")
 	flags.Var(&copts.devices, "device", "Add a host device to the container")
 	flags.VarP(&copts.env, "env", "e", "Set environment variables")
 	flags.Var(&copts.envFile, "env-file", "Read in a file of environment variables")
@@ -548,6 +556,7 @@ func parse(flags *pflag.FlagSet, copts *containerOptions) (*container.Config, *c
 		IOMaximumIOps:        copts.ioMaxIOps,
 		IOMaximumBandwidth:   uint64(maxIOBandwidth),
 		Ulimits:              copts.ulimits.GetList(),
+		DeviceCgroupRules:    copts.deviceCgroupRules.GetAll(),
 		Devices:              deviceMappings,
 	}
 
@@ -760,6 +769,17 @@ func parseDevice(device string) (container.DeviceMapping, error) {
 		CgroupPermissions: permissions,
 	}
 	return deviceMapping, nil
+}
+
+// validateDeviceCgroupRule validates a device cgroup rule string format
+// It will make sure 'val' is in the form:
+//    'type major:minor mode'
+func validateDeviceCgroupRule(val string) (string, error) {
+	if deviceCgroupRuleRegexp.MatchString(val) {
+		return val, nil
+	}
+
+	return val, fmt.Errorf("invalid device cgroup format '%s'", val)
 }
 
 // validDeviceMode checks if the mode for device is valid or not.
