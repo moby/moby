@@ -2224,3 +2224,17 @@ func (s *DockerSuite) TestDaemonDiscoveryBackendConfigReload(c *check.C) {
 	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Store: consul://consuladdr:consulport/some/path"))
 	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Advertise: 192.168.56.100:0"))
 }
+
+// Test for #21956
+func (s *DockerDaemonSuite) TestDaemonLogOptions(c *check.C) {
+	err := s.d.StartWithBusybox("--log-driver=syslog", "--log-opt=syslog-address=udp://127.0.0.1:514")
+	c.Assert(err, check.IsNil)
+
+	out, err := s.d.Cmd("run", "-d", "--log-driver=json-file", "busybox", "top")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	id := strings.TrimSpace(out)
+
+	out, err = s.d.Cmd("inspect", "--format='{{.HostConfig.LogConfig}}'", id)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "{json-file map[]}")
+}

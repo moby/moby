@@ -108,16 +108,6 @@ func (daemon *Daemon) getInspectData(container *container.Container, size bool) 
 		hostConfig.Links = append(hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
 	}
 
-	// we need this trick to preserve empty log driver, so
-	// container will use daemon defaults even if daemon changes them
-	if hostConfig.LogConfig.Type == "" {
-		hostConfig.LogConfig.Type = daemon.defaultLogConfig.Type
-	}
-
-	if len(hostConfig.LogConfig.Config) == 0 {
-		hostConfig.LogConfig.Config = daemon.defaultLogConfig.Config
-	}
-
 	containerState := &types.ContainerState{
 		Status:     container.State.StateString(),
 		Running:    container.State.Running,
