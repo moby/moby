@@ -362,7 +362,19 @@ func (clnt *client) Signal(containerID string, sig int) error {
 		}
 
 		// Shutdown the compute system
-		if err := hcsshim.ShutdownComputeSystem(containerID, hcsshim.TimeoutInfinite, context); err != nil {
+		const shutdownTimeout = 5 * 60 * 1000 // 5 minutes
+		if err := hcsshim.ShutdownComputeSystem(containerID, shutdownTimeout, context); err != nil {
+			if herr, ok := err.(*hcsshim.HcsError); !ok ||
+				(herr.Err != hcsshim.ERROR_SHUTDOWN_IN_PROGRESS &&
+					herr.Err != ErrorBadPathname &&
+					herr.Err != syscall.ERROR_PATH_NOT_FOUND) {
+				logrus.Debugf("signal - error from ShutdownComputeSystem %v on %s. Calling TerminateComputeSystem", err, containerID)
+				if err := hcsshim.TerminateComputeSystem(containerID, shutdownTimeout, "signal"); err != nil {
+					logrus.Debugf("signal - ignoring error from TerminateComputeSystem on %s %v", containerID, err)
+				} else {
+					logrus.Debugf("Successful TerminateComputeSystem after failed ShutdownComputeSystem on %s during signal %v", containerID, sig)
+				}
+			}
 			logrus.Errorf("Failed to shutdown %s - %q", containerID, err)
 		}
 	}
