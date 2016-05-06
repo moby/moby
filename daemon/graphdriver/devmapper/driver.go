@@ -47,7 +47,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		home:      home,
 		uidMaps:   uidMaps,
 		gidMaps:   gidMaps,
-		ctr:       graphdriver.NewRefCounter(nil),
+		ctr:       graphdriver.NewRefCounter(graphdriver.NewDefaultChecker()),
 	}
 
 	return graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps), nil

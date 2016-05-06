@@ -16,9 +16,6 @@ type RefCounter struct {
 
 // NewRefCounter returns a new RefCounter
 func NewRefCounter(c Checker) *RefCounter {
-	if c == nil {
-		c = &defaultChecker{}
-	}
 	return &RefCounter{
 		checker: c,
 		counts:  make(map[string]*minfo),

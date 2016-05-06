@@ -91,12 +91,6 @@ func GetFSMagic(rootpath string) (FsMagic, error) {
 	return FsMagic(buf.Type), nil
 }
 
-// Checker makes checks on specified filesystems.
-type Checker interface {
-	// IsMounted returns true if the provided path is mounted for the specific checker
-	IsMounted(path string) bool
-}
-
 // NewFsChecker returns a checker configured for the provied FsMagic
 func NewFsChecker(t FsMagic) Checker {
 	return &fsChecker{
@@ -111,6 +105,12 @@ type fsChecker struct {
 func (c *fsChecker) IsMounted(path string) bool {
 	m, _ := Mounted(c.t, path)
 	return m
+}
+
+// NewDefaultChecker returns a check that parses /proc/mountinfo to check
+// if the specified path is mounted.
+func NewDefaultChecker() Checker {
+	return &defaultChecker{}
 }
 
 type defaultChecker struct {
