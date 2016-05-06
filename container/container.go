@@ -340,9 +340,6 @@ func (container *Container) GetProcessLabel() string {
 // GetMountLabel returns the mounting label for the container.
 // This label is empty if the container is privileged.
 func (container *Container) GetMountLabel() string {
-	if container.HostConfig.Privileged {
-		return ""
-	}
 	return container.MountLabel
 }
 
