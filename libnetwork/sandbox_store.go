@@ -213,7 +213,7 @@ func (c *controller) sandboxCleanup() {
 			var ep *endpoint
 			if err != nil {
 				logrus.Errorf("getNetworkFromStore for nid %s failed while trying to build sandbox for cleanup: %v", eps.Nid, err)
-				n = &network{id: eps.Nid, ctrlr: c, drvOnce: &sync.Once{}}
+				n = &network{id: eps.Nid, ctrlr: c, drvOnce: &sync.Once{}, persist: true}
 				ep = &endpoint{id: eps.Eid, network: n, sandboxID: sbs.ID}
 			} else {
 				ep, err = n.getEndpointFromStore(eps.Eid)
