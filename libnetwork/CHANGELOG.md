@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.8.0-dev.2 (2016-05-07)
+- Fix an issue which may arise during sandbox cleanup (https://github.com/docker/libnetwork/pull/1157)
+- Fix cleanup logic in case of ipv6 allocation failure
+- Don't add /etc/hosts record if container's ip is empty (--net=none)
+- Fix default gw logic for internal networks
+- Error when updating IPv6 gateway (https://github.com/docker/libnetwork/issues/1142)
+- Fixes https://github.com/docker/libnetwork/issues/1113
+- Fixes https://github.com/docker/libnetwork/issues/1069
+- Fxies https://github.com/docker/libnetwork/issues/1117
+- Increase the concurrent query rate-limit count
+- Changes to build libnetwork in Solaris
+
 ## 0.8.0-dev.1 (2016-04-16)
 - Fixes docker/docker#16964
 - Added maximum egress bandwidth qos for Windows
