@@ -199,7 +199,7 @@ EOF
     cat ${tomlfile}
     docker run \
 	   -d \
-	   --hostname=${name} \
+	   --hostname=$(echo ${name} | sed s/_/-/g) \
 	   --name=${name}  \
 	   --privileged \
 	   -p ${hport}:${cport} \
