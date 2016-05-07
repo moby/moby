@@ -286,6 +286,16 @@ func (daemon *Daemon) restore() error {
 			logrus.Errorf("Failed to register container %s: %s", c.ID, err)
 			continue
 		}
+
+		// The LogConfig.Type is empty if the container was created before docker 1.12 with default log driver.
+		// We should rewrite it to use the daemon defaults.
+		// Fixes https://github.com/docker/docker/issues/22536
+		if c.HostConfig.LogConfig.Type == "" {
+			if err := daemon.mergeAndVerifyLogConfig(&c.HostConfig.LogConfig); err != nil {
+				logrus.Errorf("Failed to verify log config for container %s: %q", c.ID, err)
+				continue
+			}
+		}
 	}
 	var wg sync.WaitGroup
 	var mapLock sync.Mutex
