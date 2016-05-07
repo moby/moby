@@ -131,8 +131,15 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 	// net/http otherwise seems to swallow any headers related to chunked encoding
 	// including r.TransferEncoding
 	// allow a nil body for backwards compatibility
+
 	var hostConfig *container.HostConfig
-	if r.Body != nil && (r.ContentLength > 0 || r.ContentLength == -1) {
+	// A non-nil json object is at least 7 characters.
+	if r.ContentLength > 7 || r.ContentLength == -1 {
+		version := httputils.VersionFromContext(ctx)
+		if versions.GreaterThanOrEqualTo(version, "1.24") {
+			return validationError{fmt.Errorf("starting container with HostConfig was deprecated since v1.10 and removed in v1.12")}
+		}
+
 		if err := httputils.CheckForJSON(r); err != nil {
 			return err
 		}
@@ -141,7 +148,6 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 		if err != nil {
 			return err
 		}
-
 		hostConfig = c
 	}
 

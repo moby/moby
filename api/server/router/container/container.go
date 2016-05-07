@@ -5,6 +5,14 @@ import (
 	"github.com/docker/docker/api/server/router"
 )
 
+type validationError struct {
+	error
+}
+
+func (validationError) IsValidationError() bool {
+	return true
+}
+
 // containerRouter is a router to talk with the container controller
 type containerRouter struct {
 	backend Backend
