@@ -25,6 +25,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 	follow := cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
 	since := cmd.String([]string{"-since"}, "", "Show logs since timestamp")
 	times := cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
+	details := cmd.Bool([]string{"-details"}, false, "Show extra details provided to logs")
 	tail := cmd.String([]string{"-tail"}, "all", "Number of lines to show from the end of the logs")
 	cmd.Require(flag.Exact, 1)
 
@@ -48,6 +49,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		Timestamps: *times,
 		Follow:     *follow,
 		Tail:       *tail,
+		Details:    *details,
 	}
 	responseBody, err := cli.client.ContainerLogs(context.Background(), name, options)
 	if err != nil {

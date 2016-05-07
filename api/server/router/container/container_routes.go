@@ -99,6 +99,7 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 			Tail:       r.Form.Get("tail"),
 			ShowStdout: stdout,
 			ShowStderr: stderr,
+			Details:    httputils.BoolValue(r, "details"),
 		},
 		OutStream: w,
 	}

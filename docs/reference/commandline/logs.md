@@ -14,6 +14,7 @@ parent = "smn_cli"
 
     Fetch the logs of a container
 
+      --details                 Show extra details provided to logs
       -f, --follow              Follow log output
       --help                    Print usage
       --since=""                Show logs since timestamp
@@ -35,6 +36,10 @@ The `docker logs --timestamps` command will add an [RFC3339Nano timestamp](https
 , for example `2014-09-16T06:17:46.000000000Z`, to each
 log entry. To ensure that the timestamps are aligned the
 nano-second part of the timestamp will be padded with zero when necessary.
+
+The `docker logs --details` command will add on extra attributes, such as
+environment variables and labels, provided to `--log-opt` when creating the
+container.
 
 The `--since` option shows only the container logs generated after
 a given date. You can specify the date as an RFC 3339 date, a UNIX

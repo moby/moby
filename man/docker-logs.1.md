@@ -30,6 +30,9 @@ logging drivers.
 **--help**
   Print usage statement
 
+**--details**=*true*|*false*
+   Show extra details provided to logs
+
 **-f**, **--follow**=*true*|*false*
    Follow log output. The default is *false*.
 
@@ -54,6 +57,10 @@ since January 1, 1970 (midnight UTC/GMT), not counting leap  seconds (aka Unix
 epoch or Unix time), and the optional .nanoseconds field is a fraction of a
 second no more than nine digits long. You can combine the `--since` option with
 either or both of the `--follow` or `--tail` options.
+
+The `docker logs --details` command will add on extra attributes, such as
+environment variables and labels, provided to `--log-opt` when creating the
+container.
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
