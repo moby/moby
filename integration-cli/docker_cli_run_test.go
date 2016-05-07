@@ -531,6 +531,27 @@ func (s *DockerSuite) TestRunNoDupVolumes(c *check.C) {
 			c.Fatalf("Expected 'duplicate mount point' error, got %v", out)
 		}
 	}
+
+	// Test for https://github.com/docker/docker/issues/22093
+	volumename1 := "test1"
+	volumename2 := "test2"
+	volume1 := volumename1 + someplace
+	volume2 := volumename2 + someplace
+	if out, _, err := dockerCmdWithError("run", "-v", volume1, "-v", volume2, "busybox", "true"); err == nil {
+		c.Fatal("Expected error about duplicate mount definitions")
+	} else {
+		if !strings.Contains(out, "Duplicate mount point") {
+			c.Fatalf("Expected 'duplicate mount point' error, got %v", out)
+		}
+	}
+	// create failed should have create volume volumename1 or volumename2
+	// we should remove volumename2 or volumename2 successfully
+	out, _ := dockerCmd(c, "volume", "ls")
+	if strings.Contains(out, volumename1) {
+		dockerCmd(c, "volume", "rm", volumename1)
+	} else {
+		dockerCmd(c, "volume", "rm", volumename2)
+	}
 }
 
 // Test for #1351
