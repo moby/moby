@@ -1580,11 +1580,6 @@
 			"args": []
 		},
 		{
-			"name": "modify_ldt",
-			"action": "SCMP_ACT_ALLOW",
-			"args": []
-		},
-		{
 			"name": "breakpoint",
 			"action": "SCMP_ACT_ALLOW",
 			"args": []
