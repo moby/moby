@@ -66,7 +66,7 @@ The following should be executed in a root console
 
 ## Configure Docker boot options
 
-You can use these steps on openSUSE or SUSE Linux Enterprise. To start the `docker daemon` at boot(advisable), set the following:
+After installation, by default docker still needs to be started manually each time you wish to use docker. To start the `docker daemon` at boot(advisable and convenient), set the following:
 
     # systemctl enable docker
 
@@ -103,9 +103,9 @@ You should edit the `/etc/sysconfig/SuSEfirewall2` file to include the following
 ##### For more container networking:
 
 Docker Documentation for configuring container networks on a single Host</br>
-(ttps://docs.docker.com/engine/userguide/networking/dockernetworks/</br>
+https://docs.docker.com/engine/userguide/networking/dockernetworks/</br>
 Docker documentation for configuring container networks that span multiple Hosts</br>
-(ttps://docs.docker.com/engine/userguide/networking/get-started-overlay
+https://docs.docker.com/engine/userguide/networking/get-started-overlay
 
 ## Custom docker daemon options
 
