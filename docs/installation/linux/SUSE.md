@@ -83,26 +83,27 @@ Once you add a user, the User must log out and back in to pick up these new perm
 Configuring a container's outbound networking is simple and typically only requires attaching to a network object with external network properties.
 
 For instance:
+
     # docker run -it opensuse net=host /bin/bash
 
 Configuring inbound access might be as easy as sharing the Host's network interface and configuring an unused port, or if your container is to have its own network interface, then you must also configure IP Forwarding on the Host to your container's interface.
 
 Configuring this `net.ipv4.ip_forward` rule is best accomplished using YaST as follows...
 
-**If using Wicked to manage your networking:**
+**If using Wicked to manage your networking:**</br>
 For openSUSE Tumbleweed and LEAP, open YAST and browse to **System -> Network Settings -> Routing**. 
 
 For SUSE Linux Enterprise 12, openSUSE 13.2 and earlier, browse to **Network Devices -> Network Settings -> Routing** menu (f) and check the *Enable IPv4 Forwarding* box.
 
-**If using Network Manager to manage your networking:**
+**If using Network Manager to manage your networking:**</br>
 You should edit the `/etc/sysconfig/SuSEfirewall2` file to include the following line:
 
     FW_ROUTE="yes"
 
-For more container networking:
-{Docker Documentation for configuring container networks on a single Host}
-(https://docs.docker.com/engine/userguide/networking/dockernetworks/)
-{Docker documentation for configuring container networks that span multiple Hosts}
+For more container networking:</br>
+Docker Documentation for configuring container networks on a single Host</br>
+(https://docs.docker.com/engine/userguide/networking/dockernetworks/)</br>
+Docker documentation for configuring container networks that span multiple Hosts</br>
 (https://docs.docker.com/engine/userguide/networking/get-started-overlay)
 
 ## Custom docker daemon options
@@ -129,9 +130,9 @@ You must delete the user created configuration files manually.
 
 You can find more details about Docker on openSUSE or SUSE Linux Enterprise in the
 [Docker quick start guide](https://www.suse.com/documentation/sles-12/dockerquick/data/dockerquick.html)
-on the SUSE website. The document targets SUSE Linux Enterprise, but its contents apply also to openSUSE.
-Various Community articles on Docker exist as well. One volunteer's collection can be found here
-[TSU's Docker on openSUSE articles}(https://en.opensuse.org/User:Tsu2#Docker)
+on the SUSE website. The document targets SUSE Linux Enterprise, but its contents apply also to openSUSE.</br>
+Various Community articles on Docker exist as well. One volunteer's collection can be found here</br>
+https://en.opensuse.org/User:Tsu2#Docker
 
 
 Continue to the [User Guide](../../userguide/index.md).
