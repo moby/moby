@@ -45,6 +45,9 @@ type Sandbox interface {
 	// ResolveIP returns the service name for the passed in IP. IP is in reverse dotted
 	// notation; the format used for DNS PTR records
 	ResolveIP(name string) string
+	// ResolveService returns all the backend details about the containers or hosts
+	// backing a service. Its purpose is to satisfy an SRV query
+	ResolveService(name string) ([]*net.SRV, []net.IP, error)
 	// Endpoints returns all the endpoints connected to the sandbox
 	Endpoints() []Endpoint
 }
@@ -423,6 +426,61 @@ func (sb *sandbox) ResolveIP(ip string) string {
 
 func (sb *sandbox) execFunc(f func()) {
 	sb.osSbox.InvokeFunc(f)
+}
+
+func (sb *sandbox) ResolveService(name string) ([]*net.SRV, []net.IP, error) {
+	srv := []*net.SRV{}
+	ip := []net.IP{}
+
+	log.Debugf("Service name To resolve: %v", name)
+
+	parts := strings.Split(name, ".")
+	if len(parts) < 3 {
+		return nil, nil, fmt.Errorf("invalid service name, %s", name)
+	}
+
+	portName := parts[0]
+	proto := parts[1]
+	if proto != "_tcp" && proto != "_udp" {
+		return nil, nil, fmt.Errorf("invalid protocol in service, %s", name)
+	}
+	svcName := strings.Join(parts[2:], ".")
+
+	for _, ep := range sb.getConnectedEndpoints() {
+		n := ep.getNetwork()
+
+		sr, ok := n.getController().svcRecords[n.ID()]
+		if !ok {
+			continue
+		}
+
+		svcs, ok := sr.service[svcName]
+		if !ok {
+			continue
+		}
+
+		for _, svc := range svcs {
+			if svc.portName != portName {
+				continue
+			}
+			if svc.proto != proto {
+				continue
+			}
+			for _, t := range svc.target {
+				srv = append(srv,
+					&net.SRV{
+						Target: t.name,
+						Port:   t.port,
+					})
+
+				ip = append(ip, t.ip)
+			}
+		}
+		if len(srv) > 0 {
+			break
+		}
+	}
+	return srv, ip, nil
 }
 
 func (sb *sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {

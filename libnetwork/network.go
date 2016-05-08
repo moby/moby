@@ -74,6 +74,7 @@ type svcInfo struct {
 	svcMap     map[string][]net.IP
 	svcIPv6Map map[string][]net.IP
 	ipMap      map[string]string
+	service    map[string][]servicePorts
 }
 
 // IpamConf contains all the ipam related configurations for a network
