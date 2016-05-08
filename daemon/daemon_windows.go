@@ -221,7 +221,7 @@ func (daemon *Daemon) initNetworkController(config *Config) (libnetwork.NetworkC
 		}
 	}
 
-	_, err = controller.NewNetwork("null", "none", libnetwork.NetworkOptionPersist(false))
+	_, err = controller.NewNetwork("null", "none", "", libnetwork.NetworkOptionPersist(false))
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +266,7 @@ func (daemon *Daemon) initNetworkController(config *Config) (libnetwork.NetworkC
 		}
 
 		v6Conf := []*libnetwork.IpamConf{}
-		_, err := controller.NewNetwork(strings.ToLower(v.Type), name,
+		_, err := controller.NewNetwork(strings.ToLower(v.Type), name, "",
 			libnetwork.NetworkOptionGeneric(options.Generic{
 				netlabel.GenericData: netOption,
 			}),
@@ -307,7 +307,7 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 	v4Conf := []*libnetwork.IpamConf{&ipamV4Conf}
 	v6Conf := []*libnetwork.IpamConf{}
 
-	_, err := controller.NewNetwork(string(runconfig.DefaultDaemonNetworkMode()), runconfig.DefaultDaemonNetworkMode().NetworkName(),
+	_, err := controller.NewNetwork(string(runconfig.DefaultDaemonNetworkMode()), runconfig.DefaultDaemonNetworkMode().NetworkName(), "",
 		libnetwork.NetworkOptionGeneric(options.Generic{
 			netlabel.GenericData: netOption,
 		}),
