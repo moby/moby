@@ -9,7 +9,7 @@ source 'hack/.vendor-helpers.sh'
 clone git github.com/Azure/go-ansiterm 388960b655244e76e24c75f48631564eaefade62
 clone git github.com/Microsoft/hcsshim v0.2.2
 clone git github.com/Microsoft/go-winio v0.3.4
-clone git github.com/Sirupsen/logrus v0.9.0 # logrus is a common dependency among multiple deps
+clone git github.com/Sirupsen/logrus v0.10.0 # logrus is a common dependency among multiple deps
 clone git github.com/docker/libtrust 9cbd2a1374f46905c68a4eb3694a130610adc62a
 clone git github.com/go-check/check 03a4d9dcf2f92eae8e90ed42aa2656f63fdd0b14 https://github.com/cpuguy83/check.git
 clone git github.com/gorilla/context 14f550f51a
@@ -30,11 +30,14 @@ clone git github.com/imdario/mergo 0.2.1
 
 #get libnetwork packages
 clone git github.com/docker/libnetwork v0.8.0-dev.1
+clone git github.com/docker/go-events 2e7d352816128aa84f4d29b2a21d400133701a0d
+clone git github.com/armon/go-radix e39d623f12e8e41c7b5529e9a9dd67a1e2261f80
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
 clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
-clone git github.com/hashicorp/memberlist 9a1e242e454d2443df330bdd51a436d5a9058fc4
-clone git github.com/hashicorp/serf 7151adcef72687bf95f451a2e0ba15cb19412bf2
-clone git github.com/docker/libkv c2aac5dbbaa5c872211edea7c0f32b3bd67e7410
+clone git github.com/hashicorp/memberlist 88ac4de0d1a0ca6def284b571342db3b777a4c37
+clone git github.com/hashicorp/go-multierror fcdddc395df1ddf4247c69bd436e84cfa0733f7e
+clone git github.com/hashicorp/serf 598c54895cc5a7b1a24a398d635e8c0ea0959870
+clone git github.com/docker/libkv 7283ef27ed32fe267388510a91709b307bb9942c
 clone git github.com/vishvananda/netns 604eaf189ee867d8c147fafc28def2394e878d25
 clone git github.com/vishvananda/netlink 631962935bff4f3d20ff32a72e8944f6d2836a26
 clone git github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
