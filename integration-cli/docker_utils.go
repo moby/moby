@@ -398,7 +398,7 @@ func unpauseContainer(container string) error {
 		err = fmt.Errorf("failed to unpause container")
 	}
 
-	return nil
+	return err
 }
 
 func unpauseAllContainers() error {
