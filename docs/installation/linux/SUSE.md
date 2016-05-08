@@ -20,12 +20,14 @@ Docker Engine software on openSUSE and SUSE systems.
 
 You must be running a 64 bit architecture.
 
-## openSUSE
+## Add Repositories
+
+### openSUSE
 
 Docker is part of the official openSUSE repositories starting from 13.2. No
 additional repository is required on your system.
 
-## SUSE Linux Enterprise
+### SUSE Linux Enterprise
 
 Docker is officially supported on SUSE Linux Enterprise 12 and later. You can find the latest supported Docker packages inside the `Container` module. To enable this module, do the following:
 
@@ -38,7 +40,7 @@ Docker is officially supported on SUSE Linux Enterprise 12 and later. You can fi
 
 Otherwise execute the following command:
 
-    $ sudo SUSEConnect -p sle-module-containers/12/x86_64 -r ''
+    # SUSEConnect -p sle-module-containers/12/x86_64 -r ''
 
     >**Note:** currently the `-r ''` flag is required to avoid a known limitation of `SUSEConnect`.
 
@@ -47,48 +49,63 @@ on the [Open Build Service](https://build.opensuse.org/) contains also bleeding
 edge Docker packages for SUSE Linux Enterprise. However these packages are
 **not supported** by SUSE.
 
-### Install Docker
+## Install Docker
+The following should be executed in a root console
 
 1. Install the Docker package:
 
-        $ sudo zypper in docker
+        # zypper in docker
 
 2. Start the Docker daemon.
 
-        $ sudo systemctl start docker
+        # systemctl start docker
 
 3. Test the Docker installation.
 
-        $ sudo docker run hello-world
+        # docker run hello-world
 
 ## Configure Docker boot options
 
 You can use these steps on openSUSE or SUSE Linux Enterprise. To start the `docker daemon` at boot, set the following:
 
-    $ sudo systemctl enable docker
+    # systemctl enable docker
 
-The `docker` package creates a new group named `docker`. Users, other than
-`root` user, must be part of this group to interact with the
-Docker daemon. You can add users with this command syntax:
+The `docker` package creates a new group named `docker`. Although not recommended, it's possible to add ordinary User accounts to this group so these Users have full docker administrative rights so can execute docker commands, including creating, managing, modifying and deleting. 
 
-    sudo /usr/sbin/usermod -a -G docker <username>
+You can add users with the following command:
 
-Once you add a user, make sure they relog to pick up these new permissions.
+    # /usr/sbin/usermod -a -G docker <username>
+
+Once you add a user, the User must log out and back in to pick up these new permissions.
 
 ## Enable external network access
 
-If you want your containers to be able to access the external network, you must
-enable the `net.ipv4.ip_forward` rule. To do this, use YaST.
+Configuring a container's outbound networking is simple and typically only requires attaching to a network object with external network properties.
 
-For openSUSE Tumbleweed and later, browse to the **System -> Network Settings -> Routing** menu. For SUSE Linux Enterprise 12 and previous openSUSE versions, browse to **Network Devices -> Network Settings -> Routing** menu (f) and check the *Enable IPv4 Forwarding* box.
+For instance:
+    # docker run -it opensuse net=host /bin/bash
 
-When networking is handled by the Network Manager, instead of YaST you must edit
-the `/etc/sysconfig/SuSEfirewall2` file needs by hand to ensure the `FW_ROUTE`
-flag is set to `yes` like so:
+Configuring inbound access might be as easy as sharing the Host's network interface and configuring an unused port, or if your container is to have its own network interface, then you must also configure IP Forwarding on the Host to your container's interface.
+
+Configuring this `net.ipv4.ip_forward` rule is best accomplished using YaST as follows...
+
+**If using Wicked to manage your networking:**
+For openSUSE Tumbleweed and LEAP, open YAST and browse to **System -> Network Settings -> Routing**. 
+
+For SUSE Linux Enterprise 12, openSUSE 13.2 and earlier, browse to **Network Devices -> Network Settings -> Routing** menu (f) and check the *Enable IPv4 Forwarding* box.
+
+**If using Network Manager to manage your networking:**
+You should edit the `/etc/sysconfig/SuSEfirewall2` file to include the following line:
 
     FW_ROUTE="yes"
 
-## Custom daemon options
+For more container networking:
+{Docker Documentation for configuring container networks on a single Host}
+(https://docs.docker.com/engine/userguide/networking/dockernetworks/)
+{Docker documentation for configuring container networks that span multiple Hosts}
+(https://docs.docker.com/engine/userguide/networking/get-started-overlay)
+
+## Custom docker daemon options
 
 If you need to add an HTTP Proxy, set a different directory or partition for the
 Docker runtime files, or make other customizations, read the systemd article to
@@ -98,13 +115,13 @@ learn how to [customize your systemd Docker daemon options](../../admin/systemd.
 
 To uninstall the Docker package:
 
-    $ sudo zypper rm docker
+    # zypper rm docker
 
 The above command does not remove images, containers, volumes, or user created
 configuration files on your host. If you wish to delete all images, containers,
 and volumes run the following command:
 
-    $ rm -rf /var/lib/docker
+    # rm -rf /var/lib/docker
 
 You must delete the user created configuration files manually.
 
@@ -113,5 +130,8 @@ You must delete the user created configuration files manually.
 You can find more details about Docker on openSUSE or SUSE Linux Enterprise in the
 [Docker quick start guide](https://www.suse.com/documentation/sles-12/dockerquick/data/dockerquick.html)
 on the SUSE website. The document targets SUSE Linux Enterprise, but its contents apply also to openSUSE.
+Various Community articles on Docker exist as well. One volunteer's collection can be found here
+[TSU's Docker on openSUSE articles}(https://en.opensuse.org/User:Tsu2#Docker)
+
 
 Continue to the [User Guide](../../userguide/index.md).
