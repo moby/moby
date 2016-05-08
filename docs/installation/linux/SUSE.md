@@ -109,8 +109,14 @@ https://docs.docker.com/engine/userguide/networking/get-started-overlay
 
 ## Custom docker daemon options
 
-If you need to add an HTTP Proxy, set a different directory or partition for the
-Docker runtime files, or make other customizations, read the systemd article to
+Common options that involve modifying the docker daemon
+
+* HTTP Proxy
+* Non-default location for runtime files
+* Alternate, non-default storage for images and container files
+* More
+
+Read the systemd article to
 learn how to [customize your systemd Docker daemon options](../../admin/systemd.md).
 
 ## Uninstallation
