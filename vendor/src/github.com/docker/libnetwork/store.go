@@ -4,8 +4,19 @@ import (
 	"fmt"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/libkv/store/boltdb"
+	"github.com/docker/libkv/store/consul"
+	"github.com/docker/libkv/store/etcd"
+	"github.com/docker/libkv/store/zookeeper"
 	"github.com/docker/libnetwork/datastore"
 )
+
+func registerKVStores() {
+	consul.Register()
+	zookeeper.Register()
+	etcd.Register()
+	boltdb.Register()
+}
 
 func (c *controller) initScopedStore(scope string, scfg *datastore.ScopeCfg) error {
 	store, err := datastore.NewDataStore(scope, scfg)
@@ -20,6 +31,8 @@ func (c *controller) initScopedStore(scope string, scfg *datastore.ScopeCfg) err
 }
 
 func (c *controller) initStores() error {
+	registerKVStores()
+
 	c.Lock()
 	if c.cfg == nil {
 		c.Unlock()
@@ -208,8 +221,7 @@ func (n *network) getEndpointsFromStore() ([]*endpoint, error) {
 func (c *controller) updateToStore(kvObject datastore.KVObject) error {
 	cs := c.getStore(kvObject.DataScope())
 	if cs == nil {
-		log.Warnf("datastore for scope %s not initialized. kv object %s is not added to the store", kvObject.DataScope(), datastore.Key(kvObject.Key()...))
-		return nil
+		return fmt.Errorf("datastore for scope %q is not initialized ", kvObject.DataScope())
 	}
 
 	if err := cs.PutObjectAtomic(kvObject); err != nil {
@@ -225,8 +237,7 @@ func (c *controller) updateToStore(kvObject datastore.KVObject) error {
 func (c *controller) deleteFromStore(kvObject datastore.KVObject) error {
 	cs := c.getStore(kvObject.DataScope())
 	if cs == nil {
-		log.Debugf("datastore for scope %s not initialized. kv object %s is not deleted from datastore", kvObject.DataScope(), datastore.Key(kvObject.Key()...))
-		return nil
+		return fmt.Errorf("datastore for scope %q is not initialized ", kvObject.DataScope())
 	}
 
 retry:
@@ -407,7 +418,7 @@ func (c *controller) processEndpointDelete(nmap map[string]*netWatch, ep *endpoi
 
 			// This is the last container going away for the network. Destroy
 			// this network's svc db entry
-			delete(c.svcDb, ep.getNetwork().ID())
+			delete(c.svcRecords, ep.getNetwork().ID())
 
 			delete(nmap, ep.getNetwork().ID())
 		}

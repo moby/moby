@@ -7,6 +7,8 @@ import (
 	"syscall"
 )
 
+const ovPeerTable = "overlay_peer_table"
+
 type peerKey struct {
 	peerIP  net.IP
 	peerMac net.HardwareAddr

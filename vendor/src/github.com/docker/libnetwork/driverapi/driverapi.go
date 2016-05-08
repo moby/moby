@@ -13,10 +13,25 @@ const NetworkPluginEndpointType = "NetworkDriver"
 type Driver interface {
 	discoverapi.Discover
 
-	// CreateNetwork invokes the driver method to create a network passing
-	// the network id and network specific config. The config mechanism will
-	// eventually be replaced with labels which are yet to be introduced.
-	CreateNetwork(nid string, options map[string]interface{}, ipV4Data, ipV6Data []IPAMData) error
+	// NetworkAllocate invokes the driver method to allocate network
+	// specific resources passing network id and network specific config.
+	// It returns a key,value pair of network specific driver allocations
+	// to the caller.
+	NetworkAllocate(nid string, options map[string]string, ipV4Data, ipV6Data []IPAMData) (map[string]string, error)
+
+	// NetworkFree invokes the driver method to free network specific resources
+	// associated with a given network id.
+	NetworkFree(nid string) error
+
+	// CreateNetwork invokes the driver method to create a network
+	// passing the network id and network specific config. The
+	// config mechanism will eventually be replaced with labels
+	// which are yet to be introduced. The driver can return a
+	// list of table names for which it is interested in receiving
+	// notification when a CRUD operation is performed on any
+	// entry in that table. This will be ignored for local scope
+	// drivers.
+	CreateNetwork(nid string, options map[string]interface{}, nInfo NetworkInfo, ipV4Data, ipV6Data []IPAMData) error
 
 	// DeleteNetwork invokes the driver method to delete network passing
 	// the network id.
@@ -50,8 +65,22 @@ type Driver interface {
 	// programming that was done so far
 	RevokeExternalConnectivity(nid, eid string) error
 
+	// EventNotify notifies the driver when a CRUD operation has
+	// happened on a table of its interest as soon as this node
+	// receives such an event in the gossip layer. This method is
+	// only invoked for the global scope driver.
+	EventNotify(event EventType, nid string, tableName string, key string, value []byte)
+
 	// Type returns the the type of this driver, the network type this driver manages
 	Type() string
+}
+
+// NetworkInfo provides a go interface for drivers to provide network
+// specific information to libnetwork.
+type NetworkInfo interface {
+	// TableEventRegister registers driver interest in a given
+	// table name.
+	TableEventRegister(tableName string) error
 }
 
 // InterfaceInfo provides a go interface for drivers to retrive
@@ -102,6 +131,10 @@ type JoinInfo interface {
 
 	// DisableGatewayService tells libnetwork not to provide Default GW for the container
 	DisableGatewayService()
+
+	// AddTableEntry adds a table entry to the gossip layer
+	// passing the table name, key and an opaque value.
+	AddTableEntry(tableName string, key string, value []byte) error
 }
 
 // DriverCallback provides a Callback interface for Drivers into LibNetwork
@@ -124,3 +157,15 @@ type IPAMData struct {
 	Gateway      *net.IPNet
 	AuxAddresses map[string]*net.IPNet
 }
+
+// EventType defines a type for the CRUD event
+type EventType uint8
+
+const (
+	// Create event is generated when a table entry is created,
+	Create EventType = 1 + iota
+	// Update event is generated when a table entry is updated.
+	Update
+	// Delete event is generated when a table entry is deleted.
+	Delete
+)

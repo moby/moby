@@ -21,14 +21,18 @@ func chainExists(cname string) bool {
 }
 
 func setupGlobalChain() {
-	if err := iptables.RawCombinedOutput("-N", globalChain); err != nil {
-		logrus.Errorf("could not create global overlay chain: %v", err)
-		return
+	// Because of an ungraceful shutdown, chain could already be present
+	if !chainExists(globalChain) {
+		if err := iptables.RawCombinedOutput("-N", globalChain); err != nil {
+			logrus.Errorf("could not create global overlay chain: %v", err)
+			return
+		}
 	}
 
-	if err := iptables.RawCombinedOutput("-A", globalChain, "-j", "RETURN"); err != nil {
-		logrus.Errorf("could not install default return chain in the overlay global chain: %v", err)
-		return
+	if !iptables.Exists(iptables.Filter, globalChain, "-j", "RETURN") {
+		if err := iptables.RawCombinedOutput("-A", globalChain, "-j", "RETURN"); err != nil {
+			logrus.Errorf("could not install default return chain in the overlay global chain: %v", err)
+		}
 	}
 }
 

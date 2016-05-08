@@ -142,7 +142,7 @@ func (n *networkNamespace) SetGatewayIPv6(gwv6 net.IP) error {
 
 	err := programGateway(n.nsPath(), gwv6, true)
 	if err == nil {
-		n.SetGatewayIPv6(gwv6)
+		n.setGatewayIPv6(gwv6)
 	}
 
 	return err

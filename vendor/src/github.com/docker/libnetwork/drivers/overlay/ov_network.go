@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -13,6 +14,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/resolvconf"
@@ -59,7 +61,15 @@ type network struct {
 	sync.Mutex
 }
 
-func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
+	return nil, types.NotImplementedErrorf("not implemented")
+}
+
+func (d *driver) NetworkFree(id string) error {
+	return types.NotImplementedErrorf("not implemented")
+}
+
+func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	if id == "" {
 		return fmt.Errorf("invalid network id")
 	}
@@ -81,12 +91,40 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Dat
 		subnets:   []*subnet{},
 	}
 
-	for _, ipd := range ipV4Data {
+	vnis := make([]uint32, 0, len(ipV4Data))
+	if gval, ok := option[netlabel.GenericData]; ok {
+		optMap := gval.(map[string]string)
+		if val, ok := optMap[netlabel.OverlayVxlanIDList]; ok {
+			logrus.Debugf("overlay: Received vxlan IDs: %s", val)
+			vniStrings := strings.Split(val, ",")
+			for _, vniStr := range vniStrings {
+				vni, err := strconv.Atoi(vniStr)
+				if err != nil {
+					return fmt.Errorf("invalid vxlan id value %q passed", vniStr)
+				}
+
+				vnis = append(vnis, uint32(vni))
+			}
+		}
+	}
+
+	// If we are getting vnis from libnetwork, either we get for
+	// all subnets or none.
+	if len(vnis) != 0 && len(vnis) < len(ipV4Data) {
+		return fmt.Errorf("insufficient vnis(%d) passed to overlay", len(vnis))
+	}
+
+	for i, ipd := range ipV4Data {
 		s := &subnet{
 			subnetIP: ipd.Pool,
 			gwIP:     ipd.Gateway,
 			once:     &sync.Once{},
 		}
+
+		if len(vnis) != 0 {
+			s.vni = vnis[i]
+		}
+
 		n.subnets = append(n.subnets, s)
 	}
 
@@ -94,8 +132,13 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Dat
 		return fmt.Errorf("failed to update data store for network %v: %v", n.id, err)
 	}
 
-	d.addNetwork(n)
+	if nInfo != nil {
+		if err := nInfo.TableEventRegister(ovPeerTable); err != nil {
+			return err
+		}
+	}
 
+	d.addNetwork(n)
 	return nil
 }
 
@@ -244,11 +287,21 @@ func setHostMode() {
 }
 
 func (n *network) generateVxlanName(s *subnet) string {
-	return "vx-" + fmt.Sprintf("%06x", n.vxlanID(s)) + "-" + n.id[:5]
+	id := n.id
+	if len(n.id) > 5 {
+		id = n.id[:5]
+	}
+
+	return "vx-" + fmt.Sprintf("%06x", n.vxlanID(s)) + "-" + id
 }
 
 func (n *network) generateBridgeName(s *subnet) string {
-	return "ov-" + fmt.Sprintf("%06x", n.vxlanID(s)) + "-" + n.id[:5]
+	id := n.id
+	if len(n.id) > 5 {
+		id = n.id[:5]
+	}
+
+	return "ov-" + fmt.Sprintf("%06x", n.vxlanID(s)) + "-" + id
 }
 
 func isOverlap(nw *net.IPNet) bool {
@@ -395,9 +448,10 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 				continue
 			}
 
-			if neigh.IP.To16() != nil {
+			if neigh.IP.To4() == nil {
 				continue
 			}
+			logrus.Debugf("miss notification for dest IP, %v", neigh.IP.String())
 
 			if neigh.State&(netlink.NUD_STALE|netlink.NUD_INCOMPLETE) == 0 {
 				continue
@@ -575,32 +629,38 @@ func (n *network) DataScope() string {
 }
 
 func (n *network) writeToStore() error {
+	if n.driver.store == nil {
+		return nil
+	}
+
 	return n.driver.store.PutObjectAtomic(n)
 }
 
 func (n *network) releaseVxlanID() error {
-	if n.driver.store == nil {
-		return fmt.Errorf("no datastore configured. cannot release vxlan id")
-	}
-
 	if len(n.subnets) == 0 {
 		return nil
 	}
 
-	if err := n.driver.store.DeleteObjectAtomic(n); err != nil {
-		if err == datastore.ErrKeyModified || err == datastore.ErrKeyNotFound {
-			// In both the above cases we can safely assume that the key has been removed by some other
-			// instance and so simply get out of here
-			return nil
-		}
+	if n.driver.store != nil {
+		if err := n.driver.store.DeleteObjectAtomic(n); err != nil {
+			if err == datastore.ErrKeyModified || err == datastore.ErrKeyNotFound {
+				// In both the above cases we can safely assume that the key has been removed by some other
+				// instance and so simply get out of here
+				return nil
+			}
 
-		return fmt.Errorf("failed to delete network to vxlan id map: %v", err)
+			return fmt.Errorf("failed to delete network to vxlan id map: %v", err)
+		}
 	}
 
 	for _, s := range n.subnets {
-		n.driver.vxlanIdm.Release(uint64(n.vxlanID(s)))
+		if n.driver.vxlanIdm != nil {
+			n.driver.vxlanIdm.Release(uint64(n.vxlanID(s)))
+		}
+
 		n.setVxlanID(s, 0)
 	}
+
 	return nil
 }
 
@@ -611,7 +671,7 @@ func (n *network) obtainVxlanID(s *subnet) error {
 	}
 
 	if n.driver.store == nil {
-		return fmt.Errorf("no datastore configured. cannot obtain vxlan id")
+		return fmt.Errorf("no valid vxlan id and no datastore configured, cannot obtain vxlan id")
 	}
 
 	for {
