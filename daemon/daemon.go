@@ -6,6 +6,7 @@
 package daemon
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -1337,6 +1338,11 @@ func (daemon *Daemon) initDiscovery(config *Config) error {
 func (daemon *Daemon) Reload(config *Config) error {
 	daemon.configStore.reloadLock.Lock()
 	defer daemon.configStore.reloadLock.Unlock()
+
+	if err := daemon.reloadClusterDiscovery(config); err != nil {
+		return err
+	}
+
 	if config.IsValueSet("labels") {
 		daemon.configStore.Labels = config.Labels
 	}
@@ -1370,7 +1376,26 @@ func (daemon *Daemon) Reload(config *Config) error {
 		daemon.uploadManager.SetConcurrency(*daemon.configStore.MaxConcurrentUploads)
 	}
 
-	return daemon.reloadClusterDiscovery(config)
+	// We emit daemon reload event here with updatable configurations
+	attributes := map[string]string{}
+	attributes["debug"] = fmt.Sprintf("%t", daemon.configStore.Debug)
+	attributes["cluster-store"] = daemon.configStore.ClusterStore
+	if daemon.configStore.ClusterOpts != nil {
+		opts, _ := json.Marshal(daemon.configStore.ClusterOpts)
+		attributes["cluster-store-opts"] = string(opts)
+	} else {
+		attributes["cluster-store-opts"] = "{}"
+	}
+	attributes["cluster-advertise"] = daemon.configStore.ClusterAdvertise
+	if daemon.configStore.Labels != nil {
+		labels, _ := json.Marshal(daemon.configStore.Labels)
+		attributes["labels"] = string(labels)
+	} else {
+		attributes["labels"] = "[]"
+	}
+	daemon.LogDaemonEventWithAttributes("reload", attributes)
+
+	return nil
 }
 
 func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {

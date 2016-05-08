@@ -2420,6 +2420,10 @@ Docker networks report the following events:
 
     create, connect, disconnect, destroy
 
+Docker daemon report the following event:
+
+    reload
+
 **Example request**:
 
     GET /events?since=1374067924

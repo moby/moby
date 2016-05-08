@@ -35,6 +35,10 @@ Docker networks report the following events:
 
     create, connect, disconnect, destroy
 
+Docker daemon report the following events:
+
+    reload
+
 The `--since` and `--until` parameters can be Unix timestamps, date formatted
 timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed
 relative to the client machine’s time. If you do not provide the `--since` option,
