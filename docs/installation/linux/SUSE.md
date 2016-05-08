@@ -22,12 +22,12 @@ You must be running a 64 bit architecture.
 
 ## Add Repositories
 
-### openSUSE
+#### openSUSE
 
 Docker is part of the official openSUSE repositories starting from 13.2. No
 additional repository is required on your system.
 
-### SUSE Linux Enterprise
+#### SUSE Linux Enterprise
 
 Docker is officially supported on SUSE Linux Enterprise 12 and later. You can find the latest supported Docker packages inside the `Container` module. To enable this module, do the following:
 
@@ -60,19 +60,19 @@ The following should be executed in a root console
 
         # systemctl start docker
 
-3. Test the Docker installation.
+3. Test the Docker installation(optional).
 
         # docker run hello-world
 
 ## Configure Docker boot options
 
-You can use these steps on openSUSE or SUSE Linux Enterprise. To start the `docker daemon` at boot, set the following:
+You can use these steps on openSUSE or SUSE Linux Enterprise. To start the `docker daemon` at boot(advisable), set the following:
 
     # systemctl enable docker
 
 The `docker` package creates a new group named `docker`. Although not recommended, it's possible to add ordinary User accounts to this group so these Users have full docker administrative rights so can execute docker commands, including creating, managing, modifying and deleting. 
 
-You can add users with the following command:
+You can add users to be granted docker administrative rights with the following command:
 
     # /usr/sbin/usermod -a -G docker <username>
 
@@ -80,13 +80,13 @@ Once you add a user, the User must log out and back in to pick up these new perm
 
 ## Enable external network access
 
-Configuring a container's outbound networking is simple and typically only requires attaching to a network object with external network properties.
+Configuring a container's **outbound** networking is simple and typically only requires attaching to a network object with external network properties.
 
 For instance:
 
     # docker run -it opensuse net=host /bin/bash
 
-Configuring inbound access might be as easy as sharing the Host's network interface and configuring an unused port, or if your container is to have its own network interface, then you must also configure IP Forwarding on the Host to your container's interface.
+Configuring **inbound** access might be as easy as sharing the Host's network interface and configuring an unused port, or if your container is to have its own network interface, then you must also configure IP Forwarding on the Host to your container's interface.
 
 Configuring this `net.ipv4.ip_forward` rule is best accomplished using YaST as follows...
 
@@ -100,11 +100,12 @@ You should edit the `/etc/sysconfig/SuSEfirewall2` file to include the following
 
     FW_ROUTE="yes"
 
-For more container networking:</br>
+##### For more container networking:
+
 Docker Documentation for configuring container networks on a single Host</br>
-(https://docs.docker.com/engine/userguide/networking/dockernetworks/)</br>
+(ttps://docs.docker.com/engine/userguide/networking/dockernetworks/</br>
 Docker documentation for configuring container networks that span multiple Hosts</br>
-(https://docs.docker.com/engine/userguide/networking/get-started-overlay)
+(ttps://docs.docker.com/engine/userguide/networking/get-started-overlay
 
 ## Custom docker daemon options
 
