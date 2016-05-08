@@ -70,6 +70,8 @@ After installation, by default docker still needs to be started manually each ti
 
     # systemctl enable docker
 
+## Elevating an ordinary User for administering Docker
+
 The `docker` package creates a new group named `docker`. Although not recommended, it's possible to add ordinary User accounts to this group so these Users have full docker administrative rights so can execute docker commands, including creating, managing, modifying and deleting. 
 
 You can add users to be granted docker administrative rights with the following command:
