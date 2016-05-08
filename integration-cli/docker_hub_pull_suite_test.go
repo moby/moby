@@ -17,7 +17,7 @@ func init() {
 	}
 }
 
-// DockerHubPullSuite provides a isolated daemon that doesn't have all the
+// DockerHubPullSuite provides an isolated daemon that doesn't have all the
 // images that are baked into our 'global' test environment daemon (e.g.,
 // busybox, httpserver, ...).
 //
@@ -82,7 +82,7 @@ func (s *DockerHubPullSuite) CmdWithError(name string, arg ...string) (string, e
 	return string(b), err
 }
 
-// MakeCmd returns a exec.Cmd command to run against the suite daemon.
+// MakeCmd returns an exec.Cmd command to run against the suite daemon.
 func (s *DockerHubPullSuite) MakeCmd(name string, arg ...string) *exec.Cmd {
 	args := []string{"--host", s.d.sock(), name}
 	args = append(args, arg...)

@@ -123,7 +123,7 @@ func init() {
 	drivers = make(map[string]InitFunc)
 }
 
-// Register registers a InitFunc for the driver.
+// Register registers an InitFunc for the driver.
 func Register(name string, initFunc InitFunc) error {
 	if _, exists := drivers[name]; exists {
 		return fmt.Errorf("Name already registered %s", name)

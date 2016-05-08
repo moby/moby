@@ -29,7 +29,7 @@ use `docker pull`.
 
 ## Proxy configuration
 
-If you are behind a HTTP proxy server, for example in corporate settings,
+If you are behind an HTTP proxy server, for example in corporate settings,
 before open a connect to registry, you may need to configure the Docker
 daemon's proxy settings, using the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
 environment variables. To set these environment variables on a host using

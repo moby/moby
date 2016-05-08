@@ -346,7 +346,7 @@ func (s *DockerRegistrySuite) TestPsListContainersFilterAncestorImageByDigest(c 
 	// pull from the registry using the <name>@<digest> reference
 	dockerCmd(c, "pull", imageReference)
 
-	// build a image from it
+	// build an image from it
 	imageName1 := "images_ps_filter_test"
 	_, err = buildImage(imageName1, fmt.Sprintf(
 		`FROM %s

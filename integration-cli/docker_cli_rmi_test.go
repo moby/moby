@@ -270,7 +270,7 @@ func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
 // #13422
 func (s *DockerSuite) TestRmiUntagHistoryLayer(c *check.C) {
 	image := "tmp1"
-	// Build a image for testing.
+	// Build an image for testing.
 	dockerfile := `FROM busybox
 MAINTAINER foo
 RUN echo 0 #layer0

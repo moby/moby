@@ -1721,7 +1721,7 @@ With the ongoing changes to the networking and execution subsystems of docker te
 + Add -rm to docker run for removing a container on exit
 - Remove error messages which are not actually errors
 - Fix `docker rm` with volumes
-- Fix some error cases where a HTTP body might not be closed
+- Fix some error cases where an HTTP body might not be closed
 - Fix panic with wrong dockercfg file
 - Fix the attach behavior with -i
 * Record termination time in state.

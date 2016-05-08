@@ -48,7 +48,7 @@ Some of the daemon's options are:
 | `--tls=false`         | Enable or disable TLS. By default, this is false.         |
 
 
-Here is a an example of running the `docker` daemon with configuration options:
+Here is an example of running the `docker` daemon with configuration options:
 
     $ dockerd -D --tls=true --tlscert=/var/docker/server.pem --tlskey=/var/docker/serverkey.pem -H tcp://192.168.59.3:2376
 

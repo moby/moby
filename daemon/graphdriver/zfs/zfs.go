@@ -40,7 +40,7 @@ func (*Logger) Log(cmd []string) {
 }
 
 // Init returns a new ZFS driver.
-// It takes base mount path and a array of options which are represented as key value pairs.
+// It takes base mount path and an array of options which are represented as key value pairs.
 // Each option is in the for key=value. 'zfs.fsname' is expected to be a valid key in the options.
 func Init(base string, opt []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 	var err error

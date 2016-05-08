@@ -1,5 +1,5 @@
 Package mflag (aka multiple-flag) implements command-line flag parsing.  
-It's an **hacky** fork of the [official golang package](http://golang.org/pkg/flag/)
+It's a **hacky** fork of the [official golang package](http://golang.org/pkg/flag/)
 
 It adds:
 

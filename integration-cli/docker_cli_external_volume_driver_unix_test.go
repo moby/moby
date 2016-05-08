@@ -72,7 +72,7 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 	type vol struct {
 		Name       string
 		Mountpoint string
-		Ninja      bool // hack used to trigger an null volume return on `Get`
+		Ninja      bool // hack used to trigger a null volume return on `Get`
 		Status     map[string]interface{}
 	}
 	var volList []vol

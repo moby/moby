@@ -13,7 +13,7 @@ import (
 const stringCheckPS = "PID   USER"
 
 // DockerCmdWithFail executes a docker command that is supposed to fail and returns
-// the output, the exit code. If the command returns an Nil error, it will fail and
+// the output, the exit code. If the command returns a Nil error, it will fail and
 // stop the tests.
 func dockerCmdWithFail(c *check.C, args ...string) (string, int) {
 	out, status, err := dockerCmdWithError(args...)

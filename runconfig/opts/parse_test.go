@@ -614,14 +614,14 @@ func TestParseEnvfileVariables(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(config.Env) != 1 || config.Env[0] != "ENV1=value1" {
-		t.Fatalf("Expected a a config with [ENV1=value1], got %v", config.Env)
+		t.Fatalf("Expected a config with [ENV1=value1], got %v", config.Env)
 	}
 	config, _, _, _, err = parseRun([]string{"--env-file=fixtures/valid.env", "--env=ENV2=value2", "img", "cmd"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(config.Env) != 2 || config.Env[0] != "ENV1=value1" || config.Env[1] != "ENV2=value2" {
-		t.Fatalf("Expected a a config with [ENV1=value1 ENV2=value2], got %v", config.Env)
+		t.Fatalf("Expected a config with [ENV1=value1 ENV2=value2], got %v", config.Env)
 	}
 }
 
@@ -640,14 +640,14 @@ func TestParseLabelfileVariables(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(config.Labels) != 1 || config.Labels["LABEL1"] != "value1" {
-		t.Fatalf("Expected a a config with [LABEL1:value1], got %v", config.Labels)
+		t.Fatalf("Expected a config with [LABEL1:value1], got %v", config.Labels)
 	}
 	config, _, _, _, err = parseRun([]string{"--label-file=fixtures/valid.label", "--label=LABEL2=value2", "img", "cmd"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(config.Labels) != 2 || config.Labels["LABEL1"] != "value1" || config.Labels["LABEL2"] != "value2" {
-		t.Fatalf("Expected a a config with [LABEL1:value1 LABEL2:value2], got %v", config.Labels)
+		t.Fatalf("Expected a config with [LABEL1:value1 LABEL2:value2], got %v", config.Labels)
 	}
 }
 

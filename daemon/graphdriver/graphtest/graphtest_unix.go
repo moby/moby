@@ -94,7 +94,7 @@ func cleanup(t *testing.T, d *Driver) {
 	os.RemoveAll(d.root)
 }
 
-// GetDriver create a new driver with given name or return a existing driver with the name updating the reference count.
+// GetDriver create a new driver with given name or return an existing driver with the name updating the reference count.
 func GetDriver(t *testing.T, name string) graphdriver.Driver {
 	if drv == nil {
 		drv = newDriver(t, name)
@@ -172,7 +172,7 @@ func readDir(dir string) ([]os.FileInfo, error) {
 	return b, nil
 }
 
-// DriverTestCreateEmpty creates an new image and verifies it is empty and the right metadata
+// DriverTestCreateEmpty creates a new image and verifies it is empty and the right metadata
 func DriverTestCreateEmpty(t *testing.T, drivername string) {
 	driver := GetDriver(t, drivername)
 	defer PutDriver(t)

@@ -155,7 +155,7 @@ func IsNameOnly(ref Named) bool {
 	return true
 }
 
-// ParseIDOrReference parses string for a image ID or a reference. ID can be
+// ParseIDOrReference parses string for an image ID or a reference. ID can be
 // without a default prefix.
 func ParseIDOrReference(idOrRef string) (digest.Digest, Named, error) {
 	if err := v1.ValidateID(idOrRef); err == nil {
