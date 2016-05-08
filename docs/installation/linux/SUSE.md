@@ -130,8 +130,7 @@ To uninstall the Docker package:
     # zypper rm docker
 
 The above command does not remove images, containers, volumes, or user created
-configuration files on your host. If you wish to delete all images, containers,
-and volumes run the following command:
+configuration files on your host. If your User-created assets are still stored in their default locations (see "docker daemon options" above which can change) and you wish to delete them all,  run the following command:
 
     # rm -rf /var/lib/docker
 
