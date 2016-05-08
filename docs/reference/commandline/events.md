@@ -72,9 +72,10 @@ The currently supported filters are:
 * event (`event=<event action>`)
 * image (`image=<tag or id>`)
 * label (`label=<key>` or `label=<key>=<value>`)
-* type (`type=<container or image or volume or network>`)
+* type (`type=<container or image or volume or network or daemon>`)
 * volume (`volume=<name or id>`)
 * network (`network=<name or id>`)
+* daemon (`daemon=<name or id>`)
 
 ## Examples
 

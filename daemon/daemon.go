@@ -1393,6 +1393,8 @@ func (daemon *Daemon) Reload(config *Config) error {
 	} else {
 		attributes["labels"] = "[]"
 	}
+	attributes["max-concurrent-downloads"] = fmt.Sprintf("%d", *daemon.configStore.MaxConcurrentDownloads)
+	attributes["max-concurrent-uploads"] = fmt.Sprintf("%d", *daemon.configStore.MaxConcurrentUploads)
 	daemon.LogDaemonEventWithAttributes("reload", attributes)
 
 	return nil

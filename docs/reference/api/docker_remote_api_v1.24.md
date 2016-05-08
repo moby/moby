@@ -2593,9 +2593,10 @@ Query Parameters:
   -   `event=<string>`; -- event to filter
   -   `image=<string>`; -- image to filter
   -   `label=<string>`; -- image and container label to filter
-  -   `type=<string>`; -- either `container` or `image` or `volume` or `network`
+  -   `type=<string>`; -- either `container` or `image` or `volume` or `network` or `daemon`
   -   `volume=<string>`; -- volume to filter
   -   `network=<string>`; -- network to filter
+  -   `daemon=<string>`; -- daemon name or id to filter
 
 Status Codes:
 
