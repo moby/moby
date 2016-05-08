@@ -72,9 +72,11 @@ After installation, by default docker still needs to be started manually each ti
 
 ## Elevating an ordinary User for administering Docker
 
-The `docker` package creates a new group named `docker`. Although not recommended, it's possible to add ordinary User accounts to this group so these Users have full docker administrative rights so can execute docker commands, including creating, managing, modifying and deleting. 
+This section describes elevating a normal User account with near-root permissions which can lead to your network and perhaps multiple machines in your network being "owned." Consider the implications of this in your situation before proceeding.
 
-You can add users to be granted docker administrative rights with the following command:
+When the docker package is installed, a new group named `docker` is created. When ordinary User accounts are added to this group, they will have full docker administrative rights so can execute docker commands, including creating, managing, modifying and deleting. 
+
+You can add users to be granted docker administrative rights either through YAST or with the following command:
 
     # /usr/sbin/usermod -a -G docker <username>
 
