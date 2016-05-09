@@ -167,7 +167,7 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container, n libn
 		libnetwork.OptionPortMapping(pbList),
 		libnetwork.OptionExposedPorts(exposeList))
 
-	// Link feature is supported only for the default bridge network.
+	// Legacy Link feature is supported only for the default bridge network.
 	// return if this call to build join options is not for default bridge network
 	if n.Name() != defaultNetName {
 		return sboxOptions, nil

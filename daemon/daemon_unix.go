@@ -977,7 +977,6 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 		}
 		child, err := daemon.GetContainer(name)
 		if err != nil {
-			//An error from daemon.GetContainer() means this name could not be found
 			return fmt.Errorf("Could not get container for %s", name)
 		}
 		for child.HostConfig.NetworkMode.IsContainer() {
