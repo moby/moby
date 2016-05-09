@@ -39,6 +39,15 @@ using `CTRL-p CTRL-q` key sequence.
 It is forbidden to redirect the standard input of a `docker attach` command
 while attaching to a tty-enabled container (i.e.: launched with `-t`).
 
+While a client is connected to container's stdio using `docker attach`, Docker 
+uses a ~1MB memory buffer to maximize the throughput of the application. If 
+this buffer is filled, the speed of the API connection will start to have an 
+effect on the process output writing speed. This is similar to other 
+applications like SSH. Because of this, it is not recommended to run 
+performance critical applications that generate a lot of output in the 
+foreground over a slow client connection. Instead, users should use the 
+`docker logs` command to get access to the logs.
+
 
 ## Override the detach sequence
 
