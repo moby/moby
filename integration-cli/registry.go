@@ -12,36 +12,80 @@ import (
 	"github.com/go-check/check"
 )
 
-const v2binary = "registry-v2"
+const (
+	v2binary        = "registry-v2"
+	v2binarySchema1 = "registry-v2-schema1"
+)
 
 type testRegistryV2 struct {
-	cmd *exec.Cmd
-	dir string
+	cmd      *exec.Cmd
+	dir      string
+	auth     string
+	username string
+	password string
+	email    string
 }
 
-func newTestRegistryV2(c *check.C) (*testRegistryV2, error) {
+func newTestRegistryV2(c *check.C, schema1 bool, auth, tokenURL string) (*testRegistryV2, error) {
+	tmp, err := ioutil.TempDir("", "registry-test-")
+	if err != nil {
+		return nil, err
+	}
 	template := `version: 0.1
 loglevel: debug
 storage:
     filesystem:
         rootdirectory: %s
 http:
-    addr: %s`
-	tmp, err := ioutil.TempDir("", "registry-test-")
-	if err != nil {
-		return nil, err
+    addr: %s
+%s`
+	var (
+		authTemplate string
+		username     string
+		password     string
+		email        string
+	)
+	switch auth {
+	case "htpasswd":
+		htpasswdPath := filepath.Join(tmp, "htpasswd")
+		// generated with: htpasswd -Bbn testuser testpassword
+		userpasswd := "testuser:$2y$05$sBsSqk0OpSD1uTZkHXc4FeJ0Z70wLQdAX/82UiHuQOKbNbBrzs63m"
+		username = "testuser"
+		password = "testpassword"
+		email = "test@test.org"
+		if err := ioutil.WriteFile(htpasswdPath, []byte(userpasswd), os.FileMode(0644)); err != nil {
+			return nil, err
+		}
+		authTemplate = fmt.Sprintf(`auth:
+    htpasswd:
+        realm: basic-realm
+        path: %s
+`, htpasswdPath)
+	case "token":
+		authTemplate = fmt.Sprintf(`auth:
+    token:
+        realm: %s
+        service: "registry"
+        issuer: "auth-registry"
+        rootcertbundle: "fixtures/registry/cert.pem"
+`, tokenURL)
 	}
+
 	confPath := filepath.Join(tmp, "config.yaml")
 	config, err := os.Create(confPath)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := fmt.Fprintf(config, template, tmp, privateRegistryURL); err != nil {
+	if _, err := fmt.Fprintf(config, template, tmp, privateRegistryURL, authTemplate); err != nil {
 		os.RemoveAll(tmp)
 		return nil, err
 	}
 
-	cmd := exec.Command(v2binary, confPath)
+	binary := v2binary
+	if schema1 {
+		binary = v2binarySchema1
+	}
+	cmd := exec.Command(binary, confPath)
 	if err := cmd.Start(); err != nil {
 		os.RemoveAll(tmp)
 		if os.IsNotExist(err) {
@@ -50,8 +94,12 @@ http:
 		return nil, err
 	}
 	return &testRegistryV2{
-		cmd: cmd,
-		dir: tmp,
+		cmd:      cmd,
+		dir:      tmp,
+		auth:     auth,
+		username: username,
+		password: password,
+		email:    email,
 	}, nil
 }
 
@@ -61,7 +109,14 @@ func (t *testRegistryV2) Ping() error {
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != 200 {
+	resp.Body.Close()
+
+	fail := resp.StatusCode != http.StatusOK
+	if t.auth != "" {
+		// unauthorized is a _good_ status when pinging v2/ and it needs auth
+		fail = fail && resp.StatusCode != http.StatusUnauthorized
+	}
+	if fail {
 		return fmt.Errorf("registry ping replied with an unexpected status code %d", resp.StatusCode)
 	}
 	return nil

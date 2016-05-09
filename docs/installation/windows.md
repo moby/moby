@@ -4,7 +4,8 @@ title = "Installation on Windows"
 description = "Docker installation on Microsoft Windows"
 keywords = ["Docker, Docker documentation, Windows, requirements, virtualbox,  boot2docker"]
 [menu.main]
-parent = "smn_engine"
+parent = "engine_install"
+weight="-80"
 +++
 <![end-metadata]-->
 
@@ -25,17 +26,18 @@ You install Docker using Docker Toolbox. Docker Toolbox includes the following D
 Because the Docker daemon uses Linux-specific kernel features, you can't run
 Docker natively in Windows. Instead, you must use `docker-machine` to create and attach to a Docker VM on your machine. This VM hosts Docker for you on your Windows system.
 
-The Docker VM is lightweight Linux virtual machine made specifically to run the
-Docker daemon on Windows. The VirtualBox VM runs completely from RAM, is a
-small ~24MB download, and boots in approximately 5s.
+The virtual machine runs a lightweight Linux distribution made specifically to
+run the Docker daemon. The VirtualBox VM runs completely from RAM, is a small
+~24MB download, and boots in approximately 5s.
 
 ## Requirements
 
-Your machine must be running Windows 7, 8/8.1 or newer to run Docker. Windows 10 is not currently supported. To find out what version of Windows you have:
+To run Docker, your machine must have a 64-bit operating system running Windows 7 or higher. Additionally, you must make sure that virtualization is enabled on your machine.
+To verify your machine meets these requirements, do the following:
 
 1. Right click the Windows Start Menu and choose **System**.
 
-    ![Which version](/installation/images/win_ver.png)
+    ![Which version](images/win_ver.png)
 
     If you are using an unsupported version of Windows, you should consider
     upgrading your operating system in order to try out Docker.
@@ -43,12 +45,12 @@ Your machine must be running Windows 7, 8/8.1 or newer to run Docker. Windows 10
 2. Make sure your CPU supports [virtualization technology](https://en.wikipedia.org/wiki/X86_virtualization)
 and virtualization support is enabled in BIOS and recognized by Windows.
 
-    #### For Windows 8 or 8.1
+    #### For Windows 8, 8.1 or 10
 
-	  Choose **Start > Task Manager** and navigate to the **Performance** tab.
+	  Choose **Start > Task Manager**. On Windows 10, click more details. Navigate to the **Performance** tab.
 	  Under **CPU** you should see the following:
 
-      ![Release page](/installation/images/virtualization.png)
+      ![Release page](images/virtualization.png)
 
     If virtualization is not enabled on your system, follow the manufacturer's instructions for enabling it.
 
@@ -59,10 +61,15 @@ and virtualization support is enabled in BIOS and recognized by Windows.
 	  target="_blank"> Microsoft® Hardware-Assisted Virtualization Detection
 	  Tool</a> and follow the on-screen instructions.
 
+3. Verify your Windows OS is 64-bit (x64)
+
+   How you do this verification depends on your Windows version.  For details, see the Windows
+    article [How to determine whether a computer is running a 32-bit version or 64-bit version
+    of the Windows operating system](https://support.microsoft.com/en-us/kb/827218).
 
 > **Note**: If you have Docker hosts running and you don't wish to do a Docker Toolbox
 installation, you can install the `docker.exe` using the *unofficial* Windows package
-manager Chocolately. For information on how to do this, see [Docker package on
+manager Chocolatey. For information on how to do this, see [Docker package on
 Chocolatey](http://chocolatey.org/packages/docker).
 
 ### Learn the key concepts before installing
@@ -76,13 +83,13 @@ containers run directly on your localhost. This means you can address ports on a
 Docker container using standard localhost addressing such as `localhost:8000` or
 `0.0.0.0:8376`.
 
-![Linux Architecture Diagram](/installation/images/linux_docker_host.svg)
+![Linux Architecture Diagram](images/linux_docker_host.svg)
 
 In an Windows installation, the `docker` daemon is running inside a Linux virtual
 machine. You use the Windows Docker client to talk to the Docker host VM. Your
 Docker containers run inside this host.
 
-![Windows Architecture Diagram](/installation/images/win_docker_host.svg)
+![Windows Architecture Diagram](images/win_docker_host.svg)
 
 In Windows, the Docker host address is the address of the Linux VM. When you
 start the VM with `docker-machine` it is assigned an IP address. When you start
@@ -103,7 +110,7 @@ installer.
 
     The installer launches the "Setup - Docker Toolbox" dialog.
 
-    ![Install Docker Toolbox](/installation/images/win-welcome.png)
+    ![Install Docker Toolbox](images/win-welcome.png)
 
 4. Press "Next" to install the toolbox.
 
@@ -122,14 +129,14 @@ installer.
 
      The system prompts you for your password.
 
-     ![Install](/installation/images/win-page-6.png)
+     ![Install](images/win-page-6.png)
 
 6. Press "Install"  to continue with the installation.
 
      When it completes, the installer provides you with some information you can
      use to complete some common tasks.
 
-     ![All finished](/installation/images/windows-finish.png)
+     ![All finished](images/windows-finish.png)
 
 7. Press "Finish" to exit.
 
@@ -137,9 +144,9 @@ installer.
 
 To run a Docker container, you:
 
-* create a new (or start an existing) Docker virtual machine
-* switch your environment to your new VM
-* use the `docker` client to create, load, and manage containers
+* Create a new (or start an existing) Docker virtual machine
+* Switch your environment to your new VM
+* Use the `docker` client to create, load, and manage containers
 
 Once you create a machine, you can reuse it as often as you like. Like any
 VirtualBox VM, it maintains its configuration between uses.
@@ -153,9 +160,9 @@ There are several ways to use the installed tools, from the Docker Quickstart Te
 
     The application:
 
-    * opens a terminal window
-    * creates a `default` VM if it doesn't exist, and starts the VM after
-    * points the terminal environment to this VM
+    * Opens a terminal window
+    * Creates a `default` VM if it doesn't exist, and starts the VM after
+    * Points the terminal environment to this VM
 
     Once the launch completes, you can run `docker` commands.
 
@@ -317,7 +324,7 @@ and what it does:
 
 ## Upgrade Docker Toolbox
 
-To upgrade Docker Toolbox, download an re-run [the Docker Toolbox
+To upgrade Docker Toolbox, download and re-run [the Docker Toolbox
 installer](https://www.docker.com/toolbox).
 
 ## Container port redirection
@@ -338,17 +345,22 @@ reported to you using:
 Typically, the IP is 192.168.59.103, but it could get changed by VirtualBox's
 DHCP implementation.
 
+> **Note**: There is a [known
+> issue](https://docs.docker.com/machine/drivers/virtualbox/#known-issues) that
+> may cause files shared with your nginx container to not update correctly as you
+> modify them on your host.
+
 ## Login with PUTTY instead of using the CMD
 
 Docker Machine generates and uses the public/private key pair in your
-`%USERPROFILE%\.ssh` directory so to log in you need to use the private key from
-this same directory. The private key needs to be converted into the format PuTTY
-uses. You can do this with
+`%USERPROFILE%\.docker\machine\machines\<name_of_your_machine>` directory. To
+log in you need to use the private key from this same directory. The private key
+needs to be converted into the format PuTTY uses. You can do this with
 [puttygen](http://www.chiark.greenend.org.uk/~sgtatham/putty/download.html):
 
-1. Open `puttygen.exe` and load ("File"->"Load" menu) the private key from
+1. Open `puttygen.exe` and load ("File"->"Load" menu) the private key from (you may need to change to the `All Files (*.*)` filter)
 
-        %USERPROFILE%\.docker\machine\machines\<name_of_your_machine>
+        %USERPROFILE%\.docker\machine\machines\<name_of_your_machine>\id_rsa
 
 2. Click "Save Private Key".
 
@@ -362,6 +374,6 @@ delete that file yourself.
 
 ## Learn more
 
-You can continue with the [Docker User Guide](/userguide). If you are
+You can continue with the [Docker Engine User Guide](../userguide/index.md). If you are
 interested in using the Kitematic GUI, see the [Kitematic user
-guide](/kitematic/userguide/).
+guide](https://docs.docker.com/kitematic/userguide/).

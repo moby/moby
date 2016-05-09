@@ -23,8 +23,7 @@ func toShort(path string) (string, error) {
 	}
 	if n > uint32(len(b)) {
 		b = make([]uint16, n)
-		n, err = syscall.GetShortPathName(&p[0], &b[0], uint32(len(b)))
-		if err != nil {
+		if _, err = syscall.GetShortPathName(&p[0], &b[0], uint32(len(b))); err != nil {
 			return "", err
 		}
 	}
@@ -91,7 +90,7 @@ func walkSymlinks(path string) (string, error) {
 			return "", errors.New("EvalSymlinks: too many links in " + originalPath)
 		}
 
-		// A path beginnging with `\\?\` represents the root, so automatically
+		// A path beginning with `\\?\` represents the root, so automatically
 		// skip that part and begin processing the next segment.
 		if strings.HasPrefix(path, longpath.Prefix) {
 			b.WriteString(longpath.Prefix)

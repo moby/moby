@@ -15,12 +15,14 @@ type JSONLog struct {
 	Stream string `json:"stream,omitempty"`
 	// Created is the created timestamp of log
 	Created time.Time `json:"time"`
+	// Attrs is the list of extra attributes provided by the user
+	Attrs map[string]string `json:"attrs,omitempty"`
 }
 
 // Format returns the log formatted according to format
 // If format is nil, returns the log message
-// If format is json, returns the log marshalled in json format
-// By defalut, returns the log with the log time formatted according to format.
+// If format is json, returns the log marshaled in json format
+// By default, returns the log with the log time formatted according to format.
 func (jl *JSONLog) Format(format string) (string, error) {
 	if format == "" {
 		return jl.Log, nil

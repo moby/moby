@@ -38,28 +38,31 @@ is_set_as_module() {
 	zgrep "CONFIG_$1=m" "$CONFIG" > /dev/null
 }
 
-# see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
-declare -A colors=(
-	[black]=30
-	[red]=31
-	[green]=32
-	[yellow]=33
-	[blue]=34
-	[magenta]=35
-	[cyan]=36
-	[white]=37
-)
 color() {
-	color=()
+	local codes=()
 	if [ "$1" = 'bold' ]; then
-		color+=( '1' )
+		codes=( "${codes[@]}" '1' )
 		shift
 	fi
-	if [ $# -gt 0 ] && [ "${colors[$1]}" ]; then
-		color+=( "${colors[$1]}" )
+	if [ "$#" -gt 0 ]; then
+		local code=
+		case "$1" in
+			# see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
+			black) code=30 ;;
+			red) code=31 ;;
+			green) code=32 ;;
+			yellow) code=33 ;;
+			blue) code=34 ;;
+			magenta) code=35 ;;
+			cyan) code=36 ;;
+			white) code=37 ;;
+		esac
+		if [ "$code" ]; then
+			codes=( "${codes[@]}" "$code" )
+		fi
 	fi
 	local IFS=';'
-	echo -en '\033['"${color[*]}"m
+	echo -en '\033['"${codes[*]}"'m'
 }
 wrap_color() {
 	text="$1"
@@ -109,6 +112,17 @@ check_device() {
 		wrap_good "$1" 'present'
 	else
 		wrap_bad "$1" 'missing'
+	fi
+}
+
+check_distro_userns() {
+	source /etc/os-release 2>/dev/null || /bin/true
+	if [[ "${ID}" =~ ^(centos|rhel)$ && "${VERSION_ID}" =~ ^7 ]]; then
+		# this is a CentOS7 or RHEL7 system
+		grep -q "user_namespace.enable=1" /proc/cmdline || {
+			# no user namespace support enabled
+			wrap_bad "  (RHEL7/CentOS7" "User namespaces disabled; add 'user_namespace.enable=1' to boot command line)"
+		}
 	fi
 }
 
@@ -168,6 +182,7 @@ flags=(
 	NAMESPACES {NET,PID,IPC,UTS}_NS
 	DEVPTS_MULTIPLE_INSTANCES
 	CGROUPS CGROUP_CPUACCT CGROUP_DEVICE CGROUP_FREEZER CGROUP_SCHED CPUSETS MEMCG
+	KEYS
 	MACVLAN VETH BRIDGE BRIDGE_NETFILTER
 	NF_NAT_IPV4 IP_NF_FILTER IP_NF_TARGET_MASQUERADE
 	NETFILTER_XT_MATCH_{ADDRTYPE,CONNTRACK}
@@ -180,6 +195,16 @@ check_flags "${flags[@]}"
 echo
 
 echo 'Optional Features:'
+{
+	check_flags USER_NS
+	check_distro_userns
+}
+{
+	check_flags SECCOMP
+}
+{
+	check_flags CGROUP_PIDS
+}
 {
 	check_flags MEMCG_KMEM MEMCG_SWAP MEMCG_SWAP_ENABLED
 	if  is_set MEMCG_SWAP && ! is_set MEMCG_SWAP_ENABLED; then
@@ -198,7 +223,7 @@ else
 fi
 
 flags=(
-	BLK_CGROUP IOSCHED_CFQ BLK_DEV_THROTTLING
+	BLK_CGROUP BLK_DEV_THROTTLING IOSCHED_CFQ CFQ_GROUP_IOSCHED
 	CGROUP_PERF
 	CGROUP_HUGETLB
 	NET_CLS_CGROUP $netprio
@@ -215,6 +240,12 @@ check_flags EXT4_FS EXT4_FS_POSIX_ACL EXT4_FS_SECURITY
 if ! is_set EXT4_FS || ! is_set EXT4_FS_POSIX_ACL || ! is_set EXT4_FS_SECURITY; then
 	echo "    $(wrap_color 'enable these ext4 configs if you are using ext4 as backing filesystem' bold black)"
 fi
+
+echo '- Network Drivers:'
+{
+	echo '- "'$(wrap_color 'overlay' blue)'":'
+	check_flags VXLAN | sed 's/^/  /'
+} | sed 's/^/  /'
 
 echo '- Storage Drivers:'
 {
@@ -240,6 +271,3 @@ echo '- Storage Drivers:'
 } | sed 's/^/  /'
 echo
 
-#echo 'Potential Future Features:'
-#check_flags USER_NS
-#echo

@@ -168,7 +168,7 @@ func TestSubtreeShared(t *testing.T) {
 		}
 	}()
 
-	// NOW, check that the file from the outside directory is avaible in the source directory
+	// NOW, check that the file from the outside directory is available in the source directory
 	if _, err := os.Stat(sourceCheckPath); err != nil {
 		t.Fatal(err)
 	}

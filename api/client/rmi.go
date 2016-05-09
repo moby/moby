@@ -1,20 +1,22 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 
-	"github.com/docker/docker/api/types"
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/engine-api/types"
 )
 
 // CmdRmi removes all images with the specified name(s).
 //
 // Usage: docker rmi [OPTIONS] IMAGE [IMAGE...]
 func (cli *DockerCli) CmdRmi(args ...string) error {
-	cmd := Cli.Subcmd("rmi", []string{"IMAGE [IMAGE...]"}, "Remove one or more images", true)
+	cmd := Cli.Subcmd("rmi", []string{"IMAGE [IMAGE...]"}, Cli.DockerCommands["rmi"].Description, true)
 	force := cmd.Bool([]string{"f", "-force"}, false, "Force removal of the image")
 	noprune := cmd.Bool([]string{"-no-prune"}, false, "Do not delete untagged parents")
 	cmd.Require(flag.Min, 1)
@@ -29,22 +31,17 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 		v.Set("noprune", "1")
 	}
 
-	var errNames []string
-	for _, name := range cmd.Args() {
-		serverResp, err := cli.call("DELETE", "/images/"+name+"?"+v.Encode(), nil, nil)
+	var errs []string
+	for _, image := range cmd.Args() {
+		options := types.ImageRemoveOptions{
+			Force:         *force,
+			PruneChildren: !*noprune,
+		}
+
+		dels, err := cli.client.ImageRemove(context.Background(), image, options)
 		if err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
-			errNames = append(errNames, name)
+			errs = append(errs, err.Error())
 		} else {
-			defer serverResp.body.Close()
-
-			dels := []types.ImageDelete{}
-			if err := json.NewDecoder(serverResp.body).Decode(&dels); err != nil {
-				fmt.Fprintf(cli.err, "%s\n", err)
-				errNames = append(errNames, name)
-				continue
-			}
-
 			for _, del := range dels {
 				if del.Deleted != "" {
 					fmt.Fprintf(cli.out, "Deleted: %s\n", del.Deleted)
@@ -54,8 +51,8 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 			}
 		}
 	}
-	if len(errNames) > 0 {
-		return fmt.Errorf("Error: failed to remove images: %v", errNames)
+	if len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, "\n"))
 	}
 	return nil
 }

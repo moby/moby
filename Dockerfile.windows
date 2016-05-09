@@ -1,0 +1,89 @@
+# This file describes the standard way to build Docker, using a docker container on Windows
+# Server 2016
+#
+# Usage:
+#
+# # Assemble the full dev environment. This is slow the first time. Run this from
+# # a directory containing the sources you are validating. For example from
+# # c:\go\src\github.com\docker\docker
+#
+# docker build -t docker -f Dockerfile.windows .
+#
+#
+# # Build docker in a container. Run the following from a Windows cmd command prommpt,
+# # replacing c:\built with the directory you want the binaries to be placed on the
+# # host system.
+#
+# docker run --rm -v "c:\built:c:\target" docker sh -c 'cd /c/go/src/github.com/docker/docker; hack/make.sh binary; ec=$?; if [ $ec -eq 0 ]; then robocopy /c/go/src/github.com/docker/docker/bundles/$(cat VERSION)/binary /c/target/binary; fi; exit $ec'
+#
+# Important notes:
+# ---------------
+#
+# The posix utilities from GIT aren't usable interactively as at January 2016. This
+# is because they require a console window which isn't present in a container in Windows.
+# See the example at the top of this file. Do NOT use -it in that docker run!!!
+#
+# Don't try to use a volume for passing the source through. The posix utilities will
+# balk at reparse points. Again, see the example at the top of this file on how use a volume
+# to get the built binary out of the container.
+#
+# The steps are minimised dramatically to improve performance
+
+FROM windowsservercore
+
+# Environment variable notes:
+#  - GO_VERSION must consistent with 'Dockerfile' used by Linux'.
+#  - FROM_DOCKERFILE is used for detection of building within a container.
+ENV GO_VERSION=1.5.3 \
+    GIT_LOCATION=https://github.com/git-for-windows/git/releases/download/v2.7.2.windows.1/Git-2.7.2-64-bit.exe \
+    GOPATH=C:/go;C:/go/src/github.com/docker/docker/vendor \
+    FROM_DOCKERFILE=1
+
+WORKDIR c:/
+
+# Everything downloaded/installed in one go (better performance, esp on TP4)
+RUN \
+ setx /M Path "c:\git\cmd;c:\git\bin;c:\git\usr\bin;%Path%;c:\gcc\bin;c:\go\bin" && \
+ setx GOROOT "c:\go" && \
+ powershell -command \
+  $ErrorActionPreference = 'Stop'; \
+  Function Download-File([string] $source, [string] $target) { \
+   $wc = New-Object net.webclient; $wc.Downloadfile($source, $target) \
+  } \
+  \
+  Write-Host INFO: Downloading git...; \
+  Download-File %GIT_LOCATION% gitsetup.exe; \
+  \
+  Write-Host INFO: Downloading go...; \
+  Download-File https://storage.googleapis.com/golang/go%GO_VERSION%.windows-amd64.msi go.msi; \
+  \
+  Write-Host INFO: Downloading compiler 1 of 3...; \
+  Download-File https://raw.githubusercontent.com/jhowardmsft/docker-tdmgcc/master/gcc.zip gcc.zip; \
+  \
+  Write-Host INFO: Downloading compiler 2 of 3...; \
+  Download-File https://raw.githubusercontent.com/jhowardmsft/docker-tdmgcc/master/runtime.zip runtime.zip; \
+  \
+  Write-Host INFO: Downloading compiler 3 of 3...; \
+  Download-File https://raw.githubusercontent.com/jhowardmsft/docker-tdmgcc/master/binutils.zip binutils.zip; \
+  \
+  Write-Host INFO: Installing git...; \
+  Start-Process gitsetup.exe -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS /DIR=c:\git\' -Wait; \
+  \
+  Write-Host INFO: Installing go..."; \
+  Start-Process msiexec -ArgumentList '-i go.msi -quiet' -Wait; \
+  \
+  Write-Host INFO: Unzipping compiler...; \
+  c:\git\usr\bin\unzip.exe -q -o gcc.zip -d /c/gcc; \
+  c:\git\usr\bin\unzip.exe -q -o runtime.zip -d /c/gcc; \
+  c:\git\usr\bin\unzip.exe -q -o binutils.zip -d /c/gcc"; \
+  \
+  Write-Host INFO: Removing interim files; \
+  Remove-Item *.zip; \
+  Remove-Item go.msi; \
+  Remove-Item gitsetup.exe; \
+  \
+  Write-Host INFO: Completed
+
+# Prepare for building
+COPY . /go/src/github.com/docker/docker
+

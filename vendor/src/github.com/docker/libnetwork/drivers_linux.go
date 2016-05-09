@@ -9,11 +9,14 @@ import (
 )
 
 func getInitializers() []initializer {
-	return []initializer{
+	in := []initializer{
 		{bridge.Init, "bridge"},
 		{host.Init, "host"},
 		{null.Init, "null"},
 		{remote.Init, "remote"},
 		{overlay.Init, "overlay"},
 	}
+
+	in = append(in, additionalDrivers()...)
+	return in
 }

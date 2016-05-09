@@ -9,11 +9,14 @@ import (
 )
 
 type Manager interface {
-	// Apply cgroup configuration to the process with the specified pid
+	// Applies cgroup configuration to the process with the specified pid
 	Apply(pid int) error
 
 	// Returns the PIDs inside the cgroup set
 	GetPids() ([]int, error)
+
+	// Returns the PIDs inside the cgroup set & all sub-cgroups
+	GetAllPids() ([]int, error)
 
 	// Returns statistics for the cgroup set
 	GetStats() (*Stats, error)

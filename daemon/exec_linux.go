@@ -1,18 +1,26 @@
-// +build linux
-
 package daemon
 
 import (
-	"strings"
-
-	"github.com/docker/docker/daemon/execdriver/lxc"
+	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/caps"
+	"github.com/docker/docker/daemon/exec"
+	"github.com/docker/docker/libcontainerd"
 )
 
-// checkExecSupport returns an error if the exec driver does not support exec,
-// or nil if it is supported.
-func checkExecSupport(drivername string) error {
-	if strings.HasPrefix(drivername, lxc.DriverName) {
-		return lxc.ErrExec
+func execSetPlatformOpt(c *container.Container, ec *exec.Config, p *libcontainerd.Process) error {
+	if len(ec.User) > 0 {
+		uid, gid, additionalGids, err := getUser(c, ec.User)
+		if err != nil {
+			return err
+		}
+		p.User = &libcontainerd.User{
+			UID:            uid,
+			GID:            gid,
+			AdditionalGids: additionalGids,
+		}
+	}
+	if ec.Privileged {
+		p.Capabilities = caps.GetAllCapabilities()
 	}
 	return nil
 }

@@ -12,8 +12,8 @@ import (
 
 type ovNotify struct {
 	action string
-	eid    string
-	nid    string
+	ep     *endpoint
+	nw     *network
 }
 
 type logWriter struct{}
@@ -35,53 +35,20 @@ func (l *logWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func getBindAddr(ifaceName string) (string, error) {
-	iface, err := net.InterfaceByName(ifaceName)
-	if err != nil {
-		return "", fmt.Errorf("failed to find interface %s: %v", ifaceName, err)
-	}
-
-	addrs, err := iface.Addrs()
-	if err != nil {
-		return "", fmt.Errorf("failed to get interface addresses: %v", err)
-	}
-
-	for _, a := range addrs {
-		addr, ok := a.(*net.IPNet)
-		if !ok {
-			continue
-		}
-		addrIP := addr.IP
-
-		if addrIP.IsLinkLocalUnicast() {
-			continue
-		}
-
-		return addrIP.String(), nil
-	}
-
-	return "", fmt.Errorf("failed to get bind address")
-}
-
 func (d *driver) serfInit() error {
 	var err error
 
 	config := serf.DefaultConfig()
 	config.Init()
-	if d.ifaceName != "" {
-		bindAddr, err := getBindAddr(d.ifaceName)
-		if err != nil {
-			return fmt.Errorf("getBindAddr error: %v", err)
-		}
-		config.MemberlistConfig.BindAddr = bindAddr
-	}
+	config.MemberlistConfig.BindAddr = d.bindAddress
 
 	d.eventCh = make(chan serf.Event, 4)
 	config.EventCh = d.eventCh
 	config.UserCoalescePeriod = 1 * time.Second
 	config.UserQuiescentPeriod = 50 * time.Millisecond
 
-	config.LogOutput = logrus.StandardLogger().Out
+	config.LogOutput = &logWriter{}
+	config.MemberlistConfig.LogOutput = config.LogOutput
 
 	s, err := serf.Create(config)
 	if err != nil {
@@ -93,13 +60,6 @@ func (d *driver) serfInit() error {
 		}
 	}()
 
-	if d.neighIP != "" {
-		if _, err = s.Join([]string{d.neighIP}, false); err != nil {
-			return fmt.Errorf("Failed to join the cluster at neigh IP %s: %v",
-				d.neighIP, err)
-		}
-	}
-
 	d.serfInstance = s
 
 	d.notifyCh = make(chan ovNotify)
@@ -109,38 +69,49 @@ func (d *driver) serfInit() error {
 	return nil
 }
 
-func (d *driver) notifyEvent(event ovNotify) {
-	n := d.network(event.nid)
-	ep := n.endpoint(event.eid)
+func (d *driver) serfJoin(neighIP string) error {
+	if neighIP == "" {
+		return fmt.Errorf("no neighbor to join")
+	}
+	if _, err := d.serfInstance.Join([]string{neighIP}, false); err != nil {
+		return fmt.Errorf("Failed to join the cluster at neigh IP %s: %v",
+			neighIP, err)
+	}
+	return nil
+}
 
-	ePayload := fmt.Sprintf("%s %s %s", event.action, ep.addr.IP.String(), ep.mac.String())
+func (d *driver) notifyEvent(event ovNotify) {
+	ep := event.ep
+
+	ePayload := fmt.Sprintf("%s %s %s %s", event.action, ep.addr.IP.String(),
+		net.IP(ep.addr.Mask).String(), ep.mac.String())
 	eName := fmt.Sprintf("jl %s %s %s", d.serfInstance.LocalMember().Addr.String(),
-		event.nid, event.eid)
+		event.nw.id, ep.id)
 
 	if err := d.serfInstance.UserEvent(eName, []byte(ePayload), true); err != nil {
-		fmt.Printf("Sending user event failed: %v\n", err)
+		logrus.Errorf("Sending user event failed: %v\n", err)
 	}
 }
 
 func (d *driver) processEvent(u serf.UserEvent) {
-	fmt.Printf("Received user event name:%s, payload:%s\n", u.Name,
+	logrus.Debugf("Received user event name:%s, payload:%s\n", u.Name,
 		string(u.Payload))
 
-	var dummy, action, vtepStr, nid, eid, ipStr, macStr string
+	var dummy, action, vtepStr, nid, eid, ipStr, maskStr, macStr string
 	if _, err := fmt.Sscan(u.Name, &dummy, &vtepStr, &nid, &eid); err != nil {
 		fmt.Printf("Failed to scan name string: %v\n", err)
 	}
 
 	if _, err := fmt.Sscan(string(u.Payload), &action,
-		&ipStr, &macStr); err != nil {
+		&ipStr, &maskStr, &macStr); err != nil {
 		fmt.Printf("Failed to scan value string: %v\n", err)
 	}
 
-	fmt.Printf("Parsed data = %s/%s/%s/%s/%s\n", nid, eid, vtepStr, ipStr, macStr)
+	logrus.Debugf("Parsed data = %s/%s/%s/%s/%s/%s\n", nid, eid, vtepStr, ipStr, maskStr, macStr)
 
 	mac, err := net.ParseMAC(macStr)
 	if err != nil {
-		fmt.Printf("Failed to parse mac: %v\n", err)
+		logrus.Errorf("Failed to parse mac: %v\n", err)
 	}
 
 	if d.serfInstance.LocalMember().Addr.String() == vtepStr {
@@ -149,20 +120,20 @@ func (d *driver) processEvent(u serf.UserEvent) {
 
 	switch action {
 	case "join":
-		if err := d.peerAdd(nid, eid, net.ParseIP(ipStr), mac,
+		if err := d.peerAdd(nid, eid, net.ParseIP(ipStr), net.IPMask(net.ParseIP(maskStr).To4()), mac,
 			net.ParseIP(vtepStr), true); err != nil {
-			fmt.Printf("Peer add failed in the driver: %v\n", err)
+			logrus.Errorf("Peer add failed in the driver: %v\n", err)
 		}
 	case "leave":
-		if err := d.peerDelete(nid, eid, net.ParseIP(ipStr), mac,
+		if err := d.peerDelete(nid, eid, net.ParseIP(ipStr), net.IPMask(net.ParseIP(maskStr).To4()), mac,
 			net.ParseIP(vtepStr), true); err != nil {
-			fmt.Printf("Peer delete failed in the driver: %v\n", err)
+			logrus.Errorf("Peer delete failed in the driver: %v\n", err)
 		}
 	}
 }
 
 func (d *driver) processQuery(q *serf.Query) {
-	fmt.Printf("Received query name:%s, payload:%s\n", q.Name,
+	logrus.Debugf("Received query name:%s, payload:%s\n", q.Name,
 		string(q.Payload))
 
 	var nid, ipStr string
@@ -170,38 +141,42 @@ func (d *driver) processQuery(q *serf.Query) {
 		fmt.Printf("Failed to scan query payload string: %v\n", err)
 	}
 
-	peerMac, vtep, err := d.peerDbSearch(nid, net.ParseIP(ipStr))
+	peerMac, peerIPMask, vtep, err := d.peerDbSearch(nid, net.ParseIP(ipStr))
 	if err != nil {
 		return
 	}
 
-	q.Respond([]byte(fmt.Sprintf("%s %s", peerMac.String(), vtep.String())))
+	q.Respond([]byte(fmt.Sprintf("%s %s %s", peerMac.String(), net.IP(peerIPMask).String(), vtep.String())))
 }
 
-func (d *driver) resolvePeer(nid string, peerIP net.IP) (net.HardwareAddr, net.IP, error) {
+func (d *driver) resolvePeer(nid string, peerIP net.IP) (net.HardwareAddr, net.IPMask, net.IP, error) {
+	if d.serfInstance == nil {
+		return nil, nil, nil, fmt.Errorf("could not resolve peer: serf instance not initialized")
+	}
+
 	qPayload := fmt.Sprintf("%s %s", string(nid), peerIP.String())
 	resp, err := d.serfInstance.Query("peerlookup", []byte(qPayload), nil)
 	if err != nil {
-		return nil, nil, fmt.Errorf("resolving peer by querying the cluster failed: %v", err)
+		return nil, nil, nil, fmt.Errorf("resolving peer by querying the cluster failed: %v", err)
 	}
 
 	respCh := resp.ResponseCh()
 	select {
 	case r := <-respCh:
-		var macStr, vtepStr string
-		if _, err := fmt.Sscan(string(r.Payload), &macStr, &vtepStr); err != nil {
-			return nil, nil, fmt.Errorf("bad response %q for the resolve query: %v", string(r.Payload), err)
+		var macStr, maskStr, vtepStr string
+		if _, err := fmt.Sscan(string(r.Payload), &macStr, &maskStr, &vtepStr); err != nil {
+			return nil, nil, nil, fmt.Errorf("bad response %q for the resolve query: %v", string(r.Payload), err)
 		}
 
 		mac, err := net.ParseMAC(macStr)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to parse mac: %v", err)
+			return nil, nil, nil, fmt.Errorf("failed to parse mac: %v", err)
 		}
 
-		return mac, net.ParseIP(vtepStr), nil
+		return mac, net.IPMask(net.ParseIP(maskStr).To4()), net.ParseIP(vtepStr), nil
 
 	case <-time.After(time.Second):
-		return nil, nil, fmt.Errorf("timed out resolving peer by querying the cluster")
+		return nil, nil, nil, fmt.Errorf("timed out resolving peer by querying the cluster")
 	}
 }
 
@@ -222,7 +197,7 @@ func (d *driver) startSerfLoop(eventCh chan serf.Event, notifyCh chan ovNotify,
 			}
 
 			if err := d.serfInstance.Leave(); err != nil {
-				fmt.Printf("failed leaving the cluster: %v\n", err)
+				logrus.Errorf("failed leaving the cluster: %v\n", err)
 			}
 
 			d.serfInstance.Shutdown()
@@ -245,4 +220,14 @@ func (d *driver) startSerfLoop(eventCh chan serf.Event, notifyCh chan ovNotify,
 			d.processEvent(u)
 		}
 	}
+}
+
+func (d *driver) isSerfAlive() bool {
+	d.Lock()
+	serfInstance := d.serfInstance
+	d.Unlock()
+	if serfInstance == nil || serfInstance.State() != serf.SerfAlive {
+		return false
+	}
+	return true
 }

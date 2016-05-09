@@ -2,6 +2,9 @@ package client
 
 import (
 	"fmt"
+	"strings"
+
+	"golang.org/x/net/context"
 
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -11,22 +14,21 @@ import (
 //
 // Usage: docker pause CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdPause(args ...string) error {
-	cmd := Cli.Subcmd("pause", []string{"CONTAINER [CONTAINER...]"}, "Pause all processes within a container", true)
+	cmd := Cli.Subcmd("pause", []string{"CONTAINER [CONTAINER...]"}, Cli.DockerCommands["pause"].Description, true)
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)
 
-	var errNames []string
+	var errs []string
 	for _, name := range cmd.Args() {
-		if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/pause", name), nil, nil)); err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
-			errNames = append(errNames, name)
+		if err := cli.client.ContainerPause(context.Background(), name); err != nil {
+			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}
 	}
-	if len(errNames) > 0 {
-		return fmt.Errorf("Error: failed to pause containers: %v", errNames)
+	if len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, "\n"))
 	}
 	return nil
 }

@@ -3,7 +3,7 @@ package driverapi
 import (
 	"net"
 
-	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/discoverapi"
 )
 
 // NetworkPluginEndpointType represents the Endpoint Type used by Plugin system
@@ -11,10 +11,12 @@ const NetworkPluginEndpointType = "NetworkDriver"
 
 // Driver is an interface that every plugin driver needs to implement.
 type Driver interface {
+	discoverapi.Discover
+
 	// CreateNetwork invokes the driver method to create a network passing
 	// the network id and network specific config. The config mechanism will
 	// eventually be replaced with labels which are yet to be introduced.
-	CreateNetwork(nid string, options map[string]interface{}) error
+	CreateNetwork(nid string, options map[string]interface{}, ipV4Data, ipV6Data []IPAMData) error
 
 	// DeleteNetwork invokes the driver method to delete network passing
 	// the network id.
@@ -25,7 +27,7 @@ type Driver interface {
 	// specific config. The endpoint information can be either consumed by
 	// the driver or populated by the driver. The config mechanism will
 	// eventually be replaced with labels which are yet to be introduced.
-	CreateEndpoint(nid, eid string, epInfo EndpointInfo, options map[string]interface{}) error
+	CreateEndpoint(nid, eid string, ifInfo InterfaceInfo, options map[string]interface{}) error
 
 	// DeleteEndpoint invokes the driver method to delete an endpoint
 	// passing the network id and endpoint id.
@@ -40,35 +42,38 @@ type Driver interface {
 	// Leave method is invoked when a Sandbox detaches from an endpoint.
 	Leave(nid, eid string) error
 
+	// ProgramExternalConnectivity invokes the driver method which does the necessary
+	// programming to allow the external connectivity dictated by the passed options
+	ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error
+
+	// RevokeExternalConnectivity aks the driver to remove any external connectivity
+	// programming that was done so far
+	RevokeExternalConnectivity(nid, eid string) error
+
 	// Type returns the the type of this driver, the network type this driver manages
 	Type() string
-}
-
-// EndpointInfo provides a go interface to fetch or populate endpoint assigned network resources.
-type EndpointInfo interface {
-	// Interface returns the interface bound to the endpoint.
-	// If the value is not nil the driver is only expected to consume the interface.
-	// It is an error to try to add interface if the passed down value is non-nil
-	// If the value is nil the driver is expected to add an interface
-	Interface() InterfaceInfo
-
-	// AddInterface is used by the driver to add an interface for the endpoint.
-	// This method will return an error if the driver attempts to add interface
-	// if the Interface() method returned a non-nil value.
-	AddInterface(mac net.HardwareAddr, ipv4 net.IPNet, ipv6 net.IPNet) error
 }
 
 // InterfaceInfo provides a go interface for drivers to retrive
 // network information to interface resources.
 type InterfaceInfo interface {
+	// SetMacAddress allows the driver to set the mac address to the endpoint interface
+	// during the call to CreateEndpoint, if the mac address is not already set.
+	SetMacAddress(mac net.HardwareAddr) error
+
+	// SetIPAddress allows the driver to set the ip address to the endpoint interface
+	// during the call to CreateEndpoint, if the address is not already set.
+	// The API is to be used to assign both the IPv4 and IPv6 address types.
+	SetIPAddress(ip *net.IPNet) error
+
 	// MacAddress returns the MAC address.
 	MacAddress() net.HardwareAddr
 
 	// Address returns the IPv4 address.
-	Address() net.IPNet
+	Address() *net.IPNet
 
 	// AddressIPv6 returns the IPv6 address.
-	AddressIPv6() net.IPNet
+	AddressIPv6() *net.IPNet
 }
 
 // InterfaceNameInfo provides a go interface for the drivers to assign names
@@ -91,9 +96,12 @@ type JoinInfo interface {
 	// SetGatewayIPv6 sets the default IPv6 gateway when a container joins the endpoint.
 	SetGatewayIPv6(net.IP) error
 
-	// AddStaticRoute adds a routes to the sandbox.
-	// It may be used in addtion to or instead of a default gateway (as above).
+	// AddStaticRoute adds a route to the sandbox.
+	// It may be used in addition to or instead of a default gateway (as above).
 	AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP) error
+
+	// DisableGatewayService tells libnetwork not to provide Default GW for the container
+	DisableGatewayService()
 }
 
 // DriverCallback provides a Callback interface for Drivers into LibNetwork
@@ -104,5 +112,15 @@ type DriverCallback interface {
 
 // Capability represents the high level capabilities of the drivers which libnetwork can make use of
 type Capability struct {
-	DataScope datastore.DataScope
+	DataScope string
+}
+
+// IPAMData represents the per-network ip related
+// operational information libnetwork will send
+// to the network driver during CreateNetwork()
+type IPAMData struct {
+	AddressSpace string
+	Pool         *net.IPNet
+	Gateway      *net.IPNet
+	AuxAddresses map[string]*net.IPNet
 }

@@ -5,8 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"os"
+
+	"github.com/docker/engine-api/types"
 )
 
 type ports struct {
@@ -166,7 +167,7 @@ func TestDisplayablePorts(t *testing.T) {
 					Type:        "tcp",
 				},
 			},
-			"4.3.2.1:3322->2233/tcp, 1.2.3.4:8899->9988/udp, 1.2.3.4:8899->9988/tcp",
+			"4.3.2.1:3322->2233/tcp, 1.2.3.4:8899->9988/tcp, 1.2.3.4:8899->9988/udp",
 		},
 		{
 			[]types.Port{
@@ -187,6 +188,64 @@ func TestDisplayablePorts(t *testing.T) {
 				},
 			},
 			"9988/udp, 4.3.2.1:3322->2233/tcp, 1.2.3.4:7766->6677/tcp",
+		},
+		{
+			[]types.Port{
+				{
+					PrivatePort: 80,
+					Type:        "tcp",
+				}, {
+					PrivatePort: 1024,
+					Type:        "tcp",
+				}, {
+					PrivatePort: 80,
+					Type:        "udp",
+				}, {
+					PrivatePort: 1024,
+					Type:        "udp",
+				}, {
+					IP:          "1.1.1.1",
+					PublicPort:  80,
+					PrivatePort: 1024,
+					Type:        "tcp",
+				}, {
+					IP:          "1.1.1.1",
+					PublicPort:  80,
+					PrivatePort: 1024,
+					Type:        "udp",
+				}, {
+					IP:          "1.1.1.1",
+					PublicPort:  1024,
+					PrivatePort: 80,
+					Type:        "tcp",
+				}, {
+					IP:          "1.1.1.1",
+					PublicPort:  1024,
+					PrivatePort: 80,
+					Type:        "udp",
+				}, {
+					IP:          "2.1.1.1",
+					PublicPort:  80,
+					PrivatePort: 1024,
+					Type:        "tcp",
+				}, {
+					IP:          "2.1.1.1",
+					PublicPort:  80,
+					PrivatePort: 1024,
+					Type:        "udp",
+				}, {
+					IP:          "2.1.1.1",
+					PublicPort:  1024,
+					PrivatePort: 80,
+					Type:        "tcp",
+				}, {
+					IP:          "2.1.1.1",
+					PublicPort:  1024,
+					PrivatePort: 80,
+					Type:        "udp",
+				},
+			},
+			"80/tcp, 80/udp, 1024/tcp, 1024/udp, 1.1.1.1:1024->80/tcp, 1.1.1.1:1024->80/udp, 2.1.1.1:1024->80/tcp, 2.1.1.1:1024->80/udp, 1.1.1.1:80->1024/tcp, 1.1.1.1:80->1024/udp, 2.1.1.1:80->1024/tcp, 2.1.1.1:80->1024/udp",
 		},
 	}
 
@@ -251,7 +310,7 @@ func TestLoadOrCreateTrustKeyCreateKey(t *testing.T) {
 	}
 
 	// With the need to create the folder hierarchy as tmpKeyFie is in a path
-	// where some folder do not exists.
+	// where some folders do not exist.
 	tmpKeyFile = filepath.Join(tmpKeyFolderPath, "folder/hierarchy/keyfile")
 
 	if key, err := LoadOrCreateTrustKey(tmpKeyFile); err != nil || key == nil {

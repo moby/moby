@@ -1,13 +1,14 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/nat"
+	"github.com/docker/go-connections/nat"
 )
 
 // CmdPort lists port mappings for a container.
@@ -15,25 +16,13 @@ import (
 //
 // Usage: docker port CONTAINER [PRIVATE_PORT[/PROTO]]
 func (cli *DockerCli) CmdPort(args ...string) error {
-	cmd := Cli.Subcmd("port", []string{"CONTAINER [PRIVATE_PORT[/PROTO]]"}, "List port mappings for the CONTAINER, or lookup the public-facing port that\nis NAT-ed to the PRIVATE_PORT", true)
+	cmd := Cli.Subcmd("port", []string{"CONTAINER [PRIVATE_PORT[/PROTO]]"}, Cli.DockerCommands["port"].Description, true)
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)
 
-	serverResp, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, nil)
+	c, err := cli.client.ContainerInspect(context.Background(), cmd.Arg(0))
 	if err != nil {
-		return err
-	}
-
-	defer serverResp.body.Close()
-
-	var c struct {
-		NetworkSettings struct {
-			Ports nat.PortMap
-		}
-	}
-
-	if err := json.NewDecoder(serverResp.body).Decode(&c); err != nil {
 		return err
 	}
 

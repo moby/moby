@@ -21,6 +21,8 @@ func TestJSONLogsMarshalJSONBuf(t *testing.T) {
 		&JSONLogs{Log: []byte("\u2028 \u2029")}: `^{\"log\":\"\\u2028 \\u2029\",\"time\":}$`,
 		&JSONLogs{Log: []byte{0xaF}}:            `^{\"log\":\"\\ufffd\",\"time\":}$`,
 		&JSONLogs{Log: []byte{0x7F}}:            `^{\"log\":\"\x7f\",\"time\":}$`,
+		// with raw attributes
+		&JSONLogs{Log: []byte("A log line"), RawAttrs: []byte(`{"hello":"world","value":1234}`)}: `^{\"log\":\"A log line\",\"attrs\":{\"hello\":\"world\",\"value\":1234},\"time\":}$`,
 	}
 	for jsonLog, expression := range logs {
 		var buf bytes.Buffer

@@ -13,7 +13,7 @@ package devmapper
 // 	 * version number of the interface that they were
 // 	 * compiled with.
 // 	 *
-// 	 * All recognised ioctl commands (ie. those that don't
+// 	 * All recognized ioctl commands (ie. those that don't
 // 	 * return -ENOTTY) fill out this field, even if the
 // 	 * command failed.
 // 	 */

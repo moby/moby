@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -39,17 +40,15 @@ func newDockerHubPullSuite() *DockerHubPullSuite {
 func (s *DockerHubPullSuite) SetUpSuite(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	s.d = NewDaemon(c)
-	if err := s.d.Start(); err != nil {
-		c.Fatalf("starting push/pull test daemon: %v", err)
-	}
+	err := s.d.Start()
+	c.Assert(err, checker.IsNil, check.Commentf("starting push/pull test daemon: %v", err))
 }
 
 // TearDownSuite stops the suite daemon.
 func (s *DockerHubPullSuite) TearDownSuite(c *check.C) {
 	if s.d != nil {
-		if err := s.d.Stop(); err != nil {
-			c.Fatalf("stopping push/pull test daemon: %v", err)
-		}
+		err := s.d.Stop()
+		c.Assert(err, checker.IsNil, check.Commentf("stopping push/pull test daemon: %v", err))
 	}
 }
 
@@ -71,7 +70,7 @@ func (s *DockerHubPullSuite) TearDownTest(c *check.C) {
 // output. The function fails the test when the command returns an error.
 func (s *DockerHubPullSuite) Cmd(c *check.C, name string, arg ...string) string {
 	out, err := s.CmdWithError(name, arg...)
-	c.Assert(err, check.IsNil, check.Commentf("%q failed with errors: %s, %v", strings.Join(arg, " "), out, err))
+	c.Assert(err, checker.IsNil, check.Commentf("%q failed with errors: %s, %v", strings.Join(arg, " "), out, err))
 	return out
 }
 

@@ -1,20 +1,22 @@
 <!--[metadata]>
 +++
-title = "Extend Docker"
-description = "How to extend Docker with plugins"
+title = "Extend Engine"
+description = "How to extend Docker Engine with plugins"
 keywords = ["extend, plugins, docker, documentation, developer"]
 [menu.main]
-identifier = "mn_extend"
-name = "Extend Docker"
+identifier = "engine_extend"
+parent = "engine_use"
 weight = 6
 +++
 <![end-metadata]-->
 
 
-## Extending Docker
+## Extending Docker Engine
 
-Currently, you can extend Docker by adding a plugin. This section contains the following topics:
+Currently, you can extend Docker Engine by adding a plugin. This section contains the following topics:
 
-* [Understand Docker plugins](/extend/plugins)
-* [Write a volume plugin](/extend/plugins_volume)
-* [Docker plugin API](/extend/plugin_api)
+* [Understand Docker plugins](plugins.md)
+* [Write a volume plugin](plugins_volume.md)
+* [Write a network plugin](plugins_network.md)
+* [Write an authorization plugin](plugins_authorization.md)
+* [Docker plugin API](plugin_api.md)

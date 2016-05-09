@@ -42,8 +42,15 @@ var templFuncs = template.FuncMap{
 	"marshalType": marshalType,
 	"isErr":       isErr,
 	"lower":       strings.ToLower,
-	"title":       strings.Title,
+	"title":       title,
 	"tag":         buildTag,
+}
+
+func title(s string) string {
+	if strings.ToLower(s) == "id" {
+		return "ID"
+	}
+	return strings.Title(s)
 }
 
 var generatedTempl = template.Must(template.New("rpc_cient").Funcs(templFuncs).Parse(`

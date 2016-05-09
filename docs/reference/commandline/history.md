@@ -5,7 +5,6 @@ description = "The history command description and usage"
 keywords = ["docker, image, history"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -16,8 +15,9 @@ weight=1
     Show the history of an image
 
       -H, --human=true     Print sizes and dates in human readable format
-      --no-trunc=false     Don't truncate output
-      -q, --quiet=false    Only show numeric IDs
+      --help               Print usage
+      --no-trunc           Don't truncate output
+      -q, --quiet          Only show numeric IDs
 
 To see how the `docker:latest` image was built:
 
@@ -38,5 +38,3 @@ To see how the `docker:apache` image was added to a container's base image:
     88b42ffd1f7c        5 months ago        /bin/sh -c #(nop) ADD file:1fd8d7f9f6557cafc7   373.7 MB
     c69cab00d6ef        5 months ago        /bin/sh -c #(nop) MAINTAINER Lokesh Mandvekar   0 B
     511136ea3c5a        19 months ago                                                       0 B                 Imported from -
-
-

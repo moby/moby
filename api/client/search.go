@@ -1,36 +1,30 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"sort"
 	"strings"
 	"text/tabwriter"
 
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/registry"
+	"github.com/docker/engine-api/types"
+	registrytypes "github.com/docker/engine-api/types/registry"
 )
-
-// ByStars sorts search results in ascending order by number of stars.
-type ByStars []registry.SearchResult
-
-func (r ByStars) Len() int           { return len(r) }
-func (r ByStars) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
-func (r ByStars) Less(i, j int) bool { return r[i].StarCount < r[j].StarCount }
 
 // CmdSearch searches the Docker Hub for images.
 //
 // Usage: docker search [OPTIONS] TERM
 func (cli *DockerCli) CmdSearch(args ...string) error {
-	cmd := Cli.Subcmd("search", []string{"TERM"}, "Search the Docker Hub for images", true)
-	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
-	trusted := cmd.Bool([]string{"#t", "#trusted", "#-trusted"}, false, "Only show trusted builds")
+	cmd := Cli.Subcmd("search", []string{"TERM"}, Cli.DockerCommands["search"].Description, true)
+	noTrunc := cmd.Bool([]string{"-no-trunc"}, false, "Don't truncate output")
 	automated := cmd.Bool([]string{"-automated"}, false, "Only show automated builds")
-	stars := cmd.Uint([]string{"s", "#stars", "-stars"}, 0, "Only displays with at least x stars")
+	stars := cmd.Uint([]string{"s", "-stars"}, 0, "Only displays with at least x stars")
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)
@@ -39,31 +33,36 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	v := url.Values{}
 	v.Set("term", name)
 
-	// Resolve the Repository name from fqn to hostname + name
-	taglessRemote, _ := parsers.ParseRepositoryTag(name)
-	repoInfo, err := registry.ParseRepositoryInfo(taglessRemote)
+	indexInfo, err := registry.ParseSearchIndexInfo(name)
 	if err != nil {
 		return err
 	}
 
-	rdr, _, err := cli.clientRequestAttemptLogin("GET", "/images/search?"+v.Encode(), nil, nil, repoInfo.Index, "search")
+	authConfig := cli.resolveAuthConfig(indexInfo)
+	requestPrivilege := cli.registryAuthenticationPrivilegedFunc(indexInfo, "search")
+
+	encodedAuth, err := encodeAuthToBase64(authConfig)
 	if err != nil {
 		return err
 	}
 
-	defer rdr.Close()
+	options := types.ImageSearchOptions{
+		RegistryAuth:  encodedAuth,
+		PrivilegeFunc: requestPrivilege,
+	}
 
-	results := ByStars{}
-	if err := json.NewDecoder(rdr).Decode(&results); err != nil {
+	unorderedResults, err := cli.client.ImageSearch(context.Background(), name, options)
+	if err != nil {
 		return err
 	}
 
-	sort.Sort(sort.Reverse(results))
+	results := searchResultsByStars(unorderedResults)
+	sort.Sort(results)
 
 	w := tabwriter.NewWriter(cli.out, 10, 1, 3, ' ', 0)
 	fmt.Fprintf(w, "NAME\tDESCRIPTION\tSTARS\tOFFICIAL\tAUTOMATED\n")
 	for _, res := range results {
-		if (*automated && !res.IsAutomated) || (int(*stars) > res.StarCount) || (*trusted && !res.IsTrusted) {
+		if (*automated && !res.IsAutomated) || (int(*stars) > res.StarCount) {
 			continue
 		}
 		desc := strings.Replace(res.Description, "\n", " ", -1)
@@ -77,7 +76,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 
 		}
 		fmt.Fprint(w, "\t")
-		if res.IsAutomated || res.IsTrusted {
+		if res.IsAutomated {
 			fmt.Fprint(w, "[OK]")
 		}
 		fmt.Fprint(w, "\n")
@@ -85,3 +84,10 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	w.Flush()
 	return nil
 }
+
+// SearchResultsByStars sorts search results in descending order by number of stars.
+type searchResultsByStars []registrytypes.SearchResult
+
+func (r searchResultsByStars) Len() int           { return len(r) }
+func (r searchResultsByStars) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r searchResultsByStars) Less(i, j int) bool { return r[j].StarCount < r[i].StarCount }

@@ -2,54 +2,54 @@ package client
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
+
+	"golang.org/x/net/context"
 
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/engine-api/types"
 )
 
 // CmdRm removes one or more containers.
 //
 // Usage: docker rm [OPTIONS] CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdRm(args ...string) error {
-	cmd := Cli.Subcmd("rm", []string{"CONTAINER [CONTAINER...]"}, "Remove one or more containers", true)
+	cmd := Cli.Subcmd("rm", []string{"CONTAINER [CONTAINER...]"}, Cli.DockerCommands["rm"].Description, true)
 	v := cmd.Bool([]string{"v", "-volumes"}, false, "Remove the volumes associated with the container")
-	link := cmd.Bool([]string{"l", "#link", "-link"}, false, "Remove the specified link")
+	link := cmd.Bool([]string{"l", "-link"}, false, "Remove the specified link")
 	force := cmd.Bool([]string{"f", "-force"}, false, "Force the removal of a running container (uses SIGKILL)")
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)
 
-	val := url.Values{}
-	if *v {
-		val.Set("v", "1")
-	}
-	if *link {
-		val.Set("link", "1")
-	}
-
-	if *force {
-		val.Set("force", "1")
-	}
-
-	var errNames []string
+	var errs []string
 	for _, name := range cmd.Args() {
 		if name == "" {
 			return fmt.Errorf("Container name cannot be empty")
 		}
 		name = strings.Trim(name, "/")
 
-		_, _, err := readBody(cli.call("DELETE", "/containers/"+name+"?"+val.Encode(), nil, nil))
-		if err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
-			errNames = append(errNames, name)
+		if err := cli.removeContainer(name, *v, *link, *force); err != nil {
+			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}
 	}
-	if len(errNames) > 0 {
-		return fmt.Errorf("Error: failed to remove containers: %v", errNames)
+	if len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, "\n"))
+	}
+	return nil
+}
+
+func (cli *DockerCli) removeContainer(container string, removeVolumes, removeLinks, force bool) error {
+	options := types.ContainerRemoveOptions{
+		RemoveVolumes: removeVolumes,
+		RemoveLinks:   removeLinks,
+		Force:         force,
+	}
+	if err := cli.client.ContainerRemove(context.Background(), container, options); err != nil {
+		return err
 	}
 	return nil
 }

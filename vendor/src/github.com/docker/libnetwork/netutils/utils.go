@@ -12,7 +12,13 @@ import (
 	"strings"
 
 	"github.com/docker/libnetwork/types"
-	"github.com/vishvananda/netlink"
+)
+
+// constants for the IP address type
+const (
+	IP = iota // IPv4 and IPv6
+	IPv4
+	IPv6
 )
 
 var (
@@ -22,8 +28,6 @@ var (
 	ErrNetworkOverlaps = errors.New("requested network overlaps with existing network")
 	// ErrNoDefaultRoute preformatted error
 	ErrNoDefaultRoute = errors.New("no default route")
-
-	networkGetRoutesFct = netlink.RouteList
 )
 
 // CheckNameserverOverlaps checks whether the passed network overlaps with any of the nameservers
@@ -37,21 +41,6 @@ func CheckNameserverOverlaps(nameservers []string, toCheck *net.IPNet) error {
 			if NetworkOverlaps(toCheck, nsNetwork) {
 				return ErrNetworkOverlapsWithNameservers
 			}
-		}
-	}
-	return nil
-}
-
-// CheckRouteOverlaps checks whether the passed network overlaps with any existing routes
-func CheckRouteOverlaps(toCheck *net.IPNet) error {
-	networks, err := networkGetRoutesFct(nil, netlink.FAMILY_V4)
-	if err != nil {
-		return err
-	}
-
-	for _, network := range networks {
-		if network.Dst != nil && NetworkOverlaps(toCheck, network.Dst) {
-			return ErrNetworkOverlaps
 		}
 	}
 	return nil
@@ -152,21 +141,61 @@ func GenerateRandomName(prefix string, size int) (string, error) {
 	return prefix + hex.EncodeToString(id)[:size], nil
 }
 
-// GenerateIfaceName returns an interface name using the passed in
-// prefix and the length of random bytes. The api ensures that the
-// there are is no interface which exists with that name.
-func GenerateIfaceName(prefix string, len int) (string, error) {
-	for i := 0; i < 3; i++ {
-		name, err := GenerateRandomName(prefix, len)
-		if err != nil {
-			continue
+// ReverseIP accepts a V4 or V6 IP string in the canonical form and returns a reversed IP in
+// the dotted decimal form . This is used to setup the IP to service name mapping in the optimal
+// way for the DNS PTR queries.
+func ReverseIP(IP string) string {
+	var reverseIP []string
+
+	if net.ParseIP(IP).To4() != nil {
+		reverseIP = strings.Split(IP, ".")
+		l := len(reverseIP)
+		for i, j := 0, l-1; i < l/2; i, j = i+1, j-1 {
+			reverseIP[i], reverseIP[j] = reverseIP[j], reverseIP[i]
 		}
-		if _, err := net.InterfaceByName(name); err != nil {
-			if strings.Contains(err.Error(), "no such") {
-				return name, nil
+	} else {
+		reverseIP = strings.Split(IP, ":")
+
+		// Reversed IPv6 is represented in dotted decimal instead of the typical
+		// colon hex notation
+		for key := range reverseIP {
+			if len(reverseIP[key]) == 0 { // expand the compressed 0s
+				reverseIP[key] = strings.Repeat("0000", 8-strings.Count(IP, ":"))
+			} else if len(reverseIP[key]) < 4 { // 0-padding needed
+				reverseIP[key] = strings.Repeat("0", 4-len(reverseIP[key])) + reverseIP[key]
 			}
-			return "", err
+		}
+
+		reverseIP = strings.Split(strings.Join(reverseIP, ""), "")
+
+		l := len(reverseIP)
+		for i, j := 0, l-1; i < l/2; i, j = i+1, j-1 {
+			reverseIP[i], reverseIP[j] = reverseIP[j], reverseIP[i]
 		}
 	}
-	return "", types.InternalErrorf("could not generate interface name")
+
+	return strings.Join(reverseIP, ".")
+}
+
+// ParseAlias parses and validates the specified string as a alias format (name:alias)
+func ParseAlias(val string) (string, string, error) {
+	if val == "" {
+		return "", "", fmt.Errorf("empty string specified for alias")
+	}
+	arr := strings.Split(val, ":")
+	if len(arr) > 2 {
+		return "", "", fmt.Errorf("bad format for alias: %s", val)
+	}
+	if len(arr) == 1 {
+		return val, val, nil
+	}
+	return arr[0], arr[1], nil
+}
+
+// ValidateAlias validates that the specified string has a valid alias format (containerName:alias).
+func ValidateAlias(val string) (string, error) {
+	if _, _, err := ParseAlias(val); err != nil {
+		return val, err
+	}
+	return val, nil
 }

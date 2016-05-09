@@ -11,7 +11,7 @@ import (
 // Due to the way cgo works this has to be in a separate file, as devmapper.go has
 // definitions in the cgo block, which is incompatible with using "//export"
 
-// DevmapperLogCallback exports the devmapper log callback for cgo. (?)
+// DevmapperLogCallback exports the devmapper log callback for cgo.
 //export DevmapperLogCallback
 func DevmapperLogCallback(level C.int, file *C.char, line C.int, dmErrnoOrClass C.int, message *C.char) {
 	msg := C.GoString(message)

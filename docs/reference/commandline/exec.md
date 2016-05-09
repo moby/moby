@@ -5,7 +5,6 @@ description = "The exec command description and usage"
 keywords = ["command, container, run, execute"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -15,10 +14,12 @@ weight=1
 
     Run a command in a running container
 
-      -d, --detach=false         Detached mode: run command in the background
-      -i, --interactive=false    Keep STDIN open even if not attached
-      --privileged=false         Give extended Linux capabilities to the command
-      -t, --tty=false            Allocate a pseudo-TTY
+      -d, --detach               Detached mode: run command in the background
+      --detach-keys              Specify the escape key sequence used to detach a container
+      --help                     Print usage
+      -i, --interactive          Keep STDIN open even if not attached
+      --privileged               Give extended Linux capabilities to the command
+      -t, --tty                  Allocate a pseudo-TTY
       -u, --user=                Username or UID (format: <name|uid>[:<group|gid>])
 
 The `docker exec` command runs a new command in a running container.

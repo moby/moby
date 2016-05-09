@@ -27,7 +27,7 @@ const (
 // Conn is a connection to firewalld dbus endpoint.
 type Conn struct {
 	sysconn *dbus.Conn
-	sysobj  *dbus.Object
+	sysobj  dbus.BusObject
 	signal  chan *dbus.Signal
 }
 
@@ -44,11 +44,15 @@ func FirewalldInit() error {
 	if connection, err = newConnection(); err != nil {
 		return fmt.Errorf("Failed to connect to D-Bus system bus: %v", err)
 	}
+	firewalldRunning = checkRunning()
+	if !firewalldRunning {
+		connection.sysconn.Close()
+		connection = nil
+	}
 	if connection != nil {
 		go signalHandler()
 	}
 
-	firewalldRunning = checkRunning()
 	return nil
 }
 

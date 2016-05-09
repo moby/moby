@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -20,14 +21,10 @@ func (s *DockerSuite) TestExportContainerAndImportImage(c *check.C) {
 	importCmd := exec.Command(dockerBinary, "import", "-", "repo/testexp:v1")
 	importCmd.Stdin = strings.NewReader(out)
 	out, _, err := runCommandWithOutput(importCmd)
-	if err != nil {
-		c.Fatalf("failed to import image: %s, %v", out, err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("failed to import image repo/testexp:v1: %s", out))
 
 	cleanedImageID := strings.TrimSpace(out)
-	if cleanedImageID == "" {
-		c.Fatalf("output should have been an image id, got: %s", out)
-	}
+	c.Assert(cleanedImageID, checker.Not(checker.Equals), "", check.Commentf("output should have been an image id"))
 }
 
 // Used to test output flag in the export command
@@ -40,19 +37,13 @@ func (s *DockerSuite) TestExportContainerWithOutputAndImportImage(c *check.C) {
 	defer os.Remove("testexp.tar")
 
 	out, _, err := runCommandWithOutput(exec.Command("cat", "testexp.tar"))
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	importCmd := exec.Command(dockerBinary, "import", "-", "repo/testexp:v1")
 	importCmd.Stdin = strings.NewReader(out)
 	out, _, err = runCommandWithOutput(importCmd)
-	if err != nil {
-		c.Fatalf("failed to import image: %s, %v", out, err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("failed to import image repo/testexp:v1: %s", out))
 
 	cleanedImageID := strings.TrimSpace(out)
-	if cleanedImageID == "" {
-		c.Fatalf("output should have been an image id, got: %s", out)
-	}
+	c.Assert(cleanedImageID, checker.Not(checker.Equals), "", check.Commentf("output should have been an image id"))
 }

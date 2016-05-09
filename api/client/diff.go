@@ -1,10 +1,10 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 
-	"github.com/docker/docker/api/types"
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/archive"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -18,7 +18,7 @@ import (
 //
 // Usage: docker diff CONTAINER
 func (cli *DockerCli) CmdDiff(args ...string) error {
-	cmd := Cli.Subcmd("diff", []string{"CONTAINER"}, "Inspect changes on a container's filesystem", true)
+	cmd := Cli.Subcmd("diff", []string{"CONTAINER"}, Cli.DockerCommands["diff"].Description, true)
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)
@@ -27,15 +27,8 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 		return fmt.Errorf("Container name cannot be empty")
 	}
 
-	serverResp, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/changes", nil, nil)
+	changes, err := cli.client.ContainerDiff(context.Background(), cmd.Arg(0))
 	if err != nil {
-		return err
-	}
-
-	defer serverResp.body.Close()
-
-	changes := []types.ContainerChange{}
-	if err := json.NewDecoder(serverResp.body).Decode(&changes); err != nil {
 		return err
 	}
 

@@ -2,7 +2,6 @@
 
 package journald
 
-// #cgo pkg-config: libsystemd-journal
 // #include <sys/types.h>
 // #include <sys/poll.h>
 // #include <systemd/sd-journal.h>
@@ -64,11 +63,11 @@ package journald
 //		fds[0].events = POLLHUP;
 //		fds[1].fd = sd_journal_get_fd(j);
 //		if (fds[1].fd < 0) {
-//			return -1;
+//			return fds[1].fd;
 //		}
 //		jevents = sd_journal_get_events(j);
 //		if (jevents < 0) {
-//			return -1;
+//			return jevents;
 //		}
 //		fds[1].events = jevents;
 //		sd_journal_get_timeout(j, &when);
@@ -82,7 +81,7 @@ package journald
 //		i = poll(fds, 2, timeout);
 //		if ((i == -1) && (errno != EINTR)) {
 //			/* An unexpected error. */
-//			return -1;
+//			return (errno != 0) ? -errno : -EINTR;
 //		}
 //		if (fds[0].revents & POLLHUP) {
 //			/* The close notification pipe was closed. */
@@ -102,6 +101,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/coreos/go-systemd/journal"
 	"github.com/docker/docker/daemon/logger"
 )
@@ -174,20 +174,31 @@ drain:
 }
 
 func (s *journald) followJournal(logWatcher *logger.LogWatcher, config logger.ReadConfig, j *C.sd_journal, pfd [2]C.int, cursor string) {
+	s.readers.mu.Lock()
+	s.readers.readers[logWatcher] = logWatcher
+	s.readers.mu.Unlock()
 	go func() {
-		// Keep copying journal data out until we're notified to stop.
-		for C.wait_for_data_or_close(j, pfd[0]) == 1 {
+		// Keep copying journal data out until we're notified to stop
+		// or we hit an error.
+		status := C.wait_for_data_or_close(j, pfd[0])
+		for status == 1 {
 			cursor = s.drainJournal(logWatcher, config, j, cursor)
+			status = C.wait_for_data_or_close(j, pfd[0])
+		}
+		if status < 0 {
+			cerrstr := C.strerror(C.int(-status))
+			errstr := C.GoString(cerrstr)
+			fmtstr := "error %q while attempting to follow journal for container %q"
+			logrus.Errorf(fmtstr, errstr, s.vars["CONTAINER_ID_FULL"])
 		}
 		// Clean up.
 		C.close(pfd[0])
 		s.readers.mu.Lock()
 		delete(s.readers.readers, logWatcher)
 		s.readers.mu.Unlock()
+		C.sd_journal_close(j)
+		close(logWatcher.Msg)
 	}()
-	s.readers.mu.Lock()
-	s.readers.readers[logWatcher] = logWatcher
-	s.readers.mu.Unlock()
 	// Wait until we're told to stop.
 	select {
 	case <-logWatcher.WatchClose():
@@ -204,14 +215,24 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 	var pipes [2]C.int
 	cursor := ""
 
-	defer close(logWatcher.Msg)
 	// Get a handle to the journal.
 	rc := C.sd_journal_open(&j, C.int(0))
 	if rc != 0 {
 		logWatcher.Err <- fmt.Errorf("error opening journal")
+		close(logWatcher.Msg)
 		return
 	}
-	defer C.sd_journal_close(j)
+	// If we end up following the log, we can set the journal context
+	// pointer and the channel pointer to nil so that we won't close them
+	// here, potentially while the goroutine that uses them is still
+	// running.  Otherwise, close them when we return from this function.
+	following := false
+	defer func(pfollowing *bool) {
+		if !*pfollowing {
+			C.sd_journal_close(j)
+			close(logWatcher.Msg)
+		}
+	}(&following)
 	// Remove limits on the size of data items that we'll retrieve.
 	rc = C.sd_journal_set_data_threshold(j, C.size_t(0))
 	if rc != 0 {
@@ -282,11 +303,21 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 	}
 	cursor = s.drainJournal(logWatcher, config, j, "")
 	if config.Follow {
-		// Create a pipe that we can poll at the same time as the journald descriptor.
-		if C.pipe(&pipes[0]) == C.int(-1) {
-			logWatcher.Err <- fmt.Errorf("error opening journald close notification pipe")
+		// Allocate a descriptor for following the journal, if we'll
+		// need one.  Do it here so that we can report if it fails.
+		if fd := C.sd_journal_get_fd(j); fd < C.int(0) {
+			logWatcher.Err <- fmt.Errorf("error opening journald follow descriptor: %q", C.GoString(C.strerror(-fd)))
 		} else {
-			s.followJournal(logWatcher, config, j, pipes, cursor)
+			// Create a pipe that we can poll at the same time as
+			// the journald descriptor.
+			if C.pipe(&pipes[0]) == C.int(-1) {
+				logWatcher.Err <- fmt.Errorf("error opening journald close notification pipe")
+			} else {
+				s.followJournal(logWatcher, config, j, pipes, cursor)
+				// Let followJournal handle freeing the journal context
+				// object and closing the channel.
+				following = true
+			}
 		}
 	}
 	return

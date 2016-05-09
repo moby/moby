@@ -1,15 +1,15 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
 
+	"github.com/docker/docker/utils"
 	"github.com/go-check/check"
 )
 
@@ -22,8 +22,6 @@ type testRequirement struct {
 
 // List test requirements
 var (
-	daemonExecDriver string
-
 	DaemonIsWindows = testRequirement{
 		func() bool { return daemonPlatform == "windows" },
 		"Test requires a Windows daemon",
@@ -32,9 +30,21 @@ var (
 		func() bool { return daemonPlatform == "linux" },
 		"Test requires a Linux daemon",
 	}
+	NotExperimentalDaemon = testRequirement{
+		func() bool { return !utils.ExperimentalBuild() },
+		"Test requires a non experimental daemon",
+	}
+	NotArm = testRequirement{
+		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "arm" },
+		"Test requires a daemon not running on ARM",
+	}
+	NotPpc64le = testRequirement{
+		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "ppc64le" },
+		"Test requires a daemon not running on ppc64le",
+	}
 	SameHostDaemon = testRequirement{
 		func() bool { return isLocalDaemon },
-		"Test requires docker daemon to runs on the same machine as CLI",
+		"Test requires docker daemon to run on the same machine as CLI",
 	}
 	UnixCli = testRequirement{
 		func() bool { return isUnixCli },
@@ -87,45 +97,35 @@ var (
 			// for now notary binary is built only if we're running inside
 			// container through `make test`. Figure that out by testing if
 			// notary-server binary is in PATH.
-			_, err := exec.LookPath(notaryBinary)
+			_, err := exec.LookPath(notaryServerBinary)
 			return err == nil
 		},
-		fmt.Sprintf("Test requires an environment that can host %s in the same host", notaryBinary),
+		fmt.Sprintf("Test requires an environment that can host %s in the same host", notaryServerBinary),
 	}
-	NativeExecDriver = testRequirement{
+	NotaryServerHosting = testRequirement{
 		func() bool {
-			if daemonExecDriver == "" {
-				// get daemon info
-				status, body, err := sockRequest("GET", "/info", nil)
-				if err != nil || status != http.StatusOK {
-					log.Fatalf("sockRequest failed for /info: %v", err)
-				}
-
-				type infoJSON struct {
-					ExecutionDriver string
-				}
-				var info infoJSON
-				if err = json.Unmarshal(body, &info); err != nil {
-					log.Fatalf("unable to unmarshal body: %v", err)
-				}
-
-				daemonExecDriver = info.ExecutionDriver
-			}
-
-			return strings.HasPrefix(daemonExecDriver, "native")
+			// for now notary-server binary is built only if we're running inside
+			// container through `make test`. Figure that out by testing if
+			// notary-server binary is in PATH.
+			_, err := exec.LookPath(notaryServerBinary)
+			return err == nil
 		},
-		"Test requires the native (libcontainer) exec driver.",
+		fmt.Sprintf("Test requires an environment that can host %s in the same host", notaryServerBinary),
 	}
 	NotOverlay = testRequirement{
 		func() bool {
-			cmd := exec.Command("grep", "^overlay / overlay", "/proc/mounts")
-			if err := cmd.Run(); err != nil {
-				return true
-			}
-			return false
+			return !strings.HasPrefix(daemonStorageDriver, "overlay")
 		},
 		"Test requires underlying root filesystem not be backed by overlay.",
 	}
+
+	Devicemapper = testRequirement{
+		func() bool {
+			return strings.HasPrefix(daemonStorageDriver, "devicemapper")
+		},
+		"Test requires underlying root filesystem to be backed by devicemapper.",
+	}
+
 	IPv6 = testRequirement{
 		func() bool {
 			cmd := exec.Command("test", "-f", "/proc/net/if_inet6")
@@ -140,12 +140,46 @@ var (
 	NotGCCGO = testRequirement{
 		func() bool {
 			out, err := exec.Command("go", "version").Output()
-			if err != nil && strings.Contains(string(out), "gccgo") {
-				return true
+			if err == nil && strings.Contains(string(out), "gccgo") {
+				return false
 			}
-			return false
+			return true
 		},
 		"Test requires native Golang compiler instead of GCCGO",
+	}
+	UserNamespaceInKernel = testRequirement{
+		func() bool {
+			if _, err := os.Stat("/proc/self/uid_map"); os.IsNotExist(err) {
+				/*
+				 * This kernel-provided file only exists if user namespaces are
+				 * supported
+				 */
+				return false
+			}
+
+			// We need extra check on redhat based distributions
+			if f, err := os.Open("/sys/module/user_namespace/parameters/enable"); err == nil {
+				b := make([]byte, 1)
+				_, _ = f.Read(b)
+				if string(b) == "N" {
+					return false
+				}
+				return true
+			}
+
+			return true
+		},
+		"Kernel must have user namespaces configured and enabled.",
+	}
+	NotUserNamespace = testRequirement{
+		func() bool {
+			root := os.Getenv("DOCKER_REMAP_ROOT")
+			if root != "" {
+				return false
+			}
+			return true
+		},
+		"Test cannot be run when remapping root",
 	}
 )
 

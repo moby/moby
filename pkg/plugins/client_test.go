@@ -4,11 +4,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/docker/pkg/plugins/transport"
+	"github.com/docker/go-connections/tlsconfig"
 )
 
 var (
@@ -30,7 +32,7 @@ func teardownRemotePluginServer() {
 
 func TestFailedConnection(t *testing.T) {
 	c, _ := NewClient("tcp://127.0.0.1:1", tlsconfig.Options{InsecureSkipVerify: true})
-	err := c.callWithRetry("Service.Method", nil, nil, false)
+	_, err := c.callWithRetry("Service.Method", nil, false)
 	if err == nil {
 		t.Fatal("Unexpected successful connection")
 	}
@@ -48,7 +50,7 @@ func TestEchoInputOutput(t *testing.T) {
 		}
 
 		header := w.Header()
-		header.Set("Content-Type", versionMimetype)
+		header.Set("Content-Type", transport.VersionMimetype)
 
 		io.Copy(w, r.Body)
 	})
@@ -62,6 +64,10 @@ func TestEchoInputOutput(t *testing.T) {
 
 	if !reflect.DeepEqual(output, m) {
 		t.Fatalf("Expected %v, was %v\n", m, output)
+	}
+	err = c.Call("Test.Echo", nil, nil)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -115,9 +121,14 @@ func TestClientScheme(t *testing.T) {
 	}
 
 	for addr, scheme := range cases {
-		c, _ := NewClient(addr, tlsconfig.Options{InsecureSkipVerify: true})
-		if c.scheme != scheme {
-			t.Fatalf("URL scheme mismatch, expected %s, got %s", scheme, c.scheme)
+		u, err := url.Parse(addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s := httpScheme(u)
+
+		if s != scheme {
+			t.Fatalf("URL scheme mismatch, expected %s, got %s", scheme, s)
 		}
 	}
 }

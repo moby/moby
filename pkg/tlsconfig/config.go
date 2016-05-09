@@ -47,8 +47,9 @@ var clientCipherSuites = []uint16{
 	tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 }
 
-// For use by code which already has a crypto/tls options struct but wants to
-// use a commonly accepted set of TLS cipher suites, with known weak algorithms removed
+// DefaultServerAcceptedCiphers should be uses by code which already has a crypto/tls
+// options struct but wants to use a commonly accepted set of TLS cipher suites, with
+// known weak algorithms removed.
 var DefaultServerAcceptedCiphers = append(clientCipherSuites, acceptedCBCCiphers...)
 
 // ServerDefault is a secure-enough TLS configuration for the server TLS configuration.

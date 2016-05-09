@@ -3,10 +3,10 @@ package loggerutils
 import (
 	"bytes"
 	"fmt"
-	"text/template"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/utils/templates"
 )
 
 // ParseLogTag generates a context aware tag for consistency across different
@@ -14,7 +14,7 @@ import (
 func ParseLogTag(ctx logger.Context, defaultTemplate string) (string, error) {
 	tagTemplate := lookupTagTemplate(ctx, defaultTemplate)
 
-	tmpl, err := template.New("log-tag").Parse(tagTemplate)
+	tmpl, err := templates.NewParse("log-tag", tagTemplate)
 	if err != nil {
 		return "", err
 	}

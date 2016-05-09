@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -90,17 +91,11 @@ func makeTestContentInDir(c *check.C, dir string) {
 		path := filepath.Join(dir, filepath.FromSlash(fd.path))
 		switch fd.filetype {
 		case ftRegular:
-			if err := ioutil.WriteFile(path, []byte(fd.contents+"\n"), os.FileMode(0666)); err != nil {
-				c.Fatal(err)
-			}
+			c.Assert(ioutil.WriteFile(path, []byte(fd.contents+"\n"), os.FileMode(0666)), checker.IsNil)
 		case ftDir:
-			if err := os.Mkdir(path, os.FileMode(0777)); err != nil {
-				c.Fatal(err)
-			}
+			c.Assert(os.Mkdir(path, os.FileMode(0777)), checker.IsNil)
 		case ftSymlink:
-			if err := os.Symlink(fd.contents, path); err != nil {
-				c.Fatal(err)
-			}
+			c.Assert(os.Symlink(fd.contents, path), checker.IsNil)
 		}
 	}
 }
@@ -143,25 +138,17 @@ func makeTestContainer(c *check.C, options testContainerOptions) (containerID st
 
 	args = append(args, "busybox", "/bin/sh", "-c", options.command)
 
-	out, status := dockerCmd(c, args...)
-	if status != 0 {
-		c.Fatalf("failed to run container, status %d: %s", status, out)
-	}
+	out, _ := dockerCmd(c, args...)
 
 	containerID = strings.TrimSpace(out)
 
-	out, status = dockerCmd(c, "wait", containerID)
-	if status != 0 {
-		c.Fatalf("failed to wait for test container container, status %d: %s", status, out)
-	}
+	out, _ = dockerCmd(c, "wait", containerID)
 
-	if exitCode := strings.TrimSpace(out); exitCode != "0" {
-		logs, status := dockerCmd(c, "logs", containerID)
-		if status != 0 {
-			logs = "UNABLE TO GET LOGS"
-		}
-		c.Fatalf("failed to make test container, exit code (%s): %s", exitCode, logs)
+	exitCode := strings.TrimSpace(out)
+	if exitCode != "0" {
+		out, _ = dockerCmd(c, "logs", containerID)
 	}
+	c.Assert(exitCode, checker.Equals, "0", check.Commentf("failed to make test container: %s", out))
 
 	return
 }
@@ -204,10 +191,10 @@ func runDockerCp(c *check.C, src, dst string) (err error) {
 	return
 }
 
-func startContainerGetOutput(c *check.C, cID string) (out string, err error) {
-	c.Logf("running `docker start -a %s`", cID)
+func startContainerGetOutput(c *check.C, containerID string) (out string, err error) {
+	c.Logf("running `docker start -a %s`", containerID)
 
-	args := []string{"start", "-a", cID}
+	args := []string{"start", "-a", containerID}
 
 	out, _, err = runCommandWithOutput(exec.Command(dockerBinary, args...))
 	if err != nil {
@@ -220,9 +207,9 @@ func startContainerGetOutput(c *check.C, cID string) (out string, err error) {
 func getTestDir(c *check.C, label string) (tmpDir string) {
 	var err error
 
-	if tmpDir, err = ioutil.TempDir("", label); err != nil {
-		c.Fatalf("unable to make temporary directory: %s", err)
-	}
+	tmpDir, err = ioutil.TempDir("", label)
+	// unable to make temporary directory
+	c.Assert(err, checker.IsNil)
 
 	return
 }
@@ -276,22 +263,22 @@ func symlinkTargetEquals(c *check.C, symlink, expectedTarget string) (err error)
 
 	actualTarget, err := os.Readlink(symlink)
 	if err != nil {
-		return err
+		return
 	}
 
 	if actualTarget != expectedTarget {
-		return fmt.Errorf("symlink target points to %q not %q", actualTarget, expectedTarget)
+		err = fmt.Errorf("symlink target points to %q not %q", actualTarget, expectedTarget)
 	}
 
-	return nil
+	return
 }
 
-func containerStartOutputEquals(c *check.C, cID, contents string) (err error) {
-	c.Logf("checking that container %q start output contains %q\n", cID, contents)
+func containerStartOutputEquals(c *check.C, containerID, contents string) (err error) {
+	c.Logf("checking that container %q start output contains %q\n", containerID, contents)
 
-	out, err := startContainerGetOutput(c, cID)
+	out, err := startContainerGetOutput(c, containerID)
 	if err != nil {
-		return err
+		return
 	}
 
 	if out != contents {

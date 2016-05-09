@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -36,10 +37,13 @@ const (
 var (
 	iptablesPath  string
 	supportsXlock = false
+	supportsCOpt  = false
 	// used to lock iptables commands if xtables lock is not supported
 	bestEffortLock sync.Mutex
 	// ErrIptablesNotFound is returned when the rule is not found.
 	ErrIptablesNotFound = errors.New("Iptables not found")
+	probeOnce           sync.Once
+	firewalldOnce       sync.Once
 )
 
 // ChainInfo defines the iptables chain.
@@ -59,15 +63,37 @@ func (e ChainError) Error() string {
 	return fmt.Sprintf("Error iptables %s: %s", e.Chain, string(e.Output))
 }
 
-func initCheck() error {
+func probe() {
+	if out, err := exec.Command("modprobe", "-va", "nf_nat").CombinedOutput(); err != nil {
+		logrus.Warnf("Running modprobe nf_nat failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
+	}
+	if out, err := exec.Command("modprobe", "-va", "xt_conntrack").CombinedOutput(); err != nil {
+		logrus.Warnf("Running modprobe xt_conntrack failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
+	}
+}
 
+func initFirewalld() {
+	if err := FirewalldInit(); err != nil {
+		logrus.Debugf("Fail to initialize firewalld: %v, using raw iptables instead", err)
+	}
+}
+
+func initCheck() error {
 	if iptablesPath == "" {
+		probeOnce.Do(probe)
+		firewalldOnce.Do(initFirewalld)
 		path, err := exec.LookPath("iptables")
 		if err != nil {
 			return ErrIptablesNotFound
 		}
 		iptablesPath = path
 		supportsXlock = exec.Command(iptablesPath, "--wait", "-L", "-n").Run() == nil
+		mj, mn, mc, err := GetVersion()
+		if err != nil {
+			logrus.Warnf("Failed to read iptables version: %v", err)
+			return nil
+		}
+		supportsCOpt = supportsCOption(mj, mn, mc)
 	}
 	return nil
 }
@@ -95,7 +121,7 @@ func NewChain(name string, table Table, hairpinMode bool) (*ChainInfo, error) {
 }
 
 // ProgramChain is used to add rules to a chain
-func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode bool) error {
+func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode, enable bool) error {
 	if c.Name == "" {
 		return fmt.Errorf("Could not program chain, missing chain name.")
 	}
@@ -106,9 +132,13 @@ func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode bool) error {
 			"-m", "addrtype",
 			"--dst-type", "LOCAL",
 			"-j", c.Name}
-		if !Exists(Nat, "PREROUTING", preroute...) {
+		if !Exists(Nat, "PREROUTING", preroute...) && enable {
 			if err := c.Prerouting(Append, preroute...); err != nil {
 				return fmt.Errorf("Failed to inject docker in PREROUTING chain: %s", err)
+			}
+		} else if Exists(Nat, "PREROUTING", preroute...) && !enable {
+			if err := c.Prerouting(Delete, preroute...); err != nil {
+				return fmt.Errorf("Failed to remove docker in PREROUTING chain: %s", err)
 			}
 		}
 		output := []string{
@@ -118,8 +148,12 @@ func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode bool) error {
 		if !hairpinMode {
 			output = append(output, "!", "--dst", "127.0.0.0/8")
 		}
-		if !Exists(Nat, "OUTPUT", output...) {
+		if !Exists(Nat, "OUTPUT", output...) && enable {
 			if err := c.Output(Append, output...); err != nil {
+				return fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
+			}
+		} else if Exists(Nat, "OUTPUT", output...) && !enable {
+			if err := c.Output(Delete, output...); err != nil {
 				return fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
 			}
 		}
@@ -131,13 +165,21 @@ func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode bool) error {
 		link := []string{
 			"-o", bridgeName,
 			"-j", c.Name}
-		if !Exists(Filter, "FORWARD", link...) {
+		if !Exists(Filter, "FORWARD", link...) && enable {
 			insert := append([]string{string(Insert), "FORWARD"}, link...)
 			if output, err := Raw(insert...); err != nil {
 				return err
 			} else if len(output) != 0 {
 				return fmt.Errorf("Could not create linking rule to %s/%s: %s", c.Table, c.Name, output)
 			}
+		} else if Exists(Filter, "FORWARD", link...) && !enable {
+			del := append([]string{string(Delete), "FORWARD"}, link...)
+			if output, err := Raw(del...); err != nil {
+				return err
+			} else if len(output) != 0 {
+				return fmt.Errorf("Could not delete linking rule from %s/%s: %s", c.Table, c.Name, output)
+			}
+
 		}
 	}
 	return nil
@@ -283,19 +325,21 @@ func Exists(table Table, chain string, rule ...string) bool {
 		table = Filter
 	}
 
-	// iptables -C, --check option was added in v.1.4.11
-	// http://ftp.netfilter.org/pub/iptables/changes-iptables-1.4.11.txt
+	initCheck()
 
-	// try -C
-	// if exit status is 0 then return true, the rule exists
-	if _, err := Raw(append([]string{
-		"-t", string(table), "-C", chain}, rule...)...); err == nil {
-		return true
+	if supportsCOpt {
+		// if exit status is 0 then return true, the rule exists
+		_, err := Raw(append([]string{"-t", string(table), "-C", chain}, rule...)...)
+		return err == nil
 	}
 
-	// parse "iptables -S" for the rule (this checks rules in a specific chain
-	// in a specific table)
-	ruleString := strings.Join(rule, " ")
+	// parse "iptables -S" for the rule (it checks rules in a specific chain
+	// in a specific table and it is very unreliable)
+	return existsRaw(table, chain, rule...)
+}
+
+func existsRaw(table Table, chain string, rule ...string) bool {
+	ruleString := fmt.Sprintf("%s %s\n", chain, strings.Join(rule, " "))
 	existingRules, _ := exec.Command(iptablesPath, "-t", string(table), "-S", chain).Output()
 
 	return strings.Contains(string(existingRules), ruleString)
@@ -308,9 +352,11 @@ func Raw(args ...string) ([]byte, error) {
 		if err == nil || !strings.Contains(err.Error(), "was not provided by any .service files") {
 			return output, err
 		}
-
 	}
+	return raw(args...)
+}
 
+func raw(args ...string) ([]byte, error) {
 	if err := initCheck(); err != nil {
 		return nil, err
 	}
@@ -334,4 +380,52 @@ func Raw(args ...string) ([]byte, error) {
 	}
 
 	return output, err
+}
+
+// RawCombinedOutput inernally calls the Raw function and returns a non nil
+// error if Raw returned a non nil error or a non empty output
+func RawCombinedOutput(args ...string) error {
+	if output, err := Raw(args...); err != nil || len(output) != 0 {
+		return fmt.Errorf("%s (%v)", string(output), err)
+	}
+	return nil
+}
+
+// RawCombinedOutputNative behave as RawCombinedOutput with the difference it
+// will always invoke `iptables` binary
+func RawCombinedOutputNative(args ...string) error {
+	if output, err := raw(args...); err != nil || len(output) != 0 {
+		return fmt.Errorf("%s (%v)", string(output), err)
+	}
+	return nil
+}
+
+// ExistChain checks if a chain exists
+func ExistChain(chain string, table Table) bool {
+	if _, err := Raw("-t", string(table), "-L", chain); err == nil {
+		return true
+	}
+	return false
+}
+
+// GetVersion reads the iptables version numbers
+func GetVersion() (major, minor, micro int, err error) {
+	out, err := Raw("--version")
+	if err == nil {
+		major, minor, micro = parseVersionNumbers(string(out))
+	}
+	return
+}
+
+func parseVersionNumbers(input string) (major, minor, micro int) {
+	re := regexp.MustCompile(`v\d*.\d*.\d*`)
+	line := re.FindString(input)
+	fmt.Sscanf(line, "v%d.%d.%d", &major, &minor, &micro)
+	return
+}
+
+// iptables -C, --check option was added in v.1.4.11
+// http://ftp.netfilter.org/pub/iptables/changes-iptables-1.4.11.txt
+func supportsCOption(mj, mn, mc int) bool {
+	return mj > 1 || (mj == 1 && (mn > 4 || (mn == 4 && mc >= 11)))
 }

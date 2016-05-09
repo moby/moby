@@ -7,8 +7,8 @@ docker-commit - Create a new image from a container's changes
 # SYNOPSIS
 **docker commit**
 [**-a**|**--author**[=*AUTHOR*]]
-[**--help**]
 [**-c**|**--change**[=\[*DOCKERFILE INSTRUCTIONS*\]]]
+[**--help**]
 [**-m**|**--message**[=*MESSAGE*]]
 [**-p**|**--pause**[=*true*]]
 CONTAINER [REPOSITORY[:TAG]]

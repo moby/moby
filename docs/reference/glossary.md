@@ -132,13 +132,17 @@ namespaces, cgroups, capabilities, and filesystem access controls. It allows
 you to manage the lifecycle of the container performing additional operations
 after the container is created.
 
+## libnetwork
+
+libnetwork provides a native Go implementation for creating and managing container
+network namespaces and other network resources. It manage the networking lifecycle
+of the container performing additional operations after the container is created.
+
 ## link
 
-links provide an interface to connect Docker containers running on the same host
-to each other without exposing the hosts' network ports. When you set up a link,
-you create a conduit between a source container and a recipient container.
-The recipient can then access select data about the source. To create a link,
-you can use the `--link` flag.
+links provide a legacy interface to connect Docker containers running on the
+same host to each other without exposing the hosts' network ports. Use the
+Docker networks feature instead.
 
 ## Machine
 
@@ -149,7 +153,12 @@ installs Docker on them, then configures the Docker client to talk to them.
 
 *Also known as : docker-machine*
 
-## overlay
+## overlay network driver
+
+Overlay network driver provides out of the box multi-host network connectivity
+for docker containers in a cluster.
+
+## overlay storage driver
 
 OverlayFS is a [filesystem](#filesystem) service for Linux which implements a
 [union mount](http://en.wikipedia.org/wiki/Union_mount) for other file systems.
@@ -169,8 +178,8 @@ A repository is a set of Docker images. A repository can be shared by pushing it
 to a [registry](#registry) server. The different images in the repository can be
 labeled using [tags](#tag).
 
-Here is an example of the shared [nginx repository](https://registry.hub.docker.com/_/nginx/)
-and its [tags](https://registry.hub.docker.com/_/nginx/tags/manage/)
+Here is an example of the shared [nginx repository](https://hub.docker.com/_/nginx/)
+and its [tags](https://hub.docker.com/r/library/nginx/tags/)
 
 ## Swarm
 
@@ -210,4 +219,3 @@ Compared to to containers, a Virtual Machine is heavier to run, provides more is
 gets its own set of resources and does minimal sharing.
 
 *Also known as : VM*
-

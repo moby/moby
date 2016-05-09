@@ -8,7 +8,7 @@ set -e
 }
 
 usage() {
-	printf >&2 '%s: [-r release] [-m mirror] [-s]\n' "$0"
+	printf >&2 '%s: [-r release] [-m mirror] [-s]  [-c additional repository]\n' "$0"
 	exit 1
 }
 
@@ -19,22 +19,23 @@ tmp() {
 }
 
 apkv() {
-	curl -sSL $REPO/$ARCH/APKINDEX.tar.gz | tar -Oxz |
-		grep '^P:apk-tools-static$' -A1 | tail -n1 | cut -d: -f2
+	curl -sSL $MAINREPO/$ARCH/APKINDEX.tar.gz | tar -Oxz |
+		grep --text '^P:apk-tools-static$' -A1 | tail -n1 | cut -d: -f2
 }
 
 getapk() {
-	curl -sSL $REPO/$ARCH/apk-tools-static-$(apkv).apk |
+	curl -sSL $MAINREPO/$ARCH/apk-tools-static-$(apkv).apk |
 		tar -xz -C $TMP sbin/apk.static
 }
 
 mkbase() {
-	$TMP/sbin/apk.static --repository $REPO --update-cache --allow-untrusted \
+	$TMP/sbin/apk.static --repository $MAINREPO --update-cache --allow-untrusted \
 		--root $ROOTFS --initdb add alpine-base
 }
 
 conf() {
-	printf '%s\n' $REPO > $ROOTFS/etc/apk/repositories
+	printf '%s\n' $MAINREPO > $ROOTFS/etc/apk/repositories
+	printf '%s\n' $ADDITIONALREPO >> $ROOTFS/etc/apk/repositories
 }
 
 pack() {
@@ -42,7 +43,7 @@ pack() {
 	id=$(tar --numeric-owner -C $ROOTFS -c . | docker import - alpine:$REL)
 
 	docker tag $id alpine:latest
-	docker run -i -t alpine printf 'alpine:%s with id=%s created!\n' $REL $id
+	docker run -i -t --rm alpine printf 'alpine:%s with id=%s created!\n' $REL $id
 }
 
 save() {
@@ -62,6 +63,9 @@ while getopts "hr:m:s" opt; do
 		s)
 			SAVE=1
 			;;
+		c)
+			ADDITIONALREPO=community
+			;;
 		*)
 			usage
 			;;
@@ -71,7 +75,8 @@ done
 REL=${REL:-edge}
 MIRROR=${MIRROR:-http://nl.alpinelinux.org/alpine}
 SAVE=${SAVE:-0}
-REPO=$MIRROR/$REL/main
+MAINREPO=$MIRROR/$REL/main
+ADDITIONALREPO=$MIRROR/$REL/community
 ARCH=${ARCH:-$(uname -m)}
 
 tmp

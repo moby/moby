@@ -18,6 +18,8 @@ const (
 	FsMagicExtfs = FsMagic(0x0000EF53)
 	// FsMagicF2fs filesystem id for F2fs
 	FsMagicF2fs = FsMagic(0xF2F52010)
+	// FsMagicGPFS filesystem id for GPFS
+	FsMagicGPFS = FsMagic(0x47504653)
 	// FsMagicJffs2Fs filesystem if for Jffs2Fs
 	FsMagicJffs2Fs = FsMagic(0x000072b6)
 	// FsMagicJfs filesystem id for Jfs
@@ -40,6 +42,8 @@ const (
 	FsMagicXfs = FsMagic(0x58465342)
 	// FsMagicZfs filesystem id for Zfs
 	FsMagicZfs = FsMagic(0x2fc12fc1)
+	// FsMagicOverlay filesystem id for overlay
+	FsMagicOverlay = FsMagic(0x794C7630)
 )
 
 var (
@@ -60,6 +64,7 @@ var (
 		FsMagicCramfs:      "cramfs",
 		FsMagicExtfs:       "extfs",
 		FsMagicF2fs:        "f2fs",
+		FsMagicGPFS:        "gpfs",
 		FsMagicJffs2Fs:     "jffs2",
 		FsMagicJfs:         "jfs",
 		FsMagicNfsFs:       "nfs",
@@ -82,4 +87,13 @@ func GetFSMagic(rootpath string) (FsMagic, error) {
 		return 0, err
 	}
 	return FsMagic(buf.Type), nil
+}
+
+// Mounted checks if the given path is mounted as the fs type
+func Mounted(fsType FsMagic, mountPath string) (bool, error) {
+	var buf syscall.Statfs_t
+	if err := syscall.Statfs(mountPath, &buf); err != nil {
+		return false, err
+	}
+	return FsMagic(buf.Type) == fsType, nil
 }

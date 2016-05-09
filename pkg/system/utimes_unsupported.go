@@ -8,8 +8,3 @@ import "syscall"
 func LUtimesNano(path string, ts []syscall.Timespec) error {
 	return ErrNotSupportedPlatform
 }
-
-// UtimesNano is not supported on platforms other than linux, freebsd and darwin.
-func UtimesNano(path string, ts []syscall.Timespec) error {
-	return ErrNotSupportedPlatform
-}

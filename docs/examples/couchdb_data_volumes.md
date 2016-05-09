@@ -4,7 +4,7 @@ title = "Dockerizing a CouchDB service"
 description = "Sharing data between 2 couchdb databases"
 keywords = ["docker, example, package installation, networking, couchdb,  data volumes"]
 [menu.main]
-parent = "smn_applied"
+parent = "engine_dockerize"
 +++
 <![end-metadata]-->
 
@@ -12,7 +12,7 @@ parent = "smn_applied"
 
 > **Note**: 
 > - **If you don't like sudo** then see [*Giving non-root
->   access*](/installation/binaries/#giving-non-root-access)
+>   access*](../installation/binaries.md#giving-non-root-access)
 
 Here's an example of using data volumes to share the same data between
 two CouchDB containers. This could be used for hot upgrades, testing

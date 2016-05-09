@@ -5,7 +5,6 @@ description = "The rmi command description and usage"
 keywords = ["remove, image, Docker"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -15,13 +14,14 @@ weight=1
 
     Remove one or more images
 
-      -f, --force=false    Force removal of the image
-      --no-prune=false     Do not delete untagged parents
-
+      -f, --force          Force removal of the image
+      --help               Print usage
+      --no-prune           Do not delete untagged parents
 
 You can remove an image using its short or long ID, its tag, or its digest. If
-an image has one or more tag or digest reference, you must remove all of them
-before the image is removed.
+an image has one or more tag referencing it, you must remove all of them before
+the image is removed. Digest references are removed automatically when an image
+is removed by tag.
 
     $ docker images
     REPOSITORY                TAG                 IMAGE ID            CREATED             SIZE
@@ -63,7 +63,7 @@ command untags and removes all images that match the specified ID.
 An image pulled by digest has no tag associated with it:
 
     $ docker images --digests
-    REPOSITORY                     TAG       DIGEST                                                                    IMAGE ID        CREATED         VIRTUAL SIZE
+    REPOSITORY                     TAG       DIGEST                                                                    IMAGE ID        CREATED         SIZE
     localhost:5000/test/busybox    <none>    sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf   4986bf8c1536    9 weeks ago     2.43 MB
 
 To remove an image using its digest:
@@ -73,4 +73,3 @@ To remove an image using its digest:
     Deleted: 4986bf8c15363d1c5d15512d5266f8777bfba4974ac56e3270e7760f6f0a8125
     Deleted: ea13149945cb6b1e746bf28032f02e9b5a793523481a0a18645fc77ad53c4ea2
     Deleted: df7546f9f060a2268024c8a230d8639878585defcc1bc6f79d2728a13957871b
-

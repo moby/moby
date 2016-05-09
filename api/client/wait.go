@@ -2,6 +2,9 @@ package client
 
 import (
 	"fmt"
+	"strings"
+
+	"golang.org/x/net/context"
 
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -13,23 +16,22 @@ import (
 //
 // Usage: docker wait CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdWait(args ...string) error {
-	cmd := Cli.Subcmd("wait", []string{"CONTAINER [CONTAINER...]"}, "Block until a container stops, then print its exit code.", true)
+	cmd := Cli.Subcmd("wait", []string{"CONTAINER [CONTAINER...]"}, Cli.DockerCommands["wait"].Description, true)
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)
 
-	var errNames []string
+	var errs []string
 	for _, name := range cmd.Args() {
-		status, err := waitForExit(cli, name)
+		status, err := cli.client.ContainerWait(context.Background(), name)
 		if err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
-			errNames = append(errNames, name)
+			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(cli.out, "%d\n", status)
 		}
 	}
-	if len(errNames) > 0 {
-		return fmt.Errorf("Error: failed to wait containers: %v", errNames)
+	if len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, "\n"))
 	}
 	return nil
 }

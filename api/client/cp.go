@@ -1,21 +1,19 @@
 package client
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/api/types"
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/archive"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/engine-api/types"
 )
 
 type copyDirection int
@@ -26,31 +24,37 @@ const (
 	acrossContainers = fromContainer | toContainer
 )
 
+type cpConfig struct {
+	followLink bool
+}
+
 // CmdCp copies files/folders to or from a path in a container.
 //
-// When copying from a container, if LOCALPATH is '-' the data is written as a
+// When copying from a container, if DEST_PATH is '-' the data is written as a
 // tar archive file to STDOUT.
 //
-// When copying to a container, if LOCALPATH is '-' the data is read as a tar
-// archive file from STDIN, and the destination CONTAINER:PATH, must specify
+// When copying to a container, if SRC_PATH is '-' the data is read as a tar
+// archive file from STDIN, and the destination CONTAINER:DEST_PATH, must specify
 // a directory.
 //
 // Usage:
-// 	docker cp CONTAINER:PATH LOCALPATH|-
-// 	docker cp LOCALPATH|- CONTAINER:PATH
+// 	docker cp CONTAINER:SRC_PATH DEST_PATH|-
+// 	docker cp SRC_PATH|- CONTAINER:DEST_PATH
 func (cli *DockerCli) CmdCp(args ...string) error {
 	cmd := Cli.Subcmd(
 		"cp",
-		[]string{"CONTAINER:PATH LOCALPATH|-", "LOCALPATH|- CONTAINER:PATH"},
+		[]string{"CONTAINER:SRC_PATH DEST_PATH|-", "SRC_PATH|- CONTAINER:DEST_PATH"},
 		strings.Join([]string{
-			"Copy files/folders between a container and your host.\n",
-			"Use '-' as the source to read a tar archive from stdin\n",
+			Cli.DockerCommands["cp"].Description,
+			"\nUse '-' as the source to read a tar archive from stdin\n",
 			"and extract it to a directory destination in a container.\n",
 			"Use '-' as the destination to stream a tar archive of a\n",
 			"container source to stdout.",
 		}, ""),
 		true,
 	)
+
+	followLink := cmd.Bool([]string{"L", "-follow-link"}, false, "Always follow symbol link in SRC_PATH")
 
 	cmd.Require(flag.Exact, 2)
 	cmd.ParseFlags(args, true)
@@ -73,11 +77,15 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 		direction |= toContainer
 	}
 
+	cpParam := &cpConfig{
+		followLink: *followLink,
+	}
+
 	switch direction {
 	case fromContainer:
-		return cli.copyFromContainer(srcContainer, srcPath, dstPath)
+		return cli.copyFromContainer(srcContainer, srcPath, dstPath, cpParam)
 	case toContainer:
-		return cli.copyToContainer(srcPath, dstContainer, dstPath)
+		return cli.copyToContainer(srcPath, dstContainer, dstPath, cpParam)
 	case acrossContainers:
 		// Copying between containers isn't supported.
 		return fmt.Errorf("copying between containers is not supported")
@@ -119,38 +127,7 @@ func splitCpArg(arg string) (container, path string) {
 }
 
 func (cli *DockerCli) statContainerPath(containerName, path string) (types.ContainerPathStat, error) {
-	var stat types.ContainerPathStat
-
-	query := make(url.Values, 1)
-	query.Set("path", filepath.ToSlash(path)) // Normalize the paths used in the API.
-
-	urlStr := fmt.Sprintf("/containers/%s/archive?%s", containerName, query.Encode())
-
-	response, err := cli.call("HEAD", urlStr, nil, nil)
-	if err != nil {
-		return stat, err
-	}
-	defer response.body.Close()
-
-	if response.statusCode != http.StatusOK {
-		return stat, fmt.Errorf("unexpected status code from daemon: %d", response.statusCode)
-	}
-
-	return getContainerPathStatFromHeader(response.header)
-}
-
-func getContainerPathStatFromHeader(header http.Header) (types.ContainerPathStat, error) {
-	var stat types.ContainerPathStat
-
-	encodedStat := header.Get("X-Docker-Container-Path-Stat")
-	statDecoder := base64.NewDecoder(base64.StdEncoding, strings.NewReader(encodedStat))
-
-	err := json.NewDecoder(statDecoder).Decode(&stat)
-	if err != nil {
-		err = fmt.Errorf("unable to decode container path stat header: %s", err)
-	}
-
-	return stat, err
+	return cli.client.ContainerStatPath(context.Background(), containerName, path)
 }
 
 func resolveLocalPath(localPath string) (absPath string, err error) {
@@ -161,7 +138,7 @@ func resolveLocalPath(localPath string) (absPath string, err error) {
 	return archive.PreserveTrailingDotOrSeparator(absPath, localPath), nil
 }
 
-func (cli *DockerCli) copyFromContainer(srcContainer, srcPath, dstPath string) (err error) {
+func (cli *DockerCli) copyFromContainer(srcContainer, srcPath, dstPath string, cpParam *cpConfig) (err error) {
 	if dstPath != "-" {
 		// Get an absolute destination path.
 		dstPath, err = resolveLocalPath(dstPath)
@@ -170,53 +147,59 @@ func (cli *DockerCli) copyFromContainer(srcContainer, srcPath, dstPath string) (
 		}
 	}
 
-	query := make(url.Values, 1)
-	query.Set("path", filepath.ToSlash(srcPath)) // Normalize the paths used in the API.
+	// if client requests to follow symbol link, then must decide target file to be copied
+	var rebaseName string
+	if cpParam.followLink {
+		srcStat, err := cli.statContainerPath(srcContainer, srcPath)
 
-	urlStr := fmt.Sprintf("/containers/%s/archive?%s", srcContainer, query.Encode())
+		// If the destination is a symbolic link, we should follow it.
+		if err == nil && srcStat.Mode&os.ModeSymlink != 0 {
+			linkTarget := srcStat.LinkTarget
+			if !system.IsAbs(linkTarget) {
+				// Join with the parent directory.
+				srcParent, _ := archive.SplitPathDirEntry(srcPath)
+				linkTarget = filepath.Join(srcParent, linkTarget)
+			}
 
-	response, err := cli.call("GET", urlStr, nil, nil)
+			linkTarget, rebaseName = archive.GetRebaseName(srcPath, linkTarget)
+			srcPath = linkTarget
+		}
+
+	}
+
+	content, stat, err := cli.client.CopyFromContainer(context.Background(), srcContainer, srcPath)
 	if err != nil {
 		return err
 	}
-	defer response.body.Close()
-
-	if response.statusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code from daemon: %d", response.statusCode)
-	}
+	defer content.Close()
 
 	if dstPath == "-" {
 		// Send the response to STDOUT.
-		_, err = io.Copy(os.Stdout, response.body)
+		_, err = io.Copy(os.Stdout, content)
 
 		return err
-	}
-
-	// In order to get the copy behavior right, we need to know information
-	// about both the source and the destination. The response headers include
-	// stat info about the source that we can use in deciding exactly how to
-	// copy it locally. Along with the stat info about the local destination,
-	// we have everything we need to handle the multiple possibilities there
-	// can be when copying a file/dir from one location to another file/dir.
-	stat, err := getContainerPathStatFromHeader(response.header)
-	if err != nil {
-		return fmt.Errorf("unable to get resource stat from response: %s", err)
 	}
 
 	// Prepare source copy info.
 	srcInfo := archive.CopyInfo{
-		Path:   srcPath,
-		Exists: true,
-		IsDir:  stat.Mode.IsDir(),
+		Path:       srcPath,
+		Exists:     true,
+		IsDir:      stat.Mode.IsDir(),
+		RebaseName: rebaseName,
 	}
 
+	preArchive := content
+	if len(srcInfo.RebaseName) != 0 {
+		_, srcBase := archive.SplitPathDirEntry(srcInfo.Path)
+		preArchive = archive.RebaseArchiveEntries(content, srcBase, srcInfo.RebaseName)
+	}
 	// See comments in the implementation of `archive.CopyTo` for exactly what
 	// goes into deciding how and whether the source archive needs to be
 	// altered for the correct copy behavior.
-	return archive.CopyTo(response.body, srcInfo, dstPath)
+	return archive.CopyTo(preArchive, srcInfo, dstPath)
 }
 
-func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string) (err error) {
+func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string, cpParam *cpConfig) (err error) {
 	if srcPath != "-" {
 		// Get an absolute source path.
 		srcPath, err = resolveLocalPath(srcPath)
@@ -250,7 +233,7 @@ func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string) (er
 	// Ignore any error and assume that the parent directory of the destination
 	// path exists, in which case the copy may still succeed. If there is any
 	// type of conflict (e.g., non-directory overwriting an existing directory
-	// or vice versia) the extraction will fail. If the destination simply did
+	// or vice versa) the extraction will fail. If the destination simply did
 	// not exist, but the parent directory does, the extraction will still
 	// succeed.
 	if err == nil {
@@ -271,7 +254,7 @@ func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string) (er
 		}
 	} else {
 		// Prepare source copy info.
-		srcInfo, err := archive.CopyInfoSourcePath(srcPath)
+		srcInfo, err := archive.CopyInfoSourcePath(srcPath, cpParam.followLink)
 		if err != nil {
 			return err
 		}
@@ -285,7 +268,7 @@ func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string) (er
 		// With the stat info about the local source as well as the
 		// destination, we have enough information to know whether we need to
 		// alter the archive that we upload so that when the server extracts
-		// it to the specified directory in the container we get the disired
+		// it to the specified directory in the container we get the desired
 		// copy behavior.
 
 		// See comments in the implementation of `archive.PrepareArchiveCopy`
@@ -304,22 +287,9 @@ func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string) (er
 		content = preparedArchive
 	}
 
-	query := make(url.Values, 2)
-	query.Set("path", filepath.ToSlash(resolvedDstPath)) // Normalize the paths used in the API.
-	// Do not allow for an existing directory to be overwritten by a non-directory and vice versa.
-	query.Set("noOverwriteDirNonDir", "true")
-
-	urlStr := fmt.Sprintf("/containers/%s/archive?%s", dstContainer, query.Encode())
-
-	response, err := cli.stream("PUT", urlStr, &streamOpts{in: content})
-	if err != nil {
-		return err
-	}
-	defer response.body.Close()
-
-	if response.statusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code from daemon: %d", response.statusCode)
+	options := types.CopyToContainerOptions{
+		AllowOverwriteDirWithFile: false,
 	}
 
-	return nil
+	return cli.client.CopyToContainer(context.Background(), dstContainer, resolvedDstPath, content, options)
 }

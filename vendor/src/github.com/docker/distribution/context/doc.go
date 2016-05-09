@@ -1,7 +1,20 @@
 // Package context provides several utilities for working with
 // golang.org/x/net/context in http requests. Primarily, the focus is on
-// logging relevent request information but this package is not limited to
+// logging relevant request information but this package is not limited to
 // that purpose.
+//
+// The easiest way to get started is to get the background context:
+//
+// 	ctx := context.Background()
+//
+// The returned context should be passed around your application and be the
+// root of all other context instances. If the application has a version, this
+// line should be called before anything else:
+//
+// 	ctx := context.WithVersion(context.Background(), version)
+//
+// The above will store the version in the context and will be available to
+// the logger.
 //
 // Logging
 //

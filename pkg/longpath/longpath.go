@@ -15,7 +15,12 @@ const Prefix = `\\?\`
 // it does not already have it.
 func AddPrefix(path string) string {
 	if !strings.HasPrefix(path, Prefix) {
-		path = Prefix + path
+		if strings.HasPrefix(path, `\\`) {
+			// This is a UNC path, so we need to add 'UNC' to the path as well.
+			path = Prefix + `UNC` + path[1:]
+		} else {
+			path = Prefix + path
+		}
 	}
 	return path
 }

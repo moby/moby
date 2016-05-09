@@ -2,10 +2,9 @@ package client
 
 import (
 	"bytes"
-	"sync"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/engine-api/types"
 )
 
 func TestDisplay(t *testing.T) {
@@ -19,14 +18,14 @@ func TestDisplay(t *testing.T) {
 		NetworkTx:        800 * 1024 * 1024,
 		BlockRead:        100 * 1024 * 1024,
 		BlockWrite:       800 * 1024 * 1024,
-		mu:               sync.RWMutex{},
+		PidsCurrent:      1,
 	}
 	var b bytes.Buffer
 	if err := c.Display(&b); err != nil {
 		t.Fatalf("c.Display() gave error: %s", err)
 	}
 	got := b.String()
-	want := "app\t30.00%\t104.9 MB / 2.147 GB\t4.88%\t104.9 MB / 838.9 MB\t104.9 MB / 838.9 MB\n"
+	want := "app\t30.00%\t100 MiB / 2 GiB\t4.88%\t104.9 MB / 838.9 MB\t104.9 MB / 838.9 MB\t1\n"
 	if got != want {
 		t.Fatalf("c.Display() = %q, want %q", got, want)
 	}

@@ -3,13 +3,12 @@
 package daemon
 
 import (
+	"fmt"
 	"os/exec"
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/context"
-	derr "github.com/docker/docker/errors"
+	"github.com/docker/engine-api/types"
 )
 
 // ContainerTop lists the processes running inside of the given
@@ -17,28 +16,32 @@ import (
 // "-ef" if no args are given.  An error is returned if the container
 // is not found, or is not running, or if there are any problems
 // running ps, or parsing the output.
-func (daemon *Daemon) ContainerTop(ctx context.Context, name string, psArgs string) (*types.ContainerProcessList, error) {
+func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error) {
 	if psArgs == "" {
 		psArgs = "-ef"
 	}
 
-	container, err := daemon.Get(ctx, name)
+	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
 	}
 
 	if !container.IsRunning() {
-		return nil, derr.ErrorCodeNotRunning.WithArgs(name)
+		return nil, errNotRunning{container.ID}
 	}
 
-	pids, err := daemon.ExecutionDriver().GetPidsForContainer(container.ID)
+	if container.IsRestarting() {
+		return nil, errContainerIsRestarting(container.ID)
+	}
+
+	pids, err := daemon.containerd.GetPidsForContainer(container.ID)
 	if err != nil {
 		return nil, err
 	}
 
 	output, err := exec.Command("ps", strings.Split(psArgs, " ")...).Output()
 	if err != nil {
-		return nil, derr.ErrorCodePSError.WithArgs(err)
+		return nil, fmt.Errorf("Error running ps: %v", err)
 	}
 
 	procList := &types.ContainerProcessList{}
@@ -53,7 +56,7 @@ func (daemon *Daemon) ContainerTop(ctx context.Context, name string, psArgs stri
 		}
 	}
 	if pidIndex == -1 {
-		return nil, derr.ErrorCodeNoPID
+		return nil, fmt.Errorf("Couldn't find PID field in ps output")
 	}
 
 	// loop through the output and extract the PID from each line
@@ -64,7 +67,7 @@ func (daemon *Daemon) ContainerTop(ctx context.Context, name string, psArgs stri
 		fields := strings.Fields(line)
 		p, err := strconv.Atoi(fields[pidIndex])
 		if err != nil {
-			return nil, derr.ErrorCodeBadPID.WithArgs(fields[pidIndex], err)
+			return nil, fmt.Errorf("Unexpected pid '%s': %s", fields[pidIndex], err)
 		}
 
 		for _, pid := range pids {
@@ -77,6 +80,6 @@ func (daemon *Daemon) ContainerTop(ctx context.Context, name string, psArgs stri
 			}
 		}
 	}
-	container.logEvent(ctx, "top")
+	daemon.LogContainerEvent(container, "top")
 	return procList, nil
 }

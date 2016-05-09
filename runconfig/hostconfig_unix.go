@@ -3,68 +3,105 @@
 package runconfig
 
 import (
+	"fmt"
+	"runtime"
 	"strings"
+
+	"github.com/docker/engine-api/types/container"
 )
-
-// IsPrivate indicates whether container uses it's private network stack.
-func (n NetworkMode) IsPrivate() bool {
-	return !(n.IsHost() || n.IsContainer())
-}
-
-// IsDefault indicates whether container uses the default network stack.
-func (n NetworkMode) IsDefault() bool {
-	return n == "default"
-}
 
 // DefaultDaemonNetworkMode returns the default network stack the daemon should
 // use.
-func DefaultDaemonNetworkMode() NetworkMode {
-	return NetworkMode("bridge")
+func DefaultDaemonNetworkMode() container.NetworkMode {
+	return container.NetworkMode("bridge")
 }
 
-// NetworkName returns the name of the network stack.
-func (n NetworkMode) NetworkName() string {
-	if n.IsBridge() {
-		return "bridge"
-	} else if n.IsHost() {
-		return "host"
-	} else if n.IsContainer() {
-		return "container"
-	} else if n.IsNone() {
-		return "none"
-	} else if n.IsDefault() {
-		return "default"
+// IsPreDefinedNetwork indicates if a network is predefined by the daemon
+func IsPreDefinedNetwork(network string) bool {
+	n := container.NetworkMode(network)
+	return n.IsBridge() || n.IsHost() || n.IsNone() || n.IsDefault()
+}
+
+// ValidateNetMode ensures that the various combinations of requested
+// network settings are valid.
+func ValidateNetMode(c *container.Config, hc *container.HostConfig) error {
+	// We may not be passed a host config, such as in the case of docker commit
+	if hc == nil {
+		return nil
 	}
-	return ""
-}
-
-// IsBridge indicates whether container uses the bridge network stack
-func (n NetworkMode) IsBridge() bool {
-	return n == "bridge"
-}
-
-// IsHost indicates whether container uses the host network stack.
-func (n NetworkMode) IsHost() bool {
-	return n == "host"
-}
-
-// IsContainer indicates whether container uses a container network stack.
-func (n NetworkMode) IsContainer() bool {
-	parts := strings.SplitN(string(n), ":", 2)
-	return len(parts) > 1 && parts[0] == "container"
-}
-
-// IsNone indicates whether container isn't using a network stack.
-func (n NetworkMode) IsNone() bool {
-	return n == "none"
-}
-
-// MergeConfigs merges the specified container Config and HostConfig.
-// It creates a ContainerConfigWrapper.
-func MergeConfigs(config *Config, hostConfig *HostConfig) *ContainerConfigWrapper {
-	return &ContainerConfigWrapper{
-		config,
-		hostConfig,
-		"", nil,
+	parts := strings.Split(string(hc.NetworkMode), ":")
+	if parts[0] == "container" {
+		if len(parts) < 2 || parts[1] == "" {
+			return fmt.Errorf("--net: invalid net mode: invalid container format container:<name|id>")
+		}
 	}
+
+	if hc.NetworkMode.IsContainer() && c.Hostname != "" {
+		return ErrConflictNetworkHostname
+	}
+
+	if hc.UTSMode.IsHost() && c.Hostname != "" {
+		return ErrConflictUTSHostname
+	}
+
+	if hc.NetworkMode.IsHost() && len(hc.Links) > 0 {
+		return ErrConflictHostNetworkAndLinks
+	}
+
+	if hc.NetworkMode.IsContainer() && len(hc.Links) > 0 {
+		return ErrConflictContainerNetworkAndLinks
+	}
+
+	if (hc.NetworkMode.IsHost() || hc.NetworkMode.IsContainer()) && len(hc.DNS) > 0 {
+		return ErrConflictNetworkAndDNS
+	}
+
+	if (hc.NetworkMode.IsContainer() || hc.NetworkMode.IsHost()) && len(hc.ExtraHosts) > 0 {
+		return ErrConflictNetworkHosts
+	}
+
+	if (hc.NetworkMode.IsContainer() || hc.NetworkMode.IsHost()) && c.MacAddress != "" {
+		return ErrConflictContainerNetworkAndMac
+	}
+
+	if hc.NetworkMode.IsContainer() && (len(hc.PortBindings) > 0 || hc.PublishAllPorts == true) {
+		return ErrConflictNetworkPublishPorts
+	}
+
+	if hc.NetworkMode.IsContainer() && len(c.ExposedPorts) > 0 {
+		return ErrConflictNetworkExposePorts
+	}
+	return nil
+}
+
+// ValidateIsolation performs platform specific validation of
+// isolation in the hostconfig structure. Linux only supports "default"
+// which is LXC container isolation
+func ValidateIsolation(hc *container.HostConfig) error {
+	// We may not be passed a host config, such as in the case of docker commit
+	if hc == nil {
+		return nil
+	}
+	if !hc.Isolation.IsValid() {
+		return fmt.Errorf("invalid --isolation: %q - %s only supports 'default'", hc.Isolation, runtime.GOOS)
+	}
+	return nil
+}
+
+// ValidateQoS performs platform specific validation of the QoS settings
+// a disk can be limited by either Bps or IOps, but not both.
+func ValidateQoS(hc *container.HostConfig) error {
+	// We may not be passed a host config, such as in the case of docker commit
+	if hc == nil {
+		return nil
+	}
+
+	if hc.IOMaximumBandwidth != 0 {
+		return fmt.Errorf("invalid QoS settings: %s does not support --maximum-bandwidth", runtime.GOOS)
+	}
+
+	if hc.IOMaximumIOps != 0 {
+		return fmt.Errorf("invalid QoS settings: %s does not support --maximum-iops", runtime.GOOS)
+	}
+	return nil
 }

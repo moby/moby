@@ -7,19 +7,12 @@ docker \- Docker image and container command line interface
 # SYNOPSIS
 **docker** [OPTIONS] COMMAND [arg...]
 
-**docker** daemon [ --help | ... ]
+**docker** daemon [--help|...]
 
-**docker** [ --help | -v | --version ]
+**docker** [--help|-v|--version]
 
 # DESCRIPTION
-**docker** has two distinct functions. It is used for starting the Docker
-daemon and to run the CLI (i.e., to command the daemon to manage images,
-containers etc.) So **docker** is both a server, as a daemon, and a client
-to the daemon, through the CLI.
-
-To run the Docker daemon you can specify **docker daemon**.
-You can view the daemon options using **docker daemon --help**.
-To see the man page for the daemon, run **man docker daemon**.
+is a client for interacting with the daemon (see **dockerd(8)**) through the CLI.
 
 The Docker CLI has over 30 commands. The commands are listed below and each has
 its own man page which explain usage and arguments.
@@ -36,24 +29,26 @@ To see the man page for a command run **man docker <command>**.
 **-D**, **--debug**=*true*|*false*
   Enable debug mode. Default is false.
 
-**-H**, **--host**=[unix:///var/run/docker.sock]: tcp://[host:port] to bind or
+**-H**, **--host**=[*unix:///var/run/docker.sock*]: tcp://[host]:[port][path] to bind or
 unix://[/path/to/socket] to use.
   The socket(s) to bind to in daemon mode specified using one or more
-  tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
+  tcp://host:port/path, unix:///path/to/socket, fd://* or fd://socketfd.
+  If the tcp port is not specified, then it will default to either `2375` when
+  `--tls` is off, or `2376` when `--tls` is on, or `--tlsverify` is specified.
 
-**-l**, **--log-level**="*debug*|*info*|*warn*|*error*|*fatal*""
+**-l**, **--log-level**="*debug*|*info*|*warn*|*error*|*fatal*"
   Set the logging level. Default is `info`.
 
 **--tls**=*true*|*false*
   Use TLS; implied by --tlsverify. Default is false.
 
-**--tlscacert**=~/.docker/ca.pem
+**--tlscacert**=*~/.docker/ca.pem*
   Trust certs signed only by this CA.
 
-**--tlscert**=~/.docker/cert.pem
+**--tlscert**=*~/.docker/cert.pem*
   Path to TLS certificate file.
 
-**--tlskey**=~/.docker/key.pem
+**--tlskey**=*~/.docker/key.pem*
   Path to TLS key file.
 
 **--tlsverify**=*true*|*false*
@@ -130,7 +125,7 @@ inside it)
   See **docker-load(1)** for full documentation on the **load** command.
 
 **login**
-  Register or login to a Docker Registry
+  Log in to a Docker Registry
   See **docker-login(1)** for full documentation on the **login** command.
 
 **logout**
@@ -190,7 +185,7 @@ inside it)
   See **docker-search(1)** for full documentation on the **search** command.
 
 **start**
-  Start a stopped container
+  Start a container
   See **docker-start(1)** for full documentation on the **start** command.
 
 **stats**
@@ -198,7 +193,7 @@ inside it)
   See **docker-stats(1)** for full documentation on the **stats** command.
 
 **stop**
-  Stop a running container
+  Stop a container
   See **docker-stop(1)** for full documentation on the **stop** command.
 
 **tag**
@@ -221,17 +216,16 @@ inside it)
   Block until a container stops, then print its exit code
   See **docker-wait(1)** for full documentation on the **wait** command.
 
-# EXEC DRIVER OPTIONS
 
-Use the **--exec-opt** flags to specify options to the exec-driver. The only
-driver that accepts this flag is the *native* (libcontainer) driver. As a
-result, you must also specify **-s=**native for this option to have effect. The 
-following is the only *native* option:
+# RUNTIME EXECUTION OPTIONS
+
+Use the **--exec-opt** flags to specify options to the execution driver.
+The following options are available:
 
 #### native.cgroupdriver
-Specifies the management of the container's `cgroups`. You can specify 
-`cgroupfs` or `systemd`. If you specify `systemd` and it is not available, the 
-system uses `cgroupfs`.
+Specifies the management of the container's `cgroups`. You can specify `cgroupfs`
+or `systemd`. If you specify `systemd` and it is not available, the system errors
+out.
 
 #### Client
 For specific client examples please see the man page for the specific Docker

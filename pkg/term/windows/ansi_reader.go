@@ -14,6 +14,10 @@ import (
 	"github.com/Azure/go-ansiterm/winterm"
 )
 
+const (
+	escapeSequence = ansiterm.KEY_ESC_CSI
+)
+
 // ansiReader wraps a standard input file (e.g., os.Stdin) providing ANSI sequence translation.
 type ansiReader struct {
 	file     *os.File
@@ -21,18 +25,15 @@ type ansiReader struct {
 	buffer   []byte
 	cbBuffer int
 	command  []byte
-	// TODO(azlinux): Remove this and hard-code the string -- it is not going to change
-	escapeSequence []byte
 }
 
 func newAnsiReader(nFile int) *ansiReader {
 	file, fd := winterm.GetStdFile(nFile)
 	return &ansiReader{
-		file:           file,
-		fd:             fd,
-		command:        make([]byte, 0, ansiterm.ANSI_MAX_CMD_LENGTH),
-		escapeSequence: []byte(ansiterm.KEY_ESC_CSI),
-		buffer:         make([]byte, 0),
+		file:    file,
+		fd:      fd,
+		command: make([]byte, 0, ansiterm.ANSI_MAX_CMD_LENGTH),
+		buffer:  make([]byte, 0),
 	}
 }
 
@@ -78,7 +79,7 @@ func (ar *ansiReader) Read(p []byte) (int, error) {
 		return 0, nil
 	}
 
-	keyBytes := translateKeyEvents(events, ar.escapeSequence)
+	keyBytes := translateKeyEvents(events, []byte(escapeSequence))
 
 	// Save excess bytes and right-size keyBytes
 	if len(keyBytes) > len(p) {
@@ -135,14 +136,14 @@ func readInputEvents(fd uintptr, maxBytes int) ([]winterm.INPUT_RECORD, error) {
 
 // KeyEvent Translation Helpers
 
-var arrowKeyMapPrefix = map[winterm.WORD]string{
+var arrowKeyMapPrefix = map[uint16]string{
 	winterm.VK_UP:    "%s%sA",
 	winterm.VK_DOWN:  "%s%sB",
 	winterm.VK_RIGHT: "%s%sC",
 	winterm.VK_LEFT:  "%s%sD",
 }
 
-var keyMapPrefix = map[winterm.WORD]string{
+var keyMapPrefix = map[uint16]string{
 	winterm.VK_UP:     "\x1B[%sA",
 	winterm.VK_DOWN:   "\x1B[%sB",
 	winterm.VK_RIGHT:  "\x1B[%sC",
@@ -206,7 +207,7 @@ func keyToString(keyEvent *winterm.KEY_EVENT_RECORD, escapeSequence []byte) stri
 }
 
 // formatVirtualKey converts a virtual key (e.g., up arrow) into the appropriate ANSI string.
-func formatVirtualKey(key winterm.WORD, controlState winterm.DWORD, escapeSequence []byte) string {
+func formatVirtualKey(key uint16, controlState uint32, escapeSequence []byte) string {
 	shift, alt, control := getControlKeys(controlState)
 	modifier := getControlKeysModifier(shift, alt, control)
 
@@ -222,7 +223,7 @@ func formatVirtualKey(key winterm.WORD, controlState winterm.DWORD, escapeSequen
 }
 
 // getControlKeys extracts the shift, alt, and ctrl key states.
-func getControlKeys(controlState winterm.DWORD) (shift, alt, control bool) {
+func getControlKeys(controlState uint32) (shift, alt, control bool) {
 	shift = 0 != (controlState & winterm.SHIFT_PRESSED)
 	alt = 0 != (controlState & (winterm.LEFT_ALT_PRESSED | winterm.RIGHT_ALT_PRESSED))
 	control = 0 != (controlState & (winterm.LEFT_CTRL_PRESSED | winterm.RIGHT_CTRL_PRESSED))

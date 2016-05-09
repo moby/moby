@@ -4,11 +4,12 @@ package overlay
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"syscall"
+	"time"
 
+	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 )
 
@@ -31,7 +32,7 @@ func copyRegular(srcPath, dstPath string, mode os.FileMode) error {
 	}
 	defer dstFile.Close()
 
-	_, err = io.Copy(dstFile, srcFile)
+	_, err = pools.Copy(dstFile, srcFile)
 
 	return err
 }
@@ -149,13 +150,15 @@ func copyDir(srcDir, dstDir string, flags copyFlags) error {
 			}
 		}
 
-		ts := []syscall.Timespec{stat.Atim, stat.Mtim}
-		// syscall.UtimesNano doesn't support a NOFOLLOW flag atm, and
+		// system.Chtimes doesn't support a NOFOLLOW flag atm
 		if !isSymlink {
-			if err := system.UtimesNano(dstPath, ts); err != nil {
+			aTime := time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
+			mTime := time.Unix(int64(stat.Mtim.Sec), int64(stat.Mtim.Nsec))
+			if err := system.Chtimes(dstPath, aTime, mTime); err != nil {
 				return err
 			}
 		} else {
+			ts := []syscall.Timespec{stat.Atim, stat.Mtim}
 			if err := system.LUtimesNano(dstPath, ts); err != nil {
 				return err
 			}

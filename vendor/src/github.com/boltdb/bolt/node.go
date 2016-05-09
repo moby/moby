@@ -2,6 +2,7 @@ package bolt
 
 import (
 	"bytes"
+	"fmt"
 	"sort"
 	"unsafe"
 )
@@ -70,7 +71,9 @@ func (n *node) pageElementSize() int {
 
 // childAt returns the child node at a given index.
 func (n *node) childAt(index int) *node {
-	_assert(!n.isLeaf, "invalid childAt(%d) on a leaf node", index)
+	if n.isLeaf {
+		panic(fmt.Sprintf("invalid childAt(%d) on a leaf node", index))
+	}
 	return n.bucket.node(n.inodes[index].pgid, n)
 }
 
@@ -111,9 +114,13 @@ func (n *node) prevSibling() *node {
 
 // put inserts a key/value.
 func (n *node) put(oldKey, newKey, value []byte, pgid pgid, flags uint32) {
-	_assert(pgid < n.bucket.tx.meta.pgid, "pgid (%d) above high water mark (%d)", pgid, n.bucket.tx.meta.pgid)
-	_assert(len(oldKey) > 0, "put: zero-length old key")
-	_assert(len(newKey) > 0, "put: zero-length new key")
+	if pgid >= n.bucket.tx.meta.pgid {
+		panic(fmt.Sprintf("pgid (%d) above high water mark (%d)", pgid, n.bucket.tx.meta.pgid))
+	} else if len(oldKey) <= 0 {
+		panic("put: zero-length old key")
+	} else if len(newKey) <= 0 {
+		panic("put: zero-length new key")
+	}
 
 	// Find insertion index.
 	index := sort.Search(len(n.inodes), func(i int) bool { return bytes.Compare(n.inodes[i].key, oldKey) != -1 })
@@ -189,7 +196,9 @@ func (n *node) write(p *page) {
 		p.flags |= branchPageFlag
 	}
 
-	_assert(len(n.inodes) < 0xFFFF, "inode overflow: %d (pgid=%d)", len(n.inodes), p.id)
+	if len(n.inodes) >= 0xFFFF {
+		panic(fmt.Sprintf("inode overflow: %d (pgid=%d)", len(n.inodes), p.id))
+	}
 	p.count = uint16(len(n.inodes))
 
 	// Loop over each item and write it to the page.
@@ -212,11 +221,20 @@ func (n *node) write(p *page) {
 			_assert(elem.pgid != p.id, "write: circular dependency occurred")
 		}
 
+		// If the length of key+value is larger than the max allocation size
+		// then we need to reallocate the byte array pointer.
+		//
+		// See: https://github.com/boltdb/bolt/pull/335
+		klen, vlen := len(item.key), len(item.value)
+		if len(b) < klen+vlen {
+			b = (*[maxAllocSize]byte)(unsafe.Pointer(&b[0]))[:]
+		}
+
 		// Write data for the element to the end of the page.
 		copy(b[0:], item.key)
-		b = b[len(item.key):]
+		b = b[klen:]
 		copy(b[0:], item.value)
-		b = b[len(item.value):]
+		b = b[vlen:]
 	}
 
 	// DEBUG ONLY: n.dump()
@@ -348,7 +366,9 @@ func (n *node) spill() error {
 		}
 
 		// Write the node.
-		_assert(p.id < tx.meta.pgid, "pgid (%d) above high water mark (%d)", p.id, tx.meta.pgid)
+		if p.id >= tx.meta.pgid {
+			panic(fmt.Sprintf("pgid (%d) above high water mark (%d)", p.id, tx.meta.pgid))
+		}
 		node.pgid = p.id
 		node.write(p)
 		node.spilled = true
@@ -441,43 +461,6 @@ func (n *node) rebalance() {
 		target = n.nextSibling()
 	} else {
 		target = n.prevSibling()
-	}
-
-	// If target node has extra nodes then just move one over.
-	if target.numChildren() > target.minKeys() {
-		if useNextSibling {
-			// Reparent and move node.
-			if child, ok := n.bucket.nodes[target.inodes[0].pgid]; ok {
-				child.parent.removeChild(child)
-				child.parent = n
-				child.parent.children = append(child.parent.children, child)
-			}
-			n.inodes = append(n.inodes, target.inodes[0])
-			target.inodes = target.inodes[1:]
-
-			// Update target key on parent.
-			target.parent.put(target.key, target.inodes[0].key, nil, target.pgid, 0)
-			target.key = target.inodes[0].key
-			_assert(len(target.key) > 0, "rebalance(1): zero-length node key")
-		} else {
-			// Reparent and move node.
-			if child, ok := n.bucket.nodes[target.inodes[len(target.inodes)-1].pgid]; ok {
-				child.parent.removeChild(child)
-				child.parent = n
-				child.parent.children = append(child.parent.children, child)
-			}
-			n.inodes = append(n.inodes, inode{})
-			copy(n.inodes[1:], n.inodes)
-			n.inodes[0] = target.inodes[len(target.inodes)-1]
-			target.inodes = target.inodes[:len(target.inodes)-1]
-		}
-
-		// Update parent key for node.
-		n.parent.put(n.key, n.inodes[0].key, nil, n.pgid, 0)
-		n.key = n.inodes[0].key
-		_assert(len(n.key) > 0, "rebalance(2): zero-length node key")
-
-		return
 	}
 
 	// If both this node and the target node are too small then merge them.

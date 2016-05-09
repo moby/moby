@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 // PIDFile is a file used to store the process ID of a running process.
@@ -17,9 +17,10 @@ type PIDFile struct {
 }
 
 func checkPIDFileAlreadyExists(path string) error {
-	if pidString, err := ioutil.ReadFile(path); err == nil {
-		if pid, err := strconv.Atoi(string(pidString)); err == nil {
-			if _, err := os.Stat(filepath.Join("/proc", string(pid))); err == nil {
+	if pidByte, err := ioutil.ReadFile(path); err == nil {
+		pidString := strings.TrimSpace(string(pidByte))
+		if pid, err := strconv.Atoi(pidString); err == nil {
+			if processExists(pid) {
 				return fmt.Errorf("pid file found, ensure docker is not running or delete %s", path)
 			}
 		}

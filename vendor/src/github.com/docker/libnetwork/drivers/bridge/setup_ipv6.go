@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
 
@@ -21,9 +23,8 @@ const (
 func init() {
 	// We allow ourselves to panic in this special case because we indicate a
 	// failure to parse a compile-time define constant.
-	if ip, netw, err := net.ParseCIDR(bridgeIPv6Str); err == nil {
-		bridgeIPv6 = &net.IPNet{IP: ip, Mask: netw.Mask}
-	} else {
+	var err error
+	if bridgeIPv6, err = types.ParseCIDR(bridgeIPv6Str); err != nil {
 		panic(fmt.Sprintf("Cannot parse default bridge IPv6 address %q: %v", bridgeIPv6Str, err))
 	}
 }
@@ -41,34 +42,46 @@ func setupBridgeIPv6(config *networkConfiguration, i *bridgeInterface) error {
 		}
 	}
 
-	_, addrsv6, err := i.addresses()
-	if err != nil {
-		return err
-	}
-
-	// Add the default link local ipv6 address if it doesn't exist
-	if !findIPv6Address(netlink.Addr{IPNet: bridgeIPv6}, addrsv6) {
-		if err := netlink.AddrAdd(i.Link, &netlink.Addr{IPNet: bridgeIPv6}); err != nil {
-			return &IPv6AddrAddError{IP: bridgeIPv6, Err: err}
-		}
-	}
-
 	// Store bridge network and default gateway
 	i.bridgeIPv6 = bridgeIPv6
 	i.gatewayIPv6 = i.bridgeIPv6.IP
+
+	if err := i.programIPv6Address(); err != nil {
+		return err
+	}
+
+	if config.AddressIPv6 == nil {
+		return nil
+	}
+
+	// Store the user specified bridge network and network gateway and program it
+	i.bridgeIPv6 = config.AddressIPv6
+	i.gatewayIPv6 = config.AddressIPv6.IP
+
+	if err := i.programIPv6Address(); err != nil {
+		return err
+	}
+
+	// Setting route to global IPv6 subnet
+	logrus.Debugf("Adding route to IPv6 network %s via device %s", config.AddressIPv6.String(), config.BridgeName)
+	err = netlink.RouteAdd(&netlink.Route{
+		Scope:     netlink.SCOPE_UNIVERSE,
+		LinkIndex: i.Link.Attrs().Index,
+		Dst:       config.AddressIPv6,
+	})
+	if err != nil && !os.IsExist(err) {
+		logrus.Errorf("Could not add route to IPv6 network %s via device %s", config.AddressIPv6.String(), config.BridgeName)
+	}
 
 	return nil
 }
 
 func setupGatewayIPv6(config *networkConfiguration, i *bridgeInterface) error {
-	if config.FixedCIDRv6 == nil {
+	if config.AddressIPv6 == nil {
 		return &ErrInvalidContainerSubnet{}
 	}
-	if !config.FixedCIDRv6.Contains(config.DefaultGatewayIPv6) {
+	if !config.AddressIPv6.Contains(config.DefaultGatewayIPv6) {
 		return &ErrInvalidGateway{}
-	}
-	if _, err := ipAllocator.RequestIP(config.FixedCIDRv6, config.DefaultGatewayIPv6); err != nil {
-		return err
 	}
 
 	// Store requested default gateway

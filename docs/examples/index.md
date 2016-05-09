@@ -1,23 +1,22 @@
 <!--[metadata]>
 +++
-title = "Applied Docker"
+title = "Dockerize an application"
 description = "Provides examples for using Docker"
 keywords = ["dockerize, dockerizing apps, dockerizing applications, container,  containers"]
 [menu.main]
-identifier = "smn_applied"
-parent = "mn_use_docker"
-weight = 8	
+identifier = "engine_dockerize"
+parent="engine_use"
+weight = 8
 +++
 <![end-metadata]-->
 
-# Examples
+# Dockerize an application
 
 This section contains the following:
 
-* [Dockerizing MongoDB](/examples/mongodb/)
-* [Dockerizing PostgreSQL](/examples/postgresql_service/)    
-* [Dockerizing a CouchDB service](/examples/couchdb_data_volumes/)         
-* [Dockerizing a Node.js web app](/examples/nodejs_web_app/)
-* [Dockerizing a Redis service](/examples/running_redis_service/)
-* [Dockerizing an apt-cacher-ng service](/examples/apt-cacher-ng/)
-* [Dockerizing applications: A 'Hello world'](/userguide/dockerizing)
+* [Dockerizing MongoDB](mongodb.md)
+* [Dockerizing PostgreSQL](postgresql_service.md)    
+* [Dockerizing a CouchDB service](couchdb_data_volumes.md)         
+* [Dockerizing a Redis service](running_redis_service.md)
+* [Dockerizing an apt-cacher-ng service](apt-cacher-ng.md)
+* [Dockerizing applications: A 'Hello world'](../userguide/containers/dockerizing.md)

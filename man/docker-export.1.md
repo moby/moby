@@ -7,6 +7,7 @@ docker-export - Export the contents of a container's filesystem as a tar archive
 # SYNOPSIS
 **docker export**
 [**--help**]
+[**-o**|**--output**[=*""*]]
 CONTAINER
 
 # DESCRIPTION
@@ -19,8 +20,9 @@ Stream to a file instead of STDOUT by using **-o**.
 # OPTIONS
 **--help**
   Print usage statement
+  
 **-o**, **--output**=""
-   Write to a file, instead of STDOUT
+  Write to a file, instead of STDOUT
 
 # EXAMPLES
 Export the contents of the container called angry_bell to a tar file

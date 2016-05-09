@@ -4,7 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
-	"sync"
+
+	"golang.org/x/net/context"
 )
 
 type readCloserWrapper struct {
@@ -45,92 +46,6 @@ func NewReaderErrWrapper(r io.Reader, closer func()) io.Reader {
 	}
 }
 
-// bufReader allows the underlying reader to continue to produce
-// output by pre-emptively reading from the wrapped reader.
-// This is achieved by buffering this data in bufReader's
-// expanding buffer.
-type bufReader struct {
-	sync.Mutex
-	buf      io.ReadWriter
-	reader   io.Reader
-	err      error
-	wait     sync.Cond
-	drainBuf []byte
-}
-
-// NewBufReader returns a new bufReader.
-func NewBufReader(r io.Reader) io.ReadCloser {
-	reader := &bufReader{
-		buf:      NewBytesPipe(nil),
-		reader:   r,
-		drainBuf: make([]byte, 1024),
-	}
-	reader.wait.L = &reader.Mutex
-	go reader.drain()
-	return reader
-}
-
-// NewBufReaderWithDrainbufAndBuffer returns a BufReader with drainBuffer and buffer.
-func NewBufReaderWithDrainbufAndBuffer(r io.Reader, drainBuffer []byte, buffer io.ReadWriter) io.ReadCloser {
-	reader := &bufReader{
-		buf:      buffer,
-		drainBuf: drainBuffer,
-		reader:   r,
-	}
-	reader.wait.L = &reader.Mutex
-	go reader.drain()
-	return reader
-}
-
-func (r *bufReader) drain() {
-	for {
-		//Call to scheduler is made to yield from this goroutine.
-		//This avoids goroutine looping here when n=0,err=nil, fixes code hangs when run with GCC Go.
-		callSchedulerIfNecessary()
-		n, err := r.reader.Read(r.drainBuf)
-		r.Lock()
-		if err != nil {
-			r.err = err
-		} else {
-			if n == 0 {
-				// nothing written, no need to signal
-				r.Unlock()
-				continue
-			}
-			r.buf.Write(r.drainBuf[:n])
-		}
-		r.wait.Signal()
-		r.Unlock()
-		if err != nil {
-			break
-		}
-	}
-}
-
-func (r *bufReader) Read(p []byte) (n int, err error) {
-	r.Lock()
-	defer r.Unlock()
-	for {
-		n, err = r.buf.Read(p)
-		if n > 0 {
-			return n, err
-		}
-		if r.err != nil {
-			return 0, r.err
-		}
-		r.wait.Wait()
-	}
-}
-
-// Close closes the bufReader
-func (r *bufReader) Close() error {
-	closer, ok := r.reader.(io.ReadCloser)
-	if !ok {
-		return nil
-	}
-	return closer.Close()
-}
-
 // HashData returns the sha256 sum of src.
 func HashData(src io.Reader) (string, error) {
 	h := sha256.New()
@@ -167,4 +82,73 @@ func (r *OnEOFReader) runFunc() {
 		fn()
 		r.Fn = nil
 	}
+}
+
+// cancelReadCloser wraps an io.ReadCloser with a context for cancelling read
+// operations.
+type cancelReadCloser struct {
+	cancel func()
+	pR     *io.PipeReader // Stream to read from
+	pW     *io.PipeWriter
+}
+
+// NewCancelReadCloser creates a wrapper that closes the ReadCloser when the
+// context is cancelled. The returned io.ReadCloser must be closed when it is
+// no longer needed.
+func NewCancelReadCloser(ctx context.Context, in io.ReadCloser) io.ReadCloser {
+	pR, pW := io.Pipe()
+
+	// Create a context used to signal when the pipe is closed
+	doneCtx, cancel := context.WithCancel(context.Background())
+
+	p := &cancelReadCloser{
+		cancel: cancel,
+		pR:     pR,
+		pW:     pW,
+	}
+
+	go func() {
+		_, err := io.Copy(pW, in)
+		select {
+		case <-ctx.Done():
+			// If the context was closed, p.closeWithError
+			// was already called. Calling it again would
+			// change the error that Read returns.
+		default:
+			p.closeWithError(err)
+		}
+		in.Close()
+	}()
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				p.closeWithError(ctx.Err())
+			case <-doneCtx.Done():
+				return
+			}
+		}
+	}()
+
+	return p
+}
+
+// Read wraps the Read method of the pipe that provides data from the wrapped
+// ReadCloser.
+func (p *cancelReadCloser) Read(buf []byte) (n int, err error) {
+	return p.pR.Read(buf)
+}
+
+// closeWithError closes the wrapper and its underlying reader. It will
+// cause future calls to Read to return err.
+func (p *cancelReadCloser) closeWithError(err error) {
+	p.pW.CloseWithError(err)
+	p.cancel()
+}
+
+// Close closes the wrapper its underlying reader. It will cause
+// future calls to Read to return io.EOF.
+func (p *cancelReadCloser) Close() error {
+	p.closeWithError(io.EOF)
+	return nil
 }

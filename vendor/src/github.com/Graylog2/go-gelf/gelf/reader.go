@@ -66,7 +66,6 @@ func (r *Reader) ReadMessage() (*Message, error) {
 	var (
 		err        error
 		n, length  int
-		buf        bytes.Buffer
 		cid, ocid  []byte
 		seq, total uint8
 		cHead      []byte
@@ -122,19 +121,18 @@ func (r *Reader) ReadMessage() (*Message, error) {
 		// zlib is slightly more complicated, but correct
 		cReader, err = zlib.NewReader(bytes.NewReader(cBuf))
 	} else {
-		return nil, fmt.Errorf("unknown magic: %x %v", cHead, cHead)
+		// compliance with https://github.com/Graylog2/graylog2-server
+		// treating all messages as uncompressed if  they are not gzip, zlib or
+		// chunked
+		cReader = bytes.NewReader(cBuf)
 	}
 
 	if err != nil {
 		return nil, fmt.Errorf("NewReader: %s", err)
 	}
 
-	if _, err = io.Copy(&buf, cReader); err != nil {
-		return nil, fmt.Errorf("io.Copy: %s", err)
-	}
-
 	msg := new(Message)
-	if err := json.Unmarshal(buf.Bytes(), &msg); err != nil {
+	if err := json.NewDecoder(cReader).Decode(&msg); err != nil {
 		return nil, fmt.Errorf("json.Unmarshal: %s", err)
 	}
 

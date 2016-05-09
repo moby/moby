@@ -11,23 +11,21 @@ URL: https://dockerproject.org
 Vendor: Docker
 Packager: Docker <support@docker.com>
 
-# docker builds in a checksum of dockerinit into docker,
-# # so stripping the binaries breaks docker
-%global __os_install_post %{_rpmconfigdir}/brp-compress
-%global debug_package %{nil}
-
 # is_systemd conditional
-%if 0%{?fedora} >= 21 || 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?suse_version} >= 1300
+%if 0%{?fedora} >= 21 || 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?suse_version} >= 1210
 %global is_systemd 1
 %endif
 
 # required packages for build
-# most are already in the container (see contrib/builder/rpm/generate.sh)
+# most are already in the container (see contrib/builder/rpm/ARCH/generate.sh)
 # only require systemd on those systems
 %if 0%{?is_systemd}
+%if 0%{?suse_version} >= 1210
+BuildRequires: systemd-rpm-macros
+%{?systemd_requires}
+%else
 BuildRequires: pkgconfig(systemd)
 Requires: systemd-units
-%if !0%{?suse_version}
 BuildRequires: pkgconfig(libsystemd-journal)
 %endif
 %else
@@ -40,22 +38,32 @@ Requires(preun): initscripts
 # required packages on install
 Requires: /bin/sh
 Requires: iptables
+%if !0%{?suse_version}
 Requires: libcgroup
+%else
+Requires: libcgroup1
+%endif
 Requires: tar
 Requires: xz
-%if 0%{?fedora} >= 21
+%if 0%{?fedora} >= 21 || 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?oraclelinux} >= 7
 # Resolves: rhbz#1165615
 Requires: device-mapper-libs >= 1.02.90-1
 %endif
-%if 0%{?oraclelinux} == 6
-# Require Oracle Unbreakable Enterprise Kernel R3 and newer device-mapper
-Requires: kernel-uek >= 3.8
+%if 0%{?oraclelinux} >= 6
+# Require Oracle Unbreakable Enterprise Kernel R4 and newer device-mapper
+Requires: kernel-uek >= 4.1
 Requires: device-mapper >= 1.02.90-2
 %endif
 
 # docker-selinux conditional
 %if 0%{?fedora} >= 20 || 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?oraclelinux} >= 7
 %global with_selinux 1
+%endif
+
+# DWZ problem with multiple golang binary, see bug
+# https://bugzilla.redhat.com/show_bug.cgi?id=995136#c12
+%if 0%{?fedora} >= 20 || 0%{?rhel} >= 7 || 0%{?oraclelinux} >= 7
+%global _dwz_low_mem_die_limit 0
 %endif
 
 # start if with_selinux
@@ -84,6 +92,7 @@ Requires(pre): %{name}-selinux >= %{epoch}:%{version}-%{release}
 # conflicting packages
 Conflicts: docker
 Conflicts: docker-io
+Conflicts: docker-engine-cs
 
 %description
 Docker is an open source project to build, ship and run any application as a
@@ -97,7 +106,7 @@ for deploying and scaling web apps, databases, and backend services without
 depending on a particular stack or provider.
 
 %prep
-%if 0%{?centos} <= 6
+%if 0%{?centos} <= 6 || 0%{?oraclelinux} <=6
 %setup -n %{name}
 %else
 %autosetup -n %{name}
@@ -109,20 +118,26 @@ export DOCKER_GITCOMMIT=%{_gitcommit}
 # ./man/md2man-all.sh runs outside the build container (if at all), since we don't have go-md2man here
 
 %check
-./bundles/%{_origversion}/dynbinary/docker -v
+./bundles/%{_origversion}/dynbinary-client/docker -v
+./bundles/%{_origversion}/dynbinary-daemon/dockerd -v
 
 %install
 # install binary
 install -d $RPM_BUILD_ROOT/%{_bindir}
-install -p -m 755 bundles/%{_origversion}/dynbinary/docker-%{_origversion} $RPM_BUILD_ROOT/%{_bindir}/docker
+install -p -m 755 bundles/%{_origversion}/dynbinary-client/docker-%{_origversion} $RPM_BUILD_ROOT/%{_bindir}/docker
+install -p -m 755 bundles/%{_origversion}/dynbinary-daemon/dockerd-%{_origversion} $RPM_BUILD_ROOT/%{_bindir}/dockerd
 
-# install dockerinit
-install -d $RPM_BUILD_ROOT/%{_libexecdir}/docker
-install -p -m 755 bundles/%{_origversion}/dynbinary/dockerinit-%{_origversion} $RPM_BUILD_ROOT/%{_libexecdir}/docker/dockerinit
+# install containerd
+install -p -m 755 /usr/local/bin/containerd $RPM_BUILD_ROOT/%{_bindir}/docker-containerd
+install -p -m 755 /usr/local/bin/containerd-shim $RPM_BUILD_ROOT/%{_bindir}/docker-containerd-shim
+install -p -m 755 /usr/local/bin/ctr $RPM_BUILD_ROOT/%{_bindir}/docker-containerd-ctr
+
+# install runc
+install -p -m 755 /usr/local/sbin/runc $RPM_BUILD_ROOT/%{_bindir}/docker-runc
 
 # install udev rules
 install -d $RPM_BUILD_ROOT/%{_sysconfdir}/udev/rules.d
-install -p -m 755 contrib/udev/80-docker.rules $RPM_BUILD_ROOT/%{_sysconfdir}/udev/rules.d/80-docker.rules
+install -p -m 644 contrib/udev/80-docker.rules $RPM_BUILD_ROOT/%{_sysconfdir}/udev/rules.d/80-docker.rules
 
 # add init scripts
 install -d $RPM_BUILD_ROOT/etc/sysconfig
@@ -137,13 +152,13 @@ install -p -m 644 contrib/init/systemd/docker.socket $RPM_BUILD_ROOT/%{_unitdir}
 install -p -m 644 contrib/init/sysvinit-redhat/docker.sysconfig $RPM_BUILD_ROOT/etc/sysconfig/docker
 install -p -m 755 contrib/init/sysvinit-redhat/docker $RPM_BUILD_ROOT/%{_initddir}/docker
 %endif
-# add bash completions
+# add bash, zsh, and fish completions
 install -d $RPM_BUILD_ROOT/usr/share/bash-completion/completions
 install -d $RPM_BUILD_ROOT/usr/share/zsh/vendor-completions
-install -d $RPM_BUILD_ROOT/usr/share/fish/completions
+install -d $RPM_BUILD_ROOT/usr/share/fish/vendor_completions.d
 install -p -m 644 contrib/completion/bash/docker $RPM_BUILD_ROOT/usr/share/bash-completion/completions/docker
 install -p -m 644 contrib/completion/zsh/_docker $RPM_BUILD_ROOT/usr/share/zsh/vendor-completions/_docker
-install -p -m 644 contrib/completion/fish/docker.fish $RPM_BUILD_ROOT/usr/share/fish/completions/docker.fish
+install -p -m 644 contrib/completion/fish/docker.fish $RPM_BUILD_ROOT/usr/share/fish/vendor_completions.d/docker.fish
 
 # install manpages
 install -d %{buildroot}%{_mandir}/man1
@@ -167,7 +182,11 @@ install -p -m 644 contrib/syntax/nano/Dockerfile.nanorc $RPM_BUILD_ROOT/usr/shar
 %files
 %doc AUTHORS CHANGELOG.md CONTRIBUTING.md LICENSE MAINTAINERS NOTICE README.md
 /%{_bindir}/docker
-/%{_libexecdir}/docker/dockerinit
+/%{_bindir}/dockerd
+/%{_bindir}/docker-containerd
+/%{_bindir}/docker-containerd-shim
+/%{_bindir}/docker-containerd-ctr
+/%{_bindir}/docker-runc
 /%{_sysconfdir}/udev/rules.d/80-docker.rules
 %if 0%{?is_systemd}
 /%{_unitdir}/docker.service
@@ -178,7 +197,7 @@ install -p -m 644 contrib/syntax/nano/Dockerfile.nanorc $RPM_BUILD_ROOT/usr/shar
 %endif
 /usr/share/bash-completion/completions/docker
 /usr/share/zsh/vendor-completions/_docker
-/usr/share/fish/completions/docker.fish
+/usr/share/fish/vendor_completions.d/docker.fish
 %doc
 /%{_mandir}/man1/*
 /%{_mandir}/man5/*

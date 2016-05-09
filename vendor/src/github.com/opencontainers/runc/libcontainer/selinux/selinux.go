@@ -158,12 +158,14 @@ func Setfilecon(path string, scon string) error {
 // Getfilecon returns the SELinux label for this path or returns an error.
 func Getfilecon(path string) (string, error) {
 	con, err := system.Lgetxattr(path, xattrNameSelinux)
-
+	if err != nil {
+		return "", err
+	}
 	// Trim the NUL byte at the end of the byte buffer, if present.
-	if con[len(con)-1] == '\x00' {
+	if len(con) > 0 && con[len(con)-1] == '\x00' {
 		con = con[:len(con)-1]
 	}
-	return string(con), err
+	return string(con), nil
 }
 
 func Setfscreatecon(scon string) error {
@@ -231,10 +233,14 @@ func ReserveLabel(scon string) {
 	}
 }
 
+func selinuxEnforcePath() string {
+	return fmt.Sprintf("%s/enforce", selinuxPath)
+}
+
 func SelinuxGetEnforce() int {
 	var enforce int
 
-	enforceS, err := readCon(fmt.Sprintf("%s/enforce", selinuxPath))
+	enforceS, err := readCon(selinuxEnforcePath())
 	if err != nil {
 		return -1
 	}
@@ -244,6 +250,10 @@ func SelinuxGetEnforce() int {
 		return -1
 	}
 	return enforce
+}
+
+func SelinuxSetEnforce(mode int) error {
+	return writeCon(selinuxEnforcePath(), fmt.Sprintf("%d", mode))
 }
 
 func SelinuxGetEnforceMode() int {

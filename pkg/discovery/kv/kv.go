@@ -8,6 +8,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/discovery"
+	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/consul"
@@ -16,7 +17,7 @@ import (
 )
 
 const (
-	discoveryPath = "docker/nodes"
+	defaultDiscoveryPath = "docker/nodes"
 )
 
 // Discovery is exported
@@ -47,7 +48,7 @@ func Init() {
 }
 
 // Initialize is exported
-func (s *Discovery) Initialize(uris string, heartbeat time.Duration, ttl time.Duration) error {
+func (s *Discovery) Initialize(uris string, heartbeat time.Duration, ttl time.Duration, clusterOpts map[string]string) error {
 	var (
 		parts = strings.SplitN(uris, "/", 2)
 		addrs = strings.Split(parts[0], ",")
@@ -61,11 +62,43 @@ func (s *Discovery) Initialize(uris string, heartbeat time.Duration, ttl time.Du
 
 	s.heartbeat = heartbeat
 	s.ttl = ttl
-	s.path = path.Join(s.prefix, discoveryPath)
+
+	// Use a custom path if specified in discovery options
+	dpath := defaultDiscoveryPath
+	if clusterOpts["kv.path"] != "" {
+		dpath = clusterOpts["kv.path"]
+	}
+
+	s.path = path.Join(s.prefix, dpath)
+
+	var config *store.Config
+	if clusterOpts["kv.cacertfile"] != "" && clusterOpts["kv.certfile"] != "" && clusterOpts["kv.keyfile"] != "" {
+		log.Info("Initializing discovery with TLS")
+		tlsConfig, err := tlsconfig.Client(tlsconfig.Options{
+			CAFile:   clusterOpts["kv.cacertfile"],
+			CertFile: clusterOpts["kv.certfile"],
+			KeyFile:  clusterOpts["kv.keyfile"],
+		})
+		if err != nil {
+			return err
+		}
+		config = &store.Config{
+			// Set ClientTLS to trigger https (bug in libkv/etcd)
+			ClientTLS: &store.ClientTLSConfig{
+				CACertFile: clusterOpts["kv.cacertfile"],
+				CertFile:   clusterOpts["kv.certfile"],
+				KeyFile:    clusterOpts["kv.keyfile"],
+			},
+			// The actual TLS config that will be used
+			TLS: tlsConfig,
+		}
+	} else {
+		log.Info("Initializing discovery without TLS")
+	}
 
 	// Creates a new store, will ignore options given
 	// if not supported by the chosen store
-	s.store, err = libkv.NewStore(s.backend, addrs, nil)
+	s.store, err = libkv.NewStore(s.backend, addrs, config)
 	return err
 }
 
@@ -112,6 +145,17 @@ func (s *Discovery) Watch(stopCh <-chan struct{}) (<-chan discovery.Entries, <-c
 		// Forever: Create a store watch, watch until we get an error and then try again.
 		// Will only stop if we receive a stopCh request.
 		for {
+			// Create the path to watch if it does not exist yet
+			exists, err := s.store.Exists(s.path)
+			if err != nil {
+				errCh <- err
+			}
+			if !exists {
+				if err := s.store.Put(s.path, []byte(""), &store.WriteOptions{IsDir: true}); err != nil {
+					errCh <- err
+				}
+			}
+
 			// Set up a watch.
 			watchCh, err := s.store.WatchTree(s.path, stopCh)
 			if err != nil {

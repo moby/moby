@@ -30,7 +30,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Protocol buffer comparison.
-// TODO: MessageSet.
 
 package proto
 
@@ -154,6 +153,17 @@ func equalAny(v1, v2 reflect.Value) bool {
 		return v1.Float() == v2.Float()
 	case reflect.Int32, reflect.Int64:
 		return v1.Int() == v2.Int()
+	case reflect.Interface:
+		// Probably a oneof field; compare the inner values.
+		n1, n2 := v1.IsNil(), v2.IsNil()
+		if n1 || n2 {
+			return n1 == n2
+		}
+		e1, e2 := v1.Elem(), v2.Elem()
+		if e1.Type() != e2.Type() {
+			return false
+		}
+		return equalAny(e1, e2)
 	case reflect.Map:
 		if v1.Len() != v2.Len() {
 			return false

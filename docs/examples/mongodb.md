@@ -2,9 +2,9 @@
 +++
 title = "Dockerizing MongoDB"
 description = "Creating a Docker image with MongoDB pre-installed using a Dockerfile and sharing the image on Docker Hub"
-keywords = ["docker, dockerize, dockerizing, article, example, docker.io, platform, package, installation, networking, mongodb, containers, images, image, sharing, dockerfile, build, auto-building, virtualization,  framework"]
+keywords = ["docker, dockerize, dockerizing, article, example, docker.io, platform, package, installation, networking, mongodb, containers, images, image, sharing, dockerfile, build, auto-building,  framework"]
 [menu.main]
-parent = "smn_applied"
+parent = "engine_dockerize"
 +++
 <![end-metadata]-->
 
@@ -16,10 +16,8 @@ In this example, we are going to learn how to build a Docker image with
 MongoDB pre-installed.  We'll also see how to `push` that image to the
 [Docker Hub registry](https://hub.docker.com) and share it with others!
 
-> **Note:**
->
-> This guide will show the mechanics of building a MongoDB container, but
-> you will probably want to use the official image on [Docker Hub]( https://registry.hub.docker.com/_/mongo/)
+> **Note:** This guide will show the mechanics of building a MongoDB container, but
+> you will probably want to use the official image on [Docker Hub]( https://hub.docker.com/_/mongo/)
 
 Using Docker and containers for deploying [MongoDB](https://www.mongodb.org/)
 instances will bring several benefits, such as:
@@ -31,7 +29,7 @@ instances will bring several benefits, such as:
 > **Note:**
 >
 > If you do **_not_** like `sudo`, you might want to check out:
-> [*Giving non-root access*](/installation/binaries/#giving-non-root-access).
+> [*Giving non-root access*](../installation/binaries.md#giving-non-root-access).
 
 ## Creating a Dockerfile for MongoDB
 
@@ -51,7 +49,7 @@ Although optional, it is handy to have comments at the beginning of a
 > the *parent* of your *Dockerized MongoDB* image.
 
 We will build our image using the latest version of Ubuntu from the
-[Docker Hub Ubuntu](https://registry.hub.docker.com/_/ubuntu/) repository.
+[Docker Hub Ubuntu](https://hub.docker.com/_/ubuntu/) repository.
 
     # Format: FROM    repository[:version]
     FROM       ubuntu:latest
@@ -148,7 +146,7 @@ as daemon process(es).
 
     # Dockerized MongoDB, lean and mean!
     # Usage: docker run --name <name for container> -d <user-name>/<repository> --noprealloc --smallfiles
-    $ docker run -p 27017:27017 --name mongo_instance_001 -d my/repo --noprealloc --smallfiles
+    $ docker run -p 27017:27017 --name mongo_instance_001 -d my/repo --smallfiles
 
     # Checking out the logs of a MongoDB container
     # Usage: docker logs <name for container>
@@ -174,6 +172,6 @@ the exposed port to two different ports on the host
     $ mongo --port 28001
     $ mongo --port 28002
 
- - [Linking containers](/userguide/dockerlinks)
- - [Cross-host linking containers](/articles/ambassador_pattern_linking/)
- - [Creating an Automated Build](/docker-io/builds/#automated-builds)
+ - [Linking containers](../userguide/networking/default_network/dockerlinks.md)
+ - [Cross-host linking containers](../admin/ambassador_pattern_linking.md)
+ - [Creating an Automated Build](https://docs.docker.com/docker-hub/builds/)

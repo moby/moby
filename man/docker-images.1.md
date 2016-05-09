@@ -7,11 +7,11 @@ docker-images - List images
 # SYNOPSIS
 **docker images**
 [**--help**]
-[**-a**|**--all**[=*false*]]
-[**--digests**[=*false*]]
+[**-a**|**--all**]
+[**--digests**]
 [**-f**|**--filter**[=*[]*]]
-[**--no-trunc**[=*false*]]
-[**-q**|**--quiet**[=*false*]]
+[**--no-trunc**]
+[**-q**|**--quiet**]
 [REPOSITORY[:TAG]]
 
 # DESCRIPTION
@@ -40,6 +40,17 @@ versions.
 **-f**, **--filter**=[]
    Filters the output. The dangling=true filter finds unused images. While label=com.foo=amd64 filters for images with a com.foo value of amd64. The label=com.foo filter finds images with the label com.foo of any value.
 
+**--format**="*TEMPLATE*"
+   Pretty-print containers using a Go template.
+   Valid placeholders:
+      .ID - Image ID
+      .Repository - Image repository
+      .Tag - Image tag
+      .Digest - Image digest
+      .CreatedSince - Elapsed time since the image was created.
+      .CreatedAt - Time when the image was created..
+      .Size - Image disk size.
+
 **--help**
   Print usage statement
 
@@ -59,7 +70,7 @@ To list the images in a local repository (not the registry) run:
 
 The list will contain the image repository name, a tag for the image, and an
 image ID, when it was created and its virtual size. Columns: REPOSITORY, TAG,
-IMAGE ID, CREATED, and VIRTUAL SIZE.
+IMAGE ID, CREATED, and SIZE.
 
 The `docker images` command takes an optional `[REPOSITORY[:TAG]]` argument
 that restricts the list to images that match the argument. If you specify

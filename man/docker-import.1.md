@@ -6,15 +6,18 @@ docker-import - Create an empty filesystem image and import the contents of the 
 
 # SYNOPSIS
 **docker import**
-[**-c**|**--change**[= []**]]
+[**-c**|**--change**[=*[]*]]
 [**-m**|**--message**[=*MESSAGE*]]
 [**--help**]
-file|URL|- [REPOSITORY[:TAG]]
+file|URL|**-**[REPOSITORY[:TAG]]
 
 # OPTIONS
 **-c**, **--change**=[]
    Apply specified Dockerfile instructions while importing the image
    Supported Dockerfile instructions: `CMD`|`ENTRYPOINT`|`ENV`|`EXPOSE`|`ONBUILD`|`USER`|`VOLUME`|`WORKDIR`
+
+**--help**
+  Print usage statement
 
 **-m**, **--message**=""
    Set commit message for imported image
@@ -23,9 +26,6 @@ file|URL|- [REPOSITORY[:TAG]]
 Create a new filesystem image from the contents of a tarball (`.tar`,
 `.tar.gz`, `.tgz`, `.bzip`, `.tar.xz`, `.txz`) into it, then optionally tag it.
 
-# OPTIONS
-**--help**
-  Print usage statement
 
 # EXAMPLES
 
@@ -39,7 +39,7 @@ Import to docker via pipe and stdin:
 
     # cat exampleimage.tgz | docker import - example/imagelocal
 
-Import with a commit message 
+Import with a commit message. 
 
     # cat exampleimage.tgz | docker import --message "New image imported from tarball" - exampleimagelocal:new
 

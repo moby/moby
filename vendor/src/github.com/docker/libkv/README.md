@@ -6,83 +6,37 @@
 
 `libkv` provides a `Go` native library to store metadata.
 
-The goal of `libkv` is to abstract common store operations for multiple Key/Value backends and offer the same experience no matter which one of the backend you want to use.
+The goal of `libkv` is to abstract common store operations for multiple distributed and/or local Key/Value store backends.
 
 For example, you can use it to store your metadata or for service discovery to register machines and endpoints inside your cluster.
 
 You can also easily implement a generic *Leader Election* on top of it (see the [swarm/leadership](https://github.com/docker/swarm/tree/master/leadership) package).
 
-As of now, `libkv` offers support for `Consul`, `Etcd`, `Zookeeper` and `BoltDB`.
+As of now, `libkv` offers support for `Consul`, `Etcd`, `Zookeeper` (**Distributed** store) and `BoltDB` (**Local** store).
 
-## Example of usage
+## Usage
 
-### Create a new store and use Put/Get
+`libkv` is meant to be used as an abstraction layer over existing distributed Key/Value stores. It is especially useful if you plan to support `consul`, `etcd` and `zookeeper` using the same codebase.
 
-```go
-package main
+It is ideal if you plan for something written in Go that should support:
 
-import (
-	"fmt"
-	"time"
+- A simple metadata storage, distributed or local
+- A lightweight discovery service for your nodes
+- A distributed lock mechanism
 
-	"github.com/docker/libkv"
-	"github.com/docker/libkv/store"
-	"github.com/docker/libkv/store/consul"
-	log "github.com/Sirupsen/logrus"
-)
+You can find examples of usage for `libkv` under in `docs/examples.go`. Optionally you can also take a look at the `docker/swarm` or `docker/libnetwork` repositories which are using `docker/libkv` for all the use cases listed above.
 
-func init() {
-	// Register consul store to libkv
-	consul.Register()
-}
+## Supported versions
 
-func main() {
-	client := "localhost:8500"
+`libkv` supports:
+- Consul versions >= `0.5.1` because it uses Sessions with `Delete` behavior for the use of `TTLs` (mimics zookeeper's Ephemeral node support), If you don't plan to use `TTLs`: you can use Consul version `0.4.0+`.
+- Etcd versions >= `2.0` because it uses the new `coreos/etcd/client`, this might change in the future as the support for `APIv3` comes along and adds mor capabilities.
+- Zookeeper versions >= `3.4.5`. Although this might work with previous version but this remains untested as of now.
+- Boltdb, which shouldn't be subject to any version dependencies.
 
-	// Initialize a new store with consul
-	kv, err := libkv.NewStore(
-		store.CONSUL, // or "consul"
-		[]string{client},
-		&store.Config{
-			ConnectionTimeout: 10*time.Second,
-		},
-	)
-	if err != nil {
-		log.Fatal("Cannot create store consul")
-	}
+## Interface
 
-	key := "foo"
-	err = kv.Put(key, []byte("bar"), nil)
-	if err != nil {
-		log.Error("Error trying to put value at key `", key, "`")
-	}
-
-	pair, err := kv.Get(key)
-	if err != nil {
-		log.Error("Error trying accessing value at key `", key, "`")
-	}
-
-	log.Info("value: ", string(pair.Value))
-}
-```
-
-You can find other usage examples for `libkv` under the `docker/swarm` or `docker/libnetwork` repositories.
-
-## TLS
-
-The etcd backend supports etcd servers that require TLS Client Authentication.  Zookeeper and Consul support are planned.  This feature is somewhat experimental and the store.ClientTLSConfig struct may change to accommodate the additional backends.
-
-## Warning
-
-There are a few consistency issues with *etcd*, on the notion of *directory* and *key*. If you want to use the three KV backends in an interchangeable way, you should only put data on leaves (see [Issue 20](https://github.com/docker/libkv/issues/20) for more details). This will be fixed when *etcd* API v3 will be made available (API v3 drops the *directory/key* distinction). An official release for *libkv* with a tag is likely to come after this issue being marked as **solved**.
-
-Other than that, you should expect the same experience for basic operations like `Get`/`Put`, etc.
-
-Calls like `WatchTree` may return different events (or number of events) depending on the backend (for now, `Etcd` and `Consul` will likely return more events than `Zookeeper` that you should triage properly). Although you should be able to use it successfully to watch on events in an interchangeable way (see the **swarm/leadership** or **swarm/discovery** packages in **docker/swarm**).
-
-## Create a new storage backend
-
-A new **storage backend** should include those calls:
+A **storage backend** in `libkv` should implement (fully or partially) this interface:
 
 ```go
 type Store interface {
@@ -101,14 +55,46 @@ type Store interface {
 }
 ```
 
-You can get inspiration from existing backends to create a new one. This interface could be subject to changes to improve the experience of using the library and contributing to a new backend.
+## Compatibility matrix
+
+Backend drivers in `libkv` are generally divided between **local drivers** and **distributed drivers**. Distributed backends offer enhanced capabilities like `Watches` and/or distributed `Locks`.
+
+Local drivers are usually used in complement to the distributed drivers to store informations that only needs to be available locally.
+
+| Calls                 |   Consul   |  Etcd  |  Zookeeper  |  BoltDB  |
+|-----------------------|:----------:|:------:|:-----------:|:--------:|
+| Put                   |     X      |   X    |      X      |    X     |
+| Get                   |     X      |   X    |      X      |    X     |
+| Delete                |     X      |   X    |      X      |    X     |
+| Exists                |     X      |   X    |      X      |    X     |
+| Watch                 |     X      |   X    |      X      |          |
+| WatchTree             |     X      |   X    |      X      |          |
+| NewLock (Lock/Unlock) |     X      |   X    |      X      |          |
+| List                  |     X      |   X    |      X      |    X     |
+| DeleteTree            |     X      |   X    |      X      |    X     |
+| AtomicPut             |     X      |   X    |      X      |    X     |
+| Close                 |     X      |   X    |      X      |    X     |
+
+## Limitations
+
+Distributed Key/Value stores often have different concepts for managing and formatting keys and their associated values. Even though `libkv` tries to abstract those stores aiming for some consistency, in some cases it can't be applied easily.
+
+Please refer to the `docs/compatibility.md` to see what are the special cases for cross-backend compatibility.
+
+Other than those special cases, you should expect the same experience for basic operations like `Get`/`Put`, etc.
+
+Calls like `WatchTree` may return different events (or number of events) depending on the backend (for now, `Etcd` and `Consul` will likely return more events than `Zookeeper` that you should triage properly). Although you should be able to use it successfully to watch on events in an interchangeable way (see the **swarm/leadership** or **swarm/discovery** packages in **docker/swarm**).
+
+## TLS
+
+Only `Consul` and `etcd` have support for TLS and you should build and provide your own `config.TLS` object to feed the client. Support is planned for `zookeeper`.
 
 ##Roadmap
 
 - Make the API nicer to use (using `options`)
 - Provide more options (`consistency` for example)
 - Improve performance (remove extras `Get`/`List` operations)
-- Add more exhaustive tests
+- Better key formatting
 - New backends?
 
 ##Contributing
@@ -117,4 +103,4 @@ Want to hack on libkv? [Docker's contributions guidelines](https://github.com/do
 
 ##Copyright and license
 
-Copyright © 2014-2015 Docker, Inc. All rights reserved, except as follows. Code is released under the Apache 2.0 license. Documentation is licensed to end users under the Creative Commons Attribution 4.0 International License under the terms and conditions set forth in the file "LICENSE.docs". You may obtain a duplicate copy of the same license, titled CC-BY-SA-4.0, at http://creativecommons.org/licenses/by/4.0/.
+Copyright © 2014-2015 Docker, Inc. All rights reserved, except as follows. Code is released under the Apache 2.0 license. The README.md file, and files in the "docs" folder are licensed under the Creative Commons Attribution 4.0 International License under the terms and conditions set forth in the file "LICENSE.docs". You may obtain a duplicate copy of the same license, titled CC-BY-SA-4.0, at http://creativecommons.org/licenses/by/4.0/.

@@ -23,6 +23,8 @@ test_install_script(){
 			echo "running install.sh for ${component} with ${from}"
 			docker run --rm -i -v ${script}:/install.sh ${from} /install.sh
 		done
+
+		rm -f ${script}
 	done
 }
 

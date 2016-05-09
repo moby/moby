@@ -160,7 +160,6 @@ func (s *DockerCmdSuite) TestDockerCmdSuccess(c *check.C) {
 // DockerCmdWithTimeout tests
 
 func (s *DockerCmdSuite) TestDockerCmdWithTimeout(c *check.C) {
-	c.Skip("racey test")
 	cmds := []struct {
 		binary           string
 		args             []string
@@ -172,7 +171,7 @@ func (s *DockerCmdSuite) TestDockerCmdWithTimeout(c *check.C) {
 		{
 			"doesnotexists",
 			[]string{},
-			5 * time.Millisecond,
+			200 * time.Millisecond,
 			`Command doesnotexists not found.`,
 			1,
 			fmt.Errorf(`"" failed with errors: exit status 1 : "Command doesnotexists not found."`),
@@ -180,7 +179,7 @@ func (s *DockerCmdSuite) TestDockerCmdWithTimeout(c *check.C) {
 		{
 			dockerBinary,
 			[]string{"an", "error"},
-			5 * time.Millisecond,
+			200 * time.Millisecond,
 			`an error has occurred`,
 			1,
 			fmt.Errorf(`"an error" failed with errors: exit status 1 : "an error has occurred"`),
@@ -196,7 +195,7 @@ func (s *DockerCmdSuite) TestDockerCmdWithTimeout(c *check.C) {
 		{
 			dockerBinary,
 			[]string{"run", "-ti", "ubuntu", "echo", "hello"},
-			5 * time.Millisecond,
+			200 * time.Millisecond,
 			"hello",
 			0,
 			nil,
@@ -269,7 +268,6 @@ func (s *DockerCmdSuite) TestDockerCmdInDir(c *check.C) {
 // DockerCmdInDirWithTimeout tests
 
 func (s *DockerCmdSuite) TestDockerCmdInDirWithTimeout(c *check.C) {
-	c.Skip("racey test")
 	tempFolder, err := ioutil.TempDir("", "test-docker-cmd-in-dir")
 	c.Assert(err, check.IsNil)
 
@@ -284,7 +282,7 @@ func (s *DockerCmdSuite) TestDockerCmdInDirWithTimeout(c *check.C) {
 		{
 			"doesnotexists",
 			[]string{},
-			5 * time.Millisecond,
+			200 * time.Millisecond,
 			`Command doesnotexists not found.`,
 			1,
 			fmt.Errorf(`"dir:%s" failed with errors: exit status 1 : "Command doesnotexists not found."`, tempFolder),
@@ -292,7 +290,7 @@ func (s *DockerCmdSuite) TestDockerCmdInDirWithTimeout(c *check.C) {
 		{
 			dockerBinary,
 			[]string{"an", "error"},
-			5 * time.Millisecond,
+			200 * time.Millisecond,
 			`an error has occurred`,
 			1,
 			fmt.Errorf(`"dir:%s an error" failed with errors: exit status 1 : "an error has occurred"`, tempFolder),
@@ -308,7 +306,7 @@ func (s *DockerCmdSuite) TestDockerCmdInDirWithTimeout(c *check.C) {
 		{
 			dockerBinary,
 			[]string{"run", "-ti", "ubuntu", "echo", "hello"},
-			5 * time.Millisecond,
+			200 * time.Millisecond,
 			"hello",
 			0,
 			nil,
@@ -389,9 +387,10 @@ func TestHelperProcess(t *testing.T) {
 			fmt.Fprintf(os.Stderr, "an error has occurred")
 			os.Exit(1)
 		case "a command that times out":
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(10 * time.Second)
 			fmt.Fprintf(os.Stdout, "too long, should be killed")
-			os.Exit(0)
+			// A random exit code (that should never happened in tests)
+			os.Exit(7)
 		case "run -ti ubuntu echo hello":
 			fmt.Fprintf(os.Stdout, "hello")
 		default:

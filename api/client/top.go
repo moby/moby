@@ -1,13 +1,12 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/url"
 	"strings"
 	"text/tabwriter"
 
-	"github.com/docker/docker/api/types"
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 )
@@ -16,25 +15,18 @@ import (
 //
 // Usage: docker top CONTAINER
 func (cli *DockerCli) CmdTop(args ...string) error {
-	cmd := Cli.Subcmd("top", []string{"CONTAINER [ps OPTIONS]"}, "Display the running processes of a container", true)
+	cmd := Cli.Subcmd("top", []string{"CONTAINER [ps OPTIONS]"}, Cli.DockerCommands["top"].Description, true)
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)
 
-	val := url.Values{}
+	var arguments []string
 	if cmd.NArg() > 1 {
-		val.Set("ps_args", strings.Join(cmd.Args()[1:], " "))
+		arguments = cmd.Args()[1:]
 	}
 
-	serverResp, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/top?"+val.Encode(), nil, nil)
+	procList, err := cli.client.ContainerTop(context.Background(), cmd.Arg(0), arguments)
 	if err != nil {
-		return err
-	}
-
-	defer serverResp.body.Close()
-
-	procList := types.ContainerProcessList{}
-	if err := json.NewDecoder(serverResp.body).Decode(&procList); err != nil {
 		return err
 	}
 

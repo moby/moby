@@ -129,7 +129,7 @@ type ActiveEndpointsError struct {
 }
 
 func (aee *ActiveEndpointsError) Error() string {
-	return fmt.Sprintf("network with name %s id %s has active endpoints", aee.name, aee.id)
+	return fmt.Sprintf("network %s has active endpoints", aee.name)
 }
 
 // Forbidden denotes the type of this error

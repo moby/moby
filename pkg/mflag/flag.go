@@ -1,4 +1,4 @@
-// Copyright 2014-2015 The Docker & Go Authors. All rights reserved.
+// Copyright 2014-2016 The Docker & Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -199,6 +199,24 @@ func (i *uint64Value) Set(s string) error {
 func (i *uint64Value) Get() interface{} { return uint64(*i) }
 
 func (i *uint64Value) String() string { return fmt.Sprintf("%v", *i) }
+
+// -- uint16 Value
+type uint16Value uint16
+
+func newUint16Value(val uint16, p *uint16) *uint16Value {
+	*p = val
+	return (*uint16Value)(p)
+}
+
+func (i *uint16Value) Set(s string) error {
+	v, err := strconv.ParseUint(s, 0, 16)
+	*i = uint16Value(v)
+	return err
+}
+
+func (i *uint16Value) Get() interface{} { return uint16(*i) }
+
+func (i *uint16Value) String() string { return fmt.Sprintf("%v", *i) }
 
 // -- string Value
 type stringValue string
@@ -502,6 +520,20 @@ func Set(name, value string) error {
 	return CommandLine.Set(name, value)
 }
 
+// isZeroValue guesses whether the string represents the zero
+// value for a flag. It is not accurate but in practice works OK.
+func isZeroValue(value string) bool {
+	switch value {
+	case "false":
+		return true
+	case "":
+		return true
+	case "0":
+		return true
+	}
+	return false
+}
+
 // PrintDefaults prints, to standard error unless configured
 // otherwise, the default values of all defined flags in the set.
 func (fs *FlagSet) PrintDefaults() {
@@ -519,7 +551,6 @@ func (fs *FlagSet) PrintDefaults() {
 	}
 
 	fs.VisitAll(func(flag *Flag) {
-		format := "  -%s=%s"
 		names := []string{}
 		for _, name := range flag.Names {
 			if name[0] != '#' {
@@ -533,11 +564,14 @@ func (fs *FlagSet) PrintDefaults() {
 				val = homedir.GetShortcutString() + val[len(home):]
 			}
 
-			fmt.Fprintf(writer, format, strings.Join(names, ", -"), val)
-			for i, line := range strings.Split(flag.Usage, "\n") {
-				if i != 0 {
-					line = "  " + line
-				}
+			if isZeroValue(val) {
+				format := "  -%s"
+				fmt.Fprintf(writer, format, strings.Join(names, ", -"))
+			} else {
+				format := "  -%s=%s"
+				fmt.Fprintf(writer, format, strings.Join(names, ", -"), val)
+			}
+			for _, line := range strings.Split(flag.Usage, "\n") {
 				fmt.Fprintln(writer, "\t", line)
 			}
 		}
@@ -571,7 +605,7 @@ var Usage = func() {
 	PrintDefaults()
 }
 
-// Usage prints to standard error a usage message documenting the standard command layout
+// ShortUsage prints to standard error a usage message documenting the standard command layout
 // The function is a variable that may be changed to point to a custom function.
 var ShortUsage = func() {
 	fmt.Fprintf(CommandLine.output, "Usage of %s:\n", os.Args[0])
@@ -755,6 +789,32 @@ func (fs *FlagSet) Uint64(names []string, value uint64, usage string) *uint64 {
 // The return value is the address of a uint64 variable that stores the value of the flag.
 func Uint64(names []string, value uint64, usage string) *uint64 {
 	return CommandLine.Uint64(names, value, usage)
+}
+
+// Uint16Var defines a uint16 flag with specified name, default value, and usage string.
+// The argument p points to a uint16 variable in which to store the value of the flag.
+func (fs *FlagSet) Uint16Var(p *uint16, names []string, value uint16, usage string) {
+	fs.Var(newUint16Value(value, p), names, usage)
+}
+
+// Uint16Var defines a uint16 flag with specified name, default value, and usage string.
+// The argument p points to a uint16 variable in which to store the value of the flag.
+func Uint16Var(p *uint16, names []string, value uint16, usage string) {
+	CommandLine.Var(newUint16Value(value, p), names, usage)
+}
+
+// Uint16 defines a uint16 flag with specified name, default value, and usage string.
+// The return value is the address of a uint16 variable that stores the value of the flag.
+func (fs *FlagSet) Uint16(names []string, value uint16, usage string) *uint16 {
+	p := new(uint16)
+	fs.Uint16Var(p, names, value, usage)
+	return p
+}
+
+// Uint16 defines a uint16 flag with specified name, default value, and usage string.
+// The return value is the address of a uint16 variable that stores the value of the flag.
+func Uint16(names []string, value uint16, usage string) *uint16 {
+	return CommandLine.Uint16(names, value, usage)
 }
 
 // StringVar defines a string flag with specified name, default value, and usage string.
@@ -1058,7 +1118,7 @@ func (fs *FlagSet) Parse(arguments []string) error {
 		case ContinueOnError:
 			return err
 		case ExitOnError:
-			os.Exit(2)
+			os.Exit(125)
 		case PanicOnError:
 			panic(err)
 		}
@@ -1103,7 +1163,7 @@ func (fs *FlagSet) ReportError(str string, withHelp bool) {
 			str += ".\nSee '" + os.Args[0] + " " + fs.Name() + " --help'"
 		}
 	}
-	fmt.Fprintf(fs.Out(), "docker: %s.\n", str)
+	fmt.Fprintf(fs.Out(), "%s: %s.\n", os.Args[0], str)
 }
 
 // Parsed reports whether fs.Parse has been called.
@@ -1163,11 +1223,27 @@ func (v mergeVal) IsBoolFlag() bool {
 	return false
 }
 
+// Name returns the name of a mergeVal.
+// If the original value had a name, return the original name,
+// otherwise, return the key asinged to this mergeVal.
+func (v mergeVal) Name() string {
+	type namedValue interface {
+		Name() string
+	}
+	if nVal, ok := v.Value.(namedValue); ok {
+		return nVal.Name()
+	}
+	return v.key
+}
+
 // Merge is an helper function that merges n FlagSets into a single dest FlagSet
 // In case of name collision between the flagsets it will apply
-// the destination FlagSet's errorHandling behaviour.
+// the destination FlagSet's errorHandling behavior.
 func Merge(dest *FlagSet, flagsets ...*FlagSet) error {
 	for _, fset := range flagsets {
+		if fset.formal == nil {
+			continue
+		}
 		for k, f := range fset.formal {
 			if _, ok := dest.formal[k]; ok {
 				var err error
@@ -1189,6 +1265,9 @@ func Merge(dest *FlagSet, flagsets ...*FlagSet) error {
 			}
 			newF := *f
 			newF.Value = mergeVal{f.Value, k, fset}
+			if dest.formal == nil {
+				dest.formal = make(map[string]*Flag)
+			}
 			dest.formal[k] = &newF
 		}
 	}

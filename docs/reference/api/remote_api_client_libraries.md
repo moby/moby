@@ -4,7 +4,8 @@ title = "Remote API client libraries"
 description = "Various client libraries available to use with the Docker remote API"
 keywords = ["API, Docker, index, registry, REST, documentation, clients, C#, Erlang, Go, Groovy, Java, JavaScript, Perl, PHP, Python, Ruby, Rust,  Scala"]
 [menu.main]
-parent="mn_reference"
+parent="engine_remoteapi"
+weight = 90
 +++
 <![end-metadata]-->
 
@@ -40,7 +41,7 @@ will add the libraries here.
     <tr>
       <td>C++</td>
       <td>lasote/docker_client</td>
-      <td><a class="reference external" href="http://www.biicode.com/lasote/docker_client">http://www.biicode.com/lasote/docker_client (Biicode C++ dependency manager)</a></td>
+      <td><a class="reference external" href="https://github.com/lasote/docker_client">https://github.com/lasote/docker_client</a></td>
       <td>Active</td>
     </tr>
     <tr>
@@ -57,14 +58,8 @@ will add the libraries here.
     </tr>
     <tr>
       <td>Go</td>
-      <td>go-dockerclient</td>
-      <td><a class="reference external" href="https://github.com/fsouza/go-dockerclient">https://github.com/fsouza/go-dockerclient</a></td>
-      <td>Active</td>
-    </tr>
-    <tr>
-      <td>Go</td>
-      <td>dockerclient</td>
-      <td><a class="reference external" href="https://github.com/samalba/dockerclient">https://github.com/samalba/dockerclient</a></td>
+      <td>engine-api</td>
+      <td><a class="reference external" href="https://github.com/docker/engine-api">https://github.com/docker/engine-api</a></td>
       <td>Active</td>
     </tr>
     <tr>
@@ -86,6 +81,12 @@ will add the libraries here.
       <td>Active</td>
     </tr>
     <tr>
+      <td>HTML (Web Components)</td>
+      <td>docker-elements</td>
+      <td><a class="reference external" href="https://github.com/kapalhq/docker-elements">https://github.com/kapalhq/docker-elements</a></td>
+      <td>Active</td>
+    </tr>
+    <tr>
       <td>Java</td>
       <td>docker-java</td>
       <td><a class="reference external" href="https://github.com/docker-java/docker-java">https://github.com/docker-java/docker-java</a></td>
@@ -98,53 +99,10 @@ will add the libraries here.
       <td>Active</td>
     </tr>
     <tr>
-      <td>Java</td>
-      <td>jclouds-docker</td>
-      <td><a class="reference external" href="https://github.com/jclouds/jclouds-labs/tree/master/docker">https://github.com/jclouds/jclouds-labs/tree/master/docker</a></td>
-      <td>Active</td>
-    </tr>
-    <tr>
-      <td>JavaScript (NodeJS)</td>
+      <td>NodeJS</td>
       <td>dockerode</td>
       <td><a class="reference external" href="https://github.com/apocas/dockerode">https://github.com/apocas/dockerode</a>
   Install via NPM: <cite>npm install dockerode</cite></td>
-      <td>Active</td>
-    </tr>
-    <tr>
-      <td>JavaScript (NodeJS)</td>
-      <td>docker.io</td>
-      <td><a class="reference external" href="https://github.com/appersonlabs/docker.io">https://github.com/appersonlabs/docker.io</a>
-  Install via NPM: <cite>npm install docker.io</cite></td>
-      <td>Active</td>
-    </tr>
-    <tr>
-      <td>JavaScript</td>
-      <td>docker-js</td>
-      <td><a class="reference external" href="https://github.com/dgoujard/docker-js">https://github.com/dgoujard/docker-js</a></td>
-      <td>Outdated</td>
-    </tr>
-    <tr>
-      <td>JavaScript (Angular) <strong>WebUI</strong></td>
-      <td>docker-cp</td>
-      <td><a class="reference external" href="https://github.com/13W/docker-cp">https://github.com/13W/docker-cp</a></td>
-      <td>Active</td>
-    </tr>
-    <tr>
-      <td>JavaScript (Angular) <strong>WebUI</strong></td>
-      <td>dockerui</td>
-      <td><a class="reference external" href="https://github.com/crosbymichael/dockerui">https://github.com/crosbymichael/dockerui</a></td>
-      <td>Active</td>
-    </tr>
-    <tr>
-      <td>JavaScript (Angular) <strong>WebUI</strong></td>
-      <td>dockery</td>
-      <td><a class="reference external" href="https://github.com/lexandro/dockery">https://github.com/lexandro/dockery</a></td>
-      <td>Active</td>
-    </tr>    
-    <tr>
-      <td>Perl</td>
-      <td>Net::Docker</td>
-      <td><a class="reference external" href="https://metacpan.org/pod/Net::Docker">https://metacpan.org/pod/Net::Docker</a></td>
       <td>Active</td>
     </tr>
     <tr>
@@ -155,14 +113,8 @@ will add the libraries here.
     </tr>
     <tr>
       <td>PHP</td>
-      <td>Alvine</td>
-      <td><a class="reference external" href="http://pear.alvine.io/">http://pear.alvine.io/</a> (alpha)</td>
-      <td>Active</td>
-    </tr>
-    <tr>
-      <td>PHP</td>
       <td>Docker-PHP</td>
-      <td><a class="reference external" href="http://stage1.github.io/docker-php/">http://stage1.github.io/docker-php/</a></td>
+      <td><a class="reference external" href="https://github.com/docker-php/docker-php">https://github.com/docker-php/docker-php</a></td>
       <td>Active</td>
     </tr>
     <tr>
@@ -178,15 +130,15 @@ will add the libraries here.
       <td>Active</td>
     </tr>
     <tr>
-      <td>Ruby</td>
-      <td>docker-client</td>
-      <td><a class="reference external" href="https://github.com/geku/docker-client">https://github.com/geku/docker-client</a></td>
-      <td>Outdated</td>
-    </tr>
-    <tr>
       <td>Rust</td>
       <td>docker-rust</td>
       <td><a class="reference external" href="https://github.com/abh1nav/docker-rust">https://github.com/abh1nav/docker-rust</a></td>
+      <td>Active</td>
+    </tr>
+    <tr>
+      <td>Rust</td>
+      <td>shiplift</td>
+      <td><a class="reference external" href="https://github.com/softprops/shiplift">https://github.com/softprops/shiplift</a></td>
       <td>Active</td>
     </tr>
     <tr>
@@ -203,4 +155,3 @@ will add the libraries here.
     </tr>
   </tbody>
 </table>
-

@@ -156,20 +156,23 @@ A Dockerfile is similar to a Makefile.
   the image.
 
 **LABEL**
-  -- `LABEL <key>[=<value>] [<key>[=<value>] ...]`or 
+  -- `LABEL <key>=<value> [<key>=<value> ...]`or 
   ```
   LABEL <key>[ <value>]
   LABEL <key>[ <value>]
   ...
   ```
   The **LABEL** instruction adds metadata to an image. A **LABEL** is a
-  key-value pair. To include spaces within a **LABEL** value, use quotes and
+  key-value pair. To specify a **LABEL** without a value, simply use an empty
+  string. To include spaces within a **LABEL** value, use quotes and
   backslashes as you would in command-line parsing.
 
   ```
   LABEL com.example.vendor="ACME Incorporated"
-  or
   LABEL com.example.vendor "ACME Incorporated"
+  LABEL com.example.vendor.is-beta ""
+  LABEL com.example.vendor.is-beta=
+  LABEL com.example.vendor.is-beta=""
   ```
 
   An image can have more than one label. To specify multiple labels, separate
@@ -185,7 +188,7 @@ A Dockerfile is similar to a Makefile.
   -- `EXPOSE <port> [<port>...]`
   The **EXPOSE** instruction informs Docker that the container listens on the
   specified network ports at runtime. Docker uses this information to
-  interconnect containers using links, and to set up port redirection on the host
+  interconnect containers using links and to set up port redirection on the host
   system.
 
 **ENV**
