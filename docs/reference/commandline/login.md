@@ -18,6 +18,7 @@ parent = "smn_cli"
       --help               Print usage
       -p, --password=""    Password
       -u, --username=""    Username
+      -e, --email=""       Email
 
 If you want to login to a self-hosted registry you can specify this by
 adding the server name.
