@@ -147,9 +147,11 @@ func (a *Allocator) initializeAddressSpace(as string, ds datastore.DataStore) er
 	}
 
 	a.Lock()
-	if _, ok := a.addrSpaces[as]; ok {
-		a.Unlock()
-		return types.ForbiddenErrorf("tried to add an axisting address space: %s", as)
+	if currAS, ok := a.addrSpaces[as]; ok {
+		if currAS.ds != nil {
+			a.Unlock()
+			return types.ForbiddenErrorf("a datastore is already configured for the address space %s", as)
+		}
 	}
 	a.addrSpaces[as] = &addrSpace{
 		subnets: map[SubnetKey]*PoolData{},
