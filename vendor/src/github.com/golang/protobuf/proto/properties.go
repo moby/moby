@@ -173,6 +173,7 @@ func (sp *StructProperties) Swap(i, j int) { sp.order[i], sp.order[j] = sp.order
 type Properties struct {
 	Name     string // name of the field, for error messages
 	OrigName string // original name before protocol compiler (always set)
+	JSONName string // name to use for JSON; determined by protoc
 	Wire     string
 	WireType int
 	Tag      int
@@ -229,8 +230,9 @@ func (p *Properties) String() string {
 	if p.Packed {
 		s += ",packed"
 	}
-	if p.OrigName != p.Name {
-		s += ",name=" + p.OrigName
+	s += ",name=" + p.OrigName
+	if p.JSONName != p.OrigName {
+		s += ",json=" + p.JSONName
 	}
 	if p.proto3 {
 		s += ",proto3"
@@ -310,6 +312,8 @@ func (p *Properties) Parse(s string) {
 			p.Packed = true
 		case strings.HasPrefix(f, "name="):
 			p.OrigName = f[5:]
+		case strings.HasPrefix(f, "json="):
+			p.JSONName = f[5:]
 		case strings.HasPrefix(f, "enum="):
 			p.Enum = f[5:]
 		case f == "proto3":

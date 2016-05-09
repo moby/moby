@@ -64,6 +64,10 @@ var (
 	// a struct with a repeated field containing a nil element.
 	errRepeatedHasNil = errors.New("proto: repeated field has nil element")
 
+	// errOneofHasNil is the error returned if Marshal is called with
+	// a struct with a oneof field containing a nil element.
+	errOneofHasNil = errors.New("proto: oneof field has nil value")
+
 	// ErrNil is the error returned if Marshal is called with nil.
 	ErrNil = errors.New("proto: Marshal called with nil")
 )
@@ -1222,7 +1226,9 @@ func (o *Buffer) enc_struct(prop *StructProperties, base structPointer) error {
 	// Do oneof fields.
 	if prop.oneofMarshaler != nil {
 		m := structPointer_Interface(base, prop.stype).(Message)
-		if err := prop.oneofMarshaler(m, o); err != nil {
+		if err := prop.oneofMarshaler(m, o); err == ErrNil {
+			return errOneofHasNil
+		} else if err != nil {
 			return err
 		}
 	}

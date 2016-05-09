@@ -119,6 +119,14 @@ func isWhitespace(c byte) bool {
 	return false
 }
 
+func isQuote(c byte) bool {
+	switch c {
+	case '"', '\'':
+		return true
+	}
+	return false
+}
+
 func (p *textParser) skipWhitespace() {
 	i := 0
 	for i < len(p.s) && (isWhitespace(p.s[i]) || p.s[i] == '#') {
@@ -155,7 +163,7 @@ func (p *textParser) advance() {
 	p.cur.offset, p.cur.line = p.offset, p.line
 	p.cur.unquoted = ""
 	switch p.s[0] {
-	case '<', '>', '{', '}', ':', '[', ']', ';', ',':
+	case '<', '>', '{', '}', ':', '[', ']', ';', ',', '/':
 		// Single symbol
 		p.cur.value, p.s = p.s[0:1], p.s[1:len(p.s)]
 	case '"', '\'':
@@ -333,13 +341,13 @@ func (p *textParser) next() *token {
 	p.advance()
 	if p.done {
 		p.cur.value = ""
-	} else if len(p.cur.value) > 0 && p.cur.value[0] == '"' {
+	} else if len(p.cur.value) > 0 && isQuote(p.cur.value[0]) {
 		// Look for multiple quoted strings separated by whitespace,
 		// and concatenate them.
 		cat := p.cur
 		for {
 			p.skipWhitespace()
-			if p.done || p.s[0] != '"' {
+			if p.done || !isQuote(p.s[0]) {
 				break
 			}
 			p.advance()
@@ -443,7 +451,10 @@ func (p *textParser) readStruct(sv reflect.Value, terminator string) error {
 	fieldSet := make(map[string]bool)
 	// A struct is a sequence of "name: value", terminated by one of
 	// '>' or '}', or the end of the input.  A name may also be
-	// "[extension]".
+	// "[extension]" or "[type/url]".
+	//
+	// The whole struct can also be an expanded Any message, like:
+	// [type/url] < ... struct contents ... >
 	for {
 		tok := p.next()
 		if tok.err != nil {
@@ -453,33 +464,66 @@ func (p *textParser) readStruct(sv reflect.Value, terminator string) error {
 			break
 		}
 		if tok.value == "[" {
-			// Looks like an extension.
+			// Looks like an extension or an Any.
 			//
 			// TODO: Check whether we need to handle
 			// namespace rooted names (e.g. ".something.Foo").
-			tok = p.next()
-			if tok.err != nil {
-				return tok.err
+			extName, err := p.consumeExtName()
+			if err != nil {
+				return err
 			}
+
+			if s := strings.LastIndex(extName, "/"); s >= 0 {
+				// If it contains a slash, it's an Any type URL.
+				messageName := extName[s+1:]
+				mt := MessageType(messageName)
+				if mt == nil {
+					return p.errorf("unrecognized message %q in google.protobuf.Any", messageName)
+				}
+				tok = p.next()
+				if tok.err != nil {
+					return tok.err
+				}
+				// consume an optional colon
+				if tok.value == ":" {
+					tok = p.next()
+					if tok.err != nil {
+						return tok.err
+					}
+				}
+				var terminator string
+				switch tok.value {
+				case "<":
+					terminator = ">"
+				case "{":
+					terminator = "}"
+				default:
+					return p.errorf("expected '{' or '<', found %q", tok.value)
+				}
+				v := reflect.New(mt.Elem())
+				if pe := p.readStruct(v.Elem(), terminator); pe != nil {
+					return pe
+				}
+				b, err := Marshal(v.Interface().(Message))
+				if err != nil {
+					return p.errorf("failed to marshal message of type %q: %v", messageName, err)
+				}
+				sv.FieldByName("TypeUrl").SetString(extName)
+				sv.FieldByName("Value").SetBytes(b)
+				continue
+			}
+
 			var desc *ExtensionDesc
 			// This could be faster, but it's functional.
 			// TODO: Do something smarter than a linear scan.
 			for _, d := range RegisteredExtensions(reflect.New(st).Interface().(Message)) {
-				if d.Name == tok.value {
+				if d.Name == extName {
 					desc = d
 					break
 				}
 			}
 			if desc == nil {
-				return p.errorf("unrecognized extension %q", tok.value)
-			}
-			// Check the extension terminator.
-			tok = p.next()
-			if tok.err != nil {
-				return tok.err
-			}
-			if tok.value != "]" {
-				return p.errorf("unrecognized extension terminator %q", tok.value)
+				return p.errorf("unrecognized extension %q", extName)
 			}
 
 			props := &Properties{}
@@ -633,6 +677,35 @@ func (p *textParser) readStruct(sv reflect.Value, terminator string) error {
 		return p.missingRequiredFieldError(sv)
 	}
 	return reqFieldErr
+}
+
+// consumeExtName consumes extension name or expanded Any type URL and the
+// following ']'. It returns the name or URL consumed.
+func (p *textParser) consumeExtName() (string, error) {
+	tok := p.next()
+	if tok.err != nil {
+		return "", tok.err
+	}
+
+	// If extension name or type url is quoted, it's a single token.
+	if len(tok.value) > 2 && isQuote(tok.value[0]) && tok.value[len(tok.value)-1] == tok.value[0] {
+		name, err := unquoteC(tok.value[1:len(tok.value)-1], rune(tok.value[0]))
+		if err != nil {
+			return "", err
+		}
+		return name, p.consumeToken("]")
+	}
+
+	// Consume everything up to "]"
+	var parts []string
+	for tok.value != "]" {
+		parts = append(parts, tok.value)
+		tok = p.next()
+		if tok.err != nil {
+			return "", p.errorf("unrecognized type_url or extension name: %s", tok.err)
+		}
+	}
+	return strings.Join(parts, ""), nil
 }
 
 // consumeOptionalSeparator consumes an optional semicolon or comma.
