@@ -13,9 +13,15 @@ func TestNewAndRemove(t *testing.T) {
 		t.Fatal("Could not create test directory")
 	}
 
-	file, err := New(filepath.Join(dir, "testfile"))
+	path := filepath.Join(dir, "testfile")
+	file, err := New(path)
 	if err != nil {
 		t.Fatal("Could not create test file", err)
+	}
+
+	_, err = New(path)
+	if err == nil {
+		t.Fatal("Test file creation not blocked")
 	}
 
 	if err := file.Remove(); err != nil {

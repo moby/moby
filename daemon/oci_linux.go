@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -30,19 +31,19 @@ func setResources(s *specs.Spec, r containertypes.Resources) error {
 	if err != nil {
 		return err
 	}
-	readBpsDevice, err := getBlkioReadBpsDevices(r)
+	readBpsDevice, err := getBlkioThrottleDevices(r.BlkioDeviceReadBps)
 	if err != nil {
 		return err
 	}
-	writeBpsDevice, err := getBlkioWriteBpsDevices(r)
+	writeBpsDevice, err := getBlkioThrottleDevices(r.BlkioDeviceWriteBps)
 	if err != nil {
 		return err
 	}
-	readIOpsDevice, err := getBlkioReadIOpsDevices(r)
+	readIOpsDevice, err := getBlkioThrottleDevices(r.BlkioDeviceReadIOps)
 	if err != nil {
 		return err
 	}
-	writeIOpsDevice, err := getBlkioWriteIOpsDevices(r)
+	writeIOpsDevice, err := getBlkioThrottleDevices(r.BlkioDeviceWriteIOps)
 	if err != nil {
 		return err
 	}
@@ -635,13 +636,14 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 		return nil, err
 	}
 
-	mounts, err := daemon.setupMounts(c)
+	ms, err := daemon.setupMounts(c)
 	if err != nil {
 		return nil, err
 	}
-	mounts = append(mounts, c.IpcMounts()...)
-	mounts = append(mounts, c.TmpfsMounts()...)
-	if err := setMounts(daemon, &s, c, mounts); err != nil {
+	ms = append(ms, c.IpcMounts()...)
+	ms = append(ms, c.TmpfsMounts()...)
+	sort.Sort(mounts(ms))
+	if err := setMounts(daemon, &s, c, ms); err != nil {
 		return nil, fmt.Errorf("linux mounts: %v", err)
 	}
 
@@ -672,6 +674,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 	}
 	s.Process.SelinuxLabel = c.GetProcessLabel()
 	s.Process.NoNewPrivileges = c.NoNewPrivileges
+	s.Linux.MountLabel = c.MountLabel
 
 	return (*libcontainerd.Spec)(&s), nil
 }

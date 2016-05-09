@@ -88,8 +88,8 @@ func (d *Daemon) getActiveContainer(name string) (*container.Container, error) {
 }
 
 // ContainerExecCreate sets up an exec in a running container.
-func (d *Daemon) ContainerExecCreate(config *types.ExecConfig) (string, error) {
-	container, err := d.getActiveContainer(config.Container)
+func (d *Daemon) ContainerExecCreate(name string, config *types.ExecConfig) (string, error) {
+	container, err := d.getActiveContainer(name)
 	if err != nil {
 		return "", err
 	}

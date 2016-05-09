@@ -1,9 +1,12 @@
 #!/bin/bash
 set -e
 
-BINARY_NAME="docker-$VERSION"
+BINARY_NAME="dockerd-$VERSION"
 BINARY_EXTENSION="$(binary_extension)"
 BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
+
+CLIENTBIN_NAME="docker-$VERSION"
+CLIENTBIN_FULLNAME="$CLIENTBIN_NAME$BINARY_EXTENSION"
 
 source "${MAKEDIR}/.go-autogen"
 
@@ -21,10 +24,27 @@ go build -compiler=gccgo \
 		-ldl
 		-pthread
 	" \
-	./docker
+	./cmd/dockerd
 
 echo "Created binary: $DEST/$BINARY_FULLNAME"
-ln -sf "$BINARY_FULLNAME" "$DEST/docker$BINARY_EXTENSION"
+ln -sf "$BINARY_FULLNAME" "$DEST/dockerd$BINARY_EXTENSION"
 
 copy_containerd "$DEST" "hash"
 hash_files "$DEST/$BINARY_FULLNAME"
+
+go build -compiler=gccgo \
+	-o "$DEST/$CLIENTBIN_FULLNAME" \
+	"${BUILDFLAGS[@]}" \
+	-gccgoflags "
+		-g
+		$EXTLDFLAGS_STATIC
+		-Wl,--no-export-dynamic
+		-ldl
+		-pthread
+	" \
+	./cmd/docker
+
+echo "Created binary: $DEST/$CLIENTBIN_FULLNAME"
+ln -sf "$CLIENTBIN_FULLNAME" "$DEST/docker$BINARY_EXTENSION"
+hash_files "$DEST/$CLIENTBIN_FULLNAME"
+

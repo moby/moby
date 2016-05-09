@@ -101,6 +101,9 @@ func (daemon *Daemon) getSize(container *container.Container) (int64, int64) {
 
 // ConnectToNetwork connects a container to a network
 func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings) error {
+	if endpointConfig == nil {
+		endpointConfig = &networktypes.EndpointSettings{}
+	}
 	if !container.Running {
 		if container.RemovalInProgress || container.Dead {
 			return errRemovalContainer(container.ID)
@@ -108,9 +111,7 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 		if _, err := daemon.updateNetworkConfig(container, idOrName, endpointConfig, true); err != nil {
 			return err
 		}
-		if endpointConfig != nil {
-			container.NetworkSettings.Networks[idOrName] = endpointConfig
-		}
+		container.NetworkSettings.Networks[idOrName] = endpointConfig
 	} else {
 		if err := daemon.connectToNetwork(container, idOrName, endpointConfig, true); err != nil {
 			return err
@@ -246,6 +247,19 @@ func (daemon *Daemon) mountVolumes(container *container.Container) error {
 		if err := mount.Mount(m.Source, dest, "bind", opts); err != nil {
 			return err
 		}
+
+		// mountVolumes() seems to be called for temporary mounts
+		// outside the container. Soon these will be unmounted with
+		// lazy unmount option and given we have mounted the rbind,
+		// all the submounts will propagate if these are shared. If
+		// daemon is running in host namespace and has / as shared
+		// then these unmounts will propagate and unmount original
+		// mount as well. So make all these mounts rprivate.
+		// Do not use propagation property of volume as that should
+		// apply only when mounting happen inside the container.
+		if err := mount.MakeRPrivate(dest); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -297,7 +311,7 @@ func getDevicesFromPath(deviceMapping containertypes.DeviceMapping) (devs []spec
 
 	// check if it is a symbolic link
 	if src, e := os.Lstat(deviceMapping.PathOnHost); e == nil && src.Mode()&os.ModeSymlink == os.ModeSymlink {
-		if linkedPathOnHost, e := os.Readlink(deviceMapping.PathOnHost); e == nil {
+		if linkedPathOnHost, e := filepath.EvalSymlinks(deviceMapping.PathOnHost); e == nil {
 			resolvedPathOnHost = linkedPathOnHost
 		}
 	}

@@ -138,7 +138,7 @@ func (c *tarSumContext) Walk(root string, walkFn WalkFunc) error {
 		}
 
 		sum := rel
-		if tsInfo := c.sums.GetFile(rel); tsInfo != nil {
+		if tsInfo := c.sums.GetFile(filepath.ToSlash(rel)); tsInfo != nil {
 			sum = tsInfo.Sum()
 		}
 		fi := &HashedFileInfo{PathFileInfo{FileInfo: info, FilePath: fullpath}, sum}

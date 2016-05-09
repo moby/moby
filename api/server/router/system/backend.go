@@ -1,6 +1,8 @@
 package system
 
 import (
+	"time"
+
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/events"
 	"github.com/docker/engine-api/types/filters"
@@ -12,7 +14,7 @@ import (
 type Backend interface {
 	SystemInfo() (*types.Info, error)
 	SystemVersion() types.Version
-	SubscribeToEvents(since, sinceNano int64, ef filters.Args) ([]events.Message, chan interface{})
+	SubscribeToEvents(since, until time.Time, ef filters.Args) ([]events.Message, chan interface{})
 	UnsubscribeFromEvents(chan interface{})
 	AuthenticateToRegistry(ctx context.Context, authConfig *types.AuthConfig) (string, string, error)
 }

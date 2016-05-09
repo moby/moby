@@ -71,11 +71,27 @@ RUN cd /usr/local/lvm2 \
 	&& make install_device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
+# install seccomp: the version shipped in jessie is too old
+ENV SECCOMP_VERSION 2.3.0
+RUN set -x \
+        && export SECCOMP_PATH="$(mktemp -d)" \
+        && curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
+                | tar -xzC "$SECCOMP_PATH" --strip-components=1 \
+        && ( \
+                cd "$SECCOMP_PATH" \
+                && ./configure --prefix=/usr/local \
+                && make \
+                && make install \
+                && ldconfig \
+        ) \
+        && rm -rf "$SECCOMP_PATH"
+
+
 ## BUILD GOLANG 1.6
 # NOTE: ppc64le has compatibility issues with older versions of go, so make sure the version >= 1.6
-ENV GO_VERSION 1.6.1
+ENV GO_VERSION 1.6.2
 ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz
-ENV GO_DOWNLOAD_SHA256 1d4b53cdee51b2298afcf50926a7fa44b286f0bf24ff8323ce690a66daa7193f
+ENV GO_DOWNLOAD_SHA256 787b0b750d037016a30c6ed05a8a70a91b2e9db4bd9b1a2453aa502a63f1bccc
 ENV GOROOT_BOOTSTRAP /usr/local
 
 RUN curl -fsSL "$GO_DOWNLOAD_URL" -o golang.tar.gz \
@@ -125,7 +141,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install notary and notary-server
-ENV NOTARY_VERSION docker-v1.11-3
+ENV NOTARY_VERSION v0.3.0-RC1
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
@@ -137,7 +153,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Get the "docker-py" source so we can run their integration tests
-ENV DOCKER_PY_COMMIT e2878cbcc3a7eef99917adc1be252800b0e41ece
+ENV DOCKER_PY_COMMIT 7befe694bd21e3c54bb1d7825270ea4bd6864c13
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT \
@@ -187,26 +203,19 @@ RUN set -x \
 	&& go build -v -o /usr/local/bin/tomlv github.com/BurntSushi/toml/cmd/tomlv \
 	&& rm -rf "$GOPATH"
 
-# Build/install the tool for embedding resources in Windows binaries
-ENV RSRC_VERSION v2
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone --depth 1 -b "$RSRC_VERSION" https://github.com/akavel/rsrc.git "$GOPATH/src/github.com/akavel/rsrc" \
-	&& go build -v -o /usr/local/bin/rsrc github.com/akavel/rsrc \
-	&& rm -rf "$GOPATH"
-
 # Install runc
-ENV RUNC_COMMIT e87436998478d222be209707503c27f6f91be0c5
+ENV RUNC_COMMIT baf6536d6259209c3edfa2b22237af82942d3dfa
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
 	&& cd "$GOPATH/src/github.com/opencontainers/runc" \
 	&& git checkout -q "$RUNC_COMMIT" \
-	&& make static BUILDTAGS="apparmor selinux" \
-	&& cp runc /usr/local/bin/docker-runc
+	&& make static BUILDTAGS="apparmor seccomp selinux" \
+	&& cp runc /usr/local/bin/docker-runc \
+	&& rm -rf "$GOPATH"
 
 # Install containerd
-ENV CONTAINERD_COMMIT 07c95162cdcead88dfe4ca0ffb3cea02375ec54d
+ENV CONTAINERD_COMMIT v0.2.1
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \
@@ -215,7 +224,8 @@ RUN set -x \
 	&& make static \
 	&& cp bin/containerd /usr/local/bin/docker-containerd \
 	&& cp bin/containerd-shim /usr/local/bin/docker-containerd-shim \
-	&& cp bin/ctr /usr/local/bin/docker-containerd-ctr
+	&& cp bin/ctr /usr/local/bin/docker-containerd-ctr \
+	&& rm -rf "$GOPATH"
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]

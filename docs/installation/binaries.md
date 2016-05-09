@@ -163,7 +163,7 @@ these scripts in the <a href="https://github.com/docker/docker/tree/master/contr
 contrib directory</a>.
 
 For additional information about running the Engine in daemon mode, refer to
-the [daemon command](../reference/commandline/daemon.md) in the Engine command
+the [daemon command](../reference/commandline/dockerd.md) in the Engine command
 line reference.
 
 ### Get the Mac OS X binary

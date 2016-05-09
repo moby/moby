@@ -218,7 +218,7 @@ OverlayFS. The procedure assumes that the Docker daemon is in a stopped state.
 
 3. Start the Docker daemon with the `overlay` storage driver.
 
-        $ docker daemon --storage-driver=overlay &
+        $ dockerd --storage-driver=overlay &
         [1] 29403
         root@ip-10-0-0-174:/home/ubuntu# INFO[0000] Listening for HTTP on unix (/var/run/docker.sock)
         INFO[0000] Option DefaultDriver: bridge

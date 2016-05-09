@@ -1,65 +1,14 @@
 #!/bin/bash
 set -e
 
-BINARY_NAME="docker-$VERSION"
-BINARY_EXTENSION="$(binary_extension)"
-BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
-
-source "${MAKEDIR}/.go-autogen"
-
+# This script exists as backwards compatibility for CI
 (
-export GOGC=${DOCKER_BUILD_GOGC:-1000}
-
-if [ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
-	# must be cross-compiling!
-	case "$(go env GOOS)/$(go env GOARCH)" in
-		windows/amd64)
-			export CC=x86_64-w64-mingw32-gcc
-			export CGO_ENABLED=1
-			;;
-	esac
-fi
-
-if [ "$(go env GOOS)" == "linux" ] ; then
-	case "$(go env GOARCH)" in
-		arm*|386)
-			# linking for Linux on arm or x86 needs external linking to avoid
-			# https://github.com/golang/go/issues/9510 until we move to Go 1.6
-			if [ "$IAMSTATIC" == "true" ] ; then
-				export EXTLDFLAGS_STATIC="$EXTLDFLAGS_STATIC -zmuldefs"
-				export LDFLAGS_STATIC_DOCKER="$LDFLAGS_STATIC -extldflags \"$EXTLDFLAGS_STATIC\""
-
-			else
-				export LDFLAGS="$LDFLAGS -extldflags -zmuldefs"
-			fi
-			;;
-	esac
-fi
-
-if [ "$IAMSTATIC" == "true" ] && [ "$(go env GOHOSTOS)" == "linux" ]; then
-	if  [ "${GOOS}/${GOARCH}" == "darwin/amd64" ]; then
-		export CGO_ENABLED=1
-		export CC=o64-clang
-		export LDFLAGS='-linkmode external -s'
-		export LDFLAGS_STATIC_DOCKER='-extld='${CC}
-	else
-		export BUILDFLAGS=( "${BUILDFLAGS[@]/pkcs11 /}" ) # we cannot dlopen in pkcs11 in a static binary
-	fi
-fi
-
-echo "Building: $DEST/$BINARY_FULLNAME"
-go build \
-	-o "$DEST/$BINARY_FULLNAME" \
-	"${BUILDFLAGS[@]}" \
-	-ldflags "
-		$LDFLAGS
-		$LDFLAGS_STATIC_DOCKER
-	" \
-	./docker
+	DEST="${DEST}-client"
+	ABS_DEST="${ABS_DEST}-client"
+	. hack/make/binary-client
 )
-
-echo "Created binary: $DEST/$BINARY_FULLNAME"
-ln -sf "$BINARY_FULLNAME" "$DEST/docker$BINARY_EXTENSION"
-
-copy_containerd "$DEST" "hash"
-hash_files "$DEST/$BINARY_FULLNAME"
+(
+	DEST="${DEST}-daemon"
+	ABS_DEST="${ABS_DEST}-daemon"
+	. hack/make/binary-daemon
+)

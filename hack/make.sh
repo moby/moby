@@ -66,7 +66,8 @@ DEFAULT_BUNDLES=(
 	validate-toml
 	validate-vet
 
-	binary
+	binary-client
+	binary-daemon
 	dynbinary
 
 	test-unit
@@ -79,7 +80,7 @@ DEFAULT_BUNDLES=(
 )
 
 VERSION=$(< ./VERSION)
-if command -v git &> /dev/null && git rev-parse &> /dev/null; then
+if command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; then
 	GITCOMMIT=$(git rev-parse --short HEAD)
 	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
 		GITCOMMIT="$GITCOMMIT-unsupported"
@@ -126,13 +127,11 @@ if [ "$DOCKER_EXPERIMENTAL" ]; then
 	DOCKER_BUILDTAGS+=" experimental"
 fi
 
-if [ -z "$DOCKER_CLIENTONLY" ]; then
-	DOCKER_BUILDTAGS+=" daemon"
-	if pkg-config 'libsystemd >= 209' 2> /dev/null ; then
-		DOCKER_BUILDTAGS+=" journald"
-	elif pkg-config 'libsystemd-journal' 2> /dev/null ; then
-		DOCKER_BUILDTAGS+=" journald journald_compat"
-	fi
+DOCKER_BUILDTAGS+=" daemon"
+if pkg-config 'libsystemd >= 209' 2> /dev/null ; then
+	DOCKER_BUILDTAGS+=" journald"
+elif pkg-config 'libsystemd-journal' 2> /dev/null ; then
+	DOCKER_BUILDTAGS+=" journald journald_compat"
 fi
 
 # test whether "btrfs/version.h" exists and apply btrfs_noversion appropriately

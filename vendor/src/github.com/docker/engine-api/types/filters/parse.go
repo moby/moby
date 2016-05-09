@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/docker/engine-api/types/versions"
 )
 
 // Args stores filter arguments as map key:{map key: bool}.
@@ -62,6 +64,28 @@ func ToParam(a Args) (string, error) {
 	}
 
 	buf, err := json.Marshal(a.fields)
+	if err != nil {
+		return "", err
+	}
+	return string(buf), nil
+}
+
+// ToParamWithVersion packs the Args into a string for easy transport from client to server.
+// The generated string will depend on the specified version (corresponding to the API version).
+func ToParamWithVersion(version string, a Args) (string, error) {
+	// this way we don't URL encode {}, just empty space
+	if a.Len() == 0 {
+		return "", nil
+	}
+
+	// for daemons older than v1.10, filter must be of the form map[string][]string
+	buf := []byte{}
+	err := errors.New("")
+	if version != "" && versions.LessThan(version, "1.22") {
+		buf, err = json.Marshal(convertArgsToSlice(a.fields))
+	} else {
+		buf, err = json.Marshal(a.fields)
+	}
 	if err != nil {
 		return "", err
 	}
@@ -250,6 +274,20 @@ func deprecatedArgs(d map[string][]string) map[string]map[string]bool {
 		values := map[string]bool{}
 		for _, vv := range v {
 			values[vv] = true
+		}
+		m[k] = values
+	}
+	return m
+}
+
+func convertArgsToSlice(f map[string]map[string]bool) map[string][]string {
+	m := map[string][]string{}
+	for k, v := range f {
+		values := []string{}
+		for kk := range v {
+			if v[kk] {
+				values = append(values, kk)
+			}
 		}
 		m[k] = values
 	}

@@ -288,11 +288,8 @@ func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string, cpP
 	}
 
 	options := types.CopyToContainerOptions{
-		ContainerID:               dstContainer,
-		Path:                      resolvedDstPath,
-		Content:                   content,
 		AllowOverwriteDirWithFile: false,
 	}
 
-	return cli.client.CopyToContainer(context.Background(), options)
+	return cli.client.CopyToContainer(context.Background(), dstContainer, resolvedDstPath, content, options)
 }

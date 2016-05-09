@@ -10,7 +10,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/pkg/version"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/libtrust"
 )
@@ -18,10 +17,10 @@ import (
 // Common constants for daemon and client.
 const (
 	// Version of Current REST API
-	DefaultVersion version.Version = "1.24"
+	DefaultVersion string = "1.24"
 
 	// MinVersion represents Minimum REST API version supported
-	MinVersion version.Version = "1.12"
+	MinVersion string = "1.12"
 
 	// NoBaseImageSpecifier is the symbol used by the FROM
 	// command to specify that no base image is to be used.

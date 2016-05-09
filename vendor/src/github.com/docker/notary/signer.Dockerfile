@@ -1,30 +1,28 @@
-FROM golang:1.6.0
+FROM golang:1.6.1-alpine
 MAINTAINER David Lawrence "david.lawrence@docker.com"
 
-RUN apt-get update && apt-get install -y \
-    libltdl-dev \
-    --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --update git gcc libc-dev && rm -rf /var/cache/apk/*
 
-EXPOSE 4444
-
-# Install DB migration tool
+# Install SQL DB migration tool
 RUN go get github.com/mattes/migrate
 
 ENV NOTARYPKG github.com/docker/notary
+
+# Copy the local repo to the expected go path
+COPY . /go/src/${NOTARYPKG}
+
+WORKDIR /go/src/${NOTARYPKG}
+
 ENV NOTARY_SIGNER_DEFAULT_ALIAS="timestamp_1"
 ENV NOTARY_SIGNER_TIMESTAMP_1="testpassword"
 
-# Copy the local repo to the expected go path
-COPY . /go/src/github.com/docker/notary
-
-WORKDIR /go/src/${NOTARYPKG}
+EXPOSE 4444
 
 # Install notary-signer
 RUN go install \
     -tags pkcs11 \
     -ldflags "-w -X ${NOTARYPKG}/version.GitCommit=`git rev-parse --short HEAD` -X ${NOTARYPKG}/version.NotaryVersion=`cat NOTARY_VERSION`" \
-    ${NOTARYPKG}/cmd/notary-signer
+    ${NOTARYPKG}/cmd/notary-signer && apk del git gcc libc-dev
 
 ENTRYPOINT [ "notary-signer" ]
 CMD [ "-config=fixtures/signer-config-local.json" ]

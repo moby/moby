@@ -27,13 +27,13 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
-	apiclient "github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 	registrytypes "github.com/docker/engine-api/types/registry"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/notary/client"
 	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/trustmanager"
+	"github.com/docker/notary/trustpinning"
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/store"
@@ -185,7 +185,9 @@ func (cli *DockerCli) getNotaryRepository(repoInfo *registry.RepositoryInfo, aut
 	modifiers = append(modifiers, transport.RequestModifier(auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler)))
 	tr := transport.NewTransport(base, modifiers...)
 
-	return client.NewNotaryRepository(cli.trustDirectory(), repoInfo.FullName(), server, tr, cli.getPassphraseRetriever())
+	return client.NewNotaryRepository(
+		cli.trustDirectory(), repoInfo.FullName(), server, tr, cli.getPassphraseRetriever(),
+		trustpinning.TrustPinConfig{})
 }
 
 func convertTarget(t client.Target) (target, error) {
@@ -280,13 +282,10 @@ func (cli *DockerCli) tagTrusted(trustedRef reference.Canonical, ref reference.N
 	fmt.Fprintf(cli.out, "Tagging %s as %s\n", trustedRef.String(), ref.String())
 
 	options := types.ImageTagOptions{
-		ImageID:        trustedRef.String(),
-		RepositoryName: trustedRef.Name(),
-		Tag:            ref.Tag(),
-		Force:          true,
+		Force: true,
 	}
 
-	return cli.client.ImageTag(context.Background(), options)
+	return cli.client.ImageTag(context.Background(), trustedRef.String(), ref.String(), options)
 }
 
 func notaryError(repoName string, err error) error {
@@ -319,7 +318,7 @@ func notaryError(repoName string, err error) error {
 	return err
 }
 
-func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registry.Reference, authConfig types.AuthConfig, requestPrivilege apiclient.RequestPrivilegeFunc) error {
+func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registry.Reference, authConfig types.AuthConfig, requestPrivilege types.RequestPrivilegeFunc) error {
 	var refs []target
 
 	notaryRepo, err := cli.getNotaryRepository(repoInfo, authConfig, "pull")
@@ -377,7 +376,11 @@ func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registr
 		}
 		fmt.Fprintf(cli.out, "Pull (%d of %d): %s%s@%s\n", i+1, len(refs), repoInfo.Name(), displayTag, r.digest)
 
-		if err := cli.imagePullPrivileged(authConfig, repoInfo.Name(), r.digest.String(), requestPrivilege); err != nil {
+		ref, err := reference.WithDigest(repoInfo, r.digest)
+		if err != nil {
+			return err
+		}
+		if err := cli.imagePullPrivileged(authConfig, ref.String(), requestPrivilege, false); err != nil {
 			return err
 		}
 
@@ -399,8 +402,8 @@ func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registr
 	return nil
 }
 
-func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string, authConfig types.AuthConfig, requestPrivilege apiclient.RequestPrivilegeFunc) error {
-	responseBody, err := cli.imagePushPrivileged(authConfig, repoInfo.Name(), tag, requestPrivilege)
+func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, ref reference.Named, authConfig types.AuthConfig, requestPrivilege types.RequestPrivilegeFunc) error {
+	responseBody, err := cli.imagePushPrivileged(authConfig, ref.String(), requestPrivilege)
 	if err != nil {
 		return err
 	}
@@ -432,6 +435,14 @@ func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string,
 			target.Hashes = data.Hashes{string(pushResult.Digest.Algorithm()): h}
 			target.Length = int64(pushResult.Size)
 		}
+	}
+
+	var tag string
+	switch x := ref.(type) {
+	case reference.Canonical:
+		return errors.New("cannot push a digest reference")
+	case reference.NamedTagged:
+		tag = x.Tag()
 	}
 
 	// We want trust signatures to always take an explicit tag,
@@ -466,7 +477,7 @@ func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string,
 	}
 
 	// get the latest repository metadata so we can figure out which roles to sign
-	_, err = repo.Update(false)
+	err = repo.Update(false)
 
 	switch err.(type) {
 	case client.ErrRepoNotInitialized, client.ErrRepositoryNotExist:

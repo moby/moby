@@ -3,10 +3,18 @@ machine:
   pre:
   # Install gvm
     - bash < <(curl -s -S -L https://raw.githubusercontent.com/moovweb/gvm/1.0.22/binscripts/gvm-installer)
+  # Upgrade docker
+    - sudo curl -L -o /usr/bin/docker 'https://s3-external-1.amazonaws.com/circle-downloads/docker-1.9.1-circleci'
+    - sudo chmod 0755 /usr/bin/docker
 
   post:
   # Install many go versions
-    - gvm install go1.6 -B --name=stable
+    - gvm install go1.6.1 -B --name=stable
+  # upgrade compose
+    - sudo pip install --upgrade docker-compose
+
+  services:
+    - docker
 
   environment:
   # Convenient shortcuts to "common" locations
@@ -32,16 +40,13 @@ dependencies:
       cp -R "$CHECKOUT" "$BASE_STABLE"
 
   override:
-  # Install dependencies for every copied clone/go version
-    - gvm use stable && go get github.com/tools/godep:
-        pwd: $BASE_STABLE
-
-  post:
-  # For the stable go version, additionally install linting and misspell tools
+   # don't use circleci's default dependency installation step of `go get -d -u ./...`
+   # since we already vendor everything; additionally install linting and misspell tools
     - >
       gvm use stable &&
       go get github.com/golang/lint/golint &&
       go get -u github.com/client9/misspell/cmd/misspell
+
 test:
   pre:
   # Output the go versions we are going to test
@@ -70,13 +75,13 @@ test:
   override:
   # Test stable, and report
   # hacking this to be parallel
-    - case $CIRCLE_NODE_INDEX in 0) gvm use stable && NOTARY_BUILDTAGS=pkcs11 make ci ;; 1) gvm use stable && NOTARY_BUILDTAGS=none make ci ;; esac:
+    - case $CIRCLE_NODE_INDEX in 0) gvm use stable && NOTARY_BUILDTAGS=pkcs11 make ci ;; 1) gvm use stable && NOTARY_BUILDTAGS=none make ci ;; 2) gvm use stable && make integration ;; esac:
         parallel: true
         timeout: 600
         pwd: $BASE_STABLE
 
   post:
   # Report to codecov.io
-    - bash <(curl -s https://codecov.io/bash):
+    - case $CIRCLE_NODE_INDEX in 0) bash <(curl -s https://codecov.io/bash) ;; 1) bash <(curl -s https://codecov.io/bash) ;; esac:
         parallel: true
         pwd: $BASE_STABLE

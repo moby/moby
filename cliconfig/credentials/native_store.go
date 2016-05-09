@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/cliconfig/configfile"
 	"github.com/docker/engine-api/types"
 )
 
@@ -52,7 +52,7 @@ type nativeStore struct {
 
 // NewNativeStore creates a new native store that
 // uses a remote helper program to manage credentials.
-func NewNativeStore(file *cliconfig.ConfigFile) Store {
+func NewNativeStore(file *configfile.ConfigFile) Store {
 	return &nativeStore{
 		commandFn: shellCommandFn(file.CredentialsStore),
 		fileStore: NewFileStore(file),

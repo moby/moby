@@ -212,12 +212,20 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		return "", err
 	}
 
+	if len(b.options.Labels) > 0 {
+		line := "LABEL "
+		for k, v := range b.options.Labels {
+			line += fmt.Sprintf("%q=%q ", k, v)
+		}
+		_, node, err := parser.ParseLine(line)
+		if err != nil {
+			return "", err
+		}
+		b.dockerfile.Children = append(b.dockerfile.Children, node)
+	}
+
 	var shortImgID string
 	for i, n := range b.dockerfile.Children {
-		// we only want to add labels to the last layer
-		if i == len(b.dockerfile.Children)-1 {
-			b.addLabels()
-		}
 		select {
 		case <-b.clientCtx.Done():
 			logrus.Debug("Builder: build cancelled!")
@@ -231,16 +239,6 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 				b.clearTmp()
 			}
 			return "", err
-		}
-
-		// Commit the layer when there are only one children in
-		// the dockerfile, this is only the `FROM` tag, and
-		// build labels. Otherwise, the new image won't be
-		// labeled properly.
-		// Commit here, so the ID of the final image is reported
-		// properly.
-		if len(b.dockerfile.Children) == 1 && len(b.options.Labels) > 0 {
-			b.commit("", b.runConfig.Cmd, "")
 		}
 
 		shortImgID = stringid.TruncateID(b.image)

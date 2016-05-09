@@ -46,7 +46,7 @@ func encodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 	return base64.URLEncoding.EncodeToString(buf), nil
 }
 
-func (cli *DockerCli) registryAuthenticationPrivilegedFunc(index *registrytypes.IndexInfo, cmdName string) client.RequestPrivilegeFunc {
+func (cli *DockerCli) registryAuthenticationPrivilegedFunc(index *registrytypes.IndexInfo, cmdName string) types.RequestPrivilegeFunc {
 	return func() (string, error) {
 		fmt.Fprintf(cli.out, "\nPlease login prior to %s:\n", cmdName)
 		indexServer := registry.GetAuthConfigKey(index)
@@ -69,16 +69,15 @@ func (cli *DockerCli) resizeTtyTo(id string, height, width int, isExec bool) {
 	}
 
 	options := types.ResizeOptions{
-		ID:     id,
 		Height: height,
 		Width:  width,
 	}
 
 	var err error
 	if isExec {
-		err = cli.client.ContainerExecResize(context.Background(), options)
+		err = cli.client.ContainerExecResize(context.Background(), id, options)
 	} else {
-		err = cli.client.ContainerResize(context.Background(), options)
+		err = cli.client.ContainerResize(context.Background(), id, options)
 	}
 
 	if err != nil {

@@ -11,18 +11,10 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime"
-	"syscall"
 
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
 )
-
-func chroot(path string) error {
-	if err := syscall.Chroot(path); err != nil {
-		return err
-	}
-	return syscall.Chdir("/")
-}
 
 // untar is the entry-point for docker-untar on re-exec. This is not used on
 // Windows as it does not support chroot, hence no point sandboxing through

@@ -421,3 +421,26 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuth(c *check.C) {
 
 	dockerCmd(c, "--config", tmp, "pull", repoName)
 }
+
+// TestRunImplicitPullWithNoTag should pull implicitely only the default tag (latest)
+func (s *DockerRegistrySuite) TestRunImplicitPullWithNoTag(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	repo := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
+	repoTag1 := fmt.Sprintf("%v:latest", repo)
+	repoTag2 := fmt.Sprintf("%v:t1", repo)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoTag1)
+	dockerCmd(c, "tag", "busybox", repoTag2)
+	dockerCmd(c, "push", repo)
+	dockerCmd(c, "rmi", repoTag1)
+	dockerCmd(c, "rmi", repoTag2)
+
+	out, _, err := dockerCmdWithError("run", repo)
+	c.Assert(err, check.IsNil)
+	c.Assert(out, checker.Contains, fmt.Sprintf("Unable to find image '%s:latest' locally", repo))
+
+	// There should be only one line for repo, the one with repo:latest
+	outImageCmd, _, err := dockerCmdWithError("images", repo)
+	splitOutImageCmd := strings.Split(strings.TrimSpace(outImageCmd), "\n")
+	c.Assert(splitOutImageCmd, checker.HasLen, 2)
+}

@@ -6,16 +6,15 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 
-	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/versions"
 	"golang.org/x/net/context"
 )
 
@@ -32,7 +31,7 @@ func (s *imageRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *
 
 	pause := httputils.BoolValue(r, "pause")
 	version := httputils.VersionFromContext(ctx)
-	if r.FormValue("pause") == "" && version.GreaterThanOrEqualTo("1.13") {
+	if r.FormValue("pause") == "" && versions.GreaterThanOrEqualTo(version, "1.13") {
 		pause = true
 	}
 
@@ -105,13 +104,6 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 		}
 
 		err = s.backend.PullImage(ctx, image, tag, metaHeaders, authConfig, output)
-
-		// Check the error from pulling an image to make sure the request
-		// was authorized. Modify the status if the request was
-		// unauthorized to respond with 401 rather than 500.
-		if err != nil && isAuthorizedError(err) {
-			err = errcode.ErrorCodeUnauthorized.WithMessage(fmt.Sprintf("Authentication is required: %s", err))
-		}
 	} else { //import
 		src := r.Form.Get("fromSrc")
 		// 'err' MUST NOT be defined within this block, we need any error
@@ -314,17 +306,4 @@ func (s *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, query.Results)
-}
-
-func isAuthorizedError(err error) bool {
-	if urlError, ok := err.(*url.Error); ok {
-		err = urlError.Err
-	}
-
-	if dError, ok := err.(errcode.Error); ok {
-		if dError.ErrorCode() == errcode.ErrorCodeUnauthorized {
-			return true
-		}
-	}
-	return false
 }

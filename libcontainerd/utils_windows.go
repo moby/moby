@@ -14,3 +14,8 @@ func setupEnvironmentVariables(a []string) map[string]string {
 	}
 	return r
 }
+
+// Apply for a servicing option is a no-op.
+func (s *ServicingOption) Apply(interface{}) error {
+	return nil
+}

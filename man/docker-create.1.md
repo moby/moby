@@ -333,6 +333,7 @@ unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
    $ docker create -it --storage-opt size=120G fedora /bin/bash
 
    This (size) will allow to set the container rootfs size to 120G at creation time. User cannot pass a size less than the Default BaseFS Size.
+   This option is only available for the `devicemapper`, `btrfs` and `zfs` graphrivers.
   
 **--stop-signal**=*SIGTERM*
   Signal to stop a container. Default is SIGTERM.

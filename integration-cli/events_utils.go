@@ -98,7 +98,7 @@ func (e *eventObserver) CheckEventError(c *check.C, id, event string, match even
 	scannerOut := e.buffer.String()
 
 	if e.disconnectionError != nil {
-		until := strconv.FormatInt(daemonTime(c).Unix(), 10)
+		until := daemonUnixTime(c)
 		out, _ := dockerCmd(c, "events", "--since", e.startTime, "--until", until)
 		events := strings.Split(strings.TrimSpace(out), "\n")
 		for _, e := range events {

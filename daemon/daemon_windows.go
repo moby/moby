@@ -13,17 +13,18 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/graphdriver/windows" // register the windows graph driver
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/reference"
-	"github.com/docker/docker/runconfig"
-	// register the windows graph driver
-	"github.com/docker/docker/daemon/graphdriver/windows"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/reference"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/engine-api/types"
+	pblkiodev "github.com/docker/engine-api/types/blkiodev"
 	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
@@ -94,10 +95,65 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 	return nil
 }
 
+func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysinfo.SysInfo) ([]string, error) {
+	warnings := []string{}
+
+	// cpu subsystem checks and adjustments
+	if resources.CPUPercent < 0 || resources.CPUPercent > 100 {
+		return warnings, fmt.Errorf("Range of CPU percent is from 1 to 100")
+	}
+
+	if resources.CPUPercent > 0 && resources.CPUShares > 0 {
+		return warnings, fmt.Errorf("Conflicting options: CPU Shares and CPU Percent cannot both be set")
+	}
+
+	// TODO Windows: Add more validation of resource settings not supported on Windows
+
+	if resources.BlkioWeight > 0 {
+		warnings = append(warnings, "Windows does not support Block I/O weight. Weight discarded.")
+		logrus.Warnf("Windows does not support Block I/O weight. --blkio-weight discarded.")
+		resources.BlkioWeight = 0
+	}
+	if len(resources.BlkioWeightDevice) > 0 {
+		warnings = append(warnings, "Windows does not support Block I/O weight_device.")
+		logrus.Warnf("Windows does not support Block I/O weight_device. --blkio-weight-device discarded.")
+		resources.BlkioWeightDevice = []*pblkiodev.WeightDevice{}
+	}
+	if len(resources.BlkioDeviceReadBps) > 0 {
+		warnings = append(warnings, "Windows does not support Block read limit in bytes per second.")
+		logrus.Warnf("Windows does not support Block I/O read limit in bytes per second. --device-read-bps discarded.")
+		resources.BlkioDeviceReadBps = []*pblkiodev.ThrottleDevice{}
+	}
+	if len(resources.BlkioDeviceWriteBps) > 0 {
+		warnings = append(warnings, "Windows does not support Block write limit in bytes per second.")
+		logrus.Warnf("Windows does not support Block I/O write limit in bytes per second. --device-write-bps discarded.")
+		resources.BlkioDeviceWriteBps = []*pblkiodev.ThrottleDevice{}
+	}
+	if len(resources.BlkioDeviceReadIOps) > 0 {
+		warnings = append(warnings, "Windows does not support Block read limit in IO per second.")
+		logrus.Warnf("Windows does not support Block I/O read limit in IO per second. -device-read-iops discarded.")
+		resources.BlkioDeviceReadIOps = []*pblkiodev.ThrottleDevice{}
+	}
+	if len(resources.BlkioDeviceWriteIOps) > 0 {
+		warnings = append(warnings, "Windows does not support Block write limit in IO per second.")
+		logrus.Warnf("Windows does not support Block I/O write limit in IO per second. --device-write-iops discarded.")
+		resources.BlkioDeviceWriteIOps = []*pblkiodev.ThrottleDevice{}
+	}
+	return warnings, nil
+}
+
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
 func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) ([]string, error) {
-	return nil, nil
+	warnings := []string{}
+
+	w, err := verifyContainerResources(&hostConfig.Resources, nil)
+	warnings = append(warnings, w...)
+	if err != nil {
+		return warnings, err
+	}
+
+	return warnings, nil
 }
 
 // verifyDaemonSettings performs validation of daemon config struct

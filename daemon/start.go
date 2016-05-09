@@ -41,6 +41,9 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 			if err := daemon.setSecurityOptions(container, hostConfig); err != nil {
 				return err
 			}
+			if err := daemon.mergeAndVerifyLogConfig(&hostConfig.LogConfig); err != nil {
+				return err
+			}
 			if err := daemon.setHostConfig(container, hostConfig); err != nil {
 				return err
 			}
@@ -107,10 +110,6 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 			}
 			container.ToDisk()
 			daemon.Cleanup(container)
-			attributes := map[string]string{
-				"exitCode": fmt.Sprintf("%d", container.ExitCode),
-			}
-			daemon.LogContainerEventWithAttributes(container, "die", attributes)
 		}
 	}()
 
@@ -149,8 +148,6 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 
 		container.Reset(false)
 
-		// start event is logged even on error
-		daemon.LogContainerEvent(container, "start")
 		return err
 	}
 

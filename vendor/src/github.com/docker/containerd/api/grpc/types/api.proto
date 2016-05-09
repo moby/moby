@@ -232,6 +232,7 @@ message CpuStats {
 
 message PidsStats {
 	uint64 current = 1;
+	uint64 limit = 2;
 }
 
 message MemoryData {

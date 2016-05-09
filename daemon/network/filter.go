@@ -2,8 +2,6 @@ package network
 
 import (
 	"fmt"
-	"regexp"
-	"strings"
 
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/engine-api/types/filters"
@@ -13,27 +11,14 @@ import (
 type filterHandler func([]libnetwork.Network, string) ([]libnetwork.Network, error)
 
 var (
-	// supportedFilters predefined some supported filter handler function
-	supportedFilters = map[string]filterHandler{
-		"type": filterNetworkByType,
-		"name": filterNetworkByName,
-		"id":   filterNetworkByID,
+	// AcceptedFilters is an acceptable filters for validation
+	AcceptedFilters = map[string]bool{
+		"driver": true,
+		"type":   true,
+		"name":   true,
+		"id":     true,
+		"label":  true,
 	}
-
-	// AcceptedFilters is an acceptable filter flag list
-	// generated for validation. e.g.
-	// acceptedFilters = map[string]bool{
-	//     "type": true,
-	//     "name": true,
-	//     "id":   true,
-	// }
-	AcceptedFilters = func() map[string]bool {
-		ret := make(map[string]bool)
-		for k := range supportedFilters {
-			ret[k] = true
-		}
-		return ret
-	}()
 )
 
 func filterNetworkByType(nws []libnetwork.Network, netType string) (retNws []libnetwork.Network, err error) {
@@ -56,34 +41,6 @@ func filterNetworkByType(nws []libnetwork.Network, netType string) (retNws []lib
 	return retNws, nil
 }
 
-func filterNetworkByName(nws []libnetwork.Network, name string) (retNws []libnetwork.Network, err error) {
-	for _, nw := range nws {
-		// exact match (fast path)
-		if nw.Name() == name {
-			retNws = append(retNws, nw)
-			continue
-		}
-
-		// regexp match (slow path)
-		match, err := regexp.MatchString(name, nw.Name())
-		if err != nil || !match {
-			continue
-		} else {
-			retNws = append(retNws, nw)
-		}
-	}
-	return retNws, nil
-}
-
-func filterNetworkByID(nws []libnetwork.Network, id string) (retNws []libnetwork.Network, err error) {
-	for _, nw := range nws {
-		if strings.HasPrefix(nw.ID(), id) {
-			retNws = append(retNws, nw)
-		}
-	}
-	return retNws, nil
-}
-
 // FilterNetworks filters network list according to user specified filter
 // and returns user chosen networks
 func FilterNetworks(nws []libnetwork.Network, filter filters.Args) ([]libnetwork.Network, error) {
@@ -93,18 +50,45 @@ func FilterNetworks(nws []libnetwork.Network, filter filters.Args) ([]libnetwork
 	}
 
 	var displayNet []libnetwork.Network
-	for fkey, fhandler := range supportedFilters {
-		errFilter := filter.WalkValues(fkey, func(fval string) error {
-			passList, err := fhandler(nws, fval)
+	for _, nw := range nws {
+		if filter.Include("driver") {
+			if !filter.ExactMatch("driver", nw.Type()) {
+				continue
+			}
+		}
+		if filter.Include("name") {
+			if !filter.Match("name", nw.Name()) {
+				continue
+			}
+		}
+		if filter.Include("id") {
+			if !filter.Match("id", nw.ID()) {
+				continue
+			}
+		}
+		if filter.Include("label") {
+			if !filter.MatchKVList("label", nw.Info().Labels()) {
+				continue
+			}
+		}
+		displayNet = append(displayNet, nw)
+	}
+
+	if filter.Include("type") {
+		var typeNet []libnetwork.Network
+		errFilter := filter.WalkValues("type", func(fval string) error {
+			passList, err := filterNetworkByType(displayNet, fval)
 			if err != nil {
 				return err
 			}
-			displayNet = append(displayNet, passList...)
+			typeNet = append(typeNet, passList...)
 			return nil
 		})
 		if errFilter != nil {
 			return nil, errFilter
 		}
+		displayNet = typeNet
 	}
+
 	return displayNet, nil
 }

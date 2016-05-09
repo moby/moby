@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"path"
 	"strings"
 )
 
@@ -235,7 +236,7 @@ func (ts *tarSum) Read(buf []byte) (int, error) {
 				}
 				return n, err
 			}
-			ts.currentFile = strings.TrimSuffix(strings.TrimPrefix(currentHeader.Name, "./"), "/")
+			ts.currentFile = path.Clean(currentHeader.Name)
 			if err := ts.encodeHeader(currentHeader); err != nil {
 				return 0, err
 			}

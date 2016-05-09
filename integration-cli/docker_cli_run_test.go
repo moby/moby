@@ -20,6 +20,7 @@ import (
 
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
@@ -285,11 +286,21 @@ func (s *DockerSuite) TestUserDefinedNetworkAlias(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
 	dockerCmd(c, "network", "create", "-d", "bridge", "net1")
 
-	dockerCmd(c, "run", "-d", "--net=net1", "--name=first", "--net-alias=foo1", "--net-alias=foo2", "busybox", "top")
+	cid1, _ := dockerCmd(c, "run", "-d", "--net=net1", "--name=first", "--net-alias=foo1", "--net-alias=foo2", "busybox", "top")
 	c.Assert(waitRun("first"), check.IsNil)
 
-	dockerCmd(c, "run", "-d", "--net=net1", "--name=second", "busybox", "top")
+	// Check if default short-id alias is added automatically
+	id := strings.TrimSpace(cid1)
+	aliases := inspectField(c, id, "NetworkSettings.Networks.net1.Aliases")
+	c.Assert(aliases, checker.Contains, stringid.TruncateID(id))
+
+	cid2, _ := dockerCmd(c, "run", "-d", "--net=net1", "--name=second", "busybox", "top")
 	c.Assert(waitRun("second"), check.IsNil)
+
+	// Check if default short-id alias is added automatically
+	id = strings.TrimSpace(cid2)
+	aliases = inspectField(c, id, "NetworkSettings.Networks.net1.Aliases")
+	c.Assert(aliases, checker.Contains, stringid.TruncateID(id))
 
 	// ping to first and its network-scoped aliases
 	_, _, err := dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
@@ -297,6 +308,9 @@ func (s *DockerSuite) TestUserDefinedNetworkAlias(c *check.C) {
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo1")
 	c.Assert(err, check.IsNil)
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo2")
+	c.Assert(err, check.IsNil)
+	// ping first container's short-id alias
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", stringid.TruncateID(cid1))
 	c.Assert(err, check.IsNil)
 
 	// Restart first container
@@ -309,6 +323,9 @@ func (s *DockerSuite) TestUserDefinedNetworkAlias(c *check.C) {
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo1")
 	c.Assert(err, check.IsNil)
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo2")
+	c.Assert(err, check.IsNil)
+	// ping first container's short-id alias
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", stringid.TruncateID(cid1))
 	c.Assert(err, check.IsNil)
 }
 
@@ -753,9 +770,6 @@ func (s *DockerSuite) TestRunUserNotFound(c *check.C) {
 
 func (s *DockerSuite) TestRunTwoConcurrentContainers(c *check.C) {
 	sleepTime := "2"
-	if daemonPlatform == "windows" {
-		sleepTime = "20" // Make more reliable on Windows
-	}
 	group := sync.WaitGroup{}
 	group.Add(2)
 
@@ -1743,10 +1757,9 @@ func (s *DockerSuite) TestRunExitOnStdinClose(c *check.C) {
 	name := "testrunexitonstdinclose"
 
 	meow := "/bin/cat"
-	delay := 1
+	delay := 60
 	if daemonPlatform == "windows" {
 		meow = "cat"
-		delay = 60
 	}
 	runCmd := exec.Command(dockerBinary, "run", "--name", name, "-i", "busybox", meow)
 
@@ -2694,8 +2707,8 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughPublish(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunSetDefaultRestartPolicy(c *check.C) {
-	dockerCmd(c, "run", "-d", "--name", "test", "busybox", "sleep", "30")
-	out := inspectField(c, "test", "HostConfig.RestartPolicy.Name")
+	runSleepingContainer(c, "--name=testrunsetdefaultrestartpolicy")
+	out := inspectField(c, "testrunsetdefaultrestartpolicy", "HostConfig.RestartPolicy.Name")
 	if out != "no" {
 		c.Fatalf("Set default restart policy failed")
 	}
@@ -2810,8 +2823,8 @@ func (s *DockerSuite) TestRunContainerWithReadonlyRootfsWithAddHostFlag(c *check
 
 func (s *DockerSuite) TestRunVolumesFromRestartAfterRemoved(c *check.C) {
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
-	dockerCmd(c, "run", "-d", "--name", "voltest", "-v", prefix+"/foo", "busybox", "sleep", "60")
-	dockerCmd(c, "run", "-d", "--name", "restarter", "--volumes-from", "voltest", "busybox", "sleep", "60")
+	runSleepingContainer(c, "--name=voltest", "-v", prefix+"/foo")
+	runSleepingContainer(c, "--name=restarter", "--volumes-from", "voltest")
 
 	// Remove the main volume container and restart the consuming container
 	dockerCmd(c, "rm", "-f", "voltest")
@@ -4279,15 +4292,33 @@ func (s *DockerSuite) TestRunTooLongHostname(c *check.C) {
 	hostname1 := "this-is-a-way-too-long-hostname-but-it-should-give-a-nice-error.local"
 	out, _, err := dockerCmdWithError("run", "--hostname", hostname1, "busybox", "echo", "test")
 	c.Assert(err, checker.NotNil, check.Commentf("Expected docker run to fail!"))
-	c.Assert(out, checker.Contains, "invalid hostname format for --hostname:", check.Commentf("Expected to have 'invalid hostname format for --hostname:' in the output, get: %s!", out))
+	c.Assert(out, checker.Contains, "invalid hostname format:", check.Commentf("Expected to have 'invalid hostname format:' in the output, get: %s!", out))
 
-	// HOST_NAME_MAX=64 so 65 bytes will fail
-	hostname2 := "this-is-a-hostname-with-65-bytes-so-it-should-give-an-error.local"
-	out, _, err = dockerCmdWithError("run", "--hostname", hostname2, "busybox", "echo", "test")
-	c.Assert(err, checker.NotNil, check.Commentf("Expected docker run to fail!"))
-	c.Assert(out, checker.Contains, "invalid hostname format for --hostname:", check.Commentf("Expected to have 'invalid hostname format for --hostname:' in the output, get: %s!", out))
+	// Addtional test cases
+	validHostnames := map[string]string{
+		"hostname":    "hostname",
+		"host-name":   "host-name",
+		"hostname123": "hostname123",
+		"123hostname": "123hostname",
+		"hostname-of-63-bytes-long-should-be-valid-and-without-any-error": "hostname-of-63-bytes-long-should-be-valid-and-without-any-error",
+	}
+	for hostname := range validHostnames {
+		dockerCmd(c, "run", "--hostname", hostname, "busybox", "echo", "test")
+	}
 
-	// 64 bytes will be OK
-	hostname3 := "this-is-a-hostname-with-64-bytes-so-will-not-give-an-error.local"
-	dockerCmd(c, "run", "--hostname", hostname3, "busybox", "echo", "test")
+	invalidHostnames := map[string]string{
+		"^hostname": "invalid hostname format: ^hostname",
+		"hostname%": "invalid hostname format: hostname%",
+		"host&name": "invalid hostname format: host&name",
+		"-hostname": "invalid hostname format: -hostname",
+		"host_name": "invalid hostname format: host_name",
+		"hostname-of-64-bytes-long-should-be-invalid-and-be-with-an-error": "invalid hostname format: hostname-of-64-bytes-long-should-be-invalid-and-be-with-an-error",
+	}
+
+	for hostname, expectedError := range invalidHostnames {
+		out, _, err = dockerCmdWithError("run", "--hostname", hostname, "busybox", "echo", "test")
+		c.Assert(err, checker.NotNil, check.Commentf("Expected docker run to fail!"))
+		c.Assert(out, checker.Contains, expectedError, check.Commentf("Expected to have '%s' in the output, get: %s!", expectedError, out))
+
+	}
 }

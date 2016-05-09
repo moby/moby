@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-// MemoryFileStore is an implementation of LimitedFileStore that keeps
+// MemoryFileStore is an implementation of Storage that keeps
 // the contents in memory.
 type MemoryFileStore struct {
 	sync.Mutex

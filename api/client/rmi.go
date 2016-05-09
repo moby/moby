@@ -32,14 +32,13 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 	}
 
 	var errs []string
-	for _, name := range cmd.Args() {
+	for _, image := range cmd.Args() {
 		options := types.ImageRemoveOptions{
-			ImageID:       name,
 			Force:         *force,
 			PruneChildren: !*noprune,
 		}
 
-		dels, err := cli.client.ImageRemove(context.Background(), options)
+		dels, err := cli.client.ImageRemove(context.Background(), image, options)
 		if err != nil {
 			errs = append(errs, err.Error())
 		} else {

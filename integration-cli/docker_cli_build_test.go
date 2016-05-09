@@ -2074,12 +2074,13 @@ func (s *DockerSuite) TestBuildRelativeWorkdir(c *check.C) {
 		expected4     string
 		expectedFinal string
 	)
+
 	if daemonPlatform == "windows" {
-		expected1 = `C:/Windows/system32`
+		expected1 = `C:/`
 		expected2 = `C:/test1`
 		expected3 = `C:/test2`
 		expected4 = `C:/test2/test3`
-		expectedFinal = `\test2\test3`
+		expectedFinal = `C:\test2\test3` // Note inspect is going to return Windows paths, as it's not in busybox
 	} else {
 		expected1 = `/`
 		expected2 = `/test1`
@@ -2090,13 +2091,13 @@ func (s *DockerSuite) TestBuildRelativeWorkdir(c *check.C) {
 
 	_, err := buildImage(name,
 		`FROM busybox
-		RUN sh -c "[ "$PWD" = '`+expected1+`' ]"
+		RUN sh -c "[ "$PWD" = "`+expected1+`" ]"
 		WORKDIR test1
-		RUN sh -c "[ "$PWD" = '`+expected2+`' ]"
+		RUN sh -c "[ "$PWD" = "`+expected2+`" ]"
 		WORKDIR /test2
-		RUN sh -c "[ "$PWD" = '`+expected3+`' ]"
+		RUN sh -c "[ "$PWD" = "`+expected3+`" ]"
 		WORKDIR test3
-		RUN sh -c "[ "$PWD" = '`+expected4+`' ]"`,
+		RUN sh -c "[ "$PWD" = "`+expected4+`" ]"`,
 		true)
 	if err != nil {
 		c.Fatal(err)
@@ -2107,12 +2108,238 @@ func (s *DockerSuite) TestBuildRelativeWorkdir(c *check.C) {
 	}
 }
 
+// #22181 Regression test. Validates combinations of supported
+// WORKDIR dockerfile directives in Windows and non-Windows semantics.
+func (s *DockerSuite) TestBuildWindowsWorkdirProcessing(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	name := "testbuildwindowsworkdirprocessing"
+	_, err := buildImage(name,
+		`FROM busybox
+		WORKDIR a
+		RUN sh -c "[ "$PWD" = "C:/a" ]"
+		WORKDIR c:\\foo
+		RUN sh -c "[ "$PWD" = "C:/foo" ]"
+		WORKDIR \\foo
+		RUN sh -c "[ "$PWD" = "C:/foo" ]"
+		WORKDIR /foo
+		RUN sh -c "[ "$PWD" = "C:/foo" ]"
+		WORKDIR C:/foo
+		WORKDIR bar
+		RUN sh -c "[ "$PWD" = "C:/foo/bar" ]"
+		WORKDIR c:/foo
+		WORKDIR bar
+		RUN sh -c "[ "$PWD" = "C:/foo/bar" ]"
+		WORKDIR c:/foo
+		WORKDIR \\bar
+		RUN sh -c "[ "$PWD" = "C:/bar" ]"
+		WORKDIR /foo
+		WORKDIR c:\\bar
+		RUN sh -c "[ "$PWD" = "C:/bar" ]"
+		`,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+}
+
+// #22181 Regression test. Validates combinations of supported
+// COPY dockerfile directives in Windows and non-Windows semantics.
+func (s *DockerSuite) TestBuildWindowsAddCopyPathProcessing(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	name := "testbuildwindowsaddcopypathprocessing"
+	// TODO Windows (@jhowardmsft). Needs a follow-up PR to 22181 to
+	// support backslash such as .\\ being equivalent to ./ and c:\\ being
+	// equivalent to c:/. This is not currently (nor ever has been) supported
+	// by docker on the Windows platform.
+	dockerfile := `
+		FROM busybox
+			# First cases with no workdir, all end up in the root directory of the system drive
+			COPY a1 ./
+			ADD  a2 ./
+			RUN sh -c "[ $(cat c:/a1) = 'helloa1' ]"
+			RUN sh -c "[ $(cat c:/a2) = 'worlda2' ]"
+
+			COPY b1 /
+			ADD  b2 /
+			RUN sh -c "[ $(cat c:/b1) = 'hellob1' ]"
+			RUN sh -c "[ $(cat c:/b2) = 'worldb2' ]"
+
+			COPY c1 c:/
+			ADD  c2 c:/
+			RUN sh -c "[ $(cat c:/c1) = 'helloc1' ]"
+			RUN sh -c "[ $(cat c:/c2) = 'worldc2' ]"
+
+			COPY d1 c:/
+			ADD  d2 c:/
+			RUN sh -c "[ $(cat c:/d1) = 'hellod1' ]"
+			RUN sh -c "[ $(cat c:/d2) = 'worldd2' ]"
+
+			COPY e1 .
+			ADD  e2 .
+			RUN sh -c "[ $(cat c:/e1) = 'helloe1' ]"
+			RUN sh -c "[ $(cat c:/e2) = 'worlde2' ]"
+			
+			# Now with a workdir
+			WORKDIR c:\\wa12
+			COPY wa1 ./
+			ADD wa2 ./
+			RUN sh -c "[ $(cat c:/wa12/wa1) = 'hellowa1' ]"
+			RUN sh -c "[ $(cat c:/wa12/wa2) = 'worldwa2' ]"
+
+			# No trailing slash on COPY/ADD, Linux-style path. 
+			# Results in dir being changed to a file
+			WORKDIR /wb1
+			COPY wb1 .
+			WORKDIR /wb2
+			ADD wb2 .
+			WORKDIR c:/
+			RUN sh -c "[ $(cat c:/wb1) = 'hellowb1' ]"
+			RUN sh -c "[ $(cat c:/wb2) = 'worldwb2' ]"
+
+			# No trailing slash on COPY/ADD, Windows-style path. 
+			# Results in dir being changed to a file
+			WORKDIR /wc1
+			COPY wc1 c:/wc1
+			WORKDIR /wc2
+			ADD wc2 c:/wc2
+			WORKDIR c:/
+			RUN sh -c "[ $(cat c:/wc1) = 'hellowc1' ]"
+			RUN sh -c "[ $(cat c:/wc2) = 'worldwc2' ]"			
+
+			# Trailing slash on COPY/ADD, Windows-style path. 
+			WORKDIR /wd1
+			COPY wd1 c:/wd1/
+			WORKDIR /wd2
+			ADD wd2 c:/wd2/
+			RUN sh -c "[ $(cat c:/wd1/wd1) = 'hellowd1' ]"
+			RUN sh -c "[ $(cat c:/wd2/wd2) = 'worldwd2' ]"
+			`
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"a1":  "helloa1",
+		"a2":  "worlda2",
+		"b1":  "hellob1",
+		"b2":  "worldb2",
+		"c1":  "helloc1",
+		"c2":  "worldc2",
+		"d1":  "hellod1",
+		"d2":  "worldd2",
+		"e1":  "helloe1",
+		"e2":  "worlde2",
+		"wa1": "hellowa1",
+		"wa2": "worldwa2",
+		"wb1": "hellowb1",
+		"wb2": "worldwb2",
+		"wc1": "hellowc1",
+		"wc2": "worldwc2",
+		"wd1": "hellowd1",
+		"wd2": "worldwd2",
+	})
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer ctx.Close()
+	_, err = buildImageFromContext(name, ctx, false)
+	if err != nil {
+		c.Fatal(err)
+	}
+}
+
+// #22181 Regression test.
+func (s *DockerSuite) TestBuildWindowsCopyFailsNonSystemDrive(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	name := "testbuildwindowscopyfailsnonsystemdrive"
+	dockerfile := `
+		FROM busybox
+		cOpY foo d:/
+		`
+	ctx, err := fakeContext(dockerfile, map[string]string{"foo": "hello"})
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer ctx.Close()
+	_, err = buildImageFromContext(name, ctx, false)
+	if err == nil {
+		c.Fatal(err)
+	}
+	if !strings.Contains(err.Error(), "Windows does not support COPY with a destinations not on the system drive (C:)") {
+		c.Fatal(err)
+	}
+}
+
+// #22181 Regression test.
+func (s *DockerSuite) TestBuildWindowsCopyFailsWorkdirNonSystemDrive(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	name := "testbuildwindowscopyfailsworkdirsystemdrive"
+	dockerfile := `
+		FROM busybox
+		WORKDIR d:/
+		cOpY foo .
+		`
+	ctx, err := fakeContext(dockerfile, map[string]string{"foo": "hello"})
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer ctx.Close()
+	_, err = buildImageFromContext(name, ctx, false)
+	if err == nil {
+		c.Fatal(err)
+	}
+	if !strings.Contains(err.Error(), "Windows does not support COPY with relative paths when WORKDIR is not the system drive") {
+		c.Fatal(err)
+	}
+}
+
+// #22181 Regression test.
+func (s *DockerSuite) TestBuildWindowsAddFailsNonSystemDrive(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	name := "testbuildwindowsaddfailsnonsystemdrive"
+	dockerfile := `
+		FROM busybox
+		AdD foo d:/
+		`
+	ctx, err := fakeContext(dockerfile, map[string]string{"foo": "hello"})
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer ctx.Close()
+	_, err = buildImageFromContext(name, ctx, false)
+	if err == nil {
+		c.Fatal(err)
+	}
+	if !strings.Contains(err.Error(), "Windows does not support ADD with a destinations not on the system drive (C:)") {
+		c.Fatal(err)
+	}
+}
+
+// #22181 Regression test.
+func (s *DockerSuite) TestBuildWindowsAddFailsWorkdirNonSystemDrive(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	name := "testbuildwindowsaddfailsworkdirsystemdrive"
+	dockerfile := `
+		FROM busybox
+		WORKDIR d:/
+		AdD foo .
+		`
+	ctx, err := fakeContext(dockerfile, map[string]string{"foo": "hello"})
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer ctx.Close()
+	_, err = buildImageFromContext(name, ctx, false)
+	if err == nil {
+		c.Fatal(err)
+	}
+	if !strings.Contains(err.Error(), "Windows does not support ADD with relative paths when WORKDIR is not the system drive") {
+		c.Fatal(err)
+	}
+}
+
 func (s *DockerSuite) TestBuildWorkdirWithEnvVariables(c *check.C) {
 	name := "testbuildworkdirwithenvvariables"
 
 	var expected string
 	if daemonPlatform == "windows" {
-		expected = `\test1\test2`
+		expected = `C:\test1\test2`
 	} else {
 		expected = `/test1/test2`
 	}
@@ -4869,6 +5096,23 @@ func (s *DockerSuite) TestBuildNotVerboseSuccess(c *check.C) {
 
 }
 
+func (s *DockerSuite) TestBuildNotVerboseFailureWithNonExistImage(c *check.C) {
+	// This test makes sure that -q works correctly when build fails by
+	// comparing between the stderr output in quiet mode and in stdout
+	// and stderr output in verbose mode
+	testRequires(c, Network)
+	testName := "quiet_build_not_exists_image"
+	buildCmd := "FROM busybox11"
+	_, _, qstderr, qerr := buildImageWithStdoutStderr(testName, buildCmd, false, "-q", "--force-rm", "--rm")
+	_, vstdout, vstderr, verr := buildImageWithStdoutStderr(testName, buildCmd, false, "--force-rm", "--rm")
+	if verr == nil || qerr == nil {
+		c.Fatal(fmt.Errorf("Test [%s] expected to fail but didn't", testName))
+	}
+	if qstderr != vstdout+vstderr {
+		c.Fatal(fmt.Errorf("Test[%s] expected that quiet stderr and verbose stdout are equal; quiet [%v], verbose [%v]", testName, qstderr, vstdout+vstderr))
+	}
+}
+
 func (s *DockerSuite) TestBuildNotVerboseFailure(c *check.C) {
 	// This test makes sure that -q works correctly when build fails by
 	// comparing between the stderr output in quiet mode and in stdout
@@ -4879,7 +5123,6 @@ func (s *DockerSuite) TestBuildNotVerboseFailure(c *check.C) {
 	}{
 		{"quiet_build_no_from_at_the_beginning", "RUN whoami"},
 		{"quiet_build_unknown_instr", "FROMD busybox"},
-		{"quiet_build_not_exists_image", "FROM busybox11"},
 	}
 
 	for _, te := range tt {
@@ -5928,17 +6171,24 @@ func (s *DockerSuite) TestBuildStopSignal(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArg(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
-	args := []string{
-		"--build-arg", fmt.Sprintf("%s=%s", envKey, envVal),
+	args := []string{"--build-arg", fmt.Sprintf("%s=%s", envKey, envVal)}
+	var dockerfile string
+	if daemonPlatform == "windows" {
+		// Bugs in Windows busybox port - use the default base image and native cmd stuff
+		dockerfile = fmt.Sprintf(`FROM `+minimalBaseImage()+`
+			ARG %s
+			RUN echo %%%s%%
+			CMD setlocal enableextensions && if defined %s (echo %%%s%%)`, envKey, envKey, envKey, envKey)
+	} else {
+		dockerfile = fmt.Sprintf(`FROM busybox
+			ARG %s
+			RUN echo $%s
+			CMD echo $%s`, envKey, envKey, envKey)
+
 	}
-	dockerfile := fmt.Sprintf(`FROM busybox
-		ARG %s
-		RUN echo $%s
-		CMD echo $%s`, envKey, envKey, envKey)
 
 	if _, out, err := buildImageWithOut(imgName, dockerfile, true, args...); err != nil || !strings.Contains(out, envVal) {
 		if err != nil {
@@ -5948,7 +6198,9 @@ func (s *DockerSuite) TestBuildBuildTimeArg(c *check.C) {
 	}
 
 	containerName := "bldargCont"
-	if out, _ := dockerCmd(c, "run", "--name", containerName, imgName); out != "\n" {
+	out, _ := dockerCmd(c, "run", "--name", containerName, imgName)
+	out = strings.Trim(out, " \r\n'")
+	if out != "" {
 		c.Fatalf("run produced invalid output: %q, expected empty string", out)
 	}
 }
@@ -6450,7 +6702,7 @@ func (s *DockerSuite) TestBuildNoNamedVolume(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildTagEvent(c *check.C) {
-	since := daemonTime(c).Unix()
+	since := daemonUnixTime(c)
 
 	dockerFile := `FROM busybox
 	RUN echo events
@@ -6458,7 +6710,8 @@ func (s *DockerSuite) TestBuildTagEvent(c *check.C) {
 	_, err := buildImage("test", dockerFile, false)
 	c.Assert(err, check.IsNil)
 
-	out, _ := dockerCmd(c, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()), "--filter", "type=image")
+	until := daemonUnixTime(c)
+	out, _ := dockerCmd(c, "events", "--since", since, "--until", until, "--filter", "type=image")
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	actions := eventActionsByIDAndType(c, events, "test:latest", "image")
 	var foundTag bool
@@ -6882,4 +7135,95 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestBuildWithExternalAuth(c *check.C) 
 
 	out, _, err := runCommandWithOutput(buildCmd)
 	c.Assert(err, check.IsNil, check.Commentf(out))
+}
+
+// Test cases in #22036
+func (s *DockerSuite) TestBuildLabelsOverride(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	// Command line option labels will always override
+	name := "scratchy"
+	expected := `{"bar":"from-flag","foo":"from-flag"}`
+	_, err := buildImage(name,
+		`FROM scratch
+                LABEL foo=from-dockerfile`,
+		true, "--label", "foo=from-flag", "--label", "bar=from-flag")
+	c.Assert(err, check.IsNil)
+
+	res := inspectFieldJSON(c, name, "Config.Labels")
+	if res != expected {
+		c.Fatalf("Labels %s, expected %s", res, expected)
+	}
+
+	name = "from"
+	expected = `{"foo":"from-dockerfile"}`
+	_, err = buildImage(name,
+		`FROM scratch
+                LABEL foo from-dockerfile`,
+		true)
+	c.Assert(err, check.IsNil)
+
+	res = inspectFieldJSON(c, name, "Config.Labels")
+	if res != expected {
+		c.Fatalf("Labels %s, expected %s", res, expected)
+	}
+
+	// Command line option label will override even via `FROM`
+	name = "new"
+	expected = `{"bar":"from-dockerfile2","foo":"new"}`
+	_, err = buildImage(name,
+		`FROM from
+                LABEL bar from-dockerfile2`,
+		true, "--label", "foo=new")
+	c.Assert(err, check.IsNil)
+
+	res = inspectFieldJSON(c, name, "Config.Labels")
+	if res != expected {
+		c.Fatalf("Labels %s, expected %s", res, expected)
+	}
+
+	// Command line option without a value set (--label foo, --label bar=)
+	// will be treated as --label foo="", --label bar=""
+	name = "scratchy2"
+	expected = `{"bar":"","foo":""}`
+	_, err = buildImage(name,
+		`FROM scratch
+                LABEL foo=from-dockerfile`,
+		true, "--label", "foo", "--label", "bar=")
+	c.Assert(err, check.IsNil)
+
+	res = inspectFieldJSON(c, name, "Config.Labels")
+	if res != expected {
+		c.Fatalf("Labels %s, expected %s", res, expected)
+	}
+
+	// Command line option without a value set (--label foo, --label bar=)
+	// will be treated as --label foo="", --label bar=""
+	// This time is for inherited images
+	name = "new2"
+	expected = `{"bar":"","foo":""}`
+	_, err = buildImage(name,
+		`FROM from
+                LABEL bar from-dockerfile2`,
+		true, "--label", "foo=", "--label", "bar")
+	c.Assert(err, check.IsNil)
+
+	res = inspectFieldJSON(c, name, "Config.Labels")
+	if res != expected {
+		c.Fatalf("Labels %s, expected %s", res, expected)
+	}
+
+	// Command line option labels with only `FROM`
+	name = "scratchy"
+	expected = `{"bar":"from-flag","foo":"from-flag"}`
+	_, err = buildImage(name,
+		`FROM scratch`,
+		true, "--label", "foo=from-flag", "--label", "bar=from-flag")
+	c.Assert(err, check.IsNil)
+
+	res = inspectFieldJSON(c, name, "Config.Labels")
+	if res != expected {
+		c.Fatalf("Labels %s, expected %s", res, expected)
+	}
+
 }

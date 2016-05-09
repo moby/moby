@@ -21,8 +21,9 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 	detachKeys := cmd.String([]string{"-detach-keys"}, "", "Override the key sequence for detaching a container")
 
 	execConfig, err := ParseExec(cmd, args)
+	container := cmd.Arg(0)
 	// just in case the ParseExec does not exit
-	if execConfig.Container == "" || err != nil {
+	if container == "" || err != nil {
 		return Cli.StatusError{StatusCode: 1}
 	}
 
@@ -33,7 +34,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 	// Send client escape keys
 	execConfig.DetachKeys = cli.configFile.DetachKeys
 
-	response, err := cli.client.ContainerExecCreate(context.Background(), *execConfig)
+	response, err := cli.client.ContainerExecCreate(context.Background(), container, *execConfig)
 	if err != nil {
 		return err
 	}
@@ -128,13 +129,11 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*types.ExecConfig, error) {
 		flUser       = cmd.String([]string{"u", "-user"}, "", "Username or UID (format: <name|uid>[:<group|gid>])")
 		flPrivileged = cmd.Bool([]string{"-privileged"}, false, "Give extended privileges to the command")
 		execCmd      []string
-		container    string
 	)
 	cmd.Require(flag.Min, 2)
 	if err := cmd.ParseFlags(args, true); err != nil {
 		return nil, err
 	}
-	container = cmd.Arg(0)
 	parsedArgs := cmd.Args()
 	execCmd = parsedArgs[1:]
 
@@ -143,7 +142,6 @@ func ParseExec(cmd *flag.FlagSet, args []string) (*types.ExecConfig, error) {
 		Privileged: *flPrivileged,
 		Tty:        *flTty,
 		Cmd:        execCmd,
-		Container:  container,
 		Detach:     *flDetach,
 	}
 

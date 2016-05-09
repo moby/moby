@@ -8,16 +8,16 @@ DOCKER_OSARCH := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo
 DOCKERFILE := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKERFILE}')
 
 # env vars passed through directly to Docker's build scripts
-# to allow things like `make DOCKER_CLIENTONLY=1 binary` easily
+# to allow things like `make KEEPBUNDLE=1 binary` easily
 # `docs/sources/contributing/devenvironment.md ` and `project/PACKAGERS.md` have some limited documentation of some of these
 DOCKER_ENVS := \
 	-e BUILDFLAGS \
 	-e KEEPBUNDLE \
 	-e DOCKER_BUILD_GOGC \
 	-e DOCKER_BUILD_PKGS \
-	-e DOCKER_CLIENTONLY \
 	-e DOCKER_DEBUG \
 	-e DOCKER_EXPERIMENTAL \
+	-e DOCKER_GITCOMMIT \
 	-e DOCKER_GRAPHDRIVER=$(DOCKER_GRAPHDRIVER) \
 	-e DOCKER_INCREMENTAL_BINARY \
 	-e DOCKER_REMAP_ROOT \
@@ -40,8 +40,9 @@ DOCKER_MOUNT := $(if $(BIND_DIR),-v "$(CURDIR)/$(BIND_DIR):/go/src/github.com/do
 DOCKER_MOUNT := $(if $(DOCKER_MOUNT),$(DOCKER_MOUNT),-v "/go/src/github.com/docker/docker/bundles")
 
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
-DOCKER_IMAGE := docker-dev$(if $(GIT_BRANCH),:$(GIT_BRANCH))
-DOCKER_DOCS_IMAGE := docker-docs$(if $(GIT_BRANCH),:$(GIT_BRANCH))
+GIT_BRANCH_CLEAN := $(shell echo $(GIT_BRANCH) | sed -e "s/[^[:alnum:]]/-/g")
+DOCKER_IMAGE := docker-dev$(if $(GIT_BRANCH_CLEAN),:$(GIT_BRANCH_CLEAN))
+DOCKER_DOCS_IMAGE := docker-docs$(if $(GIT_BRANCH_CLEAN),:$(GIT_BRANCH_CLEAN))
 
 DOCKER_FLAGS := docker run --rm -i --privileged $(DOCKER_ENVS) $(DOCKER_MOUNT)
 

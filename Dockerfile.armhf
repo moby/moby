@@ -127,8 +127,8 @@ RUN set -x \
 		go build -o /usr/local/bin/registry-v2-schema1 github.com/docker/distribution/cmd/registry \
 	&& rm -rf "$GOPATH"
 
-# Install notary server
-ENV NOTARY_VERSION docker-v1.11-3
+# Install notary and notary-server
+ENV NOTARY_VERSION v0.3.0-RC1
 RUN set -x \
 	&& export GO15VENDOREXPERIMENT=1 \
 	&& export GOPATH="$(mktemp -d)" \
@@ -141,7 +141,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Get the "docker-py" source so we can run their integration tests
-ENV DOCKER_PY_COMMIT e2878cbcc3a7eef99917adc1be252800b0e41ece
+ENV DOCKER_PY_COMMIT 7befe694bd21e3c54bb1d7825270ea4bd6864c13
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT \
@@ -191,26 +191,19 @@ RUN set -x \
 	&& go build -v -o /usr/local/bin/tomlv github.com/BurntSushi/toml/cmd/tomlv \
 	&& rm -rf "$GOPATH"
 
-# Build/install the tool for embedding resources in Windows binaries
-ENV RSRC_VERSION v2
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone --depth 1 -b "$RSRC_VERSION" https://github.com/akavel/rsrc.git "$GOPATH/src/github.com/akavel/rsrc" \
-	&& go build -v -o /usr/local/bin/rsrc github.com/akavel/rsrc \
-	&& rm -rf "$GOPATH"
-
 # Install runc
-ENV RUNC_COMMIT e87436998478d222be209707503c27f6f91be0c5
+ENV RUNC_COMMIT baf6536d6259209c3edfa2b22237af82942d3dfa
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
 	&& cd "$GOPATH/src/github.com/opencontainers/runc" \
 	&& git checkout -q "$RUNC_COMMIT" \
 	&& make static BUILDTAGS="seccomp apparmor selinux" \
-	&& cp runc /usr/local/bin/docker-runc
+	&& cp runc /usr/local/bin/docker-runc \
+	&& rm -rf "$GOPATH"
 
 # Install containerd
-ENV CONTAINERD_COMMIT 07c95162cdcead88dfe4ca0ffb3cea02375ec54d
+ENV CONTAINERD_COMMIT v0.2.1
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \
@@ -219,7 +212,8 @@ RUN set -x \
 	&& make static \
 	&& cp bin/containerd /usr/local/bin/docker-containerd \
 	&& cp bin/containerd-shim /usr/local/bin/docker-containerd-shim \
-	&& cp bin/ctr /usr/local/bin/docker-containerd-ctr
+	&& cp bin/ctr /usr/local/bin/docker-containerd-ctr \
+	&& rm -rf "$GOPATH"
 
 ENTRYPOINT ["hack/dind"]
 

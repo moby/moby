@@ -49,7 +49,7 @@ func (s *DockerSuite) TestApiVersionStatusCode(c *check.C) {
 }
 
 func (s *DockerSuite) TestApiClientVersionNewerThanServer(c *check.C) {
-	v := strings.Split(api.DefaultVersion.String(), ".")
+	v := strings.Split(api.DefaultVersion, ".")
 	vMinInt, err := strconv.Atoi(v[1])
 	c.Assert(err, checker.IsNil)
 	vMinInt++
@@ -64,7 +64,7 @@ func (s *DockerSuite) TestApiClientVersionNewerThanServer(c *check.C) {
 }
 
 func (s *DockerSuite) TestApiClientVersionOldNotSupported(c *check.C) {
-	v := strings.Split(api.MinVersion.String(), ".")
+	v := strings.Split(api.MinVersion, ".")
 	vMinInt, err := strconv.Atoi(v[1])
 	c.Assert(err, checker.IsNil)
 	vMinInt--

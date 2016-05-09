@@ -16,11 +16,11 @@ weight=-70
 
 This section contains reference information on using Docker's command line client. Each command has a reference page along with samples. If you are unfamiliar with the command line, you should start by reading about how to [Use the Docker command line](cli.md).  
 
-You start the Docker daemon with the command line. How you start the daemon affects your Docker containers. For that reason you should also make sure to read the [`daemon`](daemon.md) reference page.
+You start the Docker daemon with the command line. How you start the daemon affects your Docker containers. For that reason you should also make sure to read the [`dockerd`](dockerd.md) reference page.
 
 ### Docker management commands
 
-* [daemon](daemon.md)
+* [dockerd](dockerd.md)
 * [info](info.md)
 * [inspect](inspect.md)
 * [version](version.md)

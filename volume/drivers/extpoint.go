@@ -38,9 +38,9 @@ type volumeDriver interface {
 	// Get the mountpoint of the given volume
 	Path(name string) (mountpoint string, err error)
 	// Mount the given volume and return the mountpoint
-	Mount(name string) (mountpoint string, err error)
+	Mount(name, id string) (mountpoint string, err error)
 	// Unmount the given volume
-	Unmount(name string) (err error)
+	Unmount(name, id string) (err error)
 	// List lists all the volumes known to the driver
 	List() (volumes list, err error)
 	// Get retrieves the volume with the requested name

@@ -1,4 +1,4 @@
-// +build daemon,!windows
+// +build !windows
 
 package main
 
@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libtrust"
@@ -1747,17 +1748,21 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithContainerWithRestartPolicyAlway
 }
 
 func (s *DockerDaemonSuite) TestDaemonWideLogConfig(c *check.C) {
-	if err := s.d.StartWithBusybox("--log-driver=json-file", "--log-opt=max-size=1k"); err != nil {
+	if err := s.d.StartWithBusybox("--log-opt=max-size=1k"); err != nil {
 		c.Fatal(err)
 	}
-	out, err := s.d.Cmd("run", "-d", "--name=logtest", "busybox", "top")
+	name := "logtest"
+	out, err := s.d.Cmd("run", "-d", "--log-opt=max-file=5", "--name", name, "busybox", "top")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s, err: %v", out, err))
-	out, err = s.d.Cmd("inspect", "-f", "{{ .HostConfig.LogConfig.Config }}", "logtest")
+
+	out, err = s.d.Cmd("inspect", "-f", "{{ .HostConfig.LogConfig.Config }}", name)
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
-	cfg := strings.TrimSpace(out)
-	if cfg != "map[max-size:1k]" {
-		c.Fatalf("Unexpected log-opt: %s, expected map[max-size:1k]", cfg)
-	}
+	c.Assert(out, checker.Contains, "max-size:1k")
+	c.Assert(out, checker.Contains, "max-file:5")
+
+	out, err = s.d.Cmd("inspect", "-f", "{{ .HostConfig.LogConfig.Type }}", name)
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+	c.Assert(strings.TrimSpace(out), checker.Equals, "json-file")
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithPausedContainer(c *check.C) {
@@ -1909,32 +1914,30 @@ func (s *DockerDaemonSuite) TestBridgeIPIsExcludedFromAllocatorPool(c *check.C) 
 }
 
 // Test daemon for no space left on device error
-func (s *DockerDaemonSuite) TestDaemonNoSpaceleftOnDeviceError(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux, Network)
 
+	testDir, err := ioutil.TempDir("", "no-space-left-on-device-test")
+	c.Assert(err, checker.IsNil)
+	defer os.RemoveAll(testDir)
+	c.Assert(mount.MakeRShared(testDir), checker.IsNil)
+	defer mount.Unmount(testDir)
+	defer mount.Unmount(filepath.Join(testDir, "test-mount"))
+
 	// create a 2MiB image and mount it as graph root
-	cmd := exec.Command("dd", "of=/tmp/testfs.img", "bs=1M", "seek=2", "count=0")
-	if err := cmd.Run(); err != nil {
-		c.Fatalf("dd failed: %v", err)
-	}
-	cmd = exec.Command("mkfs.ext4", "-F", "/tmp/testfs.img")
-	if err := cmd.Run(); err != nil {
-		c.Fatalf("mkfs.ext4 failed: %v", err)
-	}
-	cmd = exec.Command("mkdir", "-p", "/tmp/testfs-mount")
-	if err := cmd.Run(); err != nil {
-		c.Fatalf("mkdir failed: %v", err)
-	}
-	cmd = exec.Command("mount", "-t", "ext4", "-no", "loop,rw", "/tmp/testfs.img", "/tmp/testfs-mount")
-	if err := cmd.Run(); err != nil {
-		c.Fatalf("mount failed: %v", err)
-	}
-	err := s.d.Start("--graph", "/tmp/testfs-mount")
+	// Why in a container? Because `mount` sometimes behaves weirdly and often fails outright on this test in debian:jessie (which is what the test suite runs under if run from the Makefile)
+	dockerCmd(c, "run", "--rm", "-v", testDir+":/test", "busybox", "sh", "-c", "dd of=/test/testfs.img bs=1M seek=2 count=0")
+	out, _, err := runCommandWithOutput(exec.Command("mkfs.ext4", "-F", filepath.Join(testDir, "testfs.img"))) // `mkfs.ext4` is not in busybox
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	dockerCmd(c, "run", "--privileged", "--rm", "-v", testDir+":/test:shared", "busybox", "sh", "-c", "mkdir -p /test/test-mount && mount -t ext4 -no loop,rw /test/testfs.img /test/test-mount")
+
+	err = s.d.Start("--graph", filepath.Join(testDir, "test-mount"))
 	c.Assert(err, check.IsNil)
 
 	// pull a repository large enough to fill the mount point
-	out, err := s.d.Cmd("pull", "registry:2")
-	c.Assert(out, checker.Contains, "no space left on device")
+	pullOut, err := s.d.Cmd("pull", "registry:2")
+	c.Assert(err, checker.NotNil, check.Commentf(pullOut))
+	c.Assert(pullOut, checker.Contains, "no space left on device")
 }
 
 // Test daemon restart with container links + auto restart
@@ -2220,4 +2223,18 @@ func (s *DockerSuite) TestDaemonDiscoveryBackendConfigReload(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Store: consul://consuladdr:consulport/some/path"))
 	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Advertise: 192.168.56.100:0"))
+}
+
+// Test for #21956
+func (s *DockerDaemonSuite) TestDaemonLogOptions(c *check.C) {
+	err := s.d.StartWithBusybox("--log-driver=syslog", "--log-opt=syslog-address=udp://127.0.0.1:514")
+	c.Assert(err, check.IsNil)
+
+	out, err := s.d.Cmd("run", "-d", "--log-driver=json-file", "busybox", "top")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	id := strings.TrimSpace(out)
+
+	out, err = s.d.Cmd("inspect", "--format='{{.HostConfig.LogConfig}}'", id)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "{json-file map[]}")
 }

@@ -146,7 +146,7 @@ func xzDecompress(archive io.Reader) (io.ReadCloser, <-chan struct{}, error) {
 	return cmdStream(exec.Command(args[0], args[1:]...), archive)
 }
 
-// DecompressStream decompress the archive and returns a ReaderCloser with the decompressed archive.
+// DecompressStream decompresses the archive and returns a ReaderCloser with the decompressed archive.
 func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 	p := pools.BufioReader32KPool
 	buf := p.Get(archive)
@@ -192,7 +192,7 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 	}
 }
 
-// CompressStream compresses the dest with specified compression algorithm.
+// CompressStream compresseses the dest with specified compression algorithm.
 func CompressStream(dest io.Writer, compression Compression) (io.WriteCloser, error) {
 	p := pools.BufioWriter32KPool
 	buf := p.Get(dest)

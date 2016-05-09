@@ -13,6 +13,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -29,14 +30,11 @@ import (
 	"github.com/docker/docker/errors"
 	"github.com/docker/engine-api/types"
 	containertypes "github.com/docker/engine-api/types/container"
-	eventtypes "github.com/docker/engine-api/types/events"
-	"github.com/docker/engine-api/types/filters"
 	networktypes "github.com/docker/engine-api/types/network"
 	registrytypes "github.com/docker/engine-api/types/registry"
 	"github.com/docker/engine-api/types/strslice"
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
-	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
 	dmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
@@ -139,6 +137,10 @@ type Daemon struct {
 //    unique enough to only return a single container object
 //  If none of these searches succeed, an error is returned
 func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, error) {
+	if len(prefixOrName) == 0 {
+		return nil, errors.NewBadRequestError(fmt.Errorf("No container name or ID supplied"))
+	}
+
 	if containerByID := daemon.containers.Get(prefixOrName); containerByID != nil {
 		// prefix is an exact match to a full container ID
 		return containerByID, nil
@@ -309,6 +311,21 @@ func (daemon *Daemon) restore() error {
 				mapLock.Lock()
 				restartContainers[c] = make(chan struct{})
 				mapLock.Unlock()
+			}
+
+			if c.RemovalInProgress {
+				// We probably crashed in the middle of a removal, reset
+				// the flag.
+				//
+				// We DO NOT remove the container here as we do not
+				// know if the user had requested for either the
+				// associated volumes, network links or both to also
+				// be removed. So we put the container in the "dead"
+				// state and leave further processing up to them.
+				logrus.Debugf("Resetting RemovalInProgress flag from %v", c.ID)
+				c.ResetRemovalInProgress()
+				c.SetDead()
+				c.ToDisk()
 			}
 
 			// if c.hostConfig.Links is nil (not just empty), then it is using the old sqlite links and needs to be migrated
@@ -532,6 +549,9 @@ func (daemon *Daemon) newContainer(name string, config *containertypes.Config, i
 
 // GetByName returns a container given a name.
 func (daemon *Daemon) GetByName(name string) (*container.Container, error) {
+	if len(name) == 0 {
+		return nil, fmt.Errorf("No container name supplied")
+	}
 	fullName := name
 	if name[0] != '/' {
 		fullName = "/" + name
@@ -545,18 +565,6 @@ func (daemon *Daemon) GetByName(name string) (*container.Container, error) {
 		return nil, fmt.Errorf("Could not find container for entity id %s", id)
 	}
 	return e, nil
-}
-
-// SubscribeToEvents returns the currently record of events, a channel to stream new events from, and a function to cancel the stream of events.
-func (daemon *Daemon) SubscribeToEvents(since, sinceNano int64, filter filters.Args) ([]eventtypes.Message, chan interface{}) {
-	ef := events.NewFilter(filter)
-	return daemon.EventsService.SubscribeTopic(since, sinceNano, ef)
-}
-
-// UnsubscribeFromEvents stops the event subscription for a client by closing the
-// channel where the daemon sends events to.
-func (daemon *Daemon) UnsubscribeFromEvents(listener chan interface{}) {
-	daemon.EventsService.Evict(listener)
 }
 
 // GetLabels for a container or image id
@@ -675,12 +683,6 @@ func NewDaemon(config *Config, registryService *registry.Service, containerdRemo
 		return nil, fmt.Errorf("error setting default isolation mode: %v", err)
 	}
 
-	// Verify logging driver type
-	if config.LogConfig.Type != "none" {
-		if _, err := logger.GetLogDriver(config.LogConfig.Type); err != nil {
-			return nil, fmt.Errorf("error finding the logging driver: %v", err)
-		}
-	}
 	logrus.Debugf("Using default logging driver %s", config.LogConfig.Type)
 
 	if err := configureMaxThreads(config); err != nil {
@@ -987,7 +989,7 @@ func isBrokenPipe(e error) bool {
 // the same tag are exported. names is the set of tags to export, and
 // outStream is the writer which the images are written to.
 func (daemon *Daemon) ExportImage(names []string, outStream io.Writer) error {
-	imageExporter := tarexport.NewTarExporter(daemon.imageStore, daemon.layerStore, daemon.referenceStore)
+	imageExporter := tarexport.NewTarExporter(daemon.imageStore, daemon.layerStore, daemon.referenceStore, daemon)
 	return imageExporter.Save(names, outStream)
 }
 
@@ -1066,7 +1068,7 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 // complement of ImageExport.  The input stream is an uncompressed tar
 // ball containing images and metadata.
 func (daemon *Daemon) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
-	imageExporter := tarexport.NewTarExporter(daemon.imageStore, daemon.layerStore, daemon.referenceStore)
+	imageExporter := tarexport.NewTarExporter(daemon.imageStore, daemon.layerStore, daemon.referenceStore, daemon)
 	return imageExporter.Load(inTar, outStream, quiet)
 }
 
@@ -1339,15 +1341,22 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 				return nil, err
 			}
 		}
+
+		// Validate if the given hostname is RFC 1123 (https://tools.ietf.org/html/rfc1123) compliant.
+		if len(config.Hostname) > 0 {
+			// RFC1123 specifies that 63 bytes is the maximium length
+			// Windows has the limitation of 63 bytes in length
+			// Linux hostname is limited to HOST_NAME_MAX=64, not not including the terminating null byte.
+			// We limit the length to 63 bytes here to match RFC1035 and RFC1123.
+			matched, _ := regexp.MatchString("^(([[:alnum:]]|[[:alnum:]][[:alnum:]\\-]*[[:alnum:]])\\.)*([[:alnum:]]|[[:alnum:]][[:alnum:]\\-]*[[:alnum:]])$", config.Hostname)
+			if len(config.Hostname) > 63 || !matched {
+				return nil, fmt.Errorf("invalid hostname format: %s", config.Hostname)
+			}
+		}
 	}
 
 	if hostConfig == nil {
 		return nil, nil
-	}
-
-	logCfg := daemon.getLogConfig(hostConfig.LogConfig)
-	if err := logger.ValidateLogOpts(logCfg.Type, logCfg.Config); err != nil {
-		return nil, err
 	}
 
 	for port := range hostConfig.PortBindings {
@@ -1505,7 +1514,7 @@ func (daemon *Daemon) initDiscovery(config *Config) error {
 func (daemon *Daemon) Reload(config *Config) error {
 	daemon.configStore.reloadLock.Lock()
 	defer daemon.configStore.reloadLock.Unlock()
-	if config.IsValueSet("label") {
+	if config.IsValueSet("labels") {
 		daemon.configStore.Labels = config.Labels
 	}
 	if config.IsValueSet("debug") {

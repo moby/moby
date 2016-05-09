@@ -1616,3 +1616,11 @@ func (s *DockerSuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *che
 		c.Fatalf("Expected output to contain %q, got %q", expected, string(b))
 	}
 }
+
+// test case for #22210 where an emtpy container name caused panic.
+func (s *DockerSuite) TestContainerApiDeleteWithEmptyName(c *check.C) {
+	status, out, err := sockRequest("DELETE", "/containers/", nil)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusBadRequest)
+	c.Assert(string(out), checker.Contains, "No container name or ID supplied")
+}

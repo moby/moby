@@ -86,13 +86,13 @@ backing file system:
 > filesystem.
 
 You can set the storage driver by passing the `--storage-driver=<name>` option
-to the `docker daemon` command line, or by setting the option on the
+to the `dockerd` command line, or by setting the option on the
 `DOCKER_OPTS` line in the `/etc/default/docker` file.
 
 The following command shows how to start the Docker daemon with the
-`devicemapper` storage driver using the `docker daemon` command:
+`devicemapper` storage driver using the `dockerd` command:
 
-    $ docker daemon --storage-driver=devicemapper &
+    $ dockerd --storage-driver=devicemapper &
 
     $ docker info
     Containers: 0
@@ -109,6 +109,7 @@ The following command shows how to start the Docker daemon with the
      Metadata Space Used: 1.479 MB
      Metadata Space Total: 2.147 GB
      Metadata Space Available: 2.146 GB
+     Thin Pool Minimum Free Space: 10.74 GB
      Udev Sync Supported: true
      Deferred Removal Enabled: false
      Data loop file: /var/lib/docker/devicemapper/devicemapper/data

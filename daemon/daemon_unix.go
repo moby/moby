@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/blkiodev"
 	pblkiodev "github.com/docker/engine-api/types/blkiodev"
 	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/docker/libnetwork"
@@ -176,76 +177,22 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 	return err
 }
 
-func getBlkioReadIOpsDevices(config containertypes.Resources) ([]specs.ThrottleDevice, error) {
-	var blkioReadIOpsDevice []specs.ThrottleDevice
+func getBlkioThrottleDevices(devs []*blkiodev.ThrottleDevice) ([]specs.ThrottleDevice, error) {
+	var throttleDevices []specs.ThrottleDevice
 	var stat syscall.Stat_t
 
-	for _, iopsDevice := range config.BlkioDeviceReadIOps {
-		if err := syscall.Stat(iopsDevice.Path, &stat); err != nil {
+	for _, d := range devs {
+		if err := syscall.Stat(d.Path, &stat); err != nil {
 			return nil, err
 		}
-		rate := iopsDevice.Rate
+		rate := d.Rate
 		d := specs.ThrottleDevice{Rate: &rate}
 		d.Major = int64(stat.Rdev / 256)
 		d.Minor = int64(stat.Rdev % 256)
-		blkioReadIOpsDevice = append(blkioReadIOpsDevice, d)
+		throttleDevices = append(throttleDevices, d)
 	}
 
-	return blkioReadIOpsDevice, nil
-}
-
-func getBlkioWriteIOpsDevices(config containertypes.Resources) ([]specs.ThrottleDevice, error) {
-	var blkioWriteIOpsDevice []specs.ThrottleDevice
-	var stat syscall.Stat_t
-
-	for _, iopsDevice := range config.BlkioDeviceWriteIOps {
-		if err := syscall.Stat(iopsDevice.Path, &stat); err != nil {
-			return nil, err
-		}
-		rate := iopsDevice.Rate
-		d := specs.ThrottleDevice{Rate: &rate}
-		d.Major = int64(stat.Rdev / 256)
-		d.Minor = int64(stat.Rdev % 256)
-		blkioWriteIOpsDevice = append(blkioWriteIOpsDevice, d)
-	}
-
-	return blkioWriteIOpsDevice, nil
-}
-
-func getBlkioReadBpsDevices(config containertypes.Resources) ([]specs.ThrottleDevice, error) {
-	var blkioReadBpsDevice []specs.ThrottleDevice
-	var stat syscall.Stat_t
-
-	for _, bpsDevice := range config.BlkioDeviceReadBps {
-		if err := syscall.Stat(bpsDevice.Path, &stat); err != nil {
-			return nil, err
-		}
-		rate := bpsDevice.Rate
-		d := specs.ThrottleDevice{Rate: &rate}
-		d.Major = int64(stat.Rdev / 256)
-		d.Minor = int64(stat.Rdev % 256)
-		blkioReadBpsDevice = append(blkioReadBpsDevice, d)
-	}
-
-	return blkioReadBpsDevice, nil
-}
-
-func getBlkioWriteBpsDevices(config containertypes.Resources) ([]specs.ThrottleDevice, error) {
-	var blkioWriteBpsDevice []specs.ThrottleDevice
-	var stat syscall.Stat_t
-
-	for _, bpsDevice := range config.BlkioDeviceWriteBps {
-		if err := syscall.Stat(bpsDevice.Path, &stat); err != nil {
-			return nil, err
-		}
-		rate := bpsDevice.Rate
-		d := specs.ThrottleDevice{Rate: &rate}
-		d.Major = int64(stat.Rdev / 256)
-		d.Minor = int64(stat.Rdev % 256)
-		blkioWriteBpsDevice = append(blkioWriteBpsDevice, d)
-	}
-
-	return blkioWriteBpsDevice, nil
+	return throttleDevices, nil
 }
 
 func checkKernelVersion(k, major, minor int) bool {
@@ -267,10 +214,12 @@ func checkKernel() error {
 	// without actually causing a kernel panic, so we need this workaround until
 	// the circumstances of pre-3.10 crashes are clearer.
 	// For details see https://github.com/docker/docker/issues/407
+	// Docker 1.11 and above doesn't actually run on kernels older than 3.4,
+	// due to containerd-shim usage of PR_SET_CHILD_SUBREAPER (introduced in 3.4).
 	if !checkKernelVersion(3, 10, 0) {
 		v, _ := kernel.GetKernelVersion()
 		if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
-			logrus.Warnf("Your Linux kernel version %s can be unstable running docker. Please upgrade your kernel to 3.10.0.", v.String())
+			logrus.Fatalf("Your Linux kernel version %s is not supported for running docker. Please upgrade your kernel to 3.10.0 or newer.", v.String())
 		}
 	}
 	return nil
@@ -400,7 +349,7 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		logrus.Warnf("Your kernel does not support CPU cfs period. Period discarded.")
 		resources.CPUPeriod = 0
 	}
-	if resources.CPUPeriod > 0 && (resources.CPUPeriod < 1000 || resources.CPUQuota > 1000000) {
+	if resources.CPUPeriod != 0 && (resources.CPUPeriod < 1000 || resources.CPUPeriod > 1000000) {
 		return warnings, fmt.Errorf("CPU cfs period can not be less than 1ms (i.e. 1000) or larger than 1s (i.e. 1000000)")
 	}
 	if resources.CPUQuota > 0 && !sysInfo.CPUCfsQuota {
@@ -410,6 +359,11 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	}
 	if resources.CPUQuota > 0 && resources.CPUQuota < 1000 {
 		return warnings, fmt.Errorf("CPU cfs quota can not be less than 1ms (i.e. 1000)")
+	}
+	if resources.CPUPercent > 0 {
+		warnings = append(warnings, "%s does not support CPU percent. Percent discarded.", runtime.GOOS)
+		logrus.Warnf("%s does not support CPU percent. Percent discarded.", runtime.GOOS)
+		resources.CPUPercent = 0
 	}
 
 	// cpuset subsystem checks and adjustments
@@ -442,6 +396,9 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	}
 	if resources.BlkioWeight > 0 && (resources.BlkioWeight < 10 || resources.BlkioWeight > 1000) {
 		return warnings, fmt.Errorf("Range of blkio weight is from 10 to 1000")
+	}
+	if resources.IOMaximumBandwidth != 0 || resources.IOMaximumIOps != 0 {
+		return warnings, fmt.Errorf("Invalid QoS settings: %s does not support Maximum IO Bandwidth or Maximum IO IOps", runtime.GOOS)
 	}
 	if len(resources.BlkioWeightDevice) > 0 && !sysInfo.BlkioWeightDevice {
 		warnings = append(warnings, "Your kernel does not support Block I/O weight_device.")

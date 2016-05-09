@@ -15,7 +15,7 @@ type X509FileStore struct {
 	fileMap        map[CertID]string
 	fingerprintMap map[CertID]*x509.Certificate
 	nameMap        map[string][]CertID
-	fileStore      FileStore
+	fileStore      Storage
 }
 
 // NewX509FileStore returns a new X509FileStore.
@@ -88,11 +88,7 @@ func (s *X509FileStore) addNamedCert(cert *x509.Certificate) error {
 	certBytes := CertToPEM(cert)
 
 	// Save the file to disk if not already there.
-	filePath, err := s.fileStore.GetPath(fileName)
-	if err != nil {
-		return err
-	}
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+	if _, err = s.fileStore.Get(fileName); os.IsNotExist(err) {
 		if err := s.fileStore.Add(fileName, certBytes); err != nil {
 			return err
 		}
@@ -246,7 +242,7 @@ func (s *X509FileStore) GetCertificatesByCN(cn string) ([]*x509.Certificate, err
 // as part of the roots list. This never allows the use of system roots, returning
 // an error if there are no root CAs.
 func (s *X509FileStore) GetVerifyOptions(dnsName string) (x509.VerifyOptions, error) {
-	// If we have no Certificates loaded return error (we don't want to rever to using
+	// If we have no Certificates loaded return error (we don't want to revert to using
 	// system CAs).
 	if len(s.fingerprintMap) == 0 {
 		return x509.VerifyOptions{}, errors.New("no root CAs available")

@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/docker/pkg/version"
 	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/versions"
 	"github.com/go-check/check"
 )
 
@@ -136,7 +136,7 @@ func (s *DockerSuite) TestApiStatsNetworkStatsVersioning(c *check.C) {
 	for i := 17; i <= 21; i++ {
 		apiVersion := fmt.Sprintf("v1.%d", i)
 		statsJSONBlob := getVersionedStats(c, id, apiVersion)
-		if version.Version(apiVersion).LessThan("v1.21") {
+		if versions.LessThan(apiVersion, "v1.21") {
 			c.Assert(jsonBlobHasLTv121NetworkStats(statsJSONBlob), checker.Equals, true,
 				check.Commentf("Stats JSON blob from API %s %#v does not look like a <v1.21 API stats structure", apiVersion, statsJSONBlob))
 		} else {
@@ -226,34 +226,6 @@ func (s *DockerSuite) TestApiStatsContainerNotFound(c *check.C) {
 	status, _, err = sockRequest("GET", "/containers/nonexistent/stats?stream=0", nil)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNotFound)
-}
-
-func (s *DockerSuite) TestApiStatsContainerGetMemoryLimit(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-
-	resp, body, err := sockRequestRaw("GET", "/info", nil, "application/json")
-	c.Assert(err, checker.IsNil)
-	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
-	var info types.Info
-	err = json.NewDecoder(body).Decode(&info)
-	c.Assert(err, checker.IsNil)
-	body.Close()
-
-	// don't set a memory limit, the memory limit should be system memory
-	conName := "foo"
-	dockerCmd(c, "run", "-d", "--name", conName, "busybox", "top")
-	c.Assert(waitRun(conName), checker.IsNil)
-
-	resp, body, err = sockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", conName), nil, "")
-	c.Assert(err, checker.IsNil)
-	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
-	c.Assert(resp.Header.Get("Content-Type"), checker.Equals, "application/json")
-
-	var v *types.Stats
-	err = json.NewDecoder(body).Decode(&v)
-	c.Assert(err, checker.IsNil)
-	body.Close()
-	c.Assert(fmt.Sprintf("%d", v.MemoryStats.Limit), checker.Equals, fmt.Sprintf("%d", info.MemTotal))
 }
 
 func (s *DockerSuite) TestApiStatsNoStreamConnectedContainers(c *check.C) {

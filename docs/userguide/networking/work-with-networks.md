@@ -66,7 +66,7 @@ before you can create one. These conditions are:
 * A cluster of hosts with connectivity to the key-value store.
 * A properly configured Engine `daemon` on each host in the swarm.
 
-The `docker daemon` options that support the `overlay` network are:
+The `dockerd` options that support the `overlay` network are:
 
 * `--cluster-store`
 * `--cluster-store-opt`

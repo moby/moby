@@ -20,6 +20,8 @@ const (
 	PubCertPerms = 0755
 	// Sha256HexSize is how big a Sha256 hex is in number of characters
 	Sha256HexSize = 64
+	// Sha512HexSize is how big a Sha512 hex is in number of characters
+	Sha512HexSize = 128
 	// SHA256 is the name of SHA256 hash algorithm
 	SHA256 = "sha256"
 	// SHA512 is the name of SHA512 hash algorithm
@@ -49,6 +51,11 @@ const (
 	// (one year, in seconds, since one year is forever in terms of internet
 	// content)
 	CacheMaxAgeLimit = 1 * Year
+
+	MySQLBackend     = "mysql"
+	MemoryBackend    = "memory"
+	SQLiteBackend    = "sqlite3"
+	RethinkDBBackend = "rethinkdb"
 )
 
 // NotaryDefaultExpiries is the construct used to configure the default expiry times of

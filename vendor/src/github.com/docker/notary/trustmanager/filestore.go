@@ -15,14 +15,12 @@ type SimpleFileStore struct {
 	perms   os.FileMode
 }
 
-// NewSimpleFileStore creates a directory with 755 permissions
-func NewSimpleFileStore(baseDir string, fileExt string) (*SimpleFileStore, error) {
+// NewFileStore creates a fully configurable file store
+func NewFileStore(baseDir, fileExt string, perms os.FileMode) (*SimpleFileStore, error) {
 	baseDir = filepath.Clean(baseDir)
-
-	if err := CreateDirectory(baseDir); err != nil {
+	if err := createDirectory(baseDir, perms); err != nil {
 		return nil, err
 	}
-
 	if !strings.HasPrefix(fileExt, ".") {
 		fileExt = "." + fileExt
 	}
@@ -30,25 +28,20 @@ func NewSimpleFileStore(baseDir string, fileExt string) (*SimpleFileStore, error
 	return &SimpleFileStore{
 		baseDir: baseDir,
 		fileExt: fileExt,
-		perms:   visible,
+		perms:   perms,
 	}, nil
 }
 
-// NewPrivateSimpleFileStore creates a directory with 700 permissions
-func NewPrivateSimpleFileStore(baseDir string, fileExt string) (*SimpleFileStore, error) {
-	if err := CreatePrivateDirectory(baseDir); err != nil {
-		return nil, err
-	}
+// NewSimpleFileStore is a convenience wrapper to create a world readable,
+// owner writeable filestore
+func NewSimpleFileStore(baseDir, fileExt string) (*SimpleFileStore, error) {
+	return NewFileStore(baseDir, fileExt, visible)
+}
 
-	if !strings.HasPrefix(fileExt, ".") {
-		fileExt = "." + fileExt
-	}
-
-	return &SimpleFileStore{
-		baseDir: baseDir,
-		fileExt: fileExt,
-		perms:   private,
-	}, nil
+// NewPrivateSimpleFileStore is a wrapper to create an owner readable/writeable
+// _only_ filestore
+func NewPrivateSimpleFileStore(baseDir, fileExt string) (*SimpleFileStore, error) {
+	return NewFileStore(baseDir, fileExt, private)
 }
 
 // Add writes data to a file with a given name
@@ -69,24 +62,6 @@ func (f *SimpleFileStore) Remove(name string) error {
 		return err
 	}
 	return os.Remove(filePath)
-}
-
-// RemoveDir removes the directory identified by name
-func (f *SimpleFileStore) RemoveDir(name string) error {
-	dirPath := filepath.Join(f.baseDir, name)
-
-	// Check to see if directory exists
-	fi, err := os.Stat(dirPath)
-	if err != nil {
-		return err
-	}
-
-	// Check to see if it is a directory
-	if !fi.IsDir() {
-		return fmt.Errorf("directory not found: %s", name)
-	}
-
-	return os.RemoveAll(dirPath)
 }
 
 // Get returns the data given a file name
@@ -117,12 +92,6 @@ func (f *SimpleFileStore) GetPath(name string) (string, error) {
 // ListFiles lists all the files inside of a store
 func (f *SimpleFileStore) ListFiles() []string {
 	return f.list(f.baseDir)
-}
-
-// ListDir lists all the files inside of a directory identified by a name
-func (f *SimpleFileStore) ListDir(name string) []string {
-	fullPath := filepath.Join(f.baseDir, name)
-	return f.list(fullPath)
 }
 
 // list lists all the files in a directory given a full path. Ignores symlinks.
@@ -168,16 +137,6 @@ func (f *SimpleFileStore) genFileName(name string) string {
 // BaseDir returns the base directory of the filestore
 func (f *SimpleFileStore) BaseDir() string {
 	return f.baseDir
-}
-
-// CreateDirectory uses createDirectory to create a chmod 755 Directory
-func CreateDirectory(dir string) error {
-	return createDirectory(dir, visible)
-}
-
-// CreatePrivateDirectory uses createDirectory to create a chmod 700 Directory
-func CreatePrivateDirectory(dir string) error {
-	return createDirectory(dir, private)
 }
 
 // createDirectory receives a string of the path to a directory.

@@ -26,8 +26,6 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		all      = cmd.Bool([]string{"a", "-all"}, false, "Show all containers (default shows just running)")
 		noTrunc  = cmd.Bool([]string{"-no-trunc"}, false, "Don't truncate output")
 		nLatest  = cmd.Bool([]string{"l", "-latest"}, false, "Show the latest created container (includes all states)")
-		since    = cmd.String([]string{"#-since"}, "", "Show containers created since Id or Name (includes all states)")
-		before   = cmd.String([]string{"#-before"}, "", "Only show containers created before Id or Name")
 		last     = cmd.Int([]string{"n"}, -1, "Show n last created containers (includes all states)")
 		format   = cmd.String([]string{"-format"}, "", "Pretty-print containers using a Go template")
 		flFilter = opts.NewListOpts(nil)
@@ -52,8 +50,6 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	options := types.ContainerListOptions{
 		All:    *all,
 		Limit:  *last,
-		Since:  *since,
-		Before: *before,
 		Size:   *size,
 		Filter: psFilterArgs,
 	}

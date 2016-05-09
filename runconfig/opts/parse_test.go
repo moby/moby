@@ -390,26 +390,13 @@ func TestParseHostname(t *testing.T) {
 		"host-name":   "host-name",
 		"hostname123": "hostname123",
 		"123hostname": "123hostname",
-		"hostname-of-64-bytes-long-should-be-valid-and-without-any-errors": "hostname-of-64-bytes-long-should-be-valid-and-without-any-errors",
-	}
-	invalidHostnames := map[string]string{
-		"^hostname": "invalid hostname format for --hostname: ^hostname",
-		"hostname%": "invalid hostname format for --hostname: hostname%",
-		"host&name": "invalid hostname format for --hostname: host&name",
-		"-hostname": "invalid hostname format for --hostname: -hostname",
-		"host_name": "invalid hostname format for --hostname: host_name",
-		"hostname-of-65-bytes-long-should-be-invalid-and-be-given-an-error": "invalid hostname format for --hostname: hostname-of-65-bytes-long-should-be-invalid-and-be-given-an-error",
+		"hostname-of-63-bytes-long-should-be-valid-and-without-any-error": "hostname-of-63-bytes-long-should-be-valid-and-without-any-error",
 	}
 	hostnameWithDomain := "--hostname=hostname.domainname"
 	hostnameWithDomainTld := "--hostname=hostname.domainname.tld"
 	for hostname, expectedHostname := range validHostnames {
 		if config, _ := mustParse(t, fmt.Sprintf("--hostname=%s", hostname)); config.Hostname != expectedHostname {
 			t.Fatalf("Expected the config to have 'hostname' as hostname, got '%v'", config.Hostname)
-		}
-	}
-	for hostname, expectedError := range invalidHostnames {
-		if _, _, err := parse(t, fmt.Sprintf("--hostname=%s", hostname)); err == nil || err.Error() != expectedError {
-			t.Fatalf("Expected error '%v' with '--hostname=%s', got '%s'", expectedError, hostname, err)
 		}
 	}
 	if config, _ := mustParse(t, hostnameWithDomain); config.Hostname != "hostname.domainname" && config.Domainname != "" {

@@ -62,6 +62,11 @@ func DecodeContainerConfig(src io.Reader) (*container.Config, *container.HostCon
 	if err := ValidateIsolation(hc); err != nil {
 		return nil, nil, nil, err
 	}
+
+	// Validate QoS
+	if err := ValidateQoS(hc); err != nil {
+		return nil, nil, nil, err
+	}
 	return w.Config, hc, w.NetworkingConfig, nil
 }
 

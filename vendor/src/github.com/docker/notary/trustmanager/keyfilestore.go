@@ -62,7 +62,7 @@ func NewKeyFileStore(baseDir string, passphraseRetriever passphrase.Retriever) (
 	return keyStore, nil
 }
 
-func generateKeyInfoMap(s LimitedFileStore) map[string]KeyInfo {
+func generateKeyInfoMap(s Storage) map[string]KeyInfo {
 	keyInfoMap := make(map[string]KeyInfo)
 	for _, keyPath := range s.ListFiles() {
 		d, err := s.Get(keyPath)
@@ -309,7 +309,7 @@ func KeyInfoFromPEM(pemBytes []byte, filename string) (string, KeyInfo, error) {
 	return keyID, KeyInfo{Gun: gun, Role: role}, nil
 }
 
-func addKey(s LimitedFileStore, passphraseRetriever passphrase.Retriever, cachedKeys map[string]*cachedKey, name, role string, privKey data.PrivateKey) error {
+func addKey(s Storage, passphraseRetriever passphrase.Retriever, cachedKeys map[string]*cachedKey, name, role string, privKey data.PrivateKey) error {
 
 	var (
 		chosenPassphrase string
@@ -338,7 +338,7 @@ func addKey(s LimitedFileStore, passphraseRetriever passphrase.Retriever, cached
 // both in the newer format PEM headers, and also in the legacy filename
 // format. It returns: the role, whether it was found in the legacy format
 // (true == legacy), and an error
-func getKeyRole(s LimitedFileStore, keyID string) (string, bool, error) {
+func getKeyRole(s Storage, keyID string) (string, bool, error) {
 	name := strings.TrimSpace(strings.TrimSuffix(filepath.Base(keyID), filepath.Ext(keyID)))
 
 	for _, file := range s.ListFiles() {
@@ -361,11 +361,11 @@ func getKeyRole(s LimitedFileStore, keyID string) (string, bool, error) {
 		}
 	}
 
-	return "", false, &ErrKeyNotFound{KeyID: keyID}
+	return "", false, ErrKeyNotFound{KeyID: keyID}
 }
 
 // GetKey returns the PrivateKey given a KeyID
-func getKey(s LimitedFileStore, passphraseRetriever passphrase.Retriever, cachedKeys map[string]*cachedKey, name string) (data.PrivateKey, string, error) {
+func getKey(s Storage, passphraseRetriever passphrase.Retriever, cachedKeys map[string]*cachedKey, name string) (data.PrivateKey, string, error) {
 	cachedKeyEntry, ok := cachedKeys[name]
 	if ok {
 		return cachedKeyEntry.key, cachedKeyEntry.alias, nil
@@ -389,7 +389,7 @@ func getKey(s LimitedFileStore, passphraseRetriever passphrase.Retriever, cached
 }
 
 // RemoveKey removes the key from the keyfilestore
-func removeKey(s LimitedFileStore, cachedKeys map[string]*cachedKey, name string) error {
+func removeKey(s Storage, cachedKeys map[string]*cachedKey, name string) error {
 	role, legacy, err := getKeyRole(s, name)
 	if err != nil {
 		return err
@@ -419,7 +419,7 @@ func getSubdir(alias string) string {
 
 // Given a key ID, gets the bytes and alias belonging to that key if the key
 // exists
-func getRawKey(s LimitedFileStore, name string) ([]byte, string, error) {
+func getRawKey(s Storage, name string) ([]byte, string, error) {
 	role, legacy, err := getKeyRole(s, name)
 	if err != nil {
 		return nil, "", err
@@ -475,7 +475,7 @@ func GetPasswdDecryptBytes(passphraseRetriever passphrase.Retriever, pemBytes []
 	return privKey, passwd, nil
 }
 
-func encryptAndAddKey(s LimitedFileStore, passwd string, cachedKeys map[string]*cachedKey, name, role string, privKey data.PrivateKey) error {
+func encryptAndAddKey(s Storage, passwd string, cachedKeys map[string]*cachedKey, name, role string, privKey data.PrivateKey) error {
 
 	var (
 		pemPrivKey []byte

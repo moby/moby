@@ -181,12 +181,12 @@ func TestCreateWithOpts(t *testing.T) {
 	}
 	v := vol.(*localVolume)
 
-	dir, err := v.Mount()
+	dir, err := v.Mount("1234")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := v.Unmount(); err != nil {
+		if err := v.Unmount("1234"); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -225,14 +225,14 @@ func TestCreateWithOpts(t *testing.T) {
 	}
 
 	// test double mount
-	if _, err := v.Mount(); err != nil {
+	if _, err := v.Mount("1234"); err != nil {
 		t.Fatal(err)
 	}
 	if v.active.count != 2 {
 		t.Fatalf("Expected active mount count to be 2, got %d", v.active.count)
 	}
 
-	if err := v.Unmount(); err != nil {
+	if err := v.Unmount("1234"); err != nil {
 		t.Fatal(err)
 	}
 	if v.active.count != 1 {

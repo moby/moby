@@ -21,47 +21,6 @@ var (
 	ErrWrongType    = errors.New("tuf: meta file has wrong type")
 )
 
-// VerifyRoot checks if a given root file is valid against a known set of keys.
-// Threshold is always assumed to be 1
-func VerifyRoot(s *data.Signed, minVersion int, keys map[string]data.PublicKey) error {
-	if len(s.Signatures) == 0 {
-		return ErrNoSignatures
-	}
-
-	var decoded map[string]interface{}
-	if err := json.Unmarshal(*s.Signed, &decoded); err != nil {
-		return err
-	}
-	msg, err := json.MarshalCanonical(decoded)
-	if err != nil {
-		return err
-	}
-
-	for _, sig := range s.Signatures {
-		// method lookup is consistent due to Unmarshal JSON doing lower case for us.
-		method := sig.Method
-		verifier, ok := Verifiers[method]
-		if !ok {
-			logrus.Debugf("continuing b/c signing method is not supported for verify root: %s\n", sig.Method)
-			continue
-		}
-
-		key, ok := keys[sig.KeyID]
-		if !ok {
-			logrus.Debugf("continuing b/c signing key isn't present in keys: %s\n", sig.KeyID)
-			continue
-		}
-
-		if err := verifier.Verify(key, sig.Signature, msg); err != nil {
-			logrus.Debugf("continuing b/c signature was invalid\n")
-			continue
-		}
-		// threshold of 1 so return on first success
-		return verifyMeta(s, data.CanonicalRootRole, minVersion)
-	}
-	return ErrRoleThreshold{}
-}
-
 // Verify checks the signatures and metadata (expiry, version) for the signed role
 // data
 func Verify(s *data.Signed, role data.BaseRole, minVersion int) error {
@@ -124,6 +83,10 @@ func VerifySignatures(s *data.Signed, roleData data.BaseRole) error {
 		if !ok {
 			logrus.Debugf("continuing b/c keyid lookup was nil: %s\n", sig.KeyID)
 			continue
+		}
+		// Check that the signature key ID actually matches the content ID of the key
+		if key.ID() != sig.KeyID {
+			return ErrInvalidKeyID{}
 		}
 		if err := VerifySignature(msg, sig, key); err != nil {
 			logrus.Debugf("continuing b/c %s", err.Error())

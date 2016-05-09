@@ -65,14 +65,14 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		}
 
 		// 2. Attach to the container.
-		containerID := cmd.Arg(0)
-		c, err := cli.client.ContainerInspect(context.Background(), containerID)
+		container := cmd.Arg(0)
+		c, err := cli.client.ContainerInspect(context.Background(), container)
 		if err != nil {
 			return err
 		}
 
 		if !c.Config.Tty {
-			sigc := cli.forwardAllSignals(containerID)
+			sigc := cli.forwardAllSignals(container)
 			defer signal.StopCatch(sigc)
 		}
 
@@ -81,12 +81,11 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		}
 
 		options := types.ContainerAttachOptions{
-			ContainerID: containerID,
-			Stream:      true,
-			Stdin:       *openStdin && c.Config.OpenStdin,
-			Stdout:      true,
-			Stderr:      true,
-			DetachKeys:  cli.configFile.DetachKeys,
+			Stream:     true,
+			Stdin:      *openStdin && c.Config.OpenStdin,
+			Stdout:     true,
+			Stderr:     true,
+			DetachKeys: cli.configFile.DetachKeys,
 		}
 
 		var in io.ReadCloser
@@ -95,7 +94,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			in = cli.in
 		}
 
-		resp, errAttach := cli.client.ContainerAttach(context.Background(), options)
+		resp, errAttach := cli.client.ContainerAttach(context.Background(), container, options)
 		if errAttach != nil && errAttach != httputil.ErrPersistEOF {
 			// ContainerAttach return an ErrPersistEOF (connection closed)
 			// means server met an error and put it in Hijacked connection
@@ -113,7 +112,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		})
 
 		// 3. Start the container.
-		if err := cli.client.ContainerStart(context.Background(), containerID); err != nil {
+		if err := cli.client.ContainerStart(context.Background(), container); err != nil {
 			cancelFun()
 			<-cErr
 			return err
@@ -121,14 +120,14 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 
 		// 4. Wait for attachment to break.
 		if c.Config.Tty && cli.isTerminalOut {
-			if err := cli.monitorTtySize(containerID, false); err != nil {
+			if err := cli.monitorTtySize(container, false); err != nil {
 				fmt.Fprintf(cli.err, "Error monitoring TTY size: %s\n", err)
 			}
 		}
 		if attchErr := <-cErr; attchErr != nil {
 			return attchErr
 		}
-		_, status, err := getExitCode(cli, containerID)
+		_, status, err := getExitCode(cli, container)
 		if err != nil {
 			return err
 		}
@@ -144,14 +143,14 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	return nil
 }
 
-func (cli *DockerCli) startContainersWithoutAttachments(containerIDs []string) error {
+func (cli *DockerCli) startContainersWithoutAttachments(containers []string) error {
 	var failedContainers []string
-	for _, containerID := range containerIDs {
-		if err := cli.client.ContainerStart(context.Background(), containerID); err != nil {
+	for _, container := range containers {
+		if err := cli.client.ContainerStart(context.Background(), container); err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
-			failedContainers = append(failedContainers, containerID)
+			failedContainers = append(failedContainers, container)
 		} else {
-			fmt.Fprintf(cli.out, "%s\n", containerID)
+			fmt.Fprintf(cli.out, "%s\n", container)
 		}
 	}
 

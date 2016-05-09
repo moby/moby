@@ -22,7 +22,8 @@ type StateInfo struct {
 	CommonStateInfo
 
 	// Platform specific StateInfo
-	UpdatePending bool
+
+	UpdatePending bool // Indicates that there are some update operations pending that should be completed by a servicing container.
 }
 
 // Stats contains a stats properties from containerd.
@@ -30,3 +31,9 @@ type Stats struct{}
 
 // Resources defines updatable container resource values.
 type Resources struct{}
+
+// ServicingOption is an empty CreateOption with a no-op application that siginifies
+// the container needs to be use for a Windows servicing operation.
+type ServicingOption struct {
+	IsServicing bool
+}

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
 	containertypes "github.com/docker/engine-api/types/container"
 )
@@ -30,8 +31,10 @@ type ExitStatus struct {
 
 // CreateDaemonEnvironment creates a new environment variable slice for this container.
 func (container *Container) CreateDaemonEnvironment(linkedEnv []string) []string {
-	// On Windows, nothing to link. Just return the container environment.
-	return container.Config.Env
+	// because the env on the container can override certain default values
+	// we need to replace the 'env' keys where they match and append anything
+	// else.
+	return utils.ReplaceOrAppendEnvValues(linkedEnv, container.Config.Env)
 }
 
 // UnmountIpcMounts unmount Ipc related mounts.

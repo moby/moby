@@ -1,8 +1,9 @@
-# Notary 
+# Notary
 [![Circle CI](https://circleci.com/gh/docker/notary/tree/master.svg?style=shield)](https://circleci.com/gh/docker/notary/tree/master) [![CodeCov](https://codecov.io/github/docker/notary/coverage.svg?branch=master)](https://codecov.io/github/docker/notary)
 
 The Notary project comprises a [server](cmd/notary-server) and a [client](cmd/notary) for running and interacting
-with trusted collections.
+with trusted collections.  Please see the [service architecture](docs/service_architecture.md) documentation
+for more information.
 
 
 Notary aims to make the internet more secure by making it easy for people to
@@ -21,7 +22,7 @@ received content.
 
 ## Goals
 
-Notary is based on [The Update Framework](http://theupdateframework.com/), a secure general design for the problem of software distribution and updates. By using TUF, notary achieves a number of key advantages:
+Notary is based on [The Update Framework](https://www.theupdateframework.com/), a secure general design for the problem of software distribution and updates. By using TUF, notary achieves a number of key advantages:
 
 * **Survivable Key Compromise**: Content publishers must manage keys in order to sign their content. Signing keys may be compromised or lost so systems must be designed in order to be flexible and recoverable in the case of key compromise. TUF's notion of key roles is utilized to separate responsibilities across a hierarchy of keys such that loss of any particular key (except the root role) by itself is not fatal to the security of the system.
 * **Freshness Guarantees**: Replay attacks are a common problem in designing secure systems, where previously valid payloads are replayed to trick another system. The same problem exists in the software update systems, where old signed can be presented as the most recent. notary makes use of timestamping on publishing so that consumers can know that they are receiving the most up to date content. This is particularly important when dealing with software update where old vulnerable versions could be used to attack users.
@@ -30,165 +31,60 @@ Notary is based on [The Update Framework](http://theupdateframework.com/), a sec
 * **Use of Existing Distribution**: Notary's trust guarantees are not tied at all to particular distribution channels from which content is delivered. Therefore, trust can be added to any existing content delivery mechanism.
 * **Untrusted Mirrors and Transport**: All of the notary metadata can be mirrored and distributed via arbitrary channels.
 
-# Notary CLI
+## Security
 
-Notary is a tool for publishing and managing trusted collections of content. Publishers can digitally sign collections and consumers can verify integrity and origin of content. This ability is built on a straightforward key management and signing interface to create signed collections and configure trusted publishers.
+Please see our [service architecture docs](docs/service_architecture.md#threat-model) for more information about our threat model, which details the varying survivability and severities for key compromise as well as mitigations.
 
-## Using Notary
-Lets try using notary.
+Our last security audit was on July 31, 2015 by NCC ([results](docs/resources/ncc_docker_notary_audit_2015_07_31.pdf)).
 
-Prerequisites:
+Any security vulnerabilities can be reported to security@docker.com.
 
-- Requirements from the [Compiling Notary Server](#compiling-notary-server) section (such as go 1.5.1)
-- [docker and docker-compose](http://docs.docker.com/compose/install/)
-- [Notary server configuration](#configuring-notary-server)
+# Getting started with the Notary CLI
 
-As setup, let's build notary and then start up a local notary-server (don't forget to add `127.0.0.1 notary-server` to your `/etc/hosts`, or if using docker-machine, add `$(docker-machine ip) notary-server`).
+Please get the Notary Client CLI binary from [the official releases page](https://github.com/docker/notary/releases) or you can [build one yourself](#building-notary).
+The version of Notary server and signer should be greater than or equal to Notary CLI's version to ensure feature compatibility (ex: CLI version 0.2, server/signer version >= 0.2), and all official releases are associated with GitHub tags.
 
-```sh
-make binaries
-docker-compose build
-docker-compose up -d
-```
+To use the Notary CLI with Docker hub images, please have a look at our
+[getting started docs](docs/getting_started.md).
 
-Note: In order to have notary use the local notary server and development root CA we can load the local development configuration by appending `-c cmd/notary/config.json` to every command. If you would rather not have to use `-c` on every command, copy `cmd/notary/config.json and cmd/notary/root-ca.crt` to `~/.notary`.
+For more advanced usage, please see the
+[advanced usage docs](docs/advanced_usage.md).
+
+To use the CLI against a local Notary server rather than against Docker Hub:
+
+1. Please ensure that you have [docker and docker-compose](http://docs.docker.com/compose/install/) installed.
+1. `git clone https://github.com/docker/notary.git` and from the cloned repository path,
+    start up a local Notary server and signer and copy the config file and testing certs to your
+    local notary config directory:
+
+    ```sh
+    $ docker-compose build
+    $ docker-compose up -d
+    $ mkdir -p ~/.notary && cp cmd/notary/config.json cmd/notary/root-ca.crt ~/.notary
+    ```
+
+1. Add `127.0.0.1 notary-server` to your `/etc/hosts`, or if using docker-machine,
+    add `$(docker-machine ip) notary-server`).
+
+You can run through the examples in the
+[getting started docs](docs/getting_started.md) and
+[advanced usage docs](docs/advanced_usage.md), but
+without the `-s` (server URL) argument to the `notary` command since the server
+URL is specified already in the configuration, file you copied.
+
+You can also leave off the `-d ~/.docker/trust` argument if you do not care
+to use `notary` with Docker images.
 
 
-First, let's initiate a notary collection called `example.com/scripts`
-
-```sh
-notary init example.com/scripts
-```
-
-Now, look at the keys you created as a result of initialization
-```sh
-notary key list
-```
-
-Cool, now add a local file `install.sh` and call it `v1`
-```sh
-notary add example.com/scripts v1 install.sh
-```
-
-Wouldn't it be nice if others could know that you've signed this content? Use `publish` to publish your collection to your default notary-server
-```sh
-notary publish example.com/scripts
-```
-
-Now, others can pull your trusted collection
-```sh
-notary list example.com/scripts
-```
-
-More importantly, they can verify the content of your script by using `notary verify`:
-```sh
-curl example.com/install.sh | notary verify example.com/scripts v1 | sh
-```
-
-# Notary Server
-
-Notary Server manages TUF data over an HTTP API compatible with the
-[notary client](cmd/notary).
-
-It may be configured to use either JWT or HTTP Basic Auth for authentication.
-Currently it only supports MySQL for storage of the TUF data, we intend to
-expand this to other storage options.
-
-## Setup for Development
-
-The notary repository comes with Dockerfiles and a docker-compose file
-to facilitate development. Simply run the following commands to start
-a notary server with a temporary MySQL database in containers:
-
-```
-$ docker-compose build
-$ docker-compose up
-```
-
-If you are on Mac OSX with boot2docker or kitematic, you'll need to
-update your hosts file such that the name `notary` is associated with
-the IP address of your VM (for boot2docker, this can be determined
-by running `boot2docker ip`, with kitematic, `echo $DOCKER_HOST` should
-show the IP of the VM). If you are using the default Linux setup,
-you need to add `127.0.0.1 notary` to your hosts file.
-
-## Successfully connecting over TLS
-
-By default notary-server runs with TLS with certificates signed by a local
-CA. In order to be able to successfully connect to it using
-either `curl` or `openssl`, you will have to use the root CA file in `fixtures/root-ca.crt`.
-
-OpenSSL example:
-
-`openssl s_client -connect notary-server:4443 -CAfile fixtures/root-ca.crt`
-
-## Compiling Notary Server
+## Building Notary
 
 Prerequisites:
 
-- Go = 1.5.1
+- Go >= 1.6.1
 - [godep](https://github.com/tools/godep) installed
 - libtool development headers installed
+    - Ubuntu: `apt-get install libtool-dev`
+    - CentOS/RedHat: `yum install libtool-ltdl-devel`
+    - Mac OS ([Homebrew](http://brew.sh/)): `brew install libtool`
 
-Install dependencies by running `godep restore`.
-
-From the root of this git repository, run `make binaries`. This will
-compile the `notary`, `notary-server`, and `notary-signer` applications and
-place them in a `bin` directory at the root of the git repository (the `bin`
-directory is ignored by the .gitignore file).
-
-`notary-signer` depends upon `pkcs11`, which requires that libtool headers be installed (`libtool-dev` on Ubuntu, `libtool-ltdl-devel` on CentOS/RedHat). If you are using Mac OS, you can `brew install libtool`, and run `make binaries` with the following environment variables (assuming a standard installation of Homebrew):
-
-```sh
-export CPATH=/usr/local/include:${CPATH}
-export LIBRARY_PATH=/usr/local/lib:${LIBRARY_PATH}
-```
-
-## Running Notary Server
-
-The `notary-server` application has the following usage:
-
-```
-$ bin/notary-server --help
-usage: bin/notary-serve
-  -config="": Path to configuration file
-  -debug=false: Enable the debugging server on localhost:8080
-```
-
-## Configuring Notary Server
-
-The configuration file must be a json file with the following format:
-
-```json
-{
-    "server": {
-        "addr": ":4443",
-        "tls_cert_file": "./fixtures/notary-server.crt",
-        "tls_key_file": "./fixtures/notary-server.key"
-    },
-    "logging": {
-        "level": 5
-    }
-}
-```
-
-The pem and key provided in fixtures are purely for local development and
-testing. For production, you must create your own keypair and certificate,
-either via the CA of your choice, or a self signed certificate.
-
-If using the pem and key provided in fixtures, either:
-- Add `fixtures/root-ca.crt` to your trusted root certificates
-- Use the default configuration for notary client that loads the CA root for you by using the flag `-c ./cmd/notary/config.json`
-- Disable TLS verification by adding the following option notary configuration file in `~/.notary/config.json`:
-
-            "skipTLSVerify": true
-
-Otherwise, you will see TLS errors or X509 errors upon initializing the
-notary collection:
-
-```
-$ notary list diogomonica.com/openvpn
-* fatal: Get https://notary-server:4443/v2/: x509: certificate signed by unknown authority
-$ notary list diogomonica.com/openvpn -c cmd/notary/config.json
-latest b1df2ad7cbc19f06f08b69b4bcd817649b509f3e5420cdd2245a85144288e26d 4056
-```
+Run `make binaries`, which creates the Notary Client CLI binary at `bin/notary`.

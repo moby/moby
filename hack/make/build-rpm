@@ -71,7 +71,10 @@ set -e
 	builderDir="contrib/builder/rpm/${PACKAGE_ARCH}"
 	pkgs=( $(find "${builderDir}/"*/ -type d) )
 	if [ ! -z "$DOCKER_BUILD_PKGS" ]; then
-		pkgs=( $(echo ${DOCKER_BUILD_PKGS[@]/#/$builderDir\/}) )
+		pkgs=()
+		for p in $DOCKER_BUILD_PKGS; do
+			pkgs+=( "$builderDir/$p" )
+		done
 	fi
 	for dir in "${pkgs[@]}"; do
 		[ -d "$dir" ] || { echo >&2 "skipping nonexistent $dir"; continue; }
@@ -117,9 +120,9 @@ set -e
 			WORKDIR /root/rpmbuild
 			RUN ln -sfv /usr/src/${rpmName}/hack/make/.build-rpm SPECS
 			WORKDIR /root/rpmbuild/SPECS
-			RUN tar -r -C /usr/src -f /root/rpmbuild/SOURCES/${rpmName}.tar ${rpmName}
-			RUN tar -r -C /go/src/github.com/docker -f /root/rpmbuild/SOURCES/${rpmName}.tar containerd
-			RUN tar -r -C /go/src/github.com/opencontainers -f /root/rpmbuild/SOURCES/${rpmName}.tar runc
+			RUN tar --exclude .git -r -C /usr/src -f /root/rpmbuild/SOURCES/${rpmName}.tar ${rpmName}
+			RUN tar --exclude .git -r -C /go/src/github.com/docker -f /root/rpmbuild/SOURCES/${rpmName}.tar containerd
+			RUN tar --exclude .git -r -C /go/src/github.com/opencontainers -f /root/rpmbuild/SOURCES/${rpmName}.tar runc
 			RUN gzip /root/rpmbuild/SOURCES/${rpmName}.tar
 			RUN { cat /usr/src/${rpmName}/contrib/builder/rpm/${PACKAGE_ARCH}/changelog; } >> ${rpmName}.spec && tail >&2 ${rpmName}.spec
 			RUN rpmbuild -ba \

@@ -13,17 +13,17 @@ databases, and backend services without depending on a particular stack
 or provider.
 
 Docker began as an open-source implementation of the deployment engine which
-powers [dotCloud](https://www.dotcloud.com), a popular Platform-as-a-Service.
-It benefits directly from the experience accumulated over several years
-of large-scale operation and support of hundreds of thousands of
-applications and databases.
+powered [dotCloud](http://web.archive.org/web/20130530031104/https://www.dotcloud.com/),
+a popular Platform-as-a-Service. It benefits directly from the experience
+accumulated over several years of large-scale operation and support of hundreds
+of thousands of applications and databases.
 
-![](docs/static_files/docker-logo-compressed.png "Docker")
+![Docker logo](docs/static_files/docker-logo-compressed.png "Docker")
 
 ## Security Disclosure
 
-Security is very important to us. If you have any issue regarding security, 
-please disclose the information responsibly by sending an email to 
+Security is very important to us. If you have any issue regarding security,
+please disclose the information responsibly by sending an email to
 security@docker.com and not by creating a github issue.
 
 ## Better than VMs
@@ -188,8 +188,8 @@ feels wrong or incomplete. Better yet, submit a PR and improve them yourself.
 Getting the development builds
 ==============================
 
-Want to run Docker from a master build? You can download 
-master builds at [master.dockerproject.org](https://master.dockerproject.org). 
+Want to run Docker from a master build? You can download
+master builds at [master.dockerproject.org](https://master.dockerproject.org).
 They are updated with each commit merged into the master branch.
 
 Don't know how to use that super cool new feature in the master build? Check
@@ -223,16 +223,22 @@ We are always open to suggestions on process improvements, and are always lookin
     </td>
   </tr>
   <tr>
+    <td>Docker Community Forums</td>
+    <td>
+      The <a href="https://forums.docker.com/c/open-source-projects/de" target="_blank">Docker Engine</a>
+      group is for users of the Docker Engine project.
+    </td>
+  </tr>
+  <tr>
     <td>Google Groups</td>
     <td>
-      There are two groups.
-      <a href="https://groups.google.com/forum/#!forum/docker-user" target="_blank">Docker-user</a>
-      is for people using Docker containers.
-      The <a href="https://groups.google.com/forum/#!forum/docker-dev" target="_blank">docker-dev</a>
-      group is for contributors and other people contributing to the Docker
-      project.
-      You can join them without an google account by sending an email to e.g. "docker-user+subscribe@googlegroups.com".
-      After receiving the join-request message, you can simply reply to that to confirm the subscribtion.
+      The <a href="https://groups.google.com/forum/#!forum/docker-dev"
+      target="_blank">docker-dev</a> group is for contributors and other people
+      contributing to the Docker project.  You can join this group without a
+      Google account by sending an email to <a
+      href="mailto:docker-dev+subscribe@googlegroups.com">docker-dev+subscribe@googlegroups.com</a>.
+      You'll receive a join-request message; simply reply to the message to
+      confirm your subscribtion.
     </td>
   </tr>
   <tr>
@@ -279,18 +285,18 @@ There are a number of projects under development that are based on Docker's
 core technology. These projects expand the tooling built around the
 Docker platform to broaden its application and utility.
 
-* [Docker Registry](https://github.com/docker/distribution): Registry 
+* [Docker Registry](https://github.com/docker/distribution): Registry
 server for Docker (hosting/delivery of repositories and images)
-* [Docker Machine](https://github.com/docker/machine): Machine management 
+* [Docker Machine](https://github.com/docker/machine): Machine management
 for a container-centric world
-* [Docker Swarm](https://github.com/docker/swarm): A Docker-native clustering 
+* [Docker Swarm](https://github.com/docker/swarm): A Docker-native clustering
 system
-* [Docker Compose](https://github.com/docker/compose) (formerly Fig): 
+* [Docker Compose](https://github.com/docker/compose) (formerly Fig):
 Define and run multi-container apps
-* [Kitematic](https://github.com/docker/kitematic): The easiest way to use 
+* [Kitematic](https://github.com/docker/kitematic): The easiest way to use
 Docker on Mac and Windows
 
-If you know of another project underway that should be listed here, please help 
+If you know of another project underway that should be listed here, please help
 us keep this list up-to-date by submitting a PR.
 
 Awesome-Docker

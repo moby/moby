@@ -77,7 +77,6 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 
 	// Construct network create request body
 	nc := types.NetworkCreate{
-		Name:           cmd.Arg(0),
 		Driver:         driver,
 		IPAM:           network.IPAM{Driver: *flIpamDriver, Config: ipamCfg, Options: flIpamOpt.GetAll()},
 		Options:        flOpts.GetAll(),
@@ -87,7 +86,7 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 		Labels:         runconfigopts.ConvertKVStringsToMap(flLabels.GetAll()),
 	}
 
-	resp, err := cli.client.NetworkCreate(context.Background(), nc)
+	resp, err := cli.client.NetworkCreate(context.Background(), cmd.Arg(0), nc)
 	if err != nil {
 		return err
 	}

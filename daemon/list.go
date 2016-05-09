@@ -174,8 +174,6 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 	}
 
 	var beforeContFilter, sinceContFilter *container.Container
-	// FIXME remove this for 1.12 as --since and --before are deprecated
-	var beforeContainer, sinceContainer *container.Container
 
 	err = psFilters.WalkValues("before", func(value string) error {
 		beforeContFilter, err = daemon.GetContainer(value)
@@ -213,29 +211,11 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 		})
 	}
 
-	// FIXME remove this for 1.12 as --since and --before are deprecated
-	if config.Before != "" {
-		beforeContainer, err = daemon.GetContainer(config.Before)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// FIXME remove this for 1.12 as --since and --before are deprecated
-	if config.Since != "" {
-		sinceContainer, err = daemon.GetContainer(config.Since)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	return &listContext{
 		filters:              psFilters,
 		ancestorFilter:       ancestorFilter,
 		images:               imagesFilter,
 		exitAllowed:          filtExited,
-		beforeContainer:      beforeContainer,
-		sinceContainer:       sinceContainer,
 		beforeFilter:         beforeContFilter,
 		sinceFilter:          sinceContFilter,
 		ContainerListOptions: config,
@@ -263,8 +243,7 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 	}
 
 	// Do not include container if it's stopped and we're not filters
-	// FIXME remove the ctx.beforContainer and ctx.sinceContainer part of the condition for 1.12 as --since and --before are deprecated
-	if !container.Running && !ctx.All && ctx.Limit <= 0 && ctx.beforeContainer == nil && ctx.sinceContainer == nil {
+	if !container.Running && !ctx.All && ctx.Limit <= 0 {
 		return excludeContainer
 	}
 
@@ -288,21 +267,6 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 		return excludeContainer
 	}
 
-	// FIXME remove this for 1.12 as --since and --before are deprecated
-	if ctx.beforeContainer != nil {
-		if container.ID == ctx.beforeContainer.ID {
-			ctx.beforeContainer = nil
-		}
-		return excludeContainer
-	}
-
-	// FIXME remove this for 1.12 as --since and --before are deprecated
-	if ctx.sinceContainer != nil {
-		if container.ID == ctx.sinceContainer.ID {
-			return stopIteration
-		}
-	}
-
 	// Stop iteration when the index is over the limit
 	if ctx.Limit > 0 && ctx.idx == ctx.Limit {
 		return stopIteration
@@ -312,7 +276,7 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 	if len(ctx.exitAllowed) > 0 {
 		shouldSkip := true
 		for _, code := range ctx.exitAllowed {
-			if code == container.ExitCode && !container.Running {
+			if code == container.ExitCode && !container.Running && !container.StartedAt.IsZero() {
 				shouldSkip = false
 				break
 			}

@@ -3,7 +3,6 @@ package daemon
 import (
 	"fmt"
 	"net"
-	"net/http"
 	"strings"
 
 	netsettings "github.com/docker/docker/daemon/network"
@@ -94,10 +93,10 @@ func (daemon *Daemon) getAllNetworks() []libnetwork.Network {
 }
 
 // CreateNetwork creates a network with the given name, driver and other optional parameters
-func (daemon *Daemon) CreateNetwork(create types.NetworkCreate) (*types.NetworkCreateResponse, error) {
+func (daemon *Daemon) CreateNetwork(create types.NetworkCreateRequest) (*types.NetworkCreateResponse, error) {
 	if runconfig.IsPreDefinedNetwork(create.Name) {
 		err := fmt.Errorf("%s is a pre-defined network and cannot be created", create.Name)
-		return nil, errors.NewErrorWithStatusCode(err, http.StatusForbidden)
+		return nil, errors.NewRequestForbiddenError(err)
 	}
 
 	var warning string
@@ -221,7 +220,7 @@ func (daemon *Daemon) DeleteNetwork(networkID string) error {
 
 	if runconfig.IsPreDefinedNetwork(nw.Name()) {
 		err := fmt.Errorf("%s is a pre-defined network and cannot be removed", nw.Name())
-		return errors.NewErrorWithStatusCode(err, http.StatusForbidden)
+		return errors.NewRequestForbiddenError(err)
 	}
 
 	if err := nw.Delete(); err != nil {

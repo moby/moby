@@ -2,7 +2,6 @@ package client
 
 import (
 	"bytes"
-	"sync"
 	"testing"
 
 	"github.com/docker/engine-api/types"
@@ -20,7 +19,6 @@ func TestDisplay(t *testing.T) {
 		BlockRead:        100 * 1024 * 1024,
 		BlockWrite:       800 * 1024 * 1024,
 		PidsCurrent:      1,
-		mu:               sync.RWMutex{},
 	}
 	var b bytes.Buffer
 	if err := c.Display(&b); err != nil {

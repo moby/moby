@@ -42,7 +42,7 @@ image.
 
 Docker 1.10 introduced a new content addressable storage model. This is a 
 completely new way to address image and layer data on disk. Previously, image 
-and layer data was referenced and stored using a a randomly generated UUID. In 
+and layer data was referenced and stored using a randomly generated UUID. In 
 the new model this is replaced by a secure *content hash*.
 
 The new model improves security, provides a built-in way to avoid ID 
@@ -70,7 +70,7 @@ first time you start an updated Docker daemon. After the migration is complete,
  all images and tags will have brand new secure IDs. 
 
 Although the migration is automatic and transparent, it is computationally 
-intensive. This means it and can take time if you have lots of image data. 
+intensive. This means it can take time if you have lots of image data.
 During this time your Docker daemon will not respond to other requests.
 
 A migration tool exists that allows you to migrate existing images to the new 

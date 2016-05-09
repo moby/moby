@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/symlink"
@@ -131,7 +132,7 @@ func (container *Container) ToDisk() error {
 		return err
 	}
 
-	jsonSource, err := os.Create(pth)
+	jsonSource, err := ioutils.NewAtomicFileWriter(pth, 0666)
 	if err != nil {
 		return err
 	}
@@ -191,7 +192,7 @@ func (container *Container) WriteHostConfig() error {
 		return err
 	}
 
-	f, err := os.Create(pth)
+	f, err := ioutils.NewAtomicFileWriter(pth, 0666)
 	if err != nil {
 		return err
 	}
@@ -250,6 +251,13 @@ func (container *Container) GetResourcePath(path string) (string, error) {
 
 	cleanPath := cleanResourcePath(path)
 	r, e := symlink.FollowSymlinkInScope(filepath.Join(container.BaseFS, cleanPath), container.BaseFS)
+
+	// Log this here on the daemon side as there's otherwise no indication apart
+	// from the error being propagated all the way back to the client. This makes
+	// debugging significantly easier and clearly indicates the error comes from the daemon.
+	if e != nil {
+		logrus.Errorf("Failed to FollowSymlinkInScope BaseFS %s cleanPath %s path %s %s\n", container.BaseFS, cleanPath, path, e)
+	}
 	return r, e
 }
 
@@ -332,9 +340,6 @@ func (container *Container) GetProcessLabel() string {
 // GetMountLabel returns the mounting label for the container.
 // This label is empty if the container is privileged.
 func (container *Container) GetMountLabel() string {
-	if container.HostConfig.Privileged {
-		return ""
-	}
 	return container.MountLabel
 }
 
@@ -519,28 +524,8 @@ func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64
 // ShouldRestart decides whether the daemon should restart the container or not.
 // This is based on the container's restart policy.
 func (container *Container) ShouldRestart() bool {
-	shouldRestart, _, _ := container.restartManager.ShouldRestart(uint32(container.ExitCode), container.HasBeenManuallyStopped)
+	shouldRestart, _, _ := container.restartManager.ShouldRestart(uint32(container.ExitCode), container.HasBeenManuallyStopped, container.FinishedAt.Sub(container.StartedAt))
 	return shouldRestart
-}
-
-// AddBindMountPoint adds a new bind mount point configuration to the container.
-func (container *Container) AddBindMountPoint(name, source, destination string, rw bool) {
-	container.MountPoints[destination] = &volume.MountPoint{
-		Name:        name,
-		Source:      source,
-		Destination: destination,
-		RW:          rw,
-	}
-}
-
-// AddLocalMountPoint adds a new local mount point configuration to the container.
-func (container *Container) AddLocalMountPoint(name, destination string, rw bool) {
-	container.MountPoints[destination] = &volume.MountPoint{
-		Name:        name,
-		Driver:      volume.DefaultDriverName,
-		Destination: destination,
-		RW:          rw,
-	}
 }
 
 // AddMountPointWithVolume adds a new mount point configured with a volume to the container.

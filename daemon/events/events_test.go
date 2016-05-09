@@ -165,7 +165,7 @@ func TestLoadBufferedEvents(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	since, sinceNano, err := timetypes.ParseTimestamps(f, -1)
+	s, sNano, err := timetypes.ParseTimestamps(f, -1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,14 +183,93 @@ func TestLoadBufferedEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	buffered := []events.Message{*m1, *m2, *m3}
-
 	events := &Events{
-		events: buffered,
+		events: []events.Message{*m1, *m2, *m3},
 	}
 
-	out := events.loadBufferedEvents(since, sinceNano, nil)
+	since := time.Unix(s, sNano)
+	until := time.Time{}
+
+	out := events.loadBufferedEvents(since, until, nil)
 	if len(out) != 1 {
 		t.Fatalf("expected 1 message, got %d: %v", len(out), out)
+	}
+}
+
+func TestLoadBufferedEventsOnlyFromPast(t *testing.T) {
+	now := time.Now()
+	f, err := timetypes.GetTimestamp("2016-03-07T17:28:03.090000000+02:00", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, sNano, err := timetypes.ParseTimestamps(f, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f, err = timetypes.GetTimestamp("2016-03-07T17:28:03.100000000+02:00", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u, uNano, err := timetypes.ParseTimestamps(f, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m1, err := eventstestutils.Scan("2016-03-07T17:28:03.022433271+02:00 container die 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m2, err := eventstestutils.Scan("2016-03-07T17:28:03.091719377+02:00 network disconnect 19c5ed41acb798f26b751e0035cd7821741ab79e2bbd59a66b5fd8abf954eaa0 (type=bridge, container=0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079, name=bridge)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m3, err := eventstestutils.Scan("2016-03-07T17:28:03.129014751+02:00 container destroy 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	events := &Events{
+		events: []events.Message{*m1, *m2, *m3},
+	}
+
+	since := time.Unix(s, sNano)
+	until := time.Unix(u, uNano)
+
+	out := events.loadBufferedEvents(since, until, nil)
+	if len(out) != 1 {
+		t.Fatalf("expected 1 message, got %d: %v", len(out), out)
+	}
+
+	if out[0].Type != "network" {
+		t.Fatalf("expected network event, got %s", out[0].Type)
+	}
+}
+
+// #13753
+func TestIngoreBufferedWhenNoTimes(t *testing.T) {
+	m1, err := eventstestutils.Scan("2016-03-07T17:28:03.022433271+02:00 container die 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m2, err := eventstestutils.Scan("2016-03-07T17:28:03.091719377+02:00 network disconnect 19c5ed41acb798f26b751e0035cd7821741ab79e2bbd59a66b5fd8abf954eaa0 (type=bridge, container=0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079, name=bridge)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m3, err := eventstestutils.Scan("2016-03-07T17:28:03.129014751+02:00 container destroy 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	events := &Events{
+		events: []events.Message{*m1, *m2, *m3},
+	}
+
+	since := time.Time{}
+	until := time.Time{}
+
+	out := events.loadBufferedEvents(since, until, nil)
+	if len(out) != 0 {
+		t.Fatalf("expected 0 buffered events, got %q", out)
 	}
 }

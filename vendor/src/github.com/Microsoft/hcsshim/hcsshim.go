@@ -48,6 +48,7 @@ import (
 //sys terminateComputeSystem(id string) (hr error) = vmcompute.TerminateComputeSystem?
 //sys terminateProcessInComputeSystem(id string, pid uint32) (hr error) = vmcompute.TerminateProcessInComputeSystem?
 //sys waitForProcessInComputeSystem(id string, pid uint32, timeout uint32, exitCode *uint32) (hr error) = vmcompute.WaitForProcessInComputeSystem?
+//sys getComputeSystemProperties(id string, flags uint32, properties **uint16) (hr error) = vmcompute.GetComputeSystemProperties?
 
 //sys _hnsCall(method string, path string, object string, response **uint16) (hr error) = vmcompute.HNSCall?
 

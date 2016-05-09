@@ -46,6 +46,7 @@ RUN apt-get update && apt-get install -y \
 	aufs-tools \
 	automake \
 	bash-completion \
+	binutils-mingw-w64 \
 	bsdmainutils \
 	btrfs-tools \
 	build-essential \
@@ -129,6 +130,16 @@ RUN set -x \
 ENV GO_VERSION 1.5.4
 RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" \
 	| tar -xzC /usr/local
+
+# !!! TEMPORARY HACK !!!
+# Because of https://github.com/golang/go/issues/15286 we have to revert to Go 1.5.3 for windows/amd64 in master
+# To change which version of Go to compile with, simply prepend PATH with /usr/local/go1.5.3/bin
+# and set GOROOT to /usr/local/go1.5.3
+ENV HACK_GO_VERSION 1.5.3
+RUN curl -fsSL "https://storage.googleapis.com/golang/go${HACK_GO_VERSION}.linux-amd64.tar.gz" \
+	| tar -xzC /tmp \
+	&& mv /tmp/go "/usr/local/go${HACK_GO_VERSION}"
+
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
 
@@ -174,8 +185,8 @@ RUN set -x \
 		go build -o /usr/local/bin/registry-v2-schema1 github.com/docker/distribution/cmd/registry \
 	&& rm -rf "$GOPATH"
 
-# Install notary server
-ENV NOTARY_VERSION docker-v1.11-3
+# Install notary and notary-server
+ENV NOTARY_VERSION v0.3.0-RC1
 RUN set -x \
 	&& export GO15VENDOREXPERIMENT=1 \
 	&& export GOPATH="$(mktemp -d)" \
@@ -188,7 +199,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Get the "docker-py" source so we can run their integration tests
-ENV DOCKER_PY_COMMIT e2878cbcc3a7eef99917adc1be252800b0e41ece
+ENV DOCKER_PY_COMMIT 7befe694bd21e3c54bb1d7825270ea4bd6864c13
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT \
@@ -238,27 +249,19 @@ RUN set -x \
 	&& go build -v -o /usr/local/bin/tomlv github.com/BurntSushi/toml/cmd/tomlv \
 	&& rm -rf "$GOPATH"
 
-# Build/install the tool for embedding resources in Windows binaries
-ENV RSRC_COMMIT ba14da1f827188454a4591717fff29999010887f
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone https://github.com/akavel/rsrc.git "$GOPATH/src/github.com/akavel/rsrc" \
-	&& (cd "$GOPATH/src/github.com/akavel/rsrc" && git checkout -q "$RSRC_COMMIT") \
-	&& go build -v -o /usr/local/bin/rsrc github.com/akavel/rsrc \
-	&& rm -rf "$GOPATH"
-
 # Install runc
-ENV RUNC_COMMIT e87436998478d222be209707503c27f6f91be0c5
+ENV RUNC_COMMIT baf6536d6259209c3edfa2b22237af82942d3dfa
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
 	&& cd "$GOPATH/src/github.com/opencontainers/runc" \
 	&& git checkout -q "$RUNC_COMMIT" \
 	&& make static BUILDTAGS="seccomp apparmor selinux" \
-	&& cp runc /usr/local/bin/docker-runc
+	&& cp runc /usr/local/bin/docker-runc \
+	&& rm -rf "$GOPATH"
 
 # Install containerd
-ENV CONTAINERD_COMMIT 07c95162cdcead88dfe4ca0ffb3cea02375ec54d
+ENV CONTAINERD_COMMIT v0.2.1
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \
@@ -267,7 +270,8 @@ RUN set -x \
 	&& make static \
 	&& cp bin/containerd /usr/local/bin/docker-containerd \
 	&& cp bin/containerd-shim /usr/local/bin/docker-containerd-shim \
-	&& cp bin/ctr /usr/local/bin/docker-containerd-ctr
+	&& cp bin/ctr /usr/local/bin/docker-containerd-ctr \
+	&& rm -rf "$GOPATH"
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"bufio"
@@ -16,6 +17,10 @@ import (
 	"os/exec"
 	"strconv"
 	"time"
+
+	"net"
+	"net/http/httputil"
+	"net/url"
 
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/integration/checker"
@@ -272,6 +277,27 @@ func (s *DockerAuthzSuite) TestAuthZPluginDenyRequest(c *check.C) {
 	c.Assert(res, check.Equals, fmt.Sprintf("Error response from daemon: authorization denied by plugin %s: %s\n", testAuthZPlugin, unauthorizedMessage))
 }
 
+// TestAuthZPluginApiDenyResponse validates that when authorization plugin deny the request, the status code is forbidden
+func (s *DockerAuthzSuite) TestAuthZPluginApiDenyResponse(c *check.C) {
+	err := s.d.Start("--authorization-plugin=" + testAuthZPlugin)
+	c.Assert(err, check.IsNil)
+	s.ctrl.reqRes.Allow = false
+	s.ctrl.resRes.Msg = unauthorizedMessage
+
+	daemonURL, err := url.Parse(s.d.sock())
+
+	conn, err := net.DialTimeout(daemonURL.Scheme, daemonURL.Path, time.Second*10)
+	c.Assert(err, check.IsNil)
+	client := httputil.NewClientConn(conn, nil)
+	req, err := http.NewRequest("GET", "/version", nil)
+	c.Assert(err, check.IsNil)
+	resp, err := client.Do(req)
+
+	c.Assert(err, check.IsNil)
+	c.Assert(resp.StatusCode, checker.Equals, http.StatusForbidden)
+	c.Assert(err, checker.IsNil)
+}
+
 func (s *DockerAuthzSuite) TestAuthZPluginDenyResponse(c *check.C) {
 	err := s.d.Start("--authorization-plugin=" + testAuthZPlugin)
 	c.Assert(err, check.IsNil)
@@ -389,6 +415,33 @@ func (s *DockerAuthzSuite) TestAuthZPluginEnsureNoDuplicatePluginRegistration(c 
 	// assert plugin is only called once..
 	c.Assert(s.ctrl.psRequestCnt, check.Equals, 1)
 	c.Assert(s.ctrl.psResponseCnt, check.Equals, 1)
+}
+
+func (s *DockerAuthzSuite) TestAuthZPluginEnsureLoadImportWorking(c *check.C) {
+	c.Assert(s.d.Start("--authorization-plugin="+testAuthZPlugin, "--authorization-plugin="+testAuthZPlugin), check.IsNil)
+	s.ctrl.reqRes.Allow = true
+	s.ctrl.resRes.Allow = true
+	c.Assert(s.d.LoadBusybox(), check.IsNil)
+
+	tmp, err := ioutil.TempDir("", "test-authz-load-import")
+	c.Assert(err, check.IsNil)
+	defer os.RemoveAll(tmp)
+
+	savedImagePath := filepath.Join(tmp, "save.tar")
+
+	out, err := s.d.Cmd("save", "-o", savedImagePath, "busybox")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	out, err = s.d.Cmd("load", "--input", savedImagePath)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	exportedImagePath := filepath.Join(tmp, "export.tar")
+
+	out, err = s.d.Cmd("run", "-d", "--name", "testexport", "busybox")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	out, err = s.d.Cmd("export", "-o", exportedImagePath, "testexport")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	out, err = s.d.Cmd("import", exportedImagePath)
+	c.Assert(err, check.IsNil, check.Commentf(out))
 }
 
 // assertURIRecorded verifies that the given URI was sent and recorded in the authz plugin

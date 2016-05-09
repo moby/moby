@@ -38,8 +38,19 @@ for version in "${versions[@]}"; do
 
 	echo >> "$version/Dockerfile"
 
-	extraBuildTags=
+	extraBuildTags='pkcs11'
 	runcBuildTags=
+
+	case "$from" in
+		oraclelinux:6)
+			# We need a known version of the kernel-uek-devel headers to set CGO_CPPFLAGS, so grab the UEKR4 GA version
+			# This requires using yum-config-manager from yum-utils to enable the UEKR4 yum repo
+			echo "RUN yum install -y yum-utils && curl -o /etc/yum.repos.d/public-yum-ol6.repo http://yum.oracle.com/public-yum-ol6.repo && yum-config-manager -q --enable ol6_UEKR4"  >> "$version/Dockerfile"
+			echo "RUN yum install -y kernel-uek-devel-4.1.12-32.el6uek"  >> "$version/Dockerfile"
+			echo >> "$version/Dockerfile"
+			;;
+		*) ;;
+	esac
 
 	case "$from" in
 		centos:*)
@@ -96,9 +107,8 @@ for version in "${versions[@]}"; do
 	esac
 
 	# opensuse & oraclelinx:6 do not have the right libseccomp libs
-	# centos:7 and oraclelinux:7 have a libseccomp < 2.2.1 :(
 	case "$from" in
-		opensuse:*|oraclelinux:*|centos:7)
+		opensuse:*|oraclelinux:6)
 			packages=( "${packages[@]/libseccomp-devel}" )
 			runcBuildTags="selinux"
 			;;
@@ -125,17 +135,6 @@ for version in "${versions[@]}"; do
 	esac
 
 	echo >> "$version/Dockerfile"
-
-	case "$from" in
-		oraclelinux:6)
-			# We need a known version of the kernel-uek-devel headers to set CGO_CPPFLAGS, so grab the UEKR4 GA version
-			# This requires using yum-config-manager from yum-utils to enable the UEKR4 yum repo
-			echo "RUN yum install -y yum-utils && curl -o /etc/yum.repos.d/public-yum-ol6.repo http://yum.oracle.com/public-yum-ol6.repo && yum-config-manager -q --enable ol6_UEKR4"  >> "$version/Dockerfile"
-			echo "RUN yum install -y kernel-uek-devel-4.1.12-32.el6uek"  >> "$version/Dockerfile"
-			echo >> "$version/Dockerfile"
-			;;
-		*) ;;
-	esac
 
 
 	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile >> "$version/Dockerfile"
