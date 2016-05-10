@@ -29,6 +29,7 @@ import (
 var (
 	// ErrApplyDiffFallback is returned to indicate that a normal ApplyDiff is applied as a fallback from Naive diff writer.
 	ErrApplyDiffFallback = fmt.Errorf("Fall back to normal ApplyDiff")
+	backingFs            = "<unknown>"
 )
 
 // ApplyDiffProtoDriver wraps the ProtoDriver by extending the interface with ApplyDiff method.
@@ -99,8 +100,6 @@ type Driver struct {
 	ctr           *graphdriver.RefCounter
 }
 
-var backingFs = "<unknown>"
-
 func init() {
 	graphdriver.Register("overlay", Init)
 }
@@ -122,19 +121,9 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		backingFs = fsName
 	}
 
-	// check if they are running over btrfs, aufs, zfs or overlay
 	switch fsMagic {
-	case graphdriver.FsMagicBtrfs:
-		logrus.Error("'overlay' is not supported over btrfs.")
-		return nil, graphdriver.ErrIncompatibleFS
-	case graphdriver.FsMagicAufs:
-		logrus.Error("'overlay' is not supported over aufs.")
-		return nil, graphdriver.ErrIncompatibleFS
-	case graphdriver.FsMagicZfs:
-		logrus.Error("'overlay' is not supported over zfs.")
-		return nil, graphdriver.ErrIncompatibleFS
-	case graphdriver.FsMagicOverlay:
-		logrus.Error("'overlay' is not supported over overlay.")
+	case graphdriver.FsMagicAufs, graphdriver.FsMagicBtrfs, graphdriver.FsMagicOverlay, graphdriver.FsMagicZfs:
+		logrus.Errorf("'overlay' is not supported over %s", backingFs)
 		return nil, graphdriver.ErrIncompatibleFS
 	}
 
