@@ -3,6 +3,7 @@ package libcontainerd
 import (
 	"io"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -20,6 +21,8 @@ type container struct {
 	// but can be called from the RestartManager context which does not
 	// otherwise have access to the Spec
 	ociSpec Spec
+
+	stopped sync.WaitGroup
 }
 
 func (ctr *container) newProcess(friendlyName string) *process {
@@ -138,6 +141,8 @@ func (ctr *container) start() error {
 func (ctr *container) waitExit(pid uint32, processFriendlyName string, isFirstProcessToStart bool) error {
 	logrus.Debugln("waitExit on pid", pid)
 
+	ctr.stopped.Add(1)
+
 	// Block indefinitely for the process to exit.
 	exitCode, err := hcsshim.WaitForProcessInComputeSystem(ctr.containerID, pid, hcsshim.TimeoutInfinite)
 	if err != nil {
@@ -227,6 +232,8 @@ func (ctr *container) waitExit(pid uint32, processFriendlyName string, isFirstPr
 	if err := ctr.client.backend.StateChanged(ctr.containerID, si); err != nil {
 		logrus.Error(err)
 	}
+
+	ctr.stopped.Done()
 
 	logrus.Debugln("waitExit() completed OK")
 	return nil
