@@ -18,24 +18,6 @@ func TestParseLogTag(t *testing.T) {
 	assertTag(t, e, tag, "test-image/test-container/container-ab")
 }
 
-func TestParseLogTagSyslogTag(t *testing.T) {
-	ctx := buildContext(map[string]string{"syslog-tag": "{{.ImageName}}/{{.Name}}/{{.ID}}"})
-	tag, e := ParseLogTag(ctx, "{{.ID}}")
-	assertTag(t, e, tag, "test-image/test-container/container-ab")
-}
-
-func TestParseLogTagGelfTag(t *testing.T) {
-	ctx := buildContext(map[string]string{"gelf-tag": "{{.ImageName}}/{{.Name}}/{{.ID}}"})
-	tag, e := ParseLogTag(ctx, "{{.ID}}")
-	assertTag(t, e, tag, "test-image/test-container/container-ab")
-}
-
-func TestParseLogTagFluentdTag(t *testing.T) {
-	ctx := buildContext(map[string]string{"fluentd-tag": "{{.ImageName}}/{{.Name}}/{{.ID}}"})
-	tag, e := ParseLogTag(ctx, "{{.ID}}")
-	assertTag(t, e, tag, "test-image/test-container/container-ab")
-}
-
 // Helpers
 
 func buildContext(cfg map[string]string) logger.Context {
