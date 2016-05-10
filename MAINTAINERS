@@ -89,6 +89,23 @@
 			# still stumble into him in our issue tracker, or on IRC.
 			"erikh",
 
+			# Jessica Frazelle, also known as the "Keyser Söze of containers",
+			# runs *everything* in containers. She started contributing to
+			# Docker with a (fun fun) change involving both iptables and regular
+			# expressions (coz, YOLO!) on July 10, 2014
+			# https://github.com/docker/docker/pull/6950/commits/f3a68ffa390fb851115c77783fa4031f1d3b2995.
+			# Jess was Release Captain for Docker 1.4, 1.6 and 1.7, and contributed
+			# many features and improvement, among which "seccomp profiles" (making 
+			# containers a lot more secure). Besides being a maintainer, she
+			# set up the CI infrastructure for the project, giving everyone
+			# something to shout at if a PR failed ("noooo Janky!").
+			# Jess is currently working on the DCOS security team at Mesosphere,
+			# and contributing to various open source projects.
+			# Be sure you don't miss her talks at a conference near you (a must-see),
+			# read her blog at https://blog.jessfraz.com (a must-read), and
+			# check out her open source projects on GitHub https://github.com/jfrazelle (a must-try).
+			"jfrazelle",
+
 			# Vincent "vbatts!" Batts made his first contribution to the project
 			# in November 2013, to become a maintainer a few months later, on 
 			# May 10, 2014 (https://github.com/docker/docker/commit/d6e666a87a01a5634c250358a94c814bf26cb778).
