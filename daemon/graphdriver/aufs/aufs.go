@@ -55,7 +55,6 @@ var (
 	// ErrAufsNested means aufs cannot be used bc we are in a user namespace
 	ErrAufsNested       = fmt.Errorf("AUFS cannot be used in non-init user namespace")
 	incompatibleFsMagic = []graphdriver.FsMagic{
-		graphdriver.FsMagicBtrfs,
 		graphdriver.FsMagicAufs,
 	}
 	backingFs = "<unknown>"
