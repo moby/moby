@@ -43,7 +43,9 @@ func chroot(path string) (err error) {
 		}
 
 		errCleanup := os.Remove(pivotDir)
-		if errCleanup != nil {
+		// pivotDir doesn't exist if pivot_root failed and chroot+chdir was successful
+		// but we already cleaned it up on failed pivot_root
+		if errCleanup != nil && !os.IsNotExist(errCleanup) {
 			errCleanup = fmt.Errorf("Error cleaning up after pivot: %v", errCleanup)
 			if err == nil {
 				err = errCleanup
@@ -52,7 +54,10 @@ func chroot(path string) (err error) {
 	}()
 
 	if err := syscall.PivotRoot(path, pivotDir); err != nil {
-		// If pivot fails, fall back to the normal chroot
+		// If pivot fails, fall back to the normal chroot after cleaning up temp dir for pivot_root
+		if err := os.Remove(pivotDir); err != nil {
+			return fmt.Errorf("Error cleaning up after failed pivot: %v", err)
+		}
 		return realChroot(path)
 	}
 	mounted = true
@@ -84,7 +89,7 @@ func realChroot(path string) error {
 		return fmt.Errorf("Error after fallback to chroot: %v", err)
 	}
 	if err := syscall.Chdir("/"); err != nil {
-		return fmt.Errorf("Error chaning to new root after chroot: %v", err)
+		return fmt.Errorf("Error changing to new root after chroot: %v", err)
 	}
 	return nil
 }
