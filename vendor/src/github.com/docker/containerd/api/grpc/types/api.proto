@@ -3,6 +3,7 @@ syntax = "proto3";
 package types;
 
 service API {
+	rpc GetServerVersion(GetServerVersionRequest) returns (GetServerVersionResponse) {}
 	rpc CreateContainer(CreateContainerRequest) returns (CreateContainerResponse) {}
 	rpc UpdateContainer(UpdateContainerRequest) returns (UpdateContainerResponse) {}
 	rpc Signal(SignalRequest) returns (SignalResponse) {}
@@ -14,6 +15,16 @@ service API {
 	rpc State(StateRequest) returns (StateResponse) {}
 	rpc Events(EventsRequest) returns (stream Event) {}
 	rpc Stats(StatsRequest) returns (StatsResponse) {}
+}
+
+message GetServerVersionRequest {
+}
+
+message GetServerVersionResponse {
+	uint32 major = 1;
+	uint32 minor = 2;
+	uint32 patch = 3;
+	string revision = 4;
 }
 
 message UpdateProcessRequest {
