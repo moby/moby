@@ -15,11 +15,11 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
 
-	"github.com/Microsoft/go-winio"
 	"github.com/Microsoft/go-winio/archive/tar"
 	"github.com/Microsoft/go-winio/backuptar"
 	"github.com/Microsoft/hcsshim"
@@ -31,6 +31,7 @@ import (
 	"github.com/docker/docker/pkg/longpath"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/vendor/src/github.com/Microsoft/go-winio"
 	"github.com/vbatts/tar-split/tar/storage"
 )
 
@@ -43,10 +44,22 @@ func init() {
 	reexec.Register("docker-windows-write-layer", writeLayer)
 }
 
+type checker struct {
+}
+
+func (c *checker) IsMounted(path string) bool {
+	return false
+}
+
 // Driver represents a windows graph driver.
 type Driver struct {
 	// info stores the shim driver information
 	info hcsshim.DriverInfo
+	ctr  *graphdriver.RefCounter
+	// it is safe for windows to use a cache here because it does not support
+	// restoring containers when the daemon dies.
+	cacheMu sync.Mutex
+	cache   map[string]string
 }
 
 func isTP5OrOlder() bool {
@@ -61,6 +74,8 @@ func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap)
 			HomeDir: home,
 			Flavour: filterDriver,
 		},
+		cache: make(map[string]string),
+		ctr:   graphdriver.NewRefCounter(&checker{}),
 	}
 	return d, nil
 }
@@ -211,17 +226,23 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if count := d.ctr.Increment(rID); count > 1 {
+		return d.cache[rID], nil
+	}
 
 	// Getting the layer paths must be done outside of the lock.
 	layerChain, err := d.getLayerChain(rID)
 	if err != nil {
+		d.ctr.Decrement(rID)
 		return "", err
 	}
 
 	if err := hcsshim.ActivateLayer(d.info, rID); err != nil {
+		d.ctr.Decrement(rID)
 		return "", err
 	}
 	if err := hcsshim.PrepareLayer(d.info, rID, layerChain); err != nil {
+		d.ctr.Decrement(rID)
 		if err2 := hcsshim.DeactivateLayer(d.info, rID); err2 != nil {
 			logrus.Warnf("Failed to Deactivate %s: %s", id, err)
 		}
@@ -230,11 +251,15 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 
 	mountPath, err := hcsshim.GetLayerMountPath(d.info, rID)
 	if err != nil {
+		d.ctr.Decrement(rID)
 		if err2 := hcsshim.DeactivateLayer(d.info, rID); err2 != nil {
 			logrus.Warnf("Failed to Deactivate %s: %s", id, err)
 		}
 		return "", err
 	}
+	d.cacheMu.Lock()
+	d.cache[rID] = mountPath
+	d.cacheMu.Unlock()
 
 	// If the layer has a mount path, use that. Otherwise, use the
 	// folder path.
@@ -255,6 +280,12 @@ func (d *Driver) Put(id string) error {
 	if err != nil {
 		return err
 	}
+	if count := d.ctr.Decrement(rID); count > 0 {
+		return nil
+	}
+	d.cacheMu.Lock()
+	delete(d.cache, rID)
+	d.cacheMu.Unlock()
 
 	if err := hcsshim.UnprepareLayer(d.info, rID); err != nil {
 		return err
