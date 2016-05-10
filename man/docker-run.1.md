@@ -353,7 +353,8 @@ as memory limit.
 **--memory-swap**="LIMIT"
    A limit value equal to memory plus swap. Must be used with the  **-m**
 (**--memory**) flag. The swap `LIMIT` should always be larger than **-m**
-(**--memory**) value.
+(**--memory**) value.  By default, the swap `LIMIT` will be set to double
+the value of --memory.
 
    The format of `LIMIT` is `<number>[<unit>]`. Unit can be `b` (bytes),
 `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you don't specify a
