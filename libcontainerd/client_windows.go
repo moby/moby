@@ -344,6 +344,8 @@ func (clnt *client) Signal(containerID string, sig int) error {
 		return err
 	}
 
+	cont.manualStopRequested = true
+
 	logrus.Debugf("lcd: Signal() containerID=%s sig=%d pid=%d", containerID, sig, cont.systemPid)
 	context := fmt.Sprintf("Signal: sig=%d pid=%d", sig, cont.systemPid)
 
@@ -352,7 +354,6 @@ func (clnt *client) Signal(containerID string, sig int) error {
 		if err := hcsshim.TerminateComputeSystem(containerID, hcsshim.TimeoutInfinite, context); err != nil {
 			logrus.Errorf("Failed to terminate %s - %q", containerID, err)
 		}
-
 	} else {
 		// Terminate Process
 		if err = hcsshim.TerminateProcessInComputeSystem(containerID, cont.systemPid); err != nil {
@@ -360,24 +361,8 @@ func (clnt *client) Signal(containerID string, sig int) error {
 			// Ignore errors
 			err = nil
 		}
-
-		// Shutdown the compute system
-		const shutdownTimeout = 5 * 60 * 1000 // 5 minutes
-		if err := hcsshim.ShutdownComputeSystem(containerID, shutdownTimeout, context); err != nil {
-			if herr, ok := err.(*hcsshim.HcsError); !ok ||
-				(herr.Err != hcsshim.ERROR_SHUTDOWN_IN_PROGRESS &&
-					herr.Err != ErrorBadPathname &&
-					herr.Err != syscall.ERROR_PATH_NOT_FOUND) {
-				logrus.Debugf("signal - error from ShutdownComputeSystem %v on %s. Calling TerminateComputeSystem", err, containerID)
-				if err := hcsshim.TerminateComputeSystem(containerID, shutdownTimeout, "signal"); err != nil {
-					logrus.Debugf("signal - ignoring error from TerminateComputeSystem on %s %v", containerID, err)
-				} else {
-					logrus.Debugf("Successful TerminateComputeSystem after failed ShutdownComputeSystem on %s during signal %v", containerID, sig)
-				}
-			}
-			logrus.Errorf("Failed to shutdown %s - %q", containerID, err)
-		}
 	}
+
 	return nil
 }
 
