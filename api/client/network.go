@@ -9,6 +9,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/docker/docker/api/client/inspect"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -249,7 +250,7 @@ func (cli *DockerCli) CmdNetworkInspect(args ...string) error {
 		return i, nil, err
 	}
 
-	return cli.inspectElements(*tmplStr, cmd.Args(), inspectSearcher)
+	return inspect.Inspect(cli.out, cmd.Args(), *tmplStr, inspectSearcher)
 }
 
 // Consolidates the ipam configuration as a group from different related configurations
