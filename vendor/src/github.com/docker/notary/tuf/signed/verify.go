@@ -21,37 +21,26 @@ var (
 	ErrWrongType    = errors.New("tuf: meta file has wrong type")
 )
 
-// Verify checks the signatures and metadata (expiry, version) for the signed role
-// data
-func Verify(s *data.Signed, role data.BaseRole, minVersion int) error {
-	if err := verifyMeta(s, role.Name, minVersion); err != nil {
-		return err
-	}
-	return VerifySignatures(s, role)
-}
-
-func verifyMeta(s *data.Signed, role string, minVersion int) error {
-	sm := &data.SignedCommon{}
-	if err := json.Unmarshal(*s.Signed, sm); err != nil {
-		return err
-	}
-	if !data.ValidTUFType(sm.Type, role) {
-		return ErrWrongType
-	}
-	if IsExpired(sm.Expires) {
-		logrus.Errorf("Metadata for %s expired", role)
-		return ErrExpired{Role: role, Expired: sm.Expires.Format("Mon Jan 2 15:04:05 MST 2006")}
-	}
-	if sm.Version < minVersion {
-		return ErrLowVersion{sm.Version, minVersion}
-	}
-
-	return nil
-}
-
 // IsExpired checks if the given time passed before the present time
 func IsExpired(t time.Time) bool {
 	return t.Before(time.Now())
+}
+
+// VerifyExpiry returns ErrExpired if the metadata is expired
+func VerifyExpiry(s *data.SignedCommon, role string) error {
+	if IsExpired(s.Expires) {
+		logrus.Errorf("Metadata for %s expired", role)
+		return ErrExpired{Role: role, Expired: s.Expires.Format("Mon Jan 2 15:04:05 MST 2006")}
+	}
+	return nil
+}
+
+// VerifyVersion returns ErrLowVersion if the metadata version is lower than the min version
+func VerifyVersion(s *data.SignedCommon, minVersion int) error {
+	if s.Version < minVersion {
+		return ErrLowVersion{Actual: s.Version, Current: minVersion}
+	}
+	return nil
 }
 
 // VerifySignatures checks the we have sufficient valid signatures for the given role

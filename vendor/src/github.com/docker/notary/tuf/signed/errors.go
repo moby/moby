@@ -44,10 +44,15 @@ func (e ErrLowVersion) Error() string {
 }
 
 // ErrRoleThreshold indicates we did not validate enough signatures to meet the threshold
-type ErrRoleThreshold struct{}
+type ErrRoleThreshold struct {
+	Msg string
+}
 
 func (e ErrRoleThreshold) Error() string {
-	return "valid signatures did not meet threshold"
+	if e.Msg == "" {
+		return "valid signatures did not meet threshold"
+	}
+	return e.Msg
 }
 
 // ErrInvalidKeyType indicates the types for the key and signature it's associated with are

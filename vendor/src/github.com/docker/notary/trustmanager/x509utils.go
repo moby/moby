@@ -14,8 +14,6 @@ import (
 	"io"
 	"io/ioutil"
 	"math/big"
-	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -23,40 +21,6 @@ import (
 	"github.com/docker/notary"
 	"github.com/docker/notary/tuf/data"
 )
-
-// GetCertFromURL tries to get a X509 certificate given a HTTPS URL
-func GetCertFromURL(urlStr string) (*x509.Certificate, error) {
-	url, err := url.Parse(urlStr)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check if we are adding via HTTPS
-	if url.Scheme != "https" {
-		return nil, errors.New("only HTTPS URLs allowed")
-	}
-
-	// Download the certificate and write to directory
-	resp, err := http.Get(url.String())
-	if err != nil {
-		return nil, err
-	}
-
-	// Copy the content to certBytes
-	defer resp.Body.Close()
-	certBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	// Try to extract the first valid PEM certificate from the bytes
-	cert, err := LoadCertFromPEM(certBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	return cert, nil
-}
 
 // CertToPEM is a utility function returns a PEM encoded x509 Certificate
 func CertToPEM(cert *x509.Certificate) []byte {
@@ -98,60 +62,6 @@ func LoadCertFromPEM(pemBytes []byte) (*x509.Certificate, error) {
 	}
 
 	return nil, errors.New("no certificates found in PEM data")
-}
-
-// FingerprintCert returns a TUF compliant fingerprint for a X509 Certificate
-func FingerprintCert(cert *x509.Certificate) (string, error) {
-	certID, err := fingerprintCert(cert)
-	if err != nil {
-		return "", err
-	}
-
-	return string(certID), nil
-}
-
-func fingerprintCert(cert *x509.Certificate) (CertID, error) {
-	block := pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}
-	pemdata := pem.EncodeToMemory(&block)
-
-	var tufKey data.PublicKey
-	switch cert.PublicKeyAlgorithm {
-	case x509.RSA:
-		tufKey = data.NewRSAx509PublicKey(pemdata)
-	case x509.ECDSA:
-		tufKey = data.NewECDSAx509PublicKey(pemdata)
-	default:
-		return "", fmt.Errorf("got Unknown key type while fingerprinting certificate")
-	}
-
-	return CertID(tufKey.ID()), nil
-}
-
-// loadCertsFromDir receives a store AddCertFromFile for each certificate found
-func loadCertsFromDir(s *X509FileStore) error {
-	for _, f := range s.fileStore.ListFiles() {
-		// ListFiles returns relative paths
-		data, err := s.fileStore.Get(f)
-		if err != nil {
-			// the filestore told us it had a file that it then couldn't serve.
-			// this is a serious problem so error immediately
-			return err
-		}
-		err = s.AddCertFromPEM(data)
-		if err != nil {
-			if _, ok := err.(*ErrCertValidation); ok {
-				logrus.Debugf("ignoring certificate, did not pass validation: %s", f)
-				continue
-			}
-			if _, ok := err.(*ErrCertExists); ok {
-				logrus.Debugf("ignoring certificate, already exists in the store: %s", f)
-				continue
-			}
-
-			return err
-		}
-	}
-	return nil
 }
 
 // LoadCertFromFile loads the first certificate from the file provided. The
@@ -533,35 +443,37 @@ func CertToKey(cert *x509.Certificate) data.PublicKey {
 
 // CertsToKeys transforms each of the input certificate chains into its corresponding
 // PublicKey
-func CertsToKeys(leafCerts []*x509.Certificate, intCerts map[string][]*x509.Certificate) map[string]data.PublicKey {
+func CertsToKeys(leafCerts map[string]*x509.Certificate, intCerts map[string][]*x509.Certificate) map[string]data.PublicKey {
 	keys := make(map[string]data.PublicKey)
-	for _, leafCert := range leafCerts {
-		certBundle := []*x509.Certificate{leafCert}
-		certID, err := FingerprintCert(leafCert)
-		if err != nil {
-			continue
+	for id, leafCert := range leafCerts {
+		if key, err := CertBundleToKey(leafCert, intCerts[id]); err == nil {
+			keys[key.ID()] = key
 		}
-		if intCertsForLeafs, ok := intCerts[certID]; ok {
-			certBundle = append(certBundle, intCertsForLeafs...)
-		}
-		certChainPEM, err := CertChainToPEM(certBundle)
-		if err != nil {
-			continue
-		}
-		var newKey data.PublicKey
-		// Use the leaf cert's public key algorithm for typing
-		switch leafCert.PublicKeyAlgorithm {
-		case x509.RSA:
-			newKey = data.NewRSAx509PublicKey(certChainPEM)
-		case x509.ECDSA:
-			newKey = data.NewECDSAx509PublicKey(certChainPEM)
-		default:
-			logrus.Debugf("Unknown key type parsed from certificate: %v", leafCert.PublicKeyAlgorithm)
-			continue
-		}
-		keys[newKey.ID()] = newKey
 	}
 	return keys
+}
+
+// CertBundleToKey creates a TUF key from a leaf certs and a list of
+// intermediates
+func CertBundleToKey(leafCert *x509.Certificate, intCerts []*x509.Certificate) (data.PublicKey, error) {
+	certBundle := []*x509.Certificate{leafCert}
+	certBundle = append(certBundle, intCerts...)
+	certChainPEM, err := CertChainToPEM(certBundle)
+	if err != nil {
+		return nil, err
+	}
+	var newKey data.PublicKey
+	// Use the leaf cert's public key algorithm for typing
+	switch leafCert.PublicKeyAlgorithm {
+	case x509.RSA:
+		newKey = data.NewRSAx509PublicKey(certChainPEM)
+	case x509.ECDSA:
+		newKey = data.NewECDSAx509PublicKey(certChainPEM)
+	default:
+		logrus.Debugf("Unknown key type parsed from certificate: %v", leafCert.PublicKeyAlgorithm)
+		return nil, x509.ErrUnsupportedAlgorithm
+	}
+	return newKey, nil
 }
 
 // NewCertificate returns an X509 Certificate following a template, given a GUN and validity interval.
@@ -609,15 +521,4 @@ func X509PublicKeyID(certPubKey data.PublicKey) (string, error) {
 	}
 
 	return key.ID(), nil
-}
-
-// FilterCertsExpiredSha1 can be used as the filter function to cert store
-// initializers to filter out all expired or SHA-1 certificate that we
-// shouldn't load.
-func FilterCertsExpiredSha1(cert *x509.Certificate) bool {
-	return !cert.IsCA &&
-		time.Now().Before(cert.NotAfter) &&
-		cert.SignatureAlgorithm != x509.SHA1WithRSA &&
-		cert.SignatureAlgorithm != x509.DSAWithSHA1 &&
-		cert.SignatureAlgorithm != x509.ECDSAWithSHA1
 }

@@ -31,9 +31,9 @@ func isValidRootStructure(r Root) error {
 			role: CanonicalRootRole, msg: fmt.Sprintf("expected type %s, not %s", expectedType, r.Type)}
 	}
 
-	if r.Version < 0 {
+	if r.Version < 1 {
 		return ErrInvalidMetadata{
-			role: CanonicalRootRole, msg: "version cannot be negative"}
+			role: CanonicalRootRole, msg: "version cannot be less than 1"}
 	}
 
 	// all the base roles MUST appear in the root.json - other roles are allowed,

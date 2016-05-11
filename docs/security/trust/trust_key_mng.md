@@ -86,7 +86,7 @@ the tagged image prior to the loss. Image consumers would get an error for
 content that they already downloaded:
 
 ```
-could not validate the path to a trusted root: failed to validate data with current trusted certificates
+Warning: potential malicious behavior - trust data has insufficient signatures for remote repository docker.io/my/image: valid signatures did not meet threshold
 ```
 
 To correct this, they need to download a new image tag with that is signed with
