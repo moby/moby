@@ -32,8 +32,8 @@ type Dataset struct {
 	Type          string
 	Written       uint64
 	Volsize       uint64
-	Usedbydataset uint64
 	Logicalused   uint64
+	Usedbydataset uint64
 	Quota         uint64
 }
 
@@ -92,12 +92,20 @@ type Logger interface {
 	Log(cmd []string)
 }
 
-var logger Logger
+type defaultLogger struct{}
+
+func (*defaultLogger) Log(cmd []string) {
+	return
+}
+
+var logger Logger = &defaultLogger{}
 
 // SetLogger set a log handler to log all commands including arguments before
 // they are executed
 func SetLogger(l Logger) {
-	logger = l
+	if l != nil {
+		logger = l
+	}
 }
 
 // zfs is a helper function to wrap typical calls to zfs.
@@ -137,7 +145,7 @@ func Volumes(filter string) ([]*Dataset, error) {
 // GetDataset retrieves a single ZFS dataset by name.  This dataset could be
 // any valid ZFS dataset type, such as a clone, filesystem, snapshot, or volume.
 func GetDataset(name string) (*Dataset, error) {
-	out, err := zfs("get", "-Hp", "all", name)
+	out, err := zfs("list", "-Hp", "-o", dsPropListOptions, name)
 	if err != nil {
 		return nil, err
 	}
@@ -170,6 +178,46 @@ func (d *Dataset) Clone(dest string, properties map[string]string) (*Dataset, er
 		return nil, err
 	}
 	return GetDataset(dest)
+}
+
+// Unmount unmounts currently mounted ZFS file systems.
+func (d *Dataset) Unmount(force bool) (*Dataset, error) {
+	if d.Type == DatasetSnapshot {
+		return nil, errors.New("cannot unmount snapshots")
+	}
+	args := make([]string, 1, 3)
+	args[0] = "umount"
+	if force {
+		args = append(args, "-f")
+	}
+	args = append(args, d.Name)
+	_, err := zfs(args...)
+	if err != nil {
+		return nil, err
+	}
+	return GetDataset(d.Name)
+}
+
+// Mount mounts ZFS file systems.
+func (d *Dataset) Mount(overlay bool, options []string) (*Dataset, error) {
+	if d.Type == DatasetSnapshot {
+		return nil, errors.New("cannot mount snapshots")
+	}
+	args := make([]string, 1, 5)
+	args[0] = "mount"
+	if overlay {
+		args = append(args, "-O")
+	}
+	if options != nil {
+		args = append(args, "-o")
+		args = append(args, strings.Join(options, ","))
+	}
+	args = append(args, d.Name)
+	_, err := zfs(args...)
+	if err != nil {
+		return nil, err
+	}
+	return GetDataset(d.Name)
 }
 
 // ReceiveSnapshot receives a ZFS stream from the input io.Reader, creates a
@@ -267,6 +315,26 @@ func (d *Dataset) GetProperty(key string) (string, error) {
 	return out[0][2], nil
 }
 
+// Rename renames a dataset.
+func (d *Dataset) Rename(name string, createParent bool, recursiveRenameSnapshots bool) (*Dataset, error) {
+	args := make([]string, 3, 5)
+	args[0] = "rename"
+	args[1] = d.Name
+	args[2] = name
+	if createParent {
+		args = append(args, "-p")
+	}
+	if recursiveRenameSnapshots {
+		args = append(args, "-r")
+	}
+	_, err := zfs(args...)
+	if err != nil {
+		return d, err
+	}
+
+	return GetDataset(name)
+}
+
 // Snapshots returns a slice of all ZFS snapshots of a given dataset.
 func (d *Dataset) Snapshots() ([]*Dataset, error) {
 	return Snapshots(d.Name)
@@ -335,13 +403,14 @@ func (d *Dataset) Rollback(destroyMoreRecent bool) error {
 // A recursion depth may be specified, or a depth of 0 allows unlimited
 // recursion.
 func (d *Dataset) Children(depth uint64) ([]*Dataset, error) {
-	args := []string{"get", "-t", "all", "-Hp", "all"}
+	args := []string{"list"}
 	if depth > 0 {
 		args = append(args, "-d")
 		args = append(args, strconv.FormatUint(depth, 10))
 	} else {
 		args = append(args, "-r")
 	}
+	args = append(args, "-t", "all", "-Hp", "-o", dsPropListOptions)
 	args = append(args, d.Name)
 
 	out, err := zfs(args...)
