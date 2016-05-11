@@ -99,7 +99,6 @@ the reason each syscall is blocked rather than white-listed.
 | `keyctl`            | Prevent containers from using the kernel keyring, which is not namespaced.                                   |
 | `lookup_dcookie`    | Tracing/profiling syscall, which could leak a lot of information on the host.                                |
 | `mbind`             | Syscall that modifies kernel memory and NUMA settings. Already gated by `CAP_SYS_NICE`.                      |
-| `modify_ldt`        | Old syscall only used in 16-bit code and a potential information leak.                                       |
 | `mount`             | Deny mounting, already gated by `CAP_SYS_ADMIN`.                                                             |
 | `move_pages`        | Syscall that modifies kernel memory and NUMA settings.                                                       |
 | `name_to_handle_at` | Sister syscall to `open_by_handle_at`. Already gated by `CAP_SYS_NICE`.                                      |
