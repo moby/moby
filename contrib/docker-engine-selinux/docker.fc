@@ -1,6 +1,6 @@
 /root/\.docker	gen_context(system_u:object_r:docker_home_t,s0)
 
-/usr/bin/docker			--	gen_context(system_u:object_r:docker_exec_t,s0)
+/usr/bin/dockerd			--	gen_context(system_u:object_r:docker_exec_t,s0)
 
 /usr/lib/systemd/system/docker.service		--	gen_context(system_u:object_r:docker_unit_file_t,s0)
 
