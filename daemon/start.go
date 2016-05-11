@@ -145,6 +145,15 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 			container.ExitCode = 126
 			err = fmt.Errorf("Container command '%s' could not be invoked", container.Path)
 		}
+		// set to 126 for apparmor errors
+		if strings.Contains(err.Error(), "apparmor failed to apply profile") {
+			container.ExitCode = 126
+			if strings.Contains(err.Error(), "no such file or directory") {
+				err = fmt.Errorf("Apparmor profile not found")
+			} else {
+				err = fmt.Errorf("Apparmor profile could not be applied")
+			}
+		}
 
 		container.Reset(false)
 
