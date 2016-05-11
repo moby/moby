@@ -42,7 +42,7 @@ image.
 
 Docker 1.10 introduced a new content addressable storage model. This is a 
 completely new way to address image and layer data on disk. Previously, image 
-and layer data was referenced and stored using a a randomly generated UUID. In 
+and layer data was referenced and stored using a randomly generated UUID. In 
 the new model this is replaced by a secure *content hash*.
 
 The new model improves security, provides a built-in way to avoid ID 

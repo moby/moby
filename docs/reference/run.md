@@ -594,7 +594,7 @@ associated with the container when the container is removed. This is similar
 to running `docker rm -v my-container`. Only volumes that are specified without a
 name are removed. For example, with
 `docker run --rm -v /foo -v awesome:/bar busybox top`, the volume for `/foo` will be removed,
-but the volume for `/bar` will not. Volumes inheritted via `--volumes-from` will be removed
+but the volume for `/bar` will not. Volumes inherited via `--volumes-from` will be removed
 with the same logic -- if the original volume was specified with a name it will **not** be removed.
 
 ## Security configuration
@@ -1331,7 +1331,7 @@ If the operator uses `--link` when starting a new client container in the
 default bridge network, then the client container can access the exposed
 port via a private networking interface.
 If `--link` is used when starting a container in a user-defined network as
-described in [*Docker network overview*""](../userguide/networking/index.md)),
+described in [*Docker network overview*](../userguide/networking/index.md)),
 it will provide a named alias for the container being linked to.
 
 ### ENV (environment variables)
