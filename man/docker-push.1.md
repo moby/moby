@@ -13,7 +13,8 @@ NAME[:TAG] | [REGISTRY_HOST[:REGISTRY_PORT]/]NAME[:TAG]
 
 This command pushes an image or a repository to a registry. If you do not
 specify a `REGISTRY_HOST`, the command uses Docker's public registry located at
-`registry-1.docker.io` by default. 
+`registry-1.docker.io` by default. Refer to **docker-tag(1)** for more 
+information about valid image and tag names.
 
 # OPTIONS
 **--help**
