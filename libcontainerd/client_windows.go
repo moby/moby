@@ -352,7 +352,6 @@ func (clnt *client) Signal(containerID string, sig int) error {
 		if err := hcsshim.TerminateComputeSystem(containerID, hcsshim.TimeoutInfinite, context); err != nil {
 			logrus.Errorf("Failed to terminate %s - %q", containerID, err)
 		}
-
 	} else {
 		// Terminate Process
 		if err = hcsshim.TerminateProcessInComputeSystem(containerID, cont.systemPid); err != nil {
@@ -360,12 +359,10 @@ func (clnt *client) Signal(containerID string, sig int) error {
 			// Ignore errors
 			err = nil
 		}
-
-		// Shutdown the compute system
-		if err := hcsshim.ShutdownComputeSystem(containerID, hcsshim.TimeoutInfinite, context); err != nil {
-			logrus.Errorf("Failed to shutdown %s - %q", containerID, err)
-		}
 	}
+
+	cont.stopped.Wait()
+
 	return nil
 }
 
