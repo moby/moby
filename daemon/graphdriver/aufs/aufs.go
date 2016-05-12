@@ -53,12 +53,8 @@ var (
 	// ErrAufsNotSupported is returned if aufs is not supported by the host.
 	ErrAufsNotSupported = fmt.Errorf("AUFS was not found in /proc/filesystems")
 	// ErrAufsNested means aufs cannot be used bc we are in a user namespace
-	ErrAufsNested       = fmt.Errorf("AUFS cannot be used in non-init user namespace")
-	incompatibleFsMagic = []graphdriver.FsMagic{
-		graphdriver.FsMagicBtrfs,
-		graphdriver.FsMagicAufs,
-	}
-	backingFs = "<unknown>"
+	ErrAufsNested = fmt.Errorf("AUFS cannot be used in non-init user namespace")
+	backingFs     = "<unknown>"
 
 	enableDirpermLock sync.Once
 	enableDirperm     bool
@@ -95,10 +91,10 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		backingFs = fsName
 	}
 
-	for _, magic := range incompatibleFsMagic {
-		if fsMagic == magic {
-			return nil, graphdriver.ErrIncompatibleFS
-		}
+	switch fsMagic {
+	case graphdriver.FsMagicAufs, graphdriver.FsMagicBtrfs:
+		logrus.Errorf("AUFS is not supported over %s", backingFs)
+		return nil, graphdriver.ErrIncompatibleFS
 	}
 
 	paths := []string{
