@@ -2246,3 +2246,106 @@ func (s *DockerDaemonSuite) TestDaemonLogOptions(c *check.C) {
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "{json-file map[]}")
 }
+
+// Test case for #20936, #22443
+func (s *DockerDaemonSuite) TestDaemonMaxConcurrency(c *check.C) {
+	c.Assert(s.d.Start("--max-concurrent-uploads=6", "--max-concurrent-downloads=8"), check.IsNil)
+
+	expectedMaxConcurrentUploads := `level=debug msg="Max Concurrent Uploads: 6"`
+	expectedMaxConcurrentDownloads := `level=debug msg="Max Concurrent Downloads: 8"`
+	content, _ := ioutil.ReadFile(s.d.logFile.Name())
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentUploads)
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentDownloads)
+}
+
+// Test case for #20936, #22443
+func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFile(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	// daemon config file
+	configFilePath := "test.json"
+	configFile, err := os.Create(configFilePath)
+	c.Assert(err, checker.IsNil)
+	defer os.Remove(configFilePath)
+
+	daemonConfig := `{ "max-concurrent-downloads" : 8 }`
+	fmt.Fprintf(configFile, "%s", daemonConfig)
+	configFile.Close()
+	c.Assert(s.d.Start(fmt.Sprintf("--config-file=%s", configFilePath)), check.IsNil)
+
+	expectedMaxConcurrentUploads := `level=debug msg="Max Concurrent Uploads: 5"`
+	expectedMaxConcurrentDownloads := `level=debug msg="Max Concurrent Downloads: 8"`
+	content, _ := ioutil.ReadFile(s.d.logFile.Name())
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentUploads)
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentDownloads)
+
+	configFile, err = os.Create(configFilePath)
+	c.Assert(err, checker.IsNil)
+	daemonConfig = `{ "max-concurrent-uploads" : 7, "max-concurrent-downloads" : 9 }`
+	fmt.Fprintf(configFile, "%s", daemonConfig)
+	configFile.Close()
+
+	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+
+	time.Sleep(3 * time.Second)
+
+	expectedMaxConcurrentUploads = `level=debug msg="Reset Max Concurrent Uploads: 7"`
+	expectedMaxConcurrentDownloads = `level=debug msg="Reset Max Concurrent Downloads: 9"`
+	content, _ = ioutil.ReadFile(s.d.logFile.Name())
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentUploads)
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentDownloads)
+}
+
+// Test case for #20936, #22443
+func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	// daemon config file
+	configFilePath := "test.json"
+	configFile, err := os.Create(configFilePath)
+	c.Assert(err, checker.IsNil)
+	defer os.Remove(configFilePath)
+
+	daemonConfig := `{ "max-concurrent-uploads" : null }`
+	fmt.Fprintf(configFile, "%s", daemonConfig)
+	configFile.Close()
+	c.Assert(s.d.Start(fmt.Sprintf("--config-file=%s", configFilePath)), check.IsNil)
+
+	expectedMaxConcurrentUploads := `level=debug msg="Max Concurrent Uploads: 5"`
+	expectedMaxConcurrentDownloads := `level=debug msg="Max Concurrent Downloads: 3"`
+	content, _ := ioutil.ReadFile(s.d.logFile.Name())
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentUploads)
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentDownloads)
+
+	configFile, err = os.Create(configFilePath)
+	c.Assert(err, checker.IsNil)
+	daemonConfig = `{ "max-concurrent-uploads" : 1, "max-concurrent-downloads" : null }`
+	fmt.Fprintf(configFile, "%s", daemonConfig)
+	configFile.Close()
+
+	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+
+	time.Sleep(3 * time.Second)
+
+	expectedMaxConcurrentUploads = `level=debug msg="Reset Max Concurrent Uploads: 1"`
+	expectedMaxConcurrentDownloads = `level=debug msg="Reset Max Concurrent Downloads: 3"`
+	content, _ = ioutil.ReadFile(s.d.logFile.Name())
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentUploads)
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentDownloads)
+
+	configFile, err = os.Create(configFilePath)
+	c.Assert(err, checker.IsNil)
+	daemonConfig = `{ "labels":["foo=bar"] }`
+	fmt.Fprintf(configFile, "%s", daemonConfig)
+	configFile.Close()
+
+	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+
+	time.Sleep(3 * time.Second)
+
+	expectedMaxConcurrentUploads = `level=debug msg="Reset Max Concurrent Uploads: 5"`
+	expectedMaxConcurrentDownloads = `level=debug msg="Reset Max Concurrent Downloads: 3"`
+	content, _ = ioutil.ReadFile(s.d.logFile.Name())
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentUploads)
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentDownloads)
+}

@@ -71,15 +71,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-const (
-	// maxDownloadConcurrency is the maximum number of downloads that
-	// may take place at a time for each pull.
-	maxDownloadConcurrency = 3
-	// maxUploadConcurrency is the maximum number of uploads that
-	// may take place at a time for each push.
-	maxUploadConcurrency = 5
-)
-
 var (
 	validContainerNameChars   = utils.RestrictedNameChars
 	validContainerNamePattern = utils.RestrictedNamePattern
@@ -719,8 +710,10 @@ func NewDaemon(config *Config, registryService *registry.Service, containerdRemo
 		return nil, err
 	}
 
-	d.downloadManager = xfer.NewLayerDownloadManager(d.layerStore, maxDownloadConcurrency)
-	d.uploadManager = xfer.NewLayerUploadManager(maxUploadConcurrency)
+	logrus.Debugf("Max Concurrent Downloads: %d", *config.MaxConcurrentDownloads)
+	d.downloadManager = xfer.NewLayerDownloadManager(d.layerStore, *config.MaxConcurrentDownloads)
+	logrus.Debugf("Max Concurrent Uploads: %d", *config.MaxConcurrentUploads)
+	d.uploadManager = xfer.NewLayerUploadManager(*config.MaxConcurrentUploads)
 
 	ifs, err := image.NewFSStoreBackend(filepath.Join(imageRoot, "imagedb"))
 	if err != nil {
@@ -1510,6 +1503,8 @@ func (daemon *Daemon) initDiscovery(config *Config) error {
 // These are the settings that Reload changes:
 // - Daemon labels.
 // - Daemon debug log level.
+// - Daemon max concurrent downloads
+// - Daemon max concurrent uploads
 // - Cluster discovery (reconfigure and restart).
 func (daemon *Daemon) Reload(config *Config) error {
 	daemon.configStore.reloadLock.Lock()
@@ -1520,6 +1515,33 @@ func (daemon *Daemon) Reload(config *Config) error {
 	if config.IsValueSet("debug") {
 		daemon.configStore.Debug = config.Debug
 	}
+
+	// If no value is set for max-concurrent-downloads we assume it is the default value
+	// We always "reset" as the cost is lightweight and easy to maintain.
+	if config.IsValueSet("max-concurrent-downloads") && config.MaxConcurrentDownloads != nil {
+		*daemon.configStore.MaxConcurrentDownloads = *config.MaxConcurrentDownloads
+	} else {
+		maxConcurrentDownloads := defaultMaxConcurrentDownloads
+		daemon.configStore.MaxConcurrentDownloads = &maxConcurrentDownloads
+	}
+	logrus.Debugf("Reset Max Concurrent Downloads: %d", *daemon.configStore.MaxConcurrentDownloads)
+	if daemon.downloadManager != nil {
+		daemon.downloadManager.SetConcurrency(*daemon.configStore.MaxConcurrentDownloads)
+	}
+
+	// If no value is set for max-concurrent-upload we assume it is the default value
+	// We always "reset" as the cost is lightweight and easy to maintain.
+	if config.IsValueSet("max-concurrent-uploads") && config.MaxConcurrentUploads != nil {
+		*daemon.configStore.MaxConcurrentUploads = *config.MaxConcurrentUploads
+	} else {
+		maxConcurrentUploads := defaultMaxConcurrentUploads
+		daemon.configStore.MaxConcurrentUploads = &maxConcurrentUploads
+	}
+	logrus.Debugf("Reset Max Concurrent Uploads: %d", *daemon.configStore.MaxConcurrentUploads)
+	if daemon.uploadManager != nil {
+		daemon.uploadManager.SetConcurrency(*daemon.configStore.MaxConcurrentUploads)
+	}
+
 	return daemon.reloadClusterDiscovery(config)
 }
 

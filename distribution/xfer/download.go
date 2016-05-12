@@ -25,6 +25,11 @@ type LayerDownloadManager struct {
 	tm         TransferManager
 }
 
+// SetConcurrency set the max concurrent downloads for each pull
+func (ldm *LayerDownloadManager) SetConcurrency(concurrency int) {
+	ldm.tm.SetConcurrency(concurrency)
+}
+
 // NewLayerDownloadManager returns a new LayerDownloadManager.
 func NewLayerDownloadManager(layerStore layer.Store, concurrencyLimit int) *LayerDownloadManager {
 	return &LayerDownloadManager{
