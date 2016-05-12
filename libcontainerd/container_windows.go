@@ -185,7 +185,12 @@ func (ctr *container) waitExit(pid uint32, processFriendlyName string, isFirstPr
 				(herr.Err != hcsshim.ERROR_SHUTDOWN_IN_PROGRESS &&
 					herr.Err != ErrorBadPathname &&
 					herr.Err != syscall.ERROR_PATH_NOT_FOUND) {
-				logrus.Warnf("Ignoring error from ShutdownComputeSystem %s", err)
+				logrus.Debugf("waitExit - error from ShutdownComputeSystem on %s %v. Calling TerminateComputeSystem", ctr.containerCommon, err)
+				if err := hcsshim.TerminateComputeSystem(ctr.containerID, shutdownTimeout, "waitExit"); err != nil {
+					logrus.Debugf("waitExit - ignoring error from TerminateComputeSystem %s %v", ctr.containerID, err)
+				} else {
+					logrus.Debugf("Successful TerminateComputeSystem after failed ShutdownComputeSystem on %s in waitExit", ctr.containerID)
+				}
 			}
 		} else {
 			logrus.Debugf("Completed shutting down container %s", ctr.containerID)
