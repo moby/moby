@@ -2089,33 +2089,16 @@ func (s *DockerSuite) TestBuildRelativeWorkdir(c *check.C) {
 	}
 }
 
-// #22181 Regression test. Validates combinations of supported
-// WORKDIR dockerfile directives in Windows and non-Windows semantics.
+// #22181 Regression test. Single end-to-end test of using
+// Windows semantics. Most path handling verifications are in unit tests
 func (s *DockerSuite) TestBuildWindowsWorkdirProcessing(c *check.C) {
 	testRequires(c, DaemonIsWindows)
 	name := "testbuildwindowsworkdirprocessing"
 	_, err := buildImage(name,
 		`FROM busybox
-		WORKDIR a
-		RUN sh -c "[ "$PWD" = "C:/a" ]"
-		WORKDIR c:\\foo
-		RUN sh -c "[ "$PWD" = "C:/foo" ]"
-		WORKDIR \\foo
-		RUN sh -c "[ "$PWD" = "C:/foo" ]"
-		WORKDIR /foo
-		RUN sh -c "[ "$PWD" = "C:/foo" ]"
-		WORKDIR C:/foo
+		WORKDIR C:\\foo
 		WORKDIR bar
 		RUN sh -c "[ "$PWD" = "C:/foo/bar" ]"
-		WORKDIR c:/foo
-		WORKDIR bar
-		RUN sh -c "[ "$PWD" = "C:/foo/bar" ]"
-		WORKDIR c:/foo
-		WORKDIR \\bar
-		RUN sh -c "[ "$PWD" = "C:/bar" ]"
-		WORKDIR /foo
-		WORKDIR c:\\bar
-		RUN sh -c "[ "$PWD" = "C:/bar" ]"
 		`,
 		true)
 	if err != nil {
@@ -2123,8 +2106,8 @@ func (s *DockerSuite) TestBuildWindowsWorkdirProcessing(c *check.C) {
 	}
 }
 
-// #22181 Regression test. Validates combinations of supported
-// COPY dockerfile directives in Windows and non-Windows semantics.
+// #22181 Regression test. Most paths handling verifications are in unit test.
+// One functional test for end-to-end
 func (s *DockerSuite) TestBuildWindowsAddCopyPathProcessing(c *check.C) {
 	testRequires(c, DaemonIsWindows)
 	name := "testbuildwindowsaddcopypathprocessing"
@@ -2134,50 +2117,7 @@ func (s *DockerSuite) TestBuildWindowsAddCopyPathProcessing(c *check.C) {
 	// by docker on the Windows platform.
 	dockerfile := `
 		FROM busybox
-			# First cases with no workdir, all end up in the root directory of the system drive
-			COPY a1 ./
-			ADD  a2 ./
-			RUN sh -c "[ $(cat c:/a1) = 'helloa1' ]"
-			RUN sh -c "[ $(cat c:/a2) = 'worlda2' ]"
-
-			COPY b1 /
-			ADD  b2 /
-			RUN sh -c "[ $(cat c:/b1) = 'hellob1' ]"
-			RUN sh -c "[ $(cat c:/b2) = 'worldb2' ]"
-
-			COPY c1 c:/
-			ADD  c2 c:/
-			RUN sh -c "[ $(cat c:/c1) = 'helloc1' ]"
-			RUN sh -c "[ $(cat c:/c2) = 'worldc2' ]"
-
-			COPY d1 c:/
-			ADD  d2 c:/
-			RUN sh -c "[ $(cat c:/d1) = 'hellod1' ]"
-			RUN sh -c "[ $(cat c:/d2) = 'worldd2' ]"
-
-			COPY e1 .
-			ADD  e2 .
-			RUN sh -c "[ $(cat c:/e1) = 'helloe1' ]"
-			RUN sh -c "[ $(cat c:/e2) = 'worlde2' ]"
-			
-			# Now with a workdir
-			WORKDIR c:\\wa12
-			COPY wa1 ./
-			ADD wa2 ./
-			RUN sh -c "[ $(cat c:/wa12/wa1) = 'hellowa1' ]"
-			RUN sh -c "[ $(cat c:/wa12/wa2) = 'worldwa2' ]"
-
-			# No trailing slash on COPY/ADD, Linux-style path. 
-			# Results in dir being changed to a file
-			WORKDIR /wb1
-			COPY wb1 .
-			WORKDIR /wb2
-			ADD wb2 .
-			WORKDIR c:/
-			RUN sh -c "[ $(cat c:/wb1) = 'hellowb1' ]"
-			RUN sh -c "[ $(cat c:/wb2) = 'worldwb2' ]"
-
-			# No trailing slash on COPY/ADD, Windows-style path. 
+			# No trailing slash on COPY/ADD
 			# Results in dir being changed to a file
 			WORKDIR /wc1
 			COPY wc1 c:/wc1
@@ -2196,20 +2136,6 @@ func (s *DockerSuite) TestBuildWindowsAddCopyPathProcessing(c *check.C) {
 			RUN sh -c "[ $(cat c:/wd2/wd2) = 'worldwd2' ]"
 			`
 	ctx, err := fakeContext(dockerfile, map[string]string{
-		"a1":  "helloa1",
-		"a2":  "worlda2",
-		"b1":  "hellob1",
-		"b2":  "worldb2",
-		"c1":  "helloc1",
-		"c2":  "worldc2",
-		"d1":  "hellod1",
-		"d2":  "worldd2",
-		"e1":  "helloe1",
-		"e2":  "worlde2",
-		"wa1": "hellowa1",
-		"wa2": "worldwa2",
-		"wb1": "hellowb1",
-		"wb2": "worldwb2",
 		"wc1": "hellowc1",
 		"wc2": "worldwc2",
 		"wd1": "hellowd1",
@@ -2221,96 +2147,6 @@ func (s *DockerSuite) TestBuildWindowsAddCopyPathProcessing(c *check.C) {
 	defer ctx.Close()
 	_, err = buildImageFromContext(name, ctx, false)
 	if err != nil {
-		c.Fatal(err)
-	}
-}
-
-// #22181 Regression test.
-func (s *DockerSuite) TestBuildWindowsCopyFailsNonSystemDrive(c *check.C) {
-	testRequires(c, DaemonIsWindows)
-	name := "testbuildwindowscopyfailsnonsystemdrive"
-	dockerfile := `
-		FROM busybox
-		cOpY foo d:/
-		`
-	ctx, err := fakeContext(dockerfile, map[string]string{"foo": "hello"})
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer ctx.Close()
-	_, err = buildImageFromContext(name, ctx, false)
-	if err == nil {
-		c.Fatal(err)
-	}
-	if !strings.Contains(err.Error(), "Windows does not support COPY with a destinations not on the system drive (C:)") {
-		c.Fatal(err)
-	}
-}
-
-// #22181 Regression test.
-func (s *DockerSuite) TestBuildWindowsCopyFailsWorkdirNonSystemDrive(c *check.C) {
-	testRequires(c, DaemonIsWindows)
-	name := "testbuildwindowscopyfailsworkdirsystemdrive"
-	dockerfile := `
-		FROM busybox
-		WORKDIR d:/
-		cOpY foo .
-		`
-	ctx, err := fakeContext(dockerfile, map[string]string{"foo": "hello"})
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer ctx.Close()
-	_, err = buildImageFromContext(name, ctx, false)
-	if err == nil {
-		c.Fatal(err)
-	}
-	if !strings.Contains(err.Error(), "Windows does not support COPY with relative paths when WORKDIR is not the system drive") {
-		c.Fatal(err)
-	}
-}
-
-// #22181 Regression test.
-func (s *DockerSuite) TestBuildWindowsAddFailsNonSystemDrive(c *check.C) {
-	testRequires(c, DaemonIsWindows)
-	name := "testbuildwindowsaddfailsnonsystemdrive"
-	dockerfile := `
-		FROM busybox
-		AdD foo d:/
-		`
-	ctx, err := fakeContext(dockerfile, map[string]string{"foo": "hello"})
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer ctx.Close()
-	_, err = buildImageFromContext(name, ctx, false)
-	if err == nil {
-		c.Fatal(err)
-	}
-	if !strings.Contains(err.Error(), "Windows does not support ADD with a destinations not on the system drive (C:)") {
-		c.Fatal(err)
-	}
-}
-
-// #22181 Regression test.
-func (s *DockerSuite) TestBuildWindowsAddFailsWorkdirNonSystemDrive(c *check.C) {
-	testRequires(c, DaemonIsWindows)
-	name := "testbuildwindowsaddfailsworkdirsystemdrive"
-	dockerfile := `
-		FROM busybox
-		WORKDIR d:/
-		AdD foo .
-		`
-	ctx, err := fakeContext(dockerfile, map[string]string{"foo": "hello"})
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer ctx.Close()
-	_, err = buildImageFromContext(name, ctx, false)
-	if err == nil {
-		c.Fatal(err)
-	}
-	if !strings.Contains(err.Error(), "Windows does not support ADD with relative paths when WORKDIR is not the system drive") {
 		c.Fatal(err)
 	}
 }
