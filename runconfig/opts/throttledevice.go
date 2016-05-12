@@ -106,3 +106,6 @@ func (opt *ThrottledeviceOpt) GetList() []*blkiodev.ThrottleDevice {
 
 	return throttledevice
 }
+
+// Type returns a human readable string describing a ThrottledeviceOpt.
+func (opt *ThrottledeviceOpt) Type() string { return "THROTTLE" }

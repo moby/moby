@@ -50,3 +50,6 @@ func (o *UlimitOpt) GetList() []*units.Ulimit {
 
 	return ulimits
 }
+
+// Type returns a human readable string describing a UlimitOpt.
+func (o *UlimitOpt) Type() string { return "ULIMIT" }

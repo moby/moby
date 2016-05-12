@@ -14,9 +14,9 @@ parent = "smn_cli"
 
     Remove one or more images
 
-      -f, --force          Force removal of the image
-      --help               Print usage
-      --no-prune           Do not delete untagged parents
+      -f, --force        Force removal of the image
+          --help         Print usage
+          --no-prune     Do not delete untagged parents
 
 You can remove an image using its short or long ID, its tag, or its digest. If
 an image has one or more tag referencing it, you must remove all of them before

@@ -14,8 +14,8 @@ parent = "smn_cli"
 
     Kill a running container using SIGKILL or a specified signal
 
-      --help                 Print usage
-      -s, --signal="KILL"    Signal to send to the container
+          --help             Print usage
+      -s, --signal=STRING    Signal to send to the container, default is 'KILL'
 
 The main process inside the container will be sent `SIGKILL`, or any
 signal specified with option `--signal`.

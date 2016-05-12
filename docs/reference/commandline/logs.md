@@ -14,12 +14,12 @@ parent = "smn_cli"
 
     Fetch the logs of a container
 
-      --details                 Show extra details provided to logs
-      -f, --follow              Follow log output
-      --help                    Print usage
-      --since=""                Show logs since timestamp
-      -t, --timestamps          Show timestamps
-      --tail="all"              Number of lines to show from the end of the logs
+          --details         Show extra details provided to logs
+      -f, --follow          Follow log output
+          --help            Print usage
+          --since=STRING    Show logs since timestamp
+      -t, --timestamps      Show timestamps
+          --tail=STRING     Number of lines to show from the end of the logs, default is 'all'
 
 > **Note**: this command is available only for containers with `json-file` and
 > `journald` logging drivers.

@@ -40,3 +40,6 @@ func (o *IPOpt) String() string {
 	}
 	return o.IP.String()
 }
+
+// Type returns a human readable string describing an IPOpt.
+func (o *IPOpt) Type() string { return "IP" }

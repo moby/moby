@@ -14,13 +14,13 @@ parent = "smn_cli"
 
     Run a command in a running container
 
-      -d, --detach               Detached mode: run command in the background
-      --detach-keys              Specify the escape key sequence used to detach a container
-      --help                     Print usage
-      -i, --interactive          Keep STDIN open even if not attached
-      --privileged               Give extended Linux capabilities to the command
-      -t, --tty                  Allocate a pseudo-TTY
-      -u, --user=                Username or UID (format: <name|uid>[:<group|gid>])
+      -d, --detach                Detached mode: run command in the background
+          --detach-keys=STRING    Override the key sequence for detaching a container
+          --help                  Print usage
+      -i, --interactive           Keep STDIN open even if not attached
+          --privileged            Give extended privileges to the command
+      -t, --tty                   Allocate a pseudo-TTY
+      -u, --user=STRING           Username or UID (format: <name|uid>[:<group|gid>])
 
 The `docker exec` command runs a new command in a running container.
 

@@ -14,11 +14,11 @@ parent = "smn_cli"
 
     Create a volume
 
-      -d, --driver=local    Specify volume driver name
-      --help                Print usage
-      --label=[]            Set metadata for a volume
-      --name=               Specify volume name
-      -o, --opt=map[]       Set driver specific options
+      -d, --driver=STRING    Specify volume driver name, default is 'local'
+          --help             Print usage
+          --label=LIST       Set metadata for a volume
+          --name=STRING      Specify volume name
+      -o, --opt=MAP          Set driver specific options
 
 Creates a new volume that containers can consume and store data in. If a name is not specified, Docker generates a random name. You create a volume and then configure the container to use it, for example:
 
@@ -39,7 +39,7 @@ Volume names must be unique among drivers.  This means you cannot use the same v
 A volume named  "hello"  already exists with the "some-other" driver. Choose a different volume name.
 ```
 
-If you specify a volume name already in use on the current driver, Docker assumes you want to re-use the existing volume and does not return an error.   
+If you specify a volume name already in use on the current driver, Docker assumes you want to re-use the existing volume and does not return an error.
 
 ## Driver specific options
 

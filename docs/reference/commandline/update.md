@@ -14,18 +14,18 @@ parent = "smn_cli"
 
     Update configuration of one or more containers
 
-      --help=false               Print usage
-      --blkio-weight=0           Block IO (relative weight), between 10 and 1000
-      --cpu-shares=0             CPU shares (relative weight)
-      --cpu-period=0             Limit the CPU CFS (Completely Fair Scheduler) period
-      --cpu-quota=0              Limit the CPU CFS (Completely Fair Scheduler) quota
-      --cpuset-cpus=""           CPUs in which to allow execution (0-3, 0,1)
-      --cpuset-mems=""           Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
-      -m, --memory=""            Memory limit
-      --memory-reservation=""    Memory soft limit
-      --memory-swap=""           A positive integer equal to memory plus swap. Specify -1 to enable unlimited swap
-      --kernel-memory=""         Kernel memory limit: container must be stopped
-      --restart                  Restart policy to apply when a container exits
+          --blkio-weight=UINT16          Block IO (relative weight), between 10 and 1000
+          --cpu-shares=INT64             CPU shares (relative weight)
+          --cpu-period=INT64             Limit CPU CFS (Completely Fair Scheduler) period
+          --cpu-quota=INT64              Limit CPU CFS (Completely Fair Scheduler) quota
+          --cpuset-cpus=STRING           CPUs in which to allow execution (0-3, 0,1)
+          --cpuset-mems=STRING           MEMs in which to allow execution (0-3, 0,1)
+          --help                         Print usage
+          --kernel-memory=STRING         Kernel memory limit
+      -m, --memory=STRING                Memory limit
+          --memory-reservation=STRING    Memory soft limit
+          --memory-swap=STRING           Total memory limit (memory + swap), '-1' for unlimited
+          --restart=STRING               Restart policy to apply when a container exits
 
 The `docker update` command dynamically updates container configuration.
 You can use this command to prevent containers from consuming too many resources

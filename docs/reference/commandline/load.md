@@ -14,9 +14,9 @@ parent = "smn_cli"
 
     Load an image from a tar archive or STDIN
 
-      --help             Print usage
-      -i, --input=""     Read from a tar archive file, instead of STDIN. The tarball may be compressed with gzip, bzip, or xz
-      -q, --quiet        Suppress the load output. Without this option, a progress bar is displayed.
+          --help            Print usage
+      -i, --input=STRING    Read from a tar archive file, instead of STDIN
+      -q, --quiet           Suppress the load output
 
 Loads a tarred repository from a file or the standard input stream.
 Restores both images and tags.

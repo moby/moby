@@ -121,6 +121,8 @@ func (b *boolValue) String() string { return fmt.Sprintf("%v", *b) }
 
 func (b *boolValue) IsBoolFlag() bool { return true }
 
+func (b *boolValue) Type() string { return "BOOL" }
+
 // optional interface to indicate boolean flags that can be
 // supplied without "=value" text
 type boolFlag interface {
@@ -146,6 +148,8 @@ func (i *intValue) Get() interface{} { return int(*i) }
 
 func (i *intValue) String() string { return fmt.Sprintf("%v", *i) }
 
+func (i *intValue) Type() string { return "INT" }
+
 // -- int64 Value
 type int64Value int64
 
@@ -163,6 +167,8 @@ func (i *int64Value) Set(s string) error {
 func (i *int64Value) Get() interface{} { return int64(*i) }
 
 func (i *int64Value) String() string { return fmt.Sprintf("%v", *i) }
+
+func (i *int64Value) Type() string { return "INT64" }
 
 // -- uint Value
 type uintValue uint
@@ -182,6 +188,8 @@ func (i *uintValue) Get() interface{} { return uint(*i) }
 
 func (i *uintValue) String() string { return fmt.Sprintf("%v", *i) }
 
+func (i *uintValue) Type() string { return "UINT" }
+
 // -- uint64 Value
 type uint64Value uint64
 
@@ -199,6 +207,8 @@ func (i *uint64Value) Set(s string) error {
 func (i *uint64Value) Get() interface{} { return uint64(*i) }
 
 func (i *uint64Value) String() string { return fmt.Sprintf("%v", *i) }
+
+func (i *uint64Value) Type() string { return "UINT64" }
 
 // -- uint16 Value
 type uint16Value uint16
@@ -218,6 +228,8 @@ func (i *uint16Value) Get() interface{} { return uint16(*i) }
 
 func (i *uint16Value) String() string { return fmt.Sprintf("%v", *i) }
 
+func (i *uint16Value) Type() string { return "UINT16" }
+
 // -- string Value
 type stringValue string
 
@@ -234,6 +246,8 @@ func (s *stringValue) Set(val string) error {
 func (s *stringValue) Get() interface{} { return string(*s) }
 
 func (s *stringValue) String() string { return fmt.Sprintf("%s", *s) }
+
+func (s *stringValue) Type() string { return "STRING" }
 
 // -- float64 Value
 type float64Value float64
@@ -253,6 +267,8 @@ func (f *float64Value) Get() interface{} { return float64(*f) }
 
 func (f *float64Value) String() string { return fmt.Sprintf("%v", *f) }
 
+func (f *float64Value) Type() string { return "FLOAT" }
+
 // -- time.Duration Value
 type durationValue time.Duration
 
@@ -271,6 +287,8 @@ func (d *durationValue) Get() interface{} { return time.Duration(*d) }
 
 func (d *durationValue) String() string { return (*time.Duration)(d).String() }
 
+func (d *durationValue) Type() string { return "DURATION" }
+
 // Value is the interface to the dynamic value stored in a flag.
 // (The default value is represented as a string.)
 //
@@ -280,6 +298,7 @@ func (d *durationValue) String() string { return (*time.Duration)(d).String() }
 type Value interface {
 	String() string
 	Set(string) error
+	Type() string
 }
 
 // Getter is an interface that allows the contents of a Value to be retrieved.
@@ -524,23 +543,25 @@ func Set(name, value string) error {
 // value for a flag. It is not accurate but in practice works OK.
 func isZeroValue(value string) bool {
 	switch value {
-	case "false":
-		return true
-	case "":
-		return true
-	case "0":
+	case "false", "", "0", "[]", "map[]":
 		return true
 	}
 	return false
 }
 
 // PrintDefaults prints, to standard error unless configured
-// otherwise, the default values of all defined flags in the set.
+// otherwise, the default values of all defined flags in the set,
+// along with a *brief* help message for each flag.  The --help
+// information is intentionally terse, its purpose is to provide
+// a quick reference for commands.  Read the man pages if you want
+// detailed information regarding the usage of a command.
 func (fs *FlagSet) PrintDefaults() {
 	writer := tabwriter.NewWriter(fs.Out(), 20, 1, 3, ' ', 0)
-	home := homedir.Get()
 
-	// Don't substitute when HOME is /
+	// Print the operating system's shortcut for the home directory instead of the
+	// actual directory when displaying values that default to the home directory.
+	// Don't perform substitution when $HOME is '/'.
+	home := homedir.Get()
 	if runtime.GOOS != "windows" && home == "/" {
 		home = ""
 	}
@@ -557,21 +578,30 @@ func (fs *FlagSet) PrintDefaults() {
 				names = append(names, name)
 			}
 		}
+
 		if len(names) > 0 && len(flag.Usage) > 0 {
-			val := flag.DefValue
 
-			if home != "" && strings.HasPrefix(val, home) {
-				val = homedir.GetShortcutString() + val[len(home):]
+			nstring := fmt.Sprintf("-%s", strings.Join(names, ", -"))
+			if len(names) == 1 && strings.HasPrefix(names[0], "-") {
+				nstring = "    " + nstring
 			}
 
-			if isZeroValue(val) {
-				format := "  -%s"
-				fmt.Fprintf(writer, format, strings.Join(names, ", -"))
+			if isZeroValue(flag.DefValue) && flag.Value.Type() == "BOOL" {
+				fmt.Fprintf(writer, "  %s", nstring)
 			} else {
-				format := "  -%s=%s"
-				fmt.Fprintf(writer, format, strings.Join(names, ", -"), val)
+				fmt.Fprintf(writer, "  %s=%s", nstring, flag.Value.Type())
 			}
-			for _, line := range strings.Split(flag.Usage, "\n") {
+
+			usage := flag.Usage
+			if !isZeroValue(flag.DefValue) {
+				val := flag.DefValue
+				if home != "" && strings.HasPrefix(val, home) {
+					val = homedir.GetShortcutString() + val[len(home):]
+				}
+
+				usage = fmt.Sprintf("%s, default is '%s'", usage, val)
+			}
+			for _, line := range strings.Split(usage, "\n") {
 				fmt.Fprintln(writer, "\t", line)
 			}
 		}

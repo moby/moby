@@ -14,10 +14,10 @@ parent = "smn_cli"
 
     Show the history of an image
 
-      -H, --human=true     Print sizes and dates in human readable format
-      --help               Print usage
-      --no-trunc           Don't truncate output
-      -q, --quiet          Only show numeric IDs
+      -H, --human=BOOL    Print sizes and dates in human readable format, default is 'true'
+          --help          Print usage
+          --no-trunc      Don't truncate output
+      -q, --quiet         Only show numeric IDs
 
 To see how the `docker:latest` image was built:
 

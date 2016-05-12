@@ -14,18 +14,18 @@ parent = "smn_cli"
 
     Creates a new network with a name specified by the user
 
-    --aux-address=map[]      Auxiliary ipv4 or ipv6 addresses used by network driver
-    -d --driver=DRIVER       Driver to manage the Network bridge or overlay. The default is bridge.
-    --gateway=[]             ipv4 or ipv6 Gateway for the master subnet
-    --help                   Print usage
-    --internal               Restricts external access to the network
-    --ip-range=[]            Allocate container ip from a sub-range
-    --ipam-driver=default    IP Address Management Driver
-    --ipam-opt=map[]         Set custom IPAM driver specific options
-    --ipv6                   Enable IPv6 networking
-    --label=[]               Set metadata on a network
-    -o --opt=map[]           Set custom driver specific options
-    --subnet=[]              Subnet in CIDR format that represents a network segment
+          --aux-address=MAP       auxiliary ipv4 or ipv6 addresses used by Network driver
+      -d, --driver=STRING         Driver to manage the Network, default is 'bridge'
+          --gateway=LIST          ipv4 or ipv6 Gateway for the master subnet
+          --help                  Print usage
+          --internal              restricts external access to the network
+          --ip-range=LIST         allocate container ip from a sub-range
+          --ipam-driver=STRING    IP Address Management Driver, default is 'default'
+          --ipam-opt=MAP          set IPAM driver specific options
+          --ipv6                  enable IPv6 networking
+          --label=LIST            set metadata on a network
+      -o, --opt=MAP               set driver specific options
+          --subnet=LIST           subnet in CIDR format that represents a network segment
 
 Creates a new network. The `DRIVER` accepts `bridge` or `overlay` which are the
 built-in network drivers. If you have installed a third party or your own custom

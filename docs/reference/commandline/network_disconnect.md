@@ -16,7 +16,7 @@ parent = "smn_cli"
     Disconnects a container from a network
 
       -f, --force        Force the container to disconnect from a network
-      --help             Print usage
+          --help         Print usage
 
 Disconnects a container from a network. The container must be running to disconnect it from the network.
 

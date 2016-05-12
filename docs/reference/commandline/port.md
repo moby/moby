@@ -12,10 +12,9 @@ parent = "smn_cli"
 
     Usage: docker port [OPTIONS] CONTAINER [PRIVATE_PORT[/PROTO]]
 
-    List port mappings for the CONTAINER, or lookup the public-facing port that is
-	NAT-ed to the PRIVATE_PORT
+    List port mappings or a specific mapping for the CONTAINER
 
-      --help          Print usage
+          --help         Print usage
 
 You can find out all the ports mapped by not specifying a `PRIVATE_PORT`, or
 just a specific mapping:

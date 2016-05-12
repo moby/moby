@@ -14,10 +14,10 @@ parent = "smn_cli"
 
     Get real time events from the server
 
-      -f, --filter=[]    Filter output based on conditions provided
-      --help             Print usage
-      --since=""         Show all events created since timestamp
-      --until=""         Stream events until this timestamp
+      -f, --filter=LIST     Filter output based on conditions provided
+          --help            Print usage
+          --since=STRING    Show all events created since timestamp
+          --until=STRING    Stream events until this timestamp
 
 Docker containers report the following events:
 

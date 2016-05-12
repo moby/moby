@@ -90,7 +90,7 @@ func showVersion() {
 func initClientFlags(commonFlags *cliflags.CommonFlags) *cliflags.ClientFlags {
 	clientFlags := &cliflags.ClientFlags{FlagSet: new(flag.FlagSet), Common: commonFlags}
 	client := clientFlags.FlagSet
-	client.StringVar(&clientFlags.ConfigDir, []string{"-config"}, cliconfig.ConfigDir(), "Location of client config files")
+	client.StringVar(&clientFlags.ConfigDir, []string{"-config"}, cliconfig.ConfigDir(), "Path to client config files")
 
 	clientFlags.PostParse = func() {
 		clientFlags.Common.PostParse()

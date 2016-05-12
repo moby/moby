@@ -14,4 +14,4 @@ parent = "smn_cli"
 
     Block until a container stops, then print its exit code.
 
-      --help          Print usage
+          --help         Print usage

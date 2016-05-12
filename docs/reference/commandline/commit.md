@@ -14,11 +14,11 @@ parent = "smn_cli"
 
     Create a new image from a container's changes
 
-      -a, --author=""     Author (e.g., "John Hannibal Smith <hannibal@a-team.com>")
-      -c, --change=[]     Apply specified Dockerfile instructions while committing the image
-      --help              Print usage
-      -m, --message=""    Commit message
-      -p, --pause=true    Pause container during commit
+      -a, --author=STRING     Author (e.g., "John Hannibal Smith <hannibal@a-team.com>")
+      -c, --change=LIST       Apply Dockerfile instruction to the created image
+          --help              Print usage
+      -m, --message=STRING    Commit message
+      -p, --pause=BOOL        Pause container during commit, default is 'true'
 
 It can be useful to commit a container's file changes or settings into a new
 image. This allows you debug a container by running an interactive shell, or to
@@ -62,7 +62,7 @@ created.  Supported `Dockerfile` instructions:
     $ docker inspect -f "{{ .Config.Env }}" f5283438590d
     [HOME=/ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin DEBUG=true]
 
-## Commit a container with new `CMD` and `EXPOSE` instructions 
+## Commit a container with new `CMD` and `EXPOSE` instructions
 
     $ docker ps
     ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
@@ -71,7 +71,7 @@ created.  Supported `Dockerfile` instructions:
 
     $ docker commit --change='CMD ["apachectl", "-DFOREGROUND"]' -c "EXPOSE 80" c3f279d17e0a  svendowideit/testimage:version4
     f5283438590d
-    
+
     $ docker run -d svendowideit/testimage:version4
     89373736e2e7f00bc149bd783073ac43d0507da250e999f3f1036e0db60817c0
 

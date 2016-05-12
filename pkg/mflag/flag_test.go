@@ -305,6 +305,8 @@ func (f *flagVar) Set(value string) error {
 	return nil
 }
 
+func (f *flagVar) Type() string { return "FLAG" }
+
 func TestUserDefined(t *testing.T) {
 	var flags FlagSet
 	flags.Init("test", ContinueOnError)
@@ -341,6 +343,8 @@ func (b *boolFlagVar) Set(value string) error {
 func (b *boolFlagVar) IsBoolFlag() bool {
 	return b.count < 4
 }
+
+func (b *boolFlagVar) Type() string { return "BOOL_FLAG" }
 
 func TestUserDefinedBool(t *testing.T) {
 	var flags FlagSet

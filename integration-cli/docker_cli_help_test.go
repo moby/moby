@@ -12,11 +12,22 @@ import (
 	"github.com/go-check/check"
 )
 
+const (
+	// DO NOT change the max widths to get TestHelpTextVerify to pass,
+	// come up with a more concise name and/or descript for your flag!
+
+	// The target width for help output is 80 chars for 'docker help'
+	// and 100 chars for all sub-commands' --help.  Pretty formatting
+	// and legible default value information pushes us a few chars past
+	// the desired limit.
+	maxMainHelpWidth = 83
+	maxHelpWidth     = 103
+)
+
 func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
-	// Make sure main help text fits within 80 chars and that
-	// on non-windows system we use ~ when possible (to shorten things).
+	// On non-windows system we must use ~ when possible (to shorten things).
 	// Test for HOME set to its default value and set to "/" on linux
 	// Yes on windows setting up an array and looping (right now) isn't
 	// necessary because we just have one value, but we'll need the
@@ -50,24 +61,23 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 
 		scanForHome := runtime.GOOS != "windows" && home != "/"
 
-		// Check main help text to make sure its not over 80 chars
 		helpCmd := exec.Command(dockerBinary, "help")
 		helpCmd.Env = newEnvs
 		out, _, err := runCommandWithOutput(helpCmd)
 		c.Assert(err, checker.IsNil, check.Commentf(out))
 		lines := strings.Split(out, "\n")
-		foundTooLongLine := false
+
 		for _, line := range lines {
-			if !foundTooLongLine && len(line) > 80 {
-				c.Logf("Line is too long:\n%s", line)
-				foundTooLongLine = true
+
+			err = testHelpCommon(line, "docker", maxMainHelpWidth)
+			if err != nil {
+				c.Error(err)
 			}
-			// All lines should not end with a space
-			c.Assert(line, checker.Not(checker.HasSuffix), " ", check.Commentf("Line should not end with a space"))
 
 			if scanForHome && strings.Contains(line, `=`+home) {
 				c.Fatalf("Line should use '%q' instead of %q:\n%s", homedir.GetShortcutString(), home, line)
 			}
+
 			if runtime.GOOS != "windows" {
 				i := strings.Index(line, homedir.GetShortcutString())
 				if i >= 0 && i != len(line)-1 && line[i+1] != '/' {
@@ -76,7 +86,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 			}
 		}
 
-		// Make sure each cmd's help text fits within 90 chars and that
+		// Make sure each cmd's help text fits within the allowed width and that
 		// on non-windows system we use ~ when possible (to shorten things).
 		// Pull the list of commands from the "Commands:" section of docker help
 		helpCmd = exec.Command(dockerBinary, "help")
@@ -134,7 +144,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 		for index := 0; index < len(cmdsToTest); index++ {
 			err := <-errChan
 			if err != nil {
-				c.Fatal(err)
+				c.Error(err)
 			}
 		}
 
@@ -208,6 +218,25 @@ func (s *DockerSuite) TestHelpExitCodesHelpOutput(c *check.C) {
 	c.Assert(stderr, checker.Equals, "docker: 'BadCmd' is not a docker command.\nSee 'docker --help'.\n", check.Commentf("Unexcepted output for 'docker badCmd'\n"))
 }
 
+func testHelpCommon(line string, cmd string, maxWidth int) error {
+
+	if len(line) > maxWidth {
+		return fmt.Errorf("Help for %q is too long (max allowed is %d chars):\n%s\n", cmd, maxWidth, line)
+	}
+
+	// Flag descriptions should NOT end with a period
+	if strings.HasSuffix(line, ".") && (strings.HasPrefix(line, "  -") || strings.HasPrefix(line, "      --")) {
+		return fmt.Errorf("Help for %q should not end flag description with a period:  \n%s\n", cmd, line)
+	}
+
+	// Lines should NOT end with a space
+	if strings.HasSuffix(line, " ") {
+		return fmt.Errorf("Help for %q should not end with a space: \n%s\n", cmd, line)
+	}
+
+	return nil
+}
+
 func testCommand(cmd string, newEnvs []string, scanForHome bool, home string) error {
 
 	args := strings.Split(cmd+" --help", " ")
@@ -233,8 +262,10 @@ func testCommand(cmd string, newEnvs []string, scanForHome bool, home string) er
 	// Check each line for lots of stuff
 	lines := strings.Split(out, "\n")
 	for _, line := range lines {
-		if len(line) > 107 {
-			return fmt.Errorf("Help for %q is too long:\n%s\n", cmd, line)
+
+		err = testHelpCommon(line, cmd, maxHelpWidth)
+		if err != nil {
+			return err
 		}
 
 		if scanForHome && strings.Contains(line, `"`+home) {
@@ -246,23 +277,11 @@ func testCommand(cmd string, newEnvs []string, scanForHome bool, home string) er
 			return fmt.Errorf("Help for %q should not have used ~:\n%s", cmd, line)
 		}
 
-		// If a line starts with 4 spaces then assume someone
-		// added a multi-line description for an option and we need
-		// to flag it
-		if strings.HasPrefix(line, "    ") {
-			return fmt.Errorf("Help for %q should not have a multi-line option", cmd)
+		// If a line starts with 4 spaces and is not the start of a solo double-dash,
+		// then assume someone added a multi-line description for a flag.
+		if strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "      --") {
+			return fmt.Errorf("Help for %q should not have a multi-line flag description:  \n%s\n", cmd, line)
 		}
-
-		// Options should NOT end with a period
-		if strings.HasPrefix(line, "  -") && strings.HasSuffix(line, ".") {
-			return fmt.Errorf("Help for %q should not end with a period: %s", cmd, line)
-		}
-
-		// Options should NOT end with a space
-		if strings.HasSuffix(line, " ") {
-			return fmt.Errorf("Help for %q should not end with a space", cmd)
-		}
-
 	}
 
 	// For each command make sure we generate an error

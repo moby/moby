@@ -36,6 +36,9 @@ func (opts *ListOpts) String() string {
 	return fmt.Sprintf("%v", []string((*opts.values)))
 }
 
+// Type returns a human readable string describing a ListOpts.
+func (opts *ListOpts) Type() string { return "LIST" }
+
 // Set validates if needed the input value and adds it to the
 // internal slice.
 func (opts *ListOpts) Set(value string) error {
@@ -162,6 +165,9 @@ func (opts *MapOpts) GetAll() map[string]string {
 func (opts *MapOpts) String() string {
 	return fmt.Sprintf("%v", map[string]string((opts.values)))
 }
+
+// Type returns a human readable string describing a MapOpts.
+func (opts *MapOpts) Type() string { return "MAP" }
 
 // NewMapOpts creates a new MapOpts with the specified map of values and a validator.
 func NewMapOpts(values map[string]string, validator ValidatorFctType) *MapOpts {
