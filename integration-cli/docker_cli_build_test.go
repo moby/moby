@@ -41,25 +41,6 @@ func (s *DockerSuite) TestBuildJSONEmptyRun(c *check.C) {
 
 }
 
-func (s *DockerSuite) TestBuildEmptyWhitespace(c *check.C) {
-	name := "testbuildemptywhitespace"
-
-	_, err := buildImage(
-		name,
-		`
-    FROM busybox
-    COPY
-      quux \
-      bar
-    `,
-		true)
-
-	if err == nil {
-		c.Fatal("no error when dealing with a COPY statement with no content on the same line")
-	}
-
-}
-
 func (s *DockerSuite) TestBuildShCmdJSONEntrypoint(c *check.C) {
 	name := "testbuildshcmdjsonentrypoint"
 
@@ -3517,36 +3498,6 @@ func (s *DockerSuite) TestBuildOnBuildForbiddenChained(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildOnBuildForbiddenFrom(c *check.C) {
-	name := "testbuildonbuildforbiddenfrom"
-	_, err := buildImage(name,
-		`FROM busybox
-		ONBUILD FROM scratch`,
-		true)
-	if err != nil {
-		if !strings.Contains(err.Error(), "FROM isn't allowed as an ONBUILD trigger") {
-			c.Fatalf("Wrong error %v, must be about FROM forbidden", err)
-		}
-	} else {
-		c.Fatal("Error must not be nil")
-	}
-}
-
-func (s *DockerSuite) TestBuildOnBuildForbiddenMaintainer(c *check.C) {
-	name := "testbuildonbuildforbiddenmaintainer"
-	_, err := buildImage(name,
-		`FROM busybox
-		ONBUILD MAINTAINER docker.io`,
-		true)
-	if err != nil {
-		if !strings.Contains(err.Error(), "MAINTAINER isn't allowed as an ONBUILD trigger") {
-			c.Fatalf("Wrong error %v, must be about MAINTAINER forbidden", err)
-		}
-	} else {
-		c.Fatal("Error must not be nil")
-	}
-}
-
 // gh #2446
 func (s *DockerSuite) TestBuildAddToSymlinkDest(c *check.C) {
 	testRequires(c, DaemonIsLinux)
@@ -5914,22 +5865,6 @@ func (s *DockerSuite) TestBuildStartsFromOne(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildBadCmdFlag(c *check.C) {
-	name := "testbuildbadcmdflag"
-
-	_, out, err := buildImageWithOut(name, `
-  FROM busybox
-  MAINTAINER --boo joe@example.com`, false)
-	if err == nil {
-		c.Fatal("Build should have failed")
-	}
-
-	exp := "\nUnknown flag: boo\n"
-	if !strings.Contains(out, exp) {
-		c.Fatalf("Bad output\nGot:%s\n\nExpected to contain:%s\n", out, exp)
-	}
-}
-
 func (s *DockerSuite) TestBuildRUNErrMsg(c *check.C) {
 	// Test to make sure the bad command is quoted with just "s and
 	// not as a Go []string
@@ -6581,23 +6516,6 @@ func (s *DockerSuite) TestBuildBuildTimeArgDefaultOverride(c *check.C) {
 	containerName := "bldargCont"
 	if out, _ := dockerCmd(c, "run", "--name", containerName, imgName); !strings.Contains(out, envValOveride) {
 		c.Fatalf("run produced invalid output: %q, expected %q", out, envValOveride)
-	}
-}
-
-func (s *DockerSuite) TestBuildBuildTimeArgMultiArgsSameLine(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Windows does not support ARG
-	imgName := "bldargtest"
-	envKey := "foo"
-	envKey1 := "foo1"
-	args := []string{}
-	dockerfile := fmt.Sprintf(`FROM busybox
-		ARG %s %s`, envKey, envKey1)
-
-	errStr := "ARG requires exactly one argument definition"
-	if _, out, err := buildImageWithOut(imgName, dockerfile, true, args...); err == nil {
-		c.Fatalf("build succeeded, expected to fail. Output: %v", out)
-	} else if !strings.Contains(out, errStr) {
-		c.Fatalf("Unexpected error. output: %q, expected error: %q", out, errStr)
 	}
 }
 
