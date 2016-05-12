@@ -1123,10 +1123,9 @@ func (n *network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, preferredPo
 			return "", nil, nil, err
 		}
 
-		// If the network belongs to global scope or the pool
-		// returned is invalid, no need to perform overlap
-		// check.
-		if n.Scope() == datastore.GlobalScope || !types.IsIPNetValid(pool) {
+		// If the network belongs to global scope or the pool was
+		// explicitely chosen or it is invalid, do not perform the overlap check.
+		if n.Scope() == datastore.GlobalScope || preferredPool != "" || !types.IsIPNetValid(pool) {
 			return poolID, pool, meta, nil
 		}
 
