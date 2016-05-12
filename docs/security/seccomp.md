@@ -27,7 +27,7 @@ CONFIG_SECCOMP=y
 
 > **Note**: seccomp profiles require seccomp 2.2.1 and are only
 > available starting with Debian 9 "Stretch", Ubuntu 15.10 "Wily",
-> Fedora 22, centos 7 and Oracle Linux 7. To use this feature on Ubuntu 14.04, Debian Wheezy, or
+> Fedora 22, CentOS 7 and Oracle Linux 7. To use this feature on Ubuntu 14.04, Debian Wheezy, or
 > Debian Jessie, you must download the [latest static Docker Linux binary](../installation/binaries.md).
 > This feature is currently *not* available on other distributions.
 
