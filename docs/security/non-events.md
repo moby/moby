@@ -5,7 +5,6 @@ description = "Review of security vulnerabilities Docker mitigated"
 keywords = ["Docker, Docker documentation,  security, security non-events"]
 [menu.main]
 parent = "smn_secure_docker"
-weight =-99
 +++
 <![end-metadata]-->
 
