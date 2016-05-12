@@ -56,7 +56,7 @@ clone git github.com/mistifyio/go-zfs 22c9b32c84eb0d0c6f4043b6e90fc94073de92fa
 clone git github.com/pborman/uuid v1.0
 
 # get desired notary commit, might also need to be updated in Dockerfile
-clone git github.com/docker/notary v0.3.0-RC1
+clone git github.com/docker/notary v0.3.0
 
 clone git google.golang.org/grpc a22b6611561e9f0a3e0919690dd2caf48f14c517 https://github.com/grpc/grpc-go.git
 clone git github.com/miekg/pkcs11 df8ae6ca730422dba20c768ff38ef7d79077a59f

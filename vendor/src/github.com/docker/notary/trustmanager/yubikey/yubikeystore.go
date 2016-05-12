@@ -137,7 +137,7 @@ type YubiPrivateKey struct {
 	libLoader     pkcs11LibLoader
 }
 
-// YubiKeySigner wraps a YubiPrivateKey and implements the crypto.Signer interface
+// yubikeySigner wraps a YubiPrivateKey and implements the crypto.Signer interface
 type yubikeySigner struct {
 	YubiPrivateKey
 }
@@ -344,7 +344,7 @@ func getECDSAKey(ctx IPKCS11Ctx, session pkcs11.SessionHandle, pkcs11KeyID []byt
 	return data.NewECDSAPublicKey(pubBytes), data.CanonicalRootRole, nil
 }
 
-// Sign returns a signature for a given signature request
+// sign returns a signature for a given signature request
 func sign(ctx IPKCS11Ctx, session pkcs11.SessionHandle, pkcs11KeyID []byte, passRetriever passphrase.Retriever, payload []byte) ([]byte, error) {
 	err := login(ctx, session, passRetriever, pkcs11.CKU_USER, UserPin)
 	if err != nil {

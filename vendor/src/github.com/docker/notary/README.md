@@ -83,8 +83,17 @@ Prerequisites:
 - Go >= 1.6.1
 - [godep](https://github.com/tools/godep) installed
 - libtool development headers installed
-    - Ubuntu: `apt-get install libtool-dev`
+    - Ubuntu: `apt-get install libltdl-dev`
     - CentOS/RedHat: `yum install libtool-ltdl-devel`
     - Mac OS ([Homebrew](http://brew.sh/)): `brew install libtool`
 
 Run `make binaries`, which creates the Notary Client CLI binary at `bin/notary`.
+Note that `make binaries` assumes a standard Go directory structure, in which
+Notary is checked out to the `src` directory in your `GOPATH`. For example:
+```
+$GOPATH/
+    src/
+        github.com/
+            docker/
+                notary/
+```

@@ -3,6 +3,7 @@ package trustpinning
 import (
 	"crypto/x509"
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary/trustmanager"
 	"github.com/docker/notary/tuf/utils"
 	"strings"
@@ -67,17 +68,12 @@ func NewTrustPinChecker(trustPinConfig TrustPinConfig, gun string) (CertChecker,
 func (t trustPinChecker) certsCheck(leafCert *x509.Certificate, intCerts []*x509.Certificate) bool {
 	// reconstruct the leaf + intermediate cert chain, which is bundled as {leaf, intermediates...},
 	// in order to get the matching id in the root file
-	leafCertID, err := trustmanager.FingerprintCert(leafCert)
+	key, err := trustmanager.CertBundleToKey(leafCert, intCerts)
 	if err != nil {
+		logrus.Debug("error creating cert bundle: ", err.Error())
 		return false
 	}
-	rootKeys := trustmanager.CertsToKeys([]*x509.Certificate{leafCert}, map[string][]*x509.Certificate{leafCertID: intCerts})
-	for keyID := range rootKeys {
-		if utils.StrSliceContains(t.pinnedCertIDs, keyID) {
-			return true
-		}
-	}
-	return false
+	return utils.StrSliceContains(t.pinnedCertIDs, key.ID())
 }
 
 func (t trustPinChecker) caCheck(leafCert *x509.Certificate, intCerts []*x509.Certificate) bool {

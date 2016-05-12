@@ -73,6 +73,9 @@ ${PREFIX}/bin/static/notary-server:
 
 ${PREFIX}/bin/static/notary-signer:
 	@echo "notary-signer: static builds not supported on OS X"
+
+${PREFIX}/bin/static/notary:
+	@echo "notary: static builds not supported on OS X"
 else
 ${PREFIX}/bin/static/notary-server: NOTARY_VERSION $(shell find . -type f -name '*.go')
 	@echo "+ $@"
@@ -81,6 +84,10 @@ ${PREFIX}/bin/static/notary-server: NOTARY_VERSION $(shell find . -type f -name 
 ${PREFIX}/bin/static/notary-signer: NOTARY_VERSION $(shell find . -type f -name '*.go')
 	@echo "+ $@"
 	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary-signer
+
+${PREFIX}/bin/static/notary:
+	@echo "+ $@"
+	@go build -tags ${NOTARY_BUILDTAGS} -o $@ ${GO_LDFLAGS_STATIC} ./cmd/notary
 endif
 
 vet:
@@ -179,7 +186,7 @@ client: ${PREFIX}/bin/notary
 binaries: ${PREFIX}/bin/notary-server ${PREFIX}/bin/notary ${PREFIX}/bin/notary-signer
 	@echo "+ $@"
 
-static: ${PREFIX}/bin/static/notary-server ${PREFIX}/bin/static/notary-signer
+static: ${PREFIX}/bin/static/notary-server ${PREFIX}/bin/static/notary-signer ${PREFIX}/bin/static/notary
 	@echo "+ $@"
 
 notary-dockerfile:
