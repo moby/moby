@@ -22,7 +22,7 @@ func TestEventsLog(t *testing.T) {
 	}
 	actor := events.Actor{
 		ID:         "cont",
-		Attributes: map[string]string{"image": "image"},
+		Attributes: map[string]string{events.ContainerImageEventKey: "image"},
 	}
 	e.Log("test", events.ContainerEventType, actor)
 	select {

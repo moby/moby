@@ -12,6 +12,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/events/testutils"
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/engine-api/types/events"
 	"github.com/go-check/check"
 )
 
@@ -166,10 +167,10 @@ func eventActionsByIDAndType(c *check.C, events []string, id, eventType string) 
 // matchIDAndEventType returns true if an event matches a given id and type.
 // It also resolves names in the event attributes if the id doesn't match.
 func matchIDAndEventType(matches map[string]string, id, eventType string) bool {
-	return matchEventID(matches, id) && matches["eventType"] == eventType
+	return matches["eventType"] == eventType && matchEventID(matches, id, eventType)
 }
 
-func matchEventID(matches map[string]string, id string) bool {
+func matchEventID(matches map[string]string, id, eventType string) bool {
 	matchID := matches["id"] == id || strings.HasPrefix(matches["id"], id)
 	if !matchID && matches["attributes"] != "" {
 		// try matching a name in the attributes
@@ -178,7 +179,14 @@ func matchEventID(matches map[string]string, id string) bool {
 			kv := strings.Split(a, "=")
 			attributes[kv[0]] = kv[1]
 		}
-		matchID = attributes["name"] == id
+		switch eventType {
+		case events.ContainerEventType:
+			matchID = attributes[events.ContainerEventKey] == id
+		case events.NetworkEventType:
+			matchID = attributes[events.NetworkEventKey] == id
+		case events.ImageEventType:
+			matchID = attributes[events.ImageEventKey] == id
+		}
 	}
 	return matchID
 }
@@ -193,11 +201,11 @@ func parseEvents(c *check.C, out, match string) {
 	}
 }
 
-func parseEventsWithID(c *check.C, out, match, id string) {
+func parseEventsWithID(c *check.C, out, match, id, eventType string) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	for _, event := range events {
 		matches := eventstestutils.ScanMap(event)
-		c.Assert(matchEventID(matches, id), checker.True)
+		c.Assert(matchEventID(matches, id, eventType), checker.True)
 
 		matched, err := regexp.MatchString(match, matches["action"])
 		c.Assert(err, checker.IsNil)

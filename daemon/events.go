@@ -20,9 +20,9 @@ func (daemon *Daemon) LogContainerEvent(container *container.Container, action s
 func (daemon *Daemon) LogContainerEventWithAttributes(container *container.Container, action string, attributes map[string]string) {
 	copyAttributes(attributes, container.Config.Labels)
 	if container.Config.Image != "" {
-		attributes["image"] = container.Config.Image
+		attributes[events.ContainerImageEventKey] = container.Config.Image
 	}
-	attributes["name"] = strings.TrimLeft(container.Name, "/")
+	attributes[events.ContainerEventKey] = strings.TrimLeft(container.Name, "/")
 
 	actor := events.Actor{
 		ID:         container.ID,
@@ -45,7 +45,7 @@ func (daemon *Daemon) LogImageEventWithAttributes(imageID, refName, action strin
 		copyAttributes(attributes, img.Config.Labels)
 	}
 	if refName != "" {
-		attributes["name"] = refName
+		attributes[events.ImageEventKey] = refName
 	}
 	actor := events.Actor{
 		ID:         imageID,
@@ -71,8 +71,8 @@ func (daemon *Daemon) LogNetworkEvent(nw libnetwork.Network, action string) {
 
 // LogNetworkEventWithAttributes generates an event related to a network with specific given attributes.
 func (daemon *Daemon) LogNetworkEventWithAttributes(nw libnetwork.Network, action string, attributes map[string]string) {
-	attributes["name"] = nw.Name()
-	attributes["type"] = nw.Type()
+	attributes[events.NetworkEventKey] = nw.Name()
+	attributes[events.NetworkEventTypeKey] = nw.Type()
 	actor := events.Actor{
 		ID:         nw.ID(),
 		Attributes: attributes,

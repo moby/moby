@@ -92,7 +92,7 @@ func (e *Events) Log(action, eventType string, actor eventtypes.Actor) {
 	case eventtypes.ContainerEventType:
 		jm.ID = actor.ID
 		jm.Status = action
-		jm.From = actor.Attributes["image"]
+		jm.From = actor.Attributes[eventtypes.ContainerImageEventKey]
 	case eventtypes.ImageEventType:
 		jm.ID = actor.ID
 		jm.Status = action

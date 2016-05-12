@@ -13,6 +13,7 @@ import (
 
 	"github.com/docker/docker/daemon/events/testutils"
 	"github.com/docker/docker/pkg/integration/checker"
+	engineEvents "github.com/docker/engine-api/types/events"
 	"github.com/go-check/check"
 )
 
@@ -168,10 +169,16 @@ func (s *DockerSuite) TestEventsContainerEventsAttrSort(c *check.C) {
 		matches := eventstestutils.ScanMap(event)
 		if matches["eventType"] == "container" && matches["action"] == "create" {
 			matchedEvents++
-			c.Assert(out, checker.Contains, "(image=busybox, name=container-events-test)", check.Commentf("Event attributes not sorted"))
+			c.Assert(out, checker.Contains,
+				"("+engineEvents.ContainerImageEventKey+"=busybox, "+
+					engineEvents.ContainerEventKey+"=container-events-test)",
+				check.Commentf("Event attributes not sorted"))
 		} else if matches["eventType"] == "container" && matches["action"] == "start" {
 			matchedEvents++
-			c.Assert(out, checker.Contains, "(image=busybox, name=container-events-test)", check.Commentf("Event attributes not sorted"))
+			c.Assert(out, checker.Contains,
+				"("+engineEvents.ContainerImageEventKey+"=busybox, "+
+					engineEvents.ContainerEventKey+"=container-events-test)",
+				check.Commentf("Event attributes not sorted"))
 		}
 	}
 	c.Assert(matchedEvents, checker.Equals, 2, check.Commentf("missing events for container container-events-test:\n%s", out))
@@ -211,7 +218,8 @@ func (s *DockerSuite) TestEventsImageTag(c *check.C) {
 	event := strings.TrimSpace(events[0])
 
 	matches := eventstestutils.ScanMap(event)
-	c.Assert(matchEventID(matches, image), checker.True, check.Commentf("matches: %v\nout:\n%s", matches, out))
+	c.Assert(matchEventID(matches, image, engineEvents.ImageEventType),
+		checker.True, check.Commentf("matches: %v\nout:\n%s", matches, out))
 	c.Assert(matches["action"], checker.Equals, "tag")
 }
 
@@ -418,7 +426,7 @@ func (s *DockerSuite) TestEventsFilterContainer(c *check.C) {
 		}
 		for _, event := range events {
 			matches := eventstestutils.ScanMap(event)
-			if !matchEventID(matches, id) {
+			if !matchEventID(matches, id, engineEvents.ContainerEventType) {
 				return fmt.Errorf("expected event for container id %s: %s - parsed container id: %s", id, event, matches["id"])
 			}
 		}

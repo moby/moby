@@ -9,6 +9,21 @@ const (
 	VolumeEventType = "volume"
 	// NetworkEventType is the event type that networks generate
 	NetworkEventType = "network"
+
+	// Key attributes for used for the events above.
+
+	// ContainerEventKey is the key used for container event attributes
+	ContainerEventKey = "com.docker.container.name"
+	// ContainerImageEventKey is the key used for container images event attributes
+	ContainerImageEventKey = "com.docker.container.image"
+	// ImageEventKey is the key used for image event attributes
+	ImageEventKey = "com.docker.image.name"
+	// VolumeEventKey is the key used for volume event attributes
+	VolumeEventKey = "com.docker.volume.name"
+	// NetworkEventKey is the key used for network event attributes
+	NetworkEventKey = "com.docker.network.name"
+	// NetworkEventTypeKey is the key used for network event attributes
+	NetworkEventTypeKey = "com.docker.network.type"
 )
 
 // Actor describes something that generates events,

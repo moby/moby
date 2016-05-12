@@ -82,9 +82,9 @@ func (s *DockerSuite) TestApiNetworkInspect(c *check.C) {
 	c.Assert(nr.Name, checker.Equals, "bridge")
 
 	// run a container and attach it to the default bridge network
-	out, _ := dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
+	out, _ := dockerCmd(c, "run", "-d", "--name", "test-2", "busybox", "top")
 	containerID := strings.TrimSpace(out)
-	containerIP := findContainerIP(c, "test", "bridge")
+	containerIP := findContainerIP(c, "test-2", "bridge")
 
 	// inspect default bridge network again and make sure the container is connected
 	nr = getNetworkResource(c, nr.ID)
