@@ -124,11 +124,18 @@ type Backend interface {
 	// ContainerKill stops the container execution abruptly.
 	ContainerKill(containerID string, sig uint64) error
 	// ContainerStart starts a new container
-	ContainerStart(containerID string, hostConfig *container.HostConfig, validateHostname bool) error
+	ContainerStart(containerID string, hostConfig *container.HostConfig, validateHostname bool, checkpoint string) error
 	// ContainerWait stops processing until the given container is stopped.
 	ContainerWait(containerID string, timeout time.Duration) (int, error)
 	// ContainerUpdateCmdOnBuild updates container.Path and container.Args
 	ContainerUpdateCmdOnBuild(containerID string, cmd []string) error
+
+	// CheckpointCreate checkpoints a running container
+	CheckpointCreate(container string, config types.CheckpointCreateOptions) error
+	// CheckpointDelete deletes a container's checkpoint
+	CheckpointDelete(container string, checkpoint string) error
+	// CheckpointList lists the available checkpoints for a container
+	CheckpointList(container string) ([]types.Checkpoint, error)
 
 	// ContainerCopy copies/extracts a source FileInfo to a destination path inside a container
 	// specified by a container object.

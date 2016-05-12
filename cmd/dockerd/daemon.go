@@ -409,7 +409,7 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
 	if d.NetworkControllerEnabled() {
 		routers = append(routers, network.NewRouter(d, c))
 	}
-	routers = addExperimentalRouters(routers)
+	routers = addExperimentalRouters(routers, d, decoder)
 
 	s.InitRouter(utils.IsDebugEnabled(), routers...)
 }

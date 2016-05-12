@@ -261,7 +261,7 @@ func (ctr *container) waitExit(process *process, isFirstProcessToStart bool) err
 			ctr.restarting = false
 			ctr.client.deleteContainer(ctr.friendlyName)
 			if err == nil {
-				if err = ctr.client.Create(ctr.containerID, ctr.ociSpec, ctr.options...); err != nil {
+				if err = ctr.client.Create(ctr.containerID, "", "", ctr.ociSpec, ctr.options...); err != nil {
 					logrus.Errorf("libcontainerd: error restarting %v", err)
 				}
 			}

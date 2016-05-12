@@ -151,10 +151,16 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 		hostConfig = c
 	}
 
-	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
-	if err := s.backend.ContainerStart(vars["name"], hostConfig, validateHostname); err != nil {
+	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
+
+	checkpoint := r.Form.Get("checkpoint")
+	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
+	if err := s.backend.ContainerStart(vars["name"], hostConfig, validateHostname, checkpoint); err != nil {
+		return err
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
