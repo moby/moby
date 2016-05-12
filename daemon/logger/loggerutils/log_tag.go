@@ -2,9 +2,7 @@ package loggerutils
 
 import (
 	"bytes"
-	"fmt"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/utils/templates"
 )
@@ -12,7 +10,10 @@ import (
 // ParseLogTag generates a context aware tag for consistency across different
 // log drivers based on the context of the running container.
 func ParseLogTag(ctx logger.Context, defaultTemplate string) (string, error) {
-	tagTemplate := lookupTagTemplate(ctx, defaultTemplate)
+	tagTemplate := ctx.Config["tag"]
+	if tagTemplate == "" {
+		tagTemplate = defaultTemplate
+	}
 
 	tmpl, err := templates.NewParse("log-tag", tagTemplate)
 	if err != nil {
@@ -24,23 +25,4 @@ func ParseLogTag(ctx logger.Context, defaultTemplate string) (string, error) {
 	}
 
 	return buf.String(), nil
-}
-
-func lookupTagTemplate(ctx logger.Context, defaultTemplate string) string {
-	tagTemplate := ctx.Config["tag"]
-
-	deprecatedConfigs := []string{"syslog-tag", "gelf-tag", "fluentd-tag"}
-	for i := 0; tagTemplate == "" && i < len(deprecatedConfigs); i++ {
-		cfg := deprecatedConfigs[i]
-		if ctx.Config[cfg] != "" {
-			tagTemplate = ctx.Config[cfg]
-			logrus.Warn(fmt.Sprintf("Using log tag from deprecated log-opt '%s'. Please use: --log-opt tag=\"%s\"", cfg, tagTemplate))
-		}
-	}
-
-	if tagTemplate == "" {
-		tagTemplate = defaultTemplate
-	}
-
-	return tagTemplate
 }

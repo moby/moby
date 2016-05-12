@@ -64,8 +64,3 @@ Apr  1 15:22:17 ip-10-27-39-73 docker/logtester.1234[45499]: + exec app
 Apr  1 15:22:17 ip-10-27-39-73 docker/logtester.1234[45499]: 2016-04-01 15:22:17.075416751 +0000 UTC stderr msg: 1
 ```
 
-
-
->**Note**:The driver specific log options `syslog-tag`, `fluentd-tag` and
->`gelf-tag` still work for backwards compatibility. However, going forward you
->should standardize on using the generic `tag` log option instead.

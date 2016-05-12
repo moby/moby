@@ -89,7 +89,7 @@ func rfc5424microformatterWithAppNameAsTag(p syslog.Priority, hostname, tag, con
 
 // New creates a syslog logger using the configuration passed in on
 // the context. Supported context configuration variables are
-// syslog-address, syslog-facility, syslog-format,  syslog-tag.
+// syslog-address, syslog-facility, syslog-format.
 func New(ctx logger.Context) (logger.Logger, error) {
 	tag, err := loggerutils.ParseLogTag(ctx, "{{.ID}}")
 	if err != nil {
@@ -184,7 +184,7 @@ func parseAddress(address string) (string, string, error) {
 }
 
 // ValidateLogOpt looks for syslog specific log options
-// syslog-address, syslog-facility, & syslog-tag.
+// syslog-address, syslog-facility.
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
@@ -192,7 +192,6 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "labels":
 		case "syslog-address":
 		case "syslog-facility":
-		case "syslog-tag":
 		case "syslog-tls-ca-cert":
 		case "syslog-tls-cert":
 		case "syslog-tls-key":
