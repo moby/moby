@@ -275,6 +275,9 @@ func (d *Driver) Create(id string, parent string, mountLabel string, storageOpt 
 func (d *Driver) create(id, parent string, storageOpt map[string]string) error {
 	name := d.zfsPath(id)
 	quota, err := parseStorageOpt(storageOpt)
+	if err != nil {
+		return err
+	}
 	if parent == "" {
 		mountoptions := map[string]string{"mountpoint": "legacy"}
 		fs, err := zfs.CreateFilesystem(name, mountoptions)
