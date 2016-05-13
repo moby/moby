@@ -84,3 +84,23 @@ func (s *DockerSuite) TestRenameInvalidName(c *check.C) {
 	out, _ = dockerCmd(c, "ps", "-a")
 	c.Assert(out, checker.Contains, "myname", check.Commentf("Output of docker ps should have included 'myname': %s", out))
 }
+
+func (s *DockerSuite) TestRenameAnonymousContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	dockerCmd(c, "network", "create", "network1")
+	out, _ := dockerCmd(c, "create", "-it", "--net", "network1", "busybox", "top")
+
+	anonymousContainerID := strings.TrimSpace(out)
+
+	dockerCmd(c, "rename", anonymousContainerID, "container1")
+	dockerCmd(c, "start", "container1")
+
+	count := "-c"
+	if daemonPlatform == "windows" {
+		count = "-n"
+	}
+
+	_, _, err := dockerCmdWithError("run", "--net", "network1", "busybox", "ping", count, "1", "container1")
+	c.Assert(err, check.IsNil, check.Commentf("Embedded DNS lookup fails after renaming anonymous container: %v", err))
+}

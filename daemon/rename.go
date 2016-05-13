@@ -27,6 +27,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	}
 
 	oldName = container.Name
+	oldIsAnonymousEndpoint := container.NetworkSettings.IsAnonymousEndpoint
 
 	container.Lock()
 	defer container.Unlock()
@@ -35,10 +36,12 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	}
 
 	container.Name = newName
+	container.NetworkSettings.IsAnonymousEndpoint = false
 
 	defer func() {
 		if err != nil {
 			container.Name = oldName
+			container.NetworkSettings.IsAnonymousEndpoint = oldIsAnonymousEndpoint
 			daemon.reserveName(container.ID, oldName)
 			daemon.releaseName(newName)
 		}
@@ -61,6 +64,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	defer func() {
 		if err != nil {
 			container.Name = oldName
+			container.NetworkSettings.IsAnonymousEndpoint = oldIsAnonymousEndpoint
 			if e := container.ToDisk(); e != nil {
 				logrus.Errorf("%s: Failed in writing to Disk on rename failure: %v", container.ID, e)
 			}
