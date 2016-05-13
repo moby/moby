@@ -169,27 +169,27 @@ seccomp, you will need to use the `seccomp` build tag:
 export DOCKER_BUILDTAGS='seccomp'
 ```
 
-There are build tags for disabling graphdrivers as well. By default, support
-for all graphdrivers are built in.
+There are build tags for disabling storage drivers as well. By default, support
+for all storage drivers are built in.
 
 To disable btrfs:
 ```bash
-export DOCKER_BUILDTAGS='exclude_graphdriver_btrfs'
+export DOCKER_BUILDTAGS='exclude_storage_btrfs'
 ```
 
 To disable devicemapper:
 ```bash
-export DOCKER_BUILDTAGS='exclude_graphdriver_devicemapper'
+export DOCKER_BUILDTAGS='exclude_storage_devicemapper'
 ```
 
 To disable aufs:
 ```bash
-export DOCKER_BUILDTAGS='exclude_graphdriver_aufs'
+export DOCKER_BUILDTAGS='exclude_storage_aufs'
 ```
 
 NOTE: if you need to set more than one build tag, space separate them:
 ```bash
-export DOCKER_BUILDTAGS='apparmor selinux exclude_graphdriver_aufs'
+export DOCKER_BUILDTAGS='apparmor selinux exclude_storage_aufs'
 ```
 
 ### Static Daemon
@@ -276,10 +276,10 @@ the client will even run on alternative platforms such as Mac OS X / Darwin.
 Some of Docker's features are activated by using optional command-line flags or
 by having support for them in the kernel or userspace. A few examples include:
 
-* AUFS graph driver (requires AUFS patches/support enabled in the kernel, and at
+* AUFS storage driver (requires AUFS patches/support enabled in the kernel, and at
   least the "auplink" utility from aufs-tools)
-* BTRFS graph driver (requires BTRFS support enabled in the kernel)
-* ZFS graph driver (requires userspace zfs-utils and a corresponding kernel module)
+* BTRFS storage driver (requires BTRFS support enabled in the kernel)
+* ZFS storage driver (requires userspace zfs-utils and a corresponding kernel module)
 * Libseccomp to allow running seccomp profiles with containers
 
 ## Daemon Init Script
@@ -297,7 +297,7 @@ docker daemon
 ```
 
 Generally, a `DOCKER_OPTS` variable of some kind is available for adding more
-flags (such as changing the graph driver to use BTRFS, switching the location of
+flags (such as changing the storage driver to use BTRFS, switching the location of
 "/var/lib/docker", etc).
 
 ## Communicate
