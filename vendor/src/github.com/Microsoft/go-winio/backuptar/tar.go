@@ -1,6 +1,7 @@
 package backuptar
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -29,9 +30,10 @@ const (
 )
 
 const (
-	hdrFileAttributes     = "fileattr"
-	hdrSecurityDescriptor = "sd"
-	hdrMountPoint         = "mountpoint"
+	hdrFileAttributes        = "fileattr"
+	hdrSecurityDescriptor    = "sd"
+	hdrRawSecurityDescriptor = "rawsd"
+	hdrMountPoint            = "mountpoint"
 )
 
 func writeZeroes(w io.Writer, count int64) error {
@@ -108,7 +110,7 @@ func BasicInfoHeader(name string, size int64, fileInfo *winio.FileBasicInfo) *ta
 //
 // MSWINDOWS.fileattr: The Win32 file attributes, as a decimal value
 //
-// MSWINDOWS.sd: The Win32 security descriptor, in SDDL (string) format
+// MSWINDOWS.rawsd: The Win32 security descriptor, in raw binary format
 //
 // MSWINDOWS.mountpoint: If present, this is a mount point and not a symlink, even though the type is '2' (symlink)
 func WriteTarFileFromBackupStream(t *tar.Writer, r io.Reader, name string, size int64, fileInfo *winio.FileBasicInfo) error {
@@ -133,11 +135,7 @@ func WriteTarFileFromBackupStream(t *tar.Writer, r io.Reader, name string, size 
 			if err != nil {
 				return err
 			}
-			sddl, err := winio.SecurityDescriptorToSddl(sd)
-			if err != nil {
-				return err
-			}
-			hdr.Winheaders[hdrSecurityDescriptor] = sddl
+			hdr.Winheaders[hdrRawSecurityDescriptor] = base64.StdEncoding.EncodeToString(sd)
 
 		case winio.BackupReparseData:
 			hdr.Mode |= c_ISLNK
@@ -263,16 +261,28 @@ func FileInfoFromHeader(hdr *tar.Header) (name string, size int64, fileInfo *win
 // tar file that was not processed, or io.EOF is there are no more.
 func WriteBackupStreamFromTarFile(w io.Writer, t *tar.Reader, hdr *tar.Header) (*tar.Header, error) {
 	bw := winio.NewBackupStreamWriter(w)
+	var sd []byte
+	var err error
+	// Maintaining old SDDL-based behavior for backward compatibility.  All new tar headers written
+	// by this library will have raw binary for the security descriptor.
 	if sddl, ok := hdr.Winheaders[hdrSecurityDescriptor]; ok {
-		sd, err := winio.SddlToSecurityDescriptor(sddl)
+		sd, err = winio.SddlToSecurityDescriptor(sddl)
 		if err != nil {
 			return nil, err
 		}
+	}
+	if sdraw, ok := hdr.Winheaders[hdrRawSecurityDescriptor]; ok {
+		sd, err = base64.StdEncoding.DecodeString(sdraw)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(sd) != 0 {
 		bhdr := winio.BackupHeader{
 			Id:   winio.BackupSecurity,
 			Size: int64(len(sd)),
 		}
-		err = bw.WriteHeader(&bhdr)
+		err := bw.WriteHeader(&bhdr)
 		if err != nil {
 			return nil, err
 		}
@@ -284,7 +294,7 @@ func WriteBackupStreamFromTarFile(w io.Writer, t *tar.Reader, hdr *tar.Header) (
 	if hdr.Typeflag == tar.TypeSymlink {
 		_, isMountPoint := hdr.Winheaders[hdrMountPoint]
 		rp := winio.ReparsePoint{
-			Target:       hdr.Linkname,
+			Target:       filepath.FromSlash(hdr.Linkname),
 			IsMountPoint: isMountPoint,
 		}
 		reparse := winio.EncodeReparsePoint(&rp)
