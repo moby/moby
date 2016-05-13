@@ -215,7 +215,7 @@ open the PR against the "release" branch instead of accidentally against
 
 ### 7. Build release candidate rpms and debs
 
-**NOTE**: It will be a lot faster if you pass a different graphdriver with
+**NOTE**: It will be a lot faster if you pass a different storage driver with
 `DOCKER_GRAPHDRIVER` than `vfs`.
 
 ```bash

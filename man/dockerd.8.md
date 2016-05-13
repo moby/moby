@@ -249,7 +249,7 @@ output otherwise.
 
 # STORAGE DRIVER OPTIONS
 
-Docker uses storage backends (known as "graphdrivers" in the Docker
+Docker uses storage backends (known as "storage drivers" in the Docker
 internals) to create writable containers from images.  Many of these
 backends use operating system level technologies and can be
 configured.
