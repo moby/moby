@@ -13,10 +13,10 @@ import (
 	"github.com/vbatts/tar-split/tar/storage"
 )
 
-// CreateRWLayerByGraphID creates a RWLayer in the layer store using
-// the provided name with the given graphID. To get the RWLayer
+// CreateRWLayerByStorageID creates a RWLayer in the layer store using
+// the provided name with the given storageID. To get the RWLayer
 // after migration the layer may be retrieved by the given name.
-func (ls *layerStore) CreateRWLayerByGraphID(name string, graphID string, parent ChainID) (err error) {
+func (ls *layerStore) CreateRWLayerByStorageID(name string, storageID string, parent ChainID) (err error) {
 	ls.mountL.Lock()
 	defer ls.mountL.Unlock()
 	m, ok := ls.mounts[name]
@@ -24,15 +24,15 @@ func (ls *layerStore) CreateRWLayerByGraphID(name string, graphID string, parent
 		if m.parent.chainID != parent {
 			return errors.New("name conflict, mismatched parent")
 		}
-		if m.mountID != graphID {
+		if m.mountID != storageID {
 			return errors.New("mount already exists")
 		}
 
 		return nil
 	}
 
-	if !ls.driver.Exists(graphID) {
-		return fmt.Errorf("graph ID does not exist: %q", graphID)
+	if !ls.driver.Exists(storageID) {
+		return fmt.Errorf("storage ID does not exist: %q", storageID)
 	}
 
 	var p *roLayer
@@ -52,18 +52,18 @@ func (ls *layerStore) CreateRWLayerByGraphID(name string, graphID string, parent
 		}()
 	}
 
-	// TODO: Ensure graphID has correct parent
+	// TODO: Ensure storageID has correct parent
 
 	m = &mountedLayer{
 		name:       name,
 		parent:     p,
-		mountID:    graphID,
+		mountID:    storageID,
 		layerStore: ls,
 		references: map[RWLayer]*referencedRWLayer{},
 	}
 
 	// Check for existing init layer
-	initID := fmt.Sprintf("%s-init", graphID)
+	initID := fmt.Sprintf("%s-init", storageID)
 	if ls.driver.Exists(initID) {
 		m.initID = initID
 	}
@@ -75,11 +75,11 @@ func (ls *layerStore) CreateRWLayerByGraphID(name string, graphID string, parent
 	return nil
 }
 
-func (ls *layerStore) ChecksumForGraphID(id, parent, oldTarDataPath, newTarDataPath string) (diffID DiffID, size int64, err error) {
+func (ls *layerStore) ChecksumForStorageID(id, parent, oldTarDataPath, newTarDataPath string) (diffID DiffID, size int64, err error) {
 	defer func() {
 		if err != nil {
 			logrus.Debugf("could not get checksum for %q with tar-split: %q", id, err)
-			diffID, size, err = ls.checksumForGraphIDNoTarsplit(id, parent, newTarDataPath)
+			diffID, size, err = ls.checksumForStorageIDNoTarsplit(id, parent, newTarDataPath)
 		}
 	}()
 
@@ -114,7 +114,7 @@ func (ls *layerStore) ChecksumForGraphID(id, parent, oldTarDataPath, newTarDataP
 	return
 }
 
-func (ls *layerStore) checksumForGraphIDNoTarsplit(id, parent, newTarDataPath string) (diffID DiffID, size int64, err error) {
+func (ls *layerStore) checksumForStorageIDNoTarsplit(id, parent, newTarDataPath string) (diffID DiffID, size int64, err error) {
 	rawarchive, err := ls.driver.Diff(id, parent)
 	if err != nil {
 		return
@@ -144,7 +144,7 @@ func (ls *layerStore) checksumForGraphIDNoTarsplit(id, parent, newTarDataPath st
 	return
 }
 
-func (ls *layerStore) RegisterByGraphID(graphID string, parent ChainID, diffID DiffID, tarDataFile string, size int64) (Layer, error) {
+func (ls *layerStore) RegisterByStorageID(storageID string, parent ChainID, diffID DiffID, tarDataFile string, size int64) (Layer, error) {
 	// err is used to hold the error which will always trigger
 	// cleanup of creates sources but may not be an error returned
 	// to the caller (already exists).
@@ -169,7 +169,7 @@ func (ls *layerStore) RegisterByGraphID(graphID string, parent ChainID, diffID D
 	// Create new roLayer
 	layer := &roLayer{
 		parent:         p,
-		cacheID:        graphID,
+		cacheID:        storageID,
 		referenceCount: 1,
 		layerStore:     ls,
 		references:     map[Layer]struct{}{},
@@ -194,7 +194,7 @@ func (ls *layerStore) RegisterByGraphID(graphID string, parent ChainID, diffID D
 
 	defer func() {
 		if err != nil {
-			logrus.Debugf("Cleaning up transaction after failed migration for %s: %v", graphID, err)
+			logrus.Debugf("Cleaning up transaction after failed migration for %s: %v", storageID, err)
 			if err := tx.Cancel(); err != nil {
 				logrus.Errorf("Error canceling metadata transaction %q: %s", tx.String(), err)
 			}

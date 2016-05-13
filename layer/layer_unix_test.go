@@ -4,7 +4,7 @@ package layer
 
 import "testing"
 
-func graphDiffSize(ls Store, l Layer) (int64, error) {
+func storageDiffSize(ls Store, l Layer) (int64, error) {
 	cl := getCachedLayer(l)
 	var parent string
 	if cl.parent != nil {
@@ -13,7 +13,7 @@ func graphDiffSize(ls Store, l Layer) (int64, error) {
 	return ls.(*layerStore).driver.DiffSize(cl.cacheID, parent)
 }
 
-// Unix as Windows graph driver does not support Changes which is indirectly
+// Unix as Windows storage driver does not support Changes which is indirectly
 // invoked by calling DiffSize on the driver
 func TestLayerSize(t *testing.T) {
 	ls, _, cleanup := newTestStore(t)
@@ -32,7 +32,7 @@ func TestLayerSize(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer1DiffSize, err := graphDiffSize(ls, layer1)
+	layer1DiffSize, err := storageDiffSize(ls, layer1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func TestLayerSize(t *testing.T) {
 		t.Fatalf("Unexpected size %d, expected %d", layer1Size, expected)
 	}
 
-	layer2DiffSize, err := graphDiffSize(ls, layer2)
+	layer2DiffSize, err := storageDiffSize(ls, layer2)
 	if err != nil {
 		t.Fatal(err)
 	}
