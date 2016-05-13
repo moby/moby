@@ -151,8 +151,7 @@ should implement the following two methods:
     "RequestMethod":     "The HTTP method",
     "RequestURI":        "The HTTP request URI",
     "RequestBody":       "Byte array containing the raw HTTP request body",
-    "RequestHeader":     "Byte array containing the raw HTTP request header as a map[string][]string ",
-    "RequestStatusCode": "Request status code"
+    "RequestHeader":     "Byte array containing the raw HTTP request header as a map[string][]string "
 }
 ```
 
@@ -177,7 +176,6 @@ should implement the following two methods:
     "RequestURI":        "The HTTP request URI",
     "RequestBody":       "Byte array containing the raw HTTP request body",
     "RequestHeader":     "Byte array containing the raw HTTP request header as a map[string][]string",
-    "RequestStatusCode": "Request status code",
     "ResponseBody":      "Byte array containing the raw HTTP response body",
     "ResponseHeader":    "Byte array containing the raw HTTP response header as a map[string][]string",
     "ResponseStatusCode":"Response status code"

@@ -29,7 +29,7 @@ instructions that didn’t modify the filesystem.
 
 Content addressability is the foundation for the new distribution features. The
 image pull and push code has been reworked to use a download/upload manager
-concept that makes pushing and pulling images much more stable and mitigate any
+concept that makes pushing and pulling images much more stable and mitigates any
 parallel request issues. The download manager also brings retries on failed
 downloads and better prioritization for concurrent downloads.
 
