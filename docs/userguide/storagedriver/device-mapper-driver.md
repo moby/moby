@@ -371,7 +371,8 @@ capacity.
 
 ### For a loop-lvm configuration
 
-In this scenario, the thin pool is configured to use `loop-lvm` mode. To show the specifics of the existing configuration use `docker info`:
+In this scenario, the thin pool is configured to use `loop-lvm` mode. To show
+the specifics of the existing configuration use `docker info`:
 
 ```bash
 $ sudo docker info
@@ -448,23 +449,33 @@ The `Data Space` values show that the pool is 100GB total. This example extends 
 
 	a. Get the pool name first.
 
-		$ sudo dmsetup status docker-8:1-123141-pool: 0 209715200 thin-pool 91
-		422/524288 18338/1638400 - rw discard_passdown queue_if_no_space -
+	```bash
+	$ sudo dmsetup status docker-8:1-123141-pool: 0 209715200 thin-pool 91
+	422/524288 18338/1638400 - rw discard_passdown queue_if_no_space -
+	```
 
-		The name is the string before the colon.
+	The name is the string before the colon.
 
  	b. Dump the device mapper table first.
 
-		$ sudo dmsetup table docker-8:1-123141-pool
-		0 209715200 thin-pool 7:1 7:0 128 32768 1 skip_block_zeroing
+	```bash
+	$ sudo dmsetup table docker-8:1-123141-pool
+	0 209715200 thin-pool 7:1 7:0 128 32768 1 skip_block_zeroing
+	```
 
 	c. Calculate the real total sectors of the thin pool now.
 
-		Change the second number of the table info (i.e. the disk end sector) to reflect the new number of 512 byte sectors in the disk. For example, as the new loop size is 200GB, change the second number to 419430400.
+	Change the second number of the table info (i.e. the disk end sector) to
+	reflect the new number of 512 byte sectors in the disk. For example, as the
+	new loop size is 200GB, change the second number to 419430400.
 
 	d. Reload the thin pool with the new sector number
 
-		$ sudo dmsetup suspend docker-8:1-123141-pool && sudo dmsetup reload docker-8:1-123141-pool --table '0 419430400 thin-pool 7:1 7:0 128 32768 1 skip_block_zeroing' && sudo dmsetup resume docker-8:1-123141-pool
+	```bash
+	$ sudo dmsetup suspend docker-8:1-123141-pool \
+	    && sudo dmsetup reload docker-8:1-123141-pool --table '0 419430400 thin-pool 7:1 7:0 128 32768 1 skip_block_zeroing' \
+	    && sudo dmsetup resume docker-8:1-123141-pool
+	```
 
 #### The device_tool
 
@@ -506,29 +517,39 @@ disk partition.
 
 	a. Get the pool name.
 
-		$ sudo dmsetup status | grep pool
-		docker-253:17-1835016-pool: 0 96460800 thin-pool 51593 6270/1048576 701943/753600 - rw no_discard_passdown queue_if_no_space
+	```bash
+	$ sudo dmsetup status | grep pool
+	docker-253:17-1835016-pool: 0 96460800 thin-pool 51593 6270/1048576 701943/753600 - rw no_discard_passdown queue_if_no_space
+	```
 
-		The name is the string before the colon.
+	The name is the string before the colon.
 
 	b. Dump the device mapper table.
 
-		$ sudo dmsetup table docker-253:17-1835016-pool
-		0 96460800 thin-pool 252:0 252:1 128 32768 1 skip_block_zeroing
+	```bash
+	$ sudo dmsetup table docker-253:17-1835016-pool
+	0 96460800 thin-pool 252:0 252:1 128 32768 1 skip_block_zeroing
+	```
 
 	c. Calculate the real total sectors of the thin pool now. we can use `blockdev` to get the real size of data lv.
 
-		Change the second number of the table info (i.e. the disk end sector) to
-		reflect the new number of 512 byte sectors in the disk. For example, as the
-		new data `lv` size is `264132100096` bytes, change the second number to
-		`515883008`.
+	Change the second number of the table info (i.e. the disk end sector) to
+	reflect the new number of 512 byte sectors in the disk. For example, as the
+	new data `lv` size is `264132100096` bytes, change the second number to
+	`515883008`.
 
-		$ sudo blockdev --getsize64 /dev/vg-docker/data
-		264132100096
+	```bash
+	$ sudo blockdev --getsize64 /dev/vg-docker/data
+	264132100096
+	```
 
 	d. Then reload the thin pool with the new sector number.
 
-		$ sudo dmsetup suspend docker-253:17-1835016-pool && sudo dmsetup reload docker-253:17-1835016-pool --table  '0 515883008 thin-pool 252:0 252:1 128 32768 1 skip_block_zeroing' && sudo dmsetup resume docker-253:17-1835016-pool
+	```bash
+	$ sudo dmsetup suspend docker-253:17-1835016-pool \
+	    && sudo dmsetup reload docker-253:17-1835016-pool --table  '0 515883008 thin-pool 252:0 252:1 128 32768 1 skip_block_zeroing' \
+	    && sudo dmsetup resume docker-253:17-1835016-pool
+	```
 
 ## Device Mapper and Docker performance
 
@@ -570,20 +591,20 @@ There are several other things that impact the performance of the
 `devicemapper` storage driver.
 
 - **The mode.** The default mode for Docker running the `devicemapper` storage
-driver is `loop-lvm`. This mode uses sparse files and suffers from poor
-performance. It is **not recommended for production**. The recommended mode for
- production environments is `direct-lvm` where the storage driver writes
-directly to raw block devices.
+  driver is `loop-lvm`. This mode uses sparse files and suffers from poor
+  performance. It is **not recommended for production**. The recommended mode
+  for production environments is `direct-lvm` where the storage driver writes
+  directly to raw block devices.
 
 - **High speed storage.** For best performance you should place the `Data file`
- and `Metadata file` on high speed storage such as SSD. This can be direct
-attached storage or from a SAN or NAS array.
+  and `Metadata file` on high speed storage such as SSD. This can be direct
+  attached storage or from a SAN or NAS array.
 
 - **Memory usage.** `devicemapper` is not the most memory efficient Docker
-storage driver. Launching *n* copies of the same container loads *n* copies of
-its files into memory. This can have a memory impact on your Docker host. As a
-result, the `devicemapper` storage driver may not be the best choice for PaaS
-and other high density use cases.
+  storage driver. Launching *n* copies of the same container loads *n* copies
+  of its files into memory. This can have a memory impact on your Docker host.
+  As a result, the `devicemapper` storage driver may not be the best choice for
+  PaaS and other high density use cases.
 
 One final point, data volumes provide the best and most predictable
 performance. This is because they bypass the storage driver and do not incur
