@@ -11,11 +11,11 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/storage"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/vbatts/tar-split/tar/asm"
-	"github.com/vbatts/tar-split/tar/storage"
+	tarStorage "github.com/vbatts/tar-split/tar/storage"
 )
 
 func writeTarSplitFile(name string, tarContent []byte) error {
@@ -27,7 +27,7 @@ func writeTarSplitFile(name string, tarContent []byte) error {
 
 	fz := gzip.NewWriter(f)
 
-	metaPacker := storage.NewJSONPacker(fz)
+	metaPacker := tarStorage.NewJSONPacker(fz)
 	defer fz.Close()
 
 	rdr, err := asm.NewInputTarStream(bytes.NewReader(tarContent), metaPacker, nil)
@@ -72,16 +72,16 @@ func TestLayerMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	graph, err := newVFSGraphDriver(filepath.Join(td, "graphdriver-"))
+	storage, err := newVFSStorage(filepath.Join(td, "storage-"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	graphID1 := stringid.GenerateRandomID()
-	if err := graph.Create(graphID1, "", "", nil); err != nil {
+	storageID1 := stringid.GenerateRandomID()
+	if err := storage.Create(storageID1, "", "", nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := graph.ApplyDiff(graphID1, "", archive.Reader(bytes.NewReader(tar1))); err != nil {
+	if _, err := storage.ApplyDiff(storageID1, "", archive.Reader(bytes.NewReader(tar1))); err != nil {
 		t.Fatal(err)
 	}
 
@@ -94,18 +94,18 @@ func TestLayerMigration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ls, err := NewStoreFromGraphDriver(fms, graph)
+	ls, err := NewStoreFromStorage(fms, storage)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	newTarDataPath := filepath.Join(td, ".migration-tardata")
-	diffID, size, err := ls.(*layerStore).ChecksumForGraphID(graphID1, "", tf1, newTarDataPath)
+	diffID, size, err := ls.(*layerStore).ChecksumForStorageID(storageID1, "", tf1, newTarDataPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	layer1a, err := ls.(*layerStore).RegisterByGraphID(graphID1, "", diffID, newTarDataPath, size)
+	layer1a, err := ls.(*layerStore).RegisterByStorageID(storageID1, "", diffID, newTarDataPath, size)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,11 +122,11 @@ func TestLayerMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	graphID2 := stringid.GenerateRandomID()
-	if err := graph.Create(graphID2, graphID1, "", nil); err != nil {
+	storageID2 := stringid.GenerateRandomID()
+	if err := storage.Create(storageID2, storageID1, "", nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := graph.ApplyDiff(graphID2, graphID1, archive.Reader(bytes.NewReader(tar2))); err != nil {
+	if _, err := storage.ApplyDiff(storageID2, storageID1, archive.Reader(bytes.NewReader(tar2))); err != nil {
 		t.Fatal(err)
 	}
 
@@ -134,12 +134,12 @@ func TestLayerMigration(t *testing.T) {
 	if err := writeTarSplitFile(tf2, tar2); err != nil {
 		t.Fatal(err)
 	}
-	diffID, size, err = ls.(*layerStore).ChecksumForGraphID(graphID2, graphID1, tf2, newTarDataPath)
+	diffID, size, err = ls.(*layerStore).ChecksumForStorageID(storageID2, storageID1, tf2, newTarDataPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	layer2b, err := ls.(*layerStore).RegisterByGraphID(graphID2, layer1a.ChainID(), diffID, tf2, size)
+	layer2b, err := ls.(*layerStore).RegisterByStorageID(storageID2, layer1a.ChainID(), diffID, tf2, size)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,20 +159,20 @@ func TestLayerMigration(t *testing.T) {
 	assertMetadata(t, metadata, createMetadata(layer2a))
 }
 
-func tarFromFilesInGraph(graph graphdriver.Driver, graphID, parentID string, files ...FileApplier) ([]byte, error) {
+func tarFromFilesInStorage(storage storage.Driver, storageID, parentID string, files ...FileApplier) ([]byte, error) {
 	t, err := tarFromFiles(files...)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := graph.Create(graphID, parentID, "", nil); err != nil {
+	if err := storage.Create(storageID, parentID, "", nil); err != nil {
 		return nil, err
 	}
-	if _, err := graph.ApplyDiff(graphID, parentID, archive.Reader(bytes.NewReader(t))); err != nil {
+	if _, err := storage.ApplyDiff(storageID, parentID, archive.Reader(bytes.NewReader(t))); err != nil {
 		return nil, err
 	}
 
-	ar, err := graph.Diff(graphID, parentID)
+	ar, err := storage.Diff(storageID, parentID)
 	if err != nil {
 		return nil, err
 	}
@@ -201,19 +201,19 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 		newTestFile("/root/.bashrc", []byte("# Updated configuration"), 0644),
 	}
 
-	graph, err := newVFSGraphDriver(filepath.Join(td, "graphdriver-"))
+	storage, err := newVFSStorage(filepath.Join(td, "storage-"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	graphID1 := stringid.GenerateRandomID()
-	graphID2 := stringid.GenerateRandomID()
+	storageID1 := stringid.GenerateRandomID()
+	storageID2 := stringid.GenerateRandomID()
 
-	tar1, err := tarFromFilesInGraph(graph, graphID1, "", layer1Files...)
+	tar1, err := tarFromFilesInStorage(storage, storageID1, "", layer1Files...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	tar2, err := tarFromFilesInGraph(graph, graphID2, graphID1, layer2Files...)
+	tar2, err := tarFromFilesInStorage(storage, storageID2, storageID1, layer2Files...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,18 +222,18 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ls, err := NewStoreFromGraphDriver(fms, graph)
+	ls, err := NewStoreFromStorage(fms, storage)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	newTarDataPath := filepath.Join(td, ".migration-tardata")
-	diffID, size, err := ls.(*layerStore).ChecksumForGraphID(graphID1, "", "", newTarDataPath)
+	diffID, size, err := ls.(*layerStore).ChecksumForStorageID(storageID1, "", "", newTarDataPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	layer1a, err := ls.(*layerStore).RegisterByGraphID(graphID1, "", diffID, newTarDataPath, size)
+	layer1a, err := ls.(*layerStore).RegisterByStorageID(storageID1, "", diffID, newTarDataPath, size)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,12 +251,12 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	diffID, size, err = ls.(*layerStore).ChecksumForGraphID(graphID2, graphID1, "", newTarDataPath)
+	diffID, size, err = ls.(*layerStore).ChecksumForStorageID(storageID2, storageID1, "", newTarDataPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	layer2b, err := ls.(*layerStore).RegisterByGraphID(graphID2, layer1a.ChainID(), diffID, newTarDataPath, size)
+	layer2b, err := ls.(*layerStore).RegisterByStorageID(storageID2, layer1a.ChainID(), diffID, newTarDataPath, size)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -308,33 +308,33 @@ func TestMountMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	graph := ls.(*layerStore).driver
+	storage := ls.(*layerStore).driver
 
 	layer1, err := createLayer(ls, "", initWithFiles(baseFiles...))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	graphID1 := layer1.(*referencedCacheLayer).cacheID
+	storageID1 := layer1.(*referencedCacheLayer).cacheID
 
 	containerID := stringid.GenerateRandomID()
 	containerInit := fmt.Sprintf("%s-init", containerID)
 
-	if err := graph.Create(containerInit, graphID1, "", nil); err != nil {
+	if err := storage.Create(containerInit, storageID1, "", nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := graph.ApplyDiff(containerInit, graphID1, archive.Reader(bytes.NewReader(initTar))); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := graph.Create(containerID, containerInit, "", nil); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := graph.ApplyDiff(containerID, containerInit, archive.Reader(bytes.NewReader(mountTar))); err != nil {
+	if _, err := storage.ApplyDiff(containerInit, storageID1, archive.Reader(bytes.NewReader(initTar))); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ls.(*layerStore).CreateRWLayerByGraphID("migration-mount", containerID, layer1.ChainID()); err != nil {
+	if err := storage.Create(containerID, containerInit, "", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := storage.ApplyDiff(containerID, containerInit, archive.Reader(bytes.NewReader(mountTar))); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ls.(*layerStore).CreateRWLayerByStorageID("migration-mount", containerID, layer1.ChainID()); err != nil {
 		t.Fatal(err)
 	}
 

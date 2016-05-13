@@ -6,7 +6,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
-	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/storage"
 )
 
 // GetLayerPath returns the path to a layer
@@ -35,13 +35,13 @@ func GetLayerPath(s Store, layer ChainID) (string, error) {
 	return path, nil
 }
 
-func (ls *layerStore) RegisterDiffID(graphID string, size int64) (Layer, error) {
+func (ls *layerStore) RegisterDiffID(storageID string, size int64) (Layer, error) {
 	var err error // this is used for cleanup in existingLayer case
-	diffID := digest.FromBytes([]byte(graphID))
+	diffID := digest.FromBytes([]byte(storageID))
 
 	// Create new roLayer
 	layer := &roLayer{
-		cacheID:        graphID,
+		cacheID:        storageID,
 		diffID:         DiffID(diffID),
 		referenceCount: 1,
 		layerStore:     ls,
@@ -93,6 +93,6 @@ func (ls *layerStore) mountID(name string) string {
 	return name
 }
 
-func (ls *layerStore) GraphDriver() graphdriver.Driver {
+func (ls *layerStore) Storage() storage.Driver {
 	return ls.driver
 }
