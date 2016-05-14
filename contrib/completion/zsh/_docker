@@ -993,6 +993,7 @@ __docker_subcommand() {
         (logs)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                "($help)--details[Show extra details provided to logs]" \
                 "($help -f --follow)"{-f,--follow}"[Follow log output]" \
                 "($help -s --since)"{-s=,--since=}"[Show logs since this timestamp]:timestamp: " \
                 "($help -t --timestamps)"{-t,--timestamps}"[Show timestamps]" \
