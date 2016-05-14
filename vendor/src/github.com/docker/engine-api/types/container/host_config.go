@@ -195,7 +195,7 @@ type RestartPolicy struct {
 // IsNone indicates whether the container has the "no" restart policy.
 // This means the container will not automatically restart when exiting.
 func (rp *RestartPolicy) IsNone() bool {
-	return rp.Name == "no"
+	return rp.Name == "no" || rp.Name == ""
 }
 
 // IsAlways indicates whether the container has the "always" restart policy.
