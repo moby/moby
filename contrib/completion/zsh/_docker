@@ -335,7 +335,7 @@ __docker_network_complete_ls_filters() {
                 ;;
         esac
     else
-        opts=('driver' 'id' 'name' 'type')
+        opts=('driver' 'id' 'label' 'name' 'type')
         _describe -t filter-opts "Filter Options" opts -qS "=" && ret=0
     fi
 
