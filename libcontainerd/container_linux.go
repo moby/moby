@@ -2,6 +2,7 @@ package libcontainerd
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -75,6 +76,11 @@ func (ctr *container) start() error {
 		return err
 	}
 
+	var labels []string
+	for k, v := range ctr.labels {
+		labels = append(labels, fmt.Sprintf("%s=%s", k, v))
+	}
+
 	r := &containerd.CreateContainerRequest{
 		Id:         ctr.containerID,
 		BundlePath: ctr.dir,
@@ -82,6 +88,7 @@ func (ctr *container) start() error {
 		Stdout:     ctr.fifo(syscall.Stdout),
 		Stderr:     ctr.fifo(syscall.Stderr),
 		// check to see if we are running in ramdisk to disable pivot root
+		Labels:      labels,
 		NoPivotRoot: os.Getenv("DOCKER_RAMDISK") != "",
 	}
 	ctr.client.appendContainer(ctr)

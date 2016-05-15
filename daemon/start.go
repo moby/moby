@@ -130,7 +130,11 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 		return err
 	}
 
-	if err := daemon.containerd.Create(container.ID, *spec, libcontainerd.WithRestartManager(container.RestartManager(true))); err != nil {
+	options := []libcontainerd.CreateOption{
+		libcontainerd.WithRestartManager(container.RestartManager(true)),
+		libcontainerd.WithLabels(container.Config.Labels)}
+
+	if err := daemon.containerd.Create(container.ID, *spec, options...); err != nil {
 		// if we receive an internal error from the initial start of a container then lets
 		// return it instead of entering the restart loop
 		// set to 127 for container cmd not found/does not exist)
