@@ -86,7 +86,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flIOMaxBandwidth    = cmd.String([]string{"-io-maxbandwidth"}, "", "Maximum IO bandwidth limit for the system drive (Windows only)")
 		flIOMaxIOps         = cmd.Uint64([]string{"-io-maxiops"}, 0, "Maximum IOps limit for the system drive (Windows only)")
 		flSwappiness        = cmd.Int64([]string{"-memory-swappiness"}, -1, "Tune container memory swappiness (0 to 100)")
-		flNetMode           = cmd.String([]string{"-net"}, "default", "Connect a container to a network")
+		flNetMode           = cmd.String([]string{"-net"}, "bridge", "Connect a container to a network")
 		flMacAddress        = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
 		flIPv4Address       = cmd.String([]string{"-ip"}, "", "Container IPv4 address (e.g. 172.30.100.104)")
 		flIPv6Address       = cmd.String([]string{"-ip6"}, "", "Container IPv6 address (e.g. 2001:db8::33)")
