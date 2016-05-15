@@ -275,7 +275,11 @@ func (sb *sandbox) rebuildDNS() error {
 
 	// localhost entries have already been filtered out from the list
 	// retain only the v4 servers in sb for forwarding the DNS queries
-	sb.extDNS = resolvconf.GetNameservers(currRC.Content, netutils.IPv4)
+	if len(sb.extDNS) == 0 {
+		// if sb.extDNS > 0, it means the sandbox is restored from old running container
+		// and the dns has been rebuild
+		sb.extDNS = resolvconf.GetNameservers(currRC.Content, netutils.IPv4)
+	}
 
 	var (
 		dnsList        = []string{sb.resolver.NameServer()}

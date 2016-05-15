@@ -9,6 +9,11 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
+// EnableLiveRestore return false for non-experimental
+func EnableLiveRestore() bool {
+	return false
+}
+
 func (clnt *client) Restore(containerID string, options ...CreateOption) error {
 	w := clnt.getOrCreateExitNotifier(containerID)
 	defer w.close()

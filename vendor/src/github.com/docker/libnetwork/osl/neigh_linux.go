@@ -2,6 +2,7 @@ package osl
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net"
 
@@ -17,6 +18,41 @@ type neigh struct {
 	linkName string
 	linkDst  string
 	family   int
+}
+
+func (n *neigh) MarshalJSON() ([]byte, error) {
+	nMap := make(map[string]interface{})
+	if n.dstIP != nil {
+		nMap["dstIP"] = n.dstIP.String()
+	}
+	if n.dstMac != nil {
+		nMap["dstMac"] = n.dstMac.String()
+	}
+	nMap["linkName"] = n.linkName
+	nMap["linkDst"] = n.linkDst
+	nMap["family"] = n.family
+	return json.Marshal(nMap)
+}
+
+func (n *neigh) UnmarshalJSON(b []byte) error {
+	var nMap map[string]interface{}
+	if err := json.Unmarshal(b, &nMap); err != nil {
+		return err
+	}
+	if v, ok := nMap["dstIP"]; ok {
+		n.dstIP = net.ParseIP(v.(string))
+	}
+	if v, ok := nMap["dstMac"]; ok {
+		mac, err := net.ParseMAC(v.(string))
+		if err != nil {
+			return err
+		}
+		n.dstMac = mac
+	}
+	n.linkName = nMap["linkName"].(string)
+	n.linkDst = nMap["linkDst"].(string)
+	n.family = int(nMap["family"].(float64))
+	return nil
 }
 
 func (n *networkNamespace) findNeighbor(dstIP net.IP, dstMac net.HardwareAddr) *neigh {

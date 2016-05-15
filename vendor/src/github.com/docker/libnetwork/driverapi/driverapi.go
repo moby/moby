@@ -74,6 +74,9 @@ type InterfaceInfo interface {
 
 	// AddressIPv6 returns the IPv6 address.
 	AddressIPv6() *net.IPNet
+
+	// SrcName return the srcName
+	SrcName() string
 }
 
 // InterfaceNameInfo provides a go interface for the drivers to assign names

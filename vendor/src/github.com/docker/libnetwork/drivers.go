@@ -42,6 +42,9 @@ func makeDriverConfig(c *controller, ntype string) map[string]interface{} {
 
 		config[netlabel.Key(label)] = netlabel.Value(label)
 	}
+	if c.cfg.Restore {
+		config["restore"] = true
+	}
 
 	drvCfg, ok := c.cfg.Daemon.DriverCfg[ntype]
 	if ok {

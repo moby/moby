@@ -1,6 +1,7 @@
 package osl
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -12,13 +13,17 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
 
-const prefix = "/var/run/docker/netns"
+const (
+	prefix           = "/var/run/docker/netns"
+	oslsandboxPrefix = "oslsandbox"
+)
 
 var (
 	once             sync.Once
@@ -42,7 +47,106 @@ type networkNamespace struct {
 	neighbors    []*neigh
 	nextIfIndex  int
 	isDefault    bool
+	dbIndex      uint64
+	dbExists     bool
 	sync.Mutex
+}
+
+func (n *networkNamespace) MarshalJSON() ([]byte, error) {
+	nMap := make(map[string]interface{})
+	nMap["path"] = n.path
+	nMap["nextIfIndex"] = n.nextIfIndex
+	nMap["isDefault"] = n.isDefault
+	nMap["gw"] = n.gw.String()
+	nMap["gw6"] = n.gwv6.String()
+	nMap["staticRoutes"] = n.staticRoutes
+	nMap["neighbors"] = n.neighbors
+	nMap["iFaces"] = n.iFaces
+
+	return json.Marshal(nMap)
+}
+
+func (n *networkNamespace) UnmarshalJSON(b []byte) (err error) {
+	var epMap map[string]interface{}
+	if err := json.Unmarshal(b, &epMap); err != nil {
+		return err
+	}
+
+	n.path = epMap["path"].(string)
+	n.nextIfIndex = int(epMap["nextIfIndex"].(float64))
+	n.isDefault = epMap["isDefault"].(bool)
+
+	var iFaces []nwIface
+	if v, ok := epMap["iFaces"]; ok {
+		is, err := json.Marshal(v)
+		if err != nil {
+			return err
+		}
+		json.Unmarshal(is, &iFaces)
+	}
+	var iFacesPtr []*nwIface
+	for i, _ := range iFaces {
+		iFacesPtr = append(iFacesPtr, &iFaces[i])
+	}
+	n.iFaces = iFacesPtr
+
+	if v, ok := epMap["gw"]; ok {
+		n.gw = net.ParseIP(v.(string))
+	}
+	if v, ok := epMap["gw6"]; ok {
+		n.gwv6 = net.ParseIP(v.(string))
+	}
+
+	var staticRoutes []types.StaticRoute
+	if v, ok := epMap["staticRoutes"]; ok {
+		sr, err := json.Marshal(v)
+		if err != nil {
+			return err
+		}
+		json.Unmarshal(sr, &staticRoutes)
+	}
+	var staticRoutePtrs []*types.StaticRoute
+	for i, _ := range staticRoutes {
+		staticRoutePtrs = append(staticRoutePtrs, &staticRoutes[i])
+	}
+	n.staticRoutes = staticRoutePtrs
+
+	var neighbors []neigh
+	if v, ok := epMap["neighbors"]; ok {
+		ns, err := json.Marshal(v)
+		if err != nil {
+			return err
+		}
+		json.Unmarshal(ns, &neighbors)
+	}
+	var neighborpts []*neigh
+	for _, neigh := range neighbors {
+		neighborpts = append(neighborpts, &neigh)
+	}
+	n.neighbors = neighborpts
+
+	return nil
+}
+
+func (n *networkNamespace) CopyTo(o datastore.KVObject) error {
+	// TODO
+	dstN := o.(*networkNamespace)
+	dstN.path = n.path
+	dstN.gw = types.GetIPCopy(n.gw)
+	dstN.gwv6 = types.GetIPCopy(n.gwv6)
+	dstN.nextIfIndex = n.nextIfIndex
+	dstN.isDefault = n.isDefault
+	dstN.dbIndex = n.dbIndex
+	dstN.dbExists = n.dbExists
+	dstN.staticRoutes = make([]*types.StaticRoute, len(n.staticRoutes))
+	copy(dstN.staticRoutes, n.staticRoutes)
+
+	dstN.iFaces = make([]*nwIface, len(n.iFaces))
+	copy(dstN.iFaces, n.iFaces)
+
+	dstN.neighbors = make([]*neigh, len(n.neighbors))
+	copy(dstN.neighbors, n.neighbors)
+	return nil
 }
 
 func init() {
@@ -148,6 +252,10 @@ func NewSandbox(key string, osCreate bool) (Sandbox, error) {
 	}
 
 	return &networkNamespace{path: key, isDefault: !osCreate}, nil
+}
+
+func NewNullSandbox(key string) Sandbox {
+	return &networkNamespace{path: key}
 }
 
 func (n *networkNamespace) InterfaceOptions() IfaceOptionSetter {
@@ -306,7 +414,7 @@ func (n *networkNamespace) Info() Info {
 	return n
 }
 
-func (n *networkNamespace) Key() string {
+func (n *networkNamespace) GetKey() string {
 	return n.path
 }
 
@@ -320,4 +428,77 @@ func (n *networkNamespace) Destroy() error {
 	// Stash it into the garbage collection list
 	addToGarbagePaths(n.path)
 	return nil
+}
+
+func (n *networkNamespace) Key() []string {
+	return []string{oslsandboxPrefix, n.path}
+}
+
+func (n *networkNamespace) KeyPrefix() []string {
+	return []string{oslsandboxPrefix}
+}
+
+func (n *networkNamespace) Value() []byte {
+	b, err := json.Marshal(n)
+	if err != nil {
+		return nil
+	}
+	return b
+}
+
+func (n *networkNamespace) SetValue(value []byte) error {
+	return json.Unmarshal(value, n)
+}
+
+func (n *networkNamespace) Index() uint64 {
+	n.Lock()
+	defer n.Unlock()
+
+	return n.dbIndex
+}
+
+func (n *networkNamespace) SetIndex(index uint64) {
+	n.Lock()
+	defer n.Unlock()
+
+	n.dbIndex = index
+	n.dbExists = true
+}
+
+func (n *networkNamespace) Exists() bool {
+	n.Lock()
+	defer n.Unlock()
+
+	return n.dbExists
+}
+
+func (n *networkNamespace) Skip() bool {
+	return false
+}
+
+func (n *networkNamespace) New() datastore.KVObject {
+	return &networkNamespace{path: n.path}
+}
+
+func (n *networkNamespace) DataScope() string {
+	return datastore.LocalScope
+}
+
+func (n *networkNamespace) UpdateToStore(store UpdateToStore) error {
+	return store.UpdateToStore(n)
+}
+
+func (n *networkNamespace) GetFromStore(store datastore.DataStore) error {
+	err := store.GetObject(datastore.Key(n.Key()...), n)
+	if err != nil {
+		return err
+	}
+	for i, _ := range n.iFaces {
+		n.iFaces[i].ns = n
+	}
+	return nil
+}
+
+func (n *networkNamespace) DeleteFromStore(store DeleteFromStore) error {
+	return store.DeleteFromStore(n)
 }

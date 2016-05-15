@@ -89,6 +89,7 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 	epMap["anonymous"] = ep.anonymous
 	epMap["disableResolution"] = ep.disableResolution
 	epMap["myAliases"] = ep.myAliases
+	epMap["joinInfo"] = ep.joinInfo
 	return json.Marshal(epMap)
 }
 
@@ -105,6 +106,8 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 
 	ib, _ := json.Marshal(epMap["ep_iface"])
 	json.Unmarshal(ib, &ep.iface)
+	jb, _ := json.Marshal(epMap["joinInfo"])
+	json.Unmarshal(jb, &ep.joinInfo)
 
 	tb, _ := json.Marshal(epMap["exposed_ports"])
 	var tPorts []types.TransportPort
@@ -113,7 +116,6 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 
 	cb, _ := json.Marshal(epMap["sandbox"])
 	json.Unmarshal(cb, &ep.sandboxID)
-
 	if v, ok := epMap["generic"]; ok {
 		ep.generic = v.(map[string]interface{})
 
@@ -200,6 +202,11 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 	if ep.iface != nil {
 		dstEp.iface = &endpointInterface{}
 		ep.iface.CopyTo(dstEp.iface)
+	}
+
+	if ep.joinInfo != nil {
+		dstEp.joinInfo = &endpointJoinInfo{}
+		ep.joinInfo.CopyTo(dstEp.joinInfo)
 	}
 
 	dstEp.exposedPorts = make([]types.TransportPort, len(ep.exposedPorts))
@@ -399,7 +406,6 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) error {
 	if err != nil {
 		return fmt.Errorf("failed to join endpoint: %v", err)
 	}
-
 	err = d.Join(nid, epid, sb.Key(), ep, sb.Labels())
 	if err != nil {
 		return err
@@ -441,7 +447,6 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) error {
 			sb.removeEndpoint(ep)
 		}
 	}()
-
 	if err = sb.populateNetworkResources(ep); err != nil {
 		return err
 	}
@@ -602,7 +607,6 @@ func (ep *endpoint) sbLeave(sb *sandbox, force bool, options ...EndpointOption) 
 	// Current endpoint providing external connectivity to the sandbox
 	extEp := sb.getGatewayEndpoint()
 	moveExtConn := extEp != nil && (extEp.ID() == ep.ID())
-
 	if d != nil {
 		if moveExtConn {
 			log.Debugf("Revoking external connectivity on endpoint %s (%s)", ep.Name(), ep.ID())

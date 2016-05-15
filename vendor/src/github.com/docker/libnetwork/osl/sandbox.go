@@ -4,6 +4,7 @@ package osl
 import (
 	"net"
 
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/types"
 )
 
@@ -11,7 +12,7 @@ import (
 // holds a list of Interfaces, routes etc, and more can be added dynamically.
 type Sandbox interface {
 	// The path where the network namespace is mounted.
-	Key() string
+	GetKey() string
 
 	// Add an existing Interface to this sandbox. The operation will rename
 	// from the Interface SrcName to DstName as it moves, and reconfigure the
@@ -58,6 +59,23 @@ type Sandbox interface {
 
 	// Destroy the sandbox
 	Destroy() error
+
+	// UpdateToStore update the sandbox to store
+	UpdateToStore(store UpdateToStore) error
+
+	// Get sandbox from store
+	GetFromStore(datastore.DataStore) error
+
+	// Delete from store
+	DeleteFromStore(store DeleteFromStore) error
+}
+
+type UpdateToStore interface {
+	UpdateToStore(kvObject datastore.KVObject) error
+}
+
+type DeleteFromStore interface {
+	DeleteFromStore(kvObject datastore.KVObject) error
 }
 
 // NeighborOptionSetter interfaces defines the option setter methods for interface options

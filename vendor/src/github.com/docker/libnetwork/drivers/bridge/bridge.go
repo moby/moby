@@ -376,7 +376,9 @@ func (d *driver) configure(option map[string]interface{}) error {
 				logrus.Warnf("Running modprobe bridge br_netfilter failed with message: %s, error: %v", out, err)
 			}
 		}
-		removeIPChains()
+		if _, ok := option["restore"]; !ok {
+			removeIPChains()
+		}
 		natChain, filterChain, isolationChain, err = setupIPChains(config)
 		if err != nil {
 			return err
@@ -391,7 +393,6 @@ func (d *driver) configure(option map[string]interface{}) error {
 	d.isolationChain = isolationChain
 	d.config = config
 	d.Unlock()
-
 	err = d.initStore(option)
 	if err != nil {
 		return err
@@ -860,7 +861,19 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		return err
 	}
 
-	// Create and add the endpoint
+	// Create and add the endpoint or restore the endpoint
+	if _, ok := epOptions["restore"]; ok {
+		logrus.Debugf("Restore endpoint %s", eid)
+		endpoint := &bridgeEndpoint{id: eid, config: epConfig}
+		endpoint.macAddress = ifInfo.MacAddress()
+		endpoint.addr = ifInfo.Address()
+		endpoint.addrv6 = ifInfo.AddressIPv6()
+		endpoint.srcName = ifInfo.SrcName()
+		n.Lock()
+		n.endpoints[eid] = endpoint
+		n.Unlock()
+		return nil
+	}
 	n.Lock()
 	endpoint := &bridgeEndpoint{id: eid, config: epConfig}
 	n.endpoints[eid] = endpoint
@@ -1045,6 +1058,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 
 	// Try removal of link. Discard error: it is a best effort.
 	// Also make sure defer does not see this error either.
+	logrus.Infof("ep.srcName is %s, ep is %#v", ep.srcName, ep)
 	if link, err := netlink.LinkByName(ep.srcName); err == nil {
 		netlink.LinkDel(link)
 	}
@@ -1125,12 +1139,12 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	if endpoint == nil {
 		return EndpointNotFoundError(eid)
 	}
-
+	logrus.Infof("options is %#v", options)
 	endpoint.containerConfig, err = parseContainerOptions(options)
 	if err != nil {
 		return err
 	}
-
+	logrus.Infof("containerConfig is %#v", endpoint.containerConfig)
 	iNames := jinfo.InterfaceName()
 	err = iNames.SetNames(endpoint.srcName, containerVethPrefix)
 	if err != nil {
