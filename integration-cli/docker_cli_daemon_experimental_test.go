@@ -90,7 +90,15 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonCrash(c *check.C) {
 		c.Fatalf("Container %s expected to stay alive after daemon restart", id)
 	}
 
-	// 'docker stop' should work.
+	// 'docker cp', which mounts paths should work.
+	tmpFile, err := ioutil.TempFile("", "copy-file")
+	c.Assert(err, check.IsNil, check.Commentf("failed to create tmpFile"))
+	defer os.Remove(tmpFile.Name())
+
+	out, err = s.d.Cmd("cp", tmpFile.Name(), containerCpPath(id, "/tmp"))
+	c.Assert(err, check.IsNil, check.Commentf("docker cp error %s", err))
+
+	// 'docker stop', which unmounts paths should work.
 	out, err = s.d.Cmd("stop", id)
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
 
