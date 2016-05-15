@@ -33,7 +33,7 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 		if err := cli.removeContainer(name, *v, *link, *force); err != nil {
 			errs = append(errs, err.Error())
 		} else {
-			fmt.Fprintf(cli.out, "%s\n", name)
+			fmt.Fprintf(cli.out, "Deleted: %s\n", name)
 		}
 	}
 	if len(errs) > 0 {

@@ -110,6 +110,8 @@ func (cli *DockerCli) CmdNetworkRm(args ...string) error {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			status = 1
 			continue
+		} else {
+			fmt.Fprintf(cli.out, "Deleted: %s\n", net)
 		}
 	}
 	if status != 0 {
