@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/volume"
@@ -139,7 +140,9 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 
 		if label.RelabelNeeded(bind.Mode) {
 			if err := label.Relabel(bind.Source, container.MountLabel, label.IsShared(bind.Mode)); err != nil {
-				return err
+				if err != syscall.ENOTSUP {
+					return err
+				}
 			}
 		}
 		binds[bind.Destination] = true
