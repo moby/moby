@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -524,7 +525,6 @@ func parseLoggingOpts(loggingDriver string, loggingOpts []string) (map[string]st
 	return loggingOptsMap, nil
 }
 
-// takes a local seccomp daemon, reads the file contents for sending to the daemon
 func parseSecurityOpts(securityOpts []string) ([]string, error) {
 	for key, opt := range securityOpts {
 		con := strings.SplitN(opt, "=", 2)
@@ -532,7 +532,7 @@ func parseSecurityOpts(securityOpts []string) ([]string, error) {
 			if strings.Index(opt, ":") != -1 {
 				con = strings.SplitN(opt, ":", 2)
 			} else {
-				return securityOpts, fmt.Errorf("Invalid --security-opt: %q", opt)
+				return securityOpts, fmt.Errorf("invalid --security-opt: %q", opt)
 			}
 		}
 		if con[0] == "seccomp" && con[1] != "unconfined" {
@@ -545,6 +545,12 @@ func parseSecurityOpts(securityOpts []string) ([]string, error) {
 				return securityOpts, fmt.Errorf("compacting json for seccomp profile (%s) failed: %v", con[1], err)
 			}
 			securityOpts[key] = fmt.Sprintf("seccomp=%s", b.Bytes())
+		}
+		if con[0] == "apparmor" && con[1] != "unconfined" {
+			_, err := os.Stat(con[1])
+			if err != nil {
+				return securityOpts, fmt.Errorf("stating apparmor profile (%s) failed: %v", con[1], err)
+			}
 		}
 	}
 

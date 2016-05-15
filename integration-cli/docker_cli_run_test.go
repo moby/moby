@@ -4323,3 +4323,9 @@ func (s *DockerSuite) TestRunTooLongHostname(c *check.C) {
 
 	}
 }
+
+func (s *DockerSuite) TestRunWithWrongApparmorProfile(c *check.C) {
+	out, _, err := dockerCmdWithError("run", "--security-opt", "apparmor=test", "busybox")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "stating apparmor profile (test) failed:")
+}
