@@ -8,11 +8,17 @@ bundle_test_integration_cli() {
 
 # subshell so that we can export PATH without breaking other things
 (
+	echo INFO: `date`
 	bundle .integration-daemon-start
 
+	echo INFO: `date`
 	bundle .integration-daemon-setup
 
+	echo INFO: `date`
 	bundle_test_integration_cli
 
+	echo INFO: `date`
 	bundle .integration-daemon-stop
+	
+	echo INFO: `date`
 ) 2>&1 | tee -a "$DEST/test.log"
