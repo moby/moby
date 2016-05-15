@@ -12,7 +12,7 @@ weight=-5
 # Run a simple application
 
 In the ["*Hello world in a container*"](dockerizing.md) you launched your
-first containers using the `docker run` command. You ran an *interactive container* that ran in the foreground.  You also ran a *detached container* that ran in the background. In the process you learned about several Docker commands:
+first container using the `docker run` command. You ran an *interactive container* that ran in the foreground.  You also ran a *detached container* that ran in the background. In the process you learned about several Docker commands:
 
 * `docker ps` - Lists containers.
 * `docker logs` - Shows us the standard output of a container.
