@@ -28,7 +28,7 @@ detached  process.
 To stop a container, use `CTRL-c`. This key sequence sends `SIGKILL` to the
 container. If `--sig-proxy` is true (the default),`CTRL-c` sends a `SIGINT` to
 the container. You can detach from a container and leave it running using the
-using `CTRL-p CTRL-q` key sequence.
+ `CTRL-p CTRL-q` key sequence.
 
 > **Note:**
 > A process running as PID 1 inside a container is treated specially by
