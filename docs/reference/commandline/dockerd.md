@@ -737,6 +737,19 @@ and provided subordinate uid and gid ranges. This default user will be named
 > pull`, `docker push`, and container startup as users expect with
 > user namespaces disabled.
 
+> **Note**: Due to the need to segregate content in the Docker daemon’s local 
+> cache of layer data by the mappings provided, once you use an experimental 
+> build with user namespaces, the root of your graph directory (`/var/lib/docker`
+> by default) will have one additional level of indirection which correlates to
+> the remapped root uid and gid. For example, if the remapping user provided to
+> the `--userns-remap` flag has subordinate user and group ranges that begin with
+> `ID 10000`, then the root of the graph directory for all images and containers
+> running with that remap setting will reside in `/var/lib/docker/10000.10000`.
+> If you want or need to return to a Docker build which is not enabled for user
+> namespaces, the simplest method to return is to stop the current experimental
+> daemon, move the content in `/var/lib/docker/0.0` back to `/var/lib/docker` 
+> and then restart Docker with your non-user namespaces enabled Docker daemon binary.
+
 ### Starting the daemon with user namespaces enabled
 
 To enable user namespace support, start the daemon with the
