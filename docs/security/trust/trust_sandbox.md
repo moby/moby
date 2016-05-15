@@ -101,8 +101,6 @@ So, you'll need an entry for both the servers in your local `/etc/hosts` file.
         RUN chmod +x /usr/bin/docker \
           && apt-get update \
           && apt-get install -y \
-          tree \
-          vim \
           git \
           ca-certificates \
           --no-install-recommends
