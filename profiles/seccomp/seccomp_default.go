@@ -1608,12 +1608,6 @@ var DefaultProfile = &types.Seccomp{
 			Action: types.ActAllow,
 			Args:   []*types.Arg{},
 		},
-		// i386 specific syscalls
-		{
-			Name:   "modify_ldt",
-			Action: types.ActAllow,
-			Args:   []*types.Arg{},
-		},
 		// arm specific syscalls
 		{
 			Name:   "breakpoint",
