@@ -12,10 +12,10 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/gitutils"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/precompiledregexp"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 )
@@ -23,7 +23,7 @@ import (
 // ValidateContextDirectory checks if all the contents of the directory
 // can be read and returns an error if some files can't be read
 // symlinks which point to non-existing files don't trigger an error
-func ValidateContextDirectory(srcPath string, excludes []string) error {
+func ValidateContextDirectory(srcPath string, excludes []precompiledregexp.PrecompiledRegExp) error {
 	contextRoot, err := getContextRoot(srcPath)
 	if err != nil {
 		return err
@@ -32,7 +32,7 @@ func ValidateContextDirectory(srcPath string, excludes []string) error {
 		// skip this directory/file if it's not in the path, it won't get added to the context
 		if relFilePath, err := filepath.Rel(contextRoot, filePath); err != nil {
 			return err
-		} else if skip, err := fileutils.Matches(relFilePath, excludes); err != nil {
+		} else if skip, err := precompiledregexp.Matches(relFilePath, excludes); err != nil {
 			return err
 		} else if skip {
 			if f.IsDir() {
