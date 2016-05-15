@@ -54,13 +54,15 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	ioutils.FprintfIfNotEmpty(cli.out, "Logging Driver: %s\n", info.LoggingDriver)
 	ioutils.FprintfIfNotEmpty(cli.out, "Cgroup Driver: %s\n", info.CgroupDriver)
 
-	fmt.Fprintf(cli.out, "Plugins: \n")
-	fmt.Fprintf(cli.out, " Volume:")
-	fmt.Fprintf(cli.out, " %s", strings.Join(info.Plugins.Volume, " "))
-	fmt.Fprintf(cli.out, "\n")
-	fmt.Fprintf(cli.out, " Network:")
-	fmt.Fprintf(cli.out, " %s", strings.Join(info.Plugins.Network, " "))
-	fmt.Fprintf(cli.out, "\n")
+	if len(info.Plugins.Volume) != 0 || len(info.Plugins.Network) != 0 {
+		fmt.Fprintf(cli.out, "Plugins: \n")
+		fmt.Fprintf(cli.out, " Volume:")
+		fmt.Fprintf(cli.out, " %s", strings.Join(info.Plugins.Volume, " "))
+		fmt.Fprintf(cli.out, "\n")
+		fmt.Fprintf(cli.out, " Network:")
+		fmt.Fprintf(cli.out, " %s", strings.Join(info.Plugins.Network, " "))
+		fmt.Fprintf(cli.out, "\n")
+	}
 
 	if len(info.Plugins.Authorization) != 0 {
 		fmt.Fprintf(cli.out, " Authorization:")
