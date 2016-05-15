@@ -1,9 +1,11 @@
 package logger
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"io"
+	"strings"
 	"testing"
 	"time"
 )
@@ -129,4 +131,37 @@ func TestCopierSlow(t *testing.T) {
 		t.Fatalf("failed to exit in time after the copier is closed")
 	case <-wait:
 	}
+}
+
+func BenchmarkScannerCopier(b *testing.B) {
+	var stdout bytes.Buffer
+	var jsonBuf bytes.Buffer
+	jsonLog := &TestLoggerJSON{Encoder: json.NewEncoder(&jsonBuf)}
+
+	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
+	c := NewCopier(cid, map[string]io.Reader{"stdout": &stdout}, jsonLog)
+	c.Run()
+
+	for n := 0; n < b.N; n++ {
+		stdout.WriteString(strings.Repeat("helo", bufio.MaxScanTokenSize))
+	}
+
+	c.Close()
+}
+
+func BenchmarkReaderCopier(b *testing.B) {
+	var stdout bytes.Buffer
+	var jsonBuf bytes.Buffer
+	jsonLog := &TestLoggerJSON{Encoder: json.NewEncoder(&jsonBuf)}
+
+	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
+	c := NewCopier(cid, map[string]io.Reader{"stdout": &stdout}, jsonLog)
+	c.copierFunc = newReaderCopier
+	c.Run()
+
+	for n := 0; n < b.N; n++ {
+		stdout.WriteString(strings.Repeat("helo", bufio.MaxScanTokenSize))
+	}
+
+	c.Close()
 }
