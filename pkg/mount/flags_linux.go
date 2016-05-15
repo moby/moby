@@ -82,4 +82,8 @@ const (
 	// it possible for the kernel to default to relatime or noatime but still
 	// allow userspace to override it.
 	STRICTATIME = syscall.MS_STRICTATIME
+
+	// VAL currently required for mount of device
+	// http://man7.org/linux/man-pages/man2/mount.2.html
+	VAL = syscall.MS_MGC_VAL
 )
