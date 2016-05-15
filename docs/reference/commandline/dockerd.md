@@ -893,7 +893,7 @@ in the configuration file and also set daemon labels via the `--label` flag. Opt
 
 ### Linux configuration file
 
-The default location of the configuration file on Linux is `/etc/docker/daemon.json`.
+The default location of the configuration file on Linux is `/etc/docker/daemon.json`. The `--conflig-file` flag can be used to specify a non-default location for the `daemon.json` file. 
 
 This is a full example of the allowed configuration options on Linux:
 
@@ -954,7 +954,7 @@ This is a full example of the allowed configuration options on Linux:
 
 ### Windows configuration file
 
-The default location of the configuration file on Linux is `%programdata%\docker\config\daemon.json`.
+The default location of the configuration file on Linux is `%programdata%\docker\config\daemon.json`. The `--conflig-file` flag can be used to specify a non-default location for the `daemon.json` file. 
 
 This is a full example of the allowed configuration options on Windows:
 
