@@ -71,14 +71,14 @@ For example, the `btrfs` storage driver on a Btrfs backing filesystem. The
 following table lists each storage driver and whether it must match the host's
 backing file system:
 
-|Storage driver |Must match backing filesystem |Incompatible with   |
-|---------------|------------------------------|--------------------|
-|`overlay`      |No                            |`btrfs` `aufs` `zfs`|
-|`aufs`         |No                            |`btrfs` `aufs`      |
-|`btrfs`        |Yes                           |   N/A              |
-|`devicemapper` |No                            |   N/A              |
-|`vfs`          |No                            |   N/A              |
-|`zfs`          |Yes                           |   N/A              |
+| Storage driver | Must match backing filesystem | Incompatible with              |
+|----------------|-------------------------------|--------------------------------|
+| `overlay`      | No                            | `aufs` `btrfs` `overlay` `zfs` |
+| `aufs`         | No                            | `aufs` `btrfs`                 |
+| `btrfs`        | Yes                           | N/A                            |
+| `devicemapper` | No                            | N/A                            |
+| `vfs`          | No                            | N/A                            |
+| `zfs`          | Yes                           | N/A                            |
 
 
 > **Note**
