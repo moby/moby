@@ -1,6 +1,8 @@
 package client
 
 import (
+	"encoding/json"
+	"io"
 	"runtime"
 	"text/template"
 	"time"
@@ -41,20 +43,11 @@ Server:
 func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 	cmd := Cli.Subcmd("version", nil, Cli.DockerCommands["version"].Description, true)
 	tmplStr := cmd.String([]string{"f", "#format", "-format"}, "", "Format the output using the given go template")
+	isJSON := cmd.Bool([]string{"j", "#json", "-json"}, false, "Output in JSON format")
+
 	cmd.Require(flag.Exact, 0)
 
 	cmd.ParseFlags(args, true)
-
-	templateFormat := versionTemplate
-	if *tmplStr != "" {
-		templateFormat = *tmplStr
-	}
-
-	var tmpl *template.Template
-	if tmpl, err = templates.Parse(templateFormat); err != nil {
-		return Cli.StatusError{StatusCode: 64,
-			Status: "Template parsing error: " + err.Error()}
-	}
 
 	vd := types.VersionResponse{
 		Client: &types.Version{
@@ -87,9 +80,42 @@ func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 		}
 	}
 
-	if err2 := tmpl.Execute(cli.out, vd); err2 != nil && err == nil {
+	var err2 error
+
+	if *isJSON {
+		err2 = renderJSON(cli.out, vd)
+	} else {
+		err2 = renderTemplate(cli.out, *tmplStr, vd)
+	}
+
+	if err2 != nil && err == nil {
 		err = err2
 	}
+
 	cli.out.Write([]byte{'\n'})
 	return err
+}
+
+func renderJSON(out io.Writer, vd types.VersionResponse) error {
+	output, err := json.MarshalIndent(vd, "", "    ")
+	out.Write(output)
+	return err
+}
+
+func renderTemplate(out io.Writer, templateString string, vd types.VersionResponse) error {
+	templateFormat := versionTemplate
+	if templateString != "" {
+		templateFormat = templateString
+	}
+
+	var (
+		tmpl *template.Template
+		err  error
+	)
+	if tmpl, err = templates.Parse(templateFormat); err != nil {
+		return Cli.StatusError{StatusCode: 64,
+			Status: "Template parsing error: " + err.Error()}
+	}
+
+	return tmpl.Execute(out, vd)
 }
