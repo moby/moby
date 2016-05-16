@@ -8,8 +8,13 @@ import (
 const (
 	HANDLE_NONE      = 0
 	HANDLE_INGRESS   = 0xFFFFFFF1
+	HANDLE_CLSACT    = HANDLE_INGRESS
 	HANDLE_ROOT      = 0xFFFFFFFF
 	PRIORITY_MAP_LEN = 16
+)
+const (
+	HANDLE_MIN_INGRESS = 0xFFFFFFF2
+	HANDLE_MIN_EGRESS  = 0xFFFFFFF3
 )
 
 type Qdisc interface {
@@ -17,7 +22,7 @@ type Qdisc interface {
 	Type() string
 }
 
-// Qdisc represents a netlink qdisc. A qdisc is associated with a link,
+// QdiscAttrs represents a netlink qdisc. A qdisc is associated with a link,
 // has a handle, a parent and a refcnt. The root qdisc of a device should
 // have parent == HANDLE_ROOT.
 type QdiscAttrs struct {
@@ -28,7 +33,7 @@ type QdiscAttrs struct {
 }
 
 func (q QdiscAttrs) String() string {
-	return fmt.Sprintf("{LinkIndex: %d, Handle: %s, Parent: %s, Refcnt: %s}", q.LinkIndex, HandleStr(q.Handle), HandleStr(q.Parent), q.Refcnt)
+	return fmt.Sprintf("{LinkIndex: %d, Handle: %s, Parent: %s, Refcnt: %d}", q.LinkIndex, HandleStr(q.Handle), HandleStr(q.Parent), q.Refcnt)
 }
 
 func MakeHandle(major, minor uint16) uint32 {
@@ -149,7 +154,7 @@ type NetemQdiscAttrs struct {
 
 func (q NetemQdiscAttrs) String() string {
 	return fmt.Sprintf(
-		"{Latency: %d, Limit: %d, Loss: %d, Gap: %d, Duplicate: %d, Jitter: %d}",
+		"{Latency: %d, Limit: %d, Loss: %f, Gap: %d, Duplicate: %f, Jitter: %d}",
 		q.Latency, q.Limit, q.Loss, q.Gap, q.Duplicate, q.Jitter,
 	)
 }
@@ -173,9 +178,9 @@ type Netem struct {
 
 func NewNetem(attrs QdiscAttrs, nattrs NetemQdiscAttrs) *Netem {
 	var limit uint32 = 1000
-	var loss_corr, delay_corr, duplicate_corr uint32
-	var reorder_prob, reorder_corr uint32
-	var corrupt_prob, corrupt_corr uint32
+	var lossCorr, delayCorr, duplicateCorr uint32
+	var reorderProb, reorderCorr uint32
+	var corruptProb, corruptCorr uint32
 
 	latency := nattrs.Latency
 	loss := Percentage2u32(nattrs.Loss)
@@ -185,13 +190,13 @@ func NewNetem(attrs QdiscAttrs, nattrs NetemQdiscAttrs) *Netem {
 
 	// Correlation
 	if latency > 0 && jitter > 0 {
-		delay_corr = Percentage2u32(nattrs.DelayCorr)
+		delayCorr = Percentage2u32(nattrs.DelayCorr)
 	}
 	if loss > 0 {
-		loss_corr = Percentage2u32(nattrs.LossCorr)
+		lossCorr = Percentage2u32(nattrs.LossCorr)
 	}
 	if duplicate > 0 {
-		duplicate_corr = Percentage2u32(nattrs.DuplicateCorr)
+		duplicateCorr = Percentage2u32(nattrs.DuplicateCorr)
 	}
 	// FIXME should validate values(like loss/duplicate are percentages...)
 	latency = time2Tick(latency)
@@ -204,34 +209,34 @@ func NewNetem(attrs QdiscAttrs, nattrs NetemQdiscAttrs) *Netem {
 		jitter = time2Tick(jitter)
 	}
 
-	reorder_prob = Percentage2u32(nattrs.ReorderProb)
-	reorder_corr = Percentage2u32(nattrs.ReorderCorr)
+	reorderProb = Percentage2u32(nattrs.ReorderProb)
+	reorderCorr = Percentage2u32(nattrs.ReorderCorr)
 
-	if reorder_prob > 0 {
+	if reorderProb > 0 {
 		// ERROR if lantency == 0
 		if gap == 0 {
 			gap = 1
 		}
 	}
 
-	corrupt_prob = Percentage2u32(nattrs.CorruptProb)
-	corrupt_corr = Percentage2u32(nattrs.CorruptCorr)
+	corruptProb = Percentage2u32(nattrs.CorruptProb)
+	corruptCorr = Percentage2u32(nattrs.CorruptCorr)
 
 	return &Netem{
 		QdiscAttrs:    attrs,
 		Latency:       latency,
-		DelayCorr:     delay_corr,
+		DelayCorr:     delayCorr,
 		Limit:         limit,
 		Loss:          loss,
-		LossCorr:      loss_corr,
+		LossCorr:      lossCorr,
 		Gap:           gap,
 		Duplicate:     duplicate,
-		DuplicateCorr: duplicate_corr,
+		DuplicateCorr: duplicateCorr,
 		Jitter:        jitter,
-		ReorderProb:   reorder_prob,
-		ReorderCorr:   reorder_corr,
-		CorruptProb:   corrupt_prob,
-		CorruptCorr:   corrupt_corr,
+		ReorderProb:   reorderProb,
+		ReorderCorr:   reorderCorr,
+		CorruptProb:   corruptProb,
+		CorruptCorr:   corruptCorr,
 	}
 }
 

@@ -1,7 +1,6 @@
 {
 	"ImportPath": "github.com/docker/libnetwork",
-	"GoVersion": "go1.5",
-	"GodepVersion": "v62",
+	"GoVersion": "go1.6",
 	"Packages": [
 		"./..."
 	],
@@ -384,11 +383,11 @@
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netlink",
-			"Rev": "631962935bff4f3d20ff32a72e8944f6d2836a26"
+			"Rev": "f9bc7a684edbe780a09b87689db6cb1706bf327f"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netlink/nl",
-			"Rev": "631962935bff4f3d20ff32a72e8944f6d2836a26"
+			"Rev": "f9bc7a684edbe780a09b87689db6cb1706bf327f"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netns",

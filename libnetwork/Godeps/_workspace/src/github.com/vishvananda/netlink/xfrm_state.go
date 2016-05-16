@@ -1,6 +1,7 @@
 package netlink
 
 import (
+	"fmt"
 	"net"
 )
 
@@ -11,7 +12,11 @@ type XfrmStateAlgo struct {
 	TruncateLen int // Auth only
 }
 
-// EncapType is an enum representing an ipsec template direction.
+func (a XfrmStateAlgo) String() string {
+	return fmt.Sprintf("{Name: %s, Key: 0x%x, TruncateLen: %d}", a.Name, a.Key, a.TruncateLen)
+}
+
+// EncapType is an enum representing the optional packet encapsulation.
 type EncapType uint8
 
 const (
@@ -22,19 +27,24 @@ const (
 func (e EncapType) String() string {
 	switch e {
 	case XFRM_ENCAP_ESPINUDP_NONIKE:
-		return "espinudp-nonike"
+		return "espinudp-non-ike"
 	case XFRM_ENCAP_ESPINUDP:
 		return "espinudp"
 	}
 	return "unknown"
 }
 
-// XfrmEncap represents the encapsulation to use for the ipsec encryption.
+// XfrmStateEncap represents the encapsulation to use for the ipsec encryption.
 type XfrmStateEncap struct {
 	Type            EncapType
 	SrcPort         int
 	DstPort         int
 	OriginalAddress net.IP
+}
+
+func (e XfrmStateEncap) String() string {
+	return fmt.Sprintf("{Type: %s, Srcport: %d, DstPort: %d, OriginalAddress: %v}",
+		e.Type, e.SrcPort, e.DstPort, e.OriginalAddress)
 }
 
 // XfrmState represents the state of an ipsec policy. It optionally
@@ -47,7 +57,13 @@ type XfrmState struct {
 	Spi          int
 	Reqid        int
 	ReplayWindow int
+	Mark         *XfrmMark
 	Auth         *XfrmStateAlgo
 	Crypt        *XfrmStateAlgo
 	Encap        *XfrmStateEncap
+}
+
+func (sa XfrmState) String() string {
+	return fmt.Sprintf("Dst: %v, Src: %v, Proto: %s, Mode: %s, SPI: 0x%x, ReqID: 0x%x, ReplayWindow: %d, Mark: %v, Auth: %v, Crypt: %v, Encap: %v",
+		sa.Dst, sa.Src, sa.Proto, sa.Mode, sa.Spi, sa.Reqid, sa.ReplayWindow, sa.Mark, sa.Auth, sa.Crypt, sa.Encap)
 }

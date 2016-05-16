@@ -62,3 +62,13 @@ func (m Mode) String() string {
 	}
 	return fmt.Sprintf("%d", m)
 }
+
+// XfrmMark represents the mark associated to the state or policy
+type XfrmMark struct {
+	Value uint32
+	Mask  uint32
+}
+
+func (m *XfrmMark) String() string {
+	return fmt.Sprintf("(0x%x,0x%x)", m.Value, m.Mask)
+}

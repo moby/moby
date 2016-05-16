@@ -6,7 +6,6 @@ import (
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/osl"
 	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netlink/nl"
 )
 
 func validateID(nid, eid string) error {
@@ -54,7 +53,7 @@ func createVxlan(name string, vni uint32) error {
 		LinkAttrs: netlink.LinkAttrs{Name: name},
 		VxlanId:   int(vni),
 		Learning:  true,
-		Port:      int(nl.Swap16(vxlanPort)), //network endian order
+		Port:      vxlanPort,
 		Proxy:     true,
 		L3miss:    true,
 		L2miss:    true,
