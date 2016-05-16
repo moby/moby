@@ -20,14 +20,16 @@ const (
 )
 
 // NewClient creates a new plugin client (http).
-func NewClient(addr string, tlsConfig tlsconfig.Options) (*Client, error) {
+func NewClient(addr string, tlsConfig *tlsconfig.Options) (*Client, error) {
 	tr := &http.Transport{}
 
-	c, err := tlsconfig.Client(tlsConfig)
-	if err != nil {
-		return nil, err
+	if tlsConfig != nil {
+		c, err := tlsconfig.Client(*tlsConfig)
+		if err != nil {
+			return nil, err
+		}
+		tr.TLSClientConfig = c
 	}
-	tr.TLSClientConfig = c
 
 	u, err := url.Parse(addr)
 	if err != nil {

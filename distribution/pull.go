@@ -84,7 +84,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 	}
 
 	// makes sure name is not empty or `scratch`
-	if err := validateRepoName(repoInfo.Name()); err != nil {
+	if err := ValidateRepoName(repoInfo.Name()); err != nil {
 		return err
 	}
 
@@ -193,8 +193,8 @@ func writeStatus(requestedTag string, out progress.Output, layersDownloaded bool
 	}
 }
 
-// validateRepoName validates the name of a repository.
-func validateRepoName(name string) error {
+// ValidateRepoName validates the name of a repository.
+func ValidateRepoName(name string) error {
 	if name == "" {
 		return fmt.Errorf("Repository name can't be empty")
 	}

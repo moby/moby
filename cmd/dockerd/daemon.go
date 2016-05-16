@@ -262,6 +262,10 @@ func (cli *DaemonCli) start() (err error) {
 		<-stopc // wait for daemonCli.start() to return
 	})
 
+	if err := pluginInit(cli.Config, containerdRemote, registryService); err != nil {
+		return err
+	}
+
 	d, err := daemon.NewDaemon(cli.Config, registryService, containerdRemote)
 	if err != nil {
 		return fmt.Errorf("Error starting daemon: %v", err)
@@ -418,6 +422,7 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
 	if d.NetworkControllerEnabled() {
 		routers = append(routers, network.NewRouter(d, c))
 	}
+	routers = addExperimentalRouters(routers)
 
 	s.InitRouter(utils.IsDebugEnabled(), routers...)
 }

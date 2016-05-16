@@ -31,7 +31,7 @@ func teardownRemotePluginServer() {
 }
 
 func TestFailedConnection(t *testing.T) {
-	c, _ := NewClient("tcp://127.0.0.1:1", tlsconfig.Options{InsecureSkipVerify: true})
+	c, _ := NewClient("tcp://127.0.0.1:1", &tlsconfig.Options{InsecureSkipVerify: true})
 	_, err := c.callWithRetry("Service.Method", nil, false)
 	if err == nil {
 		t.Fatal("Unexpected successful connection")
@@ -55,7 +55,7 @@ func TestEchoInputOutput(t *testing.T) {
 		io.Copy(w, r.Body)
 	})
 
-	c, _ := NewClient(addr, tlsconfig.Options{InsecureSkipVerify: true})
+	c, _ := NewClient(addr, &tlsconfig.Options{InsecureSkipVerify: true})
 	var output Manifest
 	err := c.Call("Test.Echo", m, &output)
 	if err != nil {
