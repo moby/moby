@@ -969,34 +969,24 @@ func TestNetworkQuery(t *testing.T) {
 const containerID = "valid_c"
 
 func checkSandbox(t *testing.T, info libnetwork.EndpointInfo) {
-	origns, err := netns.Get()
-	if err != nil {
-		t.Fatalf("Could not get the current netns: %v", err)
-	}
-	defer origns.Close()
-
 	key := info.Sandbox().Key()
-	f, err := os.OpenFile(key, os.O_RDONLY, 0)
+	sbNs, err := netns.GetFromPath(key)
 	if err != nil {
-		t.Fatalf("Failed to open network namespace path %q: %v", key, err)
+		t.Fatalf("Failed to get network namespace path %q: %v", key, err)
 	}
-	defer f.Close()
+	defer sbNs.Close()
 
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	nsFD := f.Fd()
-	if err = netns.Set(netns.NsHandle(nsFD)); err != nil {
-		t.Fatalf("Setting to the namespace pointed to by the sandbox %s failed: %v", key, err)
+	nh, err := netlink.NewHandleAt(sbNs)
+	if err != nil {
+		t.Fatal(err)
 	}
-	defer netns.Set(origns)
 
-	_, err = netlink.LinkByName("eth0")
+	_, err = nh.LinkByName("eth0")
 	if err != nil {
 		t.Fatalf("Could not find the interface eth0 inside the sandbox: %v", err)
 	}
 
-	_, err = netlink.LinkByName("eth1")
+	_, err = nh.LinkByName("eth1")
 	if err != nil {
 		t.Fatalf("Could not find the interface eth1 inside the sandbox: %v", err)
 	}
@@ -1093,13 +1083,11 @@ func TestEndpointJoin(t *testing.T) {
 	}()
 
 	err = ep1.Join(sb)
-	runtime.LockOSThread()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
 		err = ep1.Leave(sb)
-		runtime.LockOSThread()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1162,10 +1150,8 @@ func TestEndpointJoin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	runtime.LockOSThread()
 	defer func() {
 		err = ep2.Leave(sb)
-		runtime.LockOSThread()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1291,13 +1277,11 @@ func externalKeyTest(t *testing.T, reexec bool) {
 
 	// Join endpoint to sandbox before SetKey
 	err = ep.Join(cnt)
-	runtime.LockOSThread()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
 		err = ep.Leave(cnt)
-		runtime.LockOSThread()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1347,10 +1331,8 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	runtime.LockOSThread()
 	defer func() {
 		err = ep2.Leave(sbox)
-		runtime.LockOSThread()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1426,13 +1408,11 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 	}()
 
 	err = ep.Join(cnt)
-	runtime.LockOSThread()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
 		err = ep.Leave(cnt)
-		runtime.LockOSThread()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1492,17 +1472,14 @@ func TestEndpointMultipleJoins(t *testing.T) {
 		if err := sbx2.Delete(); err != nil {
 			t.Fatal(err)
 		}
-		runtime.LockOSThread()
 	}()
 
 	err = ep.Join(sbx1)
-	runtime.LockOSThread()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
 		err = ep.Leave(sbx1)
-		runtime.LockOSThread()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1558,13 +1535,11 @@ func TestLeaveAll(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to join ep1: %v", err)
 	}
-	runtime.LockOSThread()
 
 	err = ep2.Join(cnt)
 	if err != nil {
 		t.Fatalf("Failed to join ep2: %v", err)
 	}
-	runtime.LockOSThread()
 
 	err = cnt.Delete()
 	if err != nil {
@@ -1695,13 +1670,11 @@ func TestEndpointUpdateParent(t *testing.T) {
 	}()
 
 	err = ep1.Join(sbx1)
-	runtime.LockOSThread()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	err = ep2.Join(sbx2)
-	runtime.LockOSThread()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1924,7 +1897,6 @@ func TestResolvConf(t *testing.T) {
 	}()
 
 	err = ep.Join(sb1)
-	runtime.LockOSThread()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1950,7 +1922,6 @@ func TestResolvConf(t *testing.T) {
 	}
 
 	err = ep.Leave(sb1)
-	runtime.LockOSThread()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1970,7 +1941,6 @@ func TestResolvConf(t *testing.T) {
 	}()
 
 	err = ep.Join(sb2)
-	runtime.LockOSThread()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1989,13 +1959,11 @@ func TestResolvConf(t *testing.T) {
 	}
 
 	err = ep.Leave(sb2)
-	runtime.LockOSThread()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	err = ep.Join(sb2)
-	runtime.LockOSThread()
 	if err != nil {
 		t.Fatal(err)
 	}

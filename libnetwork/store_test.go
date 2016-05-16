@@ -13,7 +13,7 @@ import (
 	"github.com/docker/libnetwork/options"
 )
 
-func TestZooKeeperBackend(t *testing.T) {
+func testZooKeeperBackend(t *testing.T) {
 	c, err := testNewController(t, "zk", "127.0.0.1:2181/custom_prefix")
 	if err != nil {
 		t.Fatal(err)

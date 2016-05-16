@@ -6,9 +6,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/types"
 	"github.com/gogo/protobuf/proto"
-	"github.com/vishvananda/netlink"
 )
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
@@ -57,14 +57,16 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 
 	ep.ifName = containerIfName
 
+	nlh := ns.NlHandle()
+
 	// Set the container interface and its peer MTU to 1450 to allow
 	// for 50 bytes vxlan encap (inner eth header(14) + outer IP(20) +
 	// outer UDP(8) + vxlan header(8))
-	veth, err := netlink.LinkByName(overlayIfName)
+	veth, err := nlh.LinkByName(overlayIfName)
 	if err != nil {
 		return fmt.Errorf("cound not find link by name %s: %v", overlayIfName, err)
 	}
-	err = netlink.LinkSetMTU(veth, vxlanVethMTU)
+	err = nlh.LinkSetMTU(veth, vxlanVethMTU)
 	if err != nil {
 		return err
 	}
@@ -74,16 +76,16 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return fmt.Errorf("could not add veth pair inside the network sandbox: %v", err)
 	}
 
-	veth, err = netlink.LinkByName(containerIfName)
+	veth, err = nlh.LinkByName(containerIfName)
 	if err != nil {
 		return fmt.Errorf("could not find link by name %s: %v", containerIfName, err)
 	}
-	err = netlink.LinkSetMTU(veth, vxlanVethMTU)
+	err = nlh.LinkSetMTU(veth, vxlanVethMTU)
 	if err != nil {
 		return err
 	}
 
-	if err := netlink.LinkSetHardwareAddr(veth, ep.mac); err != nil {
+	if err := nlh.LinkSetHardwareAddr(veth, ep.mac); err != nil {
 		return fmt.Errorf("could not set mac address (%v) to the container interface: %v", ep.mac, err)
 	}
 

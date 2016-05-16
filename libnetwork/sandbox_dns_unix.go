@@ -239,7 +239,7 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 	if currHash != "" && currHash != currRC.Hash {
 		// Seems the user has changed the container resolv.conf since the last time
 		// we checked so return without doing anything.
-		log.Infof("Skipping update of resolv.conf file with ipv6Enabled: %t because file was touched by user", ipv6Enabled)
+		//log.Infof("Skipping update of resolv.conf file with ipv6Enabled: %t because file was touched by user", ipv6Enabled)
 		return nil
 	}
 
