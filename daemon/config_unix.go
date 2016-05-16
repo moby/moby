@@ -41,7 +41,7 @@ type bridgeConfig struct {
 	EnableIPv6                  bool   `json:"ipv6,omitempty"`
 	EnableIPTables              bool   `json:"iptables,omitempty"`
 	EnableIPForward             bool   `json:"ip-forward,omitempty"`
-	EnableIPMasq                bool   `json:"ip-mask,omitempty"`
+	EnableIPMasq                bool   `json:"ip-masq,omitempty"`
 	EnableUserlandProxy         bool   `json:"userland-proxy,omitempty"`
 	DefaultIP                   net.IP `json:"ip,omitempty"`
 	IP                          string `json:"bip,omitempty"`
