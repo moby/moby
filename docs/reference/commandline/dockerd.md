@@ -889,11 +889,14 @@ via flags. The docker daemon fails to start if an option is duplicated between
 the file and the flags, regardless their value. We do this to avoid
 silently ignore changes introduced in configuration reloads.
 For example, the daemon fails to start if you set daemon labels
-in the configuration file and also set daemon labels via the `--label` flag. Options that are not present in the file are ignored when the daemon starts.
+in the configuration file and also set daemon labels via the `--label` flag. 
+Options that are not present in the file are ignored when the daemon starts.
 
 ### Linux configuration file
 
-The default location of the configuration file on Linux is `/etc/docker/daemon.json`. The `--conflig-file` flag can be used to specify a non-default location. 
+The default location of the configuration file on Linux is 
+`/etc/docker/daemon.json`. The `--conflig-file` flag can be used to specify a
+ non-default location. 
 
 This is a full example of the allowed configuration options on Linux:
 
@@ -954,7 +957,9 @@ This is a full example of the allowed configuration options on Linux:
 
 ### Windows configuration file
 
-The default location of the configuration file on Linux is `%programdata%\docker\config\daemon.json`. The `--conflig-file` flag can be used to specify a non-default location. 
+The default location of the configuration file on Windows is
+ `%programdata%\docker\config\daemon.json`. The `--conflig-file` flag can be
+ used to specify a non-default location. 
 
 This is a full example of the allowed configuration options on Windows:
 
