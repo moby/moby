@@ -665,7 +665,10 @@ func (n *network) driver(load bool) (driverapi.Driver, error) {
 
 	c := n.getController()
 	n.Lock()
-	n.scope = cap.DataScope
+	// If load is not required, driver, cap and err may all be nil
+	if cap != nil {
+		n.scope = cap.DataScope
+	}
 	if c.cfg.Daemon.IsAgent {
 		// If we are running in agent mode then all networks
 		// in libnetwork are local scope regardless of the
