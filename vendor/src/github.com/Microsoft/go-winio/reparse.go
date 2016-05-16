@@ -80,7 +80,7 @@ func EncodeReparsePoint(rp *ReparsePoint) []byte {
 	var ntTarget string
 	relative := false
 	if strings.HasPrefix(rp.Target, `\\?\`) {
-		ntTarget = rp.Target
+		ntTarget = `\??\` + rp.Target[4:]
 	} else if strings.HasPrefix(rp.Target, `\\`) {
 		ntTarget = `\??\UNC\` + rp.Target[2:]
 	} else if len(rp.Target) >= 2 && isDriveLetter(rp.Target[0]) && rp.Target[1] == ':' {
