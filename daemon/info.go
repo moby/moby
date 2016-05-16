@@ -85,7 +85,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		ContainersPaused:   int(cPaused),
 		ContainersStopped:  int(cStopped),
 		Images:             len(daemon.imageStore.Map()),
-		Driver:             daemon.GraphDriverName(),
+		Driver:             daemon.StorageDriverName(),
 		DriverStatus:       daemon.layerStore.DriverStatus(),
 		Plugins:            daemon.showPluginsInfo(),
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
