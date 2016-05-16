@@ -49,6 +49,7 @@ func GetHTTPErrorStatusCode(err error) int {
 			"not found":             http.StatusNotFound,
 			"no such":               http.StatusNotFound,
 			"bad parameter":         http.StatusBadRequest,
+			"no command":            http.StatusBadRequest,
 			"conflict":              http.StatusConflict,
 			"impossible":            http.StatusNotAcceptable,
 			"wrong login/password":  http.StatusUnauthorized,
