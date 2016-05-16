@@ -162,7 +162,7 @@ func (daemon *Daemon) Cleanup(container *container.Container) {
 	container.UnmountIpcMounts(detachMounted)
 
 	if err := daemon.conditionalUnmountOnCleanup(container); err != nil {
-		// FIXME: remove once reference counting for graphdrivers has been refactored
+		// FIXME: remove once reference counting for storage drivers has been refactored
 		// Ensure that all the mounts are gone
 		if mountid, err := daemon.layerStore.GetMountID(container.ID); err == nil {
 			daemon.cleanupMountsByID(mountid)

@@ -79,8 +79,8 @@ type CommonConfig struct {
 	DNSOptions           []string            `json:"dns-opts,omitempty"`
 	DNSSearch            []string            `json:"dns-search,omitempty"`
 	ExecOptions          []string            `json:"exec-opts,omitempty"`
-	GraphDriver          string              `json:"storage-driver,omitempty"`
-	GraphOptions         []string            `json:"storage-opts,omitempty"`
+	StorageDriver        string              `json:"storage-driver,omitempty"`
+	StorageOptions       []string            `json:"storage-opts,omitempty"`
 	Labels               []string            `json:"labels,omitempty"`
 	Mtu                  int                 `json:"mtu,omitempty"`
 	Pidfile              string              `json:"pidfile,omitempty"`
@@ -139,13 +139,14 @@ func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string)
 
 	config.ServiceOptions.InstallCliFlags(cmd, usageFn)
 
-	cmd.Var(opts.NewNamedListOptsRef("storage-opts", &config.GraphOptions, nil), []string{"-storage-opt"}, usageFn("Set storage driver options"))
+	cmd.Var(opts.NewNamedListOptsRef("storage-opts", &config.StorageOptions, nil), []string{"-storage-opt"}, usageFn("Set storage driver options"))
 	cmd.Var(opts.NewNamedListOptsRef("authorization-plugins", &config.AuthorizationPlugins, nil), []string{"-authorization-plugin"}, usageFn("List authorization plugins in order from first evaluator to last"))
 	cmd.Var(opts.NewNamedListOptsRef("exec-opts", &config.ExecOptions, nil), []string{"-exec-opt"}, usageFn("Set runtime execution options"))
 	cmd.StringVar(&config.Pidfile, []string{"p", "-pidfile"}, defaultPidFile, usageFn("Path to use for daemon PID file"))
+	// FIXME(samoht): -graph is inconsistent with -storage-driver
 	cmd.StringVar(&config.Root, []string{"g", "-graph"}, defaultGraph, usageFn("Root of the Docker runtime"))
 	cmd.BoolVar(&config.AutoRestart, []string{"#r", "#-restart"}, true, usageFn("--restart on the daemon has been deprecated in favor of --restart policies on docker run"))
-	cmd.StringVar(&config.GraphDriver, []string{"s", "-storage-driver"}, "", usageFn("Storage driver to use"))
+	cmd.StringVar(&config.StorageDriver, []string{"s", "-storage-driver"}, "", usageFn("Storage driver to use"))
 	cmd.IntVar(&config.Mtu, []string{"#mtu", "-mtu"}, 0, usageFn("Set the containers network MTU"))
 	cmd.BoolVar(&config.RawLogs, []string{"-raw-logs"}, false, usageFn("Full timestamps without ANSI coloring"))
 	// FIXME: why the inconsistency between "hosts" and "sockets"?

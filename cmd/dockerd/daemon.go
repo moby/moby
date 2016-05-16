@@ -261,9 +261,9 @@ func (cli *DaemonCli) start() (err error) {
 	logrus.Info("Daemon has completed initialization")
 
 	logrus.WithFields(logrus.Fields{
-		"version":     dockerversion.Version,
-		"commit":      dockerversion.GitCommit,
-		"graphdriver": d.GraphDriverName(),
+		"version":        dockerversion.Version,
+		"commit":         dockerversion.GitCommit,
+		"storage-driver": d.StorageDriverName(),
 	}).Info("Docker daemon")
 
 	cli.initMiddlewares(api, serverConfig)
