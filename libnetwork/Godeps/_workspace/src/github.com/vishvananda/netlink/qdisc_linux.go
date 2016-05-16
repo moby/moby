@@ -13,21 +13,41 @@ import (
 // QdiscDel will delete a qdisc from the system.
 // Equivalent to: `tc qdisc del $qdisc`
 func QdiscDel(qdisc Qdisc) error {
-	return qdiscModify(syscall.RTM_DELQDISC, 0, qdisc)
+	return pkgHandle.QdiscDel(qdisc)
+}
+
+// QdiscDel will delete a qdisc from the system.
+// Equivalent to: `tc qdisc del $qdisc`
+func (h *Handle) QdiscDel(qdisc Qdisc) error {
+	return h.qdiscModify(syscall.RTM_DELQDISC, 0, qdisc)
 }
 
 // QdiscChange will change a qdisc in place
 // Equivalent to: `tc qdisc change $qdisc`
 // The parent and handle MUST NOT be changed.
 func QdiscChange(qdisc Qdisc) error {
-	return qdiscModify(syscall.RTM_NEWQDISC, 0, qdisc)
+	return pkgHandle.QdiscChange(qdisc)
+}
+
+// QdiscChange will change a qdisc in place
+// Equivalent to: `tc qdisc change $qdisc`
+// The parent and handle MUST NOT be changed.
+func (h *Handle) QdiscChange(qdisc Qdisc) error {
+	return h.qdiscModify(syscall.RTM_NEWQDISC, 0, qdisc)
 }
 
 // QdiscReplace will replace a qdisc to the system.
 // Equivalent to: `tc qdisc replace $qdisc`
 // The handle MUST change.
 func QdiscReplace(qdisc Qdisc) error {
-	return qdiscModify(
+	return pkgHandle.QdiscReplace(qdisc)
+}
+
+// QdiscReplace will replace a qdisc to the system.
+// Equivalent to: `tc qdisc replace $qdisc`
+// The handle MUST change.
+func (h *Handle) QdiscReplace(qdisc Qdisc) error {
+	return h.qdiscModify(
 		syscall.RTM_NEWQDISC,
 		syscall.NLM_F_CREATE|syscall.NLM_F_REPLACE,
 		qdisc)
@@ -36,14 +56,20 @@ func QdiscReplace(qdisc Qdisc) error {
 // QdiscAdd will add a qdisc to the system.
 // Equivalent to: `tc qdisc add $qdisc`
 func QdiscAdd(qdisc Qdisc) error {
-	return qdiscModify(
+	return pkgHandle.QdiscAdd(qdisc)
+}
+
+// QdiscAdd will add a qdisc to the system.
+// Equivalent to: `tc qdisc add $qdisc`
+func (h *Handle) QdiscAdd(qdisc Qdisc) error {
+	return h.qdiscModify(
 		syscall.RTM_NEWQDISC,
 		syscall.NLM_F_CREATE|syscall.NLM_F_EXCL,
 		qdisc)
 }
 
-func qdiscModify(cmd, flags int, qdisc Qdisc) error {
-	req := nl.NewNetlinkRequest(cmd, flags|syscall.NLM_F_ACK)
+func (h *Handle) qdiscModify(cmd, flags int, qdisc Qdisc) error {
+	req := h.newNetlinkRequest(cmd, flags|syscall.NLM_F_ACK)
 	base := qdisc.Attrs()
 	msg := &nl.TcMsg{
 		Family:  nl.FAMILY_ALL,
@@ -139,11 +165,18 @@ func qdiscPayload(req *nl.NetlinkRequest, qdisc Qdisc) error {
 // Equivalent to: `tc qdisc show`.
 // The list can be filtered by link.
 func QdiscList(link Link) ([]Qdisc, error) {
-	req := nl.NewNetlinkRequest(syscall.RTM_GETQDISC, syscall.NLM_F_DUMP)
+	return pkgHandle.QdiscList(link)
+}
+
+// QdiscList gets a list of qdiscs in the system.
+// Equivalent to: `tc qdisc show`.
+// The list can be filtered by link.
+func (h *Handle) QdiscList(link Link) ([]Qdisc, error) {
+	req := h.newNetlinkRequest(syscall.RTM_GETQDISC, syscall.NLM_F_DUMP)
 	index := int32(0)
 	if link != nil {
 		base := link.Attrs()
-		ensureIndex(base)
+		h.ensureIndex(base)
 		index = int32(base.Index)
 	}
 	msg := &nl.TcMsg{
@@ -334,9 +367,9 @@ const (
 )
 
 var (
-	tickInUsec  float64 = 0.0
-	clockFactor float64 = 0.0
-	hz          float64 = 0.0
+	tickInUsec  float64
+	clockFactor float64
+	hz          float64
 )
 
 func initClock() {
