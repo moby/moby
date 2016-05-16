@@ -499,7 +499,7 @@ func (daemon *Daemon) generateNewName(id string) (string, error) {
 func (daemon *Daemon) generateHostname(id string, config *containertypes.Config) {
 	// Generate default hostname
 	if config.Hostname == "" {
-		config.Hostname = id[:12]
+		config.Hostname = "docker-" + id[:12]
 	}
 }
 
