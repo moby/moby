@@ -43,7 +43,7 @@ func New(handlers ...Handler) *Cli {
 type initErr struct{ error }
 
 func (err initErr) Error() string {
-	return err.Error()
+	return err.error.Error()
 }
 
 func (cli *Cli) command(args ...string) (func(...string) error, error) {
