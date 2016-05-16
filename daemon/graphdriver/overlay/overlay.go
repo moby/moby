@@ -333,23 +333,22 @@ func (d *Driver) Get(id string, mountLabel string) (s string, err error) {
 	if _, err := os.Stat(dir); err != nil {
 		return "", err
 	}
+	// If id has a root, just return it
+	rootDir := path.Join(dir, "root")
+	if _, err := os.Stat(rootDir); err == nil {
+		return rootDir, nil
+	}
 	mergedDir := path.Join(dir, "merged")
 	if count := d.ctr.Increment(mergedDir); count > 1 {
 		return mergedDir, nil
 	}
 	defer func() {
 		if err != nil {
-			d.ctr.Decrement(mergedDir)
-			syscall.Unmount(mergedDir, 0)
+			if c := d.ctr.Decrement(mergedDir); c <= 0 {
+				syscall.Unmount(mergedDir, 0)
+			}
 		}
 	}()
-
-	// If id has a root, just return it
-	rootDir := path.Join(dir, "root")
-	if _, err := os.Stat(rootDir); err == nil {
-		return rootDir, nil
-	}
-
 	lowerID, err := ioutil.ReadFile(path.Join(dir, "lower-id"))
 	if err != nil {
 		return "", err
