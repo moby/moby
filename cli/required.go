@@ -21,3 +21,17 @@ func MinRequiredArgs(args []string, min int, cmd *cobra.Command) error {
 		cmd.Short,
 	)
 }
+
+// AcceptsNoArgs returns an error message if there are args
+func AcceptsNoArgs(args []string, cmd *cobra.Command) error {
+	if len(args) == 0 {
+		return nil
+	}
+
+	return fmt.Errorf(
+		"\"%s\" accepts no argument(s).\n\nUsage:  %s\n\n%s",
+		cmd.CommandPath(),
+		cmd.UseLine(),
+		cmd.Short,
+	)
+}

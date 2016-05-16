@@ -48,7 +48,6 @@ var DockerCommandUsage = []Command{
 	{"unpause", "Unpause all processes within a container"},
 	{"update", "Update configuration of one or more containers"},
 	{"version", "Show the Docker version information"},
-	{"volume", "Manage Docker volumes"},
 	{"wait", "Block until a container stops, then print its exit code"},
 }
 

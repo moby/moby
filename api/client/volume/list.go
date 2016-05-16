@@ -8,6 +8,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/cli"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
 	"github.com/spf13/cobra"
@@ -34,6 +35,10 @@ func newListCommand(dockerCli *client.DockerCli) *cobra.Command {
 		Aliases: []string{"list"},
 		Short:   "List volumes",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// TODO: remove once cobra is patched to handle this
+			if err := cli.AcceptsNoArgs(args, cmd); err != nil {
+				return err
+			}
 			return runList(dockerCli, opts)
 		},
 	}

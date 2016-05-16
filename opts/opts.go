@@ -100,6 +100,11 @@ func (opts *ListOpts) Len() int {
 	return len((*opts.values))
 }
 
+// Type returns a string name for this Option type
+func (opts *ListOpts) Type() string {
+	return "list"
+}
+
 // NamedOption is an interface that list and map options
 // with names implement.
 type NamedOption interface {

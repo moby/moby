@@ -6,6 +6,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/types"
@@ -20,12 +21,18 @@ type createOptions struct {
 }
 
 func newCreateCommand(dockerCli *client.DockerCli) *cobra.Command {
-	var opts createOptions
+	opts := createOptions{
+		driverOpts: *opts.NewMapOpts(nil, nil),
+	}
 
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a volume",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// TODO: remove once cobra is patched to handle this
+			if err := cli.AcceptsNoArgs(args, cmd); err != nil {
+				return err
+			}
 			return runCreate(dockerCli, opts)
 		},
 	}

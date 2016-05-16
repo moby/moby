@@ -249,7 +249,8 @@ func testCommand(cmd string, newEnvs []string, scanForHome bool, home string) er
 		// If a line starts with 4 spaces then assume someone
 		// added a multi-line description for an option and we need
 		// to flag it
-		if strings.HasPrefix(line, "    ") {
+		if strings.HasPrefix(line, "    ") &&
+			!strings.HasPrefix(strings.TrimLeft(line, " "), "--") {
 			return fmt.Errorf("Help for %q should not have a multi-line option", cmd)
 		}
 
@@ -260,7 +261,7 @@ func testCommand(cmd string, newEnvs []string, scanForHome bool, home string) er
 
 		// Options should NOT end with a space
 		if strings.HasSuffix(line, " ") {
-			return fmt.Errorf("Help for %q should not end with a space", cmd)
+			return fmt.Errorf("Help for %q should not end with a space: %s", cmd, line)
 		}
 
 	}
@@ -326,8 +327,8 @@ func testCommand(cmd string, newEnvs []string, scanForHome bool, home string) er
 			return fmt.Errorf("Bad output from %q\nstdout:%q\nstderr:%q\nec:%d\nerr:%q\n", args, out, stderr, ec, err)
 		}
 		// Should have just short usage
-		if !strings.Contains(stderr, "\nUsage:\t") {
-			return fmt.Errorf("Missing short usage on %q\n", args)
+		if !strings.Contains(stderr, "\nUsage:") {
+			return fmt.Errorf("Missing short usage on %q\n:%#v", args, stderr)
 		}
 		// But shouldn't have full usage
 		if strings.Contains(stderr, "--help=false") {

@@ -18,17 +18,21 @@ type CobraAdaptor struct {
 
 // NewCobraAdaptor returns a new handler
 func NewCobraAdaptor(clientFlags *cliflags.ClientFlags) CobraAdaptor {
-	var rootCmd = &cobra.Command{
-		Use: "docker",
-	}
-	rootCmd.SetUsageTemplate(usageTemplate)
-
 	stdin, stdout, stderr := term.StdStreams()
 	dockerCli := client.NewDockerCli(stdin, stdout, stderr, clientFlags)
 
+	var rootCmd = &cobra.Command{
+		Use:           "docker",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+	}
+	rootCmd.SetUsageTemplate(usageTemplate)
+	rootCmd.SetHelpTemplate(helpTemplate)
+	rootCmd.SetOutput(stdout)
 	rootCmd.AddCommand(
 		volume.NewVolumeCommand(dockerCli),
 	)
+
 	return CobraAdaptor{
 		rootCmd:   rootCmd,
 		dockerCli: dockerCli,
@@ -64,20 +68,24 @@ func (c CobraAdaptor) Command(name string) func(...string) error {
 	return nil
 }
 
-var usageTemplate = `Usage:  {{if .Runnable}}{{if .HasFlags}}{{appendIfNotPresent .UseLine "[OPTIONS]"}}{{else}}{{.UseLine}}{{end}}{{end}}{{if .HasSubCommands}}{{ .CommandPath}} COMMAND {{end}}{{if gt .Aliases 0}}
+var usageTemplate = `Usage:	{{if not .HasSubCommands}}{{if .HasLocalFlags}}{{appendIfNotPresent .UseLine "[OPTIONS]"}}{{else}}{{.UseLine}}{{end}}{{end}}{{if .HasSubCommands}}{{ .CommandPath}} COMMAND{{end}}
+
+{{with or .Long .Short }}{{. | trim}}{{end}}{{if gt .Aliases 0}}
 
 Aliases:
-  {{.NameAndAliases}}
-{{end}}{{if .HasExample}}
+  {{.NameAndAliases}}{{end}}{{if .HasExample}}
 
 Examples:
-{{ .Example }}{{end}}{{ if .HasLocalFlags}}
+{{ .Example }}{{end}}{{if .HasFlags}}
 
 Options:
-{{.LocalFlags.FlagUsages | trimRightSpace}}{{end}}{{ if .HasAvailableSubCommands}}
+{{.Flags.FlagUsages | trimRightSpace}}{{end}}{{ if .HasAvailableSubCommands}}
 
 Commands:{{range .Commands}}{{if .IsAvailableCommand}}
   {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{ if .HasSubCommands }}
 
 Run '{{.CommandPath}} COMMAND --help' for more information on a command.{{end}}
 `
+
+var helpTemplate = `
+{{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`
