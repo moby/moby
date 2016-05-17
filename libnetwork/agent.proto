@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+import "gogoproto/gogo.proto";
+
+package libnetwork;
+
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.stringer_all) = true;
+option (gogoproto.gostring_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.goproto_stringer_all) = false;
+
+message EndpointRecord {
+	string name = 1;
+	string service_name = 2;
+	string service_id = 3 [(gogoproto.customname) = "ServiceID"];
+	string endpoint_ip = 4 [(gogoproto.customname) = "EndpointIP"];
+}
