@@ -254,7 +254,7 @@ function dnet_cmd() {
 }
 
 function dnet_exec() {
-    docker exec -it ${1} bash -c "$2"
+    docker exec -it ${1} bash -c "trap \"echo SIGHUP\" SIGHUP; $2"
 }
 
 function runc() {
