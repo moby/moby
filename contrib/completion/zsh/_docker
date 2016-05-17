@@ -405,7 +405,7 @@ __docker_networks_names() {
 __docker_network_commands() {
     local -a _docker_network_subcommands
     _docker_network_subcommands=(
-        "connect:onnects a container to a network"
+        "connect:Connects a container to a network"
         "create:Creates a new network with a name specified by the user"
         "disconnect:Disconnects a container from a network"
         "inspect:Displays detailed information on a network"
