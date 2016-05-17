@@ -287,7 +287,7 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 		}
 	} else {
 		// No Autoremove: Simply retrieve the exit code
-		if !config.Tty {
+		if !config.Tty && hostConfig.RestartPolicy.IsNone() {
 			// In non-TTY mode, we can't detach, so we must wait for container exit
 			if status, err = client.ContainerWait(ctx, createResponse.ID); err != nil {
 				return err

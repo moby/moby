@@ -1828,6 +1828,37 @@ func (s *DockerSuite) TestRunExitOnStdinClose(c *check.C) {
 	}
 }
 
+// Test run -i --restart xxx doesn't hang
+func (s *DockerSuite) TestRunInteractiveWithRestartPolicy(c *check.C) {
+	name := "test-inter-restart"
+	runCmd := exec.Command(dockerBinary, "run", "-i", "--name", name, "--restart=always", "busybox", "sh")
+
+	stdin, err := runCmd.StdinPipe()
+	c.Assert(err, checker.IsNil)
+
+	err = runCmd.Start()
+	c.Assert(err, checker.IsNil)
+	c.Assert(waitRun(name), check.IsNil)
+
+	_, err = stdin.Write([]byte("exit 11\n"))
+	c.Assert(err, checker.IsNil)
+
+	finish := make(chan error)
+	go func() {
+		finish <- runCmd.Wait()
+		close(finish)
+	}()
+	delay := 10 * time.Second
+	select {
+	case <-finish:
+	case <-time.After(delay):
+		c.Fatal("run -i --restart hangs")
+	}
+
+	c.Assert(waitRun(name), check.IsNil)
+	dockerCmd(c, "stop", name)
+}
+
 // Test for #2267
 func (s *DockerSuite) TestRunWriteHostsFileAndNotCommit(c *check.C) {
 	// Cannot run on Windows as Windows does not support diff.
