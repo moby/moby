@@ -20,6 +20,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/Microsoft/go-winio"
 	"github.com/Microsoft/go-winio/archive/tar"
 	"github.com/Microsoft/go-winio/backuptar"
 	"github.com/Microsoft/hcsshim"
@@ -31,7 +32,6 @@ import (
 	"github.com/docker/docker/pkg/longpath"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/vendor/src/github.com/Microsoft/go-winio"
 	"github.com/vbatts/tar-split/tar/storage"
 )
 

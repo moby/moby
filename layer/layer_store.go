@@ -495,19 +495,6 @@ func (ls *layerStore) GetMountID(id string) (string, error) {
 	return mount.mountID, nil
 }
 
-// ReinitRWLayer reinitializes a given mount to the layerstore, specifically
-// initializing the usage count. It should strictly only be used in the
-// daemon's restore path to restore state of live containers.
-func (ls *layerStore) ReinitRWLayer(l RWLayer) error {
-	ls.mountL.Lock()
-	defer ls.mountL.Unlock()
-
-	if _, ok := ls.mounts[l.Name()]; !ok {
-		return ErrMountDoesNotExist
-	}
-	return nil
-}
-
 func (ls *layerStore) ReleaseRWLayer(l RWLayer) ([]Metadata, error) {
 	ls.mountL.Lock()
 	defer ls.mountL.Unlock()

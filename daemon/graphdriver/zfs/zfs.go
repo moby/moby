@@ -105,7 +105,7 @@ func Init(base string, opt []string, uidMaps, gidMaps []idtools.IDMap) (graphdri
 		filesystemsCache: filesystemsCache,
 		uidMaps:          uidMaps,
 		gidMaps:          gidMaps,
-		ctr:              graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicZfs)),
+		ctr:              graphdriver.NewRefCounter(graphdriver.NewDefaultChecker()),
 	}
 	return graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps), nil
 }

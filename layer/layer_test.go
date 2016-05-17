@@ -174,10 +174,7 @@ func getCachedLayer(l Layer) *roLayer {
 }
 
 func getMountLayer(l RWLayer) *mountedLayer {
-	if rl, ok := l.(*referencedRWLayer); ok {
-		return rl.mountedLayer
-	}
-	return l.(*mountedLayer)
+	return l.(*referencedRWLayer).mountedLayer
 }
 
 func createMetadata(layers ...Layer) []Metadata {

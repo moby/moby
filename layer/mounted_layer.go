@@ -49,14 +49,6 @@ func (ml *mountedLayer) Parent() Layer {
 	return nil
 }
 
-func (ml *mountedLayer) Mount(mountLabel string) (string, error) {
-	return ml.layerStore.driver.Get(ml.mountID, mountLabel)
-}
-
-func (ml *mountedLayer) Unmount() error {
-	return ml.layerStore.driver.Put(ml.mountID)
-}
-
 func (ml *mountedLayer) Size() (int64, error) {
 	return ml.layerStore.driver.DiffSize(ml.mountID, ml.cacheParent())
 }
@@ -101,11 +93,11 @@ type referencedRWLayer struct {
 }
 
 func (rl *referencedRWLayer) Mount(mountLabel string) (string, error) {
-	return rl.mountedLayer.Mount(mountLabel)
+	return rl.layerStore.driver.Get(rl.mountedLayer.mountID, mountLabel)
 }
 
 // Unmount decrements the activity count and unmounts the underlying layer
 // Callers should only call `Unmount` once per call to `Mount`, even on error.
 func (rl *referencedRWLayer) Unmount() error {
-	return rl.mountedLayer.Unmount()
+	return rl.layerStore.driver.Put(rl.mountedLayer.mountID)
 }
