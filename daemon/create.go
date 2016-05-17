@@ -49,7 +49,7 @@ func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (types
 }
 
 // Create creates a new container from the given configuration with a given name.
-func (daemon *Daemon) create(params types.ContainerCreateConfig) (retC *container.Container, retErr error) {
+func (daemon *Daemon) create(params types.ContainerCreateConfig) (*container.Container, error) {
 	var (
 		container *container.Container
 		img       *image.Image
@@ -77,10 +77,8 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig) (retC *containe
 		return nil, err
 	}
 	defer func() {
-		if retErr != nil {
-			if err := daemon.cleanupContainer(container, true); err != nil {
-				logrus.Errorf("failed to cleanup container on create error: %v", err)
-			}
+		if err := daemon.cleanupContainer(container, true); err != nil {
+			logrus.Errorf("failed to cleanup container on create error: %v", err)
 		}
 	}()
 
@@ -107,10 +105,8 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig) (retC *containe
 		return nil, err
 	}
 	defer func() {
-		if retErr != nil {
-			if err := daemon.removeMountPoints(container, true); err != nil {
-				logrus.Error(err)
-			}
+		if err := daemon.removeMountPoints(container, true); err != nil {
+			logrus.Error(err)
 		}
 	}()
 
