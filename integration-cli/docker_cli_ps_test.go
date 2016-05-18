@@ -501,7 +501,7 @@ func (s *DockerSuite) TestPsLinkedWithNoTrunc(c *check.C) {
 func (s *DockerSuite) TestPsGroupPortRange(c *check.C) {
 	// Problematic on Windows as it doesn't support port ranges as of Jan 2016
 	testRequires(c, DaemonIsLinux)
-	portRange := "3800-3900"
+	portRange := "3850-3900"
 	dockerCmd(c, "run", "-d", "--name", "porttest", "-p", portRange+":"+portRange, "busybox", "top")
 
 	out, _ := dockerCmd(c, "ps")
