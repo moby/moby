@@ -20,6 +20,8 @@ type container struct {
 	// but can be called from the RestartManager context which does not
 	// otherwise have access to the Spec
 	ociSpec Spec
+
+	manualStopRequested bool
 }
 
 func (ctr *container) newProcess(friendlyName string) *process {
@@ -163,11 +165,10 @@ func (ctr *container) waitExit(pid uint32, processFriendlyName string, isFirstPr
 	// But it could have been an exec'd process which exited
 	if !isFirstProcessToStart {
 		si.State = StateExitProcess
-	}
+	} else {
+		// Since this is the init process, always call into vmcompute.dll to
+		// shutdown the container after we have completed.
 
-	// If this is the init process, always call into vmcompute.dll to
-	// shutdown the container after we have completed.
-	if isFirstProcessToStart {
 		propertyCheckFlag := 1 // Include update pending check.
 		csProperties, err := hcsshim.GetComputeSystemProperties(ctr.containerID, uint32(propertyCheckFlag))
 		if err != nil {
@@ -196,7 +197,7 @@ func (ctr *container) waitExit(pid uint32, processFriendlyName string, isFirstPr
 			logrus.Debugf("Completed shutting down container %s", ctr.containerID)
 		}
 
-		if si.State == StateExit && ctr.restartManager != nil {
+		if !ctr.manualStopRequested && ctr.restartManager != nil {
 			restart, wait, err := ctr.restartManager.ShouldRestart(uint32(exitCode), false, time.Since(ctr.startedAt))
 			if err != nil {
 				logrus.Error(err)

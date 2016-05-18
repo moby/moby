@@ -54,10 +54,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 			"exitCode": strconv.Itoa(int(e.ExitCode)),
 		}
 		daemon.LogContainerEventWithAttributes(c, "die", attributes)
-		if err := c.ToDisk(); err != nil {
-			return err
-		}
-		return daemon.postRunProcessing(c, e)
+		return c.ToDisk()
 	case libcontainerd.StateExitProcess:
 		c.Lock()
 		defer c.Unlock()
