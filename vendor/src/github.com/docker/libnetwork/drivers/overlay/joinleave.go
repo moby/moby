@@ -3,6 +3,7 @@ package overlay
 import (
 	"fmt"
 	"net"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
@@ -104,9 +105,53 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 
 	d.peerDbAdd(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac,
 		net.ParseIP(d.bindAddress), true)
+
+	if err := jinfo.AddTableEntry(ovPeerTable, eid, []byte(fmt.Sprintf("%s,%s,%s", ep.addr, ep.mac, d.bindAddress))); err != nil {
+		log.Errorf("overlay: Failed adding table entry to joininfo: %v", err)
+	}
+
 	d.pushLocalEndpointEvent("join", nid, eid)
 
 	return nil
+}
+
+func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
+	if tableName != ovPeerTable {
+		log.Errorf("Unexpected table notification for table %s received", tableName)
+		return
+	}
+
+	eid := key
+	values := strings.Split(string(value), ",")
+	if len(values) < 3 {
+		log.Errorf("Invalid value %s received through event notify", string(value))
+		return
+	}
+
+	addr, err := types.ParseCIDR(values[0])
+	if err != nil {
+		log.Errorf("Invalid peer IP %s received in event notify", values[0])
+		return
+	}
+
+	mac, err := net.ParseMAC(values[1])
+	if err != nil {
+		log.Errorf("Invalid mac %s received in event notify", values[1])
+		return
+	}
+
+	vtep := net.ParseIP(values[2])
+	if vtep == nil {
+		log.Errorf("Invalid VTEP %s received in event notify", values[2])
+		return
+	}
+
+	if etype == driverapi.Delete {
+		d.peerDelete(nid, eid, addr.IP, addr.Mask, mac, vtep, true)
+		return
+	}
+
+	d.peerAdd(nid, eid, addr.IP, addr.Mask, mac, vtep, true)
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.

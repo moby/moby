@@ -34,7 +34,7 @@ func main() {
 
 	// Create a network for containers to join.
 	// NewNetwork accepts Variadic optional arguments that libnetwork and Drivers can use.
-	network, err := controller.NewNetwork(networkType, "network1")
+	network, err := controller.NewNetwork(networkType, "network1", "")
 	if err != nil {
 		log.Fatalf("controller.NewNetwork: %s", err)
 	}

@@ -6,7 +6,6 @@ import (
 	"net"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/libkv/store/boltdb"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/netlabel"
@@ -35,7 +34,7 @@ func (d *driver) initStore(option map[string]interface{}) error {
 
 func (d *driver) populateNetworks() error {
 	kvol, err := d.store.List(datastore.Key(bridgePrefix), &networkConfiguration{})
-	if err != nil && err != datastore.ErrKeyNotFound && err != boltdb.ErrBoltBucketNotFound {
+	if err != nil && err != datastore.ErrKeyNotFound {
 		return fmt.Errorf("failed to get bridge network configurations from store: %v", err)
 	}
 

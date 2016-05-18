@@ -88,7 +88,7 @@ func Fini(drv driverapi.Driver) {
 
 func (d *driver) configure() error {
 	if d.store == nil {
-		return types.NoServiceErrorf("datastore is not available")
+		return nil
 	}
 
 	if d.vxlanIdm == nil {
@@ -147,10 +147,14 @@ func (d *driver) nodeJoin(node string, self bool) {
 		d.Lock()
 		d.bindAddress = node
 		d.Unlock()
-		err := d.serfInit()
-		if err != nil {
-			logrus.Errorf("initializing serf instance failed: %v", err)
-			return
+
+		// If there is no cluster store there is no need to start serf.
+		if d.store != nil {
+			err := d.serfInit()
+			if err != nil {
+				logrus.Errorf("initializing serf instance failed: %v", err)
+				return
+			}
 		}
 	}
 

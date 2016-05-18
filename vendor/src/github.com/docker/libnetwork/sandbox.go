@@ -12,7 +12,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
 )
@@ -406,7 +405,7 @@ func (sb *sandbox) ResolveIP(ip string) string {
 	for _, ep := range sb.getConnectedEndpoints() {
 		n := ep.getNetwork()
 
-		sr, ok := n.getController().svcDb[n.ID()]
+		sr, ok := n.getController().svcRecords[n.ID()]
 		if !ok {
 			continue
 		}
@@ -436,6 +435,7 @@ func (sb *sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 	// {a.b in network c.d},
 	// {a in network b.c.d},
 
+	log.Debugf("Name To resolve: %v", name)
 	name = strings.TrimSuffix(name, ".")
 	reqName := []string{name}
 	networkName := []string{""}
@@ -456,7 +456,6 @@ func (sb *sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 
 	epList := sb.getConnectedEndpoints()
 	for i := 0; i < len(reqName); i++ {
-		log.Debugf("To resolve: %v in %v", reqName[i], networkName[i])
 
 		// First check for local container alias
 		ip, ipv6Miss := sb.resolveName(reqName[i], networkName[i], epList, true, ipType)
@@ -513,7 +512,7 @@ func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoin
 			ep.Unlock()
 		}
 
-		sr, ok := n.getController().svcDb[n.ID()]
+		sr, ok := n.getController().svcRecords[n.ID()]
 		if !ok {
 			continue
 		}
@@ -522,7 +521,7 @@ func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoin
 		n.Lock()
 		ip, ok = sr.svcMap[name]
 
-		if ipType == netutils.IPv6 {
+		if ipType == types.IPv6 {
 			// If the name resolved to v4 address then its a valid name in
 			// the docker network domain. If the network is not v6 enabled
 			// set ipv6Miss to filter the DNS query from going to external
@@ -969,6 +968,14 @@ func (eh epHeap) Less(i, j int) bool {
 	}
 
 	if epj.endpointInGWNetwork() {
+		return true
+	}
+
+	if epi.getNetwork().Internal() {
+		return false
+	}
+
+	if epj.getNetwork().Internal() {
 		return true
 	}
 

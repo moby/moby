@@ -3,6 +3,7 @@
 [![GoDoc](https://godoc.org/github.com/docker/libkv?status.png)](https://godoc.org/github.com/docker/libkv)
 [![Build Status](https://travis-ci.org/docker/libkv.svg?branch=master)](https://travis-ci.org/docker/libkv)
 [![Coverage Status](https://coveralls.io/repos/docker/libkv/badge.svg)](https://coveralls.io/r/docker/libkv)
+[![Go Report Card](https://goreportcard.com/badge/github.com/docker/libkv)](https://goreportcard.com/report/github.com/docker/libkv)
 
 `libkv` provides a `Go` native library to store metadata.
 
@@ -10,7 +11,7 @@ The goal of `libkv` is to abstract common store operations for multiple distribu
 
 For example, you can use it to store your metadata or for service discovery to register machines and endpoints inside your cluster.
 
-You can also easily implement a generic *Leader Election* on top of it (see the [swarm/leadership](https://github.com/docker/swarm/tree/master/leadership) package).
+You can also easily implement a generic *Leader Election* on top of it (see the [docker/leadership](https://github.com/docker/leadership) repository).
 
 As of now, `libkv` offers support for `Consul`, `Etcd`, `Zookeeper` (**Distributed** store) and `BoltDB` (**Local** store).
 
@@ -30,7 +31,7 @@ You can find examples of usage for `libkv` under in `docs/examples.go`. Optional
 
 `libkv` supports:
 - Consul versions >= `0.5.1` because it uses Sessions with `Delete` behavior for the use of `TTLs` (mimics zookeeper's Ephemeral node support), If you don't plan to use `TTLs`: you can use Consul version `0.4.0+`.
-- Etcd versions >= `2.0` because it uses the new `coreos/etcd/client`, this might change in the future as the support for `APIv3` comes along and adds mor capabilities.
+- Etcd versions >= `2.0` because it uses the new `coreos/etcd/client`, this might change in the future as the support for `APIv3` comes along and adds more capabilities.
 - Zookeeper versions >= `3.4.5`. Although this might work with previous version but this remains untested as of now.
 - Boltdb, which shouldn't be subject to any version dependencies.
 
@@ -83,7 +84,7 @@ Please refer to the `docs/compatibility.md` to see what are the special cases fo
 
 Other than those special cases, you should expect the same experience for basic operations like `Get`/`Put`, etc.
 
-Calls like `WatchTree` may return different events (or number of events) depending on the backend (for now, `Etcd` and `Consul` will likely return more events than `Zookeeper` that you should triage properly). Although you should be able to use it successfully to watch on events in an interchangeable way (see the **swarm/leadership** or **swarm/discovery** packages in **docker/swarm**).
+Calls like `WatchTree` may return different events (or number of events) depending on the backend (for now, `Etcd` and `Consul` will likely return more events than `Zookeeper` that you should triage properly). Although you should be able to use it successfully to watch on events in an interchangeable way (see the **docker/leadership** repository or the **pkg/discovery/kv** package in **docker/docker**).
 
 ## TLS
 
@@ -103,4 +104,4 @@ Want to hack on libkv? [Docker's contributions guidelines](https://github.com/do
 
 ##Copyright and license
 
-Copyright © 2014-2015 Docker, Inc. All rights reserved, except as follows. Code is released under the Apache 2.0 license. The README.md file, and files in the "docs" folder are licensed under the Creative Commons Attribution 4.0 International License under the terms and conditions set forth in the file "LICENSE.docs". You may obtain a duplicate copy of the same license, titled CC-BY-SA-4.0, at http://creativecommons.org/licenses/by/4.0/.
+Copyright © 2014-2016 Docker, Inc. All rights reserved, except as follows. Code is released under the Apache 2.0 license. The README.md file, and files in the "docs" folder are licensed under the Creative Commons Attribution 4.0 International License under the terms and conditions set forth in the file "LICENSE.docs". You may obtain a duplicate copy of the same license, titled CC-BY-SA-4.0, at http://creativecommons.org/licenses/by/4.0/.
