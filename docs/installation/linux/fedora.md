@@ -186,7 +186,7 @@ You can uninstall the Docker software with `dnf`.
 
 1. List the package you have installed.
 
-		$ dnf list installed | grep docker dnf list installed | grep docker
+		$ dnf list installed | grep docker
 		docker-engine.x86_64     1.7.1-0.1.fc21 @/docker-engine-1.7.1-0.1.fc21.el7.x86_64
 
 2. Remove the package.
