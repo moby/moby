@@ -1308,7 +1308,7 @@ func (s *DockerSuite) TestRunDnsOptionsBasedOnHostResolvConf(c *check.C) {
 		c.Fatalf("/etc/resolv.conf does not exist")
 	}
 
-	hostNamservers := resolvconf.GetNameservers(origResolvConf, types.IP)
+	hostNameservers := resolvconf.GetNameservers(origResolvConf, types.IP)
 	hostSearch := resolvconf.GetSearchDomains(origResolvConf)
 
 	var out string
@@ -1331,12 +1331,12 @@ func (s *DockerSuite) TestRunDnsOptionsBasedOnHostResolvConf(c *check.C) {
 	out, _ = dockerCmd(c, "run", "--dns-search=mydomain", "busybox", "cat", "/etc/resolv.conf")
 
 	actualNameservers := resolvconf.GetNameservers([]byte(out), types.IP)
-	if len(actualNameservers) != len(hostNamservers) {
-		c.Fatalf("expected %q nameserver(s), but it has: %q", len(hostNamservers), len(actualNameservers))
+	if len(actualNameservers) != len(hostNameservers) {
+		c.Fatalf("expected %q nameserver(s), but it has: %q", len(hostNameservers), len(actualNameservers))
 	}
 	for i := range actualNameservers {
-		if actualNameservers[i] != hostNamservers[i] {
-			c.Fatalf("expected %q nameserver, but says: %q", actualNameservers[i], hostNamservers[i])
+		if actualNameservers[i] != hostNameservers[i] {
+			c.Fatalf("expected %q nameserver, but says: %q", actualNameservers[i], hostNameservers[i])
 		}
 	}
 
@@ -1361,7 +1361,7 @@ func (s *DockerSuite) TestRunDnsOptionsBasedOnHostResolvConf(c *check.C) {
 		c.Fatalf("/etc/resolv.conf does not exist")
 	}
 
-	hostNamservers = resolvconf.GetNameservers(resolvConf, types.IP)
+	hostNameservers = resolvconf.GetNameservers(resolvConf, types.IP)
 	hostSearch = resolvconf.GetSearchDomains(resolvConf)
 
 	out, _ = dockerCmd(c, "run", "busybox", "cat", "/etc/resolv.conf")
