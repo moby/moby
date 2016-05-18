@@ -3,6 +3,7 @@ package netlink
 import (
 	"fmt"
 	"syscall"
+	"unsafe"
 
 	"github.com/vishvananda/netlink/nl"
 )
@@ -85,10 +86,7 @@ func (h *Handle) xfrmStateAddOrUpdate(state *XfrmState, nlProto int) error {
 	msg.Id.Spi = nl.Swap32(uint32(state.Spi))
 	msg.Reqid = uint32(state.Reqid)
 	msg.ReplayWindow = uint8(state.ReplayWindow)
-	msg.Lft.SoftByteLimit = nl.XFRM_INF
-	msg.Lft.HardByteLimit = nl.XFRM_INF
-	msg.Lft.SoftPacketLimit = nl.XFRM_INF
-	msg.Lft.HardPacketLimit = nl.XFRM_INF
+	limitsToLft(state.Limits, &msg.Lft)
 	req.AddData(msg)
 
 	if state.Auth != nil {
@@ -242,6 +240,7 @@ func parseXfrmState(m []byte, family int) (*XfrmState, error) {
 	state.Spi = int(nl.Swap32(msg.Id.Spi))
 	state.Reqid = int(msg.Reqid)
 	state.ReplayWindow = int(msg.ReplayWindow)
+	lftToLimits(&msg.Lft, &state.Limits)
 
 	attrs, err := nl.ParseRouteAttr(m[nl.SizeofXfrmUsersaInfo:])
 	if err != nil {
@@ -311,4 +310,35 @@ func (h *Handle) XfrmStateFlush(proto Proto) error {
 	}
 
 	return nil
+}
+
+func limitsToLft(lmts XfrmStateLimits, lft *nl.XfrmLifetimeCfg) {
+	if lmts.ByteSoft != 0 {
+		lft.SoftByteLimit = lmts.ByteSoft
+	} else {
+		lft.SoftByteLimit = nl.XFRM_INF
+	}
+	if lmts.ByteHard != 0 {
+		lft.HardByteLimit = lmts.ByteHard
+	} else {
+		lft.HardByteLimit = nl.XFRM_INF
+	}
+	if lmts.PacketSoft != 0 {
+		lft.SoftPacketLimit = lmts.PacketSoft
+	} else {
+		lft.SoftPacketLimit = nl.XFRM_INF
+	}
+	if lmts.PacketHard != 0 {
+		lft.HardPacketLimit = lmts.PacketHard
+	} else {
+		lft.HardPacketLimit = nl.XFRM_INF
+	}
+	lft.SoftAddExpiresSeconds = lmts.TimeSoft
+	lft.HardAddExpiresSeconds = lmts.TimeHard
+	lft.SoftUseExpiresSeconds = lmts.TimeUseSoft
+	lft.HardUseExpiresSeconds = lmts.TimeUseHard
+}
+
+func lftToLimits(lft *nl.XfrmLifetimeCfg, lmts *XfrmStateLimits) {
+	*lmts = *(*XfrmStateLimits)(unsafe.Pointer(lft))
 }

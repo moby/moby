@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"runtime"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"unsafe"
@@ -233,6 +234,9 @@ func (req *NetlinkRequest) Execute(sockType int, resType uint16) ([][]byte, erro
 			return nil, err
 		}
 		defer s.Close()
+	} else {
+		s.Lock()
+		defer s.Unlock()
 	}
 
 	if err := s.Send(req); err != nil {
@@ -302,6 +306,7 @@ func NewNetlinkRequest(proto, flags int) *NetlinkRequest {
 type NetlinkSocket struct {
 	fd  int
 	lsa syscall.SockaddrNetlink
+	sync.Mutex
 }
 
 func getNetlinkSocket(protocol int) (*NetlinkSocket, error) {
