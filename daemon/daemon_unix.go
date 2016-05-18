@@ -488,7 +488,9 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	if hostConfig.OomScoreAdj < -1000 || hostConfig.OomScoreAdj > 1000 {
 		return warnings, fmt.Errorf("Invalid value %d, range for oom score adj is [-1000, 1000]", hostConfig.OomScoreAdj)
 	}
-	if sysInfo.IPv4ForwardingDisabled {
+
+	// ip-forwarding does not affect container with '--net=host'
+	if sysInfo.IPv4ForwardingDisabled && !hostConfig.NetworkMode.IsHost() {
 		warnings = append(warnings, "IPv4 forwarding is disabled. Networking will not work.")
 		logrus.Warnf("IPv4 forwarding is disabled. Networking will not work")
 	}
