@@ -1832,6 +1832,21 @@ _docker_run() {
 			esac
 			return
 			;;
+		--pid)
+			case "$cur" in
+				*:*)
+					cur="${cur#*:}"
+					__docker_complete_containers_running
+					;;
+				*)
+					COMPREPLY=( $( compgen -W 'host container:' -- "$cur" ) )
+					if [ "$COMPREPLY" = "container:" ]; then
+						__docker_nospace
+					fi
+					;;
+			esac
+			return
+			;;
 		--security-opt)
 			COMPREPLY=( $( compgen -W "apparmor= label= no-new-privileges seccomp=" -- "$cur") )
 			if [ "${COMPREPLY[*]}" != "no-new-privileges" ] ; then

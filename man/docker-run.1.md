@@ -59,7 +59,7 @@ docker-run - Run a command in a new container
 [**--oom-score-adj**[=*0*]]
 [**-P**|**--publish-all**]
 [**-p**|**--publish**[=*[]*]]
-[**--pid**[=*[]*]]
+[**--pid**[=*[PID]*]]
 [**--userns**[=*[]*]]
 [**--pids-limit**[=*PIDS_LIMIT*]]
 [**--privileged**]
@@ -420,10 +420,11 @@ but not `docker run -p 1230-1236:1230-1240 --name RangeContainerPortsBiggerThanR
 With ip: `docker run -p 127.0.0.1:$HOSTPORT:$CONTAINERPORT --name CONTAINER -t someimage`
 Use `docker port` to see the actual mapping: `docker port CONTAINER $CONTAINERPORT`
 
-**--pid**=*host*
+**--pid**=""
    Set the PID mode for the container
-     **host**: use the host's PID namespace inside the container.
-     Note: the host mode gives the container full access to local PID and is therefore considered insecure.
+   Default is to create a private PID namespace for the container
+                               'container:<name|id>': join another container's PID namespace
+                               'host': use the host's PID namespace for the container. Note: the host mode gives the container full access to local PID and is therefore considered insecure.
 
 **--userns**=""
    Set the usernamespace mode for the container when `userns-remap` option is enabled.

@@ -57,7 +57,7 @@ docker-create - Create a new container
 [**--oom-score-adj**[=*0*]]
 [**-P**|**--publish-all**]
 [**-p**|**--publish**[=*[]*]]
-[**--pid**[=*[]*]]
+[**--pid**[=*[PID]*]]
 [**--userns**[=*[]*]]
 [**--pids-limit**[=*PIDS_LIMIT*]]
 [**--privileged**]
@@ -289,10 +289,11 @@ unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
                                When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
                                (use 'docker port' to see the actual mapping)
 
-**--pid**=*host*
+**--pid**=""
    Set the PID mode for the container
-     **host**: use the host's PID namespace inside the container.
-     Note: the host mode gives the container full access to local PID and is therefore considered insecure.
+   Default is to create a private PID namespace for the container
+                               'container:<name|id>': join another container's PID namespace
+                               'host': use the host's PID namespace for the container. Note: the host mode gives the container full access to local PID and is therefore considered insecure.
 
 **--userns**=""
    Set the usernamespace mode for the container when `userns-remap` option is enabled.
