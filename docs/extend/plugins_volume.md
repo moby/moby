@@ -158,7 +158,7 @@ Docker needs reminding of the path to the volume on the host.
 ```
 
 Respond with the path on the host filesystem where the volume has been made
-available, and/or a string error if an error occurred.
+available, and/or a string error if an error occurred. If the volume is currently not mounted, but was created by your driver, return an empty string as `Mountpoint`.
 
 ### /VolumeDriver.Unmount
 
@@ -210,7 +210,7 @@ Get the volume info.
 }
 ```
 
-Respond with a string error if an error occurred.
+Respond with a string error if an error occurred. If the volume is currently not mounted, but was created by your driver, return an empty string as `Mountpoint`.
 
 
 ### /VolumeDriver.List
@@ -235,4 +235,4 @@ Get the list of volumes registered with the plugin.
 }
 ```
 
-Respond with a string error if an error occurred.
+Respond with a string error if an error occurred. If the volume is currently not mounted, but was created by your driver, return an empty string as `Mountpoint`.
