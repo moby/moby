@@ -5,12 +5,16 @@ package graphtest
 import (
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path"
+	"reflect"
 	"syscall"
 	"testing"
+	"unsafe"
 
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/go-units"
 )
 
 var (
@@ -296,4 +300,46 @@ func DriverTestCreateSnap(t *testing.T, drivername string) {
 	if err := driver.Remove("Base"); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func writeRandomFile(path string, size uint64) error {
+	buf := make([]int64, size/8)
+
+	r := rand.NewSource(0)
+	for i := range buf {
+		buf[i] = r.Int63()
+	}
+
+	// Cast to []byte
+	header := *(*reflect.SliceHeader)(unsafe.Pointer(&buf))
+	header.Len *= 8
+	header.Cap *= 8
+	data := *(*[]byte)(unsafe.Pointer(&header))
+
+	return ioutil.WriteFile(path, data, 0700)
+}
+
+// DriverTestSetQuota Create a driver and test setting quota.
+func DriverTestSetQuota(t *testing.T, drivername string) {
+	driver := GetDriver(t, drivername)
+	defer PutDriver(t)
+
+	createBase(t, driver, "Base")
+	storageOpt := make(map[string]string, 1)
+	storageOpt["size"] = "50M"
+	if err := driver.Create("zfsTest", "Base", "", storageOpt); err != nil {
+		t.Fatal(err)
+	}
+
+	mountPath, err := driver.Get("zfsTest", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	quota := uint64(50 * units.MiB)
+	err = writeRandomFile(path.Join(mountPath, "file"), quota*2)
+	if pathError, ok := err.(*os.PathError); ok && pathError.Err != syscall.EDQUOT {
+		t.Fatalf("expect write() to fail with %v, got %v", syscall.EDQUOT, err)
+	}
+
 }
