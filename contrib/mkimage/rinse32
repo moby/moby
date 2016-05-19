@@ -8,7 +8,7 @@ shift
 
 (
 	set -x
-	linux32 rinse --directory "$rootfsDir" --arch amd64 "$@"
+	linux32 rinse --directory "$rootfsDir" --arch i386 "$@"
 )
 
 "$(dirname "$BASH_SOURCE")/.febootstrap-minimize" "$rootfsDir"
