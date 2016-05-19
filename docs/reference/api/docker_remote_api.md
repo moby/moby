@@ -116,6 +116,8 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /info` now returns `SecurityOptions` field, showing if `apparmor`, `seccomp`, or `selinux` is supported.
 * `GET /networks` now supports filtering by `label` and `driver`.
 * `POST /containers/create` now takes `MaximumIOps` and `MaximumIOBps` fields. Windows daemon only.
+* `POST /containers/create` now returns a HTTP 400 "bad parameter" message
+  if no command is specified (instead of a HTTP 500 "server error")
 
 ### v1.23 API changes
 
