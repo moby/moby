@@ -266,7 +266,7 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 		return err
 	}
 
-	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("WORKDIR %v", workdir))
+	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("WORKDIR %v", b.runConfig.WorkingDir))
 }
 
 // RUN some command yo
