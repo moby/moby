@@ -318,6 +318,106 @@ func TestAuxAddresses(t *testing.T) {
 	}
 }
 
+func TestSRVServiceQuery(t *testing.T) {
+	c, err := New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Stop()
+
+	n, err := c.NewNetwork("bridge", "net1", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := n.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	ep, err := n.CreateEndpoint("testep")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sb, err := c.NewSandbox("c1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := sb.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	err = ep.Join(sb)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sr := svcInfo{
+		svcMap:     make(map[string][]net.IP),
+		svcIPv6Map: make(map[string][]net.IP),
+		ipMap:      make(map[string]string),
+		service:    make(map[string][]servicePorts),
+	}
+	// backing container for the service
+	cTarget := serviceTarget{
+		name: "task1.web.swarm",
+		ip:   net.ParseIP("192.168.10.2"),
+		port: 80,
+	}
+	// backing host for the service
+	hTarget := serviceTarget{
+		name: "node1.docker-cluster",
+		ip:   net.ParseIP("10.10.10.2"),
+		port: 45321,
+	}
+	httpPort := servicePorts{
+		portName: "_http",
+		proto:    "_tcp",
+		target:   []serviceTarget{cTarget},
+	}
+
+	extHTTPPort := servicePorts{
+		portName: "_host_http",
+		proto:    "_tcp",
+		target:   []serviceTarget{hTarget},
+	}
+	sr.service["web.swarm"] = append(sr.service["web.swarm"], httpPort)
+	sr.service["web.swarm"] = append(sr.service["web.swarm"], extHTTPPort)
+
+	c.(*controller).svcRecords[n.ID()] = sr
+
+	_, ip, err := ep.Info().Sandbox().ResolveService("_http._tcp.web.swarm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ip) == 0 {
+		t.Fatal(err)
+	}
+	if ip[0].String() != "192.168.10.2" {
+		t.Fatal(err)
+	}
+
+	_, ip, err = ep.Info().Sandbox().ResolveService("_host_http._tcp.web.swarm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ip) == 0 {
+		t.Fatal(err)
+	}
+	if ip[0].String() != "10.10.10.2" {
+		t.Fatal(err)
+	}
+
+	// Try resolving a service name with invalid protocol, should fail..
+	_, _, err = ep.Info().Sandbox().ResolveService("_http._icmp.web.swarm")
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
 func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	if !testutils.IsRunningInContainer() {
 		defer testutils.SetupTestOSContext(t)()

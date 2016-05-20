@@ -2,6 +2,19 @@ package libnetwork
 
 import "net"
 
+// backing container or host's info
+type serviceTarget struct {
+	name string
+	ip   net.IP
+	port uint16
+}
+
+type servicePorts struct {
+	portName string
+	proto    string
+	target   []serviceTarget
+}
+
 type service struct {
 	name     string
 	id       string
