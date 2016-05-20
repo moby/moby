@@ -572,7 +572,7 @@ func configureKernelSecuritySupport(config *Config, driverName string) error {
 		if selinuxEnabled() {
 			// As Docker on overlayFS and SELinux are incompatible at present, error on overlayfs being enabled
 			if driverName == "overlay" {
-				return fmt.Errorf("SELinux is not supported with the %s graph driver", driverName)
+				return fmt.Errorf("SELinux is not supported with the %s storage driver", driverName)
 			}
 			logrus.Debug("SELinux enabled successfully")
 		} else {
@@ -934,7 +934,7 @@ func setupRemappedRoot(config *Config) ([]idtools.IDMap, []idtools.IDMap, error)
 func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error {
 	config.Root = rootDir
 	// the docker root metadata directory needs to have execute permissions for all users (g+x,o+x)
-	// so that syscalls executing as non-root, operating on subdirectories of the graph root
+	// so that syscalls executing as non-root, operating on subdirectories of the storage driver root
 	// (e.g. mounted layers of a container) can traverse this path.
 	// The user namespace support will create subdirectories for the remapped root host uid:gid
 	// pair owned by that same uid:gid pair for proper write access to those needed metadata and

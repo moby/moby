@@ -12,7 +12,7 @@ import (
 )
 
 func Test(t *testing.T) {
-	reexec.Init() // This is required for external graphdriver tests
+	reexec.Init() // This is required for external storage driver tests
 
 	if !isLocalDaemon {
 		fmt.Println("INFO: Testing against a remote daemon")

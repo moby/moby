@@ -213,7 +213,7 @@ func TestApplyLayerWhiteouts(t *testing.T) {
 		t.Skip("Failing on Windows")
 	}
 
-	wd, err := ioutil.TempDir("", "graphdriver-test-whiteouts")
+	wd, err := ioutil.TempDir("", "storage-driver-test-whiteouts")
 	if err != nil {
 		return
 	}
@@ -329,7 +329,7 @@ func TestApplyLayerWhiteouts(t *testing.T) {
 }
 
 func makeTestLayer(paths []string) (rc io.ReadCloser, err error) {
-	tmpDir, err := ioutil.TempDir("", "graphdriver-test-mklayer")
+	tmpDir, err := ioutil.TempDir("", "storage-driver-test-mklayer")
 	if err != nil {
 		return
 	}

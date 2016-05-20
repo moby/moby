@@ -11,19 +11,19 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/digest"
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/daemon/graphdriver/vfs"
+	"github.com/docker/docker/daemon/storage"
+	"github.com/docker/docker/daemon/storage/vfs"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 )
 
 func init() {
-	graphdriver.ApplyUncompressedLayer = archive.UnpackLayer
+	storage.ApplyUncompressedLayer = archive.UnpackLayer
 	vfs.CopyWithTar = archive.CopyWithTar
 }
 
-func newVFSGraphDriver(td string) (graphdriver.Driver, error) {
+func newVFSStorage(td string) (storage.Driver, error) {
 	uidMap := []idtools.IDMap{
 		{
 			ContainerID: 0,
@@ -39,16 +39,16 @@ func newVFSGraphDriver(td string) (graphdriver.Driver, error) {
 		},
 	}
 
-	return graphdriver.GetDriver("vfs", td, nil, uidMap, gidMap)
+	return storage.GetDriver("vfs", td, nil, uidMap, gidMap)
 }
 
-func newTestGraphDriver(t *testing.T) (graphdriver.Driver, func()) {
-	td, err := ioutil.TempDir("", "graph-")
+func newTestStorage(t *testing.T) (storage.Driver, func()) {
+	td, err := ioutil.TempDir("", "storage-")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	driver, err := newVFSGraphDriver(td)
+	driver, err := newVFSStorage(td)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,18 +64,18 @@ func newTestStore(t *testing.T) (Store, string, func()) {
 		t.Fatal(err)
 	}
 
-	graph, graphcleanup := newTestGraphDriver(t)
+	storage, storagecleanup := newTestStorage(t)
 	fms, err := NewFSMetadataStore(td)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ls, err := NewStoreFromGraphDriver(fms, graph)
+	ls, err := NewStoreFromStorage(fms, storage)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	return ls, td, func() {
-		graphcleanup()
+		storagecleanup()
 		os.RemoveAll(td)
 	}
 }
@@ -408,7 +408,7 @@ func TestStoreRestore(t *testing.T) {
 
 	assertActivityCount(t, m, 0)
 
-	ls2, err := NewStoreFromGraphDriver(ls.(*layerStore).store, ls.(*layerStore).driver)
+	ls2, err := NewStoreFromStorage(ls.(*layerStore).store, ls.(*layerStore).driver)
 	if err != nil {
 		t.Fatal(err)
 	}

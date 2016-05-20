@@ -12,8 +12,8 @@ import (
 	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/daemon/graphdriver/windows" // register the windows graph driver
+	"github.com/docker/docker/daemon/storage"
+	"github.com/docker/docker/daemon/storage/windows" // register the windows storage driver
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -380,16 +380,16 @@ func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container
 }
 
 func restoreCustomImage(is image.Store, ls layer.Store, rs reference.Store) error {
-	type graphDriverStore interface {
-		GraphDriver() graphdriver.Driver
+	type storageDriverStore interface {
+		StorageDriver() storage.Driver
 	}
 
-	gds, ok := ls.(graphDriverStore)
+	gds, ok := ls.(storageDriverStore)
 	if !ok {
 		return nil
 	}
 
-	driver := gds.GraphDriver()
+	driver := gds.StorageDriver()
 	wd, ok := driver.(*windows.Driver)
 	if !ok {
 		return nil
@@ -405,7 +405,7 @@ func restoreCustomImage(is image.Store, ls layer.Store, rs reference.Store) erro
 		name := strings.ToLower(info.Name)
 
 		type registrar interface {
-			RegisterDiffID(graphID string, size int64) (layer.Layer, error)
+			RegisterDiffID(storageID string, size int64) (layer.Layer, error)
 		}
 		r, ok := ls.(registrar)
 		if !ok {

@@ -28,15 +28,15 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
+	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errors"
 	"github.com/docker/engine-api/types"
 	containertypes "github.com/docker/engine-api/types/container"
 	networktypes "github.com/docker/engine-api/types/network"
 	registrytypes "github.com/docker/engine-api/types/registry"
 	"github.com/docker/engine-api/types/strslice"
-	// register graph drivers
-	_ "github.com/docker/docker/daemon/graphdriver/register"
-	"github.com/docker/docker/daemon/network"
+	// register storage drivers
+	_ "github.com/docker/docker/daemon/storage/register"
 	dmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/dockerversion"
@@ -229,7 +229,7 @@ func (daemon *Daemon) Register(c *container.Container) error {
 func (daemon *Daemon) restore() error {
 	var (
 		debug         = utils.IsDebugEnabled()
-		currentDriver = daemon.GraphDriverName()
+		currentDriver = daemon.StorageDriverName()
 		containers    = make(map[string]*container.Container)
 	)
 
@@ -252,7 +252,7 @@ func (daemon *Daemon) restore() error {
 			continue
 		}
 
-		// Ignore the container if it does not support the current driver being used by the graph
+		// Ignore the container if it does not support the current driver being used by the storage driver
 		if (container.Driver == "" && currentDriver == "aufs") || container.Driver == currentDriver {
 			rwlayer, err := daemon.layerStore.GetRWLayer(container.ID)
 			if err != nil {
@@ -264,7 +264,7 @@ func (daemon *Daemon) restore() error {
 
 			containers[container.ID] = container
 		} else {
-			logrus.Debugf("Cannot load container %s because it was created with another graph driver.", container.ID)
+			logrus.Debugf("Cannot load container %s because it was created with another storage driver.", container.ID)
 		}
 	}
 
@@ -288,7 +288,7 @@ func (daemon *Daemon) restore() error {
 			defer wg.Done()
 			rm := c.RestartManager(false)
 			if c.IsRunning() || c.IsPaused() {
-				// Fix activityCount such that graph mounts can be unmounted later
+				// Fix activityCount such that storage driver mounts can be unmounted later
 				if err := daemon.layerStore.ReinitRWLayer(c.RWLayer); err != nil {
 					logrus.Errorf("Failed to ReinitRWLayer for %s due to %s", c.ID, err)
 					return
@@ -565,7 +565,7 @@ func (daemon *Daemon) newContainer(name string, config *containertypes.Config, i
 	base.ImageID = imgID
 	base.NetworkSettings = &network.Settings{IsAnonymousEndpoint: noExplicitName}
 	base.Name = name
-	base.Driver = daemon.GraphDriverName()
+	base.Driver = daemon.StorageDriverName()
 
 	return base, err
 }
@@ -720,13 +720,13 @@ func NewDaemon(config *Config, registryService *registry.Service, containerdRemo
 
 	driverName := os.Getenv("DOCKER_DRIVER")
 	if driverName == "" {
-		driverName = config.GraphDriver
+		driverName = config.StorageDriver
 	}
 	d.layerStore, err = layer.NewStoreFromOptions(layer.StoreOptions{
 		StorePath:                 config.Root,
 		MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
-		GraphDriver:               driverName,
-		GraphDriverOptions:        config.GraphOptions,
+		StorageDriver:             driverName,
+		StorageOptions:            config.StorageOptions,
 		UIDMaps:                   uidMaps,
 		GIDMaps:                   gidMaps,
 	})
@@ -734,11 +734,11 @@ func NewDaemon(config *Config, registryService *registry.Service, containerdRemo
 		return nil, err
 	}
 
-	graphDriver := d.layerStore.DriverName()
-	imageRoot := filepath.Join(config.Root, "image", graphDriver)
+	storageDriver := d.layerStore.DriverName()
+	imageRoot := filepath.Join(config.Root, "image", storageDriver)
 
 	// Configure and validate the kernels security support
-	if err := configureKernelSecuritySupport(config, graphDriver); err != nil {
+	if err := configureKernelSecuritySupport(config, storageDriver); err != nil {
 		return nil, err
 	}
 
@@ -791,10 +791,10 @@ func NewDaemon(config *Config, registryService *registry.Service, containerdRemo
 	}
 
 	migrationStart := time.Now()
-	if err := v1.Migrate(config.Root, graphDriver, d.layerStore, d.imageStore, referenceStore, distributionMetadataStore); err != nil {
-		logrus.Errorf("Graph migration failed: %q. Your old graph data was found to be too inconsistent for upgrading to content-addressable storage. Some of the old data was probably not upgraded. We recommend starting over with a clean storage directory if possible.", err)
+	if err := v1.Migrate(config.Root, storageDriver, d.layerStore, d.imageStore, referenceStore, distributionMetadataStore); err != nil {
+		logrus.Errorf("Storage migration failed: %q. Your old storage data was found to be too inconsistent for upgrading to content-addressable storage. Some of the old data was probably not upgraded. We recommend starting over with a clean storage directory if possible.", err)
 	}
-	logrus.Infof("Graph migration to content-addressability took %.2f seconds", time.Since(migrationStart).Seconds())
+	logrus.Infof("Storage migration to content-addressability took %.2f seconds", time.Since(migrationStart).Seconds())
 
 	// Discovery is only enabled when the daemon is launched with an address to advertise.  When
 	// initialized, the daemon is registered and we can store the discovery backend as its read-only
@@ -940,13 +940,13 @@ func (daemon *Daemon) Mount(container *container.Container) error {
 	logrus.Debugf("container mounted via layerStore: %v", dir)
 
 	if container.BaseFS != dir {
-		// The mount path reported by the graph driver should always be trusted on Windows, since the
+		// The mount path reported by the storage driver should always be trusted on Windows, since the
 		// volume path for a given mounted layer may change over time.  This should only be an error
 		// on non-Windows operating systems.
 		if container.BaseFS != "" && runtime.GOOS != "windows" {
 			daemon.Unmount(container)
 			return fmt.Errorf("Error: driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
-				daemon.GraphDriverName(), container.ID, container.BaseFS, dir)
+				daemon.StorageDriverName(), container.ID, container.BaseFS, dir)
 		}
 	}
 	container.BaseFS = dir // TODO: combine these fields
@@ -1082,7 +1082,7 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 		RootFS:          rootFSToAPIType(img.RootFS),
 	}
 
-	imageInspect.GraphDriver.Name = daemon.GraphDriverName()
+	imageInspect.GraphDriver.Name = daemon.StorageDriverName()
 
 	imageInspect.GraphDriver.Data = layerMetadata
 
@@ -1223,8 +1223,8 @@ func (daemon *Daemon) GetImageOnBuild(name string) (builder.Image, error) {
 	return img, nil
 }
 
-// GraphDriverName returns the name of the graph driver used by the layer.Store
-func (daemon *Daemon) GraphDriverName() string {
+// StorageDriverName returns the name of the storage driver used by the layer.Store
+func (daemon *Daemon) StorageDriverName() string {
 	return daemon.layerStore.DriverName()
 }
 

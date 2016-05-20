@@ -129,7 +129,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 		metadata, err := daemon.layerStore.ReleaseRWLayer(container.RWLayer)
 		layer.LogReleaseMetadata(metadata)
 		if err != nil && err != layer.ErrMountDoesNotExist {
-			return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", daemon.GraphDriverName(), container.ID, err)
+			return fmt.Errorf("Driver %s failed to remove root filesystem %s: %s", daemon.StorageDriverName(), container.ID, err)
 		}
 	}
 

@@ -55,7 +55,7 @@ type CommonContainer struct {
 	// embed for Container to support states directly.
 	*State          `json:"State"` // Needed for remote api version <= 1.11
 	Root            string         `json:"-"` // Path to the "home" of the container, including metadata.
-	BaseFS          string         `json:"-"` // Path to the graphdriver mountpoint
+	BaseFS          string         `json:"-"` // Path to the storage driver mountpoint
 	RWLayer         layer.RWLayer  `json:"-"`
 	ID              string
 	Created         time.Time
