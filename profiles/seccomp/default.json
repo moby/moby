@@ -27,11 +27,6 @@
 			"args": []
 		},
 		{
-			"name": "arch_prctl",
-			"action": "SCMP_ACT_ALLOW",
-			"args": []
-		},
-		{
 			"name": "bind",
 			"action": "SCMP_ACT_ALLOW",
 			"args": []
@@ -62,21 +57,6 @@
 			"args": []
 		},
 		{
-			"name": "chown",
-			"action": "SCMP_ACT_ALLOW",
-			"args": []
-		},
-		{
-			"name": "chown32",
-			"action": "SCMP_ACT_ALLOW",
-			"args": []
-		},
-		{
-			"name": "chroot",
-			"action": "SCMP_ACT_ALLOW",
-			"args": []
-		},
-		{
 			"name": "clock_getres",
 			"action": "SCMP_ACT_ALLOW",
 			"args": []
@@ -90,18 +70,6 @@
 			"name": "clock_nanosleep",
 			"action": "SCMP_ACT_ALLOW",
 			"args": []
-		},
-		{
-			"name": "clone",
-			"action": "SCMP_ACT_ALLOW",
-			"args": [
-				{
-					"index": 0,
-					"value": 2080505856,
-					"valueTwo": 0,
-					"op": "SCMP_CMP_MASKED_EQ"
-				}
-			]
 		},
 		{
 			"name": "close",
@@ -224,11 +192,6 @@
 			"args": []
 		},
 		{
-			"name": "fanotify_init",
-			"action": "SCMP_ACT_ALLOW",
-			"args": []
-		},
-		{
 			"name": "fanotify_mark",
 			"action": "SCMP_ACT_ALLOW",
 			"args": []
@@ -245,21 +208,6 @@
 		},
 		{
 			"name": "fchmodat",
-			"action": "SCMP_ACT_ALLOW",
-			"args": []
-		},
-		{
-			"name": "fchown",
-			"action": "SCMP_ACT_ALLOW",
-			"args": []
-		},
-		{
-			"name": "fchown32",
-			"action": "SCMP_ACT_ALLOW",
-			"args": []
-		},
-		{
-			"name": "fchownat",
 			"action": "SCMP_ACT_ALLOW",
 			"args": []
 		},
@@ -605,16 +553,6 @@
 		},
 		{
 			"name": "kill",
-			"action": "SCMP_ACT_ALLOW",
-			"args": []
-		},
-		{
-			"name": "lchown",
-			"action": "SCMP_ACT_ALLOW",
-			"args": []
-		},
-		{
-			"name": "lchown32",
 			"action": "SCMP_ACT_ALLOW",
 			"args": []
 		},
@@ -1165,11 +1103,6 @@
 			"args": []
 		},
 		{
-			"name": "setdomainname",
-			"action": "SCMP_ACT_ALLOW",
-			"args": []
-		},
-		{
 			"name": "setfsgid",
 			"action": "SCMP_ACT_ALLOW",
 			"args": []
@@ -1206,11 +1139,6 @@
 		},
 		{
 			"name": "setgroups32",
-			"action": "SCMP_ACT_ALLOW",
-			"args": []
-		},
-		{
-			"name": "sethostname",
 			"action": "SCMP_ACT_ALLOW",
 			"args": []
 		},
@@ -1580,22 +1508,69 @@
 			"args": []
 		},
 		{
+			"name": "arch_prctl",
+			"action": "SCMP_ACT_ALLOW",
+			"args": []
+		},
+		{
 			"name": "modify_ldt",
 			"action": "SCMP_ACT_ALLOW",
 			"args": []
 		},
 		{
-			"name": "breakpoint",
+			"name": "chown",
 			"action": "SCMP_ACT_ALLOW",
 			"args": []
 		},
 		{
-			"name": "cacheflush",
+			"name": "chown32",
 			"action": "SCMP_ACT_ALLOW",
 			"args": []
 		},
 		{
-			"name": "set_tls",
+			"name": "fchown",
+			"action": "SCMP_ACT_ALLOW",
+			"args": []
+		},
+		{
+			"name": "fchown32",
+			"action": "SCMP_ACT_ALLOW",
+			"args": []
+		},
+		{
+			"name": "fchownat",
+			"action": "SCMP_ACT_ALLOW",
+			"args": []
+		},
+		{
+			"name": "lchown",
+			"action": "SCMP_ACT_ALLOW",
+			"args": []
+		},
+		{
+			"name": "lchown32",
+			"action": "SCMP_ACT_ALLOW",
+			"args": []
+		},
+		{
+			"name": "chroot",
+			"action": "SCMP_ACT_ALLOW",
+			"args": []
+		},
+		{
+			"name": "clone",
+			"action": "SCMP_ACT_ALLOW",
+			"args": [
+				{
+					"index": 0,
+					"value": 2080505856,
+					"valueTwo": 0,
+					"op": "SCMP_CMP_MASKED_EQ"
+				}
+			]
+		},
+		{
+			"name": "fchown",
 			"action": "SCMP_ACT_ALLOW",
 			"args": []
 		}

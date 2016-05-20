@@ -1089,14 +1089,6 @@ one can use this flag:
     --privileged=false: Give extended privileges to this container
     --device=[]: Allows you to run devices inside the container without the --privileged flag.
 
-> **Note:**
-> With Docker 1.10 and greater, the default seccomp profile will also block
-> syscalls, regardless of `--cap-add` passed to the container. We recommend in
-> these cases to create your own custom seccomp profile based off our
-> [default](https://github.com/docker/docker/blob/master/profiles/seccomp/default.json).
-> Or if you don't want to run with the default seccomp profile, you can pass
-> `--security-opt=seccomp=unconfined` on run.
-
 By default, Docker containers are "unprivileged" and cannot, for
 example, run a Docker daemon inside a Docker container. This is because
 by default a container is not allowed to access any devices, but a
@@ -1214,6 +1206,11 @@ To mount a FUSE based filesystem, you need to combine both `--cap-add` and
     -rw-rw-r-- 1 1000 1000    461 Dec  4 06:08 .gitignore
     ....
 
+The default seccomp profile will adjust to the selected capabilities, in order to allow
+use of facilities allowed by the capabilities, so you should not have to adjust this,
+since Docker 1.12. In Docker 1.10 and 1.11 this did not happen and it may be necessary
+to use a custom seccomp profile or use `--security-opt seccomp=unconfined` when adding
+capabilities.
 
 ## Logging drivers (--log-driver)
 
