@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/datastore"
-	"github.com/docker/libnetwork/drivers/bridge"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/testutils"
@@ -225,9 +224,7 @@ func TestCreateDeleteNetwork(t *testing.T) {
 		t.Fatalf("Expected StatusBadRequest status code, got: %v", errRsp)
 	}
 
-	dops := map[string]string{
-		bridge.BridgeName: "abc",
-	}
+	dops := GetOpsMap("abc", "")
 	nops := map[string]string{
 		netlabel.EnableIPv6: "true",
 	}
@@ -273,9 +270,7 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	}
 	defer c.Stop()
 
-	ops := map[string]string{
-		bridge.BridgeName: "api_test_nw",
-	}
+	ops := GetOpsMap("api_test_nw", "")
 	nc := networkCreate{Name: "sh", NetworkType: bridgeNetType, DriverOpts: ops}
 	body, err := json.Marshal(nc)
 	if err != nil {
@@ -544,7 +539,7 @@ func TestProcGetServices(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	netName2 := "work-dev"
+	netName2 := "workdev"
 	netOption = options.Generic{
 		netlabel.GenericData: options.Generic{
 			"BridgeName": netName2,
@@ -1811,10 +1806,7 @@ func TestEndToEnd(t *testing.T) {
 
 	handleRequest := NewHTTPHandler(c)
 
-	dops := map[string]string{
-		bridge.BridgeName:  "cdef",
-		netlabel.DriverMTU: "1460",
-	}
+	dops := GetOpsMap("cdef", "1460")
 	nops := map[string]string{
 		netlabel.EnableIPv6: "true",
 	}
