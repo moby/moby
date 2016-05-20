@@ -118,6 +118,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /containers/create` now takes `MaximumIOps` and `MaximumIOBps` fields. Windows daemon only.
 * `POST /containers/create` now returns a HTTP 400 "bad parameter" message
   if no command is specified (instead of a HTTP 500 "server error")
+* `GET /images/search` now takes a `filters` query parameter.
 
 ### v1.23 API changes
 
