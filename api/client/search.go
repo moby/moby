@@ -10,10 +10,12 @@ import (
 	"golang.org/x/net/context"
 
 	Cli "github.com/docker/docker/cli"
+	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/registry"
 	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/filters"
 	registrytypes "github.com/docker/engine-api/types/registry"
 )
 
@@ -21,13 +23,31 @@ import (
 //
 // Usage: docker search [OPTIONS] TERM
 func (cli *DockerCli) CmdSearch(args ...string) error {
+	var (
+		err error
+
+		filterArgs = filters.NewArgs()
+
+		flFilter = opts.NewListOpts(nil)
+	)
+
 	cmd := Cli.Subcmd("search", []string{"TERM"}, Cli.DockerCommands["search"].Description, true)
 	noTrunc := cmd.Bool([]string{"-no-trunc"}, false, "Don't truncate output")
-	automated := cmd.Bool([]string{"-automated"}, false, "Only show automated builds")
-	stars := cmd.Uint([]string{"s", "-stars"}, 0, "Only displays with at least x stars")
+	cmd.Var(&flFilter, []string{"f", "-filter"}, "Filter output based on conditions provided")
+
+	// Deprecated since Docker 1.12 in favor of "--filter"
+	automated := cmd.Bool([]string{"#-automated"}, false, "Only show automated builds - DEPRECATED")
+	stars := cmd.Uint([]string{"s", "#-stars"}, 0, "Only displays with at least x stars - DEPRECATED")
+
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)
+
+	for _, f := range flFilter.GetAll() {
+		if filterArgs, err = filters.ParseFlag(f, filterArgs); err != nil {
+			return err
+		}
+	}
 
 	name := cmd.Arg(0)
 	v := url.Values{}
@@ -49,6 +69,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	options := types.ImageSearchOptions{
 		RegistryAuth:  encodedAuth,
 		PrivilegeFunc: requestPrivilege,
+		Filters:       filterArgs,
 	}
 
 	unorderedResults, err := cli.client.ImageSearch(context.Background(), name, options)
@@ -62,6 +83,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	w := tabwriter.NewWriter(cli.out, 10, 1, 3, ' ', 0)
 	fmt.Fprintf(w, "NAME\tDESCRIPTION\tSTARS\tOFFICIAL\tAUTOMATED\n")
 	for _, res := range results {
+		// --automated and -s, --stars are deprecated since Docker 1.12
 		if (*automated && !res.IsAutomated) || (int(*stars) > res.StarCount) {
 			continue
 		}

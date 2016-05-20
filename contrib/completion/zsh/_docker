@@ -311,6 +311,30 @@ __docker_complete_ps_filters() {
     return ret
 }
 
+__docker_complete_search_filters() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+    declare -a boolean_opts opts
+
+    boolean_opts=('true' 'false')
+    opts=('is-automated' 'is-official' 'stars')
+
+    if compset -P '*='; then
+        case "${${words[-1]%=*}#*=}" in
+            (is-automated|is-official)
+                _describe -t boolean-filter-opts "filter options" boolean_opts && ret=0
+                ;;
+            *)
+                _message 'value' && ret=0
+                ;;
+        esac
+    else
+        _describe -t filter-opts "filter options" opts -qS "=" && ret=0
+    fi
+
+    return ret
+}
+
 __docker_network_complete_ls_filters() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
@@ -1126,10 +1150,15 @@ __docker_subcommand() {
         (search)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)--automated[Only show automated builds]" \
+                "($help)*"{-f=,--filter=}"[Filter values]:filter:->filter-options" \
                 "($help)--no-trunc[Do not truncate output]" \
-                "($help -s --stars)"{-s=,--stars=}"[Only display with at least X stars]:stars:(0 10 100 1000)" \
                 "($help -):term: " && ret=0
+
+            case $state in
+                (filter-options)
+                    __docker_complete_search_filters && ret=0
+                    ;;
+            esac
             ;;
         (start)
             _arguments $(__docker_arguments) \
