@@ -3,6 +3,7 @@ package dockerfile
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -16,6 +17,7 @@ import (
 
 type dispatchTestCase struct {
 	name, dockerfile, expectedError string
+	files                           map[string]string
 }
 
 func init() {
@@ -34,21 +36,97 @@ func initDispatchTestCases() []dispatchTestCase {
 			name:          "ONBUILD forbidden FROM",
 			dockerfile:    "ONBUILD FROM scratch",
 			expectedError: "FROM isn't allowed as an ONBUILD trigger",
+			files:         nil,
 		},
 		{
 			name:          "ONBUILD forbidden MAINTAINER",
 			dockerfile:    "ONBUILD MAINTAINER docker.io",
 			expectedError: "MAINTAINER isn't allowed as an ONBUILD trigger",
+			files:         nil,
 		},
 		{
 			name:          "ARG two arguments",
 			dockerfile:    "ARG foo bar",
 			expectedError: "ARG requires exactly one argument definition",
+			files:         nil,
 		},
 		{
 			name:          "MAINTAINER unknown flag",
 			dockerfile:    "MAINTAINER --boo joe@example.com",
 			expectedError: "Unknown flag: boo",
+			files:         nil,
+		},
+		{
+			name:          "ADD multiple files to file",
+			dockerfile:    "ADD file1.txt file2.txt test",
+			expectedError: "When using ADD with more than one source file, the destination must be a directory and end with a /",
+			files:         map[string]string{"file1.txt": "test1", "file2.txt": "test2"},
+		},
+		{
+			name:          "JSON ADD multiple files to file",
+			dockerfile:    `ADD ["file1.txt", "file2.txt", "test"]`,
+			expectedError: "When using ADD with more than one source file, the destination must be a directory and end with a /",
+			files:         map[string]string{"file1.txt": "test1", "file2.txt": "test2"},
+		},
+		{
+			name:          "Wiildcard ADD multiple files to file",
+			dockerfile:    "ADD file*.txt test",
+			expectedError: "When using ADD with more than one source file, the destination must be a directory and end with a /",
+			files:         map[string]string{"file1.txt": "test1", "file2.txt": "test2"},
+		},
+		{
+			name:          "Wiildcard JSON ADD multiple files to file",
+			dockerfile:    `ADD ["file*.txt", "test"]`,
+			expectedError: "When using ADD with more than one source file, the destination must be a directory and end with a /",
+			files:         map[string]string{"file1.txt": "test1", "file2.txt": "test2"},
+		},
+		{
+			name:          "COPY multiple files to file",
+			dockerfile:    "COPY file1.txt file2.txt test",
+			expectedError: "When using COPY with more than one source file, the destination must be a directory and end with a /",
+			files:         map[string]string{"file1.txt": "test1", "file2.txt": "test2"},
+		},
+		{
+			name:          "JSON COPY multiple files to file",
+			dockerfile:    `COPY ["file1.txt", "file2.txt", "test"]`,
+			expectedError: "When using COPY with more than one source file, the destination must be a directory and end with a /",
+			files:         map[string]string{"file1.txt": "test1", "file2.txt": "test2"},
+		},
+		{
+			name:          "ADD multiple files to file with whitespace",
+			dockerfile:    `ADD [ "test file1.txt", "test file2.txt", "test" ]`,
+			expectedError: "When using ADD with more than one source file, the destination must be a directory and end with a /",
+			files:         map[string]string{"test file1.txt": "test1", "test file2.txt": "test2"},
+		},
+		{
+			name:          "COPY multiple files to file with whitespace",
+			dockerfile:    `COPY [ "test file1.txt", "test file2.txt", "test" ]`,
+			expectedError: "When using COPY with more than one source file, the destination must be a directory and end with a /",
+			files:         map[string]string{"test file1.txt": "test1", "test file2.txt": "test2"},
+		},
+		{
+			name:          "COPY wildcard no files",
+			dockerfile:    `COPY file*.txt /tmp/`,
+			expectedError: "No source files were specified",
+			files:         nil,
+		},
+		{
+			name:          "COPY url",
+			dockerfile:    `COPY https://index.docker.io/robots.txt /`,
+			expectedError: "Source can't be a URL for COPY",
+			files:         nil,
+		},
+		{
+			name:          "Chaining ONBUILD",
+			dockerfile:    `ONBUILD ONBUILD RUN touch foobar`,
+			expectedError: "Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed",
+			files:         nil,
+		},
+		{
+			name:          "Invalid instruction",
+			dockerfile:    `foo bar`,
+			expectedError: "Unknown instruction: FOO",
+			files:         nil,
 		}}
 
 	return dispatchTestCases
@@ -65,6 +143,10 @@ func TestDispatch(t *testing.T) {
 func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerfile-test")
 	defer cleanup()
+
+	for filename, content := range testCase.files {
+		createTestTempFile(t, contextDir, filename, content, 0777)
+	}
 
 	tarStream, err := archive.Tar(contextDir, archive.Uncompressed)
 
@@ -131,4 +213,17 @@ func createTestTempDir(t *testing.T, dir, prefix string) (string, func()) {
 			t.Fatalf("Error when removing directory %s: %s", path, err)
 		}
 	}
+}
+
+// createTestTempFile creates a temporary file within dir with specific contents and permissions.
+// When an error occurs, it terminates the test
+func createTestTempFile(t *testing.T, dir, filename, contents string, perm os.FileMode) string {
+	filePath := filepath.Join(dir, filename)
+	err := ioutil.WriteFile(filePath, []byte(contents), perm)
+
+	if err != nil {
+		t.Fatalf("Error when creating %s file: %s", filename, err)
+	}
+
+	return filePath
 }

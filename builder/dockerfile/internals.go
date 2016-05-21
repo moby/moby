@@ -618,25 +618,8 @@ func (b *Builder) readDockerfile() error {
 		}
 	}
 
-	f, err := b.context.Open(b.options.Dockerfile)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("Cannot locate specified Dockerfile: %s", b.options.Dockerfile)
-		}
-		return err
-	}
-	if f, ok := f.(*os.File); ok {
-		// ignoring error because Open already succeeded
-		fi, err := f.Stat()
-		if err != nil {
-			return fmt.Errorf("Unexpected error reading Dockerfile: %v", err)
-		}
-		if fi.Size() == 0 {
-			return fmt.Errorf("The Dockerfile (%s) cannot be empty", b.options.Dockerfile)
-		}
-	}
-	b.dockerfile, err = parser.Parse(f)
-	f.Close()
+	err := b.parseDockerfile()
+
 	if err != nil {
 		return err
 	}
@@ -652,6 +635,33 @@ func (b *Builder) readDockerfile() error {
 	if dockerIgnore, ok := b.context.(builder.DockerIgnoreContext); ok {
 		dockerIgnore.Process([]string{b.options.Dockerfile})
 	}
+	return nil
+}
+
+func (b *Builder) parseDockerfile() error {
+	f, err := b.context.Open(b.options.Dockerfile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("Cannot locate specified Dockerfile: %s", b.options.Dockerfile)
+		}
+		return err
+	}
+	defer f.Close()
+	if f, ok := f.(*os.File); ok {
+		// ignoring error because Open already succeeded
+		fi, err := f.Stat()
+		if err != nil {
+			return fmt.Errorf("Unexpected error reading Dockerfile: %v", err)
+		}
+		if fi.Size() == 0 {
+			return fmt.Errorf("The Dockerfile (%s) cannot be empty", b.options.Dockerfile)
+		}
+	}
+	b.dockerfile, err = parser.Parse(f)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
