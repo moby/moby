@@ -99,10 +99,13 @@ func (cli *DockerCli) CmdUpdate(args ...string) error {
 		RestartPolicy: restartPolicy,
 	}
 
+	ctx := context.Background()
+
 	names := cmd.Args()
 	var errs []string
+
 	for _, name := range names {
-		if err := cli.client.ContainerUpdate(context.Background(), name, updateConfig); err != nil {
+		if err := cli.client.ContainerUpdate(ctx, name, updateConfig); err != nil {
 			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)

@@ -22,9 +22,11 @@ func (cli *DockerCli) CmdStop(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
+	ctx := context.Background()
+
 	var errs []string
 	for _, name := range cmd.Args() {
-		if err := cli.client.ContainerStop(context.Background(), name, *nSeconds); err != nil {
+		if err := cli.client.ContainerStop(ctx, name, *nSeconds); err != nil {
 			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)

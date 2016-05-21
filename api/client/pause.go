@@ -19,9 +19,11 @@ func (cli *DockerCli) CmdPause(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
+	ctx := context.Background()
+
 	var errs []string
 	for _, name := range cmd.Args() {
-		if err := cli.client.ContainerPause(context.Background(), name); err != nil {
+		if err := cli.client.ContainerPause(ctx, name); err != nil {
 			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)

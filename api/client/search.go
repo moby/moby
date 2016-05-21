@@ -58,7 +58,9 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 		return err
 	}
 
-	authConfig := cli.resolveAuthConfig(indexInfo)
+	ctx := context.Background()
+
+	authConfig := cli.resolveAuthConfig(ctx, indexInfo)
 	requestPrivilege := cli.registryAuthenticationPrivilegedFunc(indexInfo, "search")
 
 	encodedAuth, err := encodeAuthToBase64(authConfig)
@@ -72,7 +74,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 		Filters:       filterArgs,
 	}
 
-	unorderedResults, err := cli.client.ImageSearch(context.Background(), name, options)
+	unorderedResults, err := cli.client.ImageSearch(ctx, name, options)
 	if err != nil {
 		return err
 	}

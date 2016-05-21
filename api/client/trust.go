@@ -229,14 +229,14 @@ func (cli *DockerCli) getPassphraseRetriever() passphrase.Retriever {
 	}
 }
 
-func (cli *DockerCli) trustedReference(ref reference.NamedTagged) (reference.Canonical, error) {
+func (cli *DockerCli) trustedReference(ctx context.Context, ref reference.NamedTagged) (reference.Canonical, error) {
 	repoInfo, err := registry.ParseRepositoryInfo(ref)
 	if err != nil {
 		return nil, err
 	}
 
 	// Resolve the Auth config relevant for this server
-	authConfig := cli.resolveAuthConfig(repoInfo.Index)
+	authConfig := cli.resolveAuthConfig(ctx, repoInfo.Index)
 
 	notaryRepo, err := cli.getNotaryRepository(repoInfo, authConfig, "pull")
 	if err != nil {
@@ -262,14 +262,14 @@ func (cli *DockerCli) trustedReference(ref reference.NamedTagged) (reference.Can
 	return reference.WithDigest(ref, r.digest)
 }
 
-func (cli *DockerCli) tagTrusted(trustedRef reference.Canonical, ref reference.NamedTagged) error {
+func (cli *DockerCli) tagTrusted(ctx context.Context, trustedRef reference.Canonical, ref reference.NamedTagged) error {
 	fmt.Fprintf(cli.out, "Tagging %s as %s\n", trustedRef.String(), ref.String())
 
 	options := types.ImageTagOptions{
 		Force: true,
 	}
 
-	return cli.client.ImageTag(context.Background(), trustedRef.String(), ref.String(), options)
+	return cli.client.ImageTag(ctx, trustedRef.String(), ref.String(), options)
 }
 
 func notaryError(repoName string, err error) error {
@@ -302,7 +302,7 @@ func notaryError(repoName string, err error) error {
 	return err
 }
 
-func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registry.Reference, authConfig types.AuthConfig, requestPrivilege types.RequestPrivilegeFunc) error {
+func (cli *DockerCli) trustedPull(ctx context.Context, repoInfo *registry.RepositoryInfo, ref registry.Reference, authConfig types.AuthConfig, requestPrivilege types.RequestPrivilegeFunc) error {
 	var refs []target
 
 	notaryRepo, err := cli.getNotaryRepository(repoInfo, authConfig, "pull")
@@ -364,7 +364,7 @@ func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registr
 		if err != nil {
 			return err
 		}
-		if err := cli.imagePullPrivileged(authConfig, ref.String(), requestPrivilege, false); err != nil {
+		if err := cli.imagePullPrivileged(ctx, authConfig, ref.String(), requestPrivilege, false); err != nil {
 			return err
 		}
 
@@ -378,7 +378,7 @@ func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registr
 			if err != nil {
 				return err
 			}
-			if err := cli.tagTrusted(trustedRef, tagged); err != nil {
+			if err := cli.tagTrusted(ctx, trustedRef, tagged); err != nil {
 				return err
 			}
 		}
@@ -386,8 +386,8 @@ func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registr
 	return nil
 }
 
-func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, ref reference.Named, authConfig types.AuthConfig, requestPrivilege types.RequestPrivilegeFunc) error {
-	responseBody, err := cli.imagePushPrivileged(authConfig, ref.String(), requestPrivilege)
+func (cli *DockerCli) trustedPush(ctx context.Context, repoInfo *registry.RepositoryInfo, ref reference.Named, authConfig types.AuthConfig, requestPrivilege types.RequestPrivilegeFunc) error {
+	responseBody, err := cli.imagePushPrivileged(ctx, authConfig, ref.String(), requestPrivilege)
 	if err != nil {
 		return err
 	}

@@ -23,6 +23,8 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
+	ctx := context.Background()
+
 	var errs []string
 	for _, name := range cmd.Args() {
 		if name == "" {
@@ -30,7 +32,7 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 		}
 		name = strings.Trim(name, "/")
 
-		if err := cli.removeContainer(name, *v, *link, *force); err != nil {
+		if err := cli.removeContainer(ctx, name, *v, *link, *force); err != nil {
 			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
@@ -42,13 +44,13 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	return nil
 }
 
-func (cli *DockerCli) removeContainer(container string, removeVolumes, removeLinks, force bool) error {
+func (cli *DockerCli) removeContainer(ctx context.Context, container string, removeVolumes, removeLinks, force bool) error {
 	options := types.ContainerRemoveOptions{
 		RemoveVolumes: removeVolumes,
 		RemoveLinks:   removeLinks,
 		Force:         force,
 	}
-	if err := cli.client.ContainerRemove(context.Background(), container, options); err != nil {
+	if err := cli.client.ContainerRemove(ctx, container, options); err != nil {
 		return err
 	}
 	return nil
