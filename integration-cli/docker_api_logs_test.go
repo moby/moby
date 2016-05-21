@@ -60,9 +60,7 @@ func (s *DockerSuite) TestLogsApiNoStdoutNorStderr(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	expected := "Bad parameters: you must choose at least one stream"
-	if !bytes.Contains(body, []byte(expected)) {
-		c.Fatalf("Expected %s, got %s", expected, string(body[:]))
-	}
+	c.Assert(getErrorMessage(c, body), checker.Contains, expected)
 }
 
 // Regression test for #12704
