@@ -66,7 +66,7 @@ RUN cd /usr/local/lvm2 \
 
 # Install Go
 ENV GO_VERSION 1.6.2
-RUN curl -fsSL "http://dave.cheney.net/paste/go${GO_VERSION}.linux-arm.tar.gz" \
+RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-armv6l.tar.gz" \
 	| tar -xzC /usr/local
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
