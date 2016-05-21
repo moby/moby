@@ -24,7 +24,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	containerd "github.com/docker/containerd/api/grpc/types"
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
@@ -41,7 +40,6 @@ import (
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/image/tarexport"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/migrate/v1"
@@ -79,15 +77,6 @@ var (
 
 	errSystemNotSupported = fmt.Errorf("The Docker daemon is not supported on this platform.")
 )
-
-// ErrImageDoesNotExist is error returned when no image can be found for a reference.
-type ErrImageDoesNotExist struct {
-	RefOrID string
-}
-
-func (e ErrImageDoesNotExist) Error() string {
-	return fmt.Sprintf("no such id: %s", e.RefOrID)
-}
 
 // Daemon holds information about the Docker daemon.
 type Daemon struct {
@@ -1008,221 +997,6 @@ func isBrokenPipe(e error) bool {
 	return e == syscall.EPIPE
 }
 
-// ExportImage exports a list of images to the given output stream. The
-// exported images are archived into a tar when written to the output
-// stream. All images with the given tag and all versions containing
-// the same tag are exported. names is the set of tags to export, and
-// outStream is the writer which the images are written to.
-func (daemon *Daemon) ExportImage(names []string, outStream io.Writer) error {
-	imageExporter := tarexport.NewTarExporter(daemon.imageStore, daemon.layerStore, daemon.referenceStore, daemon)
-	return imageExporter.Save(names, outStream)
-}
-
-// LookupImage looks up an image by name and returns it as an ImageInspect
-// structure.
-func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
-	img, err := daemon.GetImage(name)
-	if err != nil {
-		return nil, fmt.Errorf("No such image: %s", name)
-	}
-
-	refs := daemon.referenceStore.References(img.ID())
-	repoTags := []string{}
-	repoDigests := []string{}
-	for _, ref := range refs {
-		switch ref.(type) {
-		case reference.NamedTagged:
-			repoTags = append(repoTags, ref.String())
-		case reference.Canonical:
-			repoDigests = append(repoDigests, ref.String())
-		}
-	}
-
-	var size int64
-	var layerMetadata map[string]string
-	layerID := img.RootFS.ChainID()
-	if layerID != "" {
-		l, err := daemon.layerStore.Get(layerID)
-		if err != nil {
-			return nil, err
-		}
-		defer layer.ReleaseAndLog(daemon.layerStore, l)
-		size, err = l.Size()
-		if err != nil {
-			return nil, err
-		}
-
-		layerMetadata, err = l.Metadata()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	comment := img.Comment
-	if len(comment) == 0 && len(img.History) > 0 {
-		comment = img.History[len(img.History)-1].Comment
-	}
-
-	imageInspect := &types.ImageInspect{
-		ID:              img.ID().String(),
-		RepoTags:        repoTags,
-		RepoDigests:     repoDigests,
-		Parent:          img.Parent.String(),
-		Comment:         comment,
-		Created:         img.Created.Format(time.RFC3339Nano),
-		Container:       img.Container,
-		ContainerConfig: &img.ContainerConfig,
-		DockerVersion:   img.DockerVersion,
-		Author:          img.Author,
-		Config:          img.Config,
-		Architecture:    img.Architecture,
-		Os:              img.OS,
-		Size:            size,
-		VirtualSize:     size, // TODO: field unused, deprecate
-		RootFS:          rootFSToAPIType(img.RootFS),
-	}
-
-	imageInspect.GraphDriver.Name = daemon.GraphDriverName()
-
-	imageInspect.GraphDriver.Data = layerMetadata
-
-	return imageInspect, nil
-}
-
-// LoadImage uploads a set of images into the repository. This is the
-// complement of ImageExport.  The input stream is an uncompressed tar
-// ball containing images and metadata.
-func (daemon *Daemon) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
-	imageExporter := tarexport.NewTarExporter(daemon.imageStore, daemon.layerStore, daemon.referenceStore, daemon)
-	return imageExporter.Load(inTar, outStream, quiet)
-}
-
-// ImageHistory returns a slice of ImageHistory structures for the specified image
-// name by walking the image lineage.
-func (daemon *Daemon) ImageHistory(name string) ([]*types.ImageHistory, error) {
-	img, err := daemon.GetImage(name)
-	if err != nil {
-		return nil, err
-	}
-
-	history := []*types.ImageHistory{}
-
-	layerCounter := 0
-	rootFS := *img.RootFS
-	rootFS.DiffIDs = nil
-
-	for _, h := range img.History {
-		var layerSize int64
-
-		if !h.EmptyLayer {
-			if len(img.RootFS.DiffIDs) <= layerCounter {
-				return nil, fmt.Errorf("too many non-empty layers in History section")
-			}
-
-			rootFS.Append(img.RootFS.DiffIDs[layerCounter])
-			l, err := daemon.layerStore.Get(rootFS.ChainID())
-			if err != nil {
-				return nil, err
-			}
-			layerSize, err = l.DiffSize()
-			layer.ReleaseAndLog(daemon.layerStore, l)
-			if err != nil {
-				return nil, err
-			}
-
-			layerCounter++
-		}
-
-		history = append([]*types.ImageHistory{{
-			ID:        "<missing>",
-			Created:   h.Created.Unix(),
-			CreatedBy: h.CreatedBy,
-			Comment:   h.Comment,
-			Size:      layerSize,
-		}}, history...)
-	}
-
-	// Fill in image IDs and tags
-	histImg := img
-	id := img.ID()
-	for _, h := range history {
-		h.ID = id.String()
-
-		var tags []string
-		for _, r := range daemon.referenceStore.References(id) {
-			if _, ok := r.(reference.NamedTagged); ok {
-				tags = append(tags, r.String())
-			}
-		}
-
-		h.Tags = tags
-
-		id = histImg.Parent
-		if id == "" {
-			break
-		}
-		histImg, err = daemon.GetImage(id.String())
-		if err != nil {
-			break
-		}
-	}
-
-	return history, nil
-}
-
-// GetImageID returns an image ID corresponding to the image referred to by
-// refOrID.
-func (daemon *Daemon) GetImageID(refOrID string) (image.ID, error) {
-	id, ref, err := reference.ParseIDOrReference(refOrID)
-	if err != nil {
-		return "", err
-	}
-	if id != "" {
-		if _, err := daemon.imageStore.Get(image.ID(id)); err != nil {
-			return "", ErrImageDoesNotExist{refOrID}
-		}
-		return image.ID(id), nil
-	}
-
-	if id, err := daemon.referenceStore.Get(ref); err == nil {
-		return id, nil
-	}
-	if tagged, ok := ref.(reference.NamedTagged); ok {
-		if id, err := daemon.imageStore.Search(tagged.Tag()); err == nil {
-			for _, namedRef := range daemon.referenceStore.References(id) {
-				if namedRef.Name() == ref.Name() {
-					return id, nil
-				}
-			}
-		}
-	}
-
-	// Search based on ID
-	if id, err := daemon.imageStore.Search(refOrID); err == nil {
-		return id, nil
-	}
-
-	return "", ErrImageDoesNotExist{refOrID}
-}
-
-// GetImage returns an image corresponding to the image referred to by refOrID.
-func (daemon *Daemon) GetImage(refOrID string) (*image.Image, error) {
-	imgID, err := daemon.GetImageID(refOrID)
-	if err != nil {
-		return nil, err
-	}
-	return daemon.imageStore.Get(imgID)
-}
-
-// GetImageOnBuild looks up a Docker image referenced by `name`.
-func (daemon *Daemon) GetImageOnBuild(name string) (builder.Image, error) {
-	img, err := daemon.GetImage(name)
-	if err != nil {
-		return nil, err
-	}
-	return img, nil
-}
-
 // GraphDriverName returns the name of the graph driver used by the layer.Store
 func (daemon *Daemon) GraphDriverName() string {
 	return daemon.layerStore.DriverName()
@@ -1241,57 +1015,6 @@ func (daemon *Daemon) GetUIDGIDMaps() ([]idtools.IDMap, []idtools.IDMap) {
 func (daemon *Daemon) GetRemappedUIDGID() (int, int) {
 	uid, gid, _ := idtools.GetRootUIDGID(daemon.uidMaps, daemon.gidMaps)
 	return uid, gid
-}
-
-// GetCachedImage returns the most recent created image that is a child
-// of the image with imgID, that had the same config when it was
-// created. nil is returned if a child cannot be found. An error is
-// returned if the parent image cannot be found.
-func (daemon *Daemon) GetCachedImage(imgID image.ID, config *containertypes.Config) (*image.Image, error) {
-	// Loop on the children of the given image and check the config
-	getMatch := func(siblings []image.ID) (*image.Image, error) {
-		var match *image.Image
-		for _, id := range siblings {
-			img, err := daemon.imageStore.Get(id)
-			if err != nil {
-				return nil, fmt.Errorf("unable to find image %q", id)
-			}
-
-			if runconfig.Compare(&img.ContainerConfig, config) {
-				// check for the most up to date match
-				if match == nil || match.Created.Before(img.Created) {
-					match = img
-				}
-			}
-		}
-		return match, nil
-	}
-
-	// In this case, this is `FROM scratch`, which isn't an actual image.
-	if imgID == "" {
-		images := daemon.imageStore.Map()
-		var siblings []image.ID
-		for id, img := range images {
-			if img.Parent == imgID {
-				siblings = append(siblings, id)
-			}
-		}
-		return getMatch(siblings)
-	}
-
-	// find match from child images
-	siblings := daemon.imageStore.Children(imgID)
-	return getMatch(siblings)
-}
-
-// GetCachedImageOnBuild returns a reference to a cached image whose parent equals `parent`
-// and runconfig equals `cfg`. A cache miss is expected to return an empty ID and a nil error.
-func (daemon *Daemon) GetCachedImageOnBuild(imgID string, cfg *containertypes.Config) (string, error) {
-	cache, err := daemon.GetCachedImage(image.ID(imgID), cfg)
-	if cache == nil || err != nil {
-		return "", err
-	}
-	return cache.ID().String(), nil
 }
 
 // tempDir returns the default directory to use for temporary files.
