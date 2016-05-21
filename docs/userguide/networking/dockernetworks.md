@@ -57,7 +57,7 @@ docker0   Link encap:Ethernet  HWaddr 02:42:47:bc:3a:eb
           RX bytes:1100 (1.1 KB)  TX bytes:648 (648.0 B)
 ```
 
-The `none` network adds a container to a container-specific network stack. That container lacks a network interface. Attaching to such a container and looking at it's stack you see this:
+The `none` network adds a container to a container-specific network stack. That container lacks a network interface. Attaching to such a container and looking at its stack you see this:
 
 ```
 $ docker attach nonenetcontainer
