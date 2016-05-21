@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -31,7 +30,6 @@ import (
 	"github.com/docker/engine-api/types"
 	containertypes "github.com/docker/engine-api/types/container"
 	networktypes "github.com/docker/engine-api/types/network"
-	registrytypes "github.com/docker/engine-api/types/registry"
 	"github.com/docker/engine-api/types/strslice"
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
@@ -63,7 +61,6 @@ import (
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/store"
-	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
@@ -93,7 +90,7 @@ type Daemon struct {
 	configStore               *Config
 	statsCollector            *statsCollector
 	defaultLogConfig          containertypes.LogConfig
-	RegistryService           *registry.Service
+	RegistryService           registry.Service
 	EventsService             *events.Events
 	netController             libnetwork.NetworkController
 	volumes                   *store.VolumeStore
@@ -614,7 +611,7 @@ func (daemon *Daemon) registerLink(parent, child *container.Container, alias str
 
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
-func NewDaemon(config *Config, registryService *registry.Service, containerdRemote libcontainerd.Remote) (daemon *Daemon, err error) {
+func NewDaemon(config *Config, registryService registry.Service, containerdRemote libcontainerd.Remote) (daemon *Daemon, err error) {
 	setDefaultMtu(config)
 
 	// Ensure we have compatible and valid configuration options
@@ -1144,88 +1141,7 @@ func configureVolumes(config *Config, rootUID, rootGID int) (*store.VolumeStore,
 
 // AuthenticateToRegistry checks the validity of credentials in authConfig
 func (daemon *Daemon) AuthenticateToRegistry(ctx context.Context, authConfig *types.AuthConfig) (string, string, error) {
-	return daemon.RegistryService.Auth(authConfig, dockerversion.DockerUserAgent(ctx))
-}
-
-var acceptedSearchFilterTags = map[string]bool{
-	"is-automated": true,
-	"is-official":  true,
-	"stars":        true,
-}
-
-// SearchRegistryForImages queries the registry for images matching
-// term. authConfig is used to login.
-func (daemon *Daemon) SearchRegistryForImages(ctx context.Context, filtersArgs string, term string,
-	authConfig *types.AuthConfig,
-	headers map[string][]string) (*registrytypes.SearchResults, error) {
-
-	searchFilters, err := filters.FromParam(filtersArgs)
-	if err != nil {
-		return nil, err
-	}
-	if err := searchFilters.Validate(acceptedSearchFilterTags); err != nil {
-		return nil, err
-	}
-
-	unfilteredResult, err := daemon.RegistryService.Search(term, authConfig, dockerversion.DockerUserAgent(ctx), headers)
-	if err != nil {
-		return nil, err
-	}
-
-	var isAutomated, isOfficial bool
-	var hasStarFilter = 0
-	if searchFilters.Include("is-automated") {
-		if searchFilters.ExactMatch("is-automated", "true") {
-			isAutomated = true
-		} else if !searchFilters.ExactMatch("is-automated", "false") {
-			return nil, fmt.Errorf("Invalid filter 'is-automated=%s'", searchFilters.Get("is-automated"))
-		}
-	}
-	if searchFilters.Include("is-official") {
-		if searchFilters.ExactMatch("is-official", "true") {
-			isOfficial = true
-		} else if !searchFilters.ExactMatch("is-official", "false") {
-			return nil, fmt.Errorf("Invalid filter 'is-official=%s'", searchFilters.Get("is-official"))
-		}
-	}
-	if searchFilters.Include("stars") {
-		hasStars := searchFilters.Get("stars")
-		for _, hasStar := range hasStars {
-			iHasStar, err := strconv.Atoi(hasStar)
-			if err != nil {
-				return nil, fmt.Errorf("Invalid filter 'stars=%s'", hasStar)
-			}
-			if iHasStar > hasStarFilter {
-				hasStarFilter = iHasStar
-			}
-		}
-	}
-
-	filteredResults := []registrytypes.SearchResult{}
-	for _, result := range unfilteredResult.Results {
-		if searchFilters.Include("is-automated") {
-			if isAutomated != result.IsAutomated {
-				continue
-			}
-		}
-		if searchFilters.Include("is-official") {
-			if isOfficial != result.IsOfficial {
-				continue
-			}
-		}
-		if searchFilters.Include("stars") {
-			if result.StarCount < hasStarFilter {
-				continue
-			}
-		}
-		filteredResults = append(filteredResults, result)
-	}
-
-	return &registrytypes.SearchResults{
-		Query:      unfilteredResult.Query,
-		NumResults: len(filteredResults),
-		Results:    filteredResults,
-	}, nil
+	return daemon.RegistryService.Auth(ctx, authConfig, dockerversion.DockerUserAgent(ctx))
 }
 
 // IsShuttingDown tells whether the daemon is shutting down or not
