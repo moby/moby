@@ -114,14 +114,12 @@ func notifyShutdown(err error) {
 }
 
 func wrapListeners(proto string, ls []net.Listener) []net.Listener {
-	if os.Getenv("DOCKER_HTTP_HOST_COMPAT") != "" {
-		switch proto {
-		case "unix":
-			ls[0] = &hack.MalformedHostHeaderOverride{ls[0]}
-		case "fd":
-			for i := range ls {
-				ls[i] = &hack.MalformedHostHeaderOverride{ls[i]}
-			}
+	switch proto {
+	case "unix":
+		ls[0] = &hack.MalformedHostHeaderOverride{ls[0]}
+	case "fd":
+		for i := range ls {
+			ls[i] = &hack.MalformedHostHeaderOverride{ls[i]}
 		}
 	}
 	return ls
