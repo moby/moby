@@ -69,13 +69,13 @@ func initDispatchTestCases() []dispatchTestCase {
 			files:         map[string]string{"file1.txt": "test1", "file2.txt": "test2"},
 		},
 		{
-			name:          "Wiildcard ADD multiple files to file",
+			name:          "Wildcard ADD multiple files to file",
 			dockerfile:    "ADD file*.txt test",
 			expectedError: "When using ADD with more than one source file, the destination must be a directory and end with a /",
 			files:         map[string]string{"file1.txt": "test1", "file2.txt": "test2"},
 		},
 		{
-			name:          "Wiildcard JSON ADD multiple files to file",
+			name:          "Wildcard JSON ADD multiple files to file",
 			dockerfile:    `ADD ["file*.txt", "test"]`,
 			expectedError: "When using ADD with more than one source file, the destination must be a directory and end with a /",
 			files:         map[string]string{"file1.txt": "test1", "file2.txt": "test2"},
