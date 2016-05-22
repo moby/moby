@@ -48,6 +48,21 @@ var (
 	errInvalidNetwork  = fmt.Errorf("invalid network settings while building port map info")
 )
 
+// AttachError represents errors of attach
+type AttachError interface {
+	IsDetached() bool
+}
+
+type detachError struct{}
+
+func (e detachError) IsDetached() bool {
+	return true
+}
+
+func (e detachError) Error() string {
+	return "detached from container"
+}
+
 // CommonContainer holds the fields for a container which are
 // applicable across all platforms supported by the daemon.
 type CommonContainer struct {
@@ -393,7 +408,6 @@ func AttachStreams(ctx context.Context, streamConfig *runconfig.StreamConfig, op
 			_, err = copyEscapable(cStdin, stdin, keys)
 		} else {
 			_, err = io.Copy(cStdin, stdin)
-
 		}
 		if err == io.ErrClosedPipe {
 			err = nil
@@ -492,10 +506,8 @@ func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64
 					break
 				}
 				if i == len(keys)-1 {
-					if err := src.Close(); err != nil {
-						return 0, err
-					}
-					return 0, nil
+					src.Close()
+					return 0, detachError{}
 				}
 				nr, er = src.Read(buf)
 			}

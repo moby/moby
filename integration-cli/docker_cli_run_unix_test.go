@@ -135,6 +135,11 @@ func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 
 	running := inspectField(c, name, "State.Running")
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
+
+	out, _ = dockerCmd(c, "events", "--since=0", "--until", daemonUnixTime(c), "-f", "container="+name)
+	// attach and detach event should be monitored
+	c.Assert(out, checker.Contains, "attach")
+	c.Assert(out, checker.Contains, "detach")
 }
 
 // TestRunDetach checks attaching and detaching with the escape sequence specified via flags.
