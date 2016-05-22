@@ -335,6 +335,30 @@ __docker_complete_search_filters() {
     return ret
 }
 
+__docker_complete_images_filters() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+    declare -a boolean_opts opts
+
+    boolean_opts=('true' 'false')
+    opts=('dangling' 'label')
+
+    if compset -P '*='; then
+        case "${${words[-1]%=*}#*=}" in
+            (dangling)
+                _describe -t boolean-filter-opts "filter options" boolean_opts && ret=0
+                ;;
+            *)
+                _message 'value' && ret=0
+                ;;
+        esac
+    else
+        _describe -t filter-opts "Filter Options" opts -qS "=" && ret=0
+    fi
+
+    return ret
+}
+
 __docker_network_complete_ls_filters() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
@@ -953,11 +977,17 @@ __docker_subcommand() {
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Show all images]" \
                 "($help)--digests[Show digests]" \
-                "($help)*"{-f=,--filter=}"[Filter values]:filter: " \
+                "($help)*"{-f=,--filter=}"[Filter values]:filter:->filter-options" \
                 "($help)--format[Pretty-print containers using a Go template]:format: " \
                 "($help)--no-trunc[Do not truncate output]" \
                 "($help -q --quiet)"{-q,--quiet}"[Only show numeric IDs]" \
                 "($help -): :__docker_repositories" && ret=0
+
+            case $state in
+                (filter-options)
+                    __docker_complete_images_filters && ret=0
+                    ;;
+            esac
             ;;
         (import)
             _arguments $(__docker_arguments) \
