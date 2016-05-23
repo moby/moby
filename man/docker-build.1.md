@@ -91,7 +91,9 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
    Remove intermediate containers after a successful build. The default is *true*.
 
 **-t**, **--tag**=""
-   Repository names (and optionally with tags) to be applied to the resulting image in case of success.
+   Repository names (and optionally with tags) to be applied to the resulting 
+   image in case of success. Refer to **docker-tag(1)** for more information
+   about valid tag names.
 
 **-m**, **--memory**=*MEMORY*
   Memory limit

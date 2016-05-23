@@ -225,7 +225,8 @@ uploaded context. The builder reference contains detailed information on
     $ docker build -t vieux/apache:2.0 .
 
 This will build like the previous example, but it will then tag the resulting
-image. The repository name will be `vieux/apache` and the tag will be `2.0`
+image. The repository name will be `vieux/apache` and the tag will be `2.0`.
+[Read more about valid tags](tag.md).
 
 You can apply multiple tags to an image. For example, you can apply the `latest`
 tag to a newly built image and add another tag that references a specific
