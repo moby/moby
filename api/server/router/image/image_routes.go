@@ -209,7 +209,8 @@ func (s *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter,
 		}
 		return nil
 	}
-	return s.backend.LoadImage(r.Body, w, quiet)
+	err := s.backend.LoadImage(r.Body, w, quiet)
+	return err
 }
 
 func (s *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
