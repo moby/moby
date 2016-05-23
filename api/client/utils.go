@@ -23,13 +23,13 @@ import (
 	registrytypes "github.com/docker/engine-api/types/registry"
 )
 
-func (cli *DockerCli) electAuthServer() string {
+func (cli *DockerCli) electAuthServer(ctx context.Context) string {
 	// The daemon `/info` endpoint informs us of the default registry being
 	// used. This is essential in cross-platforms environment, where for
 	// example a Linux client might be interacting with a Windows daemon, hence
 	// the default registry URL might be Windows specific.
 	serverAddress := registry.IndexServer
-	if info, err := cli.client.Info(context.Background()); err != nil {
+	if info, err := cli.client.Info(ctx); err != nil {
 		fmt.Fprintf(cli.out, "Warning: failed to get default registry endpoint from daemon (%v). Using system default: %s\n", err, serverAddress)
 	} else {
 		serverAddress = info.IndexServerAddress
@@ -58,12 +58,12 @@ func (cli *DockerCli) registryAuthenticationPrivilegedFunc(index *registrytypes.
 	}
 }
 
-func (cli *DockerCli) resizeTty(id string, isExec bool) {
+func (cli *DockerCli) resizeTty(ctx context.Context, id string, isExec bool) {
 	height, width := cli.getTtySize()
-	cli.resizeTtyTo(id, height, width, isExec)
+	cli.resizeTtyTo(ctx, id, height, width, isExec)
 }
 
-func (cli *DockerCli) resizeTtyTo(id string, height, width int, isExec bool) {
+func (cli *DockerCli) resizeTtyTo(ctx context.Context, id string, height, width int, isExec bool) {
 	if height == 0 && width == 0 {
 		return
 	}
@@ -75,9 +75,9 @@ func (cli *DockerCli) resizeTtyTo(id string, height, width int, isExec bool) {
 
 	var err error
 	if isExec {
-		err = cli.client.ContainerExecResize(context.Background(), id, options)
+		err = cli.client.ContainerExecResize(ctx, id, options)
 	} else {
-		err = cli.client.ContainerResize(context.Background(), id, options)
+		err = cli.client.ContainerResize(ctx, id, options)
 	}
 
 	if err != nil {
@@ -87,8 +87,8 @@ func (cli *DockerCli) resizeTtyTo(id string, height, width int, isExec bool) {
 
 // getExitCode perform an inspect on the container. It returns
 // the running state and the exit code.
-func getExitCode(cli *DockerCli, containerID string) (bool, int, error) {
-	c, err := cli.client.ContainerInspect(context.Background(), containerID)
+func (cli *DockerCli) getExitCode(ctx context.Context, containerID string) (bool, int, error) {
+	c, err := cli.client.ContainerInspect(ctx, containerID)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
 		if err != client.ErrConnectionFailed {
@@ -102,8 +102,8 @@ func getExitCode(cli *DockerCli, containerID string) (bool, int, error) {
 
 // getExecExitCode perform an inspect on the exec command. It returns
 // the running state and the exit code.
-func getExecExitCode(cli *DockerCli, execID string) (bool, int, error) {
-	resp, err := cli.client.ContainerExecInspect(context.Background(), execID)
+func (cli *DockerCli) getExecExitCode(ctx context.Context, execID string) (bool, int, error) {
+	resp, err := cli.client.ContainerExecInspect(ctx, execID)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
 		if err != client.ErrConnectionFailed {
@@ -115,8 +115,8 @@ func getExecExitCode(cli *DockerCli, execID string) (bool, int, error) {
 	return resp.Running, resp.ExitCode, nil
 }
 
-func (cli *DockerCli) monitorTtySize(id string, isExec bool) error {
-	cli.resizeTty(id, isExec)
+func (cli *DockerCli) monitorTtySize(ctx context.Context, id string, isExec bool) error {
+	cli.resizeTty(ctx, id, isExec)
 
 	if runtime.GOOS == "windows" {
 		go func() {
@@ -126,7 +126,7 @@ func (cli *DockerCli) monitorTtySize(id string, isExec bool) error {
 				h, w := cli.getTtySize()
 
 				if prevW != w || prevH != h {
-					cli.resizeTty(id, isExec)
+					cli.resizeTty(ctx, id, isExec)
 				}
 				prevH = h
 				prevW = w
@@ -137,7 +137,7 @@ func (cli *DockerCli) monitorTtySize(id string, isExec bool) error {
 		gosignal.Notify(sigchan, signal.SIGWINCH)
 		go func() {
 			for range sigchan {
-				cli.resizeTty(id, isExec)
+				cli.resizeTty(ctx, id, isExec)
 			}
 		}()
 	}
@@ -185,10 +185,10 @@ func copyToFile(outfile string, r io.Reader) error {
 // resolveAuthConfig is like registry.ResolveAuthConfig, but if using the
 // default index, it uses the default index name for the daemon's platform,
 // not the client's platform.
-func (cli *DockerCli) resolveAuthConfig(index *registrytypes.IndexInfo) types.AuthConfig {
+func (cli *DockerCli) resolveAuthConfig(ctx context.Context, index *registrytypes.IndexInfo) types.AuthConfig {
 	configKey := index.Name
 	if index.Official {
-		configKey = cli.electAuthServer()
+		configKey = cli.electAuthServer(ctx)
 	}
 
 	a, _ := getCredentials(cli.configFile, configKey)

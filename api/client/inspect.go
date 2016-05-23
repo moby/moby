@@ -28,38 +28,40 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		return fmt.Errorf("%q is not a valid value for --type", *inspectType)
 	}
 
+	ctx := context.Background()
+
 	var elementSearcher inspectSearcher
 	switch *inspectType {
 	case "container":
-		elementSearcher = cli.inspectContainers(*size)
+		elementSearcher = cli.inspectContainers(ctx, *size)
 	case "image":
-		elementSearcher = cli.inspectImages(*size)
+		elementSearcher = cli.inspectImages(ctx, *size)
 	default:
-		elementSearcher = cli.inspectAll(*size)
+		elementSearcher = cli.inspectAll(ctx, *size)
 	}
 
 	return cli.inspectElements(*tmplStr, cmd.Args(), elementSearcher)
 }
 
-func (cli *DockerCli) inspectContainers(getSize bool) inspectSearcher {
+func (cli *DockerCli) inspectContainers(ctx context.Context, getSize bool) inspectSearcher {
 	return func(ref string) (interface{}, []byte, error) {
-		return cli.client.ContainerInspectWithRaw(context.Background(), ref, getSize)
+		return cli.client.ContainerInspectWithRaw(ctx, ref, getSize)
 	}
 }
 
-func (cli *DockerCli) inspectImages(getSize bool) inspectSearcher {
+func (cli *DockerCli) inspectImages(ctx context.Context, getSize bool) inspectSearcher {
 	return func(ref string) (interface{}, []byte, error) {
-		return cli.client.ImageInspectWithRaw(context.Background(), ref, getSize)
+		return cli.client.ImageInspectWithRaw(ctx, ref, getSize)
 	}
 }
 
-func (cli *DockerCli) inspectAll(getSize bool) inspectSearcher {
+func (cli *DockerCli) inspectAll(ctx context.Context, getSize bool) inspectSearcher {
 	return func(ref string) (interface{}, []byte, error) {
-		c, rawContainer, err := cli.client.ContainerInspectWithRaw(context.Background(), ref, getSize)
+		c, rawContainer, err := cli.client.ContainerInspectWithRaw(ctx, ref, getSize)
 		if err != nil {
 			// Search for image with that id if a container doesn't exist.
 			if client.IsErrContainerNotFound(err) {
-				i, rawImage, err := cli.client.ImageInspectWithRaw(context.Background(), ref, getSize)
+				i, rawImage, err := cli.client.ImageInspectWithRaw(ctx, ref, getSize)
 				if err != nil {
 					if client.IsErrImageNotFound(err) {
 						return nil, nil, fmt.Errorf("Error: No such image or container: %s", ref)

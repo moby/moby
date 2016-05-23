@@ -33,7 +33,9 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 
 	name := cmd.Arg(0)
 
-	c, err := cli.client.ContainerInspect(context.Background(), name)
+	ctx := context.Background()
+
+	c, err := cli.client.ContainerInspect(ctx, name)
 	if err != nil {
 		return err
 	}
@@ -51,7 +53,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		Tail:       *tail,
 		Details:    *details,
 	}
-	responseBody, err := cli.client.ContainerLogs(context.Background(), name, options)
+	responseBody, err := cli.client.ContainerLogs(ctx, name, options)
 	if err != nil {
 		return err
 	}

@@ -110,8 +110,10 @@ func (cli *DockerCli) CmdVolumeInspect(args ...string) error {
 		return nil
 	}
 
+	ctx := context.Background()
+
 	inspectSearcher := func(name string) (interface{}, []byte, error) {
-		i, err := cli.client.VolumeInspect(context.Background(), name)
+		i, err := cli.client.VolumeInspect(ctx, name)
 		return i, nil, err
 	}
 
@@ -161,8 +163,10 @@ func (cli *DockerCli) CmdVolumeRm(args ...string) error {
 
 	var status = 0
 
+	ctx := context.Background()
+
 	for _, name := range cmd.Args() {
-		if err := cli.client.VolumeRemove(context.Background(), name); err != nil {
+		if err := cli.client.VolumeRemove(ctx, name); err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			status = 1
 			continue

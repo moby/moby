@@ -104,9 +104,11 @@ func (cli *DockerCli) CmdNetworkRm(args ...string) error {
 		return err
 	}
 
+	ctx := context.Background()
+
 	status := 0
 	for _, net := range cmd.Args() {
-		if err := cli.client.NetworkRemove(context.Background(), net); err != nil {
+		if err := cli.client.NetworkRemove(ctx, net); err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			status = 1
 			continue
@@ -239,8 +241,10 @@ func (cli *DockerCli) CmdNetworkInspect(args ...string) error {
 		return err
 	}
 
+	ctx := context.Background()
+
 	inspectSearcher := func(name string) (interface{}, []byte, error) {
-		i, err := cli.client.NetworkInspect(context.Background(), name)
+		i, err := cli.client.NetworkInspect(ctx, name)
 		return i, nil, err
 	}
 

@@ -33,15 +33,18 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	if err != nil {
 		return err
 	}
-	// Resolve the Auth config relevant for this server
-	authConfig := cli.resolveAuthConfig(repoInfo.Index)
 
+	ctx := context.Background()
+
+	// Resolve the Auth config relevant for this server
+	authConfig := cli.resolveAuthConfig(ctx, repoInfo.Index)
 	requestPrivilege := cli.registryAuthenticationPrivilegedFunc(repoInfo.Index, "push")
+
 	if isTrusted() {
-		return cli.trustedPush(repoInfo, ref, authConfig, requestPrivilege)
+		return cli.trustedPush(ctx, repoInfo, ref, authConfig, requestPrivilege)
 	}
 
-	responseBody, err := cli.imagePushPrivileged(authConfig, ref.String(), requestPrivilege)
+	responseBody, err := cli.imagePushPrivileged(ctx, authConfig, ref.String(), requestPrivilege)
 	if err != nil {
 		return err
 	}
@@ -51,7 +54,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	return jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut, nil)
 }
 
-func (cli *DockerCli) imagePushPrivileged(authConfig types.AuthConfig, ref string, requestPrivilege types.RequestPrivilegeFunc) (io.ReadCloser, error) {
+func (cli *DockerCli) imagePushPrivileged(ctx context.Context, authConfig types.AuthConfig, ref string, requestPrivilege types.RequestPrivilegeFunc) (io.ReadCloser, error) {
 	encodedAuth, err := encodeAuthToBase64(authConfig)
 	if err != nil {
 		return nil, err
@@ -61,5 +64,5 @@ func (cli *DockerCli) imagePushPrivileged(authConfig types.AuthConfig, ref strin
 		PrivilegeFunc: requestPrivilege,
 	}
 
-	return cli.client.ImagePush(context.Background(), ref, options)
+	return cli.client.ImagePush(ctx, ref, options)
 }
