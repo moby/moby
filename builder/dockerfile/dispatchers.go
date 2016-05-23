@@ -466,6 +466,13 @@ func healthcheck(b *Builder, args []string, attributes map[string]bool, original
 			Test: test,
 		}
 	} else {
+		if b.runConfig.Healthcheck != nil {
+			oldCmd := b.runConfig.Healthcheck.Test
+			if len(oldCmd) > 0 && oldCmd[0] != "NONE" {
+				fmt.Fprintf(b.Stdout, "Note: overriding previous HEALTHCHECK: %v\n", oldCmd)
+			}
+		}
+
 		healthcheck := container.HealthConfig{}
 
 		flGracePeriod := b.flags.AddString("grace", "")
