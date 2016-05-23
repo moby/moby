@@ -2,6 +2,7 @@ package libcontainerd
 
 import (
 	"encoding/json"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -190,4 +191,19 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 		logrus.Debugf("event unhandled: %+v", e)
 	}
 	return nil
+}
+
+// discardFifos attempts to fully read the container fifos to unblock processes
+// that may be blocked on the writer side.
+func (ctr *container) discardFifos() {
+	for _, i := range []int{syscall.Stdout, syscall.Stderr} {
+		f := ctr.fifo(i)
+		c := make(chan struct{})
+		go func() {
+			close(c) // this channel is used to not close the writer too early, before readonly open has been called.
+			io.Copy(ioutil.Discard, openReaderFromFifo(f))
+		}()
+		<-c
+		closeReaderFifo(f) // avoid blocking permanently on open if there is no writer side
+	}
 }
