@@ -132,15 +132,25 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 		return err
 	}
 
-	if err := daemon.containerd.Create(container.ID, *spec, libcontainerd.WithRestartManager(container.RestartManager(true))); err != nil {
+	createOptions := []libcontainerd.CreateOption{libcontainerd.WithRestartManager(container.RestartManager(true))}
+	copts, err := daemon.getLibcontainerdCreateOptions(container)
+	if err != nil {
+		return err
+	}
+	if copts != nil {
+		createOptions = append(createOptions, *copts...)
+	}
+
+	if err := daemon.containerd.Create(container.ID, *spec, createOptions...); err != nil {
 		errDesc := grpc.ErrorDesc(err)
 		logrus.Errorf("Create container failed with error: %s", errDesc)
 		// if we receive an internal error from the initial start of a container then lets
 		// return it instead of entering the restart loop
 		// set to 127 for container cmd not found/does not exist)
-		if strings.Contains(errDesc, "executable file not found") ||
-			strings.Contains(errDesc, "no such file or directory") ||
-			strings.Contains(errDesc, "system cannot find the file specified") {
+		if strings.Contains(errDesc, container.Path) &&
+			(strings.Contains(errDesc, "executable file not found") ||
+				strings.Contains(errDesc, "no such file or directory") ||
+				strings.Contains(errDesc, "system cannot find the file specified")) {
 			container.ExitCode = 127
 		}
 		// set to 126 for container cmd can't be invoked errors

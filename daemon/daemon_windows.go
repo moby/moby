@@ -156,6 +156,10 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	return warnings, nil
 }
 
+// platformReload update configuration with platform specific options
+func (daemon *Daemon) platformReload(config *Config, attributes *map[string]string) {
+}
+
 // verifyDaemonSettings performs validation of daemon config struct
 func verifyDaemonSettings(config *Config) error {
 	return nil

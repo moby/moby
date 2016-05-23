@@ -50,6 +50,7 @@ type remote struct {
 	clients       []*client
 	eventTsPath   string
 	pastEvents    map[string]*containerd.Event
+	runtime       string
 	runtimeArgs   []string
 	daemonWaitCh  chan struct{}
 	liveRestore   bool
@@ -366,10 +367,13 @@ func (r *remote) runContainerdDaemon() error {
 	args := []string{
 		"-l", fmt.Sprintf("unix://%s", r.rpcAddr),
 		"--shim", "docker-containerd-shim",
-		"--runtime", "docker-runc",
 		"--metrics-interval=0",
 		"--start-timeout", "2m",
 		"--state-dir", filepath.Join(r.stateDir, containerdStateDir),
+	}
+	if r.runtime != "" {
+		args = append(args, "--runtime")
+		args = append(args, r.runtime)
 	}
 	if r.debugLog {
 		args = append(args, "--debug")
@@ -426,6 +430,22 @@ func (a rpcAddr) Apply(r Remote) error {
 		return nil
 	}
 	return fmt.Errorf("WithRemoteAddr option not supported for this remote")
+}
+
+// WithRuntimePath sets the path of the runtime to be used as the
+// default by containerd
+func WithRuntimePath(rt string) RemoteOption {
+	return runtimePath(rt)
+}
+
+type runtimePath string
+
+func (rt runtimePath) Apply(r Remote) error {
+	if remote, ok := r.(*remote); ok {
+		remote.runtime = string(rt)
+		return nil
+	}
+	return fmt.Errorf("WithRuntime option not supported for this remote")
 }
 
 // WithRuntimeArgs sets the list of runtime args passed to containerd

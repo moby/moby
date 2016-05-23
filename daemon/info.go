@@ -131,6 +131,8 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		v.CPUCfsQuota = sysInfo.CPUCfsQuota
 		v.CPUShares = sysInfo.CPUShares
 		v.CPUSet = sysInfo.Cpuset
+		v.Runtimes = daemon.configStore.GetAllRuntimes()
+		v.DefaultRuntime = daemon.configStore.GetDefaultRuntimeName()
 	}
 
 	hostname := ""

@@ -21,7 +21,27 @@ type container struct {
 
 	// Platform specific fields are below here.
 	pauseMonitor
-	oom bool
+	oom         bool
+	runtime     string
+	runtimeArgs []string
+}
+
+type runtime struct {
+	path string
+	args []string
+}
+
+// WithRuntime sets the runtime to be used for the created container
+func WithRuntime(path string, args []string) CreateOption {
+	return runtime{path, args}
+}
+
+func (rt runtime) Apply(p interface{}) error {
+	if pr, ok := p.(*container); ok {
+		pr.runtime = rt.path
+		pr.runtimeArgs = rt.args
+	}
+	return nil
 }
 
 func (ctr *container) clean() error {
@@ -84,6 +104,8 @@ func (ctr *container) start() error {
 		Stderr:     ctr.fifo(syscall.Stderr),
 		// check to see if we are running in ramdisk to disable pivot root
 		NoPivotRoot: os.Getenv("DOCKER_RAMDISK") != "",
+		Runtime:     ctr.runtime,
+		RuntimeArgs: ctr.runtimeArgs,
 	}
 	ctr.client.appendContainer(ctr)
 
