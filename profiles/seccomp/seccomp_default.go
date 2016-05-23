@@ -1322,6 +1322,11 @@ func DefaultProfile(rs *specs.Spec) *types.Seccomp {
 			Args:   []*types.Arg{},
 		},
 		{
+			Name:   "socketcall",
+			Action: types.ActAllow,
+			Args:   []*types.Arg{},
+		},
+		{
 			Name:   "socketpair",
 			Action: types.ActAllow,
 			Args:   []*types.Arg{},
