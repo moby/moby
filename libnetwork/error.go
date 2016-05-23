@@ -14,7 +14,7 @@ func (nsn ErrNoSuchNetwork) Error() string {
 // NotFound denotes the type of this error
 func (nsn ErrNoSuchNetwork) NotFound() {}
 
-// ErrNoSuchEndpoint is returned when a endpoint query finds no result
+// ErrNoSuchEndpoint is returned when an endpoint query finds no result
 type ErrNoSuchEndpoint string
 
 func (nse ErrNoSuchEndpoint) Error() string {

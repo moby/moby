@@ -10,7 +10,7 @@ Please refer to this [Docker v1.6 Design](legacy.md) document for more informati
 
 ## Goal
 
-libnetwork project will follow Docker and Linux philosophy of developing small, highly modular and composable tools that works well independently.
+libnetwork project will follow Docker and Linux philosophy of developing small, highly modular and composable tools that work well independently.
 Libnetwork aims to satisfy that composable need for Networking in Containers.
 
 ## The Container Network Model
@@ -73,7 +73,7 @@ Consumers of the CNM, like Docker for example, interact through the CNM Objects 
 
 2. `Network` is created using the controller's `NewNetwork()` API by providing a `name` and `networkType`. `networkType` parameter helps to choose a corresponding `Driver` and binds the created `Network` to that `Driver`. From this point, any operation on `Network` will be handled by that `Driver`.
 
-3. `controller.NewNetwork()` API also takes in optional `options` parameter which carries Driver-specific options and `Labels`, which the Drivers can make use for its purpose.
+3. `controller.NewNetwork()` API also takes in optional `options` parameter which carries Driver-specific options and `Labels`, which the Drivers can make use of for its purpose.
 
 4. `network.CreateEndpoint()` can be called to create a new Endpoint in a given network. This API also accepts optional `options` parameter which drivers can make use of. These 'options' carry both well-known labels and driver-specific labels. Drivers will in turn be called with `driver.CreateEndpoint` and it can choose to reserve IPv4/IPv6 addresses when an `Endpoint` is created in a `Network`. The `Driver` will assign these addresses using `InterfaceInfo` interface defined in the `driverapi`. The IP/IPv6 are needed to complete the endpoint as service definition along with the ports the endpoint exposes since essentially a service endpoint is nothing but a network address and the port number that the application container is listening on.
 
@@ -93,11 +93,11 @@ Consumers of the CNM, like Docker for example, interact through the CNM Objects 
 
 ### Networks & Endpoints
 
-LibNetwork's Network and Endpoint APIs are primarily for managing the corresponding Objects and book-keeping them to provide a level of abstraction as required by the CNM. It delegates the actual implementation to the drivers which  realize the functionality as promised in the CNM. For more information on these details, please see [the drivers section](#Drivers)
+LibNetwork's Network and Endpoint APIs are primarily for managing the corresponding Objects and book-keeping them to provide a level of abstraction as required by the CNM. It delegates the actual implementation to the drivers which realize the functionality as promised in the CNM. For more information on these details, please see [the drivers section](#Drivers)
 
 ### Sandbox
 
-Libnetwork provides a framework to implement of a Sandbox in multiple operating systems. Currently we have implemented Sandbox for Linux using `namespace_linux.go` and `configure_linux.go` in `sandbox` package
+Libnetwork provides a framework to implement of a Sandbox in multiple operating systems. Currently we have implemented Sandbox for Linux using `namespace_linux.go` and `configure_linux.go` in `sandbox` package.
 This creates a Network Namespace for each sandbox which is uniquely identified by a path on the host filesystem.
 Netlink calls are used to move interfaces from the global namespace to the Sandbox namespace.
 Netlink is also used to manage the routing table in the namespace.
@@ -106,7 +106,7 @@ Netlink is also used to manage the routing table in the namespace.
 
 ## API
 
-Drivers are essentially an extension of libnetwork and provides the actual implementation for all of the LibNetwork APIs defined above. Hence there is an 1-1 correspondence for all the `Network` and `Endpoint` APIs, which includes :
+Drivers are essentially an extension of libnetwork and provide the actual implementation for all of the LibNetwork APIs defined above. Hence there is an 1-1 correspondence for all the `Network` and `Endpoint` APIs, which includes :
 * `driver.Config`
 * `driver.CreateNetwork`
 * `driver.DeleteNetwork`
@@ -115,7 +115,7 @@ Drivers are essentially an extension of libnetwork and provides the actual imple
 * `driver.Join`
 * `driver.Leave`
 
-These Driver facing APIs makes use of unique identifiers (`networkid`,`endpointid`,...) instead of names (as seen in user-facing APIs).
+These Driver facing APIs make use of unique identifiers (`networkid`,`endpointid`,...) instead of names (as seen in user-facing APIs).
 
 The APIs are still work in progress and there can be changes to these based on the driver requirements especially when it comes to Multi-host networking.
 
