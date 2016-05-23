@@ -1380,6 +1380,11 @@
 			"args": []
 		},
 		{
+			"name": "socketcall",
+			"action": "SCMP_ACT_ALLOW",
+			"args": []
+		},
+		{
 			"name": "socketpair",
 			"action": "SCMP_ACT_ALLOW",
 			"args": []
