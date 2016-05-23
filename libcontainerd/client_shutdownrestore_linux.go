@@ -20,6 +20,8 @@ func (clnt *client) Restore(containerID string, options ...CreateOption) error {
 		clnt.appendContainer(container)
 		clnt.unlock(cont.Id)
 
+		container.discardFifos()
+
 		if err := clnt.Signal(containerID, int(syscall.SIGTERM)); err != nil {
 			logrus.Errorf("error sending sigterm to %v: %v", containerID, err)
 		}
@@ -37,5 +39,8 @@ func (clnt *client) Restore(containerID string, options ...CreateOption) error {
 			return nil
 		}
 	}
+
+	clnt.deleteContainer(containerID)
+
 	return clnt.setExited(containerID)
 }
