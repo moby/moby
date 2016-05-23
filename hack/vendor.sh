@@ -43,7 +43,7 @@ esac
 
 # the following lines are in sorted order, FYI
 clone git github.com/Azure/go-ansiterm 388960b655244e76e24c75f48631564eaefade62
-clone git github.com/Microsoft/hcsshim v0.2.2
+clone git github.com/Microsoft/hcsshim v0.3.0
 clone git github.com/Microsoft/go-winio v0.3.4
 clone git github.com/Sirupsen/logrus v0.10.0 # logrus is a common dependency among multiple deps
 clone git github.com/docker/libtrust 9cbd2a1374f46905c68a4eb3694a130610adc62a

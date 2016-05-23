@@ -3,6 +3,7 @@ package libcontainerd
 import (
 	"io"
 
+	"github.com/Microsoft/hcsshim"
 	"github.com/docker/docker/pkg/system"
 )
 
@@ -14,6 +15,7 @@ type process struct {
 
 	// commandLine is to support returning summary information for docker top
 	commandLine string
+	hcsProcess  hcsshim.Process
 }
 
 func openReaderFromPipe(p io.ReadCloser) io.Reader {
@@ -56,4 +58,28 @@ func (w *delToBsWriter) Write(b []byte) (int, error) {
 		}
 	}
 	return w.WriteCloser.Write(bc)
+}
+
+type stdInCloser struct {
+	io.WriteCloser
+	hcsshim.Process
+}
+
+func createStdInCloser(pipe io.WriteCloser, process hcsshim.Process) *stdInCloser {
+	return &stdInCloser{
+		WriteCloser: pipe,
+		Process:     process,
+	}
+}
+
+func (stdin *stdInCloser) Close() error {
+	if err := stdin.WriteCloser.Close(); err != nil {
+		return err
+	}
+
+	return stdin.Process.CloseStdin()
+}
+
+func (stdin *stdInCloser) Write(p []byte) (n int, err error) {
+	return stdin.WriteCloser.Write(p)
 }

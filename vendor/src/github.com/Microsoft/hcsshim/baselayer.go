@@ -62,20 +62,17 @@ func (w *baseLayerWriter) Add(name string, fileInfo *winio.FileBasicInfo) (err e
 		}
 	}()
 
-	err = winio.RunWithPrivileges([]string{winio.SeBackupPrivilege, winio.SeRestorePrivilege}, func() (err error) {
-		createmode := uint32(syscall.CREATE_NEW)
-		if fileInfo.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
-			err := os.Mkdir(path, 0)
-			if err != nil && !os.IsExist(err) {
-				return err
-			}
-			createmode = syscall.OPEN_EXISTING
+	createmode := uint32(syscall.CREATE_NEW)
+	if fileInfo.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
+		err := os.Mkdir(path, 0)
+		if err != nil && !os.IsExist(err) {
+			return err
 		}
+		createmode = syscall.OPEN_EXISTING
+	}
 
-		mode := uint32(syscall.GENERIC_READ | syscall.GENERIC_WRITE | winio.WRITE_DAC | winio.WRITE_OWNER | winio.ACCESS_SYSTEM_SECURITY)
-		f, err = winio.OpenForBackup(path, mode, syscall.FILE_SHARE_READ, createmode)
-		return
-	})
+	mode := uint32(syscall.GENERIC_READ | syscall.GENERIC_WRITE | winio.WRITE_DAC | winio.WRITE_OWNER | winio.ACCESS_SYSTEM_SECURITY)
+	f, err = winio.OpenForBackup(path, mode, syscall.FILE_SHARE_READ, createmode)
 	if err != nil {
 		return err
 	}
@@ -113,9 +110,7 @@ func (w *baseLayerWriter) AddLink(name string, target string) (err error) {
 		return err
 	}
 
-	return winio.RunWithPrivileges([]string{winio.SeBackupPrivilege, winio.SeRestorePrivilege}, func() (err error) {
-		return os.Link(linktarget, linkpath)
-	})
+	return os.Link(linktarget, linkpath)
 }
 
 func (w *baseLayerWriter) Remove(name string) error {
@@ -123,11 +118,7 @@ func (w *baseLayerWriter) Remove(name string) error {
 }
 
 func (w *baseLayerWriter) Write(b []byte) (int, error) {
-	var n int
-	err := winio.RunWithPrivileges([]string{winio.SeBackupPrivilege, winio.SeRestorePrivilege}, func() (err error) {
-		n, err = w.bw.Write(b)
-		return
-	})
+	n, err := w.bw.Write(b)
 	if err != nil {
 		w.err = err
 	}
