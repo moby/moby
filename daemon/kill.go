@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/signal"
 )
@@ -33,7 +32,7 @@ func isErrNoSuchProcess(err error) bool {
 // If no signal is given (sig 0), then Kill with SIGKILL and wait
 // for the container to exit.
 // If a signal is given, then just send it to the container and return.
-func (daemon *Daemon) ContainerKill(name string, sig uint64, flags *backend.ShutdownFlags) error {
+func (daemon *Daemon) ContainerKill(name string, sig uint64) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -45,9 +44,9 @@ func (daemon *Daemon) ContainerKill(name string, sig uint64, flags *backend.Shut
 
 	// If no signal is passed, or SIGKILL, perform regular Kill (SIGKILL + wait())
 	if sig == 0 || syscall.Signal(sig) == syscall.SIGKILL {
-		return daemon.Kill(container, flags)
+		return daemon.Kill(container)
 	}
-	return daemon.killWithSignal(container, int(sig), flags)
+	return daemon.killWithSignal(container, int(sig))
 }
 
 // killWithSignal sends the container the given signal. This wrapper for the
@@ -55,7 +54,7 @@ func (daemon *Daemon) ContainerKill(name string, sig uint64, flags *backend.Shut
 // to send the signal. An error is returned if the container is paused
 // or not running, or if there is a problem returned from the
 // underlying kill command.
-func (daemon *Daemon) killWithSignal(container *container.Container, sig int, flags *backend.ShutdownFlags) error {
+func (daemon *Daemon) killWithSignal(container *container.Container, sig int) error {
 	logrus.Debugf("Sending %d to %s", sig, container.ID)
 	container.Lock()
 	defer container.Unlock()
@@ -69,9 +68,7 @@ func (daemon *Daemon) killWithSignal(container *container.Container, sig int, fl
 		return errNotRunning{container.ID}
 	}
 
-	if !flags.AllowAutoRestart {
-		container.ExitOnNext()
-	}
+	container.ExitOnNext()
 
 	if !daemon.IsShuttingDown() {
 		container.HasBeenManuallyStopped = true
@@ -103,13 +100,13 @@ func (daemon *Daemon) killWithSignal(container *container.Container, sig int, fl
 }
 
 // Kill forcefully terminates a container.
-func (daemon *Daemon) Kill(container *container.Container, flags *backend.ShutdownFlags) error {
+func (daemon *Daemon) Kill(container *container.Container) error {
 	if !container.IsRunning() {
 		return errNotRunning{container.ID}
 	}
 
 	// 1. Send SIGKILL
-	if err := daemon.killPossiblyDeadProcess(container, int(syscall.SIGKILL), flags); err != nil {
+	if err := daemon.killPossiblyDeadProcess(container, int(syscall.SIGKILL)); err != nil {
 		// While normally we might "return err" here we're not going to
 		// because if we can't stop the container by this point then
 		// its probably because its already stopped. Meaning, between
@@ -145,8 +142,8 @@ func (daemon *Daemon) Kill(container *container.Container, flags *backend.Shutdo
 }
 
 // killPossibleDeadProcess is a wrapper around killSig() suppressing "no such process" error.
-func (daemon *Daemon) killPossiblyDeadProcess(container *container.Container, sig int, flags *backend.ShutdownFlags) error {
-	err := daemon.killWithSignal(container, sig, flags)
+func (daemon *Daemon) killPossiblyDeadProcess(container *container.Container, sig int) error {
+	err := daemon.killWithSignal(container, sig)
 	if err == syscall.ESRCH {
 		e := errNoSuchProcess{container.GetPID(), sig}
 		logrus.Debug(e)

@@ -1323,7 +1323,6 @@ The options that can appear before `CMD` are:
 * `--timeout=DURATION` (default: `30s`)
 * `--grace=DURATION` (default: `30s`)
 * `--retries=N` (default: `1`)
-* `--exit-on-unhealthy=X` (default: `true`)
 
 The health check will first run **interval** seconds after the container is
 started, and then again **interval** seconds after each previous check completes.
@@ -1338,14 +1337,10 @@ state remains `starting`.
 It takes **retries** consecutive failures of the health check for the container
 to be considered `unhealthy`.
 
-If `--exit-on-unhealthy` is `true` then the container will exit as soon as it
-becomes unhealthy. The container may then be automatically restarted, depending
-on its restart policy.
-
 For example, to check every five minutes or so that a web-server is able to
 serve the site's main page within three seconds:
 
-    HEALTHCHECK --interval=5m --grace=20s --timeout=3s --exit-on-unhealthy \
+    HEALTHCHECK --interval=5m --grace=20s --timeout=3s \
       CMD curl -f http://localhost/
 
 There can only be one `HEALTHCHECK` instruction in a Dockerfile. If you list

@@ -3,7 +3,6 @@ package daemon
 import (
 	"fmt"
 
-	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/container"
 )
 
@@ -36,7 +35,7 @@ func (daemon *Daemon) containerRestart(container *container.Container, seconds i
 		defer daemon.Unmount(container)
 	}
 
-	if err := daemon.containerStop(container, seconds, &backend.ShutdownFlags{}); err != nil {
+	if err := daemon.containerStop(container, seconds); err != nil {
 		return err
 	}
 

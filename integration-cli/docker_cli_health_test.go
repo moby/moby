@@ -49,7 +49,7 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 		RUN echo OK > /status
 		CMD ["/bin/sleep", "120"]
 		STOPSIGNAL SIGKILL
-		HEALTHCHECK --interval=1s --grace=31s --timeout=30s --exit-on-unhealthy=false\
+		HEALTHCHECK --interval=1s --grace=31s --timeout=30s \
 		  CMD cat /status`,
 		true)
 
@@ -106,7 +106,6 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 
 	// Enable the checks from the CLI
 	_, _ = dockerCmd(c, "run", "-d", "--name=fatal_healthcheck",
-		"--exit-on-unhealthy",
 		"--health-interval=0.5s",
 		"--health-grace=0",
 		"--health-retries=3",
@@ -143,22 +142,5 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 			"exit={{.State.Health.LastExitCode}} "+
 			"out={{.State.Health.LastOutput}}", "test")
 	c.Check(strings.TrimSpace(out), checker.Equals, "status=unhealthy exit=-1 out=Health check exceeded timeout (1ms)")
-	dockerCmd(c, "rm", "-f", "test")
-
-	// Check restart policy works
-	_, _ = dockerCmd(c, "run", "-d", "--name=test", "--health-grace=0", "--exit-on-unhealthy=true",
-		"--health-cmd=if rm /status; then exit 1; else exit 0; fi",
-		"--health-interval=0.5s", "--restart=on-failure", imageName)
-	// Wait for RestartCount to increase
-	for {
-		time.Sleep(500 * time.Millisecond)
-		out, _ := dockerCmd(c, "inspect", "--format={{.RestartCount}}", "test")
-		restarts, err := strconv.Atoi(strings.TrimSpace(out))
-		c.Check(err, check.IsNil)
-		if restarts > 0 {
-			break
-		}
-	}
-	waitForStatus(c, "test", "restarting", "running")
 	dockerCmd(c, "rm", "-f", "test")
 }

@@ -122,7 +122,7 @@ type Backend interface {
 	// Commit creates a new Docker image from an existing Docker container.
 	Commit(string, *backend.ContainerCommitConfig) (string, error)
 	// ContainerKill stops the container execution abruptly.
-	ContainerKill(containerID string, sig uint64, flags *backend.ShutdownFlags) error
+	ContainerKill(containerID string, sig uint64) error
 	// ContainerStart starts a new container
 	ContainerStart(containerID string, hostConfig *container.HostConfig) error
 	// ContainerWait stops processing until the given container is stopped.

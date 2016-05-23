@@ -2,7 +2,7 @@ FROM debian
 ADD check.sh main.sh /app/
 CMD /app/main.sh
 HEALTHCHECK
-HEALTHCHECK --interval=5s --timeout=3s --retries=1 --grace=4s --exit-on-unhealthy \
+HEALTHCHECK --interval=5s --timeout=3s --retries=1 --grace=4s \
   CMD /app/check.sh --quiet
 HEALTHCHECK CMD
 HEALTHCHECK   CMD   a b

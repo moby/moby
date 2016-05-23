@@ -621,19 +621,6 @@ func TestParseHealth(t *testing.T) {
 	if *health.GracePeriod != 1 || *health.Timeout != 2 || health.Retries != 3 || *health.Interval != 4.5 {
 		t.Fatalf("--health-*: got %#v", health)
 	}
-
-	health = checkOk("--health-retries=1", "img", "cmd")
-	if health.ExitOnUnhealthy != nil {
-		t.Fatalf("ExitOnUnhealthy shouldn't be set")
-	}
-	health = checkOk("--exit-on-unhealthy", "img", "cmd")
-	if *health.ExitOnUnhealthy != true {
-		t.Fatalf("ExitOnUnhealthy should be true")
-	}
-	health = checkOk("--exit-on-unhealthy=false", "img", "cmd")
-	if *health.ExitOnUnhealthy != false {
-		t.Fatalf("ExitOnUnhealthy should be false")
-	}
 }
 
 func TestParseLoggingOpts(t *testing.T) {

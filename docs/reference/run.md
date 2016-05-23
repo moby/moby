@@ -1399,7 +1399,6 @@ Similarly the operator can set the **hostname** with `-h`.
 ### HEALTHCHECK
 
 ```
-  --exit-on-unhealthy     Kill container if it becomes unhealthy
   --health-cmd            Command to run to check health
   --health-grace          Time to allow for container to start
   --health-interval       Time between running the check
@@ -1413,7 +1412,6 @@ Example:
     $ docker run --name=test -d \
         --health-cmd='stat /etc/passwd' \
         --health-interval=2s \
-        --exit-on-unhealthy=false \
         busybox sleep 1d
     $ sleep 2; docker inspect --format='{{.State.Health.Status}}' test
     healthy

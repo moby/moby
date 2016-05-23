@@ -24,7 +24,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	containerd "github.com/docker/containerd/api/grpc/types"
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
@@ -842,7 +841,7 @@ func NewDaemon(config *Config, registryService *registry.Service, containerdRemo
 	return d, nil
 }
 
-func (daemon *Daemon) shutdownContainer(c *container.Container, flags *backend.ShutdownFlags) error {
+func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 	// TODO(windows): Handle docker restart with paused containers
 	if c.IsPaused() {
 		// To terminate a process in freezer cgroup, we should send
@@ -873,7 +872,7 @@ func (daemon *Daemon) shutdownContainer(c *container.Container, flags *backend.S
 		}
 	}
 	// If container failed to exit in 10 seconds of SIGTERM, then using the force
-	if err := daemon.containerStop(c, 10, flags); err != nil {
+	if err := daemon.containerStop(c, 10); err != nil {
 		return fmt.Errorf("Stop container %s with error: %v", c.ID, err)
 	}
 
@@ -891,7 +890,7 @@ func (daemon *Daemon) Shutdown() error {
 				return
 			}
 			logrus.Debugf("stopping %s", c.ID)
-			if err := daemon.shutdownContainer(c, &backend.ShutdownFlags{}); err != nil {
+			if err := daemon.shutdownContainer(c); err != nil {
 				logrus.Errorf("Stop container error: %v", err)
 				return
 			}

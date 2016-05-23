@@ -479,8 +479,6 @@ func healthcheck(b *Builder, args []string, attributes map[string]bool, original
 		flInterval := b.flags.AddString("interval", "")
 		flTimeout := b.flags.AddString("timeout", "")
 		flRetries := b.flags.AddString("retries", "")
-		flExitOnUnhealthy := b.flags.AddBool("exit-on-unhealthy", false)
-		flExitOnUnhealthy.Value = ""
 
 		if err := b.flags.Parse(); err != nil {
 			return err
@@ -531,11 +529,6 @@ func healthcheck(b *Builder, args []string, attributes map[string]bool, original
 			healthcheck.Retries = uint(retries)
 		} else {
 			healthcheck.Retries = 0
-		}
-
-		if flExitOnUnhealthy.Value != "" {
-			b := flExitOnUnhealthy.IsTrue()
-			healthcheck.ExitOnUnhealthy = &b
 		}
 
 		b.runConfig.Healthcheck = &healthcheck

@@ -10,7 +10,6 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/engine-api/types/strslice"
@@ -105,15 +104,6 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, container *container.Cont
 	}, nil
 }
 
-// Get the value of the container's --exit-on-unhealthy flag.
-func exitOnUnhealthy(c *container.Container) bool {
-	exitOnUnhealthy := c.Config.Healthcheck.ExitOnUnhealthy
-	if exitOnUnhealthy == nil {
-		return defaultExitOnUnhealthy
-	}
-	return *exitOnUnhealthy
-}
-
 // Update the container's Status.Health struct based on the latest probe's result.
 func handleProbeResult(d *Daemon, c *container.Container, result *probeResult) {
 	c.Lock()
@@ -149,14 +139,6 @@ func handleProbeResult(d *Daemon, c *container.Container, result *probeResult) {
 
 	if oldStatus != h.Status {
 		d.LogContainerEvent(c, "health_status: "+h.Status)
-	}
-
-	if h.Status == container.Unhealthy && h.FailingStreak == retries && exitOnUnhealthy(c) {
-		logrus.Infof("Unhealthy container %v with --exit-on-unhealthy: killing...", c.ID)
-		// Don't wait for shutdownContainer to finish or we'll deadlock, since shutting down
-		// requires stopping the healthcheck monitor, which can't do anything until we return.
-		flags := &backend.ShutdownFlags{AllowAutoRestart: true}
-		go func() { d.shutdownContainer(c, flags) }()
 	}
 }
 

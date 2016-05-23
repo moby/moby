@@ -24,10 +24,6 @@ type HealthConfig struct {
 	// Number of consecutive failures needed to consider a container as unhealthy.
 	// Zero means inherit.
 	Retries uint `json:",omitempty"`
-
-	// Stop container on entering unhealthy state.
-	// Nil means inherit.
-	ExitOnUnhealthy *bool `json:",omitempty"`
 }
 
 // Config contains the configuration data about a container.

@@ -21,32 +21,6 @@ import (
 	"github.com/docker/go-units"
 )
 
-type tristate struct {
-	isSet bool
-	value bool
-}
-
-func (t *tristate) String() string {
-	if t.isSet {
-		return strconv.FormatBool(t.value)
-	}
-	return ""
-}
-
-func (t *tristate) Set(v string) error {
-	b, err := strconv.ParseBool(v)
-	if err != nil {
-		return err
-	}
-	t.isSet = true
-	t.value = b
-	return nil
-}
-
-func (*tristate) IsBoolFlag() bool {
-	return true
-}
-
 // Parse parses the specified args for the specified command and generates a Config,
 // a HostConfig and returns them with the specified command.
 // If the specified args are not valid, it will return an error.
@@ -135,7 +109,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flHealthTimeout  = cmd.Duration([]string{"-health-timeout"}, noDuration, "Maximum time to allow one check to run")
 		flHealthGrace    = cmd.Duration([]string{"-health-grace"}, noDuration, "Time to allow for container to start")
 		flHealthRetries  = cmd.Uint([]string{"-health-retries"}, 0, "Consecutive failures needed to report unhealthy")
-		flHealthExit     = tristate{}
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
@@ -168,7 +141,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	cmd.Var(flUlimits, []string{"-ulimit"}, "Ulimit options")
 	cmd.Var(flSysctls, []string{"-sysctl"}, "Sysctl options")
 	cmd.Var(&flLoggingOpts, []string{"-log-opt"}, "Log driver options")
-	cmd.Var(&flHealthExit, []string{"-exit-on-unhealthy"}, "Kill container if it becomes unhealthy")
 
 	cmd.Require(flag.Min, 1)
 
@@ -394,8 +366,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		*flHealthInterval != noDuration ||
 		*flHealthTimeout != noDuration ||
 		*flHealthGrace != noDuration ||
-		*flHealthRetries != 0 ||
-		flHealthExit.isSet
+		*flHealthRetries != 0
 	if *flNoHealthcheck {
 		if haveHealthSettings {
 			return nil, nil, nil, cmd, fmt.Errorf("--no-healthcheck conflicts with --health-* options")
@@ -403,7 +374,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		test := strslice.StrSlice{"NONE"}
 		healthConfig = &container.HealthConfig{Test: test}
 	} else if haveHealthSettings {
-		var exitOnUnhealthy *bool
 		var probe strslice.StrSlice
 		if *flHealthCmd != "" {
 			args := []string{"CMD-SHELL", *flHealthCmd}
@@ -418,9 +388,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		if *flHealthGrace < 0 && *flHealthGrace != noDuration {
 			return nil, nil, nil, cmd, fmt.Errorf("--health-grace cannot be negative")
 		}
-		if flHealthExit.isSet {
-			exitOnUnhealthy = &flHealthExit.value
-		}
 
 		optDuration := func(v time.Duration) *float64 {
 			if v == noDuration {
@@ -430,12 +397,11 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 			return &s
 		}
 		healthConfig = &container.HealthConfig{
-			Test:            probe,
-			Interval:        optDuration(*flHealthInterval),
-			Timeout:         optDuration(*flHealthTimeout),
-			GracePeriod:     optDuration(*flHealthGrace),
-			Retries:         *flHealthRetries,
-			ExitOnUnhealthy: exitOnUnhealthy,
+			Test:        probe,
+			Interval:    optDuration(*flHealthInterval),
+			Timeout:     optDuration(*flHealthTimeout),
+			GracePeriod: optDuration(*flHealthGrace),
+			Retries:     *flHealthRetries,
 		}
 	}
 
