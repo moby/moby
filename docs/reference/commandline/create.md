@@ -164,7 +164,8 @@ Linux namespaces. On Microsoft Windows, you can specify these values:
 
 | Value     | Description                                                                                                                                                   |
 |-----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `default` | Use the value specified by the Docker daemon's `--exec-opt` . If the `daemon` does not specify an isolation technology, Microsoft Windows uses `process` as its default value.  |
+| `default` | Use the value specified by the Docker daemon's `--exec-opt` . If the `daemon` does not specify an isolation technology, Microsoft Windows uses `process` as its default value if the
+daemon is running on Windows server, or `hyperv` if running on Windows client.  |
 | `process` | Namespace isolation only.                                                                                                                                     |
 | `hyperv`   | Hyper-V hypervisor partition-based isolation.                                                                                                                  |
 
