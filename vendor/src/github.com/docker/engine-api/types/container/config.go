@@ -17,7 +17,6 @@ type HealthConfig struct {
 	Test strslice.StrSlice `json:",omitempty"`
 
 	// Nil means to inherit.
-	GracePeriod *float64 `json:",omitempty"` // Time after container start to assume failure means still starting.
 	Interval    *float64 `json:",omitempty"` // Time to wait between checks.
 	Timeout     *float64 `json:",omitempty"` // Time to wait before considering the check to have hung.
 

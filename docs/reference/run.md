@@ -1400,7 +1400,6 @@ Similarly the operator can set the **hostname** with `-h`.
 
 ```
   --health-cmd            Command to run to check health
-  --health-grace          Time to allow for container to start
   --health-interval       Time between running the check
   --health-retries        Consecutive failures needed to report unhealthy
   --health-timeout        Maximum time to allow one check to run

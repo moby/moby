@@ -7,15 +7,16 @@ import (
 
 // States
 const (
-	// Health probe has not yet run successfully and all completed runs
-	// started within the grace period.
+	// This is the initial state. We switch to Healthy on success, or
+	// Unhealthy after "Retries" consecutive failures.
+	// We remain here if the probe returns "starting".
 	Starting = "starting"
 
-	// Last probe was successful.
+	// From here, we become Unhealthy after "Retries" consecutive failures.
+	// If the probe returns "starting", this is invalid and treated as failure.
 	Healthy = "healthy"
 
-	// Last probe started after the grace period and was unsuccessful
-	// (failed or exceeded the timeout).
+	// The last "Retries" probes failed.
 	Unhealthy = "unhealthy"
 )
 

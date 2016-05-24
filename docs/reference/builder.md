@@ -1321,7 +1321,6 @@ The options that can appear before `CMD` are:
 
 * `--interval=DURATION` (default: `30s`)
 * `--timeout=DURATION` (default: `30s`)
-* `--grace=DURATION` (default: `30s`)
 * `--retries=N` (default: `1`)
 
 The health check will first run **interval** seconds after the container is
@@ -1329,10 +1328,6 @@ started, and then again **interval** seconds after each previous check completes
 
 If a single run of the check takes longer than **timeout** seconds then the check
 is considered to have failed.
-
-If the health state is `starting` and a check started within **grace** seconds
-of the container's start time fails, the failure is ignored and the health
-state remains `starting`.
 
 It takes **retries** consecutive failures of the health check for the container
 to be considered `unhealthy`.
@@ -1357,7 +1352,7 @@ If the probe returns 2 ("starting") when the container has already moved out of 
 For example, to check every five minutes or so that a web-server is able to
 serve the site's main page within three seconds:
 
-    HEALTHCHECK --interval=5m --grace=20s --timeout=3s \
+    HEALTHCHECK --interval=5m --timeout=3s \
       CMD curl -f http://localhost/ || exit 1
 
 To help debug failing probes, any output the command writes on stdout or stderr

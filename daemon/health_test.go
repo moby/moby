@@ -46,11 +46,8 @@ func TestHealthStates(t *testing.T) {
 		EventsService: e,
 	}
 
-	var grace float64 = 30
-
 	c.Config.Healthcheck = &containertypes.HealthConfig{
-		GracePeriod: &grace,
-		Retries:     1,
+		Retries: 1,
 	}
 
 	reset(c)
@@ -62,26 +59,18 @@ func TestHealthStates(t *testing.T) {
 		})
 	}
 
-	// starting -> failed (in grace) -> success -> failed (in grace)
+	// starting -> failed -> success -> failed
 
 	handleResult(c.State.StartedAt.Add(1*time.Second), 1)
-	if c.State.Health.Status != container.Starting {
-		t.Errorf("Expecting starting, but got %#v\n", c.State.Health.Status)
-	}
+	expect("health_status: unhealthy")
+
 	handleResult(c.State.StartedAt.Add(2*time.Second), 0)
 	expect("health_status: healthy")
 
 	handleResult(c.State.StartedAt.Add(3*time.Second), 1)
 	expect("health_status: unhealthy")
 
-	// starting -> failed (out of grace)
-
-	reset(c)
-
-	handleResult(c.State.StartedAt.Add(40*time.Second), 1)
-	expect("health_status: unhealthy")
-
-	// starting -> starting (in grace) -> starting (out of grace) ->
+	// starting -> starting -> starting ->
 	// healthy -> starting (invalid transition)
 
 	reset(c)
@@ -104,17 +93,16 @@ func TestHealthStates(t *testing.T) {
 
 	handleResult(c.State.StartedAt.Add(20*time.Second), 1)
 	handleResult(c.State.StartedAt.Add(40*time.Second), 1)
-	handleResult(c.State.StartedAt.Add(60*time.Second), 1)
 	if c.State.Health.Status != container.Starting {
 		t.Errorf("Expecting starting, but got %#v\n", c.State.Health.Status)
 	}
 	if c.State.Health.FailingStreak != 2 {
 		t.Errorf("Expecting FailingStreak=2, but got %d\n", c.State.Health.FailingStreak)
 	}
-	handleResult(c.State.StartedAt.Add(80*time.Second), 1)
+	handleResult(c.State.StartedAt.Add(60*time.Second), 1)
 	expect("health_status: unhealthy")
 
-	handleResult(c.State.StartedAt.Add(100*time.Second), 0)
+	handleResult(c.State.StartedAt.Add(80*time.Second), 0)
 	expect("health_status: healthy")
 	if c.State.Health.FailingStreak != 0 {
 		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.FailingStreak)

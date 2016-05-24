@@ -617,8 +617,8 @@ func TestParseHealth(t *testing.T) {
 	checkError("--no-healthcheck conflicts with --health-* options",
 		"--no-healthcheck", "--health-cmd=/check.sh -q", "img", "cmd")
 
-	health = checkOk("--health-grace=1s", "--health-timeout=2s", "--health-retries=3", "--health-interval=4.5s", "img", "cmd")
-	if *health.GracePeriod != 1 || *health.Timeout != 2 || health.Retries != 3 || *health.Interval != 4.5 {
+	health = checkOk("--health-timeout=2s", "--health-retries=3", "--health-interval=4.5s", "img", "cmd")
+	if *health.Timeout != 2 || health.Retries != 3 || *health.Interval != 4.5 {
 		t.Fatalf("--health-*: got %#v", health)
 	}
 }

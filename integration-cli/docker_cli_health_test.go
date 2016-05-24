@@ -49,7 +49,7 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 		RUN echo OK > /status
 		CMD ["/bin/sleep", "120"]
 		STOPSIGNAL SIGKILL
-		HEALTHCHECK --interval=1s --grace=31s --timeout=30s \
+		HEALTHCHECK --interval=1s --timeout=30s \
 		  CMD cat /status`,
 		true)
 
@@ -63,12 +63,11 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 
 	// Inspect the options
 	out, _ = dockerCmd(c, "inspect",
-		"--format='grace={{.Config.Healthcheck.GracePeriod}} "+
-			"timeout={{.Config.Healthcheck.Timeout}} "+
+		"--format='timeout={{.Config.Healthcheck.Timeout}} "+
 			"interval={{.Config.Healthcheck.Interval}} "+
 			"retries={{.Config.Healthcheck.Retries}} "+
 			"test={{.Config.Healthcheck.Test}}'", name)
-	c.Check(out, checker.Equals, "grace=31 timeout=30 interval=1 retries=0 test=[CMD-SHELL cat /status]\n")
+	c.Check(out, checker.Equals, "timeout=30 interval=1 retries=0 test=[CMD-SHELL cat /status]\n")
 
 	// Start
 	dockerCmd(c, "start", name)
@@ -107,7 +106,6 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 	// Enable the checks from the CLI
 	_, _ = dockerCmd(c, "run", "-d", "--name=fatal_healthcheck",
 		"--health-interval=0.5s",
-		"--health-grace=0",
 		"--health-retries=3",
 		"--health-cmd=cat /status",
 		"no_healthcheck")
@@ -134,7 +132,7 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 	// Check timeout
 	// Note: if the interval is too small, it seems that Docker spends all its time running health
 	// checks and never gets around to killing it.
-	_, _ = dockerCmd(c, "run", "-d", "--name=test", "--health-grace=0",
+	_, _ = dockerCmd(c, "run", "-d", "--name=test",
 		"--health-interval=1s", "--health-cmd=sleep 5m", "--health-timeout=1ms", imageName)
 	waitForHealthStatus(c, "test", "starting", "unhealthy")
 	out, _ = dockerCmd(c, "inspect",

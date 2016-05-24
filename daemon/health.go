@@ -27,11 +27,6 @@ const (
 	// than this, the check is considered to have failed.
 	defaultProbeTimeout = 30 * time.Second
 
-	// Probes started within this period do not cause transitions from Starting to Unhealthy.
-	// Instead, we remain in Starting in this case (however, we can still move to Unhealthy after
-	// a successful probe, even if we're still in the grace period).
-	defaultGracePeriod = 30 * time.Second
-
 	// Shut down a container if it becomes Unhealthy.
 	defaultExitOnUnhealthy = true
 )
@@ -117,7 +112,6 @@ func handleProbeResult(d *Daemon, c *container.Container, result *probeResult) {
 	c.Lock()
 	defer c.Unlock()
 
-	graceEnd := c.State.StartedAt.Add(timeoutWithDefault(c.Config.Healthcheck.GracePeriod, defaultGracePeriod))
 	retries := uint64(c.Config.Healthcheck.Retries)
 	if retries == 0 {
 		retries = 1 // Default if unset
@@ -134,21 +128,14 @@ func handleProbeResult(d *Daemon, c *container.Container, result *probeResult) {
 		h.FailingStreak = 0
 		h.Status = container.Healthy
 	} else if result.exitCode == exitStatusStarting && c.State.Health.Status == container.Starting {
-		// The probe explicitly requests that we remain in the starting state,
-		// even if the grace period has expired. This is useful for e.g. a database
-		// that is performing a long recovery after a previous crash.
+		// The container is not ready yet. Remain in the starting state.
 	} else {
 		// Failure (incuding invalid exit code)
-		if c.State.Health.Status != container.Starting ||
-			c.State.Health.LastCheckStart.After(graceEnd) {
-			// Failure (excluding ignored failures during grace period)
-			h.FailingStreak++
-			if c.State.Health.FailingStreak >= retries {
-				h.Status = container.Unhealthy
-			}
-			// Else we're starting or healthy. Stay in that state.
+		h.FailingStreak++
+		if c.State.Health.FailingStreak >= retries {
+			h.Status = container.Unhealthy
 		}
-		// Else we failed while starting and within grace period. Remain starting.
+		// Else we're starting or healthy. Stay in that state.
 	}
 
 	if oldStatus != h.Status {

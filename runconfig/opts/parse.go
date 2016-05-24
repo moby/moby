@@ -107,7 +107,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flHealthCmd      = cmd.String([]string{"-health-cmd"}, "", "Command to run to check health")
 		flHealthInterval = cmd.Duration([]string{"-health-interval"}, noDuration, "Time between running the check")
 		flHealthTimeout  = cmd.Duration([]string{"-health-timeout"}, noDuration, "Maximum time to allow one check to run")
-		flHealthGrace    = cmd.Duration([]string{"-health-grace"}, noDuration, "Time to allow for container to start")
 		flHealthRetries  = cmd.Uint([]string{"-health-retries"}, 0, "Consecutive failures needed to report unhealthy")
 	)
 
@@ -365,7 +364,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	haveHealthSettings := *flHealthCmd != "" ||
 		*flHealthInterval != noDuration ||
 		*flHealthTimeout != noDuration ||
-		*flHealthGrace != noDuration ||
 		*flHealthRetries != 0
 	if *flNoHealthcheck {
 		if haveHealthSettings {
@@ -385,9 +383,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		if *flHealthTimeout < 0 && *flHealthTimeout != noDuration {
 			return nil, nil, nil, cmd, fmt.Errorf("--health-timeout cannot be negative")
 		}
-		if *flHealthGrace < 0 && *flHealthGrace != noDuration {
-			return nil, nil, nil, cmd, fmt.Errorf("--health-grace cannot be negative")
-		}
 
 		optDuration := func(v time.Duration) *float64 {
 			if v == noDuration {
@@ -397,11 +392,10 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 			return &s
 		}
 		healthConfig = &container.HealthConfig{
-			Test:        probe,
-			Interval:    optDuration(*flHealthInterval),
-			Timeout:     optDuration(*flHealthTimeout),
-			GracePeriod: optDuration(*flHealthGrace),
-			Retries:     *flHealthRetries,
+			Test:     probe,
+			Interval: optDuration(*flHealthInterval),
+			Timeout:  optDuration(*flHealthTimeout),
+			Retries:  *flHealthRetries,
 		}
 	}
 

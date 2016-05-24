@@ -475,7 +475,6 @@ func healthcheck(b *Builder, args []string, attributes map[string]bool, original
 
 		healthcheck := container.HealthConfig{}
 
-		flGracePeriod := b.flags.AddString("grace", "")
 		flInterval := b.flags.AddString("interval", "")
 		flTimeout := b.flags.AddString("timeout", "")
 		flRetries := b.flags.AddString("retries", "")
@@ -499,12 +498,6 @@ func healthcheck(b *Builder, args []string, attributes map[string]bool, original
 		default:
 			return fmt.Errorf("Unknown type %#v in HEALTHCHECK (try CMD)", typ)
 		}
-
-		grace, err := parseOptInterval(flGracePeriod)
-		if err != nil {
-			return err
-		}
-		healthcheck.GracePeriod = grace
 
 		interval, err := parseOptInterval(flInterval)
 		if err != nil {
