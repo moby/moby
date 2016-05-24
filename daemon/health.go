@@ -36,6 +36,14 @@ const (
 	defaultExitOnUnhealthy = true
 )
 
+const (
+	// Exit status codes that can be returned by the probe command.
+
+	exitStatusHealthy   = 0 // Container is healthy
+	exitStatusUnhealthy = 1 // Container is unhealthy
+	exitStatusStarting  = 2 // Container needs more time to start
+)
+
 // probeResult is used to pass the results of a probe run back to the monitor thread.
 type probeResult struct {
 	endTime  time.Time
@@ -122,20 +130,26 @@ func handleProbeResult(d *Daemon, c *container.Container, result *probeResult) {
 	h.LastOutput = result.output
 	h.LastExitCode = result.exitCode
 
-	if result.exitCode == 0 {
-		// Success
+	if result.exitCode == exitStatusHealthy {
 		h.FailingStreak = 0
 		h.Status = container.Healthy
-	} else if c.State.Health.Status != container.Starting ||
-		c.State.Health.LastCheckStart.After(graceEnd) {
-		// Failure (excluding ignored failures during grace period)
-		h.FailingStreak++
-		if c.State.Health.FailingStreak >= retries {
-			h.Status = container.Unhealthy
+	} else if result.exitCode == exitStatusStarting && c.State.Health.Status == container.Starting {
+		// The probe explicitly requests that we remain in the starting state,
+		// even if the grace period has expired. This is useful for e.g. a database
+		// that is performing a long recovery after a previous crash.
+	} else {
+		// Failure (incuding invalid exit code)
+		if c.State.Health.Status != container.Starting ||
+			c.State.Health.LastCheckStart.After(graceEnd) {
+			// Failure (excluding ignored failures during grace period)
+			h.FailingStreak++
+			if c.State.Health.FailingStreak >= retries {
+				h.Status = container.Unhealthy
+			}
+			// Else we're starting or healthy. Stay in that state.
 		}
-		// Else we're starting or healthy. Stay in that state.
+		// Else we failed while starting and within grace period. Remain starting.
 	}
-	// Else we failed while starting and within grace period. Remain starting.
 
 	if oldStatus != h.Status {
 		d.LogContainerEvent(c, "health_status: "+h.Status)
