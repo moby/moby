@@ -299,6 +299,9 @@ accessed like regular environment variables in the `RUN` instruction of the
 Dockerfile. Also, these values don't persist in the intermediate or final images
 like `ENV` values do.
 
+Using this flag will not alter the output you see when the `ARG` lines from the
+Dockerfile are echoed during the build process.
+
 For detailed information on using `ARG` and `ENV` instructions, see the
 [Dockerfile reference](../builder.md).
 
