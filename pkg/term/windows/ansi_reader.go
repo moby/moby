@@ -28,6 +28,7 @@ type ansiReader struct {
 }
 
 func newAnsiReader(nFile int) *ansiReader {
+	initLogger()
 	file, fd := winterm.GetStdFile(nFile)
 	return &ansiReader{
 		file:    file,
