@@ -966,6 +966,11 @@ _docker_events() {
 			__docker_complete_containers_all
 			return
 			;;
+		daemon)
+			local name=$(__docker_q info | sed -n 's/^\(ID\|Name\): //p')
+			COMPREPLY=( $( compgen -W "$name" -- "${cur##*=}" ) )
+			return
+			;;
 		event)
 			COMPREPLY=( $( compgen -W "
 				attach
@@ -987,6 +992,7 @@ _docker_events() {
 				pause
 				pull
 				push
+				reload
 				rename
 				resize
 				restart
@@ -1012,7 +1018,7 @@ _docker_events() {
 			return
 			;;
 		type)
-			COMPREPLY=( $( compgen -W "container image network volume" -- "${cur##*=}" ) )
+			COMPREPLY=( $( compgen -W "container daemon image network volume" -- "${cur##*=}" ) )
 			return
 			;;
 		volume)
@@ -1024,7 +1030,7 @@ _docker_events() {
 
 	case "$prev" in
 		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "container event image label network type volume" -- "$cur" ) )
+			COMPREPLY=( $( compgen -S = -W "container daemon event image label network type volume" -- "$cur" ) )
 			__docker_nospace
 			return
 			;;
