@@ -486,3 +486,8 @@ func (d *Daemon) findContainerIP(id string) string {
 	}
 	return strings.Trim(out, " \r\n'")
 }
+
+func (d *Daemon) buildImageWithOut(name, dockerfile string, useCache bool, buildFlags ...string) (string, int, error) {
+	buildCmd := buildImageCmdWithHost(name, dockerfile, d.sock(), useCache, buildFlags...)
+	return runCommandWithOutput(buildCmd)
+}
