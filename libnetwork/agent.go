@@ -62,7 +62,7 @@ func resolveAddr(addrOrInterface string) (string, error) {
 }
 
 func (c *controller) agentInit(bindAddrOrInterface string) error {
-	if !c.cfg.Daemon.IsAgent {
+	if !c.isAgent() {
 		return nil
 	}
 
@@ -94,12 +94,12 @@ func (c *controller) agentInit(bindAddrOrInterface string) error {
 	return nil
 }
 
-func (c *controller) agentJoin(remotes []string) error {
+func (c *controller) agentJoin(remote string) error {
 	if c.agent == nil {
 		return nil
 	}
 
-	return c.agent.networkDB.Join(remotes)
+	return c.agent.networkDB.Join([]string{remote})
 }
 
 func (c *controller) agentDriverNotify(d driverapi.Driver) {
@@ -126,6 +126,7 @@ func (c *controller) agentClose() {
 	c.agent.epTblCancel()
 
 	c.agent.networkDB.Close()
+	c.agent = nil
 }
 
 func (n *network) isClusterEligible() bool {

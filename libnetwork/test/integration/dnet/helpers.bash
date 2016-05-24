@@ -161,7 +161,7 @@ function start_dnet() {
 	read discovery provider address < <(parse_discovery_str consul://${bridge_ip}:8500/custom_prefix)
     else
 	if [ "$nip" != "" ]; then
-	    neighbors="neighbors = [\"${nip}:7946\"]"
+	    neighbors=${nip}
 	fi
 
 	discovery=""
@@ -190,9 +190,10 @@ title = "LibNetwork Configuration file for ${name}"
 
 [daemon]
   debug = false
-  isagent = true
+[orchestration]
+  agent = true
   bind = "eth0"
-  ${neighbors}
+  peer = "${neighbors}"
 EOF
     fi
 

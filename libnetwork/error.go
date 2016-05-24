@@ -173,3 +173,13 @@ func (id InvalidContainerIDError) Error() string {
 
 // BadRequest denotes the type of this error
 func (id InvalidContainerIDError) BadRequest() {}
+
+// ManagerRedirectError is returned when the request should be redirected to Manager
+type ManagerRedirectError string
+
+func (mr ManagerRedirectError) Error() string {
+	return "Redirect the request to the manager"
+}
+
+// Maskable denotes the type of this error
+func (mr ManagerRedirectError) Maskable() {}
