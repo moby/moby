@@ -949,7 +949,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfile(c *check.C) {
 
 	var group sync.WaitGroup
 	group.Add(11)
-	errChan := make(chan error, 4)
+	errChan := make(chan error, 11)
 	go func() {
 		out, _, err := dockerCmdWithError("run", "syscall-test", "acct-test")
 		if err == nil || !strings.Contains(out, "Operation not permitted") {
