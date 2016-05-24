@@ -38,9 +38,9 @@ func TestHeaderOverrideHack(t *testing.T) {
 	read := make([]byte, 4096)
 
 	for _, pair := range tests {
-		go func() {
-			srv.Write(pair[0])
-		}()
+		go func(x []byte) {
+			srv.Write(x)
+		}(pair[0])
 		n, err := l.Read(read)
 		if err != nil && err != io.EOF {
 			t.Fatalf("read: %d - %d, err: %v\n%s", n, len(pair[0]), err, string(read[:n]))
