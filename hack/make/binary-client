@@ -1,8 +1,12 @@
 #!/bin/bash
 set -e
 
+[ -z "$KEEPDEST" ] && \
+	rm -rf "$DEST"
+
 (
-	export BINARY_SHORT_NAME='docker'
+	source "${MAKEDIR}/.binary-setup"
+	export BINARY_SHORT_NAME="$DOCKER_CLIENT_BINARY_NAME"
 	export SOURCE_PATH='./cmd/docker'
 	source "${MAKEDIR}/.binary"
 )

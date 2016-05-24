@@ -13,8 +13,11 @@ fi
 for d in "$CROSS/"*/*; do
 	export GOARCH="$(basename "$d")"
 	export GOOS="$(basename "$(dirname "$d")")"
-	BINARY_NAME="docker-$VERSION"
-	DAEMON_BINARY_NAME="dockerd-$VERSION"
+
+	source "${MAKEDIR}/.binary-setup"
+
+	BINARY_NAME="${DOCKER_CLIENT_BINARY_NAME}-$VERSION"
+	DAEMON_BINARY_NAME="${DOCKER_DAEMON_BINARY_NAME}-$VERSION"
 	BINARY_EXTENSION="$(export GOOS && binary_extension)"
 	if [ "$GOOS" = 'windows' ]; then
 		# if windows use a zip, not tgz
@@ -40,9 +43,9 @@ for d in "$CROSS/"*/*; do
 
 	# Copy the correct docker binary
 	mkdir -p $TAR_PATH
-	cp -L "$d/$BINARY_FULLNAME" "$TAR_PATH/docker$BINARY_EXTENSION"
+	cp -L "$d/$BINARY_FULLNAME" "$TAR_PATH/${DOCKER_CLIENT_BINARY_NAME}${BINARY_EXTENSION}"
 	if [ -f "$d/$DAEMON_BINARY_FULLNAME" ]; then
-		cp -L "$d/$DAEMON_BINARY_FULLNAME" "$TAR_PATH/dockerd$BINARY_EXTENSION"
+		cp -L "$d/$DAEMON_BINARY_FULLNAME" "$TAR_PATH/${DOCKER_DAEMON_BINARY_NAME}${BINARY_EXTENSION}"
 	fi
 
 	# copy over all the containerd binaries

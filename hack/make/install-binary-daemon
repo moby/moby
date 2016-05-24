@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -e
+rm -rf "$DEST"
+
+(
+	DEST="$(dirname $DEST)/binary-daemon"
+	source "${MAKEDIR}/.binary-setup"
+	install_binary "${DEST}/${DOCKER_DAEMON_BINARY_NAME}"
+)
