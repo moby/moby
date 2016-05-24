@@ -8,6 +8,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/versions"
@@ -120,4 +121,12 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 			return nil
 		}
 	}
+}
+
+func (daemon *Daemon) subscribeToContainerStats(c *container.Container) chan interface{} {
+	return daemon.statsCollector.collect(c)
+}
+
+func (daemon *Daemon) unsubscribeToContainerStats(c *container.Container, ch chan interface{}) {
+	daemon.statsCollector.unsubscribe(c, ch)
 }

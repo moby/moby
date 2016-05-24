@@ -36,7 +36,6 @@ import (
 	"github.com/docker/engine-api/types/strslice"
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
-	"github.com/docker/docker/daemon/network"
 	dmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/dockerversion"
@@ -44,16 +43,13 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/migrate/v1"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/registrar"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/truncindex"
@@ -73,9 +69,6 @@ import (
 )
 
 var (
-	validContainerNameChars   = utils.RestrictedNameChars
-	validContainerNamePattern = utils.RestrictedNamePattern
-
 	errSystemNotSupported = fmt.Errorf("The Docker daemon is not supported on this platform.")
 )
 
@@ -110,110 +103,6 @@ type Daemon struct {
 	linkIndex                 *linkIndex
 	containerd                libcontainerd.Client
 	defaultIsolation          containertypes.Isolation // Default isolation mode on Windows
-}
-
-// GetContainer looks for a container using the provided information, which could be
-// one of the following inputs from the caller:
-//  - A full container ID, which will exact match a container in daemon's list
-//  - A container name, which will only exact match via the GetByName() function
-//  - A partial container ID prefix (e.g. short ID) of any length that is
-//    unique enough to only return a single container object
-//  If none of these searches succeed, an error is returned
-func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, error) {
-	if len(prefixOrName) == 0 {
-		return nil, errors.NewBadRequestError(fmt.Errorf("No container name or ID supplied"))
-	}
-
-	if containerByID := daemon.containers.Get(prefixOrName); containerByID != nil {
-		// prefix is an exact match to a full container ID
-		return containerByID, nil
-	}
-
-	// GetByName will match only an exact name provided; we ignore errors
-	if containerByName, _ := daemon.GetByName(prefixOrName); containerByName != nil {
-		// prefix is an exact match to a full container Name
-		return containerByName, nil
-	}
-
-	containerID, indexError := daemon.idIndex.Get(prefixOrName)
-	if indexError != nil {
-		// When truncindex defines an error type, use that instead
-		if indexError == truncindex.ErrNotExist {
-			err := fmt.Errorf("No such container: %s", prefixOrName)
-			return nil, errors.NewRequestNotFoundError(err)
-		}
-		return nil, indexError
-	}
-	return daemon.containers.Get(containerID), nil
-}
-
-// Exists returns a true if a container of the specified ID or name exists,
-// false otherwise.
-func (daemon *Daemon) Exists(id string) bool {
-	c, _ := daemon.GetContainer(id)
-	return c != nil
-}
-
-// IsPaused returns a bool indicating if the specified container is paused.
-func (daemon *Daemon) IsPaused(id string) bool {
-	c, _ := daemon.GetContainer(id)
-	return c.State.IsPaused()
-}
-
-func (daemon *Daemon) containerRoot(id string) string {
-	return filepath.Join(daemon.repository, id)
-}
-
-// Load reads the contents of a container from disk
-// This is typically done at startup.
-func (daemon *Daemon) load(id string) (*container.Container, error) {
-	container := daemon.newBaseContainer(id)
-
-	if err := container.FromDisk(); err != nil {
-		return nil, err
-	}
-
-	if container.ID != id {
-		return container, fmt.Errorf("Container %s is stored at %s", container.ID, id)
-	}
-
-	return container, nil
-}
-
-func (daemon *Daemon) registerName(container *container.Container) error {
-	if daemon.Exists(container.ID) {
-		return fmt.Errorf("Container is already loaded")
-	}
-	if err := validateID(container.ID); err != nil {
-		return err
-	}
-	if container.Name == "" {
-		name, err := daemon.generateNewName(container.ID)
-		if err != nil {
-			return err
-		}
-		container.Name = name
-
-		if err := container.ToDiskLocking(); err != nil {
-			logrus.Errorf("Error saving container name to disk: %v", err)
-		}
-	}
-	return daemon.nameIndex.Reserve(container.Name, container.ID)
-}
-
-// Register makes a container object usable by the daemon as <container.ID>
-func (daemon *Daemon) Register(c *container.Container) error {
-	// Attach to stdout and stderr
-	if c.Config.OpenStdin {
-		c.NewInputPipes()
-	} else {
-		c.NewNopInputPipe()
-	}
-
-	daemon.containers.Add(c.ID, c)
-	daemon.idIndex.Add(c.ID)
-
-	return nil
 }
 
 func (daemon *Daemon) restore() error {
@@ -431,88 +320,6 @@ func (daemon *Daemon) waitForNetworks(c *container.Container) {
 	}
 }
 
-func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *image.Image) error {
-	if img != nil && img.Config != nil {
-		if err := merge(config, img.Config); err != nil {
-			return err
-		}
-	}
-	if len(config.Entrypoint) == 0 && len(config.Cmd) == 0 {
-		return fmt.Errorf("No command specified")
-	}
-	return nil
-}
-
-func (daemon *Daemon) generateIDAndName(name string) (string, string, error) {
-	var (
-		err error
-		id  = stringid.GenerateNonCryptoID()
-	)
-
-	if name == "" {
-		if name, err = daemon.generateNewName(id); err != nil {
-			return "", "", err
-		}
-		return id, name, nil
-	}
-
-	if name, err = daemon.reserveName(id, name); err != nil {
-		return "", "", err
-	}
-
-	return id, name, nil
-}
-
-func (daemon *Daemon) reserveName(id, name string) (string, error) {
-	if !validContainerNamePattern.MatchString(name) {
-		return "", fmt.Errorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars)
-	}
-	if name[0] != '/' {
-		name = "/" + name
-	}
-
-	if err := daemon.nameIndex.Reserve(name, id); err != nil {
-		if err == registrar.ErrNameReserved {
-			id, err := daemon.nameIndex.Get(name)
-			if err != nil {
-				logrus.Errorf("got unexpected error while looking up reserved name: %v", err)
-				return "", err
-			}
-			return "", fmt.Errorf("Conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to reuse that name.", name, id)
-		}
-		return "", fmt.Errorf("error reserving name: %s, error: %v", name, err)
-	}
-	return name, nil
-}
-
-func (daemon *Daemon) releaseName(name string) {
-	daemon.nameIndex.Release(name)
-}
-
-func (daemon *Daemon) generateNewName(id string) (string, error) {
-	var name string
-	for i := 0; i < 6; i++ {
-		name = namesgenerator.GetRandomName(i)
-		if name[0] != '/' {
-			name = "/" + name
-		}
-
-		if err := daemon.nameIndex.Reserve(name, id); err != nil {
-			if err == registrar.ErrNameReserved {
-				continue
-			}
-			return "", err
-		}
-		return name, nil
-	}
-
-	name = "/" + stringid.TruncateID(id)
-	if err := daemon.nameIndex.Reserve(name, id); err != nil {
-		return "", err
-	}
-	return name, nil
-}
-
 func (daemon *Daemon) generateHostname(id string, config *containertypes.Config) {
 	// Generate default hostname
 	if config.Hostname == "" {
@@ -525,54 +332,6 @@ func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint strslice.StrSlice, c
 		return configEntrypoint[0], append(configEntrypoint[1:], configCmd...)
 	}
 	return configCmd[0], configCmd[1:]
-}
-
-func (daemon *Daemon) newContainer(name string, config *containertypes.Config, imgID image.ID) (*container.Container, error) {
-	var (
-		id             string
-		err            error
-		noExplicitName = name == ""
-	)
-	id, name, err = daemon.generateIDAndName(name)
-	if err != nil {
-		return nil, err
-	}
-
-	daemon.generateHostname(id, config)
-	entrypoint, args := daemon.getEntrypointAndArgs(config.Entrypoint, config.Cmd)
-
-	base := daemon.newBaseContainer(id)
-	base.Created = time.Now().UTC()
-	base.Path = entrypoint
-	base.Args = args //FIXME: de-duplicate from config
-	base.Config = config
-	base.HostConfig = &containertypes.HostConfig{}
-	base.ImageID = imgID
-	base.NetworkSettings = &network.Settings{IsAnonymousEndpoint: noExplicitName}
-	base.Name = name
-	base.Driver = daemon.GraphDriverName()
-
-	return base, err
-}
-
-// GetByName returns a container given a name.
-func (daemon *Daemon) GetByName(name string) (*container.Container, error) {
-	if len(name) == 0 {
-		return nil, fmt.Errorf("No container name supplied")
-	}
-	fullName := name
-	if name[0] != '/' {
-		fullName = "/" + name
-	}
-	id, err := daemon.nameIndex.Get(fullName)
-	if err != nil {
-		return nil, fmt.Errorf("Could not find entity for %s", name)
-	}
-	e := daemon.containers.Get(id)
-	if e == nil {
-		return nil, fmt.Errorf("Could not find container for entity id %s", id)
-	}
-	return e, nil
 }
 
 // GetLabels for a container or image id
@@ -945,22 +704,6 @@ func (daemon *Daemon) Unmount(container *container.Container) error {
 		return err
 	}
 	return nil
-}
-
-func (daemon *Daemon) kill(c *container.Container, sig int) error {
-	return daemon.containerd.Signal(c.ID, sig)
-}
-
-func (daemon *Daemon) subscribeToContainerStats(c *container.Container) chan interface{} {
-	return daemon.statsCollector.collect(c)
-}
-
-func (daemon *Daemon) unsubscribeToContainerStats(c *container.Container, ch chan interface{}) {
-	daemon.statsCollector.unsubscribe(c, ch)
-}
-
-func (daemon *Daemon) changes(container *container.Container) ([]archive.Change, error) {
-	return container.RWLayer.Changes()
 }
 
 func writeDistributionProgress(cancelFunc func(), outStream io.Writer, progressChan <-chan progress.Progress) {
