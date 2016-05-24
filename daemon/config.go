@@ -88,7 +88,7 @@ type CommonConfig struct {
 	Root                 string              `json:"graph,omitempty"`
 	SocketGroup          string              `json:"group,omitempty"`
 	TrustKeyPath         string              `json:"-"`
-	CorsHeaders          string              `json:"api-cors-headers,omitempty"`
+	CorsHeaders          string              `json:"api-cors-header,omitempty"`
 	EnableCors           bool                `json:"api-enable-cors,omitempty"`
 
 	// ClusterStore is the storage backend used for the cluster information. It is used by both
