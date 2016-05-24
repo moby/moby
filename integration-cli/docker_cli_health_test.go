@@ -41,6 +41,8 @@ func waitForHealthStatus(c *check.C, name string, prev string, expected string) 
 }
 
 func (s *DockerSuite) TestHealth(c *check.C) {
+	testRequires(c, DaemonIsLinux) // busybox doesn't work on Windows
+
 	imageName := "testhealth"
 	_, err := buildImage(imageName,
 		`FROM busybox
