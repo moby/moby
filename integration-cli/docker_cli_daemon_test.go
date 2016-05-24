@@ -2320,3 +2320,15 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *chec
 	c.Assert(string(content), checker.Contains, expectedMaxConcurrentUploads)
 	c.Assert(string(content), checker.Contains, expectedMaxConcurrentDownloads)
 }
+
+func (s *DockerDaemonSuite) TestBuildOnDisabledBridgeNetworkDaemon(c *check.C) {
+	err := s.d.Start("-b=none", "--iptables=false")
+	c.Assert(err, check.IsNil)
+	s.d.c.Logf("dockerBinary %s", dockerBinary)
+	out, code, err := s.d.buildImageWithOut("busyboxs",
+		`FROM busybox
+                RUN cat /etc/hosts`, false)
+	comment := check.Commentf("Failed to build image. output %s, exitCode %d, err %v", out, code, err)
+	c.Assert(err, check.IsNil, comment)
+	c.Assert(code, check.Equals, 0, comment)
+}

@@ -930,7 +930,15 @@ func getContainerState(c *check.C, id string) (int, bool, error) {
 }
 
 func buildImageCmd(name, dockerfile string, useCache bool, buildFlags ...string) *exec.Cmd {
-	args := []string{"build", "-t", name}
+	return buildImageCmdWithHost(name, dockerfile, "", useCache, buildFlags...)
+}
+
+func buildImageCmdWithHost(name, dockerfile, host string, useCache bool, buildFlags ...string) *exec.Cmd {
+	args := []string{}
+	if host != "" {
+		args = append(args, "--host", host)
+	}
+	args = append(args, "build", "-t", name)
 	if !useCache {
 		args = append(args, "--no-cache")
 	}
