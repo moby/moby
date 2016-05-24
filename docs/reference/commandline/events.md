@@ -35,6 +35,10 @@ Docker networks report the following events:
 
     create, connect, disconnect, destroy
 
+Docker daemon report the following events:
+
+    reload
+
 The `--since` and `--until` parameters can be Unix timestamps, date formatted
 timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed
 relative to the client machine’s time. If you do not provide the `--since` option,
@@ -68,9 +72,10 @@ The currently supported filters are:
 * event (`event=<event action>`)
 * image (`image=<tag or id>`)
 * label (`label=<key>` or `label=<key>=<value>`)
-* type (`type=<container or image or volume or network>`)
+* type (`type=<container or image or volume or network or daemon>`)
 * volume (`volume=<name or id>`)
 * network (`network=<name or id>`)
+* daemon (`daemon=<name or id>`)
 
 ## Examples
 
