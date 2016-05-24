@@ -1,6 +1,7 @@
 package container
 
 import (
+	"time"
 	"github.com/docker/engine-api/types/strslice"
 	"github.com/docker/go-connections/nat"
 )
@@ -16,9 +17,9 @@ type HealthConfig struct {
 	// {"CMD-SHELL", args...} : run command with system's default shell
 	Test strslice.StrSlice `json:",omitempty"`
 
-	// Nil means to inherit.
-	Interval    *float64 `json:",omitempty"` // Time to wait between checks.
-	Timeout     *float64 `json:",omitempty"` // Time to wait before considering the check to have hung.
+	// Nil means to inherit. Durations are expressed as integer nanoseconds.
+	Interval    time.Duration `json:",omitempty"` // Time to wait between checks.
+	Timeout     time.Duration `json:",omitempty"` // Time to wait before considering the check to have hung.
 
 	// Number of consecutive failures needed to consider a container as unhealthy.
 	// Zero means inherit.

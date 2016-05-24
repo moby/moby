@@ -87,10 +87,10 @@ func merge(userConf, imageConf *containertypes.Config) error {
 			if len(userConf.Healthcheck.Test) == 0 {
 				userConf.Healthcheck.Test = imageConf.Healthcheck.Test
 			}
-			if userConf.Healthcheck.Interval == nil {
+			if userConf.Healthcheck.Interval == 0 {
 				userConf.Healthcheck.Interval = imageConf.Healthcheck.Interval
 			}
-			if userConf.Healthcheck.Timeout == nil {
+			if userConf.Healthcheck.Timeout == 0 {
 				userConf.Healthcheck.Timeout = imageConf.Healthcheck.Timeout
 			}
 			if userConf.Healthcheck.Retries == 0 {

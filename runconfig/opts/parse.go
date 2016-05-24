@@ -8,7 +8,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -25,7 +24,6 @@ import (
 // a HostConfig and returns them with the specified command.
 // If the specified args are not valid, it will return an error.
 func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, *flag.FlagSet, error) {
-	const noDuration = -1 * time.Second
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
 		flAttach            = opts.NewListOpts(ValidateAttach)
@@ -105,8 +103,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		// Healthcheck
 		flNoHealthcheck  = cmd.Bool([]string{"-no-healthcheck"}, false, "Disable any container-specified HEALTHCHECK")
 		flHealthCmd      = cmd.String([]string{"-health-cmd"}, "", "Command to run to check health")
-		flHealthInterval = cmd.Duration([]string{"-health-interval"}, noDuration, "Time between running the check")
-		flHealthTimeout  = cmd.Duration([]string{"-health-timeout"}, noDuration, "Maximum time to allow one check to run")
+		flHealthInterval = cmd.Duration([]string{"-health-interval"}, 0, "Time between running the check")
+		flHealthTimeout  = cmd.Duration([]string{"-health-timeout"}, 0, "Maximum time to allow one check to run")
 		flHealthRetries  = cmd.Uint([]string{"-health-retries"}, 0, "Consecutive failures needed to report unhealthy")
 	)
 
@@ -362,8 +360,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	// Healthcheck
 	var healthConfig *container.HealthConfig
 	haveHealthSettings := *flHealthCmd != "" ||
-		*flHealthInterval != noDuration ||
-		*flHealthTimeout != noDuration ||
+		*flHealthInterval != 0 ||
+		*flHealthTimeout != 0 ||
 		*flHealthRetries != 0
 	if *flNoHealthcheck {
 		if haveHealthSettings {
@@ -377,24 +375,17 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 			args := []string{"CMD-SHELL", *flHealthCmd}
 			probe = strslice.StrSlice(args)
 		}
-		if *flHealthInterval < 0 && *flHealthInterval != noDuration {
+		if *flHealthInterval < 0 {
 			return nil, nil, nil, cmd, fmt.Errorf("--health-interval cannot be negative")
 		}
-		if *flHealthTimeout < 0 && *flHealthTimeout != noDuration {
+		if *flHealthTimeout < 0 {
 			return nil, nil, nil, cmd, fmt.Errorf("--health-timeout cannot be negative")
 		}
 
-		optDuration := func(v time.Duration) *float64 {
-			if v == noDuration {
-				return nil
-			}
-			s := v.Seconds()
-			return &s
-		}
 		healthConfig = &container.HealthConfig{
 			Test:     probe,
-			Interval: optDuration(*flHealthInterval),
-			Timeout:  optDuration(*flHealthTimeout),
+			Interval: *flHealthInterval,
+			Timeout:  *flHealthTimeout,
 			Retries:  *flHealthRetries,
 		}
 	}

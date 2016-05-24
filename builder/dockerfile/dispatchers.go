@@ -428,22 +428,21 @@ func cmd(b *Builder, args []string, attributes map[string]bool, original string)
 	return nil
 }
 
-// parseOptInterval(flag) is the floating-point value of flag.Value, or nil if
-// empty. An error is reported if the value is not a positive float.
-func parseOptInterval(f *Flag) (*float64, error) {
+// parseOptInterval(flag) is the duration of flag.Value, or 0 if
+// empty. An error is reported if the value is given and is not positive.
+func parseOptInterval(f *Flag) (time.Duration, error) {
 	s := f.Value
 	if s == "" {
-		return nil, nil
+		return 0, nil
 	}
 	d, err := time.ParseDuration(s)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	v := d.Seconds()
-	if v < 0 {
-		return nil, fmt.Errorf("Interval %#v must not be negative", f.name)
+	if d <= 0 {
+		return 0, fmt.Errorf("Interval %#v must be positive", f.name)
 	}
-	return &v, nil
+	return d, nil
 }
 
 // HEALTHCHECK foo

@@ -298,14 +298,12 @@ func (b *limitedBuffer) String() string {
 	return out
 }
 
-// If configuredValue is nil, use defaultValue instead.
-func timeoutWithDefault(configuredValue *float64, defaultValue time.Duration) time.Duration {
-	if configuredValue == nil {
+// If configuredValue is zero, use defaultValue instead.
+func timeoutWithDefault(configuredValue time.Duration, defaultValue time.Duration) time.Duration {
+	if configuredValue == 0 {
 		return defaultValue
 	}
-	// Careful: time.Duration(configuredValue) * time.Second will round
-	// down to a whole number of seconds (probably zero).
-	return time.Duration(*configuredValue * float64(time.Second.Nanoseconds()))
+	return configuredValue
 }
 
 func min(x, y int) int {
