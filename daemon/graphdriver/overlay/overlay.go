@@ -374,10 +374,6 @@ func (d *Driver) Get(id string, mountLabel string) (s string, err error) {
 	return mergedDir, nil
 }
 
-func (d *Driver) mounted(dir string) (bool, error) {
-	return graphdriver.Mounted(graphdriver.FsMagicOverlay, dir)
-}
-
 // Put unmounts the mount path created for the give id.
 func (d *Driver) Put(id string) error {
 	mountpoint := path.Join(d.dir(id), "merged")
