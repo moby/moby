@@ -91,6 +91,9 @@ docs: ## build the docs
 gccgo: build-gccgo ## build the gcc-go linux binaries
 	$(DOCKER_FLAGS) "$(DOCKER_IMAGE)-gccgo" hack/make.sh gccgo
 
+install: ## install the linux binaries
+	KEEPBUNDLE=1 hack/make.sh install-binary
+
 rpm: build ## build the rpm packages
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-rpm
 

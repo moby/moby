@@ -21,6 +21,7 @@ fi
 
 for platform in $DOCKER_CROSSPLATFORMS; do
 	(
+		export KEEPDEST=1
 		export DEST="$DEST/$platform" # bundles/VERSION/cross/GOOS/GOARCH/docker-VERSION
 		mkdir -p "$DEST"
 		ABS_DEST="$(cd "$DEST" && pwd -P)"
@@ -28,14 +29,14 @@ for platform in $DOCKER_CROSSPLATFORMS; do
 		export GOARCH=${platform##*/}
 
 		if [ -z "${daemonSupporting[$platform]}" ]; then
-            # we just need a simple client for these platforms
+			# we just need a simple client for these platforms
 			export LDFLAGS_STATIC_DOCKER=""
-            # remove the "daemon" build tag from platforms that aren't supported
-            export BUILDFLAGS=( "${ORIG_BUILDFLAGS[@]/ daemon/}" )
-		    source "${MAKEDIR}/binary-client"
-        else
-		    source "${MAKEDIR}/binary-client"
-		    source "${MAKEDIR}/binary-daemon"
+			# remove the "daemon" build tag from platforms that aren't supported
+			export BUILDFLAGS=( "${ORIG_BUILDFLAGS[@]/ daemon/}" )
+			source "${MAKEDIR}/binary-client"
+		else
+			source "${MAKEDIR}/binary-client"
+			source "${MAKEDIR}/binary-daemon"
 		fi
 	)
 done

@@ -333,6 +333,19 @@ copy_containerd() {
 	fi
 }
 
+install_binary() {
+	file="$1"
+	target="${DOCKER_MAKE_INSTALL_PREFIX:=/usr/local}/bin/"
+	if [ "$(go env GOOS)" == "linux" ]; then
+		echo "Installing $(basename $file) to ${target}"
+		cp -L "$file" "$target"
+	else
+		echo "Install is only supported on linux"
+		return 1
+	fi
+}
+
+
 main() {
 	# We want this to fail if the bundles already exist and cannot be removed.
 	# This is to avoid mixing bundles from different versions of the code.
