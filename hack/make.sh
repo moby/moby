@@ -93,7 +93,7 @@ if command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; the
 		git status --porcelain --untracked-files=no
 		echo "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 	fi
-	! BUILDTIME=$(date --rfc-3339 ns | sed -e 's/ /T/') &> /dev/null
+	! BUILDTIME=$(date --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/') &> /dev/null
 	if [ -z $BUILDTIME ]; then
 		# If using bash 3.1 which doesn't support --rfc-3389, eg Windows CI
 		BUILDTIME=$(date -u)
@@ -113,6 +113,12 @@ if [ "$AUTO_GOPATH" ]; then
 	mkdir -p .gopath/src/"$(dirname "${DOCKER_PKG}")"
 	ln -sf ../../../.. .gopath/src/"${DOCKER_PKG}"
 	export GOPATH="${PWD}/.gopath:${PWD}/vendor"
+
+	if [ "$(go env GOOS)" = 'solaris' ]; then
+		# sys/unix is installed outside the standard library on solaris
+		# TODO need to allow for version change, need to get version from go
+		export GOPATH="${GOPATH}:/usr/lib/gocode/1.5"
+	fi
 fi
 
 if [ ! "$GOPATH" ]; then

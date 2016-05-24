@@ -1,4 +1,4 @@
-// +build freebsd
+// +build freebsd solaris
 
 package reexec
 

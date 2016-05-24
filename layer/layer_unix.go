@@ -1,4 +1,4 @@
-// +build linux freebsd darwin openbsd
+// +build linux freebsd darwin openbsd solaris
 
 package layer
 
