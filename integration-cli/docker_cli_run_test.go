@@ -123,13 +123,10 @@ func (s *DockerSuite) TestRunDetachedContainerIDPrinting(c *check.C) {
 
 // the working directory should be set correctly
 func (s *DockerSuite) TestRunWorkingDirectory(c *check.C) {
-	// TODO Windows: There's a Windows bug stopping this from working.
-	testRequires(c, DaemonIsLinux)
 	dir := "/root"
 	image := "busybox"
 	if daemonPlatform == "windows" {
-		dir = `/windows`
-		image = WindowsBaseImage
+		dir = `C:/Windows`
 	}
 
 	// First with -w
