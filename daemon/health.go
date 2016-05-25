@@ -109,9 +109,9 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 	c.Lock()
 	defer c.Unlock()
 
-	retries := uint64(c.Config.Healthcheck.Retries)
-	if retries == 0 {
-		retries = 1 // Default if unset
+	retries := c.Config.Healthcheck.Retries
+	if retries <= 0 {
+		retries = 1 // Default if unset or set to an invalid value
 	}
 
 	h := c.State.Health

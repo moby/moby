@@ -511,14 +511,14 @@ func healthcheck(b *Builder, args []string, attributes map[string]bool, original
 		healthcheck.Timeout = timeout
 
 		if flRetries.Value != "" {
-			retries, err := strconv.ParseUint(flRetries.Value, 10, 32)
+			retries, err := strconv.ParseInt(flRetries.Value, 10, 32)
 			if err != nil {
 				return err
 			}
 			if retries < 1 {
 				return fmt.Errorf("--retries must be at least 1 (not %d)", retries)
 			}
-			healthcheck.Retries = uint(retries)
+			healthcheck.Retries = int(retries)
 		} else {
 			healthcheck.Retries = 0
 		}

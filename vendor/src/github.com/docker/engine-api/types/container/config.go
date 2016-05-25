@@ -1,9 +1,9 @@
 package container
 
 import (
-	"time"
 	"github.com/docker/engine-api/types/strslice"
 	"github.com/docker/go-connections/nat"
+	"time"
 )
 
 // HealthConfig holds configuration settings for the HEALTHCHECK feature.
@@ -14,16 +14,16 @@ type HealthConfig struct {
 	// {} : inherit healthcheck
 	// {"NONE"} : disable healthcheck
 	// {"CMD", args...} : exec arguments directly
-	// {"CMD-SHELL", args...} : run command with system's default shell
-	Test strslice.StrSlice `json:",omitempty"`
+	// {"CMD-SHELL", command} : run command with system's default shell
+	Test []string `json:",omitempty"`
 
-	// Nil means to inherit. Durations are expressed as integer nanoseconds.
-	Interval    time.Duration `json:",omitempty"` // Time to wait between checks.
-	Timeout     time.Duration `json:",omitempty"` // Time to wait before considering the check to have hung.
+	// Zero means to inherit. Durations are expressed as integer nanoseconds.
+	Interval time.Duration `json:",omitempty"` // Time to wait between checks.
+	Timeout  time.Duration `json:",omitempty"` // Time to wait before considering the check to have hung.
 
 	// Number of consecutive failures needed to consider a container as unhealthy.
 	// Zero means inherit.
-	Retries uint `json:",omitempty"`
+	Retries int `json:",omitempty"`
 }
 
 // Config contains the configuration data about a container.

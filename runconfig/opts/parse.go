@@ -105,7 +105,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flHealthCmd      = cmd.String([]string{"-health-cmd"}, "", "Command to run to check health")
 		flHealthInterval = cmd.Duration([]string{"-health-interval"}, 0, "Time between running the check")
 		flHealthTimeout  = cmd.Duration([]string{"-health-timeout"}, 0, "Maximum time to allow one check to run")
-		flHealthRetries  = cmd.Uint([]string{"-health-retries"}, 0, "Consecutive failures needed to report unhealthy")
+		flHealthRetries  = cmd.Int([]string{"-health-retries"}, 0, "Consecutive failures needed to report unhealthy")
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")

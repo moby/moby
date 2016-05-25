@@ -122,7 +122,7 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 	waitForHealthStatus(c, "fatal_healthcheck", "starting", "healthy")
 	health := getHealth(c, "fatal_healthcheck")
 	c.Check(health.Status, checker.Equals, "healthy")
-	c.Check(health.FailingStreak, checker.Equals, uint64(0))
+	c.Check(health.FailingStreak, checker.Equals, 0)
 	last := health.Log[len(health.Log)-1]
 	c.Check(last.ExitCode, checker.Equals, 0)
 	c.Check(last.Output, checker.Equals, "OK\n")
