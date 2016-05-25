@@ -4401,3 +4401,12 @@ func (s *DockerSuite) TestRunDnsInHostMode(c *check.C) {
 	c.Assert(out, checker.Contains, expectedOutput2, check.Commentf("Expected '%s', but got %q", expectedOutput2, out))
 	c.Assert(out, checker.Contains, expectedOutput3, check.Commentf("Expected '%s', but got %q", expectedOutput3, out))
 }
+
+// Test case for #21976
+func (s *DockerSuite) TestRunAddHostInHostMode(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
+
+	expectedOutput := "1.2.3.4\textra"
+	out, _ := dockerCmd(c, "run", "--add-host=extra:1.2.3.4", "--net=host", "busybox", "cat", "/etc/hosts")
+	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
+}

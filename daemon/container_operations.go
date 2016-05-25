@@ -47,7 +47,9 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container, n libn
 
 	if container.HostConfig.NetworkMode.IsHost() {
 		sboxOptions = append(sboxOptions, libnetwork.OptionUseDefaultSandbox())
-		sboxOptions = append(sboxOptions, libnetwork.OptionOriginHostsPath("/etc/hosts"))
+		if len(container.HostConfig.ExtraHosts) == 0 {
+			sboxOptions = append(sboxOptions, libnetwork.OptionOriginHostsPath("/etc/hosts"))
+		}
 		if len(container.HostConfig.DNS) == 0 && len(daemon.configStore.DNS) == 0 &&
 			len(container.HostConfig.DNSSearch) == 0 && len(daemon.configStore.DNSSearch) == 0 &&
 			len(container.HostConfig.DNSOptions) == 0 && len(daemon.configStore.DNSOptions) == 0 {

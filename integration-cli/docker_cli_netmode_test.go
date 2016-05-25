@@ -67,10 +67,7 @@ func (s *DockerSuite) TestConflictContainerNetworkHostAndLinks(c *check.C) {
 func (s *DockerSuite) TestConflictNetworkModeNetHostAndOptions(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
-	out, _ := dockerCmdWithFail(c, "run", "--net=host", "--add-host=name:8.8.8.8", "busybox", "ps")
-	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkHosts.Error())
-
-	out, _ = dockerCmdWithFail(c, "run", "--net=host", "--mac-address=92:d0:c6:0a:29:33", "busybox", "ps")
+	out, _ := dockerCmdWithFail(c, "run", "--net=host", "--mac-address=92:d0:c6:0a:29:33", "busybox", "ps")
 	c.Assert(out, checker.Contains, runconfig.ErrConflictContainerNetworkAndMac.Error())
 }
 
