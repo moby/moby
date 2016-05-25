@@ -182,7 +182,7 @@ pull them down to your Docker host to build containers from them.
 for images. Public storage is searchable and can be downloaded by anyone.
 Private storage is excluded from search results and only you and your users can
 pull images down and use them to build containers. You can [sign up for a storage plan
-here](https://hub.docker.com/plans).
+here](https://www.docker.com/pricing).
 
 ### How does a container work?
 A container consists of an operating system, user-added files, and meta-data. As
