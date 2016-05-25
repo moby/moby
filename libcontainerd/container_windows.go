@@ -42,13 +42,18 @@ func (ctr *container) start() error {
 	// until the container is done with the servicing execution.
 	logrus.Debugln("Starting container ", ctr.containerID)
 	if err = ctr.hcsContainer.Start(); err != nil {
-		logrus.Errorf("Failed to start compute system: %s", err)
+		logrus.Errorf("Failed to start container: %s", err)
+		if err := ctr.terminate(); err != nil {
+			logrus.Errorf("Failed to cleanup after a failed Start. %s", err)
+		} else {
+			logrus.Debugln("Cleaned up after failed Start by calling Terminate")
+		}
 		return err
 	}
 
 	for _, option := range ctr.options {
 		if s, ok := option.(*ServicingOption); ok && s.IsServicing {
-			// Since the servicing operation is complete when StartCommputeSystem returns without error,
+			// Since the servicing operation is complete when Start returns without error,
 			// we can shutdown (which triggers merge) and exit early.
 			return ctr.shutdown()
 		}
@@ -76,8 +81,8 @@ func (ctr *container) start() error {
 	hcsProcess, err := ctr.hcsContainer.CreateProcess(createProcessParms)
 	if err != nil {
 		logrus.Errorf("CreateProcess() failed %s", err)
-		if err2 := ctr.terminate(); err2 != nil {
-			logrus.Debugf("Failed to cleanup after a failed CreateProcess. Ignoring this. %s", err2)
+		if err := ctr.terminate(); err != nil {
+			logrus.Errorf("Failed to cleanup after a failed CreateProcess. %s", err)
 		} else {
 			logrus.Debugln("Cleaned up after failed CreateProcess by calling Terminate")
 		}
@@ -96,7 +101,7 @@ func (ctr *container) start() error {
 	if err != nil {
 		logrus.Errorf("failed to get stdio pipes: %s", err)
 		if err := ctr.terminate(); err != nil {
-			logrus.Debugf("Failed to cleanup after a failed CreateProcess. Ignoring this. %s", err)
+			logrus.Errorf("Failed to cleanup after a failed Stdio. %s", err)
 		}
 		return err
 	}
@@ -150,7 +155,7 @@ func (ctr *container) waitExit(process *process, isFirstProcessToStart bool) err
 	err := process.hcsProcess.Wait()
 	if err != nil {
 		if herr, ok := err.(*hcsshim.ProcessError); ok && herr.Err != syscall.ERROR_BROKEN_PIPE {
-			logrus.Warnf("WaitForProcessInComputeSystem failed (container may have been killed): %s", err)
+			logrus.Warnf("Wait failed (container may have been killed): %s", err)
 		}
 		// Fall through here, do not return. This ensures we attempt to continue the
 		// shutdown in HCS and tell the docker engine that the process/container

@@ -153,7 +153,7 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 	}
 
 	// Call start, and if it fails, delete the container from our
-	// internal structure, and also keep HCS in sync by deleting the
+	// internal structure, start will keep HCS in sync by deleting the
 	// container there.
 	logrus.Debugf("Create() id=%s, Calling start()", containerID)
 	if err := container.start(); err != nil {
