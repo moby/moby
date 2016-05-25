@@ -199,10 +199,20 @@ func (a *Allocator) GetDefaultAddressSpaces() (string, string, error) {
 // RequestPool returns an address pool along with its unique id.
 func (a *Allocator) RequestPool(addressSpace, pool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
 	log.Debugf("RequestPool(%s, %s, %s, %v, %t)", addressSpace, pool, subPool, options, v6)
-retry:
-	k, nw, ipr, pdf, err := a.parsePoolRequest(addressSpace, pool, subPool, v6)
+
+	k, nw, ipr, err := a.parsePoolRequest(addressSpace, pool, subPool, v6)
 	if err != nil {
 		return "", nil, nil, types.InternalErrorf("failed to parse pool request for address space %q pool %q subpool %q: %v", addressSpace, pool, subPool, err)
+	}
+
+	pdf := k == nil
+
+retry:
+	if pdf {
+		if nw, err = a.getPredefinedPool(addressSpace, v6); err != nil {
+			return "", nil, nil, err
+		}
+		k = &SubnetKey{AddressSpace: addressSpace, Subnet: nw.String()}
 	}
 
 	if err := a.refresh(addressSpace); err != nil {
@@ -279,39 +289,36 @@ func (a *Allocator) getAddrSpace(as string) (*addrSpace, error) {
 	return aSpace, nil
 }
 
-func (a *Allocator) parsePoolRequest(addressSpace, pool, subPool string, v6 bool) (*SubnetKey, *net.IPNet, *AddressRange, bool, error) {
+func (a *Allocator) parsePoolRequest(addressSpace, pool, subPool string, v6 bool) (*SubnetKey, *net.IPNet, *AddressRange, error) {
 	var (
 		nw  *net.IPNet
 		ipr *AddressRange
 		err error
-		pdf = false
 	)
 
 	if addressSpace == "" {
-		return nil, nil, nil, false, ipamapi.ErrInvalidAddressSpace
+		return nil, nil, nil, ipamapi.ErrInvalidAddressSpace
 	}
 
 	if pool == "" && subPool != "" {
-		return nil, nil, nil, false, ipamapi.ErrInvalidSubPool
+		return nil, nil, nil, ipamapi.ErrInvalidSubPool
 	}
 
-	if pool != "" {
-		if _, nw, err = net.ParseCIDR(pool); err != nil {
-			return nil, nil, nil, false, ipamapi.ErrInvalidPool
-		}
-		if subPool != "" {
-			if ipr, err = getAddressRange(subPool, nw); err != nil {
-				return nil, nil, nil, false, err
-			}
-		}
-	} else {
-		if nw, err = a.getPredefinedPool(addressSpace, v6); err != nil {
-			return nil, nil, nil, false, err
-		}
-		pdf = true
+	if pool == "" {
+		return nil, nil, nil, nil
 	}
 
-	return &SubnetKey{AddressSpace: addressSpace, Subnet: nw.String(), ChildSubnet: subPool}, nw, ipr, pdf, nil
+	if _, nw, err = net.ParseCIDR(pool); err != nil {
+		return nil, nil, nil, ipamapi.ErrInvalidPool
+	}
+
+	if subPool != "" {
+		if ipr, err = getAddressRange(subPool, nw); err != nil {
+			return nil, nil, nil, err
+		}
+	}
+
+	return &SubnetKey{AddressSpace: addressSpace, Subnet: nw.String(), ChildSubnet: subPool}, nw, ipr, nil
 }
 
 func (a *Allocator) insertBitMask(key SubnetKey, pool *net.IPNet) error {
@@ -406,7 +413,7 @@ func (a *Allocator) getPredefinedPool(as string, ipV6 bool) (*net.IPNet, error) 
 		}
 	}
 
-	return nil, types.NotFoundErrorf("could not find an available predefined network")
+	return nil, types.NotFoundErrorf("could not find an available non-overlapping address pool among the defaults to auto assign to the network")
 }
 
 // RequestAddress returns an address from the specified pool ID
