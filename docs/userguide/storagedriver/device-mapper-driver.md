@@ -212,7 +212,7 @@ a `direct-lvm` configuration.
 > and have images you want to keep, `push` them Docker Hub or your private
 > Docker Trusted Registry before attempting this procedure.
 
-The procedure below will create a 90GB data volume and 4GB metadata volume to
+The procedure below will create a logical volume configured as a thin pool to
 use as backing for the storage pool. It assumes that you have a spare block
 device at `/dev/xvdf` with enough free space to complete the task. The device
 identifier and volume sizes may be be different in your environment and you
@@ -221,106 +221,146 @@ assumes that the Docker daemon is in the `stopped` state.
 
 1. Log in to the Docker host you want to configure and stop the Docker daemon.
 
-2. If it exists, delete your existing image store by removing the
-`/var/lib/docker` directory.
+2. Install the LVM2 package.
+	The LVM2 package includes the userspace toolset that provides logical volume
+	management facilities on linux.
+
+3. Create a physical volume replacing `/dev/xvdf` with your block device.
 
 	```bash
-	$ sudo rm -rf /var/lib/docker
+	$ pvcreate /dev/xvdf
 	```
 
-3. Create an LVM physical volume (PV) on your spare block device using the
-`pvcreate` command.
+4. Create a 'docker' volume group.
 
 	```bash
-	$ sudo pvcreate /dev/xvdf
-	Physical volume `/dev/xvdf` successfully created
+	$ vgcreate docker /dev/xvdf
 	```
 
-	The device identifier may be different on your system. Remember to substitute
-	your value in the command above. If your host is running on AWS EC2, you may
-	need to install `lvm2` and <a href="http://goo.gl/Q5pUwG"
-	target="_blank">attach an EBS device</a> to use this procedure.
+5. Create a thin pool named `thinpool`.
 
-4. Create a new volume group (VG) called `vg-docker` using the PV created in
-the previous step.
+	In this example, the data logical is 95% of the 'docker' volume group size.
+	Leaving this free space allows for auto expanding of either the data or
+	metadata if space runs low as a temporary stopgap.
 
 	```bash
-	$ sudo vgcreate vg-docker /dev/xvdf
-	Volume group `vg-docker` successfully created
+	$ lvcreate --wipesignatures y -n thinpool docker -l 95%VG
+	$ lvcreate --wipesignatures y -n thinpoolmeta docker -l 1%VG
 	```
 
-5. Create a new 90GB logical volume (LV) called `data` from space in the
-`vg-docker` volume group.
+6. Convert the pool to a thin pool.
 
 	```bash
-	$ sudo lvcreate -L 90G -n data vg-docker
-	Logical volume `data` created.
+	$ lvconvert -y --zero n -c 512K --thinpool docker/thinpool --poolmetadata docker/thinpoolmeta
 	```
 
-	The command creates an LVM logical volume called `data` and an associated
-	block device file at `/dev/vg-docker/data`. In a later step, you instruct the
-	`devicemapper` storage driver to use this block device to store image and
-	container data.
-
-	If you receive a signature detection warning, make sure you are working on
-	the correct devices before continuing. Signature warnings indicate that the
-	device you're working on is currently in use by LVM or has been used by LVM in
-	the past.
-
-6. Create a new logical volume (LV) called `metadata` from space in the
-`vg-docker` volume group.
+7. Configure autoextension of thin pools via an `lvm` profile.
 
 	```bash
-	$ sudo lvcreate -L 4G -n metadata vg-docker
-	Logical volume `metadata` created.
+	$ vi /etc/lvm/profile/docker-thinpool.profile
 	```
 
-	This creates an LVM logical volume called `metadata` and an associated
-	block device file at `/dev/vg-docker/metadata`. In the next step you instruct
-	the `devicemapper` storage driver to use this block device to store image and
-	container metadata.
+8. Specify 'thin_pool_autoextend_threshold' value.
 
-7. Start the Docker daemon with the `devicemapper` storage driver and the
-`--storage-opt` flags.
+	The value should be the percentage of space used before `lvm` attempts
+	to autoextend the available space (100 = disabled).
 
-	The `data` and `metadata` devices that you pass to the `--storage-opt`
-	options were created in the previous steps.
+	```
+	thin_pool_autoextend_threshold = 80
+	```
+
+9. Modify the `thin_pool_autoextend_percent` for when thin pool autoextension occurs.
+
+	The value's setting is the perentage of space to increase the thin pool (100 =
+	disabled)
+
+	```
+	thin_pool_autoextend_percent = 20
+	```
+
+10. Check your work, your `docker-thinpool.profile` file should appear similar to the following:
+
+	An example `/etc/lvm/profile/docker-thinpool.profile` file:
+
+	```
+	activation {
+		thin_pool_autoextend_threshold=80
+		thin_pool_autoextend_percent=20
+	}
+	```
+
+11. Apply your new lvm profile
 
 	```bash
-	$ sudo docker daemon --storage-driver=devicemapper --storage-opt dm.datadev=/dev/vg-docker/data --storage-opt dm.metadatadev=/dev/vg-docker/metadata &
-	[1] 2163
-	[root@ip-10-0-0-75 centos]# INFO[0000] Listening for HTTP on unix (/var/run/docker.sock)
-	INFO[0027] Option DefaultDriver: bridge
-	INFO[0027] Option DefaultNetwork: bridge
-	<-- output truncated -->
-	INFO[0027] Daemon has completed initialization
-	INFO[0027] Docker daemon commit=1b09a95 graphdriver=aufs version=1.11.0-dev
+	$ lvchange --metadataprofile docker-thinpool docker/thinpool
 	```
 
-	It is also possible to set the `--storage-driver` and `--storage-opt` flags
-	in the Docker config file and start the daemon normally using the `service` or
-	`systemd` commands.
-
-8. Use the `docker info` command to verify that the daemon is using `data` and
-`metadata` devices you created.
+12. Verify the `lv` is monitored.
 
 	```bash
-	$ sudo docker info
-	INFO[0180] GET /v1.20/info
-	Containers: 0
-	Images: 0
-	Storage Driver: devicemapper
-	 Pool Name: docker-202:1-1032-pool
-	 Pool Blocksize: 65.54 kB
-	 Backing Filesystem: xfs
-	 Data file: /dev/vg-docker/data
-	 Metadata file: /dev/vg-docker/metadata
-	[...]
+	$ lvs -o+seg_monitor
 	```
 
-	The output of the command above shows the storage driver as `devicemapper`.
-	The last two lines also confirm that the correct devices are being used for
-	the `Data file` and the `Metadata file`.
+13. If the Docker daemon was previously started, clear your graph driver directory.
+
+	Clearing your graph driver removes any images, containers, and volumes in your
+	Docker installation.
+
+	```bash
+	$ rm -rf /var/lib/docker/*
+	```
+
+14. Configure the Docker daemon with specific devicemapper options.
+
+	There are two ways to do this. You can set options on the commmand line if you start the daemon there:
+
+	```bash
+	--storage-driver=devicemapper --storage-opt=dm.thinpooldev=/dev/mapper/docker-thinpool --storage-opt dm.use_deferred_removal=true
+	```
+
+	You can also set them for startup in the `daemon.json` configuration, for example:
+
+	```json
+	 {
+		 "storage-driver": "devicemapper",
+		 "storage-opts": [
+			 "dm.thinpooldev=/dev/mapper/docker-thinpool",
+			 "dm.use_deferred_removal=true"
+		 ]
+	 }
+	```
+
+15. If using systemd and modifying the daemon configuration via unit or drop-in file, reload systemd to scan for changes.
+
+	```bash
+	$ systemctl daemon-reload
+	```
+
+16. Start the Docker daemon.
+
+	```bash
+	$ systemctl start docker
+	```
+
+After you start the Docker daemon, ensure you monitor your thin pool and volume
+group free space. While the volume group will auto-extend, it can still fill
+up. To monitor logical volumes, use `lvs` without options or `lvs -a` to see tha
+data and metadata sizes. To monitor volume group free space, use the `vgs` command.
+
+Logs can show the auto-extension of the thin pool when it hits the threshold, to
+view the logs use:
+
+```bash
+$ journalctl -fu dm-event.service
+```
+
+If you run into repeated problems with thin pool, you can use the
+`dm.min_free_space` option to tune the Engine behavior. This value ensures that
+operations fail with a warning when the free space is at or near the minimum.
+For information, see <a
+href="../../../reference/commandline/dockerd/#storage-driver-options"
+target="_blank">the storage driver options in the Engine daemon reference</a>.
+
 
 ### Examine devicemapper structures on the host
 
@@ -329,20 +369,20 @@ You can use the `lsblk` command to see the device files created above and the
 
 ```bash
 $ sudo lsblk
-NAME                       MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
-xvda                       202:0    0    8G  0 disk
-└─xvda1                    202:1    0    8G  0 part /
-xvdf                       202:80   0   10G  0 disk
-├─vg--docker-data          253:0    0   90G  0 lvm
-│ └─docker-202:1-1032-pool 253:2    0   10G  0 dm
-└─vg--docker-metadata      253:1    0    4G  0 lvm
-  └─docker-202:1-1032-pool 253:2    0   10G  0 dm
+NAME			   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
+xvda			   202:0	0	 8G  0 disk
+└─xvda1			   202:1	0	 8G  0 part /
+xvdf			   202:80	0	10G  0 disk
+├─vg--docker-data		   253:0	0	90G  0 lvm
+│ └─docker-202:1-1032-pool 253:2	0	10G  0 dm
+└─vg--docker-metadata	   253:1	0	 4G  0 lvm
+  └─docker-202:1-1032-pool 253:2	0	10G  0 dm
 ```
 
 The diagram below shows the image from prior examples updated with the detail
 from the `lsblk` command above.
 
-![](http://farm1.staticflickr.com/703/22116692899_0471e5e160_b.jpg)
+![](images/lsblk-diagram.jpg)
 
 In the diagram, the pool is named `Docker-202:1-1032-pool` and spans the `data`
 and `metadata` devices created earlier. The `devicemapper` constructs the pool
@@ -427,12 +467,10 @@ The `Data Space` values show that the pool is 100GB total. This example extends 
 3. Verify the file size changed.
 
 	```bash
-	$ sudo ls -al /var/lib/docker/devicemapper/devicemapper/
-	total 1175492
-	drwx------ 2 root root         4096 Mar 29 02:45 .
-	drwx------ 5 root root         4096 Mar 29 02:48 ..
-	-rw------- 1 root root 214748364800 Mar 31 11:20 data
-	-rw------- 1 root root   2147483648 Mar 31 11:17 metadata
+	$ sudo ls -lh /var/lib/docker/devicemapper/devicemapper/
+	total 1.2G
+	-rw------- 1 root root 200G Apr 14 08:47 data
+	-rw------- 1 root root 2.0G Apr 19 13:27 metadata
 	```
 
 4. Reload data loop device
@@ -450,13 +488,14 @@ The `Data Space` values show that the pool is 100GB total. This example extends 
 	a. Get the pool name first.
 
 	```bash
-	$ sudo dmsetup status docker-8:1-123141-pool: 0 209715200 thin-pool 91
+	$ sudo dmsetup status | grep pool
+	docker-8:1-123141-pool: 0 209715200 thin-pool 91
 	422/524288 18338/1638400 - rw discard_passdown queue_if_no_space -
 	```
 
 	The name is the string before the colon.
 
- 	b. Dump the device mapper table first.
+	b. Dump the device mapper table first.
 
 	```bash
 	$ sudo dmsetup table docker-8:1-123141-pool
@@ -468,6 +507,7 @@ The `Data Space` values show that the pool is 100GB total. This example extends 
 	Change the second number of the table info (i.e. the disk end sector) to
 	reflect the new number of 512 byte sectors in the disk. For example, as the
 	new loop size is 200GB, change the second number to 419430400.
+
 
 	d. Reload the thin pool with the new sector number
 
@@ -533,7 +573,7 @@ disk partition.
 
 	c. Calculate the real total sectors of the thin pool now. we can use `blockdev` to get the real size of data lv.
 
-	Change the second number of the table info (i.e. the disk end sector) to
+	Change the second number of the table info (i.e. the number of sectors) to
 	reflect the new number of 512 byte sectors in the disk. For example, as the
 	new data `lv` size is `264132100096` bytes, change the second number to
 	`515883008`.
@@ -592,8 +632,8 @@ There are several other things that impact the performance of the
 
 - **The mode.** The default mode for Docker running the `devicemapper` storage
   driver is `loop-lvm`. This mode uses sparse files and suffers from poor
-  performance. It is **not recommended for production**. The recommended mode
-  for production environments is `direct-lvm` where the storage driver writes
+  performance. It is **not recommended for production**. The recommended mode for
+  production environments is `direct-lvm` where the storage driver writes
   directly to raw block devices.
 
 - **High speed storage.** For best performance you should place the `Data file`
@@ -601,10 +641,10 @@ There are several other things that impact the performance of the
   attached storage or from a SAN or NAS array.
 
 - **Memory usage.** `devicemapper` is not the most memory efficient Docker
-  storage driver. Launching *n* copies of the same container loads *n* copies
-  of its files into memory. This can have a memory impact on your Docker host.
-  As a result, the `devicemapper` storage driver may not be the best choice for
-  PaaS and other high density use cases.
+  storage driver. Launching *n* copies of the same container loads *n* copies of
+  its files into memory. This can have a memory impact on your Docker host. As a
+  result, the `devicemapper` storage driver may not be the best choice for PaaS
+  and other high density use cases.
 
 One final point, data volumes provide the best and most predictable
 performance. This is because they bypass the storage driver and do not incur
