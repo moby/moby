@@ -4342,7 +4342,7 @@ func (s *DockerSuite) TestRunTooLongHostname(c *check.C) {
 	c.Assert(err, checker.NotNil, check.Commentf("Expected docker run to fail!"))
 	c.Assert(out, checker.Contains, "invalid hostname format:", check.Commentf("Expected to have 'invalid hostname format:' in the output, get: %s!", out))
 
-	// Addtional test cases
+	// Additional test cases
 	validHostnames := map[string]string{
 		"hostname":    "hostname",
 		"host-name":   "host-name",
