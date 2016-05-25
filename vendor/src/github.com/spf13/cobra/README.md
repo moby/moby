@@ -406,6 +406,42 @@ A flag can also be assigned locally which will only apply to that specific comma
 RootCmd.Flags().StringVarP(&Source, "source", "s", "", "Source directory to read from")
 ```
 
+### Positional Arguments
+
+Validation of positional arguments can be specified using the `Args` field, which accepts
+one of the following values:
+
+- `NoArgs` - the command will report an error if there are any positional args.
+- `ArbitraryArgs` - the command will accept any args.
+- `OnlyValidArgs` - the command will report an error if there are any positiona 
+  args that are not in the `ValidArgs` list.
+- `MinimumNArgs(int)` - the command will report an error if there are not at 
+  least N positional args.
+- `MaximumNArgs(int)` - the command will report an error if there are more than 
+  N positional args.
+- `ExactArgs(int)` - the command will report an error if there are not 
+  exactly N positional args.
+- `RangeArgs(min, max)` - the command will report an error if the number of args 
+  is not between the minimum and maximum number of expected args.
+
+By default, `Args` uses the following legacy behaviour:
+- root commands with no subcommands can take arbitrary arguments
+- root commands with subcommands will do subcommand validity checking
+- subcommands will always accept arbitrary arguments and do no subsubcommand validity checking
+
+
+```go
+var HugoCmd = &cobra.Command{
+    Use:   "hugo",
+    Short: "Hugo is a very fast static site generator",
+    ValidArgs: []string{"one", "two"}
+    Args: cobra.OnlyValidArgs
+    Run: func(cmd *cobra.Command, args []string) {
+        // args will only have the values one, two
+        // or the cmd.Execute() will fail.
+    },
+}
+```
 
 ## Example
 

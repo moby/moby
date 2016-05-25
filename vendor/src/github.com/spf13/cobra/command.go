@@ -50,6 +50,8 @@ type Command struct {
 	// List of aliases for ValidArgs. These are not suggested to the user in the bash
 	// completion, but accepted if entered manually.
 	ArgAliases []string
+	// Expected arguments
+	Args PositionalArgs
 	// Custom functions used by the bash autocompletion generator
 	BashCompletionFunction string
 	// Is this command deprecated and should print this string when used?
@@ -110,6 +112,7 @@ type Command struct {
 	output        *io.Writer               // nil means stderr; use Out() method instead
 	usageFunc     func(*Command) error     // Usage can be defined by application
 	usageTemplate string                   // Can be defined by Application
+	flagErrorFunc func(*Command, error) error
 	helpTemplate  string                   // Can be defined by Application
 	helpFunc      func(*Command, []string) // Help can be defined by application
 	helpCommand   *Command                 // The help command
@@ -161,6 +164,12 @@ func (c *Command) SetUsageFunc(f func(*Command) error) {
 // Can be defined by Application
 func (c *Command) SetUsageTemplate(s string) {
 	c.usageTemplate = s
+}
+
+// SetFlagErrorFunc sets a function to generate an error when flag parsing
+// fails
+func (c *Command) SetFlagErrorFunc(f func(*Command, error) error) {
+	c.flagErrorFunc = f
 }
 
 // Can be defined by Application
@@ -221,6 +230,22 @@ func (c *Command) HelpFunc() func(*Command, []string) {
 		if err != nil {
 			c.Println(err)
 		}
+	}
+}
+
+// FlagErrorFunc returns either the function set by SetFlagErrorFunc for this
+// command or a parent, or it returns a function which returns the original
+// error.
+func (c *Command) FlagErrorFunc() (f func(*Command, error) error) {
+	if c.flagErrorFunc != nil {
+		return c.flagErrorFunc
+	}
+
+	if c.HasParent() {
+		return c.parent.FlagErrorFunc()
+	}
+	return func(c *Command, err error) error {
+		return err
 	}
 }
 
@@ -422,31 +447,27 @@ func (c *Command) Find(args []string) (*Command, []string, error) {
 	}
 
 	commandFound, a := innerfind(c, args)
-	argsWOflags := stripFlags(a, commandFound)
-
-	// no subcommand, always take args
-	if !commandFound.HasSubCommands() {
-		return commandFound, a, nil
+	if commandFound.Args == nil {
+		return commandFound, a, legacyArgs(commandFound, stripFlags(a, commandFound))
 	}
-
-	// root command with subcommands, do subcommand checking
-	if commandFound == c && len(argsWOflags) > 0 {
-		suggestionsString := ""
-		if !c.DisableSuggestions {
-			if c.SuggestionsMinimumDistance <= 0 {
-				c.SuggestionsMinimumDistance = 2
-			}
-			if suggestions := c.SuggestionsFor(argsWOflags[0]); len(suggestions) > 0 {
-				suggestionsString += "\n\nDid you mean this?\n"
-				for _, s := range suggestions {
-					suggestionsString += fmt.Sprintf("\t%v\n", s)
-				}
-			}
-		}
-		return commandFound, a, fmt.Errorf("unknown command %q for %q%s", argsWOflags[0], commandFound.CommandPath(), suggestionsString)
-	}
-
 	return commandFound, a, nil
+}
+
+func (c *Command) findSuggestions(arg string) string {
+	if c.DisableSuggestions {
+		return ""
+	}
+	if c.SuggestionsMinimumDistance <= 0 {
+		c.SuggestionsMinimumDistance = 2
+	}
+	suggestionsString := ""
+	if suggestions := c.SuggestionsFor(arg); len(suggestions) > 0 {
+		suggestionsString += "\n\nDid you mean this?\n"
+		for _, s := range suggestions {
+			suggestionsString += fmt.Sprintf("\t%v\n", s)
+		}
+	}
+	return suggestionsString
 }
 
 func (c *Command) SuggestionsFor(typedName string) []string {
@@ -520,7 +541,7 @@ func (c *Command) execute(a []string) (err error) {
 
 	err = c.ParseFlags(a)
 	if err != nil {
-		return err
+		return c.FlagErrorFunc()(c, err)
 	}
 	// If help is called, regardless of other flags, return we want help
 	// Also say we need help if the command isn't runnable.
@@ -533,6 +554,10 @@ func (c *Command) execute(a []string) (err error) {
 	}
 	if helpVal || !c.Runnable() {
 		return flag.ErrHelp
+	}
+
+	if err := c.ValidateArgs(a); err != nil {
+		return err
 	}
 
 	c.preRun()
@@ -673,7 +698,15 @@ func (c *Command) ExecuteC() (cmd *Command, err error) {
 	return cmd, nil
 }
 
+func (c *Command) ValidateArgs(args []string) error {
+	if c.Args == nil {
+		return nil
+	}
+	return c.Args(c, stripFlags(args, c))
+}
+
 func (c *Command) initHelpFlag() {
+	c.mergePersistentFlags()
 	if c.Flags().Lookup("help") == nil {
 		c.Flags().BoolP("help", "h", false, "help for "+c.Name())
 	}
@@ -747,7 +780,7 @@ func (c *Command) AddCommand(cmds ...*Command) {
 	}
 }
 
-// AddCommand removes one or more commands from a parent command.
+// RemoveCommand removes one or more commands from a parent command.
 func (c *Command) RemoveCommand(cmds ...*Command) {
 	commands := []*Command{}
 main:
