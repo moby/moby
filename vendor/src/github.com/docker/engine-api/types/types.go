@@ -281,9 +281,16 @@ type HealthcheckResult struct {
 	Output     string // Output from last check
 }
 
+// Health states
+const (
+	Starting  = "starting"  // Container is not yet ready
+	Healthy   = "healthy"   // Container is running correctly
+	Unhealthy = "unhealthy" // Container has a problem
+)
+
 // Health stores information about the container's healthcheck results
 type Health struct {
-	Status        string               // States are: "starting", "healthy", "unhealthy"
+	Status        string               // Possible states are: Starting, Healthy and Unhealthy
 	FailingStreak int                  // Number of consecutive failures
 	Log           []*HealthcheckResult // The last few results (oldest first)
 }

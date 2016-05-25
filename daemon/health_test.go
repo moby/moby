@@ -14,7 +14,7 @@ import (
 func reset(c *container.Container) {
 	c.State = &container.State{}
 	c.State.Health = &container.Health{}
-	c.State.Health.Status = container.Starting
+	c.State.Health.Status = types.Starting
 }
 
 func TestHealthStates(t *testing.T) {
@@ -79,7 +79,7 @@ func TestHealthStates(t *testing.T) {
 
 	handleResult(c.State.StartedAt.Add(20*time.Second), 2)
 	handleResult(c.State.StartedAt.Add(40*time.Second), 2)
-	if c.State.Health.Status != container.Starting {
+	if c.State.Health.Status != types.Starting {
 		t.Errorf("Expecting starting, but got %#v\n", c.State.Health.Status)
 	}
 
@@ -95,7 +95,7 @@ func TestHealthStates(t *testing.T) {
 
 	handleResult(c.State.StartedAt.Add(20*time.Second), 1)
 	handleResult(c.State.StartedAt.Add(40*time.Second), 1)
-	if c.State.Health.Status != container.Starting {
+	if c.State.Health.Status != types.Starting {
 		t.Errorf("Expecting starting, but got %#v\n", c.State.Health.Status)
 	}
 	if c.State.Health.FailingStreak != 2 {

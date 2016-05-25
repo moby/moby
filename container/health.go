@@ -5,21 +5,6 @@ import (
 	"github.com/docker/engine-api/types"
 )
 
-// States
-const (
-	// This is the initial state. We switch to Healthy on success, or
-	// Unhealthy after "Retries" consecutive failures.
-	// We remain here if the probe returns "starting".
-	Starting = "starting"
-
-	// From here, we become Unhealthy after "Retries" consecutive failures.
-	// If the probe returns "starting", this is invalid and treated as failure.
-	Healthy = "healthy"
-
-	// The last "Retries" probes failed.
-	Unhealthy = "unhealthy"
-)
-
 // Health holds the current container health-check state
 type Health struct {
 	types.Health
@@ -32,7 +17,7 @@ func (s *Health) String() string {
 		return "no healthcheck"
 	}
 	switch s.Status {
-	case Starting:
+	case types.Starting:
 		return "health: starting"
 	default: // Healthy and Unhealthy are clear on their own
 		return s.Status

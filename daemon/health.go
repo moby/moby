@@ -125,14 +125,14 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 
 	if result.ExitCode == exitStatusHealthy {
 		h.FailingStreak = 0
-		h.Status = container.Healthy
-	} else if result.ExitCode == exitStatusStarting && c.State.Health.Status == container.Starting {
+		h.Status = types.Healthy
+	} else if result.ExitCode == exitStatusStarting && c.State.Health.Status == types.Starting {
 		// The container is not ready yet. Remain in the starting state.
 	} else {
 		// Failure (incuding invalid exit code)
 		h.FailingStreak++
 		if c.State.Health.FailingStreak >= retries {
-			h.Status = container.Unhealthy
+			h.Status = types.Unhealthy
 		}
 		// Else we're starting or healthy. Stay in that state.
 	}
@@ -252,7 +252,7 @@ func (d *Daemon) initHealthMonitor(c *container.Container) {
 
 	if c.State.Health == nil {
 		h := &container.Health{}
-		h.Status = container.Starting
+		h.Status = types.Starting
 		h.FailingStreak = 0
 		c.State.Health = h
 	}
