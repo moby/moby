@@ -624,7 +624,7 @@ func writeLayerFromTar(r archive.Reader, w hcsshim.LayerWriter) (int64, error) {
 			}
 			buf.Reset(w)
 
-			// Add the Hyper-V Virutal Machine group ACE to the security descriptor
+			// Add the Hyper-V Virtual Machine group ACE to the security descriptor
 			// for TP5 so that Xenons can access all files. This is not necessary
 			// for post-TP5 builds.
 			if isTP5OrOlder() {
