@@ -1,6 +1,8 @@
 package cobraadaptor
 
 import (
+	"fmt"
+
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/api/client/volume"
 	"github.com/docker/docker/cli"
@@ -28,6 +30,7 @@ func NewCobraAdaptor(clientFlags *cliflags.ClientFlags) CobraAdaptor {
 	}
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.SetHelpTemplate(helpTemplate)
+	rootCmd.SetFlagErrorFunc(flagErrorFunc)
 	rootCmd.SetOutput(stdout)
 	rootCmd.AddCommand(
 		volume.NewVolumeCommand(dockerCli),
@@ -66,6 +69,20 @@ func (c CobraAdaptor) Command(name string) func(...string) error {
 		}
 	}
 	return nil
+}
+
+// flagErrorFunc prints an error messages which matches the format of the
+// docker/docker/cli error messages
+func flagErrorFunc(cmd *cobra.Command, err error) error {
+	if err == nil {
+		return err
+	}
+
+	usage := ""
+	if cmd.HasSubCommands() {
+		usage = "\n\n" + cmd.UsageString()
+	}
+	return fmt.Errorf("%s\nSee '%s --help'.%s", err, cmd.CommandPath(), usage)
 }
 
 var usageTemplate = `Usage:	{{if not .HasSubCommands}}{{if .HasLocalFlags}}{{appendIfNotPresent .UseLine "[OPTIONS]"}}{{else}}{{.UseLine}}{{end}}{{end}}{{if .HasSubCommands}}{{ .CommandPath}} COMMAND{{end}}
