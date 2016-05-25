@@ -799,6 +799,7 @@ _docker_daemon() {
 		--cluster-advertise
 		--cluster-store
 		--cluster-store-opt
+		--config-file
 		--containerd
 		--default-gateway
 		--default-gateway-v6
@@ -878,7 +879,7 @@ _docker_daemon() {
 			__docker_complete_log_drivers
 			return
 			;;
-		--containerd|--pidfile|-p|--tlscacert|--tlscert|--tlskey)
+		--config-file|--containerd|--pidfile|-p|--tlscacert|--tlscert|--tlskey)
 			_filedir
 			return
 			;;
