@@ -1628,6 +1628,8 @@ Query Parameters:
 -   **filters** – a JSON encoded value of the filters (a map[string][]string) to process on the images list. Available filters:
   -   `dangling=true`
   -   `label=key` or `label="key=value"` of an image label
+  -   `before`=(`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`)
+  -   `since`=(`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`)
 -   **filter** - only return images with the specified name
 
 ### Build image from a Dockerfile

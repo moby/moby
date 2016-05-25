@@ -75,12 +75,6 @@ type listContext struct {
 	// exitAllowed is a list of exit codes allowed to filter with
 	exitAllowed []int
 
-	// FIXME Remove this for 1.12 as --since and --before are deprecated
-	// beforeContainer is a filter to ignore containers that appear before the one given
-	beforeContainer *container.Container
-	// sinceContainer is a filter to stop the filtering when the iterator arrive to the given container
-	sinceContainer *container.Container
-
 	// beforeFilter is a filter to ignore containers that appear before the one given
 	// this is used for --filter=before= and --before=, the latter is deprecated.
 	beforeFilter *container.Container

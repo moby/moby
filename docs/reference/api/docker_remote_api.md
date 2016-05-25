@@ -121,6 +121,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /images/search` now takes a `filters` query parameter.
 * `GET /events` now supports a `reload` event that is emitted when the daemon configuration is reloaded.
 * `GET /events` now supports filtering by daemon name or ID.
+* `GET /images/json` now supports filters `since` and `before`.
 
 ### v1.23 API changes
 
