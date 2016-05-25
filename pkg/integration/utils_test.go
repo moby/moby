@@ -510,9 +510,11 @@ func TestChannelBufferTimeout(t *testing.T) {
 	buf := &ChannelBuffer{make(chan []byte, 1)}
 	defer buf.Close()
 
+	done := make(chan struct{}, 1)
 	go func() {
 		time.Sleep(100 * time.Millisecond)
 		io.Copy(buf, strings.NewReader(expected))
+		done <- struct{}{}
 	}()
 
 	// Wait long enough
@@ -521,9 +523,7 @@ func TestChannelBufferTimeout(t *testing.T) {
 	if err == nil && err.Error() != "timeout reading from channel" {
 		t.Fatalf("Expected an error, got %s", err)
 	}
-
-	// Wait for the end :)
-	time.Sleep(150 * time.Millisecond)
+	<-done
 }
 
 func TestChannelBuffer(t *testing.T) {
