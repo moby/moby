@@ -107,9 +107,22 @@ func (s *DockerSuite) TestApiStatsNetworkStats(c *check.C) {
 	if runtime.GOOS == "windows" {
 		countParam = "-n" // Ping count parameter is -n on Windows
 	}
-	pingout, err := exec.Command("ping", contIP, countParam, strconv.Itoa(numPings)).Output()
-	pingouts := string(pingout[:])
+	pingout, err := exec.Command("ping", contIP, countParam, strconv.Itoa(numPings)).CombinedOutput()
+	if err != nil && runtime.GOOS == "linux" {
+		// If it fails then try a work-around, but just for linux.
+		// If this fails too then go back to the old error for reporting.
+		//
+		// The ping will sometimes fail due to an apparmor issue where it
+		// denies access to the libc.so.6 shared library - running it
+		// via /lib64/ld-linux-x86-64.so.2 seems to work around it.
+		pingout2, err2 := exec.Command("/lib64/ld-linux-x86-64.so.2", "/bin/ping", contIP, "-c", strconv.Itoa(numPings)).CombinedOutput()
+		if err2 == nil {
+			pingout = pingout2
+			err = err2
+		}
+	}
 	c.Assert(err, checker.IsNil)
+	pingouts := string(pingout[:])
 	nwStatsPost := getNetworkStats(c, id)
 	for _, v := range nwStatsPost {
 		postRxPackets += v.RxPackets
