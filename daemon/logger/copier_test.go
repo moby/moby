@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"sync"
 	"testing"
 	"time"
 )
 
 type TestLoggerJSON struct {
 	*json.Encoder
+	mu    sync.Mutex
 	delay time.Duration
 }
 
@@ -17,6 +19,8 @@ func (l *TestLoggerJSON) Log(m *Message) error {
 	if l.delay > 0 {
 		time.Sleep(l.delay)
 	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	return l.Encode(m)
 }
 
