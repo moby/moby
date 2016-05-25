@@ -1489,6 +1489,11 @@ _docker_ps() {
 			__docker_complete_images
 			return
 			;;
+		before)
+			cur="${cur##*=}"
+			__docker_complete_containers_all
+			return
+			;;
 		id)
 			cur="${cur##*=}"
 			__docker_complete_container_ids
@@ -1497,6 +1502,11 @@ _docker_ps() {
 		name)
 			cur="${cur##*=}"
 			__docker_complete_container_names
+			return
+			;;
+		since)
+			cur="${cur##*=}"
+			__docker_complete_containers_all
 			return
 			;;
 		status)
@@ -1511,11 +1521,8 @@ _docker_ps() {
 	esac
 
 	case "$prev" in
-		--before|--since)
-			__docker_complete_containers_all
-			;;
 		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "ancestor exited id label name status volume" -- "$cur" ) )
+			COMPREPLY=( $( compgen -S = -W "ancestor before exited id label name since status volume" -- "$cur" ) )
 			__docker_nospace
 			return
 			;;
@@ -1526,7 +1533,7 @@ _docker_ps() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--all -a --before --filter -f --format --help --latest -l -n --no-trunc --quiet -q --size -s --since" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--all -a --filter -f --format --help --latest -l -n --no-trunc --quiet -q --size -s" -- "$cur" ) )
 			;;
 	esac
 }
