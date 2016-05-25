@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -2642,7 +2643,10 @@ func (s *DockerSuite) TestRunTTYWithPipe(c *check.C) {
 			return
 		}
 
-		expected := "cannot enable tty mode"
+		expected := "the input device is not a TTY"
+		if runtime.GOOS == "windows" {
+			expected += ".  If you are using mintty, try prefixing the command with 'winpty'"
+		}
 		if out, _, err := runCommandWithOutput(cmd); err == nil {
 			errChan <- fmt.Errorf("run should have failed")
 			return
@@ -2655,7 +2659,7 @@ func (s *DockerSuite) TestRunTTYWithPipe(c *check.C) {
 	select {
 	case err := <-errChan:
 		c.Assert(err, check.IsNil)
-	case <-time.After(6 * time.Second):
+	case <-time.After(30 * time.Second):
 		c.Fatal("container is running but should have failed")
 	}
 }
