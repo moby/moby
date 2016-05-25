@@ -222,3 +222,15 @@ func (daemon *Daemon) VolumeCreate(name, driverName string, opts, labels map[str
 	apiV.Mountpoint = v.Path()
 	return apiV, nil
 }
+
+func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *image.Image) error {
+	if img != nil && img.Config != nil {
+		if err := merge(config, img.Config); err != nil {
+			return err
+		}
+	}
+	if len(config.Entrypoint) == 0 && len(config.Cmd) == 0 {
+		return fmt.Errorf("No command specified")
+	}
+	return nil
+}

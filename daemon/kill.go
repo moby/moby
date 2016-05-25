@@ -151,3 +151,7 @@ func (daemon *Daemon) killPossiblyDeadProcess(container *container.Container, si
 	}
 	return err
 }
+
+func (daemon *Daemon) kill(c *container.Container, sig int) error {
+	return daemon.containerd.Signal(c.ID, sig)
+}
