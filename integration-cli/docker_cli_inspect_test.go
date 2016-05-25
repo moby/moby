@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -209,8 +210,19 @@ func (s *DockerSuite) TestInspectContainerGraphDriver(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectBindMountPoint(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "-d", "--name", "test", "-v", "/data:/data:ro,z", "busybox", "cat")
+	modifier := ",z"
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
+	if daemonPlatform == "windows" {
+		modifier = ""
+		// TODO Windows: Temporary check - remove once TP5 support is dropped
+		if windowsDaemonKV < 14350 {
+			c.Skip("Needs later Windows build for RO volumes")
+		}
+		// Linux creates the host directory if it doesn't exist. Windows does not.
+		os.Mkdir(`c:\data`, os.ModeDir)
+	}
+
+	dockerCmd(c, "run", "-d", "--name", "test", "-v", prefix+slash+"data:"+prefix+slash+"data:ro"+modifier, "busybox", "cat")
 
 	vol := inspectFieldJSON(c, "test", "Mounts")
 
@@ -225,9 +237,9 @@ func (s *DockerSuite) TestInspectBindMountPoint(c *check.C) {
 
 	c.Assert(m.Name, checker.Equals, "")
 	c.Assert(m.Driver, checker.Equals, "")
-	c.Assert(m.Source, checker.Equals, "/data")
-	c.Assert(m.Destination, checker.Equals, "/data")
-	c.Assert(m.Mode, checker.Equals, "ro,z")
+	c.Assert(m.Source, checker.Equals, prefix+slash+"data")
+	c.Assert(m.Destination, checker.Equals, prefix+slash+"data")
+	c.Assert(m.Mode, checker.Equals, "ro"+modifier)
 	c.Assert(m.RW, checker.Equals, false)
 }
 
