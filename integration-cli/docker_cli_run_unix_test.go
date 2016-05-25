@@ -396,6 +396,55 @@ func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *check.C) {
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 }
 
+func (s *DockerSuite) TestRunAttachInvalidDetachKeySequencePreserved(c *check.C) {
+	name := "attach-detach"
+	keyA := []byte{97}
+	keyB := []byte{98}
+
+	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "cat")
+
+	cmd := exec.Command(dockerBinary, "attach", "--detach-keys='a,b,c'", name)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		c.Fatal(err)
+	}
+	cpty, tty, err := pty.Open()
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer cpty.Close()
+	cmd.Stdin = tty
+	if err := cmd.Start(); err != nil {
+		c.Fatal(err)
+	}
+	c.Assert(waitRun(name), check.IsNil)
+
+	// Invalid escape sequence aba, should print aba in output
+	if _, err := cpty.Write(keyA); err != nil {
+		c.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if _, err := cpty.Write(keyB); err != nil {
+		c.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if _, err := cpty.Write(keyA); err != nil {
+		c.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if _, err := cpty.Write([]byte("\n")); err != nil {
+		c.Fatal(err)
+	}
+
+	out, err := bufio.NewReader(stdout).ReadString('\n')
+	if err != nil {
+		c.Fatal(err)
+	}
+	if strings.TrimSpace(out) != "aba" {
+		c.Fatalf("expected 'aba', got %q", out)
+	}
+}
+
 // "test" should be printed
 func (s *DockerSuite) TestRunWithCPUQuota(c *check.C) {
 	testRequires(c, cpuCfsQuota)
