@@ -5,7 +5,7 @@ set -e
 # Original version by Jerome Petazzoni <jerome@docker.com>
 # See the blog post: https://blog.docker.com/2013/09/docker-can-now-run-within-docker/
 #
-# This script should be executed inside a docker container in privilieged mode
+# This script should be executed inside a docker container in privileged mode
 # ('docker run --privileged', introduced in docker 0.6).
 
 # Usage: dind CMD [ARG...]
