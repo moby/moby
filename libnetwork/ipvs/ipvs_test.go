@@ -218,7 +218,7 @@ func TestDestination(t *testing.T) {
 	i, err := New("")
 	require.NoError(t, err)
 
-	for _, protocol := range []string{"TCP"} {
+	for _, protocol := range protocols {
 		var serviceAddress string
 
 		s := Service{

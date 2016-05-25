@@ -15,5 +15,6 @@ message EndpointRecord {
 	string name = 1;
 	string service_name = 2;
 	string service_id = 3 [(gogoproto.customname) = "ServiceID"];
-	string endpoint_ip = 4 [(gogoproto.customname) = "EndpointIP"];
+	string virtual_ip = 4 [(gogoproto.customname) = "VirtualIP"];
+	string endpoint_ip = 5 [(gogoproto.customname) = "EndpointIP"];
 }
