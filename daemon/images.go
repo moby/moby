@@ -15,6 +15,8 @@ import (
 var acceptedImageFilterTags = map[string]bool{
 	"dangling": true,
 	"label":    true,
+	"before":   true,
+	"since":    true,
 }
 
 // byCreated is a temporary type used to sort a list of images by creation
@@ -63,6 +65,23 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool) ([]*types.Imag
 		allImages = daemon.imageStore.Map()
 	}
 
+	var beforeFilter, sinceFilter *image.Image
+	err = imageFilters.WalkValues("before", func(value string) error {
+		beforeFilter, err = daemon.GetImage(value)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	err = imageFilters.WalkValues("since", func(value string) error {
+		sinceFilter, err = daemon.GetImage(value)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	images := []*types.Image{}
 
 	var filterTagged bool
@@ -76,6 +95,18 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool) ([]*types.Imag
 	}
 
 	for id, img := range allImages {
+		if beforeFilter != nil {
+			if img.Created.Equal(beforeFilter.Created) || img.Created.After(beforeFilter.Created) {
+				continue
+			}
+		}
+
+		if sinceFilter != nil {
+			if img.Created.Equal(sinceFilter.Created) || img.Created.Before(sinceFilter.Created) {
+				continue
+			}
+		}
+
 		if imageFilters.Include("label") {
 			// Very old image that do not have image.Config (or even labels)
 			if img.Config == nil {
