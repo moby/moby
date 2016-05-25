@@ -22,7 +22,7 @@ times but with different values, newer labels overwrite previous labels. Docker
 uses the last `key=value` you supply.
 
 >**Note:** Support for daemon-labels was added in Docker 1.4.1. Labels on
->containers and images are new in Docker 1.6.0
+>containers and images were added in Docker 1.6.0
 
 ## Label keys (namespaces)
 

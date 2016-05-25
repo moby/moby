@@ -289,7 +289,7 @@ examine its networking stack:
 $ docker attach container2
 ```
 
-If you look a the container's network stack you should see two Ethernet interfaces, one for the default bridge network and one for the `isolated_nw` network.
+If you look at the container's network stack you should see two Ethernet interfaces, one for the default bridge network and one for the `isolated_nw` network.
 
 ```bash
 / # ifconfig

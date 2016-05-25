@@ -27,6 +27,15 @@ can `pull` and try without needing to define and configure your own.
 To download a particular image, or set of images (i.e., a repository),
 use `docker pull`.
 
+## Proxy configuration
+
+If you are behind a HTTP proxy server, for example in corporate settings,
+before open a connect to registry, you may need to configure the Docker
+daemon's proxy settings, using the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
+environment variables. To set these environment variables on a host using
+`systemd`, refer to the [control and configure Docker with systemd](../../admin/systemd.md#http-proxy)
+for variables configuration.
+
 ## Examples
 
 ### Pull an image from Docker Hub

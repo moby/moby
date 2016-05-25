@@ -612,15 +612,12 @@ with the same logic -- if the original volume was specified with a name it will 
 
 
 You can override the default labeling scheme for each container by specifying
-the `--security-opt` flag. For example, you can specify the MCS/MLS level, a
-requirement for MLS systems. Specifying the level in the following command
+the `--security-opt` flag. Specifying the level in the following command
 allows you to share the same content between containers.
 
     $ docker run --security-opt label=level:s0:c100,c200 -it fedora bash
 
-An MLS example might be:
-
-    $ docker run --security-opt label=level:TopSecret -it rhel7 bash
+> **Note**: Automatic translation of MLS labels is not currently supported.
 
 To disable the security labeling for this container versus running with the
 `--permissive` flag, use the following command:
@@ -1433,7 +1430,7 @@ The `host-src` can either be an absolute path or a `name` value. If you
 supply an absolute path for the `host-dir`, Docker bind-mounts to the path
 you specify. If you supply a `name`, Docker creates a named volume by that `name`.
 
-A `name` value must start with start with an alphanumeric character,
+A `name` value must start with an alphanumeric character,
 followed by `a-z0-9`, `_` (underscore), `.` (period) or `-` (hyphen).
 An absolute path starts with a `/` (forward slash).
 
