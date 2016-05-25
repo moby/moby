@@ -1076,7 +1076,7 @@ func (s *DockerSuite) TestRunApparmorProcDirectory(c *check.C) {
 // make sure the default profile can be successfully parsed (using unshare as it is
 // something which we know is blocked in the default profile)
 func (s *DockerSuite) TestRunSeccompWithDefaultProfile(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, SameHostDaemon, seccompEnabled, NotArm, NotPpc64le)
 
 	out, _, err := dockerCmdWithError("run", "--security-opt", "seccomp=../profiles/seccomp/default.json", "debian:jessie", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami")
 	c.Assert(err, checker.NotNil, check.Commentf(out))
