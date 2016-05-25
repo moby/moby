@@ -112,7 +112,9 @@ func (r *FilterLayerReader) Close() (err error) {
 }
 
 // NewLayerReader returns a new layer reader for reading the contents of an on-disk layer.
-func NewLayerReader(info DriverInfo, layerId string, parentLayerPaths []string) (LayerReader, error) {
+// The caller must have taken the SeBackupPrivilege privilege
+// to call this and any methods on the resulting LayerReader.
+func NewLayerReader(info DriverInfo, layerID string, parentLayerPaths []string) (LayerReader, error) {
 	if procExportLayerBegin.Find() != nil {
 		// The new layer reader is not available on this Windows build. Fall back to the
 		// legacy export code path.
@@ -120,7 +122,7 @@ func NewLayerReader(info DriverInfo, layerId string, parentLayerPaths []string) 
 		if err != nil {
 			return nil, err
 		}
-		err = ExportLayer(info, layerId, path, parentLayerPaths)
+		err = ExportLayer(info, layerID, path, parentLayerPaths)
 		if err != nil {
 			os.RemoveAll(path)
 			return nil, err
@@ -137,7 +139,7 @@ func NewLayerReader(info DriverInfo, layerId string, parentLayerPaths []string) 
 		return nil, err
 	}
 	r := &FilterLayerReader{}
-	err = exportLayerBegin(&infop, layerId, layers, &r.context)
+	err = exportLayerBegin(&infop, layerID, layers, &r.context)
 	if err != nil {
 		return nil, makeError(err, "ExportLayerBegin", "")
 	}
