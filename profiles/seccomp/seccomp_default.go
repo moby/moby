@@ -89,6 +89,17 @@ func DefaultProfile(rs *specs.Spec) *types.Seccomp {
 			Args:   []*types.Arg{},
 		},
 		{
+			Name:   "chown",
+			Action: types.ActAllow,
+			Args:   []*types.Arg{},
+		},
+		{
+			Name:   "chown32",
+			Action: types.ActAllow,
+			Args:   []*types.Arg{},
+		},
+
+		{
 			Name:   "clock_getres",
 			Action: types.ActAllow,
 			Args:   []*types.Arg{},
@@ -240,6 +251,21 @@ func DefaultProfile(rs *specs.Spec) *types.Seccomp {
 		},
 		{
 			Name:   "fchmodat",
+			Action: types.ActAllow,
+			Args:   []*types.Arg{},
+		},
+		{
+			Name:   "fchown",
+			Action: types.ActAllow,
+			Args:   []*types.Arg{},
+		},
+		{
+			Name:   "fchown32",
+			Action: types.ActAllow,
+			Args:   []*types.Arg{},
+		},
+		{
+			Name:   "fchownat",
 			Action: types.ActAllow,
 			Args:   []*types.Arg{},
 		},
@@ -585,6 +611,16 @@ func DefaultProfile(rs *specs.Spec) *types.Seccomp {
 		},
 		{
 			Name:   "kill",
+			Action: types.ActAllow,
+			Args:   []*types.Arg{},
+		},
+		{
+			Name:   "lchown",
+			Action: types.ActAllow,
+			Args:   []*types.Arg{},
+		},
+		{
+			Name:   "lchown32",
 			Action: types.ActAllow,
 			Args:   []*types.Arg{},
 		},
@@ -1591,44 +1627,6 @@ func DefaultProfile(rs *specs.Spec) *types.Seccomp {
 	var cap string
 	for _, cap = range rs.Process.Capabilities {
 		switch cap {
-		case "CAP_CHOWN":
-			syscalls = append(syscalls, []*types.Syscall{
-				{
-					Name:   "chown",
-					Action: types.ActAllow,
-					Args:   []*types.Arg{},
-				},
-				{
-					Name:   "chown32",
-					Action: types.ActAllow,
-					Args:   []*types.Arg{},
-				},
-				{
-					Name:   "fchown",
-					Action: types.ActAllow,
-					Args:   []*types.Arg{},
-				},
-				{
-					Name:   "fchown32",
-					Action: types.ActAllow,
-					Args:   []*types.Arg{},
-				},
-				{
-					Name:   "fchownat",
-					Action: types.ActAllow,
-					Args:   []*types.Arg{},
-				},
-				{
-					Name:   "lchown",
-					Action: types.ActAllow,
-					Args:   []*types.Arg{},
-				},
-				{
-					Name:   "lchown32",
-					Action: types.ActAllow,
-					Args:   []*types.Arg{},
-				},
-			}...)
 		case "CAP_DAC_READ_SEARCH":
 			syscalls = append(syscalls, []*types.Syscall{
 				{
@@ -1849,17 +1847,6 @@ func DefaultProfile(rs *specs.Spec) *types.Seccomp {
 						Op:       types.OpMaskedEqual,
 					},
 				},
-			},
-		}...)
-	}
-
-	// We need some additional syscalls in this case see #22252
-	if !rs.Process.NoNewPrivileges {
-		syscalls = append(syscalls, []*types.Syscall{
-			{
-				Name:   "fchown",
-				Action: types.ActAllow,
-				Args:   []*types.Arg{},
 			},
 		}...)
 	}
