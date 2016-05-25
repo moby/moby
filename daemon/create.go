@@ -142,8 +142,8 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig) (retC *containe
 	return container, nil
 }
 
-func (daemon *Daemon) generateSecurityOpt(ipcMode containertypes.IpcMode, pidMode containertypes.PidMode) ([]string, error) {
-	if ipcMode.IsHost() || pidMode.IsHost() {
+func (daemon *Daemon) generateSecurityOpt(ipcMode containertypes.IpcMode, pidMode containertypes.PidMode, privileged bool) ([]string, error) {
+	if ipcMode.IsHost() || pidMode.IsHost() || privileged {
 		return label.DisableSecOpt(), nil
 	}
 
