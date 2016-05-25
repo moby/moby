@@ -80,6 +80,20 @@ func (daemon *Daemon) LogNetworkEventWithAttributes(nw libnetwork.Network, actio
 	daemon.EventsService.Log(action, events.NetworkEventType, actor)
 }
 
+// LogDaemonEventWithAttributes generates an event related to the daemon itself with specific given attributes.
+func (daemon *Daemon) LogDaemonEventWithAttributes(action string, attributes map[string]string) {
+	if daemon.EventsService != nil {
+		if info, err := daemon.SystemInfo(); err == nil && info.Name != "" {
+			attributes["name"] = info.Name
+		}
+		actor := events.Actor{
+			ID:         daemon.ID,
+			Attributes: attributes,
+		}
+		daemon.EventsService.Log(action, events.DaemonEventType, actor)
+	}
+}
+
 // SubscribeToEvents returns the currently record of events, a channel to stream new events from, and a function to cancel the stream of events.
 func (daemon *Daemon) SubscribeToEvents(since, until time.Time, filter filters.Args) ([]events.Message, chan interface{}) {
 	ef := daemonevents.NewFilter(filter)

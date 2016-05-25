@@ -70,6 +70,7 @@ type Driver struct {
 	root          string
 	uidMaps       []idtools.IDMap
 	gidMaps       []idtools.IDMap
+	ctr           *graphdriver.RefCounter
 	pathCacheLock sync.Mutex
 	pathCache     map[string]string
 }
@@ -108,6 +109,7 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		uidMaps:   uidMaps,
 		gidMaps:   gidMaps,
 		pathCache: make(map[string]string),
+		ctr:       graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicAufs)),
 	}
 
 	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
@@ -320,6 +322,9 @@ func (a *Driver) Get(id, mountLabel string) (string, error) {
 			m = a.getMountpoint(id)
 		}
 	}
+	if count := a.ctr.Increment(m); count > 1 {
+		return m, nil
+	}
 
 	// If a dir does not have a parent ( no layers )do not try to mount
 	// just return the diff path to the data
@@ -344,6 +349,9 @@ func (a *Driver) Put(id string) error {
 		a.pathCache[id] = m
 	}
 	a.pathCacheLock.Unlock()
+	if count := a.ctr.Decrement(m); count > 0 {
+		return nil
+	}
 
 	err := a.unmount(m)
 	if err != nil {

@@ -40,12 +40,14 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		cli.in = os.Stdin
 	}
 
+	ctx := context.Background()
+
 	var serverAddress string
 	var isDefaultRegistry bool
 	if len(cmd.Args()) > 0 {
 		serverAddress = cmd.Arg(0)
 	} else {
-		serverAddress = cli.electAuthServer()
+		serverAddress = cli.electAuthServer(ctx)
 		isDefaultRegistry = true
 	}
 
@@ -54,7 +56,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		return err
 	}
 
-	response, err := cli.client.RegistryLogin(context.Background(), authConfig)
+	response, err := cli.client.RegistryLogin(ctx, authConfig)
 	if err != nil {
 		return err
 	}

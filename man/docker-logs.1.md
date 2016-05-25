@@ -21,7 +21,7 @@ any logs at the time you execute docker logs).
 
 The **docker logs --follow** command combines commands **docker logs** and
 **docker attach**. It will first return all logs from the beginning and
-then continue streaming new output from the container’s stdout and stderr.
+then continue streaming new output from the container's stdout and stderr.
 
 **Warning**: This command works only for the **json-file** or **journald**
 logging drivers.
@@ -46,7 +46,7 @@ logging drivers.
    Output the specified number of lines at the end of logs (defaults to all logs)
 
 The `--since` option can be Unix timestamps, date formatted timestamps, or Go
-duration strings (e.g. `10m`, `1h30m`) computed relative to the client machine’s
+duration strings (e.g. `10m`, `1h30m`) computed relative to the client machine's
 time. Supported formats for date formatted time stamps include RFC3339Nano,
 RFC3339, `2006-01-02T15:04:05`, `2006-01-02T15:04:05.999999999`,
 `2006-01-02Z07:00`, and `2006-01-02`. The local timezone on the client will be

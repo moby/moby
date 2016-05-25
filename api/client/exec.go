@@ -34,7 +34,9 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 	// Send client escape keys
 	execConfig.DetachKeys = cli.configFile.DetachKeys
 
-	response, err := cli.client.ContainerExecCreate(context.Background(), container, *execConfig)
+	ctx := context.Background()
+
+	response, err := cli.client.ContainerExecCreate(ctx, container, *execConfig)
 	if err != nil {
 		return err
 	}
@@ -56,7 +58,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 			Tty:    execConfig.Tty,
 		}
 
-		if err := cli.client.ContainerExecStart(context.Background(), execID, execStartCheck); err != nil {
+		if err := cli.client.ContainerExecStart(ctx, execID, execStartCheck); err != nil {
 			return err
 		}
 		// For now don't print this - wait for when we support exec wait()
@@ -85,17 +87,17 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 		}
 	}
 
-	resp, err := cli.client.ContainerExecAttach(context.Background(), execID, *execConfig)
+	resp, err := cli.client.ContainerExecAttach(ctx, execID, *execConfig)
 	if err != nil {
 		return err
 	}
 	defer resp.Close()
 	errCh = promise.Go(func() error {
-		return cli.holdHijackedConnection(context.Background(), execConfig.Tty, in, out, stderr, resp)
+		return cli.holdHijackedConnection(ctx, execConfig.Tty, in, out, stderr, resp)
 	})
 
 	if execConfig.Tty && cli.isTerminalIn {
-		if err := cli.monitorTtySize(execID, true); err != nil {
+		if err := cli.monitorTtySize(ctx, execID, true); err != nil {
 			fmt.Fprintf(cli.err, "Error monitoring TTY size: %s\n", err)
 		}
 	}
@@ -106,7 +108,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 	}
 
 	var status int
-	if _, status, err = getExecExitCode(cli, execID); err != nil {
+	if _, status, err = cli.getExecExitCode(ctx, execID); err != nil {
 		return err
 	}
 

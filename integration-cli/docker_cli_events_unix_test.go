@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 	"unicode"
 
@@ -365,4 +366,100 @@ func (s *DockerSuite) TestEventsFilterNetworkID(c *check.C) {
 
 	c.Assert(events[0], checker.Contains, "test-event-network-local")
 	c.Assert(events[0], checker.Contains, "type=bridge")
+}
+
+func (s *DockerDaemonSuite) TestDaemonEvents(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	// daemon config file
+	configFilePath := "test.json"
+	configFile, err := os.Create(configFilePath)
+	c.Assert(err, checker.IsNil)
+	defer os.Remove(configFilePath)
+
+	daemonConfig := `{"labels":["foo=bar"]}`
+	fmt.Fprintf(configFile, "%s", daemonConfig)
+	configFile.Close()
+	c.Assert(s.d.Start(fmt.Sprintf("--config-file=%s", configFilePath)), check.IsNil)
+
+	// Get daemon ID
+	out, err := s.d.Cmd("info")
+	c.Assert(err, checker.IsNil)
+	daemonID := ""
+	daemonName := ""
+	for _, line := range strings.Split(out, "\n") {
+		if strings.HasPrefix(line, "ID: ") {
+			daemonID = strings.TrimPrefix(line, "ID: ")
+		} else if strings.HasPrefix(line, "Name: ") {
+			daemonName = strings.TrimPrefix(line, "Name: ")
+		}
+	}
+	c.Assert(daemonID, checker.Not(checker.Equals), "")
+
+	configFile, err = os.Create(configFilePath)
+	c.Assert(err, checker.IsNil)
+	daemonConfig = `{"max-concurrent-downloads":1,"labels":["bar=foo"]}`
+	fmt.Fprintf(configFile, "%s", daemonConfig)
+	configFile.Close()
+
+	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+
+	time.Sleep(3 * time.Second)
+
+	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c))
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, fmt.Sprintf("daemon reload %s (cluster-advertise=, cluster-store=, cluster-store-opts={}, debug=true, labels=[\"bar=foo\"], max-concurrent-downloads=1, max-concurrent-uploads=5, name=%s)", daemonID, daemonName))
+}
+
+func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	// daemon config file
+	configFilePath := "test.json"
+	configFile, err := os.Create(configFilePath)
+	c.Assert(err, checker.IsNil)
+	defer os.Remove(configFilePath)
+
+	daemonConfig := `{"labels":["foo=bar"]}`
+	fmt.Fprintf(configFile, "%s", daemonConfig)
+	configFile.Close()
+	c.Assert(s.d.Start(fmt.Sprintf("--config-file=%s", configFilePath)), check.IsNil)
+
+	// Get daemon ID
+	out, err := s.d.Cmd("info")
+	c.Assert(err, checker.IsNil)
+	daemonID := ""
+	daemonName := ""
+	for _, line := range strings.Split(out, "\n") {
+		if strings.HasPrefix(line, "ID: ") {
+			daemonID = strings.TrimPrefix(line, "ID: ")
+		} else if strings.HasPrefix(line, "Name: ") {
+			daemonName = strings.TrimPrefix(line, "Name: ")
+		}
+	}
+	c.Assert(daemonID, checker.Not(checker.Equals), "")
+
+	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+
+	time.Sleep(3 * time.Second)
+
+	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", fmt.Sprintf("daemon=%s", daemonID))
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, fmt.Sprintf("daemon reload %s", daemonID))
+
+	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", fmt.Sprintf("daemon=%s", daemonName))
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, fmt.Sprintf("daemon reload %s", daemonID))
+
+	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", "daemon=foo")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Not(checker.Contains), fmt.Sprintf("daemon reload %s", daemonID))
+
+	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", "type=daemon")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, fmt.Sprintf("daemon reload %s", daemonID))
+
+	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", "type=container")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Not(checker.Contains), fmt.Sprintf("daemon reload %s", daemonID))
 }

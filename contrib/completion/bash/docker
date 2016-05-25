@@ -966,6 +966,11 @@ _docker_events() {
 			__docker_complete_containers_all
 			return
 			;;
+		daemon)
+			local name=$(__docker_q info | sed -n 's/^\(ID\|Name\): //p')
+			COMPREPLY=( $( compgen -W "$name" -- "${cur##*=}" ) )
+			return
+			;;
 		event)
 			COMPREPLY=( $( compgen -W "
 				attach
@@ -987,6 +992,7 @@ _docker_events() {
 				pause
 				pull
 				push
+				reload
 				rename
 				resize
 				restart
@@ -1012,7 +1018,7 @@ _docker_events() {
 			return
 			;;
 		type)
-			COMPREPLY=( $( compgen -W "container image network volume" -- "${cur##*=}" ) )
+			COMPREPLY=( $( compgen -W "container daemon image network volume" -- "${cur##*=}" ) )
 			return
 			;;
 		volume)
@@ -1024,7 +1030,7 @@ _docker_events() {
 
 	case "$prev" in
 		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "container event image label network type volume" -- "$cur" ) )
+			COMPREPLY=( $( compgen -S = -W "container daemon event image label network type volume" -- "$cur" ) )
 			__docker_nospace
 			return
 			;;
@@ -1907,15 +1913,29 @@ _docker_save() {
 }
 
 _docker_search() {
+	local key=$(__docker_map_key_of_current_option '--filter|-f')
+	case "$key" in
+		is-automated)
+			COMPREPLY=( $( compgen -W "false true" -- "${cur##*=}" ) )
+			return
+			;;
+		is-official)
+			COMPREPLY=( $( compgen -W "false true" -- "${cur##*=}" ) )
+			return
+			;;
+	esac
+
 	case "$prev" in
-		--stars|-s)
+		--filter|-f)
+			COMPREPLY=( $( compgen -S = -W "is-automated is-official stars" -- "$cur" ) )
+			__docker_nospace
 			return
 			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--automated --help --no-trunc --stars -s" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--filter --help --no-trunc" -- "$cur" ) )
 			;;
 	esac
 }

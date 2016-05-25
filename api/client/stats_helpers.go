@@ -63,7 +63,7 @@ func (s *stats) isKnownContainer(cid string) (int, bool) {
 	return -1, false
 }
 
-func (s *containerStats) Collect(cli client.APIClient, streamStats bool, waitFirst *sync.WaitGroup) {
+func (s *containerStats) Collect(ctx context.Context, cli client.APIClient, streamStats bool, waitFirst *sync.WaitGroup) {
 	logrus.Debugf("collecting stats for %s", s.Name)
 	var (
 		getFirst       bool
@@ -80,7 +80,7 @@ func (s *containerStats) Collect(cli client.APIClient, streamStats bool, waitFir
 		}
 	}()
 
-	responseBody, err := cli.ContainerStats(context.Background(), s.Name, streamStats)
+	responseBody, err := cli.ContainerStats(ctx, s.Name, streamStats)
 	if err != nil {
 		s.mu.Lock()
 		s.err = err

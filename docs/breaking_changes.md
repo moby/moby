@@ -22,6 +22,13 @@ Unfortunately, Docker is a fast moving project, and newly introduced features
 may sometime introduce breaking changes and/or incompatibilities. This page
 documents these by Engine version.
 
+# Engine 1.12
+
+Docker clients <= 1.9.2 used an invalid Host header when making request to the
+daemon. Docker 1.12 is built using golang 1.6 which is now checking the validity
+of the Host header and as such clients <= 1.9.2 can't talk anymore to the daemon. 
+[An environment variable was added to overcome this issue.](reference/commandline/dockerd.md#miscellaneous-options)
+
 # Engine 1.10
 
 There were two breaking changes in the 1.10 release.

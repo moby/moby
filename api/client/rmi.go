@@ -31,6 +31,8 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 		v.Set("noprune", "1")
 	}
 
+	ctx := context.Background()
+
 	var errs []string
 	for _, image := range cmd.Args() {
 		options := types.ImageRemoveOptions{
@@ -38,7 +40,7 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 			PruneChildren: !*noprune,
 		}
 
-		dels, err := cli.client.ImageRemove(context.Background(), image, options)
+		dels, err := cli.client.ImageRemove(ctx, image, options)
 		if err != nil {
 			errs = append(errs, err.Error())
 		} else {

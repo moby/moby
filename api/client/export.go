@@ -38,5 +38,4 @@ func (cli *DockerCli) CmdExport(args ...string) error {
 	}
 
 	return copyToFile(*outfile, responseBody)
-
 }

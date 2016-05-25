@@ -228,10 +228,11 @@ func (cli *DaemonCli) start() (err error) {
 		if proto == "tcp" && (serverConfig.TLSConfig == nil || serverConfig.TLSConfig.ClientAuth != tls.RequireAndVerifyClientCert) {
 			logrus.Warn("[!] DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING [!]")
 		}
-		l, err := listeners.Init(proto, addr, serverConfig.SocketGroup, serverConfig.TLSConfig)
+		ls, err := listeners.Init(proto, addr, serverConfig.SocketGroup, serverConfig.TLSConfig)
 		if err != nil {
 			return err
 		}
+		ls = wrapListeners(proto, ls)
 		// If we're binding to a TCP port, make sure that a container doesn't try to use it.
 		if proto == "tcp" {
 			if err := allocateDaemonPort(addr); err != nil {
@@ -239,7 +240,7 @@ func (cli *DaemonCli) start() (err error) {
 			}
 		}
 		logrus.Debugf("Listener created for HTTP on %s (%s)", protoAddrParts[0], protoAddrParts[1])
-		api.Accept(protoAddrParts[1], l...)
+		api.Accept(protoAddrParts[1], ls...)
 	}
 
 	if err := migrateKey(); err != nil {

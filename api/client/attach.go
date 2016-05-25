@@ -27,7 +27,9 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	c, err := cli.client.ContainerInspect(context.Background(), cmd.Arg(0))
+	ctx := context.Background()
+
+	c, err := cli.client.ContainerInspect(ctx, cmd.Arg(0))
 	if err != nil {
 		return err
 	}
@@ -64,11 +66,11 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	}
 
 	if *proxy && !c.Config.Tty {
-		sigc := cli.forwardAllSignals(container)
+		sigc := cli.forwardAllSignals(ctx, container)
 		defer signal.StopCatch(sigc)
 	}
 
-	resp, errAttach := cli.client.ContainerAttach(context.Background(), container, options)
+	resp, errAttach := cli.client.ContainerAttach(ctx, container, options)
 	if errAttach != nil && errAttach != httputil.ErrPersistEOF {
 		// ContainerAttach returns an ErrPersistEOF (connection closed)
 		// means server met an error and put it in Hijacked connection
@@ -83,15 +85,15 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		// terminal, the only way to get the shell prompt to display for attaches 2+ is to artificially
 		// resize it, then go back to normal. Without this, every attach after the first will
 		// require the user to manually resize or hit enter.
-		cli.resizeTtyTo(cmd.Arg(0), height+1, width+1, false)
+		cli.resizeTtyTo(ctx, cmd.Arg(0), height+1, width+1, false)
 
 		// After the above resizing occurs, the call to monitorTtySize below will handle resetting back
 		// to the actual size.
-		if err := cli.monitorTtySize(cmd.Arg(0), false); err != nil {
+		if err := cli.monitorTtySize(ctx, cmd.Arg(0), false); err != nil {
 			logrus.Debugf("Error monitoring TTY size: %s", err)
 		}
 	}
-	if err := cli.holdHijackedConnection(context.Background(), c.Config.Tty, in, cli.out, cli.err, resp); err != nil {
+	if err := cli.holdHijackedConnection(ctx, c.Config.Tty, in, cli.out, cli.err, resp); err != nil {
 		return err
 	}
 
@@ -99,7 +101,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return errAttach
 	}
 
-	_, status, err := getExitCode(cli, container)
+	_, status, err := cli.getExitCode(ctx, container)
 	if err != nil {
 		return err
 	}

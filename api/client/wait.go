@@ -21,9 +21,11 @@ func (cli *DockerCli) CmdWait(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
+	ctx := context.Background()
+
 	var errs []string
 	for _, name := range cmd.Args() {
-		status, err := cli.client.ContainerWait(context.Background(), name)
+		status, err := cli.client.ContainerWait(ctx, name)
 		if err != nil {
 			errs = append(errs, err.Error())
 		} else {

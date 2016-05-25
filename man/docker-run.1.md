@@ -103,7 +103,7 @@ pull** IMAGE, before it starts the container from that image.
 
    In foreground mode (the default when **-d**
 is not specified), **docker run** can start the process in the container
-and attach the console to the process’s standard input, output, and standard
+and attach the console to the process's standard input, output, and standard
 error. It can even pretend to be a TTY (this is what most commandline
 executables expect) and pass along signals. The **-a** option can be set for
 each of stdin, stdout, and stderr.
@@ -297,7 +297,9 @@ redirection on the host system.
                                'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
 
 **--isolation**="*default*"
-   Isolation specifies the type of isolation technology used by containers.
+   Isolation specifies the type of isolation technology used by containers. Note
+that the default on Windows server is `process`, and the default on Windows client
+is `hyperv`. Linux only supports `default`.
 
 **-l**, **--label**=[]
    Set metadata on the container (e.g., --label com.example.key=value)
@@ -735,7 +737,7 @@ This should list the message sent to logger.
 
 If you do not specify -a then Docker will attach everything (stdin,stdout,stderr)
 . You can specify to which of the three standard streams (stdin, stdout, stderr)
-you’d like to connect instead, as in:
+you'd like to connect instead, as in:
 
     # docker run -a stdin -a stdout -i -t fedora /bin/bash
 
@@ -849,7 +851,7 @@ If a container is connected to the default bridge network and `linked`
 with other containers, then the container's `/etc/hosts` file is updated
 with the linked container's name.
 
-> **Note** Since Docker may live update the container’s `/etc/hosts` file, there
+> **Note** Since Docker may live update the container's `/etc/hosts` file, there
 may be situations when processes inside the container can end up reading an
 empty or incomplete `/etc/hosts` file. In most cases, retrying the read again
 should fix the problem.

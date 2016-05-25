@@ -630,15 +630,12 @@ with the same logic -- if the original volume was specified with a name it will 
 
 
 You can override the default labeling scheme for each container by specifying
-the `--security-opt` flag. For example, you can specify the MCS/MLS level, a
-requirement for MLS systems. Specifying the level in the following command
+the `--security-opt` flag. Specifying the level in the following command
 allows you to share the same content between containers.
 
     $ docker run --security-opt label=level:s0:c100,c200 -it fedora bash
 
-An MLS example might be:
-
-    $ docker run --security-opt label=level:TopSecret -it rhel7 bash
+> **Note**: Automatic translation of MLS labels is not currently supported.
 
 To disable the security labeling for this container versus running with the
 `--permissive` flag, use the following command:
@@ -1089,14 +1086,6 @@ one can use this flag:
     --privileged=false: Give extended privileges to this container
     --device=[]: Allows you to run devices inside the container without the --privileged flag.
 
-> **Note:**
-> With Docker 1.10 and greater, the default seccomp profile will also block
-> syscalls, regardless of `--cap-add` passed to the container. We recommend in
-> these cases to create your own custom seccomp profile based off our
-> [default](https://github.com/docker/docker/blob/master/profiles/seccomp/default.json).
-> Or if you don't want to run with the default seccomp profile, you can pass
-> `--security-opt=seccomp=unconfined` on run.
-
 By default, Docker containers are "unprivileged" and cannot, for
 example, run a Docker daemon inside a Docker container. This is because
 by default a container is not allowed to access any devices, but a
@@ -1214,6 +1203,11 @@ To mount a FUSE based filesystem, you need to combine both `--cap-add` and
     -rw-rw-r-- 1 1000 1000    461 Dec  4 06:08 .gitignore
     ....
 
+The default seccomp profile will adjust to the selected capabilities, in order to allow
+use of facilities allowed by the capabilities, so you should not have to adjust this,
+since Docker 1.12. In Docker 1.10 and 1.11 this did not happen and it may be necessary
+to use a custom seccomp profile or use `--security-opt seccomp=unconfined` when adding
+capabilities.
 
 ## Logging drivers (--log-driver)
 
@@ -1451,7 +1445,7 @@ The `host-src` can either be an absolute path or a `name` value. If you
 supply an absolute path for the `host-dir`, Docker bind-mounts to the path
 you specify. If you supply a `name`, Docker creates a named volume by that `name`.
 
-A `name` value must start with start with an alphanumeric character,
+A `name` value must start with an alphanumeric character,
 followed by `a-z0-9`, `_` (underscore), `.` (period) or `-` (hyphen).
 An absolute path starts with a `/` (forward slash).
 

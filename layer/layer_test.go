@@ -174,10 +174,7 @@ func getCachedLayer(l Layer) *roLayer {
 }
 
 func getMountLayer(l RWLayer) *mountedLayer {
-	if rl, ok := l.(*referencedRWLayer); ok {
-		return rl.mountedLayer
-	}
-	return l.(*mountedLayer)
+	return l.(*referencedRWLayer).mountedLayer
 }
 
 func createMetadata(layers ...Layer) []Metadata {
@@ -400,13 +397,10 @@ func TestStoreRestore(t *testing.T) {
 	if err := ioutil.WriteFile(filepath.Join(path, "testfile.txt"), []byte("nothing here"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	assertActivityCount(t, m, 1)
 
 	if err := m.Unmount(); err != nil {
 		t.Fatal(err)
 	}
-
-	assertActivityCount(t, m, 0)
 
 	ls2, err := NewStoreFromGraphDriver(ls.(*layerStore).store, ls.(*layerStore).driver)
 	if err != nil {
@@ -438,19 +432,14 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatalf("Unexpected path %s, expected %s", mountPath, path)
 	}
 
-	assertActivityCount(t, m2, 1)
-
 	if mountPath, err := m2.Mount(""); err != nil {
 		t.Fatal(err)
 	} else if path != mountPath {
 		t.Fatalf("Unexpected path %s, expected %s", mountPath, path)
 	}
-	assertActivityCount(t, m2, 2)
 	if err := m2.Unmount(); err != nil {
 		t.Fatal(err)
 	}
-
-	assertActivityCount(t, m2, 1)
 
 	b, err := ioutil.ReadFile(filepath.Join(path, "testfile.txt"))
 	if err != nil {
@@ -463,8 +452,6 @@ func TestStoreRestore(t *testing.T) {
 	if err := m2.Unmount(); err != nil {
 		t.Fatal(err)
 	}
-
-	assertActivityCount(t, m2, 0)
 
 	if metadata, err := ls2.ReleaseRWLayer(m2); err != nil {
 		t.Fatal(err)
@@ -671,13 +658,6 @@ func assertReferences(t *testing.T, references ...Layer) {
 	}
 	if rc := len(base.references); rc != len(references) {
 		t.Fatalf("Unexpected number of references %d, expecting %d", rc, len(references))
-	}
-}
-
-func assertActivityCount(t *testing.T, l RWLayer, expected int) {
-	rl := l.(*referencedRWLayer)
-	if rl.activityCount != expected {
-		t.Fatalf("Unexpected activity count %d, expected %d", rl.activityCount, expected)
 	}
 }
 

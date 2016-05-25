@@ -102,6 +102,9 @@ func (ctr *container) start() error {
 	}
 	ctr.startedAt = time.Now()
 
+	// TEMP: Work around Windows BS/DEL behavior.
+	iopipe.Stdin = fixStdinBackspaceBehavior(iopipe.Stdin, ctr.ociSpec.Process.Terminal)
+
 	// Convert io.ReadClosers to io.Readers
 	if stdout != nil {
 		iopipe.Stdout = openReaderFromPipe(stdout)

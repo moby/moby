@@ -862,138 +862,6 @@ RUN [ $(ls -l / | grep new_dir | awk '{print $3":"$4}') = 'root:root' ]`, true);
 	}
 }
 
-func (s *DockerSuite) TestBuildAddMultipleFilesToFile(c *check.C) {
-	name := "testaddmultiplefilestofile"
-
-	ctx, err := fakeContext(`FROM `+minimalBaseImage()+`
-	ADD file1.txt file2.txt test
-	`,
-		map[string]string{
-			"file1.txt": "test1",
-			"file2.txt": "test1",
-		})
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer ctx.Close()
-
-	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
-	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
-		c.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
-	}
-
-}
-
-func (s *DockerSuite) TestBuildJSONAddMultipleFilesToFile(c *check.C) {
-	name := "testjsonaddmultiplefilestofile"
-
-	ctx, err := fakeContext(`FROM `+minimalBaseImage()+`
-	ADD ["file1.txt", "file2.txt", "test"]
-	`,
-		map[string]string{
-			"file1.txt": "test1",
-			"file2.txt": "test1",
-		})
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer ctx.Close()
-
-	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
-	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
-		c.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
-	}
-
-}
-
-func (s *DockerSuite) TestBuildAddMultipleFilesToFileWild(c *check.C) {
-	name := "testaddmultiplefilestofilewild"
-
-	ctx, err := fakeContext(`FROM `+minimalBaseImage()+`
-	ADD file*.txt test
-	`,
-		map[string]string{
-			"file1.txt": "test1",
-			"file2.txt": "test1",
-		})
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer ctx.Close()
-
-	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
-	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
-		c.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
-	}
-
-}
-
-func (s *DockerSuite) TestBuildJSONAddMultipleFilesToFileWild(c *check.C) {
-	name := "testjsonaddmultiplefilestofilewild"
-
-	ctx, err := fakeContext(`FROM `+minimalBaseImage()+`
-	ADD ["file*.txt", "test"]
-	`,
-		map[string]string{
-			"file1.txt": "test1",
-			"file2.txt": "test1",
-		})
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer ctx.Close()
-
-	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
-	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
-		c.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
-	}
-
-}
-
-func (s *DockerSuite) TestBuildCopyMultipleFilesToFile(c *check.C) {
-	name := "testcopymultiplefilestofile"
-
-	ctx, err := fakeContext(`FROM `+minimalBaseImage()+`
-	COPY file1.txt file2.txt test
-	`,
-		map[string]string{
-			"file1.txt": "test1",
-			"file2.txt": "test1",
-		})
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer ctx.Close()
-
-	expected := "When using COPY with more than one source file, the destination must be a directory and end with a /"
-	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
-		c.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
-	}
-
-}
-
-func (s *DockerSuite) TestBuildJSONCopyMultipleFilesToFile(c *check.C) {
-	name := "testjsoncopymultiplefilestofile"
-
-	ctx, err := fakeContext(`FROM `+minimalBaseImage()+`
-	COPY ["file1.txt", "file2.txt", "test"]
-	`,
-		map[string]string{
-			"file1.txt": "test1",
-			"file2.txt": "test1",
-		})
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer ctx.Close()
-
-	expected := "When using COPY with more than one source file, the destination must be a directory and end with a /"
-	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
-		c.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
-	}
-
-}
-
 func (s *DockerSuite) TestBuildAddFileWithWhitespace(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Not currently passing on Windows
 	name := "testaddfilewithwhitespace"
@@ -1066,48 +934,6 @@ RUN [ $(cat "/test dir/test_file6") = 'test6' ]`,
 	}
 }
 
-func (s *DockerSuite) TestBuildAddMultipleFilesToFileWithWhitespace(c *check.C) {
-	name := "testaddmultiplefilestofilewithwhitespace"
-	ctx, err := fakeContext(`FROM busybox
-	ADD [ "test file1", "test file2", "test" ]
-    `,
-		map[string]string{
-			"test file1": "test1",
-			"test file2": "test2",
-		})
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer ctx.Close()
-
-	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
-	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
-		c.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
-	}
-
-}
-
-func (s *DockerSuite) TestBuildCopyMultipleFilesToFileWithWhitespace(c *check.C) {
-	name := "testcopymultiplefilestofilewithwhitespace"
-	ctx, err := fakeContext(`FROM busybox
-	COPY [ "test file1", "test file2", "test" ]
-        `,
-		map[string]string{
-			"test file1": "test1",
-			"test file2": "test2",
-		})
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer ctx.Close()
-
-	expected := "When using COPY with more than one source file, the destination must be a directory and end with a /"
-	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
-		c.Fatalf("Wrong error: (should contain %q) got:\n%v", expected, err)
-	}
-
-}
-
 func (s *DockerSuite) TestBuildCopyWildcard(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Windows doesn't have httpserver image yet
 	name := "testcopywildcard"
@@ -1155,26 +981,6 @@ func (s *DockerSuite) TestBuildCopyWildcard(c *check.C) {
 
 	if id1 != id2 {
 		c.Fatal("didn't use the cache")
-	}
-
-}
-
-func (s *DockerSuite) TestBuildCopyWildcardNoFind(c *check.C) {
-	name := "testcopywildcardnofind"
-	ctx, err := fakeContext(`FROM busybox
-	COPY file*.txt /tmp/
-	`, nil)
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer ctx.Close()
-
-	_, err = buildImageFromContext(name, ctx, true)
-	if err == nil {
-		c.Fatal("should have failed to find a file")
-	}
-	if !strings.Contains(err.Error(), "No source files were specified") {
-		c.Fatalf("Wrong error %v, must be about no source files", err)
 	}
 
 }
@@ -1577,17 +1383,6 @@ COPY . /`,
 
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		c.Fatal(err)
-	}
-}
-
-func (s *DockerSuite) TestBuildCopyDisallowRemote(c *check.C) {
-	name := "testcopydisallowremote"
-
-	_, out, err := buildImageWithOut(name, `FROM `+minimalBaseImage()+`
-COPY https://index.docker.io/robots.txt /`,
-		true)
-	if err == nil || !strings.Contains(out, "Source can't be a URL for COPY") {
-		c.Fatalf("Error should be about disallowed remote source, got err: %s, out: %q", err, out)
 	}
 }
 
@@ -3289,18 +3084,6 @@ func (s *DockerSuite) TestBuildFails(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildFailsDockerfileEmpty(c *check.C) {
-	name := "testbuildfails"
-	_, err := buildImage(name, ``, true)
-	if err != nil {
-		if !strings.Contains(err.Error(), "The Dockerfile (Dockerfile) cannot be empty") {
-			c.Fatalf("Wrong error %v, must be about empty Dockerfile", err)
-		}
-	} else {
-		c.Fatal("Error must not be nil")
-	}
-}
-
 func (s *DockerSuite) TestBuildOnBuild(c *check.C) {
 	name := "testbuildonbuild"
 	_, err := buildImage(name,
@@ -3316,21 +3099,6 @@ func (s *DockerSuite) TestBuildOnBuild(c *check.C) {
 		true)
 	if err != nil {
 		c.Fatal(err)
-	}
-}
-
-func (s *DockerSuite) TestBuildOnBuildForbiddenChained(c *check.C) {
-	name := "testbuildonbuildforbiddenchained"
-	_, err := buildImage(name,
-		`FROM busybox
-		ONBUILD ONBUILD RUN touch foobar`,
-		true)
-	if err != nil {
-		if !strings.Contains(err.Error(), "Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed") {
-			c.Fatalf("Wrong error %v, must be about chaining ONBUILD", err)
-		}
-	} else {
-		c.Fatal("Error must not be nil")
 	}
 }
 
@@ -4560,16 +4328,6 @@ func (s *DockerSuite) TestBuildCmdJSONNoShDashC(c *check.C) {
 
 	if res != expected {
 		c.Fatalf("Expected value %s not in Config.Cmd: %s", expected, res)
-	}
-
-}
-
-func (s *DockerSuite) TestBuildErrorInvalidInstruction(c *check.C) {
-	name := "testbuildignoreinvalidinstruction"
-
-	out, _, err := buildImageWithOut(name, "FROM busybox\nfoo bar", true)
-	if err == nil {
-		c.Fatalf("Should have failed: %s", out)
 	}
 
 }

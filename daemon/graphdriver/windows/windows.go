@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -26,7 +27,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/longpath"
@@ -35,27 +35,32 @@ import (
 	"github.com/vbatts/tar-split/tar/storage"
 )
 
+// filterDriver is an HCSShim driver type for the Windows Filter driver.
+const filterDriver = 1
+
 // init registers the windows graph drivers to the register.
 func init() {
 	graphdriver.Register("windowsfilter", InitFilter)
-	graphdriver.Register("windowsdiff", InitDiff)
 	reexec.Register("docker-windows-write-layer", writeLayer)
 }
 
-const (
-	// diffDriver is an hcsshim driver type
-	diffDriver = iota
-	// filterDriver is an hcsshim driver type
-	filterDriver
-)
+type checker struct {
+}
+
+func (c *checker) IsMounted(path string) bool {
+	return false
+}
 
 // Driver represents a windows graph driver.
 type Driver struct {
 	// info stores the shim driver information
 	info hcsshim.DriverInfo
+	ctr  *graphdriver.RefCounter
+	// it is safe for windows to use a cache here because it does not support
+	// restoring containers when the daemon dies.
+	cacheMu sync.Mutex
+	cache   map[string]string
 }
-
-var _ graphdriver.DiffGetterDriver = &Driver{}
 
 func isTP5OrOlder() bool {
 	return system.GetOSVersion().Build <= 14300
@@ -69,32 +74,15 @@ func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap)
 			HomeDir: home,
 			Flavour: filterDriver,
 		},
-	}
-	return d, nil
-}
-
-// InitDiff returns a new Windows differencing disk driver.
-func InitDiff(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
-	logrus.Debugf("WindowsGraphDriver InitDiff at %s", home)
-	d := &Driver{
-		info: hcsshim.DriverInfo{
-			HomeDir: home,
-			Flavour: diffDriver,
-		},
+		cache: make(map[string]string),
+		ctr:   graphdriver.NewRefCounter(&checker{}),
 	}
 	return d, nil
 }
 
 // String returns the string representation of a driver.
 func (d *Driver) String() string {
-	switch d.info.Flavour {
-	case diffDriver:
-		return "windowsdiff"
-	case filterDriver:
-		return "windowsfilter"
-	default:
-		return "Unknown driver flavour"
-	}
+	return "Windows filter storage driver"
 }
 
 // Status returns the status of the driver.
@@ -238,17 +226,23 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if count := d.ctr.Increment(rID); count > 1 {
+		return d.cache[rID], nil
+	}
 
 	// Getting the layer paths must be done outside of the lock.
 	layerChain, err := d.getLayerChain(rID)
 	if err != nil {
+		d.ctr.Decrement(rID)
 		return "", err
 	}
 
 	if err := hcsshim.ActivateLayer(d.info, rID); err != nil {
+		d.ctr.Decrement(rID)
 		return "", err
 	}
 	if err := hcsshim.PrepareLayer(d.info, rID, layerChain); err != nil {
+		d.ctr.Decrement(rID)
 		if err2 := hcsshim.DeactivateLayer(d.info, rID); err2 != nil {
 			logrus.Warnf("Failed to Deactivate %s: %s", id, err)
 		}
@@ -257,11 +251,15 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 
 	mountPath, err := hcsshim.GetLayerMountPath(d.info, rID)
 	if err != nil {
+		d.ctr.Decrement(rID)
 		if err2 := hcsshim.DeactivateLayer(d.info, rID); err2 != nil {
 			logrus.Warnf("Failed to Deactivate %s: %s", id, err)
 		}
 		return "", err
 	}
+	d.cacheMu.Lock()
+	d.cache[rID] = mountPath
+	d.cacheMu.Unlock()
 
 	// If the layer has a mount path, use that. Otherwise, use the
 	// folder path.
@@ -282,6 +280,12 @@ func (d *Driver) Put(id string) error {
 	if err != nil {
 		return err
 	}
+	if count := d.ctr.Decrement(rID); count > 0 {
+		return nil
+	}
+	d.cacheMu.Lock()
+	delete(d.cache, rID)
+	d.cacheMu.Unlock()
 
 	if err := hcsshim.UnprepareLayer(d.info, rID); err != nil {
 		return err
@@ -390,20 +394,6 @@ func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 // new layer in bytes.
 // The layer should not be mounted when calling this function
 func (d *Driver) ApplyDiff(id, parent string, diff archive.Reader) (int64, error) {
-	if d.info.Flavour == diffDriver {
-		start := time.Now().UTC()
-		logrus.Debugf("WindowsGraphDriver ApplyDiff: Start untar layer")
-		destination := d.dir(id)
-		destination = filepath.Dir(destination)
-		size, err := chrootarchive.ApplyUncompressedLayer(destination, diff, nil)
-		if err != nil {
-			return 0, err
-		}
-		logrus.Debugf("WindowsGraphDriver ApplyDiff: Untar time: %vs", time.Now().UTC().Sub(start).Seconds())
-
-		return size, nil
-	}
-
 	var layerChain []string
 	if parent != "" {
 		rPId, err := d.resolveID(parent)

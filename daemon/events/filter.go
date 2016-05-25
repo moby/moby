@@ -20,6 +20,7 @@ func NewFilter(filter filters.Args) *Filter {
 func (ef *Filter) Include(ev events.Message) bool {
 	return ef.filter.ExactMatch("event", ev.Action) &&
 		ef.filter.ExactMatch("type", ev.Type) &&
+		ef.matchDaemon(ev) &&
 		ef.matchContainer(ev) &&
 		ef.matchVolume(ev) &&
 		ef.matchNetwork(ev) &&
@@ -32,6 +33,10 @@ func (ef *Filter) matchLabels(attributes map[string]string) bool {
 		return true
 	}
 	return ef.filter.MatchKVList("label", attributes)
+}
+
+func (ef *Filter) matchDaemon(ev events.Message) bool {
+	return ef.fuzzyMatchName(ev, events.DaemonEventType)
 }
 
 func (ef *Filter) matchContainer(ev events.Message) bool {

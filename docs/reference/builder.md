@@ -362,6 +362,15 @@ RUN /bin/bash -c 'source $HOME/.bashrc ; echo $HOME'
 > `RUN [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
 > If you want shell processing then either use the *shell* form or execute
 > a shell directly, for example: `RUN [ "sh", "-c", "echo $HOME" ]`.
+>
+> **Note**:
+> In the *JSON* form, it is necessary to escape backslashes. This is
+> particularly relevant on Windows where the backslash is the path seperator.
+> The following line would otherwise be treated as *shell* form due to not
+> being valid JSON, and fail in an unexpected way:
+> `RUN ["c:\windows\system32\tasklist.exe"]`
+> The correct syntax for this example is:
+> `RUN ["c:\\windows\\system32\\tasklist.exe"]`
 
 The cache for `RUN` instructions isn't invalidated automatically during
 the next build. The cache for an instruction like
