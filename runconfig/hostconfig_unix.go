@@ -52,11 +52,11 @@ func ValidateNetMode(c *container.Config, hc *container.HostConfig) error {
 		return ErrConflictContainerNetworkAndLinks
 	}
 
-	if (hc.NetworkMode.IsHost() || hc.NetworkMode.IsContainer()) && len(hc.DNS) > 0 {
+	if hc.NetworkMode.IsContainer() && len(hc.DNS) > 0 {
 		return ErrConflictNetworkAndDNS
 	}
 
-	if (hc.NetworkMode.IsContainer() || hc.NetworkMode.IsHost()) && len(hc.ExtraHosts) > 0 {
+	if hc.NetworkMode.IsContainer() && len(hc.ExtraHosts) > 0 {
 		return ErrConflictNetworkHosts
 	}
 
