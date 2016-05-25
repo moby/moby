@@ -274,14 +274,17 @@ type ExecStartCheck struct {
 	Tty bool
 }
 
+type HealthcheckResult struct {
+	Start, End time.Time
+	ExitCode   int    // 0=healthy, 1=unhealthy, 2=starting
+	Output     string // Output from last check
+}
+
 // Health stores information about the container's healthcheck results.
 type Health struct {
-	Status         string    // States are: "starting", "healthy", "unhealthy"
-	FailingStreak  uint64    // Number of consecutive failures
-	LastCheckStart time.Time // Zero if never started
-	LastCheckEnd   time.Time // Zero if never finished
-	LastExitCode   int       // Zero means success
-	LastOutput     string    // Output from last check
+	Status        string               // States are: "starting", "healthy", "unhealthy"
+	FailingStreak uint64               // Number of consecutive failures
+	Log           []*HealthcheckResult // The last few results (oldest first)
 }
 
 // ContainerState stores container's running state

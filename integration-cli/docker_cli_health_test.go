@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/engine-api/types"
 	"github.com/go-check/check"
 	"strconv"
 	"strings"
@@ -38,6 +40,14 @@ func waitForHealthStatus(c *check.C, name string, prev string, expected string) 
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
+}
+
+func getHealth(c *check.C, name string) *types.Health {
+	out, _ := dockerCmd(c, "inspect", "--format={{json .State.Health}}", name)
+	var health types.Health
+	err := json.Unmarshal([]byte(out), &health)
+	c.Check(err, checker.Equals, nil)
+	return &health
 }
 
 func (s *DockerSuite) TestHealth(c *check.C) {
@@ -110,12 +120,12 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 		"--health-cmd=cat /status",
 		"no_healthcheck")
 	waitForHealthStatus(c, "fatal_healthcheck", "starting", "healthy")
-	out, _ = dockerCmd(c, "inspect",
-		"--format=status={{.State.Health.Status}} "+
-			"fails={{.State.Health.FailingStreak}} "+
-			"exit={{.State.Health.LastExitCode}} "+
-			"out={{.State.Health.LastOutput}}", "fatal_healthcheck")
-	c.Check(strings.TrimSpace(out), checker.Equals, "status=healthy fails=0 exit=0 out=OK")
+	health := getHealth(c, "fatal_healthcheck")
+	c.Check(health.Status, checker.Equals, "healthy")
+	c.Check(health.FailingStreak, checker.Equals, uint64(0))
+	last := health.Log[len(health.Log)-1]
+	c.Check(last.ExitCode, checker.Equals, 0)
+	c.Check(last.Output, checker.Equals, "OK\n")
 
 	// Fail the check, which should now make it exit
 	dockerCmd(c, "exec", "fatal_healthcheck", "rm", "/status")
@@ -135,10 +145,10 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 	_, _ = dockerCmd(c, "run", "-d", "--name=test",
 		"--health-interval=1s", "--health-cmd=sleep 5m", "--health-timeout=1ms", imageName)
 	waitForHealthStatus(c, "test", "starting", "unhealthy")
-	out, _ = dockerCmd(c, "inspect",
-		"--format=status={{.State.Health.Status}} "+
-			"exit={{.State.Health.LastExitCode}} "+
-			"out={{.State.Health.LastOutput}}", "test")
-	c.Check(strings.TrimSpace(out), checker.Equals, "status=unhealthy exit=-1 out=Health check exceeded timeout (1ms)")
+	health = getHealth(c, "test")
+	last = health.Log[len(health.Log)-1]
+	c.Check(health.Status, checker.Equals, "unhealthy")
+	c.Check(last.ExitCode, checker.Equals, -1)
+	c.Check(last.Output, checker.Equals, "Health check exceeded timeout (1ms)")
 	dockerCmd(c, "rm", "-f", "test")
 }

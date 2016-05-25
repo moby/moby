@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
+	"github.com/docker/engine-api/types"
 	containertypes "github.com/docker/engine-api/types/container"
 	eventtypes "github.com/docker/engine-api/types/events"
 )
@@ -53,9 +54,10 @@ func TestHealthStates(t *testing.T) {
 	reset(c)
 
 	handleResult := func(startTime time.Time, exitCode int) {
-		c.State.Health.LastCheckStart = startTime
-		handleProbeResult(daemon, c, &probeResult{
-			exitCode: exitCode,
+		handleProbeResult(daemon, c, &types.HealthcheckResult{
+			Start:    startTime,
+			End:      startTime,
+			ExitCode: exitCode,
 		})
 	}
 

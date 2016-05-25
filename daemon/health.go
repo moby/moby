@@ -12,6 +12,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
+	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/strslice"
 )
 
@@ -29,6 +30,9 @@ const (
 
 	// Shut down a container if it becomes Unhealthy.
 	defaultExitOnUnhealthy = true
+
+	// Maximum number of entries to record
+	maxLogEntries = 5
 )
 
 const (
@@ -39,18 +43,11 @@ const (
 	exitStatusStarting  = 2 // Container needs more time to start
 )
 
-// probeResult is used to pass the results of a probe run back to the monitor thread.
-type probeResult struct {
-	endTime  time.Time
-	exitCode int
-	output   string
-}
-
 // probe implementations know how to run a particular type of probe.
 type probe interface {
 	// Perform one run of the check. Returns the exit code and an optional
 	// short diagnostic string.
-	run(context.Context, *Daemon, *container.Container) (*probeResult, error)
+	run(context.Context, *Daemon, *container.Container) (*types.HealthcheckResult, error)
 }
 
 // cmdProbe implements the "CMD" probe type.
@@ -61,7 +58,7 @@ type cmdProbe struct {
 
 // exec the healthcheck command in the container.
 // Returns the exit code and probe output (if any)
-func (p *cmdProbe) run(ctx context.Context, d *Daemon, container *container.Container) (*probeResult, error) {
+func (p *cmdProbe) run(ctx context.Context, d *Daemon, container *container.Container) (*types.HealthcheckResult, error) {
 	cmdSlice := strslice.StrSlice(container.Config.Healthcheck.Test)[1:]
 	if p.shell {
 		if runtime.GOOS != "windows" {
@@ -100,15 +97,15 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, container *container.Cont
 	}
 	// Note: Go's json package will handle invalid UTF-8 for us
 	out := output.String()
-	return &probeResult{
-		endTime:  time.Now(),
-		exitCode: *info.ExitCode,
-		output:   out,
+	return &types.HealthcheckResult{
+		End:      time.Now(),
+		ExitCode: *info.ExitCode,
+		Output:   out,
 	}, nil
 }
 
 // Update the container's Status.Health struct based on the latest probe's result.
-func handleProbeResult(d *Daemon, c *container.Container, result *probeResult) {
+func handleProbeResult(d *Daemon, c *container.Container, result *types.HealthcheckResult) {
 	c.Lock()
 	defer c.Unlock()
 
@@ -120,14 +117,16 @@ func handleProbeResult(d *Daemon, c *container.Container, result *probeResult) {
 	h := c.State.Health
 	oldStatus := h.Status
 
-	h.LastCheckEnd = result.endTime
-	h.LastOutput = result.output
-	h.LastExitCode = result.exitCode
+	if len(h.Log) >= maxLogEntries {
+		h.Log = append(h.Log[len(h.Log)+1-maxLogEntries:], result)
+	} else {
+		h.Log = append(h.Log, result)
+	}
 
-	if result.exitCode == exitStatusHealthy {
+	if result.ExitCode == exitStatusHealthy {
 		h.FailingStreak = 0
 		h.Status = container.Healthy
-	} else if result.exitCode == exitStatusStarting && c.State.Health.Status == container.Starting {
+	} else if result.ExitCode == exitStatusStarting && c.State.Health.Status == container.Starting {
 		// The container is not ready yet. Remain in the starting state.
 	} else {
 		// Failure (incuding invalid exit code)
@@ -155,22 +154,22 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 			return
 		case <-time.After(probeInterval):
 			logrus.Debugf("Running health check...")
+			startTime := time.Now()
 			ctx, cancelProbe := context.WithTimeout(context.Background(), probeTimeout)
-			c.Lock()
-			c.State.Health.LastCheckStart = time.Now()
-			c.Unlock()
-			results := make(chan *probeResult)
+			results := make(chan *types.HealthcheckResult)
 			go func() {
 				result, err := probe.run(ctx, d, c)
 				if err != nil {
 					logrus.Warnf("Health check error: %v", err)
-					results <- &probeResult{
-						exitCode: -1,
-						output:   err.Error(),
-						endTime:  time.Now(),
+					results <- &types.HealthcheckResult{
+						ExitCode: -1,
+						Output:   err.Error(),
+						Start:    startTime,
+						End:      time.Now(),
 					}
 				} else {
-					logrus.Debugf("Health check done (exitCode=%d)", result.exitCode)
+					result.Start = startTime
+					logrus.Debugf("Health check done (exitCode=%d)", result.ExitCode)
 					results <- result
 				}
 				close(results)
@@ -187,10 +186,11 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 				cancelProbe()
 			case <-ctx.Done():
 				logrus.Debugf("Health check taking too long")
-				handleProbeResult(d, c, &probeResult{
-					exitCode: -1,
-					output:   fmt.Sprintf("Health check exceeded timeout (%v)", probeTimeout),
-					endTime:  time.Now(),
+				handleProbeResult(d, c, &types.HealthcheckResult{
+					ExitCode: -1,
+					Output:   fmt.Sprintf("Health check exceeded timeout (%v)", probeTimeout),
+					Start:    startTime,
+					End:      time.Now(),
 				})
 				cancelProbe()
 				// Wait for probe to exit (it might take a while to respond to the TERM
