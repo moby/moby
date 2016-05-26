@@ -167,6 +167,10 @@ func (ctr *container) waitExit(process *process, isFirstProcessToStart bool) err
 		// has exited to avoid a container being dropped on the floor.
 	}
 
+	if err := process.hcsProcess.Close(); err != nil {
+		logrus.Error(err)
+	}
+
 	// Assume the container has exited
 	si := StateInfo{
 		CommonStateInfo: CommonStateInfo{
@@ -180,9 +184,6 @@ func (ctr *container) waitExit(process *process, isFirstProcessToStart bool) err
 
 	// But it could have been an exec'd process which exited
 	if !isFirstProcessToStart {
-		if err := process.hcsProcess.Close(); err != nil {
-			logrus.Error(err)
-		}
 		si.State = StateExitProcess
 	} else {
 		updatePending, err := ctr.hcsContainer.HasPendingUpdates()
