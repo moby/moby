@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.2-rc.1 (2016-05-07)
+- Fixed a stale endpoint issue on overlay networks during ungraceful restart
+
 ## 0.7.0-rc.7 (2016-04-22)
 - Fixes https://github.com/docker/libnetwork/issues/1113
 - Fixes https://github.com/docker/libnetwork/issues/1069
