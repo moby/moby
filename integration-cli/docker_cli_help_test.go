@@ -335,7 +335,7 @@ func testCommand(cmd string, newEnvs []string, scanForHome bool, home string) er
 			return fmt.Errorf("Should not have full usage on %q\n", args)
 		}
 		if strings.HasSuffix(stderr, "\n\n") {
-			return fmt.Errorf("Should not have a blank line on %q\n", args)
+			return fmt.Errorf("Should not have a blank line on %q\n%v", args, stderr)
 		}
 	}
 

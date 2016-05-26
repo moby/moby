@@ -34,11 +34,8 @@ func newListCommand(dockerCli *client.DockerCli) *cobra.Command {
 		Use:     "ls",
 		Aliases: []string{"list"},
 		Short:   "List volumes",
+		Args:    cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// TODO: remove once cobra is patched to handle this
-			if err := cli.AcceptsNoArgs(args, cmd); err != nil {
-				return err
-			}
 			return runList(dockerCli, opts)
 		},
 	}

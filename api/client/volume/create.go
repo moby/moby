@@ -28,11 +28,8 @@ func newCreateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a volume",
+		Args:  cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// TODO: remove once cobra is patched to handle this
-			if err := cli.AcceptsNoArgs(args, cmd); err != nil {
-				return err
-			}
 			return runCreate(dockerCli, opts)
 		},
 	}

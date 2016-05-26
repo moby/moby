@@ -15,10 +15,8 @@ func newRemoveCommand(dockerCli *client.DockerCli) *cobra.Command {
 		Use:     "rm VOLUME [VOLUME]...",
 		Aliases: []string{"remove"},
 		Short:   "Remove a volume",
+		Args:    cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := cli.MinRequiredArgs(args, 1, cmd); err != nil {
-				return err
-			}
 			return runRemove(dockerCli, args)
 		},
 	}
@@ -26,10 +24,11 @@ func newRemoveCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 func runRemove(dockerCli *client.DockerCli, volumes []string) error {
 	client := dockerCli.Client()
-	var status = 0
+	ctx := context.Background()
+	status := 0
 
 	for _, name := range volumes {
-		if err := client.VolumeRemove(context.Background(), name); err != nil {
+		if err := client.VolumeRemove(ctx, name); err != nil {
 			fmt.Fprintf(dockerCli.Err(), "%s\n", err)
 			status = 1
 			continue

@@ -20,10 +20,8 @@ func newInspectCommand(dockerCli *client.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "inspect [OPTIONS] VOLUME [VOLUME...]",
 		Short: "Return low-level information on a volume",
+		Args:  cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := cli.MinRequiredArgs(args, 1, cmd); err != nil {
-				return err
-			}
 			opts.names = args
 			return runInspect(dockerCli, opts)
 		},

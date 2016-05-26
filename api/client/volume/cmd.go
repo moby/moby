@@ -14,13 +14,9 @@ func NewVolumeCommand(dockerCli *client.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "volume",
 		Short: "Manage Docker volumes",
-		// TODO: remove once cobra is patched to handle this
-		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Fprintf(dockerCli.Err(), "\n%s", cmd.UsageString())
-			if len(args) > 0 {
-				return cli.StatusError{StatusCode: 1}
-			}
-			return nil
+		Args:  cli.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Fprintf(dockerCli.Err(), "\n"+cmd.UsageString())
 		},
 	}
 	cmd.AddCommand(
