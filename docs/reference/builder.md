@@ -1355,10 +1355,10 @@ serve the site's main page within three seconds:
     HEALTHCHECK --interval=5m --timeout=3s \
       CMD curl -f http://localhost/ || exit 1
 
-To help debug failing probes, any output the command writes on stdout or stderr
-will be stored in the health status and can be queried with `docker inspect`.
-Such output should be kept short (only the first 255 bytes are stored
-currently).
+To help debug failing probes, any output text (UTF-8 encoded) that the command writes
+on stdout or stderr will be stored in the health status and can be queried with
+`docker inspect`. Such output should be kept short (only the first 255 bytes
+are stored currently).
 
 When the health status of a container changes, a `health_status` event is
 generated with the new status.
