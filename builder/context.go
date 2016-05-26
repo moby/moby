@@ -29,6 +29,16 @@ func ValidateContextDirectory(srcPath string, excludes []string) error {
 		return err
 	}
 	return filepath.Walk(contextRoot, func(filePath string, f os.FileInfo, err error) error {
+		if err != nil {
+			if os.IsPermission(err) {
+				return fmt.Errorf("can't stat '%s'", filePath)
+			}
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return err
+		}
+
 		// skip this directory/file if it's not in the path, it won't get added to the context
 		if relFilePath, err := filepath.Rel(contextRoot, filePath); err != nil {
 			return err
@@ -39,16 +49,6 @@ func ValidateContextDirectory(srcPath string, excludes []string) error {
 				return filepath.SkipDir
 			}
 			return nil
-		}
-
-		if err != nil {
-			if os.IsPermission(err) {
-				return fmt.Errorf("can't stat '%s'", filePath)
-			}
-			if os.IsNotExist(err) {
-				return nil
-			}
-			return err
 		}
 
 		// skip checking if symlinks point to non-existing files, such symlinks can be useful
