@@ -199,6 +199,9 @@ func (container *Container) CopyImagePathContent(v volume.Volume, destination st
 			logrus.Warnf("error while unmounting volume %s: %v", v.Name(), err)
 		}
 	}()
+	if err := label.Relabel(path, container.MountLabel, true); err != nil && err != syscall.ENOTSUP {
+		return err
+	}
 	return copyExistingContents(rootfs, path)
 }
 
