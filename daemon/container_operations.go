@@ -397,7 +397,21 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) error {
 		updateSettings = true
 	}
 
+	// always connect default network first since only default
+	// network mode support link and we need do some setting
+	// on sanbox initialize for link, but the sandbox only be initialized
+	// on first network connecting.
+	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
+	if nConf, ok := container.NetworkSettings.Networks[defaultNetName]; ok {
+		if err := daemon.connectToNetwork(container, defaultNetName, nConf, updateSettings); err != nil {
+			return err
+		}
+
+	}
 	for n, nConf := range container.NetworkSettings.Networks {
+		if n == defaultNetName {
+			continue
+		}
 		if err := daemon.connectToNetwork(container, n, nConf, updateSettings); err != nil {
 			return err
 		}
