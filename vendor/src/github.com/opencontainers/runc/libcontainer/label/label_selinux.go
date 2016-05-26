@@ -94,6 +94,11 @@ func GetProcessLabel() (string, error) {
 	return selinux.Getexeccon()
 }
 
+// GetFileLabel returns the label for specified path
+func GetFileLabel(path string) (string, error) {
+	return selinux.Getfilecon(path)
+}
+
 // SetFileLabel modifies the "path" label to the specified file label
 func SetFileLabel(path string, fileLabel string) error {
 	if selinux.SelinuxEnabled() && fileLabel != "" {

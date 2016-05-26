@@ -326,7 +326,7 @@ func RemovePaths(paths map[string]string) (err error) {
 			return nil
 		}
 	}
-	return fmt.Errorf("Failed to remove paths: %s", paths)
+	return fmt.Errorf("Failed to remove paths: %v", paths)
 }
 
 func GetHugePageSize() ([]string, error) {
