@@ -240,6 +240,13 @@ func (pd *v2PushDescriptor) DiffID() layer.DiffID {
 }
 
 func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.Output) (distribution.Descriptor, error) {
+	if fs, ok := pd.layer.(layer.ForeignSourcer); ok {
+		if d := fs.ForeignSource(); d != nil {
+			progress.Update(progressOutput, pd.ID(), "Skipped foreign layer")
+			return *d, nil
+		}
+	}
+
 	diffID := pd.DiffID()
 
 	pd.pushState.Lock()

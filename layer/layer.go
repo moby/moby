@@ -14,6 +14,7 @@ import (
 	"io"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/pkg/archive"
 )
@@ -107,6 +108,14 @@ type Layer interface {
 	Metadata() (map[string]string, error)
 }
 
+// ForeignSourcer is an interface used to describe the source of layers
+// and objects representing layers, when the source is a foreign URL.
+type ForeignSourcer interface {
+	// ForeignSource returns the descriptor for this layer if it is
+	// a foreign layer, or nil for ordinary layers.
+	ForeignSource() *distribution.Descriptor
+}
+
 // RWLayer represents a layer which is
 // read and writable
 type RWLayer interface {
@@ -168,6 +177,7 @@ type MountInit func(root string) error
 // read-only and read-write layers.
 type Store interface {
 	Register(io.Reader, ChainID) (Layer, error)
+	RegisterForeign(io.Reader, ChainID, *distribution.Descriptor) (Layer, error)
 	Get(ChainID) (Layer, error)
 	Release(Layer) ([]Metadata, error)
 
@@ -189,6 +199,7 @@ type MetadataTransaction interface {
 	SetParent(parent ChainID) error
 	SetDiffID(DiffID) error
 	SetCacheID(string) error
+	SetForeignSource(distribution.Descriptor) error
 	TarSplitWriter(compressInput bool) (io.WriteCloser, error)
 
 	Commit(ChainID) error
@@ -208,6 +219,7 @@ type MetadataStore interface {
 	GetParent(ChainID) (ChainID, error)
 	GetDiffID(ChainID) (DiffID, error)
 	GetCacheID(ChainID) (string, error)
+	GetForeignSource(ChainID) (distribution.Descriptor, error)
 	TarSplitReader(ChainID) (io.ReadCloser, error)
 
 	SetMountID(string, string) error
