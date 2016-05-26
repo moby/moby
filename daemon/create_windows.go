@@ -11,6 +11,11 @@ import (
 
 // createContainerPlatformSpecificSettings performs platform specific container create functionality
 func (daemon *Daemon) createContainerPlatformSpecificSettings(container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
+	// Make sure the host config has the default daemon isolation if not specified by caller.
+	if containertypes.Isolation.IsDefault(containertypes.Isolation(hostConfig.Isolation)) {
+		hostConfig.Isolation = daemon.defaultIsolation
+	}
+
 	for spec := range config.Volumes {
 
 		mp, err := volume.ParseMountSpec(spec, hostConfig.VolumeDriver)
