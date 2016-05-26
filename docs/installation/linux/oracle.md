@@ -29,13 +29,8 @@ btrfs storage engine on both Oracle Linux 6 and 7.
 > follow the installation instructions provided in the
 > [Oracle Linux documentation](https://docs.oracle.com/en/operating-systems/?tab=2).
 >
-> The installation instructions for Oracle Linux 6 can be found in [Chapter 10 of
-> the Administrator&apos;s
-> Solutions Guide](https://docs.oracle.com/cd/E37670_01/E37355/html/ol_docker.html)
->
-> The installation instructions for Oracle Linux 7 can be found in [Chapter 29 of
-> the Administrator&apos;s
-> Guide](https://docs.oracle.com/cd/E52668_01/E54669/html/ol7-docker.html)
+> The installation instructions for Oracle Linux 6 and 7 can be found in [Chapter 2 of
+> the Docker User&apos;s Guide](https://docs.oracle.com/cd/E52668_01/E75728/html/docker_install_upgrade.html)
 
 
 1. Log into your machine as a user with `sudo` or `root` privileges.
