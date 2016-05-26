@@ -113,7 +113,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		})
 
 		// 3. Start the container.
-		if err := cli.client.ContainerStart(ctx, container); err != nil {
+		if err := cli.client.ContainerStart(ctx, container, ""); err != nil {
 			cancelFun()
 			<-cErr
 			return err
@@ -147,7 +147,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 func (cli *DockerCli) startContainersWithoutAttachments(ctx context.Context, containers []string) error {
 	var failedContainers []string
 	for _, container := range containers {
-		if err := cli.client.ContainerStart(ctx, container); err != nil {
+		if err := cli.client.ContainerStart(ctx, container, ""); err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			failedContainers = append(failedContainers, container)
 		} else {

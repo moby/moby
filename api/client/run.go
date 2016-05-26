@@ -234,7 +234,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	//start the container
-	if err := cli.client.ContainerStart(ctx, createResponse.ID); err != nil {
+	if err := cli.client.ContainerStart(ctx, createResponse.ID, ""); err != nil {
 		// If we have holdHijackedConnection, we should notify
 		// holdHijackedConnection we are going to exit and wait
 		// to avoid the terminal are not restored.

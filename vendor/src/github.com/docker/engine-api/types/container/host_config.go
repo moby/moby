@@ -257,11 +257,10 @@ type Resources struct {
 	Ulimits              []*units.Ulimit // List of ulimits to be set in the container
 
 	// Applicable to Windows
-	CPUCount                int64  `json:"CpuCount"`   // CPU count
-	CPUPercent              int64  `json:"CpuPercent"` // CPU percent
-	IOMaximumIOps           uint64 // Maximum IOps for the container system drive
-	IOMaximumBandwidth      uint64 // Maximum IO in bytes per second for the container system drive
-	NetworkMaximumBandwidth uint64 // Maximum bandwidth of the network endpoint in bytes per second
+	CPUCount           int64  `json:"CpuCount"`   // CPU count
+	CPUPercent         int64  `json:"CpuPercent"` // CPU percent
+	IOMaximumIOps      uint64 // Maximum IOps for the container system drive
+	IOMaximumBandwidth uint64 // Maximum IO in bytes per second for the container system drive
 }
 
 // UpdateConfig holds the mutable attributes of a Container.

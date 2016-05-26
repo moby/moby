@@ -471,3 +471,8 @@ type NetworkDisconnect struct {
 	Container string
 	Force     bool
 }
+
+// Checkpoint represents the details of a checkpoint
+type Checkpoint struct {
+	Name string // Name is the name of the checkpoint
+}

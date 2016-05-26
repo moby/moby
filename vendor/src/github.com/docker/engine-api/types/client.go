@@ -10,6 +10,12 @@ import (
 	"github.com/docker/go-units"
 )
 
+// CheckpointCreateOptions holds parameters to create a checkpoint from a container
+type CheckpointCreateOptions struct {
+	CheckpointID string
+	Exit         bool
+}
+
 // ContainerAttachOptions holds parameters to attach to a container.
 type ContainerAttachOptions struct {
 	Stream     bool
