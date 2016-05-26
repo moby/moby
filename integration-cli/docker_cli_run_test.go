@@ -2137,27 +2137,6 @@ func (s *DockerSuite) TestRunWithInvalidMacAddress(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunDeallocatePortOnMissingIptablesRule(c *check.C) {
-	// TODO Windows. Network settings are not propagated back to inspect.
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
-
-	out, _ := dockerCmd(c, "run", "-d", "-p", "23:23", "busybox", "top")
-
-	id := strings.TrimSpace(out)
-	ip := inspectField(c, id, "NetworkSettings.Networks.bridge.IPAddress")
-	iptCmd := exec.Command("iptables", "-D", "DOCKER", "-d", fmt.Sprintf("%s/32", ip),
-		"!", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-m", "tcp", "--dport", "23", "-j", "ACCEPT")
-	out, _, err := runCommandWithOutput(iptCmd)
-	if err != nil {
-		c.Fatal(err, out)
-	}
-	if err := deleteContainer(id); err != nil {
-		c.Fatal(err)
-	}
-
-	dockerCmd(c, "run", "-d", "-p", "23:23", "busybox", "top")
-}
-
 func (s *DockerSuite) TestRunPortInUse(c *check.C) {
 	// TODO Windows. The duplicate NAT message returned by Windows will be
 	// changing as is currently completely undecipherable. Does need modifying

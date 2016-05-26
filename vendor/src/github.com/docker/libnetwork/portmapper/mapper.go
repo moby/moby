@@ -8,7 +8,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/iptables"
+	"github.com/docker/libnetwork/ipvs"
 	"github.com/docker/libnetwork/portallocator"
+	"github.com/vishvananda/netlink"
 )
 
 type mapping struct {
@@ -18,7 +20,10 @@ type mapping struct {
 	container     net.Addr
 }
 
-var newProxy = newProxyCommand
+var (
+	newProxy   = newProxyCommand
+	loopbackIP = net.ParseIP("127.0.0.1")
+)
 
 var (
 	// ErrUnknownBackendAddressType refers to an unknown container or unsupported address type
@@ -39,6 +44,7 @@ type PortMapper struct {
 	lock            sync.Mutex
 
 	Allocator *portallocator.PortAllocator
+	ipvs      *ipvs.Handle
 }
 
 // New returns a new instance of PortMapper
@@ -60,6 +66,16 @@ func (pm *PortMapper) SetIptablesChain(c *iptables.ChainInfo, bridgeName string)
 	pm.bridgeName = bridgeName
 }
 
+// SetupIPVS establishes the IPVS handle which is used for setting up NATs for external traffic
+func (pm *PortMapper) SetupIPVS() error {
+	ipvs, err := ipvs.New("")
+	if err != nil {
+		return err
+	}
+	pm.ipvs = ipvs
+	return nil
+}
+
 // Map maps the specified container transport address to the host's network address and transport port
 func (pm *PortMapper) Map(container net.Addr, hostIP net.IP, hostPort int, useProxy bool) (host net.Addr, err error) {
 	return pm.MapRange(container, hostIP, hostPort, hostPort, useProxy)
@@ -76,7 +92,7 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		allocatedHostPort int
 	)
 
-	switch container.(type) {
+	switch addr := container.(type) {
 	case *net.TCPAddr:
 		proto = "tcp"
 		if allocatedHostPort, err = pm.Allocator.RequestPortInRange(hostIP, proto, hostPortStart, hostPortEnd); err != nil {
@@ -90,7 +106,7 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		}
 
 		if useProxy {
-			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, container.(*net.TCPAddr).IP, container.(*net.TCPAddr).Port)
+			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, addr.IP, addr.Port)
 			if err != nil {
 				return nil, err
 			}
@@ -110,7 +126,7 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 		}
 
 		if useProxy {
-			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, container.(*net.UDPAddr).IP, container.(*net.UDPAddr).Port)
+			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, addr.IP, addr.Port)
 			if err != nil {
 				return nil, err
 			}
@@ -134,24 +150,41 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 	}
 
 	containerIP, containerPort := getIPAndPort(m.container)
-	if err := pm.forward(iptables.Append, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort); err != nil {
-		return nil, err
-	}
+	fwMark := getFWMark(m.proto, allocatedHostPort)
 
 	cleanup := func() error {
 		// need to undo the iptables rules before we return
 		m.userlandProxy.Stop()
-		pm.forward(iptables.Delete, m.proto, hostIP, allocatedHostPort, containerIP.String(), containerPort)
+		if !hostIP.IsLoopback() {
+			pm.deleteService(fwMark)
+		}
+		pm.forward(iptables.Delete, m.proto, hostIP, allocatedHostPort, containerIP, containerPort, fwMark)
 		if err := pm.Allocator.ReleasePort(hostIP, m.proto, allocatedHostPort); err != nil {
 			return err
 		}
-
 		return nil
+	}
+
+	// loopback can't use ipvs
+	if !hostIP.IsLoopback() {
+		if err := pm.createService(allocatedHostPort, containerIP, containerPort, fwMark); err != nil {
+			if err := cleanup(); err != nil {
+				logrus.Warnf("Error while cleaning up port forwards: %v", err)
+			}
+		}
+	}
+
+	// Need to setup special routing for localhost which can't go through ipvs
+	if err := pm.forward(iptables.Append, m.proto, hostIP, allocatedHostPort, containerIP, containerPort, fwMark); err != nil {
+		if err := cleanup(); err != nil {
+			logrus.Warnf("Error while cleaning up port forwards: %v", err)
+		}
+		return nil, err
 	}
 
 	if err := m.userlandProxy.Start(); err != nil {
 		if err := cleanup(); err != nil {
-			return nil, fmt.Errorf("Error during port allocation cleanup: %v", err)
+			logrus.Error("Error during port allocation cleanup: %v", err)
 		}
 		return nil, err
 	}
@@ -179,8 +212,16 @@ func (pm *PortMapper) Unmap(host net.Addr) error {
 
 	containerIP, containerPort := getIPAndPort(data.container)
 	hostIP, hostPort := getIPAndPort(data.host)
-	if err := pm.forward(iptables.Delete, data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
-		logrus.Errorf("Error on iptables delete: %s", err)
+	fwMark := getFWMark(data.proto, hostPort)
+
+	if err := pm.forward(iptables.Delete, data.proto, hostIP, hostPort, containerIP, containerPort, fwMark); err != nil {
+		logrus.Errorf("Error cleaning up port map: %s", err)
+	}
+
+	if !hostIP.IsLoopback() {
+		if err := pm.deleteService(fwMark); err != nil {
+			logrus.Errorf("Error removing port map: %s", err)
+		}
 	}
 
 	switch a := host.(type) {
@@ -193,6 +234,7 @@ func (pm *PortMapper) Unmap(host net.Addr) error {
 }
 
 //ReMapAll will re-apply all port mappings
+// this is only used by firewalld
 func (pm *PortMapper) ReMapAll() {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()
@@ -200,7 +242,9 @@ func (pm *PortMapper) ReMapAll() {
 	for _, data := range pm.currentMappings {
 		containerIP, containerPort := getIPAndPort(data.container)
 		hostIP, hostPort := getIPAndPort(data.host)
-		if err := pm.forward(iptables.Append, data.proto, hostIP, hostPort, containerIP.String(), containerPort); err != nil {
+		fwMark := getFWMark(data.proto, containerPort)
+
+		if err := pm.forward(iptables.Append, data.proto, hostIP, hostPort, containerIP, containerPort, fwMark); err != nil {
 			logrus.Errorf("Error on iptables add: %s", err)
 		}
 	}
@@ -226,9 +270,73 @@ func getIPAndPort(a net.Addr) (net.IP, int) {
 	return nil, 0
 }
 
-func (pm *PortMapper) forward(action iptables.Action, proto string, sourceIP net.IP, sourcePort int, containerIP string, containerPort int) error {
+func (pm *PortMapper) forward(action iptables.Action, proto string, hostIP net.IP, hostPort int, containerIP net.IP, containerPort int, mark int) error {
 	if pm.chain == nil {
 		return nil
 	}
-	return pm.chain.Forward(action, sourceIP, sourcePort, proto, containerIP, containerPort, pm.bridgeName)
+	isLoopback := hostIP.IsLoopback()
+	isUnspec := hostIP.IsUnspecified()
+
+	if !isLoopback {
+		// Can't use ipvs for loopback, so no need to mark
+		if err := pm.chain.Mark(action, proto, hostIP, hostPort, mark); err != nil {
+			return err
+		}
+	}
+
+	// with ipvs, we only need to forward on localhost and the actual hairpin
+	if pm.chain.HairpinMode {
+		if isUnspec || isLoopback {
+			if err := pm.chain.Forward(action, loopbackIP, hostPort, proto, containerIP, containerPort, pm.bridgeName); err != nil {
+				return err
+			}
+		}
+
+		if !isLoopback {
+			// allow the container to talk to itself over the nat'd address
+			// ipvs does not support hairpin
+			if err := pm.chain.Hairpin(action, proto, hostIP, hostPort, containerIP, containerPort); err != nil {
+				return err
+			}
+		}
+	}
+	return pm.chain.Masq(action, proto, containerIP, containerPort)
+}
+
+func (pm *PortMapper) createService(hostPort int, containerIP net.IP, containerPort, mark int) error {
+	service := &ipvs.Service{
+		FWMark:        uint32(mark),
+		AddressFamily: netlink.FAMILY_V4,
+		SchedName:     ipvs.LeastConnection,
+	}
+	if err := pm.ipvs.NewService(service); err != nil {
+		return err
+	}
+	dest := &ipvs.Destination{
+		AddressFamily:   netlink.FAMILY_V4,
+		Address:         containerIP,
+		Port:            uint16(containerPort),
+		ConnectionFlags: ipvs.ConnectionFlagMasq,
+		Weight:          1,
+	}
+	return pm.ipvs.NewDestination(service, dest)
+}
+
+func (pm *PortMapper) deleteService(mark int) error {
+	return pm.ipvs.DelService(&ipvs.Service{
+		FWMark:        uint32(mark),
+		AddressFamily: netlink.FAMILY_V4,
+		SchedName:     ipvs.LeastConnection,
+	})
+}
+
+func getFWMark(proto string, port int) int {
+	var prefix int
+	switch proto {
+	case "udp":
+		prefix = 5500000
+	case "tcp":
+		prefix = 5600000
+	}
+	return prefix + port
 }
