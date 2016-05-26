@@ -23,9 +23,6 @@ import (
 
 // Daemon represents a Docker daemon for the testing framework.
 type Daemon struct {
-	// Defaults to "daemon"
-	// Useful to set to --daemon or -d for checking backwards compatibility
-	Command     string
 	GlobalFlags []string
 
 	id                string
@@ -72,7 +69,6 @@ func NewDaemon(c *check.C) *Daemon {
 	}
 
 	return &Daemon{
-		Command:       "daemon",
 		id:            id,
 		c:             c,
 		folder:        daemonFolder,
@@ -137,11 +133,10 @@ func (d *Daemon) Start(args ...string) error {
 
 // StartWithLogFile will start the daemon and attach its streams to a given file.
 func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
-	dockerBinary, err := exec.LookPath(dockerBinary)
+	dockerdBinary, err := exec.LookPath(dockerdBinary)
 	d.c.Assert(err, check.IsNil, check.Commentf("[%s] could not find docker binary in $PATH", d.id))
 
 	args := append(d.GlobalFlags,
-		d.Command,
 		"--containerd", "/var/run/docker/libcontainerd/docker-containerd.sock",
 		"--graph", d.root,
 		"--exec-root", filepath.Join(d.folder, "exec-root"),
@@ -175,7 +170,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	}
 
 	args = append(args, providedArgs...)
-	d.cmd = exec.Command(dockerBinary, args...)
+	d.cmd = exec.Command(dockerdBinary, args...)
 
 	d.cmd.Stdout = out
 	d.cmd.Stderr = out
