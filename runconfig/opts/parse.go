@@ -106,6 +106,7 @@ type ContainerOptions struct {
 	init              bool
 	initPath          string
 	credentialSpec    string
+	stopTimeout       int
 
 	Image string
 	Args  []string
@@ -145,6 +146,7 @@ func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 		ulimits:           NewUlimitOpt(nil),
 		volumes:           opts.NewListOpts(nil),
 		volumesFrom:       opts.NewListOpts(nil),
+		stopSignal:        flags.String("stop-signal", signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal)),
 	}
 
 	// General purpose flags
@@ -557,6 +559,9 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 	}
 	if flags.Changed("stop-signal") {
 		config.StopSignal = copts.stopSignal
+	}
+	if flags.Changed("stop-timeout") {
+		config.StopTimeout = copts.flStopTimeout
 	}
 
 	hostConfig := &container.HostConfig{

@@ -70,6 +70,7 @@ docker-run - Run a command in a new container
 [**--security-opt**[=*[]*]]
 [**--storage-opt**[=*[]*]]
 [**--stop-signal**[=*SIGNAL*]]
+[**--stop-timeout**[=*TIMEOUT*]]
 [**--shm-size**[=*[]*]]
 [**--sig-proxy**[=*true*]]
 [**--sysctl**[=*[]*]]
@@ -501,6 +502,9 @@ incompatible with any restart policy other than `none`.
 
 **--stop-signal**=*SIGTERM*
   Signal to stop a container. Default is SIGTERM.
+
+**--stop-timeout**=*10*
+  Timeout (in seconds) to stop a container. Default is 10.
 
 **--shm-size**=""
    Size of `/dev/shm`. The format is `<number><unit>`.

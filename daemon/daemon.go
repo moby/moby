@@ -708,8 +708,8 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 		if err := daemon.containerUnpause(c); err != nil {
 			return fmt.Errorf("Failed to unpause container %s with error: %v", c.ID, err)
 		}
-		if _, err := c.WaitStop(10 * time.Second); err != nil {
-			logrus.Debugf("container %s failed to exit in 10 seconds of SIGTERM, sending SIGKILL to force", c.ID)
+		if _, err := c.WaitStop(time.Duration(c.StopTimeout()) * time.Second); err != nil {
+			logrus.Debugf("container %s failed to exit in %d second of SIGTERM, sending SIGKILL to force", c.ID, c.StopTimeout())
 			sig, ok := signal.SignalMap["KILL"]
 			if !ok {
 				return fmt.Errorf("System does not support SIGKILL")
@@ -721,8 +721,8 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 			return err
 		}
 	}
-	// If container failed to exit in 10 seconds of SIGTERM, then using the force
-	if err := daemon.containerStop(c, 10); err != nil {
+	// If container failed to exit in c.StopTimeout() seconds of SIGTERM, then using the force
+	if err := daemon.containerStop(c, c.StopTimeout()); err != nil {
 		return fmt.Errorf("Failed to stop container %s with error: %v", c.ID, err)
 	}
 

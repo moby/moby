@@ -44,6 +44,11 @@ import (
 
 const configFileName = "config.v2.json"
 
+const (
+	// defaultStopTimeout is the timeout (in seconds) for the syscall signal used to stop a container.
+	defaultStopTimeout = 10
+)
+
 var (
 	errInvalidEndpoint = fmt.Errorf("invalid endpoint while building port map info")
 	errInvalidNetwork  = fmt.Errorf("invalid network settings while building port map info")
@@ -576,6 +581,14 @@ func (container *Container) StopSignal() int {
 		stopSignal, _ = signal.ParseSignal(signal.DefaultStopSignal)
 	}
 	return int(stopSignal)
+}
+
+// StopTimeout returns the timeout (in seconds) used to stop the container.
+func (container *Container) StopTimeout() int {
+	if container.Config.StopTimeout != nil {
+		return *container.Config.StopTimeout
+	}
+	return defaultStopTimeout
 }
 
 // InitDNSHostConfig ensures that the dns fields are never nil.

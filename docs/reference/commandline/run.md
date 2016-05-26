@@ -101,6 +101,7 @@ Options:
                                     or `g` (gigabytes). If you omit the unit, the system uses bytes.
       --sig-proxy                   Proxy received signals to the process (default true)
       --stop-signal string          Signal to stop a container, SIGTERM by default (default "SIGTERM")
+      --stop-timeout=10             Timeout (in seconds) to stop a container
       --storage-opt value           Storage driver options for the container (default [])
       --sysctl value                Sysctl options (default map[])
       --tmpfs value                 Mount a tmpfs directory (default [])
@@ -619,6 +620,11 @@ or a signal name in the format SIGNAME, for instance SIGKILL.
 
 On Windows, this flag can be used to specify the `credentialspec` option. 
 The `credentialspec` must be in the format `file://spec.txt` or `registry://keyname`. 
+
+### Stop container with timeout (--stop-timeout)
+
+The `--stop-timeout` flag sets the the timeout (in seconds) that a pre-defined (see `--stop-signal`) system call
+signal that will be sent to the container to exit. After timeout elapses the container will be killed with SIGKILL.
 
 ### Specify isolation technology for container (--isolation)
 
