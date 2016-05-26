@@ -732,12 +732,13 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 	return nil
 }
 
-// ShutdownTimeout returns the shutdown timeout based on the max stopTimeout of the containers
+// ShutdownTimeout returns the shutdown timeout based on the max stopTimeout of the containers,
+// and is limited by daemon's ShutdownTimeout.
 func (daemon *Daemon) ShutdownTimeout() int {
-	// By default we use container.DefaultStopTimeout + 5s, which is 15s.
-	// TODO (yongtang): Will need to allow shutdown-timeout once #23036 is in place.
+	// By default we use daemon's ShutdownTimeout.
+	shutdownTimeout := daemon.configStore.ShutdownTimeout
+
 	graceTimeout := 5
-	shutdownTimeout := container.DefaultStopTimeout + graceTimeout
 	if daemon.containers != nil {
 		for _, c := range daemon.containers.List() {
 			if shutdownTimeout >= 0 {
@@ -769,7 +770,7 @@ func (daemon *Daemon) Shutdown() error {
 	}
 
 	if daemon.containers != nil {
-		logrus.Debug("starting clean shutdown of all containers...")
+		logrus.Debugf("start clean shutdown of all containers with a %d seconds timeout...", daemon.configStore.ShutdownTimeout)
 		daemon.containers.ApplyAll(func(c *container.Container) {
 			if !c.IsRunning() {
 				return
@@ -995,6 +996,7 @@ func (daemon *Daemon) initDiscovery(config *Config) error {
 // - Daemon max concurrent uploads
 // - Cluster discovery (reconfigure and restart).
 // - Daemon live restore
+// - Daemon shutdown timeout (in seconds).
 func (daemon *Daemon) Reload(config *Config) (err error) {
 
 	daemon.configStore.reloadLock.Lock()
@@ -1055,6 +1057,11 @@ func (daemon *Daemon) Reload(config *Config) (err error) {
 		daemon.uploadManager.SetConcurrency(*daemon.configStore.MaxConcurrentUploads)
 	}
 
+	if config.IsValueSet("shutdown-timeout") {
+		daemon.configStore.ShutdownTimeout = config.ShutdownTimeout
+		logrus.Debugf("Reset Shutdown Timeout: %d", daemon.configStore.ShutdownTimeout)
+	}
+
 	// We emit daemon reload event here with updatable configurations
 	attributes["debug"] = fmt.Sprintf("%t", daemon.configStore.Debug)
 	attributes["live-restore"] = fmt.Sprintf("%t", daemon.configStore.LiveRestoreEnabled)
@@ -1074,6 +1081,7 @@ func (daemon *Daemon) Reload(config *Config) (err error) {
 	}
 	attributes["max-concurrent-downloads"] = fmt.Sprintf("%d", *daemon.configStore.MaxConcurrentDownloads)
 	attributes["max-concurrent-uploads"] = fmt.Sprintf("%d", *daemon.configStore.MaxConcurrentUploads)
+	attributes["shutdown-timeout"] = fmt.Sprintf("%d", daemon.configStore.ShutdownTimeout)
 
 	return nil
 }
