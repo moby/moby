@@ -222,7 +222,7 @@ func (clnt *client) AddProcess(containerID, processFriendlyName string, procToAd
 	iopipe.Stdin = createStdInCloser(stdin, newProcess)
 
 	// TEMP: Work around Windows BS/DEL behavior.
-	iopipe.Stdin = fixStdinBackspaceBehavior(iopipe.Stdin, procToAdd.Terminal)
+	iopipe.Stdin = fixStdinBackspaceBehavior(iopipe.Stdin, container.ociSpec.Platform.OSVersion, procToAdd.Terminal)
 
 	// Convert io.ReadClosers to io.Readers
 	if stdout != nil {
