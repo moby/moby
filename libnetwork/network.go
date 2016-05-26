@@ -77,6 +77,19 @@ type svcInfo struct {
 	service    map[string][]servicePorts
 }
 
+// backing container or host's info
+type serviceTarget struct {
+	name string
+	ip   net.IP
+	port uint16
+}
+
+type servicePorts struct {
+	portName string
+	proto    string
+	target   []serviceTarget
+}
+
 // IpamConf contains all the ipam related configurations for a network
 type IpamConf struct {
 	// The master address pool for containers and network interfaces

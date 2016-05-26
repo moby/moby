@@ -167,14 +167,17 @@ func (ep *endpoint) addToCluster() error {
 
 	c := n.getController()
 	if !ep.isAnonymous() && ep.Iface().Address() != nil {
-		if err := c.addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.Iface().Address().IP); err != nil {
-			return err
+		if ep.svcID != "" {
+			if err := c.addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.virtualIP, ep.Iface().Address().IP); err != nil {
+				return err
+			}
 		}
 
 		buf, err := proto.Marshal(&EndpointRecord{
 			Name:        ep.Name(),
 			ServiceName: ep.svcName,
 			ServiceID:   ep.svcID,
+			VirtualIP:   ep.virtualIP.String(),
 			EndpointIP:  ep.Iface().Address().IP.String(),
 		})
 
@@ -204,8 +207,8 @@ func (ep *endpoint) deleteFromCluster() error {
 
 	c := n.getController()
 	if !ep.isAnonymous() {
-		if ep.Iface().Address() != nil {
-			if err := c.rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.Iface().Address().IP); err != nil {
+		if ep.svcID != "" && ep.Iface().Address() != nil {
+			if err := c.rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.virtualIP, ep.Iface().Address().IP); err != nil {
 				return err
 			}
 		}
@@ -357,6 +360,7 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 	name := epRec.Name
 	svcName := epRec.ServiceName
 	svcID := epRec.ServiceID
+	vip := net.ParseIP(epRec.VirtualIP)
 	ip := net.ParseIP(epRec.EndpointIP)
 
 	if name == "" || ip == nil {
@@ -365,16 +369,20 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 	}
 
 	if isAdd {
-		if err := c.addServiceBinding(svcName, svcID, nid, eid, ip); err != nil {
-			logrus.Errorf("Failed adding service binding for value %s: %v", value, err)
-			return
+		if svcID != "" {
+			if err := c.addServiceBinding(svcName, svcID, nid, eid, vip, ip); err != nil {
+				logrus.Errorf("Failed adding service binding for value %s: %v", value, err)
+				return
+			}
 		}
 
 		n.addSvcRecords(name, ip, nil, true)
 	} else {
-		if err := c.rmServiceBinding(svcName, svcID, nid, eid, ip); err != nil {
-			logrus.Errorf("Failed adding service binding for value %s: %v", value, err)
-			return
+		if svcID != "" {
+			if err := c.rmServiceBinding(svcName, svcID, nid, eid, vip, ip); err != nil {
+				logrus.Errorf("Failed adding service binding for value %s: %v", value, err)
+				return
+			}
 		}
 
 		n.deleteSvcRecords(name, ip, nil, true)
