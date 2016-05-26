@@ -33,6 +33,7 @@ type fileMetadataStore struct {
 type fileMetadataTransaction struct {
 	store *fileMetadataStore
 	root  string
+	tmp   string
 }
 
 // NewFSMetadataStore returns an instance of a metadata store
@@ -78,6 +79,7 @@ func (fms *fileMetadataStore) StartTransaction() (MetadataTransaction, error) {
 	return &fileMetadataTransaction{
 		store: fms,
 		root:  td,
+		tmp:   tmpDir,
 	}, nil
 }
 
@@ -125,7 +127,7 @@ func (fm *fileMetadataTransaction) Commit(layer ChainID) error {
 }
 
 func (fm *fileMetadataTransaction) Cancel() error {
-	return os.RemoveAll(fm.root)
+	return os.RemoveAll(fm.tmp)
 }
 
 func (fm *fileMetadataTransaction) String() string {
