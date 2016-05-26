@@ -16,7 +16,7 @@ Docker is supported on the following versions of Debian:
 
  - [*Debian testing stretch (64-bit)*](#debian-wheezy-stable-7-x-64-bit)
  - [*Debian 8.0 Jessie (64-bit)*](#debian-jessie-80-64-bit)
- - [*Debian 7.7 Wheezy (64-bit)*](#debian-wheezy-stable-7-x-64-bit)
+ - [*Debian 7.7 Wheezy (64-bit)*](#debian-wheezy-stable-7-x-64-bit) (backports required)
 
  >**Note**: If you previously installed Docker using `APT`, make sure you update
  your `APT` sources to the new `APT` repository.
@@ -35,6 +35,26 @@ Docker is supported on the following versions of Debian:
  display your kernel version:
 
      $ uname -r
+
+ Additionally, for users of Debian Wheezy, backports must be available. To enable backports in Wheezy:
+ 
+ 1. Log into your machine and open a terminal with `sudo` or `root` privileges.
+ 
+ 2. Open the `/etc/apt/sources.list.d/backports.list` file in your favorite editor.
+
+     If the file doesn't exist, create it.
+ 
+ 3. Remove any existing entries.
+ 
+ 4. Add an entry for backports on Debian Wheezy.
+
+     An example entry:
+
+         deb http://http.debian.net/debian wheezy-backports main
+
+ 5. Update package information:
+
+         $ apt-get update
 
 ### Update your apt repository
 
