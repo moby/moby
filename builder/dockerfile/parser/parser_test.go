@@ -131,22 +131,22 @@ func TestLineInformation(t *testing.T) {
 		t.Fatalf("Error parsing dockerfile %s: %v", testFileLineInfo, err)
 	}
 
-	if ast.StartLine != 4 || ast.EndLine != 30 {
-		fmt.Fprintf(os.Stderr, "Wrong root line information: expected(%d-%d), actual(%d-%d)\n", 4, 30, ast.StartLine, ast.EndLine)
+	if ast.StartLine != 5 || ast.EndLine != 31 {
+		fmt.Fprintf(os.Stderr, "Wrong root line information: expected(%d-%d), actual(%d-%d)\n", 5, 31, ast.StartLine, ast.EndLine)
 		t.Fatalf("Root line information doesn't match result.")
 	}
 	if len(ast.Children) != 3 {
 		fmt.Fprintf(os.Stderr, "Wrong number of child: expected(%d), actual(%d)\n", 3, len(ast.Children))
-		t.Fatalf("Root line information doesn't match result.")
+		t.Fatalf("Root line information doesn't match result for %s", testFileLineInfo)
 	}
 	expected := [][]int{
-		{4, 4},
-		{10, 11},
-		{16, 30},
+		{5, 5},
+		{11, 12},
+		{17, 31},
 	}
 	for i, child := range ast.Children {
 		if child.StartLine != expected[i][0] || child.EndLine != expected[i][1] {
-			fmt.Fprintf(os.Stderr, "Wrong line information for child %d: expected(%d-%d), actual(%d-%d)\n",
+			t.Logf("Wrong line information for child %d: expected(%d-%d), actual(%d-%d)\n",
 				i, expected[i][0], expected[i][1], child.StartLine, child.EndLine)
 			t.Fatalf("Root line information doesn't match result.")
 		}

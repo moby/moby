@@ -3125,9 +3125,10 @@ func (s *DockerSuite) TestBuildAddToSymlinkDest(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildEscapeWhitespace(c *check.C) {
-	name := "testbuildescaping"
+	name := "testbuildescapewhitespace"
 
 	_, err := buildImage(name, `
+  # ESCAPE=\
   FROM busybox
   MAINTAINER "Docker \
 IO <io@\
