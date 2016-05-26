@@ -2368,3 +2368,41 @@ func (s *DockerDaemonSuite) TestDaemonDnsOptionsInHostMode(c *check.C) {
 	out, _ := s.d.Cmd("run", "--net=host", "busybox", "cat", "/etc/resolv.conf")
 	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
 }
+
+func (s *DockerDaemonSuite) TestDaemonConfigFileReload(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	// daemon config file
+	configFilePath := "test.json"
+	configFile, err := os.Create(configFilePath)
+	c.Assert(err, checker.IsNil)
+	defer os.Remove(configFilePath)
+
+	daemonConfig := `{ "labels":["foo=bar"], "debug" : true }`
+	fmt.Fprintf(configFile, "%s", daemonConfig)
+	configFile.Close()
+	c.Assert(s.d.Start(fmt.Sprintf("--config-file=%s", configFilePath)), check.IsNil)
+
+	expectedLabels := `foo=bar`
+	expectedDebug := `Debug Mode (server): true`
+	out, err := s.d.Cmd("info")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, expectedLabels)
+	c.Assert(out, checker.Contains, expectedDebug)
+
+	configFile, err = os.Create(configFilePath)
+	c.Assert(err, checker.IsNil)
+	daemonConfig = `{ }`
+	fmt.Fprintf(configFile, "%s", daemonConfig)
+	configFile.Close()
+
+	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+
+	time.Sleep(3 * time.Second)
+
+	expectedDebug = `Debug Mode (server): false`
+	out, err = s.d.Cmd("info")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Not(checker.Contains), expectedLabels)
+	c.Assert(out, checker.Contains, expectedDebug)
+}

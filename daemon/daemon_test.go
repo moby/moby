@@ -335,7 +335,7 @@ func TestDaemonReloadLabels(t *testing.T) {
 	}
 }
 
-func TestDaemonReloadNotAffectOthers(t *testing.T) {
+func TestDaemonReloadUnset(t *testing.T) {
 	daemon := &Daemon{}
 	daemon.configStore = &Config{
 		CommonConfig: CommonConfig{
@@ -359,8 +359,8 @@ func TestDaemonReloadNotAffectOthers(t *testing.T) {
 		t.Fatalf("Expected daemon label `foo:baz`, got %s", label)
 	}
 	debug := daemon.configStore.Debug
-	if !debug {
-		t.Fatalf("Expected debug 'enabled', got 'disabled'")
+	if debug {
+		t.Fatalf("Expected debug 'disabled', got 'enabled'")
 	}
 }
 
