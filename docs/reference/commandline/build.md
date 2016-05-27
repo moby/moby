@@ -79,7 +79,11 @@ Build Syntax Suffix | Commit Used | Build Context Used
 Instead of specifying a context, you can pass a single Dockerfile in the `URL`
 or pipe the file in via `STDIN`. To pipe a Dockerfile from `STDIN`:
 
-    docker build - < Dockerfile
+    $ docker build - < Dockerfile
+
+With Powershell on Windows, you can run:
+
+    Get-Content Dockerfile | docker build -
 
 If you use STDIN or specify a `URL`, the system places the contents into a file
 called `Dockerfile`, and any `-f`, `--file` option is ignored. In this
