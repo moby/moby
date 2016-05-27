@@ -106,3 +106,10 @@ func (daemon *Daemon) generateNewName(id string) (string, error) {
 	}
 	return name, nil
 }
+
+func validateID(id string) error {
+	if id == "" {
+		return fmt.Errorf("Invalid empty id")
+	}
+	return nil
+}
