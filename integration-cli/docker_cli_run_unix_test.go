@@ -824,6 +824,45 @@ func (s *DockerSuite) TestRunTmpfsMounts(c *check.C) {
 	}
 }
 
+// Test case for #22420
+func (s *DockerSuite) TestRunTmpfsMountsWithOptions(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	expectedOptions := []string{"rw", "nosuid", "nodev", "noexec", "relatime", "size=65536k"}
+	out, _ := dockerCmd(c, "run", "--tmpfs", "/tmp", "busybox", "sh", "-c", "mount | grep 'tmpfs on /tmp'")
+	for _, option := range expectedOptions {
+		c.Assert(out, checker.Contains, option)
+	}
+
+	expectedOptions = []string{"rw", "nosuid", "nodev", "noexec", "relatime", "size=65536k"}
+	out, _ = dockerCmd(c, "run", "--tmpfs", "/tmp:rw", "busybox", "sh", "-c", "mount | grep 'tmpfs on /tmp'")
+	for _, option := range expectedOptions {
+		c.Assert(out, checker.Contains, option)
+	}
+
+	expectedOptions = []string{"rw", "nosuid", "nodev", "relatime", "size=8192k"}
+	out, _ = dockerCmd(c, "run", "--tmpfs", "/tmp:rw,exec,size=8192k", "busybox", "sh", "-c", "mount | grep 'tmpfs on /tmp'")
+	for _, option := range expectedOptions {
+		c.Assert(out, checker.Contains, option)
+	}
+
+	expectedOptions = []string{"rw", "nosuid", "nodev", "noexec", "relatime", "size=4096k"}
+	out, _ = dockerCmd(c, "run", "--tmpfs", "/tmp:rw,size=8192k,exec,size=4096k,noexec", "busybox", "sh", "-c", "mount | grep 'tmpfs on /tmp'")
+	for _, option := range expectedOptions {
+		c.Assert(out, checker.Contains, option)
+	}
+
+	// We use debian:jessie as there is no findmnt in busybox. Also the output will be in the format of
+	// TARGET PROPAGATION
+	// /tmp   shared
+	// so we only capture `shared` here.
+	expectedOptions = []string{"shared"}
+	out, _ = dockerCmd(c, "run", "--tmpfs", "/tmp:shared", "debian:jessie", "findmnt", "-o", "TARGET,PROPAGATION", "/tmp")
+	for _, option := range expectedOptions {
+		c.Assert(out, checker.Contains, option)
+	}
+}
+
 func (s *DockerSuite) TestRunSysctls(c *check.C) {
 
 	testRequires(c, DaemonIsLinux)
