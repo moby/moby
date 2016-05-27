@@ -546,13 +546,16 @@ func (container *Container) ShouldRestart() bool {
 // AddMountPointWithVolume adds a new mount point configured with a volume to the container.
 func (container *Container) AddMountPointWithVolume(destination string, vol volume.Volume, rw bool) {
 	container.MountPoints[destination] = &volume.MountPoint{
-		Name:        vol.Name(),
-		Driver:      vol.DriverName(),
-		Destination: destination,
-		RW:          rw,
-		Volume:      vol,
-		CopyData:    volume.DefaultCopyMode,
+		CommonMountPoint: volume.CommonMountPoint{
+			Name:        vol.Name(),
+			Driver:      vol.DriverName(),
+			Destination: destination,
+			RW:          rw,
+			Volume:      vol,
+		},
 	}
+
+	container.addMountPointWithVolumePlatformFields(destination)
 }
 
 // IsDestinationMounted checks whether a path is mounted on the container or not.

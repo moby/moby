@@ -100,14 +100,16 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 
 		for _, m := range c.MountPoints {
 			cp := &volume.MountPoint{
-				Name:        m.Name,
-				Source:      m.Source,
-				RW:          m.RW && volume.ReadWrite(mode),
-				Driver:      m.Driver,
-				Destination: m.Destination,
-				Propagation: m.Propagation,
-				Named:       m.Named,
+				CommonMountPoint: volume.CommonMountPoint{
+					Name:        m.Name,
+					Source:      m.Source,
+					RW:          m.RW && volume.ReadWrite(mode),
+					Driver:      m.Driver,
+					Destination: m.Destination,
+					Named:       m.Named,
+				},
 			}
+			copyMountPointPropagation(cp, m)
 
 			if len(cp.Source) == 0 {
 				v, err := daemon.volumes.GetWithRef(cp.Name, cp.Driver, container.ID)
@@ -149,7 +151,6 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 				bind = setBindModeIfNull(bind)
 			}
 		}
-
 		binds[bind.Destination] = true
 		mountPoints[bind.Destination] = bind
 	}

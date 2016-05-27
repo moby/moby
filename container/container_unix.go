@@ -105,7 +105,7 @@ func appendNetworkMounts(container *Container, volumeMounts []volume.MountPoint)
 		if err != nil {
 			return nil, err
 		}
-		volumeMounts = append(volumeMounts, volume.MountPoint{Destination: dest})
+		volumeMounts = append(volumeMounts, volume.MountPoint{CommonMountPoint: volume.CommonMountPoint{Destination: dest}})
 	}
 	return volumeMounts, nil
 }
@@ -325,7 +325,13 @@ func (container *Container) UnmountVolumes(forceSyscall bool, volumeEventLog fun
 			return err
 		}
 
-		volumeMounts = append(volumeMounts, volume.MountPoint{Destination: dest, Volume: mntPoint.Volume})
+		volumeMounts = append(volumeMounts,
+			volume.MountPoint{
+				CommonMountPoint: volume.CommonMountPoint{
+					Destination: dest,
+					Volume:      mntPoint.Volume,
+				},
+			})
 	}
 
 	// Append any network mounts to the list (this is a no-op on Windows)
@@ -416,4 +422,10 @@ func cleanResourcePath(path string) string {
 // can be mounted locally. A no-op on non-Windows platforms
 func (container *Container) canMountFS() bool {
 	return true
+}
+
+// addMountPointWithVolumePlatformFields is a helper for AddMountPointWithVolume
+// which sets the platform specific fields.
+func (container *Container) addMountPointWithVolumePlatformFields(destination string) {
+	container.MountPoints[destination].CopyData = volume.DefaultCopyMode
 }

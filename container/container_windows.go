@@ -107,3 +107,8 @@ func (container *Container) BuildHostnameFile() error {
 func (container *Container) canMountFS() bool {
 	return !containertypes.Isolation.IsHyperV(container.HostConfig.Isolation)
 }
+
+// addMountPointWithVolumePlatformFields is a helper for AddMountPointWithVolume
+// which sets the platform specific fields. It is a no-op on Windows.
+func (container *Container) addMountPointWithVolumePlatformFields(destination string) {
+}
