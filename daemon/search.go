@@ -32,11 +32,6 @@ func (daemon *Daemon) SearchRegistryForImages(ctx context.Context, filtersArgs s
 		return nil, err
 	}
 
-	unfilteredResult, err := daemon.RegistryService.Search(ctx, term, authConfig, dockerversion.DockerUserAgent(ctx), headers)
-	if err != nil {
-		return nil, err
-	}
-
 	var isAutomated, isOfficial bool
 	var hasStarFilter = 0
 	if searchFilters.Include("is-automated") {
@@ -64,6 +59,11 @@ func (daemon *Daemon) SearchRegistryForImages(ctx context.Context, filtersArgs s
 				hasStarFilter = iHasStar
 			}
 		}
+	}
+
+	unfilteredResult, err := daemon.RegistryService.Search(ctx, term, authConfig, dockerversion.DockerUserAgent(ctx), headers)
+	if err != nil {
+		return nil, err
 	}
 
 	filteredResults := []registrytypes.SearchResult{}
