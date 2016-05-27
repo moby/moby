@@ -48,13 +48,18 @@ func (l *MalformedHostHeaderOverrideConn) Read(b []byte) (n int, err error) {
 			firstLineFeed = -1
 			buf           []byte
 		)
-		for i, bb := range b[:c] {
-			if bb == '\n' && firstLineFeed == -1 {
+		for i := 0; i <= c-1-7; i++ {
+			if b[i] == '\n' && firstLineFeed == -1 {
 				firstLineFeed = i
 			}
-			if bb != '\n' {
+			if b[i] != '\n' {
 				continue
 			}
+
+			if b[i+1] == '\r' && b[i+2] == '\n' {
+				return c, nil
+			}
+
 			if b[i+1] != 'H' {
 				continue
 			}
