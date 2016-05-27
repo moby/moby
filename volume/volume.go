@@ -60,7 +60,6 @@ type MountPoint struct {
 
 	// Note Propagation is not used on Windows
 	Propagation string // Mount propagation string
-	Named       bool   // specifies if the mountpoint was specified by name
 
 	// Specifies if data should be copied from the container before the first mount
 	// Use a pointer here so we can tell if the user set this value explicitly
@@ -102,6 +101,11 @@ func (m *MountPoint) Path() string {
 		return m.Volume.Path()
 	}
 	return m.Source
+}
+
+// IsNamed returns true if the MountPoint is a named volume
+func (m *MountPoint) IsNamed() bool {
+	return m.Name != ""
 }
 
 // ParseVolumesFrom ensures that the supplied volumes-from is valid.

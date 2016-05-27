@@ -94,7 +94,6 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 				Driver:      m.Driver,
 				Destination: m.Destination,
 				Propagation: m.Propagation,
-				Named:       m.Named,
 			}
 
 			if len(cp.Source) == 0 {
@@ -121,7 +120,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			return fmt.Errorf("Duplicate mount point '%s'", bind.Destination)
 		}
 
-		if len(bind.Name) > 0 {
+		if bind.IsNamed() {
 			// create the volume
 			v, err := daemon.volumes.CreateWithRef(bind.Name, bind.Driver, container.ID, nil, nil)
 			if err != nil {
@@ -131,7 +130,6 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			bind.Source = v.Path()
 			// bind.Name is an already existing volume, we need to use that here
 			bind.Driver = v.DriverName()
-			bind.Named = true
 			if bind.Driver == "local" {
 				bind = setBindModeIfNull(bind)
 			}
