@@ -123,8 +123,9 @@ clone git github.com/tinylib/msgp 75ee40d2601edf122ef667e2a07d600d4c44490c
 clone git gopkg.in/fsnotify.v1 v1.2.11
 
 # awslogs deps
-clone git github.com/aws/aws-sdk-go v0.9.9
-clone git github.com/vaughan0/go-ini a98ad7ee00ec53921f08832bc06ecf7fd600e6a1
+clone git github.com/aws/aws-sdk-go v1.1.30
+clone git github.com/go-ini/ini 060d7da055ba6ec5ea7a31f116332fe5efa04ce0
+clone git github.com/jmespath/go-jmespath 0b12d6b521d83fc7f755e7cfc1b1fbdd35a01a74
 
 # gcplogs deps
 clone git golang.org/x/oauth2 2baa8a1b9338cf13d9eeb27696d761155fa480be https://github.com/golang/oauth2.git
