@@ -33,7 +33,7 @@ more details about the `docker stats` command.
 ## Control groups
 
 Linux Containers rely on [control groups](
-https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt)
+https://www.kernel.org/doc/Documentation/cgroup-v1/cgroups.txt)
 which not only track groups of processes, but also expose metrics about
 CPU, memory, and block I/O usage. You can access those metrics and
 obtain network usage metrics as well. This is relevant for "pure" LXC
@@ -256,7 +256,7 @@ compatibility reasons.
 Block I/O is accounted in the `blkio` controller.
 Different metrics are scattered across different files. While you can
 find in-depth details in the [blkio-controller](
-https://www.kernel.org/doc/Documentation/cgroups/blkio-controller.txt)
+https://www.kernel.org/doc/Documentation/cgroup-v1/blkio-controller.txt)
 file in the kernel documentation, here is a short list of the most
 relevant ones:
 
