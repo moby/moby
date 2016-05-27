@@ -67,7 +67,11 @@ func (cli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
 	// be a tty itself: redirecting or piping the client standard input is
 	// incompatible with `docker run -t`, `docker exec -t` or `docker attach`.
 	if ttyMode && attachStdin && !cli.isTerminalIn {
-		return errors.New("cannot enable tty mode on non tty input")
+		eText := "the input device is not a TTY"
+		if runtime.GOOS == "windows" {
+			return errors.New(eText + ".  If you are using mintty, try prefixing the command with 'winpty'")
+		}
+		return errors.New(eText)
 	}
 	return nil
 }
