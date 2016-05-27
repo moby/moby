@@ -96,7 +96,7 @@ RUN set -x \
 # We don't have official binary tarballs for ARM64, eigher for Go or bootstrap,
 # so we use the official armv6 released binaries as a GOROOT_BOOTSTRAP, and
 # build Go from source code.
-ENV GO_VERSION 1.5.4
+ENV GO_VERSION 1.6.2
 RUN mkdir /usr/src/go && curl -fsSL https://storage.googleapis.com/golang/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/src/go -xz --strip-components=1 \
 	&& cd /usr/src/go/src \
 	&& GOOS=linux GOARCH=arm64 GOROOT_BOOTSTRAP="$(go env GOROOT)" ./make.bash

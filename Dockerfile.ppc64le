@@ -15,7 +15,7 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM ppc64le/gcc:5.3
+FROM ppc64le/gcc:6.1
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \

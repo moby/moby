@@ -27,13 +27,6 @@ for platform in $DOCKER_CROSSPLATFORMS; do
 		export GOOS=${platform%/*}
 		export GOARCH=${platform##*/}
 
-		# !!! TEMPORARY HACK !!!
-		# See Dockerfile
-		if [ "$platform" == "windows/amd64" ]; then
-			export GOROOT="/usr/local/go${HACK_GO_VERSION}"
-			export PATH=$(echo "$PATH" | sed "s,:/usr/local/go/bin:,:/usr/local/go${HACK_GO_VERSION}/bin:,")
-		fi
-
 		if [ -z "${daemonSupporting[$platform]}" ]; then
             # we just need a simple client for these platforms
 			export LDFLAGS_STATIC_DOCKER=""
