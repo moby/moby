@@ -33,6 +33,7 @@ const (
 	containerdBinary          = "docker-containerd"
 	containerdPidFilename     = "docker-containerd.pid"
 	containerdSockFilename    = "docker-containerd.sock"
+	containerdStateDir        = "containerd"
 	eventTimestampFilename    = "event.ts"
 )
 
@@ -354,6 +355,7 @@ func (r *remote) runContainerdDaemon() error {
 		"--shim", "docker-containerd-shim",
 		"--runtime", "docker-runc",
 		"--metrics-interval=0",
+		"--state-dir", filepath.Join(r.stateDir, containerdStateDir),
 	}
 	if r.debugLog {
 		args = append(args, "--debug")
