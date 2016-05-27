@@ -39,7 +39,7 @@ Starting Couchbase Server -- Web UI available at http://<ip>:8091
 > Docker using Docker machine, you can obtain the IP address
 > of the Docker host using `docker-machine ip <MACHINE-NAME>`.
 
-The logs show that Couchbase console can be accessed at http://192.168.99.100:8091. The default username is `Administrator` and the password is `password`.
+The logs show that Couchbase console can be accessed at `http://192.168.99.100:8091`. The default username is `Administrator` and the password is `password`.
 
 ## Configure Couchbase Docker container
 
@@ -228,7 +228,7 @@ cbq> select * from `travel-sample` limit 1;
 
 [Couchbase Web Console](http://developer.couchbase.com/documentation/server/4.1/admin/ui-intro.html) is a console that allows to manage a Couchbase instance. It can be seen at:
 
-http://192.168.99.100:8091/
+`http://192.168.99.100:8091/`
 
 Make sure to replace the IP address with the IP address of your Docker Machine or `localhost` if Docker is running locally.
 
