@@ -104,7 +104,7 @@ clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
 clone git github.com/opencontainers/runc d49ece5a83da3dcb820121d6850e2b61bd0a5fbe # libcontainer
 clone git github.com/opencontainers/specs f955d90e70a98ddfb886bd930ffd076da9b67998 # specs
-clone git github.com/seccomp/libseccomp-golang 1b506fc7c24eec5a3693cdcbed40d9c226cfc6a1
+clone git github.com/seccomp/libseccomp-golang 60c9953736798c4a04e90d0f3da2f933d44fd4c4
 # libcontainer deps (see src/github.com/opencontainers/runc/Godeps/Godeps.json)
 clone git github.com/coreos/go-systemd v4
 clone git github.com/godbus/dbus v4.0.0

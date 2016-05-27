@@ -109,7 +109,7 @@ RUN set -x \
 ENV PATH /osxcross/target/bin:$PATH
 
 # install seccomp: the version shipped in trusty is too old
-ENV SECCOMP_VERSION 2.3.0
+ENV SECCOMP_VERSION 2.3.1
 RUN set -x \
 	&& export SECCOMP_PATH="$(mktemp -d)" \
 	&& curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
