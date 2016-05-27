@@ -36,6 +36,7 @@ the running containers.
    - since=(<container-name>|<container-id>)
    - ancestor=(<image-name>[:tag]|<image-id>|<image@digest>) - containers created from an image or a descendant.
    - volume=(<volume-name>|<mount-point-destination>)
+   - network=(<network-name>) - containers connected to the provided network name
 
 **--format**="*TEMPLATE*"
    Pretty-print containers using a Go template.

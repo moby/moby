@@ -787,3 +787,41 @@ func (s *DockerSuite) TestPsShowMounts(c *check.C) {
 	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+prefix+slash+"this-path-was-never-mounted")
 	c.Assert(strings.TrimSpace(string(out)), checker.HasLen, 0)
 }
+
+func (s *DockerSuite) TestPsListContainersFilterNetwork(c *check.C) {
+	// create a container
+	out, _ := runSleepingContainer(c, "--net=bridge", "--name=onbridgenetwork")
+	out, _ = runSleepingContainer(c, "--net=none", "--name=onnonenetwork")
+
+	// Filter docker ps on network bridge
+	out, _ = dockerCmd(c, "ps", "--filter", "network=bridge")
+	containerOut := strings.TrimSpace(string(out))
+
+	lines := strings.Split(containerOut, "\n")
+
+	// skip header
+	lines = lines[1:]
+
+	// ps output should have only one container
+	c.Assert(lines, checker.HasLen, 1)
+
+	// Making sure onbridgenetwork is on the output
+	c.Assert(lines[0], checker.Contains, "onbridgenetwork", check.Commentf("Missing the container on network\n"))
+
+	// Filter docker ps on networks bridge and none
+	out, _ = dockerCmd(c, "ps", "--filter", "network=bridge", "--filter", "network=none")
+	containerOut = strings.TrimSpace(string(out))
+
+	lines = strings.Split(containerOut, "\n")
+
+	// skip header
+	lines = lines[1:]
+
+	//ps output should have both the containers
+	c.Assert(lines, checker.HasLen, 2)
+
+	// Making sure onbridgenetwork and onnonenetwork is on the output
+	c.Assert(lines[0], checker.Contains, "onnonenetwork", check.Commentf("Missing the container on none network\n"))
+	c.Assert(lines[1], checker.Contains, "onbridgenetwork", check.Commentf("Missing the container on bridge network\n"))
+
+}
