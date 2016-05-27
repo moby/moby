@@ -153,8 +153,9 @@ func (d *Driver) Remove(id string) error {
 // Get mounts a device with given id into the root filesystem
 func (d *Driver) Get(id, mountLabel string) (string, error) {
 	mp := path.Join(d.home, "mnt", id)
+	rootFs := path.Join(mp, "rootfs")
 	if count := d.ctr.Increment(id); count > 1 {
-		return mp, nil
+		return rootFs, nil
 	}
 
 	uid, gid, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
@@ -179,7 +180,6 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 		return "", err
 	}
 
-	rootFs := path.Join(mp, "rootfs")
 	if err := idtools.MkdirAllAs(rootFs, 0755, uid, gid); err != nil && !os.IsExist(err) {
 		d.ctr.Decrement(id)
 		d.DeviceSet.UnmountDevice(id, mp)
