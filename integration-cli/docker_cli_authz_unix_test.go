@@ -327,7 +327,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginAllowEventStream(c *check.C) {
 
 	startTime := strconv.FormatInt(daemonTime(c).Unix(), 10)
 	// Add another command to to enable event pipelining
-	eventsCmd := exec.Command(s.d.cmd.Path, "--host", s.d.sock(), "events", "--since", startTime)
+	eventsCmd := exec.Command(dockerBinary, "--host", s.d.sock(), "events", "--since", startTime)
 	stdout, err := eventsCmd.StdoutPipe()
 	if err != nil {
 		c.Assert(err, check.IsNil)

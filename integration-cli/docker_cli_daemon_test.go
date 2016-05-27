@@ -29,6 +29,16 @@ import (
 	"github.com/kr/pty"
 )
 
+// TestLegacyDaemonCommand test starting docker daemon using "deprecated" docker daemon
+// command. Remove this test when we remove this.
+func (s *DockerDaemonSuite) TestLegacyDaemonCommand(c *check.C) {
+	cmd := exec.Command(dockerBinary, "daemon", "--storage-driver=vfs", "--debug")
+	err := cmd.Start()
+	c.Assert(err, checker.IsNil, check.Commentf("could not start daemon using 'docker daemon'"))
+
+	c.Assert(cmd.Process.Kill(), checker.IsNil)
+}
+
 func (s *DockerDaemonSuite) TestDaemonRestartWithRunningContainersPorts(c *check.C) {
 	if err := s.d.StartWithBusybox(); err != nil {
 		c.Fatalf("Could not start daemon with busybox: %v", err)
@@ -1454,7 +1464,7 @@ func (s *DockerDaemonSuite) TestHttpsRun(c *check.C) {
 
 // TestTlsVerify verifies that --tlsverify=false turns on tls
 func (s *DockerDaemonSuite) TestTlsVerify(c *check.C) {
-	out, err := exec.Command(dockerBinary, "daemon", "--tlsverify=false").CombinedOutput()
+	out, err := exec.Command(dockerdBinary, "--tlsverify=false").CombinedOutput()
 	if err == nil || !strings.Contains(string(out), "Could not load X509 key pair") {
 		c.Fatalf("Daemon should not have started due to missing certs: %v\n%s", err, string(out))
 	}
