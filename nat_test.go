@@ -171,6 +171,41 @@ func TestSplitProtoPort(t *testing.T) {
 	}
 }
 
+func TestParsePortSpecFull(t *testing.T) {
+	portMappings, err := ParsePortSpec("0.0.0.0:1234-1235:3333-3334/tcp")
+
+	if err != nil {
+		t.Fatalf("Error while parsing port spec: %s", err)
+	}
+
+	expected := []PortMapping{
+		{
+			Port: "3333/tcp",
+			Binding: PortBinding{
+				HostIP:   "0.0.0.0",
+				HostPort: "1234",
+			},
+		},
+		{
+			Port: "3334/tcp",
+			Binding: PortBinding{
+				HostIP:   "0.0.0.0",
+				HostPort: "1235",
+			},
+		},
+	}
+
+	if len(portMappings) != len(expected) {
+		t.Fatalf("Expected slice of size: %d, got size %d", len(expected), len(portMappings))
+	}
+
+	for i := 0; i < len(expected); i++ {
+		if portMappings[i] != expected[i] {
+			t.Fatalf("Expected: %v\nActual: %v", expected, portMappings)
+		}
+	}
+}
+
 func TestParsePortSpecs(t *testing.T) {
 	var (
 		portMap    map[Port]struct{}
