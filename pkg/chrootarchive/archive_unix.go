@@ -80,7 +80,7 @@ func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.T
 		// pending on write pipe forever
 		io.Copy(ioutil.Discard, decompressedArchive)
 
-		return fmt.Errorf("Untar re-exec error: %v: output: %s", err, output)
+		return fmt.Errorf("Error processing tar file(%v): %s", err, output)
 	}
 	return nil
 }
