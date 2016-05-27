@@ -183,3 +183,10 @@ func TestMoveToSubdir(t *testing.T) {
 		t.Fatalf("Results after migration do not equal list of files: expected: %v, got: %v", filesList, results)
 	}
 }
+
+// Test a non-existing directory
+func TestSizeNonExistingDirectory(t *testing.T) {
+	if _, err := Size("/thisdirectoryshouldnotexist/TestSizeNonExistingDirectory"); err == nil {
+		t.Fatalf("error is expected")
+	}
+}
