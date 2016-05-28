@@ -80,9 +80,10 @@ func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap)
 	return d, nil
 }
 
-// String returns the string representation of a driver.
+// String returns the string representation of a driver. This should match
+// the name the graph driver has been registered with.
 func (d *Driver) String() string {
-	return "Windows filter storage driver"
+	return "windowsfilter"
 }
 
 // Status returns the status of the driver.
