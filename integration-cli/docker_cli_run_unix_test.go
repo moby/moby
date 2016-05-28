@@ -1032,12 +1032,12 @@ func (s *DockerSuite) TestRunSeccompAllowSetrlimit(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunSeccompDefaultProfile(c *check.C) {
+func (s *DockerSuite) TestRunSeccompDefaultProfileAcct(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled, NotUserNamespace)
 
 	var group sync.WaitGroup
-	group.Add(11)
-	errChan := make(chan error, 11)
+	group.Add(5)
+	errChan := make(chan error, 5)
 	go func() {
 		out, _, err := dockerCmdWithError("run", "syscall-test", "acct-test")
 		if err == nil || !strings.Contains(out, "Operation not permitted") {
@@ -1077,6 +1077,21 @@ func (s *DockerSuite) TestRunSeccompDefaultProfile(c *check.C) {
 		}
 		group.Done()
 	}()
+
+	group.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		c.Assert(err, checker.IsNil)
+	}
+}
+
+func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled, NotUserNamespace)
+
+	var group sync.WaitGroup
+	group.Add(6)
+	errChan := make(chan error, 6)
 
 	go func() {
 		out, _, err := dockerCmdWithError("run", "syscall-test", "ns-test", "echo", "hello0")
