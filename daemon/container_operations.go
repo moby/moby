@@ -26,6 +26,7 @@ var (
 	// ErrRootFSReadOnly is returned when a container
 	// rootfs is marked readonly.
 	ErrRootFSReadOnly = errors.New("container rootfs is marked read-only")
+	getPortMapInfo    = container.GetSandboxPortMapInfo
 )
 
 func (daemon *Daemon) buildSandboxOptions(container *container.Container, n libnetwork.Network) ([]libnetwork.SandboxOption, error) {
@@ -581,6 +582,8 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 		return fmt.Errorf("Updating join info failed: %v", err)
 	}
 
+	container.NetworkSettings.Ports = getPortMapInfo(sb)
+
 	daemon.LogNetworkEventWithAttributes(n, "connect", map[string]string{"container": container.ID})
 	return nil
 }
@@ -632,6 +635,8 @@ func disconnectFromNetwork(container *container.Container, n libnetwork.Network,
 	if err := ep.Leave(sbox); err != nil {
 		return fmt.Errorf("container %s failed to leave network %s: %v", container.ID, n.Name(), err)
 	}
+
+	container.NetworkSettings.Ports = getPortMapInfo(sbox)
 
 	if err := ep.Delete(false); err != nil {
 		return fmt.Errorf("endpoint delete failed for container %s on network %s: %v", container.ID, n.Name(), err)

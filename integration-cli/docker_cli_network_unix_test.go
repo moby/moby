@@ -1080,6 +1080,52 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectWithPortMapping(c *check.C)
 	dockerCmd(c, "network", "connect", "test1", "c1")
 }
 
+func verifyPortMap(c *check.C, container, port, originalMapping string, mustBeEqual bool) {
+	chk := checker.Equals
+	if !mustBeEqual {
+		chk = checker.Not(checker.Equals)
+	}
+	currentMapping, _ := dockerCmd(c, "port", container, port)
+	c.Assert(currentMapping, chk, originalMapping)
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnectWithPortMapping(c *check.C) {
+	// Connect and disconnect a container with explicit and non-explicit
+	// host port mapping to/from networks which do cause and do not cause
+	// the container default gateway to change, and verify docker port cmd
+	// returns congruent information
+	testRequires(c, NotArm)
+	cnt := "c1"
+	dockerCmd(c, "network", "create", "aaa")
+	dockerCmd(c, "network", "create", "ccc")
+
+	dockerCmd(c, "run", "-d", "--name", cnt, "-p", "9000:90", "-p", "70", "busybox", "top")
+	c.Assert(waitRun(cnt), check.IsNil)
+	curPortMap, _ := dockerCmd(c, "port", cnt, "70")
+	curExplPortMap, _ := dockerCmd(c, "port", cnt, "90")
+
+	// Connect to a network which causes the container's default gw switch
+	dockerCmd(c, "network", "connect", "aaa", cnt)
+	verifyPortMap(c, cnt, "70", curPortMap, false)
+	verifyPortMap(c, cnt, "90", curExplPortMap, true)
+
+	// Read current mapping
+	curPortMap, _ = dockerCmd(c, "port", cnt, "70")
+
+	// Disconnect from a network which causes the container's default gw switch
+	dockerCmd(c, "network", "disconnect", "aaa", cnt)
+	verifyPortMap(c, cnt, "70", curPortMap, false)
+	verifyPortMap(c, cnt, "90", curExplPortMap, true)
+
+	// Read current mapping
+	curPortMap, _ = dockerCmd(c, "port", cnt, "70")
+
+	// Connect to a network which does not cause the container's default gw switch
+	dockerCmd(c, "network", "connect", "ccc", cnt)
+	verifyPortMap(c, cnt, "70", curPortMap, true)
+	verifyPortMap(c, cnt, "90", curExplPortMap, true)
+}
+
 func (s *DockerNetworkSuite) TestDockerNetworkConnectWithMac(c *check.C) {
 	macAddress := "02:42:ac:11:00:02"
 	dockerCmd(c, "network", "create", "mynetwork")

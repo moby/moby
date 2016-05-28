@@ -105,6 +105,7 @@ func Init(base string, opt []string, uidMaps, gidMaps []idtools.IDMap) (graphdri
 		filesystemsCache: filesystemsCache,
 		uidMaps:          uidMaps,
 		gidMaps:          gidMaps,
+		ctr:              graphdriver.NewRefCounter(),
 	}
 	return graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps), nil
 }
@@ -161,6 +162,7 @@ type Driver struct {
 	filesystemsCache map[string]bool
 	uidMaps          []idtools.IDMap
 	gidMaps          []idtools.IDMap
+	ctr              *graphdriver.RefCounter
 }
 
 func (d *Driver) String() string {
@@ -295,25 +297,35 @@ func (d *Driver) Remove(id string) error {
 // Get returns the mountpoint for the given id after creating the target directories if necessary.
 func (d *Driver) Get(id, mountLabel string) (string, error) {
 	mountpoint := d.mountPath(id)
+	if count := d.ctr.Increment(id); count > 1 {
+		return mountpoint, nil
+	}
+
 	filesystem := d.zfsPath(id)
 	options := label.FormatMountLabel("", mountLabel)
 	logrus.Debugf(`[zfs] mount("%s", "%s", "%s")`, filesystem, mountpoint, options)
 
 	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
 	if err != nil {
+		d.ctr.Decrement(id)
 		return "", err
 	}
 	// Create the target directories if they don't exist
 	if err := idtools.MkdirAllAs(mountpoint, 0755, rootUID, rootGID); err != nil {
+		d.ctr.Decrement(id)
 		return "", err
 	}
 
 	if err := mount.Mount(filesystem, mountpoint, "zfs", options); err != nil {
+		d.ctr.Decrement(id)
 		return "", fmt.Errorf("error creating zfs mount of %s to %s: %v", filesystem, mountpoint, err)
 	}
+
 	// this could be our first mount after creation of the filesystem, and the root dir may still have root
 	// permissions instead of the remapped root uid:gid (if user namespaces are enabled):
 	if err := os.Chown(mountpoint, rootUID, rootGID); err != nil {
+		mount.Unmount(mountpoint)
+		d.ctr.Decrement(id)
 		return "", fmt.Errorf("error modifying zfs mountpoint (%s) directory ownership: %v", mountpoint, err)
 	}
 
@@ -322,6 +334,9 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 
 // Put removes the existing mountpoint for the given id if it exists.
 func (d *Driver) Put(id string) error {
+	if count := d.ctr.Decrement(id); count > 0 {
+		return nil
+	}
 	mountpoint := d.mountPath(id)
 	mounted, err := graphdriver.Mounted(graphdriver.FsMagicZfs, mountpoint)
 	if err != nil || !mounted {
