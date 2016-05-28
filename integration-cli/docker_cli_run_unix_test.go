@@ -1041,7 +1041,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileAcct(c *check.C) {
 	go func() {
 		out, _, err := dockerCmdWithError("run", "syscall-test", "acct-test")
 		if err == nil || !strings.Contains(out, "Operation not permitted") {
-			errChan <- fmt.Errorf("expected Operation not permitted, got: %s", out)
+			errChan <- fmt.Errorf("goroutine 0: expected Operation not permitted, got: %s", out)
 		}
 		group.Done()
 	}()
@@ -1049,7 +1049,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileAcct(c *check.C) {
 	go func() {
 		out, _, err := dockerCmdWithError("run", "--cap-add", "sys_admin", "syscall-test", "acct-test")
 		if err == nil || !strings.Contains(out, "Operation not permitted") {
-			errChan <- fmt.Errorf("expected Operation not permitted, got: %s", out)
+			errChan <- fmt.Errorf("goroutine 1: expected Operation not permitted, got: %s", out)
 		}
 		group.Done()
 	}()
@@ -1057,7 +1057,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileAcct(c *check.C) {
 	go func() {
 		out, _, err := dockerCmdWithError("run", "--cap-add", "sys_pacct", "syscall-test", "acct-test")
 		if err == nil || !strings.Contains(out, "No such file or directory") {
-			errChan <- fmt.Errorf("expected No such file or directory, got: %s", out)
+			errChan <- fmt.Errorf("goroutine 2: expected No such file or directory, got: %s", out)
 		}
 		group.Done()
 	}()
@@ -1065,7 +1065,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileAcct(c *check.C) {
 	go func() {
 		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "syscall-test", "acct-test")
 		if err == nil || !strings.Contains(out, "No such file or directory") {
-			errChan <- fmt.Errorf("expected No such file or directory, got: %s", out)
+			errChan <- fmt.Errorf("goroutine 3: expected No such file or directory, got: %s", out)
 		}
 		group.Done()
 	}()
@@ -1073,7 +1073,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileAcct(c *check.C) {
 	go func() {
 		out, _, err := dockerCmdWithError("run", "--cap-drop", "ALL", "--cap-add", "sys_pacct", "syscall-test", "acct-test")
 		if err == nil || !strings.Contains(out, "No such file or directory") {
-			errChan <- fmt.Errorf("expected No such file or directory, got: %s", out)
+			errChan <- fmt.Errorf("goroutine 4: expected No such file or directory, got: %s", out)
 		}
 		group.Done()
 	}()
@@ -1096,7 +1096,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *check.C) {
 	go func() {
 		out, _, err := dockerCmdWithError("run", "syscall-test", "ns-test", "echo", "hello0")
 		if err == nil || !strings.Contains(out, "Operation not permitted") {
-			errChan <- fmt.Errorf("expected Operation not permitted, got: %s", out)
+			errChan <- fmt.Errorf("goroutine 0: expected Operation not permitted, got: %s", out)
 		}
 		group.Done()
 	}()
@@ -1104,7 +1104,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *check.C) {
 	go func() {
 		out, _, err := dockerCmdWithError("run", "--cap-add", "sys_admin", "syscall-test", "ns-test", "echo", "hello1")
 		if err != nil || !strings.Contains(out, "hello1") {
-			errChan <- fmt.Errorf("expected hello1, got: %s, %v", out, err)
+			errChan <- fmt.Errorf("goroutine 1: expected hello1, got: %s, %v", out, err)
 		}
 		group.Done()
 	}()
@@ -1112,7 +1112,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *check.C) {
 	go func() {
 		out, _, err := dockerCmdWithError("run", "--cap-drop", "all", "--cap-add", "sys_admin", "syscall-test", "ns-test", "echo", "hello2")
 		if err != nil || !strings.Contains(out, "hello2") {
-			errChan <- fmt.Errorf("expected hello2, got: %s, %v", out, err)
+			errChan <- fmt.Errorf("goroutine 2: expected hello2, got: %s, %v", out, err)
 		}
 		group.Done()
 	}()
@@ -1120,7 +1120,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *check.C) {
 	go func() {
 		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "syscall-test", "ns-test", "echo", "hello3")
 		if err != nil || !strings.Contains(out, "hello3") {
-			errChan <- fmt.Errorf("expected hello3, got: %s, %v", out, err)
+			errChan <- fmt.Errorf("goroutine 3: expected hello3, got: %s, %v", out, err)
 		}
 		group.Done()
 	}()
@@ -1128,7 +1128,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *check.C) {
 	go func() {
 		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "--security-opt", "seccomp=unconfined", "syscall-test", "acct-test")
 		if err == nil || !strings.Contains(out, "No such file or directory") {
-			errChan <- fmt.Errorf("expected No such file or directory, got: %s", out)
+			errChan <- fmt.Errorf("goroutine 4: expected No such file or directory, got: %s", out)
 		}
 		group.Done()
 	}()
@@ -1136,7 +1136,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *check.C) {
 	go func() {
 		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "--security-opt", "seccomp=unconfined", "syscall-test", "ns-test", "echo", "hello4")
 		if err != nil || !strings.Contains(out, "hello4") {
-			errChan <- fmt.Errorf("expected hello4, got: %s, %v", out, err)
+			errChan <- fmt.Errorf("goroutine 5: expected hello4, got: %s, %v", out, err)
 		}
 		group.Done()
 	}()
