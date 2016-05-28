@@ -49,7 +49,9 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 			"\nUse '-' as the source to read a tar archive from stdin\n",
 			"and extract it to a directory destination in a container.\n",
 			"Use '-' as the destination to stream a tar archive of a\n",
-			"container source to stdout.",
+			"container source to stdout.\n",
+			"Separator between CONTAINER and PATH varies in different OS,\n",
+			"in Windows uses ';' as separator, uses ':' in Unix",
 		}, ""),
 		true,
 	)
@@ -117,7 +119,9 @@ func splitCpArg(arg string) (container, path string) {
 		return "", arg
 	}
 
-	parts := strings.SplitN(arg, ":", 2)
+	// OS allows separator used in filename, like file:name.dat in Unix,
+	// file;name.dat in Windows
+	parts := strings.SplitN(arg, string(os.PathListSeparator), 2)
 
 	if len(parts) == 1 || strings.HasPrefix(parts[0], ".") {
 		// Either there's no `:` in the arg

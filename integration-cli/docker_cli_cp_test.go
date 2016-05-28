@@ -22,6 +22,7 @@ const (
 
 	cpContainerContents = "holla, i am the container"
 	cpHostContents      = "hello, i am the host"
+	cpSeparator         = string(os.PathListSeparator)
 )
 
 // Ensure that an all-local path case returns an error.
@@ -61,7 +62,7 @@ func (s *DockerSuite) TestCpGarbagePath(c *check.C) {
 
 	path := path.Join("../../../../../../../../../../../../", cpFullPath)
 
-	dockerCmd(c, "cp", containerID+":"+path, tmpdir)
+	dockerCmd(c, "cp", containerID+cpSeparator+path, tmpdir)
 
 	file, _ := os.Open(tmpname)
 	defer file.Close()
@@ -110,7 +111,7 @@ func (s *DockerSuite) TestCpRelativePath(c *check.C) {
 	}
 	c.Assert(path.IsAbs(cpFullPath), checker.True, check.Commentf("path %s was assumed to be an absolute path", cpFullPath))
 
-	dockerCmd(c, "cp", containerID+":"+relPath, tmpdir)
+	dockerCmd(c, "cp", containerID+cpSeparator+relPath, tmpdir)
 
 	file, _ := os.Open(tmpname)
 	defer file.Close()
@@ -153,7 +154,7 @@ func (s *DockerSuite) TestCpAbsolutePath(c *check.C) {
 
 	path := cpFullPath
 
-	dockerCmd(c, "cp", containerID+":"+path, tmpdir)
+	dockerCmd(c, "cp", containerID+cpSeparator+path, tmpdir)
 
 	file, _ := os.Open(tmpname)
 	defer file.Close()
@@ -197,7 +198,7 @@ func (s *DockerSuite) TestCpAbsoluteSymlink(c *check.C) {
 
 	path := path.Join("/", "container_path")
 
-	dockerCmd(c, "cp", containerID+":"+path, tmpdir)
+	dockerCmd(c, "cp", containerID+cpSeparator+path, tmpdir)
 
 	// We should have copied a symlink *NOT* the file itself!
 	linkTarget, err := os.Readlink(tmpname)
@@ -224,7 +225,7 @@ func (s *DockerSuite) TestCpFromSymlinkToDirectory(c *check.C) {
 
 	// This copy command should copy the symlink, not the target, into the
 	// temporary directory.
-	dockerCmd(c, "cp", containerID+":"+"/dir_link", testDir)
+	dockerCmd(c, "cp", containerID+cpSeparator+"/dir_link", testDir)
 
 	expectedPath := filepath.Join(testDir, "dir_link")
 	linkTarget, err := os.Readlink(expectedPath)
@@ -236,7 +237,7 @@ func (s *DockerSuite) TestCpFromSymlinkToDirectory(c *check.C) {
 
 	// This copy command should resolve the symlink (note the trailing
 	// separator), copying the target into the temporary directory.
-	dockerCmd(c, "cp", containerID+":"+"/dir_link/", testDir)
+	dockerCmd(c, "cp", containerID+cpSeparator+"/dir_link/", testDir)
 
 	// It *should not* have copied the directory using the target's name, but
 	// used the given name instead.
@@ -364,7 +365,7 @@ func (s *DockerSuite) TestCpSymlinkComponent(c *check.C) {
 
 	path := path.Join("/", "container_path", cpTestName)
 
-	dockerCmd(c, "cp", containerID+":"+path, tmpdir)
+	dockerCmd(c, "cp", containerID+cpSeparator+path, tmpdir)
 
 	file, _ := os.Open(tmpname)
 	defer file.Close()
@@ -401,7 +402,7 @@ func (s *DockerSuite) TestCpUnprivilegedUser(c *check.C) {
 
 	path := cpTestName
 
-	_, _, err = runCommandWithOutput(exec.Command("su", "unprivilegeduser", "-c", dockerBinary+" cp "+containerID+":"+path+" "+tmpdir))
+	_, _, err = runCommandWithOutput(exec.Command("su", "unprivilegeduser", "-c", dockerBinary+" cp "+containerID+cpSeparator+path+" "+tmpdir))
 	c.Assert(err, checker.IsNil, check.Commentf("couldn't copy with unprivileged user: %s:%s", containerID, path))
 }
 
@@ -635,7 +636,7 @@ func (s *DockerSuite) TestCpSymlinkFromConToHostFollowSymlink(c *check.C) {
 
 	// This copy command should copy the symlink, not the target, into the
 	// temporary directory.
-	dockerCmd(c, "cp", "-L", cleanedContainerID+":"+"/dir_link", testDir)
+	dockerCmd(c, "cp", "-L", cleanedContainerID+cpSeparator+"/dir_link", testDir)
 
 	expectedPath := filepath.Join(testDir, "dir_link")
 
@@ -654,7 +655,7 @@ func (s *DockerSuite) TestCpSymlinkFromConToHostFollowSymlink(c *check.C) {
 		os.Remove(expectedPath)
 	}
 
-	dockerCmd(c, "cp", "-L", cleanedContainerID+":"+"/dir_link", expectedPath)
+	dockerCmd(c, "cp", "-L", cleanedContainerID+cpSeparator+"/dir_link", expectedPath)
 
 	actual, err = ioutil.ReadFile(expectedPath)
 
