@@ -2308,6 +2308,14 @@ _docker() {
 		(( counter++ ))
 	done
 
+	local binary="${words[0]}"
+	if [[ $binary == dockerd ]] ; then
+		# for the dockerd binary, we reuse completion of `docker daemon`.
+		# dockerd does not have subcommands and global options.
+		command=daemon
+		command_pos=0
+	fi
+
 	local completions_func=_docker_${command}
 	declare -F $completions_func >/dev/null && $completions_func
 
@@ -2318,4 +2326,4 @@ _docker() {
 eval "$__docker_previous_extglob_setting"
 unset __docker_previous_extglob_setting
 
-complete -F _docker docker
+complete -F _docker docker dockerd
