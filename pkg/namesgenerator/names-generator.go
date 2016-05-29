@@ -43,7 +43,7 @@ var (
 		"high",
 		"hopeful",
 		"hungry",
-		"insane",
+		"infallible",
 		"jolly",
 		"jovial",
 		"kickass",
