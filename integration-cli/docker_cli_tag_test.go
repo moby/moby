@@ -86,19 +86,6 @@ func (s *DockerSuite) TestTagExistedNameWithoutForce(c *check.C) {
 	dockerCmd(c, "tag", "busybox:latest", "busybox:test")
 }
 
-// tag an image with an existed tag name with -f option should work
-func (s *DockerSuite) TestTagExistedNameWithForce(c *check.C) {
-	// Don't attempt to pull on Windows as not in hub. It's installed
-	// as an image through .ensure-frozen-images-windows
-	if daemonPlatform != "windows" {
-		if err := pullImageIfNotExist("busybox:latest"); err != nil {
-			c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
-		}
-	}
-	dockerCmd(c, "tag", "busybox:latest", "busybox:test")
-	dockerCmd(c, "tag", "-f", "busybox:latest", "busybox:test")
-}
-
 func (s *DockerSuite) TestTagWithPrefixHyphen(c *check.C) {
 	// Don't attempt to pull on Windows as not in hub. It's installed
 	// as an image through .ensure-frozen-images-windows

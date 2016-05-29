@@ -658,7 +658,7 @@ func (s *DockerSuite) TestPsImageIDAfterUpdate(c *check.C) {
 	out, _, err = runCommandWithOutput(runCmd)
 	c.Assert(err, checker.IsNil)
 
-	runCmd = exec.Command(dockerBinary, "tag", "-f", updatedImageName, originalImageName)
+	runCmd = exec.Command(dockerBinary, "tag", updatedImageName, originalImageName)
 	out, _, err = runCommandWithOutput(runCmd)
 	c.Assert(err, checker.IsNil)
 

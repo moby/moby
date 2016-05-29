@@ -265,11 +265,7 @@ func (cli *DockerCli) trustedReference(ctx context.Context, ref reference.NamedT
 func (cli *DockerCli) tagTrusted(ctx context.Context, trustedRef reference.Canonical, ref reference.NamedTagged) error {
 	fmt.Fprintf(cli.out, "Tagging %s as %s\n", trustedRef.String(), ref.String())
 
-	options := types.ImageTagOptions{
-		Force: true,
-	}
-
-	return cli.client.ImageTag(ctx, trustedRef.String(), ref.String(), options)
+	return cli.client.ImageTag(ctx, trustedRef.String(), ref.String())
 }
 
 func notaryError(repoName string, err error) error {
