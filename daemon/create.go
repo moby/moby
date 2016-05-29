@@ -2,9 +2,11 @@ package daemon
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
@@ -233,4 +235,17 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *i
 		return fmt.Errorf("No command specified")
 	}
 	return nil
+}
+
+// Checks if the client set configurations for more than one network while creating a container
+func (daemon *Daemon) verifyNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
+	if nwConfig == nil || len(nwConfig.EndpointsConfig) <= 1 {
+		return nil
+	}
+	l := make([]string, 0, len(nwConfig.EndpointsConfig))
+	for k := range nwConfig.EndpointsConfig {
+		l = append(l, k)
+	}
+	err := fmt.Errorf("Container cannot be connected to network endpoints: %s", strings.Join(l, ", "))
+	return errors.NewBadRequestError(err)
 }
