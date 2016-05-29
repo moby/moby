@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 )
 
@@ -43,6 +44,7 @@ func ProbeFsType(device string) (string, error) {
 		{"btrfs", "_BHRfS_M", 0x10040},
 		{"ext4", "\123\357", 0x438},
 		{"xfs", "XFSB", 0},
+		{"vxfs", `\190\129\228`, 0},
 	}
 
 	maxLen := uint64(0)
@@ -85,5 +87,5 @@ func joinMountOptions(a, b string) string {
 	if b == "" {
 		return a
 	}
-	return a + "," + b
+	return strings.Join([]string{a, b}, ",")
 }
