@@ -11,39 +11,6 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestBuildApiDockerfilePath(c *check.C) {
-	// Test to make sure we stop people from trying to leave the
-	// build context when specifying the path to the dockerfile
-	buffer := new(bytes.Buffer)
-	tw := tar.NewWriter(buffer)
-	defer tw.Close()
-
-	dockerfile := []byte("FROM busybox")
-	err := tw.WriteHeader(&tar.Header{
-		Name: "Dockerfile",
-		Size: int64(len(dockerfile)),
-	})
-	//failed to write tar file header
-	c.Assert(err, checker.IsNil)
-
-	_, err = tw.Write(dockerfile)
-	// failed to write tar file content
-	c.Assert(err, checker.IsNil)
-
-	// failed to close tar archive
-	c.Assert(tw.Close(), checker.IsNil)
-
-	res, body, err := sockRequestRaw("POST", "/build?dockerfile=../Dockerfile", buffer, "application/x-tar")
-	c.Assert(err, checker.IsNil)
-	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
-
-	out, err := readBody(body)
-	c.Assert(err, checker.IsNil)
-
-	// Didn't complain about leaving build context
-	c.Assert(string(out), checker.Contains, "Forbidden path outside the build context")
-}
-
 func (s *DockerSuite) TestBuildApiDockerFileRemote(c *check.C) {
 	testRequires(c, NotUserNamespace)
 	testRequires(c, DaemonIsLinux)

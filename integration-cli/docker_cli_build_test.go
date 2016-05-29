@@ -2988,32 +2988,6 @@ func (s *DockerSuite) TestBuildEntrypointRunCleanup(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildForbiddenContextPath(c *check.C) {
-	name := "testbuildforbidpath"
-	ctx, err := fakeContext(`FROM `+minimalBaseImage()+`
-        ADD ../../ test/
-        `,
-		map[string]string{
-			"test.txt":  "test1",
-			"other.txt": "other",
-		})
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer ctx.Close()
-
-	expected := "Forbidden path outside the build context: ../../ "
-
-	if daemonPlatform == "windows" {
-		expected = "Forbidden path outside the build context: ..\\..\\ "
-	}
-
-	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
-		c.Fatalf("Wrong error: (should contain \"%s\") got:\n%v", expected, err)
-	}
-
-}
-
 func (s *DockerSuite) TestBuildAddFileNotFound(c *check.C) {
 	name := "testbuildaddnotfound"
 	expected := "foo: no such file or directory"

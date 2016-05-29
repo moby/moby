@@ -53,3 +53,50 @@ func TestEmptyDockerfile(t *testing.T) {
 		t.Fatalf("Wrong error message. Should be \"%s\". Got \"%s\"", "The Dockerfile (Dockerfile) cannot be empty", err.Error())
 	}
 }
+
+func TestDockerfileOutsideTheBuildContext(t *testing.T) {
+	contextDir, cleanup := createTestTempDir(t, "", "builder-dockerfile-test")
+	defer cleanup()
+
+	tarStream, err := archive.Tar(contextDir, archive.Uncompressed)
+
+	if err != nil {
+		t.Fatalf("Error when creating tar stream: %s", err)
+	}
+
+	defer func() {
+		if err = tarStream.Close(); err != nil {
+			t.Fatalf("Error when closing tar stream: %s", err)
+		}
+	}()
+
+	context, err := builder.MakeTarSumContext(tarStream)
+
+	if err != nil {
+		t.Fatalf("Error when creating tar context: %s", err)
+	}
+
+	defer func() {
+		if err = context.Close(); err != nil {
+			t.Fatalf("Error when closing tar context: %s", err)
+		}
+	}()
+
+	options := &types.ImageBuildOptions{
+		Dockerfile: "../../Dockerfile",
+	}
+
+	b := &Builder{options: options, context: context}
+
+	err = b.readDockerfile()
+
+	if err == nil {
+		t.Fatalf("No error when executing test for Dockerfile outside the build context")
+	}
+
+	expectedError := "Forbidden path outside the build context"
+
+	if !strings.Contains(err.Error(), expectedError) {
+		t.Fatalf("Wrong error message. Should be \"%s\". Got \"%s\"", expectedError, err.Error())
+	}
+}
