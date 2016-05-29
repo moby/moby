@@ -1088,7 +1088,7 @@ func (devices *DeviceSet) setupVerifyBaseImageUUIDFS(baseInfo *devInfo) error {
 	}
 
 	if err := devices.verifyBaseDeviceUUIDFS(baseInfo); err != nil {
-		return fmt.Errorf("devmapper: Base Device UUID and Filesystem verification failed.%v", err)
+		return fmt.Errorf("devmapper: Base Device UUID and Filesystem verification failed: %v", err)
 	}
 
 	return nil
