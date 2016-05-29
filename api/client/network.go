@@ -113,6 +113,7 @@ func (cli *DockerCli) CmdNetworkRm(args ...string) error {
 			status = 1
 			continue
 		}
+		fmt.Fprintf(cli.out, "%s\n", net)
 	}
 	if status != 0 {
 		return Cli.StatusError{StatusCode: status}
