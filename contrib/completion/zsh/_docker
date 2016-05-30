@@ -1138,7 +1138,16 @@ __docker_subcommand() {
                 "($help -f --force)"{-f,--force}"[Force removal]" \
                 "($help -l --link)"{-l,--link}"[Remove the specified link and not the underlying container]" \
                 "($help -v --volumes)"{-v,--volumes}"[Remove the volumes associated to the container]" \
-                "($help -)*:containers:__docker_stoppedcontainers" && ret=0
+                "($help -)*:containers:->values" && ret=0
+            case $state in
+                (values)
+                    if [[ ${words[(r)-f]} == -f || ${words[(r)--force]} == --force ]]; then
+                        __docker_containers && ret=0
+                    else
+                        __docker_stoppedcontainers && ret=0
+                    fi
+                    ;;
+            esac
             ;;
         (rmi)
             _arguments $(__docker_arguments) \
