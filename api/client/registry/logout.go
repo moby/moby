@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/registry"
 	"github.com/spf13/cobra"
 )
 
@@ -31,21 +32,45 @@ func NewLogoutCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 func runLogout(dockerCli *client.DockerCli, serverAddress string) error {
 	ctx := context.Background()
+	var isDefaultRegistry bool
 
 	if serverAddress == "" {
 		serverAddress = dockerCli.ElectAuthServer(ctx)
+		isDefaultRegistry = true
+	}
+
+	var (
+		loggedIn        bool
+		regsToLogout    []string
+		hostnameAddress = serverAddress
+		regsToTry       = []string{serverAddress}
+	)
+	if !isDefaultRegistry {
+		hostnameAddress = registry.ConvertToHostname(serverAddress)
+		// the tries below are kept for backward compatibily where a user could have
+		// saved the registry in one of the following format.
+		regsToTry = append(regsToTry, hostnameAddress, "http://"+hostnameAddress, "https://"+hostnameAddress)
 	}
 
 	// check if we're logged in based on the records in the config file
 	// which means it couldn't have user/pass cause they may be in the creds store
-	if _, ok := dockerCli.ConfigFile().AuthConfigs[serverAddress]; !ok {
-		fmt.Fprintf(dockerCli.Out(), "Not logged in to %s\n", serverAddress)
+	for _, s := range regsToTry {
+		if _, ok := dockerCli.ConfigFile().AuthConfigs[s]; ok {
+			loggedIn = true
+			regsToLogout = append(regsToLogout, s)
+		}
+	}
+
+	if !loggedIn {
+		fmt.Fprintf(dockerCli.Out(), "Not logged in to %s\n", hostnameAddress)
 		return nil
 	}
 
-	fmt.Fprintf(dockerCli.Out(), "Removing login credentials for %s\n", serverAddress)
-	if err := client.EraseCredentials(dockerCli.ConfigFile(), serverAddress); err != nil {
-		fmt.Fprintf(dockerCli.Err(), "WARNING: could not erase credentials: %v\n", err)
+	fmt.Fprintf(dockerCli.Out(), "Removing login credentials for %s\n", hostnameAddress)
+	for _, r := range regsToLogout {
+		if err := client.EraseCredentials(dockerCli.ConfigFile(), r); err != nil {
+			fmt.Fprintf(dockerCli.Err(), "WARNING: could not erase credentials: %v\n", err)
+		}
 	}
 
 	return nil
