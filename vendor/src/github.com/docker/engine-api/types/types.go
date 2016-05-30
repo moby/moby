@@ -28,7 +28,7 @@ type ContainerExecCreateResponse struct {
 }
 
 // ContainerUpdateResponse contains response of Remote API:
-// POST /containers/{name:.*}/update
+// POST "/containers/{name:.*}/update"
 type ContainerUpdateResponse struct {
 	// Warnings are any warnings encountered during the updating of the container.
 	Warnings []string `json:"Warnings"`
@@ -142,7 +142,7 @@ type Port struct {
 }
 
 // Container contains response of Remote API:
-// GET  "/containers/json"
+// GET "/containers/json"
 type Container struct {
 	ID         string `json:"Id"`
 	Names      []string
@@ -352,13 +352,13 @@ type SummaryNetworkSettings struct {
 
 // NetworkSettingsBase holds basic information about networks
 type NetworkSettingsBase struct {
-	Bridge                 string
-	SandboxID              string
-	HairpinMode            bool
-	LinkLocalIPv6Address   string
-	LinkLocalIPv6PrefixLen int
-	Ports                  nat.PortMap
-	SandboxKey             string
+	Bridge                 string      // Bridge is the Bridge name the network uses(e.g. `docker0`)
+	SandboxID              string      // SandboxID uniquely represents a container's network stack
+	HairpinMode            bool        // HairpinMode specifies if hairpin NAT should be enabled on the virtual interface
+	LinkLocalIPv6Address   string      // LinkLocalIPv6Address is an IPv6 unicast address using the link-local prefix
+	LinkLocalIPv6PrefixLen int         // LinkLocalIPv6PrefixLen is the prefix length of an IPv6 unicast address
+	Ports                  nat.PortMap // Ports is a collection of PortBinding indexed by Port
+	SandboxKey             string      // SandboxKey identifies the sandbox
 	SecondaryIPAddresses   []network.Address
 	SecondaryIPv6Addresses []network.Address
 }
@@ -367,14 +367,14 @@ type NetworkSettingsBase struct {
 // during the 2 release deprecation period.
 // It will be removed in Docker 1.11.
 type DefaultNetworkSettings struct {
-	EndpointID          string
-	Gateway             string
-	GlobalIPv6Address   string
-	GlobalIPv6PrefixLen int
-	IPAddress           string
-	IPPrefixLen         int
-	IPv6Gateway         string
-	MacAddress          string
+	EndpointID          string // EndpointID uniquely represents a service endpoint in a Sandbox
+	Gateway             string // Gateway holds the gateway address for the network
+	GlobalIPv6Address   string // GlobalIPv6Address holds network's global IPv6 address
+	GlobalIPv6PrefixLen int    // GlobalIPv6PrefixLen represents mask length of network's global IPv6 address
+	IPAddress           string // IPAddress holds the IPv4 address for the network
+	IPPrefixLen         int    // IPPrefixLen represents mask length of network's IPv4 address
+	IPv6Gateway         string // IPv6Gateway holds gateway address specific for IPv6
+	MacAddress          string // MacAddress holds the MAC address for the network
 }
 
 // MountPoint represents a mount point configuration inside the container.
@@ -416,16 +416,16 @@ type VolumeCreateRequest struct {
 
 // NetworkResource is the body of the "get network" http response message
 type NetworkResource struct {
-	Name       string
-	ID         string `json:"Id"`
-	Scope      string
-	Driver     string
-	EnableIPv6 bool
-	IPAM       network.IPAM
-	Internal   bool
-	Containers map[string]EndpointResource
-	Options    map[string]string
-	Labels     map[string]string
+	Name       string                      // Name is the requested name of the network
+	ID         string                      `json:"Id"` // ID uniquely indentifies a network on a single machine
+	Scope      string                      // Scope describes the level at which the network exists (e.g. `global` for cluster-wide or `local` for machine level)
+	Driver     string                      // Driver is the Driver name used to create the network (e.g. `bridge`, `overlay`)
+	EnableIPv6 bool                        // EnableIPv6 represents whether to enable IPv6
+	IPAM       network.IPAM                // IPAM is the network's IP Address Management
+	Internal   bool                        // Internal respresents if the network is used internal only
+	Containers map[string]EndpointResource // Containers contains endpoints belonging to the network
+	Options    map[string]string           // Options holds the network specific options to use for when creating the network
+	Labels     map[string]string           // Labels holds metadata specific to the network being created
 }
 
 // EndpointResource contains network resources allocated and used for a container in a network
