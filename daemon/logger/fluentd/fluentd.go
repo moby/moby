@@ -65,7 +65,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		return nil, err
 	}
 
-	tag, err := loggerutils.ParseLogTag(ctx, "docker.{{.ID}}")
+	tag, err := loggerutils.ParseLogTag(ctx, "{{.DaemonName}}.{{.ID}}")
 	if err != nil {
 		return nil, err
 	}
