@@ -93,7 +93,7 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	}
 
 	switch fsMagic {
-	case graphdriver.FsMagicAufs, graphdriver.FsMagicBtrfs:
+	case graphdriver.FsMagicAufs, graphdriver.FsMagicBtrfs, graphdriver.FsMagicEcryptfs:
 		logrus.Errorf("AUFS is not supported over %s", backingFs)
 		return nil, graphdriver.ErrIncompatibleFS
 	}
