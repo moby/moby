@@ -12,7 +12,7 @@ import (
 	// FIXME migrate to docker/distribution/reference
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
-	runconfigopts "github.com/docker/docker/runconfig/opts"
+	//runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
@@ -56,6 +56,26 @@ type cidFile struct {
 	written bool
 }
 
+func (cid *cidFile) Close() error {
+	cid.file.Close()
+
+	if !cid.written {
+		if err := os.Remove(cid.path); err != nil {
+			return fmt.Errorf("failed to remove the CID file '%s': %s \n", cid.path, err)
+		}
+	}
+
+	return nil
+}
+
+func (cid *cidFile) Write(id string) error {
+	if _, err := cid.file.Write([]byte(id)); err != nil {
+		return fmt.Errorf("Failed to write the container ID to the file: %s", err)
+	}
+	cid.written = true
+	return nil
+}
+
 func newCIDFile(path string) (*cidFile, error) {
 	if _, err := os.Stat(path); err == nil {
 		return nil, fmt.Errorf("Container ID file found, make sure the other container isn't running or delete %s", path)
@@ -69,7 +89,10 @@ func newCIDFile(path string) (*cidFile, error) {
 	return &cidFile{path: path, file: f}, nil
 }
 
-func (cli *DockerCli) createContainer(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *networktypes.NetworkingConfig, cidfile, name string) (*types.ContainerCreateResponse, error) {
+// CreateContainer creates a container from a config
+// TODO: this can be unexported again once all container commands are under
+// api/client/container
+func (cli *DockerCli) CreateContainer(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *networktypes.NetworkingConfig, cidfile, name string) (*types.ContainerCreateResponse, error) {
 	var containerIDFile *cidFile
 	if cidfile != "" {
 		var err error
@@ -143,25 +166,26 @@ func (cli *DockerCli) CmdCreate(args ...string) error {
 	cmd := Cli.Subcmd("create", []string{"IMAGE [COMMAND] [ARG...]"}, Cli.DockerCommands["create"].Description, true)
 	addTrustedFlags(cmd, true)
 
+	// TODO: tmp disable for PoC, convert to cobra and pflag later
 	// These are flags not stored in Config/HostConfig
-	var (
-		flName = cmd.String([]string{"-name"}, "", "Assign a name to the container")
-	)
+	//	var (
+	//		flName = cmd.String([]string{"-name"}, "", "Assign a name to the container")
+	//	)
 
-	config, hostConfig, networkingConfig, cmd, err := runconfigopts.Parse(cmd, args)
-
-	if err != nil {
-		cmd.ReportError(err.Error(), true)
-		os.Exit(1)
-	}
-	if config.Image == "" {
-		cmd.Usage()
-		return nil
-	}
-	response, err := cli.createContainer(context.Background(), config, hostConfig, networkingConfig, hostConfig.ContainerIDFile, *flName)
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(cli.out, "%s\n", response.ID)
+	//	config, hostConfig, networkingConfig, cmd, err := runconfigopts.Parse(cmd, args)
+	//
+	//	if err != nil {
+	//		cmd.ReportError(err.Error(), true)
+	//		os.Exit(1)
+	//	}
+	//	if config.Image == "" {
+	//		cmd.Usage()
+	//		return nil
+	//	}
+	//	response, err := cli.CreateContainer(context.Background(), config, hostConfig, networkingConfig, hostConfig.ContainerIDFile, *flName)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	fmt.Fprintf(cli.out, "%s\n", response.ID)
 	return nil
 }

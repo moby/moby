@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/client/container"
 	"github.com/docker/docker/api/client/image"
 	"github.com/docker/docker/api/client/volume"
 	"github.com/docker/docker/cli"
@@ -34,8 +35,9 @@ func NewCobraAdaptor(clientFlags *cliflags.ClientFlags) CobraAdaptor {
 	rootCmd.SetFlagErrorFunc(flagErrorFunc)
 	rootCmd.SetOutput(stdout)
 	rootCmd.AddCommand(
-		volume.NewVolumeCommand(dockerCli),
+		container.NewRunCommand(dockerCli),
 		image.NewSearchCommand(dockerCli),
+		volume.NewVolumeCommand(dockerCli),
 	)
 
 	rootCmd.PersistentFlags().BoolP("help", "h", false, "Print usage")
@@ -52,7 +54,7 @@ func NewCobraAdaptor(clientFlags *cliflags.ClientFlags) CobraAdaptor {
 func (c CobraAdaptor) Usage() []cli.Command {
 	cmds := []cli.Command{}
 	for _, cmd := range c.rootCmd.Commands() {
-		cmds = append(cmds, cli.Command{Name: cmd.Use, Description: cmd.Short})
+		cmds = append(cmds, cli.Command{Name: cmd.Name(), Description: cmd.Short})
 	}
 	return cmds
 }
