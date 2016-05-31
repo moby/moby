@@ -19,6 +19,11 @@ func TestError(t *testing.T) {
 }
 
 func TestProgress(t *testing.T) {
+	termsz, err := term.GetWinsize(0)
+	if err != nil {
+		// we can safely ignore the err here
+		termsz = nil
+	}
 	jp := JSONProgress{}
 	if jp.String() != "" {
 		t.Fatalf("Expected empty string, got '%s'", jp.String())
@@ -31,6 +36,9 @@ func TestProgress(t *testing.T) {
 	}
 
 	expectedStart := "[==========>                                        ]     20 B/100 B"
+	if termsz != nil && termsz.Width <= 110 {
+		expectedStart = "    20 B/100 B"
+	}
 	jp3 := JSONProgress{Current: 20, Total: 100, Start: time.Now().Unix()}
 	// Just look at the start of the string
 	// (the remaining time is really hard to test -_-)
@@ -39,6 +47,9 @@ func TestProgress(t *testing.T) {
 	}
 
 	expected = "[=========================>                         ]     50 B/100 B"
+	if termsz != nil && termsz.Width <= 110 {
+		expected = "    50 B/100 B"
+	}
 	jp4 := JSONProgress{Current: 50, Total: 100}
 	if jp4.String() != expected {
 		t.Fatalf("Expected %q, got %q", expected, jp4.String())
@@ -46,6 +57,9 @@ func TestProgress(t *testing.T) {
 
 	// this number can't be negative gh#7136
 	expected = "[==================================================>]     50 B"
+	if termsz != nil && termsz.Width <= 110 {
+		expected = "    50 B"
+	}
 	jp5 := JSONProgress{Current: 50, Total: 40}
 	if jp5.String() != expected {
 		t.Fatalf("Expected %q, got %q", expected, jp5.String())
