@@ -10,8 +10,16 @@ import (
 	"testing"
 )
 
+type bufConn struct {
+	net.Conn
+	buf *bytes.Buffer
+}
+
+func (bc *bufConn) Read(b []byte) (int, error) {
+	return bc.buf.Read(b)
+}
+
 func TestHeaderOverrideHack(t *testing.T) {
-	client, srv := net.Pipe()
 	tests := [][2][]byte{
 		{
 			[]byte("GET /foo\nHost: /var/run/docker.sock\nUser-Agent: Docker\r\n\r\n"),
@@ -34,13 +42,19 @@ func TestHeaderOverrideHack(t *testing.T) {
 			[]byte("GET /foo\nFoo: Bar\nHost: /var/run/docker.sock\nUser-Agent: Docker\r\n\r\n"),
 		},
 	}
-	l := MalformedHostHeaderOverrideConn{client, true}
-	read := make([]byte, 4096)
+
+	// Test for https://github.com/docker/docker/issues/23045
+	h0 := "GET /foo\nUser-Agent: Docker\r\n\r\n"
+	h0 = h0 + strings.Repeat("a", 4096-len(h0)-1) + "\n"
+	tests = append(tests, [2][]byte{[]byte(h0), []byte(h0)})
 
 	for _, pair := range tests {
-		go func(x []byte) {
-			srv.Write(x)
-		}(pair[0])
+		read := make([]byte, 4096)
+		client := &bufConn{
+			buf: bytes.NewBuffer(pair[0]),
+		}
+		l := MalformedHostHeaderOverrideConn{client, true}
+
 		n, err := l.Read(read)
 		if err != nil && err != io.EOF {
 			t.Fatalf("read: %d - %d, err: %v\n%s", n, len(pair[0]), err, string(read[:n]))
@@ -48,12 +62,7 @@ func TestHeaderOverrideHack(t *testing.T) {
 		if !bytes.Equal(read[:n], pair[1][:n]) {
 			t.Fatalf("\n%s\n%s\n", read[:n], pair[1][:n])
 		}
-		l.first = true
-		// clean out the slice
-		read = read[:0]
 	}
-	srv.Close()
-	l.Close()
 }
 
 func BenchmarkWithHack(b *testing.B) {
