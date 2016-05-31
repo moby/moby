@@ -36,6 +36,9 @@ func NewCobraAdaptor(clientFlags *cliflags.ClientFlags) CobraAdaptor {
 		volume.NewVolumeCommand(dockerCli),
 	)
 
+	rootCmd.PersistentFlags().BoolP("help", "h", false, "Print usage")
+	rootCmd.PersistentFlags().MarkShorthandDeprecated("help", "please use --help")
+
 	return CobraAdaptor{
 		rootCmd:   rootCmd,
 		dockerCli: dockerCli,
