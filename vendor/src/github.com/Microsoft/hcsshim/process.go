@@ -22,11 +22,11 @@ type ProcessError struct {
 }
 
 type process struct {
-	handle             hcsProcess
-	processID          int
-	container          *container
-	cachedPipes        *cachedPipes
-	killCallbackNumber uintptr
+	handle         hcsProcess
+	processID      int
+	container      *container
+	cachedPipes    *cachedPipes
+	callbackNumber uintptr
 }
 
 type cachedPipes struct {
@@ -101,7 +101,7 @@ func (process *process) Wait() error {
 	logrus.Debugf(title+" processid=%d", process.processID)
 
 	if hcsCallbacksSupported {
-		err := registerAndWaitForCallback(process, hcsNotificationProcessExited)
+		err := waitForNotification(process.callbackNumber, hcsNotificationProcessExited, nil)
 		if err != nil {
 			err := &ProcessError{Operation: operation, Process: process, Err: err}
 			logrus.Error(err)
@@ -128,7 +128,7 @@ func (process *process) WaitTimeout(timeout time.Duration) error {
 	logrus.Debugf(title+" processid=%d", process.processID)
 
 	if hcsCallbacksSupported {
-		err := registerAndWaitForCallbackTimeout(process, hcsNotificationProcessExited, timeout)
+		err := waitForNotification(process.callbackNumber, hcsNotificationProcessExited, &timeout)
 		if err == ErrTimeout {
 			return ErrTimeout
 		} else if err != nil {
@@ -344,6 +344,14 @@ func (process *process) Close() error {
 		return nil
 	}
 
+	if hcsCallbacksSupported {
+		if err := process.unregisterCallback(); err != nil {
+			err = &ProcessError{Operation: operation, Process: process, Err: err}
+			logrus.Error(err)
+			return err
+		}
+	}
+
 	if err := hcsCloseProcess(process.handle); err != nil {
 		err = &ProcessError{Operation: operation, Process: process, Err: err}
 		logrus.Error(err)
@@ -361,7 +369,7 @@ func closeProcess(process *process) {
 	process.Close()
 }
 
-func (process *process) registerCallback(expectedNotification hcsNotification) (uintptr, error) {
+func (process *process) registerCallback() error {
 	callbackMapLock.Lock()
 	defer callbackMapLock.Unlock()
 
@@ -369,22 +377,24 @@ func (process *process) registerCallback(expectedNotification hcsNotification) (
 	nextCallback++
 
 	context := &notifcationWatcherContext{
-		expectedNotification: expectedNotification,
-		channel:              make(chan error, 1),
+		channels: newChannels(),
 	}
 	callbackMap[callbackNumber] = context
 
 	var callbackHandle hcsCallback
 	err := hcsRegisterProcessCallback(process.handle, notificationWatcherCallback, callbackNumber, &callbackHandle)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	context.handle = callbackHandle
+	process.callbackNumber = callbackNumber
 
-	return callbackNumber, nil
+	return nil
 }
 
-func (process *process) unregisterCallback(callbackNumber uintptr) error {
+func (process *process) unregisterCallback() error {
+	callbackNumber := process.callbackNumber
+
 	callbackMapLock.Lock()
 	defer callbackMapLock.Unlock()
 	handle := callbackMap[callbackNumber].handle

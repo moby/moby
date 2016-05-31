@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -77,7 +78,7 @@ func readTombstones(path string) (map[string]([]string), error) {
 
 	ts := make(map[string]([]string))
 	for s.Scan() {
-		t := s.Text()[1:] // skip leading `\`
+		t := filepath.Join("Files", s.Text()[1:]) // skip leading `\`
 		dir := filepath.Dir(t)
 		ts[dir] = append(ts[dir], t)
 	}
@@ -107,6 +108,7 @@ func (r *legacyLayerReader) walkUntilCancelled() error {
 		if path == r.root || path == filepath.Join(r.root, "tombstones.txt") || strings.HasSuffix(path, ".$wcidirs$") {
 			return nil
 		}
+
 		r.result <- &fileEntry{path, info, nil}
 		if !<-r.proceed {
 			return errorIterationCanceled
@@ -120,7 +122,7 @@ func (r *legacyLayerReader) walkUntilCancelled() error {
 			}
 			if dts, ok := ts[relPath]; ok {
 				for _, t := range dts {
-					r.result <- &fileEntry{t, nil, nil}
+					r.result <- &fileEntry{filepath.Join(r.root, t), nil, nil}
 					if !<-r.proceed {
 						return errorIterationCanceled
 					}
@@ -397,7 +399,10 @@ func (w *legacyLayerWriter) AddLink(name string, target string) error {
 }
 
 func (w *legacyLayerWriter) Remove(name string) error {
-	w.tombstones = append(w.tombstones, name)
+	if !strings.HasPrefix(name, `Files\`) {
+		return fmt.Errorf("invalid tombstone %s", name)
+	}
+	w.tombstones = append(w.tombstones, name[len(`Files\`):])
 	return nil
 }
 

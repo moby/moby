@@ -1,6 +1,7 @@
 package hcsshim
 
 import (
+	"github.com/Sirupsen/logrus"
 	"syscall"
 	"time"
 )
@@ -8,11 +9,6 @@ import (
 type waitable interface {
 	waitTimeoutInternal(timeout uint32) (bool, error)
 	hcsWait(timeout uint32) (bool, error)
-}
-
-type callbackable interface {
-	registerCallback(expectedNotification hcsNotification) (uintptr, error)
-	unregisterCallback(callbackNumber uintptr) error
 }
 
 func waitTimeoutHelper(object waitable, timeout time.Duration) (bool, error) {
@@ -52,62 +48,62 @@ func waitForSingleObject(handle syscall.Handle, timeout uint32) (bool, error) {
 	}
 }
 
-func processAsyncHcsResult(object callbackable, err error, resultp *uint16, expectedNotification hcsNotification, timeout *time.Duration) error {
+func processAsyncHcsResult(err error, resultp *uint16, callbackNumber uintptr, expectedNotification hcsNotification, timeout *time.Duration) error {
 	err = processHcsResult(err, resultp)
 	if err == ErrVmcomputeOperationPending {
-		if timeout != nil {
-			err = registerAndWaitForCallbackTimeout(object, expectedNotification, *timeout)
-		} else {
-			err = registerAndWaitForCallback(object, expectedNotification)
-		}
+		return waitForNotification(callbackNumber, expectedNotification, timeout)
 	}
 
 	return err
 }
 
-func registerAndWaitForCallbackTimeout(object callbackable, expectedNotification hcsNotification, timeout time.Duration) error {
-	callbackNumber, err := object.registerCallback(expectedNotification)
-	if err != nil {
-		return err
-	}
-	defer object.unregisterCallback(callbackNumber)
-
-	return waitForNotificationTimeout(callbackNumber, timeout)
-}
-
-func registerAndWaitForCallback(object callbackable, expectedNotification hcsNotification) error {
-	callbackNumber, err := object.registerCallback(expectedNotification)
-	if err != nil {
-		return err
-	}
-	defer object.unregisterCallback(callbackNumber)
-
-	return waitForNotification(callbackNumber)
-}
-
-func waitForNotificationTimeout(callbackNumber uintptr, timeout time.Duration) error {
+func waitForNotification(callbackNumber uintptr, expectedNotification hcsNotification, timeout *time.Duration) error {
 	callbackMapLock.RLock()
-	channel := callbackMap[callbackNumber].channel
+	channels := callbackMap[callbackNumber].channels
 	callbackMapLock.RUnlock()
 
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-
-	select {
-	case err := <-channel:
-		return err
-	case <-timer.C:
-		return ErrTimeout
+	expectedChannel := channels[expectedNotification]
+	if expectedChannel == nil {
+		logrus.Errorf("unknown notification type in waitForNotification %x", expectedNotification)
 	}
-}
 
-func waitForNotification(callbackNumber uintptr) error {
-	callbackMapLock.RLock()
-	channel := callbackMap[callbackNumber].channel
-	callbackMapLock.RUnlock()
+	if timeout != nil {
+		timer := time.NewTimer(*timeout)
+		defer timer.Stop()
 
+		select {
+		case err := <-expectedChannel:
+			return err
+		case err := <-channels[hcsNotificationSystemExited]:
+			// If the expected notification is hcsNotificationSystemExited which of the two selects
+			// chosen is random. Return the raw error if hcsNotificationSystemExited is expected
+			if channels[hcsNotificationSystemExited] == expectedChannel {
+				return err
+			}
+			return ErrUnexpectedContainerExit
+		case err := <-channels[hcsNotificationServiceDisconnect]:
+			// hcsNotificationServiceDisconnect should never be an expected notification
+			// it does not need the same handling as hcsNotificationSystemExited
+			logrus.Error(err)
+			return ErrUnexpectedProcessAbort
+		case <-timer.C:
+			return ErrTimeout
+		}
+	}
 	select {
-	case err := <-channel:
+	case err := <-expectedChannel:
 		return err
+	case err := <-channels[hcsNotificationSystemExited]:
+		// If the expected notification is hcsNotificationSystemExited which of the two selects
+		// chosen is random. Return the raw error if hcsNotificationSystemExited is expected
+		if channels[hcsNotificationSystemExited] == expectedChannel {
+			return err
+		}
+		return ErrUnexpectedContainerExit
+	case err := <-channels[hcsNotificationServiceDisconnect]:
+		// hcsNotificationServiceDisconnect should never be an expected notification
+		// it does not need the same handling as hcsNotificationSystemExited
+		logrus.Error(err)
+		return ErrUnexpectedProcessAbort
 	}
 }

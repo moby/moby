@@ -6740,3 +6740,18 @@ func (s *DockerSuite) TestBuildLabelsOverride(c *check.C) {
 	}
 
 }
+
+// Test case for #22855
+func (s *DockerSuite) TestBuildDeleteCommittedFile(c *check.C) {
+	name := "test-delete-committed-file"
+
+	_, err := buildImage(name,
+		`FROM busybox
+		RUN echo test > file
+		RUN test -e file
+		RUN rm file
+		RUN sh -c "! test -e file"`, false)
+	if err != nil {
+		c.Fatal(err)
+	}
+}

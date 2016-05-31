@@ -40,39 +40,36 @@ type hcsNotification uint32
 type notificationChannel chan error
 
 type notifcationWatcherContext struct {
-	channel              notificationChannel
-	expectedNotification hcsNotification
-	handle               hcsCallback
+	channels notificationChannels
+	handle   hcsCallback
+}
+
+type notificationChannels map[hcsNotification]notificationChannel
+
+func newChannels() notificationChannels {
+	channels := make(notificationChannels)
+
+	channels[hcsNotificationSystemExited] = make(notificationChannel, 1)
+	channels[hcsNotificationSystemCreateCompleted] = make(notificationChannel, 1)
+	channels[hcsNotificationSystemStartCompleted] = make(notificationChannel, 1)
+	channels[hcsNotificationSystemPauseCompleted] = make(notificationChannel, 1)
+	channels[hcsNotificationSystemResumeCompleted] = make(notificationChannel, 1)
+	channels[hcsNotificationProcessExited] = make(notificationChannel, 1)
+	channels[hcsNotificationServiceDisconnect] = make(notificationChannel, 1)
+	return channels
 }
 
 func notificationWatcher(notificationType hcsNotification, callbackNumber uintptr, notificationStatus uintptr, notificationData *uint16) uintptr {
-	var (
-		result       error
-		completeWait = false
-	)
+	var result error
+	if int32(notificationStatus) < 0 {
+		result = syscall.Errno(win32FromHresult(notificationStatus))
+	}
 
 	callbackMapLock.RLock()
-	context := callbackMap[callbackNumber]
+	channels := callbackMap[callbackNumber].channels
 	callbackMapLock.RUnlock()
 
-	if notificationType == context.expectedNotification {
-		if int32(notificationStatus) < 0 {
-			result = syscall.Errno(win32FromHresult(notificationStatus))
-		} else {
-			result = nil
-		}
-		completeWait = true
-	} else if notificationType == hcsNotificationSystemExited {
-		result = ErrUnexpectedContainerExit
-		completeWait = true
-	} else if notificationType == hcsNotificationServiceDisconnect {
-		result = ErrUnexpectedProcessAbort
-		completeWait = true
-	}
-
-	if completeWait {
-		context.channel <- result
-	}
+	channels[notificationType] <- result
 
 	return 0
 }
