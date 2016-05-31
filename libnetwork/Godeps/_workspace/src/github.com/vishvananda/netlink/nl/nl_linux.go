@@ -380,6 +380,7 @@ func Subscribe(protocol int, groups ...uint) (*NetlinkSocket, error) {
 
 func (s *NetlinkSocket) Close() {
 	syscall.Close(s.fd)
+	s.fd = -1
 }
 
 func (s *NetlinkSocket) GetFd() int {
@@ -387,6 +388,9 @@ func (s *NetlinkSocket) GetFd() int {
 }
 
 func (s *NetlinkSocket) Send(request *NetlinkRequest) error {
+	if s.fd < 0 {
+		return fmt.Errorf("Send called on a closed socket")
+	}
 	if err := syscall.Sendto(s.fd, request.Serialize(), 0, &s.lsa); err != nil {
 		return err
 	}
@@ -394,6 +398,9 @@ func (s *NetlinkSocket) Send(request *NetlinkRequest) error {
 }
 
 func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, error) {
+	if s.fd < 0 {
+		return nil, fmt.Errorf("Receive called on a closed socket")
+	}
 	rb := make([]byte, syscall.Getpagesize())
 	nr, _, err := syscall.Recvfrom(s.fd, rb, 0)
 	if err != nil {
