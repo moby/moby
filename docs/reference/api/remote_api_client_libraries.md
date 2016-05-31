@@ -11,10 +11,10 @@ weight = 90
 
 # Docker Remote API client libraries
 
-These libraries have not been tested by the Docker maintainers for
-compatibility. Please file issues with the library owners. If you find
-more library implementations, please list them in Docker doc bugs and we
-will add the libraries here.
+These libraries make it easier to build applications on top of the Docker
+Remote API with various programming languages. They have not been tested by the
+Docker maintainers for compatibility, so if you run into any issues, file them
+with the library maintainers.
 
 <table border="1" class="docutils">
   <colgroup>
