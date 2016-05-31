@@ -15,7 +15,7 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM s390x/gcc:5.3
+FROM s390x/gcc:6.1
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
@@ -130,9 +130,12 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install notary and notary-server
+#
+# Note: We have to explicitly set GO15VENDOREXPERIMENT=0 because gccgo does not
+# support vendoring: https://github.com/golang/go/issues/15628
 ENV NOTARY_VERSION v0.3.0
 RUN set -x \
-	&& export GO15VENDOREXPERIMENT=1 \
+	&& export GO15VENDOREXPERIMENT=0 \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
 	&& (cd "$GOPATH/src/github.com/docker/notary" && git checkout -q "$NOTARY_VERSION" && ln -s . vendor/src) \
