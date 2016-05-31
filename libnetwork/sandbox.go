@@ -84,6 +84,7 @@ type sandbox struct {
 	dbExists      bool
 	isStub        bool
 	inDelete      bool
+	ingress       bool
 	sync.Mutex
 }
 
@@ -1010,6 +1011,14 @@ func OptionPortMapping(portBindings []types.PortBinding) SandboxOption {
 		pbs := make([]types.PortBinding, len(portBindings))
 		copy(pbs, portBindings)
 		sb.config.generic[netlabel.PortMap] = pbs
+	}
+}
+
+// OptionIngress function returns an option setter for marking a
+// sandbox as the controller's ingress sandbox.
+func OptionIngress() SandboxOption {
+	return func(sb *sandbox) {
+		sb.ingress = true
 	}
 }
 

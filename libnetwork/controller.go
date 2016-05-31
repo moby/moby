@@ -136,6 +136,7 @@ type controller struct {
 	nmap            map[string]*netWatch
 	serviceBindings map[string]*service
 	defOsSbox       osl.Sandbox
+	ingressSandbox  *sandbox
 	sboxOnce        sync.Once
 	agent           *agent
 	sync.Mutex
@@ -623,9 +624,7 @@ func (c *controller) NetworkByID(id string) (Network, error) {
 }
 
 // NewSandbox creates a new sandbox for the passed container id
-func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (Sandbox, error) {
-	var err error
-
+func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (sBox Sandbox, err error) {
 	if containerID == "" {
 		return nil, types.BadRequestErrorf("invalid container ID")
 	}
@@ -662,10 +661,28 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 			controller:  c,
 		}
 	}
+	sBox = sb
 
 	heap.Init(&sb.endpoints)
 
 	sb.processOptions(options...)
+
+	c.Lock()
+	if sb.ingress && c.ingressSandbox != nil {
+		return nil, fmt.Errorf("ingress sandbox already present")
+	}
+
+	c.ingressSandbox = sb
+	c.Unlock()
+	defer func() {
+		if err != nil {
+			c.Lock()
+			if sb.ingress {
+				c.ingressSandbox = nil
+			}
+			c.Unlock()
+		}
+	}()
 
 	if err = sb.setupResolutionFiles(); err != nil {
 		return nil, err

@@ -185,6 +185,7 @@ type network struct {
 	drvOnce      *sync.Once
 	internal     bool
 	inDelete     bool
+	ingress      bool
 	driverTables []string
 	sync.Mutex
 }
@@ -326,6 +327,7 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 	dstN.drvOnce = n.drvOnce
 	dstN.internal = n.internal
 	dstN.inDelete = n.inDelete
+	dstN.ingress = n.ingress
 
 	// copy labels
 	if dstN.labels == nil {
@@ -432,6 +434,7 @@ func (n *network) MarshalJSON() ([]byte, error) {
 	}
 	netMap["internal"] = n.internal
 	netMap["inDelete"] = n.inDelete
+	netMap["ingress"] = n.ingress
 	return json.Marshal(netMap)
 }
 
@@ -522,6 +525,9 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 	if v, ok := netMap["inDelete"]; ok {
 		n.inDelete = v.(bool)
 	}
+	if v, ok := netMap["ingress"]; ok {
+		n.ingress = v.(bool)
+	}
 	// Reconcile old networks with the recently added `--ipv6` flag
 	if !n.enableIPv6 {
 		n.enableIPv6 = len(n.ipamV6Info) > 0
@@ -550,6 +556,14 @@ func NetworkOptionGeneric(generic map[string]interface{}) NetworkOption {
 		for k, v := range generic {
 			n.generic[k] = v
 		}
+	}
+}
+
+// NetworkOptionIngress returns an option setter to indicate if a network is
+// an ingress network.
+func NetworkOptionIngress() NetworkOption {
+	return func(n *network) {
+		n.ingress = true
 	}
 }
 

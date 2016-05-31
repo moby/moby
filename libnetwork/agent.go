@@ -167,18 +167,25 @@ func (ep *endpoint) addToCluster() error {
 
 	c := n.getController()
 	if !ep.isAnonymous() && ep.Iface().Address() != nil {
+		var ingressPorts []*PortConfig
 		if ep.svcID != "" {
-			if err := c.addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.virtualIP, ep.Iface().Address().IP); err != nil {
+			// Gossip ingress ports only in ingress network.
+			if n.ingress {
+				ingressPorts = ep.ingressPorts
+			}
+
+			if err := c.addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.virtualIP, ingressPorts, ep.Iface().Address().IP); err != nil {
 				return err
 			}
 		}
 
 		buf, err := proto.Marshal(&EndpointRecord{
-			Name:        ep.Name(),
-			ServiceName: ep.svcName,
-			ServiceID:   ep.svcID,
-			VirtualIP:   ep.virtualIP.String(),
-			EndpointIP:  ep.Iface().Address().IP.String(),
+			Name:         ep.Name(),
+			ServiceName:  ep.svcName,
+			ServiceID:    ep.svcID,
+			VirtualIP:    ep.virtualIP.String(),
+			IngressPorts: ingressPorts,
+			EndpointIP:   ep.Iface().Address().IP.String(),
 		})
 
 		if err != nil {
@@ -208,7 +215,12 @@ func (ep *endpoint) deleteFromCluster() error {
 	c := n.getController()
 	if !ep.isAnonymous() {
 		if ep.svcID != "" && ep.Iface().Address() != nil {
-			if err := c.rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.virtualIP, ep.Iface().Address().IP); err != nil {
+			var ingressPorts []*PortConfig
+			if n.ingress {
+				ingressPorts = ep.ingressPorts
+			}
+
+			if err := c.rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.virtualIP, ingressPorts, ep.Iface().Address().IP); err != nil {
 				return err
 			}
 		}
@@ -362,6 +374,7 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 	svcID := epRec.ServiceID
 	vip := net.ParseIP(epRec.VirtualIP)
 	ip := net.ParseIP(epRec.EndpointIP)
+	ingressPorts := epRec.IngressPorts
 
 	if name == "" || ip == nil {
 		logrus.Errorf("Invalid endpoint name/ip received while handling service table event %s", value)
@@ -370,7 +383,7 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 
 	if isAdd {
 		if svcID != "" {
-			if err := c.addServiceBinding(svcName, svcID, nid, eid, vip, ip); err != nil {
+			if err := c.addServiceBinding(svcName, svcID, nid, eid, vip, ingressPorts, ip); err != nil {
 				logrus.Errorf("Failed adding service binding for value %s: %v", value, err)
 				return
 			}
@@ -379,7 +392,7 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 		n.addSvcRecords(name, ip, nil, true)
 	} else {
 		if svcID != "" {
-			if err := c.rmServiceBinding(svcName, svcID, nid, eid, vip, ip); err != nil {
+			if err := c.rmServiceBinding(svcName, svcID, nid, eid, vip, ingressPorts, ip); err != nil {
 				logrus.Errorf("Failed adding service binding for value %s: %v", value, err)
 				return
 			}

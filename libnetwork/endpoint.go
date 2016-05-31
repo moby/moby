@@ -70,6 +70,7 @@ type endpoint struct {
 	svcID             string
 	svcName           string
 	virtualIP         net.IP
+	ingressPorts      []*PortConfig
 	dbIndex           uint64
 	dbExists          bool
 	sync.Mutex
@@ -95,6 +96,7 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 	epMap["svcName"] = ep.svcName
 	epMap["svcID"] = ep.svcID
 	epMap["virtualIP"] = ep.virtualIP.String()
+	epMap["ingressPorts"] = ep.ingressPorts
 
 	return json.Marshal(epMap)
 }
@@ -192,6 +194,11 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 		ep.virtualIP = net.ParseIP(vip.(string))
 	}
 
+	pc, _ := json.Marshal(epMap["ingressPorts"])
+	var ingressPorts []*PortConfig
+	json.Unmarshal(pc, &ingressPorts)
+	ep.ingressPorts = ingressPorts
+
 	ma, _ := json.Marshal(epMap["myAliases"])
 	var myAliases []string
 	json.Unmarshal(ma, &myAliases)
@@ -219,6 +226,9 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp.svcName = ep.svcName
 	dstEp.svcID = ep.svcID
 	dstEp.virtualIP = ep.virtualIP
+
+	dstEp.ingressPorts = make([]*PortConfig, len(ep.ingressPorts))
+	copy(dstEp.ingressPorts, ep.ingressPorts)
 
 	if ep.iface != nil {
 		dstEp.iface = &endpointInterface{}
@@ -899,11 +909,12 @@ func CreateOptionAlias(name string, alias string) EndpointOption {
 }
 
 // CreateOptionService function returns an option setter for setting service binding configuration
-func CreateOptionService(name, id string, vip net.IP) EndpointOption {
+func CreateOptionService(name, id string, vip net.IP, ingressPorts []*PortConfig) EndpointOption {
 	return func(ep *endpoint) {
 		ep.svcName = name
 		ep.svcID = id
 		ep.virtualIP = vip
+		ep.ingressPorts = ingressPorts
 	}
 }
 

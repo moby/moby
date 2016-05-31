@@ -19,6 +19,10 @@ type service struct {
 	// Map of loadbalancers for the service one-per attached
 	// network. It is keyed with network ID.
 	loadBalancers map[string]*loadBalancer
+
+	// List of ingress ports exposed by the service
+	ingressPorts []*PortConfig
+
 	sync.Mutex
 }
 
@@ -29,4 +33,7 @@ type loadBalancer struct {
 	// Map of backend IPs backing this loadbalancer on this
 	// network. It is keyed with endpoint ID.
 	backEnds map[string]net.IP
+
+	// Back pointer to service to which the loadbalancer belongs.
+	service *service
 }
