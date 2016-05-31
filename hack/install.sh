@@ -239,10 +239,11 @@ do_install() {
 	if [ -z "$lsb_dist" ] && [ -r /etc/oracle-release ]; then
 		lsb_dist='oracleserver'
 	fi
-	if [ -z "$lsb_dist" ]; then
-		if [ -r /etc/centos-release ] || [ -r /etc/redhat-release ]; then
-			lsb_dist='centos'
-		fi
+	if [ -z "$lsb_dist" ] && [ -r /etc/centos-release ]; then
+		lsb_dist='centos'
+	fi
+	if [ -z "$lsb_dist" ] && [ -r /etc/redhat-release ]; then
+		lsb_dist='redhat'
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/os-release ]; then
 		lsb_dist="$(. /etc/os-release && echo "$ID")"
@@ -279,8 +280,8 @@ do_install() {
 			dist_version="$(rpm -q --whatprovides redhat-release --queryformat "%{VERSION}\n" | sed 's/\/.*//' | sed 's/\..*//' | sed 's/Server*//')"
 		;;
 
-		fedora|centos)
-			dist_version="$(rpm -q --whatprovides redhat-release --queryformat "%{VERSION}\n" | sed 's/\/.*//' | sed 's/\..*//' | sed 's/Server*//')"
+		fedora|centos|redhat)
+			dist_version="$(rpm -q --whatprovides ${lsb_dist}-release --queryformat "%{VERSION}\n" | sed 's/\/.*//' | sed 's/\..*//' | sed 's/Server*//' | sort | tail -1)"
 		;;
 
 		*)
@@ -435,7 +436,7 @@ do_install() {
 			exit 0
 			;;
 
-		fedora|centos|oraclelinux)
+		fedora|centos|redhat|oraclelinux)
 			$sh_c "cat >/etc/yum.repos.d/docker-${repo}.repo" <<-EOF
 			[docker-${repo}-repo]
 			name=Docker ${repo} Repository
