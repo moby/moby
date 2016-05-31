@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"syscall"
 
 	"golang.org/x/net/context"
 
@@ -315,18 +316,18 @@ func reportError(stderr io.Writer, name string, str string, withHelp bool) {
 	fmt.Fprintf(stderr, "%s: %s.\n", os.Args[0], str)
 }
 
-// if container start fails with 'command not found' error, return 127
-// if container start fails with 'command cannot be invoked' error, return 126
+// if container start fails with 'not found'/'no such' error, return 127
+// if container start fails with 'permission denied' error, return 126
 // return 125 for generic docker daemon failures
 func runStartContainerErr(err error) error {
 	trimmedErr := strings.TrimPrefix(err.Error(), "Error response from daemon: ")
 	statusError := cli.StatusError{StatusCode: 125}
-	if strings.HasPrefix(trimmedErr, "Container command") {
-		if strings.Contains(trimmedErr, errCmdNotFound) {
-			statusError = cli.StatusError{StatusCode: 127}
-		} else if strings.Contains(trimmedErr, errCmdCouldNotBeInvoked) {
-			statusError = cli.StatusError{StatusCode: 126}
-		}
+	if strings.Contains(trimmedErr, "executable file not found") ||
+		strings.Contains(trimmedErr, "no such file or directory") ||
+		strings.Contains(trimmedErr, "system cannot find the file specified") {
+		statusError = cli.StatusError{StatusCode: 127}
+	} else if strings.Contains(trimmedErr, syscall.EACCES.Error()) {
+		statusError = cli.StatusError{StatusCode: 126}
 	}
 
 	return statusError
