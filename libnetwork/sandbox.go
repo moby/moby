@@ -28,7 +28,7 @@ type Sandbox interface {
 	Labels() map[string]interface{}
 	// Statistics retrieves the interfaces' statistics for the sandbox
 	Statistics() (map[string]*types.InterfaceStatistics, error)
-	// Refresh leaves all the endpoints, resets and re-apply the options,
+	// Refresh leaves all the endpoints, resets and re-applies the options,
 	// re-joins all the endpoints without destroying the osl sandbox
 	Refresh(options ...SandboxOption) error
 	// SetKey updates the Sandbox Key
@@ -38,9 +38,9 @@ type Sandbox interface {
 	// Delete destroys this container after detaching it from all connected endpoints.
 	Delete() error
 	// ResolveName resolves a service name to an IPv4 or IPv6 address by searching
-	// the networks the sandbox is connected to. For IPv6 queries, second  return
+	// the networks the sandbox is connected to. For IPv6 queries, second return
 	// value will be true if the name exists in docker domain but doesn't have an
-	// IPv6 address. Such queries shouldn't be forwarded  to external nameservers.
+	// IPv6 address. Such queries shouldn't be forwarded to external nameservers.
 	ResolveName(name string, iplen int) ([]net.IP, bool)
 	// ResolveIP returns the service name for the passed in IP. IP is in reverse dotted
 	// notation; the format used for DNS PTR records
@@ -294,7 +294,7 @@ func (sb *sandbox) Refresh(options ...SandboxOption) error {
 		return err
 	}
 
-	// Re -connect to all endpoints
+	// Re-connect to all endpoints
 	for _, ep := range epList {
 		if err := ep.Join(sb); err != nil {
 			log.Warnf("Failed attach sandbox %s to endpoint %s: %v\n", sb.ID(), ep.ID(), err)
@@ -890,7 +890,7 @@ func OptionHostsPath(path string) SandboxOption {
 }
 
 // OptionOriginHostsPath function returns an option setter for origin hosts file path
-// tbeo  passed to NewSandbox method.
+// to be passed to NewSandbox method.
 func OptionOriginHostsPath(path string) SandboxOption {
 	return func(sb *sandbox) {
 		sb.config.originHostsPath = path

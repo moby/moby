@@ -33,7 +33,7 @@ func SetNamespace() error {
 	return nil
 }
 
-// ParseHandlerInt transforms the namespace handler into a integer
+// ParseHandlerInt transforms the namespace handler into an integer
 func ParseHandlerInt() int {
 	return int(initNs)
 }

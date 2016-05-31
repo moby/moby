@@ -69,7 +69,7 @@ import (
 // NetworkController provides the interface for controller instance which manages
 // networks.
 type NetworkController interface {
-	// ID provides an unique identity for the controller
+	// ID provides a unique identity for the controller
 	ID() string
 
 	// Config method returns the bootup configuration for the controller
@@ -90,7 +90,7 @@ type NetworkController interface {
 	// NetworkByID returns the Network which has the passed id. If not found, the error ErrNoSuchNetwork is returned.
 	NetworkByID(id string) (Network, error)
 
-	// NewSandbox cretes a new network sandbox for the passed container id
+	// NewSandbox creates a new network sandbox for the passed container id
 	NewSandbox(containerID string, options ...SandboxOption) (Sandbox, error)
 
 	// Sandboxes returns the list of Sandbox(s) managed by this controller.
