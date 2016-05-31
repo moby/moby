@@ -27,11 +27,10 @@ const (
 
 // Message is datastructure that represents record from some container.
 type Message struct {
-	ContainerID string
-	Line        []byte
-	Source      string
-	Timestamp   time.Time
-	Attrs       LogAttributes
+	Line      []byte
+	Source    string
+	Timestamp time.Time
+	Attrs     LogAttributes
 }
 
 // LogAttributes is used to hold the extra attributes available in the log message

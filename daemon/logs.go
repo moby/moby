@@ -124,7 +124,7 @@ func (daemon *Daemon) StartLogging(container *container.Container) error {
 		return fmt.Errorf("Failed to initialize logging driver: %v", err)
 	}
 
-	copier := logger.NewCopier(container.ID, map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)
+	copier := logger.NewCopier(map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)
 	container.LogCopier = copier
 	copier.Run()
 	container.LogDriver = l
