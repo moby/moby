@@ -91,8 +91,9 @@ flag is set to `yes` like so:
 ## Custom daemon options
 
 If you need to add an HTTP Proxy, set a different directory or partition for the
-Docker runtime files, or make other customizations, read the systemd article to
-learn how to [customize your systemd Docker daemon options](../../admin/systemd.md).
+Docker runtime files, or make other customizations, you can add the relevant
+flags to the `DOCKER_OPTS` variable defined in `/etc/sysconfig/docker`. These
+are appended to the Docker daemon command line invocation.
 
 ## Uninstallation
 
