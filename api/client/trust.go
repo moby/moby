@@ -37,6 +37,7 @@ import (
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/store"
+	"github.com/spf13/pflag"
 )
 
 var (
@@ -44,7 +45,20 @@ var (
 	untrusted    bool
 )
 
+// TODO: tmp workaround to get this PoC working, change everything to use
+// exported version
 func addTrustedFlags(fs *flag.FlagSet, verify bool) {
+	trusted, message := setupTrustedFlag(verify)
+	fs.BoolVar(&untrusted, []string{"-disable-content-trust"}, !trusted, message)
+}
+
+// AddTrustedFlags adds the trust flags to a FlagSet
+func AddTrustedFlags(fs *pflag.FlagSet, verify bool) {
+	trusted, message := setupTrustedFlag(verify)
+	fs.BoolVar(&untrusted, "disable-content-trust", !trusted, message)
+}
+
+func setupTrustedFlag(verify bool) (bool, string) {
 	var trusted bool
 	if e := os.Getenv("DOCKER_CONTENT_TRUST"); e != "" {
 		if t, err := strconv.ParseBool(e); t || err != nil {
@@ -56,7 +70,7 @@ func addTrustedFlags(fs *flag.FlagSet, verify bool) {
 	if verify {
 		message = "Skip image verification"
 	}
-	fs.BoolVar(&untrusted, []string{"-disable-content-trust"}, !trusted, message)
+	return trusted, message
 }
 
 func isTrusted() bool {

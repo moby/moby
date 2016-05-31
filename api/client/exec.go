@@ -93,11 +93,11 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 	}
 	defer resp.Close()
 	errCh = promise.Go(func() error {
-		return cli.holdHijackedConnection(ctx, execConfig.Tty, in, out, stderr, resp)
+		return cli.HoldHijackedConnection(ctx, execConfig.Tty, in, out, stderr, resp)
 	})
 
 	if execConfig.Tty && cli.isTerminalIn {
-		if err := cli.monitorTtySize(ctx, execID, true); err != nil {
+		if err := cli.MonitorTtySize(ctx, execID, true); err != nil {
 			fmt.Fprintf(cli.err, "Error monitoring TTY size: %s\n", err)
 		}
 	}
