@@ -235,9 +235,6 @@ func (ctr *container) waitExit(process *process, isFirstProcessToStart bool) err
 		// Remove process from list if we have exited
 		// We need to do so here in case the Message Handler decides to restart it.
 		if si.State == StateExit {
-			if err := ctr.hcsContainer.Close(); err != nil {
-				logrus.Error(err)
-			}
 			ctr.client.deleteContainer(ctr.friendlyName)
 		}
 	}
