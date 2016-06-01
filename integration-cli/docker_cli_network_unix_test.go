@@ -1366,26 +1366,6 @@ func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectLink(c *check.C) {
 	c.Assert(err, check.IsNil)
 }
 
-// #19100 This is a deprecated feature test, it should be removed in Docker 1.12
-func (s *DockerNetworkSuite) TestDockerNetworkStartAPIWithHostconfig(c *check.C) {
-	netName := "test"
-	conName := "foo"
-	dockerCmd(c, "network", "create", netName)
-	dockerCmd(c, "create", "--name", conName, "busybox", "top")
-
-	config := map[string]interface{}{
-		"HostConfig": map[string]interface{}{
-			"NetworkMode": netName,
-		},
-	}
-	_, _, err := sockRequest("POST", "/containers/"+conName+"/start", config)
-	c.Assert(err, checker.IsNil)
-	c.Assert(waitRun(conName), checker.IsNil)
-	networks := inspectField(c, conName, "NetworkSettings.Networks")
-	c.Assert(networks, checker.Contains, netName, check.Commentf(fmt.Sprintf("Should contain '%s' network", netName)))
-	c.Assert(networks, checker.Not(checker.Contains), "bridge", check.Commentf("Should not contain 'bridge' network"))
-}
-
 func (s *DockerNetworkSuite) TestDockerNetworkDisconnectDefault(c *check.C) {
 	netWorkName1 := "test1"
 	netWorkName2 := "test2"

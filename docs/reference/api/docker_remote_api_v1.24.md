@@ -1010,10 +1010,6 @@ Status Codes:
 
 Start the container `id`
 
-> **Note**:
-> For backwards compatibility, this endpoint accepts a `HostConfig` as JSON-encoded request body.
-> See [create a container](#create-a-container) for details.
-
 **Example request**:
 
     POST /containers/e90e34656806/start HTTP/1.1
