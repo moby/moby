@@ -5,7 +5,6 @@ description = "Describes how to use the Google Cloud Logging driver."
 keywords = ["gcplogs, google, docker, logging, driver"]
 [menu.main]
 parent = "smn_logging"
-weight = 2
 +++
 <![end-metadata]-->
 
