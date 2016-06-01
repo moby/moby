@@ -349,7 +349,7 @@ func (r *remote) runContainerdDaemon() error {
 	}
 
 	// Start a new instance
-	args := []string{"-l", r.rpcAddr, "--runtime", "docker-runc"}
+	args := []string{"-l", r.rpcAddr, "--runtime", "docker-runc", "--start-timeout", "2m"}
 	if r.debugLog {
 		args = append(args, "--debug", "--metrics-interval=0")
 	}
