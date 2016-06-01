@@ -20,7 +20,12 @@ func ReadAll(reader io.ReadCloser) ([]string, error) {
 	var excludes []string
 
 	for scanner.Scan() {
-		pattern := strings.TrimSpace(scanner.Text())
+		// Lines starting with # (comments) are ignored before processing
+		pattern := scanner.Text()
+		if strings.HasPrefix(pattern, "#") {
+			continue
+		}
+		pattern = strings.TrimSpace(pattern)
 		if pattern == "" {
 			continue
 		}
