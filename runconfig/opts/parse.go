@@ -184,11 +184,11 @@ func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 		flStopSignal:        flags.String("stop-signal", signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal)),
 		flIsolation:         flags.String("isolation", "", "Container isolation technology"),
 		flShmSize:           flags.String("shm-size", "", "Size of /dev/shm, default value is 64MB"),
-		flNoHealthcheck:     cmd.Bool([]string{"-no-healthcheck"}, false, "Disable any container-specified HEALTHCHECK"),
-		flHealthCmd:         cmd.String([]string{"-health-cmd"}, "", "Command to run to check health"),
-		flHealthInterval:    cmd.Duration([]string{"-health-interval"}, 0, "Time between running the check"),
-		flHealthTimeout:     cmd.Duration([]string{"-health-timeout"}, 0, "Maximum time to allow one check to run"),
-		flHealthRetries:     cmd.Int([]string{"-health-retries"}, 0, "Consecutive failures needed to report unhealthy"),
+		flNoHealthcheck:     flags.Bool("no-healthcheck", false, "Disable any container-specified HEALTHCHECK"),
+		flHealthCmd:         flags.String("health-cmd", "", "Command to run to check health"),
+		flHealthInterval:    flags.Duration("health-interval", 0, "Time between running the check"),
+		flHealthTimeout:     flags.Duration("health-timeout", 0, "Maximum time to allow one check to run"),
+		flHealthRetries:     flags.Int("health-retries", 0, "Consecutive failures needed to report unhealthy"),
 	}
 
 	flags.VarP(&copts.flAttach, "attach", "a", "Attach to STDIN, STDOUT or STDERR")
@@ -442,34 +442,34 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 
 	// Healthcheck
 	var healthConfig *container.HealthConfig
-	haveHealthSettings := *flHealthCmd != "" ||
-		*flHealthInterval != 0 ||
-		*flHealthTimeout != 0 ||
-		*flHealthRetries != 0
-	if *flNoHealthcheck {
+	haveHealthSettings := *copts.flHealthCmd != "" ||
+		*copts.flHealthInterval != 0 ||
+		*copts.flHealthTimeout != 0 ||
+		*copts.flHealthRetries != 0
+	if *copts.flNoHealthcheck {
 		if haveHealthSettings {
-			return nil, nil, nil, cmd, fmt.Errorf("--no-healthcheck conflicts with --health-* options")
+			return nil, nil, nil, fmt.Errorf("--no-healthcheck conflicts with --health-* options")
 		}
 		test := strslice.StrSlice{"NONE"}
 		healthConfig = &container.HealthConfig{Test: test}
 	} else if haveHealthSettings {
 		var probe strslice.StrSlice
-		if *flHealthCmd != "" {
-			args := []string{"CMD-SHELL", *flHealthCmd}
+		if *copts.flHealthCmd != "" {
+			args := []string{"CMD-SHELL", *copts.flHealthCmd}
 			probe = strslice.StrSlice(args)
 		}
-		if *flHealthInterval < 0 {
-			return nil, nil, nil, cmd, fmt.Errorf("--health-interval cannot be negative")
+		if *copts.flHealthInterval < 0 {
+			return nil, nil, nil, fmt.Errorf("--health-interval cannot be negative")
 		}
-		if *flHealthTimeout < 0 {
-			return nil, nil, nil, cmd, fmt.Errorf("--health-timeout cannot be negative")
+		if *copts.flHealthTimeout < 0 {
+			return nil, nil, nil, fmt.Errorf("--health-timeout cannot be negative")
 		}
 
 		healthConfig = &container.HealthConfig{
 			Test:     probe,
-			Interval: *flHealthInterval,
-			Timeout:  *flHealthTimeout,
-			Retries:  *flHealthRetries,
+			Interval: *copts.flHealthInterval,
+			Timeout:  *copts.flHealthTimeout,
+			Retries:  *copts.flHealthRetries,
 		}
 	}
 

@@ -18,7 +18,6 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// TODO: drop FlagSet from return value
 func parseRun(args []string) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
 	flags := pflag.NewFlagSet("run", pflag.ContinueOnError)
 	flags.SetOutput(ioutil.Discard)
@@ -592,14 +591,14 @@ func TestParseRestartPolicy(t *testing.T) {
 
 func TestParseHealth(t *testing.T) {
 	checkOk := func(args ...string) *container.HealthConfig {
-		config, _, _, _, err := parseRun(args)
+		config, _, _, err := parseRun(args)
 		if err != nil {
 			t.Fatalf("%#v: %v", args, err)
 		}
 		return config.Healthcheck
 	}
 	checkError := func(expected string, args ...string) {
-		config, _, _, _, err := parseRun(args)
+		config, _, _, err := parseRun(args)
 		if err == nil {
 			t.Fatalf("Expected error, but got %#v", config)
 		}
