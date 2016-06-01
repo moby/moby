@@ -90,6 +90,56 @@ func (daemon *Daemon) Containers(config *types.ContainerListOptions) ([]*types.C
 	return daemon.reduceContainers(config, daemon.transformContainer)
 }
 
+func (daemon *Daemon) filterByNameIDMatches(ctx *listContext) []*container.Container {
+	idSearch := false
+	names := ctx.filters.Get("name")
+	ids := ctx.filters.Get("id")
+	if len(names)+len(ids) == 0 {
+		// if name or ID filters are not in use, return to
+		// standard behavior of walking the entire container
+		// list from the daemon's in-memory store
+		return daemon.List()
+	}
+
+	// idSearch will determine if we limit name matching to the IDs
+	// matched from any IDs which were specified as filters
+	if len(ids) > 0 {
+		idSearch = true
+	}
+
+	matches := make(map[string]bool)
+	// find ID matches; errors represent "not found" and can be ignored
+	for _, id := range ids {
+		if fullID, err := daemon.idIndex.Get(id); err == nil {
+			matches[fullID] = true
+		}
+	}
+
+	// look for name matches; if ID filtering was used, then limit the
+	// search space to the matches map only; errors represent "not found"
+	// and can be ignored
+	if len(names) > 0 {
+		for id, idNames := range ctx.names {
+			// if ID filters were used and no matches on that ID were
+			// found, continue to next ID in the list
+			if idSearch && !matches[id] {
+				continue
+			}
+			for _, eachName := range idNames {
+				if ctx.filters.Match("name", eachName) {
+					matches[id] = true
+				}
+			}
+		}
+	}
+
+	cntrs := make([]*container.Container, 0, len(matches))
+	for id := range matches {
+		cntrs = append(cntrs, daemon.containers.Get(id))
+	}
+	return cntrs
+}
+
 // reduceContainers parses the user's filtering options and generates the list of containers to return based on a reducer.
 func (daemon *Daemon) reduceContainers(config *types.ContainerListOptions, reducer containerReducer) ([]*types.Container, error) {
 	containers := []*types.Container{}
@@ -99,7 +149,12 @@ func (daemon *Daemon) reduceContainers(config *types.ContainerListOptions, reduc
 		return nil, err
 	}
 
-	for _, container := range daemon.List() {
+	// fastpath to only look at a subset of containers if specific name
+	// or ID matches were provided by the user--otherwise we potentially
+	// end up locking and querying many more containers than intended
+	containerList := daemon.filterByNameIDMatches(ctx)
+
+	for _, container := range containerList {
 		t, err := daemon.reducePsContainer(container, ctx, reducer)
 		if err != nil {
 			if err != errStopIteration {
