@@ -15,10 +15,11 @@ type IPAM struct {
 
 // IPAMConfig represents IPAM configurations
 type IPAMConfig struct {
-	Subnet     string            `json:",omitempty"`
-	IPRange    string            `json:",omitempty"`
-	Gateway    string            `json:",omitempty"`
-	AuxAddress map[string]string `json:"AuxiliaryAddresses,omitempty"`
+	Subnet       string            `json:",omitempty"`
+	IPRange      string            `json:",omitempty"`
+	Gateway      string            `json:",omitempty"`
+	AddressSpace string            `json:",omitempty"`
+	AuxAddress   map[string]string `json:"AuxiliaryAddresses,omitempty"`
 }
 
 // EndpointIPAMConfig represents IPAM configurations for the endpoint

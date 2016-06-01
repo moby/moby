@@ -441,6 +441,7 @@ type EndpointResource struct {
 type NetworkCreate struct {
 	CheckDuplicate bool
 	Driver         string
+	AddressSpace   string
 	EnableIPv6     bool
 	IPAM           network.IPAM
 	Internal       bool

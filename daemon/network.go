@@ -126,7 +126,7 @@ func (daemon *Daemon) CreateNetwork(create types.NetworkCreateRequest) (*types.N
 	}
 
 	nwOptions := []libnetwork.NetworkOption{
-		libnetwork.NetworkOptionIpam(ipam.Driver, "", v4Conf, v6Conf, ipam.Options),
+		libnetwork.NetworkOptionIpam(ipam.Driver, create.AddressSpace, v4Conf, v6Conf, ipam.Options),
 		libnetwork.NetworkOptionEnableIPv6(create.EnableIPv6),
 		libnetwork.NetworkOptionDriverOpts(create.Options),
 		libnetwork.NetworkOptionLabels(create.Labels),

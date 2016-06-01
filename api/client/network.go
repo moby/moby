@@ -36,6 +36,7 @@ func (cli *DockerCli) CmdNetwork(args ...string) error {
 func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	cmd := Cli.Subcmd("network create", []string{"NETWORK-NAME"}, "Creates a new network with a name specified by the user", false)
 	flDriver := cmd.String([]string{"d", "-driver"}, "bridge", "Driver to manage the Network")
+	flAddressSpace := cmd.String([]string{"-address-space"}, "", "Address-Space this Network belongs to")
 	flOpts := opts.NewMapOpts(nil, nil)
 
 	flIpamDriver := cmd.String([]string{"-ipam-driver"}, "default", "IP Address Management Driver")
@@ -70,6 +71,11 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 		driver = ""
 	}
 
+	addressSpace := *flAddressSpace
+	if !cmd.IsSet("-address-space") {
+		addressSpace = ""
+	}
+
 	ipamCfg, err := consolidateIpam(flIpamSubnet.GetAll(), flIpamIPRange.GetAll(), flIpamGateway.GetAll(), flIpamAux.GetAll())
 	if err != nil {
 		return err
@@ -84,6 +90,7 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 		Internal:       *flInternal,
 		EnableIPv6:     *flIPv6,
 		Labels:         runconfigopts.ConvertKVStringsToMap(flLabels.GetAll()),
+		AddressSpace:   addressSpace,
 	}
 
 	resp, err := cli.client.NetworkCreate(context.Background(), cmd.Arg(0), nc)
