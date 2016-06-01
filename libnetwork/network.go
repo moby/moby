@@ -1210,6 +1210,7 @@ func (n *network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 		d := &IpamInfo{}
 		(*infoList)[i] = d
 
+		d.AddressSpace = n.addrSpace
 		d.PoolID, d.Pool, d.Meta, err = n.requestPoolHelper(ipam, n.addrSpace, cfg.PreferredPool, cfg.SubPool, n.ipamOptions, ipVer == 6)
 		if err != nil {
 			return err
