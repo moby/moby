@@ -73,6 +73,10 @@ func main() {
 		if sterr, ok := err.(cli.StatusError); ok {
 			if sterr.Status != "" {
 				fmt.Fprintln(stderr, sterr.Status)
+			}
+			// StatusError should only be used for errors, and all errors should
+			// have a non-zero exit status, so never exit with 0
+			if sterr.StatusCode == 0 {
 				os.Exit(1)
 			}
 			os.Exit(sterr.StatusCode)

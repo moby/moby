@@ -1455,7 +1455,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *check.C) {
 	}()
 
 	//1. test that a restarting container gets an updated resolv.conf
-	dockerCmd(c, "run", "--name='first'", "busybox", "true")
+	dockerCmd(c, "run", "--name=first", "busybox", "true")
 	containerID1, err := getIDByName("first")
 	if err != nil {
 		c.Fatal(err)
@@ -1485,7 +1485,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *check.C) {
 								} */
 	//2. test that a restarting container does not receive resolv.conf updates
 	//   if it modified the container copy of the starting point resolv.conf
-	dockerCmd(c, "run", "--name='second'", "busybox", "sh", "-c", "echo 'search mylittlepony.com' >>/etc/resolv.conf")
+	dockerCmd(c, "run", "--name=second", "busybox", "sh", "-c", "echo 'search mylittlepony.com' >>/etc/resolv.conf")
 	containerID2, err := getIDByName("second")
 	if err != nil {
 		c.Fatal(err)
@@ -1574,7 +1574,7 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *check.C) {
 	}
 
 	// Run the container so it picks up the old settings
-	dockerCmd(c, "run", "--name='third'", "busybox", "true")
+	dockerCmd(c, "run", "--name=third", "busybox", "true")
 	containerID3, err := getIDByName("third")
 	if err != nil {
 		c.Fatal(err)

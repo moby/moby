@@ -172,10 +172,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	ctx := context.Background()
 
 	var resolvedTags []*resolvedTag
-	if isTrusted() {
+	if IsTrusted() {
 		// Wrap the tar archive to replace the Dockerfile entry with the rewritten
 		// Dockerfile which uses trusted pulls.
-		buildCtx = replaceDockerfileTarWrapper(ctx, buildCtx, relDockerfile, cli.trustedReference, &resolvedTags)
+		buildCtx = replaceDockerfileTarWrapper(ctx, buildCtx, relDockerfile, cli.TrustedReference, &resolvedTags)
 	}
 
 	// Setup an upload progress bar
@@ -269,11 +269,11 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		fmt.Fprintf(cli.out, "%s", buildBuff)
 	}
 
-	if isTrusted() {
+	if IsTrusted() {
 		// Since the build was successful, now we must tag any of the resolved
 		// images from the above Dockerfile rewrite.
 		for _, resolved := range resolvedTags {
-			if err := cli.tagTrusted(ctx, resolved.digestRef, resolved.tagRef); err != nil {
+			if err := cli.TagTrusted(ctx, resolved.digestRef, resolved.tagRef); err != nil {
 				return err
 			}
 		}
@@ -321,7 +321,7 @@ func rewriteDockerfileFrom(ctx context.Context, dockerfile io.Reader, translator
 				return nil, nil, err
 			}
 			ref = reference.WithDefaultTag(ref)
-			if ref, ok := ref.(reference.NamedTagged); ok && isTrusted() {
+			if ref, ok := ref.(reference.NamedTagged); ok && IsTrusted() {
 				trustedRef, err := translator(ctx, ref)
 				if err != nil {
 					return nil, nil, err

@@ -60,7 +60,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	authConfig := cli.ResolveAuthConfig(ctx, repoInfo.Index)
 	requestPrivilege := cli.RegistryAuthenticationPrivilegedFunc(repoInfo.Index, "pull")
 
-	if isTrusted() && !registryRef.HasDigest() {
+	if IsTrusted() && !registryRef.HasDigest() {
 		// Check if tag is digest
 		return cli.trustedPull(ctx, repoInfo, registryRef, authConfig, requestPrivilege)
 	}

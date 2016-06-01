@@ -45,8 +45,7 @@ var (
 	untrusted    bool
 )
 
-// TODO: tmp workaround to get this PoC working, change everything to use
-// exported version
+// addTrustedFlags is the mflag version of AddTrustedFlags
 func addTrustedFlags(fs *flag.FlagSet, verify bool) {
 	trusted, message := setupTrustedFlag(verify)
 	fs.BoolVar(&untrusted, []string{"-disable-content-trust"}, !trusted, message)
@@ -73,7 +72,8 @@ func setupTrustedFlag(verify bool) (bool, string) {
 	return trusted, message
 }
 
-func isTrusted() bool {
+// IsTrusted returns true if content trust is enabled
+func IsTrusted() bool {
 	return !untrusted
 }
 
@@ -243,7 +243,8 @@ func (cli *DockerCli) getPassphraseRetriever() passphrase.Retriever {
 	}
 }
 
-func (cli *DockerCli) trustedReference(ctx context.Context, ref reference.NamedTagged) (reference.Canonical, error) {
+// TrustedReference returns the canonical trusted reference for an image reference
+func (cli *DockerCli) TrustedReference(ctx context.Context, ref reference.NamedTagged) (reference.Canonical, error) {
 	repoInfo, err := registry.ParseRepositoryInfo(ref)
 	if err != nil {
 		return nil, err
@@ -276,7 +277,8 @@ func (cli *DockerCli) trustedReference(ctx context.Context, ref reference.NamedT
 	return reference.WithDigest(ref, r.digest)
 }
 
-func (cli *DockerCli) tagTrusted(ctx context.Context, trustedRef reference.Canonical, ref reference.NamedTagged) error {
+// TagTrusted tags a trusted ref
+func (cli *DockerCli) TagTrusted(ctx context.Context, trustedRef reference.Canonical, ref reference.NamedTagged) error {
 	fmt.Fprintf(cli.out, "Tagging %s as %s\n", trustedRef.String(), ref.String())
 
 	return cli.client.ImageTag(ctx, trustedRef.String(), ref.String())
@@ -388,7 +390,7 @@ func (cli *DockerCli) trustedPull(ctx context.Context, repoInfo *registry.Reposi
 			if err != nil {
 				return err
 			}
-			if err := cli.tagTrusted(ctx, trustedRef, tagged); err != nil {
+			if err := cli.TagTrusted(ctx, trustedRef, tagged); err != nil {
 				return err
 			}
 		}

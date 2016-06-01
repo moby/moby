@@ -53,6 +53,7 @@ func NewRunCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runRun(dockerCli, cmd.Flags(), &opts, copts)
 		},
 	}
+	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	flags := cmd.Flags()
 	flags.SetInterspersed(false)
@@ -73,6 +74,13 @@ func NewRunCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return cmd
 }
 
+func flagErrorFunc(cmd *cobra.Command, err error) error {
+	return cli.StatusError{
+		Status:     cli.FlagErrorFunc(cmd, err).Error(),
+		StatusCode: 125,
+	}
+}
+
 func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions, copts *runconfigopts.ContainerOptions) error {
 	stdout, stderr, stdin := dockerCli.Out(), dockerCli.Err(), dockerCli.In()
 	client := dockerCli.Client()
@@ -91,7 +99,7 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 	// just in case the Parse does not exit
 	if err != nil {
 		reportError(stderr, cmdPath, err.Error(), true)
-		os.Exit(125)
+		return cli.StatusError{StatusCode: 125}
 	}
 
 	if hostConfig.OomKillDisable != nil && *hostConfig.OomKillDisable && hostConfig.Memory == 0 {
@@ -147,7 +155,7 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 
 	ctx, cancelFun := context.WithCancel(context.Background())
 
-	createResponse, err := dockerCli.CreateContainer(ctx, config, hostConfig, networkingConfig, hostConfig.ContainerIDFile, opts.name)
+	createResponse, err := createContainer(ctx, dockerCli, config, hostConfig, networkingConfig, hostConfig.ContainerIDFile, opts.name)
 	if err != nil {
 		reportError(stderr, cmdPath, err.Error(), true)
 		return runStartContainerErr(err)

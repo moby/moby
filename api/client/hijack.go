@@ -11,7 +11,8 @@ import (
 	"github.com/docker/engine-api/types"
 )
 
-// HoldHijackedConnection ... TODO docstring
+// HoldHijackedConnection handles copying input to and output from streams to the
+// connection
 func (cli *DockerCli) HoldHijackedConnection(ctx context.Context, tty bool, inputStream io.ReadCloser, outputStream, errorStream io.Writer, resp types.HijackedResponse) error {
 	var (
 		err         error
