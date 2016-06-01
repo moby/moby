@@ -1,15 +1,8 @@
-from ubuntu:12.04
-maintainer Nick Stinemates
+FROM docs/base:oss
+MAINTAINER Docker Docs <docs@docker.com>
 
-run apt-get update
-run apt-get install -y python-setuptools make
-run easy_install pip
-add . /docs
-run pip install -r /docs/requirements.txt
-run cd /docs; make docs
-
-expose 8000
-
-workdir /docs/_build/html
-
-entrypoint ["python", "-m", "SimpleHTTPServer"]
+ENV PROJECT=engine
+# To get the git info for this repo
+COPY . /src
+RUN rm -rf /docs/content/$PROJECT/
+COPY . /docs/content/$PROJECT/

@@ -1,0 +1,2 @@
+# avoid committing the awsconfig file used for releases
+awsconfig

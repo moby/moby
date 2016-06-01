@@ -1,0 +1,111 @@
+#!/bin/bash
+
+# see test-integration-cli for example usage of this script
+
+base="$ABS_DEST/.."
+export PATH="$base/binary-client:$base/binary-daemon:$base/dynbinary-client:$base/dynbinary-daemon:$base/gccgo:$base/dyngccgo:$PATH"
+
+if ! command -v docker &> /dev/null; then
+	echo >&2 'error: binary-client or dynbinary-client must be run before .integration-daemon-start'
+	false
+fi
+
+# This is a temporary hack for split-binary mode. It can be removed once
+# https://github.com/docker/docker/pull/22134 is merged into docker master
+if [ "$(go env GOOS)" = 'windows' ]; then
+       return
+fi
+
+if [ -z "$DOCKER_TEST_HOST" ]; then
+	if docker version &> /dev/null; then
+		echo >&2 'skipping daemon start, since daemon appears to be already started'
+		return
+	fi
+fi
+
+if ! command -v dockerd &> /dev/null; then
+	echo >&2 'error: binary-daemon or dynbinary-daemon must be run before .integration-daemon-start'
+	false
+fi
+
+# intentionally open a couple bogus file descriptors to help test that they get scrubbed in containers
+exec 41>&1 42>&2
+
+export DOCKER_GRAPHDRIVER=${DOCKER_GRAPHDRIVER:-vfs}
+export DOCKER_USERLANDPROXY=${DOCKER_USERLANDPROXY:-true}
+
+# example usage: DOCKER_STORAGE_OPTS="dm.basesize=20G,dm.loopdatasize=200G"
+storage_params=""
+if [ -n "$DOCKER_STORAGE_OPTS" ]; then
+	IFS=','
+	for i in ${DOCKER_STORAGE_OPTS}; do
+		storage_params="--storage-opt $i $storage_params"
+	done
+	unset IFS
+fi
+
+# example usage: DOCKER_STORAGE_OPTS="dm.basesize=20G,dm.loopdatasize=200G"
+extra_params=""
+if [ "$DOCKER_REMAP_ROOT" ]; then
+	extra_params="--userns-remap $DOCKER_REMAP_ROOT"
+fi
+
+if [ -z "$DOCKER_TEST_HOST" ]; then
+	# Start apparmor if it is enabled
+	if [ -e "/sys/module/apparmor/parameters/enabled" ] && [ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]; then
+		# reset container variable so apparmor profile is applied to process
+		# see https://github.com/docker/libcontainer/blob/master/apparmor/apparmor.go#L16
+		export container=""
+		(
+			set -x
+			/etc/init.d/apparmor start
+		)
+	fi
+
+	export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock" # "pwd" tricks to make sure $DEST is an absolute path, not a relative one
+	( set -x; exec \
+		dockerd --debug \
+		--host "$DOCKER_HOST" \
+		--storage-driver "$DOCKER_GRAPHDRIVER" \
+		--pidfile "$DEST/docker.pid" \
+		--userland-proxy="$DOCKER_USERLANDPROXY" \
+		$storage_params \
+		$extra_params \
+			&> "$DEST/docker.log"
+	) &
+	# make sure that if the script exits unexpectedly, we stop this daemon we just started
+	trap 'bundle .integration-daemon-stop' EXIT
+else
+	export DOCKER_HOST="$DOCKER_TEST_HOST"
+fi
+
+# give it a little time to come up so it's "ready"
+tries=60
+echo "INFO: Waiting for daemon to start..."
+while ! docker version &> /dev/null; do
+	(( tries-- ))
+	if [ $tries -le 0 ]; then
+		printf "\n"
+		if [ -z "$DOCKER_HOST" ]; then
+			echo >&2 "error: daemon failed to start"
+			echo >&2 "  check $DEST/docker.log for details"
+		else
+			echo >&2 "error: daemon at $DOCKER_HOST fails to 'docker version':"
+			docker version >&2 || true
+			# Additional Windows CI debugging as this is a common error as of
+			# January 2016
+			if [ "$(go env GOOS)" = 'windows' ]; then
+				echo >&2 "Container log below:"
+				echo >&2 "---"
+				# Important - use the docker on the CI host, not the one built locally
+				# which is currently in our path.
+				! /c/bin/docker -H=$MAIN_DOCKER_HOST logs docker-$COMMITHASH
+				echo >&2 "---"
+			fi
+		fi
+		false
+	fi
+	printf "."
+	sleep 2
+done
+printf "\n"
