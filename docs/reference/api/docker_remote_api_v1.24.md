@@ -2130,6 +2130,7 @@ Search for an image on [Docker Hub](https://hub.docker.com).
 Query Parameters:
 
 -   **term** – term to search
+-   **limit** – maximum returned search results
 -   **filters** – a JSON encoded value of the filters (a map[string][]string) to process on the images list. Available filters:
   -   `stars=<number>`
   -   `is-automated=(true|false)`

@@ -34,6 +34,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	cmd := Cli.Subcmd("search", []string{"TERM"}, Cli.DockerCommands["search"].Description, true)
 	noTrunc := cmd.Bool([]string{"-no-trunc"}, false, "Don't truncate output")
 	cmd.Var(&flFilter, []string{"f", "-filter"}, "Filter output based on conditions provided")
+	flLimit := cmd.Int([]string{"-limit"}, registry.DefaultSearchLimit, "Max number of search results")
 
 	// Deprecated since Docker 1.12 in favor of "--filter"
 	automated := cmd.Bool([]string{"#-automated"}, false, "Only show automated builds - DEPRECATED")
@@ -72,6 +73,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 		RegistryAuth:  encodedAuth,
 		PrivilegeFunc: requestPrivilege,
 		Filters:       filterArgs,
+		Limit:         *flLimit,
 	}
 
 	unorderedResults, err := cli.client.ImageSearch(ctx, name, options)

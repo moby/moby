@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
@@ -96,4 +97,35 @@ func (s *DockerSuite) TestSearchOnCentralRegistryWithDash(c *check.C) {
 	testRequires(c, Network, DaemonIsLinux)
 
 	dockerCmd(c, "search", "ubuntu-")
+}
+
+// test case for #23055
+func (s *DockerSuite) TestSearchWithLimit(c *check.C) {
+	testRequires(c, Network, DaemonIsLinux)
+
+	limit := 10
+	out, _, err := dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
+	c.Assert(err, checker.IsNil)
+	outSlice := strings.Split(out, "\n")
+	c.Assert(outSlice, checker.HasLen, limit+2) // 1 header, 1 carriage return
+
+	limit = 50
+	out, _, err = dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
+	c.Assert(err, checker.IsNil)
+	outSlice = strings.Split(out, "\n")
+	c.Assert(outSlice, checker.HasLen, limit+2) // 1 header, 1 carriage return
+
+	limit = 100
+	out, _, err = dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
+	c.Assert(err, checker.IsNil)
+	outSlice = strings.Split(out, "\n")
+	c.Assert(outSlice, checker.HasLen, limit+2) // 1 header, 1 carriage return
+
+	limit = 0
+	out, _, err = dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
+	c.Assert(err, checker.Not(checker.IsNil))
+
+	limit = 200
+	out, _, err = dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
+	c.Assert(err, checker.Not(checker.IsNil))
 }
