@@ -179,7 +179,7 @@ func tryLock(m *sync.Mutex, timeout time.Duration) bool {
 	c := make(chan struct{})
 	go func() {
 		m.Lock()
-		c<- struct{}{}
+		c <- struct{}{}
 	}()
 	select {
 	case <-c:
@@ -189,7 +189,7 @@ func tryLock(m *sync.Mutex, timeout time.Duration) bool {
 		go func() {
 			_ = <-c
 			m.Unlock()
-			}()
+		}()
 		return false
 	}
 }
