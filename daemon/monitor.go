@@ -126,7 +126,7 @@ func (daemon *Daemon) AttachStreams(id string, iop libcontainerd.IOPipe) error {
 		}
 	}
 
-	copy := func(w io.Writer, r io.Reader) {
+	copyFunc := func(w io.Writer, r io.Reader) {
 		s.Add(1)
 		go func() {
 			if _, err := io.Copy(w, r); err != nil {
@@ -137,10 +137,10 @@ func (daemon *Daemon) AttachStreams(id string, iop libcontainerd.IOPipe) error {
 	}
 
 	if iop.Stdout != nil {
-		copy(s.Stdout(), iop.Stdout)
+		copyFunc(s.Stdout(), iop.Stdout)
 	}
 	if iop.Stderr != nil {
-		copy(s.Stderr(), iop.Stderr)
+		copyFunc(s.Stderr(), iop.Stderr)
 	}
 
 	return nil
