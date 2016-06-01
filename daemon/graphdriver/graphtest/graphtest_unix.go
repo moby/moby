@@ -181,6 +181,12 @@ func DriverTestCreateEmpty(t *testing.T, drivername string) {
 		t.Fatal(err)
 	}
 
+	defer func() {
+		if err := driver.Remove("empty"); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
 	if !driver.Exists("empty") {
 		t.Fatal("Newly created image doesn't exist")
 	}
@@ -203,11 +209,6 @@ func DriverTestCreateEmpty(t *testing.T, drivername string) {
 	}
 
 	driver.Put("empty")
-
-	if err := driver.Remove("empty"); err != nil {
-		t.Fatal(err)
-	}
-
 }
 
 func createBase(t *testing.T, driver graphdriver.Driver, name string) {
@@ -260,7 +261,6 @@ func verifyBase(t *testing.T, driver graphdriver.Driver, name string) {
 	if len(fis) != 2 {
 		t.Fatal("Unexpected files in base image")
 	}
-
 }
 
 // DriverTestCreateBase create a base driver and verify.
@@ -269,11 +269,12 @@ func DriverTestCreateBase(t *testing.T, drivername string) {
 	defer PutDriver(t)
 
 	createBase(t, driver, "Base")
+	defer func() {
+		if err := driver.Remove("Base"); err != nil {
+			t.Fatal(err)
+		}
+	}()
 	verifyBase(t, driver, "Base")
-
-	if err := driver.Remove("Base"); err != nil {
-		t.Fatal(err)
-	}
 }
 
 // DriverTestCreateSnap Create a driver and snap and verify.
@@ -283,17 +284,20 @@ func DriverTestCreateSnap(t *testing.T, drivername string) {
 
 	createBase(t, driver, "Base")
 
+	defer func() {
+		if err := driver.Remove("Base"); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
 	if err := driver.Create("Snap", "Base", "", nil); err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := driver.Remove("Snap"); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	verifyBase(t, driver, "Snap")
-
-	if err := driver.Remove("Snap"); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := driver.Remove("Base"); err != nil {
-		t.Fatal(err)
-	}
 }
