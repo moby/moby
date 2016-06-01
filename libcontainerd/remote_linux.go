@@ -357,6 +357,7 @@ func (r *remote) runContainerdDaemon() error {
 		"--shim", "docker-containerd-shim",
 		"--runtime", "docker-runc",
 		"--metrics-interval=0",
+		"--start-timeout", "2m",
 		"--state-dir", filepath.Join(r.stateDir, containerdStateDir),
 	}
 	if r.debugLog {
