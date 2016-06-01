@@ -123,6 +123,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /events` now supports filtering by daemon name or ID.
 * `GET /images/json` now supports filters `since` and `before`.
 * `POST /containers/(id or name)/start` no longer accepts a `HostConfig`.
+* `POST /images/(name)/tag` no longer has a `force` query parameter.
 
 ### v1.23 API changes
 

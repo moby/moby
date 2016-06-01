@@ -215,11 +215,6 @@ type ImageSearchOptions struct {
 	Filters       filters.Args
 }
 
-// ImageTagOptions holds parameters to tag an image
-type ImageTagOptions struct {
-	Force bool
-}
-
 // ResizeOptions holds parameters to resize a tty.
 // It can be used to resize container ttys and
 // exec process ttys too.
