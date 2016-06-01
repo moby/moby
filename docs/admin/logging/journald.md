@@ -1,12 +1,11 @@
 <!--[metadata]>
 +++
 aliases = ["/engine/reference/logging/journald/"]
-title = "journald logging driver"
+title = "Journald logging driver"
 description = "Describes how to use the fluentd logging driver."
-keywords = ["Fluentd, docker, logging, driver"]
+keywords = ["Journald, docker, logging, driver"]
 [menu.main]
 parent = "smn_logging"
-weight = 2
 +++
 <![end-metadata]-->
 
