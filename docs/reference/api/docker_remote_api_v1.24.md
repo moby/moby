@@ -2031,7 +2031,7 @@ Tag the image `name` into a repository
 
 **Example request**:
 
-    POST /images/test/tag?repo=myrepo&force=0&tag=v42 HTTP/1.1
+    POST /images/test/tag?repo=myrepo&tag=v42 HTTP/1.1
 
 **Example response**:
 
@@ -2040,7 +2040,6 @@ Tag the image `name` into a repository
 Query Parameters:
 
 -   **repo** – The repository to tag in
--   **force** – 1/True/true or 0/False/false, default false
 -   **tag** - The new tag name
 
 Status Codes:
