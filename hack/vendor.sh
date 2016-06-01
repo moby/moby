@@ -133,4 +133,10 @@ clone git google.golang.org/cloud dae7e3d993bc3812a2185af60552bb6b847e52a0 https
 
 # containerd
 clone git github.com/docker/containerd 57b7c3da915ebe943bd304c00890959b191e5264
+
+# cli
+clone git github.com/spf13/cobra acf60156558542e78c6f3695f74b0f871614ff55 https://github.com/dnephin/cobra.git
+clone git github.com/spf13/pflag cb88ea77998c3f024757528e3305022ab50b43be
+clone git github.com/inconshreveable/mousetrap 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+
 clean

@@ -8,6 +8,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/cli/cobraadaptor"
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/dockerversion"
@@ -31,6 +32,8 @@ func main() {
 
 	flag.Merge(flag.CommandLine, clientFlags.FlagSet, commonFlags.FlagSet)
 
+	cobraAdaptor := cobraadaptor.NewCobraAdaptor(clientFlags)
+
 	flag.Usage = func() {
 		fmt.Fprint(stdout, "Usage: docker [OPTIONS] COMMAND [arg...]\n       docker [ --help | -v | --version ]\n\n")
 		fmt.Fprint(stdout, "A self-sufficient runtime for containers.\n\nOptions:\n")
@@ -40,8 +43,8 @@ func main() {
 
 		help := "\nCommands:\n"
 
-		dockerCommands := sortCommands(cli.DockerCommandUsage)
-		for _, cmd := range dockerCommands {
+		dockerCommands := append(cli.DockerCommandUsage, cobraAdaptor.Usage()...)
+		for _, cmd := range sortCommands(dockerCommands) {
 			help += fmt.Sprintf("    %-10.10s%s\n", cmd.Name, cmd.Description)
 		}
 
@@ -65,7 +68,7 @@ func main() {
 
 	clientCli := client.NewDockerCli(stdin, stdout, stderr, clientFlags)
 
-	c := cli.New(clientCli, NewDaemonProxy())
+	c := cli.New(clientCli, NewDaemonProxy(), cobraAdaptor)
 	if err := c.Run(flag.Args()...); err != nil {
 		if sterr, ok := err.(cli.StatusError); ok {
 			if sterr.Status != "" {

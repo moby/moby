@@ -8,7 +8,6 @@ import (
 	"github.com/docker/docker/api/client/inspect"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/utils/templates"
 	"github.com/docker/engine-api/client"
 )
 
@@ -30,7 +29,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 
 	ctx := context.Background()
 
-	var elementSearcher inspectSearcher
+	var elementSearcher inspect.GetRefFunc
 	switch *inspectType {
 	case "container":
 		elementSearcher = cli.inspectContainers(ctx, *size)
@@ -40,22 +39,22 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		elementSearcher = cli.inspectAll(ctx, *size)
 	}
 
-	return cli.inspectElements(*tmplStr, cmd.Args(), elementSearcher)
+	return inspect.Inspect(cli.out, cmd.Args(), *tmplStr, elementSearcher)
 }
 
-func (cli *DockerCli) inspectContainers(ctx context.Context, getSize bool) inspectSearcher {
+func (cli *DockerCli) inspectContainers(ctx context.Context, getSize bool) inspect.GetRefFunc {
 	return func(ref string) (interface{}, []byte, error) {
 		return cli.client.ContainerInspectWithRaw(ctx, ref, getSize)
 	}
 }
 
-func (cli *DockerCli) inspectImages(ctx context.Context, getSize bool) inspectSearcher {
+func (cli *DockerCli) inspectImages(ctx context.Context, getSize bool) inspect.GetRefFunc {
 	return func(ref string) (interface{}, []byte, error) {
 		return cli.client.ImageInspectWithRaw(ctx, ref, getSize)
 	}
 }
 
-func (cli *DockerCli) inspectAll(ctx context.Context, getSize bool) inspectSearcher {
+func (cli *DockerCli) inspectAll(ctx context.Context, getSize bool) inspect.GetRefFunc {
 	return func(ref string) (interface{}, []byte, error) {
 		c, rawContainer, err := cli.client.ContainerInspectWithRaw(ctx, ref, getSize)
 		if err != nil {
@@ -74,56 +73,4 @@ func (cli *DockerCli) inspectAll(ctx context.Context, getSize bool) inspectSearc
 		}
 		return c, rawContainer, err
 	}
-}
-
-type inspectSearcher func(ref string) (interface{}, []byte, error)
-
-func (cli *DockerCli) inspectElements(tmplStr string, references []string, searchByReference inspectSearcher) error {
-	elementInspector, err := cli.newInspectorWithTemplate(tmplStr)
-	if err != nil {
-		return Cli.StatusError{StatusCode: 64, Status: err.Error()}
-	}
-
-	var inspectErr error
-	for _, ref := range references {
-		element, raw, err := searchByReference(ref)
-		if err != nil {
-			inspectErr = err
-			break
-		}
-
-		if err := elementInspector.Inspect(element, raw); err != nil {
-			inspectErr = err
-			break
-		}
-	}
-
-	if err := elementInspector.Flush(); err != nil {
-		cli.inspectErrorStatus(err)
-	}
-
-	if status := cli.inspectErrorStatus(inspectErr); status != 0 {
-		return Cli.StatusError{StatusCode: status}
-	}
-	return nil
-}
-
-func (cli *DockerCli) inspectErrorStatus(err error) (status int) {
-	if err != nil {
-		fmt.Fprintf(cli.err, "%s\n", err)
-		status = 1
-	}
-	return
-}
-
-func (cli *DockerCli) newInspectorWithTemplate(tmplStr string) (inspect.Inspector, error) {
-	elementInspector := inspect.NewIndentedInspector(cli.out)
-	if tmplStr != "" {
-		tmpl, err := templates.Parse(tmplStr)
-		if err != nil {
-			return nil, fmt.Errorf("Template parsing error: %s", err)
-		}
-		elementInspector = inspect.NewTemplateInspector(cli.out, tmpl)
-	}
-	return elementInspector, nil
 }
