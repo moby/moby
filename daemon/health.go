@@ -18,7 +18,7 @@ import (
 
 const (
 	// Longest healthcheck probe output message to store. Longer messages will be truncated.
-	maxOutputLen = 255
+	maxOutputLen = 4096
 
 	// Default interval between probe runs (from the end of the first to the start of the second).
 	// Also the time before the first probe.

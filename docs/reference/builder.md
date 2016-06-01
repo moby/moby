@@ -1357,7 +1357,7 @@ serve the site's main page within three seconds:
 
 To help debug failing probes, any output text (UTF-8 encoded) that the command writes
 on stdout or stderr will be stored in the health status and can be queried with
-`docker inspect`. Such output should be kept short (only the first 255 bytes
+`docker inspect`. Such output should be kept short (only the first 4096 bytes
 are stored currently).
 
 When the health status of a container changes, a `health_status` event is
