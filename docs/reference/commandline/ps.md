@@ -62,7 +62,7 @@ The currently supported filters are:
 * since (container's id or name) - filters containers created since given id or name
 * isolation (default|process|hyperv)   (Windows daemon only)
 * volume (volume name or mount point) - filters containers that mount volumes.
-
+* network (network name) - filters containers connected to the provided network name
 
 #### Label
 
@@ -206,6 +206,17 @@ The `volume` filter shows only containers that mount a specific volume or have a
     $ docker ps --filter volume=/data --format "table {{.ID}}\t{{.Mounts}}"
     CONTAINER ID        MOUNTS
     9c3527ed70ce        remote-volume
+
+#### Network
+
+The `network` filter shows only containers that has endpoints on the provided network name.
+
+    $docker run -d --net=net1 --name=test1 ubuntu top
+    $docker run -d --net=net2 --name=test2 ubuntu top
+
+    $docker ps --filter network=net1
+    CONTAINER ID        IMAGE       COMMAND       CREATED             STATUS              PORTS               NAMES
+    9d4893ed80fe        ubuntu      "top"         10 minutes ago      Up 10 minutes                           test1
 
 
 ## Formatting

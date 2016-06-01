@@ -122,6 +122,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /events` now supports a `reload` event that is emitted when the daemon configuration is reloaded.
 * `GET /events` now supports filtering by daemon name or ID.
 * `GET /images/json` now supports filters `since` and `before`.
+* `GET /containers/json` now takes network name/s as one of the filters. Contianers connected to the provided network/s will be listed
 
 ### v1.23 API changes
 
