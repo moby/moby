@@ -1791,13 +1791,13 @@ Status Codes:
 
 ### Inspect an image
 
-`GET /images/(name)/json`
+`GET /images/(name)`
 
 Return low-level information on the image `name`
 
 **Example request**:
 
-    GET /images/example/json HTTP/1.1
+    GET /images/example HTTP/1.1
 
 **Example response**:
 

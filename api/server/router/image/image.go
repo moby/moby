@@ -38,6 +38,7 @@ func (r *imageRouter) initRoutes() {
 		router.NewGetRoute("/images/{name:.*}/get", r.getImagesGet),
 		router.NewGetRoute("/images/{name:.*}/history", r.getImagesHistory),
 		router.NewGetRoute("/images/{name:.*}/json", r.getImagesByName),
+		router.NewGetRoute("/images/{name:.*}", r.getImagesByName),
 		// POST
 		router.NewPostRoute("/commit", r.postCommit),
 		router.NewPostRoute("/images/load", r.postImagesLoad),
