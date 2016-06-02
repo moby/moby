@@ -81,11 +81,10 @@ API requests, for example:
 curl --insecure \
      --cert $DOCKER_CERT_PATH/cert.pem \
      --key $DOCKER_CERT_PATH/key.pem \
-     https://YOUR_VM_IP:2376/images/json
-
+     https://YOUR_VM_IP:2376/images
 wget --no-check-certificate --certificate=$DOCKER_CERT_PATH/cert.pem \
      --private-key=$DOCKER_CERT_PATH/key.pem \
-     https://YOUR_VM_IP:2376/images/json -O - -q
+     https://YOUR_VM_IP:2376/images -O - -q
 ```
 
 ## Docker Events
@@ -127,6 +126,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /images/search` now supports maximum returned search results `limit`.
 * `GET /containers/json` has been renamed to `/containers`.
 * `GET /containers/(name)/json` has been renamed to `/containers/(name)`.
+* `GET /images/json` has been renamed to `/images`.
 
 ### v1.23 API changes
 

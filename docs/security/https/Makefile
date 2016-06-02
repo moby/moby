@@ -18,7 +18,7 @@ run:
 client:
 	sudo docker --tls --tlscacert=ca.pem --tlscert=cert.pem --tlskey=key.pem   -H=$(HOST):6666 version
 	sudo docker --tlsverify --tlscacert=ca.pem --tlscert=cert.pem --tlskey=key.pem   -H=$(HOST):6666 info
-	sudo curl https://$(HOST):6666/images/json --cert ./cert.pem --key ./key.pem --cacert ./ca.pem
+	sudo curl https://$(HOST):6666/images --cert ./cert.pem --key ./key.pem --cacert ./ca.pem
 
 clean:
 	rm -f ca-key.pem ca.pem ca.srl cert.pem client.csr extfile.cnf key.pem server-cert.pem server-key.pem server.csr extfile.cnf

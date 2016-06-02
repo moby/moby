@@ -1537,11 +1537,11 @@ Status Codes:
 
 ### List Images
 
-`GET /images/json`
+`GET /images`
 
 **Example request**:
 
-    GET /images/json?all=0 HTTP/1.1
+    GET /images?all=0 HTTP/1.1
 
 **Example response**:
 
@@ -1579,7 +1579,7 @@ Status Codes:
 
 **Example request, with digest information**:
 
-    GET /images/json?digests=1 HTTP/1.1
+    GET /images?digests=1 HTTP/1.1
 
 **Example response, with digest information**:
 

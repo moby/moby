@@ -20,4 +20,4 @@ export DOCKER_HOST=tcp://$HOST:7778 DOCKER_TLS_VERIFY=1
 # docker ps
 export DOCKER_CERT_PATH=~/.docker/zone1/
 # docker --tlsverify ps
-# curl https://$HOST:7778/images/json       --cert ~/.docker/cert.pem       --key ~/.docker/key.pem       --cacert ~/.docker/ca.pem
+# curl https://$HOST:7778/images       --cert ~/.docker/cert.pem       --key ~/.docker/key.pem       --cacert ~/.docker/ca.pem

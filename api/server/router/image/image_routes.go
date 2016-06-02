@@ -245,7 +245,7 @@ func (s *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWriter
 	return httputils.WriteJSON(w, http.StatusOK, imageInspect)
 }
 
-func (s *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) getImages(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
