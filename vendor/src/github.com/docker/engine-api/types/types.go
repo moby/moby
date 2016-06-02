@@ -276,6 +276,27 @@ type ExecStartCheck struct {
 	Tty bool
 }
 
+// HealthcheckResult stores information about a single run of a healthcheck probe
+type HealthcheckResult struct {
+	Start, End time.Time
+	ExitCode   int    // 0=healthy, 1=unhealthy, 2=starting, -1=error running probe
+	Output     string // Output from last check
+}
+
+// Health states
+const (
+	Starting  = "starting"  // Container is not yet ready
+	Healthy   = "healthy"   // Container is running correctly
+	Unhealthy = "unhealthy" // Container has a problem
+)
+
+// Health stores information about the container's healthcheck results
+type Health struct {
+	Status        string               // Possible states are: Starting, Healthy and Unhealthy
+	FailingStreak int                  // Number of consecutive failures
+	Log           []*HealthcheckResult // The last few results (oldest first)
+}
+
 // ContainerState stores container's running state
 // it's part of ContainerJSONBase and will return by "inspect" command
 type ContainerState struct {
@@ -290,6 +311,7 @@ type ContainerState struct {
 	Error      string
 	StartedAt  string
 	FinishedAt string
+	Health     *Health `json:",omitempty"`
 }
 
 // ContainerNode stores information about the node that a container

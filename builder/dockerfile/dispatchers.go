@@ -12,7 +12,9 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
@@ -421,6 +423,111 @@ func cmd(b *Builder, args []string, attributes map[string]bool, original string)
 
 	if len(args) != 0 {
 		b.cmdSet = true
+	}
+
+	return nil
+}
+
+// parseOptInterval(flag) is the duration of flag.Value, or 0 if
+// empty. An error is reported if the value is given and is not positive.
+func parseOptInterval(f *Flag) (time.Duration, error) {
+	s := f.Value
+	if s == "" {
+		return 0, nil
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return 0, err
+	}
+	if d <= 0 {
+		return 0, fmt.Errorf("Interval %#v must be positive", f.name)
+	}
+	return d, nil
+}
+
+// HEALTHCHECK foo
+//
+// Set the default healthcheck command to run in the container (which may be empty).
+// Argument handling is the same as RUN.
+//
+func healthcheck(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("HEALTHCHECK requires an argument")
+	}
+	typ := strings.ToUpper(args[0])
+	args = args[1:]
+	if typ == "NONE" {
+		if len(args) != 0 {
+			return fmt.Errorf("HEALTHCHECK NONE takes no arguments")
+		}
+		test := strslice.StrSlice{typ}
+		b.runConfig.Healthcheck = &container.HealthConfig{
+			Test: test,
+		}
+	} else {
+		if b.runConfig.Healthcheck != nil {
+			oldCmd := b.runConfig.Healthcheck.Test
+			if len(oldCmd) > 0 && oldCmd[0] != "NONE" {
+				fmt.Fprintf(b.Stdout, "Note: overriding previous HEALTHCHECK: %v\n", oldCmd)
+			}
+		}
+
+		healthcheck := container.HealthConfig{}
+
+		flInterval := b.flags.AddString("interval", "")
+		flTimeout := b.flags.AddString("timeout", "")
+		flRetries := b.flags.AddString("retries", "")
+
+		if err := b.flags.Parse(); err != nil {
+			return err
+		}
+
+		switch typ {
+		case "CMD":
+			cmdSlice := handleJSONArgs(args, attributes)
+			if len(cmdSlice) == 0 {
+				return fmt.Errorf("Missing command after HEALTHCHECK CMD")
+			}
+
+			if !attributes["json"] {
+				typ = "CMD-SHELL"
+			}
+
+			healthcheck.Test = strslice.StrSlice(append([]string{typ}, cmdSlice...))
+		default:
+			return fmt.Errorf("Unknown type %#v in HEALTHCHECK (try CMD)", typ)
+		}
+
+		interval, err := parseOptInterval(flInterval)
+		if err != nil {
+			return err
+		}
+		healthcheck.Interval = interval
+
+		timeout, err := parseOptInterval(flTimeout)
+		if err != nil {
+			return err
+		}
+		healthcheck.Timeout = timeout
+
+		if flRetries.Value != "" {
+			retries, err := strconv.ParseInt(flRetries.Value, 10, 32)
+			if err != nil {
+				return err
+			}
+			if retries < 1 {
+				return fmt.Errorf("--retries must be at least 1 (not %d)", retries)
+			}
+			healthcheck.Retries = int(retries)
+		} else {
+			healthcheck.Retries = 0
+		}
+
+		b.runConfig.Healthcheck = &healthcheck
+	}
+
+	if err := b.commit("", b.runConfig.Cmd, fmt.Sprintf("HEALTHCHECK %q", b.runConfig.Healthcheck)); err != nil {
+		return err
 	}
 
 	return nil

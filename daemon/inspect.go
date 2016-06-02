@@ -108,6 +108,15 @@ func (daemon *Daemon) getInspectData(container *container.Container, size bool) 
 		hostConfig.Links = append(hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
 	}
 
+	var containerHealth *types.Health
+	if container.State.Health != nil {
+		containerHealth = &types.Health{
+			Status:        container.State.Health.Status,
+			FailingStreak: container.State.Health.FailingStreak,
+			Log:           append([]*types.HealthcheckResult{}, container.State.Health.Log...),
+		}
+	}
+
 	containerState := &types.ContainerState{
 		Status:     container.State.StateString(),
 		Running:    container.State.Running,
@@ -120,6 +129,7 @@ func (daemon *Daemon) getInspectData(container *container.Container, size bool) 
 		Error:      container.State.Error,
 		StartedAt:  container.State.StartedAt.Format(time.RFC3339Nano),
 		FinishedAt: container.State.FinishedAt.Format(time.RFC3339Nano),
+		Health:     containerHealth,
 	}
 
 	contJSONBase := &types.ContainerJSONBase{

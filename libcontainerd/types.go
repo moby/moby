@@ -34,6 +34,7 @@ type Backend interface {
 type Client interface {
 	Create(containerID string, spec Spec, options ...CreateOption) error
 	Signal(containerID string, sig int) error
+	SignalProcess(containerID string, processFriendlyName string, sig int) error
 	AddProcess(containerID, processFriendlyName string, process Process) error
 	Resize(containerID, processFriendlyName string, width, height int) error
 	Pause(containerID string) error
