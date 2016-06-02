@@ -30,7 +30,7 @@ func TestDiff(t *testing.T) {
 	updated = mapset.NewSetFromSlice([]interface{}{addedIP})
 	added, removed = diff(existing, updated)
 	if len(removed) != 2 {
-		t.Fatalf("Diff failed for an remove update. Expecting 2 element, but got %d elements", len(removed))
+		t.Fatalf("Diff failed for a remove update. Expecting 2 element, but got %d elements", len(removed))
 	}
 	if len(added) != 1 {
 		t.Fatalf("Diff failed for add use-case. Expecting 1 element, but got %d elements", len(added))
@@ -46,7 +46,7 @@ func TestAddedCallback(t *testing.T) {
 	removed := false
 	hd.processCallback(update, func() {}, func(hosts []net.IP) { added = true }, func(hosts []net.IP) { removed = true })
 	if !added {
-		t.Fatalf("Expecting a Added callback notification. But none received")
+		t.Fatalf("Expecting an Added callback notification. But none received")
 	}
 }
 

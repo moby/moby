@@ -27,7 +27,7 @@ const (
 type Callback interface {
 	// RegisterIpamDriver provides a way for Remote drivers to dynamically register with libnetwork
 	RegisterIpamDriver(name string, driver Ipam) error
-	// RegisterIpamDriverWithCapabilities provides a way for Remote drivers to dynamically register with libnetwork and specify cpaabilities
+	// RegisterIpamDriverWithCapabilities provides a way for Remote drivers to dynamically register with libnetwork and specify capabilities
 	RegisterIpamDriverWithCapabilities(name string, driver Ipam, capability *Capability) error
 }
 

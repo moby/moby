@@ -1115,7 +1115,7 @@ func TestEndpointJoin(t *testing.T) {
 	}
 
 	if info.Sandbox() == nil {
-		t.Fatalf("Expected an non-empty sandbox key for a joined endpoint. Instead found a empty sandbox key")
+		t.Fatalf("Expected a non-empty sandbox key for a joined endpoint. Instead found an empty sandbox key")
 	}
 
 	// Check endpoint provided container information
@@ -1314,7 +1314,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 			t.Fatalf("SetExternalKey must fail if the corresponding namespace is not created")
 		}
 	} else {
-		// Setting an non-existing key (namespace) must fail
+		// Setting a non-existing key (namespace) must fail
 		if err := sbox.SetKey("this-must-fail"); err == nil {
 			t.Fatalf("Setkey must fail if the corresponding namespace is not created")
 		}
@@ -2018,7 +2018,7 @@ func TestInvalidRemoteDriver(t *testing.T) {
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	if server == nil {
-		t.Fatal("Failed to start a HTTP Server")
+		t.Fatal("Failed to start an HTTP Server")
 	}
 	defer server.Close()
 
@@ -2069,7 +2069,7 @@ func TestValidRemoteDriver(t *testing.T) {
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	if server == nil {
-		t.Fatal("Failed to start a HTTP Server")
+		t.Fatal("Failed to start an HTTP Server")
 	}
 	defer server.Close()
 

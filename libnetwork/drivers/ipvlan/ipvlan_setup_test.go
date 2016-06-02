@@ -15,7 +15,7 @@ func TestValidateLink(t *testing.T) {
 	if ok := parentExists(validIface); !ok {
 		t.Fatalf("failed validating loopback %s", validIface)
 	}
-	// test a invalid parent interface validation
+	// test an invalid parent interface validation
 	if ok := parentExists(invalidIface); ok {
 		t.Fatalf("failed to invalidate interface %s", invalidIface)
 	}
@@ -33,17 +33,17 @@ func TestValidateSubLink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed subinterface validation: %v", err)
 	}
-	// test a invalid vid with a valid parent link
+	// test an invalid vid with a valid parent link
 	_, _, err = parseVlan(invalidSubIface1)
 	if err == nil {
 		t.Fatalf("failed subinterface validation test: %s", invalidSubIface1)
 	}
-	// test a valid vid with a valid parent link with a invalid delimiter
+	// test a valid vid with a valid parent link with an invalid delimiter
 	_, _, err = parseVlan(invalidSubIface2)
 	if err == nil {
 		t.Fatalf("failed subinterface validation test: %v", invalidSubIface2)
 	}
-	// test a invalid parent link with a valid vid
+	// test an invalid parent link with a valid vid
 	_, _, err = parseVlan(invalidSubIface3)
 	if err == nil {
 		t.Fatalf("failed subinterface validation test: %v", invalidSubIface3)
