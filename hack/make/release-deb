@@ -29,7 +29,8 @@ arches=( amd64 i386 )
 
 # Preserve existing components but don't add any non-existing ones
 for component in main testing experimental ; do
-	if ls "$APTDIR/dists/*/$component" >/dev/null 2>&1 ; then
+	exists=$(find "$APTDIR/dists" -mindepth 2 -maxdepth 2 -type d -name "$component" -print -quit)
+	if [ -n "$exists" ] ; then
 		components+=( $component )
 	fi
 done
@@ -89,14 +90,12 @@ for dir in contrib/builder/deb/${PACKAGE_ARCH}/*/; do
 	EOF
 done >> "$APTDIR/conf/apt-ftparchive.conf"
 
-if [ ! -f "$APTDIR/conf/docker-engine-release.conf" ]; then
-	cat <<-EOF > "$APTDIR/conf/docker-engine-release.conf"
-	APT::FTPArchive::Release::Origin "Docker";
-	APT::FTPArchive::Release::Components "${components[*]}";
-	APT::FTPArchive::Release::Label "Docker APT Repository";
-	APT::FTPArchive::Release::Architectures "${arches[*]}";
-	EOF
-fi
+cat <<-EOF > "$APTDIR/conf/docker-engine-release.conf"
+APT::FTPArchive::Release::Origin "Docker";
+APT::FTPArchive::Release::Components "${component}";
+APT::FTPArchive::Release::Label "Docker APT Repository";
+APT::FTPArchive::Release::Architectures "${arches[*]}";
+EOF
 
 # release the debs
 for dir in contrib/builder/deb/${PACKAGE_ARCH}/*/; do
