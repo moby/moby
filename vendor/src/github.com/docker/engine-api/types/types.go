@@ -252,6 +252,8 @@ type Info struct {
 	ClusterStore       string
 	ClusterAdvertise   string
 	SecurityOptions    []string
+	Runtimes           map[string]Runtime
+	DefaultRuntime     string
 }
 
 // PluginsInfo is a temp struct holding Plugins name
@@ -475,4 +477,14 @@ type NetworkDisconnect struct {
 // Checkpoint represents the details of a checkpoint
 type Checkpoint struct {
 	Name string // Name is the name of the checkpoint
+}
+
+// DefaultRuntimeName is the reserved name/alias used to represent the
+// OCI runtime being shipped with the docker daemon package.
+var DefaultRuntimeName = "default"
+
+// Runtime describes an OCI runtime
+type Runtime struct {
+	Path string   `json:"path"`
+	Args []string `json:"runtimeArgs,omitempty"`
 }

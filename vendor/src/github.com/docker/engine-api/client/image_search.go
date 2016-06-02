@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -17,6 +18,7 @@ func (cli *Client) ImageSearch(ctx context.Context, term string, options types.I
 	var results []registry.SearchResult
 	query := url.Values{}
 	query.Set("term", term)
+	query.Set("limit", fmt.Sprintf("%d", options.Limit))
 
 	if options.Filters.Len() > 0 {
 		filterJSON, err := filters.ToParam(options.Filters)
