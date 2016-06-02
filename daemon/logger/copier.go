@@ -10,8 +10,7 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-// Copier can copy logs from specified sources to Logger and attach
-// ContainerID and Timestamp.
+// Copier can copy logs from specified sources to Logger and attach Timestamp.
 // Writes are concurrent, so you need implement some sync in your logger
 type Copier struct {
 	// srcs is map of name -> reader pairs, for example "stdout", "stderr"
