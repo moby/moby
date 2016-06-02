@@ -119,7 +119,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	}
 
 	switch fsMagic {
-	case graphdriver.FsMagicAufs, graphdriver.FsMagicBtrfs, graphdriver.FsMagicOverlay, graphdriver.FsMagicZfs:
+	case graphdriver.FsMagicAufs, graphdriver.FsMagicBtrfs, graphdriver.FsMagicOverlay, graphdriver.FsMagicZfs, graphdriver.FsMagicEcryptfs:
 		logrus.Errorf("'overlay' is not supported over %s", backingFs)
 		return nil, graphdriver.ErrIncompatibleFS
 	}

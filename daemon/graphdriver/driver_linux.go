@@ -16,6 +16,8 @@ const (
 	FsMagicBtrfs = FsMagic(0x9123683E)
 	// FsMagicCramfs filesystem id for Cramfs
 	FsMagicCramfs = FsMagic(0x28cd3d45)
+	// FsMagicEcryptfs filesystem id for eCryptfs
+	FsMagicEcryptfs = FsMagic(0xf15f)
 	// FsMagicExtfs filesystem id for Extfs
 	FsMagicExtfs = FsMagic(0x0000EF53)
 	// FsMagicF2fs filesystem id for F2fs
