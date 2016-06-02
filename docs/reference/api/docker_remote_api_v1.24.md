@@ -28,13 +28,13 @@ weight=-5
 
 ### List containers
 
-`GET /containers/json`
+`GET /containers`
 
 List containers
 
 **Example request**:
 
-    GET /containers/json?all=1&before=8dfafdbc3a40&size=1 HTTP/1.1
+    GET /containers?all=1&before=8dfafdbc3a40&size=1 HTTP/1.1
 
 **Example response**:
 

@@ -23,7 +23,7 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-func (s *containerRouter) getContainersJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *containerRouter) getContainers(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}

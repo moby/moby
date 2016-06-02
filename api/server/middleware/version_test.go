@@ -23,7 +23,7 @@ func TestVersionMiddleware(t *testing.T) {
 	m := NewVersionMiddleware(defaultVersion, defaultVersion, minVersion)
 	h := m.WrapHandler(handler)
 
-	req, _ := http.NewRequest("GET", "/containers/json", nil)
+	req, _ := http.NewRequest("GET", "/containers", nil)
 	resp := httptest.NewRecorder()
 	ctx := context.Background()
 	if err := h(ctx, resp, req, map[string]string{}); err != nil {
@@ -44,7 +44,7 @@ func TestVersionMiddlewareWithErrors(t *testing.T) {
 	m := NewVersionMiddleware(defaultVersion, defaultVersion, minVersion)
 	h := m.WrapHandler(handler)
 
-	req, _ := http.NewRequest("GET", "/containers/json", nil)
+	req, _ := http.NewRequest("GET", "/containers", nil)
 	resp := httptest.NewRecorder()
 	ctx := context.Background()
 

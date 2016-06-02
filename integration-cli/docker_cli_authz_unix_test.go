@@ -32,7 +32,7 @@ const (
 	testAuthZPlugin     = "authzplugin"
 	unauthorizedMessage = "User unauthorized authz plugin"
 	errorMessage        = "something went wrong..."
-	containerListAPI    = "/containers/json"
+	containerListAPI    = "/containers"
 )
 
 var (

@@ -23,7 +23,7 @@ func TestMiddlewares(t *testing.T) {
 
 	srv.UseMiddleware(middleware.NewVersionMiddleware("0.1omega2", api.DefaultVersion, api.MinVersion))
 
-	req, _ := http.NewRequest("GET", "/containers/json", nil)
+	req, _ := http.NewRequest("GET", "/containers", nil)
 	resp := httptest.NewRecorder()
 	ctx := context.Background()
 

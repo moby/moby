@@ -31,7 +31,7 @@ func (s *DockerSuite) TestContainerApiGetAll(c *check.C) {
 	name := "getall"
 	dockerCmd(c, "run", "--name", name, "busybox", "true")
 
-	status, body, err := sockRequest("GET", "/containers/json?all=1", nil)
+	status, body, err := sockRequest("GET", "/containers?all=1", nil)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK)
 
@@ -51,7 +51,7 @@ func (s *DockerSuite) TestContainerApiGetAll(c *check.C) {
 func (s *DockerSuite) TestContainerApiGetJSONNoFieldsOmitted(c *check.C) {
 	dockerCmd(c, "run", "busybox", "true")
 
-	status, body, err := sockRequest("GET", "/containers/json?all=1", nil)
+	status, body, err := sockRequest("GET", "/containers?all=1", nil)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK)
 
@@ -92,7 +92,7 @@ func (s *DockerSuite) TestContainerApiPsOmitFields(c *check.C) {
 	port := 80
 	runSleepingContainer(c, "--name", name, "--expose", strconv.Itoa(port))
 
-	status, body, err := sockRequest("GET", "/containers/json?all=1", nil)
+	status, body, err := sockRequest("GET", "/containers?all=1", nil)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK)
 
@@ -1214,7 +1214,7 @@ func (s *DockerSuite) TestPutContainerArchiveErrSymlinkInVolumeToReadOnlyRootfs(
 }
 
 func (s *DockerSuite) TestContainerApiGetContainersJSONEmpty(c *check.C) {
-	status, body, err := sockRequest("GET", "/containers/json?all=1", nil)
+	status, body, err := sockRequest("GET", "/containers?all=1", nil)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK)
 	c.Assert(string(body), checker.Equals, "[]\n")
