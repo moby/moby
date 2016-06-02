@@ -11,7 +11,7 @@ import (
 	"github.com/docker/distribution/registry/api/errcode"
 )
 
-// ErrNoErrorsInBody is returned when a HTTP response body parses to an empty
+// ErrNoErrorsInBody is returned when an HTTP response body parses to an empty
 // errcode.Errors slice.
 var ErrNoErrorsInBody = errors.New("no error details found in HTTP response body")
 
