@@ -47,7 +47,6 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 	getStatJSON := func(v interface{}) *types.StatsJSON {
 		ss := v.(types.StatsJSON)
 		ss.PreCPUStats = preCPUStats
-		// ss.MemoryStats.Limit = uint64(update.MemoryLimit)
 		preCPUStats = ss.CPUStats
 		return &ss
 	}
