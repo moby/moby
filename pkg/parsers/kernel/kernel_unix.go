@@ -10,10 +10,6 @@ import (
 
 // GetKernelVersion gets the current kernel version.
 func GetKernelVersion() (*VersionInfo, error) {
-	var (
-		err error
-	)
-
 	uts, err := uname()
 	if err != nil {
 		return nil, err
