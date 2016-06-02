@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	containerd "github.com/docker/containerd/api/grpc/types"
@@ -24,6 +25,7 @@ type client struct {
 	remote        *remote
 	q             queue
 	exitNotifiers map[string]*exitNotifier
+	liveRestore   bool
 }
 
 func (clnt *client) AddProcess(containerID, processFriendlyName string, specp Process) error {
@@ -445,13 +447,48 @@ func (clnt *client) restore(cont *containerd.Container, options ...CreateOption)
 }
 
 func (clnt *client) Restore(containerID string, options ...CreateOption) error {
+	if clnt.liveRestore {
+		cont, err := clnt.getContainerdContainer(containerID)
+		if err == nil && cont.Status != "stopped" {
+			if err := clnt.restore(cont, options...); err != nil {
+				logrus.Errorf("error restoring %s: %v", containerID, err)
+			}
+			return nil
+		}
+		return clnt.setExited(containerID)
+	}
+
 	cont, err := clnt.getContainerdContainer(containerID)
 	if err == nil && cont.Status != "stopped" {
-		if err := clnt.restore(cont, options...); err != nil {
-			logrus.Errorf("error restoring %s: %v", containerID, err)
+		w := clnt.getOrCreateExitNotifier(containerID)
+		clnt.lock(cont.Id)
+		container := clnt.newContainer(cont.BundlePath)
+		container.systemPid = systemPid(cont)
+		clnt.appendContainer(container)
+		clnt.unlock(cont.Id)
+
+		container.discardFifos()
+
+		if err := clnt.Signal(containerID, int(syscall.SIGTERM)); err != nil {
+			logrus.Errorf("error sending sigterm to %v: %v", containerID, err)
 		}
-		return nil
+		select {
+		case <-time.After(10 * time.Second):
+			if err := clnt.Signal(containerID, int(syscall.SIGKILL)); err != nil {
+				logrus.Errorf("error sending sigkill to %v: %v", containerID, err)
+			}
+			select {
+			case <-time.After(2 * time.Second):
+			case <-w.wait():
+				return nil
+			}
+		case <-w.wait():
+			return nil
+		}
 	}
+
+	clnt.deleteContainer(containerID)
+
 	return clnt.setExited(containerID)
 }
 

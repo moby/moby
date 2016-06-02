@@ -52,6 +52,7 @@ type remote struct {
 	pastEvents    map[string]*containerd.Event
 	runtimeArgs   []string
 	daemonWaitCh  chan struct{}
+	liveRestore   bool
 }
 
 // New creates a fresh instance of libcontainerd remote.
@@ -109,6 +110,15 @@ func New(stateDir string, options ...RemoteOption) (_ Remote, err error) {
 	}
 
 	return r, nil
+}
+
+func (r *remote) UpdateOptions(options ...RemoteOption) error {
+	for _, option := range options {
+		if err := option.Apply(r); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *remote) handleConnectionChange() {
@@ -184,6 +194,7 @@ func (r *remote) Client(b Backend) (Client, error) {
 		},
 		remote:        r,
 		exitNotifiers: make(map[string]*exitNotifier),
+		liveRestore:   r.liveRestore,
 	}
 
 	r.Lock()
@@ -459,4 +470,22 @@ func (d debugLog) Apply(r Remote) error {
 		return nil
 	}
 	return fmt.Errorf("WithDebugLog option not supported for this remote")
+}
+
+// WithLiveRestore defines if containers are stopped on shutdown or restored.
+func WithLiveRestore(v bool) RemoteOption {
+	return liveRestore(v)
+}
+
+type liveRestore bool
+
+func (l liveRestore) Apply(r Remote) error {
+	if remote, ok := r.(*remote); ok {
+		remote.liveRestore = bool(l)
+		for _, c := range remote.clients {
+			c.liveRestore = bool(l)
+		}
+		return nil
+	}
+	return fmt.Errorf("WithLiveRestore option not supported for this remote")
 }
