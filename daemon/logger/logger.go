@@ -9,6 +9,7 @@ package logger
 
 import (
 	"errors"
+	"io"
 	"sort"
 	"strings"
 	"time"
@@ -59,9 +60,20 @@ func (a LogAttributes) String() string {
 
 // Logger is the interface for docker logging drivers.
 type Logger interface {
-	Log(*Message) error
 	Name() string
 	Close() error
+}
+
+// MessageLogger is the interface for standard logging drivers.
+type MessageLogger interface {
+	Logger
+	Log(*Message) error
+}
+
+// RawLogger is the interface for raw logging drivers.
+type RawLogger interface {
+	Logger
+	RawWriter(string) (io.WriteCloser, error)
 }
 
 // ReadConfig is the configuration passed into ReadLogs.

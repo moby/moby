@@ -31,13 +31,13 @@ func TestJSONFileLogger(t *testing.T) {
 	}
 	defer l.Close()
 
-	if err := l.Log(&logger.Message{Line: []byte("line1"), Source: "src1"}); err != nil {
+	if err := l.(logger.MessageLogger).Log(&logger.Message{Line: []byte("line1"), Source: "src1"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := l.Log(&logger.Message{Line: []byte("line2"), Source: "src2"}); err != nil {
+	if err := l.(logger.MessageLogger).Log(&logger.Message{Line: []byte("line2"), Source: "src2"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := l.Log(&logger.Message{Line: []byte("line3"), Source: "src3"}); err != nil {
+	if err := l.(logger.MessageLogger).Log(&logger.Message{Line: []byte("line3"), Source: "src3"}); err != nil {
 		t.Fatal(err)
 	}
 	res, err := ioutil.ReadFile(filename)
@@ -81,7 +81,7 @@ func BenchmarkJSONFileLogger(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < 30; j++ {
-			if err := l.Log(msg); err != nil {
+			if err := l.(logger.MessageLogger).Log(msg); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -107,7 +107,7 @@ func TestJSONFileLoggerWithOpts(t *testing.T) {
 	}
 	defer l.Close()
 	for i := 0; i < 20; i++ {
-		if err := l.Log(&logger.Message{Line: []byte("line" + strconv.Itoa(i)), Source: "src1"}); err != nil {
+		if err := l.(logger.MessageLogger).Log(&logger.Message{Line: []byte("line" + strconv.Itoa(i)), Source: "src1"}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -172,7 +172,7 @@ func TestJSONFileLoggerWithLabelsEnv(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer l.Close()
-	if err := l.Log(&logger.Message{Line: []byte("line"), Source: "src1"}); err != nil {
+	if err := l.(logger.MessageLogger).Log(&logger.Message{Line: []byte("line"), Source: "src1"}); err != nil {
 		t.Fatal(err)
 	}
 	res, err := ioutil.ReadFile(filename)
@@ -230,7 +230,7 @@ func BenchmarkJSONFileLoggerWithReader(b *testing.B) {
 	go func() {
 		for i := 0; i < b.N; i++ {
 			for j := 0; j < 30; j++ {
-				l.Log(msg)
+				l.(logger.MessageLogger).Log(msg)
 			}
 		}
 		l.Close()

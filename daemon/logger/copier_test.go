@@ -46,12 +46,15 @@ func TestCopier(t *testing.T) {
 
 	jsonLog := &TestLoggerJSON{Encoder: json.NewEncoder(&jsonBuf)}
 
-	c := NewCopier(
+	c, err := NewCopier(
 		map[string]io.Reader{
 			"stdout": &stdout,
 			"stderr": &stderr,
 		},
 		jsonLog)
+	if err != nil {
+		t.Fatal(err)
+	}
 	c.Run()
 	wait := make(chan struct{})
 	go func() {
@@ -101,7 +104,10 @@ func TestCopierSlow(t *testing.T) {
 	//encoder := &encodeCloser{Encoder: json.NewEncoder(&jsonBuf)}
 	jsonLog := &TestLoggerJSON{Encoder: json.NewEncoder(&jsonBuf), delay: 100 * time.Millisecond}
 
-	c := NewCopier(map[string]io.Reader{"stdout": &stdout}, jsonLog)
+	c, err := NewCopier(map[string]io.Reader{"stdout": &stdout}, jsonLog)
+	if err != nil {
+		t.Fatal(err)
+	}
 	c.Run()
 	wait := make(chan struct{})
 	go func() {
