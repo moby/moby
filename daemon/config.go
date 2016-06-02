@@ -155,6 +155,7 @@ func (config *Config) InstallCommonFlags(flags *pflag.FlagSet) {
 	config.ServiceOptions.InstallCliFlags(flags)
 
 	flags.Var(opts.NewNamedListOptsRef("storage-opts", &config.GraphOptions, nil), "storage-opt", "Storage driver options")
+	config.AuthorizationPlugins = []string{}
 	flags.Var(opts.NewNamedListOptsRef("authorization-plugins", &config.AuthorizationPlugins, nil), "authorization-plugin", "Authorization plugins to load")
 	flags.Var(opts.NewNamedListOptsRef("exec-opts", &config.ExecOptions, nil), "exec-opt", "Runtime execution options")
 	flags.StringVarP(&config.Pidfile, "pidfile", "p", defaultPidFile, "Path to use for daemon PID file")

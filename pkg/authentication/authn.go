@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/plugins"
@@ -20,6 +21,7 @@ const authnUser contextKey = iota
 // An Authentication object wraps handles to the various authentication plugins
 // that we're using.
 type Authentication struct {
+	mu            sync.Mutex
 	pluginNames   []string
 	plugins       map[string]*plugins.Plugin
 	required      bool
@@ -47,11 +49,11 @@ func makeAuthnResp() AuthnPluginAuthenticateResponse {
 }
 
 // callPlugins asks the plugins what they think about the client's request.
-func (a *Authentication) callPlugins(w http.ResponseWriter, r *http.Request) (User, error) {
+func (a *Authentication) callPlugins(w http.ResponseWriter, r *http.Request, pluginNames []string, plugins map[string]*plugins.Plugin) (User, error) {
 	req := a.makeAuthnReq(r)
 	headers := make(http.Header)
-	for _, pname := range a.pluginNames {
-		plugin, ok := a.plugins[pname]
+	for _, pname := range pluginNames {
+		plugin, ok := plugins[pname]
 		if !ok || plugin == nil {
 			logrus.Errorf("Error looking up Authentication plugin %s", pname)
 			continue
@@ -98,9 +100,10 @@ func (a *Authentication) callPlugins(w http.ResponseWriter, r *http.Request) (Us
 	return User{}, nil
 }
 
-// NewAuthentication runs through the configured list of authentication plugins
-// and open connections to them.  Each plugin should implement the
-// "Authentication" interface, which consists of a two entry points:
+// NewAuthentication runs through the list of authentication plugins in the
+// "plugins" authn option and open connections to them.  Each plugin should
+// implement the "Authentication" interface, which consists of a two entry
+// points:
 //    /Authentication.Authenticate
 // It receives an AuthnPluginAuthenticateRequest and returns an
 // AuthnPluginAuthenticateResponse.
@@ -120,10 +123,26 @@ func (a *Authentication) callPlugins(w http.ResponseWriter, r *http.Request) (Us
 // It receives an AuthnPluginSetOptionsRequest and returns an
 // AuthnPluginSetOptionsResponse.
 func NewAuthentication(required bool, options map[string]string, makeAuthError func(error) error) *Authentication {
-	pnames := options["plugins"]
+	a := &Authentication{
+		pluginNames:   []string{},
+		plugins:       map[string]*plugins.Plugin{},
+		required:      required,
+		makeAuthError: makeAuthError,
+	}
+	if err := a.SetConfig(required, options); err != nil {
+		logrus.Errorf("Error setting authentication middleware options: %v", err)
+		return nil
+	}
+	return a
+}
+
+// SetConfig changes whether or not we consider authentication to be required
+// and changes the set of loaded plugins.  It returns an error if a plugin
+// can't be contacted or initialized.
+func (a *Authentication) SetConfig(required bool, options map[string]string) error {
 	names := []string{}
 	handles := make(map[string]*plugins.Plugin)
-	for _, name := range strings.Split(pnames, ",") {
+	for _, name := range strings.Split(options["plugins"], ",") {
 		if name == "" || handles[name] != nil {
 			continue
 		}
@@ -131,7 +150,7 @@ func NewAuthentication(required bool, options map[string]string, makeAuthError f
 		plugin, err := plugins.Get(name, PluginImplements)
 		if err != nil {
 			logrus.Errorf("Error looking up authentication plugin %s: %v", name, err)
-			continue
+			return err
 		}
 		client := plugin.Client()
 		if client == nil {
@@ -142,13 +161,18 @@ func NewAuthentication(required bool, options map[string]string, makeAuthError f
 		req := AuthnPluginSetOptionsRequest{Options: options}
 		resp := AuthnPluginSetOptionsResponse{}
 		if err := client.Call(SetOptionsRequestName, &req, &resp); err != nil {
-			logrus.Errorf("Error in Authentication plugin %s: %v", name, err)
-			continue
+			logrus.Errorf("Error setting options for authentication plugin %s: %v", name, err)
+			return err
 		}
 		names = append(names, name)
 		handles[name] = plugin
 	}
-	return &Authentication{pluginNames: names, plugins: handles, required: required, makeAuthError: makeAuthError}
+	a.mu.Lock()
+	a.pluginNames = names
+	a.plugins = handles
+	a.required = required
+	a.mu.Unlock()
+	return nil
 }
 
 // Authenticate checks the request for an "Authorization" header, and depending
@@ -170,15 +194,21 @@ func (a *Authentication) Authenticate(w http.ResponseWriter, r *http.Request) (U
 	}
 	// If we don't need to be authenticating, stop now, so that we don't
 	// add any challenge headers to our response
+	a.mu.Lock()
 	if !a.required {
+		a.mu.Unlock()
 		return User{}, nil
 	}
 	// Check if we have any configured plugins
 	if len(a.pluginNames) == 0 {
+		a.mu.Unlock()
 		err := fmt.Errorf("no authentication plugins configured")
 		return User{}, err
 	}
-	user, err := a.callPlugins(w, r)
+	pluginNames := a.pluginNames
+	plugins := a.plugins
+	a.mu.Unlock()
+	user, err := a.callPlugins(w, r, pluginNames, plugins)
 	if err != nil {
 		return User{}, err
 	}
