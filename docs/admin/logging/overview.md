@@ -31,6 +31,7 @@ supported:
 | `splunk`    | Splunk logging driver for Docker. Writes log messages to `splunk` using HTTP Event Collector.                                 |
 | `etwlogs`   | ETW logging driver for Docker on Windows. Writes log messages as ETW events.                                                  |
 | `gcplogs`   | Google Cloud Logging driver for Docker. Writes log messages to Google Cloud Logging.                                          |
+| `rawfifo`    | Raw FIFO logging driver for Docker. Writes raw log streams to UNIX named pipes.                                              |
 
 The `docker logs`command is available only for the `json-file` and `journald`
 logging drivers.
