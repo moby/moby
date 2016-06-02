@@ -127,6 +127,11 @@ func (cli *DaemonCli) start() (err error) {
 	stopc := make(chan bool)
 	defer close(stopc)
 
+	signal.Trap(func() {
+		cli.stop()
+		<-stopc // wait for daemonCli.start() to return
+	})
+
 	// warn from uuid package when running the daemon
 	uuid.Loggerf = logrus.Warnf
 
@@ -279,11 +284,6 @@ func (cli *DaemonCli) start() (err error) {
 	// daemon doesn't exit
 	serveAPIWait := make(chan error)
 	go api.Wait(serveAPIWait)
-
-	signal.Trap(func() {
-		cli.stop()
-		<-stopc // wait for daemonCli.start() to return
-	})
 
 	// after the daemon is done setting up we can notify systemd api
 	notifySystem()
