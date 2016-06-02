@@ -275,3 +275,16 @@ echo '- Storage Drivers:'
 } | sed 's/^/  /'
 echo
 
+check_limit_over()
+{
+	if [ $(cat "$1") -le "$2" ]; then
+		wrap_bad "- $1" "$(cat $1)"
+		wrap_color "    This should be set to at least $2, for example set: sysctl -w kernel/keys/root_maxkeys=1000000" bold black
+	else
+		wrap_good "- $1" "$(cat $1)"
+	fi
+}
+
+echo 'Limits:'
+check_limit_over /proc/sys/kernel/keys/root_maxkeys 10000
+echo
