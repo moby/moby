@@ -2822,13 +2822,13 @@ Status Codes:
 
 ### Exec Inspect
 
-`GET /exec/(id)/json`
+`GET /exec/(id)`
 
 Return low-level information about the `exec` command `id`.
 
 **Example request**:
 
-    GET /exec/11fb006128e8ceb3942e7c58d77750f24210e35f879dd204ac975c184b820b39/json HTTP/1.1
+    GET /exec/11fb006128e8ceb3942e7c58d77750f24210e35f879dd204ac975c184b820b39 HTTP/1.1
 
 **Example response**:
 

@@ -128,6 +128,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /containers/(name)/json` has been renamed to `/containers/(name)`.
 * `GET /images/json` has been renamed to `/images`.
 * `GET /images/(name)/json` has been renamed to `/images/(name)`.
+* `GET /exec/(name)/json` has been renamed to `/exec/(name)`.
 
 ### v1.23 API changes
 
