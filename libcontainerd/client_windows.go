@@ -304,6 +304,25 @@ func (clnt *client) Signal(containerID string, sig int) error {
 	return nil
 }
 
+// While Linux has support for the full range of signals, signals aren't really implemented on Windows.
+// We try to terminate the specified process whatever signal is requested.
+func (clnt *client) SignalProcess(containerID string, processFriendlyName string, sig int) error {
+	clnt.lock(containerID)
+	defer clnt.unlock(containerID)
+	cont, err := clnt.getContainer(containerID)
+	if err != nil {
+		return err
+	}
+
+	for _, p := range cont.processes {
+		if p.friendlyName == processFriendlyName {
+			return hcsshim.TerminateProcessInComputeSystem(containerID, p.systemPid)
+		}
+	}
+
+	return fmt.Errorf("SignalProcess could not find process %s in %s", processFriendlyName, containerID)
+}
+
 // Resize handles a CLI event to resize an interactive docker run or docker exec
 // window.
 func (clnt *client) Resize(containerID, processFriendlyName string, width, height int) error {

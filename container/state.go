@@ -27,6 +27,7 @@ type State struct {
 	StartedAt         time.Time
 	FinishedAt        time.Time
 	waitChan          chan struct{}
+	Health            *Health
 }
 
 // NewState creates a default state object with a fresh channel for state changes.
@@ -46,6 +47,9 @@ func (s *State) String() string {
 			return fmt.Sprintf("Restarting (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 		}
 
+		if h := s.Health; h != nil {
+			return fmt.Sprintf("Up %s (%s)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)), h.String())
+		}
 		return fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
 	}
 

@@ -329,3 +329,32 @@ func parseMaybeJSONToList(rest string) (*Node, map[string]bool, error) {
 
 	return parseStringsWhitespaceDelimited(rest)
 }
+
+// The HEALTHCHECK command is like parseMaybeJSON, but has an extra type argument.
+func parseHealthConfig(rest string) (*Node, map[string]bool, error) {
+	// Find end of first argument
+	var sep int
+	for ; sep < len(rest); sep++ {
+		if unicode.IsSpace(rune(rest[sep])) {
+			break
+		}
+	}
+	next := sep
+	for ; next < len(rest); next++ {
+		if !unicode.IsSpace(rune(rest[next])) {
+			break
+		}
+	}
+
+	if sep == 0 {
+		return nil, nil, nil
+	}
+
+	typ := rest[:sep]
+	cmd, attrs, err := parseMaybeJSON(rest[next:])
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &Node{Value: typ, Next: cmd, Attributes: attrs}, nil, err
+}

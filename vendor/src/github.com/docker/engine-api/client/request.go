@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/docker/engine-api/client/transport/cancellable"
+	"github.com/docker/engine-api/types"
 	"golang.org/x/net/context"
 )
 
@@ -130,7 +131,19 @@ func (cli *Client) sendClientRequest(ctx context.Context, method, path string, q
 		if len(body) == 0 {
 			return serverResp, fmt.Errorf("Error: request returned %s for API route and version %s, check if the server supports the requested API version", http.StatusText(serverResp.statusCode), req.URL)
 		}
-		return serverResp, fmt.Errorf("Error response from daemon: %s", bytes.TrimSpace(body))
+
+		var errorMessage string
+		if resp.Header.Get("Content-Type") == "application/json" {
+			var errorResponse types.ErrorResponse
+			if err := json.Unmarshal(body, &errorResponse); err != nil {
+				return serverResp, fmt.Errorf("Error reading JSON: %v", err)
+			}
+			errorMessage = errorResponse.Message
+		} else {
+			errorMessage = string(body)
+		}
+
+		return serverResp, fmt.Errorf("Error response from daemon: %s", strings.TrimSpace(errorMessage))
 	}
 
 	serverResp.body = resp.Body
