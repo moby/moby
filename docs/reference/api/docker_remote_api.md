@@ -126,6 +126,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /images/(name)/tag` no longer has a `force` query parameter.
 * `GET /images/search` now supports maximum returned search results `limit`.
 * `GET /containers/json` has been renamed to `/containers`.
+* `GET /containers/(name)/json` has been renamed to `/containers/(name)`.
 
 ### v1.23 API changes
 

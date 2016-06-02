@@ -556,7 +556,7 @@ func (s *DockerSuite) TestContainerApiCreateWithHostName(c *check.C) {
 	var container types.ContainerCreateResponse
 	c.Assert(json.Unmarshal(body, &container), checker.IsNil)
 
-	status, body, err = sockRequest("GET", "/containers/"+container.ID+"/json", nil)
+	status, body, err = sockRequest("GET", "/containers/"+container.ID, nil)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK)
 
@@ -581,7 +581,7 @@ func (s *DockerSuite) TestContainerApiCreateWithDomainName(c *check.C) {
 	var container types.ContainerCreateResponse
 	c.Assert(json.Unmarshal(body, &container), checker.IsNil)
 
-	status, body, err = sockRequest("GET", "/containers/"+container.ID+"/json", nil)
+	status, body, err = sockRequest("GET", "/containers/"+container.ID, nil)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK)
 
@@ -616,7 +616,7 @@ func UtilCreateNetworkMode(c *check.C, networkMode string) {
 	var container types.ContainerCreateResponse
 	c.Assert(json.Unmarshal(body, &container), checker.IsNil)
 
-	status, body, err = sockRequest("GET", "/containers/"+container.ID+"/json", nil)
+	status, body, err = sockRequest("GET", "/containers/"+container.ID, nil)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK)
 
@@ -641,7 +641,7 @@ func (s *DockerSuite) TestContainerApiCreateWithCpuSharesCpuset(c *check.C) {
 	var container types.ContainerCreateResponse
 	c.Assert(json.Unmarshal(body, &container), checker.IsNil)
 
-	status, body, err = sockRequest("GET", "/containers/"+container.ID+"/json", nil)
+	status, body, err = sockRequest("GET", "/containers/"+container.ID, nil)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK)
 
@@ -1277,7 +1277,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *check.
 	var container types.ContainerCreateResponse
 	c.Assert(json.Unmarshal(body, &container), check.IsNil)
 
-	status, body, err = sockRequest("GET", "/containers/"+container.ID+"/json", nil)
+	status, body, err = sockRequest("GET", "/containers/"+container.ID, nil)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusOK)
 
@@ -1309,7 +1309,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeOmitted(c *check.C) {
 	var container types.ContainerCreateResponse
 	c.Assert(json.Unmarshal(body, &container), check.IsNil)
 
-	status, body, err = sockRequest("GET", "/containers/"+container.ID+"/json", nil)
+	status, body, err = sockRequest("GET", "/containers/"+container.ID, nil)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusOK)
 
@@ -1341,7 +1341,7 @@ func (s *DockerSuite) TestPostContainersCreateWithShmSize(c *check.C) {
 	var container types.ContainerCreateResponse
 	c.Assert(json.Unmarshal(body, &container), check.IsNil)
 
-	status, body, err = sockRequest("GET", "/containers/"+container.ID+"/json", nil)
+	status, body, err = sockRequest("GET", "/containers/"+container.ID, nil)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusOK)
 
@@ -1371,7 +1371,7 @@ func (s *DockerSuite) TestPostContainersCreateMemorySwappinessHostConfigOmitted(
 	var container types.ContainerCreateResponse
 	c.Assert(json.Unmarshal(body, &container), check.IsNil)
 
-	status, body, err = sockRequest("GET", "/containers/"+container.ID+"/json", nil)
+	status, body, err = sockRequest("GET", "/containers/"+container.ID, nil)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusOK)
 

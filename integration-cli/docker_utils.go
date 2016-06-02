@@ -1417,7 +1417,7 @@ func waitInspectWithArgs(name, expr, expected string, timeout time.Duration, arg
 }
 
 func getInspectBody(c *check.C, version, id string) []byte {
-	endpoint := fmt.Sprintf("/%s/containers/%s/json", version, id)
+	endpoint := fmt.Sprintf("/%s/containers/%s", version, id)
 	status, body, err := sockRequest("GET", endpoint, nil)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusOK)

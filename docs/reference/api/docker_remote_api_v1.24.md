@@ -477,14 +477,14 @@ Status Codes:
 
 ### Inspect a container
 
-`GET /containers/(id or name)/json`
+`GET /containers/(id or name)`
 
 Return low-level information on the container `id`
 
 
 **Example request**:
 
-      GET /containers/4fa6e0f0c678/json HTTP/1.1
+      GET /containers/4fa6e0f0c678 HTTP/1.1
 
 **Example response**:
 
@@ -659,7 +659,7 @@ Return low-level information on the container `id`
 
 **Example request, with size information**:
 
-    GET /containers/4fa6e0f0c678/json?size=1 HTTP/1.1
+    GET /containers/4fa6e0f0c678?size=1 HTTP/1.1
 
 **Example response, with size information**:
 
