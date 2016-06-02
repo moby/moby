@@ -28,7 +28,7 @@ const pluginAddress = "authzplugin.sock"
 
 func TestAuthZRequestPluginError(t *testing.T) {
 	server := authZPluginTestServer{t: t}
-	go server.start()
+	server.start()
 	defer server.stop()
 
 	authZPlugin := createTestPlugin(t)
@@ -59,7 +59,7 @@ func TestAuthZRequestPluginError(t *testing.T) {
 
 func TestAuthZRequestPlugin(t *testing.T) {
 	server := authZPluginTestServer{t: t}
-	go server.start()
+	server.start()
 	defer server.stop()
 
 	authZPlugin := createTestPlugin(t)
@@ -91,7 +91,7 @@ func TestAuthZRequestPlugin(t *testing.T) {
 
 func TestAuthZResponsePlugin(t *testing.T) {
 	server := authZPluginTestServer{t: t}
-	go server.start()
+	server.start()
 	defer server.stop()
 
 	authZPlugin := createTestPlugin(t)
@@ -223,6 +223,7 @@ type authZPluginTestServer struct {
 	recordedRequest Request
 	// response stores the response sent from the plugin to the daemon
 	replayResponse Response
+	server         *httptest.Server
 }
 
 // start starts the test server that implements the plugin
@@ -234,12 +235,19 @@ func (t *authZPluginTestServer) start() {
 	r.HandleFunc("/Plugin.Activate", t.activate)
 	r.HandleFunc("/"+AuthZApiRequest, t.auth)
 	r.HandleFunc("/"+AuthZApiResponse, t.auth)
-	server := http.Server{Handler: r, Addr: pluginAddress}
-	server.Serve(l)
+	t.server = &httptest.Server{
+		Listener: l,
+		Config: &http.Server{
+			Handler: r,
+			Addr:    pluginAddress,
+		},
+	}
+	t.server.Start()
 }
 
 // stop stops the test server that implements the plugin
 func (t *authZPluginTestServer) stop() {
+	t.server.Close()
 	os.Remove(pluginAddress)
 	if t.listener != nil {
 		t.listener.Close()
