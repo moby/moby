@@ -184,7 +184,8 @@ func (nDB *NetworkDB) reapTableEntries() {
 func (nDB *NetworkDB) gossip() {
 	networkNodes := make(map[string][]string)
 	nDB.RLock()
-	for nid := range nDB.networks[nDB.config.NodeName] {
+	thisNodeNetworks := nDB.networks[nDB.config.NodeName]
+	for nid := range thisNodeNetworks {
 		networkNodes[nid] = nDB.networkNodes[nid]
 
 	}
@@ -195,8 +196,17 @@ func (nDB *NetworkDB) gossip() {
 		bytesAvail := udpSendBuf - compoundHeaderOverhead
 
 		nDB.RLock()
-		broadcastQ := nDB.networks[nDB.config.NodeName][nid].tableBroadcasts
+		network, ok := thisNodeNetworks[nid]
 		nDB.RUnlock()
+		if !ok || network == nil {
+			// It is normal for the network to be removed
+			// between the time we collect the network
+			// attachments of this node and processing
+			// them here.
+			continue
+		}
+
+		broadcastQ := network.tableBroadcasts
 
 		if broadcastQ == nil {
 			logrus.Errorf("Invalid broadcastQ encountered while gossiping for network %s", nid)
