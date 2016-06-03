@@ -37,8 +37,8 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	ctx := context.Background()
 
 	// Resolve the Auth config relevant for this server
-	authConfig := cli.resolveAuthConfig(ctx, repoInfo.Index)
-	requestPrivilege := cli.registryAuthenticationPrivilegedFunc(repoInfo.Index, "push")
+	authConfig := cli.ResolveAuthConfig(ctx, repoInfo.Index)
+	requestPrivilege := cli.RegistryAuthenticationPrivilegedFunc(repoInfo.Index, "push")
 
 	if isTrusted() {
 		return cli.trustedPush(ctx, repoInfo, ref, authConfig, requestPrivilege)
@@ -55,7 +55,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 }
 
 func (cli *DockerCli) imagePushPrivileged(ctx context.Context, authConfig types.AuthConfig, ref string, requestPrivilege types.RequestPrivilegeFunc) (io.ReadCloser, error) {
-	encodedAuth, err := encodeAuthToBase64(authConfig)
+	encodedAuth, err := EncodeAuthToBase64(authConfig)
 	if err != nil {
 		return nil, err
 	}

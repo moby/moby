@@ -236,7 +236,7 @@ func (cli *DockerCli) trustedReference(ctx context.Context, ref reference.NamedT
 	}
 
 	// Resolve the Auth config relevant for this server
-	authConfig := cli.resolveAuthConfig(ctx, repoInfo.Index)
+	authConfig := cli.ResolveAuthConfig(ctx, repoInfo.Index)
 
 	notaryRepo, err := cli.getNotaryRepository(repoInfo, authConfig, "pull")
 	if err != nil {

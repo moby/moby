@@ -40,3 +40,19 @@ func RequiresMinArgs(min int) cobra.PositionalArgs {
 		)
 	}
 }
+
+// ExactArgs returns an error if there is not the exact number of args
+func ExactArgs(number int) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		if len(args) == number {
+			return nil
+		}
+		return fmt.Errorf(
+			"\"%s\" requires exactly %d argument(s).\n\nUsage:  %s\n\n%s",
+			cmd.CommandPath(),
+			number,
+			cmd.UseLine(),
+			cmd.Short,
+		)
+	}
+}
