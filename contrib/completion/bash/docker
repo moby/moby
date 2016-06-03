@@ -1726,9 +1726,14 @@ _docker_run() {
 	if [ "$command" = "run" ] ; then
 		options_with_args="$options_with_args
 			--detach-keys
+			--health-cmd
+			--health-interval
+			--health-retries
+			--health-timeout
 		"
 		boolean_options="$boolean_options
 			--detach -d
+			--no-healthcheck
 			--rm
 			--sig-proxy=false
 		"
