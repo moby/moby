@@ -18,7 +18,7 @@ information and real-time information.
 
 Docker containers will report the following events:
 
-    attach, commit, copy, create, destroy, die, exec_create, exec_start, export, kill, oom, pause, rename, resize, restart, start, stop, top, unpause, update
+    attach, commit, copy, create, destroy, detach, die, exec_create, exec_detach, exec_start, export, kill, oom, pause, rename, resize, restart, start, stop, top, unpause, update
 
 Docker images report the following events:
 

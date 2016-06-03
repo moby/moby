@@ -2404,7 +2404,7 @@ Get container events from docker, either in real time via streaming, or via poll
 
 Docker containers report the following events:
 
-    attach, commit, copy, create, destroy, die, exec_create, exec_start, export, kill, oom, pause, rename, resize, restart, start, stop, top, unpause, update
+    attach, commit, copy, create, destroy, detach, die, exec_create, exec_detach, exec_start, export, kill, oom, pause, rename, resize, restart, start, stop, top, unpause, update
 
 Docker images report the following events:
 

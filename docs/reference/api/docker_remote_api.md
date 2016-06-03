@@ -99,6 +99,8 @@ Some container-related events are not affected by container state, so they are n
 * **export** emitted by `docker export`
 * **exec_create** emitted by `docker exec`
 * **exec_start** emitted by `docker exec` after **exec_create**
+* **detach** emitted when client is detached from container process
+* **exec_detach** emitted when client is detached from exec process
 
 Running `docker rmi` emits an **untag** event when removing an image name.  The `rmi` command may also emit **delete** events when images are deleted by ID directly or by deleting the last tag referring to the image.
 
@@ -121,6 +123,8 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /images/search` now takes a `filters` query parameter.
 * `GET /events` now supports a `reload` event that is emitted when the daemon configuration is reloaded.
 * `GET /events` now supports filtering by daemon name or ID.
+* `GET /events` now supports a `detach` event that is emitted on detaching from container process.
+* `GET /events` now supports an `exec_detach ` event that is emitted on detaching from exec process.
 * `GET /images/json` now supports filters `since` and `before`.
 * `POST /containers/(id or name)/start` no longer accepts a `HostConfig`.
 * `POST /images/(name)/tag` no longer has a `force` query parameter.

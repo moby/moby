@@ -222,11 +222,10 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 		return fmt.Errorf("context cancelled")
 	case err := <-attachErr:
 		if err != nil {
-			e, ok := err.(container.AttachError)
-			if !ok || !e.IsDetached() {
-				return fmt.Errorf("attach failed with error: %v", err)
+			if _, ok := err.(container.DetachError); !ok {
+				return fmt.Errorf("exec attach failed with error: %v", err)
 			}
-			d.LogContainerEvent(c, "detach")
+			d.LogContainerEvent(c, "exec_detach")
 		}
 	}
 	return nil

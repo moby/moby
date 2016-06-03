@@ -121,8 +121,7 @@ func (daemon *Daemon) containerAttach(c *container.Container, stdin io.ReadClose
 		}
 		err := <-c.Attach(stdinPipe, stdout, stderr, keys)
 		if err != nil {
-			e, ok := err.(container.AttachError)
-			if ok && e.IsDetached() {
+			if _, ok := err.(container.DetachError); ok {
 				daemon.LogContainerEvent(c, "detach")
 			} else {
 				logrus.Errorf("attach failed with error: %v", err)
