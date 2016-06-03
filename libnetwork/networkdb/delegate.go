@@ -146,6 +146,11 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte) {
 		}
 
 		broadcastQ := n.tableBroadcasts
+
+		if broadcastQ == nil {
+			return
+		}
+
 		broadcastQ.QueueBroadcast(&tableEventMessage{
 			msg:   buf,
 			id:    tEvent.NetworkID,
