@@ -1,9 +1,10 @@
 package container
 
 import (
+	"time"
+
 	"github.com/docker/engine-api/types/strslice"
 	"github.com/docker/go-connections/nat"
-	"time"
 )
 
 // HealthConfig holds configuration settings for the HEALTHCHECK feature.
@@ -56,4 +57,6 @@ type Config struct {
 	OnBuild         []string              // ONBUILD metadata that were defined on the image Dockerfile
 	Labels          map[string]string     // List of labels set to this container
 	StopSignal      string                `json:",omitempty"` // Signal to stop a container
+	StopTimeout     *int                  `json:",omitempty"` // Timeout (in seconds) to stop a container
+	Shell           strslice.StrSlice     `json:",omitempty"` // Shell for shell-form of RUN, CMD, ENTRYPOINT
 }
