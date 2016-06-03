@@ -74,8 +74,8 @@ func (d *naiveDiffDriverWithApply) ApplyDiff(id, parent string, diff archive.Rea
 // layer in the overlay. The overlay itself is mounted in the "merged"
 // directory, and the "work" dir is needed for overlay to work.
 
-// When a overlay layer is created there are two cases, either the
-// parent has a "root" dir, then we start out with a empty "upper"
+// When an overlay layer is created there are two cases, either the
+// parent has a "root" dir, then we start out with an empty "upper"
 // directory overlaid on the parents root. This is typically the
 // case with the init layer of a container which is based on an image.
 // If there is no "root" in the parent, we inherit the lower-id from
@@ -103,7 +103,7 @@ func init() {
 
 // Init returns the NaiveDiffDriver, a native diff driver for overlay filesystem.
 // If overlay filesystem is not supported on the host, graphdriver.ErrNotSupported is returned as error.
-// If a overlay filesystem is not supported over a existing filesystem then error graphdriver.ErrIncompatibleFS is returned.
+// If an overlay filesystem is not supported over an existing filesystem then error graphdriver.ErrIncompatibleFS is returned.
 func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 
 	if err := supportsOverlay(); err != nil {
@@ -265,7 +265,7 @@ func (d *Driver) Create(id, parent, mountLabel string, storageOpt map[string]str
 		return err
 	}
 
-	// If parent has a root, just do a overlay to it
+	// If parent has a root, just do an overlay to it
 	parentRoot := path.Join(parentDir, "root")
 
 	if s, err := os.Lstat(parentRoot); err == nil {
@@ -386,7 +386,7 @@ func (d *Driver) Put(id string) error {
 	return nil
 }
 
-// ApplyDiff applies the new layer on top of the root, if parent does not exist with will return a ErrApplyDiffFallback error.
+// ApplyDiff applies the new layer on top of the root, if parent does not exist with will return an ErrApplyDiffFallback error.
 func (d *Driver) ApplyDiff(id string, parent string, diff archive.Reader) (size int64, err error) {
 	dir := d.dir(id)
 

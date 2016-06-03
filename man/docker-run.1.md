@@ -219,7 +219,7 @@ See **config-json(5)** for documentation on using a configuration file.
    Limit write rate to a device (e.g. --device-write-bps=/dev/sda:1mb)
 
 **--device-write-iops**=[]
-   Limit write rate a a device (e.g. --device-write-iops=/dev/sda:1000)
+   Limit write rate to a device (e.g. --device-write-iops=/dev/sda:1000)
 
 **--dns-search**=[]
    Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)

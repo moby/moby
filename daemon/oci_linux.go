@@ -305,7 +305,7 @@ func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error 
 		ns.Path = fmt.Sprintf("/proc/%d/ns/pid", pc.State.GetPID())
 		setNamespace(s, ns)
 		if userNS {
-			// to share an PID namespace, they must also share a user namespace
+			// to share a PID namespace, they must also share a user namespace
 			nsUser := specs.Namespace{Type: "user"}
 			nsUser.Path = fmt.Sprintf("/proc/%d/ns/user", pc.State.GetPID())
 			setNamespace(s, nsUser)

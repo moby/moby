@@ -40,7 +40,7 @@ func NewCtx(authZPlugins []Plugin, user, userAuthNMethod, requestMethod, request
 	}
 }
 
-// Ctx stores a a single request-response interaction context
+// Ctx stores a single request-response interaction context
 type Ctx struct {
 	user            string
 	userAuthNMethod string

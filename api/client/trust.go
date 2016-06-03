@@ -117,7 +117,7 @@ func (scs simpleCredentialStore) SetRefreshToken(*url.URL, string, string) {
 
 // getNotaryRepository returns a NotaryRepository which stores all the
 // information needed to operate on a notary repository.
-// It creates a HTTP transport providing authentication support.
+// It creates an HTTP transport providing authentication support.
 func (cli *DockerCli) getNotaryRepository(repoInfo *registry.RepositoryInfo, authConfig types.AuthConfig, actions ...string) (*client.NotaryRepository, error) {
 	server, err := trustServer(repoInfo.Index)
 	if err != nil {

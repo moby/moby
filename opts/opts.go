@@ -251,7 +251,7 @@ func ValidateLabel(val string) (string, error) {
 	return val, nil
 }
 
-// ValidateSysctl validates an sysctl and returns it.
+// ValidateSysctl validates a sysctl and returns it.
 func ValidateSysctl(val string) (string, error) {
 	validSysctlMap := map[string]bool{
 		"kernel.msgmax":          true,

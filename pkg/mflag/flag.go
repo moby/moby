@@ -24,7 +24,7 @@
 //
 //	You can also add "deprecated" flags, they are still usable, but are not shown
 //	in the usage and will display a warning when you try to use them. `#` before
-//	an option means this option is deprecated, if there is an following option
+//	an option means this option is deprecated, if there is a following option
 //	without `#` ahead, then that's the replacement, if not, it will just be removed:
 //		var ip = flag.Int([]string{"#f", "#flagname", "-flagname"}, 1234, "help message for flagname")
 //	this will display: `Warning: '-f' is deprecated, it will be replaced by '--flagname' soon. See usage.` or
@@ -1236,7 +1236,7 @@ func (v mergeVal) Name() string {
 	return v.key
 }
 
-// Merge is an helper function that merges n FlagSets into a single dest FlagSet
+// Merge is a helper function that merges n FlagSets into a single dest FlagSet
 // In case of name collision between the flagsets it will apply
 // the destination FlagSet's errorHandling behavior.
 func Merge(dest *FlagSet, flagsets ...*FlagSet) error {

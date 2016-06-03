@@ -95,7 +95,7 @@ func cloneRequest(r *http.Request) *http.Request {
 	return r2
 }
 
-// RoundTrip changes a HTTP request's headers to add the necessary
+// RoundTrip changes an HTTP request's headers to add the necessary
 // authentication-related headers
 func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 	// Authorization should not be set on 302 redirect for untrusted locations.

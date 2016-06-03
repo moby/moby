@@ -87,7 +87,7 @@ Go to [Docker Machine user guide](https://docs.docker.com/machine/).
 
 ### Docker Compose
 
-Docker Compose allows you to define a application's components -- their containers,
+Docker Compose allows you to define an application's components -- their containers,
 configuration, links and volumes -- in a single file. Then a single command
 will set everything up and start your application running.
 

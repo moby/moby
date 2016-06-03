@@ -85,7 +85,7 @@ Docker container using standard localhost addressing such as `localhost:8000` or
 
 ![Linux Architecture Diagram](images/linux_docker_host.svg)
 
-In an Windows installation, the `docker` daemon is running inside a Linux virtual
+In a Windows installation, the `docker` daemon is running inside a Linux virtual
 machine. You use the Windows Docker client to talk to the Docker host VM. Your
 Docker containers run inside this host.
 
