@@ -125,6 +125,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /containers/(id or name)/start` no longer accepts a `HostConfig`.
 * `POST /images/(name)/tag` no longer has a `force` query parameter.
 * `GET /images/search` now supports maximum returned search results `limit`.
+* `POST /containers/{name:.*}/copy` is now removed and errors out starting from this API version.
 
 ### v1.23 API changes
 

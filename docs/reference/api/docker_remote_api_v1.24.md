@@ -1389,36 +1389,6 @@ Status Codes:
 -   **404** – no such container
 -   **500** – server error
 
-### Copy files or folders from a container
-
-`POST /containers/(id or name)/copy`
-
-Copy files or folders of container `id`
-
-**Deprecated** in favor of the `archive` endpoint below.
-
-**Example request**:
-
-    POST /containers/4fa6e0f0c678/copy HTTP/1.1
-    Content-Type: application/json
-
-    {
-         "Resource": "test.txt"
-    }
-
-**Example response**:
-
-    HTTP/1.1 200 OK
-    Content-Type: application/x-tar
-
-    {{ TAR STREAM }}
-
-Status Codes:
-
--   **200** – no error
--   **404** – no such container
--   **500** – server error
-
 ### Retrieving information about files and folders in a container
 
 `HEAD /containers/(id or name)/archive`

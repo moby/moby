@@ -892,7 +892,7 @@ func (s *DockerSuite) TestContainerApiWait(c *check.C) {
 	c.Assert(waitres.StatusCode, checker.Equals, 0)
 }
 
-func (s *DockerSuite) TestContainerApiCopy(c *check.C) {
+func (s *DockerSuite) TestContainerApiCopyNotExistsAnyMore(c *check.C) {
 	// TODO Windows to Windows CI. This can be ported.
 	testRequires(c, DaemonIsLinux)
 	name := "test-container-api-copy"
@@ -902,7 +902,22 @@ func (s *DockerSuite) TestContainerApiCopy(c *check.C) {
 		Resource: "/test.txt",
 	}
 
-	status, body, err := sockRequest("POST", "/containers/"+name+"/copy", postData)
+	status, _, err := sockRequest("POST", "/containers/"+name+"/copy", postData)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusNotFound)
+}
+
+func (s *DockerSuite) TestContainerApiCopyPre124(c *check.C) {
+	// TODO Windows to Windows CI. This can be ported.
+	testRequires(c, DaemonIsLinux)
+	name := "test-container-api-copy"
+	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
+
+	postData := types.CopyConfig{
+		Resource: "/test.txt",
+	}
+
+	status, body, err := sockRequest("POST", "/v1.23/containers/"+name+"/copy", postData)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK)
 
@@ -923,7 +938,7 @@ func (s *DockerSuite) TestContainerApiCopy(c *check.C) {
 	c.Assert(found, checker.True)
 }
 
-func (s *DockerSuite) TestContainerApiCopyResourcePathEmpty(c *check.C) {
+func (s *DockerSuite) TestContainerApiCopyResourcePathEmptyPr124(c *check.C) {
 	// TODO Windows to Windows CI. This can be ported.
 	testRequires(c, DaemonIsLinux)
 	name := "test-container-api-copy-resource-empty"
@@ -933,13 +948,13 @@ func (s *DockerSuite) TestContainerApiCopyResourcePathEmpty(c *check.C) {
 		Resource: "",
 	}
 
-	status, body, err := sockRequest("POST", "/containers/"+name+"/copy", postData)
+	status, body, err := sockRequest("POST", "/v1.23/containers/"+name+"/copy", postData)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusInternalServerError)
 	c.Assert(string(body), checker.Matches, "Path cannot be empty\n")
 }
 
-func (s *DockerSuite) TestContainerApiCopyResourcePathNotFound(c *check.C) {
+func (s *DockerSuite) TestContainerApiCopyResourcePathNotFoundPre124(c *check.C) {
 	// TODO Windows to Windows CI. This can be ported.
 	testRequires(c, DaemonIsLinux)
 	name := "test-container-api-copy-resource-not-found"
@@ -949,18 +964,18 @@ func (s *DockerSuite) TestContainerApiCopyResourcePathNotFound(c *check.C) {
 		Resource: "/notexist",
 	}
 
-	status, body, err := sockRequest("POST", "/containers/"+name+"/copy", postData)
+	status, body, err := sockRequest("POST", "/v1.23/containers/"+name+"/copy", postData)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusInternalServerError)
 	c.Assert(string(body), checker.Matches, "Could not find the file /notexist in container "+name+"\n")
 }
 
-func (s *DockerSuite) TestContainerApiCopyContainerNotFound(c *check.C) {
+func (s *DockerSuite) TestContainerApiCopyContainerNotFoundPr124(c *check.C) {
 	postData := types.CopyConfig{
 		Resource: "/something",
 	}
 
-	status, _, err := sockRequest("POST", "/containers/notexists/copy", postData)
+	status, _, err := sockRequest("POST", "/v1.23/containers/notexists/copy", postData)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNotFound)
 }
