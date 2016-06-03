@@ -123,7 +123,7 @@ If you fail to specify an empty configuration, Docker reports an error such as:
 
 This example overrides the default `docker.service` file.
 
-If you are behind a HTTP proxy server, for example in corporate settings,
+If you are behind an HTTP proxy server, for example in corporate settings,
 you will need to add this configuration in the Docker systemd service file.
 
 First, create a systemd drop-in directory for the docker service:
