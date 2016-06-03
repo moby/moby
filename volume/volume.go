@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"syscall"
 
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
+	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 // DefaultDriverName is the driver name used for the driver
@@ -73,7 +75,7 @@ type MountPoint struct {
 
 // Setup sets up a mount point by either mounting the volume if it is
 // configured, or creating the source directory if supplied.
-func (m *MountPoint) Setup() (string, error) {
+func (m *MountPoint) Setup(mountLabel string) (string, error) {
 	if m.Volume != nil {
 		if m.ID == "" {
 			m.ID = stringid.GenerateNonCryptoID()
@@ -84,12 +86,15 @@ func (m *MountPoint) Setup() (string, error) {
 		return "", fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
 	}
 	// system.MkdirAll() produces an error if m.Source exists and is a file (not a directory),
-	// so first check if the path does not exist
-	if _, err := os.Stat(m.Source); err != nil {
-		if !os.IsNotExist(err) {
-			return "", err
+	if err := system.MkdirAll(m.Source, 0755); err != nil {
+		if perr, ok := err.(*os.PathError); ok {
+			if perr.Err != syscall.ENOTDIR {
+				return "", err
+			}
 		}
-		if err := system.MkdirAll(m.Source, 0755); err != nil {
+	}
+	if label.RelabelNeeded(m.Mode) {
+		if err := label.Relabel(m.Source, mountLabel, label.IsShared(m.Mode)); err != nil {
 			return "", err
 		}
 	}
