@@ -1948,11 +1948,14 @@ _docker_search() {
 			__docker_nospace
 			return
 			;;
+		--limit)
+			return
+			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--filter --help --no-trunc" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--filter --help --limit --no-trunc" -- "$cur" ) )
 			;;
 	esac
 }
