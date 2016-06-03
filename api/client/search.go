@@ -61,10 +61,10 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 
 	ctx := context.Background()
 
-	authConfig := cli.resolveAuthConfig(ctx, indexInfo)
+	authConfig := cli.ResolveAuthConfig(ctx, indexInfo)
 	requestPrivilege := cli.registryAuthenticationPrivilegedFunc(indexInfo, "search")
 
-	encodedAuth, err := encodeAuthToBase64(authConfig)
+	encodedAuth, err := EncodeAuthToBase64(authConfig)
 	if err != nil {
 		return err
 	}

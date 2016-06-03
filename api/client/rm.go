@@ -32,7 +32,7 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 		}
 		name = strings.Trim(name, "/")
 
-		if err := cli.removeContainer(ctx, name, *v, *link, *force); err != nil {
+		if err := cli.RemoveContainer(ctx, name, *v, *link, *force); err != nil {
 			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
@@ -44,7 +44,10 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	return nil
 }
 
-func (cli *DockerCli) removeContainer(ctx context.Context, container string, removeVolumes, removeLinks, force bool) error {
+// RemoveContainer removes a container
+// TODO: this can be unexported again once all container commands are under
+// api/client/container
+func (cli *DockerCli) RemoveContainer(ctx context.Context, container string, removeVolumes, removeLinks, force bool) error {
 	options := types.ContainerRemoveOptions{
 		RemoveVolumes: removeVolumes,
 		RemoveLinks:   removeLinks,

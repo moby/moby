@@ -37,8 +37,8 @@ func (cli *DockerCli) electAuthServer(ctx context.Context) string {
 	return serverAddress
 }
 
-// encodeAuthToBase64 serializes the auth configuration as JSON base64 payload
-func encodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
+// EncodeAuthToBase64 serializes the auth configuration as JSON base64 payload
+func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 	buf, err := json.Marshal(authConfig)
 	if err != nil {
 		return "", err
@@ -54,12 +54,12 @@ func (cli *DockerCli) registryAuthenticationPrivilegedFunc(index *registrytypes.
 		if err != nil {
 			return "", err
 		}
-		return encodeAuthToBase64(authConfig)
+		return EncodeAuthToBase64(authConfig)
 	}
 }
 
 func (cli *DockerCli) resizeTty(ctx context.Context, id string, isExec bool) {
-	height, width := cli.getTtySize()
+	height, width := cli.GetTtySize()
 	cli.resizeTtyTo(ctx, id, height, width, isExec)
 }
 
@@ -85,9 +85,9 @@ func (cli *DockerCli) resizeTtyTo(ctx context.Context, id string, height, width 
 	}
 }
 
-// getExitCode perform an inspect on the container. It returns
+// GetExitCode perform an inspect on the container. It returns
 // the running state and the exit code.
-func (cli *DockerCli) getExitCode(ctx context.Context, containerID string) (bool, int, error) {
+func (cli *DockerCli) GetExitCode(ctx context.Context, containerID string) (bool, int, error) {
 	c, err := cli.client.ContainerInspect(ctx, containerID)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
@@ -115,15 +115,16 @@ func (cli *DockerCli) getExecExitCode(ctx context.Context, execID string) (bool,
 	return resp.Running, resp.ExitCode, nil
 }
 
-func (cli *DockerCli) monitorTtySize(ctx context.Context, id string, isExec bool) error {
+// MonitorTtySize updates the container tty size when the terminal tty changes size
+func (cli *DockerCli) MonitorTtySize(ctx context.Context, id string, isExec bool) error {
 	cli.resizeTty(ctx, id, isExec)
 
 	if runtime.GOOS == "windows" {
 		go func() {
-			prevH, prevW := cli.getTtySize()
+			prevH, prevW := cli.GetTtySize()
 			for {
 				time.Sleep(time.Millisecond * 250)
-				h, w := cli.getTtySize()
+				h, w := cli.GetTtySize()
 
 				if prevW != w || prevH != h {
 					cli.resizeTty(ctx, id, isExec)
@@ -144,7 +145,8 @@ func (cli *DockerCli) monitorTtySize(ctx context.Context, id string, isExec bool
 	return nil
 }
 
-func (cli *DockerCli) getTtySize() (int, int) {
+// GetTtySize returns the height and width in characters of the tty
+func (cli *DockerCli) GetTtySize() (int, int) {
 	if !cli.isTerminalOut {
 		return 0, 0
 	}
@@ -182,10 +184,10 @@ func copyToFile(outfile string, r io.Reader) error {
 	return nil
 }
 
-// resolveAuthConfig is like registry.ResolveAuthConfig, but if using the
+// ResolveAuthConfig is like registry.ResolveAuthConfig, but if using the
 // default index, it uses the default index name for the daemon's platform,
 // not the client's platform.
-func (cli *DockerCli) resolveAuthConfig(ctx context.Context, index *registrytypes.IndexInfo) types.AuthConfig {
+func (cli *DockerCli) ResolveAuthConfig(ctx context.Context, index *registrytypes.IndexInfo) types.AuthConfig {
 	configKey := index.Name
 	if index.Official {
 		configKey = cli.electAuthServer(ctx)

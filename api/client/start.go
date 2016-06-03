@@ -17,7 +17,10 @@ import (
 	"github.com/docker/engine-api/types"
 )
 
-func (cli *DockerCli) forwardAllSignals(ctx context.Context, cid string) chan os.Signal {
+// ForwardAllSignals forwards signals to the contianer
+// TODO: this can be unexported again once all container commands are under
+// api/client/container
+func (cli *DockerCli) ForwardAllSignals(ctx context.Context, cid string) chan os.Signal {
 	sigc := make(chan os.Signal, 128)
 	signal.CatchAll(sigc)
 	go func() {
@@ -74,7 +77,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		}
 
 		if !c.Config.Tty {
-			sigc := cli.forwardAllSignals(ctx, container)
+			sigc := cli.ForwardAllSignals(ctx, container)
 			defer signal.StopCatch(sigc)
 		}
 
@@ -105,7 +108,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		}
 		defer resp.Close()
 		cErr := promise.Go(func() error {
-			errHijack := cli.holdHijackedConnection(ctx, c.Config.Tty, in, cli.out, cli.err, resp)
+			errHijack := cli.HoldHijackedConnection(ctx, c.Config.Tty, in, cli.out, cli.err, resp)
 			if errHijack == nil {
 				return errAttach
 			}
@@ -121,14 +124,14 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 
 		// 4. Wait for attachment to break.
 		if c.Config.Tty && cli.isTerminalOut {
-			if err := cli.monitorTtySize(ctx, container, false); err != nil {
+			if err := cli.MonitorTtySize(ctx, container, false); err != nil {
 				fmt.Fprintf(cli.err, "Error monitoring TTY size: %s\n", err)
 			}
 		}
 		if attchErr := <-cErr; attchErr != nil {
 			return attchErr
 		}
-		_, status, err := cli.getExitCode(ctx, container)
+		_, status, err := cli.GetExitCode(ctx, container)
 		if err != nil {
 			return err
 		}

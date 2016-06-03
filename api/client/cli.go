@@ -75,6 +75,26 @@ func (cli *DockerCli) Err() io.Writer {
 	return cli.err
 }
 
+// In returns the reader used for stdin
+func (cli *DockerCli) In() io.ReadCloser {
+	return cli.in
+}
+
+// ConfigFile returns the ConfigFile
+func (cli *DockerCli) ConfigFile() *configfile.ConfigFile {
+	return cli.configFile
+}
+
+// IsTerminalOut returns true if the clients stdin is a TTY
+func (cli *DockerCli) IsTerminalOut() bool {
+	return cli.isTerminalOut
+}
+
+// OutFd returns the fd for the stdout stream
+func (cli *DockerCli) OutFd() uintptr {
+	return cli.outFd
+}
+
 // CheckTtyInput checks if we are trying to attach to a container tty
 // from a non-tty client input stream, and if so, returns an error.
 func (cli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
