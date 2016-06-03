@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
@@ -154,9 +155,15 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 	return nil
 }
 
+// The UGLIEST thing ever (and second ugliest some lines later)
+var globalCleanupLock = sync.Mutex{}
+
 // Cleanup releases any network resources allocated to the container along with any rules
 // around how containers are linked together.  It also unmounts the container's root filesystem.
 func (daemon *Daemon) Cleanup(container *container.Container) {
+	globalCleanupLock.Lock()
+	defer globalCleanupLock.Unlock()
+
 	daemon.releaseNetwork(container)
 
 	container.UnmountIpcMounts(detachMounted)

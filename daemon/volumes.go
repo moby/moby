@@ -151,7 +151,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 		mountPoints[bind.Destination] = bind
 	}
 
-	container.Lock()
+	container.DataLock.Lock()
 
 	// 4. Cleanup old volumes that are about to be reassigned.
 	for _, m := range mountPoints {
@@ -163,7 +163,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 	}
 	container.MountPoints = mountPoints
 
-	container.Unlock()
+	container.DataLock.Unlock()
 
 	return nil
 }
