@@ -26,6 +26,7 @@ set -o pipefail
 export DOCKER_PKG='github.com/docker/docker'
 export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export MAKEDIR="$SCRIPTDIR/make"
+export PKG_CONFIG=${PKG_CONFIG:-pkg-config}
 
 : ${TEST_REPEAT:=0}
 
@@ -134,9 +135,9 @@ if [ "$DOCKER_EXPERIMENTAL" ]; then
 fi
 
 DOCKER_BUILDTAGS+=" daemon"
-if pkg-config 'libsystemd >= 209' 2> /dev/null ; then
+if ${PKG_CONFIG} 'libsystemd >= 209' 2> /dev/null ; then
 	DOCKER_BUILDTAGS+=" journald"
-elif pkg-config 'libsystemd-journal' 2> /dev/null ; then
+elif ${PKG_CONFIG} 'libsystemd-journal' 2> /dev/null ; then
 	DOCKER_BUILDTAGS+=" journald journald_compat"
 fi
 
