@@ -8,6 +8,7 @@ docker-search - Search the Docker Hub for images
 **docker search**
 [**-f**|**--filter**[=*[]*]]
 [**--help**]
+[**--limit**[=*LIMIT*]]
 [**--no-trunc**]
 TERM
 
@@ -29,6 +30,9 @@ of stars awarded, whether the image is official, and whether it is automated.
 
 **--help**
   Print usage statement
+
+**--limit**=*LIMIT*
+  Maximum returned search results. The default is 25.
 
 **--no-trunc**=*true*|*false*
    Don't truncate output. The default is *false*.

@@ -721,9 +721,12 @@ func shouldRedirect(response *http.Response) bool {
 }
 
 // SearchRepositories performs a search against the remote repository
-func (r *Session) SearchRepositories(term string) (*registrytypes.SearchResults, error) {
+func (r *Session) SearchRepositories(term string, limit int) (*registrytypes.SearchResults, error) {
+	if limit < 1 || limit > 100 {
+		return nil, fmt.Errorf("Limit %d is outside the range of [1, 100]", limit)
+	}
 	logrus.Debugf("Index server: %s", r.indexEndpoint)
-	u := r.indexEndpoint.String() + "search?q=" + url.QueryEscape(term)
+	u := r.indexEndpoint.String() + "search?q=" + url.QueryEscape(term) + "&n=" + url.QueryEscape(fmt.Sprintf("%d", limit))
 
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {

@@ -15,6 +15,11 @@ import (
 	registrytypes "github.com/docker/engine-api/types/registry"
 )
 
+const (
+	// DefaultSearchLimit is the default value for maximum number of returned search results.
+	DefaultSearchLimit = 25
+)
+
 // Service is the interface defining what a registry service should implement.
 type Service interface {
 	Auth(ctx context.Context, authConfig *types.AuthConfig, userAgent string) (status, token string, err error)
@@ -22,7 +27,7 @@ type Service interface {
 	LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error)
 	ResolveRepository(name reference.Named) (*RepositoryInfo, error)
 	ResolveIndex(name string) (*registrytypes.IndexInfo, error)
-	Search(ctx context.Context, term string, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error)
+	Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error)
 	ServiceConfig() *registrytypes.ServiceConfig
 	TLSConfig(hostname string) (*tls.Config, error)
 }
@@ -108,7 +113,7 @@ func splitReposSearchTerm(reposName string) (string, string) {
 
 // Search queries the public registry for images matching the specified
 // search terms, and returns the results.
-func (s *DefaultService) Search(ctx context.Context, term string, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error) {
+func (s *DefaultService) Search(ctx context.Context, term string, limit int, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error) {
 	// TODO Use ctx when searching for repositories
 	if err := validateNoScheme(term); err != nil {
 		return nil, err
@@ -139,9 +144,9 @@ func (s *DefaultService) Search(ctx context.Context, term string, authConfig *ty
 			localName = strings.SplitN(localName, "/", 2)[1]
 		}
 
-		return r.SearchRepositories(localName)
+		return r.SearchRepositories(localName, limit)
 	}
-	return r.SearchRepositories(remoteName)
+	return r.SearchRepositories(remoteName, limit)
 }
 
 // ResolveRepository splits a repository name into its components

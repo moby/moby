@@ -730,7 +730,7 @@ func TestPushImageJSONIndex(t *testing.T) {
 
 func TestSearchRepositories(t *testing.T) {
 	r := spawnTestRegistrySession(t)
-	results, err := r.SearchRepositories("fakequery")
+	results, err := r.SearchRepositories("fakequery", 25)
 	if err != nil {
 		t.Fatal(err)
 	}

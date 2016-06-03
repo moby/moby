@@ -20,7 +20,7 @@ var acceptedSearchFilterTags = map[string]bool{
 
 // SearchRegistryForImages queries the registry for images matching
 // term. authConfig is used to login.
-func (daemon *Daemon) SearchRegistryForImages(ctx context.Context, filtersArgs string, term string,
+func (daemon *Daemon) SearchRegistryForImages(ctx context.Context, filtersArgs string, term string, limit int,
 	authConfig *types.AuthConfig,
 	headers map[string][]string) (*registrytypes.SearchResults, error) {
 
@@ -61,7 +61,7 @@ func (daemon *Daemon) SearchRegistryForImages(ctx context.Context, filtersArgs s
 		}
 	}
 
-	unfilteredResult, err := daemon.RegistryService.Search(ctx, term, authConfig, dockerversion.DockerUserAgent(ctx), headers)
+	unfilteredResult, err := daemon.RegistryService.Search(ctx, term, limit, authConfig, dockerversion.DockerUserAgent(ctx), headers)
 	if err != nil {
 		return nil, err
 	}
