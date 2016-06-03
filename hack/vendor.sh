@@ -79,9 +79,9 @@ clone git github.com/vishvananda/netlink 631962935bff4f3d20ff32a72e8944f6d2836a2
 clone git github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
 clone git github.com/samuel/go-zookeeper d0e0d8e11f318e000a8cc434616d69e329edc374
 clone git github.com/deckarep/golang-set ef32fa3046d9f249d399f98ebaf9be944430fd1d
-clone git github.com/coreos/etcd v2.2.0
+clone git github.com/coreos/etcd v2.3.2
 fix_rewritten_imports github.com/coreos/etcd
-clone git github.com/ugorji/go 5abd4e96a45c386928ed2ca2a7ef63e2533e18ec
+clone git github.com/ugorji/go f1f1a805ed361a0e078bb537e4ea78cd37dcf065
 clone git github.com/hashicorp/consul v0.5.2
 clone git github.com/boltdb/bolt v1.2.1
 clone git github.com/miekg/dns 75e6e86cc601825c5dbcd4e0c209eab180997cd7

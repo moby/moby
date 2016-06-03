@@ -1,4 +1,4 @@
-// Copyright 2015 CoreOS, Inc.
+// Copyright 2016 CoreOS, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,8 +14,10 @@
 
 package client
 
-// Discoverer is an interface that wraps the Discover method.
-type Discoverer interface {
-	// Discover looks up the etcd servers for the domain.
-	Discover(domain string) ([]string, error)
+// IsKeyNotFound returns true if the error code is ErrorCodeKeyNotFound.
+func IsKeyNotFound(err error) bool {
+	if cErr, ok := err.(Error); ok {
+		return cErr.Code == ErrorCodeKeyNotFound
+	}
+	return false
 }
