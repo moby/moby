@@ -540,13 +540,16 @@ func (ep *endpoint) rename(name string) error {
 	n.updateSvcRecord(ep, n.getController().getLocalEps(netWatch), false)
 
 	oldName := ep.name
+	oldAnonymous := ep.anonymous
 	ep.name = name
+	ep.anonymous = false
 
 	n.updateSvcRecord(ep, n.getController().getLocalEps(netWatch), true)
 	defer func() {
 		if err != nil {
 			n.updateSvcRecord(ep, n.getController().getLocalEps(netWatch), false)
 			ep.name = oldName
+			ep.anonymous = oldAnonymous
 			n.updateSvcRecord(ep, n.getController().getLocalEps(netWatch), true)
 		}
 	}()
