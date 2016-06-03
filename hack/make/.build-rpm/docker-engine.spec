@@ -126,6 +126,7 @@ export DOCKER_GITCOMMIT=%{_gitcommit}
 install -d $RPM_BUILD_ROOT/%{_bindir}
 install -p -m 755 bundles/%{_origversion}/dynbinary-client/docker-%{_origversion} $RPM_BUILD_ROOT/%{_bindir}/docker
 install -p -m 755 bundles/%{_origversion}/dynbinary-daemon/dockerd-%{_origversion} $RPM_BUILD_ROOT/%{_bindir}/dockerd
+install -p -m 755 bundles/%{_origversion}/dynbinary-daemon/docker-proxy-%{_origversion} $RPM_BUILD_ROOT/%{_bindir}/docker-proxy
 
 # install containerd
 install -p -m 755 /usr/local/bin/containerd $RPM_BUILD_ROOT/%{_bindir}/docker-containerd
