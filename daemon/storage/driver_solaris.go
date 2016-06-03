@@ -1,6 +1,6 @@
 // +build solaris,cgo
 
-package graphdriver
+package storage
 
 /*
 #include <sys/statvfs.h>

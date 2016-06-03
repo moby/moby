@@ -21,7 +21,7 @@ import (
 	"unsafe"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/storage"
 )
 
 func checkRootdirFs(rootdir string) error {
@@ -34,7 +34,7 @@ func checkRootdirFs(rootdir string) error {
 		(buf.f_basetype[3] != 0) {
 		log.Debugf("[zfs] no zfs dataset found for rootdir '%s'", rootdir)
 		C.free(unsafe.Pointer(buf))
-		return graphdriver.ErrPrerequisites
+		return storage.ErrPrerequisites
 	}
 
 	C.free(unsafe.Pointer(buf))

@@ -73,7 +73,7 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 		RootFS:          rootFSToAPIType(img.RootFS),
 	}
 
-	imageInspect.GraphDriver.Name = daemon.GraphDriverName()
+	imageInspect.GraphDriver.Name = daemon.StorageDriverName()
 
 	imageInspect.GraphDriver.Data = layerMetadata
 

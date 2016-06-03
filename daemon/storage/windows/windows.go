@@ -55,7 +55,7 @@ func (c *checker) IsMounted(path string) bool {
 type Driver struct {
 	// info stores the shim driver information
 	info hcsshim.DriverInfo
-	ctr  *graphdriver.RefCounter
+	ctr  *storage.RefCounter
 	// it is safe for windows to use a cache here because it does not support
 	// restoring containers when the daemon dies.
 	cacheMu sync.Mutex
@@ -75,13 +75,13 @@ func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap)
 			Flavour: filterDriver,
 		},
 		cache: make(map[string]string),
-		ctr:   graphdriver.NewRefCounter(&checker{}),
+		ctr:   storage.NewRefCounter(&checker{}),
 	}
 	return d, nil
 }
 
 // String returns the string representation of a driver. This should match
-// the name the graph driver has been registered with.
+// the name the storage driver has been registered with.
 func (d *Driver) String() string {
 	return "windowsfilter"
 }

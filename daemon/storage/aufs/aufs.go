@@ -70,7 +70,7 @@ type Driver struct {
 	root          string
 	uidMaps       []idtools.IDMap
 	gidMaps       []idtools.IDMap
-	ctr           *graphdriver.RefCounter
+	ctr           *storage.RefCounter
 	pathCacheLock sync.Mutex
 	pathCache     map[string]string
 }
@@ -109,7 +109,7 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (stor
 		uidMaps:   uidMaps,
 		gidMaps:   gidMaps,
 		pathCache: make(map[string]string),
-		ctr:       graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicAufs)),
+		ctr:       storage.NewRefCounter(storage.NewFsChecker(storage.FsMagicAufs)),
 	}
 
 	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
