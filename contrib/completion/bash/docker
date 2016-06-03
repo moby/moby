@@ -189,6 +189,14 @@ __docker_complete_plugins() {
 	COMPREPLY=( $(compgen -W "$(__docker_plugins $1)" -- "$cur") )
 }
 
+__docker_runtimes() {
+	__docker_q info | sed -n 's/^Runtimes: \(.*\)/\1/p'
+}
+
+__docker_complete_runtimes() {
+	COMPREPLY=( $(compgen -W "$(__docker_runtimes)" -- "$cur") )
+}
+
 # Finds the position of the first word that is neither option nor an option's argument.
 # If there are options that require arguments, you should pass a glob describing those
 # options, e.g. "--option1|-o|--option2"
@@ -791,6 +799,7 @@ _docker_daemon() {
 	"
 	local options_with_args="
 		$global_options_with_args
+		--add-runtime
 		--api-cors-header
 		--authorization-plugin
 		--bip
@@ -1706,6 +1715,7 @@ _docker_run() {
 		--pids-limit
 		--publish -p
 		--restart
+		--runtime
 		--security-opt
 		--shm-size
 		--stop-signal
@@ -1882,6 +1892,10 @@ _docker_run() {
 					fi
 					;;
 			esac
+			return
+			;;
+		--runtime)
+			__docker_complete_runtimes
 			return
 			;;
 		--security-opt)
