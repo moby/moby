@@ -28,6 +28,10 @@ const (
 	// than this, the check is considered to have failed.
 	defaultProbeTimeout = 30 * time.Second
 
+	// Default number of consecutive failures of the health check
+	// for the container to be considered unhealthy.
+	defaultProbeRetries = 3
+
 	// Shut down a container if it becomes Unhealthy.
 	defaultExitOnUnhealthy = true
 
@@ -111,7 +115,7 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 
 	retries := c.Config.Healthcheck.Retries
 	if retries <= 0 {
-		retries = 1 // Default if unset or set to an invalid value
+		retries = defaultProbeRetries
 	}
 
 	h := c.State.Health
