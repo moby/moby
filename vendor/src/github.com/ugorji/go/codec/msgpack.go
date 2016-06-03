@@ -24,6 +24,7 @@ import (
 	"io"
 	"math"
 	"net/rpc"
+	"reflect"
 )
 
 const (
@@ -102,11 +103,11 @@ var (
 //---------------------------------------------
 
 type msgpackEncDriver struct {
+	noBuiltInTypes
+	encNoSeparator
 	e *Encoder
 	w encWriter
 	h *MsgpackHandle
-	noBuiltInTypes
-	encNoSeparator
 	x [8]byte
 }
 
@@ -270,7 +271,6 @@ type msgpackDecDriver struct {
 	bd     byte
 	bdRead bool
 	br     bool // bytes reader
-	bdType valueType
 	noBuiltInTypes
 	noStreamingCodec
 	decNoSeparator
@@ -281,106 +281,100 @@ type msgpackDecDriver struct {
 // It is called when a nil interface{} is passed, leaving it up to the DecDriver
 // to introspect the stream and decide how best to decode.
 // It deciphers the value by looking at the stream first.
-func (d *msgpackDecDriver) DecodeNaked() (v interface{}, vt valueType, decodeFurther bool) {
+func (d *msgpackDecDriver) DecodeNaked() {
 	if !d.bdRead {
 		d.readNextBd()
 	}
 	bd := d.bd
+	n := &d.d.n
+	var decodeFurther bool
 
 	switch bd {
 	case mpNil:
-		vt = valueTypeNil
+		n.v = valueTypeNil
 		d.bdRead = false
 	case mpFalse:
-		vt = valueTypeBool
-		v = false
+		n.v = valueTypeBool
+		n.b = false
 	case mpTrue:
-		vt = valueTypeBool
-		v = true
+		n.v = valueTypeBool
+		n.b = true
 
 	case mpFloat:
-		vt = valueTypeFloat
-		v = float64(math.Float32frombits(bigen.Uint32(d.r.readx(4))))
+		n.v = valueTypeFloat
+		n.f = float64(math.Float32frombits(bigen.Uint32(d.r.readx(4))))
 	case mpDouble:
-		vt = valueTypeFloat
-		v = math.Float64frombits(bigen.Uint64(d.r.readx(8)))
+		n.v = valueTypeFloat
+		n.f = math.Float64frombits(bigen.Uint64(d.r.readx(8)))
 
 	case mpUint8:
-		vt = valueTypeUint
-		v = uint64(d.r.readn1())
+		n.v = valueTypeUint
+		n.u = uint64(d.r.readn1())
 	case mpUint16:
-		vt = valueTypeUint
-		v = uint64(bigen.Uint16(d.r.readx(2)))
+		n.v = valueTypeUint
+		n.u = uint64(bigen.Uint16(d.r.readx(2)))
 	case mpUint32:
-		vt = valueTypeUint
-		v = uint64(bigen.Uint32(d.r.readx(4)))
+		n.v = valueTypeUint
+		n.u = uint64(bigen.Uint32(d.r.readx(4)))
 	case mpUint64:
-		vt = valueTypeUint
-		v = uint64(bigen.Uint64(d.r.readx(8)))
+		n.v = valueTypeUint
+		n.u = uint64(bigen.Uint64(d.r.readx(8)))
 
 	case mpInt8:
-		vt = valueTypeInt
-		v = int64(int8(d.r.readn1()))
+		n.v = valueTypeInt
+		n.i = int64(int8(d.r.readn1()))
 	case mpInt16:
-		vt = valueTypeInt
-		v = int64(int16(bigen.Uint16(d.r.readx(2))))
+		n.v = valueTypeInt
+		n.i = int64(int16(bigen.Uint16(d.r.readx(2))))
 	case mpInt32:
-		vt = valueTypeInt
-		v = int64(int32(bigen.Uint32(d.r.readx(4))))
+		n.v = valueTypeInt
+		n.i = int64(int32(bigen.Uint32(d.r.readx(4))))
 	case mpInt64:
-		vt = valueTypeInt
-		v = int64(int64(bigen.Uint64(d.r.readx(8))))
+		n.v = valueTypeInt
+		n.i = int64(int64(bigen.Uint64(d.r.readx(8))))
 
 	default:
 		switch {
 		case bd >= mpPosFixNumMin && bd <= mpPosFixNumMax:
 			// positive fixnum (always signed)
-			vt = valueTypeInt
-			v = int64(int8(bd))
+			n.v = valueTypeInt
+			n.i = int64(int8(bd))
 		case bd >= mpNegFixNumMin && bd <= mpNegFixNumMax:
 			// negative fixnum
-			vt = valueTypeInt
-			v = int64(int8(bd))
+			n.v = valueTypeInt
+			n.i = int64(int8(bd))
 		case bd == mpStr8, bd == mpStr16, bd == mpStr32, bd >= mpFixStrMin && bd <= mpFixStrMax:
 			if d.h.RawToString {
-				var rvm string
-				vt = valueTypeString
-				v = &rvm
+				n.v = valueTypeString
+				n.s = d.DecodeString()
 			} else {
-				var rvm = zeroByteSlice
-				vt = valueTypeBytes
-				v = &rvm
+				n.v = valueTypeBytes
+				n.l = d.DecodeBytes(nil, false, false)
 			}
-			decodeFurther = true
 		case bd == mpBin8, bd == mpBin16, bd == mpBin32:
-			var rvm = zeroByteSlice
-			vt = valueTypeBytes
-			v = &rvm
-			decodeFurther = true
+			n.v = valueTypeBytes
+			n.l = d.DecodeBytes(nil, false, false)
 		case bd == mpArray16, bd == mpArray32, bd >= mpFixArrayMin && bd <= mpFixArrayMax:
-			vt = valueTypeArray
+			n.v = valueTypeArray
 			decodeFurther = true
 		case bd == mpMap16, bd == mpMap32, bd >= mpFixMapMin && bd <= mpFixMapMax:
-			vt = valueTypeMap
+			n.v = valueTypeMap
 			decodeFurther = true
 		case bd >= mpFixExt1 && bd <= mpFixExt16, bd >= mpExt8 && bd <= mpExt32:
+			n.v = valueTypeExt
 			clen := d.readExtLen()
-			var re RawExt
-			re.Tag = uint64(d.r.readn1())
-			re.Data = d.r.readx(clen)
-			v = &re
-			vt = valueTypeExt
+			n.u = uint64(d.r.readn1())
+			n.l = d.r.readx(clen)
 		default:
 			d.d.errorf("Nil-Deciphered DecodeValue: %s: hex: %x, dec: %d", msgBadDesc, bd, bd)
-			return
 		}
 	}
 	if !decodeFurther {
 		d.bdRead = false
 	}
-	if vt == valueTypeUint && d.h.SignedInteger {
-		d.bdType = valueTypeInt
-		v = int64(v.(uint64))
+	if n.v == valueTypeUint && d.h.SignedInteger {
+		n.v = valueTypeInt
+		n.i = int64(n.v)
 	}
 	return
 }
@@ -536,15 +530,11 @@ func (d *msgpackDecDriver) DecodeBytes(bs []byte, isstring, zerocopy bool) (bsOu
 		d.readNextBd()
 	}
 	var clen int
-	if isstring {
-		clen = d.readContainerLen(msgpackContainerStr)
+	// ignore isstring. Expect that the bytes may be found from msgpackContainerStr or msgpackContainerBin
+	if bd := d.bd; bd == mpBin8 || bd == mpBin16 || bd == mpBin32 {
+		clen = d.readContainerLen(msgpackContainerBin)
 	} else {
-		// bytes can be decoded from msgpackContainerStr or msgpackContainerBin
-		if bd := d.bd; bd == mpBin8 || bd == mpBin16 || bd == mpBin32 {
-			clen = d.readContainerLen(msgpackContainerBin)
-		} else {
-			clen = d.readContainerLen(msgpackContainerStr)
-		}
+		clen = d.readContainerLen(msgpackContainerStr)
 	}
 	// println("DecodeBytes: clen: ", clen)
 	d.bdRead = false
@@ -569,28 +559,27 @@ func (d *msgpackDecDriver) DecodeString() (s string) {
 func (d *msgpackDecDriver) readNextBd() {
 	d.bd = d.r.readn1()
 	d.bdRead = true
-	d.bdType = valueTypeUnset
 }
 
-func (d *msgpackDecDriver) IsContainerType(vt valueType) bool {
+func (d *msgpackDecDriver) ContainerType() (vt valueType) {
 	bd := d.bd
-	switch vt {
-	case valueTypeNil:
-		return bd == mpNil
-	case valueTypeBytes:
-		return bd == mpBin8 || bd == mpBin16 || bd == mpBin32 ||
-			(!d.h.RawToString &&
-				(bd == mpStr8 || bd == mpStr16 || bd == mpStr32 || (bd >= mpFixStrMin && bd <= mpFixStrMax)))
-	case valueTypeString:
-		return d.h.RawToString &&
-			(bd == mpStr8 || bd == mpStr16 || bd == mpStr32 || (bd >= mpFixStrMin && bd <= mpFixStrMax))
-	case valueTypeArray:
-		return bd == mpArray16 || bd == mpArray32 || (bd >= mpFixArrayMin && bd <= mpFixArrayMax)
-	case valueTypeMap:
-		return bd == mpMap16 || bd == mpMap32 || (bd >= mpFixMapMin && bd <= mpFixMapMax)
+	if bd == mpNil {
+		return valueTypeNil
+	} else if bd == mpBin8 || bd == mpBin16 || bd == mpBin32 ||
+		(!d.h.RawToString &&
+			(bd == mpStr8 || bd == mpStr16 || bd == mpStr32 || (bd >= mpFixStrMin && bd <= mpFixStrMax))) {
+		return valueTypeBytes
+	} else if d.h.RawToString &&
+		(bd == mpStr8 || bd == mpStr16 || bd == mpStr32 || (bd >= mpFixStrMin && bd <= mpFixStrMax)) {
+		return valueTypeString
+	} else if bd == mpArray16 || bd == mpArray32 || (bd >= mpFixArrayMin && bd <= mpFixArrayMax) {
+		return valueTypeArray
+	} else if bd == mpMap16 || bd == mpMap32 || (bd >= mpFixMapMin && bd <= mpFixMapMax) {
+		return valueTypeMap
+	} else {
+		// d.d.errorf("isContainerType: unsupported parameter: %v", vt)
 	}
-	d.d.errorf("isContainerType: unsupported parameter: %v", vt)
-	return false // "unreachable"
+	return valueTypeUnset
 }
 
 func (d *msgpackDecDriver) TryDecodeAsNil() (v bool) {
@@ -617,7 +606,7 @@ func (d *msgpackDecDriver) readContainerLen(ct msgpackContainerType) (clen int) 
 	} else if (ct.bFixMin & bd) == ct.bFixMin {
 		clen = int(ct.bFixMin ^ bd)
 	} else {
-		d.d.errorf("readContainerLen: %s: hex: %x, dec: %d", msgBadDesc, bd, bd)
+		d.d.errorf("readContainerLen: %s: hex: %x, decimal: %d", msgBadDesc, bd, bd)
 		return
 	}
 	d.bdRead = false
@@ -704,7 +693,6 @@ func (d *msgpackDecDriver) decodeExtV(verifyTag bool, tag byte) (xtag byte, xbs 
 //MsgpackHandle is a Handle for the Msgpack Schema-Free Encoding Format.
 type MsgpackHandle struct {
 	BasicHandle
-	binaryEncodingType
 
 	// RawToString controls how raw bytes are decoded into a nil interface{}.
 	RawToString bool
@@ -720,6 +708,11 @@ type MsgpackHandle struct {
 	// type is provided (e.g. decoding into a nil interface{}), you get back
 	// a []byte or string based on the setting of RawToString.
 	WriteExt bool
+	binaryEncodingType
+}
+
+func (h *MsgpackHandle) SetBytesExt(rt reflect.Type, tag uint64, ext BytesExt) (err error) {
+	return h.SetExt(rt, tag, &setExtWrapper{b: ext})
 }
 
 func (h *MsgpackHandle) newEncDriver(e *Encoder) encDriver {
@@ -728,6 +721,14 @@ func (h *MsgpackHandle) newEncDriver(e *Encoder) encDriver {
 
 func (h *MsgpackHandle) newDecDriver(d *Decoder) decDriver {
 	return &msgpackDecDriver{d: d, r: d.r, h: h, br: d.bytes}
+}
+
+func (e *msgpackEncDriver) reset() {
+	e.w = e.e.w
+}
+
+func (d *msgpackDecDriver) reset() {
+	d.r = d.d.r
 }
 
 //--------------------------------------------------
