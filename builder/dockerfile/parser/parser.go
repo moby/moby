@@ -3,6 +3,7 @@ package parser
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"regexp"
@@ -152,8 +153,14 @@ func Parse(rwc io.Reader) (*Node, error) {
 	root.StartLine = -1
 	scanner := bufio.NewScanner(rwc)
 
+	utf8bom := []byte{0xEF, 0xBB, 0xBF}
 	for scanner.Scan() {
-		scannedLine := strings.TrimLeftFunc(scanner.Text(), unicode.IsSpace)
+		scannedBytes := scanner.Bytes()
+		// We trim UTF8 BOM
+		if currentLine == 0 {
+			scannedBytes = bytes.TrimPrefix(scannedBytes, utf8bom)
+		}
+		scannedLine := strings.TrimLeftFunc(string(scannedBytes), unicode.IsSpace)
 		currentLine++
 		line, child, err := ParseLine(scannedLine)
 		if err != nil {
