@@ -379,9 +379,13 @@ the working and the root directory.  For example, the patterns
 in the `foo` subdirectory of `PATH` or in the root of the git
 repository located at `URL`.  Neither excludes anything else.
 
+If a line in `.dockerignore` file starts with `#` in column 1, then this line is
+considered as a comment and is ignored before interpreted by the CLI.
+
 Here is an example `.dockerignore` file:
 
 ```
+# comment
     */temp*
     */*/temp*
     temp?
@@ -391,6 +395,7 @@ This file causes the following build behavior:
 
 | Rule           | Behavior                                                                                                                                                                     |
 |----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `# comment`    | Ignored.                 |
 | `*/temp*`      | Exclude files and directories whose names start with `temp` in any immediate subdirectory of the root.  For example, the plain file `/somedir/temporary.txt` is excluded, as is the directory `/somedir/temp`.                 |
 | `*/*/temp*`    | Exclude files and directories starting with `temp` from any subdirectory that is two levels below the root. For example, `/somedir/subdir/temporary.txt` is excluded. |
 | `temp?`        | Exclude files and directories in the root directory whose names are a one-character extension of `temp`.  For example, `/tempa` and `/tempb` are excluded.
