@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sort"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-events"
@@ -13,14 +14,24 @@ import (
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/networkdb"
+	"github.com/docker/libnetwork/types"
 	"github.com/gogo/protobuf/proto"
 )
+
+// ByTime implements sort.Interface for []*types.EncryptionKey based on
+// the LamportTime field.
+type ByTime []*types.EncryptionKey
+
+func (b ByTime) Len() int           { return len(b) }
+func (b ByTime) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
+func (b ByTime) Less(i, j int) bool { return b[i].LamportTime < b[j].LamportTime }
 
 type agent struct {
 	networkDB         *networkdb.NetworkDB
 	bindAddr          string
 	epTblCancel       func()
 	driverCancelFuncs map[string][]func()
+	keys              []*types.EncryptionKey
 }
 
 func getBindAddr(ifaceName string) (string, error) {
@@ -61,9 +72,69 @@ func resolveAddr(addrOrInterface string) (string, error) {
 	return getBindAddr(addrOrInterface)
 }
 
-func (c *controller) agentInit(bindAddrOrInterface string) error {
+func (c *controller) agentHandleKeys(keys []*types.EncryptionKey) error {
+	// Find the new key and add it to the key ring
+	a := c.agent
+	for _, key := range keys {
+		same := false
+		for _, aKey := range a.keys {
+			if same = aKey.LamportTime == key.LamportTime; same {
+				break
+			}
+		}
+		if !same {
+			a.keys = append(a.keys, key)
+			if key.Subsystem == "networking:gossip" {
+				a.networkDB.SetKey(key.Key)
+			}
+			break
+		}
+	}
+	// Find the deleted key. If the deleted key was the primary key,
+	// a new primary key should be set before removing if from keyring.
+	deleted := []byte{}
+	for i, aKey := range a.keys {
+		same := false
+		for _, key := range keys {
+			if same = key.LamportTime == aKey.LamportTime; same {
+				break
+			}
+		}
+		if !same {
+			if aKey.Subsystem == "networking:gossip" {
+				deleted = aKey.Key
+			}
+			a.keys = append(a.keys[:i], a.keys[i+1:]...)
+			break
+		}
+	}
+
+	sort.Sort(ByTime(a.keys))
+	for _, key := range a.keys {
+		if key.Subsystem == "networking:gossip" {
+			a.networkDB.SetPrimaryKey(key.Key)
+			break
+		}
+	}
+	if len(deleted) > 0 {
+		a.networkDB.RemoveKey(deleted)
+	}
+	return nil
+}
+
+func (c *controller) agentInit(bindAddrOrInterface string, keys []*types.EncryptionKey) error {
 	if !c.isAgent() {
 		return nil
+	}
+
+	// sort the keys by lamport time
+	sort.Sort(ByTime(keys))
+
+	gossipkey := [][]byte{}
+	for _, key := range keys {
+		if key.Subsystem == "networking:gossip" {
+			gossipkey = append(gossipkey, key.Key)
+		}
 	}
 
 	bindAddr, err := resolveAddr(bindAddrOrInterface)
@@ -75,6 +146,7 @@ func (c *controller) agentInit(bindAddrOrInterface string) error {
 	nDB, err := networkdb.New(&networkdb.Config{
 		BindAddr: bindAddr,
 		NodeName: hostname,
+		Keys:     gossipkey,
 	})
 
 	if err != nil {
@@ -88,6 +160,7 @@ func (c *controller) agentInit(bindAddrOrInterface string) error {
 		bindAddr:          bindAddr,
 		epTblCancel:       cancel,
 		driverCancelFuncs: make(map[string][]func()),
+		keys:              keys,
 	}
 
 	go c.handleTableEvents(ch, c.handleEpTableEvent)

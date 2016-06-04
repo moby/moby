@@ -16,6 +16,15 @@ const (
 	IPv6
 )
 
+// EncryptionKey is the libnetwork representation of the key distributed by the lead
+// manager.
+type EncryptionKey struct {
+	Subsystem   string
+	Algorithm   int32
+	Key         []byte
+	LamportTime uint64
+}
+
 // UUID represents a globally unique ID of various resources like network and endpoint
 type UUID string
 
