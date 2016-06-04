@@ -18,7 +18,8 @@ func NoArgs(cmd *cobra.Command, args []string) error {
 	}
 
 	return fmt.Errorf(
-		"\"%s\" accepts no argument(s).\n\nUsage:  %s\n\n%s",
+		"\"%s\" accepts no argument(s).\nSee '%s --help'.\n\nUsage:  %s\n\n%s",
+		cmd.CommandPath(),
 		cmd.CommandPath(),
 		cmd.UseLine(),
 		cmd.Short,
@@ -32,9 +33,10 @@ func RequiresMinArgs(min int) cobra.PositionalArgs {
 			return nil
 		}
 		return fmt.Errorf(
-			"\"%s\" requires at least %d argument(s).\n\nUsage:  %s\n\n%s",
+			"\"%s\" requires at least %d argument(s).\nSee '%s --help'.\n\nUsage:  %s\n\n%s",
 			cmd.CommandPath(),
 			min,
+			cmd.CommandPath(),
 			cmd.UseLine(),
 			cmd.Short,
 		)
@@ -48,9 +50,10 @@ func ExactArgs(number int) cobra.PositionalArgs {
 			return nil
 		}
 		return fmt.Errorf(
-			"\"%s\" requires exactly %d argument(s).\n\nUsage:  %s\n\n%s",
+			"\"%s\" requires exactly %d argument(s).\nSee '%s --help'.\n\nUsage:  %s\n\n%s",
 			cmd.CommandPath(),
 			number,
+			cmd.CommandPath(),
 			cmd.UseLine(),
 			cmd.Short,
 		)
