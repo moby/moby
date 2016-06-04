@@ -894,7 +894,7 @@ func (s *DockerSuite) TestRunSysctls(c *check.C) {
 
 	runCmd := exec.Command(dockerBinary, "run", "--sysctl", "kernel.foobar=1", "--name", "test2", "busybox", "cat", "/proc/sys/kernel/foobar")
 	out, _, _ = runCommandWithOutput(runCmd)
-	if !strings.Contains(out, "invalid value") {
+	if !strings.Contains(out, "invalid argument") {
 		c.Fatalf("expected --sysctl to fail, got %s", out)
 	}
 }

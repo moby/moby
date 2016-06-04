@@ -1,9 +1,8 @@
 package cobraadaptor
 
 import (
-	"fmt"
-
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/client/container"
 	"github.com/docker/docker/api/client/image"
 	"github.com/docker/docker/api/client/volume"
 	"github.com/docker/docker/cli"
@@ -31,11 +30,13 @@ func NewCobraAdaptor(clientFlags *cliflags.ClientFlags) CobraAdaptor {
 	}
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.SetHelpTemplate(helpTemplate)
-	rootCmd.SetFlagErrorFunc(flagErrorFunc)
+	rootCmd.SetFlagErrorFunc(cli.FlagErrorFunc)
 	rootCmd.SetOutput(stdout)
 	rootCmd.AddCommand(
-		volume.NewVolumeCommand(dockerCli),
+		container.NewCreateCommand(dockerCli),
+		container.NewRunCommand(dockerCli),
 		image.NewSearchCommand(dockerCli),
+		volume.NewVolumeCommand(dockerCli),
 	)
 
 	rootCmd.PersistentFlags().BoolP("help", "h", false, "Print usage")
@@ -52,7 +53,7 @@ func NewCobraAdaptor(clientFlags *cliflags.ClientFlags) CobraAdaptor {
 func (c CobraAdaptor) Usage() []cli.Command {
 	cmds := []cli.Command{}
 	for _, cmd := range c.rootCmd.Commands() {
-		cmds = append(cmds, cli.Command{Name: cmd.Use, Description: cmd.Short})
+		cmds = append(cmds, cli.Command{Name: cmd.Name(), Description: cmd.Short})
 	}
 	return cmds
 }
@@ -74,20 +75,6 @@ func (c CobraAdaptor) Command(name string) func(...string) error {
 		}
 	}
 	return nil
-}
-
-// flagErrorFunc prints an error messages which matches the format of the
-// docker/docker/cli error messages
-func flagErrorFunc(cmd *cobra.Command, err error) error {
-	if err == nil {
-		return err
-	}
-
-	usage := ""
-	if cmd.HasSubCommands() {
-		usage = "\n\n" + cmd.UsageString()
-	}
-	return fmt.Errorf("%s\nSee '%s --help'.%s", err, cmd.CommandPath(), usage)
 }
 
 var usageTemplate = `Usage:	{{if not .HasSubCommands}}{{if .HasLocalFlags}}{{appendIfNotPresent .UseLine "[OPTIONS]"}}{{else}}{{.UseLine}}{{end}}{{end}}{{if .HasSubCommands}}{{ .CommandPath}} COMMAND{{end}}

@@ -40,7 +40,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	authConfig := cli.ResolveAuthConfig(ctx, repoInfo.Index)
 	requestPrivilege := cli.RegistryAuthenticationPrivilegedFunc(repoInfo.Index, "push")
 
-	if isTrusted() {
+	if IsTrusted() {
 		return cli.trustedPush(ctx, repoInfo, ref, authConfig, requestPrivilege)
 	}
 
