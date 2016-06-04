@@ -6758,6 +6758,11 @@ func (s *DockerSuite) TestBuildDeleteCommittedFile(c *check.C) {
 
 // #20083
 func (s *DockerSuite) TestBuildDockerignoreComment(c *check.C) {
+	// TODO Windows: Figure out why this test is flakey on TP5. If you add
+	// something like RUN sleep 5, or even RUN ls /tmp after the ADD line,
+	// it is more reliable, but that's not a good fix.
+	testRequires(c, DaemonIsLinux)
+
 	name := "testbuilddockerignorecleanpaths"
 	dockerfile := `
         FROM busybox
