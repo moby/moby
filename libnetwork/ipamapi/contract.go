@@ -80,5 +80,10 @@ type Ipam interface {
 
 // Capability represents the requirements and capabilities of the IPAM driver
 type Capability struct {
+	// Whether on address request, libnetwork must
+	// specify the endpoint MAC address
 	RequiresMACAddress bool
+	// Whether of daemon start, libnetwork must replay the pool
+	// request and the address request for current local networks
+	RequiresRequestReplay bool
 }

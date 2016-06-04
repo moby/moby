@@ -86,7 +86,7 @@ func TestGetCapabilities(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !caps.RequiresMACAddress {
+	if !caps.RequiresMACAddress || caps.RequiresRequestReplay {
 		t.Fatalf("Unexpected capability: %v", caps)
 	}
 }
