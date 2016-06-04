@@ -770,6 +770,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 
 	c.Lock()
 	if sb.ingress && c.ingressSandbox != nil {
+		c.Unlock()
 		return nil, fmt.Errorf("ingress sandbox already present")
 	}
 
