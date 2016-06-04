@@ -131,6 +131,9 @@ clone git golang.org/x/oauth2 2baa8a1b9338cf13d9eeb27696d761155fa480be https://g
 clone git google.golang.org/api dc6d2353af16e2a2b0ff6986af051d473a4ed468 https://code.googlesource.com/google-api-go-client
 clone git google.golang.org/cloud dae7e3d993bc3812a2185af60552bb6b847e52a0 https://code.googlesource.com/gocloud
 
+# native credentials
+clone git github.com/docker/docker-credential-helpers v0.3.0
+
 # containerd
 clone git github.com/docker/containerd 57b7c3da915ebe943bd304c00890959b191e5264
 
