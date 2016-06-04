@@ -148,6 +148,10 @@ func (s *syslogger) Name() string {
 	return name
 }
 
+func (s *syslogger) UpdateConfig(cfg map[string]string) error {
+	return nil
+}
+
 func parseAddress(address string) (string, string, error) {
 	if address == "" {
 		return "", "", nil

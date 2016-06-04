@@ -145,3 +145,31 @@ func (l *JSONFileLogger) Close() error {
 func (l *JSONFileLogger) Name() string {
 	return Name
 }
+
+// Update logging configuration
+func (l *JSONFileLogger) UpdateConfig(cfg map[string]string) error {
+	defer l.mu.Unlock()
+	l.mu.Lock()
+	for key, val := range cfg {
+		switch key {
+		case "max-file":
+			maxFiles, err := strconv.Atoi(val)
+			if err != nil {
+				return err
+			}
+			if maxFiles < 1 {
+				return fmt.Errorf("max-file cannot be less than 1")
+			}
+			l.writer.SetMaxFiles(maxFiles)
+		case "max-size":
+			capval, err := units.FromHumanSize(val)
+			if err != nil {
+				return err
+			}
+			l.writer.SetCapacity(capval)
+		default:
+			return fmt.Errorf("unknown log opt '%s' for json-file log driver", key)
+		}
+	}
+	return nil
+}

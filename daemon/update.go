@@ -82,6 +82,11 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 			restoreConfig = true
 			return errCannotUpdate(container.ID, err)
 		}
+
+		if err := container.UpdateLogConfig(hostConfig.LogConfig); err != nil {
+			restoreConfig = true
+			return errCannotUpdate(container.ID, err)
+		}
 	}
 
 	daemon.LogContainerEvent(container, "update")

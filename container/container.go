@@ -895,6 +895,11 @@ func (container *Container) UpdateMonitor(restartPolicy containertypes.RestartPo
 	}
 }
 
+// UpdateLogConfig updates logging options for running container
+func (container *Container) UpdateLogConfig(logConfig containertypes.LogConfig) error {
+	return container.LogDriver.UpdateConfig(logConfig.Config)
+}
+
 // FullHostname returns hostname and optional domain appended to it.
 func (container *Container) FullHostname() string {
 	fullHostname := container.Config.Hostname

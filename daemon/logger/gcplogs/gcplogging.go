@@ -189,3 +189,7 @@ func (l *gcplogs) Close() error {
 func (l *gcplogs) Name() string {
 	return name
 }
+
+func (l *gcplogs) UpdateConfig(cfg map[string]string) error {
+	return nil
+}

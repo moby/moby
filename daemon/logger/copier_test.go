@@ -28,6 +28,8 @@ func (l *TestLoggerJSON) Close() error { return nil }
 
 func (l *TestLoggerJSON) Name() string { return "json" }
 
+func (l *TestLoggerJSON) UpdateConfig(map[string]string) error { return nil }
+
 func TestCopier(t *testing.T) {
 	stdoutLine := "Line that thinks that it is log line from docker stdout"
 	stderrLine := "Line that thinks that it is log line from docker stderr"

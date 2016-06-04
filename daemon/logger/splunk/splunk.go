@@ -196,6 +196,10 @@ func (l *splunkLogger) Name() string {
 	return driverName
 }
 
+func (l *splunkLogger) UpdateConfig(cfg map[string]string) error {
+	return nil
+}
+
 // ValidateLogOpt looks for all supported by splunk driver options
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
