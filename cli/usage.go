@@ -39,7 +39,6 @@ var DockerCommandUsage = []Command{
 	{"rmi", "Remove one or more images"},
 	{"run", "Run a command in a new container"},
 	{"save", "Save one or more images to a tar archive"},
-	{"search", "Search the Docker Hub for images"},
 	{"start", "Start one or more stopped containers"},
 	{"stats", "Display a live stream of container(s) resource usage statistics"},
 	{"stop", "Stop a running container"},

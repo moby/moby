@@ -36,12 +36,12 @@ func (s *DockerSuite) TestSearchStarsOptionWithWrongParameter(c *check.C) {
 	// -s --stars deprecated since Docker 1.13
 	out, _, err = dockerCmdWithError("search", "--stars=a", "busybox")
 	c.Assert(err, check.NotNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "invalid value", check.Commentf("couldn't find the invalid value warning"))
+	c.Assert(out, checker.Contains, "invalid syntax", check.Commentf("couldn't find the invalid value warning"))
 
 	// -s --stars deprecated since Docker 1.13
 	out, _, err = dockerCmdWithError("search", "-s=-1", "busybox")
 	c.Assert(err, check.NotNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "invalid value", check.Commentf("couldn't find the invalid value warning"))
+	c.Assert(out, checker.Contains, "invalid syntax", check.Commentf("couldn't find the invalid value warning"))
 }
 
 func (s *DockerSuite) TestSearchCmdOptions(c *check.C) {

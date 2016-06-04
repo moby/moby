@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/client/image"
 	"github.com/docker/docker/api/client/volume"
 	"github.com/docker/docker/cli"
 	cliflags "github.com/docker/docker/cli/flags"
@@ -34,6 +35,7 @@ func NewCobraAdaptor(clientFlags *cliflags.ClientFlags) CobraAdaptor {
 	rootCmd.SetOutput(stdout)
 	rootCmd.AddCommand(
 		volume.NewVolumeCommand(dockerCli),
+		image.NewSearchCommand(dockerCli),
 	)
 
 	rootCmd.PersistentFlags().BoolP("help", "h", false, "Print usage")

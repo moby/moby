@@ -37,8 +37,8 @@ func (cli *DockerCli) electAuthServer(ctx context.Context) string {
 	return serverAddress
 }
 
-// encodeAuthToBase64 serializes the auth configuration as JSON base64 payload
-func encodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
+// EncodeAuthToBase64 serializes the auth configuration as JSON base64 payload
+func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 	buf, err := json.Marshal(authConfig)
 	if err != nil {
 		return "", err
@@ -46,7 +46,9 @@ func encodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 	return base64.URLEncoding.EncodeToString(buf), nil
 }
 
-func (cli *DockerCli) registryAuthenticationPrivilegedFunc(index *registrytypes.IndexInfo, cmdName string) types.RequestPrivilegeFunc {
+// RegistryAuthenticationPrivilegedFunc return a RequestPrivilegeFunc from the specified registry index info
+// for the given command.
+func (cli *DockerCli) RegistryAuthenticationPrivilegedFunc(index *registrytypes.IndexInfo, cmdName string) types.RequestPrivilegeFunc {
 	return func() (string, error) {
 		fmt.Fprintf(cli.out, "\nPlease login prior to %s:\n", cmdName)
 		indexServer := registry.GetAuthConfigKey(index)
@@ -54,7 +56,7 @@ func (cli *DockerCli) registryAuthenticationPrivilegedFunc(index *registrytypes.
 		if err != nil {
 			return "", err
 		}
-		return encodeAuthToBase64(authConfig)
+		return EncodeAuthToBase64(authConfig)
 	}
 }
 
@@ -182,10 +184,10 @@ func copyToFile(outfile string, r io.Reader) error {
 	return nil
 }
 
-// resolveAuthConfig is like registry.ResolveAuthConfig, but if using the
+// ResolveAuthConfig is like registry.ResolveAuthConfig, but if using the
 // default index, it uses the default index name for the daemon's platform,
 // not the client's platform.
-func (cli *DockerCli) resolveAuthConfig(ctx context.Context, index *registrytypes.IndexInfo) types.AuthConfig {
+func (cli *DockerCli) ResolveAuthConfig(ctx context.Context, index *registrytypes.IndexInfo) types.AuthConfig {
 	configKey := index.Name
 	if index.Official {
 		configKey = cli.electAuthServer(ctx)
