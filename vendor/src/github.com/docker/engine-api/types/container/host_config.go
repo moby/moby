@@ -269,6 +269,7 @@ type UpdateConfig struct {
 	// Contains container's resources (cgroups, ulimits)
 	Resources
 	RestartPolicy RestartPolicy
+	LogConfig     LogConfig
 }
 
 // HostConfig the non-portable Config structure of a container.
