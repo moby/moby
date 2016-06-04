@@ -499,6 +499,10 @@ func (daemon *Daemon) Volumes(filter string) ([]*types.Volume, []string, error) 
 	}
 
 	volumes, warnings, err := daemon.volumes.List()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	filterVolumes, err := daemon.filterVolumes(volumes, volFilters)
 	if err != nil {
 		return nil, nil, err
