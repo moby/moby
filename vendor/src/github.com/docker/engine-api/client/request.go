@@ -112,7 +112,7 @@ func (cli *Client) sendClientRequest(ctx context.Context, method, path string, q
 			return serverResp, fmt.Errorf("%v.\n* Are you trying to connect to a TLS-enabled daemon without TLS?", err)
 		}
 
-		if cli.transport.Secure() && strings.Contains(err.Error(), "remote error: bad certificate") {
+		if cli.transport.Secure() && strings.Contains(err.Error(), "bad certificate") {
 			return serverResp, fmt.Errorf("The server probably has client authentication (--tlsverify) enabled. Please check your TLS client certification settings: %v", err)
 		}
 
