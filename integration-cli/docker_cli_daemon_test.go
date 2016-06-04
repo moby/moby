@@ -1474,7 +1474,7 @@ func (s *DockerDaemonSuite) TestTlsVerify(c *check.C) {
 // by using a rogue client certificate and checks that it fails with the expected error.
 func (s *DockerDaemonSuite) TestHttpsInfoRogueCert(c *check.C) {
 	const (
-		errBadCertificate   = "remote error: bad certificate"
+		errBadCertificate   = "bad certificate"
 		testDaemonHTTPSAddr = "tcp://localhost:4271"
 	)
 
