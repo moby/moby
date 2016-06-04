@@ -48,18 +48,10 @@ var (
 	errInvalidNetwork  = fmt.Errorf("invalid network settings while building port map info")
 )
 
-// AttachError represents errors of attach
-type AttachError interface {
-	IsDetached() bool
-}
+// DetachError is special error which returned in case of container detach.
+type DetachError struct{}
 
-type detachError struct{}
-
-func (e detachError) IsDetached() bool {
-	return true
-}
-
-func (e detachError) Error() string {
+func (DetachError) Error() string {
 	return "detached from container"
 }
 
@@ -507,7 +499,7 @@ func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64
 				}
 				if i == len(keys)-1 {
 					src.Close()
-					return 0, detachError{}
+					return 0, DetachError{}
 				}
 				nr, er = src.Read(buf)
 			}
