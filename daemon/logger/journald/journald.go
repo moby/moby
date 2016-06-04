@@ -50,7 +50,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	}
 
 	// parse log tag
-	tag, err := loggerutils.ParseLogTag(ctx, "")
+	tag, err := loggerutils.ParseLogTag(ctx, loggerutils.DefaultTemplate)
 	if err != nil {
 		return nil, err
 	}

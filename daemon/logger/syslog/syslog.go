@@ -90,7 +90,7 @@ func rfc5424microformatterWithAppNameAsTag(p syslog.Priority, hostname, tag, con
 // the context. Supported context configuration variables are
 // syslog-address, syslog-facility, syslog-format.
 func New(ctx logger.Context) (logger.Logger, error) {
-	tag, err := loggerutils.ParseLogTag(ctx, "{{.DaemonName}}/{{.ID}}")
+	tag, err := loggerutils.ParseLogTag(ctx, loggerutils.DefaultTemplate)
 	if err != nil {
 		return nil, err
 	}

@@ -131,7 +131,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	nullMessage.SourceType = ctx.Config[splunkSourceTypeKey]
 	nullMessage.Index = ctx.Config[splunkIndexKey]
 
-	tag, err := loggerutils.ParseLogTag(ctx, "{{.ID}}")
+	tag, err := loggerutils.ParseLogTag(ctx, loggerutils.DefaultTemplate)
 	if err != nil {
 		return nil, err
 	}
