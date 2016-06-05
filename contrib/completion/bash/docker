@@ -980,9 +980,11 @@ _docker_events() {
 				create
 				delete
 				destroy
+				detach
 				die
 				disconnect
 				exec_create
+				exec_detach
 				exec_start
 				export
 				import
