@@ -117,6 +117,9 @@ type NetworkController interface {
 
 	// Wait for agent initialization complete in libnetwork controller
 	AgentInitWait()
+
+	// SetKeys configures the encryption key for gossip and overlay data path
+	SetKeys(keys []*types.EncryptionKey) error
 }
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.
@@ -130,23 +133,25 @@ type SandboxWalker func(sb Sandbox) bool
 type sandboxTable map[string]*sandbox
 
 type controller struct {
-	id              string
-	drvRegistry     *drvregistry.DrvRegistry
-	sandboxes       sandboxTable
-	cfg             *config.Config
-	stores          []datastore.DataStore
-	discovery       hostdiscovery.HostDiscovery
-	extKeyListener  net.Listener
-	watchCh         chan *endpoint
-	unWatchCh       chan *endpoint
-	svcRecords      map[string]svcInfo
-	nmap            map[string]*netWatch
-	serviceBindings map[string]*service
-	defOsSbox       osl.Sandbox
-	ingressSandbox  *sandbox
-	sboxOnce        sync.Once
-	agent           *agent
-	agentInitDone   chan struct{}
+	id                     string
+	drvRegistry            *drvregistry.DrvRegistry
+	sandboxes              sandboxTable
+	cfg                    *config.Config
+	stores                 []datastore.DataStore
+	discovery              hostdiscovery.HostDiscovery
+	extKeyListener         net.Listener
+	watchCh                chan *endpoint
+	unWatchCh              chan *endpoint
+	svcRecords             map[string]svcInfo
+	nmap                   map[string]*netWatch
+	serviceBindings        map[string]*service
+	defOsSbox              osl.Sandbox
+	ingressSandbox         *sandbox
+	sboxOnce               sync.Once
+	agent                  *agent
+	agentInitDone          chan struct{}
+	keys                   []*types.EncryptionKey
+	clusterConfigAvailable bool
 	sync.Mutex
 }
 
@@ -220,55 +225,38 @@ func isValidClusteringIP(addr string) bool {
 	return addr != "" && !net.ParseIP(addr).IsLoopback() && !net.ParseIP(addr).IsUnspecified()
 }
 
+// libnetwork side of agent depends on the keys. On the first receipt of
+// keys setup the agent. For subsequent key set handle the key change
+func (c *controller) SetKeys(keys []*types.EncryptionKey) error {
+	if len(c.keys) == 0 {
+		c.keys = keys
+		if c.agent != nil {
+			return (fmt.Errorf("libnetwork agent setup without keys"))
+		}
+		if c.clusterConfigAvailable {
+			return c.agentSetup()
+		}
+		log.Debugf("received encryption keys before cluster config")
+		return nil
+	}
+	if c.agent == nil {
+		c.keys = keys
+		return nil
+	}
+	return c.handleKeyChange(keys)
+}
+
 func (c *controller) clusterAgentInit() {
 	clusterProvider := c.cfg.Daemon.ClusterProvider
 	for {
 		select {
 		case <-clusterProvider.ListenClusterEvents():
+			c.clusterConfigAvailable = true
 			if !c.isDistributedControl() {
-				keys := clusterProvider.GetNetworkKeys()
-				// If the agent is already setup this could be a key change notificaiton
-				if c.agent != nil {
-					c.agentHandleKeys(keys)
-				}
-
-				bindAddr, _, _ := net.SplitHostPort(clusterProvider.GetListenAddress())
-				remote := clusterProvider.GetRemoteAddress()
-				remoteAddr, _, _ := net.SplitHostPort(remote)
-
-				// Determine the BindAddress from RemoteAddress or through best-effort routing
-				if !isValidClusteringIP(bindAddr) {
-					if !isValidClusteringIP(remoteAddr) {
-						remote = "8.8.8.8:53"
-					}
-					conn, err := net.Dial("udp", remote)
-					if err == nil {
-						bindHostPort := conn.LocalAddr().String()
-						bindAddr, _, _ = net.SplitHostPort(bindHostPort)
-						conn.Close()
-					}
-				}
-
-				if bindAddr != "" && len(keys) > 0 && c.agent == nil {
-					if err := c.agentInit(bindAddr, keys); err != nil {
-						log.Errorf("Error in agentInit : %v", err)
-					} else {
-						c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
-							if capability.DataScope == datastore.GlobalScope {
-								c.agentDriverNotify(driver)
-							}
-							return false
-						})
-
-						if c.agent != nil {
-							close(c.agentInitDone)
-						}
-					}
-				}
-				if remoteAddr != "" {
-					if err := c.agentJoin(remoteAddr); err != nil {
-						log.Errorf("Error in agentJoin : %v", err)
-					}
+				// agent initialization needs encyrption keys and bind/remote IP which
+				// comes from the daemon cluster events
+				if len(c.keys) > 0 {
+					c.agentSetup()
 				}
 			} else {
 				c.agentInitDone = make(chan struct{})

@@ -31,7 +31,6 @@ type agent struct {
 	bindAddr          string
 	epTblCancel       func()
 	driverCancelFuncs map[string][]func()
-	keys              []*types.EncryptionKey
 }
 
 func getBindAddr(ifaceName string) (string, error) {
@@ -72,18 +71,18 @@ func resolveAddr(addrOrInterface string) (string, error) {
 	return getBindAddr(addrOrInterface)
 }
 
-func (c *controller) agentHandleKeys(keys []*types.EncryptionKey) error {
+func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	// Find the new key and add it to the key ring
 	a := c.agent
 	for _, key := range keys {
 		same := false
-		for _, aKey := range a.keys {
-			if same = aKey.LamportTime == key.LamportTime; same {
+		for _, cKey := range c.keys {
+			if same = cKey.LamportTime == key.LamportTime; same {
 				break
 			}
 		}
 		if !same {
-			a.keys = append(a.keys, key)
+			c.keys = append(c.keys, key)
 			if key.Subsystem == "networking:gossip" {
 				a.networkDB.SetKey(key.Key)
 			}
@@ -93,24 +92,24 @@ func (c *controller) agentHandleKeys(keys []*types.EncryptionKey) error {
 	// Find the deleted key. If the deleted key was the primary key,
 	// a new primary key should be set before removing if from keyring.
 	deleted := []byte{}
-	for i, aKey := range a.keys {
+	for i, cKey := range c.keys {
 		same := false
 		for _, key := range keys {
-			if same = key.LamportTime == aKey.LamportTime; same {
+			if same = key.LamportTime == cKey.LamportTime; same {
 				break
 			}
 		}
 		if !same {
-			if aKey.Subsystem == "networking:gossip" {
-				deleted = aKey.Key
+			if cKey.Subsystem == "networking:gossip" {
+				deleted = cKey.Key
 			}
-			a.keys = append(a.keys[:i], a.keys[i+1:]...)
+			c.keys = append(c.keys[:i], c.keys[i+1:]...)
 			break
 		}
 	}
 
-	sort.Sort(ByTime(a.keys))
-	for _, key := range a.keys {
+	sort.Sort(ByTime(c.keys))
+	for _, key := range c.keys {
 		if key.Subsystem == "networking:gossip" {
 			a.networkDB.SetPrimaryKey(key.Key)
 			break
@@ -122,16 +121,60 @@ func (c *controller) agentHandleKeys(keys []*types.EncryptionKey) error {
 	return nil
 }
 
-func (c *controller) agentInit(bindAddrOrInterface string, keys []*types.EncryptionKey) error {
+func (c *controller) agentSetup() error {
+	clusterProvider := c.cfg.Daemon.ClusterProvider
+
+	bindAddr, _, _ := net.SplitHostPort(clusterProvider.GetListenAddress())
+	remote := clusterProvider.GetRemoteAddress()
+	remoteAddr, _, _ := net.SplitHostPort(remote)
+
+	// Determine the BindAddress from RemoteAddress or through best-effort routing
+	if !isValidClusteringIP(bindAddr) {
+		if !isValidClusteringIP(remoteAddr) {
+			remote = "8.8.8.8:53"
+		}
+		conn, err := net.Dial("udp", remote)
+		if err == nil {
+			bindHostPort := conn.LocalAddr().String()
+			bindAddr, _, _ = net.SplitHostPort(bindHostPort)
+			conn.Close()
+		}
+	}
+
+	if bindAddr != "" && c.agent == nil {
+		if err := c.agentInit(bindAddr); err != nil {
+			logrus.Errorf("Error in agentInit : %v", err)
+		} else {
+			c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+				if capability.DataScope == datastore.GlobalScope {
+					c.agentDriverNotify(driver)
+				}
+				return false
+			})
+
+			if c.agent != nil {
+				close(c.agentInitDone)
+			}
+		}
+	}
+	if remoteAddr != "" {
+		if err := c.agentJoin(remoteAddr); err != nil {
+			logrus.Errorf("Error in agentJoin : %v", err)
+		}
+	}
+	return nil
+}
+
+func (c *controller) agentInit(bindAddrOrInterface string) error {
 	if !c.isAgent() {
 		return nil
 	}
 
 	// sort the keys by lamport time
-	sort.Sort(ByTime(keys))
+	sort.Sort(ByTime(c.keys))
 
 	gossipkey := [][]byte{}
-	for _, key := range keys {
+	for _, key := range c.keys {
 		if key.Subsystem == "networking:gossip" {
 			gossipkey = append(gossipkey, key.Key)
 		}
@@ -160,7 +203,6 @@ func (c *controller) agentInit(bindAddrOrInterface string, keys []*types.Encrypt
 		bindAddr:          bindAddr,
 		epTblCancel:       cancel,
 		driverCancelFuncs: make(map[string][]func()),
-		keys:              keys,
 	}
 
 	go c.handleTableEvents(ch, c.handleEpTableEvent)
