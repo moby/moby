@@ -163,7 +163,7 @@ func (r *DrvRegistry) initIPAMs(lDs, gDs interface{}) error {
 		remoteIpam.Init,
 		nullIpam.Init,
 	} {
-		if err := fn(r, lDs, gDs); err != nil {
+		if err := fn(r, nil, gDs); err != nil {
 			return err
 		}
 	}

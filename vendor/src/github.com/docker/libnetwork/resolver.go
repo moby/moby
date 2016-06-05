@@ -275,15 +275,48 @@ func (r *resolver) handlePTRQuery(ptr string, query *dns.Msg) (*dns.Msg, error) 
 	return resp, nil
 }
 
+func (r *resolver) handleSRVQuery(svc string, query *dns.Msg) (*dns.Msg, error) {
+	srv, ip, err := r.sb.ResolveService(svc)
+
+	if err != nil {
+		return nil, err
+	}
+	if len(srv) != len(ip) {
+		return nil, fmt.Errorf("invalid reply for SRV query %s", svc)
+	}
+
+	resp := createRespMsg(query)
+
+	for i, r := range srv {
+		rr := new(dns.SRV)
+		rr.Hdr = dns.RR_Header{Name: svc, Rrtype: dns.TypePTR, Class: dns.ClassINET, Ttl: respTTL}
+		rr.Port = r.Port
+		rr.Target = r.Target
+		resp.Answer = append(resp.Answer, rr)
+
+		rr1 := new(dns.A)
+		rr1.Hdr = dns.RR_Header{Name: r.Target, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: respTTL}
+		rr1.A = ip[i]
+		resp.Extra = append(resp.Extra, rr1)
+	}
+	return resp, nil
+
+}
+
 func truncateResp(resp *dns.Msg, maxSize int, isTCP bool) {
 	if !isTCP {
 		resp.Truncated = true
 	}
 
+	srv := resp.Question[0].Qtype == dns.TypeSRV
 	// trim the Answer RRs one by one till the whole message fits
 	// within the reply size
 	for resp.Len() > maxSize {
 		resp.Answer = resp.Answer[:len(resp.Answer)-1]
+
+		if srv && len(resp.Extra) > 0 {
+			resp.Extra = resp.Extra[:len(resp.Extra)-1]
+		}
 	}
 }
 
@@ -299,12 +332,16 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 		return
 	}
 	name := query.Question[0].Name
-	if query.Question[0].Qtype == dns.TypeA {
+
+	switch query.Question[0].Qtype {
+	case dns.TypeA:
 		resp, err = r.handleIPQuery(name, query, types.IPv4)
-	} else if query.Question[0].Qtype == dns.TypeAAAA {
+	case dns.TypeAAAA:
 		resp, err = r.handleIPQuery(name, query, types.IPv6)
-	} else if query.Question[0].Qtype == dns.TypePTR {
+	case dns.TypePTR:
 		resp, err = r.handlePTRQuery(name, query)
+	case dns.TypeSRV:
+		resp, err = r.handleSRVQuery(name, query)
 	}
 
 	if err != nil {

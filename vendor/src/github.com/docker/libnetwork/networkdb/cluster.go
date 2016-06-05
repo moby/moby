@@ -10,7 +10,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/hashicorp/memberlist"
-	"github.com/hashicorp/serf/serf"
 )
 
 const reapInterval = 2 * time.Second
@@ -185,7 +184,8 @@ func (nDB *NetworkDB) reapTableEntries() {
 func (nDB *NetworkDB) gossip() {
 	networkNodes := make(map[string][]string)
 	nDB.RLock()
-	for nid := range nDB.networks[nDB.config.NodeName] {
+	thisNodeNetworks := nDB.networks[nDB.config.NodeName]
+	for nid := range thisNodeNetworks {
 		networkNodes[nid] = nDB.networkNodes[nid]
 
 	}
@@ -196,8 +196,17 @@ func (nDB *NetworkDB) gossip() {
 		bytesAvail := udpSendBuf - compoundHeaderOverhead
 
 		nDB.RLock()
-		broadcastQ := nDB.networks[nDB.config.NodeName][nid].tableBroadcasts
+		network, ok := thisNodeNetworks[nid]
 		nDB.RUnlock()
+		if !ok || network == nil {
+			// It is normal for the network to be removed
+			// between the time we collect the network
+			// attachments of this node and processing
+			// them here.
+			continue
+		}
+
+		broadcastQ := network.tableBroadcasts
 
 		if broadcastQ == nil {
 			logrus.Errorf("Invalid broadcastQ encountered while gossiping for network %s", nid)
@@ -222,19 +231,11 @@ func (nDB *NetworkDB) gossip() {
 			}
 
 			// Send the compound message
-			if err := nDB.memberlist.SendToUDP(mnode, compound.Bytes()); err != nil {
+			if err := nDB.memberlist.SendToUDP(mnode, compound); err != nil {
 				logrus.Errorf("Failed to send gossip to %s: %s", mnode.Addr, err)
 			}
 		}
 	}
-}
-
-type bulkSyncMessage struct {
-	LTime       serf.LamportTime
-	Unsolicited bool
-	NodeName    string
-	Networks    []string
-	Payload     []byte
 }
 
 func (nDB *NetworkDB) bulkSyncTables() {
@@ -331,8 +332,8 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 			}
 
 			params := strings.Split(path[1:], "/")
-			tEvent := tableEventData{
-				Event:     tableEntryCreate,
+			tEvent := TableEvent{
+				Type:      TableEventTypeCreate,
 				LTime:     entry.ltime,
 				NodeName:  entry.node,
 				NetworkID: nid,
@@ -341,7 +342,7 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 				Value:     entry.value,
 			}
 
-			msg, err := encodeMessage(tableEventMsg, &tEvent)
+			msg, err := encodeMessage(MessageTypeTableEvent, &tEvent)
 			if err != nil {
 				logrus.Errorf("Encode failure during bulk sync: %#v", tEvent)
 				return false
@@ -356,15 +357,15 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 	// Create a compound message
 	compound := makeCompoundMessage(msgs)
 
-	bsm := bulkSyncMessage{
+	bsm := BulkSyncMessage{
 		LTime:       nDB.tableClock.Time(),
 		Unsolicited: unsolicited,
 		NodeName:    nDB.config.NodeName,
 		Networks:    networks,
-		Payload:     compound.Bytes(),
+		Payload:     compound,
 	}
 
-	buf, err := encodeMessage(bulkSyncMsg, &bsm)
+	buf, err := encodeMessage(MessageTypeBulkSync, &bsm)
 	if err != nil {
 		return fmt.Errorf("failed to encode bulk sync message: %v", err)
 	}

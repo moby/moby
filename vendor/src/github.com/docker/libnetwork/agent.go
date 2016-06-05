@@ -1,10 +1,11 @@
 package libnetwork
 
+//go:generate protoc -I.:Godeps/_workspace/src/github.com/gogo/protobuf  --gogo_out=import_path=github.com/docker/libnetwork,Mgogoproto/gogo.proto=github.com/gogo/protobuf/gogoproto:. agent.proto
+
 import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-events"
@@ -12,6 +13,7 @@ import (
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/networkdb"
+	"github.com/gogo/protobuf/proto"
 )
 
 type agent struct {
@@ -165,12 +167,25 @@ func (ep *endpoint) addToCluster() error {
 
 	c := n.getController()
 	if !ep.isAnonymous() && ep.Iface().Address() != nil {
-		if err := c.addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.Iface().Address().IP); err != nil {
+		if ep.svcID != "" {
+			if err := c.addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.virtualIP, ep.Iface().Address().IP); err != nil {
+				return err
+			}
+		}
+
+		buf, err := proto.Marshal(&EndpointRecord{
+			Name:        ep.Name(),
+			ServiceName: ep.svcName,
+			ServiceID:   ep.svcID,
+			VirtualIP:   ep.virtualIP.String(),
+			EndpointIP:  ep.Iface().Address().IP.String(),
+		})
+
+		if err != nil {
 			return err
 		}
 
-		if err := c.agent.networkDB.CreateEntry("endpoint_table", n.ID(), ep.ID(), []byte(fmt.Sprintf("%s,%s,%s,%s", ep.Name(), ep.svcName,
-			ep.svcID, ep.Iface().Address().IP))); err != nil {
+		if err := c.agent.networkDB.CreateEntry("endpoint_table", n.ID(), ep.ID(), buf); err != nil {
 			return err
 		}
 	}
@@ -192,8 +207,8 @@ func (ep *endpoint) deleteFromCluster() error {
 
 	c := n.getController()
 	if !ep.isAnonymous() {
-		if ep.Iface().Address() != nil {
-			if err := c.rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.Iface().Address().IP); err != nil {
+		if ep.svcID != "" && ep.Iface().Address() != nil {
+			if err := c.rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.virtualIP, ep.Iface().Address().IP); err != nil {
 				return err
 			}
 		}
@@ -310,20 +325,21 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 	var (
 		nid   string
 		eid   string
-		value string
+		value []byte
 		isAdd bool
+		epRec EndpointRecord
 	)
 
 	switch event := ev.(type) {
 	case networkdb.CreateEvent:
 		nid = event.NetworkID
 		eid = event.Key
-		value = string(event.Value)
+		value = event.Value
 		isAdd = true
 	case networkdb.DeleteEvent:
 		nid = event.NetworkID
 		eid = event.Key
-		value = string(event.Value)
+		value = event.Value
 	case networkdb.UpdateEvent:
 		logrus.Errorf("Unexpected update service table event = %#v", event)
 	}
@@ -335,16 +351,17 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 	}
 	n := nw.(*network)
 
-	vals := strings.Split(value, ",")
-	if len(vals) < 4 {
-		logrus.Errorf("Incorrect service table value = %s", value)
+	err = proto.Unmarshal(value, &epRec)
+	if err != nil {
+		logrus.Errorf("Failed to unmarshal service table value: %v", err)
 		return
 	}
 
-	name := vals[0]
-	svcName := vals[1]
-	svcID := vals[2]
-	ip := net.ParseIP(vals[3])
+	name := epRec.Name
+	svcName := epRec.ServiceName
+	svcID := epRec.ServiceID
+	vip := net.ParseIP(epRec.VirtualIP)
+	ip := net.ParseIP(epRec.EndpointIP)
 
 	if name == "" || ip == nil {
 		logrus.Errorf("Invalid endpoint name/ip received while handling service table event %s", value)
@@ -352,16 +369,20 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 	}
 
 	if isAdd {
-		if err := c.addServiceBinding(svcName, svcID, nid, eid, ip); err != nil {
-			logrus.Errorf("Failed adding service binding for value %s: %v", value, err)
-			return
+		if svcID != "" {
+			if err := c.addServiceBinding(svcName, svcID, nid, eid, vip, ip); err != nil {
+				logrus.Errorf("Failed adding service binding for value %s: %v", value, err)
+				return
+			}
 		}
 
 		n.addSvcRecords(name, ip, nil, true)
 	} else {
-		if err := c.rmServiceBinding(svcName, svcID, nid, eid, ip); err != nil {
-			logrus.Errorf("Failed adding service binding for value %s: %v", value, err)
-			return
+		if svcID != "" {
+			if err := c.rmServiceBinding(svcName, svcID, nid, eid, vip, ip); err != nil {
+				logrus.Errorf("Failed adding service binding for value %s: %v", value, err)
+				return
+			}
 		}
 
 		n.deleteSvcRecords(name, ip, nil, true)

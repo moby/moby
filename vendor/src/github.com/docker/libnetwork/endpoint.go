@@ -69,6 +69,7 @@ type endpoint struct {
 	myAliases         []string
 	svcID             string
 	svcName           string
+	virtualIP         net.IP
 	dbIndex           uint64
 	dbExists          bool
 	sync.Mutex
@@ -93,6 +94,7 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 	epMap["myAliases"] = ep.myAliases
 	epMap["svcName"] = ep.svcName
 	epMap["svcID"] = ep.svcID
+	epMap["virtualIP"] = ep.virtualIP.String()
 
 	return json.Marshal(epMap)
 }
@@ -186,6 +188,10 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 		ep.svcID = si.(string)
 	}
 
+	if vip, ok := epMap["virtualIP"]; ok {
+		ep.virtualIP = net.ParseIP(vip.(string))
+	}
+
 	ma, _ := json.Marshal(epMap["myAliases"])
 	var myAliases []string
 	json.Unmarshal(ma, &myAliases)
@@ -212,6 +218,7 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp.disableResolution = ep.disableResolution
 	dstEp.svcName = ep.svcName
 	dstEp.svcID = ep.svcID
+	dstEp.virtualIP = ep.virtualIP
 
 	if ep.iface != nil {
 		dstEp.iface = &endpointInterface{}
@@ -533,13 +540,16 @@ func (ep *endpoint) rename(name string) error {
 	n.updateSvcRecord(ep, n.getController().getLocalEps(netWatch), false)
 
 	oldName := ep.name
+	oldAnonymous := ep.anonymous
 	ep.name = name
+	ep.anonymous = false
 
 	n.updateSvcRecord(ep, n.getController().getLocalEps(netWatch), true)
 	defer func() {
 		if err != nil {
 			n.updateSvcRecord(ep, n.getController().getLocalEps(netWatch), false)
 			ep.name = oldName
+			ep.anonymous = oldAnonymous
 			n.updateSvcRecord(ep, n.getController().getLocalEps(netWatch), true)
 		}
 	}()
@@ -892,10 +902,11 @@ func CreateOptionAlias(name string, alias string) EndpointOption {
 }
 
 // CreateOptionService function returns an option setter for setting service binding configuration
-func CreateOptionService(name, id string) EndpointOption {
+func CreateOptionService(name, id string, vip net.IP) EndpointOption {
 	return func(ep *endpoint) {
 		ep.svcName = name
 		ep.svcID = id
+		ep.virtualIP = vip
 	}
 }
 

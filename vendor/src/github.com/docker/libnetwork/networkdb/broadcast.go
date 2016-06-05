@@ -5,20 +5,6 @@ import (
 	"github.com/hashicorp/serf/serf"
 )
 
-type networkEventType uint8
-
-const (
-	networkJoin networkEventType = 1 + iota
-	networkLeave
-)
-
-type networkEventData struct {
-	Event     networkEventType
-	LTime     serf.LamportTime
-	NodeName  string
-	NetworkID string
-}
-
 type networkEventMessage struct {
 	id   string
 	node string
@@ -37,15 +23,15 @@ func (m *networkEventMessage) Message() []byte {
 func (m *networkEventMessage) Finished() {
 }
 
-func (nDB *NetworkDB) sendNetworkEvent(nid string, event networkEventType, ltime serf.LamportTime) error {
-	nEvent := networkEventData{
-		Event:     event,
+func (nDB *NetworkDB) sendNetworkEvent(nid string, event NetworkEvent_Type, ltime serf.LamportTime) error {
+	nEvent := NetworkEvent{
+		Type:      event,
 		LTime:     ltime,
 		NodeName:  nDB.config.NodeName,
 		NetworkID: nid,
 	}
 
-	raw, err := encodeMessage(networkEventMsg, &nEvent)
+	raw, err := encodeMessage(MessageTypeNetworkEvent, &nEvent)
 	if err != nil {
 		return err
 	}
@@ -56,24 +42,6 @@ func (nDB *NetworkDB) sendNetworkEvent(nid string, event networkEventType, ltime
 		node: nDB.config.NodeName,
 	})
 	return nil
-}
-
-type tableEventType uint8
-
-const (
-	tableEntryCreate tableEventType = 1 + iota
-	tableEntryUpdate
-	tableEntryDelete
-)
-
-type tableEventData struct {
-	Event     tableEventType
-	LTime     serf.LamportTime
-	NetworkID string
-	TableName string
-	NodeName  string
-	Value     []byte
-	Key       string
 }
 
 type tableEventMessage struct {
@@ -96,9 +64,9 @@ func (m *tableEventMessage) Message() []byte {
 func (m *tableEventMessage) Finished() {
 }
 
-func (nDB *NetworkDB) sendTableEvent(event tableEventType, nid string, tname string, key string, entry *entry) error {
-	tEvent := tableEventData{
-		Event:     event,
+func (nDB *NetworkDB) sendTableEvent(event TableEvent_Type, nid string, tname string, key string, entry *entry) error {
+	tEvent := TableEvent{
+		Type:      event,
 		LTime:     entry.ltime,
 		NodeName:  nDB.config.NodeName,
 		NetworkID: nid,
@@ -107,7 +75,7 @@ func (nDB *NetworkDB) sendTableEvent(event tableEventType, nid string, tname str
 		Value:     entry.value,
 	}
 
-	raw, err := encodeMessage(tableEventMsg, &tEvent)
+	raw, err := encodeMessage(MessageTypeTableEvent, &tEvent)
 	if err != nil {
 		return err
 	}
