@@ -10,7 +10,6 @@ type Command struct {
 var DockerCommandUsage = []Command{
 	{"exec", "Run a command in a running container"},
 	{"inspect", "Return low-level information on a container, image or task"},
-	{"update", "Update configuration of one or more containers"},
 }
 
 // DockerCommands stores all the docker command
