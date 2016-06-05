@@ -38,7 +38,6 @@ var DockerCommandUsage = []Command{
 	{"save", "Save one or more images to a tar archive"},
 	{"start", "Start one or more stopped containers"},
 	{"stats", "Display a live stream of container(s) resource usage statistics"},
-	{"stop", "Stop a running container"},
 	{"tag", "Tag an image into a repository"},
 	{"top", "Display the running processes of a container"},
 	{"unpause", "Unpause all processes within a container"},
