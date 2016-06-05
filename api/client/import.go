@@ -1,7 +1,6 @@
 package client
 
 import (
-	"fmt"
 	"io"
 	"os"
 
@@ -31,18 +30,11 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 
 	var (
 		in      io.Reader
-		tag     string
 		src     = cmd.Arg(0)
 		srcName = src
 		ref     = cmd.Arg(1)
 		changes = flChanges.GetAll()
 	)
-
-	if cmd.NArg() == 3 {
-		// FIXME(vdemeester) Which version has this been deprecated ? should we remove it ?
-		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'file|URL|- [REPOSITORY [TAG]]' has been deprecated. Please use file|URL|- [REPOSITORY[:TAG]]\n")
-		tag = cmd.Arg(2)
-	}
 
 	if src == "-" {
 		in = cli.in
@@ -63,7 +55,6 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 
 	options := types.ImageImportOptions{
 		Message: *message,
-		Tag:     tag,
 		Changes: changes,
 	}
 
