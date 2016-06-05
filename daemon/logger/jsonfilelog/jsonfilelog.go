@@ -146,7 +146,7 @@ func (l *JSONFileLogger) Name() string {
 	return Name
 }
 
-// Update logging configuration
+// UpdateConfig updates logging configuration
 func (l *JSONFileLogger) UpdateConfig(cfg map[string]string) error {
 	defer l.mu.Unlock()
 	l.mu.Lock()
