@@ -204,3 +204,34 @@ func (cli *DockerCli) retrieveAuthConfigs() map[string]types.AuthConfig {
 	acs, _ := getAllCredentials(cli.configFile)
 	return acs
 }
+
+// ForwardAllSignals forwards signals to the contianer
+// TODO: this can be unexported again once all container commands are under
+// api/client/container
+func (cli *DockerCli) ForwardAllSignals(ctx context.Context, cid string) chan os.Signal {
+	sigc := make(chan os.Signal, 128)
+	signal.CatchAll(sigc)
+	go func() {
+		for s := range sigc {
+			if s == signal.SIGCHLD || s == signal.SIGPIPE {
+				continue
+			}
+			var sig string
+			for sigStr, sigN := range signal.SignalMap {
+				if sigN == s {
+					sig = sigStr
+					break
+				}
+			}
+			if sig == "" {
+				fmt.Fprintf(cli.err, "Unsupported signal: %v. Discarding.\n", s)
+				continue
+			}
+
+			if err := cli.client.ContainerKill(ctx, cid, sig); err != nil {
+				logrus.Debugf("Error sending signal: %s", err)
+			}
+		}
+	}()
+	return sigc
+}
