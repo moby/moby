@@ -44,7 +44,7 @@ attaching to a tty-enabled container (i.e.: launched with `-t`).
 # Override the detach sequence
 
 If you want, you can configure an override the Docker key sequence for detach.
-This is is useful if the Docker default sequence conflicts with key squence you
+This is useful if the Docker default sequence conflicts with key sequence you
 use for other applications. There are two ways to defines a your own detach key
 sequence, as a per-container override or as a configuration property on  your
 entire configuration.
