@@ -137,17 +137,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 				c.Fatal(err)
 			}
 		}
-
-		// Number of commands for standard release and experimental release
-		standard := 41
-		experimental := 1
-		expected := standard + experimental
-		if isLocalDaemon {
-			expected++ // for the daemon command
-		}
-		c.Assert(len(cmds), checker.LessOrEqualThan, expected, check.Commentf("Wrong # of cmds, it should be: %d\nThe list:\n%q", expected, cmds))
 	}
-
 }
 
 func (s *DockerSuite) TestHelpExitCodesHelpOutput(c *check.C) {
