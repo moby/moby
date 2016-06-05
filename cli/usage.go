@@ -24,7 +24,6 @@ var DockerCommandUsage = []Command{
 	{"login", "Log in to a Docker registry"},
 	{"logout", "Log out from a Docker registry"},
 	{"pause", "Pause all processes within a container"},
-	{"port", "List port mappings or a specific mapping for the CONTAINER"},
 	{"ps", "List containers"},
 	{"pull", "Pull an image or a repository from a registry"},
 	{"push", "Push an image or a repository to a registry"},

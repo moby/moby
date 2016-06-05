@@ -43,6 +43,24 @@ func RequiresMinArgs(min int) cobra.PositionalArgs {
 	}
 }
 
+// RequiresMinMaxArgs returns an error if there is not at least min args and at most max args
+func RequiresMinMaxArgs(min int, max int) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		if len(args) >= min && len(args) <= max {
+			return nil
+		}
+		return fmt.Errorf(
+			"\"%s\" requires at least %d and at most %d argument(s).\nSee '%s --help'.\n\nUsage:  %s\n\n%s",
+			cmd.CommandPath(),
+			min,
+			max,
+			cmd.CommandPath(),
+			cmd.UseLine(),
+			cmd.Short,
+		)
+	}
+}
+
 // ExactArgs returns an error if there is not the exact number of args
 func ExactArgs(number int) cobra.PositionalArgs {
 	return func(cmd *cobra.Command, args []string) error {
