@@ -37,6 +37,6 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 		return err
 	}
 
-	return copyToFile(*outfile, responseBody)
+	return CopyToFile(*outfile, responseBody)
 
 }

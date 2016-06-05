@@ -162,7 +162,8 @@ func (cli *DockerCli) GetTtySize() (int, int) {
 	return int(ws.Height), int(ws.Width)
 }
 
-func copyToFile(outfile string, r io.Reader) error {
+// CopyToFile writes the content of the reader to the specifed file
+func CopyToFile(outfile string, r io.Reader) error {
 	tmpFile, err := ioutil.TempFile(filepath.Dir(outfile), ".docker_temp_")
 	if err != nil {
 		return err

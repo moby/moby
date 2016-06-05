@@ -15,7 +15,6 @@ var DockerCommandUsage = []Command{
 	{"diff", "Inspect changes on a container's filesystem"},
 	{"events", "Get real time events from the server"},
 	{"exec", "Run a command in a running container"},
-	{"export", "Export a container's filesystem as a tar archive"},
 	{"history", "Show the history of an image"},
 	{"images", "List images"},
 	{"import", "Import the contents from a tarball to create a filesystem image"},
