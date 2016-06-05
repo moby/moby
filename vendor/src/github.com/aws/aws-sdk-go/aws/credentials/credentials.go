@@ -53,8 +53,8 @@ import (
 	"time"
 )
 
-// Create an empty Credential object that can be used as dummy placeholder
-// credentials for requests that do not need signed.
+// AnonymousCredentials is an empty Credential object that can be used as
+// dummy placeholder credentials for requests that do not need signed.
 //
 // This Credentials can be used to configure a service to not sign requests
 // when making service API calls. For example, when accessing public
@@ -76,6 +76,9 @@ type Value struct {
 
 	// AWS Session Token
 	SessionToken string
+
+	// Provider used to get credentials
+	ProviderName string
 }
 
 // A Provider is the interface for any component which will provide credentials

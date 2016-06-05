@@ -47,8 +47,8 @@ func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
 		},
 	}
 	buildHandlerList.Run(request)
-	expectedUserAgentString := fmt.Sprintf("Docker %s (%s) %s/%s",
-		dockerversion.Version, runtime.GOOS, aws.SDKName, aws.SDKVersion)
+	expectedUserAgentString := fmt.Sprintf("Docker %s (%s) %s/%s (%s; %s; %s)",
+		dockerversion.Version, runtime.GOOS, aws.SDKName, aws.SDKVersion, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 	userAgent := request.HTTPRequest.Header.Get("User-Agent")
 	if userAgent != expectedUserAgentString {
 		t.Errorf("Wrong User-Agent string, expected \"%s\" but was \"%s\"",

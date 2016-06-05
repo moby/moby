@@ -14,9 +14,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/defaults"
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/dockerversion"
@@ -66,11 +66,8 @@ type regionFinder interface {
 
 type byTimestamp []*cloudwatchlogs.InputLogEvent
 
-// init registers the awslogs driver and sets the default region, if provided
+// init registers the awslogs driver
 func init() {
-	if os.Getenv(regionEnvKey) != "" {
-		defaults.DefaultConfig.Region = aws.String(os.Getenv(regionEnvKey))
-	}
 	if err := logger.RegisterLogDriver(name, New); err != nil {
 		logrus.Fatal(err)
 	}
@@ -113,7 +110,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 // newRegionFinder is a variable such that the implementation
 // can be swapped out for unit tests.
 var newRegionFinder = func() regionFinder {
-	return ec2metadata.New(nil)
+	return ec2metadata.New(session.New())
 }
 
 // newAWSLogsClient creates the service client for Amazon CloudWatch Logs.
@@ -121,28 +118,30 @@ var newRegionFinder = func() regionFinder {
 // User-Agent string and automatic region detection using the EC2 Instance
 // Metadata Service when region is otherwise unspecified.
 func newAWSLogsClient(ctx logger.Context) (api, error) {
-	config := defaults.DefaultConfig
-	if ctx.Config[regionKey] != "" {
-		config = defaults.DefaultConfig.Merge(&aws.Config{
-			Region: aws.String(ctx.Config[regionKey]),
-		})
+	var region *string
+	if os.Getenv(regionEnvKey) != "" {
+		region = aws.String(os.Getenv(regionEnvKey))
 	}
-	if config.Region == nil || *config.Region == "" {
+	if ctx.Config[regionKey] != "" {
+		region = aws.String(ctx.Config[regionKey])
+	}
+	if region == nil || *region == "" {
 		logrus.Info("Trying to get region from EC2 Metadata")
 		ec2MetadataClient := newRegionFinder()
-		region, err := ec2MetadataClient.Region()
+		r, err := ec2MetadataClient.Region()
 		if err != nil {
 			logrus.WithFields(logrus.Fields{
 				"error": err,
 			}).Error("Could not get region from EC2 metadata, environment, or log option")
 			return nil, errors.New("Cannot determine region for awslogs driver")
 		}
-		config.Region = &region
+		region = &r
 	}
 	logrus.WithFields(logrus.Fields{
-		"region": *config.Region,
+		"region": *region,
 	}).Debug("Created awslogs client")
-	client := cloudwatchlogs.New(config)
+
+	client := cloudwatchlogs.New(session.New(), aws.NewConfig().WithRegion(*region))
 
 	client.Handlers.Build.PushBackNamed(request.NamedHandler{
 		Name: "DockerUserAgentHandler",
