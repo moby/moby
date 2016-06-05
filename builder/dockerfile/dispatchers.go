@@ -274,8 +274,8 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 // RUN some command yo
 //
 // run a command and commit the image. Args are automatically prepended with
-// 'sh -c' under linux or 'cmd /S /C' under Windows, in the event there is
-// only one argument. The difference in processing:
+// the current SHELL which defaults to 'sh -c' under linux or 'cmd /S /C' under
+// Windows, in the event there is only one argument The difference in processing:
 //
 // RUN echo hi          # sh -c echo hi       (Linux)
 // RUN echo hi          # cmd /S /C echo hi   (Windows)
@@ -293,13 +293,8 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	args = handleJSONArgs(args, attributes)
 
 	if !attributes["json"] {
-		if runtime.GOOS != "windows" {
-			args = append([]string{"/bin/sh", "-c"}, args...)
-		} else {
-			args = append([]string{"cmd", "/S", "/C"}, args...)
-		}
+		args = append(getShell(b.runConfig), args...)
 	}
-
 	config := &container.Config{
 		Cmd:   strslice.StrSlice(args),
 		Image: b.image,
@@ -408,11 +403,7 @@ func cmd(b *Builder, args []string, attributes map[string]bool, original string)
 	cmdSlice := handleJSONArgs(args, attributes)
 
 	if !attributes["json"] {
-		if runtime.GOOS != "windows" {
-			cmdSlice = append([]string{"/bin/sh", "-c"}, cmdSlice...)
-		} else {
-			cmdSlice = append([]string{"cmd", "/S", "/C"}, cmdSlice...)
-		}
+		cmdSlice = append(getShell(b.runConfig), cmdSlice...)
 	}
 
 	b.runConfig.Cmd = strslice.StrSlice(cmdSlice)
@@ -535,8 +526,8 @@ func healthcheck(b *Builder, args []string, attributes map[string]bool, original
 
 // ENTRYPOINT /usr/sbin/nginx
 //
-// Set the entrypoint (which defaults to sh -c on linux, or cmd /S /C on Windows) to
-// /usr/sbin/nginx. Will accept the CMD as the arguments to /usr/sbin/nginx.
+// Set the entrypoint to /usr/sbin/nginx. Will accept the CMD as the arguments
+// to /usr/sbin/nginx. Uses the default shell if not in JSON format.
 //
 // Handles command processing similar to CMD and RUN, only b.runConfig.Entrypoint
 // is initialized at NewBuilder time instead of through argument parsing.
@@ -557,11 +548,7 @@ func entrypoint(b *Builder, args []string, attributes map[string]bool, original 
 		b.runConfig.Entrypoint = nil
 	default:
 		// ENTRYPOINT echo hi
-		if runtime.GOOS != "windows" {
-			b.runConfig.Entrypoint = strslice.StrSlice{"/bin/sh", "-c", parsed[0]}
-		} else {
-			b.runConfig.Entrypoint = strslice.StrSlice{"cmd", "/S", "/C", parsed[0]}
-		}
+		b.runConfig.Entrypoint = strslice.StrSlice(append(getShell(b.runConfig), parsed[0]))
 	}
 
 	// when setting the entrypoint if a CMD was not explicitly set then
@@ -727,6 +714,28 @@ func arg(b *Builder, args []string, attributes map[string]bool, original string)
 	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("ARG %s", arg))
 }
 
+// SHELL powershell -command
+//
+// Set the non-default shell to use.
+func shell(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if err := b.flags.Parse(); err != nil {
+		return err
+	}
+	shellSlice := handleJSONArgs(args, attributes)
+	switch {
+	case len(shellSlice) == 0:
+		// SHELL []
+		return errAtLeastOneArgument("SHELL")
+	case attributes["json"]:
+		// SHELL ["powershell", "-command"]
+		b.runConfig.Shell = strslice.StrSlice(shellSlice)
+	default:
+		// SHELL powershell -command - not JSON
+		return errNotJSON("SHELL", original)
+	}
+	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("SHELL %v", shellSlice))
+}
+
 func errAtLeastOneArgument(command string) error {
 	return fmt.Errorf("%s requires at least one argument", command)
 }
@@ -737,4 +746,13 @@ func errExactlyOneArgument(command string) error {
 
 func errTooManyArguments(command string) error {
 	return fmt.Errorf("Bad input to %s, too many arguments", command)
+}
+
+// getShell is a helper function which gets the right shell for prefixing the
+// shell-form of RUN, ENTRYPOINT and CMD instructions
+func getShell(c *container.Config) []string {
+	if 0 == len(c.Shell) {
+		return defaultShell[:]
+	}
+	return c.Shell[:]
 }

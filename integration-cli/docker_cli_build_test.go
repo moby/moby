@@ -6834,3 +6834,146 @@ func (s *DockerSuite) TestBuildWithUTF8BOMDockerignore(c *check.C) {
 		c.Fatal(err)
 	}
 }
+
+// #22489 Shell test to confirm config gets updated correctly
+func (s *DockerSuite) TestBuildShellUpdatesConfig(c *check.C) {
+	name := "testbuildshellupdatesconfig"
+
+	expected := `["foo","-bar","#(nop) ","SHELL [foo -bar]"]`
+	_, err := buildImage(name,
+		`FROM `+minimalBaseImage()+`
+        SHELL ["foo", "-bar"]`,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	res := inspectFieldJSON(c, name, "ContainerConfig.Cmd")
+	if res != expected {
+		c.Fatalf("%s, expected %s", res, expected)
+	}
+	res = inspectFieldJSON(c, name, "ContainerConfig.Shell")
+	if res != `["foo","-bar"]` {
+		c.Fatalf(`%s, expected ["foo","-bar"]`, res)
+	}
+}
+
+// #22489 Changing the shell multiple times and CMD after.
+func (s *DockerSuite) TestBuildShellMultiple(c *check.C) {
+	name := "testbuildshellmultiple"
+
+	_, out, _, err := buildImageWithStdoutStderr(name,
+		`FROM busybox
+		RUN echo defaultshell
+		SHELL ["echo"]
+		RUN echoshell
+		SHELL ["ls"]
+		RUN -l
+		CMD -l`,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	// Must contain 'defaultshell' twice
+	if len(strings.Split(out, "defaultshell")) != 3 {
+		c.Fatalf("defaultshell should have appeared twice in %s", out)
+	}
+
+	// Must contain 'echoshell' twice
+	if len(strings.Split(out, "echoshell")) != 3 {
+		c.Fatalf("echoshell should have appeared twice in %s", out)
+	}
+
+	// Must contain "total " (part of ls -l)
+	if !strings.Contains(out, "total ") {
+		c.Fatalf("%s should have contained 'total '", out)
+	}
+
+	// A container started from the image uses the shell-form CMD.
+	// Last shell is ls. CMD is -l. So should contain 'total '.
+	outrun, _ := dockerCmd(c, "run", "--rm", name)
+	if !strings.Contains(outrun, "total ") {
+		c.Fatalf("Expected started container to run ls -l. %s", outrun)
+	}
+}
+
+// #22489. Changed SHELL with ENTRYPOINT
+func (s *DockerSuite) TestBuildShellEntrypoint(c *check.C) {
+	name := "testbuildshellentrypoint"
+
+	_, err := buildImage(name,
+		`FROM busybox
+		SHELL ["ls"]
+		ENTRYPOINT -l`,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	// A container started from the image uses the shell-form ENTRYPOINT.
+	// Shell is ls. ENTRYPOINT is -l. So should contain 'total '.
+	outrun, _ := dockerCmd(c, "run", "--rm", name)
+	if !strings.Contains(outrun, "total ") {
+		c.Fatalf("Expected started container to run ls -l. %s", outrun)
+	}
+}
+
+// #22489 Shell test to confirm shell is inherited in a subsequent build
+func (s *DockerSuite) TestBuildShellInherited(c *check.C) {
+	name1 := "testbuildshellinherited1"
+	_, err := buildImage(name1,
+		`FROM busybox
+        SHELL ["ls"]`,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	name2 := "testbuildshellinherited2"
+	_, out, _, err := buildImageWithStdoutStderr(name2,
+		`FROM `+name1+`
+        RUN -l`,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	// ls -l has "total " followed by some number in it, ls without -l does not.
+	if !strings.Contains(out, "total ") {
+		c.Fatalf("Should have seen total in 'ls -l'.\n%s", out)
+	}
+}
+
+// #22489 Shell test to confirm non-JSON doesn't work
+func (s *DockerSuite) TestBuildShellNotJSON(c *check.C) {
+	name := "testbuildshellnotjson"
+
+	_, err := buildImage(name,
+		`FROM `+minimalBaseImage()+`
+        sHeLl exec -form`, // Casing explicit to ensure error is upper-cased.
+		true)
+	if err == nil {
+		c.Fatal("Image build should have failed")
+	}
+	if !strings.Contains(err.Error(), "SHELL requires the arguments to be in JSON form") {
+		c.Fatal("Error didn't indicate that arguments must be in JSON form")
+	}
+}
+
+// #22489 Windows shell test to confirm native is powershell if executing a PS command
+// This would error if the default shell were still cmd.
+func (s *DockerSuite) TestBuildShellWindowsPowershell(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	name := "testbuildshellpowershell"
+	_, out, err := buildImageWithOut(name,
+		`FROM `+minimalBaseImage()+`
+        SHELL ["powershell", "-command"]
+		RUN Write-Host John`,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	if !strings.Contains(out, "\nJohn\n") {
+		c.Fatalf("Line with 'John' not found in output %q", out)
+	}
+}
