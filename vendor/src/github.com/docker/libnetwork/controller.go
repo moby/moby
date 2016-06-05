@@ -69,7 +69,7 @@ import (
 // NetworkController provides the interface for controller instance which manages
 // networks.
 type NetworkController interface {
-	// ID provides an unique identity for the controller
+	// ID provides a unique identity for the controller
 	ID() string
 
 	// Config method returns the bootup configuration for the controller
@@ -90,7 +90,7 @@ type NetworkController interface {
 	// NetworkByID returns the Network which has the passed id. If not found, the error ErrNoSuchNetwork is returned.
 	NetworkByID(id string) (Network, error)
 
-	// NewSandbox cretes a new network sandbox for the passed container id
+	// NewSandbox creates a new network sandbox for the passed container id
 	NewSandbox(containerID string, options ...SandboxOption) (Sandbox, error)
 
 	// Sandboxes returns the list of Sandbox(s) managed by this controller.
@@ -199,6 +199,8 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 	c.sandboxCleanup()
 	c.cleanupLocalEndpoints()
 	c.networkCleanup()
+
+	c.reservePools()
 
 	if err := c.startExternalKeyListener(); err != nil {
 		return nil, err
@@ -544,6 +546,52 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 	network.addDriverWatches()
 
 	return network, nil
+}
+
+func (c *controller) reservePools() {
+	networks, err := c.getNetworksForScope(datastore.LocalScope)
+	if err != nil {
+		log.Warnf("Could not retrieve networks from local store during ipam allocation for existing networks: %v", err)
+		return
+	}
+
+	for _, n := range networks {
+		if !doReplayPoolReserve(n) {
+			continue
+		}
+		// Construct pseudo configs for the auto IP case
+		autoIPv4 := (len(n.ipamV4Config) == 0 || (len(n.ipamV4Config) == 1 && n.ipamV4Config[0].PreferredPool == "")) && len(n.ipamV4Info) > 0
+		autoIPv6 := (len(n.ipamV6Config) == 0 || (len(n.ipamV6Config) == 1 && n.ipamV6Config[0].PreferredPool == "")) && len(n.ipamV6Info) > 0
+		if autoIPv4 {
+			n.ipamV4Config = []*IpamConf{{PreferredPool: n.ipamV4Info[0].Pool.String()}}
+		}
+		if n.enableIPv6 && autoIPv6 {
+			n.ipamV6Config = []*IpamConf{{PreferredPool: n.ipamV6Info[0].Pool.String()}}
+		}
+		// Account current network gateways
+		for i, c := range n.ipamV4Config {
+			if c.Gateway == "" && n.ipamV4Info[i].Gateway != nil {
+				c.Gateway = n.ipamV4Info[i].Gateway.IP.String()
+			}
+		}
+		for i, c := range n.ipamV6Config {
+			if c.Gateway == "" && n.ipamV6Info[i].Gateway != nil {
+				c.Gateway = n.ipamV6Info[i].Gateway.IP.String()
+			}
+		}
+		if err := n.ipamAllocate(); err != nil {
+			log.Warnf("Failed to allocate ipam pool(s) for network %q (%s): %v", n.Name(), n.ID(), err)
+		}
+	}
+}
+
+func doReplayPoolReserve(n *network) bool {
+	_, caps, err := n.getController().getIPAMDriver(n.ipamType)
+	if err != nil {
+		log.Warnf("Failed to retrieve ipam driver for network %q (%s): %v", n.Name(), n.ID(), err)
+		return false
+	}
+	return caps.RequiresRequestReplay
 }
 
 func (c *controller) addNetwork(n *network) error {

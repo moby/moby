@@ -14,8 +14,8 @@ import (
 	"github.com/vishvananda/netlink/nl"
 )
 
+// Family type definitions
 const (
-	// Family type definitions
 	FAMILY_ALL = nl.FAMILY_ALL
 	FAMILY_V4  = nl.FAMILY_V4
 	FAMILY_V6  = nl.FAMILY_V6

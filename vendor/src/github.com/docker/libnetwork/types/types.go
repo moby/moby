@@ -24,7 +24,7 @@ type QosPolicy struct {
 	MaxEgressBandwidth uint64
 }
 
-// TransportPort represent a local Layer 4 endpoint
+// TransportPort represents a local Layer 4 endpoint
 type TransportPort struct {
 	Proto Protocol
 	Port  uint16
@@ -70,7 +70,7 @@ func (t *TransportPort) FromString(s string) error {
 	return BadRequestErrorf("invalid format for transport port: %s", s)
 }
 
-// PortBinding represent a port binding between the container and the host
+// PortBinding represents a port binding between the container and the host
 type PortBinding struct {
 	Proto       Protocol
 	IP          net.IP
@@ -116,7 +116,7 @@ func (p *PortBinding) GetCopy() PortBinding {
 	}
 }
 
-// String return the PortBinding structure in string form
+// String returns the PortBinding structure in string form
 func (p *PortBinding) String() string {
 	ret := fmt.Sprintf("%s/", p.Proto)
 	if p.IP != nil {

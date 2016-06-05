@@ -35,7 +35,7 @@ func (einc *ErrInvalidNetworkConfig) Error() string {
 // Forbidden denotes the type of this error
 func (einc *ErrInvalidNetworkConfig) Forbidden() {}
 
-// ErrInvalidContainerConfig error is returned when a endpoint create is attempted with an invalid configuration.
+// ErrInvalidContainerConfig error is returned when an endpoint create is attempted with an invalid configuration.
 type ErrInvalidContainerConfig struct{}
 
 func (eicc *ErrInvalidContainerConfig) Error() string {
@@ -45,7 +45,7 @@ func (eicc *ErrInvalidContainerConfig) Error() string {
 // BadRequest denotes the type of this error
 func (eicc *ErrInvalidContainerConfig) BadRequest() {}
 
-// ErrInvalidEndpointConfig error is returned when a endpoint create is attempted with an invalid endpoint configuration.
+// ErrInvalidEndpointConfig error is returned when an endpoint create is attempted with an invalid endpoint configuration.
 type ErrInvalidEndpointConfig struct{}
 
 func (eiec *ErrInvalidEndpointConfig) Error() string {

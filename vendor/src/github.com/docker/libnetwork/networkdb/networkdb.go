@@ -1,5 +1,7 @@
 package networkdb
 
+//go:generate protoc -I.:../Godeps/_workspace/src/github.com/gogo/protobuf  --gogo_out=import_path=github.com/docker/libnetwork/networkdb,Mgogoproto/gogo.proto=github.com/gogo/protobuf/gogoproto:. networkdb.proto
+
 import (
 	"fmt"
 	"strings"
@@ -206,7 +208,7 @@ func (nDB *NetworkDB) CreateEntry(tname, nid, key string, value []byte) error {
 		value: value,
 	}
 
-	if err := nDB.sendTableEvent(tableEntryCreate, nid, tname, key, entry); err != nil {
+	if err := nDB.sendTableEvent(TableEventTypeCreate, nid, tname, key, entry); err != nil {
 		return fmt.Errorf("cannot send table create event: %v", err)
 	}
 
@@ -234,7 +236,7 @@ func (nDB *NetworkDB) UpdateEntry(tname, nid, key string, value []byte) error {
 		value: value,
 	}
 
-	if err := nDB.sendTableEvent(tableEntryUpdate, nid, tname, key, entry); err != nil {
+	if err := nDB.sendTableEvent(TableEventTypeUpdate, nid, tname, key, entry); err != nil {
 		return fmt.Errorf("cannot send table update event: %v", err)
 	}
 
@@ -264,7 +266,7 @@ func (nDB *NetworkDB) DeleteEntry(tname, nid, key string) error {
 		deleteTime: time.Now(),
 	}
 
-	if err := nDB.sendTableEvent(tableEntryDelete, nid, tname, key, entry); err != nil {
+	if err := nDB.sendTableEvent(TableEventTypeDelete, nid, tname, key, entry); err != nil {
 		return fmt.Errorf("cannot send table delete event: %v", err)
 	}
 
@@ -352,7 +354,7 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 	nDB.networkNodes[nid] = append(nDB.networkNodes[nid], nDB.config.NodeName)
 	nDB.Unlock()
 
-	if err := nDB.sendNetworkEvent(nid, networkJoin, ltime); err != nil {
+	if err := nDB.sendNetworkEvent(nid, NetworkEventTypeJoin, ltime); err != nil {
 		return fmt.Errorf("failed to send leave network event for %s: %v", nid, err)
 	}
 
@@ -371,7 +373,7 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 // network.
 func (nDB *NetworkDB) LeaveNetwork(nid string) error {
 	ltime := nDB.networkClock.Increment()
-	if err := nDB.sendNetworkEvent(nid, networkLeave, ltime); err != nil {
+	if err := nDB.sendNetworkEvent(nid, NetworkEventTypeLeave, ltime); err != nil {
 		return fmt.Errorf("failed to send leave network event for %s: %v", nid, err)
 	}
 
