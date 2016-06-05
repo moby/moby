@@ -34,7 +34,6 @@ var DockerCommandUsage = []Command{
 	{"rename", "Rename a container"},
 	{"restart", "Restart a container"},
 	{"rm", "Remove one or more containers"},
-	{"rmi", "Remove one or more images"},
 	{"save", "Save one or more images to a tar archive"},
 	{"start", "Start one or more stopped containers"},
 	{"stats", "Display a live stream of container(s) resource usage statistics"},
