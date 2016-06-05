@@ -7,10 +7,13 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"os/exec"
+	"strings"
 	"sync"
 	"syscall"
 	"unsafe"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
 )
@@ -55,6 +58,10 @@ func (f *ipvsFlags) Len() int {
 func setup() {
 	ipvsOnce.Do(func() {
 		var err error
+		if out, err := exec.Command("modprobe", "-va", "ip_vs").CombinedOutput(); err != nil {
+			logrus.Warnf("Running modprobe nf_nat failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
+		}
+
 		ipvsFamily, err = getIPVSFamily()
 		if err != nil {
 			panic("could not get ipvs family")
