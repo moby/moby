@@ -35,7 +35,6 @@ func (cli *DockerCli) Command(name string) func(...string) error {
 		"rename":             cli.CmdRename,
 		"restart":            cli.CmdRestart,
 		"rm":                 cli.CmdRm,
-		"rmi":                cli.CmdRmi,
 		"save":               cli.CmdSave,
 		"start":              cli.CmdStart,
 		"stats":              cli.CmdStats,
