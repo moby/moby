@@ -18,7 +18,6 @@ func (cli *DockerCli) Command(name string) func(...string) error {
 		"load":               cli.CmdLoad,
 		"login":              cli.CmdLogin,
 		"logout":             cli.CmdLogout,
-		"logs":               cli.CmdLogs,
 		"network":            cli.CmdNetwork,
 		"network create":     cli.CmdNetworkCreate,
 		"network connect":    cli.CmdNetworkConnect,
