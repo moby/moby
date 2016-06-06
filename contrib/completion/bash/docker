@@ -2319,7 +2319,7 @@ _docker() {
 	done
 
 	local binary="${words[0]}"
-	if [[ $binary == dockerd ]] ; then
+	if [[ $binary == ?(*/)dockerd ]] ; then
 		# for the dockerd binary, we reuse completion of `docker daemon`.
 		# dockerd does not have subcommands and global options.
 		command=daemon
