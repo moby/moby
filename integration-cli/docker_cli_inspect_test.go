@@ -362,7 +362,7 @@ func (s *DockerSuite) TestInspectContainerNetworkDefault(c *check.C) {
 
 	contName := "test1"
 	dockerCmd(c, "run", "--name", contName, "-d", "busybox", "top")
-	netOut, _ := dockerCmd(c, "network", "inspect", "--format='{{.ID}}'", "bridge")
+	netOut, _ := dockerCmd(c, "network", "inspect", "--format={{.ID}}", "bridge")
 	out := inspectField(c, contName, "NetworkSettings.Networks")
 	c.Assert(out, checker.Contains, "bridge")
 	out = inspectField(c, contName, "NetworkSettings.Networks.bridge.NetworkID")
