@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/codegangsta/cli"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/discovery"
@@ -64,12 +65,30 @@ func main() {
 	}
 }
 
-func parseConfig(cfgFile string) (*config.Config, error) {
+// ParseConfig parses the libnetwork configuration file
+func (d *dnetConnection) parseOrchestrationConfig(tomlCfgFile string) error {
+	dummy := &dnetConnection{}
+
+	if _, err := toml.DecodeFile(tomlCfgFile, dummy); err != nil {
+		return err
+	}
+
+	if dummy.Orchestration != nil {
+		d.Orchestration = dummy.Orchestration
+	}
+	return nil
+}
+
+func (d *dnetConnection) parseConfig(cfgFile string) (*config.Config, error) {
 	if strings.Trim(cfgFile, " ") == "" {
 		cfgFile = os.Getenv(cfgFileEnv)
 		if strings.Trim(cfgFile, " ") == "" {
 			cfgFile = defaultCfgFile
 		}
+	}
+
+	if err := d.parseOrchestrationConfig(cfgFile); err != nil {
+		return nil, err
 	}
 	return config.ParseConfig(cfgFile)
 }
@@ -91,15 +110,6 @@ func processConfig(cfg *config.Config) []config.Option {
 		dd = cfg.Daemon.DefaultDriver
 	}
 	options = append(options, config.OptionDefaultDriver(dd))
-	if cfg.Daemon.IsAgent {
-		options = append(options, config.OptionAgent())
-	}
-
-	if cfg.Daemon.Bind != "" {
-		options = append(options, config.OptionBind(cfg.Daemon.Bind))
-	}
-
-	options = append(options, config.OptionNeighbors(cfg.Daemon.Neighbors))
 
 	if cfg.Daemon.Labels != nil {
 		options = append(options, config.OptionLabels(cfg.Daemon.Labels))
@@ -220,7 +230,17 @@ type dnetConnection struct {
 	// proto holds the client protocol i.e. unix.
 	proto string
 	// addr holds the client address.
-	addr string
+	addr          string
+	Orchestration *NetworkOrchestration
+	configEvent   chan struct{}
+}
+
+// NetworkOrchestration exported
+type NetworkOrchestration struct {
+	Agent   bool
+	Manager bool
+	Bind    string
+	Peer    string
 }
 
 func (d *dnetConnection) dnetDaemon(cfgFile string) error {
@@ -228,10 +248,12 @@ func (d *dnetConnection) dnetDaemon(cfgFile string) error {
 		return fmt.Errorf("failed to start test driver: %v\n", err)
 	}
 
-	cfg, err := parseConfig(cfgFile)
+	cfg, err := d.parseConfig(cfgFile)
 	var cOptions []config.Option
 	if err == nil {
 		cOptions = processConfig(cfg)
+	} else {
+		logrus.Errorf("Error parsing config %v", err)
 	}
 
 	bridgeConfig := options.Generic{
@@ -247,6 +269,11 @@ func (d *dnetConnection) dnetDaemon(cfgFile string) error {
 	if err != nil {
 		fmt.Println("Error starting dnetDaemon :", err)
 		return err
+	}
+	controller.SetClusterProvider(d)
+
+	if d.Orchestration.Agent || d.Orchestration.Manager {
+		d.configEvent <- struct{}{}
 	}
 
 	createDefaultNetwork(controller)
@@ -269,6 +296,26 @@ func (d *dnetConnection) dnetDaemon(cfgFile string) error {
 	setupDumpStackTrap()
 
 	return http.ListenAndServe(d.addr, r)
+}
+
+func (d *dnetConnection) IsManager() bool {
+	return d.Orchestration.Manager
+}
+
+func (d *dnetConnection) IsAgent() bool {
+	return d.Orchestration.Agent
+}
+
+func (d *dnetConnection) GetListenAddress() string {
+	return d.Orchestration.Bind
+}
+
+func (d *dnetConnection) GetRemoteAddress() string {
+	return d.Orchestration.Peer
+}
+
+func (d *dnetConnection) ListenClusterEvents() <-chan struct{} {
+	return d.configEvent
 }
 
 func handleSignals(controller libnetwork.NetworkController) {
@@ -354,7 +401,7 @@ func newDnetConnection(val string) (*dnetConnection, error) {
 		return nil, fmt.Errorf("dnet currently only supports tcp transport")
 	}
 
-	return &dnetConnection{protoAddrParts[0], protoAddrParts[1]}, nil
+	return &dnetConnection{protoAddrParts[0], protoAddrParts[1], &NetworkOrchestration{}, make(chan struct{}, 10)}, nil
 }
 
 func (d *dnetConnection) httpCall(method, path string, data interface{}, headers map[string][]string) (io.ReadCloser, http.Header, int, error) {

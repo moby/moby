@@ -11,3 +11,6 @@ title = "LibNetwork Configuration file"
 [datastore.client]
   provider = "consul"
   Address = "localhost:8500"
+[orchestration]
+  agent = true
+  peer="2.2.2.2"

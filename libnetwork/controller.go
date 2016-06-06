@@ -54,6 +54,7 @@ import (
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/libnetwork/cluster"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
@@ -110,6 +111,9 @@ type NetworkController interface {
 
 	// ReloadCondfiguration updates the controller configuration
 	ReloadConfiguration(cfgOptions ...config.Option) error
+
+	// SetClusterProvider sets cluster provider
+	SetClusterProvider(provider cluster.Provider)
 }
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.
@@ -157,14 +161,6 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		serviceBindings: make(map[string]*service),
 	}
 
-	if err := c.agentInit(c.cfg.Daemon.Bind); err != nil {
-		return nil, err
-	}
-
-	if err := c.agentJoin(c.cfg.Daemon.Neighbors); err != nil {
-		return nil, err
-	}
-
 	if err := c.initStores(); err != nil {
 		return nil, err
 	}
@@ -210,6 +206,62 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 	return c, nil
 }
 
+func (c *controller) SetClusterProvider(provider cluster.Provider) {
+	c.cfg.Daemon.ClusterProvider = provider
+	go c.clusterAgentInit()
+}
+
+func isValidClusteringIP(addr string) bool {
+	return addr != "" && !net.ParseIP(addr).IsLoopback() && !net.ParseIP(addr).IsUnspecified()
+}
+
+func (c *controller) clusterAgentInit() {
+	clusterProvider := c.cfg.Daemon.ClusterProvider
+	for {
+		select {
+		case <-clusterProvider.ListenClusterEvents():
+			if !c.isDistributedControl() {
+				bindAddr, _, _ := net.SplitHostPort(clusterProvider.GetListenAddress())
+				remote := clusterProvider.GetRemoteAddress()
+				remoteAddr, _, _ := net.SplitHostPort(remote)
+
+				// Determine the BindAddress from RemoteAddress or through best-effort routing
+				if !isValidClusteringIP(bindAddr) {
+					if !isValidClusteringIP(remoteAddr) {
+						remote = "8.8.8.8:53"
+					}
+					conn, err := net.Dial("udp", remote)
+					if err == nil {
+						bindHostPort := conn.LocalAddr().String()
+						bindAddr, _, _ = net.SplitHostPort(bindHostPort)
+						conn.Close()
+					}
+				}
+
+				if bindAddr != "" && c.agent == nil {
+					if err := c.agentInit(bindAddr); err != nil {
+						log.Errorf("Error in agentInit : %v", err)
+					} else {
+						c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+							if capability.DataScope == datastore.GlobalScope {
+								c.agentDriverNotify(driver)
+							}
+							return false
+						})
+					}
+				}
+				if remoteAddr != "" {
+					if err := c.agentJoin(remoteAddr); err != nil {
+						log.Errorf("Error in agentJoin : %v", err)
+					}
+				}
+			} else {
+				c.agentClose()
+			}
+		}
+	}
+}
+
 func (c *controller) makeDriverConfig(ntype string) map[string]interface{} {
 	if c.cfg == nil {
 		return nil
@@ -249,28 +301,6 @@ func (c *controller) makeDriverConfig(ntype string) map[string]interface{} {
 
 var procReloadConfig = make(chan (bool), 1)
 
-func (c *controller) processAgentConfig(cfg *config.Config) (bool, error) {
-	if c.cfg.Daemon.IsAgent == cfg.Daemon.IsAgent {
-		// Agent configuration not changed
-		return false, nil
-	}
-
-	c.Lock()
-	c.cfg = cfg
-	c.Unlock()
-
-	if err := c.agentInit(c.cfg.Daemon.Bind); err != nil {
-		return false, err
-	}
-
-	if err := c.agentJoin(c.cfg.Daemon.Neighbors); err != nil {
-		c.agentClose()
-		return false, err
-	}
-
-	return true, nil
-}
-
 func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 	procReloadConfig <- true
 	defer func() { <-procReloadConfig }()
@@ -279,15 +309,6 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 	// Refuse the configuration if it alters an existing datastore client configuration.
 	update := false
 	cfg := config.ParseConfigOptions(cfgOptions...)
-
-	isAgentConfig, err := c.processAgentConfig(cfg)
-	if err != nil {
-		return err
-	}
-
-	if isAgentConfig {
-		return nil
-	}
 
 	for s := range c.cfg.Scopes {
 		if _, ok := cfg.Scopes[s]; !ok {
@@ -454,6 +475,24 @@ func (c *controller) Config() config.Config {
 	return *c.cfg
 }
 
+func (c *controller) isManager() bool {
+	if c.cfg == nil || c.cfg.Daemon.ClusterProvider == nil {
+		return false
+	}
+	return c.cfg.Daemon.ClusterProvider.IsManager()
+}
+
+func (c *controller) isAgent() bool {
+	if c.cfg == nil || c.cfg.Daemon.ClusterProvider == nil {
+		return false
+	}
+	return c.cfg.Daemon.ClusterProvider.IsAgent()
+}
+
+func (c *controller) isDistributedControl() bool {
+	return !c.isManager() && !c.isAgent()
+}
+
 func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver, capability driverapi.Capability) error {
 	c.Lock()
 	hd := c.discovery
@@ -492,13 +531,27 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 
 	network.processOptions(options...)
 
+	_, cap, err := network.resolveDriver(networkType, true)
+	if err != nil {
+		return nil, err
+	}
+
+	if cap.DataScope == datastore.GlobalScope && !c.isDistributedControl() && !network.dynamic {
+		if c.isManager() {
+			// For non-distributed controlled environment, globalscoped non-dynamic networks are redirected to Manager
+			return nil, ManagerRedirectError(name)
+		}
+
+		return nil, types.ForbiddenErrorf("Cannot create a multi-host network from a worker node. Please create the network from a manager node.")
+	}
+
 	// Make sure we have a driver available for this network type
 	// before we allocate anything.
 	if _, err := network.driver(true); err != nil {
 		return nil, err
 	}
 
-	err := network.ipamAllocate()
+	err = network.ipamAllocate()
 	if err != nil {
 		return nil, err
 	}
@@ -717,6 +770,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 
 	c.Lock()
 	if sb.ingress && c.ingressSandbox != nil {
+		c.Unlock()
 		return nil, fmt.Errorf("ingress sandbox already present")
 	}
 

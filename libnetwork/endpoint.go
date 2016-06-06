@@ -446,7 +446,7 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) error {
 	}()
 
 	// Watch for service records
-	if !n.getController().cfg.Daemon.IsAgent {
+	if !n.getController().isAgent() {
 		n.getController().watchSvcRecord(ep)
 	}
 
@@ -776,7 +776,7 @@ func (ep *endpoint) Delete(force bool) error {
 	}()
 
 	// unwatch for service records
-	if !n.getController().cfg.Daemon.IsAgent {
+	if !n.getController().isAgent() {
 		n.getController().unWatchSvcRecord(ep)
 	}
 

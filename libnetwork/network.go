@@ -64,6 +64,7 @@ type NetworkInfo interface {
 	IPv6Enabled() bool
 	Internal() bool
 	Labels() map[string]string
+	Dynamic() bool
 }
 
 // EndpointWalker is a client provided function which will be used to walk the Endpoints.
@@ -187,6 +188,7 @@ type network struct {
 	inDelete     bool
 	ingress      bool
 	driverTables []string
+	dynamic      bool
 	sync.Mutex
 }
 
@@ -631,6 +633,13 @@ func NetworkOptionLabels(labels map[string]string) NetworkOption {
 	}
 }
 
+// NetworkOptionDynamic function returns an option setter for dynamic option for a network
+func NetworkOptionDynamic() NetworkOption {
+	return func(n *network) {
+		n.dynamic = true
+	}
+}
+
 // NetworkOptionDeferIPv6Alloc instructs the network to defer the IPV6 address allocation until after the endpoint has been created
 // It is being provided to support the specific docker daemon flags where user can deterministically assign an IPv6 address
 // to a container as combination of fixed-cidr-v6 + mac-address
@@ -697,7 +706,7 @@ func (n *network) driver(load bool) (driverapi.Driver, error) {
 	if cap != nil {
 		n.scope = cap.DataScope
 	}
-	if c.cfg.Daemon.IsAgent {
+	if c.isAgent() {
 		// If we are running in agent mode then all networks
 		// in libnetwork are local scope regardless of the
 		// backing driver.
@@ -1453,6 +1462,13 @@ func (n *network) Internal() bool {
 	defer n.Unlock()
 
 	return n.internal
+}
+
+func (n *network) Dynamic() bool {
+	n.Lock()
+	defer n.Unlock()
+
+	return n.dynamic
 }
 
 func (n *network) IPv6Enabled() bool {
