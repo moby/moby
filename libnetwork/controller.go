@@ -114,6 +114,9 @@ type NetworkController interface {
 
 	// SetClusterProvider sets cluster provider
 	SetClusterProvider(provider cluster.Provider)
+
+	// Wait for agent initialization complete in libnetwork controller
+	AgentInitWait()
 }
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.
@@ -143,6 +146,7 @@ type controller struct {
 	ingressSandbox  *sandbox
 	sboxOnce        sync.Once
 	agent           *agent
+	agentInitDone   chan struct{}
 	sync.Mutex
 }
 
@@ -159,6 +163,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		sandboxes:       sandboxTable{},
 		svcRecords:      make(map[string]svcInfo),
 		serviceBindings: make(map[string]*service),
+		agentInitDone:   make(chan struct{}),
 	}
 
 	if err := c.initStores(); err != nil {
@@ -248,6 +253,10 @@ func (c *controller) clusterAgentInit() {
 							}
 							return false
 						})
+
+						if c.agent != nil {
+							close(c.agentInitDone)
+						}
 					}
 				}
 				if remoteAddr != "" {
@@ -260,6 +269,12 @@ func (c *controller) clusterAgentInit() {
 			}
 		}
 	}
+}
+
+// AgentInitWait waits for agent initialization to be completed in the
+// controller.
+func (c *controller) AgentInitWait() {
+	<-c.agentInitDone
 }
 
 func (c *controller) makeDriverConfig(ntype string) map[string]interface{} {
