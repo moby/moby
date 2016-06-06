@@ -265,6 +265,7 @@ func (c *controller) clusterAgentInit() {
 					}
 				}
 			} else {
+				c.agentInitDone = make(chan struct{})
 				c.agentClose()
 			}
 		}
