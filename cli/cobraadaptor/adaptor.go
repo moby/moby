@@ -71,7 +71,9 @@ func (c CobraAdaptor) Usage() []cli.Command {
 }
 
 func (c CobraAdaptor) run(cmd string, args []string) error {
-	c.dockerCli.Initialize()
+	if err := c.dockerCli.Initialize(); err != nil {
+		return err
+	}
 	// Prepend the command name to support normal cobra command delegation
 	c.rootCmd.SetArgs(append([]string{cmd}, args...))
 	return c.rootCmd.Execute()
