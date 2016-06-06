@@ -39,7 +39,6 @@ var DockerCommandUsage = []Command{
 	{"stats", "Display a live stream of container(s) resource usage statistics"},
 	{"tag", "Tag an image into a repository"},
 	{"top", "Display the running processes of a container"},
-	{"unpause", "Unpause all processes within a container"},
 	{"update", "Update configuration of one or more containers"},
 	{"version", "Show the Docker version information"},
 	{"wait", "Block until a container stops, then print its exit code"},
