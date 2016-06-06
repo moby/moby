@@ -55,54 +55,54 @@ type ContainerOptions struct {
 	flStorageOpt        opts.ListOpts
 	flLabelsFile        opts.ListOpts
 	flLoggingOpts       opts.ListOpts
-	flPrivileged        *bool
-	flPidMode           *string
-	flUTSMode           *string
-	flUsernsMode        *string
-	flPublishAll        *bool
-	flStdin             *bool
-	flTty               *bool
-	flOomKillDisable    *bool
-	flOomScoreAdj       *int
-	flContainerIDFile   *string
-	flEntrypoint        *string
-	flHostname          *string
-	flMemoryString      *string
-	flMemoryReservation *string
-	flMemorySwap        *string
-	flKernelMemory      *string
-	flUser              *string
-	flWorkingDir        *string
-	flCPUShares         *int64
-	flCPUPercent        *int64
-	flCPUPeriod         *int64
-	flCPUQuota          *int64
-	flCpusetCpus        *string
-	flCpusetMems        *string
-	flBlkioWeight       *uint16
-	flIOMaxBandwidth    *string
-	flIOMaxIOps         *uint64
-	flSwappiness        *int64
-	flNetMode           *string
-	flMacAddress        *string
-	flIPv4Address       *string
-	flIPv6Address       *string
-	flIpcMode           *string
-	flPidsLimit         *int64
-	flRestartPolicy     *string
-	flReadonlyRootfs    *bool
-	flLoggingDriver     *string
-	flCgroupParent      *string
-	flVolumeDriver      *string
-	flStopSignal        *string
-	flIsolation         *string
-	flShmSize           *string
-	flNoHealthcheck     *bool
-	flHealthCmd         *string
-	flHealthInterval    *time.Duration
-	flHealthTimeout     *time.Duration
-	flHealthRetries     *int
-	flRuntime           *string
+	flPrivileged        bool
+	flPidMode           string
+	flUTSMode           string
+	flUsernsMode        string
+	flPublishAll        bool
+	flStdin             bool
+	flTty               bool
+	flOomKillDisable    bool
+	flOomScoreAdj       int
+	flContainerIDFile   string
+	flEntrypoint        string
+	flHostname          string
+	flMemoryString      string
+	flMemoryReservation string
+	flMemorySwap        string
+	flKernelMemory      string
+	flUser              string
+	flWorkingDir        string
+	flCPUShares         int64
+	flCPUPercent        int64
+	flCPUPeriod         int64
+	flCPUQuota          int64
+	flCpusetCpus        string
+	flCpusetMems        string
+	flBlkioWeight       uint16
+	flIOMaxBandwidth    string
+	flIOMaxIOps         uint64
+	flSwappiness        int64
+	flNetMode           string
+	flMacAddress        string
+	flIPv4Address       string
+	flIPv6Address       string
+	flIpcMode           string
+	flPidsLimit         int64
+	flRestartPolicy     string
+	flReadonlyRootfs    bool
+	flLoggingDriver     string
+	flCgroupParent      string
+	flVolumeDriver      string
+	flStopSignal        string
+	flIsolation         string
+	flShmSize           string
+	flNoHealthcheck     bool
+	flHealthCmd         string
+	flHealthInterval    time.Duration
+	flHealthTimeout     time.Duration
+	flHealthRetries     int
+	flRuntime           string
 
 	Image string
 	Args  []string
@@ -111,122 +111,131 @@ type ContainerOptions struct {
 // AddFlags adds all command line flags that will be used by Parse to the FlagSet
 func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 	copts := &ContainerOptions{
-		flAttach:            opts.NewListOpts(ValidateAttach),
-		flVolumes:           opts.NewListOpts(nil),
-		flTmpfs:             opts.NewListOpts(nil),
-		flBlkioWeightDevice: NewWeightdeviceOpt(ValidateWeightDevice),
-		flDeviceReadBps:     NewThrottledeviceOpt(ValidateThrottleBpsDevice),
-		flDeviceWriteBps:    NewThrottledeviceOpt(ValidateThrottleBpsDevice),
-		flLinks:             opts.NewListOpts(ValidateLink),
 		flAliases:           opts.NewListOpts(nil),
-		flLinkLocalIPs:      opts.NewListOpts(nil),
+		flAttach:            opts.NewListOpts(ValidateAttach),
+		flBlkioWeightDevice: NewWeightdeviceOpt(ValidateWeightDevice),
+		flCapAdd:            opts.NewListOpts(nil),
+		flCapDrop:           opts.NewListOpts(nil),
+		flDNS:               opts.NewListOpts(opts.ValidateIPAddress),
+		flDNSOptions:        opts.NewListOpts(nil),
+		flDNSSearch:         opts.NewListOpts(opts.ValidateDNSSearch),
+		flDeviceReadBps:     NewThrottledeviceOpt(ValidateThrottleBpsDevice),
 		flDeviceReadIOps:    NewThrottledeviceOpt(ValidateThrottleIOpsDevice),
+		flDeviceWriteBps:    NewThrottledeviceOpt(ValidateThrottleBpsDevice),
 		flDeviceWriteIOps:   NewThrottledeviceOpt(ValidateThrottleIOpsDevice),
-		flEnv:               opts.NewListOpts(ValidateEnv),
-		flLabels:            opts.NewListOpts(ValidateEnv),
 		flDevices:           opts.NewListOpts(ValidateDevice),
-
-		flUlimits: NewUlimitOpt(nil),
-		flSysctls: opts.NewMapOpts(nil, opts.ValidateSysctl),
-
-		flPublish:     opts.NewListOpts(nil),
-		flExpose:      opts.NewListOpts(nil),
-		flDNS:         opts.NewListOpts(opts.ValidateIPAddress),
-		flDNSSearch:   opts.NewListOpts(opts.ValidateDNSSearch),
-		flDNSOptions:  opts.NewListOpts(nil),
-		flExtraHosts:  opts.NewListOpts(ValidateExtraHost),
-		flVolumesFrom: opts.NewListOpts(nil),
-		flEnvFile:     opts.NewListOpts(nil),
-		flCapAdd:      opts.NewListOpts(nil),
-		flCapDrop:     opts.NewListOpts(nil),
-		flGroupAdd:    opts.NewListOpts(nil),
-		flSecurityOpt: opts.NewListOpts(nil),
-		flStorageOpt:  opts.NewListOpts(nil),
-		flLabelsFile:  opts.NewListOpts(nil),
-		flLoggingOpts: opts.NewListOpts(nil),
-
-		flPrivileged:        flags.Bool("privileged", false, "Give extended privileges to this container"),
-		flPidMode:           flags.String("pid", "", "PID namespace to use"),
-		flUTSMode:           flags.String("uts", "", "UTS namespace to use"),
-		flUsernsMode:        flags.String("userns", "", "User namespace to use"),
-		flPublishAll:        flags.BoolP("publish-all", "P", false, "Publish all exposed ports to random ports"),
-		flStdin:             flags.BoolP("interactive", "i", false, "Keep STDIN open even if not attached"),
-		flTty:               flags.BoolP("tty", "t", false, "Allocate a pseudo-TTY"),
-		flOomKillDisable:    flags.Bool("oom-kill-disable", false, "Disable OOM Killer"),
-		flOomScoreAdj:       flags.Int("oom-score-adj", 0, "Tune host's OOM preferences (-1000 to 1000)"),
-		flContainerIDFile:   flags.String("cidfile", "", "Write the container ID to the file"),
-		flEntrypoint:        flags.String("entrypoint", "", "Overwrite the default ENTRYPOINT of the image"),
-		flHostname:          flags.StringP("hostname", "h", "", "Container host name"),
-		flMemoryString:      flags.StringP("memory", "m", "", "Memory limit"),
-		flMemoryReservation: flags.String("memory-reservation", "", "Memory soft limit"),
-		flMemorySwap:        flags.String("memory-swap", "", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap"),
-		flKernelMemory:      flags.String("kernel-memory", "", "Kernel memory limit"),
-		flUser:              flags.StringP("user", "u", "", "Username or UID (format: <name|uid>[:<group|gid>])"),
-		flWorkingDir:        flags.StringP("workdir", "w", "", "Working directory inside the container"),
-		flCPUShares:         flags.Int64P("cpu-shares", "c", 0, "CPU shares (relative weight)"),
-		flCPUPercent:        flags.Int64("cpu-percent", 0, "CPU percent (Windows only)"),
-		flCPUPeriod:         flags.Int64("cpu-period", 0, "Limit CPU CFS (Completely Fair Scheduler) period"),
-		flCPUQuota:          flags.Int64("cpu-quota", 0, "Limit CPU CFS (Completely Fair Scheduler) quota"),
-		flCpusetCpus:        flags.String("cpuset-cpus", "", "CPUs in which to allow execution (0-3, 0,1)"),
-		flCpusetMems:        flags.String("cpuset-mems", "", "MEMs in which to allow execution (0-3, 0,1)"),
-		flBlkioWeight:       flags.Uint16("blkio-weight", 0, "Block IO (relative weight), between 10 and 1000"),
-		flIOMaxBandwidth:    flags.String("io-maxbandwidth", "", "Maximum IO bandwidth limit for the system drive (Windows only)"),
-		flIOMaxIOps:         flags.Uint64("io-maxiops", 0, "Maximum IOps limit for the system drive (Windows only)"),
-		flSwappiness:        flags.Int64("memory-swappiness", -1, "Tune container memory swappiness (0 to 100)"),
-		flNetMode:           flags.String("net", "default", "Connect a container to a network"),
-		flMacAddress:        flags.String("mac-address", "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)"),
-		flIPv4Address:       flags.String("ip", "", "Container IPv4 address (e.g. 172.30.100.104)"),
-		flIPv6Address:       flags.String("ip6", "", "Container IPv6 address (e.g. 2001:db8::33)"),
-		flIpcMode:           flags.String("ipc", "", "IPC namespace to use"),
-		flPidsLimit:         flags.Int64("pids-limit", 0, "Tune container pids limit (set -1 for unlimited)"),
-		flRestartPolicy:     flags.String("restart", "no", "Restart policy to apply when a container exits"),
-		flReadonlyRootfs:    flags.Bool("read-only", false, "Mount the container's root filesystem as read only"),
-		flLoggingDriver:     flags.String("log-driver", "", "Logging driver for container"),
-		flCgroupParent:      flags.String("cgroup-parent", "", "Optional parent cgroup for the container"),
-		flVolumeDriver:      flags.String("volume-driver", "", "Optional volume driver for the container"),
-		flStopSignal:        flags.String("stop-signal", signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal)),
-		flIsolation:         flags.String("isolation", "", "Container isolation technology"),
-		flShmSize:           flags.String("shm-size", "", "Size of /dev/shm, default value is 64MB"),
-		flNoHealthcheck:     flags.Bool("no-healthcheck", false, "Disable any container-specified HEALTHCHECK"),
-		flHealthCmd:         flags.String("health-cmd", "", "Command to run to check health"),
-		flHealthInterval:    flags.Duration("health-interval", 0, "Time between running the check"),
-		flHealthTimeout:     flags.Duration("health-timeout", 0, "Maximum time to allow one check to run"),
-		flHealthRetries:     flags.Int("health-retries", 0, "Consecutive failures needed to report unhealthy"),
-		flRuntime:           flags.String("runtime", "", "Runtime to use for this container"),
+		flEnv:               opts.NewListOpts(ValidateEnv),
+		flEnvFile:           opts.NewListOpts(nil),
+		flExpose:            opts.NewListOpts(nil),
+		flExtraHosts:        opts.NewListOpts(ValidateExtraHost),
+		flGroupAdd:          opts.NewListOpts(nil),
+		flLabels:            opts.NewListOpts(ValidateEnv),
+		flLabelsFile:        opts.NewListOpts(nil),
+		flLinkLocalIPs:      opts.NewListOpts(nil),
+		flLinks:             opts.NewListOpts(ValidateLink),
+		flLoggingOpts:       opts.NewListOpts(nil),
+		flPublish:           opts.NewListOpts(nil),
+		flSecurityOpt:       opts.NewListOpts(nil),
+		flStorageOpt:        opts.NewListOpts(nil),
+		flSysctls:           opts.NewMapOpts(nil, opts.ValidateSysctl),
+		flTmpfs:             opts.NewListOpts(nil),
+		flUlimits:           NewUlimitOpt(nil),
+		flVolumes:           opts.NewListOpts(nil),
+		flVolumesFrom:       opts.NewListOpts(nil),
 	}
 
+	// General purpose flags
 	flags.VarP(&copts.flAttach, "attach", "a", "Attach to STDIN, STDOUT or STDERR")
-	flags.Var(&copts.flBlkioWeightDevice, "blkio-weight-device", "Block IO weight (relative device weight)")
-	flags.Var(&copts.flDeviceReadBps, "device-read-bps", "Limit read rate (bytes per second) from a device")
-	flags.Var(&copts.flDeviceWriteBps, "device-write-bps", "Limit write rate (bytes per second) to a device")
-	flags.Var(&copts.flDeviceReadIOps, "device-read-iops", "Limit read rate (IO per second) from a device")
-	flags.Var(&copts.flDeviceWriteIOps, "device-write-iops", "Limit write rate (IO per second) to a device")
-	flags.VarP(&copts.flVolumes, "volume", "v", "Bind mount a volume")
-	flags.Var(&copts.flTmpfs, "tmpfs", "Mount a tmpfs directory")
-	flags.Var(&copts.flLinks, "link", "Add link to another container")
-	flags.Var(&copts.flAliases, "net-alias", "Add network-scoped alias for the container")
-	flags.Var(&copts.flLinkLocalIPs, "link-local-ip", "Container IPv4/IPv6 link-local addresses")
 	flags.Var(&copts.flDevices, "device", "Add a host device to the container")
-	flags.VarP(&copts.flLabels, "label", "l", "Set meta data on a container")
-	flags.Var(&copts.flLabelsFile, "label-file", "Read in a line delimited file of labels")
 	flags.VarP(&copts.flEnv, "env", "e", "Set environment variables")
 	flags.Var(&copts.flEnvFile, "env-file", "Read in a file of environment variables")
-	flags.VarP(&copts.flPublish, "publish", "p", "Publish a container's port(s) to the host")
-	flags.Var(&copts.flExpose, "expose", "Expose a port or a range of ports")
-	flags.Var(&copts.flDNS, "dns", "Set custom DNS servers")
-	flags.Var(&copts.flDNSSearch, "dns-search", "Set custom DNS search domains")
-	flags.Var(&copts.flDNSOptions, "dns-opt", "Set DNS options")
-	flags.Var(&copts.flExtraHosts, "add-host", "Add a custom host-to-IP mapping (host:ip)")
-	flags.Var(&copts.flVolumesFrom, "volumes-from", "Mount volumes from the specified container(s)")
+	flags.StringVar(&copts.flEntrypoint, "entrypoint", "", "Overwrite the default ENTRYPOINT of the image")
+	flags.Var(&copts.flGroupAdd, "group-add", "Add additional groups to join")
+	flags.StringVarP(&copts.flHostname, "hostname", "h", "", "Container host name")
+	flags.BoolVarP(&copts.flStdin, "interactive", "i", false, "Keep STDIN open even if not attached")
+	flags.VarP(&copts.flLabels, "label", "l", "Set meta data on a container")
+	flags.Var(&copts.flLabelsFile, "label-file", "Read in a line delimited file of labels")
+	flags.BoolVar(&copts.flReadonlyRootfs, "read-only", false, "Mount the container's root filesystem as read only")
+	flags.StringVar(&copts.flRestartPolicy, "restart", "no", "Restart policy to apply when a container exits")
+	flags.StringVar(&copts.flStopSignal, "stop-signal", signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal))
+	flags.Var(copts.flSysctls, "sysctl", "Sysctl options")
+	flags.BoolVarP(&copts.flTty, "tty", "t", false, "Allocate a pseudo-TTY")
+	flags.Var(copts.flUlimits, "ulimit", "Ulimit options")
+	flags.StringVarP(&copts.flUser, "user", "u", "", "Username or UID (format: <name|uid>[:<group|gid>])")
+	flags.StringVarP(&copts.flWorkingDir, "workdir", "w", "", "Working directory inside the container")
+
+	// Security
 	flags.Var(&copts.flCapAdd, "cap-add", "Add Linux capabilities")
 	flags.Var(&copts.flCapDrop, "cap-drop", "Drop Linux capabilities")
-	flags.Var(&copts.flGroupAdd, "group-add", "Add additional groups to join")
+	flags.BoolVar(&copts.flPrivileged, "privileged", false, "Give extended privileges to this container")
 	flags.Var(&copts.flSecurityOpt, "security-opt", "Security Options")
-	flags.Var(&copts.flStorageOpt, "storage-opt", "Set storage driver options per container")
-	flags.Var(copts.flUlimits, "ulimit", "Ulimit options")
-	flags.Var(copts.flSysctls, "sysctl", "Sysctl options")
-	flags.Var(&copts.flLoggingOpts, "log-opt", "Log driver options")
+	flags.StringVar(&copts.flUsernsMode, "userns", "", "User namespace to use")
 
+	// Network and port publishing flag
+	flags.Var(&copts.flExtraHosts, "add-host", "Add a custom host-to-IP mapping (host:ip)")
+	flags.Var(&copts.flDNS, "dns", "Set custom DNS servers")
+	flags.Var(&copts.flDNSOptions, "dns-opt", "Set DNS options")
+	flags.Var(&copts.flDNSSearch, "dns-search", "Set custom DNS search domains")
+	flags.Var(&copts.flExpose, "expose", "Expose a port or a range of ports")
+	flags.StringVar(&copts.flIPv4Address, "ip", "", "Container IPv4 address (e.g. 172.30.100.104)")
+	flags.StringVar(&copts.flIPv6Address, "ip6", "", "Container IPv6 address (e.g. 2001:db8::33)")
+	flags.Var(&copts.flLinks, "link", "Add link to another container")
+	flags.Var(&copts.flLinkLocalIPs, "link-local-ip", "Container IPv4/IPv6 link-local addresses")
+	flags.StringVar(&copts.flMacAddress, "mac-address", "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
+	flags.StringVar(&copts.flNetMode, "net", "default", "Connect a container to a network")
+	flags.Var(&copts.flAliases, "net-alias", "Add network-scoped alias for the container")
+	flags.VarP(&copts.flPublish, "publish", "p", "Publish a container's port(s) to the host")
+	flags.BoolVarP(&copts.flPublishAll, "publish-all", "P", false, "Publish all exposed ports to random ports")
+
+	// Logging and storage
+	flags.StringVar(&copts.flLoggingDriver, "log-driver", "", "Logging driver for container")
+	flags.StringVar(&copts.flVolumeDriver, "volume-driver", "", "Optional volume driver for the container")
+	flags.Var(&copts.flLoggingOpts, "log-opt", "Log driver options")
+	flags.Var(&copts.flStorageOpt, "storage-opt", "Set storage driver options per container")
+	flags.Var(&copts.flTmpfs, "tmpfs", "Mount a tmpfs directory")
+	flags.Var(&copts.flVolumesFrom, "volumes-from", "Mount volumes from the specified container(s)")
+	flags.VarP(&copts.flVolumes, "volume", "v", "Bind mount a volume")
+
+	// Health-checking
+	flags.StringVar(&copts.flHealthCmd, "health-cmd", "", "Command to run to check health")
+	flags.DurationVar(&copts.flHealthInterval, "health-interval", 0, "Time between running the check")
+	flags.IntVar(&copts.flHealthRetries, "health-retries", 0, "Consecutive failures needed to report unhealthy")
+	flags.DurationVar(&copts.flHealthTimeout, "health-timeout", 0, "Maximum time to allow one check to run")
+	flags.BoolVar(&copts.flNoHealthcheck, "no-healthcheck", false, "Disable any container-specified HEALTHCHECK")
+
+	// Resource management
+	flags.Uint16Var(&copts.flBlkioWeight, "blkio-weight", 0, "Block IO (relative weight), between 10 and 1000")
+	flags.Var(&copts.flBlkioWeightDevice, "blkio-weight-device", "Block IO weight (relative device weight)")
+	flags.StringVar(&copts.flContainerIDFile, "cidfile", "", "Write the container ID to the file")
+	flags.StringVar(&copts.flCpusetCpus, "cpuset-cpus", "", "CPUs in which to allow execution (0-3, 0,1)")
+	flags.StringVar(&copts.flCpusetMems, "cpuset-mems", "", "MEMs in which to allow execution (0-3, 0,1)")
+	flags.Int64Var(&copts.flCPUPercent, "cpu-percent", 0, "CPU percent (Windows only)")
+	flags.Int64Var(&copts.flCPUPeriod, "cpu-period", 0, "Limit CPU CFS (Completely Fair Scheduler) period")
+	flags.Int64Var(&copts.flCPUQuota, "cpu-quota", 0, "Limit CPU CFS (Completely Fair Scheduler) quota")
+	flags.Int64VarP(&copts.flCPUShares, "cpu-shares", "c", 0, "CPU shares (relative weight)")
+	flags.Var(&copts.flDeviceReadBps, "device-read-bps", "Limit read rate (bytes per second) from a device")
+	flags.Var(&copts.flDeviceReadIOps, "device-read-iops", "Limit read rate (IO per second) from a device")
+	flags.Var(&copts.flDeviceWriteBps, "device-write-bps", "Limit write rate (bytes per second) to a device")
+	flags.Var(&copts.flDeviceWriteIOps, "device-write-iops", "Limit write rate (IO per second) to a device")
+	flags.StringVar(&copts.flIOMaxBandwidth, "io-maxbandwidth", "", "Maximum IO bandwidth limit for the system drive (Windows only)")
+	flags.Uint64Var(&copts.flIOMaxIOps, "io-maxiops", 0, "Maximum IOps limit for the system drive (Windows only)")
+	flags.StringVar(&copts.flKernelMemory, "kernel-memory", "", "Kernel memory limit")
+	flags.StringVarP(&copts.flMemoryString, "memory", "m", "", "Memory limit")
+	flags.StringVar(&copts.flMemoryReservation, "memory-reservation", "", "Memory soft limit")
+	flags.StringVar(&copts.flMemorySwap, "memory-swap", "", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap")
+	flags.Int64Var(&copts.flSwappiness, "memory-swappiness", -1, "Tune container memory swappiness (0 to 100)")
+	flags.BoolVar(&copts.flOomKillDisable, "oom-kill-disable", false, "Disable OOM Killer")
+	flags.IntVar(&copts.flOomScoreAdj, "oom-score-adj", 0, "Tune host's OOM preferences (-1000 to 1000)")
+	flags.Int64Var(&copts.flPidsLimit, "pids-limit", 0, "Tune container pids limit (set -1 for unlimited)")
+
+	// Low-level execution (cgroups, namespaces, ...)
+	flags.StringVar(&copts.flCgroupParent, "cgroup-parent", "", "Optional parent cgroup for the container")
+	flags.StringVar(&copts.flIpcMode, "ipc", "", "IPC namespace to use")
+	flags.StringVar(&copts.flIsolation, "isolation", "", "Container isolation technology")
+	flags.StringVar(&copts.flPidMode, "pid", "", "PID namespace to use")
+	flags.StringVar(&copts.flShmSize, "shm-size", "", "Size of /dev/shm, default value is 64MB")
+	flags.StringVar(&copts.flUTSMode, "uts", "", "UTS namespace to use")
+	flags.StringVar(&copts.flRuntime, "runtime", "", "Runtime to use for this container")
 	return copts
 }
 
@@ -241,12 +250,12 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 	)
 
 	// Validate the input mac address
-	if *copts.flMacAddress != "" {
-		if _, err := ValidateMACAddress(*copts.flMacAddress); err != nil {
-			return nil, nil, nil, fmt.Errorf("%s is not a valid mac address", *copts.flMacAddress)
+	if copts.flMacAddress != "" {
+		if _, err := ValidateMACAddress(copts.flMacAddress); err != nil {
+			return nil, nil, nil, fmt.Errorf("%s is not a valid mac address", copts.flMacAddress)
 		}
 	}
-	if *copts.flStdin {
+	if copts.flStdin {
 		attachStdin = true
 	}
 	// If -a is not set, attach to stdout and stderr
@@ -258,27 +267,27 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 	var err error
 
 	var flMemory int64
-	if *copts.flMemoryString != "" {
-		flMemory, err = units.RAMInBytes(*copts.flMemoryString)
+	if copts.flMemoryString != "" {
+		flMemory, err = units.RAMInBytes(copts.flMemoryString)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 	}
 
 	var MemoryReservation int64
-	if *copts.flMemoryReservation != "" {
-		MemoryReservation, err = units.RAMInBytes(*copts.flMemoryReservation)
+	if copts.flMemoryReservation != "" {
+		MemoryReservation, err = units.RAMInBytes(copts.flMemoryReservation)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 	}
 
 	var memorySwap int64
-	if *copts.flMemorySwap != "" {
-		if *copts.flMemorySwap == "-1" {
+	if copts.flMemorySwap != "" {
+		if copts.flMemorySwap == "-1" {
 			memorySwap = -1
 		} else {
-			memorySwap, err = units.RAMInBytes(*copts.flMemorySwap)
+			memorySwap, err = units.RAMInBytes(copts.flMemorySwap)
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -286,21 +295,21 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 	}
 
 	var KernelMemory int64
-	if *copts.flKernelMemory != "" {
-		KernelMemory, err = units.RAMInBytes(*copts.flKernelMemory)
+	if copts.flKernelMemory != "" {
+		KernelMemory, err = units.RAMInBytes(copts.flKernelMemory)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 	}
 
-	swappiness := *copts.flSwappiness
+	swappiness := copts.flSwappiness
 	if swappiness != -1 && (swappiness < 0 || swappiness > 100) {
 		return nil, nil, nil, fmt.Errorf("invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
 	}
 
 	var shmSize int64
-	if *copts.flShmSize != "" {
-		shmSize, err = units.RAMInBytes(*copts.flShmSize)
+	if copts.flShmSize != "" {
+		shmSize, err = units.RAMInBytes(copts.flShmSize)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -308,13 +317,13 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 
 	// TODO FIXME units.RAMInBytes should have a uint64 version
 	var maxIOBandwidth int64
-	if *copts.flIOMaxBandwidth != "" {
-		maxIOBandwidth, err = units.RAMInBytes(*copts.flIOMaxBandwidth)
+	if copts.flIOMaxBandwidth != "" {
+		maxIOBandwidth, err = units.RAMInBytes(copts.flIOMaxBandwidth)
 		if err != nil {
 			return nil, nil, nil, err
 		}
 		if maxIOBandwidth < 0 {
-			return nil, nil, nil, fmt.Errorf("invalid value: %s. Maximum IO Bandwidth must be positive", *copts.flIOMaxBandwidth)
+			return nil, nil, nil, fmt.Errorf("invalid value: %s. Maximum IO Bandwidth must be positive", copts.flIOMaxBandwidth)
 		}
 	}
 
@@ -349,8 +358,8 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 	if len(copts.Args) > 0 {
 		runCmd = strslice.StrSlice(copts.Args)
 	}
-	if *copts.flEntrypoint != "" {
-		entrypoint = strslice.StrSlice{*copts.flEntrypoint}
+	if copts.flEntrypoint != "" {
+		entrypoint = strslice.StrSlice{copts.flEntrypoint}
 	}
 
 	ports, portBindings, err := nat.ParsePortSpecs(copts.flPublish.GetAll())
@@ -404,32 +413,32 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 		return nil, nil, nil, err
 	}
 
-	ipcMode := container.IpcMode(*copts.flIpcMode)
+	ipcMode := container.IpcMode(copts.flIpcMode)
 	if !ipcMode.Valid() {
 		return nil, nil, nil, fmt.Errorf("--ipc: invalid IPC mode")
 	}
 
-	pidMode := container.PidMode(*copts.flPidMode)
+	pidMode := container.PidMode(copts.flPidMode)
 	if !pidMode.Valid() {
 		return nil, nil, nil, fmt.Errorf("--pid: invalid PID mode")
 	}
 
-	utsMode := container.UTSMode(*copts.flUTSMode)
+	utsMode := container.UTSMode(copts.flUTSMode)
 	if !utsMode.Valid() {
 		return nil, nil, nil, fmt.Errorf("--uts: invalid UTS mode")
 	}
 
-	usernsMode := container.UsernsMode(*copts.flUsernsMode)
+	usernsMode := container.UsernsMode(copts.flUsernsMode)
 	if !usernsMode.Valid() {
 		return nil, nil, nil, fmt.Errorf("--userns: invalid USER mode")
 	}
 
-	restartPolicy, err := ParseRestartPolicy(*copts.flRestartPolicy)
+	restartPolicy, err := ParseRestartPolicy(copts.flRestartPolicy)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	loggingOpts, err := parseLoggingOpts(*copts.flLoggingDriver, copts.flLoggingOpts.GetAll())
+	loggingOpts, err := parseLoggingOpts(copts.flLoggingDriver, copts.flLoggingOpts.GetAll())
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -446,11 +455,11 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 
 	// Healthcheck
 	var healthConfig *container.HealthConfig
-	haveHealthSettings := *copts.flHealthCmd != "" ||
-		*copts.flHealthInterval != 0 ||
-		*copts.flHealthTimeout != 0 ||
-		*copts.flHealthRetries != 0
-	if *copts.flNoHealthcheck {
+	haveHealthSettings := copts.flHealthCmd != "" ||
+		copts.flHealthInterval != 0 ||
+		copts.flHealthTimeout != 0 ||
+		copts.flHealthRetries != 0
+	if copts.flNoHealthcheck {
 		if haveHealthSettings {
 			return nil, nil, nil, fmt.Errorf("--no-healthcheck conflicts with --health-* options")
 		}
@@ -458,62 +467,62 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 		healthConfig = &container.HealthConfig{Test: test}
 	} else if haveHealthSettings {
 		var probe strslice.StrSlice
-		if *copts.flHealthCmd != "" {
-			args := []string{"CMD-SHELL", *copts.flHealthCmd}
+		if copts.flHealthCmd != "" {
+			args := []string{"CMD-SHELL", copts.flHealthCmd}
 			probe = strslice.StrSlice(args)
 		}
-		if *copts.flHealthInterval < 0 {
+		if copts.flHealthInterval < 0 {
 			return nil, nil, nil, fmt.Errorf("--health-interval cannot be negative")
 		}
-		if *copts.flHealthTimeout < 0 {
+		if copts.flHealthTimeout < 0 {
 			return nil, nil, nil, fmt.Errorf("--health-timeout cannot be negative")
 		}
 
 		healthConfig = &container.HealthConfig{
 			Test:     probe,
-			Interval: *copts.flHealthInterval,
-			Timeout:  *copts.flHealthTimeout,
-			Retries:  *copts.flHealthRetries,
+			Interval: copts.flHealthInterval,
+			Timeout:  copts.flHealthTimeout,
+			Retries:  copts.flHealthRetries,
 		}
 	}
 
 	resources := container.Resources{
-		CgroupParent:         *copts.flCgroupParent,
+		CgroupParent:         copts.flCgroupParent,
 		Memory:               flMemory,
 		MemoryReservation:    MemoryReservation,
 		MemorySwap:           memorySwap,
-		MemorySwappiness:     copts.flSwappiness,
+		MemorySwappiness:     &copts.flSwappiness,
 		KernelMemory:         KernelMemory,
-		OomKillDisable:       copts.flOomKillDisable,
-		CPUPercent:           *copts.flCPUPercent,
-		CPUShares:            *copts.flCPUShares,
-		CPUPeriod:            *copts.flCPUPeriod,
-		CpusetCpus:           *copts.flCpusetCpus,
-		CpusetMems:           *copts.flCpusetMems,
-		CPUQuota:             *copts.flCPUQuota,
-		PidsLimit:            *copts.flPidsLimit,
-		BlkioWeight:          *copts.flBlkioWeight,
+		OomKillDisable:       &copts.flOomKillDisable,
+		CPUPercent:           copts.flCPUPercent,
+		CPUShares:            copts.flCPUShares,
+		CPUPeriod:            copts.flCPUPeriod,
+		CpusetCpus:           copts.flCpusetCpus,
+		CpusetMems:           copts.flCpusetMems,
+		CPUQuota:             copts.flCPUQuota,
+		PidsLimit:            copts.flPidsLimit,
+		BlkioWeight:          copts.flBlkioWeight,
 		BlkioWeightDevice:    copts.flBlkioWeightDevice.GetList(),
 		BlkioDeviceReadBps:   copts.flDeviceReadBps.GetList(),
 		BlkioDeviceWriteBps:  copts.flDeviceWriteBps.GetList(),
 		BlkioDeviceReadIOps:  copts.flDeviceReadIOps.GetList(),
 		BlkioDeviceWriteIOps: copts.flDeviceWriteIOps.GetList(),
-		IOMaximumIOps:        *copts.flIOMaxIOps,
+		IOMaximumIOps:        copts.flIOMaxIOps,
 		IOMaximumBandwidth:   uint64(maxIOBandwidth),
 		Ulimits:              copts.flUlimits.GetList(),
 		Devices:              deviceMappings,
 	}
 
 	config := &container.Config{
-		Hostname:     *copts.flHostname,
+		Hostname:     copts.flHostname,
 		ExposedPorts: ports,
-		User:         *copts.flUser,
-		Tty:          *copts.flTty,
+		User:         copts.flUser,
+		Tty:          copts.flTty,
 		// TODO: deprecated, it comes from -n, --networking
 		// it's still needed internally to set the network to disabled
 		// if e.g. bridge is none in daemon opts, and in inspect
 		NetworkDisabled: false,
-		OpenStdin:       *copts.flStdin,
+		OpenStdin:       copts.flStdin,
 		AttachStdin:     attachStdin,
 		AttachStdout:    attachStdout,
 		AttachStderr:    attachStderr,
@@ -521,24 +530,24 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 		Cmd:             runCmd,
 		Image:           copts.Image,
 		Volumes:         copts.flVolumes.GetMap(),
-		MacAddress:      *copts.flMacAddress,
+		MacAddress:      copts.flMacAddress,
 		Entrypoint:      entrypoint,
-		WorkingDir:      *copts.flWorkingDir,
+		WorkingDir:      copts.flWorkingDir,
 		Labels:          ConvertKVStringsToMap(labels),
 		Healthcheck:     healthConfig,
 	}
 	if flags.Changed("stop-signal") {
-		config.StopSignal = *copts.flStopSignal
+		config.StopSignal = copts.flStopSignal
 	}
 
 	hostConfig := &container.HostConfig{
 		Binds:           binds,
-		ContainerIDFile: *copts.flContainerIDFile,
-		OomScoreAdj:     *copts.flOomScoreAdj,
-		Privileged:      *copts.flPrivileged,
+		ContainerIDFile: copts.flContainerIDFile,
+		OomScoreAdj:     copts.flOomScoreAdj,
+		Privileged:      copts.flPrivileged,
 		PortBindings:    portBindings,
 		Links:           copts.flLinks.GetAll(),
-		PublishAllPorts: *copts.flPublishAll,
+		PublishAllPorts: copts.flPublishAll,
 		// Make sure the dns fields are never nil.
 		// New containers don't ever have those fields nil,
 		// but pre created containers can still have those nil values.
@@ -549,7 +558,7 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 		DNSOptions:     copts.flDNSOptions.GetAllOrEmpty(),
 		ExtraHosts:     copts.flExtraHosts.GetAll(),
 		VolumesFrom:    copts.flVolumesFrom.GetAll(),
-		NetworkMode:    container.NetworkMode(*copts.flNetMode),
+		NetworkMode:    container.NetworkMode(copts.flNetMode),
 		IpcMode:        ipcMode,
 		PidMode:        pidMode,
 		UTSMode:        utsMode,
@@ -560,15 +569,15 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 		RestartPolicy:  restartPolicy,
 		SecurityOpt:    securityOpts,
 		StorageOpt:     storageOpts,
-		ReadonlyRootfs: *copts.flReadonlyRootfs,
-		LogConfig:      container.LogConfig{Type: *copts.flLoggingDriver, Config: loggingOpts},
-		VolumeDriver:   *copts.flVolumeDriver,
-		Isolation:      container.Isolation(*copts.flIsolation),
+		ReadonlyRootfs: copts.flReadonlyRootfs,
+		LogConfig:      container.LogConfig{Type: copts.flLoggingDriver, Config: loggingOpts},
+		VolumeDriver:   copts.flVolumeDriver,
+		Isolation:      container.Isolation(copts.flIsolation),
 		ShmSize:        shmSize,
 		Resources:      resources,
 		Tmpfs:          tmpfs,
 		Sysctls:        copts.flSysctls.GetAll(),
-		Runtime:        *copts.flRuntime,
+		Runtime:        copts.flRuntime,
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect
@@ -580,13 +589,13 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 		EndpointsConfig: make(map[string]*networktypes.EndpointSettings),
 	}
 
-	if *copts.flIPv4Address != "" || *copts.flIPv6Address != "" || copts.flLinkLocalIPs.Len() > 0 {
+	if copts.flIPv4Address != "" || copts.flIPv6Address != "" || copts.flLinkLocalIPs.Len() > 0 {
 		epConfig := &networktypes.EndpointSettings{}
 		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = epConfig
 
 		epConfig.IPAMConfig = &networktypes.EndpointIPAMConfig{
-			IPv4Address: *copts.flIPv4Address,
-			IPv6Address: *copts.flIPv6Address,
+			IPv4Address: copts.flIPv4Address,
+			IPv6Address: copts.flIPv6Address,
 		}
 
 		if copts.flLinkLocalIPs.Len() > 0 {
