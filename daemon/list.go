@@ -378,8 +378,13 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 	networkExist := fmt.Errorf("container part of network")
 	if ctx.filters.Include("network") {
 		err := ctx.filters.WalkValues("network", func(value string) error {
-			if network := container.NetworkSettings.Networks[value]; network != nil {
+			if _, ok := container.NetworkSettings.Networks[value]; ok {
 				return networkExist
+			}
+			for _, nw := range container.NetworkSettings.Networks {
+				if nw.NetworkID == value {
+					return networkExist
+				}
 			}
 			return nil
 		})

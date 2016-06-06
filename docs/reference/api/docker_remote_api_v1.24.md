@@ -223,7 +223,7 @@ Query Parameters:
   -   `before`=(`<container id>` or `<container name>`)
   -   `since`=(`<container id>` or `<container name>`)
   -   `volume`=(`<volume name>` or `<mount point destination>`)
-  -   `network`=(`<network name>`)
+  -   `network`=(`<network id>` or `<network name>`)
 
 Status Codes:
 
