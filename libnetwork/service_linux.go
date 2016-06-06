@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/reexec"
@@ -261,6 +262,10 @@ func (n *network) rmLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*Por
 
 // Add loadbalancer backend into one connected sandbox.
 func (sb *sandbox) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*PortConfig, eIP *net.IPNet, gwIP net.IP, addService bool) {
+	if sb.osSbox == nil {
+		return
+	}
+
 	i, err := ipvs.New(sb.Key())
 	if err != nil {
 		logrus.Errorf("Failed to create a ipvs handle for sbox %s: %v", sb.Key(), err)
@@ -305,13 +310,17 @@ func (sb *sandbox) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*P
 	// Remove the sched name before using the service to add
 	// destination.
 	s.SchedName = ""
-	if err := i.NewDestination(s, d); err != nil {
+	if err := i.NewDestination(s, d); err != nil && err != syscall.EEXIST {
 		logrus.Errorf("Failed to create real server %s for vip %s fwmark %d: %v", ip, vip, fwMark, err)
 	}
 }
 
 // Remove loadbalancer backend from one connected sandbox.
 func (sb *sandbox) rmLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*PortConfig, eIP *net.IPNet, gwIP net.IP, rmService bool) {
+	if sb.osSbox == nil {
+		return
+	}
+
 	i, err := ipvs.New(sb.Key())
 	if err != nil {
 		logrus.Errorf("Failed to create a ipvs handle for sbox %s: %v", sb.Key(), err)
