@@ -1193,6 +1193,7 @@ __docker_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help)*"{-f=,--filter=}"[Filter values]:filter:->filter-options" \
+                "($help)--limit=[Maximum returned search results]:limit:(1 5 10 25 50)" \
                 "($help)--no-trunc[Do not truncate output]" \
                 "($help -):term: " && ret=0
 
