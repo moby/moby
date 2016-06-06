@@ -72,13 +72,13 @@ Options:
       --memory-swap string          Swap limit equal to memory plus swap: '-1' to enable unlimited swap
       --memory-swappiness int       Tune container memory swappiness (0 to 100) (default -1)
       --name string                 Assign a name to the container
-      --net string                  Connect a container to a network (default "default")
+      --network-alias value         Add network-scoped alias for the container (default [])
+      --network string              Connect a container to a network (default "default")
                                     'bridge': create a network stack on the default Docker bridge
                                     'none': no networking
                                     'container:<name|id>': reuse another container's network stack
                                     'host': use the Docker host network stack
                                     '<network-name>|<network-id>': connect to a user-defined network
-      --net-alias value             Add network-scoped alias for the container (default [])
       --no-healthcheck              Disable any container-specified HEALTHCHECK
       --oom-kill-disable            Disable OOM Killer
       --oom-score-adj int           Tune host's OOM preferences (-1000 to 1000)

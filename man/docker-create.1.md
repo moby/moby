@@ -52,8 +52,8 @@ docker-create - Create a new container
 [**--memory-swap**[=*LIMIT*]]
 [**--memory-swappiness**[=*MEMORY-SWAPPINESS*]]
 [**--name**[=*NAME*]]
-[**--net**[=*"bridge"*]]
-[**--net-alias**[=*[]*]]
+[**--network-alias**[=*[]*]]
+[**--network**[=*"bridge"*]]
 [**--oom-kill-disable**]
 [**--oom-score-adj**[=*0*]]
 [**-P**|**--publish-all**]
@@ -276,7 +276,7 @@ unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
                                'host': use the Docker host network stack.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
                                '<network-name>|<network-id>': connect to a user-defined network
 
-**--net-alias**=[]
+**--network-alias**=[]
    Add network-scoped alias for the container
 
 **--oom-kill-disable**=*true*|*false*

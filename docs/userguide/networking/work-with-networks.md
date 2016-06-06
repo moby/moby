@@ -164,7 +164,7 @@ $ docker network inspect my-network
     }
 ]
 
-$ docker run -d -P --name redis --net my-network redis
+$ docker run -d -P --name redis --network my-network redis
 
 bafb0c808c53104b2c90346f284bda33a69beadcab4fc83ab8f2c5a4410cd129
 
@@ -244,10 +244,10 @@ $ docker network inspect isolated_nw
 You can see that the Engine automatically assigns an IP address to `container2`.
 Given we specified a `--subnet` when creating the network, Engine picked
 an address from that same subnet. Now, start a third container and connect it to
-the network on launch using the `docker run` command's `--net` option:
+the network on launch using the `docker run` command's `--network` option:
 
 ```bash
-$ docker run --net=isolated_nw --ip=172.25.3.3 -itd --name=container3 busybox
+$ docker run --network=isolated_nw --ip=172.25.3.3 -itd --name=container3 busybox
 
 467a7863c3f0277ef8e661b38427737f28099b61fa55622d6c30fb288d88c551
 ```
@@ -450,7 +450,7 @@ Continuing with the above example, create another container `container4` in
 for other containers in the same network.
 
 ```bash
-$ docker run --net=isolated_nw -itd --name=container4 --link container5:c5 busybox
+$ docker run --network=isolated_nw -itd --name=container4 --link container5:c5 busybox
 
 01b5df970834b77a9eadbaff39051f237957bd35c4c56f11193e0594cfd5117c
 ```
@@ -471,7 +471,7 @@ Now let us launch another container named `container5` linking `container4` to
 c4.
 
 ```bash
-$ docker run --net=isolated_nw -itd --name=container5 --link container4:c4 busybox
+$ docker run --network=isolated_nw -itd --name=container5 --link container4:c4 busybox
 
 72eccf2208336f31e9e33ba327734125af00d1e1d2657878e2ee8154fbb23c7a
 ```
@@ -629,7 +629,7 @@ Continuing with the above example, create another container in `isolated_nw`
 with a network alias.
 
 ```bash
-$ docker run --net=isolated_nw -itd --name=container6 --net-alias app busybox
+$ docker run --network=isolated_nw -itd --name=container6 --network-alias app busybox
 
 8ebe6767c1e0361f27433090060b33200aac054a68476c3be87ef4005eb1df17
 ```
@@ -702,7 +702,7 @@ network-scoped alias within the same network. For example, let's launch
 `container7` in `isolated_nw` with the same alias as `container6`
 
 ```bash
-$ docker run --net=isolated_nw -itd --name=container7 --net-alias app busybox
+$ docker run --network=isolated_nw -itd --name=container7 --network-alias app busybox
 
 3138c678c123b8799f4c7cc6a0cecc595acbdfa8bf81f621834103cd4f504554
 ```
@@ -859,7 +859,7 @@ endpoint from the network. Once the endpoint is cleaned up, the container can
 be connected to the network.
 
 ```bash
-$ docker run -d --name redis_db --net multihost redis
+$ docker run -d --name redis_db --network multihost redis
 
 ERROR: Cannot start container bc0b19c089978f7845633027aa3435624ca3d12dd4f4f764b61eac4c0610f32e: container already connected to network multihost
 
@@ -867,7 +867,7 @@ $ docker rm -f redis_db
 
 $ docker network disconnect -f multihost redis_db
 
-$ docker run -d --name redis_db --net multihost redis
+$ docker run -d --name redis_db --network multihost redis
 
 7d986da974aeea5e9f7aca7e510bdb216d58682faa83a9040c2f2adc0544795a
 ```

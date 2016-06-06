@@ -182,10 +182,16 @@ func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 	flags.Var(&copts.flLinks, "link", "Add link to another container")
 	flags.Var(&copts.flLinkLocalIPs, "link-local-ip", "Container IPv4/IPv6 link-local addresses")
 	flags.StringVar(&copts.flMacAddress, "mac-address", "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
-	flags.StringVar(&copts.flNetMode, "net", "default", "Connect a container to a network")
-	flags.Var(&copts.flAliases, "net-alias", "Add network-scoped alias for the container")
 	flags.VarP(&copts.flPublish, "publish", "p", "Publish a container's port(s) to the host")
 	flags.BoolVarP(&copts.flPublishAll, "publish-all", "P", false, "Publish all exposed ports to random ports")
+	// We allow for both "--net" and "--network", although the latter is the recommended way.
+	flags.StringVar(&copts.flNetMode, "net", "default", "Connect a container to a network")
+	flags.StringVar(&copts.flNetMode, "network", "default", "Connect a container to a network")
+	flags.MarkHidden("net")
+	// We allow for both "--net-alias" and "--network-alias", although the latter is the recommended way.
+	flags.Var(&copts.flAliases, "net-alias", "Add network-scoped alias for the container")
+	flags.Var(&copts.flAliases, "network-alias", "Add network-scoped alias for the container")
+	flags.MarkHidden("net-alias")
 
 	// Logging and storage
 	flags.StringVar(&copts.flLoggingDriver, "log-driver", "", "Logging driver for container")

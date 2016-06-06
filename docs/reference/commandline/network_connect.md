@@ -32,10 +32,10 @@ the same network.
 $ docker network connect multi-host-network container1
 ```
 
-You can also use the `docker run --net=<network-name>` option to start a container and immediately connect it to a network.
+You can also use the `docker run --network=<network-name>` option to start a container and immediately connect it to a network.
 
 ```bash
-$ docker run -itd --net=multi-host-network busybox
+$ docker run -itd --network=multi-host-network busybox
 ```
 
 You can specify the IP address you want to be assigned to the container's interface.
