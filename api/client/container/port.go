@@ -25,7 +25,7 @@ func NewPortCommand(dockerCli *client.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "port CONTAINER [PRIVATE_PORT[/PROTO]]",
 		Short: "List port mappings or a specific mapping for the container",
-		Args:  cli.RequiresMinMaxArgs(1, 2),
+		Args:  cli.RequiresRangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.container = args[0]
 			if len(args) > 1 {

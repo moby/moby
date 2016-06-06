@@ -60,8 +60,8 @@ func RequiresMaxArgs(max int) cobra.PositionalArgs {
 	}
 }
 
-// RequiresMinMaxArgs returns an error if there is not at least min args and at most max args
-func RequiresMinMaxArgs(min int, max int) cobra.PositionalArgs {
+// RequiresRangeArgs returns an error if there is not at least min args and at most max args
+func RequiresRangeArgs(min int, max int) cobra.PositionalArgs {
 	return func(cmd *cobra.Command, args []string) error {
 		if len(args) >= min && len(args) <= max {
 			return nil
