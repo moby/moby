@@ -24,7 +24,6 @@ var DockerCommandUsage = []Command{
 	{"ps", "List containers"},
 	{"pull", "Pull an image or a repository from a registry"},
 	{"push", "Push an image or a repository to a registry"},
-	{"restart", "Restart a container"},
 	{"rm", "Remove one or more containers"},
 	{"save", "Save one or more images to a tar archive"},
 	{"stats", "Display a live stream of container(s) resource usage statistics"},
