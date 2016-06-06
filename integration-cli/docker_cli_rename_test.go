@@ -75,11 +75,11 @@ func (s *DockerSuite) TestRenameInvalidName(c *check.C) {
 
 	out, _, err = dockerCmdWithError("rename", "myname", "")
 	c.Assert(err, checker.NotNil, check.Commentf("Renaming container to invalid name should have failed: %s", out))
-	c.Assert(out, checker.Contains, "may be empty", check.Commentf("%v", err))
+	c.Assert(out, checker.Contains, "\"docker rename\" requires exactly 2 argument(s).", check.Commentf("%v", err))
 
 	out, _, err = dockerCmdWithError("rename", "", "newname")
 	c.Assert(err, checker.NotNil, check.Commentf("Renaming container with empty name should have failed: %s", out))
-	c.Assert(out, checker.Contains, "may be empty", check.Commentf("%v", err))
+	c.Assert(out, checker.Contains, "\"docker rename\" requires exactly 2 argument(s).", check.Commentf("%v", err))
 
 	out, _ = dockerCmd(c, "ps", "-a")
 	c.Assert(out, checker.Contains, "myname", check.Commentf("Output of docker ps should have included 'myname': %s", out))

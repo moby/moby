@@ -39,6 +39,7 @@ func NewCobraAdaptor(clientFlags *cliflags.ClientFlags) CobraAdaptor {
 		container.NewExportCommand(dockerCli),
 		container.NewLogsCommand(dockerCli),
 		container.NewPortCommand(dockerCli),
+		container.NewRenameCommand(dockerCli),
 		container.NewRunCommand(dockerCli),
 		container.NewStartCommand(dockerCli),
 		container.NewStopCommand(dockerCli),
