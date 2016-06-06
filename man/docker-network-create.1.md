@@ -101,12 +101,19 @@ specify subnetwork values directly using the `--subnet` option. On a
 `bridge` network you can only create a single subnet:
 
 ```bash
-docker network create -d bridge --subnet=192.168.0.0/16 br0
+$ docker network create -d bridge --subnet=192.168.0.0/16 br0
 ```
-Additionally, you also specify the `--gateway` `--ip-range` and `--aux-address` options.
+
+Additionally, you also specify the `--gateway` `--ip-range` and `--aux-address`
+options.
 
 ```bash
-network create --driver=bridge --subnet=172.28.0.0/16 --ip-range=172.28.5.0/24 --gateway=172.28.5.254 br0
+$ docker network create \
+  --driver=bridge \
+  --subnet=172.28.0.0/16 \
+  --ip-range=172.28.5.0/24 \
+  --gateway=172.28.5.254 \
+  br0
 ```
 
 If you omit the `--gateway` flag the Engine selects one for you from inside a
@@ -114,20 +121,26 @@ preferred pool. For `overlay` networks and for network driver plugins that
 support it you can create multiple subnetworks.
 
 ```bash
-docker network create -d overlay
-  --subnet=192.168.0.0/16 --subnet=192.170.0.0/16
-  --gateway=192.168.0.100 --gateway=192.170.0.100
-  --ip-range=192.168.1.0/24
-  --aux-address a=192.168.1.5 --aux-address b=192.168.1.6
-  --aux-address a=192.170.1.5 --aux-address b=192.170.1.6
+$ docker network create -d overlay \
+  --subnet=192.168.0.0/16 \
+  --subnet=192.170.0.0/16 \
+  --gateway=192.168.0.100 \ 
+  --gateway=192.170.0.100 \
+  --ip-range=192.168.1.0/24 \
+  --aux-address a=192.168.1.5 --aux-address b=192.168.1.6 \
+  --aux-address a=192.170.1.5 --aux-address b=192.170.1.6 \
   my-multihost-network
 ```
-Be sure that your subnetworks do not overlap. If they do, the network create fails and Engine returns an error.
+
+Be sure that your subnetworks do not overlap. If they do, the network create
+fails and Engine returns an error.
 
 ### Network internal mode
 
-By default, when you connect a container to an `overlay` network, Docker also connects a bridge network to it to provide external connectivity.
-If you want to create an externally isolated `overlay` network, you can specify the `--internal` option.
+By default, when you connect a container to an `overlay` network, Docker also
+connects a bridge network to it to provide external connectivity. If you want
+to create an externally isolated `overlay` network, you can specify the
+`--internal` option.
 
 # OPTIONS
 **--aux-address**=map[]
