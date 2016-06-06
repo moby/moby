@@ -16,7 +16,6 @@ var DockerCommandUsage = []Command{
 	{"exec", "Run a command in a running container"},
 	{"history", "Show the history of an image"},
 	{"images", "List images"},
-	{"import", "Import the contents from a tarball to create a filesystem image"},
 	{"info", "Display system-wide information"},
 	{"inspect", "Return low-level information on a container or image"},
 	{"kill", "Kill a running container"},
