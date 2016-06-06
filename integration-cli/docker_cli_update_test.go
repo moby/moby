@@ -32,7 +32,7 @@ func (s *DockerSuite) TestUpdateRestartPolicy(c *check.C) {
 
 func (s *DockerSuite) TestUpdateLogOptRunningContainer(c *check.C) {
 	name := "test-update-container"
-	dockerCmd(c, "run", "-d", "--name", name, "--log-driver=json-file", "--log-opt", "max-file=1", "--log-opt", "max-size=1m", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--name", name, "--log-driver=json-file", "--log-opt", "max-file=1", "--log-opt", "max-size=1m", "busybox", "sleep", "300")
 	dockerCmd(c, "update", "--log-opt", "max-file=2", "--log-opt", "max-size=2m", name)
 
 	out, _ := dockerCmd(c, "inspect", "-f", "{{ .HostConfig.LogConfig.Config }}", name)
@@ -54,7 +54,7 @@ func (s *DockerSuite) TestUpdateLogOptStoppedContainer(c *check.C) {
 func (s *DockerSuite) TestUpdateLogOptPausedContainer(c *check.C) {
 	name := "test-update-container"
 
-	dockerCmd(c, "run", "-d", "--name", name, "--log-driver=json-file", "--log-opt", "max-file=1", "--log-opt", "max-size=1m", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--name", name, "--log-driver=json-file", "--log-opt", "max-file=1", "--log-opt", "max-size=1m", "busybox", "sleep", "300")
 	dockerCmd(c, "pause", name)
 	dockerCmd(c, "update", "--log-opt", "max-file=2", "--log-opt", "max-size=2m", name)
 
