@@ -37,7 +37,6 @@ var DockerCommandUsage = []Command{
 	{"top", "Display the running processes of a container"},
 	{"update", "Update configuration of one or more containers"},
 	{"version", "Show the Docker version information"},
-	{"wait", "Block until a container stops, then print its exit code"},
 }
 
 // DockerCommands stores all the docker command
