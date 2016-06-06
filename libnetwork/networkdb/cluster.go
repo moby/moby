@@ -1,6 +1,7 @@
 package networkdb
 
 import (
+	"bytes"
 	"crypto/rand"
 	"fmt"
 	"math/big"
@@ -33,6 +34,46 @@ func (l *logWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// SetKey adds a new key to the key ring
+func (nDB *NetworkDB) SetKey(key []byte) {
+	for _, dbKey := range nDB.config.Keys {
+		if bytes.Equal(key, dbKey) {
+			return
+		}
+	}
+	nDB.config.Keys = append(nDB.config.Keys, key)
+	if nDB.keyring != nil {
+		nDB.keyring.AddKey(key)
+	}
+}
+
+// SetPrimaryKey sets the given key as the primary key. This should have
+// been added apriori through SetKey
+func (nDB *NetworkDB) SetPrimaryKey(key []byte) {
+	for _, dbKey := range nDB.config.Keys {
+		if bytes.Equal(key, dbKey) {
+			if nDB.keyring != nil {
+				nDB.keyring.UseKey(dbKey)
+			}
+			break
+		}
+	}
+}
+
+// RemoveKey removes a key from the key ring. The key being removed
+// can't be the primary key
+func (nDB *NetworkDB) RemoveKey(key []byte) {
+	for i, dbKey := range nDB.config.Keys {
+		if bytes.Equal(key, dbKey) {
+			nDB.config.Keys = append(nDB.config.Keys[:i], nDB.config.Keys[i+1:]...)
+			if nDB.keyring != nil {
+				nDB.keyring.RemoveKey(dbKey)
+			}
+			break
+		}
+	}
+}
+
 func (nDB *NetworkDB) clusterInit() error {
 	config := memberlist.DefaultLANConfig()
 	config.Name = nDB.config.NodeName
@@ -46,6 +87,15 @@ func (nDB *NetworkDB) clusterInit() error {
 	config.Delegate = &delegate{nDB: nDB}
 	config.Events = &eventDelegate{nDB: nDB}
 	config.LogOutput = &logWriter{}
+
+	var err error
+	if len(nDB.config.Keys) > 0 {
+		nDB.keyring, err = memberlist.NewKeyring(nDB.config.Keys, nDB.config.Keys[0])
+		if err != nil {
+			return err
+		}
+		config.Keyring = nDB.keyring
+	}
 
 	nDB.networkBroadcasts = &memberlist.TransmitLimitedQueue{
 		NumNodes: func() int {

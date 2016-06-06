@@ -226,6 +226,12 @@ func (c *controller) clusterAgentInit() {
 		select {
 		case <-clusterProvider.ListenClusterEvents():
 			if !c.isDistributedControl() {
+				keys := clusterProvider.GetNetworkKeys()
+				// If the agent is already setup this could be a key change notificaiton
+				if c.agent != nil {
+					c.agentHandleKeys(keys)
+				}
+
 				bindAddr, _, _ := net.SplitHostPort(clusterProvider.GetListenAddress())
 				remote := clusterProvider.GetRemoteAddress()
 				remoteAddr, _, _ := net.SplitHostPort(remote)
@@ -243,8 +249,8 @@ func (c *controller) clusterAgentInit() {
 					}
 				}
 
-				if bindAddr != "" && c.agent == nil {
-					if err := c.agentInit(bindAddr); err != nil {
+				if bindAddr != "" && len(keys) > 0 && c.agent == nil {
+					if err := c.agentInit(bindAddr, keys); err != nil {
 						log.Errorf("Error in agentInit : %v", err)
 					} else {
 						c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {

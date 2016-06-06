@@ -77,6 +77,9 @@ type NetworkDB struct {
 	// List of all tickers which needed to be stopped when
 	// cleaning up.
 	tickers []*time.Ticker
+
+	// Reference to the memberlist's keyring to add & remove keys
+	keyring *memberlist.Keyring
 }
 
 // network describes the node/network attachment.
@@ -111,6 +114,10 @@ type Config struct {
 	// BindPort is the local node's port to which we bind to for
 	// cluster communication.
 	BindPort int
+
+	// Keys to be added to the Keyring of the memberlist. Key at index
+	// 0 is the primary key
+	Keys [][]byte
 }
 
 // entry defines a table entry

@@ -314,6 +314,13 @@ func (d *dnetConnection) GetRemoteAddress() string {
 	return d.Orchestration.Peer
 }
 
+func (d *dnetConnection) GetNetworkKeys() []*types.EncryptionKey {
+	return nil
+}
+
+func (d *dnetConnection) SetNetworkKeys([]*types.EncryptionKey) {
+}
+
 func (d *dnetConnection) ListenClusterEvents() <-chan struct{} {
 	return d.configEvent
 }
