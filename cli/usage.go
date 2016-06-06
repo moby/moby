@@ -11,7 +11,6 @@ var DockerCommandUsage = []Command{
 	{"build", "Build an image from a Dockerfile"},
 	{"commit", "Create a new image from a container's changes"},
 	{"cp", "Copy files/folders between a container and the local filesystem"},
-	{"events", "Get real time events from the server"},
 	{"exec", "Run a command in a running container"},
 	{"info", "Display system-wide information"},
 	{"inspect", "Return low-level information on a container or image"},
@@ -22,7 +21,6 @@ var DockerCommandUsage = []Command{
 	{"pull", "Pull an image or a repository from a registry"},
 	{"push", "Push an image or a repository to a registry"},
 	{"save", "Save one or more images to a tar archive"},
-	{"stats", "Display a live stream of container(s) resource usage statistics"},
 	{"update", "Update configuration of one or more containers"},
 }
 

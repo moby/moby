@@ -6,7 +6,6 @@ func (cli *DockerCli) Command(name string) func(...string) error {
 		"build":   cli.CmdBuild,
 		"commit":  cli.CmdCommit,
 		"cp":      cli.CmdCp,
-		"events":  cli.CmdEvents,
 		"exec":    cli.CmdExec,
 		"info":    cli.CmdInfo,
 		"inspect": cli.CmdInspect,
@@ -17,7 +16,6 @@ func (cli *DockerCli) Command(name string) func(...string) error {
 		"pull":    cli.CmdPull,
 		"push":    cli.CmdPush,
 		"save":    cli.CmdSave,
-		"stats":   cli.CmdStats,
 		"update":  cli.CmdUpdate,
 	}[name]
 }
