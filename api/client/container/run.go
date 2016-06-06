@@ -234,7 +234,7 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 		defer func() {
 			// Explicitly not sharing the context as it could be "Done" (by calling cancelFun)
 			// and thus the container would not be removed.
-			if err := dockerCli.RemoveContainer(context.Background(), createResponse.ID, true, false, true); err != nil {
+			if err := removeContainer(dockerCli, context.Background(), createResponse.ID, true, false, true); err != nil {
 				fmt.Fprintf(stderr, "%v\n", err)
 			}
 		}()
