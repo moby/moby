@@ -17,7 +17,6 @@ var DockerCommandUsage = []Command{
 	{"import", "Import the contents from a tarball to create a filesystem image"},
 	{"info", "Display system-wide information"},
 	{"inspect", "Return low-level information on a container or image"},
-	{"kill", "Kill a running container"},
 	{"load", "Load an image from a tar archive or STDIN"},
 	{"login", "Log in to a Docker registry"},
 	{"logout", "Log out from a Docker registry"},
