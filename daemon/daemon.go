@@ -745,7 +745,9 @@ func configureVolumes(config *Config, rootUID, rootGID int) (*store.VolumeStore,
 		return nil, err
 	}
 
-	volumedrivers.Register(volumesDriver, volumesDriver.Name())
+	if !volumedrivers.Register(volumesDriver, volumesDriver.Name()) {
+		return nil, fmt.Errorf("local volume driver could not be registered")
+	}
 	return store.New(config.Root)
 }
 
