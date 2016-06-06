@@ -223,11 +223,11 @@ Once your network is created, you can start a container on any of the hosts and 
 
 2. Start an Nginx web server on the `mhs-demo0` instance.
 
-		$ docker run -itd --name=web --net=my-net --env="constraint:node==mhs-demo0" nginx
+		$ docker run -itd --name=web --network=my-net --env="constraint:node==mhs-demo0" nginx
 
 4. Run a BusyBox instance on the `mhs-demo1` instance and get the contents of the Nginx server's home page.
 
-		$ docker run -it --rm --net=my-net --env="constraint:node==mhs-demo1" busybox wget -O- http://web
+		$ docker run -it --rm --network=my-net --env="constraint:node==mhs-demo1" busybox wget -O- http://web
 
 		Unable to find image 'busybox:latest' locally
 		latest: Pulling from library/busybox

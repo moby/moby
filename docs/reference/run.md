@@ -259,7 +259,7 @@ $ strace -p 1
 
 The UTS namespace is for setting the hostname and the domain that is visible
 to running processes in that namespace.  By default, all containers, including
-those with `--net=host`, have their own UTS namespace.  The `host` setting will
+those with `--network=host`, have their own UTS namespace.  The `host` setting will
 result in the container using the same UTS namespace as the host.  Note that
 `--hostname` is invalid in `host` UTS mode.
 
@@ -289,13 +289,13 @@ of the containers.
 ## Network settings
 
     --dns=[]           : Set custom dns servers for the container
-    --net="bridge"     : Connect a container to a network
+    --network="bridge" : Connect a container to a network
                           'bridge': create a network stack on the default Docker bridge
                           'none': no networking
                           'container:<name|id>': reuse another container's network stack
                           'host': use the Docker host network stack
                           '<network-name>|<network-id>': connect to a user-defined network
-    --net-alias=[]     : Add network-scoped alias for the container
+    --network-alias=[] : Add network-scoped alias for the container
     --add-host=""      : Add a line to /etc/hosts (host:IP)
     --mac-address=""   : Sets the container's Ethernet device's MAC address
     --ip=""            : Sets the container's Ethernet device's IPv4 address
@@ -304,7 +304,7 @@ of the containers.
 
 By default, all containers have networking enabled and they can make any
 outgoing connections. The operator can completely disable networking
-with `docker run --net none` which disables all incoming and outgoing
+with `docker run --network none` which disables all incoming and outgoing
 networking. In cases like this, you would perform I/O through files or
 `STDIN` and `STDOUT` only.
 
@@ -404,14 +404,14 @@ docker daemon. It is recommended to run containers in this mode when their
 networking performance is critical, for example, a production Load Balancer
 or a High Performance Web Server.
 
-> **Note**: `--net="host"` gives the container full access to local system
+> **Note**: `--network="host"` gives the container full access to local system
 > services such as D-bus and is therefore considered insecure.
 
 #### Network: container
 
 With the network set to `container` a container will share the
 network stack of another container.  The other container's name must be
-provided in the format of `--net container:<name|id>`. Note that `--add-host`
+provided in the format of `--network container:<name|id>`. Note that `--add-host`
 `--hostname` `--dns` `--dns-search` `--dns-opt` and `--mac-address` are
 invalid in `container` netmode, and `--publish` `--publish-all` `--expose` are
 also invalid in `container` netmode.
@@ -422,7 +422,7 @@ running the `redis-cli` command and connecting to the Redis server over the
 
     $ docker run -d --name redis example/redis --bind 127.0.0.1
     $ # use the redis container's network stack to access localhost
-    $ docker run --rm -it --net container:redis example/redis-cli -h 127.0.0.1
+    $ docker run --rm -it --network container:redis example/redis-cli -h 127.0.0.1
 
 #### User-defined network
 
@@ -440,7 +440,7 @@ driver and running a container in the created network
 
 ```
 $ docker network create -d bridge my-net
-$ docker run --net=my-net -itd --name=container3 busybox
+$ docker run --network=my-net -itd --name=container3 busybox
 ```
 
 ### Managing /etc/hosts
