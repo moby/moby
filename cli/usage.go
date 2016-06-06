@@ -14,7 +14,6 @@ var DockerCommandUsage = []Command{
 	{"cp", "Copy files/folders between a container and the local filesystem"},
 	{"events", "Get real time events from the server"},
 	{"exec", "Run a command in a running container"},
-	{"history", "Show the history of an image"},
 	{"images", "List images"},
 	{"import", "Import the contents from a tarball to create a filesystem image"},
 	{"info", "Display system-wide information"},
