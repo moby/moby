@@ -1,10 +1,12 @@
 package libnetwork
 
+//go:generate protoc -I.:Godeps/_workspace/src/github.com/gogo/protobuf  --gogo_out=import_path=github.com/docker/libnetwork,Mgogoproto/gogo.proto=github.com/gogo/protobuf/gogoproto:. agent.proto
+
 import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
+	"sort"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-events"
@@ -12,7 +14,17 @@ import (
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/networkdb"
+	"github.com/docker/libnetwork/types"
+	"github.com/gogo/protobuf/proto"
 )
+
+// ByTime implements sort.Interface for []*types.EncryptionKey based on
+// the LamportTime field.
+type ByTime []*types.EncryptionKey
+
+func (b ByTime) Len() int           { return len(b) }
+func (b ByTime) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
+func (b ByTime) Less(i, j int) bool { return b[i].LamportTime < b[j].LamportTime }
 
 type agent struct {
 	networkDB         *networkdb.NetworkDB
@@ -59,9 +71,113 @@ func resolveAddr(addrOrInterface string) (string, error) {
 	return getBindAddr(addrOrInterface)
 }
 
+func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
+	// Find the new key and add it to the key ring
+	a := c.agent
+	for _, key := range keys {
+		same := false
+		for _, cKey := range c.keys {
+			if same = cKey.LamportTime == key.LamportTime; same {
+				break
+			}
+		}
+		if !same {
+			c.keys = append(c.keys, key)
+			if key.Subsystem == "networking:gossip" {
+				a.networkDB.SetKey(key.Key)
+			}
+			break
+		}
+	}
+	// Find the deleted key. If the deleted key was the primary key,
+	// a new primary key should be set before removing if from keyring.
+	deleted := []byte{}
+	for i, cKey := range c.keys {
+		same := false
+		for _, key := range keys {
+			if same = key.LamportTime == cKey.LamportTime; same {
+				break
+			}
+		}
+		if !same {
+			if cKey.Subsystem == "networking:gossip" {
+				deleted = cKey.Key
+			}
+			c.keys = append(c.keys[:i], c.keys[i+1:]...)
+			break
+		}
+	}
+
+	sort.Sort(ByTime(c.keys))
+	for _, key := range c.keys {
+		if key.Subsystem == "networking:gossip" {
+			a.networkDB.SetPrimaryKey(key.Key)
+			break
+		}
+	}
+	if len(deleted) > 0 {
+		a.networkDB.RemoveKey(deleted)
+	}
+	return nil
+}
+
+func (c *controller) agentSetup() error {
+	clusterProvider := c.cfg.Daemon.ClusterProvider
+
+	bindAddr, _, _ := net.SplitHostPort(clusterProvider.GetListenAddress())
+	remote := clusterProvider.GetRemoteAddress()
+	remoteAddr, _, _ := net.SplitHostPort(remote)
+
+	// Determine the BindAddress from RemoteAddress or through best-effort routing
+	if !isValidClusteringIP(bindAddr) {
+		if !isValidClusteringIP(remoteAddr) {
+			remote = "8.8.8.8:53"
+		}
+		conn, err := net.Dial("udp", remote)
+		if err == nil {
+			bindHostPort := conn.LocalAddr().String()
+			bindAddr, _, _ = net.SplitHostPort(bindHostPort)
+			conn.Close()
+		}
+	}
+
+	if bindAddr != "" && c.agent == nil {
+		if err := c.agentInit(bindAddr); err != nil {
+			logrus.Errorf("Error in agentInit : %v", err)
+		} else {
+			c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+				if capability.DataScope == datastore.GlobalScope {
+					c.agentDriverNotify(driver)
+				}
+				return false
+			})
+
+			if c.agent != nil {
+				close(c.agentInitDone)
+			}
+		}
+	}
+	if remoteAddr != "" {
+		if err := c.agentJoin(remoteAddr); err != nil {
+			logrus.Errorf("Error in agentJoin : %v", err)
+		}
+	}
+	return nil
+}
+
 func (c *controller) agentInit(bindAddrOrInterface string) error {
-	if !c.cfg.Daemon.IsAgent {
+	if !c.isAgent() {
 		return nil
+	}
+
+	// sort the keys by lamport time
+	sort.Sort(ByTime(c.keys))
+
+	gossipkey := [][]byte{}
+	for _, key := range c.keys {
+		if key.Subsystem == "networking:gossip" {
+			gossipkey = append(gossipkey, key.Key)
+		}
 	}
 
 	bindAddr, err := resolveAddr(bindAddrOrInterface)
@@ -73,6 +189,7 @@ func (c *controller) agentInit(bindAddrOrInterface string) error {
 	nDB, err := networkdb.New(&networkdb.Config{
 		BindAddr: bindAddr,
 		NodeName: hostname,
+		Keys:     gossipkey,
 	})
 
 	if err != nil {
@@ -92,12 +209,12 @@ func (c *controller) agentInit(bindAddrOrInterface string) error {
 	return nil
 }
 
-func (c *controller) agentJoin(remotes []string) error {
+func (c *controller) agentJoin(remote string) error {
 	if c.agent == nil {
 		return nil
 	}
 
-	return c.agent.networkDB.Join(remotes)
+	return c.agent.networkDB.Join([]string{remote})
 }
 
 func (c *controller) agentDriverNotify(d driverapi.Driver) {
@@ -124,6 +241,7 @@ func (c *controller) agentClose() {
 	c.agent.epTblCancel()
 
 	c.agent.networkDB.Close()
+	c.agent = nil
 }
 
 func (n *network) isClusterEligible() bool {
@@ -165,12 +283,32 @@ func (ep *endpoint) addToCluster() error {
 
 	c := n.getController()
 	if !ep.isAnonymous() && ep.Iface().Address() != nil {
-		if err := c.addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.Iface().Address().IP); err != nil {
+		var ingressPorts []*PortConfig
+		if ep.svcID != "" {
+			// Gossip ingress ports only in ingress network.
+			if n.ingress {
+				ingressPorts = ep.ingressPorts
+			}
+
+			if err := c.addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.virtualIP, ingressPorts, ep.Iface().Address().IP); err != nil {
+				return err
+			}
+		}
+
+		buf, err := proto.Marshal(&EndpointRecord{
+			Name:         ep.Name(),
+			ServiceName:  ep.svcName,
+			ServiceID:    ep.svcID,
+			VirtualIP:    ep.virtualIP.String(),
+			IngressPorts: ingressPorts,
+			EndpointIP:   ep.Iface().Address().IP.String(),
+		})
+
+		if err != nil {
 			return err
 		}
 
-		if err := c.agent.networkDB.CreateEntry("endpoint_table", n.ID(), ep.ID(), []byte(fmt.Sprintf("%s,%s,%s,%s", ep.Name(), ep.svcName,
-			ep.svcID, ep.Iface().Address().IP))); err != nil {
+		if err := c.agent.networkDB.CreateEntry("endpoint_table", n.ID(), ep.ID(), buf); err != nil {
 			return err
 		}
 	}
@@ -192,8 +330,13 @@ func (ep *endpoint) deleteFromCluster() error {
 
 	c := n.getController()
 	if !ep.isAnonymous() {
-		if ep.Iface().Address() != nil {
-			if err := c.rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.Iface().Address().IP); err != nil {
+		if ep.svcID != "" && ep.Iface().Address() != nil {
+			var ingressPorts []*PortConfig
+			if n.ingress {
+				ingressPorts = ep.ingressPorts
+			}
+
+			if err := c.rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.virtualIP, ingressPorts, ep.Iface().Address().IP); err != nil {
 				return err
 			}
 		}
@@ -310,20 +453,21 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 	var (
 		nid   string
 		eid   string
-		value string
+		value []byte
 		isAdd bool
+		epRec EndpointRecord
 	)
 
 	switch event := ev.(type) {
 	case networkdb.CreateEvent:
 		nid = event.NetworkID
 		eid = event.Key
-		value = string(event.Value)
+		value = event.Value
 		isAdd = true
 	case networkdb.DeleteEvent:
 		nid = event.NetworkID
 		eid = event.Key
-		value = string(event.Value)
+		value = event.Value
 	case networkdb.UpdateEvent:
 		logrus.Errorf("Unexpected update service table event = %#v", event)
 	}
@@ -335,16 +479,18 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 	}
 	n := nw.(*network)
 
-	vals := strings.Split(value, ",")
-	if len(vals) < 4 {
-		logrus.Errorf("Incorrect service table value = %s", value)
+	err = proto.Unmarshal(value, &epRec)
+	if err != nil {
+		logrus.Errorf("Failed to unmarshal service table value: %v", err)
 		return
 	}
 
-	name := vals[0]
-	svcName := vals[1]
-	svcID := vals[2]
-	ip := net.ParseIP(vals[3])
+	name := epRec.Name
+	svcName := epRec.ServiceName
+	svcID := epRec.ServiceID
+	vip := net.ParseIP(epRec.VirtualIP)
+	ip := net.ParseIP(epRec.EndpointIP)
+	ingressPorts := epRec.IngressPorts
 
 	if name == "" || ip == nil {
 		logrus.Errorf("Invalid endpoint name/ip received while handling service table event %s", value)
@@ -352,16 +498,20 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 	}
 
 	if isAdd {
-		if err := c.addServiceBinding(svcName, svcID, nid, eid, ip); err != nil {
-			logrus.Errorf("Failed adding service binding for value %s: %v", value, err)
-			return
+		if svcID != "" {
+			if err := c.addServiceBinding(svcName, svcID, nid, eid, vip, ingressPorts, ip); err != nil {
+				logrus.Errorf("Failed adding service binding for value %s: %v", value, err)
+				return
+			}
 		}
 
 		n.addSvcRecords(name, ip, nil, true)
 	} else {
-		if err := c.rmServiceBinding(svcName, svcID, nid, eid, ip); err != nil {
-			logrus.Errorf("Failed adding service binding for value %s: %v", value, err)
-			return
+		if svcID != "" {
+			if err := c.rmServiceBinding(svcName, svcID, nid, eid, vip, ingressPorts, ip); err != nil {
+				logrus.Errorf("Failed adding service binding for value %s: %v", value, err)
+				return
+			}
 		}
 
 		n.deleteSvcRecords(name, ip, nil, true)

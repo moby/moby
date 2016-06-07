@@ -1,0 +1,254 @@
+syntax = "proto3";
+
+package docker.cluster.api;
+
+import "types.proto";
+import "gogoproto/gogo.proto";
+import "duration/duration.proto"; // TODO(stevvooe): use our own until we fix gogoproto/deepcopy
+
+// Specs are container objects for user provided input. All creations and
+// updates are done through spec types. As a convention, user input from a spec
+// is never touched in created objects. This allows one to verify that the
+// users intent has not been modified.
+//
+// Put differently, spec types can be said to represent the desired state of
+// the system. In situations where modifications need to be made to a
+// particular component, API objects will either contain a copy of the spec
+// component or a different representation to reflect allocation or resolution.
+
+message NodeSpec {
+	Annotations annotations = 1 [(gogoproto.nullable) = false];
+
+	enum Membership {
+		option (gogoproto.goproto_enum_prefix) = false;
+
+		PENDING = 0 [(gogoproto.enumvalue_customname) = "NodeMembershipPending"];
+		ACCEPTED = 1 [(gogoproto.enumvalue_customname) = "NodeMembershipAccepted"];
+		REJECTED = 2 [(gogoproto.enumvalue_customname) = "NodeMembershipRejected"];
+	}
+
+	enum Availability {
+		option (gogoproto.goproto_enum_prefix) = false;
+
+		// Active nodes.
+		ACTIVE = 0 [(gogoproto.enumvalue_customname) = "NodeAvailabilityActive"];
+
+		// Paused nodes won't be considered by the scheduler, preventing any
+		// further task to run on them.
+		PAUSE = 1 [(gogoproto.enumvalue_customname) = "NodeAvailabilityPause"];
+
+		// Drained nodes are paused and any task already running on them will
+		// be evicted.
+		DRAIN = 2 [(gogoproto.enumvalue_customname) = "NodeAvailabilityDrain"];
+	}
+
+	// Role defines the role the node should have.
+	NodeRole role = 2;
+
+	// Membership controls the admission of the node into the cluster.
+	Membership membership = 3;
+
+	// Availability allows a user to control the current scheduling status of a
+	// node.
+	Availability availability = 4;
+}
+
+// ServiceSpec defines the properties of a service.
+//
+// A service instructs the cluster in orchestrating repeated instances of a
+// template, implemented as tasks. Based on the number of instances, scheduling
+// strategy and restart policy, a number of application-level behaviors can be
+// defined.
+message ServiceSpec {
+	Annotations annotations = 1 [(gogoproto.nullable) = false];
+
+	// Task defines the task template this service will spawn.
+	TaskSpec task = 2 [(gogoproto.nullable) = false];
+
+	oneof mode {
+		ReplicatedService replicated = 3;
+		GlobalService global = 4;
+	}
+
+	// UpdateConfig controls the rate and policy of updates.
+	UpdateConfig update = 6;
+
+	// NetworkAttachmentConfig specifies how a service should be attached to a particular network.
+	//
+	// For now, this is a single field, but this can include future information
+	// instructing Swarm on how this service should work on the particular
+	// network.
+	message NetworkAttachmentConfig {
+		// Target specifies the target network for attachement. This value may be a
+		// network name or identifier. Only identifiers are supported at this time.
+		string target = 1;
+	}
+	repeated NetworkAttachmentConfig networks = 7;
+
+	// Service endpoint specifies the user provided configuration
+	// to properly discover and load balance a service.
+	EndpointSpec endpoint = 8;
+}
+
+// ReplicatedService set the reconcilation target to certain number of instances.
+message ReplicatedService {
+	uint64 instances = 1;
+}
+
+// GlobalService represent global service.
+message GlobalService {
+	// Empty message for now.
+}
+
+message TaskSpec {
+	oneof runtime {
+		ContainerSpec container = 1;
+	}
+
+	// Resource requirements for the container.
+	ResourceRequirements resources = 2;
+
+	// RestartPolicy specifies what to do when a task fails or finishes.
+	RestartPolicy restart = 4;
+
+	// Placement specifies node selection constraints
+	Placement placement = 5;
+}
+
+// Container specifies runtime parameters for a container.
+message ContainerSpec {
+	// image defines the image reference, as specified in the
+	// distribution/reference package. This may include a registry host, name,
+	// tag or digest.
+	//
+	// The field will be directly passed to the engine pulling. Well-behaved
+	// service definitions will used immutable references, either through tags
+	// that don't change or verifiable digests.
+	string image = 1;
+
+	// Labels defines labels to be added to the container at creation time. If
+	// collisions with system labels occur, these labels will be overridden.
+	//
+	// This field *must* remain compatible with the Labels field of
+	// Annotations.
+	map<string, string> labels = 2;
+
+	// Command to run the the container. The first element is a path to the
+	// executable and the following elements are treated as arguments.
+	//
+	// If command is empty, execution will fall back to the image's entrypoint.
+	repeated string command = 3;
+
+	// Args specifies arguments provided to the image's entrypoint.
+	// Ignored if command is specified.
+	repeated string args = 4;
+
+	// Env specifies the environment variables for the container in NAME=VALUE
+	// format. These must be compliant with  [IEEE Std
+	// 1003.1-2001](http://pubs.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap08.html).
+	repeated string env = 5;
+
+	// Dir defines the working directory to set for the container process.
+	string dir = 6;
+
+	// User specifies the user that should be employed to run the container.
+	string user = 7;
+
+	repeated Mount mounts = 8;
+
+	// StopGracePeriod the grace period for stopping the container before
+	// forcefully killing the container.
+	Duration stop_grace_period = 9 [(gogoproto.nullable) = false];
+}
+
+// EndpointSpec defines the properties that can be configured to
+// access and loadbalance the service.
+message EndpointSpec {
+	// ResolutionMode specifies the mode of resolution to use for
+	// internal loadbalancing between tasks which are all within
+	// the cluster. This is sometimes calles east-west data path.
+	enum ResolutionMode {
+		option (gogoproto.goproto_enum_prefix) = false;
+
+		// VIP resolution mode specifies that the
+		// service resolves to a logical IP and the requests
+		// are sent to that logical IP. Packets hitting that
+		// logical IP are load balanced to a chosen backend.
+		VIP = 0 [(gogoproto.enumvalue_customname) = "ResolutionModeVirtualIP"];
+
+		// DNSRR resolution mode specifies that the
+		// service directly gets resolved to one of the
+		// backend IP and the client directly initiates a
+		// request towards the actual backend. This requires
+		// that the client does not cache the DNS responses
+		// when the DNS response TTL is 0.
+		DNSRR = 1 [(gogoproto.enumvalue_customname) = "ResolutionModeDNSRoundRobin"];
+	}
+
+	ResolutionMode mode = 1;
+
+	// IngressRouting specifies the method to use for
+	// loadbalancing requests coming from outside the
+	// cluster. This is sometimes called north-south datapath.
+	enum IngressRouting {
+		option (gogoproto.goproto_enum_prefix) = false;
+
+		// SwarmPort routing provides Layer 3 and 4 ingress load balancing.
+		// Each of the exposed ports will be assign to this service across the
+		// nodes in the Swarm cluster.
+		SWARMPORT = 0 [(gogoproto.enumvalue_customname) = "IngressRoutingSwarmPort"];
+
+		// If the user chooses to disable ingress routing(but
+		// still expose ports), the system will not provide
+		// any out of the box loadbalancing for ingress
+		// traffic. But if the service has exposed ports it
+		// will still auto-attach the service to the ingress
+		// network. The user may then provide an alternate
+		// option for ingress load balancing which is
+		// transparent to swarm.
+		DISABLED = 1 [(gogoproto.enumvalue_customname) = "IngressRoutingDisabled"];
+	}
+
+	IngressRouting ingress = 2;
+
+	// List of exposed ports that this service is accessible from
+	// external to the cluster.
+	repeated PortConfig exposed_ports = 3;
+}
+
+// NetworkSpec specifies user defined network parameters.
+message NetworkSpec {
+	Annotations annotations = 1 [(gogoproto.nullable) = false];
+
+	// DriverConfig specific configuration consumed by the network driver.
+	Driver driver_config = 2;
+
+	// IPv6Enabled enables support for IPv6 on the network.
+	bool ipv6_enabled = 3;
+
+	// internal restricts external access to the network. This may be
+	// accomplished by disabling the default gateway or through other means.
+	bool internal = 4;
+
+	IPAMOptions ipam = 5 [(gogoproto.customname) = "IPAM"];
+}
+
+// ClusterSpec specifies global cluster settings.
+message ClusterSpec {
+	Annotations annotations = 1 [(gogoproto.nullable) = false];
+
+	// AcceptancePolicy defines the certificate issuance policy.
+	AcceptancePolicy acceptance_policy = 2 [(gogoproto.nullable) = false];
+
+	// Orchestration defines cluster-level orchestration settings.
+	OrchestrationConfig orchestration = 3 [(gogoproto.nullable) = false];
+
+	// Raft defines the cluster's raft settings.
+	RaftConfig raft = 4 [(gogoproto.nullable) = false];
+
+	// Dispatcher defines cluster-level dispatcher settings.
+	DispatcherConfig dispatcher = 5 [(gogoproto.nullable) = false];
+
+	// CAConfig defines cluster-level certificate authority settings.
+	CAConfig ca_config = 6 [(gogoproto.nullable) = false, (gogoproto.customname) = "CAConfig"];
+}

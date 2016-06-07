@@ -50,6 +50,15 @@ const (
 )
 
 const (
+	TCA_ACT_UNSPEC = iota
+	TCA_ACT_KIND
+	TCA_ACT_OPTIONS
+	TCA_ACT_INDEX
+	TCA_ACT_STATS
+	TCA_ACT_MAX
+)
+
+const (
 	TCA_PRIO_UNSPEC = iota
 	TCA_PRIO_MQ
 	TCA_PRIO_MAX = TCA_PRIO_MQ
@@ -69,6 +78,7 @@ const (
 	SizeofTcHtbGlob      = 0x14
 	SizeofTcU32Key       = 0x10
 	SizeofTcU32Sel       = 0x10 // without keys
+	SizeofTcActBpf       = 0x14
 	SizeofTcMirred       = 0x1c
 	SizeofTcPolice       = 2*SizeofTcRateSpec + 0x20
 )
@@ -533,8 +543,33 @@ const (
 	TC_ACT_STOLEN     = 4
 	TC_ACT_QUEUED     = 5
 	TC_ACT_REPEAT     = 6
+	TC_ACT_REDIRECT   = 7
 	TC_ACT_JUMP       = 0x10000000
 )
+
+type TcGen struct {
+	Index   uint32
+	Capab   uint32
+	Action  int32
+	Refcnt  int32
+	Bindcnt int32
+}
+
+type TcActBpf struct {
+	TcGen
+}
+
+func (msg *TcActBpf) Len() int {
+	return SizeofTcActBpf
+}
+
+func DeserializeTcActBpf(b []byte) *TcActBpf {
+	return (*TcActBpf)(unsafe.Pointer(&b[0:SizeofTcActBpf][0]))
+}
+
+func (x *TcActBpf) Serialize() []byte {
+	return (*(*[SizeofTcActBpf]byte)(unsafe.Pointer(x)))[:]
+}
 
 // #define tc_gen \
 //   __u32                 index; \
@@ -549,11 +584,7 @@ const (
 // };
 
 type TcMirred struct {
-	Index   uint32
-	Capab   uint32
-	Action  int32
-	Refcnt  int32
-	Bindcnt int32
+	TcGen
 	Eaction int32
 	Ifindex uint32
 }
@@ -624,4 +655,32 @@ const (
 	TCA_FW_ACT
 	TCA_FW_MASK
 	TCA_FW_MAX = TCA_FW_MASK
+)
+
+const (
+	TCA_BPF_FLAG_ACT_DIRECT uint32 = 1 << iota
+)
+
+const (
+	TCA_BPF_UNSPEC = iota
+	TCA_BPF_ACT
+	TCA_BPF_POLICE
+	TCA_BPF_CLASSID
+	TCA_BPF_OPS_LEN
+	TCA_BPF_OPS
+	TCA_BPF_FD
+	TCA_BPF_NAME
+	TCA_BPF_FLAGS
+	TCA_BPF_MAX = TCA_BPF_FLAGS
+)
+
+const (
+	TCA_ACT_BPF_UNSPEC = iota
+	TCA_ACT_BPF_TM
+	TCA_ACT_BPF_PARMS
+	TCA_ACT_BPF_OPS_LEN
+	TCA_ACT_BPF_OPS
+	TCA_ACT_BPF_FD
+	TCA_ACT_BPF_NAME
+	TCA_ACT_BPF_MAX = TCA_ACT_BPF_NAME
 )

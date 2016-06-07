@@ -21,11 +21,14 @@ import (
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
+	"github.com/vishvananda/netns"
 )
 
 var (
-	hostMode     bool
-	hostModeOnce sync.Once
+	hostMode    bool
+	networkOnce sync.Once
+	networkMu   sync.Mutex
+	vniTbl      = make(map[uint32]string)
 )
 
 type networkTable map[string]*network
@@ -249,7 +252,48 @@ func (n *network) destroySandbox() {
 	}
 }
 
-func setHostMode() {
+func populateVNITbl() {
+	filepath.Walk(filepath.Dir(osl.GenerateKey("walk")),
+		func(path string, info os.FileInfo, err error) error {
+			_, fname := filepath.Split(path)
+
+			if len(strings.Split(fname, "-")) <= 1 {
+				return nil
+			}
+
+			ns, err := netns.GetFromPath(path)
+			if err != nil {
+				logrus.Errorf("Could not open namespace path %s during vni population: %v", path, err)
+				return nil
+			}
+			defer ns.Close()
+
+			nlh, err := netlink.NewHandleAt(ns)
+			if err != nil {
+				logrus.Errorf("Could not open netlink handle during vni population for ns %s: %v", path, err)
+				return nil
+			}
+			defer nlh.Delete()
+
+			links, err := nlh.LinkList()
+			if err != nil {
+				logrus.Errorf("Failed to list interfaces during vni population for ns %s: %v", path, err)
+				return nil
+			}
+
+			for _, l := range links {
+				if l.Type() == "vxlan" {
+					vniTbl[uint32(l.(*netlink.Vxlan).VxlanId)] = path
+				}
+			}
+
+			return nil
+		})
+}
+
+func networkOnceInit() {
+	populateVNITbl()
+
 	if os.Getenv("_OVERLAY_HOST_MODE") != "" {
 		hostMode = true
 		return
@@ -330,10 +374,33 @@ func (n *network) initSubnetSandbox(s *subnet) error {
 		// Try to delete stale bridge interface if it exists
 		deleteInterface(brName)
 		// Try to delete the vxlan interface by vni if already present
-		deleteVxlanByVNI(n.vxlanID(s))
+		deleteVxlanByVNI("", n.vxlanID(s))
 
 		if isOverlap(s.subnetIP) {
 			return fmt.Errorf("overlay subnet %s has conflicts in the host while running in host mode", s.subnetIP.String())
+		}
+	}
+
+	if !hostMode {
+		// Try to find this subnet's vni is being used in some
+		// other namespace by looking at vniTbl that we just
+		// populated in the once init. If a hit is found then
+		// it must a stale namespace from previous
+		// life. Destroy it completely and reclaim resourced.
+		networkMu.Lock()
+		path, ok := vniTbl[n.vxlanID(s)]
+		networkMu.Unlock()
+
+		if ok {
+			deleteVxlanByVNI(path, n.vxlanID(s))
+			if err := syscall.Unmount(path, syscall.MNT_FORCE); err != nil {
+				logrus.Errorf("unmount of %s failed: %v", path, err)
+			}
+			os.Remove(path)
+
+			networkMu.Lock()
+			delete(vniTbl, n.vxlanID(s))
+			networkMu.Unlock()
 		}
 	}
 
@@ -382,6 +449,8 @@ func (n *network) cleanupStaleSandboxes() {
 
 			pattern := pList[1]
 			if strings.Contains(n.id, pattern) {
+				// Delete all vnis
+				deleteVxlanByVNI(path, 0)
 				syscall.Unmount(path, syscall.MNT_DETACH)
 				os.Remove(path)
 			}
@@ -395,7 +464,7 @@ func (n *network) initSandbox() error {
 	n.initEpoch++
 	n.Unlock()
 
-	hostModeOnce.Do(setHostMode)
+	networkOnce.Do(networkOnceInit)
 
 	if hostMode {
 		if err := addNetworkChain(n.id[:12]); err != nil {

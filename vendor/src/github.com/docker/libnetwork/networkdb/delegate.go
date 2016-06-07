@@ -5,20 +5,8 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/hashicorp/serf/serf"
+	"github.com/gogo/protobuf/proto"
 )
-
-type networkData struct {
-	LTime    serf.LamportTime
-	ID       string
-	NodeName string
-	Leaving  bool
-}
-
-type networkPushPull struct {
-	LTime    serf.LamportTime
-	Networks []networkData
-}
 
 type delegate struct {
 	nDB *NetworkDB
@@ -28,7 +16,7 @@ func (d *delegate) NodeMeta(limit int) []byte {
 	return []byte{}
 }
 
-func (nDB *NetworkDB) handleNetworkEvent(nEvent *networkEventData) bool {
+func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 	// Update our local clock if the received messages has newer
 	// time.
 	nDB.networkClock.Witness(nEvent.LTime)
@@ -39,7 +27,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *networkEventData) bool {
 	nodeNetworks, ok := nDB.networks[nEvent.NodeName]
 	if !ok {
 		// We haven't heard about this node at all.  Ignore the leave
-		if nEvent.Event == networkLeave {
+		if nEvent.Type == NetworkEventTypeLeave {
 			return false
 		}
 
@@ -55,7 +43,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *networkEventData) bool {
 		}
 
 		n.ltime = nEvent.LTime
-		n.leaving = nEvent.Event == networkLeave
+		n.leaving = nEvent.Type == NetworkEventTypeLeave
 		if n.leaving {
 			n.leaveTime = time.Now()
 		}
@@ -63,7 +51,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *networkEventData) bool {
 		return true
 	}
 
-	if nEvent.Event == networkLeave {
+	if nEvent.Type == NetworkEventTypeLeave {
 		return false
 	}
 
@@ -77,7 +65,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *networkEventData) bool {
 	return true
 }
 
-func (nDB *NetworkDB) handleTableEvent(tEvent *tableEventData) bool {
+func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 	// Update our local clock if the received messages has newer
 	// time.
 	nDB.tableClock.Witness(tEvent.LTime)
@@ -94,7 +82,7 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *tableEventData) bool {
 		ltime:    tEvent.LTime,
 		node:     tEvent.NodeName,
 		value:    tEvent.Value,
-		deleting: tEvent.Event == tableEntryDelete,
+		deleting: tEvent.Type == TableEventTypeDelete,
 	}
 
 	if entry.deleting {
@@ -107,12 +95,12 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *tableEventData) bool {
 	nDB.Unlock()
 
 	var op opType
-	switch tEvent.Event {
-	case tableEntryCreate:
+	switch tEvent.Type {
+	case TableEventTypeCreate:
 		op = opCreate
-	case tableEntryUpdate:
+	case TableEventTypeUpdate:
 		op = opUpdate
-	case tableEntryDelete:
+	case TableEventTypeDelete:
 		op = opDelete
 	}
 
@@ -122,15 +110,10 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *tableEventData) bool {
 
 func (nDB *NetworkDB) handleCompound(buf []byte) {
 	// Decode the parts
-	trunc, parts, err := decodeCompoundMessage(buf[1:])
+	parts, err := decodeCompoundMessage(buf)
 	if err != nil {
 		logrus.Errorf("Failed to decode compound request: %v", err)
 		return
-	}
-
-	// Log any truncation
-	if trunc > 0 {
-		logrus.Warnf("Compound request had %d truncated messages", trunc)
 	}
 
 	// Handle each message
@@ -140,16 +123,19 @@ func (nDB *NetworkDB) handleCompound(buf []byte) {
 }
 
 func (nDB *NetworkDB) handleTableMessage(buf []byte) {
-	var tEvent tableEventData
-	if err := decodeMessage(buf[1:], &tEvent); err != nil {
+	var tEvent TableEvent
+	if err := proto.Unmarshal(buf, &tEvent); err != nil {
 		logrus.Errorf("Error decoding table event message: %v", err)
 		return
 	}
 
 	if rebroadcast := nDB.handleTableEvent(&tEvent); rebroadcast {
-		// Copy the buffer since we cannot rely on the slice not changing
-		newBuf := make([]byte, len(buf))
-		copy(newBuf, buf)
+		var err error
+		buf, err = encodeRawMessage(MessageTypeTableEvent, buf)
+		if err != nil {
+			logrus.Errorf("Error marshalling gossip message for network event rebroadcast: %v", err)
+			return
+		}
 
 		nDB.RLock()
 		n, ok := nDB.networks[nDB.config.NodeName][tEvent.NetworkID]
@@ -160,8 +146,13 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte) {
 		}
 
 		broadcastQ := n.tableBroadcasts
+
+		if broadcastQ == nil {
+			return
+		}
+
 		broadcastQ.QueueBroadcast(&tableEventMessage{
-			msg:   newBuf,
+			msg:   buf,
 			id:    tEvent.NetworkID,
 			tname: tEvent.TableName,
 			key:   tEvent.Key,
@@ -171,19 +162,22 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte) {
 }
 
 func (nDB *NetworkDB) handleNetworkMessage(buf []byte) {
-	var nEvent networkEventData
-	if err := decodeMessage(buf[1:], &nEvent); err != nil {
+	var nEvent NetworkEvent
+	if err := proto.Unmarshal(buf, &nEvent); err != nil {
 		logrus.Errorf("Error decoding network event message: %v", err)
 		return
 	}
 
 	if rebroadcast := nDB.handleNetworkEvent(&nEvent); rebroadcast {
-		// Copy the buffer since it we cannot rely on the slice not changing
-		newBuf := make([]byte, len(buf))
-		copy(newBuf, buf)
+		var err error
+		buf, err = encodeRawMessage(MessageTypeNetworkEvent, buf)
+		if err != nil {
+			logrus.Errorf("Error marshalling gossip message for network event rebroadcast: %v", err)
+			return
+		}
 
 		nDB.networkBroadcasts.QueueBroadcast(&networkEventMessage{
-			msg:  newBuf,
+			msg:  buf,
 			id:   nEvent.NetworkID,
 			node: nEvent.NodeName,
 		})
@@ -191,8 +185,8 @@ func (nDB *NetworkDB) handleNetworkMessage(buf []byte) {
 }
 
 func (nDB *NetworkDB) handleBulkSync(buf []byte) {
-	var bsm bulkSyncMessage
-	if err := decodeMessage(buf[1:], &bsm); err != nil {
+	var bsm BulkSyncMessage
+	if err := proto.Unmarshal(buf, &bsm); err != nil {
 		logrus.Errorf("Error decoding bulk sync message: %v", err)
 		return
 	}
@@ -221,19 +215,23 @@ func (nDB *NetworkDB) handleBulkSync(buf []byte) {
 }
 
 func (nDB *NetworkDB) handleMessage(buf []byte) {
-	msgType := messageType(buf[0])
+	mType, data, err := decodeMessage(buf)
+	if err != nil {
+		logrus.Errorf("Error decoding gossip message to get message type: %v", err)
+		return
+	}
 
-	switch msgType {
-	case networkEventMsg:
-		nDB.handleNetworkMessage(buf)
-	case tableEventMsg:
-		nDB.handleTableMessage(buf)
-	case compoundMsg:
-		nDB.handleCompound(buf)
-	case bulkSyncMsg:
-		nDB.handleBulkSync(buf)
+	switch mType {
+	case MessageTypeNetworkEvent:
+		nDB.handleNetworkMessage(data)
+	case MessageTypeTableEvent:
+		nDB.handleTableMessage(data)
+	case MessageTypeBulkSync:
+		nDB.handleBulkSync(data)
+	case MessageTypeCompound:
+		nDB.handleCompound(data)
 	default:
-		logrus.Errorf("%s: unknown message type %d payload = %v", nDB.config.NodeName, msgType, buf[:8])
+		logrus.Errorf("%s: unknown message type %d", nDB.config.NodeName, mType)
 	}
 }
 
@@ -253,22 +251,22 @@ func (d *delegate) LocalState(join bool) []byte {
 	d.nDB.RLock()
 	defer d.nDB.RUnlock()
 
-	pp := networkPushPull{
+	pp := NetworkPushPull{
 		LTime: d.nDB.networkClock.Time(),
 	}
 
 	for name, nn := range d.nDB.networks {
 		for _, n := range nn {
-			pp.Networks = append(pp.Networks, networkData{
-				LTime:    n.ltime,
-				ID:       n.id,
-				NodeName: name,
-				Leaving:  n.leaving,
+			pp.Networks = append(pp.Networks, &NetworkEntry{
+				LTime:     n.ltime,
+				NetworkID: n.id,
+				NodeName:  name,
+				Leaving:   n.leaving,
 			})
 		}
 	}
 
-	buf, err := encodeMessage(networkPushPullMsg, &pp)
+	buf, err := encodeMessage(MessageTypePushPull, &pp)
 	if err != nil {
 		logrus.Errorf("Failed to encode local network state: %v", err)
 		return nil
@@ -283,12 +281,19 @@ func (d *delegate) MergeRemoteState(buf []byte, isJoin bool) {
 		return
 	}
 
-	if messageType(buf[0]) != networkPushPullMsg {
+	var gMsg GossipMessage
+	err := proto.Unmarshal(buf, &gMsg)
+	if err != nil {
+		logrus.Errorf("Error unmarshalling push pull messsage: %v", err)
+		return
+	}
+
+	if gMsg.Type != MessageTypePushPull {
 		logrus.Errorf("Invalid message type %v received from remote", buf[0])
 	}
 
-	pp := networkPushPull{}
-	if err := decodeMessage(buf[1:], &pp); err != nil {
+	pp := NetworkPushPull{}
+	if err := proto.Unmarshal(gMsg.Data, &pp); err != nil {
 		logrus.Errorf("Failed to decode remote network state: %v", err)
 		return
 	}
@@ -298,15 +303,15 @@ func (d *delegate) MergeRemoteState(buf []byte, isJoin bool) {
 	}
 
 	for _, n := range pp.Networks {
-		nEvent := &networkEventData{
+		nEvent := &NetworkEvent{
 			LTime:     n.LTime,
 			NodeName:  n.NodeName,
-			NetworkID: n.ID,
-			Event:     networkJoin,
+			NetworkID: n.NetworkID,
+			Type:      NetworkEventTypeJoin,
 		}
 
 		if n.Leaving {
-			nEvent.Event = networkLeave
+			nEvent.Type = NetworkEventTypeLeave
 		}
 
 		d.nDB.handleNetworkEvent(nEvent)

@@ -120,3 +120,54 @@ func IsErrUnauthorized(err error) bool {
 	_, ok := err.(unauthorizedError)
 	return ok
 }
+
+// nodeNotFoundError implements an error returned when a node is not found.
+type nodeNotFoundError struct {
+	nodeID string
+}
+
+// Error returns a string representation of a nodeNotFoundError
+func (e nodeNotFoundError) Error() string {
+	return fmt.Sprintf("Error: No such node: %s", e.nodeID)
+}
+
+// IsErrNodeNotFound returns true if the error is caused
+// when a node is not found.
+func IsErrNodeNotFound(err error) bool {
+	_, ok := err.(nodeNotFoundError)
+	return ok
+}
+
+// serviceNotFoundError implements an error returned when a service is not found.
+type serviceNotFoundError struct {
+	serviceID string
+}
+
+// Error returns a string representation of a serviceNotFoundError
+func (e serviceNotFoundError) Error() string {
+	return fmt.Sprintf("Error: No such service: %s", e.serviceID)
+}
+
+// IsErrServiceNotFound returns true if the error is caused
+// when a service is not found.
+func IsErrServiceNotFound(err error) bool {
+	_, ok := err.(serviceNotFoundError)
+	return ok
+}
+
+// taskNotFoundError implements an error returned when a task is not found.
+type taskNotFoundError struct {
+	taskID string
+}
+
+// Error returns a string representation of a taskNotFoundError
+func (e taskNotFoundError) Error() string {
+	return fmt.Sprintf("Error: No such task: %s", e.taskID)
+}
+
+// IsErrTaskNotFound returns true if the error is caused
+// when a task is not found.
+func IsErrTaskNotFound(err error) bool {
+	_, ok := err.(taskNotFoundError)
+	return ok
+}

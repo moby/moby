@@ -28,7 +28,7 @@ type Sandbox interface {
 	Labels() map[string]interface{}
 	// Statistics retrieves the interfaces' statistics for the sandbox
 	Statistics() (map[string]*types.InterfaceStatistics, error)
-	// Refresh leaves all the endpoints, resets and re-apply the options,
+	// Refresh leaves all the endpoints, resets and re-applies the options,
 	// re-joins all the endpoints without destroying the osl sandbox
 	Refresh(options ...SandboxOption) error
 	// SetKey updates the Sandbox Key
@@ -38,13 +38,16 @@ type Sandbox interface {
 	// Delete destroys this container after detaching it from all connected endpoints.
 	Delete() error
 	// ResolveName resolves a service name to an IPv4 or IPv6 address by searching
-	// the networks the sandbox is connected to. For IPv6 queries, second  return
+	// the networks the sandbox is connected to. For IPv6 queries, second return
 	// value will be true if the name exists in docker domain but doesn't have an
-	// IPv6 address. Such queries shouldn't be forwarded  to external nameservers.
+	// IPv6 address. Such queries shouldn't be forwarded to external nameservers.
 	ResolveName(name string, iplen int) ([]net.IP, bool)
 	// ResolveIP returns the service name for the passed in IP. IP is in reverse dotted
 	// notation; the format used for DNS PTR records
 	ResolveIP(name string) string
+	// ResolveService returns all the backend details about the containers or hosts
+	// backing a service. Its purpose is to satisfy an SRV query
+	ResolveService(name string) ([]*net.SRV, []net.IP, error)
 	// Endpoints returns all the endpoints connected to the sandbox
 	Endpoints() []Endpoint
 }
@@ -81,6 +84,7 @@ type sandbox struct {
 	dbExists      bool
 	isStub        bool
 	inDelete      bool
+	ingress       bool
 	sync.Mutex
 }
 
@@ -291,7 +295,7 @@ func (sb *sandbox) Refresh(options ...SandboxOption) error {
 		return err
 	}
 
-	// Re -connect to all endpoints
+	// Re-connect to all endpoints
 	for _, ep := range epList {
 		if err := ep.Join(sb); err != nil {
 			log.Warnf("Failed attach sandbox %s to endpoint %s: %v\n", sb.ID(), ep.ID(), err)
@@ -423,6 +427,61 @@ func (sb *sandbox) ResolveIP(ip string) string {
 
 func (sb *sandbox) execFunc(f func()) {
 	sb.osSbox.InvokeFunc(f)
+}
+
+func (sb *sandbox) ResolveService(name string) ([]*net.SRV, []net.IP, error) {
+	srv := []*net.SRV{}
+	ip := []net.IP{}
+
+	log.Debugf("Service name To resolve: %v", name)
+
+	parts := strings.Split(name, ".")
+	if len(parts) < 3 {
+		return nil, nil, fmt.Errorf("invalid service name, %s", name)
+	}
+
+	portName := parts[0]
+	proto := parts[1]
+	if proto != "_tcp" && proto != "_udp" {
+		return nil, nil, fmt.Errorf("invalid protocol in service, %s", name)
+	}
+	svcName := strings.Join(parts[2:], ".")
+
+	for _, ep := range sb.getConnectedEndpoints() {
+		n := ep.getNetwork()
+
+		sr, ok := n.getController().svcRecords[n.ID()]
+		if !ok {
+			continue
+		}
+
+		svcs, ok := sr.service[svcName]
+		if !ok {
+			continue
+		}
+
+		for _, svc := range svcs {
+			if svc.portName != portName {
+				continue
+			}
+			if svc.proto != proto {
+				continue
+			}
+			for _, t := range svc.target {
+				srv = append(srv,
+					&net.SRV{
+						Target: t.name,
+						Port:   t.port,
+					})
+
+				ip = append(ip, t.ip)
+			}
+		}
+		if len(srv) > 0 {
+			break
+		}
+	}
+	return srv, ip, nil
 }
 
 func (sb *sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
@@ -687,6 +746,12 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 		}
 	}
 
+	// Populate load balancer only after updating all the other
+	// information including gateway and other routes so that
+	// loadbalancers are populated all the network state is in
+	// place in the sandbox.
+	sb.populateLoadbalancers(ep)
+
 	// Only update the store if we did not come here as part of
 	// sandbox delete. If we came here as part of delete then do
 	// not bother updating the store. The sandbox object will be
@@ -826,7 +891,7 @@ func OptionHostsPath(path string) SandboxOption {
 }
 
 // OptionOriginHostsPath function returns an option setter for origin hosts file path
-// tbeo  passed to NewSandbox method.
+// to be passed to NewSandbox method.
 func OptionOriginHostsPath(path string) SandboxOption {
 	return func(sb *sandbox) {
 		sb.config.originHostsPath = path
@@ -946,6 +1011,14 @@ func OptionPortMapping(portBindings []types.PortBinding) SandboxOption {
 		pbs := make([]types.PortBinding, len(portBindings))
 		copy(pbs, portBindings)
 		sb.config.generic[netlabel.PortMap] = pbs
+	}
+}
+
+// OptionIngress function returns an option setter for marking a
+// sandbox as the controller's ingress sandbox.
+func OptionIngress() SandboxOption {
+	return func(sb *sandbox) {
+		sb.ingress = true
 	}
 }
 

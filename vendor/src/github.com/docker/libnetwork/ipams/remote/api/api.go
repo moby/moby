@@ -22,12 +22,16 @@ func (r *Response) GetError() string {
 // GetCapabilityResponse is the response of GetCapability request
 type GetCapabilityResponse struct {
 	Response
-	RequiresMACAddress bool
+	RequiresMACAddress    bool
+	RequiresRequestReplay bool
 }
 
 // ToCapability converts the capability response into the internal ipam driver capaility structure
 func (capRes GetCapabilityResponse) ToCapability() *ipamapi.Capability {
-	return &ipamapi.Capability{RequiresMACAddress: capRes.RequiresMACAddress}
+	return &ipamapi.Capability{
+		RequiresMACAddress:    capRes.RequiresMACAddress,
+		RequiresRequestReplay: capRes.RequiresRequestReplay,
+	}
 }
 
 // GetAddressSpacesResponse is the response to the ``get default address spaces`` request message
