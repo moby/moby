@@ -62,10 +62,12 @@ func (cli *DockerCli) RegistryAuthenticationPrivilegedFunc(index *registrytypes.
 
 func (cli *DockerCli) resizeTty(ctx context.Context, id string, isExec bool) {
 	height, width := cli.GetTtySize()
-	cli.resizeTtyTo(ctx, id, height, width, isExec)
+	cli.ResizeTtyTo(ctx, id, height, width, isExec)
 }
 
-func (cli *DockerCli) resizeTtyTo(ctx context.Context, id string, height, width int, isExec bool) {
+// ResizeTtyTo resizes tty to specific height and width
+// TODO: this can be unexported again once all container related commands move to package container
+func (cli *DockerCli) ResizeTtyTo(ctx context.Context, id string, height, width int, isExec bool) {
 	if height == 0 && width == 0 {
 		return
 	}

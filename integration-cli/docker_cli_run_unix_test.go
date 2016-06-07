@@ -150,7 +150,7 @@ func (s *DockerSuite) TestRunAttachDetachFromFlag(c *check.C) {
 
 	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "cat")
 
-	cmd := exec.Command(dockerBinary, "attach", "--detach-keys='ctrl-a,a'", name)
+	cmd := exec.Command(dockerBinary, "attach", "--detach-keys=ctrl-a,a", name)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		c.Fatal(err)
@@ -210,7 +210,7 @@ func (s *DockerSuite) TestRunAttachDetachFromInvalidFlag(c *check.C) {
 	c.Assert(waitRun(name), check.IsNil)
 
 	// specify an invalid detach key, container will ignore it and use default
-	cmd := exec.Command(dockerBinary, "attach", "--detach-keys='ctrl-A,a'", name)
+	cmd := exec.Command(dockerBinary, "attach", "--detach-keys=ctrl-A,a", name)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		c.Fatal(err)
@@ -348,7 +348,7 @@ func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *check.C) {
 	name := "attach-detach"
 	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "cat")
 
-	cmd := exec.Command(dockerBinary, "attach", "--detach-keys='ctrl-a,a'", name)
+	cmd := exec.Command(dockerBinary, "attach", "--detach-keys=ctrl-a,a", name)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		c.Fatal(err)
@@ -408,7 +408,7 @@ func (s *DockerSuite) TestRunAttachInvalidDetachKeySequencePreserved(c *check.C)
 
 	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "cat")
 
-	cmd := exec.Command(dockerBinary, "attach", "--detach-keys='a,b,c'", name)
+	cmd := exec.Command(dockerBinary, "attach", "--detach-keys=a,b,c", name)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		c.Fatal(err)
