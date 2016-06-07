@@ -24,17 +24,30 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 		return err
 	}
 
-	list := []*types.NetworkResource{}
+	list := []types.NetworkResource{}
 
-	nwList, err := n.backend.FilterNetworks(netFilters)
+	for _, nw := range n.backend.GetNetworks() {
+		list = append(list, *buildNetworkResource(nw))
+	}
+
+	// Combine the network list returned by the cluster manager if it is not already
+	// returned by the daemon backend
+	if nr, err := n.clusterProvider.GetNetworks(); err == nil {
+	SKIP:
+		for _, nw := range nr {
+			for _, nl := range list {
+				if nl.ID == nw.ID {
+					continue SKIP
+				}
+			}
+			list = append(list, nw)
+		}
+	}
+
+	list, err = filterNetworks(list, netFilters)
 	if err != nil {
 		return err
 	}
-
-	for _, nw := range nwList {
-		list = append(list, buildNetworkResource(nw))
-	}
-
 	return httputils.WriteJSON(w, http.StatusOK, list)
 }
 
@@ -45,6 +58,9 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 
 	nw, err := n.backend.FindNetwork(vars["id"])
 	if err != nil {
+		if nr, err := n.clusterProvider.GetNetwork(vars["id"]); err == nil {
+			return httputils.WriteJSON(w, http.StatusOK, nr)
+		}
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, buildNetworkResource(nw))
@@ -67,7 +83,14 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 
 	nw, err := n.backend.CreateNetwork(create)
 	if err != nil {
-		return err
+		if _, ok := err.(libnetwork.ManagerRedirectError); !ok {
+			return err
+		}
+		id, err := n.clusterProvider.CreateNetwork(create)
+		if err != nil {
+			return err
+		}
+		nw = &types.NetworkCreateResponse{ID: id}
 	}
 
 	return httputils.WriteJSON(w, http.StatusCreated, nw)
@@ -120,6 +143,9 @@ func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.Respon
 func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
+	}
+	if _, err := n.clusterProvider.GetNetwork(vars["id"]); err == nil {
+		return n.clusterProvider.RemoveNetwork(vars["id"])
 	}
 	if err := n.backend.DeleteNetwork(vars["id"]); err != nil {
 		return err

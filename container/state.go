@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/docker/go-units"
 )
 
@@ -137,6 +139,32 @@ func (s *State) WaitStop(timeout time.Duration) (int, error) {
 		return -1, err
 	}
 	return s.getExitCode(), nil
+}
+
+// WaitWithContext waits for the container to stop. Optional context can be
+// passed for canceling the request.
+func (s *State) WaitWithContext(ctx context.Context) <-chan int {
+	// todo(tonistiigi): make other wait functions use this
+	c := make(chan int)
+	go func() {
+		s.Lock()
+		if !s.Running {
+			exitCode := s.ExitCode
+			s.Unlock()
+			c <- exitCode
+			close(c)
+			return
+		}
+		waitChan := s.waitChan
+		s.Unlock()
+		select {
+		case <-waitChan:
+			c <- s.getExitCode()
+		case <-ctx.Done():
+		}
+		close(c)
+	}()
+	return c
 }
 
 // IsRunning returns whether the running flag is set. Used by Container to check whether a container is running.

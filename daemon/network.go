@@ -5,13 +5,14 @@ import (
 	"net"
 	"strings"
 
-	netsettings "github.com/docker/docker/daemon/network"
+	"github.com/Sirupsen/logrus"
+	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/errors"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/engine-api/types/network"
 	"github.com/docker/libnetwork"
+	networktypes "github.com/docker/libnetwork/types"
 )
 
 // NetworkControllerEnabled checks if the networking stack is enabled.
@@ -92,8 +93,99 @@ func (daemon *Daemon) getAllNetworks() []libnetwork.Network {
 	return list
 }
 
+// SetupIngress setups ingress networking.
+func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nodeIP string) error {
+	ip, _, err := net.ParseCIDR(nodeIP)
+	if err != nil {
+		return err
+	}
+
+	n, err := daemon.GetNetworkByName(create.Name)
+	if err == nil {
+		// If we already have an ingress network with the same
+		// name and ID then we are uptodate. Nothing more to
+		// do. If not we will fall through to the go routine
+		// and will cleanup the old version of ingress network
+		// old state.
+		if n.ID() == create.ID {
+			return nil
+		}
+	}
+
+	go func() {
+		controller := daemon.netController
+		controller.AgentInitWait()
+
+		if n != nil {
+			if err := controller.SandboxDestroy("ingress-sbox"); err != nil {
+				logrus.Errorf("Failed to delete stale ingress sandbox: %v", err)
+				return
+			}
+
+			if err := n.Delete(); err != nil {
+				logrus.Errorf("Failed to delete stale ingress network %s: %v", n.ID(), err)
+				return
+			}
+		}
+
+		if _, err := daemon.createNetwork(create.NetworkCreateRequest, create.ID, true, true); err != nil {
+			// If we get NetworkNameError that means the network
+			// already exists so no need to setup ingress again.
+			if _, ok := err.(libnetwork.NetworkNameError); ok {
+				return
+			}
+
+			logrus.Errorf("Failed creating ingress network: %v", err)
+			return
+		}
+
+		n, err = daemon.GetNetworkByID(create.ID)
+		if err != nil {
+			logrus.Errorf("Failed getting ingress network by id after creating: %v", err)
+			return
+		}
+
+		sb, err := controller.NewSandbox("ingress-sbox", libnetwork.OptionIngress())
+		if err != nil {
+			logrus.Errorf("Failed creating ingress sanbox: %v", err)
+			return
+		}
+
+		ep, err := n.CreateEndpoint("ingress-endpoint", libnetwork.CreateOptionIpam(ip, nil, nil))
+		if err != nil {
+			logrus.Errorf("Failed creating ingress endpoint: %v", err)
+			return
+		}
+
+		if err := ep.Join(sb, nil); err != nil {
+			logrus.Errorf("Failed joining ingress sandbox to ingress endpoint: %v", err)
+		}
+	}()
+
+	return nil
+}
+
+// SetNetworkBootstrapKeys sets the bootstrap keys.
+func (daemon *Daemon) SetNetworkBootstrapKeys(keys []*networktypes.EncryptionKey) error {
+	return daemon.netController.SetKeys(keys)
+}
+
+// CreateAgentNetwork creates an agent network.
+func (daemon *Daemon) CreateAgentNetwork(create clustertypes.NetworkCreateRequest) error {
+	_, err := daemon.createNetwork(create.NetworkCreateRequest, create.ID, true, false)
+	return err
+}
+
 // CreateNetwork creates a network with the given name, driver and other optional parameters
 func (daemon *Daemon) CreateNetwork(create types.NetworkCreateRequest) (*types.NetworkCreateResponse, error) {
+	resp, err := daemon.createNetwork(create, "", false, false)
+	if err != nil {
+		return nil, err
+	}
+	return resp, err
+}
+
+func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string, agent bool, ingress bool) (*types.NetworkCreateResponse, error) {
 	if runconfig.IsPreDefinedNetwork(create.Name) {
 		err := fmt.Errorf("%s is a pre-defined network and cannot be created", create.Name)
 		return nil, errors.NewRequestForbiddenError(err)
@@ -134,7 +226,15 @@ func (daemon *Daemon) CreateNetwork(create types.NetworkCreateRequest) (*types.N
 	if create.Internal {
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionInternalNetwork())
 	}
-	n, err := c.NewNetwork(driver, create.Name, "", nwOptions...)
+	if agent {
+		nwOptions = append(nwOptions, libnetwork.NetworkOptionDynamic())
+	}
+
+	if ingress {
+		nwOptions = append(nwOptions, libnetwork.NetworkOptionIngress())
+	}
+
+	n, err := c.NewNetwork(driver, create.Name, id, nwOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -166,6 +266,17 @@ func getIpamConfig(data []network.IPAMConfig) ([]*libnetwork.IpamConf, []*libnet
 		}
 	}
 	return ipamV4Cfg, ipamV6Cfg, nil
+}
+
+// UpdateContainerServiceConfig updates a service configuration.
+func (daemon *Daemon) UpdateContainerServiceConfig(containerName string, serviceConfig *clustertypes.ServiceConfig) error {
+	container, err := daemon.GetContainer(containerName)
+	if err != nil {
+		return err
+	}
+
+	container.NetworkSettings.Service = serviceConfig
+	return nil
 }
 
 // ConnectContainerToNetwork connects the given container to the given
@@ -207,12 +318,23 @@ func (daemon *Daemon) GetNetworkDriverList() map[string]bool {
 		driver := network.Type()
 		pluginList[driver] = true
 	}
+	// TODO : Replace this with proper libnetwork API
+	pluginList["overlay"] = true
 
 	return pluginList
 }
 
+// DeleteAgentNetwork deletes an agent network.
+func (daemon *Daemon) DeleteAgentNetwork(networkID string) error {
+	return daemon.deleteNetwork(networkID, true)
+}
+
 // DeleteNetwork destroys a network unless it's one of docker's predefined networks.
 func (daemon *Daemon) DeleteNetwork(networkID string) error {
+	return daemon.deleteNetwork(networkID, false)
+}
+
+func (daemon *Daemon) deleteNetwork(networkID string, dynamic bool) error {
 	nw, err := daemon.FindNetwork(networkID)
 	if err != nil {
 		return err
@@ -230,14 +352,7 @@ func (daemon *Daemon) DeleteNetwork(networkID string) error {
 	return nil
 }
 
-// FilterNetworks returns a list of networks filtered by the given arguments.
-// It returns an error if the filters are not included in the list of accepted filters.
-func (daemon *Daemon) FilterNetworks(netFilters filters.Args) ([]libnetwork.Network, error) {
-	if netFilters.Len() != 0 {
-		if err := netFilters.Validate(netsettings.AcceptedFilters); err != nil {
-			return nil, err
-		}
-	}
-	nwList := daemon.getAllNetworks()
-	return netsettings.FilterNetworks(nwList, netFilters)
+// GetNetworks returns a list of all networks
+func (daemon *Daemon) GetNetworks() []libnetwork.Network {
+	return daemon.getAllNetworks()
 }
