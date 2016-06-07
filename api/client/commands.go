@@ -20,7 +20,6 @@ func (cli *DockerCli) Command(name string) func(...string) error {
 		"rm":      cli.CmdRm,
 		"save":    cli.CmdSave,
 		"stats":   cli.CmdStats,
-		"tag":     cli.CmdTag,
 		"update":  cli.CmdUpdate,
 		"version": cli.CmdVersion,
 	}[name]
