@@ -25,7 +25,7 @@ func (s *DockerSuite) TestCreateArgs(c *check.C) {
 	if daemonPlatform == "windows" {
 		c.Skip("Fails on Windows CI")
 	}
-	out, _ := dockerCmd(c, "create", "busybox", "command", "arg1", "arg2", "arg with space")
+	out, _ := dockerCmd(c, "create", "busybox", "command", "arg1", "arg2", "arg with space", "-c", "flags")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
@@ -47,7 +47,7 @@ func (s *DockerSuite) TestCreateArgs(c *check.C) {
 	c.Assert(string(cont.Path), checker.Equals, "command", check.Commentf("Unexpected container path. Expected command, received: %s", cont.Path))
 
 	b := false
-	expected := []string{"arg1", "arg2", "arg with space"}
+	expected := []string{"arg1", "arg2", "arg with space", "-c", "flags"}
 	for i, arg := range expected {
 		if arg != cont.Args[i] {
 			b = true

@@ -46,6 +46,8 @@ func NewCreateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	flags := cmd.Flags()
+	flags.SetInterspersed(false)
+
 	flags.StringVar(&opts.name, "name", "", "Assign a name to the container")
 
 	// Add an explicit help that doesn't have a `-h` to prevent the conflict
