@@ -2,8 +2,8 @@ package layer
 
 import "github.com/docker/distribution"
 
-var _ ForeignSourcer = &roLayer{}
+var _ distribution.Describable = &roLayer{}
 
-func (rl *roLayer) ForeignSource() *distribution.Descriptor {
-	return rl.foreignSrc
+func (rl *roLayer) Descriptor() distribution.Descriptor {
+	return rl.descriptor
 }

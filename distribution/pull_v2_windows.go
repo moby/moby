@@ -11,9 +11,9 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/manifest/schema1"
+	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 )
 
 func detectBaseLayer(is image.Store, m *schema1.Manifest, rootFS *image.RootFS) error {
@@ -35,14 +35,17 @@ func detectBaseLayer(is image.Store, m *schema1.Manifest, rootFS *image.RootFS) 
 	return fmt.Errorf("Invalid base layer %q", v1img.Parent)
 }
 
-var _ layer.ForeignSourcer = &v2LayerDescriptor{}
+var _ distribution.Describable = &v2LayerDescriptor{}
 
-func (ld *v2LayerDescriptor) ForeignSource() *distribution.Descriptor {
-	return ld.foreignSrc
+func (ld *v2LayerDescriptor) Descriptor() distribution.Descriptor {
+	if ld.src.MediaType == schema2.MediaTypeForeignLayer && len(ld.src.URLs) > 0 {
+		return ld.src
+	}
+	return distribution.Descriptor{}
 }
 
 func (ld *v2LayerDescriptor) open(ctx context.Context) (distribution.ReadSeekCloser, error) {
-	if ld.foreignSrc == nil {
+	if len(ld.src.URLs) == 0 {
 		blobs := ld.repo.Blobs(ctx)
 		return blobs.Open(ctx, ld.digest)
 	}
@@ -53,7 +56,7 @@ func (ld *v2LayerDescriptor) open(ctx context.Context) (distribution.ReadSeekClo
 	)
 
 	// Find the first URL that results in a 200 result code.
-	for _, url := range ld.foreignSrc.URLs {
+	for _, url := range ld.src.URLs {
 		rsc = transport.NewHTTPReadSeeker(http.DefaultClient, url, nil)
 		_, err = rsc.Seek(0, os.SEEK_SET)
 		if err == nil {
