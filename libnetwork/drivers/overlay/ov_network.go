@@ -61,6 +61,7 @@ type network struct {
 	initEpoch int
 	initErr   error
 	subnets   []*subnet
+	secure    bool
 	sync.Mutex
 }
 
@@ -108,6 +109,9 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 
 				vnis = append(vnis, uint32(vni))
 			}
+		}
+		if _, ok := optMap["secure"]; ok {
+			n.secure = true
 		}
 	}
 
@@ -162,7 +166,18 @@ func (d *driver) DeleteNetwork(nid string) error {
 
 	d.deleteNetwork(nid)
 
-	return n.releaseVxlanID()
+	vnis, err := n.releaseVxlanID()
+	if err != nil {
+		return err
+	}
+
+	if n.secure {
+		for _, vni := range vnis {
+			programMangle(vni, false)
+		}
+	}
+
+	return nil
 }
 
 func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
@@ -618,6 +633,8 @@ func (n *network) KeyPrefix() []string {
 }
 
 func (n *network) Value() []byte {
+	m := map[string]interface{}{}
+
 	netJSON := []*subnetJSON{}
 
 	for _, s := range n.subnets {
@@ -630,10 +647,17 @@ func (n *network) Value() []byte {
 	}
 
 	b, err := json.Marshal(netJSON)
-
 	if err != nil {
 		return []byte{}
 	}
+
+	m["secure"] = n.secure
+	m["subnets"] = netJSON
+	b, err = json.Marshal(m)
+	if err != nil {
+		return []byte{}
+	}
+
 	return b
 }
 
@@ -655,16 +679,36 @@ func (n *network) Skip() bool {
 }
 
 func (n *network) SetValue(value []byte) error {
-	var newNet bool
-	netJSON := []*subnetJSON{}
+	var (
+		m       map[string]interface{}
+		newNet  bool
+		isMap   = true
+		netJSON = []*subnetJSON{}
+	)
 
-	err := json.Unmarshal(value, &netJSON)
-	if err != nil {
-		return err
+	if err := json.Unmarshal(value, &m); err != nil {
+		err := json.Unmarshal(value, &netJSON)
+		if err != nil {
+			return err
+		}
+		isMap = false
 	}
 
 	if len(n.subnets) == 0 {
 		newNet = true
+	}
+
+	if isMap {
+		if val, ok := m["secure"]; ok {
+			n.secure = val.(bool)
+		}
+		bytes, err := json.Marshal(m["subnets"])
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(bytes, &netJSON); err != nil {
+			return err
+		}
 	}
 
 	for _, sj := range netJSON {
@@ -705,9 +749,9 @@ func (n *network) writeToStore() error {
 	return n.driver.store.PutObjectAtomic(n)
 }
 
-func (n *network) releaseVxlanID() error {
+func (n *network) releaseVxlanID() ([]uint32, error) {
 	if len(n.subnets) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	if n.driver.store != nil {
@@ -715,22 +759,24 @@ func (n *network) releaseVxlanID() error {
 			if err == datastore.ErrKeyModified || err == datastore.ErrKeyNotFound {
 				// In both the above cases we can safely assume that the key has been removed by some other
 				// instance and so simply get out of here
-				return nil
+				return nil, nil
 			}
 
-			return fmt.Errorf("failed to delete network to vxlan id map: %v", err)
+			return nil, fmt.Errorf("failed to delete network to vxlan id map: %v", err)
 		}
 	}
-
+	var vnis []uint32
 	for _, s := range n.subnets {
 		if n.driver.vxlanIdm != nil {
-			n.driver.vxlanIdm.Release(uint64(n.vxlanID(s)))
+			vni := n.vxlanID(s)
+			vnis = append(vnis, vni)
+			n.driver.vxlanIdm.Release(uint64(vni))
 		}
 
 		n.setVxlanID(s, 0)
 	}
 
-	return nil
+	return vnis, nil
 }
 
 func (n *network) obtainVxlanID(s *subnet) error {
