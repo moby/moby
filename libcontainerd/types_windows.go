@@ -62,6 +62,12 @@ type NetworkEndpointsOption struct {
 	AllowUnqualifiedDNSQuery bool
 }
 
+// CredentialsOption is a CreateOption that indicates the credentials from
+// a credential spec to be used to the runtime
+type CredentialsOption struct {
+	Credentials string
+}
+
 // Checkpoint holds the details of a checkpoint (not supported in windows)
 type Checkpoint struct {
 	Name string

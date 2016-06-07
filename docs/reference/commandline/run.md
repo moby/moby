@@ -614,6 +614,11 @@ The `--stop-signal` flag sets the system call signal that will be sent to the co
 This signal can be a valid unsigned number that matches a position in the kernel's syscall table, for instance 9,
 or a signal name in the format SIGNAME, for instance SIGKILL.
 
+### Optional security options (--security-opt)
+
+On Windows, this flag can be used to specify the `credentialspec` option. 
+The `credentialspec` must be in the format `file://spec.txt` or `registry://keyname`. 
+
 ### Specify isolation technology for container (--isolation)
 
 This option is useful in situations where you are running Docker containers on
