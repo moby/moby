@@ -72,12 +72,7 @@ func certPool(caFile string) (*x509.CertPool, error) {
 	if !certPool.AppendCertsFromPEM(pem) {
 		return nil, fmt.Errorf("failed to append certificates from PEM file: %q", caFile)
 	}
-	s := certPool.Subjects()
-	subjects := make([]string, len(s))
-	for i, subject := range s {
-		subjects[i] = string(subject)
-	}
-	logrus.Debugf("Trusting certs with subjects: %v", subjects)
+	logrus.Debugf("Trusting %d certs", len(certPool.Subjects()))
 	return certPool, nil
 }
 

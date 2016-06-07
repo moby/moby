@@ -3,11 +3,11 @@ package overlay
 import (
 	"fmt"
 	"net"
-	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/types"
+	"github.com/gogo/protobuf/proto"
 	"github.com/vishvananda/netlink"
 )
 
@@ -106,7 +106,16 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	d.peerDbAdd(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac,
 		net.ParseIP(d.bindAddress), true)
 
-	if err := jinfo.AddTableEntry(ovPeerTable, eid, []byte(fmt.Sprintf("%s,%s,%s", ep.addr, ep.mac, d.bindAddress))); err != nil {
+	buf, err := proto.Marshal(&PeerRecord{
+		EndpointIP:       ep.addr.String(),
+		EndpointMAC:      ep.mac.String(),
+		TunnelEndpointIP: d.bindAddress,
+	})
+	if err != nil {
+		return err
+	}
+
+	if err := jinfo.AddTableEntry(ovPeerTable, eid, buf); err != nil {
 		log.Errorf("overlay: Failed adding table entry to joininfo: %v", err)
 	}
 
@@ -122,27 +131,34 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 	}
 
 	eid := key
-	values := strings.Split(string(value), ",")
-	if len(values) < 3 {
-		log.Errorf("Invalid value %s received through event notify", string(value))
+
+	var peer PeerRecord
+	if err := proto.Unmarshal(value, &peer); err != nil {
+		log.Errorf("Failed to unmarshal peer record: %v", err)
 		return
 	}
 
-	addr, err := types.ParseCIDR(values[0])
+	// Ignore local peers. We already know about them and they
+	// should not be added to vxlan fdb.
+	if peer.TunnelEndpointIP == d.bindAddress {
+		return
+	}
+
+	addr, err := types.ParseCIDR(peer.EndpointIP)
 	if err != nil {
-		log.Errorf("Invalid peer IP %s received in event notify", values[0])
+		log.Errorf("Invalid peer IP %s received in event notify", peer.EndpointIP)
 		return
 	}
 
-	mac, err := net.ParseMAC(values[1])
+	mac, err := net.ParseMAC(peer.EndpointMAC)
 	if err != nil {
-		log.Errorf("Invalid mac %s received in event notify", values[1])
+		log.Errorf("Invalid mac %s received in event notify", peer.EndpointMAC)
 		return
 	}
 
-	vtep := net.ParseIP(values[2])
+	vtep := net.ParseIP(peer.TunnelEndpointIP)
 	if vtep == nil {
-		log.Errorf("Invalid VTEP %s received in event notify", values[2])
+		log.Errorf("Invalid VTEP %s received in event notify", peer.TunnelEndpointIP)
 		return
 	}
 

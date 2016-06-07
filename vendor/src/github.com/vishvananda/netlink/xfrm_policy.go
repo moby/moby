@@ -46,14 +46,28 @@ type XfrmPolicyTmpl struct {
 	Reqid int
 }
 
+func (t XfrmPolicyTmpl) String() string {
+	return fmt.Sprintf("{Dst: %v, Src: %v, Proto: %s, Mode: %s, Reqid: 0x%x}",
+		t.Dst, t.Src, t.Proto, t.Mode, t.Reqid)
+}
+
 // XfrmPolicy represents an ipsec policy. It represents the overlay network
 // and has a list of XfrmPolicyTmpls representing the base addresses of
 // the policy.
 type XfrmPolicy struct {
 	Dst      *net.IPNet
 	Src      *net.IPNet
+	Proto    Proto
+	DstPort  int
+	SrcPort  int
 	Dir      Dir
 	Priority int
 	Index    int
+	Mark     *XfrmMark
 	Tmpls    []XfrmPolicyTmpl
+}
+
+func (p XfrmPolicy) String() string {
+	return fmt.Sprintf("{Dst: %v, Src: %v, Proto: %s, DstPort: %d, SrcPort: %d, Dir: %s, Priority: %d, Index: %d, Mark: %s, Tmpls: %s}",
+		p.Dst, p.Src, p.Proto, p.DstPort, p.SrcPort, p.Dir, p.Priority, p.Index, p.Mark, p.Tmpls)
 }

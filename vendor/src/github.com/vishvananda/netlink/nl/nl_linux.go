@@ -6,9 +6,13 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"runtime"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"unsafe"
+
+	"github.com/vishvananda/netns"
 )
 
 const (
@@ -171,7 +175,9 @@ func (a *RtAttr) Serialize() []byte {
 
 type NetlinkRequest struct {
 	syscall.NlMsghdr
-	Data []NetlinkRequestData
+	Data        []NetlinkRequestData
+	RouteSocket *NetlinkSocket
+	XfmrSocket  *NetlinkSocket
 }
 
 // Serialize the Netlink Request into a byte array
@@ -206,11 +212,32 @@ func (req *NetlinkRequest) AddData(data NetlinkRequestData) {
 // Returns a list of netlink messages in seriaized format, optionally filtered
 // by resType.
 func (req *NetlinkRequest) Execute(sockType int, resType uint16) ([][]byte, error) {
-	s, err := getNetlinkSocket(sockType)
-	if err != nil {
-		return nil, err
+	var (
+		s   *NetlinkSocket
+		err error
+	)
+
+	switch sockType {
+	case syscall.NETLINK_XFRM:
+		s = req.XfmrSocket
+	case syscall.NETLINK_ROUTE:
+		s = req.RouteSocket
+	default:
+		return nil, fmt.Errorf("Socket type %d is not handled", sockType)
 	}
-	defer s.Close()
+
+	sharedSocket := s != nil
+
+	if s == nil {
+		s, err = getNetlinkSocket(sockType)
+		if err != nil {
+			return nil, err
+		}
+		defer s.Close()
+	} else {
+		s.Lock()
+		defer s.Unlock()
+	}
 
 	if err := s.Send(req); err != nil {
 		return nil, err
@@ -231,7 +258,10 @@ done:
 		}
 		for _, m := range msgs {
 			if m.Header.Seq != req.Seq {
-				return nil, fmt.Errorf("Wrong Seq nr %d, expected 1", m.Header.Seq)
+				if sharedSocket {
+					continue
+				}
+				return nil, fmt.Errorf("Wrong Seq nr %d, expected %d", m.Header.Seq, req.Seq)
 			}
 			if m.Header.Pid != pid {
 				return nil, fmt.Errorf("Wrong pid %d, expected %d", m.Header.Pid, pid)
@@ -276,6 +306,7 @@ func NewNetlinkRequest(proto, flags int) *NetlinkRequest {
 type NetlinkSocket struct {
 	fd  int
 	lsa syscall.SockaddrNetlink
+	sync.Mutex
 }
 
 func getNetlinkSocket(protocol int) (*NetlinkSocket, error) {
@@ -293,6 +324,32 @@ func getNetlinkSocket(protocol int) (*NetlinkSocket, error) {
 	}
 
 	return s, nil
+}
+
+// GetNetlinkSocketAt opens a netlink socket in the network namespace newNs
+// and positions the thread back into the network namespace specified by curNs,
+// when done. If curNs is close, the function derives the current namespace and
+// moves back into it when done. If newNs is close, the socket will be opened
+// in the current network namespace.
+func GetNetlinkSocketAt(newNs, curNs netns.NsHandle, protocol int) (*NetlinkSocket, error) {
+	var err error
+
+	if newNs.IsOpen() {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		if !curNs.IsOpen() {
+			if curNs, err = netns.Get(); err != nil {
+				return nil, fmt.Errorf("could not get current namespace while creating netlink socket: %v", err)
+			}
+			defer curNs.Close()
+		}
+		if err := netns.Set(newNs); err != nil {
+			return nil, fmt.Errorf("failed to set into network namespace %d while creating netlink socket: %v", newNs, err)
+		}
+		defer netns.Set(curNs)
+	}
+
+	return getNetlinkSocket(protocol)
 }
 
 // Create a netlink socket with a given protocol (e.g. NETLINK_ROUTE)

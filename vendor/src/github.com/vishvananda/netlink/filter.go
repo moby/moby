@@ -11,7 +11,7 @@ type Filter interface {
 	Type() string
 }
 
-// Filter represents a netlink filter. A filter is associated with a link,
+// FilterAttrs represents a netlink filter. A filter is associated with a link,
 // has a handle and a parent. The root filter of a device should have a
 // parent == HANDLE_ROOT.
 type FilterAttrs struct {
@@ -26,11 +26,45 @@ func (q FilterAttrs) String() string {
 	return fmt.Sprintf("{LinkIndex: %d, Handle: %s, Parent: %s, Priority: %d, Protocol: %d}", q.LinkIndex, HandleStr(q.Handle), HandleStr(q.Parent), q.Priority, q.Protocol)
 }
 
+// Action represents an action in any supported filter.
+type Action interface {
+	Type() string
+}
+
+type BpfAction struct {
+	nl.TcActBpf
+	Fd   int
+	Name string
+}
+
+func (action *BpfAction) Type() string {
+	return "bpf"
+}
+
+type MirredAction struct {
+	nl.TcMirred
+}
+
+func (action *MirredAction) Type() string {
+	return "mirred"
+}
+
+func NewMirredAction(redirIndex int) *MirredAction {
+	return &MirredAction{
+		TcMirred: nl.TcMirred{
+			TcGen:   nl.TcGen{Action: nl.TC_ACT_STOLEN},
+			Eaction: nl.TCA_EGRESS_REDIR,
+			Ifindex: uint32(redirIndex),
+		},
+	}
+}
+
 // U32 filters on many packet related properties
 type U32 struct {
 	FilterAttrs
-	// Currently only supports redirecting to another interface
+	ClassId    uint32
 	RedirIndex int
+	Actions    []Action
 }
 
 func (filter *U32) Attrs() *FilterAttrs {
@@ -57,7 +91,7 @@ type FilterFwAttrs struct {
 	LinkLayer int
 }
 
-// FwFilter filters on firewall marks
+// Fw filter filters on firewall marks
 type Fw struct {
 	FilterAttrs
 	ClassId uint32
@@ -73,8 +107,8 @@ type Fw struct {
 func NewFw(attrs FilterAttrs, fattrs FilterFwAttrs) (*Fw, error) {
 	var rtab [256]uint32
 	var ptab [256]uint32
-	rcell_log := -1
-	pcell_log := -1
+	rcellLog := -1
+	pcellLog := -1
 	avrate := fattrs.AvRate / 8
 	police := nl.TcPolice{}
 	police.Rate.Rate = fattrs.Rate / 8
@@ -90,8 +124,8 @@ func NewFw(attrs FilterAttrs, fattrs FilterFwAttrs) (*Fw, error) {
 	if police.Rate.Rate != 0 {
 		police.Rate.Mpu = fattrs.Mpu
 		police.Rate.Overhead = fattrs.Overhead
-		if CalcRtable(&police.Rate, rtab, rcell_log, fattrs.Mtu, linklayer) < 0 {
-			return nil, errors.New("TBF: failed to calculate rate table.")
+		if CalcRtable(&police.Rate, rtab, rcellLog, fattrs.Mtu, linklayer) < 0 {
+			return nil, errors.New("TBF: failed to calculate rate table")
 		}
 		police.Burst = uint32(Xmittime(uint64(police.Rate.Rate), uint32(buffer)))
 	}
@@ -99,8 +133,8 @@ func NewFw(attrs FilterAttrs, fattrs FilterFwAttrs) (*Fw, error) {
 	if police.PeakRate.Rate != 0 {
 		police.PeakRate.Mpu = fattrs.Mpu
 		police.PeakRate.Overhead = fattrs.Overhead
-		if CalcRtable(&police.PeakRate, ptab, pcell_log, fattrs.Mtu, linklayer) < 0 {
-			return nil, errors.New("POLICE: failed to calculate peak rate table.")
+		if CalcRtable(&police.PeakRate, ptab, pcellLog, fattrs.Mtu, linklayer) < 0 {
+			return nil, errors.New("POLICE: failed to calculate peak rate table")
 		}
 	}
 
@@ -122,6 +156,22 @@ func (filter *Fw) Attrs() *FilterAttrs {
 
 func (filter *Fw) Type() string {
 	return "fw"
+}
+
+type BpfFilter struct {
+	FilterAttrs
+	ClassId      uint32
+	Fd           int
+	Name         string
+	DirectAction bool
+}
+
+func (filter *BpfFilter) Type() string {
+	return "bpf"
+}
+
+func (filter *BpfFilter) Attrs() *FilterAttrs {
+	return &filter.FilterAttrs
 }
 
 // GenericFilter filters represent types that are not currently understood

@@ -5,12 +5,13 @@ import (
 )
 
 const (
-	SizeofXfrmUsersaId   = 0x18
-	SizeofXfrmStats      = 0x0c
-	SizeofXfrmUsersaInfo = 0xe0
-	SizeofXfrmAlgo       = 0x44
-	SizeofXfrmAlgoAuth   = 0x48
-	SizeofXfrmEncapTmpl  = 0x18
+	SizeofXfrmUsersaId    = 0x18
+	SizeofXfrmStats       = 0x0c
+	SizeofXfrmUsersaInfo  = 0xe0
+	SizeofXfrmAlgo        = 0x44
+	SizeofXfrmAlgoAuth    = 0x48
+	SizeofXfrmEncapTmpl   = 0x18
+	SizeofXfrmUsersaFlush = 0x8
 )
 
 // struct xfrm_usersa_id {
@@ -218,4 +219,24 @@ func DeserializeXfrmEncapTmpl(b []byte) *XfrmEncapTmpl {
 
 func (msg *XfrmEncapTmpl) Serialize() []byte {
 	return (*(*[SizeofXfrmEncapTmpl]byte)(unsafe.Pointer(msg)))[:]
+}
+
+// struct xfrm_usersa_flush {
+//    __u8 proto;
+// };
+
+type XfrmUsersaFlush struct {
+	Proto uint8
+}
+
+func (msg *XfrmUsersaFlush) Len() int {
+	return SizeofXfrmUsersaFlush
+}
+
+func DeserializeXfrmUsersaFlush(b []byte) *XfrmUsersaFlush {
+	return (*XfrmUsersaFlush)(unsafe.Pointer(&b[0:SizeofXfrmUsersaFlush][0]))
+}
+
+func (msg *XfrmUsersaFlush) Serialize() []byte {
+	return (*(*[SizeofXfrmUsersaFlush]byte)(unsafe.Pointer(msg)))[:]
 }

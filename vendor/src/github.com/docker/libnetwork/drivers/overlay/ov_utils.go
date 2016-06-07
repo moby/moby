@@ -6,7 +6,7 @@ import (
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/osl"
 	"github.com/vishvananda/netlink"
-	"github.com/vishvananda/netlink/nl"
+	"github.com/vishvananda/netns"
 )
 
 func validateID(nid, eid string) error {
@@ -54,7 +54,7 @@ func createVxlan(name string, vni uint32) error {
 		LinkAttrs: netlink.LinkAttrs{Name: name},
 		VxlanId:   int(vni),
 		Learning:  true,
-		Port:      int(nl.Swap16(vxlanPort)), //network endian order
+		Port:      vxlanPort,
 		Proxy:     true,
 		L3miss:    true,
 		L2miss:    true,
@@ -82,16 +82,42 @@ func deleteInterface(name string) error {
 	return nil
 }
 
-func deleteVxlanByVNI(vni uint32) error {
+func deleteVxlanByVNI(path string, vni uint32) error {
 	defer osl.InitOSContext()()
 
-	links, err := netlink.LinkList()
+	var nlh *netlink.Handle
+	if path == "" {
+		var err error
+		nlh, err = netlink.NewHandle()
+		if err != nil {
+			return fmt.Errorf("failed to get netlink handle for current ns: %v", err)
+		}
+	} else {
+		var (
+			err error
+			ns  netns.NsHandle
+		)
+
+		ns, err = netns.GetFromPath(path)
+		if err != nil {
+			return fmt.Errorf("failed to get ns handle for %s: %v", path, err)
+		}
+		defer ns.Close()
+
+		nlh, err = netlink.NewHandleAt(ns)
+		if err != nil {
+			return fmt.Errorf("failed to get netlink handle for ns %s: %v", path, err)
+		}
+	}
+	defer nlh.Delete()
+
+	links, err := nlh.LinkList()
 	if err != nil {
 		return fmt.Errorf("failed to list interfaces while deleting vxlan interface by vni: %v", err)
 	}
 
 	for _, l := range links {
-		if l.Type() == "vxlan" && l.(*netlink.Vxlan).VxlanId == int(vni) {
+		if l.Type() == "vxlan" && (vni == 0 || l.(*netlink.Vxlan).VxlanId == int(vni)) {
 			err = netlink.LinkDel(l)
 			if err != nil {
 				return fmt.Errorf("error deleting vxlan interface with id %d: %v", vni, err)
