@@ -96,9 +96,3 @@ func (ls *layerStore) mountID(name string) string {
 func (ls *layerStore) GraphDriver() graphdriver.Driver {
 	return ls.driver
 }
-
-// ForeignSourceSupported returns whether layers downloaded from foreign sources are
-// supported in this daemon.
-func ForeignSourceSupported() bool {
-	return true
-}

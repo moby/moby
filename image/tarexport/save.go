@@ -216,7 +216,7 @@ func (s *saveSession) save(outStream io.Writer) error {
 	return nil
 }
 
-func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]*distribution.Descriptor, error) {
+func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]distribution.Descriptor, error) {
 	img, err := s.is.Get(id)
 	if err != nil {
 		return nil, err
@@ -228,7 +228,7 @@ func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]*distribution.Des
 
 	var parent digest.Digest
 	var layers []string
-	var foreignSrcs map[layer.DiffID]*distribution.Descriptor
+	var foreignSrcs map[layer.DiffID]distribution.Descriptor
 	for i := range img.RootFS.DiffIDs {
 		v1Img := image.V1Image{}
 		if i == len(img.RootFS.DiffIDs)-1 {
@@ -252,9 +252,9 @@ func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]*distribution.Des
 		}
 		layers = append(layers, v1Img.ID)
 		parent = v1ID
-		if src != nil {
+		if src.Digest != "" {
 			if foreignSrcs == nil {
-				foreignSrcs = make(map[layer.DiffID]*distribution.Descriptor)
+				foreignSrcs = make(map[layer.DiffID]distribution.Descriptor)
 			}
 			foreignSrcs[img.RootFS.DiffIDs[i]] = src
 		}
@@ -272,65 +272,65 @@ func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]*distribution.Des
 	return foreignSrcs, nil
 }
 
-func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, createdTime time.Time) (*distribution.Descriptor, error) {
+func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, createdTime time.Time) (distribution.Descriptor, error) {
 	if _, exists := s.savedLayers[legacyImg.ID]; exists {
-		return nil, nil
+		return distribution.Descriptor{}, nil
 	}
 
 	outDir := filepath.Join(s.outDir, legacyImg.ID)
 	if err := os.Mkdir(outDir, 0755); err != nil {
-		return nil, err
+		return distribution.Descriptor{}, err
 	}
 
 	// todo: why is this version file here?
 	if err := ioutil.WriteFile(filepath.Join(outDir, legacyVersionFileName), []byte("1.0"), 0644); err != nil {
-		return nil, err
+		return distribution.Descriptor{}, err
 	}
 
 	imageConfig, err := json.Marshal(legacyImg)
 	if err != nil {
-		return nil, err
+		return distribution.Descriptor{}, err
 	}
 
 	if err := ioutil.WriteFile(filepath.Join(outDir, legacyConfigFileName), imageConfig, 0644); err != nil {
-		return nil, err
+		return distribution.Descriptor{}, err
 	}
 
 	// serialize filesystem
 	tarFile, err := os.Create(filepath.Join(outDir, legacyLayerFileName))
 	if err != nil {
-		return nil, err
+		return distribution.Descriptor{}, err
 	}
 	defer tarFile.Close()
 
 	l, err := s.ls.Get(id)
 	if err != nil {
-		return nil, err
+		return distribution.Descriptor{}, err
 	}
 	defer layer.ReleaseAndLog(s.ls, l)
 
 	arch, err := l.TarStream()
 	if err != nil {
-		return nil, err
+		return distribution.Descriptor{}, err
 	}
 	defer arch.Close()
 
 	if _, err := io.Copy(tarFile, arch); err != nil {
-		return nil, err
+		return distribution.Descriptor{}, err
 	}
 
 	for _, fname := range []string{"", legacyVersionFileName, legacyConfigFileName, legacyLayerFileName} {
 		// todo: maybe save layer created timestamp?
 		if err := system.Chtimes(filepath.Join(outDir, fname), createdTime, createdTime); err != nil {
-			return nil, err
+			return distribution.Descriptor{}, err
 		}
 	}
 
 	s.savedLayers[legacyImg.ID] = struct{}{}
 
-	var src *distribution.Descriptor
-	if fs, ok := l.(layer.ForeignSourcer); ok {
-		src = fs.ForeignSource()
+	var src distribution.Descriptor
+	if fs, ok := l.(distribution.Describable); ok {
+		src = fs.Descriptor()
 	}
 	return src, nil
 }

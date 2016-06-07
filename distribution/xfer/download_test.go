@@ -72,10 +72,10 @@ func createChainIDFromParent(parent layer.ChainID, dgsts ...layer.DiffID) layer.
 }
 
 func (ls *mockLayerStore) Register(reader io.Reader, parentID layer.ChainID) (layer.Layer, error) {
-	return ls.RegisterForeign(reader, parentID, nil)
+	return ls.RegisterWithDescriptor(reader, parentID, distribution.Descriptor{})
 }
 
-func (ls *mockLayerStore) RegisterForeign(reader io.Reader, parentID layer.ChainID, _ *distribution.Descriptor) (layer.Layer, error) {
+func (ls *mockLayerStore) RegisterWithDescriptor(reader io.Reader, parentID layer.ChainID, _ distribution.Descriptor) (layer.Layer, error) {
 	var (
 		parent layer.Layer
 		err    error

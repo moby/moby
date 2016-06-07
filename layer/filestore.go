@@ -26,9 +26,6 @@ var (
 		// digest.SHA384, // Currently not used
 		// digest.SHA512, // Currently not used
 	}
-
-	// ErrNoForeignSource is returned when no foreign source is set for a layer.
-	ErrNoForeignSource = errors.New("layer does not have a foreign source")
 )
 
 type fileMetadataStore struct {
@@ -103,7 +100,7 @@ func (fm *fileMetadataTransaction) SetCacheID(cacheID string) error {
 	return ioutil.WriteFile(filepath.Join(fm.root, "cache-id"), []byte(cacheID), 0644)
 }
 
-func (fm *fileMetadataTransaction) SetForeignSource(ref distribution.Descriptor) error {
+func (fm *fileMetadataTransaction) SetDescriptor(ref distribution.Descriptor) error {
 	jsonRef, err := json.Marshal(ref)
 	if err != nil {
 		return err
@@ -204,11 +201,12 @@ func (fms *fileMetadataStore) GetCacheID(layer ChainID) (string, error) {
 	return content, nil
 }
 
-func (fms *fileMetadataStore) GetForeignSource(layer ChainID) (distribution.Descriptor, error) {
+func (fms *fileMetadataStore) GetDescriptor(layer ChainID) (distribution.Descriptor, error) {
 	content, err := ioutil.ReadFile(fms.getLayerFilename(layer, "descriptor.json"))
 	if err != nil {
 		if os.IsNotExist(err) {
-			return distribution.Descriptor{}, ErrNoForeignSource
+			// only return empty descriptor to represent what is stored
+			return distribution.Descriptor{}, nil
 		}
 		return distribution.Descriptor{}, err
 	}

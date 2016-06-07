@@ -319,11 +319,15 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				return
 			}
 
-			var src *distribution.Descriptor
-			if fs, ok := descriptor.(layer.ForeignSourcer); ok {
-				src = fs.ForeignSource()
+			var src distribution.Descriptor
+			if fs, ok := descriptor.(distribution.Describable); ok {
+				src = fs.Descriptor()
 			}
-			d.layer, err = d.layerStore.RegisterForeign(inflatedLayerData, parentLayer, src)
+			if ds, ok := d.layerStore.(layer.DescribableStore); ok {
+				d.layer, err = ds.RegisterWithDescriptor(inflatedLayerData, parentLayer, src)
+			} else {
+				d.layer, err = d.layerStore.Register(inflatedLayerData, parentLayer)
+			}
 			if err != nil {
 				select {
 				case <-d.Transfer.Context().Done():
@@ -414,11 +418,15 @@ func (ldm *LayerDownloadManager) makeDownloadFuncFromDownload(descriptor Downloa
 			}
 			defer layerReader.Close()
 
-			var src *distribution.Descriptor
-			if fs, ok := l.(layer.ForeignSourcer); ok {
-				src = fs.ForeignSource()
+			var src distribution.Descriptor
+			if fs, ok := l.(distribution.Describable); ok {
+				src = fs.Descriptor()
 			}
-			d.layer, err = d.layerStore.RegisterForeign(layerReader, parentLayer, src)
+			if ds, ok := d.layerStore.(layer.DescribableStore); ok {
+				d.layer, err = ds.RegisterWithDescriptor(layerReader, parentLayer, src)
+			} else {
+				d.layer, err = d.layerStore.Register(layerReader, parentLayer)
+			}
 			if err != nil {
 				d.err = fmt.Errorf("failed to register layer: %v", err)
 				return
