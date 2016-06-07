@@ -138,6 +138,12 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 		return
 	}
 
+	// Ignore local peers. We already know about them and they
+	// should not be added to vxlan fdb.
+	if peer.TunnelEndpointIP == d.bindAddress {
+		return
+	}
+
 	addr, err := types.ParseCIDR(peer.EndpointIP)
 	if err != nil {
 		log.Errorf("Invalid peer IP %s received in event notify", peer.EndpointIP)
