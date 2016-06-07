@@ -14,7 +14,6 @@ var DockerCommandUsage = []Command{
 	{"events", "Get real time events from the server"},
 	{"exec", "Run a command in a running container"},
 	{"images", "List images"},
-	{"import", "Import the contents from a tarball to create a filesystem image"},
 	{"info", "Display system-wide information"},
 	{"inspect", "Return low-level information on a container or image"},
 	{"kill", "Kill a running container"},

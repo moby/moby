@@ -123,6 +123,9 @@ type Command struct {
 	DisableSuggestions bool
 	// If displaying suggestions, allows to set the minimum levenshtein distance to display, must be > 0
 	SuggestionsMinimumDistance int
+
+	// Disable the flag parsing. If this is true all flags will be passed to the command as arguments.
+	DisableFlagParsing bool
 }
 
 // os.Args[1:] by default, if desired, can be overridden
@@ -556,12 +559,16 @@ func (c *Command) execute(a []string) (err error) {
 		return flag.ErrHelp
 	}
 
-	if err := c.ValidateArgs(a); err != nil {
-		return err
+	c.preRun()
+
+	argWoFlags := c.Flags().Args()
+	if c.DisableFlagParsing {
+		argWoFlags = a
 	}
 
-	c.preRun()
-	argWoFlags := c.Flags().Args()
+	if err := c.ValidateArgs(argWoFlags); err != nil {
+		return err
+	}
 
 	for p := c; p != nil; p = p.Parent() {
 		if p.PersistentPreRunE != nil {
@@ -702,7 +709,7 @@ func (c *Command) ValidateArgs(args []string) error {
 	if c.Args == nil {
 		return nil
 	}
-	return c.Args(c, stripFlags(args, c))
+	return c.Args(c, args)
 }
 
 func (c *Command) initHelpFlag() {
@@ -1200,6 +1207,9 @@ func (c *Command) persistentFlag(name string) (flag *flag.Flag) {
 
 // ParseFlags parses persistent flag tree & local flags
 func (c *Command) ParseFlags(args []string) (err error) {
+	if c.DisableFlagParsing {
+		return nil
+	}
 	c.mergePersistentFlags()
 	err = c.Flags().Parse(args)
 	return
