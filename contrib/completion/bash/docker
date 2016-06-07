@@ -1516,6 +1516,11 @@ _docker_ps() {
 			__docker_complete_container_names
 			return
 			;;
+		network)
+			cur="${cur##*=}"
+			__docker_complete_networks
+			return
+			;;
 		since)
 			cur="${cur##*=}"
 			__docker_complete_containers_all
@@ -1534,7 +1539,7 @@ _docker_ps() {
 
 	case "$prev" in
 		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "ancestor before exited id label name since status volume" -- "$cur" ) )
+			COMPREPLY=( $( compgen -S = -W "ancestor before exited id label name network since status volume" -- "$cur" ) )
 			__docker_nospace
 			return
 			;;
