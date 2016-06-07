@@ -62,7 +62,7 @@ func checkHTTPRedirect(req *http.Request, via []*http.Request) error {
 
 // NewRegistry creates a registry namespace which can be used to get a listing of repositories
 func NewRegistry(ctx context.Context, baseURL string, transport http.RoundTripper) (Registry, error) {
-	ub, err := v2.NewURLBuilderFromString(baseURL)
+	ub, err := v2.NewURLBuilderFromString(baseURL, false)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (r *registry) Repositories(ctx context.Context, entries []string, last stri
 
 // NewRepository creates a new Repository for the given repository name and base URL.
 func NewRepository(ctx context.Context, name reference.Named, baseURL string, transport http.RoundTripper) (distribution.Repository, error) {
-	ub, err := v2.NewURLBuilderFromString(baseURL)
+	ub, err := v2.NewURLBuilderFromString(baseURL, false)
 	if err != nil {
 		return nil, err
 	}
@@ -308,6 +308,7 @@ check:
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}
+	defer resp.Body.Close()
 
 	switch {
 	case resp.StatusCode >= 200 && resp.StatusCode < 400:
@@ -401,9 +402,9 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 	)
 
 	for _, option := range options {
-		if opt, ok := option.(withTagOption); ok {
-			digestOrTag = opt.tag
-			ref, err = reference.WithTag(ms.name, opt.tag)
+		if opt, ok := option.(distribution.WithTagOption); ok {
+			digestOrTag = opt.Tag
+			ref, err = reference.WithTag(ms.name, opt.Tag)
 			if err != nil {
 				return nil, err
 			}
@@ -464,21 +465,6 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 	return nil, HandleErrorResponse(resp)
 }
 
-// WithTag allows a tag to be passed into Put which enables the client
-// to build a correct URL.
-func WithTag(tag string) distribution.ManifestServiceOption {
-	return withTagOption{tag}
-}
-
-type withTagOption struct{ tag string }
-
-func (o withTagOption) Apply(m distribution.ManifestService) error {
-	if _, ok := m.(*manifests); ok {
-		return nil
-	}
-	return fmt.Errorf("withTagOption is a client-only option")
-}
-
 // Put puts a manifest.  A tag can be specified using an options parameter which uses some shared state to hold the
 // tag name in order to build the correct upload URL.
 func (ms *manifests) Put(ctx context.Context, m distribution.Manifest, options ...distribution.ManifestServiceOption) (digest.Digest, error) {
@@ -486,9 +472,9 @@ func (ms *manifests) Put(ctx context.Context, m distribution.Manifest, options .
 	var tagged bool
 
 	for _, option := range options {
-		if opt, ok := option.(withTagOption); ok {
+		if opt, ok := option.(distribution.WithTagOption); ok {
 			var err error
-			ref, err = reference.WithTag(ref, opt.tag)
+			ref, err = reference.WithTag(ref, opt.Tag)
 			if err != nil {
 				return "", err
 			}
