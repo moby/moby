@@ -1,18 +1,18 @@
-package client
+package system
 
 import (
 	"runtime"
-	"text/template"
 	"time"
 
 	"golang.org/x/net/context"
 
-	Cli "github.com/docker/docker/cli"
+	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/cli"
 	"github.com/docker/docker/dockerversion"
-	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/utils/templates"
 	"github.com/docker/engine-api/types"
+	"github.com/spf13/cobra"
 )
 
 var versionTemplate = `Client:
@@ -33,33 +33,48 @@ Server:
  OS/Arch:      {{.Server.Os}}/{{.Server.Arch}}{{if .Server.Experimental}}
  Experimental: {{.Server.Experimental}}{{end}}{{end}}`
 
-// CmdVersion shows Docker version information.
-//
-// Available version information is shown for: client Docker version, client API version, client Go version, client Git commit, client OS/Arch, server Docker version, server API version, server Go version, server Git commit, and server OS/Arch.
-//
-// Usage: docker version
-func (cli *DockerCli) CmdVersion(args ...string) (err error) {
-	cmd := Cli.Subcmd("version", nil, Cli.DockerCommands["version"].Description, true)
-	tmplStr := cmd.String([]string{"f", "#format", "-format"}, "", "Format the output using the given go template")
-	cmd.Require(flag.Exact, 0)
+type versionOptions struct {
+	format string
+}
 
-	cmd.ParseFlags(args, true)
+// NewVersionCommand creats a new cobra.Command for `docker version`
+func NewVersionCommand(dockerCli *client.DockerCli) *cobra.Command {
+	var opts versionOptions
 
-	templateFormat := versionTemplate
-	if *tmplStr != "" {
-		templateFormat = *tmplStr
+	cmd := &cobra.Command{
+		Use:   "version [OPTIONS]",
+		Short: "Show the Docker version information",
+		Args:  cli.ExactArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runVersion(dockerCli, &opts)
+		},
 	}
 
-	var tmpl *template.Template
-	if tmpl, err = templates.Parse(templateFormat); err != nil {
-		return Cli.StatusError{StatusCode: 64,
+	flags := cmd.Flags()
+
+	flags.StringVarP(&opts.format, "format", "f", "", "Format the output using the given go template")
+
+	return cmd
+}
+
+func runVersion(dockerCli *client.DockerCli, opts *versionOptions) error {
+	ctx := context.Background()
+
+	templateFormat := versionTemplate
+	if opts.format != "" {
+		templateFormat = opts.format
+	}
+
+	tmpl, err := templates.Parse(templateFormat)
+	if err != nil {
+		return cli.StatusError{StatusCode: 64,
 			Status: "Template parsing error: " + err.Error()}
 	}
 
 	vd := types.VersionResponse{
 		Client: &types.Version{
 			Version:      dockerversion.Version,
-			APIVersion:   cli.client.ClientVersion(),
+			APIVersion:   dockerCli.Client().ClientVersion(),
 			GoVersion:    runtime.Version(),
 			GitCommit:    dockerversion.GitCommit,
 			BuildTime:    dockerversion.BuildTime,
@@ -69,7 +84,7 @@ func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 		},
 	}
 
-	serverVersion, err := cli.client.ServerVersion(context.Background())
+	serverVersion, err := dockerCli.Client().ServerVersion(ctx)
 	if err == nil {
 		vd.Server = &serverVersion
 	}
@@ -87,9 +102,9 @@ func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 		}
 	}
 
-	if err2 := tmpl.Execute(cli.out, vd); err2 != nil && err == nil {
+	if err2 := tmpl.Execute(dockerCli.Out(), vd); err2 != nil && err == nil {
 		err = err2
 	}
-	cli.out.Write([]byte{'\n'})
+	dockerCli.Out().Write([]byte{'\n'})
 	return err
 }

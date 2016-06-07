@@ -27,7 +27,6 @@ var DockerCommandUsage = []Command{
 	{"stats", "Display a live stream of container(s) resource usage statistics"},
 	{"tag", "Tag an image into a repository"},
 	{"update", "Update configuration of one or more containers"},
-	{"version", "Show the Docker version information"},
 }
 
 // DockerCommands stores all the docker command
