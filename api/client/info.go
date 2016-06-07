@@ -68,6 +68,19 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, "\n")
 	}
 
+	if info.Swarm.IsAgent {
+		fmt.Fprintf(cli.out, "Swarm: \n")
+		fmt.Fprintf(cli.out, " NodeID: %s\n", info.Swarm.NodeID)
+		if info.Swarm.IsManager {
+			fmt.Fprintf(cli.out, " IsManager: YES\n")
+		} else {
+			fmt.Fprintf(cli.out, " IsManager: NO\n")
+		}
+		fmt.Fprintf(cli.out, " Managers: %d\n", info.Swarm.Managers)
+		fmt.Fprintf(cli.out, " Nodes: %d\n", info.Swarm.Nodes)
+	} else {
+		fmt.Fprintf(cli.out, "Swarm: not part of a swarm\n")
+	}
 	ioutils.FprintfIfNotEmpty(cli.out, "Kernel Version: %s\n", info.KernelVersion)
 	ioutils.FprintfIfNotEmpty(cli.out, "Operating System: %s\n", info.OperatingSystem)
 	ioutils.FprintfIfNotEmpty(cli.out, "OSType: %s\n", info.OSType)
