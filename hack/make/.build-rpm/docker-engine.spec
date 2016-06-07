@@ -165,6 +165,8 @@ install -d %{buildroot}%{_mandir}/man1
 install -p -m 644 man/man1/*.1 $RPM_BUILD_ROOT/%{_mandir}/man1
 install -d %{buildroot}%{_mandir}/man5
 install -p -m 644 man/man5/*.5 $RPM_BUILD_ROOT/%{_mandir}/man5
+install -d %{buildroot}%{_mandir}/man8
+install -p -m 644 man/man5/*.8 $RPM_BUILD_ROOT/%{_mandir}/man8
 
 # add vimfiles
 install -d $RPM_BUILD_ROOT/usr/share/vim/vimfiles/doc
@@ -201,6 +203,7 @@ install -p -m 644 contrib/syntax/nano/Dockerfile.nanorc $RPM_BUILD_ROOT/usr/shar
 %doc
 /%{_mandir}/man1/*
 /%{_mandir}/man5/*
+/%{_mandir}/man8/*
 /usr/share/vim/vimfiles/doc/dockerfile.txt
 /usr/share/vim/vimfiles/ftdetect/dockerfile.vim
 /usr/share/vim/vimfiles/syntax/dockerfile.vim
