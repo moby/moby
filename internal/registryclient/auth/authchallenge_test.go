@@ -1,7 +1,10 @@
 package auth
 
 import (
+	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -35,4 +38,44 @@ func TestAuthChallengeParse(t *testing.T) {
 		t.Fatalf("Unexpected param: %s, expected: %s", challenge.Parameters["slashed"], expected)
 	}
 
+}
+
+func TestAuthChallengeNormalization(t *testing.T) {
+	testAuthChallengeNormalization(t, "reg.EXAMPLE.com")
+	testAuthChallengeNormalization(t, "bɿɒʜɔiɿ-ɿɘƚƨim-ƚol-ɒ-ƨʞnɒʜƚ.com")
+}
+
+func testAuthChallengeNormalization(t *testing.T, host string) {
+
+	scm := NewSimpleChallengeManager()
+
+	url, err := url.Parse(fmt.Sprintf("http://%s/v2/", host))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp := &http.Response{
+		Request: &http.Request{
+			URL: url,
+		},
+		Header:     make(http.Header),
+		StatusCode: http.StatusUnauthorized,
+	}
+	resp.Header.Add("WWW-Authenticate", fmt.Sprintf("Bearer realm=\"https://%s/token\",service=\"registry.example.com\"", host))
+
+	err = scm.AddResponse(resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	lowered := *url
+	lowered.Host = strings.ToLower(lowered.Host)
+	c, err := scm.GetChallenges(lowered)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(c) == 0 {
+		t.Fatal("Expected challenge for lower-cased-host URL")
+	}
 }
