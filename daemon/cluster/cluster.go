@@ -244,7 +244,18 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 	c.Lock()
 	if c.node != nil {
 		c.Unlock()
-		return "", ErrSwarmExists
+		if !req.ForceNewCluster {
+			return "", ErrSwarmExists
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		if err := c.node.Stop(ctx); err != nil && !strings.Contains(err.Error(), "context canceled") {
+			return "", err
+		}
+		c.Lock()
+		c.node = nil
+		c.conn = nil
+		c.ready = false
 	}
 	// todo: check current state existing
 	n, ctx, err := c.startNewNode(req.ForceNewCluster, req.ListenAddr, "", "", false)
@@ -326,7 +337,6 @@ func (c *Cluster) Leave(force bool) error {
 		msg := "You are attempting to leave cluster on a node that is participating as a manager. "
 		if c.isActiveManager() {
 			active, reachable, unreachable, err := c.managerStats()
-			logrus.Debugf("managerstats: %#v %#v %#v %#v", active, reachable, unreachable, err)
 			if err == nil {
 				if active && reachable-2 <= unreachable {
 					if reachable == 1 && unreachable == 0 {
@@ -347,8 +357,10 @@ func (c *Cluster) Leave(force bool) error {
 	}
 	c.cancelReconnect()
 	c.Unlock()
-	// todo: can we guarantee that Stop always finishes in meaningful time
-	if err := node.Stop(context.Background()); err != nil && !strings.Contains(err.Error(), "context canceled") {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if err := node.Stop(ctx); err != nil && !strings.Contains(err.Error(), "context canceled") {
 		return err
 	}
 	nodeID := node.NodeID()
@@ -373,6 +385,11 @@ func (c *Cluster) Leave(force bool) error {
 	return nil
 }
 
+func (c *Cluster) getRequestContext() context.Context { // TODO: not needed when requests don't block on qourum lost
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	return ctx
+}
+
 // Inspect retrives the confuguration properties of managed swarm cluster.
 func (c *Cluster) Inspect() (types.Swarm, error) {
 	c.RLock()
@@ -382,7 +399,7 @@ func (c *Cluster) Inspect() (types.Swarm, error) {
 		return types.Swarm{}, ErrNoManager
 	}
 
-	swarm, err := getSwarm(context.Background(), c.client)
+	swarm, err := getSwarm(c.getRequestContext(), c.client)
 	if err != nil {
 		return types.Swarm{}, err
 	}
@@ -409,7 +426,7 @@ func (c *Cluster) Update(swarm types.Swarm) error {
 	}
 
 	_, err = c.client.UpdateCluster(
-		context.Background(),
+		c.getRequestContext(),
 		&swarmapi.UpdateClusterRequest{
 			ClusterID: swarm.ID,
 			Spec:      &swarmSpec,
@@ -484,7 +501,7 @@ func (c *Cluster) Info() types.Info {
 	info.IsAgent = c.ready
 	info.IsManager = c.conn != nil
 	if c.conn != nil {
-		if r, err := c.client.ListNodes(context.Background(), &swarmapi.ListNodesRequest{}); err == nil {
+		if r, err := c.client.ListNodes(c.getRequestContext(), &swarmapi.ListNodesRequest{}); err == nil {
 			info.Nodes = len(r.Nodes)
 			for _, n := range r.Nodes {
 				if n.Manager != nil {
@@ -523,7 +540,7 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 		return nil, err
 	}
 	r, err := c.client.ListServices(
-		context.Background(),
+		c.getRequestContext(),
 		&swarmapi.ListServicesRequest{Filters: filters})
 	if err != nil {
 		return nil, err
@@ -547,7 +564,7 @@ func (c *Cluster) CreateService(s types.ServiceSpec) (string, error) {
 		return "", ErrNoManager
 	}
 
-	ctx := context.Background()
+	ctx := c.getRequestContext()
 
 	err := populateNetworkID(ctx, c.client, &s)
 	if err != nil {
@@ -575,7 +592,7 @@ func (c *Cluster) GetService(input string) (types.Service, error) {
 		return types.Service{}, ErrNoManager
 	}
 
-	service, err := getService(context.Background(), c.client, input)
+	service, err := getService(c.getRequestContext(), c.client, input)
 	if err != nil {
 		return types.Service{}, err
 	}
@@ -597,7 +614,7 @@ func (c *Cluster) UpdateService(serviceID string, version uint64, service types.
 	}
 
 	_, err = c.client.UpdateService(
-		context.Background(),
+		c.getRequestContext(),
 		&swarmapi.UpdateServiceRequest{
 			ServiceID: serviceID,
 			Spec:      &serviceSpec,
@@ -618,12 +635,12 @@ func (c *Cluster) RemoveService(input string) error {
 		return ErrNoManager
 	}
 
-	service, err := getService(context.Background(), c.client, input)
+	service, err := getService(c.getRequestContext(), c.client, input)
 	if err != nil {
 		return err
 	}
 
-	if _, err := c.client.RemoveService(context.Background(), &swarmapi.RemoveServiceRequest{ServiceID: service.ID}); err != nil {
+	if _, err := c.client.RemoveService(c.getRequestContext(), &swarmapi.RemoveServiceRequest{ServiceID: service.ID}); err != nil {
 		return err
 	}
 	return nil
@@ -643,7 +660,7 @@ func (c *Cluster) GetNodes(options apitypes.NodeListOptions) ([]types.Node, erro
 		return nil, err
 	}
 	r, err := c.client.ListNodes(
-		context.Background(),
+		c.getRequestContext(),
 		&swarmapi.ListNodesRequest{Filters: filters})
 	if err != nil {
 		return nil, err
@@ -666,7 +683,7 @@ func (c *Cluster) GetNode(input string) (types.Node, error) {
 		return types.Node{}, ErrNoManager
 	}
 
-	node, err := getNode(context.Background(), c.client, input)
+	node, err := getNode(c.getRequestContext(), c.client, input)
 	if err != nil {
 		return types.Node{}, err
 	}
@@ -688,7 +705,7 @@ func (c *Cluster) UpdateNode(input string, node types.Node) error {
 	}
 
 	_, err = c.client.UpdateNode(
-		context.Background(),
+		c.getRequestContext(),
 		&swarmapi.UpdateNodeRequest{
 			NodeID: node.ID,
 			Spec:   &nodeSpec,
@@ -709,7 +726,7 @@ func (c *Cluster) RemoveNode(input string) error {
 		return ErrNoManager
 	}
 
-	ctx := context.Background()
+	ctx := c.getRequestContext()
 
 	node, err := getNode(ctx, c.client, input)
 	if err != nil {
@@ -736,7 +753,7 @@ func (c *Cluster) GetTasks(options apitypes.TaskListOptions) ([]types.Task, erro
 		return nil, err
 	}
 	r, err := c.client.ListTasks(
-		context.Background(),
+		c.getRequestContext(),
 		&swarmapi.ListTasksRequest{Filters: filters})
 	if err != nil {
 		return nil, err
@@ -759,7 +776,7 @@ func (c *Cluster) GetTask(input string) (types.Task, error) {
 		return types.Task{}, ErrNoManager
 	}
 
-	task, err := getTask(context.Background(), c.client, input)
+	task, err := getTask(c.getRequestContext(), c.client, input)
 	if err != nil {
 		return types.Task{}, err
 	}
@@ -775,7 +792,7 @@ func (c *Cluster) GetNetwork(input string) (apitypes.NetworkResource, error) {
 		return apitypes.NetworkResource{}, ErrNoManager
 	}
 
-	network, err := getNetwork(context.Background(), c.client, input)
+	network, err := getNetwork(c.getRequestContext(), c.client, input)
 	if err != nil {
 		return apitypes.NetworkResource{}, err
 	}
@@ -791,7 +808,7 @@ func (c *Cluster) GetNetworks() ([]apitypes.NetworkResource, error) {
 		return nil, ErrNoManager
 	}
 
-	r, err := c.client.ListNetworks(context.Background(), &swarmapi.ListNetworksRequest{})
+	r, err := c.client.ListNetworks(c.getRequestContext(), &swarmapi.ListNetworksRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -815,7 +832,7 @@ func (c *Cluster) CreateNetwork(s apitypes.NetworkCreateRequest) (string, error)
 	}
 
 	networkSpec := convert.BasicNetworkCreateToGRPC(s)
-	r, err := c.client.CreateNetwork(context.Background(), &swarmapi.CreateNetworkRequest{Spec: &networkSpec})
+	r, err := c.client.CreateNetwork(c.getRequestContext(), &swarmapi.CreateNetworkRequest{Spec: &networkSpec})
 	if err != nil {
 		return "", err
 	}
@@ -832,12 +849,12 @@ func (c *Cluster) RemoveNetwork(input string) error {
 		return ErrNoManager
 	}
 
-	network, err := getNetwork(context.Background(), c.client, input)
+	network, err := getNetwork(c.getRequestContext(), c.client, input)
 	if err != nil {
 		return err
 	}
 
-	if _, err := c.client.RemoveNetwork(context.Background(), &swarmapi.RemoveNetworkRequest{NetworkID: network.ID}); err != nil {
+	if _, err := c.client.RemoveNetwork(c.getRequestContext(), &swarmapi.RemoveNetworkRequest{NetworkID: network.ID}); err != nil {
 		return err
 	}
 	return nil
