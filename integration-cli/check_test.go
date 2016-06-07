@@ -184,6 +184,60 @@ func (s *DockerDaemonSuite) TearDownTest(c *check.C) {
 	s.ds.TearDownTest(c)
 }
 
+const defaultSwarmPort = 2377
+
+func init() {
+	check.Suite(&DockerSwarmSuite{
+		ds: &DockerSuite{},
+	})
+}
+
+type DockerSwarmSuite struct {
+	ds        *DockerSuite
+	daemons   []*SwarmDaemon
+	portIndex int
+}
+
+func (s *DockerSwarmSuite) SetUpTest(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+}
+
+func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *SwarmDaemon {
+	d := &SwarmDaemon{
+		Daemon: NewDaemon(c),
+		port:   defaultSwarmPort + s.portIndex,
+	}
+	d.listenAddr = fmt.Sprintf("0.0.0.0:%d", d.port)
+	err := d.StartWithBusybox()
+	c.Assert(err, check.IsNil)
+
+	if joinSwarm == true {
+		if len(s.daemons) > 0 {
+			d.Join(s.daemons[0].listenAddr, "", manager)
+		} else {
+			aa := make(map[string]bool)
+			aa["worker"] = true
+			aa["manager"] = true
+			d.Init(aa, "")
+		}
+	}
+
+	s.portIndex++
+	s.daemons = append(s.daemons, d)
+
+	return d
+}
+
+func (s *DockerSwarmSuite) TearDownTest(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	for _, d := range s.daemons {
+		d.Stop()
+	}
+	s.daemons = nil
+	s.portIndex = 0
+	s.ds.TearDownTest(c)
+}
+
 func init() {
 	check.Suite(&DockerTrustSuite{
 		ds: &DockerSuite{},
