@@ -553,15 +553,16 @@ func (s *DockerDaemonSuite) TestDaemonAllocatesListeningPort(c *check.C) {
 
 func (s *DockerDaemonSuite) TestDaemonKeyGeneration(c *check.C) {
 	// TODO: skip or update for Windows daemon
-	os.Remove("/etc/docker/key.json")
+	keyFile := filepath.Join(s.d.GetConfDir(), "key.json")
+	os.Remove(keyFile)
 	if err := s.d.Start(); err != nil {
 		c.Fatalf("Could not start daemon: %v", err)
 	}
 	s.d.Stop()
 
-	k, err := libtrust.LoadKeyFile("/etc/docker/key.json")
+	k, err := libtrust.LoadKeyFile(keyFile)
 	if err != nil {
-		c.Fatalf("Error opening key file")
+		c.Fatalf("Error opening key file %q: %v", keyFile, err)
 	}
 	kid := k.KeyID()
 	// Test Key ID is a valid fingerprint (e.g. QQXN:JY5W:TBXI:MK3X:GX6P:PD5D:F56N:NHCS:LVRZ:JA46:R24J:XEFF)
@@ -572,7 +573,8 @@ func (s *DockerDaemonSuite) TestDaemonKeyGeneration(c *check.C) {
 
 func (s *DockerDaemonSuite) TestDaemonKeyMigration(c *check.C) {
 	// TODO: skip or update for Windows daemon
-	os.Remove("/etc/docker/key.json")
+	keyFile := filepath.Join(s.d.GetConfDir(), "key.json")
+	os.Remove(keyFile)
 	k1, err := libtrust.GenerateECP256PrivateKey()
 	if err != nil {
 		c.Fatalf("Error generating private key: %s", err)
@@ -589,7 +591,7 @@ func (s *DockerDaemonSuite) TestDaemonKeyMigration(c *check.C) {
 	}
 	s.d.Stop()
 
-	k2, err := libtrust.LoadKeyFile("/etc/docker/key.json")
+	k2, err := libtrust.LoadKeyFile(keyFile)
 	if err != nil {
 		c.Fatalf("Error opening key file")
 	}
@@ -1337,7 +1339,8 @@ func (s *DockerDaemonSuite) TestDaemonWithWrongkey(c *check.C) {
 		Y   string `json:"y"`
 	}
 
-	os.Remove("/etc/docker/key.json")
+	keyFile := filepath.Join(s.d.GetConfDir(), "key.json")
+	os.Remove(keyFile)
 	if err := s.d.Start(); err != nil {
 		c.Fatalf("Failed to start daemon: %v", err)
 	}
@@ -1347,7 +1350,7 @@ func (s *DockerDaemonSuite) TestDaemonWithWrongkey(c *check.C) {
 	}
 
 	config := &Config{}
-	bytes, err := ioutil.ReadFile("/etc/docker/key.json")
+	bytes, err := ioutil.ReadFile(keyFile)
 	if err != nil {
 		c.Fatalf("Error reading key.json file: %s", err)
 	}
@@ -1367,11 +1370,11 @@ func (s *DockerDaemonSuite) TestDaemonWithWrongkey(c *check.C) {
 	}
 
 	// write back
-	if err := ioutil.WriteFile("/etc/docker/key.json", newBytes, 0400); err != nil {
+	if err := ioutil.WriteFile(keyFile, newBytes, 0400); err != nil {
 		c.Fatalf("Error ioutil.WriteFile: %s", err)
 	}
 
-	defer os.Remove("/etc/docker/key.json")
+	defer os.Remove(keyFile)
 
 	if err := s.d.Start(); err == nil {
 		c.Fatalf("It should not be successful to start daemon with wrong key: %v", err)

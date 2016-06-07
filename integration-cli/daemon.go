@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -146,6 +147,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	if !(d.useDefaultHost || d.useDefaultTLSHost) {
 		args = append(args, []string{"--host", d.sock()}...)
 	}
+
 	if root := os.Getenv("DOCKER_REMAP_ROOT"); root != "" {
 		args = append(args, []string{"--userns-remap", root}...)
 	}
@@ -175,6 +177,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	d.cmd.Stdout = out
 	d.cmd.Stderr = out
 	d.logFile = out
+	d.cmd.Env = append([]string{fmt.Sprintf("DOCKER_CONF_DIR=%s/config", d.folder)}, os.Environ()...)
 
 	if err := d.cmd.Start(); err != nil {
 		return fmt.Errorf("[%s] could not start daemon container: %v", d.id, err)
@@ -294,7 +297,7 @@ out1:
 			return err
 		case <-time.After(15 * time.Second):
 			// time for stopping jobs and run onShutdown hooks
-			d.c.Log("timeout")
+			d.c.Logf("timeout: %v", d.id)
 			break out1
 		}
 	}
@@ -363,6 +366,11 @@ func (d *Daemon) LoadBusybox() error {
 		d.c.Logf("could not remove %s: %v", bb, err)
 	}
 	return nil
+}
+
+// GetConfDir returns current daemon config dir.
+func (d *Daemon) GetConfDir() string {
+	return filepath.Join(d.folder, "config")
 }
 
 func (d *Daemon) queryRootDir() (string, error) {
@@ -452,6 +460,27 @@ func (d *Daemon) CmdWithArgs(daemonArgs []string, name string, arg ...string) (s
 	return string(b), err
 }
 
+// SockRequest executes a socket request on a daemon and returns statuscode and output.
+func (d *Daemon) SockRequest(method, endpoint string, data interface{}) (int, []byte, error) {
+	jsonData := bytes.NewBuffer(nil)
+	if err := json.NewEncoder(jsonData).Encode(data); err != nil {
+		return -1, nil, err
+	}
+
+	res, body, err := d.SockRequestRaw(method, endpoint, jsonData, "application/json")
+	if err != nil {
+		return -1, nil, err
+	}
+	b, err := readBody(body)
+	return res.StatusCode, b, err
+}
+
+// SockRequestRaw executes a socket request on a daemon and returns a http
+// response and a reader for the output data.
+func (d *Daemon) SockRequestRaw(method, endpoint string, data io.Reader, ct string) (*http.Response, io.ReadCloser, error) {
+	return sockRequestRawToDaemon(method, endpoint, data, ct, d.sock())
+}
+
 // LogFileName returns the path the the daemon's log file
 func (d *Daemon) LogFileName() string {
 	return d.logFile.Name()
@@ -459,6 +488,16 @@ func (d *Daemon) LogFileName() string {
 
 func (d *Daemon) getIDByName(name string) (string, error) {
 	return d.inspectFieldWithError(name, "Id")
+}
+
+func (d *Daemon) activeContainers() (ids []string) {
+	out, _ := d.Cmd("ps", "-q")
+	for _, id := range strings.Split(out, "\n") {
+		if id = strings.TrimSpace(id); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return
 }
 
 func (d *Daemon) inspectFilter(name, filter string) (string, error) {
@@ -485,4 +524,13 @@ func (d *Daemon) findContainerIP(id string) string {
 func (d *Daemon) buildImageWithOut(name, dockerfile string, useCache bool, buildFlags ...string) (string, int, error) {
 	buildCmd := buildImageCmdWithHost(name, dockerfile, d.sock(), useCache, buildFlags...)
 	return runCommandWithOutput(buildCmd)
+}
+
+func (d *Daemon) checkActiveContainerCount(c *check.C) (interface{}, check.CommentInterface) {
+	out, err := d.Cmd("ps", "-q")
+	c.Assert(err, checker.IsNil)
+	if len(out) == 0 {
+		return 0, nil
+	}
+	return len(strings.Split(strings.TrimSpace(out), "\n")), check.Commentf("output: %q", string(out))
 }
