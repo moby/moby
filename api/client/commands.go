@@ -11,7 +11,6 @@ func (cli *DockerCli) Command(name string) func(...string) error {
 		"images":  cli.CmdImages,
 		"info":    cli.CmdInfo,
 		"inspect": cli.CmdInspect,
-		"kill":    cli.CmdKill,
 		"load":    cli.CmdLoad,
 		"login":   cli.CmdLogin,
 		"logout":  cli.CmdLogout,
