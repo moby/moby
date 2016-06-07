@@ -33,6 +33,7 @@ var acceptedPsFilterTags = map[string]bool{
 	"status":    true,
 	"since":     true,
 	"volume":    true,
+	"network":   true,
 }
 
 // iterationAction represents possible outcomes happening during the container iteration.
@@ -370,6 +371,24 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 			return excludeContainer
 		}
 		if !ctx.images[container.ImageID] {
+			return excludeContainer
+		}
+	}
+
+	networkExist := fmt.Errorf("container part of network")
+	if ctx.filters.Include("network") {
+		err := ctx.filters.WalkValues("network", func(value string) error {
+			if _, ok := container.NetworkSettings.Networks[value]; ok {
+				return networkExist
+			}
+			for _, nw := range container.NetworkSettings.Networks {
+				if nw.NetworkID == value {
+					return networkExist
+				}
+			}
+			return nil
+		})
+		if err != networkExist {
 			return excludeContainer
 		}
 	}

@@ -804,3 +804,63 @@ func (s *DockerSuite) TestPsFormatSize(c *check.C) {
 	lines = strings.Split(out, "\n")
 	c.Assert(lines[8], checker.HasPrefix, "size:", check.Commentf("Size should be appended on a newline"))
 }
+
+func (s *DockerSuite) TestPsListContainersFilterNetwork(c *check.C) {
+	// TODO default network on Windows is not called "bridge", and creating a
+	// custom network fails on Windows fails with "Error response from daemon: plugin not found")
+	testRequires(c, DaemonIsLinux)
+
+	// create some containers
+	runSleepingContainer(c, "--net=bridge", "--name=onbridgenetwork")
+	runSleepingContainer(c, "--net=none", "--name=onnonenetwork")
+
+	// Filter docker ps on non existing network
+	out, _ := dockerCmd(c, "ps", "--filter", "network=doesnotexist")
+	containerOut := strings.TrimSpace(string(out))
+	lines := strings.Split(containerOut, "\n")
+
+	// skip header
+	lines = lines[1:]
+
+	// ps output should have no containers
+	c.Assert(lines, checker.HasLen, 0)
+
+	// Filter docker ps on network bridge
+	out, _ = dockerCmd(c, "ps", "--filter", "network=bridge")
+	containerOut = strings.TrimSpace(string(out))
+
+	lines = strings.Split(containerOut, "\n")
+
+	// skip header
+	lines = lines[1:]
+
+	// ps output should have only one container
+	c.Assert(lines, checker.HasLen, 1)
+
+	// Making sure onbridgenetwork is on the output
+	c.Assert(containerOut, checker.Contains, "onbridgenetwork", check.Commentf("Missing the container on network\n"))
+
+	// Filter docker ps on networks bridge and none
+	out, _ = dockerCmd(c, "ps", "--filter", "network=bridge", "--filter", "network=none")
+	containerOut = strings.TrimSpace(string(out))
+
+	lines = strings.Split(containerOut, "\n")
+
+	// skip header
+	lines = lines[1:]
+
+	//ps output should have both the containers
+	c.Assert(lines, checker.HasLen, 2)
+
+	// Making sure onbridgenetwork and onnonenetwork is on the output
+	c.Assert(containerOut, checker.Contains, "onnonenetwork", check.Commentf("Missing the container on none network\n"))
+	c.Assert(containerOut, checker.Contains, "onbridgenetwork", check.Commentf("Missing the container on bridge network\n"))
+
+	nwID, _ := dockerCmd(c, "network", "inspect", "--format", "{{.ID}}", "bridge")
+
+	// Filter by network ID
+	out, _ = dockerCmd(c, "ps", "--filter", "network="+nwID)
+	containerOut = strings.TrimSpace(string(out))
+
+	c.Assert(containerOut, checker.Contains, "onbridgenetwork")
+}
