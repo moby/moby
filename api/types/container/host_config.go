@@ -243,8 +243,10 @@ type Resources struct {
 	BlkioDeviceWriteBps  []*blkiodev.ThrottleDevice
 	BlkioDeviceReadIOps  []*blkiodev.ThrottleDevice
 	BlkioDeviceWriteIOps []*blkiodev.ThrottleDevice
-	CPUPeriod            int64           `json:"CpuPeriod"` // CPU CFS (Completely Fair Scheduler) period
-	CPUQuota             int64           `json:"CpuQuota"`  // CPU CFS (Completely Fair Scheduler) quota
+	CPUPeriod            int64           `json:"CpuPeriod"`          // CPU CFS (Completely Fair Scheduler) period
+	CPUQuota             int64           `json:"CpuQuota"`           // CPU CFS (Completely Fair Scheduler) quota
+	CPURealtimePeriod    int64           `json:"CpuRealtimePeriod"`  // CPU real-time period
+	CPURealtimeRuntime   int64           `json:"CpuRealtimeRuntime"` // CPU real-time runtime
 	CpusetCpus           string          // CpusetCpus 0-2, 0,1
 	CpusetMems           string          // CpusetMems 0-2, 0,1
 	Devices              []DeviceMapping // List of devices to map inside the container

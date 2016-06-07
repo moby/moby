@@ -35,6 +35,8 @@ Options:
       --cpu-period int              Limit CPU CFS (Completely Fair Scheduler) period
       --cpu-quota int               Limit CPU CFS (Completely Fair Scheduler) quota
   -c, --cpu-shares int              CPU shares (relative weight)
+      --cpu-rt-period int           Limit the CPU real-time period in microseconds
+      --cpu-rt-runtime int          Limit the CPU real-time runtime in microseconds
       --cpuset-cpus string          CPUs in which to allow execution (0-3, 0,1)
       --cpuset-mems string          MEMs in which to allow execution (0-3, 0,1)
       --device value                Add a host device to the container (default [])

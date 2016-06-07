@@ -1316,6 +1316,8 @@ _docker_container_run() {
 		--cidfile
 		--cpu-period
 		--cpu-quota
+		--cpu-rt-period
+		--cpu-rt-runtime
 		--cpuset-cpus
 		--cpuset-mems
 		--cpu-shares -c
@@ -1667,6 +1669,8 @@ _docker_container_update() {
 		--blkio-weight
 		--cpu-period
 		--cpu-quota
+		--cpu-rt-period
+		--cpu-rt-runtime
 		--cpuset-cpus
 		--cpuset-mems
 		--cpu-shares -c

@@ -21,9 +21,10 @@ import (
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/volume"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/user"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func setResources(s *specs.Spec, r containertypes.Resources) error {
@@ -655,6 +656,29 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	}
 	s.Linux.Resources.OOMScoreAdj = &c.HostConfig.OomScoreAdj
 	s.Linux.Sysctl = c.HostConfig.Sysctls
+
+	p := *s.Linux.CgroupsPath
+	if useSystemd {
+		initPath, err := cgroups.GetInitCgroupDir("cpu")
+		if err != nil {
+			return nil, err
+		}
+		p, _ = cgroups.GetThisCgroupDir("cpu")
+		if err != nil {
+			return nil, err
+		}
+		p = filepath.Join(initPath, p)
+	}
+
+	// Clean path to guard against things like ../../../BAD
+	parentPath := filepath.Dir(p)
+	if !filepath.IsAbs(parentPath) {
+		parentPath = filepath.Clean("/" + parentPath)
+	}
+
+	if err := daemon.initCgroupsPath(parentPath); err != nil {
+		return nil, fmt.Errorf("linux init cgroups path: %v", err)
+	}
 	if err := setDevices(&s, c); err != nil {
 		return nil, fmt.Errorf("linux runtime spec devices: %v", err)
 	}

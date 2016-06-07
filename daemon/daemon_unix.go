@@ -36,10 +36,11 @@ import (
 	"github.com/docker/libnetwork/options"
 	lntypes "github.com/docker/libnetwork/types"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/label"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"github.com/opencontainers/runc/libcontainer/user"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/vishvananda/netlink"
 )
 
@@ -116,6 +117,16 @@ func getCPUResources(config containertypes.Resources) *specs.CPU {
 	if config.CPUQuota != 0 {
 		quota := uint64(config.CPUQuota)
 		cpu.Quota = &quota
+	}
+
+	if config.CPURealtimePeriod != 0 {
+		period := uint64(config.CPURealtimePeriod)
+		cpu.RealtimePeriod = &period
+	}
+
+	if config.CPURealtimeRuntime != 0 {
+		runtime := uint64(config.CPURealtimeRuntime)
+		cpu.RealtimeRuntime = &runtime
 	}
 
 	return &cpu
@@ -1183,4 +1194,35 @@ func setupOOMScoreAdj(score int) error {
 	}
 	f.Close()
 	return err
+}
+
+func (daemon *Daemon) initCgroupsPath(path string) error {
+	if path == "/" || path == "." {
+		return nil
+	}
+
+	daemon.initCgroupsPath(filepath.Dir(path))
+
+	_, root, err := cgroups.FindCgroupMountpointAndRoot("cpu")
+	if err != nil {
+		return err
+	}
+
+	path = filepath.Join(root, path)
+	sysinfo := sysinfo.New(false)
+	if err := os.MkdirAll(path, 0755); err != nil && !os.IsExist(err) {
+		return err
+	}
+	if sysinfo.CPURealtimePeriod && daemon.configStore.CPURealtimePeriod != 0 {
+		if err := ioutil.WriteFile(filepath.Join(path, "cpu.rt_period_us"), []byte(strconv.FormatInt(daemon.configStore.CPURealtimePeriod, 10)), 0700); err != nil {
+			return err
+		}
+	}
+	if sysinfo.CPURealtimeRuntime && daemon.configStore.CPURealtimeRuntime != 0 {
+		if err := ioutil.WriteFile(filepath.Join(path, "cpu.rt_runtime_us"), []byte(strconv.FormatInt(daemon.configStore.CPURealtimeRuntime, 10)), 0700); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
