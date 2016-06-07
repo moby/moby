@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/engine-api/types"
 	containertypes "github.com/docker/engine-api/types/container"
+	"github.com/docker/libnetwork/cluster"
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
 	dmetadata "github.com/docker/docker/distribution/metadata"
@@ -93,6 +94,7 @@ type Daemon struct {
 	linkIndex                 *linkIndex
 	containerd                libcontainerd.Client
 	defaultIsolation          containertypes.Isolation // Default isolation mode on Windows
+	clusterProvider           cluster.Provider
 }
 
 func (daemon *Daemon) restore() error {
@@ -331,6 +333,12 @@ func (daemon *Daemon) registerLink(parent, child *container.Container, alias str
 	}
 	daemon.linkIndex.link(parent, child, fullName)
 	return nil
+}
+
+// SetClusterProvider sets a component for quering the current cluster state.
+func (daemon *Daemon) SetClusterProvider(clusterProvider cluster.Provider) {
+	daemon.clusterProvider = clusterProvider
+	daemon.netController.SetClusterProvider(clusterProvider)
 }
 
 // NewDaemon sets up everything for the daemon to be able to service

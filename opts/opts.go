@@ -5,6 +5,8 @@ import (
 	"net"
 	"regexp"
 	"strings"
+
+	"github.com/docker/engine-api/types/filters"
 )
 
 var (
@@ -281,4 +283,39 @@ func ValidateSysctl(val string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("sysctl '%s' is not whitelisted", val)
+}
+
+// FilterOpt is a flag type for validating filters
+type FilterOpt struct {
+	filter filters.Args
+}
+
+// NewFilterOpt returns a new FilterOpt
+func NewFilterOpt() FilterOpt {
+	return FilterOpt{filter: filters.NewArgs()}
+}
+
+func (o *FilterOpt) String() string {
+	repr, err := filters.ToParam(o.filter)
+	if err != nil {
+		return "invalid filters"
+	}
+	return repr
+}
+
+// Set sets the value of the opt by parsing the command line value
+func (o *FilterOpt) Set(value string) error {
+	var err error
+	o.filter, err = filters.ParseFlag(value, o.filter)
+	return err
+}
+
+// Type returns the option type
+func (o *FilterOpt) Type() string {
+	return "filter"
+}
+
+// Value returns the value of this option
+func (o *FilterOpt) Value() filters.Args {
+	return o.filter
 }

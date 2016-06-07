@@ -798,6 +798,27 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 		}
 	}
 
+	if container.NetworkSettings.Service != nil {
+		svcCfg := container.NetworkSettings.Service
+
+		var vip string
+		if svcCfg.VirtualAddresses[n.ID()] != nil {
+			vip = svcCfg.VirtualAddresses[n.ID()].IPv4
+		}
+
+		var portConfigs []*libnetwork.PortConfig
+		for _, portConfig := range svcCfg.ExposedPorts {
+			portConfigs = append(portConfigs, &libnetwork.PortConfig{
+				Name:     portConfig.Name,
+				Protocol: libnetwork.PortConfig_Protocol(portConfig.Protocol),
+				Port:     portConfig.Port,
+				NodePort: portConfig.NodePort,
+			})
+		}
+
+		createOptions = append(createOptions, libnetwork.CreateOptionService(svcCfg.Name, svcCfg.ID, net.ParseIP(vip), portConfigs))
+	}
+
 	if !containertypes.NetworkMode(n.Name()).IsUserDefined() {
 		createOptions = append(createOptions, libnetwork.CreateOptionDisableResolution())
 	}
