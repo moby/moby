@@ -42,6 +42,10 @@ var (
 		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "ppc64le" },
 		"Test requires a daemon not running on ppc64le",
 	}
+	NotS390X = testRequirement{
+		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "s390x" },
+		"Test requires a daemon not running on s390x",
+	}
 	SameHostDaemon = testRequirement{
 		func() bool { return isLocalDaemon },
 		"Test requires docker daemon to run on the same machine as CLI",
