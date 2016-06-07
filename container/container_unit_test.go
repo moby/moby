@@ -43,8 +43,8 @@ func TestContainerStopTimeout(t *testing.T) {
 	}
 
 	s := c.StopTimeout()
-	if s != defaultStopTimeout {
-		t.Fatalf("Expected %v, got %v", defaultStopTimeout, s)
+	if s != DefaultStopTimeout {
+		t.Fatalf("Expected %v, got %v", DefaultStopTimeout, s)
 	}
 
 	stopTimeout := 15

@@ -94,6 +94,7 @@ type ContainerOptions struct {
 	cgroupParent      string
 	volumeDriver      string
 	stopSignal        string
+	stopTimeout       int
 	isolation         string
 	shmSize           string
 	noHealthcheck     bool
@@ -106,7 +107,6 @@ type ContainerOptions struct {
 	init              bool
 	initPath          string
 	credentialSpec    string
-	stopTimeout       int
 
 	Image string
 	Args  []string
@@ -146,7 +146,6 @@ func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 		ulimits:           NewUlimitOpt(nil),
 		volumes:           opts.NewListOpts(nil),
 		volumesFrom:       opts.NewListOpts(nil),
-		stopSignal:        flags.String("stop-signal", signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal)),
 	}
 
 	// General purpose flags
@@ -163,6 +162,7 @@ func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 	flags.BoolVar(&copts.readonlyRootfs, "read-only", false, "Mount the container's root filesystem as read only")
 	flags.StringVar(&copts.restartPolicy, "restart", "no", "Restart policy to apply when a container exits")
 	flags.StringVar(&copts.stopSignal, "stop-signal", signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal))
+	flags.IntVar(&copts.stopTimeout, "stop-timeout", 0, "Timeout (in seconds) to stop a container")
 	flags.Var(copts.sysctls, "sysctl", "Sysctl options")
 	flags.BoolVarP(&copts.tty, "tty", "t", false, "Allocate a pseudo-TTY")
 	flags.Var(copts.ulimits, "ulimit", "Ulimit options")
@@ -561,7 +561,7 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 		config.StopSignal = copts.stopSignal
 	}
 	if flags.Changed("stop-timeout") {
-		config.StopTimeout = copts.flStopTimeout
+		config.StopTimeout = &copts.stopTimeout
 	}
 
 	hostConfig := &container.HostConfig{

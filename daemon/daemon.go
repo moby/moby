@@ -692,6 +692,8 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 }
 
 func (daemon *Daemon) shutdownContainer(c *container.Container) error {
+	stopTimeout := c.StopTimeout()
+
 	// TODO(windows): Handle docker restart with paused containers
 	if c.IsPaused() {
 		// To terminate a process in freezer cgroup, we should send
@@ -708,8 +710,8 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 		if err := daemon.containerUnpause(c); err != nil {
 			return fmt.Errorf("Failed to unpause container %s with error: %v", c.ID, err)
 		}
-		if _, err := c.WaitStop(time.Duration(c.StopTimeout()) * time.Second); err != nil {
-			logrus.Debugf("container %s failed to exit in %d second of SIGTERM, sending SIGKILL to force", c.ID, c.StopTimeout())
+		if _, err := c.WaitStop(time.Duration(stopTimeout) * time.Second); err != nil {
+			logrus.Debugf("container %s failed to exit in %d second of SIGTERM, sending SIGKILL to force", c.ID, stopTimeout)
 			sig, ok := signal.SignalMap["KILL"]
 			if !ok {
 				return fmt.Errorf("System does not support SIGKILL")
@@ -721,13 +723,36 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 			return err
 		}
 	}
-	// If container failed to exit in c.StopTimeout() seconds of SIGTERM, then using the force
-	if err := daemon.containerStop(c, c.StopTimeout()); err != nil {
+	// If container failed to exit in stopTimeout seconds of SIGTERM, then using the force
+	if err := daemon.containerStop(c, stopTimeout); err != nil {
 		return fmt.Errorf("Failed to stop container %s with error: %v", c.ID, err)
 	}
 
 	c.WaitStop(-1 * time.Second)
 	return nil
+}
+
+// ShutdownTimeout returns the shutdown timeout based on the max stopTimeout of the containers
+func (daemon *Daemon) ShutdownTimeout() int {
+	// By default we use container.DefaultStopTimeout + 5s, which is 15s.
+	// TODO (yongtang): Will need to allow shutdown-timeout once #23036 is in place.
+	graceTimeout := 5
+	shutdownTimeout := container.DefaultStopTimeout + graceTimeout
+	if daemon.containers != nil {
+		for _, c := range daemon.containers.List() {
+			if shutdownTimeout >= 0 {
+				stopTimeout := c.StopTimeout()
+				if stopTimeout < 0 {
+					shutdownTimeout = -1
+				} else {
+					if stopTimeout+graceTimeout > shutdownTimeout {
+						shutdownTimeout = stopTimeout + graceTimeout
+					}
+				}
+			}
+		}
+	}
+	return shutdownTimeout
 }
 
 // Shutdown stops the daemon.

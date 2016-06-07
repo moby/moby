@@ -45,8 +45,8 @@ import (
 const configFileName = "config.v2.json"
 
 const (
-	// defaultStopTimeout is the timeout (in seconds) for the syscall signal used to stop a container.
-	defaultStopTimeout = 10
+	// DefaultStopTimeout is the timeout (in seconds) for the syscall signal used to stop a container.
+	DefaultStopTimeout = 10
 )
 
 var (
@@ -588,7 +588,7 @@ func (container *Container) StopTimeout() int {
 	if container.Config.StopTimeout != nil {
 		return *container.Config.StopTimeout
 	}
-	return defaultStopTimeout
+	return DefaultStopTimeout
 }
 
 // InitDNSHostConfig ensures that the dns fields are never nil.

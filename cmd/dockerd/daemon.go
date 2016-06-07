@@ -296,7 +296,7 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 	// Wait for serve API to complete
 	errAPI := <-serveAPIWait
 	c.Cleanup()
-	shutdownDaemon(d, 15)
+	shutdownDaemon(d)
 	containerdRemote.Cleanup()
 	if errAPI != nil {
 		return fmt.Errorf("Shutting down due to ServeAPI error: %v", errAPI)
@@ -342,16 +342,22 @@ func (cli *DaemonCli) stop() {
 // shutdownDaemon just wraps daemon.Shutdown() to handle a timeout in case
 // d.Shutdown() is waiting too long to kill container or worst it's
 // blocked there
-func shutdownDaemon(d *daemon.Daemon, timeout time.Duration) {
+func shutdownDaemon(d *daemon.Daemon) {
+	shutdownTimeout := d.ShutdownTimeout()
 	ch := make(chan struct{})
 	go func() {
 		d.Shutdown()
 		close(ch)
 	}()
+	if shutdownTimeout < 0 {
+		<-ch
+		logrus.Debug("Clean shutdown succeeded")
+		return
+	}
 	select {
 	case <-ch:
 		logrus.Debug("Clean shutdown succeeded")
-	case <-time.After(timeout * time.Second):
+	case <-time.After(time.Duration(shutdownTimeout) * time.Second):
 		logrus.Error("Force shutdown daemon")
 	}
 }

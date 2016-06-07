@@ -16,7 +16,7 @@ import (
 // will wait for a graceful termination. An error is returned if the
 // container is not found, is already stopped, or if there is a
 // problem stopping the container.
-func (daemon *Daemon) ContainerStop(name string, seconds int) error {
+func (daemon *Daemon) ContainerStop(name string, seconds *int) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -25,7 +25,11 @@ func (daemon *Daemon) ContainerStop(name string, seconds int) error {
 		err := fmt.Errorf("Container %s is already stopped", name)
 		return errors.NewErrorWithStatusCode(err, http.StatusNotModified)
 	}
-	if err := daemon.containerStop(container, seconds); err != nil {
+	if seconds == nil {
+		stopTimeout := container.StopTimeout()
+		seconds = &stopTimeout
+	}
+	if err := daemon.containerStop(container, *seconds); err != nil {
 		return fmt.Errorf("Cannot stop container %s: %v", name, err)
 	}
 	return nil
