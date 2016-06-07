@@ -3,6 +3,7 @@ package daemon
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -221,6 +222,9 @@ func NewConfig() *Config {
 }
 
 func parseClusterAdvertiseSettings(clusterStore, clusterAdvertise string) (string, error) {
+	if runtime.GOOS == "solaris" && (clusterAdvertise != "" || clusterStore != "") {
+		return "", errors.New("Cluster Advertise Settings not supported on Solaris")
+	}
 	if clusterAdvertise == "" {
 		return "", errDiscoveryDisabled
 	}

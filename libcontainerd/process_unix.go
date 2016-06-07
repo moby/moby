@@ -1,3 +1,5 @@
+// +build linux solaris
+
 package libcontainerd
 
 import (
@@ -5,18 +7,19 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"syscall"
+	goruntime "runtime"
 	"time"
 
 	containerd "github.com/docker/containerd/api/grpc/types"
 	"github.com/tonistiigi/fifo"
 	"golang.org/x/net/context"
+	"golang.org/x/sys/unix"
 )
 
 var fdNames = map[int]string{
-	syscall.Stdin:  "stdin",
-	syscall.Stdout: "stdout",
-	syscall.Stderr: "stderr",
+	unix.Stdin:  "stdin",
+	unix.Stdout: "stdout",
+	unix.Stderr: "stderr",
 }
 
 // process keeps the state for both main container process and exec process.
@@ -36,7 +39,7 @@ func (p *process) openFifos(terminal bool) (pipe *IOPipe, err error) {
 
 	io := &IOPipe{}
 
-	io.Stdin, err = fifo.OpenFifo(ctx, p.fifo(syscall.Stdin), syscall.O_WRONLY|syscall.O_CREAT|syscall.O_NONBLOCK, 0700)
+	io.Stdin, err = fifo.OpenFifo(ctx, p.fifo(unix.Stdin), unix.O_WRONLY|unix.O_CREAT|unix.O_NONBLOCK, 0700)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +50,7 @@ func (p *process) openFifos(terminal bool) (pipe *IOPipe, err error) {
 		}
 	}()
 
-	io.Stdout, err = fifo.OpenFifo(ctx, p.fifo(syscall.Stdout), syscall.O_RDONLY|syscall.O_CREAT|syscall.O_NONBLOCK, 0700)
+	io.Stdout, err = fifo.OpenFifo(ctx, p.fifo(unix.Stdout), unix.O_RDONLY|unix.O_CREAT|unix.O_NONBLOCK, 0700)
 	if err != nil {
 		return nil, err
 	}
@@ -58,8 +61,10 @@ func (p *process) openFifos(terminal bool) (pipe *IOPipe, err error) {
 		}
 	}()
 
-	if !terminal {
-		io.Stderr, err = fifo.OpenFifo(ctx, p.fifo(syscall.Stderr), syscall.O_RDONLY|syscall.O_CREAT|syscall.O_NONBLOCK, 0700)
+	if goruntime.GOOS == "solaris" || !terminal {
+		// For Solaris terminal handling is done exclusively by the runtime therefore we make no distinction
+		// in the processing for terminal and !terminal cases.
+		io.Stderr, err = fifo.OpenFifo(ctx, p.fifo(unix.Stderr), unix.O_RDONLY|unix.O_CREAT|unix.O_NONBLOCK, 0700)
 		if err != nil {
 			return nil, err
 		}

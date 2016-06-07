@@ -83,6 +83,10 @@ func TestRunCommandPipelineWithOutputErrors(t *testing.T) {
 }
 
 func TestRunCommandPipelineWithOutput(t *testing.T) {
+	//TODO: Should run on Solaris
+	if runtime.GOOS == "solaris" {
+		t.Skip()
+	}
 	cmds := []*exec.Cmd{
 		// Print 2 characters
 		exec.Command("echo", "-n", "11"),

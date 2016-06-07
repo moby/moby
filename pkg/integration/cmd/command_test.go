@@ -15,14 +15,20 @@ func TestRunCommand(t *testing.T) {
 		t.Skip("Needs porting to Windows")
 	}
 
-	result := RunCommand("ls")
+	var cmd string
+	if runtime.GOOS == "solaris" {
+		cmd = "gls"
+	} else {
+		cmd = "ls"
+	}
+	result := RunCommand(cmd)
 	result.Assert(t, Expected{})
 
 	result = RunCommand("doesnotexists")
 	expectedError := `exec: "doesnotexists": executable file not found`
 	result.Assert(t, Expected{ExitCode: 127, Error: expectedError})
 
-	result = RunCommand("ls", "-z")
+	result = RunCommand(cmd, "-z")
 	result.Assert(t, Expected{
 		ExitCode: 2,
 		Error:    "exit status 2",
@@ -90,11 +96,19 @@ func TestRunCommandWithStdoutStderrError(t *testing.T) {
 	switch runtime.GOOS {
 	case "windows":
 		expected = "ls: unknown option"
+	case "solaris":
+		expected = "gls: invalid option"
 	default:
 		expected = "ls: invalid option"
 	}
 
-	result = RunCommand("ls", "-z")
+	var cmd string
+	if runtime.GOOS == "solaris" {
+		cmd = "gls"
+	} else {
+		cmd = "ls"
+	}
+	result = RunCommand(cmd, "-z")
 	result.Assert(t, Expected{
 		Out:      None,
 		Err:      expected,

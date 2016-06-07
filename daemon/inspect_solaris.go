@@ -3,6 +3,7 @@ package daemon
 import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/versions/v1p19"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
 )
@@ -13,8 +14,8 @@ func setPlatformSpecificContainerFields(container *container.Container, contJSON
 }
 
 // containerInspectPre120 get containers for pre 1.20 APIs.
-func (daemon *Daemon) containerInspectPre120(name string) (*types.ContainerJSON, error) {
-	return daemon.containerInspectCurrent(name, false)
+func (daemon *Daemon) containerInspectPre120(name string) (*v1p19.ContainerJSON, error) {
+	return &v1p19.ContainerJSON{}, nil
 }
 
 func addMountPoints(container *container.Container) []types.MountPoint {

@@ -26,6 +26,11 @@ func TestDecodeContainerConfig(t *testing.T) {
 		image    string
 	)
 
+	//TODO: Should run for Solaris
+	if runtime.GOOS == "solaris" {
+		t.Skip()
+	}
+
 	if runtime.GOOS != "windows" {
 		image = "ubuntu"
 		fixtures = []f{
