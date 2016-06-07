@@ -46,7 +46,7 @@ func (d *driver) populateNetworks() error {
 	for _, kvo := range kvol {
 		ncfg := kvo.(*networkConfiguration)
 		if err = d.createNetwork(ncfg); err != nil {
-			logrus.Warnf("could not create bridge network for id %s bridge name %s while booting up from persistent state", ncfg.ID, ncfg.BridgeName)
+			logrus.Warnf("could not create bridge network for id %s bridge name %s while booting up from persistent state: %v", ncfg.ID, ncfg.BridgeName, err)
 		}
 	}
 

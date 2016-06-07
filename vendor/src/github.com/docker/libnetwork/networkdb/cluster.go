@@ -1,6 +1,7 @@
 package networkdb
 
 import (
+	"bytes"
 	"crypto/rand"
 	"fmt"
 	"math/big"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/hashicorp/memberlist"
-	"github.com/hashicorp/serf/serf"
 )
 
 const reapInterval = 2 * time.Second
@@ -34,6 +34,46 @@ func (l *logWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// SetKey adds a new key to the key ring
+func (nDB *NetworkDB) SetKey(key []byte) {
+	for _, dbKey := range nDB.config.Keys {
+		if bytes.Equal(key, dbKey) {
+			return
+		}
+	}
+	nDB.config.Keys = append(nDB.config.Keys, key)
+	if nDB.keyring != nil {
+		nDB.keyring.AddKey(key)
+	}
+}
+
+// SetPrimaryKey sets the given key as the primary key. This should have
+// been added apriori through SetKey
+func (nDB *NetworkDB) SetPrimaryKey(key []byte) {
+	for _, dbKey := range nDB.config.Keys {
+		if bytes.Equal(key, dbKey) {
+			if nDB.keyring != nil {
+				nDB.keyring.UseKey(dbKey)
+			}
+			break
+		}
+	}
+}
+
+// RemoveKey removes a key from the key ring. The key being removed
+// can't be the primary key
+func (nDB *NetworkDB) RemoveKey(key []byte) {
+	for i, dbKey := range nDB.config.Keys {
+		if bytes.Equal(key, dbKey) {
+			nDB.config.Keys = append(nDB.config.Keys[:i], nDB.config.Keys[i+1:]...)
+			if nDB.keyring != nil {
+				nDB.keyring.RemoveKey(dbKey)
+			}
+			break
+		}
+	}
+}
+
 func (nDB *NetworkDB) clusterInit() error {
 	config := memberlist.DefaultLANConfig()
 	config.Name = nDB.config.NodeName
@@ -47,6 +87,15 @@ func (nDB *NetworkDB) clusterInit() error {
 	config.Delegate = &delegate{nDB: nDB}
 	config.Events = &eventDelegate{nDB: nDB}
 	config.LogOutput = &logWriter{}
+
+	var err error
+	if len(nDB.config.Keys) > 0 {
+		nDB.keyring, err = memberlist.NewKeyring(nDB.config.Keys, nDB.config.Keys[0])
+		if err != nil {
+			return err
+		}
+		config.Keyring = nDB.keyring
+	}
 
 	nDB.networkBroadcasts = &memberlist.TransmitLimitedQueue{
 		NumNodes: func() int {
@@ -144,7 +193,10 @@ func (nDB *NetworkDB) reapNetworks() {
 }
 
 func (nDB *NetworkDB) reapTableEntries() {
-	var paths []string
+	var (
+		paths   []string
+		entries []*entry
+	)
 
 	now := time.Now()
 
@@ -160,12 +212,14 @@ func (nDB *NetworkDB) reapTableEntries() {
 		}
 
 		paths = append(paths, path)
+		entries = append(entries, entry)
 		return false
 	})
 	nDB.RUnlock()
 
 	nDB.Lock()
-	for _, path := range paths {
+	for i, path := range paths {
+		entry := entries[i]
 		params := strings.Split(path[1:], "/")
 		tname := params[0]
 		nid := params[1]
@@ -178,6 +232,8 @@ func (nDB *NetworkDB) reapTableEntries() {
 		if _, ok := nDB.indexes[byNetwork].Delete(fmt.Sprintf("/%s/%s/%s", nid, tname, key)); !ok {
 			logrus.Errorf("Could not delete entry in network %s with table name %s and key %s as it does not exist", nid, tname, key)
 		}
+
+		nDB.broadcaster.Write(makeEvent(opDelete, tname, nid, key, entry.value))
 	}
 	nDB.Unlock()
 }
@@ -185,7 +241,8 @@ func (nDB *NetworkDB) reapTableEntries() {
 func (nDB *NetworkDB) gossip() {
 	networkNodes := make(map[string][]string)
 	nDB.RLock()
-	for nid := range nDB.networks[nDB.config.NodeName] {
+	thisNodeNetworks := nDB.networks[nDB.config.NodeName]
+	for nid := range thisNodeNetworks {
 		networkNodes[nid] = nDB.networkNodes[nid]
 
 	}
@@ -196,8 +253,17 @@ func (nDB *NetworkDB) gossip() {
 		bytesAvail := udpSendBuf - compoundHeaderOverhead
 
 		nDB.RLock()
-		broadcastQ := nDB.networks[nDB.config.NodeName][nid].tableBroadcasts
+		network, ok := thisNodeNetworks[nid]
 		nDB.RUnlock()
+		if !ok || network == nil {
+			// It is normal for the network to be removed
+			// between the time we collect the network
+			// attachments of this node and processing
+			// them here.
+			continue
+		}
+
+		broadcastQ := network.tableBroadcasts
 
 		if broadcastQ == nil {
 			logrus.Errorf("Invalid broadcastQ encountered while gossiping for network %s", nid)
@@ -222,19 +288,11 @@ func (nDB *NetworkDB) gossip() {
 			}
 
 			// Send the compound message
-			if err := nDB.memberlist.SendToUDP(mnode, compound.Bytes()); err != nil {
+			if err := nDB.memberlist.SendToUDP(mnode, compound); err != nil {
 				logrus.Errorf("Failed to send gossip to %s: %s", mnode.Addr, err)
 			}
 		}
 	}
-}
-
-type bulkSyncMessage struct {
-	LTime       serf.LamportTime
-	Unsolicited bool
-	NodeName    string
-	Networks    []string
-	Payload     []byte
 }
 
 func (nDB *NetworkDB) bulkSyncTables() {
@@ -331,8 +389,8 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 			}
 
 			params := strings.Split(path[1:], "/")
-			tEvent := tableEventData{
-				Event:     tableEntryCreate,
+			tEvent := TableEvent{
+				Type:      TableEventTypeCreate,
 				LTime:     entry.ltime,
 				NodeName:  entry.node,
 				NetworkID: nid,
@@ -341,7 +399,7 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 				Value:     entry.value,
 			}
 
-			msg, err := encodeMessage(tableEventMsg, &tEvent)
+			msg, err := encodeMessage(MessageTypeTableEvent, &tEvent)
 			if err != nil {
 				logrus.Errorf("Encode failure during bulk sync: %#v", tEvent)
 				return false
@@ -356,15 +414,15 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 	// Create a compound message
 	compound := makeCompoundMessage(msgs)
 
-	bsm := bulkSyncMessage{
+	bsm := BulkSyncMessage{
 		LTime:       nDB.tableClock.Time(),
 		Unsolicited: unsolicited,
 		NodeName:    nDB.config.NodeName,
 		Networks:    networks,
-		Payload:     compound.Bytes(),
+		Payload:     compound,
 	}
 
-	buf, err := encodeMessage(bulkSyncMsg, &bsm)
+	buf, err := encodeMessage(MessageTypeBulkSync, &bsm)
 	if err != nil {
 		return fmt.Errorf("failed to encode bulk sync message: %v", err)
 	}
@@ -383,16 +441,19 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 		return fmt.Errorf("failed to send a TCP message during bulk sync: %v", err)
 	}
 
-	startTime := time.Now()
-	select {
-	case <-time.After(30 * time.Second):
-		logrus.Errorf("Bulk sync to node %s timed out", node)
-	case <-ch:
-		nDB.Lock()
-		delete(nDB.bulkSyncAckTbl, node)
-		nDB.Unlock()
+	// Wait on a response only if it is unsolicited.
+	if unsolicited {
+		startTime := time.Now()
+		select {
+		case <-time.After(30 * time.Second):
+			logrus.Errorf("Bulk sync to node %s timed out", node)
+		case <-ch:
+			nDB.Lock()
+			delete(nDB.bulkSyncAckTbl, node)
+			nDB.Unlock()
 
-		logrus.Debugf("%s: Bulk sync to node %s took %s", nDB.config.NodeName, node, time.Now().Sub(startTime))
+			logrus.Debugf("%s: Bulk sync to node %s took %s", nDB.config.NodeName, node, time.Now().Sub(startTime))
+		}
 	}
 
 	return nil

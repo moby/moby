@@ -47,7 +47,7 @@ check: ${build_image}.created
 
 check-code:
 	@echo "Checking code... "
-	test -z "$$(golint ./... | tee /dev/stderr)"
+	test -z "$$(golint ./... | grep -v .pb.go: | tee /dev/stderr)"
 	go vet ./...
 	@echo "Done checking code"
 

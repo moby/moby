@@ -7,6 +7,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/osl"
 )
 
@@ -22,7 +23,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return fmt.Errorf("could not find endpoint with id %s", eid)
 	}
 	// generate a name for the iface that will be renamed to eth0 in the sbox
-	containerIfName, err := netutils.GenerateIfaceName(vethPrefix, vethLen)
+	containerIfName, err := netutils.GenerateIfaceName(ns.NlHandle(), vethPrefix, vethLen)
 	if err != nil {
 		return fmt.Errorf("error generating an interface name: %s", err)
 	}

@@ -1,32 +1,6 @@
 package networkdb
 
-import (
-	"bytes"
-	"encoding/binary"
-	"fmt"
-
-	"github.com/hashicorp/go-msgpack/codec"
-)
-
-type messageType uint8
-
-const (
-	// For network join/leave event message
-	networkEventMsg messageType = 1 + iota
-
-	// For pushing/pulling network/node association state
-	networkPushPullMsg
-
-	// For table entry CRUD event message
-	tableEventMsg
-
-	// For building a compound message which packs many different
-	// message types together
-	compoundMsg
-
-	// For syncing table entries in bulk b/w nodes.
-	bulkSyncMsg
-)
+import "github.com/gogo/protobuf/proto"
 
 const (
 	// Max udp message size chosen to avoid network packet
@@ -37,86 +11,92 @@ const (
 	// bytes (num messages)
 	compoundHeaderOverhead = 5
 
-	// Overhead for each embedded message in a compound message 2
+	// Overhead for each embedded message in a compound message 4
 	// bytes (len of embedded message)
-	compoundOverhead = 2
+	compoundOverhead = 4
 )
 
-func decodeMessage(buf []byte, out interface{}) error {
-	var handle codec.MsgpackHandle
-	return codec.NewDecoder(bytes.NewReader(buf), &handle).Decode(out)
+func encodeRawMessage(t MessageType, raw []byte) ([]byte, error) {
+	gMsg := GossipMessage{
+		Type: t,
+		Data: raw,
+	}
+
+	buf, err := proto.Marshal(&gMsg)
+	if err != nil {
+		return nil, err
+	}
+
+	return buf, nil
 }
 
-func encodeMessage(t messageType, msg interface{}) ([]byte, error) {
-	buf := bytes.NewBuffer(nil)
-	buf.WriteByte(uint8(t))
+func encodeMessage(t MessageType, msg interface{}) ([]byte, error) {
+	buf, err := proto.Marshal(msg.(proto.Message))
+	if err != nil {
+		return nil, err
+	}
 
-	handle := codec.MsgpackHandle{}
-	encoder := codec.NewEncoder(buf, &handle)
-	err := encoder.Encode(msg)
-	return buf.Bytes(), err
+	buf, err = encodeRawMessage(t, buf)
+	if err != nil {
+		return nil, err
+	}
+
+	return buf, nil
+}
+
+func decodeMessage(buf []byte) (MessageType, []byte, error) {
+	var gMsg GossipMessage
+
+	err := proto.Unmarshal(buf, &gMsg)
+	if err != nil {
+		return MessageTypeInvalid, nil, err
+	}
+
+	return gMsg.Type, gMsg.Data, nil
 }
 
 // makeCompoundMessage takes a list of messages and generates
 // a single compound message containing all of them
-func makeCompoundMessage(msgs [][]byte) *bytes.Buffer {
-	// Create a local buffer
-	buf := bytes.NewBuffer(nil)
+func makeCompoundMessage(msgs [][]byte) []byte {
+	cMsg := CompoundMessage{}
 
-	// Write out the type
-	buf.WriteByte(uint8(compoundMsg))
-
-	// Write out the number of message
-	binary.Write(buf, binary.BigEndian, uint32(len(msgs)))
-
-	// Add the message lengths
+	cMsg.Messages = make([]*CompoundMessage_SimpleMessage, 0, len(msgs))
 	for _, m := range msgs {
-		binary.Write(buf, binary.BigEndian, uint16(len(m)))
+		cMsg.Messages = append(cMsg.Messages, &CompoundMessage_SimpleMessage{
+			Payload: m,
+		})
 	}
 
-	// Append the messages
-	for _, m := range msgs {
-		buf.Write(m)
+	buf, err := proto.Marshal(&cMsg)
+	if err != nil {
+		return nil
+	}
+
+	gMsg := GossipMessage{
+		Type: MessageTypeCompound,
+		Data: buf,
+	}
+
+	buf, err = proto.Marshal(&gMsg)
+	if err != nil {
+		return nil
 	}
 
 	return buf
 }
 
 // decodeCompoundMessage splits a compound message and returns
-// the slices of individual messages. Also returns the number
-// of truncated messages and any potential error
-func decodeCompoundMessage(buf []byte) (trunc int, parts [][]byte, err error) {
-	if len(buf) < 1 {
-		err = fmt.Errorf("missing compound length byte")
-		return
-	}
-	numParts := binary.BigEndian.Uint32(buf[0:4])
-	buf = buf[4:]
-
-	// Check we have enough bytes
-	if len(buf) < int(numParts*2) {
-		err = fmt.Errorf("truncated len slice")
-		return
+// the slices of individual messages. Returns any potential error.
+func decodeCompoundMessage(buf []byte) ([][]byte, error) {
+	var cMsg CompoundMessage
+	if err := proto.Unmarshal(buf, &cMsg); err != nil {
+		return nil, err
 	}
 
-	// Decode the lengths
-	lengths := make([]uint16, numParts)
-	for i := 0; i < int(numParts); i++ {
-		lengths[i] = binary.BigEndian.Uint16(buf[i*2 : i*2+2])
+	parts := make([][]byte, 0, len(cMsg.Messages))
+	for _, m := range cMsg.Messages {
+		parts = append(parts, m.Payload)
 	}
-	buf = buf[numParts*2:]
 
-	// Split each message
-	for idx, msgLen := range lengths {
-		if len(buf) < int(msgLen) {
-			trunc = int(numParts) - idx
-			return
-		}
-
-		// Extract the slice, seek past on the buffer
-		slice := buf[:msgLen]
-		buf = buf[msgLen:]
-		parts = append(parts, slice)
-	}
-	return
+	return parts, nil
 }

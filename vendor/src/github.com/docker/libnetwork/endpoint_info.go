@@ -43,12 +43,16 @@ type InterfaceInfo interface {
 
 	// AddressIPv6 returns the IPv6 address assigned to the endpoint.
 	AddressIPv6() *net.IPNet
+
+	// LinkLocalAddresses returns the list of link-local (IPv4/IPv6) addresses assigned to the endpoint.
+	LinkLocalAddresses() []*net.IPNet
 }
 
 type endpointInterface struct {
 	mac       net.HardwareAddr
 	addr      *net.IPNet
 	addrv6    *net.IPNet
+	llAddrs   []*net.IPNet
 	srcName   string
 	dstPrefix string
 	routes    []*net.IPNet
@@ -66,6 +70,13 @@ func (epi *endpointInterface) MarshalJSON() ([]byte, error) {
 	}
 	if epi.addrv6 != nil {
 		epMap["addrv6"] = epi.addrv6.String()
+	}
+	if len(epi.llAddrs) != 0 {
+		list := make([]string, 0, len(epi.llAddrs))
+		for _, ll := range epi.llAddrs {
+			list = append(list, ll.String())
+		}
+		epMap["llAddrs"] = list
 	}
 	epMap["srcName"] = epi.srcName
 	epMap["dstPrefix"] = epi.dstPrefix
@@ -102,7 +113,17 @@ func (epi *endpointInterface) UnmarshalJSON(b []byte) error {
 			return types.InternalErrorf("failed to decode endpoint interface ipv6 address after json unmarshal: %v", err)
 		}
 	}
-
+	if v, ok := epMap["llAddrs"]; ok {
+		list := v.([]string)
+		epi.llAddrs = make([]*net.IPNet, 0, len(list))
+		for _, llS := range list {
+			ll, err := types.ParseCIDR(llS)
+			if err != nil {
+				return types.InternalErrorf("failed to decode endpoint interface link-local address (%s) after json unmarshal: %v", llS, err)
+			}
+			epi.llAddrs = append(epi.llAddrs, ll)
+		}
+	}
 	epi.srcName = epMap["srcName"].(string)
 	epi.dstPrefix = epMap["dstPrefix"].(string)
 
@@ -131,6 +152,12 @@ func (epi *endpointInterface) CopyTo(dstEpi *endpointInterface) error {
 	dstEpi.dstPrefix = epi.dstPrefix
 	dstEpi.v4PoolID = epi.v4PoolID
 	dstEpi.v6PoolID = epi.v6PoolID
+	if len(epi.llAddrs) != 0 {
+		dstEpi.llAddrs = make([]*net.IPNet, 0, len(epi.llAddrs))
+		for _, ll := range epi.llAddrs {
+			dstEpi.llAddrs = append(dstEpi.llAddrs, ll)
+		}
+	}
 
 	for _, route := range epi.routes {
 		dstEpi.routes = append(dstEpi.routes, types.GetIPNetCopy(route))
@@ -264,6 +291,10 @@ func (epi *endpointInterface) Address() *net.IPNet {
 
 func (epi *endpointInterface) AddressIPv6() *net.IPNet {
 	return types.GetIPNetCopy(epi.addrv6)
+}
+
+func (epi *endpointInterface) LinkLocalAddresses() []*net.IPNet {
+	return epi.llAddrs
 }
 
 func (epi *endpointInterface) SetNames(srcName string, dstPrefix string) error {
