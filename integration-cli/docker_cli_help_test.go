@@ -184,7 +184,7 @@ func (s *DockerSuite) TestHelpExitCodesHelpOutput(c *check.C) {
 	c.Assert(stdout, checker.Equals, "")
 	// Should not contain full help text but should contain info about
 	// # of args and Usage line
-	c.Assert(stderr, checker.Contains, "requires a minimum", check.Commentf("Missing # of args text from 'docker rm'\n"))
+	c.Assert(stderr, checker.Contains, "requires at least 1 argument", check.Commentf("Missing # of args text from 'docker rm'\n"))
 
 	// docker rm NoSuchContainer: stdout=empty, stderr=all, rc=0
 	// testing to make sure no blank line on error
