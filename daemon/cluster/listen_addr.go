@@ -1,9 +1,13 @@
 package cluster
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"net"
+	"os/exec"
+	"runtime"
+	"strings"
 )
 
 var (
@@ -245,6 +249,11 @@ ifaceLoop:
 }
 
 func listSystemIPs() []net.IP {
+	if runtime.GOOS == "solaris" {
+		// TODO: net Interface not threshed out for Solaris
+		// temporarily using the command line to get info.
+		return listSolarisSystemIPs()
+	}
 	interfaces, err := net.Interfaces()
 	if err != nil {
 		return nil
@@ -265,6 +274,39 @@ func listSystemIPs() []net.IP {
 				systemAddrs = append(systemAddrs, ipAddr.IP)
 			}
 		}
+	}
+
+	return systemAddrs
+}
+
+func listSolarisSystemIPs() []net.IP {
+	var systemAddrs []net.IP
+	cmd := exec.Command("/usr/sbin/ipadm", "show-addr", "-p", "-o", "addr")
+	cmdReader, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil
+	}
+
+	if err := cmd.Start(); err != nil {
+		return nil
+	}
+
+	scanner := bufio.NewScanner(cmdReader)
+	go func() {
+		for scanner.Scan() {
+			text := scanner.Text()
+			nameAddrPair := strings.SplitN(text, "/", 2)
+			// Let go of loopback interfaces and docker interfaces
+			systemAddrs = append(systemAddrs, net.ParseIP(nameAddrPair[0]))
+		}
+	}()
+
+	if err := scanner.Err(); err != nil {
+		fmt.Printf("scan underwent err: %+v\n", err)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		fmt.Printf("run command wait: %+v\n", err)
 	}
 
 	return systemAddrs

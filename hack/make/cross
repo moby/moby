@@ -29,15 +29,18 @@ for platform in $DOCKER_CROSSPLATFORMS; do
 		export GOOS=${platform%/*}
 		export GOARCH=${platform##*/}
 
-		if [ -z "${daemonSupporting[$platform]}" ]; then
-			# we just need a simple client for these platforms
-			export LDFLAGS_STATIC_DOCKER=""
-			# remove the "daemon" build tag from platforms that aren't supported
-			export BUILDFLAGS=( "${ORIG_BUILDFLAGS[@]/ daemon/}" )
-			source "${MAKEDIR}/binary-client"
-		else
-			source "${MAKEDIR}/binary-client"
-			source "${MAKEDIR}/binary-daemon"
+		if [ "$GOOS" != "solaris" ]; then
+			# TODO. Solaris cannot be cross build because of CGO calls.
+			if [ -z "${daemonSupporting[$platform]}" ]; then
+				# we just need a simple client for these platforms
+				export LDFLAGS_STATIC_DOCKER=""
+				# remove the "daemon" build tag from platforms that aren't supported
+				export BUILDFLAGS=( "${ORIG_BUILDFLAGS[@]/ daemon/}" )
+				source "${MAKEDIR}/binary-client"
+			else
+				source "${MAKEDIR}/binary-client"
+				source "${MAKEDIR}/binary-daemon"
+			fi
 		fi
 	)
 done

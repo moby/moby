@@ -137,7 +137,8 @@ ENV DOCKER_CROSSPLATFORMS \
 	linux/386 linux/arm \
 	darwin/amd64 \
 	freebsd/amd64 freebsd/386 freebsd/arm \
-	windows/amd64 windows/386
+	windows/amd64 windows/386 \
+	solaris/amd64
 
 # Dependency for golint
 ENV GO_TOOLS_COMMIT 823804e1ae08dbb14eb807afc7db9993bc9e3cc3

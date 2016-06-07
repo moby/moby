@@ -6,17 +6,17 @@ type client struct {
 	clientCommon
 
 	// Platform specific properties below here.
+	remote        *remote
+	q             queue
+	exitNotifiers map[string]*exitNotifier
+	liveRestore   bool
 }
 
-func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendlyName string, specp Process) error {
-	return nil
+func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendlyName string, specp Process, attachStdio StdioCallback) (int, error) {
+	return -1, nil
 }
 
-func (clnt *client) Create(containerID string, checkpoint string, checkpointDir string, spec Spec, options ...CreateOption) (err error) {
-	return nil
-}
-
-func (clnt *client) Signal(containerID string, sig int) error {
+func (clnt *client) SignalProcess(containerID string, pid string, sig int) error {
 	return nil
 }
 
@@ -36,8 +36,25 @@ func (clnt *client) Stats(containerID string) (*Stats, error) {
 	return nil, nil
 }
 
+func (clnt *client) getExitNotifier(containerID string) *exitNotifier {
+	clnt.mapMutex.RLock()
+	defer clnt.mapMutex.RUnlock()
+	return clnt.exitNotifiers[containerID]
+}
+
+func (clnt *client) getOrCreateExitNotifier(containerID string) *exitNotifier {
+	clnt.mapMutex.Lock()
+	w, ok := clnt.exitNotifiers[containerID]
+	defer clnt.mapMutex.Unlock()
+	if !ok {
+		w = &exitNotifier{c: make(chan struct{}), client: clnt}
+		clnt.exitNotifiers[containerID] = w
+	}
+	return w
+}
+
 // Restore is the handler for restoring a container
-func (clnt *client) Restore(containerID string, unusedOnWindows ...CreateOption) error {
+func (clnt *client) Restore(containerID string, attachStdio StdioCallback, options ...CreateOption) error {
 	return nil
 }
 
@@ -55,4 +72,16 @@ func (clnt *client) UpdateResources(containerID string, resources Resources) err
 	// Updating resource isn't supported on Solaris
 	// but we should return nil for enabling updating container
 	return nil
+}
+
+func (clnt *client) CreateCheckpoint(containerID string, checkpointID string, checkpointDir string, exit bool) error {
+	return nil
+}
+
+func (clnt *client) DeleteCheckpoint(containerID string, checkpointID string, checkpointDir string) error {
+	return nil
+}
+
+func (clnt *client) ListCheckpoints(containerID string, checkpointDir string) (*Checkpoints, error) {
+	return nil, nil
 }

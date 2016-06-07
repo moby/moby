@@ -11,10 +11,21 @@ usage() {
 	echo >&2 "       $mkimg -t someuser/centos:5 rinse --distribution centos-5"
 	echo >&2 "       $mkimg -t someuser/mageia:4 mageia-urpmi --version=4"
 	echo >&2 "       $mkimg -t someuser/mageia:4 mageia-urpmi --version=4 --mirror=http://somemirror/"
+	echo >&2 "       $mkimg -t someuser/solaris solaris" 
 	exit 1
 }
 
 scriptDir="$(dirname "$(readlink -f "$BASH_SOURCE")")/mkimage"
+
+os=
+os=$(uname -o)
+
+# set up path to gnu tools if solaris
+[[ $os == "Solaris" ]] && export PATH=/usr/gnu/bin:$PATH 
+# TODO check for gnu-tar, gnu-getopt
+
+# TODO requires root/sudo due to some pkg operations. sigh.
+[[ $os == "Solaris" && $EUID != "0" ]] && echo >&2 "image create on Solaris requires superuser privilege"
 
 optTemp=$(getopt --options '+d:t:c:hC' --longoptions 'dir:,tag:,compression:,no-compression,help' --name "$mkimg" -- "$@")
 eval set -- "$optTemp"
