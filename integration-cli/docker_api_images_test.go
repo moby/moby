@@ -22,7 +22,7 @@ func (s *DockerSuite) TestApiImagesFilter(c *check.C) {
 	getImages := func(filter string) []image {
 		v := url.Values{}
 		v.Set("filter", filter)
-		status, b, err := sockRequest("GET", "/images/json?"+v.Encode(), nil)
+		status, b, err := sockRequest("GET", "/images?"+v.Encode(), nil)
 		c.Assert(err, checker.IsNil)
 		c.Assert(status, checker.Equals, http.StatusOK)
 

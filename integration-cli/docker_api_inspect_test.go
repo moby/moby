@@ -106,7 +106,7 @@ func (s *DockerSuite) TestInspectApiContainerVolumeDriver(c *check.C) {
 func (s *DockerSuite) TestInspectApiImageResponse(c *check.C) {
 	dockerCmd(c, "tag", "busybox:latest", "busybox:mytag")
 
-	endpoint := "/images/busybox/json"
+	endpoint := "/images/busybox"
 	status, body, err := sockRequest("GET", endpoint, nil)
 
 	c.Assert(err, checker.IsNil)

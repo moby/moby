@@ -208,7 +208,7 @@ Name                   | Type              | Description
 User                   | string            | The user identification
 Authentication method  | string            | The authentication method used
 Request method         | enum              | The HTTP method (GET/DELETE/POST)
-Request URI            | string            | The HTTP request URI including API version (e.g., v.1.17/containers/json)
+Request URI            | string            | The HTTP request URI including API version (e.g., v.1.17/containers)
 Request headers        | map[string]string | Request headers as key value pairs (without the authorization header)
 Request body           | []byte            | Raw request body
 
@@ -233,7 +233,7 @@ Name                    | Type              | Description
 User                    | string            | The user identification
 Authentication method   | string            | The authentication method used
 Request method          | string            | The HTTP method (GET/DELETE/POST)
-Request URI             | string            | The HTTP request URI including API version (e.g., v.1.17/containers/json)
+Request URI             | string            | The HTTP request URI including API version (e.g., v.1.17/containers)
 Request headers         | map[string]string | Request headers as key value pairs (without the authorization header)
 Request body            | []byte            | Raw request body
 Response status code    | int               | Status code from the docker daemon

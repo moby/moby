@@ -174,7 +174,7 @@ func startExec(c *check.C, id string, code int) {
 }
 
 func inspectExec(c *check.C, id string, out interface{}) {
-	resp, body, err := sockRequestRaw("GET", fmt.Sprintf("/exec/%s/json", id), nil, "")
+	resp, body, err := sockRequestRaw("GET", fmt.Sprintf("/exec/%s", id), nil, "")
 	c.Assert(err, checker.IsNil)
 	defer body.Close()
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)

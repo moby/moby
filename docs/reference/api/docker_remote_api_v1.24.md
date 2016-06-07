@@ -28,13 +28,13 @@ weight=-5
 
 ### List containers
 
-`GET /containers/json`
+`GET /containers`
 
 List containers
 
 **Example request**:
 
-    GET /containers/json?all=1&before=8dfafdbc3a40&size=1 HTTP/1.1
+    GET /containers?all=1&before=8dfafdbc3a40&size=1 HTTP/1.1
 
 **Example response**:
 
@@ -477,14 +477,14 @@ Status Codes:
 
 ### Inspect a container
 
-`GET /containers/(id or name)/json`
+`GET /containers/(id or name)`
 
 Return low-level information on the container `id`
 
 
 **Example request**:
 
-      GET /containers/4fa6e0f0c678/json HTTP/1.1
+      GET /containers/4fa6e0f0c678 HTTP/1.1
 
 **Example response**:
 
@@ -659,7 +659,7 @@ Return low-level information on the container `id`
 
 **Example request, with size information**:
 
-    GET /containers/4fa6e0f0c678/json?size=1 HTTP/1.1
+    GET /containers/4fa6e0f0c678?size=1 HTTP/1.1
 
 **Example response, with size information**:
 
@@ -1537,11 +1537,11 @@ Status Codes:
 
 ### List Images
 
-`GET /images/json`
+`GET /images`
 
 **Example request**:
 
-    GET /images/json?all=0 HTTP/1.1
+    GET /images?all=0 HTTP/1.1
 
 **Example response**:
 
@@ -1579,7 +1579,7 @@ Status Codes:
 
 **Example request, with digest information**:
 
-    GET /images/json?digests=1 HTTP/1.1
+    GET /images?digests=1 HTTP/1.1
 
 **Example response, with digest information**:
 
@@ -1791,13 +1791,13 @@ Status Codes:
 
 ### Inspect an image
 
-`GET /images/(name)/json`
+`GET /images/(name)`
 
 Return low-level information on the image `name`
 
 **Example request**:
 
-    GET /images/example/json HTTP/1.1
+    GET /images/example HTTP/1.1
 
 **Example response**:
 
@@ -2822,13 +2822,13 @@ Status Codes:
 
 ### Exec Inspect
 
-`GET /exec/(id)/json`
+`GET /exec/(id)`
 
 Return low-level information about the `exec` command `id`.
 
 **Example request**:
 
-    GET /exec/11fb006128e8ceb3942e7c58d77750f24210e35f879dd204ac975c184b820b39/json HTTP/1.1
+    GET /exec/11fb006128e8ceb3942e7c58d77750f24210e35f879dd204ac975c184b820b39 HTTP/1.1
 
 **Example response**:
 
