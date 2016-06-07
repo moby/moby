@@ -5,7 +5,7 @@ DOCKER_GRAPHDRIVER := $(if $(DOCKER_GRAPHDRIVER),$(DOCKER_GRAPHDRIVER),$(shell d
 
 # get OS/Arch of docker engine
 DOCKER_OSARCH := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKER_ENGINE_OSARCH:-$$DOCKER_CLIENT_OSARCH}')
-DOCKERFILE := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKERFILE}')
+DOCKERFILE := $(if $(DOCKERFILE),$(DOCKERFILE),$(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKERFILE}'))
 
 # env vars passed through directly to Docker's build scripts
 # to allow things like `make KEEPBUNDLE=1 binary` easily
