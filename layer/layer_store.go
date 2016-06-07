@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
@@ -137,6 +138,13 @@ func (ls *layerStore) loadLayer(layer ChainID) (*roLayer, error) {
 		references: map[Layer]struct{}{},
 	}
 
+	foreignSrc, err := ls.store.GetForeignSource(layer)
+	if err == nil {
+		cl.foreignSrc = &foreignSrc
+	} else if err != ErrNoForeignSource {
+		return nil, fmt.Errorf("failed to get foreign reference for %s: %s", layer, err)
+	}
+
 	if parent != "" {
 		p, err := ls.loadLayer(parent)
 		if err != nil {
@@ -228,6 +236,10 @@ func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent stri
 }
 
 func (ls *layerStore) Register(ts io.Reader, parent ChainID) (Layer, error) {
+	return ls.RegisterForeign(ts, parent, nil)
+}
+
+func (ls *layerStore) RegisterForeign(ts io.Reader, parent ChainID, foreignSrc *distribution.Descriptor) (Layer, error) {
 	// err is used to hold the error which will always trigger
 	// cleanup of creates sources but may not be an error returned
 	// to the caller (already exists).
@@ -258,6 +270,7 @@ func (ls *layerStore) Register(ts io.Reader, parent ChainID) (Layer, error) {
 	layer := &roLayer{
 		parent:         p,
 		cacheID:        stringid.GenerateRandomID(),
+		foreignSrc:     foreignSrc,
 		referenceCount: 1,
 		layerStore:     ls,
 		references:     map[Layer]struct{}{},

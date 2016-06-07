@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 )
 
@@ -14,6 +15,7 @@ type roLayer struct {
 	cacheID    string
 	size       int64
 	layerStore *layerStore
+	foreignSrc *distribution.Descriptor
 
 	referenceCount int
 	references     map[Layer]struct{}
@@ -120,6 +122,11 @@ func storeLayer(tx MetadataTransaction, layer *roLayer) error {
 	}
 	if layer.parent != nil {
 		if err := tx.SetParent(layer.parent.chainID); err != nil {
+			return err
+		}
+	}
+	if layer.foreignSrc != nil {
+		if err := tx.SetForeignSource(*layer.foreignSrc); err != nil {
 			return err
 		}
 	}

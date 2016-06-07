@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
@@ -318,7 +319,11 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				return
 			}
 
-			d.layer, err = d.layerStore.Register(inflatedLayerData, parentLayer)
+			var src *distribution.Descriptor
+			if fs, ok := descriptor.(layer.ForeignSourcer); ok {
+				src = fs.ForeignSource()
+			}
+			d.layer, err = d.layerStore.RegisterForeign(inflatedLayerData, parentLayer, src)
 			if err != nil {
 				select {
 				case <-d.Transfer.Context().Done():
@@ -409,7 +414,11 @@ func (ldm *LayerDownloadManager) makeDownloadFuncFromDownload(descriptor Downloa
 			}
 			defer layerReader.Close()
 
-			d.layer, err = d.layerStore.Register(layerReader, parentLayer)
+			var src *distribution.Descriptor
+			if fs, ok := l.(layer.ForeignSourcer); ok {
+				src = fs.ForeignSource()
+			}
+			d.layer, err = d.layerStore.RegisterForeign(layerReader, parentLayer, src)
 			if err != nil {
 				d.err = fmt.Errorf("failed to register layer: %v", err)
 				return

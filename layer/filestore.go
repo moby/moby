@@ -2,6 +2,7 @@ package layer
 
 import (
 	"compress/gzip"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/pkg/ioutils"
 )
@@ -24,6 +26,9 @@ var (
 		// digest.SHA384, // Currently not used
 		// digest.SHA512, // Currently not used
 	}
+
+	// ErrNoForeignSource is returned when no foreign source is set for a layer.
+	ErrNoForeignSource = errors.New("layer does not have a foreign source")
 )
 
 type fileMetadataStore struct {
@@ -96,6 +101,14 @@ func (fm *fileMetadataTransaction) SetDiffID(diff DiffID) error {
 
 func (fm *fileMetadataTransaction) SetCacheID(cacheID string) error {
 	return ioutil.WriteFile(filepath.Join(fm.root, "cache-id"), []byte(cacheID), 0644)
+}
+
+func (fm *fileMetadataTransaction) SetForeignSource(ref distribution.Descriptor) error {
+	jsonRef, err := json.Marshal(ref)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(filepath.Join(fm.root, "descriptor.json"), jsonRef, 0644)
 }
 
 func (fm *fileMetadataTransaction) TarSplitWriter(compressInput bool) (io.WriteCloser, error) {
@@ -189,6 +202,23 @@ func (fms *fileMetadataStore) GetCacheID(layer ChainID) (string, error) {
 	}
 
 	return content, nil
+}
+
+func (fms *fileMetadataStore) GetForeignSource(layer ChainID) (distribution.Descriptor, error) {
+	content, err := ioutil.ReadFile(fms.getLayerFilename(layer, "descriptor.json"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return distribution.Descriptor{}, ErrNoForeignSource
+		}
+		return distribution.Descriptor{}, err
+	}
+
+	var ref distribution.Descriptor
+	err = json.Unmarshal(content, &ref)
+	if err != nil {
+		return distribution.Descriptor{}, err
+	}
+	return ref, err
 }
 
 func (fms *fileMetadataStore) TarSplitReader(layer ChainID) (io.ReadCloser, error) {
