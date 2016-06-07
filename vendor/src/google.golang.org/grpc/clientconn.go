@@ -52,10 +52,10 @@ var (
 	// ErrUnspecTarget indicates that the target address is unspecified.
 	ErrUnspecTarget = errors.New("grpc: target is unspecified")
 	// ErrNoTransportSecurity indicates that there is no transport security
-	// being set for ClientConn. Users should either set one or explicityly
+	// being set for ClientConn. Users should either set one or explicitly
 	// call WithInsecure DialOption to disable security.
 	ErrNoTransportSecurity = errors.New("grpc: no transport security set (use grpc.WithInsecure() explicitly or set credentials)")
-	// ErrCredentialsMisuse indicates that users want to transmit security infomation
+	// ErrCredentialsMisuse indicates that users want to transmit security information
 	// (e.g., oauth2 token) which requires secure connection on an insecure
 	// connection.
 	ErrCredentialsMisuse = errors.New("grpc: the credentials require transport level security (use grpc.WithTransportAuthenticator() to set)")
@@ -73,6 +73,9 @@ var (
 // values passed to Dial.
 type dialOptions struct {
 	codec    Codec
+	cp       Compressor
+	dc       Decompressor
+	bs       backoffStrategy
 	picker   Picker
 	block    bool
 	insecure bool
@@ -89,9 +92,54 @@ func WithCodec(c Codec) DialOption {
 	}
 }
 
+// WithCompressor returns a DialOption which sets a CompressorGenerator for generating message
+// compressor.
+func WithCompressor(cp Compressor) DialOption {
+	return func(o *dialOptions) {
+		o.cp = cp
+	}
+}
+
+// WithDecompressor returns a DialOption which sets a DecompressorGenerator for generating
+// message decompressor.
+func WithDecompressor(dc Decompressor) DialOption {
+	return func(o *dialOptions) {
+		o.dc = dc
+	}
+}
+
+// WithPicker returns a DialOption which sets a picker for connection selection.
 func WithPicker(p Picker) DialOption {
 	return func(o *dialOptions) {
 		o.picker = p
+	}
+}
+
+// WithBackoffMaxDelay configures the dialer to use the provided maximum delay
+// when backing off after failed connection attempts.
+func WithBackoffMaxDelay(md time.Duration) DialOption {
+	return WithBackoffConfig(BackoffConfig{MaxDelay: md})
+}
+
+// WithBackoffConfig configures the dialer to use the provided backoff
+// parameters after connection failures.
+//
+// Use WithBackoffMaxDelay until more parameters on BackoffConfig are opened up
+// for use.
+func WithBackoffConfig(b BackoffConfig) DialOption {
+	// Set defaults to ensure that provided BackoffConfig is valid and
+	// unexported fields get default values.
+	setDefaults(&b)
+	return withBackoff(b)
+}
+
+// withBackoff sets the backoff strategy used for retries after a
+// failed connection attempt.
+//
+// This can be exported if arbitrary backoff strategies are allowed by GRPC.
+func withBackoff(bs backoffStrategy) DialOption {
+	return func(o *dialOptions) {
+		o.bs = bs
 	}
 }
 
@@ -104,6 +152,8 @@ func WithBlock() DialOption {
 	}
 }
 
+// WithInsecure returns a DialOption which disables transport security for this ClientConn.
+// Note that transport security is required unless WithInsecure is set.
 func WithInsecure() DialOption {
 	return func(o *dialOptions) {
 		o.insecure = true
@@ -159,6 +209,11 @@ func Dial(target string, opts ...DialOption) (*ClientConn, error) {
 		// Set the default codec.
 		cc.dopts.codec = protoCodec{}
 	}
+
+	if cc.dopts.bs == nil {
+		cc.dopts.bs = DefaultBackoffConfig
+	}
+
 	if cc.dopts.picker == nil {
 		cc.dopts.picker = &unicastPicker{
 			target: target,
@@ -267,10 +322,9 @@ func NewConn(cc *ClientConn) (*Conn, error) {
 	if !c.dopts.insecure {
 		var ok bool
 		for _, cd := range c.dopts.copts.AuthOptions {
-			if _, ok := cd.(credentials.TransportAuthenticator); !ok {
-				continue
+			if _, ok = cd.(credentials.TransportAuthenticator); ok {
+				break
 			}
-			ok = true
 		}
 		if !ok {
 			return nil, ErrNoTransportSecurity
@@ -395,7 +449,7 @@ func (cc *Conn) resetTransport(closeTransport bool) error {
 				return ErrClientConnTimeout
 			}
 		}
-		sleepTime := backoff(retries)
+		sleepTime := cc.dopts.bs.backoff(retries)
 		timeout := sleepTime
 		if timeout < minConnectTimeout {
 			timeout = minConnectTimeout
@@ -518,8 +572,9 @@ func (cc *Conn) Wait(ctx context.Context) (transport.ClientTransport, error) {
 			cc.mu.Unlock()
 			return nil, ErrClientConnClosing
 		case cc.state == Ready:
+			ct := cc.transport
 			cc.mu.Unlock()
-			return cc.transport, nil
+			return ct, nil
 		default:
 			ready := cc.ready
 			if ready == nil {

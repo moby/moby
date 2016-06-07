@@ -56,7 +56,7 @@ clone git github.com/mattn/go-sqlite3 v1.1.0
 clone git github.com/tchap/go-patricia v2.1.0
 clone git github.com/vdemeester/shakers 24d7f1d6a71aa5d9cbe7390e4afb66b7eef9e1b3
 # forked golang.org/x/net package includes a patch for lazy loading trace templates
-clone git golang.org/x/net 78cb2c067747f08b343f20614155233ab4ea2ad3 https://github.com/tonistiigi/net.git
+clone git golang.org/x/net 2beffdc2e92c8a3027590f898fe88f69af48a3f8 https://github.com/tonistiigi/net.git
 clone git golang.org/x/sys eb2c74142fd19a79b3f237334c7384d5167b1b46 https://github.com/golang/sys.git
 clone git github.com/docker/go-units 651fc226e7441360384da338d0fd37f2440ffbe3
 clone git github.com/docker/go-connections v0.2.0
@@ -97,7 +97,7 @@ clone git github.com/pborman/uuid v1.0
 # get desired notary commit, might also need to be updated in Dockerfile
 clone git github.com/docker/notary v0.3.0
 
-clone git google.golang.org/grpc a22b6611561e9f0a3e0919690dd2caf48f14c517 https://github.com/grpc/grpc-go.git
+clone git google.golang.org/grpc ab0be5212fb225475f2087566eded7da5d727960 https://github.com/grpc/grpc-go.git
 clone git github.com/miekg/pkcs11 df8ae6ca730422dba20c768ff38ef7d79077a59f
 clone git github.com/docker/go v1.5.1-1-1-gbaf439e
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
@@ -109,7 +109,7 @@ clone git github.com/seccomp/libseccomp-golang 60c9953736798c4a04e90d0f3da2f933d
 clone git github.com/coreos/go-systemd v4
 clone git github.com/godbus/dbus v4.0.0
 clone git github.com/syndtr/gocapability 2c00daeb6c3b45114c80ac44119e7b8801fdd852
-clone git github.com/golang/protobuf 8d92cf5fc15a4382f8964b08e1f42a75c0591aa3
+clone git github.com/golang/protobuf 3c84672111d91bb5ac31719e112f9f7126a0e26e
 
 # gelf logging driver deps
 clone git github.com/Graylog2/go-gelf aab2f594e4585d43468ac57287b0dece9d806883
@@ -136,7 +136,7 @@ clone git google.golang.org/cloud dae7e3d993bc3812a2185af60552bb6b847e52a0 https
 clone git github.com/docker/docker-credential-helpers v0.3.0
 
 # containerd
-clone git github.com/docker/containerd 57b7c3da915ebe943bd304c00890959b191e5264
+clone git github.com/docker/containerd cf554d59dd96e459544748290eb9167f4bcde509
 
 # cli
 clone git github.com/spf13/cobra 75205f23b3ea70dc7ae5e900d074e010c23c37e9 https://github.com/dnephin/cobra.git
