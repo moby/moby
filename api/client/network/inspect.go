@@ -36,8 +36,7 @@ func runInspect(dockerCli *client.DockerCli, opts inspectOptions) error {
 	client := dockerCli.Client()
 
 	getNetFunc := func(name string) (interface{}, []byte, error) {
-		i, err := client.NetworkInspect(context.Background(), name)
-		return i, nil, err
+		return client.NetworkInspectWithRaw(context.Background(), name)
 	}
 
 	return inspect.Inspect(dockerCli.Out(), opts.names, opts.format, getNetFunc)

@@ -427,6 +427,17 @@ func (s *DockerSuite) TestDockerNetworkInspect(c *check.C) {
 	c.Assert(strings.TrimSpace(out), check.Equals, "host")
 }
 
+func (s *DockerSuite) TestDockerNetworkInspectWithID(c *check.C) {
+	out, _ := dockerCmd(c, "network", "create", "test2")
+	networkID := strings.TrimSpace(out)
+	assertNwIsAvailable(c, "test2")
+	out, _ = dockerCmd(c, "network", "inspect", "--format={{ .Id }}", "test2")
+	c.Assert(strings.TrimSpace(out), check.Equals, networkID)
+
+	out, _ = dockerCmd(c, "network", "inspect", "--format={{ .ID }}", "test2")
+	c.Assert(strings.TrimSpace(out), check.Equals, networkID)
+}
+
 func (s *DockerSuite) TestDockerInspectMultipleNetwork(c *check.C) {
 	out, _ := dockerCmd(c, "network", "inspect", "host", "none")
 	networkResources := []types.NetworkResource{}
