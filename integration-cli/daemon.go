@@ -293,7 +293,7 @@ out1:
 		select {
 		case err := <-d.wait:
 			return err
-		case <-time.After(15 * time.Second):
+		case <-time.After(20 * time.Second):
 			// time for stopping jobs and run onShutdown hooks
 			d.c.Logf("timeout: %v", d.id)
 			break out1
@@ -307,7 +307,7 @@ out2:
 			return err
 		case <-tick:
 			i++
-			if i > 4 {
+			if i > 5 {
 				d.c.Logf("tried to interrupt daemon for %d times, now try to kill it", i)
 				break out2
 			}
@@ -522,7 +522,7 @@ func (d *Daemon) buildImageWithOut(name, dockerfile string, useCache bool, build
 func (d *Daemon) checkActiveContainerCount(c *check.C) (interface{}, check.CommentInterface) {
 	out, err := d.Cmd("ps", "-q")
 	c.Assert(err, checker.IsNil)
-	if len(out) == 0 {
+	if len(strings.TrimSpace(out)) == 0 {
 		return 0, nil
 	}
 	return len(strings.Split(strings.TrimSpace(out), "\n")), check.Commentf("output: %q", string(out))
