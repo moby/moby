@@ -54,7 +54,7 @@ var (
 		"naughty",
 		"nauseous",
 		"nostalgic",
-		"Peceful",
+		"peaceful",
 		"pedantic",
 		"pensive",
 		"prickly",
