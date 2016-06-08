@@ -47,6 +47,9 @@ message CreateContainerRequest {
 	string stderr = 6; // path to file where stderr will be written (optional)
 	repeated string labels = 7;
 	bool noPivotRoot = 8;
+	string runtime = 9;
+	repeated string runtimeArgs = 10;
+	string checkpointDir = 11; // Directory where checkpoints are stored
 }
 
 message CreateContainerResponse {
@@ -98,6 +101,7 @@ message AddProcessResponse {
 message CreateCheckpointRequest {
 	string id = 1; // ID of container
 	Checkpoint checkpoint = 2; // Checkpoint configuration
+	string checkpointDir = 3; // Directory where checkpoints are stored
 }
 
 message CreateCheckpointResponse {
@@ -106,6 +110,7 @@ message CreateCheckpointResponse {
 message DeleteCheckpointRequest {
 	string id = 1; // ID of container
 	string name = 2; // Name of checkpoint
+	string checkpointDir = 3; // Directory where checkpoints are stored
 }
 
 message DeleteCheckpointResponse {
@@ -113,6 +118,7 @@ message DeleteCheckpointResponse {
 
 message ListCheckpointRequest {
 	string id = 1; // ID of container
+	string checkpointDir = 2; // Directory where checkpoints are stored
 }
 
 message Checkpoint {
@@ -193,6 +199,7 @@ message UpdateResource {
 	uint32 memorySwap = 8;
 	uint32 memoryReservation = 9;
 	uint32 kernelMemoryLimit = 10;
+	uint32 kernelTCPMemoryLimit = 11;
 }
 
 message UpdateContainerResponse {
