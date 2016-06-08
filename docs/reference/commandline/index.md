@@ -86,3 +86,23 @@ You start the Docker daemon with the command line. How you start the daemon affe
 * [volume_inspect](volume_inspect.md)
 * [volume_ls](volume_ls.md)
 * [volume_rm](volume_rm.md)
+
+### Swarm node commands
+
+* [node_accept](node_accept.md)
+* [node_reject](node_reject.md)
+* [node_promote](node_promote.md)
+* [node_demote](node_demote.md)
+* [node_inspect](node_inspect.md)
+* [node_update](node_update.md)
+* [node_tasks](node_tasks.md)
+* [node_ls](node_ls.md)
+* [node_rm](node_rm.md)
+
+### Swarm swarm commands
+
+* [swarm init](swarm_init.md)
+* [swarm join](swarm_join.md)
+* [swarm leave](swarm_leave.md)
+* [swarm update](swarm_update.md)
+
