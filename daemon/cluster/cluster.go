@@ -914,7 +914,9 @@ func (c *Cluster) Cleanup() {
 	}
 	c.cancelReconnect()
 	c.Unlock()
-	if err := node.Stop(context.Background()); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := node.Stop(ctx); err != nil {
 		logrus.Errorf("error cleaning up cluster: %v", err)
 	}
 	c.Lock()

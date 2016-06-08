@@ -13,6 +13,8 @@ import (
 	"github.com/go-check/check"
 )
 
+var defaultReconciliationTimeout = 30 * time.Second
+
 func (s *DockerSwarmSuite) TestApiSwarmInit(c *check.C) {
 	// todo: should find a better way to verify that components are running than /info
 	d1 := s.AddDaemon(c, true, true)
@@ -68,7 +70,6 @@ func (s *DockerSwarmSuite) TestApiSwarmManualAcceptance(c *check.C) {
 	d1 := s.AddDaemon(c, false, false)
 	aa := make(map[string]bool)
 	c.Assert(d1.Init(aa, ""), checker.IsNil)
-	time.Sleep(200 * time.Millisecond) // TODO: fix cluster update race
 
 	d2 := s.AddDaemon(c, false, false)
 	err := d2.Join(d1.listenAddr, "", false)
@@ -124,15 +125,15 @@ func (s *DockerSwarmSuite) TestApiSwarmServicesCreate(c *check.C) {
 
 	instances := 2
 	id := d.createService(c, simpleTestService, setInstances(instances))
-	waitAndAssert(c, 10*time.Second, d.checkActiveContainerCount, checker.Equals, instances)
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, instances)
 
 	service := d.getService(c, id)
 	instances = 5
 	d.updateService(c, service, setInstances(instances))
-	waitAndAssert(c, 10*time.Second, d.checkActiveContainerCount, checker.Equals, instances)
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, instances)
 
 	d.removeService(c, service.ID)
-	waitAndAssert(c, 10*time.Second, d.checkActiveContainerCount, checker.Equals, 0)
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 0)
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmServicesMultipleAgents(c *check.C) {
@@ -145,21 +146,21 @@ func (s *DockerSwarmSuite) TestApiSwarmServicesMultipleAgents(c *check.C) {
 	instances := 9
 	id := d1.createService(c, simpleTestService, setInstances(instances))
 
-	waitAndAssert(c, 10*time.Second, d1.checkActiveContainerCount, checker.GreaterThan, 0)
-	waitAndAssert(c, 10*time.Second, d2.checkActiveContainerCount, checker.GreaterThan, 0)
-	waitAndAssert(c, 10*time.Second, d3.checkActiveContainerCount, checker.GreaterThan, 0)
+	waitAndAssert(c, defaultReconciliationTimeout, d1.checkActiveContainerCount, checker.GreaterThan, 0)
+	waitAndAssert(c, defaultReconciliationTimeout, d2.checkActiveContainerCount, checker.GreaterThan, 0)
+	waitAndAssert(c, defaultReconciliationTimeout, d3.checkActiveContainerCount, checker.GreaterThan, 0)
 
-	waitAndAssert(c, 10*time.Second, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d2.checkActiveContainerCount, d3.checkActiveContainerCount), checker.Equals, instances)
+	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d2.checkActiveContainerCount, d3.checkActiveContainerCount), checker.Equals, instances)
 
 	// reconciliation on d2 node down
 	c.Assert(d2.Stop(), checker.IsNil)
 
-	waitAndAssert(c, 20*time.Second, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d3.checkActiveContainerCount), checker.Equals, instances)
+	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d3.checkActiveContainerCount), checker.Equals, instances)
 
 	// test downscaling
 	instances = 5
 	d1.updateService(c, d1.getService(c, id), setInstances(instances))
-	waitAndAssert(c, 20*time.Second, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d3.checkActiveContainerCount), checker.Equals, instances)
+	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d3.checkActiveContainerCount), checker.Equals, instances)
 
 }
 
@@ -170,15 +171,15 @@ func (s *DockerSwarmSuite) TestApiSwarmServicesCreateGlobal(c *check.C) {
 
 	d1.createService(c, simpleTestService, setGlobalMode)
 
-	waitAndAssert(c, 10*time.Second, d1.checkActiveContainerCount, checker.Equals, 1)
-	waitAndAssert(c, 10*time.Second, d2.checkActiveContainerCount, checker.Equals, 1)
-	waitAndAssert(c, 10*time.Second, d3.checkActiveContainerCount, checker.Equals, 1)
+	waitAndAssert(c, defaultReconciliationTimeout, d1.checkActiveContainerCount, checker.Equals, 1)
+	waitAndAssert(c, defaultReconciliationTimeout, d2.checkActiveContainerCount, checker.Equals, 1)
+	waitAndAssert(c, defaultReconciliationTimeout, d3.checkActiveContainerCount, checker.Equals, 1)
 
 	d4 := s.AddDaemon(c, true, false)
 	d5 := s.AddDaemon(c, true, false)
 
-	waitAndAssert(c, 10*time.Second, d4.checkActiveContainerCount, checker.Equals, 1)
-	waitAndAssert(c, 10*time.Second, d5.checkActiveContainerCount, checker.Equals, 1)
+	waitAndAssert(c, defaultReconciliationTimeout, d4.checkActiveContainerCount, checker.Equals, 1)
+	waitAndAssert(c, defaultReconciliationTimeout, d5.checkActiveContainerCount, checker.Equals, 1)
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmServicesStateReporting(c *check.C) {
@@ -194,7 +195,7 @@ func (s *DockerSwarmSuite) TestApiSwarmServicesStateReporting(c *check.C) {
 	instances := 9
 	d1.createService(c, simpleTestService, setInstances(instances))
 
-	waitAndAssert(c, 20*time.Second, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d2.checkActiveContainerCount, d3.checkActiveContainerCount), checker.Equals, instances)
+	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d2.checkActiveContainerCount, d3.checkActiveContainerCount), checker.Equals, instances)
 
 	getContainers := func() map[string]*SwarmDaemon {
 		m := make(map[string]*SwarmDaemon)
@@ -216,7 +217,7 @@ func (s *DockerSwarmSuite) TestApiSwarmServicesStateReporting(c *check.C) {
 	_, err := containers[toRemove].Cmd("stop", toRemove)
 	c.Assert(err, checker.IsNil)
 
-	waitAndAssert(c, 20*time.Second, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d2.checkActiveContainerCount, d3.checkActiveContainerCount), checker.Equals, instances)
+	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d2.checkActiveContainerCount, d3.checkActiveContainerCount), checker.Equals, instances)
 
 	containers2 := getContainers()
 	c.Assert(containers2, checker.HasLen, instances)
@@ -242,7 +243,7 @@ func (s *DockerSwarmSuite) TestApiSwarmServicesStateReporting(c *check.C) {
 
 	time.Sleep(time.Second) // give some time to handle the signal
 
-	waitAndAssert(c, 20*time.Second, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d2.checkActiveContainerCount, d3.checkActiveContainerCount), checker.Equals, instances)
+	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d2.checkActiveContainerCount, d3.checkActiveContainerCount), checker.Equals, instances)
 
 	containers2 = getContainers()
 	c.Assert(containers2, checker.HasLen, instances)
@@ -315,19 +316,19 @@ func (s *DockerSwarmSuite) TestApiSwarmNodeDrainPause(c *check.C) {
 	time.Sleep(1 * time.Second) // make sure all daemons are ready to accept tasks
 
 	// start a service, expect balanced distribution
-	instances := 6
+	instances := 8
 	id := d1.createService(c, simpleTestService, setInstances(instances))
 
-	waitAndAssert(c, 10*time.Second, d1.checkActiveContainerCount, checker.GreaterThan, 0)
-	waitAndAssert(c, 10*time.Second, d2.checkActiveContainerCount, checker.GreaterThan, 0)
-	waitAndAssert(c, 20*time.Second, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d2.checkActiveContainerCount), checker.Equals, instances)
+	waitAndAssert(c, defaultReconciliationTimeout, d1.checkActiveContainerCount, checker.GreaterThan, 0)
+	waitAndAssert(c, defaultReconciliationTimeout, d2.checkActiveContainerCount, checker.GreaterThan, 0)
+	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d2.checkActiveContainerCount), checker.Equals, instances)
 
 	// drain d2, all containers should move to d1
 	d1.updateNode(c, d1.getNode(c, d2.NodeID), func(n *swarm.Node) {
 		n.Spec.Availability = swarm.NodeAvailabilityDrain
 	})
-	waitAndAssert(c, 10*time.Second, d1.checkActiveContainerCount, checker.Equals, 6)
-	waitAndAssert(c, 10*time.Second, d2.checkActiveContainerCount, checker.Equals, 0)
+	waitAndAssert(c, defaultReconciliationTimeout, d1.checkActiveContainerCount, checker.Equals, instances)
+	waitAndAssert(c, defaultReconciliationTimeout, d2.checkActiveContainerCount, checker.Equals, 0)
 
 	// set d2 back to active
 	d1.updateNode(c, d1.getNode(c, d2.NodeID), func(n *swarm.Node) {
@@ -337,11 +338,16 @@ func (s *DockerSwarmSuite) TestApiSwarmNodeDrainPause(c *check.C) {
 	// change environment variable, resulting balanced rescheduling
 	d1.updateService(c, d1.getService(c, id), func(s *swarm.Service) {
 		s.Spec.TaskSpec.ContainerSpec.Env = []string{"FOO=BAR"}
+		s.Spec.UpdateConfig = &swarm.UpdateConfig{
+			Parallelism: 2,
+			Delay:       250 * time.Millisecond,
+		}
 	})
 
-	waitAndAssert(c, 10*time.Second, d1.checkActiveContainerCount, checker.GreaterThan, 0)
-	waitAndAssert(c, 10*time.Second, d2.checkActiveContainerCount, checker.GreaterThan, 0)
-	waitAndAssert(c, 20*time.Second, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d2.checkActiveContainerCount), checker.Equals, instances)
+	// drained node first so we don't get any old containers
+	waitAndAssert(c, defaultReconciliationTimeout, d2.checkActiveContainerCount, checker.GreaterThan, 0)
+	waitAndAssert(c, defaultReconciliationTimeout, d1.checkActiveContainerCount, checker.GreaterThan, 0)
+	waitAndAssert(c, defaultReconciliationTimeout*2, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d2.checkActiveContainerCount), checker.Equals, instances)
 
 	d2ContainerCount := len(d2.activeContainers())
 
@@ -350,11 +356,11 @@ func (s *DockerSwarmSuite) TestApiSwarmNodeDrainPause(c *check.C) {
 		n.Spec.Availability = swarm.NodeAvailabilityPause
 	})
 
-	instances = 12
+	instances = 14
 	d1.updateService(c, d1.getService(c, id), setInstances(instances))
 
-	waitAndAssert(c, 10*time.Second, d1.checkActiveContainerCount, checker.Equals, instances-d2ContainerCount)
-	waitAndAssert(c, 10*time.Second, d2.checkActiveContainerCount, checker.Equals, d2ContainerCount)
+	waitAndAssert(c, defaultReconciliationTimeout, d1.checkActiveContainerCount, checker.Equals, instances-d2ContainerCount)
+	waitAndAssert(c, defaultReconciliationTimeout, d2.checkActiveContainerCount, checker.Equals, d2ContainerCount)
 
 }
 
@@ -368,12 +374,12 @@ func (s *DockerSwarmSuite) TestApiSwarmLeaveRemovesContainer(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	id = strings.TrimSpace(id)
 
-	waitAndAssert(c, 10*time.Second, d.checkActiveContainerCount, checker.Equals, instances+1)
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, instances+1)
 
 	c.Assert(d.Leave(false), checker.NotNil)
 	c.Assert(d.Leave(true), checker.IsNil)
 
-	waitAndAssert(c, 10*time.Second, d.checkActiveContainerCount, checker.Equals, 1)
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 1)
 
 	id2, err := d.Cmd("ps", "-q")
 	c.Assert(err, checker.IsNil)
