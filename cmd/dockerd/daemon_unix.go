@@ -44,9 +44,6 @@ func setDefaultUmask() error {
 }
 
 func getDaemonConfDir() string {
-	if os.Getenv("DOCKER_CONF_DIR") != "" {
-		return os.Getenv("DOCKER_CONF_DIR")
-	}
 	return "/etc/docker"
 }
 
