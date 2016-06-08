@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 var (
@@ -58,10 +59,11 @@ func parseWords(rest string) []string {
 	quote := '\000'
 	blankOK := false
 	var ch rune
+	var chWidth int
 
-	for pos := 0; pos <= len(rest); pos++ {
+	for pos := 0; pos <= len(rest); pos += chWidth {
 		if pos != len(rest) {
-			ch = rune(rest[pos])
+			ch, chWidth = utf8.DecodeRuneInString(rest[pos:])
 		}
 
 		if phase == inSpaces { // Looking for start of word
@@ -95,15 +97,15 @@ func parseWords(rest string) []string {
 				phase = inQuote
 			}
 			if ch == tokenEscape {
-				if pos+1 == len(rest) {
+				if pos+chWidth == len(rest) {
 					continue // just skip an escape token at end of line
 				}
 				// If we're not quoted and we see an escape token, then always just
 				// add the escape token plus the char to the word, even if the char
 				// is a quote.
 				word += string(ch)
-				pos++
-				ch = rune(rest[pos])
+				pos += chWidth
+				ch, chWidth = utf8.DecodeRuneInString(rest[pos:])
 			}
 			word += string(ch)
 			continue
@@ -114,14 +116,13 @@ func parseWords(rest string) []string {
 			}
 			// The escape token is special except for ' quotes - can't escape anything for '
 			if ch == tokenEscape && quote != '\'' {
-				if pos+1 == len(rest) {
+				if pos+chWidth == len(rest) {
 					phase = inWord
 					continue // just skip the escape token at end
 				}
-				pos++
-				nextCh := rune(rest[pos])
+				pos += chWidth
 				word += string(ch)
-				ch = nextCh
+				ch, chWidth = utf8.DecodeRuneInString(rest[pos:])
 			}
 			word += string(ch)
 		}
