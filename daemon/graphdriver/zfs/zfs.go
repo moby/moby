@@ -250,11 +250,7 @@ func (d *Driver) CreateReadWrite(id, parent, mountLabel string, storageOpt map[s
 
 // Create prepares the dataset and filesystem for the ZFS driver for the given id under the parent.
 func (d *Driver) Create(id string, parent string, mountLabel string, storageOpt map[string]string) error {
-	if len(storageOpt) != 0 {
-		return fmt.Errorf("--storage-opt is not supported for zfs")
-	}
-
-	err := d.create(id, parent)
+	err := d.create(id, parent, storageOpt)
 	if err == nil {
 		return nil
 	}
@@ -273,22 +269,58 @@ func (d *Driver) Create(id string, parent string, mountLabel string, storageOpt 
 	}
 
 	// retry
-	return d.create(id, parent)
+	return d.create(id, parent, storageOpt)
 }
 
-func (d *Driver) create(id, parent string) error {
+func (d *Driver) create(id, parent string, storageOpt map[string]string) error {
 	name := d.zfsPath(id)
+	quota, err := parseStorageOpt(storageOpt)
+	if err != nil {
+		return err
+	}
 	if parent == "" {
 		mountoptions := map[string]string{"mountpoint": "legacy"}
 		fs, err := zfs.CreateFilesystem(name, mountoptions)
 		if err == nil {
-			d.Lock()
-			d.filesystemsCache[fs.Name] = true
-			d.Unlock()
+			err = setQuota(name, quota)
+			if err == nil {
+				d.Lock()
+				d.filesystemsCache[fs.Name] = true
+				d.Unlock()
+			}
 		}
 		return err
 	}
-	return d.cloneFilesystem(name, d.zfsPath(parent))
+	err = d.cloneFilesystem(name, d.zfsPath(parent))
+	if err == nil {
+		err = setQuota(name, quota)
+	}
+	return err
+}
+
+func parseStorageOpt(storageOpt map[string]string) (string, error) {
+	// Read size to change the disk quota per container
+	for k, v := range storageOpt {
+		key := strings.ToLower(k)
+		switch key {
+		case "size":
+			return v, nil
+		default:
+			return "0", fmt.Errorf("Unknown option %s", key)
+		}
+	}
+	return "0", nil
+}
+
+func setQuota(name string, quota string) error {
+	if quota == "0" {
+		return nil
+	}
+	fs, err := zfs.GetDataset(name)
+	if err != nil {
+		return err
+	}
+	return fs.SetProperty("quota", quota)
 }
 
 // Remove deletes the dataset, filesystem and the cache for the given id.
