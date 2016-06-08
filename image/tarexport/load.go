@@ -62,6 +62,8 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 	}
 
 	var parentLinks []parentLink
+	var imageIDsStr string
+	var imageRefCount int
 
 	for _, m := range manifest {
 		configPath, err := safePath(tmpDir, m.Config)
@@ -109,7 +111,9 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 		if err != nil {
 			return err
 		}
+		imageIDsStr += fmt.Sprintf("Loaded image ID: %s\n", imgID)
 
+		imageRefCount = 0
 		for _, repoTag := range m.RepoTags {
 			named, err := reference.ParseNamed(repoTag)
 			if err != nil {
@@ -120,6 +124,8 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 				return fmt.Errorf("invalid tag %q", repoTag)
 			}
 			l.setLoadedTag(ref, imgID, outStream)
+			outStream.Write([]byte(fmt.Sprintf("Loaded image: %s\n", ref)))
+			imageRefCount++
 		}
 
 		parentLinks = append(parentLinks, parentLink{imgID, m.Parent})
@@ -132,6 +138,10 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 				return err
 			}
 		}
+	}
+
+	if imageRefCount == 0 {
+		outStream.Write([]byte(imageIDsStr))
 	}
 
 	return nil
