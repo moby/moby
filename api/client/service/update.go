@@ -173,12 +173,12 @@ func mergeLabels(flags *pflag.FlagSet, field *map[string]string) {
 
 // TODO: should this override by destination path, or does swarm handle that?
 func mergeMounts(flags *pflag.FlagSet, mounts *[]swarm.Mount) {
-	if !flags.Changed("volume") {
+	if !flags.Changed("mount") {
 		return
 	}
 
-	values := flags.Lookup("volume").Value.(*opts.ListOpts).GetAll()
-	*mounts = append(*mounts, ConvertMounts(values)...)
+	values := flags.Lookup("mount").Value.(*MountOpt).Value()
+	*mounts = append(*mounts, values...)
 }
 
 // TODO: should this override by name, or does swarm handle that?

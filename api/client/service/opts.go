@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/csv"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
-	"github.com/docker/docker/volume"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/docker/go-connections/nat"
 	units "github.com/docker/go-units"
@@ -128,9 +128,115 @@ func (i *Uint64Opt) String() string {
 	return "none"
 }
 
-// Value returns the time.Duration
+// Value returns the uint64
 func (i *Uint64Opt) Value() *uint64 {
 	return i.value
+}
+
+// MountOpt is a Value type for parsing mounts
+type MountOpt struct {
+	values []swarm.Mount
+}
+
+// Set a new mount value
+func (m *MountOpt) Set(value string) error {
+	csvReader := csv.NewReader(strings.NewReader(value))
+	fields, err := csvReader.Read()
+	if err != nil {
+		return err
+	}
+
+	mount := swarm.Mount{}
+
+	template := func() *swarm.VolumeTemplate {
+		if mount.Template == nil {
+			mount.Template = &swarm.VolumeTemplate{
+				Annotations: swarm.Annotations{Labels: make(map[string]string)},
+			}
+		}
+		return mount.Template
+	}
+
+	setValueOnMap := func(target map[string]string, value string) {
+		parts := strings.SplitN(value, "=", 2)
+		if len(parts) == 1 {
+			target[value] = ""
+		} else {
+			target[parts[0]] = parts[1]
+		}
+	}
+
+	for _, field := range fields {
+		parts := strings.SplitN(field, "=", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("invald field '%s' must be a key=value pair", field)
+		}
+
+		key, value := parts[0], parts[1]
+		switch strings.ToLower(key) {
+		case "type":
+			mount.Type = swarm.MountType(strings.ToUpper(value))
+		case "source":
+			mount.Source = value
+		case "target":
+			mount.Target = value
+		case "writable":
+			mount.Writable, err = strconv.ParseBool(value)
+			if err != nil {
+				return fmt.Errorf("invald value for writable: %s", err.Error())
+			}
+		case "propagation":
+			mount.Propagation = swarm.MountPropagation(strings.ToUpper(value))
+		case "populate":
+			mount.Populate, err = strconv.ParseBool(value)
+			if err != nil {
+				return fmt.Errorf("invald value for populate: %s", err.Error())
+			}
+		case "volume-name":
+			template().Name = value
+		case "volume-label":
+			setValueOnMap(template().Labels, value)
+		case "volume-driver":
+			template().DriverConfig.Name = value
+		case "volume-driver-opt":
+			if template().DriverConfig.Options == nil {
+				template().DriverConfig.Options = make(map[string]string)
+			}
+			setValueOnMap(template().DriverConfig.Options, value)
+		default:
+			return fmt.Errorf("unexpected key '%s' in '%s'", key, value)
+		}
+	}
+
+	if mount.Type == "" {
+		return fmt.Errorf("type is required")
+	}
+
+	if mount.Target == "" {
+		return fmt.Errorf("target is required")
+	}
+
+	m.values = append(m.values, mount)
+	return nil
+}
+
+// Type returns the type of this option
+func (m *MountOpt) Type() string {
+	return "mount"
+}
+
+// String returns a string repr of this option
+func (m *MountOpt) String() string {
+	mounts := []string{}
+	for _, mount := range m.values {
+		mounts = append(mounts, fmt.Sprintf("%v", mount))
+	}
+	return strings.Join(mounts, ", ")
+}
+
+// Value returns the mounts
+func (m *MountOpt) Value() []swarm.Mount {
+	return m.values
 }
 
 type updateOptions struct {
@@ -231,31 +337,6 @@ func ValidatePort(value string) (string, error) {
 	return value, err
 }
 
-// ValidateMount validates that a mount flag has the correct format
-func ValidateMount(value string) (string, error) {
-	// TODO: this is wrong when the client and daemon OS don't match
-	_, err := volume.ParseMountSpec(value, "")
-	return value, err
-}
-
-// ConvertMounts converts mount strings into a swarm.Mount object
-func ConvertMounts(rawMounts []string) []swarm.Mount {
-	mounts := []swarm.Mount{}
-
-	for _, rawMount := range rawMounts {
-		// TODO: this is wrong when the client and daemon OS don't match
-		mountPoint, _ := volume.ParseMountSpec(rawMount, "")
-
-		mounts = append(mounts, swarm.Mount{
-			Target:   mountPoint.Destination,
-			Source:   mountPoint.Name,
-			Writable: mountPoint.RW,
-			Type:     swarm.MountType(mountPoint.Type()),
-		})
-	}
-	return mounts
-}
-
 type serviceOptions struct {
 	name    string
 	labels  opts.ListOpts
@@ -265,7 +346,7 @@ type serviceOptions struct {
 	env     opts.ListOpts
 	workdir string
 	user    string
-	mounts  opts.ListOpts
+	mounts  MountOpt
 
 	resources resourceOptions
 	stopGrace DurationOpt
@@ -284,15 +365,20 @@ func newServiceOptions() *serviceOptions {
 	return &serviceOptions{
 		labels: opts.NewListOpts(runconfigopts.ValidateEnv),
 		env:    opts.NewListOpts(runconfigopts.ValidateEnv),
-		mounts: opts.NewListOpts(ValidateMount),
 		endpoint: endpointOptions{
 			ports: opts.NewListOpts(ValidatePort),
 		},
 	}
 }
 
-func (opts *serviceOptions) ToService() swarm.ServiceSpec {
-	service := swarm.ServiceSpec{
+func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
+	var service swarm.ServiceSpec
+
+	if opts.scale.Value() != nil && opts.mode == "global" {
+		return service, fmt.Errorf("scale can only be used with replicated mode")
+	}
+
+	service = swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
 			Name:   opts.name,
 			Labels: runconfigopts.ConvertKVStringsToMap(opts.labels.GetAll()),
@@ -305,7 +391,7 @@ func (opts *serviceOptions) ToService() swarm.ServiceSpec {
 				Env:             opts.env.GetAll(),
 				Dir:             opts.workdir,
 				User:            opts.user,
-				Mounts:          ConvertMounts(opts.mounts.GetAll()),
+				Mounts:          opts.mounts.Value(),
 				StopGracePeriod: opts.stopGrace.Value(),
 			},
 			Resources:     opts.resources.ToResourceRequirements(),
@@ -323,15 +409,17 @@ func (opts *serviceOptions) ToService() swarm.ServiceSpec {
 		EndpointSpec: opts.endpoint.ToEndpointSpec(),
 	}
 
-	// TODO: add error if both global and replicas are specified or if invalid value
-	if opts.mode == "global" {
+	switch opts.mode {
+	case "global":
 		service.Mode.Global = &swarm.GlobalService{}
-	} else {
+	case "replicated":
 		service.Mode.Replicated = &swarm.ReplicatedService{
 			Replicas: opts.replicas.Value(),
 		}
+	default:
+		return service, fmt.Errorf("Unknown mode: %s", opts.mode)
 	}
-	return service
+	return service, nil
 }
 
 // addServiceFlags adds all flags that are common to both `create` and `update.
@@ -344,7 +432,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.VarP(&opts.env, "env", "e", "Set environment variables")
 	flags.StringVarP(&opts.workdir, "workdir", "w", "", "Working directory inside the container")
 	flags.StringVarP(&opts.user, "user", "u", "", "Username or UID")
-	flags.VarP(&opts.mounts, "volume", "v", "Attach a volume or create a bind mount")
+	flags.VarP(&opts.mounts, "mount", "m", "Attach a mount to the service")
 
 	flags.Var(&opts.resources.limitCPU, "limit-cpu", "Limit CPUs")
 	flags.Var(&opts.resources.limitMemBytes, "limit-memory", "Limit Memory")

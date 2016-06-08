@@ -31,7 +31,13 @@ func newCreateCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 func runCreate(dockerCli *client.DockerCli, opts *serviceOptions) error {
 	client := dockerCli.Client()
-	response, err := client.ServiceCreate(context.Background(), opts.ToService())
+
+	service, err := opts.ToService()
+	if err != nil {
+		return err
+	}
+
+	response, err := client.ServiceCreate(context.Background(), service)
 	if err != nil {
 		return err
 	}
