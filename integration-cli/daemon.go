@@ -147,7 +147,6 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	if !(d.useDefaultHost || d.useDefaultTLSHost) {
 		args = append(args, []string{"--host", d.sock()}...)
 	}
-
 	if root := os.Getenv("DOCKER_REMAP_ROOT"); root != "" {
 		args = append(args, []string{"--userns-remap", root}...)
 	}
@@ -177,7 +176,6 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	d.cmd.Stdout = out
 	d.cmd.Stderr = out
 	d.logFile = out
-	d.cmd.Env = append([]string{fmt.Sprintf("DOCKER_CONF_DIR=%s/config", d.folder)}, os.Environ()...)
 
 	if err := d.cmd.Start(); err != nil {
 		return fmt.Errorf("[%s] could not start daemon container: %v", d.id, err)
@@ -366,11 +364,6 @@ func (d *Daemon) LoadBusybox() error {
 		d.c.Logf("could not remove %s: %v", bb, err)
 	}
 	return nil
-}
-
-// GetConfDir returns current daemon config dir.
-func (d *Daemon) GetConfDir() string {
-	return filepath.Join(d.folder, "config")
 }
 
 func (d *Daemon) queryRootDir() (string, error) {
