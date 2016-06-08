@@ -202,7 +202,8 @@ func (cli *DockerCli) ResolveAuthConfig(ctx context.Context, index *registrytype
 	return a
 }
 
-func (cli *DockerCli) retrieveAuthConfigs() map[string]types.AuthConfig {
+// RetrieveAuthConfigs return all credentials.
+func (cli *DockerCli) RetrieveAuthConfigs() map[string]types.AuthConfig {
 	acs, _ := getAllCredentials(cli.configFile)
 	return acs
 }
