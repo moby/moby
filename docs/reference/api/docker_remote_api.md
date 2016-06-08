@@ -131,6 +131,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /images/(name)/tag` no longer has a `force` query parameter.
 * `GET /images/search` now supports maximum returned search results `limit`.
 * `POST /containers/{name:.*}/copy` is now removed and errors out starting from this API version.
+* API errors are now returned as JSON instead of plain text.
 
 ### v1.23 API changes
 
@@ -262,4 +263,3 @@ end point now returns the new boolean fields `CpuCfsPeriod`, `CpuCfsQuota`, and
 * `CgroupParent` can be passed in the host config to setup container cgroups under a specific cgroup.
 * `POST /build` closing the HTTP request cancels the build
 * `POST /containers/(id)/exec` includes `Warnings` field to response.
-

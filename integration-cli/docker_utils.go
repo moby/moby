@@ -1507,3 +1507,10 @@ func waitForGoroutines(expected int) error {
 		}
 	}
 }
+
+// getErrorMessage returns the error message from an error API response
+func getErrorMessage(c *check.C, body []byte) string {
+	var resp types.ErrorResponse
+	c.Assert(json.Unmarshal(body, &resp), check.IsNil)
+	return strings.TrimSpace(resp.Message)
+}

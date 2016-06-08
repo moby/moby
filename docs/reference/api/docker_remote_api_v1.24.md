@@ -22,9 +22,19 @@ weight=-5
  - When the client API version is newer than the daemon's, these calls return an HTTP
    `400 Bad Request` error message.
 
-# 2. Endpoints
+# 2. Errors
 
-## 2.1 Containers
+The Remote API uses standard HTTP status codes to indicate the success or failure of the API call. The body of the response will be JSON in the following format:
+
+    {
+        "message": "page not found"
+    }
+
+The status codes that are returned for each endpoint are specified in the endpoint documentation below.
+
+# 3. Endpoints
+
+## 3.1 Containers
 
 ### List containers
 
@@ -1504,7 +1514,7 @@ Status Codes:
     - no such file or directory (**path** resource does not exist)
 - **500** – server error
 
-## 2.2 Images
+## 3.2 Images
 
 ### List Images
 
@@ -2112,7 +2122,7 @@ Status Codes:
 -   **200** – no error
 -   **500** – server error
 
-## 2.3 Misc
+## 3.3 Misc
 
 ### Check auth configuration
 
@@ -2834,7 +2844,7 @@ Status Codes:
 -   **404** – no such exec instance
 -   **500** - server error
 
-## 2.4 Volumes
+## 3.4 Volumes
 
 ### List volumes
 
@@ -2972,7 +2982,7 @@ Status Codes
 -   **409** - volume is in use and cannot be removed
 -   **500** - server error
 
-## 2.5 Networks
+## 3.5 Networks
 
 ### List networks
 
@@ -3296,9 +3306,9 @@ Status Codes
 -   **404** - no such network
 -   **500** - server error
 
-# 3. Going further
+# 4. Going further
 
-## 3.1 Inside `docker run`
+## 4.1 Inside `docker run`
 
 As an example, the `docker run` command line makes the following API calls:
 
@@ -3316,7 +3326,7 @@ As an example, the `docker run` command line makes the following API calls:
 
 - If in detached mode or only `stdin` is attached, display the container's id.
 
-## 3.2 Hijacking
+## 4.2 Hijacking
 
 In this version of the API, `/attach`, uses hijacking to transport `stdin`,
 `stdout`, and `stderr` on the same socket.
@@ -3331,7 +3341,7 @@ When Docker daemon detects the `Upgrade` header, it switches its status code
 from **200 OK** to **101 UPGRADED** and resends the same headers.
 
 
-## 3.3 CORS Requests
+## 4.3 CORS Requests
 
 To set cross origin requests to the remote api please give values to
 `--api-cors-header` when running Docker in daemon mode. Set * (asterisk) allows all,
