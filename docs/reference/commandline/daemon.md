@@ -1,6 +1,7 @@
 <!--[metadata]>
 +++
 title = "daemon"
+aliases = ["/engine/reference/commandline/dockerd/", "/engine/reference/commandline/dockerd.md"]
 description = "The daemon command description and usage"
 keywords = ["container, daemon, runtime"]
 [menu.main]
