@@ -166,7 +166,7 @@ install -p -m 644 man/man1/*.1 $RPM_BUILD_ROOT/%{_mandir}/man1
 install -d %{buildroot}%{_mandir}/man5
 install -p -m 644 man/man5/*.5 $RPM_BUILD_ROOT/%{_mandir}/man5
 install -d %{buildroot}%{_mandir}/man8
-install -p -m 644 man/man5/*.8 $RPM_BUILD_ROOT/%{_mandir}/man8
+install -p -m 644 man/man8/*.8 $RPM_BUILD_ROOT/%{_mandir}/man8
 
 # add vimfiles
 install -d $RPM_BUILD_ROOT/usr/share/vim/vimfiles/doc
