@@ -74,9 +74,6 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 			if spec.Windows.Resources.Storage.Iops != nil {
 				configuration.StorageIOPSMaximum = *spec.Windows.Resources.Storage.Iops
 			}
-			if spec.Windows.Resources.Storage.SandboxSize != nil {
-				configuration.StorageSandboxSize = *spec.Windows.Resources.Storage.SandboxSize
-			}
 		}
 	}
 

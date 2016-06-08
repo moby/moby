@@ -32,11 +32,18 @@ import (
 	"github.com/docker/docker/pkg/longpath"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/go-units"
 	"github.com/vbatts/tar-split/tar/storage"
 )
 
 // filterDriver is an HCSShim driver type for the Windows Filter driver.
 const filterDriver = 1
+
+var (
+	vmcomputedll            = syscall.NewLazyDLL("vmcompute.dll")
+	hcsExpandSandboxSize    = vmcomputedll.NewProc("ExpandSandboxSize")
+	hcsSandboxSizeSupported = hcsExpandSandboxSize.Find() == nil
+)
 
 // init registers the windows graph drivers to the register.
 func init() {
@@ -118,10 +125,6 @@ func (d *Driver) Create(id, parent, mountLabel string, storageOpt map[string]str
 }
 
 func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt map[string]string) error {
-	if len(storageOpt) != 0 {
-		return fmt.Errorf("--storage-opt is not supported for windows")
-	}
-
 	rPId, err := d.resolveID(parent)
 	if err != nil {
 		return err
@@ -183,6 +186,17 @@ func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt
 
 		if err := hcsshim.CreateSandboxLayer(d.info, id, parentPath, layerChain); err != nil {
 			return err
+		}
+
+		storageOptions, err := parseStorageOpt(storageOpt)
+		if err != nil {
+			return fmt.Errorf("Failed to parse storage options - %s", err)
+		}
+
+		if hcsSandboxSizeSupported {
+			if err := hcsshim.ExpandSandboxSize(d.info, id, storageOptions.size); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -850,4 +864,28 @@ func (d *Driver) DiffGetter(id string) (graphdriver.FileGetCloser, error) {
 	}
 
 	return &fileGetCloserWithBackupPrivileges{d.dir(id)}, nil
+}
+
+type storageOptions struct {
+	size uint64
+}
+
+func parseStorageOpt(storageOpt map[string]string) (*storageOptions, error) {
+	options := storageOptions{}
+
+	// Read size to change the block device size per container.
+	for key, val := range storageOpt {
+		key := strings.ToLower(key)
+		switch key {
+		case "size":
+			size, err := units.RAMInBytes(val)
+			if err != nil {
+				return nil, err
+			}
+			options.size = uint64(size)
+		default:
+			return nil, fmt.Errorf("Unknown storage option: %s", key)
+		}
+	}
+	return &options, nil
 }
