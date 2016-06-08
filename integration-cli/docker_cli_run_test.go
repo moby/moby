@@ -443,18 +443,20 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir2(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunVolumesMountedAsReadonly(c *check.C) {
-	// TODO Windows (Post TP5): This test cannot run on a Windows daemon as
-	// Windows does not support read-only bind mounts.
-	testRequires(c, DaemonIsLinux)
+	// TODO Windows: Temporary check - remove once TP5 support is dropped
+	if daemonPlatform == "windows" && windowsDaemonKV < 14350 {
+		c.Skip("Needs later Windows build for RO volumes")
+	}
 	if _, code, err := dockerCmdWithError("run", "-v", "/test:/test:ro", "busybox", "touch", "/test/somefile"); err == nil || code == 0 {
 		c.Fatalf("run should fail because volume is ro: exit code %d", code)
 	}
 }
 
 func (s *DockerSuite) TestRunVolumesFromInReadonlyModeFails(c *check.C) {
-	// TODO Windows (Post TP5): This test cannot run on a Windows daemon as
-	// Windows does not support read-only bind mounts. Modified for when ro is supported.
-	testRequires(c, DaemonIsLinux)
+	// TODO Windows: Temporary check - remove once TP5 support is dropped
+	if daemonPlatform == "windows" && windowsDaemonKV < 14350 {
+		c.Skip("Needs later Windows build for RO volumes")
+	}
 	var (
 		volumeDir string
 		fileInVol string
@@ -499,20 +501,23 @@ func (s *DockerSuite) TestRunVolumesFromInReadWriteMode(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumesFromGetsProperMode(c *check.C) {
-	// TODO Windows: This test cannot yet run on a Windows daemon as Windows does
-	// not support read-only bind mounts as at TP5
-	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "--name", "parent", "-v", "/test:/test:ro", "busybox", "true")
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
+
+	// TODO Windows: Temporary check - remove once TP5 support is dropped
+	if daemonPlatform == "windows" && windowsDaemonKV < 14350 {
+		c.Skip("Needs later Windows build for RO volumes")
+	}
+	dockerCmd(c, "run", "--name", "parent", "-v", prefix+slash+"test:"+prefix+slash+"test:ro", "busybox", "true")
 
 	// Expect this "rw" mode to be be ignored since the inherited volume is "ro"
-	if _, _, err := dockerCmdWithError("run", "--volumes-from", "parent:rw", "busybox", "touch", "/test/file"); err == nil {
+	if _, _, err := dockerCmdWithError("run", "--volumes-from", "parent:rw", "busybox", "touch", prefix+slash+"test"+slash+"file"); err == nil {
 		c.Fatal("Expected volumes-from to inherit read-only volume even when passing in `rw`")
 	}
 
-	dockerCmd(c, "run", "--name", "parent2", "-v", "/test:/test:ro", "busybox", "true")
+	dockerCmd(c, "run", "--name", "parent2", "-v", prefix+slash+"test:"+prefix+slash+"test:ro", "busybox", "true")
 
 	// Expect this to be read-only since both are "ro"
-	if _, _, err := dockerCmdWithError("run", "--volumes-from", "parent2:ro", "busybox", "touch", "/test/file"); err == nil {
+	if _, _, err := dockerCmdWithError("run", "--volumes-from", "parent2:ro", "busybox", "touch", prefix+slash+"test"+slash+"file"); err == nil {
 		c.Fatal("Expected volumes-from to inherit read-only volume even when passing in `ro`")
 	}
 }
@@ -1936,6 +1941,8 @@ func (s *DockerSuite) TestRunBindMounts(c *check.C) {
 		testRequires(c, DaemonIsLinux, NotUserNamespace)
 	}
 
+	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
+
 	tmpDir, err := ioutil.TempDir("", "docker-test-container")
 	if err != nil {
 		c.Fatal(err)
@@ -1944,10 +1951,10 @@ func (s *DockerSuite) TestRunBindMounts(c *check.C) {
 	defer os.RemoveAll(tmpDir)
 	writeFile(path.Join(tmpDir, "touch-me"), "", c)
 
-	// TODO Windows Post TP5. Windows does not yet support :ro binds
-	if daemonPlatform != "windows" {
+	// TODO Windows: Temporary check - remove once TP5 support is dropped
+	if daemonPlatform != "windows" || windowsDaemonKV >= 14350 {
 		// Test reading from a read-only bind mount
-		out, _ := dockerCmd(c, "run", "-v", fmt.Sprintf("%s:/tmp:ro", tmpDir), "busybox", "ls", "/tmp")
+		out, _ := dockerCmd(c, "run", "-v", fmt.Sprintf("%s:%s/tmp:ro", tmpDir, prefix), "busybox", "ls", prefix+"/tmp")
 		if !strings.Contains(out, "touch-me") {
 			c.Fatal("Container failed to read from bind mount")
 		}
@@ -3147,12 +3154,12 @@ func (s *DockerSuite) TestRunCapAddCHOWN(c *check.C) {
 
 // https://github.com/docker/docker/pull/14498
 func (s *DockerSuite) TestVolumeFromMixedRWOptions(c *check.C) {
-	// TODO Windows post TP5. Enable the read-only bits once they are
-	// supported on the platform.
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
 	dockerCmd(c, "run", "--name", "parent", "-v", prefix+"/test", "busybox", "true")
-	if daemonPlatform != "windows" {
+
+	// TODO Windows: Temporary check - remove once TP5 support is dropped
+	if daemonPlatform != "windows" || windowsDaemonKV >= 14350 {
 		dockerCmd(c, "run", "--volumes-from", "parent:ro", "--name", "test-volumes-1", "busybox", "true")
 	}
 	dockerCmd(c, "run", "--volumes-from", "parent:rw", "--name", "test-volumes-2", "busybox", "true")
