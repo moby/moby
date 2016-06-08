@@ -1,16 +1,20 @@
 <!--[metadata]>
 +++
-aliases = ["/introduction/understanding-docker/"]
-title = "Understand the architecture"
+aliases = [
+"/introduction/understanding-docker/",
+"/engine/userguide/basics/",
+"/engine/quickstart.md"
+]
+title = "Docker Overview"
 description = "Docker explained in depth"
 keywords = ["docker, introduction, documentation, about, technology,  understanding"]
 [menu.main]
 parent = "engine_use"
-weight = -82
+weight = -90
 +++
 <![end-metadata]-->
 
-# Understand the architecture
+# Docker Overview
 
 Docker is an open platform for developing, shipping, and running applications.
 Docker is designed to deliver your applications faster. With Docker you can
@@ -21,6 +25,8 @@ running code.
 
 Docker does this by combining kernel containerization features with workflows
 and tooling that help you manage and deploy your applications.
+
+## What is the Docker platform?
 
 At its core, Docker provides a way to run almost any application securely
 isolated in a container. The isolation and security allow you to run many
@@ -36,6 +42,24 @@ several ways:
 and testing
 * Deploy those applications to your production environment,
  whether it is in a local data center or the Cloud
+
+## What is Docker Engine?
+
+Docker Engine is a client-server application with these major components:
+
+* A server which is a type of long-running program called a daemon process.
+
+* A REST API which specifies interfaces that programs can use to talk to the daemon and instruct it what to do.
+
+* A command line interface (CLI) client.
+
+![Docker Engine Components Flow](article-img/engine-components-flow.png)
+
+The CLI imakes use of the Docker REST API to control or interact with the Docker daemon through scripting or direct CLI commands. Many other Docker applications make use of the underlying API and CLI.
+
+The daemon creates and manages Docker objects.  Docker objects include images, containers, networks, data volumes, and so forth.
+
+> **Note:** Docker is licensed under the open source Apache 2.0 license.
 
 ## What can I use Docker for?
 
@@ -69,17 +93,6 @@ to hypervisor-based virtual machines. This is especially useful in high density
 environments: for example, building your own Cloud or Platform-as-a-Service. But
 it is also useful for small and medium deployments where you want to get more
 out of the resources you have.
-
-## What are the major Docker components?
-Docker has two major components:
-
-
-* Docker Engine: the open source containerization platform.
-* [Docker Hub](https://hub.docker.com): our Software-as-a-Service
-  platform for sharing and managing Docker containers.
-
-
-> **Note:** Docker is licensed under the open source Apache 2.0 license.
 
 ## What is Docker's architecture?
 Docker uses a client-server architecture. The Docker *client* talks to the
