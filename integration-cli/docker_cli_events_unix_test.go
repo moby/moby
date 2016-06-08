@@ -226,6 +226,32 @@ func (s *DockerSuite) TestNetworkEvents(c *check.C) {
 	c.Assert(netEvents[3], checker.Equals, "destroy")
 }
 
+func (s *DockerSuite) TestEventsContainerWithMultiNetwork(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	// Observe create/connect network actions
+	dockerCmd(c, "network", "create", "test-event-network-local-1")
+	dockerCmd(c, "network", "create", "test-event-network-local-2")
+	dockerCmd(c, "run", "--name", "test-network-container", "--net", "test-event-network-local-1", "-td", "busybox", "sh")
+	waitRun("test-network-container")
+	dockerCmd(c, "network", "connect", "test-event-network-local-2", "test-network-container")
+
+	since := daemonUnixTime(c)
+
+	dockerCmd(c, "stop", "-t", "1", "test-network-container")
+
+	until := daemonUnixTime(c)
+	out, _ := dockerCmd(c, "events", "--since", since, "--until", until, "-f", "type=network")
+	netEvents := strings.Split(strings.TrimSpace(out), "\n")
+
+	c.Assert(len(netEvents), checker.Equals, 2)
+	c.Assert(netEvents[0], checker.Contains, "disconnect")
+	c.Assert(netEvents[0], checker.Contains, "test-event-network-local-1")
+
+	c.Assert(netEvents[1], checker.Contains, "disconnect")
+	c.Assert(netEvents[1], checker.Contains, "test-event-network-local-2")
+}
+
 func (s *DockerSuite) TestEventsStreaming(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
