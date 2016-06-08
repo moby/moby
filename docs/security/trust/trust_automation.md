@@ -41,6 +41,8 @@ latest: digest: sha256:d149ab53f871 size: 3355
 Signing and pushing trust metadata
 ```
 
+When working directly with the Notary client, it will use its [own set of environment variables](/notary/reference/client-config.md#environment-variables-optional).
+
 ## Building with content trust
 
 You can also build with content trust. Before running the `docker build` command, you should set the environment variable `DOCKER_CONTENT_TRUST` either manually or in a scripted fashion. Consider the simple Dockerfile below.
