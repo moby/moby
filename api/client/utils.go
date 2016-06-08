@@ -164,7 +164,7 @@ func (cli *DockerCli) GetTtySize() (int, int) {
 	return int(ws.Height), int(ws.Width)
 }
 
-// CopyToFile writes the content of the reader to the specifed file
+// CopyToFile writes the content of the reader to the specified file
 func CopyToFile(outfile string, r io.Reader) error {
 	tmpFile, err := ioutil.TempFile(filepath.Dir(outfile), ".docker_temp_")
 	if err != nil {
@@ -208,7 +208,7 @@ func (cli *DockerCli) RetrieveAuthConfigs() map[string]types.AuthConfig {
 	return acs
 }
 
-// ForwardAllSignals forwards signals to the contianer
+// ForwardAllSignals forwards signals to the container
 // TODO: this can be unexported again once all container commands are under
 // api/client/container
 func (cli *DockerCli) ForwardAllSignals(ctx context.Context, cid string) chan os.Signal {
