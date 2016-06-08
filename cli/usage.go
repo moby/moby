@@ -9,7 +9,6 @@ type Command struct {
 // DockerCommandUsage lists the top level docker commands and their short usage
 var DockerCommandUsage = []Command{
 	{"exec", "Run a command in a running container"},
-	{"info", "Display system-wide information"},
 	{"inspect", "Return low-level information on a container, image or task"},
 	{"update", "Update configuration of one or more containers"},
 }
