@@ -79,6 +79,7 @@ func imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, erro
 	}
 
 	query.Set("cpusetcpus", options.CPUSetCPUs)
+	query.Set("netmode", options.NetMode)
 	query.Set("cpusetmems", options.CPUSetMems)
 	query.Set("cpushares", strconv.FormatInt(options.CPUShares, 10))
 	query.Set("cpuquota", strconv.FormatInt(options.CPUQuota, 10))
