@@ -784,7 +784,9 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 		return nil, fmt.Errorf("ingress sandbox already present")
 	}
 
-	c.ingressSandbox = sb
+	if sb.ingress {
+		c.ingressSandbox = sb
+	}
 	c.Unlock()
 	defer func() {
 		if err != nil {
