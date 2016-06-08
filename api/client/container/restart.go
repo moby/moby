@@ -3,6 +3,7 @@ package container
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"golang.org/x/net/context"
 
@@ -39,7 +40,7 @@ func NewRestartCommand(dockerCli *client.DockerCli) *cobra.Command {
 func runRestart(dockerCli *client.DockerCli, opts *restartOptions) error {
 	var errs []string
 	for _, name := range opts.containers {
-		if err := dockerCli.Client().ContainerRestart(context.Background(), name, opts.nSeconds); err != nil {
+		if err := dockerCli.Client().ContainerRestart(context.Background(), name, time.Duration(opts.nSeconds)*time.Second); err != nil {
 			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(dockerCli.Out(), "%s\n", name)
