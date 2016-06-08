@@ -43,9 +43,6 @@ var ErrNoSwarm = fmt.Errorf("this node is not part of Swarm")
 // ErrSwarmExists is returned on initialize or join request for a cluster that has already been activated
 var ErrSwarmExists = fmt.Errorf("this node is already part of a Swarm")
 
-// ErrSwarmInitTimeoutReached is returned when cluster initialization could not complete before timeout was reached.
-var ErrSwarmInitTimeoutReached = fmt.Errorf("timeout reached before Swarm was initialized")
-
 // ErrSwarmJoinTimeoutReached is returned when cluster join could not complete before timeout was reached.
 var ErrSwarmJoinTimeoutReached = fmt.Errorf("timeout reached before node was joined")
 
@@ -257,56 +254,11 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 	}
 	c.Unlock()
 
-	go func() {
-		for conn := range n.ListenControlSocket(ctx) {
-			if ctx.Err() != nil {
-				return
-			}
-			if conn != nil {
-				client := swarmapi.NewControlClient(conn)
-				var cluster *swarmapi.Cluster
-				for i := 0; ; i++ {
-					lcr, err := client.ListClusters(ctx, &swarmapi.ListClustersRequest{})
-					if err != nil {
-						logrus.Errorf("error on ListClusters: %v", err)
-						return
-					}
-					if len(lcr.Clusters) == 0 {
-						if i < 10 {
-							time.Sleep(200 * time.Millisecond)
-							continue
-						}
-						logrus.Errorf("empty list of clusters was returned")
-						return
-					}
-					cluster = lcr.Clusters[0]
-					break
-				}
-				spec := &cluster.Spec
-
-				if err := convert.SwarmSpecUpdateAcceptancePolicy(spec, req.Spec.AcceptancePolicy); err != nil {
-					logrus.Errorf("error updating cluster settings: %v", err)
-					return
-				}
-				_, err = client.UpdateCluster(ctx, &swarmapi.UpdateClusterRequest{
-					ClusterID:      cluster.ID,
-					ClusterVersion: &cluster.Meta.Version,
-					Spec:           spec,
-				})
-				if err != nil {
-					logrus.Errorf("error updating cluster settings: %v", err)
-					return
-				}
-				return
-			}
-		}
-	}()
-
 	select {
-	case <-time.After(swarmConnectTimeout):
-		go c.reconnectOnFailure(ctx)
-		return "", ErrSwarmInitTimeoutReached
 	case <-n.Ready(context.Background()):
+		if err := initAcceptancePolicy(n, req.Spec.AcceptancePolicy); err != nil {
+			return "", err
+		}
 		go c.reconnectOnFailure(ctx)
 		return n.NodeID(), nil
 	case <-ctx.Done():
@@ -975,4 +927,47 @@ func (c *Cluster) managerStats() (current bool, reachable int, unreachable int, 
 		}
 	}
 	return
+}
+
+func initAcceptancePolicy(node *swarmagent.Node, acceptancePolicy types.AcceptancePolicy) error {
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	for conn := range node.ListenControlSocket(ctx) {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if conn != nil {
+			client := swarmapi.NewControlClient(conn)
+			var cluster *swarmapi.Cluster
+			for i := 0; ; i++ {
+				lcr, err := client.ListClusters(ctx, &swarmapi.ListClustersRequest{})
+				if err != nil {
+					return fmt.Errorf("error on listing clusters: %v", err)
+				}
+				if len(lcr.Clusters) == 0 {
+					if i < 10 {
+						time.Sleep(200 * time.Millisecond)
+						continue
+					}
+					return fmt.Errorf("empty list of clusters was returned")
+				}
+				cluster = lcr.Clusters[0]
+				break
+			}
+			spec := &cluster.Spec
+
+			if err := convert.SwarmSpecUpdateAcceptancePolicy(spec, acceptancePolicy); err != nil {
+				return fmt.Errorf("error updating cluster settings: %v", err)
+			}
+			_, err := client.UpdateCluster(ctx, &swarmapi.UpdateClusterRequest{
+				ClusterID:      cluster.ID,
+				ClusterVersion: &cluster.Meta.Version,
+				Spec:           spec,
+			})
+			if err != nil {
+				return fmt.Errorf("error updating cluster settings: %v", err)
+			}
+			return nil
+		}
+	}
+	return ctx.Err()
 }
