@@ -732,10 +732,10 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 		logrus.Errorf("Error deleting sandbox id %s for container %s: %v", sid, container.ID, err)
 	}
 
-	attributes := map[string]string{
-		"container": container.ID,
-	}
 	for _, nw := range networks {
+		attributes := map[string]string{
+			"container": container.ID,
+		}
 		daemon.LogNetworkEventWithAttributes(nw, "disconnect", attributes)
 	}
 }
