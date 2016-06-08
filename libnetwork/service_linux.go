@@ -56,7 +56,13 @@ func (c *controller) addServiceBinding(name, sid, nid, eid string, vip net.IP, i
 	}
 	c.Unlock()
 
+	// Add endpoint IP to special "tasks.svc_name" so that the
+	// applications have access to DNS RR.
+	n.(*network).addSvcRecords("tasks."+name, ip, nil, false)
+
 	s.Lock()
+	defer s.Unlock()
+
 	lb, ok := s.loadBalancers[nid]
 	if !ok {
 		// Create a new load balancer if we are seeing this
@@ -89,11 +95,6 @@ func (c *controller) addServiceBinding(name, sid, nid, eid string, vip net.IP, i
 	}
 
 	lb.backEnds[eid] = ip
-	s.Unlock()
-
-	// Add endpoint IP to special "tasks.svc_name" so that the
-	// applications have access to DNS RR.
-	n.(*network).addSvcRecords("tasks."+name, ip, nil, false)
 
 	// Add loadbalancer service and backend in all sandboxes in
 	// the network only if vip is valid.
@@ -120,17 +121,18 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 	}
 	c.Unlock()
 
+	// Delete the special "tasks.svc_name" backend record.
+	n.(*network).deleteSvcRecords("tasks."+name, ip, nil, false)
+
 	s.Lock()
+	defer s.Unlock()
+
 	lb, ok := s.loadBalancers[nid]
 	if !ok {
-		s.Unlock()
 		return nil
 	}
 
-	// Delete the special "tasks.svc_name" backend record.
-	n.(*network).deleteSvcRecords("tasks."+name, ip, nil, false)
 	delete(lb.backEnds, eid)
-
 	if len(lb.backEnds) == 0 {
 		// All the backends for this service have been
 		// removed. Time to remove the load balancer and also
@@ -153,7 +155,6 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 		// remove the service itself.
 		delete(c.serviceBindings, sid)
 	}
-	s.Unlock()
 
 	// Remove loadbalancer service(if needed) and backend in all
 	// sandboxes in the network only if the vip is valid.
@@ -312,7 +313,7 @@ func (sb *sandbox) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*P
 	// destination.
 	s.SchedName = ""
 	if err := i.NewDestination(s, d); err != nil && err != syscall.EEXIST {
-		logrus.Errorf("Failed to create real server %s for vip %s fwmark %d: %v", ip, vip, fwMark, err)
+		logrus.Errorf("Failed to create real server %s for vip %s fwmark %d in sb %s: %v", ip, vip, fwMark, sb.containerID, err)
 	}
 }
 
