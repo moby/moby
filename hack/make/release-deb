@@ -22,7 +22,7 @@ source "$(dirname "$BASH_SOURCE")/.detect-daemon-osarch"
 APTDIR=$DOCKER_RELEASE_DIR/apt/repo
 
 # setup the apt repo (if it does not exist)
-mkdir -p "$APTDIR/conf" "$APTDIR/db"
+mkdir -p "$APTDIR/conf" "$APTDIR/db" "$APTDIR/dists"
 
 # supported arches/sections
 arches=( amd64 i386 )
