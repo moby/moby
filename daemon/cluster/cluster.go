@@ -101,7 +101,7 @@ func New(config Config) (*Cluster, error) {
 		return nil, err
 	}
 
-	n, ctx, err := c.startNewNode(false, st.ListenAddr, "", "", false)
+	n, ctx, err := c.startNewNode(false, st.ListenAddr, "", "", "", false)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ func (c *Cluster) reconnectOnFailure(ctx context.Context) {
 			return
 		}
 		var err error
-		_, ctx, err = c.startNewNode(false, c.listenAddr, c.getRemoteAddress(), "", false)
+		_, ctx, err = c.startNewNode(false, c.listenAddr, c.getRemoteAddress(), "", "", false)
 		if err != nil {
 			c.err = err
 			ctx = delayCtx
@@ -161,7 +161,7 @@ func (c *Cluster) reconnectOnFailure(ctx context.Context) {
 	}
 }
 
-func (c *Cluster) startNewNode(forceNewCluster bool, listenAddr, joinAddr, token string, ismanager bool) (*swarmagent.Node, context.Context, error) {
+func (c *Cluster) startNewNode(forceNewCluster bool, listenAddr, joinAddr, secret, cahash string, ismanager bool) (*swarmagent.Node, context.Context, error) {
 	c.node = nil
 	c.cancelDelay = nil
 	node, err := swarmagent.NewNode(&swarmagent.NodeConfig{
@@ -171,12 +171,12 @@ func (c *Cluster) startNewNode(forceNewCluster bool, listenAddr, joinAddr, token
 		ListenRemoteAPI:  listenAddr,
 		JoinAddr:         joinAddr,
 		StateDir:         c.root,
-		// CAHash:           cahash,
-		Secret:        token,
-		Executor:      container.NewExecutor(c.config.Backend),
-		HeartbeatTick: 1,
-		ElectionTick:  3,
-		IsManager:     ismanager,
+		CAHash:           cahash,
+		Secret:           secret,
+		Executor:         container.NewExecutor(c.config.Backend),
+		HeartbeatTick:    1,
+		ElectionTick:     3,
+		IsManager:        ismanager,
 	})
 	if err != nil {
 		return nil, nil, err
@@ -258,7 +258,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 		c.ready = false
 	}
 	// todo: check current state existing
-	n, ctx, err := c.startNewNode(req.ForceNewCluster, req.ListenAddr, "", "", false)
+	n, ctx, err := c.startNewNode(req.ForceNewCluster, req.ListenAddr, "", "", "", false)
 	if err != nil {
 		c.Unlock()
 		return "", err
@@ -290,7 +290,7 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 		return ErrSwarmExists
 	}
 	// todo: check current state existing
-	n, ctx, err := c.startNewNode(false, req.ListenAddr, req.RemoteAddr, req.Secret, req.Manager)
+	n, ctx, err := c.startNewNode(false, req.ListenAddr, req.RemoteAddr, req.Secret, req.CACertHash, req.Manager)
 	if err != nil {
 		c.Unlock()
 		return err
@@ -516,6 +516,10 @@ func (c *Cluster) Info() types.Info {
 			info.Remotes[r.NodeID] = r.Addr
 		}
 		info.NodeID = c.node.NodeID()
+	}
+
+	if swarm, err := getSwarm(c.getRequestContext(), c.client); err == nil && swarm.RootCA != nil {
+		info.CACertHash = swarm.RootCA.CACertHash
 	}
 
 	return info
