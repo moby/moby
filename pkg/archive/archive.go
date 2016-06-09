@@ -428,8 +428,15 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 	var errors []string
 	for key, value := range hdr.Xattrs {
 		if err := system.Lsetxattr(path, key, []byte(value), 0); err != nil {
-			// We ignore errors here because not all graphdrivers support xattrs.
-			errors = append(errors, err.Error())
+			if err == syscall.ENOTSUP {
+				// We ignore errors here because not all graphdrivers support
+				// xattrs *cough* old versions of AUFS *cough*. However only
+				// ENOTSUP should be emitted in that case, otherwise we still
+				// bail.
+				errors = append(errors, err.Error())
+				continue
+			}
+			return err
 		}
 
 	}
