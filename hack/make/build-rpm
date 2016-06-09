@@ -51,7 +51,7 @@ set -e
 	rpmDate="$(date +'%a %b %d %Y')"
 
 	# if go-md2man is available, pre-generate the man pages
-	./man/md2man-all.sh -q || true
+	./man/generate.sh || true
 	# TODO decide if it's worth getting go-md2man in _each_ builder environment to avoid this
 
 	# Convert the CHANGELOG.md file into RPM changelog format
