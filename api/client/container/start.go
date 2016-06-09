@@ -118,7 +118,7 @@ func runStart(dockerCli *client.DockerCli, opts *startOptions) error {
 		if attchErr := <-cErr; attchErr != nil {
 			return attchErr
 		}
-		_, status, err := dockerCli.GetExitCode(ctx, container)
+		_, status, err := getExitCode(dockerCli, ctx, container)
 		if err != nil {
 			return err
 		}
