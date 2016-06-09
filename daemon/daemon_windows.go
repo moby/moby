@@ -222,6 +222,18 @@ func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[
 		return nil, err
 	}
 
+	defaultNetworkExists := false
+
+	if network, err := controller.NetworkByName(runconfig.DefaultDaemonNetworkMode().NetworkName()); err == nil {
+		options := network.Info().DriverOptions()
+		for _, v := range hnsresponse {
+			if options[winlibnetwork.HNSID] == v.Id {
+				defaultNetworkExists = true
+				break
+			}
+		}
+	}
+
 	// discover and add HNS networks to windows
 	// network that exist are removed and added again
 	for _, v := range hnsresponse {
@@ -238,6 +250,8 @@ func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[
 		controller.WalkNetworks(s)
 		if n != nil {
 			v.Name = n.Name()
+			// This will not cause network delete from HNS as the network
+			// is not yet populated in the libnetwork windows driver
 			n.Delete()
 		}
 
@@ -255,10 +269,12 @@ func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[
 		}
 
 		name := v.Name
-		// There is only one nat network supported in windows.
-		// If it exists with a different name add it as the default name
-		if runconfig.DefaultDaemonNetworkMode() == containertypes.NetworkMode(strings.ToLower(v.Type)) {
+
+		// If there is no nat network create one from the first NAT network
+		// encountered
+		if !defaultNetworkExists && runconfig.DefaultDaemonNetworkMode() == containertypes.NetworkMode(strings.ToLower(v.Type)) {
 			name = runconfig.DefaultDaemonNetworkMode().NetworkName()
+			defaultNetworkExists = true
 		}
 
 		v6Conf := []*libnetwork.IpamConf{}
@@ -293,26 +309,38 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 		winlibnetwork.NetworkName: runconfig.DefaultDaemonNetworkMode().NetworkName(),
 	}
 
-	ipamV4Conf := libnetwork.IpamConf{}
-	if config.bridgeConfig.FixedCIDR == "" {
-		ipamV4Conf.PreferredPool = defaultNetworkSpace
+	var ipamOption libnetwork.NetworkOption
+	var subnetPrefix string
+
+	if config.bridgeConfig.FixedCIDR != "" {
+		subnetPrefix = config.bridgeConfig.FixedCIDR
 	} else {
-		ipamV4Conf.PreferredPool = config.bridgeConfig.FixedCIDR
+		// TP5 doesn't support properly detecting subnet
+		osv := system.GetOSVersion()
+		if osv.Build < 14360 {
+			subnetPrefix = defaultNetworkSpace
+		}
 	}
 
-	v4Conf := []*libnetwork.IpamConf{&ipamV4Conf}
-	v6Conf := []*libnetwork.IpamConf{}
+	if subnetPrefix != "" {
+		ipamV4Conf := libnetwork.IpamConf{}
+		ipamV4Conf.PreferredPool = subnetPrefix
+		v4Conf := []*libnetwork.IpamConf{&ipamV4Conf}
+		v6Conf := []*libnetwork.IpamConf{}
+		ipamOption = libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil)
+	}
 
 	_, err := controller.NewNetwork(string(runconfig.DefaultDaemonNetworkMode()), runconfig.DefaultDaemonNetworkMode().NetworkName(), "",
 		libnetwork.NetworkOptionGeneric(options.Generic{
 			netlabel.GenericData: netOption,
 		}),
-		libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
+		ipamOption,
 	)
 
 	if err != nil {
 		return fmt.Errorf("Error creating default network: %v", err)
 	}
+
 	return nil
 }
 
