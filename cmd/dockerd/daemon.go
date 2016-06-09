@@ -215,6 +215,7 @@ func (cli *DaemonCli) start() (err error) {
 	}
 
 	api := apiserver.New(serverConfig)
+	cli.api = api
 
 	for i := 0; i < len(cli.Config.Hosts); i++ {
 		var err error
@@ -290,7 +291,6 @@ func (cli *DaemonCli) start() (err error) {
 	initRouter(api, d, c)
 
 	cli.d = d
-	cli.api = api
 	cli.setupConfigReloadTrap()
 
 	// The serve API routine never exits unless an error occurs
