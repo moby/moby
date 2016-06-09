@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"golang.org/x/crypto/bcrypt"
+
 	types "github.com/docker/engine-api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/protobuf/ptypes"
@@ -45,7 +47,7 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 		swarm.Spec.AcceptancePolicy.Policies = append(swarm.Spec.AcceptancePolicy.Policies, types.Policy{
 			Role:       types.NodeRole(policy.Role.String()),
 			Autoaccept: policy.Autoaccept,
-			Secret:     policy.Secret,
+			Secret:     string(policy.Secret.Data),
 		})
 	}
 
@@ -91,10 +93,18 @@ func SwarmSpecUpdateAcceptancePolicy(spec *swarmapi.ClusterSpec, acceptancePolic
 		if !ok {
 			return fmt.Errorf("invalid Role: %q", p.Role)
 		}
+		var apiSecret *swarmapi.AcceptancePolicy_RoleAdmissionPolicy_HashedSecret
+		if p.Secret != "" {
+			hashPwd, _ := bcrypt.GenerateFromPassword([]byte(p.Secret), 0)
+			apiSecret = &swarmapi.AcceptancePolicy_RoleAdmissionPolicy_HashedSecret{
+				Data: hashPwd,
+				Alg:  "bcrypt",
+			}
+		}
 		policy := &swarmapi.AcceptancePolicy_RoleAdmissionPolicy{
 			Role:       swarmapi.NodeRole(role),
 			Autoaccept: p.Autoaccept,
-			Secret:     p.Secret,
+			Secret:     apiSecret,
 		}
 		spec.AcceptancePolicy.Policies = append(spec.AcceptancePolicy.Policies, policy)
 	}
