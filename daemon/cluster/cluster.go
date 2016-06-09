@@ -518,8 +518,10 @@ func (c *Cluster) Info() types.Info {
 		info.NodeID = c.node.NodeID()
 	}
 
-	if swarm, err := getSwarm(c.getRequestContext(), c.client); err == nil && swarm.RootCA != nil {
-		info.CACertHash = swarm.RootCA.CACertHash
+	if c.isActiveManager() {
+		if swarm, err := getSwarm(c.getRequestContext(), c.client); err == nil && swarm != nil && swarm.RootCA != nil {
+			info.CACertHash = swarm.RootCA.CACertHash
+		}
 	}
 
 	return info
