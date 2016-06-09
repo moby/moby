@@ -30,10 +30,10 @@ func (d *SwarmDaemon) Init(autoAccept map[string]bool, secret string) error {
 	req := swarm.InitRequest{
 		ListenAddr: d.listenAddr,
 	}
-	for _, role := range []string{swarm.NodeRoleManager, swarm.NodeRoleWorker} {
+	for _, role := range []swarm.NodeRole{swarm.NodeRoleManager, swarm.NodeRoleWorker} {
 		req.Spec.AcceptancePolicy.Policies = append(req.Spec.AcceptancePolicy.Policies, swarm.Policy{
 			Role:       role,
-			Autoaccept: autoAccept[strings.ToLower(role)],
+			Autoaccept: autoAccept[strings.ToLower(string(role))],
 			Secret:     secret,
 		})
 	}
@@ -61,7 +61,7 @@ func (d *SwarmDaemon) Join(remoteAddr, secret string, manager bool) error {
 		Secret:     secret,
 	})
 	if status != http.StatusOK {
-		return fmt.Errorf("joinning swarm: invalid statuscode %v, %q", status, out)
+		return fmt.Errorf("joining swarm: invalid statuscode %v, %q", status, out)
 	}
 	if err != nil {
 		return fmt.Errorf("joining swarm: %v", err)
