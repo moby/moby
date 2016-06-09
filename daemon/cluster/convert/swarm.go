@@ -43,7 +43,7 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 
 	for _, policy := range c.Spec.AcceptancePolicy.Policies {
 		swarm.Spec.AcceptancePolicy.Policies = append(swarm.Spec.AcceptancePolicy.Policies, types.Policy{
-			Role:       policy.Role.String(),
+			Role:       types.NodeRole(policy.Role.String()),
 			Autoaccept: policy.Autoaccept,
 			Secret:     policy.Secret,
 		})
@@ -87,7 +87,7 @@ func SwarmSpecToGRPC(s types.Swarm) (swarmapi.ClusterSpec, error) {
 func SwarmSpecUpdateAcceptancePolicy(spec *swarmapi.ClusterSpec, acceptancePolicy types.AcceptancePolicy) error {
 	spec.AcceptancePolicy.Policies = nil
 	for _, p := range acceptancePolicy.Policies {
-		role, ok := swarmapi.NodeRole_value[strings.ToUpper(p.Role)]
+		role, ok := swarmapi.NodeRole_value[strings.ToUpper(string(p.Role))]
 		if !ok {
 			return fmt.Errorf("invalid Role: %q", p.Role)
 		}

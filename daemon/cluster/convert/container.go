@@ -22,13 +22,12 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 	// Mounts
 	for _, m := range c.Mounts {
 		mount := types.Mount{
-			Target:        m.Target,
-			Source:        m.Source,
-			Type:          types.MountType(swarmapi.Mount_MountType_name[int32(m.Type)]),
-			Populate:      m.Populate,
-			Propagation:   types.MountPropagation(swarmapi.Mount_MountPropagation_name[int32(m.Propagation)]),
-			MCSAccessMode: types.MountMCSAaccessMode(swarmapi.Mount_MountMCSAccessMode_name[int32(m.Mcsaccessmode)]),
-			Writable:      m.Writable,
+			Target:      m.Target,
+			Source:      m.Source,
+			Type:        types.MountType(swarmapi.Mount_MountType_name[int32(m.Type)]),
+			Populate:    m.Populate,
+			Propagation: types.MountPropagation(swarmapi.Mount_MountPropagation_name[int32(m.Propagation)]),
+			Writable:    m.Writable,
 			// TODO: template
 		}
 
@@ -82,13 +81,6 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 			mount.Propagation = swarmapi.Mount_MountPropagation(mountPropagation)
 		} else if string(m.Propagation) != "" {
 			return nil, fmt.Errorf("invalid MountPropagation: %q", m.Propagation)
-
-		}
-
-		if mountMCSAccessMode, ok := swarmapi.Mount_MountMCSAccessMode_value[string(m.MCSAccessMode)]; ok {
-			mount.Mcsaccessmode = swarmapi.Mount_MountMCSAccessMode(mountMCSAccessMode)
-		} else if string(m.MCSAccessMode) != "" {
-			return nil, fmt.Errorf("invalid MountMCSAccessMode: %q", m.MCSAccessMode)
 
 		}
 
