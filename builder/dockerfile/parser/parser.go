@@ -91,7 +91,7 @@ func init() {
 // ParseLine parse a line and return the remainder.
 func ParseLine(line string) (string, *Node, error) {
 
-	// Handle the parser directive '# escape=<char>. Parser directives must preceed
+	// Handle the parser directive '# escape=<char>. Parser directives must precede
 	// any builder instruction or other comments, and cannot be repeated.
 	if lookingForDirectives {
 		tecMatch := tokenEscapeCommand.FindStringSubmatch(strings.ToLower(line))
