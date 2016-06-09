@@ -20,6 +20,16 @@ type QosPolicy struct {
 	MaximumOutgoingBandwidthInBytes uint64
 }
 
+type VlanPolicy struct {
+	Type string
+	VLAN uint
+}
+
+type VsidPolicy struct {
+	Type string
+	VSID uint
+}
+
 // Subnet is assoicated with a network and represents a list
 // of subnets available to the network
 type Subnet struct {

@@ -17,6 +17,7 @@ var (
 	procCopyLayer                                  = modvmcompute.NewProc("CopyLayer")
 	procCreateLayer                                = modvmcompute.NewProc("CreateLayer")
 	procCreateSandboxLayer                         = modvmcompute.NewProc("CreateSandboxLayer")
+	procExpandSandboxSize                          = modvmcompute.NewProc("ExpandSandboxSize")
 	procDeactivateLayer                            = modvmcompute.NewProc("DeactivateLayer")
 	procDestroyLayer                               = modvmcompute.NewProc("DestroyLayer")
 	procExportLayer                                = modvmcompute.NewProc("ExportLayer")
@@ -178,6 +179,26 @@ func _createSandboxLayer(info *driverInfo, id *uint16, parent *uint16, descripto
 		return
 	}
 	r0, _, _ := syscall.Syscall6(procCreateSandboxLayer.Addr(), 5, uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), uintptr(unsafe.Pointer(parent)), uintptr(unsafe.Pointer(_p2)), uintptr(len(descriptors)), 0)
+	if int32(r0) < 0 {
+		hr = syscall.Errno(win32FromHresult(r0))
+	}
+	return
+}
+
+func expandSandboxSize(info *driverInfo, id string, size uint64) (hr error) {
+	var _p0 *uint16
+	_p0, hr = syscall.UTF16PtrFromString(id)
+	if hr != nil {
+		return
+	}
+	return _expandSandboxSize(info, _p0, size)
+}
+
+func _expandSandboxSize(info *driverInfo, id *uint16, size uint64) (hr error) {
+	if hr = procExpandSandboxSize.Find(); hr != nil {
+		return
+	}
+	r0, _, _ := syscall.Syscall(procExpandSandboxSize.Addr(), 3, uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), uintptr(size))
 	if int32(r0) < 0 {
 		hr = syscall.Errno(win32FromHresult(r0))
 	}

@@ -46,6 +46,7 @@ type ContainerConfig struct {
 	IgnoreFlushesDuringBoot bool        // Optimization hint for container startup in Windows
 	LayerFolderPath         string      // Where the layer folders are located
 	Layers                  []Layer     // List of storage layers
+	Credentials             string      `json:",omitempty"` // Credentials information
 	ProcessorWeight         uint64      `json:",omitempty"` // CPU Shares 0..10000 on Windows; where 0 will be omitted and HCS will default.
 	ProcessorMaximum        int64       `json:",omitempty"` // CPU maximum usage percent 1..100
 	StorageIOPSMaximum      uint64      `json:",omitempty"` // Maximum Storage IOPS

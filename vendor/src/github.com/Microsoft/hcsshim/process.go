@@ -103,6 +103,9 @@ func (process *process) Wait() error {
 	if hcsCallbacksSupported {
 		err := waitForNotification(process.callbackNumber, hcsNotificationProcessExited, nil)
 		if err != nil {
+			if err == ErrUnexpectedProcessAbort || err == ErrUnexpectedContainerExit {
+				return err
+			}
 			err := &ProcessError{Operation: operation, Process: process, Err: err}
 			logrus.Error(err)
 			return err
@@ -129,9 +132,10 @@ func (process *process) WaitTimeout(timeout time.Duration) error {
 
 	if hcsCallbacksSupported {
 		err := waitForNotification(process.callbackNumber, hcsNotificationProcessExited, &timeout)
-		if err == ErrTimeout {
-			return ErrTimeout
-		} else if err != nil {
+		if err != nil {
+			if err == ErrTimeout || err == ErrUnexpectedProcessAbort || err == ErrUnexpectedContainerExit {
+				return err
+			}
 			err := &ProcessError{Operation: operation, Process: process, Err: err}
 			logrus.Error(err)
 			return err
