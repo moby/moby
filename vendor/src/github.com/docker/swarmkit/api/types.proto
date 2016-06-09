@@ -171,21 +171,10 @@ message Mount {
 	// Propagation mode of mount
 	Propagation propagation = 5;
 
-	enum MCSAccessMode {
-		option (gogoproto.goproto_enum_prefix) = false;
-		option (gogoproto.enum_customname) = "MountMCSAccessMode";
-
-		MCSNONE = 0 [(gogoproto.enumvalue_customname) = "MountMCSAccessModeNone"];
-		MCSPRIVATE = 1 [(gogoproto.enumvalue_customname) = "MountMCSAccessModePrivate"];
-		MCSSHARED = 2 [(gogoproto.enumvalue_customname) = "MountMCSAccessModeShared"];
-	}
-	// Set shared mode for mcs (e.g. selinux)
-	MCSAccessMode mcsaccessmode = 6;
-
 	// populate volume with data from target
-	bool populate = 7;
+	bool populate = 6;
 
-	VolumeTemplate template = 8;
+	VolumeTemplate template = 7;
 }
 
 message RestartPolicy {
@@ -419,13 +408,20 @@ message IssuanceStatus {
 
 message AcceptancePolicy {
 	message RoleAdmissionPolicy {
+		message HashedSecret {
+			// The actual hashed content
+			bytes data = 1;
+			// The type of hash we are using
+			string alg = 2;
+		}
+
 		NodeRole role = 1;
 		// Autoaccept controls which roles' certificates are automatically
 		// issued without administrator intervention.
 		bool autoaccept = 2;
 		// Secret represents a user-provided string that is necessary for new
 		// nodes to join the cluster
-		string secret = 3;
+		HashedSecret secret = 3;
 	}
 
 	repeated RoleAdmissionPolicy policies = 1;
@@ -493,6 +489,9 @@ message RootCA {
 
 	// CACert is the root CA certificate.
 	bytes ca_cert = 2 [(gogoproto.customname) = "CACert"];
+
+	// CACertHash is the digest of the CA Certificate.
+	string ca_cert_hash = 3 [(gogoproto.customname) = "CACertHash"];
 }
 
 

@@ -212,7 +212,6 @@ func New(config *Config) (*Manager, error) {
 		listeners:   listeners,
 		caserver:    ca.NewServer(RaftNode.MemoryStore(), config.SecurityConfig),
 		Dispatcher:  dispatcher.New(RaftNode, dispatcherConfig),
-		keyManager:  keymanager.New(RaftNode.MemoryStore(), keymanager.DefaultConfig()),
 		server:      grpc.NewServer(opts...),
 		localserver: grpc.NewServer(opts...),
 		RaftNode:    RaftNode,
@@ -292,8 +291,9 @@ func (m *Manager) Run(parent context.Context) error {
 							CAConfig: ca.DefaultCAConfig(),
 						},
 						RootCA: &api.RootCA{
-							CAKey:  rootCA.Key,
-							CACert: rootCA.Cert,
+							CAKey:      rootCA.Key,
+							CACert:     rootCA.Cert,
+							CACertHash: rootCA.Digest.String(),
 						},
 					})
 					// Add Node entry for ourself, if one
@@ -325,6 +325,7 @@ func (m *Manager) Run(parent context.Context) error {
 				m.globalOrchestrator = orchestrator.NewGlobalOrchestrator(s)
 				m.taskReaper = orchestrator.NewTaskReaper(s)
 				m.scheduler = scheduler.New(s)
+				m.keyManager = keymanager.New(m.RaftNode.MemoryStore(), keymanager.DefaultConfig())
 
 				// TODO(stevvooe): Allocate a context that can be used to
 				// shutdown underlying manager processes when leadership is
@@ -563,6 +564,9 @@ func (m *Manager) Stop(ctx context.Context) {
 	}
 	if m.scheduler != nil {
 		m.scheduler.Stop()
+	}
+	if m.keyManager != nil {
+		m.keyManager.Stop()
 	}
 
 	m.RaftNode.Shutdown()

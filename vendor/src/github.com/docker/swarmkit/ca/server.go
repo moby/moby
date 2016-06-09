@@ -1,8 +1,8 @@
 package ca
 
 import (
-	"crypto/subtle"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -12,13 +12,14 @@ import (
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/protobuf/ptypes"
+	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
 
 // Server is the CA and NodeCA API gRPC server.
-// TODO(aaronl): At some point we may want to have separate implementations of
+// TODO(diogo): At some point we may want to have separate implementations of
 // CA, NodeCA, and other hypothetical future CA services. At the moment,
 // breaking it apart doesn't seem worth it.
 type Server struct {
@@ -176,10 +177,11 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 	// Attempt to retrieve a policy for the role
 	policy := s.getRolePolicy(request.Role)
 	if policy != nil {
-		// If we have a secret configured, constant time compare!
-		if policy.Secret != "" &&
-			subtle.ConstantTimeCompare([]byte(request.Secret), []byte(policy.Secret)) != 1 {
-			return nil, grpc.Errorf(codes.InvalidArgument, "A valid secret token is necessary to join this cluster")
+		// If the policy has a Secret set, let's verify it
+		if policy.Secret != nil {
+			if err := checkSecretValidity(policy, request.Secret); err != nil {
+				return nil, grpc.Errorf(codes.InvalidArgument, "A valid secret token is necessary to join this cluster: %v", err)
+			}
 		}
 		// Check to see if our autoacceptance policy allows this node to be issued without manual intervention
 		if policy.Autoaccept {
@@ -238,6 +240,18 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 	}, nil
 }
 
+func checkSecretValidity(policy *api.AcceptancePolicy_RoleAdmissionPolicy, secret string) error {
+	if policy == nil || secret == "" {
+		return fmt.Errorf("invalid policy or secret")
+	}
+
+	switch strings.ToLower(policy.Secret.Alg) {
+	case "bcrypt":
+		return bcrypt.CompareHashAndPassword(policy.Secret.Data, []byte(secret))
+	}
+
+	return fmt.Errorf("hash algorithm not supported: %s", policy.Secret.Alg)
+}
 func (s *Server) getRolePolicy(role api.NodeRole) *api.AcceptancePolicy_RoleAdmissionPolicy {
 	s.mu.Lock()
 	defer s.mu.Unlock()

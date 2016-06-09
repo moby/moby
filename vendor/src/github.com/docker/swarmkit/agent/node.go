@@ -3,6 +3,7 @@ package agent
 import (
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -500,12 +501,14 @@ func (n *Node) loadCertificates() error {
 		}
 		return err
 	}
-	clientTLSCreds, _, err := ca.LoadTLSCreds(rootCA, ca.NewConfigPaths(certDir).Node)
+	configPaths := ca.NewConfigPaths(certDir)
+	clientTLSCreds, _, err := ca.LoadTLSCreds(rootCA, configPaths.Node)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
-		return err
+
+		return fmt.Errorf("error while loading TLS Certificate in %s: %v", configPaths.Node.Cert, err)
 	}
 	// todo: try csr if no cert or store nodeID/role in some other way
 	n.Lock()

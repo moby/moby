@@ -1,16 +1,16 @@
 package ca
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rand"
-	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -23,6 +23,7 @@ import (
 	cflog "github.com/cloudflare/cfssl/log"
 	cfsigner "github.com/cloudflare/cfssl/signer"
 	"github.com/cloudflare/cfssl/signer/local"
+	"github.com/docker/distribution/digest"
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/identity"
@@ -89,11 +90,12 @@ type CertPaths struct {
 type RootCA struct {
 	// Key will only be used by the original manager to put the private
 	// key-material in raft, no signing operations depend on it.
-	Key            []byte
-	Cert           []byte
-	Pool           *x509.CertPool
-	NodeCertExpiry time.Duration
-
+	Key []byte
+	// Cert includes the PEM encoded Certificate for the Root CA
+	Cert []byte
+	Pool *x509.CertPool
+	// Digest of the serialized bytes of the certificate
+	Digest digest.Digest
 	// This signer will be nil if the node doesn't have the appropriate key material
 	Signer cfsigner.Signer
 }
@@ -232,6 +234,9 @@ func NewRootCA(cert, key []byte, certExpiry time.Duration) (RootCA, error) {
 		return RootCA{}, err
 	}
 
+	// Calculate the digest for our RootCACertificate
+	digest := digest.FromBytes(cert)
+
 	// Create a Pool with our RootCACertificate
 	pool := x509.NewCertPool()
 	if !pool.AppendCertsFromPEM(cert) {
@@ -240,7 +245,7 @@ func NewRootCA(cert, key []byte, certExpiry time.Duration) (RootCA, error) {
 
 	if len(key) == 0 {
 		// This RootCA does not have a valid signer.
-		return RootCA{Cert: cert, Pool: pool}, nil
+		return RootCA{Cert: cert, Digest: digest, Pool: pool}, nil
 	}
 
 	var (
@@ -282,7 +287,7 @@ func NewRootCA(cert, key []byte, certExpiry time.Duration) (RootCA, error) {
 	keyBlock, _ := pem.Decode(key)
 	if keyBlock == nil {
 		// This RootCA does not have a valid signer.
-		return RootCA{Cert: cert, Pool: pool}, nil
+		return RootCA{Cert: cert, Digest: digest, Pool: pool}, nil
 	}
 	if passphraseStr != "" && !x509.IsEncryptedPEMBlock(keyBlock) {
 		key, err = EncryptECPrivateKey(key, passphraseStr)
@@ -291,7 +296,7 @@ func NewRootCA(cert, key []byte, certExpiry time.Duration) (RootCA, error) {
 		}
 	}
 
-	return RootCA{Signer: signer, Key: key, Cert: cert, Pool: pool}, nil
+	return RootCA{Signer: signer, Key: key, Digest: digest, Cert: cert, Pool: pool}, nil
 }
 
 func ensureCertKeyMatch(cert *x509.Certificate, key crypto.PublicKey) error {
@@ -343,7 +348,7 @@ func GetLocalRootCA(baseDir string) (RootCA, error) {
 }
 
 // GetRemoteCA returns the remote endpoint's CA certificate
-func GetRemoteCA(ctx context.Context, hashStr string, picker *picker.Picker) (RootCA, error) {
+func GetRemoteCA(ctx context.Context, d digest.Digest, picker *picker.Picker) (RootCA, error) {
 	// We need a valid picker to be able to Dial to a remote CA
 	if picker == nil {
 		return RootCA{}, fmt.Errorf("valid remote address picker required")
@@ -375,13 +380,17 @@ func GetRemoteCA(ctx context.Context, hashStr string, picker *picker.Picker) (Ro
 		return RootCA{}, err
 	}
 
-	if hashStr != "" {
-		shaHash := sha256.New()
-		shaHash.Write(response.Certificate)
-		md := shaHash.Sum(nil)
-		mdStr := hex.EncodeToString(md)
-		if hashStr != mdStr {
-			return RootCA{}, fmt.Errorf("remote CA does not match fingerprint. Expected: %s, got %s", hashStr, mdStr)
+	if d != "" {
+		verifier, err := digest.NewDigestVerifier(d)
+		if err != nil {
+			return RootCA{}, fmt.Errorf("unexpected error getting digest verifier: %v", err)
+		}
+
+		io.Copy(verifier, bytes.NewReader(response.Certificate))
+
+		if !verifier.Verified() {
+			return RootCA{}, fmt.Errorf("remote CA does not match fingerprint. Expected: %s", d.Hex())
+
 		}
 	}
 
@@ -416,26 +425,6 @@ func CreateAndWriteRootCA(rootCN string, paths CertPaths) (RootCA, error) {
 		return RootCA{}, err
 	}
 
-	// Convert the key given by initca to an object to create a RootCA
-	parsedKey, err := helpers.ParsePrivateKeyPEM(key)
-	if err != nil {
-		log.Errorf("failed to parse private key: %v", err)
-		return RootCA{}, err
-	}
-
-	// Convert the certificate into an object to create a RootCA
-	parsedCert, err := helpers.ParseCertificatePEM(cert)
-	if err != nil {
-		return RootCA{}, err
-	}
-
-	// Create a Signer out of the private key
-	signer, err := local.NewSigner(parsedKey, parsedCert, cfsigner.DefaultSigAlgo(parsedKey), DefaultPolicy())
-	if err != nil {
-		log.Errorf("failed to create signer: %v", err)
-		return RootCA{}, err
-	}
-
 	// Ensure directory exists
 	err = os.MkdirAll(filepath.Dir(paths.Cert), 0755)
 	if err != nil {
@@ -450,13 +439,7 @@ func CreateAndWriteRootCA(rootCN string, paths CertPaths) (RootCA, error) {
 		return RootCA{}, err
 	}
 
-	// Create a Pool with our Root CA Certificate
-	pool := x509.NewCertPool()
-	if !pool.AppendCertsFromPEM(cert) {
-		return RootCA{}, fmt.Errorf("failed to append certificate to cert pool")
-	}
-
-	return RootCA{Signer: signer, Key: key, Cert: cert, Pool: pool}, nil
+	return NewRootCA(cert, key, DefaultNodeCertExpiration)
 }
 
 // BootstrapCluster receives a directory and creates both new Root CA key material
