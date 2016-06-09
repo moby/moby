@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/docker/distribution"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/stringid"
@@ -110,14 +111,14 @@ func TestLayerMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer1b, err := ls.Register(bytes.NewReader(tar1), "")
+	layer1b, err := ls.Register(bytes.NewReader(tar1), "", distribution.Descriptor{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	assertReferences(t, layer1a, layer1b)
 	// Attempt register, should be same
-	layer2a, err := ls.Register(bytes.NewReader(tar2), layer1a.ChainID())
+	layer2a, err := ls.Register(bytes.NewReader(tar2), layer1a.ChainID(), distribution.Descriptor{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,7 +239,7 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer1b, err := ls.Register(bytes.NewReader(tar1), "")
+	layer1b, err := ls.Register(bytes.NewReader(tar1), "", distribution.Descriptor{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -246,7 +247,7 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 	assertReferences(t, layer1a, layer1b)
 
 	// Attempt register, should be same
-	layer2a, err := ls.Register(bytes.NewReader(tar2), layer1a.ChainID())
+	layer2a, err := ls.Register(bytes.NewReader(tar2), layer1a.ChainID(), distribution.Descriptor{})
 	if err != nil {
 		t.Fatal(err)
 	}

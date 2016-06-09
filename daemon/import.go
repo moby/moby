@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/docker/distribution"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
@@ -88,7 +89,8 @@ func (daemon *Daemon) ImportImage(src string, repository, tag string, msg string
 		return err
 	}
 	// TODO: support windows baselayer?
-	l, err := daemon.layerStore.Register(inflatedLayerData, "")
+	// TODO(runcom): generate descriptor
+	l, err := daemon.layerStore.Register(inflatedLayerData, "", distribution.Descriptor{})
 	if err != nil {
 		return err
 	}

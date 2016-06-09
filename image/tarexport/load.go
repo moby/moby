@@ -185,17 +185,10 @@ func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string,
 
 		progressReader := progress.NewProgressReader(inflatedLayerData, progressOutput, fileInfo.Size(), stringid.TruncateID(id), "Loading layer")
 
-		if ds, ok := l.ls.(layer.DescribableStore); ok {
-			return ds.RegisterWithDescriptor(progressReader, rootFS.ChainID(), foreignSrc)
-		}
-		return l.ls.Register(progressReader, rootFS.ChainID())
-
+		return l.ls.Register(progressReader, rootFS.ChainID(), foreignSrc)
 	}
 
-	if ds, ok := l.ls.(layer.DescribableStore); ok {
-		return ds.RegisterWithDescriptor(inflatedLayerData, rootFS.ChainID(), foreignSrc)
-	}
-	return l.ls.Register(inflatedLayerData, rootFS.ChainID())
+	return l.ls.Register(inflatedLayerData, rootFS.ChainID(), foreignSrc)
 }
 
 func (l *tarexporter) setLoadedTag(ref reference.NamedTagged, imgID image.ID, outStream io.Writer) error {
