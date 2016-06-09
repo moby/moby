@@ -19,6 +19,7 @@ import (
 //sys copyLayer(info *driverInfo, srcId string, dstId string, descriptors []WC_LAYER_DESCRIPTOR) (hr error) = vmcompute.CopyLayer?
 //sys createLayer(info *driverInfo, id string, parent string) (hr error) = vmcompute.CreateLayer?
 //sys createSandboxLayer(info *driverInfo, id string, parent string, descriptors []WC_LAYER_DESCRIPTOR) (hr error) = vmcompute.CreateSandboxLayer?
+//sys expandSandboxSize(info *driverInfo, id string, size uint64) (hr error) = vmcompute.ExpandSandboxSize?
 //sys deactivateLayer(info *driverInfo, id string) (hr error) = vmcompute.DeactivateLayer?
 //sys destroyLayer(info *driverInfo, id string) (hr error) = vmcompute.DestroyLayer?
 //sys exportLayer(info *driverInfo, id string, path string, descriptors []WC_LAYER_DESCRIPTOR) (hr error) = vmcompute.ExportLayer?
