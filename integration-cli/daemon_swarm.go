@@ -16,13 +16,15 @@ import (
 type SwarmDaemon struct {
 	*Daemon
 	NodeID     string
+	CACertHash string
 	port       int
 	listenAddr string
 }
 type swarmInfo struct {
-	IsManager bool
-	IsAgent   bool
-	NodeID    string
+	IsManager  bool
+	IsAgent    bool
+	NodeID     string
+	CACertHash string
 }
 
 // Init initializes a new swarm cluster.
@@ -49,16 +51,18 @@ func (d *SwarmDaemon) Init(autoAccept map[string]bool, secret string) error {
 		return err
 	}
 	d.NodeID = st.NodeID
+	d.CACertHash = st.CACertHash
 	return nil
 }
 
 // Join joins a current daemon with existing cluster.
-func (d *SwarmDaemon) Join(remoteAddr, secret string, manager bool) error {
+func (d *SwarmDaemon) Join(remoteAddr, secret, cahash string, manager bool) error {
 	status, out, err := d.SockRequest("POST", "/swarm/join", swarm.JoinRequest{
 		ListenAddr: d.listenAddr,
 		RemoteAddr: remoteAddr,
 		Manager:    manager,
 		Secret:     secret,
+		CACertHash: cahash,
 	})
 	if status != http.StatusOK {
 		return fmt.Errorf("joining swarm: invalid statuscode %v, %q", status, out)

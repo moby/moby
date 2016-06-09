@@ -38,7 +38,7 @@ func (s *DockerSwarmSuite) TestApiSwarmInit(c *check.C) {
 	c.Assert(ismanager, checker.Equals, false)
 	c.Assert(isagent, checker.Equals, false)
 
-	c.Assert(d2.Join(d1.listenAddr, "", false), checker.IsNil)
+	c.Assert(d2.Join(d1.listenAddr, "", "", false), checker.IsNil)
 
 	ismanager, isagent, err = d2.SwarmStatus()
 	c.Assert(err, checker.IsNil)
@@ -79,7 +79,7 @@ func (s *DockerSwarmSuite) testAPISwarmManualAcceptance(c *check.C, secret strin
 	c.Assert(d1.Init(map[string]bool{}, secret), checker.IsNil)
 
 	d2 := s.AddDaemon(c, false, false)
-	err := d2.Join(d1.listenAddr, "", false)
+	err := d2.Join(d1.listenAddr, "", "", false)
 	c.Assert(err, checker.NotNil)
 	if secret == "" {
 		c.Assert(err.Error(), checker.Contains, "Timeout reached")
@@ -104,7 +104,7 @@ func (s *DockerSwarmSuite) testAPISwarmManualAcceptance(c *check.C, secret strin
 			time.Sleep(300 * time.Millisecond)
 		}
 	}()
-	c.Assert(d3.Join(d1.listenAddr, secret, false), checker.IsNil)
+	c.Assert(d3.Join(d1.listenAddr, secret, "", false), checker.IsNil)
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmSecretAcceptance(c *check.C) {
@@ -114,15 +114,26 @@ func (s *DockerSwarmSuite) TestApiSwarmSecretAcceptance(c *check.C) {
 	c.Assert(d1.Init(aa, "foobar"), checker.IsNil)
 
 	d2 := s.AddDaemon(c, false, false)
-	err := d2.Join(d1.listenAddr, "", false)
+	err := d2.Join(d1.listenAddr, "", "", false)
 	c.Assert(err, checker.NotNil)
 	c.Assert(err.Error(), checker.Contains, "secret token is necessary")
 
-	c.Assert(d2.Join(d1.listenAddr, "foobaz", false), checker.NotNil)
+	c.Assert(d2.Join(d1.listenAddr, "foobaz", "", false), checker.NotNil)
 	c.Assert(err.Error(), checker.Contains, "secret token is necessary")
 
-	c.Assert(d2.Join(d1.listenAddr, "foobar", false), checker.IsNil)
+	c.Assert(d2.Join(d1.listenAddr, "foobar", "", false), checker.IsNil)
 	c.Assert(d2.Leave(false), checker.IsNil)
+}
+
+func (s *DockerSwarmSuite) TestApiSwarmCAHash(c *check.C) {
+	d1 := s.AddDaemon(c, true, true)
+	d2 := s.AddDaemon(c, false, false)
+	err := d2.Join(d1.listenAddr, "", "foobar", false)
+	c.Assert(err, checker.NotNil)
+	c.Assert(err.Error(), checker.Contains, "invalid checksum digest format")
+
+	c.Assert(len(d1.CACertHash), checker.GreaterThan, 0)
+	c.Assert(d2.Join(d1.listenAddr, "", d1.CACertHash, false), checker.IsNil)
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmPromoteDemote(c *check.C) {

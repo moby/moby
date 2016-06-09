@@ -213,7 +213,7 @@ func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *Swarm
 
 	if joinSwarm == true {
 		if len(s.daemons) > 0 {
-			c.Assert(d.Join(s.daemons[0].listenAddr, "", manager), check.IsNil)
+			c.Assert(d.Join(s.daemons[0].listenAddr, "", "", manager), check.IsNil)
 		} else {
 			aa := make(map[string]bool)
 			aa["worker"] = true
