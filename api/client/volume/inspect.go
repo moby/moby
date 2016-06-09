@@ -35,8 +35,10 @@ func newInspectCommand(dockerCli *client.DockerCli) *cobra.Command {
 func runInspect(dockerCli *client.DockerCli, opts inspectOptions) error {
 	client := dockerCli.Client()
 
+	ctx := context.Background()
+
 	getVolFunc := func(name string) (interface{}, []byte, error) {
-		i, err := client.VolumeInspect(context.Background(), name)
+		i, err := client.VolumeInspect(ctx, name)
 		return i, nil, err
 	}
 
