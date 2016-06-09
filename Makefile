@@ -1,6 +1,6 @@
 .PHONY: all binary build build-gccgo cross default docs docs-build docs-shell shell gccgo test test-docker-py test-integration-cli test-unit validate help
 
-# set the graph driver as the current graphdriver if not set
+# set the storage driver as the current storage driver if not set
 DOCKER_GRAPHDRIVER := $(if $(DOCKER_GRAPHDRIVER),$(DOCKER_GRAPHDRIVER),$(shell docker info 2>&1 | grep "Storage Driver" | sed 's/.*: //'))
 
 # get OS/Arch of docker engine

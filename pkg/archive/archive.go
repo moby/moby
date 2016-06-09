@@ -428,7 +428,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 	var errors []string
 	for key, value := range hdr.Xattrs {
 		if err := system.Lsetxattr(path, key, []byte(value), 0); err != nil {
-			// We ignore errors here because not all graphdrivers support xattrs.
+			// We ignore errors here because not all storage drivers support xattrs.
 			errors = append(errors, err.Error())
 		}
 

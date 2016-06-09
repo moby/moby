@@ -57,7 +57,7 @@ const (
 // meaning any delete conflicts will cause the image to not be deleted and the
 // conflict will not be reported.
 //
-// FIXME: remove ImageDelete's dependency on Daemon, then move to the graph
+// FIXME: remove ImageDelete's dependency on Daemon, then move to the storage
 // package. This would require that we no longer need the daemon to determine
 // whether images are being used by a stopped or running container.
 func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDelete, error) {

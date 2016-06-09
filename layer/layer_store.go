@@ -10,24 +10,24 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
-	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/daemon/storage"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/vbatts/tar-split/tar/asm"
-	"github.com/vbatts/tar-split/tar/storage"
+	tarStorage "github.com/vbatts/tar-split/tar/storage"
 )
 
 // maxLayerDepth represents the maximum number of
 // layers which can be chained together. 125 was
 // chosen to account for the 127 max in some
-// graphdrivers plus the 2 additional layers
+// storages plus the 2 additional layers
 // used to create a rwlayer.
 const maxLayerDepth = 125
 
 type layerStore struct {
 	store  MetadataStore
-	driver graphdriver.Driver
+	driver storage.Driver
 
 	layerMap map[ChainID]*roLayer
 	layerL   sync.Mutex
@@ -40,37 +40,37 @@ type layerStore struct {
 type StoreOptions struct {
 	StorePath                 string
 	MetadataStorePathTemplate string
-	GraphDriver               string
-	GraphDriverOptions        []string
+	StorageDriver             string
+	StorageOptions            []string
 	UIDMaps                   []idtools.IDMap
 	GIDMaps                   []idtools.IDMap
 }
 
 // NewStoreFromOptions creates a new Store instance
 func NewStoreFromOptions(options StoreOptions) (Store, error) {
-	driver, err := graphdriver.New(
+	driver, err := storage.New(
 		options.StorePath,
-		options.GraphDriver,
-		options.GraphDriverOptions,
+		options.StorageDriver,
+		options.StorageOptions,
 		options.UIDMaps,
 		options.GIDMaps)
 	if err != nil {
-		return nil, fmt.Errorf("error initializing graphdriver: %v", err)
+		return nil, fmt.Errorf("error initializing storage: %v", err)
 	}
-	logrus.Debugf("Using graph driver %s", driver)
+	logrus.Debugf("Using storage driver %s", driver)
 
 	fms, err := NewFSMetadataStore(fmt.Sprintf(options.MetadataStorePathTemplate, driver))
 	if err != nil {
 		return nil, err
 	}
 
-	return NewStoreFromGraphDriver(fms, driver)
+	return NewStoreFromStorage(fms, driver)
 }
 
-// NewStoreFromGraphDriver creates a new Store instance using the provided
-// metadata store and graph driver. The metadata store will be used to restore
+// NewStoreFromStorage creates a new Store instance using the provided
+// metadata store and storage driver. The metadata store will be used to restore
 // the Store.
-func NewStoreFromGraphDriver(store MetadataStore, driver graphdriver.Driver) (Store, error) {
+func NewStoreFromStorage(store MetadataStore, driver storage.Driver) (Store, error) {
 	ls := &layerStore{
 		store:    store,
 		driver:   driver,
@@ -208,7 +208,7 @@ func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent stri
 	if err != nil {
 		return err
 	}
-	metaPacker := storage.NewJSONPacker(tsw)
+	metaPacker := tarStorage.NewJSONPacker(tsw)
 	defer tsw.Close()
 
 	// we're passing nil here for the file putter, because the ApplyDiff will
@@ -576,12 +576,12 @@ func (ls *layerStore) saveMount(mount *mountedLayer) error {
 	return nil
 }
 
-func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc MountInit, storageOpt map[string]string) (string, error) {
-	// Use "<graph-id>-init" to maintain compatibility with graph drivers
+func (ls *layerStore) initMount(storageID, parent, mountLabel string, initFunc MountInit, storageOpt map[string]string) (string, error) {
+	// Use "<storage-id>-init" to maintain compatibility with storage drivers
 	// which are expecting this layer with this special name. If all
-	// graph drivers can be updated to not rely on knowing about this layer
+	// storage drivers can be updated to not rely on knowing about this layer
 	// then the initID should be randomly generated.
-	initID := fmt.Sprintf("%s-init", graphID)
+	initID := fmt.Sprintf("%s-init", storageID)
 
 	if err := ls.driver.Create(initID, parent, mountLabel, storageOpt); err != nil {
 		return "", err
@@ -603,8 +603,8 @@ func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc Mou
 	return initID, nil
 }
 
-func (ls *layerStore) assembleTarTo(graphID string, metadata io.ReadCloser, size *int64, w io.Writer) error {
-	diffDriver, ok := ls.driver.(graphdriver.DiffGetterDriver)
+func (ls *layerStore) assembleTarTo(storageID string, metadata io.ReadCloser, size *int64, w io.Writer) error {
+	diffDriver, ok := ls.driver.(storage.DiffGetterDriver)
 	if !ok {
 		diffDriver = &naiveDiffPathDriver{ls.driver}
 	}
@@ -612,15 +612,15 @@ func (ls *layerStore) assembleTarTo(graphID string, metadata io.ReadCloser, size
 	defer metadata.Close()
 
 	// get our relative path to the container
-	fileGetCloser, err := diffDriver.DiffGetter(graphID)
+	fileGetCloser, err := diffDriver.DiffGetter(storageID)
 	if err != nil {
 		return err
 	}
 	defer fileGetCloser.Close()
 
-	metaUnpacker := storage.NewJSONUnpacker(metadata)
+	metaUnpacker := tarStorage.NewJSONUnpacker(metadata)
 	upackerCounter := &unpackSizeCounter{metaUnpacker, size}
-	logrus.Debugf("Assembling tar data for %s", graphID)
+	logrus.Debugf("Assembling tar data for %s", storageID)
 	return asm.WriteOutputTarStream(fileGetCloser, upackerCounter, w)
 }
 
@@ -637,12 +637,12 @@ func (ls *layerStore) DriverName() string {
 }
 
 type naiveDiffPathDriver struct {
-	graphdriver.Driver
+	storage.Driver
 }
 
 type fileGetPutter struct {
-	storage.FileGetter
-	driver graphdriver.Driver
+	tarStorage.FileGetter
+	driver storage.Driver
 	id     string
 }
 
@@ -650,10 +650,10 @@ func (w *fileGetPutter) Close() error {
 	return w.driver.Put(w.id)
 }
 
-func (n *naiveDiffPathDriver) DiffGetter(id string) (graphdriver.FileGetCloser, error) {
+func (n *naiveDiffPathDriver) DiffGetter(id string) (storage.FileGetCloser, error) {
 	p, err := n.Driver.Get(id, "")
 	if err != nil {
 		return nil, err
 	}
-	return &fileGetPutter{storage.NewPathFileGetter(p), n.Driver, id}, nil
+	return &fileGetPutter{tarStorage.NewPathFileGetter(p), n.Driver, id}, nil
 }

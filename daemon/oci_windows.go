@@ -31,7 +31,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 
 	img, err := daemon.imageStore.Get(c.ImageID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to graph.Get on ImageID %s - %s", c.ImageID, err)
+		return nil, fmt.Errorf("Failed to storage.Get on ImageID %s - %s", c.ImageID, err)
 	}
 
 	s.Platform.OSVersion = img.OSVersion
@@ -101,7 +101,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 			img.RootFS.DiffIDs = img.RootFS.DiffIDs[:i]
 			path, err := layer.GetLayerPath(daemon.layerStore, img.RootFS.ChainID())
 			if err != nil {
-				return nil, fmt.Errorf("Failed to get layer path from graphdriver %s for ImageID %s - %s", daemon.layerStore, img.RootFS.ChainID(), err)
+				return nil, fmt.Errorf("Failed to get layer path from storage driver %s for ImageID %s - %s", daemon.layerStore, img.RootFS.ChainID(), err)
 			}
 			// Reverse order, expecting parent most first
 			layerPaths = append([]string{path}, layerPaths...)

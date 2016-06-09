@@ -124,7 +124,7 @@ func (daemon *Daemon) newContainer(name string, config *containertypes.Config, i
 	base.ImageID = imgID
 	base.NetworkSettings = &network.Settings{IsAnonymousEndpoint: noExplicitName}
 	base.Name = name
-	base.Driver = daemon.GraphDriverName()
+	base.Driver = daemon.StorageDriverName()
 
 	return base, err
 }

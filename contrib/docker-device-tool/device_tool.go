@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/daemon/graphdriver/devmapper"
+	"github.com/docker/docker/daemon/storage/devmapper"
 	"github.com/docker/docker/pkg/devicemapper"
 )
 
