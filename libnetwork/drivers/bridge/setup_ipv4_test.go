@@ -8,10 +8,10 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-func setupTestInterface(t *testing.T) (*networkConfiguration, *bridgeInterface) {
+func setupTestInterface(t *testing.T, nh *netlink.Handle) (*networkConfiguration, *bridgeInterface) {
 	config := &networkConfiguration{
 		BridgeName: DefaultBridgeName}
-	br := &bridgeInterface{}
+	br := &bridgeInterface{nlh: nh}
 
 	if err := setupDevice(config, br); err != nil {
 		t.Fatalf("Bridge creation failed: %v", err)
@@ -27,13 +27,19 @@ func TestSetupBridgeIPv4Fixed(t *testing.T) {
 		t.Fatalf("Failed to parse bridge IPv4: %v", err)
 	}
 
-	config, br := setupTestInterface(t)
+	nh, err := netlink.NewHandle()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nh.Delete()
+
+	config, br := setupTestInterface(t, nh)
 	config.AddressIPv4 = &net.IPNet{IP: ip, Mask: netw.Mask}
 	if err := setupBridgeIPv4(config, br); err != nil {
 		t.Fatalf("Failed to setup bridge IPv4: %v", err)
 	}
 
-	addrsv4, err := netlink.AddrList(br.Link, netlink.FAMILY_V4)
+	addrsv4, err := nh.AddrList(br.Link, netlink.FAMILY_V4)
 	if err != nil {
 		t.Fatalf("Failed to list device IPv4 addresses: %v", err)
 	}
@@ -54,6 +60,12 @@ func TestSetupBridgeIPv4Fixed(t *testing.T) {
 func TestSetupGatewayIPv4(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
+	nh, err := netlink.NewHandle()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer nh.Delete()
+
 	ip, nw, _ := net.ParseCIDR("192.168.0.24/16")
 	nw.IP = ip
 	gw := net.ParseIP("192.168.2.254")
@@ -62,7 +74,7 @@ func TestSetupGatewayIPv4(t *testing.T) {
 		BridgeName:         DefaultBridgeName,
 		DefaultGatewayIPv4: gw}
 
-	br := &bridgeInterface{bridgeIPv4: nw}
+	br := &bridgeInterface{bridgeIPv4: nw, nlh: nh}
 
 	if err := setupGatewayIPv4(config, br); err != nil {
 		t.Fatalf("Set Default Gateway failed: %v", err)

@@ -16,6 +16,7 @@ import (
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/types"
@@ -323,24 +324,24 @@ func networkOnceInit() {
 	defer deleteInterface("testvxlan")
 
 	path := "/proc/self/ns/net"
-	f, err := os.OpenFile(path, os.O_RDONLY, 0)
+	hNs, err := netns.GetFromPath(path)
 	if err != nil {
-		logrus.Errorf("Failed to open path %s for network namespace for setting host mode: %v", path, err)
+		logrus.Errorf("Failed to get network namespace from path %s while setting host mode: %v", path, err)
 		return
 	}
-	defer f.Close()
+	defer hNs.Close()
 
-	nsFD := f.Fd()
+	nlh := ns.NlHandle()
 
-	iface, err := netlink.LinkByName("testvxlan")
+	iface, err := nlh.LinkByName("testvxlan")
 	if err != nil {
-		logrus.Errorf("Failed to get link testvxlan: %v", err)
+		logrus.Errorf("Failed to get link testvxlan while setting host mode: %v", err)
 		return
 	}
 
 	// If we are not able to move the vxlan interface to a namespace
 	// then fallback to host mode
-	if err := netlink.LinkSetNsFd(iface, int(nsFD)); err != nil {
+	if err := nlh.LinkSetNsFd(iface, int(hNs)); err != nil {
 		hostMode = true
 	}
 }

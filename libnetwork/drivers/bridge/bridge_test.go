@@ -88,7 +88,9 @@ func TestCreateFullOptions(t *testing.T) {
 }
 
 func TestCreateNoConfig(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	if !testutils.IsRunningInContainer() {
+		defer testutils.SetupTestOSContext(t)()
+	}
 	d := newDriver()
 
 	netconfig := &networkConfiguration{BridgeName: DefaultBridgeName}
@@ -101,7 +103,9 @@ func TestCreateNoConfig(t *testing.T) {
 }
 
 func TestCreateFullOptionsLabels(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	if !testutils.IsRunningInContainer() {
+		defer testutils.SetupTestOSContext(t)()
+	}
 	d := newDriver()
 
 	config := &configuration{
@@ -200,7 +204,10 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 }
 
 func TestCreate(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	if !testutils.IsRunningInContainer() {
+		defer testutils.SetupTestOSContext(t)()
+	}
+
 	d := newDriver()
 
 	if err := d.configure(nil); err != nil {
@@ -225,7 +232,10 @@ func TestCreate(t *testing.T) {
 }
 
 func TestCreateFail(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	if !testutils.IsRunningInContainer() {
+		defer testutils.SetupTestOSContext(t)()
+	}
+
 	d := newDriver()
 
 	if err := d.configure(nil); err != nil {
@@ -242,7 +252,10 @@ func TestCreateFail(t *testing.T) {
 }
 
 func TestCreateMultipleNetworks(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	if !testutils.IsRunningInContainer() {
+		defer testutils.SetupTestOSContext(t)()
+	}
+
 	d := newDriver()
 
 	config := &configuration{
@@ -445,6 +458,7 @@ func TestQueryEndpointInfoHairpin(t *testing.T) {
 
 func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	defer testutils.SetupTestOSContext(t)()
+
 	d := newDriver()
 
 	config := &configuration{
@@ -545,7 +559,9 @@ func getPortMapping() []types.PortBinding {
 }
 
 func TestLinkContainers(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	if !testutils.IsRunningInContainer() {
+		defer testutils.SetupTestOSContext(t)()
+	}
 
 	d := newDriver()
 
@@ -698,6 +714,9 @@ func TestLinkContainers(t *testing.T) {
 }
 
 func TestValidateConfig(t *testing.T) {
+	if !testutils.IsRunningInContainer() {
+		defer testutils.SetupTestOSContext(t)()
+	}
 
 	// Test mtu
 	c := networkConfiguration{Mtu: -2}
@@ -768,7 +787,10 @@ func TestValidateConfig(t *testing.T) {
 }
 
 func TestSetDefaultGw(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
+	if !testutils.IsRunningInContainer() {
+		defer testutils.SetupTestOSContext(t)()
+	}
+
 	d := newDriver()
 
 	if err := d.configure(nil); err != nil {

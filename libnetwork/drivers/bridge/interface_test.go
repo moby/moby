@@ -10,8 +10,12 @@ import (
 func TestInterfaceDefaultName(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
+	nh, err := netlink.NewHandle()
+	if err != nil {
+		t.Fatal(err)
+	}
 	config := &networkConfiguration{}
-	if _ = newInterface(config); config.BridgeName != DefaultBridgeName {
+	if _ = newInterface(nh, config); config.BridgeName != DefaultBridgeName {
 		t.Fatalf("Expected default interface name %q, got %q", DefaultBridgeName, config.BridgeName)
 	}
 }
@@ -19,7 +23,11 @@ func TestInterfaceDefaultName(t *testing.T) {
 func TestAddressesEmptyInterface(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
-	inf := newInterface(&networkConfiguration{})
+	nh, err := netlink.NewHandle()
+	if err != nil {
+		t.Fatal(err)
+	}
+	inf := newInterface(nh, &networkConfiguration{})
 	addrv4, addrsv6, err := inf.addresses()
 	if err != nil {
 		t.Fatalf("Failed to get addresses of default interface: %v", err)
