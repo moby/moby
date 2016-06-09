@@ -85,6 +85,9 @@ type IfaceOptionSetter interface {
 	// Address returns an option setter to set IPv6 address.
 	AddressIPv6(*net.IPNet) IfaceOption
 
+	// LinkLocalAddresses returns an option setter to set the link-local IP addresses.
+	LinkLocalAddresses([]*net.IPNet) IfaceOption
+
 	// Master returns an option setter to set the master interface if any for this
 	// interface. The master interface name should refer to the srcname of a
 	// previously added interface of type bridge.
@@ -137,6 +140,9 @@ type Interface interface {
 
 	// IPv6 address for the interface.
 	AddressIPv6() *net.IPNet
+
+	// LinkLocalAddresses returns the link-local IP addresses assigned to the interface.
+	LinkLocalAddresses() []*net.IPNet
 
 	// IP routes for the interface.
 	Routes() []*net.IPNet
