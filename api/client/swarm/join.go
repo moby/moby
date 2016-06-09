@@ -54,9 +54,9 @@ func runJoin(dockerCli *client.DockerCli, opts joinOptions) error {
 		return err
 	}
 	if opts.manager {
-		fmt.Fprintln(dockerCli.Out(), "This node is attempting to join a Swarm as a manager.")
+		fmt.Fprintln(dockerCli.Out(), "This node joined a Swarm as a manager.")
 	} else {
-		fmt.Fprintln(dockerCli.Out(), "This node is attempting to join a Swarm.")
+		fmt.Fprintln(dockerCli.Out(), "This node joined a Swarm as a worker.")
 	}
 	return nil
 }
