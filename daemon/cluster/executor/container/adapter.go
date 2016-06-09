@@ -162,7 +162,13 @@ func (c *containerAdapter) wait(ctx context.Context) (<-chan int, error) {
 }
 
 func (c *containerAdapter) shutdown(ctx context.Context) error {
-	return c.backend.ContainerStop(c.container.name(), int(c.container.spec().StopGracePeriod.Seconds))
+	// Default stop grace period to 10s.
+	stopgrace := 10
+	spec := c.container.spec()
+	if spec.StopGracePeriod != nil {
+		stopgrace = int(spec.StopGracePeriod.Seconds)
+	}
+	return c.backend.ContainerStop(c.container.name(), stopgrace)
 }
 
 func (c *containerAdapter) terminate(ctx context.Context) error {

@@ -209,14 +209,6 @@ func getMountMask(m *api.Mount) string {
 	if !m.Populate {
 		maskOpts = append(maskOpts, "nocopy")
 	}
-
-	switch m.Mcsaccessmode {
-	case api.MountMCSAccessModeShared:
-		maskOpts = append(maskOpts, "z")
-	case api.MountMCSAccessModePrivate:
-		maskOpts = append(maskOpts, "Z")
-	}
-
 	return strings.Join(maskOpts, ",")
 }
 

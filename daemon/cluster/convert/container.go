@@ -42,7 +42,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 		containerSpec.Mounts = append(containerSpec.Mounts, mount)
 	}
 
-	grace, _ := ptypes.Duration(&c.StopGracePeriod)
+	grace, _ := ptypes.Duration(c.StopGracePeriod)
 	containerSpec.StopGracePeriod = &grace
 	return containerSpec
 }
@@ -59,7 +59,7 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 	}
 
 	if c.StopGracePeriod != nil {
-		containerSpec.StopGracePeriod = *ptypes.DurationProto(*c.StopGracePeriod)
+		containerSpec.StopGracePeriod = ptypes.DurationProto(*c.StopGracePeriod)
 	}
 
 	// Mounts
