@@ -366,5 +366,5 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.StringSliceVar(&opts.networks, "network", []string{}, "Network attachments")
 	flags.StringVar(&opts.endpoint.mode, "endpoint-mode", "", "Endpoint mode")
 	flags.StringVar(&opts.endpoint.ingress, "endpoint-ingress", "", "Endpoint ingress")
-	flags.VarP(&opts.endpoint.ports, "port", "p", "Publish a port as a node port")
+	flags.VarP(&opts.endpoint.ports, "publish", "p", "Publish a port as a node port")
 }
