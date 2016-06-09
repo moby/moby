@@ -359,8 +359,8 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 
 	flags.StringSliceVar(&opts.constraints, "constraint", []string{}, "Placement constraints")
 
-	flags.Uint64Var(&opts.update.parallelism, "updateconfig-parallelism", 1, "UpdateConfig Parallelism")
-	flags.DurationVar(&opts.update.delay, "updateconfig-delay", time.Duration(0), "UpdateConfig Delay")
+	flags.Uint64Var(&opts.update.parallelism, "update-parallelism", 1, "Maximum number of tasks updated simultaneously")
+	flags.DurationVar(&opts.update.delay, "update-delay", time.Duration(0), "Delay between updates")
 
 	flags.StringSliceVar(&opts.networks, "network", []string{}, "Network attachments")
 	flags.StringVar(&opts.endpoint.mode, "endpoint-mode", "", "Endpoint mode")
