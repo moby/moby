@@ -3,6 +3,7 @@
 package main
 
 import (
+	"net/http"
 	"strconv"
 	"strings"
 	"syscall"
@@ -67,39 +68,43 @@ func (s *DockerSwarmSuite) TestApiSwarmInit(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmManualAcceptance(c *check.C) {
+	s.testAPISwarmManualAcceptance(c, "")
+}
+func (s *DockerSwarmSuite) TestApiSwarmManualAcceptanceSecret(c *check.C) {
+	s.testAPISwarmManualAcceptance(c, "foobaz")
+}
+
+func (s *DockerSwarmSuite) testAPISwarmManualAcceptance(c *check.C, secret string) {
 	d1 := s.AddDaemon(c, false, false)
-	aa := make(map[string]bool)
-	c.Assert(d1.Init(aa, ""), checker.IsNil)
+	c.Assert(d1.Init(map[string]bool{}, secret), checker.IsNil)
 
 	d2 := s.AddDaemon(c, false, false)
 	err := d2.Join(d1.listenAddr, "", false)
 	c.Assert(err, checker.NotNil)
-	c.Assert(err.Error(), checker.Contains, "Timeout reached")
-	c.Assert(d2.Leave(false), checker.IsNil)
-
-	// TODO: manual accpetance testing
-	// d3 := s.AddDaemon(c, false, false)
-	// go func() {
-	// 	for {
-	// 		sw, err := d3.swarmInfo()
-	// 		c.Logf("sw %#v %v", sw, err)
-	// 		time.Sleep(300 * time.Millisecond)
-	// 	}
-	// }()
-	// c.Assert(d3.Join(d1.listenAddr, "", false), checker.NotNil)
-
-	// accpet workers but not managers
-	d1 = s.AddDaemon(c, false, false)
-	aa["worker"] = true
-	c.Assert(d1.Init(aa, ""), checker.IsNil)
-
-	d2 = s.AddDaemon(c, false, false)
-	c.Assert(d2.Join(d1.listenAddr, "", false), checker.IsNil)
-
+	if secret == "" {
+		c.Assert(err.Error(), checker.Contains, "Timeout reached")
+		c.Assert(d2.Leave(false), checker.IsNil)
+	} else {
+		c.Assert(err.Error(), checker.Contains, "valid secret token is necessary")
+	}
 	d3 := s.AddDaemon(c, false, false)
-	err = d3.Join(d1.listenAddr, "", true)
-	c.Assert(err, checker.NotNil)
-	c.Assert(err.Error(), checker.Contains, "Timeout reached")
+	go func() {
+		for i := 0; ; i++ {
+			sw, err := d3.swarmInfo()
+			c.Assert(err, checker.IsNil)
+			if sw.NodeID != "" {
+				d1.updateNode(c, d1.getNode(c, sw.NodeID), func(n *swarm.Node) {
+					n.Spec.Membership = swarm.NodeMembershipAccepted
+				})
+				return
+			}
+			if i >= 10 {
+				c.Errorf("could not find nodeID")
+			}
+			time.Sleep(300 * time.Millisecond)
+		}
+	}()
+	c.Assert(d3.Join(d1.listenAddr, secret, false), checker.IsNil)
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmSecretAcceptance(c *check.C) {
@@ -118,6 +123,57 @@ func (s *DockerSwarmSuite) TestApiSwarmSecretAcceptance(c *check.C) {
 
 	c.Assert(d2.Join(d1.listenAddr, "foobar", false), checker.IsNil)
 	c.Assert(d2.Leave(false), checker.IsNil)
+}
+
+func (s *DockerSwarmSuite) TestApiSwarmPromoteDemote(c *check.C) {
+	d1 := s.AddDaemon(c, false, false)
+	c.Assert(d1.Init(map[string]bool{"worker": true}, ""), checker.IsNil)
+	d2 := s.AddDaemon(c, true, false)
+
+	ismanager, isagent, err := d2.SwarmStatus()
+	c.Assert(err, checker.IsNil)
+	c.Assert(ismanager, checker.Equals, false)
+	c.Assert(isagent, checker.Equals, true)
+
+	d1.updateNode(c, d1.getNode(c, d2.NodeID), func(n *swarm.Node) {
+		n.Spec.Role = swarm.NodeRoleManager
+	})
+
+	for i := 0; ; i++ {
+		ismanager, isagent, err := d2.SwarmStatus()
+		c.Assert(err, checker.IsNil)
+		c.Assert(isagent, checker.Equals, true)
+		if ismanager {
+			break
+		}
+		if i > 10 {
+			c.Errorf("node did not turn into manager")
+		} else {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	d1.updateNode(c, d1.getNode(c, d2.NodeID), func(n *swarm.Node) {
+		n.Spec.Role = swarm.NodeRoleWorker
+	})
+
+	for i := 0; ; i++ {
+		ismanager, isagent, err := d2.SwarmStatus()
+		c.Assert(err, checker.IsNil)
+		c.Assert(isagent, checker.Equals, true)
+		if !ismanager {
+			break
+		}
+		if i > 10 {
+			c.Errorf("node did not turn into manager")
+		} else {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	// todo: test raft qourum stability
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmServicesCreate(c *check.C) {
@@ -271,10 +327,18 @@ func (s *DockerSwarmSuite) TestApiSwarmRaftQuorum(c *check.C) {
 
 	c.Assert(d3.Stop(), checker.IsNil)
 
-	// todo: timeouts do not seem to be implemented yet, this will just hang
-	// d1.createService(c, simpleTestService, func(s *swarm.Service) {
-	// 	s.Spec.Name = "top2"
-	// })
+	var service swarm.Service
+	simpleTestService(&service)
+	service.Spec.Name = "top2"
+	status, out, err := d1.SockRequest("POST", "/services/create", service.Spec)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusInternalServerError, check.Commentf("deadline exceeded", string(out)))
+
+	c.Assert(d2.Start(), checker.IsNil)
+
+	d1.createService(c, simpleTestService, func(s *swarm.Service) {
+		s.Spec.Name = "top3"
+	})
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmListNodes(c *check.C) {

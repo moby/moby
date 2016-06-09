@@ -184,7 +184,7 @@ func (s *DockerDaemonSuite) TearDownTest(c *check.C) {
 	s.ds.TearDownTest(c)
 }
 
-const defaultSwarmPort = 2377
+const defaultSwarmPort = 2477
 
 func init() {
 	check.Suite(&DockerSwarmSuite{
@@ -213,12 +213,12 @@ func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *Swarm
 
 	if joinSwarm == true {
 		if len(s.daemons) > 0 {
-			d.Join(s.daemons[0].listenAddr, "", manager)
+			c.Assert(d.Join(s.daemons[0].listenAddr, "", manager), check.IsNil)
 		} else {
 			aa := make(map[string]bool)
 			aa["worker"] = true
 			aa["manager"] = true
-			d.Init(aa, "")
+			c.Assert(d.Init(aa, ""), check.IsNil)
 		}
 	}
 
@@ -235,6 +235,7 @@ func (s *DockerSwarmSuite) TearDownTest(c *check.C) {
 	}
 	s.daemons = nil
 	s.portIndex = 0
+
 	s.ds.TearDownTest(c)
 }
 
