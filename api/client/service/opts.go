@@ -244,12 +244,10 @@ func ConvertMounts(rawMounts []string) []swarm.Mount {
 		mountPoint, _ := volume.ParseMountSpec(rawMount, "")
 
 		mounts = append(mounts, swarm.Mount{
-			Target: mountPoint.Destination,
-			Source: mountPoint.Source,
-			// TODO: fix with new mounts
-			//			Mask:       swarm.MountMask(mountPoint.Mode),
-			//                      no more VolumeName
-			Type: swarm.MountType(mountPoint.Type()),
+			Target:   mountPoint.Destination,
+			Source:   mountPoint.Name,
+			Writable: mountPoint.RW,
+			Type:     swarm.MountType(mountPoint.Type()),
 		})
 	}
 	return mounts
