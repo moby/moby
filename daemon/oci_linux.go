@@ -480,7 +480,7 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 		}
 
 		if m.Source == "tmpfs" {
-			options := []string{"noexec", "nosuid", "nodev", volume.DefaultPropagationMode, "size=65536k"}
+			options := []string{"noexec", "nosuid", "nodev", volume.DefaultPropagationMode}
 			if m.Data != "" {
 				options = append(options, strings.Split(m.Data, ",")...)
 			}

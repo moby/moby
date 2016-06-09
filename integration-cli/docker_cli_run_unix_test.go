@@ -833,17 +833,19 @@ func (s *DockerSuite) TestRunTmpfsMounts(c *check.C) {
 func (s *DockerSuite) TestRunTmpfsMountsWithOptions(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
-	expectedOptions := []string{"rw", "nosuid", "nodev", "noexec", "relatime", "size=65536k"}
+	expectedOptions := []string{"rw", "nosuid", "nodev", "noexec", "relatime"}
 	out, _ := dockerCmd(c, "run", "--tmpfs", "/tmp", "busybox", "sh", "-c", "mount | grep 'tmpfs on /tmp'")
 	for _, option := range expectedOptions {
 		c.Assert(out, checker.Contains, option)
 	}
+	c.Assert(out, checker.Not(checker.Contains), "size=")
 
-	expectedOptions = []string{"rw", "nosuid", "nodev", "noexec", "relatime", "size=65536k"}
+	expectedOptions = []string{"rw", "nosuid", "nodev", "noexec", "relatime"}
 	out, _ = dockerCmd(c, "run", "--tmpfs", "/tmp:rw", "busybox", "sh", "-c", "mount | grep 'tmpfs on /tmp'")
 	for _, option := range expectedOptions {
 		c.Assert(out, checker.Contains, option)
 	}
+	c.Assert(out, checker.Not(checker.Contains), "size=")
 
 	expectedOptions = []string{"rw", "nosuid", "nodev", "relatime", "size=8192k"}
 	out, _ = dockerCmd(c, "run", "--tmpfs", "/tmp:rw,exec,size=8192k", "busybox", "sh", "-c", "mount | grep 'tmpfs on /tmp'")
