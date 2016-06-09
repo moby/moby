@@ -328,6 +328,20 @@ func (r *Session) GetRemoteTag(registries []string, repositoryRef reference.Name
 			return "", err
 		}
 
+		if res.StatusCode == 401 && res.Header.Get("Set-Cookie") != "" {
+			// Some proxies expect browser-like behavior, with an Authorization
+			// header only sent in response to a server challenge. Try again,
+			// with cookies from the 401 response.
+			// See https://github.com/docker/docker/issues/22503
+			logrus.Debugf("Got status code %d from %s, retrying...", res.StatusCode, endpoint)
+			res.Body.Close()
+
+			res, err = r.client.Get(endpoint)
+			if err != nil {
+				return "", err
+			}
+		}
+
 		logrus.Debugf("Got status code %d from %s", res.StatusCode, endpoint)
 		defer res.Body.Close()
 
@@ -364,6 +378,20 @@ func (r *Session) GetRemoteTags(registries []string, repositoryRef reference.Nam
 		res, err := r.client.Get(endpoint)
 		if err != nil {
 			return nil, err
+		}
+
+		if res.StatusCode == 401 && res.Header.Get("Set-Cookie") != "" {
+			// Some proxies expect browser-like behavior, with an Authorization
+			// header only sent in response to a server challenge. Try again,
+			// with cookies from the 401 response.
+			// See https://github.com/docker/docker/issues/22503
+			logrus.Debugf("Got status code %d from %s, retrying...", res.StatusCode, endpoint)
+			res.Body.Close()
+
+			res, err = r.client.Get(endpoint)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		logrus.Debugf("Got status code %d from %s", res.StatusCode, endpoint)
