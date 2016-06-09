@@ -59,8 +59,8 @@ bundle_ubuntu() {
 	mkdir -p "$DIR/etc/fish/completions"
 	cp contrib/completion/fish/docker.fish "$DIR/etc/fish/completions/"
 
-	# Include contributed man pages
-	man/md2man-all.sh -q
+	# Include man pages
+	man/generate.sh
 	manRoot="$DIR/usr/share/man"
 	mkdir -p "$manRoot"
 	for manDir in man/man?; do
