@@ -118,6 +118,7 @@ type CommonConfig struct {
 	LogLevel  string   `json:"log-level,omitempty"`
 	TLS       bool     `json:"tls,omitempty"`
 	TLSVerify bool     `json:"tlsverify,omitempty"`
+	Runtime   string   `json:"runtime,omitempty"`
 
 	// Embedded structs that allow config
 	// deserialization without the full struct.
