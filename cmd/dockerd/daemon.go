@@ -210,6 +210,7 @@ func (cli *DaemonCli) start() (err error) {
 	}
 
 	api := apiserver.New(serverConfig)
+	cli.api = api
 
 	for i := 0; i < len(cli.Config.Hosts); i++ {
 		var err error
