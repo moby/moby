@@ -16,7 +16,10 @@ const (
 )
 
 var (
-	defaultPolicy = swarm.Policy{Role: WORKER, Autoaccept: true}
+	defaultPolicies = []swarm.Policy{
+		{Role: WORKER, Autoaccept: true},
+		{Role: MANAGER, Autoaccept: false},
+	}
 )
 
 // NodeAddrOption is a pflag.Value for listen and remote addresses
@@ -101,17 +104,12 @@ func (o *AutoAcceptOption) Type() string {
 // Policies returns a representation of this option for the api
 func (o *AutoAcceptOption) Policies(secret string) []swarm.Policy {
 	policies := []swarm.Policy{}
-
-	if len(o.values) == 0 {
-		return append(policies, defaultPolicy)
-	}
-
-	for role, enabled := range o.values {
-		policies = append(policies, swarm.Policy{
-			Role:       swarm.NodeRole(strings.ToUpper(role)),
-			Autoaccept: enabled,
-			Secret:     secret,
-		})
+	for _, p := range defaultPolicies {
+		if len(o.values) != 0 {
+			p.Autoaccept = o.values[string(p.Role)]
+		}
+		p.Secret = secret
+		policies = append(policies, p)
 	}
 	return policies
 }
