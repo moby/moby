@@ -27,6 +27,10 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return fmt.Errorf("could not find endpoint with id %s", eid)
 	}
 
+	if n.secure && len(d.keys) == 0 {
+		return fmt.Errorf("cannot join secure network: encryption keys not present")
+	}
+
 	s := n.getSubnetforIP(ep.addr)
 	if s == nil {
 		return fmt.Errorf("could not find subnet for endpoint %s", eid)
@@ -105,6 +109,10 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 
 	d.peerDbAdd(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac,
 		net.ParseIP(d.bindAddress), true)
+
+	if err := d.checkEncryption(nid, nil, n.vxlanID(s), true, true); err != nil {
+		log.Warn(err)
+	}
 
 	buf, err := proto.Marshal(&PeerRecord{
 		EndpointIP:       ep.addr.String(),
@@ -196,6 +204,10 @@ func (d *driver) Leave(nid, eid string) error {
 	}
 
 	n.leaveSandbox()
+
+	if err := d.checkEncryption(nid, nil, 0, true, false); err != nil {
+		log.Warn(err)
+	}
 
 	return nil
 }
