@@ -14,6 +14,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	cfconfig "github.com/cloudflare/cfssl/config"
+	"github.com/docker/distribution/digest"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/picker"
@@ -90,14 +91,14 @@ func (s *SecurityConfig) UpdateRootCA(cert, key []byte, certExpiry time.Duration
 
 // DefaultPolicy is the default policy used by the signers to ensure that the only fields
 // from the remote CSRs we trust are: PublicKey, PublicKeyAlgorithm and SignatureAlgorithm.
-var DefaultPolicy = func() *cfconfig.Signing {
+func DefaultPolicy() *cfconfig.Signing {
 	return SigningPolicy(DefaultNodeCertExpiration)
 }
 
 // SigningPolicy creates a policy used by the signer to ensure that the only fields
 // from the remote CSRs we trust are: PublicKey, PublicKeyAlgorithm and SignatureAlgorithm.
 // It receives the duration a certificate will be valid for
-var SigningPolicy = func(certExpiry time.Duration) *cfconfig.Signing {
+func SigningPolicy(certExpiry time.Duration) *cfconfig.Signing {
 	// Force the minimum Certificate expiration to be fifteen minutes
 	if certExpiry < MinNodeCertExpiration {
 		certExpiry = DefaultNodeCertExpiration
@@ -155,8 +156,16 @@ func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, caHash, secret
 	case ErrNoLocalRootCA:
 		log.Debugf("no valid local CA certificate found: %v", err)
 
+		// Get a digest for the optional CA hash string that we've been provided
+		// If we were provided a non-empty string, and it is an invalid hash, return
+		// otherwise, allow the invalid digest through.
+		d, err := digest.ParseDigest(caHash)
+		if err != nil && caHash != "" {
+			return nil, err
+		}
+
 		// Get the remote CA certificate, verify integrity with the hash provided
-		rootCA, err = GetRemoteCA(ctx, caHash, picker)
+		rootCA, err = GetRemoteCA(ctx, d, picker)
 		if err != nil {
 			return nil, err
 		}

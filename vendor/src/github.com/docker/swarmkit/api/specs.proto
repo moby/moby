@@ -158,7 +158,7 @@ message ContainerSpec {
 
 	// StopGracePeriod the grace period for stopping the container before
 	// forcefully killing the container.
-	Duration stop_grace_period = 9 [(gogoproto.nullable) = false];
+	Duration stop_grace_period = 9;
 }
 
 // EndpointSpec defines the properties that can be configured to

@@ -8,6 +8,7 @@ package keymanager
 import (
 	"crypto/rand"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/docker/swarmkit/api"
@@ -61,6 +62,8 @@ type KeyManager struct {
 	ticker  *time.Ticker
 	ctx     context.Context
 	cancel  context.CancelFunc
+
+	mu sync.Mutex
 }
 
 // DefaultConfig provides the default config for keymanager
@@ -167,6 +170,7 @@ func (k *KeyManager) rotateKey(ctx context.Context) error {
 
 // Run starts the keymanager, it doesn't return
 func (k *KeyManager) Run(ctx context.Context) error {
+	k.mu.Lock()
 	log := log.G(ctx).WithField("module", "keymanager")
 	var (
 		clusters []*api.Cluster
@@ -178,6 +182,7 @@ func (k *KeyManager) Run(ctx context.Context) error {
 
 	if err != nil {
 		log.Errorf("reading cluster config failed, %v", err)
+		k.mu.Unlock()
 		return err
 	}
 
@@ -200,6 +205,7 @@ func (k *KeyManager) Run(ctx context.Context) error {
 	defer ticker.Stop()
 
 	k.ctx, k.cancel = context.WithCancel(ctx)
+	k.mu.Unlock()
 
 	for {
 		select {
@@ -213,6 +219,11 @@ func (k *KeyManager) Run(ctx context.Context) error {
 
 // Stop stops the running instance of key manager
 func (k *KeyManager) Stop() error {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	if k.cancel == nil {
+		return fmt.Errorf("keymanager is not started")
+	}
 	k.cancel()
 	return nil
 }

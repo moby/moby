@@ -466,6 +466,11 @@ func (na *NetworkAllocator) allocateDriverState(n *api.Network) error {
 		return err
 	}
 
+	var options map[string]string
+	if n.Spec.DriverConfig != nil {
+		options = n.Spec.DriverConfig.Options
+	}
+
 	// Construct IPAM data for driver consumption.
 	ipv4Data := make([]driverapi.IPAMData, 0, len(n.IPAM.Configs))
 	for _, ic := range n.IPAM.Configs {
@@ -492,7 +497,7 @@ func (na *NetworkAllocator) allocateDriverState(n *api.Network) error {
 		ipv4Data = append(ipv4Data, data)
 	}
 
-	ds, err := d.NetworkAllocate(n.ID, nil, ipv4Data, nil)
+	ds, err := d.NetworkAllocate(n.ID, options, ipv4Data, nil)
 	if err != nil {
 		return err
 	}
