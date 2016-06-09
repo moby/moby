@@ -352,11 +352,10 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.StringVar(&opts.mode, "mode", "replicated", "Service mode (replicated or global)")
 	flags.Var(&opts.scale, "scale", "Number of tasks")
 
-	// TODO: help strings
-	flags.StringVar(&opts.restartPolicy.condition, "restart-policy-condition", "", "")
-	flags.Var(&opts.restartPolicy.delay, "restart-policy-delay", "")
-	flags.Var(&opts.restartPolicy.maxAttempts, "restart-policy-max-attempts", "")
-	flags.Var(&opts.restartPolicy.window, "restart-policy-window", "")
+	flags.StringVar(&opts.restartPolicy.condition, "restart-condition", "", "Restart when condition is met (none, on_failure, or any)")
+	flags.Var(&opts.restartPolicy.delay, "restart-delay", "Delay between restart attempts")
+	flags.Var(&opts.restartPolicy.maxAttempts, "restart-max-attempts", "Maximum number of restarts before giving up")
+	flags.Var(&opts.restartPolicy.window, "restart-window", "Window used to evalulate the restart policy")
 
 	flags.StringSliceVar(&opts.constraints, "constraint", []string{}, "Placement constraints")
 
