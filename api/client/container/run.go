@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
+	"time"
 
 	"golang.org/x/net/context"
 
@@ -143,6 +144,7 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 		hostConfig.ConsoleSize[0], hostConfig.ConsoleSize[1] = dockerCli.GetTtySize()
 	}
 
+	startTime := time.Now()
 	ctx, cancelFun := context.WithCancel(context.Background())
 
 	createResponse, err := createContainer(ctx, dockerCli, config, hostConfig, networkingConfig, hostConfig.ContainerIDFile, opts.name)
@@ -230,6 +232,11 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 		}
 
 		reportError(stderr, cmdPath, err.Error(), false)
+		if hostConfig.AutoRemove {
+			if _, errWait := waitExitOrRemoved(dockerCli, context.Background(), createResponse.ID, hostConfig.AutoRemove, startTime); errWait != nil {
+				logrus.Debugf("Error waiting container's removal: %v", errWait)
+			}
+		}
 		return runStartContainerErr(err)
 	}
 
@@ -256,15 +263,9 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 	var status int
 
 	// Attached mode
-	if !config.Tty {
-		// In non-TTY mode, we can't detach, so we must wait for container exit
-		client.ContainerWait(context.Background(), createResponse.ID)
-	}
-
-	// In TTY mode, there is a race: if the process dies too slowly, the state could
-	// be updated after the getExitCode call and result in the wrong exit code being reported
-	if _, status, err = dockerCli.GetExitCode(ctx, createResponse.ID); err != nil {
-		return fmt.Errorf("tty: status: %d; error: %v;", status, err)
+	status, err = waitExitOrRemoved(dockerCli, ctx, createResponse.ID, hostConfig.AutoRemove, startTime)
+	if err != nil {
+		return fmt.Errorf("Error waiting container to exit: %v", err)
 	}
 
 	if status != 0 {

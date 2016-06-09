@@ -292,10 +292,10 @@ func (daemon *Daemon) restore() error {
 	for id := range removeContainers {
 		removeGroup.Add(1)
 		go func(cid string) {
-			defer removeGroup.Done()
 			if err := daemon.ContainerRm(cid, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 				logrus.Errorf("Failed to remove container %s: %s", cid, err)
 			}
+			removeGroup.Done()
 		}(id)
 	}
 	removeGroup.Wait()

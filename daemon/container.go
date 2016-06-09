@@ -210,7 +210,7 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 		if config.WorkingDir != "" {
 			config.WorkingDir = filepath.FromSlash(config.WorkingDir) // Ensure in platform semantics
 			if !system.IsAbs(config.WorkingDir) {
-				return nil, fmt.Errorf("The working directory '%s' is invalid. It needs to be an absolute path", config.WorkingDir)
+				return nil, fmt.Errorf("the working directory '%s' is invalid, it needs to be an absolute path", config.WorkingDir)
 			}
 		}
 
@@ -239,18 +239,18 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 	}
 
 	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
-		return nil, fmt.Errorf("Can't create 'AutoRemove' container with restart policy")
+		return nil, fmt.Errorf("can't create 'AutoRemove' container with restart policy")
 	}
 
 	for port := range hostConfig.PortBindings {
 		_, portStr := nat.SplitProtoPort(string(port))
 		if _, err := nat.ParsePort(portStr); err != nil {
-			return nil, fmt.Errorf("Invalid port specification: %q", portStr)
+			return nil, fmt.Errorf("invalid port specification: %q", portStr)
 		}
 		for _, pb := range hostConfig.PortBindings[port] {
 			_, err := nat.NewPort(nat.SplitProtoPort(pb.HostPort))
 			if err != nil {
-				return nil, fmt.Errorf("Invalid port specification: %q", pb.HostPort)
+				return nil, fmt.Errorf("invalid port specification: %q", pb.HostPort)
 			}
 		}
 	}

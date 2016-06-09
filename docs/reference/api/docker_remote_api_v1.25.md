@@ -325,6 +325,7 @@ Create a container
              "CapDrop": ["MKNOD"],
              "GroupAdd": ["newgroup"],
              "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
+             "AutoRemove": true,
              "NetworkMode": "bridge",
              "Devices": [],
              "Ulimits": [{}],
@@ -599,6 +600,7 @@ Return low-level information on the container `id`
 				"MaximumRetryCount": 2,
 				"Name": "on-failure"
 			},
+			"AutoRemove": true,
 			"LogConfig": {
 				"Config": null,
 				"Type": "json-file"
