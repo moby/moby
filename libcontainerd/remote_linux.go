@@ -50,6 +50,7 @@ type remote struct {
 	clients       []*client
 	eventTsPath   string
 	pastEvents    map[string]*containerd.Event
+	runtime       string
 	runtimeArgs   []string
 	daemonWaitCh  chan struct{}
 }
@@ -351,11 +352,14 @@ func (r *remote) runContainerdDaemon() error {
 		return err
 	}
 
+	if r.runtime == "" {
+		r.runtime = "docker-runc"
+	}
 	// Start a new instance
 	args := []string{
 		"-l", fmt.Sprintf("unix://%s", r.rpcAddr),
 		"--shim", "docker-containerd-shim",
-		"--runtime", "docker-runc",
+		"--runtime", r.runtime,
 		"--metrics-interval=0",
 		"--state-dir", filepath.Join(r.stateDir, containerdStateDir),
 	}
@@ -459,4 +463,19 @@ func (d debugLog) Apply(r Remote) error {
 		return nil
 	}
 	return fmt.Errorf("WithDebugLog option not supported for this remote")
+}
+
+// WithRuntime defines if libcontainerd use another runtime
+func WithRuntime(nameOrPath string) RemoteOption {
+	return runtime(nameOrPath)
+}
+
+type runtime string
+
+func (rt runtime) Apply(r Remote) error {
+	if remote, ok := r.(*remote); ok {
+		remote.runtime = string(rt)
+		return nil
+	}
+	return fmt.Errorf("WithRuntime option not supported for this remote")
 }
