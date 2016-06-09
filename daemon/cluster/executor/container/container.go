@@ -346,7 +346,7 @@ func (c *containerConfig) serviceConfig() *clustertypes.ServiceConfig {
 		return nil
 	}
 
-	log.Printf("Createing service config in agent for t = %+v", c.task)
+	log.Printf("Creating service config in agent for t = %+v", c.task)
 	svcCfg := &clustertypes.ServiceConfig{
 		Name:             c.task.ServiceAnnotations.Name,
 		ID:               c.task.ServiceID,
