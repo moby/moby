@@ -55,6 +55,7 @@ parent = "smn_cli"
       -l, --label=[]                Set metadata on the container (e.g., --label=com.example.key=value)
       --label-file=[]               Read in a file of labels (EOL delimited)
       --link=[]                     Add link to another container
+      --link-local-ip=[]            Container IPv4/IPv6 link-local addresses (e.g. 169.254.0.77, fe80::77)
       --log-driver=""               Logging driver for container
       --log-opt=[]                  Log driver specific options
       -m, --memory=""               Memory limit

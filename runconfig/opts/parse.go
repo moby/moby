@@ -32,6 +32,7 @@ type ContainerOptions struct {
 	flDeviceWriteBps    ThrottledeviceOpt
 	flLinks             opts.ListOpts
 	flAliases           opts.ListOpts
+	flLinkLocalIPs      opts.ListOpts
 	flDeviceReadIOps    ThrottledeviceOpt
 	flDeviceWriteIOps   ThrottledeviceOpt
 	flEnv               opts.ListOpts
@@ -117,6 +118,7 @@ func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 		flDeviceWriteBps:    NewThrottledeviceOpt(ValidateThrottleBpsDevice),
 		flLinks:             opts.NewListOpts(ValidateLink),
 		flAliases:           opts.NewListOpts(nil),
+		flLinkLocalIPs:      opts.NewListOpts(nil),
 		flDeviceReadIOps:    NewThrottledeviceOpt(ValidateThrottleIOpsDevice),
 		flDeviceWriteIOps:   NewThrottledeviceOpt(ValidateThrottleIOpsDevice),
 		flEnv:               opts.NewListOpts(ValidateEnv),
@@ -201,6 +203,7 @@ func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 	flags.Var(&copts.flTmpfs, "tmpfs", "Mount a tmpfs directory")
 	flags.Var(&copts.flLinks, "link", "Add link to another container")
 	flags.Var(&copts.flAliases, "net-alias", "Add network-scoped alias for the container")
+	flags.Var(&copts.flLinkLocalIPs, "link-local-ip", "Container IPv4/IPv6 link-local addresses")
 	flags.Var(&copts.flDevices, "device", "Add a host device to the container")
 	flags.VarP(&copts.flLabels, "label", "l", "Set meta data on a container")
 	flags.Var(&copts.flLabelsFile, "label-file", "Read in a line delimited file of labels")
@@ -229,7 +232,6 @@ func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 // a HostConfig and returns them with the specified command.
 // If the specified args are not valid, it will return an error.
 func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
-
 	var (
 		attachStdin  = copts.flAttach.Get("stdin")
 		attachStdout = copts.flAttach.Get("stdout")
@@ -575,12 +577,18 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 		EndpointsConfig: make(map[string]*networktypes.EndpointSettings),
 	}
 
-	if *copts.flIPv4Address != "" || *copts.flIPv6Address != "" {
-		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = &networktypes.EndpointSettings{
-			IPAMConfig: &networktypes.EndpointIPAMConfig{
-				IPv4Address: *copts.flIPv4Address,
-				IPv6Address: *copts.flIPv6Address,
-			},
+	if *copts.flIPv4Address != "" || *copts.flIPv6Address != "" || copts.flLinkLocalIPs.Len() > 0 {
+		epConfig := &networktypes.EndpointSettings{}
+		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = epConfig
+
+		epConfig.IPAMConfig = &networktypes.EndpointIPAMConfig{
+			IPv4Address: *copts.flIPv4Address,
+			IPv6Address: *copts.flIPv6Address,
+		}
+
+		if copts.flLinkLocalIPs.Len() > 0 {
+			epConfig.IPAMConfig.LinkLocalIPs = make([]string, copts.flLinkLocalIPs.Len())
+			copy(epConfig.IPAMConfig.LinkLocalIPs, copts.flLinkLocalIPs.GetAll())
 		}
 	}
 
