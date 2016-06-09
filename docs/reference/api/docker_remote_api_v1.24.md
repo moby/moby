@@ -3787,7 +3787,7 @@ List services
           },
           "EndpointSpec": {
             "Mode": "VIP",
-            "Ingress": "SWARMPORT",
+            "Ingress": "PUBLICPORT",
             "ExposedPorts": [
               {
                 "Protocol": "tcp",
@@ -3802,7 +3802,7 @@ List services
             {
               "Protocol": "tcp",
               "Port": 6379,
-              "SwarmPort": 30000
+              "PublicPort": 30000
             }
           ],
           "VirtualIPs": [
@@ -4021,7 +4021,7 @@ Return information on the service `id`.
         },
         "EndpointSpec": {
           "Mode": "VIP",
-          "Ingress": "SWARMPORT",
+          "Ingress": "PUBLICPORT",
           "ExposedPorts": [
             {
               "Protocol": "tcp",
@@ -4036,7 +4036,7 @@ Return information on the service `id`.
           {
             "Protocol": "tcp",
             "Port": 6379,
-            "SwarmPort": 30001
+            "PublicPort": 30001
           }
         ],
         "VirtualIPs": [
@@ -4164,7 +4164,7 @@ List tasks
             {
               "Protocol": "tcp",
               "Port": 6379,
-              "SwarmPort": 30000
+              "PublicPort": 30000
             }
           ],
           "VirtualIPs": [
@@ -4265,7 +4265,7 @@ List tasks
             {
               "Protocol": "tcp",
               "Port": 6379,
-              "SwarmPort": 30000
+              "PublicPort": 30000
             }
           ],
           "VirtualIPs": [
@@ -4396,7 +4396,7 @@ Get details on a task
           {
             "Protocol": "tcp",
             "Port": 6379,
-            "SwarmPort": 30000
+            "PublicPort": 30000
           }
         ],
         "VirtualIPs": [
