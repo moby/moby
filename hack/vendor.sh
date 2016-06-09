@@ -102,8 +102,8 @@ clone git github.com/miekg/pkcs11 df8ae6ca730422dba20c768ff38ef7d79077a59f
 clone git github.com/docker/go v1.5.1-1-1-gbaf439e
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
-clone git github.com/opencontainers/runc d49ece5a83da3dcb820121d6850e2b61bd0a5fbe # libcontainer
-clone git github.com/opencontainers/specs f955d90e70a98ddfb886bd930ffd076da9b67998 # specs
+clone git github.com/opencontainers/runc 85873d917e86676e44ccb80719fcb47a794676a1 # libcontainer
+clone git github.com/opencontainers/specs v1.0.0-rc1 # specs
 clone git github.com/seccomp/libseccomp-golang 32f571b70023028bd57d9288c20efbcb237f3ce0
 # libcontainer deps (see src/github.com/opencontainers/runc/Godeps/Godeps.json)
 clone git github.com/coreos/go-systemd v4
@@ -136,7 +136,7 @@ clone git google.golang.org/cloud dae7e3d993bc3812a2185af60552bb6b847e52a0 https
 clone git github.com/docker/docker-credential-helpers v0.3.0
 
 # containerd
-clone git github.com/docker/containerd cf554d59dd96e459544748290eb9167f4bcde509
+clone git github.com/docker/containerd 860f3a94940894ac0a106eff4bd1616a67407ee2
 
 # cluster
 clone git github.com/docker/swarmkit 45094b473cbdb2d45e4d8f703fb615989399ae29
