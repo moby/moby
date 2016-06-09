@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/spf13/cobra"
@@ -98,8 +97,8 @@ func printTable(out io.Writer, nodes []swarm.Node, info types.Info) {
 			reachability = string(node.Manager.Raft.Status.Reachability)
 		}
 
-		ID := stringid.TruncateID(node.ID)
-		if node.Description.Hostname == info.Name {
+		ID := node.ID
+		if node.ID == info.Swarm.NodeID {
 			ID = ID + " *"
 		}
 
