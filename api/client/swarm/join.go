@@ -15,6 +15,7 @@ type joinOptions struct {
 	listenAddr NodeAddrOption
 	manager    bool
 	secret     string
+	CACertHash string
 }
 
 func newJoinCommand(dockerCli *client.DockerCli) *cobra.Command {
@@ -36,6 +37,7 @@ func newJoinCommand(dockerCli *client.DockerCli) *cobra.Command {
 	flags.Var(&opts.listenAddr, "listen-addr", "Listen address")
 	flags.BoolVar(&opts.manager, "manager", false, "Try joining as a manager.")
 	flags.StringVar(&opts.secret, "secret", "", "Secret for node acceptance")
+	flags.StringVar(&opts.CACertHash, "ca-hash", "", "Hash of the Root Certificate Authority certificate used for trusted join")
 	return cmd
 }
 
@@ -48,6 +50,7 @@ func runJoin(dockerCli *client.DockerCli, opts joinOptions) error {
 		Secret:     opts.secret,
 		ListenAddr: opts.listenAddr.String(),
 		RemoteAddr: opts.remote,
+		CACertHash: opts.CACertHash,
 	}
 	err := client.SwarmJoin(ctx, req)
 	if err != nil {

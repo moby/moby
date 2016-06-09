@@ -78,6 +78,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		}
 		fmt.Fprintf(cli.out, " Managers: %d\n", info.Swarm.Managers)
 		fmt.Fprintf(cli.out, " Nodes: %d\n", info.Swarm.Nodes)
+		fmt.Fprintf(cli.out, " CACertHash: %s\n", info.Swarm.CACertHash)
 	} else {
 		fmt.Fprintf(cli.out, "Swarm: not part of a swarm\n")
 	}
