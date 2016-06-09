@@ -18,7 +18,6 @@ var DockerCommandUsage = []Command{
 	{"ps", "List containers"},
 	{"pull", "Pull an image or a repository from a registry"},
 	{"push", "Push an image or a repository to a registry"},
-	{"save", "Save one or more images to a tar archive"},
 	{"update", "Update configuration of one or more containers"},
 }
 
