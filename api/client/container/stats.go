@@ -1,4 +1,4 @@
-package client
+package container
 
 import (
 	"fmt"
@@ -11,26 +11,46 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
-	Cli "github.com/docker/docker/cli"
+	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/client/system"
+	"github.com/docker/docker/cli"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/events"
 	"github.com/docker/engine-api/types/filters"
+	"github.com/spf13/cobra"
 )
 
-// CmdStats displays a live stream of resource usage statistics for one or more containers.
-//
+type statsOptions struct {
+	all      bool
+	noStream bool
+
+	containers []string
+}
+
+// NewStatsCommand creats a new cobra.Command for `docker stats`
+func NewStatsCommand(dockerCli *client.DockerCli) *cobra.Command {
+	var opts statsOptions
+
+	cmd := &cobra.Command{
+		Use:   "stats [OPTIONS] [CONTAINER...]",
+		Short: "Display a live stream of container(s) resource usage statistics",
+		Args:  cli.RequiresMinArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opts.containers = args
+			return runStats(dockerCli, &opts)
+		},
+	}
+
+	flags := cmd.Flags()
+	flags.BoolVarP(&opts.all, "all", "a", false, "Show all containers (default shows just running)")
+	flags.BoolVar(&opts.noStream, "no-stream", false, "Disable streaming stats and only pull the first result")
+	return cmd
+}
+
+// runStats displays a live stream of resource usage statistics for one or more containers.
 // This shows real-time information on CPU usage, memory usage, and network I/O.
-//
-// Usage: docker stats [OPTIONS] [CONTAINER...]
-func (cli *DockerCli) CmdStats(args ...string) error {
-	cmd := Cli.Subcmd("stats", []string{"[CONTAINER...]"}, Cli.DockerCommands["stats"].Description, true)
-	all := cmd.Bool([]string{"a", "-all"}, false, "Show all containers (default shows just running)")
-	noStream := cmd.Bool([]string{"-no-stream"}, false, "Disable streaming stats and only pull the first result")
-
-	cmd.ParseFlags(args, true)
-
-	names := cmd.Args()
-	showAll := len(names) == 0
+func runStats(dockerCli *client.DockerCli, opts *statsOptions) error {
+	showAll := len(opts.containers) == 0
 	closeChan := make(chan error)
 
 	ctx := context.Background()
@@ -43,7 +63,7 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 		options := types.EventsOptions{
 			Filters: f,
 		}
-		resBody, err := cli.client.Events(ctx, options)
+		resBody, err := dockerCli.Client().Events(ctx, options)
 		// Whether we successfully subscribed to events or not, we can now
 		// unblock the main goroutine.
 		close(started)
@@ -53,7 +73,7 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 		}
 		defer resBody.Close()
 
-		decodeEvents(resBody, func(event events.Message, err error) error {
+		system.DecodeEvents(resBody, func(event events.Message, err error) error {
 			if err != nil {
 				closeChan <- err
 				return nil
@@ -71,9 +91,9 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 	// containers (only used when calling `docker stats` without arguments).
 	getContainerList := func() {
 		options := types.ContainerListOptions{
-			All: *all,
+			All: opts.all,
 		}
-		cs, err := cli.client.ContainerList(ctx, options)
+		cs, err := dockerCli.Client().ContainerList(ctx, options)
 		if err != nil {
 			closeChan <- err
 		}
@@ -81,7 +101,7 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 			s := &containerStats{Name: container.ID[:12]}
 			if cStats.add(s) {
 				waitFirst.Add(1)
-				go s.Collect(ctx, cli.client, !*noStream, waitFirst)
+				go s.Collect(ctx, dockerCli.Client(), !opts.noStream, waitFirst)
 			}
 		}
 	}
@@ -92,13 +112,13 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 		// retrieving the list of running containers to avoid a race where we
 		// would "miss" a creation.
 		started := make(chan struct{})
-		eh := eventHandler{handlers: make(map[string]func(events.Message))}
+		eh := system.InitEventHandler()
 		eh.Handle("create", func(e events.Message) {
-			if *all {
+			if opts.all {
 				s := &containerStats{Name: e.ID[:12]}
 				if cStats.add(s) {
 					waitFirst.Add(1)
-					go s.Collect(ctx, cli.client, !*noStream, waitFirst)
+					go s.Collect(ctx, dockerCli.Client(), !opts.noStream, waitFirst)
 				}
 			}
 		})
@@ -107,12 +127,12 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 			s := &containerStats{Name: e.ID[:12]}
 			if cStats.add(s) {
 				waitFirst.Add(1)
-				go s.Collect(ctx, cli.client, !*noStream, waitFirst)
+				go s.Collect(ctx, dockerCli.Client(), !opts.noStream, waitFirst)
 			}
 		})
 
 		eh.Handle("die", func(e events.Message) {
-			if !*all {
+			if !opts.all {
 				cStats.remove(e.ID[:12])
 			}
 		})
@@ -129,11 +149,11 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 	} else {
 		// Artificially send creation events for the containers we were asked to
 		// monitor (same code path than we use when monitoring all containers).
-		for _, name := range names {
+		for _, name := range opts.containers {
 			s := &containerStats{Name: name}
 			if cStats.add(s) {
 				waitFirst.Add(1)
-				go s.Collect(ctx, cli.client, !*noStream, waitFirst)
+				go s.Collect(ctx, dockerCli.Client(), !opts.noStream, waitFirst)
 			}
 		}
 
@@ -161,11 +181,11 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 	// before print to screen, make sure each container get at least one valid stat data
 	waitFirst.Wait()
 
-	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
+	w := tabwriter.NewWriter(dockerCli.Out(), 20, 1, 3, ' ', 0)
 	printHeader := func() {
-		if !*noStream {
-			fmt.Fprint(cli.out, "\033[2J")
-			fmt.Fprint(cli.out, "\033[H")
+		if !opts.noStream {
+			fmt.Fprint(dockerCli.Out(), "\033[2J")
+			fmt.Fprint(dockerCli.Out(), "\033[H")
 		}
 		io.WriteString(w, "CONTAINER\tCPU %\tMEM USAGE / LIMIT\tMEM %\tNET I/O\tBLOCK I/O\tPIDS\n")
 	}
@@ -174,13 +194,13 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 		printHeader()
 		cStats.mu.Lock()
 		for _, s := range cStats.cs {
-			if err := s.Display(w); err != nil && !*noStream {
+			if err := s.Display(w); err != nil && !opts.noStream {
 				logrus.Debugf("stats: got error for %s: %v", s.Name, err)
 			}
 		}
 		cStats.mu.Unlock()
 		w.Flush()
-		if *noStream {
+		if opts.noStream {
 			break
 		}
 		select {

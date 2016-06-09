@@ -3,6 +3,7 @@ package container
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"golang.org/x/net/context"
 
@@ -42,7 +43,7 @@ func runStop(dockerCli *client.DockerCli, opts *stopOptions) error {
 
 	var errs []string
 	for _, container := range opts.containers {
-		if err := dockerCli.Client().ContainerStop(ctx, container, opts.time); err != nil {
+		if err := dockerCli.Client().ContainerStop(ctx, container, time.Duration(opts.time)*time.Second); err != nil {
 			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(dockerCli.Out(), "%s\n", container)

@@ -19,8 +19,8 @@ type manifestItem struct {
 	Config       string
 	RepoTags     []string
 	Layers       []string
-	Parent       image.ID                                  `json:",omitempty"`
-	LayerSources map[layer.DiffID]*distribution.Descriptor `json:",omitempty"`
+	Parent       image.ID                                 `json:",omitempty"`
+	LayerSources map[layer.DiffID]distribution.Descriptor `json:",omitempty"`
 }
 
 type tarexporter struct {

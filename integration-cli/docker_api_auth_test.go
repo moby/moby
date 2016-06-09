@@ -16,9 +16,10 @@ func (s *DockerSuite) TestAuthApi(c *check.C) {
 		Password: "no-password",
 	}
 
-	expected := "Get https://registry-1.docker.io/v2/: unauthorized: incorrect username or password\n"
+	expected := "Get https://registry-1.docker.io/v2/: unauthorized: incorrect username or password"
 	status, body, err := sockRequest("POST", "/auth", config)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusUnauthorized)
-	c.Assert(string(body), checker.Contains, expected, check.Commentf("Expected: %v, got: %v", expected, string(body)))
+	msg := getErrorMessage(c, body)
+	c.Assert(msg, checker.Contains, expected, check.Commentf("Expected: %v, got: %v", expected, msg))
 }

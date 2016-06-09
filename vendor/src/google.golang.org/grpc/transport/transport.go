@@ -63,13 +63,11 @@ type recvMsg struct {
 	err error
 }
 
-func (recvMsg) isItem() bool {
-	return true
-}
+func (*recvMsg) item() {}
 
 // All items in an out of a recvBuffer should be the same type.
 type item interface {
-	isItem() bool
+	item()
 }
 
 // recvBuffer is an unbounded channel of item.
@@ -89,12 +87,14 @@ func newRecvBuffer() *recvBuffer {
 func (b *recvBuffer) put(r item) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.backlog = append(b.backlog, r)
-	select {
-	case b.c <- b.backlog[0]:
-		b.backlog = b.backlog[1:]
-	default:
+	if len(b.backlog) == 0 {
+		select {
+		case b.c <- r:
+			return
+		default:
+		}
 	}
+	b.backlog = append(b.backlog, r)
 }
 
 func (b *recvBuffer) load() {
@@ -170,11 +170,13 @@ type Stream struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	// method records the associated RPC method of the stream.
-	method    string
-	buf       *recvBuffer
-	dec       io.Reader
-	fc        *inFlow
-	recvQuota uint32
+	method       string
+	recvCompress string
+	sendCompress string
+	buf          *recvBuffer
+	dec          io.Reader
+	fc           *inFlow
+	recvQuota    uint32
 	// The accumulated inbound quota pending for window update.
 	updateQuota uint32
 	// The handler to control the window update procedure for both this
@@ -199,6 +201,17 @@ type Stream struct {
 	// the status received from the server.
 	statusCode codes.Code
 	statusDesc string
+}
+
+// RecvCompress returns the compression algorithm applied to the inbound
+// message. It is empty string if there is no compression applied.
+func (s *Stream) RecvCompress() string {
+	return s.recvCompress
+}
+
+// SetSendCompress sets the compression algorithm to the stream.
+func (s *Stream) SetSendCompress(str string) {
+	s.sendCompress = str
 }
 
 // Header acquires the key-value pairs of header metadata once it
@@ -286,20 +299,18 @@ func (s *Stream) Read(p []byte) (n int, err error) {
 	return
 }
 
-type key int
-
 // The key to save transport.Stream in the context.
-const streamKey = key(0)
+type streamKey struct{}
 
 // newContextWithStream creates a new context from ctx and attaches stream
 // to it.
 func newContextWithStream(ctx context.Context, stream *Stream) context.Context {
-	return context.WithValue(ctx, streamKey, stream)
+	return context.WithValue(ctx, streamKey{}, stream)
 }
 
 // StreamFromContext returns the stream saved in ctx.
 func StreamFromContext(ctx context.Context) (s *Stream, ok bool) {
-	s, ok = ctx.Value(streamKey).(*Stream)
+	s, ok = ctx.Value(streamKey{}).(*Stream)
 	return
 }
 
@@ -339,20 +350,40 @@ func NewClientTransport(target string, opts *ConnectOptions) (ClientTransport, e
 // Options provides additional hints and information for message
 // transmission.
 type Options struct {
-	// Indicate whether it is the last piece for this stream.
+	// Last indicates whether this write is the last piece for
+	// this stream.
 	Last bool
-	// The hint to transport impl whether the data could be buffered for
-	// batching write. Transport impl can feel free to ignore it.
+
+	// Delay is a hint to the transport implementation for whether
+	// the data could be buffered for a batching write. The
+	// Transport implementation may ignore the hint.
 	Delay bool
 }
 
 // CallHdr carries the information of a particular RPC.
 type CallHdr struct {
-	Host   string // peer host
-	Method string // the operation to perform on the specified host
+	// Host specifies the peer's host.
+	Host string
+
+	// Method specifies the operation to perform.
+	Method string
+
+	// RecvCompress specifies the compression algorithm applied on
+	// inbound messages.
+	RecvCompress string
+
+	// SendCompress specifies the compression algorithm applied on
+	// outbound message.
+	SendCompress string
+
+	// Flush indicates whether a new stream command should be sent
+	// to the peer without waiting for the first data. This is
+	// only a hint. The transport may modify the flush decision
+	// for performance purposes.
+	Flush bool
 }
 
-// ClientTransport is the common interface for all gRPC client side transport
+// ClientTransport is the common interface for all gRPC client-side transport
 // implementations.
 type ClientTransport interface {
 	// Close tears down this transport. Once it returns, the transport
@@ -381,21 +412,33 @@ type ClientTransport interface {
 	Error() <-chan struct{}
 }
 
-// ServerTransport is the common interface for all gRPC server side transport
+// ServerTransport is the common interface for all gRPC server-side transport
 // implementations.
+//
+// Methods may be called concurrently from multiple goroutines, but
+// Write methods for a given Stream will be called serially.
 type ServerTransport interface {
-	// WriteStatus sends the status of a stream to the client.
-	WriteStatus(s *Stream, statusCode codes.Code, statusDesc string) error
-	// Write sends the data for the given stream.
-	Write(s *Stream, data []byte, opts *Options) error
-	// WriteHeader sends the header metedata for the given stream.
-	WriteHeader(s *Stream, md metadata.MD) error
 	// HandleStreams receives incoming streams using the given handler.
 	HandleStreams(func(*Stream))
+
+	// WriteHeader sends the header metadata for the given stream.
+	// WriteHeader may not be called on all streams.
+	WriteHeader(s *Stream, md metadata.MD) error
+
+	// Write sends the data for the given stream.
+	// Write may not be called on all streams.
+	Write(s *Stream, data []byte, opts *Options) error
+
+	// WriteStatus sends the status of a stream to the client.
+	// WriteStatus is the final call made on a stream and always
+	// occurs.
+	WriteStatus(s *Stream, statusCode codes.Code, statusDesc string) error
+
 	// Close tears down the transport. Once it is called, the transport
 	// should not be accessed any more. All the pending streams and their
 	// handlers will be terminated asynchronously.
 	Close() error
+
 	// RemoteAddr returns the remote network address.
 	RemoteAddr() net.Addr
 }

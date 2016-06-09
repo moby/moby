@@ -5,6 +5,7 @@ import (
 	"github.com/docker/docker/api/client/container"
 	"github.com/docker/docker/api/client/image"
 	"github.com/docker/docker/api/client/network"
+	"github.com/docker/docker/api/client/system"
 	"github.com/docker/docker/api/client/volume"
 	"github.com/docker/docker/cli"
 	cliflags "github.com/docker/docker/cli/flags"
@@ -44,12 +45,15 @@ func NewCobraAdaptor(clientFlags *cliflags.ClientFlags) CobraAdaptor {
 		container.NewPortCommand(dockerCli),
 		container.NewRenameCommand(dockerCli),
 		container.NewRestartCommand(dockerCli),
+		container.NewRmCommand(dockerCli),
 		container.NewRunCommand(dockerCli),
 		container.NewStartCommand(dockerCli),
+		container.NewStatsCommand(dockerCli),
 		container.NewStopCommand(dockerCli),
 		container.NewTopCommand(dockerCli),
 		container.NewUnpauseCommand(dockerCli),
 		container.NewWaitCommand(dockerCli),
+		image.NewBuildCommand(dockerCli),
 		image.NewHistoryCommand(dockerCli),
 		image.NewImagesCommand(dockerCli),
 		image.NewRemoveCommand(dockerCli),
@@ -57,6 +61,8 @@ func NewCobraAdaptor(clientFlags *cliflags.ClientFlags) CobraAdaptor {
 		image.NewImportCommand(dockerCli),
 		image.NewTagCommand(dockerCli),
 		network.NewNetworkCommand(dockerCli),
+		system.NewEventsCommand(dockerCli),
+		system.NewVersionCommand(dockerCli),
 		volume.NewVolumeCommand(dockerCli),
 	)
 

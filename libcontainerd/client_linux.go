@@ -264,7 +264,7 @@ func (clnt *client) Stats(containerID string) (*Stats, error) {
 }
 
 // Take care of the old 1.11.0 behavior in case the version upgrade
-// happenned without a clean daemon shutdown
+// happened without a clean daemon shutdown
 func (clnt *client) cleanupOldRootfs(containerID string) {
 	// Unmount and delete the bundle folder
 	if mts, err := mount.GetMounts(); err == nil {

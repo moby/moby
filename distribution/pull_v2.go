@@ -133,7 +133,7 @@ type v2LayerDescriptor struct {
 	V2MetadataService *metadata.V2MetadataService
 	tmpFile           *os.File
 	verifier          digest.Verifier
-	foreignSrc        *distribution.Descriptor
+	src               distribution.Descriptor
 }
 
 func (ld *v2LayerDescriptor) Key() string {
@@ -511,14 +511,7 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 			repo:              p.repo,
 			repoInfo:          p.repoInfo,
 			V2MetadataService: p.V2MetadataService,
-		}
-
-		if d.MediaType == schema2.MediaTypeForeignLayer && len(d.URLs) > 0 {
-			if !layer.ForeignSourceSupported() {
-				return "", "", errors.New("foreign layers are not supported on this OS")
-			}
-
-			layerDescriptor.foreignSrc = &d
+			src:               d,
 		}
 
 		descriptors = append(descriptors, layerDescriptor)

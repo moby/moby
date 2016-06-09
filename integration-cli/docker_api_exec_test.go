@@ -24,7 +24,7 @@ func (s *DockerSuite) TestExecApiCreateNoCmd(c *check.C) {
 	c.Assert(status, checker.Equals, http.StatusInternalServerError)
 
 	comment := check.Commentf("Expected message when creating exec command with no Cmd specified")
-	c.Assert(string(body), checker.Contains, "No exec command specified", comment)
+	c.Assert(getErrorMessage(c, body), checker.Contains, "No exec command specified", comment)
 }
 
 func (s *DockerSuite) TestExecApiCreateNoValidContentType(c *check.C) {
@@ -44,7 +44,7 @@ func (s *DockerSuite) TestExecApiCreateNoValidContentType(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	comment := check.Commentf("Expected message when creating exec command with invalid Content-Type specified")
-	c.Assert(string(b), checker.Contains, "Content-Type specified", comment)
+	c.Assert(getErrorMessage(c, b), checker.Contains, "Content-Type specified", comment)
 }
 
 func (s *DockerSuite) TestExecApiCreateContainerPaused(c *check.C) {
@@ -59,7 +59,7 @@ func (s *DockerSuite) TestExecApiCreateContainerPaused(c *check.C) {
 	c.Assert(status, checker.Equals, http.StatusConflict)
 
 	comment := check.Commentf("Expected message when creating exec command with Container %s is paused", name)
-	c.Assert(string(body), checker.Contains, "Container "+name+" is paused, unpause the container before exec", comment)
+	c.Assert(getErrorMessage(c, body), checker.Contains, "Container "+name+" is paused, unpause the container before exec", comment)
 }
 
 func (s *DockerSuite) TestExecApiStart(c *check.C) {

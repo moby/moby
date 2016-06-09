@@ -93,6 +93,10 @@ func TestParseWords(t *testing.T) {
 			"expect": {"foo", "bar"},
 		},
 		{
+			"input":  {"foo\\ bar"},
+			"expect": {"foo\\ bar"},
+		},
+		{
 			"input":  {"foo=bar"},
 			"expect": {"foo=bar"},
 		},
@@ -103,6 +107,14 @@ func TestParseWords(t *testing.T) {
 		{
 			"input":  {`foo bar "abc xyz"`},
 			"expect": {"foo", "bar", `"abc xyz"`},
+		},
+		{
+			"input":  {"àöû"},
+			"expect": {"àöû"},
+		},
+		{
+			"input":  {`föo bàr "âbc xÿz"`},
+			"expect": {"föo", "bàr", `"âbc xÿz"`},
 		},
 	}
 
