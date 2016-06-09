@@ -22,7 +22,7 @@ const (
 	vethPrefix   = "veth"
 	vethLen      = 7
 	vxlanIDStart = 256
-	vxlanIDEnd   = 1000
+	vxlanIDEnd   = (1 << 24) - 1
 	vxlanPort    = 4789
 	vxlanVethMTU = 1450
 )
