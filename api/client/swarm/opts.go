@@ -108,7 +108,7 @@ func (o *AutoAcceptOption) Policies(secret string) []swarm.Policy {
 
 	for role, enabled := range o.values {
 		policies = append(policies, swarm.Policy{
-			Role:       role,
+			Role:       swarm.NodeRole(strings.ToUpper(role)),
 			Autoaccept: enabled,
 			Secret:     secret,
 		})
