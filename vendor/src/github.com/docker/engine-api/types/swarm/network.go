@@ -95,24 +95,10 @@ type IPAMOptions struct {
 
 // IPAMConfig represents ipam configuration.
 type IPAMConfig struct {
-	Family   IPAMConfigFamily  `json:",omitempty"`
-	Subnet   string            `json:",omitempty"`
-	Range    string            `json:",omitempty"`
-	Gateway  string            `json:",omitempty"`
-	Reserved map[string]string `json:",omitempty"`
+	Subnet  string `json:",omitempty"`
+	Range   string `json:",omitempty"`
+	Gateway string `json:",omitempty"`
 }
-
-const (
-	// IPAMConfigFamilyUnknown UNKNOWN
-	IPAMConfigFamilyUnknown = "UNKNOWN"
-	// IPAMConfigFamilyIpv4 IPV4
-	IPAMConfigFamilyIpv4 = "IPV4"
-	// IPAMConfigFamilyIpv6 IPV6
-	IPAMConfigFamilyIpv6 = "IPV6"
-)
-
-// IPAMConfigFamily represents the family of a ipam configuration.
-type IPAMConfigFamily string
 
 // Driver represents a driver (network/volume).
 type Driver struct {

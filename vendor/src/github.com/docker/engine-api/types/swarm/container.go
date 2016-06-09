@@ -17,14 +17,13 @@ type ContainerSpec struct {
 
 // Mount represents a mount (volume).
 type Mount struct {
-	Target        string              `json:",omitempty"`
-	Source        string              `json:",omitempty"`
-	Writable      bool                `json:",omitempty"`
-	Type          MountType           `json:",omitempty"`
-	Propagation   MountPropagation    `json:",omitempty"`
-	MCSAccessMode MountMCSAaccessMode `json:",omitempty"`
-	Populate      bool                `json:",omitempty"`
-	Template      *VolumeTemplate     `json:",omitempty"`
+	Target      string           `json:",omitempty"`
+	Source      string           `json:",omitempty"`
+	Writable    bool             `json:",omitempty"`
+	Type        MountType        `json:",omitempty"`
+	Propagation MountPropagation `json:",omitempty"`
+	Populate    bool             `json:",omitempty"`
+	Template    *VolumeTemplate  `json:",omitempty"`
 }
 
 const (
@@ -44,18 +43,6 @@ const (
 
 // MountPropagation represents the propagation of a mount.
 type MountPropagation string
-
-const (
-	// MountMCSAccessModeNone    MCSNONE
-	MountMCSAccessModeNone = "MCSNONE"
-	// MountMCSAccessModeShared  MCSSHARED
-	MountMCSAccessModeShared = "MCSSHARED"
-	// MountMCSAccessModePrivate MCSPRIVATE
-	MountMCSAccessModePrivate = "MCSPRIVATE"
-)
-
-// MountMCSAaccessMode represents the MCSAaccessMode of a mount.
-type MountMCSAaccessMode string
 
 const (
 	// MountTypeBind BIND

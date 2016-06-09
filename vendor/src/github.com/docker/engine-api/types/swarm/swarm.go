@@ -27,7 +27,7 @@ type AcceptancePolicy struct {
 
 // Policy represents a role, autoaccept and secret.
 type Policy struct {
-	Role       string
+	Role       NodeRole
 	Autoaccept bool
 	Secret     string `json:",omitempty"`
 }
@@ -68,7 +68,7 @@ type JoinRequest struct {
 	ListenAddr string
 	RemoteAddr string
 	Secret     string // accept by secret
-	CAHash     string
+	CACertHash string
 	Manager    bool
 }
 
@@ -81,7 +81,8 @@ type Info struct {
 	IsManager bool
 	// TODO(aluzzardi): Should we export this? At least we should rename it
 	// (this is the list of managers the agent is connected to).
-	Remotes  map[string]string
-	Nodes    int
-	Managers int
+	Remotes    map[string]string
+	Nodes      int
+	Managers   int
+	CACertHash string
 }
