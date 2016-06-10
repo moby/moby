@@ -546,7 +546,7 @@ func (c *Cluster) Info() types.Info {
 
 	if c.node != nil {
 		for _, r := range c.node.Remotes() {
-			info.RemoteManagers = append(info.Remotes, types.Peer{NodeID: r.NodeID, Addr: r.Addr})
+			info.RemoteManagers = append(info.RemoteManagers, types.Peer{NodeID: r.NodeID, Addr: r.Addr})
 		}
 		info.NodeID = c.node.NodeID()
 	}
