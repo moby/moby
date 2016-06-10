@@ -2,6 +2,7 @@ package container
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
@@ -160,6 +161,9 @@ func (r *controller) Wait(pctx context.Context) error {
 	case <-c:
 		ctnr, err := r.adapter.inspect(ctx)
 		if err != nil {
+			// TODO(stevvooe): Need to handle missing container here. It is likely
+			// that a Wait call with a not found error should result in no waiting
+			// and no error at all.
 			return err
 		}
 
@@ -168,9 +172,11 @@ func (r *controller) Wait(pctx context.Context) error {
 			if ctnr.State.Error != "" {
 				cause = errors.New(ctnr.State.Error)
 			}
-			return &exec.ExitError{
-				Code:  ctnr.State.ExitCode,
-				Cause: cause,
+			cstatus, _ := parseContainerStatus(ctnr)
+			return &exitError{
+				code:            ctnr.State.ExitCode,
+				cause:           cause,
+				containerStatus: cstatus,
 			}
 		}
 	case <-ctx.Done():
@@ -276,4 +282,26 @@ func parseContainerStatus(ctnr types.ContainerJSON) (*api.ContainerStatus, error
 	}
 
 	return status, nil
+}
+
+type exitError struct {
+	code            int
+	cause           error
+	containerStatus *api.ContainerStatus
+}
+
+func (e *exitError) Error() string {
+	if e.cause != nil {
+		return fmt.Sprintf("task: non-zero exit (%v): %v", e.code, e.cause)
+	}
+
+	return fmt.Sprintf("task: non-zero exit (%v)", e.code)
+}
+
+func (e *exitError) ExitCode() int {
+	return int(e.containerStatus.ExitCode)
+}
+
+func (e *exitError) Cause() error {
+	return e.cause
 }
