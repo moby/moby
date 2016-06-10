@@ -15,7 +15,7 @@ func newDemoteCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "demote NODE [NODE...]",
-		Short: "Demote a node as manager in the swarm",
+		Short: "Demote a node from manager in the swarm",
 		Args:  cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDemote(dockerCli, flags, args)

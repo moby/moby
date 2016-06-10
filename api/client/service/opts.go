@@ -55,7 +55,11 @@ func (c *nanoCPUs) Set(value string) error {
 	if !ok {
 		return fmt.Errorf("Failed to parse %v as a rational number", value)
 	}
-	*c = nanoCPUs(cpu.Mul(cpu, big.NewRat(1e9, 1)).Num().Int64())
+	nano := cpu.Mul(cpu, big.NewRat(1e9, 1))
+	if !nano.IsInt() {
+		return fmt.Errorf("value is too precise")
+	}
+	*c = nanoCPUs(nano.Num().Int64())
 	return nil
 }
 

@@ -24,8 +24,9 @@ func newRemoveCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 func runRemove(dockerCli *client.DockerCli, args []string) error {
 	client := dockerCli.Client()
+	ctx := context.Background()
 	for _, nodeID := range args {
-		err := client.NodeRemove(context.Background(), nodeID)
+		err := client.NodeRemove(ctx, nodeID)
 		if err != nil {
 			return err
 		}

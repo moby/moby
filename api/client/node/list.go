@@ -46,15 +46,16 @@ func newListCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 func runList(dockerCli *client.DockerCli, opts listOptions) error {
 	client := dockerCli.Client()
+	ctx := context.Background()
 
 	nodes, err := client.NodeList(
-		context.Background(),
+		ctx,
 		types.NodeListOptions{Filter: opts.filter.Value()})
 	if err != nil {
 		return err
 	}
 
-	info, err := client.Info(context.Background())
+	info, err := client.Info(ctx)
 	if err != nil {
 		return err
 	}
