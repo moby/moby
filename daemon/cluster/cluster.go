@@ -509,13 +509,27 @@ func (c *Cluster) ListenClusterEvents() <-chan struct{} {
 
 // Info returns information about the current cluster state.
 func (c *Cluster) Info() types.Info {
-	var info types.Info // TODO: add error
+	var info types.Info
 	c.RLock()
 	defer c.RUnlock()
 
-	info.IsAgent = c.ready
-	info.IsManager = c.conn != nil
-	if c.conn != nil {
+	if c.node == nil {
+		info.LocalNodeState = types.LocalNodeStateInactive
+		if c.cancelDelay != nil {
+			info.LocalNodeState = types.LocalNodeStateError
+		}
+	} else {
+		info.LocalNodeState = types.LocalNodeStatePending
+		if c.ready == true {
+			info.LocalNodeState = types.LocalNodeStateActive
+		}
+	}
+	if c.err != nil {
+		info.Error = c.err.Error()
+	}
+
+	if c.isActiveManager() {
+		info.ControlAvailable = true
 		if r, err := c.client.ListNodes(c.getRequestContext(), &swarmapi.ListNodesRequest{}); err == nil {
 			info.Nodes = len(r.Nodes)
 			for _, n := range r.Nodes {
@@ -524,19 +538,17 @@ func (c *Cluster) Info() types.Info {
 				}
 			}
 		}
-	}
-	if c.node != nil {
-		info.Remotes = make(map[string]string)
-		for _, r := range c.node.Remotes() {
-			info.Remotes[r.NodeID] = r.Addr
-		}
-		info.NodeID = c.node.NodeID()
-	}
 
-	if c.isActiveManager() {
 		if swarm, err := getSwarm(c.getRequestContext(), c.client); err == nil && swarm != nil && swarm.RootCA != nil {
 			info.CACertHash = swarm.RootCA.CACertHash
 		}
+	}
+
+	if c.node != nil {
+		for _, r := range c.node.Remotes() {
+			info.RemoteManagers = append(info.Remotes, types.Peer{NodeID: r.NodeID, Addr: r.Addr})
+		}
+		info.NodeID = c.node.NodeID()
 	}
 
 	return info

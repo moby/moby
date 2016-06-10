@@ -23,7 +23,7 @@ func ServiceFromGRPC(s swarmapi.Service) types.Service {
 		ID: s.ID,
 
 		Spec: types.ServiceSpec{
-			TaskSpec: types.TaskSpec{
+			TaskTemplate: types.TaskSpec{
 				ContainerSpec: containerSpecFromGRPC(containerConfig),
 				Resources:     resourcesFromGRPC(s.Spec.Task.Resources),
 				RestartPolicy: restartPolicyFromGRPC(s.Spec.Task.Restart),
@@ -85,26 +85,26 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 			Labels: s.Labels,
 		},
 		Task: swarmapi.TaskSpec{
-			Resources: resourcesToGRPC(s.TaskSpec.Resources),
+			Resources: resourcesToGRPC(s.TaskTemplate.Resources),
 		},
 		Networks: networks,
 	}
 
-	containerSpec, err := containerToGRPC(s.TaskSpec.ContainerSpec)
+	containerSpec, err := containerToGRPC(s.TaskTemplate.ContainerSpec)
 	if err != nil {
 		return swarmapi.ServiceSpec{}, err
 	}
 	spec.Task.Runtime = &swarmapi.TaskSpec_Container{Container: containerSpec}
 
-	restartPolicy, err := restartPolicyToGRPC(s.TaskSpec.RestartPolicy)
+	restartPolicy, err := restartPolicyToGRPC(s.TaskTemplate.RestartPolicy)
 	if err != nil {
 		return swarmapi.ServiceSpec{}, err
 	}
 	spec.Task.Restart = restartPolicy
 
-	if s.TaskSpec.Placement != nil {
+	if s.TaskTemplate.Placement != nil {
 		spec.Task.Placement = &swarmapi.Placement{
-			Constraints: s.TaskSpec.Placement.Constraints,
+			Constraints: s.TaskTemplate.Placement.Constraints,
 		}
 	}
 

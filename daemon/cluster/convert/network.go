@@ -28,8 +28,9 @@ func networkFromGRPC(n *swarmapi.Network) types.Network {
 			Spec: types.NetworkSpec{
 				IPv6Enabled: n.Spec.Ipv6Enabled,
 				Internal:    n.Spec.Internal,
-				IPAM:        ipamFromGRPC(n.Spec.IPAM),
+				IPAMOptions: ipamFromGRPC(n.Spec.IPAM),
 			},
+			IPAMOptions: ipamFromGRPC(n.IPAM),
 		}
 
 		// Meta
@@ -55,10 +56,6 @@ func networkFromGRPC(n *swarmapi.Network) types.Network {
 				Name:    n.DriverState.Name,
 				Options: n.DriverState.Options,
 			}
-		}
-
-		if n.IPAM != nil {
-			network.IPAM = *ipamFromGRPC(n.IPAM)
 		}
 
 		return network

@@ -55,16 +55,11 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 
 	//Manager
 	if n.Manager != nil {
-		node.Manager = &types.Manager{
-			Raft: types.RaftMember{
-				RaftID: n.Manager.Raft.RaftID,
-				Addr:   n.Manager.Raft.Addr,
-				Status: types.RaftMemberStatus{
-					Leader:       n.Manager.Raft.Status.Leader,
-					Reachability: types.Reachability(n.Manager.Raft.Status.Reachability.String()),
-					Message:      n.Manager.Raft.Status.Message,
-				},
-			},
+		node.ManagerStatus = &types.ManagerStatus{
+			Leader:       n.Manager.Raft.Status.Leader,
+			Reachability: types.Reachability(n.Manager.Raft.Status.Reachability.String()),
+			Message:      n.Manager.Raft.Status.Message,
+			Addr:         n.Manager.Raft.Addr,
 		}
 	}
 

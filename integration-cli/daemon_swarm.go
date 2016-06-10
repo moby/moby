@@ -15,16 +15,9 @@ import (
 // SwarmDaemon is a test daemon with helpers for participating in a swarm.
 type SwarmDaemon struct {
 	*Daemon
-	NodeID     string
-	CACertHash string
+	swarm.Info
 	port       int
 	listenAddr string
-}
-type swarmInfo struct {
-	IsManager  bool
-	IsAgent    bool
-	NodeID     string
-	CACertHash string
 }
 
 // Init initializes a new swarm cluster.
@@ -46,12 +39,11 @@ func (d *SwarmDaemon) Init(autoAccept map[string]bool, secret string) error {
 	if err != nil {
 		return fmt.Errorf("initializing swarm: %v", err)
 	}
-	st, err := d.swarmInfo()
+	info, err := d.info()
 	if err != nil {
 		return err
 	}
-	d.NodeID = st.NodeID
-	d.CACertHash = st.CACertHash
+	d.Info = info
 	return nil
 }
 
@@ -70,11 +62,11 @@ func (d *SwarmDaemon) Join(remoteAddr, secret, cahash string, manager bool) erro
 	if err != nil {
 		return fmt.Errorf("joining swarm: %v", err)
 	}
-	st, err := d.swarmInfo()
+	info, err := d.info()
 	if err != nil {
 		return err
 	}
-	d.NodeID = st.NodeID
+	d.Info = info
 	return nil
 }
 
@@ -94,30 +86,21 @@ func (d *SwarmDaemon) Leave(force bool) error {
 	return err
 }
 
-func (d *SwarmDaemon) swarmInfo() (*swarmInfo, error) {
+func (d *SwarmDaemon) info() (swarm.Info, error) {
+	var info struct {
+		Swarm swarm.Info
+	}
 	status, dt, err := d.SockRequest("GET", "/info", nil)
 	if status != http.StatusOK {
-		return nil, fmt.Errorf("get swarm info: invalid statuscode %v", status)
+		return info.Swarm, fmt.Errorf("get swarm info: invalid statuscode %v", status)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("get swarm info: %v", err)
+		return info.Swarm, fmt.Errorf("get swarm info: %v", err)
 	}
-	var st struct {
-		Swarm swarmInfo
+	if err := json.Unmarshal(dt, &info); err != nil {
+		return info.Swarm, err
 	}
-	if err := json.Unmarshal(dt, &st); err != nil {
-		return nil, err
-	}
-	return &st.Swarm, nil
-}
-
-// SwarmStatus returns information about the swarm manager/agent state
-func (d *SwarmDaemon) SwarmStatus() (bool, bool, error) {
-	st, err := d.swarmInfo()
-	if err != nil {
-		return false, false, err
-	}
-	return st.IsManager, st.IsAgent, nil
+	return info.Swarm, nil
 }
 
 type serviceConstructor func(*swarm.Service)
