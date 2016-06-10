@@ -1,6 +1,7 @@
 <!--[metadata]>
 +++
 title = "daemon"
+aliases = ["/engine/reference/commandline/dockerd/", "/engine/reference/commandline/dockerd.md"]
 description = "The daemon command description and usage"
 keywords = ["container, daemon, runtime"]
 [menu.main]
@@ -88,7 +89,7 @@ membership.
 If you need to access the Docker daemon remotely, you need to enable the `tcp`
 Socket. Beware that the default setup provides un-encrypted and
 un-authenticated direct access to the Docker daemon - and should be secured
-either using the [built in HTTPS encrypted socket](../../security/https/), or by
+either using the [built in HTTPS encrypted socket](../../security/https.md), or by
 putting a secure web proxy in front of it. You can listen on port `2375` on all
 network interfaces with `-H tcp://0.0.0.0:2375`, or on a particular network
 interface using its IP address: `-H tcp://192.168.59.103:2375`. It is
@@ -569,9 +570,9 @@ system's list of trusted CAs instead of enabling `--insecure-registry`.
 
 Enabling `--disable-legacy-registry` forces a docker daemon to only interact with registries which support the V2 protocol.  Specifically, the daemon will not attempt `push`, `pull` and `login` to v1 registries.  The exception to this is `search` which can still be performed on v1 registries.
 
-## Running a Docker daemon behind a HTTPS_PROXY
+## Running a Docker daemon behind an HTTPS_PROXY
 
-When running inside a LAN that uses a `HTTPS` proxy, the Docker Hub
+When running inside a LAN that uses an `HTTPS` proxy, the Docker Hub
 certificates will be replaced by the proxy's certificates. These certificates
 need to be added to your Docker host's configuration:
 
@@ -956,3 +957,59 @@ has been provided in flags and `cluster-advertise` not, `cluster-advertise`
 can be added in the configuration file without accompanied by `--cluster-store`
 Configuration reload will log a warning message if it detects a change in
 previously configured cluster configurations.
+
+
+## Running multiple daemons
+
+> **Note:** Running multiple daemons on a single host is considered as "experimental". The user should be aware of
+> unsolved problems. This solution may not work properly in some cases. Solutions are currently under development
+> and will be delivered in the near future.
+
+This section describes how to run multiple Docker daemons on a single host. To
+run multiple daemons, you must configure each daemon so that it does not
+conflict with other daemons on the same host. You can set these options either
+by providing them as flags, or by using a [daemon configuration file](#daemon-configuration-file).
+
+The following daemon options must be configured for each daemon:
+
+```bash
+-b, --bridge=                          Attach containers to a network bridge
+--exec-root=/var/run/docker            Root of the Docker execdriver
+-g, --graph=/var/lib/docker            Root of the Docker runtime
+-p, --pidfile=/var/run/docker.pid      Path to use for daemon PID file
+-H, --host=[]                          Daemon socket(s) to connect to
+--config-file=/etc/docker/daemon.json  Daemon configuration file
+--tlscacert="~/.docker/ca.pem"         Trust certs signed only by this CA
+--tlscert="~/.docker/cert.pem"         Path to TLS certificate file
+--tlskey="~/.docker/key.pem"           Path to TLS key file
+```
+
+When your daemons use different values for these flags, you can run them on the same host without any problems.
+It is very important to properly understand the meaning of those options and to use them correctly.
+
+- The `-b, --bridge=` flag is set to `docker0` as default bridge network. It is created automatically when you install Docker.
+If you are not using the default, you must create and configure the bridge manually or just set it to 'none': `--bridge=none`
+- `--exec-root` is the path where the container state is stored. The default value is `/var/run/docker`. Specify the path for
+your running daemon here.
+- `--graph` is the path where images are stored. The default value is `/var/lib/docker`. To avoid any conflict with other daemons
+set this parameter separately for each daemon.
+- `-p, --pidfile=/var/run/docker.pid` is the path where the process ID of the daemon is stored. Specify the path for your
+pid file here.
+- `--host=[]` specifies where the Docker daemon will listen for client connections. If unspecified, it defaults to `/var/run/docker.sock`.
+- `--config-file=/etc/docker/daemon.json` is the path where configuration file is stored. You can use it instead of
+daemon flags. Specify the path for each daemon.
+- `--tls*` Docker daemon supports `--tlsverify` mode that enforces encrypted and authenticated remote connections.
+The `--tls*` options enable use of specific certificates for individual daemons.
+
+Example script for a separate “bootstrap” instance of the Docker daemon without network:
+
+```bash
+$ docker daemon \
+        -H unix:///var/run/docker-bootstrap.sock \
+        -p /var/run/docker-bootstrap.pid \
+        --iptables=false \
+        --ip-masq=false \
+        --bridge=none \
+        --graph=/var/lib/docker-bootstrap \
+        --exec-root=/var/run/docker-bootstrap
+```

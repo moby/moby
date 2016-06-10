@@ -6,7 +6,7 @@ description = "Describes how to format tags for."
 keywords = ["docker, logging, driver, syslog, Fluentd, gelf, journald"]
 [menu.main]
 parent = "smn_logging"
-weight = 1
+weight = -1
 +++
 <![end-metadata]-->
 

@@ -67,7 +67,7 @@ e is 65537 (0x10001)
 They should keep `delegation.key` private - this is what they will use to sign
 tags.
 
-Then they need to generate a x509 certificate containing the public key, which is
+Then they need to generate an x509 certificate containing the public key, which is
 what they will give to you.  Here is the command to generate a CSR (certificate
 signing request):
 

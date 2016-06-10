@@ -12,7 +12,7 @@ parent = "smn_secure_docker"
 # Protect the Docker daemon socket
 
 By default, Docker runs via a non-networked Unix socket. It can also
-optionally communicate using a HTTP socket.
+optionally communicate using an HTTP socket.
 
 If you need Docker to be reachable via the network in a safe manner, you can
 enable TLS by specifying the `tlsverify` flag and pointing Docker's
