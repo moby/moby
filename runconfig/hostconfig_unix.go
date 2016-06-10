@@ -89,7 +89,6 @@ func ValidateIsolation(hc *container.HostConfig) error {
 }
 
 // ValidateQoS performs platform specific validation of the QoS settings
-// a disk can be limited by either Bps or IOps, but not both.
 func ValidateQoS(hc *container.HostConfig) error {
 	// We may not be passed a host config, such as in the case of docker commit
 	if hc == nil {
@@ -97,11 +96,11 @@ func ValidateQoS(hc *container.HostConfig) error {
 	}
 
 	if hc.IOMaximumBandwidth != 0 {
-		return fmt.Errorf("invalid QoS settings: %s does not support --maximum-bandwidth", runtime.GOOS)
+		return fmt.Errorf("invalid QoS settings: %s does not support --io-maxbandwidth", runtime.GOOS)
 	}
 
 	if hc.IOMaximumIOps != 0 {
-		return fmt.Errorf("invalid QoS settings: %s does not support --maximum-iops", runtime.GOOS)
+		return fmt.Errorf("invalid QoS settings: %s does not support --io-maxiops", runtime.GOOS)
 	}
 	return nil
 }
