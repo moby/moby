@@ -93,8 +93,30 @@ func (i *TemplateInspector) Inspect(typedElement interface{}, rawElement []byte)
 		if rawElement == nil {
 			return fmt.Errorf("Template parsing error: %v", err)
 		}
-		return i.tryRawInspectFallback(rawElement, err)
+		return i.tryRawInspectFallback(rawElement)
 	}
+	i.buffer.Write(buffer.Bytes())
+	i.buffer.WriteByte('\n')
+	return nil
+}
+
+// tryRawInspectFallback executes the inspect template with a raw interface.
+// This allows docker cli to parse inspect structs injected with Swarm fields.
+func (i *TemplateInspector) tryRawInspectFallback(rawElement []byte) error {
+	var raw interface{}
+	buffer := new(bytes.Buffer)
+	rdr := bytes.NewReader(rawElement)
+	dec := json.NewDecoder(rdr)
+
+	if rawErr := dec.Decode(&raw); rawErr != nil {
+		return fmt.Errorf("unable to read inspect data: %v", rawErr)
+	}
+
+	tmplMissingKey := i.tmpl.Option("missingkey=error")
+	if rawErr := tmplMissingKey.Execute(buffer, raw); rawErr != nil {
+		return fmt.Errorf("Template parsing error: %v", rawErr)
+	}
+
 	i.buffer.Write(buffer.Bytes())
 	i.buffer.WriteByte('\n')
 	return nil
