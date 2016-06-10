@@ -1,6 +1,8 @@
 package bridge
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net"
 	"regexp"
@@ -18,6 +20,150 @@ import (
 
 func init() {
 	ipamutils.InitNetworks()
+}
+
+func TestEndpointMarshalling(t *testing.T) {
+	ip1, _ := types.ParseCIDR("172.22.0.9/16")
+	ip2, _ := types.ParseCIDR("2001:db8::9")
+	mac, _ := net.ParseMAC("ac:bd:24:57:66:77")
+	e := &bridgeEndpoint{
+		id:         "d2c015a1fe5930650cbcd50493efba0500bcebd8ee1f4401a16319f8a567de33",
+		nid:        "ee33fbb43c323f1920b6b35a0101552ac22ede960d0e5245e9738bccc68b2415",
+		addr:       ip1,
+		addrv6:     ip2,
+		macAddress: mac,
+		srcName:    "veth123456",
+		config:     &endpointConfiguration{MacAddress: mac},
+		containerConfig: &containerConfiguration{
+			ParentEndpoints: []string{"one", "due", "three"},
+			ChildEndpoints:  []string{"four", "five", "six"},
+		},
+		extConnConfig: &connectivityConfiguration{
+			ExposedPorts: []types.TransportPort{
+				{
+					Proto: 6,
+					Port:  uint16(18),
+				},
+			},
+			PortBindings: []types.PortBinding{
+				{
+					Proto:       6,
+					IP:          net.ParseIP("17210.33.9.56"),
+					Port:        uint16(18),
+					HostPort:    uint16(3000),
+					HostPortEnd: uint16(14000),
+				},
+			},
+		},
+		portMapping: []types.PortBinding{
+			{
+				Proto:       17,
+				IP:          net.ParseIP("172.33.9.56"),
+				Port:        uint16(99),
+				HostIP:      net.ParseIP("10.10.100.2"),
+				HostPort:    uint16(9900),
+				HostPortEnd: uint16(10000),
+			},
+			{
+				Proto:       6,
+				IP:          net.ParseIP("171.33.9.56"),
+				Port:        uint16(55),
+				HostIP:      net.ParseIP("10.11.100.2"),
+				HostPort:    uint16(5500),
+				HostPortEnd: uint16(55000),
+			},
+		},
+	}
+
+	b, err := json.Marshal(e)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ee := &bridgeEndpoint{}
+	err = json.Unmarshal(b, ee)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if e.id != ee.id || e.nid != ee.nid || e.srcName != ee.srcName || !bytes.Equal(e.macAddress, ee.macAddress) ||
+		!types.CompareIPNet(e.addr, ee.addr) || !types.CompareIPNet(e.addrv6, ee.addrv6) ||
+		!compareEpConfig(e.config, ee.config) ||
+		!compareContainerConfig(e.containerConfig, ee.containerConfig) ||
+		!compareConnConfig(e.extConnConfig, ee.extConnConfig) ||
+		!compareBindings(e.portMapping, ee.portMapping) {
+		t.Fatalf("JSON marsh/unmarsh failed.\nOriginal:\n%#v\nDecoded:\n%#v", e, ee)
+	}
+}
+
+func compareEpConfig(a, b *endpointConfiguration) bool {
+	if a == b {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return bytes.Equal(a.MacAddress, b.MacAddress)
+}
+
+func compareContainerConfig(a, b *containerConfiguration) bool {
+	if a == b {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	if len(a.ParentEndpoints) != len(b.ParentEndpoints) ||
+		len(a.ChildEndpoints) != len(b.ChildEndpoints) {
+		return false
+	}
+	for i := 0; i < len(a.ParentEndpoints); i++ {
+		if a.ParentEndpoints[i] != b.ParentEndpoints[i] {
+			return false
+		}
+	}
+	for i := 0; i < len(a.ChildEndpoints); i++ {
+		if a.ChildEndpoints[i] != b.ChildEndpoints[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func compareConnConfig(a, b *connectivityConfiguration) bool {
+	if a == b {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	if len(a.ExposedPorts) != len(b.ExposedPorts) ||
+		len(a.PortBindings) != len(b.PortBindings) {
+		return false
+	}
+	for i := 0; i < len(a.ExposedPorts); i++ {
+		if !a.ExposedPorts[i].Equal(&b.ExposedPorts[i]) {
+			return false
+		}
+	}
+	for i := 0; i < len(a.PortBindings); i++ {
+		if !a.PortBindings[i].Equal(&b.PortBindings[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func compareBindings(a, b []types.PortBinding) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := 0; i < len(a); i++ {
+		if !a[i].Equal(&b[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func getIPv4Data(t *testing.T) []driverapi.IPAMData {
