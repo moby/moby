@@ -77,11 +77,9 @@ func ipamFromGRPC(i *swarmapi.IPAMOptions) *types.IPAMOptions {
 
 		for _, config := range i.Configs {
 			ipam.Configs = append(ipam.Configs, types.IPAMConfig{
-				Family:   types.IPAMConfigFamily(config.Family.String()),
-				Subnet:   config.Subnet,
-				Range:    config.Range,
-				Gateway:  config.Gateway,
-				Reserved: config.Reserved,
+				Subnet:  config.Subnet,
+				Range:   config.Range,
+				Gateway: config.Gateway,
 			})
 		}
 	}
