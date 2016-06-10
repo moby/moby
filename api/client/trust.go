@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -565,4 +566,40 @@ func (cli *DockerCli) addTargetToAllSignableRoles(repo *client.NotaryRepository,
 	}
 
 	return repo.AddTarget(target, signableRoles...)
+}
+
+// ImagePullPrivileged pulls the image and displays it to the output
+func (cli *DockerCli) ImagePullPrivileged(ctx context.Context, authConfig types.AuthConfig, ref string, requestPrivilege types.RequestPrivilegeFunc, all bool) error {
+
+	encodedAuth, err := EncodeAuthToBase64(authConfig)
+	if err != nil {
+		return err
+	}
+	options := types.ImagePullOptions{
+		RegistryAuth:  encodedAuth,
+		PrivilegeFunc: requestPrivilege,
+		All:           all,
+	}
+
+	responseBody, err := cli.client.ImagePull(ctx, ref, options)
+	if err != nil {
+		return err
+	}
+	defer responseBody.Close()
+
+	return jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut, nil)
+}
+
+// ImagePushPrivileged push the image
+func (cli *DockerCli) ImagePushPrivileged(ctx context.Context, authConfig types.AuthConfig, ref string, requestPrivilege types.RequestPrivilegeFunc) (io.ReadCloser, error) {
+	encodedAuth, err := EncodeAuthToBase64(authConfig)
+	if err != nil {
+		return nil, err
+	}
+	options := types.ImagePushOptions{
+		RegistryAuth:  encodedAuth,
+		PrivilegeFunc: requestPrivilege,
+	}
+
+	return cli.client.ImagePush(ctx, ref, options)
 }

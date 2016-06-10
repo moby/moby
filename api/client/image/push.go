@@ -30,7 +30,6 @@ func NewPushCommand(dockerCli *client.DockerCli) *cobra.Command {
 }
 
 func runPush(dockerCli *client.DockerCli, remote string) error {
-
 	ref, err := reference.ParseNamed(remote)
 	if err != nil {
 		return err

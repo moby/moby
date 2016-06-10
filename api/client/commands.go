@@ -11,7 +11,6 @@ func (cli *DockerCli) Command(name string) func(...string) error {
 		"login":   cli.CmdLogin,
 		"logout":  cli.CmdLogout,
 		"ps":      cli.CmdPs,
-		"push":    cli.CmdPush,
 		"update":  cli.CmdUpdate,
 	}[name]
 }
