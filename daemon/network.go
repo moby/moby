@@ -228,6 +228,7 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 	}
 	if agent {
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionDynamic())
+		nwOptions = append(nwOptions, libnetwork.NetworkOptionPersist(false))
 	}
 
 	if ingress {
