@@ -19,7 +19,7 @@ func newCreateCommand(dockerCli *client.DockerCli) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.image = args[0]
 			if len(args) > 1 {
-				opts.command = args[1:]
+				opts.args = args[1:]
 			}
 			return runCreate(dockerCli, opts)
 		},
