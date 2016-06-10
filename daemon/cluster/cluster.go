@@ -157,6 +157,7 @@ func (c *Cluster) reconnectOnFailure(ctx context.Context) {
 		}
 		c.Lock()
 		if c.node != nil {
+			c.Unlock()
 			return
 		}
 		var err error
@@ -342,6 +343,7 @@ func (c *Cluster) Leave(force bool) error {
 	c.Lock()
 	node := c.node
 	if node == nil {
+		c.Unlock()
 		return ErrNoSwarm
 	}
 
