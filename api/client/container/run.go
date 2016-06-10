@@ -283,7 +283,7 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 		if status, err = client.ContainerWait(ctx, createResponse.ID); err != nil {
 			return runStartContainerErr(err)
 		}
-		if _, status, err = dockerCli.GetExitCode(ctx, createResponse.ID); err != nil {
+		if _, status, err = getExitCode(dockerCli, ctx, createResponse.ID); err != nil {
 			return err
 		}
 	} else {
@@ -296,7 +296,7 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 		} else {
 			// In TTY mode, there is a race: if the process dies too slowly, the state could
 			// be updated after the getExitCode call and result in the wrong exit code being reported
-			if _, status, err = dockerCli.GetExitCode(ctx, createResponse.ID); err != nil {
+			if _, status, err = getExitCode(dockerCli, ctx, createResponse.ID); err != nil {
 				return err
 			}
 		}

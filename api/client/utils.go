@@ -89,21 +89,6 @@ func (cli *DockerCli) ResizeTtyTo(ctx context.Context, id string, height, width 
 	}
 }
 
-// GetExitCode perform an inspect on the container. It returns
-// the running state and the exit code.
-func (cli *DockerCli) GetExitCode(ctx context.Context, containerID string) (bool, int, error) {
-	c, err := cli.client.ContainerInspect(ctx, containerID)
-	if err != nil {
-		// If we can't connect, then the daemon probably died.
-		if err != client.ErrConnectionFailed {
-			return false, -1, err
-		}
-		return false, -1, nil
-	}
-
-	return c.State.Running, c.State.ExitCode, nil
-}
-
 // getExecExitCode perform an inspect on the exec command. It returns
 // the running state and the exit code.
 func (cli *DockerCli) getExecExitCode(ctx context.Context, execID string) (bool, int, error) {
