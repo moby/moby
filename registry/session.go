@@ -310,37 +310,37 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, imgSize int64) (io
 }
 
 func (r *Session) get_response_body(endpoint string) (io.ReadCloser, error) {
-		res, err := r.client.Get(endpoint)
+	res, err := r.client.Get(endpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode == 401 && res.Header.Get("Set-Cookie") != "" {
+		// Some proxies expect browser-like behavior, with an Authorizaton
+		// header only sent in response to a server challenge. Try again
+		// with cookies from the 401 response.
+		// See https://github.com/docker/docker/issues/22503
+		logrus.Debugf("Got status code %d from %s, retrying...", res.StatusCode, endpoint)
+		res.Body.Close()
+
+		res, err = r.client.Get(endpoint)
 		if err != nil {
 			return nil, err
 		}
+	}
 
-		if res.StatusCode == 401 && res.Header.Get("Set-Cookie") != "" {
-			// Some proxies expect browser-like behavior, with an Authorizaton
-			// header only sent in response to a server challenge. Try again
-			// with cookies from the 401 response.
-			// See https://github.com/docker/docker/issues/22503
-			logrus.Debugf("Got status code %d from %s, retrying...", res.StatusCode, endpoint)
-			res.Body.Close()
+	logrus.Debugf("Got status code %d from %s", res.StatusCode, endpoint)
 
-			res, err = r.client.Get(endpoint)
-			if err != nil {
-				return nil, err
-			}
-		}
+	if res.StatusCode == 404 {
+		res.Body.Close()
+		return nil, ErrRepoNotFound
+	}
+	if res.StatusCode != 200 {
+		res.Body.Close()
+		return nil, nil
+	}
 
-		logrus.Debugf("Got status code %d from %s", res.StatusCode, endpoint)
-
-		if res.StatusCode == 404 {
-			res.Body.Close()
-			return nil, ErrRepoNotFound
-		}
-		if res.StatusCode != 200 {
-			res.Body.Close()
-			return nil, nil
-		}
-
-		return res.Body, nil
+	return res.Body, nil
 }
 
 // GetRemoteTag retrieves the tag named in the askedTag argument from the given
