@@ -59,12 +59,12 @@ func setup() {
 	ipvsOnce.Do(func() {
 		var err error
 		if out, err := exec.Command("modprobe", "-va", "ip_vs").CombinedOutput(); err != nil {
-			logrus.Warnf("Running modprobe nf_nat failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
+			logrus.Warnf("Running modprobe ip_vs failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
 		}
 
 		ipvsFamily, err = getIPVSFamily()
 		if err != nil {
-			panic("could not get ipvs family")
+			logrus.Errorf("Could not get ipvs family information from the kernel. It is possible that ipvs is not enabled in your kernel. Native loadbalancing will not work until this is fixed.")
 		}
 	})
 }
