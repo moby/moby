@@ -434,16 +434,19 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 		return fmt.Errorf("failed to send a TCP message during bulk sync: %v", err)
 	}
 
-	startTime := time.Now()
-	select {
-	case <-time.After(30 * time.Second):
-		logrus.Errorf("Bulk sync to node %s timed out", node)
-	case <-ch:
-		nDB.Lock()
-		delete(nDB.bulkSyncAckTbl, node)
-		nDB.Unlock()
+	// Wait on a response only if it is unsolicited.
+	if unsolicited {
+		startTime := time.Now()
+		select {
+		case <-time.After(30 * time.Second):
+			logrus.Errorf("Bulk sync to node %s timed out", node)
+		case <-ch:
+			nDB.Lock()
+			delete(nDB.bulkSyncAckTbl, node)
+			nDB.Unlock()
 
-		logrus.Debugf("%s: Bulk sync to node %s took %s", nDB.config.NodeName, node, time.Now().Sub(startTime))
+			logrus.Debugf("%s: Bulk sync to node %s took %s", nDB.config.NodeName, node, time.Now().Sub(startTime))
+		}
 	}
 
 	return nil
