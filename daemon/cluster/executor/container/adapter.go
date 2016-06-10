@@ -209,3 +209,7 @@ func isContainerCreateNameConflict(err error) bool {
 func isUnknownContainer(err error) bool {
 	return strings.Contains(err.Error(), "No such container:")
 }
+
+func isStoppedContainer(err error) bool {
+	return strings.Contains(err.Error(), "is already stopped")
+}
