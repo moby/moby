@@ -2,7 +2,9 @@ package overlay
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/osl"
@@ -67,6 +69,37 @@ func createVxlan(name string, vni uint32) error {
 	}
 
 	return nil
+}
+
+func deleteInterfaceBySubnet(brPrefix string, s *subnet) error {
+	defer osl.InitOSContext()()
+
+	nlh := ns.NlHandle()
+	links, err := nlh.LinkList()
+	if err != nil {
+		return fmt.Errorf("failed to list interfaces while deleting bridge interface by subnet: %v", err)
+	}
+
+	for _, l := range links {
+		name := l.Attrs().Name
+		if _, ok := l.(*netlink.Bridge); ok && strings.HasPrefix(name, brPrefix) {
+			addrList, err := nlh.AddrList(l, netlink.FAMILY_V4)
+			if err != nil {
+				logrus.Errorf("error getting AddressList for bridge %s", name)
+				continue
+			}
+			for _, addr := range addrList {
+				if netutils.NetworkOverlaps(addr.IPNet, s.subnetIP) {
+					err = nlh.LinkDel(l)
+					if err != nil {
+						logrus.Errorf("error deleting bridge (%s) with subnet %v: %v", name, addr.IPNet, err)
+					}
+				}
+			}
+		}
+	}
+	return nil
+
 }
 
 func deleteInterface(name string) error {
