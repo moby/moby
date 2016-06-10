@@ -13,13 +13,11 @@ var DockerCommandUsage = []Command{
 	{"exec", "Run a command in a running container"},
 	{"info", "Display system-wide information"},
 	{"inspect", "Return low-level information on a container or image"},
-	{"load", "Load an image from a tar archive or STDIN"},
 	{"login", "Log in to a Docker registry"},
 	{"logout", "Log out from a Docker registry"},
 	{"ps", "List containers"},
 	{"pull", "Pull an image or a repository from a registry"},
 	{"push", "Push an image or a repository to a registry"},
-	{"save", "Save one or more images to a tar archive"},
 	{"update", "Update configuration of one or more containers"},
 }
 

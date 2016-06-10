@@ -8,13 +8,11 @@ func (cli *DockerCli) Command(name string) func(...string) error {
 		"exec":    cli.CmdExec,
 		"info":    cli.CmdInfo,
 		"inspect": cli.CmdInspect,
-		"load":    cli.CmdLoad,
 		"login":   cli.CmdLogin,
 		"logout":  cli.CmdLogout,
 		"ps":      cli.CmdPs,
 		"pull":    cli.CmdPull,
 		"push":    cli.CmdPush,
-		"save":    cli.CmdSave,
 		"update":  cli.CmdUpdate,
 	}[name]
 }
