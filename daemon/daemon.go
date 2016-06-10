@@ -886,6 +886,10 @@ func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
 		return nil
 	}
 
+	if daemon.clusterProvider != nil {
+		return fmt.Errorf("--cluster-store and --cluster-advertise daemon configurations are incompatible with swarm mode")
+	}
+
 	// enable discovery for the first time if it was not previously enabled
 	if daemon.discoveryWatcher == nil {
 		discoveryWatcher, err := initDiscovery(newClusterStore, newAdvertise, config.ClusterOpts)

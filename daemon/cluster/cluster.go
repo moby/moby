@@ -119,6 +119,14 @@ func New(config Config) (*Cluster, error) {
 	return c, nil
 }
 
+func (c *Cluster) checkCompatibility() error {
+	info, _ := c.config.Backend.SystemInfo()
+	if info != nil && (info.ClusterStore != "" || info.ClusterAdvertise != "") {
+		return fmt.Errorf("swarm mode is incompatible with `--cluster-store` and `--cluster-advertise daemon configuration")
+	}
+	return nil
+}
+
 func (c *Cluster) saveState() error {
 	dt, err := json.Marshal(state{ListenAddr: c.listenAddr})
 	if err != nil {
@@ -162,6 +170,9 @@ func (c *Cluster) reconnectOnFailure(ctx context.Context) {
 }
 
 func (c *Cluster) startNewNode(forceNewCluster bool, listenAddr, joinAddr, secret, cahash string, ismanager bool) (*swarmagent.Node, context.Context, error) {
+	if err := c.checkCompatibility(); err != nil {
+		return nil, nil, err
+	}
 	c.node = nil
 	c.cancelDelay = nil
 	node, err := swarmagent.NewNode(&swarmagent.NodeConfig{
@@ -189,6 +200,7 @@ func (c *Cluster) startNewNode(forceNewCluster bool, listenAddr, joinAddr, secre
 	c.node = node
 	c.listenAddr = listenAddr
 	c.saveState()
+	c.config.Backend.SetClusterProvider(c)
 	go func() {
 		err := node.Err(ctx)
 		if err != nil {
@@ -382,6 +394,7 @@ func (c *Cluster) Leave(force bool) error {
 	if err := os.MkdirAll(c.root, 0700); err != nil {
 		return err
 	}
+	c.config.Backend.SetClusterProvider(nil)
 	return nil
 }
 

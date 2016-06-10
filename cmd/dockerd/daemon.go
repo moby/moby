@@ -277,7 +277,6 @@ func (cli *DaemonCli) start() (err error) {
 	if err != nil {
 		logrus.Fatalf("Error creating cluster component: %v", err)
 	}
-	d.SetClusterProvider(c)
 
 	logrus.Info("Daemon has completed initialization")
 

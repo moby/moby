@@ -7,6 +7,7 @@ import (
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/network"
+	"github.com/docker/libnetwork/cluster"
 	networktypes "github.com/docker/libnetwork/types"
 	"golang.org/x/net/context"
 )
@@ -30,4 +31,5 @@ type Backend interface {
 	VolumeCreate(name, driverName string, opts, labels map[string]string) (*types.Volume, error)
 	ListContainersForNode(nodeID string) []string
 	SetNetworkBootstrapKeys([]*networktypes.EncryptionKey) error
+	SetClusterProvider(provider cluster.Provider)
 }
