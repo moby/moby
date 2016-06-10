@@ -54,6 +54,7 @@ var (
 		"naughty",
 		"nauseous",
 		"nostalgic",
+		"peaceful",
 		"pedantic",
 		"pensive",
 		"prickly",
@@ -73,6 +74,7 @@ var (
 		"thirsty",
 		"tiny",
 		"trusting",
+		"zen",
 	}
 
 	// Docker, starting from 0.7.x, generates names from notable scientists and hackers.
