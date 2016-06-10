@@ -309,7 +309,7 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, imgSize int64) (io
 	return res.Body, nil
 }
 
-func (r *Session) get_response_body(endpoint string) (io.ReadCloser, error) {
+func (r *Session) getResponseBody(endpoint string) (io.ReadCloser, error) {
 	res, err := r.client.Get(endpoint)
 	if err != nil {
 		return nil, err
@@ -357,7 +357,7 @@ func (r *Session) GetRemoteTag(registries []string, repositoryRef reference.Name
 	}
 	for _, host := range registries {
 		endpoint := fmt.Sprintf("%srepositories/%s/tags/%s", host, repository, askedTag)
-		body, err := r.get_response_body(endpoint)
+		body, err := r.getResponseBody(endpoint)
 		if err != nil {
 			return "", err
 		}
@@ -387,7 +387,7 @@ func (r *Session) GetRemoteTags(registries []string, repositoryRef reference.Nam
 	}
 	for _, host := range registries {
 		endpoint := fmt.Sprintf("%srepositories/%s/tags", host, repository)
-		body, err := r.get_response_body(endpoint)
+		body, err := r.getResponseBody(endpoint)
 		if err != nil {
 			return nil, err
 		}
