@@ -1,8 +1,31 @@
 package hcsshim
 
 import (
+	"errors"
 	"io"
 	"time"
+)
+
+var (
+	// ErrInvalidNotificationType is an error encountered when an invalid notification type is used
+	ErrInvalidNotificationType = errors.New("hcsshim: invalid notification type")
+
+	// ErrTimeout is an error encountered when waiting on a notification times out
+	ErrTimeout = errors.New("hcsshim: timeout waiting for notification")
+
+	// ErrHandleClose is an error returned when the handle generating the notification being waited on has been closed
+	ErrHandleClose = errors.New("hcsshim: the handle generating this notification has been closed")
+
+	// ErrInvalidProcessState is an error encountered when the process is not in a valid state for the requested operation
+	ErrInvalidProcessState = errors.New("the process is in an invalid state for the attempted operation")
+
+	// ErrUnexpectedContainerExit is the error returned when a container exits while waiting for
+	// a different expected notification
+	ErrUnexpectedContainerExit = errors.New("unexpected container exit")
+
+	// ErrUnexpectedProcessAbort is the error returned when communication with the compute service
+	// is lost while waiting for a notification
+	ErrUnexpectedProcessAbort = errors.New("lost communication with compute service")
 )
 
 // ProcessConfig is used as both the input of Container.CreateProcess

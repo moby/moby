@@ -65,6 +65,7 @@ func waitForNotification(callbackNumber uintptr, expectedNotification hcsNotific
 	expectedChannel := channels[expectedNotification]
 	if expectedChannel == nil {
 		logrus.Errorf("unknown notification type in waitForNotification %x", expectedNotification)
+		return ErrInvalidNotificationType
 	}
 
 	if timeout != nil {
@@ -72,38 +73,54 @@ func waitForNotification(callbackNumber uintptr, expectedNotification hcsNotific
 		defer timer.Stop()
 
 		select {
-		case err := <-expectedChannel:
+		case err, ok := <-expectedChannel:
+			if !ok {
+				return ErrHandleClose
+			}
 			return err
-		case err := <-channels[hcsNotificationSystemExited]:
+		case err, ok := <-channels[hcsNotificationSystemExited]:
+			if !ok {
+				return ErrHandleClose
+			}
 			// If the expected notification is hcsNotificationSystemExited which of the two selects
 			// chosen is random. Return the raw error if hcsNotificationSystemExited is expected
 			if channels[hcsNotificationSystemExited] == expectedChannel {
 				return err
 			}
 			return ErrUnexpectedContainerExit
-		case err := <-channels[hcsNotificationServiceDisconnect]:
+		case _, ok := <-channels[hcsNotificationServiceDisconnect]:
+			if !ok {
+				return ErrHandleClose
+			}
 			// hcsNotificationServiceDisconnect should never be an expected notification
 			// it does not need the same handling as hcsNotificationSystemExited
-			logrus.Error(err)
 			return ErrUnexpectedProcessAbort
 		case <-timer.C:
 			return ErrTimeout
 		}
 	}
 	select {
-	case err := <-expectedChannel:
+	case err, ok := <-expectedChannel:
+		if !ok {
+			return ErrHandleClose
+		}
 		return err
-	case err := <-channels[hcsNotificationSystemExited]:
+	case err, ok := <-channels[hcsNotificationSystemExited]:
+		if !ok {
+			return ErrHandleClose
+		}
 		// If the expected notification is hcsNotificationSystemExited which of the two selects
 		// chosen is random. Return the raw error if hcsNotificationSystemExited is expected
 		if channels[hcsNotificationSystemExited] == expectedChannel {
 			return err
 		}
 		return ErrUnexpectedContainerExit
-	case err := <-channels[hcsNotificationServiceDisconnect]:
+	case _, ok := <-channels[hcsNotificationServiceDisconnect]:
+		if !ok {
+			return ErrHandleClose
+		}
 		// hcsNotificationServiceDisconnect should never be an expected notification
 		// it does not need the same handling as hcsNotificationSystemExited
-		logrus.Error(err)
 		return ErrUnexpectedProcessAbort
 	}
 }
