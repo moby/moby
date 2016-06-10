@@ -110,8 +110,8 @@ func mergeService(spec *swarm.ServiceSpec, flags *pflag.FlagSet) error {
 		}
 	}
 
-	cspec := &spec.TaskSpec.ContainerSpec
-	task := &spec.TaskSpec
+	cspec := &spec.TaskTemplate.ContainerSpec
+	task := &spec.TaskTemplate
 	mergeString("name", &spec.Name)
 	mergeLabels(flags, &spec.Labels)
 	mergeString("image", &cspec.Image)

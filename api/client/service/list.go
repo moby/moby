@@ -85,8 +85,8 @@ func printTable(out io.Writer, services []swarm.Service) {
 			stringid.TruncateID(service.ID),
 			service.Spec.Name,
 			scale,
-			service.Spec.TaskSpec.ContainerSpec.Image,
-			strings.Join(service.Spec.TaskSpec.ContainerSpec.Command, " "))
+			service.Spec.TaskTemplate.ContainerSpec.Image,
+			strings.Join(service.Spec.TaskTemplate.ContainerSpec.Command, " "))
 	}
 }
 

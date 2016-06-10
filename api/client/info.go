@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/utils"
+	"github.com/docker/engine-api/types/swarm"
 	"github.com/docker/go-units"
 )
 
@@ -68,19 +69,20 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, "\n")
 	}
 
-	if info.Swarm.IsAgent {
-		fmt.Fprintf(cli.out, "Swarm: \n")
+	fmt.Fprintf(cli.out, "Swarm: %v\n", info.Swarm.LocalNodeState)
+	if info.Swarm.LocalNodeState != swarm.LocalNodeStateInactive {
 		fmt.Fprintf(cli.out, " NodeID: %s\n", info.Swarm.NodeID)
-		if info.Swarm.IsManager {
-			fmt.Fprintf(cli.out, " IsManager: YES\n")
-		} else {
-			fmt.Fprintf(cli.out, " IsManager: NO\n")
+		if info.Swarm.Error != "" {
+			fmt.Fprintf(cli.out, " Error: %v\n", info.Swarm.Error)
 		}
-		fmt.Fprintf(cli.out, " Managers: %d\n", info.Swarm.Managers)
-		fmt.Fprintf(cli.out, " Nodes: %d\n", info.Swarm.Nodes)
-		fmt.Fprintf(cli.out, " CACertHash: %s\n", info.Swarm.CACertHash)
-	} else {
-		fmt.Fprintf(cli.out, "Swarm: not part of a swarm\n")
+		if info.Swarm.ControlAvailable {
+			fmt.Fprintf(cli.out, " IsManager: Yes\n")
+			fmt.Fprintf(cli.out, " Managers: %d\n", info.Swarm.Managers)
+			fmt.Fprintf(cli.out, " Nodes: %d\n", info.Swarm.Nodes)
+			ioutils.FprintfIfNotEmpty(cli.out, " CACertHash: %s\n", info.Swarm.CACertHash)
+		} else {
+			fmt.Fprintf(cli.out, " IsManager: No\n")
+		}
 	}
 	ioutils.FprintfIfNotEmpty(cli.out, "Kernel Version: %s\n", info.KernelVersion)
 	ioutils.FprintfIfNotEmpty(cli.out, "Operating System: %s\n", info.OperatingSystem)

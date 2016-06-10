@@ -16,7 +16,7 @@ type nodeOptions struct {
 func (opts *nodeOptions) ToNodeSpec() (swarm.NodeSpec, error) {
 	var spec swarm.NodeSpec
 
-	switch strings.ToUpper(opts.role) {
+	switch swarm.NodeRole(strings.ToUpper(opts.role)) {
 	case swarm.NodeRoleWorker:
 		spec.Role = swarm.NodeRoleWorker
 	case swarm.NodeRoleManager:
@@ -26,7 +26,7 @@ func (opts *nodeOptions) ToNodeSpec() (swarm.NodeSpec, error) {
 		return swarm.NodeSpec{}, fmt.Errorf("invalid role %q, only worker and manager are supported", opts.role)
 	}
 
-	switch strings.ToUpper(opts.membership) {
+	switch swarm.NodeMembership(strings.ToUpper(opts.membership)) {
 	case swarm.NodeMembershipAccepted:
 		spec.Membership = swarm.NodeMembershipAccepted
 	case swarm.NodeMembershipRejected:
@@ -36,7 +36,7 @@ func (opts *nodeOptions) ToNodeSpec() (swarm.NodeSpec, error) {
 		return swarm.NodeSpec{}, fmt.Errorf("invalid membership %q, only accepted and rejected are supported", opts.membership)
 	}
 
-	switch strings.ToUpper(opts.availability) {
+	switch swarm.NodeAvailability(strings.ToUpper(opts.availability)) {
 	case swarm.NodeAvailabilityActive:
 		spec.Availability = swarm.NodeAvailabilityActive
 	case swarm.NodeAvailabilityPause:

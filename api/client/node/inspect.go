@@ -93,13 +93,14 @@ func printNode(out io.Writer, node swarm.Node) {
 	ioutils.FprintfIfNotEmpty(out, " Message:\t\t%s\n", node.Status.Message)
 	fmt.Fprintf(out, " Availability:\t\t%s\n", node.Spec.Availability)
 
-	if node.Manager != nil {
-		fmt.Fprintln(out, "Manager:")
-		fmt.Fprintf(out, " Address:\t\t%s\n", node.Manager.Raft.Addr)
-		fmt.Fprintf(out, " Raft status:\t\t%s\n", node.Manager.Raft.Status.Reachability)
-		leader := "no"
-		if node.Manager.Raft.Status.Leader {
-			leader = "yes"
+	if node.ManagerStatus != nil {
+		fmt.Fprintln(out, "Manager Status:")
+		fmt.Fprintf(out, " Address:\t\t%s\n", node.ManagerStatus.Addr)
+		fmt.Fprintf(out, " Raft status:\t\t%s\n", node.ManagerStatus.Reachability)
+		ioutils.FprintfIfNotEmpty(out, " Message:\t\t%s\n", node.ManagerStatus.Message)
+		leader := "No"
+		if node.ManagerStatus.Leader {
+			leader = "Yes"
 		}
 		fmt.Fprintf(out, " Leader:\t\t%s\n", leader)
 	}

@@ -107,7 +107,7 @@ func printService(out io.Writer, service swarm.Service) {
 		fmt.Fprintf(out, " Delay:\t\t%s\n", service.Spec.UpdateConfig.Delay)
 	}
 	fmt.Fprintf(out, "ContainerSpec:\n")
-	printContainerSpec(out, service.Spec.TaskSpec.ContainerSpec)
+	printContainerSpec(out, service.Spec.TaskTemplate.ContainerSpec)
 }
 
 func printContainerSpec(out io.Writer, containerSpec swarm.ContainerSpec) {

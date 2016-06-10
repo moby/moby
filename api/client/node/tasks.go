@@ -56,8 +56,8 @@ func runTasks(dockerCli *client.DockerCli, opts tasksOptions) error {
 	filter := opts.filter.Value()
 	filter.Add("node", node.ID)
 	if !opts.all {
-		filter.Add("desired_state", swarm.TaskStateRunning)
-		filter.Add("desired_state", swarm.TaskStateAccepted)
+		filter.Add("desired_state", string(swarm.TaskStateRunning))
+		filter.Add("desired_state", string(swarm.TaskStateAccepted))
 
 	}
 

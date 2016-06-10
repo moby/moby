@@ -298,7 +298,7 @@ func (opts *serviceOptions) ToService() swarm.ServiceSpec {
 			Name:   opts.name,
 			Labels: runconfigopts.ConvertKVStringsToMap(opts.labels.GetAll()),
 		},
-		TaskSpec: swarm.TaskSpec{
+		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: swarm.ContainerSpec{
 				Image:           opts.image,
 				Command:         opts.command,

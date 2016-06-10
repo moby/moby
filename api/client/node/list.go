@@ -89,13 +89,13 @@ func printTable(out io.Writer, nodes []swarm.Node, info types.Info) {
 		}
 
 		leader := ""
-		if node.Manager != nil && node.Manager.Raft.Status.Leader {
+		if node.ManagerStatus != nil && node.ManagerStatus.Leader {
 			leader = "Yes"
 		}
 
 		reachability := ""
-		if node.Manager != nil {
-			reachability = string(node.Manager.Raft.Status.Reachability)
+		if node.ManagerStatus != nil {
+			reachability = string(node.ManagerStatus.Reachability)
 		}
 
 		ID := node.ID
