@@ -510,7 +510,10 @@ func (n *network) initSandbox() error {
 		}
 	})
 
-	go n.watchMiss(nlSock)
+	if nlSock != nil {
+		go n.watchMiss(nlSock)
+	}
+
 	return nil
 }
 
