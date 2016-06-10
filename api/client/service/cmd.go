@@ -13,7 +13,7 @@ import (
 func NewServiceCommand(dockerCli *client.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "service",
-		Short: "Manage docker services",
+		Short: "Manage Docker services",
 		Args:  cli.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Fprintf(dockerCli.Err(), "\n"+cmd.UsageString())
