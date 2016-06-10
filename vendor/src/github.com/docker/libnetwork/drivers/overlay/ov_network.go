@@ -361,7 +361,11 @@ func (n *network) generateBridgeName(s *subnet) string {
 		id = n.id[:5]
 	}
 
-	return "ov-" + fmt.Sprintf("%06x", n.vxlanID(s)) + "-" + id
+	return n.getBridgeNamePrefix(s) + "-" + id
+}
+
+func (n *network) getBridgeNamePrefix(s *subnet) string {
+	return "ov-" + fmt.Sprintf("%06x", n.vxlanID(s))
 }
 
 func isOverlap(nw *net.IPNet) bool {
@@ -388,7 +392,9 @@ func (n *network) initSubnetSandbox(s *subnet) error {
 
 	if hostMode {
 		// Try to delete stale bridge interface if it exists
-		deleteInterface(brName)
+		if err := deleteInterface(brName); err != nil {
+			deleteInterfaceBySubnet(n.getBridgeNamePrefix(s), s)
+		}
 		// Try to delete the vxlan interface by vni if already present
 		deleteVxlanByVNI("", n.vxlanID(s))
 

@@ -217,8 +217,14 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 }
 
 func (c *controller) SetClusterProvider(provider cluster.Provider) {
+	c.Lock()
+	defer c.Unlock()
 	c.cfg.Daemon.ClusterProvider = provider
-	go c.clusterAgentInit()
+	if provider != nil {
+		go c.clusterAgentInit()
+	} else {
+		c.cfg.Daemon.DisableProvider <- struct{}{}
+	}
 }
 
 func isValidClusteringIP(addr string) bool {
@@ -228,19 +234,28 @@ func isValidClusteringIP(addr string) bool {
 // libnetwork side of agent depends on the keys. On the first receipt of
 // keys setup the agent. For subsequent key set handle the key change
 func (c *controller) SetKeys(keys []*types.EncryptionKey) error {
-	if len(c.keys) == 0 {
+	c.Lock()
+	existingKeys := c.keys
+	clusterConfigAvailable := c.clusterConfigAvailable
+	agent := c.agent
+	c.Unlock()
+	if len(existingKeys) == 0 {
+		c.Lock()
 		c.keys = keys
-		if c.agent != nil {
+		c.Unlock()
+		if agent != nil {
 			return (fmt.Errorf("libnetwork agent setup without keys"))
 		}
-		if c.clusterConfigAvailable {
+		if clusterConfigAvailable {
 			return c.agentSetup()
 		}
 		log.Debugf("received encryption keys before cluster config")
 		return nil
 	}
-	if c.agent == nil {
+	if agent == nil {
+		c.Lock()
 		c.keys = keys
+		c.Unlock()
 		return nil
 	}
 	return c.handleKeyChange(keys)
@@ -251,17 +266,24 @@ func (c *controller) clusterAgentInit() {
 	for {
 		select {
 		case <-clusterProvider.ListenClusterEvents():
-			c.clusterConfigAvailable = true
 			if !c.isDistributedControl() {
+				c.Lock()
+				c.clusterConfigAvailable = true
+				keys := c.keys
+				c.Unlock()
 				// agent initialization needs encyrption keys and bind/remote IP which
 				// comes from the daemon cluster events
-				if len(c.keys) > 0 {
+				if len(keys) > 0 {
 					c.agentSetup()
 				}
-			} else {
-				c.agentInitDone = make(chan struct{})
-				c.agentClose()
 			}
+		case <-c.cfg.Daemon.DisableProvider:
+			c.Lock()
+			c.clusterConfigAvailable = false
+			c.agentInitDone = make(chan struct{})
+			c.Unlock()
+			c.agentClose()
+			return
 		}
 	}
 }

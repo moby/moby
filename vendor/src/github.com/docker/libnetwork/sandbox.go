@@ -245,6 +245,9 @@ func (sb *sandbox) delete(force bool) error {
 	}
 
 	c.Lock()
+	if sb.ingress {
+		c.ingressSandbox = nil
+	}
 	delete(c.sandboxes, sb.ID())
 	c.Unlock()
 

@@ -29,6 +29,7 @@ type DaemonCfg struct {
 	Labels          []string
 	DriverCfg       map[string]interface{}
 	ClusterProvider cluster.Provider
+	DisableProvider chan struct{}
 }
 
 // ClusterCfg represents cluster configuration
@@ -68,7 +69,8 @@ func ParseConfig(tomlCfgFile string) (*Config, error) {
 func ParseConfigOptions(cfgOptions ...Option) *Config {
 	cfg := &Config{
 		Daemon: DaemonCfg{
-			DriverCfg: make(map[string]interface{}),
+			DriverCfg:       make(map[string]interface{}),
+			DisableProvider: make(chan struct{}, 10),
 		},
 		Scopes: make(map[string]*datastore.ScopeCfg),
 	}
