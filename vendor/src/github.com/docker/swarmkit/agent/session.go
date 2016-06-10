@@ -4,7 +4,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/protobuf/ptypes"
@@ -52,42 +51,6 @@ func newSession(ctx context.Context, agent *Agent, delay time.Duration) *session
 	return s
 }
 
-func (s *session) initTasksReport(ctx context.Context) error {
-	const batchSize = 1024
-	select {
-	case <-s.closed:
-		return errSessionClosed
-	default:
-	}
-	client := api.NewDispatcherClient(s.agent.config.Conn)
-	updates := make([]*api.UpdateTaskStatusRequest_TaskStatusUpdate, 0, batchSize)
-	for _, task := range s.agent.tasks {
-		updates = append(updates, &api.UpdateTaskStatusRequest_TaskStatusUpdate{
-			TaskID: task.ID,
-			Status: &task.Status,
-		})
-		if len(updates) != cap(updates) {
-			continue
-		}
-		if _, err := client.UpdateTaskStatus(ctx, &api.UpdateTaskStatusRequest{
-			SessionID: s.sessionID,
-			Updates:   updates,
-		}); err != nil {
-			log.G(ctx).WithError(err).Errorf("failed to send initial task report batch size of %d", len(updates))
-		}
-		updates = updates[:0]
-	}
-	if len(updates) != 0 {
-		if _, err := client.UpdateTaskStatus(ctx, &api.UpdateTaskStatusRequest{
-			SessionID: s.sessionID,
-			Updates:   updates,
-		}); err != nil {
-			log.G(ctx).WithError(err).Errorf("failed to send initial task report batch size of %d", len(updates))
-		}
-	}
-	return nil
-}
-
 func (s *session) run(ctx context.Context, delay time.Duration) {
 	time.Sleep(delay) // delay before registering.
 
@@ -102,13 +65,9 @@ func (s *session) run(ctx context.Context, delay time.Duration) {
 
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("session.id", s.sessionID))
 
-	go runctx(ctx, s.heartbeat, s.closed, s.errs)
-	go runctx(ctx, s.watch, s.closed, s.errs)
-	go runctx(ctx, s.listen, s.closed, s.errs)
-
-	if err := s.initTasksReport(ctx); err != nil {
-		log.G(ctx).WithError(err).Errorf("init task report")
-	}
+	go runctx(ctx, s.closed, s.errs, s.heartbeat)
+	go runctx(ctx, s.closed, s.errs, s.watch)
+	go runctx(ctx, s.closed, s.errs, s.listen)
 
 	close(s.registered)
 }
@@ -157,7 +116,6 @@ func (s *session) heartbeat(ctx context.Context) error {
 	for {
 		select {
 		case <-heartbeat.C:
-			start := time.Now()
 			resp, err := client.Heartbeat(ctx, &api.HeartbeatRequest{
 				SessionID: s.sessionID,
 			})
@@ -175,11 +133,6 @@ func (s *session) heartbeat(ctx context.Context) error {
 			}
 
 			heartbeat.Reset(period)
-			log.G(ctx).WithFields(
-				logrus.Fields{
-					"period":        period,
-					"grpc.duration": time.Since(start),
-				}).Debugf("heartbeat")
 		case <-s.closed:
 			return errSessionClosed
 		case <-ctx.Done():
@@ -240,19 +193,7 @@ func (s *session) watch(ctx context.Context) error {
 }
 
 // sendTaskStatus uses the current session to send the status of a single task.
-func (s *session) sendTaskStatus(ctx context.Context, taskID string, status api.TaskStatus) error {
-	select {
-	case <-s.registered:
-		select {
-		case <-s.closed:
-			return errSessionClosed
-		default:
-		}
-	case <-s.closed:
-		return errSessionClosed
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+func (s *session) sendTaskStatus(ctx context.Context, taskID string, status *api.TaskStatus) error {
 
 	client := api.NewDispatcherClient(s.agent.config.Conn)
 	if _, err := client.UpdateTaskStatus(ctx, &api.UpdateTaskStatusRequest{
@@ -260,10 +201,12 @@ func (s *session) sendTaskStatus(ctx context.Context, taskID string, status api.
 		Updates: []*api.UpdateTaskStatusRequest_TaskStatusUpdate{
 			{
 				TaskID: taskID,
-				Status: &status,
+				Status: status,
 			},
 		},
 	}); err != nil {
+		// TODO(stevvooe): Dispatcher should not return this error. Status
+		// reports for unknown tasks should be ignored.
 		if grpc.Code(err) == codes.NotFound {
 			return errTaskUnknown
 		}
@@ -274,6 +217,43 @@ func (s *session) sendTaskStatus(ctx context.Context, taskID string, status api.
 	return nil
 }
 
+func (s *session) sendTaskStatuses(ctx context.Context, updates ...*api.UpdateTaskStatusRequest_TaskStatusUpdate) ([]*api.UpdateTaskStatusRequest_TaskStatusUpdate, error) {
+	if len(updates) < 1 {
+		return nil, nil
+	}
+
+	const batchSize = 1024
+	select {
+	case <-s.registered:
+		select {
+		case <-s.closed:
+			return updates, ErrClosed
+		default:
+		}
+	case <-s.closed:
+		return updates, ErrClosed
+	case <-ctx.Done():
+		return updates, ctx.Err()
+	}
+
+	client := api.NewDispatcherClient(s.agent.config.Conn)
+	n := batchSize
+
+	if len(updates) < n {
+		n = len(updates)
+	}
+
+	if _, err := client.UpdateTaskStatus(ctx, &api.UpdateTaskStatusRequest{
+		SessionID: s.sessionID,
+		Updates:   updates[:n],
+	}); err != nil {
+		log.G(ctx).WithError(err).Errorf("failed sending task status batch size of %d", len(updates[:n]))
+		return updates, err
+	}
+
+	return updates[n:], nil
+}
+
 func (s *session) close() error {
 	select {
 	case <-s.closed:
@@ -281,15 +261,5 @@ func (s *session) close() error {
 	default:
 		close(s.closed)
 		return nil
-	}
-}
-
-// runctx blocks until the function exits, closed is closed, or the context is
-// cancelled. Call as part os go statement.
-func runctx(ctx context.Context, fn func(ctx context.Context) error, closed chan struct{}, errs chan error) {
-	select {
-	case errs <- fn(ctx):
-	case <-closed:
-	case <-ctx.Done():
 	}
 }

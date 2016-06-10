@@ -141,34 +141,3 @@ func (_m *MockController) Close() error {
 func (_mr *_MockControllerRecorder) Close() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Close")
 }
-
-// Mock of Reporter interface
-type MockReporter struct {
-	ctrl     *gomock.Controller
-	recorder *_MockReporterRecorder
-}
-
-// Recorder for MockReporter (not exported)
-type _MockReporterRecorder struct {
-	mock *MockReporter
-}
-
-func NewMockReporter(ctrl *gomock.Controller) *MockReporter {
-	mock := &MockReporter{ctrl: ctrl}
-	mock.recorder = &_MockReporterRecorder{mock}
-	return mock
-}
-
-func (_m *MockReporter) EXPECT() *_MockReporterRecorder {
-	return _m.recorder
-}
-
-func (_m *MockReporter) Report(ctx context.Context, state api.TaskState, msg string, cstatus *api.ContainerStatus) error {
-	ret := _m.ctrl.Call(_m, "Report", ctx, state, msg, cstatus)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-func (_mr *_MockReporterRecorder) Report(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "Report", arg0, arg1, arg2, arg3)
-}

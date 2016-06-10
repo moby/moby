@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/boltdb/bolt"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/ca"
@@ -211,6 +212,16 @@ func (n *Node) run(ctx context.Context) (err error) {
 		return err
 	}
 
+	taskDBPath := filepath.Join(n.config.StateDir, "worker/tasks.db")
+	if err := os.MkdirAll(filepath.Dir(taskDBPath), 0777); err != nil {
+		return err
+	}
+
+	db, err := bolt.Open(taskDBPath, 0666, nil)
+	if err != nil {
+		return err
+	}
+
 	if err := n.loadCertificates(); err != nil {
 		return err
 	}
@@ -273,7 +284,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 		cancel()
 	}()
 	go func() {
-		agentErr = n.runAgent(ctx, securityConfig.ClientTLSCreds, agentReady)
+		agentErr = n.runAgent(ctx, db, securityConfig.ClientTLSCreds, agentReady)
 		wg.Done()
 		cancel()
 	}()
@@ -335,7 +346,7 @@ func (n *Node) Err(ctx context.Context) error {
 	}
 }
 
-func (n *Node) runAgent(ctx context.Context, creds credentials.TransportAuthenticator, ready chan<- struct{}) error {
+func (n *Node) runAgent(ctx context.Context, db *bolt.DB, creds credentials.TransportAuthenticator, ready chan<- struct{}) error {
 	var manager api.Peer
 	select {
 	case <-ctx.Done():
@@ -356,6 +367,7 @@ func (n *Node) runAgent(ctx context.Context, creds credentials.TransportAuthenti
 		Hostname:         n.config.Hostname,
 		Managers:         n.remotes,
 		Executor:         n.config.Executor,
+		DB:               db,
 		Conn:             conn,
 		NotifyRoleChange: n.roleChangeReq,
 	})
@@ -597,7 +609,10 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 			go n.initManagerConnection(ctx, ready)
 
 			go func() {
-				<-ready
+				select {
+				case <-ready:
+				case <-ctx.Done():
+				}
 				if ctx.Err() == nil {
 					n.remotes.Observe(api.Peer{NodeID: n.nodeID, Addr: n.config.ListenRemoteAPI}, 5)
 				}
@@ -611,6 +626,7 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 			m.Stop(context.Background()) // todo: this should be sync like other components
 			<-done
 
+			ready = nil // ready event happens once, even on multiple starts
 			n.Lock()
 			n.manager = nil
 			n.Unlock()

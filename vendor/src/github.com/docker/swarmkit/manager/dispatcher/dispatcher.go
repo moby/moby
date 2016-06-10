@@ -618,18 +618,8 @@ func (d *Dispatcher) Heartbeat(ctx context.Context, r *api.HeartbeatRequest) (*a
 	if err != nil {
 		return nil, err
 	}
-	nodeID := nodeInfo.NodeID
-	fields := logrus.Fields{
-		"node.id":      nodeID,
-		"node.session": r.SessionID,
-		"method":       "(*Dispatcher).Heartbeat",
-	}
-	if nodeInfo.ForwardedBy != nil {
-		fields["forwarder.id"] = nodeInfo.ForwardedBy.NodeID
-	}
-	log.G(ctx).WithFields(fields).Debugf("")
 
-	period, err := d.nodes.Heartbeat(nodeID, r.SessionID)
+	period, err := d.nodes.Heartbeat(nodeInfo.NodeID, r.SessionID)
 	return &api.HeartbeatResponse{Period: *ptypes.DurationProto(period)}, err
 }
 
