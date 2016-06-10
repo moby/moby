@@ -218,9 +218,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 
 func (c *controller) SetClusterProvider(provider cluster.Provider) {
 	c.cfg.Daemon.ClusterProvider = provider
-	if provider != nil {
-		go c.clusterAgentInit()
-	}
+	go c.clusterAgentInit()
 }
 
 func isValidClusteringIP(addr string) bool {
@@ -263,7 +261,6 @@ func (c *controller) clusterAgentInit() {
 			} else {
 				c.agentInitDone = make(chan struct{})
 				c.agentClose()
-				return
 			}
 		}
 	}
