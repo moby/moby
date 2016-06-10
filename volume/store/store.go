@@ -104,7 +104,9 @@ func (s *VolumeStore) setNamed(v volume.Volume, ref string) {
 	s.globalLock.Unlock()
 }
 
-func (s *VolumeStore) purge(name string) {
+// Purge allows the cleanup of internal data on docker in case
+// the internal data is out of sync with volumes driver plugins.
+func (s *VolumeStore) Purge(name string) {
 	s.globalLock.Lock()
 	delete(s.names, name)
 	delete(s.refs, name)
@@ -425,7 +427,7 @@ func (s *VolumeStore) Remove(v volume.Volume) error {
 		return &OpErr{Err: err, Name: name, Op: "remove"}
 	}
 
-	s.purge(name)
+	s.Purge(name)
 	return nil
 }
 

@@ -135,7 +135,16 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 // VolumeRm removes the volume with the given name.
 // If the volume is referenced by a container it is not removed
 // This is called directly from the remote API
-func (daemon *Daemon) VolumeRm(name string) error {
+func (daemon *Daemon) VolumeRm(name string, force bool) error {
+	err := daemon.volumeRm(name)
+	if err == nil || force {
+		daemon.volumes.Purge(name)
+		return nil
+	}
+	return err
+}
+
+func (daemon *Daemon) volumeRm(name string) error {
 	v, err := daemon.volumes.Get(name)
 	if err != nil {
 		return err

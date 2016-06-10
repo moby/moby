@@ -374,3 +374,38 @@ func (s *DockerSuite) TestVolumeCliLsFilterLabels(c *check.C) {
 	outArr = strings.Split(strings.TrimSpace(out), "\n")
 	c.Assert(len(outArr), check.Equals, 1, check.Commentf("\n%s", out))
 }
+
+func (s *DockerSuite) TestVolumeCliRmForceUsage(c *check.C) {
+	out, _ := dockerCmd(c, "volume", "create")
+	id := strings.TrimSpace(out)
+
+	dockerCmd(c, "volume", "rm", "-f", id)
+	dockerCmd(c, "volume", "rm", "--force", "nonexist")
+
+	out, _ = dockerCmd(c, "volume", "ls")
+	outArr := strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(outArr), check.Equals, 1, check.Commentf("%s\n", out))
+}
+
+func (s *DockerSuite) TestVolumeCliRmForce(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	name := "test"
+	out, _ := dockerCmd(c, "volume", "create", "--name", name)
+	id := strings.TrimSpace(out)
+	c.Assert(id, checker.Equals, name)
+
+	out, _ = dockerCmd(c, "volume", "inspect", "--format", "{{.Mountpoint}}", name)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	// Mountpoint is in the form of "/var/lib/docker/volumes/.../_data", removing `/_data`
+	path := strings.TrimSuffix(strings.TrimSpace(out), "/_data")
+	out, _, err := runCommandWithOutput(exec.Command("rm", "-rf", path))
+	c.Assert(err, check.IsNil)
+
+	dockerCmd(c, "volume", "rm", "-f", "test")
+	out, _ = dockerCmd(c, "volume", "ls")
+	c.Assert(out, checker.Not(checker.Contains), name)
+	dockerCmd(c, "volume", "create", "--name", "test")
+	out, _ = dockerCmd(c, "volume", "ls")
+	c.Assert(out, checker.Contains, name)
+}
