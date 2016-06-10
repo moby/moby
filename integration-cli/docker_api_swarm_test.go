@@ -490,6 +490,30 @@ func (s *DockerSwarmSuite) TestApiSwarmManagerRestore(c *check.C) {
 	d3.getService(c, id)
 }
 
+func (s *DockerSwarmSuite) TestApiSwarmScaleNoRollingUpdate(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	instances := 2
+	id := d.createService(c, simpleTestService, setInstances(instances))
+
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, instances)
+	containers := d.activeContainers()
+	instances = 4
+	d.updateService(c, d.getService(c, id), setInstances(instances))
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, instances)
+	containers2 := d.activeContainers()
+
+loop0:
+	for _, c1 := range containers {
+		for _, c2 := range containers2 {
+			if c1 == c2 {
+				continue loop0
+			}
+		}
+		c.Errorf("container %v not found in new set %#v", c1, containers2)
+	}
+}
+
 func simpleTestService(s *swarm.Service) {
 	var uinstances uint64
 	uinstances = 1
