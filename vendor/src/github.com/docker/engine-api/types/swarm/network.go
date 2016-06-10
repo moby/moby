@@ -16,9 +16,9 @@ type EndpointSpec struct {
 
 const (
 	// ResolutionModeVIP VIP
-	ResolutionModeVIP = "VIP"
+	ResolutionModeVIP ResolutionMode = "VIP"
 	// ResolutionModeDNSRR DNSRR
-	ResolutionModeDNSRR = "DNSRR"
+	ResolutionModeDNSRR ResolutionMode = "DNSRR"
 )
 
 // ResolutionMode represents a resolution mode.
@@ -26,9 +26,9 @@ type ResolutionMode string
 
 const (
 	// IngressRoutingSWARMPORT SWARMPORT
-	IngressRoutingSWARMPORT = "SWARMPORT"
+	IngressRoutingSWARMPORT IngressRouting = "SWARMPORT"
 	// IngressRoutingDISABLED DISABLED
-	IngressRoutingDISABLED = "DISABLED"
+	IngressRoutingDISABLED IngressRouting = "DISABLED"
 )
 
 // IngressRouting represents an ingress routing.
@@ -44,9 +44,9 @@ type PortConfig struct {
 
 const (
 	// PortConfigProtocolTCP TCP
-	PortConfigProtocolTCP = "TCP"
+	PortConfigProtocolTCP PortConfigProtocol = "TCP"
 	// PortConfigProtocolUDP UDP
-	PortConfigProtocolUDP = "UDP"
+	PortConfigProtocolUDP PortConfigProtocol = "UDP"
 )
 
 // PortConfigProtocol represents the protocol of a port.
@@ -62,9 +62,9 @@ type EndpointVirtualIP struct {
 type Network struct {
 	ID string
 	Meta
-	Spec        NetworkSpec `json:",omitempty"`
-	DriverState Driver      `json:",omitempty"`
-	IPAM        IPAMOptions `json:",omitempty"`
+	Spec        NetworkSpec  `json:",omitempty"`
+	DriverState Driver       `json:",omitempty"`
+	IPAMOptions *IPAMOptions `json:",omitempty"`
 }
 
 // NetworkSpec represents the spec of a network.
@@ -73,7 +73,7 @@ type NetworkSpec struct {
 	DriverConfiguration *Driver      `json:",omitempty"`
 	IPv6Enabled         bool         `json:",omitempty"`
 	Internal            bool         `json:",omitempty"`
-	IPAM                *IPAMOptions `json:",omitempty"`
+	IPAMOptions         *IPAMOptions `json:",omitempty"`
 }
 
 // NetworkAttachmentConfig represents the configuration of a network attachement.

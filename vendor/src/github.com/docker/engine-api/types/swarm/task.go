@@ -4,31 +4,31 @@ import "time"
 
 const (
 	// TaskStateNew NEW
-	TaskStateNew = "NEW"
+	TaskStateNew TaskState = "NEW"
 	// TaskStateAllocated ALLOCATED
-	TaskStateAllocated = "ALLOCATED"
+	TaskStateAllocated TaskState = "ALLOCATED"
 	// TaskStatePending PENDING
-	TaskStatePending = "PENDING"
+	TaskStatePending TaskState = "PENDING"
 	// TaskStateAssigned ASSIGNED
-	TaskStateAssigned = "ASSIGNED"
+	TaskStateAssigned TaskState = "ASSIGNED"
 	// TaskStateAccepted ACCEPTED
-	TaskStateAccepted = "ACCEPTED"
+	TaskStateAccepted TaskState = "ACCEPTED"
 	// TaskStatePreparing PREPARING
-	TaskStatePreparing = "PREPARING"
+	TaskStatePreparing TaskState = "PREPARING"
 	// TaskStateReady READY
-	TaskStateReady = "READY"
+	TaskStateReady TaskState = "READY"
 	// TaskStateStarting STARTING
-	TaskStateStarting = "STARTING"
+	TaskStateStarting TaskState = "STARTING"
 	// TaskStateRunning RUNNING
-	TaskStateRunning = "RUNNING"
+	TaskStateRunning TaskState = "RUNNING"
 	// TaskStateComplete COMPLETE
-	TaskStateComplete = "COMPLETE"
+	TaskStateComplete TaskState = "COMPLETE"
 	// TaskStateShutdown SHUTDOWN
-	TaskStateShutdown = "SHUTDOWN"
+	TaskStateShutdown TaskState = "SHUTDOWN"
 	// TaskStateFailed FAILED
-	TaskStateFailed = "FAILED"
+	TaskStateFailed TaskState = "FAILED"
 	// TaskStateRejected REJECTED
-	TaskStateRejected = "REJECTED"
+	TaskStateRejected TaskState = "REJECTED"
 )
 
 // TaskState represents the state of a task.
@@ -83,11 +83,11 @@ type RestartPolicy struct {
 
 const (
 	// RestartPolicyConditionNone NONE
-	RestartPolicyConditionNone = "NONE"
+	RestartPolicyConditionNone RestartPolicyCondition = "NONE"
 	// RestartPolicyConditionOnFailure ON_FAILURE
-	RestartPolicyConditionOnFailure = "ON_FAILURE"
+	RestartPolicyConditionOnFailure RestartPolicyCondition = "ON_FAILURE"
 	// RestartPolicyConditionAny ANY
-	RestartPolicyConditionAny = "ANY"
+	RestartPolicyConditionAny RestartPolicyCondition = "ANY"
 )
 
 // RestartPolicyCondition represents when to restart.

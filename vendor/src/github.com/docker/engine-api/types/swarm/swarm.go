@@ -2,7 +2,7 @@ package swarm
 
 import "time"
 
-// Swarm represents s swarm.
+// Swarm represents a swarm.
 type Swarm struct {
 	ID string
 	Meta
@@ -72,17 +72,36 @@ type JoinRequest struct {
 	Manager    bool
 }
 
+const (
+	// LocalNodeStateInactive INACTIVE
+	LocalNodeStateInactive LocalNodeState = "INACTIVE"
+	// LocalNodeStatePending PENDING
+	LocalNodeStatePending LocalNodeState = "PENDING"
+	// LocalNodeStateActive ACTIVE
+	LocalNodeStateActive LocalNodeState = "ACTIVE"
+	// LocalNodeStateError ERROR
+	LocalNodeStateError LocalNodeState = "ERROR"
+)
+
+// LocalNodeState represents the state of the local node.
+type LocalNodeState string
+
 // Info represents generic information about swarm.
-// TODO(aluzzardi) We should provide more status information about Swarm.
 type Info struct {
 	NodeID string
-	// TODO(aluzzardi): This should be a NodeRole.
-	IsAgent   bool
-	IsManager bool
-	// TODO(aluzzardi): Should we export this? At least we should rename it
-	// (this is the list of managers the agent is connected to).
-	Remotes    map[string]string
-	Nodes      int
-	Managers   int
-	CACertHash string
+
+	LocalNodeState   LocalNodeState
+	ControlAvailable bool
+	Error            string
+
+	RemoteManagers []Peer
+	Nodes          int
+	Managers       int
+	CACertHash     string
+}
+
+// Peer represents a peer.
+type Peer struct {
+	NodeID string
+	Addr   string
 }

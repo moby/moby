@@ -28,17 +28,17 @@ type Mount struct {
 
 const (
 	// MountPropagationRPrivate RPRIVATE
-	MountPropagationRPrivate = "RPRIVATE"
+	MountPropagationRPrivate MountPropagation = "RPRIVATE"
 	// MountPropagationPrivate PRIVATE
-	MountPropagationPrivate = "PRIVATE"
+	MountPropagationPrivate MountPropagation = "PRIVATE"
 	// MountPropagationRShared RSHARED
-	MountPropagationRShared = "RSHARED"
+	MountPropagationRShared MountPropagation = "RSHARED"
 	// MountPropagationShared SHARED
-	MountPropagationShared = "SHARED"
+	MountPropagationShared MountPropagation = "SHARED"
 	// MountPropagationRSlave RSLAVE
-	MountPropagationRSlave = "RSLAVE"
+	MountPropagationRSlave MountPropagation = "RSLAVE"
 	// MountPropagationSlave SLAVE
-	MountPropagationSlave = "SLAVE"
+	MountPropagationSlave MountPropagation = "SLAVE"
 )
 
 // MountPropagation represents the propagation of a mount.
@@ -46,9 +46,9 @@ type MountPropagation string
 
 const (
 	// MountTypeBind BIND
-	MountTypeBind = "BIND"
+	MountTypeBind MountType = "BIND"
 	// MountTypeVolume VOLUME
-	MountTypeVolume = "VOLUME"
+	MountTypeVolume MountType = "VOLUME"
 )
 
 // MountType represents the type of a mount.

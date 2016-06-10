@@ -5,11 +5,10 @@ type Node struct {
 	ID string
 	Meta
 
-	Spec        NodeSpec        `json:",omitempty"`
-	Description NodeDescription `json:",omitempty"`
-	Status      NodeStatus      `json:",omitempty"`
-	// TODO(aluzzardi): This should probably be ManagerStatus.
-	Manager *Manager `json:",omitempty"`
+	Spec          NodeSpec        `json:",omitempty"`
+	Description   NodeDescription `json:",omitempty"`
+	Status        NodeStatus      `json:",omitempty"`
+	ManagerStatus *ManagerStatus  `json:",omitempty"`
 }
 
 // NodeSpec represents the spec of a node.
@@ -22,9 +21,9 @@ type NodeSpec struct {
 
 const (
 	// NodeRoleWorker WORKER
-	NodeRoleWorker = "WORKER"
+	NodeRoleWorker NodeRole = "WORKER"
 	// NodeRoleManager MANAGER
-	NodeRoleManager = "MANAGER"
+	NodeRoleManager NodeRole = "MANAGER"
 )
 
 // NodeRole represents the role of a node.
@@ -32,11 +31,11 @@ type NodeRole string
 
 const (
 	// NodeMembershipPending PENDING
-	NodeMembershipPending = "PENDING"
+	NodeMembershipPending NodeMembership = "PENDING"
 	// NodeMembershipAccepted ACCEPTED
-	NodeMembershipAccepted = "ACCEPTED"
+	NodeMembershipAccepted NodeMembership = "ACCEPTED"
 	// NodeMembershipRejected REJECTED
-	NodeMembershipRejected = "REJECTED"
+	NodeMembershipRejected NodeMembership = "REJECTED"
 )
 
 // NodeMembership represents the membership of a node.
@@ -44,11 +43,11 @@ type NodeMembership string
 
 const (
 	// NodeAvailabilityActive ACTIVE
-	NodeAvailabilityActive = "ACTIVE"
+	NodeAvailabilityActive NodeAvailability = "ACTIVE"
 	// NodeAvailabilityPause PAUSE
-	NodeAvailabilityPause = "PAUSE"
+	NodeAvailabilityPause NodeAvailability = "PAUSE"
 	// NodeAvailabilityDrain DRAIN
-	NodeAvailabilityDrain = "DRAIN"
+	NodeAvailabilityDrain NodeAvailability = "DRAIN"
 )
 
 // NodeAvailability represents the availability of a node.
@@ -89,44 +88,33 @@ type NodeStatus struct {
 
 const (
 	// ReachabilityUnknown UNKNOWN
-	ReachabilityUnknown = "UNKNOWN"
+	ReachabilityUnknown Reachability = "UNKNOWN"
 	// ReachabilityUnreachable UNREACHABLE
-	ReachabilityUnreachable = "UNREACHABLE"
+	ReachabilityUnreachable Reachability = "UNREACHABLE"
 	// ReachabilityReachable REACHABLE
-	ReachabilityReachable = "REACHABLE"
+	ReachabilityReachable Reachability = "REACHABLE"
 )
 
 // Reachability represents the reachability of a node.
 type Reachability string
 
-// RaftMemberStatus represents the raft status of a raft member.
-type RaftMemberStatus struct {
+// ManagerStatus represents the status of a manager.
+type ManagerStatus struct {
 	Leader       bool         `json:",omitempty"`
 	Reachability Reachability `json:",omitempty"`
 	Message      string       `json:",omitempty"`
-}
-
-// RaftMember represents a raft member.
-type RaftMember struct {
-	RaftID uint64           `json:",omitempty"`
-	Addr   string           `json:",omitempty"`
-	Status RaftMemberStatus `json:",omitempty"`
-}
-
-// Manager represents a manager.
-type Manager struct {
-	Raft RaftMember `json:",omitempty"`
+	Addr         string       `json:",omitempty"`
 }
 
 const (
 	// NodeStateUnknown UNKNOWN
-	NodeStateUnknown = "UNKNOWN"
+	NodeStateUnknown NodeState = "UNKNOWN"
 	// NodeStateDown DOWN
-	NodeStateDown = "DOWN"
+	NodeStateDown NodeState = "DOWN"
 	// NodeStateReady READY
-	NodeStateReady = "READY"
+	NodeStateReady NodeState = "READY"
 	// NodeStateDisconnected DISCONNECTED
-	NodeStateDisconnected = "DISCONNECTED"
+	NodeStateDisconnected NodeState = "DISCONNECTED"
 )
 
 // NodeState represents the state of a node.
