@@ -162,7 +162,7 @@ MAINTAINER some maintainer <maintainer@example.com>
 
 ## Pulling from a different registry
 
-By default, `docker pull` pulls images from Docker Hub. It is also possible to
+By default, `docker pull` pulls images from [Docker Hub](https://hub.docker.com). It is also possible to
 manually specify the path of a registry to pull from. For example, if you have
 set up a local registry, you can specify its path to pull from it. A registry
 path is similar to a URL, but does not contain a protocol specifier (`https://`).
