@@ -317,6 +317,9 @@ __docker_complete_ps_filters() {
             (name)
                 __docker_containers_names && ret=0
                 ;;
+            (network)
+                __docker_networks && ret=0
+                ;;
             (status)
                 status_opts=('created' 'dead' 'exited' 'paused' 'restarting' 'running')
                 _describe -t status-filter-opts "Status Filter Options" status_opts && ret=0
@@ -329,7 +332,7 @@ __docker_complete_ps_filters() {
                 ;;
         esac
     else
-        opts=('ancestor' 'before' 'exited' 'id' 'label' 'name' 'since' 'status' 'volume')
+        opts=('ancestor' 'before' 'exited' 'id' 'label' 'name' 'network' 'since' 'status' 'volume')
         _describe -t filter-opts "Filter Options" opts -qS "=" && ret=0
     fi
 
@@ -1171,7 +1174,7 @@ __docker_subcommand() {
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Show all containers]" \
                 "($help)--before=[Show only container created before...]:containers:__docker_containers" \
-                "($help)*"{-f=,--filter=}"[Filter values]:filter:->filter-options" \
+                "($help)*"{-f=,--filter=}"[Filter values]:filter:__docker_complete_ps_filters" \
                 "($help)--format[Pretty-print containers using a Go template]:format: " \
                 "($help -l --latest)"{-l,--latest}"[Show only the latest created container]" \
                 "($help)-n[Show n last created containers, include non-running one]:n:(1 5 10 25 50)" \
@@ -1179,12 +1182,6 @@ __docker_subcommand() {
                 "($help -q --quiet)"{-q,--quiet}"[Only show numeric IDs]" \
                 "($help -s --size)"{-s,--size}"[Display total file sizes]" \
                 "($help)--since=[Show only containers created since...]:containers:__docker_containers" && ret=0
-
-            case $state in
-                (filter-options)
-                    __docker_complete_ps_filters && ret=0
-                    ;;
-            esac
             ;;
         (pull)
             _arguments $(__docker_arguments) \
