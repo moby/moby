@@ -274,6 +274,31 @@ __docker_complete_detach_keys() {
     _describe -t detach_keys-ctrl "'ctrl-' + 'a-z @ [ \\\\ ] ^ _'" ctrl_keys -qS "," && ret=0
 }
 
+__docker_complete_pid() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+    local -a opts vopts
+
+    opts=('host')
+    vopts=('container')
+
+    if compset -P '*:'; then
+        case "${${words[-1]%:*}#*=}" in
+            (container)
+                __docker_runningcontainers && ret=0
+                ;;
+            *)
+                _message 'value' && ret=0
+                ;;
+        esac
+    else
+        _describe -t pid-value-opts "PID Options with value" vopts -qS ":" && ret=0
+        _describe -t pid-opts "PID Options" opts && ret=0
+    fi
+
+    return ret
+}
+
 __docker_complete_ps_filters() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
@@ -750,7 +775,7 @@ __docker_subcommand() {
         "($help)--pids-limit[Tune container pids limit (set -1 for unlimited)]"
         "($help -P --publish-all)"{-P,--publish-all}"[Publish all exposed ports]"
         "($help)*"{-p=,--publish=}"[Expose a container's port to the host]:port:_ports"
-        "($help)--pid=[PID namespace to use]:PID namespace: "
+        "($help)--pid=[PID namespace to use]:PID namespace:__docker_complete_pid"
         "($help)--privileged[Give extended privileges to this container]"
         "($help)--read-only[Mount the container's root filesystem as read only]"
         "($help)*--security-opt=[Security options]:security option: "
