@@ -408,49 +408,45 @@ func (n *networkNamespace) Restore(ifsopt map[string][]IfaceOption, routes []*ty
 		if n.isDefault {
 			i.dstName = i.srcName
 		} else {
+			links, err := n.nlHandle.LinkList()
+			if err != nil {
+				return fmt.Errorf("failed to retrieve list of links in network namespace %q during restore", n.path)
+			}
 			// due to the docker network connect/disconnect, so the dstName should
 			// restore from the namespace
-			err := nsInvoke(n.path, func(nsFD int) error { return nil }, func(callerFD int) error {
-				ifaces, err := net.Interfaces()
+			for _, link := range links {
+				addrs, err := n.nlHandle.AddrList(link, netlink.FAMILY_V4)
 				if err != nil {
 					return err
 				}
-				for _, iface := range ifaces {
-					addrs, err := iface.Addrs()
-					if err != nil {
-						return err
-					}
-					if strings.HasPrefix(iface.Name, "vxlan") {
-						if i.dstName == "vxlan" {
-							i.dstName = iface.Name
-							break
-						}
-					}
-					// find the interface name by ip
-					if i.address != nil {
-						for _, addr := range addrs {
-							if addr.String() == i.address.String() {
-								i.dstName = iface.Name
-								break
-							}
-							continue
-						}
-						if i.dstName == iface.Name {
-							break
-						}
-					}
-					// This is to find the interface name of the pair in overlay sandbox
-					if strings.HasPrefix(iface.Name, "veth") {
-						if i.master != "" && i.dstName == "veth" {
-							i.dstName = iface.Name
-						}
+				ifaceName := link.Attrs().Name
+				if strings.HasPrefix(ifaceName, "vxlan") {
+					if i.dstName == "vxlan" {
+						i.dstName = ifaceName
+						break
 					}
 				}
-				return nil
-			})
-			if err != nil {
-				return err
+				// find the interface name by ip
+				if i.address != nil {
+					for _, addr := range addrs {
+						if addr.IPNet.String() == i.address.String() {
+							i.dstName = ifaceName
+							break
+						}
+						continue
+					}
+					if i.dstName == ifaceName {
+						break
+					}
+				}
+				// This is to find the interface name of the pair in overlay sandbox
+				if strings.HasPrefix(ifaceName, "veth") {
+					if i.master != "" && i.dstName == "veth" {
+						i.dstName = ifaceName
+					}
+				}
 			}
+
 			var index int
 			indexStr := strings.TrimPrefix(i.dstName, dstPrefix)
 			if indexStr != "" {
@@ -488,5 +484,6 @@ func (n *networkNamespace) Restore(ifsopt map[string][]IfaceOption, routes []*ty
 		n.gwv6 = gw6
 		n.Unlock()
 	}
+
 	return nil
 }

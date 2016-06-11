@@ -147,7 +147,6 @@ func (sb *sandbox) restorePath() {
 	if sb.config.hostsPath == "" {
 		sb.config.hostsPath = defaultPrefix + "/" + sb.id + "/hosts"
 	}
-
 }
 
 func (sb *sandbox) setupDNS() error {
