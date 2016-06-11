@@ -32,9 +32,6 @@ const (
 	// for the container to be considered unhealthy.
 	defaultProbeRetries = 3
 
-	// Shut down a container if it becomes Unhealthy.
-	defaultExitOnUnhealthy = true
-
 	// Maximum number of entries to record
 	maxLogEntries = 5
 )
