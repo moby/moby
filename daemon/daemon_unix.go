@@ -362,7 +362,7 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	}
 	if resources.CPUPercent > 0 {
 		warnings = append(warnings, "%s does not support CPU percent. Percent discarded.", runtime.GOOS)
-		logrus.Warn("%s does not support CPU percent. Percent discarded.", runtime.GOOS)
+		logrus.Warnf("%s does not support CPU percent. Percent discarded.", runtime.GOOS)
 		resources.CPUPercent = 0
 	}
 

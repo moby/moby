@@ -89,7 +89,7 @@ func (e *eventObserver) Match(match eventMatcher, process eventMatchProcessor) {
 		err = io.EOF
 	}
 
-	logrus.Debug("EventObserver scanner loop finished: %v", err)
+	logrus.Debugf("EventObserver scanner loop finished: %v", err)
 	e.disconnectionError = err
 }
 
