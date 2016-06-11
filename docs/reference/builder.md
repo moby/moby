@@ -115,11 +115,11 @@ The instruction is not case-sensitive. However, convention is for them to
 be UPPERCASE to distinguish them from arguments more easily.
 
 
-Docker runs instructions in a `Dockerfile` in order. **The first 
+Docker runs instructions in a `Dockerfile` in order. **The first
 instruction must be \`FROM\`** in order to specify the [*Base
-Image*](glossary.md#base-image) from which you are building. 
+Image*](glossary.md#base-image) from which you are building.
 
-Docker treats lines that *begin* with `#` as a comment, unless the line is 
+Docker treats lines that *begin* with `#` as a comment, unless the line is
 a valid [parser directive](builder.md#parser directives). A `#` marker anywhere
 else in a line is treated as an argument. This allows statements like:
 
@@ -132,20 +132,20 @@ Line continuation characters are not supported in comments.
 
 ## Parser directives
 
-Parser directives are optional, and affect the way in which subsequent lines 
+Parser directives are optional, and affect the way in which subsequent lines
 in a `Dockerfile` are handled. Parser directives do not add layers to the build,
 and will not be shown as a build step. Parser directives are written as a
 special type of comment in the form `# directive=value`. A single directive
 may only be used once.
 
-Once a comment, empty line or builder instruction has been processed, Docker 
+Once a comment, empty line or builder instruction has been processed, Docker
 no longer looks for parser directives. Instead it treats anything formatted
 as a parser directive as a comment and does not attempt to validate if it might
 be a parser directive. Therefore, all parser directives must be at the very
-top of a `Dockerfile`. 
+top of a `Dockerfile`.
 
 Parser directives are not case-sensitive. However, convention is for them to
-be lowercase. Convention is also to include a blank line following any 
+be lowercase. Convention is also to include a blank line following any
 parser directives. Line continuation characters are not supported in parser
 directives.
 
@@ -166,7 +166,7 @@ Invalid due to appearing twice:
 
 FROM ImageName
 ```
-    
+
 Treated as a comment due to appearing after a builder instruction:
 
 ```Dockerfile
@@ -190,10 +190,10 @@ a comment which is not a parser directive.
 ```Dockerfile
 # unknowndirective=value
 # knowndirective=value
-```    
-    
+```
+
 Non line-breaking whitespace is permitted in a parser directive. Hence, the
-following lines are all treated identically: 
+following lines are all treated identically:
 
 ```Dockerfile
 #directive=value
@@ -215,26 +215,26 @@ Or
 
     # escape=` (backtick)
 
-The `escape` directive sets the character used to escape characters in a 
-`Dockerfile`. If not specified, the default escape character is `\`. 
+The `escape` directive sets the character used to escape characters in a
+`Dockerfile`. If not specified, the default escape character is `\`.
 
 The escape character is used both to escape characters in a line, and to
 escape a newline. This allows a `Dockerfile` instruction to
 span multiple lines. Note that regardless of whether the `escape` parser
-directive is included in a `Dockerfile`, *escaping is not performed in 
-a `RUN` command, except at the end of a line.* 
+directive is included in a `Dockerfile`, *escaping is not performed in
+a `RUN` command, except at the end of a line.*
 
-Setting the escape character to `` ` `` is especially useful on 
-`Windows`, where `\` is the directory path separator. `` ` `` is consistent 
+Setting the escape character to `` ` `` is especially useful on
+`Windows`, where `\` is the directory path separator. `` ` `` is consistent
 with [Windows PowerShell](https://technet.microsoft.com/en-us/library/hh847755.aspx).
 
-Consider the following example which would fail in a non-obvious way on 
+Consider the following example which would fail in a non-obvious way on
 `Windows`. The second `\` at the end of the second line would be interpreted as an
-escape for the newline, instead of a target of the escape from the first `\`. 
+escape for the newline, instead of a target of the escape from the first `\`.
 Similarly, the `\` at the end of the third line would, assuming it was actually
 handled as an instruction, cause it be treated as a line continuation. The result
 of this dockerfile is that second and third lines are considered a single
-instruction: 
+instruction:
 
 ```Dockerfile
 FROM windowsservercore
@@ -250,18 +250,18 @@ Results in:
      ---> dbfee88ee9fd
     Step 2 : COPY testfile.txt c:RUN dir c:
     GetFileAttributesEx c:RUN: The system cannot find the file specified.
-    PS C:\John> 
+    PS C:\John>
 
 One solution to the above would be to use `/` as the target of both the `COPY`
 instruction, and `dir`. However, this syntax is, at best, confusing as it is not
 natural for paths on `Windows`, and at worst, error prone as not all commands on
 `Windows` support `/` as the path separator.
 
-By adding the `escape` parser directive, the following `Dockerfile` succeeds as 
+By adding the `escape` parser directive, the following `Dockerfile` succeeds as
 expected with the use of natural platform semantics for file paths on `Windows`:
 
     # escape=`
-    
+
     FROM windowsservercore
     COPY testfile.txt c:\
     RUN dir c:\
@@ -279,9 +279,9 @@ Results in:
      ---> Running in a5ff53ad6323
      Volume in drive C has no label.
      Volume Serial Number is 1440-27FA
-    
+
      Directory of c:\
-    
+
     03/25/2016  05:28 AM    <DIR>          inetpub
     03/25/2016  04:22 AM    <DIR>          PerfLogs
     04/22/2016  10:59 PM    <DIR>          Program Files
@@ -497,7 +497,7 @@ generated images.
 
 RUN has 2 forms:
 
-- `RUN <command>` (*shell* form, the command is run in a shell, which by 
+- `RUN <command>` (*shell* form, the command is run in a shell, which by
 default is `/bin/sh -c` on Linux or `cmd /S /C` on Windows)
 - `RUN ["executable", "param1", "param2"]` (*exec* form)
 
@@ -1209,7 +1209,7 @@ and for any `RUN`, `CMD` and `ENTRYPOINT` instructions that follow it in the
 
 The `WORKDIR` instruction sets the working directory for any `RUN`, `CMD`,
 `ENTRYPOINT`, `COPY` and `ADD` instructions that follow it in the `Dockerfile`.
-If the `WORKDIR` doesn't exist, it will be created even if its not used in any
+If the `WORKDIR` doesn't exist, it will be created even if it's not used in any
 subsequent `Dockerfile` instruction.
 
 It can be used multiple times in the one `Dockerfile`. If a relative path
@@ -1548,7 +1548,7 @@ The `HEALTHCHECK` feature was added in Docker 1.12.
 ## SHELL
 
     SHELL ["executable", "parameters"]
-    
+
 The `SHELL` instruction allows the default shell used for the *shell* form of
 commands to be overridden. The default shell on Linux is `["/bin/sh", "-c"]`, and on
 Windows is `["cmd", "/S", "/C"]`. The `SHELL` instruction *must* be written in JSON
@@ -1558,21 +1558,21 @@ The `SHELL` instruction is particularly useful on Windows where there are
 two commonly used and quite different native shells: `cmd` and `powershell`, as
 well as alternate shells available including `sh`.
 
-The `SHELL` instruction can appear multiple times. Each `SHELL` instruction overrides 
+The `SHELL` instruction can appear multiple times. Each `SHELL` instruction overrides
 all previous `SHELL` instructions, and affects all subsequent instructions. For example:
 
     FROM windowsservercore
-    
-    # Executed as cmd /S /C echo default 
+
+    # Executed as cmd /S /C echo default
     RUN echo default
-    
-    # Executed as cmd /S /C powershell -command Write-Host default 
+
+    # Executed as cmd /S /C powershell -command Write-Host default
     RUN powershell -command Write-Host default
-    
+
     # Executed as powershell -command Write-Host hello
     SHELL ["powershell", "-command"]
     RUN Write-Host hello
-    
+
     # Executed as cmd /S /C echo hello
     SHELL ["cmd", "/S"", "/C"]
     RUN echo hello
@@ -1580,21 +1580,21 @@ all previous `SHELL` instructions, and affects all subsequent instructions. For 
 The following instructions can be affected by the `SHELL` instruction when the
 *shell* form of them is used in a Dockerfile: `RUN`, `CMD` and `ENTRYPOINT`.
 
-The following example is a common pattern found on Windows which can be 
-streamlined by using the `SHELL` instruction: 
+The following example is a common pattern found on Windows which can be
+streamlined by using the `SHELL` instruction:
 
     ...
     RUN powershell -command Execute-MyCmdlet -param1 "c:\foo.txt"
-    ... 
+    ...
 
 The command invoked by docker will be:
 
     cmd /S /C powershell -command Execute-MyCmdlet -param1 "c:\foo.txt"
-   
+
  This is inefficient for two reasons. First, there is an un-necessary cmd.exe command
  processor (aka shell) being invoked. Second, each `RUN` instruction in the *shell*
  form requires an extra `powershell -command` prefixing the command.
- 
+
 To make this more efficient, one of two mechanisms can be employed. One is to
 use the JSON form of the RUN command such as:
 
@@ -1602,14 +1602,14 @@ use the JSON form of the RUN command such as:
     RUN ["powershell", "-command", "Execute-MyCmdlet", "-param1 \"c:\\foo.txt\""]
     ...
 
-While the JSON form is unambiguous and does not use the un-necessary cmd.exe, 
+While the JSON form is unambiguous and does not use the un-necessary cmd.exe,
 it does require more verbosity through double-quoting and escaping. The alternate
 mechanism is to use the `SHELL` instruction and the *shell* form,
-making a more natural syntax for Windows users, especially when combined with 
+making a more natural syntax for Windows users, especially when combined with
 the `escape` parser directive:
-  
+
     # escape=`
-    
+
     FROM windowsservercore
     SHELL ["powershell","-command"]
     RUN New-Item -ItemType Directory C:\Example
@@ -1628,16 +1628,16 @@ Resulting in:
     Removing intermediate container 87d7a64c9751
     Step 3 : RUN New-Item -ItemType Directory C:\Example
      ---> Running in 3e6ba16b8df9
-    
-    
+
+
         Directory: C:\
-    
-    
+
+
     Mode                LastWriteTime         Length Name
     ----                -------------         ------ ----
     d-----         6/2/2016   2:59 PM                Example
-    
-    
+
+
      ---> 1f1dfdcec085
     Removing intermediate container 3e6ba16b8df9
     Step 4 : ADD Execute-MyCmdlet.ps1 c:\example\
@@ -1654,7 +1654,7 @@ Resulting in:
 The `SHELL` instruction could also be used to modify the way in which
 a shell operates. For example, using `SHELL cmd /S /C /V:ON|OFF` on Windows, delayed
 environment variable expansion semantics could be modified.
-    
+
 The `SHELL` instruction can also be used on Linux should an alternate shell be
 required such `zsh`, `csh`, `tcsh` and others.
 
