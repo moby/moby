@@ -387,6 +387,60 @@ __docker_complete_images_filters() {
     return ret
 }
 
+__docker_complete_events_filter() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+    declare -a opts
+
+    opts=('container' 'daemon' 'event' 'image' 'label' 'network' 'type' 'volume')
+
+    if compset -P '*='; then
+        case "${${words[-1]%=*}#*=}" in
+            (container)
+                __docker_containers && ret=0
+                ;;
+            (daemon)
+                emulate -L zsh
+                setopt extendedglob
+                local -a daemon_opts
+                daemon_opts=(
+                    ${(f)${${"$(_call_program commands docker $docker_options info)"##*$'\n'Name: }%%$'\n'^ *}}
+                    ${${(f)${${"$(_call_program commands docker $docker_options info)"##*$'\n'ID: }%%$'\n'^ *}}//:/\\:}
+                )
+                _describe -t daemon-filter-opts "daemon filter options" daemon_opts && ret=0
+                ;;
+            (event)
+                local -a event_opts
+                event_opts=('attach' 'commit' 'connect' 'copy' 'create' 'delete' 'destroy' 'detach' 'die' 'disconnect' 'exec_create' 'exec_detach'
+                'exec_start' 'export' 'import' 'kill' 'mount' 'oom' 'pause' 'pull' 'push' 'reload' 'rename' 'resize' 'restart' 'start' 'stop' 'tag'
+                'top' 'unmount' 'unpause' 'untag' 'update')
+                _describe -t event-filter-opts "event filter options" event_opts && ret=0
+                ;;
+            (image)
+                __docker_images && ret=0
+                ;;
+            (network)
+                __docker_networks && ret=0
+                ;;
+            (type)
+                local -a type_opts
+                type_opts=('container' 'daemon' 'image' 'network' 'volume')
+                _describe -t type-filter-opts "type filter options" type_opts && ret=0
+                ;;
+            (volume)
+                __docker_volumes && ret=0
+                ;;
+            *)
+                _message 'value' && ret=0
+                ;;
+        esac
+    else
+        _describe -t filter-opts "filter options" opts -qS "=" && ret=0
+    fi
+
+    return ret
+}
+
 __docker_network_complete_ls_filters() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
@@ -961,7 +1015,7 @@ __docker_subcommand() {
         (events)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)*"{-f=,--filter=}"[Filter values]:filter: " \
+                "($help)*"{-f=,--filter=}"[Filter values]:filter:__docker_complete_events_filter" \
                 "($help)--since=[Events created since this timestamp]:timestamp: " \
                 "($help)--until=[Events created until this timestamp]:timestamp: " && ret=0
             ;;
