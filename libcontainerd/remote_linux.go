@@ -226,14 +226,14 @@ func (r *remote) getLastEventTimestamp() int64 {
 	f, err := os.Open(r.eventTsPath)
 	defer f.Close()
 	if err != nil {
-		logrus.Warn("libcontainerd: Unable to access last event ts: %v", err)
+		logrus.Warnf("libcontainerd: Unable to access last event ts: %v", err)
 		return t.Unix()
 	}
 
 	b := make([]byte, fi.Size())
 	n, err := f.Read(b)
 	if err != nil || n != len(b) {
-		logrus.Warn("libcontainerd: Unable to read last event ts: %v", err)
+		logrus.Warnf("libcontainerd: Unable to read last event ts: %v", err)
 		return t.Unix()
 	}
 
