@@ -284,7 +284,7 @@ func (h *handler) Execute(_ []string, r <-chan svc.ChangeRequest, s chan<- svc.S
 	// Wait for initialization to complete.
 	failed := <-h.tosvc
 	if failed {
-		logrus.Debug("Aborting service start due to failure during initializtion")
+		logrus.Debug("Aborting service start due to failure during initialization")
 		return true, 1
 	}
 
