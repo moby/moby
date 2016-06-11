@@ -512,7 +512,7 @@ func (n *network) initSandbox() error {
 	n.cleanupStaleSandboxes()
 
 	sbox, err := osl.NewSandbox(
-		osl.GenerateKey(fmt.Sprintf("%d-", n.initEpoch)+n.id), !hostMode)
+		osl.GenerateKey(fmt.Sprintf("%d-", n.initEpoch)+n.id), !hostMode, false)
 	if err != nil {
 		return fmt.Errorf("could not create network sandbox: %v", err)
 	}

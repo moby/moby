@@ -203,15 +203,13 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		}
 	}
 
-	// Reserve pools first before doing cleanup. This is because
-	// if the pools are not populated properly, the cleanups of
-	// endpoint/network and sandbox below will not be able to
-	// release ip subnets and addresses properly into the pool
-	// because the pools won't exist.
+	// Reserve pools first before doing cleanup. Otherwise the
+	// cleanups of endpoint/network and sandbox below will
+	// generate many unnecessary warnings
 	c.reservePools()
 
 	// Cleanup resources
-	c.sandboxCleanup()
+	c.sandboxCleanup(c.cfg.ActiveSandboxes)
 	c.cleanupLocalEndpoints()
 	c.networkCleanup()
 
@@ -832,7 +830,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 
 	if sb.config.useDefaultSandBox {
 		c.sboxOnce.Do(func() {
-			c.defOsSbox, err = osl.NewSandbox(sb.Key(), false)
+			c.defOsSbox, err = osl.NewSandbox(sb.Key(), false, false)
 		})
 
 		if err != nil {
@@ -844,7 +842,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 	}
 
 	if sb.osSbox == nil && !sb.config.useExternalKey {
-		if sb.osSbox, err = osl.NewSandbox(sb.Key(), !sb.config.useDefaultSandBox); err != nil {
+		if sb.osSbox, err = osl.NewSandbox(sb.Key(), !sb.config.useDefaultSandBox, false); err != nil {
 			return nil, fmt.Errorf("failed to create new osl sandbox: %v", err)
 		}
 	}

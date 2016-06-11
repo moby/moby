@@ -1305,7 +1305,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 	}
 
 	// Create a new OS sandbox using the osl API before using it in SetKey
-	if extOsBox, err := osl.NewSandbox("ValidKey", true); err != nil {
+	if extOsBox, err := osl.NewSandbox("ValidKey", true, false); err != nil {
 		t.Fatalf("Failed to create new osl sandbox")
 	} else {
 		defer func() {
