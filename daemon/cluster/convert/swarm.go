@@ -44,11 +44,14 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 	swarm.Spec.Labels = c.Spec.Annotations.Labels
 
 	for _, policy := range c.Spec.AcceptancePolicy.Policies {
-		swarm.Spec.AcceptancePolicy.Policies = append(swarm.Spec.AcceptancePolicy.Policies, types.Policy{
+		p := types.Policy{
 			Role:       types.NodeRole(policy.Role.String()),
 			Autoaccept: policy.Autoaccept,
-			Secret:     string(policy.Secret.Data),
-		})
+		}
+		if policy.Secret != nil {
+			p.Secret = string(policy.Secret.Data)
+		}
+		swarm.Spec.AcceptancePolicy.Policies = append(swarm.Spec.AcceptancePolicy.Policies, p)
 	}
 
 	return swarm
@@ -93,19 +96,20 @@ func SwarmSpecUpdateAcceptancePolicy(spec *swarmapi.ClusterSpec, acceptancePolic
 		if !ok {
 			return fmt.Errorf("invalid Role: %q", p.Role)
 		}
-		var apiSecret *swarmapi.AcceptancePolicy_RoleAdmissionPolicy_HashedSecret
+
+		policy := &swarmapi.AcceptancePolicy_RoleAdmissionPolicy{
+			Role:       swarmapi.NodeRole(role),
+			Autoaccept: p.Autoaccept,
+		}
+
 		if p.Secret != "" {
 			hashPwd, _ := bcrypt.GenerateFromPassword([]byte(p.Secret), 0)
-			apiSecret = &swarmapi.AcceptancePolicy_RoleAdmissionPolicy_HashedSecret{
+			policy.Secret = &swarmapi.AcceptancePolicy_RoleAdmissionPolicy_HashedSecret{
 				Data: hashPwd,
 				Alg:  "bcrypt",
 			}
 		}
-		policy := &swarmapi.AcceptancePolicy_RoleAdmissionPolicy{
-			Role:       swarmapi.NodeRole(role),
-			Autoaccept: p.Autoaccept,
-			Secret:     apiSecret,
-		}
+
 		spec.AcceptancePolicy.Policies = append(spec.AcceptancePolicy.Policies, policy)
 	}
 	return nil
