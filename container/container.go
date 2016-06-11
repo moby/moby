@@ -393,7 +393,7 @@ func AttachStreams(ctx context.Context, streamConfig *runconfig.StreamConfig, op
 		if stdin == nil || !openStdin {
 			return
 		}
-		logrus.Debugf("attach: stdin: begin")
+		logrus.Debug("attach: stdin: begin")
 
 		var err error
 		if tty {
@@ -419,7 +419,7 @@ func AttachStreams(ctx context.Context, streamConfig *runconfig.StreamConfig, op
 				cStderr.Close()
 			}
 		}
-		logrus.Debugf("attach: stdin: end")
+		logrus.Debug("attach: stdin: end")
 		wg.Done()
 	}()
 

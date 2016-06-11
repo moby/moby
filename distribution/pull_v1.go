@@ -89,7 +89,7 @@ func (p *v1Puller) pullRepository(ctx context.Context, ref reference.Named) erro
 		return err
 	}
 
-	logrus.Debugf("Retrieving the tag list")
+	logrus.Debug("Retrieving the tag list")
 	var tagsList map[string]string
 	if !isTagged {
 		tagsList, err = p.session.GetRemoteTags(repoData.Endpoints, p.repoInfo)

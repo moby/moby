@@ -49,11 +49,11 @@ func Trap(cleanup func()) {
 						}
 					} else {
 						// 3 SIGTERM/INT signals received; force exit without cleanup
-						logrus.Infof("Forcing docker daemon shutdown without cleanup; 3 interrupts received")
+						logrus.Info("Forcing docker daemon shutdown without cleanup; 3 interrupts received")
 					}
 				case syscall.SIGQUIT:
 					DumpStacks()
-					logrus.Infof("Forcing docker daemon shutdown without cleanup on SIGQUIT")
+					logrus.Info("Forcing docker daemon shutdown without cleanup on SIGQUIT")
 				}
 				//for the SIGINT/TERM, and SIGQUIT non-clean shutdown case, exit with 128 + signal #
 				os.Exit(128 + int(sig.(syscall.Signal)))

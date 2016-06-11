@@ -154,10 +154,10 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 	for {
 		select {
 		case <-stop:
-			logrus.Debugf("Stop healthcheck monitoring (received while idle)")
+			logrus.Debug("Stop healthcheck monitoring (received while idle)")
 			return
 		case <-time.After(probeInterval):
-			logrus.Debugf("Running health check...")
+			logrus.Debug("Running health check...")
 			startTime := time.Now()
 			ctx, cancelProbe := context.WithTimeout(context.Background(), probeTimeout)
 			results := make(chan *types.HealthcheckResult)
@@ -180,7 +180,7 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 			}()
 			select {
 			case <-stop:
-				logrus.Debugf("Stop healthcheck monitoring (received while probing)")
+				logrus.Debug("Stop healthcheck monitoring (received while probing)")
 				// Stop timeout and kill probe, but don't wait for probe to exit.
 				cancelProbe()
 				return
@@ -189,7 +189,7 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 				// Stop timeout
 				cancelProbe()
 			case <-ctx.Done():
-				logrus.Debugf("Health check taking too long")
+				logrus.Debug("Health check taking too long")
 				handleProbeResult(d, c, &types.HealthcheckResult{
 					ExitCode: -1,
 					Output:   fmt.Sprintf("Health check exceeded timeout (%v)", probeTimeout),

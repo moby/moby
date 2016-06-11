@@ -699,7 +699,7 @@ func (devices *DeviceSet) startDeviceDeletionWorker() {
 		return
 	}
 
-	logrus.Debugf("devmapper: Worker to cleanup deleted devices started")
+	logrus.Debug("devmapper: Worker to cleanup deleted devices started")
 	for range devices.deletionWorkerTicker.C {
 		devices.cleanupDeletedDevices()
 	}
@@ -1002,7 +1002,7 @@ func (devices *DeviceSet) saveBaseDeviceUUID(baseInfo *devInfo) error {
 }
 
 func (devices *DeviceSet) createBaseImage() error {
-	logrus.Debugf("devmapper: Initializing base device-mapper thin volume")
+	logrus.Debug("devmapper: Initializing base device-mapper thin volume")
 
 	// Create initial device
 	info, err := devices.createRegisterDevice("")
@@ -1010,7 +1010,7 @@ func (devices *DeviceSet) createBaseImage() error {
 		return err
 	}
 
-	logrus.Debugf("devmapper: Creating filesystem on base device-mapper thin volume")
+	logrus.Debug("devmapper: Creating filesystem on base device-mapper thin volume")
 
 	if err := devices.activateDeviceIfNeeded(info, false); err != nil {
 		return err
@@ -1188,7 +1188,7 @@ func (devices *DeviceSet) setupBaseImage() error {
 			return nil
 		}
 
-		logrus.Debugf("devmapper: Removing uninitialized base image")
+		logrus.Debug("devmapper: Removing uninitialized base image")
 		// If previous base device is in deferred delete state,
 		// that needs to be cleaned up first. So don't try
 		// deferred deletion.
@@ -1455,7 +1455,7 @@ func (devices *DeviceSet) refreshTransaction(DeviceID int) error {
 
 func (devices *DeviceSet) closeTransaction() error {
 	if err := devices.updatePoolTransactionID(); err != nil {
-		logrus.Debugf("devmapper: Failed to close Transaction")
+		logrus.Debug("devmapper: Failed to close Transaction")
 		return err
 	}
 	return nil
@@ -1644,7 +1644,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		if !devicemapper.LibraryDeferredRemovalSupport {
 			return fmt.Errorf("devmapper: Deferred removal can not be enabled as libdm does not support it")
 		}
-		logrus.Debugf("devmapper: Deferred removal support enabled.")
+		logrus.Debug("devmapper: Deferred removal support enabled.")
 		devices.deferredRemove = true
 	}
 
@@ -1652,7 +1652,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		if !devices.deferredRemove {
 			return fmt.Errorf("devmapper: Deferred deletion can not be enabled as deferred removal is not enabled. Enable deferred removal using --storage-opt dm.use_deferred_removal=true parameter")
 		}
-		logrus.Debugf("devmapper: Deferred deletion support enabled.")
+		logrus.Debug("devmapper: Deferred deletion support enabled.")
 		devices.deferredDelete = true
 	}
 
@@ -1716,7 +1716,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 
 	// If the pool doesn't exist, create it
 	if !poolExists && devices.thinPoolDevice == "" {
-		logrus.Debugf("devmapper: Pool doesn't exist. Creating it.")
+		logrus.Debug("devmapper: Pool doesn't exist. Creating it.")
 
 		var (
 			dataFile     *os.File
@@ -2044,8 +2044,8 @@ func (devices *DeviceSet) DeleteDevice(hash string, syncDelete bool) error {
 }
 
 func (devices *DeviceSet) deactivatePool() error {
-	logrus.Debugf("devmapper: deactivatePool()")
-	defer logrus.Debugf("devmapper: deactivatePool END")
+	logrus.Debug("devmapper: deactivatePool()")
+	defer logrus.Debug("devmapper: deactivatePool END")
 	devname := devices.getPoolDevName()
 
 	devinfo, err := devicemapper.GetInfo(devname)
@@ -2304,7 +2304,7 @@ func (devices *DeviceSet) UnmountDevice(hash, mountPath string) error {
 	if err := syscall.Unmount(mountPath, syscall.MNT_DETACH); err != nil {
 		return err
 	}
-	logrus.Debugf("devmapper: Unmount done")
+	logrus.Debug("devmapper: Unmount done")
 
 	if err := devices.deactivateDevice(info); err != nil {
 		return err

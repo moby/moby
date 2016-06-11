@@ -130,7 +130,7 @@ func DetectCompression(source []byte) Compression {
 		Xz:    {0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00},
 	} {
 		if len(source) < len(m) {
-			logrus.Debugf("Len too short")
+			logrus.Debug("Len too short")
 			continue
 		}
 		if bytes.Compare(m, source[:len(m)]) == 0 {
@@ -408,7 +408,7 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		}
 
 	case tar.TypeXGlobalHeader:
-		logrus.Debugf("PAX Global Extended Headers found and ignored")
+		logrus.Debug("PAX Global Extended Headers found and ignored")
 		return nil
 
 	default:

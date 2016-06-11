@@ -284,12 +284,12 @@ func (h *handler) Execute(_ []string, r <-chan svc.ChangeRequest, s chan<- svc.S
 	// Wait for initialization to complete.
 	failed := <-h.tosvc
 	if failed {
-		logrus.Debugf("Aborting service start due to failure during initializtion")
+		logrus.Debug("Aborting service start due to failure during initializtion")
 		return true, 1
 	}
 
 	s <- svc.Status{State: svc.Running, Accepts: svc.AcceptStop | svc.AcceptShutdown | svc.Accepted(windows.SERVICE_ACCEPT_PARAMCHANGE)}
-	logrus.Debugf("Service running")
+	logrus.Debug("Service running")
 Loop:
 	for {
 		select {

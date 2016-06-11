@@ -155,7 +155,7 @@ func (rm *responseModifier) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 func (rm *responseModifier) CloseNotify() <-chan bool {
 	closeNotifier, ok := rm.rw.(http.CloseNotifier)
 	if !ok {
-		logrus.Errorf("Internal response writer doesn't support the CloseNotifier interface")
+		logrus.Error("Internal response writer doesn't support the CloseNotifier interface")
 		return nil
 	}
 	return closeNotifier.CloseNotify()
@@ -165,7 +165,7 @@ func (rm *responseModifier) CloseNotify() <-chan bool {
 func (rm *responseModifier) Flush() {
 	flusher, ok := rm.rw.(http.Flusher)
 	if !ok {
-		logrus.Errorf("Internal response writer doesn't support the Flusher interface")
+		logrus.Error("Internal response writer doesn't support the Flusher interface")
 		return
 	}
 
