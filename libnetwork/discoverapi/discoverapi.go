@@ -42,18 +42,18 @@ type DatastoreConfigData struct {
 // Key in first position is the primary key, the one to be used in tx.
 // Original key and tag types are []byte and uint64
 type DriverEncryptionConfig struct {
-	Keys []string
-	Tags []string
+	Keys [][]byte
+	Tags []uint64
 }
 
 // DriverEncryptionUpdate carries an update to the encryption key(s) as:
 // a new key and/or set a primary key and/or a removal of an existing key.
 // Original key and tag types are []byte and uint64
 type DriverEncryptionUpdate struct {
-	Key        string
-	Tag        string
-	Primary    string
-	PrimaryTag string
-	Prune      string
-	PruneTag   string
+	Key        []byte
+	Tag        uint64
+	Primary    []byte
+	PrimaryTag uint64
+	Prune      []byte
+	PruneTag   uint64
 }
