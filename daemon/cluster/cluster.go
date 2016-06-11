@@ -910,6 +910,10 @@ func getNetwork(ctx context.Context, c swarmapi.ControlClient, input string) (*s
 	if err != nil {
 		// If any error (including NotFound), ListNetworks to match via ID prefix and full name.
 		rl, err := c.ListNetworks(ctx, &swarmapi.ListNetworksRequest{Filters: &swarmapi.ListNetworksRequest_Filters{Names: []string{input}}})
+		if err != nil || len(rl.Networks) == 0 {
+			rl, err = c.ListNetworks(ctx, &swarmapi.ListNetworksRequest{Filters: &swarmapi.ListNetworksRequest_Filters{IDPrefixes: []string{input}}})
+		}
+
 		if err != nil {
 			return nil, err
 		}
