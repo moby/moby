@@ -170,8 +170,8 @@ func (daemon *Daemon) SetNetworkBootstrapKeys(keys []*networktypes.EncryptionKey
 	return daemon.netController.SetKeys(keys)
 }
 
-// CreateAgentNetwork creates an agent network.
-func (daemon *Daemon) CreateAgentNetwork(create clustertypes.NetworkCreateRequest) error {
+// CreateManagedNetwork creates an agent network.
+func (daemon *Daemon) CreateManagedNetwork(create clustertypes.NetworkCreateRequest) error {
 	_, err := daemon.createNetwork(create.NetworkCreateRequest, create.ID, true, false)
 	return err
 }
@@ -325,8 +325,8 @@ func (daemon *Daemon) GetNetworkDriverList() map[string]bool {
 	return pluginList
 }
 
-// DeleteAgentNetwork deletes an agent network.
-func (daemon *Daemon) DeleteAgentNetwork(networkID string) error {
+// DeleteManagedNetwork deletes an agent network.
+func (daemon *Daemon) DeleteManagedNetwork(networkID string) error {
 	return daemon.deleteNetwork(networkID, true)
 }
 

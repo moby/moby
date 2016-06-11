@@ -14,11 +14,11 @@ import (
 
 // Backend defines the executor component for a swarm agent.
 type Backend interface {
-	CreateAgentNetwork(clustertypes.NetworkCreateRequest) error
-	DeleteAgentNetwork(name string) error
+	CreateManagedNetwork(clustertypes.NetworkCreateRequest) error
+	DeleteManagedNetwork(name string) error
 	SetupIngress(req clustertypes.NetworkCreateRequest, nodeIP string) error
 	PullImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error
-	ContainerCreate(types.ContainerCreateConfig) (types.ContainerCreateResponse, error)
+	CreateManagedContainer(types.ContainerCreateConfig) (types.ContainerCreateResponse, error)
 	ContainerStart(name string, hostConfig *container.HostConfig) error
 	ContainerStop(name string, seconds int) error
 	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error

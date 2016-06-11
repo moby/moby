@@ -66,6 +66,7 @@ type CommonContainer struct {
 	RWLayer         layer.RWLayer  `json:"-"`
 	ID              string
 	Created         time.Time
+	Managed         bool
 	Path            string
 	Args            []string
 	Config          *containertypes.Config

@@ -101,7 +101,7 @@ func (daemon *Daemon) Register(c *container.Container) error {
 	return nil
 }
 
-func (daemon *Daemon) newContainer(name string, config *containertypes.Config, imgID image.ID) (*container.Container, error) {
+func (daemon *Daemon) newContainer(name string, config *containertypes.Config, imgID image.ID, managed bool) (*container.Container, error) {
 	var (
 		id             string
 		err            error
@@ -117,6 +117,7 @@ func (daemon *Daemon) newContainer(name string, config *containertypes.Config, i
 
 	base := daemon.newBaseContainer(id)
 	base.Created = time.Now().UTC()
+	base.Managed = managed
 	base.Path = entrypoint
 	base.Args = args //FIXME: de-duplicate from config
 	base.Config = config

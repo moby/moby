@@ -81,7 +81,7 @@ func (c *containerAdapter) createNetworks(ctx context.Context) error {
 			return err
 		}
 
-		if err := c.backend.CreateAgentNetwork(ncr); err != nil { // todo name missing
+		if err := c.backend.CreateManagedNetwork(ncr); err != nil { // todo name missing
 			if _, ok := err.(libnetwork.NetworkNameError); ok {
 				continue
 			}
@@ -95,7 +95,7 @@ func (c *containerAdapter) createNetworks(ctx context.Context) error {
 
 func (c *containerAdapter) removeNetworks(ctx context.Context) error {
 	for _, nid := range c.container.networks() {
-		if err := c.backend.DeleteAgentNetwork(nid); err != nil {
+		if err := c.backend.DeleteManagedNetwork(nid); err != nil {
 			if _, ok := err.(*libnetwork.ActiveEndpointsError); ok {
 				continue
 			}
@@ -110,7 +110,7 @@ func (c *containerAdapter) removeNetworks(ctx context.Context) error {
 func (c *containerAdapter) create(ctx context.Context, backend executorpkg.Backend) error {
 	var cr types.ContainerCreateResponse
 	var err error
-	if cr, err = backend.ContainerCreate(types.ContainerCreateConfig{
+	if cr, err = backend.CreateManagedContainer(types.ContainerCreateConfig{
 		Name:       c.container.name(),
 		Config:     c.container.config(),
 		HostConfig: c.container.hostConfig(),
