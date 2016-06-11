@@ -507,7 +507,7 @@ func (d *Driver) GetCustomImageInfos() ([]CustomImageInfo, error) {
 
 		versionData := strings.Split(imageData.Version, ".")
 		if len(versionData) != 4 {
-			logrus.Warn("Could not parse Windows version %s", imageData.Version)
+			logrus.Warnf("Could not parse Windows version %s", imageData.Version)
 		} else {
 			// Include just major.minor.build, skip the fourth version field, which does not influence
 			// OS compatibility.
