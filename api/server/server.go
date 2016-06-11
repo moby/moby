@@ -163,7 +163,7 @@ func (s *Server) InitRouter(enableProfiler bool, routers ...router.Router) {
 func (s *Server) createMux() *mux.Router {
 	m := mux.NewRouter()
 
-	logrus.Debugf("Registering routers")
+	logrus.Debug("Registering routers")
 	for _, apiRouter := range s.routers {
 		for _, r := range apiRouter.Routes() {
 			f := s.makeHTTPHandler(r.Handler())

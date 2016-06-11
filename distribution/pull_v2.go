@@ -208,7 +208,7 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 		size = 0
 	} else {
 		if size != 0 && offset > size {
-			logrus.Debugf("Partial download is larger than full blob. Starting over")
+			logrus.Debug("Partial download is larger than full blob. Starting over")
 			offset = 0
 			if err := ld.truncateDownloadFile(); err != nil {
 				return nil, 0, xfer.DoNotRetry{Err: err}

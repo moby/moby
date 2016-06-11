@@ -114,7 +114,7 @@ func (daemon *Daemon) containerAttach(c *container.Container, stdin io.ReadClose
 			r, w := io.Pipe()
 			go func() {
 				defer w.Close()
-				defer logrus.Debugf("Closing buffered stdin pipe")
+				defer logrus.Debug("Closing buffered stdin pipe")
 				io.Copy(w, stdin)
 			}()
 			stdinPipe = r

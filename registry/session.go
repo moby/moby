@@ -302,10 +302,10 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, imgSize int64) (io
 	}
 
 	if res.Header.Get("Accept-Ranges") == "bytes" && imgSize > 0 {
-		logrus.Debugf("server supports resume")
+		logrus.Debug("server supports resume")
 		return httputils.ResumableRequestReaderWithInitialResponse(r.client, req, 5, imgSize, res), nil
 	}
-	logrus.Debugf("server doesn't support resume")
+	logrus.Debug("server doesn't support resume")
 	return res.Body, nil
 }
 

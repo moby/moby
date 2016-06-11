@@ -175,7 +175,7 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 		r, w := io.Pipe()
 		go func() {
 			defer w.Close()
-			defer logrus.Debugf("Closing buffered stdin pipe")
+			defer logrus.Debug("Closing buffered stdin pipe")
 			pools.Copy(w, stdin)
 		}()
 		cStdin = r
