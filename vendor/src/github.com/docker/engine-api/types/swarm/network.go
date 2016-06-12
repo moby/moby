@@ -9,48 +9,39 @@ type Endpoint struct {
 
 // EndpointSpec represents the spec of an endpoint.
 type EndpointSpec struct {
-	Mode         ResolutionMode `json:",omitempty"`
-	Ingress      IngressRouting `json:",omitempty"`
-	ExposedPorts []PortConfig   `json:",omitempty"`
+	Mode  ResolutionMode `json:",omitempty"`
+	Ports []PortConfig   `json:",omitempty"`
 }
-
-const (
-	// ResolutionModeVIP VIP
-	ResolutionModeVIP ResolutionMode = "VIP"
-	// ResolutionModeDNSRR DNSRR
-	ResolutionModeDNSRR ResolutionMode = "DNSRR"
-)
 
 // ResolutionMode represents a resolution mode.
 type ResolutionMode string
 
 const (
-	// IngressRoutingSWARMPORT SWARMPORT
-	IngressRoutingSWARMPORT IngressRouting = "SWARMPORT"
-	// IngressRoutingDISABLED DISABLED
-	IngressRoutingDISABLED IngressRouting = "DISABLED"
+	// ResolutionModeVIP VIP
+	ResolutionModeVIP ResolutionMode = "vip"
+	// ResolutionModeDNSRR DNSRR
+	ResolutionModeDNSRR ResolutionMode = "dnsrr"
 )
-
-// IngressRouting represents an ingress routing.
-type IngressRouting string
 
 // PortConfig represents the config of a port.
 type PortConfig struct {
-	Name      string             `json:",omitempty"`
-	Protocol  PortConfigProtocol `json:",omitempty"`
-	Port      uint32             `json:",omitempty"`
-	SwarmPort uint32             `json:",omitempty"`
+	Name          string             `json:",omitempty"`
+	Protocol      PortConfigProtocol `json:",omitempty"`
+	TargetPort    uint32             `json:",omitempty"`
+	PublishedPort uint32             `json:",omitempty"`
 }
-
-const (
-	// PortConfigProtocolTCP TCP
-	PortConfigProtocolTCP PortConfigProtocol = "TCP"
-	// PortConfigProtocolUDP UDP
-	PortConfigProtocolUDP PortConfigProtocol = "UDP"
-)
 
 // PortConfigProtocol represents the protocol of a port.
 type PortConfigProtocol string
+
+const (
+	// TODO(stevvooe): These should be used generally, not just for PortConfig.
+
+	// PortConfigProtocolTCP TCP
+	PortConfigProtocolTCP PortConfigProtocol = "tcp"
+	// PortConfigProtocolUDP UDP
+	PortConfigProtocolUDP PortConfigProtocol = "udp"
+)
 
 // EndpointVirtualIP represents the virtual ip of a port.
 type EndpointVirtualIP struct {

@@ -19,39 +19,37 @@ type NodeSpec struct {
 	Availability NodeAvailability `json:",omitempty"`
 }
 
-const (
-	// NodeRoleWorker WORKER
-	NodeRoleWorker NodeRole = "WORKER"
-	// NodeRoleManager MANAGER
-	NodeRoleManager NodeRole = "MANAGER"
-)
-
 // NodeRole represents the role of a node.
 type NodeRole string
 
 const (
-	// NodeMembershipPending PENDING
-	NodeMembershipPending NodeMembership = "PENDING"
-	// NodeMembershipAccepted ACCEPTED
-	NodeMembershipAccepted NodeMembership = "ACCEPTED"
-	// NodeMembershipRejected REJECTED
-	NodeMembershipRejected NodeMembership = "REJECTED"
+	// NodeRoleWorker WORKER
+	NodeRoleWorker NodeRole = "worker"
+	// NodeRoleManager MANAGER
+	NodeRoleManager NodeRole = "manager"
 )
 
 // NodeMembership represents the membership of a node.
 type NodeMembership string
 
 const (
-	// NodeAvailabilityActive ACTIVE
-	NodeAvailabilityActive NodeAvailability = "ACTIVE"
-	// NodeAvailabilityPause PAUSE
-	NodeAvailabilityPause NodeAvailability = "PAUSE"
-	// NodeAvailabilityDrain DRAIN
-	NodeAvailabilityDrain NodeAvailability = "DRAIN"
+	// NodeMembershipPending PENDING
+	NodeMembershipPending NodeMembership = "pending"
+	// NodeMembershipAccepted ACCEPTED
+	NodeMembershipAccepted NodeMembership = "accepted"
 )
 
 // NodeAvailability represents the availability of a node.
 type NodeAvailability string
+
+const (
+	// NodeAvailabilityActive ACTIVE
+	NodeAvailabilityActive NodeAvailability = "active"
+	// NodeAvailabilityPause PAUSE
+	NodeAvailabilityPause NodeAvailability = "pause"
+	// NodeAvailabilityDrain DRAIN
+	NodeAvailabilityDrain NodeAvailability = "drain"
+)
 
 // NodeDescription represents the description of a node.
 type NodeDescription struct {
@@ -86,17 +84,17 @@ type NodeStatus struct {
 	Message string    `json:",omitempty"`
 }
 
-const (
-	// ReachabilityUnknown UNKNOWN
-	ReachabilityUnknown Reachability = "UNKNOWN"
-	// ReachabilityUnreachable UNREACHABLE
-	ReachabilityUnreachable Reachability = "UNREACHABLE"
-	// ReachabilityReachable REACHABLE
-	ReachabilityReachable Reachability = "REACHABLE"
-)
-
 // Reachability represents the reachability of a node.
 type Reachability string
+
+const (
+	// ReachabilityUnknown UNKNOWN
+	ReachabilityUnknown Reachability = "unknown"
+	// ReachabilityUnreachable UNREACHABLE
+	ReachabilityUnreachable Reachability = "unreachable"
+	// ReachabilityReachable REACHABLE
+	ReachabilityReachable Reachability = "reachable"
+)
 
 // ManagerStatus represents the status of a manager.
 type ManagerStatus struct {
@@ -106,16 +104,16 @@ type ManagerStatus struct {
 	Addr         string       `json:",omitempty"`
 }
 
-const (
-	// NodeStateUnknown UNKNOWN
-	NodeStateUnknown NodeState = "UNKNOWN"
-	// NodeStateDown DOWN
-	NodeStateDown NodeState = "DOWN"
-	// NodeStateReady READY
-	NodeStateReady NodeState = "READY"
-	// NodeStateDisconnected DISCONNECTED
-	NodeStateDisconnected NodeState = "DISCONNECTED"
-)
-
 // NodeState represents the state of a node.
 type NodeState string
+
+const (
+	// NodeStateUnknown UNKNOWN
+	NodeStateUnknown NodeState = "unknown"
+	// NodeStateDown DOWN
+	NodeStateDown NodeState = "down"
+	// NodeStateReady READY
+	NodeStateReady NodeState = "ready"
+	// NodeStateDisconnected DISCONNECTED
+	NodeStateDisconnected NodeState = "disconnected"
+)

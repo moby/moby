@@ -2,37 +2,37 @@ package swarm
 
 import "time"
 
-const (
-	// TaskStateNew NEW
-	TaskStateNew TaskState = "NEW"
-	// TaskStateAllocated ALLOCATED
-	TaskStateAllocated TaskState = "ALLOCATED"
-	// TaskStatePending PENDING
-	TaskStatePending TaskState = "PENDING"
-	// TaskStateAssigned ASSIGNED
-	TaskStateAssigned TaskState = "ASSIGNED"
-	// TaskStateAccepted ACCEPTED
-	TaskStateAccepted TaskState = "ACCEPTED"
-	// TaskStatePreparing PREPARING
-	TaskStatePreparing TaskState = "PREPARING"
-	// TaskStateReady READY
-	TaskStateReady TaskState = "READY"
-	// TaskStateStarting STARTING
-	TaskStateStarting TaskState = "STARTING"
-	// TaskStateRunning RUNNING
-	TaskStateRunning TaskState = "RUNNING"
-	// TaskStateComplete COMPLETE
-	TaskStateComplete TaskState = "COMPLETE"
-	// TaskStateShutdown SHUTDOWN
-	TaskStateShutdown TaskState = "SHUTDOWN"
-	// TaskStateFailed FAILED
-	TaskStateFailed TaskState = "FAILED"
-	// TaskStateRejected REJECTED
-	TaskStateRejected TaskState = "REJECTED"
-)
-
 // TaskState represents the state of a task.
 type TaskState string
+
+const (
+	// TaskStateNew NEW
+	TaskStateNew TaskState = "new"
+	// TaskStateAllocated ALLOCATED
+	TaskStateAllocated TaskState = "allocated"
+	// TaskStatePending PENDING
+	TaskStatePending TaskState = "pending"
+	// TaskStateAssigned ASSIGNED
+	TaskStateAssigned TaskState = "assigned"
+	// TaskStateAccepted ACCEPTED
+	TaskStateAccepted TaskState = "accepted"
+	// TaskStatePreparing PREPARING
+	TaskStatePreparing TaskState = "preparing"
+	// TaskStateReady READY
+	TaskStateReady TaskState = "ready"
+	// TaskStateStarting STARTING
+	TaskStateStarting TaskState = "starting"
+	// TaskStateRunning RUNNING
+	TaskStateRunning TaskState = "running"
+	// TaskStateComplete COMPLETE
+	TaskStateComplete TaskState = "complete"
+	// TaskStateShutdown SHUTDOWN
+	TaskStateShutdown TaskState = "shutdown"
+	// TaskStateFailed FAILED
+	TaskStateFailed TaskState = "failed"
+	// TaskStateRejected REJECTED
+	TaskStateRejected TaskState = "rejected"
+)
 
 // Task represents a task.
 type Task struct {
@@ -81,17 +81,17 @@ type RestartPolicy struct {
 	Window      *time.Duration         `json:",omitempty"`
 }
 
-const (
-	// RestartPolicyConditionNone NONE
-	RestartPolicyConditionNone RestartPolicyCondition = "NONE"
-	// RestartPolicyConditionOnFailure ON_FAILURE
-	RestartPolicyConditionOnFailure RestartPolicyCondition = "ON_FAILURE"
-	// RestartPolicyConditionAny ANY
-	RestartPolicyConditionAny RestartPolicyCondition = "ANY"
-)
-
 // RestartPolicyCondition represents when to restart.
 type RestartPolicyCondition string
+
+const (
+	// RestartPolicyConditionNone NONE
+	RestartPolicyConditionNone RestartPolicyCondition = "none"
+	// RestartPolicyConditionOnFailure ON_FAILURE
+	RestartPolicyConditionOnFailure RestartPolicyCondition = "on_failure"
+	// RestartPolicyConditionAny ANY
+	RestartPolicyConditionAny RestartPolicyCondition = "any"
+)
 
 // TaskStatus represents the status of a task.
 type TaskStatus struct {

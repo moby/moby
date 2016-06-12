@@ -15,47 +15,52 @@ type ContainerSpec struct {
 	StopGracePeriod *time.Duration    `json:",omitempty"`
 }
 
-// Mount represents a mount (volume).
-type Mount struct {
-	Target      string           `json:",omitempty"`
-	Source      string           `json:",omitempty"`
-	Writable    bool             `json:",omitempty"`
-	Type        MountType        `json:",omitempty"`
-	Propagation MountPropagation `json:",omitempty"`
-	Populate    bool             `json:",omitempty"`
-	Template    *VolumeTemplate  `json:",omitempty"`
-}
+// MountType represents the type of a mount.
+type MountType string
 
 const (
-	// MountPropagationRPrivate RPRIVATE
-	MountPropagationRPrivate MountPropagation = "RPRIVATE"
-	// MountPropagationPrivate PRIVATE
-	MountPropagationPrivate MountPropagation = "PRIVATE"
-	// MountPropagationRShared RSHARED
-	MountPropagationRShared MountPropagation = "RSHARED"
-	// MountPropagationShared SHARED
-	MountPropagationShared MountPropagation = "SHARED"
-	// MountPropagationRSlave RSLAVE
-	MountPropagationRSlave MountPropagation = "RSLAVE"
-	// MountPropagationSlave SLAVE
-	MountPropagationSlave MountPropagation = "SLAVE"
+	// MountTypeBind BIND
+	MountTypeBind MountType = "bind"
+	// MountTypeVolume VOLUME
+	MountTypeVolume MountType = "volume"
 )
+
+// Mount represents a mount (volume).
+type Mount struct {
+	Type     MountType `json:",omitempty"`
+	Source   string    `json:",omitempty"`
+	Target   string    `json:",omitempty"`
+	Writable bool      `json:",omitempty"`
+
+	BindOptions   *BindOptions   `json:",omitempty"`
+	VolumeOptions *VolumeOptions `json:",omitempty"`
+}
 
 // MountPropagation represents the propagation of a mount.
 type MountPropagation string
 
 const (
-	// MountTypeBind BIND
-	MountTypeBind MountType = "BIND"
-	// MountTypeVolume VOLUME
-	MountTypeVolume MountType = "VOLUME"
+	// MountPropagationRPrivate RPRIVATE
+	MountPropagationRPrivate MountPropagation = "rprivate"
+	// MountPropagationPrivate PRIVATE
+	MountPropagationPrivate MountPropagation = "private"
+	// MountPropagationRShared RSHARED
+	MountPropagationRShared MountPropagation = "rshared"
+	// MountPropagationShared SHARED
+	MountPropagationShared MountPropagation = "shared"
+	// MountPropagationRSlave RSLAVE
+	MountPropagationRSlave MountPropagation = "rslave"
+	// MountPropagationSlave SLAVE
+	MountPropagationSlave MountPropagation = "slave"
 )
 
-// MountType represents the type of a mount.
-type MountType string
+type BindOptions struct {
+	Propagation MountPropagation `json:",omitempty"`
+}
 
-// VolumeTemplate represents the template of a volume.
-type VolumeTemplate struct {
-	Annotations
-	DriverConfig Driver `json:",omitempty"`
+// VolumeOptions represents the options for a mount of type volume.
+type VolumeOptions struct {
+	Populate     bool              `json:",omitempty"`
+	Labels       map[string]string `json:",omitempty"`
+	DriverConfig Driver            `json:",omitempty"`
 }

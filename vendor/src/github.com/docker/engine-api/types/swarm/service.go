@@ -31,7 +31,7 @@ type ServiceMode struct {
 
 // ReplicatedService is a kind of ServiceMode.
 type ReplicatedService struct {
-	Instances *uint64 `json:",omitempty"`
+	Replicas *uint64 `json:",omitempty"`
 }
 
 // GlobalService is a kind of ServiceMode.
