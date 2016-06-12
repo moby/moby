@@ -80,9 +80,25 @@ func (nDB *NetworkDB) sendTableEvent(event TableEvent_Type, nid string, tname st
 		return err
 	}
 
+	var broadcastQ *memberlist.TransmitLimitedQueue
 	nDB.RLock()
-	broadcastQ := nDB.networks[nDB.config.NodeName][nid].tableBroadcasts
+	thisNodeNetworks, ok := nDB.networks[nDB.config.NodeName]
+	if ok {
+		// The network may have been removed
+		network, networkOk := thisNodeNetworks[nid]
+		if !networkOk {
+			nDB.RUnlock()
+			return nil
+		}
+
+		broadcastQ = network.tableBroadcasts
+	}
 	nDB.RUnlock()
+
+	// The network may have been removed
+	if broadcastQ == nil {
+		return nil
+	}
 
 	broadcastQ.QueueBroadcast(&tableEventMessage{
 		msg:   raw,

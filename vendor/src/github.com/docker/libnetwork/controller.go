@@ -203,11 +203,17 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		}
 	}
 
+	// Reserve pools first before doing cleanup. This is because
+	// if the pools are not populated properly, the cleanups of
+	// endpoint/network and sandbox below will not be able to
+	// release ip subnets and addresses properly into the pool
+	// because the pools won't exist.
+	c.reservePools()
+
+	// Cleanup resources
 	c.sandboxCleanup()
 	c.cleanupLocalEndpoints()
 	c.networkCleanup()
-
-	c.reservePools()
 
 	if err := c.startExternalKeyListener(); err != nil {
 		return nil, err
