@@ -16,7 +16,9 @@ import (
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/daemon/cluster/executor/container"
+	"github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/runconfig"
 	apitypes "github.com/docker/engine-api/types"
 	types "github.com/docker/engine-api/types/swarm"
 	swarmagent "github.com/docker/swarmkit/agent"
@@ -862,6 +864,11 @@ func (c *Cluster) CreateNetwork(s apitypes.NetworkCreateRequest) (string, error)
 
 	if !c.isActiveManager() {
 		return "", ErrNoManager
+	}
+
+	if runconfig.IsPreDefinedNetwork(s.Name) {
+		err := fmt.Errorf("%s is a pre-defined network and cannot be created", s.Name)
+		return "", errors.NewRequestForbiddenError(err)
 	}
 
 	networkSpec := convert.BasicNetworkCreateToGRPC(s)

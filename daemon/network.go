@@ -93,6 +93,17 @@ func (daemon *Daemon) getAllNetworks() []libnetwork.Network {
 	return list
 }
 
+func isIngressNetwork(name string) bool {
+	return name == "ingress"
+}
+
+var ingressChan = make(chan struct{}, 1)
+
+func ingressWait() func() {
+	ingressChan <- struct{}{}
+	return func() { <-ingressChan }
+}
+
 // SetupIngress setups ingress networking.
 func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nodeIP string) error {
 	ip, _, err := net.ParseCIDR(nodeIP)
@@ -100,23 +111,11 @@ func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nod
 		return err
 	}
 
-	n, err := daemon.GetNetworkByName(create.Name)
-	if err == nil {
-		// If we already have an ingress network with the same
-		// name and ID then we are uptodate. Nothing more to
-		// do. If not we will fall through to the go routine
-		// and will cleanup the old version of ingress network
-		// old state.
-		if n.ID() == create.ID {
-			return nil
-		}
-	}
-
 	go func() {
 		controller := daemon.netController
 		controller.AgentInitWait()
 
-		if n != nil {
+		if n, err := daemon.GetNetworkByName(create.Name); err == nil && n != nil && n.ID() != create.ID {
 			if err := controller.SandboxDestroy("ingress-sbox"); err != nil {
 				logrus.Errorf("Failed to delete stale ingress sandbox: %v", err)
 				return
@@ -128,18 +127,18 @@ func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nod
 			}
 		}
 
-		if _, err := daemon.createNetwork(create.NetworkCreateRequest, create.ID, true, true); err != nil {
-			// If we get NetworkNameError that means the network
-			// already exists so no need to setup ingress again.
-			if _, ok := err.(libnetwork.NetworkNameError); ok {
+		if _, err := daemon.createNetwork(create.NetworkCreateRequest, create.ID, true); err != nil {
+			// If it is any other error other than already
+			// exists error log error and return.
+			if _, ok := err.(libnetwork.NetworkNameError); !ok {
+				logrus.Errorf("Failed creating ingress network: %v", err)
 				return
 			}
 
-			logrus.Errorf("Failed creating ingress network: %v", err)
-			return
+			// Otherwise continue down the call to create or recreate sandbox.
 		}
 
-		n, err = daemon.GetNetworkByID(create.ID)
+		n, err := daemon.GetNetworkByID(create.ID)
 		if err != nil {
 			logrus.Errorf("Failed getting ingress network by id after creating: %v", err)
 			return
@@ -172,21 +171,28 @@ func (daemon *Daemon) SetNetworkBootstrapKeys(keys []*networktypes.EncryptionKey
 
 // CreateManagedNetwork creates an agent network.
 func (daemon *Daemon) CreateManagedNetwork(create clustertypes.NetworkCreateRequest) error {
-	_, err := daemon.createNetwork(create.NetworkCreateRequest, create.ID, true, false)
+	_, err := daemon.createNetwork(create.NetworkCreateRequest, create.ID, true)
 	return err
 }
 
 // CreateNetwork creates a network with the given name, driver and other optional parameters
 func (daemon *Daemon) CreateNetwork(create types.NetworkCreateRequest) (*types.NetworkCreateResponse, error) {
-	resp, err := daemon.createNetwork(create, "", false, false)
+	resp, err := daemon.createNetwork(create, "", false)
 	if err != nil {
 		return nil, err
 	}
 	return resp, err
 }
 
-func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string, agent bool, ingress bool) (*types.NetworkCreateResponse, error) {
-	if runconfig.IsPreDefinedNetwork(create.Name) {
+func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string, agent bool) (*types.NetworkCreateResponse, error) {
+	// If there is a pending ingress network creation wait here
+	// since ingress network creation can happen via node download
+	// from manager or task download.
+	if isIngressNetwork(create.Name) {
+		defer ingressWait()()
+	}
+
+	if runconfig.IsPreDefinedNetwork(create.Name) && !agent {
 		err := fmt.Errorf("%s is a pre-defined network and cannot be created", create.Name)
 		return nil, errors.NewRequestForbiddenError(err)
 	}
@@ -231,7 +237,7 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionPersist(false))
 	}
 
-	if ingress {
+	if isIngressNetwork(create.Name) {
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionIngress())
 	}
 
