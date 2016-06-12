@@ -137,8 +137,8 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 
 		spec.Endpoint = &swarmapi.EndpointSpec{}
 
-		spec.Endpoint.Mode = swarmapi.EndpointSpec_ResolutionMode(swarmapi.EndpointSpec_ResolutionMode_value[string(s.EndpointSpec.Mode)])
-		spec.Endpoint.Ingress = swarmapi.EndpointSpec_IngressRouting(swarmapi.EndpointSpec_IngressRouting_value[string(s.EndpointSpec.Ingress)])
+		spec.Endpoint.Mode = swarmapi.EndpointSpec_ResolutionMode(swarmapi.EndpointSpec_ResolutionMode_value[strings.ToUpper(string(s.EndpointSpec.Mode))])
+		spec.Endpoint.Ingress = swarmapi.EndpointSpec_IngressRouting(swarmapi.EndpointSpec_IngressRouting_value[strings.ToUpper(string(s.EndpointSpec.Ingress))])
 
 		for _, portConfig := range s.EndpointSpec.ExposedPorts {
 			spec.Endpoint.ExposedPorts = append(spec.Endpoint.ExposedPorts, &swarmapi.PortConfig{
@@ -233,7 +233,7 @@ func restartPolicyToGRPC(p *types.RestartPolicy) (*swarmapi.RestartPolicy, error
 	var rp *swarmapi.RestartPolicy
 	if p != nil {
 		rp = &swarmapi.RestartPolicy{}
-		if condition, ok := swarmapi.RestartPolicy_RestartCondition_value[string(p.Condition)]; ok {
+		if condition, ok := swarmapi.RestartPolicy_RestartCondition_value[strings.ToUpper(string(p.Condition))]; ok {
 			rp.Condition = swarmapi.RestartPolicy_RestartCondition(condition)
 		} else if string(p.Condition) == "" {
 			rp.Condition = swarmapi.RestartOnAny

@@ -2,6 +2,7 @@ package convert
 
 import (
 	"fmt"
+	"strings"
 
 	types "github.com/docker/engine-api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
@@ -73,13 +74,13 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 			Writable: m.Writable,
 		}
 
-		if mountType, ok := swarmapi.Mount_MountType_value[string(m.Type)]; ok {
+		if mountType, ok := swarmapi.Mount_MountType_value[strings.ToUpper(string(m.Type))]; ok {
 			mount.Type = swarmapi.Mount_MountType(mountType)
 		} else if string(m.Type) != "" {
 			return nil, fmt.Errorf("invalid MountType: %q", m.Type)
 		}
 
-		if mountPropagation, ok := swarmapi.Mount_MountPropagation_value[string(m.Propagation)]; ok {
+		if mountPropagation, ok := swarmapi.Mount_MountPropagation_value[strings.ToUpper(string(m.Propagation))]; ok {
 			mount.Propagation = swarmapi.Mount_MountPropagation(mountPropagation)
 		} else if string(m.Propagation) != "" {
 			return nil, fmt.Errorf("invalid MountPropagation: %q", m.Propagation)
