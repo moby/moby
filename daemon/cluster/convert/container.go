@@ -41,7 +41,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 				Labels:   m.VolumeOptions.Labels,
 			}
 			if m.VolumeOptions.DriverConfig != nil {
-				mount.VolumeOptions.DriverConfig = types.Driver{
+				mount.VolumeOptions.DriverConfig = &types.Driver{
 					Name:    m.VolumeOptions.DriverConfig.Name,
 					Options: m.VolumeOptions.DriverConfig.Options,
 				}
@@ -101,7 +101,7 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 				Populate: m.VolumeOptions.Populate,
 				Labels:   m.VolumeOptions.Labels,
 			}
-			if m.VolumeOptions.DriverConfig.Name != "" || m.VolumeOptions.DriverConfig.Options != nil {
+			if m.VolumeOptions.DriverConfig != nil {
 				mount.VolumeOptions.DriverConfig = &swarmapi.Driver{
 					Name:    m.VolumeOptions.DriverConfig.Name,
 					Options: m.VolumeOptions.DriverConfig.Options,

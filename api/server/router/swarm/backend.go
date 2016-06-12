@@ -11,7 +11,7 @@ type Backend interface {
 	Join(req types.JoinRequest) error
 	Leave(force bool) error
 	Inspect() (types.Swarm, error)
-	Update(types.Swarm) error
+	Update(uint64, types.Spec) error
 	GetServices(basictypes.ServiceListOptions) ([]types.Service, error)
 	GetService(string) (types.Service, error)
 	CreateService(types.ServiceSpec) (string, error)
@@ -19,7 +19,7 @@ type Backend interface {
 	RemoveService(string) error
 	GetNodes(basictypes.NodeListOptions) ([]types.Node, error)
 	GetNode(string) (types.Node, error)
-	UpdateNode(string, types.Node) error
+	UpdateNode(string, uint64, types.NodeSpec) error
 	RemoveNode(string) error
 	GetTasks(basictypes.TaskListOptions) ([]types.Task, error)
 	GetTask(string) (types.Task, error)

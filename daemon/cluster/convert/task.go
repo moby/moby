@@ -15,7 +15,7 @@ func TaskFromGRPC(t swarmapi.Task) types.Task {
 	task := types.Task{
 		ID:        t.ID,
 		ServiceID: t.ServiceID,
-		Instance:  int(t.Instance),
+		Slot:      int(t.Slot),
 		NodeID:    t.NodeID,
 		Spec: types.TaskSpec{
 			ContainerSpec: containerSpecFromGRPC(containerConfig),

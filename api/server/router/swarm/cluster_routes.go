@@ -55,12 +55,18 @@ func (sr *swarmRouter) inspectCluster(ctx context.Context, w http.ResponseWriter
 }
 
 func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var swarm types.Swarm
+	var swarm types.Spec
 	if err := json.NewDecoder(r.Body).Decode(&swarm); err != nil {
 		return err
 	}
 
-	if err := sr.backend.Update(swarm); err != nil {
+	rawVersion := r.URL.Query().Get("version")
+	version, err := strconv.ParseUint(rawVersion, 10, 64)
+	if err != nil {
+		return fmt.Errorf("Invalid swarm version '%s': %s", rawVersion, err.Error())
+	}
+
+	if err := sr.backend.Update(version, swarm); err != nil {
 		logrus.Errorf("Error configuring swarm: %v", err)
 		return err
 	}
@@ -168,12 +174,18 @@ func (sr *swarmRouter) getNode(ctx context.Context, w http.ResponseWriter, r *ht
 }
 
 func (sr *swarmRouter) updateNode(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var node types.Node
+	var node types.NodeSpec
 	if err := json.NewDecoder(r.Body).Decode(&node); err != nil {
 		return err
 	}
 
-	if err := sr.backend.UpdateNode(vars["id"], node); err != nil {
+	rawVersion := r.URL.Query().Get("version")
+	version, err := strconv.ParseUint(rawVersion, 10, 64)
+	if err != nil {
+		return fmt.Errorf("Invalid node version '%s': %s", rawVersion, err.Error())
+	}
+
+	if err := sr.backend.UpdateNode(vars["id"], version, node); err != nil {
 		logrus.Errorf("Error updating node %s: %v", vars["id"], err)
 		return err
 	}

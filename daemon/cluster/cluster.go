@@ -305,7 +305,10 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 		return ErrSwarmExists
 	}
 	// todo: check current state existing
-	n, ctx, err := c.startNewNode(false, req.ListenAddr, req.RemoteAddr, req.Secret, req.CACertHash, req.Manager)
+	if len(req.RemoteAddrs) == 0 {
+		return fmt.Errorf("at least 1 RemoteAddr is required to join")
+	}
+	n, ctx, err := c.startNewNode(false, req.ListenAddr, req.RemoteAddrs[0], req.Secret, req.CACertHash, req.Manager)
 	if err != nil {
 		c.Unlock()
 		return err
@@ -429,7 +432,7 @@ func (c *Cluster) Inspect() (types.Swarm, error) {
 }
 
 // Update updates configuration of a managed swarm cluster.
-func (c *Cluster) Update(swarm types.Swarm) error {
+func (c *Cluster) Update(version uint64, spec types.Spec) error {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -437,7 +440,12 @@ func (c *Cluster) Update(swarm types.Swarm) error {
 		return ErrNoManager
 	}
 
-	swarmSpec, err := convert.SwarmSpecToGRPC(swarm)
+	swarmSpec, err := convert.SwarmSpecToGRPC(spec)
+	if err != nil {
+		return err
+	}
+
+	swarm, err := getSwarm(c.getRequestContext(), c.client)
 	if err != nil {
 		return err
 	}
@@ -448,7 +456,7 @@ func (c *Cluster) Update(swarm types.Swarm) error {
 			ClusterID: swarm.ID,
 			Spec:      &swarmSpec,
 			ClusterVersion: &swarmapi.Version{
-				Index: swarm.Meta.Version.Index,
+				Index: version,
 			},
 		},
 	)
@@ -535,7 +543,7 @@ func (c *Cluster) Info() types.Info {
 		if r, err := c.client.ListNodes(c.getRequestContext(), &swarmapi.ListNodesRequest{}); err == nil {
 			info.Nodes = len(r.Nodes)
 			for _, n := range r.Nodes {
-				if n.Manager != nil {
+				if n.ManagerStatus != nil {
 					info.Managers = info.Managers + 1
 				}
 			}
@@ -635,7 +643,7 @@ func (c *Cluster) GetService(input string) (types.Service, error) {
 }
 
 // UpdateService updates existing service to match new properties.
-func (c *Cluster) UpdateService(serviceID string, version uint64, service types.ServiceSpec) error {
+func (c *Cluster) UpdateService(serviceID string, version uint64, spec types.ServiceSpec) error {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -643,7 +651,7 @@ func (c *Cluster) UpdateService(serviceID string, version uint64, service types.
 		return ErrNoManager
 	}
 
-	serviceSpec, err := convert.ServiceSpecToGRPC(service)
+	serviceSpec, err := convert.ServiceSpecToGRPC(spec)
 	if err != nil {
 		return err
 	}
@@ -726,7 +734,7 @@ func (c *Cluster) GetNode(input string) (types.Node, error) {
 }
 
 // UpdateNode updates existing nodes properties.
-func (c *Cluster) UpdateNode(input string, node types.Node) error {
+func (c *Cluster) UpdateNode(nodeID string, version uint64, spec types.NodeSpec) error {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -734,7 +742,7 @@ func (c *Cluster) UpdateNode(input string, node types.Node) error {
 		return ErrNoManager
 	}
 
-	nodeSpec, err := convert.NodeSpecToGRPC(node)
+	nodeSpec, err := convert.NodeSpecToGRPC(spec)
 	if err != nil {
 		return err
 	}
@@ -742,10 +750,10 @@ func (c *Cluster) UpdateNode(input string, node types.Node) error {
 	_, err = c.client.UpdateNode(
 		c.getRequestContext(),
 		&swarmapi.UpdateNodeRequest{
-			NodeID: node.ID,
+			NodeID: nodeID,
 			Spec:   &nodeSpec,
 			NodeVersion: &swarmapi.Version{
-				Index: node.Version.Index,
+				Index: version,
 			},
 		},
 	)
@@ -977,14 +985,14 @@ func (c *Cluster) managerStats() (current bool, reachable int, unreachable int, 
 		return false, 0, 0, err
 	}
 	for _, n := range nodes.Nodes {
-		if n.Manager != nil {
-			if n.Manager.Raft.Status.Reachability == swarmapi.RaftMemberStatus_REACHABLE {
+		if n.ManagerStatus != nil {
+			if n.ManagerStatus.Raft.Status.Reachability == swarmapi.RaftMemberStatus_REACHABLE {
 				reachable++
 				if n.ID == c.node.NodeID() {
 					current = true
 				}
 			}
-			if n.Manager.Raft.Status.Reachability == swarmapi.RaftMemberStatus_UNREACHABLE {
+			if n.ManagerStatus.Raft.Status.Reachability == swarmapi.RaftMemberStatus_UNREACHABLE {
 				unreachable++
 			}
 		}

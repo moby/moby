@@ -54,42 +54,41 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 	}
 
 	//Manager
-	if n.Manager != nil {
+	if n.ManagerStatus != nil {
 		node.ManagerStatus = &types.ManagerStatus{
-			Leader:       n.Manager.Raft.Status.Leader,
-			Reachability: types.Reachability(strings.ToLower(n.Manager.Raft.Status.Reachability.String())),
-			Message:      n.Manager.Raft.Status.Message,
-			Addr:         n.Manager.Raft.Addr,
+			Leader:       n.ManagerStatus.Raft.Status.Leader,
+			Reachability: types.Reachability(strings.ToLower(n.ManagerStatus.Raft.Status.Reachability.String())),
+			Addr:         n.ManagerStatus.Raft.Addr,
 		}
 	}
 
 	return node
 }
 
-// NodeSpecToGRPC converts a Node to a grpc NodeSpec.
-func NodeSpecToGRPC(n types.Node) (swarmapi.NodeSpec, error) {
+// NodeSpecToGRPC converts a NodeSpec to a grpc NodeSpec.
+func NodeSpecToGRPC(s types.NodeSpec) (swarmapi.NodeSpec, error) {
 	spec := swarmapi.NodeSpec{
 		Annotations: swarmapi.Annotations{
-			Name:   n.Spec.Name,
-			Labels: n.Spec.Labels,
+			Name:   s.Name,
+			Labels: s.Labels,
 		},
 	}
-	if role, ok := swarmapi.NodeRole_value[strings.ToUpper(string(n.Spec.Role))]; ok {
+	if role, ok := swarmapi.NodeRole_value[strings.ToUpper(string(s.Role))]; ok {
 		spec.Role = swarmapi.NodeRole(role)
 	} else {
-		return swarmapi.NodeSpec{}, fmt.Errorf("invalid Role: %q", n.Spec.Role)
+		return swarmapi.NodeSpec{}, fmt.Errorf("invalid Role: %q", s.Role)
 	}
 
-	if membership, ok := swarmapi.NodeSpec_Membership_value[strings.ToUpper(string(n.Spec.Membership))]; ok {
+	if membership, ok := swarmapi.NodeSpec_Membership_value[strings.ToUpper(string(s.Membership))]; ok {
 		spec.Membership = swarmapi.NodeSpec_Membership(membership)
 	} else {
-		return swarmapi.NodeSpec{}, fmt.Errorf("invalid Membership: %q", n.Spec.Membership)
+		return swarmapi.NodeSpec{}, fmt.Errorf("invalid Membership: %q", s.Membership)
 	}
 
-	if availability, ok := swarmapi.NodeSpec_Availability_value[strings.ToUpper(string(n.Spec.Availability))]; ok {
+	if availability, ok := swarmapi.NodeSpec_Availability_value[strings.ToUpper(string(s.Availability))]; ok {
 		spec.Availability = swarmapi.NodeSpec_Availability(availability)
 	} else {
-		return swarmapi.NodeSpec{}, fmt.Errorf("invalid Availability: %q", n.Spec.Availability)
+		return swarmapi.NodeSpec{}, fmt.Errorf("invalid Availability: %q", s.Availability)
 	}
 
 	return spec, nil

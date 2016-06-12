@@ -108,7 +108,7 @@ func endpointFromGRPC(e *swarmapi.Endpoint) types.Endpoint {
 		}
 
 		for _, portState := range e.Ports {
-			endpoint.ExposedPorts = append(endpoint.ExposedPorts, types.PortConfig{
+			endpoint.Ports = append(endpoint.Ports, types.PortConfig{
 				Name:          portState.Name,
 				Protocol:      types.PortConfigProtocol(strings.ToLower(swarmapi.PortConfig_Protocol_name[int32(portState.Protocol)])),
 				TargetPort:    portState.TargetPort,

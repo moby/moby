@@ -74,8 +74,8 @@ func (c *containerConfig) name() string {
 		return c.task.Annotations.Name
 	}
 
-	// fallback to service.instance.id.
-	return strings.Join([]string{c.task.ServiceAnnotations.Name, fmt.Sprint(c.task.Instance), c.task.ID}, ".")
+	// fallback to service.slot.id.
+	return strings.Join([]string{c.task.ServiceAnnotations.Name, fmt.Sprint(c.task.Slot), c.task.ID}, ".")
 }
 
 func (c *containerConfig) image() string {
@@ -132,7 +132,7 @@ func (c *containerConfig) labels() map[string]string {
 		system = map[string]string{
 			"task":         "", // mark as cluster task
 			"task.id":      c.task.ID,
-			"task.name":    fmt.Sprintf("%v.%v", c.task.ServiceAnnotations.Name, c.task.Instance),
+			"task.name":    fmt.Sprintf("%v.%v", c.task.ServiceAnnotations.Name, c.task.Slot),
 			"node.id":      c.task.NodeID,
 			"service.id":   c.task.ServiceID,
 			"service.name": c.task.ServiceAnnotations.Name,

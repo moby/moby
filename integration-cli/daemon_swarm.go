@@ -50,11 +50,11 @@ func (d *SwarmDaemon) Init(autoAccept map[string]bool, secret string) error {
 // Join joins a current daemon with existing cluster.
 func (d *SwarmDaemon) Join(remoteAddr, secret, cahash string, manager bool) error {
 	status, out, err := d.SockRequest("POST", "/swarm/join", swarm.JoinRequest{
-		ListenAddr: d.listenAddr,
-		RemoteAddr: remoteAddr,
-		Manager:    manager,
-		Secret:     secret,
-		CACertHash: cahash,
+		ListenAddr:  d.listenAddr,
+		RemoteAddrs: []string{remoteAddr},
+		Manager:     manager,
+		Secret:      secret,
+		CACertHash:  cahash,
 	})
 	if status != http.StatusOK {
 		return fmt.Errorf("joining swarm: invalid statuscode %v, %q", status, out)
@@ -161,7 +161,8 @@ func (d *SwarmDaemon) updateNode(c *check.C, node *swarm.Node, f ...nodeConstruc
 	for _, fn := range f {
 		fn(node)
 	}
-	status, out, err := d.SockRequest("POST", "/nodes/"+node.ID+"/update", node)
+	url := fmt.Sprintf("/nodes/%s/update?version=%d", node.ID, node.Version.Index)
+	status, out, err := d.SockRequest("POST", url, node.Spec)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
 }

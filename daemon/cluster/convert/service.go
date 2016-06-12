@@ -17,7 +17,7 @@ func ServiceFromGRPC(s swarmapi.Service) types.Service {
 
 	networks := make([]types.NetworkAttachmentConfig, 0, len(spec.Networks))
 	for _, n := range spec.Networks {
-		networks = append(networks, types.NetworkAttachmentConfig{Target: n.Target})
+		networks = append(networks, types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
 	}
 	service := types.Service{
 		ID: s.ID,
@@ -76,7 +76,7 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 
 	networks := make([]*swarmapi.ServiceSpec_NetworkAttachmentConfig, 0, len(s.Networks))
 	for _, n := range s.Networks {
-		networks = append(networks, &swarmapi.ServiceSpec_NetworkAttachmentConfig{Target: n.Target})
+		networks = append(networks, &swarmapi.ServiceSpec_NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
 	}
 
 	spec := swarmapi.ServiceSpec{

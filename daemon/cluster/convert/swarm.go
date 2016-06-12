@@ -57,32 +57,32 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 	return swarm
 }
 
-// SwarmSpecToGRPC converts a Swarm to a grpc ClusterSpec.
-func SwarmSpecToGRPC(s types.Swarm) (swarmapi.ClusterSpec, error) {
+// SwarmSpecToGRPC converts a Spec to a grpc ClusterSpec.
+func SwarmSpecToGRPC(s types.Spec) (swarmapi.ClusterSpec, error) {
 	spec := swarmapi.ClusterSpec{
 		Annotations: swarmapi.Annotations{
-			Name:   s.Spec.Name,
-			Labels: s.Spec.Labels,
+			Name:   s.Name,
+			Labels: s.Labels,
 		},
 		Orchestration: swarmapi.OrchestrationConfig{
-			TaskHistoryRetentionLimit: s.Spec.Orchestration.TaskHistoryRetentionLimit,
+			TaskHistoryRetentionLimit: s.Orchestration.TaskHistoryRetentionLimit,
 		},
 		Raft: swarmapi.RaftConfig{
-			SnapshotInterval:           s.Spec.Raft.SnapshotInterval,
-			KeepOldSnapshots:           s.Spec.Raft.KeepOldSnapshots,
-			LogEntriesForSlowFollowers: s.Spec.Raft.LogEntriesForSlowFollowers,
-			HeartbeatTick:              s.Spec.Raft.HeartbeatTick,
-			ElectionTick:               s.Spec.Raft.ElectionTick,
+			SnapshotInterval:           s.Raft.SnapshotInterval,
+			KeepOldSnapshots:           s.Raft.KeepOldSnapshots,
+			LogEntriesForSlowFollowers: s.Raft.LogEntriesForSlowFollowers,
+			HeartbeatTick:              s.Raft.HeartbeatTick,
+			ElectionTick:               s.Raft.ElectionTick,
 		},
 		Dispatcher: swarmapi.DispatcherConfig{
-			HeartbeatPeriod: s.Spec.Dispatcher.HeartbeatPeriod,
+			HeartbeatPeriod: s.Dispatcher.HeartbeatPeriod,
 		},
 		CAConfig: swarmapi.CAConfig{
-			NodeCertExpiry: ptypes.DurationProto(s.Spec.CAConfig.NodeCertExpiry),
+			NodeCertExpiry: ptypes.DurationProto(s.CAConfig.NodeCertExpiry),
 		},
 	}
 
-	if err := SwarmSpecUpdateAcceptancePolicy(&spec, s.Spec.AcceptancePolicy); err != nil {
+	if err := SwarmSpecUpdateAcceptancePolicy(&spec, s.AcceptancePolicy); err != nil {
 		return swarmapi.ClusterSpec{}, err
 	}
 	return spec, nil
