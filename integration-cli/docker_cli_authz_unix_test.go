@@ -76,7 +76,6 @@ func (s *DockerAuthzSuite) TearDownTest(c *check.C) {
 func (s *DockerAuthzSuite) SetUpSuite(c *check.C) {
 	mux := http.NewServeMux()
 	s.server = httptest.NewServer(mux)
-	c.Assert(s.server, check.NotNil, check.Commentf("Failed to start an HTTP Server"))
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		b, err := json.Marshal(plugins.Manifest{Implements: []string{authorization.AuthZApiImplements}})
