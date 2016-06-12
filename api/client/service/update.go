@@ -150,12 +150,8 @@ func mergeService(spec *swarm.ServiceSpec, flags *pflag.FlagSet) error {
 		value, _ := flags.GetString("endpoint-mode")
 		spec.EndpointSpec.Mode = swarm.ResolutionMode(value)
 	}
-	if flags.Changed("endpoint-ingress") {
-		value, _ := flags.GetString("endpoint-ingress")
-		spec.EndpointSpec.Ingress = swarm.IngressRouting(value)
-	}
 
-	mergePorts(flags, &spec.EndpointSpec.ExposedPorts)
+	mergePorts(flags, &spec.EndpointSpec.Ports)
 
 	return nil
 }
@@ -219,8 +215,8 @@ func mergeMode(flags *pflag.FlagSet, serviceMode *swarm.ServiceMode) error {
 		mode, _ = flags.GetString("mode")
 	}
 
-	if !(mode == "replicated" || serviceMode.Replicated != nil) && flags.Changed("scale") {
-		return fmt.Errorf("scale can only be used with replicated mode")
+	if !(mode == "replicated" || serviceMode.Replicated != nil) && flags.Changed("replicas") {
+		return fmt.Errorf("replicas can only be used with replicated mode")
 	}
 
 	if mode == "global" {
@@ -229,9 +225,9 @@ func mergeMode(flags *pflag.FlagSet, serviceMode *swarm.ServiceMode) error {
 		return nil
 	}
 
-	if flags.Changed("scale") {
-		scale := flags.Lookup("scale").Value.(*Uint64Opt).Value()
-		serviceMode.Replicated = &swarm.ReplicatedService{Instances: scale}
+	if flags.Changed("replicas") {
+		replicas := flags.Lookup("replicas").Value.(*Uint64Opt).Value()
+		serviceMode.Replicated = &swarm.ReplicatedService{Replicas: replicas}
 		serviceMode.Global = nil
 		return nil
 	}
@@ -240,7 +236,7 @@ func mergeMode(flags *pflag.FlagSet, serviceMode *swarm.ServiceMode) error {
 		if serviceMode.Replicated != nil {
 			return nil
 		}
-		serviceMode.Replicated = &swarm.ReplicatedService{Instances: &DefaultScale}
+		serviceMode.Replicated = &swarm.ReplicatedService{Replicas: &DefaultReplicas}
 		serviceMode.Global = nil
 	}
 

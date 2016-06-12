@@ -72,9 +72,9 @@ func runServiceScale(dockerCli *client.DockerCli, serviceID string, scale string
 	}
 	uintScale, err := strconv.ParseUint(scale, 10, 64)
 	if err != nil {
-		return fmt.Errorf("invalid scale value %s: %s", scale, err.Error())
+		return fmt.Errorf("invalid replicas value %s: %s", scale, err.Error())
 	}
-	serviceMode.Replicated.Instances = &uintScale
+	serviceMode.Replicated.Replicas = &uintScale
 
 	err = client.ServiceUpdate(ctx, service.ID, service.Version, service.Spec)
 	if err != nil {

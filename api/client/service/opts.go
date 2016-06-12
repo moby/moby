@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/opts"
@@ -16,8 +17,8 @@ import (
 )
 
 var (
-	// DefaultScale is the default scale to use for a replicated service
-	DefaultScale uint64 = 1
+	// DefaultReplicas is the default replicas to use for a replicated service
+	DefaultReplicas uint64 = 1
 )
 
 type int64Value interface {
@@ -182,9 +183,8 @@ func convertNetworks(networks []string) []swarm.NetworkAttachmentConfig {
 }
 
 type endpointOptions struct {
-	mode    string
-	ingress string
-	ports   opts.ListOpts
+	mode  string
+	ports opts.ListOpts
 }
 
 func (e *endpointOptions) ToEndpointSpec() *swarm.EndpointSpec {
@@ -197,9 +197,8 @@ func (e *endpointOptions) ToEndpointSpec() *swarm.EndpointSpec {
 	}
 
 	return &swarm.EndpointSpec{
-		Mode:         swarm.ResolutionMode(e.mode),
-		Ingress:      swarm.IngressRouting(e.ingress),
-		ExposedPorts: portConfigs,
+		Mode:  swarm.ResolutionMode(e.mode),
+		Ports: portConfigs,
 	}
 }
 
@@ -213,9 +212,9 @@ func convertPortToPortConfig(
 		hostPort, _ := strconv.ParseUint(binding.HostPort, 10, 16)
 		ports = append(ports, swarm.PortConfig{
 			//TODO Name: ?
-			Protocol:  swarm.PortConfigProtocol(port.Proto()),
-			Port:      uint32(port.Int()),
-			SwarmPort: uint32(hostPort),
+			Protocol:      swarm.PortConfigProtocol(strings.ToLower(port.Proto())),
+			TargetPort:    uint32(port.Int()),
+			PublishedPort: uint32(hostPort),
 		})
 	}
 	return ports
@@ -271,8 +270,8 @@ type serviceOptions struct {
 	resources resourceOptions
 	stopGrace DurationOpt
 
-	scale Uint64Opt
-	mode  string
+	replicas Uint64Opt
+	mode     string
 
 	restartPolicy restartPolicyOptions
 	constraints   []string
@@ -324,12 +323,12 @@ func (opts *serviceOptions) ToService() swarm.ServiceSpec {
 		EndpointSpec: opts.endpoint.ToEndpointSpec(),
 	}
 
-	// TODO: add error if both global and instances are specified or if invalid value
+	// TODO: add error if both global and replicas are specified or if invalid value
 	if opts.mode == "global" {
 		service.Mode.Global = &swarm.GlobalService{}
 	} else {
 		service.Mode.Replicated = &swarm.ReplicatedService{
-			Instances: opts.scale.Value(),
+			Replicas: opts.replicas.Value(),
 		}
 	}
 	return service
@@ -354,7 +353,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.Var(&opts.stopGrace, "stop-grace-period", "Time to wait before force killing a container")
 
 	flags.StringVar(&opts.mode, "mode", "replicated", "Service mode (replicated or global)")
-	flags.Var(&opts.scale, "scale", "Number of tasks")
+	flags.Var(&opts.replicas, "replicas", "Number of tasks")
 
 	flags.StringVar(&opts.restartPolicy.condition, "restart-condition", "", "Restart when condition is met (none, on_failure, or any)")
 	flags.Var(&opts.restartPolicy.delay, "restart-delay", "Delay between restart attempts")
@@ -368,6 +367,5 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 
 	flags.StringSliceVar(&opts.networks, "network", []string{}, "Network attachments")
 	flags.StringVar(&opts.endpoint.mode, "endpoint-mode", "", "Endpoint mode(Valid values: VIP, DNSRR)")
-	flags.StringVar(&opts.endpoint.ingress, "endpoint-ingress", "", "Endpoint ingress(Valid values: SWARMPORT, DISABLED)")
 	flags.VarP(&opts.endpoint.ports, "publish", "p", "Publish a port as a node port")
 }

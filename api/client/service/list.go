@@ -74,8 +74,8 @@ func printTable(out io.Writer, services []swarm.Service) {
 	fmt.Fprintf(writer, listItemFmt, "ID", "NAME", "SCALE", "IMAGE", "COMMAND")
 	for _, service := range services {
 		scale := ""
-		if service.Spec.Mode.Replicated != nil {
-			scale = fmt.Sprintf("%d", *service.Spec.Mode.Replicated.Instances)
+		if service.Spec.Mode.Replicated != nil && service.Spec.Mode.Replicated.Replicas != nil {
+			scale = fmt.Sprintf("%d", *service.Spec.Mode.Replicated.Replicas)
 		} else if service.Spec.Mode.Global != nil {
 			scale = "global"
 		}
