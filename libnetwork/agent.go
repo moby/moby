@@ -69,8 +69,12 @@ func resolveAddr(addrOrInterface string) (string, error) {
 		return addrOrInterface, nil
 	}
 
-	// If not a valid IP address, it should be a valid interface
-	return getBindAddr(addrOrInterface)
+	addr, err := net.ResolveIPAddr("ip", addrOrInterface)
+	if err != nil {
+		// If not a valid IP address, it should be a valid interface
+		return getBindAddr(addrOrInterface)
+	}
+	return addr.String(), nil
 }
 
 func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
