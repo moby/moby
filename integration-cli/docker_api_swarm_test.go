@@ -537,8 +537,8 @@ loop0:
 }
 
 func simpleTestService(s *swarm.Service) {
-	var uinstances uint64
-	uinstances = 1
+	var ureplicas uint64
+	ureplicas = 1
 	s.Spec = swarm.ServiceSpec{
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: swarm.ContainerSpec{
@@ -548,19 +548,19 @@ func simpleTestService(s *swarm.Service) {
 		},
 		Mode: swarm.ServiceMode{
 			Replicated: &swarm.ReplicatedService{
-				Instances: &uinstances,
+				Replicas: &ureplicas,
 			},
 		},
 	}
 	s.Spec.Name = "top"
 }
 
-func setInstances(instances int) serviceConstructor {
-	uinstances := uint64(instances)
+func setInstances(replicas int) serviceConstructor {
+	ureplicas := uint64(replicas)
 	return func(s *swarm.Service) {
 		s.Spec.Mode = swarm.ServiceMode{
 			Replicated: &swarm.ReplicatedService{
-				Instances: &uinstances,
+				Replicas: &ureplicas,
 			},
 		}
 	}

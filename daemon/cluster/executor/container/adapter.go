@@ -188,8 +188,8 @@ func (c *containerAdapter) remove(ctx context.Context) error {
 func (c *containerAdapter) createVolumes(ctx context.Context, backend executorpkg.Backend) error {
 	// Create plugin volumes that are embedded inside a Mount
 	for _, mount := range c.container.task.Spec.GetContainer().Mounts {
-		if mount.Template != nil {
-			req := c.container.volumeCreateRequest(mount)
+		if mount.VolumeOptions != nil {
+			req := c.container.volumeCreateRequest(&mount)
 
 			// Check if this volume exists on the engine
 			if _, err := backend.VolumeCreate(req.Name, req.Driver, req.DriverOpts, req.Labels); err != nil {

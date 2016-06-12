@@ -60,7 +60,7 @@ func ServiceFromGRPC(s swarmapi.Service) types.Service {
 		service.Spec.Mode.Global = &types.GlobalService{}
 	case *swarmapi.ServiceSpec_Replicated:
 		service.Spec.Mode.Replicated = &types.ReplicatedService{
-			Instances: &t.Replicated.Instances,
+			Replicas: &t.Replicated.Replicas,
 		}
 	}
 
@@ -122,30 +122,16 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 			return swarmapi.ServiceSpec{}, fmt.Errorf("invalid resolution mode: %q", s.EndpointSpec.Mode)
 		}
 
-		if s.EndpointSpec.Ingress != "" &&
-			s.EndpointSpec.Ingress != types.IngressRoutingSWARMPORT &&
-			s.EndpointSpec.Ingress != types.IngressRoutingDISABLED {
-			return swarmapi.ServiceSpec{}, fmt.Errorf("invalid ingress option: %q", s.EndpointSpec.Ingress)
-		}
-
-		if (s.EndpointSpec.Ingress == "" ||
-			s.EndpointSpec.Ingress == types.IngressRoutingSWARMPORT) &&
-			len(s.EndpointSpec.ExposedPorts) != 0 &&
-			s.EndpointSpec.Mode == types.ResolutionModeDNSRR {
-			return swarmapi.ServiceSpec{}, fmt.Errorf("incompatible endpoint options: ingress routing using swarmport(which is default) cannot be used with DNSRR mode ")
-		}
-
 		spec.Endpoint = &swarmapi.EndpointSpec{}
 
 		spec.Endpoint.Mode = swarmapi.EndpointSpec_ResolutionMode(swarmapi.EndpointSpec_ResolutionMode_value[strings.ToUpper(string(s.EndpointSpec.Mode))])
-		spec.Endpoint.Ingress = swarmapi.EndpointSpec_IngressRouting(swarmapi.EndpointSpec_IngressRouting_value[strings.ToUpper(string(s.EndpointSpec.Ingress))])
 
-		for _, portConfig := range s.EndpointSpec.ExposedPorts {
-			spec.Endpoint.ExposedPorts = append(spec.Endpoint.ExposedPorts, &swarmapi.PortConfig{
-				Name:      portConfig.Name,
-				Protocol:  swarmapi.PortConfig_Protocol(swarmapi.PortConfig_Protocol_value[strings.ToUpper(string(portConfig.Protocol))]),
-				Port:      portConfig.Port,
-				SwarmPort: portConfig.SwarmPort,
+		for _, portConfig := range s.EndpointSpec.Ports {
+			spec.Endpoint.Ports = append(spec.Endpoint.Ports, &swarmapi.PortConfig{
+				Name:          portConfig.Name,
+				Protocol:      swarmapi.PortConfig_Protocol(swarmapi.PortConfig_Protocol_value[strings.ToUpper(string(portConfig.Protocol))]),
+				TargetPort:    portConfig.TargetPort,
+				PublishedPort: portConfig.PublishedPort,
 			})
 		}
 	}
@@ -155,13 +141,13 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 		spec.Mode = &swarmapi.ServiceSpec_Global{
 			Global: &swarmapi.GlobalService{},
 		}
-	} else if s.Mode.Replicated != nil && s.Mode.Replicated.Instances != nil {
+	} else if s.Mode.Replicated != nil && s.Mode.Replicated.Replicas != nil {
 		spec.Mode = &swarmapi.ServiceSpec_Replicated{
-			Replicated: &swarmapi.ReplicatedService{Instances: *s.Mode.Replicated.Instances},
+			Replicated: &swarmapi.ReplicatedService{Replicas: *s.Mode.Replicated.Replicas},
 		}
 	} else {
 		spec.Mode = &swarmapi.ServiceSpec_Replicated{
-			Replicated: &swarmapi.ReplicatedService{Instances: 1},
+			Replicated: &swarmapi.ReplicatedService{Replicas: 1},
 		}
 	}
 
@@ -214,7 +200,7 @@ func restartPolicyFromGRPC(p *swarmapi.RestartPolicy) *types.RestartPolicy {
 	var rp *types.RestartPolicy
 	if p != nil {
 		rp = &types.RestartPolicy{}
-		rp.Condition = types.RestartPolicyCondition(p.Condition.String())
+		rp.Condition = types.RestartPolicyCondition(strings.ToLower(p.Condition.String()))
 		if p.Delay != nil {
 			delay, _ := ptypes.Duration(p.Delay)
 			rp.Delay = &delay

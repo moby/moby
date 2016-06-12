@@ -86,15 +86,14 @@ func endpointSpecFromGRPC(es *swarmapi.EndpointSpec) *types.EndpointSpec {
 	var endpointSpec *types.EndpointSpec
 	if es != nil {
 		endpointSpec = &types.EndpointSpec{}
-		endpointSpec.Mode = types.ResolutionMode(es.Mode.String())
-		endpointSpec.Ingress = types.IngressRouting(es.Ingress.String())
+		endpointSpec.Mode = types.ResolutionMode(strings.ToLower(es.Mode.String()))
 
-		for _, portState := range es.ExposedPorts {
-			endpointSpec.ExposedPorts = append(endpointSpec.ExposedPorts, types.PortConfig{
-				Name:      portState.Name,
-				Protocol:  types.PortConfigProtocol(strings.ToLower(swarmapi.PortConfig_Protocol_name[int32(portState.Protocol)])),
-				Port:      portState.Port,
-				SwarmPort: portState.SwarmPort,
+		for _, portState := range es.Ports {
+			endpointSpec.Ports = append(endpointSpec.Ports, types.PortConfig{
+				Name:          portState.Name,
+				Protocol:      types.PortConfigProtocol(strings.ToLower(swarmapi.PortConfig_Protocol_name[int32(portState.Protocol)])),
+				TargetPort:    portState.TargetPort,
+				PublishedPort: portState.PublishedPort,
 			})
 		}
 	}
@@ -108,12 +107,12 @@ func endpointFromGRPC(e *swarmapi.Endpoint) types.Endpoint {
 			endpoint.Spec = *espec
 		}
 
-		for _, portState := range e.ExposedPorts {
+		for _, portState := range e.Ports {
 			endpoint.ExposedPorts = append(endpoint.ExposedPorts, types.PortConfig{
-				Name:      portState.Name,
-				Protocol:  types.PortConfigProtocol(strings.ToLower(swarmapi.PortConfig_Protocol_name[int32(portState.Protocol)])),
-				Port:      portState.Port,
-				SwarmPort: portState.SwarmPort,
+				Name:          portState.Name,
+				Protocol:      types.PortConfigProtocol(strings.ToLower(swarmapi.PortConfig_Protocol_name[int32(portState.Protocol)])),
+				TargetPort:    portState.TargetPort,
+				PublishedPort: portState.PublishedPort,
 			})
 		}
 

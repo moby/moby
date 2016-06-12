@@ -96,20 +96,7 @@ func (c *containerConfig) volumes() map[string]struct{} {
 			continue
 		}
 
-		var (
-			name string
-			mask = getMountMask(mount)
-		)
-
-		if mount.Template != nil {
-			name = mount.Template.Annotations.Name
-		}
-
-		if name != "" {
-			r[fmt.Sprintf("%s:%s:%s", name, mount.Target, mask)] = struct{}{}
-		} else {
-			r[fmt.Sprintf("%s:%s", mount.Target, mask)] = struct{}{}
-		}
+		r[fmt.Sprintf("%s:%s", mount.Target, getMountMask(&mount))] = struct{}{}
 	}
 
 	return r
@@ -176,7 +163,7 @@ func (c *containerConfig) bindMounts() []string {
 	var r []string
 
 	for _, val := range c.spec().Mounts {
-		mask := getMountMask(val)
+		mask := getMountMask(&val)
 		if val.Type == api.MountTypeBind {
 			r = append(r, fmt.Sprintf("%s:%s:%s", val.Source, val.Target, mask))
 		}
@@ -191,23 +178,27 @@ func getMountMask(m *api.Mount) string {
 		maskOpts[0] = "rw"
 	}
 
-	switch m.Propagation {
-	case api.MountPropagationPrivate:
-		maskOpts = append(maskOpts, "private")
-	case api.MountPropagationRPrivate:
-		maskOpts = append(maskOpts, "rprivate")
-	case api.MountPropagationShared:
-		maskOpts = append(maskOpts, "shared")
-	case api.MountPropagationRShared:
-		maskOpts = append(maskOpts, "rshared")
-	case api.MountPropagationSlave:
-		maskOpts = append(maskOpts, "slave")
-	case api.MountPropagationRSlave:
-		maskOpts = append(maskOpts, "rslave")
+	if m.BindOptions != nil {
+		switch m.BindOptions.Propagation {
+		case api.MountPropagationPrivate:
+			maskOpts = append(maskOpts, "private")
+		case api.MountPropagationRPrivate:
+			maskOpts = append(maskOpts, "rprivate")
+		case api.MountPropagationShared:
+			maskOpts = append(maskOpts, "shared")
+		case api.MountPropagationRShared:
+			maskOpts = append(maskOpts, "rshared")
+		case api.MountPropagationSlave:
+			maskOpts = append(maskOpts, "slave")
+		case api.MountPropagationRSlave:
+			maskOpts = append(maskOpts, "rslave")
+		}
 	}
 
-	if !m.Populate {
-		maskOpts = append(maskOpts, "nocopy")
+	if m.VolumeOptions != nil {
+		if !m.VolumeOptions.Populate {
+			maskOpts = append(maskOpts, "nocopy")
+		}
 	}
 	return strings.Join(maskOpts, ",")
 }
@@ -221,11 +212,14 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 
 // This handles the case of volumes that are defined inside a service Mount
 func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *types.VolumeCreateRequest {
-	return &types.VolumeCreateRequest{
-		Name:       mount.Template.Annotations.Name,
-		Driver:     mount.Template.DriverConfig.Name,
-		DriverOpts: mount.Template.DriverConfig.Options,
+	if mount.VolumeOptions != nil {
+		return &types.VolumeCreateRequest{
+			// Name ?
+			Driver:     mount.VolumeOptions.DriverConfig.Name,
+			DriverOpts: mount.VolumeOptions.DriverConfig.Options,
+		}
 	}
+	return nil
 }
 
 func (c *containerConfig) resources() enginecontainer.Resources {
@@ -353,12 +347,12 @@ func (c *containerConfig) serviceConfig() *clustertypes.ServiceConfig {
 	}
 
 	if c.task.Endpoint != nil {
-		for _, ePort := range c.task.Endpoint.ExposedPorts {
+		for _, ePort := range c.task.Endpoint.Ports {
 			svcCfg.ExposedPorts = append(svcCfg.ExposedPorts, &clustertypes.PortConfig{
-				Name:     ePort.Name,
-				Protocol: int32(ePort.Protocol),
-				Port:     ePort.Port,
-				NodePort: ePort.SwarmPort,
+				Name:          ePort.Name,
+				Protocol:      int32(ePort.Protocol),
+				TargetPort:    ePort.TargetPort,
+				PublishedPort: ePort.PublishedPort,
 			})
 		}
 	}

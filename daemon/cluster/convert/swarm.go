@@ -45,7 +45,7 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 
 	for _, policy := range c.Spec.AcceptancePolicy.Policies {
 		p := types.Policy{
-			Role:       types.NodeRole(policy.Role.String()),
+			Role:       types.NodeRole(strings.ToLower(policy.Role.String())),
 			Autoaccept: policy.Autoaccept,
 		}
 		if policy.Secret != nil {

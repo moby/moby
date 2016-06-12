@@ -23,21 +23,28 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 	// Mounts
 	for _, m := range c.Mounts {
 		mount := types.Mount{
-			Target:      m.Target,
-			Source:      m.Source,
-			Type:        types.MountType(swarmapi.Mount_MountType_name[int32(m.Type)]),
-			Populate:    m.Populate,
-			Propagation: types.MountPropagation(swarmapi.Mount_MountPropagation_name[int32(m.Propagation)]),
-			Writable:    m.Writable,
-			// TODO: template
+			Target:   m.Target,
+			Source:   m.Source,
+			Type:     types.MountType(strings.ToLower(swarmapi.Mount_MountType_name[int32(m.Type)])),
+			Writable: m.Writable,
 		}
 
-		if m.Template != nil {
-			mount.Template.Name = m.Template.Annotations.Name
-			mount.Template.Labels = m.Template.Annotations.Labels
-			mount.Template.DriverConfig = types.Driver{
-				Name:    m.Template.DriverConfig.Name,
-				Options: m.Template.DriverConfig.Options,
+		if m.BindOptions != nil {
+			mount.BindOptions = &types.BindOptions{
+				Propagation: types.MountPropagation(strings.ToLower(swarmapi.Mount_BindOptions_MountPropagation_name[int32(m.BindOptions.Propagation)])),
+			}
+		}
+
+		if m.VolumeOptions != nil {
+			mount.VolumeOptions = &types.VolumeOptions{
+				Populate: m.VolumeOptions.Populate,
+				Labels:   m.VolumeOptions.Labels,
+			}
+			if m.VolumeOptions.DriverConfig != nil {
+				mount.VolumeOptions.DriverConfig = types.Driver{
+					Name:    m.VolumeOptions.DriverConfig.Name,
+					Options: m.VolumeOptions.DriverConfig.Options,
+				}
 			}
 		}
 		containerSpec.Mounts = append(containerSpec.Mounts, mount)
@@ -70,7 +77,6 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		mount := swarmapi.Mount{
 			Target:   m.Target,
 			Source:   m.Source,
-			Populate: m.Populate,
 			Writable: m.Writable,
 		}
 
@@ -80,25 +86,30 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 			return nil, fmt.Errorf("invalid MountType: %q", m.Type)
 		}
 
-		if mountPropagation, ok := swarmapi.Mount_MountPropagation_value[strings.ToUpper(string(m.Propagation))]; ok {
-			mount.Propagation = swarmapi.Mount_MountPropagation(mountPropagation)
-		} else if string(m.Propagation) != "" {
-			return nil, fmt.Errorf("invalid MountPropagation: %q", m.Propagation)
+		if m.BindOptions != nil {
+			if mountPropagation, ok := swarmapi.Mount_BindOptions_MountPropagation_value[strings.ToUpper(string(m.BindOptions.Propagation))]; ok {
+				mount.BindOptions = &swarmapi.Mount_BindOptions{Propagation: swarmapi.Mount_BindOptions_MountPropagation(mountPropagation)}
+			} else if string(m.BindOptions.Propagation) != "" {
+				return nil, fmt.Errorf("invalid MountPropagation: %q", m.BindOptions.Propagation)
+
+			}
 
 		}
 
-		if m.Template != nil {
-			mount.Template.Annotations.Name = m.Template.Name
-			mount.Template.Annotations.Labels = m.Template.Labels
-			if m.Template.DriverConfig.Name != "" || m.Template.DriverConfig.Options != nil {
-				mount.Template.DriverConfig = &swarmapi.Driver{
-					Name:    m.Template.DriverConfig.Name,
-					Options: m.Template.DriverConfig.Options,
+		if m.VolumeOptions != nil {
+			mount.VolumeOptions = &swarmapi.Mount_VolumeOptions{
+				Populate: m.VolumeOptions.Populate,
+				Labels:   m.VolumeOptions.Labels,
+			}
+			if m.VolumeOptions.DriverConfig.Name != "" || m.VolumeOptions.DriverConfig.Options != nil {
+				mount.VolumeOptions.DriverConfig = &swarmapi.Driver{
+					Name:    m.VolumeOptions.DriverConfig.Name,
+					Options: m.VolumeOptions.DriverConfig.Options,
 				}
 			}
 		}
 
-		containerSpec.Mounts = append(containerSpec.Mounts, &mount)
+		containerSpec.Mounts = append(containerSpec.Mounts, mount)
 	}
 
 	return containerSpec, nil

@@ -812,8 +812,8 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 			portConfigs = append(portConfigs, &libnetwork.PortConfig{
 				Name:     portConfig.Name,
 				Protocol: libnetwork.PortConfig_Protocol(portConfig.Protocol),
-				Port:     portConfig.Port,
-				NodePort: portConfig.NodePort,
+				Port:     portConfig.TargetPort,
+				NodePort: portConfig.PublishedPort,
 			})
 		}
 

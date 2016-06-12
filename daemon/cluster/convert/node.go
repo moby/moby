@@ -14,12 +14,12 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 	node := types.Node{
 		ID: n.ID,
 		Spec: types.NodeSpec{
-			Role:         types.NodeRole(n.Spec.Role.String()),
-			Membership:   types.NodeMembership(n.Spec.Membership.String()),
-			Availability: types.NodeAvailability(n.Spec.Availability.String()),
+			Role:         types.NodeRole(strings.ToLower(n.Spec.Role.String())),
+			Membership:   types.NodeMembership(strings.ToLower(n.Spec.Membership.String())),
+			Availability: types.NodeAvailability(strings.ToLower(n.Spec.Availability.String())),
 		},
 		Status: types.NodeStatus{
-			State:   types.NodeState(n.Status.State.String()),
+			State:   types.NodeState(strings.ToLower(n.Status.State.String())),
 			Message: n.Status.Message,
 		},
 	}
@@ -57,7 +57,7 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 	if n.Manager != nil {
 		node.ManagerStatus = &types.ManagerStatus{
 			Leader:       n.Manager.Raft.Status.Leader,
-			Reachability: types.Reachability(n.Manager.Raft.Status.Reachability.String()),
+			Reachability: types.Reachability(strings.ToLower(n.Manager.Raft.Status.Reachability.String())),
 			Message:      n.Manager.Raft.Status.Message,
 			Addr:         n.Manager.Raft.Addr,
 		}

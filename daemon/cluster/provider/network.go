@@ -21,10 +21,10 @@ type VirtualAddress struct {
 
 // PortConfig represents a port configuration.
 type PortConfig struct {
-	Name     string
-	Protocol int32
-	Port     uint32
-	NodePort uint32
+	Name          string
+	Protocol      int32
+	TargetPort    uint32
+	PublishedPort uint32
 }
 
 // ServiceConfig represents a service configuration.
