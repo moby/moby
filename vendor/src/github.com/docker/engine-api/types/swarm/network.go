@@ -2,9 +2,9 @@ package swarm
 
 // Endpoint represents an endpoint.
 type Endpoint struct {
-	Spec         EndpointSpec        `json:",omitempty"`
-	ExposedPorts []PortConfig        `json:",omitempty"`
-	VirtualIPs   []EndpointVirtualIP `json:",omitempty"`
+	Spec       EndpointSpec        `json:",omitempty"`
+	Ports      []PortConfig        `json:",omitempty"`
+	VirtualIPs []EndpointVirtualIP `json:",omitempty"`
 }
 
 // EndpointSpec represents the spec of an endpoint.
@@ -69,7 +69,8 @@ type NetworkSpec struct {
 
 // NetworkAttachmentConfig represents the configuration of a network attachement.
 type NetworkAttachmentConfig struct {
-	Target string `json:",omitempty"`
+	Target  string   `json:",omitempty"`
+	Aliases []string `json:",omitempty"`
 }
 
 // NetworkAttachment represents a network attchement.

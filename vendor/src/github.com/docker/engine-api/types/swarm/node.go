@@ -100,7 +100,6 @@ const (
 type ManagerStatus struct {
 	Leader       bool         `json:",omitempty"`
 	Reachability Reachability `json:",omitempty"`
-	Message      string       `json:",omitempty"`
 	Addr         string       `json:",omitempty"`
 }
 

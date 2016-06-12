@@ -41,7 +41,7 @@ type Task struct {
 
 	Spec                TaskSpec            `json:",omitempty"`
 	ServiceID           string              `json:",omitempty"`
-	Instance            int                 `json:",omitempty"`
+	Slot                int                 `json:",omitempty"`
 	NodeID              string              `json:",omitempty"`
 	Status              TaskStatus          `json:",omitempty"`
 	DesiredState        TaskState           `json:",omitempty"`

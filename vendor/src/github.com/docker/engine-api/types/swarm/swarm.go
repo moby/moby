@@ -65,11 +65,11 @@ type InitRequest struct {
 
 // JoinRequest is the request used to join a swarm.
 type JoinRequest struct {
-	ListenAddr string
-	RemoteAddr string
-	Secret     string // accept by secret
-	CACertHash string
-	Manager    bool
+	ListenAddr  string
+	RemoteAddrs []string
+	Secret      string // accept by secret
+	CACertHash  string
+	Manager     bool
 }
 
 // LocalNodeState represents the state of the local node.

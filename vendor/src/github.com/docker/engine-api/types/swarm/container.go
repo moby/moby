@@ -54,6 +54,7 @@ const (
 	MountPropagationSlave MountPropagation = "slave"
 )
 
+// BindOptions define options specific to mounts of type "bind".
 type BindOptions struct {
 	Propagation MountPropagation `json:",omitempty"`
 }
@@ -62,5 +63,5 @@ type BindOptions struct {
 type VolumeOptions struct {
 	Populate     bool              `json:",omitempty"`
 	Labels       map[string]string `json:",omitempty"`
-	DriverConfig Driver            `json:",omitempty"`
+	DriverConfig *Driver           `json:",omitempty"`
 }

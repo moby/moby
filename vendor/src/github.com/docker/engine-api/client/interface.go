@@ -24,11 +24,11 @@ type APIClient interface {
 	SwarmJoin(ctx context.Context, req swarm.JoinRequest) error
 	SwarmLeave(ctx context.Context, force bool) error
 	SwarmInspect(ctx context.Context) (swarm.Swarm, error)
-	SwarmUpdate(ctx context.Context, swarm swarm.Swarm) error
+	SwarmUpdate(ctx context.Context, version swarm.Version, swarm swarm.Spec) error
 	NodeInspect(ctx context.Context, nodeID string) (swarm.Node, error)
 	NodeList(ctx context.Context, options types.NodeListOptions) ([]swarm.Node, error)
 	NodeRemove(ctx context.Context, nodeID string) error
-	NodeUpdate(ctx context.Context, nodeID string, node swarm.Node) error
+	NodeUpdate(ctx context.Context, nodeID string, version swarm.Version, node swarm.NodeSpec) error
 	ServiceCreate(ctx context.Context, service swarm.ServiceSpec) (types.ServiceCreateResponse, error)
 	ServiceInspect(ctx context.Context, serviceID string) (swarm.Service, error)
 	ServiceList(ctx context.Context, options types.ServiceListOptions) ([]swarm.Service, error)
