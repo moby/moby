@@ -30,7 +30,7 @@
 
 syntax = "proto3";
 
-package docker.cluster.api;
+package docker.swarmkit.v1;
 
 // TODO(stevvooe): Commenting this out from the maddening behavior of google's
 // Go protobuf implementation.

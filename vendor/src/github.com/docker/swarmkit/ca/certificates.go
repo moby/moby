@@ -76,6 +76,10 @@ const (
 // certificate file does not exist.
 var ErrNoLocalRootCA = errors.New("local root CA certificate does not exist")
 
+// ErrNoValidSigner is an error type used to indicate that our RootCA doesn't have the ability to
+// sign certificates.
+var ErrNoValidSigner = errors.New("no valid signer found")
+
 func init() {
 	cflog.Level = 5
 }
@@ -120,7 +124,7 @@ func (rca *RootCA) IssueAndSaveNewCertificates(paths CertPaths, cn, ou, org stri
 
 	var signedCert []byte
 	if !rca.CanSign() {
-		return nil, fmt.Errorf("no valid signer found")
+		return nil, ErrNoValidSigner
 	}
 
 	// Obtain a signed Certificate
@@ -199,7 +203,7 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths Cert
 // ParseValidateAndSignCSR returns a signed certificate from a particular rootCA and a CSR.
 func (rca *RootCA) ParseValidateAndSignCSR(csrBytes []byte, cn, ou, org string) ([]byte, error) {
 	if !rca.CanSign() {
-		return nil, fmt.Errorf("no valid signer for Root CA found")
+		return nil, ErrNoValidSigner
 	}
 
 	// All managers get added the subject-alt-name of CA, so they can be used for cert issuance
@@ -600,11 +604,6 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, role, secret st
 				return nil, fmt.Errorf("no certificate in CertificateStatus response")
 			}
 			return statusResponse.Certificate.Certificate, nil
-		}
-
-		// If the certificate has been rejected or blocked return with an error
-		if statusResponse.Status.State == api.IssuanceStateRejected {
-			return nil, fmt.Errorf("certificate issuance rejected: %v", statusResponse.Status.State)
 		}
 
 		// If we're still pending, the issuance failed, or the state is unknown

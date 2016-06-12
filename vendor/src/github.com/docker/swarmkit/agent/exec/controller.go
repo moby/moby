@@ -3,6 +3,7 @@ package exec
 import (
 	"fmt"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"golang.org/x/net/context"
@@ -56,10 +57,7 @@ func Resolve(ctx context.Context, task *api.Task, executor Executor) (Controller
 	status := task.Status.Copy()
 
 	defer func() {
-		if task.Status.State != status.State {
-			log.G(ctx).WithField("state.transition", fmt.Sprintf("%v->%v", task.Status.State, status.State)).
-				Info("state changed")
-		}
+		logStateChange(ctx, task.DesiredState, task.Status.State, status.State)
 	}()
 
 	ctlr, err := executor.Controller(task)
@@ -163,13 +161,8 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 
 	// below, we have several callbacks that are run after the state transition
 	// is completed.
-
 	defer func() {
-		if task.Status.State != status.State {
-			log.G(ctx).WithField("state.transition", fmt.Sprintf("%v->%v", task.Status.State, status.State)).
-				WithField("state.desired", task.DesiredState).
-				Info("state changed")
-		}
+		logStateChange(ctx, task.DesiredState, task.Status.State, status.State)
 	}()
 
 	// extract the container status from the container, if supported.
@@ -260,5 +253,15 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 		return transition(api.TaskStateStarting, "starting")
 	default: // terminal states
 		return noop()
+	}
+}
+
+func logStateChange(ctx context.Context, desired, previous, next api.TaskState) {
+	if previous != next {
+		fields := logrus.Fields{
+			"state.transition": fmt.Sprintf("%v->%v", previous, next),
+			"state.desired":    desired,
+		}
+		log.G(ctx).WithFields(fields).Debug("state changed")
 	}
 }

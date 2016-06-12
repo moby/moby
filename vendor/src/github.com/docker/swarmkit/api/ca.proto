@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package docker.cluster.api;
+package docker.swarmkit.v1;
 
 import "types.proto";
 import "gogoproto/gogo.proto";

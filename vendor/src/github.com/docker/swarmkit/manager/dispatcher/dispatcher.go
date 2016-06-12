@@ -629,9 +629,9 @@ func (d *Dispatcher) getManagers() []*api.WeightedPeer {
 	return d.lastSeenManagers
 }
 
-// Session is stream which controls agent connection.
+// Session is a stream which controls agent connection.
 // Each message contains list of backup Managers with weights. Also there is
-// special boolean field Disconnect which if true indicates that node should
+// a special boolean field Disconnect which if true indicates that node should
 // reconnect to another Manager immediately.
 func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_SessionServer) error {
 	ctx := stream.Context()

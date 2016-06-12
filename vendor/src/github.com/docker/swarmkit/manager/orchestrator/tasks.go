@@ -19,7 +19,7 @@ import (
 
 func invalidNode(n *api.Node) bool {
 	return n == nil ||
-		n.Status.State != api.NodeStatus_READY ||
+		n.Status.State == api.NodeStatus_DOWN ||
 		n.Spec.Availability == api.NodeAvailabilityDrain
 }
 
@@ -55,7 +55,8 @@ func (r *ReplicatedOrchestrator) initTasks(ctx context.Context, readTx store.Rea
 				}
 				continue
 			}
-			if t.DesiredState != api.TaskStateReady || !isReplicatedService(service) {
+			// TODO(aluzzardi): This is shady. We should have a more generic condition.
+			if t.DesiredState != api.TaskStateAccepted || !isReplicatedService(service) {
 				continue
 			}
 			restartDelay := defaultRestartDelay
@@ -78,7 +79,8 @@ func (r *ReplicatedOrchestrator) initTasks(ctx context.Context, readTx store.Rea
 					if restartDelay > 0 {
 						_ = batch.Update(func(tx store.Tx) error {
 							t := store.GetTask(tx, t.ID)
-							if t == nil || t.DesiredState != api.TaskStateReady {
+							// TODO(aluzzardi): This is shady as well. We should have a more generic condition.
+							if t == nil || t.DesiredState != api.TaskStateAccepted {
 								return nil
 							}
 							r.restarts.DelayStart(ctx, tx, nil, t.ID, restartDelay, true)

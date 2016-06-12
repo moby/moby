@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package docker.cluster.api;
+package docker.swarmkit.v1;
 
 import "specs.proto";
 import "objects.proto";
@@ -140,7 +140,7 @@ message ListTasksRequest {
 		map<string, string> labels = 3;
 		repeated string service_ids = 4 [(gogoproto.customname) = "ServiceIDs"];
 		repeated string node_ids = 5 [(gogoproto.customname) = "NodeIDs"];
-		repeated api.TaskState desired_states = 6;
+		repeated docker.swarmkit.v1.TaskState desired_states = 6;
 	}
 
 	Filters filters = 1;

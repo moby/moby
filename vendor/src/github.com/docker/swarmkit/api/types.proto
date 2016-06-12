@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package docker.cluster.api;
+package docker.swarmkit.v1;
 
 import "timestamp/timestamp.proto"; // TODO(stevvooe): use our own until we fix gogoproto/deepcopy
 import "duration/duration.proto"; // TODO(stevvooe): use our own until we fix gogoproto/deepcopy
@@ -393,16 +393,12 @@ message IssuanceStatus {
 		PENDING = 2 [(gogoproto.enumvalue_customname)="IssuanceStatePending"]; // Certificate is pending acceptance
 		ISSUED = 3 [(gogoproto.enumvalue_customname)="IssuanceStateIssued"]; // successful completion certificate issuance
 		FAILED = 4 [(gogoproto.enumvalue_customname)="IssuanceStateFailed"]; // Certificate issuance failed
-		REJECTED = 5 [(gogoproto.enumvalue_customname)="IssuanceStateRejected"]; // Certificate issuance got rejected, or certificate is blocked
 	}
 	State state = 1;
 
 	// Err is set if the Certificate Issuance is in an error state.
-	//
 	// The following states should report a companion error:
-	//
-	//	FAILED, REJECTED
-	//
+	//	FAILED
 	string err = 2;
 }
 

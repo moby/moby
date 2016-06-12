@@ -328,7 +328,7 @@ func (r *RestartSupervisor) DelayStart(ctx context.Context, _ store.Tx, oldTask 
 // up.
 func (r *RestartSupervisor) StartNow(tx store.Tx, taskID string) error {
 	t := store.GetTask(tx, taskID)
-	if t == nil || t.DesiredState > api.TaskStateReady {
+	if t == nil || t.DesiredState >= api.TaskStateRunning {
 		return nil
 	}
 	t.DesiredState = api.TaskStateRunning
