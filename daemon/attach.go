@@ -119,6 +119,15 @@ func (daemon *Daemon) containerAttach(c *container.Container, stdin io.ReadClose
 			}()
 			stdinPipe = r
 		}
+
+		waitChan := make(chan struct{})
+		if c.Config.StdinOnce && !c.Config.Tty {
+			go func() {
+				c.WaitStop(-1 * time.Second)
+				close(waitChan)
+			}()
+		}
+
 		err := <-c.Attach(stdinPipe, stdout, stderr, keys)
 		if err != nil {
 			if _, ok := err.(container.DetachError); ok {
@@ -131,7 +140,7 @@ func (daemon *Daemon) containerAttach(c *container.Container, stdin io.ReadClose
 		// If we are in stdinonce mode, wait for the process to end
 		// otherwise, simply return
 		if c.Config.StdinOnce && !c.Config.Tty {
-			c.WaitStop(-1 * time.Second)
+			<-waitChan
 		}
 	}
 	return nil
