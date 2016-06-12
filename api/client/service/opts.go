@@ -168,6 +168,11 @@ func (m *MountOpt) Set(value string) error {
 
 	for _, field := range fields {
 		parts := strings.SplitN(field, "=", 2)
+		if len(parts) == 1 && strings.ToLower(parts[0]) == "writable" {
+			mount.Writable = true
+			continue
+		}
+
 		if len(parts) != 2 {
 			return fmt.Errorf("invald field '%s' must be a key=value pair", field)
 		}
@@ -374,10 +379,6 @@ func newServiceOptions() *serviceOptions {
 func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 	var service swarm.ServiceSpec
 
-	if opts.scale.Value() != nil && opts.mode == "global" {
-		return service, fmt.Errorf("scale can only be used with replicated mode")
-	}
-
 	service = swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
 			Name:   opts.name,
@@ -411,6 +412,10 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 
 	switch opts.mode {
 	case "global":
+		if opts.scale.Value() != nil {
+			return service, fmt.Errorf("scale can only be used with replicated mode")
+		}
+
 		service.Mode.Global = &swarm.GlobalService{}
 	case "replicated":
 		service.Mode.Replicated = &swarm.ReplicatedService{
