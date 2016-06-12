@@ -76,7 +76,11 @@ func (f *PluginFilter) SetTask(t *api.Task) bool {
 	var volumeTemplates bool
 	if c != nil {
 		for _, mount := range c.Mounts {
-			if mount.Template != nil && mount.Template.DriverConfig != nil {
+			if mount.Type == api.MountTypeVolume &&
+				mount.VolumeOptions != nil &&
+				mount.VolumeOptions.DriverConfig != nil &&
+				mount.VolumeOptions.DriverConfig.Name != "" &&
+				mount.VolumeOptions.DriverConfig.Name != "local" {
 				volumeTemplates = true
 			}
 		}
@@ -100,8 +104,8 @@ func (f *PluginFilter) Check(n *NodeInfo) bool {
 	container := f.t.Spec.GetContainer()
 	if container != nil {
 		for _, mount := range container.Mounts {
-			if mount.Template != nil {
-				if !f.pluginExistsOnNode("Volume", mount.Template.DriverConfig.Name, nodePlugins) {
+			if mount.VolumeOptions != nil && mount.VolumeOptions.DriverConfig != nil {
+				if !f.pluginExistsOnNode("Volume", mount.VolumeOptions.DriverConfig.Name, nodePlugins) {
 					return false
 				}
 			}

@@ -89,9 +89,9 @@ message ServiceSpec {
 	EndpointSpec endpoint = 8;
 }
 
-// ReplicatedService set the reconcilation target to certain number of instances.
+// ReplicatedService set the reconcilation target to certain number of replicas.
 message ReplicatedService {
-	uint64 instances = 1;
+	uint64 replicas = 1;
 }
 
 // GlobalService represent global service.
@@ -153,7 +153,7 @@ message ContainerSpec {
 	// User specifies the user that should be employed to run the container.
 	string user = 7;
 
-	repeated Mount mounts = 8;
+	repeated Mount mounts = 8 [(gogoproto.nullable) = false];
 
 	// StopGracePeriod the grace period for stopping the container before
 	// forcefully killing the container.
@@ -186,33 +186,9 @@ message EndpointSpec {
 
 	ResolutionMode mode = 1;
 
-	// IngressRouting specifies the method to use for
-	// loadbalancing requests coming from outside the
-	// cluster. This is sometimes called north-south datapath.
-	enum IngressRouting {
-		option (gogoproto.goproto_enum_prefix) = false;
-
-		// SwarmPort routing provides Layer 3 and 4 ingress load balancing.
-		// Each of the exposed ports will be assign to this service across the
-		// nodes in the Swarm cluster.
-		SWARMPORT = 0 [(gogoproto.enumvalue_customname) = "IngressRoutingSwarmPort"];
-
-		// If the user chooses to disable ingress routing(but
-		// still expose ports), the system will not provide
-		// any out of the box loadbalancing for ingress
-		// traffic. But if the service has exposed ports it
-		// will still auto-attach the service to the ingress
-		// network. The user may then provide an alternate
-		// option for ingress load balancing which is
-		// transparent to swarm.
-		DISABLED = 1 [(gogoproto.enumvalue_customname) = "IngressRoutingDisabled"];
-	}
-
-	IngressRouting ingress = 2;
-
 	// List of exposed ports that this service is accessible from
 	// external to the cluster.
-	repeated PortConfig exposed_ports = 3;
+	repeated PortConfig ports = 2;
 }
 
 // NetworkSpec specifies user defined network parameters.

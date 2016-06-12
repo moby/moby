@@ -179,6 +179,18 @@ func (s *Server) UpdateNode(ctx context.Context, request *api.UpdateNodeRequest)
 		if node == nil {
 			return nil
 		}
+
+		// Demotion sanity checks.
+		if node.Spec.Role == api.NodeRoleManager && request.Spec.Role == api.NodeRoleWorker {
+			managers, err := store.FindNodes(tx, store.ByRole(api.NodeRoleManager))
+			if err != nil {
+				return grpc.Errorf(codes.Internal, "internal store error: %v", err)
+			}
+			if len(managers) == 1 && managers[0].ID == node.ID {
+				return grpc.Errorf(codes.FailedPrecondition, "attempting to demote the last manager of the swarm")
+			}
+		}
+
 		node.Meta.Version = *request.NodeVersion
 		node.Spec = *request.Spec.Copy()
 		return store.UpdateNode(tx, node)

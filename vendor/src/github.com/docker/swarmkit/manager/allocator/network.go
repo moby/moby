@@ -378,8 +378,7 @@ func serviceAllocationNeeded(s *api.Service, nc *networkContext) bool {
 			(s.Spec.Endpoint != nil &&
 				s.Spec.Endpoint.Mode == api.ResolutionModeVirtualIP))) ||
 		(s.Spec.Endpoint != nil &&
-			s.Spec.Endpoint.Ingress == api.IngressRoutingSwarmPort &&
-			len(s.Spec.Endpoint.ExposedPorts) != 0) {
+			len(s.Spec.Endpoint.Ports) != 0) {
 		return !nc.nwkAllocator.IsServiceAllocated(s)
 	}
 
@@ -435,7 +434,7 @@ func (a *Allocator) taskCreateNetworkAttachments(t *api.Task, s *api.Service) {
 	// The service to which this task belongs is trying to expose
 	// ports to the external world. Automatically attach the task
 	// to the ingress network.
-	if s.Spec.Endpoint != nil && len(s.Spec.Endpoint.ExposedPorts) != 0 {
+	if s.Spec.Endpoint != nil && len(s.Spec.Endpoint.Ports) != 0 {
 		networks = append(networks, &api.NetworkAttachment{Network: ingressNetwork})
 	}
 
@@ -554,7 +553,7 @@ func (a *Allocator) allocateService(ctx context.Context, nc *networkContext, s *
 	// The service is trying to expose ports to the external
 	// world. Automatically attach the service to the ingress
 	// network only if it is not already done.
-	if s.Spec.Endpoint != nil && len(s.Spec.Endpoint.ExposedPorts) != 0 {
+	if s.Spec.Endpoint != nil && len(s.Spec.Endpoint.Ports) != 0 {
 		if s.Endpoint == nil {
 			s.Endpoint = &api.Endpoint{}
 		}

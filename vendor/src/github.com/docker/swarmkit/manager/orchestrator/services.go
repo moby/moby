@@ -95,7 +95,7 @@ func (r *ReplicatedOrchestrator) reconcile(ctx context.Context, service *api.Ser
 	numTasks := len(runningTasks)
 
 	deploy := service.Spec.GetMode().(*api.ServiceSpec_Replicated)
-	specifiedInstances := int(deploy.Replicated.Instances)
+	specifiedInstances := int(deploy.Replicated.Replicas)
 
 	// TODO(aaronl): Add support for restart delays.
 

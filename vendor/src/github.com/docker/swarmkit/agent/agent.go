@@ -143,7 +143,7 @@ func (a *Agent) run(ctx context.Context) {
 		session    = newSession(ctx, a, backoff) // start the initial session
 		registered = session.registered
 		ready      = a.ready // first session ready
-		sessionq   = a.sessionq
+		sessionq   chan sessionOperation
 	)
 
 	if err := a.worker.Init(ctx); err != nil {
@@ -171,13 +171,14 @@ func (a *Agent) run(ctx context.Context) {
 				log.G(ctx).WithError(err).Error("session message handler failed")
 			}
 		case <-registered:
+			log.G(ctx).Debugln("agent: registered")
 			if ready != nil {
 				close(ready)
 			}
 			ready = nil
-			log.G(ctx).Debugln("agent: registered")
 			registered = nil // we only care about this once per session
 			backoff = 0      // reset backoff
+			sessionq = a.sessionq
 		case err := <-session.errs:
 			// TODO(stevvooe): This may actually block if a session is closed
 			// but no error was sent. Session.close must only be called here

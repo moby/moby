@@ -126,55 +126,78 @@ message Image {
 	string reference = 1;
 }
 
-// VolumeTemplate describes how to create a volume when a volume is not found.
-message VolumeTemplate {
-	// Annotations will be used to name and label the volume.
-	Annotations annotations = 1 [(gogoproto.nullable) = false];
-
-	// DriverConfig declares the driver to be used to create the volume.
-	Driver driver_config = 6;
-}
-
-// Mount describes volume mounts for a container
+// Mount describes volume mounts for a container.
+//
+// The Mount type follows the structure of the mount syscall, including a type,
+// source, target. Top-level flags, such as writable, are common to all kinds
+// of mounts, where we also provide options that are specific to a type of
+// mount. This corresponds to flags and data, respectively, in the syscall.
 message Mount {
-	// Target path in container
-	string target = 1;
-
-	// Source path to mount
-	string source = 2;
-
-	bool writable = 3;
-
 	enum Type {
 		option (gogoproto.goproto_enum_prefix) = false;
 		option (gogoproto.enum_customname) = "MountType";
 
 		BIND = 0 [(gogoproto.enumvalue_customname) = "MountTypeBind"]; // Bind mount host dir
-		VOLUME = 2 [(gogoproto.enumvalue_customname) = "MountTypeVolume"];  // Remote storage volumes
+		VOLUME = 1 [(gogoproto.enumvalue_customname) = "MountTypeVolume"];  // Remote storage volumes
 	}
 
 	// Type defines the nature of the mount.
-	Type type = 4;
+	Type type = 1;
 
-	enum Propagation {
-		option (gogoproto.goproto_enum_prefix) = false;
-		option (gogoproto.enum_customname) = "MountPropagation";
+	// Source path to mount
+	string source = 2;
 
-		RPRIVATE = 0 [(gogoproto.enumvalue_customname) = "MountPropagationRPrivate"];
-		PRIVATE = 1 [(gogoproto.enumvalue_customname) = "MountPropagationPrivate"];
-		RSHARED = 2 [(gogoproto.enumvalue_customname) = "MountPropagationRShared"];
-		SHARED = 3 [(gogoproto.enumvalue_customname) = "MountPropagationShared"];
-		RSLAVE = 4 [(gogoproto.enumvalue_customname) = "MountPropagationRSlave"];
-		SLAVE = 5 [(gogoproto.enumvalue_customname) = "MountPropagationSlave"];
+	// Target path in container
+	string target = 3;
+
+	// Writable should be set to true if the mount should be writable from the
+	// container.
+	bool writable = 4;
+
+	// BindOptions specifies options that are specific to a bind mount.
+	message BindOptions {
+		enum Propagation {
+			option (gogoproto.goproto_enum_prefix) = false;
+			option (gogoproto.enum_customname) = "MountPropagation";
+
+			RPRIVATE = 0 [(gogoproto.enumvalue_customname) = "MountPropagationRPrivate"];
+			PRIVATE = 1 [(gogoproto.enumvalue_customname) = "MountPropagationPrivate"];
+			RSHARED = 2 [(gogoproto.enumvalue_customname) = "MountPropagationRShared"];
+			SHARED = 3 [(gogoproto.enumvalue_customname) = "MountPropagationShared"];
+			RSLAVE = 4 [(gogoproto.enumvalue_customname) = "MountPropagationRSlave"];
+			SLAVE = 5 [(gogoproto.enumvalue_customname) = "MountPropagationSlave"];
+		}
+
+		// Propagation mode of mount.
+		Propagation propagation = 1;
+	}
+	
+	// VolumeOptions contains parameters for mounting the volume.
+	message VolumeOptions {
+		// populate volume with data from target
+		bool populate = 1;
+
+		// labels to apply to the volume if creating
+		map<string, string> labels = 2;
+
+		// DriverConfig specifies the options that may be passed to the driver
+		// if the volume is created.
+		//
+		// If this is empty, no volume will be created if the volume is missing.
+		Driver driver_config = 3;
 	}
 
-	// Propagation mode of mount
-	Propagation propagation = 5;
+	// Depending on type, one of bind_options or volumes_options will be set.
 
-	// populate volume with data from target
-	bool populate = 6;
+	// BindOptions configures properties of a bind mount type.
+	BindOptions bind_options = 5;
 
-	VolumeTemplate template = 7;
+	// VolumeOptions configures the properties specific to a volume mount type.
+	VolumeOptions volume_options = 6;
+
+	// TODO(stevvooe): It be better to use a oneof field above, although the
+	// type is enough to make the decision, while being primary to the
+	// datastructure.
 }
 
 message RestartPolicy {
@@ -347,13 +370,13 @@ message PortConfig {
 	Protocol protocol = 2;
 
 	// The port which the application is exposing and is bound to.
-	uint32 port = 3;
+	uint32 target_port = 3;
 
-	// SwarmPort specifies the port on which the service is
-	// exposed on all nodes on the cluster. If specified, the port must be
-	// within the SwarmPort range and available. If not specified, an available
-	// port is assigned.
-	uint32 swarm_port = 4;
+	// PublishedPort specifies the port on which the service is
+	// exposed. If specified, the port must be
+	// within the available range. If not specified, an available
+	// port is automatically assigned.
+	uint32 published_port = 4;
 }
 
 // Driver is a generic driver type to be used throughout the API. For now, a
