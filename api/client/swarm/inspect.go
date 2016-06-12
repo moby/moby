@@ -30,7 +30,6 @@ func newInspectCommand(dockerCli *client.DockerCli) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.Bool("help", false, "Print usage")
 	flags.StringVarP(&opts.format, "format", "f", "", "Format the output using the given go template")
 	//flags.BoolVarP(&opts.pretty, "pretty", "h", false, "Print the information in a human friendly format.")
 	return cmd
