@@ -53,7 +53,7 @@ func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts updateOpt
 	if err != nil {
 		return err
 	}
-	err = client.SwarmUpdate(ctx, swarm)
+	err = client.SwarmUpdate(ctx, swarm.Version, swarm.Spec)
 	if err != nil {
 		return err
 	}

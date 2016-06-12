@@ -42,7 +42,7 @@ func runUpdate(dockerCli *client.DockerCli, nodeID string, mergeNode func(node *
 	}
 
 	mergeNode(&node)
-	err = client.NodeUpdate(ctx, nodeID, node)
+	err = client.NodeUpdate(ctx, nodeID, node.Version, node.Spec)
 	if err != nil {
 		return err
 	}

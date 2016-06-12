@@ -19,29 +19,29 @@ const (
 	psTaskItemFmt = "%s\t%s\t%s\t%s\t%s %s\t%s\t%s\n"
 )
 
-type tasksByInstance []swarm.Task
+type tasksBySlot []swarm.Task
 
-func (t tasksByInstance) Len() int {
+func (t tasksBySlot) Len() int {
 	return len(t)
 }
 
-func (t tasksByInstance) Swap(i, j int) {
+func (t tasksBySlot) Swap(i, j int) {
 	t[i], t[j] = t[j], t[i]
 }
 
-func (t tasksByInstance) Less(i, j int) bool {
-	// Sort by instance.
-	if t[i].Instance != t[j].Instance {
-		return t[i].Instance < t[j].Instance
+func (t tasksBySlot) Less(i, j int) bool {
+	// Sort by slot.
+	if t[i].Slot != t[j].Slot {
+		return t[i].Slot < t[j].Slot
 	}
 
-	// If same instance, sort by most recent.
+	// If same slot, sort by most recent.
 	return t[j].Meta.CreatedAt.Before(t[i].CreatedAt)
 }
 
 // Print task information in a table format
 func Print(dockerCli *client.DockerCli, ctx context.Context, tasks []swarm.Task, resolver *idresolver.IDResolver) error {
-	sort.Stable(tasksByInstance(tasks))
+	sort.Stable(tasksBySlot(tasks))
 
 	writer := tabwriter.NewWriter(dockerCli.Out(), 0, 4, 2, ' ', 0)
 
@@ -58,8 +58,8 @@ func Print(dockerCli *client.DockerCli, ctx context.Context, tasks []swarm.Task,
 			return err
 		}
 		name := serviceValue
-		if task.Instance > 0 {
-			name = fmt.Sprintf("%s.%d", name, task.Instance)
+		if task.Slot > 0 {
+			name = fmt.Sprintf("%s.%d", name, task.Slot)
 		}
 		fmt.Fprintf(
 			writer,

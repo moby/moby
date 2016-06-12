@@ -46,11 +46,11 @@ func runJoin(dockerCli *client.DockerCli, opts joinOptions) error {
 	ctx := context.Background()
 
 	req := swarm.JoinRequest{
-		Manager:    opts.manager,
-		Secret:     opts.secret,
-		ListenAddr: opts.listenAddr.String(),
-		RemoteAddr: opts.remote,
-		CACertHash: opts.CACertHash,
+		Manager:     opts.manager,
+		Secret:      opts.secret,
+		ListenAddr:  opts.listenAddr.String(),
+		RemoteAddrs: []string{opts.remote},
+		CACertHash:  opts.CACertHash,
 	}
 	err := client.SwarmJoin(ctx, req)
 	if err != nil {
