@@ -4067,7 +4067,7 @@ Status Codes:
 **Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
 might be subject to non backward-compatible changes.
 
-`GET /swarm/tasks`
+`GET /tasks`
 
 List tasks
 
