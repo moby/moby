@@ -1,7 +1,6 @@
 package hcsshim
 
 import (
-	"errors"
 	"sync"
 	"syscall"
 )
@@ -26,14 +25,6 @@ var (
 	// Common notifications
 	hcsNotificationInvalid           hcsNotification = 0x00000000
 	hcsNotificationServiceDisconnect hcsNotification = 0x01000000
-
-	// ErrUnexpectedContainerExit is the error returned when a container exits while waiting for
-	// a different expected notification
-	ErrUnexpectedContainerExit = errors.New("unexpected container exit")
-
-	// ErrUnexpectedProcessAbort is the error returned when communication with the compute service
-	// is lost while waiting for a notification
-	ErrUnexpectedProcessAbort = errors.New("lost communication with compute service")
 )
 
 type hcsNotification uint32
@@ -58,6 +49,15 @@ func newChannels() notificationChannels {
 	channels[hcsNotificationServiceDisconnect] = make(notificationChannel, 1)
 	return channels
 }
+func closeChannels(channels notificationChannels) {
+	close(channels[hcsNotificationSystemExited])
+	close(channels[hcsNotificationSystemCreateCompleted])
+	close(channels[hcsNotificationSystemStartCompleted])
+	close(channels[hcsNotificationSystemPauseCompleted])
+	close(channels[hcsNotificationSystemResumeCompleted])
+	close(channels[hcsNotificationProcessExited])
+	close(channels[hcsNotificationServiceDisconnect])
+}
 
 func notificationWatcher(notificationType hcsNotification, callbackNumber uintptr, notificationStatus uintptr, notificationData *uint16) uintptr {
 	var result error
@@ -66,10 +66,14 @@ func notificationWatcher(notificationType hcsNotification, callbackNumber uintpt
 	}
 
 	callbackMapLock.RLock()
-	channels := callbackMap[callbackNumber].channels
+	context := callbackMap[callbackNumber]
 	callbackMapLock.RUnlock()
 
-	channels[notificationType] <- result
+	if context == nil {
+		return 0
+	}
+
+	context.channels[notificationType] <- result
 
 	return 0
 }
