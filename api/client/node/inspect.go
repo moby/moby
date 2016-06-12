@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/api/client/inspect"
@@ -89,15 +90,15 @@ func printNode(out io.Writer, node swarm.Node) {
 
 	ioutils.FprintfIfNotEmpty(out, "Hostname:\t\t%s\n", node.Description.Hostname)
 	fmt.Fprintln(out, "Status:")
-	fmt.Fprintf(out, " State:\t\t\t%s\n", node.Status.State)
-	ioutils.FprintfIfNotEmpty(out, " Message:\t\t%s\n", node.Status.Message)
-	fmt.Fprintf(out, " Availability:\t\t%s\n", node.Spec.Availability)
+	fmt.Fprintf(out, " State:\t\t\t%s\n", client.PrettyPrint(node.Status.State))
+	ioutils.FprintfIfNotEmpty(out, " Message:\t\t%s\n", client.PrettyPrint(node.Status.Message))
+	fmt.Fprintf(out, " Availability:\t\t%s\n", client.PrettyPrint(node.Spec.Availability))
 
 	if node.ManagerStatus != nil {
 		fmt.Fprintln(out, "Manager Status:")
 		fmt.Fprintf(out, " Address:\t\t%s\n", node.ManagerStatus.Addr)
-		fmt.Fprintf(out, " Raft status:\t\t%s\n", node.ManagerStatus.Reachability)
-		ioutils.FprintfIfNotEmpty(out, " Message:\t\t%s\n", node.ManagerStatus.Message)
+		fmt.Fprintf(out, " Raft status:\t\t%s\n", client.PrettyPrint(node.ManagerStatus.Reachability))
+		ioutils.FprintfIfNotEmpty(out, " Message:\t\t%s\n", client.PrettyPrint(node.ManagerStatus.Message))
 		leader := "No"
 		if node.ManagerStatus.Leader {
 			leader = "Yes"
@@ -127,7 +128,7 @@ func printNode(out io.Writer, node swarm.Node) {
 		fmt.Fprintln(out, "Plugins:")
 		sort.Strings(pluginTypes) // ensure stable output
 		for _, pluginType := range pluginTypes {
-			fmt.Fprintf(out, "  %s:\t\t%v\n", pluginType, pluginNamesByType[pluginType])
+			fmt.Fprintf(out, "  %s:\t\t%s\n", pluginType, strings.Join(pluginNamesByType[pluginType], ", "))
 		}
 	}
 	fmt.Fprintf(out, "Engine Version:\t\t%s\n", node.Description.Engine.EngineVersion)

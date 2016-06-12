@@ -3,7 +3,6 @@ package node
 import (
 	"fmt"
 	"io"
-	"strings"
 	"text/tabwriter"
 
 	"golang.org/x/net/context"
@@ -71,9 +70,6 @@ func runList(dockerCli *client.DockerCli, opts listOptions) error {
 
 func printTable(out io.Writer, nodes []swarm.Node, info types.Info) {
 	writer := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
-	prettyPrint := func(s string) string {
-		return strings.Title(strings.ToLower(s))
-	}
 
 	// Ignore flushing errors
 	defer writer.Flush()
@@ -108,10 +104,10 @@ func printTable(out io.Writer, nodes []swarm.Node, info types.Info) {
 			listItemFmt,
 			ID,
 			name,
-			prettyPrint(membership),
-			prettyPrint(string(node.Status.State)),
-			prettyPrint(availability),
-			prettyPrint(reachability),
+			client.PrettyPrint(membership),
+			client.PrettyPrint(string(node.Status.State)),
+			client.PrettyPrint(availability),
+			client.PrettyPrint(reachability),
 			leader)
 	}
 }

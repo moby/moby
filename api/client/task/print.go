@@ -68,8 +68,9 @@ func Print(dockerCli *client.DockerCli, ctx context.Context, tasks []swarm.Task,
 			name,
 			serviceValue,
 			task.Spec.ContainerSpec.Image,
-			task.Status.State, units.HumanDuration(time.Since(task.Status.Timestamp)),
-			task.DesiredState,
+			client.PrettyPrint(task.Status.State),
+			units.HumanDuration(time.Since(task.Status.Timestamp)),
+			client.PrettyPrint(task.DesiredState),
 			nodeValue,
 		)
 	}

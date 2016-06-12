@@ -18,6 +18,7 @@ parent = "smn_cli"
 
       -f, --format=       Format the output using the given go template.
       --help              Print usage
+      -p, --pretty        Print the information in a human friendly format.
 
 Returns information about a node. By default, this command renders all results
 in a JSON array. You can specify an alternate format to execute a
@@ -52,7 +53,7 @@ Example output:
                 "MemoryBytes": 1044250624
             },
             "Engine": {
-                "EngineVersion": "1.12.0-dev",
+                "EngineVersion": "1.12.0",
                 "Labels": {
                     "provider": "virtualbox"
                 }
@@ -77,6 +78,27 @@ Example output:
 
     $ docker node inspect --format '{{ .Manager.Raft.Status.Leader }}' self
     false
+
+    $ docker node inspect --pretty self
+    ID:                     2otfhz83efcc7
+    Hostname:               ad960a848573
+    Status:
+     State:                 Ready
+     Availability:          Active
+    Manager Status:
+     Address:               172.17.0.2:2377
+     Raft status:           Reachable
+     Leader:                Yes
+    Platform:
+     Operating System:      linux
+     Architecture:          x86_64
+    Resources:
+     CPUs:                  4
+     Memory:                7.704 GiB
+    Plugins:
+      Network:              overlay, bridge, null, host, overlay
+      Volume:               local
+    Engine Version:         1.12.0
 
 ## Related information
 
