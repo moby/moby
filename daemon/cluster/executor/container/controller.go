@@ -156,31 +156,29 @@ func (r *controller) Wait(pctx context.Context) error {
 		return err
 	}
 
-	// todo: event
-	select {
-	case <-c:
-		ctnr, err := r.adapter.inspect(ctx)
-		if err != nil {
-			// TODO(stevvooe): Need to handle missing container here. It is likely
-			// that a Wait call with a not found error should result in no waiting
-			// and no error at all.
-			return err
-		}
-
-		if ctnr.State.ExitCode != 0 {
-			var cause error
-			if ctnr.State.Error != "" {
-				cause = errors.New(ctnr.State.Error)
-			}
-			cstatus, _ := parseContainerStatus(ctnr)
-			return &exitError{
-				code:            ctnr.State.ExitCode,
-				cause:           cause,
-				containerStatus: cstatus,
-			}
-		}
-	case <-ctx.Done():
+	<-c
+	if ctx.Err() != nil {
 		return ctx.Err()
+	}
+	ctnr, err := r.adapter.inspect(ctx)
+	if err != nil {
+		// TODO(stevvooe): Need to handle missing container here. It is likely
+		// that a Wait call with a not found error should result in no waiting
+		// and no error at all.
+		return err
+	}
+
+	if ctnr.State.ExitCode != 0 {
+		var cause error
+		if ctnr.State.Error != "" {
+			cause = errors.New(ctnr.State.Error)
+		}
+		cstatus, _ := parseContainerStatus(ctnr)
+		return &exitError{
+			code:            ctnr.State.ExitCode,
+			cause:           cause,
+			containerStatus: cstatus,
+		}
 	}
 	return nil
 }
