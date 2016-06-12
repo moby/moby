@@ -36,7 +36,7 @@ func (s *Server) GetNode(ctx context.Context, request *api.GetNodeRequest) (*api
 		memberlist := s.raft.GetMemberlist()
 		raftID, err := identity.ParseNodeID(request.NodeID)
 		if err == nil && memberlist[raftID] != nil {
-			node.Manager = &api.Manager{Raft: *memberlist[raftID]}
+			node.ManagerStatus = &api.ManagerStatus{Raft: *memberlist[raftID]}
 		}
 	}
 
@@ -151,7 +151,7 @@ func (s *Server) ListNodes(ctx context.Context, request *api.ListNodesRequest) (
 		for _, n := range nodes {
 			raftID, err := identity.ParseNodeID(n.ID)
 			if err == nil && memberlist[raftID] != nil {
-				n.Manager = &api.Manager{Raft: *memberlist[raftID]}
+				n.ManagerStatus = &api.ManagerStatus{Raft: *memberlist[raftID]}
 			}
 		}
 	}

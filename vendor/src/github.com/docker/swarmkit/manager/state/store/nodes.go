@@ -2,6 +2,7 @@ package store
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/manager/state"
@@ -217,7 +218,7 @@ func (ni nodeIndexerByHostname) FromObject(obj interface{}) (bool, []byte, error
 		return false, nil, nil
 	}
 	// Add the null character as a terminator
-	return true, []byte(n.Description.Hostname + "\x00"), nil
+	return true, []byte(strings.ToLower(n.Description.Hostname) + "\x00"), nil
 }
 
 type nodeIndexerByRole struct{}

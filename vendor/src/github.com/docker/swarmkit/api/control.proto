@@ -235,24 +235,6 @@ message ListNetworksResponse {
 	repeated Network networks = 1;
 }
 
-message ListManagersRequest {
-	message Filters {
-		repeated string names = 1;
-		repeated string id_prefixes = 2 [(gogoproto.customname) = "IDPrefixes"];
-		map<string, string> labels = 3;
-	}
-
-	Filters filters = 1;
-}
-
-message ListManagersResponse {
-	repeated Manager managers = 1;
-}
-
-message RemoveManagerRequest {
-	string manager_id = 1 [(gogoproto.customname) = "ManagerID"];
-}
-
 message RemoveManagerResponse {}
 
 message GetClusterRequest {

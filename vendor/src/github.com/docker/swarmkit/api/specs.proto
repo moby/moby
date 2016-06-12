@@ -74,13 +74,15 @@ message ServiceSpec {
 
 	// NetworkAttachmentConfig specifies how a service should be attached to a particular network.
 	//
-	// For now, this is a single field, but this can include future information
+	// For now, this is a simple struct, but this can include future information
 	// instructing Swarm on how this service should work on the particular
 	// network.
 	message NetworkAttachmentConfig {
 		// Target specifies the target network for attachement. This value may be a
 		// network name or identifier. Only identifiers are supported at this time.
 		string target = 1;
+		// Aliases specifies a list of discoverable alternate names for the service on this Target.
+		repeated string aliases = 2;
 	}
 	repeated NetworkAttachmentConfig networks = 7;
 

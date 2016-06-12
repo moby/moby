@@ -69,17 +69,17 @@ func ByNodeID(nodeID string) By {
 	return byNode(nodeID)
 }
 
-type byInstance struct {
+type bySlot struct {
 	serviceID string
-	instance  uint64
+	slot      uint64
 }
 
-func (b byInstance) isBy() {
+func (b bySlot) isBy() {
 }
 
-// ByInstance creates an object to pass to Find to select by instance number.
-func ByInstance(serviceID string, instance uint64) By {
-	return byInstance{serviceID: serviceID, instance: instance}
+// BySlot creates an object to pass to Find to select by slot.
+func BySlot(serviceID string, slot uint64) By {
+	return bySlot{serviceID: serviceID, slot: slot}
 }
 
 type byDesiredState api.TaskState

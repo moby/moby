@@ -171,7 +171,7 @@ message Mount {
 		// Propagation mode of mount.
 		Propagation propagation = 1;
 	}
-	
+
 	// VolumeOptions contains parameters for mounting the volume.
 	message VolumeOptions {
 		// populate volume with data from target
@@ -490,10 +490,10 @@ message RaftMember {
 	uint64 raft_id = 1 [(gogoproto.customname) = "RaftID"];
 
 	// Addr specifies the address of the member
-	string addr = 3;
+	string addr = 2;
 
 	// Status provides the current status of the manager from the perspective of another manager.
-	RaftMemberStatus status = 4 [(gogoproto.nullable) = false];
+	RaftMemberStatus status = 3 [(gogoproto.nullable) = false];
 }
 
 // Placement specifies task distribution constraints.
@@ -558,7 +558,7 @@ message EncryptionKey {
 	uint64 lamport_time = 4;
 }
 
-// Manager provides informations about the state of a manager in the cluster.
-message Manager {
+// ManagerStatus provides information about the status of a manager in the cluster.
+message ManagerStatus {
 	RaftMember raft = 1 [(gogoproto.nullable) = false];
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/ca"
 	"github.com/docker/swarmkit/ioutils"
+	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager"
 	"github.com/docker/swarmkit/picker"
 	"golang.org/x/net/context"
@@ -160,6 +161,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 	}()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	ctx = log.WithLogger(ctx, log.G(ctx).WithField("module", "node"))
 
 	go func() {
 		select {

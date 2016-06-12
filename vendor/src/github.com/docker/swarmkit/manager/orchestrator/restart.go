@@ -76,7 +76,7 @@ func (r *RestartSupervisor) Restart(ctx context.Context, tx store.Tx, service *a
 	var restartTask *api.Task
 
 	if isReplicatedService(service) {
-		restartTask = newTask(service, t.Instance)
+		restartTask = newTask(service, t.Slot)
 	} else if isGlobalService(service) {
 		restartTask = newTask(service, 0)
 		restartTask.NodeID = t.NodeID
@@ -138,7 +138,7 @@ func (r *RestartSupervisor) shouldRestart(ctx context.Context, t *api.Task, serv
 	}
 
 	instanceTuple := instanceTuple{
-		instance:  t.Instance,
+		instance:  t.Slot,
 		serviceID: t.ServiceID,
 	}
 
@@ -197,7 +197,7 @@ func (r *RestartSupervisor) recordRestartHistory(restartTask *api.Task) {
 		return
 	}
 	tuple := instanceTuple{
-		instance:  restartTask.Instance,
+		instance:  restartTask.Slot,
 		serviceID: restartTask.ServiceID,
 		nodeID:    restartTask.NodeID,
 	}

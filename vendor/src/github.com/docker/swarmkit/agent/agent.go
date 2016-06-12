@@ -135,6 +135,8 @@ func (a *Agent) run(ctx context.Context) {
 	defer cancel()
 	defer close(a.closed) // full shutdown.
 
+	ctx = log.WithLogger(ctx, log.G(ctx).WithField("module", "agent"))
+
 	log.G(ctx).Debugf("(*Agent).run")
 	defer log.G(ctx).Debugf("(*Agent).run exited")
 

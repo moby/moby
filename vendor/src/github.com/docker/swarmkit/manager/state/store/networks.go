@@ -1,6 +1,8 @@
 package store
 
 import (
+	"strings"
+
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/manager/state"
 	memdb "github.com/hashicorp/go-memdb"
@@ -125,7 +127,7 @@ func (n networkEntry) EventDelete() state.Event {
 // Returns ErrExist if the ID is already taken.
 func CreateNetwork(tx Tx, n *api.Network) error {
 	// Ensure the name is not already in use.
-	if tx.lookup(tableNetwork, indexName, n.Spec.Annotations.Name) != nil {
+	if tx.lookup(tableNetwork, indexName, strings.ToLower(n.Spec.Annotations.Name)) != nil {
 		return ErrNameConflict
 	}
 
@@ -136,7 +138,7 @@ func CreateNetwork(tx Tx, n *api.Network) error {
 // Returns ErrNotExist if the network doesn't exist.
 func UpdateNetwork(tx Tx, n *api.Network) error {
 	// Ensure the name is either not in use or already used by this same Network.
-	if existing := tx.lookup(tableNetwork, indexName, n.Spec.Annotations.Name); existing != nil {
+	if existing := tx.lookup(tableNetwork, indexName, strings.ToLower(n.Spec.Annotations.Name)); existing != nil {
 		if existing.ID() != n.ID {
 			return ErrNameConflict
 		}
@@ -215,5 +217,5 @@ func (ni networkIndexerByName) FromObject(obj interface{}) (bool, []byte, error)
 	}
 
 	// Add the null character as a terminator
-	return true, []byte(n.Spec.Annotations.Name + "\x00"), nil
+	return true, []byte(strings.ToLower(n.Spec.Annotations.Name) + "\x00"), nil
 }

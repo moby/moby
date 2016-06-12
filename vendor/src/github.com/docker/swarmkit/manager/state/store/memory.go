@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,7 +25,7 @@ const (
 	indexServiceID    = "serviceid"
 	indexServiceMode  = "servicemode"
 	indexNodeID       = "nodeid"
-	indexInstance     = "instance"
+	indexSlot         = "slot"
 	indexCN           = "cn"
 	indexDesiredState = "desiredstate"
 	indexRole         = "role"
@@ -560,7 +561,7 @@ func (tx readTx) findIterators(table string, by By, checkType func(By) error) ([
 		}
 		return iters, nil
 	case byName:
-		it, err := tx.memDBTx.Get(table, indexName, string(v))
+		it, err := tx.memDBTx.Get(table, indexName, strings.ToLower(string(v)))
 		if err != nil {
 			return nil, err
 		}
@@ -589,8 +590,8 @@ func (tx readTx) findIterators(table string, by By, checkType func(By) error) ([
 			return nil, err
 		}
 		return []memdb.ResultIterator{it}, nil
-	case byInstance:
-		it, err := tx.memDBTx.Get(table, indexInstance, v.serviceID+"\x00"+strconv.FormatUint(uint64(v.instance), 10))
+	case bySlot:
+		it, err := tx.memDBTx.Get(table, indexSlot, v.serviceID+"\x00"+strconv.FormatUint(uint64(v.slot), 10))
 		if err != nil {
 			return nil, err
 		}

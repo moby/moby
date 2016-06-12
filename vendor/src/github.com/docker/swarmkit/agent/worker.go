@@ -57,6 +57,8 @@ func (w *worker) Init(ctx context.Context) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
+	ctx = log.WithLogger(ctx, log.G(ctx).WithField("module", "worker"))
+
 	// TODO(stevvooe): Start task cleanup process.
 
 	// read the tasks from the database and start any task managers that may be needed.

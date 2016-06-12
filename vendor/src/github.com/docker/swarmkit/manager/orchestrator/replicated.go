@@ -108,7 +108,7 @@ func newTask(service *api.Service, instance uint64) *api.Task {
 		ServiceAnnotations: service.Spec.Annotations,
 		Spec:               service.Spec.Task,
 		ServiceID:          service.ID,
-		Instance:           instance,
+		Slot:               instance,
 		Status: api.TaskStatus{
 			State:     api.TaskStateNew,
 			Timestamp: ptypes.MustTimestampProto(time.Now()),

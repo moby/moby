@@ -1,6 +1,7 @@
 package controlapi
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/docker/swarmkit/api"
@@ -8,6 +9,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
+
+var isValidName = regexp.MustCompile(`^[a-zA-Z0-9](?:[-_]*[A-Za-z0-9]+)*$`)
 
 func buildFilters(by func(string) store.By, values []string) store.By {
 	filters := make([]store.By, 0, len(values))
@@ -61,6 +64,9 @@ func filterMatchLabels(match map[string]string, candidates map[string]string) bo
 func validateAnnotations(m api.Annotations) error {
 	if m.Name == "" {
 		return grpc.Errorf(codes.InvalidArgument, "meta: name must be provided")
+	} else if !isValidName.MatchString(m.Name) {
+		// if the name doesn't match the regex
+		return grpc.Errorf(codes.InvalidArgument, "invalid name, only [a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9] are allowed")
 	}
 	return nil
 }

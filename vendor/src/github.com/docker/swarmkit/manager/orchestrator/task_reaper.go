@@ -69,7 +69,7 @@ func (tr *TaskReaper) Run() {
 			case state.EventCreateTask:
 				t := v.Task
 				tr.dirty[instanceTuple{
-					instance:  t.Instance,
+					instance:  t.Slot,
 					serviceID: t.ServiceID,
 					nodeID:    t.NodeID,
 				}] = struct{}{}
@@ -116,7 +116,7 @@ func (tr *TaskReaper) tick() {
 			switch service.Spec.GetMode().(type) {
 			case *api.ServiceSpec_Replicated:
 				var err error
-				historicTasks, err = store.FindTasks(tx, store.ByInstance(dirty.serviceID, dirty.instance))
+				historicTasks, err = store.FindTasks(tx, store.BySlot(dirty.serviceID, dirty.instance))
 				if err != nil {
 					continue
 				}

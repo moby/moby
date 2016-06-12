@@ -144,11 +144,31 @@ func (s *Server) GetNetwork(ctx context.Context, request *api.GetNetworkRequest)
 // - Returns `NotFound` if the Network is not found.
 // - Returns an error if the deletion fails.
 func (s *Server) RemoveNetwork(ctx context.Context, request *api.RemoveNetworkRequest) (*api.RemoveNetworkResponse, error) {
+	var (
+		services []*api.Service
+		err      error
+	)
+
 	if request.NetworkID == "" {
 		return nil, grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
-	err := s.store.Update(func(tx store.Tx) error {
+	s.store.View(func(tx store.ReadTx) {
+		services, err = store.FindServices(tx, store.All)
+	})
+	if err != nil {
+		return nil, grpc.Errorf(codes.Internal, "could not find services using network %s", request.NetworkID)
+	}
+
+	for _, s := range services {
+		for _, na := range s.Spec.Networks {
+			if na.Target == request.NetworkID {
+				return nil, grpc.Errorf(codes.FailedPrecondition, "network %s is in use", request.NetworkID)
+			}
+		}
+	}
+
+	err = s.store.Update(func(tx store.Tx) error {
 		nw := store.GetNetwork(tx, request.NetworkID)
 		if _, ok := nw.Spec.Annotations.Labels["com.docker.swarm.internal"]; ok {
 			return grpc.Errorf(codes.PermissionDenied, "%s is a pre-defined network and cannot be removed", request.NetworkID)

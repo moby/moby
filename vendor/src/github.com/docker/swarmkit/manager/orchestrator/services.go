@@ -89,7 +89,7 @@ func (r *ReplicatedOrchestrator) reconcile(ctx context.Context, service *api.Ser
 		// with DesiredState == NEW simplifies the drainer unit tests.
 		if t.DesiredState > api.TaskStateNew && t.DesiredState <= api.TaskStateRunning {
 			runningTasks = append(runningTasks, t)
-			runningInstances[t.Instance] = struct{}{}
+			runningInstances[t.Slot] = struct{}{}
 		}
 	}
 	numTasks := len(runningTasks)

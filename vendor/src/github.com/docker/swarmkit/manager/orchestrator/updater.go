@@ -149,7 +149,7 @@ func (u *Updater) Run(ctx context.Context, service *api.Service, tasks []*api.Ta
 
 func (u *Updater) worker(ctx context.Context, service *api.Service, queue <-chan *api.Task) {
 	for t := range queue {
-		updated := newTask(service, t.Instance)
+		updated := newTask(service, t.Slot)
 		updated.DesiredState = api.TaskStateReady
 		if isGlobalService(service) {
 			updated.NodeID = t.NodeID
