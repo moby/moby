@@ -16,7 +16,7 @@ func validateResources(r *api.Resources) error {
 	}
 
 	if r.NanoCPUs != 0 && r.NanoCPUs < 1e6 {
-		return grpc.Errorf(codes.InvalidArgument, "invalid cpu value %d: Must be at least %d", r.NanoCPUs, 1e6)
+		return grpc.Errorf(codes.InvalidArgument, "invalid cpu value %g: Must be at least %g", float64(r.NanoCPUs)/1e9, 1e6/1e9)
 	}
 
 	if r.MemoryBytes != 0 && r.MemoryBytes < 4*1024*1024 {

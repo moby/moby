@@ -173,13 +173,10 @@ func redactClusters(clusters []*api.Cluster) []*api.Cluster {
 			ID:   cluster.ID,
 			Meta: cluster.Meta,
 			Spec: cluster.Spec,
-		}
-		// If cluster has a RootCA, copy only the public fields
-		if cluster.RootCA != nil {
-			newCluster.RootCA = &api.RootCA{
+			RootCA: api.RootCA{
 				CACert:     cluster.RootCA.CACert,
 				CACertHash: cluster.RootCA.CACertHash,
-			}
+			},
 		}
 
 		// Redact the acceptance policy secrets

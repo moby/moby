@@ -290,7 +290,7 @@ func (m *Manager) Run(parent context.Context) error {
 							Raft:     raftCfg,
 							CAConfig: ca.DefaultCAConfig(),
 						},
-						RootCA: &api.RootCA{
+						RootCA: api.RootCA{
 							CAKey:      rootCA.Key,
 							CACert:     rootCA.Cert,
 							CACertHash: rootCA.Digest.String(),

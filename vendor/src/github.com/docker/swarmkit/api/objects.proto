@@ -91,7 +91,7 @@ message Endpoint {
 		// accomodate for both IPv4 and IPv6
 		string addr = 2;
 	}
-	
+
 	// VirtualIPs specifies the IP addresses under which this endpoint will be
 	// made available.
 	repeated VirtualIP virtual_ips = 3 [(gogoproto.customname) = "VirtualIPs"];
@@ -192,7 +192,7 @@ message Cluster {
 	ClusterSpec spec = 3 [(gogoproto.nullable) = false];
 
 	// RootCA contains key material for the root CA.
-	RootCA root_ca = 4 [(gogoproto.customname) = "RootCA"];
+	RootCA root_ca = 4 [(gogoproto.nullable)=false, (gogoproto.customname) = "RootCA"];
 
 	// Symmetric encryption key distributed by the lead manager. Used by agents
 	// for securing network bootstrapping and communication.

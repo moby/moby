@@ -438,7 +438,7 @@ func (s *Server) updateCluster(ctx context.Context, cluster *api.Cluster) {
 	s.mu.Unlock()
 	var err error
 	// If the cluster has a RootCA, let's try to update our SecurityConfig to reflect the latest values
-	if cluster.RootCA != nil && len(cluster.RootCA.CACert) != 0 && len(cluster.RootCA.CAKey) != 0 {
+	if len(cluster.RootCA.CACert) != 0 && len(cluster.RootCA.CAKey) != 0 {
 		expiry := DefaultNodeCertExpiration
 		if cluster.Spec.CAConfig.NodeCertExpiry != nil {
 			// NodeCertExpiry exists, let's try to parse the duration out of it
