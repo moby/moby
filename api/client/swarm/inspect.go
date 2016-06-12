@@ -40,11 +40,12 @@ func runInspect(dockerCli *client.DockerCli, opts inspectOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
+	swarm, err := client.SwarmInspect(ctx)
+	if err != nil {
+		return err
+	}
+
 	getRef := func(_ string) (interface{}, []byte, error) {
-		swarm, err := client.SwarmInspect(ctx)
-		if err != nil {
-			return nil, nil, err
-		}
 		return swarm, nil, nil
 	}
 
