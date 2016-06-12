@@ -539,7 +539,7 @@ func (c *Cluster) Info() types.Info {
 			}
 		}
 
-		if swarm, err := getSwarm(c.getRequestContext(), c.client); err == nil && swarm != nil && swarm.RootCA != nil {
+		if swarm, err := getSwarm(c.getRequestContext(), c.client); err == nil && swarm != nil {
 			info.CACertHash = swarm.RootCA.CACertHash
 		}
 	}
