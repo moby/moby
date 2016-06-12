@@ -545,6 +545,12 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 			if neigh.IP.To4() == nil {
 				continue
 			}
+
+			// Not any of the network's subnets. Ignore.
+			if !n.contains(neigh.IP) {
+				continue
+			}
+
 			logrus.Debugf("miss notification for dest IP, %v", neigh.IP.String())
 
 			if neigh.State&(netlink.NUD_STALE|netlink.NUD_INCOMPLETE) == 0 {
@@ -823,6 +829,18 @@ func (n *network) obtainVxlanID(s *subnet) error {
 		}
 		return nil
 	}
+}
+
+// contains return true if the passed ip belongs to one the network's
+// subnets
+func (n *network) contains(ip net.IP) bool {
+	for _, s := range n.subnets {
+		if s.subnetIP.Contains(ip) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // getSubnetforIP returns the subnet to which the given IP belongs
