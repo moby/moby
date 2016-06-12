@@ -212,11 +212,24 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 
 // This handles the case of volumes that are defined inside a service Mount
 func (c *containerConfig) volumeCreateRequest(mount *api.Mount) *types.VolumeCreateRequest {
+	var (
+		driverName string
+		driverOpts map[string]string
+		labels     map[string]string
+	)
+
+	if mount.VolumeOptions != nil && mount.VolumeOptions.DriverConfig != nil {
+		driverName = mount.VolumeOptions.DriverConfig.Name
+		driverOpts = mount.VolumeOptions.DriverConfig.Options
+		labels = mount.VolumeOptions.Labels
+	}
+
 	if mount.VolumeOptions != nil {
 		return &types.VolumeCreateRequest{
-			// Name ?
-			Driver:     mount.VolumeOptions.DriverConfig.Name,
-			DriverOpts: mount.VolumeOptions.DriverConfig.Options,
+			Name:       mount.Source,
+			Driver:     driverName,
+			DriverOpts: driverOpts,
+			Labels:     labels,
 		}
 	}
 	return nil
