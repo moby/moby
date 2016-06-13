@@ -605,6 +605,14 @@ func addTestManifestWithEtag(repo reference.Named, reference string, content []b
 	*m = append(*m, testutil.RequestResponseMapping{Request: getReqWithEtag, Response: getRespWithEtag})
 }
 
+func contentDigestString(mediatype string, content []byte) string {
+	if mediatype == schema1.MediaTypeSignedManifest {
+		m, _, _ := distribution.UnmarshalManifest(mediatype, content)
+		content = m.(*schema1.SignedManifest).Canonical
+	}
+	return digest.Canonical.FromBytes(content).String()
+}
+
 func addTestManifest(repo reference.Named, reference string, mediatype string, content []byte, m *testutil.RequestResponseMap) {
 	*m = append(*m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
@@ -615,9 +623,10 @@ func addTestManifest(repo reference.Named, reference string, mediatype string, c
 			StatusCode: http.StatusOK,
 			Body:       content,
 			Headers: http.Header(map[string][]string{
-				"Content-Length": {fmt.Sprint(len(content))},
-				"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
-				"Content-Type":   {mediatype},
+				"Content-Length":        {fmt.Sprint(len(content))},
+				"Last-Modified":         {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
+				"Content-Type":          {mediatype},
+				"Docker-Content-Digest": {contentDigestString(mediatype, content)},
 			}),
 		},
 	})
@@ -629,9 +638,10 @@ func addTestManifest(repo reference.Named, reference string, mediatype string, c
 		Response: testutil.Response{
 			StatusCode: http.StatusOK,
 			Headers: http.Header(map[string][]string{
-				"Content-Length": {fmt.Sprint(len(content))},
-				"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
-				"Content-Type":   {mediatype},
+				"Content-Length":        {fmt.Sprint(len(content))},
+				"Last-Modified":         {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
+				"Content-Type":          {mediatype},
+				"Docker-Content-Digest": {digest.Canonical.FromBytes(content).String()},
 			}),
 		},
 	})
@@ -710,7 +720,8 @@ func TestV1ManifestFetch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	manifest, err = ms.Get(ctx, dgst, distribution.WithTag("latest"))
+	var contentDigest digest.Digest
+	manifest, err = ms.Get(ctx, dgst, distribution.WithTag("latest"), ReturnContentDigest(&contentDigest))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -721,6 +732,10 @@ func TestV1ManifestFetch(t *testing.T) {
 
 	if err = checkEqualManifest(v1manifest, m1); err != nil {
 		t.Fatal(err)
+	}
+
+	if contentDigest != dgst {
+		t.Fatalf("Unexpected returned content digest %v, expected %v", contentDigest, dgst)
 	}
 
 	manifest, err = ms.Get(ctx, dgst, distribution.WithTag("badcontenttype"))
