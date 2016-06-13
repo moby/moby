@@ -22,8 +22,12 @@ func selFromPolicy(sel *nl.XfrmSelector, policy *XfrmPolicy) {
 	sel.Proto = uint8(policy.Proto)
 	sel.Dport = nl.Swap16(uint16(policy.DstPort))
 	sel.Sport = nl.Swap16(uint16(policy.SrcPort))
-	sel.DportMask = ^uint16(0)
-	sel.SportMask = ^uint16(0)
+	if sel.Dport != 0 {
+		sel.DportMask = ^uint16(0)
+	}
+	if sel.Sport != 0 {
+		sel.SportMask = ^uint16(0)
+	}
 }
 
 // XfrmPolicyAdd will add an xfrm policy to the system.
@@ -71,6 +75,7 @@ func (h *Handle) xfrmPolicyAddOrUpdate(policy *XfrmPolicy, nlProto int) error {
 		userTmpl.XfrmId.Daddr.FromIP(tmpl.Dst)
 		userTmpl.Saddr.FromIP(tmpl.Src)
 		userTmpl.XfrmId.Proto = uint8(tmpl.Proto)
+		userTmpl.XfrmId.Spi = nl.Swap32(uint32(tmpl.Spi))
 		userTmpl.Mode = uint8(tmpl.Mode)
 		userTmpl.Reqid = uint32(tmpl.Reqid)
 		userTmpl.Aalgos = ^uint32(0)
@@ -236,6 +241,7 @@ func parseXfrmPolicy(m []byte, family int) (*XfrmPolicy, error) {
 				resTmpl.Src = tmpl.Saddr.ToIP()
 				resTmpl.Proto = Proto(tmpl.XfrmId.Proto)
 				resTmpl.Mode = Mode(tmpl.Mode)
+				resTmpl.Spi = int(nl.Swap32(tmpl.XfrmId.Spi))
 				resTmpl.Reqid = int(tmpl.Reqid)
 				policy.Tmpls = append(policy.Tmpls, resTmpl)
 			}

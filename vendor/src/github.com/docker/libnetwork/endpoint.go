@@ -852,11 +852,25 @@ func EndpointOptionGeneric(generic map[string]interface{}) EndpointOption {
 	}
 }
 
+var (
+	linkLocalMask     = net.CIDRMask(16, 32)
+	linkLocalMaskIPv6 = net.CIDRMask(64, 128)
+)
+
 // CreateOptionIpam function returns an option setter for the ipam configuration for this endpoint
-func CreateOptionIpam(ipV4, ipV6 net.IP, ipamOptions map[string]string) EndpointOption {
+func CreateOptionIpam(ipV4, ipV6 net.IP, llIPs []net.IP, ipamOptions map[string]string) EndpointOption {
 	return func(ep *endpoint) {
 		ep.prefAddress = ipV4
 		ep.prefAddressV6 = ipV6
+		if len(llIPs) != 0 {
+			for _, ip := range llIPs {
+				nw := &net.IPNet{IP: ip, Mask: linkLocalMask}
+				if ip.To4() == nil {
+					nw.Mask = linkLocalMaskIPv6
+				}
+				ep.iface.llAddrs = append(ep.iface.llAddrs, nw)
+			}
+		}
 		ep.ipamOptions = ipamOptions
 	}
 }

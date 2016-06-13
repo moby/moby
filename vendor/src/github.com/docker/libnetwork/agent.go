@@ -3,10 +3,12 @@ package libnetwork
 //go:generate protoc -I.:Godeps/_workspace/src/github.com/gogo/protobuf  --gogo_out=import_path=github.com/docker/libnetwork,Mgogoproto/gogo.proto=github.com/gogo/protobuf/gogoproto:. agent.proto
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net"
 	"os"
 	"sort"
+	"strconv"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-events"
@@ -72,6 +74,8 @@ func resolveAddr(addrOrInterface string) (string, error) {
 }
 
 func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
+	drvEnc := discoverapi.DriverEncryptionUpdate{}
+
 	// Find the new key and add it to the key ring
 	a := c.agent
 	for _, key := range keys {
@@ -85,6 +89,10 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 			c.keys = append(c.keys, key)
 			if key.Subsystem == "networking:gossip" {
 				a.networkDB.SetKey(key.Key)
+			}
+			if key.Subsystem == "networking:gossip" /*"networking:ipsec"*/ {
+				drvEnc.Key = hex.EncodeToString(key.Key)
+				drvEnc.Tag = strconv.FormatUint(key.LamportTime, 10)
 			}
 			break
 		}
@@ -103,6 +111,10 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 			if cKey.Subsystem == "networking:gossip" {
 				deleted = cKey.Key
 			}
+			if cKey.Subsystem == "networking:gossip" /*"networking:ipsec"*/ {
+				drvEnc.Prune = hex.EncodeToString(cKey.Key)
+				drvEnc.PruneTag = strconv.FormatUint(cKey.LamportTime, 10)
+			}
 			c.keys = append(c.keys[:i], c.keys[i+1:]...)
 			break
 		}
@@ -115,9 +127,25 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 			break
 		}
 	}
+	for _, key := range c.keys {
+		if key.Subsystem == "networking:gossip" /*"networking:ipsec"*/ {
+			drvEnc.Primary = hex.EncodeToString(key.Key)
+			drvEnc.PrimaryTag = strconv.FormatUint(key.LamportTime, 10)
+			break
+		}
+	}
 	if len(deleted) > 0 {
 		a.networkDB.RemoveKey(deleted)
 	}
+
+	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+		err := driver.DiscoverNew(discoverapi.EncryptionKeysUpdate, drvEnc)
+		if err != nil {
+			logrus.Warnf("Failed to update datapath keys in driver %s: %v", name, err)
+		}
+		return false
+	})
+
 	return nil
 }
 
@@ -170,6 +198,8 @@ func (c *controller) agentInit(bindAddrOrInterface string) error {
 		return nil
 	}
 
+	drvEnc := discoverapi.DriverEncryptionConfig{}
+
 	// sort the keys by lamport time
 	sort.Sort(ByTime(c.keys))
 
@@ -177,6 +207,10 @@ func (c *controller) agentInit(bindAddrOrInterface string) error {
 	for _, key := range c.keys {
 		if key.Subsystem == "networking:gossip" {
 			gossipkey = append(gossipkey, key.Key)
+		}
+		if key.Subsystem == "networking:gossip" /*"networking:ipsec"*/ {
+			drvEnc.Keys = append(drvEnc.Keys, hex.EncodeToString(key.Key))
+			drvEnc.Tags = append(drvEnc.Tags, strconv.FormatUint(key.LamportTime, 10))
 		}
 	}
 
@@ -206,6 +240,15 @@ func (c *controller) agentInit(bindAddrOrInterface string) error {
 	}
 
 	go c.handleTableEvents(ch, c.handleEpTableEvent)
+
+	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+		err := driver.DiscoverNew(discoverapi.EncryptionKeysConfig, drvEnc)
+		if err != nil {
+			logrus.Warnf("Failed to set datapath keys in driver %s: %v", name, err)
+		}
+		return false
+	})
+
 	return nil
 }
 
@@ -226,6 +269,22 @@ func (c *controller) agentDriverNotify(d driverapi.Driver) {
 		Address: c.agent.bindAddr,
 		Self:    true,
 	})
+
+	drvEnc := discoverapi.DriverEncryptionConfig{}
+	for _, key := range c.keys {
+		if key.Subsystem == "networking:gossip" /*"networking:ipsec"*/ {
+			drvEnc.Keys = append(drvEnc.Keys, hex.EncodeToString(key.Key))
+			drvEnc.Tags = append(drvEnc.Tags, strconv.FormatUint(key.LamportTime, 10))
+		}
+	}
+	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
+		err := driver.DiscoverNew(discoverapi.EncryptionKeysConfig, drvEnc)
+		if err != nil {
+			logrus.Warnf("Failed to set datapath keys in driver %s: %v", name, err)
+		}
+		return false
+	})
+
 }
 
 func (c *controller) agentClose() {

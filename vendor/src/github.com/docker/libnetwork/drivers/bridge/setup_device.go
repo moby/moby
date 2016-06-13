@@ -35,14 +35,14 @@ func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
 		setMac = kv.Kernel > 3 || (kv.Kernel == 3 && kv.Major >= 3)
 	}
 
-	if err = netlink.LinkAdd(i.Link); err != nil {
+	if err = i.nlh.LinkAdd(i.Link); err != nil {
 		logrus.Debugf("Failed to create bridge %s via netlink. Trying ioctl", config.BridgeName)
 		return ioctlCreateBridge(config.BridgeName, setMac)
 	}
 
 	if setMac {
 		hwAddr := netutils.GenerateRandomMAC()
-		if err = netlink.LinkSetHardwareAddr(i.Link, hwAddr); err != nil {
+		if err = i.nlh.LinkSetHardwareAddr(i.Link, hwAddr); err != nil {
 			return fmt.Errorf("failed to set bridge mac-address %s : %s", hwAddr, err.Error())
 		}
 		logrus.Debugf("Setting bridge mac address to %s", hwAddr)
@@ -52,15 +52,17 @@ func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
 
 // SetupDeviceUp ups the given bridge interface.
 func setupDeviceUp(config *networkConfiguration, i *bridgeInterface) error {
-	err := netlink.LinkSetUp(i.Link)
+	err := i.nlh.LinkSetUp(i.Link)
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to set link up for %s: %v", config.BridgeName, err)
 	}
 
 	// Attempt to update the bridge interface to refresh the flags status,
 	// ignoring any failure to do so.
-	if lnk, err := netlink.LinkByName(config.BridgeName); err == nil {
+	if lnk, err := i.nlh.LinkByName(config.BridgeName); err == nil {
 		i.Link = lnk
+	} else {
+		logrus.Warnf("Failed to retrieve link for interface (%s): %v", config.BridgeName, err)
 	}
 	return nil
 }

@@ -7,9 +7,9 @@ import (
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
-	"github.com/vishvananda/netlink"
 )
 
 // CreateEndpoint assigns the mac, ip and endpoint id for the new container
@@ -74,8 +74,8 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	if ep == nil {
 		return fmt.Errorf("endpoint id %q not found", eid)
 	}
-	if link, err := netlink.LinkByName(ep.srcName); err == nil {
-		netlink.LinkDel(link)
+	if link, err := ns.NlHandle().LinkByName(ep.srcName); err == nil {
+		ns.NlHandle().LinkDel(link)
 	}
 
 	return nil

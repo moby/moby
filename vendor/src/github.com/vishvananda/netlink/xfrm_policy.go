@@ -43,12 +43,13 @@ type XfrmPolicyTmpl struct {
 	Src   net.IP
 	Proto Proto
 	Mode  Mode
+	Spi   int
 	Reqid int
 }
 
 func (t XfrmPolicyTmpl) String() string {
-	return fmt.Sprintf("{Dst: %v, Src: %v, Proto: %s, Mode: %s, Reqid: 0x%x}",
-		t.Dst, t.Src, t.Proto, t.Mode, t.Reqid)
+	return fmt.Sprintf("{Dst: %v, Src: %v, Proto: %s, Mode: %s, Spi: 0x%x, Reqid: 0x%x}",
+		t.Dst, t.Src, t.Proto, t.Mode, t.Spi, t.Reqid)
 }
 
 // XfrmPolicy represents an ipsec policy. It represents the overlay network

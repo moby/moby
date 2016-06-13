@@ -22,7 +22,7 @@ const (
 	vethPrefix   = "veth"
 	vethLen      = 7
 	vxlanIDStart = 256
-	vxlanIDEnd   = 1000
+	vxlanIDEnd   = (1 << 24) - 1
 	vxlanPort    = 4789
 	vxlanVethMTU = 1450
 )
@@ -37,12 +37,14 @@ type driver struct {
 	neighIP      string
 	config       map[string]interface{}
 	peerDb       peerNetworkMap
+	secMap       *encrMap
 	serfInstance *serf.Serf
 	networks     networkTable
 	store        datastore.DataStore
 	vxlanIdm     *idm.Idm
 	once         sync.Once
 	joinOnce     sync.Once
+	keys         []*key
 	sync.Mutex
 }
 
@@ -51,12 +53,12 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	c := driverapi.Capability{
 		DataScope: datastore.GlobalScope,
 	}
-
 	d := &driver{
 		networks: networkTable{},
 		peerDb: peerNetworkMap{
 			mp: map[string]*peerMap{},
 		},
+		secMap: &encrMap{nodes: map[string][]*spi{}},
 		config: config,
 	}
 
@@ -209,6 +211,7 @@ func (d *driver) pushLocalEndpointEvent(action, nid, eid string) {
 
 // DiscoverNew is a notification for a new discovery event, such as a new node joining a cluster
 func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
+	var err error
 	switch dType {
 	case discoverapi.NodeDiscovery:
 		nodeData, ok := data.(discoverapi.NodeDiscoveryData)
@@ -217,7 +220,6 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 		}
 		d.nodeJoin(nodeData.Address, nodeData.Self)
 	case discoverapi.DatastoreConfig:
-		var err error
 		if d.store != nil {
 			return types.ForbiddenErrorf("cannot accept datastore configuration: Overlay driver has a datastore configured already")
 		}
@@ -229,6 +231,39 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 		if err != nil {
 			return types.InternalErrorf("failed to initialize data store: %v", err)
 		}
+	case discoverapi.EncryptionKeysConfig:
+		encrData, ok := data.(discoverapi.DriverEncryptionConfig)
+		if !ok {
+			return fmt.Errorf("invalid encryption key notification data")
+		}
+		keys := make([]*key, 0, len(encrData.Keys))
+		for i := 0; i < len(encrData.Keys); i++ {
+			k, err := parseEncryptionKey(encrData.Keys[i], encrData.Tags[i])
+			if err != nil {
+				return err
+			}
+			keys = append(keys, k)
+		}
+		d.setKeys(keys)
+	case discoverapi.EncryptionKeysUpdate:
+		var newKey, delKey, priKey *key
+		encrData, ok := data.(discoverapi.DriverEncryptionUpdate)
+		if !ok {
+			return fmt.Errorf("invalid encryption key notification data")
+		}
+		newKey, err = parseEncryptionKey(encrData.Key, encrData.Tag)
+		if err != nil {
+			return err
+		}
+		priKey, err = parseEncryptionKey(encrData.Primary, encrData.PrimaryTag)
+		if err != nil {
+			return err
+		}
+		delKey, err = parseEncryptionKey(encrData.Prune, encrData.PruneTag)
+		if err != nil {
+			return err
+		}
+		d.updateKeys(newKey, priKey, delKey)
 	default:
 	}
 	return nil

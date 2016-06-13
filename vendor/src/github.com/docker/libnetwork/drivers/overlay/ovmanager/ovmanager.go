@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
@@ -80,17 +81,22 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 		subnets: []*subnet{},
 	}
 
+	opts := make(map[string]string)
 	vxlanIDList := make([]uint32, 0, len(ipV4Data))
-	if val, ok := option[netlabel.OverlayVxlanIDList]; ok {
-		log.Println("overlay network option: ", val)
-		valStrList := strings.Split(val, ",")
-		for _, idStr := range valStrList {
-			vni, err := strconv.Atoi(idStr)
-			if err != nil {
-				return nil, fmt.Errorf("invalid vxlan id value %q passed", idStr)
-			}
+	for key, val := range option {
+		if key == netlabel.OverlayVxlanIDList {
+			logrus.Debugf("overlay network option: %s", val)
+			valStrList := strings.Split(val, ",")
+			for _, idStr := range valStrList {
+				vni, err := strconv.Atoi(idStr)
+				if err != nil {
+					return nil, fmt.Errorf("invalid vxlan id value %q passed", idStr)
+				}
 
-			vxlanIDList = append(vxlanIDList, uint32(vni))
+				vxlanIDList = append(vxlanIDList, uint32(vni))
+			}
+		} else {
+			opts[key] = val
 		}
 	}
 
@@ -111,7 +117,6 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 		n.subnets = append(n.subnets, s)
 	}
 
-	opts := make(map[string]string)
 	val := fmt.Sprintf("%d", n.subnets[0].vni)
 	for _, s := range n.subnets[1:] {
 		val = val + fmt.Sprintf(",%d", s.vni)

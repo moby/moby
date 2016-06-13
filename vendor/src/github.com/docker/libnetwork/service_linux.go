@@ -60,6 +60,13 @@ func (c *controller) addServiceBinding(name, sid, nid, eid string, vip net.IP, i
 	// applications have access to DNS RR.
 	n.(*network).addSvcRecords("tasks."+name, ip, nil, false)
 
+	// Add service name to vip in DNS, if vip is valid. Otherwise resort to DNS RR
+	svcIP := vip
+	if len(svcIP) == 0 {
+		svcIP = ip
+	}
+	n.(*network).addSvcRecords(name, svcIP, nil, false)
+
 	s.Lock()
 	defer s.Unlock()
 
@@ -85,13 +92,6 @@ func (c *controller) addServiceBinding(name, sid, nid, eid string, vip net.IP, i
 		// we add a new service service in IPVS rules.
 		addService = true
 
-		// Add service name to vip in DNS, if vip is valid. Otherwise resort to DNS RR
-		svcIP := vip
-		if len(svcIP) == 0 {
-			svcIP = ip
-		}
-
-		n.(*network).addSvcRecords(name, svcIP, nil, false)
 	}
 
 	lb.backEnds[eid] = ip
@@ -124,6 +124,14 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 	// Delete the special "tasks.svc_name" backend record.
 	n.(*network).deleteSvcRecords("tasks."+name, ip, nil, false)
 
+	// Make sure to remove the right IP since if vip is
+	// not valid we would have added a DNS RR record.
+	svcIP := vip
+	if len(svcIP) == 0 {
+		svcIP = ip
+	}
+	n.(*network).deleteSvcRecords(name, svcIP, nil, false)
+
 	s.Lock()
 	defer s.Unlock()
 
@@ -139,14 +147,6 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 		// remove the service entry in IPVS.
 		rmService = true
 
-		// Make sure to remove the right IP since if vip is
-		// not valid we would have added a DNS RR record.
-		svcIP := vip
-		if len(svcIP) == 0 {
-			svcIP = ip
-		}
-
-		n.(*network).deleteSvcRecords(name, svcIP, nil, false)
 		delete(s.loadBalancers, nid)
 	}
 
