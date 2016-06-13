@@ -37,6 +37,13 @@ func (ctr *container) newProcess(friendlyName string) *process {
 
 func (ctr *container) start() error {
 	var err error
+	isServicing := false
+
+	for _, option := range ctr.options {
+		if s, ok := option.(*ServicingOption); ok && s.IsServicing {
+			isServicing = true
+		}
+	}
 
 	// Start the container.  If this is a servicing container, this call will block
 	// until the container is done with the servicing execution.
@@ -51,14 +58,6 @@ func (ctr *container) start() error {
 		return err
 	}
 
-	for _, option := range ctr.options {
-		if s, ok := option.(*ServicingOption); ok && s.IsServicing {
-			// Since the servicing operation is complete when Start returns without error,
-			// we can shutdown (which triggers merge) and exit early.
-			return ctr.shutdown()
-		}
-	}
-
 	// Note we always tell HCS to
 	// create stdout as it's required regardless of '-i' or '-t' options, so that
 	// docker can always grab the output through logs. We also tell HCS to always
@@ -68,9 +67,9 @@ func (ctr *container) start() error {
 		EmulateConsole:   ctr.ociSpec.Process.Terminal,
 		WorkingDirectory: ctr.ociSpec.Process.Cwd,
 		ConsoleSize:      ctr.ociSpec.Process.InitialConsoleSize,
-		CreateStdInPipe:  true,
-		CreateStdOutPipe: true,
-		CreateStdErrPipe: !ctr.ociSpec.Process.Terminal,
+		CreateStdInPipe:  !isServicing,
+		CreateStdOutPipe: !isServicing,
+		CreateStdErrPipe: !ctr.ociSpec.Process.Terminal && !isServicing,
 	}
 
 	// Configure the environment for the process
@@ -94,6 +93,19 @@ func (ctr *container) start() error {
 	ctr.process.friendlyName = InitFriendlyName
 	pid := hcsProcess.Pid()
 	ctr.process.hcsProcess = hcsProcess
+
+	// If this is a servicing container, wait on the process synchronously here and
+	// immediately call shutdown/terminate when it returns.
+	if isServicing {
+		exitCode := ctr.waitProcessExitCode(&ctr.process)
+
+		if exitCode != 0 {
+			logrus.Warnf("Servicing container %s returned non-zero exit code %d", ctr.containerID, exitCode)
+			return ctr.terminate()
+		}
+
+		return ctr.shutdown()
+	}
 
 	var stdout, stderr io.ReadCloser
 	var stdin io.WriteCloser
@@ -145,12 +157,8 @@ func (ctr *container) start() error {
 
 }
 
-// waitExit runs as a goroutine waiting for the process to exit. It's
-// equivalent to (in the linux containerd world) where events come in for
-// state change notifications from containerd.
-func (ctr *container) waitExit(process *process, isFirstProcessToStart bool) error {
-	logrus.Debugln("waitExit on pid", process.systemPid)
-
+// waitProcessExitCode will wait for the given process to exit and return its error code.
+func (ctr *container) waitProcessExitCode(process *process) int {
 	// Block indefinitely for the process to exit.
 	err := process.hcsProcess.Wait()
 	if err != nil {
@@ -175,6 +183,17 @@ func (ctr *container) waitExit(process *process, isFirstProcessToStart bool) err
 	if err := process.hcsProcess.Close(); err != nil {
 		logrus.Error(err)
 	}
+
+	return exitCode
+}
+
+// waitExit runs as a goroutine waiting for the process to exit. It's
+// equivalent to (in the linux containerd world) where events come in for
+// state change notifications from containerd.
+func (ctr *container) waitExit(process *process, isFirstProcessToStart bool) error {
+	logrus.Debugln("waitExit on pid", process.systemPid)
+
+	exitCode := ctr.waitProcessExitCode(process)
 
 	// Assume the container has exited
 	si := StateInfo{
