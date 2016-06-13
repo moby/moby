@@ -108,7 +108,7 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 	return true
 }
 
-func (nDB *NetworkDB) handleCompound(buf []byte) {
+func (nDB *NetworkDB) handleCompound(buf []byte, isBulkSync bool) {
 	// Decode the parts
 	parts, err := decodeCompoundMessage(buf)
 	if err != nil {
@@ -118,18 +118,19 @@ func (nDB *NetworkDB) handleCompound(buf []byte) {
 
 	// Handle each message
 	for _, part := range parts {
-		nDB.handleMessage(part)
+		nDB.handleMessage(part, isBulkSync)
 	}
 }
 
-func (nDB *NetworkDB) handleTableMessage(buf []byte) {
+func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 	var tEvent TableEvent
 	if err := proto.Unmarshal(buf, &tEvent); err != nil {
 		logrus.Errorf("Error decoding table event message: %v", err)
 		return
 	}
 
-	if rebroadcast := nDB.handleTableEvent(&tEvent); rebroadcast {
+	// Do not rebroadcast a bulk sync
+	if rebroadcast := nDB.handleTableEvent(&tEvent); rebroadcast && !isBulkSync {
 		var err error
 		buf, err = encodeRawMessage(MessageTypeTableEvent, buf)
 		if err != nil {
@@ -195,7 +196,7 @@ func (nDB *NetworkDB) handleBulkSync(buf []byte) {
 		nDB.tableClock.Witness(bsm.LTime)
 	}
 
-	nDB.handleMessage(bsm.Payload)
+	nDB.handleMessage(bsm.Payload, true)
 
 	// Don't respond to a bulk sync which was not unsolicited
 	if !bsm.Unsolicited {
@@ -214,7 +215,7 @@ func (nDB *NetworkDB) handleBulkSync(buf []byte) {
 	}
 }
 
-func (nDB *NetworkDB) handleMessage(buf []byte) {
+func (nDB *NetworkDB) handleMessage(buf []byte, isBulkSync bool) {
 	mType, data, err := decodeMessage(buf)
 	if err != nil {
 		logrus.Errorf("Error decoding gossip message to get message type: %v", err)
@@ -225,11 +226,11 @@ func (nDB *NetworkDB) handleMessage(buf []byte) {
 	case MessageTypeNetworkEvent:
 		nDB.handleNetworkMessage(data)
 	case MessageTypeTableEvent:
-		nDB.handleTableMessage(data)
+		nDB.handleTableMessage(data, isBulkSync)
 	case MessageTypeBulkSync:
 		nDB.handleBulkSync(data)
 	case MessageTypeCompound:
-		nDB.handleCompound(data)
+		nDB.handleCompound(data, isBulkSync)
 	default:
 		logrus.Errorf("%s: unknown message type %d", nDB.config.NodeName, mType)
 	}
@@ -240,7 +241,7 @@ func (d *delegate) NotifyMsg(buf []byte) {
 		return
 	}
 
-	d.nDB.handleMessage(buf)
+	d.nDB.handleMessage(buf, false)
 }
 
 func (d *delegate) GetBroadcasts(overhead, limit int) [][]byte {
