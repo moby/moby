@@ -25,6 +25,7 @@ func NewServiceCommand(dockerCli *client.DockerCli) *cobra.Command {
 		newTasksCommand(dockerCli),
 		newListCommand(dockerCli),
 		newRemoveCommand(dockerCli),
+		newScaleCommand(dockerCli),
 		newUpdateCommand(dockerCli),
 	)
 	return cmd
