@@ -130,7 +130,14 @@ read how to [manage keys for content trust](trust_key_mng.md).
 ## Survey of typical content trust operations
 
 This section surveys the typical trusted operations users perform with Docker
-images.
+images. Specifically, we will be going through the following steps to help us exercise
+these various trusted operations:
+
+* Build and push an unsigned image
+* Pull an unsigned image
+* Build and push a signed image
+* Pull the signed image pushed above
+* Pull unsigned image pushed above
 
 ### Enable and disable content trust per-shell or per-invocation
 
@@ -152,14 +159,36 @@ In an environment where `DOCKER_CONTENT_TRUST` is set, you can use the
 `--disable-content-trust` flag to run individual operations on tagged images
 without content trust on an as-needed basis.
 
-```bash
-$  docker pull --disable-content-trust docker/trusttest:untrusted
+Consider the following Dockerfile that uses an untrusted base image:
+
+```
+$  cat Dockerfile
+FROM docker/trusttest:latest
+RUN echo
+```
+
+In order to build a container successfully using this Dockerfile, one can do:
+
+```
+$  docker build --disable-content-trust -t <username>/nottrusttest:latest .
+Sending build context to Docker daemon 42.84 MB
+...
+Successfully built f21b872447dc
+```
+
+The same is true for all the other commands, such as `pull` and `push`:
+
+```
+$  docker pull --disable-content-trust docker/trusttest:latest
+...
+$  docker push --disable-content-trust <username>/nottrusttest:latest
+...
 ```
 
 To invoke a command with content trust enabled regardless of whether or how the `DOCKER_CONTENT_TRUST` variable is set:
 
 ```bash
-$  docker build --disable-content-trust=false -t docker/trusttest:testing .
+$  docker build --disable-content-trust=false -t <username>/trusttest:testing .
 ```
 
 All of the trusted operations support the `--disable-content-trust` flag.
@@ -172,8 +201,8 @@ and push a tagged image. If this is the first time you have pushed an image
 using content trust on your system, the session looks like this:
 
 ```bash
-$ docker push docker/trusttest:latest
-The push refers to a repository [docker.io/docker/trusttest] (len: 1)
+$ docker push <username>/trusttest:testing
+The push refers to a repository [docker.io/<username>/trusttest] (len: 1)
 9a61b6b1315e: Image already exists
 902b87aaaec9: Image already exists
 latest: digest: sha256:d02adacee0ac7a5be140adb94fa1dae64f4e71a68696e7f8e7cbf9db8dd49418 size: 3220
@@ -186,9 +215,9 @@ password manager to generate the passphrase and keep it safe. There will be no
 way to recover this key. You can find the key in your config directory.
 Enter passphrase for new root key with id a1d96fb:
 Repeat passphrase for new root key with id a1d96fb:
-Enter passphrase for new repository key with id docker.io/docker/trusttest (3a932f1):
-Repeat passphrase for new repository key with id docker.io/docker/trusttest (3a932f1):
-Finished initializing "docker.io/docker/trusttest"
+Enter passphrase for new repository key with id docker.io/<username>/trusttest (3a932f1):
+Repeat passphrase for new repository key with id docker.io/<username>/trusttest (3a932f1):
+Finished initializing "docker.io/<username>/trusttest"
 ```
 When you push your first tagged image with content trust enabled, the  `docker`
 client recognizes this is your first push and:
@@ -202,12 +231,12 @@ client recognizes this is your first push and:
 The passphrase you chose for both the root key and your repository key-pair
 should be randomly generated and stored in a *password manager*.
 
-> **NOTE**: If you omit the `latest` tag, content trust is skipped. This is true
+> **NOTE**: If you omit the `testing` tag, content trust is skipped. This is true
 even if content trust is enabled and even if this is your first push.
 
 ```bash
-$ docker push docker/trusttest
-The push refers to a repository [docker.io/docker/trusttest] (len: 1)
+$ docker push <username>/trusttest
+The push refers to a repository [docker.io/<username>/trusttest] (len: 1)
 9a61b6b1315e: Image successfully pushed
 902b87aaaec9: Image successfully pushed
 latest: digest: sha256:a9a9c4402604b703bed1c847f6d85faac97686e48c579bd9c3b0fa6694a398fc size: 3220
@@ -221,16 +250,16 @@ Once you have a root key on your system, subsequent images repositories
 you create can use that same root key:
 
 ```bash
-$ docker push docker.io/docker/seaside:latest
-The push refers to a repository [docker.io/docker/seaside] (len: 1)
+$ docker push docker.io/<username>/otherimage:latest
+The push refers to a repository [docker.io/<username>/otherimage] (len: 1)
 a9539b34a6ab: Image successfully pushed
 b3dbab3810fc: Image successfully pushed
 latest: digest: sha256:d2ba1e603661a59940bfad7072eba698b79a8b20ccbb4e3bfb6f9e367ea43939 size: 3346
 Signing and pushing trust metadata
 Enter key passphrase for root key with id a1d96fb:
-Enter passphrase for new repository key with id docker.io/docker/seaside (bb045e3):
-Repeat passphrase for new repository key with id docker.io/docker/seaside (bb045e3):
-Finished initializing "docker.io/docker/seaside"
+Enter passphrase for new repository key with id docker.io/<username>/otherimage (bb045e3):
+Repeat passphrase for new repository key with id docker.io/<username>/otherimage (bb045e3):
+Finished initializing "docker.io/<username>/otherimage"
 ```
 
 The new image has its own repository key and timestamp key. The `latest` tag is signed with both of
@@ -240,54 +269,27 @@ these.
 ### Pull image content
 
 A common way to consume an image is to `pull` it. With content trust enabled, the Docker
-client only allows `docker pull` to retrieve signed images.
+client only allows `docker pull` to retrieve signed images. Let's try to pull the image
+you signed and pushed earlier:
 
 ```
-$  docker pull docker/seaside
+$  docker pull <username>/trusttest:testing
 Using default tag: latest
-Pull (1 of 1): docker/trusttest:latest@sha256:d149ab53f871
+Pull (1 of 1): <username>/trusttest:testing@sha256:d149ab53f871
 ...
-Tagging docker/trusttest@sha256:d149ab53f871 as docker/trusttest:latest
+Tagging <username>/trusttest@sha256:d149ab53f871 as docker/trusttest:testing
 ```
 
-The `seaside:latest` image is signed. In the following example, the command does not specify a tag, so the system uses
-the `latest` tag by default again and the `docker/cliffs:latest` tag is not signed.
+In the following example, the command does not specify a tag, so the system uses
+the `latest` tag by default again and the `docker/trusttest:latest` tag is not signed.
 
 ```bash
-$ docker pull docker/cliffs
+$ docker pull docker/trusttest
 Using default tag: latest
 no trust data available
 ```
 
-Because the tag `docker/cliffs:latest` is not trusted, the `pull` fails.
-
-
-### Disable content trust for specific operations
-
-A user who wants to disable content trust for a particular operation can use the
-`--disable-content-trust` flag. **Warning: this flag disables content trust for
-this operation**. With this flag, Docker will ignore content-trust and allow all
-operations to be done without verifying any signatures. If we wanted the
-previous untrusted build to succeed we could do:
-
-```
-$  cat Dockerfile
-FROM docker/trusttest:notrust
-RUN echo
-$  docker build --disable-content-trust -t docker/trusttest:testing .
-Sending build context to Docker daemon 42.84 MB
-...
-Successfully built f21b872447dc
-```
-
-The same is true for all the other commands, such as `pull` and `push`:
-
-```
-$  docker pull --disable-content-trust docker/trusttest:untrusted
-...
-$  docker push --disable-content-trust docker/trusttest:untrusted
-...
-```
+Because the tag `docker/trusttest:latest` is not trusted, the `pull` fails.
 
 ## Related information
 
