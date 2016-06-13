@@ -363,7 +363,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.DurationVar(&opts.update.delay, "update-delay", time.Duration(0), "Delay between updates")
 
 	flags.StringSliceVar(&opts.networks, "network", []string{}, "Network attachments")
-	flags.StringVar(&opts.endpoint.mode, "endpoint-mode", "", "Endpoint mode")
-	flags.StringVar(&opts.endpoint.ingress, "endpoint-ingress", "", "Endpoint ingress")
+	flags.StringVar(&opts.endpoint.mode, "endpoint-mode", "", "Endpoint mode(Valid values: VIP, DNSRR)")
+	flags.StringVar(&opts.endpoint.ingress, "endpoint-ingress", "", "Endpoint ingress(Valid values: SWARMPORT, DISABLED)")
 	flags.VarP(&opts.endpoint.ports, "publish", "p", "Publish a port as a node port")
 }
