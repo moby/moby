@@ -511,7 +511,7 @@ __docker_complete_log_driver_options() {
 			COMPREPLY=( $( compgen -W "rfc3164 rfc5424 rfc5424micro" -- "${cur##*=}" ) )
 			return
 			;;
-		syslog-tls-@(ca-cert|cert|key))
+		syslog-tls-ca-cert|syslog-tls-cert|syslog-tls-key)
 			_filedir
 			return
 			;;
@@ -839,7 +839,7 @@ _docker_daemon() {
 
  	local key=$(__docker_map_key_of_current_option '--storage-opt')
  	case "$key" in
- 		dm.@(blkdiscard|override_udev_sync_check|use_deferred_@(removal|deletion)))
+ 		dm.blkdiscard|dm.override_udev_sync_check|dm.use_deferred_removal|dm.use_deferred_deletion)
  			COMPREPLY=( $( compgen -W "false true" -- "${cur##*=}" ) )
  			return
  			;;
