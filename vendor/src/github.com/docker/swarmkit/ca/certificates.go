@@ -173,6 +173,26 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths Cert
 		return nil, err
 	}
 
+	// Доверяй, но проверяй.
+	// Before we overwrite our local certificate, let's make sure the server gave us one that is valid
+	// Create an X509Cert so we can .Verify()
+	certBlock, _ := pem.Decode(signedCert)
+	if certBlock == nil {
+		return nil, fmt.Errorf("failed to parse certificate PEM")
+	}
+	X509Cert, err := x509.ParseCertificate(certBlock.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	// Include our current root pool
+	opts := x509.VerifyOptions{
+		Roots: rca.Pool,
+	}
+	// Check to see if this certificate was signed by our CA, and isn't expired
+	if _, err := X509Cert.Verify(opts); err != nil {
+		return nil, err
+	}
+
 	log.Infof("Downloaded new TLS credentials with role: %s.", role)
 
 	// Ensure directory exists

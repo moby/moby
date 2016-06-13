@@ -127,7 +127,6 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 	// Common checks for the nature of an error should be included here. If the
 	// error is determined not to be fatal for the task,
 	fatal := func(err error) (*api.TaskStatus, error) {
-		log.G(ctx).WithError(err).Error("fatal task error")
 		if err == nil {
 			panic("err must not be nil when fatal")
 		}
@@ -147,6 +146,7 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 			return retry()
 		}
 
+		log.G(ctx).WithError(err).Error("fatal task error")
 		status.Err = err.Error()
 
 		switch {

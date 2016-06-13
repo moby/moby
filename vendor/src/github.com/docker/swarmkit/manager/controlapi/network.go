@@ -86,7 +86,7 @@ func validateNetworkSpec(spec *api.NetworkSpec) error {
 	return nil
 }
 
-// CreateNetwork creates and return a Network based on the provided NetworkSpec.
+// CreateNetwork creates and returns a Network based on the provided NetworkSpec.
 // - Returns `InvalidArgument` if the NetworkSpec is malformed.
 // - Returns an error if the creation fails.
 func (s *Server) CreateNetwork(ctx context.Context, request *api.CreateNetworkRequest) (*api.CreateNetworkResponse, error) {

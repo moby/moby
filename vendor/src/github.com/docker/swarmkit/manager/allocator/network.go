@@ -111,6 +111,17 @@ func (a *Allocator) doNetworkInit(ctx context.Context) error {
 		if err := a.allocateNetwork(ctx, nc, ingressNetwork); err != nil {
 			log.G(ctx).Errorf("failed allocating ingress network during init: %v", err)
 		}
+
+		// Update store after allocation
+		if err := a.store.Update(func(tx store.Tx) error {
+			if err := store.UpdateNetwork(tx, ingressNetwork); err != nil {
+				return err
+			}
+
+			return nil
+		}); err != nil {
+			return fmt.Errorf("failed to create ingress network: %v", err)
+		}
 	}
 
 	// Allocate networks in the store so far before we started
@@ -129,6 +140,30 @@ func (a *Allocator) doNetworkInit(ctx context.Context) error {
 
 		if err := a.allocateNetwork(ctx, nc, n); err != nil {
 			log.G(ctx).Errorf("failed allocating network %s during init: %v", n.ID, err)
+		}
+	}
+
+	// Allocate nodes in the store so far before we process watched events.
+	var nodes []*api.Node
+	a.store.View(func(tx store.ReadTx) {
+		nodes, err = store.FindNodes(tx, store.All)
+	})
+	if err != nil {
+		return fmt.Errorf("error listing all services in store while trying to allocate during init: %v", err)
+	}
+
+	for _, node := range nodes {
+		if na.IsNodeAllocated(node) {
+			continue
+		}
+
+		if node.Attachment == nil {
+			node.Attachment = &api.NetworkAttachment{}
+		}
+
+		node.Attachment.Network = ingressNetwork.Copy()
+		if err := a.allocateNode(ctx, nc, node); err != nil {
+			log.G(ctx).Errorf("Failed to allocate network resources for node %s during init: %v", node.ID, err)
 		}
 	}
 
@@ -518,14 +553,24 @@ func (a *Allocator) allocateNode(ctx context.Context, nc *networkContext, node *
 func (a *Allocator) allocateService(ctx context.Context, nc *networkContext, s *api.Service) error {
 	// The service is trying to expose ports to the external
 	// world. Automatically attach the service to the ingress
-	// network.
+	// network only if it is not already done.
 	if s.Spec.Endpoint != nil && len(s.Spec.Endpoint.ExposedPorts) != 0 {
 		if s.Endpoint == nil {
 			s.Endpoint = &api.Endpoint{}
 		}
 
-		s.Endpoint.VirtualIPs = append(s.Endpoint.VirtualIPs,
-			&api.Endpoint_VirtualIP{NetworkID: ingressNetwork.ID})
+		var found bool
+		for _, vip := range s.Endpoint.VirtualIPs {
+			if vip.NetworkID == ingressNetwork.ID {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			s.Endpoint.VirtualIPs = append(s.Endpoint.VirtualIPs,
+				&api.Endpoint_VirtualIP{NetworkID: ingressNetwork.ID})
+		}
 	}
 
 	if err := nc.nwkAllocator.ServiceAllocate(s); err != nil {

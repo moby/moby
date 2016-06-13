@@ -12,7 +12,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// An ReplicatedOrchestrator runs a reconciliation loop to create and destroy
+// A ReplicatedOrchestrator runs a reconciliation loop to create and destroy
 // tasks as necessary for the replicated services.
 type ReplicatedOrchestrator struct {
 	store *store.MemoryStore

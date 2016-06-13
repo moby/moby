@@ -584,15 +584,19 @@ func (na *NetworkAllocator) allocatePools(n *api.Network) (map[string]string, er
 		n.Spec.IPAM = &api.IPAMOptions{}
 	}
 
-	ipamConfigs := n.Spec.IPAM.Configs
-	if ipamConfigs == nil {
-		if n.IPAM != nil {
-			ipamConfigs = n.IPAM.Configs
-		}
+	ipamConfigs := make([]*api.IPAMConfig, len(n.Spec.IPAM.Configs))
+	copy(ipamConfigs, n.Spec.IPAM.Configs)
 
-		if ipamConfigs == nil {
-			ipamConfigs = append(ipamConfigs, &api.IPAMConfig{Family: api.IPAMConfig_IPV4})
-		}
+	// If there is non-nil IPAM state always prefer those subnet
+	// configs over Spec configs.
+	if n.IPAM != nil {
+		ipamConfigs = n.IPAM.Configs
+	}
+
+	// Append an empty slot for subnet allocation if there are no
+	// IPAM configs from either spec or state.
+	if len(ipamConfigs) == 0 {
+		ipamConfigs = append(ipamConfigs, &api.IPAMConfig{Family: api.IPAMConfig_IPV4})
 	}
 
 	// Update the runtime IPAM configurations with initial state
@@ -619,8 +623,12 @@ func (na *NetworkAllocator) allocatePools(n *api.Network) (map[string]string, er
 
 		if ic.Subnet == "" {
 			ic.Subnet = poolIP.String()
+		}
+
+		if ic.Gateway == "" {
 			ic.Gateway = gwIP.IP.String()
 		}
+
 	}
 
 	return pools, nil

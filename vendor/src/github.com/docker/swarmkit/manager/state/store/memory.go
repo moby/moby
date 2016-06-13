@@ -84,7 +84,7 @@ type MemoryStore struct {
 	proposer state.Proposer
 }
 
-// NewMemoryStore returns an in-memory store. The argument is a optional
+// NewMemoryStore returns an in-memory store. The argument is an optional
 // Proposer which will be used to propagate changes to other members in a
 // cluster.
 func NewMemoryStore(proposer state.Proposer) *MemoryStore {

@@ -163,11 +163,9 @@ func (a *Agent) run(ctx context.Context) {
 		case operation := <-sessionq:
 			operation.response <- operation.fn(session)
 		case msg := <-session.tasks:
-			go func() {
-				if err := a.worker.Assign(ctx, msg.Tasks); err != nil {
-					log.G(ctx).WithError(err).Error("task assignment failed")
-				}
-			}()
+			if err := a.worker.Assign(ctx, msg.Tasks); err != nil {
+				log.G(ctx).WithError(err).Error("task assignment failed")
+			}
 		case msg := <-session.messages:
 			if err := a.handleSessionMessage(ctx, msg); err != nil {
 				log.G(ctx).WithError(err).Error("session message handler failed")
@@ -305,15 +303,12 @@ func (a *Agent) withSession(ctx context.Context, fn func(session *session) error
 //
 // If an error is returned, the operation should be retried.
 func (a *Agent) UpdateTaskStatus(ctx context.Context, taskID string, status *api.TaskStatus) error {
-	log.G(ctx).Debugf("(*Agent).UpdateTaskStatus")
-	defer log.G(ctx).Debugf("(*Agent).UpdateTaskStatus leave")
+	log.G(ctx).WithField("task.id", taskID).Debugf("(*Agent).UpdateTaskStatus")
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	errs := make(chan error, 1)
 	if err := a.withSession(ctx, func(session *session) error {
-		log.G(ctx).Debugf("(*Agent).withSession")
-		defer log.G(ctx).Debugf("(*Agent).withSession leave")
 		go func() {
 			err := session.sendTaskStatus(ctx, taskID, status)
 			if err != nil {
