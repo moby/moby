@@ -33,7 +33,7 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	}
 
 	flags = cmd.Flags()
-	flags.Var(&opts.autoAccept, "auto-accept", "Acceptance policy")
+	flags.Var(&opts.autoAccept, "auto-accept", "Auto acceptance policy (worker, manager or none)")
 	flags.StringVar(&opts.secret, "secret", "", "Set secret value needed to accept nodes into cluster")
 	flags.Int64Var(&opts.taskHistoryLimit, "task-history-limit", 10, "Task history retention limit")
 	flags.Uint64Var(&opts.heartbeatPeriod, "dispatcher-heartbeat-period", 5000000000, "Dispatcher heartbeat period")
