@@ -100,7 +100,7 @@ the `Using cache` message in the console output.
     Successfully built 7ea8aef582cc
 
 When you're done with your build, you're ready to look into [*Pushing a
-repository to its registry*](../userguide/containers/dockerrepos.md#contributing-to-docker-hub).
+repository to its registry*](../tutorials/dockerrepos.md#contributing-to-docker-hub).
 
 ## Format
 
@@ -474,7 +474,7 @@ Or
 The `FROM` instruction sets the [*Base Image*](glossary.md#base-image)
 for subsequent instructions. As such, a valid `Dockerfile` must have `FROM` as
 its first instruction. The image can be any valid image – it is especially easy
-to start by **pulling an image** from the [*Public Repositories*](../userguide/containers/dockerrepos.md).
+to start by **pulling an image** from the [*Public Repositories*](../tutorials/dockerrepos.md).
 
 - `FROM` must be the first non-comment instruction in the `Dockerfile`.
 
@@ -1171,7 +1171,7 @@ containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
 string with multiple arguments, such as `VOLUME /var/log` or `VOLUME /var/log
 /var/db`. For more information/examples and mounting instructions via the
 Docker client, refer to
-[*Share Directories via Volumes*](../userguide/containers/dockervolumes.md#mount-a-host-directory-as-a-data-volume)
+[*Share Directories via Volumes*](../tutorials/dockervolumes.md#mount-a-host-directory-as-a-data-volume)
 documentation.
 
 The `docker run` command initializes the newly created volume with any data

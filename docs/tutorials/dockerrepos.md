@@ -1,6 +1,9 @@
 <!--[metadata]>
 +++
-aliases = ["/engine/userguide/dockerrepos/"]
+aliases = [
+"/engine/userguide/containers/dockerrepos/",
+"/engine/userguide/dockerrepos/"
+]
 title = "Store images on Docker Hub"
 description = "Learn how to use the Docker Hub to manage Docker images and work flow"
 keywords = ["repo, Docker Hub, Docker Hub, registry, index, repositories, usage, pull image, push image, image,  documentation"]
@@ -42,7 +45,7 @@ $ docker login
 The `login` command stores your Docker ID authentication credentials in the
 `$HOME/.docker/config.json` (Bash notation). For Windows `cmd` users the
 notation for this file is `%HOME%\.docker\config.json` ; for PowerShell users
-the notation is `$env:Home\.docker\config.json`. 
+the notation is `$env:Home\.docker\config.json`.
 
 Once you have logged in from the command line, you can `commit` and `push`
 Engine subcommands to interact with your repos on Docker Hub.

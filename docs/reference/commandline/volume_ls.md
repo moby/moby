@@ -81,4 +81,4 @@ The following filter matches all volumes with a name containing the `rose` strin
 * [volume create](volume_create.md)
 * [volume inspect](volume_inspect.md)
 * [volume rm](volume_rm.md)
-* [Understand Data Volumes](../../userguide/containers/dockervolumes.md)
+* [Understand Data Volumes](../../tutorials/dockervolumes.md)
