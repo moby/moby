@@ -291,6 +291,11 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 		c.RLock()
 		defer c.RUnlock()
 		if c.err != nil {
+			if !req.ForceNewCluster { // if failure on first attempt don't keep state
+				if err := c.clearState(); err != nil {
+					return "", err
+				}
+			}
 			return "", c.err
 		}
 		return "", ctx.Err()
@@ -395,6 +400,13 @@ func (c *Cluster) Leave(force bool) error {
 	c.ready = false
 	c.configEvent <- struct{}{}
 	// todo: cleanup optional?
+	if err := c.clearState(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Cluster) clearState() error {
 	if err := os.RemoveAll(c.root); err != nil {
 		return err
 	}
