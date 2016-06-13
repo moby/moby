@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -17,6 +18,7 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/ipvs"
+	"github.com/docker/libnetwork/ns"
 	"github.com/gogo/protobuf/proto"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
@@ -416,6 +418,23 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 				}
 			}
 		}
+
+		oifName, err := findOIFName(gwIP)
+		if err != nil {
+			return fmt.Errorf("failed to find gateway bridge interface name for %s: %v", gwIP, err)
+		}
+
+		path := filepath.Join("/proc/sys/net/ipv4/conf", oifName, "route_localnet")
+		if err := ioutil.WriteFile(path, []byte{'1', '\n'}, 0644); err != nil {
+			return fmt.Errorf("could not write to %s: %v", path, err)
+		}
+
+		ruleArgs := strings.Fields(fmt.Sprintf("-m addrtype --src-type LOCAL -o %s -j MASQUERADE", oifName))
+		if !iptables.Exists(iptables.Nat, "POSTROUTING", ruleArgs...) {
+			if err := iptables.RawCombinedOutput(append([]string{"-t", "nat", "-I", "POSTROUTING"}, ruleArgs...)...); err != nil {
+				return fmt.Errorf("failed to add ingress localhost POSTROUTING rule for %s: %v", oifName, err)
+			}
+		}
 	}
 
 	for _, iPort := range ingressPorts {
@@ -433,6 +452,28 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 	}
 
 	return nil
+}
+
+func findOIFName(ip net.IP) (string, error) {
+	nlh := ns.NlHandle()
+
+	routes, err := nlh.RouteGet(ip)
+	if err != nil {
+		return "", err
+	}
+
+	if len(routes) == 0 {
+		return "", fmt.Errorf("no route to %s", ip)
+	}
+
+	// Pick the first route(typically there is only one route). We
+	// don't support multipath.
+	link, err := nlh.LinkByIndex(routes[0].LinkIndex)
+	if err != nil {
+		return "", err
+	}
+
+	return link.Attrs().Name, nil
 }
 
 func plumbProxy(iPort *PortConfig, isDelete bool) error {
