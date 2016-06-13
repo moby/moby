@@ -1621,19 +1621,7 @@ func (devices *DeviceSet) loadThinPoolLoopBackInfo() error {
 	return nil
 }
 
-func (devices *DeviceSet) initDevmapper(doInit bool) error {
-	// give ourselves to libdm as a log handler
-	devicemapper.LogInit(devices)
-
-	version, err := devicemapper.GetDriverVersion()
-	if err != nil {
-		// Can't even get driver version, assume not supported
-		return graphdriver.ErrNotSupported
-	}
-
-	if err := determineDriverCapabilities(version); err != nil {
-		return graphdriver.ErrNotSupported
-	}
+func (devices *DeviceSet) enableDeferredRemovalDeletion() error {
 
 	// If user asked for deferred removal then check both libdm library
 	// and kernel driver support deferred removal otherwise error out.
@@ -1654,6 +1642,26 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		}
 		logrus.Debug("devmapper: Deferred deletion support enabled.")
 		devices.deferredDelete = true
+	}
+	return nil
+}
+
+func (devices *DeviceSet) initDevmapper(doInit bool) error {
+	// give ourselves to libdm as a log handler
+	devicemapper.LogInit(devices)
+
+	version, err := devicemapper.GetDriverVersion()
+	if err != nil {
+		// Can't even get driver version, assume not supported
+		return graphdriver.ErrNotSupported
+	}
+
+	if err := determineDriverCapabilities(version); err != nil {
+		return graphdriver.ErrNotSupported
+	}
+
+	if err := devices.enableDeferredRemovalDeletion(); err != nil {
+		return err
 	}
 
 	// https://github.com/docker/docker/issues/4036
