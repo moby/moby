@@ -440,14 +440,14 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 	for _, iPort := range ingressPorts {
 		if iptables.ExistChain(ingressChain, iptables.Nat) {
 			rule := strings.Fields(fmt.Sprintf("-t nat %s %s -p %s --dport %d -j DNAT --to-destination %s:%d",
-				addDelOpt, ingressChain, strings.ToLower(PortConfig_Protocol_name[int32(iPort.Protocol)]), iPort.NodePort, gwIP, iPort.NodePort))
+				addDelOpt, ingressChain, strings.ToLower(PortConfig_Protocol_name[int32(iPort.Protocol)]), iPort.PublishedPort, gwIP, iPort.PublishedPort))
 			if err := iptables.RawCombinedOutput(rule...); err != nil {
 				return fmt.Errorf("setting up rule failed, %v: %v", rule, err)
 			}
 		}
 
 		if err := plumbProxy(iPort, isDelete); err != nil {
-			return fmt.Errorf("failed to create proxy for port %d: %v", iPort.NodePort, err)
+			return fmt.Errorf("failed to create proxy for port %d: %v", iPort.PublishedPort, err)
 		}
 	}
 
@@ -482,7 +482,7 @@ func plumbProxy(iPort *PortConfig, isDelete bool) error {
 		l   io.Closer
 	)
 
-	portSpec := fmt.Sprintf("%d/%s", iPort.NodePort, strings.ToLower(PortConfig_Protocol_name[int32(iPort.Protocol)]))
+	portSpec := fmt.Sprintf("%d/%s", iPort.PublishedPort, strings.ToLower(PortConfig_Protocol_name[int32(iPort.Protocol)]))
 	if isDelete {
 		ingressProxyMu.Lock()
 		if listener, ok := ingressProxyTbl[portSpec]; ok {
@@ -497,9 +497,9 @@ func plumbProxy(iPort *PortConfig, isDelete bool) error {
 
 	switch iPort.Protocol {
 	case ProtocolTCP:
-		l, err = net.ListenTCP("tcp", &net.TCPAddr{Port: int(iPort.NodePort)})
+		l, err = net.ListenTCP("tcp", &net.TCPAddr{Port: int(iPort.PublishedPort)})
 	case ProtocolUDP:
-		l, err = net.ListenUDP("udp", &net.UDPAddr{Port: int(iPort.NodePort)})
+		l, err = net.ListenUDP("udp", &net.UDPAddr{Port: int(iPort.PublishedPort)})
 	}
 
 	if err != nil {
@@ -600,11 +600,11 @@ func fwMarker() {
 	rules := [][]string{}
 	for _, iPort := range ingressPorts {
 		rule := strings.Fields(fmt.Sprintf("-t nat %s PREROUTING -p %s --dport %d -j REDIRECT --to-port %d",
-			addDelOpt, strings.ToLower(PortConfig_Protocol_name[int32(iPort.Protocol)]), iPort.NodePort, iPort.Port))
+			addDelOpt, strings.ToLower(PortConfig_Protocol_name[int32(iPort.Protocol)]), iPort.PublishedPort, iPort.TargetPort))
 		rules = append(rules, rule)
 
 		rule = strings.Fields(fmt.Sprintf("-t mangle %s PREROUTING -p %s --dport %d -j MARK --set-mark %d",
-			addDelOpt, strings.ToLower(PortConfig_Protocol_name[int32(iPort.Protocol)]), iPort.NodePort, fwMark))
+			addDelOpt, strings.ToLower(PortConfig_Protocol_name[int32(iPort.Protocol)]), iPort.PublishedPort, fwMark))
 		rules = append(rules, rule)
 	}
 

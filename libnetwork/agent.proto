@@ -55,12 +55,12 @@ message PortConfig {
 	Protocol protocol = 2;
 
 	// The port which the application is exposing and is bound to.
-	uint32 port = 3;
+	uint32 target_port = 3;
 
-	// NodePort specifies the port on which the service is
+	// PublishedPort specifies the port on which the service is
 	// exposed on all nodes on the cluster. If not specified an
 	// arbitrary port in the node port range is allocated by the
 	// system. If specified it should be within the node port
 	// range and it should be available.
-	uint32 node_port = 4;
+	uint32 published_port = 4;
 }
