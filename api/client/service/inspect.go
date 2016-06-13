@@ -96,7 +96,7 @@ func printService(out io.Writer, service swarm.Service) {
 		fmt.Fprintln(out, "Mode:\t\tGLOBAL")
 	} else {
 		fmt.Fprintln(out, "Mode:\t\tREPLICATED")
-		fmt.Fprintf(out, " Scale:\t\t%d\n", service.Spec.Mode.Replicated.Instances)
+		fmt.Fprintf(out, " Scale:\t\t%d\n", *service.Spec.Mode.Replicated.Instances)
 	}
 	fmt.Fprintln(out, "Placement:")
 	fmt.Fprintln(out, " Strategy:\tSPREAD")
