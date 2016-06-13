@@ -347,7 +347,7 @@ func (daemon *Daemon) deleteNetwork(networkID string, dynamic bool) error {
 		return err
 	}
 
-	if runconfig.IsPreDefinedNetwork(nw.Name()) {
+	if runconfig.IsPreDefinedNetwork(nw.Name()) && !dynamic {
 		err := fmt.Errorf("%s is a pre-defined network and cannot be removed", nw.Name())
 		return errors.NewRequestForbiddenError(err)
 	}
