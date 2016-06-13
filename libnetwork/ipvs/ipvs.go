@@ -59,10 +59,10 @@ func New(path string) (*Handle, error) {
 			return nil, err
 		}
 	}
+	defer n.Close()
 
 	sock, err := nl.GetNetlinkSocketAt(n, netns.None(), syscall.NETLINK_GENERIC)
 	if err != nil {
-		n.Close()
 		return nil, err
 	}
 
