@@ -13,8 +13,6 @@ var DockerCommandUsage = []Command{
 	{"info", "Display system-wide information"},
 	{"inspect", "Return low-level information on a container or image"},
 	{"ps", "List containers"},
-	{"pull", "Pull an image or a repository from a registry"},
-	{"push", "Push an image or a repository to a registry"},
 	{"update", "Update configuration of one or more containers"},
 }
 
