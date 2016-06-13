@@ -81,6 +81,6 @@ func runServiceScale(dockerCli *client.DockerCli, serviceID string, scale string
 		return err
 	}
 
-	fmt.Fprintf(dockerCli.Out(), "%s scaled to %s", serviceID, scale)
+	fmt.Fprintf(dockerCli.Out(), "%s scaled to %s\n", serviceID, scale)
 	return nil
 }
