@@ -8,7 +8,6 @@ type Command struct {
 
 // DockerCommandUsage lists the top level docker commands and their short usage
 var DockerCommandUsage = []Command{
-	{"commit", "Create a new image from a container's changes"},
 	{"cp", "Copy files/folders between a container and the local filesystem"},
 	{"exec", "Run a command in a running container"},
 	{"info", "Display system-wide information"},
