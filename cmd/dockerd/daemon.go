@@ -127,11 +127,6 @@ func (cli *DaemonCli) start() (err error) {
 	stopc := make(chan bool)
 	defer close(stopc)
 
-	signal.Trap(func() {
-		cli.stop()
-		<-stopc // wait for daemonCli.start() to return
-	})
-
 	// warn from uuid package when running the daemon
 	uuid.Loggerf = logrus.Warnf
 
@@ -258,6 +253,11 @@ func (cli *DaemonCli) start() (err error) {
 	if err != nil {
 		return err
 	}
+	cli.api = api
+	signal.Trap(func() {
+		cli.stop()
+		<-stopc // wait for daemonCli.start() to return
+	})
 
 	d, err := daemon.NewDaemon(cli.Config, registryService, containerdRemote)
 	if err != nil {
@@ -276,7 +276,6 @@ func (cli *DaemonCli) start() (err error) {
 	initRouter(api, d)
 
 	cli.d = d
-	cli.api = api
 	cli.setupConfigReloadTrap()
 
 	// The serve API routine never exits unless an error occurs
