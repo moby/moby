@@ -475,6 +475,19 @@ func (n *network) cleanupStaleSandboxes() {
 				deleteVxlanByVNI(path, 0)
 				syscall.Unmount(path, syscall.MNT_DETACH)
 				os.Remove(path)
+
+				// Now that we have destroyed this
+				// sandbox, remove all references to
+				// it in vniTbl so that we don't
+				// inadvertently destroy the sandbox
+				// created in this life.
+				networkMu.Lock()
+				for vni, tblPath := range vniTbl {
+					if tblPath == path {
+						delete(vniTbl, vni)
+					}
+				}
+				networkMu.Unlock()
 			}
 
 			return nil
