@@ -6,7 +6,6 @@ import (
 	basictypes "github.com/docker/engine-api/types"
 	networktypes "github.com/docker/engine-api/types/network"
 	types "github.com/docker/engine-api/types/swarm"
-	"github.com/docker/libnetwork/datastore"
 	swarmapi "github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 )
@@ -153,7 +152,7 @@ func BasicNetworkFromGRPC(n swarmapi.Network) basictypes.NetworkResource {
 	return basictypes.NetworkResource{
 		ID:         n.ID,
 		Name:       n.Spec.Annotations.Name,
-		Scope:      datastore.GlobalScope,
+		Scope:      "swarm",
 		Driver:     n.DriverState.Name,
 		EnableIPv6: spec.Ipv6Enabled,
 		IPAM:       ipam,

@@ -26,22 +26,22 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 
 	list := []types.NetworkResource{}
 
-	for _, nw := range n.backend.GetNetworks() {
-		list = append(list, *buildNetworkResource(nw))
-	}
-
-	// Combine the network list returned by the cluster manager if it is not already
-	// returned by the daemon backend
 	if nr, err := n.clusterProvider.GetNetworks(); err == nil {
-	SKIP:
 		for _, nw := range nr {
-			for _, nl := range list {
-				if nl.ID == nw.ID {
-					continue SKIP
-				}
-			}
 			list = append(list, nw)
 		}
+	}
+
+	// Combine the network list returned by Docker daemon if it is not already
+	// returned by the cluster manager
+SKIP:
+	for _, nw := range n.backend.GetNetworks() {
+		for _, nl := range list {
+			if nl.ID == nw.ID() {
+				continue SKIP
+			}
+		}
+		list = append(list, *n.buildNetworkResource(nw))
 	}
 
 	list, err = filterNetworks(list, netFilters)
@@ -63,7 +63,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		}
 		return err
 	}
-	return httputils.WriteJSON(w, http.StatusOK, buildNetworkResource(nw))
+	return httputils.WriteJSON(w, http.StatusOK, n.buildNetworkResource(nw))
 }
 
 func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -154,7 +154,7 @@ func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter
 	return nil
 }
 
-func buildNetworkResource(nw libnetwork.Network) *types.NetworkResource {
+func (n *networkRouter) buildNetworkResource(nw libnetwork.Network) *types.NetworkResource {
 	r := &types.NetworkResource{}
 	if nw == nil {
 		return r
@@ -164,6 +164,13 @@ func buildNetworkResource(nw libnetwork.Network) *types.NetworkResource {
 	r.Name = nw.Name()
 	r.ID = nw.ID()
 	r.Scope = info.Scope()
+	if n.clusterProvider.IsManager() {
+		if _, err := n.clusterProvider.GetNetwork(nw.Name()); err == nil {
+			r.Scope = "swarm"
+		}
+	} else if info.Dynamic() {
+		r.Scope = "swarm"
+	}
 	r.Driver = nw.Type()
 	r.EnableIPv6 = info.IPv6Enabled()
 	r.Internal = info.Internal()
