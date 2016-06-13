@@ -1,6 +1,10 @@
 package authorization
 
-import "github.com/docker/docker/pkg/plugins"
+import (
+	"sync"
+
+	"github.com/docker/docker/pkg/plugins"
+)
 
 // Plugin allows third party plugins to authorize requests and responses
 // in the context of docker API
@@ -33,6 +37,7 @@ func NewPlugins(names []string) []Plugin {
 type authorizationPlugin struct {
 	plugin *plugins.Plugin
 	name   string
+	once   sync.Once
 }
 
 func newAuthorizationPlugin(name string) Plugin {
@@ -72,12 +77,11 @@ func (a *authorizationPlugin) AuthZResponse(authReq *Request) (*Response, error)
 // initPlugin initializes the authorization plugin if needed
 func (a *authorizationPlugin) initPlugin() error {
 	// Lazy loading of plugins
-	if a.plugin == nil {
-		var err error
-		a.plugin, err = plugins.Get(a.name, AuthZApiImplements)
-		if err != nil {
-			return err
+	var err error
+	a.once.Do(func() {
+		if a.plugin == nil {
+			a.plugin, err = plugins.Get(a.name, AuthZApiImplements)
 		}
-	}
-	return nil
+	})
+	return err
 }

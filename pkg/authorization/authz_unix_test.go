@@ -6,6 +6,7 @@
 package authorization
 
 import (
+	"bytes"
 	"encoding/json"
 	"io/ioutil"
 	"net"
@@ -14,17 +15,17 @@ import (
 	"os"
 	"path"
 	"reflect"
-	"testing"
-
-	"bytes"
 	"strings"
+	"testing"
 
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/gorilla/mux"
 )
 
-const pluginAddress = "authzplugin.sock"
+const (
+	pluginAddress = "authz-test-plugin.sock"
+)
 
 func TestAuthZRequestPluginError(t *testing.T) {
 	server := authZPluginTestServer{t: t}
@@ -36,7 +37,7 @@ func TestAuthZRequestPluginError(t *testing.T) {
 	request := Request{
 		User:           "user",
 		RequestBody:    []byte("sample body"),
-		RequestURI:     "www.authz.com",
+		RequestURI:     "www.authz.com/auth",
 		RequestMethod:  "GET",
 		RequestHeaders: map[string]string{"header": "value"},
 	}
@@ -50,10 +51,10 @@ func TestAuthZRequestPluginError(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(server.replayResponse, *actualResponse) {
-		t.Fatalf("Response must be equal")
+		t.Fatal("Response must be equal")
 	}
 	if !reflect.DeepEqual(request, server.recordedRequest) {
-		t.Fatalf("Requests must be equal")
+		t.Fatal("Requests must be equal")
 	}
 }
 
@@ -67,7 +68,7 @@ func TestAuthZRequestPlugin(t *testing.T) {
 	request := Request{
 		User:           "user",
 		RequestBody:    []byte("sample body"),
-		RequestURI:     "www.authz.com",
+		RequestURI:     "www.authz.com/auth",
 		RequestMethod:  "GET",
 		RequestHeaders: map[string]string{"header": "value"},
 	}
@@ -82,10 +83,10 @@ func TestAuthZRequestPlugin(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(server.replayResponse, *actualResponse) {
-		t.Fatalf("Response must be equal")
+		t.Fatal("Response must be equal")
 	}
 	if !reflect.DeepEqual(request, server.recordedRequest) {
-		t.Fatalf("Requests must be equal")
+		t.Fatal("Requests must be equal")
 	}
 }
 
@@ -98,6 +99,7 @@ func TestAuthZResponsePlugin(t *testing.T) {
 
 	request := Request{
 		User:        "user",
+		RequestURI:  "someting.com/auth",
 		RequestBody: []byte("sample body"),
 	}
 	server.replayResponse = Response{
@@ -111,10 +113,10 @@ func TestAuthZResponsePlugin(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(server.replayResponse, *actualResponse) {
-		t.Fatalf("Response must be equal")
+		t.Fatal("Response must be equal")
 	}
 	if !reflect.DeepEqual(request, server.recordedRequest) {
-		t.Fatalf("Requests must be equal")
+		t.Fatal("Requests must be equal")
 	}
 }
 
@@ -158,7 +160,7 @@ func TestDrainBody(t *testing.T) {
 			t.Fatalf("Body must be copied, actual length: '%d'", len(body))
 		}
 		if closer == nil {
-			t.Fatalf("Closer must not be nil")
+			t.Fatal("Closer must not be nil")
 		}
 		modified, err := ioutil.ReadAll(closer)
 		if err != nil {
@@ -229,8 +231,10 @@ type authZPluginTestServer struct {
 // start starts the test server that implements the plugin
 func (t *authZPluginTestServer) start() {
 	r := mux.NewRouter()
-	os.Remove(pluginAddress)
-	l, _ := net.ListenUnix("unix", &net.UnixAddr{Name: pluginAddress, Net: "unix"})
+	l, err := net.Listen("unix", pluginAddress)
+	if err != nil {
+		t.t.Fatal(err)
+	}
 	t.listener = l
 	r.HandleFunc("/Plugin.Activate", t.activate)
 	r.HandleFunc("/"+AuthZApiRequest, t.auth)
@@ -257,14 +261,23 @@ func (t *authZPluginTestServer) stop() {
 // auth is a used to record/replay the authentication api messages
 func (t *authZPluginTestServer) auth(w http.ResponseWriter, r *http.Request) {
 	t.recordedRequest = Request{}
-	body, _ := ioutil.ReadAll(r.Body)
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		t.t.Fatal(err)
+	}
 	r.Body.Close()
 	json.Unmarshal(body, &t.recordedRequest)
-	b, _ := json.Marshal(t.replayResponse)
+	b, err := json.Marshal(t.replayResponse)
+	if err != nil {
+		t.t.Fatal(err)
+	}
 	w.Write(b)
 }
 
 func (t *authZPluginTestServer) activate(w http.ResponseWriter, r *http.Request) {
-	b, _ := json.Marshal(plugins.Manifest{Implements: []string{AuthZApiImplements}})
+	b, err := json.Marshal(plugins.Manifest{Implements: []string{AuthZApiImplements}})
+	if err != nil {
+		t.t.Fatal(err)
+	}
 	w.Write(b)
 }
