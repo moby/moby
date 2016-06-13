@@ -116,7 +116,30 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 	}
 
 	if s.EndpointSpec != nil {
+		if s.EndpointSpec.Mode != "" &&
+			s.EndpointSpec.Mode != types.ResolutionModeVIP &&
+			s.EndpointSpec.Mode != types.ResolutionModeDNSRR {
+			return swarmapi.ServiceSpec{}, fmt.Errorf("invalid resolution mode: %q", s.EndpointSpec.Mode)
+		}
+
+		if s.EndpointSpec.Ingress != "" &&
+			s.EndpointSpec.Ingress != types.IngressRoutingSWARMPORT &&
+			s.EndpointSpec.Ingress != types.IngressRoutingDISABLED {
+			return swarmapi.ServiceSpec{}, fmt.Errorf("invalid ingress option: %q", s.EndpointSpec.Ingress)
+		}
+
+		if (s.EndpointSpec.Ingress == "" ||
+			s.EndpointSpec.Ingress == types.IngressRoutingSWARMPORT) &&
+			len(s.EndpointSpec.ExposedPorts) != 0 &&
+			s.EndpointSpec.Mode == types.ResolutionModeDNSRR {
+			return swarmapi.ServiceSpec{}, fmt.Errorf("incompatible endpoint options: ingress routing using swarmport(which is default) cannot be used with DNSRR mode ")
+		}
+
 		spec.Endpoint = &swarmapi.EndpointSpec{}
+
+		spec.Endpoint.Mode = swarmapi.EndpointSpec_ResolutionMode(swarmapi.EndpointSpec_ResolutionMode_value[string(s.EndpointSpec.Mode)])
+		spec.Endpoint.Ingress = swarmapi.EndpointSpec_IngressRouting(swarmapi.EndpointSpec_IngressRouting_value[string(s.EndpointSpec.Ingress)])
+
 		for _, portConfig := range s.EndpointSpec.ExposedPorts {
 			spec.Endpoint.ExposedPorts = append(spec.Endpoint.ExposedPorts, &swarmapi.PortConfig{
 				Name:      portConfig.Name,

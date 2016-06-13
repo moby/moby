@@ -151,7 +151,7 @@ func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nod
 			return
 		}
 
-		ep, err := n.CreateEndpoint("ingress-endpoint", libnetwork.CreateOptionIpam(ip, nil, nil))
+		ep, err := n.CreateEndpoint("ingress-endpoint", libnetwork.CreateOptionIpam(ip, nil, nil, nil))
 		if err != nil {
 			logrus.Errorf("Failed creating ingress endpoint: %v", err)
 			return

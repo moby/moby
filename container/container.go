@@ -790,7 +790,7 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 		ipam := epConfig.IPAMConfig
 		if ipam != nil && (ipam.IPv4Address != "" || ipam.IPv6Address != "") {
 			createOptions = append(createOptions,
-				libnetwork.CreateOptionIpam(net.ParseIP(ipam.IPv4Address), net.ParseIP(ipam.IPv6Address), nil))
+				libnetwork.CreateOptionIpam(net.ParseIP(ipam.IPv4Address), net.ParseIP(ipam.IPv6Address), nil, nil))
 		}
 
 		for _, alias := range epConfig.Aliases {
