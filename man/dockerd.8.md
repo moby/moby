@@ -226,7 +226,7 @@ output otherwise.
   Force the Docker runtime to use a specific storage driver.
 
 **--selinux-enabled**=*true*|*false*
-  Enable selinux support. Default is false. SELinux does not presently support the overlay storage driver.
+  Enable selinux support. Default is false. SELinux does not presently support either of the overlay storage drivers.
 
 **--storage-opt**=[]
   Set storage driver options. See STORAGE DRIVER OPTIONS.

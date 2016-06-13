@@ -34,14 +34,14 @@ and all containers created by that daemon instance use the same storage driver.
  The table below shows the supported storage driver technologies and their
 driver names:
 
-|Technology    |Storage driver name  |
-|--------------|---------------------|
-|OverlayFS     |`overlay`            |
-|AUFS          |`aufs`               |
-|Btrfs         |`btrfs`              |
-|Device Mapper |`devicemapper`       |
-|VFS           |`vfs`                |
-|ZFS           |`zfs`                |
+|Technology    |Storage driver name    |
+|--------------|-----------------------|
+|OverlayFS     |`overlay` or `overlay2`|
+|AUFS          |`aufs`                 |
+|Btrfs         |`btrfs`                |
+|Device Mapper |`devicemapper`         |
+|VFS           |`vfs`                  |
+|ZFS           |`zfs`                  |
 
 To find out which storage driver is set on the daemon, you use the
 `docker info` command:
@@ -71,14 +71,15 @@ For example, the `btrfs` storage driver on a Btrfs backing filesystem. The
 following table lists each storage driver and whether it must match the host's
 backing file system:
 
-|Storage driver |Commonly used on |Disabled on                              |
-|---------------|-----------------|-----------------------------------------|
-|`overlay`      |`ext4` `xfs`     |`btrfs` `aufs` `overlay` `zfs` `eCryptfs`|
-|`aufs`         |`ext4` `xfs`     |`btrfs` `aufs` `eCryptfs`                |
-|`btrfs`        |`btrfs` _only_   |   N/A                                   |
-|`devicemapper` |`direct-lvm`     |   N/A                                   |
-|`vfs`          |debugging only   |   N/A                                   |
-|`zfs`          |`zfs` _only_     |   N/A                                   |
+|Storage driver |Commonly used on |Disabled on                                         |
+|---------------|-----------------|----------------------------------------------------|
+|`overlay`      |`ext4` `xfs`     |`btrfs` `aufs` `overlay` `overlay2` `zfs` `eCryptfs`|
+|`overlay2`     |`ext4` `xfs`     |`btrfs` `aufs` `overlay` `overlay2` `zfs` `eCryptfs`|
+|`aufs`         |`ext4` `xfs`     |`btrfs` `aufs` `eCryptfs`                           |
+|`btrfs`        |`btrfs` _only_   |   N/A                                              |
+|`devicemapper` |`direct-lvm`     |   N/A                                              |
+|`vfs`          |debugging only   |   N/A                                              |
+|`zfs`          |`zfs` _only_     |   N/A                                              |
 
 
 > **Note**
@@ -198,6 +199,24 @@ the guidance offered by the table below along with the points mentioned above.
 
 ![](images/driver-pros-cons.png)
 
+### Overlay vs Overlay2
+
+OverlayFS has 2 storage drivers which both make use of the same OverlayFS
+technology but with different implementations and incompatible on disk
+storage. Since the storage is incompatible, switching between the two
+will require re-creating all image content. The `overlay` driver is the
+original implementation and the only option in Docker 1.11 and before.
+The `overlay` driver has known limitations with inode exhaustion and
+commit performance. The `overlay2` driver addresses this limitation, but
+is only compatible with Linux kernel 4.0 and later. For users on a pre-4.0
+kernel or with an existing `overlay` graph, it is recommended to stay
+on `overlay`. For users with at least a 4.0 kernel and no existing or required
+`overlay` graph data, then `overlay2` may be used.
+
+> **Note**
+> `overlay2` graph data will not interfere with `overlay` graph data. However
+> when switching to `overlay2`, the user is responsible for removing
+> `overlay` graph data to avoid storage duplication.
 
 ## Related information
 
