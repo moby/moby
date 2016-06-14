@@ -9,6 +9,16 @@ set -e
 #
 bundle_test_unit() {
 	TESTFLAGS+=" -test.timeout=${TIMEOUT}"
+	INCBUILD="-i"
+	count=0
+	for flag in "${BUILDFLAGS[@]}"; do
+		if [ "${flag}" == ${INCBUILD} ]; then
+			unset BUILDFLAGS[${count}]
+			break
+		fi
+		count=$[ ${count} + 1 ]
+	done
+
 	date
 	if [ -z "$TESTDIRS" ]; then
 		TEST_PATH=./...
