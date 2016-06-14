@@ -1587,9 +1587,8 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterGracefulShutdown(c *check.C) {
 
 	// Send SIGINT and daemon should clean up
 	c.Assert(s.d.cmd.Process.Signal(os.Interrupt), check.IsNil)
-
-	// Wait a bit for the daemon to handle cleanups.
-	time.Sleep(3 * time.Second)
+	// Wait for the daemon to stop.
+	c.Assert(<-s.d.wait, checker.IsNil)
 
 	mountOut, err := ioutil.ReadFile("/proc/self/mountinfo")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
