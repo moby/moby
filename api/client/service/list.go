@@ -86,7 +86,7 @@ func printTable(out io.Writer, services []swarm.Service) {
 			service.Spec.Name,
 			scale,
 			service.Spec.TaskTemplate.ContainerSpec.Image,
-			strings.Join(service.Spec.TaskTemplate.ContainerSpec.Command, " "))
+			strings.Join(service.Spec.TaskTemplate.ContainerSpec.Args, " "))
 	}
 }
 
