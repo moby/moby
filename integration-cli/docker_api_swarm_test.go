@@ -453,6 +453,8 @@ func (s *DockerSwarmSuite) TestApiSwarmNodeDrainPause(c *check.C) {
 		n.Spec.Availability = swarm.NodeAvailabilityPause
 	})
 
+	c.Skip("known flakiness with scaling up from this state")
+
 	instances = 14
 	d1.updateService(c, d1.getService(c, id), setInstances(instances))
 
