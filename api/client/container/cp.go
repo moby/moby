@@ -1,4 +1,4 @@
-package client
+package container
 
 import (
 	"fmt"
@@ -9,12 +9,19 @@ import (
 
 	"golang.org/x/net/context"
 
-	Cli "github.com/docker/docker/cli"
+	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/archive"
-	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/engine-api/types"
+	"github.com/spf13/cobra"
 )
+
+type copyOptions struct {
+	source      string
+	destination string
+	followLink  bool
+}
 
 type copyDirection int
 
@@ -28,46 +35,44 @@ type cpConfig struct {
 	followLink bool
 }
 
-// CmdCp copies files/folders to or from a path in a container.
-//
-// When copying from a container, if DEST_PATH is '-' the data is written as a
-// tar archive file to STDOUT.
-//
-// When copying to a container, if SRC_PATH is '-' the data is read as a tar
-// archive file from STDIN, and the destination CONTAINER:DEST_PATH, must specify
-// a directory.
-//
-// Usage:
-// 	docker cp CONTAINER:SRC_PATH DEST_PATH|-
-// 	docker cp SRC_PATH|- CONTAINER:DEST_PATH
-func (cli *DockerCli) CmdCp(args ...string) error {
-	cmd := Cli.Subcmd(
-		"cp",
-		[]string{"CONTAINER:SRC_PATH DEST_PATH|-", "SRC_PATH|- CONTAINER:DEST_PATH"},
-		strings.Join([]string{
-			Cli.DockerCommands["cp"].Description,
+// NewCopyCommand creates a new `docker cp` command
+func NewCopyCommand(dockerCli *client.DockerCli) *cobra.Command {
+	var opts copyOptions
+
+	cmd := &cobra.Command{
+		Use: `cp [OPTIONS] CONTAINER:SRC_PATH DEST_PATH|-
+	docker cp [OPTIONS] SRC_PATH|- CONTAINER:DEST_PATH`,
+		Short: "Copy files/folders between a container and the local filesystem",
+		Long: strings.Join([]string{
 			"\nUse '-' as the source to read a tar archive from stdin\n",
 			"and extract it to a directory destination in a container.\n",
 			"Use '-' as the destination to stream a tar archive of a\n",
 			"container source to stdout.",
 		}, ""),
-		true,
-	)
-
-	followLink := cmd.Bool([]string{"L", "-follow-link"}, false, "Always follow symbol link in SRC_PATH")
-
-	cmd.Require(flag.Exact, 2)
-	cmd.ParseFlags(args, true)
-
-	if cmd.Arg(0) == "" {
-		return fmt.Errorf("source can not be empty")
+		Args: cli.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if args[0] == "" {
+				return fmt.Errorf("source can not be empty")
+			}
+			if args[1] == "" {
+				return fmt.Errorf("destination can not be empty")
+			}
+			opts.source = args[0]
+			opts.destination = args[1]
+			return runCopy(dockerCli, opts)
+		},
 	}
-	if cmd.Arg(1) == "" {
-		return fmt.Errorf("destination can not be empty")
-	}
 
-	srcContainer, srcPath := splitCpArg(cmd.Arg(0))
-	dstContainer, dstPath := splitCpArg(cmd.Arg(1))
+	flags := cmd.Flags()
+
+	flags.BoolVarP(&opts.followLink, "follow-link", "L", false, "Always follow symbol link in SRC_PATH")
+
+	return cmd
+}
+
+func runCopy(dockerCli *client.DockerCli, opts copyOptions) error {
+	srcContainer, srcPath := splitCpArg(opts.source)
+	dstContainer, dstPath := splitCpArg(opts.destination)
 
 	var direction copyDirection
 	if srcContainer != "" {
@@ -78,16 +83,16 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 	}
 
 	cpParam := &cpConfig{
-		followLink: *followLink,
+		followLink: opts.followLink,
 	}
 
 	ctx := context.Background()
 
 	switch direction {
 	case fromContainer:
-		return cli.copyFromContainer(ctx, srcContainer, srcPath, dstPath, cpParam)
+		return copyFromContainer(ctx, dockerCli, srcContainer, srcPath, dstPath, cpParam)
 	case toContainer:
-		return cli.copyToContainer(ctx, srcPath, dstContainer, dstPath, cpParam)
+		return copyToContainer(ctx, dockerCli, srcPath, dstContainer, dstPath, cpParam)
 	case acrossContainers:
 		// Copying between containers isn't supported.
 		return fmt.Errorf("copying between containers is not supported")
@@ -97,39 +102,8 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 	}
 }
 
-// We use `:` as a delimiter between CONTAINER and PATH, but `:` could also be
-// in a valid LOCALPATH, like `file:name.txt`. We can resolve this ambiguity by
-// requiring a LOCALPATH with a `:` to be made explicit with a relative or
-// absolute path:
-// 	`/path/to/file:name.txt` or `./file:name.txt`
-//
-// This is apparently how `scp` handles this as well:
-// 	http://www.cyberciti.biz/faq/rsync-scp-file-name-with-colon-punctuation-in-it/
-//
-// We can't simply check for a filepath separator because container names may
-// have a separator, e.g., "host0/cname1" if container is in a Docker cluster,
-// so we have to check for a `/` or `.` prefix. Also, in the case of a Windows
-// client, a `:` could be part of an absolute Windows path, in which case it
-// is immediately proceeded by a backslash.
-func splitCpArg(arg string) (container, path string) {
-	if system.IsAbs(arg) {
-		// Explicit local absolute path, e.g., `C:\foo` or `/foo`.
-		return "", arg
-	}
-
-	parts := strings.SplitN(arg, ":", 2)
-
-	if len(parts) == 1 || strings.HasPrefix(parts[0], ".") {
-		// Either there's no `:` in the arg
-		// OR it's an explicit local relative path like `./file:name.txt`.
-		return "", arg
-	}
-
-	return parts[0], parts[1]
-}
-
-func (cli *DockerCli) statContainerPath(ctx context.Context, containerName, path string) (types.ContainerPathStat, error) {
-	return cli.client.ContainerStatPath(ctx, containerName, path)
+func statContainerPath(ctx context.Context, dockerCli *client.DockerCli, containerName, path string) (types.ContainerPathStat, error) {
+	return dockerCli.Client().ContainerStatPath(ctx, containerName, path)
 }
 
 func resolveLocalPath(localPath string) (absPath string, err error) {
@@ -140,7 +114,7 @@ func resolveLocalPath(localPath string) (absPath string, err error) {
 	return archive.PreserveTrailingDotOrSeparator(absPath, localPath), nil
 }
 
-func (cli *DockerCli) copyFromContainer(ctx context.Context, srcContainer, srcPath, dstPath string, cpParam *cpConfig) (err error) {
+func copyFromContainer(ctx context.Context, dockerCli *client.DockerCli, srcContainer, srcPath, dstPath string, cpParam *cpConfig) (err error) {
 	if dstPath != "-" {
 		// Get an absolute destination path.
 		dstPath, err = resolveLocalPath(dstPath)
@@ -152,7 +126,7 @@ func (cli *DockerCli) copyFromContainer(ctx context.Context, srcContainer, srcPa
 	// if client requests to follow symbol link, then must decide target file to be copied
 	var rebaseName string
 	if cpParam.followLink {
-		srcStat, err := cli.statContainerPath(ctx, srcContainer, srcPath)
+		srcStat, err := statContainerPath(ctx, dockerCli, srcContainer, srcPath)
 
 		// If the destination is a symbolic link, we should follow it.
 		if err == nil && srcStat.Mode&os.ModeSymlink != 0 {
@@ -169,7 +143,7 @@ func (cli *DockerCli) copyFromContainer(ctx context.Context, srcContainer, srcPa
 
 	}
 
-	content, stat, err := cli.client.CopyFromContainer(ctx, srcContainer, srcPath)
+	content, stat, err := dockerCli.Client().CopyFromContainer(ctx, srcContainer, srcPath)
 	if err != nil {
 		return err
 	}
@@ -201,7 +175,7 @@ func (cli *DockerCli) copyFromContainer(ctx context.Context, srcContainer, srcPa
 	return archive.CopyTo(preArchive, srcInfo, dstPath)
 }
 
-func (cli *DockerCli) copyToContainer(ctx context.Context, srcPath, dstContainer, dstPath string, cpParam *cpConfig) (err error) {
+func copyToContainer(ctx context.Context, dockerCli *client.DockerCli, srcPath, dstContainer, dstPath string, cpParam *cpConfig) (err error) {
 	if srcPath != "-" {
 		// Get an absolute source path.
 		srcPath, err = resolveLocalPath(srcPath)
@@ -217,7 +191,7 @@ func (cli *DockerCli) copyToContainer(ctx context.Context, srcPath, dstContainer
 
 	// Prepare destination copy info by stat-ing the container path.
 	dstInfo := archive.CopyInfo{Path: dstPath}
-	dstStat, err := cli.statContainerPath(ctx, dstContainer, dstPath)
+	dstStat, err := statContainerPath(ctx, dockerCli, dstContainer, dstPath)
 
 	// If the destination is a symbolic link, we should evaluate it.
 	if err == nil && dstStat.Mode&os.ModeSymlink != 0 {
@@ -229,7 +203,7 @@ func (cli *DockerCli) copyToContainer(ctx context.Context, srcPath, dstContainer
 		}
 
 		dstInfo.Path = linkTarget
-		dstStat, err = cli.statContainerPath(ctx, dstContainer, linkTarget)
+		dstStat, err = statContainerPath(ctx, dockerCli, dstContainer, linkTarget)
 	}
 
 	// Ignore any error and assume that the parent directory of the destination
@@ -293,5 +267,36 @@ func (cli *DockerCli) copyToContainer(ctx context.Context, srcPath, dstContainer
 		AllowOverwriteDirWithFile: false,
 	}
 
-	return cli.client.CopyToContainer(ctx, dstContainer, resolvedDstPath, content, options)
+	return dockerCli.Client().CopyToContainer(ctx, dstContainer, resolvedDstPath, content, options)
+}
+
+// We use `:` as a delimiter between CONTAINER and PATH, but `:` could also be
+// in a valid LOCALPATH, like `file:name.txt`. We can resolve this ambiguity by
+// requiring a LOCALPATH with a `:` to be made explicit with a relative or
+// absolute path:
+// 	`/path/to/file:name.txt` or `./file:name.txt`
+//
+// This is apparently how `scp` handles this as well:
+// 	http://www.cyberciti.biz/faq/rsync-scp-file-name-with-colon-punctuation-in-it/
+//
+// We can't simply check for a filepath separator because container names may
+// have a separator, e.g., "host0/cname1" if container is in a Docker cluster,
+// so we have to check for a `/` or `.` prefix. Also, in the case of a Windows
+// client, a `:` could be part of an absolute Windows path, in which case it
+// is immediately proceeded by a backslash.
+func splitCpArg(arg string) (container, path string) {
+	if system.IsAbs(arg) {
+		// Explicit local absolute path, e.g., `C:\foo` or `/foo`.
+		return "", arg
+	}
+
+	parts := strings.SplitN(arg, ":", 2)
+
+	if len(parts) == 1 || strings.HasPrefix(parts[0], ".") {
+		// Either there's no `:` in the arg
+		// OR it's an explicit local relative path like `./file:name.txt`.
+		return "", arg
+	}
+
+	return parts[0], parts[1]
 }

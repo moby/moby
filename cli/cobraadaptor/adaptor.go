@@ -44,6 +44,7 @@ func NewCobraAdaptor(clientFlags *cliflags.ClientFlags) CobraAdaptor {
 		swarm.NewSwarmCommand(dockerCli),
 		container.NewAttachCommand(dockerCli),
 		container.NewCommitCommand(dockerCli),
+		container.NewCopyCommand(dockerCli),
 		container.NewCreateCommand(dockerCli),
 		container.NewDiffCommand(dockerCli),
 		container.NewExportCommand(dockerCli),
