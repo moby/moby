@@ -12,7 +12,6 @@ var DockerCommandUsage = []Command{
 	{"exec", "Run a command in a running container"},
 	{"info", "Display system-wide information"},
 	{"inspect", "Return low-level information on a container or image"},
-	{"ps", "List containers"},
 	{"update", "Update configuration of one or more containers"},
 }
 
