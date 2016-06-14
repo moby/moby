@@ -86,25 +86,52 @@ out:
 	return kmap, nil
 }
 
-func (c *cache) add(kvObject KVObject) error {
+func (c *cache) add(kvObject KVObject, atomic bool) error {
 	kmap, err := c.kmap(kvObject)
 	if err != nil {
 		return err
 	}
 
 	c.Lock()
+	// If atomic is true, cache needs to maintain its own index
+	// for atomicity and the add needs to be atomic.
+	if atomic {
+		if prev, ok := kmap[Key(kvObject.Key()...)]; ok {
+			if prev.Index() != kvObject.Index() {
+				c.Unlock()
+				return ErrKeyModified
+			}
+		}
+
+		// Increment index
+		index := kvObject.Index()
+		index++
+		kvObject.SetIndex(index)
+	}
+
 	kmap[Key(kvObject.Key()...)] = kvObject
 	c.Unlock()
 	return nil
 }
 
-func (c *cache) del(kvObject KVObject) error {
+func (c *cache) del(kvObject KVObject, atomic bool) error {
 	kmap, err := c.kmap(kvObject)
 	if err != nil {
 		return err
 	}
 
 	c.Lock()
+	// If atomic is true, cache needs to maintain its own index
+	// for atomicity and del needs to be atomic.
+	if atomic {
+		if prev, ok := kmap[Key(kvObject.Key()...)]; ok {
+			if prev.Index() != kvObject.Index() {
+				c.Unlock()
+				return ErrKeyModified
+			}
+		}
+	}
+
 	delete(kmap, Key(kvObject.Key()...))
 	c.Unlock()
 	return nil
