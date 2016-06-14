@@ -27,7 +27,7 @@ run your manager node. For example, the tutorial uses a machine named
     helloworld
     ```
 
-3. Run `docker service inspect SERVICE-ID` to veriy that Swarm removed the
+3. Run `docker service inspect <SERVICE-ID>` to veriy that Swarm removed the
 service. The CLI returns a message that the service is not found:
 
     ```

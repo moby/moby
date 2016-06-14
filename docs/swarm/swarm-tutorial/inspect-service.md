@@ -20,10 +20,11 @@ the Docker CLI to see details about the service running in the Swarm.
 run your manager node. For example, the tutorial uses a machine named
 `manager1`.
 
-2. Run `docker service inspect --pretty SERVICE-ID` to display the details about
-a service in an easily readable format.
+2. Run `docker service inspect --pretty <SERVICE-ID>` to display the details
+about a service in an easily readable format.
 
     To see the details on the `helloworld` service:
+
     ```
     $ docker service inspect --pretty helloworld
 
@@ -33,7 +34,7 @@ a service in an easily readable format.
      Scale:	1
     Placement:
      Strategy:	SPREAD
-    UpateConfig:
+    UpdateConfig:
      Parallelism:	1
     ContainerSpec:
      Image:		alpine
@@ -85,7 +86,7 @@ a service in an easily readable format.
     ]
     ```
 
-4. Run `docker service tasks SERVICE-ID` to see which nodes are running the
+4. Run `docker service tasks <SERVICE-ID>` to see which nodes are running the
 service:
 
     ```
