@@ -102,18 +102,29 @@ for dir in contrib/builder/deb/${PACKAGE_ARCH}/*/; do
 	version="$(basename "$dir")"
 	codename="${version//debootstrap-}"
 
+	tempdir="$(mktemp -d /tmp/tmp-docker-release-deb.XXXXXXXX)"
 	DEBFILE=( "bundles/$VERSION/build-deb/$version/docker-engine"*.deb )
 
-	# if we have a $GPG_PASSPHRASE we may as well
-	# dpkg-sign before copying the deb into the pool
-	if [ ! -z "$GPG_PASSPHRASE" ]; then
-		dpkg-sig -g "--no-tty --passphrase '$GPG_PASSPHRASE'" \
-			-k "$GPG_KEYID" --sign builder "${DEBFILE[@]}"
-	fi
-
-	# add the deb for each component for the distro version into the pool
+	# add the deb for each component for the distro version into the
+	# pool (if it is not there already)
 	mkdir -p "$APTDIR/pool/$component/d/docker-engine/"
-	cp "${DEBFILE[@]}" "$APTDIR/pool/$component/d/docker-engine/"
+ 	for deb in ${DEBFILE[@]}; do
+		d=$(basename "$deb")
+		# We do not want to generate a new deb if it has already been
+		# copied into the APTDIR
+		if [ ! -f "$APTDIR/pool/$component/d/docker-engine/$d" ]; then
+			cp "$deb" "$tempdir/"
+			# if we have a $GPG_PASSPHRASE we may as well
+			# dpkg-sign before copying the deb into the pool
+			if [ ! -z "$GPG_PASSPHRASE" ]; then
+				dpkg-sig -g "--no-tty --passphrase '$GPG_PASSPHRASE'" \
+					-k "$GPG_KEYID" --sign builder "$tempdir/$d"
+			fi
+			mv "$tempdir/$d" "$APTDIR/pool/$component/d/docker-engine/"
+		fi
+	done
+
+	rm -rf "$tempdir"
 
 	# build the right directory structure, needed for apt-ftparchive
 	for arch in "${arches[@]}"; do
