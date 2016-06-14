@@ -31,6 +31,9 @@ message EndpointRecord {
 
 	// IngressPorts exposed by the service to which this endpoint belongs.
 	repeated PortConfig ingress_ports = 6;
+
+	// A list of aliases which are alternate names for the service
+	repeated string aliases = 7;
 }
 
 // PortConfig specifies an exposed port which can be
