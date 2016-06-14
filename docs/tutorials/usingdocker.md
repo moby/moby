@@ -1,10 +1,13 @@
 <!--[metadata]>
 +++
+aliases = [
+"/engine/userguide/containers/usingdocker/",
+]
 title = "Run a simple application"
 description = "Learn how to manage and operate Docker containers."
 keywords = ["docker, the docker guide, documentation, docker.io, monitoring containers, docker top, docker inspect, docker port, ports, docker logs, log,  Logs"]
 [menu.main]
-parent="engine_learn"
+parent = "engine_learn"
 weight=-5
 +++
 <![end-metadata]-->
@@ -76,7 +79,7 @@ To see usage for a specific command, specify the command with the `--help` flag:
 
 > **Note:**
 > For further details and examples of each command, see the
-> [command reference](../../reference/commandline/cli.md) in this guide.
+> [command reference](../reference/commandline/cli.md) in this guide.
 
 ## Running a web application in Docker
 
@@ -104,8 +107,8 @@ Lastly, you've specified a command for our container to run: `python app.py`. Th
 
 > **Note:**
 > You can see more detail on the `docker run` command in the [command
-> reference](../../reference/commandline/run.md) and the [Docker Run
-> Reference](../../reference/run.md).
+> reference](../reference/commandline/run.md) and the [Docker Run
+> Reference](../reference/run.md).
 
 ## Viewing our web application container
 

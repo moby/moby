@@ -1,6 +1,9 @@
 <!--[metadata]>
 +++
-aliases = ["/engine/userguide/dockervolumes/"]
+aliases = [
+"/engine/userguide/containers/dockervolumes/",
+"/engine/userguide/dockervolumes/"
+]
 title = "Manage data in containers"
 description = "How to manage data inside your Docker containers."
 keywords = ["Examples, Usage, volume, docker, documentation, user guide, data,  volumes"]
@@ -12,9 +15,9 @@ parent = "engine_learn"
 # Manage data in containers
 
 So far you've been introduced to some [basic Docker
-concepts](../containers/usingdocker.md), seen how to work with [Docker
-images](../containers/dockerimages.md) as well as learned about [networking and
-links between containers](../networking/default_network/dockerlinks.md). In this
+concepts](usingdocker.md), seen how to work with [Docker
+images](dockerimages.md) as well as learned about [networking and
+links between containers](../userguide/networking/default_network/dockerlinks.md). In this
 section you're going to learn how you can manage data inside and between your
 Docker containers.
 
@@ -27,7 +30,7 @@ Docker Engine.
 ## Data volumes
 
 A *data volume* is a specially-designated directory within one or more
-containers that bypasses the [*Union File System*](../../reference/glossary.md#union-file-system). Data volumes provide several useful features for persistent or shared data:
+containers that bypasses the [*Union File System*](../reference/glossary.md#union-file-system). Data volumes provide several useful features for persistent or shared data:
 
 - Volumes are initialized when a container is created. If the container's
   base image contains data at the specified mount point, that existing data is
@@ -170,7 +173,7 @@ user with access to host and its mounted directory.
 ### Mount a shared-storage volume as a data volume
 
 In addition to mounting a host directory in your container, some Docker
-[volume plugins](../../extend/plugins_volume.md) allow you to
+[volume plugins](../extend/plugins_volume.md) allow you to
 provision and mount shared storage, such as iSCSI, NFS, or FC.
 
 A benefit of using shared volumes is that they are host-independent. This
@@ -207,7 +210,7 @@ $ docker run -d -P \
 ```
 
 A list of available plugins, including volume plugins, is available
-[here](../../extend/plugins.md).
+[here](../extend/plugins.md).
 
 ### Volume labels
 
@@ -278,7 +281,7 @@ from the `dbstore` container are visible.
 
 You can use multiple `--volumes-from` parameters to combine data volumes from
 several containers. To find detailed information about `--volumes-from` see the
-[Mount volumes from container](../../reference/commandline/run.md#mount-volumes-from-container-volumes-from)
+[Mount volumes from container](../reference/commandline/run.md#mount-volumes-from-container-volumes-from)
 in the `run` command reference.
 
 You can also extend the chain by mounting the volume that came from the
@@ -369,4 +372,4 @@ combine Docker with the services available on
 [Docker Hub](https://hub.docker.com) including Automated Builds and private
 repositories.
 
-Go to [Working with Docker Hub](../containers/dockerrepos.md).
+Go to [Store images in Docker Hub](dockerrepos.md).

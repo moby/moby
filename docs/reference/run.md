@@ -1078,7 +1078,7 @@ Both flags take limits in the `<device-path>:<limit>` format. Both read and
 write rates must be a positive integer.
 
 ## Additional groups
-    --group-add: Add additional groups to run as 
+    --group-add: Add additional groups to run as
 
 By default, the docker container process runs with the supplementary groups looked
 up for the specified user. If one wants to add more to that list of groups, then
@@ -1502,8 +1502,8 @@ The example below mounts an empty tmpfs into the container with the `rw`,
 > a volume.
 
 The volumes commands are complex enough to have their own documentation
-in section [*Managing data in
-containers*](../userguide/containers/dockervolumes.md). A developer can define
+in section [*Manage data in
+containers*](../tutorials/dockervolumes.md). A developer can define
 one or more `VOLUME`'s associated with an image, but only the operator
 can give access from one container to another (or from a container to a
 volume mounted on the host).
@@ -1532,7 +1532,7 @@ Dockerfile `USER` instruction. When starting a container, the operator can overr
 the `USER` instruction by passing the `-u` option.
 
     -u="", --user="": Sets the username or UID used and optionally the groupname or GID for the specified command.
- 
+
     The followings examples are all valid:
     --user=[ user | user:group | uid | uid:gid | user:gid | uid:group ]
 

@@ -1,11 +1,15 @@
 <!--[metadata]>
 +++
+aliases = [
+"/engine/userguide/containers/",
+]
 title = "Learn by example"
 description = "Explains how to work with containers"
 keywords = ["docker, introduction, documentation, about, technology, docker.io, user, guide, user's, manual, platform, framework, home,  intro"]
 [menu.main]
 identifier="engine_learn"
-parent = "engine_guide"
+parent = "engine_use"
+weight="-80"
 +++
 <![end-metadata]-->
 

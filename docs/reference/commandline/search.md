@@ -24,7 +24,7 @@ parent = "smn_cli"
 
 Search [Docker Hub](https://hub.docker.com) for images
 
-See [*Find Public Images on Docker Hub*](../../userguide/containers/dockerrepos.md#searching-for-images) for
+See [*Find Public Images on Docker Hub*](../../tutorials/dockerrepos.md#searching-for-images) for
 more details on finding shared images from the command line.
 
 > **Note:**
@@ -124,5 +124,3 @@ This example displays images with a name containing 'busybox', at least
     NAME                 DESCRIPTION                                     STARS     OFFICIAL   AUTOMATED
     progrium/busybox                                                     50                   [OK]
     radial/busyboxplus   Full-chain, Internet enabled, busybox made...   8                    [OK]
-
-

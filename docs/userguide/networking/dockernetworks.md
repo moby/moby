@@ -95,7 +95,7 @@ worth looking at the default `bridge` network a bit.
 
 
 ### The default bridge network in detail
-The default `bridge` network is present on all Docker hosts. The `docker network inspect` 
+The default `bridge` network is present on all Docker hosts. The `docker network inspect`
 command returns information about a network:
 
 ```
@@ -519,7 +519,7 @@ functionality in user-defined networks.
 
 - [Work with network commands](work-with-networks.md)
 - [Get started with multi-host networking](get-started-overlay.md)
-- [Managing Data in Containers](../containers/dockervolumes.md)
+- [Managing Data in Containers](../../tutorials/dockervolumes.md)
 - [Docker Machine overview](https://docs.docker.com/machine)
 - [Docker Swarm overview](https://docs.docker.com/swarm)
 - [Investigate the LibNetwork project](https://github.com/docker/libnetwork)

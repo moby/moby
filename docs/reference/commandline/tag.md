@@ -19,10 +19,10 @@ parent = "smn_cli"
 An image name is made up of slash-separated name components, optionally prefixed
 by a registry hostname. The hostname must comply with standard DNS rules, but
 may not contain underscores. If a hostname is present, it may optionally be
-followed by a port number in the format `:8080`. If not present, the command 
-uses Docker's public registry located at `registry-1.docker.io` by default. Name 
-components may contain lowercase characters, digits and separators. A separator 
-is defined as a period, one or two underscores, or one or more dashes. A name 
+followed by a port number in the format `:8080`. If not present, the command
+uses Docker's public registry located at `registry-1.docker.io` by default. Name
+components may contain lowercase characters, digits and separators. A separator
+is defined as a period, one or two underscores, or one or more dashes. A name
 component may not start or end with a separator.
 
 A tag name may contain lowercase and uppercase characters, digits, underscores,
@@ -30,20 +30,20 @@ periods and dashes. A tag name may not start with a period or a dash and may
 contain a maximum of 128 characters.
 
 You can group your images together using names and tags, and then upload them
-to [*Share Images via Repositories*](../../userguide/containers/dockerrepos.md#contributing-to-docker-hub).
+to [*Share Images via Repositories*](../../tutorials/dockerrepos.md#contributing-to-docker-hub).
 
 # Examples
 
 ## Tagging an image referenced by ID
 
-To tag a local image with ID "0e5574283393" into the "fedora" repository with 
+To tag a local image with ID "0e5574283393" into the "fedora" repository with
 "version1.0":
 
     docker tag 0e5574283393 fedora/httpd:version1.0
 
 ## Tagging an image referenced by Name
 
-To tag a local image with name "httpd" into the "fedora" repository with 
+To tag a local image with name "httpd" into the "fedora" repository with
 "version1.0":
 
     docker tag httpd fedora/httpd:version1.0

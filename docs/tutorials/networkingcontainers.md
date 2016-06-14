@@ -1,6 +1,9 @@
 <!--[metadata]>
 +++
-aliases = ["/engine/userguide/networkigncontainers/"]
+aliases = [
+"/engine/userguide/containers/networkigncontainers/",
+"/engine/userguide/networkigncontainers/"
+]
 title = "Network containers"
 description = "How to network Docker containers."
 keywords = ["Examples, Usage, volume, docker, documentation, user guide, data,  volumes"]

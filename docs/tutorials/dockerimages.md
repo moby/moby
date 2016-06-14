@@ -1,6 +1,9 @@
 <!--[metadata]>
 +++
-aliases = ["/engine/userguide/dockerimages/"]
+aliases = [
+"/engine/userguide/containers/dockerimages/",
+"/engine/userguide/dockerimages/"
+]
 title = "Build your own images"
 description = "How to work with Docker images."
 keywords = ["documentation, docs, the docker guide, docker guide, docker, docker platform, docker.io, Docker images, Docker image, image management, Docker repos, Docker repositories, docker, docker tag, docker tags, Docker Hub,  collaboration"]
@@ -472,10 +475,10 @@ You can then create a container from our new image.
 > This is just a brief introduction to creating images. We've
 > skipped a whole bunch of other instructions that you can use. We'll see more of
 > those instructions in later sections of the Guide or you can refer to the
-> [`Dockerfile`](../../reference/builder.md) reference for a
+> [`Dockerfile`](../reference/builder.md) reference for a
 > detailed description and examples of every instruction.
 > To help you write a clear, readable, maintainable `Dockerfile`, we've also
-> written a [`Dockerfile` Best Practices guide](../eng-image/dockerfile_best-practices.md).
+> written a [`Dockerfile` Best Practices guide](../userguide/eng-image/dockerfile_best-practices.md).
 
 
 ## Setting tags on an image

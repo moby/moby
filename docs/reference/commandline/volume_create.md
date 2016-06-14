@@ -73,4 +73,4 @@ $ docker volume create --driver local --opt type=btrfs --opt device=/dev/sda2
 * [volume inspect](volume_inspect.md)
 * [volume ls](volume_ls.md)
 * [volume rm](volume_rm.md)
-* [Understand Data Volumes](../../userguide/containers/dockervolumes.md)
+* [Understand Data Volumes](../../tutorials/dockervolumes.md)

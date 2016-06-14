@@ -45,4 +45,4 @@ Example output:
 * [volume create](volume_create.md)
 * [volume ls](volume_ls.md)
 * [volume rm](volume_rm.md)
-* [Understand Data Volumes](../../userguide/containers/dockervolumes.md)
+* [Understand Data Volumes](../../tutorials/dockervolumes.md)
