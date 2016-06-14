@@ -23,6 +23,5 @@ $ docker node accept <node name>
 
 ## Related information
 
-* [node reject](node_reject.md)
 * [node promote](node_promote.md)
 * [node demote](node_demote.md)
