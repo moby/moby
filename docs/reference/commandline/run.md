@@ -89,6 +89,7 @@ parent = "smn_cli"
       --read-only                   Mount the container's root filesystem as read only
       --restart="no"                Restart policy (no, on-failure[:max-retry], always, unless-stopped)
       --rm                          Automatically remove the container when it exits
+      --runtime=""                  Name of the runtime to be used for that container
       --shm-size=[]                 Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.  Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`.
       --security-opt=[]             Security Options
       --sig-proxy=true              Proxy received signals to the process

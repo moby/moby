@@ -3,6 +3,7 @@
 package daemon
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -515,7 +516,40 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 			return warnings, fmt.Errorf("cgroup-parent for systemd cgroup should be a valid slice named as \"xxx.slice\"")
 		}
 	}
+	if hostConfig.Runtime == "" {
+		hostConfig.Runtime = daemon.configStore.GetDefaultRuntimeName()
+	}
+
+	if rt := daemon.configStore.GetRuntime(hostConfig.Runtime); rt == nil {
+		return warnings, fmt.Errorf("Unknown runtime specified %s", hostConfig.Runtime)
+	}
+
 	return warnings, nil
+}
+
+// platformReload update configuration with platform specific options
+func (daemon *Daemon) platformReload(config *Config, attributes *map[string]string) {
+	if config.IsValueSet("runtimes") {
+		daemon.configStore.Runtimes = config.Runtimes
+		// Always set the default one
+		daemon.configStore.Runtimes[types.DefaultRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary}
+	}
+
+	if config.DefaultRuntime != "" {
+		daemon.configStore.DefaultRuntime = config.DefaultRuntime
+	}
+
+	// Update attributes
+	var runtimeList bytes.Buffer
+	for name, rt := range daemon.configStore.Runtimes {
+		if runtimeList.Len() > 0 {
+			runtimeList.WriteRune(' ')
+		}
+		runtimeList.WriteString(fmt.Sprintf("%s:%s", name, rt))
+	}
+
+	(*attributes)["runtimes"] = runtimeList.String()
+	(*attributes)["default-runtime"] = daemon.configStore.DefaultRuntime
 }
 
 // verifyDaemonSettings performs validation of daemon config struct
@@ -538,6 +572,15 @@ func verifyDaemonSettings(config *Config) error {
 			return fmt.Errorf("cgroup-parent for systemd cgroup should be a valid slice named as \"xxx.slice\"")
 		}
 	}
+
+	if config.DefaultRuntime == "" {
+		config.DefaultRuntime = types.DefaultRuntimeName
+	}
+	if config.Runtimes == nil {
+		config.Runtimes = make(map[string]types.Runtime)
+	}
+	config.Runtimes[types.DefaultRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary}
+
 	return nil
 }
 

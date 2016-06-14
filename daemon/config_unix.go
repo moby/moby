@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/docker/engine-api/types"
 	"github.com/docker/go-units"
 )
 
@@ -30,6 +31,8 @@ type Config struct {
 	ExecRoot             string                   `json:"exec-root,omitempty"`
 	RemappedRoot         string                   `json:"userns-remap,omitempty"`
 	Ulimits              map[string]*units.Ulimit `json:"default-ulimits,omitempty"`
+	Runtimes             map[string]types.Runtime `json:"runtimes,omitempty"`
+	DefaultRuntime       string                   `json:"default-runtime,omitempty"`
 }
 
 // bridgeConfig stores all the bridge driver specific
@@ -83,6 +86,37 @@ func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) strin
 	cmd.StringVar(&config.RemappedRoot, []string{"-userns-remap"}, "", usageFn("User/Group setting for user namespaces"))
 	cmd.StringVar(&config.ContainerdAddr, []string{"-containerd"}, "", usageFn("Path to containerd socket"))
 	cmd.BoolVar(&config.LiveRestore, []string{"-live-restore"}, false, usageFn("Enable live restore of docker when containers are still running"))
+	config.Runtimes = make(map[string]types.Runtime)
+	cmd.Var(runconfigopts.NewNamedRuntimeOpt("runtimes", &config.Runtimes), []string{"-add-runtime"}, usageFn("Register an additional OCI compatible runtime"))
+	cmd.StringVar(&config.DefaultRuntime, []string{"-default-runtime"}, types.DefaultRuntimeName, usageFn("Default OCI runtime to be used"))
 
 	config.attachExperimentalFlags(cmd, usageFn)
+}
+
+// GetRuntime returns the runtime path and arguments for a given
+// runtime name
+func (config *Config) GetRuntime(name string) *types.Runtime {
+	config.reloadLock.Lock()
+	defer config.reloadLock.Unlock()
+	if rt, ok := config.Runtimes[name]; ok {
+		return &rt
+	}
+	return nil
+}
+
+// GetDefaultRuntimeName returns the current default runtime
+func (config *Config) GetDefaultRuntimeName() string {
+	config.reloadLock.Lock()
+	rt := config.DefaultRuntime
+	config.reloadLock.Unlock()
+
+	return rt
+}
+
+// GetAllRuntimes returns a copy of the runtimes map
+func (config *Config) GetAllRuntimes() map[string]types.Runtime {
+	config.reloadLock.Lock()
+	rts := config.Runtimes
+	config.reloadLock.Unlock()
+	return rts
 }

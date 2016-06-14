@@ -60,6 +60,10 @@ import (
 )
 
 var (
+	// DefaultRuntimeBinary is the default runtime to be used by
+	// containerd if none is specified
+	DefaultRuntimeBinary = "docker-runc"
+
 	errSystemNotSupported = fmt.Errorf("The Docker daemon is not supported on this platform.")
 )
 
@@ -811,10 +815,24 @@ func (daemon *Daemon) initDiscovery(config *Config) error {
 // - Cluster discovery (reconfigure and restart).
 // - Daemon live restore
 func (daemon *Daemon) Reload(config *Config) error {
+	var err error
+	// used to hold reloaded changes
+	attributes := map[string]string{}
+
+	// We need defer here to ensure the lock is released as
+	// daemon.SystemInfo() will try to get it too
+	defer func() {
+		if err == nil {
+			daemon.LogDaemonEventWithAttributes("reload", attributes)
+		}
+	}()
+
 	daemon.configStore.reloadLock.Lock()
 	defer daemon.configStore.reloadLock.Unlock()
 
-	if err := daemon.reloadClusterDiscovery(config); err != nil {
+	daemon.platformReload(config, &attributes)
+
+	if err = daemon.reloadClusterDiscovery(config); err != nil {
 		return err
 	}
 
@@ -859,7 +877,6 @@ func (daemon *Daemon) Reload(config *Config) error {
 	}
 
 	// We emit daemon reload event here with updatable configurations
-	attributes := map[string]string{}
 	attributes["debug"] = fmt.Sprintf("%t", daemon.configStore.Debug)
 	attributes["cluster-store"] = daemon.configStore.ClusterStore
 	if daemon.configStore.ClusterOpts != nil {
@@ -877,7 +894,6 @@ func (daemon *Daemon) Reload(config *Config) error {
 	}
 	attributes["max-concurrent-downloads"] = fmt.Sprintf("%d", *daemon.configStore.MaxConcurrentDownloads)
 	attributes["max-concurrent-uploads"] = fmt.Sprintf("%d", *daemon.configStore.MaxConcurrentUploads)
-	daemon.LogDaemonEventWithAttributes("reload", attributes)
 
 	return nil
 }

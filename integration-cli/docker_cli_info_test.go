@@ -34,6 +34,10 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 		"Network:",
 	}
 
+	if DaemonIsLinux.Condition() {
+		stringsToCheck = append(stringsToCheck, "Runtimes:", "Default Runtime: default")
+	}
+
 	if utils.ExperimentalBuild() {
 		stringsToCheck = append(stringsToCheck, "Experimental: true")
 	}

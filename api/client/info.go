@@ -55,7 +55,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	ioutils.FprintfIfNotEmpty(cli.out, "Logging Driver: %s\n", info.LoggingDriver)
 	ioutils.FprintfIfNotEmpty(cli.out, "Cgroup Driver: %s\n", info.CgroupDriver)
 
-	fmt.Fprintf(cli.out, "Plugins: \n")
+	fmt.Fprintf(cli.out, "Plugins:\n")
 	fmt.Fprintf(cli.out, " Volume:")
 	fmt.Fprintf(cli.out, " %s", strings.Join(info.Plugins.Volume, " "))
 	fmt.Fprintf(cli.out, "\n")
@@ -84,6 +84,16 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 			fmt.Fprintf(cli.out, " IsManager: No\n")
 		}
 	}
+
+	if len(info.Runtimes) > 0 {
+		fmt.Fprintf(cli.out, "Runtimes:")
+		for name := range info.Runtimes {
+			fmt.Fprintf(cli.out, " %s", name)
+		}
+		fmt.Fprint(cli.out, "\n")
+		fmt.Fprintf(cli.out, "Default Runtime: %s\n", info.DefaultRuntime)
+	}
+
 	ioutils.FprintfIfNotEmpty(cli.out, "Kernel Version: %s\n", info.KernelVersion)
 	ioutils.FprintfIfNotEmpty(cli.out, "Operating System: %s\n", info.OperatingSystem)
 	ioutils.FprintfIfNotEmpty(cli.out, "OSType: %s\n", info.OSType)

@@ -2378,3 +2378,183 @@ func (s *DockerDaemonSuite) TestDaemonDnsOptionsInHostMode(c *check.C) {
 	out, _ := s.d.Cmd("run", "--net=host", "busybox", "cat", "/etc/resolv.conf")
 	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
 }
+
+func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
+	conf, err := ioutil.TempFile("", "config-file-")
+	c.Assert(err, check.IsNil)
+	configName := conf.Name()
+	conf.Close()
+	defer os.Remove(configName)
+
+	config := `
+{
+    "runtimes": {
+        "oci": {
+            "path": "docker-runc"
+        },
+        "vm": {
+            "path": "/usr/local/bin/vm-manager",
+            "runtimeArgs": [
+                "--debug"
+            ]
+        }
+    }
+}
+`
+	ioutil.WriteFile(configName, []byte(config), 0644)
+	err = s.d.Start("--config-file", configName)
+	c.Assert(err, check.IsNil)
+
+	// Run with default runtime
+	out, err := s.d.Cmd("run", "--rm", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with default runtime explicitely
+	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with oci (same path as default) but keep it around
+	out, err = s.d.Cmd("run", "--name", "oci-runtime-ls", "--runtime=oci", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with "vm"
+	out, err = s.d.Cmd("run", "--rm", "--runtime=vm", "busybox", "ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
+
+	// Reset config to only have the default
+	config = `
+{
+    "runtimes": {
+    }
+}
+`
+	ioutil.WriteFile(configName, []byte(config), 0644)
+	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+	// Give daemon time to reload config
+	<-time.After(1 * time.Second)
+
+	// Run with default runtime
+	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with "oci"
+	out, err = s.d.Cmd("run", "--rm", "--runtime=oci", "busybox", "ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Unknown runtime specified oci")
+
+	// Start previously created container with oci
+	out, err = s.d.Cmd("start", "oci-runtime-ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Unknown runtime specified oci")
+
+	// Check that we can't override the default runtime
+	config = `
+{
+    "runtimes": {
+        "default": {
+            "path": "docker-runc"
+        }
+    }
+}
+`
+	ioutil.WriteFile(configName, []byte(config), 0644)
+	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+	// Give daemon time to reload config
+	<-time.After(1 * time.Second)
+
+	content, _ := ioutil.ReadFile(s.d.logFile.Name())
+	c.Assert(string(content), checker.Contains, `file configuration validation failed (runtime name 'default' is reserved)`)
+
+	// Check that we can select a default runtime
+	config = `
+{
+    "default-runtime": "vm",
+    "runtimes": {
+        "oci": {
+            "path": "docker-runc"
+        },
+        "vm": {
+            "path": "/usr/local/bin/vm-manager",
+            "runtimeArgs": [
+                "--debug"
+            ]
+        }
+    }
+}
+`
+	ioutil.WriteFile(configName, []byte(config), 0644)
+	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+	// Give daemon time to reload config
+	<-time.After(1 * time.Second)
+
+	out, err = s.d.Cmd("run", "--rm", "busybox", "ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
+
+	// Run with default runtime explicitely
+	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+}
+
+func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *check.C) {
+	err := s.d.Start("--add-runtime", "oci=docker-runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
+	c.Assert(err, check.IsNil)
+
+	// Run with default runtime
+	out, err := s.d.Cmd("run", "--rm", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with default runtime explicitely
+	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with oci (same path as default) but keep it around
+	out, err = s.d.Cmd("run", "--name", "oci-runtime-ls", "--runtime=oci", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with "vm"
+	out, err = s.d.Cmd("run", "--rm", "--runtime=vm", "busybox", "ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
+
+	// Start a daemon without any extra runtimes
+	s.d.Stop()
+	err = s.d.Start()
+	c.Assert(err, check.IsNil)
+
+	// Run with default runtime
+	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with "oci"
+	out, err = s.d.Cmd("run", "--rm", "--runtime=oci", "busybox", "ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Unknown runtime specified oci")
+
+	// Start previously created container with oci
+	out, err = s.d.Cmd("start", "oci-runtime-ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Unknown runtime specified oci")
+
+	// Check that we can't override the default runtime
+	s.d.Stop()
+	err = s.d.Start("--add-runtime", "default=docker-runc")
+	c.Assert(err, check.NotNil)
+
+	content, _ := ioutil.ReadFile(s.d.logFile.Name())
+	c.Assert(string(content), checker.Contains, `runtime name 'default' is reserved`)
+
+	// Check that we can select a default runtime
+	s.d.Stop()
+	err = s.d.Start("--default-runtime=vm", "--add-runtime", "oci=docker-runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
+	c.Assert(err, check.IsNil)
+
+	out, err = s.d.Cmd("run", "--rm", "busybox", "ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
+
+	// Run with default runtime explicitely
+	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+}

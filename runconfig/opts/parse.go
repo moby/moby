@@ -101,6 +101,7 @@ type ContainerOptions struct {
 	flHealthInterval    *time.Duration
 	flHealthTimeout     *time.Duration
 	flHealthRetries     *int
+	flRuntime           *string
 
 	Image string
 	Args  []string
@@ -189,6 +190,7 @@ func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 		flHealthInterval:    flags.Duration("health-interval", 0, "Time between running the check"),
 		flHealthTimeout:     flags.Duration("health-timeout", 0, "Maximum time to allow one check to run"),
 		flHealthRetries:     flags.Int("health-retries", 0, "Consecutive failures needed to report unhealthy"),
+		flRuntime:           flags.String("runtime", "", "Runtime to use for this container"),
 	}
 
 	flags.VarP(&copts.flAttach, "attach", "a", "Attach to STDIN, STDOUT or STDERR")
@@ -229,7 +231,6 @@ func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 // a HostConfig and returns them with the specified command.
 // If the specified args are not valid, it will return an error.
 func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
-
 	var (
 		attachStdin  = copts.flAttach.Get("stdin")
 		attachStdout = copts.flAttach.Get("stdout")
@@ -564,6 +565,7 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 		Resources:      resources,
 		Tmpfs:          tmpfs,
 		Sysctls:        copts.flSysctls.GetAll(),
+		Runtime:        *copts.flRuntime,
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect
