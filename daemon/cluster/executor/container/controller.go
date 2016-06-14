@@ -1,7 +1,6 @@
 package container
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -151,33 +150,20 @@ func (r *controller) Wait(pctx context.Context) error {
 	ctx, cancel := context.WithCancel(pctx)
 	defer cancel()
 
-	c, err := r.adapter.wait(ctx)
+	err := r.adapter.wait(ctx)
 	if err != nil {
 		return err
 	}
-
-	<-c
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
-	ctnr, err := r.adapter.inspect(ctx)
 	if err != nil {
-		// TODO(stevvooe): Need to handle missing container here. It is likely
-		// that a Wait call with a not found error should result in no waiting
-		// and no error at all.
-		return err
-	}
-
-	if ctnr.State.ExitCode != 0 {
-		var cause error
-		if ctnr.State.Error != "" {
-			cause = errors.New(ctnr.State.Error)
+		ee := &exitError{}
+		if err.Error() != "" {
+			ee.cause = err
 		}
-		cstatus, _ := parseContainerStatus(ctnr)
-		return &exitError{
-			code:            ctnr.State.ExitCode,
-			cause:           cause,
-			containerStatus: cstatus,
+		if ec, ok := err.(exec.ExitCoder); ok {
+			ee.code = ec.ExitCode()
 		}
 	}
 	return nil
@@ -283,9 +269,8 @@ func parseContainerStatus(ctnr types.ContainerJSON) (*api.ContainerStatus, error
 }
 
 type exitError struct {
-	code            int
-	cause           error
-	containerStatus *api.ContainerStatus
+	code  int
+	cause error
 }
 
 func (e *exitError) Error() string {
@@ -297,7 +282,7 @@ func (e *exitError) Error() string {
 }
 
 func (e *exitError) ExitCode() int {
-	return int(e.containerStatus.ExitCode)
+	return int(e.code)
 }
 
 func (e *exitError) Cause() error {

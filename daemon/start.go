@@ -107,8 +107,8 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 		if err != nil {
 			container.SetError(err)
 			// if no one else has set it, make sure we don't leave it at zero
-			if container.ExitCode == 0 {
-				container.ExitCode = 128
+			if container.ExitCode() == 0 {
+				container.SetExitCode(128)
 			}
 			container.ToDisk()
 			daemon.Cleanup(container)
@@ -151,11 +151,11 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 			(strings.Contains(errDesc, "executable file not found") ||
 				strings.Contains(errDesc, "no such file or directory") ||
 				strings.Contains(errDesc, "system cannot find the file specified")) {
-			container.ExitCode = 127
+			container.SetExitCode(127)
 		}
 		// set to 126 for container cmd can't be invoked errors
 		if strings.Contains(errDesc, syscall.EACCES.Error()) {
-			container.ExitCode = 126
+			container.SetExitCode(126)
 		}
 
 		container.Reset(false)

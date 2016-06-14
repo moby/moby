@@ -24,7 +24,7 @@ type Backend interface {
 	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error
 	UpdateContainerServiceConfig(containerName string, serviceConfig *clustertypes.ServiceConfig) error
 	ContainerInspectCurrent(name string, size bool) (*types.ContainerJSON, error)
-	ContainerWaitWithContext(ctx context.Context, name string) (<-chan int, error)
+	ContainerWaitWithContext(ctx context.Context, name string) error
 	ContainerRm(name string, config *types.ContainerRmConfig) error
 	ContainerKill(name string, sig uint64) error
 	SystemInfo() (*types.Info, error)

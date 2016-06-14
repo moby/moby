@@ -24,8 +24,8 @@ type State struct {
 	RemovalInProgress bool // Not need for this to be persistent on disk.
 	Dead              bool
 	Pid               int
-	ExitCode          int
-	Error             string // contains last known error when starting the container
+	exitCode          int
+	error             string // contains last known error when starting the container
 	StartedAt         time.Time
 	FinishedAt        time.Time
 	waitChan          chan struct{}
@@ -46,7 +46,7 @@ func (s *State) String() string {
 			return fmt.Sprintf("Up %s (Paused)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
 		}
 		if s.Restarting {
-			return fmt.Sprintf("Restarting (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
+			return fmt.Sprintf("Restarting (%d) %s ago", s.exitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 		}
 
 		if h := s.Health; h != nil {
@@ -71,7 +71,7 @@ func (s *State) String() string {
 		return ""
 	}
 
-	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
+	return fmt.Sprintf("Exited (%d) %s ago", s.exitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 }
 
 // StateString returns a single string to describe state
@@ -129,7 +129,7 @@ func wait(waitChan <-chan struct{}, timeout time.Duration) error {
 func (s *State) WaitStop(timeout time.Duration) (int, error) {
 	s.Lock()
 	if !s.Running {
-		exitCode := s.ExitCode
+		exitCode := s.exitCode
 		s.Unlock()
 		return exitCode, nil
 	}
@@ -138,33 +138,38 @@ func (s *State) WaitStop(timeout time.Duration) (int, error) {
 	if err := wait(waitChan, timeout); err != nil {
 		return -1, err
 	}
-	return s.getExitCode(), nil
+	s.Lock()
+	defer s.Unlock()
+	return s.ExitCode(), nil
 }
 
 // WaitWithContext waits for the container to stop. Optional context can be
 // passed for canceling the request.
-func (s *State) WaitWithContext(ctx context.Context) <-chan int {
+func (s *State) WaitWithContext(ctx context.Context) error {
 	// todo(tonistiigi): make other wait functions use this
-	c := make(chan int)
-	go func() {
+	s.Lock()
+	if !s.Running {
+		state := *s
+		defer s.Unlock()
+		if state.exitCode == 0 {
+			return nil
+		}
+		return &state
+	}
+	waitChan := s.waitChan
+	s.Unlock()
+	select {
+	case <-waitChan:
 		s.Lock()
-		if !s.Running {
-			exitCode := s.ExitCode
-			s.Unlock()
-			c <- exitCode
-			close(c)
-			return
-		}
-		waitChan := s.waitChan
+		state := *s
 		s.Unlock()
-		select {
-		case <-waitChan:
-			c <- s.getExitCode()
-		case <-ctx.Done():
+		if state.exitCode == 0 {
+			return nil
 		}
-		close(c)
-	}()
-	return c
+		return &state
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // IsRunning returns whether the running flag is set. Used by Container to check whether a container is running.
@@ -183,20 +188,26 @@ func (s *State) GetPID() int {
 	return res
 }
 
-func (s *State) getExitCode() int {
-	s.Lock()
-	res := s.ExitCode
-	s.Unlock()
+// ExitCode returns current exitcode for the state. Take lock before if state
+// may be shared.
+func (s *State) ExitCode() int {
+	res := s.exitCode
 	return res
+}
+
+// SetExitCode set current exitcode for the state. Take lock before if state
+// may be shared.
+func (s *State) SetExitCode(ec int) {
+	s.exitCode = ec
 }
 
 // SetRunning sets the state of the container to "running".
 func (s *State) SetRunning(pid int, initial bool) {
-	s.Error = ""
+	s.error = ""
 	s.Running = true
 	s.Paused = false
 	s.Restarting = false
-	s.ExitCode = 0
+	s.exitCode = 0
 	s.Pid = pid
 	if initial {
 		s.StartedAt = time.Now().UTC()
@@ -248,7 +259,7 @@ func (s *State) SetRestarting(exitStatus *ExitStatus) {
 // know the error that occurred when container transits to another state
 // when inspecting it
 func (s *State) SetError(err error) {
-	s.Error = err.Error()
+	s.error = err.Error()
 }
 
 // IsPaused returns whether the container is paused or not.
@@ -291,4 +302,9 @@ func (s *State) SetDead() {
 	s.Lock()
 	s.Dead = true
 	s.Unlock()
+}
+
+// Error returns current error for the state.
+func (s *State) Error() string {
+	return s.error
 }
