@@ -2402,7 +2402,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
 }
 `
 	ioutil.WriteFile(configName, []byte(config), 0644)
-	err = s.d.Start("--config-file", configName)
+	err = s.d.StartWithBusybox("--config-file", configName)
 	c.Assert(err, check.IsNil)
 
 	// Run with default runtime
@@ -2498,7 +2498,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *check.C) {
-	err := s.d.Start("--add-runtime", "oci=docker-runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
+	err := s.d.StartWithBusybox("--add-runtime", "oci=docker-runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
 	c.Assert(err, check.IsNil)
 
 	// Run with default runtime
