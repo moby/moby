@@ -10,6 +10,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/iptables"
+	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 	"strconv"
@@ -214,12 +215,12 @@ func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (f
 	var (
 		crypt       *netlink.XfrmStateAlgo
 		action      = "Removing"
-		xfrmProgram = netlink.XfrmStateDel
+		xfrmProgram = ns.NlHandle().XfrmStateDel
 	)
 
 	if add {
 		action = "Adding"
-		xfrmProgram = netlink.XfrmStateAdd
+		xfrmProgram = ns.NlHandle().XfrmStateAdd
 		crypt = &netlink.XfrmStateAlgo{Name: "cbc(aes)", Key: k.value}
 	}
 
@@ -278,10 +279,10 @@ func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (f
 
 func programSP(fSA *netlink.XfrmState, rSA *netlink.XfrmState, add bool) error {
 	action := "Removing"
-	xfrmProgram := netlink.XfrmPolicyDel
+	xfrmProgram := ns.NlHandle().XfrmPolicyDel
 	if add {
 		action = "Adding"
-		xfrmProgram = netlink.XfrmPolicyAdd
+		xfrmProgram = ns.NlHandle().XfrmPolicyAdd
 	}
 
 	fullMask := net.CIDRMask(8*len(fSA.Src), 8*len(fSA.Src))
@@ -322,7 +323,7 @@ func programSP(fSA *netlink.XfrmState, rSA *netlink.XfrmState, add bool) error {
 }
 
 func saExists(sa *netlink.XfrmState) (bool, error) {
-	_, err := netlink.XfrmStateGet(sa)
+	_, err := ns.NlHandle().XfrmStateGet(sa)
 	switch err {
 	case nil:
 		return true, nil
@@ -336,7 +337,7 @@ func saExists(sa *netlink.XfrmState) (bool, error) {
 }
 
 func spExists(sp *netlink.XfrmPolicy) (bool, error) {
-	_, err := netlink.XfrmPolicyGet(sp)
+	_, err := ns.NlHandle().XfrmPolicyGet(sp)
 	switch err {
 	case nil:
 		return true, nil
@@ -482,7 +483,7 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 			Limits: netlink.XfrmStateLimits{TimeSoft: timeout},
 		}
 		log.Infof("Updating rSA0{%s}", rSA0)
-		if err := netlink.XfrmStateUpdate(rSA0); err != nil {
+		if err := ns.NlHandle().XfrmStateUpdate(rSA0); err != nil {
 			log.Warnf("Failed to update rSA0{%s}: %v", rSA0, err)
 		}
 	}
@@ -518,7 +519,7 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 			},
 		}
 		log.Infof("Updating fSP{%s}", fSP1)
-		if err := netlink.XfrmPolicyUpdate(fSP1); err != nil {
+		if err := ns.NlHandle().XfrmPolicyUpdate(fSP1); err != nil {
 			log.Warnf("Failed to update fSP{%s}: %v", fSP1, err)
 		}
 
@@ -533,7 +534,7 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 			Limits: netlink.XfrmStateLimits{TimeHard: timeout},
 		}
 		log.Infof("Removing fSA0{%s}", fSA0)
-		if err := netlink.XfrmStateUpdate(fSA0); err != nil {
+		if err := ns.NlHandle().XfrmStateUpdate(fSA0); err != nil {
 			log.Warnf("Failed to remove fSA0{%s}: %v", fSA0, err)
 		}
 	}

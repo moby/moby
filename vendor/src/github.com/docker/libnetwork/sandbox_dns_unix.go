@@ -139,6 +139,16 @@ func (sb *sandbox) updateParentHosts() error {
 	return nil
 }
 
+func (sb *sandbox) restorePath() {
+	if sb.config.resolvConfPath == "" {
+		sb.config.resolvConfPath = defaultPrefix + "/" + sb.id + "/resolv.conf"
+	}
+	sb.config.resolvConfHashFile = sb.config.resolvConfPath + ".hash"
+	if sb.config.hostsPath == "" {
+		sb.config.hostsPath = defaultPrefix + "/" + sb.id + "/hosts"
+	}
+}
+
 func (sb *sandbox) setupDNS() error {
 	var newRC *resolvconf.File
 

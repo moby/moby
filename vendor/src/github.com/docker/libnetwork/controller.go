@@ -203,15 +203,13 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		}
 	}
 
-	// Reserve pools first before doing cleanup. This is because
-	// if the pools are not populated properly, the cleanups of
-	// endpoint/network and sandbox below will not be able to
-	// release ip subnets and addresses properly into the pool
-	// because the pools won't exist.
+	// Reserve pools first before doing cleanup. Otherwise the
+	// cleanups of endpoint/network and sandbox below will
+	// generate many unnecessary warnings
 	c.reservePools()
 
 	// Cleanup resources
-	c.sandboxCleanup()
+	c.sandboxCleanup(c.cfg.ActiveSandboxes)
 	c.cleanupLocalEndpoints()
 	c.networkCleanup()
 
@@ -671,8 +669,26 @@ func (c *controller) reservePools() {
 				c.Gateway = n.ipamV6Info[i].Gateway.IP.String()
 			}
 		}
+		// Reserve pools
 		if err := n.ipamAllocate(); err != nil {
 			log.Warnf("Failed to allocate ipam pool(s) for network %q (%s): %v", n.Name(), n.ID(), err)
+		}
+		// Reserve existing endpoints' addresses
+		ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
+		if err != nil {
+			log.Warnf("Failed to retrieve ipam driver for network %q (%s) during address reservation", n.Name(), n.ID())
+			continue
+		}
+		epl, err := n.getEndpointsFromStore()
+		if err != nil {
+			log.Warnf("Failed to retrieve list of current endpoints on network %q (%s)", n.Name(), n.ID())
+			continue
+		}
+		for _, ep := range epl {
+			if err := ep.assignAddress(ipam, true, ep.Iface().AddressIPv6() != nil); err != nil {
+				log.Warnf("Failed to reserve current adress for endpoint %q (%s) on network %q (%s)",
+					ep.Name(), ep.ID(), n.Name(), n.ID())
+			}
 		}
 	}
 }
@@ -832,7 +848,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 
 	if sb.config.useDefaultSandBox {
 		c.sboxOnce.Do(func() {
-			c.defOsSbox, err = osl.NewSandbox(sb.Key(), false)
+			c.defOsSbox, err = osl.NewSandbox(sb.Key(), false, false)
 		})
 
 		if err != nil {
@@ -844,7 +860,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 	}
 
 	if sb.osSbox == nil && !sb.config.useExternalKey {
-		if sb.osSbox, err = osl.NewSandbox(sb.Key(), !sb.config.useDefaultSandBox); err != nil {
+		if sb.osSbox, err = osl.NewSandbox(sb.Key(), !sb.config.useDefaultSandBox, false); err != nil {
 			return nil, fmt.Errorf("failed to create new osl sandbox: %v", err)
 		}
 	}

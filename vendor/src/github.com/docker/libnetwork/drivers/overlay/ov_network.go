@@ -195,21 +195,21 @@ func (n *network) incEndpointCount() {
 	n.joinCnt++
 }
 
-func (n *network) joinSandbox() error {
+func (n *network) joinSandbox(restore bool) error {
 	// If there is a race between two go routines here only one will win
 	// the other will wait.
 	n.once.Do(func() {
 		// save the error status of initSandbox in n.initErr so that
 		// all the racing go routines are able to know the status.
-		n.initErr = n.initSandbox()
+		n.initErr = n.initSandbox(restore)
 	})
 
 	return n.initErr
 }
 
-func (n *network) joinSubnetSandbox(s *subnet) error {
+func (n *network) joinSubnetSandbox(s *subnet, restore bool) error {
 	s.once.Do(func() {
-		s.initErr = n.initSubnetSandbox(s)
+		s.initErr = n.initSubnetSandbox(s, restore)
 	})
 	return s.initErr
 }
@@ -386,9 +386,33 @@ func isOverlap(nw *net.IPNet) bool {
 	return false
 }
 
-func (n *network) initSubnetSandbox(s *subnet) error {
-	brName := n.generateBridgeName(s)
-	vxlanName := n.generateVxlanName(s)
+func (n *network) restoreSubnetSandbox(s *subnet, brName, vxlanName string) error {
+	sbox := n.sandbox()
+
+	// restore overlay osl sandbox
+	Ifaces := make(map[string][]osl.IfaceOption)
+	brIfaceOption := make([]osl.IfaceOption, 2)
+	brIfaceOption = append(brIfaceOption, sbox.InterfaceOptions().Address(s.gwIP))
+	brIfaceOption = append(brIfaceOption, sbox.InterfaceOptions().Bridge(true))
+	Ifaces[fmt.Sprintf("%s+%s", brName, "br")] = brIfaceOption
+
+	err := sbox.Restore(Ifaces, nil, nil, nil)
+	if err != nil {
+		return err
+	}
+
+	Ifaces = make(map[string][]osl.IfaceOption)
+	vxlanIfaceOption := make([]osl.IfaceOption, 1)
+	vxlanIfaceOption = append(vxlanIfaceOption, sbox.InterfaceOptions().Master(brName))
+	Ifaces[fmt.Sprintf("%s+%s", vxlanName, "vxlan")] = vxlanIfaceOption
+	err = sbox.Restore(Ifaces, nil, nil, nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error {
 
 	if hostMode {
 		// Try to delete stale bridge interface if it exists
@@ -451,6 +475,19 @@ func (n *network) initSubnetSandbox(s *subnet) error {
 		}
 	}
 
+	return nil
+}
+
+func (n *network) initSubnetSandbox(s *subnet, restore bool) error {
+	brName := n.generateBridgeName(s)
+	vxlanName := n.generateVxlanName(s)
+
+	if restore {
+		n.restoreSubnetSandbox(s, brName, vxlanName)
+	} else {
+		n.setupSubnetSandbox(s, brName, vxlanName)
+	}
+
 	n.Lock()
 	s.vxlanName = vxlanName
 	s.brName = brName
@@ -494,32 +531,45 @@ func (n *network) cleanupStaleSandboxes() {
 		})
 }
 
-func (n *network) initSandbox() error {
+func (n *network) initSandbox(restore bool) error {
 	n.Lock()
 	n.initEpoch++
 	n.Unlock()
 
 	networkOnce.Do(networkOnceInit)
 
-	if hostMode {
-		if err := addNetworkChain(n.id[:12]); err != nil {
-			return err
+	if !restore {
+		if hostMode {
+			if err := addNetworkChain(n.id[:12]); err != nil {
+				return err
+			}
 		}
+
+		// If there are any stale sandboxes related to this network
+		// from previous daemon life clean it up here
+		n.cleanupStaleSandboxes()
 	}
 
-	// If there are any stale sandboxes related to this network
-	// from previous daemon life clean it up here
-	n.cleanupStaleSandboxes()
+	// In the restore case network sandbox already exist; but we don't know
+	// what epoch number it was created with. It has to be retrieved by
+	// searching the net namespaces.
+	key := ""
+	if restore {
+		key = osl.GenerateKey("-" + n.id)
+	} else {
+		key = osl.GenerateKey(fmt.Sprintf("%d-", n.initEpoch) + n.id)
+	}
 
-	sbox, err := osl.NewSandbox(
-		osl.GenerateKey(fmt.Sprintf("%d-", n.initEpoch)+n.id), !hostMode)
+	sbox, err := osl.NewSandbox(key, !hostMode, restore)
 	if err != nil {
-		return fmt.Errorf("could not create network sandbox: %v", err)
+		return fmt.Errorf("could not get network sandbox (oper %t): %v", restore, err)
 	}
 
 	n.setSandbox(sbox)
 
-	n.driver.peerDbUpdateSandbox(n.id)
+	if !restore {
+		n.driver.peerDbUpdateSandbox(n.id)
+	}
 
 	var nlSock *nl.NetlinkSocket
 	sbox.InvokeFunc(func() {

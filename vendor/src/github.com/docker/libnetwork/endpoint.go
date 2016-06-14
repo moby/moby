@@ -84,6 +84,7 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 	epMap["name"] = ep.name
 	epMap["id"] = ep.id
 	epMap["ep_iface"] = ep.iface
+	epMap["joinInfo"] = ep.joinInfo
 	epMap["exposed_ports"] = ep.exposedPorts
 	if ep.generic != nil {
 		epMap["generic"] = ep.generic
@@ -114,6 +115,9 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 
 	ib, _ := json.Marshal(epMap["ep_iface"])
 	json.Unmarshal(ib, &ep.iface)
+
+	jb, _ := json.Marshal(epMap["joinInfo"])
+	json.Unmarshal(jb, &ep.joinInfo)
 
 	tb, _ := json.Marshal(epMap["exposed_ports"])
 	var tPorts []types.TransportPort
@@ -233,6 +237,11 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 	if ep.iface != nil {
 		dstEp.iface = &endpointInterface{}
 		ep.iface.CopyTo(dstEp.iface)
+	}
+
+	if ep.joinInfo != nil {
+		dstEp.joinInfo = &endpointJoinInfo{}
+		ep.joinInfo.CopyTo(dstEp.joinInfo)
 	}
 
 	dstEp.exposedPorts = make([]types.TransportPort, len(ep.exposedPorts))
@@ -1073,6 +1082,13 @@ func (ep *endpoint) releaseAddress() {
 }
 
 func (c *controller) cleanupLocalEndpoints() {
+	// Get used endpoints
+	eps := make(map[string]interface{})
+	for _, sb := range c.sandboxes {
+		for _, ep := range sb.endpoints {
+			eps[ep.id] = true
+		}
+	}
 	nl, err := c.getNetworksForScope(datastore.LocalScope)
 	if err != nil {
 		log.Warnf("Could not get list of networks during endpoint cleanup: %v", err)
@@ -1087,6 +1103,9 @@ func (c *controller) cleanupLocalEndpoints() {
 		}
 
 		for _, ep := range epl {
+			if _, ok := eps[ep.id]; ok {
+				continue
+			}
 			log.Infof("Removing stale endpoint %s (%s)", ep.name, ep.id)
 			if err := ep.Delete(true); err != nil {
 				log.Warnf("Could not delete local endpoint %s during endpoint cleanup: %v", ep.name, err)

@@ -28,9 +28,9 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 	ep := &endpoint{
 		id:     eid,
+		nid:    nid,
 		addr:   ifInfo.Address(),
 		addrv6: ifInfo.AddressIPv6(),
-		mac:    ifInfo.MacAddress(),
 	}
 	if ep.addr == nil {
 		return fmt.Errorf("create endpoint was not passed an IP address")
@@ -51,6 +51,11 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 			}
 		}
 	}
+
+	if err := d.storeUpdate(ep); err != nil {
+		return fmt.Errorf("failed to save ipvlan endpoint %s to store: %v", ep.id[0:7], err)
+	}
+
 	n.addEndpoint(ep)
 
 	return nil
@@ -72,6 +77,10 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	}
 	if link, err := ns.NlHandle().LinkByName(ep.srcName); err == nil {
 		ns.NlHandle().LinkDel(link)
+	}
+
+	if err := d.storeDelete(ep); err != nil {
+		logrus.Warnf("Failed to remove ipvlan endpoint %s from store: %v", ep.id[0:7], err)
 	}
 
 	return nil
