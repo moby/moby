@@ -492,7 +492,6 @@ Status Codes:
 
 Return low-level information on the container `id`
 
-
 **Example request**:
 
       GET /containers/4fa6e0f0c678/json HTTP/1.1
@@ -3305,6 +3304,1119 @@ Status Codes
 -   **204** - no error
 -   **404** - no such network
 -   **500** - server error
+
+## 3.6 Nodes
+
+**Note:** Nodes operations require to first be part of a Swarm.
+
+### List nodes
+
+**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+might be subject to non backward-compatible changes.
+
+`GET /nodes`
+
+List nodes
+
+**Example request**:
+
+    GET /nodes HTTP/1.1
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    [
+      {
+        "ID": "24ifsmvkjbyhk",
+        "Version": {
+          "Index": 8
+        },
+        "CreatedAt": "2016-06-07T20:31:11.853781916Z",
+        "UpdatedAt": "2016-06-07T20:31:11.999868824Z",
+        "Spec": {
+          "Role": "MANAGER",
+          "Membership": "ACCEPTED",
+          "Availability": "ACTIVE"
+        },
+        "Description": {
+          "Hostname": "bf3067039e47",
+          "Platform": {
+            "Architecture": "x86_64",
+            "OS": "linux"
+          },
+          "Resources": {
+            "NanoCPUs": 4000000000,
+            "MemoryBytes": 8272408576
+          },
+          "Engine": {
+            "EngineVersion": "1.12.0-dev",
+            "Plugins": [
+              {
+                "Type": "Volume",
+                "Name": "local"
+              },
+              {
+                "Type": "Network",
+                "Name": "overlay"
+              }
+            ]
+          }
+        },
+        "Status": {
+          "State": "READY"
+        },
+        "Manager": {
+          "Raft": {
+            "RaftID": 10070664527094528000,
+            "Addr": "172.17.0.2:4500",
+            "Status": {
+              "Leader": true,
+              "Reachability": "REACHABLE"
+            }
+          }
+        },
+        "Attachment": {
+          "Network": {
+            "ID": "4qvuz4ko70xaltuqbt8956gd1",
+            "Version": {
+              "Index": 6
+            },
+            "CreatedAt": "2016-06-07T20:31:11.912919752Z",
+            "UpdatedAt": "2016-06-07T20:31:11.921784144Z",
+            "Spec": {
+              "Name": "ingress",
+              "Labels": {
+                "com.docker.swarm.internal": "true"
+              },
+              "DriverConfiguration": {},
+              "IPAM": {
+                "Driver": {},
+                "Configs": [
+                  {
+                    "Family": "UNKNOWN",
+                    "Subnet": "10.255.0.0/16"
+                  }
+                ]
+              }
+            },
+            "DriverState": {
+              "Name": "overlay",
+              "Options": {
+                "com.docker.network.driver.overlay.vxlanid_list": "256"
+              }
+            },
+            "IPAM": {
+              "Driver": {
+                "Name": "default"
+              },
+              "Configs": [
+                {
+                  "Family": "UNKNOWN",
+                  "Subnet": "10.255.0.0/16"
+                }
+              ]
+            }
+          },
+          "Addresses": [
+            "10.255.0.2/16"
+          ]
+        }
+      }
+    ]
+
+Query Parameters:
+
+- **filters** – a JSON encoded value of the filters (a `map[string][]string`) to process on the
+  nodes list. Available filters:
+  - `id=<node id>`
+  - `name=<node name>`
+  - `membership=`(`pending`|`accepted`|`rejected`)`
+  - `role=`(`worker`|`manager`)`
+
+Status Codes:
+
+- **200** – no error
+- **500** – server error
+
+### Inspect a node
+
+**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+might be subject to non backward-compatible changes.
+
+`GET /nodes/<id>`
+
+Return low-level information on the node `id`
+
+**Example request**:
+
+      GET /node/24ifsmvkjbyhk HTTP/1.1
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+      "ID": "24ifsmvkjbyhk",
+      "Version": {
+        "Index": 8
+      },
+      "CreatedAt": "2016-06-07T20:31:11.853781916Z",
+      "UpdatedAt": "2016-06-07T20:31:11.999868824Z",
+      "Spec": {
+        "Role": "MANAGER",
+        "Membership": "ACCEPTED",
+        "Availability": "ACTIVE"
+      },
+      "Description": {
+        "Hostname": "bf3067039e47",
+        "Platform": {
+          "Architecture": "x86_64",
+          "OS": "linux"
+        },
+        "Resources": {
+          "NanoCPUs": 4000000000,
+          "MemoryBytes": 8272408576
+        },
+        "Engine": {
+          "EngineVersion": "1.12.0-dev",
+          "Plugins": [
+            {
+              "Type": "Volume",
+              "Name": "local"
+            },
+            {
+              "Type": "Network",
+              "Name": "overlay"
+            }
+          ]
+        }
+      },
+      "Status": {
+        "State": "READY"
+      },
+      "Manager": {
+        "Raft": {
+          "RaftID": 10070664527094528000,
+          "Addr": "172.17.0.2:4500",
+          "Status": {
+            "Leader": true,
+            "Reachability": "REACHABLE"
+          }
+        }
+      },
+      "Attachment": {
+        "Network": {
+          "ID": "4qvuz4ko70xaltuqbt8956gd1",
+          "Version": {
+            "Index": 6
+          },
+          "CreatedAt": "2016-06-07T20:31:11.912919752Z",
+          "UpdatedAt": "2016-06-07T20:31:11.921784144Z",
+          "Spec": {
+            "Name": "ingress",
+            "Labels": {
+              "com.docker.swarm.internal": "true"
+            },
+            "DriverConfiguration": {},
+            "IPAM": {
+              "Driver": {},
+              "Configs": [
+                {
+                  "Family": "UNKNOWN",
+                  "Subnet": "10.255.0.0/16"
+                }
+              ]
+            }
+          },
+          "DriverState": {
+            "Name": "overlay",
+            "Options": {
+              "com.docker.network.driver.overlay.vxlanid_list": "256"
+            }
+          },
+          "IPAM": {
+            "Driver": {
+              "Name": "default"
+            },
+            "Configs": [
+              {
+                "Family": "UNKNOWN",
+                "Subnet": "10.255.0.0/16"
+              }
+            ]
+          }
+        },
+        "Addresses": [
+          "10.255.0.2/16"
+        ]
+      }
+    }
+
+Status Codes:
+
+-   **200** – no error
+-   **404** – no such node
+-   **500** – server error
+
+## 3.7 Swarm
+
+### Initialize a new Swarm
+
+**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+might be subject to non backward-compatible changes.
+
+`POST /swarm/init`
+
+Initialize a new Swarm
+
+**Example request**:
+
+    POST /swarm/init HTTP/1.1
+    Content-Type: application/json
+
+    {
+      "ListenAddr": "0.0.0.0:4500",
+      "ForceNewCluster": false,
+      "Spec": {
+        "AcceptancePolicy": {
+          "Policies": [
+            {
+              "Role": "MANAGER",
+              "Autoaccept": false
+            },
+            {
+              "Role": "WORKER",
+              "Autoaccept": true
+            }
+          ]
+        },
+        "Orchestration": {},
+        "Raft": {},
+        "Dispatcher": {},
+        "CAConfig": {}
+      }
+    }
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Length: 0
+    Content-Type: text/plain; charset=utf-8
+
+Status Codes:
+
+- **200** – no error
+- **400** – bad parameter
+- **500** – server error or node is already part of a Swarm
+
+JSON Parameters:
+
+- **ListenAddr** – Listen address used for inter-manager communication, as well as determining.
+  the networking interface used for the VXLAN Tunnel Endpoint (VTEP).
+- **ForceNewCluster** – Force creating a new Swarm even if already part of one.
+- **Spec** – Configuration settings of the new Swarm.
+    - **Policies** – An array of acceptance policies.
+        - **Role** – The role that policy applies to (`MANAGER` or `WORKER`)
+        - **Autoaccept** – A boolean indicating whether nodes joining for that role should be
+          automatically accepted in the Swarm.
+        - **Secret** – An optional secret to provide for nodes to join the Swarm.
+    - **Orchestration** – Configuration settings for the orchestration aspects of the Swarm.
+        - **TaskHistoryRetentionLimit** – Maximum number of tasks history stored.
+    - **RaftConfig** – Raft related configuration.
+        - **SnapshotInterval** – (TODO)
+        - **KeepOldSnapshots** – (TODO)
+        - **LogEntriesForSlowFollowers** – (TODO)
+        - **HeartbeatTick** – (TODO)
+        - **ElectionTick** – (TODO)
+    - **DispatcherConfig** – Configuration settings for the task dispatcher.
+        - **HeartbeatPeriod** – (TODO)
+    - **CAConfig** – CA configuration.
+        - **NodeCertExpiry** – Automatic expiry for nodes certificates.
+
+### Join an existing Swarm
+
+**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+might be subject to non backward-compatible changes.
+
+`POST /swarm/join`
+
+Join an existing new Swarm
+
+**Example request**:
+
+    POST /swarm/join HTTP/1.1
+    Content-Type: application/json
+
+    {
+      "ListenAddr": "0.0.0.0:4500",
+      "RemoteAddr": "node1:4500",
+      "Secret": "",
+      "CAHash": "",
+      "Manager": false
+    }
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Length: 0
+    Content-Type: text/plain; charset=utf-8
+
+Status Codes:
+
+- **200** – no error
+- **400** – bad parameter
+- **500** – server error or node is already part of a Swarm
+
+JSON Parameters:
+
+- **ListenAddr** – Listen address used for inter-manager communication if the node gets promoted to
+  manager, as well as determining the networking interface used for the VXLAN Tunnel Endpoint (VTEP).
+- **RemoteAddr** – Address of any manager node already participating in the Swarm to join.
+- **Secret** – Secret token for joining this Swarm.
+- **CAHash** – Optional hash of the root CA to avoid relying on trust on first use.
+- **Manager** – Directly join as a manager (only for a Swarm configured to autoaccept managers).
+
+### Leave a Swarm
+
+**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+might be subject to non backward-compatible changes.
+
+`POST /swarm/leave`
+
+Leave a Swarm
+
+**Example request**:
+
+    POST /swarm/leave HTTP/1.1
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Length: 0
+    Content-Type: text/plain; charset=utf-8
+
+Status Codes:
+
+- **200** – no error
+- **500** – server error or node is not part of a Swarm
+
+### Update a Swarm
+
+**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+might be subject to non backward-compatible changes.
+
+`POST /swarm/update`
+
+Update a Swarm
+
+**Example request**:
+
+    POST /swarm/update HTTP/1.1
+
+    (TODO)
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Length: 0
+    Content-Type: text/plain; charset=utf-8
+
+    (TODO)
+
+Status Codes:
+
+- **200** – no error
+- **400** – bad parameter
+- **500** – server error or node is not part of a Swarm
+
+## 3.8 Services
+
+**Note:** Service operations require to first be part of a Swarm.
+
+### List services
+
+**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+might be subject to non backward-compatible changes.
+
+`GET /services`
+
+List services
+
+**Example request**:
+
+    GET /services HTTP/1.1
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    [
+      {
+        "ID": "9mnpnzenvg8p8tdbtq4wvbkcz",
+        "Version": {
+          "Index": 19
+        },
+        "CreatedAt": "2016-06-07T21:05:51.880065305Z",
+        "UpdatedAt": "2016-06-07T21:07:29.962229872Z",
+        "Spec": {
+          "Name": "hopeful_cori",
+          "Task": {
+            "ContainerSpec": {
+              "Image": "redis"
+            },
+            "Resources": {
+              "Limits": {},
+              "Reservations": {}
+            },
+            "RestartPolicy": {
+              "Condition": "ANY"
+            },
+            "Placement": {}
+          },
+          "Mode": {
+            "Replicated": {
+              "Instances": 1
+            }
+          },
+          "UpdateConfig": {
+            "Parallelism": 1
+          },
+          "EndpointSpec": {
+            "Mode": "VIP",
+            "Ingress": "PUBLICPORT",
+            "ExposedPorts": [
+              {
+                "Protocol": "tcp",
+                "Port": 6379
+              }
+            ]
+          }
+        },
+        "Endpoint": {
+          "Spec": {},
+          "ExposedPorts": [
+            {
+              "Protocol": "tcp",
+              "Port": 6379,
+              "PublicPort": 30000
+            }
+          ],
+          "VirtualIPs": [
+            {
+              "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
+              "Addr": "10.255.0.2/16"
+            },
+            {
+              "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
+              "Addr": "10.255.0.3/16"
+            }
+          ]
+        }
+      }
+    ]
+
+Query Parameters:
+
+- **filters** – a JSON encoded value of the filters (a `map[string][]string`) to process on the
+  services list. Available filters:
+  - `id=<node id>`
+  - `name=<node name>`
+
+Status Codes:
+
+- **200** – no error
+- **500** – server error
+
+### Create a service
+
+**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+might be subject to non backward-compatible changes.
+
+`POST /services/create`
+
+Create a service
+
+**Example request**:
+
+    POST /service/create HTTP/1.1
+    Content-Type: application/json
+
+    {
+      "Name": "redis",
+      "Task": {
+        "ContainerSpec": {
+          "Image": "redis"
+        },
+        "Resources": {
+          "Limits": {},
+          "Reservations": {}
+        },
+        "RestartPolicy": {},
+        "Placement": {}
+      },
+      "Mode": {
+        "Replicated": {
+          "Instances": 1
+        }
+      },
+      "UpdateConfig": {
+        "Parallelism": 1
+      },
+      "EndpointSpec": {
+        "ExposedPorts": [
+          {
+            "Protocol": "tcp",
+            "Port": 6379
+          }
+        ]
+      }
+    }
+
+**Example response**:
+
+    HTTP/1.1 201 Created
+    Content-Type: application/json
+
+    {
+      "Id":"ak7w3gjqoa3kuz8xcpnyy0pvl"
+    }
+
+Status Codes:
+
+- **201** – no error
+- **500** – server error or node is not part of a Swarm
+
+JSON Parameters:
+
+- **Annotations** – Optional medata to associate with the service.
+    - **Name** – User-defined name for the service.
+    - **Labels** – A map of labels to associate with the service (e.g.,
+      `{"key":"value"[,"key2":"value2"]}`).
+- **Task** – Specification of the tasks to start as part of the new service.
+    - **ContainerSpec** - Container settings for containers started as part of this task.
+        - **Image** – A string specifying the image name to use for the container.
+        - **Command** – The command to be run in the image.
+        - **Args** – Arguments to the command.
+        - **Env** – A list of environment variables in the form of `["VAR=value"[,"VAR2=value2"]]`.
+        - **Dir** – A string specifying the working directory for commands to run in.
+        - **User** – A string value specifying the user inside the container.
+        - **Labels** – A map of labels to associate with the service (e.g.,
+          `{"key":"value"[,"key2":"value2"]}`).
+        - **Mounts** – Specification for mounts to be added to containers created as part of the new
+          service.
+            - **Target** – Container path.
+            - **Source** – Optional host path to be mounted in the target.
+            - **Type** – The mount type (`bind`, `epheremal`, or `volume`).
+            - **VolumeName** – A name for the volume.
+            - **Populate** – A boolean indicating if volume should be populated with the data form the
+              target (defaults to false).
+            - **Propagation** – A propagation mode with the value `[r]private`, `[r]shared`, or
+              `[r]slave` (`bind` type mounts only).
+            - **MCSAccessMode** – MCS label for sharing mode (`bind` type mounts only).
+            - **Writable** – A boolean indicating whether the mount should be writable.
+            - **VolumeTemplate** – Optional configuration for the volume.
+                - **Annotations** – User-defined name and labels for the volume.
+                - **Driver** – Name of the driver to be used and driver-specific options.
+        - **StopGracePeriod** – Amount of time to wait for the container to terminate before
+          forcefully killing it.
+    - **Resources** – Resource requirements which apply to each individual container created as part
+      of the service.
+        - **Limits** – Define resources limits.
+            - **CPU** – CPU limit
+            - **Memory** – Memory limit
+        - **Reservation** – Define resources reservation.
+            - **CPU** – CPU reservation
+            - **Memory** – Memory reservation
+    - **RestartPolicy** – Specification for the restart policy which applies to containers created
+      as part of this service.
+        - **Condition** – Condition for restart (`none`, `on_failure`, or `any`).
+        - **Delay** – Delay between restart attempts.
+        - **Attempts** – Maximum attempts to restart a given container before giving up (default value
+          is 0, which is ignored).
+        - **Window** – Windows is the time window used to evaluate the restart policy (default value is
+          0, which is unbounded).
+    - **Placement** – An array of constraints.
+- **Mode** – Scheduling mode for the service (`replicated` or `global`, defaults to `replicated`).
+- **UpdateConfig** – Specification for the update strategy of the service.
+    - **Parallelism** – Maximum number of tasks to be updated in one iteration (0 means unlimited
+      parallelism).
+    - **Delay** – Amount of time between updates.
+- **Networks** – Array of network names or IDs to attach the service to.
+- **EndpointSpec** – (TODO)
+    - **EndpointSpecStrategy** – `network` or `disabled` (TODO)
+    - **ExposedPorts** – An object mapping ports to an empty object in the form of:
+      `"ExposedPorts": { "<port>/<tcp|udp>: {}" }`
+
+### Remove a service
+
+**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+might be subject to non backward-compatible changes.
+
+`DELETE /service/(id or name)`
+
+Stop and remove the service `id`
+
+**Example request**:
+
+    DELETE /service/16253994b7c4 HTTP/1.1
+
+**Example response**:
+
+    HTTP/1.1 204 No Content
+
+Status Codes:
+
+-   **204** – no error
+-   **404** – no such service
+-   **500** – server error
+
+### Inspect a service
+
+**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+might be subject to non backward-compatible changes.
+
+`GET /service/(id or name)`
+
+Return information on the service `id`.
+
+**Example request**:
+
+    GET /service/1cb4dnqcyx6m66g2t538x3rxha HTTP/1.1
+
+**Example response**:
+
+    {
+      "ID": "ak7w3gjqoa3kuz8xcpnyy0pvl",
+      "Version": {
+        "Index": 95
+      },
+      "CreatedAt": "2016-06-07T21:10:20.269723157Z",
+      "UpdatedAt": "2016-06-07T21:10:20.276301259Z",
+      "Spec": {
+        "Name": "redis",
+        "Task": {
+          "ContainerSpec": {
+            "Image": "redis"
+          },
+          "Resources": {
+            "Limits": {},
+            "Reservations": {}
+          },
+          "RestartPolicy": {
+            "Condition": "ANY"
+          },
+          "Placement": {}
+        },
+        "Mode": {
+          "Replicated": {
+            "Instances": 1
+          }
+        },
+        "UpdateConfig": {
+          "Parallelism": 1
+        },
+        "EndpointSpec": {
+          "Mode": "VIP",
+          "Ingress": "PUBLICPORT",
+          "ExposedPorts": [
+            {
+              "Protocol": "tcp",
+              "Port": 6379
+            }
+          ]
+        }
+      },
+      "Endpoint": {
+        "Spec": {},
+        "ExposedPorts": [
+          {
+            "Protocol": "tcp",
+            "Port": 6379,
+            "PublicPort": 30001
+          }
+        ],
+        "VirtualIPs": [
+          {
+            "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
+            "Addr": "10.255.0.4/16"
+          }
+        ]
+      }
+    }
+
+Status Codes:
+
+-   **200** – no error
+-   **404** – no such service
+-   **500** – server error
+
+### Update a service
+
+(TODO)
+
+## 3.9 Tasks
+
+**Note:** Tasks operations require to first be part of a Swarm.
+
+### List tasks
+
+**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+might be subject to non backward-compatible changes.
+
+`GET /tasks`
+
+List tasks
+
+**Example request**:
+
+    GET /tasks HTTP/1.1
+
+**Example response**:
+
+    [
+      {
+        "ID": "0kzzo1i0y4jz6027t0k7aezc7",
+        "Version": {
+          "Index": 71
+        },
+        "CreatedAt": "2016-06-07T21:07:31.171892745Z",
+        "UpdatedAt": "2016-06-07T21:07:31.376370513Z",
+        "Name": "hopeful_cori",
+        "Spec": {
+          "ContainerSpec": {
+            "Image": "redis"
+          },
+          "Resources": {
+            "Limits": {},
+            "Reservations": {}
+          },
+          "RestartPolicy": {
+            "Condition": "ANY"
+          },
+          "Placement": {}
+        },
+        "ServiceID": "9mnpnzenvg8p8tdbtq4wvbkcz",
+        "Instance": 1,
+        "NodeID": "24ifsmvkjbyhk",
+        "ServiceAnnotations": {},
+        "Status": {
+          "Timestamp": "2016-06-07T21:07:31.290032978Z",
+          "State": "FAILED",
+          "Message": "execution failed",
+          "ContainerStatus": {}
+        },
+        "DesiredState": "SHUTDOWN",
+        "NetworksAttachments": [
+          {
+            "Network": {
+              "ID": "4qvuz4ko70xaltuqbt8956gd1",
+              "Version": {
+                "Index": 18
+              },
+              "CreatedAt": "2016-06-07T20:31:11.912919752Z",
+              "UpdatedAt": "2016-06-07T21:07:29.955277358Z",
+              "Spec": {
+                "Name": "ingress",
+                "Labels": {
+                  "com.docker.swarm.internal": "true"
+                },
+                "DriverConfiguration": {},
+                "IPAM": {
+                  "Driver": {},
+                  "Configs": [
+                    {
+                      "Family": "UNKNOWN",
+                      "Subnet": "10.255.0.0/16"
+                    }
+                  ]
+                }
+              },
+              "DriverState": {
+                "Name": "overlay",
+                "Options": {
+                  "com.docker.network.driver.overlay.vxlanid_list": "256"
+                }
+              },
+              "IPAM": {
+                "Driver": {
+                  "Name": "default"
+                },
+                "Configs": [
+                  {
+                    "Family": "UNKNOWN",
+                    "Subnet": "10.255.0.0/16"
+                  }
+                ]
+              }
+            },
+            "Addresses": [
+              "10.255.0.10/16"
+            ]
+          }
+        ],
+        "Endpoint": {
+          "Spec": {},
+          "ExposedPorts": [
+            {
+              "Protocol": "tcp",
+              "Port": 6379,
+              "PublicPort": 30000
+            }
+          ],
+          "VirtualIPs": [
+            {
+              "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
+              "Addr": "10.255.0.2/16"
+            },
+            {
+              "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
+              "Addr": "10.255.0.3/16"
+            }
+          ]
+        }
+      },
+      {
+        "ID": "1yljwbmlr8er2waf8orvqpwms",
+        "Version": {
+          "Index": 30
+        },
+        "CreatedAt": "2016-06-07T21:07:30.019104782Z",
+        "UpdatedAt": "2016-06-07T21:07:30.231958098Z",
+        "Name": "hopeful_cori",
+        "Spec": {
+          "ContainerSpec": {
+            "Image": "redis"
+          },
+          "Resources": {
+            "Limits": {},
+            "Reservations": {}
+          },
+          "RestartPolicy": {
+            "Condition": "ANY"
+          },
+          "Placement": {}
+        },
+        "ServiceID": "9mnpnzenvg8p8tdbtq4wvbkcz",
+        "Instance": 1,
+        "NodeID": "24ifsmvkjbyhk",
+        "ServiceAnnotations": {},
+        "Status": {
+          "Timestamp": "2016-06-07T21:07:30.202183143Z",
+          "State": "FAILED",
+          "Message": "execution failed",
+          "ContainerStatus": {}
+        },
+        "DesiredState": "SHUTDOWN",
+        "NetworksAttachments": [
+          {
+            "Network": {
+              "ID": "4qvuz4ko70xaltuqbt8956gd1",
+              "Version": {
+                "Index": 18
+              },
+              "CreatedAt": "2016-06-07T20:31:11.912919752Z",
+              "UpdatedAt": "2016-06-07T21:07:29.955277358Z",
+              "Spec": {
+                "Name": "ingress",
+                "Labels": {
+                  "com.docker.swarm.internal": "true"
+                },
+                "DriverConfiguration": {},
+                "IPAM": {
+                  "Driver": {},
+                  "Configs": [
+                    {
+                      "Family": "UNKNOWN",
+                      "Subnet": "10.255.0.0/16"
+                    }
+                  ]
+                }
+              },
+              "DriverState": {
+                "Name": "overlay",
+                "Options": {
+                  "com.docker.network.driver.overlay.vxlanid_list": "256"
+                }
+              },
+              "IPAM": {
+                "Driver": {
+                  "Name": "default"
+                },
+                "Configs": [
+                  {
+                    "Family": "UNKNOWN",
+                    "Subnet": "10.255.0.0/16"
+                  }
+                ]
+              }
+            },
+            "Addresses": [
+              "10.255.0.5/16"
+            ]
+          }
+        ],
+        "Endpoint": {
+          "Spec": {},
+          "ExposedPorts": [
+            {
+              "Protocol": "tcp",
+              "Port": 6379,
+              "PublicPort": 30000
+            }
+          ],
+          "VirtualIPs": [
+            {
+              "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
+              "Addr": "10.255.0.2/16"
+            },
+            {
+              "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
+              "Addr": "10.255.0.3/16"
+            }
+          ]
+        }
+      }
+    ]
+
+Query Parameters:
+
+- **filters** – a JSON encoded value of the filters (a `map[string][]string`) to process on the
+  services list. Available filters:
+  - `id=<task id>`
+  - `name=<task name>`
+  - `service=<service name>`
+
+Status Codes:
+
+- **200** – no error
+- **500** – server error
+
+### Inspect a task
+
+**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+might be subject to non backward-compatible changes.
+
+`GET /tasks/(task id)`
+
+Get details on a task
+
+**Example request**:
+
+    GET /tasks/0kzzo1i0y4jz6027t0k7aezc7 HTTP/1.1
+
+**Example response**:
+
+    {
+      "ID": "0kzzo1i0y4jz6027t0k7aezc7",
+      "Version": {
+        "Index": 71
+      },
+      "CreatedAt": "2016-06-07T21:07:31.171892745Z",
+      "UpdatedAt": "2016-06-07T21:07:31.376370513Z",
+      "Name": "hopeful_cori",
+      "Spec": {
+        "ContainerSpec": {
+          "Image": "redis"
+        },
+        "Resources": {
+          "Limits": {},
+          "Reservations": {}
+        },
+        "RestartPolicy": {
+          "Condition": "ANY"
+        },
+        "Placement": {}
+      },
+      "ServiceID": "9mnpnzenvg8p8tdbtq4wvbkcz",
+      "Instance": 1,
+      "NodeID": "24ifsmvkjbyhk",
+      "ServiceAnnotations": {},
+      "Status": {
+        "Timestamp": "2016-06-07T21:07:31.290032978Z",
+        "State": "FAILED",
+        "Message": "execution failed",
+        "ContainerStatus": {}
+      },
+      "DesiredState": "SHUTDOWN",
+      "NetworksAttachments": [
+        {
+          "Network": {
+            "ID": "4qvuz4ko70xaltuqbt8956gd1",
+            "Version": {
+              "Index": 18
+            },
+            "CreatedAt": "2016-06-07T20:31:11.912919752Z",
+            "UpdatedAt": "2016-06-07T21:07:29.955277358Z",
+            "Spec": {
+              "Name": "ingress",
+              "Labels": {
+                "com.docker.swarm.internal": "true"
+              },
+              "DriverConfiguration": {},
+              "IPAM": {
+                "Driver": {},
+                "Configs": [
+                  {
+                    "Family": "UNKNOWN",
+                    "Subnet": "10.255.0.0/16"
+                  }
+                ]
+              }
+            },
+            "DriverState": {
+              "Name": "overlay",
+              "Options": {
+                "com.docker.network.driver.overlay.vxlanid_list": "256"
+              }
+            },
+            "IPAM": {
+              "Driver": {
+                "Name": "default"
+              },
+              "Configs": [
+                {
+                  "Family": "UNKNOWN",
+                  "Subnet": "10.255.0.0/16"
+                }
+              ]
+            }
+          },
+          "Addresses": [
+            "10.255.0.10/16"
+          ]
+        }
+      ],
+      "Endpoint": {
+        "Spec": {},
+        "ExposedPorts": [
+          {
+            "Protocol": "tcp",
+            "Port": 6379,
+            "PublicPort": 30000
+          }
+        ],
+        "VirtualIPs": [
+          {
+            "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
+            "Addr": "10.255.0.2/16"
+          },
+          {
+            "NetworkID": "4qvuz4ko70xaltuqbt8956gd1",
+            "Addr": "10.255.0.3/16"
+          }
+        ]
+      }
+    }
+
+Status Codes:
+
+- **200** – no error
+- **404** – unknown task
+- **500** – server error
 
 # 4. Going further
 
