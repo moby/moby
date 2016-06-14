@@ -324,6 +324,10 @@ func (daemon *Daemon) updateNetwork(container *container.Container) error {
 	return nil
 }
 
+func errClusterNetworkOnRun(n string) error {
+	return fmt.Errorf("swarm-scoped network (%s) is not compatible with `docker create` or `docker run`. This network can be only used docker service", n)
+}
+
 // updateContainerNetworkSettings update the network settings
 func (daemon *Daemon) updateContainerNetworkSettings(container *container.Container, endpointsConfig map[string]*networktypes.EndpointSettings) error {
 	var (
@@ -344,6 +348,9 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 		n, err = daemon.FindNetwork(networkName)
 		if err != nil {
 			return err
+		}
+		if !container.Managed && n.Info().Dynamic() {
+			return errClusterNetworkOnRun(networkName)
 		}
 		networkName = n.Name()
 	}

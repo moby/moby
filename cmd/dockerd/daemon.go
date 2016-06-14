@@ -20,12 +20,14 @@ import (
 	"github.com/docker/docker/api/server/router/container"
 	"github.com/docker/docker/api/server/router/image"
 	"github.com/docker/docker/api/server/router/network"
+	swarmrouter "github.com/docker/docker/api/server/router/swarm"
 	systemrouter "github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/server/router/volume"
 	"github.com/docker/docker/builder/dockerfile"
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/daemon/cluster"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/libcontainerd"
@@ -208,6 +210,7 @@ func (cli *DaemonCli) start() (err error) {
 	}
 
 	api := apiserver.New(serverConfig)
+	cli.api = api
 
 	for i := 0; i < len(cli.Config.Hosts); i++ {
 		var err error
@@ -264,6 +267,17 @@ func (cli *DaemonCli) start() (err error) {
 		return fmt.Errorf("Error starting daemon: %v", err)
 	}
 
+	name, _ := os.Hostname()
+
+	c, err := cluster.New(cluster.Config{
+		Root:    cli.Config.Root,
+		Name:    name,
+		Backend: d,
+	})
+	if err != nil {
+		logrus.Fatalf("Error creating cluster component: %v", err)
+	}
+
 	logrus.Info("Daemon has completed initialization")
 
 	logrus.WithFields(logrus.Fields{
@@ -273,7 +287,7 @@ func (cli *DaemonCli) start() (err error) {
 	}).Info("Docker daemon")
 
 	cli.initMiddlewares(api, serverConfig)
-	initRouter(api, d)
+	initRouter(api, d, c)
 
 	cli.d = d
 	cli.setupConfigReloadTrap()
@@ -290,6 +304,7 @@ func (cli *DaemonCli) start() (err error) {
 	// Daemon is fully initialized and handling API traffic
 	// Wait for serve API to complete
 	errAPI := <-serveAPIWait
+	c.Cleanup()
 	shutdownDaemon(d, 15)
 	containerdRemote.Cleanup()
 	if errAPI != nil {
@@ -385,18 +400,19 @@ func loadDaemonCliConfig(config *daemon.Config, flags *flag.FlagSet, commonConfi
 	return config, nil
 }
 
-func initRouter(s *apiserver.Server, d *daemon.Daemon) {
+func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
 	decoder := runconfig.ContainerDecoder{}
 
 	routers := []router.Router{
 		container.NewRouter(d, decoder),
 		image.NewRouter(d, decoder),
-		systemrouter.NewRouter(d),
+		systemrouter.NewRouter(d, c),
 		volume.NewRouter(d),
 		build.NewRouter(dockerfile.NewBuildManager(d)),
+		swarmrouter.NewRouter(c),
 	}
 	if d.NetworkControllerEnabled() {
-		routers = append(routers, network.NewRouter(d))
+		routers = append(routers, network.NewRouter(d, c))
 	}
 
 	s.InitRouter(utils.IsDebugEnabled(), routers...)

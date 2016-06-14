@@ -1,6 +1,7 @@
 package network
 
 import (
+	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/docker/go-connections/nat"
 )
@@ -14,6 +15,7 @@ type Settings struct {
 	LinkLocalIPv6Address   string
 	LinkLocalIPv6PrefixLen int
 	Networks               map[string]*networktypes.EndpointSettings
+	Service                *clustertypes.ServiceConfig
 	Ports                  nat.PortMap
 	SandboxKey             string
 	SecondaryIPAddresses   []networktypes.Address

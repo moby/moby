@@ -66,6 +66,7 @@ type CommonContainer struct {
 	RWLayer         layer.RWLayer  `json:"-"`
 	ID              string
 	Created         time.Time
+	Managed         bool
 	Path            string
 	Args            []string
 	Config          *containertypes.Config
@@ -790,12 +791,33 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 		ipam := epConfig.IPAMConfig
 		if ipam != nil && (ipam.IPv4Address != "" || ipam.IPv6Address != "") {
 			createOptions = append(createOptions,
-				libnetwork.CreateOptionIpam(net.ParseIP(ipam.IPv4Address), net.ParseIP(ipam.IPv6Address), nil))
+				libnetwork.CreateOptionIpam(net.ParseIP(ipam.IPv4Address), net.ParseIP(ipam.IPv6Address), nil, nil))
 		}
 
 		for _, alias := range epConfig.Aliases {
 			createOptions = append(createOptions, libnetwork.CreateOptionMyAlias(alias))
 		}
+	}
+
+	if container.NetworkSettings.Service != nil {
+		svcCfg := container.NetworkSettings.Service
+
+		var vip string
+		if svcCfg.VirtualAddresses[n.ID()] != nil {
+			vip = svcCfg.VirtualAddresses[n.ID()].IPv4
+		}
+
+		var portConfigs []*libnetwork.PortConfig
+		for _, portConfig := range svcCfg.ExposedPorts {
+			portConfigs = append(portConfigs, &libnetwork.PortConfig{
+				Name:          portConfig.Name,
+				Protocol:      libnetwork.PortConfig_Protocol(portConfig.Protocol),
+				TargetPort:    portConfig.TargetPort,
+				PublishedPort: portConfig.PublishedPort,
+			})
+		}
+
+		createOptions = append(createOptions, libnetwork.CreateOptionService(svcCfg.Name, svcCfg.ID, net.ParseIP(vip), portConfigs))
 	}
 
 	if !containertypes.NetworkMode(n.Name()).IsUserDefined() {
