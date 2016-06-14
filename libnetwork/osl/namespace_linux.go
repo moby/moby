@@ -184,6 +184,8 @@ func NewSandbox(key string, osCreate, isRestore bool) (Sandbox, error) {
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		once.Do(createBasePath)
 	}
 
 	n := &networkNamespace{path: key, isDefault: !osCreate}
