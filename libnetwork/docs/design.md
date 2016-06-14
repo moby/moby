@@ -93,7 +93,7 @@ Consumers of the CNM, like Docker for example, interact through the CNM Objects 
 
 ### Networks & Endpoints
 
-LibNetwork's Network and Endpoint APIs are primarily for managing the corresponding Objects and book-keeping them to provide a level of abstraction as required by the CNM. It delegates the actual implementation to the drivers which realize the functionality as promised in the CNM. For more information on these details, please see [the drivers section](#Drivers)
+LibNetwork's Network and Endpoint APIs are primarily for managing the corresponding Objects and book-keeping them to provide a level of abstraction as required by the CNM. It delegates the actual implementation to the drivers which realize the functionality as promised in the CNM. For more information on these details, please see [the drivers section](#drivers)
 
 ### Sandbox
 
