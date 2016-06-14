@@ -1434,6 +1434,7 @@ func (s *DockerSuite) TestRunNonRootUserResolvName(c *check.C) {
 func (s *DockerSuite) TestRunResolvconfUpdate(c *check.C) {
 	// Not applicable on Windows as testing unix specific functionality
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
+	c.Skip("Unstable test, to be re-activated once #19937 is resolved")
 
 	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\n")
 	tmpLocalhostResolvConf := []byte("nameserver 127.0.0.1")
