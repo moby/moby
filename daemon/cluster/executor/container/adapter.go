@@ -126,7 +126,6 @@ func (c *containerAdapter) create(ctx context.Context, backend executorpkg.Backe
 
 	if nc != nil {
 		for n, ep := range nc.EndpointsConfig {
-			logrus.Errorf("CONNECT %s : %v", n, ep.IPAMConfig.IPv4Address)
 			if err := backend.ConnectContainerToNetwork(cr.ID, n, ep); err != nil {
 				return err
 			}
