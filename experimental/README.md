@@ -73,7 +73,7 @@ to build a Docker binary with the experimental features enabled:
 
  * [External graphdriver plugins](plugins_graphdriver.md)
  * [Macvlan and Ipvlan Network Drivers](vlan-networks.md)
- * The user namespaces feature has graduated from experimental.
+ * [Docker stacks](docker-stacks.md)
 
 ## How to comment on an experimental feature
 
