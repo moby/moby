@@ -340,7 +340,15 @@ func (d *Driver) getLowerDirs(id string) ([]string, error) {
 
 // Remove cleans the directories that are created for this id.
 func (d *Driver) Remove(id string) error {
-	if err := os.RemoveAll(d.dir(id)); err != nil && !os.IsNotExist(err) {
+	dir := d.dir(id)
+	lid, err := ioutil.ReadFile(path.Join(dir, "link"))
+	if err == nil {
+		if err := os.RemoveAll(path.Join(d.home, linkDir, string(lid))); err != nil {
+			logrus.Debugf("Failed to remove link: %v", err)
+		}
+	}
+
+	if err := os.RemoveAll(dir); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return nil
