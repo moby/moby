@@ -175,6 +175,10 @@ func (ctr *container) waitProcessExitCode(process *process) int {
 		if herr, ok := err.(*hcsshim.ProcessError); ok && herr.Err != syscall.ERROR_BROKEN_PIPE {
 			logrus.Warnf("Unable to get exit code from container %s", ctr.containerID)
 		}
+		// Since we got an error retrieving the exit code, make sure that the code we return
+		// doesn't incorrectly indicate success.
+		exitCode = -1
+
 		// Fall through here, do not return. This ensures we attempt to continue the
 		// shutdown in HCS and tell the docker engine that the process/container
 		// has exited to avoid a container being dropped on the floor.
