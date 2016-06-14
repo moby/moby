@@ -37,7 +37,7 @@ available on the volume where `/var/lib/docker` is mounted.
 ## Display Docker system information
 
 Here is a sample output for a daemon running on Ubuntu, using the overlay
-storage driver:
+storage driver and a node that is part of a 2 node Swarm cluster:
 
     $ docker -D info
     Containers: 14
@@ -53,6 +53,11 @@ storage driver:
     Plugins:
      Volume: local
      Network: bridge null host
+    Swarm: 
+     NodeID: 0gac67oclbxq7
+     IsManager: YES
+     Managers: 2
+     Nodes: 2
     Kernel Version: 4.4.0-21-generic
     Operating System: Ubuntu 16.04 LTS
     OSType: linux
