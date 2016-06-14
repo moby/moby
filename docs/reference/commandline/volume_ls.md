@@ -34,9 +34,9 @@ Lists all the volumes Docker knows about. You can filter using the `-f` or `--fi
 Example output:
 
 ```bash
-$ docker volume create --name rosemary
+$ docker volume create rosemary
 rosemary
-$docker volume create --name tyler
+$docker volume create tyler
 tyler
 $ docker volume ls
 DRIVER              VOLUME NAME
@@ -91,9 +91,9 @@ a `label` and a value.
 First, let's create some volumes to illustrate this;
 
 ```bash
-$ docker volume create --name the-doctor --label is-timelord=yes
+$ docker volume create the-doctor --label is-timelord=yes
 the-doctor
-$ docker volume create --name daleks --label is-timelord=no
+$ docker volume create daleks --label is-timelord=no
 daleks
 ```
 

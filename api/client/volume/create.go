@@ -26,17 +26,25 @@ func newCreateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "create [OPTIONS]",
+		Use:   "create [OPTIONS] [VOLUME]",
 		Short: "Create a volume",
 		Long:  createDescription,
-		Args:  cli.NoArgs,
+		Args:  cli.RequiresMaxArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 1 {
+				if opts.name != "" {
+					fmt.Fprint(dockerCli.Err(), "Conflicting options: either specify --name or provide positional arg, not both\n")
+					return cli.StatusError{StatusCode: 1}
+				}
+				opts.name = args[0]
+			}
 			return runCreate(dockerCli, opts)
 		},
 	}
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.driver, "driver", "d", "local", "Specify volume driver name")
 	flags.StringVar(&opts.name, "name", "", "Specify volume name")
+	flags.Lookup("name").Hidden = true
 	flags.VarP(&opts.driverOpts, "opt", "o", "Set driver specific options")
 	flags.StringSliceVar(&opts.labels, "label", []string{}, "Set metadata for a volume")
 
@@ -67,7 +75,7 @@ Creates a new volume that containers can consume and store data in. If a name
 is not specified, Docker generates a random name. You create a volume and then
 configure the container to use it, for example:
 
-    $ docker volume create --name hello
+    $ docker volume create hello
     hello
     $ docker run -d -v hello:/world busybox ls /world
 

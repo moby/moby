@@ -4307,7 +4307,7 @@ func (s *DockerSuite) TestRunNamedVolumeCopyImageData(c *check.C) {
 func (s *DockerSuite) TestRunNamedVolumeNotRemoved(c *check.C) {
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
-	dockerCmd(c, "volume", "create", "--name", "test")
+	dockerCmd(c, "volume", "create", "test")
 
 	dockerCmd(c, "run", "--rm", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")
 	dockerCmd(c, "volume", "inspect", "test")
@@ -4324,7 +4324,7 @@ func (s *DockerSuite) TestRunNamedVolumeNotRemoved(c *check.C) {
 func (s *DockerSuite) TestRunNamedVolumesFromNotRemoved(c *check.C) {
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
-	dockerCmd(c, "volume", "create", "--name", "test")
+	dockerCmd(c, "volume", "create", "test")
 	dockerCmd(c, "run", "--name=parent", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")
 	dockerCmd(c, "run", "--name=child", "--volumes-from=parent", "busybox", "true")
 
@@ -4381,7 +4381,7 @@ func (s *DockerSuite) TestRunVolumeCopyFlag(c *check.C) {
 	)
 	c.Assert(err, checker.IsNil)
 
-	dockerCmd(c, "volume", "create", "--name=test")
+	dockerCmd(c, "volume", "create", "test")
 
 	// test with the nocopy flag
 	out, _, err := dockerCmdWithError("run", "-v", "test:/foo:nocopy", "volumecopy")

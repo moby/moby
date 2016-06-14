@@ -1827,7 +1827,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartRmVolumeInUse(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonRestartLocalVolumes(c *check.C) {
 	c.Assert(s.d.Start(), check.IsNil)
 
-	_, err := s.d.Cmd("volume", "create", "--name", "test")
+	_, err := s.d.Cmd("volume", "create", "test")
 	c.Assert(err, check.IsNil)
 	c.Assert(s.d.Restart(), check.IsNil)
 
