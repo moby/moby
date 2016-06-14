@@ -410,7 +410,9 @@ func (ds *datastore) PutObjectAtomic(kvObject KVObject) error {
 
 add_cache:
 	if ds.cache != nil {
-		return ds.cache.add(kvObject)
+		// If persistent store is skipped, sequencing needs to
+		// happen in cache.
+		return ds.cache.add(kvObject, kvObject.Skip())
 	}
 
 	return nil
@@ -435,7 +437,9 @@ func (ds *datastore) PutObject(kvObject KVObject) error {
 
 add_cache:
 	if ds.cache != nil {
-		return ds.cache.add(kvObject)
+		// If persistent store is skipped, sequencing needs to
+		// happen in cache.
+		return ds.cache.add(kvObject, kvObject.Skip())
 	}
 
 	return nil
@@ -537,7 +541,9 @@ func (ds *datastore) DeleteObject(kvObject KVObject) error {
 
 	// cleaup the cache first
 	if ds.cache != nil {
-		ds.cache.del(kvObject)
+		// If persistent store is skipped, sequencing needs to
+		// happen in cache.
+		ds.cache.del(kvObject, kvObject.Skip())
 	}
 
 	if kvObject.Skip() {
@@ -572,7 +578,9 @@ func (ds *datastore) DeleteObjectAtomic(kvObject KVObject) error {
 del_cache:
 	// cleanup the cache only if AtomicDelete went through successfully
 	if ds.cache != nil {
-		return ds.cache.del(kvObject)
+		// If persistent store is skipped, sequencing needs to
+		// happen in cache.
+		return ds.cache.del(kvObject, kvObject.Skip())
 	}
 
 	return nil
@@ -585,7 +593,9 @@ func (ds *datastore) DeleteTree(kvObject KVObject) error {
 
 	// cleaup the cache first
 	if ds.cache != nil {
-		ds.cache.del(kvObject)
+		// If persistent store is skipped, sequencing needs to
+		// happen in cache.
+		ds.cache.del(kvObject, kvObject.Skip())
 	}
 
 	if kvObject.Skip() {
