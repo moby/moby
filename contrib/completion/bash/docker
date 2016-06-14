@@ -197,6 +197,55 @@ __docker_complete_runtimes() {
 	COMPREPLY=( $(compgen -W "$(__docker_runtimes)" -- "$cur") )
 }
 
+__docker_nodes() {
+	local fields='$1,$2'  # node names & IDs
+	__docker_q node ls | sed -e 's/\*//g' | awk "NR>1 {print $fields}"
+}
+
+__docker_complete_nodes() {
+	COMPREPLY=( $(compgen -W "$(__docker_nodes $1)" -- "$cur") )
+}
+
+__docker_complete_nodes_plus_self() {
+	COMPREPLY=( $(compgen -W "$(__docker_nodes $1) self" -- "$cur") )
+}
+
+__docker_pending_nodes() {
+	local fields='$1'  # node ID
+	__docker_q node ls --filter membership=pending | awk "NR>1 {print $fields}"
+}
+
+__docker_complete_pending_nodes() {
+	COMPREPLY=( $(compgen -W "$(__docker_pending_nodes $1)" -- "$cur") )
+}
+
+__docker_manager_nodes() {
+	local fields='$1,$2'  # node names & IDs
+	__docker_q node ls --filter role=manager | awk "NR>1 {print $fields}"
+}
+
+__docker_complete_manager_nodes() {
+	COMPREPLY=( $(compgen -W "$(__docker_manager_nodes $1)" -- "$cur") )
+}
+
+__docker_worker_nodes() {
+	local fields='$1,$2'  # node names & IDs
+	__docker_q node ls --filter role=worker | awk "NR>1 {print $fields}"
+}
+
+__docker_complete_worker_nodes() {
+	COMPREPLY=( $(compgen -W "$(__docker_worker_nodes $1)" -- "$cur") )
+}
+
+__docker_services() {
+        local fields='$1,$2'  # service names & IDs
+        __docker_q service ls | awk "NR>1 {print $fields}"
+}
+
+__docker_complete_services() {
+	COMPREPLY=( $(compgen -W "$(__docker_services $1)" -- "$cur") )
+}
+
 # Finds the position of the first word that is neither option nor an option's argument.
 # If there are options that require arguments, you should pass a glob describing those
 # options, e.g. "--option1|-o|--option2"
@@ -1476,6 +1525,244 @@ _docker_network() {
 	esac
 }
 
+_docker_service() {
+	local subcommands="
+		create
+		tasks
+		inspect
+		update
+		ls
+		rm
+	"
+	__docker_subcommands "$subcommands" && return
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $( compgen -W "$subcommands" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_service_create() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --constraint --endpoint-ingress --endpoint-mode --env --label --limit-cpu --limit-memory --mode --name --network --publish --reserve-cpu --reserve-memory --restart-condition --restart-delay --restart-max-attempts --restart-window --replicas --stop-grace-period --update-delay --update-parallelism --user --volume --workdir" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_service_update() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--arg --command --constraint --endpoint-ingress --endpoint-mode --env --help --image --label --limit-cpu --limit-memory --mode --name --network --publish --reserve-cpu --reserve-memory --restart-condition--restart-delay --restart-max-attempts --restart-window --replicas --stop-grace-period --update-delay --update-parallelism --user --volume --workdir" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_services
+	esac
+}
+
+_docker_service_inspect() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --format --pretty" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_services
+	esac
+}
+
+_docker_service_tasks() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --all --filter --no-resolve" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_services
+	esac
+}
+
+_docker_service_rm() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_services
+	esac
+}
+
+_docker_service_ls() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_swarm() {
+	local subcommands="
+		init
+		join
+		update
+		leave
+		inspect
+	"
+	__docker_subcommands "$subcommands" && return
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $( compgen -W "$subcommands" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_swarm_init() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --auto-accept --force-new-cluster --secret" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_swarm_join() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--ca-hash --help --listen-addr --manager --secret" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_swarm_update() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--auto-accept --dispatcher-heartbeat-period --help --secret --task-history-limit" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_swarm_leave() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--force --help" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_swarm_inspect() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--format --help" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_node() {
+	local subcommands="
+		accept
+		demote
+		inspect
+		ls
+		promote
+		rm
+		tasks
+		update
+	"
+	__docker_subcommands "$subcommands" && return
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $( compgen -W "$subcommands" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_node_accept() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_pending_nodes
+	esac
+}
+
+_docker_node_inspect() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --format --pretty" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_nodes
+	esac
+}
+
+_docker_node_ls() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --filter --quiet" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_node_promote() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_worker_nodes
+	esac
+}
+
+_docker_node_demote() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_manager_nodes
+	esac
+}
+
+_docker_node_rm() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_nodes
+	esac
+}
+
+_docker_node_tasks() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --no-resolve --filter --all" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_nodes_plus_self
+	esac
+}
+
+_docker_node_update() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --availability --membership --role" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_nodes
+	esac
+}
+
 _docker_pause() {
 	case "$cur" in
 		-*)
@@ -2262,6 +2549,7 @@ _docker() {
 		logout
 		logs
 		network
+		node
 		pause
 		port
 		ps
@@ -2274,9 +2562,11 @@ _docker() {
 		run
 		save
 		search
+		service
 		start
 		stats
 		stop
+		swarm
 		tag
 		top
 		unpause
