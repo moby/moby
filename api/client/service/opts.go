@@ -154,6 +154,9 @@ func (m *MountOpt) Set(value string) error {
 				Labels: make(map[string]string),
 			}
 		}
+		if mount.VolumeOptions.DriverConfig == nil {
+			mount.VolumeOptions.DriverConfig = &swarm.Driver{}
+		}
 		return mount.VolumeOptions
 	}
 
