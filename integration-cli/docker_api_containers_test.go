@@ -1076,7 +1076,7 @@ func (s *DockerSuite) TestContainerApiChunkedEncoding(c *check.C) {
 	// TODO Windows CI: This can be ported
 	testRequires(c, DaemonIsLinux)
 
-	conn, err := sockConn(time.Duration(10 * time.Second))
+	conn, err := sockConn(time.Duration(10*time.Second), "")
 	c.Assert(err, checker.IsNil)
 	client := httputil.NewClientConn(conn, nil)
 	defer client.Close()

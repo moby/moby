@@ -34,7 +34,7 @@ func (s *DockerSuite) TestApiGetEnabledCors(c *check.C) {
 }
 
 func (s *DockerSuite) TestApiVersionStatusCode(c *check.C) {
-	conn, err := sockConn(time.Duration(10 * time.Second))
+	conn, err := sockConn(time.Duration(10*time.Second), "")
 	c.Assert(err, checker.IsNil)
 
 	client := httputil.NewClientConn(conn, nil)
