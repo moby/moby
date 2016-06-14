@@ -16,16 +16,20 @@ import (
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
+	"github.com/vishvananda/netns"
 )
 
 var (
-	hostMode     bool
-	hostModeOnce sync.Once
+	hostMode    bool
+	networkOnce sync.Once
+	networkMu   sync.Mutex
+	vniTbl      = make(map[uint32]string)
 )
 
 type networkTable map[string]*network
@@ -58,6 +62,7 @@ type network struct {
 	initEpoch int
 	initErr   error
 	subnets   []*subnet
+	secure    bool
 	sync.Mutex
 }
 
@@ -105,6 +110,9 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 
 				vnis = append(vnis, uint32(vni))
 			}
+		}
+		if _, ok := optMap["secure"]; ok {
+			n.secure = true
 		}
 	}
 
@@ -159,7 +167,18 @@ func (d *driver) DeleteNetwork(nid string) error {
 
 	d.deleteNetwork(nid)
 
-	return n.releaseVxlanID()
+	vnis, err := n.releaseVxlanID()
+	if err != nil {
+		return err
+	}
+
+	if n.secure {
+		for _, vni := range vnis {
+			programMangle(vni, false)
+		}
+	}
+
+	return nil
 }
 
 func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
@@ -249,7 +268,48 @@ func (n *network) destroySandbox() {
 	}
 }
 
-func setHostMode() {
+func populateVNITbl() {
+	filepath.Walk(filepath.Dir(osl.GenerateKey("walk")),
+		func(path string, info os.FileInfo, err error) error {
+			_, fname := filepath.Split(path)
+
+			if len(strings.Split(fname, "-")) <= 1 {
+				return nil
+			}
+
+			ns, err := netns.GetFromPath(path)
+			if err != nil {
+				logrus.Errorf("Could not open namespace path %s during vni population: %v", path, err)
+				return nil
+			}
+			defer ns.Close()
+
+			nlh, err := netlink.NewHandleAt(ns)
+			if err != nil {
+				logrus.Errorf("Could not open netlink handle during vni population for ns %s: %v", path, err)
+				return nil
+			}
+			defer nlh.Delete()
+
+			links, err := nlh.LinkList()
+			if err != nil {
+				logrus.Errorf("Failed to list interfaces during vni population for ns %s: %v", path, err)
+				return nil
+			}
+
+			for _, l := range links {
+				if l.Type() == "vxlan" {
+					vniTbl[uint32(l.(*netlink.Vxlan).VxlanId)] = path
+				}
+			}
+
+			return nil
+		})
+}
+
+func networkOnceInit() {
+	populateVNITbl()
+
 	if os.Getenv("_OVERLAY_HOST_MODE") != "" {
 		hostMode = true
 		return
@@ -264,24 +324,24 @@ func setHostMode() {
 	defer deleteInterface("testvxlan")
 
 	path := "/proc/self/ns/net"
-	f, err := os.OpenFile(path, os.O_RDONLY, 0)
+	hNs, err := netns.GetFromPath(path)
 	if err != nil {
-		logrus.Errorf("Failed to open path %s for network namespace for setting host mode: %v", path, err)
+		logrus.Errorf("Failed to get network namespace from path %s while setting host mode: %v", path, err)
 		return
 	}
-	defer f.Close()
+	defer hNs.Close()
 
-	nsFD := f.Fd()
+	nlh := ns.NlHandle()
 
-	iface, err := netlink.LinkByName("testvxlan")
+	iface, err := nlh.LinkByName("testvxlan")
 	if err != nil {
-		logrus.Errorf("Failed to get link testvxlan: %v", err)
+		logrus.Errorf("Failed to get link testvxlan while setting host mode: %v", err)
 		return
 	}
 
 	// If we are not able to move the vxlan interface to a namespace
 	// then fallback to host mode
-	if err := netlink.LinkSetNsFd(iface, int(nsFD)); err != nil {
+	if err := nlh.LinkSetNsFd(iface, int(hNs)); err != nil {
 		hostMode = true
 	}
 }
@@ -301,7 +361,11 @@ func (n *network) generateBridgeName(s *subnet) string {
 		id = n.id[:5]
 	}
 
-	return "ov-" + fmt.Sprintf("%06x", n.vxlanID(s)) + "-" + id
+	return n.getBridgeNamePrefix(s) + "-" + id
+}
+
+func (n *network) getBridgeNamePrefix(s *subnet) string {
+	return "ov-" + fmt.Sprintf("%06x", n.vxlanID(s))
 }
 
 func isOverlap(nw *net.IPNet) bool {
@@ -328,12 +392,37 @@ func (n *network) initSubnetSandbox(s *subnet) error {
 
 	if hostMode {
 		// Try to delete stale bridge interface if it exists
-		deleteInterface(brName)
+		if err := deleteInterface(brName); err != nil {
+			deleteInterfaceBySubnet(n.getBridgeNamePrefix(s), s)
+		}
 		// Try to delete the vxlan interface by vni if already present
-		deleteVxlanByVNI(n.vxlanID(s))
+		deleteVxlanByVNI("", n.vxlanID(s))
 
 		if isOverlap(s.subnetIP) {
 			return fmt.Errorf("overlay subnet %s has conflicts in the host while running in host mode", s.subnetIP.String())
+		}
+	}
+
+	if !hostMode {
+		// Try to find this subnet's vni is being used in some
+		// other namespace by looking at vniTbl that we just
+		// populated in the once init. If a hit is found then
+		// it must a stale namespace from previous
+		// life. Destroy it completely and reclaim resourced.
+		networkMu.Lock()
+		path, ok := vniTbl[n.vxlanID(s)]
+		networkMu.Unlock()
+
+		if ok {
+			deleteVxlanByVNI(path, n.vxlanID(s))
+			if err := syscall.Unmount(path, syscall.MNT_FORCE); err != nil {
+				logrus.Errorf("unmount of %s failed: %v", path, err)
+			}
+			os.Remove(path)
+
+			networkMu.Lock()
+			delete(vniTbl, n.vxlanID(s))
+			networkMu.Unlock()
 		}
 	}
 
@@ -382,8 +471,23 @@ func (n *network) cleanupStaleSandboxes() {
 
 			pattern := pList[1]
 			if strings.Contains(n.id, pattern) {
+				// Delete all vnis
+				deleteVxlanByVNI(path, 0)
 				syscall.Unmount(path, syscall.MNT_DETACH)
 				os.Remove(path)
+
+				// Now that we have destroyed this
+				// sandbox, remove all references to
+				// it in vniTbl so that we don't
+				// inadvertently destroy the sandbox
+				// created in this life.
+				networkMu.Lock()
+				for vni, tblPath := range vniTbl {
+					if tblPath == path {
+						delete(vniTbl, vni)
+					}
+				}
+				networkMu.Unlock()
 			}
 
 			return nil
@@ -395,7 +499,7 @@ func (n *network) initSandbox() error {
 	n.initEpoch++
 	n.Unlock()
 
-	hostModeOnce.Do(setHostMode)
+	networkOnce.Do(networkOnceInit)
 
 	if hostMode {
 		if err := addNetworkChain(n.id[:12]); err != nil {
@@ -425,7 +529,10 @@ func (n *network) initSandbox() error {
 		}
 	})
 
-	go n.watchMiss(nlSock)
+	if nlSock != nil {
+		go n.watchMiss(nlSock)
+	}
+
 	return nil
 }
 
@@ -451,6 +558,12 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 			if neigh.IP.To4() == nil {
 				continue
 			}
+
+			// Not any of the network's subnets. Ignore.
+			if !n.contains(neigh.IP) {
+				continue
+			}
+
 			logrus.Debugf("miss notification for dest IP, %v", neigh.IP.String())
 
 			if neigh.State&(netlink.NUD_STALE|netlink.NUD_INCOMPLETE) == 0 {
@@ -549,6 +662,8 @@ func (n *network) KeyPrefix() []string {
 }
 
 func (n *network) Value() []byte {
+	m := map[string]interface{}{}
+
 	netJSON := []*subnetJSON{}
 
 	for _, s := range n.subnets {
@@ -561,10 +676,17 @@ func (n *network) Value() []byte {
 	}
 
 	b, err := json.Marshal(netJSON)
-
 	if err != nil {
 		return []byte{}
 	}
+
+	m["secure"] = n.secure
+	m["subnets"] = netJSON
+	b, err = json.Marshal(m)
+	if err != nil {
+		return []byte{}
+	}
+
 	return b
 }
 
@@ -586,16 +708,36 @@ func (n *network) Skip() bool {
 }
 
 func (n *network) SetValue(value []byte) error {
-	var newNet bool
-	netJSON := []*subnetJSON{}
+	var (
+		m       map[string]interface{}
+		newNet  bool
+		isMap   = true
+		netJSON = []*subnetJSON{}
+	)
 
-	err := json.Unmarshal(value, &netJSON)
-	if err != nil {
-		return err
+	if err := json.Unmarshal(value, &m); err != nil {
+		err := json.Unmarshal(value, &netJSON)
+		if err != nil {
+			return err
+		}
+		isMap = false
 	}
 
 	if len(n.subnets) == 0 {
 		newNet = true
+	}
+
+	if isMap {
+		if val, ok := m["secure"]; ok {
+			n.secure = val.(bool)
+		}
+		bytes, err := json.Marshal(m["subnets"])
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(bytes, &netJSON); err != nil {
+			return err
+		}
 	}
 
 	for _, sj := range netJSON {
@@ -636,9 +778,9 @@ func (n *network) writeToStore() error {
 	return n.driver.store.PutObjectAtomic(n)
 }
 
-func (n *network) releaseVxlanID() error {
+func (n *network) releaseVxlanID() ([]uint32, error) {
 	if len(n.subnets) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	if n.driver.store != nil {
@@ -646,22 +788,24 @@ func (n *network) releaseVxlanID() error {
 			if err == datastore.ErrKeyModified || err == datastore.ErrKeyNotFound {
 				// In both the above cases we can safely assume that the key has been removed by some other
 				// instance and so simply get out of here
-				return nil
+				return nil, nil
 			}
 
-			return fmt.Errorf("failed to delete network to vxlan id map: %v", err)
+			return nil, fmt.Errorf("failed to delete network to vxlan id map: %v", err)
 		}
 	}
-
+	var vnis []uint32
 	for _, s := range n.subnets {
 		if n.driver.vxlanIdm != nil {
-			n.driver.vxlanIdm.Release(uint64(n.vxlanID(s)))
+			vni := n.vxlanID(s)
+			vnis = append(vnis, vni)
+			n.driver.vxlanIdm.Release(uint64(vni))
 		}
 
 		n.setVxlanID(s, 0)
 	}
 
-	return nil
+	return vnis, nil
 }
 
 func (n *network) obtainVxlanID(s *subnet) error {
@@ -698,6 +842,18 @@ func (n *network) obtainVxlanID(s *subnet) error {
 		}
 		return nil
 	}
+}
+
+// contains return true if the passed ip belongs to one the network's
+// subnets
+func (n *network) contains(ip net.IP) bool {
+	for _, s := range n.subnets {
+		if s.subnetIP.Contains(ip) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // getSubnetforIP returns the subnet to which the given IP belongs

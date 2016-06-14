@@ -59,14 +59,14 @@ clone git github.com/vdemeester/shakers 24d7f1d6a71aa5d9cbe7390e4afb66b7eef9e1b3
 clone git golang.org/x/net 2beffdc2e92c8a3027590f898fe88f69af48a3f8 https://github.com/tonistiigi/net.git
 clone git golang.org/x/sys eb2c74142fd19a79b3f237334c7384d5167b1b46 https://github.com/golang/sys.git
 clone git github.com/docker/go-units 651fc226e7441360384da338d0fd37f2440ffbe3
-clone git github.com/docker/go-connections v0.2.0
-clone git github.com/docker/engine-api 8c2141e14bb9e7540938d155976b3ef0661e4814
+clone git github.com/docker/go-connections fa2850ff103453a9ad190da0df0af134f0314b3d
+clone git github.com/docker/engine-api 6b2f24f16a7f1598635b6a99dbe38ec8a5eccaf8
 clone git github.com/RackSec/srslog 259aed10dfa74ea2961eddd1d9847619f6e98837
 clone git github.com/imdario/mergo 0.2.1
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork b66c0385f30c6aa27b2957ed1072682c19a0b0b4
-clone git github.com/docker/go-events 2e7d352816128aa84f4d29b2a21d400133701a0d
+clone git github.com/docker/libnetwork e8da32ce5693f0ed6823d59c8415baf76c0809ea
+clone git github.com/docker/go-events 39718a26497694185f8fb58a7d6f31947f3dc42d
 clone git github.com/armon/go-radix e39d623f12e8e41c7b5529e9a9dd67a1e2261f80
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
 clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
@@ -75,7 +75,7 @@ clone git github.com/hashicorp/go-multierror fcdddc395df1ddf4247c69bd436e84cfa07
 clone git github.com/hashicorp/serf 598c54895cc5a7b1a24a398d635e8c0ea0959870
 clone git github.com/docker/libkv 7283ef27ed32fe267388510a91709b307bb9942c
 clone git github.com/vishvananda/netns 604eaf189ee867d8c147fafc28def2394e878d25
-clone git github.com/vishvananda/netlink 631962935bff4f3d20ff32a72e8944f6d2836a26
+clone git github.com/vishvananda/netlink 7995ff5647a22cbf0dc41bf5c0e977bdb0d5c6b7
 clone git github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
 clone git github.com/samuel/go-zookeeper d0e0d8e11f318e000a8cc434616d69e329edc374
 clone git github.com/deckarep/golang-set ef32fa3046d9f249d399f98ebaf9be944430fd1d
@@ -137,6 +137,27 @@ clone git github.com/docker/docker-credential-helpers v0.3.0
 
 # containerd
 clone git github.com/docker/containerd cf554d59dd96e459544748290eb9167f4bcde509
+
+# cluster
+clone git github.com/docker/swarmkit 45094b473cbdb2d45e4d8f703fb615989399ae29
+clone git github.com/golang/mock bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
+clone git github.com/gogo/protobuf 43a2e0b1c32252bfbbdf81f7faa7a88fb3fa4028
+clone git github.com/cloudflare/cfssl 92f037e39eb103fb30f9151be40d9ed267fc4ae2
+clone git github.com/google/certificate-transparency 025a5cab06f6a819c455d9fdc9e2a1b6d0982284
+clone git golang.org/x/crypto 3fbbcd23f1cb824e69491a5930cfeff09b12f4d2 https://github.com/golang/crypto.git
+clone git github.com/mreiferson/go-httpclient 63fe23f7434723dc904c901043af07931f293c47
+clone git github.com/hashicorp/go-memdb 98f52f52d7a476958fa9da671354d270c50661a7
+clone git github.com/hashicorp/go-immutable-radix 8e8ed81f8f0bf1bdd829593fdd5c29922c1ea990
+clone git github.com/hashicorp/golang-lru a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4
+clone git github.com/coreos/pkg 2c77715c4df99b5420ffcae14ead08f52104065d
+clone git github.com/pivotal-golang/clock 3fd3c1944c59d9742e1cd333672181cd1a6f9fa0
+clone git github.com/prometheus/client_golang e51041b3fa41cece0dca035740ba6411905be473
+clone git github.com/beorn7/perks b965b613227fddccbfffe13eae360ed3fa822f8d
+clone git github.com/prometheus/client_model fa8ad6fec33561be4280a8f0514318c79d7f6cb6
+clone git github.com/prometheus/common ffe929a3f4c4faeaa10f2b9535c2b1be3ad15650
+clone git github.com/prometheus/procfs 454a56f35412459b5e684fd5ec0f9211b94f002a
+clone hg bitbucket.org/ww/goautoneg 75cd24fc2f2c2a2088577d12123ddee5f54e0675
+clone git github.com/matttproud/golang_protobuf_extensions fc2b8d3a73c4867e51861bbdd5ae3c1f0869dd6a
 
 # cli
 clone git github.com/spf13/cobra 75205f23b3ea70dc7ae5e900d074e010c23c37e9 https://github.com/dnephin/cobra.git

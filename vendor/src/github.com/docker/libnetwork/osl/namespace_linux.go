@@ -42,6 +42,7 @@ type networkNamespace struct {
 	neighbors    []*neigh
 	nextIfIndex  int
 	isDefault    bool
+	nlHandle     *netlink.Handle
 	sync.Mutex
 }
 
@@ -147,7 +148,25 @@ func NewSandbox(key string, osCreate bool) (Sandbox, error) {
 		return nil, err
 	}
 
-	return &networkNamespace{path: key, isDefault: !osCreate}, nil
+	n := &networkNamespace{path: key, isDefault: !osCreate}
+
+	sboxNs, err := netns.GetFromPath(n.path)
+	if err != nil {
+		return nil, fmt.Errorf("failed get network namespace %q: %v", n.path, err)
+	}
+	defer sboxNs.Close()
+
+	n.nlHandle, err = netlink.NewHandleAt(sboxNs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create a netlink handle: %v", err)
+	}
+
+	if err = n.loopbackUp(); err != nil {
+		n.nlHandle.Delete()
+		return nil, err
+	}
+
+	return n, nil
 }
 
 func (n *networkNamespace) InterfaceOptions() IfaceOptionSetter {
@@ -159,30 +178,37 @@ func (n *networkNamespace) NeighborOptions() NeighborOptionSetter {
 }
 
 func mountNetworkNamespace(basePath string, lnPath string) error {
-	if err := syscall.Mount(basePath, lnPath, "bind", syscall.MS_BIND, ""); err != nil {
-		return err
-	}
-
-	if err := loopbackUp(); err != nil {
-		return err
-	}
-	return nil
+	return syscall.Mount(basePath, lnPath, "bind", syscall.MS_BIND, "")
 }
 
 // GetSandboxForExternalKey returns sandbox object for the supplied path
 func GetSandboxForExternalKey(basePath string, key string) (Sandbox, error) {
-	var err error
-	if err = createNamespaceFile(key); err != nil {
+	if err := createNamespaceFile(key); err != nil {
 		return nil, err
 	}
-	n := &networkNamespace{path: basePath}
-	n.InvokeFunc(func() {
-		err = mountNetworkNamespace(basePath, key)
-	})
+
+	if err := mountNetworkNamespace(basePath, key); err != nil {
+		return nil, err
+	}
+	n := &networkNamespace{path: key}
+
+	sboxNs, err := netns.GetFromPath(n.path)
 	if err != nil {
+		return nil, fmt.Errorf("failed get network namespace %q: %v", n.path, err)
+	}
+	defer sboxNs.Close()
+
+	n.nlHandle, err = netlink.NewHandleAt(sboxNs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create a netlink handle: %v", err)
+	}
+
+	if err = n.loopbackUp(); err != nil {
+		n.nlHandle.Delete()
 		return nil, err
 	}
-	return &networkNamespace{path: key}, nil
+
+	return n, nil
 }
 
 func reexecCreateNamespace() {
@@ -243,12 +269,12 @@ func createNamespaceFile(path string) (err error) {
 	return err
 }
 
-func loopbackUp() error {
-	iface, err := netlink.LinkByName("lo")
+func (n *networkNamespace) loopbackUp() error {
+	iface, err := n.nlHandle.LinkByName("lo")
 	if err != nil {
 		return err
 	}
-	return netlink.LinkSetUp(iface)
+	return n.nlHandle.LinkSetUp(iface)
 }
 
 func (n *networkNamespace) InvokeFunc(f func()) error {
@@ -260,33 +286,30 @@ func (n *networkNamespace) InvokeFunc(f func()) error {
 
 // InitOSContext initializes OS context while configuring network resources
 func InitOSContext() func() {
-	runtime.LockOSThread()
 	nsOnce.Do(ns.Init)
+	runtime.LockOSThread()
 	if err := ns.SetNamespace(); err != nil {
 		log.Error(err)
 	}
-
 	return runtime.UnlockOSThread
 }
 
 func nsInvoke(path string, prefunc func(nsFD int) error, postfunc func(callerFD int) error) error {
 	defer InitOSContext()()
 
-	f, err := os.OpenFile(path, os.O_RDONLY, 0)
+	newNs, err := netns.GetFromPath(path)
 	if err != nil {
 		return fmt.Errorf("failed get network namespace %q: %v", path, err)
 	}
-	defer f.Close()
-
-	nsFD := f.Fd()
+	defer newNs.Close()
 
 	// Invoked before the namespace switch happens but after the namespace file
 	// handle is obtained.
-	if err := prefunc(int(nsFD)); err != nil {
+	if err := prefunc(int(newNs)); err != nil {
 		return fmt.Errorf("failed in prefunc: %v", err)
 	}
 
-	if err = netns.Set(netns.NsHandle(nsFD)); err != nil {
+	if err = netns.Set(newNs); err != nil {
 		return err
 	}
 	defer ns.SetNamespace()
@@ -311,6 +334,9 @@ func (n *networkNamespace) Key() string {
 }
 
 func (n *networkNamespace) Destroy() error {
+	if n.nlHandle != nil {
+		n.nlHandle.Delete()
+	}
 	// Assuming no running process is executing in this network namespace,
 	// unmounting is sufficient to destroy it.
 	if err := syscall.Unmount(n.path, syscall.MNT_DETACH); err != nil {

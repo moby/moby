@@ -11,7 +11,7 @@ var DockerCommandUsage = []Command{
 	{"cp", "Copy files/folders between a container and the local filesystem"},
 	{"exec", "Run a command in a running container"},
 	{"info", "Display system-wide information"},
-	{"inspect", "Return low-level information on a container or image"},
+	{"inspect", "Return low-level information on a container, image or task"},
 	{"update", "Update configuration of one or more containers"},
 }
 

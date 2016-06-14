@@ -7,7 +7,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netutils"
-	"github.com/vishvananda/netlink"
+	"github.com/docker/libnetwork/ns"
 )
 
 type endpointTable map[string]*endpoint
@@ -84,6 +84,8 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 }
 
 func (d *driver) DeleteEndpoint(nid, eid string) error {
+	nlh := ns.NlHandle()
+
 	if err := validateID(nid, eid); err != nil {
 		return err
 	}
@@ -104,12 +106,12 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 		return nil
 	}
 
-	link, err := netlink.LinkByName(ep.ifName)
+	link, err := nlh.LinkByName(ep.ifName)
 	if err != nil {
 		log.Debugf("Failed to retrieve interface (%s)'s link on endpoint (%s) delete: %v", ep.ifName, ep.id, err)
 		return nil
 	}
-	if err := netlink.LinkDel(link); err != nil {
+	if err := nlh.LinkDel(link); err != nil {
 		log.Debugf("Failed to delete interface (%s)'s link on endpoint (%s) delete: %v", ep.ifName, ep.id, err)
 	}
 

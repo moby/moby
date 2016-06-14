@@ -23,10 +23,12 @@ func (daemon *Daemon) ContainerInspect(name string, size bool, version string) (
 	case versions.Equal(version, "1.20"):
 		return daemon.containerInspect120(name)
 	}
-	return daemon.containerInspectCurrent(name, size)
+	return daemon.ContainerInspectCurrent(name, size)
 }
 
-func (daemon *Daemon) containerInspectCurrent(name string, size bool) (*types.ContainerJSON, error) {
+// ContainerInspectCurrent returns low-level information about a
+// container in a most recent api version.
+func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.ContainerJSON, error) {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err

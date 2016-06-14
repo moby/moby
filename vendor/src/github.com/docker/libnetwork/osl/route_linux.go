@@ -53,7 +53,7 @@ func (n *networkNamespace) SetGateway(gw net.IP) error {
 		return nil
 	}
 
-	err := programGateway(n.nsPath(), gw, true)
+	err := n.programGateway(gw, true)
 	if err == nil {
 		n.setGateway(gw)
 	}
@@ -69,7 +69,7 @@ func (n *networkNamespace) UnsetGateway() error {
 		return nil
 	}
 
-	err := programGateway(n.nsPath(), gw, false)
+	err := n.programGateway(gw, false)
 	if err == nil {
 		n.setGateway(net.IP{})
 	}
@@ -77,60 +77,54 @@ func (n *networkNamespace) UnsetGateway() error {
 	return err
 }
 
-func programGateway(path string, gw net.IP, isAdd bool) error {
-	return nsInvoke(path, func(nsFD int) error { return nil }, func(callerFD int) error {
-		gwRoutes, err := netlink.RouteGet(gw)
-		if err != nil {
-			return fmt.Errorf("route for the gateway %s could not be found: %v", gw, err)
-		}
+func (n *networkNamespace) programGateway(gw net.IP, isAdd bool) error {
+	gwRoutes, err := n.nlHandle.RouteGet(gw)
+	if err != nil {
+		return fmt.Errorf("route for the gateway %s could not be found: %v", gw, err)
+	}
 
-		if isAdd {
-			return netlink.RouteAdd(&netlink.Route{
-				Scope:     netlink.SCOPE_UNIVERSE,
-				LinkIndex: gwRoutes[0].LinkIndex,
-				Gw:        gw,
-			})
-		}
-
-		return netlink.RouteDel(&netlink.Route{
+	if isAdd {
+		return n.nlHandle.RouteAdd(&netlink.Route{
 			Scope:     netlink.SCOPE_UNIVERSE,
 			LinkIndex: gwRoutes[0].LinkIndex,
 			Gw:        gw,
 		})
+	}
+
+	return n.nlHandle.RouteDel(&netlink.Route{
+		Scope:     netlink.SCOPE_UNIVERSE,
+		LinkIndex: gwRoutes[0].LinkIndex,
+		Gw:        gw,
 	})
 }
 
 // Program a route in to the namespace routing table.
-func programRoute(path string, dest *net.IPNet, nh net.IP) error {
-	return nsInvoke(path, func(nsFD int) error { return nil }, func(callerFD int) error {
-		gwRoutes, err := netlink.RouteGet(nh)
-		if err != nil {
-			return fmt.Errorf("route for the next hop %s could not be found: %v", nh, err)
-		}
+func (n *networkNamespace) programRoute(path string, dest *net.IPNet, nh net.IP) error {
+	gwRoutes, err := n.nlHandle.RouteGet(nh)
+	if err != nil {
+		return fmt.Errorf("route for the next hop %s could not be found: %v", nh, err)
+	}
 
-		return netlink.RouteAdd(&netlink.Route{
-			Scope:     netlink.SCOPE_UNIVERSE,
-			LinkIndex: gwRoutes[0].LinkIndex,
-			Gw:        nh,
-			Dst:       dest,
-		})
+	return n.nlHandle.RouteAdd(&netlink.Route{
+		Scope:     netlink.SCOPE_UNIVERSE,
+		LinkIndex: gwRoutes[0].LinkIndex,
+		Gw:        nh,
+		Dst:       dest,
 	})
 }
 
 // Delete a route from the namespace routing table.
-func removeRoute(path string, dest *net.IPNet, nh net.IP) error {
-	return nsInvoke(path, func(nsFD int) error { return nil }, func(callerFD int) error {
-		gwRoutes, err := netlink.RouteGet(nh)
-		if err != nil {
-			return fmt.Errorf("route for the next hop could not be found: %v", err)
-		}
+func (n *networkNamespace) removeRoute(path string, dest *net.IPNet, nh net.IP) error {
+	gwRoutes, err := n.nlHandle.RouteGet(nh)
+	if err != nil {
+		return fmt.Errorf("route for the next hop could not be found: %v", err)
+	}
 
-		return netlink.RouteDel(&netlink.Route{
-			Scope:     netlink.SCOPE_UNIVERSE,
-			LinkIndex: gwRoutes[0].LinkIndex,
-			Gw:        nh,
-			Dst:       dest,
-		})
+	return n.nlHandle.RouteDel(&netlink.Route{
+		Scope:     netlink.SCOPE_UNIVERSE,
+		LinkIndex: gwRoutes[0].LinkIndex,
+		Gw:        nh,
+		Dst:       dest,
 	})
 }
 
@@ -140,7 +134,7 @@ func (n *networkNamespace) SetGatewayIPv6(gwv6 net.IP) error {
 		return nil
 	}
 
-	err := programGateway(n.nsPath(), gwv6, true)
+	err := n.programGateway(gwv6, true)
 	if err == nil {
 		n.setGatewayIPv6(gwv6)
 	}
@@ -156,7 +150,7 @@ func (n *networkNamespace) UnsetGatewayIPv6() error {
 		return nil
 	}
 
-	err := programGateway(n.nsPath(), gwv6, false)
+	err := n.programGateway(gwv6, false)
 	if err == nil {
 		n.Lock()
 		n.gwv6 = net.IP{}
@@ -167,7 +161,7 @@ func (n *networkNamespace) UnsetGatewayIPv6() error {
 }
 
 func (n *networkNamespace) AddStaticRoute(r *types.StaticRoute) error {
-	err := programRoute(n.nsPath(), r.Destination, r.NextHop)
+	err := n.programRoute(n.nsPath(), r.Destination, r.NextHop)
 	if err == nil {
 		n.Lock()
 		n.staticRoutes = append(n.staticRoutes, r)
@@ -178,7 +172,7 @@ func (n *networkNamespace) AddStaticRoute(r *types.StaticRoute) error {
 
 func (n *networkNamespace) RemoveStaticRoute(r *types.StaticRoute) error {
 
-	err := removeRoute(n.nsPath(), r.Destination, r.NextHop)
+	err := n.removeRoute(n.nsPath(), r.Destination, r.NextHop)
 	if err == nil {
 		n.Lock()
 		lastIndex := len(n.staticRoutes) - 1

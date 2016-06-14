@@ -124,8 +124,10 @@ func getTLSConfig() (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-func sockConn(timeout time.Duration) (net.Conn, error) {
-	daemon := daemonHost()
+func sockConn(timeout time.Duration, daemon string) (net.Conn, error) {
+	if daemon == "" {
+		daemon = daemonHost()
+	}
 	daemonURL, err := url.Parse(daemon)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse url %q: %v", daemon, err)
@@ -168,7 +170,11 @@ func sockRequest(method, endpoint string, data interface{}) (int, []byte, error)
 }
 
 func sockRequestRaw(method, endpoint string, data io.Reader, ct string) (*http.Response, io.ReadCloser, error) {
-	req, client, err := newRequestClient(method, endpoint, data, ct)
+	return sockRequestRawToDaemon(method, endpoint, data, ct, "")
+}
+
+func sockRequestRawToDaemon(method, endpoint string, data io.Reader, ct, daemon string) (*http.Response, io.ReadCloser, error) {
+	req, client, err := newRequestClient(method, endpoint, data, ct, daemon)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -187,7 +193,7 @@ func sockRequestRaw(method, endpoint string, data io.Reader, ct string) (*http.R
 }
 
 func sockRequestHijack(method, endpoint string, data io.Reader, ct string) (net.Conn, *bufio.Reader, error) {
-	req, client, err := newRequestClient(method, endpoint, data, ct)
+	req, client, err := newRequestClient(method, endpoint, data, ct, "")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -197,8 +203,8 @@ func sockRequestHijack(method, endpoint string, data io.Reader, ct string) (net.
 	return conn, br, nil
 }
 
-func newRequestClient(method, endpoint string, data io.Reader, ct string) (*http.Request, *httputil.ClientConn, error) {
-	c, err := sockConn(time.Duration(10 * time.Second))
+func newRequestClient(method, endpoint string, data io.Reader, ct, daemon string) (*http.Request, *httputil.ClientConn, error) {
+	c, err := sockConn(time.Duration(10*time.Second), daemon)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not dial docker daemon: %v", err)
 	}
@@ -1513,4 +1519,51 @@ func getErrorMessage(c *check.C, body []byte) string {
 	var resp types.ErrorResponse
 	c.Assert(json.Unmarshal(body, &resp), check.IsNil)
 	return strings.TrimSpace(resp.Message)
+}
+
+func waitAndAssert(c *check.C, timeout time.Duration, f checkF, checker check.Checker, args ...interface{}) {
+	after := time.After(timeout)
+	for {
+		v, comment := f(c)
+		assert, _ := checker.Check(append([]interface{}{v}, args...), checker.Info().Params)
+		select {
+		case <-after:
+			assert = true
+		default:
+		}
+		if assert {
+			if comment != nil {
+				args = append(args, comment)
+			}
+			c.Assert(v, checker, args...)
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+type checkF func(*check.C) (interface{}, check.CommentInterface)
+type reducer func(...interface{}) interface{}
+
+func reducedCheck(r reducer, funcs ...checkF) checkF {
+	return func(c *check.C) (interface{}, check.CommentInterface) {
+		var values []interface{}
+		var comments []string
+		for _, f := range funcs {
+			v, comment := f(c)
+			values = append(values, v)
+			if comment != nil {
+				comments = append(comments, comment.CheckCommentString())
+			}
+		}
+		return r(values...), check.Commentf("%v", strings.Join(comments, ", "))
+	}
+}
+
+func sumAsIntegers(vals ...interface{}) interface{} {
+	var s int
+	for _, v := range vals {
+		s += v.(int)
+	}
+	return s
 }

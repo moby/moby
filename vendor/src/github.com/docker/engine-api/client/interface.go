@@ -11,6 +11,7 @@ import (
 	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/engine-api/types/network"
 	"github.com/docker/engine-api/types/registry"
+	"github.com/docker/engine-api/types/swarm"
 )
 
 // APIClient is an interface that clients that talk with a docker server must implement.
@@ -19,6 +20,22 @@ type APIClient interface {
 	CheckpointCreate(ctx context.Context, container string, options types.CheckpointCreateOptions) error
 	CheckpointDelete(ctx context.Context, container string, checkpointID string) error
 	CheckpointList(ctx context.Context, container string) ([]types.Checkpoint, error)
+	SwarmInit(ctx context.Context, req swarm.InitRequest) (string, error)
+	SwarmJoin(ctx context.Context, req swarm.JoinRequest) error
+	SwarmLeave(ctx context.Context, force bool) error
+	SwarmInspect(ctx context.Context) (swarm.Swarm, error)
+	SwarmUpdate(ctx context.Context, version swarm.Version, swarm swarm.Spec) error
+	NodeInspect(ctx context.Context, nodeID string) (swarm.Node, error)
+	NodeList(ctx context.Context, options types.NodeListOptions) ([]swarm.Node, error)
+	NodeRemove(ctx context.Context, nodeID string) error
+	NodeUpdate(ctx context.Context, nodeID string, version swarm.Version, node swarm.NodeSpec) error
+	ServiceCreate(ctx context.Context, service swarm.ServiceSpec) (types.ServiceCreateResponse, error)
+	ServiceInspect(ctx context.Context, serviceID string) (swarm.Service, error)
+	ServiceList(ctx context.Context, options types.ServiceListOptions) ([]swarm.Service, error)
+	ServiceRemove(ctx context.Context, serviceID string) error
+	ServiceUpdate(ctx context.Context, serviceID string, version swarm.Version, service swarm.ServiceSpec) error
+	TaskInspectWithRaw(ctx context.Context, taskID string) (swarm.Task, []byte, error)
+	TaskList(ctx context.Context, options types.TaskListOptions) ([]swarm.Task, error)
 	ContainerAttach(ctx context.Context, container string, options types.ContainerAttachOptions) (types.HijackedResponse, error)
 	ContainerCommit(ctx context.Context, container string, options types.ContainerCommitOptions) (types.ContainerCommitResponse, error)
 	ContainerCreate(ctx context.Context, config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig, containerName string) (types.ContainerCreateResponse, error)
