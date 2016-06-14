@@ -192,7 +192,7 @@ func (c *containerAdapter) createVolumes(ctx context.Context, backend executorpk
 			continue
 		}
 
-		if mount.VolumeOptions != nil {
+		if mount.VolumeOptions == nil {
 			continue
 		}
 
