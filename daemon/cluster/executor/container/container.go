@@ -348,6 +348,7 @@ func (c *containerConfig) serviceConfig() *clustertypes.ServiceConfig {
 	log.Printf("Creating service config in agent for t = %+v", c.task)
 	svcCfg := &clustertypes.ServiceConfig{
 		Name:             c.task.ServiceAnnotations.Name,
+		Aliases:          make(map[string][]string),
 		ID:               c.task.ServiceID,
 		VirtualAddresses: make(map[string]*clustertypes.VirtualAddress),
 	}
@@ -356,6 +357,9 @@ func (c *containerConfig) serviceConfig() *clustertypes.ServiceConfig {
 		svcCfg.VirtualAddresses[na.Network.ID] = &clustertypes.VirtualAddress{
 			// We support only IPv4 virtual IP for now.
 			IPv4: c.virtualIP(na.Network.ID),
+		}
+		if len(na.Aliases) > 0 {
+			svcCfg.Aliases[na.Network.ID] = na.Aliases
 		}
 	}
 
