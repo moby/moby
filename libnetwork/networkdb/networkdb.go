@@ -286,6 +286,23 @@ func (nDB *NetworkDB) DeleteEntry(tname, nid, key string) error {
 	return nil
 }
 
+func (nDB *NetworkDB) deleteNetworkNodeEntries(deletedNode string) {
+	nDB.Lock()
+	for nid, nodes := range nDB.networkNodes {
+		updatedNodes := make([]string, 0, len(nodes))
+		for _, node := range nodes {
+			if node == deletedNode {
+				continue
+			}
+
+			updatedNodes = append(updatedNodes, node)
+		}
+
+		nDB.networkNodes[nid] = updatedNodes
+	}
+	nDB.Unlock()
+}
+
 func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
 	nDB.Lock()
 	nDB.indexes[byTable].Walk(func(path string, v interface{}) bool {
@@ -359,6 +376,7 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 		RetransmitMult: 4,
 	}
 	nDB.networkNodes[nid] = append(nDB.networkNodes[nid], nDB.config.NodeName)
+	networkNodes := nDB.networkNodes[nid]
 	nDB.Unlock()
 
 	if err := nDB.sendNetworkEvent(nid, NetworkEventTypeJoin, ltime); err != nil {
@@ -366,7 +384,7 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 	}
 
 	logrus.Debugf("%s: joined network %s", nDB.config.NodeName, nid)
-	if _, err := nDB.bulkSync(nid, true); err != nil {
+	if _, err := nDB.bulkSync(nid, networkNodes, true); err != nil {
 		logrus.Errorf("Error bulk syncing while joining network %s: %v", nid, err)
 	}
 

@@ -311,7 +311,16 @@ func (nDB *NetworkDB) bulkSyncTables() {
 		nid := networks[0]
 		networks = networks[1:]
 
-		completed, err := nDB.bulkSync(nid, false)
+		nDB.RLock()
+		nodes := nDB.networkNodes[nid]
+		nDB.RUnlock()
+
+		// No peer nodes on this network. Move on.
+		if len(nodes) == 0 {
+			continue
+		}
+
+		completed, err := nDB.bulkSync(nid, nodes, false)
 		if err != nil {
 			logrus.Errorf("periodic bulk sync failure for network %s: %v", nid, err)
 			continue
@@ -334,11 +343,7 @@ func (nDB *NetworkDB) bulkSyncTables() {
 	}
 }
 
-func (nDB *NetworkDB) bulkSync(nid string, all bool) ([]string, error) {
-	nDB.RLock()
-	nodes := nDB.networkNodes[nid]
-	nDB.RUnlock()
-
+func (nDB *NetworkDB) bulkSync(nid string, nodes []string, all bool) ([]string, error) {
 	if !all {
 		// If not all, then just pick one.
 		nodes = nDB.mRandomNodes(1, nodes)
