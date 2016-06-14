@@ -30,7 +30,7 @@ var (
 	getPortMapInfo    = container.GetSandboxPortMapInfo
 )
 
-func (daemon *Daemon) buildSandboxOptions(container *container.Container, n libnetwork.Network) ([]libnetwork.SandboxOption, error) {
+func (daemon *Daemon) buildSandboxOptions(container *container.Container) ([]libnetwork.SandboxOption, error) {
 	var (
 		sboxOptions []libnetwork.SandboxOption
 		err         error
@@ -176,16 +176,19 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container, n libn
 
 	// Legacy Link feature is supported only for the default bridge network.
 	// return if this call to build join options is not for default bridge network
-	if n.Name() != defaultNetName {
+	// Legacy Link is only supported by docker run --link
+	if _, ok := container.NetworkSettings.Networks[defaultNetName]; !container.HostConfig.NetworkMode.IsDefault() || !ok {
 		return sboxOptions, nil
 	}
 
-	ep, _ := container.GetEndpointInNetwork(n)
-	if ep == nil {
+	if container.NetworkSettings.Networks[defaultNetName].EndpointID == "" {
 		return sboxOptions, nil
 	}
 
-	var childEndpoints, parentEndpoints []string
+	var (
+		childEndpoints, parentEndpoints []string
+		cEndpointID                     string
+	)
 
 	children := daemon.children(container)
 	for linkAlias, child := range children {
@@ -200,9 +203,9 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container, n libn
 			aliasList = aliasList + " " + child.Name[1:]
 		}
 		sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(aliasList, child.NetworkSettings.Networks[defaultNetName].IPAddress))
-		cEndpoint, _ := child.GetEndpointInNetwork(n)
-		if cEndpoint != nil && cEndpoint.ID() != "" {
-			childEndpoints = append(childEndpoints, cEndpoint.ID())
+		cEndpointID = child.NetworkSettings.Networks[defaultNetName].EndpointID
+		if cEndpointID != "" {
+			childEndpoints = append(childEndpoints, cEndpointID)
 		}
 	}
 
@@ -219,8 +222,8 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container, n libn
 			alias,
 			bridgeSettings.IPAddress,
 		))
-		if ep.ID() != "" {
-			parentEndpoints = append(parentEndpoints, ep.ID())
+		if cEndpointID != "" {
+			parentEndpoints = append(parentEndpoints, cEndpointID)
 		}
 	}
 
@@ -312,7 +315,7 @@ func (daemon *Daemon) updateNetwork(container *container.Container) error {
 		return nil
 	}
 
-	options, err := daemon.buildSandboxOptions(container, n)
+	options, err := daemon.buildSandboxOptions(container)
 	if err != nil {
 		return fmt.Errorf("Update network failed: %v", err)
 	}
@@ -570,7 +573,7 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 	}
 
 	if sb == nil {
-		options, err := daemon.buildSandboxOptions(container, n)
+		options, err := daemon.buildSandboxOptions(container)
 		if err != nil {
 			return err
 		}
@@ -709,6 +712,9 @@ func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerID st
 }
 
 func (daemon *Daemon) releaseNetwork(container *container.Container) {
+	if daemon.netController == nil {
+		return
+	}
 	if container.HostConfig.NetworkMode.IsContainer() || container.Config.NetworkDisabled {
 		return
 	}

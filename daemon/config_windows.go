@@ -57,3 +57,7 @@ func (config *Config) GetDefaultRuntimeName() string {
 func (config *Config) GetAllRuntimes() map[string]types.Runtime {
 	return map[string]types.Runtime{}
 }
+
+func (config *Config) isSwarmCompatible() error {
+	return nil
+}

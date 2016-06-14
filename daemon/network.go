@@ -59,6 +59,9 @@ func (daemon *Daemon) GetNetworkByID(partialID string) (libnetwork.Network, erro
 // GetNetworkByName function returns a network for a given network name.
 func (daemon *Daemon) GetNetworkByName(name string) (libnetwork.Network, error) {
 	c := daemon.netController
+	if c == nil {
+		return nil, libnetwork.ErrNoSuchNetwork(name)
+	}
 	if name == "" {
 		name = c.Config().Daemon.DefaultNetwork
 	}
@@ -68,6 +71,9 @@ func (daemon *Daemon) GetNetworkByName(name string) (libnetwork.Network, error) 
 // GetNetworksByID returns a list of networks whose ID partially matches zero or more networks
 func (daemon *Daemon) GetNetworksByID(partialID string) []libnetwork.Network {
 	c := daemon.netController
+	if c == nil {
+		return nil
+	}
 	list := []libnetwork.Network{}
 	l := func(nw libnetwork.Network) bool {
 		if strings.HasPrefix(nw.ID(), partialID) {

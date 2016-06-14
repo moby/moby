@@ -37,3 +37,7 @@ func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) strin
 	// Then platform-specific install flags
 	config.attachExperimentalFlags(cmd, usageFn)
 }
+
+func (config *Config) isSwarmCompatible() error {
+	return nil
+}

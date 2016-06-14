@@ -113,7 +113,7 @@ func configureKernelSecuritySupport(config *Config, driverName string) error {
 	return nil
 }
 
-func (daemon *Daemon) initNetworkController(config *Config) (libnetwork.NetworkController, error) {
+func (daemon *Daemon) initNetworkController(config *Config, activeSandboxes map[string]interface{}) (libnetwork.NetworkController, error) {
 	return nil, nil
 }
 

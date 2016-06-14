@@ -3,6 +3,7 @@
 package daemon
 
 import (
+	"fmt"
 	"net"
 
 	"github.com/docker/docker/opts"
@@ -119,4 +120,14 @@ func (config *Config) GetAllRuntimes() map[string]types.Runtime {
 	rts := config.Runtimes
 	config.reloadLock.Unlock()
 	return rts
+}
+
+func (config *Config) isSwarmCompatible() error {
+	if config.IsValueSet("cluster-store") || config.IsValueSet("cluster-advertise") {
+		return fmt.Errorf("--cluster-store and --cluster-advertise daemon configurations are incompatible with swarm mode")
+	}
+	if config.LiveRestore {
+		return fmt.Errorf("--live-restore daemon configuration is incompatible with swarm mode")
+	}
+	return nil
 }
