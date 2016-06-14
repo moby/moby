@@ -200,6 +200,15 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, ima
 
 	manifestDigest := digest.FromBytes(canonicalManifest)
 	progress.Messagef(p.config.ProgressOutput, "", "%s: digest: %s size: %d", ref.Tag(), manifestDigest, len(canonicalManifest))
+
+	digest, err := reference.WithDigest(ref, manifestDigest)
+	if err != nil {
+		return err
+	}
+	// Best effort store the digest
+	if err := p.config.ReferenceStore.AddDigest(digest, imageID, true); err != nil {
+		logrus.Errorf("Failed to store digest reference %s: %s", manifestDigest, err.Error())
+	}
 	// Signal digest to the trust client so it can sign the
 	// push, if appropriate.
 	progress.Aux(p.config.ProgressOutput, PushResult{Tag: ref.Tag(), Digest: manifestDigest, Size: len(canonicalManifest)})
