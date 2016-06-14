@@ -58,6 +58,9 @@ type Sandbox interface {
 
 	// Destroy the sandbox
 	Destroy() error
+
+	// restore sandbox
+	Restore(ifsopt map[string][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error
 }
 
 // NeighborOptionSetter interface defines the option setter methods for interface options
