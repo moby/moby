@@ -132,6 +132,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /images/search` now supports maximum returned search results `limit`.
 * `POST /containers/{name:.*}/copy` is now removed and errors out starting from this API version.
 * API errors are now returned as JSON instead of plain text.
+* `POST /containers/create` and `POST /containers/(id)/start` allow you to configure kernel parameters (sysctls) for use in the container.
 
 ### v1.23 API changes
 
@@ -192,7 +193,6 @@ This section lists each version from latest to oldest.  Each listing includes a 
 
 [Docker Remote API v1.21](docker_remote_api_v1.21.md) documentation
 
-* `POST /containers/create` and `POST /containers/(id)/start` allow you to configure kernel parameters (sysctls) for use in the container.
 * `GET /volumes` lists volumes from all volume drivers.
 * `POST /volumes/create` to create a volume.
 * `GET /volumes/(name)` get low-level information about a volume.

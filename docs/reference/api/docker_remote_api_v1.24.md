@@ -461,6 +461,9 @@ Create a container
     -   **Ulimits** - A list of ulimits to set in the container, specified as
           `{ "Name": <name>, "Soft": <soft limit>, "Hard": <hard limit> }`, for example:
           `Ulimits: { "Name": "nofile", "Soft": 1024, "Hard": 2048 }`
+    -   **Sysctls** - A list of kernel parameters (sysctls) to set in the container, specified as
+          `{ <name>: <Value> }`, for example:
+	  `{ "net.ipv4.ip_forward": "1" }`
     -   **SecurityOpt**: A list of string values to customize labels for MLS
         systems, such as SELinux.
     -   **StorageOpt**: Storage driver options per container. Options can be passed in the form
@@ -592,6 +595,9 @@ Return low-level information on the container `id`
 				"Type": "json-file"
 			},
 			"SecurityOpt": null,
+			"Sysctls": {
+			        "net.ipv4.ip_forward": "1"
+			},
 			"StorageOpt": null,
 			"VolumesFrom": null,
 			"Ulimits": [{}],
