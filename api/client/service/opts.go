@@ -148,13 +148,13 @@ func (m *MountOpt) Set(value string) error {
 
 	mount := swarm.Mount{}
 
-	template := func() *swarm.VolumeTemplate {
-		if mount.Template == nil {
-			mount.Template = &swarm.VolumeTemplate{
-				Annotations: swarm.Annotations{Labels: make(map[string]string)},
+	volumeOptions := func() *swarm.VolumeOptions {
+		if mount.VolumeOptions == nil {
+			mount.VolumeOptions = &swarm.VolumeOptions{
+				Labels: make(map[string]string),
 			}
 		}
-		return mount.Template
+		return mount.VolumeOptions
 	}
 
 	setValueOnMap := func(target map[string]string, value string) {
@@ -190,24 +190,22 @@ func (m *MountOpt) Set(value string) error {
 			if err != nil {
 				return fmt.Errorf("invald value for writable: %s", err.Error())
 			}
-		case "propagation":
-			mount.Propagation = swarm.MountPropagation(strings.ToUpper(value))
-		case "populate":
-			mount.Populate, err = strconv.ParseBool(value)
+		case "bind-propagation":
+			mount.BindOptions.Propagation = swarm.MountPropagation(strings.ToUpper(value))
+		case "volume-populate":
+			volumeOptions().Populate, err = strconv.ParseBool(value)
 			if err != nil {
 				return fmt.Errorf("invald value for populate: %s", err.Error())
 			}
-		case "volume-name":
-			template().Name = value
 		case "volume-label":
-			setValueOnMap(template().Labels, value)
+			setValueOnMap(volumeOptions().Labels, value)
 		case "volume-driver":
-			template().DriverConfig.Name = value
+			volumeOptions().DriverConfig.Name = value
 		case "volume-driver-opt":
-			if template().DriverConfig.Options == nil {
-				template().DriverConfig.Options = make(map[string]string)
+			if volumeOptions().DriverConfig.Options == nil {
+				volumeOptions().DriverConfig.Options = make(map[string]string)
 			}
-			setValueOnMap(template().DriverConfig.Options, value)
+			setValueOnMap(volumeOptions().DriverConfig.Options, value)
 		default:
 			return fmt.Errorf("unexpected key '%s' in '%s'", key, value)
 		}
@@ -412,8 +410,8 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 
 	switch opts.mode {
 	case "global":
-		if opts.scale.Value() != nil {
-			return service, fmt.Errorf("scale can only be used with replicated mode")
+		if opts.replicas.Value() != nil {
+			return service, fmt.Errorf("replicas can only be used with replicated mode")
 		}
 
 		service.Mode.Global = &swarm.GlobalService{}
