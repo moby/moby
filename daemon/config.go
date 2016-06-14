@@ -90,6 +90,7 @@ type CommonConfig struct {
 	TrustKeyPath         string              `json:"-"`
 	CorsHeaders          string              `json:"api-cors-header,omitempty"`
 	EnableCors           bool                `json:"api-enable-cors,omitempty"`
+	LiveRestore          bool                `json:"live-restore,omitempty"`
 
 	// ClusterStore is the storage backend used for the cluster information. It is used by both
 	// multihost networking (to store networks and endpoints information) and by the node discovery

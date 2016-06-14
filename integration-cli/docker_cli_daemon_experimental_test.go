@@ -63,7 +63,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check
 // them now, should remove the mounts.
 func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonCrash(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	c.Assert(s.d.StartWithBusybox(), check.IsNil)
+	c.Assert(s.d.StartWithBusybox("--live-restore"), check.IsNil)
 
 	out, err := s.d.Cmd("run", "-d", "busybox", "top")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
@@ -78,7 +78,7 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonCrash(c *check.C) {
 	c.Assert(strings.Contains(string(mountOut), id), check.Equals, true, comment)
 
 	// restart daemon.
-	if err := s.d.Restart(); err != nil {
+	if err := s.d.Restart("--live-restore"); err != nil {
 		c.Fatal(err)
 	}
 
@@ -103,7 +103,7 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonCrash(c *check.C) {
 
 // TestDaemonRestartWithPausedRunningContainer requires live restore of running containers
 func (s *DockerDaemonSuite) TestDaemonRestartWithPausedRunningContainer(t *check.C) {
-	if err := s.d.StartWithBusybox(); err != nil {
+	if err := s.d.StartWithBusybox("--live-restore"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -130,7 +130,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPausedRunningContainer(t *check
 	time.Sleep(3 * time.Second)
 
 	// restart the daemon
-	if err := s.d.Start(); err != nil {
+	if err := s.d.Start("--live-restore"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -148,7 +148,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPausedRunningContainer(t *check
 func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *check.C) {
 	// TODO(mlaventure): Not sure what would the exit code be on windows
 	testRequires(t, DaemonIsLinux)
-	if err := s.d.StartWithBusybox(); err != nil {
+	if err := s.d.StartWithBusybox("--live-restore"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -180,7 +180,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *che
 	time.Sleep(3 * time.Second)
 
 	// restart the daemon
-	if err := s.d.Start(); err != nil {
+	if err := s.d.Start("--live-restore"); err != nil {
 		t.Fatal(err)
 	}
 

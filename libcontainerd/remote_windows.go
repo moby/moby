@@ -20,8 +20,17 @@ func (r *remote) Client(b Backend) (Client, error) {
 func (r *remote) Cleanup() {
 }
 
+func (r *remote) UpdateOptions(opts ...RemoteOption) error {
+	return nil
+}
+
 // New creates a fresh instance of libcontainerd remote. On Windows,
 // this is not used as there is no remote containerd process.
 func New(_ string, _ ...RemoteOption) (Remote, error) {
 	return &remote{}, nil
+}
+
+// WithLiveRestore is a noop on windows.
+func WithLiveRestore(v bool) RemoteOption {
+	return nil
 }

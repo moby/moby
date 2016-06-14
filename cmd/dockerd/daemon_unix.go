@@ -71,6 +71,9 @@ func (cli *DaemonCli) getPlatformRemoteOptions() []libcontainerd.RemoteOption {
 		args := []string{"--systemd-cgroup=true"}
 		opts = append(opts, libcontainerd.WithRuntimeArgs(args))
 	}
+	if cli.Config.LiveRestore {
+		opts = append(opts, libcontainerd.WithLiveRestore(true))
+	}
 	return opts
 }
 

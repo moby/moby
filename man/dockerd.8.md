@@ -42,6 +42,7 @@ dockerd - Enable daemon mode
 [**--isolation**[=*default*]]
 [**-l**|**--log-level**[=*info*]]
 [**--label**[=*[]*]]
+[**--live-restore**[=*false*]]
 [**--log-driver**[=*json-file*]]
 [**--log-opt**[=*map[]*]]
 [**--mtu**[=*0*]]
@@ -194,6 +195,9 @@ is `hyperv`. Linux only supports `default`.
 
 **--label**="[]"
   Set key=value labels to the daemon (displayed in `docker info`)
+
+**--live-restore**=*false*
+  Enable live restore of running containers when the daemon starts so that they are not restarted.
 
 **--log-driver**="*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*awslogs*|*splunk*|*etwlogs*|*gcplogs*|*none*"
   Default driver for container logs. Default is `json-file`.
