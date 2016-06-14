@@ -789,9 +789,15 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 
 	if epConfig != nil {
 		ipam := epConfig.IPAMConfig
-		if ipam != nil && (ipam.IPv4Address != "" || ipam.IPv6Address != "") {
+		if ipam != nil && (ipam.IPv4Address != "" || ipam.IPv6Address != "" || len(ipam.LinkLocalIPs) > 0) {
+			var ipList []net.IP
+			for _, ips := range ipam.LinkLocalIPs {
+				if ip := net.ParseIP(ips); ip != nil {
+					ipList = append(ipList, ip)
+				}
+			}
 			createOptions = append(createOptions,
-				libnetwork.CreateOptionIpam(net.ParseIP(ipam.IPv4Address), net.ParseIP(ipam.IPv6Address), nil, nil))
+				libnetwork.CreateOptionIpam(net.ParseIP(ipam.IPv4Address), net.ParseIP(ipam.IPv6Address), ipList, nil))
 		}
 
 		for _, alias := range epConfig.Aliases {

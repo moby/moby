@@ -45,6 +45,7 @@ docker-run - Run a command in a new container
 [**-l**|**--label**[=*[]*]]
 [**--label-file**[=*[]*]]
 [**--link**[=*[]*]]
+[**--link-local-ip**[=*[]*]]
 [**--log-driver**[=*[]*]]
 [**--log-opt**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
@@ -325,6 +326,9 @@ uses **--link** when starting the new client container, then the client
 container can access the exposed port via a private networking interface. Docker
 will set some environment variables in the client container to help indicate
 which interface and port to use.
+
+**--link-local-ip**=[]
+   Add one or more link-local IPv4/IPv6 addresses to the container's interface
 
 **--log-driver**="*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*awslogs*|*splunk*|*etwlogs*|*gcplogs*|*none*"
   Logging driver for container. Default is defined by daemon `--log-driver` flag.

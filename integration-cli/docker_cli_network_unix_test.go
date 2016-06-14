@@ -1336,6 +1336,53 @@ func verifyIPAddresses(c *check.C, cName, nwname, ipv4, ipv6 string) {
 	c.Assert(strings.TrimSpace(out), check.Equals, ipv6)
 }
 
+func (s *DockerNetworkSuite) TestDockerNetworkConnectLinkLocalIP(c *check.C) {
+	// create one test network
+	dockerCmd(c, "network", "create", "n0")
+	assertNwIsAvailable(c, "n0")
+
+	// run a container with incorrect link-local address
+	_, _, err := dockerCmdWithError("run", "--link-local-ip", "169.253.5.5", "busybox", "top")
+	c.Assert(err, check.NotNil)
+	_, _, err = dockerCmdWithError("run", "--link-local-ip", "2001:db8::89", "busybox", "top")
+	c.Assert(err, check.NotNil)
+
+	// run two containers with link-local ip on the test network
+	dockerCmd(c, "run", "-d", "--name", "c0", "--net=n0", "--link-local-ip", "169.254.7.7", "--link-local-ip", "fe80::254:77", "busybox", "top")
+	c.Assert(waitRun("c0"), check.IsNil)
+	dockerCmd(c, "run", "-d", "--name", "c1", "--net=n0", "--link-local-ip", "169.254.8.8", "--link-local-ip", "fe80::254:88", "busybox", "top")
+	c.Assert(waitRun("c1"), check.IsNil)
+
+	// run a container on the default network and connect it to the test network specifying a link-local address
+	dockerCmd(c, "run", "-d", "--name", "c2", "busybox", "top")
+	c.Assert(waitRun("c2"), check.IsNil)
+	dockerCmd(c, "network", "connect", "--link-local-ip", "169.254.9.9", "n0", "c2")
+
+	// verify the three containers can ping each other via the link-local addresses
+	_, _, err = dockerCmdWithError("exec", "c0", "ping", "-c", "1", "169.254.8.8")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "c1", "ping", "-c", "1", "169.254.9.9")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "c2", "ping", "-c", "1", "169.254.7.7")
+	c.Assert(err, check.IsNil)
+
+	// Stop and restart the three containers
+	dockerCmd(c, "stop", "c0")
+	dockerCmd(c, "stop", "c1")
+	dockerCmd(c, "stop", "c2")
+	dockerCmd(c, "start", "c0")
+	dockerCmd(c, "start", "c1")
+	dockerCmd(c, "start", "c2")
+
+	// verify the ping again
+	_, _, err = dockerCmdWithError("exec", "c0", "ping", "-c", "1", "169.254.8.8")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "c1", "ping", "-c", "1", "169.254.9.9")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "c2", "ping", "-c", "1", "169.254.7.7")
+	c.Assert(err, check.IsNil)
+}
+
 func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectLink(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
 	dockerCmd(c, "network", "create", "-d", "bridge", "foo1")

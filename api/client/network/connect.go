@@ -12,12 +12,13 @@ import (
 )
 
 type connectOptions struct {
-	network     string
-	container   string
-	ipaddress   string
-	ipv6address string
-	links       opts.ListOpts
-	aliases     []string
+	network      string
+	container    string
+	ipaddress    string
+	ipv6address  string
+	links        opts.ListOpts
+	aliases      []string
+	linklocalips []string
 }
 
 func newConnectCommand(dockerCli *client.DockerCli) *cobra.Command {
@@ -41,6 +42,7 @@ func newConnectCommand(dockerCli *client.DockerCli) *cobra.Command {
 	flags.StringVar(&opts.ipv6address, "ip6", "", "IPv6 Address")
 	flags.Var(&opts.links, "link", "Add link to another container")
 	flags.StringSliceVar(&opts.aliases, "alias", []string{}, "Add network-scoped alias for the container")
+	flags.StringSliceVar(&opts.linklocalips, "link-local-ip", []string{}, "Add a link-local address for the container")
 
 	return cmd
 }
@@ -50,8 +52,9 @@ func runConnect(dockerCli *client.DockerCli, opts connectOptions) error {
 
 	epConfig := &network.EndpointSettings{
 		IPAMConfig: &network.EndpointIPAMConfig{
-			IPv4Address: opts.ipaddress,
-			IPv6Address: opts.ipv6address,
+			IPv4Address:  opts.ipaddress,
+			IPv6Address:  opts.ipv6address,
+			LinkLocalIPs: opts.linklocalips,
 		},
 		Links:   opts.links.GetAll(),
 		Aliases: opts.aliases,

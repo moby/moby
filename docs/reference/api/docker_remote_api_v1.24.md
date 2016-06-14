@@ -339,7 +339,8 @@ Create a container
               "isolated_nw" : {
                   "IPAMConfig": {
                       "IPv4Address":"172.20.30.33",
-                      "IPv6Address":"2001:db8:abcd::3033"
+                      "IPv6Address":"2001:db8:abcd::3033",
+                      "LinkLocalIPs:["169.254.34.68", "fe80::3468"]
                   },
                   "Links":["container_1", "container_2"],
                   "Aliases":["server_x", "server_y"]
