@@ -2,6 +2,7 @@ package convert
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"golang.org/x/crypto/bcrypt"
@@ -103,11 +104,22 @@ func SwarmSpecUpdateAcceptancePolicy(spec *swarmapi.ClusterSpec, acceptancePolic
 		}
 
 		if p.Secret != "" {
-			hashPwd, _ := bcrypt.GenerateFromPassword([]byte(p.Secret), 0)
-			policy.Secret = &swarmapi.AcceptancePolicy_RoleAdmissionPolicy_HashedSecret{
-				Data: hashPwd,
-				Alg:  "bcrypt",
+			rawSecret := []byte(p.Secret)
+			if matched, _ := regexp.Match("^\\$2[ayb]\\$.{56}$", rawSecret); matched {
+				policy.Secret = &swarmapi.AcceptancePolicy_RoleAdmissionPolicy_HashedSecret{
+					Data: rawSecret,
+					Alg:  "bcrypt",
+				}
+
+			} else {
+				hashPwd, _ := bcrypt.GenerateFromPassword(rawSecret, 0)
+				policy.Secret = &swarmapi.AcceptancePolicy_RoleAdmissionPolicy_HashedSecret{
+					Data: hashPwd,
+					Alg:  "bcrypt",
+				}
 			}
+		} else {
+			policy.Secret = nil
 		}
 
 		spec.AcceptancePolicy.Policies = append(spec.AcceptancePolicy.Policies, policy)
