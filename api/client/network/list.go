@@ -71,7 +71,7 @@ func runList(dockerCli *client.DockerCli, opts listOptions) error {
 
 	w := tabwriter.NewWriter(dockerCli.Out(), 20, 1, 3, ' ', 0)
 	if !opts.quiet {
-		fmt.Fprintf(w, "NETWORK ID\tNAME\tDRIVER")
+		fmt.Fprintf(w, "NETWORK ID\tNAME\tDRIVER\tSCOPE")
 		fmt.Fprintf(w, "\n")
 	}
 
@@ -79,6 +79,8 @@ func runList(dockerCli *client.DockerCli, opts listOptions) error {
 	for _, networkResource := range networkResources {
 		ID := networkResource.ID
 		netName := networkResource.Name
+		driver := networkResource.Driver
+		scope := networkResource.Scope
 		if !opts.noTrunc {
 			ID = stringid.TruncateID(ID)
 		}
@@ -86,11 +88,11 @@ func runList(dockerCli *client.DockerCli, opts listOptions) error {
 			fmt.Fprintln(w, ID)
 			continue
 		}
-		driver := networkResource.Driver
-		fmt.Fprintf(w, "%s\t%s\t%s\t",
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t",
 			ID,
 			netName,
-			driver)
+			driver,
+			scope)
 		fmt.Fprint(w, "\n")
 	}
 	w.Flush()
