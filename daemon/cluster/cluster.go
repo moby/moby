@@ -28,7 +28,7 @@ import (
 
 const swarmDirName = "swarm"
 const controlSocket = "control.sock"
-const swarmConnectTimeout = 5 * time.Second
+const swarmConnectTimeout = 10 * time.Second
 const stateFile = "docker-state.json"
 
 const (
