@@ -432,13 +432,13 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 // Any flags that are not common are added separately in the individual command
 func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags := cmd.Flags()
-	flags.StringVar(&opts.name, "name", "", "Service name")
-	flags.VarP(&opts.labels, "label", "l", "Service labels")
+	flags.StringVar(&opts.name, flagName, "", "Service name")
+	flags.VarP(&opts.labels, flagLabel, "l", "Service labels")
 
 	flags.VarP(&opts.env, "env", "e", "Set environment variables")
 	flags.StringVarP(&opts.workdir, "workdir", "w", "", "Working directory inside the container")
 	flags.StringVarP(&opts.user, "user", "u", "", "Username or UID")
-	flags.VarP(&opts.mounts, "mount", "m", "Attach a mount to the service")
+	flags.VarP(&opts.mounts, flagMount, "m", "Attach a mount to the service")
 
 	flags.Var(&opts.resources.limitCPU, "limit-cpu", "Limit CPUs")
 	flags.Var(&opts.resources.limitMemBytes, "limit-memory", "Limit Memory")
@@ -446,20 +446,34 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.Var(&opts.resources.resMemBytes, "reserve-memory", "Reserve Memory")
 	flags.Var(&opts.stopGrace, "stop-grace-period", "Time to wait before force killing a container")
 
-	flags.StringVar(&opts.mode, "mode", "replicated", "Service mode (replicated or global)")
-	flags.Var(&opts.replicas, "replicas", "Number of tasks")
+	flags.StringVar(&opts.mode, flagMode, "replicated", "Service mode (replicated or global)")
+	flags.Var(&opts.replicas, flagReplicas, "Number of tasks")
 
-	flags.StringVar(&opts.restartPolicy.condition, "restart-condition", "", "Restart when condition is met (none, on_failure, or any)")
+	flags.StringVar(&opts.restartPolicy.condition, flagRestartCondition, "", "Restart when condition is met (none, on_failure, or any)")
 	flags.Var(&opts.restartPolicy.delay, "restart-delay", "Delay between restart attempts")
 	flags.Var(&opts.restartPolicy.maxAttempts, "restart-max-attempts", "Maximum number of restarts before giving up")
 	flags.Var(&opts.restartPolicy.window, "restart-window", "Window used to evalulate the restart policy")
 
 	flags.StringSliceVar(&opts.constraints, "constraint", []string{}, "Placement constraints")
 
-	flags.Uint64Var(&opts.update.parallelism, "update-parallelism", 1, "Maximum number of tasks updated simultaneously")
-	flags.DurationVar(&opts.update.delay, "update-delay", time.Duration(0), "Delay between updates")
+	flags.Uint64Var(&opts.update.parallelism, flagUpdateParallelism, 1, "Maximum number of tasks updated simultaneously")
+	flags.DurationVar(&opts.update.delay, flagUpdateDelay, time.Duration(0), "Delay between updates")
 
-	flags.StringSliceVar(&opts.networks, "network", []string{}, "Network attachments")
-	flags.StringVar(&opts.endpoint.mode, "endpoint-mode", "", "Endpoint mode(Valid values: VIP, DNSRR)")
-	flags.VarP(&opts.endpoint.ports, "publish", "p", "Publish a port as a node port")
+	flags.StringSliceVar(&opts.networks, flagNetwork, []string{}, "Network attachments")
+	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode(Valid values: VIP, DNSRR)")
+	flags.VarP(&opts.endpoint.ports, flagPublish, "p", "Publish a port as a node port")
 }
+
+const (
+	flagName              = "name"
+	flagLabel             = "label"
+	flagMount             = "mount"
+	flagMode              = "mode"
+	flagReplicas          = "replicas"
+	flagPublish           = "publish"
+	flagNetwork           = "network"
+	flagRestartCondition  = "restart-condition"
+	flagEndpointMode      = "endpoint-mode"
+	flagUpdateParallelism = "update-parallelism"
+	flagUpdateDelay       = "update-delay"
+)

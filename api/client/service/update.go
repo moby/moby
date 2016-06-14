@@ -112,7 +112,7 @@ func mergeService(spec *swarm.ServiceSpec, flags *pflag.FlagSet) error {
 
 	cspec := &spec.TaskTemplate.ContainerSpec
 	task := &spec.TaskTemplate
-	mergeString("name", &spec.Name)
+	mergeString(flagName, &spec.Name)
 	mergeLabels(flags, &spec.Labels)
 	mergeString("image", &cspec.Image)
 	mergeSlice("command", &cspec.Command)
@@ -129,25 +129,25 @@ func mergeService(spec *swarm.ServiceSpec, flags *pflag.FlagSet) error {
 
 	mergeDurationOpt("stop-grace-period", cspec.StopGracePeriod)
 
-	if flags.Changed("restart-policy-condition") {
-		value, _ := flags.GetString("restart-policy-condition")
+	if flags.Changed(flagRestartCondition) {
+		value, _ := flags.GetString(flagRestartCondition)
 		task.RestartPolicy.Condition = swarm.RestartPolicyCondition(value)
 	}
-	mergeDurationOpt("restart-policy-delay", task.RestartPolicy.Delay)
-	mergeUint64Opt("restart-policy-max-attempts", task.RestartPolicy.MaxAttempts)
-	mergeDurationOpt("restart-policy-window", task.RestartPolicy.Window)
+	mergeDurationOpt("restart-delay", task.RestartPolicy.Delay)
+	mergeUint64Opt("restart-max-attempts", task.RestartPolicy.MaxAttempts)
+	mergeDurationOpt("restart-window", task.RestartPolicy.Window)
 	mergeSlice("constraint", &task.Placement.Constraints)
 
 	if err := mergeMode(flags, &spec.Mode); err != nil {
 		return err
 	}
 
-	mergeUint64("updateconfig-parallelism", &spec.UpdateConfig.Parallelism)
-	mergeDuration("updateconfig-delay", &spec.UpdateConfig.Delay)
+	mergeUint64(flagUpdateParallelism, &spec.UpdateConfig.Parallelism)
+	mergeDuration(flagUpdateDelay, &spec.UpdateConfig.Delay)
 
 	mergeNetworks(flags, &spec.Networks)
-	if flags.Changed("endpoint-mode") {
-		value, _ := flags.GetString("endpoint-mode")
+	if flags.Changed(flagEndpointMode) {
+		value, _ := flags.GetString(flagEndpointMode)
 		spec.EndpointSpec.Mode = swarm.ResolutionMode(value)
 	}
 
@@ -157,7 +157,7 @@ func mergeService(spec *swarm.ServiceSpec, flags *pflag.FlagSet) error {
 }
 
 func mergeLabels(flags *pflag.FlagSet, field *map[string]string) {
-	if !flags.Changed("label") {
+	if !flags.Changed(flagLabel) {
 		return
 	}
 
@@ -165,7 +165,7 @@ func mergeLabels(flags *pflag.FlagSet, field *map[string]string) {
 		*field = make(map[string]string)
 	}
 
-	values := flags.Lookup("label").Value.(*opts.ListOpts).GetAll()
+	values := flags.Lookup(flagLabel).Value.(*opts.ListOpts).GetAll()
 	for key, value := range runconfigopts.ConvertKVStringsToMap(values) {
 		(*field)[key] = value
 	}
@@ -173,21 +173,21 @@ func mergeLabels(flags *pflag.FlagSet, field *map[string]string) {
 
 // TODO: should this override by destination path, or does swarm handle that?
 func mergeMounts(flags *pflag.FlagSet, mounts *[]swarm.Mount) {
-	if !flags.Changed("mount") {
+	if !flags.Changed(flagMount) {
 		return
 	}
 
-	values := flags.Lookup("mount").Value.(*MountOpt).Value()
+	values := flags.Lookup(flagMount).Value.(*MountOpt).Value()
 	*mounts = append(*mounts, values...)
 }
 
 // TODO: should this override by name, or does swarm handle that?
 func mergePorts(flags *pflag.FlagSet, portConfig *[]swarm.PortConfig) {
-	if !flags.Changed("ports") {
+	if !flags.Changed(flagPublish) {
 		return
 	}
 
-	values := flags.Lookup("ports").Value.(*opts.ListOpts).GetAll()
+	values := flags.Lookup(flagPublish).Value.(*opts.ListOpts).GetAll()
 	ports, portBindings, _ := nat.ParsePortSpecs(values)
 
 	for port := range ports {
@@ -196,26 +196,26 @@ func mergePorts(flags *pflag.FlagSet, portConfig *[]swarm.PortConfig) {
 }
 
 func mergeNetworks(flags *pflag.FlagSet, attachments *[]swarm.NetworkAttachmentConfig) {
-	if !flags.Changed("network") {
+	if !flags.Changed(flagNetwork) {
 		return
 	}
-	networks, _ := flags.GetStringSlice("network")
+	networks, _ := flags.GetStringSlice(flagNetwork)
 	for _, network := range networks {
 		*attachments = append(*attachments, swarm.NetworkAttachmentConfig{Target: network})
 	}
 }
 
 func mergeMode(flags *pflag.FlagSet, serviceMode *swarm.ServiceMode) error {
-	if !flags.Changed("mode") && !flags.Changed("scale") {
+	if !flags.Changed(flagMode) && !flags.Changed(flagReplicas) {
 		return nil
 	}
 
 	var mode string
-	if flags.Changed("mode") {
-		mode, _ = flags.GetString("mode")
+	if flags.Changed(flagMode) {
+		mode, _ = flags.GetString(flagMode)
 	}
 
-	if !(mode == "replicated" || serviceMode.Replicated != nil) && flags.Changed("replicas") {
+	if !(mode == "replicated" || serviceMode.Replicated != nil) && flags.Changed(flagReplicas) {
 		return fmt.Errorf("replicas can only be used with replicated mode")
 	}
 
@@ -225,8 +225,8 @@ func mergeMode(flags *pflag.FlagSet, serviceMode *swarm.ServiceMode) error {
 		return nil
 	}
 
-	if flags.Changed("replicas") {
-		replicas := flags.Lookup("replicas").Value.(*Uint64Opt).Value()
+	if flags.Changed(flagReplicas) {
+		replicas := flags.Lookup(flagReplicas).Value.(*Uint64Opt).Value()
 		serviceMode.Replicated = &swarm.ReplicatedService{Replicas: replicas}
 		serviceMode.Global = nil
 		return nil
