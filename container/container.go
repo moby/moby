@@ -810,10 +810,10 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 		var portConfigs []*libnetwork.PortConfig
 		for _, portConfig := range svcCfg.ExposedPorts {
 			portConfigs = append(portConfigs, &libnetwork.PortConfig{
-				Name:     portConfig.Name,
-				Protocol: libnetwork.PortConfig_Protocol(portConfig.Protocol),
-				Port:     portConfig.TargetPort,
-				NodePort: portConfig.PublishedPort,
+				Name:          portConfig.Name,
+				Protocol:      libnetwork.PortConfig_Protocol(portConfig.Protocol),
+				TargetPort:    portConfig.TargetPort,
+				PublishedPort: portConfig.PublishedPort,
 			})
 		}
 
