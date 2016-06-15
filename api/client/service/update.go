@@ -37,10 +37,28 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 }
 
 func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, serviceID string) error {
-	client := dockerCli.Client()
+	apiClient := dockerCli.Client()
 	ctx := context.Background()
+	headers := map[string][]string{}
 
-	service, _, err := client.ServiceInspectWithRaw(ctx, serviceID)
+	// TODO(nishanttotla): Is this the best way to get the new image?
+	image, err := flags.GetString("image")
+	if err != nil {
+		return err
+	}
+	if image != "" {
+		// Retrieve encoded auth token from the image reference
+		// only do this if a new image has been provided as part of the udpate
+		encodedAuth, err := dockerCli.RetrieveAuthTokenFromImage(ctx, image)
+		if err != nil {
+			return err
+		}
+		headers = map[string][]string{
+			"x-registry-auth": {encodedAuth},
+		}
+	}
+
+	service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID)
 	if err != nil {
 		return err
 	}
@@ -49,7 +67,8 @@ func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, serviceID stri
 	if err != nil {
 		return err
 	}
-	err = client.ServiceUpdate(ctx, service.ID, service.Version, service.Spec)
+
+	err = apiClient.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, headers)
 	if err != nil {
 		return err
 	}

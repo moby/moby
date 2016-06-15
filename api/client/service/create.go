@@ -32,14 +32,25 @@ func newCreateCommand(dockerCli *client.DockerCli) *cobra.Command {
 }
 
 func runCreate(dockerCli *client.DockerCli, opts *serviceOptions) error {
-	client := dockerCli.Client()
+	apiClient := dockerCli.Client()
 
 	service, err := opts.ToService()
 	if err != nil {
 		return err
 	}
 
-	response, err := client.ServiceCreate(context.Background(), service)
+	ctx := context.Background()
+	// Retrieve encoded auth token from the image reference
+	encodedAuth, err := dockerCli.RetrieveAuthTokenFromImage(ctx, opts.image)
+	if err != nil {
+		return err
+	}
+
+	headers := map[string][]string{
+		"x-registry-auth": {encodedAuth},
+	}
+
+	response, err := apiClient.ServiceCreate(ctx, service, headers)
 	if err != nil {
 		return err
 	}
