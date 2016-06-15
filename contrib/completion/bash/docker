@@ -1531,6 +1531,7 @@ _docker_service() {
 		inspect
 		ls list
 		rm remove
+		scale
 		tasks
 		update
 	"
@@ -1703,6 +1704,18 @@ _docker_service_ls() {
 	esac
 }
 
+_docker_service_scale() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $(compgen -S "=" -W "$(__docker_services $1)" -- "$cur") )
+			__docker_nospace
+			;;
+	esac
+}
+
 _docker_swarm() {
 	local subcommands="
 		init
@@ -1726,7 +1739,7 @@ _docker_swarm() {
 _docker_swarm_init() {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --auto-accept --force-new-cluster --secret" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--auto-accept --force-new-cluster --help --secret" -- "$cur" ) )
 			;;
 	esac
 }
@@ -1805,7 +1818,7 @@ _docker_node_accept() {
 _docker_node_inspect() {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --format --pretty" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--format --help --pretty" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_nodes
@@ -1815,7 +1828,7 @@ _docker_node_inspect() {
 _docker_node_ls() {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --filter --quiet" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--filter --help --quiet" -- "$cur" ) )
 			;;
 	esac
 }
@@ -1853,7 +1866,7 @@ _docker_node_rm() {
 _docker_node_tasks() {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --no-resolve --filter --all" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--all --filter --help --no-resolve" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_nodes_plus_self
@@ -1863,7 +1876,7 @@ _docker_node_tasks() {
 _docker_node_update() {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --availability --membership --role" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--availability --help --membership --role" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_nodes
