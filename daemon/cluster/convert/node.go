@@ -56,9 +56,9 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 	//Manager
 	if n.ManagerStatus != nil {
 		node.ManagerStatus = &types.ManagerStatus{
-			Leader:       n.ManagerStatus.Raft.Status.Leader,
-			Reachability: types.Reachability(strings.ToLower(n.ManagerStatus.Raft.Status.Reachability.String())),
-			Addr:         n.ManagerStatus.Raft.Addr,
+			Leader:       n.ManagerStatus.Leader,
+			Reachability: types.Reachability(strings.ToLower(n.ManagerStatus.Reachability.String())),
+			Addr:         n.ManagerStatus.Addr,
 		}
 	}
 

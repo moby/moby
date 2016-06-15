@@ -30,6 +30,10 @@ type Server struct {
 	store            *store.MemoryStore
 	securityConfig   *SecurityConfig
 	acceptancePolicy *api.AcceptancePolicy
+
+	// Started is a channel which gets closed once the server is running
+	// and able to service RPCs.
+	Started chan struct{}
 }
 
 // DefaultAcceptancePolicy returns the default acceptance policy.
@@ -60,6 +64,7 @@ func NewServer(store *store.MemoryStore, securityConfig *SecurityConfig) *Server
 	return &Server{
 		store:          store,
 		securityConfig: securityConfig,
+		Started:        make(chan struct{}),
 	}
 }
 
@@ -200,7 +205,7 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 	maxRetries := 3
 	// Generate a random ID for this new node
 	for i := 0; ; i++ {
-		nodeID = identity.NewNodeID()
+		nodeID = identity.NewID()
 
 		// Create a new node
 		err := s.store.Update(func(tx store.Tx) error {
@@ -352,6 +357,8 @@ func (s *Server) Run(ctx context.Context) error {
 	ctx = log.WithLogger(ctx, logger)
 	s.ctx, s.cancel = context.WithCancel(ctx)
 	s.mu.Unlock()
+
+	close(s.Started)
 
 	// Retrieve the channels to keep track of changes in the cluster
 	// Retrieve all the currently registered nodes

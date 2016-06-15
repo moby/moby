@@ -432,14 +432,13 @@ func (s *DockerSwarmSuite) TestApiSwarmNodeDrainPause(c *check.C) {
 		n.Spec.Availability = swarm.NodeAvailabilityActive
 	})
 
-	// change environment variable, resulting balanced rescheduling
-	d1.updateService(c, d1.getService(c, id), func(s *swarm.Service) {
-		s.Spec.TaskTemplate.ContainerSpec.Env = []string{"FOO=BAR"}
-		s.Spec.UpdateConfig = &swarm.UpdateConfig{
-			Parallelism: 2,
-			Delay:       250 * time.Millisecond,
-		}
-	})
+	instances = 1
+	d1.updateService(c, d1.getService(c, id), setInstances(instances))
+
+	waitAndAssert(c, defaultReconciliationTimeout*2, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d2.checkActiveContainerCount), checker.Equals, instances)
+
+	instances = 8
+	d1.updateService(c, d1.getService(c, id), setInstances(instances))
 
 	// drained node first so we don't get any old containers
 	waitAndAssert(c, defaultReconciliationTimeout, d2.checkActiveContainerCount, checker.GreaterThan, 0)
@@ -452,8 +451,6 @@ func (s *DockerSwarmSuite) TestApiSwarmNodeDrainPause(c *check.C) {
 	d1.updateNode(c, d1.getNode(c, d2.NodeID), func(n *swarm.Node) {
 		n.Spec.Availability = swarm.NodeAvailabilityPause
 	})
-
-	c.Skip("known flakiness with scaling up from this state")
 
 	instances = 14
 	d1.updateService(c, d1.getService(c, id), setInstances(instances))

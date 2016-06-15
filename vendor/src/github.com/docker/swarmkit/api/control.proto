@@ -235,8 +235,6 @@ message ListNetworksResponse {
 	repeated Network networks = 1;
 }
 
-message RemoveManagerResponse {}
-
 message GetClusterRequest {
 	string cluster_id = 1 [(gogoproto.customname) = "ClusterID"];
 }

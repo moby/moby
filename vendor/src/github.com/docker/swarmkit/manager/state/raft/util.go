@@ -29,6 +29,7 @@ func dial(addr string, protocol string, creds credentials.TransportAuthenticator
 // Register registers the node raft server
 func Register(server *grpc.Server, node *Node) {
 	api.RegisterRaftServer(server, node)
+	api.RegisterRaftMembershipServer(server, node)
 }
 
 // WaitForLeader waits until node observe some leader in cluster. It returns

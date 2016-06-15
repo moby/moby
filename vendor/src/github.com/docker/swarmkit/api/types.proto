@@ -484,18 +484,6 @@ message RaftConfig {
 	uint32 election_tick = 5;
 }
 
-message RaftMember {
-	// RaftID specifies the internal ID used by the manager in a raft context, it can never be modified
-	// and is used only for information purposes
-	uint64 raft_id = 1 [(gogoproto.customname) = "RaftID"];
-
-	// Addr specifies the address of the member
-	string addr = 2;
-
-	// Status provides the current status of the manager from the perspective of another manager.
-	RaftMemberStatus status = 3 [(gogoproto.nullable) = false];
-}
-
 // Placement specifies task distribution constraints.
 message Placement {
 	// constraints specifies a set of requirements a node should meet for a task.
@@ -558,7 +546,18 @@ message EncryptionKey {
 	uint64 lamport_time = 4;
 }
 
-// ManagerStatus provides information about the status of a manager in the cluster.
+// ManagerStatus provides informations about the state of a manager in the cluster.
 message ManagerStatus {
-	RaftMember raft = 1 [(gogoproto.nullable) = false];
+	// RaftID specifies the internal ID used by the manager in a raft context, it can never be modified
+	// and is used only for information purposes
+	uint64 raft_id = 1 [(gogoproto.customname) = "RaftID"];
+
+	// Addr is the address advertised to raft.
+	string addr = 2;
+
+	// Leader is set to true if this node is the raft leader.
+	bool leader = 3;
+
+	// Reachability specifies whether this node is reachable.
+	RaftMemberStatus.Reachability reachability = 4;
 }

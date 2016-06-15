@@ -998,13 +998,13 @@ func (c *Cluster) managerStats() (current bool, reachable int, unreachable int, 
 	}
 	for _, n := range nodes.Nodes {
 		if n.ManagerStatus != nil {
-			if n.ManagerStatus.Raft.Status.Reachability == swarmapi.RaftMemberStatus_REACHABLE {
+			if n.ManagerStatus.Reachability == swarmapi.RaftMemberStatus_REACHABLE {
 				reachable++
 				if n.ID == c.node.NodeID() {
 					current = true
 				}
 			}
-			if n.ManagerStatus.Raft.Status.Reachability == swarmapi.RaftMemberStatus_UNREACHABLE {
+			if n.ManagerStatus.Reachability == swarmapi.RaftMemberStatus_UNREACHABLE {
 				unreachable++
 			}
 		}

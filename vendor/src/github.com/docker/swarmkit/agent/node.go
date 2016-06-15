@@ -622,15 +622,18 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 
 			select {
 			case <-ctx.Done():
+				m.Stop(context.Background()) // todo: this should be sync like other components
 			case <-n.waitRole(ctx, ca.AgentRole):
 			}
 
-			m.Stop(context.Background()) // todo: this should be sync like other components
 			<-done
 
 			ready = nil // ready event happens once, even on multiple starts
 			n.Lock()
 			n.manager = nil
+			if n.conn != nil {
+				n.conn.Close()
+			}
 			n.Unlock()
 
 			if ctx.Err() != nil {

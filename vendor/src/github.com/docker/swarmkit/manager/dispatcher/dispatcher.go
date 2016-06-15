@@ -15,7 +15,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/ca"
-	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
@@ -136,7 +135,7 @@ func getWeightedPeers(cluster Cluster) []*api.WeightedPeer {
 	for _, m := range members {
 		mgrs = append(mgrs, &api.WeightedPeer{
 			Peer: &api.Peer{
-				NodeID: identity.FormatNodeID(m.RaftID),
+				NodeID: m.NodeID,
 				Addr:   m.Addr,
 			},
 			Weight: 1,
