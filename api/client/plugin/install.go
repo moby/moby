@@ -31,7 +31,7 @@ func newInstallCommand(dockerCli *client.DockerCli) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.BoolVar(&options.grantPerms, "grant-permissions", true, "grant all permissions necessary to run the plugin")
+	flags.BoolVar(&options.grantPerms, "grant-all-permissions", true, "grant all permissions necessary to run the plugin")
 
 	return cmd
 }
