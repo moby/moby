@@ -212,7 +212,7 @@ List containers
          }
     ]
 
-**Query parameters:**
+**Query parameters**:
 
 -   **all** – 1/True/true or 0/False/false, Show all containers.
         Only running containers are shown by default (i.e., this defaults to false)
@@ -235,7 +235,7 @@ List containers
   -   `volume`=(`<volume name>` or `<mount point destination>`)
   -   `network`=(`<network id>` or `<network name>`)
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **400** – bad parameter
@@ -358,7 +358,7 @@ Create a container
            "Warnings":[]
       }
 
-**JSON parameters:**
+**JSON parameters**:
 
 -   **Hostname** - A string value containing the hostname to use for the
       container.
@@ -477,12 +477,12 @@ Create a container
     -   **VolumeDriver** - Driver that this container users to mount volumes.
     -   **ShmSize** - Size of `/dev/shm` in bytes. The size must be greater than 0.  If omitted the system uses 64MB.
 
-**Query parameters:**
+**Query parameters**:
 
 -   **name** – Assign the specified name to the container. Must
     match `/?[a-zA-Z0-9_-]+`.
 
-**Status codes:**
+**Status codes**:
 
 -   **201** – no error
 -   **400** – bad parameter
@@ -690,11 +690,11 @@ Return low-level information on the container `id`
     ....
     }
 
-**Query parameters:**
+**Query parameters**:
 
 -   **size** – 1/True/true or 0/False/false, return container size information. Default is `false`.
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **404** – no such container
@@ -754,11 +754,11 @@ supported on Windows.
       ],
     }
 
-**Query parameters:**
+**Query parameters**:
 
 -   **ps_args** – `ps` arguments to use (e.g., `aux`), defaults to `-ef`
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **404** – no such container
@@ -786,7 +786,7 @@ Get `stdout` and `stderr` logs from the container ``id``
 
      {{ STREAM }}
 
-**Query parameters:**
+**Query parameters**:
 
 -   **details** - 1/True/true or 0/False/flase, Show extra details provided to logs. Default `false`.
 -   **follow** – 1/True/true or 0/False/false, return stream. Default `false`.
@@ -798,7 +798,7 @@ Get `stdout` and `stderr` logs from the container ``id``
         every log line. Default `false`.
 -   **tail** – Output specified number of lines at the end of logs: `all` or `<number>`. Default all.
 
-**Status codes:**
+**Status codes**:
 
 -   **101** – no error, hints proxy about hijacking
 -   **200** – no error, no upgrade header found
@@ -841,7 +841,7 @@ Values for `Kind`:
 - `1`: Add
 - `2`: Delete
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **404** – no such container
@@ -864,7 +864,7 @@ Export the contents of container `id`
 
     {{ TAR STREAM }}
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **404** – no such container
@@ -984,11 +984,11 @@ This endpoint returns a live stream of a container's resource usage statistics.
 
 The precpu_stats is the cpu statistic of last read, which is used for calculating the cpu usage percent. It is not the exact copy of the “cpu_stats” field.
 
-**Query parameters:**
+**Query parameters**:
 
 -   **stream** – 1/True/true or 0/False/false, pull stats once then disconnect. Default `true`.
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **404** – no such container
@@ -1010,12 +1010,12 @@ Resize the TTY for container with  `id`. The unit is number of characters. You m
       Content-Length: 0
       Content-Type: text/plain; charset=utf-8
 
-**Query parameters:**
+**Query parameters**:
 
 -   **h** – height of `tty` session
 -   **w** – width
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **404** – No such container
@@ -1035,13 +1035,13 @@ Start the container `id`
 
     HTTP/1.1 204 No Content
 
-**Query parameters:**
+**Query parameters**:
 
 -   **detachKeys** – Override the key sequence for detaching a
         container. Format is a single character `[a-Z]` or `ctrl-<value>`
         where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 
-**Status codes:**
+**Status codes**:
 
 -   **204** – no error
 -   **304** – container already started
@@ -1062,11 +1062,11 @@ Stop the container `id`
 
     HTTP/1.1 204 No Content
 
-**Query parameters:**
+**Query parameters**:
 
 -   **t** – number of seconds to wait before killing the container
 
-**Status codes:**
+**Status codes**:
 
 -   **204** – no error
 -   **304** – container already stopped
@@ -1087,11 +1087,11 @@ Restart the container `id`
 
     HTTP/1.1 204 No Content
 
-**Query parameters:**
+**Query parameters**:
 
 -   **t** – number of seconds to wait before killing the container
 
-**Status codes:**
+**Status codes**:
 
 -   **204** – no error
 -   **404** – no such container
@@ -1111,12 +1111,12 @@ Kill the container `id`
 
     HTTP/1.1 204 No Content
 
-Query Parameters
+**Query parameters**:
 
 -   **signal** - Signal to send to the container: integer or string like `SIGINT`.
         When not set, `SIGKILL` is assumed and the call waits for the container to exit.
 
-**Status codes:**
+**Status codes**:
 
 -   **204** – no error
 -   **404** – no such container
@@ -1159,7 +1159,7 @@ Update configuration of one or more containers.
            "Warnings": []
        }
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **400** – bad parameter
@@ -1180,11 +1180,11 @@ Rename the container `id` to a `new_name`
 
     HTTP/1.1 204 No Content
 
-**Query parameters:**
+**Query parameters**:
 
 -   **name** – new name for the container
 
-**Status codes:**
+**Status codes**:
 
 -   **204** – no error
 -   **404** – no such container
@@ -1205,7 +1205,7 @@ Pause the container `id`
 
     HTTP/1.1 204 No Content
 
-**Status codes:**
+**Status codes**:
 
 -   **204** – no error
 -   **404** – no such container
@@ -1225,7 +1225,7 @@ Unpause the container `id`
 
     HTTP/1.1 204 No Content
 
-**Status codes:**
+**Status codes**:
 
 -   **204** – no error
 -   **404** – no such container
@@ -1250,7 +1250,7 @@ Attach to the container `id`
 
     {{ STREAM }}
 
-**Query parameters:**
+**Query parameters**:
 
 -   **detachKeys** – Override the key sequence for detaching a
         container. Format is a single character `[a-Z]` or `ctrl-<value>`
@@ -1265,7 +1265,7 @@ Attach to the container `id`
 -   **stderr** – 1/True/true or 0/False/false, if `logs=true`, return
         `stderr` log, if `stream=true`, attach to `stderr`. Default `false`.
 
-**Status codes:**
+**Status codes**:
 
 -   **101** – no error, hints proxy about hijacking
 -   **200** – no error, no upgrade header found
@@ -1333,7 +1333,7 @@ Implements websocket protocol handshake according to [RFC 6455](http://tools.iet
 
     {{ STREAM }}
 
-**Query parameters:**
+**Query parameters**:
 
 -   **detachKeys** – Override the key sequence for detaching a
         container. Format is a single character `[a-Z]` or `ctrl-<value>`
@@ -1348,7 +1348,7 @@ Implements websocket protocol handshake according to [RFC 6455](http://tools.iet
 -   **stderr** – 1/True/true or 0/False/false, if `logs=true`, return
         `stderr` log, if `stream=true`, attach to `stderr`. Default `false`.
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **400** – bad parameter
@@ -1372,7 +1372,7 @@ Block until container `id` stops, then returns the exit code
 
     {"StatusCode": 0}
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **404** – no such container
@@ -1392,14 +1392,14 @@ Remove the container `id` from the filesystem
 
     HTTP/1.1 204 No Content
 
-**Query parameters:**
+**Query parameters**:
 
 -   **v** – 1/True/true or 0/False/false, Remove the volumes
         associated to the container. Default `false`.
 -   **force** - 1/True/true or 0/False/false, Kill then remove the container.
         Default `false`.
 
-**Status codes:**
+**Status codes**:
 
 -   **204** – no error
 -   **400** – bad parameter
@@ -1419,7 +1419,7 @@ following section.
 
 Get a tar archive of a resource in the filesystem of container `id`.
 
-**Query parameters:**
+**Query parameters**:
 
 - **path** - resource in the container's filesystem to archive. Required.
 
@@ -1464,7 +1464,7 @@ JSON object (whitespace added for readability):
 A `HEAD` request can also be made to this endpoint if only this information is
 desired.
 
-**Status codes:**
+**Status codes**:
 
 - **200** - success, returns archive of copied resource
 - **400** - client error, bad parameter, details in JSON response body, one of:
@@ -1483,7 +1483,7 @@ desired.
 Upload a tar archive to be extracted to a path in the filesystem of container
 `id`.
 
-**Query parameters:**
+**Query parameters**:
 
 - **path** - path to a directory in the container
     to extract the archive's contents into. Required.
@@ -1505,7 +1505,7 @@ Upload a tar archive to be extracted to a path in the filesystem of container
 
     HTTP/1.1 200 OK
 
-**Status codes:**
+**Status codes**:
 
 - **200** – the content was extracted successfully
 - **400** - client error, bad parameter, details in JSON response body, one of:
@@ -1607,7 +1607,7 @@ digest. You can reference this digest using the value:
 See the `docker run` and `docker build` commands for examples of digest and tag
 references on the command line.
 
-**Query parameters:**
+**Query parameters**:
 
 -   **all** – 1/True/true or 0/False/false, default false
 -   **filters** – a JSON encoded value of the filters (a map[string][]string) to process on the images list. Available filters:
@@ -1653,7 +1653,7 @@ command*](../../reference/builder.md#dockerbuilder)).
 The build is canceled if the client drops the connection by quitting
 or being killed.
 
-**Query parameters:**
+**Query parameters**:
 
 -   **dockerfile** - Path within the build context to the Dockerfile. This is
         ignored if `remote` is specified and points to an individual filename.
@@ -1708,7 +1708,7 @@ or being killed.
     be specified with both a "https://" prefix and a "/v1/" suffix even
     though Docker will prefer to use the v2 registry API.
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **500** – server error
@@ -1737,7 +1737,7 @@ When using this endpoint to pull an image from the registry, the
 `X-Registry-Auth` header can be used to include
 a base64-encoded AuthConfig object.
 
-**Query parameters:**
+**Query parameters**:
 
 -   **fromImage** – Name of the image to pull. The name may include a tag or
         digest. This parameter may only be used when pulling an image.
@@ -1771,7 +1771,7 @@ a base64-encoded AuthConfig object.
     }
         ```
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **500** – server error
@@ -1890,7 +1890,7 @@ Return low-level information on the image `name`
        }
     }
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **404** – no such image
@@ -1944,7 +1944,7 @@ Return the history of the image `name`
         }
     ]
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **404** – no such image
@@ -1981,7 +1981,7 @@ The push is cancelled if the HTTP connection is closed.
     POST /images/registry.acme.com:5000/test/push HTTP/1.1
 
 
-**Query parameters:**
+**Query parameters**:
 
 -   **tag** – The tag to associate with the image on the registry. This is optional.
 
@@ -2006,7 +2006,7 @@ Request Headers:
     }
         ```
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **404** – no such image
@@ -2026,12 +2026,12 @@ Tag the image `name` into a repository
 
     HTTP/1.1 201 Created
 
-**Query parameters:**
+**Query parameters**:
 
 -   **repo** – The repository to tag in
 -   **tag** - The new tag name
 
-**Status codes:**
+**Status codes**:
 
 -   **201** – no error
 -   **400** – bad parameter
@@ -2060,12 +2060,12 @@ Remove the image `name` from the filesystem
      {"Deleted": "53b4f83ac9"}
     ]
 
-**Query parameters:**
+**Query parameters**:
 
 -   **force** – 1/True/true or 0/False/false, default false
 -   **noprune** – 1/True/true or 0/False/false, default false
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **404** – no such image
@@ -2116,7 +2116,7 @@ Search for an image on [Docker Hub](https://hub.docker.com).
     ...
     ]
 
-**Query parameters:**
+**Query parameters**:
 
 -   **term** – term to search
 -   **limit** – maximum returned search results
@@ -2125,7 +2125,7 @@ Search for an image on [Docker Hub](https://hub.docker.com).
   -   `is-automated=(true|false)`
   -   `is-official=(true|false)`
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **500** – server error
@@ -2159,7 +2159,7 @@ if available, for accessing the registry without password.
          "IdentityToken": "9cbaf023786cd7..."
     }
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **204** – no error
@@ -2254,7 +2254,7 @@ Display system-wide information
         "SystemTime": "2015-03-10T11:11:23.730591467-07:00"
     }
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **500** – server error
@@ -2286,7 +2286,7 @@ Show the docker version information
          "Experimental": true
     }
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **500** – server error
@@ -2308,7 +2308,7 @@ Ping the docker server
 
     OK
 
-**Status codes:**
+**Status codes**:
 
 -   **200** - no error
 -   **500** - server error
@@ -2364,11 +2364,11 @@ Create a new image from a container's changes
 
     {"Id": "596069db4bf5"}
 
-**JSON parameters:**
+**JSON parameters**:
 
 -  **config** - the container's configuration
 
-**Query parameters:**
+**Query parameters**:
 
 -   **container** – source container
 -   **repo** – repository
@@ -2379,7 +2379,7 @@ Create a new image from a container's changes
 -   **pause** – 1/True/true or 0/False/false, whether to pause the container before committing
 -   **changes** – Dockerfile instructions to apply while committing
 
-**Status codes:**
+**Status codes**:
 
 -   **201** – no error
 -   **404** – no such container
@@ -2571,7 +2571,7 @@ Docker daemon report the following event:
       "timeNano": 1461943105338056026
     }
 
-**Query parameters:**
+**Query parameters**:
 
 -   **since** – Timestamp used for polling
 -   **until** – Timestamp used for polling
@@ -2585,7 +2585,7 @@ Docker daemon report the following event:
   -   `network=<string>`; -- network to filter
   -   `daemon=<string>`; -- daemon name or id to filter
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **500** – server error
@@ -2615,7 +2615,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
     Binary data stream
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **500** – server error
@@ -2644,7 +2644,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
     Binary data stream
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **500** – server error
@@ -2666,7 +2666,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 
     HTTP/1.1 200 OK
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **500** – server error
@@ -2724,7 +2724,7 @@ Sets up an exec instance in a running container `id`
          "Warnings":[]
     }
 
-**JSON parameters:**
+**JSON parameters**:
 
 -   **AttachStdin** - Boolean value, attaches to `stdin` of the `exec` command.
 -   **AttachStdout** - Boolean value, attaches to `stdout` of the `exec` command.
@@ -2736,7 +2736,7 @@ Sets up an exec instance in a running container `id`
 -   **Cmd** - Command to run specified as a string or an array of strings.
 
 
-**Status codes:**
+**Status codes**:
 
 -   **201** – no error
 -   **404** – no such container
@@ -2768,12 +2768,12 @@ interactive session with the `exec` command.
 
     {{ STREAM }}
 
-**JSON parameters:**
+**JSON parameters**:
 
 -   **Detach** - Detach from the `exec` command.
 -   **Tty** - Boolean value to allocate a pseudo-TTY.
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **404** – no such exec instance
@@ -2799,12 +2799,12 @@ This API is valid only if `tty` was specified as part of creating and starting t
     HTTP/1.1 201 Created
     Content-Type: text/plain
 
-**Query parameters:**
+**Query parameters**:
 
 -   **h** – height of `tty` session
 -   **w** – width
 
-**Status codes:**
+**Status codes**:
 
 -   **201** – no error
 -   **404** – no such exec instance
@@ -2846,7 +2846,7 @@ Return low-level information about the `exec` command `id`.
         "Running": false
     }
 
-**Status codes:**
+**Status codes**:
 
 -   **200** – no error
 -   **404** – no such exec instance
@@ -2878,14 +2878,14 @@ Return low-level information about the `exec` command `id`.
       "Warnings": []
     }
 
-**Query parameters:**
+**Query parameters**:
 
 - **filters** - JSON encoded value of the filters (a `map[string][]string`) to process on the volumes list. Available filters:
   -   `name=<volume-name>` Matches all or part of a volume name.
   -   `dangling=<boolean>` When set to `true` (or `1`), returns all volumes that are "dangling" (not in use by a container). When set to `false` (or `0`), only volumes that are in use by one or more containers are returned.
   -   `driver=<volume-driver-name>` Matches all or part of a volume driver name.
 
-**Status codes:**
+**Status codes**:
 
 -   **200** - no error
 -   **500** - server error
@@ -2925,12 +2925,12 @@ Create a volume
       },
     }
 
-**Status codes:**
+**Status codes**:
 
 - **201** - no error
 - **500**  - server error
 
-**JSON parameters:**
+**JSON parameters**:
 
 - **Name** - The new volume's name. If not specified, Docker generates a name.
 - **Driver** - Name of the volume driver to use. Defaults to `local` for the name.
@@ -2963,7 +2963,7 @@ Return low-level information on the volume `name`
         }
     }
 
-**Status codes:**
+**Status codes**:
 
 -   **200** - no error
 -   **404** - no such volume
@@ -2983,7 +2983,7 @@ Instruct the driver to remove the volume (`name`).
 
     HTTP/1.1 204 No Content
 
-Status Codes
+**Status codes**:
 
 -   **204** - no error
 -   **404** - no such volume or volume driver
@@ -3070,7 +3070,7 @@ Content-Type: application/json
 ]
 ```
 
-**Query parameters:**
+**Query parameters**:
 
 - **filters** - JSON encoded network list filter. The filter value is one of:
   -   `driver=<driver-name>` Matches a network's driver.
@@ -3079,7 +3079,7 @@ Content-Type: application/json
   -   `name=<network-name>` Matches all or part of a network name.
   -   `type=["custom"|"builtin"]` Filters networks by type. The `custom` keyword returns all user-defined networks.
 
-**Status codes:**
+**Status codes**:
 
 -   **200** - no error
 -   **500** - server error
@@ -3141,7 +3141,7 @@ Content-Type: application/json
 }
 ```
 
-**Status codes:**
+**Status codes**:
 
 -   **200** - no error
 -   **404** - network not found
@@ -3207,13 +3207,13 @@ Content-Type: application/json
 }
 ```
 
-**Status codes:**
+**Status codes**:
 
 - **201** - no error
 - **404** - plugin not found
 - **500** - server error
 
-**JSON parameters:**
+**JSON parameters**:
 
 - **Name** - The new network's name. this is a mandatory field
 - **CheckDuplicate** - Requests daemon to check for networks with same name
@@ -3251,13 +3251,13 @@ Content-Type: application/json
 
     HTTP/1.1 200 OK
 
-**Status codes:**
+**Status codes**:
 
 - **200** - no error
 - **404** - network or container is not found
 - **500** - Internal Server Error
 
-**JSON parameters:**
+**JSON parameters**:
 
 - **container** - container-id/name to be connected to the network
 
@@ -3283,13 +3283,13 @@ Content-Type: application/json
 
     HTTP/1.1 200 OK
 
-**Status codes:**
+**Status codes**:
 
 - **200** - no error
 - **404** - network or container not found
 - **500** - Internal Server Error
 
-**JSON parameters:**
+**JSON parameters**:
 
 - **Container** - container-id/name to be disconnected from a network
 - **Force** - Force the container to disconnect from a network
@@ -3308,7 +3308,7 @@ Instruct the driver to remove the network (`id`).
 
     HTTP/1.1 204 No Content
 
-Status Codes
+**Status codes**:
 
 -   **204** - no error
 -   **404** - no such network
@@ -3316,11 +3316,11 @@ Status Codes
 
 ## 3.6 Nodes
 
-**Note:** Nodes operations require to first be part of a Swarm.
+**Note**: Nodes operations require to first be part of a Swarm.
 
 ### List nodes
 
-**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
 might be subject to non backward-compatible changes.
 
 `GET /nodes`
@@ -3435,7 +3435,7 @@ List nodes
       }
     ]
 
-Query Parameters:
+**Query parameters**:
 
 - **filters** – a JSON encoded value of the filters (a `map[string][]string`) to process on the
   nodes list. Available filters:
@@ -3444,14 +3444,14 @@ Query Parameters:
   - `membership=`(`pending`|`accepted`|`rejected`)`
   - `role=`(`worker`|`manager`)`
 
-Status Codes:
+**Status codes**:
 
 - **200** – no error
 - **500** – server error
 
 ### Inspect a node
 
-**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
 might be subject to non backward-compatible changes.
 
 `GET /nodes/<id>`
@@ -3564,7 +3564,7 @@ Return low-level information on the node `id`
       }
     }
 
-Status Codes:
+**Status codes**:
 
 -   **200** – no error
 -   **404** – no such node
@@ -3574,7 +3574,7 @@ Status Codes:
 
 ### Initialize a new Swarm
 
-**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
 might be subject to non backward-compatible changes.
 
 `POST /swarm/init`
@@ -3615,11 +3615,11 @@ Initialize a new Swarm
     Content-Length: 0
     Content-Type: text/plain; charset=utf-8
 
-Status Codes:
+**Status codes**:
 
 - **200** – no error
 - **400** – bad parameter
-- **500** – server error or node is already part of a Swarm
+- **406** – node is already part of a Swarm
 
 JSON Parameters:
 
@@ -3634,20 +3634,22 @@ JSON Parameters:
         - **Secret** – An optional secret to provide for nodes to join the Swarm.
     - **Orchestration** – Configuration settings for the orchestration aspects of the Swarm.
         - **TaskHistoryRetentionLimit** – Maximum number of tasks history stored.
-    - **RaftConfig** – Raft related configuration.
-        - **SnapshotInterval** – (TODO)
-        - **KeepOldSnapshots** – (TODO)
-        - **LogEntriesForSlowFollowers** – (TODO)
-        - **HeartbeatTick** – (TODO)
-        - **ElectionTick** – (TODO)
-    - **DispatcherConfig** – Configuration settings for the task dispatcher.
-        - **HeartbeatPeriod** – (TODO)
+    - **Raft** – Raft related configuration.
+        - **SnapshotInterval** – Number of logs entries between snapshot.
+        - **KeepOldSnapshots** – Number of snapshots to keep beyond the current snapshot.
+        - **LogEntriesForSlowFollowers** – Number of log entries to keep around to sync up slow
+          followers after a snapshot is created.
+        - **HeartbeatTick** – Amount of ticks (in seconds) between each heartbeat.
+        - **ElectionTick** – Amount of ticks (in seconds) needed without a leader to trigger a new
+          election.
+    - **Dispatcher** – Configuration settings for the task dispatcher.
+        - **HeartbeatPeriod** – The delay for an agent to send a heartbeat to the dispatcher.
     - **CAConfig** – CA configuration.
         - **NodeCertExpiry** – Automatic expiry for nodes certificates.
 
 ### Join an existing Swarm
 
-**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
 might be subject to non backward-compatible changes.
 
 `POST /swarm/join`
@@ -3663,7 +3665,7 @@ Join an existing new Swarm
       "ListenAddr": "0.0.0.0:4500",
       "RemoteAddr": "node1:4500",
       "Secret": "",
-      "CAHash": "",
+      "CACertHash": "",
       "Manager": false
     }
 
@@ -3673,11 +3675,11 @@ Join an existing new Swarm
     Content-Length: 0
     Content-Type: text/plain; charset=utf-8
 
-Status Codes:
+**Status codes**:
 
 - **200** – no error
 - **400** – bad parameter
-- **500** – server error or node is already part of a Swarm
+- **406** – node is already part of a Swarm
 
 JSON Parameters:
 
@@ -3685,12 +3687,12 @@ JSON Parameters:
   manager, as well as determining the networking interface used for the VXLAN Tunnel Endpoint (VTEP).
 - **RemoteAddr** – Address of any manager node already participating in the Swarm to join.
 - **Secret** – Secret token for joining this Swarm.
-- **CAHash** – Optional hash of the root CA to avoid relying on trust on first use.
+- **CACertHash** – Optional hash of the root CA to avoid relying on trust on first use.
 - **Manager** – Directly join as a manager (only for a Swarm configured to autoaccept managers).
 
 ### Leave a Swarm
 
-**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
 might be subject to non backward-compatible changes.
 
 `POST /swarm/leave`
@@ -3707,14 +3709,14 @@ Leave a Swarm
     Content-Length: 0
     Content-Type: text/plain; charset=utf-8
 
-Status Codes:
+**Status codes**:
 
 - **200** – no error
-- **500** – server error or node is not part of a Swarm
+- **406** – node is not part of a Swarm
 
 ### Update a Swarm
 
-**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
 might be subject to non backward-compatible changes.
 
 `POST /swarm/update`
@@ -3725,7 +3727,37 @@ Update a Swarm
 
     POST /swarm/update HTTP/1.1
 
-    (TODO)
+    {
+      "Name": "default",
+      "AcceptancePolicy": {
+        "Policies": [
+          {
+            "Role": "WORKER",
+            "Autoaccept": false
+          },
+          {
+            "Role": "MANAGER",
+            "Autoaccept": false
+          }
+        ]
+      },
+      "Orchestration": {
+        "TaskHistoryRetentionLimit": 10
+      },
+      "Raft": {
+        "SnapshotInterval": 10000,
+        "LogEntriesForSlowFollowers": 500,
+        "HeartbeatTick": 1,
+        "ElectionTick": 3
+      },
+      "Dispatcher": {
+        "HeartbeatPeriod": 5000000000
+      },
+      "CAConfig": {
+        "NodeCertExpiry": 7776000000000000
+      }
+    }
+
 
 **Example response**:
 
@@ -3733,21 +3765,41 @@ Update a Swarm
     Content-Length: 0
     Content-Type: text/plain; charset=utf-8
 
-    (TODO)
-
-Status Codes:
+**Status codes**:
 
 - **200** – no error
 - **400** – bad parameter
-- **500** – server error or node is not part of a Swarm
+- **406** – node is not part of a Swarm
+
+JSON Parameters:
+
+- **Policies** – An array of acceptance policies.
+    - **Role** – The role that policy applies to (`MANAGER` or `WORKER`)
+    - **Autoaccept** – A boolean indicating whether nodes joining for that role should be
+      automatically accepted in the Swarm.
+    - **Secret** – An optional secret to provide for nodes to join the Swarm.
+- **Orchestration** – Configuration settings for the orchestration aspects of the Swarm.
+    - **TaskHistoryRetentionLimit** – Maximum number of tasks history stored.
+- **Raft** – Raft related configuration.
+    - **SnapshotInterval** – Number of logs entries between snapshot.
+    - **KeepOldSnapshots** – Number of snapshots to keep beyond the current snapshot.
+    - **LogEntriesForSlowFollowers** – Number of log entries to keep around to sync up slow
+      followers after a snapshot is created.
+    - **HeartbeatTick** – Amount of ticks (in seconds) between each heartbeat.
+    - **ElectionTick** – Amount of ticks (in seconds) needed without a leader to trigger a new
+      election.
+- **Dispatcher** – Configuration settings for the task dispatcher.
+    - **HeartbeatPeriod** – The delay for an agent to send a heartbeat to the dispatcher.
+- **CAConfig** – CA configuration.
+    - **NodeCertExpiry** – Automatic expiry for nodes certificates.
 
 ## 3.8 Services
 
-**Note:** Service operations require to first be part of a Swarm.
+**Note**: Service operations require to first be part of a Swarm.
 
 ### List services
 
-**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
 might be subject to non backward-compatible changes.
 
 `GET /services`
@@ -3828,21 +3880,21 @@ List services
       }
     ]
 
-Query Parameters:
+**Query parameters**:
 
 - **filters** – a JSON encoded value of the filters (a `map[string][]string`) to process on the
   services list. Available filters:
   - `id=<node id>`
   - `name=<node name>`
 
-Status Codes:
+**Status codes**:
 
 - **200** – no error
 - **500** – server error
 
 ### Create a service
 
-**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
 might be subject to non backward-compatible changes.
 
 `POST /services/create`
@@ -3894,10 +3946,10 @@ Create a service
       "Id":"ak7w3gjqoa3kuz8xcpnyy0pvl"
     }
 
-Status Codes:
+**Status codes**:
 
 - **201** – no error
-- **500** – server error or node is not part of a Swarm
+- **406** – server error or node is not part of a Swarm
 
 JSON Parameters:
 
@@ -3955,14 +4007,17 @@ JSON Parameters:
       parallelism).
     - **Delay** – Amount of time between updates.
 - **Networks** – Array of network names or IDs to attach the service to.
-- **EndpointSpec** – (TODO)
-    - **EndpointSpecStrategy** – `network` or `disabled` (TODO)
-    - **ExposedPorts** – An object mapping ports to an empty object in the form of:
-      `"ExposedPorts": { "<port>/<tcp|udp>: {}" }`
+- **Endpoint** – Properties that can be configured to access and load balance a service.
+    - **Spec** –
+        - **Mode** – The mode of resolution to use for internal load balancing
+          between tasks (`vip` or `dnsrr`).
+        - **Ports** – Exposed ports that this service is accessible on from the outside, in the form
+          of: `"Ports": { "<port>/<tcp|udp>: {}" }`
+    - **VirtualIPs**
 
 ### Remove a service
 
-**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
 might be subject to non backward-compatible changes.
 
 `DELETE /service/(id or name)`
@@ -3977,7 +4032,7 @@ Stop and remove the service `id`
 
     HTTP/1.1 204 No Content
 
-Status Codes:
+**Status codes**:
 
 -   **204** – no error
 -   **404** – no such service
@@ -3985,7 +4040,7 @@ Status Codes:
 
 ### Inspect a service
 
-**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
 might be subject to non backward-compatible changes.
 
 `GET /service/(id or name)`
@@ -4057,7 +4112,7 @@ Return information on the service `id`.
       }
     }
 
-Status Codes:
+**Status codes**:
 
 -   **200** – no error
 -   **404** – no such service
@@ -4065,15 +4120,133 @@ Status Codes:
 
 ### Update a service
 
-(TODO)
+**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+might be subject to non backward-compatible changes.
+
+`POST /service/(id or name)/update`
+
+Update the service `id`.
+
+**Example request**:
+
+    POST /service/1cb4dnqcyx6m66g2t538x3rxha/update HTTP/1.1
+
+    {
+      "Name": "top",
+      "TaskTemplate": {
+        "ContainerSpec": {
+          "Image": "busybox",
+          "Args": [
+            "top"
+          ]
+        },
+        "Resources": {
+          "Limits": {},
+          "Reservations": {}
+        },
+        "RestartPolicy": {
+          "Condition": "any",
+          "MaxAttempts": 0
+        },
+        "Placement": {}
+      },
+      "Mode": {
+        "Replicated": {
+          "Replicas": 1
+        }
+      },
+      "UpdateConfig": {
+        "Parallelism": 1
+      },
+      "EndpointSpec": {
+        "Mode": "vip"
+      }
+    }
+
+**Example response**:
+
+      HTTP/1.1 200 OK
+      Content-Length: 0
+      Content-Type: text/plain; charset=utf-8
+
+**JSON Parameters**:
+
+- **Annotations** – Optional medata to associate with the service.
+    - **Name** – User-defined name for the service.
+    - **Labels** – A map of labels to associate with the service (e.g.,
+      `{"key":"value"[,"key2":"value2"]}`).
+- **Task** – Specification of the tasks to start as part of the new service.
+    - **ContainerSpec** - Container settings for containers started as part of this task.
+        - **Image** – A string specifying the image name to use for the container.
+        - **Command** – The command to be run in the image.
+        - **Args** – Arguments to the command.
+        - **Env** – A list of environment variables in the form of `["VAR=value"[,"VAR2=value2"]]`.
+        - **Dir** – A string specifying the working directory for commands to run in.
+        - **User** – A string value specifying the user inside the container.
+        - **Labels** – A map of labels to associate with the service (e.g.,
+          `{"key":"value"[,"key2":"value2"]}`).
+        - **Mounts** – Specification for mounts to be added to containers created as part of the new
+          service.
+            - **Target** – Container path.
+            - **Source** – Optional host path to be mounted in the target.
+            - **Type** – The mount type (`bind`, `epheremal`, or `volume`).
+            - **VolumeName** – A name for the volume.
+            - **Populate** – A boolean indicating if volume should be populated with the data form the
+              target (defaults to false).
+            - **Propagation** – A propagation mode with the value `[r]private`, `[r]shared`, or
+              `[r]slave` (`bind` type mounts only).
+            - **MCSAccessMode** – MCS label for sharing mode (`bind` type mounts only).
+            - **Writable** – A boolean indicating whether the mount should be writable.
+            - **VolumeTemplate** – Optional configuration for the volume.
+                - **Annotations** – User-defined name and labels for the volume.
+                - **Driver** – Name of the driver to be used and driver-specific options.
+        - **StopGracePeriod** – Amount of time to wait for the container to terminate before
+          forcefully killing it.
+    - **Resources** – Resource requirements which apply to each individual container created as part
+      of the service.
+        - **Limits** – Define resources limits.
+            - **CPU** – CPU limit
+            - **Memory** – Memory limit
+        - **Reservation** – Define resources reservation.
+            - **CPU** – CPU reservation
+            - **Memory** – Memory reservation
+    - **RestartPolicy** – Specification for the restart policy which applies to containers created
+      as part of this service.
+        - **Condition** – Condition for restart (`none`, `on_failure`, or `any`).
+        - **Delay** – Delay between restart attempts.
+        - **Attempts** – Maximum attempts to restart a given container before giving up (default value
+          is 0, which is ignored).
+        - **Window** – Windows is the time window used to evaluate the restart policy (default value is
+          0, which is unbounded).
+    - **Placement** – An array of constraints.
+- **Mode** – Scheduling mode for the service (`replicated` or `global`, defaults to `replicated`).
+- **UpdateConfig** – Specification for the update strategy of the service.
+    - **Parallelism** – Maximum number of tasks to be updated in one iteration (0 means unlimited
+      parallelism).
+    - **Delay** – Amount of time between updates.
+- **Networks** – Array of network names or IDs to attach the service to.
+- **Endpoint** – Properties that can be configured to access and load balance a service.
+    - **Spec** –
+        - **Mode** – The mode of resolution to use for internal load balancing
+          between tasks (`vip` or `dnsrr`).
+        - **Ports** – Exposed ports that this service is accessible on from the outside, in the form
+          of: `"Ports": { "<port>/<tcp|udp>: {}" }`
+    - **VirtualIPs**
+
+
+**Status codes**:
+
+-   **200** – no error
+-   **404** – no such service
+-   **500** – server error
 
 ## 3.9 Tasks
 
-**Note:** Tasks operations require to first be part of a Swarm.
+**Note**: Tasks operations require to first be part of a Swarm.
 
 ### List tasks
 
-**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
 might be subject to non backward-compatible changes.
 
 `GET /tasks`
@@ -4291,7 +4464,7 @@ List tasks
       }
     ]
 
-Query Parameters:
+**Query parameters**:
 
 - **filters** – a JSON encoded value of the filters (a `map[string][]string`) to process on the
   services list. Available filters:
@@ -4299,14 +4472,14 @@ Query Parameters:
   - `name=<task name>`
   - `service=<service name>`
 
-Status Codes:
+**Status codes**:
 
 - **200** – no error
 - **500** – server error
 
 ### Inspect a task
 
-**Warning:** this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
+**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
 might be subject to non backward-compatible changes.
 
 `GET /tasks/(task id)`
@@ -4421,7 +4594,7 @@ Get details on a task
       }
     }
 
-Status Codes:
+**Status codes**:
 
 - **200** – no error
 - **404** – unknown task
