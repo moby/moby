@@ -10,5 +10,5 @@ import (
 )
 
 func pluginInit(config *daemon.Config, remote libcontainerd.Remote, rs registry.Service) error {
-	return plugin.Init(config.Root, config.ExecRoot, remote, rs)
+	return plugin.Init(config.Root, config.ExecRoot, remote, rs, config.LiveRestore)
 }
