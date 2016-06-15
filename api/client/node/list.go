@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	listItemFmt = "%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
+	listItemFmt = "%s\t%s\t%s\t%s\t%s\t%s\n"
 )
 
 type listOptions struct {
@@ -74,7 +74,7 @@ func printTable(out io.Writer, nodes []swarm.Node, info types.Info) {
 	// Ignore flushing errors
 	defer writer.Flush()
 
-	fmt.Fprintf(writer, listItemFmt, "ID", "NAME", "MEMBERSHIP", "STATUS", "AVAILABILITY", "MANAGER STATUS", "LEADER")
+	fmt.Fprintf(writer, listItemFmt, "ID", "NAME", "MEMBERSHIP", "STATUS", "AVAILABILITY", "MANAGER STATUS")
 	for _, node := range nodes {
 		name := node.Spec.Name
 		availability := string(node.Spec.Availability)
@@ -84,14 +84,13 @@ func printTable(out io.Writer, nodes []swarm.Node, info types.Info) {
 			name = node.Description.Hostname
 		}
 
-		leader := ""
-		if node.ManagerStatus != nil && node.ManagerStatus.Leader {
-			leader = "Yes"
-		}
-
 		reachability := ""
 		if node.ManagerStatus != nil {
-			reachability = string(node.ManagerStatus.Reachability)
+			if node.ManagerStatus.Leader {
+				reachability = "Leader"
+			} else {
+				reachability = string(node.ManagerStatus.Reachability)
+			}
 		}
 
 		ID := node.ID
@@ -107,8 +106,7 @@ func printTable(out io.Writer, nodes []swarm.Node, info types.Info) {
 			client.PrettyPrint(membership),
 			client.PrettyPrint(string(node.Status.State)),
 			client.PrettyPrint(availability),
-			client.PrettyPrint(reachability),
-			leader)
+			client.PrettyPrint(reachability))
 	}
 }
 
