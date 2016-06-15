@@ -122,28 +122,56 @@ func mergeService(spec *swarm.ServiceSpec, flags *pflag.FlagSet) error {
 	mergeString("user", &cspec.User)
 	mergeMounts(flags, &cspec.Mounts)
 
-	mergeInt64Value("limit-cpu", &task.Resources.Limits.NanoCPUs)
-	mergeInt64Value("limit-memory", &task.Resources.Limits.MemoryBytes)
-	mergeInt64Value("reserve-cpu", &task.Resources.Reservations.NanoCPUs)
-	mergeInt64Value("reserve-memory", &task.Resources.Reservations.MemoryBytes)
+	if flags.Changed(flagLimitCPU) || flags.Changed(flagLimitMemory) {
+		if task.Resources == nil {
+			task.Resources = &swarm.ResourceRequirements{}
+		}
+		task.Resources.Limits = &swarm.Resources{}
+		mergeInt64Value(flagLimitCPU, &task.Resources.Limits.NanoCPUs)
+		mergeInt64Value(flagLimitMemory, &task.Resources.Limits.MemoryBytes)
+
+	}
+	if flags.Changed(flagReserveCPU) || flags.Changed(flagReserveMemory) {
+		if task.Resources == nil {
+			task.Resources = &swarm.ResourceRequirements{}
+		}
+		task.Resources.Reservations = &swarm.Resources{}
+		mergeInt64Value(flagReserveCPU, &task.Resources.Reservations.NanoCPUs)
+		mergeInt64Value(flagReserveMemory, &task.Resources.Reservations.MemoryBytes)
+	}
 
 	mergeDurationOpt("stop-grace-period", cspec.StopGracePeriod)
 
-	if flags.Changed(flagRestartCondition) {
-		value, _ := flags.GetString(flagRestartCondition)
-		task.RestartPolicy.Condition = swarm.RestartPolicyCondition(value)
+	if flags.Changed(flagRestartCondition) || flags.Changed(flagRestartDelay) || flags.Changed(flagRestartMaxAttempts) || flags.Changed(flagRestartWindow) {
+		if task.RestartPolicy == nil {
+			task.RestartPolicy = &swarm.RestartPolicy{}
+		}
+
+		if flags.Changed(flagRestartCondition) {
+			value, _ := flags.GetString(flagRestartCondition)
+			task.RestartPolicy.Condition = swarm.RestartPolicyCondition(value)
+		}
+		mergeDurationOpt(flagRestartDelay, task.RestartPolicy.Delay)
+		mergeUint64Opt(flagRestartMaxAttempts, task.RestartPolicy.MaxAttempts)
+		mergeDurationOpt((flagRestartWindow), task.RestartPolicy.Window)
 	}
-	mergeDurationOpt("restart-delay", task.RestartPolicy.Delay)
-	mergeUint64Opt("restart-max-attempts", task.RestartPolicy.MaxAttempts)
-	mergeDurationOpt("restart-window", task.RestartPolicy.Window)
-	mergeSlice("constraint", &task.Placement.Constraints)
+
+	if flags.Changed(flagConstraint) {
+		task.Placement = &swarm.Placement{}
+		mergeSlice(flagConstraint, &task.Placement.Constraints)
+	}
 
 	if err := mergeMode(flags, &spec.Mode); err != nil {
 		return err
 	}
 
-	mergeUint64(flagUpdateParallelism, &spec.UpdateConfig.Parallelism)
-	mergeDuration(flagUpdateDelay, &spec.UpdateConfig.Delay)
+	if flags.Changed(flagUpdateParallelism) || flags.Changed(flagUpdateDelay) {
+		if spec.UpdateConfig == nil {
+			spec.UpdateConfig = &swarm.UpdateConfig{}
+		}
+		mergeUint64(flagUpdateParallelism, &spec.UpdateConfig.Parallelism)
+		mergeDuration(flagUpdateDelay, &spec.UpdateConfig.Delay)
+	}
 
 	mergeNetworks(flags, &spec.Networks)
 	if flags.Changed(flagEndpointMode) {
@@ -151,8 +179,12 @@ func mergeService(spec *swarm.ServiceSpec, flags *pflag.FlagSet) error {
 		spec.EndpointSpec.Mode = swarm.ResolutionMode(value)
 	}
 
-	mergePorts(flags, &spec.EndpointSpec.Ports)
-
+	if flags.Changed(flagPublish) {
+		if spec.EndpointSpec == nil {
+			spec.EndpointSpec = &swarm.EndpointSpec{}
+		}
+		mergePorts(flags, &spec.EndpointSpec.Ports)
+	}
 	return nil
 }
 

@@ -440,21 +440,21 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.StringVarP(&opts.user, "user", "u", "", "Username or UID")
 	flags.VarP(&opts.mounts, flagMount, "m", "Attach a mount to the service")
 
-	flags.Var(&opts.resources.limitCPU, "limit-cpu", "Limit CPUs")
-	flags.Var(&opts.resources.limitMemBytes, "limit-memory", "Limit Memory")
-	flags.Var(&opts.resources.resCPU, "reserve-cpu", "Reserve CPUs")
-	flags.Var(&opts.resources.resMemBytes, "reserve-memory", "Reserve Memory")
+	flags.Var(&opts.resources.limitCPU, flagLimitCPU, "Limit CPUs")
+	flags.Var(&opts.resources.limitMemBytes, flagLimitMemory, "Limit Memory")
+	flags.Var(&opts.resources.resCPU, flagReserveCPU, "Reserve CPUs")
+	flags.Var(&opts.resources.resMemBytes, flagReserveMemory, "Reserve Memory")
 	flags.Var(&opts.stopGrace, "stop-grace-period", "Time to wait before force killing a container")
 
 	flags.StringVar(&opts.mode, flagMode, "replicated", "Service mode (replicated or global)")
 	flags.Var(&opts.replicas, flagReplicas, "Number of tasks")
 
 	flags.StringVar(&opts.restartPolicy.condition, flagRestartCondition, "", "Restart when condition is met (none, on_failure, or any)")
-	flags.Var(&opts.restartPolicy.delay, "restart-delay", "Delay between restart attempts")
-	flags.Var(&opts.restartPolicy.maxAttempts, "restart-max-attempts", "Maximum number of restarts before giving up")
-	flags.Var(&opts.restartPolicy.window, "restart-window", "Window used to evalulate the restart policy")
+	flags.Var(&opts.restartPolicy.delay, flagRestartDelay, "Delay between restart attempts")
+	flags.Var(&opts.restartPolicy.maxAttempts, flagRestartMaxAttempts, "Maximum number of restarts before giving up")
+	flags.Var(&opts.restartPolicy.window, flagRestartWindow, "Window used to evalulate the restart policy")
 
-	flags.StringSliceVar(&opts.constraints, "constraint", []string{}, "Placement constraints")
+	flags.StringSliceVar(&opts.constraints, flagConstraint, []string{}, "Placement constraints")
 
 	flags.Uint64Var(&opts.update.parallelism, flagUpdateParallelism, 1, "Maximum number of tasks updated simultaneously")
 	flags.DurationVar(&opts.update.delay, flagUpdateDelay, time.Duration(0), "Delay between updates")
@@ -465,15 +465,23 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 }
 
 const (
-	flagName              = "name"
-	flagLabel             = "label"
-	flagMount             = "mount"
-	flagMode              = "mode"
-	flagReplicas          = "replicas"
-	flagPublish           = "publish"
-	flagNetwork           = "network"
-	flagRestartCondition  = "restart-condition"
-	flagEndpointMode      = "endpoint-mode"
-	flagUpdateParallelism = "update-parallelism"
-	flagUpdateDelay       = "update-delay"
+	flagConstraint         = "constraint"
+	flagName               = "name"
+	flagLabel              = "label"
+	flagLimitCPU           = "limit-cpu"
+	flagLimitMemory        = "limit-memory"
+	flagReserveCPU         = "reserve-cpu"
+	flagReserveMemory      = "reserve-memory"
+	flagMount              = "mount"
+	flagMode               = "mode"
+	flagReplicas           = "replicas"
+	flagPublish            = "publish"
+	flagNetwork            = "network"
+	flagRestartCondition   = "restart-condition"
+	flagRestartDelay       = "restart-delay"
+	flagRestartMaxAttempts = "restart-max-attempts"
+	flagRestartWindow      = "restart-window"
+	flagEndpointMode       = "endpoint-mode"
+	flagUpdateParallelism  = "update-parallelism"
+	flagUpdateDelay        = "update-delay"
 )
