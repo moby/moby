@@ -76,8 +76,8 @@ func mergeSwarm(swarm *swarm.Swarm, flags *pflag.FlagSet) error {
 
 	if flags.Changed("secret") {
 		secret, _ := flags.GetString("secret")
-		for _, policy := range spec.AcceptancePolicy.Policies {
-			policy.Secret = secret
+		for i := range spec.AcceptancePolicy.Policies {
+			spec.AcceptancePolicy.Policies[i].Secret = secret
 		}
 	}
 
