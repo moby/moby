@@ -22,11 +22,11 @@ func (daemon *Daemon) ContainerWait(name string, timeout time.Duration) (int, er
 
 // ContainerWaitWithContext returns a channel where exit code is sent
 // when container stops. Channel can be cancelled with a context.
-func (daemon *Daemon) ContainerWaitWithContext(ctx context.Context, name string) (<-chan int, error) {
+func (daemon *Daemon) ContainerWaitWithContext(ctx context.Context, name string) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return container.WaitWithContext(ctx), nil
+	return container.WaitWithContext(ctx)
 }

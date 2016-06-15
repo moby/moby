@@ -160,7 +160,7 @@ func (c *containerAdapter) inspect(ctx context.Context) (types.ContainerJSON, er
 //
 // A chan struct{} is returned that will be closed if the event procressing
 // fails and needs to be restarted.
-func (c *containerAdapter) wait(ctx context.Context) (<-chan int, error) {
+func (c *containerAdapter) wait(ctx context.Context) error {
 	return c.backend.ContainerWaitWithContext(ctx, c.container.name())
 }
 

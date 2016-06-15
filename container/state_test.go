@@ -19,8 +19,8 @@ func TestStateRunStop(t *testing.T) {
 		if s.Pid != i+100 {
 			t.Fatalf("Pid %v, expected %v", s.Pid, i+100)
 		}
-		if s.ExitCode != 0 {
-			t.Fatalf("ExitCode %v, expected 0", s.ExitCode)
+		if s.ExitCode() != 0 {
+			t.Fatalf("ExitCode %v, expected 0", s.ExitCode())
 		}
 
 		stopped := make(chan struct{})
@@ -34,8 +34,8 @@ func TestStateRunStop(t *testing.T) {
 		if s.IsRunning() {
 			t.Fatal("State is running")
 		}
-		if s.ExitCode != i {
-			t.Fatalf("ExitCode %v, expected %v", s.ExitCode, i)
+		if s.ExitCode() != i {
+			t.Fatalf("ExitCode %v, expected %v", s.ExitCode(), i)
 		}
 		if s.Pid != 0 {
 			t.Fatalf("Pid %v, expected 0", s.Pid)
