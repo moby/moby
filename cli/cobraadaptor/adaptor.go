@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/client/plugin"
 	"github.com/docker/docker/api/client/registry"
 	"github.com/docker/docker/api/client/service"
+	"github.com/docker/docker/api/client/stack"
 	"github.com/docker/docker/api/client/swarm"
 	"github.com/docker/docker/api/client/system"
 	"github.com/docker/docker/api/client/volume"
@@ -42,6 +43,8 @@ func NewCobraAdaptor(clientFlags *cliflags.ClientFlags) CobraAdaptor {
 	rootCmd.AddCommand(
 		node.NewNodeCommand(dockerCli),
 		service.NewServiceCommand(dockerCli),
+		stack.NewStackCommand(dockerCli),
+		stack.NewTopLevelDeployCommand(dockerCli),
 		swarm.NewSwarmCommand(dockerCli),
 		container.NewAttachCommand(dockerCli),
 		container.NewCommitCommand(dockerCli),
@@ -98,7 +101,9 @@ func NewCobraAdaptor(clientFlags *cliflags.ClientFlags) CobraAdaptor {
 func (c CobraAdaptor) Usage() []cli.Command {
 	cmds := []cli.Command{}
 	for _, cmd := range c.rootCmd.Commands() {
-		cmds = append(cmds, cli.Command{Name: cmd.Name(), Description: cmd.Short})
+		if cmd.Name() != "" {
+			cmds = append(cmds, cli.Command{Name: cmd.Name(), Description: cmd.Short})
+		}
 	}
 	return cmds
 }
