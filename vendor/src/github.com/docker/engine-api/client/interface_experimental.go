@@ -12,6 +12,19 @@ import (
 // APIClient is an interface that clients that talk with a docker server must implement.
 type APIClient interface {
 	CommonAPIClient
+	CheckpointAPIClient
+	PluginAPIClient
+}
+
+// CheckpointAPIClient defines API client methods for the checkpoints
+type CheckpointAPIClient interface {
+	CheckpointCreate(ctx context.Context, container string, options types.CheckpointCreateOptions) error
+	CheckpointDelete(ctx context.Context, container string, checkpointID string) error
+	CheckpointList(ctx context.Context, container string) ([]types.Checkpoint, error)
+}
+
+// PluginAPIClient defines API client methods for the plugins
+type PluginAPIClient interface {
 	PluginList(ctx context.Context) (types.PluginsListResponse, error)
 	PluginRemove(ctx context.Context, name string) error
 	PluginEnable(ctx context.Context, name string) error

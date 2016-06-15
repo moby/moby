@@ -54,6 +54,7 @@ func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts updateOpt
 	if err != nil {
 		return err
 	}
+
 	err = client.SwarmUpdate(ctx, swarm.Version, swarm.Spec)
 	if err != nil {
 		return err
@@ -68,18 +69,17 @@ func mergeSwarm(swarm *swarm.Swarm, flags *pflag.FlagSet) error {
 
 	if flags.Changed("auto-accept") {
 		value := flags.Lookup("auto-accept").Value.(*AutoAcceptOption)
-		if len(spec.AcceptancePolicy.Policies) > 0 {
-			spec.AcceptancePolicy.Policies = value.Policies(spec.AcceptancePolicy.Policies[0].Secret)
-		} else {
-			spec.AcceptancePolicy.Policies = value.Policies("")
-		}
+		spec.AcceptancePolicy.Policies = value.Policies(nil)
 	}
 
+	var psecret *string
 	if flags.Changed("secret") {
 		secret, _ := flags.GetString("secret")
-		for _, policy := range spec.AcceptancePolicy.Policies {
-			policy.Secret = secret
-		}
+		psecret = &secret
+	}
+
+	for i := range spec.AcceptancePolicy.Policies {
+		spec.AcceptancePolicy.Policies[i].Secret = psecret
 	}
 
 	if flags.Changed("task-history-limit") {

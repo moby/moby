@@ -49,7 +49,8 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 			Autoaccept: policy.Autoaccept,
 		}
 		if policy.Secret != nil {
-			p.Secret = string(policy.Secret.Data)
+			secret := string(policy.Secret.Data)
+			p.Secret = &secret
 		}
 		swarm.Spec.AcceptancePolicy.Policies = append(swarm.Spec.AcceptancePolicy.Policies, p)
 	}
@@ -57,8 +58,8 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 	return swarm
 }
 
-// SwarmSpecToGRPC converts a Spec to a grpc ClusterSpec.
-func SwarmSpecToGRPC(s types.Spec) (swarmapi.ClusterSpec, error) {
+// SwarmSpecToGRPCandMerge converts a Spec to a grpc ClusterSpec and merge AcceptancePolicy from an existing grpc ClusterSpec if provided.
+func SwarmSpecToGRPCandMerge(s types.Spec, existingSpec *swarmapi.ClusterSpec) (swarmapi.ClusterSpec, error) {
 	spec := swarmapi.ClusterSpec{
 		Annotations: swarmapi.Annotations{
 			Name:   s.Name,
@@ -82,14 +83,15 @@ func SwarmSpecToGRPC(s types.Spec) (swarmapi.ClusterSpec, error) {
 		},
 	}
 
-	if err := SwarmSpecUpdateAcceptancePolicy(&spec, s.AcceptancePolicy); err != nil {
+	if err := SwarmSpecUpdateAcceptancePolicy(&spec, s.AcceptancePolicy, existingSpec); err != nil {
 		return swarmapi.ClusterSpec{}, err
 	}
+
 	return spec, nil
 }
 
 // SwarmSpecUpdateAcceptancePolicy updates a grpc ClusterSpec using AcceptancePolicy.
-func SwarmSpecUpdateAcceptancePolicy(spec *swarmapi.ClusterSpec, acceptancePolicy types.AcceptancePolicy) error {
+func SwarmSpecUpdateAcceptancePolicy(spec *swarmapi.ClusterSpec, acceptancePolicy types.AcceptancePolicy, oldSpec *swarmapi.ClusterSpec) error {
 	spec.AcceptancePolicy.Policies = nil
 	for _, p := range acceptancePolicy.Policies {
 		role, ok := swarmapi.NodeRole_value[strings.ToUpper(string(p.Role))]
@@ -102,15 +104,36 @@ func SwarmSpecUpdateAcceptancePolicy(spec *swarmapi.ClusterSpec, acceptancePolic
 			Autoaccept: p.Autoaccept,
 		}
 
-		if p.Secret != "" {
-			hashPwd, _ := bcrypt.GenerateFromPassword([]byte(p.Secret), 0)
+		if p.Secret != nil {
+			if *p.Secret == "" { // if provided secret is empty, it means erase previous secret.
+				policy.Secret = nil
+			} else { // if provided secret is not empty, we generate a new one.
+				hashPwd, _ := bcrypt.GenerateFromPassword([]byte(*p.Secret), 0)
+				policy.Secret = &swarmapi.AcceptancePolicy_RoleAdmissionPolicy_HashedSecret{
+					Data: hashPwd,
+					Alg:  "bcrypt",
+				}
+			}
+		} else if oldSecret := getOldSecret(oldSpec, policy.Role); oldSecret != nil { // else use the old one.
 			policy.Secret = &swarmapi.AcceptancePolicy_RoleAdmissionPolicy_HashedSecret{
-				Data: hashPwd,
-				Alg:  "bcrypt",
+				Data: oldSecret.Data,
+				Alg:  oldSecret.Alg,
 			}
 		}
 
 		spec.AcceptancePolicy.Policies = append(spec.AcceptancePolicy.Policies, policy)
+	}
+	return nil
+}
+
+func getOldSecret(oldSpec *swarmapi.ClusterSpec, role swarmapi.NodeRole) *swarmapi.AcceptancePolicy_RoleAdmissionPolicy_HashedSecret {
+	if oldSpec == nil {
+		return nil
+	}
+	for _, p := range oldSpec.AcceptancePolicy.Policies {
+		if p.Role == role {
+			return p.Secret
+		}
 	}
 	return nil
 }
