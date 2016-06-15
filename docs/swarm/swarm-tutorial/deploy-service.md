@@ -1,8 +1,8 @@
 <!--[metadata]>
 +++
 title = "Deploy a service"
-description = "Deploy the application"
-keywords = ["tutorial, cluster management, swarm"]
+description = "Deploy a service to the swarm"
+keywords = ["tutorial, cluster management, swarm mode"]
 advisory = "rc"
 [menu.main]
 identifier="deploy-application"
@@ -11,10 +11,10 @@ weight=16
 +++
 <![end-metadata]-->
 
-# Deploy a service to the Swarm
+# Deploy a service to the swarm
 
-After you [create a Swarm](create-swarm.md), you can deploy a service to the
-Swarm. For this tutorial, you also [added worker nodes](add-nodes.md), but that
+After you [create a swarm](create-swarm.md), you can deploy a service to the
+swarm. For this tutorial, you also [added worker nodes](add-nodes.md), but that
 is not a requirement to deploy a service.
 
 1. Open a terminal and ssh into the machine where you run your manager node. For
@@ -25,7 +25,7 @@ example, the tutorial uses a machine named `manager1`.
     ```bash
     $ docker service create --replicas 1 --name helloworld alpine ping docker.com
 
-    2zs4helqu64f3k3iuwywbk49w
+    9uk4639qpg7npwf3fn2aasksr
     ```
 
     * The `docker service create` command creates the service.
@@ -39,12 +39,12 @@ example, the tutorial uses a machine named `manager1`.
     ```
     $ docker service ls
 
-    ID            NAME        REPLICAS  IMAGE   COMMAND
-    2zs4helqu64f  helloworld  1         alpine  ping docker.com
+    ID            NAME        SCALE  IMAGE   COMMAND
+    9uk4639qpg7n  helloworld  1/1    alpine  ping docker.com
     ```
 
 ## What's next?
 
-Now you've deployed a service to the Swarm, you're ready to [inspect the service](inspect-service.md).
+Now you've deployed a service to the swarm, you're ready to [inspect the service](inspect-service.md).
 
 <p style="margin-bottom:300px">&nbsp;</p>

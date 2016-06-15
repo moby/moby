@@ -11,11 +11,11 @@ weight=10
 +++
 <![end-metadata]-->
 
-#  Docker Swarm getting started tutorial
+#  Docker Engine swarm mode getting started tutorial
 
 ## TOC
 
 -   [Begin the tutorial](index.md) - Setup your environment to prepare
-    to build a Swarm.
+    to build a swarm.
 
 <p style="margin-bottom:300px">&nbsp;</p>

@@ -1,86 +1,93 @@
 <!--[metadata]>
 +++
-title = "Swarm key concepts"
-description = "Introducing key concepts for Docker Swarm"
-keywords = ["docker, container, cluster, swarm"]
+title = "Swarm mode key concepts"
+description = "Introducing key concepts for Docker Engine swarm mode"
+keywords = ["docker, container, cluster, swarm mode"]
 advisory = "rc"
 [menu.main]
-identifier="swarm-concepts"
+identifier="swarm-mode-concepts"
 parent="engine_swarm"
 weight="2"
 +++
 <![end-metadata]-->
-# Docker Swarm key concepts
+# Swarm mode key concepts
 
-Building upon the core features of Docker Engine, Docker Swarm enables you to
-create a Swarm of Docker Engines and orchestrate services to run in the Swarm.
-This topic describes key concepts to help you begin using Docker Swarm.
+This topic introduces some of the concepts unique to the cluster management and
+orchestration features of Docker Engine 1.12.
 
 ## Swarm
 
-**Docker Swarm** is the name for the cluster management and orchestration
-features embedded in the Docker Engine. Engines that are participating in a
-cluster are running in **Swarm mode**.
+The cluster management and orchestration features embedded in the Docker Engine
+are built using **SwarmKit**. Engines participating in a cluster are
+running in **swarm mode**. You enable swarm mode for the Engine by either
+initializing a swarm or joining an existing swarm.
 
-A **Swarm** is a cluster of Docker Engines where you deploy a set of application
-services. When you deploy an application to a Swarm, you specify the desired
-state of the services, such as which services to run and how many instances of
-those services. The Swarm takes care of all orchestration duties required to
-keep the services running in the desired state.
+A **swarm** is a self-organizing cluster of Docker Engines where you deploy
+[services](#Services-and-tasks). The Docker Engine CLI includes the commands for
+swarm management, such as adding and removing nodes. The CLI also includes the
+commands you need to deploy services to the swarm and manage service
+orchestration.
+
+When you run Docker Engine outside of swarm mode, you execute container
+commands. When you run the Engine in swarm mode, you orchestrate services.
 
 ## Node
 
-A **node** is an active instance of the Docker Engine in the Swarm.
+A **node** is an instance of the Docker Engine participating in the swarm.
 
-When you deploy your application to a Swarm, **manager nodes** accept the
-service definition that describes the Swarm's desired state. Manager nodes also
-perform the orchestration and cluster management functions required to maintain
-the desired state of the Swarm. For example, when a manager node receives notice
-to deploy a web server, it dispatches the service tasks to worker nodes.
+To deploy your application to a swarm, you submit a service definition to a
+**manager node**. The manager node dispatches units of work called
+[tasks](#Services-and-tasks) to worker nodes.
 
-By default the Docker Engine starts one manager node for a Swarm, but as you
-scale you can add more managers to make the cluster more fault-tolerant. If you
-require high availability Swarm management, Docker recommends three or five
-Managers in your cluster.
-
-Because Swarm manager nodes share data using Raft, there must be an odd number
-of managers. The Swarm cluster can continue functioning in the face of up to
-`N/2` failures where `N` is the number of manager nodes.  More than five
-managers is likely to degrade cluster performance and is not recommended.
+Manager nodes also perform the orchestration and cluster management functions
+required to maintain the desired state of the swarm. Manager nodes elect a single leader to conduct orchestration tasks.
 
 **Worker nodes** receive and execute tasks dispatched from manager nodes. By
 default manager nodes are also worker nodes, but you can configure managers to
-be manager-only nodes.
+be manager-only nodes. The agent notifies the manager node of the current
+state of its assigned tasks so the manager can maintain the desired state.
 
 ## Services and tasks
 
-A **service** is the definition of how to run the various tasks that make up
-your application. For example, you may create a service that deploys a Redis
-image in your Swarm.
+A **service** is the definition of the tasks to execute on the worker nodes. It
+is the central structure of the swarm system and the primary root of user
+interaction with the swarm.
 
-A **task** is the atomic scheduling unit of Swarm. For example a task may be to
-schedule a Redis container to run on a worker node.
+When you create a service, you specify which container image to use and which
+commands to execute inside running containers.
 
+In the **replicated services** model, the swarm manager distributes a specific
+number of replica tasks among the nodes based upon the scale you set in the
+desired state.
 
-## Service types
+For **global services**, the swarm runs one task for the service on every
+available node in the cluster.
 
-For **replicated services**, Swarm deploys a specific number of replica tasks
-based upon the scale you set in the desired state.
-
-For **global services**, Swarm runs one task for the service on every available
-node in the cluster.
+A **task** carries a Docker container and the commands to run inside the
+container. It is the atomic scheduling unit of swarm. Manager nodes assign tasks
+to worker nodes according to the number of replicas set in the service scale.
+Once a task is assigned to a node, it cannot move to another node. It can only
+run on the assigned node or fail.
 
 ## Load balancing
 
-Swarm uses **ingress load balancing** to expose the services you want to make
-available externally to the Swarm. Swarm can automatically assign the service a
-**PublishedPort** or you can configure a PublishedPort for the service in the
-30000-32767 range. External components, such as cloud load balancers, can access
-the service on the PublishedPort of any node in the cluster, even if the node is
-not currently running the service.
+The swarm manager uses **ingress load balancing** to expose the services you
+want to make available externally to the swarm. The swarm manager can
+automatically assign the service a **PublishedPort** or you can configure a
+PublishedPort for the service in the 30000-32767 range.
 
-Swarm has an internal DNS component that automatically assigns each service in
-the Swarm DNS entry. Swarm uses **internal load balancing** distribute requests
-among services within the cluster based upon the services' DNS name.
+External components, such as cloud load balancers, can access the service on the
+PublishedPort of any node in the cluster whether or not the node is currently
+running the task for the service.  All nodes in the swarm cluster route ingress
+connections to a running task instance.
+
+Swarm mode has an internal DNS component that automatically assigns each service
+in the swarm DNS entry. The swarm manager uses **internal load balancing**
+distribute requests among services within the cluster based upon the DNS name of
+the service.
+
+## What's next?
+* Read the [swarm mode overview](index.md).
+* Get started with the [swarm mode tutorial](swarm-tutorial/index.md).
 
 <p style="margin-bottom:300px">&nbsp;</p>

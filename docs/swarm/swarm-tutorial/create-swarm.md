@@ -1,8 +1,8 @@
 <!--[metadata]>
 +++
-title = "Create a Swarm"
-description = "Initialize the Swarm"
-keywords = ["tutorial, cluster management, swarm"]
+title = "Create a swarm"
+description = "Initialize the swarm"
+keywords = ["tutorial, cluster management, swarm mode"]
 advisory = "rc"
 [menu.main]
 identifier="initialize-swarm"
@@ -11,34 +11,34 @@ weight=12
 +++
 <![end-metadata]-->
 
-# Create a Swarm
+# Create a swarm
 
 After you complete the [tutorial setup](index.md) steps, you're ready
-to create a Swarm. Make sure the Docker Engine daemon is started on the host
+to create a swarm. Make sure the Docker Engine daemon is started on the host
 machines.
 
 1. Open a terminal and ssh into the machine where you want to run your manager
 node. For example, the tutorial uses a machine named `manager1`.
 
-2. Run the following command to create a new Swarm:
+2. Run the following command to create a new swarm:
 
     ```
     docker swarm init --listen-addr <MANAGER-IP>:<PORT>
     ```
 
-    In the tutorial, the following command creates a Swarm on the `manager1` machine:
+    In the tutorial, the following command creates a swarm on the `manager1` machine:
 
     ```
     $ docker swarm init --listen-addr 192.168.99.100:2377
 
-    Swarm initialized: current node (09fm6su6c24qn) is now a manager.
+    Swarm initialized: current node (dxn1zf6l61qsb1josjja83ngz) is now a manager.
     ```
 
     The `--listen-addr` flag configures the manager node to listen on port
-    `2377`. The other nodes in the Swarm must be able to access the manager at
+    `2377`. The other nodes in the swarm must be able to access the manager at
     the IP address.
 
-3. Run `docker info` to view the current state of the Swarm:
+3. Run `docker info` to view the current state of the swarm:
 
      ```
      $ docker info
@@ -48,11 +48,12 @@ node. For example, the tutorial uses a machine named `manager1`.
       Paused: 0
       Stopped: 2
      ...snip...
-     Swarm:
-      NodeID: 09fm6su6c24qn
-      IsManager: YES
+     Swarm: active
+      NodeID: dxn1zf6l61qsb1josjja83ngz
+      IsManager: Yes
       Managers: 1
       Nodes: 1
+      CACertHash: sha256:b7986d3baeff2f5664dfe350eec32e2383539ec1a802ba541c4eb829056b5f61
      ...snip...
      ```
 
@@ -61,16 +62,16 @@ node. For example, the tutorial uses a machine named `manager1`.
     ```
     $ docker node ls
 
-    ID              NAME      MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
-09fm6su6c24q *  manager1  Accepted    Ready   Active        Reachable       Yes
+    ID                           NAME      MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
+    dxn1zf6l61qsb1josjja83ngz *  manager1  Accepted    Ready   Active        Reachable       Yes
 
     ```
 
      The `*` next to the node id, indicates that you're currently connected on
      this node.
 
-     Docker Swarm automatically names the node for the machine host name. The
-     tutorial covers other columns in later steps.
+     Docker Engine swarm mode automatically names the node for the machine host
+     name. The tutorial covers other columns in later steps.
 
 ## What's next?
 
