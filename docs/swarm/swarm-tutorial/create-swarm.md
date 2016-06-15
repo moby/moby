@@ -20,7 +20,11 @@ machines.
 1. Open a terminal and ssh into the machine where you want to run your manager
 node. For example, the tutorial uses a machine named `manager1`.
 
-2. Run `docker swarm init --listen-addr MANAGER-IP:PORT` to create a new Swarm.
+2. Run the following command to create a new Swarm:
+
+    ```
+    docker swarm init --listen-addr <MANAGER-IP>:<PORT>
+    ```
 
     In the tutorial, the following command creates a Swarm on the `manager1` machine:
 

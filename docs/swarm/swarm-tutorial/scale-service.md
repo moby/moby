@@ -24,19 +24,19 @@ run your manager node. For example, the tutorial uses a machine named
 2. Run the following command to change the desired state of the
 service runing in the Swarm:
 
-    ```
-    $ docker service update --scale NUMBER-OF-TASKS SERVICE-ID
+    ```bash
+    $ docker service update --replicas <NUMBER-OF-TASKS> <SERVICE-ID>
     ```
 
-    The `--scale` flag indicates the number of tasks you want in the new desired
-    state. For example:
+    The `--replicas` flag indicates the number of tasks you want in the new
+    desired state. For example:
 
-    ```
-    $ docker service update --scale 5 helloworld
+    ```bash
+    $ docker service update --replicas 5 helloworld
     helloworld
     ```
 
-3. Run `docker service tasks SERVICE-ID` to see the updated task list:
+3. Run `docker service tasks <SERVICE-ID>` to see the updated task list:
 
     ```
     $ docker service tasks helloworld

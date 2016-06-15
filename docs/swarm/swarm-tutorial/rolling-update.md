@@ -25,7 +25,7 @@ run your manager node. For example, the tutorial uses a machine named
 the swarm to update one node every 10 seconds:
 
     ```bash
-    $ docker service create --scale 3 --name redis --update-delay 10s --update-parallelism 1 redis:3.0.6
+    $ docker service create --replicas 3 --name redis --update-delay 10s --update-parallelism 1 redis:3.0.6
 
     8m228injfrhdym2zvzhl9k3l0
     ```
@@ -35,12 +35,13 @@ the swarm to update one node every 10 seconds:
     The `--update-parallelism` flag configures the number of service tasks
     to update simultaneously.
 
-    The `--update-delay` flag configures the time delay between updates to
-    a service task or sets of tasks. You can describe the time `T` in the number
-    of seconds `Ts`, minutes `Tm`, or hours `Th`. So `10m` indicates a 10 minute
-    delay.
+    The `--update-delay` flag configures the time delay between updates to a
+    service task or sets of tasks. You can describe the time `T` as a
+    combination of the number of seconds `Ts`, minutes `Tm`, or hours `Th`. So
+    `10m30s` indicates a 10 minute 30 second delay.
 
 3. Inspect the `redis` service:
+
     ```
     $ docker service inspect redis --pretty
 
@@ -50,7 +51,7 @@ the swarm to update one node every 10 seconds:
      Scale:	3
     Placement:
      Strategy:	SPREAD
-    UpateConfig:
+    UpdateConfig:
      Parallelism:	1
      Delay:		10s
     ContainerSpec:
@@ -84,7 +85,7 @@ desired state:
    Image:		redis:3.0.7
    ```
 
-6. Run `docker service tasks TASK-ID` to watch the rolling update:
+6. Run `docker service tasks <TASK-ID>` to watch the rolling update:
 
     ```
     $ docker service tasks redis

@@ -18,8 +18,9 @@ This topic describes key concepts to help you begin using Docker Swarm.
 
 ## Swarm
 
-**Docker Swarm** is the name for the cluster management and orchestration features
-embedded in the Docker Engine.
+**Docker Swarm** is the name for the cluster management and orchestration
+features embedded in the Docker Engine. Engines that are participating in a
+cluster are running in **Swarm mode**.
 
 A **Swarm** is a cluster of Docker Engines where you deploy a set of application
 services. When you deploy an application to a Swarm, you specify the desired

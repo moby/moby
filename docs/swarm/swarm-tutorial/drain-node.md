@@ -31,16 +31,16 @@ run your manager node. For example, the tutorial uses a machine named
     $ docker node ls
 
     ID               NAME      MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
-  1x2bldyhie1cj    worker1   Accepted    Ready   Active
-  1y3zuia1z224i    worker2   Accepted    Ready   Active
-  2p5bfd34mx4op *  manager1  Accepted    Ready   Active        Reachable       Yes
+    1x2bldyhie1cj    worker1   Accepted    Ready   Active
+    1y3zuia1z224i    worker2   Accepted    Ready   Active
+    2p5bfd34mx4op *  manager1  Accepted    Ready   Active        Reachable       Yes
     ```
 
 2. If you aren't still running the `redis` service from the [rolling
 update](rolling-update.md) tutorial, start it now:
 
     ```bash
-    $ docker service create --scale 3 --name redis --update-delay 10s --update-parallelism 1 redis:3.0.6
+    $ docker service create --replicas 3 --name redis --update-delay 10s --update-parallelism 1 redis:3.0.6
 
     69uh57k8o03jtqj9uvmteodbb
     ```
@@ -50,6 +50,7 @@ tasks to different nodes:
 
     ```
     $ docker service tasks redis
+
     ID                         NAME     SERVICE  IMAGE        LAST STATE          DESIRED STATE  NODE
     3wfqsgxecktpwoyj2zjcrcn4r  redis.1  redis    redis:3.0.6  RUNNING 13 minutes  RUNNING        worker2
     8lcm041z3v80w0gdkczbot0gg  redis.2  redis    redis:3.0.6  RUNNING 13 minutes  RUNNING        worker1
@@ -59,7 +60,7 @@ tasks to different nodes:
     In this case the Swarm manager distributed one task to each node. You may
     see the tasks distributed differently among the nodes in your environment.
 
-4. Run `docker node update --availability drain NODE-ID` to drain a node that
+4. Run `docker node update --availability drain <NODE-ID>` to drain a node that
 had a task assigned to it:
 
     ```bash
@@ -95,8 +96,8 @@ task assignments for the `redis` service:
     with `Drain` availability and creating a new task on a node with `Active`
     availability.
 
-7. Run  `docker node update --availability active NODE-ID` to return the drained
-node to an active state:
+7. Run  `docker node update --availability active <NODE-ID>` to return the
+drained node to an active state:
 
     ```bash
     $ docker node update --availability active worker1
@@ -121,9 +122,5 @@ node to an active state:
   * during a rolling update
   * when you set another node to `Drain` availability
   * when a task fails on another active node
-
-## What's next?
-
-The next topic in the tutorial introduces volumes.
 
 <p style="margin-bottom:300px">&nbsp;</p>

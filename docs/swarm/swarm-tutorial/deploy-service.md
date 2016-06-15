@@ -23,14 +23,14 @@ example, the tutorial uses a machine named `manager1`.
 2. Run the the following command:
 
     ```bash
-    $ docker service create --scale 1 --name helloworld alpine ping docker.com
+    $ docker service create --replicas 1 --name helloworld alpine ping docker.com
 
     2zs4helqu64f3k3iuwywbk49w
     ```
 
     * The `docker service create` command creates the service.
     * The `--name` flag names the service `helloworld`.
-    * The `--scale` flag specifies the desired state of 1 running instance.
+    * The `--replicas` flag specifies the desired state of 1 running instance.
     * The arguments `alpine ping docker.com` define the service as an Alpine
     Linux container that executes the command `ping docker.com`.
 

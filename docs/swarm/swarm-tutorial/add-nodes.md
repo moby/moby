@@ -19,9 +19,15 @@ to add worker nodes.
 1. Open a terminal and ssh into the machine where you want to run a worker node.
 This tutorial uses the name `worker1`.
 
-2. Run `docker swarm join MANAGER-IP:PORT` to create a worker node joined to the
-existing Swarm. Replace MANAGER-IP address of the manager node and the port
-where the manager listens.
+2. Run the following command to create a worker node joined to
+the existing Swarm:
+
+    ```
+    docker swarm join <MANAGER-IP>:<PORT>
+    ```
+
+    Replace `<MANAGER-IP>` with the address of the manager node and `<PORT>`
+    with the port where the manager listens.
 
     In the tutorial, the following command joins `worker1` to the Swarm on `manager1`:
 
@@ -34,9 +40,11 @@ where the manager listens.
 3. Open a terminal and ssh into the machine where you want to run a second
 worker node. This tutorial uses the name `worker2`.
 
-4. Run `docker swarm join MANAGER-IP:PORT` to create a worker node joined to
-the existing Swarm. Replace MANAGER-IP address of the manager node and the port
-where the manager listens.
+4. Run `docker swarm join <MANAGER-IP>:<PORT>` to create a worker node joined to
+the existing Swarm.
+
+    Replace `<MANAGER-IP>` with the address of the manager node and `<PORT>`
+    with the port where the manager listens.
 
 5. Open a terminal and ssh into the machine where the manager node runs and run
 the `docker node ls` command to see the worker nodes:
