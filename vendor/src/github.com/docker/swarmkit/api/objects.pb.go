@@ -49,8 +49,8 @@ type Node struct {
 	Description *NodeDescription `protobuf:"bytes,4,opt,name=description" json:"description,omitempty"`
 	// Status provides the current status of the node, as seen by the manager.
 	Status NodeStatus `protobuf:"bytes,5,opt,name=status" json:"status"`
-	// Status of the manager. If the node is not a manager, this field will not
-	// be set.
+	// ManagerStatus provides the current status of the node's manager
+	// component, if the node is a manager.
 	ManagerStatus *ManagerStatus `protobuf:"bytes,6,opt,name=manager_status,json=managerStatus" json:"manager_status,omitempty"`
 	// The node attachment to the ingress network.
 	Attachment *NetworkAttachment `protobuf:"bytes,7,opt,name=attachment" json:"attachment,omitempty"`

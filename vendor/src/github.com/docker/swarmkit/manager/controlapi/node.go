@@ -2,7 +2,6 @@ package controlapi
 
 import (
 	"github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -34,9 +33,16 @@ func (s *Server) GetNode(ctx context.Context, request *api.GetNodeRequest) (*api
 
 	if s.raft != nil {
 		memberlist := s.raft.GetMemberlist()
-		raftID, err := identity.ParseNodeID(request.NodeID)
-		if err == nil && memberlist[raftID] != nil {
-			node.ManagerStatus = &api.ManagerStatus{Raft: *memberlist[raftID]}
+		for _, member := range memberlist {
+			if member.NodeID == node.ID {
+				node.ManagerStatus = &api.ManagerStatus{
+					RaftID:       member.RaftID,
+					Addr:         member.Addr,
+					Leader:       member.Status.Leader,
+					Reachability: member.Status.Reachability,
+				}
+				break
+			}
 		}
 	}
 
@@ -148,10 +154,17 @@ func (s *Server) ListNodes(ctx context.Context, request *api.ListNodesRequest) (
 	if s.raft != nil {
 		memberlist := s.raft.GetMemberlist()
 
-		for _, n := range nodes {
-			raftID, err := identity.ParseNodeID(n.ID)
-			if err == nil && memberlist[raftID] != nil {
-				n.ManagerStatus = &api.ManagerStatus{Raft: *memberlist[raftID]}
+		for _, node := range nodes {
+			for _, member := range memberlist {
+				if member.NodeID == node.ID {
+					node.ManagerStatus = &api.ManagerStatus{
+						RaftID:       member.RaftID,
+						Addr:         member.Addr,
+						Leader:       member.Status.Leader,
+						Reachability: member.Status.Reachability,
+					}
+					break
+				}
 			}
 		}
 	}
@@ -173,7 +186,10 @@ func (s *Server) UpdateNode(ctx context.Context, request *api.UpdateNodeRequest)
 		return nil, err
 	}
 
-	var node *api.Node
+	var (
+		node   *api.Node
+		demote bool
+	)
 	err := s.store.Update(func(tx store.Tx) error {
 		node = store.GetNode(tx, request.NodeID)
 		if node == nil {
@@ -182,6 +198,7 @@ func (s *Server) UpdateNode(ctx context.Context, request *api.UpdateNodeRequest)
 
 		// Demotion sanity checks.
 		if node.Spec.Role == api.NodeRoleManager && request.Spec.Role == api.NodeRoleWorker {
+			demote = true
 			managers, err := store.FindNodes(tx, store.ByRole(api.NodeRoleManager))
 			if err != nil {
 				return grpc.Errorf(codes.Internal, "internal store error: %v", err)
@@ -201,6 +218,19 @@ func (s *Server) UpdateNode(ctx context.Context, request *api.UpdateNodeRequest)
 	if node == nil {
 		return nil, grpc.Errorf(codes.NotFound, "node %s not found", request.NodeID)
 	}
+
+	if demote && s.raft != nil {
+		memberlist := s.raft.GetMemberlist()
+		for raftID, member := range memberlist {
+			if member.NodeID == request.NodeID {
+				if err := s.raft.RemoveMember(ctx, raftID); err != nil {
+					return nil, err
+				}
+				break
+			}
+		}
+	}
+
 	return &api.UpdateNodeResponse{
 		Node: node,
 	}, nil
@@ -217,9 +247,11 @@ func (s *Server) RemoveNode(ctx context.Context, request *api.RemoveNodeRequest)
 	}
 	if s.raft != nil {
 		memberlist := s.raft.GetMemberlist()
-		raftID, err := identity.ParseNodeID(request.NodeID)
-		if err == nil && memberlist[raftID] != nil {
-			return nil, grpc.Errorf(codes.FailedPrecondition, "node %s is a cluster manager and is part of the quorum. It must be demoted to worker before removal", request.NodeID)
+
+		for _, member := range memberlist {
+			if member.NodeID == request.NodeID {
+				return nil, grpc.Errorf(codes.FailedPrecondition, "node %s is a cluster manager and is part of the quorum. It must be demoted to worker before removal", request.NodeID)
+			}
 		}
 	}
 

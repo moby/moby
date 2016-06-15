@@ -443,10 +443,12 @@ func (m *Manager) Run(parent context.Context) error {
 	authenticatedCAAPI := api.NewAuthenticatedWrapperCAServer(m.caserver, authorize)
 	authenticatedNodeCAAPI := api.NewAuthenticatedWrapperNodeCAServer(m.caserver, authorize)
 	authenticatedRaftAPI := api.NewAuthenticatedWrapperRaftServer(m.RaftNode, authorize)
+	authenticatedRaftMembershipAPI := api.NewAuthenticatedWrapperRaftMembershipServer(m.RaftNode, authorize)
 
 	proxyDispatcherAPI := api.NewRaftProxyDispatcherServer(authenticatedDispatcherAPI, cs, m.RaftNode, ca.WithMetadataForwardTLSInfo)
 	proxyCAAPI := api.NewRaftProxyCAServer(authenticatedCAAPI, cs, m.RaftNode, ca.WithMetadataForwardTLSInfo)
 	proxyNodeCAAPI := api.NewRaftProxyNodeCAServer(authenticatedNodeCAAPI, cs, m.RaftNode, ca.WithMetadataForwardTLSInfo)
+	proxyRaftMembershipAPI := api.NewRaftProxyRaftMembershipServer(authenticatedRaftMembershipAPI, cs, m.RaftNode, ca.WithMetadataForwardTLSInfo)
 
 	// localProxyControlAPI is a special kind of proxy. It is only wired up
 	// to receive requests from a trusted local socket, and these requests
@@ -462,6 +464,7 @@ func (m *Manager) Run(parent context.Context) error {
 	api.RegisterCAServer(m.server, proxyCAAPI)
 	api.RegisterNodeCAServer(m.server, proxyNodeCAAPI)
 	api.RegisterRaftServer(m.server, authenticatedRaftAPI)
+	api.RegisterRaftMembershipServer(m.server, proxyRaftMembershipAPI)
 	api.RegisterControlServer(m.localserver, localProxyControlAPI)
 	api.RegisterControlServer(m.server, authenticatedControlAPI)
 	api.RegisterDispatcherServer(m.server, proxyDispatcherAPI)
@@ -570,7 +573,7 @@ func (m *Manager) Stop(ctx context.Context) {
 	}
 
 	m.RaftNode.Shutdown()
-	// some time after this point, Run will recieve an error from one of these
+	// some time after this point, Run will receive an error from one of these
 	m.server.Stop()
 	m.localserver.Stop()
 

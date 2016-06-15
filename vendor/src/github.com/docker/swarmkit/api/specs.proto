@@ -127,6 +127,11 @@ message ContainerSpec {
 	// that don't change or verifiable digests.
 	string image = 1;
 
+	// RegistryAuth is the registry auth token obtained from the client, required
+	// to pull private images
+	// TODO(nishanttotla): This field will later be deprecated
+	string registry_auth = 64;
+
 	// Labels defines labels to be added to the container at creation time. If
 	// collisions with system labels occur, these labels will be overridden.
 	//

@@ -10,16 +10,6 @@ import weak "plugin/plugin.proto";
 
 // Raft defines the RPC communication between raft nodes.
 service Raft {
-	// Join adds a RaftMember to the raft cluster.
-	rpc Join(JoinRequest) returns (JoinResponse) {
-		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
-	};
-
-	// Leave removes a RaftMember from the raft cluster.
-	rpc Leave(LeaveRequest) returns (LeaveResponse) {
-		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
-	};
-
 	// ProcessRaftMessage sends a raft message to be processed on a raft member, it is
 	// called from the RaftMember willing to send a message to its destination ('To' field)
 	rpc ProcessRaftMessage(ProcessRaftMessageRequest) returns (ProcessRaftMessageResponse) {
@@ -32,13 +22,44 @@ service Raft {
 	};
 }
 
+// RaftMembership defines RPCs for adding and removing members from the
+// cluster. These RPCs must always run on the leader, so they are in a separate
+// service to support the raft proxy.
+service RaftMembership {
+	// Join adds a RaftMember to the raft cluster.
+	rpc Join(JoinRequest) returns (JoinResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+
+	// Leave removes a RaftMember from the raft cluster.
+	rpc Leave(LeaveRequest) returns (LeaveResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+}
+
+message RaftMember {
+	// RaftID specifies the internal ID used by the manager in a raft context, it can never be modified
+	// and is used only for information purposes
+	uint64 raft_id = 1 [(gogoproto.customname) = "RaftID"];
+
+	// NodeID is the node's ID.
+	string node_id = 2 [(gogoproto.customname) = "NodeID"];
+
+	// Addr specifies the address of the member
+	string addr = 3;
+
+	// Status provides the current status of the manager from the perspective of another manager.
+	RaftMemberStatus status = 4 [(gogoproto.nullable) = false];
+}
+
 message JoinRequest {
 	// Addr specifies the address of the member
 	string addr = 1;
 }
 
 message JoinResponse {
-	repeated RaftMember members = 1;
+	uint64 raft_id = 1 [(gogoproto.customname) = "RaftID"];
+	repeated RaftMember members = 2;
 }
 
 message LeaveRequest {

@@ -194,7 +194,7 @@ func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, caHash, secret
 
 		if rootCA.CanSign() {
 			// Create a new random ID for this certificate
-			cn := identity.NewNodeID()
+			cn := identity.NewID()
 			org := identity.NewID()
 
 			if nodeInfo != nil {

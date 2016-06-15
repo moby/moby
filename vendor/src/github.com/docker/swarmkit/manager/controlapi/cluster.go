@@ -169,6 +169,7 @@ func redactClusters(clusters []*api.Cluster) []*api.Cluster {
 	// Only add public fields to the new clusters
 	for _, cluster := range clusters {
 		// Copy all the mandatory fields
+		// Do not copy secret key
 		newCluster := &api.Cluster{
 			ID:   cluster.ID,
 			Meta: cluster.Meta,
@@ -179,17 +180,6 @@ func redactClusters(clusters []*api.Cluster) []*api.Cluster {
 			},
 		}
 
-		// Redact the acceptance policy secrets
-		if len(newCluster.Spec.AcceptancePolicy.Policies) > 0 {
-			for _, policy := range newCluster.Spec.AcceptancePolicy.Policies {
-				// Adding [REDACTED] to the api client so they know there is a
-				// a secret configured, but without telling them what it is.
-				if policy.Secret != nil {
-					policy.Secret.Data = []byte("[REDACTED]")
-				}
-
-			}
-		}
 		redactedClusters = append(redactedClusters, newCluster)
 	}
 

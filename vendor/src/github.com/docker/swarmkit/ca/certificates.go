@@ -476,7 +476,7 @@ func BootstrapCluster(baseCertDir string) error {
 		return err
 	}
 
-	nodeID := identity.NewNodeID()
+	nodeID := identity.NewID()
 	newOrg := identity.NewID()
 	_, err = GenerateAndSignNewTLSCert(rootCA, nodeID, ManagerRole, newOrg, paths.Node)
 

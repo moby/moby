@@ -99,29 +99,34 @@ func (r *ReplicatedOrchestrator) reconcile(ctx context.Context, service *api.Ser
 
 	// TODO(aaronl): Add support for restart delays.
 
-	_, err = r.store.Batch(func(batch *store.Batch) error {
-		switch {
-		case specifiedInstances > numTasks:
-			log.G(ctx).Debugf("Service %s was scaled up from %d to %d instances", service.ID, numTasks, specifiedInstances)
-			// Update all current tasks then add missing tasks
-			r.updater.Update(ctx, service, runningTasks)
+	switch {
+	case specifiedInstances > numTasks:
+		log.G(ctx).Debugf("Service %s was scaled up from %d to %d instances", service.ID, numTasks, specifiedInstances)
+		// Update all current tasks then add missing tasks
+		r.updater.Update(ctx, service, runningTasks)
+		_, err = r.store.Batch(func(batch *store.Batch) error {
 			r.addTasks(ctx, batch, service, runningInstances, specifiedInstances-numTasks)
-
-		case specifiedInstances < numTasks:
-			// Update up to N tasks then remove the extra
-			log.G(ctx).Debugf("Service %s was scaled down from %d to %d instances", service.ID, numTasks, specifiedInstances)
-			r.updater.Update(ctx, service, runningTasks[:specifiedInstances])
-			r.removeTasks(ctx, batch, service, runningTasks[specifiedInstances:])
-
-		case specifiedInstances == numTasks:
-			// Simple update, no scaling - update all tasks.
-			r.updater.Update(ctx, service, runningTasks)
+			return nil
+		})
+		if err != nil {
+			log.G(ctx).WithError(err).Errorf("reconcile batch failed")
 		}
-		return nil
-	})
 
-	if err != nil {
-		log.G(ctx).WithError(err).Errorf("reconcile batch failed")
+	case specifiedInstances < numTasks:
+		// Update up to N tasks then remove the extra
+		log.G(ctx).Debugf("Service %s was scaled down from %d to %d instances", service.ID, numTasks, specifiedInstances)
+		r.updater.Update(ctx, service, runningTasks[:specifiedInstances])
+		_, err = r.store.Batch(func(batch *store.Batch) error {
+			r.removeTasks(ctx, batch, service, runningTasks[specifiedInstances:])
+			return nil
+		})
+		if err != nil {
+			log.G(ctx).WithError(err).Errorf("reconcile batch failed")
+		}
+
+	case specifiedInstances == numTasks:
+		// Simple update, no scaling - update all tasks.
+		r.updater.Update(ctx, service, runningTasks)
 	}
 }
 

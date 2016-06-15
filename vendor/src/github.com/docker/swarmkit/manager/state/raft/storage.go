@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -20,6 +21,8 @@ import (
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
 )
+
+var errNoWAL = errors.New("no WAL present")
 
 func (n *Node) walDir() string {
 	return filepath.Join(n.StateDir, "wal")
@@ -41,23 +44,7 @@ func (n *Node) loadAndStart(ctx context.Context, forceNewCluster bool) error {
 	n.snapshotter = snap.New(snapDir)
 
 	if !wal.Exist(walDir) {
-		raftNode := &api.RaftMember{
-			RaftID: n.Config.ID,
-			Addr:   n.Address,
-		}
-		metadata, err := raftNode.Marshal()
-		if err != nil {
-			return fmt.Errorf("error marshalling raft node: %v", err)
-		}
-		n.wal, err = wal.Create(walDir, metadata)
-		if err != nil {
-			return fmt.Errorf("create wal error: %v", err)
-		}
-
-		n.cluster.AddMember(&membership.Member{RaftMember: raftNode})
-		n.startNodePeers = []raft.Peer{{ID: n.Config.ID, Context: metadata}}
-
-		return nil
+		return errNoWAL
 	}
 
 	// Load snapshot data
@@ -79,6 +66,49 @@ func (n *Node) loadAndStart(ctx context.Context, forceNewCluster bool) error {
 	}
 
 	n.Node = raft.RestartNode(n.Config)
+	return nil
+}
+
+func (n *Node) createWAL(nodeID string) (raft.Peer, error) {
+	raftNode := &api.RaftMember{
+		RaftID: n.Config.ID,
+		NodeID: nodeID,
+		Addr:   n.Address,
+	}
+	metadata, err := raftNode.Marshal()
+	if err != nil {
+		return raft.Peer{}, fmt.Errorf("error marshalling raft node: %v", err)
+	}
+	n.wal, err = wal.Create(n.walDir(), metadata)
+	if err != nil {
+		return raft.Peer{}, fmt.Errorf("create wal error: %v", err)
+	}
+
+	n.cluster.AddMember(&membership.Member{RaftMember: raftNode})
+	return raft.Peer{ID: n.Config.ID, Context: metadata}, nil
+}
+
+// moveWALAndSnap moves away the WAL and snapshot because we were removed
+// from the cluster and will need to recreate them if we are readded.
+func (n *Node) moveWALAndSnap() error {
+	newWALDir, err := ioutil.TempDir(n.StateDir, "wal.")
+	if err != nil {
+		return err
+	}
+	err = os.Rename(n.walDir(), newWALDir)
+	if err != nil {
+		return err
+	}
+
+	newSnapDir, err := ioutil.TempDir(n.StateDir, "snap.")
+	if err != nil {
+		return err
+	}
+	err = os.Rename(n.snapDir(), newSnapDir)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -238,6 +268,7 @@ func (n *Node) doSnapshot(raftConfig *api.RaftConfig) {
 	for _, member := range n.cluster.Members() {
 		snapshot.Membership.Members = append(snapshot.Membership.Members,
 			&api.RaftMember{
+				NodeID: member.NodeID,
 				RaftID: member.RaftID,
 				Addr:   member.Addr,
 			})
@@ -312,7 +343,7 @@ func (n *Node) restoreFromSnapshot(data []byte, forceNewCluster bool) error {
 
 	if !forceNewCluster {
 		for _, member := range snapshot.Membership.Members {
-			if err := n.registerNode(&api.RaftMember{RaftID: member.RaftID, Addr: member.Addr}); err != nil {
+			if err := n.registerNode(&api.RaftMember{RaftID: member.RaftID, NodeID: member.NodeID, Addr: member.Addr}); err != nil {
 				return err
 			}
 		}
