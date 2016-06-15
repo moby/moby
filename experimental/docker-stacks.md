@@ -64,7 +64,7 @@ We can verify that services were correctly created:
 
     ```bash
     # docker service ls
-    ID            NAME                                     SCALE  IMAGE
+    ID            NAME                                     REPLICAS  IMAGE
     COMMAND
     29bv0vnlm903  vossibility-stack_lookupd                1 nsqio/nsq@sha256:eeba05599f31eba418e96e71e0984c3dc96963ceb66924dd37a47bf7ce18a662 /nsqlookupd
     4awt47624qwh  vossibility-stack_nsqd                   1 nsqio/nsq@sha256:eeba05599f31eba418e96e71e0984c3dc96963ceb66924dd37a47bf7ce18a662 /nsqd --data-path=/data --lookupd-tcp-address=lookupd:4160
