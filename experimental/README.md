@@ -49,9 +49,9 @@ refined or entirely removed.
 To download the latest experimental `docker` binary for Linux,
 use the following URLs:
 
-    https://experimental.docker.com/builds/Linux/i386/docker-latest
+    https://experimental.docker.com/builds/Linux/i386/docker-latest.tgz
 
-    https://experimental.docker.com/builds/Linux/x86_64/docker-latest
+    https://experimental.docker.com/builds/Linux/x86_64/docker-latest.tgz
 
 After downloading the appropriate binary, you can follow the instructions
 [here](https://docs.docker.com/installation/binaries/#get-the-docker-binary) to run the `docker` daemon.
