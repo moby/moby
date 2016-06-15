@@ -13,6 +13,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/engine-api/types"
 	registrytypes "github.com/docker/engine-api/types/registry"
@@ -146,6 +147,34 @@ func (cli *DockerCli) ConfigureAuth(flUser, flPassword, serverAddress string, is
 	authconfig.IdentityToken = ""
 
 	return authconfig, nil
+}
+
+// resolveAuthConfigFromImage retrieves that AuthConfig using the image string
+func (cli *DockerCli) resolveAuthConfigFromImage(ctx context.Context, image string) (types.AuthConfig, error) {
+	registryRef, err := reference.ParseNamed(image)
+	if err != nil {
+		return types.AuthConfig{}, err
+	}
+	repoInfo, err := registry.ParseRepositoryInfo(registryRef)
+	if err != nil {
+		return types.AuthConfig{}, err
+	}
+	authConfig := cli.ResolveAuthConfig(ctx, repoInfo.Index)
+	return authConfig, nil
+}
+
+// RetrieveAuthTokenFromImage retrieves an encoded auth token given a complete image
+func (cli *DockerCli) RetrieveAuthTokenFromImage(ctx context.Context, image string) (string, error) {
+	// Retrieve encoded auth token from the image reference
+	authConfig, err := cli.resolveAuthConfigFromImage(ctx, image)
+	if err != nil {
+		return "", err
+	}
+	encodedAuth, err := EncodeAuthToBase64(authConfig)
+	if err != nil {
+		return "", err
+	}
+	return encodedAuth, nil
 }
 
 func readInput(in io.Reader, out io.Writer) string {
