@@ -116,7 +116,7 @@ be found.
 
 ### Misc
 
-+ When saving linked images together with `docker save` a subsequent `docker load` will correctly restore their parent/child relationship ([#21385](https://github.com/docker/docker/pull/c))
++ When saving linked images together with `docker save` a subsequent `docker load` will correctly restore their parent/child relationship ([#21385](https://github.com/docker/docker/pull/21385))
 + Support for building the Docker cli for OpenBSD was added ([#21325](https://github.com/docker/docker/pull/21325))
 + Labels can now be applied at network, volume and image creation ([#21270](https://github.com/docker/docker/pull/21270))
 * The `dockremap` is now created as a system user ([#21266](https://github.com/docker/docker/pull/21266))
