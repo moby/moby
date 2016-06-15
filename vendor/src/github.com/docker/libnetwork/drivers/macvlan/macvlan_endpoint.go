@@ -83,8 +83,12 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	if link, err := ns.NlHandle().LinkByName(ep.srcName); err == nil {
 		ns.NlHandle().LinkDel(link)
 	}
+
 	if err := d.storeDelete(ep); err != nil {
 		logrus.Warnf("Failed to remove macvlan endpoint %s from store: %v", ep.id[0:7], err)
 	}
+
+	n.deleteEndpoint(ep.id)
+
 	return nil
 }
