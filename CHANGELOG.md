@@ -5,7 +5,7 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
-## 1.12.0 (07-14-2016)
+## 1.12.0 (2016-07-14)
 
 ### Builder
 
