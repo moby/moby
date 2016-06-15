@@ -33,7 +33,8 @@ From `docker-compose`:
 
 ## Creating a stack from a bundle
 
-A stack is created using the `docker deploy` command:
+A stack is created using the `docker deploy` (an alias of `docker stack deploy`)
+command:
 
     ```bash
     # docker deploy --help
