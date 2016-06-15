@@ -36,11 +36,14 @@ type driver struct {
 }
 
 type endpoint struct {
-	id      string
-	mac     net.HardwareAddr
-	addr    *net.IPNet
-	addrv6  *net.IPNet
-	srcName string
+	id       string
+	nid      string
+	mac      net.HardwareAddr
+	addr     *net.IPNet
+	addrv6   *net.IPNet
+	srcName  string
+	dbIndex  uint64
+	dbExists bool
 }
 
 type network struct {

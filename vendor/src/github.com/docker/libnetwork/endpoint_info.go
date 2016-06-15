@@ -414,3 +414,56 @@ func (ep *endpoint) DisableGatewayService() {
 
 	ep.joinInfo.disableGatewayService = true
 }
+
+func (epj *endpointJoinInfo) MarshalJSON() ([]byte, error) {
+	epMap := make(map[string]interface{})
+	if epj.gw != nil {
+		epMap["gw"] = epj.gw.String()
+	}
+	if epj.gw6 != nil {
+		epMap["gw6"] = epj.gw6.String()
+	}
+	epMap["disableGatewayService"] = epj.disableGatewayService
+	epMap["StaticRoutes"] = epj.StaticRoutes
+	return json.Marshal(epMap)
+}
+
+func (epj *endpointJoinInfo) UnmarshalJSON(b []byte) error {
+	var (
+		err   error
+		epMap map[string]interface{}
+	)
+	if err = json.Unmarshal(b, &epMap); err != nil {
+		return err
+	}
+	if v, ok := epMap["gw"]; ok {
+		epj.gw6 = net.ParseIP(v.(string))
+	}
+	if v, ok := epMap["gw6"]; ok {
+		epj.gw6 = net.ParseIP(v.(string))
+	}
+	epj.disableGatewayService = epMap["disableGatewayService"].(bool)
+
+	var tStaticRoute []types.StaticRoute
+	if v, ok := epMap["StaticRoutes"]; ok {
+		tb, _ := json.Marshal(v)
+		var tStaticRoute []types.StaticRoute
+		json.Unmarshal(tb, &tStaticRoute)
+	}
+	var StaticRoutes []*types.StaticRoute
+	for _, r := range tStaticRoute {
+		StaticRoutes = append(StaticRoutes, &r)
+	}
+	epj.StaticRoutes = StaticRoutes
+
+	return nil
+}
+
+func (epj *endpointJoinInfo) CopyTo(dstEpj *endpointJoinInfo) error {
+	dstEpj.disableGatewayService = epj.disableGatewayService
+	dstEpj.StaticRoutes = make([]*types.StaticRoute, len(epj.StaticRoutes))
+	copy(dstEpj.StaticRoutes, epj.StaticRoutes)
+	dstEpj.gw = types.GetIPCopy(epj.gw)
+	dstEpj.gw = types.GetIPCopy(epj.gw6)
+	return nil
+}

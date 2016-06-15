@@ -91,6 +91,7 @@ type connectivityConfiguration struct {
 
 type bridgeEndpoint struct {
 	id              string
+	nid             string
 	srcName         string
 	addr            *net.IPNet
 	addrv6          *net.IPNet
@@ -99,6 +100,8 @@ type bridgeEndpoint struct {
 	containerConfig *containerConfiguration
 	extConnConfig   *connectivityConfiguration
 	portMapping     []types.PortBinding // Operation port bindings
+	dbIndex         uint64
+	dbExists        bool
 }
 
 type bridgeNetwork struct {
@@ -882,7 +885,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 
 	// Create and add the endpoint
 	n.Lock()
-	endpoint := &bridgeEndpoint{id: eid, config: epConfig}
+	endpoint := &bridgeEndpoint{id: eid, nid: nid, config: epConfig}
 	n.endpoints[eid] = endpoint
 	n.Unlock()
 
@@ -1009,6 +1012,10 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		}
 	}
 
+	if err = d.storeUpdate(endpoint); err != nil {
+		return fmt.Errorf("failed to save bridge endpoint %s to store: %v", ep.id[0:7], err)
+	}
+
 	return nil
 }
 
@@ -1067,6 +1074,10 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	// Also make sure defer does not see this error either.
 	if link, err := d.nlh.LinkByName(ep.srcName); err == nil {
 		d.nlh.LinkDel(link)
+	}
+
+	if err := d.storeDelete(ep); err != nil {
+		logrus.Warnf("Failed to remove bridge endpoint %s from store: %v", ep.id[0:7], err)
 	}
 
 	return nil
@@ -1223,6 +1234,11 @@ func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string
 	endpoint.portMapping, err = network.allocatePorts(endpoint, network.config.DefaultBindingIP, d.config.EnableUserlandProxy)
 	if err != nil {
 		return err
+	}
+
+	if err = d.storeUpdate(endpoint); err != nil {
+		endpoint.portMapping = nil
+		return fmt.Errorf("failed to update bridge endpoint %s to store: %v", endpoint.id[0:7], err)
 	}
 
 	if !network.config.EnableICC {

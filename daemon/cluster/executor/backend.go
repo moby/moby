@@ -32,4 +32,5 @@ type Backend interface {
 	ListContainersForNode(nodeID string) []string
 	SetNetworkBootstrapKeys([]*networktypes.EncryptionKey) error
 	SetClusterProvider(provider cluster.Provider)
+	IsSwarmCompatible() error
 }
