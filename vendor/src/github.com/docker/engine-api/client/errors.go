@@ -171,3 +171,18 @@ func IsErrTaskNotFound(err error) bool {
 	_, ok := err.(taskNotFoundError)
 	return ok
 }
+
+type pluginPermissionDenied struct {
+	name string
+}
+
+func (e pluginPermissionDenied) Error() string {
+	return "Permission denied while installing plugin " + e.name
+}
+
+// IsErrPluginPermissionDenied returns true if the error is caused
+// when a user denies a plugin's permissions
+func IsErrPluginPermissionDenied(err error) bool {
+	_, ok := err.(pluginPermissionDenied)
+	return ok
+}

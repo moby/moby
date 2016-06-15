@@ -157,14 +157,15 @@ func (s *VolumeStore) List() ([]volume.Volume, []string, error) {
 
 // list goes through each volume driver and asks for its list of volumes.
 func (s *VolumeStore) list() ([]volume.Volume, []string, error) {
-	drivers, err := volumedrivers.GetAllDrivers()
-	if err != nil {
-		return nil, nil, err
-	}
 	var (
 		ls       []volume.Volume
 		warnings []string
 	)
+
+	drivers, err := volumedrivers.GetAllDrivers()
+	if err != nil {
+		return nil, nil, err
+	}
 
 	type vols struct {
 		vols       []volume.Volume

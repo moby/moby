@@ -203,18 +203,17 @@ func TestResponseModifierOverride(t *testing.T) {
 
 // createTestPlugin creates a new sample authorization plugin
 func createTestPlugin(t *testing.T) *authorizationPlugin {
-	plugin := &plugins.Plugin{Name: "authz"}
 	pwd, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	plugin.Client, err = plugins.NewClient("unix:///"+path.Join(pwd, pluginAddress), tlsconfig.Options{InsecureSkipVerify: true})
+	client, err := plugins.NewClient("unix:///"+path.Join(pwd, pluginAddress), &tlsconfig.Options{InsecureSkipVerify: true})
 	if err != nil {
 		t.Fatalf("Failed to create client %v", err)
 	}
 
-	return &authorizationPlugin{name: "plugin", plugin: plugin}
+	return &authorizationPlugin{name: "plugin", plugin: client}
 }
 
 // AuthZPluginTestServer is a simple server that implements the authZ plugin interface

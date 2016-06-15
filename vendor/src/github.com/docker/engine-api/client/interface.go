@@ -4,18 +4,17 @@ import (
 	"io"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/engine-api/types/network"
 	"github.com/docker/engine-api/types/registry"
 	"github.com/docker/engine-api/types/swarm"
+	"golang.org/x/net/context"
 )
 
-// APIClient is an interface that clients that talk with a docker server must implement.
-type APIClient interface {
+// CommonAPIClient is the common methods between stable and experimental versions of APIClient.
+type CommonAPIClient interface {
 	ClientVersion() string
 	CheckpointCreate(ctx context.Context, container string, options types.CheckpointCreateOptions) error
 	CheckpointDelete(ctx context.Context, container string, checkpointID string) error
@@ -97,6 +96,3 @@ type APIClient interface {
 	VolumeList(ctx context.Context, filter filters.Args) (types.VolumesListResponse, error)
 	VolumeRemove(ctx context.Context, volumeID string) error
 }
-
-// Ensure that Client always implements APIClient.
-var _ APIClient = &Client{}

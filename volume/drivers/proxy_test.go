@@ -58,7 +58,7 @@ func TestVolumeRequestError(t *testing.T) {
 	})
 
 	u, _ := url.Parse(server.URL)
-	client, err := plugins.NewClient("tcp://"+u.Host, tlsconfig.Options{InsecureSkipVerify: true})
+	client, err := plugins.NewClient("tcp://"+u.Host, &tlsconfig.Options{InsecureSkipVerify: true})
 	if err != nil {
 		t.Fatal(err)
 	}

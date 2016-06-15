@@ -77,7 +77,7 @@ func (s *DockerExternalGraphdriverSuite) setUpPluginViaJSONFile(c *check.C) {
 	mux := http.NewServeMux()
 	s.jserver = httptest.NewServer(mux)
 
-	p := plugins.Plugin{Name: "json-external-graph-driver", Addr: s.jserver.URL}
+	p := plugins.NewLocalPlugin("json-external-graph-driver", s.jserver.URL)
 	b, err := json.Marshal(p)
 	c.Assert(err, check.IsNil)
 
