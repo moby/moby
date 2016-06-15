@@ -16,7 +16,15 @@ import (
 // /etc/resolv.conf, and if it is not, appends it to the array of mounts.
 func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, error) {
 	var mounts []container.Mount
+	// TODO: tmpfs mounts should be part of Mountpoints
+	tmpfsMounts := make(map[string]bool)
+	for _, m := range c.TmpfsMounts() {
+		tmpfsMounts[m.Destination] = true
+	}
 	for _, m := range c.MountPoints {
+		if tmpfsMounts[m.Destination] {
+			continue
+		}
 		if err := daemon.lazyInitializeVolume(c.ID, m); err != nil {
 			return nil, err
 		}
