@@ -70,7 +70,7 @@ func (e *encrMap) String() string {
 }
 
 func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal, add bool) error {
-	log.Infof("checkEncryption(%s, %v, %d, %t)", nid[0:7], rIP, vxlanID, isLocal)
+	log.Debugf("checkEncryption(%s, %v, %d, %t)", nid[0:7], rIP, vxlanID, isLocal)
 
 	n := d.network(nid)
 	if n == nil || !n.secure {
@@ -120,7 +120,7 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal
 }
 
 func setupEncryption(localIP, remoteIP net.IP, vni uint32, em *encrMap, keys []*key) error {
-	log.Infof("Programming encryption for vxlan %d between %s and %s", vni, localIP, remoteIP)
+	log.Debugf("Programming encryption for vxlan %d between %s and %s", vni, localIP, remoteIP)
 	rIPs := remoteIP.String()
 
 	indices := make([]*spi, 0, len(keys))
@@ -242,7 +242,7 @@ func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (f
 		}
 
 		if add != exists {
-			log.Infof("%s: rSA{%s}", action, rSA)
+			log.Debugf("%s: rSA{%s}", action, rSA)
 			if err := xfrmProgram(rSA); err != nil {
 				log.Warnf("Failed %s rSA{%s}: %v", action, rSA, err)
 			}
@@ -267,7 +267,7 @@ func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (f
 		}
 
 		if add != exists {
-			log.Infof("%s fSA{%s}", action, fSA)
+			log.Debugf("%s fSA{%s}", action, fSA)
 			if err := xfrmProgram(fSA); err != nil {
 				log.Warnf("Failed %s fSA{%s}: %v.", action, fSA, err)
 			}
@@ -313,7 +313,7 @@ func programSP(fSA *netlink.XfrmState, rSA *netlink.XfrmState, add bool) error {
 	}
 
 	if add != exists {
-		log.Infof("%s fSP{%s}", action, fPol)
+		log.Debugf("%s fSP{%s}", action, fPol)
 		if err := xfrmProgram(fPol); err != nil {
 			log.Warnf("%s fSP{%s}: %v", action, fPol, err)
 		}
@@ -380,16 +380,16 @@ func (d *driver) setKeys(keys []*key) error {
 		return types.ForbiddenErrorf("initial keys are already present")
 	}
 	d.keys = keys
-	log.Infof("Initial encryption keys: %v", d.keys)
+	log.Debugf("Initial encryption keys: %v", d.keys)
 	return nil
 }
 
 // updateKeys allows to add a new key and/or change the primary key and/or prune an existing key
 // The primary key is the key used in transmission and will go in first position in the list.
 func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
-	log.Infof("Updating Keys. New: %v, Primary: %v, Pruned: %v", newKey, primary, pruneKey)
+	log.Debugf("Updating Keys. New: %v, Primary: %v, Pruned: %v", newKey, primary, pruneKey)
 
-	log.Infof("Current: %v", d.keys)
+	log.Debugf("Current: %v", d.keys)
 
 	var (
 		newIdx = -1
@@ -444,7 +444,7 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 	}
 	d.Unlock()
 
-	log.Infof("Updated: %v", d.keys)
+	log.Debugf("Updated: %v", d.keys)
 
 	return nil
 }
@@ -458,10 +458,10 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 
 // Spis and keys are sorted in such away the one in position 0 is the primary
 func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx, delIdx int) []*spi {
-	log.Infof("Updating keys for node: %s (%d,%d,%d)", rIP, newIdx, priIdx, delIdx)
+	log.Debugf("Updating keys for node: %s (%d,%d,%d)", rIP, newIdx, priIdx, delIdx)
 
 	spis := idxs
-	log.Infof("Current: %v", spis)
+	log.Debugf("Current: %v", spis)
 
 	// add new
 	if newIdx != -1 {
@@ -482,7 +482,7 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 			Crypt:  &netlink.XfrmStateAlgo{Name: "cbc(aes)", Key: curKeys[delIdx].value},
 			Limits: netlink.XfrmStateLimits{TimeSoft: timeout},
 		}
-		log.Infof("Updating rSA0{%s}", rSA0)
+		log.Debugf("Updating rSA0{%s}", rSA0)
 		if err := ns.NlHandle().XfrmStateUpdate(rSA0); err != nil {
 			log.Warnf("Failed to update rSA0{%s}: %v", rSA0, err)
 		}
@@ -518,7 +518,7 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 				},
 			},
 		}
-		log.Infof("Updating fSP{%s}", fSP1)
+		log.Debugf("Updating fSP{%s}", fSP1)
 		if err := ns.NlHandle().XfrmPolicyUpdate(fSP1); err != nil {
 			log.Warnf("Failed to update fSP{%s}: %v", fSP1, err)
 		}
@@ -533,7 +533,7 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 			Crypt:  &netlink.XfrmStateAlgo{Name: "cbc(aes)", Key: curKeys[0].value},
 			Limits: netlink.XfrmStateLimits{TimeHard: timeout},
 		}
-		log.Infof("Removing fSA0{%s}", fSA0)
+		log.Debugf("Removing fSA0{%s}", fSA0)
 		if err := ns.NlHandle().XfrmStateUpdate(fSA0); err != nil {
 			log.Warnf("Failed to remove fSA0{%s}: %v", fSA0, err)
 		}
@@ -553,7 +553,7 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 		spis = append(spis[:delIdx], spis[delIdx+1:]...)
 	}
 
-	log.Infof("Updated: %v", spis)
+	log.Debugf("Updated: %v", spis)
 
 	return spis
 }
