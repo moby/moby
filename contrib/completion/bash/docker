@@ -1641,7 +1641,7 @@ _docker_swarm_join() {
 _docker_swarm_update() {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--auto-accept --dispatcher-heartbeat-period --help --secret --task-history-limit" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--auto-accept --dispatcher-heartbeat --help --secret --task-history-limit" -- "$cur" ) )
 			;;
 	esac
 }

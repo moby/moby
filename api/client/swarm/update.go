@@ -2,6 +2,7 @@ package swarm
 
 import (
 	"fmt"
+	"time"
 
 	"golang.org/x/net/context"
 
@@ -13,10 +14,10 @@ import (
 )
 
 type updateOptions struct {
-	autoAccept       AutoAcceptOption
-	secret           string
-	taskHistoryLimit int64
-	heartbeatPeriod  uint64
+	autoAccept          AutoAcceptOption
+	secret              string
+	taskHistoryLimit    int64
+	dispatcherHeartbeat time.Duration
 }
 
 func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
@@ -36,7 +37,7 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	flags.Var(&opts.autoAccept, "auto-accept", "Auto acceptance policy (worker, manager or none)")
 	flags.StringVar(&opts.secret, "secret", "", "Set secret value needed to accept nodes into cluster")
 	flags.Int64Var(&opts.taskHistoryLimit, "task-history-limit", 10, "Task history retention limit")
-	flags.Uint64Var(&opts.heartbeatPeriod, "dispatcher-heartbeat-period", 5000000000, "Dispatcher heartbeat period")
+	flags.DurationVar(&opts.dispatcherHeartbeat, "dispatcher-heartbeat", time.Duration(5*time.Second), "Dispatcher heartbeat period")
 	return cmd
 }
 
@@ -85,8 +86,10 @@ func mergeSwarm(swarm *swarm.Swarm, flags *pflag.FlagSet) error {
 		spec.Orchestration.TaskHistoryRetentionLimit, _ = flags.GetInt64("task-history-limit")
 	}
 
-	if flags.Changed("dispatcher-heartbeat-period") {
-		spec.Dispatcher.HeartbeatPeriod, _ = flags.GetUint64("dispatcher-heartbeat-period")
+	if flags.Changed("dispatcher-heartbeat") {
+		if v, err := flags.GetDuration("dispatcher-heartbeat"); err == nil {
+			spec.Dispatcher.HeartbeatPeriod = uint64(v.Nanoseconds())
+		}
 	}
 
 	return nil
