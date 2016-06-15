@@ -90,7 +90,6 @@ You start the Docker daemon with the command line. How you start the daemon affe
 ### Swarm node commands
 
 * [node_accept](node_accept.md)
-* [node_reject](node_reject.md)
 * [node_promote](node_promote.md)
 * [node_demote](node_demote.md)
 * [node_inspect](node_inspect.md)
