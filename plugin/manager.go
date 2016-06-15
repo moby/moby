@@ -58,7 +58,12 @@ func (p *plugin) Client() *plugins.Client {
 }
 
 func (p *plugin) Name() string {
-	return p.p.Name
+	name := p.p.Name
+	if len(p.p.Tag) > 0 {
+		// TODO: this feels hacky, maybe we should be storing the distribution reference rather than splitting these
+		name += ":" + p.p.Tag
+	}
+	return name
 }
 
 func (pm *Manager) newPlugin(ref reference.Named, id string) *plugin {
@@ -300,12 +305,13 @@ func (pm *Manager) initPlugin(p *plugin) error {
 
 func (pm *Manager) remove(p *plugin) error {
 	if p.p.Active {
-		return fmt.Errorf("plugin %s is active", p.p.Name)
+		return fmt.Errorf("plugin %s is active", p.Name())
 	}
 	pm.Lock() // fixme: lock single record
 	defer pm.Unlock()
 	os.RemoveAll(p.stateSourcePath)
-	delete(pm.plugins, p.p.Name)
+	delete(pm.plugins, p.p.ID)
+	delete(pm.nameToID, p.Name())
 	pm.save()
 	return nil
 }
