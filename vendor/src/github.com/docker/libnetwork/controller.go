@@ -203,6 +203,8 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		}
 	}
 
+	c.WalkNetworks(populateSpecial)
+
 	// Reserve pools first before doing cleanup. Otherwise the
 	// cleanups of endpoint/network and sandbox below will
 	// generate many unnecessary warnings
