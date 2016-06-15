@@ -197,14 +197,15 @@ func (c *controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 		sbs := kvo.(*sbState)
 
 		sb := &sandbox{
-			id:          sbs.ID,
-			controller:  sbs.c,
-			containerID: sbs.Cid,
-			endpoints:   epHeap{},
-			dbIndex:     sbs.dbIndex,
-			isStub:      true,
-			dbExists:    true,
-			extDNS:      sbs.ExtDNS,
+			id:                 sbs.ID,
+			controller:         sbs.c,
+			containerID:        sbs.Cid,
+			endpoints:          epHeap{},
+			populatedEndpoints: map[string]struct{}{},
+			dbIndex:            sbs.dbIndex,
+			isStub:             true,
+			dbExists:           true,
+			extDNS:             sbs.ExtDNS,
 		}
 
 		msg := " for cleanup"
