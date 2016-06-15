@@ -177,7 +177,7 @@ func (m *MountOpt) Set(value string) error {
 		}
 
 		if len(parts) != 2 {
-			return fmt.Errorf("invald field '%s' must be a key=value pair", field)
+			return fmt.Errorf("invalid field '%s' must be a key=value pair", field)
 		}
 
 		key, value := parts[0], parts[1]
@@ -191,14 +191,14 @@ func (m *MountOpt) Set(value string) error {
 		case "writable":
 			mount.Writable, err = strconv.ParseBool(value)
 			if err != nil {
-				return fmt.Errorf("invald value for writable: %s", err.Error())
+				return fmt.Errorf("invalid value for writable: %s", err.Error())
 			}
 		case "bind-propagation":
 			mount.BindOptions.Propagation = swarm.MountPropagation(strings.ToUpper(value))
 		case "volume-populate":
 			volumeOptions().Populate, err = strconv.ParseBool(value)
 			if err != nil {
-				return fmt.Errorf("invald value for populate: %s", err.Error())
+				return fmt.Errorf("invalid value for populate: %s", err.Error())
 			}
 		case "volume-label":
 			setValueOnMap(volumeOptions().Labels, value)
