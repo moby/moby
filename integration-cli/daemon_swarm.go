@@ -26,11 +26,16 @@ func (d *SwarmDaemon) Init(autoAccept map[string]bool, secret string) error {
 		ListenAddr: d.listenAddr,
 	}
 	for _, role := range []swarm.NodeRole{swarm.NodeRoleManager, swarm.NodeRoleWorker} {
-		req.Spec.AcceptancePolicy.Policies = append(req.Spec.AcceptancePolicy.Policies, swarm.Policy{
+		policy := swarm.Policy{
 			Role:       role,
 			Autoaccept: autoAccept[strings.ToLower(string(role))],
-			Secret:     secret,
-		})
+		}
+
+		if secret != "" {
+			policy.Secret = &secret
+		}
+
+		req.Spec.AcceptancePolicy.Policies = append(req.Spec.AcceptancePolicy.Policies, policy)
 	}
 	status, out, err := d.SockRequest("POST", "/swarm/init", req)
 	if status != http.StatusOK {
@@ -49,13 +54,17 @@ func (d *SwarmDaemon) Init(autoAccept map[string]bool, secret string) error {
 
 // Join joins a current daemon with existing cluster.
 func (d *SwarmDaemon) Join(remoteAddr, secret, cahash string, manager bool) error {
-	status, out, err := d.SockRequest("POST", "/swarm/join", swarm.JoinRequest{
+	req := swarm.JoinRequest{
 		ListenAddr:  d.listenAddr,
 		RemoteAddrs: []string{remoteAddr},
 		Manager:     manager,
-		Secret:      secret,
 		CACertHash:  cahash,
-	})
+	}
+
+	if secret != "" {
+		req.Secret = secret
+	}
+	status, out, err := d.SockRequest("POST", "/swarm/join", req)
 	if status != http.StatusOK {
 		return fmt.Errorf("joining swarm: invalid statuscode %v, %q", status, out)
 	}

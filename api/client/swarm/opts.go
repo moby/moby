@@ -102,7 +102,7 @@ func (o *AutoAcceptOption) Type() string {
 }
 
 // Policies returns a representation of this option for the api
-func (o *AutoAcceptOption) Policies(secret string) []swarm.Policy {
+func (o *AutoAcceptOption) Policies(secret *string) []swarm.Policy {
 	policies := []swarm.Policy{}
 	for _, p := range defaultPolicies {
 		if len(o.values) != 0 {

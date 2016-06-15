@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 type initOptions struct {
@@ -19,6 +20,7 @@ type initOptions struct {
 }
 
 func newInitCommand(dockerCli *client.DockerCli) *cobra.Command {
+	var flags *pflag.FlagSet
 	opts := initOptions{
 		listenAddr: NewNodeAddrOption(),
 		autoAccept: NewAutoAcceptOption(),
@@ -29,11 +31,11 @@ func newInitCommand(dockerCli *client.DockerCli) *cobra.Command {
 		Short: "Initialize a Swarm.",
 		Args:  cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runInit(dockerCli, opts)
+			return runInit(dockerCli, flags, opts)
 		},
 	}
 
-	flags := cmd.Flags()
+	flags = cmd.Flags()
 	flags.Var(&opts.listenAddr, "listen-addr", "Listen address")
 	flags.Var(&opts.autoAccept, "auto-accept", "Auto acceptance policy (worker, manager, or none)")
 	flags.StringVar(&opts.secret, "secret", "", "Set secret value needed to accept nodes into cluster")
@@ -41,7 +43,7 @@ func newInitCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runInit(dockerCli *client.DockerCli, opts initOptions) error {
+func runInit(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts initOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
@@ -50,8 +52,11 @@ func runInit(dockerCli *client.DockerCli, opts initOptions) error {
 		ForceNewCluster: opts.forceNewCluster,
 	}
 
-	req.Spec.AcceptancePolicy.Policies = opts.autoAccept.Policies(opts.secret)
-
+	if flags.Changed("secret") {
+		req.Spec.AcceptancePolicy.Policies = opts.autoAccept.Policies(&opts.secret)
+	} else {
+		req.Spec.AcceptancePolicy.Policies = opts.autoAccept.Policies(nil)
+	}
 	nodeID, err := client.SwarmInit(ctx, req)
 	if err != nil {
 		return err

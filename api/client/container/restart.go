@@ -41,7 +41,8 @@ func runRestart(dockerCli *client.DockerCli, opts *restartOptions) error {
 	ctx := context.Background()
 	var errs []string
 	for _, name := range opts.containers {
-		if err := dockerCli.Client().ContainerRestart(ctx, name, time.Duration(opts.nSeconds)*time.Second); err != nil {
+		timeout := time.Duration(opts.nSeconds) * time.Second
+		if err := dockerCli.Client().ContainerRestart(ctx, name, &timeout); err != nil {
 			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(dockerCli.Out(), "%s\n", name)
