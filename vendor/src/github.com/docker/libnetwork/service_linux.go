@@ -37,7 +37,7 @@ func newService(name string, id string, ingressPorts []*PortConfig) *service {
 	}
 }
 
-func (c *controller) addServiceBinding(name, sid, nid, eid string, vip net.IP, ingressPorts []*PortConfig, ip net.IP) error {
+func (c *controller) addServiceBinding(name, sid, nid, eid string, vip net.IP, ingressPorts []*PortConfig, aliases []string, ip net.IP) error {
 	var (
 		s          *service
 		addService bool
@@ -61,6 +61,9 @@ func (c *controller) addServiceBinding(name, sid, nid, eid string, vip net.IP, i
 	// Add endpoint IP to special "tasks.svc_name" so that the
 	// applications have access to DNS RR.
 	n.(*network).addSvcRecords("tasks."+name, ip, nil, false)
+	for _, alias := range aliases {
+		n.(*network).addSvcRecords("tasks."+alias, ip, nil, false)
+	}
 
 	// Add service name to vip in DNS, if vip is valid. Otherwise resort to DNS RR
 	svcIP := vip
@@ -68,6 +71,9 @@ func (c *controller) addServiceBinding(name, sid, nid, eid string, vip net.IP, i
 		svcIP = ip
 	}
 	n.(*network).addSvcRecords(name, svcIP, nil, false)
+	for _, alias := range aliases {
+		n.(*network).addSvcRecords(alias, svcIP, nil, false)
+	}
 
 	s.Lock()
 	defer s.Unlock()
@@ -107,7 +113,7 @@ func (c *controller) addServiceBinding(name, sid, nid, eid string, vip net.IP, i
 	return nil
 }
 
-func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, ingressPorts []*PortConfig, ip net.IP) error {
+func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, ingressPorts []*PortConfig, aliases []string, ip net.IP) error {
 	var rmService bool
 
 	n, err := c.NetworkByID(nid)
@@ -125,6 +131,9 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 
 	// Delete the special "tasks.svc_name" backend record.
 	n.(*network).deleteSvcRecords("tasks."+name, ip, nil, false)
+	for _, alias := range aliases {
+		n.(*network).deleteSvcRecords("tasks."+alias, ip, nil, false)
+	}
 
 	// Make sure to remove the right IP since if vip is
 	// not valid we would have added a DNS RR record.
@@ -133,6 +142,9 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 		svcIP = ip
 	}
 	n.(*network).deleteSvcRecords(name, svcIP, nil, false)
+	for _, alias := range aliases {
+		n.(*network).deleteSvcRecords(alias, svcIP, nil, false)
+	}
 
 	s.Lock()
 	defer s.Unlock()

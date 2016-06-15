@@ -31,6 +31,7 @@ type PortConfig struct {
 type ServiceConfig struct {
 	ID               string
 	Name             string
+	Aliases          map[string][]string
 	VirtualAddresses map[string]*VirtualAddress
 	ExposedPorts     []*PortConfig
 }

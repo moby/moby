@@ -918,7 +918,7 @@ func populateNetworkID(ctx context.Context, c swarmapi.ControlClient, s *types.S
 		if err != nil {
 			return err
 		}
-		s.Networks[i] = types.NetworkAttachmentConfig{Target: apiNetwork.ID}
+		s.Networks[i].Target = apiNetwork.ID
 	}
 	return nil
 }
