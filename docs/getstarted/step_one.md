@@ -39,7 +39,7 @@ Docker for Mac is our newest offering for the Mac. It runs as a native Mac appli
 
 If you have an earlier Mac that doesn't meet the Docker for Mac prerequisites, <a href="https://www.docker.com/products/docker-toolbox" target="_blank">get Docker Toolbox</a> for the Mac.
 
-See [Docker Toolbox Overview](toolbox/overview/) for help on installing Docker with Toolbox.
+See [Docker Toolbox Overview](/toolbox/overview.md) for help on installing Docker with Toolbox.
 
 ### Docker for Windows
 
@@ -58,24 +58,24 @@ Docker for Windows is our newest offering for PCs. It runs as a native Windows a
 
 If you have an earlier Windows system that doesn't meet the Docker for Windows prerequisites, <a href="https://www.docker.com/products/docker-toolbox" target="_blank">get Docker Toolbox</a>.
 
-See [Docker Toolbox Overview](toolbox/overview/) for help on installing Docker with Toolbox.
+See [Docker Toolbox Overview](/toolbox/overview.md) for help on installing Docker with Toolbox.
 
 ### Docker for Linux
 Docker Engine runs navitvely on Linux distributions.
 
-For full instructions on getting Docker for various Linux distributions, see [Install Docker Engine](/engine/installation/).
+For full instructions on getting Docker for various Linux distributions, see [Install Docker Engine](../installation/index.md).
 
 ## Step 2: Install Docker
 
-* For install instructions for Docker for Mac, see [Getting Started with Docker for Mac](/docker-for-mac/).
+* For install instructions for Docker for Mac, see [Getting Started with Docker for Mac](/docker-for-mac/index.md).
 
-* For install instructions for Docker for Windows, see [Getting Started with Docker for Windows](/docker-for-windows/).
+* For install instructions for Docker for Windows, see [Getting Started with Docker for Windows](/docker-for-windows/index.md).
 
-* For install instructions for Docker Toolbox, see [Docker Toolbox Overview](toolbox/overview/).
+* For install instructions for Docker Toolbox, see [Docker Toolbox Overview](/toolbox/overview.md).
 
 * For a simple example of installing Docker on Ubuntu Linux so that you can work through this tutorial, see [Installing Docker on Ubuntu Linux (Example)](linux_install_help.md).
 
-  For full install instructions for Docker on Linux, see [Install Docker Engine](/engine/installation/) and select the flavor of Linux you want to use.
+  For full install instructions for Docker on Linux, see [Install Docker Engine](../installation/index.md) and select the flavor of Linux you want to use.
 
 ## Step 3: Verify your installation
 
@@ -129,7 +129,7 @@ For full instructions on getting Docker for various Linux distributions, see [In
 
 ## Looking for troubleshooting help?
 
-Typically, the above steps work out-of-the-box, but some scenarios can cause problems. If your `docker run hello-world` didn't work and resulted in errors, check out [Troubleshooting](/tutorials/faqs/troubleshoot.md) for quick fixes to common problems.
+Typically, the above steps work out-of-the-box, but some scenarios can cause problems. If your `docker run hello-world` didn't work and resulted in errors, check out [Troubleshooting](/toolbox/faqs/troubleshoot.md) for quick fixes to common problems.
 
 ## Where to go next
 
