@@ -102,7 +102,7 @@ func printService(out io.Writer, service swarm.Service) {
 	}
 	fmt.Fprintln(out, "Placement:")
 	fmt.Fprintln(out, " Strategy:\tSPREAD")
-	fmt.Fprintf(out, "UpateConfig:\n")
+	fmt.Fprintf(out, "UpdateConfig:\n")
 	fmt.Fprintf(out, " Parallelism:\t%d\n", service.Spec.UpdateConfig.Parallelism)
 	if service.Spec.UpdateConfig.Delay.Nanoseconds() > 0 {
 		fmt.Fprintf(out, " Delay:\t\t%s\n", service.Spec.UpdateConfig.Delay)
