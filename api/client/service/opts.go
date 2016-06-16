@@ -28,7 +28,7 @@ type int64Value interface {
 type memBytes int64
 
 func (m *memBytes) String() string {
-	return strconv.FormatInt(m.Value(), 10)
+	return units.BytesSize(float64(m.Value()))
 }
 
 func (m *memBytes) Set(value string) error {
@@ -48,7 +48,7 @@ func (m *memBytes) Value() int64 {
 type nanoCPUs int64
 
 func (c *nanoCPUs) String() string {
-	return strconv.FormatInt(c.Value(), 10)
+	return big.NewRat(c.Value(), 1e9).FloatString(3)
 }
 
 func (c *nanoCPUs) Set(value string) error {
@@ -191,14 +191,14 @@ func (m *MountOpt) Set(value string) error {
 		case "writable":
 			mount.Writable, err = strconv.ParseBool(value)
 			if err != nil {
-				return fmt.Errorf("invalid value for writable: %s", err.Error())
+				return fmt.Errorf("invalid value for writable: %s", value)
 			}
 		case "bind-propagation":
 			mount.BindOptions.Propagation = swarm.MountPropagation(strings.ToUpper(value))
 		case "volume-populate":
 			volumeOptions().Populate, err = strconv.ParseBool(value)
 			if err != nil {
-				return fmt.Errorf("invalid value for populate: %s", err.Error())
+				return fmt.Errorf("invalid value for populate: %s", value)
 			}
 		case "volume-label":
 			setValueOnMap(volumeOptions().Labels, value)
@@ -235,7 +235,8 @@ func (m *MountOpt) Type() string {
 func (m *MountOpt) String() string {
 	mounts := []string{}
 	for _, mount := range m.values {
-		mounts = append(mounts, fmt.Sprintf("%v", mount))
+		repr := fmt.Sprintf("%s %s %s", mount.Type, mount.Source, mount.Target)
+		mounts = append(mounts, repr)
 	}
 	return strings.Join(mounts, ", ")
 }
