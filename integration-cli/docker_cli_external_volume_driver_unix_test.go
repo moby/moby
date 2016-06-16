@@ -457,7 +457,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *check.C) {
 	c.Assert(st[0].Status["Hello"], checker.Equals, "world", check.Commentf("%v", st[0].Status))
 }
 
-func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemnRestart(c *check.C) {
+func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemonRestart(c *check.C) {
 	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "--name", "abc1")
 	err := s.d.Restart()
 	c.Assert(err, checker.IsNil)
