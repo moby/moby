@@ -93,6 +93,8 @@ func SwarmSpecToGRPCandMerge(s types.Spec, existingSpec *swarmapi.ClusterSpec) (
 // SwarmSpecUpdateAcceptancePolicy updates a grpc ClusterSpec using AcceptancePolicy.
 func SwarmSpecUpdateAcceptancePolicy(spec *swarmapi.ClusterSpec, acceptancePolicy types.AcceptancePolicy, oldSpec *swarmapi.ClusterSpec) error {
 	spec.AcceptancePolicy.Policies = nil
+	hashs := make(map[string][]byte)
+
 	for _, p := range acceptancePolicy.Policies {
 		role, ok := swarmapi.NodeRole_value[strings.ToUpper(string(p.Role))]
 		if !ok {
@@ -108,7 +110,11 @@ func SwarmSpecUpdateAcceptancePolicy(spec *swarmapi.ClusterSpec, acceptancePolic
 			if *p.Secret == "" { // if provided secret is empty, it means erase previous secret.
 				policy.Secret = nil
 			} else { // if provided secret is not empty, we generate a new one.
-				hashPwd, _ := bcrypt.GenerateFromPassword([]byte(*p.Secret), 0)
+				hashPwd, ok := hashs[*p.Secret]
+				if !ok {
+					hashPwd, _ = bcrypt.GenerateFromPassword([]byte(*p.Secret), 0)
+					hashs[*p.Secret] = hashPwd
+				}
 				policy.Secret = &swarmapi.AcceptancePolicy_RoleAdmissionPolicy_HashedSecret{
 					Data: hashPwd,
 					Alg:  "bcrypt",
