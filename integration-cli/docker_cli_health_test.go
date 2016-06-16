@@ -127,12 +127,10 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 	c.Check(last.ExitCode, checker.Equals, 0)
 	c.Check(last.Output, checker.Equals, "OK\n")
 
-	// Fail the check, which should now make it exit
+	// Fail the check
 	dockerCmd(c, "exec", "fatal_healthcheck", "rm", "/status")
-	waitForStatus(c, "fatal_healthcheck", "running", "exited")
+	waitForHealthStatus(c, "fatal_healthcheck", "healthy", "unhealthy")
 
-	out, _ = dockerCmd(c, "inspect", "--format={{.State.Health.Status}}", "fatal_healthcheck")
-	c.Check(out, checker.Equals, "unhealthy\n")
 	failsStr, _ := dockerCmd(c, "inspect", "--format={{.State.Health.FailingStreak}}", "fatal_healthcheck")
 	fails, err := strconv.Atoi(strings.TrimSpace(failsStr))
 	c.Check(err, check.IsNil)
