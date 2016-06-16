@@ -60,15 +60,13 @@ commands to run. Your recipe is going to be very short.
 
         FROM docker/whalesay:latest
 
-  The `FROM` keyword tells Docker which image your image is based on. Whalesay is cute and has the `cowsay` program already, so we'll start there.
+      The `FROM` keyword tells Docker which image your image is based on. Whalesay is cute and has the `cowsay` program already, so we'll start there.
 
 7. Now, add the `fortunes` program to the image.
 
         RUN apt-get -y update && apt-get install -y fortunes
 
-  The `fortunes` program has a command that prints out wise sayings for our
-  whale to say. So, the first step is to install it. This line installs the
-  software into the image.
+      The `fortunes` program has a command that prints out wise sayings for our whale to say. So, the first step is to install it. This line installs the software into the image.
 
 8. Once the image has the software it needs, you instruct the software to run
     when the image is loaded.
