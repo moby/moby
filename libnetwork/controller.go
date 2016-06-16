@@ -810,12 +810,13 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 	// Create sandbox and process options first. Key generation depends on an option
 	if sb == nil {
 		sb = &sandbox{
-			id:          stringid.GenerateRandomID(),
-			containerID: containerID,
-			endpoints:   epHeap{},
-			epPriority:  map[string]int{},
-			config:      containerConfig{},
-			controller:  c,
+			id:                 stringid.GenerateRandomID(),
+			containerID:        containerID,
+			endpoints:          epHeap{},
+			epPriority:         map[string]int{},
+			populatedEndpoints: map[string]struct{}{},
+			config:             containerConfig{},
+			controller:         c,
 		}
 	}
 	sBox = sb
