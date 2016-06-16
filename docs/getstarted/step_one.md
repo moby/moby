@@ -47,7 +47,6 @@ Docker for Windows is our newest offering for PCs. It runs as a native Windows a
 
 <a class="button" href="https://download.docker.com/win/beta/InstallDocker.msi">Get Docker for Windows</a>
 
-
 #### Install Prequisites
 
 * 64bit Windows 10 Pro, Enterprise and Education (1511 November update, Build 10586 or later). In the future we will support more versions of Windows 10.
@@ -63,7 +62,7 @@ See [Docker Toolbox Overview](/toolbox/overview.md) for help on installing Docke
 ### Docker for Linux
 Docker Engine runs navitvely on Linux distributions.
 
-For full instructions on getting Docker for various Linux distributions, see [Install Docker Engine](../installation/index.md).
+For full instructions on getting Docker for various Linux distributions, see [Install Docker Engine](/engine/installation/index.md).
 
 ## Step 2: Install Docker
 
@@ -75,7 +74,7 @@ For full instructions on getting Docker for various Linux distributions, see [In
 
 * For a simple example of installing Docker on Ubuntu Linux so that you can work through this tutorial, see [Installing Docker on Ubuntu Linux (Example)](linux_install_help.md).
 
-  For full install instructions for Docker on Linux, see [Install Docker Engine](../installation/index.md) and select the flavor of Linux you want to use.
+  For full install instructions for Docker on Linux, see [Install Docker Engine](/engine/installation/index.md) and select the flavor of Linux you want to use.
 
 ## Step 3: Verify your installation
 
