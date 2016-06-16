@@ -4,12 +4,12 @@ package overlay
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"syscall"
 	"time"
 
+	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 )
 
@@ -32,7 +32,7 @@ func copyRegular(srcPath, dstPath string, mode os.FileMode) error {
 	}
 	defer dstFile.Close()
 
-	_, err = io.Copy(dstFile, srcFile)
+	_, err = pools.Copy(dstFile, srcFile)
 
 	return err
 }

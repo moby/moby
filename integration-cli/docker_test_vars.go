@@ -1,14 +1,22 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
+
+	"github.com/docker/docker/pkg/reexec"
 )
 
 var (
-	// the docker binary to use
+	// the docker client binary to use
 	dockerBinary = "docker"
+	// the docker daemon binary to use
+	dockerdBinary = "dockerd"
+
+	// path to containerd's ctr binary
+	ctrBinary = "docker-containerd-ctr"
 
 	// the private registry image to use for tests involving the registry
 	registryImageName = "registry"
@@ -16,12 +24,9 @@ var (
 	// the private registry to use for tests
 	privateRegistryURL = "127.0.0.1:5000"
 
-	dockerBasePath       = "/var/lib/docker"
-	volumesConfigPath    = dockerBasePath + "/volumes"
-	containerStoragePath = dockerBasePath + "/containers"
-
-	runtimePath    = "/var/run/docker"
-	execDriverPath = runtimePath + "/execdriver/native"
+	// TODO Windows CI. These are incorrect and need fixing into
+	// platform specific pieces.
+	runtimePath = "/var/run/docker"
 
 	workingDirectory string
 
@@ -31,13 +36,31 @@ var (
 
 	// daemonPlatform is held globally so that tests can make intelligent
 	// decisions on how to configure themselves according to the platform
-	// of the daemon. This is initialised in docker_utils by sending
+	// of the daemon. This is initialized in docker_utils by sending
 	// a version call to the daemon and examining the response header.
 	daemonPlatform string
+
+	// windowsDaemonKV is used on Windows to distinguish between different
+	// versions. This is necessary to enable certain tests based on whether
+	// the platform supports it. For example, Windows Server 2016 TP3 did
+	// not support volumes, but TP4 did.
+	windowsDaemonKV int
 
 	// daemonDefaultImage is the name of the default image to use when running
 	// tests. This is platform dependent.
 	daemonDefaultImage string
+
+	// For a local daemon on Linux, these values will be used for testing
+	// user namespace support as the standard graph path(s) will be
+	// appended with the root remapped uid.gid prefix
+	dockerBasePath       string
+	volumesConfigPath    string
+	containerStoragePath string
+
+	// daemonStorageDriver is held globally so that tests can know the storage
+	// driver of the daemon. This is initialized in docker_utils by sending
+	// a version call to the daemon and examining the response header.
+	daemonStorageDriver string
 )
 
 const (
@@ -50,6 +73,7 @@ const (
 )
 
 func init() {
+	reexec.Init()
 	if dockerBin := os.Getenv("DOCKER_BINARY"); dockerBin != "" {
 		dockerBinary = dockerBin
 	}
@@ -71,7 +95,7 @@ func init() {
 	// to evaluate whether the daemon is local or remote is not possible through
 	// a build tag.
 	//
-	// For example Windows CI under Jenkins test the 64-bit
+	// For example Windows to Linux CI under Jenkins tests the 64-bit
 	// Windows binary build with the daemon build tag, but calls a remote
 	// Linux daemon.
 	//
@@ -85,4 +109,23 @@ func init() {
 	} else {
 		isLocalDaemon = true
 	}
+
+	// TODO Windows CI. This are incorrect and need fixing into
+	// platform specific pieces.
+	// This is only used for a tests with local daemon true (Linux-only today)
+	// default is "/var/lib/docker", but we'll try and ask the
+	// /info endpoint for the specific root dir
+	dockerBasePath = "/var/lib/docker"
+	type Info struct {
+		DockerRootDir string
+	}
+	var i Info
+	status, b, err := sockRequest("GET", "/info", nil)
+	if err == nil && status == 200 {
+		if err = json.Unmarshal(b, &i); err == nil {
+			dockerBasePath = i.DockerRootDir
+		}
+	}
+	volumesConfigPath = dockerBasePath + "/volumes"
+	containerStoragePath = dockerBasePath + "/containers"
 }

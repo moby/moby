@@ -1,16 +1,15 @@
 package registry
 
 import (
-	"fmt"
-	"strings"
+	"net/url"
 
-	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/go-connections/tlsconfig"
 )
 
-func (s *Service) lookupV1Endpoints(repoName string) (endpoints []APIEndpoint, err error) {
+func (s *DefaultService) lookupV1Endpoints(hostname string) (endpoints []APIEndpoint, err error) {
 	var cfg = tlsconfig.ServerDefault
 	tlsConfig := &cfg
-	if strings.HasPrefix(repoName, DefaultNamespace+"/") {
+	if hostname == DefaultNamespace {
 		endpoints = append(endpoints, APIEndpoint{
 			URL:          DefaultV1Registry,
 			Version:      APIVersion1,
@@ -21,12 +20,6 @@ func (s *Service) lookupV1Endpoints(repoName string) (endpoints []APIEndpoint, e
 		return endpoints, nil
 	}
 
-	slashIndex := strings.IndexRune(repoName, '/')
-	if slashIndex <= 0 {
-		return nil, fmt.Errorf("invalid repo name: missing '/':  %s", repoName)
-	}
-	hostname := repoName[:slashIndex]
-
 	tlsConfig, err = s.TLSConfig(hostname)
 	if err != nil {
 		return nil, err
@@ -34,7 +27,10 @@ func (s *Service) lookupV1Endpoints(repoName string) (endpoints []APIEndpoint, e
 
 	endpoints = []APIEndpoint{
 		{
-			URL:          "https://" + hostname,
+			URL: &url.URL{
+				Scheme: "https",
+				Host:   hostname,
+			},
 			Version:      APIVersion1,
 			TrimHostname: true,
 			TLSConfig:    tlsConfig,
@@ -43,7 +39,10 @@ func (s *Service) lookupV1Endpoints(repoName string) (endpoints []APIEndpoint, e
 
 	if tlsConfig.InsecureSkipVerify {
 		endpoints = append(endpoints, APIEndpoint{ // or this
-			URL:          "http://" + hostname,
+			URL: &url.URL{
+				Scheme: "http",
+				Host:   hostname,
+			},
 			Version:      APIVersion1,
 			TrimHostname: true,
 			// used to check if supposed to be secure via InsecureSkipVerify

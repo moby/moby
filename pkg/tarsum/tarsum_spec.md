@@ -223,7 +223,7 @@ with matching paths, and orders the list of file sums accordingly [3].
 * [2] Tar http://en.wikipedia.org/wiki/Tar_%28computing%29
 * [3] Name collision https://github.com/docker/docker/commit/c5e6362c53cbbc09ddbabd5a7323e04438b57d31
 
-## Acknowledgements
+## Acknowledgments
 
 Joffrey F (shin-) and Guillaume J. Charmes (creack) on the initial work of the
 TarSum calculation.

@@ -25,7 +25,7 @@ The initial Docker upstart script will not work because it runs on `127.0.0.1`, 
 ```
 description     "Docker daemon"
 
-start on filesystem and started lxc-net
+start on filesystem
 stop on runlevel [!2345]
 
 respawn

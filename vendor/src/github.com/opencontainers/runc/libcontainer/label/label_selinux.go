@@ -9,6 +9,15 @@ import (
 	"github.com/opencontainers/runc/libcontainer/selinux"
 )
 
+// Valid Label Options
+var validOptions = map[string]bool{
+	"disable": true,
+	"type":    true,
+	"user":    true,
+	"role":    true,
+	"level":   true,
+}
+
 var ErrIncompatibleLabel = fmt.Errorf("Bad SELinux option z and Z can not be used together")
 
 // InitLabels returns the process label and file labels to be used within
@@ -28,9 +37,13 @@ func InitLabels(options []string) (string, string, error) {
 				return "", "", nil
 			}
 			if i := strings.Index(opt, ":"); i == -1 {
-				return "", "", fmt.Errorf("Bad SELinux Option")
+				return "", "", fmt.Errorf("Bad label option %q, valid options 'disable' or \n'user, role, level, type' followed by ':' and a value", opt)
 			}
 			con := strings.SplitN(opt, ":", 2)
+			if !validOptions[con[0]] {
+				return "", "", fmt.Errorf("Bad label option %q, valid options 'disable, user, role, level, type'", con[0])
+
+			}
 			pcon[con[0]] = con[1]
 			if con[0] == "level" || con[0] == "user" {
 				mcon[con[0]] = con[1]
@@ -81,6 +94,11 @@ func GetProcessLabel() (string, error) {
 	return selinux.Getexeccon()
 }
 
+// GetFileLabel returns the label for specified path
+func GetFileLabel(path string) (string, error) {
+	return selinux.Getfilecon(path)
+}
+
 // SetFileLabel modifies the "path" label to the specified file label
 func SetFileLabel(path string, fileLabel string) error {
 	if selinux.SelinuxEnabled() && fileLabel != "" {
@@ -89,7 +107,7 @@ func SetFileLabel(path string, fileLabel string) error {
 	return nil
 }
 
-// Tell the kernel the label for all files to be created
+// SetFileCreateLabel tells the kernel the label for all files to be created
 func SetFileCreateLabel(fileLabel string) error {
 	if selinux.SelinuxEnabled() {
 		return selinux.Setfscreatecon(fileLabel)
@@ -97,7 +115,7 @@ func SetFileCreateLabel(fileLabel string) error {
 	return nil
 }
 
-// Change the label of path to the filelabel string.
+// Relabel changes the label of path to the filelabel string.
 // It changes the MCS label to s0 if shared is true.
 // This will allow all containers to share the content.
 func Relabel(path string, fileLabel string, shared bool) error {
@@ -166,6 +184,11 @@ func Validate(label string) error {
 		return ErrIncompatibleLabel
 	}
 	return nil
+}
+
+// RelabelNeeded checks whether the user requested a relabel
+func RelabelNeeded(label string) bool {
+	return strings.Contains(label, "z") || strings.Contains(label, "Z")
 }
 
 // IsShared checks that the label includes a "shared" mark

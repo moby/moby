@@ -1,64 +1,87 @@
 package events
 
 import (
-	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/pkg/parsers/filters"
+	"github.com/docker/docker/reference"
+	"github.com/docker/engine-api/types/events"
+	"github.com/docker/engine-api/types/filters"
 )
 
 // Filter can filter out docker events from a stream
 type Filter struct {
-	filter    filters.Args
-	getLabels func(id string) map[string]string
+	filter filters.Args
 }
 
 // NewFilter creates a new Filter
-func NewFilter(filter filters.Args, getLabels func(id string) map[string]string) *Filter {
-	return &Filter{filter: filter, getLabels: getLabels}
+func NewFilter(filter filters.Args) *Filter {
+	return &Filter{filter: filter}
 }
 
 // Include returns true when the event ev is included by the filters
-func (ef *Filter) Include(ev *jsonmessage.JSONMessage) bool {
-	return isFieldIncluded(ev.Status, ef.filter["event"]) &&
-		isFieldIncluded(ev.ID, ef.filter["container"]) &&
-		ef.isImageIncluded(ev.ID, ev.From) &&
-		ef.isLabelFieldIncluded(ev.ID)
+func (ef *Filter) Include(ev events.Message) bool {
+	return ef.filter.ExactMatch("event", ev.Action) &&
+		ef.filter.ExactMatch("type", ev.Type) &&
+		ef.matchDaemon(ev) &&
+		ef.matchContainer(ev) &&
+		ef.matchVolume(ev) &&
+		ef.matchNetwork(ev) &&
+		ef.matchImage(ev) &&
+		ef.matchLabels(ev.Actor.Attributes)
 }
 
-func (ef *Filter) isLabelFieldIncluded(id string) bool {
-	if _, ok := ef.filter["label"]; !ok {
+func (ef *Filter) matchLabels(attributes map[string]string) bool {
+	if !ef.filter.Include("label") {
 		return true
 	}
-	return ef.filter.MatchKVList("label", ef.getLabels(id))
+	return ef.filter.MatchKVList("label", attributes)
 }
 
-// The image filter will be matched against both event.ID (for image events)
-// and event.From (for container events), so that any container that was created
+func (ef *Filter) matchDaemon(ev events.Message) bool {
+	return ef.fuzzyMatchName(ev, events.DaemonEventType)
+}
+
+func (ef *Filter) matchContainer(ev events.Message) bool {
+	return ef.fuzzyMatchName(ev, events.ContainerEventType)
+}
+
+func (ef *Filter) matchVolume(ev events.Message) bool {
+	return ef.fuzzyMatchName(ev, events.VolumeEventType)
+}
+
+func (ef *Filter) matchNetwork(ev events.Message) bool {
+	return ef.fuzzyMatchName(ev, events.NetworkEventType)
+}
+
+func (ef *Filter) fuzzyMatchName(ev events.Message, eventType string) bool {
+	return ef.filter.FuzzyMatch(eventType, ev.Actor.ID) ||
+		ef.filter.FuzzyMatch(eventType, ev.Actor.Attributes["name"])
+}
+
+// matchImage matches against both event.Actor.ID (for image events)
+// and event.Actor.Attributes["image"] (for container events), so that any container that was created
 // from an image will be included in the image events. Also compare both
 // against the stripped repo name without any tags.
-func (ef *Filter) isImageIncluded(eventID string, eventFrom string) bool {
-	stripTag := func(image string) string {
-		repo, _ := parsers.ParseRepositoryTag(image)
-		return repo
+func (ef *Filter) matchImage(ev events.Message) bool {
+	id := ev.Actor.ID
+	nameAttr := "image"
+	var imageName string
+
+	if ev.Type == events.ImageEventType {
+		nameAttr = "name"
 	}
 
-	return isFieldIncluded(eventID, ef.filter["image"]) ||
-		isFieldIncluded(eventFrom, ef.filter["image"]) ||
-		isFieldIncluded(stripTag(eventID), ef.filter["image"]) ||
-		isFieldIncluded(stripTag(eventFrom), ef.filter["image"])
+	if n, ok := ev.Actor.Attributes[nameAttr]; ok {
+		imageName = n
+	}
+	return ef.filter.ExactMatch("image", id) ||
+		ef.filter.ExactMatch("image", imageName) ||
+		ef.filter.ExactMatch("image", stripTag(id)) ||
+		ef.filter.ExactMatch("image", stripTag(imageName))
 }
 
-func isFieldIncluded(field string, filter []string) bool {
-	if len(field) == 0 {
-		return true
+func stripTag(image string) string {
+	ref, err := reference.ParseNamed(image)
+	if err != nil {
+		return image
 	}
-	if len(filter) == 0 {
-		return true
-	}
-	for _, v := range filter {
-		if v == field {
-			return true
-		}
-	}
-	return false
+	return ref.Name()
 }

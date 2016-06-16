@@ -2,17 +2,14 @@
 package checker
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/go-check/check"
+	"github.com/vdemeester/shakers"
 )
 
 // As a commodity, we bring all check.Checker variables into the current namespace to avoid having
 // to think about check.X versus checker.X.
 var (
 	DeepEquals   = check.DeepEquals
-	Equals       = check.Equals
 	ErrorMatches = check.ErrorMatches
 	FitsTypeOf   = check.FitsTypeOf
 	HasLen       = check.HasLen
@@ -23,37 +20,27 @@ var (
 	NotNil       = check.NotNil
 	PanicMatches = check.PanicMatches
 	Panics       = check.Panics
+
+	Contains           = shakers.Contains
+	ContainsAny        = shakers.ContainsAny
+	Count              = shakers.Count
+	Equals             = shakers.Equals
+	EqualFold          = shakers.EqualFold
+	False              = shakers.False
+	GreaterOrEqualThan = shakers.GreaterOrEqualThan
+	GreaterThan        = shakers.GreaterThan
+	HasPrefix          = shakers.HasPrefix
+	HasSuffix          = shakers.HasSuffix
+	Index              = shakers.Index
+	IndexAny           = shakers.IndexAny
+	IsAfter            = shakers.IsAfter
+	IsBefore           = shakers.IsBefore
+	IsBetween          = shakers.IsBetween
+	IsLower            = shakers.IsLower
+	IsUpper            = shakers.IsUpper
+	LessOrEqualThan    = shakers.LessOrEqualThan
+	LessThan           = shakers.LessThan
+	TimeEquals         = shakers.TimeEquals
+	True               = shakers.True
+	TimeIgnore         = shakers.TimeIgnore
 )
-
-// Contains checker verifies that string value contains a substring.
-var Contains check.Checker = &containsChecker{
-	&check.CheckerInfo{
-		Name:   "Contains",
-		Params: []string{"value", "substring"},
-	},
-}
-
-type containsChecker struct {
-	*check.CheckerInfo
-}
-
-func (checker *containsChecker) Check(params []interface{}, names []string) (bool, string) {
-	return contains(params[0], params[1])
-}
-
-func contains(value, substring interface{}) (bool, string) {
-	substringStr, ok := substring.(string)
-	if !ok {
-		return false, "Substring must be a string"
-	}
-	valueStr, valueIsStr := value.(string)
-	if !valueIsStr {
-		if valueWithStr, valueHasStr := value.(fmt.Stringer); valueHasStr {
-			valueStr, valueIsStr = valueWithStr.String(), true
-		}
-	}
-	if valueIsStr {
-		return strings.Contains(valueStr, substringStr), ""
-	}
-	return false, "Obtained value is not a string and has no .String()"
-}

@@ -14,4 +14,4 @@ parent = "smn_cli"
 
     Display the running processes of a container
 
-      --help=false    Print usage
+      --help          Print usage

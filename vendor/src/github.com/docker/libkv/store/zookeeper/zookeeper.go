@@ -10,6 +10,9 @@ import (
 )
 
 const (
+	// SOH control character
+	SOH = "\x01"
+
 	defaultTimeout = 10 * time.Second
 )
 
@@ -70,6 +73,12 @@ func (s *Zookeeper) Get(key string) (pair *store.KVPair, err error) {
 			return nil, store.ErrKeyNotFound
 		}
 		return nil, err
+	}
+
+	// FIXME handle very rare cases where Get returns the
+	// SOH control character instead of the actual value
+	if string(resp) == SOH {
+		return s.Get(store.Normalize(key))
 	}
 
 	pair = &store.KVPair{
@@ -282,8 +291,8 @@ func (s *Zookeeper) DeleteTree(directory string) error {
 // AtomicPut put a value at "key" if the key has not been
 // modified in the meantime, throws an error if this is the case
 func (s *Zookeeper) AtomicPut(key string, value []byte, previous *store.KVPair, _ *store.WriteOptions) (bool, *store.KVPair, error) {
-
 	var lastIndex uint64
+
 	if previous != nil {
 		meta, err := s.client.Set(s.normalize(key), value, int32(previous.LastIndex))
 		if err != nil {
@@ -298,20 +307,32 @@ func (s *Zookeeper) AtomicPut(key string, value []byte, previous *store.KVPair, 
 		// Interpret previous == nil as create operation.
 		_, err := s.client.Create(s.normalize(key), value, 0, zk.WorldACL(zk.PermAll))
 		if err != nil {
-			// Zookeeper will complain if the directory doesn't exist.
+			// Directory does not exist
 			if err == zk.ErrNoNode {
+
 				// Create the directory
-				parts := store.SplitKey(key)
+				parts := store.SplitKey(strings.TrimSuffix(key, "/"))
 				parts = parts[:len(parts)-1]
 				if err = s.createFullPath(parts, false); err != nil {
 					// Failed to create the directory.
 					return false, nil, err
 				}
+
+				// Create the node
 				if _, err := s.client.Create(s.normalize(key), value, 0, zk.WorldACL(zk.PermAll)); err != nil {
+					// Node exist error (when previous nil)
+					if err == zk.ErrNodeExists {
+						return false, nil, store.ErrKeyExists
+					}
 					return false, nil, err
 				}
 
 			} else {
+				// Node Exists error (when previous nil)
+				if err == zk.ErrNodeExists {
+					return false, nil, store.ErrKeyExists
+				}
+
 				// Unhandled error
 				return false, nil, err
 			}
@@ -338,9 +359,15 @@ func (s *Zookeeper) AtomicDelete(key string, previous *store.KVPair) (bool, erro
 
 	err := s.client.Delete(s.normalize(key), int32(previous.LastIndex))
 	if err != nil {
+		// Key not found
+		if err == zk.ErrNoNode {
+			return false, store.ErrKeyNotFound
+		}
+		// Compare failed
 		if err == zk.ErrBadVersion {
 			return false, store.ErrKeyModified
 		}
+		// General store error
 		return false, err
 	}
 	return true, nil
@@ -371,7 +398,7 @@ func (s *Zookeeper) NewLock(key string, options *store.LockOptions) (lock store.
 // Lock attempts to acquire the lock and blocks while
 // doing so. It returns a channel that is closed if our
 // lock is lost or if an error occurs
-func (l *zookeeperLock) Lock() (<-chan struct{}, error) {
+func (l *zookeeperLock) Lock(stopChan chan struct{}) (<-chan struct{}, error) {
 	err := l.lock.Lock()
 
 	if err == nil {

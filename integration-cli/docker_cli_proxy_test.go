@@ -14,7 +14,7 @@ func (s *DockerSuite) TestCliProxyDisableProxyUnixSock(c *check.C) {
 	testRequires(c, SameHostDaemon) // test is valid when DOCKER_HOST=unix://..
 
 	cmd := exec.Command(dockerBinary, "info")
-	cmd.Env = appendBaseEnv([]string{"HTTP_PROXY=http://127.0.0.1:9999"})
+	cmd.Env = appendBaseEnv(false, "HTTP_PROXY=http://127.0.0.1:9999")
 
 	out, _, err := runCommandWithOutput(cmd)
 	c.Assert(err, checker.IsNil, check.Commentf("%v", out))

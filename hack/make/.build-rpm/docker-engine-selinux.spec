@@ -44,7 +44,7 @@ Conflicts: docker-selinux
 
 # Relabel files
 %global relabel_files() \
-    /sbin/restorecon -R %{_bindir}/docker %{_localstatedir}/run/docker.sock %{_localstatedir}/run/docker.pid %{_sharedstatedir}/docker %{_sysconfdir}/docker %{_localstatedir}/log/docker %{_localstatedir}/log/lxc %{_localstatedir}/lock/lxc %{_usr}/lib/systemd/system/docker.service /root/.docker &> /dev/null || : \
+    /sbin/restorecon -R %{_bindir}/docker %{_localstatedir}/run/docker.sock %{_localstatedir}/run/docker.pid %{_sysconfdir}/docker %{_localstatedir}/log/docker %{_localstatedir}/log/lxc %{_localstatedir}/lock/lxc %{_usr}/lib/systemd/system/docker.service /root/.docker &> /dev/null || : \
 
 %description
 SELinux policy modules for use with Docker
@@ -83,6 +83,9 @@ fi
 if %{_sbindir}/selinuxenabled ; then
     %{_sbindir}/load_policy
     %relabel_files
+    if [ $1 -eq 1 ]; then
+	restorecon -R %{_sharedstatedir}/docker
+    fi
 fi
 
 %postun
@@ -95,8 +98,12 @@ if [ $1 -eq 0 ]; then
 fi
 
 %files
+%doc LICENSE
 %defattr(-,root,root,0755)
 %attr(0644,root,root) %{_datadir}/selinux/packages/*.pp.bz2
 %attr(0644,root,root) %{_datadir}/selinux/devel/include/%{moduletype}/*.if
 
 %changelog
+* Tue Dec 1 2015 Jessica Frazelle <acidburn@docker.com> 1.9.1-1
+- add licence to rpm
+- add selinux-policy and docker-engine-selinux rpm

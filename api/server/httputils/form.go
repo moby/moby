@@ -55,9 +55,6 @@ type ArchiveOptions struct {
 // ArchiveFormValues parses form values and turns them into ArchiveOptions.
 // It fails if the archive name and path are not in the request.
 func ArchiveFormValues(r *http.Request, vars map[string]string) (ArchiveOptions, error) {
-	if vars == nil {
-		return ArchiveOptions{}, fmt.Errorf("Missing parameter")
-	}
 	if err := ParseForm(r); err != nil {
 		return ArchiveOptions{}, err
 	}

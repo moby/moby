@@ -1,15 +1,18 @@
 package parser
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
 const testDir = "testfiles"
 const negativeTestDir = "testfiles-negative"
+const testFileLineInfo = "testfile-line/Dockerfile"
 
 func getDirs(t *testing.T, dir string) []string {
 	f, err := os.Open(dir)
@@ -66,6 +69,11 @@ func TestTestData(t *testing.T) {
 			t.Fatalf("Error reading %s's result file: %v", dir, err)
 		}
 
+		if runtime.GOOS == "windows" {
+			// CRLF --> CR to match Unix behavior
+			content = bytes.Replace(content, []byte{'\x0d', '\x0a'}, []byte{'\x0a'}, -1)
+		}
+
 		if ast.Dump()+"\n" != string(content) {
 			fmt.Fprintln(os.Stderr, "Result:\n"+ast.Dump())
 			fmt.Fprintln(os.Stderr, "Expected:\n"+string(content))
@@ -85,6 +93,10 @@ func TestParseWords(t *testing.T) {
 			"expect": {"foo", "bar"},
 		},
 		{
+			"input":  {"foo\\ bar"},
+			"expect": {"foo\\ bar"},
+		},
+		{
 			"input":  {"foo=bar"},
 			"expect": {"foo=bar"},
 		},
@@ -95,6 +107,14 @@ func TestParseWords(t *testing.T) {
 		{
 			"input":  {`foo bar "abc xyz"`},
 			"expect": {"foo", "bar", `"abc xyz"`},
+		},
+		{
+			"input":  {"àöû"},
+			"expect": {"àöû"},
+		},
+		{
+			"input":  {`föo bàr "âbc xÿz"`},
+			"expect": {"föo", "bàr", `"âbc xÿz"`},
 		},
 	}
 
@@ -107,6 +127,40 @@ func TestParseWords(t *testing.T) {
 			if word != test["expect"][i] {
 				t.Fatalf("word check failed for word: %q. input: %v, expect: %v, output: %v", word, test["input"][0], test["expect"], words)
 			}
+		}
+	}
+}
+
+func TestLineInformation(t *testing.T) {
+	df, err := os.Open(testFileLineInfo)
+	if err != nil {
+		t.Fatalf("Dockerfile missing for %s: %v", testFileLineInfo, err)
+	}
+	defer df.Close()
+
+	ast, err := Parse(df)
+	if err != nil {
+		t.Fatalf("Error parsing dockerfile %s: %v", testFileLineInfo, err)
+	}
+
+	if ast.StartLine != 5 || ast.EndLine != 31 {
+		fmt.Fprintf(os.Stderr, "Wrong root line information: expected(%d-%d), actual(%d-%d)\n", 5, 31, ast.StartLine, ast.EndLine)
+		t.Fatalf("Root line information doesn't match result.")
+	}
+	if len(ast.Children) != 3 {
+		fmt.Fprintf(os.Stderr, "Wrong number of child: expected(%d), actual(%d)\n", 3, len(ast.Children))
+		t.Fatalf("Root line information doesn't match result for %s", testFileLineInfo)
+	}
+	expected := [][]int{
+		{5, 5},
+		{11, 12},
+		{17, 31},
+	}
+	for i, child := range ast.Children {
+		if child.StartLine != expected[i][0] || child.EndLine != expected[i][1] {
+			t.Logf("Wrong line information for child %d: expected(%d-%d), actual(%d-%d)\n",
+				i, expected[i][0], expected[i][1], child.StartLine, child.EndLine)
+			t.Fatalf("Root line information doesn't match result.")
 		}
 	}
 }

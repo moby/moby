@@ -22,7 +22,7 @@ const (
 //Gets the IP version in use ( [ipv4], [ipv6] or [ipv4 and ipv6] )
 func getIPVersion(config *networkConfiguration) ipVersion {
 	ipVersion := ipv4
-	if config.FixedCIDRv6 != nil || config.EnableIPv6 {
+	if config.AddressIPv6 != nil || config.EnableIPv6 {
 		ipVersion |= ipv6
 	}
 	return ipVersion
@@ -157,6 +157,6 @@ func isPacketForwardingEnabled(ipVer ipVersion, iface string) (bool, error) {
 }
 
 func isRunningInContainer() bool {
-	_, err := os.Stat("/.dockerinit")
+	_, err := os.Stat("/.dockerenv")
 	return !os.IsNotExist(err)
 }

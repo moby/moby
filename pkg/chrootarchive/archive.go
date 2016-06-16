@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/pkg/idtools"
 )
 
 var chrootArchiver = &archive.Archiver{Untar: Untar}
@@ -41,9 +41,14 @@ func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions
 		options.ExcludePatterns = []string{}
 	}
 
+	rootUID, rootGID, err := idtools.GetRootUIDGID(options.UIDMaps, options.GIDMaps)
+	if err != nil {
+		return err
+	}
+
 	dest = filepath.Clean(dest)
 	if _, err := os.Stat(dest); os.IsNotExist(err) {
-		if err := system.MkdirAll(dest, 0777); err != nil {
+		if err := idtools.MkdirAllNewAs(dest, 0755, rootUID, rootGID); err != nil {
 			return err
 		}
 	}

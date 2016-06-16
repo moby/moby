@@ -4,8 +4,8 @@ title = "Remote API v1.21"
 description = "API Documentation for Docker"
 keywords = ["API, Docker, rcli, REST,  documentation"]
 [menu.main]
-parent="smn_remoteapi"
-weight = 0
+parent="engine_remoteapi"
+weight=-2
 +++
 <![end-metadata]-->
 
@@ -15,8 +15,7 @@ weight = 0
 
  - The Remote API has replaced `rcli`.
  - The daemon listens on `unix:///var/run/docker.sock` but you can
-   [Bind Docker to another host/port or a Unix socket](
-   /articles/basics/#bind-docker-to-another-hostport-or-a-unix-socket).
+   [Bind Docker to another host/port or a Unix socket](../commandline/dockerd.md#bind-docker-to-another-host-port-or-a-unix-socket).
  - The API tends to be REST. However, for some complex commands, like `attach`
    or `pull`, the HTTP connection is hijacked to transport `stdout`,
    `stdin` and `stderr`.
@@ -47,7 +46,7 @@ List containers
                  "Id": "8dfafdbc3a40",
                  "Names":["/boring_feynman"],
                  "Image": "ubuntu:latest",
-		 "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
+                 "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
                  "Command": "echo 1",
                  "Created": 1367854155,
                  "Status": "Exit 0",
@@ -64,7 +63,7 @@ List containers
                  "Id": "9cd87474be90",
                  "Names":["/coolName"],
                  "Image": "ubuntu:latest",
-		 "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
+                 "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
                  "Command": "echo 222222",
                  "Created": 1367854155,
                  "Status": "Exit 0",
@@ -77,7 +76,7 @@ List containers
                  "Id": "3176a2479c92",
                  "Names":["/sleepy_dog"],
                  "Image": "ubuntu:latest",
-		 "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
+                 "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
                  "Command": "echo 3333333333333333",
                  "Created": 1367854154,
                  "Status": "Exit 0",
@@ -90,7 +89,7 @@ List containers
                  "Id": "4cb07b47f9fb",
                  "Names":["/running_cat"],
                  "Image": "ubuntu:latest",
-		 "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
+                 "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
                  "Command": "echo 444444444444444444444444444444444",
                  "Created": 1367854152,
                  "Status": "Exit 0",
@@ -145,7 +144,10 @@ Create a container
            "Tty": false,
            "OpenStdin": false,
            "StdinOnce": false,
-           "Env": null,
+           "Env": [
+                   "FOO=bar",
+                   "BAZ=quux"
+           ],
            "Cmd": [
                    "date"
            ],
@@ -156,14 +158,9 @@ Create a container
                    "com.example.license": "GPL",
                    "com.example.version": "1.0"
            },
-           "Mounts": [
-             {
-               "Source": "/data",
-               "Destination": "/data",
-               "Mode": "ro,Z",
-               "RW": false
-             }
-           ],
+           "Volumes": {
+             "/volumes/data": {}
+           },
            "WorkingDir": "",
            "NetworkDisabled": false,
            "MacAddress": "12:34:56:78:9a:bc",
@@ -181,6 +178,7 @@ Create a container
              "KernelMemory": 0,
              "CpuShares": 512,
              "CpuPeriod": 100000,
+             "CpuQuota": 50000,
              "CpusetCpus": "0,1",
              "CpusetMems": "0,1",
              "BlkioWeight": 300,
@@ -197,14 +195,16 @@ Create a container
              "VolumesFrom": ["parent", "other:ro"],
              "CapAdd": ["NET_ADMIN"],
              "CapDrop": ["MKNOD"],
+             "GroupAdd": ["newgroup"],
              "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
              "NetworkMode": "bridge",
              "Devices": [],
+             "Sysctls": { "net.ipv4.ip_forward": "1" },
              "Ulimits": [{}],
              "LogConfig": { "Type": "json-file", "Config": {} },
-             "SecurityOpt": [""],
+             "SecurityOpt": [],
              "CgroupParent": "",
-	      "VolumeDriver": ""
+             "VolumeDriver": ""
           }
       }
 
@@ -225,33 +225,20 @@ Json Parameters:
 -   **Domainname** - A string value containing the domain name to use
       for the container.
 -   **User** - A string value specifying the user inside the container.
--   **Memory** - Memory limit in bytes.
--   **MemorySwap** - Total memory limit (memory + swap); set `-1` to disable swap
-      You must use this with `memory` and make the swap value larger than `memory`.
--   **MemoryReservation** - Memory soft limit in bytes.
--   **KernelMemory** - Kernel memory limit in bytes.
--   **CpuShares** - An integer value containing the container's CPU Shares
-      (ie. the relative weight vs other containers).
--   **CpuPeriod** - The length of a CPU period in microseconds.
--   **Cpuset** - Deprecated please don't use. Use `CpusetCpus` instead.
--   **CpusetCpus** - String value containing the `cgroups CpusetCpus` to use.
--   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
--   **BlkioWeight** - Block IO weight (relative weight) accepts a weight value between 10 and 1000.
--   **MemorySwappiness** - Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
--   **OomKillDisable** - Boolean value, whether to disable OOM Killer for the container or not.
 -   **AttachStdin** - Boolean value, attaches to `stdin`.
 -   **AttachStdout** - Boolean value, attaches to `stdout`.
 -   **AttachStderr** - Boolean value, attaches to `stderr`.
 -   **Tty** - Boolean value, Attach standard streams to a `tty`, including `stdin` if it is not closed.
 -   **OpenStdin** - Boolean value, opens stdin,
 -   **StdinOnce** - Boolean value, close `stdin` after the 1 attached client disconnects.
--   **Env** - A list of environment variables in the form of `VAR=value`
+-   **Env** - A list of environment variables in the form of `["VAR=value"[,"VAR2=value2"]]`
 -   **Labels** - Adds a map of labels to a container. To specify a map: `{"key":"value"[,"key2":"value2"]}`
 -   **Cmd** - Command to run specified as a string or an array of strings.
 -   **Entrypoint** - Set the entry point for the container as a string or an array
       of strings.
 -   **Image** - A string specifying the image name to use for the container.
--   **Mounts** - An array of mount points in the container.
+-   **Volumes** - An object mapping mount point paths (strings) inside the
+      container to empty objects.
 -   **WorkingDir** - A string specifying the working directory for commands to
       run in.
 -   **NetworkDisabled** - Boolean value, when true disables networking for the
@@ -264,10 +251,26 @@ Json Parameters:
            + `container_path` to create a new volume for the container
            + `host_path:container_path` to bind-mount a host path into the container
            + `host_path:container_path:ro` to make the bind-mount read-only inside the container.
+           + `volume_name:container_path` to bind-mount a volume managed by a volume plugin into the container.
+           + `volume_name:container_path:ro` to make the bind mount read-only inside the container.
     -   **Links** - A list of links for the container. Each link entry should be
           in the form of `container_name:alias`.
     -   **LxcConf** - LXC specific configurations. These configurations only
           work when using the `lxc` execution driver.
+    -   **Memory** - Memory limit in bytes.
+    -   **MemorySwap** - Total memory limit (memory + swap); set `-1` to enable unlimited swap.
+          You must use this with `memory` and make the swap value larger than `memory`.
+    -   **MemoryReservation** - Memory soft limit in bytes.
+    -   **KernelMemory** - Kernel memory limit in bytes.
+    -   **CpuShares** - An integer value containing the container's CPU Shares
+          (ie. the relative weight vs other containers).
+    -   **CpuPeriod** - The length of a CPU period in microseconds.
+    -   **CpuQuota** - Microseconds of CPU time that the container can get in a CPU period.
+    -   **CpusetCpus** - String value containing the `cgroups CpusetCpus` to use.
+    -   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
+    -   **BlkioWeight** - Block IO weight (relative weight) accepts a weight value between 10 and 1000.
+    -   **MemorySwappiness** - Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
+    -   **OomKillDisable** - Boolean value, whether to disable OOM Killer for the container or not.
     -   **PortBindings** - A map of exposed container ports and the host port they
           should map to. A JSON object in the form
           `{ <port>/<protocol>: [{ "HostPort": "<port>" }] }`
@@ -287,6 +290,7 @@ Json Parameters:
           Specified in the form `<container name>[:<ro|rw>]`
     -   **CapAdd** - A list of kernel capabilities to add to the container.
     -   **Capdrop** - A list of kernel capabilities to drop from the container.
+    -   **GroupAdd** - A list of additional groups that the container process will run as
     -   **RestartPolicy** – The behavior to apply when the container exits.  The
             value is an object with a `Name` property of either `"always"` to
             always restart, `"unless-stopped"` to restart always except when
@@ -297,7 +301,8 @@ Json Parameters:
             An ever increasing delay (double the previous delay, starting at 100mS)
             is added before each restart to prevent flooding the server.
     -   **NetworkMode** - Sets the networking mode for the container. Supported
-          values are: `bridge`, `host`, and `container:<name|id>`
+          standard values are: `bridge`, `host`, `none`, and `container:<name|id>`. Any other value is taken
+          as a custom network's name to which this container should connect to.
     -   **Devices** - A list of devices to add to the container specified as a JSON object in the
       form
           `{ "PathOnHost": "/dev/deviceName", "PathInContainer": "/dev/deviceName", "CgroupPermissions": "mrw"}`
@@ -321,13 +326,14 @@ Query Parameters:
 Status Codes:
 
 -   **201** – no error
+-   **400** – bad parameter
 -   **404** – no such container
 -   **406** – impossible to attach (container not running)
 -   **500** – server error
 
 ### Inspect a container
 
-`GET /containers/(id)/json`
+`GET /containers/(id or name)/json`
 
 Return low-level information on the container `id`
 
@@ -434,11 +440,34 @@ Return low-level information on the container `id`
 		"Name": "/boring_euclid",
 		"NetworkSettings": {
 			"Bridge": "",
+			"SandboxID": "",
+			"HairpinMode": false,
+			"LinkLocalIPv6Address": "",
+			"LinkLocalIPv6PrefixLen": 0,
+			"Ports": null,
+			"SandboxKey": "",
+			"SecondaryIPAddresses": null,
+			"SecondaryIPv6Addresses": null,
+			"EndpointID": "",
 			"Gateway": "",
+			"GlobalIPv6Address": "",
+			"GlobalIPv6PrefixLen": 0,
 			"IPAddress": "",
 			"IPPrefixLen": 0,
+			"IPv6Gateway": "",
 			"MacAddress": "",
-			"Ports": null
+			"Networks": {
+				"bridge": {
+					"EndpointID": "",
+					"Gateway": "",
+					"IPAddress": "",
+					"IPPrefixLen": 0,
+					"IPv6Gateway": "",
+					"GlobalIPv6Address": "",
+					"GlobalIPv6PrefixLen": 0,
+					"MacAddress": ""
+				}
+			}
 		},
 		"Path": "/bin/sh",
 		"ProcessLabel": "",
@@ -466,6 +495,26 @@ Return low-level information on the container `id`
 		]
 	}
 
+**Example request, with size information**:
+
+    GET /containers/4fa6e0f0c678/json?size=1 HTTP/1.1
+
+**Example response, with size information**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+    ....
+    "SizeRw": 0,
+    "SizeRootFs": 972,
+    ....
+    }
+
+Query Parameters:
+
+-   **size** – 1/True/true or 0/False/false, return container size information. Default is `false`.
+
 Status Codes:
 
 -   **200** – no error
@@ -474,9 +523,11 @@ Status Codes:
 
 ### List processes running inside a container
 
-`GET /containers/(id)/top`
+`GET /containers/(id or name)/top`
 
-List processes running inside the container `id`
+List processes running inside the container `id`. On Unix systems this
+is done by running the `ps` command. This endpoint is not
+supported on Windows.
 
 **Example request**:
 
@@ -488,28 +539,45 @@ List processes running inside the container `id`
     Content-Type: application/json
 
     {
-         "Titles": [
-                 "USER",
-                 "PID",
-                 "%CPU",
-                 "%MEM",
-                 "VSZ",
-                 "RSS",
-                 "TTY",
-                 "STAT",
-                 "START",
-                 "TIME",
-                 "COMMAND"
-                 ],
-         "Processes": [
-                 ["root","20147","0.0","0.1","18060","1864","pts/4","S","10:06","0:00","bash"],
-                 ["root","20271","0.0","0.0","4312","352","pts/4","S+","10:07","0:00","sleep","10"]
+       "Titles" : [
+         "UID", "PID", "PPID", "C", "STIME", "TTY", "TIME", "CMD"
+       ],
+       "Processes" : [
+         [
+           "root", "13642", "882", "0", "17:03", "pts/0", "00:00:00", "/bin/bash"
+         ],
+         [
+           "root", "13735", "13642", "0", "17:06", "pts/0", "00:00:00", "sleep 10"
          ]
+       ]
+    }
+
+**Example request**:
+
+    GET /containers/4fa6e0f0c678/top?ps_args=aux HTTP/1.1
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+      "Titles" : [
+        "USER","PID","%CPU","%MEM","VSZ","RSS","TTY","STAT","START","TIME","COMMAND"
+      ]
+      "Processes" : [
+        [
+          "root","13642","0.0","0.1","18172","3184","pts/0","Ss","17:03","0:00","/bin/bash"
+        ],
+        [
+          "root","13895","0.0","0.0","4348","692","pts/0","S+","17:15","0:00","sleep 10"
+        ]
+      ],
     }
 
 Query Parameters:
 
--   **ps_args** – ps arguments to use (e.g., aux)
+-   **ps_args** – `ps` arguments to use (e.g., `aux`), defaults to `-ef`
 
 Status Codes:
 
@@ -519,12 +587,12 @@ Status Codes:
 
 ### Get container logs
 
-`GET /containers/(id)/logs`
+`GET /containers/(id or name)/logs`
 
 Get `stdout` and `stderr` logs from the container ``id``
 
 > **Note**:
-> This endpoint works only for containers with `json-file` logging driver.
+> This endpoint works only for containers with the `json-file` or `journald` logging drivers.
 
 **Example request**:
 
@@ -559,7 +627,7 @@ Status Codes:
 
 ### Inspect changes on a container's filesystem
 
-`GET /containers/(id)/changes`
+`GET /containers/(id or name)/changes`
 
 Inspect changes on container `id`'s filesystem
 
@@ -601,7 +669,7 @@ Status Codes:
 
 ### Export a container
 
-`GET /containers/(id)/export`
+`GET /containers/(id or name)/export`
 
 Export the contents of container `id`
 
@@ -624,11 +692,9 @@ Status Codes:
 
 ### Get container stats based on resource usage
 
-`GET /containers/(id)/stats`
+`GET /containers/(id or name)/stats`
 
 This endpoint returns a live stream of a container's resource usage statistics.
-
-> **Note**: this functionality currently only works when using the *libcontainer* exec-driver.
 
 **Example request**:
 
@@ -641,7 +707,7 @@ This endpoint returns a live stream of a container's resource usage statistics.
 
       {
          "read" : "2015-01-08T22:57:31.547920715Z",
-         "network": {
+         "networks": {
                  "eth0": {
                      "rx_bytes": 5338,
                      "rx_dropped": 0,
@@ -704,19 +770,36 @@ This endpoint returns a live stream of a container's resource usage statistics.
          "cpu_stats" : {
             "cpu_usage" : {
                "percpu_usage" : [
-                  16970827,
-                  1839451,
-                  7107380,
-                  10571290
+                  8646879,
+                  24472255,
+                  36438778,
+                  30657443
                ],
-               "usage_in_usermode" : 10000000,
-               "total_usage" : 36488948,
-               "usage_in_kernelmode" : 20000000
+               "usage_in_usermode" : 50000000,
+               "total_usage" : 100215355,
+               "usage_in_kernelmode" : 30000000
             },
-            "system_cpu_usage" : 20091722000000000,
-            "throttling_data" : {}
+            "system_cpu_usage" : 739306590000000,
+            "throttling_data" : {"periods":0,"throttled_periods":0,"throttled_time":0}
+         },
+         "precpu_stats" : {
+            "cpu_usage" : {
+               "percpu_usage" : [
+                  8646879,
+                  24350896,
+                  36438778,
+                  30657443
+               ],
+               "usage_in_usermode" : 50000000,
+               "total_usage" : 100093996,
+               "usage_in_kernelmode" : 30000000
+            },
+            "system_cpu_usage" : 9492140000000,
+            "throttling_data" : {"periods":0,"throttled_periods":0,"throttled_time":0}
          }
       }
+
+The precpu_stats is the cpu statistic of last read, which is used for calculating the cpu usage percent. It is not the exact copy of the “cpu_stats” field.
 
 Query Parameters:
 
@@ -730,7 +813,7 @@ Status Codes:
 
 ### Resize a container TTY
 
-`POST /containers/(id)/resize`
+`POST /containers/(id or name)/resize`
 
 Resize the TTY for container with  `id`. The unit is number of characters. You must restart the container for the resize to take effect.
 
@@ -757,7 +840,7 @@ Status Codes:
 
 ### Start a container
 
-`POST /containers/(id)/start`
+`POST /containers/(id or name)/start`
 
 Start the container `id`
 
@@ -767,7 +850,7 @@ Start the container `id`
 
 **Example request**:
 
-    POST /containers/(id)/start HTTP/1.1
+    POST /containers/e90e34656806/start HTTP/1.1
 
 **Example response**:
 
@@ -782,7 +865,7 @@ Status Codes:
 
 ### Stop a container
 
-`POST /containers/(id)/stop`
+`POST /containers/(id or name)/stop`
 
 Stop the container `id`
 
@@ -807,7 +890,7 @@ Status Codes:
 
 ### Restart a container
 
-`POST /containers/(id)/restart`
+`POST /containers/(id or name)/restart`
 
 Restart the container `id`
 
@@ -831,7 +914,7 @@ Status Codes:
 
 ### Kill a container
 
-`POST /containers/(id)/kill`
+`POST /containers/(id or name)/kill`
 
 Kill the container `id`
 
@@ -856,7 +939,7 @@ Status Codes:
 
 ### Rename a container
 
-`POST /containers/(id)/rename`
+`POST /containers/(id or name)/rename`
 
 Rename the container `id` to a `new_name`
 
@@ -881,7 +964,7 @@ Status Codes:
 
 ### Pause a container
 
-`POST /containers/(id)/pause`
+`POST /containers/(id or name)/pause`
 
 Pause the container `id`
 
@@ -901,7 +984,7 @@ Status Codes:
 
 ### Unpause a container
 
-`POST /containers/(id)/unpause`
+`POST /containers/(id or name)/unpause`
 
 Unpause the container `id`
 
@@ -921,7 +1004,7 @@ Status Codes:
 
 ### Attach to a container
 
-`POST /containers/(id)/attach`
+`POST /containers/(id or name)/attach`
 
 Attach to the container `id`
 
@@ -962,7 +1045,7 @@ Status Codes:
 
     When using the TTY setting is enabled in
     [`POST /containers/create`
-    ](/reference/api/docker_remote_api_v1.9/#create-a-container "POST /containers/create"),
+    ](#create-a-container),
     the stream is the raw data from the process PTY and client's `stdin`.
     When the TTY is disabled, then the stream is multiplexed to separate
     `stdout` and `stderr`.
@@ -1004,7 +1087,7 @@ Status Codes:
 
 ### Attach to a container (websocket)
 
-`GET /containers/(id)/attach/ws`
+`GET /containers/(id or name)/attach/ws`
 
 Attach to the container `id` via websocket
 
@@ -1039,7 +1122,7 @@ Status Codes:
 
 ### Wait a container
 
-`POST /containers/(id)/wait`
+`POST /containers/(id or name)/wait`
 
 Block until container `id` stops, then returns the exit code
 
@@ -1062,7 +1145,7 @@ Status Codes:
 
 ### Remove a container
 
-`DELETE /containers/(id)`
+`DELETE /containers/(id or name)`
 
 Remove the container `id` from the filesystem
 
@@ -1090,7 +1173,7 @@ Status Codes:
 
 ### Copy files or folders from a container
 
-`POST /containers/(id)/copy`
+`POST /containers/(id or name)/copy`
 
 Copy files or folders of container `id`
 
@@ -1120,16 +1203,16 @@ Status Codes:
 
 ### Retrieving information about files and folders in a container
 
-`HEAD /containers/(id)/archive`
+`HEAD /containers/(id or name)/archive`
 
 See the description of the `X-Docker-Container-Path-Stat` header in the
 following section.
 
 ### Get an archive of a filesystem resource in a container
 
-`GET /containers/(id)/archive`
+`GET /containers/(id or name)/archive`
 
-Get an tar archive of a resource in the filesystem of container `id`.
+Get a tar archive of a resource in the filesystem of container `id`.
 
 Query Parameters:
 
@@ -1188,7 +1271,7 @@ Status Codes:
 
 ### Extract an archive of files or folders to a directory in a container
 
-`PUT /containers/(id)/archive`
+`PUT /containers/(id or name)/archive`
 
 Upload a tar archive to be extracted to a path in the filesystem of container
 `id`.
@@ -1206,14 +1289,14 @@ Query Parameters:
 
 **Example request**:
 
-        PUT /containers/8cce319429b2/archive?path=/vol1 HTTP/1.1
-        Content-Type: application/x-tar
+    PUT /containers/8cce319429b2/archive?path=/vol1 HTTP/1.1
+    Content-Type: application/x-tar
 
-        {{ TAR STREAM }}
+    {{ TAR STREAM }}
 
 **Example response**:
 
-        HTTP/1.1 200 OK
+    HTTP/1.1 200 OK
 
 Status Codes:
 
@@ -1356,7 +1439,7 @@ the path to the alternate build instructions file to use.
 
 The archive may include any number of other files,
 which are accessible in the build context (See the [*ADD build
-command*](/reference/builder/#dockerbuilder)).
+command*](../../reference/builder.md#dockerbuilder)).
 
 The build is canceled if the client drops the connection by quitting
 or being killed.
@@ -1365,10 +1448,11 @@ Query Parameters:
 
 -   **dockerfile** - Path within the build context to the Dockerfile. This is
         ignored if `remote` is specified and points to an individual filename.
--   **t** – A repository name (and optionally a tag) to apply to
-        the resulting image in case of success.
--   **remote** – A Git repository URI or HTTP/HTTPS URI build source. If the 
-        URI specifies a filename, the file's contents are placed into a file 
+-   **t** – A name and optional tag to apply to the image in the `name:tag` format.
+        If you omit the `tag` the default `latest` value is assumed.
+        You can provide one or more `t` parameters.
+-   **remote** – A Git repository URI or HTTP/HTTPS URI build source. If the
+        URI specifies a filename, the file's contents are placed into a file
 		called `Dockerfile`.
 -   **q** – Suppress verbose build output.
 -   **nocache** – Do not use the cache when building the image.
@@ -1376,14 +1460,16 @@ Query Parameters:
 -   **rm** - Remove intermediate containers after a successful build (default behavior).
 -   **forcerm** - Always remove intermediate containers (includes `rm`).
 -   **memory** - Set memory limit for build.
--   **memswap** - Total memory (memory + swap), `-1` to disable swap.
+-   **memswap** - Total memory (memory + swap), `-1` to enable unlimited swap.
 -   **cpushares** - CPU shares (relative weight).
 -   **cpusetcpus** - CPUs in which to allow execution (e.g., `0-3`, `0,1`).
+-   **cpuperiod** - The length of a CPU period in microseconds.
+-   **cpuquota** - Microseconds of CPU time that the container can get in a CPU period.
 -   **buildargs** – JSON map of string pairs for build-time variables. Users pass
         these values at build-time. Docker uses the `buildargs` as the environment
         context for command(s) run via the Dockerfile's `RUN` instruction or for
         variable expansion in other Dockerfile instructions. This is not meant for
-        passing secret values. [Read more about the buildargs instruction](/reference/builder/#arg)
+        passing secret values. [Read more about the buildargs instruction](../../reference/builder.md#arg)
 
     Request Headers:
 
@@ -1402,14 +1488,14 @@ Query Parameters:
                 }
             }
 
-        This object maps the hostname of a registry to an object containing the
-        "username" and "password" for that registry. Multiple registries may
-        be specified as the build may be based on an image requiring
-        authentication to pull from any arbitrary registry. Only the registry
-        domain name (and port if not the default "443") are required. However
-        (for legacy reasons) the "official" Docker, Inc. hosted registry must
-        be specified with both a "https://" prefix and a "/v1/" suffix even
-        though Docker will prefer to use the v2 registry API.
+    This object maps the hostname of a registry to an object containing the
+    "username" and "password" for that registry. Multiple registries may
+    be specified as the build may be based on an image requiring
+    authentication to pull from any arbitrary registry. Only the registry
+    domain name (and port if not the default "443") are required. However
+    (for legacy reasons) the "official" Docker, Inc. hosted registry must
+    be specified with both a "https://" prefix and a "/v1/" suffix even
+    though Docker will prefer to use the v2 registry API.
 
 Status Codes:
 
@@ -1442,12 +1528,15 @@ a base64-encoded AuthConfig object.
 
 Query Parameters:
 
--   **fromImage** – Name of the image to pull.
+-   **fromImage** – Name of the image to pull. The name may include a tag or
+        digest. This parameter may only be used when pulling an image.
 -   **fromSrc** – Source to import.  The value may be a URL from which the image
         can be retrieved or `-` to read the image from the request body.
--   **repo** – Repository name.
--   **tag** – Tag.
--   **registry** – The registry to pull from.
+        This parameter may only be used when importing an image.
+-   **repo** – Repository name given to an image when it is imported.
+        The repo may include a tag. This parameter may only be used when importing
+        an image.
+-   **tag** – Tag or digest.
 
     Request Headers:
 
@@ -1524,7 +1613,10 @@ Return low-level information on the image `name`
           "Name" : "aufs",
           "Data" : null
        },
-       "Tags" : [
+       "RepoDigests" : [
+          "localhost:5000/test/busybox/example@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf"
+       ],
+       "RepoTags" : [
           "example:1.0",
           "example:latest",
           "example:stable"
@@ -1678,7 +1770,7 @@ Tag the image `name` into a repository
 
 **Example response**:
 
-    HTTP/1.1 201 OK
+    HTTP/1.1 201 Created
 
 Query Parameters:
 
@@ -1826,11 +1918,11 @@ Display system-wide information
     Content-Type: application/json
 
     {
+        "ClusterStore": "etcd://localhost:2379",
         "Containers": 11,
         "CpuCfsPeriod": true,
         "CpuCfsQuota": true,
         "Debug": false,
-        "DiscoveryBackend": "etcd://localhost:2379",
         "DockerRootDir": "/var/lib/docker",
         "Driver": "btrfs",
         "DriverStatus": [[""]],
@@ -1871,9 +1963,9 @@ Display system-wide information
                 "127.0.0.0/8"
             ]
         },
+        "ServerVersion": "1.9.0",
         "SwapLimit": false,
         "SystemTime": "2015-03-10T11:11:23.730591467-07:00"
-        "ServerVersion": "1.9.0"
     }
 
 Status Codes:
@@ -2154,7 +2246,7 @@ the root that contains a list of repository and tag names mapped to layer IDs.
 
 ### Exec Create
 
-`POST /containers/(id)/exec`
+`POST /containers/(id or name)/exec`
 
 Sets up an exec instance in a running container `id`
 
@@ -2175,7 +2267,7 @@ Sets up an exec instance in a running container `id`
 
 **Example response**:
 
-    HTTP/1.1 201 OK
+    HTTP/1.1 201 Created
     Content-Type: application/json
 
     {
@@ -2196,6 +2288,8 @@ Status Codes:
 
 -   **201** – no error
 -   **404** – no such container
+-   **409** - container is paused
+-   **500** - server error
 
 ### Exec Start
 
@@ -2217,8 +2311,8 @@ interactive session with the `exec` command.
 
 **Example response**:
 
-    HTTP/1.1 201 OK
-    Content-Type: application/json
+    HTTP/1.1 200 OK
+    Content-Type: application/vnd.docker.raw-stream
 
     {{ STREAM }}
 
@@ -2231,10 +2325,10 @@ Status Codes:
 
 -   **200** – no error
 -   **404** – no such exec instance
--   **409** - container is stopped or paused
+-   **409** - container is paused
 
     **Stream details**:
-    Similar to the stream behavior of `POST /container/(id)/attach` API
+    Similar to the stream behavior of `POST /containers/(id or name)/attach` API
 
 ### Exec Resize
 
@@ -2250,7 +2344,7 @@ This API is valid only if `tty` was specified as part of creating and starting t
 
 **Example response**:
 
-    HTTP/1.1 201 OK
+    HTTP/1.1 201 Created
     Content-Type: text/plain
 
 Query Parameters:
@@ -2337,13 +2431,36 @@ Return low-level information about the `exec` command `id`.
           "SecurityOpt" : null
         },
         "Image" : "5506de2b643be1e6febbf3b8a240760c6843244c41e12aa2f60ccbb7153d17f5",
-        "NetworkSettings" : {
-          "IPAddress" : "172.17.0.2",
-          "IPPrefixLen" : 16,
-          "MacAddress" : "02:42:ac:11:00:02",
-          "Gateway" : "172.17.42.1",
-          "Bridge" : "docker0",
-          "Ports" : {}
+        "NetworkSettings": {
+            "Bridge": "",
+            "SandboxID": "",
+            "HairpinMode": false,
+            "LinkLocalIPv6Address": "",
+            "LinkLocalIPv6PrefixLen": 0,
+            "Ports": null,
+            "SandboxKey": "",
+            "SecondaryIPAddresses": null,
+            "SecondaryIPv6Addresses": null,
+            "EndpointID": "",
+            "Gateway": "",
+            "GlobalIPv6Address": "",
+            "GlobalIPv6PrefixLen": 0,
+            "IPAddress": "",
+            "IPPrefixLen": 0,
+            "IPv6Gateway": "",
+            "MacAddress": "",
+            "Networks": {
+                "bridge": {
+                    "EndpointID": "",
+                    "Gateway": "",
+                    "IPAddress": "",
+                    "IPPrefixLen": 0,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "MacAddress": ""
+                }
+            }
         },
         "ResolvConfPath" : "/var/lib/docker/containers/8f177a186b977fb451136e0fdf182abff5599a08b3c7f6ef0d36a55aaf89634c/resolv.conf",
         "HostnamePath" : "/var/lib/docker/containers/8f177a186b977fb451136e0fdf182abff5599a08b3c7f6ef0d36a55aaf89634c/hostname",
@@ -2374,26 +2491,26 @@ Status Codes:
 
 **Example request**:
 
-  GET /volumes HTTP/1.1
+    GET /volumes HTTP/1.1
 
 **Example response**:
 
-  HTTP/1.1 200 OK
-  Content-Type: application/json
+    HTTP/1.1 200 OK
+    Content-Type: application/json
 
-  {
-    "Volumes": [
-      {
-        "Name": "tardis",
-        "Driver": "local",
-        "Mountpoint": "/var/lib/docker/volumes/tardis"
-      }
-    ]
-  }
+    {
+      "Volumes": [
+        {
+          "Name": "tardis",
+          "Driver": "local",
+          "Mountpoint": "/var/lib/docker/volumes/tardis"
+        }
+      ]
+    }
 
 Query Parameters:
 
-- **filter** - JSON encoded value of the filters (a `map[string][]string`) to process on the volumes list. There is one available filter: `dangling=true`
+- **filters** - JSON encoded value of the filters (a `map[string][]string`) to process on the volumes list. There is one available filter: `dangling=true`
 
 Status Codes:
 
@@ -2402,29 +2519,29 @@ Status Codes:
 
 ### Create a volume
 
-`POST /volumes`
+`POST /volumes/create`
 
 Create a volume
 
 **Example request**:
 
-  POST /volumes HTTP/1.1
-  Content-Type: application/json
+    POST /volumes/create HTTP/1.1
+    Content-Type: application/json
 
-  {
-    "Name": "tardis"
-  }
+    {
+      "Name": "tardis"
+    }
 
 **Example response**:
 
-  HTTP/1.1 201 Created
-  Content-Type: application/json
+    HTTP/1.1 201 Created
+    Content-Type: application/json
 
-  {
-    "Name": "tardis"
-    "Driver": "local",
-    "Mountpoint": "/var/lib/docker/volumes/tardis"
-  }
+    {
+      "Name": "tardis",
+      "Driver": "local",
+      "Mountpoint": "/var/lib/docker/volumes/tardis"
+    }
 
 Status Codes:
 
@@ -2450,14 +2567,14 @@ Return low-level information on the volume `name`
 
 **Example response**:
 
-  HTTP/1.1 200 OK
-  Content-Type: application/json
+    HTTP/1.1 200 OK
+    Content-Type: application/json
 
-  {
-    "Name": "tardis",
-    "Driver": "local",
-    "Mountpoint": "/var/lib/docker/volumes/tardis"
-  }
+    {
+      "Name": "tardis",
+      "Driver": "local",
+      "Mountpoint": "/var/lib/docker/volumes/tardis"
+    }
 
 Status Codes:
 
@@ -2473,11 +2590,11 @@ Instruct the driver to remove the volume (`name`).
 
 **Example request**:
 
-  DELETE /volumes/local/tardis HTTP/1.1
+    DELETE /volumes/tardis HTTP/1.1
 
 **Example response**:
 
-  HTTP/1.1 204 No Content
+    HTTP/1.1 204 No Content
 
 Status Codes
 
@@ -2494,41 +2611,77 @@ Status Codes
 
 **Example request**:
 
-  GET /networks HTTP/1.1
+    GET /networks HTTP/1.1
 
 **Example response**:
 
-  HTTP/1.1 200 OK
-  Content-Type: application/json
-
 ```
-  [
-    {
-      "name": "bridge",
-      "id": "f995e41e471c833266786a64df584fbe4dc654ac99f63a4ee7495842aa093fc4",
-      "driver": "bridge",
-      "containers": {}
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+[
+  {
+    "Name": "bridge",
+    "Id": "f2de39df4171b0dc801e8002d1d999b77256983dfc63041c0f34030aa3977566",
+    "Scope": "local",
+    "Driver": "bridge",
+    "IPAM": {
+      "Driver": "default",
+      "Config": [
+        {
+          "Subnet": "172.17.0.0/16"
+        }
+      ]
     },
-    {
-      "name": "none",
-      "id": "21e34df9b29c74ae45ba312f8e9f83c02433c9a877cfebebcf57be78f69b77c8",
-      "driver": "null",
-      "containers": {}
+    "Containers": {
+      "39b69226f9d79f5634485fb236a23b2fe4e96a0a94128390a7fbbcc167065867": {
+        "EndpointID": "ed2419a97c1d9954d05b46e462e7002ea552f216e9b136b80a7db8d98b442eda",
+        "MacAddress": "02:42:ac:11:00:02",
+        "IPv4Address": "172.17.0.2/16",
+        "IPv6Address": ""
+      }
     },
-    {
-      "name": "host",
-      "id": "3f43a0873f00310a71cd6a71e2e60c113cf17d1812be2ec22fd519fbac68ec91",
-      "driver": "host",
-      "containers": {}
+    "Options": {
+      "com.docker.network.bridge.default_bridge": "true",
+      "com.docker.network.bridge.enable_icc": "true",
+      "com.docker.network.bridge.enable_ip_masquerade": "true",
+      "com.docker.network.bridge.host_binding_ipv4": "0.0.0.0",
+      "com.docker.network.bridge.name": "docker0",
+      "com.docker.network.driver.mtu": "1500"
     }
-  ]
+  },
+  {
+    "Name": "none",
+    "Id": "e086a3893b05ab69242d3c44e49483a3bbbd3a26b46baa8f61ab797c1088d794",
+    "Scope": "local",
+    "Driver": "null",
+    "IPAM": {
+      "Driver": "default",
+      "Config": []
+    },
+    "Containers": {},
+    "Options": {}
+  },
+  {
+    "Name": "host",
+    "Id": "13e871235c677f196c4e1ecebb9dc733b9b2d2ab589e30c539efeda84a24215e",
+    "Scope": "local",
+    "Driver": "host",
+    "IPAM": {
+      "Driver": "default",
+      "Config": []
+    },
+    "Containers": {},
+    "Options": {}
+  }
+]
 ```
 
 
 
 Query Parameters:
 
-- **filter** - JSON encoded value of the filters (a `map[string][]string`) to process on the volumes list. Available filters: `name=[network-names]` , `id=[network-ids]`
+- **filters** - JSON encoded value of the filters (a `map[string][]string`) to process on the networks list. Available filters: `name=[network-names]` , `id=[network-ids]`
 
 Status Codes:
 
@@ -2541,39 +2694,44 @@ Status Codes:
 
 **Example request**:
 
-  GET /networks/f995e41e471c833266786a64df584fbe4dc654ac99f63a4ee7495842aa093fc4 HTTP/1.1
+    GET /networks/f2de39df4171b0dc801e8002d1d999b77256983dfc63041c0f34030aa3977566 HTTP/1.1
 
 **Example response**:
 
-  HTTP/1.1 200 OK
-  Content-Type: application/json
-
 ```
-  {
-    "name": "bridge",
-    "id": "f995e41e471c833266786a64df584fbe4dc654ac99f63a4ee7495842aa093fc4",
-    "driver": "bridge",
-    "containers": {
-      "931d29e96e63022a3691f55ca18b28600239acf53878451975f77054b05ba559": {
-        "endpoint": "aa79321e2899e6d72fcd46e6a4ad7f81ab9a19c3b06e384ef4ce51fea35827f9",
-        "mac_address": "02:42:ac:11:00:04",
-        "ipv4_address": "172.17.0.4/16",
-        "ipv6_address": ""
-      },
-      "961249b4ae6c764b11eed923e8463c102689111fffd933627b2e7e359c7d0f7c": {
-        "endpoint": "4f62c5aea6b9a70512210be7db976bd4ec2cdba47125e4fe514d18c81b1624b1",
-        "mac_address": "02:42:ac:11:00:02",
-        "ipv4_address": "172.17.0.2/16",
-        "ipv6_address": ""
-      },
-      "9f6e0fec4449f42a173ed85be96dc2253b6719edd850d8169bc31bdc45db675c": {
-        "endpoint": "352b512a5bccdfc77d16c2c04d04408e718f879a16f9ce3913a4733139e4f98d",
-        "mac_address": "02:42:ac:11:00:03",
-        "ipv4_address": "172.17.0.3/16",
-        "ipv6_address": ""
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "Name": "bridge",
+  "Id": "f2de39df4171b0dc801e8002d1d999b77256983dfc63041c0f34030aa3977566",
+  "Scope": "local",
+  "Driver": "bridge",
+  "IPAM": {
+    "Driver": "default",
+    "Config": [
+      {
+        "Subnet": "172.17.0.0/16"
       }
+    ]
+  },
+  "Containers": {
+    "39b69226f9d79f5634485fb236a23b2fe4e96a0a94128390a7fbbcc167065867": {
+      "EndpointID": "ed2419a97c1d9954d05b46e462e7002ea552f216e9b136b80a7db8d98b442eda",
+      "MacAddress": "02:42:ac:11:00:02",
+      "IPv4Address": "172.17.0.2/16",
+      "IPv6Address": ""
     }
+  },
+  "Options": {
+    "com.docker.network.bridge.default_bridge": "true",
+    "com.docker.network.bridge.enable_icc": "true",
+    "com.docker.network.bridge.enable_ip_masquerade": "true",
+    "com.docker.network.bridge.host_binding_ipv4": "0.0.0.0",
+    "com.docker.network.bridge.name": "docker0",
+    "com.docker.network.driver.mtu": "1500"
   }
+}
 ```
 
 Status Codes:
@@ -2589,66 +2747,74 @@ Create a network
 
 **Example request**:
 
-  POST /networks/create HTTP/1.1
-  Content-Type: application/json
-
 ```
-  {
-    "name":"isolated_nw",
-    "driver":"bridge"
-  }
+POST /networks/create HTTP/1.1
+Content-Type: application/json
+
+{
+  "Name":"isolated_nw",
+  "Driver":"bridge"
+  "IPAM":{
+    "Config":[{
+      "Subnet":"172.20.0.0/16",
+      "IPRange":"172.20.10.0/24",
+      "Gateway":"172.20.10.11"
+    }]
+}
 ```
 
 **Example response**:
 
-  HTTP/1.1 201 Created
-  Content-Type: application/json
-
 ```
-  {
-    "id": "22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30",
-    "warning": ""
-  }
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{
+  "Id": "22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30",
+  "Warning": ""
+}
 ```
 
 Status Codes:
 
 - **201** - no error
-- **404** - driver not found
+- **404** - plugin not found
 - **500** - server error
 
 JSON Parameters:
 
-- **name** - The new network's name. this is a mandatory field
-- **driver** - Name of the network driver to use. Defaults to `bridge` driver
-- **options** - Network specific options to be used by the drivers
-- **check_duplicate** - Requests daemon to check for networks with same name
+- **Name** - The new network's name. this is a mandatory field
+- **Driver** - Name of the network driver plugin to use. Defaults to `bridge` driver
+- **IPAM** - Optional custom IP scheme for the network
+- **Options** - Network specific options to be used by the drivers
+- **CheckDuplicate** - Requests daemon to check for networks with same name
 
 ### Connect a container to a network
 
 `POST /networks/(id)/connect`
 
-Connects a container to a network
+Connect a container to a network
 
 **Example request**:
 
-  POST /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30/connect HTTP/1.1
-  Content-Type: application/json
-
 ```
-  {
-    "container":"3613f73ba0e4"
-  }
+POST /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30/connect HTTP/1.1
+Content-Type: application/json
+
+{
+  "Container":"3613f73ba0e4"
+}
 ```
 
 **Example response**:
 
-  HTTP/1.1 200 OK
+    HTTP/1.1 200 OK
 
 Status Codes:
 
-- **201** - no error
+- **200** - no error
 - **404** - network or container is not found
+- **500** - Internal Server Error
 
 JSON Parameters:
 
@@ -2658,31 +2824,32 @@ JSON Parameters:
 
 `POST /networks/(id)/disconnect`
 
-Disconnects a container from a network
+Disconnect a container from a network
 
 **Example request**:
 
-  POST /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30/disconnect HTTP/1.1
-  Content-Type: application/json
-
 ```
-  {
-    "container":"3613f73ba0e4"
-  }
+POST /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30/disconnect HTTP/1.1
+Content-Type: application/json
+
+{
+  "Container":"3613f73ba0e4"
+}
 ```
 
 **Example response**:
 
-  HTTP/1.1 200 OK
+    HTTP/1.1 200 OK
 
 Status Codes:
 
-- **201** - no error
+- **200** - no error
 - **404** - network or container not found
+- **500** - Internal Server Error
 
 JSON Parameters:
 
-- **container** - container-id/name to be disconnected from a network
+- **Container** - container-id/name to be disconnected from a network
 
 ### Remove a network
 
@@ -2692,15 +2859,15 @@ Instruct the driver to remove the network (`id`).
 
 **Example request**:
 
-  DELETE /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30 HTTP/1.1
+    DELETE /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30 HTTP/1.1
 
 **Example response**:
 
-  HTTP/1.1 204 No Content
+    HTTP/1.1 200 OK
 
 Status Codes
 
--   **204** - no error
+-   **200** - no error
 -   **404** - no such network
 -   **500** - server error
 
@@ -2741,7 +2908,7 @@ from **200 OK** to **101 UPGRADED** and resends the same headers.
 
 ## 3.3 CORS Requests
 
-To set cross origin requests to the remote api please give values to 
+To set cross origin requests to the remote api please give values to
 `--api-cors-header` when running Docker in daemon mode. Set * (asterisk) allows all,
 default or blank means CORS disabled
 

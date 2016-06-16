@@ -9,6 +9,13 @@ import (
 	"github.com/go-check/check"
 )
 
+// We use the elongated quote mechanism for quoting error returns as
+// the use of strconv.Quote or %q in fmt.Errorf will escape characters. This
+// has a big downside on Windows where the args include paths, so instead
+// of something like c:\directory\file.txt, the output would be
+// c:\\directory\\file.txt. This is highly misleading.
+const quote = `"`
+
 var execCommand = exec.Command
 
 // DockerCmdWithError executes a docker command that is supposed to fail and returns
@@ -23,7 +30,7 @@ func DockerCmdWithError(dockerBinary string, args ...string) (string, int, error
 func DockerCmdWithStdoutStderr(dockerBinary string, c *check.C, args ...string) (string, string, int) {
 	stdout, stderr, status, err := RunCommandWithStdoutStderr(execCommand(dockerBinary, args...))
 	if c != nil {
-		c.Assert(err, check.IsNil, check.Commentf("%q failed with errors: %s, %v", strings.Join(args, " "), stderr, err))
+		c.Assert(err, check.IsNil, check.Commentf(quote+"%v"+quote+" failed with errors: %s, %v", strings.Join(args, " "), stderr, err))
 	}
 	return stdout, stderr, status
 }
@@ -32,7 +39,7 @@ func DockerCmdWithStdoutStderr(dockerBinary string, c *check.C, args ...string) 
 // command returns an error, it will fail and stop the tests.
 func DockerCmd(dockerBinary string, c *check.C, args ...string) (string, int) {
 	out, status, err := RunCommandWithOutput(execCommand(dockerBinary, args...))
-	c.Assert(err, check.IsNil, check.Commentf("%q failed with errors: %s, %v", strings.Join(args, " "), out, err))
+	c.Assert(err, check.IsNil, check.Commentf(quote+"%v"+quote+" failed with errors: %s, %v", strings.Join(args, " "), out, err))
 	return out, status
 }
 
@@ -41,7 +48,7 @@ func DockerCmd(dockerBinary string, c *check.C, args ...string) (string, int) {
 func DockerCmdWithTimeout(dockerBinary string, timeout time.Duration, args ...string) (string, int, error) {
 	out, status, err := RunCommandWithOutputAndTimeout(execCommand(dockerBinary, args...), timeout)
 	if err != nil {
-		return out, status, fmt.Errorf("%q failed with errors: %v : %q", strings.Join(args, " "), err, out)
+		return out, status, fmt.Errorf(quote+"%v"+quote+" failed with errors: %v : %q", strings.Join(args, " "), err, out)
 	}
 	return out, status, err
 }
@@ -53,7 +60,7 @@ func DockerCmdInDir(dockerBinary string, path string, args ...string) (string, i
 	dockerCommand.Dir = path
 	out, status, err := RunCommandWithOutput(dockerCommand)
 	if err != nil {
-		return out, status, fmt.Errorf("%q failed with errors: %v : %q", strings.Join(args, " "), err, out)
+		return out, status, fmt.Errorf(quote+"%v"+quote+" failed with errors: %v : %q", strings.Join(args, " "), err, out)
 	}
 	return out, status, err
 }
@@ -65,7 +72,7 @@ func DockerCmdInDirWithTimeout(dockerBinary string, timeout time.Duration, path 
 	dockerCommand.Dir = path
 	out, status, err := RunCommandWithOutputAndTimeout(dockerCommand, timeout)
 	if err != nil {
-		return out, status, fmt.Errorf("%q failed with errors: %v : %q", strings.Join(args, " "), err, out)
+		return out, status, fmt.Errorf(quote+"%v"+quote+" failed with errors: %v : %q", strings.Join(args, " "), err, out)
 	}
 	return out, status, err
 }

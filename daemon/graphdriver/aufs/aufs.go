@@ -29,28 +29,32 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/vbatts/tar-split/tar/storage"
+
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/directory"
+	"github.com/docker/docker/pkg/idtools"
 	mountpk "github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
+
 	"github.com/opencontainers/runc/libcontainer/label"
+	rsystem "github.com/opencontainers/runc/libcontainer/system"
 )
 
 var (
 	// ErrAufsNotSupported is returned if aufs is not supported by the host.
 	ErrAufsNotSupported = fmt.Errorf("AUFS was not found in /proc/filesystems")
-	incompatibleFsMagic = []graphdriver.FsMagic{
-		graphdriver.FsMagicBtrfs,
-		graphdriver.FsMagicAufs,
-	}
-	backingFs = "<unknown>"
+	// ErrAufsNested means aufs cannot be used bc we are in a user namespace
+	ErrAufsNested = fmt.Errorf("AUFS cannot be used in non-init user namespace")
+	backingFs     = "<unknown>"
 
 	enableDirpermLock sync.Once
 	enableDirperm     bool
@@ -60,24 +64,20 @@ func init() {
 	graphdriver.Register("aufs", Init)
 }
 
-type data struct {
-	referenceCount int
-	path           string
-}
-
 // Driver contains information about the filesystem mounted.
-// root of the filesystem
-// sync.Mutex to protect against concurrent modifications
-// active maps mount id to the count
 type Driver struct {
-	root       string
-	sync.Mutex // Protects concurrent modification to active
-	active     map[string]*data
+	sync.Mutex
+	root          string
+	uidMaps       []idtools.IDMap
+	gidMaps       []idtools.IDMap
+	ctr           *graphdriver.RefCounter
+	pathCacheLock sync.Mutex
+	pathCache     map[string]string
 }
 
 // Init returns a new AUFS driver.
 // An error is returned if AUFS is not supported.
-func Init(root string, options []string) (graphdriver.Driver, error) {
+func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 
 	// Try to load the aufs kernel module
 	if err := supportsAufs(); err != nil {
@@ -92,10 +92,10 @@ func Init(root string, options []string) (graphdriver.Driver, error) {
 		backingFs = fsName
 	}
 
-	for _, magic := range incompatibleFsMagic {
-		if fsMagic == magic {
-			return nil, graphdriver.ErrIncompatibleFS
-		}
+	switch fsMagic {
+	case graphdriver.FsMagicAufs, graphdriver.FsMagicBtrfs, graphdriver.FsMagicEcryptfs:
+		logrus.Errorf("AUFS is not supported over %s", backingFs)
+		return nil, graphdriver.ErrIncompatibleFS
 	}
 
 	paths := []string{
@@ -105,12 +105,24 @@ func Init(root string, options []string) (graphdriver.Driver, error) {
 	}
 
 	a := &Driver{
-		root:   root,
-		active: make(map[string]*data),
+		root:      root,
+		uidMaps:   uidMaps,
+		gidMaps:   gidMaps,
+		pathCache: make(map[string]string),
+		ctr:       graphdriver.NewRefCounter(graphdriver.NewFsChecker(graphdriver.FsMagicAufs)),
 	}
 
-	// Create the root aufs driver dir
-	if err := os.MkdirAll(root, 0755); err != nil {
+	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
+	if err != nil {
+		return nil, err
+	}
+	// Create the root aufs driver dir and return
+	// if it already exists
+	// If not populate the dir structure
+	if err := idtools.MkdirAllAs(root, 0700, rootUID, rootGID); err != nil {
+		if os.IsExist(err) {
+			return a, nil
+		}
 		return nil, err
 	}
 
@@ -120,7 +132,7 @@ func Init(root string, options []string) (graphdriver.Driver, error) {
 
 	// Populate the dir structure
 	for _, p := range paths {
-		if err := os.MkdirAll(path.Join(root, p), 0755); err != nil {
+		if err := idtools.MkdirAllAs(path.Join(root, p), 0700, rootUID, rootGID); err != nil {
 			return nil, err
 		}
 	}
@@ -134,6 +146,10 @@ func supportsAufs() error {
 	// We can try to modprobe aufs first before looking at
 	// proc/filesystems for when aufs is supported
 	exec.Command("modprobe", "aufs").Run()
+
+	if rsystem.RunningInUserNS() {
+		return ErrAufsNested
+	}
 
 	f, err := os.Open("/proc/filesystems")
 	if err != nil {
@@ -183,9 +199,20 @@ func (a *Driver) Exists(id string) bool {
 	return true
 }
 
+// CreateReadWrite creates a layer that is writable for use as a container
+// file system.
+func (a *Driver) CreateReadWrite(id, parent, mountLabel string, storageOpt map[string]string) error {
+	return a.Create(id, parent, mountLabel, storageOpt)
+}
+
 // Create three folders for each id
 // mnt, layers, and diff
-func (a *Driver) Create(id, parent string) error {
+func (a *Driver) Create(id, parent, mountLabel string, storageOpt map[string]string) error {
+
+	if len(storageOpt) != 0 {
+		return fmt.Errorf("--storage-opt is not supported for aufs")
+	}
+
 	if err := a.createDirsFor(id); err != nil {
 		return err
 	}
@@ -211,18 +238,27 @@ func (a *Driver) Create(id, parent string) error {
 			}
 		}
 	}
-	a.active[id] = &data{}
+
 	return nil
 }
 
+// createDirsFor creates two directories for the given id.
+// mnt and diff
 func (a *Driver) createDirsFor(id string) error {
 	paths := []string{
 		"mnt",
 		"diff",
 	}
 
+	rootUID, rootGID, err := idtools.GetRootUIDGID(a.uidMaps, a.gidMaps)
+	if err != nil {
+		return err
+	}
+	// Directory permission is 0755.
+	// The path of directories are <aufs_root_path>/mnt/<image_id>
+	// and <aufs_root_path>/diff/<image_id>
 	for _, p := range paths {
-		if err := os.MkdirAll(path.Join(a.rootPath(), p, id), 0755); err != nil {
+		if err := idtools.MkdirAllAs(path.Join(a.rootPath(), p, id), 0755, rootUID, rootGID); err != nil {
 			return err
 		}
 	}
@@ -231,100 +267,97 @@ func (a *Driver) createDirsFor(id string) error {
 
 // Remove will unmount and remove the given id.
 func (a *Driver) Remove(id string) error {
-	// Protect the a.active from concurrent access
-	a.Lock()
-	defer a.Unlock()
-
-	m := a.active[id]
-	if m != nil {
-		if m.referenceCount > 0 {
-			return nil
-		}
-		// Make sure the dir is umounted first
-		if err := a.unmount(m); err != nil {
-			return err
-		}
+	a.pathCacheLock.Lock()
+	mountpoint, exists := a.pathCache[id]
+	a.pathCacheLock.Unlock()
+	if !exists {
+		mountpoint = a.getMountpoint(id)
 	}
-	tmpDirs := []string{
-		"mnt",
-		"diff",
+	if err := a.unmount(mountpoint); err != nil {
+		// no need to return here, we can still try to remove since the `Rename` will fail below if still mounted
+		logrus.Debugf("aufs: error while unmounting %s: %v", mountpoint, err)
 	}
 
 	// Atomically remove each directory in turn by first moving it out of the
 	// way (so that docker doesn't find it anymore) before doing removal of
 	// the whole tree.
-	for _, p := range tmpDirs {
-		realPath := path.Join(a.rootPath(), p, id)
-		tmpPath := path.Join(a.rootPath(), p, fmt.Sprintf("%s-removing", id))
-		if err := os.Rename(realPath, tmpPath); err != nil && !os.IsNotExist(err) {
-			return err
-		}
-		defer os.RemoveAll(tmpPath)
+	tmpMntPath := path.Join(a.mntPath(), fmt.Sprintf("%s-removing", id))
+	if err := os.Rename(mountpoint, tmpMntPath); err != nil && !os.IsNotExist(err) {
+		return err
 	}
+	defer os.RemoveAll(tmpMntPath)
+
+	tmpDiffpath := path.Join(a.diffPath(), fmt.Sprintf("%s-removing", id))
+	if err := os.Rename(a.getDiffPath(id), tmpDiffpath); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	defer os.RemoveAll(tmpDiffpath)
+
 	// Remove the layers file for the id
 	if err := os.Remove(path.Join(a.rootPath(), "layers", id)); err != nil && !os.IsNotExist(err) {
 		return err
 	}
+
+	a.pathCacheLock.Lock()
+	delete(a.pathCache, id)
+	a.pathCacheLock.Unlock()
 	return nil
 }
 
 // Get returns the rootfs path for the id.
 // This will mount the dir at it's given path
 func (a *Driver) Get(id, mountLabel string) (string, error) {
-	ids, err := getParentIds(a.rootPath(), id)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return "", err
-		}
-		ids = []string{}
+	parents, err := a.getParentLayerPaths(id)
+	if err != nil && !os.IsNotExist(err) {
+		return "", err
 	}
 
-	// Protect the a.active from concurrent access
-	a.Lock()
-	defer a.Unlock()
+	a.pathCacheLock.Lock()
+	m, exists := a.pathCache[id]
+	a.pathCacheLock.Unlock()
 
-	m := a.active[id]
-	if m == nil {
-		m = &data{}
-		a.active[id] = m
+	if !exists {
+		m = a.getDiffPath(id)
+		if len(parents) > 0 {
+			m = a.getMountpoint(id)
+		}
+	}
+	if count := a.ctr.Increment(m); count > 1 {
+		return m, nil
 	}
 
 	// If a dir does not have a parent ( no layers )do not try to mount
 	// just return the diff path to the data
-	m.path = path.Join(a.rootPath(), "diff", id)
-	if len(ids) > 0 {
-		m.path = path.Join(a.rootPath(), "mnt", id)
-		if m.referenceCount == 0 {
-			if err := a.mount(id, m, mountLabel); err != nil {
-				return "", err
-			}
+	if len(parents) > 0 {
+		if err := a.mount(id, m, mountLabel, parents); err != nil {
+			return "", err
 		}
 	}
-	m.referenceCount++
-	return m.path, nil
+
+	a.pathCacheLock.Lock()
+	a.pathCache[id] = m
+	a.pathCacheLock.Unlock()
+	return m, nil
 }
 
 // Put unmounts and updates list of active mounts.
 func (a *Driver) Put(id string) error {
-	// Protect the a.active from concurrent access
-	a.Lock()
-	defer a.Unlock()
-
-	m := a.active[id]
-	if m == nil {
+	a.pathCacheLock.Lock()
+	m, exists := a.pathCache[id]
+	if !exists {
+		m = a.getMountpoint(id)
+		a.pathCache[id] = m
+	}
+	a.pathCacheLock.Unlock()
+	if count := a.ctr.Decrement(m); count > 0 {
 		return nil
 	}
-	if count := m.referenceCount; count > 1 {
-		m.referenceCount = count - 1
-	} else {
-		ids, _ := getParentIds(a.rootPath(), id)
-		// We only mounted if there are any parents
-		if ids != nil && len(ids) > 0 {
-			a.unmount(m)
-		}
-		delete(a.active, id)
+
+	err := a.unmount(m)
+	if err != nil {
+		logrus.Debugf("Failed to unmount %s aufs: %v", id, err)
 	}
-	return nil
+	return err
 }
 
 // Diff produces an archive of the changes between the specified
@@ -334,11 +367,31 @@ func (a *Driver) Diff(id, parent string) (archive.Archive, error) {
 	return archive.TarWithOptions(path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
 		Compression:     archive.Uncompressed,
 		ExcludePatterns: []string{archive.WhiteoutMetaPrefix + "*", "!" + archive.WhiteoutOpaqueDir},
+		UIDMaps:         a.uidMaps,
+		GIDMaps:         a.gidMaps,
 	})
 }
 
+type fileGetNilCloser struct {
+	storage.FileGetter
+}
+
+func (f fileGetNilCloser) Close() error {
+	return nil
+}
+
+// DiffGetter returns a FileGetCloser that can read files from the directory that
+// contains files for the layer differences. Used for direct access for tar-split.
+func (a *Driver) DiffGetter(id string) (graphdriver.FileGetCloser, error) {
+	p := path.Join(a.rootPath(), "diff", id)
+	return fileGetNilCloser{storage.NewPathFileGetter(p)}, nil
+}
+
 func (a *Driver) applyDiff(id string, diff archive.Reader) error {
-	return chrootarchive.UntarUncompressed(diff, path.Join(a.rootPath(), "diff", id), nil)
+	return chrootarchive.UntarUncompressed(diff, path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
+		UIDMaps: a.uidMaps,
+		GIDMaps: a.gidMaps,
+	})
 }
 
 // DiffSize calculates the changes between the specified id
@@ -387,21 +440,16 @@ func (a *Driver) getParentLayerPaths(id string) ([]string, error) {
 	return layers, nil
 }
 
-func (a *Driver) mount(id string, m *data, mountLabel string) error {
+func (a *Driver) mount(id string, target string, mountLabel string, layers []string) error {
+	a.Lock()
+	defer a.Unlock()
+
 	// If the id is mounted or we get an error return
-	if mounted, err := a.mounted(m); err != nil || mounted {
+	if mounted, err := a.mounted(target); err != nil || mounted {
 		return err
 	}
 
-	var (
-		target = m.path
-		rw     = path.Join(a.rootPath(), "diff", id)
-	)
-
-	layers, err := a.getParentLayerPaths(id)
-	if err != nil {
-		return err
-	}
+	rw := a.getDiffPath(id)
 
 	if err := a.aufsMount(layers, rw, target, mountLabel); err != nil {
 		return fmt.Errorf("error creating aufs mount to %s: %v", target, err)
@@ -409,22 +457,42 @@ func (a *Driver) mount(id string, m *data, mountLabel string) error {
 	return nil
 }
 
-func (a *Driver) unmount(m *data) error {
-	if mounted, err := a.mounted(m); err != nil || !mounted {
+func (a *Driver) unmount(mountPath string) error {
+	a.Lock()
+	defer a.Unlock()
+
+	if mounted, err := a.mounted(mountPath); err != nil || !mounted {
 		return err
 	}
-	return Unmount(m.path)
+	if err := Unmount(mountPath); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (a *Driver) mounted(m *data) (bool, error) {
-	return mountpk.Mounted(m.path)
+func (a *Driver) mounted(mountpoint string) (bool, error) {
+	return graphdriver.Mounted(graphdriver.FsMagicAufs, mountpoint)
 }
 
 // Cleanup aufs and unmount all mountpoints
 func (a *Driver) Cleanup() error {
-	for id, m := range a.active {
+	var dirs []string
+	if err := filepath.Walk(a.mntPath(), func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			return nil
+		}
+		dirs = append(dirs, path)
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	for _, m := range dirs {
 		if err := a.unmount(m); err != nil {
-			logrus.Errorf("Unmounting %s: %s", stringid.TruncateID(id), err)
+			logrus.Debugf("aufs error unmounting %s: %s", stringid.TruncateID(m), err)
 		}
 	}
 	return mountpk.Unmount(a.root)

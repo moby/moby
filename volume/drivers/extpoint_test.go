@@ -12,7 +12,7 @@ func TestGetDriver(t *testing.T) {
 		t.Fatal("Expected error, was nil")
 	}
 
-	Register(volumetestutils.FakeDriver{}, "fake")
+	Register(volumetestutils.NewFakeDriver("fake"), "fake")
 	d, err := GetDriver("fake")
 	if err != nil {
 		t.Fatal(err)

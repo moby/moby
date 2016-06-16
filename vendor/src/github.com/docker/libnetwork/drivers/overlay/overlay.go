@@ -1,18 +1,20 @@
 package overlay
 
+//go:generate protoc -I.:../../Godeps/_workspace/src/github.com/gogo/protobuf  --gogo_out=import_path=github.com/docker/libnetwork/drivers/overlay,Mgogoproto/gogo.proto=github.com/gogo/protobuf/gogoproto:. overlay.proto
+
 import (
-	"encoding/binary"
 	"fmt"
 	"net"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/libkv/store"
-	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/idm"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/osl"
+	"github.com/docker/libnetwork/types"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -21,10 +23,12 @@ const (
 	vethPrefix   = "veth"
 	vethLen      = 7
 	vxlanIDStart = 256
-	vxlanIDEnd   = 1000
+	vxlanIDEnd   = (1 << 24) - 1
 	vxlanPort    = 4789
 	vxlanVethMTU = 1450
 )
+
+var initVxlanIdm = make(chan (bool), 1)
 
 type driver struct {
 	eventCh      chan serf.Event
@@ -34,59 +38,111 @@ type driver struct {
 	neighIP      string
 	config       map[string]interface{}
 	peerDb       peerNetworkMap
+	secMap       *encrMap
 	serfInstance *serf.Serf
 	networks     networkTable
 	store        datastore.DataStore
-	ipAllocator  *idm.Idm
+	localStore   datastore.DataStore
 	vxlanIdm     *idm.Idm
 	once         sync.Once
 	joinOnce     sync.Once
+	keys         []*key
 	sync.Mutex
-}
-
-var (
-	bridgeSubnet, bridgeIP *net.IPNet
-	once                   sync.Once
-	bridgeSubnetInt        uint32
-)
-
-func onceInit() {
-	var err error
-	_, bridgeSubnet, err = net.ParseCIDR("172.21.0.0/16")
-	if err != nil {
-		panic("could not parse cid 172.21.0.0/16")
-	}
-
-	bridgeSubnetInt = binary.BigEndian.Uint32(bridgeSubnet.IP.To4())
-
-	ip, subnet, err := net.ParseCIDR("172.21.255.254/16")
-	if err != nil {
-		panic("could not parse cid 172.21.255.254/16")
-	}
-
-	bridgeIP = &net.IPNet{
-		IP:   ip,
-		Mask: subnet.Mask,
-	}
 }
 
 // Init registers a new instance of overlay driver
 func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
-	once.Do(onceInit)
-
 	c := driverapi.Capability{
 		DataScope: datastore.GlobalScope,
 	}
-
 	d := &driver{
 		networks: networkTable{},
 		peerDb: peerNetworkMap{
-			mp: map[string]peerMap{},
+			mp: map[string]*peerMap{},
 		},
+		secMap: &encrMap{nodes: map[string][]*spi{}},
 		config: config,
 	}
 
+	if data, ok := config[netlabel.GlobalKVClient]; ok {
+		var err error
+		dsc, ok := data.(discoverapi.DatastoreConfigData)
+		if !ok {
+			return types.InternalErrorf("incorrect data in datastore configuration: %v", data)
+		}
+		d.store, err = datastore.NewDataStoreFromConfig(dsc)
+		if err != nil {
+			return types.InternalErrorf("failed to initialize data store: %v", err)
+		}
+	}
+
+	if data, ok := config[netlabel.LocalKVClient]; ok {
+		var err error
+		dsc, ok := data.(discoverapi.DatastoreConfigData)
+		if !ok {
+			return types.InternalErrorf("incorrect data in datastore configuration: %v", data)
+		}
+		d.localStore, err = datastore.NewDataStoreFromConfig(dsc)
+		if err != nil {
+			return types.InternalErrorf("failed to initialize local data store: %v", err)
+		}
+	}
+
+	d.restoreEndpoints()
+
 	return dc.RegisterDriver(networkType, d, c)
+}
+
+// Endpoints are stored in the local store. Restore them and reconstruct the overlay sandbox
+func (d *driver) restoreEndpoints() error {
+	if d.localStore == nil {
+		logrus.Warnf("Cannot restore overlay endpoints because local datastore is missing")
+		return nil
+	}
+	kvol, err := d.localStore.List(datastore.Key(overlayEndpointPrefix), &endpoint{})
+	if err != nil && err != datastore.ErrKeyNotFound {
+		return fmt.Errorf("failed to read overlay endpoint from store: %v", err)
+	}
+
+	if err == datastore.ErrKeyNotFound {
+		return nil
+	}
+	for _, kvo := range kvol {
+		ep := kvo.(*endpoint)
+		n := d.network(ep.nid)
+		if n == nil {
+			logrus.Debugf("Network (%s) not found for restored endpoint (%s)", ep.nid, ep.id)
+			continue
+		}
+		n.addEndpoint(ep)
+
+		s := n.getSubnetforIP(ep.addr)
+		if s == nil {
+			return fmt.Errorf("could not find subnet for endpoint %s", ep.id)
+		}
+
+		if err := n.joinSandbox(true); err != nil {
+			return fmt.Errorf("restore network sandbox failed: %v", err)
+		}
+
+		if err := n.joinSubnetSandbox(s, true); err != nil {
+			return fmt.Errorf("restore subnet sandbox failed for %q: %v", s.subnetIP.String(), err)
+		}
+
+		Ifaces := make(map[string][]osl.IfaceOption)
+		vethIfaceOption := make([]osl.IfaceOption, 1)
+		vethIfaceOption = append(vethIfaceOption, n.sbox.InterfaceOptions().Master(s.brName))
+		Ifaces[fmt.Sprintf("%s+%s", "veth", "veth")] = vethIfaceOption
+
+		err := n.sbox.Restore(Ifaces, nil, nil, nil)
+		if err != nil {
+			return fmt.Errorf("failed to restore overlay sandbox: %v", err)
+		}
+
+		n.incEndpointCount()
+		d.peerDbAdd(ep.nid, ep.id, ep.addr.IP, ep.addr.Mask, ep.mac, net.ParseIP(d.bindAddress), true)
+	}
+	return nil
 }
 
 // Fini cleans up the driver resources
@@ -103,63 +159,74 @@ func Fini(drv driverapi.Driver) {
 }
 
 func (d *driver) configure() error {
-	var err error
-
-	if len(d.config) == 0 {
+	if d.store == nil {
 		return nil
 	}
 
-	d.once.Do(func() {
-		provider, provOk := d.config[netlabel.KVProvider]
-		provURL, urlOk := d.config[netlabel.KVProviderURL]
+	if d.vxlanIdm == nil {
+		return d.initializeVxlanIdm()
+	}
 
-		if provOk && urlOk {
-			cfg := &config.DatastoreCfg{
-				Client: config.DatastoreClientCfg{
-					Provider: provider.(string),
-					Address:  provURL.(string),
-				},
-			}
-			provConfig, confOk := d.config[netlabel.KVProviderConfig]
-			if confOk {
-				cfg.Client.Config = provConfig.(*store.Config)
-			}
-			d.store, err = datastore.NewDataStore(cfg)
-			if err != nil {
-				err = fmt.Errorf("failed to initialize data store: %v", err)
-				return
-			}
-		}
+	return nil
+}
 
-		d.vxlanIdm, err = idm.New(d.store, "vxlan-id", vxlanIDStart, vxlanIDEnd)
-		if err != nil {
-			err = fmt.Errorf("failed to initialize vxlan id manager: %v", err)
-			return
-		}
+func (d *driver) initializeVxlanIdm() error {
+	var err error
 
-		d.ipAllocator, err = idm.New(d.store, "ipam-id", 1, 0xFFFF-2)
-		if err != nil {
-			err = fmt.Errorf("failed to initalize ipam id manager: %v", err)
-			return
-		}
-	})
+	initVxlanIdm <- true
+	defer func() { <-initVxlanIdm }()
 
-	return err
+	if d.vxlanIdm != nil {
+		return nil
+	}
+
+	d.vxlanIdm, err = idm.New(d.store, "vxlan-id", vxlanIDStart, vxlanIDEnd)
+	if err != nil {
+		return fmt.Errorf("failed to initialize vxlan id manager: %v", err)
+	}
+
+	return nil
 }
 
 func (d *driver) Type() string {
 	return networkType
 }
 
+func validateSelf(node string) error {
+	advIP := net.ParseIP(node)
+	if advIP == nil {
+		return fmt.Errorf("invalid self address (%s)", node)
+	}
+
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return fmt.Errorf("Unable to get interface addresses %v", err)
+	}
+	for _, addr := range addrs {
+		ip, _, err := net.ParseCIDR(addr.String())
+		if err == nil && ip.Equal(advIP) {
+			return nil
+		}
+	}
+	return fmt.Errorf("Multi-Host overlay networking requires cluster-advertise(%s) to be configured with a local ip-address that is reachable within the cluster", advIP.String())
+}
+
 func (d *driver) nodeJoin(node string, self bool) {
 	if self && !d.isSerfAlive() {
+		if err := validateSelf(node); err != nil {
+			logrus.Errorf("%s", err.Error())
+		}
 		d.Lock()
 		d.bindAddress = node
 		d.Unlock()
-		err := d.serfInit()
-		if err != nil {
-			logrus.Errorf("initializing serf instance failed: %v", err)
-			return
+
+		// If there is no cluster store there is no need to start serf.
+		if d.store != nil {
+			err := d.serfInit()
+			if err != nil {
+				logrus.Errorf("initializing serf instance failed: %v", err)
+				return
+			}
 		}
 	}
 
@@ -189,29 +256,88 @@ func (d *driver) nodeJoin(node string, self bool) {
 }
 
 func (d *driver) pushLocalEndpointEvent(action, nid, eid string) {
+	n := d.network(nid)
+	if n == nil {
+		logrus.Debugf("Error pushing local endpoint event for network %s", nid)
+		return
+	}
+	ep := n.endpoint(eid)
+	if ep == nil {
+		logrus.Debugf("Error pushing local endpoint event for ep %s / %s", nid, eid)
+		return
+	}
+
 	if !d.isSerfAlive() {
 		return
 	}
 	d.notifyCh <- ovNotify{
 		action: "join",
-		nid:    nid,
-		eid:    eid,
+		nw:     n,
+		ep:     ep,
 	}
 }
 
 // DiscoverNew is a notification for a new discovery event, such as a new node joining a cluster
-func (d *driver) DiscoverNew(dType driverapi.DiscoveryType, data interface{}) error {
-	if dType == driverapi.NodeDiscovery {
-		nodeData, ok := data.(driverapi.NodeDiscoveryData)
+func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
+	var err error
+	switch dType {
+	case discoverapi.NodeDiscovery:
+		nodeData, ok := data.(discoverapi.NodeDiscoveryData)
 		if !ok || nodeData.Address == "" {
 			return fmt.Errorf("invalid discovery data")
 		}
 		d.nodeJoin(nodeData.Address, nodeData.Self)
+	case discoverapi.DatastoreConfig:
+		if d.store != nil {
+			return types.ForbiddenErrorf("cannot accept datastore configuration: Overlay driver has a datastore configured already")
+		}
+		dsc, ok := data.(discoverapi.DatastoreConfigData)
+		if !ok {
+			return types.InternalErrorf("incorrect data in datastore configuration: %v", data)
+		}
+		d.store, err = datastore.NewDataStoreFromConfig(dsc)
+		if err != nil {
+			return types.InternalErrorf("failed to initialize data store: %v", err)
+		}
+	case discoverapi.EncryptionKeysConfig:
+		encrData, ok := data.(discoverapi.DriverEncryptionConfig)
+		if !ok {
+			return fmt.Errorf("invalid encryption key notification data")
+		}
+		keys := make([]*key, 0, len(encrData.Keys))
+		for i := 0; i < len(encrData.Keys); i++ {
+			k, err := parseEncryptionKey(encrData.Keys[i], encrData.Tags[i])
+			if err != nil {
+				return err
+			}
+			keys = append(keys, k)
+		}
+		d.setKeys(keys)
+	case discoverapi.EncryptionKeysUpdate:
+		var newKey, delKey, priKey *key
+		encrData, ok := data.(discoverapi.DriverEncryptionUpdate)
+		if !ok {
+			return fmt.Errorf("invalid encryption key notification data")
+		}
+		newKey, err = parseEncryptionKey(encrData.Key, encrData.Tag)
+		if err != nil {
+			return err
+		}
+		priKey, err = parseEncryptionKey(encrData.Primary, encrData.PrimaryTag)
+		if err != nil {
+			return err
+		}
+		delKey, err = parseEncryptionKey(encrData.Prune, encrData.PruneTag)
+		if err != nil {
+			return err
+		}
+		d.updateKeys(newKey, priKey, delKey)
+	default:
 	}
 	return nil
 }
 
 // DiscoverDelete is a notification for a discovery delete event, such as a node leaving a cluster
-func (d *driver) DiscoverDelete(dType driverapi.DiscoveryType, data interface{}) error {
+func (d *driver) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
 	return nil
 }

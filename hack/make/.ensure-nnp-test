@@ -1,0 +1,22 @@
+#!/bin/bash
+set -e
+
+# Build a C binary for testing no-new-privileges
+# and compile it for target daemon
+if [ "$DOCKER_ENGINE_GOOS" = "linux" ]; then
+	if [ "$DOCKER_ENGINE_OSARCH" = "$DOCKER_CLIENT_OSARCH" ]; then
+		tmpdir=$(mktemp -d)
+		gcc -g -Wall -static contrib/nnp-test/nnp-test.c -o "${tmpdir}/nnp-test"
+
+		dockerfile="${tmpdir}/Dockerfile"
+		cat <<-EOF > "$dockerfile"
+		FROM debian:jessie
+		COPY . /usr/bin/
+		RUN chmod +s /usr/bin/nnp-test
+		EOF
+		docker build --force-rm ${DOCKER_BUILD_ARGS} -qt nnp-test "${tmpdir}" > /dev/null
+		rm -rf "${tmpdir}"
+	else
+		docker build ${DOCKER_BUILD_ARGS} -qt nnp-test contrib/nnp-test > /dev/null
+	fi
+fi

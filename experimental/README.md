@@ -1,4 +1,4 @@
-# Docker Experimental Features 
+# Docker Experimental Features
 
 This page contains a list of features in the Docker engine which are
 experimental. Experimental features are **not** ready for production. They are
@@ -49,9 +49,9 @@ refined or entirely removed.
 To download the latest experimental `docker` binary for Linux,
 use the following URLs:
 
-    https://experimental.docker.com/builds/Linux/i386/docker-latest
+    https://experimental.docker.com/builds/Linux/i386/docker-latest.tgz
 
-    https://experimental.docker.com/builds/Linux/x86_64/docker-latest
+    https://experimental.docker.com/builds/Linux/x86_64/docker-latest.tgz
 
 After downloading the appropriate binary, you can follow the instructions
 [here](https://docs.docker.com/installation/binaries/#get-the-docker-binary) to run the `docker` daemon.
@@ -70,6 +70,10 @@ to build a Docker binary with the experimental features enabled:
         $ DOCKER_EXPERIMENTAL=1 make binary
 
 ## Current experimental features
+
+ * [External graphdriver plugins](plugins_graphdriver.md)
+ * [Macvlan and Ipvlan Network Drivers](vlan-networks.md)
+ * [Docker stacks](docker-stacks.md)
 
 ## How to comment on an experimental feature
 

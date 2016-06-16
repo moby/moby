@@ -1,9 +1,11 @@
 package jsonfilelog
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"testing"
 	"time"
@@ -29,13 +31,13 @@ func TestJSONFileLogger(t *testing.T) {
 	}
 	defer l.Close()
 
-	if err := l.Log(&logger.Message{ContainerID: cid, Line: []byte("line1"), Source: "src1"}); err != nil {
+	if err := l.Log(&logger.Message{Line: []byte("line1"), Source: "src1"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := l.Log(&logger.Message{ContainerID: cid, Line: []byte("line2"), Source: "src2"}); err != nil {
+	if err := l.Log(&logger.Message{Line: []byte("line2"), Source: "src2"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := l.Log(&logger.Message{ContainerID: cid, Line: []byte("line3"), Source: "src3"}); err != nil {
+	if err := l.Log(&logger.Message{Line: []byte("line3"), Source: "src3"}); err != nil {
 		t.Fatal(err)
 	}
 	res, err := ioutil.ReadFile(filename)
@@ -70,7 +72,7 @@ func BenchmarkJSONFileLogger(b *testing.B) {
 	defer l.Close()
 
 	testLine := "Line that thinks that it is log line from docker\n"
-	msg := &logger.Message{ContainerID: cid, Line: []byte(testLine), Source: "stderr", Timestamp: time.Now().UTC()}
+	msg := &logger.Message{Line: []byte(testLine), Source: "stderr", Timestamp: time.Now().UTC()}
 	jsonlog, err := (&jsonlog.JSONLog{Log: string(msg.Line) + "\n", Stream: msg.Source, Created: msg.Timestamp}).MarshalJSON()
 	if err != nil {
 		b.Fatal(err)
@@ -105,7 +107,7 @@ func TestJSONFileLoggerWithOpts(t *testing.T) {
 	}
 	defer l.Close()
 	for i := 0; i < 20; i++ {
-		if err := l.Log(&logger.Message{ContainerID: cid, Line: []byte("line" + strconv.Itoa(i)), Source: "src1"}); err != nil {
+		if err := l.Log(&logger.Message{Line: []byte("line" + strconv.Itoa(i)), Source: "src1"}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -148,4 +150,99 @@ func TestJSONFileLoggerWithOpts(t *testing.T) {
 		t.Fatalf("Wrong log content: %q, expected %q", penUlt, expectedPenultimate)
 	}
 
+}
+
+func TestJSONFileLoggerWithLabelsEnv(t *testing.T) {
+	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
+	tmp, err := ioutil.TempDir("", "docker-logger-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+	filename := filepath.Join(tmp, "container.log")
+	config := map[string]string{"labels": "rack,dc", "env": "environ,debug,ssl"}
+	l, err := New(logger.Context{
+		ContainerID:     cid,
+		LogPath:         filename,
+		Config:          config,
+		ContainerLabels: map[string]string{"rack": "101", "dc": "lhr"},
+		ContainerEnv:    []string{"environ=production", "debug=false", "port=10001", "ssl=true"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	if err := l.Log(&logger.Message{Line: []byte("line"), Source: "src1"}); err != nil {
+		t.Fatal(err)
+	}
+	res, err := ioutil.ReadFile(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var jsonLog jsonlog.JSONLogs
+	if err := json.Unmarshal(res, &jsonLog); err != nil {
+		t.Fatal(err)
+	}
+	extra := make(map[string]string)
+	if err := json.Unmarshal(jsonLog.RawAttrs, &extra); err != nil {
+		t.Fatal(err)
+	}
+	expected := map[string]string{
+		"rack":    "101",
+		"dc":      "lhr",
+		"environ": "production",
+		"debug":   "false",
+		"ssl":     "true",
+	}
+	if !reflect.DeepEqual(extra, expected) {
+		t.Fatalf("Wrong log attrs: %q, expected %q", extra, expected)
+	}
+}
+
+func BenchmarkJSONFileLoggerWithReader(b *testing.B) {
+	b.StopTimer()
+	b.ResetTimer()
+	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
+	dir, err := ioutil.TempDir("", "json-logger-bench")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	l, err := New(logger.Context{
+		ContainerID: cid,
+		LogPath:     filepath.Join(dir, "container.log"),
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer l.Close()
+	msg := &logger.Message{Line: []byte("line"), Source: "src1"}
+	jsonlog, err := (&jsonlog.JSONLog{Log: string(msg.Line) + "\n", Stream: msg.Source, Created: msg.Timestamp}).MarshalJSON()
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.SetBytes(int64(len(jsonlog)+1) * 30)
+
+	b.StartTimer()
+
+	go func() {
+		for i := 0; i < b.N; i++ {
+			for j := 0; j < 30; j++ {
+				l.Log(msg)
+			}
+		}
+		l.Close()
+	}()
+
+	lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{Follow: true})
+	watchClose := lw.WatchClose()
+	for {
+		select {
+		case <-lw.Msg:
+		case <-watchClose:
+			return
+		}
+	}
 }

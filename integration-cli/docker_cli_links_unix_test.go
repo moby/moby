@@ -6,13 +6,14 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) TestLinksEtcHostsContentMatch(c *check.C) {
 	// In a _unix file as using Unix specific files, and must be on the
 	// same host as the daemon.
-	testRequires(c, SameHostDaemon)
+	testRequires(c, SameHostDaemon, NotUserNamespace)
 
 	out, _ := dockerCmd(c, "run", "--net=host", "busybox", "cat", "/etc/hosts")
 	hosts, err := ioutil.ReadFile("/etc/hosts")
@@ -20,8 +21,6 @@ func (s *DockerSuite) TestLinksEtcHostsContentMatch(c *check.C) {
 		c.Skip("/etc/hosts does not exist, skip this test")
 	}
 
-	if out != string(hosts) {
-		c.Errorf("container: %s\n\nhost:%s", out, hosts)
-	}
+	c.Assert(out, checker.Equals, string(hosts), check.Commentf("container: %s\n\nhost:%s", out, hosts))
 
 }

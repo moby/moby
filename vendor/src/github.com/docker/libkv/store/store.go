@@ -21,10 +21,10 @@ const (
 )
 
 var (
-	// ErrNotSupported is thrown when the backend k/v store is not supported by libkv
-	ErrNotSupported = errors.New("Backend storage not supported yet, please choose one of")
-	// ErrNotImplemented is thrown when a method is not implemented by the current backend
-	ErrNotImplemented = errors.New("Call not implemented in current backend")
+	// ErrBackendNotSupported is thrown when the backend k/v store is not supported by libkv
+	ErrBackendNotSupported = errors.New("Backend storage not supported yet, please choose one of")
+	// ErrCallNotSupported is thrown when a method is not implemented/supported by the current backend
+	ErrCallNotSupported = errors.New("The current call is not supported with this backend")
 	// ErrNotReachable is thrown when the API cannot be reached for issuing common store operations
 	ErrNotReachable = errors.New("Api not reachable")
 	// ErrCannotLock is thrown when there is an error acquiring a lock on a key
@@ -35,6 +35,8 @@ var (
 	ErrKeyNotFound = errors.New("Key not found in store")
 	// ErrPreviousNotSpecified is thrown when the previous value is not specified for an atomic operation
 	ErrPreviousNotSpecified = errors.New("Previous K/V pair should be provided for the Atomic operation")
+	// ErrKeyExists is thrown when the previous value exists in the case of an AtomicPut
+	ErrKeyExists = errors.New("Previous K/V pair exists, cannot complete Atomic operation")
 )
 
 // Config contains the options for a storage client
@@ -43,10 +45,13 @@ type Config struct {
 	TLS               *tls.Config
 	ConnectionTimeout time.Duration
 	Bucket            string
+	PersistConnection bool
+	Username          string
+	Password          string
 }
 
 // ClientTLSConfig contains data for a Client TLS configuration in the form
-//  the etcd client wants it.  Eventually we'll adapt it for ZK and Consul.
+// the etcd client wants it.  Eventually we'll adapt it for ZK and Consul.
 type ClientTLSConfig struct {
 	CertFile   string
 	KeyFile    string
@@ -108,18 +113,20 @@ type KVPair struct {
 
 // WriteOptions contains optional request parameters
 type WriteOptions struct {
-	TTL time.Duration
+	IsDir bool
+	TTL   time.Duration
 }
 
 // LockOptions contains optional request parameters
 type LockOptions struct {
-	Value []byte        // Optional, value to associate with the lock
-	TTL   time.Duration // Optional, expiration ttl associated with the lock
+	Value     []byte        // Optional, value to associate with the lock
+	TTL       time.Duration // Optional, expiration ttl associated with the lock
+	RenewLock chan struct{} // Optional, chan used to control and stop the session ttl renewal for the lock
 }
 
 // Locker provides locking mechanism on top of the store.
 // Similar to `sync.Lock` except it may return errors.
 type Locker interface {
-	Lock() (<-chan struct{}, error)
+	Lock(stopChan chan struct{}) (<-chan struct{}, error)
 	Unlock() error
 }

@@ -14,17 +14,24 @@ parent = "smn_cli"
 
     List containers
 
-      -a, --all=false       Show all containers (default shows just running)
-      --before=""           Show only container created before Id or Name
-      -f, --filter=[]       Filter output based on conditions provided
+      -a, --all             Show all containers (default shows just running)
+      -f, --filter=[]       Filter output based on these conditions:
+                            - exited=<int> an exit code of <int>
+                            - label=<key> or label=<key>=<value>
+                            - status=(created|restarting|running|paused|exited)
+                            - name=<string> a container's name
+                            - id=<ID> a container's ID
+                            - before=(<container-name>|<container-id>)
+                            - since=(<container-name>|<container-id>)
+                            - ancestor=(<image-name>[:tag]|<image-id>|<image@digest>) - containers created from an image or a descendant.
+                            - volume=(<volume-name>|<mount-point>)
       --format=[]           Pretty-print containers using a Go template
-      --help=false          Print usage
-      -l, --latest=false    Show the latest created container, include non-running
-      -n=-1                 Show n last created containers, include non-running
-      --no-trunc=false      Don't truncate output
-      -q, --quiet=false     Only display numeric IDs
-      -s, --size=false      Display total file sizes
-      --since=""            Show created since Id or Name, include non-running
+      --help                Print usage
+      -l, --latest          Show the latest created container (includes all states)
+      -n=-1                 Show n last created containers (includes all states)
+      --no-trunc            Don't truncate output
+      -q, --quiet           Only display numeric IDs
+      -s, --size            Display total file sizes
 
 Running `docker ps --no-trunc` showing 2 linked containers.
 
@@ -49,9 +56,13 @@ The currently supported filters are:
 * label (`label=<key>` or `label=<key>=<value>`)
 * name (container's name)
 * exited (int - the code of exited containers. Only useful with `--all`)
-* status (created|restarting|running|paused|exited)
+* status (created|restarting|running|paused|exited|dead)
 * ancestor (`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`) - filters containers that were created from the given image or a descendant.
-
+* before (container's id or name) - filters containers created before given id or name
+* since (container's id or name) - filters containers created since given id or name
+* isolation (default|process|hyperv)   (Windows daemon only)
+* volume (volume name or mount point) - filters containers that mount volumes.
+* network (network id or name) - filters containers connected to the provided network
 
 #### Label
 
@@ -102,7 +113,7 @@ that have exited successfully:
 
 #### Status
 
-The `status` filter matches containers by status. You can filter using `created`, `restarting`, `running`, `paused` and `exited`. For example, to filter for `running` containers:
+The `status` filter matches containers by status. You can filter using `created`, `restarting`, `running`, `paused`, `exited` and `dead`. For example, to filter for `running` containers:
 
     $ docker ps --filter status=running
     CONTAINER ID        IMAGE                  COMMAND             CREATED             STATUS              PORTS               NAMES
@@ -156,6 +167,75 @@ in it's layer stack.
     CONTAINER ID        IMAGE               COMMAND             CREATED              STATUS              PORTS               NAMES
     82a598284012        ubuntu:12.04.5      "top"               3 minutes ago        Up 3 minutes                            sleepy_bose
 
+#### Before
+
+The `before` filter shows only containers created before the container with given id or name. For example, 
+having these containers created:
+
+    $ docker ps
+    CONTAINER ID        IMAGE       COMMAND       CREATED              STATUS              PORTS              NAMES
+    9c3527ed70ce        busybox     "top"         14 seconds ago       Up 15 seconds                          desperate_dubinsky
+    4aace5031105        busybox     "top"         48 seconds ago       Up 49 seconds                          focused_hamilton
+    6e63f6ff38b0        busybox     "top"         About a minute ago   Up About a minute                      distracted_fermat
+
+Filtering with `before` would give:
+
+    $ docker ps -f before=9c3527ed70ce
+    CONTAINER ID        IMAGE       COMMAND       CREATED              STATUS              PORTS              NAMES
+    4aace5031105        busybox     "top"         About a minute ago   Up About a minute                      focused_hamilton
+    6e63f6ff38b0        busybox     "top"         About a minute ago   Up About a minute                      distracted_fermat
+
+#### Since
+
+The `since` filter shows only containers created since the container with given id or name. For example,
+with the same containers as in `before` filter:
+
+    $ docker ps -f since=6e63f6ff38b0
+    CONTAINER ID        IMAGE       COMMAND       CREATED             STATUS              PORTS               NAMES
+    9c3527ed70ce        busybox     "top"         10 minutes ago      Up 10 minutes                           desperate_dubinsky
+    4aace5031105        busybox     "top"         10 minutes ago      Up 10 minutes                           focused_hamilton
+
+#### Volume
+
+The `volume` filter shows only containers that mount a specific volume or have a volume mounted in a specific path:
+
+    $ docker ps --filter volume=remote-volume --format "table {{.ID}}\t{{.Mounts}}"
+    CONTAINER ID        MOUNTS
+    9c3527ed70ce        remote-volume
+
+    $ docker ps --filter volume=/data --format "table {{.ID}}\t{{.Mounts}}"
+    CONTAINER ID        MOUNTS
+    9c3527ed70ce        remote-volume
+
+#### Network
+
+The `network` filter shows only containers that are connected to a network with
+a given name or id.
+
+The following filter matches all containers that are connected to a network
+with a name containing `net1`.
+
+```bash
+$ docker run -d --net=net1 --name=test1 ubuntu top
+$ docker run -d --net=net2 --name=test2 ubuntu top
+
+$ docker ps --filter network=net1
+CONTAINER ID        IMAGE       COMMAND       CREATED             STATUS              PORTS               NAMES
+9d4893ed80fe        ubuntu      "top"         10 minutes ago      Up 10 minutes                           test1
+```
+
+The network filter matches on both the network's name and id. The following
+example shows all containers that are attached to the `net1` network, using
+the network id as a filter;
+
+```bash
+$ docker network inspect --format "{{.ID}}" net1
+8c0b4110ae930dbe26b258de9bc34a03f98056ed6f27f991d32919bfe401d7c5
+
+$ docker ps --filter network=8c0b4110ae930dbe26b258de9bc34a03f98056ed6f27f991d32919bfe401d7c5
+CONTAINER ID        IMAGE       COMMAND       CREATED             STATUS              PORTS               NAMES
+9d4893ed80fe        ubuntu      "top"         10 minutes ago      Up 10 minutes                           test1
+```
 
 ## Formatting
 
@@ -176,6 +256,7 @@ Placeholder | Description
 `.Names` | Container names.
 `.Labels` | All labels assigned to the container.
 `.Label` | Value of a specific label for this container. For example `{{.Label "com.docker.swarm.cpu"}}`
+`.Mounts` | Names of the volumes mounted in this container.
 
 When using the `--format` option, the `ps` command will either output the data exactly as the template
 declares or, when using the `table` directive, will include column headers as well.

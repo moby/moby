@@ -1,6 +1,10 @@
 package daemon
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/docker/docker/volume"
+)
 
 func TestParseVolumesFrom(t *testing.T) {
 	cases := []struct {
@@ -17,7 +21,7 @@ func TestParseVolumesFrom(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		id, mode, err := parseVolumesFrom(c.spec)
+		id, mode, err := volume.ParseVolumesFrom(c.spec)
 		if c.fail {
 			if err == nil {
 				t.Fatalf("Expected error, was nil, for spec %s\n", c.spec)

@@ -5,9 +5,11 @@ package bitseq
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"sync"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/types"
 )
@@ -16,20 +18,23 @@ import (
 // If needed we can think of making these configurable
 const (
 	blockLen      = uint32(32)
-	blockBytes    = blockLen / 8
+	blockBytes    = uint64(blockLen / 8)
 	blockMAX      = uint32(1<<blockLen - 1)
 	blockFirstBit = uint32(1) << (blockLen - 1)
-	invalidPos    = blockMAX
+	invalidPos    = uint64(0xFFFFFFFFFFFFFFFF)
 )
 
 var (
-	errNoBitAvailable = fmt.Errorf("no bit available")
+	// ErrNoBitAvailable is returned when no more bits are available to set
+	ErrNoBitAvailable = fmt.Errorf("no bit available")
+	// ErrBitAllocated is returned when the specific bit requested is already set
+	ErrBitAllocated = fmt.Errorf("requested bit is already allocated")
 )
 
 // Handle contains the sequece representing the bitmask and its identifier
 type Handle struct {
-	bits       uint32
-	unselected uint32
+	bits       uint64
+	unselected uint64
 	head       *sequence
 	app        string
 	id         string
@@ -40,7 +45,7 @@ type Handle struct {
 }
 
 // NewHandle returns a thread-safe instance of the bitmask handler
-func NewHandle(app string, ds datastore.DataStore, id string, numElements uint32) (*Handle, error) {
+func NewHandle(app string, ds datastore.DataStore, id string, numElements uint64) (*Handle, error) {
 	h := &Handle{
 		app:        app,
 		id:         id,
@@ -57,12 +62,16 @@ func NewHandle(app string, ds datastore.DataStore, id string, numElements uint32
 		return h, nil
 	}
 
-	// Register for status changes
-	h.watchForChanges()
-
 	// Get the initial status from the ds if present.
 	if err := h.store.GetObject(datastore.Key(h.Key()...), h); err != nil && err != datastore.ErrKeyNotFound {
 		return nil, err
+	}
+
+	// If the handle is not in store, write it.
+	if !h.Exists() {
+		if err := h.writeToStore(); err != nil {
+			return nil, fmt.Errorf("failed to write bitsequence to store: %v", err)
+		}
 	}
 
 	return h, nil
@@ -71,7 +80,7 @@ func NewHandle(app string, ds datastore.DataStore, id string, numElements uint32
 // sequence represents a recurring sequence of 32 bits long bitmasks
 type sequence struct {
 	block uint32    // block is a symbol representing 4 byte long allocation bitmask
-	count uint32    // number of consecutive blocks (symbols)
+	count uint64    // number of consecutive blocks (symbols)
 	next  *sequence // next sequence
 }
 
@@ -87,9 +96,9 @@ func (s *sequence) toString() string {
 }
 
 // GetAvailableBit returns the position of the first unset bit in the bitmask represented by this sequence
-func (s *sequence) getAvailableBit(from uint32) (uint32, uint32, error) {
+func (s *sequence) getAvailableBit(from uint64) (uint64, uint64, error) {
 	if s.block == blockMAX || s.count == 0 {
-		return invalidPos, invalidPos, errNoBitAvailable
+		return invalidPos, invalidPos, ErrNoBitAvailable
 	}
 	bits := from
 	bitSel := blockFirstBit >> from
@@ -140,9 +149,9 @@ func (s *sequence) toByteArray() ([]byte, error) {
 
 	p := s
 	for p != nil {
-		b := make([]byte, 8)
+		b := make([]byte, 12)
 		binary.BigEndian.PutUint32(b[0:], p.block)
-		binary.BigEndian.PutUint32(b[4:], p.count)
+		binary.BigEndian.PutUint64(b[4:], p.count)
 		bb = append(bb, b...)
 		p = p.next
 	}
@@ -153,16 +162,16 @@ func (s *sequence) toByteArray() ([]byte, error) {
 // fromByteArray construct the sequence from the byte array
 func (s *sequence) fromByteArray(data []byte) error {
 	l := len(data)
-	if l%8 != 0 {
-		return fmt.Errorf("cannot deserialize byte sequence of lenght %d (%v)", l, data)
+	if l%12 != 0 {
+		return fmt.Errorf("cannot deserialize byte sequence of length %d (%v)", l, data)
 	}
 
 	p := s
 	i := 0
 	for {
 		p.block = binary.BigEndian.Uint32(data[i : i+4])
-		p.count = binary.BigEndian.Uint32(data[i+4 : i+8])
-		i += 8
+		p.count = binary.BigEndian.Uint64(data[i+4 : i+12])
+		i += 12
 		if i == l {
 			break
 		}
@@ -187,26 +196,26 @@ func (h *Handle) getCopy() *Handle {
 }
 
 // SetAnyInRange atomically sets the first unset bit in the specified range in the sequence and returns the corresponding ordinal
-func (h *Handle) SetAnyInRange(start, end uint32) (uint32, error) {
+func (h *Handle) SetAnyInRange(start, end uint64) (uint64, error) {
 	if end-start <= 0 || end >= h.bits {
 		return invalidPos, fmt.Errorf("invalid bit range [%d, %d]", start, end)
 	}
 	if h.Unselected() == 0 {
-		return invalidPos, errNoBitAvailable
+		return invalidPos, ErrNoBitAvailable
 	}
 	return h.set(0, start, end, true, false)
 }
 
 // SetAny atomically sets the first unset bit in the sequence and returns the corresponding ordinal
-func (h *Handle) SetAny() (uint32, error) {
+func (h *Handle) SetAny() (uint64, error) {
 	if h.Unselected() == 0 {
-		return invalidPos, errNoBitAvailable
+		return invalidPos, ErrNoBitAvailable
 	}
 	return h.set(0, 0, h.bits-1, true, false)
 }
 
 // Set atomically sets the corresponding bit in the sequence
-func (h *Handle) Set(ordinal uint32) error {
+func (h *Handle) Set(ordinal uint64) error {
 	if err := h.validateOrdinal(ordinal); err != nil {
 		return err
 	}
@@ -215,7 +224,7 @@ func (h *Handle) Set(ordinal uint32) error {
 }
 
 // Unset atomically unsets the corresponding bit in the sequence
-func (h *Handle) Unset(ordinal uint32) error {
+func (h *Handle) Unset(ordinal uint64) error {
 	if err := h.validateOrdinal(ordinal); err != nil {
 		return err
 	}
@@ -225,7 +234,7 @@ func (h *Handle) Unset(ordinal uint32) error {
 
 // IsSet atomically checks if the ordinal bit is set. In case ordinal
 // is outside of the bit sequence limits, false is returned.
-func (h *Handle) IsSet(ordinal uint32) bool {
+func (h *Handle) IsSet(ordinal uint64) bool {
 	if err := h.validateOrdinal(ordinal); err != nil {
 		return false
 	}
@@ -235,16 +244,78 @@ func (h *Handle) IsSet(ordinal uint32) bool {
 	return err != nil
 }
 
+func (h *Handle) runConsistencyCheck() bool {
+	corrupted := false
+	for p, c := h.head, h.head.next; c != nil; c = c.next {
+		if c.count == 0 {
+			corrupted = true
+			p.next = c.next
+			continue // keep same p
+		}
+		p = c
+	}
+	return corrupted
+}
+
+// CheckConsistency checks if the bit sequence is in an inconsistent state and attempts to fix it.
+// It looks for a corruption signature that may happen in docker 1.9.0 and 1.9.1.
+func (h *Handle) CheckConsistency() error {
+	for {
+		h.Lock()
+		store := h.store
+		h.Unlock()
+
+		if store != nil {
+			if err := store.GetObject(datastore.Key(h.Key()...), h); err != nil && err != datastore.ErrKeyNotFound {
+				return err
+			}
+		}
+
+		h.Lock()
+		nh := h.getCopy()
+		h.Unlock()
+
+		if !nh.runConsistencyCheck() {
+			return nil
+		}
+
+		if err := nh.writeToStore(); err != nil {
+			if _, ok := err.(types.RetryError); !ok {
+				return fmt.Errorf("internal failure while fixing inconsistent bitsequence: %v", err)
+			}
+			continue
+		}
+
+		log.Infof("Fixed inconsistent bit sequence in datastore:\n%s\n%s", h, nh)
+
+		h.Lock()
+		h.head = nh.head
+		h.Unlock()
+
+		return nil
+	}
+}
+
 // set/reset the bit
-func (h *Handle) set(ordinal, start, end uint32, any bool, release bool) (uint32, error) {
+func (h *Handle) set(ordinal, start, end uint64, any bool, release bool) (uint64, error) {
 	var (
-		bitPos  uint32
-		bytePos uint32
-		ret     uint32
+		bitPos  uint64
+		bytePos uint64
+		ret     uint64
 		err     error
 	)
 
 	for {
+		var store datastore.DataStore
+		h.Lock()
+		store = h.store
+		h.Unlock()
+		if store != nil {
+			if err := store.GetObject(datastore.Key(h.Key()...), h); err != nil && err != datastore.ErrKeyNotFound {
+				return ret, err
+			}
+		}
+
 		h.Lock()
 		// Get position if available
 		if release {
@@ -254,7 +325,7 @@ func (h *Handle) set(ordinal, start, end uint32, any bool, release bool) (uint32
 				bytePos, bitPos, err = getFirstAvailable(h.head, start)
 				ret = posToOrdinal(bytePos, bitPos)
 				if end < ret {
-					err = errNoBitAvailable
+					err = ErrNoBitAvailable
 				}
 			} else {
 				bytePos, bitPos, err = checkIfAvailable(h.head, ordinal)
@@ -298,7 +369,9 @@ func (h *Handle) set(ordinal, start, end uint32, any bool, release bool) (uint32
 }
 
 // checks is needed because to cover the case where the number of bits is not a multiple of blockLen
-func (h *Handle) validateOrdinal(ordinal uint32) error {
+func (h *Handle) validateOrdinal(ordinal uint64) error {
+	h.Lock()
+	defer h.Unlock()
 	if ordinal >= h.bits {
 		return fmt.Errorf("bit does not belong to the sequence")
 	}
@@ -306,8 +379,23 @@ func (h *Handle) validateOrdinal(ordinal uint32) error {
 }
 
 // Destroy removes from the datastore the data belonging to this handle
-func (h *Handle) Destroy() {
-	h.deleteFromStore()
+func (h *Handle) Destroy() error {
+	for {
+		if err := h.deleteFromStore(); err != nil {
+			if _, ok := err.(types.RetryError); !ok {
+				return fmt.Errorf("internal failure while destroying the sequence: %v", err)
+			}
+			// Fetch latest
+			if err := h.store.GetObject(datastore.Key(h.Key()...), h); err != nil {
+				if err == datastore.ErrKeyNotFound { // already removed
+					return nil
+				}
+				return fmt.Errorf("failed to fetch from store when destroying the sequence: %v", err)
+			}
+			continue
+		}
+		return nil
+	}
 }
 
 // ToByteArray converts this handle's data into a byte array
@@ -315,9 +403,9 @@ func (h *Handle) ToByteArray() ([]byte, error) {
 
 	h.Lock()
 	defer h.Unlock()
-	ba := make([]byte, 8)
-	binary.BigEndian.PutUint32(ba[0:], h.bits)
-	binary.BigEndian.PutUint32(ba[4:], h.unselected)
+	ba := make([]byte, 16)
+	binary.BigEndian.PutUint64(ba[0:], h.bits)
+	binary.BigEndian.PutUint64(ba[8:], h.unselected)
 	bm, err := h.head.toByteArray()
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize head: %s", err.Error())
@@ -334,27 +422,27 @@ func (h *Handle) FromByteArray(ba []byte) error {
 	}
 
 	nh := &sequence{}
-	err := nh.fromByteArray(ba[8:])
+	err := nh.fromByteArray(ba[16:])
 	if err != nil {
 		return fmt.Errorf("failed to deserialize head: %s", err.Error())
 	}
 
 	h.Lock()
 	h.head = nh
-	h.bits = binary.BigEndian.Uint32(ba[0:4])
-	h.unselected = binary.BigEndian.Uint32(ba[4:8])
+	h.bits = binary.BigEndian.Uint64(ba[0:8])
+	h.unselected = binary.BigEndian.Uint64(ba[8:16])
 	h.Unlock()
 
 	return nil
 }
 
 // Bits returns the length of the bit sequence
-func (h *Handle) Bits() uint32 {
+func (h *Handle) Bits() uint64 {
 	return h.bits
 }
 
 // Unselected returns the number of bits which are not selected
-func (h *Handle) Unselected() uint32 {
+func (h *Handle) Unselected() uint64 {
 	h.Lock()
 	defer h.Unlock()
 	return h.unselected
@@ -367,8 +455,40 @@ func (h *Handle) String() string {
 		h.app, h.id, h.dbIndex, h.bits, h.unselected, h.head.toString())
 }
 
+// MarshalJSON encodes Handle into json message
+func (h *Handle) MarshalJSON() ([]byte, error) {
+	m := map[string]interface{}{
+		"id": h.id,
+	}
+
+	b, err := h.ToByteArray()
+	if err != nil {
+		return nil, err
+	}
+	m["sequence"] = b
+	return json.Marshal(m)
+}
+
+// UnmarshalJSON decodes json message into Handle
+func (h *Handle) UnmarshalJSON(data []byte) error {
+	var (
+		m   map[string]interface{}
+		b   []byte
+		err error
+	)
+	if err = json.Unmarshal(data, &m); err != nil {
+		return err
+	}
+	h.id = m["id"].(string)
+	bi, _ := json.Marshal(m["sequence"])
+	if err := json.Unmarshal(bi, &b); err != nil {
+		return err
+	}
+	return h.FromByteArray(b)
+}
+
 // getFirstAvailable looks for the first unset bit in passed mask starting from start
-func getFirstAvailable(head *sequence, start uint32) (uint32, uint32, error) {
+func getFirstAvailable(head *sequence, start uint64) (uint64, uint64, error) {
 	// Find sequence which contains the start bit
 	byteStart, bitStart := ordinalToPos(start)
 	current, _, _, inBlockBytePos := findSequence(head, byteStart)
@@ -387,12 +507,12 @@ func getFirstAvailable(head *sequence, start uint32) (uint32, uint32, error) {
 		byteOffset += current.count * blockBytes
 		current = current.next
 	}
-	return invalidPos, invalidPos, errNoBitAvailable
+	return invalidPos, invalidPos, ErrNoBitAvailable
 }
 
 // checkIfAvailable checks if the bit correspondent to the specified ordinal is unset
 // If the ordinal is beyond the sequence limits, a negative response is returned
-func checkIfAvailable(head *sequence, ordinal uint32) (uint32, uint32, error) {
+func checkIfAvailable(head *sequence, ordinal uint64) (uint64, uint64, error) {
 	bytePos, bitPos := ordinalToPos(ordinal)
 
 	// Find the sequence containing this byte
@@ -405,14 +525,14 @@ func checkIfAvailable(head *sequence, ordinal uint32) (uint32, uint32, error) {
 		}
 	}
 
-	return invalidPos, invalidPos, fmt.Errorf("requested bit is not available")
+	return invalidPos, invalidPos, ErrBitAllocated
 }
 
 // Given the byte position and the sequences list head, return the pointer to the
 // sequence containing the byte (current), the pointer to the previous sequence,
 // the number of blocks preceding the block containing the byte inside the current sequence.
 // If bytePos is outside of the list, function will return (nil, nil, 0, invalidPos)
-func findSequence(head *sequence, bytePos uint32) (*sequence, *sequence, uint32, uint32) {
+func findSequence(head *sequence, bytePos uint64) (*sequence, *sequence, uint64, uint64) {
 	// Find the sequence containing this byte
 	previous := head
 	current := head
@@ -453,7 +573,7 @@ func findSequence(head *sequence, bytePos uint32) (*sequence, *sequence, uint32,
 // A) block is first in current:         [prev seq] [new] [modified current seq] [next seq]
 // B) block is last in current:          [prev seq] [modified current seq] [new] [next seq]
 // C) block is in the middle of current: [prev seq] [curr pre] [new] [curr post] [next seq]
-func pushReservation(bytePos, bitPos uint32, head *sequence, release bool) *sequence {
+func pushReservation(bytePos, bitPos uint64, head *sequence, release bool) *sequence {
 	// Store list's head
 	newHead := head
 
@@ -494,7 +614,7 @@ func pushReservation(bytePos, bitPos uint32, head *sequence, release bool) *sequ
 		}
 		removeCurrentIfEmpty(&newHead, newSequence, current)
 		mergeSequences(previous)
-	} else if precBlocks == current.count-2 { // Last in sequence (B)
+	} else if precBlocks == current.count { // Last in sequence (B)
 		newSequence.next = current.next
 		current.next = newSequence
 		mergeSequences(current)
@@ -541,18 +661,18 @@ func mergeSequences(seq *sequence) {
 	}
 }
 
-func getNumBlocks(numBits uint32) uint32 {
-	numBlocks := numBits / blockLen
-	if numBits%blockLen != 0 {
+func getNumBlocks(numBits uint64) uint64 {
+	numBlocks := numBits / uint64(blockLen)
+	if numBits%uint64(blockLen) != 0 {
 		numBlocks++
 	}
 	return numBlocks
 }
 
-func ordinalToPos(ordinal uint32) (uint32, uint32) {
+func ordinalToPos(ordinal uint64) (uint64, uint64) {
 	return ordinal / 8, ordinal % 8
 }
 
-func posToOrdinal(bytePos, bitPos uint32) uint32 {
+func posToOrdinal(bytePos, bitPos uint64) uint64 {
 	return bytePos*8 + bitPos
 }

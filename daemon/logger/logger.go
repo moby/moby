@@ -9,9 +9,11 @@ package logger
 
 import (
 	"errors"
+	"sort"
+	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/timeutils"
+	"github.com/docker/docker/pkg/jsonlog"
 )
 
 // ErrReadLogsNotSupported is returned when the logger does not support reading logs.
@@ -19,16 +21,40 @@ var ErrReadLogsNotSupported = errors.New("configured logging reader does not sup
 
 const (
 	// TimeFormat is the time format used for timestamps sent to log readers.
-	TimeFormat           = timeutils.RFC3339NanoFixed
+	TimeFormat           = jsonlog.RFC3339NanoFixed
 	logWatcherBufferSize = 4096
 )
 
 // Message is datastructure that represents record from some container.
 type Message struct {
-	ContainerID string
-	Line        []byte
-	Source      string
-	Timestamp   time.Time
+	Line      []byte
+	Source    string
+	Timestamp time.Time
+	Attrs     LogAttributes
+}
+
+// LogAttributes is used to hold the extra attributes available in the log message
+// Primarily used for converting the map type to string and sorting.
+type LogAttributes map[string]string
+type byKey []string
+
+func (s byKey) Len() int { return len(s) }
+func (s byKey) Less(i, j int) bool {
+	keyI := strings.Split(s[i], "=")
+	keyJ := strings.Split(s[j], "=")
+	return keyI[0] < keyJ[0]
+}
+func (s byKey) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (a LogAttributes) String() string {
+	var ss byKey
+	for k, v := range a {
+		ss = append(ss, k+"="+v)
+	}
+	sort.Sort(ss)
+	return strings.Join(ss, ",")
 }
 
 // Logger is the interface for docker logging drivers.

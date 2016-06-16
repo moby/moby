@@ -4,15 +4,12 @@ title = "Installation on Mac OS X"
 description = "Instructions for installing Docker on OS X using boot2docker."
 keywords = ["Docker, Docker documentation, requirements, boot2docker, VirtualBox, SSH, Linux, OSX, OS X,  Mac"]
 [menu.main]
-parent = "smn_engine"
+parent = "engine_install"
+weight="-90"
 +++
 <![end-metadata]-->
 
 # Mac OS X
-
-> **Note**: This release of Docker deprecates the Boot2Docker command line in
-> favor of Docker Machine.  Use the Docker Toolbox to install Docker Machine as
-> well as the other Docker tools.
 
 You install Docker using Docker Toolbox. Docker Toolbox includes the following Docker tools:
 
@@ -44,14 +41,14 @@ containers run directly on your localhost. This means you can address ports on a
 Docker container using standard localhost addressing such as `localhost:8000` or
 `0.0.0.0:8376`.
 
-![Linux Architecture Diagram](/installation/images/linux_docker_host.svg)
+![Linux Architecture Diagram](images/linux_docker_host.svg)
 
 In an OS X installation, the `docker` daemon is running inside a Linux VM called
 `default`. The `default` is a lightweight Linux VM made specifically to run
 the Docker daemon on Mac OS X. The VM runs completely from RAM, is a small ~24MB
 download, and boots in approximately 5s.
 
-![OSX Architecture Diagram](/installation/images/mac_docker_host.svg)
+![OSX Architecture Diagram](images/mac_docker_host.svg)
 
 In OS X, the Docker host address is the address of the Linux VM. When you start
 the VM with `docker-machine` it is assigned an IP address. When you start a
@@ -66,21 +63,21 @@ installer.
 
 1. Go to the [Docker Toolbox](https://www.docker.com/toolbox) page.
 
-2. Click the installer link to download.
+2. Click the Download link.
 
 3. Install Docker Toolbox by double-clicking the package or by right-clicking
 and choosing "Open" from the pop-up menu.
 
     The installer launches the "Install Docker Toolbox" dialog.
 
-    ![Install Docker Toolbox](/installation/images/mac-welcome-page.png)
+    ![Install Docker Toolbox](images/mac-welcome-page.png)
 
 4. Press "Continue" to install the toolbox.
 
     The installer presents you with options to customize the standard
     installation.
 
-    ![Standard install](/installation/images/mac-page-two.png)
+    ![Standard install](images/mac-page-two.png)
 
     By default, the standard Docker Toolbox installation:
 
@@ -88,34 +85,33 @@ and choosing "Open" from the pop-up menu.
     * makes these binaries available to all users
     * installs VirtualBox; or updates any existing installation
 
-    Change these defaults by pressing "Customize" or "Change
+    To change these defaults, press "Customize" or "Change
     Install Location."
 
 5. Press "Install" to perform the standard installation.
 
      The system prompts you for your password.
 
-     ![Password prompt](/installation/images/mac-password-prompt.png)
+     ![Password prompt](images/mac-password-prompt.png)
 
 6. Provide your password to continue with the installation.
 
      When it completes, the installer provides you with some information you can
      use to complete some common tasks.
 
-     ![All finished](/installation/images/mac-page-finished.png)
+     ![All finished](images/mac-page-finished.png)
 
 7. Press "Close" to exit.
-
 
 ## Running a Docker Container
 
 To run a Docker container, you:
 
-* create a new (or start an existing) Docker virtual machine
-* switch your environment to your new VM
-* use the `docker` client to create, load, and manage containers
+* Create a new (or start an existing) virtual machine
+* Switch your environment to your new VM
+* Use the `docker` client to create, load, and manage containers
 
-Once you create a machine, you can reuse it as often as you like. Like any
+You can reuse this virtual machine as often as you like. Like any
 VirtualBox VM, it maintains its configuration between uses.
 
 There are two ways to use the installed tools, from the Docker Quickstart Terminal or
@@ -129,13 +125,13 @@ There are two ways to use the installed tools, from the Docker Quickstart Termin
 
     The application:
 
-    * opens a terminal window
-    * creates a `default` VM if it doesn't exists, and starts the VM after
-    * points the terminal environment to this VM
+    * Opens a terminal window
+    * Creates a `default` VM if it doesn't exists, and starts the VM after
+    * Points the terminal environment to this VM
 
     Once the launch completes, the Docker Quickstart Terminal reports:
 
-     ![All finished](/installation/images/mac-success.png)
+     ![All finished](images/mac-success.png)
 
     Now, you can run `docker` commands.
 
@@ -187,8 +183,6 @@ different shell such as C Shell but the commands are the same.
 
     This creates a new `default` VM in VirtualBox.
 
-    ![default](/installation/images/default.png)
-
     The command also creates a machine configuration in the
     `~/.docker/machine/machines/default` directory. You only need to run the
     `create` command once. Then, you can use `docker-machine` to start, stop,
@@ -222,7 +216,6 @@ different shell such as C Shell but the commands are the same.
 5. Run the `hello-world` container to verify your setup.
 
         $ docker run hello-world
-
 
 ## Learn about your Toolbox installation
 
@@ -272,7 +265,7 @@ and what it does:
 | upgrade        | upgrade          | Upgrades a machine's Docker client to the latest stable release. |
 
 
-## Example of Docker on Mac OS X
+## Examples on Mac OS X
 
 Work through this section to try some practical container tasks on a VM. At this
 point, you should have a VM running and be connected to it through your shell.
@@ -313,11 +306,10 @@ The `ACTIVE` machine, in this case `default`, is the one your environment is poi
 
 4. Enter the `http://localhost:49157` address (`localhost` is `0.0.0.0`) in your browser:
 
-    ![Bad Address](/installation/images/bad_host.png)
+    ![Bad Address](images/bad_host.png)
 
     This didn't work. The reason it doesn't work is your `DOCKER_HOST` address is
-    not the localhost address (0.0.0.0) but is instead the address of the
-    your Docker VM.
+    not the localhost address (0.0.0.0) but is instead the address of your Docker VM.
 
 5. Get the address of the `default` VM.
 
@@ -326,7 +318,7 @@ The `ACTIVE` machine, in this case `default`, is the one your environment is poi
 
 6. Enter the `http://192.168.59.103:49157` address in your browser:
 
-    ![Correct Addressing](/installation/images/good_host.png)
+    ![Correct Addressing](images/good_host.png)
 
     Success!
 
@@ -362,7 +354,7 @@ The next exercise demonstrates how to do this.
         $ docker run -d -P -v $HOME/site:/usr/share/nginx/html \
           --name mysite nginx
 
-6. Get the `mysite` container's port.
+6. View the `mysite` container's port.
 
         $ docker port mysite
         80/tcp -> 0.0.0.0:49166
@@ -370,25 +362,29 @@ The next exercise demonstrates how to do this.
 
 7. Open the site in a browser:
 
-    ![My site page](/installation/images/newsite_view.png)
+    ![My site page](images/newsite_view.png)
 
-8. Try adding a page to your `$HOME/site` in real time.
+8. Add a page to your `$HOME/site` in real time.
 
         $ echo "This is cool" > cool.html
 
 9. Open the new page in the browser.
 
-    ![Cool page](/installation/images/cool_view.png)
+    ![Cool page](images/cool_view.png)
 
 10. Stop and then remove your running `mysite` container.
 
         $ docker stop mysite
         $ docker rm mysite
 
+> **Note**: There is a [known
+> issue](https://docs.docker.com/machine/drivers/virtualbox/#known-issues) that
+> may cause files shared with your nginx container to not update correctly as you
+> modify them on your host.
 
 ## Upgrade Docker Toolbox
 
-To upgrade Docker Toolbox, download an re-run [the Docker Toolbox
+To upgrade Docker Toolbox, download and re-run the [Docker Toolbox
 installer](https://docker.com/toolbox/).
 
 
@@ -424,9 +420,9 @@ To uninstall, do the following:
 ## Learning more
 
 Use `docker-machine help` to list the full command line reference for Docker Machine. For more
-information about using SSH or SCP to access a VM, see [the Docker Machine
+information about using SSH or SCP to access a VM, see the [Docker Machine
 documentation](https://docs.docker.com/machine/).
 
-You can continue with the [Docker User Guide](/userguide). If you are
+You can continue with the [Docker Engine User Guide](../userguide/index.md). If you are
 interested in using the Kitematic GUI, see the [Kitematic user
-guide](/kitematic/userguide/).
+guide](https://docs.docker.com/kitematic/userguide/).

@@ -14,21 +14,21 @@ parent = "smn_cli"
 
     Attach to a running container
 
-      --help=false        Print usage
-      --no-stdin=false    Do not attach STDIN
-      --sig-proxy=true    Proxy all received signals to the process
+      --detach-keys="<sequence>"       Set up escape key sequence
+      --help                           Print usage
+      --no-stdin                       Do not attach STDIN
+      --sig-proxy=true                 Proxy all received signals to the process
 
 The `docker attach` command allows you to attach to a running container using
 the container's ID or name, either to view its ongoing output or to control it
 interactively. You can attach to the same contained process multiple times
 simultaneously, screen sharing style, or quickly view the progress of your
-daemonized process.
+detached  process.
 
-You can detach from the container and leave it running with `CTRL-p CTRL-q`
-(for a quiet exit) or with `CTRL-c` if `--sig-proxy` is false.
-
-If `--sig-proxy` is true (the default),`CTRL-c` sends a `SIGINT` to the
-container.
+To stop a container, use `CTRL-c`. This key sequence sends `SIGKILL` to the
+container. If `--sig-proxy` is true (the default),`CTRL-c` sends a `SIGINT` to
+the container. You can detach from a container and leave it running using the
+ `CTRL-p CTRL-q` key sequence.
 
 > **Note:**
 > A process running as PID 1 inside a container is treated specially by
@@ -38,6 +38,40 @@ container.
 
 It is forbidden to redirect the standard input of a `docker attach` command
 while attaching to a tty-enabled container (i.e.: launched with `-t`).
+
+While a client is connected to container's stdio using `docker attach`, Docker 
+uses a ~1MB memory buffer to maximize the throughput of the application. If 
+this buffer is filled, the speed of the API connection will start to have an 
+effect on the process output writing speed. This is similar to other 
+applications like SSH. Because of this, it is not recommended to run 
+performance critical applications that generate a lot of output in the 
+foreground over a slow client connection. Instead, users should use the 
+`docker logs` command to get access to the logs.
+
+
+## Override the detach sequence
+
+If you want, you can configure an override the Docker key sequence for detach.
+This is useful if the Docker default sequence conflicts with key sequence you
+use for other applications. There are two ways to define your own detach key
+sequence, as a per-container override or as a configuration property on  your
+entire configuration.
+
+To override the sequence for an individual container, use the
+`--detach-keys="<sequence>"` flag with the `docker attach` command. The format of
+the `<sequence>` is either a letter [a-Z], or the `ctrl-` combined with any of
+the following:
+
+* `a-z` (a single lowercase alpha character )
+* `@` (at sign)
+* `[` (left bracket)
+* `\\` (two backward slashes)
+*  `_` (underscore)
+* `^` (caret)
+
+These `a`, `ctrl-a`, `X`, or `ctrl-\\` values are all examples of valid key
+sequences. To configure a different configuration default key sequence for all
+containers, see [**Configuration file** section](cli.md#configuration-files).
 
 #### Examples
 

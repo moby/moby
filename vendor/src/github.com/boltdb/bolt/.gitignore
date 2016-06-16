@@ -1,3 +1,4 @@
 *.prof
 *.test
+*.swp
 /bin/

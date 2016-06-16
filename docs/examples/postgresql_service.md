@@ -4,14 +4,15 @@ title = "Dockerizing PostgreSQL"
 description = "Running and installing a PostgreSQL service"
 keywords = ["docker, example, package installation,  postgresql"]
 [menu.main]
-parent = "smn_applied"
+parent = "engine_dockerize"
 +++
 <![end-metadata]-->
 
 # Dockerizing PostgreSQL
 
-> **Note**: **If you don't like sudo** then see [*Giving non-root
-> access*](/installation/binaries/#giving-non-root-access)
+> **Note**:
+> - **If you don't like sudo** then see [*Giving non-root
+>   access*](../installation/binaries.md#giving-non-root-access)
 
 ## Installing PostgreSQL on Docker
 
@@ -84,7 +85,7 @@ And run the PostgreSQL server container (in the foreground):
     $ docker run --rm -P --name pg_test eg_postgresql
 
 There are 2 ways to connect to the PostgreSQL server. We can use [*Link
-Containers*](/userguide/dockerlinks), or we can access it from our host
+Containers*](../userguide/networking/default_network/dockerlinks.md), or we can access it from our host
 (or the network).
 
 > **Note**:

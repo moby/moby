@@ -9,7 +9,7 @@ package archive
 const WhiteoutPrefix = ".wh."
 
 // WhiteoutMetaPrefix prefix means whiteout has a special meaning and is not
-// for remoing an actaul file. Normally these files are excluded from exported
+// for removing an actual file. Normally these files are excluded from exported
 // archives.
 const WhiteoutMetaPrefix = WhiteoutPrefix + WhiteoutPrefix
 

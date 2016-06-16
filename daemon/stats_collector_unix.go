@@ -1,9 +1,10 @@
-// +build !windows
+// +build !windows,!solaris
 
 package daemon
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -11,23 +12,35 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/daemon/execdriver"
-	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/pubsub"
+	sysinfo "github.com/docker/docker/pkg/system"
+	"github.com/docker/engine-api/types"
 	"github.com/opencontainers/runc/libcontainer/system"
 )
+
+type statsSupervisor interface {
+	// GetContainerStats collects all the stats related to a container
+	GetContainerStats(container *container.Container) (*types.StatsJSON, error)
+}
 
 // newStatsCollector returns a new statsCollector that collections
 // network and cgroup stats for a registered container at the specified
 // interval.  The collector allows non-running containers to be added
 // and will start processing stats when they are started.
-func newStatsCollector(interval time.Duration) *statsCollector {
+func (daemon *Daemon) newStatsCollector(interval time.Duration) *statsCollector {
 	s := &statsCollector{
 		interval:            interval,
-		publishers:          make(map[*Container]*pubsub.Publisher),
+		supervisor:          daemon,
+		publishers:          make(map[*container.Container]*pubsub.Publisher),
 		clockTicksPerSecond: uint64(system.GetClockTicks()),
 		bufReader:           bufio.NewReaderSize(nil, 128),
 	}
+	meminfo, err := sysinfo.ReadMemInfo()
+	if err == nil && meminfo.MemTotal > 0 {
+		s.machineMemory = uint64(meminfo.MemTotal)
+	}
+
 	go s.run()
 	return s
 }
@@ -35,16 +48,18 @@ func newStatsCollector(interval time.Duration) *statsCollector {
 // statsCollector manages and provides container resource stats
 type statsCollector struct {
 	m                   sync.Mutex
+	supervisor          statsSupervisor
 	interval            time.Duration
 	clockTicksPerSecond uint64
-	publishers          map[*Container]*pubsub.Publisher
+	publishers          map[*container.Container]*pubsub.Publisher
 	bufReader           *bufio.Reader
+	machineMemory       uint64
 }
 
 // collect registers the container with the collector and adds it to
 // the event loop for collection on the specified interval returning
 // a channel for the subscriber to receive on.
-func (s *statsCollector) collect(c *Container) chan interface{} {
+func (s *statsCollector) collect(c *container.Container) chan interface{} {
 	s.m.Lock()
 	defer s.m.Unlock()
 	publisher, exists := s.publishers[c]
@@ -57,7 +72,7 @@ func (s *statsCollector) collect(c *Container) chan interface{} {
 
 // stopCollection closes the channels for all subscribers and removes
 // the container from metrics collection.
-func (s *statsCollector) stopCollection(c *Container) {
+func (s *statsCollector) stopCollection(c *container.Container) {
 	s.m.Lock()
 	if publisher, exists := s.publishers[c]; exists {
 		publisher.Close()
@@ -67,7 +82,7 @@ func (s *statsCollector) stopCollection(c *Container) {
 }
 
 // unsubscribe removes a specific subscriber from receiving updates for a container's stats.
-func (s *statsCollector) unsubscribe(c *Container, ch chan interface{}) {
+func (s *statsCollector) unsubscribe(c *container.Container, ch chan interface{}) {
 	s.m.Lock()
 	publisher := s.publishers[c]
 	if publisher != nil {
@@ -81,7 +96,7 @@ func (s *statsCollector) unsubscribe(c *Container, ch chan interface{}) {
 
 func (s *statsCollector) run() {
 	type publishersPair struct {
-		container *Container
+		container *container.Container
 		publisher *pubsub.Publisher
 	}
 	// we cannot determine the capacity here.
@@ -110,15 +125,17 @@ func (s *statsCollector) run() {
 		}
 
 		for _, pair := range pairs {
-			stats, err := pair.container.stats()
+			stats, err := s.supervisor.GetContainerStats(pair.container)
 			if err != nil {
-				if err != execdriver.ErrNotRunning {
+				if _, ok := err.(errNotRunning); !ok {
 					logrus.Errorf("collecting stats for %s: %v", pair.container.ID, err)
 				}
 				continue
 			}
-			stats.SystemUsage = systemUsage
-			pair.publisher.Publish(stats)
+			// FIXME: move to containerd
+			stats.CPUStats.SystemUsage = systemUsage
+
+			pair.publisher.Publish(*stats)
 		}
 	}
 }
@@ -154,13 +171,13 @@ func (s *statsCollector) getSystemCPUUsage() (uint64, error) {
 		switch parts[0] {
 		case "cpu":
 			if len(parts) < 8 {
-				return 0, derr.ErrorCodeBadCPUFields
+				return 0, fmt.Errorf("invalid number of cpu fields")
 			}
 			var totalClockTicks uint64
 			for _, i := range parts[1:8] {
 				v, err := strconv.ParseUint(i, 10, 64)
 				if err != nil {
-					return 0, derr.ErrorCodeBadCPUInt.WithArgs(i, err)
+					return 0, fmt.Errorf("Unable to convert value %s to int: %s", i, err)
 				}
 				totalClockTicks += v
 			}
@@ -168,5 +185,5 @@ func (s *statsCollector) getSystemCPUUsage() (uint64, error) {
 				s.clockTicksPerSecond, nil
 		}
 	}
-	return 0, derr.ErrorCodeBadStatFormat
+	return 0, fmt.Errorf("invalid stat format. Error trying to parse the '/proc/stat' file")
 }

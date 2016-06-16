@@ -7,4 +7,10 @@ const (
 	isUnixCli = true
 
 	expectedFileChmod = "-rw-r--r--"
+
+	// On Unix variants, the busybox image comes with the `top` command which
+	// runs indefinitely while still being interruptible by a signal.
+	defaultSleepImage = "busybox"
 )
+
+var defaultSleepCommand = []string{"top"}

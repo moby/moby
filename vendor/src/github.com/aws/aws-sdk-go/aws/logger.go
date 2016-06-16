@@ -62,12 +62,35 @@ const (
 	// see the body content of requests and responses made while using the SDK
 	// Will also enable LogDebug.
 	LogDebugWithHTTPBody
+
+	// LogDebugWithRequestRetries states the SDK should log when service requests will
+	// be retried. This should be used to log when you want to log when service
+	// requests are being retried. Will also enable LogDebug.
+	LogDebugWithRequestRetries
+
+	// LogDebugWithRequestErrors states the SDK should log when service requests fail
+	// to build, send, validate, or unmarshal.
+	LogDebugWithRequestErrors
 )
 
 // A Logger is a minimalistic interface for the SDK to log messages to. Should
 // be used to provide custom logging writers for the SDK to use.
 type Logger interface {
 	Log(...interface{})
+}
+
+// A LoggerFunc is a convenience type to convert a function taking a variadic
+// list of arguments and wrap it so the Logger interface can be used.
+//
+// Example:
+//     s3.New(sess, &aws.Config{Logger: aws.LoggerFunc(func(args ...interface{}) {
+//         fmt.Fprintln(os.Stdout, args...)
+//     })})
+type LoggerFunc func(...interface{})
+
+// Log calls the wrapped function with the arguments provided
+func (f LoggerFunc) Log(args ...interface{}) {
+	f(args...)
 }
 
 // NewDefaultLogger returns a Logger which will write log messages to stdout, and

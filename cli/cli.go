@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"reflect"
 	"strings"
 
 	flag "github.com/docker/docker/pkg/mflag"
@@ -21,7 +20,9 @@ type Cli struct {
 // Handler holds the different commands Cli will call
 // It should have methods with names starting with `Cmd` like:
 // 	func (h myHandler) CmdFoo(args ...string) error
-type Handler interface{}
+type Handler interface {
+	Command(name string) func(...string) error
+}
 
 // Initializer can be optionally implemented by a Handler to
 // initialize before each call to one of its commands.
@@ -38,59 +39,46 @@ func New(handlers ...Handler) *Cli {
 	return cli
 }
 
-// initErr is an error returned upon initialization of a handler implementing Initializer.
-type initErr struct{ error }
-
-func (err initErr) Error() string {
-	return err.Error()
-}
+var errCommandNotFound = errors.New("command not found")
 
 func (cli *Cli) command(args ...string) (func(...string) error, error) {
 	for _, c := range cli.handlers {
 		if c == nil {
 			continue
 		}
-		camelArgs := make([]string, len(args))
-		for i, s := range args {
-			if len(s) == 0 {
-				return nil, errors.New("empty command")
-			}
-			camelArgs[i] = strings.ToUpper(s[:1]) + strings.ToLower(s[1:])
-		}
-		methodName := "Cmd" + strings.Join(camelArgs, "")
-		method := reflect.ValueOf(c).MethodByName(methodName)
-		if method.IsValid() {
-			if c, ok := c.(Initializer); ok {
-				if err := c.Initialize(); err != nil {
-					return nil, initErr{err}
+		if cmd := c.Command(strings.Join(args, " ")); cmd != nil {
+			if ci, ok := c.(Initializer); ok {
+				if err := ci.Initialize(); err != nil {
+					return nil, err
 				}
 			}
-			return method.Interface().(func(...string) error), nil
+			return cmd, nil
 		}
 	}
-	return nil, errors.New("command not found")
+	return nil, errCommandNotFound
 }
 
 // Run executes the specified command.
 func (cli *Cli) Run(args ...string) error {
 	if len(args) > 1 {
 		command, err := cli.command(args[:2]...)
-		switch err := err.(type) {
-		case nil:
+		if err == nil {
 			return command(args[2:]...)
-		case initErr:
-			return err.error
+		}
+		if err != errCommandNotFound {
+			return err
 		}
 	}
 	if len(args) > 0 {
 		command, err := cli.command(args[0])
-		switch err := err.(type) {
-		case nil:
-			return command(args[1:]...)
-		case initErr:
-			return err.error
+		if err != nil {
+			if err == errCommandNotFound {
+				cli.noSuchCommand(args[0])
+				return nil
+			}
+			return err
 		}
-		cli.noSuchCommand(args[0])
+		return command(args[1:]...)
 	}
 	return cli.CmdHelp()
 }
@@ -103,6 +91,13 @@ func (cli *Cli) noSuchCommand(command string) {
 	os.Exit(1)
 }
 
+// Command returns a command handler, or nil if the command does not exist
+func (cli *Cli) Command(name string) func(...string) error {
+	return map[string]func(...string) error{
+		"help": cli.CmdHelp,
+	}[name]
+}
+
 // CmdHelp displays information on a Docker command.
 //
 // If more than one command is specified, information is only shown for the first command.
@@ -111,24 +106,25 @@ func (cli *Cli) noSuchCommand(command string) {
 func (cli *Cli) CmdHelp(args ...string) error {
 	if len(args) > 1 {
 		command, err := cli.command(args[:2]...)
-		switch err := err.(type) {
-		case nil:
+		if err == nil {
 			command("--help")
 			return nil
-		case initErr:
-			return err.error
+		}
+		if err != errCommandNotFound {
+			return err
 		}
 	}
 	if len(args) > 0 {
 		command, err := cli.command(args[0])
-		switch err := err.(type) {
-		case nil:
-			command("--help")
-			return nil
-		case initErr:
-			return err.error
+		if err != nil {
+			if err == errCommandNotFound {
+				cli.noSuchCommand(args[0])
+				return nil
+			}
+			return err
 		}
-		cli.noSuchCommand(args[0])
+		command("--help")
+		return nil
 	}
 
 	if cli.Usage == nil {
@@ -189,7 +185,7 @@ func Subcmd(name string, synopses []string, description string, exitOnError bool
 	return flags
 }
 
-// An StatusError reports an unsuccessful exit by a command.
+// StatusError reports an unsuccessful exit by a command.
 type StatusError struct {
 	Status     string
 	StatusCode int

@@ -2,7 +2,6 @@
 package osl
 
 import (
-	"fmt"
 	"net"
 
 	"github.com/docker/libnetwork/types"
@@ -59,9 +58,12 @@ type Sandbox interface {
 
 	// Destroy the sandbox
 	Destroy() error
+
+	// restore sandbox
+	Restore(ifsopt map[string][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error
 }
 
-// NeighborOptionSetter interfaces defines the option setter methods for interface options
+// NeighborOptionSetter interface defines the option setter methods for interface options
 type NeighborOptionSetter interface {
 	// LinkName returns an option setter to set the srcName of the link that should
 	// be used in the neighbor entry
@@ -77,11 +79,17 @@ type IfaceOptionSetter interface {
 	// Bridge returns an option setter to set if the interface is a bridge.
 	Bridge(bool) IfaceOption
 
+	// MacAddress returns an option setter to set the MAC address.
+	MacAddress(net.HardwareAddr) IfaceOption
+
 	// Address returns an option setter to set IPv4 address.
 	Address(*net.IPNet) IfaceOption
 
 	// Address returns an option setter to set IPv6 address.
 	AddressIPv6(*net.IPNet) IfaceOption
+
+	// LinkLocalAddresses returns an option setter to set the link-local IP addresses.
+	LinkLocalAddresses([]*net.IPNet) IfaceOption
 
 	// Master returns an option setter to set the master interface if any for this
 	// interface. The master interface name should refer to the srcname of a
@@ -97,8 +105,8 @@ type IfaceOptionSetter interface {
 // interfaces, routes and gateway
 type Info interface {
 	// The collection of Interface previously added with the AddInterface
-	// method. Note that this doesn't incude network interfaces added in any
-	// other way (such as the default loopback interface which are automatically
+	// method. Note that this doesn't include network interfaces added in any
+	// other way (such as the default loopback interface which is automatically
 	// created on creation of a sandbox).
 	Interfaces() []Interface
 
@@ -136,6 +144,9 @@ type Interface interface {
 	// IPv6 address for the interface.
 	AddressIPv6() *net.IPNet
 
+	// LinkLocalAddresses returns the link-local IP addresses assigned to the interface.
+	LinkLocalAddresses() []*net.IPNet
+
 	// IP routes for the interface.
 	Routes() []*net.IPNet
 
@@ -150,22 +161,5 @@ type Interface interface {
 	Remove() error
 
 	// Statistics returns the statistics for this interface
-	Statistics() (*InterfaceStatistics, error)
-}
-
-// InterfaceStatistics represents the interface's statistics
-type InterfaceStatistics struct {
-	RxBytes   uint64
-	RxPackets uint64
-	RxErrors  uint64
-	RxDropped uint64
-	TxBytes   uint64
-	TxPackets uint64
-	TxErrors  uint64
-	TxDropped uint64
-}
-
-func (is *InterfaceStatistics) String() string {
-	return fmt.Sprintf("\nRxBytes: %d, RxPackets: %d, RxErrors: %d, RxDropped: %d, TxBytes: %d, TxPackets: %d, TxErrors: %d, TxDropped: %d",
-		is.RxBytes, is.RxPackets, is.RxErrors, is.RxDropped, is.TxBytes, is.TxPackets, is.TxErrors, is.TxDropped)
+	Statistics() (*types.InterfaceStatistics, error)
 }

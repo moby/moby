@@ -39,7 +39,7 @@ func newFdPoller(fd int) (*fdPoller, error) {
 	poller.fd = fd
 
 	// Create epoll fd
-	poller.epfd, errno = syscall.EpollCreate(1)
+	poller.epfd, errno = syscall.EpollCreate1(0)
 	if poller.epfd == -1 {
 		return nil, errno
 	}

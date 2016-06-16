@@ -1,3 +1,9 @@
+<!--[metadata]>
++++
+draft = true
++++
+<![end-metadata]-->
+
 This directory holds the authoritative specifications of APIs defined and implemented by Docker. Currently this includes:
 
  * The remote API by which a docker node can be queried over HTTP

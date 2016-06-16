@@ -3,18 +3,25 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/server/httputils"
+	"github.com/docker/docker/api/server/middleware"
 
 	"golang.org/x/net/context"
 )
 
 func TestMiddlewares(t *testing.T) {
-	cfg := &Config{}
+	cfg := &Config{
+		Version: "0.1omega2",
+	}
 	srv := &Server{
 		cfg: cfg,
 	}
+
+	srv.UseMiddleware(middleware.NewVersionMiddleware("0.1omega2", api.DefaultVersion, api.MinVersion))
 
 	req, _ := http.NewRequest("GET", "/containers/json", nil)
 	resp := httptest.NewRecorder()
@@ -24,6 +31,11 @@ func TestMiddlewares(t *testing.T) {
 		if httputils.VersionFromContext(ctx) == "" {
 			t.Fatalf("Expected version, got empty string")
 		}
+
+		if sv := w.Header().Get("Server"); !strings.Contains(sv, "Docker/0.1omega2") {
+			t.Fatalf("Expected server version in the header `Docker/0.1omega2`, got %s", sv)
+		}
+
 		return nil
 	}
 

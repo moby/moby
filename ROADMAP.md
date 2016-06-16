@@ -33,97 +33,58 @@ won't be accepting pull requests adding or removing items from this file.
 
 # 1. Features and refactoring
 
-## 1.1 Security
+## 1.1 Runtime improvements
 
-Security is a top objective for the Docker Engine. The most notable items we intend to provide in
-the near future are:
+We recently introduced [`runC`](https://runc.io) as a standalone low-level tool for container
+execution. The initial goal was to integrate runC as a replacement in the Engine for the traditional
+default libcontainer `execdriver`, but the Engine internals were not ready for this.
 
-- Trusted distribution of images: the effort is driven by the [distribution](https://github.com/docker/distribution)
-group but will have significant impact on the Engine
-- [User namespaces](https://github.com/docker/docker/pull/12648)
-- [Seccomp support](https://github.com/docker/libcontainer/pull/613)
+As runC continued evolving, and the OCI specification along with it, we created
+[`containerd`](https://containerd.tools/), a daemon to control and monitor multiple `runC`. This is
+the new target for Engine integration, as it can entirely replace the whole `execdriver`
+architecture, and container monitoring along with it.
 
-## 1.2 Plumbing project
+Docker Engine will rely on a long-running `containerd` companion daemon for all container execution
+related operations. This could open the door in the future for Engine restarts without interrupting
+running containers.
 
-We define a plumbing tool as a standalone piece of software usable and meaningful on its own. In
-the current state of the Docker Engine, most subsystems provide independent functionalities (such
-the builder, pushing and pulling images, running applications in a containerized environment, etc)
-but all are coupled in a single binary.  We want to offer the users to flexibility to use only the
-pieces they need, and we will also gain in maintainability by splitting the project among multiple
-repositories.
+## 1.2 Plugins improvements
 
-As it currently stands, the rough design outlines is to have:
-- Low level plumbing tools, each dealing with one responsibility (e.g., [runC](https://runc.io))
-- Docker subsystems services, each exposing an elementary concept over an API, and relying on one or
-multiple lower level plumbing tools for their implementation (e.g., network management)
-- Docker Engine to expose higher level actions (e.g., create a container with volume `V` and network
-`N`), while still providing pass-through access to the individual subsystems.
+Docker Engine 1.7.0 introduced plugin support, initially for the use cases of volumes and networks
+extensions. The plugin infrastructure was kept minimal as we were collecting use cases and real
+world feedback before optimizing for any particular workflow.
 
-The architectural details are still being worked on, but one thing we know for sure is that we need
-to technically decouple the pieces.
+In the future, we'd like plugins to become first class citizens, and encourage an ecosystem of
+plugins. This implies in particular making it trivially easy to distribute plugins as containers
+through any Registry instance, as well as solving the commonly heard pain points of plugins needing
+to be treated as somewhat special (being active at all time, started before any other user
+containers, and not as easily dismissed).
 
-### 1.2.1 Runtime
+## 1.3 Internal decoupling
 
-A Runtime tool already exists today in the form of [runC](https://github.com/opencontainers/runc).
-We intend to modify the Engine to directly call out to a binary implementing the Open Containers
-Specification such as runC rather than relying on libcontainer to set the container runtime up.
+A lot of work has been done in trying to decouple the Docker Engine's internals. In particular, the
+API implementation has been refactored and ongoing work is happening to move the code to a separate
+repository ([`docker/engine-api`](https://github.com/docker/engine-api)), and the Builder side of
+the daemon is now [fully independent](https://github.com/docker/docker/tree/master/builder) while
+still residing in the same repository.
 
-This plan will deprecate the existing [`execdriver`](https://github.com/docker/docker/tree/master/daemon/execdriver)
-as different runtime backends will be implemented as separated binaries instead of being compiled
-into the Engine.
+We are exploring ways to go further with that decoupling, capitalizing on the work introduced by the
+runtime renovation and plugins improvement efforts. Indeed, the combination of `containerd` support
+with the concept of "special" containers opens the door for bootstrapping more Engine internals
+using the same facilities.
 
-### 1.2.2 Builder
+## 1.4 Cluster capable Engine
 
-The Builder (i.e., the ability to build an image from a Dockerfile) is already nicely decoupled,
-but would benefit from being entirely separated from the Engine, and rely on the standard Engine
-API for its operations.
+The community has been pushing for a more cluster capable Docker Engine, and a huge effort was spent
+adding features such as multihost networking, and node discovery down at the Engine level. Yet, the
+Engine is currently incapable of taking scheduling decisions alone, and continues relying on Swarm
+for that.
 
-### 1.2.3 Distribution
-
-Distribution already has a [dedicated repository](https://github.com/docker/distribution) which
-holds the implementation for Registry v2 and client libraries. We could imagine going further by
-having the Engine call out to a binary providing image distribution related functionalities.
-
-There are two short term goals related to image distribution. The first is stabilize and simplify
-the push/pull code. Following that is the conversion to the more secure Registry V2 protocol.
-
-### 1.2.4 Networking
-
-Most of networking related code was already decoupled today in [libnetwork](https://github.com/docker/libnetwork).
-As with other ingredients, we might want to take it a step further and make it a meaningful utility
-that the Engine would call out to instead of a library.
-
-## 1.3 Plugins
-
-An initiative around plugins started with Docker 1.7.0, with the goal of allowing for out of
-process extensibility of some Docker functionalities, starting with volumes and networking. The
-approach is to provide specific extension points rather than generic hooking facilities. We also
-deliberately keep the extensions API the simplest possible, expanding as we discover valid use
-cases that cannot be implemented.
-
-At the time of writing:
-
-- Plugin support is merged as an experimental feature: real world use cases and user feedback will
-help us refine the UX to make the feature more user friendly.
-- There are no immediate plans to expand on the number of pluggable subsystems.
-- Golang 1.5 might add language support for [plugins](https://docs.google.com/document/d/1nr-TQHw_er6GOQRsF6T43GGhFDelrAP0NqSS_00RgZQ)
-which we consider supporting as an alternative to JSON/HTTP.
-
-## 1.4 Volume management
-
-Volumes are not a first class citizen in the Engine today: we would like better volume management,
-similar to the way network are managed in the new [CNM](https://github.com/docker/docker/issues/9983).
-
-## 1.5 Better API implementation
-
-The current Engine API is insufficiently typed, versioned, and ultimately hard to maintain. We
-also suffer from the lack of a common implementation with [Swarm](https://github.com/docker/swarm).
-
-## 1.6 Checkpoint/restore
-
-Support for checkpoint/restore was [merged](https://github.com/docker/libcontainer/pull/479) in
-[libcontainer](https://github.com/docker/libcontainer) and made available through [runC](https://runc.io):
-we intend to take advantage of it in the Engine.
+We plan to complete this effort and make Engine fully cluster capable. Multiple instances of the
+Docker Engine being already capable of discovering each other and establish overlay networking for
+their container to communicate, the next step is for a given Engine to gain ability to dispatch work
+to another node in the cluster. This will be introduced in a backward compatible way, such that a
+`docker run` invocation on a particular node remains fully deterministic.
 
 # 2 Frozen features
 
@@ -139,45 +100,41 @@ The Dockerfile syntax as we know it is simple, and has proven successful in supp
 definitive move, we temporarily won't accept more patches to the Dockerfile syntax for several
 reasons:
 
-- Long term impact of syntax changes is a sensitive matter that require an amount of attention
-the volume of Engine codebase and activity today doesn't allow us to provide.
-- Allowing the Builder to be implemented as a separate utility consuming the Engine's API will
-open the door for many possibilities, such as offering alternate syntaxes or DSL for existing
-languages without cluttering the Engine's codebase.
-- A standalone Builder will also offer the opportunity for a better dedicated group of maintainers
-to own the Dockerfile syntax and decide collectively on the direction to give it.
-- Our experience with official images tend to show that no new instruction or syntax expansion is
-*strictly* necessary for the majority of use cases, and although we are aware many things are still
-lacking for many, we cannot make it a priority yet for the above reasons.
+  - Long term impact of syntax changes is a sensitive matter that require an amount of attention the
+    volume of Engine codebase and activity today doesn't allow us to provide.
+  - Allowing the Builder to be implemented as a separate utility consuming the Engine's API will
+    open the door for many possibilities, such as offering alternate syntaxes or DSL for existing
+    languages without cluttering the Engine's codebase.
+  - A standalone Builder will also offer the opportunity for a better dedicated group of maintainers
+    to own the Dockerfile syntax and decide collectively on the direction to give it.
+  - Our experience with official images tend to show that no new instruction or syntax expansion is
+    *strictly* necessary for the majority of use cases, and although we are aware many things are
+    still lacking for many, we cannot make it a priority yet for the above reasons.
 
 Again, this is not about saying that the Dockerfile syntax is done, it's about making choices about
 what we want to do first!
 
 ## 2.3 Remote Registry Operations
 
-A large amount of work is ongoing in the area of image distribution and
-provenance. This includes moving to the V2 Registry API and heavily
-refactoring the code that powers these features. The desired result is more
-secure, reliable and easier to use image distribution.
+A large amount of work is ongoing in the area of image distribution and provenance. This includes
+moving to the V2 Registry API and heavily refactoring the code that powers these features. The
+desired result is more secure, reliable and easier to use image distribution.
 
-Part of the problem with this part of the code base is the lack of a stable
-and flexible interface. If new features are added that access the registry
-without solidifying these interfaces, achieving feature parity will continue
-to be elusive. While we get a handle on this situation, we are imposing a
-moratorium on new code that accesses the Registry API in commands that don't
-already make remote calls.
+Part of the problem with this part of the code base is the lack of a stable and flexible interface.
+If new features are added that access the registry without solidifying these interfaces, achieving
+feature parity will continue to be elusive. While we get a handle on this situation, we are imposing
+a moratorium on new code that accesses the Registry API in commands that don't already make remote
+calls.
 
-Currently, only the following commands cause interaction with a remote
-registry:
+Currently, only the following commands cause interaction with a remote registry:
 
-- push
-- pull
-- run
-- build
-- search
-- login
+  - push
+  - pull
+  - run
+  - build
+  - search
+  - login
 
-In the interest of stabilizing the registry access model during this ongoing
-work, we are not accepting additions to other commands that will cause remote
-interaction with the Registry API. This moratorium will lift when the goals of
-the distribution project have been met.
+In the interest of stabilizing the registry access model during this ongoing work, we are not
+accepting additions to other commands that will cause remote interaction with the Registry API. This
+moratorium will lift when the goals of the distribution project have been met.

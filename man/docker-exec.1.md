@@ -6,11 +6,12 @@ docker-exec - Run a command in a running container
 
 # SYNOPSIS
 **docker exec**
-[**-d**|**--detach**[=*false*]]
+[**-d**|**--detach**]
+[**--detach-keys**[=*[]*]]
 [**--help**]
-[**-i**|**--interactive**[=*false*]]
-[**--privileged**[=*false*]]
-[**-t**|**--tty**[=*false*]]
+[**-i**|**--interactive**]
+[**--privileged**]
+[**-t**|**--tty**]
 [**-u**|**--user**[=*USER*]]
 CONTAINER COMMAND [ARG...]
 
@@ -27,6 +28,9 @@ container is unpaused, and then run
 # OPTIONS
 **-d**, **--detach**=*true*|*false*
    Detached mode: run command in the background. The default is *false*.
+
+**--detach-keys**=""
+  Override the key sequence for detaching a container. Format is a single character `[a-Z]` or `ctrl-<value>` where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 
 **--help**
   Print usage statement

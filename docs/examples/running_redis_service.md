@@ -1,10 +1,10 @@
 <!--[metadata]>
 +++
 title = "Dockerizing a Redis service"
-description = "Installing and running an redis service"
+description = "Installing and running a redis service"
 keywords = ["docker, example, package installation, networking,  redis"]
 [menu.main]
-parent = "smn_applied"
+parent = "engine_dockerize"
 +++
 <![end-metadata]-->
 

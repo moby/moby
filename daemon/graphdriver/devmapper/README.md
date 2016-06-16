@@ -9,21 +9,21 @@ daemon via the `--storage-opt dm.thinpooldev` option.
 
 As a fallback if no thin pool is provided, loopback files will be
 created.  Loopback is very slow, but can be used without any
-pre-configuration of storage.  It is strongly recommended that you do 
+pre-configuration of storage.  It is strongly recommended that you do
 not use loopback in production.  Ensure your Docker daemon has a
 `--storage-opt dm.thinpooldev` argument provided.
 
 In loopback, a thin pool is created at `/var/lib/docker/devicemapper`
-(devicemapper graph location) based on two block devices, one for 
-data and one for metadata. By default these block devices are created 
-automatically by using loopback mounts of automatically created sparse 
+(devicemapper graph location) based on two block devices, one for
+data and one for metadata. By default these block devices are created
+automatically by using loopback mounts of automatically created sparse
 files.
 
-The default loopback files used are 
-`/var/lib/docker/devicemapper/devicemapper/data` and 
-`/var/lib/docker/devicemapper/devicemapper/metadata`. Additional metadata 
-required to map from docker entities to the corresponding devicemapper 
-volumes is stored in the `/var/lib/docker/devicemapper/devicemapper/json` 
+The default loopback files used are
+`/var/lib/docker/devicemapper/devicemapper/data` and
+`/var/lib/docker/devicemapper/devicemapper/metadata`. Additional metadata
+required to map from docker entities to the corresponding devicemapper
+volumes is stored in the `/var/lib/docker/devicemapper/devicemapper/json`
 file (encoded as Json).
 
 In order to support multiple devicemapper graphs on a system, the thin
@@ -49,6 +49,7 @@ will display something like:
 	Storage Driver: devicemapper
 	 Pool Name: docker-253:1-17538953-pool
 	 Pool Blocksize: 65.54 kB
+	 Base Device Size: 107.4 GB
 	 Data file: /dev/loop4
 	 Metadata file: /dev/loop4
 	 Data Space Used: 2.536 GB
@@ -69,6 +70,7 @@ Each item in the indented section under `Storage Driver: devicemapper` are
 status information about the driver.
  *  `Pool Name` name of the devicemapper pool for this driver.
  *  `Pool Blocksize` tells the blocksize the thin pool was initialized with. This only changes on creation.
+ *  `Base Device Size` tells the maximum size of a container and image
  *  `Data file` blockdevice file used for the devicemapper data
  *  `Metadata file` blockdevice file used for the devicemapper metadata
  *  `Data Space Used` tells how much of `Data file` is currently used
@@ -90,6 +92,5 @@ This uses the `dm` prefix and would be used something like `docker daemon --stor
 
 These options are currently documented both in [the man
 page](../../../man/docker.1.md) and in [the online
-documentation](https://docs.docker.com/reference/commandline/daemon/#docker-
-execdriver-option).  If you add an options, update both the `man` page and the
-documentation.
+documentation](https://docs.docker.com/reference/commandline/daemon/#storage-driver-options).
+If you add an options, update both the `man` page and the documentation.

@@ -3,7 +3,7 @@
 package configs
 
 var (
-	// These are devices that are to be both allowed and created.
+	// DefaultSimpleDevices are devices that are to be both allowed and created.
 	DefaultSimpleDevices = []*Device{
 		// /dev/null and zero
 		{
@@ -79,20 +79,6 @@ var (
 			Path:        "/dev/console",
 			Type:        'c',
 			Major:       5,
-			Minor:       1,
-			Permissions: "rwm",
-		},
-		{
-			Path:        "/dev/tty0",
-			Type:        'c',
-			Major:       4,
-			Minor:       0,
-			Permissions: "rwm",
-		},
-		{
-			Path:        "/dev/tty1",
-			Type:        'c',
-			Major:       4,
 			Minor:       1,
 			Permissions: "rwm",
 		},

@@ -222,7 +222,7 @@ func ClearExtension(pb extendableProto, extension *ExtensionDesc) {
 }
 
 // GetExtension parses and returns the given extension of pb.
-// If the extension is not present it returns ErrMissingExtension.
+// If the extension is not present and has no default value it returns ErrMissingExtension.
 func GetExtension(pb extendableProto, extension *ExtensionDesc) (interface{}, error) {
 	if err := checkExtensionTypes(pb, extension); err != nil {
 		return nil, err
@@ -231,8 +231,11 @@ func GetExtension(pb extendableProto, extension *ExtensionDesc) (interface{}, er
 	emap := pb.ExtensionMap()
 	e, ok := emap[extension.Field]
 	if !ok {
-		return nil, ErrMissingExtension
+		// defaultExtensionValue returns the default value or
+		// ErrMissingExtension if there is no default.
+		return defaultExtensionValue(extension)
 	}
+
 	if e.value != nil {
 		// Already decoded. Check the descriptor, though.
 		if e.desc != extension {
@@ -258,12 +261,46 @@ func GetExtension(pb extendableProto, extension *ExtensionDesc) (interface{}, er
 	return e.value, nil
 }
 
+// defaultExtensionValue returns the default value for extension.
+// If no default for an extension is defined ErrMissingExtension is returned.
+func defaultExtensionValue(extension *ExtensionDesc) (interface{}, error) {
+	t := reflect.TypeOf(extension.ExtensionType)
+	props := extensionProperties(extension)
+
+	sf, _, err := fieldDefault(t, props)
+	if err != nil {
+		return nil, err
+	}
+
+	if sf == nil || sf.value == nil {
+		// There is no default value.
+		return nil, ErrMissingExtension
+	}
+
+	if t.Kind() != reflect.Ptr {
+		// We do not need to return a Ptr, we can directly return sf.value.
+		return sf.value, nil
+	}
+
+	// We need to return an interface{} that is a pointer to sf.value.
+	value := reflect.New(t).Elem()
+	value.Set(reflect.New(value.Type().Elem()))
+	if sf.kind == reflect.Int32 {
+		// We may have an int32 or an enum, but the underlying data is int32.
+		// Since we can't set an int32 into a non int32 reflect.value directly
+		// set it as a int32.
+		value.Elem().SetInt(int64(sf.value.(int32)))
+	} else {
+		value.Elem().Set(reflect.ValueOf(sf.value))
+	}
+	return value.Interface(), nil
+}
+
 // decodeExtension decodes an extension encoded in b.
 func decodeExtension(b []byte, extension *ExtensionDesc) (interface{}, error) {
 	o := NewBuffer(b)
 
 	t := reflect.TypeOf(extension.ExtensionType)
-	rep := extension.repeated()
 
 	props := extensionProperties(extension)
 
@@ -285,7 +322,7 @@ func decodeExtension(b []byte, extension *ExtensionDesc) (interface{}, error) {
 			return nil, err
 		}
 
-		if !rep || o.index >= len(o.buf) {
+		if o.index >= len(o.buf) {
 			break
 		}
 	}

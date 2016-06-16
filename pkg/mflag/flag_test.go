@@ -1,4 +1,4 @@
-// Copyright 2014-2015 The Docker & Go Authors. All rights reserved.
+// Copyright 2014-2016 The Docker & Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -512,5 +512,16 @@ func TestSortFlags(t *testing.T) {
 	}
 	if nflag != fs.NFlag() {
 		t.Fatalf("NFlag (%d) != fs.NFlag() (%d) of elements visited", nflag, fs.NFlag())
+	}
+}
+
+func TestMergeFlags(t *testing.T) {
+	base := NewFlagSet("base", ContinueOnError)
+	base.String([]string{"f"}, "", "")
+
+	fs := NewFlagSet("test", ContinueOnError)
+	Merge(fs, base)
+	if len(fs.formal) != 1 {
+		t.Fatalf("FlagCount (%d) != number (1) of elements merged", len(fs.formal))
 	}
 }

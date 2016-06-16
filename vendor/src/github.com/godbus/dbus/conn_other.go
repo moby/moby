@@ -5,6 +5,7 @@ package dbus
 import (
 	"bytes"
 	"errors"
+	"os"
 	"os/exec"
 )
 
@@ -23,5 +24,8 @@ func sessionBusPlatform() (*Conn, error) {
 		return nil, errors.New("dbus: couldn't determine address of session bus")
 	}
 
-	return Dial(string(b[i+1 : j]))
+	env, addr := string(b[0:i]), string(b[i+1:j])
+	os.Setenv(env, addr)
+
+	return Dial(addr)
 }

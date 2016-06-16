@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -73,7 +74,7 @@ func TestJSONFormatProgress(t *testing.T) {
 		Total:   30,
 		Start:   1,
 	}
-	res := sf.FormatProgress("id", "action", progress)
+	res := sf.FormatProgress("id", "action", progress, nil)
 	msg := &jsonmessage.JSONMessage{}
 	if err := json.Unmarshal(res, msg); err != nil {
 		t.Fatal(err)
@@ -84,9 +85,23 @@ func TestJSONFormatProgress(t *testing.T) {
 	if msg.Status != "action" {
 		t.Fatalf("Status must be 'action', got: %s", msg.Status)
 	}
-	if msg.ProgressMessage != progress.String() {
-		t.Fatalf("ProgressMessage must be %s, got: %s", progress.String(), msg.ProgressMessage)
+
+	// The progress will always be in the format of:
+	// [=========================>                         ]     15 B/30 B 404933h7m11s
+	// The last entry '404933h7m11s' is the timeLeftBox.
+	// However, the timeLeftBox field may change as progress.String() depends on time.Now().
+	// Therefore, we have to strip the timeLeftBox from the strings to do the comparison.
+
+	// Compare the progress strings before the timeLeftBox
+	expectedProgress := "[=========================>                         ]     15 B/30 B"
+	// if terminal column is <= 110, expectedProgressShort is expected.
+	expectedProgressShort := "    15 B/30 B"
+	if !(strings.HasPrefix(msg.ProgressMessage, expectedProgress) ||
+		strings.HasPrefix(msg.ProgressMessage, expectedProgressShort)) {
+		t.Fatalf("ProgressMessage without the timeLeftBox must be %s or %s, got: %s",
+			expectedProgress, expectedProgressShort, msg.ProgressMessage)
 	}
+
 	if !reflect.DeepEqual(msg.Progress, progress) {
 		t.Fatal("Original progress not equals progress from FormatProgress")
 	}

@@ -1,9 +1,13 @@
-// +build windows
-
 package daemon
 
-// checkExecSupport returns an error if the exec driver does not support exec,
-// or nil if it is supported.
-func checkExecSupport(DriverName string) error {
+import (
+	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/exec"
+	"github.com/docker/docker/libcontainerd"
+)
+
+func execSetPlatformOpt(c *container.Container, ec *exec.Config, p *libcontainerd.Process) error {
+	// Process arguments need to be escaped before sending to OCI.
+	p.Args = escapeArgs(p.Args)
 	return nil
 }

@@ -7,6 +7,7 @@ package api
 import (
 	"net"
 
+	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 )
 
@@ -34,6 +35,9 @@ type CreateNetworkRequest struct {
 
 	// A free form map->object interface for communication of options.
 	Options map[string]interface{}
+
+	// IPAMData contains the address pool information for this network
+	IPv4Data, IPv6Data []driverapi.IPAMData
 }
 
 // CreateNetworkResponse is the response to the CreateNetworkRequest.
@@ -131,10 +135,11 @@ type StaticRoute struct {
 // JoinResponse is the response to a JoinRequest.
 type JoinResponse struct {
 	Response
-	InterfaceName *InterfaceName
-	Gateway       string
-	GatewayIPv6   string
-	StaticRoutes  []StaticRoute
+	InterfaceName         *InterfaceName
+	Gateway               string
+	GatewayIPv6           string
+	StaticRoutes          []StaticRoute
+	DisableGatewayService bool
 }
 
 // LeaveRequest describes the API for detaching an endpoint from a sandbox.
@@ -148,9 +153,32 @@ type LeaveResponse struct {
 	Response
 }
 
+// ProgramExternalConnectivityRequest describes the API for programming the external connectivity for the given endpoint.
+type ProgramExternalConnectivityRequest struct {
+	NetworkID  string
+	EndpointID string
+	Options    map[string]interface{}
+}
+
+// ProgramExternalConnectivityResponse is the answer to ProgramExternalConnectivityRequest.
+type ProgramExternalConnectivityResponse struct {
+	Response
+}
+
+// RevokeExternalConnectivityRequest describes the API for revoking the external connectivity for the given endpoint.
+type RevokeExternalConnectivityRequest struct {
+	NetworkID  string
+	EndpointID string
+}
+
+// RevokeExternalConnectivityResponse is the answer to RevokeExternalConnectivityRequest.
+type RevokeExternalConnectivityResponse struct {
+	Response
+}
+
 // DiscoveryNotification represents a discovery notification
 type DiscoveryNotification struct {
-	DiscoveryType driverapi.DiscoveryType
+	DiscoveryType discoverapi.DiscoveryType
 	DiscoveryData interface{}
 }
 

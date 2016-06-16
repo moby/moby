@@ -20,7 +20,7 @@ func NopWriteCloser(w io.Writer) io.WriteCloser {
 	return &nopWriteCloser{w}
 }
 
-// NopFlusher represents a type which flush opetatin is nop.
+// NopFlusher represents a type which flush operation is nop.
 type NopFlusher struct{}
 
 // Flush is a nop operation.

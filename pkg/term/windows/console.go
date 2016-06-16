@@ -8,7 +8,43 @@ import (
 	"syscall"
 
 	"github.com/Azure/go-ansiterm/winterm"
+
+	ansiterm "github.com/Azure/go-ansiterm"
+	"github.com/Sirupsen/logrus"
+	"io/ioutil"
 )
+
+// ConEmuStreams returns prepared versions of console streams,
+// for proper use in ConEmu terminal.
+// The ConEmu terminal emulates ANSI on output streams well by default.
+func ConEmuStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
+	if IsConsole(os.Stdin.Fd()) {
+		stdIn = newAnsiReader(syscall.STD_INPUT_HANDLE)
+	} else {
+		stdIn = os.Stdin
+	}
+
+	stdOut = os.Stdout
+	stdErr = os.Stderr
+
+	// WARNING (BEGIN): sourced from newAnsiWriter
+
+	logFile := ioutil.Discard
+
+	if isDebugEnv := os.Getenv(ansiterm.LogEnv); isDebugEnv == "1" {
+		logFile, _ = os.Create("ansiReaderWriter.log")
+	}
+
+	logger = &logrus.Logger{
+		Out:       logFile,
+		Formatter: new(logrus.TextFormatter),
+		Level:     logrus.DebugLevel,
+	}
+
+	// WARNING (END): sourced from newAnsiWriter
+
+	return stdIn, stdOut, stdErr
+}
 
 // ConsoleStreams returns a wrapped version for each standard stream referencing a console,
 // that handles ANSI character sequences.

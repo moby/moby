@@ -42,3 +42,13 @@ func ParseSignal(rawSignal string) (syscall.Signal, error) {
 	}
 	return signal, nil
 }
+
+// ValidSignalForPlatform returns true if a signal is valid on the platform
+func ValidSignalForPlatform(sig syscall.Signal) bool {
+	for _, v := range SignalMap {
+		if v == sig {
+			return true
+		}
+	}
+	return false
+}

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/cliconfig/configfile"
 	"github.com/docker/docker/pkg/homedir"
 )
 
@@ -25,8 +26,8 @@ func TestEmptyConfigDir(t *testing.T) {
 	}
 
 	expectedConfigFilename := filepath.Join(tmpHome, ConfigFileName)
-	if config.Filename() != expectedConfigFilename {
-		t.Fatalf("Expected config filename %s, got %s", expectedConfigFilename, config.Filename())
+	if config.Filename != expectedConfigFilename {
+		t.Fatalf("Expected config filename %s, got %s", expectedConfigFilename, config.Filename)
 	}
 
 	// Now save it and make sure it shows up in new form
@@ -110,12 +111,9 @@ func TestOldInvalidsAuth(t *testing.T) {
 	invalids := map[string]string{
 		`username = test`: "The Auth config file is empty",
 		`username
-password
-email`: "Invalid Auth config file",
+password`: "Invalid Auth config file",
 		`username = test
 email`: "Invalid auth configuration file",
-		`username = am9lam9lOmhlbGxv
-email`: "Invalid Auth config file",
 	}
 
 	tmpHome, err := ioutil.TempDir("", "config-test")
@@ -137,8 +135,9 @@ email`: "Invalid Auth config file",
 		}
 
 		config, err := Load(tmpHome)
-		if err == nil || err.Error() != expectedError {
-			t.Fatalf("Should have failed, got: %q, %q", config, err)
+		// Use Contains instead of == since the file name will change each time
+		if err == nil || !strings.Contains(err.Error(), expectedError) {
+			t.Fatalf("Should have failed\nConfig: %v\nGot: %v\nExpected: %v", config, err, expectedError)
 		}
 
 	}
@@ -162,7 +161,7 @@ func TestOldValidAuth(t *testing.T) {
 
 	fn := filepath.Join(tmpHome, oldConfigfile)
 	js := `username = am9lam9lOmhlbGxv
-email = user@example.com`
+	email = user@example.com`
 	if err := ioutil.WriteFile(fn, []byte(js), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -174,15 +173,23 @@ email = user@example.com`
 
 	// defaultIndexserver is https://index.docker.io/v1/
 	ac := config.AuthConfigs["https://index.docker.io/v1/"]
-	if ac.Email != "user@example.com" || ac.Username != "joejoe" || ac.Password != "hello" {
+	if ac.Username != "joejoe" || ac.Password != "hello" {
 		t.Fatalf("Missing data from parsing:\n%q", config)
 	}
 
 	// Now save it and make sure it shows up in new form
 	configStr := saveConfigAndValidateNewFormat(t, config, tmpHome)
 
-	if !strings.Contains(configStr, "user@example.com") {
-		t.Fatalf("Should have save in new form: %s", configStr)
+	expConfStr := `{
+	"auths": {
+		"https://index.docker.io/v1/": {
+			"auth": "am9lam9lOmhlbGxv"
+		}
+	}
+}`
+
+	if configStr != expConfStr {
+		t.Fatalf("Should have save in new form: \n%s\n not \n%s", configStr, expConfStr)
 	}
 }
 
@@ -206,7 +213,8 @@ func TestOldJsonInvalid(t *testing.T) {
 	}
 
 	config, err := Load(tmpHome)
-	if err == nil || err.Error() != "Invalid auth configuration file" {
+	// Use Contains instead of == since the file name will change each time
+	if err == nil || !strings.Contains(err.Error(), "Invalid auth configuration file") {
 		t.Fatalf("Expected an error got : %v, %v", config, err)
 	}
 }
@@ -236,15 +244,24 @@ func TestOldJson(t *testing.T) {
 	}
 
 	ac := config.AuthConfigs["https://index.docker.io/v1/"]
-	if ac.Email != "user@example.com" || ac.Username != "joejoe" || ac.Password != "hello" {
+	if ac.Username != "joejoe" || ac.Password != "hello" {
 		t.Fatalf("Missing data from parsing:\n%q", config)
 	}
 
 	// Now save it and make sure it shows up in new form
 	configStr := saveConfigAndValidateNewFormat(t, config, tmpHome)
 
-	if !strings.Contains(configStr, "user@example.com") {
-		t.Fatalf("Should have save in new form: %s", configStr)
+	expConfStr := `{
+	"auths": {
+		"https://index.docker.io/v1/": {
+			"auth": "am9lam9lOmhlbGxv",
+			"email": "user@example.com"
+		}
+	}
+}`
+
+	if configStr != expConfStr {
+		t.Fatalf("Should have save in new form: \n'%s'\n not \n'%s'\n", configStr, expConfStr)
 	}
 }
 
@@ -256,7 +273,7 @@ func TestNewJson(t *testing.T) {
 	defer os.RemoveAll(tmpHome)
 
 	fn := filepath.Join(tmpHome, ConfigFileName)
-	js := ` { "auths": { "https://index.docker.io/v1/": { "auth": "am9lam9lOmhlbGxv", "email": "user@example.com" } } }`
+	js := ` { "auths": { "https://index.docker.io/v1/": { "auth": "am9lam9lOmhlbGxv" } } }`
 	if err := ioutil.WriteFile(fn, []byte(js), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -267,15 +284,62 @@ func TestNewJson(t *testing.T) {
 	}
 
 	ac := config.AuthConfigs["https://index.docker.io/v1/"]
-	if ac.Email != "user@example.com" || ac.Username != "joejoe" || ac.Password != "hello" {
+	if ac.Username != "joejoe" || ac.Password != "hello" {
 		t.Fatalf("Missing data from parsing:\n%q", config)
 	}
 
 	// Now save it and make sure it shows up in new form
 	configStr := saveConfigAndValidateNewFormat(t, config, tmpHome)
 
-	if !strings.Contains(configStr, "user@example.com") {
-		t.Fatalf("Should have save in new form: %s", configStr)
+	expConfStr := `{
+	"auths": {
+		"https://index.docker.io/v1/": {
+			"auth": "am9lam9lOmhlbGxv"
+		}
+	}
+}`
+
+	if configStr != expConfStr {
+		t.Fatalf("Should have save in new form: \n%s\n not \n%s", configStr, expConfStr)
+	}
+}
+
+func TestNewJsonNoEmail(t *testing.T) {
+	tmpHome, err := ioutil.TempDir("", "config-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpHome)
+
+	fn := filepath.Join(tmpHome, ConfigFileName)
+	js := ` { "auths": { "https://index.docker.io/v1/": { "auth": "am9lam9lOmhlbGxv" } } }`
+	if err := ioutil.WriteFile(fn, []byte(js), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	config, err := Load(tmpHome)
+	if err != nil {
+		t.Fatalf("Failed loading on empty json file: %q", err)
+	}
+
+	ac := config.AuthConfigs["https://index.docker.io/v1/"]
+	if ac.Username != "joejoe" || ac.Password != "hello" {
+		t.Fatalf("Missing data from parsing:\n%q", config)
+	}
+
+	// Now save it and make sure it shows up in new form
+	configStr := saveConfigAndValidateNewFormat(t, config, tmpHome)
+
+	expConfStr := `{
+	"auths": {
+		"https://index.docker.io/v1/": {
+			"auth": "am9lam9lOmhlbGxv"
+		}
+	}
+}`
+
+	if configStr != expConfStr {
+		t.Fatalf("Should have save in new form: \n%s\n not \n%s", configStr, expConfStr)
 	}
 }
 
@@ -313,13 +377,15 @@ func TestJsonWithPsFormat(t *testing.T) {
 }
 
 // Save it and make sure it shows up in new form
-func saveConfigAndValidateNewFormat(t *testing.T, config *ConfigFile, homeFolder string) string {
-	err := config.Save()
-	if err != nil {
+func saveConfigAndValidateNewFormat(t *testing.T, config *configfile.ConfigFile, homeFolder string) string {
+	if err := config.Save(); err != nil {
 		t.Fatalf("Failed to save: %q", err)
 	}
 
 	buf, err := ioutil.ReadFile(filepath.Join(homeFolder, ConfigFileName))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !strings.Contains(string(buf), `"auths":`) {
 		t.Fatalf("Should have save in new form: %s", string(buf))
 	}
@@ -349,8 +415,8 @@ func TestConfigFile(t *testing.T) {
 	configFilename := "configFilename"
 	configFile := NewConfigFile(configFilename)
 
-	if configFile.Filename() != configFilename {
-		t.Fatalf("Expected %s, got %s", configFilename, configFile.Filename())
+	if configFile.Filename != configFilename {
+		t.Fatalf("Expected %s, got %s", configFilename, configFile.Filename)
 	}
 }
 
@@ -363,7 +429,7 @@ func TestJsonReaderNoFile(t *testing.T) {
 	}
 
 	ac := config.AuthConfigs["https://index.docker.io/v1/"]
-	if ac.Email != "user@example.com" || ac.Username != "joejoe" || ac.Password != "hello" {
+	if ac.Username != "joejoe" || ac.Password != "hello" {
 		t.Fatalf("Missing data from parsing:\n%q", config)
 	}
 
@@ -378,7 +444,7 @@ func TestOldJsonReaderNoFile(t *testing.T) {
 	}
 
 	ac := config.AuthConfigs["https://index.docker.io/v1/"]
-	if ac.Email != "user@example.com" || ac.Username != "joejoe" || ac.Password != "hello" {
+	if ac.Username != "joejoe" || ac.Password != "hello" {
 		t.Fatalf("Missing data from parsing:\n%q", config)
 	}
 }
@@ -401,7 +467,7 @@ func TestJsonWithPsFormatNoFile(t *testing.T) {
 
 func TestJsonSaveWithNoFile(t *testing.T) {
 	js := `{
-		"auths": { "https://index.docker.io/v1/": { "auth": "am9lam9lOmhlbGxv", "email": "user@example.com" } },
+		"auths": { "https://index.docker.io/v1/": { "auth": "am9lam9lOmhlbGxv" } },
 		"psFormat": "table {{.ID}}\\t{{.Label \"com.docker.label.cpu\"}}"
 }`
 	config, err := LoadFromReader(strings.NewReader(js))
@@ -423,12 +489,22 @@ func TestJsonSaveWithNoFile(t *testing.T) {
 		t.Fatalf("Failed saving to file: %q", err)
 	}
 	buf, err := ioutil.ReadFile(filepath.Join(tmpHome, ConfigFileName))
-	if !strings.Contains(string(buf), `"auths":`) ||
-		!strings.Contains(string(buf), "user@example.com") {
-		t.Fatalf("Should have save in new form: %s", string(buf))
+	if err != nil {
+		t.Fatal(err)
 	}
-
+	expConfStr := `{
+	"auths": {
+		"https://index.docker.io/v1/": {
+			"auth": "am9lam9lOmhlbGxv"
+		}
+	},
+	"psFormat": "table {{.ID}}\\t{{.Label \"com.docker.label.cpu\"}}"
+}`
+	if string(buf) != expConfStr {
+		t.Fatalf("Should have save in new form: \n%s\nnot \n%s", string(buf), expConfStr)
+	}
 }
+
 func TestLegacyJsonSaveWithNoFile(t *testing.T) {
 
 	js := `{"https://index.docker.io/v1/":{"auth":"am9lam9lOmhlbGxv","email":"user@example.com"}}`
@@ -446,13 +522,24 @@ func TestLegacyJsonSaveWithNoFile(t *testing.T) {
 
 	fn := filepath.Join(tmpHome, ConfigFileName)
 	f, _ := os.OpenFile(fn, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
-	err = config.SaveToWriter(f)
-	if err != nil {
+	if err = config.SaveToWriter(f); err != nil {
 		t.Fatalf("Failed saving to file: %q", err)
 	}
 	buf, err := ioutil.ReadFile(filepath.Join(tmpHome, ConfigFileName))
-	if !strings.Contains(string(buf), `"auths":`) ||
-		!strings.Contains(string(buf), "user@example.com") {
-		t.Fatalf("Should have save in new form: %s", string(buf))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expConfStr := `{
+	"auths": {
+		"https://index.docker.io/v1/": {
+			"auth": "am9lam9lOmhlbGxv",
+			"email": "user@example.com"
+		}
+	}
+}`
+
+	if string(buf) != expConfStr {
+		t.Fatalf("Should have save in new form: \n%s\n not \n%s", string(buf), expConfStr)
 	}
 }

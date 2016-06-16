@@ -2,33 +2,36 @@ package dockerfile
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
-	"runtime"
 	"strings"
-	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
-	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/ulimit"
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/reference"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/container"
+	"golang.org/x/net/context"
 )
 
 var validCommitCommands = map[string]bool{
-	"cmd":        true,
-	"entrypoint": true,
-	"env":        true,
-	"expose":     true,
-	"label":      true,
-	"onbuild":    true,
-	"user":       true,
-	"volume":     true,
-	"workdir":    true,
+	"cmd":         true,
+	"entrypoint":  true,
+	"healthcheck": true,
+	"env":         true,
+	"expose":      true,
+	"label":       true,
+	"onbuild":     true,
+	"user":        true,
+	"volume":      true,
+	"workdir":     true,
 }
 
 // BuiltinAllowedBuildArgs is list of built-in allowed build args
@@ -43,45 +46,22 @@ var BuiltinAllowedBuildArgs = map[string]bool{
 	"no_proxy":    true,
 }
 
-// Config constitutes the configuration for a Dockerfile builder.
-type Config struct {
-	// only used if Dockerfile has to be extracted from Context
-	DockerfileName string
-
-	Verbose     bool
-	UseCache    bool
-	Remove      bool
-	ForceRemove bool
-	Pull        bool
-	BuildArgs   map[string]string // build-time args received in build context for expansion/substitution and commands in 'run'.
-
-	// resource constraints
-	// TODO: factor out to be reused with Run ?
-
-	Memory       int64
-	MemorySwap   int64
-	CPUShares    int64
-	CPUPeriod    int64
-	CPUQuota     int64
-	CPUSetCpus   string
-	CPUSetMems   string
-	CgroupParent string
-	Ulimits      []*ulimit.Ulimit
-}
-
 // Builder is a Dockerfile builder
-// It implements the builder.Builder interface.
+// It implements the builder.Backend interface.
 type Builder struct {
-	*Config
+	options *types.ImageBuildOptions
 
 	Stdout io.Writer
 	Stderr io.Writer
+	Output io.Writer
 
-	docker  builder.Docker
-	context builder.Context
+	docker    builder.Backend
+	context   builder.Context
+	clientCtx context.Context
+	cancel    context.CancelFunc
 
 	dockerfile       *parser.Node
-	runConfig        *runconfig.Config // runconfig for cmd, run, entrypoint etc.
+	runConfig        *container.Config // runconfig for cmd, run, entrypoint etc.
 	flags            *BFlags
 	tmpContainers    map[string]struct{}
 	image            string // imageID
@@ -90,34 +70,64 @@ type Builder struct {
 	cmdSet           bool
 	disableCommit    bool
 	cacheBusted      bool
-	cancelled        chan struct{}
-	cancelOnce       sync.Once
 	allowedBuildArgs map[string]bool // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
 
 	// TODO: remove once docker.Commit can receive a tag
-	id           string
-	activeImages []string
+	id string
+}
+
+// BuildManager implements builder.Backend and is shared across all Builder objects.
+type BuildManager struct {
+	backend builder.Backend
+}
+
+// NewBuildManager creates a BuildManager.
+func NewBuildManager(b builder.Backend) (bm *BuildManager) {
+	return &BuildManager{backend: b}
+}
+
+// BuildFromContext builds a new image from a given context.
+func (bm *BuildManager) BuildFromContext(ctx context.Context, src io.ReadCloser, remote string, buildOptions *types.ImageBuildOptions, pg backend.ProgressWriter) (string, error) {
+	buildContext, dockerfileName, err := builder.DetectContextFromRemoteURL(src, remote, pg.ProgressReaderFunc)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if err := buildContext.Close(); err != nil {
+			logrus.Debugf("[BUILDER] failed to remove temporary context: %v", err)
+		}
+	}()
+	if len(dockerfileName) > 0 {
+		buildOptions.Dockerfile = dockerfileName
+	}
+	b, err := NewBuilder(ctx, buildOptions, bm.backend, builder.DockerIgnoreContext{ModifiableContext: buildContext}, nil)
+	if err != nil {
+		return "", err
+	}
+	return b.build(pg.StdoutFormatter, pg.StderrFormatter, pg.Output)
 }
 
 // NewBuilder creates a new Dockerfile builder from an optional dockerfile and a Config.
 // If dockerfile is nil, the Dockerfile specified by Config.DockerfileName,
 // will be read from the Context passed to Build().
-func NewBuilder(config *Config, docker builder.Docker, context builder.Context, dockerfile io.ReadCloser) (b *Builder, err error) {
+func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, backend builder.Backend, buildContext builder.Context, dockerfile io.ReadCloser) (b *Builder, err error) {
 	if config == nil {
-		config = new(Config)
+		config = new(types.ImageBuildOptions)
 	}
 	if config.BuildArgs == nil {
 		config.BuildArgs = make(map[string]string)
 	}
+	ctx, cancel := context.WithCancel(clientCtx)
 	b = &Builder{
-		Config:           config,
+		clientCtx:        ctx,
+		cancel:           cancel,
+		options:          config,
 		Stdout:           os.Stdout,
 		Stderr:           os.Stderr,
-		docker:           docker,
-		context:          context,
-		runConfig:        new(runconfig.Config),
+		docker:           backend,
+		context:          buildContext,
+		runConfig:        new(container.Config),
 		tmpContainers:    map[string]struct{}{},
-		cancelled:        make(chan struct{}),
 		id:               stringid.GenerateNonCryptoID(),
 		allowedBuildArgs: make(map[string]bool),
 	}
@@ -131,7 +141,49 @@ func NewBuilder(config *Config, docker builder.Docker, context builder.Context, 
 	return b, nil
 }
 
-// Build runs the Dockerfile builder from a context and a docker object that allows to make calls
+// sanitizeRepoAndTags parses the raw "t" parameter received from the client
+// to a slice of repoAndTag.
+// It also validates each repoName and tag.
+func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
+	var (
+		repoAndTags []reference.Named
+		// This map is used for deduplicating the "-t" parameter.
+		uniqNames = make(map[string]struct{})
+	)
+	for _, repo := range names {
+		if repo == "" {
+			continue
+		}
+
+		ref, err := reference.ParseNamed(repo)
+		if err != nil {
+			return nil, err
+		}
+
+		ref = reference.WithDefaultTag(ref)
+
+		if _, isCanonical := ref.(reference.Canonical); isCanonical {
+			return nil, errors.New("build tag cannot contain a digest")
+		}
+
+		if _, isTagged := ref.(reference.NamedTagged); !isTagged {
+			ref, err = reference.WithTag(ref, reference.DefaultTag)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		nameWithTag := ref.String()
+
+		if _, exists := uniqNames[nameWithTag]; !exists {
+			uniqNames[nameWithTag] = struct{}{}
+			repoAndTags = append(repoAndTags, ref)
+		}
+	}
+	return repoAndTags, nil
+}
+
+// build runs the Dockerfile builder from a context and a docker object that allows to make calls
 // to Docker.
 //
 // This will (barring errors):
@@ -141,14 +193,13 @@ func NewBuilder(config *Config, docker builder.Docker, context builder.Context, 
 // * walk the AST and execute it by dispatching to handlers. If Remove
 //   or ForceRemove is set, additional cleanup around containers happens after
 //   processing.
+// * Tag image, if applicable.
 // * Print a happy message and return the image ID.
-// * NOT tag the image, that is responsibility of the caller.
 //
-func (b *Builder) Build() (string, error) {
-	// TODO: remove once b.docker.Commit can take a tag parameter.
-	defer func() {
-		b.docker.Release(b.id, b.activeImages)
-	}()
+func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (string, error) {
+	b.Stdout = stdout
+	b.Stderr = stderr
+	b.Output = out
 
 	// If Dockerfile was not parsed yet, extract it from the Context
 	if b.dockerfile == nil {
@@ -157,10 +208,27 @@ func (b *Builder) Build() (string, error) {
 		}
 	}
 
+	repoAndTags, err := sanitizeRepoAndTags(b.options.Tags)
+	if err != nil {
+		return "", err
+	}
+
+	if len(b.options.Labels) > 0 {
+		line := "LABEL "
+		for k, v := range b.options.Labels {
+			line += fmt.Sprintf("%q=%q ", k, v)
+		}
+		_, node, err := parser.ParseLine(line)
+		if err != nil {
+			return "", err
+		}
+		b.dockerfile.Children = append(b.dockerfile.Children, node)
+	}
+
 	var shortImgID string
 	for i, n := range b.dockerfile.Children {
 		select {
-		case <-b.cancelled:
+		case <-b.clientCtx.Done():
 			logrus.Debug("Builder: build cancelled!")
 			fmt.Fprintf(b.Stdout, "Build cancelled")
 			return "", fmt.Errorf("Build cancelled")
@@ -168,14 +236,15 @@ func (b *Builder) Build() (string, error) {
 			// Not cancelled yet, keep going...
 		}
 		if err := b.dispatch(i, n); err != nil {
-			if b.ForceRemove {
+			if b.options.ForceRemove {
 				b.clearTmp()
 			}
 			return "", err
 		}
+
 		shortImgID = stringid.TruncateID(b.image)
 		fmt.Fprintf(b.Stdout, " ---> %s\n", shortImgID)
-		if b.Remove {
+		if b.options.Remove {
 			b.clearTmp()
 		}
 	}
@@ -183,7 +252,7 @@ func (b *Builder) Build() (string, error) {
 	// check if there are any leftover build-args that were passed but not
 	// consumed during build. Return an error, if there are any.
 	leftoverArgs := []string{}
-	for arg := range b.BuildArgs {
+	for arg := range b.options.BuildArgs {
 		if !b.isBuildArgAllowed(arg) {
 			leftoverArgs = append(leftoverArgs, arg)
 		}
@@ -196,34 +265,32 @@ func (b *Builder) Build() (string, error) {
 		return "", fmt.Errorf("No image was generated. Is your Dockerfile empty?")
 	}
 
+	imageID := image.ID(b.image)
+	for _, rt := range repoAndTags {
+		if err := b.docker.TagImageWithReference(imageID, rt); err != nil {
+			return "", err
+		}
+	}
+
 	fmt.Fprintf(b.Stdout, "Successfully built %s\n", shortImgID)
 	return b.image, nil
 }
 
 // Cancel cancels an ongoing Dockerfile build.
 func (b *Builder) Cancel() {
-	b.cancelOnce.Do(func() {
-		close(b.cancelled)
-	})
+	b.cancel()
 }
 
-// CommitConfig contains build configs for commit operation
-type CommitConfig struct {
-	Pause   bool
-	Repo    string
-	Tag     string
-	Author  string
-	Comment string
-	Changes []string
-	Config  *runconfig.Config
-}
-
-// BuildFromConfig will do build directly from parameter 'changes', which comes
-// from Dockerfile entries, it will:
-// - call parse.Parse() to get AST root from Dockerfile entries
-// - do build by calling builder.dispatch() to call all entries' handling routines
-// TODO: remove?
-func BuildFromConfig(config *runconfig.Config, changes []string) (*runconfig.Config, error) {
+// BuildFromConfig builds directly from `changes`, treating it as if it were the contents of a Dockerfile
+// It will:
+// - Call parse.Parse() to get an AST root for the concatenated Dockerfile entries.
+// - Do build by calling builder.dispatch() to call all entries' handling routines
+//
+// BuildFromConfig is used by the /commit endpoint, with the changes
+// coming from the query parameter of the same name.
+//
+// TODO: Remove?
+func BuildFromConfig(config *container.Config, changes []string) (*container.Config, error) {
 	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
 	if err != nil {
 		return nil, err
@@ -236,7 +303,7 @@ func BuildFromConfig(config *runconfig.Config, changes []string) (*runconfig.Con
 		}
 	}
 
-	b, err := NewBuilder(nil, nil, nil, nil)
+	b, err := NewBuilder(context.Background(), nil, nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -252,41 +319,4 @@ func BuildFromConfig(config *runconfig.Config, changes []string) (*runconfig.Con
 	}
 
 	return b.runConfig, nil
-}
-
-// Commit will create a new image from a container's changes
-// TODO: remove daemon, make Commit a method on *Builder ?
-func Commit(container *daemon.Container, d *daemon.Daemon, c *CommitConfig) (string, error) {
-	// It is not possible to commit a running container on Windows
-	if runtime.GOOS == "windows" && container.IsRunning() {
-		return "", fmt.Errorf("Windows does not support commit of a running container")
-	}
-
-	if c.Config == nil {
-		c.Config = &runconfig.Config{}
-	}
-
-	newConfig, err := BuildFromConfig(c.Config, c.Changes)
-	if err != nil {
-		return "", err
-	}
-
-	if err := runconfig.Merge(newConfig, container.Config); err != nil {
-		return "", err
-	}
-
-	commitCfg := &daemon.ContainerCommitConfig{
-		Pause:   c.Pause,
-		Repo:    c.Repo,
-		Tag:     c.Tag,
-		Author:  c.Author,
-		Comment: c.Comment,
-		Config:  newConfig,
-	}
-
-	img, err := d.Commit(container, commitCfg)
-	if err != nil {
-		return "", err
-	}
-	return img.ID, nil
 }

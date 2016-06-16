@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/go-connections/tlsconfig"
 )
 
 var (
@@ -55,33 +55,58 @@ type Manifest struct {
 // Plugin is the definition of a docker plugin.
 type Plugin struct {
 	// Name of the plugin
-	Name string `json:"-"`
+	name string
 	// Address of the plugin
 	Addr string
 	// TLS configuration of the plugin
-	TLSConfig tlsconfig.Options
+	TLSConfig *tlsconfig.Options
 	// Client attached to the plugin
-	Client *Client `json:"-"`
+	client *Client
 	// Manifest of the plugin (see above)
 	Manifest *Manifest `json:"-"`
 
-	activatErr   error
-	activateOnce sync.Once
+	// error produced by activation
+	activateErr error
+	// specifies if the activation sequence is completed (not if it is successful or not)
+	activated bool
+	// wait for activation to finish
+	activateWait *sync.Cond
 }
 
-func newLocalPlugin(name, addr string) *Plugin {
+// Name returns the name of the plugin.
+func (p *Plugin) Name() string {
+	return p.name
+}
+
+// Client returns a ready-to-use plugin client that can be used to communicate with the plugin.
+func (p *Plugin) Client() *Client {
+	return p.client
+}
+
+// NewLocalPlugin creates a new local plugin.
+func NewLocalPlugin(name, addr string) *Plugin {
 	return &Plugin{
-		Name:      name,
-		Addr:      addr,
-		TLSConfig: tlsconfig.Options{InsecureSkipVerify: true},
+		name: name,
+		Addr: addr,
+		// TODO: change to nil
+		TLSConfig:    &tlsconfig.Options{InsecureSkipVerify: true},
+		activateWait: sync.NewCond(&sync.Mutex{}),
 	}
 }
 
 func (p *Plugin) activate() error {
-	p.activateOnce.Do(func() {
-		p.activatErr = p.activateWithLock()
-	})
-	return p.activatErr
+	p.activateWait.L.Lock()
+	if p.activated {
+		p.activateWait.L.Unlock()
+		return p.activateErr
+	}
+
+	p.activateErr = p.activateWithLock()
+	p.activated = true
+
+	p.activateWait.L.Unlock()
+	p.activateWait.Broadcast()
+	return p.activateErr
 }
 
 func (p *Plugin) activateWithLock() error {
@@ -89,14 +114,13 @@ func (p *Plugin) activateWithLock() error {
 	if err != nil {
 		return err
 	}
-	p.Client = c
+	p.client = c
 
 	m := new(Manifest)
-	if err = p.Client.Call("Plugin.Activate", nil, m); err != nil {
+	if err = p.client.Call("Plugin.Activate", nil, m); err != nil {
 		return err
 	}
 
-	logrus.Debugf("%s's manifest: %v", p.Name, m)
 	p.Manifest = m
 
 	for _, iface := range m.Implements {
@@ -104,9 +128,30 @@ func (p *Plugin) activateWithLock() error {
 		if !handled {
 			continue
 		}
-		handler(p.Name, p.Client)
+		handler(p.name, p.client)
 	}
 	return nil
+}
+
+func (p *Plugin) waitActive() error {
+	p.activateWait.L.Lock()
+	for !p.activated {
+		p.activateWait.Wait()
+	}
+	p.activateWait.L.Unlock()
+	return p.activateErr
+}
+
+func (p *Plugin) implements(kind string) bool {
+	if err := p.waitActive(); err != nil {
+		return false
+	}
+	for _, driver := range p.Manifest.Implements {
+		if driver == kind {
+			return true
+		}
+	}
+	return false
 }
 
 func load(name string) (*Plugin, error) {
@@ -167,11 +212,9 @@ func Get(name, imp string) (*Plugin, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, driver := range pl.Manifest.Implements {
-		logrus.Debugf("%s implements: %s", name, driver)
-		if driver == imp {
-			return pl, nil
-		}
+	if pl.implements(imp) {
+		logrus.Debugf("%s implements: %s", name, imp)
+		return pl, nil
 	}
 	return nil, ErrNotImplements
 }
@@ -179,4 +222,48 @@ func Get(name, imp string) (*Plugin, error) {
 // Handle adds the specified function to the extpointHandlers.
 func Handle(iface string, fn func(string, *Client)) {
 	extpointHandlers[iface] = fn
+}
+
+// GetAll returns all the plugins for the specified implementation
+func GetAll(imp string) ([]*Plugin, error) {
+	pluginNames, err := Scan()
+	if err != nil {
+		return nil, err
+	}
+
+	type plLoad struct {
+		pl  *Plugin
+		err error
+	}
+
+	chPl := make(chan *plLoad, len(pluginNames))
+	var wg sync.WaitGroup
+	for _, name := range pluginNames {
+		if pl, ok := storage.plugins[name]; ok {
+			chPl <- &plLoad{pl, nil}
+			continue
+		}
+
+		wg.Add(1)
+		go func(name string) {
+			defer wg.Done()
+			pl, err := loadWithRetry(name, false)
+			chPl <- &plLoad{pl, err}
+		}(name)
+	}
+
+	wg.Wait()
+	close(chPl)
+
+	var out []*Plugin
+	for pl := range chPl {
+		if pl.err != nil {
+			logrus.Error(pl.err)
+			continue
+		}
+		if pl.pl.implements(imp) {
+			out = append(out, pl.pl)
+		}
+	}
+	return out, nil
 }
