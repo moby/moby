@@ -33,7 +33,7 @@ func runPromote(dockerCli *client.DockerCli, flags *pflag.FlagSet, args []string
 		}); err != nil {
 			return err
 		}
-		fmt.Println(id, "attempting to promote a node to a manager in the swarm.")
+		fmt.Fprintf(dockerCli.Out(), "Node %s promoted to a manager in the swarm.", id)
 	}
 
 	return nil

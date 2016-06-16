@@ -21,7 +21,11 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 		Short: "Update a node",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runUpdate(dockerCli, args[0], mergeNodeUpdate(flags))
+			if err := runUpdate(dockerCli, args[0], mergeNodeUpdate(flags)); err != nil {
+				return err
+			}
+			fmt.Fprintln(dockerCli.Out(), args[0])
+			return nil
 		},
 	}
 
@@ -47,7 +51,6 @@ func runUpdate(dockerCli *client.DockerCli, nodeID string, mergeNode func(node *
 		return err
 	}
 
-	fmt.Fprintf(dockerCli.Out(), "%s\n", nodeID)
 	return nil
 }
 
