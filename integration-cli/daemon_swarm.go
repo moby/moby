@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/engine-api/types"
@@ -167,14 +168,22 @@ func (d *SwarmDaemon) getNode(c *check.C, id string) *swarm.Node {
 	return &node
 }
 
-func (d *SwarmDaemon) updateNode(c *check.C, node *swarm.Node, f ...nodeConstructor) {
-	for _, fn := range f {
-		fn(node)
+func (d *SwarmDaemon) updateNode(c *check.C, id string, f ...nodeConstructor) {
+	for i := 0; ; i++ {
+		node := d.getNode(c, id)
+		for _, fn := range f {
+			fn(node)
+		}
+		url := fmt.Sprintf("/nodes/%s/update?version=%d", node.ID, node.Version.Index)
+		status, out, err := d.SockRequest("POST", url, node.Spec)
+		if i < 10 && strings.Contains(string(out), "update out of sequence") {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		c.Assert(err, checker.IsNil)
+		c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+		return
 	}
-	url := fmt.Sprintf("/nodes/%s/update?version=%d", node.ID, node.Version.Index)
-	status, out, err := d.SockRequest("POST", url, node.Spec)
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
 }
 
 func (d *SwarmDaemon) listNodes(c *check.C) []swarm.Node {
