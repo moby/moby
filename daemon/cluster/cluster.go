@@ -379,10 +379,11 @@ func (c *Cluster) Leave(force bool) error {
 	if err := node.Stop(ctx); err != nil && !strings.Contains(err.Error(), "context canceled") {
 		return err
 	}
-	nodeID := node.NodeID()
-	for _, id := range c.config.Backend.ListContainersForNode(nodeID) {
-		if err := c.config.Backend.ContainerRm(id, &apitypes.ContainerRmConfig{ForceRemove: true}); err != nil {
-			logrus.Errorf("error removing %v: %v", id, err)
+	if nodeID := node.NodeID(); nodeID != "" {
+		for _, id := range c.config.Backend.ListContainersForNode(nodeID) {
+			if err := c.config.Backend.ContainerRm(id, &apitypes.ContainerRmConfig{ForceRemove: true}); err != nil {
+				logrus.Errorf("error removing %v: %v", id, err)
+			}
 		}
 	}
 	c.Lock()
