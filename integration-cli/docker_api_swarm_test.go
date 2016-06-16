@@ -552,6 +552,32 @@ func (s *DockerSwarmSuite) TestApiSwarmLeaveRemovesContainer(c *check.C) {
 	c.Assert(id, checker.HasPrefix, strings.TrimSpace(id2))
 }
 
+// #23629
+func (s *DockerSwarmSuite) TestApiSwarmLeaveOnPendingJoin(c *check.C) {
+	s.AddDaemon(c, true, true)
+	d2 := s.AddDaemon(c, false, false)
+
+	id, err := d2.Cmd("run", "-d", "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	id = strings.TrimSpace(id)
+
+	go d2.Join("nosuchhost:1234", "", "", false) // will block on pending state
+
+	time.Sleep(1 * time.Second)
+
+	info, err := d2.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStatePending)
+
+	c.Assert(d2.Leave(true), checker.IsNil)
+
+	waitAndAssert(c, defaultReconciliationTimeout, d2.checkActiveContainerCount, checker.Equals, 1)
+
+	id2, err := d2.Cmd("ps", "-q")
+	c.Assert(err, checker.IsNil)
+	c.Assert(id, checker.HasPrefix, strings.TrimSpace(id2))
+}
+
 func (s *DockerSwarmSuite) TestApiSwarmManagerRestore(c *check.C) {
 	d1 := s.AddDaemon(c, true, true)
 
