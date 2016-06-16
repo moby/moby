@@ -9,10 +9,10 @@ import (
 )
 
 // ServiceUpdate updates a Service.
-func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version swarm.Version, service swarm.ServiceSpec) error {
+func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version swarm.Version, service swarm.ServiceSpec, headers map[string][]string) error {
 	query := url.Values{}
 	query.Set("version", strconv.FormatUint(version.Index, 10))
-	resp, err := cli.post(ctx, "/services/"+serviceID+"/update", query, service, nil)
+	resp, err := cli.post(ctx, "/services/"+serviceID+"/update", query, service, headers)
 	ensureReaderClosed(resp)
 	return err
 }
