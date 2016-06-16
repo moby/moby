@@ -3,9 +3,9 @@
 title = "plugin inspect"
 description = "The plugin inspect command description and usage"
 keywords = ["plugin, inspect"]
+advisory = "experimental"
 [menu.main]
 parent = "smn_cli"
-advisory = "experimental"
 +++
 <![end-metadata]-->
 
