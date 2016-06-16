@@ -82,7 +82,7 @@ func (s *DockerSwarmSuite) testAPISwarmManualAcceptance(c *check.C, secret strin
 	err := d2.Join(d1.listenAddr, "", "", false)
 	c.Assert(err, checker.NotNil)
 	if secret == "" {
-		c.Assert(err.Error(), checker.Contains, "Timeout reached")
+		c.Assert(err.Error(), checker.Contains, "needs to be accepted")
 		info, err := d2.info()
 		c.Assert(err, checker.IsNil)
 		c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStatePending)
@@ -97,23 +97,25 @@ func (s *DockerSwarmSuite) testAPISwarmManualAcceptance(c *check.C, secret strin
 		c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 	}
 	d3 := s.AddDaemon(c, false, false)
-	go func() {
-		for i := 0; ; i++ {
-			info, err := d3.info()
-			c.Assert(err, checker.IsNil)
-			if info.NodeID != "" {
-				d1.updateNode(c, d1.getNode(c, info.NodeID), func(n *swarm.Node) {
-					n.Spec.Membership = swarm.NodeMembershipAccepted
-				})
-				return
-			}
-			if i >= 10 {
-				c.Errorf("could not find nodeID")
-			}
-			time.Sleep(300 * time.Millisecond)
+	c.Assert(d3.Join(d1.listenAddr, secret, "", false), checker.NotNil)
+	info, err := d3.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStatePending)
+	c.Assert(len(info.NodeID), checker.GreaterThan, 5)
+	d1.updateNode(c, info.NodeID, func(n *swarm.Node) {
+		n.Spec.Membership = swarm.NodeMembershipAccepted
+	})
+	for i := 0; ; i++ {
+		info, err := d3.info()
+		c.Assert(err, checker.IsNil)
+		if info.LocalNodeState == swarm.LocalNodeStateActive {
+			break
 		}
-	}()
-	c.Assert(d3.Join(d1.listenAddr, secret, "", false), checker.IsNil)
+		if i > 10 {
+			c.Errorf("node did not become active")
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmSecretAcceptance(c *check.C) {
@@ -236,7 +238,7 @@ func (s *DockerSwarmSuite) TestApiSwarmPromoteDemote(c *check.C) {
 	c.Assert(info.ControlAvailable, checker.Equals, false)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 
-	d1.updateNode(c, d1.getNode(c, d2.NodeID), func(n *swarm.Node) {
+	d1.updateNode(c, d2.NodeID, func(n *swarm.Node) {
 		n.Spec.Role = swarm.NodeRoleManager
 	})
 
@@ -255,7 +257,7 @@ func (s *DockerSwarmSuite) TestApiSwarmPromoteDemote(c *check.C) {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	d1.updateNode(c, d1.getNode(c, d2.NodeID), func(n *swarm.Node) {
+	d1.updateNode(c, d2.NodeID, func(n *swarm.Node) {
 		n.Spec.Role = swarm.NodeRoleWorker
 	})
 
@@ -466,7 +468,7 @@ func (s *DockerSwarmSuite) TestApiSwarmNodeUpdate(c *check.C) {
 
 	nodes := d.listNodes(c)
 
-	d.updateNode(c, d.getNode(c, nodes[0].ID), func(n *swarm.Node) {
+	d.updateNode(c, nodes[0].ID, func(n *swarm.Node) {
 		n.Spec.Availability = swarm.NodeAvailabilityPause
 	})
 
@@ -489,14 +491,14 @@ func (s *DockerSwarmSuite) TestApiSwarmNodeDrainPause(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d2.checkActiveContainerCount), checker.Equals, instances)
 
 	// drain d2, all containers should move to d1
-	d1.updateNode(c, d1.getNode(c, d2.NodeID), func(n *swarm.Node) {
+	d1.updateNode(c, d2.NodeID, func(n *swarm.Node) {
 		n.Spec.Availability = swarm.NodeAvailabilityDrain
 	})
 	waitAndAssert(c, defaultReconciliationTimeout, d1.checkActiveContainerCount, checker.Equals, instances)
 	waitAndAssert(c, defaultReconciliationTimeout, d2.checkActiveContainerCount, checker.Equals, 0)
 
 	// set d2 back to active
-	d1.updateNode(c, d1.getNode(c, d2.NodeID), func(n *swarm.Node) {
+	d1.updateNode(c, d2.NodeID, func(n *swarm.Node) {
 		n.Spec.Availability = swarm.NodeAvailabilityActive
 	})
 
@@ -516,7 +518,7 @@ func (s *DockerSwarmSuite) TestApiSwarmNodeDrainPause(c *check.C) {
 	d2ContainerCount := len(d2.activeContainers())
 
 	// set d2 to paused, scale service up, only d1 gets new tasks
-	d1.updateNode(c, d1.getNode(c, d2.NodeID), func(n *swarm.Node) {
+	d1.updateNode(c, d2.NodeID, func(n *swarm.Node) {
 		n.Spec.Availability = swarm.NodeAvailabilityPause
 	})
 
