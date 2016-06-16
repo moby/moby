@@ -61,7 +61,8 @@ func runServiceScale(dockerCli *client.DockerCli, serviceID string, scale string
 	client := dockerCli.Client()
 	ctx := context.Background()
 
-	service, err := client.ServiceInspect(ctx, serviceID)
+	service, _, err := client.ServiceInspectWithRaw(ctx, serviceID)
+
 	if err != nil {
 		return err
 	}
