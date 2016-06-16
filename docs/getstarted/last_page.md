@@ -30,27 +30,27 @@ Depending on your interest, the Docker documentation contains a wealth of inform
   </tr>
   <tr>
     <td class="tg-031e">More about Docker for Mac, features, examples, FAQs, relationship to Docker Machine and Docker Toolbox, and how this fits in the Docker ecosystem</td>
-    <td class="tg-031e"><a href="https://docs.docker.com/docker-for-mac/">Getting Started with Docker for Mac</a></td>
+    <td class="tg-031e">[Getting Started with Docker for Mac](/docker-for-mac/index.md)</td>
   </tr>
   <tr>
-    <td class="tg-031e">More about Docker for Windows, More about Docker for Mac, features, examples, FAQs, relationship to Docker Machine and Docker Toolbox, and how this fits in the Docker ecosystem</td>
-    <td class="tg-031e"><a href="https://docs.docker.com/docker-for-windows/">Getting Started with Docker for Windows</a></td>
+    <td class="tg-031e">More about Docker for Windows, More about Docker for Windows, features, examples, FAQs, relationship to Docker Machine and Docker Toolbox, and how this fits in the Docker ecosystem</td>
+    <td class="tg-031e">[Getting Started with Docker for Windows](/docker-for-mac/index.md)</td>
   </tr>
   <tr>
     <td class="tg-031e">More about Docker Toolbox</td>
-    <td class="tg-031e"><a href="https://docs.docker.com/toolbox/overview/">Docker Toolbox Overview</a></td>
+    <td class="tg-031e">[Docker Toolbox Overview](/toolbox/overview.md)</td>
   </tr>
   <tr>
     <td class="tg-031e">More about Docker for Linux distributions</td>
-    <td class="tg-031e"><a href="https://docs.docker.com//engine/installation/linux/">Install Docker Engine on Linux</a></td>
+    <td class="tg-031e">[Install Docker Engine on Linux](/engine/installation/linux/index.md)</td>
   </tr>
   <tr>
     <td class="tg-031e">More advanced tutorials on running containers, building your own images, networking containers, managing data for containers, and storing images on Docker Hub</td>
-    <td class="tg-031e"> <a href="http://www.docker.com//engine/tutorials/">Learn by example</a></td>
+    <td class="tg-031e"> [Learn by example](/engine/tutorials/index.md)</a></td>
   </tr>
   <tr>
     <td class="tg-031e">Information about the Docker product line</td>
-    <td class="tg-031e"><a href="http://www.docker.com/products">The product explainer is a good place to start.</a></td>
+    <td class="tg-031e"><a href="http://www.docker.com/products/">The product explainer is a good place to start.</a></td>
   </tr>
 
   <tr>
@@ -59,7 +59,8 @@ Depending on your interest, the Docker documentation contains a wealth of inform
   </tr>
   <tr>
     <td class="tg-031e">How to run a multi-container application with Compose</td>
-    <td class="tg-031e"><a href="https://docs.docker.com/compose/gettingstarted/">Docker Compose documentation</a></td>
+    <td class="tg-031e"> [Docker Compose documentation](/compose/overview.md)
+    </td>
   </tr>
 </table>
 
