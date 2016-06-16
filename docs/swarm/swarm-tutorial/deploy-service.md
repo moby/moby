@@ -3,11 +3,11 @@
 title = "Deploy a service"
 description = "Deploy the application"
 keywords = ["tutorial, cluster management, swarm"]
+advisory = "rc"
 [menu.main]
 identifier="deploy-application"
 parent="swarm-tutorial"
 weight=16
-advisory = "rc"
 +++
 <![end-metadata]-->
 

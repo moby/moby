@@ -3,11 +3,11 @@
 title = "Swarm key concepts"
 description = "Introducing key concepts for Docker Swarm"
 keywords = ["docker, container, cluster, swarm"]
+advisory = "rc"
 [menu.main]
 identifier="swarm-concepts"
 parent="engine_swarm"
 weight="2"
-advisory = "rc"
 +++
 <![end-metadata]-->
 # Docker Swarm key concepts

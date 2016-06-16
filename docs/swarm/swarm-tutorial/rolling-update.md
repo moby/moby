@@ -3,11 +3,11 @@
 title = "Apply rolling updates"
 description = "Apply rolling updates to a service on the Swarm"
 keywords = ["tutorial, cluster management, swarm, service, rolling-update"]
+advisory = "rc"
 [menu.main]
 identifier="swarm-tutorial-rolling-update"
 parent="swarm-tutorial"
 weight=20
-advisory = "rc"
 +++
 <![end-metadata]-->
 
