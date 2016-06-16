@@ -36,68 +36,101 @@ func NewInspectCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.format, "format", "f", "", "Format the output using the given go template")
-	flags.StringVar(&opts.inspectType, "type", "", "Return JSON for specified type, (e.g image, container or task)")
+	flags.StringVar(&opts.inspectType, "type", "", "Return JSON for specified type")
 	flags.BoolVarP(&opts.size, "size", "s", false, "Display total file sizes if the type is container")
 
 	return cmd
 }
 
 func runInspect(dockerCli *client.DockerCli, opts inspectOptions) error {
-	ctx := context.Background()
-	client := dockerCli.Client()
-
-	var getRefFunc inspect.GetRefFunc
+	var elementSearcher inspect.GetRefFunc
 	switch opts.inspectType {
-	case "container":
-		getRefFunc = func(ref string) (interface{}, []byte, error) {
-			return client.ContainerInspectWithRaw(ctx, ref, opts.size)
-		}
-	case "image":
-		getRefFunc = func(ref string) (interface{}, []byte, error) {
-			return client.ImageInspectWithRaw(ctx, ref)
-		}
-	case "task":
-		if opts.size {
-			fmt.Fprintln(dockerCli.Err(), "WARNING: --size ignored for tasks")
-		}
-		getRefFunc = func(ref string) (interface{}, []byte, error) {
-			return client.TaskInspectWithRaw(ctx, ref)
-		}
-	case "":
-		getRefFunc = inspectAll(ctx, dockerCli, opts.size)
+	case "", "container", "image", "node", "network", "service", "volume", "task":
+		elementSearcher = inspectAll(context.Background(), dockerCli, opts.size, opts.inspectType)
 	default:
 		return fmt.Errorf("%q is not a valid value for --type", opts.inspectType)
 	}
-
-	return inspect.Inspect(dockerCli.Out(), opts.ids, opts.format, getRefFunc)
+	return inspect.Inspect(dockerCli.Out(), opts.ids, opts.format, elementSearcher)
 }
 
-func inspectAll(ctx context.Context, dockerCli *client.DockerCli, getSize bool) inspect.GetRefFunc {
-	client := dockerCli.Client()
-
+func inspectContainers(ctx context.Context, dockerCli *client.DockerCli, getSize bool) inspect.GetRefFunc {
 	return func(ref string) (interface{}, []byte, error) {
-		c, rawContainer, err := client.ContainerInspectWithRaw(ctx, ref, getSize)
-		if err == nil || !apiclient.IsErrNotFound(err) {
-			return c, rawContainer, err
-		}
-		// Search for image with that id if a container doesn't exist.
-		i, rawImage, err := client.ImageInspectWithRaw(ctx, ref)
-		if err == nil || !apiclient.IsErrNotFound(err) {
-			return i, rawImage, err
-		}
-
-		// Search for task with that id if an image doesn't exist.
-		t, rawTask, err := client.TaskInspectWithRaw(ctx, ref)
-		if err == nil || !(apiclient.IsErrNotFound(err) || isErrorNoSwarmMode(err)) {
-			if getSize {
-				fmt.Fprintln(dockerCli.Err(), "WARNING: --size ignored for tasks")
-			}
-			return t, rawTask, err
-		}
-		return nil, nil, fmt.Errorf("Error: No such container, image or task: %s", ref)
+		return dockerCli.Client().ContainerInspectWithRaw(ctx, ref, getSize)
 	}
 }
 
-func isErrorNoSwarmMode(err error) bool {
-	return strings.Contains(err.Error(), "This node is not a swarm manager")
+func inspectImages(ctx context.Context, dockerCli *client.DockerCli) inspect.GetRefFunc {
+	return func(ref string) (interface{}, []byte, error) {
+		return dockerCli.Client().ImageInspectWithRaw(ctx, ref)
+	}
+}
+
+func inspectNetwork(ctx context.Context, dockerCli *client.DockerCli) inspect.GetRefFunc {
+	return func(ref string) (interface{}, []byte, error) {
+		return dockerCli.Client().NetworkInspectWithRaw(ctx, ref)
+	}
+}
+
+func inspectNode(ctx context.Context, dockerCli *client.DockerCli) inspect.GetRefFunc {
+	return func(ref string) (interface{}, []byte, error) {
+		return dockerCli.Client().NodeInspectWithRaw(ctx, ref)
+	}
+}
+
+func inspectService(ctx context.Context, dockerCli *client.DockerCli) inspect.GetRefFunc {
+	return func(ref string) (interface{}, []byte, error) {
+		return dockerCli.Client().ServiceInspectWithRaw(ctx, ref)
+	}
+}
+
+func inspectTasks(ctx context.Context, dockerCli *client.DockerCli) inspect.GetRefFunc {
+	return func(ref string) (interface{}, []byte, error) {
+		return dockerCli.Client().TaskInspectWithRaw(ctx, ref)
+	}
+}
+
+func inspectVolume(ctx context.Context, dockerCli *client.DockerCli) inspect.GetRefFunc {
+	return func(ref string) (interface{}, []byte, error) {
+		return dockerCli.Client().VolumeInspectWithRaw(ctx, ref)
+	}
+}
+
+func inspectAll(ctx context.Context, dockerCli *client.DockerCli, getSize bool, typeConstraint string) inspect.GetRefFunc {
+	var inspectAutodetect = []struct {
+		ObjectType      string
+		IsSizeSupported bool
+		ObjectInspector func(string) (interface{}, []byte, error)
+	}{
+		{"container", true, inspectContainers(ctx, dockerCli, getSize)},
+		{"image", true, inspectImages(ctx, dockerCli)},
+		{"network", false, inspectNetwork(ctx, dockerCli)},
+		{"volume", false, inspectVolume(ctx, dockerCli)},
+		{"service", false, inspectService(ctx, dockerCli)},
+		{"task", false, inspectTasks(ctx, dockerCli)},
+		{"node", false, inspectNode(ctx, dockerCli)},
+	}
+
+	isErrNotSwarmManager := func(err error) bool {
+		return strings.Contains(err.Error(), "This node is not a swarm manager")
+	}
+
+	return func(ref string) (interface{}, []byte, error) {
+		for _, inspectData := range inspectAutodetect {
+			if typeConstraint != "" && inspectData.ObjectType != typeConstraint {
+				continue
+			}
+			v, raw, err := inspectData.ObjectInspector(ref)
+			if err != nil {
+				if typeConstraint == "" && (apiclient.IsErrNotFound(err) || isErrNotSwarmManager(err)) {
+					continue
+				}
+				return v, raw, err
+			}
+			if !inspectData.IsSizeSupported {
+				fmt.Fprintf(dockerCli.Err(), "WARNING: --size ignored for %s\n", inspectData.ObjectType)
+			}
+			return v, raw, err
+		}
+		return nil, nil, fmt.Errorf("Error: No such object: %s", ref)
+	}
 }

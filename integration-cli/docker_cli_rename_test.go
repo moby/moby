@@ -65,7 +65,7 @@ func (s *DockerSuite) TestRenameCheckNames(c *check.C) {
 	result := dockerCmdWithResult("inspect", "-f={{.Name}}", "first_name")
 	c.Assert(result, icmd.Matches, icmd.Expected{
 		ExitCode: 1,
-		Err:      "No such container, image or task: first_name",
+		Err:      "No such object: first_name",
 	})
 }
 
