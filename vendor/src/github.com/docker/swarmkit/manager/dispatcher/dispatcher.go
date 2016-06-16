@@ -95,7 +95,6 @@ type Dispatcher struct {
 	cluster              Cluster
 	ctx                  context.Context
 	cancel               context.CancelFunc
-	wg                   sync.WaitGroup
 
 	taskUpdates     map[string]*api.TaskStatus // indexed by task ID
 	taskUpdatesLock sync.Mutex
@@ -152,8 +151,6 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 		d.mu.Unlock()
 		return fmt.Errorf("dispatcher is stopped")
 	}
-	d.wg.Add(1)
-	defer d.wg.Done()
 	logger := log.G(ctx).WithField("module", "dispatcher")
 	ctx = log.WithLogger(ctx, logger)
 	if err := d.markNodesUnknown(ctx); err != nil {
@@ -236,25 +233,17 @@ func (d *Dispatcher) Stop() error {
 	d.cancel()
 	d.mu.Unlock()
 	d.nodes.Clean()
-	// wait for all handlers to finish their raft deals, because manager will
-	// set raftNode to nil
-	d.wg.Wait()
 	return nil
 }
 
-func (d *Dispatcher) addTask() error {
+func (d *Dispatcher) isRunningLocked() error {
 	d.mu.Lock()
 	if !d.isRunning() {
 		d.mu.Unlock()
 		return grpc.Errorf(codes.Aborted, "dispatcher is stopped")
 	}
-	d.wg.Add(1)
 	d.mu.Unlock()
 	return nil
-}
-
-func (d *Dispatcher) doneTask() {
-	d.wg.Done()
 }
 
 func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
@@ -325,10 +314,9 @@ func (d *Dispatcher) isRunning() bool {
 // register is used for registration of node with particular dispatcher.
 func (d *Dispatcher) register(ctx context.Context, nodeID string, description *api.NodeDescription) (string, string, error) {
 	// prevent register until we're ready to accept it
-	if err := d.addTask(); err != nil {
+	if err := d.isRunningLocked(); err != nil {
 		return "", "", err
 	}
-	defer d.doneTask()
 
 	// create or update node in store
 	// TODO(stevvooe): Validate node specification.
@@ -390,10 +378,9 @@ func (d *Dispatcher) UpdateTaskStatus(ctx context.Context, r *api.UpdateTaskStat
 	}
 	log := log.G(ctx).WithFields(fields)
 
-	if err := d.addTask(); err != nil {
+	if err := d.isRunningLocked(); err != nil {
 		return nil, err
 	}
-	defer d.doneTask()
 
 	if _, err := d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
 		return nil, err
@@ -505,10 +492,9 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 	}
 	nodeID := nodeInfo.NodeID
 
-	if err := d.addTask(); err != nil {
+	if err := d.isRunningLocked(); err != nil {
 		return err
 	}
-	defer d.doneTask()
 
 	fields := logrus.Fields{
 		"node.id":      nodeID,
@@ -585,10 +571,9 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 }
 
 func (d *Dispatcher) nodeRemove(id string, status api.NodeStatus) error {
-	if err := d.addTask(); err != nil {
+	if err := d.isRunningLocked(); err != nil {
 		return err
 	}
-	defer d.doneTask()
 	// TODO(aaronl): Is it worth batching node removals?
 	err := d.store.Update(func(tx store.Tx) error {
 		node := store.GetNode(tx, id)
@@ -640,10 +625,9 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 	}
 	nodeID := nodeInfo.NodeID
 
-	if err := d.addTask(); err != nil {
+	if err := d.isRunningLocked(); err != nil {
 		return err
 	}
-	defer d.doneTask()
 
 	// register the node.
 	nodeID, sessionID, err := d.register(stream.Context(), nodeID, r.Description)

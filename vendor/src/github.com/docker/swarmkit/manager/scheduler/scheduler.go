@@ -243,16 +243,18 @@ func (s *Scheduler) deleteTask(ctx context.Context, t *api.Task) {
 
 func (s *Scheduler) createOrUpdateNode(n *api.Node) {
 	nodeInfo := s.nodeHeap.nodeInfo(n.ID)
+	var resources api.Resources
 	if n.Description != nil && n.Description.Resources != nil {
-		if nodeInfo.AvailableResources == nil {
-			// if nodeInfo.AvailableResources hasn't been initialized
-			// we copy resources information from node description and
-			// pass it to nodeInfo
-			resources := *n.Description.Resources
-			nodeInfo.AvailableResources = &resources
+		resources = *n.Description.Resources
+		// reconcile resources by looping over all tasks in this node
+		for _, task := range nodeInfo.Tasks {
+			reservations := taskReservations(task.Spec)
+			resources.MemoryBytes -= reservations.MemoryBytes
+			resources.NanoCPUs -= reservations.NanoCPUs
 		}
 	}
 	nodeInfo.Node = n
+	nodeInfo.AvailableResources = resources
 	s.nodeHeap.addOrUpdateNode(nodeInfo)
 }
 
@@ -422,10 +424,9 @@ func (s *Scheduler) buildNodeHeap(tx store.ReadTx, tasksByNode map[string]map[st
 
 	i := 0
 	for _, n := range nodes {
-		var resources *api.Resources
+		var resources api.Resources
 		if n.Description != nil && n.Description.Resources != nil {
-			resources = &api.Resources{NanoCPUs: n.Description.Resources.NanoCPUs,
-				MemoryBytes: n.Description.Resources.MemoryBytes}
+			resources = *n.Description.Resources
 		}
 		s.nodeHeap.heap = append(s.nodeHeap.heap, newNodeInfo(n, tasksByNode[n.ID], resources))
 		s.nodeHeap.index[n.ID] = i
