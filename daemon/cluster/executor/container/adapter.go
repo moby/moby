@@ -39,7 +39,7 @@ func newContainerAdapter(b executorpkg.Backend, task *api.Task) (*containerAdapt
 
 func (c *containerAdapter) pullImage(ctx context.Context) error {
 	// if the image needs to be pulled, the auth config will be retrieved and updated
-	encodedAuthConfig := c.container.task.ServiceAnnotations.Labels[fmt.Sprintf("%v.registryauth", systemLabelPrefix)]
+	encodedAuthConfig := c.container.spec().RegistryAuth
 
 	authConfig := &types.AuthConfig{}
 	if encodedAuthConfig != "" {

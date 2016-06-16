@@ -111,7 +111,7 @@ func New(config Config) (*Cluster, error) {
 	select {
 	case <-time.After(swarmConnectTimeout):
 		logrus.Errorf("swarm component could not be started before timeout was reached")
-	case <-n.Ready(context.Background()):
+	case <-n.Ready():
 	case <-ctx.Done():
 	}
 	if ctx.Err() != nil {
@@ -213,7 +213,7 @@ func (c *Cluster) startNewNode(forceNewCluster bool, listenAddr, joinAddr, secre
 
 	go func() {
 		select {
-		case <-node.Ready(context.Background()):
+		case <-node.Ready():
 			c.Lock()
 			c.reconnectDelay = initialReconnectDelay
 			c.Unlock()
@@ -273,7 +273,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 	c.Unlock()
 
 	select {
-	case <-n.Ready(context.Background()):
+	case <-n.Ready():
 		if err := initAcceptancePolicy(n, req.Spec.AcceptancePolicy); err != nil {
 			return "", err
 		}
@@ -319,7 +319,7 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 			return fmt.Errorf("Timeout reached before node was joined. Your cluster settings may be preventing this node from automatically joining. To accept this node into cluster run `docker node accept %v` in an existing cluster manager", nodeid)
 		}
 		return ErrSwarmJoinTimeoutReached
-	case <-n.Ready(context.Background()):
+	case <-n.Ready():
 		go c.reconnectOnFailure(ctx)
 		return nil
 	case <-ctx.Done():
