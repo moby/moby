@@ -465,6 +465,7 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 			GlobalIPv6Address:   network.GlobalIPv6Address,
 			GlobalIPv6PrefixLen: network.GlobalIPv6PrefixLen,
 			MacAddress:          network.MacAddress,
+			NetworkID:           network.NetworkID,
 		}
 		if network.IPAMConfig != nil {
 			networks[name].IPAMConfig = &networktypes.EndpointIPAMConfig{
