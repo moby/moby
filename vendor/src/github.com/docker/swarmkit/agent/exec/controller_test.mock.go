@@ -9,38 +9,6 @@ import (
 	context "golang.org/x/net/context"
 )
 
-// Mock of ContainerController interface
-type MockContainerController struct {
-	ctrl     *gomock.Controller
-	recorder *_MockContainerControllerRecorder
-}
-
-// Recorder for MockContainerController (not exported)
-type _MockContainerControllerRecorder struct {
-	mock *MockContainerController
-}
-
-func NewMockContainerController(ctrl *gomock.Controller) *MockContainerController {
-	mock := &MockContainerController{ctrl: ctrl}
-	mock.recorder = &_MockContainerControllerRecorder{mock}
-	return mock
-}
-
-func (_m *MockContainerController) EXPECT() *_MockContainerControllerRecorder {
-	return _m.recorder
-}
-
-func (_m *MockContainerController) ContainerStatus(ctx context.Context) (*api.ContainerStatus, error) {
-	ret := _m.ctrl.Call(_m, "ContainerStatus", ctx)
-	ret0, _ := ret[0].(*api.ContainerStatus)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-func (_mr *_MockContainerControllerRecorder) ContainerStatus(arg0 interface{}) *gomock.Call {
-	return _mr.mock.ctrl.RecordCall(_mr.mock, "ContainerStatus", arg0)
-}
-
 // Mock of Controller interface
 type MockController struct {
 	ctrl     *gomock.Controller
@@ -140,4 +108,36 @@ func (_m *MockController) Close() error {
 
 func (_mr *_MockControllerRecorder) Close() *gomock.Call {
 	return _mr.mock.ctrl.RecordCall(_mr.mock, "Close")
+}
+
+// Mock of ContainerStatuser interface
+type MockContainerStatuser struct {
+	ctrl     *gomock.Controller
+	recorder *_MockContainerStatuserRecorder
+}
+
+// Recorder for MockContainerStatuser (not exported)
+type _MockContainerStatuserRecorder struct {
+	mock *MockContainerStatuser
+}
+
+func NewMockContainerStatuser(ctrl *gomock.Controller) *MockContainerStatuser {
+	mock := &MockContainerStatuser{ctrl: ctrl}
+	mock.recorder = &_MockContainerStatuserRecorder{mock}
+	return mock
+}
+
+func (_m *MockContainerStatuser) EXPECT() *_MockContainerStatuserRecorder {
+	return _m.recorder
+}
+
+func (_m *MockContainerStatuser) ContainerStatus(ctx context.Context) (*api.ContainerStatus, error) {
+	ret := _m.ctrl.Call(_m, "ContainerStatus", ctx)
+	ret0, _ := ret[0].(*api.ContainerStatus)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (_mr *_MockContainerStatuserRecorder) ContainerStatus(arg0 interface{}) *gomock.Call {
+	return _mr.mock.ctrl.RecordCall(_mr.mock, "ContainerStatus", arg0)
 }

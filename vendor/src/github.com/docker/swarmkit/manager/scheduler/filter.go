@@ -53,9 +53,6 @@ func (f *ResourceFilter) SetTask(t *api.Task) bool {
 
 // Check returns true if the task can be scheduled into the given node.
 func (f *ResourceFilter) Check(n *NodeInfo) bool {
-	if n.AvailableResources == nil {
-		return false
-	}
 	if f.reservations.NanoCPUs > n.AvailableResources.NanoCPUs {
 		return false
 	}

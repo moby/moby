@@ -6,10 +6,10 @@ import "github.com/docker/swarmkit/api"
 type NodeInfo struct {
 	*api.Node
 	Tasks              map[string]*api.Task
-	AvailableResources *api.Resources
+	AvailableResources api.Resources
 }
 
-func newNodeInfo(n *api.Node, tasks map[string]*api.Task, availableResources *api.Resources) NodeInfo {
+func newNodeInfo(n *api.Node, tasks map[string]*api.Task, availableResources api.Resources) NodeInfo {
 	nodeInfo := NodeInfo{
 		Node:               n,
 		Tasks:              make(map[string]*api.Task),
@@ -31,11 +31,9 @@ func (nodeInfo *NodeInfo) removeTask(t *api.Task) bool {
 	}
 
 	delete(nodeInfo.Tasks, t.ID)
-	if nodeInfo.AvailableResources != nil {
-		reservations := taskReservations(t.Spec)
-		nodeInfo.AvailableResources.MemoryBytes += reservations.MemoryBytes
-		nodeInfo.AvailableResources.NanoCPUs += reservations.NanoCPUs
-	}
+	reservations := taskReservations(t.Spec)
+	nodeInfo.AvailableResources.MemoryBytes += reservations.MemoryBytes
+	nodeInfo.AvailableResources.NanoCPUs += reservations.NanoCPUs
 
 	return true
 }
@@ -49,11 +47,9 @@ func (nodeInfo *NodeInfo) addTask(t *api.Task) bool {
 	}
 	if _, ok := nodeInfo.Tasks[t.ID]; !ok {
 		nodeInfo.Tasks[t.ID] = t
-		if nodeInfo.AvailableResources != nil {
-			reservations := taskReservations(t.Spec)
-			nodeInfo.AvailableResources.MemoryBytes -= reservations.MemoryBytes
-			nodeInfo.AvailableResources.NanoCPUs -= reservations.NanoCPUs
-		}
+		reservations := taskReservations(t.Spec)
+		nodeInfo.AvailableResources.MemoryBytes -= reservations.MemoryBytes
+		nodeInfo.AvailableResources.NanoCPUs -= reservations.NanoCPUs
 		return true
 	}
 
