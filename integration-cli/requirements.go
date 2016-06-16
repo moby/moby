@@ -30,6 +30,10 @@ var (
 		func() bool { return daemonPlatform == "linux" },
 		"Test requires a Linux daemon",
 	}
+	ExperimentalDaemon = testRequirement{
+		func() bool { return utils.ExperimentalBuild() },
+		"Test requires an experimental daemon",
+	}
 	NotExperimentalDaemon = testRequirement{
 		func() bool { return !utils.ExperimentalBuild() },
 		"Test requires a non experimental daemon",

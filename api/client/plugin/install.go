@@ -13,21 +13,31 @@ import (
 	"golang.org/x/net/context"
 )
 
+type pluginOptions struct {
+	name       string
+	grantPerms bool
+}
+
 func newInstallCommand(dockerCli *client.DockerCli) *cobra.Command {
+	var options pluginOptions
 	cmd := &cobra.Command{
 		Use:   "install",
 		Short: "Install a plugin",
 		Args:  cli.RequiresMinArgs(1), // TODO: allow for set args
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runInstall(dockerCli, args[0], args[1:])
+			options.name = args[0]
+			return runInstall(dockerCli, options)
 		},
 	}
+
+	flags := cmd.Flags()
+	flags.BoolVar(&options.grantPerms, "grant-all-permissions", true, "grant all permissions necessary to run the plugin")
 
 	return cmd
 }
 
-func runInstall(dockerCli *client.DockerCli, name string, args []string) error {
-	named, err := reference.ParseNamed(name) // FIXME: validate
+func runInstall(dockerCli *client.DockerCli, options pluginOptions) error {
+	named, err := reference.ParseNamed(options.name) // FIXME: validate
 	if err != nil {
 		return err
 	}
@@ -46,6 +56,6 @@ func runInstall(dockerCli *client.DockerCli, name string, args []string) error {
 	if err != nil {
 		return err
 	}
-	// TODO: pass acceptAllPermissions and noEnable flag
-	return dockerCli.Client().PluginInstall(ctx, ref.String(), encodedAuth, false, false, dockerCli.In(), dockerCli.Out())
+	// TODO: pass noEnable flag
+	return dockerCli.Client().PluginInstall(ctx, ref.String(), encodedAuth, options.grantPerms, false, dockerCli.In(), dockerCli.Out())
 }
