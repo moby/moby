@@ -330,11 +330,15 @@ func (nDB *NetworkDB) bulkSyncTables() {
 		// successfully completed bulk sync in this iteration.
 		updatedNetworks := make([]string, 0, len(networks))
 		for _, nid := range networks {
+			var found bool
 			for _, completedNid := range completed {
 				if nid == completedNid {
-					continue
+					found = true
+					break
 				}
+			}
 
+			if !found {
 				updatedNetworks = append(updatedNetworks, nid)
 			}
 		}
@@ -449,8 +453,9 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 	// Wait on a response only if it is unsolicited.
 	if unsolicited {
 		startTime := time.Now()
+		t := time.NewTimer(30 * time.Second)
 		select {
-		case <-time.After(30 * time.Second):
+		case <-t.C:
 			logrus.Errorf("Bulk sync to node %s timed out", node)
 		case <-ch:
 			nDB.Lock()
@@ -459,6 +464,7 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 
 			logrus.Debugf("%s: Bulk sync to node %s took %s", nDB.config.NodeName, node, time.Now().Sub(startTime))
 		}
+		t.Stop()
 	}
 
 	return nil
