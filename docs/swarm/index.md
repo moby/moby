@@ -3,11 +3,11 @@
 title = "Swarm overview"
 description = "Docker Swarm overview"
 keywords = ["docker, container, cluster, swarm"]
+advisory = "rc"
 [menu.main]
 identifier="swarm_overview"
 parent="engine_swarm"
 weight="1"
-advisory = "rc"
 +++
 <![end-metadata]-->
 # Docker Swarm overview

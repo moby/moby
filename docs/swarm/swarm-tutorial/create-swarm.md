@@ -3,11 +3,11 @@
 title = "Create a Swarm"
 description = "Initialize the Swarm"
 keywords = ["tutorial, cluster management, swarm"]
+advisory = "rc"
 [menu.main]
 identifier="initialize-swarm"
 parent="swarm-tutorial"
 weight=12
-advisory = "rc"
 +++
 <![end-metadata]-->
 

@@ -3,11 +3,11 @@
 title = "Inspect the service"
 description = "Inspect the application"
 keywords = ["tutorial, cluster management, swarm"]
+advisory = "rc"
 [menu.main]
 identifier="inspect-application"
 parent="swarm-tutorial"
 weight=17
-advisory = "rc"
 +++
 <![end-metadata]-->
 

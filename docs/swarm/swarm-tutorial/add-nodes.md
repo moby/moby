@@ -3,11 +3,11 @@
 title = "Add nodes to the Swarm"
 description = "Add nodes to the Swarm"
 keywords = ["tutorial, cluster management, swarm"]
+advisory = "rc"
 [menu.main]
 identifier="add-nodes"
 parent="swarm-tutorial"
 weight=13
-advisory = "rc"
 +++
 <![end-metadata]-->
 
