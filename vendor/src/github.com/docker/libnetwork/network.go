@@ -1123,8 +1123,7 @@ func (n *network) getController() *controller {
 }
 
 func (n *network) ipamAllocate() error {
-	// For now also exclude bridge from using new ipam
-	if n.Type() == "host" || n.Type() == "null" {
+	if n.hasSpecialDriver() {
 		return nil
 	}
 
@@ -1295,8 +1294,7 @@ func (n *network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 }
 
 func (n *network) ipamRelease() {
-	// For now exclude host and null
-	if n.Type() == "host" || n.Type() == "null" {
+	if n.hasSpecialDriver() {
 		return
 	}
 	ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
@@ -1503,4 +1501,9 @@ func (n *network) TableEventRegister(tableName string) error {
 
 	n.driverTables = append(n.driverTables, tableName)
 	return nil
+}
+
+// Special drivers are ones which do not need to perform any network plumbing
+func (n *network) hasSpecialDriver() bool {
+	return n.Type() == "host" || n.Type() == "null"
 }

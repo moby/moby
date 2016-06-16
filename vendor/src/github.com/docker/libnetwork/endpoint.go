@@ -987,7 +987,7 @@ func (ep *endpoint) assignAddress(ipam ipamapi.Ipam, assignIPv4, assignIPv6 bool
 	var err error
 
 	n := ep.getNetwork()
-	if n.Type() == "host" || n.Type() == "null" {
+	if n.hasSpecialDriver() {
 		return nil
 	}
 
@@ -1067,7 +1067,7 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 
 func (ep *endpoint) releaseAddress() {
 	n := ep.getNetwork()
-	if n.Type() == "host" || n.Type() == "null" {
+	if n.hasSpecialDriver() {
 		return
 	}
 
