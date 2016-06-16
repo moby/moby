@@ -29,7 +29,7 @@ type AcceptancePolicy struct {
 type Policy struct {
 	Role       NodeRole
 	Autoaccept bool
-	Secret     string `json:",omitempty"`
+	Secret     *string `json:",omitempty"`
 }
 
 // OrchestrationConfig represents ochestration configuration.

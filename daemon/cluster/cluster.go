@@ -444,12 +444,12 @@ func (c *Cluster) Update(version uint64, spec types.Spec) error {
 		return ErrNoManager
 	}
 
-	swarmSpec, err := convert.SwarmSpecToGRPC(spec)
+	swarm, err := getSwarm(c.getRequestContext(), c.client)
 	if err != nil {
 		return err
 	}
 
-	swarm, err := getSwarm(c.getRequestContext(), c.client)
+	swarmSpec, err := convert.SwarmSpecToGRPCandMerge(spec, &swarm.Spec)
 	if err != nil {
 		return err
 	}
@@ -1030,7 +1030,7 @@ func initAcceptancePolicy(node *swarmagent.Node, acceptancePolicy types.Acceptan
 			}
 			spec := &cluster.Spec
 
-			if err := convert.SwarmSpecUpdateAcceptancePolicy(spec, acceptancePolicy); err != nil {
+			if err := convert.SwarmSpecUpdateAcceptancePolicy(spec, acceptancePolicy, nil); err != nil {
 				return fmt.Errorf("error updating cluster settings: %v", err)
 			}
 			_, err := client.UpdateCluster(ctx, &swarmapi.UpdateClusterRequest{
