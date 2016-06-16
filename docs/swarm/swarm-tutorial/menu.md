@@ -3,11 +3,11 @@
 title = "Get started with Swarm"
 description = "Getting started tutorial for Docker Swarm"
 keywords = ["cluster, swarm, tutorial"]
+advisory = "rc"
 [menu.main]
 identifier="swarm-tutorial"
 parent="engine_swarm"
 weight=10
-advisory = "rc"
 +++
 <![end-metadata]-->
 

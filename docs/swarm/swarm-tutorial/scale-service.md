@@ -3,11 +3,11 @@
 title = "Scale the service"
 description = "Scale the service running in the Swarm"
 keywords = ["tutorial, cluster management, swarm, scale"]
+advisory = "rc"
 [menu.main]
 identifier="swarm-tutorial-scale-service"
 parent="swarm-tutorial"
 weight=18
-advisory = "rc"
 +++
 <![end-metadata]-->
 

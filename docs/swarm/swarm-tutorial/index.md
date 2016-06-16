@@ -3,11 +3,11 @@
 title = "Set up for the tutorial"
 description = "Getting Started tutorial for Docker Swarm"
 keywords = ["tutorial, cluster management, swarm"]
+advisory = "rc"
 [menu.main]
 identifier="tutorial-setup"
 parent="swarm-tutorial"
 weight=11
-advisory = "rc"
 +++
 <![end-metadata]-->
 
