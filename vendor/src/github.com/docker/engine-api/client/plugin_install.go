@@ -3,21 +3,28 @@
 package client
 
 import (
-	"bufio"
 	"encoding/json"
-	"fmt"
-	"io"
+	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/docker/engine-api/types"
 	"golang.org/x/net/context"
 )
 
 // PluginInstall installs a plugin
-func (cli *Client) PluginInstall(ctx context.Context, name, registryAuth string, acceptAllPermissions, noEnable bool, in io.ReadCloser, out io.Writer) error {
-	headers := map[string][]string{"X-Registry-Auth": {registryAuth}}
-	resp, err := cli.post(ctx, "/plugins/pull", url.Values{"name": []string{name}}, nil, headers)
+func (cli *Client) PluginInstall(ctx context.Context, name string, options types.PluginInstallOptions) error {
+	// FIXME(vdemeester) name is a ref, we might want to parse/validate it here.
+	query := url.Values{}
+	query.Set("name", name)
+	resp, err := cli.tryPluginPull(ctx, query, options.RegistryAuth)
+	if resp.statusCode == http.StatusUnauthorized && options.PrivilegeFunc != nil {
+		newAuthHeader, privilegeErr := options.PrivilegeFunc()
+		if privilegeErr != nil {
+			ensureReaderClosed(resp)
+			return privilegeErr
+		}
+		resp, err = cli.tryPluginPull(ctx, query, newAuthHeader)
+	}
 	if err != nil {
 		ensureReaderClosed(resp)
 		return err
@@ -28,27 +35,24 @@ func (cli *Client) PluginInstall(ctx context.Context, name, registryAuth string,
 	}
 	ensureReaderClosed(resp)
 
-	if !acceptAllPermissions && len(privileges) > 0 {
-
-		fmt.Fprintf(out, "Plugin %q requested the following privileges:\n", name)
-		for _, privilege := range privileges {
-			fmt.Fprintf(out, " - %s: %v\n", privilege.Name, privilege.Value)
-		}
-
-		fmt.Fprint(out, "Do you grant the above permissions? [y/N] ")
-		reader := bufio.NewReader(in)
-		line, _, err := reader.ReadLine()
+	if !options.AcceptAllPermissions && options.AcceptPermissionsFunc != nil && len(privileges) > 0 {
+		accept, err := options.AcceptPermissionsFunc(privileges)
 		if err != nil {
 			return err
 		}
-		if strings.ToLower(string(line)) != "y" {
+		if !accept {
 			resp, _ := cli.delete(ctx, "/plugins/"+name, nil, nil)
 			ensureReaderClosed(resp)
 			return pluginPermissionDenied{name}
 		}
 	}
-	if noEnable {
+	if options.Disabled {
 		return nil
 	}
 	return cli.PluginEnable(ctx, name)
+}
+
+func (cli *Client) tryPluginPull(ctx context.Context, query url.Values, registryAuth string) (*serverResponse, error) {
+	headers := map[string][]string{"X-Registry-Auth": {registryAuth}}
+	return cli.post(ctx, "/plugins/pull", query, nil, headers)
 }
