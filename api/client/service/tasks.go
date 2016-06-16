@@ -44,7 +44,7 @@ func runTasks(dockerCli *client.DockerCli, opts tasksOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
-	service, err := client.ServiceInspect(ctx, opts.serviceID)
+	service, _, err := client.ServiceInspectWithRaw(ctx, opts.serviceID)
 	if err != nil {
 		return err
 	}
