@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	apiclient "github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types/swarm"
+	"github.com/docker/go-units"
 	"github.com/spf13/cobra"
 )
 
@@ -101,7 +102,10 @@ func printService(out io.Writer, service swarm.Service) {
 		}
 	}
 	fmt.Fprintln(out, "Placement:")
-	fmt.Fprintln(out, " Strategy:\tSPREAD")
+	fmt.Fprintln(out, " Strategy:\tSpread")
+	if service.Spec.TaskTemplate.Placement != nil && len(service.Spec.TaskTemplate.Placement.Constraints) > 0 {
+		ioutils.FprintfIfNotEmpty(out, " Constraints\t: %s\n", strings.Join(service.Spec.TaskTemplate.Placement.Constraints, ", "))
+	}
 	fmt.Fprintf(out, "UpdateConfig:\n")
 	fmt.Fprintf(out, " Parallelism:\t%d\n", service.Spec.UpdateConfig.Parallelism)
 	if service.Spec.UpdateConfig.Delay.Nanoseconds() > 0 {
@@ -109,6 +113,42 @@ func printService(out io.Writer, service swarm.Service) {
 	}
 	fmt.Fprintf(out, "ContainerSpec:\n")
 	printContainerSpec(out, service.Spec.TaskTemplate.ContainerSpec)
+
+	if service.Spec.TaskTemplate.Resources != nil {
+		fmt.Fprintln(out, "Resources:")
+		printResources := func(out io.Writer, r *swarm.Resources) {
+			if r.NanoCPUs != 0 {
+				fmt.Fprintf(out, " CPU:\t\t%g\n", float64(r.NanoCPUs)/1e9)
+			}
+			if r.MemoryBytes != 0 {
+				fmt.Fprintf(out, " Memory:\t\t%s\n", units.BytesSize(float64(r.MemoryBytes)))
+			}
+		}
+		if service.Spec.TaskTemplate.Resources.Reservations != nil {
+			fmt.Fprintln(out, "Reservations:")
+			printResources(out, service.Spec.TaskTemplate.Resources.Reservations)
+		}
+		if service.Spec.TaskTemplate.Resources.Limits != nil {
+			fmt.Fprintln(out, "Limits:")
+			printResources(out, service.Spec.TaskTemplate.Resources.Limits)
+		}
+	}
+	if len(service.Spec.Networks) > 0 {
+		fmt.Fprintf(out, "Networks:")
+		for _, n := range service.Spec.Networks {
+			fmt.Fprintf(out, " %s", n.Target)
+		}
+	}
+
+	if len(service.Endpoint.Ports) > 0 {
+		fmt.Fprintln(out, "Ports:")
+		for _, port := range service.Endpoint.Ports {
+			fmt.Fprintf(out, " Name = %s\n", port.Name)
+			fmt.Fprintf(out, " Protocol = %s\n", port.Protocol)
+			fmt.Fprintf(out, " TargetPort = %d\n", port.TargetPort)
+			fmt.Fprintf(out, " PublishedPort = %d\n", port.PublishedPort)
+		}
+	}
 }
 
 func printContainerSpec(out io.Writer, containerSpec swarm.ContainerSpec) {
@@ -124,4 +164,13 @@ func printContainerSpec(out io.Writer, containerSpec swarm.ContainerSpec) {
 	}
 	ioutils.FprintfIfNotEmpty(out, " Dir\t\t%s\n", containerSpec.Dir)
 	ioutils.FprintfIfNotEmpty(out, " User\t\t%s\n", containerSpec.User)
+	if len(containerSpec.Mounts) > 0 {
+		fmt.Fprintln(out, " Mounts:")
+		for _, v := range containerSpec.Mounts {
+			fmt.Fprintf(out, "  Target = %s\n", v.Target)
+			fmt.Fprintf(out, "  Source = %s\n", v.Source)
+			fmt.Fprintf(out, "  Writable = %v\n", v.Writable)
+			fmt.Fprintf(out, "  Type = %v\n", v.Type)
+		}
+	}
 }
