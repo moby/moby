@@ -33,7 +33,7 @@ func runAccept(dockerCli *client.DockerCli, flags *pflag.FlagSet, args []string)
 		}); err != nil {
 			return err
 		}
-		fmt.Println(id, "attempting to accept a node in the swarm.")
+		fmt.Fprintf(dockerCli.Out(), "Node %s accepted in the swarm.", id)
 	}
 
 	return nil
