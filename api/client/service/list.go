@@ -6,15 +6,15 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -47,11 +47,10 @@ func newListCommand(dockerCli *client.DockerCli) *cobra.Command {
 }
 
 func runList(dockerCli *client.DockerCli, opts listOptions) error {
+	ctx := context.Background()
 	client := dockerCli.Client()
 
-	services, err := client.ServiceList(
-		context.Background(),
-		types.ServiceListOptions{Filter: opts.filter.Value()})
+	services, err := client.ServiceList(ctx, types.ServiceListOptions{Filter: opts.filter.Value()})
 	if err != nil {
 		return err
 	}
@@ -60,12 +59,29 @@ func runList(dockerCli *client.DockerCli, opts listOptions) error {
 	if opts.quiet {
 		printQuiet(out, services)
 	} else {
-		printTable(out, services)
+		taskFilter := filters.NewArgs()
+		for _, service := range services {
+			taskFilter.Add("service", service.ID)
+		}
+
+		tasks, err := client.TaskList(ctx, types.TaskListOptions{Filter: taskFilter})
+		if err != nil {
+			return err
+		}
+
+		running := map[string]int{}
+		for _, task := range tasks {
+			if task.Status.State == "running" {
+				running[task.ServiceID]++
+			}
+		}
+
+		printTable(out, services, running)
 	}
 	return nil
 }
 
-func printTable(out io.Writer, services []swarm.Service) {
+func printTable(out io.Writer, services []swarm.Service, running map[string]int) {
 	writer := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
 
 	// Ignore flushing errors
@@ -73,18 +89,18 @@ func printTable(out io.Writer, services []swarm.Service) {
 
 	fmt.Fprintf(writer, listItemFmt, "ID", "NAME", "REPLICAS", "IMAGE", "COMMAND")
 	for _, service := range services {
-		scale := ""
+		replicas := ""
 		if service.Spec.Mode.Replicated != nil && service.Spec.Mode.Replicated.Replicas != nil {
-			scale = fmt.Sprintf("%d", *service.Spec.Mode.Replicated.Replicas)
+			replicas = fmt.Sprintf("%d/%d", running[service.ID], *service.Spec.Mode.Replicated.Replicas)
 		} else if service.Spec.Mode.Global != nil {
-			scale = "global"
+			replicas = "global"
 		}
 		fmt.Fprintf(
 			writer,
 			listItemFmt,
 			stringid.TruncateID(service.ID),
 			service.Spec.Name,
-			scale,
+			replicas,
 			service.Spec.TaskTemplate.ContainerSpec.Image,
 			strings.Join(service.Spec.TaskTemplate.ContainerSpec.Args, " "))
 	}
