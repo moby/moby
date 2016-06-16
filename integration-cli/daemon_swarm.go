@@ -114,6 +114,7 @@ func (d *SwarmDaemon) info() (swarm.Info, error) {
 
 type serviceConstructor func(*swarm.Service)
 type nodeConstructor func(*swarm.Node)
+type specConstructor func(*swarm.Spec)
 
 func (d *SwarmDaemon) createService(c *check.C, f ...serviceConstructor) string {
 	var service swarm.Service
@@ -184,4 +185,20 @@ func (d *SwarmDaemon) listNodes(c *check.C) []swarm.Node {
 	nodes := []swarm.Node{}
 	c.Assert(json.Unmarshal(out, &nodes), checker.IsNil)
 	return nodes
+}
+
+func (d *SwarmDaemon) updateSwarm(c *check.C, f ...specConstructor) {
+	var sw swarm.Swarm
+	status, out, err := d.SockRequest("GET", "/swarm", nil)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+	c.Assert(json.Unmarshal(out, &sw), checker.IsNil)
+
+	for _, fn := range f {
+		fn(&sw.Spec)
+	}
+	url := fmt.Sprintf("/swarm/update?version=%d", sw.Version.Index)
+	status, out, err = d.SockRequest("POST", url, sw.Spec)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
 }

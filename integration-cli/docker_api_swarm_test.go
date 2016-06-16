@@ -145,6 +145,74 @@ func (s *DockerSwarmSuite) TestApiSwarmSecretAcceptance(c *check.C) {
 	info, err = d2.info()
 	c.Assert(err, checker.IsNil)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
+
+	// change secret
+	d1.updateSwarm(c, func(s *swarm.Spec) {
+		for i := range s.AcceptancePolicy.Policies {
+			p := "foobaz"
+			s.AcceptancePolicy.Policies[i].Secret = &p
+		}
+	})
+
+	err = d2.Join(d1.listenAddr, "foobar", "", false)
+	c.Assert(err, checker.NotNil)
+	c.Assert(err.Error(), checker.Contains, "secret token is necessary")
+	info, err = d2.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
+
+	c.Assert(d2.Join(d1.listenAddr, "foobaz", "", false), checker.IsNil)
+	info, err = d2.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+	c.Assert(d2.Leave(false), checker.IsNil)
+	info, err = d2.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
+
+	// change policy, don't change secret
+	d1.updateSwarm(c, func(s *swarm.Spec) {
+		for i, p := range s.AcceptancePolicy.Policies {
+			if p.Role == swarm.NodeRoleManager {
+				s.AcceptancePolicy.Policies[i].Autoaccept = false
+			}
+			s.AcceptancePolicy.Policies[i].Secret = nil
+		}
+	})
+
+	err = d2.Join(d1.listenAddr, "", "", false)
+	c.Assert(err, checker.NotNil)
+	c.Assert(err.Error(), checker.Contains, "secret token is necessary")
+	info, err = d2.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
+
+	c.Assert(d2.Join(d1.listenAddr, "foobaz", "", false), checker.IsNil)
+	info, err = d2.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+	c.Assert(d2.Leave(false), checker.IsNil)
+	info, err = d2.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
+
+	// clear secret
+	d1.updateSwarm(c, func(s *swarm.Spec) {
+		for i := range s.AcceptancePolicy.Policies {
+			p := ""
+			s.AcceptancePolicy.Policies[i].Secret = &p
+		}
+	})
+
+	c.Assert(d2.Join(d1.listenAddr, "", "", false), checker.IsNil)
+	info, err = d2.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+	c.Assert(d2.Leave(false), checker.IsNil)
+	info, err = d2.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
+
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmCAHash(c *check.C) {
