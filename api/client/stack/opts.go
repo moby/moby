@@ -31,7 +31,12 @@ func loadBundlefile(stderr io.Writer, namespace string, path string) (*bundlefil
 	}
 
 	fmt.Fprintf(stderr, "Loading bundle from %s\n", path)
-	bundle, err := bundlefile.LoadFile(path)
+	reader, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	bundle, err := bundlefile.LoadFile(reader)
 	if err != nil {
 		return nil, fmt.Errorf("Error reading %s: %v\n", path, err)
 	}
