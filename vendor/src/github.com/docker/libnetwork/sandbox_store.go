@@ -27,6 +27,7 @@ type sbState struct {
 	dbExists   bool
 	Eps        []epState
 	EpPriority map[string]int
+	ExtDNS     []string
 }
 
 func (sbs *sbState) Key() []string {
@@ -113,6 +114,10 @@ func (sbs *sbState) CopyTo(o datastore.KVObject) error {
 		dstSbs.Eps = append(dstSbs.Eps, eps)
 	}
 
+	for _, dns := range sbs.ExtDNS {
+		dstSbs.ExtDNS = append(dstSbs.ExtDNS, dns)
+	}
+
 	return nil
 }
 
@@ -126,6 +131,7 @@ func (sb *sandbox) storeUpdate() error {
 		ID:         sb.id,
 		Cid:        sb.containerID,
 		EpPriority: sb.epPriority,
+		ExtDNS:     sb.extDNS,
 	}
 
 retry:
@@ -191,13 +197,15 @@ func (c *controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 		sbs := kvo.(*sbState)
 
 		sb := &sandbox{
-			id:          sbs.ID,
-			controller:  sbs.c,
-			containerID: sbs.Cid,
-			endpoints:   epHeap{},
-			dbIndex:     sbs.dbIndex,
-			isStub:      true,
-			dbExists:    true,
+			id:                 sbs.ID,
+			controller:         sbs.c,
+			containerID:        sbs.Cid,
+			endpoints:          epHeap{},
+			populatedEndpoints: map[string]struct{}{},
+			dbIndex:            sbs.dbIndex,
+			isStub:             true,
+			dbExists:           true,
+			extDNS:             sbs.ExtDNS,
 		}
 
 		msg := " for cleanup"

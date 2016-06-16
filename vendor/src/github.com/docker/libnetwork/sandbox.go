@@ -68,23 +68,24 @@ func (sb *sandbox) processOptions(options ...SandboxOption) {
 type epHeap []*endpoint
 
 type sandbox struct {
-	id            string
-	containerID   string
-	config        containerConfig
-	extDNS        []string
-	osSbox        osl.Sandbox
-	controller    *controller
-	resolver      Resolver
-	resolverOnce  sync.Once
-	refCnt        int
-	endpoints     epHeap
-	epPriority    map[string]int
-	joinLeaveDone chan struct{}
-	dbIndex       uint64
-	dbExists      bool
-	isStub        bool
-	inDelete      bool
-	ingress       bool
+	id                 string
+	containerID        string
+	config             containerConfig
+	extDNS             []string
+	osSbox             osl.Sandbox
+	controller         *controller
+	resolver           Resolver
+	resolverOnce       sync.Once
+	refCnt             int
+	endpoints          epHeap
+	epPriority         map[string]int
+	populatedEndpoints map[string]struct{}
+	joinLeaveDone      chan struct{}
+	dbIndex            uint64
+	dbExists           bool
+	isStub             bool
+	inDelete           bool
+	ingress            bool
 	sync.Mutex
 }
 
@@ -728,7 +729,7 @@ func (sb *sandbox) restoreOslSandbox() error {
 			}
 		}
 		if ep.needResolver() {
-			sb.startResolver()
+			sb.startResolver(true)
 		}
 	}
 
@@ -761,7 +762,7 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 	ep.Unlock()
 
 	if ep.needResolver() {
-		sb.startResolver()
+		sb.startResolver(false)
 	}
 
 	if i != nil && i.srcName != "" {
@@ -798,6 +799,12 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 		}
 	}
 
+	// Make sure to add the endpoint to the populated endpoint set
+	// before populating loadbalancers.
+	sb.Lock()
+	sb.populatedEndpoints[ep.ID()] = struct{}{}
+	sb.Unlock()
+
 	// Populate load balancer only after updating all the other
 	// information including gateway and other routes so that
 	// loadbalancers are populated all the network state is in
@@ -830,6 +837,7 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 		releaseOSSboxResources(osSbox, ep)
 	}
 
+	delete(sb.populatedEndpoints, ep.ID())
 	sb.Lock()
 	if len(sb.endpoints) == 0 {
 		// sb.endpoints should never be empty and this is unexpected error condition
@@ -877,6 +885,13 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 	}
 
 	return nil
+}
+
+func (sb *sandbox) isEndpointPopulated(ep *endpoint) bool {
+	sb.Lock()
+	_, ok := sb.populatedEndpoints[ep.ID()]
+	sb.Unlock()
+	return ok
 }
 
 // joinLeaveStart waits to ensure there are no joins or leaves in progress and
