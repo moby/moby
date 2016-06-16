@@ -3,9 +3,9 @@
 title = "plugin rm"
 description = "the plugin rm command description and usage"
 keywords = ["plugin, rm"]
+advisory = "experimental"
 [menu.main]
 parent = "smn_cli"
-advisory = "experimental"
 +++
 <![end-metadata]-->
 
