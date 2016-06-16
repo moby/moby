@@ -3,9 +3,9 @@
 title = "plugin install"
 description = "the plugin install command description and usage"
 keywords = ["plugin, install"]
+advisory = "experimental"
 [menu.main]
 parent = "smn_cli"
-advisory = "experimental"
 +++
 <![end-metadata]-->
 
