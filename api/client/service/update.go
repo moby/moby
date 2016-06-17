@@ -18,18 +18,17 @@ import (
 
 func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	opts := newServiceOptions()
-	var flags *pflag.FlagSet
 
 	cmd := &cobra.Command{
 		Use:   "update [OPTIONS] SERVICE",
 		Short: "Update a service",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runUpdate(dockerCli, flags, args[0])
+			return runUpdate(dockerCli, cmd.Flags(), args[0])
 		},
 	}
 
-	flags = cmd.Flags()
+	flags := cmd.Flags()
 	flags.String("image", "", "Service image tag")
 	flags.StringSlice("command", []string{}, "Service command")
 	flags.StringSlice("arg", []string{}, "Service command args")
@@ -112,6 +111,14 @@ func updateService(spec *swarm.ServiceSpec, flags *pflag.FlagSet) error {
 
 	cspec := &spec.TaskTemplate.ContainerSpec
 	task := &spec.TaskTemplate
+
+	taskResources := func() *swarm.ResourceRequirements {
+		if task.Resources == nil {
+			task.Resources = &swarm.ResourceRequirements{}
+		}
+		return task.Resources
+	}
+
 	updateString(flagName, &spec.Name)
 	updateLabels(flags, &spec.Labels)
 	updateString("image", &cspec.Image)
@@ -119,30 +126,24 @@ func updateService(spec *swarm.ServiceSpec, flags *pflag.FlagSet) error {
 	updateSlice("arg", &cspec.Command)
 	updateListOpts("env", &cspec.Env)
 	updateString("workdir", &cspec.Dir)
-	updateString("user", &cspec.User)
+	updateString(flagUser, &cspec.User)
 	updateMounts(flags, &cspec.Mounts)
 
 	if flags.Changed(flagLimitCPU) || flags.Changed(flagLimitMemory) {
-		if task.Resources == nil {
-			task.Resources = &swarm.ResourceRequirements{}
-		}
-		task.Resources.Limits = &swarm.Resources{}
+		taskResources().Limits = &swarm.Resources{}
 		updateInt64Value(flagLimitCPU, &task.Resources.Limits.NanoCPUs)
 		updateInt64Value(flagLimitMemory, &task.Resources.Limits.MemoryBytes)
 
 	}
 	if flags.Changed(flagReserveCPU) || flags.Changed(flagReserveMemory) {
-		if task.Resources == nil {
-			task.Resources = &swarm.ResourceRequirements{}
-		}
-		task.Resources.Reservations = &swarm.Resources{}
+		taskResources().Reservations = &swarm.Resources{}
 		updateInt64Value(flagReserveCPU, &task.Resources.Reservations.NanoCPUs)
 		updateInt64Value(flagReserveMemory, &task.Resources.Reservations.MemoryBytes)
 	}
 
-	updateDurationOpt("stop-grace-period", cspec.StopGracePeriod)
+	updateDurationOpt(flagStopGracePeriod, cspec.StopGracePeriod)
 
-	if flags.Changed(flagRestartCondition) || flags.Changed(flagRestartDelay) || flags.Changed(flagRestartMaxAttempts) || flags.Changed(flagRestartWindow) {
+	if anyChanged(flags, flagRestartCondition, flagRestartDelay, flagRestartMaxAttempts, flagRestartWindow) {
 		if task.RestartPolicy == nil {
 			task.RestartPolicy = &swarm.RestartPolicy{}
 		}
@@ -165,7 +166,7 @@ func updateService(spec *swarm.ServiceSpec, flags *pflag.FlagSet) error {
 		return err
 	}
 
-	if flags.Changed(flagUpdateParallelism) || flags.Changed(flagUpdateDelay) {
+	if anyChanged(flags, flagUpdateParallelism, flagUpdateDelay) {
 		if spec.UpdateConfig == nil {
 			spec.UpdateConfig = &swarm.UpdateConfig{}
 		}
@@ -201,6 +202,16 @@ func updateLabels(flags *pflag.FlagSet, field *map[string]string) {
 	}
 	*field = localLabels
 }
+
+func anyChanged(flags *pflag.FlagSet, fields ...string) bool {
+	for _, flag := range fields {
+		if flags.Changed(flag) {
+			return true
+		}
+	}
+	return false
+}
+
 
 // TODO: should this override by destination path, or does swarm handle that?
 func updateMounts(flags *pflag.FlagSet, mounts *[]swarm.Mount) {
