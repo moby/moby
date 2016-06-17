@@ -30,17 +30,17 @@ Example output:
 
     $ docker node inspect swarm-manager
     [
-      {
-        "ID": "0gac67oclbxq7",
+    {
+        "ID": "e216jshn25ckzbvmwlnh5jr3g",
         "Version": {
-            "Index": 2028
+            "Index": 10
         },
-        "CreatedAt": "2016-06-06T20:49:32.720047494Z",
-        "UpdatedAt": "2016-06-07T00:23:31.207632893Z",
+        "CreatedAt": "2016-06-16T22:52:44.9910662Z",
+        "UpdatedAt": "2016-06-16T22:52:45.230878043Z",
         "Spec": {
-            "Role": "MANAGER",
-            "Membership": "ACCEPTED",
-            "Availability": "ACTIVE"
+            "Role": "manager",
+            "Membership": "accepted",
+            "Availability": "active"
         },
         "Description": {
             "Hostname": "swarm-manager",
@@ -50,38 +50,55 @@ Example output:
             },
             "Resources": {
                 "NanoCPUs": 1000000000,
-                "MemoryBytes": 1044250624
+                "MemoryBytes": 1039843328
             },
             "Engine": {
                 "EngineVersion": "1.12.0",
-                "Labels": {
-                    "provider": "virtualbox"
-                }
+                "Plugins": [
+                    {
+                        "Type": "Volume",
+                        "Name": "local"
+                    },
+                    {
+                        "Type": "Network",
+                        "Name": "overlay"
+                    },
+                    {
+                        "Type": "Network",
+                        "Name": "null"
+                    },
+                    {
+                        "Type": "Network",
+                        "Name": "host"
+                    },
+                    {
+                        "Type": "Network",
+                        "Name": "bridge"
+                    },
+                    {
+                        "Type": "Network",
+                        "Name": "overlay"
+                    }
+                ]
             }
         },
         "Status": {
-            "State": "READY"
+            "State": "ready"
         },
-        "Manager": {
-            "Raft": {
-                "RaftID": 2143745093569717375,
-                "Addr": "192.168.99.118:4500",
-                "Status": {
-                    "Leader": true,
-                    "Reachability": "REACHABLE"
-                }
-            }
-        },
-        "Attachment": {},
-      }
+        "ManagerStatus": {
+            "Leader": true,
+            "Reachability": "reachable",
+            "Addr": "168.0.32.137:2377"
+        }
+    }
     ]
 
-    $ docker node inspect --format '{{ .Manager.Raft.Status.Leader }}' self
+    $ docker node inspect --format '{{ .ManagerStatus.Leader }}' self
     false
 
     $ docker node inspect --pretty self
-    ID:                     2otfhz83efcc7
-    Hostname:               ad960a848573
+    ID:                     e216jshn25ckzbvmwlnh5jr3g
+    Hostname:               swarm-manager
     Status:
      State:                 Ready
      Availability:          Active
