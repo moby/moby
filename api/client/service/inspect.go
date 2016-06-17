@@ -50,7 +50,7 @@ func runInspect(dockerCli *client.DockerCli, opts inspectOptions) error {
 	ctx := context.Background()
 
 	getRef := func(ref string) (interface{}, []byte, error) {
-		service, err := client.ServiceInspect(ctx, ref)
+		service, _, err := client.ServiceInspectWithRaw(ctx, ref)
 		if err == nil || !apiclient.IsErrServiceNotFound(err) {
 			return service, nil, err
 		}
