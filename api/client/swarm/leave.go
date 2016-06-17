@@ -39,6 +39,6 @@ func runLeave(dockerCli *client.DockerCli, opts leaveOptions) error {
 		return err
 	}
 
-	fmt.Fprintln(dockerCli.Out(), "Node left the default swarm.")
+	fmt.Fprintln(dockerCli.Out(), "Node left the swarm.")
 	return nil
 }
