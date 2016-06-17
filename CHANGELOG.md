@@ -15,9 +15,12 @@ be found.
 + Add support for comments in `.dockerignore` [#23111](https://github.com/docker/docker/pull/23111)
 * Support for UTF-8 in Dockerfiles [#23372](https://github.com/docker/docker/pull/23372)
 * Skip UTF-8 BOM bytes from `Dockerfile` and `.dockerignore` if exist [#23234](https://github.com/docker/docker/pull/23234)
+* Windows: support for `ARG` to match Linux [#22508](https://github.com/docker/docker/pull/22508)
+- Fix error message when building using a daemon with the bridge network disabled [#22932](https://github.com/docker/docker/pull/22932)
 
 ### Contrib
 
+* Enable seccomp for Centos 7 and Oracle Linux 7 [#22344](https://github.com/docker/docker/pull/22344)
 - Remove MountFlags in systemd unit to allow shared mount propagation [#22806](https://github.com/docker/docker/pull/22806)
 
 ### Distribution
@@ -30,28 +33,45 @@ be found.
 
 + Syslog logging driver now supports DGRAM sockets [#21613](https://github.com/docker/docker/pull/21613)
 + Add `--details` option to `docker logs` to also display log tags [#21889](https://github.com/docker/docker/pull/21889)
++ Enable syslog logger to have access to env and labels [#21724](https://github.com/docker/docker/pull/21724)
++ An additional syslog-format option `rfc5424micro` to allow microsecond resolution in syslog timestamp [#21844](https://github.com/docker/docker/pull/21844)
 * Inherit the daemon log options when creating containers [#21153](https://github.com/docker/docker/pull/21153)
 * Remove `docker/` prefix from log messages tag and replace it with `{{.DaemonName}}` so that users have the option of changing the prefix [#22384](https://github.com/docker/docker/pull/22384)
 
 ### Networking
 
++ Built-in Virtual-IP based  internal and ingress load-balancing using IPVS [#23361](https://github.com/docker/docker/pull/23361)
++ Secured multi-host overlay networking using encrypted control-plane and Data-plane [#23361](https://github.com/docker/docker/pull/23361)
++ MacVlan driver is out of experimental [#23524](https://github.com/docker/docker/pull/23524)
 + Add `driver` filter to `network ls` [#22319](https://github.com/docker/docker/pull/22319)
 + Adding `network` filter to `docker ps --filter` [#23300](https://github.com/docker/docker/pull/23300)
++ Add `--link-local-ip` flag to `create`, `run` and `network connect` to specify a container's link-local address [#23415](https://github.com/docker/docker/pull/23415)
++ Add network label filter support [#21495](https://github.com/docker/docker/pull/21495)
+* Removed dependency on external KV-Store for Overlay networking in Swarm-Mode  [#23361](https://github.com/docker/docker/pull/23361)
+* Add container's short-id as default network alias [#21901](https://github.com/docker/docker/pull/21901)
+* `run` options `--dns` and `--net=host` are no longer mutually exclusive [#22408](https://github.com/docker/docker/pull/22408)
 - Fix DNS issue when renaming containers with generated names [#22716](https://github.com/docker/docker/pull/22716)
 - Allow both `network inspect -f {{.Id}}` and `network inspect -f {{.ID}}` to address inconsistency with inspect output [#23226](https://github.com/docker/docker/pull/23226)
-+ Add `--link-local-ip` flag to `create`, `run` and `network connect` to specify a container's link-local address [#23415](https://github.com/docker/docker/pull/23415)
 
 ### Plugins (experimental)
 
 + New `plugin` command to manager plugins with `install`, `enable`, `disable`, `rm`, `inspect`, `set` subcommands [#23446](https://github.com/docker/docker/pull/23446)
 
-### Remote API (v1.24)
+### Remote API (v1.24) & Client
 
++ Split the binary into two: `docker` (client) and `dockerd` (daemon) [#20639](https://github.com/docker/docker/pull/20639)
 + Add `before` and `since` filters to `docker images --filter` [#22908](https://github.com/docker/docker/pull/22908)
 + Add `--limit` option to `docker search` [#23107](https://github.com/docker/docker/pull/23107)
 + Add `--filter` option to `docker search` [#22369](https://github.com/docker/docker/pull/22369)
++ Add security options to `docker info` output [#21172](https://github.com/docker/docker/pull/21172) [#23520](https://github.com/docker/docker/pull/23520)
++ Add insecure registries to `docker info` output [#20410](https://github.com/docker/docker/pull/20410)
++ Extend Docker authorization with TLS user information [#21556](https://github.com/docker/docker/pull/21556)
++ devicemapper: expose Mininum Thin Pool Free Space through `docker info` [#21945](https://github.com/docker/docker/pull/21945)
 * API now returns a JSON object when an error occurs making it more consistent [#22880](https://github.com/docker/docker/pull/22880)
 - Prevent `docker run -i --restart` from hanging on exit [#22777](https://github.com/docker/docker/pull/22777)
+- Fix API/CLI discrepancy on hostname validation [#21641](https://github.com/docker/docker/pull/21641)
+- Fix discrepancy in the format of sizes in `stats` from HumanSize to BytesSize [#21773](https://github.com/docker/docker/pull/21773)
+- authz: when request is denied return forbbiden exit code (403) [#22448](https://github.com/docker/docker/pull/22448)
 
 ### Runtime
 
@@ -67,6 +87,8 @@ be found.
 + Add a `daemon reload` event when the daemon reloads its configuration [#22590](https://github.com/docker/docker/pull/22590)
 + Add `trace` capability in the pprof profiler to show execution traces in binary form [#22715](https://github.com/docker/docker/pull/22715)
 + Add a `detach` event [#22898](https://github.com/docker/docker/pull/22898)
++ Add support for setting sysctls with `--sysctl` [#19265](https://github.com/docker/docker/pull/19265)
++ Add `--storage-opt` flag to `create` and `run` allowing to set `size` on devicemapper [#19367](https://github.com/docker/docker/pull/19367)
 * Undeprecate the `-c` short alias of `--cpu-shares` on `run`, `build`, `create`, `update` [#22621](https://github.com/docker/docker/pull/22621)
 * Prevent from using aufs and overlay graphdrivers on an eCryptfs mount [#23121](https://github.com/docker/docker/pull/23121)
 - Fix issues with tmpfs mount ordering [#22329](https://github.com/docker/docker/pull/22329)
@@ -79,6 +101,9 @@ be found.
 - Fix inconsistency in `--tmpfs` behavior regarding mount options [#22438](https://github.com/docker/docker/pull/22438)
 - Fix an issue where daemon hangs at startup [#23148](https://github.com/docker/docker/pull/23148)
 - Ignore SIGPIPE events to prevent journald restarts to crash docker in some cases [#22460](https://github.com/docker/docker/pull/22460)
+- Containers are not removed from stats list on error [#20835](https://github.com/docker/docker/pull/20835)
+- Fix `on-failure` restart policy when daemon restarts [#20853](https://github.com/docker/docker/pull/20853)
+- Fix an issue with `stats` when a container is using another container's network [#21904](https://github.com/docker/docker/pull/21904)
 
 ### Swarm Mode
 
@@ -90,8 +115,11 @@ be found.
 ### Volume
 
 + Add support for local and global volume scopes (analogous to network scopes) [#22077](https://github.com/docker/docker/pull/22077)
++ Allow volume drivers to provide a `Status` field [#21006](https://github.com/docker/docker/pull/21006)
++ Add name/driver filter support for volume [#21361](https://github.com/docker/docker/pull/21361)
 * Mount/Unmount operations now receives an opaque ID to allow volume drivers to differentiate between two callers [#21015](https://github.com/docker/docker/pull/21015)
 - Fix issue preventing to remove a volume in a corner case [#22103](https://github.com/docker/docker/pull/22103)
+- Windows: Enable auto-creation of host-path to match Linux [#22094](https://github.com/docker/docker/pull/22094)
 
 
 ### DEPRECATION
@@ -101,6 +129,7 @@ be found.
 * Remove deprecated feature of passing HostConfig at API container start [#22570](https://github.com/docker/docker/pull/22570)
 * Remove deprecated `-f`/`--force` flag on docker tag [#23090](https://github.com/docker/docker/pull/23090)
 * Remove deprecated `/containers/<id|name>/copy` endpoint [#22149](https://github.com/docker/docker/pull/22149)
+* Remove deprecated `docker ps` flags `--since` and `--before` [#22138](https://github.com/docker/docker/pull/22138)
 * Deprecate the old 3-args form of `docker import` [#23273](https://github.com/docker/docker/pull/23273)
 
 ## 1.11.2 (2016-05-31)
