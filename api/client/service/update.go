@@ -212,7 +212,6 @@ func anyChanged(flags *pflag.FlagSet, fields ...string) bool {
 	return false
 }
 
-
 // TODO: should this override by destination path, or does swarm handle that?
 func updateMounts(flags *pflag.FlagSet, mounts *[]swarm.Mount) {
 	if !flags.Changed(flagMount) {
