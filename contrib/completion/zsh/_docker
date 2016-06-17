@@ -1,4 +1,4 @@
-#compdef docker
+#compdef docker dockerd
 #
 # zsh completion for docker (http://docker.com)
 #
@@ -1407,6 +1407,13 @@ _docker() {
             ;;
     esac
 
+    return ret
+}
+
+_dockerd() {
+    integer ret=1
+    words[1]='daemon'
+    __docker_subcommand && ret=0
     return ret
 }
 
