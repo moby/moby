@@ -25,7 +25,7 @@ type pluginOptions struct {
 func newInstallCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var options pluginOptions
 	cmd := &cobra.Command{
-		Use:   "install",
+		Use:   "install PLUGIN",
 		Short: "Install a plugin",
 		Args:  cli.RequiresMinArgs(1), // TODO: allow for set args
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -35,7 +35,7 @@ func newInstallCommand(dockerCli *client.DockerCli) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.BoolVar(&options.grantPerms, "grant-all-permissions", true, "grant all permissions necessary to run the plugin")
+	flags.BoolVar(&options.grantPerms, "grant-all-permissions", false, "grant all permissions necessary to run the plugin")
 	flags.BoolVar(&options.disable, "disable", false, "do not enable the plugin on install")
 
 	return cmd
@@ -62,14 +62,15 @@ func runInstall(dockerCli *client.DockerCli, opts pluginOptions) error {
 		return err
 	}
 
-	requestPrivilege := dockerCli.RegistryAuthenticationPrivilegedFunc(repoInfo.Index, "plugin install")
+	registryAuthFunc := dockerCli.RegistryAuthenticationPrivilegedFunc(repoInfo.Index, "plugin install")
 
 	options := types.PluginInstallOptions{
 		RegistryAuth:          encodedAuth,
 		Disabled:              opts.disable,
 		AcceptAllPermissions:  opts.grantPerms,
 		AcceptPermissionsFunc: acceptPrivileges(dockerCli, opts.name),
-		PrivilegeFunc:         requestPrivilege,
+		// TODO: Rename PrivilegeFunc, it has nothing to do with privileges
+		PrivilegeFunc: registryAuthFunc,
 	}
 
 	return dockerCli.Client().PluginInstall(ctx, ref.String(), options)
@@ -77,7 +78,7 @@ func runInstall(dockerCli *client.DockerCli, opts pluginOptions) error {
 
 func acceptPrivileges(dockerCli *client.DockerCli, name string) func(privileges types.PluginPrivileges) (bool, error) {
 	return func(privileges types.PluginPrivileges) (bool, error) {
-		fmt.Fprintf(dockerCli.Out(), "Plugin %q requested the following privileges:\n", name)
+		fmt.Fprintf(dockerCli.Out(), "Plugin %q is requesting the following privileges:\n", name)
 		for _, privilege := range privileges {
 			fmt.Fprintf(dockerCli.Out(), " - %s: %v\n", privilege.Name, privilege.Value)
 		}
