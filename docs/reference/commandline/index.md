@@ -105,3 +105,12 @@ You start the Docker daemon with the command line. How you start the daemon affe
 * [swarm leave](swarm_leave.md)
 * [swarm update](swarm_update.md)
 
+### Swarm service commands
+
+* [service create](service_create.md)
+* [service inspect](service_inspect.md)
+* [service ls](service_ls.md)
+* [service rm](service_rm.md)
+* [service scale](service_scale.md)
+* [service tasks](service_tasks.md)
+* [service update](service_update.md)
