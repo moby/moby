@@ -7,34 +7,25 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 func newAcceptCommand(dockerCli *client.DockerCli) *cobra.Command {
-	var flags *pflag.FlagSet
-
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "accept NODE [NODE...]",
 		Short: "Accept a node in the swarm",
 		Args:  cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runAccept(dockerCli, flags, args)
+			return runAccept(dockerCli, args)
 		},
 	}
-
-	flags = cmd.Flags()
-	return cmd
 }
 
-func runAccept(dockerCli *client.DockerCli, flags *pflag.FlagSet, args []string) error {
-	for _, id := range args {
-		if err := runUpdate(dockerCli, id, func(node *swarm.Node) {
-			node.Spec.Membership = swarm.NodeMembershipAccepted
-		}); err != nil {
-			return err
-		}
-		fmt.Fprintf(dockerCli.Out(), "Node %s accepted in the swarm.\n", id)
+func runAccept(dockerCli *client.DockerCli, nodes []string) error {
+	accept := func(node *swarm.Node) {
+		node.Spec.Membership = swarm.NodeMembershipAccepted
 	}
-
-	return nil
+	success := func(nodeID string) {
+		fmt.Fprintf(dockerCli.Out(), "Node %s accepted in the swarm.\n", nodeID)
+	}
+	return updateNodes(dockerCli, nodes, accept, success)
 }

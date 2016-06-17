@@ -5,7 +5,6 @@ import (
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
-	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -14,90 +13,71 @@ import (
 
 func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts nodeOptions
-	var flags *pflag.FlagSet
 
 	cmd := &cobra.Command{
 		Use:   "update [OPTIONS] NODE",
 		Short: "Update a node",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runUpdate(dockerCli, args[0], mergeNodeUpdate(flags)); err != nil {
-				return err
-			}
-			fmt.Fprintln(dockerCli.Out(), args[0])
-			return nil
+			return runUpdate(dockerCli, cmd.Flags(), args[0])
 		},
 	}
 
-	flags = cmd.Flags()
-	flags.StringVar(&opts.role, "role", "", "Role of the node (worker/manager)")
-	flags.StringVar(&opts.membership, "membership", "", "Membership of the node (accepted/rejected)")
-	flags.StringVar(&opts.availability, "availability", "", "Availability of the node (active/pause/drain)")
+	flags := cmd.Flags()
+	flags.StringVar(&opts.role, flagRole, "", "Role of the node (worker/manager)")
+	flags.StringVar(&opts.membership, flagMembership, "", "Membership of the node (accepted/rejected)")
+	flags.StringVar(&opts.availability, flagAvailability, "", "Availability of the node (active/pause/drain)")
 	return cmd
 }
 
-func runUpdate(dockerCli *client.DockerCli, nodeID string, mergeNode func(node *swarm.Node)) error {
+func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, nodeID string) error {
+	success := func(_ string) {
+		fmt.Fprintln(dockerCli.Out(), nodeID)
+	}
+	return updateNodes(dockerCli, []string{nodeID}, mergeNodeUpdate(flags), success)
+}
+
+func updateNodes(dockerCli *client.DockerCli, nodes []string, mergeNode func(node *swarm.Node), success func(nodeID string)) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
-	node, err := client.NodeInspect(ctx, nodeID)
-	if err != nil {
-		return err
-	}
+	for _, nodeID := range nodes {
+		node, err := client.NodeInspect(ctx, nodeID)
+		if err != nil {
+			return err
+		}
 
-	mergeNode(&node)
-	err = client.NodeUpdate(ctx, node.ID, node.Version, node.Spec)
-	if err != nil {
-		return err
+		mergeNode(&node)
+		err = client.NodeUpdate(ctx, node.ID, node.Version, node.Spec)
+		if err != nil {
+			return err
+		}
+		success(nodeID)
 	}
-
 	return nil
 }
 
 func mergeNodeUpdate(flags *pflag.FlagSet) func(*swarm.Node) {
 	return func(node *swarm.Node) {
-		mergeString := func(flag string, field *string) {
-			if flags.Changed(flag) {
-				*field, _ = flags.GetString(flag)
-			}
-		}
-
-		mergeRole := func(flag string, field *swarm.NodeRole) {
-			if flags.Changed(flag) {
-				str, _ := flags.GetString(flag)
-				*field = swarm.NodeRole(str)
-			}
-		}
-
-		mergeMembership := func(flag string, field *swarm.NodeMembership) {
-			if flags.Changed(flag) {
-				str, _ := flags.GetString(flag)
-				*field = swarm.NodeMembership(str)
-			}
-		}
-
-		mergeAvailability := func(flag string, field *swarm.NodeAvailability) {
-			if flags.Changed(flag) {
-				str, _ := flags.GetString(flag)
-				*field = swarm.NodeAvailability(str)
-			}
-		}
-
-		mergeLabels := func(flag string, field *map[string]string) {
-			if flags.Changed(flag) {
-				values, _ := flags.GetStringSlice(flag)
-				for key, value := range runconfigopts.ConvertKVStringsToMap(values) {
-					(*field)[key] = value
-				}
-			}
-		}
-
 		spec := &node.Spec
-		mergeString("name", &spec.Name)
-		// TODO: setting labels is not working
-		mergeLabels("label", &spec.Labels)
-		mergeRole("role", &spec.Role)
-		mergeMembership("membership", &spec.Membership)
-		mergeAvailability("availability", &spec.Availability)
+
+		if flags.Changed(flagRole) {
+			str, _ := flags.GetString(flagRole)
+			spec.Role = swarm.NodeRole(str)
+		}
+		if flags.Changed(flagMembership) {
+			str, _ := flags.GetString(flagMembership)
+			spec.Membership = swarm.NodeMembership(str)
+		}
+		if flags.Changed(flagAvailability) {
+			str, _ := flags.GetString(flagAvailability)
+			spec.Availability = swarm.NodeAvailability(str)
+		}
 	}
 }
+
+const (
+	flagRole         = "role"
+	flagMembership   = "membership"
+	flagAvailability = "availability"
+)
