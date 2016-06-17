@@ -284,10 +284,8 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *check.C) {
 	out, _ = dockerCmd(c, "images", "--digests")
 
 	// make sure image 1 has repo, tag, <none> AND repo, <none>, digest
-	reWithTag1 := regexp.MustCompile(`\s*` + repoName + `\s*tag1\s*<none>\s`)
-	reWithDigest1 := regexp.MustCompile(`\s*` + repoName + `\s*<none>\s*` + digest1.String() + `\s`)
+	reWithDigest1 := regexp.MustCompile(`\s*` + repoName + `\s*tag1\s*` + digest1.String() + `\s`)
 	c.Assert(reWithDigest1.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithDigest1.String(), out))
-	c.Assert(reWithTag1.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithTag1.String(), out))
 	// make sure image 2 has repo, <none>, digest
 	c.Assert(re2.MatchString(out), checker.True, check.Commentf("expected %q: %s", re2.String(), out))
 
@@ -298,21 +296,19 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *check.C) {
 	out, _ = dockerCmd(c, "images", "--digests")
 
 	// make sure image 1 has repo, tag, digest
-	c.Assert(reWithTag1.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithTag1.String(), out))
+	c.Assert(reWithDigest1.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithDigest1.String(), out))
 
 	// make sure image 2 has repo, tag, digest
-	reWithTag2 := regexp.MustCompile(`\s*` + repoName + `\s*tag2\s*<none>\s`)
-	reWithDigest2 := regexp.MustCompile(`\s*` + repoName + `\s*<none>\s*` + digest2.String() + `\s`)
-	c.Assert(reWithTag2.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithTag2.String(), out))
+	reWithDigest2 := regexp.MustCompile(`\s*` + repoName + `\s*tag2\s*` + digest2.String() + `\s`)
 	c.Assert(reWithDigest2.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithDigest2.String(), out))
 
 	// list images
 	out, _ = dockerCmd(c, "images", "--digests")
 
 	// make sure image 1 has repo, tag, digest
-	c.Assert(reWithTag1.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithTag1.String(), out))
+	c.Assert(reWithDigest1.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithDigest1.String(), out))
 	// make sure image 2 has repo, tag, digest
-	c.Assert(reWithTag2.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithTag2.String(), out))
+	c.Assert(reWithDigest2.MatchString(out), checker.True, check.Commentf("expected %q: %s", reWithDigest2.String(), out))
 	// make sure busybox has tag, but not digest
 	busyboxRe := regexp.MustCompile(`\s*busybox\s*latest\s*<none>\s`)
 	c.Assert(busyboxRe.MatchString(out), checker.True, check.Commentf("expected %q: %s", busyboxRe.String(), out))

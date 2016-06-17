@@ -40,7 +40,7 @@ func (r *IDResolver) get(ctx context.Context, t interface{}, id string) (string,
 		}
 		return id, nil
 	case swarm.Service:
-		service, err := r.client.ServiceInspect(ctx, id)
+		service, _, err := r.client.ServiceInspectWithRaw(ctx, id)
 		if err != nil {
 			return id, nil
 		}

@@ -3,6 +3,7 @@
 title = "Drain a node"
 description = "Drain nodes on the Swarm"
 keywords = ["tutorial, cluster management, swarm, service, drain"]
+advisory = "rc"
 [menu.main]
 identifier="swarm-tutorial-drain-node"
 parent="swarm-tutorial"

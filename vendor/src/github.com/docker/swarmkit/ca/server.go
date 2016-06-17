@@ -33,7 +33,7 @@ type Server struct {
 
 	// Started is a channel which gets closed once the server is running
 	// and able to service RPCs.
-	Started chan struct{}
+	started chan struct{}
 }
 
 // DefaultAcceptancePolicy returns the default acceptance policy.
@@ -64,7 +64,7 @@ func NewServer(store *store.MemoryStore, securityConfig *SecurityConfig) *Server
 	return &Server{
 		store:          store,
 		securityConfig: securityConfig,
-		Started:        make(chan struct{}),
+		started:        make(chan struct{}),
 	}
 }
 
@@ -249,7 +249,8 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 	}
 
 	return &api.IssueNodeCertificateResponse{
-		NodeID: nodeID,
+		NodeID:         nodeID,
+		NodeMembership: nodeMembership,
 	}, nil
 }
 
@@ -289,11 +290,14 @@ func (s *Server) getRolePolicy(role api.NodeRole) *api.AcceptancePolicy_RoleAdmi
 // issueRenewCertificate receives a nodeID and a CSR and modifies the node's certificate entry with the new CSR
 // and changes the state to RENEW, so it can be picked up and signed by the signing reconciliation loop
 func (s *Server) issueRenewCertificate(ctx context.Context, nodeID string, csr []byte) (*api.IssueNodeCertificateResponse, error) {
-	var cert api.Certificate
+	var (
+		cert api.Certificate
+		node *api.Node
+	)
 	err := s.store.Update(func(tx store.Tx) error {
 
 		// Attempt to retrieve the node with nodeID
-		node := store.GetNode(tx, nodeID)
+		node = store.GetNode(tx, nodeID)
 		if node == nil {
 			log.G(ctx).WithFields(logrus.Fields{
 				"node.id": nodeID,
@@ -325,8 +329,10 @@ func (s *Server) issueRenewCertificate(ctx context.Context, nodeID string, csr [
 		"cert.role": cert.Role,
 		"method":    "issueRenewCertificate",
 	}).Debugf("node certificate updated")
+
 	return &api.IssueNodeCertificateResponse{
-		NodeID: nodeID,
+		NodeID:         nodeID,
+		NodeMembership: node.Spec.Membership,
 	}, nil
 }
 
@@ -358,7 +364,14 @@ func (s *Server) Run(ctx context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(ctx)
 	s.mu.Unlock()
 
-	close(s.Started)
+	// Run() should never be called twice, but just in case, we're
+	// attempting to close the started channel in a safe way
+	select {
+	case <-s.started:
+		return fmt.Errorf("CA server cannot be started more than once")
+	default:
+		close(s.started)
+	}
 
 	// Retrieve the channels to keep track of changes in the cluster
 	// Retrieve all the currently registered nodes
@@ -437,6 +450,11 @@ func (s *Server) Stop() error {
 	// wait for all handlers to finish their CA deals,
 	s.wg.Wait()
 	return nil
+}
+
+// Ready waits on the ready channel and returns when the server is ready to serve.
+func (s *Server) Ready() <-chan struct{} {
+	return s.started
 }
 
 func (s *Server) addTask() error {
@@ -600,8 +618,7 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) {
 	// We were able to successfully sign the new CSR. Let's try to update the nodeStore
 	for {
 		err = s.store.Update(func(tx store.Tx) error {
-			// Remote nodes are expecting a full certificate chain, not just a signed certificate
-			node.Certificate.Certificate = append(cert, s.securityConfig.RootCA().Cert...)
+			node.Certificate.Certificate = cert
 			node.Certificate.Status = api.IssuanceStatus{
 				State: api.IssuanceStateIssued,
 			}

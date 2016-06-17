@@ -7,6 +7,15 @@ import (
 	"fmt"
 )
 
+// PluginInstallOptions holds parameters to install a plugin.
+type PluginInstallOptions struct {
+	Disabled              bool
+	AcceptAllPermissions  bool
+	RegistryAuth          string // RegistryAuth is the base64 encoded credentials for the registry
+	PrivilegeFunc         RequestPrivilegeFunc
+	AcceptPermissionsFunc func(PluginPrivileges) (bool, error)
+}
+
 // PluginConfig represents the values of settings potentially modifiable by a user
 type PluginConfig struct {
 	Mounts  []PluginMount

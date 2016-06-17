@@ -6,15 +6,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
-
-// ContainerController controls execution of container tasks.
-type ContainerController interface {
-	// ContainerStatus returns the status of the target container, if
-	// available. When the container is not available, the status will be nil.
-	ContainerStatus(ctx context.Context) (*api.ContainerStatus, error)
-}
 
 // Controller controls execution of a task.
 type Controller interface {
@@ -46,6 +40,15 @@ type Controller interface {
 
 	// Close closes any ephemeral resources associated with controller instance.
 	Close() error
+}
+
+// ContainerStatuser reports status of a container.
+//
+// This can be implemented by controllers or error types.
+type ContainerStatuser interface {
+	// ContainerStatus returns the status of the target container, if
+	// available. When the container is not available, the status will be nil.
+	ContainerStatus(ctx context.Context) (*api.ContainerStatus, error)
 }
 
 // Resolve attempts to get a controller from the executor and reports the
@@ -121,6 +124,13 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 		return status, nil
 	}
 
+	// containerStatus exitCode keeps track of whether or not we've set it in
+	// this particular method. Eventually, we assemble this as part of a defer.
+	var (
+		containerStatus *api.ContainerStatus
+		exitCode        int
+	)
+
 	// returned when a fatal execution of the task is fatal. In this case, we
 	// proceed to a terminal error state and set the appropriate fields.
 	//
@@ -131,28 +141,37 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 			panic("err must not be nil when fatal")
 		}
 
-		if IsTemporary(err) {
-			switch Cause(err) {
-			case context.DeadlineExceeded, context.Canceled:
-				// no need to set these errors, since these will more common.
-			default:
-				status.Err = err.Error()
+		if cs, ok := err.(ContainerStatuser); ok {
+			var err error
+			containerStatus, err = cs.ContainerStatus(ctx)
+			if err != nil {
+				log.G(ctx).WithError(err).Error("error resolving container status on fatal")
 			}
+		}
 
+		// make sure we've set the *correct* exit code
+		if ec, ok := err.(ExitCoder); ok {
+			exitCode = ec.ExitCode()
+		}
+
+		if cause := errors.Cause(err); cause == context.DeadlineExceeded || cause == context.Canceled {
 			return retry()
 		}
 
-		if cause := Cause(err); cause == context.DeadlineExceeded || cause == context.Canceled {
+		status.Err = err.Error() // still reported on temporary
+		if IsTemporary(err) {
 			return retry()
 		}
 
+		// only at this point do we consider the error fatal to the task.
 		log.G(ctx).WithError(err).Error("fatal task error")
-		status.Err = err.Error()
 
+		// NOTE(stevvooe): The following switch dictates the terminal failure
+		// state based on the state in which the failure was encountered.
 		switch {
 		case status.State < api.TaskStateStarting:
 			status.State = api.TaskStateRejected
-		case status.State > api.TaskStateStarting:
+		case status.State >= api.TaskStateStarting:
 			status.State = api.TaskStateFailed
 		}
 
@@ -172,21 +191,37 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 			return
 		}
 
-		cctlr, ok := ctlr.(ContainerController)
-		if !ok {
-			return
-		}
-
-		cstatus, err := cctlr.ContainerStatus(ctx)
-		if err != nil {
-			log.G(ctx).WithError(err).Error("container status unavailable")
-			return
-		}
-
-		if cstatus != nil {
-			status.RuntimeStatus = &api.TaskStatus_Container{
-				Container: cstatus,
+		if containerStatus == nil {
+			// collect this, if we haven't
+			cctlr, ok := ctlr.(ContainerStatuser)
+			if !ok {
+				return
 			}
+
+			var err error
+			containerStatus, err = cctlr.ContainerStatus(ctx)
+			if err != nil {
+				log.G(ctx).WithError(err).Error("container status unavailable")
+			}
+
+			// at this point, things have gone fairly wrong. Remain positive
+			// and let's get something out the door.
+			if containerStatus == nil {
+				containerStatus = new(api.ContainerStatus)
+				containerStatusTask := task.Status.GetContainer()
+				if containerStatusTask != nil {
+					*containerStatus = *containerStatusTask // copy it over.
+				}
+			}
+		}
+
+		// at this point, we *must* have a containerStatus.
+		if exitCode != 0 {
+			containerStatus.ExitCode = int32(exitCode)
+		}
+
+		status.RuntimeStatus = &api.TaskStatus_Container{
+			Container: containerStatus,
 		}
 	}()
 
@@ -222,17 +257,7 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 		return transition(api.TaskStateRunning, "started")
 	case api.TaskStateRunning:
 		if err := ctlr.Wait(ctx); err != nil {
-			// Wait should only proceed to failed if there is a terminal
-			// error. The only two conditions when this happens are when we
-			// get an exit code or when the container doesn't exist.
-			switch err := err.(type) {
-			case ExitCoder:
-				return transition(api.TaskStateFailed, "failed")
-			default:
-				// pursuant to the above comment, report fatal, but wrap as
-				// temporary.
-				return fatal(MakeTemporary(err))
-			}
+			return fatal(err)
 		}
 
 		return transition(api.TaskStateCompleted, "finished")

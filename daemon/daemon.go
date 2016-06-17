@@ -179,7 +179,7 @@ func (daemon *Daemon) restore() error {
 					logrus.Errorf("Failed to restore with containerd: %q", err)
 					return
 				}
-				if !c.HostConfig.NetworkMode.IsContainer() {
+				if !c.HostConfig.NetworkMode.IsContainer() && c.IsRunning() {
 					options, err := daemon.buildSandboxOptions(c)
 					if err != nil {
 						logrus.Warnf("Failed build sandbox option to restore container %s: %v", c.ID, err)

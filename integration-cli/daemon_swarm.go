@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/engine-api/types"
@@ -26,11 +27,16 @@ func (d *SwarmDaemon) Init(autoAccept map[string]bool, secret string) error {
 		ListenAddr: d.listenAddr,
 	}
 	for _, role := range []swarm.NodeRole{swarm.NodeRoleManager, swarm.NodeRoleWorker} {
-		req.Spec.AcceptancePolicy.Policies = append(req.Spec.AcceptancePolicy.Policies, swarm.Policy{
+		policy := swarm.Policy{
 			Role:       role,
 			Autoaccept: autoAccept[strings.ToLower(string(role))],
-			Secret:     secret,
-		})
+		}
+
+		if secret != "" {
+			policy.Secret = &secret
+		}
+
+		req.Spec.AcceptancePolicy.Policies = append(req.Spec.AcceptancePolicy.Policies, policy)
 	}
 	status, out, err := d.SockRequest("POST", "/swarm/init", req)
 	if status != http.StatusOK {
@@ -49,13 +55,17 @@ func (d *SwarmDaemon) Init(autoAccept map[string]bool, secret string) error {
 
 // Join joins a current daemon with existing cluster.
 func (d *SwarmDaemon) Join(remoteAddr, secret, cahash string, manager bool) error {
-	status, out, err := d.SockRequest("POST", "/swarm/join", swarm.JoinRequest{
+	req := swarm.JoinRequest{
 		ListenAddr:  d.listenAddr,
 		RemoteAddrs: []string{remoteAddr},
 		Manager:     manager,
-		Secret:      secret,
 		CACertHash:  cahash,
-	})
+	}
+
+	if secret != "" {
+		req.Secret = secret
+	}
+	status, out, err := d.SockRequest("POST", "/swarm/join", req)
 	if status != http.StatusOK {
 		return fmt.Errorf("joining swarm: invalid statuscode %v, %q", status, out)
 	}
@@ -105,6 +115,7 @@ func (d *SwarmDaemon) info() (swarm.Info, error) {
 
 type serviceConstructor func(*swarm.Service)
 type nodeConstructor func(*swarm.Node)
+type specConstructor func(*swarm.Spec)
 
 func (d *SwarmDaemon) createService(c *check.C, f ...serviceConstructor) string {
 	var service swarm.Service
@@ -157,14 +168,22 @@ func (d *SwarmDaemon) getNode(c *check.C, id string) *swarm.Node {
 	return &node
 }
 
-func (d *SwarmDaemon) updateNode(c *check.C, node *swarm.Node, f ...nodeConstructor) {
-	for _, fn := range f {
-		fn(node)
+func (d *SwarmDaemon) updateNode(c *check.C, id string, f ...nodeConstructor) {
+	for i := 0; ; i++ {
+		node := d.getNode(c, id)
+		for _, fn := range f {
+			fn(node)
+		}
+		url := fmt.Sprintf("/nodes/%s/update?version=%d", node.ID, node.Version.Index)
+		status, out, err := d.SockRequest("POST", url, node.Spec)
+		if i < 10 && strings.Contains(string(out), "update out of sequence") {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		c.Assert(err, checker.IsNil)
+		c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+		return
 	}
-	url := fmt.Sprintf("/nodes/%s/update?version=%d", node.ID, node.Version.Index)
-	status, out, err := d.SockRequest("POST", url, node.Spec)
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
 }
 
 func (d *SwarmDaemon) listNodes(c *check.C) []swarm.Node {
@@ -175,4 +194,20 @@ func (d *SwarmDaemon) listNodes(c *check.C) []swarm.Node {
 	nodes := []swarm.Node{}
 	c.Assert(json.Unmarshal(out, &nodes), checker.IsNil)
 	return nodes
+}
+
+func (d *SwarmDaemon) updateSwarm(c *check.C, f ...specConstructor) {
+	var sw swarm.Swarm
+	status, out, err := d.SockRequest("GET", "/swarm", nil)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+	c.Assert(json.Unmarshal(out, &sw), checker.IsNil)
+
+	for _, fn := range f {
+		fn(&sw.Spec)
+	}
+	url := fmt.Sprintf("/swarm/update?version=%d", sw.Version.Index)
+	status, out, err = d.SockRequest("POST", url, sw.Spec)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
 }

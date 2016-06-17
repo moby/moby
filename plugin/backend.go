@@ -40,7 +40,7 @@ func (pm *Manager) Inspect(name string) (tp types.Plugin, err error) {
 	if err != nil {
 		return tp, err
 	}
-	return p.p, nil
+	return p.P, nil
 }
 
 // Pull pulls a plugin and enables it.
@@ -76,10 +76,6 @@ func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.A
 	}
 
 	p := pm.newPlugin(ref, pluginID)
-	if ref, ok := ref.(reference.NamedTagged); ok {
-		p.p.Tag = ref.Tag()
-	}
-
 	if err := pm.initPlugin(p); err != nil {
 		return nil, err
 	}
@@ -90,14 +86,14 @@ func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.A
 	pm.save()
 	pm.Unlock()
 
-	return computePrivileges(&p.p.Manifest), nil
+	return computePrivileges(&p.P.Manifest), nil
 }
 
 // List displays the list of plugins and associated metadata.
 func (pm *Manager) List() ([]types.Plugin, error) {
 	out := make([]types.Plugin, 0, len(pm.plugins))
 	for _, p := range pm.plugins {
-		out = append(out, p.p)
+		out = append(out, p.P)
 	}
 	return out, nil
 }
@@ -105,7 +101,7 @@ func (pm *Manager) List() ([]types.Plugin, error) {
 // Push pushes a plugin to the store.
 func (pm *Manager) Push(name string, metaHeader http.Header, authConfig *types.AuthConfig) error {
 	p, err := pm.get(name)
-	dest := filepath.Join(pm.libRoot, p.p.ID)
+	dest := filepath.Join(pm.libRoot, p.P.ID)
 	config, err := os.Open(filepath.Join(dest, "manifest.json"))
 	if err != nil {
 		return err

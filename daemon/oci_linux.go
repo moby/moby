@@ -480,9 +480,10 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 		}
 
 		if m.Source == "tmpfs" {
+			data := c.HostConfig.Tmpfs[m.Destination]
 			options := []string{"noexec", "nosuid", "nodev", volume.DefaultPropagationMode}
-			if m.Data != "" {
-				options = append(options, strings.Split(m.Data, ",")...)
+			if data != "" {
+				options = append(options, strings.Split(data, ",")...)
 			}
 
 			merged, err := mount.MergeTmpfsOptions(options)

@@ -4,8 +4,8 @@ package bundlefile
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
-	"os"
 )
 
 // Bundlefile stores the contents of a bundlefile
@@ -34,19 +34,28 @@ type Port struct {
 }
 
 // LoadFile loads a bundlefile from a path to the file
-func LoadFile(path string) (*Bundlefile, error) {
-	reader, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-
+func LoadFile(reader io.Reader) (*Bundlefile, error) {
 	bundlefile := &Bundlefile{}
 
-	if err := json.NewDecoder(reader).Decode(bundlefile); err != nil {
+	decoder := json.NewDecoder(reader)
+	if err := decoder.Decode(bundlefile); err != nil {
+		switch jsonErr := err.(type) {
+		case *json.SyntaxError:
+			return nil, fmt.Errorf(
+				"JSON syntax error at byte %v: %s",
+				jsonErr.Offset,
+				jsonErr.Error())
+		case *json.UnmarshalTypeError:
+			return nil, fmt.Errorf(
+				"Unexpected type at byte %v. Expected %s but received %s.",
+				jsonErr.Offset,
+				jsonErr.Type,
+				jsonErr.Value)
+		}
 		return nil, err
 	}
 
-	return bundlefile, err
+	return bundlefile, nil
 }
 
 // Print writes the contents of the bundlefile to the output writer

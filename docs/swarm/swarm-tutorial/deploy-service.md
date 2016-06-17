@@ -3,11 +3,11 @@
 title = "Deploy a service"
 description = "Deploy the application"
 keywords = ["tutorial, cluster management, swarm"]
+advisory = "rc"
 [menu.main]
 identifier="deploy-application"
 parent="swarm-tutorial"
 weight=16
-advisory = "rc"
 +++
 <![end-metadata]-->
 
@@ -39,8 +39,8 @@ example, the tutorial uses a machine named `manager1`.
     ```
     $ docker service ls
 
-    ID            NAME        SCALE  IMAGE   COMMAND
-    2zs4helqu64f  helloworld  1      alpine  ping docker.com
+    ID            NAME        REPLICAS  IMAGE   COMMAND
+    2zs4helqu64f  helloworld  1         alpine  ping docker.com
     ```
 
 ## What's next?

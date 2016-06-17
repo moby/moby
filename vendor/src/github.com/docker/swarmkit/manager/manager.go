@@ -3,6 +3,7 @@ package manager
 import (
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -100,6 +101,10 @@ func New(config *Config) (*Manager, error) {
 	}
 
 	tcpAddr := config.ProtoAddr["tcp"]
+
+	if tcpAddr == "" {
+		return nil, errors.New("no tcp listen address or listener provided")
+	}
 
 	listenHost, listenPort, err := net.SplitHostPort(tcpAddr)
 	if err == nil {
@@ -664,7 +669,7 @@ func (m *Manager) rotateRootCAKEK(ctx context.Context, clusterID string) error {
 	return s.Update(func(tx store.Tx) error {
 		cluster = store.GetCluster(tx, clusterID)
 		if cluster == nil {
-			return fmt.Errorf("cluster not found")
+			return fmt.Errorf("cluster not found: %s", clusterID)
 		}
 		cluster.RootCA.CAKey = finalKey
 		return store.UpdateCluster(tx, cluster)

@@ -60,12 +60,12 @@ clone git golang.org/x/net 2beffdc2e92c8a3027590f898fe88f69af48a3f8 https://gith
 clone git golang.org/x/sys eb2c74142fd19a79b3f237334c7384d5167b1b46 https://github.com/golang/sys.git
 clone git github.com/docker/go-units 651fc226e7441360384da338d0fd37f2440ffbe3
 clone git github.com/docker/go-connections fa2850ff103453a9ad190da0df0af134f0314b3d
-clone git github.com/docker/engine-api f3b5ad20d4576de14c96603db522dec530d03f62
+clone git github.com/docker/engine-api c57d0447ea1ae71f6dad83c8d8a1215a89869a0c
 clone git github.com/RackSec/srslog 259aed10dfa74ea2961eddd1d9847619f6e98837
 clone git github.com/imdario/mergo 0.2.1
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork 452dff166e0abd9455b07c835613197f078a34de
+clone git github.com/docker/libnetwork 13be89d1cf79760acae842a32ad8531567220286
 clone git github.com/docker/go-events 39718a26497694185f8fb58a7d6f31947f3dc42d
 clone git github.com/armon/go-radix e39d623f12e8e41c7b5529e9a9dd67a1e2261f80
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
@@ -139,7 +139,7 @@ clone git github.com/docker/docker-credential-helpers v0.3.0
 clone git github.com/docker/containerd 860f3a94940894ac0a106eff4bd1616a67407ee2
 
 # cluster
-clone git github.com/docker/swarmkit 25572005febb76c2cc5f7e37d878615e6fe330f9
+clone git github.com/docker/swarmkit 310f1119bc81f22e60b5670d9d4731bc12d7be87
 clone git github.com/golang/mock bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
 clone git github.com/gogo/protobuf 43a2e0b1c32252bfbbdf81f7faa7a88fb3fa4028
 clone git github.com/cloudflare/cfssl 92f037e39eb103fb30f9151be40d9ed267fc4ae2
@@ -158,6 +158,7 @@ clone git github.com/prometheus/common ffe929a3f4c4faeaa10f2b9535c2b1be3ad15650
 clone git github.com/prometheus/procfs 454a56f35412459b5e684fd5ec0f9211b94f002a
 clone hg bitbucket.org/ww/goautoneg 75cd24fc2f2c2a2088577d12123ddee5f54e0675
 clone git github.com/matttproud/golang_protobuf_extensions fc2b8d3a73c4867e51861bbdd5ae3c1f0869dd6a
+clone git github.com/pkg/errors 01fa4104b9c248c8945d14d9f128454d5b28d595
 
 # cli
 clone git github.com/spf13/cobra 75205f23b3ea70dc7ae5e900d074e010c23c37e9 https://github.com/dnephin/cobra.git

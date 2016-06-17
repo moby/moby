@@ -2401,7 +2401,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
 }
 `
 	ioutil.WriteFile(configName, []byte(config), 0644)
-	err = s.d.Start("--config-file", configName)
+	err = s.d.StartWithBusybox("--config-file", configName)
 	c.Assert(err, check.IsNil)
 
 	// Run with default runtime
@@ -2497,7 +2497,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *check.C) {
-	err := s.d.Start("--add-runtime", "oci=docker-runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
+	err := s.d.StartWithBusybox("--add-runtime", "oci=docker-runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
 	c.Assert(err, check.IsNil)
 
 	// Run with default runtime
@@ -2519,7 +2519,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *check.C) {
 
 	// Start a daemon without any extra runtimes
 	s.d.Stop()
-	err = s.d.Start()
+	err = s.d.StartWithBusybox()
 	c.Assert(err, check.IsNil)
 
 	// Run with default runtime
@@ -2546,7 +2546,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *check.C) {
 
 	// Check that we can select a default runtime
 	s.d.Stop()
-	err = s.d.Start("--default-runtime=vm", "--add-runtime", "oci=docker-runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
+	err = s.d.StartWithBusybox("--default-runtime=vm", "--add-runtime", "oci=docker-runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
 	c.Assert(err, check.IsNil)
 
 	out, err = s.d.Cmd("run", "--rm", "busybox", "ls")

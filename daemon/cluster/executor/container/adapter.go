@@ -39,7 +39,7 @@ func newContainerAdapter(b executorpkg.Backend, task *api.Task) (*containerAdapt
 
 func (c *containerAdapter) pullImage(ctx context.Context) error {
 	// if the image needs to be pulled, the auth config will be retrieved and updated
-	encodedAuthConfig := c.container.task.ServiceAnnotations.Labels[fmt.Sprintf("%v.registryauth", systemLabelPrefix)]
+	encodedAuthConfig := c.container.spec().RegistryAuth
 
 	authConfig := &types.AuthConfig{}
 	if encodedAuthConfig != "" {
@@ -126,7 +126,6 @@ func (c *containerAdapter) create(ctx context.Context, backend executorpkg.Backe
 
 	if nc != nil {
 		for n, ep := range nc.EndpointsConfig {
-			logrus.Errorf("CONNECT %s : %v", n, ep.IPAMConfig.IPv4Address)
 			if err := backend.ConnectContainerToNetwork(cr.ID, n, ep); err != nil {
 				return err
 			}

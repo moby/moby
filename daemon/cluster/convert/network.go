@@ -148,17 +148,22 @@ func BasicNetworkFromGRPC(n swarmapi.Network) basictypes.NetworkResource {
 		}
 	}
 
-	return basictypes.NetworkResource{
+	nr := basictypes.NetworkResource{
 		ID:         n.ID,
 		Name:       n.Spec.Annotations.Name,
 		Scope:      "swarm",
-		Driver:     n.DriverState.Name,
 		EnableIPv6: spec.Ipv6Enabled,
 		IPAM:       ipam,
 		Internal:   spec.Internal,
-		Options:    n.DriverState.Options,
 		Labels:     n.Spec.Annotations.Labels,
 	}
+
+	if n.DriverState != nil {
+		nr.Driver = n.DriverState.Name
+		nr.Options = n.DriverState.Options
+	}
+
+	return nr
 }
 
 // BasicNetworkCreateToGRPC converts a NetworkCreateRequest to a grpc NetworkSpec.

@@ -94,6 +94,10 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, "Default Runtime: %s\n", info.DefaultRuntime)
 	}
 
+	fmt.Fprintf(cli.out, "Security Options:")
+	ioutils.FprintfIfNotEmpty(cli.out, " %s", strings.Join(info.SecurityOptions, " "))
+	fmt.Fprintf(cli.out, "\n")
+
 	ioutils.FprintfIfNotEmpty(cli.out, "Kernel Version: %s\n", info.KernelVersion)
 	ioutils.FprintfIfNotEmpty(cli.out, "Operating System: %s\n", info.OperatingSystem)
 	ioutils.FprintfIfNotEmpty(cli.out, "OSType: %s\n", info.OSType)

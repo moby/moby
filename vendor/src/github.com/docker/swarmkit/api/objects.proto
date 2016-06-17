@@ -168,6 +168,9 @@ message NetworkAttachment {
 	// List of IPv4/IPv6 addresses that are assigned to the object
 	// as part of getting attached to this network.
 	repeated string addresses = 2;
+
+	// List of aliases by which a task is resolved in a network
+	repeated string aliases = 3;
 }
 
 message Network {

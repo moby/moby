@@ -722,6 +722,21 @@ func DefaultProfile(rs *specs.Spec) *types.Seccomp {
 			Args:   []*types.Arg{},
 		},
 		{
+			Name:   "mlock",
+			Action: types.ActAllow,
+			Args:   []*types.Arg{},
+		},
+		{
+			Name:   "mlock2",
+			Action: types.ActAllow,
+			Args:   []*types.Arg{},
+		},
+		{
+			Name:   "mlockall",
+			Action: types.ActAllow,
+			Args:   []*types.Arg{},
+		},
+		{
 			Name:   "mmap",
 			Action: types.ActAllow,
 			Args:   []*types.Arg{},
@@ -1659,24 +1674,6 @@ func DefaultProfile(rs *specs.Spec) *types.Seccomp {
 				},
 				{
 					Name:   "open_by_handle_at",
-					Action: types.ActAllow,
-					Args:   []*types.Arg{},
-				},
-			}...)
-		case "CAP_IPC_LOCK":
-			syscalls = append(syscalls, []*types.Syscall{
-				{
-					Name:   "mlock",
-					Action: types.ActAllow,
-					Args:   []*types.Arg{},
-				},
-				{
-					Name:   "mlock2",
-					Action: types.ActAllow,
-					Args:   []*types.Arg{},
-				},
-				{
-					Name:   "mlockall",
 					Action: types.ActAllow,
 					Args:   []*types.Arg{},
 				},

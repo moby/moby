@@ -8,7 +8,7 @@ import (
 
 // Stub implementations for DNS related functions
 
-func (sb *sandbox) startResolver() {
+func (sb *sandbox) startResolver(bool) {
 }
 
 func (sb *sandbox) setupResolutionFiles() error {

@@ -16,7 +16,7 @@ import (
 
 func newPushCommand(dockerCli *client.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "push",
+		Use:   "push PLUGIN",
 		Short: "Push a plugin",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -31,7 +31,9 @@ func runPush(dockerCli *client.DockerCli, name string) error {
 	if err != nil {
 		return err
 	}
-	named = reference.WithDefaultTag(named)
+	if reference.IsNameOnly(named) {
+		named = reference.WithDefaultTag(named)
+	}
 	ref, ok := named.(reference.NamedTagged)
 	if !ok {
 		return fmt.Errorf("invalid name: %s", named.String())
