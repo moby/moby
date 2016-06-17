@@ -44,7 +44,6 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	var encodedAuthConfig string
 	if spec.PullOptions != nil {
 		encodedAuthConfig = spec.PullOptions.RegistryAuth
-
 	}
 
 	authConfig := &types.AuthConfig{}

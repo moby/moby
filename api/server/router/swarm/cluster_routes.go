@@ -107,10 +107,7 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 
-	encodedAuth := ""
-	if auth, ok := r.Header["x-registry-auth"]; ok {
-		encodedAuth = auth[0]
-	}
+	encodedAuth := r.Header.Get("X-Registry-Auth")
 
 	id, err := sr.backend.CreateService(service, encodedAuth)
 	if err != nil {
@@ -135,10 +132,7 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 		return fmt.Errorf("Invalid service version '%s': %s", rawVersion, err.Error())
 	}
 
-	encodedAuth := ""
-	if auth, ok := r.Header["x-registry-auth"]; ok {
-		encodedAuth = auth[0]
-	}
+	encodedAuth := r.Header.Get("X-Registry-Auth")
 
 	if err := sr.backend.UpdateService(vars["id"], version, service, encodedAuth); err != nil {
 		logrus.Errorf("Error updating service %s: %v", vars["id"], err)
