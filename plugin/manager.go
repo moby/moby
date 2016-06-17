@@ -46,7 +46,7 @@ func (e ErrInadequateCapability) Error() string {
 
 type plugin struct {
 	//sync.RWMutex TODO
-	p                 types.Plugin
+	P                 types.Plugin `json:"plugin"`
 	client            *plugins.Client
 	restartManager    restartmanager.RestartManager
 	stateSourcePath   string
@@ -58,12 +58,17 @@ func (p *plugin) Client() *plugins.Client {
 }
 
 func (p *plugin) Name() string {
-	return p.p.Name
+	name := p.P.Name
+	if len(p.P.Tag) > 0 {
+		// TODO: this feels hacky, maybe we should be storing the distribution reference rather than splitting these
+		name += ":" + p.P.Tag
+	}
+	return name
 }
 
 func (pm *Manager) newPlugin(ref reference.Named, id string) *plugin {
 	p := &plugin{
-		p: types.Plugin{
+		P: types.Plugin{
 			Name: ref.Name(),
 			ID:   id,
 		},
@@ -71,12 +76,20 @@ func (pm *Manager) newPlugin(ref reference.Named, id string) *plugin {
 		runtimeSourcePath: filepath.Join(pm.runRoot, id),
 	}
 	if ref, ok := ref.(reference.NamedTagged); ok {
-		p.p.Tag = ref.Tag()
+		p.P.Tag = ref.Tag()
 	}
 	return p
 }
 
-// TODO: figure out why save() doesn't json encode *plugin object
+func (pm *Manager) restorePlugin(p *plugin) error {
+	p.stateSourcePath = filepath.Join(pm.libRoot, p.P.ID, "state")
+	p.runtimeSourcePath = filepath.Join(pm.runRoot, p.P.ID)
+	if p.P.Active {
+		return pm.restore(p)
+	}
+	return nil
+}
+
 type pluginMap map[string]*plugin
 
 // Manager controls the plugin subsystem.
@@ -90,6 +103,7 @@ type Manager struct {
 	containerdClient libcontainerd.Client
 	registryService  registry.Service
 	handleLegacy     bool
+	liveRestore      bool
 }
 
 // GetManager returns the singleton plugin Manager
@@ -99,7 +113,7 @@ func GetManager() *Manager {
 
 // Init (was NewManager) instantiates the singleton Manager.
 // TODO: revert this to NewManager once we get rid of all the singletons.
-func Init(root, execRoot string, remote libcontainerd.Remote, rs registry.Service) (err error) {
+func Init(root, execRoot string, remote libcontainerd.Remote, rs registry.Service, liveRestore bool) (err error) {
 	if manager != nil {
 		return nil
 	}
@@ -120,15 +134,16 @@ func Init(root, execRoot string, remote libcontainerd.Remote, rs registry.Servic
 		handlers:        make(map[string]func(string, *plugins.Client)),
 		registryService: rs,
 		handleLegacy:    true,
+		liveRestore:     liveRestore,
 	}
 	if err := os.MkdirAll(manager.runRoot, 0700); err != nil {
 		return err
 	}
-	if err := manager.init(); err != nil {
-		return err
-	}
 	manager.containerdClient, err = remote.Client(manager)
 	if err != nil {
+		return err
+	}
+	if err := manager.init(); err != nil {
 		return err
 	}
 	return nil
@@ -165,7 +180,7 @@ func FindWithCapability(capability string) ([]Plugin, error) {
 		defer manager.RUnlock()
 	pluginLoop:
 		for _, p := range manager.plugins {
-			for _, typ := range p.p.Manifest.Interface.Types {
+			for _, typ := range p.P.Manifest.Interface.Types {
 				if typ.Capability != capability || typ.Prefix != "docker" {
 					continue pluginLoop
 				}
@@ -216,7 +231,7 @@ func LookupWithCapability(name, capability string) (Plugin, error) {
 	}
 
 	capability = strings.ToLower(capability)
-	for _, typ := range p.p.Manifest.Interface.Types {
+	for _, typ := range p.P.Manifest.Interface.Types {
 		if typ.Capability == capability && typ.Prefix == "docker" {
 			return p, nil
 		}
@@ -257,55 +272,79 @@ func (pm *Manager) init() error {
 		}
 		return err
 	}
-	// TODO: Populate pm.plugins
-	if err := json.NewDecoder(dt).Decode(&pm.nameToID); err != nil {
+
+	if err := json.NewDecoder(dt).Decode(&pm.plugins); err != nil {
 		return err
 	}
-	// FIXME: validate, restore
 
-	return nil
+	var group sync.WaitGroup
+	group.Add(len(pm.plugins))
+	for _, p := range pm.plugins {
+		go func(p *plugin) {
+			defer group.Done()
+			if err := pm.restorePlugin(p); err != nil {
+				logrus.Errorf("Error restoring plugin '%s': %s", p.Name(), err)
+				return
+			}
+
+			pm.Lock()
+			pm.nameToID[p.Name()] = p.P.ID
+			requiresManualRestore := !pm.liveRestore && p.P.Active
+			pm.Unlock()
+
+			if requiresManualRestore {
+				// if liveRestore is not enabled, the plugin will be stopped now so we should enable it
+				if err := pm.enable(p); err != nil {
+					logrus.Errorf("Error restoring plugin '%s': %s", p.Name(), err)
+				}
+			}
+		}(p)
+		group.Wait()
+	}
+	return pm.save()
 }
 
 func (pm *Manager) initPlugin(p *plugin) error {
-	dt, err := os.Open(filepath.Join(pm.libRoot, p.p.ID, "manifest.json"))
+	dt, err := os.Open(filepath.Join(pm.libRoot, p.P.ID, "manifest.json"))
 	if err != nil {
 		return err
 	}
-	err = json.NewDecoder(dt).Decode(&p.p.Manifest)
+	err = json.NewDecoder(dt).Decode(&p.P.Manifest)
 	dt.Close()
 	if err != nil {
 		return err
 	}
 
-	p.p.Config.Mounts = make([]types.PluginMount, len(p.p.Manifest.Mounts))
-	for i, mount := range p.p.Manifest.Mounts {
-		p.p.Config.Mounts[i] = mount
+	p.P.Config.Mounts = make([]types.PluginMount, len(p.P.Manifest.Mounts))
+	for i, mount := range p.P.Manifest.Mounts {
+		p.P.Config.Mounts[i] = mount
 	}
-	p.p.Config.Env = make([]string, 0, len(p.p.Manifest.Env))
-	for _, env := range p.p.Manifest.Env {
+	p.P.Config.Env = make([]string, 0, len(p.P.Manifest.Env))
+	for _, env := range p.P.Manifest.Env {
 		if env.Value != nil {
-			p.p.Config.Env = append(p.p.Config.Env, fmt.Sprintf("%s=%s", env.Name, *env.Value))
+			p.P.Config.Env = append(p.P.Config.Env, fmt.Sprintf("%s=%s", env.Name, *env.Value))
 		}
 	}
-	copy(p.p.Config.Args, p.p.Manifest.Args.Value)
+	copy(p.P.Config.Args, p.P.Manifest.Args.Value)
 
-	f, err := os.Create(filepath.Join(pm.libRoot, p.p.ID, "plugin-config.json"))
+	f, err := os.Create(filepath.Join(pm.libRoot, p.P.ID, "plugin-config.json"))
 	if err != nil {
 		return err
 	}
-	err = json.NewEncoder(f).Encode(&p.p.Config)
+	err = json.NewEncoder(f).Encode(&p.P.Config)
 	f.Close()
 	return err
 }
 
 func (pm *Manager) remove(p *plugin) error {
-	if p.p.Active {
-		return fmt.Errorf("plugin %s is active", p.p.Name)
+	if p.P.Active {
+		return fmt.Errorf("plugin %s is active", p.Name())
 	}
 	pm.Lock() // fixme: lock single record
 	defer pm.Unlock()
 	os.RemoveAll(p.stateSourcePath)
-	delete(pm.plugins, p.p.Name)
+	delete(pm.plugins, p.P.ID)
+	delete(pm.nameToID, p.Name())
 	pm.save()
 	return nil
 }
@@ -326,7 +365,7 @@ func (pm *Manager) set(p *plugin, args []string) error {
 func (pm *Manager) save() error {
 	filePath := filepath.Join(pm.libRoot, "plugins.json")
 
-	jsonData, err := json.Marshal(pm.nameToID)
+	jsonData, err := json.Marshal(pm.plugins)
 	if err != nil {
 		logrus.Debugf("Error in json.Marshal: %v", err)
 		return err
