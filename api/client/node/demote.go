@@ -33,7 +33,7 @@ func runDemote(dockerCli *client.DockerCli, flags *pflag.FlagSet, args []string)
 		}); err != nil {
 			return err
 		}
-		fmt.Fprintf(dockerCli.Out(), "Manager %s demoted in the swarm.", id)
+		fmt.Fprintf(dockerCli.Out(), "Manager %s demoted in the swarm.\n", id)
 	}
 
 	return nil
