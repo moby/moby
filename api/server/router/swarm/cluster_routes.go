@@ -108,7 +108,7 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 	}
 
 	encodedAuth := ""
-	if auth, ok := r.Header["x-registry-auth"]; ok {
+	if auth, ok := r.Header["X-Registry-Auth"]; ok {
 		encodedAuth = auth[0]
 	}
 
@@ -136,7 +136,7 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 	}
 
 	encodedAuth := ""
-	if auth, ok := r.Header["x-registry-auth"]; ok {
+	if auth, ok := r.Header["X-Registry-Auth"]; ok {
 		encodedAuth = auth[0]
 	}
 

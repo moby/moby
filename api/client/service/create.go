@@ -45,7 +45,7 @@ func runCreate(dockerCli *client.DockerCli, opts *serviceOptions) error {
 	}
 
 	headers := map[string][]string{
-		"x-registry-auth": {encodedAuth},
+		"X-Registry-Auth": {encodedAuth},
 	}
 
 	response, err := apiClient.ServiceCreate(ctx, service, headers)

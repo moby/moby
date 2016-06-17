@@ -77,7 +77,7 @@ func runServiceScale(dockerCli *client.DockerCli, serviceID string, scale string
 			return err
 		}
 		headers = map[string][]string{
-			"x-registry-auth": {encodedAuth},
+			"X-Registry-Auth": {encodedAuth},
 		}
 	}
 
