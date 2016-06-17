@@ -34,3 +34,21 @@ func (s *DockerSuite) TestPluginBasicOps(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, nameWithTag)
 }
+
+func (s *DockerSuite) TestPluginInstallDisable(c *check.C) {
+	testRequires(c, DaemonIsLinux, ExperimentalDaemon)
+	name := "tiborvass/no-remove"
+	tag := "latest"
+	nameWithTag := name + ":" + tag
+
+	_, _, err := dockerCmdWithError("plugin", "install", name, "--disable")
+	c.Assert(err, checker.IsNil)
+
+	out, _, err := dockerCmdWithError("plugin", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "false")
+
+	out, _, err = dockerCmdWithError("plugin", "remove", nameWithTag)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, nameWithTag)
+}

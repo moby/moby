@@ -19,6 +19,7 @@ import (
 type pluginOptions struct {
 	name       string
 	grantPerms bool
+	disable    bool
 }
 
 func newInstallCommand(dockerCli *client.DockerCli) *cobra.Command {
@@ -35,6 +36,7 @@ func newInstallCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.BoolVar(&options.grantPerms, "grant-all-permissions", true, "grant all permissions necessary to run the plugin")
+	flags.BoolVar(&options.disable, "disable", false, "do not enable the plugin on install")
 
 	return cmd
 }
@@ -62,10 +64,9 @@ func runInstall(dockerCli *client.DockerCli, opts pluginOptions) error {
 
 	requestPrivilege := dockerCli.RegistryAuthenticationPrivilegedFunc(repoInfo.Index, "plugin install")
 
-	// TODO: pass acceptAllPermissions and noEnable flag
 	options := types.PluginInstallOptions{
 		RegistryAuth:          encodedAuth,
-		Disabled:              false,
+		Disabled:              opts.disable,
 		AcceptAllPermissions:  opts.grantPerms,
 		AcceptPermissionsFunc: acceptPrivileges(dockerCli, opts.name),
 		PrivilegeFunc:         requestPrivilege,
