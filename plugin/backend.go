@@ -76,10 +76,6 @@ func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.A
 	}
 
 	p := pm.newPlugin(ref, pluginID)
-	if ref, ok := ref.(reference.NamedTagged); ok {
-		p.p.Tag = ref.Tag()
-	}
-
 	if err := pm.initPlugin(p); err != nil {
 		return nil, err
 	}
