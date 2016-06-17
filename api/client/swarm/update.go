@@ -18,6 +18,7 @@ type updateOptions struct {
 	secret              string
 	taskHistoryLimit    int64
 	dispatcherHeartbeat time.Duration
+	nodeCertExpiry      time.Duration
 }
 
 func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
@@ -38,6 +39,7 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	flags.StringVar(&opts.secret, "secret", "", "Set secret value needed to accept nodes into cluster")
 	flags.Int64Var(&opts.taskHistoryLimit, "task-history-limit", 10, "Task history retention limit")
 	flags.DurationVar(&opts.dispatcherHeartbeat, "dispatcher-heartbeat", time.Duration(5*time.Second), "Dispatcher heartbeat period")
+	flags.DurationVar(&opts.nodeCertExpiry, "cert-expiry", time.Duration(90*24*time.Hour), "Validity period for node certificates")
 	return cmd
 }
 
@@ -89,6 +91,12 @@ func mergeSwarm(swarm *swarm.Swarm, flags *pflag.FlagSet) error {
 	if flags.Changed("dispatcher-heartbeat") {
 		if v, err := flags.GetDuration("dispatcher-heartbeat"); err == nil {
 			spec.Dispatcher.HeartbeatPeriod = uint64(v.Nanoseconds())
+		}
+	}
+
+	if flags.Changed("cert-expiry") {
+		if v, err := flags.GetDuration("cert-expiry"); err == nil {
+			spec.CAConfig.NodeCertExpiry = v
 		}
 	}
 
