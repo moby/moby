@@ -501,20 +501,26 @@ func (s *DockerSuite) TestRunVolumesFromInReadWriteMode(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumesFromGetsProperMode(c *check.C) {
+	testRequires(c, SameHostDaemon)
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
+	hostpath := randomTmpDirPath("test", daemonPlatform)
+	if err := os.MkdirAll(hostpath, 0755); err != nil {
+		c.Fatalf("Failed to create %s: %q", hostpath, err)
+	}
+	defer os.RemoveAll(hostpath)
 
 	// TODO Windows: Temporary check - remove once TP5 support is dropped
 	if daemonPlatform == "windows" && windowsDaemonKV < 14350 {
 		c.Skip("Needs later Windows build for RO volumes")
 	}
-	dockerCmd(c, "run", "--name", "parent", "-v", prefix+slash+"test:"+prefix+slash+"test:ro", "busybox", "true")
+	dockerCmd(c, "run", "--name", "parent", "-v", hostpath+":"+prefix+slash+"test:ro", "busybox", "true")
 
 	// Expect this "rw" mode to be be ignored since the inherited volume is "ro"
 	if _, _, err := dockerCmdWithError("run", "--volumes-from", "parent:rw", "busybox", "touch", prefix+slash+"test"+slash+"file"); err == nil {
 		c.Fatal("Expected volumes-from to inherit read-only volume even when passing in `rw`")
 	}
 
-	dockerCmd(c, "run", "--name", "parent2", "-v", prefix+slash+"test:"+prefix+slash+"test:ro", "busybox", "true")
+	dockerCmd(c, "run", "--name", "parent2", "-v", hostpath+":"+prefix+slash+"test:ro", "busybox", "true")
 
 	// Expect this to be read-only since both are "ro"
 	if _, _, err := dockerCmdWithError("run", "--volumes-from", "parent2:ro", "busybox", "touch", prefix+slash+"test"+slash+"file"); err == nil {
