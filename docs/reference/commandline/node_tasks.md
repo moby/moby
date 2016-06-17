@@ -26,13 +26,13 @@ Lists all the tasks on a Node that Docker knows about. You can filter using the 
 
 Example output:
 
-    $ docker node tasks swarm-master
-    ID                         NAME     SERVICE  IMAGE        DESIRED STATE  LAST STATE       NODE
-    dx2g0fe3zsdb6y6q453f8dqw2  redis.1  redis    redis:3.0.6  RUNNING        RUNNING 2 hours  swarm-master
-    f33pcf8lwhs4c1t4kq8szwzta  redis.4  redis    redis:3.0.6  RUNNING        RUNNING 2 hours  swarm-master
-    5v26yzixl3one3ptjyqqbd0ro  redis.5  redis    redis:3.0.6  RUNNING        RUNNING 2 hours  swarm-master
-    adcaphlhsfr30d47lby6walg6  redis.8  redis    redis:3.0.6  RUNNING        RUNNING 2 hours  swarm-master
-    chancjvk9tex6768uzzacslq2  redis.9  redis    redis:3.0.6  RUNNING        RUNNING 2 hours  swarm-master
+    $ docker node tasks swarm-manager1
+    ID                         NAME      SERVICE  IMAGE        LAST STATE          DESIRED STATE  NODE
+    7q92v0nr1hcgts2amcjyqg3pq  redis.1   redis    redis:3.0.6  Running 5 hours     Running        swarm-manager1
+    b465edgho06e318egmgjbqo4o  redis.6   redis    redis:3.0.6  Running 29 seconds  Running        swarm-manager1
+    bg8c07zzg87di2mufeq51a2qp  redis.7   redis    redis:3.0.6  Running 5 seconds   Running        swarm-manager1
+    dkkual96p4bb3s6b10r7coxxt  redis.9   redis    redis:3.0.6  Running 5 seconds   Running        swarm-manager1
+    0tgctg8h8cech4w0k0gwrmr23  redis.10  redis    redis:3.0.6  Running 5 seconds   Running        swarm-manager1
 
 
 ## Filtering
@@ -53,22 +53,22 @@ The `name` filter matches on all or part of a task's name.
 
 The following filter matches all tasks with a name containing the `redis` string.
 
-    $ docker node tasks -f name=redis swarm-master
-    ID                         NAME     SERVICE  IMAGE        DESIRED STATE  LAST STATE       NODE
-    dx2g0fe3zsdb6y6q453f8dqw2  redis.1  redis    redis:3.0.6  RUNNING        RUNNING 2 hours  swarm-master
-    f33pcf8lwhs4c1t4kq8szwzta  redis.4  redis    redis:3.0.6  RUNNING        RUNNING 2 hours  swarm-master
-    5v26yzixl3one3ptjyqqbd0ro  redis.5  redis    redis:3.0.6  RUNNING        RUNNING 2 hours  swarm-master
-    adcaphlhsfr30d47lby6walg6  redis.8  redis    redis:3.0.6  RUNNING        RUNNING 2 hours  swarm-master
-    chancjvk9tex6768uzzacslq2  redis.9  redis    redis:3.0.6  RUNNING        RUNNING 2 hours  swarm-master
+    $ docker node tasks -f name=redis swarm-manager1
+    ID                         NAME      SERVICE  IMAGE        LAST STATE          DESIRED STATE  NODE
+    7q92v0nr1hcgts2amcjyqg3pq  redis.1   redis    redis:3.0.6  Running 5 hours     Running        swarm-manager1
+    b465edgho06e318egmgjbqo4o  redis.6   redis    redis:3.0.6  Running 29 seconds  Running        swarm-manager1
+    bg8c07zzg87di2mufeq51a2qp  redis.7   redis    redis:3.0.6  Running 5 seconds   Running        swarm-manager1
+    dkkual96p4bb3s6b10r7coxxt  redis.9   redis    redis:3.0.6  Running 5 seconds   Running        swarm-manager1
+    0tgctg8h8cech4w0k0gwrmr23  redis.10  redis    redis:3.0.6  Running 5 seconds   Running        swarm-manager1
 
 
 ### id
 
 The `id` filter matches a task's id.
 
-    $ docker node tasks -f id=f33pcf8lwhs4c1t4kq8szwzta swarm-master
-    ID                         NAME     SERVICE  IMAGE        DESIRED STATE  LAST STATE       NODE
-    f33pcf8lwhs4c1t4kq8szwzta  redis.4  redis    redis:3.0.6  RUNNING        RUNNING 2 hours  swarm-master
+    $ docker node tasks -f id=bg8c07zzg87di2mufeq51a2qp swarm-manager1
+    ID                         NAME      SERVICE  IMAGE        LAST STATE             DESIRED STATE  NODE
+    bg8c07zzg87di2mufeq51a2qp  redis.7   redis    redis:3.0.6  Running 5 seconds      Running        swarm-manager1
 
 
 #### label
@@ -80,9 +80,9 @@ The following filter matches tasks with the `usage` label regardless of its valu
 
 ```bash
 $ docker node tasks -f "label=usage"
-ID                         NAME     SERVICE  IMAGE        DESIRED STATE  LAST STATE       NODE
-dx2g0fe3zsdb6y6q453f8dqw2  redis.1  redis    redis:3.0.6  RUNNING        RUNNING 2 hours  swarm-master
-f33pcf8lwhs4c1t4kq8szwzta  redis.4  redis    redis:3.0.6  RUNNING        RUNNING 2 hours  swarm-master
+ID                         NAME     SERVICE  IMAGE        LAST STATE          DESIRED STATE  NODE
+b465edgho06e318egmgjbqo4o  redis.6  redis    redis:3.0.6  Running 10 minutes  Running        swarm-manager1
+bg8c07zzg87di2mufeq51a2qp  redis.7  redis    redis:3.0.6  Running 9 minutes   Running        swarm-manager1
 ```
 
 

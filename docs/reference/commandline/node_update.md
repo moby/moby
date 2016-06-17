@@ -16,6 +16,12 @@ parent = "smn_cli"
 
     Update a node
 
+    Options:
+      --availability string   Availability of the node (active/pause/drain)
+      --help                  Print usage
+      --membership string     Membership of the node (accepted/rejected)
+      --role string           Role of the node (worker/manager)
+
 
 
 ## Related information

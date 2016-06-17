@@ -29,10 +29,10 @@ Lists all the nodes that the Docker Swarm manager knows about. You can filter us
 Example output:
 
     $ docker node ls
-    ID              NAME           STATUS  AVAILABILITY     MANAGER STATUS  LEADER
-    0gac67oclbxq    swarm-master   Ready   Active           Reachable       Yes
-    0pwvm3ve66q7    swarm-node-02  Ready   Active
-    15xwihgw71aw *  swarm-node-01  Ready   Active           Reachable
+    ID                           NAME           MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
+    1bcef6utixb0l0ca7gxuivsj0    swarm-worker2   Accepted    Ready   Active
+    38ciaotwjuritcdtn9npbnkuz    swarm-worker1   Accepted    Ready   Active
+    e216jshn25ckzbvmwlnh5jr3g *  swarm-manager1  Accepted    Ready   Active        Reachable       Yes
 
 
 ## Filtering
@@ -49,22 +49,21 @@ The currently supported filters are:
 
 ### name
 
-The `name` filter matches on all or part of a tasks's name.
+The `name` filter matches on all or part of a node name.
 
 The following filter matches the node with a name equal to `swarm-master` string.
 
-    $ docker node ls -f name=swarm-master
-    ID              NAME          STATUS  AVAILABILITY      MANAGER STATUS  LEADER
-    0gac67oclbxq *  swarm-master  Ready   Active            Reachable       Yes
+    $ docker node ls -f name=swarm-manager1
+    ID                           NAME            MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
+    e216jshn25ckzbvmwlnh5jr3g *  swarm-manager1  Accepted    Ready   Active        Reachable       Yes
 
 ### id
 
 The `id` filter matches all or part of a node's id.
 
-    $ docker node ls -f id=0
-    ID              NAME           STATUS  AVAILABILITY     MANAGER STATUS  LEADER
-    0gac67oclbxq *  swarm-master   Ready   Active           Reachable       Yes
-    0pwvm3ve66q7    swarm-node-02  Ready   Active
+    $ docker node ls -f id=1
+    ID                         NAME           MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
+    1bcef6utixb0l0ca7gxuivsj0  swarm-worker2  Accepted    Ready   Active
 
 
 #### label
@@ -76,8 +75,8 @@ The following filter matches nodes with the `usage` label regardless of its valu
 
 ```bash
 $ docker node ls -f "label=foo"
-ID              NAME           STATUS  AVAILABILITY     MANAGER STATUS  LEADER
-15xwihgw71aw *  swarm-node-01  Ready   Active           Reachable
+ID                         NAME           MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
+1bcef6utixb0l0ca7gxuivsj0  swarm-worker2  Accepted    Ready   Active
 ```
 
 
