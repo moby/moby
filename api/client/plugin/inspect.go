@@ -4,9 +4,11 @@ package plugin
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/reference"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -25,7 +27,18 @@ func newInspectCommand(dockerCli *client.DockerCli) *cobra.Command {
 }
 
 func runInspect(dockerCli *client.DockerCli, name string) error {
-	p, err := dockerCli.Client().PluginInspect(context.Background(), name)
+	named, err := reference.ParseNamed(name) // FIXME: validate
+	if err != nil {
+		return err
+	}
+	if reference.IsNameOnly(named) {
+		named = reference.WithDefaultTag(named)
+	}
+	ref, ok := named.(reference.NamedTagged)
+	if !ok {
+		return fmt.Errorf("invalid name: %s", named.String())
+	}
+	p, err := dockerCli.Client().PluginInspect(context.Background(), ref.String())
 	if err != nil {
 		return err
 	}
