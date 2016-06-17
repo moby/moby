@@ -53,9 +53,7 @@ func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, serviceID stri
 		if err != nil {
 			return err
 		}
-		headers = map[string][]string{
-			"x-registry-auth": {encodedAuth},
-		}
+		headers["X-Registry-Auth"] = []string{encodedAuth}
 	}
 
 	service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID)
