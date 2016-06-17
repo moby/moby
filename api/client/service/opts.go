@@ -438,14 +438,14 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 
 	flags.VarP(&opts.env, "env", "e", "Set environment variables")
 	flags.StringVarP(&opts.workdir, "workdir", "w", "", "Working directory inside the container")
-	flags.StringVarP(&opts.user, "user", "u", "", "Username or UID")
+	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID")
 	flags.VarP(&opts.mounts, flagMount, "m", "Attach a mount to the service")
 
 	flags.Var(&opts.resources.limitCPU, flagLimitCPU, "Limit CPUs")
 	flags.Var(&opts.resources.limitMemBytes, flagLimitMemory, "Limit Memory")
 	flags.Var(&opts.resources.resCPU, flagReserveCPU, "Reserve CPUs")
 	flags.Var(&opts.resources.resMemBytes, flagReserveMemory, "Reserve Memory")
-	flags.Var(&opts.stopGrace, "stop-grace-period", "Time to wait before force killing a container")
+	flags.Var(&opts.stopGrace, flagStopGracePeriod, "Time to wait before force killing a container")
 
 	flags.StringVar(&opts.mode, flagMode, "replicated", "Service mode (replicated or global)")
 	flags.Var(&opts.replicas, flagReplicas, "Number of tasks")
@@ -467,22 +467,24 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 
 const (
 	flagConstraint         = "constraint"
-	flagName               = "name"
+	flagEndpointMode       = "endpoint-mode"
 	flagLabel              = "label"
 	flagLimitCPU           = "limit-cpu"
 	flagLimitMemory        = "limit-memory"
+	flagMode               = "mode"
+	flagMount              = "mount"
+	flagName               = "name"
+	flagNetwork            = "network"
+	flagPublish            = "publish"
+	flagReplicas           = "replicas"
 	flagReserveCPU         = "reserve-cpu"
 	flagReserveMemory      = "reserve-memory"
-	flagMount              = "mount"
-	flagMode               = "mode"
-	flagReplicas           = "replicas"
-	flagPublish            = "publish"
-	flagNetwork            = "network"
 	flagRestartCondition   = "restart-condition"
 	flagRestartDelay       = "restart-delay"
 	flagRestartMaxAttempts = "restart-max-attempts"
 	flagRestartWindow      = "restart-window"
-	flagEndpointMode       = "endpoint-mode"
-	flagUpdateParallelism  = "update-parallelism"
+	flagStopGracePeriod    = "stop-grace-period"
 	flagUpdateDelay        = "update-delay"
+	flagUpdateParallelism  = "update-parallelism"
+	flagUser               = "user"
 )
