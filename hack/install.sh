@@ -109,7 +109,7 @@ rpm_import_repository_key() {
 	local tmpdir=$(mktemp -d)
 	chmod 600 "$tmpdir"
 	for key_server in $key_servers ; do
-		gpg --homedir "$tmpdir" --keyserver "$key_server" --recv-keys "$key" && break
+		gpg --homedir "$tmpdir" --keyserver-options http-proxy=$http_proxy --keyserver "$key_server" --recv-keys "$key" && break
 	done
 	gpg --homedir "$tmpdir" -k "$key" >/dev/null
 	gpg --homedir "$tmpdir" --export --armor "$key" > "$tmpdir"/repo.key
