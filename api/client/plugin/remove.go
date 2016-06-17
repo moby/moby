@@ -13,7 +13,7 @@ import (
 
 func newRemoveCommand(dockerCli *client.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "rm",
+		Use:     "rm PLUGIN",
 		Short:   "Remove a plugin",
 		Aliases: []string{"remove"},
 		Args:    cli.RequiresMinArgs(1),
