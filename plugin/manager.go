@@ -22,10 +22,7 @@ import (
 	"github.com/docker/engine-api/types"
 )
 
-const (
-	defaultPluginRuntimeDestination = "/run/docker/plugins"
-	defaultPluginStateDestination   = "/state"
-)
+const defaultPluginRuntimeDestination = "/run/docker/plugins"
 
 var manager *Manager
 
@@ -49,7 +46,6 @@ type plugin struct {
 	P                 types.Plugin `json:"plugin"`
 	client            *plugins.Client
 	restartManager    restartmanager.RestartManager
-	stateSourcePath   string
 	runtimeSourcePath string
 }
 
@@ -72,7 +68,6 @@ func (pm *Manager) newPlugin(ref reference.Named, id string) *plugin {
 			Name: ref.Name(),
 			ID:   id,
 		},
-		stateSourcePath:   filepath.Join(pm.libRoot, id, "state"),
 		runtimeSourcePath: filepath.Join(pm.runRoot, id),
 	}
 	if ref, ok := ref.(reference.NamedTagged); ok {
@@ -82,7 +77,6 @@ func (pm *Manager) newPlugin(ref reference.Named, id string) *plugin {
 }
 
 func (pm *Manager) restorePlugin(p *plugin) error {
-	p.stateSourcePath = filepath.Join(pm.libRoot, p.P.ID, "state")
 	p.runtimeSourcePath = filepath.Join(pm.runRoot, p.P.ID)
 	if p.P.Active {
 		return pm.restore(p)
@@ -210,7 +204,18 @@ func LookupWithCapability(name, capability string) (Plugin, error) {
 	)
 	handleLegacy := true
 	if manager != nil {
-		p, err = manager.get(name)
+		fullName := name
+		if named, err := reference.ParseNamed(fullName); err == nil { // FIXME: validate
+			if reference.IsNameOnly(named) {
+				named = reference.WithDefaultTag(named)
+			}
+			ref, ok := named.(reference.NamedTagged)
+			if !ok {
+				return nil, fmt.Errorf("invalid name: %s", named.String())
+			}
+			fullName = ref.String()
+		}
+		p, err = manager.get(fullName)
 		if err != nil {
 			if _, ok := err.(ErrNotFound); !ok {
 				return nil, err
@@ -342,7 +347,6 @@ func (pm *Manager) remove(p *plugin) error {
 	}
 	pm.Lock() // fixme: lock single record
 	defer pm.Unlock()
-	os.RemoveAll(p.stateSourcePath)
 	delete(pm.plugins, p.P.ID)
 	delete(pm.nameToID, p.Name())
 	pm.save()

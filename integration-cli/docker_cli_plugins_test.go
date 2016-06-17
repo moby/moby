@@ -11,7 +11,7 @@ func (s *DockerSuite) TestPluginBasicOps(c *check.C) {
 	tag := "latest"
 	nameWithTag := name + ":" + tag
 
-	_, _, err := dockerCmdWithError("plugin", "install", name)
+	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", name)
 	c.Assert(err, checker.IsNil)
 
 	out, _, err := dockerCmdWithError("plugin", "ls")
@@ -41,7 +41,7 @@ func (s *DockerSuite) TestPluginInstallDisable(c *check.C) {
 	tag := "latest"
 	nameWithTag := name + ":" + tag
 
-	_, _, err := dockerCmdWithError("plugin", "install", name, "--disable")
+	_, _, err := dockerCmdWithError("plugin", "install", "--grant-all-permissions", "--disable", name)
 	c.Assert(err, checker.IsNil)
 
 	out, _, err := dockerCmdWithError("plugin", "ls")

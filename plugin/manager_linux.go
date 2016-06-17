@@ -70,11 +70,6 @@ func (pm *Manager) initSpec(p *plugin) (*specs.Spec, error) {
 		Destination: defaultPluginRuntimeDestination,
 		Type:        "bind",
 		Options:     []string{"rbind", "rshared"},
-	}, types.PluginMount{
-		Source:      &p.stateSourcePath,
-		Destination: defaultPluginStateDestination,
-		Type:        "bind",
-		Options:     []string{"rbind", "rshared"},
 	})
 	for _, mount := range mounts {
 		m := specs.Mount{
@@ -105,10 +100,14 @@ func (pm *Manager) initSpec(p *plugin) (*specs.Spec, error) {
 	envs = append(envs, p.P.Config.Env...)
 
 	args := append(p.P.Manifest.Entrypoint, p.P.Config.Args...)
+	cwd := p.P.Manifest.Workdir
+	if len(cwd) == 0 {
+		cwd = "/"
+	}
 	s.Process = specs.Process{
 		Terminal: false,
 		Args:     args,
-		Cwd:      "/", // TODO: add in manifest?
+		Cwd:      cwd,
 		Env:      envs,
 	}
 
