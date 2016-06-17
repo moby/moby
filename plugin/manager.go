@@ -204,7 +204,8 @@ func LookupWithCapability(name, capability string) (Plugin, error) {
 	)
 	handleLegacy := true
 	if manager != nil {
-		if named, err := reference.ParseNamed(name); err == nil { // FIXME: validate
+		fullName := name
+		if named, err := reference.ParseNamed(fullName); err == nil { // FIXME: validate
 			if reference.IsNameOnly(named) {
 				named = reference.WithDefaultTag(named)
 			}
@@ -212,9 +213,9 @@ func LookupWithCapability(name, capability string) (Plugin, error) {
 			if !ok {
 				return nil, fmt.Errorf("invalid name: %s", named.String())
 			}
-			name = ref.String()
+			fullName = ref.String()
 		}
-		p, err = manager.get(name)
+		p, err = manager.get(fullName)
 		if err != nil {
 			if _, ok := err.(ErrNotFound); !ok {
 				return nil, err
