@@ -5,7 +5,7 @@ title = "Install Docker and run hello-world"
 description = "Getting started with Docker"
 keywords = ["beginner, getting started, Docker, install"]
 identifier = "getstart_linux_install"
-parent = "getstart_all"
+parent = "tutorial_getstart_menu"
 weight="-80"
 +++
 <![end-metadata]-->

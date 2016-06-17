@@ -10,7 +10,7 @@ description = "Getting started with Docker"
 keywords = ["beginner, getting started, Docker"]
 [menu.main]
 identifier = "getstart_build_image"
-parent = "getstart_all"
+parent = "tutorial_getstart_menu"
 weight = 4
 +++
 <![end-metadata]-->
