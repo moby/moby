@@ -28,7 +28,7 @@ func newInitCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Initialize a Swarm.",
+		Short: "Initialize a Swarm",
 		Args:  cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runInit(dockerCli, flags, opts)
