@@ -16,7 +16,7 @@ import (
 
 func newPushCommand(dockerCli *client.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "push",
+		Use:   "push PLUGIN",
 		Short: "Push a plugin",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -12,7 +12,7 @@ import (
 
 func newSetCommand(dockerCli *client.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "set",
+		Use:   "set PLUGIN key1=value1 [key2=value2...]",
 		Short: "Change settings for a plugin",
 		Args:  cli.RequiresMinArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -13,7 +13,7 @@ import (
 
 func newInspectCommand(dockerCli *client.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "inspect",
+		Use:   "inspect PLUGIN",
 		Short: "Inspect a plugin",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
