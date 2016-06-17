@@ -35,12 +35,12 @@ func (a *NodeAddrOption) String() string {
 // Set the value for this flag
 func (a *NodeAddrOption) Set(value string) error {
 	if !strings.Contains(value, ":") {
-		return fmt.Errorf("Invalud url, a host and port are required")
+		return fmt.Errorf("Invalid url, a host and port are required")
 	}
 
 	parts := strings.Split(value, ":")
 	if len(parts) != 2 {
-		return fmt.Errorf("Invalud url, too many colons")
+		return fmt.Errorf("Invalid url, too many colons")
 	}
 
 	a.addr = value
