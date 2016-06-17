@@ -94,11 +94,11 @@ func printService(out io.Writer, service swarm.Service) {
 	}
 
 	if service.Spec.Mode.Global != nil {
-		fmt.Fprintln(out, "Mode:\t\tGLOBAL")
+		fmt.Fprintln(out, "Mode:\t\tGlobal")
 	} else {
-		fmt.Fprintln(out, "Mode:\t\tREPLICATED")
+		fmt.Fprintln(out, "Mode:\t\tReplicated")
 		if service.Spec.Mode.Replicated.Replicas != nil {
-			fmt.Fprintf(out, " Replicas:\t\t%d\n", *service.Spec.Mode.Replicated.Replicas)
+			fmt.Fprintf(out, " Replicas:\t%d\n", *service.Spec.Mode.Replicated.Replicas)
 		}
 	}
 	fmt.Fprintln(out, "Placement:")
@@ -157,7 +157,7 @@ func printContainerSpec(out io.Writer, containerSpec swarm.ContainerSpec) {
 		fmt.Fprintf(out, " Command:\t%s\n", strings.Join(containerSpec.Command, " "))
 	}
 	if len(containerSpec.Args) > 0 {
-		fmt.Fprintf(out, " Args:\t%s\n", strings.Join(containerSpec.Args, " "))
+		fmt.Fprintf(out, " Args:\t\t%s\n", strings.Join(containerSpec.Args, " "))
 	}
 	if len(containerSpec.Env) > 0 {
 		fmt.Fprintf(out, " Env:\t\t%s\n", strings.Join(containerSpec.Env, " "))
