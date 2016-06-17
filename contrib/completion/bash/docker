@@ -1639,9 +1639,15 @@ _docker_swarm_join() {
 }
 
 _docker_swarm_update() {
+	case "$prev" in
+		--auto-accept|--cert-expiry|--dispatcher-heartbeat|--secret|--task-history-limit)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--auto-accept --dispatcher-heartbeat --help --secret --task-history-limit" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--auto-accept --cert-expiry --dispatcher-heartbeat --help --secret --task-history-limit" -- "$cur" ) )
 			;;
 	esac
 }
