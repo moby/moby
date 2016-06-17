@@ -6,9 +6,8 @@ aliases = [
 title = "Learn by example"
 description = "Explains how to work with containers"
 keywords = ["docker, introduction, documentation, about, technology, docker.io, user, guide, user's, manual, platform, framework, home,  intro"]
-[menu.main]
 identifier="engine_learn"
-parent = "engine_use"
+parent = "engine_learn_menu"
 weight="-80"
 +++
 <![end-metadata]-->

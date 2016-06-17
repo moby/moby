@@ -1,12 +1,12 @@
 <!--[metadata]>
 +++
-title = "User guide"
+title = "User Guide"
 description = "How to use the Docker Engine user guide"
 keywords = ["engine, introduction, documentation, about, technology, docker, user, guide, framework, home,  intro"]
 [menu.main]
 parent="engine_use"
 identifier = "engine_guide"
-weight="-79"
+weight="-78"
 +++
 <![end-metadata]-->
 
