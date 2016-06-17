@@ -20,7 +20,6 @@ type initOptions struct {
 }
 
 func newInitCommand(dockerCli *client.DockerCli) *cobra.Command {
-	var flags *pflag.FlagSet
 	opts := initOptions{
 		listenAddr: NewListenAddrOption(),
 		autoAccept: NewAutoAcceptOption(),
@@ -31,12 +30,12 @@ func newInitCommand(dockerCli *client.DockerCli) *cobra.Command {
 		Short: "Initialize a Swarm",
 		Args:  cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runInit(dockerCli, flags, opts)
+			return runInit(dockerCli, cmd.Flags(), opts)
 		},
 	}
 
-	flags = cmd.Flags()
-	flags.Var(&opts.listenAddr, flagListenAddr, "Listen address")
+	flags := cmd.Flags()
+	flags.Var(&opts.listenAddr, "listen-addr", "Listen address")
 	flags.Var(&opts.autoAccept, flagAutoAccept, "Auto acceptance policy (worker, manager, or none)")
 	flags.StringVar(&opts.secret, flagSecret, "", "Set secret value needed to accept nodes into cluster")
 	flags.BoolVar(&opts.forceNewCluster, "force-new-cluster", false, "Force create a new cluster from current state.")
@@ -52,7 +51,7 @@ func runInit(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts initOptions
 		ForceNewCluster: opts.forceNewCluster,
 	}
 
-	if flags.Changed("secret") {
+	if flags.Changed(flagSecret) {
 		req.Spec.AcceptancePolicy.Policies = opts.autoAccept.Policies(&opts.secret)
 	} else {
 		req.Spec.AcceptancePolicy.Policies = opts.autoAccept.Policies(nil)
