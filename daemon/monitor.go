@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/runconfig"
 )
@@ -103,10 +104,15 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 
 // AttachStreams is called by libcontainerd to connect the stdio.
 func (daemon *Daemon) AttachStreams(id string, iop libcontainerd.IOPipe) error {
-	var s *runconfig.StreamConfig
+	var (
+		s  *runconfig.StreamConfig
+		ec *exec.Config
+	)
+
 	c := daemon.containers.Get(id)
 	if c == nil {
-		ec, err := daemon.getExecConfig(id)
+		var err error
+		ec, err = daemon.getExecConfig(id)
 		if err != nil {
 			return fmt.Errorf("no such exec/container: %s", id)
 		}
@@ -127,7 +133,10 @@ func (daemon *Daemon) AttachStreams(id string, iop libcontainerd.IOPipe) error {
 			}()
 		}
 	} else {
-		if c != nil && !c.Config.Tty {
+		//TODO(swernli): On Windows, not closing stdin when no tty is requested by the exec Config
+		// results in a hang. We should re-evaluate generalizing this fix for all OSes if
+		// we can determine that is the right thing to do more generally.
+		if (c != nil && !c.Config.Tty) || (ec != nil && !ec.Tty && runtime.GOOS == "windows") {
 			// tty is enabled, so dont close containerd's iopipe stdin.
 			if iop.Stdin != nil {
 				iop.Stdin.Close()
