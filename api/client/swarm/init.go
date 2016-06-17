@@ -35,7 +35,7 @@ func newInitCommand(dockerCli *client.DockerCli) *cobra.Command {
 		},
 	}
 
-	flags := cmd.Flags()
+	flags = cmd.Flags()
 	flags.Var(&opts.listenAddr, flagListenAddr, "Listen address")
 	flags.Var(&opts.autoAccept, flagAutoAccept, "Auto acceptance policy (worker, manager, or none)")
 	flags.StringVar(&opts.secret, flagSecret, "", "Set secret value needed to accept nodes into cluster")
