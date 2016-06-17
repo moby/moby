@@ -3,8 +3,11 @@
 package plugin
 
 import (
+	"fmt"
+
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/reference"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -15,9 +18,24 @@ func newDisableCommand(dockerCli *client.DockerCli) *cobra.Command {
 		Short: "Disable a plugin",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return dockerCli.Client().PluginDisable(context.Background(), args[0])
+			return runDisable(dockerCli, args[0])
 		},
 	}
 
 	return cmd
+}
+
+func runDisable(dockerCli *client.DockerCli, name string) error {
+	named, err := reference.ParseNamed(name) // FIXME: validate
+	if err != nil {
+		return err
+	}
+	if reference.IsNameOnly(named) {
+		named = reference.WithDefaultTag(named)
+	}
+	ref, ok := named.(reference.NamedTagged)
+	if !ok {
+		return fmt.Errorf("invalid name: %s", named.String())
+	}
+	return dockerCli.Client().PluginDisable(context.Background(), ref.String())
 }
