@@ -239,7 +239,9 @@ func (s *DockerSuite) TestInspectBindMountPoint(c *check.C) {
 	c.Assert(m.Driver, checker.Equals, "")
 	c.Assert(m.Source, checker.Equals, prefix+slash+"data")
 	c.Assert(m.Destination, checker.Equals, prefix+slash+"data")
-	c.Assert(m.Mode, checker.Equals, "ro"+modifier)
+	if daemonPlatform != "windows" { // Windows does not set mode
+		c.Assert(m.Mode, checker.Equals, "ro"+modifier)
+	}
 	c.Assert(m.RW, checker.Equals, false)
 }
 
