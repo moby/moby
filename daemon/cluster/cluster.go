@@ -28,25 +28,28 @@ import (
 
 const swarmDirName = "swarm"
 const controlSocket = "control.sock"
-const swarmConnectTimeout = 10 * time.Second
+const swarmConnectTimeout = 20 * time.Second
 const stateFile = "docker-state.json"
 
 const (
 	initialReconnectDelay = 100 * time.Millisecond
-	maxReconnectDelay     = 10 * time.Second
+	maxReconnectDelay     = 30 * time.Second
 )
 
 // ErrNoManager is returned then a manager-only function is called on non-manager
-var ErrNoManager = fmt.Errorf("this node is not participating as a Swarm manager")
+var ErrNoManager = fmt.Errorf("This node is not participating as a Swarm manager")
 
 // ErrNoSwarm is returned on leaving a cluster that was never initialized
-var ErrNoSwarm = fmt.Errorf("this node is not part of Swarm")
+var ErrNoSwarm = fmt.Errorf("This node is not part of Swarm")
 
 // ErrSwarmExists is returned on initialize or join request for a cluster that has already been activated
-var ErrSwarmExists = fmt.Errorf("this node is already part of a Swarm")
+var ErrSwarmExists = fmt.Errorf("This node is already part of a Swarm cluster. Use \"docker swarm leave\" to leave this cluster and join another one.")
+
+// ErrPendingSwarmExists is returned on initialize or join request for a cluster that is already processing a similar request but has not succeeded yet.
+var ErrPendingSwarmExists = fmt.Errorf("This node is processing an existing join request that has not succeeded yet. Use \"docker swarm leave\" to cancel the current request.")
 
 // ErrSwarmJoinTimeoutReached is returned when cluster join could not complete before timeout was reached.
-var ErrSwarmJoinTimeoutReached = fmt.Errorf("timeout reached before node was joined")
+var ErrSwarmJoinTimeoutReached = fmt.Errorf("Timeout was reached before node was joined. Attempt to join the cluster will continue in the background. Use \"docker info\" command to see the current Swarm status of your node.")
 
 type state struct {
 	ListenAddr string
@@ -111,7 +114,7 @@ func New(config Config) (*Cluster, error) {
 	select {
 	case <-time.After(swarmConnectTimeout):
 		logrus.Errorf("swarm component could not be started before timeout was reached")
-	case <-n.Ready(context.Background()):
+	case <-n.Ready():
 	case <-ctx.Done():
 	}
 	if ctx.Err() != nil {
@@ -213,7 +216,7 @@ func (c *Cluster) startNewNode(forceNewCluster bool, listenAddr, joinAddr, secre
 
 	go func() {
 		select {
-		case <-node.Ready(context.Background()):
+		case <-node.Ready():
 			c.Lock()
 			c.reconnectDelay = initialReconnectDelay
 			c.Unlock()
@@ -249,13 +252,14 @@ func (c *Cluster) startNewNode(forceNewCluster bool, listenAddr, joinAddr, secre
 // Init initializes new cluster from user provided request.
 func (c *Cluster) Init(req types.InitRequest) (string, error) {
 	c.Lock()
-	if c.node != nil {
+	if node := c.node; node != nil {
 		c.Unlock()
 		if !req.ForceNewCluster {
-			return "", ErrSwarmExists
+			return "", errSwarmExists(node)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
+		c.cancelReconnect()
 		if err := c.node.Stop(ctx); err != nil && !strings.Contains(err.Error(), "context canceled") {
 			return "", err
 		}
@@ -273,7 +277,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 	c.Unlock()
 
 	select {
-	case <-n.Ready(context.Background()):
+	case <-n.Ready():
 		if err := initAcceptancePolicy(n, req.Spec.AcceptancePolicy); err != nil {
 			return "", err
 		}
@@ -297,9 +301,9 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 // Join makes current Cluster part of an existing swarm cluster.
 func (c *Cluster) Join(req types.JoinRequest) error {
 	c.Lock()
-	if c.node != nil {
+	if node := c.node; node != nil {
 		c.Unlock()
-		return ErrSwarmExists
+		return errSwarmExists(node)
 	}
 	// todo: check current state existing
 	if len(req.RemoteAddrs) == 0 {
@@ -312,23 +316,29 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 	}
 	c.Unlock()
 
-	select {
-	case <-time.After(swarmConnectTimeout):
-		go c.reconnectOnFailure(ctx)
-		if nodeid := n.NodeID(); nodeid != "" {
-			return fmt.Errorf("Timeout reached before node was joined. Your cluster settings may be preventing this node from automatically joining. To accept this node into cluster run `docker node accept %v` in an existing cluster manager", nodeid)
+	certificateRequested := n.CertificateRequested()
+	for {
+		select {
+		case <-certificateRequested:
+			if n.NodeMembership() == swarmapi.NodeMembershipPending {
+				return fmt.Errorf("Your node is in the process of joining the cluster but needs to be accepted by existing cluster member.\nTo accept this node into cluster run \"docker node accept %v\" in an existing cluster manager. Use \"docker info\" command to see the current Swarm status of your node.", n.NodeID())
+			}
+			certificateRequested = nil
+		case <-time.After(swarmConnectTimeout):
+			// attempt to connect will continue in background, also reconnecting
+			go c.reconnectOnFailure(ctx)
+			return ErrSwarmJoinTimeoutReached
+		case <-n.Ready():
+			go c.reconnectOnFailure(ctx)
+			return nil
+		case <-ctx.Done():
+			c.RLock()
+			defer c.RUnlock()
+			if c.err != nil {
+				return c.err
+			}
+			return ctx.Err()
 		}
-		return ErrSwarmJoinTimeoutReached
-	case <-n.Ready(context.Background()):
-		go c.reconnectOnFailure(ctx)
-		return nil
-	case <-ctx.Done():
-		c.RLock()
-		defer c.RUnlock()
-		if c.err != nil {
-			return c.err
-		}
-		return ctx.Err()
 	}
 }
 
@@ -1002,6 +1012,13 @@ func (c *Cluster) managerStats() (current bool, reachable int, unreachable int, 
 		}
 	}
 	return
+}
+
+func errSwarmExists(node *swarmagent.Node) error {
+	if node.NodeMembership() != swarmapi.NodeMembershipAccepted {
+		return ErrPendingSwarmExists
+	}
+	return ErrSwarmExists
 }
 
 func initAcceptancePolicy(node *swarmagent.Node, acceptancePolicy types.AcceptancePolicy) error {

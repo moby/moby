@@ -78,21 +78,23 @@ type NodeConfig struct {
 // cluster. Node handles workloads and may also run as a manager.
 type Node struct {
 	sync.RWMutex
-	config        *NodeConfig
-	remotes       *persistentRemotes
-	role          string
-	roleCond      *sync.Cond
-	conn          *grpc.ClientConn
-	connCond      *sync.Cond
-	nodeID        string
-	started       chan struct{}
-	stopped       chan struct{}
-	ready         chan struct{}
-	closed        chan struct{}
-	err           error
-	agent         *Agent
-	manager       *manager.Manager
-	roleChangeReq chan api.NodeRole
+	config               *NodeConfig
+	remotes              *persistentRemotes
+	role                 string
+	roleCond             *sync.Cond
+	conn                 *grpc.ClientConn
+	connCond             *sync.Cond
+	nodeID               string
+	nodeMembership       api.NodeSpec_Membership
+	started              chan struct{}
+	stopped              chan struct{}
+	ready                chan struct{} // closed when agent has completed registration and manager(if enabled) is ready to receive control requests
+	certificateRequested chan struct{} // closed when certificate issue request has been sent by node
+	closed               chan struct{}
+	err                  error
+	agent                *Agent
+	manager              *manager.Manager
+	roleChangeReq        chan api.NodeRole // used to send role updates from the dispatcher api on promotion/demotion
 }
 
 // NewNode returns new Node instance.
@@ -113,14 +115,15 @@ func NewNode(c *NodeConfig) (*Node, error) {
 	}
 
 	n := &Node{
-		remotes:       newPersistentRemotes(stateFile, p...),
-		role:          ca.AgentRole,
-		config:        c,
-		started:       make(chan struct{}),
-		stopped:       make(chan struct{}),
-		closed:        make(chan struct{}),
-		ready:         make(chan struct{}),
-		roleChangeReq: make(chan api.NodeRole, 1),
+		remotes:              newPersistentRemotes(stateFile, p...),
+		role:                 ca.AgentRole,
+		config:               c,
+		started:              make(chan struct{}),
+		stopped:              make(chan struct{}),
+		closed:               make(chan struct{}),
+		ready:                make(chan struct{}),
+		certificateRequested: make(chan struct{}),
+		roleChangeReq:        make(chan api.NodeRole, 1),
 	}
 	n.roleCond = sync.NewCond(n.RLocker())
 	n.connCond = sync.NewCond(n.RLocker())
@@ -171,14 +174,17 @@ func (n *Node) run(ctx context.Context) (err error) {
 		}
 	}()
 
-	if (n.config.JoinAddr == "" && n.nodeID == "") || n.config.ForceNewCluster {
+	if n.config.JoinAddr == "" && n.nodeID == "" {
 		if err := n.bootstrapCA(); err != nil {
 			return err
 		}
 	}
 
 	if n.config.JoinAddr != "" || n.config.ForceNewCluster {
-		n.remotes = newPersistentRemotes(filepath.Join(n.config.StateDir, stateFilename), api.Peer{Addr: n.config.JoinAddr})
+		n.remotes = newPersistentRemotes(filepath.Join(n.config.StateDir, stateFilename))
+		if n.config.JoinAddr != "" {
+			n.remotes.Observe(api.Peer{Addr: n.config.JoinAddr}, 1)
+		}
 	}
 
 	csrRole := n.role
@@ -193,23 +199,22 @@ func (n *Node) run(ctx context.Context) (err error) {
 	// - We wait for LoadOrCreateSecurityConfig to finish since we need a certificate to operate.
 	// - Given a valid certificate, spin a renewal go-routine that will ensure that certificates stay
 	// up to date.
-	nodeIDChan := make(chan string, 1)
-	caLoadDone := make(chan struct{})
+	issueResponseChan := make(chan api.IssueNodeCertificateResponse, 1)
 	go func() {
 		select {
 		case <-ctx.Done():
-		case <-caLoadDone:
-		case nodeID := <-nodeIDChan:
-			logrus.Debugf("Requesting certificate for NodeID: %v", nodeID)
+		case resp := <-issueResponseChan:
+			logrus.Debugf("Requesting certificate for NodeID: %v", resp.NodeID)
 			n.Lock()
-			n.nodeID = nodeID
+			n.nodeID = resp.NodeID
+			n.nodeMembership = resp.NodeMembership
 			n.Unlock()
+			close(n.certificateRequested)
 		}
 	}()
 
 	certDir := filepath.Join(n.config.StateDir, "certificates")
-	securityConfig, err := ca.LoadOrCreateSecurityConfig(ctx, certDir, n.config.CAHash, n.config.Secret, csrRole, picker.NewPicker(n.remotes), nodeIDChan)
-	close(caLoadDone)
+	securityConfig, err := ca.LoadOrCreateSecurityConfig(ctx, certDir, n.config.CAHash, n.config.Secret, csrRole, picker.NewPicker(n.remotes), issueResponseChan)
 	if err != nil {
 		return err
 	}
@@ -223,6 +228,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 	if err != nil {
 		return err
 	}
+	defer db.Close()
 
 	if err := n.loadCertificates(); err != nil {
 		return err
@@ -402,8 +408,15 @@ func (n *Node) runAgent(ctx context.Context, db *bolt.DB, creds credentials.Tran
 
 // Ready returns a channel that is closed after node's initialization has
 // completes for the first time.
-func (n *Node) Ready(ctx context.Context) <-chan struct{} {
+func (n *Node) Ready() <-chan struct{} {
 	return n.ready
+}
+
+// CertificateRequested returns a channel that is closed after node has
+// requested a certificate. After this call a caller can expect calls to
+// NodeID() and `NodeMembership()` to succeed.
+func (n *Node) CertificateRequested() <-chan struct{} {
+	return n.certificateRequested
 }
 
 func (n *Node) waitRole(ctx context.Context, role string) <-chan struct{} {
@@ -482,6 +495,13 @@ func (n *Node) NodeID() string {
 	return n.nodeID
 }
 
+// NodeMembership returns current node's membership. May be empty if not set.
+func (n *Node) NodeMembership() api.NodeSpec_Membership {
+	n.RLock()
+	defer n.RUnlock()
+	return n.nodeMembership
+}
+
 // Manager return manager instance started by node. May be nil.
 func (n *Node) Manager() *manager.Manager {
 	n.RLock()
@@ -528,6 +548,7 @@ func (n *Node) loadCertificates() error {
 	n.Lock()
 	n.role = clientTLSCreds.Role()
 	n.nodeID = clientTLSCreds.NodeID()
+	n.nodeMembership = api.NodeMembershipAccepted
 	n.roleCond.Broadcast()
 	n.Unlock()
 
@@ -623,10 +644,10 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 			select {
 			case <-ctx.Done():
 				m.Stop(context.Background()) // todo: this should be sync like other components
-			case <-n.waitRole(ctx, ca.AgentRole):
+				<-done
+			// in case of demotion manager will stop itself
+			case <-done:
 			}
-
-			<-done
 
 			ready = nil // ready event happens once, even on multiple starts
 			n.Lock()

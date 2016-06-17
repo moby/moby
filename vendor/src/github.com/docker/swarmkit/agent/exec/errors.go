@@ -1,6 +1,6 @@
 package exec
 
-import "errors"
+import "github.com/pkg/errors"
 
 var (
 	// ErrRuntimeUnsupported encountered when a task requires a runtime
@@ -37,23 +37,6 @@ type ExitCoder interface {
 	ExitCode() int
 }
 
-type causal interface {
-	Cause() error
-}
-
-// Cause returns the cause of the error, recursively.
-func Cause(err error) error {
-	for err != nil {
-		if causal, ok := err.(causal); ok {
-			err = causal.Cause()
-		} else {
-			break
-		}
-	}
-
-	return err
-}
-
 // Temporary indicates whether or not the error condition is temporary.
 //
 // If this is encountered in the controller, the failing operation will be
@@ -65,15 +48,19 @@ type Temporary interface {
 
 // MakeTemporary makes the error temporary.
 func MakeTemporary(err error) error {
-	return &temporary{error: err}
+	if IsTemporary(err) {
+		return err
+	}
+
+	return temporary{err}
 }
 
 type temporary struct {
 	error
 }
 
-func (t *temporary) Cause() error    { return t.error }
-func (t *temporary) Temporary() bool { return true }
+func (t temporary) Cause() error    { return t.error }
+func (t temporary) Temporary() bool { return true }
 
 // IsTemporary returns true if the error or a recursive cause returns true for
 // temporary.
@@ -85,11 +72,12 @@ func IsTemporary(err error) bool {
 			}
 		}
 
-		if causal, ok := err.(causal); !ok {
+		cause := errors.Cause(err)
+		if cause == err {
 			break
-		} else {
-			err = causal.Cause()
 		}
+
+		err = cause
 	}
 
 	return false

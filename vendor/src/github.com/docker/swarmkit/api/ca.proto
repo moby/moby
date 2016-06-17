@@ -3,6 +3,7 @@ syntax = "proto3";
 package docker.swarmkit.v1;
 
 import "types.proto";
+import "specs.proto";
 import "gogoproto/gogo.proto";
 import "plugin/plugin.proto";
 
@@ -42,6 +43,7 @@ message IssueNodeCertificateRequest {
 
 message IssueNodeCertificateResponse {
 	string node_id = 1 [(gogoproto.customname) = "NodeID"];
+	NodeSpec.Membership node_membership = 2;
 }
 
 message GetRootCACertificateRequest {}

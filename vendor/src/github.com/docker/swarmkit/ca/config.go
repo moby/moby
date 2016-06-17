@@ -139,7 +139,7 @@ func NewConfigPaths(baseCertDir string) *SecurityConfigPaths {
 // LoadOrCreateSecurityConfig encapsulates the security logic behind joining a cluster.
 // Every node requires at least a set of TLS certificates with which to join the cluster with.
 // In the case of a manager, these certificates will be used both for client and server credentials.
-func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, caHash, secret, proposedRole string, picker *picker.Picker, nodeInfo chan<- string) (*SecurityConfig, error) {
+func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, caHash, secret, proposedRole string, picker *picker.Picker, nodeInfo chan<- api.IssueNodeCertificateResponse) (*SecurityConfig, error) {
 	paths := NewConfigPaths(baseCertDir)
 
 	var (
@@ -198,7 +198,10 @@ func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, caHash, secret
 			org := identity.NewID()
 
 			if nodeInfo != nil {
-				nodeInfo <- cn
+				nodeInfo <- api.IssueNodeCertificateResponse{
+					NodeID:         cn,
+					NodeMembership: api.NodeMembershipAccepted,
+				}
 			}
 			tlsKeyPair, err = rootCA.IssueAndSaveNewCertificates(paths.Node, cn, proposedRole, org)
 		} else {
@@ -225,7 +228,10 @@ func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, caHash, secret
 		log.Debugf("new TLS credentials generated: %s.", paths.Node.Cert)
 	} else {
 		if nodeInfo != nil {
-			nodeInfo <- clientTLSCreds.NodeID()
+			nodeInfo <- api.IssueNodeCertificateResponse{
+				NodeID:         clientTLSCreds.NodeID(),
+				NodeMembership: api.NodeMembershipAccepted,
+			}
 		}
 		log.Debugf("loaded local TLS credentials: %s.", paths.Node.Cert)
 	}
