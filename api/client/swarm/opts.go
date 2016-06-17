@@ -95,10 +95,10 @@ type AutoAcceptOption struct {
 // String prints a string representation of this option
 func (o *AutoAcceptOption) String() string {
 	keys := []string{}
-	for key := range o.values {
-		keys = append(keys, key)
+	for key, value := range o.values {
+		keys = append(keys, fmt.Sprintf("%s=%v", strings.ToLower(key), value))
 	}
-	return strings.Join(keys, " ")
+	return strings.Join(keys, ", ")
 }
 
 // Set sets a new value on this option
