@@ -25,7 +25,7 @@ func newJoinCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "join [OPTIONS] HOST:PORT",
-		Short: "Join a Swarm as a node and/or manager.",
+		Short: "Join a Swarm as a node and/or manager",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.remote = args[0]
