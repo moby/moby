@@ -678,8 +678,8 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 	keyMgrUpdates, keyMgrCancel := d.keyMgrQueue.Watch()
 	defer keyMgrCancel()
 
-	// disconnect is a helper forcibly shutdown connection
-	disconnect := func() error {
+	// disconnectNode is a helper forcibly shutdown connection
+	disconnectNode := func() error {
 		// force disconnect by shutting down the stream.
 		transportStream, ok := transport.StreamFromContext(stream.Context())
 		if ok {
@@ -709,6 +709,8 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 
 		var mgrs []*api.WeightedPeer
 
+		var disconnect bool
+
 		select {
 		case ev := <-managerUpdates:
 			mgrs = ev.([]*api.WeightedPeer)
@@ -717,9 +719,9 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		case <-stream.Context().Done():
 			return stream.Context().Err()
 		case <-node.Disconnect:
-			return disconnect()
+			disconnect = true
 		case <-d.ctx.Done():
-			return disconnect()
+			disconnect = true
 		case <-keyMgrUpdates:
 		}
 		if mgrs == nil {
@@ -733,6 +735,9 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 			NetworkBootstrapKeys: d.networkBootstrapKeys,
 		}); err != nil {
 			return err
+		}
+		if disconnect {
+			return disconnectNode()
 		}
 	}
 }

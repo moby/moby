@@ -935,7 +935,9 @@ func (n *Node) processInternalRaftRequest(ctx context.Context, r *api.InternalRa
 		return nil, ErrRequestTooLarge
 	}
 
-	err = n.Propose(ctx, data)
+	// This must use the context which is cancelled by stop() to avoid a
+	// deadlock on shutdown.
+	err = n.Propose(n.Ctx, data)
 	if err != nil {
 		n.wait.cancel(r.ID)
 		return nil, err

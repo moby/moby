@@ -614,7 +614,7 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 }
 
 // CreateService creates a new service in a managed swarm cluster.
-func (c *Cluster) CreateService(s types.ServiceSpec) (string, error) {
+func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (string, error) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -633,6 +633,11 @@ func (c *Cluster) CreateService(s types.ServiceSpec) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	if encodedAuth != "" {
+		serviceSpec.Task.Runtime.(*swarmapi.TaskSpec_Container).Container.PullOptions = &swarmapi.ContainerSpec_PullOptions{RegistryAuth: encodedAuth}
+	}
+
 	r, err := c.client.CreateService(ctx, &swarmapi.CreateServiceRequest{Spec: &serviceSpec})
 	if err != nil {
 		return "", err
@@ -658,7 +663,7 @@ func (c *Cluster) GetService(input string) (types.Service, error) {
 }
 
 // UpdateService updates existing service to match new properties.
-func (c *Cluster) UpdateService(serviceID string, version uint64, spec types.ServiceSpec) error {
+func (c *Cluster) UpdateService(serviceID string, version uint64, spec types.ServiceSpec, encodedAuth string) error {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -669,6 +674,10 @@ func (c *Cluster) UpdateService(serviceID string, version uint64, spec types.Ser
 	serviceSpec, err := convert.ServiceSpecToGRPC(spec)
 	if err != nil {
 		return err
+	}
+
+	if encodedAuth != "" {
+		serviceSpec.Task.Runtime.(*swarmapi.TaskSpec_Container).Container.PullOptions = &swarmapi.ContainerSpec_PullOptions{RegistryAuth: encodedAuth}
 	}
 
 	_, err = c.client.UpdateService(
