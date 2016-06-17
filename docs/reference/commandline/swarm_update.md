@@ -22,6 +22,7 @@ parent = "smn_cli"
           --help                            Print usage
           --secret string                   Set secret value needed to accept nodes into cluster
           --task-history-limit int          Task history retention limit (default 10)
+          --cert-expiry duration            Validity period for node certificates (default 2160h0m0s)
 
 Updates a Swarm cluster with new parameter values. This command must target a manager node.
 
