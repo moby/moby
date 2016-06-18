@@ -36,7 +36,7 @@ straightforward manner.
 
     $ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $INSTANCE_ID
 
-**Get an instance's MAC Address:**
+**Get an instance's MAC address:**
 
 For the most part, you can pick out any field from the JSON in a fairly
 straightforward manner.
@@ -51,14 +51,14 @@ straightforward manner.
 
     $ docker inspect --format='{{.Container.Spec.Image}}' $INSTANCE_ID
 
-**List All Port Bindings:**
+**List all port bindings:**
 
 One can loop over arrays and maps in the results to produce simple text
 output:
 
     $ docker inspect --format='{{range $p, $conf := .NetworkSettings.Ports}} {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' $INSTANCE_ID
 
-**Find a Specific Port Mapping:**
+**Find a specific port mapping:**
 
 The `.Field` syntax doesn't work when the field name begins with a
 number, but the template language's `index` function does. The
