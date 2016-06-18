@@ -1,6 +1,9 @@
 package controlapi
 
 import (
+	"errors"
+	"reflect"
+
 	"github.com/docker/engine-api/types/reference"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/identity"
@@ -8,6 +11,10 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+)
+
+var (
+	errNetworkUpdateNotSupported = errors.New("changing network in service is not supported")
 )
 
 func validateResources(r *api.Resources) error {
@@ -64,6 +71,24 @@ func validateServiceSpecTemplate(spec *api.ServiceSpec) error {
 	if _, _, err := reference.Parse(container.Image); err != nil {
 		return grpc.Errorf(codes.InvalidArgument, "ContainerSpec: %q is not a valid repository/tag", container.Image)
 	}
+	return nil
+}
+
+func validateEndpointSpec(epSpec *api.EndpointSpec) error {
+	// Endpoint spec is optional
+	if epSpec == nil {
+		return nil
+	}
+
+	portSet := make(map[api.PortConfig]struct{})
+	for _, port := range epSpec.Ports {
+		if _, ok := portSet[*port]; ok {
+			return grpc.Errorf(codes.InvalidArgument, "EndpointSpec: duplicate ports provided")
+		}
+
+		portSet[*port] = struct{}{}
+	}
+
 	return nil
 }
 
@@ -149,6 +174,11 @@ func (s *Server) UpdateService(ctx context.Context, request *api.UpdateServiceRe
 		if service == nil {
 			return nil
 		}
+		// temporary disable network update
+		if request.Spec != nil && !reflect.DeepEqual(request.Spec.Networks, service.Spec.Networks) {
+			return errNetworkUpdateNotSupported
+		}
+
 		service.Meta.Version = *request.ServiceVersion
 		service.Spec = *request.Spec.Copy()
 		return store.UpdateService(tx, service)

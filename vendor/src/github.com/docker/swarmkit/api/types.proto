@@ -463,7 +463,7 @@ message OrchestrationConfig {
 message DispatcherConfig {
 	// HeartbeatPeriod defines how often agent should send heartbeats to
 	// dispatcher.
-	uint64 heartbeat_period = 1;
+	Duration heartbeat_period = 1;
 }
 
 // RaftConfig defines raft settings for the cluster.

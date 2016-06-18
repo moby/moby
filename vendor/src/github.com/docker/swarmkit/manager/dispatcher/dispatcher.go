@@ -164,7 +164,10 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 				return err
 			}
 			if err == nil && len(clusters) == 1 {
-				d.config.HeartbeatPeriod = time.Duration(clusters[0].Spec.Dispatcher.HeartbeatPeriod)
+				heartbeatPeriod, err := ptypes.Duration(clusters[0].Spec.Dispatcher.HeartbeatPeriod)
+				if err == nil && heartbeatPeriod > 0 {
+					d.config.HeartbeatPeriod = heartbeatPeriod
+				}
 				if clusters[0].NetworkBootstrapKeys != nil {
 					d.networkBootstrapKeys = clusters[0].NetworkBootstrapKeys
 				}
@@ -213,8 +216,15 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 		case v := <-configWatcher:
 			cluster := v.(state.EventUpdateCluster)
 			d.mu.Lock()
-			d.config.HeartbeatPeriod = time.Duration(cluster.Cluster.Spec.Dispatcher.HeartbeatPeriod)
-			d.nodes.updatePeriod(d.config.HeartbeatPeriod, d.config.HeartbeatEpsilon, d.config.GracePeriodMultiplier)
+			if cluster.Cluster.Spec.Dispatcher.HeartbeatPeriod != nil {
+				// ignore error, since Spec has passed validation before
+				heartbeatPeriod, _ := ptypes.Duration(cluster.Cluster.Spec.Dispatcher.HeartbeatPeriod)
+				if heartbeatPeriod != d.config.HeartbeatPeriod {
+					// only call d.nodes.updatePeriod when heartbeatPeriod changes
+					d.config.HeartbeatPeriod = heartbeatPeriod
+					d.nodes.updatePeriod(d.config.HeartbeatPeriod, d.config.HeartbeatEpsilon, d.config.GracePeriodMultiplier)
+				}
+			}
 			d.networkBootstrapKeys = cluster.Cluster.NetworkBootstrapKeys
 			d.mu.Unlock()
 			d.keyMgrQueue.Publish(struct{}{})
@@ -678,8 +688,8 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 	keyMgrUpdates, keyMgrCancel := d.keyMgrQueue.Watch()
 	defer keyMgrCancel()
 
-	// disconnect is a helper forcibly shutdown connection
-	disconnect := func() error {
+	// disconnectNode is a helper forcibly shutdown connection
+	disconnectNode := func() error {
 		// force disconnect by shutting down the stream.
 		transportStream, ok := transport.StreamFromContext(stream.Context())
 		if ok {
@@ -709,6 +719,8 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 
 		var mgrs []*api.WeightedPeer
 
+		var disconnect bool
+
 		select {
 		case ev := <-managerUpdates:
 			mgrs = ev.([]*api.WeightedPeer)
@@ -717,9 +729,9 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		case <-stream.Context().Done():
 			return stream.Context().Err()
 		case <-node.Disconnect:
-			return disconnect()
+			disconnect = true
 		case <-d.ctx.Done():
-			return disconnect()
+			disconnect = true
 		case <-keyMgrUpdates:
 		}
 		if mgrs == nil {
@@ -733,6 +745,9 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 			NetworkBootstrapKeys: d.networkBootstrapKeys,
 		}); err != nil {
 			return err
+		}
+		if disconnect {
+			return disconnectNode()
 		}
 	}
 }

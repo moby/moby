@@ -25,6 +25,7 @@ import (
 	"github.com/docker/swarmkit/manager/scheduler"
 	"github.com/docker/swarmkit/manager/state/raft"
 	"github.com/docker/swarmkit/manager/state/store"
+	"github.com/docker/swarmkit/protobuf/ptypes"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -290,7 +291,7 @@ func (m *Manager) Run(parent context.Context) error {
 								TaskHistoryRetentionLimit: defaultTaskHistoryRetentionLimit,
 							},
 							Dispatcher: api.DispatcherConfig{
-								HeartbeatPeriod: uint64(dispatcher.DefaultHeartBeatPeriod),
+								HeartbeatPeriod: ptypes.DurationProto(dispatcher.DefaultHeartBeatPeriod),
 							},
 							Raft:     raftCfg,
 							CAConfig: ca.DefaultCAConfig(),
