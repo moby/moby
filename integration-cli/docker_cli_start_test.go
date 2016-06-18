@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -170,4 +171,17 @@ func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
 		// Container running state wrong
 		c.Assert(out, checker.Equals, expected)
 	}
+}
+
+// Test case for #23716
+func (s *DockerSuite) TestStartAttachWithRename(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	dockerCmd(c, "create", "-t", "--name", "before", "busybox")
+	go func() {
+		c.Assert(waitRun("before"), checker.IsNil)
+		dockerCmd(c, "rename", "before", "after")
+		dockerCmd(c, "stop", "--time=2", "after")
+	}()
+	_, stderr, _, _ := runCommandWithStdoutStderr(exec.Command(dockerBinary, "start", "-a", "before"))
+	c.Assert(stderr, checker.Not(checker.Contains), "No such container")
 }
