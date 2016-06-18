@@ -1,4 +1,4 @@
-#compdef docker
+#compdef docker dockerd
 #
 # zsh completion for docker (http://docker.com)
 #
@@ -274,6 +274,31 @@ __docker_complete_detach_keys() {
     _describe -t detach_keys-ctrl "'ctrl-' + 'a-z @ [ \\\\ ] ^ _'" ctrl_keys -qS "," && ret=0
 }
 
+__docker_complete_pid() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+    local -a opts vopts
+
+    opts=('host')
+    vopts=('container')
+
+    if compset -P '*:'; then
+        case "${${words[-1]%:*}#*=}" in
+            (container)
+                __docker_runningcontainers && ret=0
+                ;;
+            *)
+                _message 'value' && ret=0
+                ;;
+        esac
+    else
+        _describe -t pid-value-opts "PID Options with value" vopts -qS ":" && ret=0
+        _describe -t pid-opts "PID Options" opts && ret=0
+    fi
+
+    return ret
+}
+
 __docker_complete_ps_filters() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
@@ -292,6 +317,9 @@ __docker_complete_ps_filters() {
             (name)
                 __docker_containers_names && ret=0
                 ;;
+            (network)
+                __docker_networks && ret=0
+                ;;
             (status)
                 status_opts=('created' 'dead' 'exited' 'paused' 'restarting' 'running')
                 _describe -t status-filter-opts "Status Filter Options" status_opts && ret=0
@@ -304,8 +332,113 @@ __docker_complete_ps_filters() {
                 ;;
         esac
     else
-        opts=('ancestor' 'before' 'exited' 'id' 'label' 'name' 'since' 'status' 'volume')
+        opts=('ancestor' 'before' 'exited' 'id' 'label' 'name' 'network' 'since' 'status' 'volume')
         _describe -t filter-opts "Filter Options" opts -qS "=" && ret=0
+    fi
+
+    return ret
+}
+
+__docker_complete_search_filters() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+    declare -a boolean_opts opts
+
+    boolean_opts=('true' 'false')
+    opts=('is-automated' 'is-official' 'stars')
+
+    if compset -P '*='; then
+        case "${${words[-1]%=*}#*=}" in
+            (is-automated|is-official)
+                _describe -t boolean-filter-opts "filter options" boolean_opts && ret=0
+                ;;
+            *)
+                _message 'value' && ret=0
+                ;;
+        esac
+    else
+        _describe -t filter-opts "filter options" opts -qS "=" && ret=0
+    fi
+
+    return ret
+}
+
+__docker_complete_images_filters() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+    declare -a boolean_opts opts
+
+    boolean_opts=('true' 'false')
+    opts=('before' 'dangling' 'label' 'since')
+
+    if compset -P '*='; then
+        case "${${words[-1]%=*}#*=}" in
+            (before|since)
+                __docker_images && ret=0
+                ;;
+            (dangling)
+                _describe -t boolean-filter-opts "filter options" boolean_opts && ret=0
+                ;;
+            *)
+                _message 'value' && ret=0
+                ;;
+        esac
+    else
+        _describe -t filter-opts "Filter Options" opts -qS "=" && ret=0
+    fi
+
+    return ret
+}
+
+__docker_complete_events_filter() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+    declare -a opts
+
+    opts=('container' 'daemon' 'event' 'image' 'label' 'network' 'type' 'volume')
+
+    if compset -P '*='; then
+        case "${${words[-1]%=*}#*=}" in
+            (container)
+                __docker_containers && ret=0
+                ;;
+            (daemon)
+                emulate -L zsh
+                setopt extendedglob
+                local -a daemon_opts
+                daemon_opts=(
+                    ${(f)${${"$(_call_program commands docker $docker_options info)"##*$'\n'Name: }%%$'\n'^ *}}
+                    ${${(f)${${"$(_call_program commands docker $docker_options info)"##*$'\n'ID: }%%$'\n'^ *}}//:/\\:}
+                )
+                _describe -t daemon-filter-opts "daemon filter options" daemon_opts && ret=0
+                ;;
+            (event)
+                local -a event_opts
+                event_opts=('attach' 'commit' 'connect' 'copy' 'create' 'delete' 'destroy' 'detach' 'die' 'disconnect' 'exec_create' 'exec_detach'
+                'exec_start' 'export' 'import' 'kill' 'mount' 'oom' 'pause' 'pull' 'push' 'reload' 'rename' 'resize' 'restart' 'start' 'stop' 'tag'
+                'top' 'unmount' 'unpause' 'untag' 'update')
+                _describe -t event-filter-opts "event filter options" event_opts && ret=0
+                ;;
+            (image)
+                __docker_images && ret=0
+                ;;
+            (network)
+                __docker_networks && ret=0
+                ;;
+            (type)
+                local -a type_opts
+                type_opts=('container' 'daemon' 'image' 'network' 'volume')
+                _describe -t type-filter-opts "type filter options" type_opts && ret=0
+                ;;
+            (volume)
+                __docker_volumes && ret=0
+                ;;
+            *)
+                _message 'value' && ret=0
+                ;;
+        esac
+    else
+        _describe -t filter-opts "filter options" opts -qS "=" && ret=0
     fi
 
     return ret
@@ -335,7 +468,7 @@ __docker_network_complete_ls_filters() {
                 ;;
         esac
     else
-        opts=('driver' 'id' 'name' 'type')
+        opts=('driver' 'id' 'label' 'name' 'type')
         _describe -t filter-opts "Filter Options" opts -qS "=" && ret=0
     fi
 
@@ -405,7 +538,7 @@ __docker_networks_names() {
 __docker_network_commands() {
     local -a _docker_network_subcommands
     _docker_network_subcommands=(
-        "connect:onnects a container to a network"
+        "connect:Connects a container to a network"
         "create:Creates a new network with a name specified by the user"
         "disconnect:Disconnects a container from a network"
         "inspect:Displays detailed information on a network"
@@ -699,7 +832,7 @@ __docker_subcommand() {
         "($help)--pids-limit[Tune container pids limit (set -1 for unlimited)]"
         "($help -P --publish-all)"{-P,--publish-all}"[Publish all exposed ports]"
         "($help)*"{-p=,--publish=}"[Expose a container's port to the host]:port:_ports"
-        "($help)--pid=[PID namespace to use]:PID: "
+        "($help)--pid=[PID namespace to use]:PID namespace:__docker_complete_pid"
         "($help)--privileged[Give extended privileges to this container]"
         "($help)--read-only[Mount the container's root filesystem as read only]"
         "($help)*--security-opt=[Security options]:security option: "
@@ -803,6 +936,7 @@ __docker_subcommand() {
                 "($help -b --bridge)"{-b=,--bridge=}"[Attach containers to a network bridge]:bridge:_net_interfaces" \
                 "($help)--bip=[Network bridge IP]:IP address: " \
                 "($help)--cgroup-parent=[Parent cgroup for all containers]:cgroup: " \
+                "($help)--config-file=[Path to daemon configuration file]:Config File:_files" \
                 "($help)--containerd=[Path to containerd socket]:socket:_files -g \"*.sock\"" \
                 "($help -D --debug)"{-D,--debug}"[Enable debug mode]" \
                 "($help)--default-gateway[Container default gateway IPv4 address]:IPv4 address: " \
@@ -833,6 +967,8 @@ __docker_subcommand() {
                 "($help)*--label=[Key=value labels]:label: " \
                 "($help)--log-driver=[Default driver for container logs]:Logging driver:(awslogs etwlogs fluentd gcplogs gelf journald json-file none splunk syslog)" \
                 "($help)*--log-opt=[Log driver specific options]:log driver options:__docker_log_options" \
+                "($help)--max-concurrent-downloads[Set the max concurrent downloads for each pull]" \
+                "($help)--max-concurrent-uploads[Set the max concurrent uploads for each push]" \
                 "($help)--mtu=[Network MTU]:mtu:(0 576 1420 1500 9000)" \
                 "($help -p --pidfile)"{-p=,--pidfile=}"[Path to use for daemon PID file]:PID file:_files" \
                 "($help)--raw-logs[Full timestamps without ANSI coloring]" \
@@ -883,7 +1019,7 @@ __docker_subcommand() {
         (events)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)*"{-f=,--filter=}"[Filter values]:filter: " \
+                "($help)*"{-f=,--filter=}"[Filter values]:filter:__docker_complete_events_filter" \
                 "($help)--since=[Events created since this timestamp]:timestamp: " \
                 "($help)--until=[Events created until this timestamp]:timestamp: " && ret=0
             ;;
@@ -927,11 +1063,17 @@ __docker_subcommand() {
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Show all images]" \
                 "($help)--digests[Show digests]" \
-                "($help)*"{-f=,--filter=}"[Filter values]:filter: " \
+                "($help)*"{-f=,--filter=}"[Filter values]:filter:->filter-options" \
                 "($help)--format[Pretty-print containers using a Go template]:format: " \
                 "($help)--no-trunc[Do not truncate output]" \
                 "($help -q --quiet)"{-q,--quiet}"[Only show numeric IDs]" \
                 "($help -): :__docker_repositories" && ret=0
+
+            case $state in
+                (filter-options)
+                    __docker_complete_images_filters && ret=0
+                    ;;
+            esac
             ;;
         (import)
             _arguments $(__docker_arguments) \
@@ -993,6 +1135,7 @@ __docker_subcommand() {
         (logs)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                "($help)--details[Show extra details provided to logs]" \
                 "($help -f --follow)"{-f,--follow}"[Follow log output]" \
                 "($help -s --since)"{-s=,--since=}"[Show logs since this timestamp]:timestamp: " \
                 "($help -t --timestamps)"{-t,--timestamps}"[Show timestamps]" \
@@ -1032,7 +1175,7 @@ __docker_subcommand() {
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Show all containers]" \
                 "($help)--before=[Show only container created before...]:containers:__docker_containers" \
-                "($help)*"{-f=,--filter=}"[Filter values]:filter:->filter-options" \
+                "($help)*"{-f=,--filter=}"[Filter values]:filter:__docker_complete_ps_filters" \
                 "($help)--format[Pretty-print containers using a Go template]:format: " \
                 "($help -l --latest)"{-l,--latest}"[Show only the latest created container]" \
                 "($help)-n[Show n last created containers, include non-running one]:n:(1 5 10 25 50)" \
@@ -1040,12 +1183,6 @@ __docker_subcommand() {
                 "($help -q --quiet)"{-q,--quiet}"[Only show numeric IDs]" \
                 "($help -s --size)"{-s,--size}"[Display total file sizes]" \
                 "($help)--since=[Show only containers created since...]:containers:__docker_containers" && ret=0
-
-            case $state in
-                (filter-options)
-                    __docker_complete_ps_filters && ret=0
-                    ;;
-            esac
             ;;
         (pull)
             _arguments $(__docker_arguments) \
@@ -1078,7 +1215,16 @@ __docker_subcommand() {
                 "($help -f --force)"{-f,--force}"[Force removal]" \
                 "($help -l --link)"{-l,--link}"[Remove the specified link and not the underlying container]" \
                 "($help -v --volumes)"{-v,--volumes}"[Remove the volumes associated to the container]" \
-                "($help -)*:containers:__docker_stoppedcontainers" && ret=0
+                "($help -)*:containers:->values" && ret=0
+            case $state in
+                (values)
+                    if [[ ${words[(r)-f]} == -f || ${words[(r)--force]} == --force ]]; then
+                        __docker_containers && ret=0
+                    else
+                        __docker_stoppedcontainers && ret=0
+                    fi
+                    ;;
+            esac
             ;;
         (rmi)
             _arguments $(__docker_arguments) \
@@ -1096,6 +1242,11 @@ __docker_subcommand() {
                 $opts_create_run_update \
                 $opts_attach_exec_run_start \
                 "($help -d --detach)"{-d,--detach}"[Detached mode: leave the container running in the background]" \
+                "($help)--health-cmd=[Command to run to check health]:command: " \
+                "($help)--health-interval=[Time between running the check]:time: " \
+                "($help)--health-retries=[Consecutive failures needed to report unhealthy]:retries:(1 2 3 4 5)" \
+                "($help)--health-timeout=[Maximum time to allow one check to run]:time: " \
+                "($help)--no-healthcheck[Disable any container-specified HEALTHCHECK]" \
                 "($help)--rm[Remove intermediate containers when it exits]" \
                 "($help)--sig-proxy[Proxy all received signals to the process (non-TTY mode only)]" \
                 "($help)--stop-signal=[Signal to kill a container]:signal:_signals" \
@@ -1123,10 +1274,16 @@ __docker_subcommand() {
         (search)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)--automated[Only show automated builds]" \
+                "($help)*"{-f=,--filter=}"[Filter values]:filter:->filter-options" \
+                "($help)--limit=[Maximum returned search results]:limit:(1 5 10 25 50)" \
                 "($help)--no-trunc[Do not truncate output]" \
-                "($help -s --stars)"{-s=,--stars=}"[Only display with at least X stars]:stars:(0 10 100 1000)" \
                 "($help -):term: " && ret=0
+
+            case $state in
+                (filter-options)
+                    __docker_complete_search_filters && ret=0
+                    ;;
+            esac
             ;;
         (start)
             _arguments $(__docker_arguments) \
@@ -1250,6 +1407,13 @@ _docker() {
             ;;
     esac
 
+    return ret
+}
+
+_dockerd() {
+    integer ret=1
+    words[1]='daemon'
+    __docker_subcommand && ret=0
     return ret
 }
 

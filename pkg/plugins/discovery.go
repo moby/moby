@@ -64,7 +64,7 @@ func (l *localRegistry) Plugin(name string) (*Plugin, error) {
 
 	for _, p := range socketpaths {
 		if fi, err := os.Stat(p); err == nil && fi.Mode()&os.ModeSocket != 0 {
-			return newLocalPlugin(name, "unix://"+p), nil
+			return NewLocalPlugin(name, "unix://"+p), nil
 		}
 	}
 
@@ -101,7 +101,7 @@ func readPluginInfo(name, path string) (*Plugin, error) {
 		return nil, fmt.Errorf("Unknown protocol")
 	}
 
-	return newLocalPlugin(name, addr), nil
+	return NewLocalPlugin(name, addr), nil
 }
 
 func readPluginJSONInfo(name, path string) (*Plugin, error) {
@@ -115,7 +115,7 @@ func readPluginJSONInfo(name, path string) (*Plugin, error) {
 	if err := json.NewDecoder(f).Decode(&p); err != nil {
 		return nil, err
 	}
-	p.Name = name
+	p.name = name
 	if len(p.TLSConfig.CAFile) == 0 {
 		p.TLSConfig.InsecureSkipVerify = true
 	}

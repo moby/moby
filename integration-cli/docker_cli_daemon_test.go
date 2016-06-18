@@ -29,6 +29,16 @@ import (
 	"github.com/kr/pty"
 )
 
+// TestLegacyDaemonCommand test starting docker daemon using "deprecated" docker daemon
+// command. Remove this test when we remove this.
+func (s *DockerDaemonSuite) TestLegacyDaemonCommand(c *check.C) {
+	cmd := exec.Command(dockerBinary, "daemon", "--storage-driver=vfs", "--debug")
+	err := cmd.Start()
+	c.Assert(err, checker.IsNil, check.Commentf("could not start daemon using 'docker daemon'"))
+
+	c.Assert(cmd.Process.Kill(), checker.IsNil)
+}
+
 func (s *DockerDaemonSuite) TestDaemonRestartWithRunningContainersPorts(c *check.C) {
 	if err := s.d.StartWithBusybox(); err != nil {
 		c.Fatalf("Could not start daemon with busybox: %v", err)
@@ -439,7 +449,7 @@ func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 }
 
 // TestDaemonIPv6FixedCIDRAndMac checks that when the daemon is started with ipv6 fixed CIDR
-// the running containers are given a an IPv6 address derived from the MAC address and the ipv6 fixed CIDR
+// the running containers are given an IPv6 address derived from the MAC address and the ipv6 fixed CIDR
 func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDRAndMac(c *check.C) {
 	// IPv6 setup is messing with local bridge address.
 	testRequires(c, SameHostDaemon)
@@ -1454,7 +1464,7 @@ func (s *DockerDaemonSuite) TestHttpsRun(c *check.C) {
 
 // TestTlsVerify verifies that --tlsverify=false turns on tls
 func (s *DockerDaemonSuite) TestTlsVerify(c *check.C) {
-	out, err := exec.Command(dockerBinary, "daemon", "--tlsverify=false").CombinedOutput()
+	out, err := exec.Command(dockerdBinary, "--tlsverify=false").CombinedOutput()
 	if err == nil || !strings.Contains(string(out), "Could not load X509 key pair") {
 		c.Fatalf("Daemon should not have started due to missing certs: %v\n%s", err, string(out))
 	}
@@ -1464,7 +1474,7 @@ func (s *DockerDaemonSuite) TestTlsVerify(c *check.C) {
 // by using a rogue client certificate and checks that it fails with the expected error.
 func (s *DockerDaemonSuite) TestHttpsInfoRogueCert(c *check.C) {
 	const (
-		errBadCertificate   = "remote error: bad certificate"
+		errBadCertificate   = "bad certificate"
 		testDaemonHTTPSAddr = "tcp://localhost:4271"
 	)
 
@@ -1550,7 +1560,7 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *chec
 	c.Assert(strings.Contains(string(mountOut), id), check.Equals, true, comment)
 
 	// kill the container
-	runCmd := exec.Command(ctrBinary, "--address", "/var/run/docker/libcontainerd/docker-containerd.sock", "containers", "kill", id)
+	runCmd := exec.Command(ctrBinary, "--address", "unix:///var/run/docker/libcontainerd/docker-containerd.sock", "containers", "kill", id)
 	if out, ec, err := runCommandWithOutput(runCmd); err != nil {
 		c.Fatalf("Failed to run ctr, ExitCode: %d, err: %v output: %s id: %s\n", ec, err, out, id)
 	}
@@ -1577,9 +1587,8 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterGracefulShutdown(c *check.C) {
 
 	// Send SIGINT and daemon should clean up
 	c.Assert(s.d.cmd.Process.Signal(os.Interrupt), check.IsNil)
-
-	// Wait a bit for the daemon to handle cleanups.
-	time.Sleep(3 * time.Second)
+	// Wait for the daemon to stop.
+	c.Assert(<-s.d.wait, checker.IsNil)
 
 	mountOut, err := ioutil.ReadFile("/proc/self/mountinfo")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
@@ -1614,35 +1623,6 @@ func (s *DockerDaemonSuite) TestRunContainerWithBridgeNone(c *check.C) {
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
 	c.Assert(out, check.Equals, fmt.Sprintf("%s", stdout),
 		check.Commentf("The network interfaces in container should be the same with host when --net=host when bridge network is disabled: %s", out))
-}
-
-// os.Kill should kill daemon ungracefully, leaving behind container mounts.
-// A subsequent daemon restart shoud clean up said mounts.
-func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonKill(c *check.C) {
-	testRequires(c, NotExperimentalDaemon)
-	c.Assert(s.d.StartWithBusybox(), check.IsNil)
-
-	out, err := s.d.Cmd("run", "-d", "busybox", "top")
-	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
-	id := strings.TrimSpace(out)
-	c.Assert(s.d.cmd.Process.Signal(os.Kill), check.IsNil)
-	mountOut, err := ioutil.ReadFile("/proc/self/mountinfo")
-	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
-
-	// container mounts should exist even after daemon has crashed.
-	comment := check.Commentf("%s should stay mounted from older daemon start:\nDaemon root repository %s\n%s", id, s.d.folder, mountOut)
-	c.Assert(strings.Contains(string(mountOut), id), check.Equals, true, comment)
-
-	// restart daemon.
-	if err := s.d.Restart(); err != nil {
-		c.Fatal(err)
-	}
-
-	// Now, container mounts should be gone.
-	mountOut, err = ioutil.ReadFile("/proc/self/mountinfo")
-	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
-	comment = check.Commentf("%s is still mounted from older daemon start:\nDaemon root repository %s\n%s", id, s.d.folder, mountOut)
-	c.Assert(strings.Contains(string(mountOut), id), check.Equals, false, comment)
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithContainerRunning(t *check.C) {
@@ -1922,16 +1902,24 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *check.C) {
 	defer os.RemoveAll(testDir)
 	c.Assert(mount.MakeRShared(testDir), checker.IsNil)
 	defer mount.Unmount(testDir)
-	defer mount.Unmount(filepath.Join(testDir, "test-mount"))
 
 	// create a 2MiB image and mount it as graph root
 	// Why in a container? Because `mount` sometimes behaves weirdly and often fails outright on this test in debian:jessie (which is what the test suite runs under if run from the Makefile)
 	dockerCmd(c, "run", "--rm", "-v", testDir+":/test", "busybox", "sh", "-c", "dd of=/test/testfs.img bs=1M seek=2 count=0")
 	out, _, err := runCommandWithOutput(exec.Command("mkfs.ext4", "-F", filepath.Join(testDir, "testfs.img"))) // `mkfs.ext4` is not in busybox
 	c.Assert(err, checker.IsNil, check.Commentf(out))
-	dockerCmd(c, "run", "--privileged", "--rm", "-v", testDir+":/test:shared", "busybox", "sh", "-c", "mkdir -p /test/test-mount && mount -t ext4 -no loop,rw /test/testfs.img /test/test-mount")
+
+	cmd := exec.Command("losetup", "-f", "--show", filepath.Join(testDir, "testfs.img"))
+	loout, err := cmd.CombinedOutput()
+	c.Assert(err, checker.IsNil)
+	loopname := strings.TrimSpace(string(loout))
+	defer exec.Command("losetup", "-d", loopname).Run()
+
+	dockerCmd(c, "run", "--privileged", "--rm", "-v", testDir+":/test:shared", "busybox", "sh", "-c", fmt.Sprintf("mkdir -p /test/test-mount && mount -t ext4 -no loop,rw %v /test/test-mount", loopname))
+	defer mount.Unmount(filepath.Join(testDir, "test-mount"))
 
 	err = s.d.Start("--graph", filepath.Join(testDir, "test-mount"))
+	defer s.d.Stop()
 	c.Assert(err, check.IsNil)
 
 	// pull a repository large enough to fill the mount point
@@ -2237,4 +2225,335 @@ func (s *DockerDaemonSuite) TestDaemonLogOptions(c *check.C) {
 	out, err = s.d.Cmd("inspect", "--format='{{.HostConfig.LogConfig}}'", id)
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "{json-file map[]}")
+}
+
+// Test case for #20936, #22443
+func (s *DockerDaemonSuite) TestDaemonMaxConcurrency(c *check.C) {
+	c.Assert(s.d.Start("--max-concurrent-uploads=6", "--max-concurrent-downloads=8"), check.IsNil)
+
+	expectedMaxConcurrentUploads := `level=debug msg="Max Concurrent Uploads: 6"`
+	expectedMaxConcurrentDownloads := `level=debug msg="Max Concurrent Downloads: 8"`
+	content, _ := ioutil.ReadFile(s.d.logFile.Name())
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentUploads)
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentDownloads)
+}
+
+// Test case for #20936, #22443
+func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFile(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	// daemon config file
+	configFilePath := "test.json"
+	configFile, err := os.Create(configFilePath)
+	c.Assert(err, checker.IsNil)
+	defer os.Remove(configFilePath)
+
+	daemonConfig := `{ "max-concurrent-downloads" : 8 }`
+	fmt.Fprintf(configFile, "%s", daemonConfig)
+	configFile.Close()
+	c.Assert(s.d.Start(fmt.Sprintf("--config-file=%s", configFilePath)), check.IsNil)
+
+	expectedMaxConcurrentUploads := `level=debug msg="Max Concurrent Uploads: 5"`
+	expectedMaxConcurrentDownloads := `level=debug msg="Max Concurrent Downloads: 8"`
+	content, _ := ioutil.ReadFile(s.d.logFile.Name())
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentUploads)
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentDownloads)
+
+	configFile, err = os.Create(configFilePath)
+	c.Assert(err, checker.IsNil)
+	daemonConfig = `{ "max-concurrent-uploads" : 7, "max-concurrent-downloads" : 9 }`
+	fmt.Fprintf(configFile, "%s", daemonConfig)
+	configFile.Close()
+
+	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+
+	time.Sleep(3 * time.Second)
+
+	expectedMaxConcurrentUploads = `level=debug msg="Reset Max Concurrent Uploads: 7"`
+	expectedMaxConcurrentDownloads = `level=debug msg="Reset Max Concurrent Downloads: 9"`
+	content, _ = ioutil.ReadFile(s.d.logFile.Name())
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentUploads)
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentDownloads)
+}
+
+// Test case for #20936, #22443
+func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	// daemon config file
+	configFilePath := "test.json"
+	configFile, err := os.Create(configFilePath)
+	c.Assert(err, checker.IsNil)
+	defer os.Remove(configFilePath)
+
+	daemonConfig := `{ "max-concurrent-uploads" : null }`
+	fmt.Fprintf(configFile, "%s", daemonConfig)
+	configFile.Close()
+	c.Assert(s.d.Start(fmt.Sprintf("--config-file=%s", configFilePath)), check.IsNil)
+
+	expectedMaxConcurrentUploads := `level=debug msg="Max Concurrent Uploads: 5"`
+	expectedMaxConcurrentDownloads := `level=debug msg="Max Concurrent Downloads: 3"`
+	content, _ := ioutil.ReadFile(s.d.logFile.Name())
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentUploads)
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentDownloads)
+
+	configFile, err = os.Create(configFilePath)
+	c.Assert(err, checker.IsNil)
+	daemonConfig = `{ "max-concurrent-uploads" : 1, "max-concurrent-downloads" : null }`
+	fmt.Fprintf(configFile, "%s", daemonConfig)
+	configFile.Close()
+
+	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+
+	time.Sleep(3 * time.Second)
+
+	expectedMaxConcurrentUploads = `level=debug msg="Reset Max Concurrent Uploads: 1"`
+	expectedMaxConcurrentDownloads = `level=debug msg="Reset Max Concurrent Downloads: 3"`
+	content, _ = ioutil.ReadFile(s.d.logFile.Name())
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentUploads)
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentDownloads)
+
+	configFile, err = os.Create(configFilePath)
+	c.Assert(err, checker.IsNil)
+	daemonConfig = `{ "labels":["foo=bar"] }`
+	fmt.Fprintf(configFile, "%s", daemonConfig)
+	configFile.Close()
+
+	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+
+	time.Sleep(3 * time.Second)
+
+	expectedMaxConcurrentUploads = `level=debug msg="Reset Max Concurrent Uploads: 5"`
+	expectedMaxConcurrentDownloads = `level=debug msg="Reset Max Concurrent Downloads: 3"`
+	content, _ = ioutil.ReadFile(s.d.logFile.Name())
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentUploads)
+	c.Assert(string(content), checker.Contains, expectedMaxConcurrentDownloads)
+}
+
+func (s *DockerDaemonSuite) TestBuildOnDisabledBridgeNetworkDaemon(c *check.C) {
+	err := s.d.StartWithBusybox("-b=none", "--iptables=false")
+	c.Assert(err, check.IsNil)
+	s.d.c.Logf("dockerBinary %s", dockerBinary)
+	out, code, err := s.d.buildImageWithOut("busyboxs",
+		`FROM busybox
+                RUN cat /etc/hosts`, false)
+	comment := check.Commentf("Failed to build image. output %s, exitCode %d, err %v", out, code, err)
+	c.Assert(err, check.IsNil, comment)
+	c.Assert(code, check.Equals, 0, comment)
+}
+
+// Test case for #21976
+func (s *DockerDaemonSuite) TestDaemonDnsInHostMode(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	err := s.d.StartWithBusybox("--dns", "1.2.3.4")
+	c.Assert(err, checker.IsNil)
+
+	expectedOutput := "nameserver 1.2.3.4"
+	out, _ := s.d.Cmd("run", "--net=host", "busybox", "cat", "/etc/resolv.conf")
+	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
+}
+
+// Test case for #21976
+func (s *DockerDaemonSuite) TestDaemonDnsSearchInHostMode(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	err := s.d.StartWithBusybox("--dns-search", "example.com")
+	c.Assert(err, checker.IsNil)
+
+	expectedOutput := "search example.com"
+	out, _ := s.d.Cmd("run", "--net=host", "busybox", "cat", "/etc/resolv.conf")
+	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
+}
+
+// Test case for #21976
+func (s *DockerDaemonSuite) TestDaemonDnsOptionsInHostMode(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	err := s.d.StartWithBusybox("--dns-opt", "timeout:3")
+	c.Assert(err, checker.IsNil)
+
+	expectedOutput := "options timeout:3"
+	out, _ := s.d.Cmd("run", "--net=host", "busybox", "cat", "/etc/resolv.conf")
+	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
+}
+
+func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
+	conf, err := ioutil.TempFile("", "config-file-")
+	c.Assert(err, check.IsNil)
+	configName := conf.Name()
+	conf.Close()
+	defer os.Remove(configName)
+
+	config := `
+{
+    "runtimes": {
+        "oci": {
+            "path": "docker-runc"
+        },
+        "vm": {
+            "path": "/usr/local/bin/vm-manager",
+            "runtimeArgs": [
+                "--debug"
+            ]
+        }
+    }
+}
+`
+	ioutil.WriteFile(configName, []byte(config), 0644)
+	err = s.d.StartWithBusybox("--config-file", configName)
+	c.Assert(err, check.IsNil)
+
+	// Run with default runtime
+	out, err := s.d.Cmd("run", "--rm", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with default runtime explicitely
+	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with oci (same path as default) but keep it around
+	out, err = s.d.Cmd("run", "--name", "oci-runtime-ls", "--runtime=oci", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with "vm"
+	out, err = s.d.Cmd("run", "--rm", "--runtime=vm", "busybox", "ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
+
+	// Reset config to only have the default
+	config = `
+{
+    "runtimes": {
+    }
+}
+`
+	ioutil.WriteFile(configName, []byte(config), 0644)
+	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+	// Give daemon time to reload config
+	<-time.After(1 * time.Second)
+
+	// Run with default runtime
+	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with "oci"
+	out, err = s.d.Cmd("run", "--rm", "--runtime=oci", "busybox", "ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Unknown runtime specified oci")
+
+	// Start previously created container with oci
+	out, err = s.d.Cmd("start", "oci-runtime-ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Unknown runtime specified oci")
+
+	// Check that we can't override the default runtime
+	config = `
+{
+    "runtimes": {
+        "default": {
+            "path": "docker-runc"
+        }
+    }
+}
+`
+	ioutil.WriteFile(configName, []byte(config), 0644)
+	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+	// Give daemon time to reload config
+	<-time.After(1 * time.Second)
+
+	content, _ := ioutil.ReadFile(s.d.logFile.Name())
+	c.Assert(string(content), checker.Contains, `file configuration validation failed (runtime name 'default' is reserved)`)
+
+	// Check that we can select a default runtime
+	config = `
+{
+    "default-runtime": "vm",
+    "runtimes": {
+        "oci": {
+            "path": "docker-runc"
+        },
+        "vm": {
+            "path": "/usr/local/bin/vm-manager",
+            "runtimeArgs": [
+                "--debug"
+            ]
+        }
+    }
+}
+`
+	ioutil.WriteFile(configName, []byte(config), 0644)
+	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+	// Give daemon time to reload config
+	<-time.After(1 * time.Second)
+
+	out, err = s.d.Cmd("run", "--rm", "busybox", "ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
+
+	// Run with default runtime explicitely
+	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+}
+
+func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *check.C) {
+	err := s.d.StartWithBusybox("--add-runtime", "oci=docker-runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
+	c.Assert(err, check.IsNil)
+
+	// Run with default runtime
+	out, err := s.d.Cmd("run", "--rm", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with default runtime explicitely
+	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with oci (same path as default) but keep it around
+	out, err = s.d.Cmd("run", "--name", "oci-runtime-ls", "--runtime=oci", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with "vm"
+	out, err = s.d.Cmd("run", "--rm", "--runtime=vm", "busybox", "ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
+
+	// Start a daemon without any extra runtimes
+	s.d.Stop()
+	err = s.d.StartWithBusybox()
+	c.Assert(err, check.IsNil)
+
+	// Run with default runtime
+	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with "oci"
+	out, err = s.d.Cmd("run", "--rm", "--runtime=oci", "busybox", "ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Unknown runtime specified oci")
+
+	// Start previously created container with oci
+	out, err = s.d.Cmd("start", "oci-runtime-ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Unknown runtime specified oci")
+
+	// Check that we can't override the default runtime
+	s.d.Stop()
+	err = s.d.Start("--add-runtime", "default=docker-runc")
+	c.Assert(err, check.NotNil)
+
+	content, _ := ioutil.ReadFile(s.d.logFile.Name())
+	c.Assert(string(content), checker.Contains, `runtime name 'default' is reserved`)
+
+	// Check that we can select a default runtime
+	s.d.Stop()
+	err = s.d.StartWithBusybox("--default-runtime=vm", "--add-runtime", "oci=docker-runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
+	c.Assert(err, check.IsNil)
+
+	out, err = s.d.Cmd("run", "--rm", "busybox", "ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
+
+	// Run with default runtime explicitely
+	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
 }

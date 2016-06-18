@@ -55,6 +55,7 @@ parent = "smn_cli"
       -l, --label=[]                Set metadata on the container (e.g., --label=com.example.key=value)
       --label-file=[]               Read in a file of labels (EOL delimited)
       --link=[]                     Add link to another container
+      --link-local-ip=[]            Container IPv4/IPv6 link-local addresses (e.g. 169.254.0.77, fe80::77)
       --log-driver=""               Logging driver for container
       --log-opt=[]                  Log driver specific options
       -m, --memory=""               Memory limit
@@ -89,6 +90,7 @@ parent = "smn_cli"
       --read-only                   Mount the container's root filesystem as read only
       --restart="no"                Restart policy (no, on-failure[:max-retry], always, unless-stopped)
       --rm                          Automatically remove the container when it exits
+      --runtime=""                  Name of the runtime to be used for that container
       --shm-size=[]                 Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.  Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`.
       --security-opt=[]             Security Options
       --sig-proxy=true              Proxy received signals to the process
@@ -246,12 +248,12 @@ system's interfaces.
 This sets simple (non-array) environmental variables in the container. For
 illustration all three
 flags are shown here. Where `-e`, `--env` take an environment variable and
-value, or if no `=` is provided, then that variable's current value is passed
-through (i.e. `$MYVAR1` from the host is set to `$MYVAR1` in the container).
-When no `=` is provided and that variable is not defined in the client's
-environment then that variable will be removed from the container's list of
-environment variables.
-All three flags, `-e`, `--env` and `--env-file` can be repeated.
+value, or if no `=` is provided, then that variable's current value, set via
+`export`, is passed through (i.e. `$MYVAR1` from the host is set to `$MYVAR1`
+in the container). When no `=` is provided and that variable is not defined
+in the client's environment then that variable will be removed from the
+container's list of environment variables. All three flags, `-e`, `--env` and
+`--env-file` can be repeated.
 
 Regardless of the order of these three flags, the `--env-file` are processed
 first, and then `-e`, `--env` flags. This way, the `-e` or `--env` will
@@ -618,14 +620,16 @@ On Microsoft Windows, can take any of these values:
 | `process` | Namespace isolation only.                                                                                                                                     |
 | `hyperv`   | Hyper-V hypervisor partition-based isolation.                                                                                                                  |
 
-In practice, when running on Microsoft Windows without a `daemon` option set,  these two commands are equivalent:
-
+On Windows, the default isolation for client is `hyperv`, and for server is
+`process`. Therefore when running on Windows server without a `daemon` option 
+set, these two commands are equivalent:
 ```
 $ docker run -d --isolation default busybox top
 $ docker run -d --isolation process busybox top
 ```
 
-If you have set the `--exec-opt isolation=hyperv` option on the Docker `daemon`, any of these commands also result in `hyperv` isolation:
+If you have set the `--exec-opt isolation=hyperv` option on the Docker `daemon`, 
+if running on Windows server, any of these commands also result in `hyperv` isolation:
 
 ```
 $ docker run -d --isolation default busybox top

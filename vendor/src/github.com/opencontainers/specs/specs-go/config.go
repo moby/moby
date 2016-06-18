@@ -2,9 +2,7 @@ package specs
 
 import "os"
 
-// Spec is the base configuration for the container.  It specifies platform
-// independent configuration. This information must be included when the
-// bundle is packaged for distribution.
+// Spec is the base configuration for the container.
 type Spec struct {
 	// Version is the version of the specification that is supported.
 	Version string `json:"ociVersion"`
@@ -17,20 +15,22 @@ type Spec struct {
 	// Hostname is the container's host name.
 	Hostname string `json:"hostname,omitempty"`
 	// Mounts profile configuration for adding mounts to the container's filesystem.
-	Mounts []Mount `json:"mounts"`
+	Mounts []Mount `json:"mounts,omitempty"`
 	// Hooks are the commands run at various lifecycle events of the container.
 	Hooks Hooks `json:"hooks"`
 	// Annotations is an unstructured key value map that may be set by external tools to store and retrieve arbitrary metadata.
 	Annotations map[string]string `json:"annotations,omitempty"`
 
 	// Linux is platform specific configuration for Linux based containers.
-	Linux Linux `json:"linux" platform:"linux"`
+	Linux Linux `json:"linux" platform:"linux,omitempty"`
+	// Solaris is platform specific configuration for Solaris containers.
+	Solaris Solaris `json:"solaris" platform:"solaris,omitempty"`
 }
 
 // Process contains information to start a specific application inside the container.
 type Process struct {
 	// Terminal creates an interactive terminal for the container.
-	Terminal bool `json:"terminal"`
+	Terminal bool `json:"terminal,omitempty"`
 	// User specifies user information for the process.
 	User User `json:"user"`
 	// Args specifies the binary and arguments for the application to execute.
@@ -57,9 +57,9 @@ type Process struct {
 // main process.
 type User struct {
 	// UID is the user id. (this field is platform dependent)
-	UID uint32 `json:"uid,omitempty" platform:"linux"`
+	UID uint32 `json:"uid" platform:"linux"`
 	// GID is the group id. (this field is platform dependent)
-	GID uint32 `json:"gid,omitempty" platform:"linux"`
+	GID uint32 `json:"gid" platform:"linux"`
 	// AdditionalGids are additional group ids set for the container's process. (this field is platform dependent)
 	AdditionalGids []uint32 `json:"additionalGids,omitempty" platform:"linux"`
 }
@@ -69,7 +69,7 @@ type Root struct {
 	// Path is the absolute path to the container's root filesystem.
 	Path string `json:"path"`
 	// Readonly makes the root filesystem for the container readonly before the process is executed.
-	Readonly bool `json:"readonly"`
+	Readonly bool `json:"readonly,omitempty"`
 }
 
 // Platform specifies OS and arch information for the host system that the container
@@ -169,6 +169,8 @@ const (
 	UTSNamespace = "uts"
 	// UserNamespace for isolating user and group IDs
 	UserNamespace = "user"
+	// CgroupNamespace for isolating cgroup hierarchies
+	CgroupNamespace = "cgroup"
 )
 
 // IDMapping specifies UID/GID mappings
@@ -358,6 +360,51 @@ type Seccomp struct {
 	Syscalls      []Syscall `json:"syscalls,omitempty"`
 }
 
+// Solaris contains platform specific configuration for Solaris application containers.
+type Solaris struct {
+	// SMF FMRI which should go "online" before we start the container process.
+	Milestone string `json:"milestone,omitempty"`
+	// Maximum set of privileges any process in this container can obtain.
+	LimitPriv string `json:"limitpriv,omitempty"`
+	// The maximum amount of shared memory allowed for this container.
+	MaxShmMemory string `json:"maxShmMemory,omitempty"`
+	// Specification for automatic creation of network resources for this container.
+	Anet []Anet `json:"anet,omitempty"`
+	// Set limit on the amount of CPU time that can be used by container.
+	CappedCPU CappedCPU `json:"cappedCPU,omitempty"`
+	// The physical and swap caps on the memory that can be used by this container.
+	CappedMemory CappedMemory `json:"cappedMemory,omitempty"`
+}
+
+// CappedCPU allows users to set limit on the amount of CPU time that can be used by container.
+type CappedCPU struct {
+	Ncpus string `json:"ncpus,omitempty"`
+}
+
+// CappedMemory allows users to set the physical and swap caps on the memory that can be used by this container.
+type CappedMemory struct {
+	Physical string `json:"physical,omitempty"`
+	Swap     string `json:"swap,omitempty"`
+}
+
+// Anet provides the specification for automatic creation of network resources for this container.
+type Anet struct {
+	// Specify a name for the automatically created VNIC datalink.
+	Linkname string `json:"linkname,omitempty"`
+	// Specify the link over which the VNIC will be created.
+	Lowerlink string `json:"lowerLink,omitempty"`
+	// The set of IP addresses that the container can use.
+	Allowedaddr string `json:"allowedAddress,omitempty"`
+	// Specifies whether allowedAddress limitation is to be applied to the VNIC.
+	Configallowedaddr string `json:"configureAllowedAddress,omitempty"`
+	// The value of the optional default router.
+	Defrouter string `json:"defrouter,omitempty"`
+	// Enable one or more types of link protection.
+	Linkprotection string `json:"linkProtection,omitempty"`
+	// Set the VNIC's macAddress
+	Macaddress string `json:"macAddress,omitempty"`
+}
+
 // Arch used for additional architectures
 type Arch string
 
@@ -375,6 +422,11 @@ const (
 	ArchMIPSEL      Arch = "SCMP_ARCH_MIPSEL"
 	ArchMIPSEL64    Arch = "SCMP_ARCH_MIPSEL64"
 	ArchMIPSEL64N32 Arch = "SCMP_ARCH_MIPSEL64N32"
+	ArchPPC         Arch = "SCMP_ARCH_PPC"
+	ArchPPC64       Arch = "SCMP_ARCH_PPC64"
+	ArchPPC64LE     Arch = "SCMP_ARCH_PPC64LE"
+	ArchS390        Arch = "SCMP_ARCH_S390"
+	ArchS390X       Arch = "SCMP_ARCH_S390X"
 )
 
 // Action taken upon Seccomp rule match

@@ -57,15 +57,15 @@ func init() {
 }
 
 // New creates a fluentd logger using the configuration passed in on
-// the context. Supported context configuration variables are
-// fluentd-address & fluentd-tag.
+// the context. The supported context configuration variable is
+// fluentd-address.
 func New(ctx logger.Context) (logger.Logger, error) {
 	host, port, err := parseAddress(ctx.Config[addressKey])
 	if err != nil {
 		return nil, err
 	}
 
-	tag, err := loggerutils.ParseLogTag(ctx, "docker.{{.ID}}")
+	tag, err := loggerutils.ParseLogTag(ctx, "{{.DaemonName}}.{{.ID}}")
 	if err != nil {
 		return nil, err
 	}
@@ -154,12 +154,11 @@ func (f *fluentd) Name() string {
 	return name
 }
 
-// ValidateLogOpt looks for fluentd specific log options fluentd-address & fluentd-tag.
+// ValidateLogOpt looks for fluentd specific log option fluentd-address.
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
 		case "env":
-		case "fluentd-tag":
 		case "labels":
 		case "tag":
 		case addressKey:

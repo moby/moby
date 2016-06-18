@@ -132,7 +132,7 @@ func TestDecompressStreamXz(t *testing.T) {
 	archive, err := os.Open(tmp + "archive.xz")
 	_, err = DecompressStream(archive)
 	if err != nil {
-		t.Fatalf("Failed to decompress a xz file.")
+		t.Fatalf("Failed to decompress an xz file.")
 	}
 }
 
@@ -181,7 +181,7 @@ func TestExtensionUncompressed(t *testing.T) {
 	compression := Uncompressed
 	output := compression.Extension()
 	if output != "tar" {
-		t.Fatalf("The extension of a uncompressed archive should be 'tar'.")
+		t.Fatalf("The extension of an uncompressed archive should be 'tar'.")
 	}
 }
 func TestExtensionBzip2(t *testing.T) {

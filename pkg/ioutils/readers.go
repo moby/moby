@@ -55,7 +55,7 @@ func HashData(src io.Reader) (string, error) {
 	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// OnEOFReader wraps a io.ReadCloser and a function
+// OnEOFReader wraps an io.ReadCloser and a function
 // the function will run at the end of file or close the file.
 type OnEOFReader struct {
 	Rc io.ReadCloser

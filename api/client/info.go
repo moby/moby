@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/utils"
+	"github.com/docker/engine-api/types/swarm"
 	"github.com/docker/go-units"
 )
 
@@ -54,7 +55,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	ioutils.FprintfIfNotEmpty(cli.out, "Logging Driver: %s\n", info.LoggingDriver)
 	ioutils.FprintfIfNotEmpty(cli.out, "Cgroup Driver: %s\n", info.CgroupDriver)
 
-	fmt.Fprintf(cli.out, "Plugins: \n")
+	fmt.Fprintf(cli.out, "Plugins:\n")
 	fmt.Fprintf(cli.out, " Volume:")
 	fmt.Fprintf(cli.out, " %s", strings.Join(info.Plugins.Volume, " "))
 	fmt.Fprintf(cli.out, "\n")
@@ -67,6 +68,35 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, " %s", strings.Join(info.Plugins.Authorization, " "))
 		fmt.Fprintf(cli.out, "\n")
 	}
+
+	fmt.Fprintf(cli.out, "Swarm: %v\n", info.Swarm.LocalNodeState)
+	if info.Swarm.LocalNodeState != swarm.LocalNodeStateInactive {
+		fmt.Fprintf(cli.out, " NodeID: %s\n", info.Swarm.NodeID)
+		if info.Swarm.Error != "" {
+			fmt.Fprintf(cli.out, " Error: %v\n", info.Swarm.Error)
+		}
+		if info.Swarm.ControlAvailable {
+			fmt.Fprintf(cli.out, " IsManager: Yes\n")
+			fmt.Fprintf(cli.out, " Managers: %d\n", info.Swarm.Managers)
+			fmt.Fprintf(cli.out, " Nodes: %d\n", info.Swarm.Nodes)
+			ioutils.FprintfIfNotEmpty(cli.out, " CACertHash: %s\n", info.Swarm.CACertHash)
+		} else {
+			fmt.Fprintf(cli.out, " IsManager: No\n")
+		}
+	}
+
+	if len(info.Runtimes) > 0 {
+		fmt.Fprintf(cli.out, "Runtimes:")
+		for name := range info.Runtimes {
+			fmt.Fprintf(cli.out, " %s", name)
+		}
+		fmt.Fprint(cli.out, "\n")
+		fmt.Fprintf(cli.out, "Default Runtime: %s\n", info.DefaultRuntime)
+	}
+
+	fmt.Fprintf(cli.out, "Security Options:")
+	ioutils.FprintfIfNotEmpty(cli.out, " %s", strings.Join(info.SecurityOptions, " "))
+	fmt.Fprintf(cli.out, "\n")
 
 	ioutils.FprintfIfNotEmpty(cli.out, "Kernel Version: %s\n", info.KernelVersion)
 	ioutils.FprintfIfNotEmpty(cli.out, "Operating System: %s\n", info.OperatingSystem)

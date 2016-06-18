@@ -35,7 +35,7 @@ func (cli *Client) ImagePush(ctx context.Context, ref string, options types.Imag
 	query.Set("tag", tag)
 
 	resp, err := cli.tryImagePush(ctx, distributionRef.Name(), query, options.RegistryAuth)
-	if resp.statusCode == http.StatusUnauthorized {
+	if resp.statusCode == http.StatusUnauthorized && options.PrivilegeFunc != nil {
 		newAuthHeader, privilegeErr := options.PrivilegeFunc()
 		if privilegeErr != nil {
 			return nil, privilegeErr

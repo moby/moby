@@ -381,6 +381,12 @@ func TestDaemonDiscoveryReload(t *testing.T) {
 		&discovery.Entry{Host: "127.0.0.1", Port: "3333"},
 	}
 
+	select {
+	case <-time.After(10 * time.Second):
+		t.Fatal("timeout waiting for discovery")
+	case <-daemon.discoveryWatcher.ReadyCh():
+	}
+
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 	ch, errCh := daemon.discoveryWatcher.Watch(stopCh)
@@ -414,6 +420,13 @@ func TestDaemonDiscoveryReload(t *testing.T) {
 	if err := daemon.Reload(newConfig); err != nil {
 		t.Fatal(err)
 	}
+
+	select {
+	case <-time.After(10 * time.Second):
+		t.Fatal("timeout waiting for discovery")
+	case <-daemon.discoveryWatcher.ReadyCh():
+	}
+
 	ch, errCh = daemon.discoveryWatcher.Watch(stopCh)
 
 	select {
@@ -450,6 +463,13 @@ func TestDaemonDiscoveryReloadFromEmptyDiscovery(t *testing.T) {
 	if err := daemon.Reload(newConfig); err != nil {
 		t.Fatal(err)
 	}
+
+	select {
+	case <-time.After(10 * time.Second):
+		t.Fatal("timeout waiting for discovery")
+	case <-daemon.discoveryWatcher.ReadyCh():
+	}
+
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 	ch, errCh := daemon.discoveryWatcher.Watch(stopCh)
@@ -487,6 +507,12 @@ func TestDaemonDiscoveryReloadOnlyClusterAdvertise(t *testing.T) {
 
 	if err := daemon.Reload(newConfig); err != nil {
 		t.Fatal(err)
+	}
+
+	select {
+	case <-daemon.discoveryWatcher.ReadyCh():
+	case <-time.After(10 * time.Second):
+		t.Fatal("Timeout waiting for discovery")
 	}
 	stopCh := make(chan struct{})
 	defer close(stopCh)

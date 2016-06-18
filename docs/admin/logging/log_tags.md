@@ -6,7 +6,7 @@ description = "Describes how to format tags for."
 keywords = ["docker, logging, driver, syslog, Fluentd, gelf, journald"]
 [menu.main]
 parent = "smn_logging"
-weight = 1
+weight = -1
 +++
 <![end-metadata]-->
 
@@ -30,6 +30,7 @@ Docker supports some special template markup you can use when specifying a tag's
 | `{{.ImageID}}`     | The first 12 characters of the container's image id. |
 | `{{.ImageFullID}}` | The container's full image identifier.               |
 | `{{.ImageName}}`   | The name of the image used by the container.         |
+| `{{.DaemonName}}`  | The name of the docker program (`docker`).           |
 
 For example, specifying a `--log-opt tag="{{.ImageName}}/{{.Name}}/{{.ID}}"` value yields `syslog` log lines like:
 
@@ -64,8 +65,3 @@ Apr  1 15:22:17 ip-10-27-39-73 docker/logtester.1234[45499]: + exec app
 Apr  1 15:22:17 ip-10-27-39-73 docker/logtester.1234[45499]: 2016-04-01 15:22:17.075416751 +0000 UTC stderr msg: 1
 ```
 
-
-
->**Note**:The driver specific log options `syslog-tag`, `fluentd-tag` and
->`gelf-tag` still work for backwards compatibility. However, going forward you
->should standardize on using the generic `tag` log option instead.

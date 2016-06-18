@@ -11,11 +11,18 @@ import (
 
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/versions"
 	"golang.org/x/net/context"
 )
 
 // postContainersCopy is deprecated in favor of getContainersArchive.
 func (s *containerRouter) postContainersCopy(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	// Deprecated since 1.8, Errors out since 1.12
+	version := httputils.VersionFromContext(ctx)
+	if versions.GreaterThanOrEqualTo(version, "1.24") {
+		w.WriteHeader(http.StatusNotFound)
+		return nil
+	}
 	if err := httputils.CheckForJSON(r); err != nil {
 		return err
 	}

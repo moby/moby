@@ -73,7 +73,7 @@ func (s *DockerSuite) TestHistoryNonExistentImage(c *check.C) {
 func (s *DockerSuite) TestHistoryImageWithComment(c *check.C) {
 	name := "testhistoryimagewithcomment"
 
-	// make a image through docker commit <container id> [ -m messages ]
+	// make an image through docker commit <container id> [ -m messages ]
 
 	dockerCmd(c, "run", "--name", name, "busybox", "true")
 	dockerCmd(c, "wait", name)

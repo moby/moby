@@ -8,25 +8,29 @@ import (
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/libkv/store"
+	"github.com/docker/libnetwork/cluster"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/netlabel"
 )
 
 // Config encapsulates configurations of various Libnetwork components
 type Config struct {
-	Daemon  DaemonCfg
-	Cluster ClusterCfg
-	Scopes  map[string]*datastore.ScopeCfg
+	Daemon          DaemonCfg
+	Cluster         ClusterCfg
+	Scopes          map[string]*datastore.ScopeCfg
+	ActiveSandboxes map[string]interface{}
 }
 
 // DaemonCfg represents libnetwork core configuration
 type DaemonCfg struct {
-	Debug          bool
-	DataDir        string
-	DefaultNetwork string
-	DefaultDriver  string
-	Labels         []string
-	DriverCfg      map[string]interface{}
+	Debug           bool
+	DataDir         string
+	DefaultNetwork  string
+	DefaultDriver   string
+	Labels          []string
+	DriverCfg       map[string]interface{}
+	ClusterProvider cluster.Provider
+	DisableProvider chan struct{}
 }
 
 // ClusterCfg represents cluster configuration
@@ -66,7 +70,8 @@ func ParseConfig(tomlCfgFile string) (*Config, error) {
 func ParseConfigOptions(cfgOptions ...Option) *Config {
 	cfg := &Config{
 		Daemon: DaemonCfg{
-			DriverCfg: make(map[string]interface{}),
+			DriverCfg:       make(map[string]interface{}),
+			DisableProvider: make(chan struct{}, 10),
 		},
 		Scopes: make(map[string]*datastore.ScopeCfg),
 	}
@@ -239,5 +244,13 @@ func OptionLocalKVProviderConfig(config *store.Config) Option {
 			c.Scopes[datastore.LocalScope] = &datastore.ScopeCfg{}
 		}
 		c.Scopes[datastore.LocalScope].Client.Config = config
+	}
+}
+
+// OptionActiveSandboxes function returns an option setter for passing the sandboxes
+// which were active during previous daemon life
+func OptionActiveSandboxes(sandboxes map[string]interface{}) Option {
+	return func(c *Config) {
+		c.ActiveSandboxes = sandboxes
 	}
 }

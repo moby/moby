@@ -10,15 +10,15 @@ parent = "smn_cli"
 
 # inspect
 
-    Usage: docker inspect [OPTIONS] CONTAINER|IMAGE [CONTAINER|IMAGE...]
+    Usage: docker inspect [OPTIONS] CONTAINER|IMAGE|TASK [CONTAINER|IMAGE|TASK...]
 
-    Return low-level information on a container or image
+    Return low-level information on a container or image or task
 
-      -f, --format=""         Format the output using the given go template
-      --help                  Print usage
-      --type=container|image  Return JSON for specified type, permissible
-                              values are "image" or "container"
-      -s, --size              Display total file sizes if the type is container
+      -f, --format=""              Format the output using the given go template
+      --help                       Print usage
+      --type=container|image|task  Return JSON for specified type, permissible
+                                   values are "image" or "container" or "task"
+      -s, --size                   Display total file sizes if the type is container
 
 By default, this will render all results in a JSON array. If the container and
 image have the same name, this will return container JSON for unspecified type.
@@ -46,6 +46,10 @@ straightforward manner.
 **Get an instance's log path:**
 
     $ docker inspect --format='{{.LogPath}}' $INSTANCE_ID
+
+**Get a Task's image name:**
+
+    $ docker inspect --format='{{.Container.Spec.Image}}' $INSTANCE_ID
 
 **List All Port Bindings:**
 

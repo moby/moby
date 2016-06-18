@@ -36,6 +36,9 @@ const (
 	DefaultAllocSize         = 16 * 1024 * 1024
 )
 
+// default page size for db is set to the OS page size.
+var defaultPageSize = os.Getpagesize()
+
 // DB represents a collection of buckets persisted to a file on disk.
 // All data access is performed through transactions which can be obtained through the DB.
 // All the functions on DB will return a ErrDatabaseNotOpen if accessed before Open() is called.
@@ -94,7 +97,7 @@ type DB struct {
 	path     string
 	file     *os.File
 	lockfile *os.File // windows only
-	dataref  []byte // mmap'ed readonly, write throws SEGV
+	dataref  []byte   // mmap'ed readonly, write throws SEGV
 	data     *[maxMapSize]byte
 	datasz   int
 	filesz   int // current on disk file size
@@ -106,6 +109,8 @@ type DB struct {
 	txs      []*Tx
 	freelist *freelist
 	stats    Stats
+
+	pagePool sync.Pool
 
 	batchMu sync.Mutex
 	batch   *batch
@@ -200,10 +205,25 @@ func Open(path string, mode os.FileMode, options *Options) (*DB, error) {
 		if _, err := db.file.ReadAt(buf[:], 0); err == nil {
 			m := db.pageInBuffer(buf[:], 0).meta()
 			if err := m.validate(); err != nil {
-				return nil, err
+				// If we can't read the page size, we can assume it's the same
+				// as the OS -- since that's how the page size was chosen in the
+				// first place.
+				//
+				// If the first page is invalid and this OS uses a different
+				// page size than what the database was created with then we
+				// are out of luck and cannot access the database.
+				db.pageSize = os.Getpagesize()
+			} else {
+				db.pageSize = int(m.pageSize)
 			}
-			db.pageSize = int(m.pageSize)
 		}
+	}
+
+	// Initialize page pool.
+	db.pagePool = sync.Pool{
+		New: func() interface{} {
+			return make([]byte, db.pageSize)
+		},
 	}
 
 	// Memory map the data file.
@@ -262,12 +282,13 @@ func (db *DB) mmap(minsz int) error {
 	db.meta0 = db.page(0).meta()
 	db.meta1 = db.page(1).meta()
 
-	// Validate the meta pages.
-	if err := db.meta0.validate(); err != nil {
-		return err
-	}
-	if err := db.meta1.validate(); err != nil {
-		return err
+	// Validate the meta pages. We only return an error if both meta pages fail
+	// validation, since meta0 failing validation means that it wasn't saved
+	// properly -- but we can recover using meta1. And vice-versa.
+	err0 := db.meta0.validate()
+	err1 := db.meta1.validate()
+	if err0 != nil && err1 != nil {
+		return err0
 	}
 
 	return nil
@@ -339,6 +360,7 @@ func (db *DB) init() error {
 		m.root = bucket{root: 3}
 		m.pgid = 4
 		m.txid = txid(i)
+		m.checksum = m.sum64()
 	}
 
 	// Write an empty freelist at page 3.
@@ -383,11 +405,10 @@ func (db *DB) close() error {
 	if !db.opened {
 		return nil
 	}
-	
+
 	db.opened = false
 
 	db.freelist = nil
-	db.path = ""
 
 	// Clear ops.
 	db.ops.writeAt = nil
@@ -414,6 +435,7 @@ func (db *DB) close() error {
 		db.file = nil
 	}
 
+	db.path = ""
 	return nil
 }
 
@@ -778,16 +800,37 @@ func (db *DB) pageInBuffer(b []byte, id pgid) *page {
 
 // meta retrieves the current meta page reference.
 func (db *DB) meta() *meta {
-	if db.meta0.txid > db.meta1.txid {
-		return db.meta0
+	// We have to return the meta with the highest txid which doesn't fail
+	// validation. Otherwise, we can cause errors when in fact the database is
+	// in a consistent state. metaA is the one with the higher txid.
+	metaA := db.meta0
+	metaB := db.meta1
+	if db.meta1.txid > db.meta0.txid {
+		metaA = db.meta1
+		metaB = db.meta0
 	}
-	return db.meta1
+
+	// Use higher meta page if valid. Otherwise fallback to previous, if valid.
+	if err := metaA.validate(); err == nil {
+		return metaA
+	} else if err := metaB.validate(); err == nil {
+		return metaB
+	}
+
+	// This should never be reached, because both meta1 and meta0 were validated
+	// on mmap() and we do fsync() on every write.
+	panic("bolt.DB.meta(): invalid meta pages")
 }
 
 // allocate returns a contiguous block of memory starting at a given page.
 func (db *DB) allocate(count int) (*page, error) {
 	// Allocate a temporary buffer for the page.
-	buf := make([]byte, count*db.pageSize)
+	var buf []byte
+	if count == 1 {
+		buf = db.pagePool.Get().([]byte)
+	} else {
+		buf = make([]byte, count*db.pageSize)
+	}
 	p := (*page)(unsafe.Pointer(&buf[0]))
 	p.overflow = uint32(count - 1)
 
@@ -937,12 +980,12 @@ type meta struct {
 
 // validate checks the marker bytes and version of the meta page to ensure it matches this binary.
 func (m *meta) validate() error {
-	if m.checksum != 0 && m.checksum != m.sum64() {
-		return ErrChecksum
-	} else if m.magic != magic {
+	if m.magic != magic {
 		return ErrInvalid
 	} else if m.version != version {
 		return ErrVersionMismatch
+	} else if m.checksum != 0 && m.checksum != m.sum64() {
+		return ErrChecksum
 	}
 	return nil
 }

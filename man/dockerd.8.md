@@ -39,11 +39,15 @@ dockerd - Enable daemon mode
 [**--ip-masq**[=*true*]]
 [**--iptables**[=*true*]]
 [**--ipv6**]
+[**--isolation**[=*default*]]
 [**-l**|**--log-level**[=*info*]]
 [**--label**[=*[]*]]
+[**--live-restore**[=*false*]]
 [**--log-driver**[=*json-file*]]
 [**--log-opt**[=*map[]*]]
 [**--mtu**[=*0*]]
+[**--max-concurrent-downloads**[=*3*]]
+[**--max-concurrent-uploads**[=*5*]]
 [**-p**|**--pidfile**[=*/var/run/docker.pid*]]
 [**--raw-logs**]
 [**--registry-mirror**[=*[]*]]
@@ -181,11 +185,19 @@ unix://[/path/to/socket] to use.
 **--ipv6**=*true*|*false*
   Enable IPv6 support. Default is false. Docker will create an IPv6-enabled bridge with address fe80::1 which will allow you to create IPv6-enabled containers. Use together with `--fixed-cidr-v6` to provide globally routable IPv6 addresses. IPv6 forwarding will be enabled if not used with `--ip-forward=false`. This may collide with your host's current IPv6 settings. For more information please consult the documentation about "Advanced Networking - IPv6".
 
+**--isolation**="*default*"
+   Isolation specifies the type of isolation technology used by containers. Note
+that the default on Windows server is `process`, and the default on Windows client
+is `hyperv`. Linux only supports `default`.
+
 **-l**, **--log-level**="*debug*|*info*|*warn*|*error*|*fatal*"
   Set the logging level. Default is `info`.
 
 **--label**="[]"
   Set key=value labels to the daemon (displayed in `docker info`)
+
+**--live-restore**=*false*
+  Enable live restore of running containers when the daemon starts so that they are not restarted.
 
 **--log-driver**="*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*awslogs*|*splunk*|*etwlogs*|*gcplogs*|*none*"
   Default driver for container logs. Default is `json-file`.
@@ -196,6 +208,12 @@ unix://[/path/to/socket] to use.
 
 **--mtu**=*0*
   Set the containers network mtu. Default is `0`.
+
+**--max-concurrent-downloads**=*3*
+  Set the max concurrent downloads for each pull. Default is `3`.
+
+**--max-concurrent-uploads**=*5*
+  Set the max concurrent uploads for each push. Default is `5`.
 
 **-p**, **--pidfile**=""
   Path to use for daemon PID file. Default is `/var/run/docker.pid`
@@ -212,7 +230,7 @@ output otherwise.
   Force the Docker runtime to use a specific storage driver.
 
 **--selinux-enabled**=*true*|*false*
-  Enable selinux support. Default is false. SELinux does not presently support the overlay storage driver.
+  Enable selinux support. Default is false. SELinux does not presently support either of the overlay storage drivers.
 
 **--storage-opt**=[]
   Set storage driver options. See STORAGE DRIVER OPTIONS.

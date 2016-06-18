@@ -69,6 +69,9 @@ type Descriptor struct {
 	// against against this digest.
 	Digest digest.Digest `json:"digest,omitempty"`
 
+	// URLs contains the source URLs of this content.
+	URLs []string `json:"urls,omitempty"`
+
 	// NOTE: Before adding a field here, please ensure that all
 	// other options have been exhausted. Much of the type relationships
 	// depend on the simplicity of this type.

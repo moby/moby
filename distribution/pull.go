@@ -27,7 +27,7 @@ type ImagePullConfig struct {
 	ProgressOutput progress.Output
 	// RegistryService is the registry service to use for TLS configuration
 	// and endpoint lookup.
-	RegistryService *registry.Service
+	RegistryService registry.Service
 	// ImageEventLogger notifies events for a given image
 	ImageEventLogger func(id, name, action string)
 	// MetadataStore is the storage backend for distribution-specific
@@ -84,7 +84,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 	}
 
 	// makes sure name is not empty or `scratch`
-	if err := validateRepoName(repoInfo.Name()); err != nil {
+	if err := ValidateRepoName(repoInfo.Name()); err != nil {
 		return err
 	}
 
@@ -193,8 +193,8 @@ func writeStatus(requestedTag string, out progress.Output, layersDownloaded bool
 	}
 }
 
-// validateRepoName validates the name of a repository.
-func validateRepoName(name string) error {
+// ValidateRepoName validates the name of a repository.
+func ValidateRepoName(name string) error {
 	if name == "" {
 		return fmt.Errorf("Repository name can't be empty")
 	}

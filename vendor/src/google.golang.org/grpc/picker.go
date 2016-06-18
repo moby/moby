@@ -172,7 +172,7 @@ func (p *unicastNamingPicker) processUpdates() error {
 			}
 			p.mu.Unlock()
 		default:
-			grpclog.Println("Unknown update.Op %d", update.Op)
+			grpclog.Println("Unknown update.Op ", update.Op)
 		}
 	}
 	return nil

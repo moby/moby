@@ -114,7 +114,7 @@ func DockerHeaders(userAgent string, metaHeaders http.Header) []transport.Reques
 	return modifiers
 }
 
-// HTTPClient returns a HTTP client structure which uses the given transport
+// HTTPClient returns an HTTP client structure which uses the given transport
 // and contains the necessary headers for redirected requests
 func HTTPClient(transport http.RoundTripper) *http.Client {
 	return &http.Client{

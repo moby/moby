@@ -206,11 +206,15 @@ echo 'Optional Features:'
 	check_flags CGROUP_PIDS
 }
 {
-	check_flags MEMCG_KMEM MEMCG_SWAP MEMCG_SWAP_ENABLED
+	check_flags MEMCG_SWAP MEMCG_SWAP_ENABLED
 	if  is_set MEMCG_SWAP && ! is_set MEMCG_SWAP_ENABLED; then
 		echo "    $(wrap_color '(note that cgroup swap accounting is not enabled in your kernel config, you can enable it by setting boot option "swapaccount=1")' bold black)"
 	fi
 }
+
+if [ "$kernelMajor" -lt 4 ] || [ "$kernelMajor" -eq 4 -a "$kernelMinor" -le 5 ]; then
+	check_flags MEMCG_KMEM
+fi
 
 if [ "$kernelMajor" -lt 3 ] || [ "$kernelMajor" -eq 3 -a "$kernelMinor" -le 18 ]; then
 	check_flags RESOURCE_COUNTERS
@@ -271,3 +275,16 @@ echo '- Storage Drivers:'
 } | sed 's/^/  /'
 echo
 
+check_limit_over()
+{
+	if [ $(cat "$1") -le "$2" ]; then
+		wrap_bad "- $1" "$(cat $1)"
+		wrap_color "    This should be set to at least $2, for example set: sysctl -w kernel/keys/root_maxkeys=1000000" bold black
+	else
+		wrap_good "- $1" "$(cat $1)"
+	fi
+}
+
+echo 'Limits:'
+check_limit_over /proc/sys/kernel/keys/root_maxkeys 10000
+echo

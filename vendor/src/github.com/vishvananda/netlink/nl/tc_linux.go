@@ -50,6 +50,15 @@ const (
 )
 
 const (
+	TCA_ACT_UNSPEC = iota
+	TCA_ACT_KIND
+	TCA_ACT_OPTIONS
+	TCA_ACT_INDEX
+	TCA_ACT_STATS
+	TCA_ACT_MAX
+)
+
+const (
 	TCA_PRIO_UNSPEC = iota
 	TCA_PRIO_MQ
 	TCA_PRIO_MAX = TCA_PRIO_MQ
@@ -69,7 +78,8 @@ const (
 	SizeofTcHtbGlob      = 0x14
 	SizeofTcU32Key       = 0x10
 	SizeofTcU32Sel       = 0x10 // without keys
-	SizeofTcMirred       = 0x1c
+	SizeofTcGen          = 0x14
+	SizeofTcMirred       = SizeofTcGen + 0x08
 	SizeofTcPolice       = 2*SizeofTcRateSpec + 0x20
 )
 
@@ -506,6 +516,81 @@ func (x *TcU32Sel) Serialize() []byte {
 	return buf
 }
 
+type TcGen struct {
+	Index   uint32
+	Capab   uint32
+	Action  int32
+	Refcnt  int32
+	Bindcnt int32
+}
+
+func (msg *TcGen) Len() int {
+	return SizeofTcGen
+}
+
+func DeserializeTcGen(b []byte) *TcGen {
+	return (*TcGen)(unsafe.Pointer(&b[0:SizeofTcGen][0]))
+}
+
+func (x *TcGen) Serialize() []byte {
+	return (*(*[SizeofTcGen]byte)(unsafe.Pointer(x)))[:]
+}
+
+// #define tc_gen \
+//   __u32                 index; \
+//   __u32                 capab; \
+//   int                   action; \
+//   int                   refcnt; \
+//   int                   bindcnt
+
+const (
+	TCA_ACT_GACT = 5
+)
+
+const (
+	TCA_GACT_UNSPEC = iota
+	TCA_GACT_TM
+	TCA_GACT_PARMS
+	TCA_GACT_PROB
+	TCA_GACT_MAX = TCA_GACT_PROB
+)
+
+type TcGact TcGen
+
+const (
+	TCA_ACT_BPF = 13
+)
+
+const (
+	TCA_ACT_BPF_UNSPEC = iota
+	TCA_ACT_BPF_TM
+	TCA_ACT_BPF_PARMS
+	TCA_ACT_BPF_OPS_LEN
+	TCA_ACT_BPF_OPS
+	TCA_ACT_BPF_FD
+	TCA_ACT_BPF_NAME
+	TCA_ACT_BPF_MAX = TCA_ACT_BPF_NAME
+)
+
+const (
+	TCA_BPF_FLAG_ACT_DIRECT uint32 = 1 << iota
+)
+
+const (
+	TCA_BPF_UNSPEC = iota
+	TCA_BPF_ACT
+	TCA_BPF_POLICE
+	TCA_BPF_CLASSID
+	TCA_BPF_OPS_LEN
+	TCA_BPF_OPS
+	TCA_BPF_FD
+	TCA_BPF_NAME
+	TCA_BPF_FLAGS
+	TCA_BPF_MAX = TCA_BPF_FLAGS
+)
+
+type TcBpf TcGen
+
 const (
 	TCA_ACT_MIRRED = 8
 )
@@ -517,31 +602,6 @@ const (
 	TCA_MIRRED_MAX = TCA_MIRRED_PARMS
 )
 
-const (
-	TCA_EGRESS_REDIR   = 1 /* packet redirect to EGRESS*/
-	TCA_EGRESS_MIRROR  = 2 /* mirror packet to EGRESS */
-	TCA_INGRESS_REDIR  = 3 /* packet redirect to INGRESS*/
-	TCA_INGRESS_MIRROR = 4 /* mirror packet to INGRESS */
-)
-
-const (
-	TC_ACT_UNSPEC     = int32(-1)
-	TC_ACT_OK         = 0
-	TC_ACT_RECLASSIFY = 1
-	TC_ACT_SHOT       = 2
-	TC_ACT_PIPE       = 3
-	TC_ACT_STOLEN     = 4
-	TC_ACT_QUEUED     = 5
-	TC_ACT_REPEAT     = 6
-	TC_ACT_JUMP       = 0x10000000
-)
-
-// #define tc_gen \
-//   __u32                 index; \
-//   __u32                 capab; \
-//   int                   action; \
-//   int                   refcnt; \
-//   int                   bindcnt
 // struct tc_mirred {
 // 	tc_gen;
 // 	int                     eaction;   /* one of IN/EGRESS_MIRROR/REDIR */
@@ -549,11 +609,7 @@ const (
 // };
 
 type TcMirred struct {
-	Index   uint32
-	Capab   uint32
-	Action  int32
-	Refcnt  int32
-	Bindcnt int32
+	TcGen
 	Eaction int32
 	Ifindex uint32
 }
@@ -569,14 +625,6 @@ func DeserializeTcMirred(b []byte) *TcMirred {
 func (x *TcMirred) Serialize() []byte {
 	return (*(*[SizeofTcMirred]byte)(unsafe.Pointer(x)))[:]
 }
-
-const (
-	TC_POLICE_UNSPEC     = TC_ACT_UNSPEC
-	TC_POLICE_OK         = TC_ACT_OK
-	TC_POLICE_RECLASSIFY = TC_ACT_RECLASSIFY
-	TC_POLICE_SHOT       = TC_ACT_SHOT
-	TC_POLICE_PIPE       = TC_ACT_PIPE
-)
 
 // struct tc_police {
 // 	__u32			index;

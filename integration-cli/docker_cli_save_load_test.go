@@ -350,3 +350,33 @@ func (s *DockerSuite) TestSaveLoadParents(c *check.C) {
 	inspectOut = inspectField(c, idFoo, "Parent")
 	c.Assert(inspectOut, checker.Equals, "")
 }
+
+func (s *DockerSuite) TestSaveLoadNoTag(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	name := "saveloadnotag"
+
+	_, err := buildImage(name, "FROM busybox\nENV foo=bar", true)
+	c.Assert(err, checker.IsNil, check.Commentf("%v", err))
+
+	id := inspectField(c, name, "Id")
+
+	// Test to make sure that save w/o name just shows imageID during load
+	out, _, err := runCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "save", id),
+		exec.Command(dockerBinary, "load"))
+	c.Assert(err, checker.IsNil, check.Commentf("failed to save and load repo: %s, %v", out, err))
+
+	// Should not show 'name' but should show the image ID during the load
+	c.Assert(out, checker.Not(checker.Contains), "Loaded image: ")
+	c.Assert(out, checker.Contains, "Loaded image ID:")
+	c.Assert(out, checker.Contains, id)
+
+	// Test to make sure that save by name shows that name during load
+	out, _, err = runCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "save", name),
+		exec.Command(dockerBinary, "load"))
+	c.Assert(err, checker.IsNil, check.Commentf("failed to save and load repo: %s, %v", out, err))
+	c.Assert(out, checker.Contains, "Loaded image: "+name+":latest")
+	c.Assert(out, checker.Not(checker.Contains), "Loaded image ID:")
+}

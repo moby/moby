@@ -422,7 +422,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPullWithExternalAuth(c *check.C) {
 	dockerCmd(c, "--config", tmp, "pull", repoName)
 }
 
-// TestRunImplicitPullWithNoTag should pull implicitely only the default tag (latest)
+// TestRunImplicitPullWithNoTag should pull implicitly only the default tag (latest)
 func (s *DockerRegistrySuite) TestRunImplicitPullWithNoTag(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	repo := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)

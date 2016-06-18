@@ -52,14 +52,3 @@ func (cli *Client) ContainerInspectWithRaw(ctx context.Context, containerID stri
 	err = json.NewDecoder(rdr).Decode(&response)
 	return response, body, err
 }
-
-func (cli *Client) containerInspectWithResponse(ctx context.Context, containerID string, query url.Values) (types.ContainerJSON, *serverResponse, error) {
-	serverResp, err := cli.get(ctx, "/containers/"+containerID+"/json", nil, nil)
-	if err != nil {
-		return types.ContainerJSON{}, serverResp, err
-	}
-
-	var response types.ContainerJSON
-	err = json.NewDecoder(serverResp.body).Decode(&response)
-	return response, serverResp, err
-}

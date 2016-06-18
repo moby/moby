@@ -1,4 +1,4 @@
-// +build linux freebsd
+// +build linux freebsd solaris darwin
 
 package builtin
 
@@ -37,5 +37,7 @@ func Init(ic ipamapi.Callback, l, g interface{}) error {
 		return err
 	}
 
-	return ic.RegisterIpamDriver(ipamapi.DefaultIPAM, a)
+	cps := &ipamapi.Capability{RequiresRequestReplay: true}
+
+	return ic.RegisterIpamDriverWithCapabilities(ipamapi.DefaultIPAM, a, cps)
 }

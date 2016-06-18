@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"io"
 	"text/template"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/cli"
+	"github.com/docker/docker/utils/templates"
 )
 
 // Inspector defines an interface to implement to process elements
@@ -30,6 +34,56 @@ func NewTemplateInspector(outputStream io.Writer, tmpl *template.Template) Inspe
 	}
 }
 
+// NewTemplateInspectorFromString creates a new TemplateInspector from a string
+// which is compiled into a template.
+func NewTemplateInspectorFromString(out io.Writer, tmplStr string) (Inspector, error) {
+	if tmplStr == "" {
+		return NewIndentedInspector(out), nil
+	}
+
+	tmpl, err := templates.Parse(tmplStr)
+	if err != nil {
+		return nil, fmt.Errorf("Template parsing error: %s", err)
+	}
+	return NewTemplateInspector(out, tmpl), nil
+}
+
+// GetRefFunc is a function which used by Inspect to fetch an object from a
+// reference
+type GetRefFunc func(ref string) (interface{}, []byte, error)
+
+// Inspect fetches objects by reference using GetRefFunc and writes the json
+// representation to the output writer.
+func Inspect(out io.Writer, references []string, tmplStr string, getRef GetRefFunc) error {
+	inspector, err := NewTemplateInspectorFromString(out, tmplStr)
+	if err != nil {
+		return cli.StatusError{StatusCode: 64, Status: err.Error()}
+	}
+
+	var inspectErr error
+	for _, ref := range references {
+		element, raw, err := getRef(ref)
+		if err != nil {
+			inspectErr = err
+			break
+		}
+
+		if err := inspector.Inspect(element, raw); err != nil {
+			inspectErr = err
+			break
+		}
+	}
+
+	if err := inspector.Flush(); err != nil {
+		logrus.Errorf("%s\n", err)
+	}
+
+	if inspectErr != nil {
+		return cli.StatusError{StatusCode: 1, Status: inspectErr.Error()}
+	}
+	return nil
+}
+
 // Inspect executes the inspect template.
 // It decodes the raw element into a map if the initial execution fails.
 // This allows docker cli to parse inspect structs injected with Swarm fields.
@@ -39,8 +93,30 @@ func (i *TemplateInspector) Inspect(typedElement interface{}, rawElement []byte)
 		if rawElement == nil {
 			return fmt.Errorf("Template parsing error: %v", err)
 		}
-		return i.tryRawInspectFallback(rawElement, err)
+		return i.tryRawInspectFallback(rawElement)
 	}
+	i.buffer.Write(buffer.Bytes())
+	i.buffer.WriteByte('\n')
+	return nil
+}
+
+// tryRawInspectFallback executes the inspect template with a raw interface.
+// This allows docker cli to parse inspect structs injected with Swarm fields.
+func (i *TemplateInspector) tryRawInspectFallback(rawElement []byte) error {
+	var raw interface{}
+	buffer := new(bytes.Buffer)
+	rdr := bytes.NewReader(rawElement)
+	dec := json.NewDecoder(rdr)
+
+	if rawErr := dec.Decode(&raw); rawErr != nil {
+		return fmt.Errorf("unable to read inspect data: %v", rawErr)
+	}
+
+	tmplMissingKey := i.tmpl.Option("missingkey=error")
+	if rawErr := tmplMissingKey.Execute(buffer, raw); rawErr != nil {
+		return fmt.Errorf("Template parsing error: %v", rawErr)
+	}
+
 	i.buffer.Write(buffer.Bytes())
 	i.buffer.WriteByte('\n')
 	return nil

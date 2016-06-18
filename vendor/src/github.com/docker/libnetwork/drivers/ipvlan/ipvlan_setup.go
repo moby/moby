@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/libnetwork/ns"
 	"github.com/vishvananda/netlink"
 )
 
@@ -27,7 +28,7 @@ func createIPVlan(containerIfName, parent, ipvlanMode string) (string, error) {
 		return "", fmt.Errorf("the requested parent interface %s was not found on the Docker host", parent)
 	}
 	// Get the link for the master index (Example: the docker host eth iface)
-	parentLink, err := netlink.LinkByName(parent)
+	parentLink, err := ns.NlHandle().LinkByName(parent)
 	if err != nil {
 		return "", fmt.Errorf("error occoured looking up the %s parent iface %s error: %s", ipvlanType, parent, err)
 	}
@@ -39,7 +40,7 @@ func createIPVlan(containerIfName, parent, ipvlanMode string) (string, error) {
 		},
 		Mode: mode,
 	}
-	if err := netlink.LinkAdd(ipvlan); err != nil {
+	if err := ns.NlHandle().LinkAdd(ipvlan); err != nil {
 		// If a user creates a macvlan and ipvlan on same parent, only one slave iface can be active at a time.
 		return "", fmt.Errorf("failed to create the %s port: %v", ipvlanType, err)
 	}
@@ -61,7 +62,7 @@ func setIPVlanMode(mode string) (netlink.IPVlanMode, error) {
 
 // parentExists check if the specified interface exists in the default namespace
 func parentExists(ifaceStr string) bool {
-	_, err := netlink.LinkByName(ifaceStr)
+	_, err := ns.NlHandle().LinkByName(ifaceStr)
 	if err != nil {
 		return false
 	}
@@ -81,7 +82,7 @@ func createVlanLink(parentName string) error {
 			return fmt.Errorf("vlan id must be between 1-4094, received: %d", vidInt)
 		}
 		// get the parent link to attach a vlan subinterface
-		parentLink, err := netlink.LinkByName(parent)
+		parentLink, err := ns.NlHandle().LinkByName(parent)
 		if err != nil {
 			return fmt.Errorf("failed to find master interface %s on the Docker host: %v", parent, err)
 		}
@@ -93,11 +94,11 @@ func createVlanLink(parentName string) error {
 			VlanId: vidInt,
 		}
 		// create the subinterface
-		if err := netlink.LinkAdd(vlanLink); err != nil {
+		if err := ns.NlHandle().LinkAdd(vlanLink); err != nil {
 			return fmt.Errorf("failed to create %s vlan link: %v", vlanLink.Name, err)
 		}
 		// Bring the new netlink iface up
-		if err := netlink.LinkSetUp(vlanLink); err != nil {
+		if err := ns.NlHandle().LinkSetUp(vlanLink); err != nil {
 			return fmt.Errorf("failed to enable %s the ipvlan parent link %v", vlanLink.Name, err)
 		}
 		logrus.Debugf("Added a vlan tagged netlink subinterface: %s with a vlan id: %d", parentName, vidInt)
@@ -115,7 +116,7 @@ func delVlanLink(linkName string) error {
 			return err
 		}
 		// delete the vlan subinterface
-		vlanLink, err := netlink.LinkByName(linkName)
+		vlanLink, err := ns.NlHandle().LinkByName(linkName)
 		if err != nil {
 			return fmt.Errorf("failed to find interface %s on the Docker host : %v", linkName, err)
 		}
@@ -124,7 +125,7 @@ func delVlanLink(linkName string) error {
 			return fmt.Errorf("interface %s does not appear to be a slave device: %v", linkName, err)
 		}
 		// delete the ipvlan slave device
-		if err := netlink.LinkDel(vlanLink); err != nil {
+		if err := ns.NlHandle().LinkDel(vlanLink); err != nil {
 			return fmt.Errorf("failed to delete  %s link: %v", linkName, err)
 		}
 		logrus.Debugf("Deleted a vlan tagged netlink subinterface: %s", linkName)
@@ -163,15 +164,15 @@ func createDummyLink(dummyName, truncNetID string) error {
 			Name: dummyName,
 		},
 	}
-	if err := netlink.LinkAdd(parent); err != nil {
+	if err := ns.NlHandle().LinkAdd(parent); err != nil {
 		return err
 	}
-	parentDummyLink, err := netlink.LinkByName(dummyName)
+	parentDummyLink, err := ns.NlHandle().LinkByName(dummyName)
 	if err != nil {
 		return fmt.Errorf("error occoured looking up the %s parent iface %s error: %s", ipvlanType, dummyName, err)
 	}
 	// bring the new netlink iface up
-	if err := netlink.LinkSetUp(parentDummyLink); err != nil {
+	if err := ns.NlHandle().LinkSetUp(parentDummyLink); err != nil {
 		return fmt.Errorf("failed to enable %s the ipvlan parent link: %v", dummyName, err)
 	}
 
@@ -181,7 +182,7 @@ func createDummyLink(dummyName, truncNetID string) error {
 // delDummyLink deletes the link type dummy used when -o parent is not passed
 func delDummyLink(linkName string) error {
 	// delete the vlan subinterface
-	dummyLink, err := netlink.LinkByName(linkName)
+	dummyLink, err := ns.NlHandle().LinkByName(linkName)
 	if err != nil {
 		return fmt.Errorf("failed to find link %s on the Docker host : %v", linkName, err)
 	}
@@ -190,7 +191,7 @@ func delDummyLink(linkName string) error {
 		return fmt.Errorf("link %s is not a parent dummy interface", linkName)
 	}
 	// delete the ipvlan dummy device
-	if err := netlink.LinkDel(dummyLink); err != nil {
+	if err := ns.NlHandle().LinkDel(dummyLink); err != nil {
 		return fmt.Errorf("failed to delete the dummy %s link: %v", linkName, err)
 	}
 	logrus.Debugf("Deleted a dummy parent link: %s", linkName)

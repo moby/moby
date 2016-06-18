@@ -6,7 +6,7 @@
 # docker build -t docker -f Dockerfile.gccgo .
 #
 
-FROM gcc:5.3
+FROM gcc:6.1
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
@@ -43,7 +43,7 @@ RUN cd /usr/local/lvm2 \
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
 # install seccomp: the version shipped in jessie is too old
-ENV SECCOMP_VERSION v2.3.0
+ENV SECCOMP_VERSION v2.3.1
 RUN set -x \
     && export SECCOMP_PATH=$(mktemp -d) \
     && git clone https://github.com/seccomp/libseccomp.git "$SECCOMP_PATH" \
@@ -74,10 +74,10 @@ WORKDIR /go/src/github.com/docker/docker
 ENV DOCKER_BUILDTAGS apparmor seccomp selinux
 
 # Install runc
-ENV RUNC_COMMIT baf6536d6259209c3edfa2b22237af82942d3dfa
+ENV RUNC_COMMIT cc29e3dded8e27ba8f65738f40d251c885030a28
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
-	&& git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
+    && git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
 	&& cd "$GOPATH/src/github.com/opencontainers/runc" \
 	&& git checkout -q "$RUNC_COMMIT" \
 	&& make static BUILDTAGS="seccomp apparmor selinux" \
@@ -85,7 +85,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install containerd
-ENV CONTAINERD_COMMIT v0.2.1
+ENV CONTAINERD_COMMIT 860f3a94940894ac0a106eff4bd1616a67407ee2
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \

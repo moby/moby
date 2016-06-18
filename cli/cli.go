@@ -39,12 +39,7 @@ func New(handlers ...Handler) *Cli {
 	return cli
 }
 
-// initErr is an error returned upon initialization of a handler implementing Initializer.
-type initErr struct{ error }
-
-func (err initErr) Error() string {
-	return err.Error()
-}
+var errCommandNotFound = errors.New("command not found")
 
 func (cli *Cli) command(args ...string) (func(...string) error, error) {
 	for _, c := range cli.handlers {
@@ -54,35 +49,36 @@ func (cli *Cli) command(args ...string) (func(...string) error, error) {
 		if cmd := c.Command(strings.Join(args, " ")); cmd != nil {
 			if ci, ok := c.(Initializer); ok {
 				if err := ci.Initialize(); err != nil {
-					return nil, initErr{err}
+					return nil, err
 				}
 			}
 			return cmd, nil
 		}
 	}
-	return nil, errors.New("command not found")
+	return nil, errCommandNotFound
 }
 
 // Run executes the specified command.
 func (cli *Cli) Run(args ...string) error {
 	if len(args) > 1 {
 		command, err := cli.command(args[:2]...)
-		switch err := err.(type) {
-		case nil:
+		if err == nil {
 			return command(args[2:]...)
-		case initErr:
-			return err.error
+		}
+		if err != errCommandNotFound {
+			return err
 		}
 	}
 	if len(args) > 0 {
 		command, err := cli.command(args[0])
-		switch err := err.(type) {
-		case nil:
-			return command(args[1:]...)
-		case initErr:
-			return err.error
+		if err != nil {
+			if err == errCommandNotFound {
+				cli.noSuchCommand(args[0])
+				return nil
+			}
+			return err
 		}
-		cli.noSuchCommand(args[0])
+		return command(args[1:]...)
 	}
 	return cli.CmdHelp()
 }
@@ -110,24 +106,25 @@ func (cli *Cli) Command(name string) func(...string) error {
 func (cli *Cli) CmdHelp(args ...string) error {
 	if len(args) > 1 {
 		command, err := cli.command(args[:2]...)
-		switch err := err.(type) {
-		case nil:
+		if err == nil {
 			command("--help")
 			return nil
-		case initErr:
-			return err.error
+		}
+		if err != errCommandNotFound {
+			return err
 		}
 	}
 	if len(args) > 0 {
 		command, err := cli.command(args[0])
-		switch err := err.(type) {
-		case nil:
-			command("--help")
-			return nil
-		case initErr:
-			return err.error
+		if err != nil {
+			if err == errCommandNotFound {
+				cli.noSuchCommand(args[0])
+				return nil
+			}
+			return err
 		}
-		cli.noSuchCommand(args[0])
+		command("--help")
+		return nil
 	}
 
 	if cli.Usage == nil {

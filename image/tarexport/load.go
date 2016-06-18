@@ -10,6 +10,7 @@ import (
 	"reflect"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
@@ -61,6 +62,8 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 	}
 
 	var parentLinks []parentLink
+	var imageIDsStr string
+	var imageRefCount int
 
 	for _, m := range manifest {
 		configPath, err := safePath(tmpDir, m.Config)
@@ -92,7 +95,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 			r.Append(diffID)
 			newLayer, err := l.ls.Get(r.ChainID())
 			if err != nil {
-				newLayer, err = l.loadLayer(layerPath, rootFS, diffID.String(), progressOutput)
+				newLayer, err = l.loadLayer(layerPath, rootFS, diffID.String(), m.LayerSources[diffID], progressOutput)
 				if err != nil {
 					return err
 				}
@@ -108,7 +111,9 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 		if err != nil {
 			return err
 		}
+		imageIDsStr += fmt.Sprintf("Loaded image ID: %s\n", imgID)
 
+		imageRefCount = 0
 		for _, repoTag := range m.RepoTags {
 			named, err := reference.ParseNamed(repoTag)
 			if err != nil {
@@ -119,6 +124,8 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 				return fmt.Errorf("invalid tag %q", repoTag)
 			}
 			l.setLoadedTag(ref, imgID, outStream)
+			outStream.Write([]byte(fmt.Sprintf("Loaded image: %s\n", ref)))
+			imageRefCount++
 		}
 
 		parentLinks = append(parentLinks, parentLink{imgID, m.Parent})
@@ -131,6 +138,10 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 				return err
 			}
 		}
+	}
+
+	if imageRefCount == 0 {
+		outStream.Write([]byte(imageIDsStr))
 	}
 
 	return nil
@@ -151,7 +162,7 @@ func (l *tarexporter) setParentID(id, parentID image.ID) error {
 	return l.is.SetParent(id, parentID)
 }
 
-func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string, progressOutput progress.Output) (layer.Layer, error) {
+func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string, foreignSrc distribution.Descriptor, progressOutput progress.Output) (layer.Layer, error) {
 	rawTar, err := os.Open(filename)
 	if err != nil {
 		logrus.Debugf("Error reading embedded tar: %v", err)
@@ -174,7 +185,15 @@ func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS, id string,
 
 		progressReader := progress.NewProgressReader(inflatedLayerData, progressOutput, fileInfo.Size(), stringid.TruncateID(id), "Loading layer")
 
+		if ds, ok := l.ls.(layer.DescribableStore); ok {
+			return ds.RegisterWithDescriptor(progressReader, rootFS.ChainID(), foreignSrc)
+		}
 		return l.ls.Register(progressReader, rootFS.ChainID())
+
+	}
+
+	if ds, ok := l.ls.(layer.DescribableStore); ok {
+		return ds.RegisterWithDescriptor(inflatedLayerData, rootFS.ChainID(), foreignSrc)
 	}
 	return l.ls.Register(inflatedLayerData, rootFS.ChainID())
 }
@@ -298,7 +317,7 @@ func (l *tarexporter) legacyLoadImage(oldID, sourceDir string, loadedMap map[str
 	if err != nil {
 		return err
 	}
-	newLayer, err := l.loadLayer(layerPath, *rootFS, oldID, progressOutput)
+	newLayer, err := l.loadLayer(layerPath, *rootFS, oldID, distribution.Descriptor{}, progressOutput)
 	if err != nil {
 		return err
 	}

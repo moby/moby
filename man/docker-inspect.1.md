@@ -223,7 +223,7 @@ output:
 You can get more information about how to write a Go template from:
 https://golang.org/pkg/text/template/.
 
-## Getting size information on an container
+## Getting size information on a container
 
     $ docker inspect -s d2cc496561d6
     [

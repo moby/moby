@@ -58,7 +58,7 @@ func TestFileSpecPlugin(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if p.Name != c.name {
+		if p.name != c.name {
 			t.Fatalf("Expected plugin `%s`, got %s\n", c.name, p.Name)
 		}
 
@@ -97,7 +97,7 @@ func TestFileJSONSpecPlugin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if plugin.Name != "example" {
+	if plugin.name != "example" {
 		t.Fatalf("Expected plugin `plugin-example`, got %s\n", plugin.Name)
 	}
 

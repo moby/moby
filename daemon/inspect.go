@@ -23,10 +23,12 @@ func (daemon *Daemon) ContainerInspect(name string, size bool, version string) (
 	case versions.Equal(version, "1.20"):
 		return daemon.containerInspect120(name)
 	}
-	return daemon.containerInspectCurrent(name, size)
+	return daemon.ContainerInspectCurrent(name, size)
 }
 
-func (daemon *Daemon) containerInspectCurrent(name string, size bool) (*types.ContainerJSON, error) {
+// ContainerInspectCurrent returns low-level information about a
+// container in a most recent api version.
+func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.ContainerJSON, error) {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
@@ -108,6 +110,15 @@ func (daemon *Daemon) getInspectData(container *container.Container, size bool) 
 		hostConfig.Links = append(hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
 	}
 
+	var containerHealth *types.Health
+	if container.State.Health != nil {
+		containerHealth = &types.Health{
+			Status:        container.State.Health.Status,
+			FailingStreak: container.State.Health.FailingStreak,
+			Log:           append([]*types.HealthcheckResult{}, container.State.Health.Log...),
+		}
+	}
+
 	containerState := &types.ContainerState{
 		Status:     container.State.StateString(),
 		Running:    container.State.Running,
@@ -116,10 +127,11 @@ func (daemon *Daemon) getInspectData(container *container.Container, size bool) 
 		OOMKilled:  container.State.OOMKilled,
 		Dead:       container.State.Dead,
 		Pid:        container.State.Pid,
-		ExitCode:   container.State.ExitCode,
-		Error:      container.State.Error,
+		ExitCode:   container.State.ExitCode(),
+		Error:      container.State.Error(),
 		StartedAt:  container.State.StartedAt.Format(time.RFC3339Nano),
 		FinishedAt: container.State.FinishedAt.Format(time.RFC3339Nano),
+		Health:     containerHealth,
 	}
 
 	contJSONBase := &types.ContainerJSONBase{

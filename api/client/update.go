@@ -23,7 +23,7 @@ func (cli *DockerCli) CmdUpdate(args ...string) error {
 	flCPUQuota := cmd.Int64([]string{"-cpu-quota"}, 0, "Limit CPU CFS (Completely Fair Scheduler) quota")
 	flCpusetCpus := cmd.String([]string{"-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 	flCpusetMems := cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
-	flCPUShares := cmd.Int64([]string{"#c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
+	flCPUShares := cmd.Int64([]string{"c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
 	flMemoryString := cmd.String([]string{"m", "-memory"}, "", "Memory limit")
 	flMemoryReservation := cmd.String([]string{"-memory-reservation"}, "", "Memory soft limit")
 	flMemorySwap := cmd.String([]string{"-memory-swap"}, "", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap")
@@ -99,10 +99,13 @@ func (cli *DockerCli) CmdUpdate(args ...string) error {
 		RestartPolicy: restartPolicy,
 	}
 
+	ctx := context.Background()
+
 	names := cmd.Args()
 	var errs []string
+
 	for _, name := range names {
-		if err := cli.client.ContainerUpdate(context.Background(), name, updateConfig); err != nil {
+		if err := cli.client.ContainerUpdate(ctx, name, updateConfig); err != nil {
 			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)

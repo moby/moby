@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/volume"
 	"github.com/docker/engine-api/types"
 	containertypes "github.com/docker/engine-api/types/container"
-	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 var (
@@ -28,10 +27,12 @@ func volumeToAPIType(v volume.Volume) *types.Volume {
 		Name:   v.Name(),
 		Driver: v.DriverName(),
 	}
-	if v, ok := v.(interface {
-		Labels() map[string]string
-	}); ok {
+	if v, ok := v.(volume.LabeledVolume); ok {
 		tv.Labels = v.Labels()
+	}
+
+	if v, ok := v.(volume.ScopedVolume); ok {
+		tv.Scope = v.Scope()
 	}
 	return tv
 }
@@ -65,9 +66,20 @@ func (m mounts) parts(i int) int {
 // 2. Select the volumes mounted from another containers. Overrides previously configured mount point destination.
 // 3. Select the bind mounts set by the client. Overrides previously configured mount point destinations.
 // 4. Cleanup old volumes that are about to be reassigned.
-func (daemon *Daemon) registerMountPoints(container *container.Container, hostConfig *containertypes.HostConfig) error {
+func (daemon *Daemon) registerMountPoints(container *container.Container, hostConfig *containertypes.HostConfig) (retErr error) {
 	binds := map[string]bool{}
 	mountPoints := map[string]*volume.MountPoint{}
+	defer func() {
+		// clean up the container mountpoints once return with error
+		if retErr != nil {
+			for _, m := range mountPoints {
+				if m.Volume == nil {
+					continue
+				}
+				daemon.volumes.Dereference(m.Volume, container.ID)
+			}
+		}
+	}()
 
 	// 1. Read already configured mount points.
 	for name, point := range container.MountPoints {
@@ -117,7 +129,8 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			return err
 		}
 
-		if binds[bind.Destination] {
+		_, tmpfsExists := hostConfig.Tmpfs[bind.Destination]
+		if binds[bind.Destination] || tmpfsExists {
 			return fmt.Errorf("Duplicate mount point '%s'", bind.Destination)
 		}
 
@@ -137,11 +150,6 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			}
 		}
 
-		if label.RelabelNeeded(bind.Mode) {
-			if err := label.Relabel(bind.Source, container.MountLabel, label.IsShared(bind.Mode)); err != nil {
-				return err
-			}
-		}
 		binds[bind.Destination] = true
 		mountPoints[bind.Destination] = bind
 	}

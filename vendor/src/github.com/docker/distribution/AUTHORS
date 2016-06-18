@@ -1,4 +1,5 @@
 Aaron Lehmann <aaron.lehmann@docker.com>
+Aaron Schlesinger <aschlesinger@deis.com>
 Aaron Vinson <avinson.public@gmail.com>
 Adam Enger <adamenger@gmail.com>
 Adrian Mouat <adrian.mouat@gmail.com>
@@ -7,13 +8,16 @@ Alex Chan <alex.chan@metaswitch.com>
 Alex Elman <aelman@indeed.com>
 amitshukla <ashukla73@hotmail.com>
 Amy Lindburg <amy.lindburg@docker.com>
+Andrew Hsu <andrewhsu@acm.org>
 Andrew Meredith <andymeredith@gmail.com>
 Andrew T Nguyen <andrew.nguyen@docker.com>
 Andrey Kostov <kostov.andrey@gmail.com>
 Andy Goldstein <agoldste@redhat.com>
+Anis Elleuch <vadmeste@gmail.com>
 Anton Tiurin <noxiouz@yandex.ru>
 Antonio Mercado <amercado@thinknode.com>
 Antonio Murdaca <runcom@redhat.com>
+Arien Holthuizen <aholthuizen@schubergphilis.com>
 Arnaud Porterie <arnaud.porterie@docker.com>
 Arthur Baars <arthur@semmle.com>
 Asuka Suzuki <hello@tanksuzuki.com>
@@ -27,6 +31,7 @@ burnettk <burnettk@gmail.com>
 Carson A <ca@carsonoid.net>
 Chris Dillon <squarism@gmail.com>
 Daisuke Fujita <dtanshi45@gmail.com>
+Daniel Huhn <daniel@danielhuhn.de>
 Darren Shepherd <darren@rancher.com>
 Dave Trombley <dave.trombley@gmail.com>
 Dave Tucker <dt@docker.com>
@@ -41,6 +46,7 @@ DJ Enriquez <dj.enriquez@infospace.com>
 Donald Huang <don.hcd@gmail.com>
 Doug Davis <dug@us.ibm.com>
 Eric Yang <windfarer@gmail.com>
+Fabio Huser <fabio@fh1.ch>
 farmerworking <farmerworking@gmail.com>
 Felix Yan <felixonmars@archlinux.org>
 Florentin Raud <florentin.raud@gmail.com>
@@ -57,8 +63,10 @@ Jack Griffin <jackpg14@gmail.com>
 Jason Freidman <jason.freidman@gmail.com>
 Jeff Nickoloff <jeff@allingeek.com>
 Jessie Frazelle <jessie@docker.com>
+jhaohai <jhaohai@foxmail.com>
 Jianqing Wang <tsing@jianqing.org>
 John Starks <jostarks@microsoft.com>
+Jon Johnson <jonjohnson@google.com>
 Jon Poler <jonathan.poler@apcera.com>
 Jonathan Boulle <jonathanboulle@gmail.com>
 Jordan Liggitt <jliggitt@redhat.com>
@@ -92,17 +100,20 @@ Olivier Gambier <olivier@docker.com>
 Olivier Jacques <olivier.jacques@hp.com>
 Omer Cohen <git@omer.io>
 Patrick Devine <patrick.devine@docker.com>
+Phil Estes <estesp@linux.vnet.ibm.com>
 Philip Misiowiec <philip@atlashealth.com>
 Richard Scothern <richard.scothern@docker.com>
 Rodolfo Carvalho <rhcarvalho@gmail.com>
 Rusty Conover <rusty@luckydinosaur.com>
 Sean Boran <Boran@users.noreply.github.com>
 Sebastiaan van Stijn <github@gone.nl>
+Serge Dubrouski <sergeyfd@gmail.com>
 Sharif Nassar <sharif@mrwacky.com>
 Shawn Falkner-Horine <dreadpirateshawn@gmail.com>
 Shreyas Karnik <karnik.shreyas@gmail.com>
 Simon Thulbourn <simon+github@thulbourn.com>
 Spencer Rinehart <anubis@overthemonkey.com>
+Stefan Majewsky <stefan.majewsky@sap.com>
 Stefan Weil <sw@weilnetz.de>
 Stephen J Day <stephen.day@docker.com>
 Sungho Moon <sungho.moon@navercorp.com>
@@ -114,6 +125,7 @@ Thomas Sjögren <konstruktoid@users.noreply.github.com>
 Tianon Gravi <admwiggin@gmail.com>
 Tibor Vass <teabee89@gmail.com>
 Tonis Tiigi <tonistiigi@gmail.com>
+Tony Holdstock-Brown <tony@docker.com>
 Trevor Pounds <trevor.pounds@gmail.com>
 Troels Thomsen <troels@thomsen.io>
 Vincent Batts <vbatts@redhat.com>

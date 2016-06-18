@@ -176,20 +176,6 @@ if [ -z "$DONT_TOUCH_SOURCES_LIST" ]; then
 						s/ $suite / ${suite}-updates /
 					" "$rootfsDir/etc/apt/sources.list"
 					echo "deb http://security.debian.org $suite/updates main" >> "$rootfsDir/etc/apt/sources.list"
-					# squeeze-lts
-					if [ -f "$rootfsDir/etc/debian_version" ]; then
-						ltsSuite=
-						case "$(cat "$rootfsDir/etc/debian_version")" in
-							6.*) ltsSuite='squeeze-lts' ;;
-							#7.*) ltsSuite='wheezy-lts' ;;
-							#8.*) ltsSuite='jessie-lts' ;;
-						esac
-						if [ "$ltsSuite" ]; then
-							head -1 "$rootfsDir/etc/apt/sources.list" \
-								| sed "s/ $suite / $ltsSuite /" \
-									>> "$rootfsDir/etc/apt/sources.list"
-						fi
-					fi
 				)
 			fi
 			;;

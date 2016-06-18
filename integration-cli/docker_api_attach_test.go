@@ -17,7 +17,7 @@ func (s *DockerSuite) TestGetContainersAttachWebsocket(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-dit", "busybox", "cat")
 
-	rwc, err := sockConn(time.Duration(10 * time.Second))
+	rwc, err := sockConn(time.Duration(10*time.Second), "")
 	c.Assert(err, checker.IsNil)
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -67,7 +67,7 @@ func (s *DockerSuite) TestGetContainersAttachWebsocket(c *check.C) {
 
 // regression gh14320
 func (s *DockerSuite) TestPostContainersAttachContainerNotFound(c *check.C) {
-	req, client, err := newRequestClient("POST", "/containers/doesnotexist/attach", nil, "")
+	req, client, err := newRequestClient("POST", "/containers/doesnotexist/attach", nil, "", "")
 	c.Assert(err, checker.IsNil)
 
 	resp, err := client.Do(req)
@@ -85,8 +85,8 @@ func (s *DockerSuite) TestGetContainersWsAttachContainerNotFound(c *check.C) {
 	status, body, err := sockRequest("GET", "/containers/doesnotexist/attach/ws", nil)
 	c.Assert(status, checker.Equals, http.StatusNotFound)
 	c.Assert(err, checker.IsNil)
-	expected := "No such container: doesnotexist\n"
-	c.Assert(string(body), checker.Contains, expected)
+	expected := "No such container: doesnotexist"
+	c.Assert(getErrorMessage(c, body), checker.Contains, expected)
 }
 
 func (s *DockerSuite) TestPostContainersAttach(c *check.C) {

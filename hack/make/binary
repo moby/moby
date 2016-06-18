@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+rm -rf "$DEST"
 
 # This script exists as backwards compatibility for CI
 (

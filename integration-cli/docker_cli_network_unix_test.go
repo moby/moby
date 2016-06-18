@@ -56,7 +56,7 @@ func (s *DockerNetworkSuite) TearDownTest(c *check.C) {
 func (s *DockerNetworkSuite) SetUpSuite(c *check.C) {
 	mux := http.NewServeMux()
 	s.server = httptest.NewServer(mux)
-	c.Assert(s.server, check.NotNil, check.Commentf("Failed to start a HTTP Server"))
+	c.Assert(s.server, check.NotNil, check.Commentf("Failed to start an HTTP Server"))
 	setupRemoteNetworkDrivers(c, mux, s.server.URL, dummyNetworkDriver, dummyIpamDriver)
 }
 
@@ -379,7 +379,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkCreateLabel(c *check.C) {
 	dockerCmd(c, "network", "create", "--label", testLabel+"="+testValue, testNet)
 	assertNwIsAvailable(c, testNet)
 
-	out, _, err := dockerCmdWithError("network", "inspect", "--format='{{ .Labels."+testLabel+" }}'", testNet)
+	out, _, err := dockerCmdWithError("network", "inspect", "--format={{ .Labels."+testLabel+" }}", testNet)
 	c.Assert(err, check.IsNil)
 	c.Assert(strings.TrimSpace(out), check.Equals, testValue)
 
@@ -423,8 +423,19 @@ func (s *DockerSuite) TestDockerNetworkInspect(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(networkResources, checker.HasLen, 1)
 
-	out, _ = dockerCmd(c, "network", "inspect", "--format='{{ .Name }}'", "host")
+	out, _ = dockerCmd(c, "network", "inspect", "--format={{ .Name }}", "host")
 	c.Assert(strings.TrimSpace(out), check.Equals, "host")
+}
+
+func (s *DockerSuite) TestDockerNetworkInspectWithID(c *check.C) {
+	out, _ := dockerCmd(c, "network", "create", "test2")
+	networkID := strings.TrimSpace(out)
+	assertNwIsAvailable(c, "test2")
+	out, _ = dockerCmd(c, "network", "inspect", "--format={{ .Id }}", "test2")
+	c.Assert(strings.TrimSpace(out), check.Equals, networkID)
+
+	out, _ = dockerCmd(c, "network", "inspect", "--format={{ .ID }}", "test2")
+	c.Assert(strings.TrimSpace(out), check.Equals, networkID)
 }
 
 func (s *DockerSuite) TestDockerInspectMultipleNetwork(c *check.C) {
@@ -1110,6 +1121,52 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectWithPortMapping(c *check.C)
 	dockerCmd(c, "network", "connect", "test1", "c1")
 }
 
+func verifyPortMap(c *check.C, container, port, originalMapping string, mustBeEqual bool) {
+	chk := checker.Equals
+	if !mustBeEqual {
+		chk = checker.Not(checker.Equals)
+	}
+	currentMapping, _ := dockerCmd(c, "port", container, port)
+	c.Assert(currentMapping, chk, originalMapping)
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnectWithPortMapping(c *check.C) {
+	// Connect and disconnect a container with explicit and non-explicit
+	// host port mapping to/from networks which do cause and do not cause
+	// the container default gateway to change, and verify docker port cmd
+	// returns congruent information
+	testRequires(c, NotArm)
+	cnt := "c1"
+	dockerCmd(c, "network", "create", "aaa")
+	dockerCmd(c, "network", "create", "ccc")
+
+	dockerCmd(c, "run", "-d", "--name", cnt, "-p", "9000:90", "-p", "70", "busybox", "top")
+	c.Assert(waitRun(cnt), check.IsNil)
+	curPortMap, _ := dockerCmd(c, "port", cnt, "70")
+	curExplPortMap, _ := dockerCmd(c, "port", cnt, "90")
+
+	// Connect to a network which causes the container's default gw switch
+	dockerCmd(c, "network", "connect", "aaa", cnt)
+	verifyPortMap(c, cnt, "70", curPortMap, false)
+	verifyPortMap(c, cnt, "90", curExplPortMap, true)
+
+	// Read current mapping
+	curPortMap, _ = dockerCmd(c, "port", cnt, "70")
+
+	// Disconnect from a network which causes the container's default gw switch
+	dockerCmd(c, "network", "disconnect", "aaa", cnt)
+	verifyPortMap(c, cnt, "70", curPortMap, false)
+	verifyPortMap(c, cnt, "90", curExplPortMap, true)
+
+	// Read current mapping
+	curPortMap, _ = dockerCmd(c, "port", cnt, "70")
+
+	// Connect to a network which does not cause the container's default gw switch
+	dockerCmd(c, "network", "connect", "ccc", cnt)
+	verifyPortMap(c, cnt, "70", curPortMap, true)
+	verifyPortMap(c, cnt, "90", curExplPortMap, true)
+}
+
 func (s *DockerNetworkSuite) TestDockerNetworkConnectWithMac(c *check.C) {
 	macAddress := "02:42:ac:11:00:02"
 	dockerCmd(c, "network", "create", "mynetwork")
@@ -1279,6 +1336,53 @@ func verifyIPAddresses(c *check.C, cName, nwname, ipv4, ipv6 string) {
 	c.Assert(strings.TrimSpace(out), check.Equals, ipv6)
 }
 
+func (s *DockerNetworkSuite) TestDockerNetworkConnectLinkLocalIP(c *check.C) {
+	// create one test network
+	dockerCmd(c, "network", "create", "n0")
+	assertNwIsAvailable(c, "n0")
+
+	// run a container with incorrect link-local address
+	_, _, err := dockerCmdWithError("run", "--link-local-ip", "169.253.5.5", "busybox", "top")
+	c.Assert(err, check.NotNil)
+	_, _, err = dockerCmdWithError("run", "--link-local-ip", "2001:db8::89", "busybox", "top")
+	c.Assert(err, check.NotNil)
+
+	// run two containers with link-local ip on the test network
+	dockerCmd(c, "run", "-d", "--name", "c0", "--net=n0", "--link-local-ip", "169.254.7.7", "--link-local-ip", "fe80::254:77", "busybox", "top")
+	c.Assert(waitRun("c0"), check.IsNil)
+	dockerCmd(c, "run", "-d", "--name", "c1", "--net=n0", "--link-local-ip", "169.254.8.8", "--link-local-ip", "fe80::254:88", "busybox", "top")
+	c.Assert(waitRun("c1"), check.IsNil)
+
+	// run a container on the default network and connect it to the test network specifying a link-local address
+	dockerCmd(c, "run", "-d", "--name", "c2", "busybox", "top")
+	c.Assert(waitRun("c2"), check.IsNil)
+	dockerCmd(c, "network", "connect", "--link-local-ip", "169.254.9.9", "n0", "c2")
+
+	// verify the three containers can ping each other via the link-local addresses
+	_, _, err = dockerCmdWithError("exec", "c0", "ping", "-c", "1", "169.254.8.8")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "c1", "ping", "-c", "1", "169.254.9.9")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "c2", "ping", "-c", "1", "169.254.7.7")
+	c.Assert(err, check.IsNil)
+
+	// Stop and restart the three containers
+	dockerCmd(c, "stop", "c0")
+	dockerCmd(c, "stop", "c1")
+	dockerCmd(c, "stop", "c2")
+	dockerCmd(c, "start", "c0")
+	dockerCmd(c, "start", "c1")
+	dockerCmd(c, "start", "c2")
+
+	// verify the ping again
+	_, _, err = dockerCmdWithError("exec", "c0", "ping", "-c", "1", "169.254.8.8")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "c1", "ping", "-c", "1", "169.254.9.9")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "c2", "ping", "-c", "1", "169.254.7.7")
+	c.Assert(err, check.IsNil)
+}
+
 func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectLink(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
 	dockerCmd(c, "network", "create", "-d", "bridge", "foo1")
@@ -1318,26 +1422,6 @@ func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectLink(c *check.C) {
 	// link in foo2 network must succeed
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "FirstInFoo2")
 	c.Assert(err, check.IsNil)
-}
-
-// #19100 This is a deprecated feature test, it should be removed in Docker 1.12
-func (s *DockerNetworkSuite) TestDockerNetworkStartAPIWithHostconfig(c *check.C) {
-	netName := "test"
-	conName := "foo"
-	dockerCmd(c, "network", "create", netName)
-	dockerCmd(c, "create", "--name", conName, "busybox", "top")
-
-	config := map[string]interface{}{
-		"HostConfig": map[string]interface{}{
-			"NetworkMode": netName,
-		},
-	}
-	_, _, err := sockRequest("POST", "/containers/"+conName+"/start", config)
-	c.Assert(err, checker.IsNil)
-	c.Assert(waitRun(conName), checker.IsNil)
-	networks := inspectField(c, conName, "NetworkSettings.Networks")
-	c.Assert(networks, checker.Contains, netName, check.Commentf(fmt.Sprintf("Should contain '%s' network", netName)))
-	c.Assert(networks, checker.Not(checker.Contains), "bridge", check.Commentf("Should not contain 'bridge' network"))
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkDisconnectDefault(c *check.C) {
@@ -1501,4 +1585,78 @@ func (s *DockerNetworkSuite) TestDockerNetworkCreateDeleteSpecialCharacters(c *c
 	assertNwIsAvailable(c, "kiwl$%^")
 	dockerCmd(c, "network", "rm", "kiwl$%^")
 	assertNwNotAvailable(c, "kiwl$%^")
+}
+
+func (s *DockerDaemonSuite) TestDaemonRestartRestoreBridgeNetwork(t *check.C) {
+	testRequires(t, DaemonIsLinux)
+	if err := s.d.StartWithBusybox("--live-restore"); err != nil {
+		t.Fatal(err)
+	}
+	defer s.d.Stop()
+	oldCon := "old"
+
+	_, err := s.d.Cmd("run", "-d", "--name", oldCon, "-p", "80:80", "busybox", "top")
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldContainerIP, err := s.d.Cmd("inspect", "-f", "{{ .NetworkSettings.Networks.bridge.IPAddress }}", oldCon)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Kill the daemon
+	if err := s.d.Kill(); err != nil {
+		t.Fatal(err)
+	}
+
+	// restart the daemon
+	if err := s.d.Start("--live-restore"); err != nil {
+		t.Fatal(err)
+	}
+
+	// start a new container, the new container's ip should not be the same with
+	// old running container.
+	newCon := "new"
+	_, err = s.d.Cmd("run", "-d", "--name", newCon, "busybox", "top")
+	if err != nil {
+		t.Fatal(err)
+	}
+	newContainerIP, err := s.d.Cmd("inspect", "-f", "{{ .NetworkSettings.Networks.bridge.IPAddress }}", newCon)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Compare(strings.TrimSpace(oldContainerIP), strings.TrimSpace(newContainerIP)) == 0 {
+		t.Fatalf("new container ip should not equal to old running container  ip")
+	}
+
+	// start a new container, the new container should ping old running container
+	_, err = s.d.Cmd("run", "-t", "busybox", "ping", "-c", "1", oldContainerIP)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// start a new container, trying to publish port 80:80 should fail
+	out, err := s.d.Cmd("run", "-p", "80:80", "-d", "busybox", "top")
+	if err == nil || !strings.Contains(out, "Bind for 0.0.0.0:80 failed: port is already allocated") {
+		t.Fatalf("80 port is allocated to old running container, it should failed on allocating to new container")
+	}
+
+	// kill old running container and try to allocate again
+	_, err = s.d.Cmd("kill", oldCon)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := s.d.Cmd("run", "-p", "80:80", "-d", "busybox", "top")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Cleanup because these containers will not be shut down by daemon
+	out, err = s.d.Cmd("stop", newCon)
+	if err != nil {
+		t.Fatalf("err: %v %v", err, string(out))
+	}
+	_, err = s.d.Cmd("stop", strings.TrimSpace(id))
+	if err != nil {
+		t.Fatal(err)
+	}
 }

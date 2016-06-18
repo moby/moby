@@ -65,7 +65,7 @@ func (server *TCPEchoServer) Run() {
 }
 
 func (server *TCPEchoServer) LocalAddr() net.Addr { return server.listener.Addr() }
-func (server *TCPEchoServer) Close()              { server.listener.Addr() }
+func (server *TCPEchoServer) Close()              { server.listener.Close() }
 
 func (server *UDPEchoServer) Run() {
 	go func() {

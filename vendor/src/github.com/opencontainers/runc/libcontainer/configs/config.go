@@ -33,7 +33,7 @@ type Seccomp struct {
 	Syscalls      []*Syscall `json:"syscalls"`
 }
 
-// An action to be taken upon rule match in Seccomp
+// Action is taken upon rule match in Seccomp
 type Action int
 
 const (
@@ -44,7 +44,7 @@ const (
 	Trace
 )
 
-// A comparison operator to be used when matching syscall arguments in Seccomp
+// Operator is a comparison operator to be used when matching syscall arguments in Seccomp
 type Operator int
 
 const (
@@ -57,7 +57,7 @@ const (
 	MaskEqualTo
 )
 
-// A rule to match a specific syscall argument in Seccomp
+// Arg is a rule to match a specific syscall argument in Seccomp
 type Arg struct {
 	Index    uint     `json:"index"`
 	Value    uint64   `json:"value"`
@@ -65,7 +65,7 @@ type Arg struct {
 	Op       Operator `json:"op"`
 }
 
-// An rule to match a syscall in Seccomp
+// Syscall is a rule to match a syscall in Seccomp
 type Syscall struct {
 	Name   string `json:"name"`
 	Action Action `json:"action"`
@@ -187,6 +187,10 @@ type Config struct {
 
 	// Labels are user defined metadata that is stored in the config and populated on the state
 	Labels []string `json:"labels"`
+
+	// NoNewKeyring will not allocated a new session keyring for the container.  It will use the
+	// callers keyring in this case.
+	NoNewKeyring bool `json:"no_new_keyring"`
 }
 
 type Hooks struct {
@@ -249,10 +253,11 @@ func (hooks Hooks) MarshalJSON() ([]byte, error) {
 
 // HookState is the payload provided to a hook on execution.
 type HookState struct {
-	Version string `json:"version"`
-	ID      string `json:"id"`
-	Pid     int    `json:"pid"`
-	Root    string `json:"root"`
+	Version    string `json:"ociVersion"`
+	ID         string `json:"id"`
+	Pid        int    `json:"pid"`
+	Root       string `json:"root"`
+	BundlePath string `json:"bundlePath"`
 }
 
 type Hook interface {
@@ -260,7 +265,7 @@ type Hook interface {
 	Run(HookState) error
 }
 
-// NewFunctionHooks will call the provided function when the hook is run.
+// NewFunctionHook will call the provided function when the hook is run.
 func NewFunctionHook(f func(HookState) error) FuncHook {
 	return FuncHook{
 		run: f,
@@ -283,7 +288,7 @@ type Command struct {
 	Timeout *time.Duration `json:"timeout"`
 }
 
-// NewCommandHooks will execute the provided command when the hook is run.
+// NewCommandHook will execute the provided command when the hook is run.
 func NewCommandHook(cmd Command) CommandHook {
 	return CommandHook{
 		Command: cmd,
@@ -307,7 +312,11 @@ func (c Command) Run(s HookState) error {
 	}
 	errC := make(chan error, 1)
 	go func() {
-		errC <- cmd.Run()
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			err = fmt.Errorf("%s: %s", err, out)
+		}
+		errC <- err
 	}()
 	if c.Timeout != nil {
 		select {

@@ -311,6 +311,18 @@ func TimeValue(v *time.Time) time.Time {
 	return time.Time{}
 }
 
+// TimeUnixMilli returns a Unix timestamp in milliseconds from "January 1, 1970 UTC".
+// The result is undefined if the Unix time cannot be represented by an int64.
+// Which includes calling TimeUnixMilli on a zero Time is undefined.
+//
+// This utility is useful for service API's such as CloudWatch Logs which require
+// their unix time values to be in milliseconds.
+//
+// See Go stdlib https://golang.org/pkg/time/#Time.UnixNano for more information.
+func TimeUnixMilli(t time.Time) int64 {
+	return t.UnixNano() / int64(time.Millisecond/time.Nanosecond)
+}
+
 // TimeSlice converts a slice of time.Time values into a slice of
 // time.Time pointers
 func TimeSlice(src []time.Time) []*time.Time {

@@ -21,19 +21,19 @@ type Timestamp struct {
 	Meta Files `json:"meta"`
 }
 
-// isValidTimestampStructure returns an error, or nil, depending on whether the content of the struct
+// IsValidTimestampStructure returns an error, or nil, depending on whether the content of the struct
 // is valid for timestamp metadata.  This does not check signatures or expiry, just that
 // the metadata content is valid.
-func isValidTimestampStructure(t Timestamp) error {
+func IsValidTimestampStructure(t Timestamp) error {
 	expectedType := TUFTypes[CanonicalTimestampRole]
 	if t.Type != expectedType {
 		return ErrInvalidMetadata{
 			role: CanonicalTimestampRole, msg: fmt.Sprintf("expected type %s, not %s", expectedType, t.Type)}
 	}
 
-	if t.Version < 0 {
+	if t.Version < 1 {
 		return ErrInvalidMetadata{
-			role: CanonicalTimestampRole, msg: "version cannot be negative"}
+			role: CanonicalTimestampRole, msg: "version cannot be less than one"}
 	}
 
 	// Meta is a map of FileMeta, so if the role isn't in the map it returns
@@ -124,7 +124,7 @@ func TimestampFromSigned(s *Signed) (*SignedTimestamp, error) {
 	if err := defaultSerializer.Unmarshal(*s.Signed, &ts); err != nil {
 		return nil, err
 	}
-	if err := isValidTimestampStructure(ts); err != nil {
+	if err := IsValidTimestampStructure(ts); err != nil {
 		return nil, err
 	}
 	sigs := make([]Signature, len(s.Signatures))

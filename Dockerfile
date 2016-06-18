@@ -30,10 +30,6 @@ RUN apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys E87
 	|| apt-key adv --keyserver hkp://pgp.mit.edu:80 --recv-keys E871F18B51E0147C77796AC81196BA81F6B0FC61
 RUN echo deb http://ppa.launchpad.net/zfs-native/stable/ubuntu trusty main > /etc/apt/sources.list.d/zfs.list
 
-# add llvm repo
-RUN apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 6084F3CF814B57C1CF12EFD515CF4D18AF4F7421 \
-	|| apt-key adv --keyserver hkp://pgp.mit.edu:80 --recv-keys 6084F3CF814B57C1CF12EFD515CF4D18AF4F7421
-RUN echo deb http://llvm.org/apt/jessie/ llvm-toolchain-jessie-3.8 main > /etc/apt/sources.list.d/llvm.list
 
 # allow replacing httpredir mirror
 ARG APT_MIRROR=httpredir.debian.org
@@ -50,7 +46,7 @@ RUN apt-get update && apt-get install -y \
 	bsdmainutils \
 	btrfs-tools \
 	build-essential \
-	clang-3.8 \
+	clang \
 	createrepo \
 	curl \
 	dpkg-sig \
@@ -77,10 +73,7 @@ RUN apt-get update && apt-get install -y \
 	tar \
 	zip \
 	--no-install-recommends \
-	&& pip install awscli==1.10.15 \
-	&& ln -snf /usr/bin/clang-3.8 /usr/local/bin/clang \
-	&& ln -snf /usr/bin/clang++-3.8 /usr/local/bin/clang++
-
+	&& pip install awscli==1.10.15
 # Get lvm2 source for compiling statically
 ENV LVM2_VERSION 2.02.103
 RUN mkdir -p /usr/local/lvm2 \
@@ -109,7 +102,7 @@ RUN set -x \
 ENV PATH /osxcross/target/bin:$PATH
 
 # install seccomp: the version shipped in trusty is too old
-ENV SECCOMP_VERSION 2.3.0
+ENV SECCOMP_VERSION 2.3.1
 RUN set -x \
 	&& export SECCOMP_PATH="$(mktemp -d)" \
 	&& curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
@@ -127,18 +120,9 @@ RUN set -x \
 # IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines
 #            will need updating, to avoid errors. Ping #docker-maintainers on IRC
 #            with a heads-up.
-ENV GO_VERSION 1.5.4
+ENV GO_VERSION 1.6.2
 RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" \
 	| tar -xzC /usr/local
-
-# !!! TEMPORARY HACK !!!
-# Because of https://github.com/golang/go/issues/15286 we have to revert to Go 1.5.3 for windows/amd64 in master
-# To change which version of Go to compile with, simply prepend PATH with /usr/local/go1.5.3/bin
-# and set GOROOT to /usr/local/go1.5.3
-ENV HACK_GO_VERSION 1.5.3
-RUN curl -fsSL "https://storage.googleapis.com/golang/go${HACK_GO_VERSION}.linux-amd64.tar.gz" \
-	| tar -xzC /tmp \
-	&& mv /tmp/go "/usr/local/go${HACK_GO_VERSION}"
 
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
@@ -186,9 +170,8 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install notary and notary-server
-ENV NOTARY_VERSION v0.3.0-RC1
+ENV NOTARY_VERSION v0.3.0
 RUN set -x \
-	&& export GO15VENDOREXPERIMENT=1 \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
 	&& (cd "$GOPATH/src/github.com/docker/notary" && git checkout -q "$NOTARY_VERSION") \
@@ -250,7 +233,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install runc
-ENV RUNC_COMMIT baf6536d6259209c3edfa2b22237af82942d3dfa
+ENV RUNC_COMMIT cc29e3dded8e27ba8f65738f40d251c885030a28
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
@@ -261,7 +244,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install containerd
-ENV CONTAINERD_COMMIT v0.2.1
+ENV CONTAINERD_COMMIT 860f3a94940894ac0a106eff4bd1616a67407ee2
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \

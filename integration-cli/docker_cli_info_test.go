@@ -32,6 +32,11 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 		"Storage Driver:",
 		"Volume:",
 		"Network:",
+		"Security Options:",
+	}
+
+	if DaemonIsLinux.Condition() {
+		stringsToCheck = append(stringsToCheck, "Runtimes:", "Default Runtime: default")
 	}
 
 	if utils.ExperimentalBuild() {

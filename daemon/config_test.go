@@ -216,7 +216,7 @@ func TestValidateConfiguration(t *testing.T) {
 		},
 	}
 
-	err := validateConfiguration(c1)
+	err := ValidateConfiguration(c1)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -227,7 +227,7 @@ func TestValidateConfiguration(t *testing.T) {
 		},
 	}
 
-	err = validateConfiguration(c2)
+	err = ValidateConfiguration(c2)
 	if err != nil {
 		t.Fatalf("expected no error, got error %v", err)
 	}
@@ -238,7 +238,7 @@ func TestValidateConfiguration(t *testing.T) {
 		},
 	}
 
-	err = validateConfiguration(c3)
+	err = ValidateConfiguration(c3)
 	if err != nil {
 		t.Fatalf("expected no error, got error %v", err)
 	}
@@ -249,7 +249,7 @@ func TestValidateConfiguration(t *testing.T) {
 		},
 	}
 
-	err = validateConfiguration(c4)
+	err = ValidateConfiguration(c4)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -260,7 +260,7 @@ func TestValidateConfiguration(t *testing.T) {
 		},
 	}
 
-	err = validateConfiguration(c5)
+	err = ValidateConfiguration(c5)
 	if err != nil {
 		t.Fatalf("expected no error, got error %v", err)
 	}
@@ -271,7 +271,7 @@ func TestValidateConfiguration(t *testing.T) {
 		},
 	}
 
-	err = validateConfiguration(c6)
+	err = ValidateConfiguration(c6)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}

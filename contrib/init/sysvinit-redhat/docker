@@ -22,7 +22,7 @@
 # Source function library.
 . /etc/rc.d/init.d/functions
 
-prog="docker"
+prog="dockerd"
 unshare=/usr/bin/unshare
 exec="/usr/bin/$prog"
 pidfile="/var/run/$prog.pid"
@@ -56,7 +56,7 @@ start() {
         prestart
         printf "Starting $prog:\t"
         echo "\n$(date)\n" >> $logfile
-        "$unshare" -m -- $exec daemon $other_args >> $logfile 2>&1 &
+        "$unshare" -m -- $exec $other_args >> $logfile 2>&1 &
         pid=$!
         touch $lockfile
         # wait up to 10 seconds for the pidfile to exist.  see

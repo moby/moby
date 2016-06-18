@@ -58,9 +58,12 @@ type Sandbox interface {
 
 	// Destroy the sandbox
 	Destroy() error
+
+	// restore sandbox
+	Restore(ifsopt map[string][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error
 }
 
-// NeighborOptionSetter interfaces defines the option setter methods for interface options
+// NeighborOptionSetter interface defines the option setter methods for interface options
 type NeighborOptionSetter interface {
 	// LinkName returns an option setter to set the srcName of the link that should
 	// be used in the neighbor entry
@@ -85,6 +88,9 @@ type IfaceOptionSetter interface {
 	// Address returns an option setter to set IPv6 address.
 	AddressIPv6(*net.IPNet) IfaceOption
 
+	// LinkLocalAddresses returns an option setter to set the link-local IP addresses.
+	LinkLocalAddresses([]*net.IPNet) IfaceOption
+
 	// Master returns an option setter to set the master interface if any for this
 	// interface. The master interface name should refer to the srcname of a
 	// previously added interface of type bridge.
@@ -99,8 +105,8 @@ type IfaceOptionSetter interface {
 // interfaces, routes and gateway
 type Info interface {
 	// The collection of Interface previously added with the AddInterface
-	// method. Note that this doesn't incude network interfaces added in any
-	// other way (such as the default loopback interface which are automatically
+	// method. Note that this doesn't include network interfaces added in any
+	// other way (such as the default loopback interface which is automatically
 	// created on creation of a sandbox).
 	Interfaces() []Interface
 
@@ -137,6 +143,9 @@ type Interface interface {
 
 	// IPv6 address for the interface.
 	AddressIPv6() *net.IPNet
+
+	// LinkLocalAddresses returns the link-local IP addresses assigned to the interface.
+	LinkLocalAddresses() []*net.IPNet
 
 	// IP routes for the interface.
 	Routes() []*net.IPNet

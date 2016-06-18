@@ -132,7 +132,7 @@ func (gdw *NaiveDiffDriver) ApplyDiff(id, parent string, diff archive.Reader) (s
 	options := &archive.TarOptions{UIDMaps: gdw.uidMaps,
 		GIDMaps: gdw.gidMaps}
 	start := time.Now().UTC()
-	logrus.Debugf("Start untar layer")
+	logrus.Debug("Start untar layer")
 	if size, err = ApplyUncompressedLayer(layerFs, diff, options); err != nil {
 		return
 	}

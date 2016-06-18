@@ -131,11 +131,17 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		v.CPUCfsQuota = sysInfo.CPUCfsQuota
 		v.CPUShares = sysInfo.CPUShares
 		v.CPUSet = sysInfo.Cpuset
+		v.Runtimes = daemon.configStore.GetAllRuntimes()
+		v.DefaultRuntime = daemon.configStore.GetDefaultRuntimeName()
 	}
 
-	if hostname, err := os.Hostname(); err == nil {
-		v.Name = hostname
+	hostname := ""
+	if hn, err := os.Hostname(); err != nil {
+		logrus.Warnf("Could not get hostname: %v", err)
+	} else {
+		hostname = hn
 	}
+	v.Name = hostname
 
 	return v, nil
 }

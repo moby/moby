@@ -1,8 +1,12 @@
 #!/bin/bash
 set -e
 
+[ -z "$KEEPDEST" ] && \
+	rm -rf "$DEST"
+
 (
-	export BINARY_SHORT_NAME='dockerd'
+	source "${MAKEDIR}/.binary-setup"
+	export BINARY_SHORT_NAME="$DOCKER_DAEMON_BINARY_NAME"
 	export SOURCE_PATH='./cmd/dockerd'
 	source "${MAKEDIR}/.binary"
 	copy_containerd "$DEST" 'hash'

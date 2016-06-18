@@ -55,13 +55,13 @@ type Manifest struct {
 // Plugin is the definition of a docker plugin.
 type Plugin struct {
 	// Name of the plugin
-	Name string `json:"-"`
+	name string
 	// Address of the plugin
 	Addr string
 	// TLS configuration of the plugin
-	TLSConfig tlsconfig.Options
+	TLSConfig *tlsconfig.Options
 	// Client attached to the plugin
-	Client *Client `json:"-"`
+	client *Client
 	// Manifest of the plugin (see above)
 	Manifest *Manifest `json:"-"`
 
@@ -73,11 +73,23 @@ type Plugin struct {
 	activateWait *sync.Cond
 }
 
-func newLocalPlugin(name, addr string) *Plugin {
+// Name returns the name of the plugin.
+func (p *Plugin) Name() string {
+	return p.name
+}
+
+// Client returns a ready-to-use plugin client that can be used to communicate with the plugin.
+func (p *Plugin) Client() *Client {
+	return p.client
+}
+
+// NewLocalPlugin creates a new local plugin.
+func NewLocalPlugin(name, addr string) *Plugin {
 	return &Plugin{
-		Name:         name,
-		Addr:         addr,
-		TLSConfig:    tlsconfig.Options{InsecureSkipVerify: true},
+		name: name,
+		Addr: addr,
+		// TODO: change to nil
+		TLSConfig:    &tlsconfig.Options{InsecureSkipVerify: true},
 		activateWait: sync.NewCond(&sync.Mutex{}),
 	}
 }
@@ -102,10 +114,10 @@ func (p *Plugin) activateWithLock() error {
 	if err != nil {
 		return err
 	}
-	p.Client = c
+	p.client = c
 
 	m := new(Manifest)
-	if err = p.Client.Call("Plugin.Activate", nil, m); err != nil {
+	if err = p.client.Call("Plugin.Activate", nil, m); err != nil {
 		return err
 	}
 
@@ -116,7 +128,7 @@ func (p *Plugin) activateWithLock() error {
 		if !handled {
 			continue
 		}
-		handler(p.Name, p.Client)
+		handler(p.name, p.client)
 	}
 	return nil
 }

@@ -40,8 +40,7 @@ func init() {
 }
 
 // New creates a gelf logger using the configuration passed in on the
-// context. Supported context configuration variables are
-// gelf-address, & gelf-tag.
+// context. The supported context configuration variable is gelf-address.
 func New(ctx logger.Context) (logger.Logger, error) {
 	// parse gelf address
 	address, err := parseAddress(ctx.Config["gelf-address"])
@@ -153,13 +152,11 @@ func (s *gelfLogger) Name() string {
 	return name
 }
 
-// ValidateLogOpt looks for gelf specific log options gelf-address, &
-// gelf-tag.
+// ValidateLogOpt looks for gelf specific log option gelf-address.
 func ValidateLogOpt(cfg map[string]string) error {
 	for key, val := range cfg {
 		switch key {
 		case "gelf-address":
-		case "gelf-tag":
 		case "tag":
 		case "labels":
 		case "env":

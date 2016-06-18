@@ -14,7 +14,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -51,11 +50,7 @@ func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) e
 
 	if id == "" {
 		cmd := b.runConfig.Cmd
-		if runtime.GOOS != "windows" {
-			b.runConfig.Cmd = strslice.StrSlice{"/bin/sh", "-c", "#(nop) " + comment}
-		} else {
-			b.runConfig.Cmd = strslice.StrSlice{"cmd", "/S /C", "REM (nop) " + comment}
-		}
+		b.runConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), "#(nop) ", comment))
 		defer func(cmd strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
 
 		hit, err := b.probeCache()
@@ -177,11 +172,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	}
 
 	cmd := b.runConfig.Cmd
-	if runtime.GOOS != "windows" {
-		b.runConfig.Cmd = strslice.StrSlice{"/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest)}
-	} else {
-		b.runConfig.Cmd = strslice.StrSlice{"cmd", "/S", "/C", fmt.Sprintf("REM (nop) %s %s in %s", cmdName, srcHash, dest)}
-	}
+	b.runConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), "#(nop) %s %s in %s ", cmdName, srcHash, dest))
 	defer func(cmd strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
 
 	if hit, err := b.probeCache(); err != nil {
@@ -200,60 +191,8 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 
 	// Twiddle the destination when its a relative path - meaning, make it
 	// relative to the WORKINGDIR
-
-	endsInSlash := strings.HasSuffix(dest, string(os.PathSeparator))
-
-	if runtime.GOOS == "windows" {
-		// On Windows, this is more complicated. We are guaranteed that the
-		// WorkingDir is already platform consistent meaning in the format
-		// UPPERCASEDriveLetter-Colon-Backslash-Foldername. However, Windows
-		// for now also has the limitation that ADD/COPY can only be done to
-		// the C: (system) drive, not any drives that might be present as a
-		// result of bind mounts.
-		//
-		// So... if the path specified is Linux-style absolute (/foo or \\foo),
-		// we assume it is the system drive. If it is a Windows-style absolute
-		// (DRIVE:\\foo), error if DRIVE is not C. And finally, ensure we
-		// strip any configured working directories drive letter so that it
-		// can be subsequently legitimately converted to a Windows volume-style
-		// pathname.
-
-		// Not a typo - filepath.IsAbs, not system.IsAbs on this next check as
-		// we only want to validate where the DriveColon part has been supplied.
-		if filepath.IsAbs(dest) {
-			if strings.ToUpper(string(dest[0])) != "C" {
-				return fmt.Errorf("Windows does not support %s with a destinations not on the system drive (C:)", cmdName)
-			}
-			dest = dest[2:] // Strip the drive letter
-		}
-
-		// Cannot handle relative where WorkingDir is not the system drive.
-		if len(b.runConfig.WorkingDir) > 0 {
-			if !system.IsAbs(b.runConfig.WorkingDir[2:]) {
-				return fmt.Errorf("Current WorkingDir %s is not platform consistent", b.runConfig.WorkingDir)
-			}
-			if !system.IsAbs(dest) {
-				if string(b.runConfig.WorkingDir[0]) != "C" {
-					return fmt.Errorf("Windows does not support %s with relative paths when WORKDIR is not the system drive", cmdName)
-				}
-
-				dest = filepath.Join(string(os.PathSeparator), b.runConfig.WorkingDir[2:], dest)
-
-				// Make sure we preserve any trailing slash
-				if endsInSlash {
-					dest += string(os.PathSeparator)
-				}
-			}
-		}
-	} else {
-		if !system.IsAbs(dest) {
-			dest = filepath.Join(string(os.PathSeparator), filepath.FromSlash(b.runConfig.WorkingDir), dest)
-
-			// Make sure we preserve any trailing slash
-			if endsInSlash {
-				dest += string(os.PathSeparator)
-			}
-		}
+	if dest, err = normaliseDest(cmdName, b.runConfig.WorkingDir, dest); err != nil {
+		return err
 	}
 
 	for _, info := range infos {
@@ -670,25 +609,8 @@ func (b *Builder) readDockerfile() error {
 		}
 	}
 
-	f, err := b.context.Open(b.options.Dockerfile)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("Cannot locate specified Dockerfile: %s", b.options.Dockerfile)
-		}
-		return err
-	}
-	if f, ok := f.(*os.File); ok {
-		// ignoring error because Open already succeeded
-		fi, err := f.Stat()
-		if err != nil {
-			return fmt.Errorf("Unexpected error reading Dockerfile: %v", err)
-		}
-		if fi.Size() == 0 {
-			return fmt.Errorf("The Dockerfile (%s) cannot be empty", b.options.Dockerfile)
-		}
-	}
-	b.dockerfile, err = parser.Parse(f)
-	f.Close()
+	err := b.parseDockerfile()
+
 	if err != nil {
 		return err
 	}
@@ -704,6 +626,33 @@ func (b *Builder) readDockerfile() error {
 	if dockerIgnore, ok := b.context.(builder.DockerIgnoreContext); ok {
 		dockerIgnore.Process([]string{b.options.Dockerfile})
 	}
+	return nil
+}
+
+func (b *Builder) parseDockerfile() error {
+	f, err := b.context.Open(b.options.Dockerfile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("Cannot locate specified Dockerfile: %s", b.options.Dockerfile)
+		}
+		return err
+	}
+	defer f.Close()
+	if f, ok := f.(*os.File); ok {
+		// ignoring error because Open already succeeded
+		fi, err := f.Stat()
+		if err != nil {
+			return fmt.Errorf("Unexpected error reading Dockerfile: %v", err)
+		}
+		if fi.Size() == 0 {
+			return fmt.Errorf("The Dockerfile (%s) cannot be empty", b.options.Dockerfile)
+		}
+	}
+	b.dockerfile, err = parser.Parse(f)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

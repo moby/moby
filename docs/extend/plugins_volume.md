@@ -20,6 +20,7 @@ documentation](plugins.md) for more information.
 ### 1.12.0
 
 - Add `Status` field to `VolumeDriver.Get` response ([#21006](https://github.com/docker/docker/pull/21006#))
+- Add `VolumeDriver.Capabilities` to get capabilities of the volume driver([#22077](https://github.com/docker/docker/pull/22077))
 
 ### 1.10.0
 
@@ -158,7 +159,8 @@ Docker needs reminding of the path to the volume on the host.
 ```
 
 Respond with the path on the host filesystem where the volume has been made
-available, and/or a string error if an error occurred.
+available, and/or a string error if an error occurred. `Mountpoint` is optional,
+however the plugin may be queried again later if one is not provided.
 
 ### /VolumeDriver.Unmount
 
@@ -210,7 +212,8 @@ Get the volume info.
 }
 ```
 
-Respond with a string error if an error occurred.
+Respond with a string error if an error occurred. `Mountpoint` and `Status` are
+optional.
 
 
 ### /VolumeDriver.List
@@ -235,4 +238,30 @@ Get the list of volumes registered with the plugin.
 }
 ```
 
-Respond with a string error if an error occurred.
+Respond with a string error if an error occurred. `Mountpoint` is optional.
+
+### /VolumeDriver.Capabilities
+
+**Request**:
+```json
+{}
+```
+
+Get the list of capabilities the driver supports.
+The driver is not required to implement this endpoint, however in such cases
+the default values will be taken.
+
+**Response**:
+```json
+{
+  "Capabilities": {
+    "Scope": "global"
+  }
+}
+```
+
+Supported scopes are `global` and `local`. Any other value in `Scope` will be
+ignored and assumed to be `local`. Scope allows cluster managers to handle the
+volume differently, for instance with a scope of `global`, the cluster manager
+knows it only needs to create the volume once instead of on every engine. More
+capabilities may be added in the future.

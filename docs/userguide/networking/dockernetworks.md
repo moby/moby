@@ -57,7 +57,7 @@ docker0   Link encap:Ethernet  HWaddr 02:42:47:bc:3a:eb
           RX bytes:1100 (1.1 KB)  TX bytes:648 (648.0 B)
 ```
 
-The `none` network adds a container to a container-specific network stack. That container lacks a network interface. Attaching to such a container and looking at it's stack you see this:
+The `none` network adds a container to a container-specific network stack. That container lacks a network interface. Attaching to such a container and looking at its stack you see this:
 
 ```
 $ docker attach nonenetcontainer
@@ -95,7 +95,7 @@ worth looking at the default `bridge` network a bit.
 
 
 ### The default bridge network in detail
-The default `bridge` network is present on all Docker hosts. The `docker network inspect` 
+The default `bridge` network is present on all Docker hosts. The `docker network inspect`
 command returns information about a network:
 
 ```
@@ -519,7 +519,7 @@ functionality in user-defined networks.
 
 - [Work with network commands](work-with-networks.md)
 - [Get started with multi-host networking](get-started-overlay.md)
-- [Managing Data in Containers](../containers/dockervolumes.md)
+- [Managing Data in Containers](../../tutorials/dockervolumes.md)
 - [Docker Machine overview](https://docs.docker.com/machine)
 - [Docker Swarm overview](https://docs.docker.com/swarm)
 - [Investigate the LibNetwork project](https://github.com/docker/libnetwork)

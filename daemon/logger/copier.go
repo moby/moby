@@ -10,12 +10,9 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-// Copier can copy logs from specified sources to Logger and attach
-// ContainerID and Timestamp.
+// Copier can copy logs from specified sources to Logger and attach Timestamp.
 // Writes are concurrent, so you need implement some sync in your logger
 type Copier struct {
-	// cid is the container id for which we are copying logs
-	cid string
 	// srcs is map of name -> reader pairs, for example "stdout", "stderr"
 	srcs     map[string]io.Reader
 	dst      Logger
@@ -24,9 +21,8 @@ type Copier struct {
 }
 
 // NewCopier creates a new Copier
-func NewCopier(cid string, srcs map[string]io.Reader, dst Logger) *Copier {
+func NewCopier(srcs map[string]io.Reader, dst Logger) *Copier {
 	return &Copier{
-		cid:    cid,
 		srcs:   srcs,
 		dst:    dst,
 		closed: make(chan struct{}),
@@ -56,7 +52,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 			// ReadBytes can return full or partial output even when it failed.
 			// e.g. it can return a full entry and EOF.
 			if err == nil || len(line) > 0 {
-				if logErr := c.dst.Log(&Message{ContainerID: c.cid, Line: line, Source: name, Timestamp: time.Now().UTC()}); logErr != nil {
+				if logErr := c.dst.Log(&Message{Line: line, Source: name, Timestamp: time.Now().UTC()}); logErr != nil {
 					logrus.Errorf("Failed to log msg %q for logger %s: %s", line, c.dst.Name(), logErr)
 				}
 			}

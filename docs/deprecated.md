@@ -14,32 +14,52 @@ weight=80
 
 The following list of features are deprecated in Engine.
 
+### Three argument form in `docker import`
+**Deprecated In Release: [v0.6.7](https://github.com/docker/docker/releases/tag/v0.6.7)**
+
+**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
+
+The `docker import` command format 'file|URL|- [REPOSITORY [TAG]]' is deprecated since November 2013. It's no more supported.
+
 ### `-e` and `--email` flags on `docker login`
-**Deprecated In Release: v1.11**
+**Deprecated In Release: [v1.11.0](https://github.com/docker/docker/releases/tag/v1.11.0)**
 
 **Target For Removal In Release: v1.13**
 
 The docker login command is removing the ability to automatically register for an account with the target registry if the given username doesn't exist. Due to this change, the email flag is no longer required, and will be deprecated.
 
+### Separator (`:`) of `--security-opt` flag on `docker run`
+**Deprecated In Release: [v1.11.0](https://github.com/docker/docker/releases/tag/v1.11.0)**
+
+**Target For Removal In Release: v1.13**
+
 The flag `--security-opt` doesn't use the colon separator(`:`) anymore to divide keys and values, it uses the equal symbol(`=`) for consinstency with other similar flags, like `--storage-opt`.
 
+### `/containers/(id or name)/copy` endpoint
+
+**Deprecated In Release: v1.8**
+
+**Removed In Release: v1.12.0**
+
+The endpoint `/containers/(id or name)/copy` is deprecated in favor of `/containers/(id or name)/archive`.
+
 ### Ambiguous event fields in API
-**Deprecated In Release: v1.10**
+**Deprecated In Release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
 
 The fields `ID`, `Status` and `From` in the events API have been deprecated in favor of a more rich structure.
 See the events API documentation for the new format.
 
 ### `-f` flag on `docker tag`
-**Deprecated In Release: v1.10**
+**Deprecated In Release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
 
-**Target For Removal In Release: v1.12**
+**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
 To make tagging consistent across the various `docker` commands, the `-f` flag on the `docker tag` command is deprecated. It is not longer necessary to specify `-f` to move a tag from one image to another. Nor will `docker` generate an error if the `-f` flag is missing and the specified tag is already in use.
 
 ### HostConfig at API container start
-**Deprecated In Release: v1.10**
+**Deprecated In Release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
 
-**Target For Removal In Release: v1.12**
+**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
 Passing an `HostConfig` to `POST /containers/{name}/start` is deprecated in favor of
 defining it at container creation (`POST /containers/create`).
@@ -48,27 +68,24 @@ defining it at container creation (`POST /containers/create`).
 
 **Deprecated In Release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
 
-**Removed In Release: v1.12**
+**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
 The `docker ps --before` and `docker ps --since` options are deprecated.
 Use `docker ps --filter=before=...` and `docker ps --filter=since=...` instead.
 
-### Command line short variant options
-**Deprecated In Release: v1.9**
+### Docker search 'automated' and 'stars' options
 
-**Target For Removal In Release: v1.11**
+**Deprecated in Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
-The following short variant options are deprecated in favor of their long
-variants:
+**Target For Removal In Release: v1.14**
 
-    docker run -c (--cpu-shares)
-    docker build -c (--cpu-shares)
-    docker create -c (--cpu-shares)
+The `docker search --automated` and `docker search --stars` options are deprecated.
+Use `docker search --filter=is-automated=...` and `docker search --filter=stars=...` instead.
 
 ### Driver Specific Log Tags
-**Deprecated In Release: v1.9**
+**Deprecated In Release: [v1.9.0](https://github.com/docker/docker/releases/tag/v1.9.0)**
 
-**Target For Removal In Release: v1.11**
+**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
 Log tags are now generated in a standard way across different logging drivers.
 Because of which, the driver specific log tag options `syslog-tag`, `gelf-tag` and
@@ -77,17 +94,16 @@ Because of which, the driver specific log tag options `syslog-tag`, `gelf-tag` a
     docker --log-driver=syslog --log-opt tag="{{.ImageName}}/{{.Name}}/{{.ID}}"
 
 ### LXC built-in exec driver
-**Deprecated In Release: v1.8**
+**Deprecated In Release: [v1.8.0](https://github.com/docker/docker/releases/tag/v1.8.0)**
 
-**Target For Removal In Release: v1.10**
+**Removed In Release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
 
-The built-in LXC execution driver is deprecated for an external implementation.
-The lxc-conf flag and API fields will also be removed.
+The built-in LXC execution driver, the lxc-conf flag, and API fields have been removed.
 
 ### Old Command Line Options
 **Deprecated In Release: [v1.8.0](https://github.com/docker/docker/releases/tag/v1.8.0)**
 
-**Target For Removal In Release: v1.10**
+**Removed In Release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
 
 The flags `-d` and `--daemon` are deprecated in favor of the `daemon` subcommand:
 
@@ -138,11 +154,11 @@ The following double-dash options are deprecated and have no replacement:
 Version 1.9 adds a flag (`--disable-legacy-registry=false`) which prevents the docker daemon from `pull`, `push`, and `login` operations against v1 registries.  Though disabled by default, this signals the intent to deprecate the v1 protocol.
 
 ### Docker Content Trust ENV passphrase variables name change
-**Deprecated In Release: v1.9**
+**Deprecated In Release: [v1.9.0](https://github.com/docker/docker/releases/tag/v1.9.0)**
 
-**Target For Removal In Release: v1.10**
+**Removed In Release: [v1.12.0](https://github.com/docker/docker/releases/tag/v1.12.0)**
 
-As of 1.9, Docker Content Trust Offline key will be renamed to Root key and the Tagging key will be renamed to Repository key. Due to this renaming, we're also changing the corresponding environment variables
+Since 1.9, Docker Content Trust Offline key has been renamed to Root key and the Tagging key has been renamed to Repository key. Due to this renaming, we're also changing the corresponding environment variables
 
-- DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE will now be named DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE
-- DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE will now be named DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE
+- DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE is now named DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE
+- DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE is now named DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE

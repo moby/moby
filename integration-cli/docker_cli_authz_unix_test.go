@@ -76,7 +76,6 @@ func (s *DockerAuthzSuite) TearDownTest(c *check.C) {
 func (s *DockerAuthzSuite) SetUpSuite(c *check.C) {
 	mux := http.NewServeMux()
 	s.server = httptest.NewServer(mux)
-	c.Assert(s.server, check.NotNil, check.Commentf("Failed to start a HTTP Server"))
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		b, err := json.Marshal(plugins.Manifest{Implements: []string{authorization.AuthZApiImplements}})
@@ -327,7 +326,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginAllowEventStream(c *check.C) {
 
 	startTime := strconv.FormatInt(daemonTime(c).Unix(), 10)
 	// Add another command to to enable event pipelining
-	eventsCmd := exec.Command(s.d.cmd.Path, "--host", s.d.sock(), "events", "--since", startTime)
+	eventsCmd := exec.Command(dockerBinary, "--host", s.d.sock(), "events", "--since", startTime)
 	stdout, err := eventsCmd.StdoutPipe()
 	if err != nil {
 		c.Assert(err, check.IsNil)

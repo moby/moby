@@ -2,9 +2,9 @@
 # Copyright 1999-2013 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
 
-command="${DOCKER_BINARY:-/usr/bin/docker}"
+command="${DOCKERD_BINARY:-/usr/bin/dockerd}"
 pidfile="${DOCKER_PIDFILE:-/run/${RC_SVCNAME}.pid}"
-command_args="daemon -p \"${pidfile}\" ${DOCKER_OPTS}"
+command_args="-p \"${pidfile}\" ${DOCKER_OPTS}"
 DOCKER_LOGFILE="${DOCKER_LOGFILE:-/var/log/${RC_SVCNAME}.log}"
 start_stop_daemon_args="--background \
 	--stderr \"${DOCKER_LOGFILE}\" --stdout \"${DOCKER_LOGFILE}\""

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/volume"
 	"github.com/docker/engine-api/types"
 	"github.com/go-check/check"
 )
@@ -35,6 +36,7 @@ type eventCounter struct {
 	paths       int
 	lists       int
 	gets        int
+	caps        int
 }
 
 type DockerExternalVolumeSuite struct {
@@ -72,7 +74,7 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 	type vol struct {
 		Name       string
 		Mountpoint string
-		Ninja      bool // hack used to trigger an null volume return on `Get`
+		Ninja      bool // hack used to trigger a null volume return on `Get`
 		Status     map[string]interface{}
 	}
 	var volList []vol
@@ -223,6 +225,18 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 		}
 
 		send(w, nil)
+	})
+
+	mux.HandleFunc("/VolumeDriver.Capabilities", func(w http.ResponseWriter, r *http.Request) {
+		s.ec.caps++
+
+		_, err := read(r.Body)
+		if err != nil {
+			send(w, err)
+			return
+		}
+
+		send(w, `{"Capabilities": { "Scope": "global" }}`)
 	})
 
 	err := os.MkdirAll("/etc/docker/plugins", 0755)
@@ -443,7 +457,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *check.C) {
 	c.Assert(st[0].Status["Hello"], checker.Equals, "world", check.Commentf("%v", st[0].Status))
 }
 
-func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemnRestart(c *check.C) {
+func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemonRestart(c *check.C) {
 	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "--name", "abc1")
 	err := s.d.Restart()
 	c.Assert(err, checker.IsNil)
@@ -490,4 +504,19 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverMountID(c *check.C) 
 	out, err := s.d.Cmd("run", "--rm", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", "test-external-volume-driver", "busybox:latest", "cat", "/tmp/external-volume-test/test")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+}
+
+// Check that VolumeDriver.Capabilities gets called, and only called once
+func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverCapabilities(c *check.C) {
+	c.Assert(s.d.Start(), checker.IsNil)
+	c.Assert(s.ec.caps, checker.Equals, 0)
+
+	for i := 0; i < 3; i++ {
+		out, err := s.d.Cmd("volume", "create", "-d", "test-external-volume-driver", "--name", fmt.Sprintf("test%d", i))
+		c.Assert(err, checker.IsNil, check.Commentf(out))
+		c.Assert(s.ec.caps, checker.Equals, 1)
+		out, err = s.d.Cmd("volume", "inspect", "--format={{.Scope}}", fmt.Sprintf("test%d", i))
+		c.Assert(err, checker.IsNil)
+		c.Assert(strings.TrimSpace(out), checker.Equals, volume.GlobalScope)
+	}
 }

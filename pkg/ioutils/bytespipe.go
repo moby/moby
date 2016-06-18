@@ -20,7 +20,8 @@ var (
 	// ErrClosed is returned when Write is called on a closed BytesPipe.
 	ErrClosed = errors.New("write to closed BytesPipe")
 
-	bufPools = make(map[int]*sync.Pool)
+	bufPools     = make(map[int]*sync.Pool)
+	bufPoolsLock sync.Mutex
 )
 
 // BytesPipe is io.ReadWriteCloser which works similarly to pipe(queue).
@@ -132,8 +133,9 @@ func (bp *BytesPipe) Read(p []byte) (n int, err error) {
 		}
 		bp.wait.Wait()
 		if bp.bufLen == 0 && bp.closeErr != nil {
+			err := bp.closeErr
 			bp.mu.Unlock()
-			return 0, bp.closeErr
+			return 0, err
 		}
 	}
 
@@ -164,17 +166,21 @@ func (bp *BytesPipe) Read(p []byte) (n int, err error) {
 
 func returnBuffer(b *fixedBuffer) {
 	b.Reset()
+	bufPoolsLock.Lock()
 	pool := bufPools[b.Cap()]
+	bufPoolsLock.Unlock()
 	if pool != nil {
 		pool.Put(b)
 	}
 }
 
 func getBuffer(size int) *fixedBuffer {
+	bufPoolsLock.Lock()
 	pool, ok := bufPools[size]
 	if !ok {
 		pool = &sync.Pool{New: func() interface{} { return &fixedBuffer{buf: make([]byte, 0, size)} }}
 		bufPools[size] = pool
 	}
+	bufPoolsLock.Unlock()
 	return pool.Get().(*fixedBuffer)
 }

@@ -166,7 +166,7 @@ func TestPidModeTest(t *testing.T) {
 func TestRestartPolicy(t *testing.T) {
 	restartPolicies := map[container.RestartPolicy][]bool{
 		// none, always, failure
-		container.RestartPolicy{}:                {false, false, false},
+		container.RestartPolicy{}:                {true, false, false},
 		container.RestartPolicy{"something", 0}:  {false, false, false},
 		container.RestartPolicy{"no", 0}:         {true, false, false},
 		container.RestartPolicy{"always", 0}:     {false, true, false},

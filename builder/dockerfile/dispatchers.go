@@ -9,18 +9,17 @@ package dockerfile
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/docker/pkg/system"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/strslice"
@@ -257,54 +256,26 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 		return errExactlyOneArgument("WORKDIR")
 	}
 
-	if err := b.flags.Parse(); err != nil {
+	err := b.flags.Parse()
+	if err != nil {
 		return err
 	}
 
 	// This is from the Dockerfile and will not necessarily be in platform
 	// specific semantics, hence ensure it is converted.
-	workdir := filepath.FromSlash(args[0])
-	current := filepath.FromSlash(b.runConfig.WorkingDir)
-	if runtime.GOOS == "windows" {
-		// Windows is a little more complicated than Linux. This code ensures
-		// we end up with a workdir which is consistent in terms of platform
-		// semantics. This means C:\somefolder, specifically in the format:
-		// UPPERCASEDriveLetter-Colon-Backslash-FolderName. We are already
-		// guaranteed that `current`, if set, is consistent. This allows us to
-		// cope correctly with any of the following in a Dockerfile:
-		//	WORKDIR a                       --> C:\a
-		//	WORKDIR c:\\foo                 --> C:\foo
-		//	WORKDIR \\foo                   --> C:\foo
-		//	WORKDIR /foo                    --> C:\foo
-		//	WORKDIR c:\\foo \ WORKDIR bar   --> C:\foo --> C:\foo\bar
-		//	WORKDIR C:/foo \ WORKDIR bar    --> C:\foo --> C:\foo\bar
-		//	WORKDIR C:/foo \ WORKDIR \\bar  --> C:\foo --> C:\bar
-		//	WORKDIR /foo \ WORKDIR c:/bar   --> C:\foo --> C:\bar
-		if len(current) == 0 || system.IsAbs(workdir) {
-			if (workdir[0] == os.PathSeparator) ||
-				(len(workdir) > 1 && string(workdir[1]) != ":") ||
-				(len(workdir) == 1) {
-				workdir = filepath.Join(`C:\`, workdir)
-			}
-		} else {
-			workdir = filepath.Join(current, workdir)
-		}
-		workdir = strings.ToUpper(string(workdir[0])) + workdir[1:] // Upper-case drive letter
-	} else {
-		if !filepath.IsAbs(workdir) {
-			workdir = filepath.Join(string(os.PathSeparator), current, workdir)
-		}
+	b.runConfig.WorkingDir, err = normaliseWorkdir(b.runConfig.WorkingDir, args[0])
+	if err != nil {
+		return err
 	}
-	b.runConfig.WorkingDir = workdir
 
-	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("WORKDIR %v", workdir))
+	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("WORKDIR %v", b.runConfig.WorkingDir))
 }
 
 // RUN some command yo
 //
 // run a command and commit the image. Args are automatically prepended with
-// 'sh -c' under linux or 'cmd /S /C' under Windows, in the event there is
-// only one argument. The difference in processing:
+// the current SHELL which defaults to 'sh -c' under linux or 'cmd /S /C' under
+// Windows, in the event there is only one argument The difference in processing:
 //
 // RUN echo hi          # sh -c echo hi       (Linux)
 // RUN echo hi          # cmd /S /C echo hi   (Windows)
@@ -322,13 +293,8 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	args = handleJSONArgs(args, attributes)
 
 	if !attributes["json"] {
-		if runtime.GOOS != "windows" {
-			args = append([]string{"/bin/sh", "-c"}, args...)
-		} else {
-			args = append([]string{"cmd", "/S", "/C"}, args...)
-		}
+		args = append(getShell(b.runConfig), args...)
 	}
-
 	config := &container.Config{
 		Cmd:   strslice.StrSlice(args),
 		Image: b.image,
@@ -437,11 +403,7 @@ func cmd(b *Builder, args []string, attributes map[string]bool, original string)
 	cmdSlice := handleJSONArgs(args, attributes)
 
 	if !attributes["json"] {
-		if runtime.GOOS != "windows" {
-			cmdSlice = append([]string{"/bin/sh", "-c"}, cmdSlice...)
-		} else {
-			cmdSlice = append([]string{"cmd", "/S", "/C"}, cmdSlice...)
-		}
+		cmdSlice = append(getShell(b.runConfig), cmdSlice...)
 	}
 
 	b.runConfig.Cmd = strslice.StrSlice(cmdSlice)
@@ -457,10 +419,115 @@ func cmd(b *Builder, args []string, attributes map[string]bool, original string)
 	return nil
 }
 
+// parseOptInterval(flag) is the duration of flag.Value, or 0 if
+// empty. An error is reported if the value is given and is not positive.
+func parseOptInterval(f *Flag) (time.Duration, error) {
+	s := f.Value
+	if s == "" {
+		return 0, nil
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return 0, err
+	}
+	if d <= 0 {
+		return 0, fmt.Errorf("Interval %#v must be positive", f.name)
+	}
+	return d, nil
+}
+
+// HEALTHCHECK foo
+//
+// Set the default healthcheck command to run in the container (which may be empty).
+// Argument handling is the same as RUN.
+//
+func healthcheck(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("HEALTHCHECK requires an argument")
+	}
+	typ := strings.ToUpper(args[0])
+	args = args[1:]
+	if typ == "NONE" {
+		if len(args) != 0 {
+			return fmt.Errorf("HEALTHCHECK NONE takes no arguments")
+		}
+		test := strslice.StrSlice{typ}
+		b.runConfig.Healthcheck = &container.HealthConfig{
+			Test: test,
+		}
+	} else {
+		if b.runConfig.Healthcheck != nil {
+			oldCmd := b.runConfig.Healthcheck.Test
+			if len(oldCmd) > 0 && oldCmd[0] != "NONE" {
+				fmt.Fprintf(b.Stdout, "Note: overriding previous HEALTHCHECK: %v\n", oldCmd)
+			}
+		}
+
+		healthcheck := container.HealthConfig{}
+
+		flInterval := b.flags.AddString("interval", "")
+		flTimeout := b.flags.AddString("timeout", "")
+		flRetries := b.flags.AddString("retries", "")
+
+		if err := b.flags.Parse(); err != nil {
+			return err
+		}
+
+		switch typ {
+		case "CMD":
+			cmdSlice := handleJSONArgs(args, attributes)
+			if len(cmdSlice) == 0 {
+				return fmt.Errorf("Missing command after HEALTHCHECK CMD")
+			}
+
+			if !attributes["json"] {
+				typ = "CMD-SHELL"
+			}
+
+			healthcheck.Test = strslice.StrSlice(append([]string{typ}, cmdSlice...))
+		default:
+			return fmt.Errorf("Unknown type %#v in HEALTHCHECK (try CMD)", typ)
+		}
+
+		interval, err := parseOptInterval(flInterval)
+		if err != nil {
+			return err
+		}
+		healthcheck.Interval = interval
+
+		timeout, err := parseOptInterval(flTimeout)
+		if err != nil {
+			return err
+		}
+		healthcheck.Timeout = timeout
+
+		if flRetries.Value != "" {
+			retries, err := strconv.ParseInt(flRetries.Value, 10, 32)
+			if err != nil {
+				return err
+			}
+			if retries < 1 {
+				return fmt.Errorf("--retries must be at least 1 (not %d)", retries)
+			}
+			healthcheck.Retries = int(retries)
+		} else {
+			healthcheck.Retries = 0
+		}
+
+		b.runConfig.Healthcheck = &healthcheck
+	}
+
+	if err := b.commit("", b.runConfig.Cmd, fmt.Sprintf("HEALTHCHECK %q", b.runConfig.Healthcheck)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // ENTRYPOINT /usr/sbin/nginx
 //
-// Set the entrypoint (which defaults to sh -c on linux, or cmd /S /C on Windows) to
-// /usr/sbin/nginx. Will accept the CMD as the arguments to /usr/sbin/nginx.
+// Set the entrypoint to /usr/sbin/nginx. Will accept the CMD as the arguments
+// to /usr/sbin/nginx. Uses the default shell if not in JSON format.
 //
 // Handles command processing similar to CMD and RUN, only b.runConfig.Entrypoint
 // is initialized at NewBuilder time instead of through argument parsing.
@@ -481,11 +548,7 @@ func entrypoint(b *Builder, args []string, attributes map[string]bool, original 
 		b.runConfig.Entrypoint = nil
 	default:
 		// ENTRYPOINT echo hi
-		if runtime.GOOS != "windows" {
-			b.runConfig.Entrypoint = strslice.StrSlice{"/bin/sh", "-c", parsed[0]}
-		} else {
-			b.runConfig.Entrypoint = strslice.StrSlice{"cmd", "/S", "/C", parsed[0]}
-		}
+		b.runConfig.Entrypoint = strslice.StrSlice(append(getShell(b.runConfig), parsed[0]))
 	}
 
 	// when setting the entrypoint if a CMD was not explicitly set then
@@ -651,6 +714,28 @@ func arg(b *Builder, args []string, attributes map[string]bool, original string)
 	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("ARG %s", arg))
 }
 
+// SHELL powershell -command
+//
+// Set the non-default shell to use.
+func shell(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if err := b.flags.Parse(); err != nil {
+		return err
+	}
+	shellSlice := handleJSONArgs(args, attributes)
+	switch {
+	case len(shellSlice) == 0:
+		// SHELL []
+		return errAtLeastOneArgument("SHELL")
+	case attributes["json"]:
+		// SHELL ["powershell", "-command"]
+		b.runConfig.Shell = strslice.StrSlice(shellSlice)
+	default:
+		// SHELL powershell -command - not JSON
+		return errNotJSON("SHELL", original)
+	}
+	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("SHELL %v", shellSlice))
+}
+
 func errAtLeastOneArgument(command string) error {
 	return fmt.Errorf("%s requires at least one argument", command)
 }
@@ -661,4 +746,13 @@ func errExactlyOneArgument(command string) error {
 
 func errTooManyArguments(command string) error {
 	return fmt.Errorf("Bad input to %s, too many arguments", command)
+}
+
+// getShell is a helper function which gets the right shell for prefixing the
+// shell-form of RUN, ENTRYPOINT and CMD instructions
+func getShell(c *container.Config) []string {
+	if 0 == len(c.Shell) {
+		return defaultShell[:]
+	}
+	return c.Shell[:]
 }

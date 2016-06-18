@@ -1,8 +1,6 @@
 package client
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,6 +8,7 @@ import (
 	gosignal "os/signal"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"golang.org/x/net/context"
@@ -17,53 +16,18 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/registry"
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
-	registrytypes "github.com/docker/engine-api/types/registry"
 )
 
-func (cli *DockerCli) electAuthServer() string {
-	// The daemon `/info` endpoint informs us of the default registry being
-	// used. This is essential in cross-platforms environment, where for
-	// example a Linux client might be interacting with a Windows daemon, hence
-	// the default registry URL might be Windows specific.
-	serverAddress := registry.IndexServer
-	if info, err := cli.client.Info(context.Background()); err != nil {
-		fmt.Fprintf(cli.out, "Warning: failed to get default registry endpoint from daemon (%v). Using system default: %s\n", err, serverAddress)
-	} else {
-		serverAddress = info.IndexServerAddress
-	}
-	return serverAddress
+func (cli *DockerCli) resizeTty(ctx context.Context, id string, isExec bool) {
+	height, width := cli.GetTtySize()
+	cli.ResizeTtyTo(ctx, id, height, width, isExec)
 }
 
-// encodeAuthToBase64 serializes the auth configuration as JSON base64 payload
-func encodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
-	buf, err := json.Marshal(authConfig)
-	if err != nil {
-		return "", err
-	}
-	return base64.URLEncoding.EncodeToString(buf), nil
-}
-
-func (cli *DockerCli) registryAuthenticationPrivilegedFunc(index *registrytypes.IndexInfo, cmdName string) types.RequestPrivilegeFunc {
-	return func() (string, error) {
-		fmt.Fprintf(cli.out, "\nPlease login prior to %s:\n", cmdName)
-		indexServer := registry.GetAuthConfigKey(index)
-		authConfig, err := cli.configureAuth("", "", indexServer, false)
-		if err != nil {
-			return "", err
-		}
-		return encodeAuthToBase64(authConfig)
-	}
-}
-
-func (cli *DockerCli) resizeTty(id string, isExec bool) {
-	height, width := cli.getTtySize()
-	cli.resizeTtyTo(id, height, width, isExec)
-}
-
-func (cli *DockerCli) resizeTtyTo(id string, height, width int, isExec bool) {
+// ResizeTtyTo resizes tty to specific height and width
+// TODO: this can be unexported again once all container related commands move to package container
+func (cli *DockerCli) ResizeTtyTo(ctx context.Context, id string, height, width int, isExec bool) {
 	if height == 0 && width == 0 {
 		return
 	}
@@ -75,9 +39,9 @@ func (cli *DockerCli) resizeTtyTo(id string, height, width int, isExec bool) {
 
 	var err error
 	if isExec {
-		err = cli.client.ContainerExecResize(context.Background(), id, options)
+		err = cli.client.ContainerExecResize(ctx, id, options)
 	} else {
-		err = cli.client.ContainerResize(context.Background(), id, options)
+		err = cli.client.ContainerResize(ctx, id, options)
 	}
 
 	if err != nil {
@@ -85,25 +49,10 @@ func (cli *DockerCli) resizeTtyTo(id string, height, width int, isExec bool) {
 	}
 }
 
-// getExitCode perform an inspect on the container. It returns
-// the running state and the exit code.
-func getExitCode(cli *DockerCli, containerID string) (bool, int, error) {
-	c, err := cli.client.ContainerInspect(context.Background(), containerID)
-	if err != nil {
-		// If we can't connect, then the daemon probably died.
-		if err != client.ErrConnectionFailed {
-			return false, -1, err
-		}
-		return false, -1, nil
-	}
-
-	return c.State.Running, c.State.ExitCode, nil
-}
-
 // getExecExitCode perform an inspect on the exec command. It returns
 // the running state and the exit code.
-func getExecExitCode(cli *DockerCli, execID string) (bool, int, error) {
-	resp, err := cli.client.ContainerExecInspect(context.Background(), execID)
+func (cli *DockerCli) getExecExitCode(ctx context.Context, execID string) (bool, int, error) {
+	resp, err := cli.client.ContainerExecInspect(ctx, execID)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
 		if err != client.ErrConnectionFailed {
@@ -115,18 +64,19 @@ func getExecExitCode(cli *DockerCli, execID string) (bool, int, error) {
 	return resp.Running, resp.ExitCode, nil
 }
 
-func (cli *DockerCli) monitorTtySize(id string, isExec bool) error {
-	cli.resizeTty(id, isExec)
+// MonitorTtySize updates the container tty size when the terminal tty changes size
+func (cli *DockerCli) MonitorTtySize(ctx context.Context, id string, isExec bool) error {
+	cli.resizeTty(ctx, id, isExec)
 
 	if runtime.GOOS == "windows" {
 		go func() {
-			prevH, prevW := cli.getTtySize()
+			prevH, prevW := cli.GetTtySize()
 			for {
 				time.Sleep(time.Millisecond * 250)
-				h, w := cli.getTtySize()
+				h, w := cli.GetTtySize()
 
 				if prevW != w || prevH != h {
-					cli.resizeTty(id, isExec)
+					cli.resizeTty(ctx, id, isExec)
 				}
 				prevH = h
 				prevW = w
@@ -137,14 +87,15 @@ func (cli *DockerCli) monitorTtySize(id string, isExec bool) error {
 		gosignal.Notify(sigchan, signal.SIGWINCH)
 		go func() {
 			for range sigchan {
-				cli.resizeTty(id, isExec)
+				cli.resizeTty(ctx, id, isExec)
 			}
 		}()
 	}
 	return nil
 }
 
-func (cli *DockerCli) getTtySize() (int, int) {
+// GetTtySize returns the height and width in characters of the tty
+func (cli *DockerCli) GetTtySize() (int, int) {
 	if !cli.isTerminalOut {
 		return 0, 0
 	}
@@ -158,7 +109,8 @@ func (cli *DockerCli) getTtySize() (int, int) {
 	return int(ws.Height), int(ws.Width)
 }
 
-func copyToFile(outfile string, r io.Reader) error {
+// CopyToFile writes the content of the reader to the specified file
+func CopyToFile(outfile string, r io.Reader) error {
 	tmpFile, err := ioutil.TempFile(filepath.Dir(outfile), ".docker_temp_")
 	if err != nil {
 		return err
@@ -182,20 +134,57 @@ func copyToFile(outfile string, r io.Reader) error {
 	return nil
 }
 
-// resolveAuthConfig is like registry.ResolveAuthConfig, but if using the
-// default index, it uses the default index name for the daemon's platform,
-// not the client's platform.
-func (cli *DockerCli) resolveAuthConfig(index *registrytypes.IndexInfo) types.AuthConfig {
-	configKey := index.Name
-	if index.Official {
-		configKey = cli.electAuthServer()
-	}
+// ForwardAllSignals forwards signals to the contianer
+// TODO: this can be unexported again once all container commands are under
+// api/client/container
+func (cli *DockerCli) ForwardAllSignals(ctx context.Context, cid string) chan os.Signal {
+	sigc := make(chan os.Signal, 128)
+	signal.CatchAll(sigc)
+	go func() {
+		for s := range sigc {
+			if s == signal.SIGCHLD || s == signal.SIGPIPE {
+				continue
+			}
+			var sig string
+			for sigStr, sigN := range signal.SignalMap {
+				if sigN == s {
+					sig = sigStr
+					break
+				}
+			}
+			if sig == "" {
+				fmt.Fprintf(cli.err, "Unsupported signal: %v. Discarding.\n", s)
+				continue
+			}
 
-	a, _ := getCredentials(cli.configFile, configKey)
-	return a
+			if err := cli.client.ContainerKill(ctx, cid, sig); err != nil {
+				logrus.Debugf("Error sending signal: %s", err)
+			}
+		}
+	}()
+	return sigc
 }
 
-func (cli *DockerCli) retrieveAuthConfigs() map[string]types.AuthConfig {
-	acs, _ := getAllCredentials(cli.configFile)
-	return acs
+// capitalizeFirst capitalizes the first character of string
+func capitalizeFirst(s string) string {
+	switch l := len(s); l {
+	case 0:
+		return s
+	case 1:
+		return strings.ToLower(s)
+	default:
+		return strings.ToUpper(string(s[0])) + strings.ToLower(s[1:])
+	}
+}
+
+// PrettyPrint outputs arbitrary data for human formatted output by uppercasing the first letter.
+func PrettyPrint(i interface{}) string {
+	switch t := i.(type) {
+	case nil:
+		return "None"
+	case string:
+		return capitalizeFirst(t)
+	default:
+		return capitalizeFirst(fmt.Sprintf("%s", t))
+	}
 }

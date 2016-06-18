@@ -45,7 +45,7 @@ func TestLocalSocket(t *testing.T) {
 			t.Fatalf("Expected %v, was %v\n", p, pp)
 		}
 
-		if p.Name != "echo" {
+		if p.name != "echo" {
 			t.Fatalf("Expected plugin `echo`, got %s\n", p.Name)
 		}
 

@@ -291,8 +291,8 @@ func (s *Zookeeper) DeleteTree(directory string) error {
 // AtomicPut put a value at "key" if the key has not been
 // modified in the meantime, throws an error if this is the case
 func (s *Zookeeper) AtomicPut(key string, value []byte, previous *store.KVPair, _ *store.WriteOptions) (bool, *store.KVPair, error) {
-
 	var lastIndex uint64
+
 	if previous != nil {
 		meta, err := s.client.Set(s.normalize(key), value, int32(previous.LastIndex))
 		if err != nil {
@@ -307,8 +307,9 @@ func (s *Zookeeper) AtomicPut(key string, value []byte, previous *store.KVPair, 
 		// Interpret previous == nil as create operation.
 		_, err := s.client.Create(s.normalize(key), value, 0, zk.WorldACL(zk.PermAll))
 		if err != nil {
-			// Zookeeper will complain if the directory doesn't exist.
+			// Directory does not exist
 			if err == zk.ErrNoNode {
+
 				// Create the directory
 				parts := store.SplitKey(strings.TrimSuffix(key, "/"))
 				parts = parts[:len(parts)-1]
@@ -316,11 +317,22 @@ func (s *Zookeeper) AtomicPut(key string, value []byte, previous *store.KVPair, 
 					// Failed to create the directory.
 					return false, nil, err
 				}
+
+				// Create the node
 				if _, err := s.client.Create(s.normalize(key), value, 0, zk.WorldACL(zk.PermAll)); err != nil {
+					// Node exist error (when previous nil)
+					if err == zk.ErrNodeExists {
+						return false, nil, store.ErrKeyExists
+					}
 					return false, nil, err
 				}
 
 			} else {
+				// Node Exists error (when previous nil)
+				if err == zk.ErrNodeExists {
+					return false, nil, store.ErrKeyExists
+				}
+
 				// Unhandled error
 				return false, nil, err
 			}

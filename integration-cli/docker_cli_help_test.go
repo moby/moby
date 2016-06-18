@@ -119,6 +119,12 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 		cmdsToTest = append(cmdsToTest, "volume inspect")
 		cmdsToTest = append(cmdsToTest, "volume ls")
 		cmdsToTest = append(cmdsToTest, "volume rm")
+		cmdsToTest = append(cmdsToTest, "network connect")
+		cmdsToTest = append(cmdsToTest, "network create")
+		cmdsToTest = append(cmdsToTest, "network disconnect")
+		cmdsToTest = append(cmdsToTest, "network inspect")
+		cmdsToTest = append(cmdsToTest, "network ls")
+		cmdsToTest = append(cmdsToTest, "network rm")
 
 		// Divide the list of commands into go routines and  run the func testcommand on the commands in parallel
 		// to save runtime of test
@@ -137,17 +143,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 				c.Fatal(err)
 			}
 		}
-
-		// Number of commands for standard release and experimental release
-		standard := 41
-		experimental := 1
-		expected := standard + experimental
-		if isLocalDaemon {
-			expected++ // for the daemon command
-		}
-		c.Assert(len(cmds), checker.LessOrEqualThan, expected, check.Commentf("Wrong # of cmds, it should be: %d\nThe list:\n%q", expected, cmds))
 	}
-
 }
 
 func (s *DockerSuite) TestHelpExitCodesHelpOutput(c *check.C) {
@@ -188,7 +184,7 @@ func (s *DockerSuite) TestHelpExitCodesHelpOutput(c *check.C) {
 	c.Assert(stdout, checker.Equals, "")
 	// Should not contain full help text but should contain info about
 	// # of args and Usage line
-	c.Assert(stderr, checker.Contains, "requires a minimum", check.Commentf("Missing # of args text from 'docker rm'\n"))
+	c.Assert(stderr, checker.Contains, "requires at least 1 argument", check.Commentf("Missing # of args text from 'docker rm'\n"))
 
 	// docker rm NoSuchContainer: stdout=empty, stderr=all, rc=0
 	// testing to make sure no blank line on error
@@ -249,7 +245,8 @@ func testCommand(cmd string, newEnvs []string, scanForHome bool, home string) er
 		// If a line starts with 4 spaces then assume someone
 		// added a multi-line description for an option and we need
 		// to flag it
-		if strings.HasPrefix(line, "    ") {
+		if strings.HasPrefix(line, "    ") &&
+			!strings.HasPrefix(strings.TrimLeft(line, " "), "--") {
 			return fmt.Errorf("Help for %q should not have a multi-line option", cmd)
 		}
 
@@ -260,7 +257,7 @@ func testCommand(cmd string, newEnvs []string, scanForHome bool, home string) er
 
 		// Options should NOT end with a space
 		if strings.HasSuffix(line, " ") {
-			return fmt.Errorf("Help for %q should not end with a space", cmd)
+			return fmt.Errorf("Help for %q should not end with a space: %s", cmd, line)
 		}
 
 	}
@@ -326,15 +323,15 @@ func testCommand(cmd string, newEnvs []string, scanForHome bool, home string) er
 			return fmt.Errorf("Bad output from %q\nstdout:%q\nstderr:%q\nec:%d\nerr:%q\n", args, out, stderr, ec, err)
 		}
 		// Should have just short usage
-		if !strings.Contains(stderr, "\nUsage:\t") {
-			return fmt.Errorf("Missing short usage on %q\n", args)
+		if !strings.Contains(stderr, "\nUsage:") {
+			return fmt.Errorf("Missing short usage on %q\n:%#v", args, stderr)
 		}
 		// But shouldn't have full usage
 		if strings.Contains(stderr, "--help=false") {
 			return fmt.Errorf("Should not have full usage on %q\n", args)
 		}
 		if strings.HasSuffix(stderr, "\n\n") {
-			return fmt.Errorf("Should not have a blank line on %q\n", args)
+			return fmt.Errorf("Should not have a blank line on %q\n%v", args, stderr)
 		}
 	}
 

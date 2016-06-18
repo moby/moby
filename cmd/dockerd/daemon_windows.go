@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"syscall"
 
@@ -74,4 +75,8 @@ func (cli *DaemonCli) getLibcontainerdRoot() string {
 
 func allocateDaemonPort(addr string) error {
 	return nil
+}
+
+func wrapListeners(proto string, ls []net.Listener) []net.Listener {
+	return ls
 }

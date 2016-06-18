@@ -3,6 +3,7 @@ package proxy
 import (
 	"io"
 	"net"
+	"sync"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
@@ -39,10 +40,9 @@ func (proxy *TCPProxy) clientLoop(client *net.TCPConn, quit chan bool) {
 		return
 	}
 
-	event := make(chan int64)
+	var wg sync.WaitGroup
 	var broker = func(to, from *net.TCPConn) {
-		written, err := io.Copy(to, from)
-		if err != nil {
+		if _, err := io.Copy(to, from); err != nil {
 			// If the socket we are writing to is shutdown with
 			// SHUT_WR, forward it to the other end of the pipe:
 			if err, ok := err.(*net.OpError); ok && err.Err == syscall.EPIPE {
@@ -50,29 +50,26 @@ func (proxy *TCPProxy) clientLoop(client *net.TCPConn, quit chan bool) {
 			}
 		}
 		to.CloseRead()
-		event <- written
+		wg.Done()
 	}
 
+	wg.Add(2)
 	go broker(client, backend)
 	go broker(backend, client)
 
-	var transferred int64
-	for i := 0; i < 2; i++ {
-		select {
-		case written := <-event:
-			transferred += written
-		case <-quit:
-			// Interrupt the two brokers and "join" them.
-			client.Close()
-			backend.Close()
-			for ; i < 2; i++ {
-				transferred += <-event
-			}
-			return
-		}
+	finish := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(finish)
+	}()
+
+	select {
+	case <-quit:
+	case <-finish:
 	}
 	client.Close()
 	backend.Close()
+	<-finish
 }
 
 // Run starts forwarding the traffic using TCP.

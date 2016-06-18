@@ -11,7 +11,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/etchosts"
-	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/types"
 )
@@ -22,7 +21,7 @@ const (
 	filePerm      = 0644
 )
 
-func (sb *sandbox) startResolver() {
+func (sb *sandbox) startResolver(restore bool) {
 	sb.resolverOnce.Do(func() {
 		var err error
 		sb.resolver = NewResolver(sb)
@@ -32,10 +31,16 @@ func (sb *sandbox) startResolver() {
 			}
 		}()
 
-		err = sb.rebuildDNS()
-		if err != nil {
-			log.Errorf("Updating resolv.conf failed for container %s, %q", sb.ContainerID(), err)
-			return
+		// In the case of live restore container is already running with
+		// right resolv.conf contents created before. Just update the
+		// external DNS servers from the restored sandbox for embedded
+		// server to use.
+		if !restore {
+			err = sb.rebuildDNS()
+			if err != nil {
+				log.Errorf("Updating resolv.conf failed for container %s, %q", sb.ContainerID(), err)
+				return
+			}
 		}
 		sb.resolver.SetExtServers(sb.extDNS)
 
@@ -91,6 +96,10 @@ func (sb *sandbox) buildHostsFile() error {
 func (sb *sandbox) updateHostsFile(ifaceIP string) error {
 	var mhost string
 
+	if ifaceIP == "" {
+		return nil
+	}
+
 	if sb.config.originHostsPath != "" {
 		return nil
 	}
@@ -136,6 +145,16 @@ func (sb *sandbox) updateParentHosts() error {
 	return nil
 }
 
+func (sb *sandbox) restorePath() {
+	if sb.config.resolvConfPath == "" {
+		sb.config.resolvConfPath = defaultPrefix + "/" + sb.id + "/resolv.conf"
+	}
+	sb.config.resolvConfHashFile = sb.config.resolvConfPath + ".hash"
+	if sb.config.hostsPath == "" {
+		sb.config.hostsPath = defaultPrefix + "/" + sb.id + "/hosts"
+	}
+}
+
 func (sb *sandbox) setupDNS() error {
 	var newRC *resolvconf.File
 
@@ -166,7 +185,7 @@ func (sb *sandbox) setupDNS() error {
 	if len(sb.config.dnsList) > 0 || len(sb.config.dnsSearchList) > 0 || len(sb.config.dnsOptionsList) > 0 {
 		var (
 			err            error
-			dnsList        = resolvconf.GetNameservers(currRC.Content, netutils.IP)
+			dnsList        = resolvconf.GetNameservers(currRC.Content, types.IP)
 			dnsSearchList  = resolvconf.GetSearchDomains(currRC.Content)
 			dnsOptionsList = resolvconf.GetOptions(currRC.Content)
 		)
@@ -236,7 +255,7 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 	if currHash != "" && currHash != currRC.Hash {
 		// Seems the user has changed the container resolv.conf since the last time
 		// we checked so return without doing anything.
-		log.Infof("Skipping update of resolv.conf file with ipv6Enabled: %t because file was touched by user", ipv6Enabled)
+		//log.Infof("Skipping update of resolv.conf file with ipv6Enabled: %t because file was touched by user", ipv6Enabled)
 		return nil
 	}
 
@@ -275,7 +294,7 @@ func (sb *sandbox) rebuildDNS() error {
 
 	// localhost entries have already been filtered out from the list
 	// retain only the v4 servers in sb for forwarding the DNS queries
-	sb.extDNS = resolvconf.GetNameservers(currRC.Content, netutils.IPv4)
+	sb.extDNS = resolvconf.GetNameservers(currRC.Content, types.IPv4)
 
 	var (
 		dnsList        = []string{sb.resolver.NameServer()}
@@ -284,7 +303,7 @@ func (sb *sandbox) rebuildDNS() error {
 	)
 
 	// external v6 DNS servers has to be listed in resolv.conf
-	dnsList = append(dnsList, resolvconf.GetNameservers(currRC.Content, netutils.IPv6)...)
+	dnsList = append(dnsList, resolvconf.GetNameservers(currRC.Content, types.IPv6)...)
 
 	// Resolver returns the options in the format resolv.conf expects
 	dnsOptionsList = append(dnsOptionsList, sb.resolver.ResolverOptions()...)

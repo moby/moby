@@ -370,6 +370,8 @@ func (h *Handle) set(ordinal, start, end uint64, any bool, release bool) (uint64
 
 // checks is needed because to cover the case where the number of bits is not a multiple of blockLen
 func (h *Handle) validateOrdinal(ordinal uint64) error {
+	h.Lock()
+	defer h.Unlock()
 	if ordinal >= h.bits {
 		return fmt.Errorf("bit does not belong to the sequence")
 	}

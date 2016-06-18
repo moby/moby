@@ -4,6 +4,7 @@ import (
 	"os"
 
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/engine-api/types"
 )
 
 var (
@@ -39,4 +40,24 @@ func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) strin
 	cmd.StringVar(&config.bridgeConfig.FixedCIDR, []string{"-fixed-cidr"}, "", usageFn("IPv4 subnet for fixed IPs"))
 	cmd.StringVar(&config.bridgeConfig.Iface, []string{"b", "-bridge"}, "", "Attach containers to a virtual switch")
 	cmd.StringVar(&config.SocketGroup, []string{"G", "-group"}, "", usageFn("Users or groups that can access the named pipe"))
+}
+
+// GetRuntime returns the runtime path and arguments for a given
+// runtime name
+func (config *Config) GetRuntime(name string) *types.Runtime {
+	return nil
+}
+
+// GetDefaultRuntimeName returns the current default runtime
+func (config *Config) GetDefaultRuntimeName() string {
+	return types.DefaultRuntimeName
+}
+
+// GetAllRuntimes returns a copy of the runtimes map
+func (config *Config) GetAllRuntimes() map[string]types.Runtime {
+	return map[string]types.Runtime{}
+}
+
+func (config *Config) isSwarmCompatible() error {
+	return nil
 }

@@ -232,7 +232,7 @@ Congrats! You just deployed a container secured with a custom apparmor profile!
 
 ## Debug AppArmor
 
-You can use `demsg` to debug problems and `aa-status` check the loaded profiles.
+You can use `dmesg` to debug problems and `aa-status` check the loaded profiles.
 
 ### Use dmesg
 

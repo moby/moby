@@ -8,6 +8,7 @@ import (
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/osl"
+	"github.com/docker/libnetwork/types"
 )
 
 const (
@@ -35,11 +36,14 @@ type driver struct {
 }
 
 type endpoint struct {
-	id      string
-	mac     net.HardwareAddr
-	addr    *net.IPNet
-	addrv6  *net.IPNet
-	srcName string
+	id       string
+	nid      string
+	mac      net.HardwareAddr
+	addr     *net.IPNet
+	addrv6   *net.IPNet
+	srcName  string
+	dbIndex  uint64
+	dbExists bool
 }
 
 type network struct {
@@ -62,6 +66,14 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	d.initStore(config)
 
 	return dc.RegisterDriver(ipvlanType, d, c)
+}
+
+func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
+	return nil, types.NotImplementedErrorf("not implemented")
+}
+
+func (d *driver) NetworkFree(id string) error {
+	return types.NotImplementedErrorf("not implemented")
 }
 
 func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
@@ -88,4 +100,7 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 // DiscoverDelete is a notification for a discovery delete event.
 func (d *driver) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
 	return nil
+}
+
+func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key string, value []byte) {
 }

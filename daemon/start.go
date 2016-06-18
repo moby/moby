@@ -7,6 +7,8 @@ import (
 	"strings"
 	"syscall"
 
+	"google.golang.org/grpc"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errors"
@@ -105,8 +107,8 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 		if err != nil {
 			container.SetError(err)
 			// if no one else has set it, make sure we don't leave it at zero
-			if container.ExitCode == 0 {
-				container.ExitCode = 128
+			if container.ExitCode() == 0 {
+				container.SetExitCode(128)
 			}
 			container.ToDisk()
 			daemon.Cleanup(container)
@@ -130,25 +132,35 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 		return err
 	}
 
-	if err := daemon.containerd.Create(container.ID, *spec, libcontainerd.WithRestartManager(container.RestartManager(true))); err != nil {
+	createOptions := []libcontainerd.CreateOption{libcontainerd.WithRestartManager(container.RestartManager(true))}
+	copts, err := daemon.getLibcontainerdCreateOptions(container)
+	if err != nil {
+		return err
+	}
+	if copts != nil {
+		createOptions = append(createOptions, *copts...)
+	}
+
+	if err := daemon.containerd.Create(container.ID, *spec, createOptions...); err != nil {
+		errDesc := grpc.ErrorDesc(err)
+		logrus.Errorf("Create container failed with error: %s", errDesc)
 		// if we receive an internal error from the initial start of a container then lets
 		// return it instead of entering the restart loop
 		// set to 127 for container cmd not found/does not exist)
-		if strings.Contains(err.Error(), "executable file not found") ||
-			strings.Contains(err.Error(), "no such file or directory") ||
-			strings.Contains(err.Error(), "system cannot find the file specified") {
-			container.ExitCode = 127
-			err = fmt.Errorf("Container command '%s' not found or does not exist", container.Path)
+		if strings.Contains(errDesc, container.Path) &&
+			(strings.Contains(errDesc, "executable file not found") ||
+				strings.Contains(errDesc, "no such file or directory") ||
+				strings.Contains(errDesc, "system cannot find the file specified")) {
+			container.SetExitCode(127)
 		}
 		// set to 126 for container cmd can't be invoked errors
-		if strings.Contains(err.Error(), syscall.EACCES.Error()) {
-			container.ExitCode = 126
-			err = fmt.Errorf("Container command '%s' could not be invoked", container.Path)
+		if strings.Contains(errDesc, syscall.EACCES.Error()) {
+			container.SetExitCode(126)
 		}
 
 		container.Reset(false)
 
-		return err
+		return fmt.Errorf("%s", errDesc)
 	}
 
 	return nil

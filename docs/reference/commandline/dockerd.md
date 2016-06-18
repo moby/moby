@@ -54,10 +54,13 @@ weight = -1
       --log-driver="json-file"               Default driver for container logs
       --log-opt=[]                           Log driver specific options
       --mtu=0                                Set the containers network MTU
+      --max-concurrent-downloads=3           Set the max concurrent downloads for each pull
+      --max-concurrent-uploads=5             Set the max concurrent uploads for each push
       --disable-legacy-registry              Do not contact legacy registries
       -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
       --raw-logs                             Full timestamps without ANSI coloring
       --registry-mirror=[]                   Preferred Docker registry mirror
+      --add-runtime=[]                       Register an additional OCI compatible runtime
       -s, --storage-driver=""                Storage driver to use
       --selinux-enabled                      Enable selinux support
       --storage-opt=[]                       Set storage driver options
@@ -89,7 +92,7 @@ membership.
 If you need to access the Docker daemon remotely, you need to enable the `tcp`
 Socket. Beware that the default setup provides un-encrypted and
 un-authenticated direct access to the Docker daemon - and should be secured
-either using the [built in HTTPS encrypted socket](../../security/https/), or by
+either using the [built in HTTPS encrypted socket](../../security/https.md), or by
 putting a secure web proxy in front of it. You can listen on port `2375` on all
 network interfaces with `-H tcp://0.0.0.0:2375`, or on a particular network
 interface using its IP address: `-H tcp://192.168.59.103:2375`. It is
@@ -137,10 +140,72 @@ The Docker client will honor the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
 environment variables (or the lowercase versions thereof). `HTTPS_PROXY` takes
 precedence over `HTTP_PROXY`.
 
+### Bind Docker to another host/port or a Unix socket
+
+> **Warning**:
+> Changing the default `docker` daemon binding to a
+> TCP port or Unix *docker* user group will increase your security risks
+> by allowing non-root users to gain *root* access on the host. Make sure
+> you control access to `docker`. If you are binding
+> to a TCP port, anyone with access to that port has full Docker access;
+> so it is not advisable on an open network.
+
+With `-H` it is possible to make the Docker daemon to listen on a
+specific IP and port. By default, it will listen on
+`unix:///var/run/docker.sock` to allow only local connections by the
+*root* user. You *could* set it to `0.0.0.0:2375` or a specific host IP
+to give access to everybody, but that is **not recommended** because
+then it is trivial for someone to gain root access to the host where the
+daemon is running.
+
+Similarly, the Docker client can use `-H` to connect to a custom port.
+The Docker client will default to connecting to `unix:///var/run/docker.sock`
+on Linux, and `tcp://127.0.0.1:2376` on Windows.
+
+`-H` accepts host and port assignment in the following format:
+
+    tcp://[host]:[port][path] or unix://path
+
+For example:
+
+-   `tcp://` -> TCP connection to `127.0.0.1` on either port `2376` when TLS encryption
+    is on, or port `2375` when communication is in plain text.
+-   `tcp://host:2375` -> TCP connection on
+    host:2375
+-   `tcp://host:2375/path` -> TCP connection on
+    host:2375 and prepend path to all requests
+-   `unix://path/to/socket` -> Unix socket located
+    at `path/to/socket`
+
+`-H`, when empty, will default to the same value as
+when no `-H` was passed in.
+
+`-H` also accepts short form for TCP bindings:
+
+    `host:` or `host:port` or `:port`
+
+Run Docker in daemon mode:
+
+    $ sudo <path to>/dockerd -H 0.0.0.0:5555 &
+
+Download an `ubuntu` image:
+
+    $ docker -H :5555 pull ubuntu
+
+You can use multiple `-H`, for example, if you want to listen on both
+TCP and a Unix socket
+
+    # Run docker in daemon mode
+    $ sudo <path to>/dockerd -H tcp://127.0.0.1:2375 -H unix:///var/run/docker.sock &
+    # Download an ubuntu image, use default Unix socket
+    $ docker pull ubuntu
+    # OR use the TCP port
+    $ docker -H tcp://127.0.0.1:2375 pull ubuntu
+
 ### Daemon storage-driver option
 
 The Docker daemon has support for several different image layer storage
-drivers: `aufs`, `devicemapper`, `btrfs`, `zfs` and `overlay`.
+drivers: `aufs`, `devicemapper`, `btrfs`, `zfs`, `overlay` and `overlay2`.
 
 The `aufs` driver is the oldest, but is based on a Linux kernel patch-set that
 is unlikely to be merged into the main kernel. These are also known to cause
@@ -178,9 +243,14 @@ Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137). Call
 > inode consumption (especially as the number of images grows), as well as
 > being incompatible with the use of RPMs.
 
+The `overlay2` uses the same fast union filesystem but takes advantage of
+[additional features](https://lkml.org/lkml/2015/2/11/106) added in Linux
+kernel 4.0 to avoid excessive inode consumption. Call `dockerd -s overlay2`
+to use it.
+
 > **Note:**
-> It is currently unsupported on `btrfs` or any Copy on Write filesystem
-> and should only be used over `ext4` partitions.
+> Both `overlay` and `overlay2` are currently unsupported on `btrfs` or any
+> Copy on Write filesystem and should only be used over `ext4` partitions.
 
 ### Storage driver options
 
@@ -503,6 +573,31 @@ The Docker daemon relies on a
 (invoked via the `containerd` daemon) as its interface to the Linux
 kernel `namespaces`, `cgroups`, and `SELinux`.
 
+Runtimes can be registered with the daemon either via the
+configuration file or using the `--add-runtime` command line argument.
+
+The following is an example adding 2 runtimes via the configuration:
+```json
+	"default-runtime": "runc",
+	"runtimes": {
+		"runc": {
+			"path": "runc"
+		},
+		"custom": {
+			"path": "/usr/local/bin/my-runc-replacement",
+			"runtimeArgs": [
+				"--debug"
+			]
+		}
+	}
+```
+
+This is the same example via the command line:
+
+    $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-runc-replacement
+
+**Note**: defining runtime arguments via the command line is not supported.
+
 ## Options for the runtime
 
 You can configure the runtime using options specified
@@ -525,8 +620,9 @@ can specify default container isolation technology with this, for example:
 
     $ dockerd --exec-opt isolation=hyperv
 
-Will make `hyperv` the default isolation technology on Windows, without specifying
-isolation value on daemon start, Windows isolation technology will default to `process`.
+Will make `hyperv` the default isolation technology on Windows. If no isolation
+value is specified on daemon start, on Windows client, the default is
+`hyperv`, and on Windows server, the default is `process`.
 
 ## Daemon DNS options
 
@@ -584,9 +680,9 @@ system's list of trusted CAs instead of enabling `--insecure-registry`.
 
 Enabling `--disable-legacy-registry` forces a docker daemon to only interact with registries which support the V2 protocol.  Specifically, the daemon will not attempt `push`, `pull` and `login` to v1 registries.  The exception to this is `search` which can still be performed on v1 registries.
 
-## Running a Docker daemon behind a HTTPS_PROXY
+## Running a Docker daemon behind an HTTPS_PROXY
 
-When running inside a LAN that uses a `HTTPS` proxy, the Docker Hub
+When running inside a LAN that uses an `HTTPS` proxy, the Docker Hub
 certificates will be replaced by the proxy's certificates. These certificates
 need to be added to your Docker host's configuration:
 
@@ -847,7 +943,6 @@ set like this:
     export DOCKER_TMPDIR=/mnt/disk2/tmp
     /usr/local/bin/dockerd -D -g /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
 
-
 ## Default cgroup parent
 
 The `--cgroup-parent` option allows you to set the default cgroup parent
@@ -911,8 +1006,10 @@ This is a full example of the allowed configuration options in the file:
 	"pidfile": "",
 	"graph": "",
 	"cluster-store": "",
-	"cluster-store-opts": [],
+	"cluster-store-opts": {},
 	"cluster-advertise": "",
+	"max-concurrent-downloads": 3,
+	"max-concurrent-uploads": 5,
 	"debug": true,
 	"hosts": [],
 	"log-level": "",
@@ -921,7 +1018,7 @@ This is a full example of the allowed configuration options in the file:
 	"tlscacert": "",
 	"tlscert": "",
 	"tlskey": "",
-	"api-cors-headers": "",
+	"api-cors-header": "",
 	"selinux-enabled": false,
 	"userns-remap": "",
 	"group": "",
@@ -930,7 +1027,7 @@ This is a full example of the allowed configuration options in the file:
 	"ipv6": false,
 	"iptables": false,
 	"ip-forward": false,
-	"ip-mask": false,
+	"ip-masq": false,
 	"userland-proxy": false,
 	"ip": "0.0.0.0",
 	"bridge": "",
@@ -943,7 +1040,19 @@ This is a full example of the allowed configuration options in the file:
 	"raw-logs": false,
 	"registry-mirrors": [],
 	"insecure-registries": [],
-	"disable-legacy-registry": false
+	"disable-legacy-registry": false,
+	"default-runtime": "runc",
+	"runtimes": {
+		"runc": {
+			"path": "runc"
+		},
+		"custom": {
+			"path": "/usr/local/bin/my-runc-replacement",
+			"runtimeArgs": [
+				"--debug"
+			]
+		}
+	}
 }
 ```
 
@@ -963,6 +1072,13 @@ The list of currently supported options that can be reconfigured is this:
 - `cluster-store-opts`: it uses the new options to reload the discovery store.
 - `cluster-advertise`: it modifies the address advertised after reloading.
 - `labels`: it replaces the daemon labels with a new set of labels.
+- `max-concurrent-downloads`: it updates the max concurrent downloads for each pull.
+- `max-concurrent-uploads`: it updates the max concurrent uploads for each push.
+- `default-runtime`: it updates the runtime to be used if not is
+  specified at container creation. It defaults to "default" which is
+  the runtime shipped with the official docker packages.
+- `runtimes`: it updates the list of available OCI runtimes that can
+  be used to run containers
 
 Updating and reloading the cluster configurations such as `--cluster-store`,
 `--cluster-advertise` and `--cluster-store-opts` will take effect only if
@@ -971,3 +1087,59 @@ has been provided in flags and `cluster-advertise` not, `cluster-advertise`
 can be added in the configuration file without accompanied by `--cluster-store`
 Configuration reload will log a warning message if it detects a change in
 previously configured cluster configurations.
+
+
+## Running multiple daemons
+
+> **Note:** Running multiple daemons on a single host is considered as "experimental". The user should be aware of
+> unsolved problems. This solution may not work properly in some cases. Solutions are currently under development
+> and will be delivered in the near future.
+
+This section describes how to run multiple Docker daemons on a single host. To
+run multiple daemons, you must configure each daemon so that it does not
+conflict with other daemons on the same host. You can set these options either
+by providing them as flags, or by using a [daemon configuration file](#daemon-configuration-file).
+
+The following daemon options must be configured for each daemon:
+
+```bash
+-b, --bridge=                          Attach containers to a network bridge
+--exec-root=/var/run/docker            Root of the Docker execdriver
+-g, --graph=/var/lib/docker            Root of the Docker runtime
+-p, --pidfile=/var/run/docker.pid      Path to use for daemon PID file
+-H, --host=[]                          Daemon socket(s) to connect to
+--config-file=/etc/docker/daemon.json  Daemon configuration file
+--tlscacert="~/.docker/ca.pem"         Trust certs signed only by this CA
+--tlscert="~/.docker/cert.pem"         Path to TLS certificate file
+--tlskey="~/.docker/key.pem"           Path to TLS key file
+```
+
+When your daemons use different values for these flags, you can run them on the same host without any problems.
+It is very important to properly understand the meaning of those options and to use them correctly.
+
+- The `-b, --bridge=` flag is set to `docker0` as default bridge network. It is created automatically when you install Docker.
+If you are not using the default, you must create and configure the bridge manually or just set it to 'none': `--bridge=none`
+- `--exec-root` is the path where the container state is stored. The default value is `/var/run/docker`. Specify the path for
+your running daemon here.
+- `--graph` is the path where images are stored. The default value is `/var/lib/docker`. To avoid any conflict with other daemons
+set this parameter separately for each daemon.
+- `-p, --pidfile=/var/run/docker.pid` is the path where the process ID of the daemon is stored. Specify the path for your
+pid file here.
+- `--host=[]` specifies where the Docker daemon will listen for client connections. If unspecified, it defaults to `/var/run/docker.sock`.
+- `--config-file=/etc/docker/daemon.json` is the path where configuration file is stored. You can use it instead of
+daemon flags. Specify the path for each daemon.
+- `--tls*` Docker daemon supports `--tlsverify` mode that enforces encrypted and authenticated remote connections.
+The `--tls*` options enable use of specific certificates for individual daemons.
+
+Example script for a separate “bootstrap” instance of the Docker daemon without network:
+
+```bash
+$ docker daemon \
+        -H unix:///var/run/docker-bootstrap.sock \
+        -p /var/run/docker-bootstrap.pid \
+        --iptables=false \
+        --ip-masq=false \
+        --bridge=none \
+        --graph=/var/lib/docker-bootstrap \
+        --exec-root=/var/run/docker-bootstrap
+```

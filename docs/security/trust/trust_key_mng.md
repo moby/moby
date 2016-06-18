@@ -15,7 +15,7 @@ trust makes use of five different types of keys:
 
 | Key                 | Description                                                                                                                                                                                                                                                                                                                                                                         |
 |---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| root key         | Root of content trust for a image tag. When content trust is enabled, you create the root key once. Also known as the offline key, because it should be kept offline. |
+| root key         | Root of content trust for an image tag. When content trust is enabled, you create the root key once. Also known as the offline key, because it should be kept offline. |
 | targets          | This key allows you to sign image tags, to manage delegations including delegated keys or permitted delegation paths. Also known as the repository key, since this key determines what tags can be signed into an image repository. |
 | snapshot         | This key signs the current collection of image tags, preventing mix and match attacks.
 | timestamp        | This key allows Docker image repositories to have freshness security guarantees without requiring periodic content refreshes on the client's side. |
@@ -86,7 +86,7 @@ the tagged image prior to the loss. Image consumers would get an error for
 content that they already downloaded:
 
 ```
-could not validate the path to a trusted root: failed to validate data with current trusted certificates
+Warning: potential malicious behavior - trust data has insufficient signatures for remote repository docker.io/my/image: valid signatures did not meet threshold
 ```
 
 To correct this, they need to download a new image tag with that is signed with

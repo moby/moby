@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -71,6 +72,10 @@ func createChainIDFromParent(parent layer.ChainID, dgsts ...layer.DiffID) layer.
 }
 
 func (ls *mockLayerStore) Register(reader io.Reader, parentID layer.ChainID) (layer.Layer, error) {
+	return ls.RegisterWithDescriptor(reader, parentID, distribution.Descriptor{})
+}
+
+func (ls *mockLayerStore) RegisterWithDescriptor(reader io.Reader, parentID layer.ChainID, _ distribution.Descriptor) (layer.Layer, error) {
 	var (
 		parent layer.Layer
 		err    error
@@ -119,10 +124,6 @@ func (ls *mockLayerStore) ReleaseRWLayer(layer.RWLayer) ([]layer.Metadata, error
 }
 func (ls *mockLayerStore) GetMountID(string) (string, error) {
 	return "", errors.New("not implemented")
-}
-
-func (ls *mockLayerStore) ReinitRWLayer(layer.RWLayer) error {
-	return errors.New("not implemented")
 }
 
 func (ls *mockLayerStore) Cleanup() error {

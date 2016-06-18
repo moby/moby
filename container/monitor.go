@@ -35,7 +35,7 @@ func (container *Container) Reset(lock bool) {
 			}()
 			select {
 			case <-time.After(loggerCloseTimeout):
-				logrus.Warnf("Logger didn't exit in time: logs may be truncated")
+				logrus.Warn("Logger didn't exit in time: logs may be truncated")
 			case <-exit:
 			}
 		}

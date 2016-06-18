@@ -14,13 +14,6 @@ import (
 	"github.com/docker/libnetwork/types"
 )
 
-// constants for the IP address type
-const (
-	IP = iota // IPv4 and IPv6
-	IPv4
-	IPv6
-)
-
 var (
 	// ErrNetworkOverlapsWithNameservers preformatted error
 	ErrNetworkOverlapsWithNameservers = errors.New("requested network overlaps with nameserver")

@@ -4,6 +4,7 @@ package windows
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/sha512"
 	"encoding/json"
 	"fmt"
@@ -12,7 +13,9 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -24,34 +27,40 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/longpath"
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
 	"github.com/vbatts/tar-split/tar/storage"
 )
 
+// filterDriver is an HCSShim driver type for the Windows Filter driver.
+const filterDriver = 1
+
 // init registers the windows graph drivers to the register.
 func init() {
 	graphdriver.Register("windowsfilter", InitFilter)
-	graphdriver.Register("windowsdiff", InitDiff)
+	reexec.Register("docker-windows-write-layer", writeLayer)
 }
 
-const (
-	// diffDriver is an hcsshim driver type
-	diffDriver = iota
-	// filterDriver is an hcsshim driver type
-	filterDriver
-)
+type checker struct {
+}
+
+func (c *checker) IsMounted(path string) bool {
+	return false
+}
 
 // Driver represents a windows graph driver.
 type Driver struct {
 	// info stores the shim driver information
 	info hcsshim.DriverInfo
+	ctr  *graphdriver.RefCounter
+	// it is safe for windows to use a cache here because it does not support
+	// restoring containers when the daemon dies.
+	cacheMu sync.Mutex
+	cache   map[string]string
 }
-
-var _ graphdriver.DiffGetterDriver = &Driver{}
 
 func isTP5OrOlder() bool {
 	return system.GetOSVersion().Build <= 14300
@@ -65,32 +74,16 @@ func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap)
 			HomeDir: home,
 			Flavour: filterDriver,
 		},
+		cache: make(map[string]string),
+		ctr:   graphdriver.NewRefCounter(&checker{}),
 	}
 	return d, nil
 }
 
-// InitDiff returns a new Windows differencing disk driver.
-func InitDiff(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
-	logrus.Debugf("WindowsGraphDriver InitDiff at %s", home)
-	d := &Driver{
-		info: hcsshim.DriverInfo{
-			HomeDir: home,
-			Flavour: diffDriver,
-		},
-	}
-	return d, nil
-}
-
-// String returns the string representation of a driver.
+// String returns the string representation of a driver. This should match
+// the name the graph driver has been registered with.
 func (d *Driver) String() string {
-	switch d.info.Flavour {
-	case diffDriver:
-		return "windowsdiff"
-	case filterDriver:
-		return "windowsfilter"
-	default:
-		return "Unknown driver flavour"
-	}
+	return "windowsfilter"
 }
 
 // Status returns the status of the driver.
@@ -234,17 +227,23 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if count := d.ctr.Increment(rID); count > 1 {
+		return d.cache[rID], nil
+	}
 
 	// Getting the layer paths must be done outside of the lock.
 	layerChain, err := d.getLayerChain(rID)
 	if err != nil {
+		d.ctr.Decrement(rID)
 		return "", err
 	}
 
 	if err := hcsshim.ActivateLayer(d.info, rID); err != nil {
+		d.ctr.Decrement(rID)
 		return "", err
 	}
 	if err := hcsshim.PrepareLayer(d.info, rID, layerChain); err != nil {
+		d.ctr.Decrement(rID)
 		if err2 := hcsshim.DeactivateLayer(d.info, rID); err2 != nil {
 			logrus.Warnf("Failed to Deactivate %s: %s", id, err)
 		}
@@ -253,11 +252,15 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 
 	mountPath, err := hcsshim.GetLayerMountPath(d.info, rID)
 	if err != nil {
+		d.ctr.Decrement(rID)
 		if err2 := hcsshim.DeactivateLayer(d.info, rID); err2 != nil {
 			logrus.Warnf("Failed to Deactivate %s: %s", id, err)
 		}
 		return "", err
 	}
+	d.cacheMu.Lock()
+	d.cache[rID] = mountPath
+	d.cacheMu.Unlock()
 
 	// If the layer has a mount path, use that. Otherwise, use the
 	// folder path.
@@ -278,6 +281,12 @@ func (d *Driver) Put(id string) error {
 	if err != nil {
 		return err
 	}
+	if count := d.ctr.Decrement(rID); count > 0 {
+		return nil
+	}
+	d.cacheMu.Lock()
+	delete(d.cache, rID)
+	d.cacheMu.Unlock()
 
 	if err := hcsshim.UnprepareLayer(d.info, rID); err != nil {
 		return err
@@ -308,18 +317,21 @@ func (d *Driver) Diff(id, parent string) (_ archive.Archive, err error) {
 	if err := hcsshim.UnprepareLayer(d.info, rID); err != nil {
 		return nil, err
 	}
-	defer func() {
+	prepare := func() {
 		if err := hcsshim.PrepareLayer(d.info, rID, layerChain); err != nil {
 			logrus.Warnf("Failed to Deactivate %s: %s", rID, err)
 		}
-	}()
+	}
 
 	arch, err := d.exportLayer(rID, layerChain)
 	if err != nil {
+		prepare()
 		return
 	}
 	return ioutils.NewReadCloserWrapper(arch, func() error {
-		return arch.Close()
+		err := arch.Close()
+		prepare()
+		return err
 	}), nil
 }
 
@@ -346,29 +358,35 @@ func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 		}
 	}()
 
-	r, err := hcsshim.NewLayerReader(d.info, id, parentChain)
+	var changes []archive.Change
+	err = winio.RunWithPrivilege(winio.SeBackupPrivilege, func() error {
+		r, err := hcsshim.NewLayerReader(d.info, id, parentChain)
+		if err != nil {
+			return err
+		}
+		defer r.Close()
+
+		for {
+			name, _, fileInfo, err := r.Next()
+			if err == io.EOF {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			name = filepath.ToSlash(name)
+			if fileInfo == nil {
+				changes = append(changes, archive.Change{Path: name, Kind: archive.ChangeDelete})
+			} else {
+				// Currently there is no way to tell between an add and a modify.
+				changes = append(changes, archive.Change{Path: name, Kind: archive.ChangeModify})
+			}
+		}
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
 
-	var changes []archive.Change
-	for {
-		name, _, fileInfo, err := r.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		name = filepath.ToSlash(name)
-		if fileInfo == nil {
-			changes = append(changes, archive.Change{Path: name, Kind: archive.ChangeDelete})
-		} else {
-			// Currently there is no way to tell between an add and a modify.
-			changes = append(changes, archive.Change{Path: name, Kind: archive.ChangeModify})
-		}
-	}
 	return changes, nil
 }
 
@@ -377,20 +395,6 @@ func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 // new layer in bytes.
 // The layer should not be mounted when calling this function
 func (d *Driver) ApplyDiff(id, parent string, diff archive.Reader) (int64, error) {
-	if d.info.Flavour == diffDriver {
-		start := time.Now().UTC()
-		logrus.Debugf("WindowsGraphDriver ApplyDiff: Start untar layer")
-		destination := d.dir(id)
-		destination = filepath.Dir(destination)
-		size, err := chrootarchive.ApplyUncompressedLayer(destination, diff, nil)
-		if err != nil {
-			return 0, err
-		}
-		logrus.Debugf("WindowsGraphDriver ApplyDiff: Untar time: %vs", time.Now().UTC().Sub(start).Seconds())
-
-		return size, nil
-	}
-
 	var layerChain []string
 	if parent != "" {
 		rPId, err := d.resolveID(parent)
@@ -503,7 +507,7 @@ func (d *Driver) GetCustomImageInfos() ([]CustomImageInfo, error) {
 
 		versionData := strings.Split(imageData.Version, ".")
 		if len(versionData) != 4 {
-			logrus.Warn("Could not parse Windows version %s", imageData.Version)
+			logrus.Warnf("Could not parse Windows version %s", imageData.Version)
 		} else {
 			// Include just major.minor.build, skip the fourth version field, which does not influence
 			// OS compatibility.
@@ -554,19 +558,21 @@ func writeTarFromLayer(r hcsshim.LayerReader, w io.Writer) error {
 
 // exportLayer generates an archive from a layer based on the given ID.
 func (d *Driver) exportLayer(id string, parentLayerPaths []string) (archive.Archive, error) {
-	var r hcsshim.LayerReader
-	r, err := hcsshim.NewLayerReader(d.info, id, parentLayerPaths)
-	if err != nil {
-		return nil, err
-	}
-
 	archive, w := io.Pipe()
 	go func() {
-		err := writeTarFromLayer(r, w)
-		cerr := r.Close()
-		if err == nil {
-			err = cerr
-		}
+		err := winio.RunWithPrivilege(winio.SeBackupPrivilege, func() error {
+			r, err := hcsshim.NewLayerReader(d.info, id, parentLayerPaths)
+			if err != nil {
+				return err
+			}
+
+			err = writeTarFromLayer(r, w)
+			cerr := r.Close()
+			if err == nil {
+				err = cerr
+			}
+			return err
+		})
 		w.CloseWithError(err)
 	}()
 
@@ -609,7 +615,7 @@ func writeLayerFromTar(r archive.Reader, w hcsshim.LayerWriter) (int64, error) {
 			}
 			buf.Reset(w)
 
-			// Add the Hyper-V Virutal Machine group ACE to the security descriptor
+			// Add the Hyper-V Virtual Machine group ACE to the security descriptor
 			// for TP5 so that Xenons can access all files. This is not necessary
 			// for post-TP5 builds.
 			if isTP5OrOlder() {
@@ -682,21 +688,63 @@ func addAceToSddlDacl(sddl, ace string) (string, bool) {
 
 // importLayer adds a new layer to the tag and graph store based on the given data.
 func (d *Driver) importLayer(id string, layerData archive.Reader, parentLayerPaths []string) (size int64, err error) {
-	var w hcsshim.LayerWriter
-	w, err = hcsshim.NewLayerWriter(d.info, id, parentLayerPaths)
-	if err != nil {
+	cmd := reexec.Command(append([]string{"docker-windows-write-layer", d.info.HomeDir, id}, parentLayerPaths...)...)
+	output := bytes.NewBuffer(nil)
+	cmd.Stdin = layerData
+	cmd.Stdout = output
+	cmd.Stderr = output
+
+	if err = cmd.Start(); err != nil {
 		return
 	}
-	size, err = writeLayerFromTar(layerData, w)
-	if err != nil {
-		w.Close()
-		return
+
+	if err = cmd.Wait(); err != nil {
+		return 0, fmt.Errorf("re-exec error: %v: output: %s", err, output)
 	}
-	err = w.Close()
+
+	return strconv.ParseInt(output.String(), 10, 64)
+}
+
+// writeLayer is the re-exec entry point for writing a layer from a tar file
+func writeLayer() {
+	home := os.Args[1]
+	id := os.Args[2]
+	parentLayerPaths := os.Args[3:]
+
+	err := func() error {
+		err := winio.EnableProcessPrivileges([]string{winio.SeBackupPrivilege, winio.SeRestorePrivilege})
+		if err != nil {
+			return err
+		}
+
+		info := hcsshim.DriverInfo{
+			Flavour: filterDriver,
+			HomeDir: home,
+		}
+
+		w, err := hcsshim.NewLayerWriter(info, id, parentLayerPaths)
+		if err != nil {
+			return err
+		}
+
+		size, err := writeLayerFromTar(os.Stdin, w)
+		if err != nil {
+			return err
+		}
+
+		err = w.Close()
+		if err != nil {
+			return err
+		}
+
+		fmt.Fprint(os.Stdout, size)
+		return nil
+	}()
+
 	if err != nil {
-		return
+		fmt.Fprint(os.Stderr, err)
+		os.Exit(1)
 	}
-	return
 }
 
 // resolveID computes the layerID information based on the given id.

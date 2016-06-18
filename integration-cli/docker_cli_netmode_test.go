@@ -13,7 +13,7 @@ import (
 const stringCheckPS = "PID   USER"
 
 // DockerCmdWithFail executes a docker command that is supposed to fail and returns
-// the output, the exit code. If the command returns an Nil error, it will fail and
+// the output, the exit code. If the command returns a Nil error, it will fail and
 // stop the tests.
 func dockerCmdWithFail(c *check.C, args ...string) (string, int) {
 	out, status, err := dockerCmdWithError(args...)
@@ -67,13 +67,7 @@ func (s *DockerSuite) TestConflictContainerNetworkHostAndLinks(c *check.C) {
 func (s *DockerSuite) TestConflictNetworkModeNetHostAndOptions(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
-	out, _ := dockerCmdWithFail(c, "run", "--net=host", "--dns=8.8.8.8", "busybox", "ps")
-	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkAndDNS.Error())
-
-	out, _ = dockerCmdWithFail(c, "run", "--net=host", "--add-host=name:8.8.8.8", "busybox", "ps")
-	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkHosts.Error())
-
-	out, _ = dockerCmdWithFail(c, "run", "--net=host", "--mac-address=92:d0:c6:0a:29:33", "busybox", "ps")
+	out, _ := dockerCmdWithFail(c, "run", "--net=host", "--mac-address=92:d0:c6:0a:29:33", "busybox", "ps")
 	c.Assert(out, checker.Contains, runconfig.ErrConflictContainerNetworkAndMac.Error())
 }
 

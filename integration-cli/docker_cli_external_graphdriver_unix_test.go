@@ -77,7 +77,7 @@ func (s *DockerExternalGraphdriverSuite) setUpPluginViaJSONFile(c *check.C) {
 	mux := http.NewServeMux()
 	s.jserver = httptest.NewServer(mux)
 
-	p := plugins.Plugin{Name: "json-external-graph-driver", Addr: s.jserver.URL}
+	p := plugins.NewLocalPlugin("json-external-graph-driver", s.jserver.URL)
 	b, err := json.Marshal(p)
 	c.Assert(err, check.IsNil)
 
@@ -348,7 +348,7 @@ func (s *DockerExternalGraphdriverSuite) testExternalGraphDriver(name string, ex
 		c.Assert(err, check.IsNil, check.Commentf("\n%s", string(b)))
 	}
 
-	out, err := s.d.Cmd("run", "-d", "--name=graphtest", "busybox", "sh", "-c", "echo hello > /hello")
+	out, err := s.d.Cmd("run", "--name=graphtest", "busybox", "sh", "-c", "echo hello > /hello")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 
 	err = s.d.Restart("-s", name)
@@ -359,7 +359,7 @@ func (s *DockerExternalGraphdriverSuite) testExternalGraphDriver(name string, ex
 
 	out, err = s.d.Cmd("diff", "graphtest")
 	c.Assert(err, check.IsNil, check.Commentf(out))
-	c.Assert(strings.Contains(out, "A /hello"), check.Equals, true)
+	c.Assert(strings.Contains(out, "A /hello"), check.Equals, true, check.Commentf("diff ouput: %s", out))
 
 	out, err = s.d.Cmd("rm", "-f", "graphtest")
 	c.Assert(err, check.IsNil, check.Commentf(out))

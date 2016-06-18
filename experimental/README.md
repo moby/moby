@@ -49,9 +49,9 @@ refined or entirely removed.
 To download the latest experimental `docker` binary for Linux,
 use the following URLs:
 
-    https://experimental.docker.com/builds/Linux/i386/docker-latest
+    https://experimental.docker.com/builds/Linux/i386/docker-latest.tgz
 
-    https://experimental.docker.com/builds/Linux/x86_64/docker-latest
+    https://experimental.docker.com/builds/Linux/x86_64/docker-latest.tgz
 
 After downloading the appropriate binary, you can follow the instructions
 [here](https://docs.docker.com/installation/binaries/#get-the-docker-binary) to run the `docker` daemon.
@@ -73,7 +73,7 @@ to build a Docker binary with the experimental features enabled:
 
  * [External graphdriver plugins](plugins_graphdriver.md)
  * [Macvlan and Ipvlan Network Drivers](vlan-networks.md)
- * The user namespaces feature has graduated from experimental.
+ * [Docker stacks](docker-stacks.md)
 
 ## How to comment on an experimental feature
 

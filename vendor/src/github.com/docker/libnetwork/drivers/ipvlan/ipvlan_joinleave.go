@@ -7,6 +7,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
 )
@@ -34,7 +35,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return fmt.Errorf("could not find endpoint with id %s", eid)
 	}
 	// generate a name for the iface that will be renamed to eth0 in the sbox
-	containerIfName, err := netutils.GenerateIfaceName(vethPrefix, vethLen)
+	containerIfName, err := netutils.GenerateIfaceName(ns.NlHandle(), vethPrefix, vethLen)
 	if err != nil {
 		return fmt.Errorf("error generating an interface name: %v", err)
 	}
@@ -114,6 +115,9 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	err = iNames.SetNames(vethName, containerVethPrefix)
 	if err != nil {
 		return err
+	}
+	if err = d.storeUpdate(ep); err != nil {
+		return fmt.Errorf("failed to save ipvlan endpoint %s to store: %v", ep.id[0:7], err)
 	}
 
 	return nil

@@ -19,6 +19,7 @@ parent = "smn_cli"
       --ip               IPv4 Address
       --ip6              IPv6 Address
       --link=[]          Add a link to another container
+      --link-local-ip=[] IPv4/IPv6 link-local addresses
 
 Connects a container to a network. You can connect a container by name
 or by ID. Once connected, the container can communicate with other containers in

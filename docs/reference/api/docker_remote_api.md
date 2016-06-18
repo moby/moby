@@ -35,14 +35,15 @@ If you have bound the Docker daemon to a different socket path or TCP
 port, you would reference that in your cURL rather than the
 default.
 
-The current version of the API is v1.24 which means calling `/info` is the same
-as calling `/v1.24/info`. To call an older version of the API use
-`/v1.23/info`.
+The current version of the API is v1.25 which means calling `/info` is the same
+as calling `/v1.25/info`. To call an older version of the API use
+`/v1.24/info`.
 
 Use the table below to find the API version for a Docker version:
 
 Docker version  | API version                        | Changes
 ----------------|------------------------------------|------------------------------------------------------
+1.13.x          | [1.25](docker_remote_api_v1.25.md) | [API changes](docker_remote_api.md#v1-25-api-changes)
 1.12.x          | [1.24](docker_remote_api_v1.24.md) | [API changes](docker_remote_api.md#v1-24-api-changes)
 1.11.x          | [1.23](docker_remote_api_v1.23.md) | [API changes](docker_remote_api.md#v1-23-api-changes)
 1.10.x          | [1.22](docker_remote_api_v1.22.md) | [API changes](docker_remote_api.md#v1-22-api-changes)
@@ -99,6 +100,8 @@ Some container-related events are not affected by container state, so they are n
 * **export** emitted by `docker export`
 * **exec_create** emitted by `docker exec`
 * **exec_start** emitted by `docker exec` after **exec_create**
+* **detach** emitted when client is detached from container process
+* **exec_detach** emitted when client is detached from exec process
 
 Running `docker rmi` emits an **untag** event when removing an image name.  The `rmi` command may also emit **delete** events when images are deleted by ID directly or by deleting the last tag referring to the image.
 
@@ -115,7 +118,22 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /containers/create` now takes `StorageOpt` field.
 * `GET /info` now returns `SecurityOptions` field, showing if `apparmor`, `seccomp`, or `selinux` is supported.
 * `GET /networks` now supports filtering by `label` and `driver`.
+* `GET /containers/json` now supports filtering containers by `network` name or id.
 * `POST /containers/create` now takes `MaximumIOps` and `MaximumIOBps` fields. Windows daemon only.
+* `POST /containers/create` now returns an HTTP 400 "bad parameter" message
+  if no command is specified (instead of an HTTP 500 "server error")
+* `GET /images/search` now takes a `filters` query parameter.
+* `GET /events` now supports a `reload` event that is emitted when the daemon configuration is reloaded.
+* `GET /events` now supports filtering by daemon name or ID.
+* `GET /events` now supports a `detach` event that is emitted on detaching from container process.
+* `GET /events` now supports an `exec_detach ` event that is emitted on detaching from exec process.
+* `GET /images/json` now supports filters `since` and `before`.
+* `POST /containers/(id or name)/start` no longer accepts a `HostConfig`.
+* `POST /images/(name)/tag` no longer has a `force` query parameter.
+* `GET /images/search` now supports maximum returned search results `limit`.
+* `POST /containers/{name:.*}/copy` is now removed and errors out starting from this API version.
+* API errors are now returned as JSON instead of plain text.
+* `POST /containers/create` and `POST /containers/(id)/start` allow you to configure kernel parameters (sysctls) for use in the container.
 
 ### v1.23 API changes
 
@@ -176,7 +194,6 @@ This section lists each version from latest to oldest.  Each listing includes a 
 
 [Docker Remote API v1.21](docker_remote_api_v1.21.md) documentation
 
-* `POST /containers/create` and `POST /containers/(id)/start` allow you to configure kernel parameters (sysctls) for use in the container.
 * `GET /volumes` lists volumes from all volume drivers.
 * `POST /volumes/create` to create a volume.
 * `GET /volumes/(name)` get low-level information about a volume.
@@ -247,4 +264,3 @@ end point now returns the new boolean fields `CpuCfsPeriod`, `CpuCfsQuota`, and
 * `CgroupParent` can be passed in the host config to setup container cgroups under a specific cgroup.
 * `POST /build` closing the HTTP request cancels the build
 * `POST /containers/(id)/exec` includes `Warnings` field to response.
-

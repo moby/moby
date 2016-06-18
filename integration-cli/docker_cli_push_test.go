@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/distribution/digest"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
@@ -215,7 +215,7 @@ func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *check.C) {
 	// ensure that none of the layers were mounted from another repository during push
 	c.Assert(strings.Contains(out1, "Mounted from"), check.Equals, false)
 
-	digest1 := digest.DigestRegexp.FindString(out1)
+	digest1 := reference.DigestRegexp.FindString(out1)
 	c.Assert(len(digest1), checker.GreaterThan, 0, check.Commentf("no digest found for pushed manifest"))
 
 	destRepoName := fmt.Sprintf("%v/dockercli/crossrepopush", privateRegistryURL)
@@ -227,7 +227,7 @@ func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *check.C) {
 	// ensure that layers were mounted from the first repo during push
 	c.Assert(strings.Contains(out2, "Mounted from dockercli/busybox"), check.Equals, true)
 
-	digest2 := digest.DigestRegexp.FindString(out2)
+	digest2 := reference.DigestRegexp.FindString(out2)
 	c.Assert(len(digest2), checker.GreaterThan, 0, check.Commentf("no digest found for pushed manifest"))
 	c.Assert(digest1, check.Equals, digest2)
 
@@ -248,7 +248,7 @@ func (s *DockerSchema1RegistrySuite) TestCrossRepositoryLayerPushNotSupported(c 
 	// ensure that none of the layers were mounted from another repository during push
 	c.Assert(strings.Contains(out1, "Mounted from"), check.Equals, false)
 
-	digest1 := digest.DigestRegexp.FindString(out1)
+	digest1 := reference.DigestRegexp.FindString(out1)
 	c.Assert(len(digest1), checker.GreaterThan, 0, check.Commentf("no digest found for pushed manifest"))
 
 	destRepoName := fmt.Sprintf("%v/dockercli/crossrepopush", privateRegistryURL)
@@ -260,9 +260,9 @@ func (s *DockerSchema1RegistrySuite) TestCrossRepositoryLayerPushNotSupported(c 
 	// schema1 registry should not support cross-repo layer mounts, so ensure that this does not happen
 	c.Assert(strings.Contains(out2, "Mounted from"), check.Equals, false)
 
-	digest2 := digest.DigestRegexp.FindString(out2)
+	digest2 := reference.DigestRegexp.FindString(out2)
 	c.Assert(len(digest2), checker.GreaterThan, 0, check.Commentf("no digest found for pushed manifest"))
-	c.Assert(digest1, check.Equals, digest2)
+	c.Assert(digest1, check.Not(check.Equals), digest2)
 
 	// ensure that we can pull and run the second pushed repository
 	dockerCmd(c, "rmi", destRepoName)
@@ -315,27 +315,14 @@ func (s *DockerTrustSuite) TestTrustedPushWithEnvPasswords(c *check.C) {
 	c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf(out))
 }
 
-// This test ensures backwards compatibility with old ENV variables. Should be
-// deprecated by 1.10
-func (s *DockerTrustSuite) TestTrustedPushWithDeprecatedEnvPasswords(c *check.C) {
-	repoName := fmt.Sprintf("%v/dockercli/trusteddeprecated:latest", privateRegistryURL)
-	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
-
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmdWithDeprecatedEnvPassphrases(pushCmd, "12345678", "12345678")
-	out, _, err := runCommandWithOutput(pushCmd)
-	c.Assert(err, check.IsNil, check.Commentf("Error running trusted push: %s\n%s", err, out))
-	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push"))
-}
-
 func (s *DockerTrustSuite) TestTrustedPushWithFailingServer(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockerclitrusted/failingserver:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)
 
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmdWithServer(pushCmd, "https://example.com:81/")
+	// Using a name that doesn't resolve to an address makes this test faster
+	s.trustedCmdWithServer(pushCmd, "https://server.invalid:81/")
 	out, _, err := runCommandWithOutput(pushCmd)
 	c.Assert(err, check.NotNil, check.Commentf("Missing error while running trusted push w/ no server"))
 	c.Assert(out, checker.Contains, "error contacting notary server", check.Commentf("Missing expected output on trusted push"))
@@ -347,7 +334,8 @@ func (s *DockerTrustSuite) TestTrustedPushWithoutServerAndUntrusted(c *check.C) 
 	dockerCmd(c, "tag", "busybox", repoName)
 
 	pushCmd := exec.Command(dockerBinary, "push", "--disable-content-trust", repoName)
-	s.trustedCmdWithServer(pushCmd, "https://example.com/")
+	// Using a name that doesn't resolve to an address makes this test faster
+	s.trustedCmdWithServer(pushCmd, "https://server.invalid")
 	out, _, err := runCommandWithOutput(pushCmd)
 	c.Assert(err, check.IsNil, check.Commentf("trusted push with no server and --disable-content-trust failed: %s\n%s", err, out))
 	c.Assert(out, check.Not(checker.Contains), "Error establishing connection to notary repository", check.Commentf("Missing expected output on trusted push with --disable-content-trust:"))
@@ -418,28 +406,6 @@ func (s *DockerTrustSuite) TestTrustedPushWithIncorrectPassphraseForNonRoot(c *c
 	// Push with wrong passphrases
 	pushCmd = exec.Command(dockerBinary, "push", repoName)
 	s.trustedCmdWithPassphrases(pushCmd, "12345678", "87654321")
-	out, _, err = runCommandWithOutput(pushCmd)
-	c.Assert(err, check.NotNil, check.Commentf("Error missing from trusted push with short targets passphrase: \n%s", out))
-	c.Assert(out, checker.Contains, "could not find necessary signing keys", check.Commentf("Missing expected output on trusted push with short targets/snapsnot passphrase"))
-}
-
-// This test ensures backwards compatibility with old ENV variables. Should be
-// deprecated by 1.10
-func (s *DockerTrustSuite) TestTrustedPushWithIncorrectDeprecatedPassphraseForNonRoot(c *check.C) {
-	repoName := fmt.Sprintf("%v/dockercliincorretdeprecatedpwd/trusted:latest", privateRegistryURL)
-	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
-
-	// Push with default passphrases
-	pushCmd := exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmd(pushCmd)
-	out, _, err := runCommandWithOutput(pushCmd)
-	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
-	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push"))
-
-	// Push with wrong passphrases
-	pushCmd = exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmdWithDeprecatedEnvPassphrases(pushCmd, "12345678", "87654321")
 	out, _, err = runCommandWithOutput(pushCmd)
 	c.Assert(err, check.NotNil, check.Commentf("Error missing from trusted push with short targets passphrase: \n%s", out))
 	c.Assert(out, checker.Contains, "could not find necessary signing keys", check.Commentf("Missing expected output on trusted push with short targets/snapsnot passphrase"))

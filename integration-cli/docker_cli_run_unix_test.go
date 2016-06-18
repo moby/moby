@@ -135,6 +135,11 @@ func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 
 	running := inspectField(c, name, "State.Running")
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
+
+	out, _ = dockerCmd(c, "events", "--since=0", "--until", daemonUnixTime(c), "-f", "container="+name)
+	// attach and detach event should be monitored
+	c.Assert(out, checker.Contains, "attach")
+	c.Assert(out, checker.Contains, "detach")
 }
 
 // TestRunDetach checks attaching and detaching with the escape sequence specified via flags.
@@ -145,7 +150,7 @@ func (s *DockerSuite) TestRunAttachDetachFromFlag(c *check.C) {
 
 	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "cat")
 
-	cmd := exec.Command(dockerBinary, "attach", "--detach-keys='ctrl-a,a'", name)
+	cmd := exec.Command(dockerBinary, "attach", "--detach-keys=ctrl-a,a", name)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		c.Fatal(err)
@@ -205,7 +210,7 @@ func (s *DockerSuite) TestRunAttachDetachFromInvalidFlag(c *check.C) {
 	c.Assert(waitRun(name), check.IsNil)
 
 	// specify an invalid detach key, container will ignore it and use default
-	cmd := exec.Command(dockerBinary, "attach", "--detach-keys='ctrl-A,a'", name)
+	cmd := exec.Command(dockerBinary, "attach", "--detach-keys=ctrl-A,a", name)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		c.Fatal(err)
@@ -343,7 +348,7 @@ func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *check.C) {
 	name := "attach-detach"
 	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "cat")
 
-	cmd := exec.Command(dockerBinary, "attach", "--detach-keys='ctrl-a,a'", name)
+	cmd := exec.Command(dockerBinary, "attach", "--detach-keys=ctrl-a,a", name)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		c.Fatal(err)
@@ -394,6 +399,55 @@ func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *check.C) {
 
 	running := inspectField(c, name, "State.Running")
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
+}
+
+func (s *DockerSuite) TestRunAttachInvalidDetachKeySequencePreserved(c *check.C) {
+	name := "attach-detach"
+	keyA := []byte{97}
+	keyB := []byte{98}
+
+	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "cat")
+
+	cmd := exec.Command(dockerBinary, "attach", "--detach-keys=a,b,c", name)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		c.Fatal(err)
+	}
+	cpty, tty, err := pty.Open()
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer cpty.Close()
+	cmd.Stdin = tty
+	if err := cmd.Start(); err != nil {
+		c.Fatal(err)
+	}
+	c.Assert(waitRun(name), check.IsNil)
+
+	// Invalid escape sequence aba, should print aba in output
+	if _, err := cpty.Write(keyA); err != nil {
+		c.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if _, err := cpty.Write(keyB); err != nil {
+		c.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if _, err := cpty.Write(keyA); err != nil {
+		c.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if _, err := cpty.Write([]byte("\n")); err != nil {
+		c.Fatal(err)
+	}
+
+	out, err := bufio.NewReader(stdout).ReadString('\n')
+	if err != nil {
+		c.Fatal(err)
+	}
+	if strings.TrimSpace(out) != "aba" {
+		c.Fatalf("expected 'aba', got %q", out)
+	}
 }
 
 // "test" should be printed
@@ -554,7 +608,7 @@ func (s *DockerSuite) TestRunWithInvalidPathforBlkioDeviceWriteIOps(c *check.C) 
 }
 
 func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
-	testRequires(c, oomControl)
+	testRequires(c, memoryLimitSupport, swapMemorySupport)
 	errChan := make(chan error)
 	go func() {
 		defer close(errChan)
@@ -775,6 +829,64 @@ func (s *DockerSuite) TestRunTmpfsMounts(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunTmpfsMountsOverrideImageVolumes(c *check.C) {
+	name := "img-with-volumes"
+	_, err := buildImage(
+		name,
+		`
+    FROM busybox
+    VOLUME /run
+    RUN touch /run/stuff
+    `,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	out, _ := dockerCmd(c, "run", "--tmpfs", "/run", name, "ls", "/run")
+	c.Assert(out, checker.Not(checker.Contains), "stuff")
+}
+
+// Test case for #22420
+func (s *DockerSuite) TestRunTmpfsMountsWithOptions(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	expectedOptions := []string{"rw", "nosuid", "nodev", "noexec", "relatime"}
+	out, _ := dockerCmd(c, "run", "--tmpfs", "/tmp", "busybox", "sh", "-c", "mount | grep 'tmpfs on /tmp'")
+	for _, option := range expectedOptions {
+		c.Assert(out, checker.Contains, option)
+	}
+	c.Assert(out, checker.Not(checker.Contains), "size=")
+
+	expectedOptions = []string{"rw", "nosuid", "nodev", "noexec", "relatime"}
+	out, _ = dockerCmd(c, "run", "--tmpfs", "/tmp:rw", "busybox", "sh", "-c", "mount | grep 'tmpfs on /tmp'")
+	for _, option := range expectedOptions {
+		c.Assert(out, checker.Contains, option)
+	}
+	c.Assert(out, checker.Not(checker.Contains), "size=")
+
+	expectedOptions = []string{"rw", "nosuid", "nodev", "relatime", "size=8192k"}
+	out, _ = dockerCmd(c, "run", "--tmpfs", "/tmp:rw,exec,size=8192k", "busybox", "sh", "-c", "mount | grep 'tmpfs on /tmp'")
+	for _, option := range expectedOptions {
+		c.Assert(out, checker.Contains, option)
+	}
+
+	expectedOptions = []string{"rw", "nosuid", "nodev", "noexec", "relatime", "size=4096k"}
+	out, _ = dockerCmd(c, "run", "--tmpfs", "/tmp:rw,size=8192k,exec,size=4096k,noexec", "busybox", "sh", "-c", "mount | grep 'tmpfs on /tmp'")
+	for _, option := range expectedOptions {
+		c.Assert(out, checker.Contains, option)
+	}
+
+	// We use debian:jessie as there is no findmnt in busybox. Also the output will be in the format of
+	// TARGET PROPAGATION
+	// /tmp   shared
+	// so we only capture `shared` here.
+	expectedOptions = []string{"shared"}
+	out, _ = dockerCmd(c, "run", "--tmpfs", "/tmp:shared", "debian:jessie", "findmnt", "-o", "TARGET,PROPAGATION", "/tmp")
+	for _, option := range expectedOptions {
+		c.Assert(out, checker.Contains, option)
+	}
+}
+
 func (s *DockerSuite) TestRunSysctls(c *check.C) {
 
 	testRequires(c, DaemonIsLinux)
@@ -801,7 +913,7 @@ func (s *DockerSuite) TestRunSysctls(c *check.C) {
 
 	runCmd := exec.Command(dockerBinary, "run", "--sysctl", "kernel.foobar=1", "--name", "test2", "busybox", "cat", "/proc/sys/kernel/foobar")
 	out, _, _ = runCommandWithOutput(runCmd)
-	if !strings.Contains(out, "invalid value") {
+	if !strings.Contains(out, "invalid argument") {
 		c.Fatalf("expected --sysctl to fail, got %s", out)
 	}
 }
@@ -944,24 +1056,95 @@ func (s *DockerSuite) TestRunSeccompAllowSetrlimit(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunSeccompDefaultProfile(c *check.C) {
+func (s *DockerSuite) TestRunSeccompDefaultProfileAcct(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled, NotUserNamespace)
 
 	var group sync.WaitGroup
-	group.Add(4)
-	errChan := make(chan error, 4)
+	group.Add(5)
+	errChan := make(chan error, 5)
 	go func() {
-		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "syscall-test", "acct-test")
+		out, _, err := dockerCmdWithError("run", "syscall-test", "acct-test")
 		if err == nil || !strings.Contains(out, "Operation not permitted") {
-			errChan <- fmt.Errorf("expected Operation not permitted, got: %s", out)
+			errChan <- fmt.Errorf("goroutine 0: expected Operation not permitted, got: %s", out)
 		}
 		group.Done()
 	}()
 
 	go func() {
-		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "syscall-test", "ns-test", "echo", "hello")
+		out, _, err := dockerCmdWithError("run", "--cap-add", "sys_admin", "syscall-test", "acct-test")
 		if err == nil || !strings.Contains(out, "Operation not permitted") {
-			errChan <- fmt.Errorf("expected Operation not permitted, got: %s", out)
+			errChan <- fmt.Errorf("goroutine 1: expected Operation not permitted, got: %s", out)
+		}
+		group.Done()
+	}()
+
+	go func() {
+		out, _, err := dockerCmdWithError("run", "--cap-add", "sys_pacct", "syscall-test", "acct-test")
+		if err == nil || !strings.Contains(out, "No such file or directory") {
+			errChan <- fmt.Errorf("goroutine 2: expected No such file or directory, got: %s", out)
+		}
+		group.Done()
+	}()
+
+	go func() {
+		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "syscall-test", "acct-test")
+		if err == nil || !strings.Contains(out, "No such file or directory") {
+			errChan <- fmt.Errorf("goroutine 3: expected No such file or directory, got: %s", out)
+		}
+		group.Done()
+	}()
+
+	go func() {
+		out, _, err := dockerCmdWithError("run", "--cap-drop", "ALL", "--cap-add", "sys_pacct", "syscall-test", "acct-test")
+		if err == nil || !strings.Contains(out, "No such file or directory") {
+			errChan <- fmt.Errorf("goroutine 4: expected No such file or directory, got: %s", out)
+		}
+		group.Done()
+	}()
+
+	group.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		c.Assert(err, checker.IsNil)
+	}
+}
+
+func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled, NotUserNamespace)
+
+	var group sync.WaitGroup
+	group.Add(6)
+	errChan := make(chan error, 6)
+
+	go func() {
+		out, _, err := dockerCmdWithError("run", "syscall-test", "ns-test", "echo", "hello0")
+		if err == nil || !strings.Contains(out, "Operation not permitted") {
+			errChan <- fmt.Errorf("goroutine 0: expected Operation not permitted, got: %s", out)
+		}
+		group.Done()
+	}()
+
+	go func() {
+		out, _, err := dockerCmdWithError("run", "--cap-add", "sys_admin", "syscall-test", "ns-test", "echo", "hello1")
+		if err != nil || !strings.Contains(out, "hello1") {
+			errChan <- fmt.Errorf("goroutine 1: expected hello1, got: %s, %v", out, err)
+		}
+		group.Done()
+	}()
+
+	go func() {
+		out, _, err := dockerCmdWithError("run", "--cap-drop", "all", "--cap-add", "sys_admin", "syscall-test", "ns-test", "echo", "hello2")
+		if err != nil || !strings.Contains(out, "hello2") {
+			errChan <- fmt.Errorf("goroutine 2: expected hello2, got: %s, %v", out, err)
+		}
+		group.Done()
+	}()
+
+	go func() {
+		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "syscall-test", "ns-test", "echo", "hello3")
+		if err != nil || !strings.Contains(out, "hello3") {
+			errChan <- fmt.Errorf("goroutine 3: expected hello3, got: %s, %v", out, err)
 		}
 		group.Done()
 	}()
@@ -969,15 +1152,15 @@ func (s *DockerSuite) TestRunSeccompDefaultProfile(c *check.C) {
 	go func() {
 		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "--security-opt", "seccomp=unconfined", "syscall-test", "acct-test")
 		if err == nil || !strings.Contains(out, "No such file or directory") {
-			errChan <- fmt.Errorf("expected No such file or directory, got: %s", out)
+			errChan <- fmt.Errorf("goroutine 4: expected No such file or directory, got: %s", out)
 		}
 		group.Done()
 	}()
 
 	go func() {
-		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "--security-opt", "seccomp=unconfined", "syscall-test", "ns-test", "echo", "hello")
-		if err != nil || !strings.Contains(out, "hello") {
-			errChan <- fmt.Errorf("expected hello, got: %s, %v", out, err)
+		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "--security-opt", "seccomp=unconfined", "syscall-test", "ns-test", "echo", "hello4")
+		if err != nil || !strings.Contains(out, "hello4") {
+			errChan <- fmt.Errorf("goroutine 5: expected hello4, got: %s, %v", out, err)
 		}
 		group.Done()
 	}()
@@ -1020,7 +1203,7 @@ func (s *DockerSuite) TestRunApparmorProcDirectory(c *check.C) {
 // make sure the default profile can be successfully parsed (using unshare as it is
 // something which we know is blocked in the default profile)
 func (s *DockerSuite) TestRunSeccompWithDefaultProfile(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, SameHostDaemon, seccompEnabled, NotArm, NotPpc64le, NotS390X)
 
 	out, _, err := dockerCmdWithError("run", "--security-opt", "seccomp=../profiles/seccomp/default.json", "debian:jessie", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami")
 	c.Assert(err, checker.NotNil, check.Commentf(out))

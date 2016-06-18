@@ -38,8 +38,8 @@ func isValidTargetsStructure(t Targets, roleName string) error {
 			role: roleName, msg: fmt.Sprintf("expected type %s, not %s", expectedType, t.Type)}
 	}
 
-	if t.Version < 0 {
-		return ErrInvalidMetadata{role: roleName, msg: "version cannot be negative"}
+	if t.Version < 1 {
+		return ErrInvalidMetadata{role: roleName, msg: "version cannot be less than one"}
 	}
 
 	for _, roleObj := range t.Delegations.Roles {

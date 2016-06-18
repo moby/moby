@@ -9,6 +9,8 @@ const (
 	VolumeEventType = "volume"
 	// NetworkEventType is the event type that networks generate
 	NetworkEventType = "network"
+	// DaemonEventType is the event type that daemon generate
+	DaemonEventType = "daemon"
 )
 
 // Actor describes something that generates events,
