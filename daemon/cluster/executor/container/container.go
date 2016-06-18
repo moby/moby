@@ -3,10 +3,11 @@ package container
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/reference"
@@ -345,7 +346,7 @@ func (c *containerConfig) serviceConfig() *clustertypes.ServiceConfig {
 		return nil
 	}
 
-	log.Printf("Creating service config in agent for t = %+v", c.task)
+	logrus.Debugf("Creating service config in agent for t = %+v", c.task)
 	svcCfg := &clustertypes.ServiceConfig{
 		Name:             c.task.ServiceAnnotations.Name,
 		Aliases:          make(map[string][]string),
