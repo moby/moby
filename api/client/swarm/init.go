@@ -22,7 +22,7 @@ type initOptions struct {
 func newInitCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var flags *pflag.FlagSet
 	opts := initOptions{
-		listenAddr: NewNodeAddrOption(),
+		listenAddr: NewListenAddrOption(),
 		autoAccept: NewAutoAcceptOption(),
 	}
 
@@ -36,9 +36,9 @@ func newInitCommand(dockerCli *client.DockerCli) *cobra.Command {
 	}
 
 	flags = cmd.Flags()
-	flags.Var(&opts.listenAddr, "listen-addr", "Listen address")
-	flags.Var(&opts.autoAccept, "auto-accept", "Auto acceptance policy (worker, manager, or none)")
-	flags.StringVar(&opts.secret, "secret", "", "Set secret value needed to accept nodes into cluster")
+	flags.Var(&opts.listenAddr, flagListenAddr, "Listen address")
+	flags.Var(&opts.autoAccept, flagAutoAccept, "Auto acceptance policy (worker, manager, or none)")
+	flags.StringVar(&opts.secret, flagSecret, "", "Set secret value needed to accept nodes into cluster")
 	flags.BoolVar(&opts.forceNewCluster, "force-new-cluster", false, "Force create a new cluster from current state.")
 	return cmd
 }

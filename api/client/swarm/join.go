@@ -20,7 +20,7 @@ type joinOptions struct {
 
 func newJoinCommand(dockerCli *client.DockerCli) *cobra.Command {
 	opts := joinOptions{
-		listenAddr: NodeAddrOption{addr: defaultListenAddr},
+		listenAddr: NewListenAddrOption(),
 	}
 
 	cmd := &cobra.Command{
@@ -34,7 +34,7 @@ func newJoinCommand(dockerCli *client.DockerCli) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.Var(&opts.listenAddr, "listen-addr", "Listen address")
+	flags.Var(&opts.listenAddr, flagListenAddr, "Listen address")
 	flags.BoolVar(&opts.manager, "manager", false, "Try joining as a manager.")
 	flags.StringVar(&opts.secret, "secret", "", "Secret for node acceptance")
 	flags.StringVar(&opts.CACertHash, "ca-hash", "", "Hash of the Root Certificate Authority certificate used for trusted join")
