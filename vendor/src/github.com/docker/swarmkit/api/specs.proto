@@ -127,11 +127,6 @@ message ContainerSpec {
 	// that don't change or verifiable digests.
 	string image = 1;
 
-	// RegistryAuth is the registry auth token obtained from the client, required
-	// to pull private images
-	// TODO(nishanttotla): This field will later be deprecated
-	string registry_auth = 64;
-
 	// Labels defines labels to be added to the container at creation time. If
 	// collisions with system labels occur, these labels will be overridden.
 	//
@@ -165,6 +160,18 @@ message ContainerSpec {
 	// StopGracePeriod the grace period for stopping the container before
 	// forcefully killing the container.
 	Duration stop_grace_period = 9;
+
+	// PullOptions allows one to parameterize an image pull.
+	message PullOptions {
+		// RegistryAuth is the registry auth token obtained from the client, required
+		// to pull private images. This is the unmodified JSON used as part of
+		// the `X-Registry-Auth` header.
+		// TODO(nishanttotla): This field will later be deprecated
+		string registry_auth = 64;
+	}
+
+	// PullOptions parameterize the behavior of image pulls.
+	PullOptions pull_options = 10;
 }
 
 // EndpointSpec defines the properties that can be configured to

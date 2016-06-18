@@ -156,7 +156,14 @@ func (na *NetworkAllocator) ServiceAllocate(s *api.Service) (err error) {
 		}
 	}
 
+outer:
 	for _, nAttach := range s.Spec.Networks {
+		for _, vip := range s.Endpoint.VirtualIPs {
+			if vip.NetworkID == nAttach.Target {
+				continue outer
+			}
+		}
+
 		vip := &api.Endpoint_VirtualIP{NetworkID: nAttach.Target}
 		if err = na.allocateVIP(vip); err != nil {
 			return
