@@ -1528,11 +1528,11 @@ _docker_network() {
 _docker_service() {
 	local subcommands="
 		create
-		tasks
 		inspect
+		ls list
+		rm remove
+		tasks
 		update
-		ls
-		rm
 	"
 	__docker_subcommands "$subcommands" && return
 
@@ -1547,17 +1547,92 @@ _docker_service() {
 }
 
 _docker_service_create() {
+	local options_with_args="
+		--constraint
+		--endpoint-mode
+		--env -e
+		--label -l
+		--limit-cpu
+		--limit-memory
+		--mode
+		--mount -m
+		--name
+		--network
+		--publish -p
+		--replicas
+		--reserve-cpu
+		--reserve-memory
+		--restart-condition
+		--restart-delay
+		--restart-max-attempts
+		--restart-window
+		--stop-grace-period
+		--update-delay
+		--update-parallelism
+		--user -u
+		--workdir -w
+	"
+
+	local boolean_options="
+		--help
+	"
+
+	case "$prev" in
+		$(__docker_to_extglob "$options_with_args") )
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --constraint --endpoint-ingress --endpoint-mode --env --label --limit-cpu --limit-memory --mode --name --network --publish --reserve-cpu --reserve-memory --restart-condition --restart-delay --restart-max-attempts --restart-window --replicas --stop-grace-period --update-delay --update-parallelism --user --volume --workdir" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "$boolean_options $options_with_args" -- "$cur" ) )
 			;;
 	esac
 }
 
 _docker_service_update() {
+	local options_with_args="
+		--arg
+		--command
+		--constraint
+		--endpoint-mode
+		--env -e
+		--image
+		--label -l
+		--limit-cpu
+		--limit-memory
+		--mode
+		--mount -m
+		--name
+		--network
+		--publish -p
+		--replicas
+		--reserve-cpu
+		--reserve-memory
+		--restart-condition
+		--restart-delay
+		--restart-max-attempts
+		--restart-window
+		--stop-grace-period
+		--update-delay
+		--update-parallelism
+		--user -u
+		--workdir -w
+	"
+
+	local boolean_options="
+		--help
+	"
+
+	case "$prev" in
+		$(__docker_to_extglob "$options_with_args") )
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--arg --command --constraint --endpoint-ingress --endpoint-mode --env --help --image --label --limit-cpu --limit-memory --mode --name --network --publish --reserve-cpu --reserve-memory --restart-condition--restart-delay --restart-max-attempts --restart-window --replicas --stop-grace-period --update-delay --update-parallelism --user --volume --workdir" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "$boolean_options $options_with_args" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_services
@@ -1565,9 +1640,15 @@ _docker_service_update() {
 }
 
 _docker_service_inspect() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --format --pretty" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--format -f --help --pretty -p" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_services
@@ -1575,13 +1656,23 @@ _docker_service_inspect() {
 }
 
 _docker_service_tasks() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --all --filter --no-resolve" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--all -a --filter -f --help --no-resolve -n" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_services
 	esac
+}
+
+_docker_service_remove() {
+	_docker_service_rm
 }
 
 _docker_service_rm() {
@@ -1594,10 +1685,20 @@ _docker_service_rm() {
 	esac
 }
 
+_docker_service_list() {
+	_docker_service_ls
+}
+
 _docker_service_ls() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-f --filter --help --quiet -q" -- "$cur" ) )
 			;;
 	esac
 }
