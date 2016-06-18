@@ -17,7 +17,7 @@ func validateClusterSpec(spec *api.ClusterSpec) error {
 		return grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
-	// Validate that duration being provided is valid, and over our minimum
+	// Validate that expiry time being provided is valid, and over our minimum
 	if spec.CAConfig.NodeCertExpiry != nil {
 		expiry, err := ptypes.Duration(spec.CAConfig.NodeCertExpiry)
 		if err != nil {
@@ -35,6 +35,17 @@ func validateClusterSpec(spec *api.ClusterSpec) error {
 			if policy.Secret != nil && strings.ToLower(policy.Secret.Alg) != "bcrypt" {
 				return grpc.Errorf(codes.InvalidArgument, "hashing algorithm is not supported: %s", policy.Secret.Alg)
 			}
+		}
+	}
+
+	// Validate that heartbeatPeriod time being provided is valid
+	if spec.Dispatcher.HeartbeatPeriod != nil {
+		heartbeatPeriod, err := ptypes.Duration(spec.Dispatcher.HeartbeatPeriod)
+		if err != nil {
+			return grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		}
+		if heartbeatPeriod < 0 {
+			return grpc.Errorf(codes.InvalidArgument, "heartbeat time period cannot be a negative duration")
 		}
 	}
 

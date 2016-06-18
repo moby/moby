@@ -3,6 +3,7 @@ package convert
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -26,11 +27,11 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 				HeartbeatTick:              c.Spec.Raft.HeartbeatTick,
 				ElectionTick:               c.Spec.Raft.ElectionTick,
 			},
-			Dispatcher: types.DispatcherConfig{
-				HeartbeatPeriod: c.Spec.Dispatcher.HeartbeatPeriod,
-			},
 		},
 	}
+
+	heartbeatPeriod, _ := ptypes.Duration(c.Spec.Dispatcher.HeartbeatPeriod)
+	swarm.Spec.Dispatcher.HeartbeatPeriod = uint64(heartbeatPeriod)
 
 	swarm.Spec.CAConfig.NodeCertExpiry, _ = ptypes.Duration(c.Spec.CAConfig.NodeCertExpiry)
 
@@ -76,7 +77,7 @@ func SwarmSpecToGRPCandMerge(s types.Spec, existingSpec *swarmapi.ClusterSpec) (
 			ElectionTick:               s.Raft.ElectionTick,
 		},
 		Dispatcher: swarmapi.DispatcherConfig{
-			HeartbeatPeriod: s.Dispatcher.HeartbeatPeriod,
+			HeartbeatPeriod: ptypes.DurationProto(time.Duration(s.Dispatcher.HeartbeatPeriod)),
 		},
 		CAConfig: swarmapi.CAConfig{
 			NodeCertExpiry: ptypes.DurationProto(s.CAConfig.NodeCertExpiry),

@@ -104,10 +104,12 @@ func (mwr *remotesWeightedRandom) Select(excludes ...string) (api.Peer, error) {
 
 	cum := 0.0
 	// calculate CDF over weights
+Loop:
 	for peer, weight := range mwr.remotes {
 		for _, exclude := range excludes {
 			if peer.NodeID == exclude || peer.Addr == exclude {
-				continue
+				// if this peer is excluded, ignore it by continuing the loop to label Loop
+				continue Loop
 			}
 		}
 		if weight < 0 {
@@ -126,6 +128,7 @@ func (mwr *remotesWeightedRandom) Select(excludes ...string) (api.Peer, error) {
 
 	r := mwr.cdf[len(mwr.cdf)-1] * rand.Float64()
 	i := sort.SearchFloat64s(mwr.cdf, r)
+
 	return mwr.peers[i], nil
 }
 
@@ -261,7 +264,7 @@ func (p *Picker) PickAddr() (string, error) {
 	p.r.ObserveIfExists(peer, -1) // downweight the current addr
 
 	var err error
-	peer, err = p.r.Select("")
+	peer, err = p.r.Select()
 	if err != nil {
 		return "", err
 	}

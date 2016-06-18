@@ -38,8 +38,14 @@ func newContainerAdapter(b executorpkg.Backend, task *api.Task) (*containerAdapt
 }
 
 func (c *containerAdapter) pullImage(ctx context.Context) error {
+	spec := c.container.spec()
+
 	// if the image needs to be pulled, the auth config will be retrieved and updated
-	encodedAuthConfig := c.container.spec().RegistryAuth
+	var encodedAuthConfig string
+	if spec.PullOptions != nil {
+		encodedAuthConfig = spec.PullOptions.RegistryAuth
+
+	}
 
 	authConfig := &types.AuthConfig{}
 	if encodedAuthConfig != "" {
