@@ -310,7 +310,7 @@ func (e *endpointOptions) ToEndpointSpec() *swarm.EndpointSpec {
 	}
 
 	return &swarm.EndpointSpec{
-		Mode:  swarm.ResolutionMode(e.mode),
+		Mode:  swarm.ResolutionMode(strings.ToLower(e.mode)),
 		Ports: portConfigs,
 	}
 }
@@ -461,7 +461,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.DurationVar(&opts.update.delay, flagUpdateDelay, time.Duration(0), "Delay between updates")
 
 	flags.StringSliceVar(&opts.networks, flagNetwork, []string{}, "Network attachments")
-	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode(Valid values: VIP, DNSRR)")
+	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode(Valid values: vip, dnsrr)")
 	flags.VarP(&opts.endpoint.ports, flagPublish, "p", "Publish a port as a node port")
 }
 
