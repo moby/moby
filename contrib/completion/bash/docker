@@ -1737,22 +1737,40 @@ _docker_swarm() {
 }
 
 _docker_swarm_init() {
+	case "$prev" in
+		--auto-accept|--listen-addr|--secret)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--auto-accept --force-new-cluster --help --secret" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--auto-accept --force-new-cluster --help --listen-addr --secret" -- "$cur" ) )
 			;;
 	esac
 }
 
 _docker_swarm_inspect() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--format --help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--format -f --help" -- "$cur" ) )
 			;;
 	esac
 }
 
 _docker_swarm_join() {
+	case "$prev" in
+		--ca-hash|--listen-addr|--secret)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--ca-hash --help --listen-addr --manager --secret" -- "$cur" ) )
@@ -1787,9 +1805,9 @@ _docker_node() {
 		accept
 		demote
 		inspect
-		ls
+		ls list
 		promote
-		rm
+		rm remove
 		tasks
 		update
 	"
@@ -1826,19 +1844,35 @@ _docker_node_demote() {
 }
 
 _docker_node_inspect() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--format --help --pretty" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--format -f --help --pretty -p" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_nodes
 	esac
 }
 
+_docker_node_list() {
+	_docker_node_ls
+}
+
 _docker_node_ls() {
+	case "$prev" in
+		--filter|-f)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--filter --help --quiet" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--filter -f --help --quiet -q" -- "$cur" ) )
 			;;
 	esac
 }
@@ -1853,6 +1887,10 @@ _docker_node_promote() {
 	esac
 }
 
+_docker_node_remove() {
+	_docker_node_rm
+}
+
 _docker_node_rm() {
 	case "$cur" in
 		-*)
@@ -1864,9 +1902,15 @@ _docker_node_rm() {
 }
 
 _docker_node_tasks() {
+	case "$prev" in
+		--filter|-f)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--all --filter --help --no-resolve" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--all -a --filter -f --help --no-resolve -n" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_nodes_plus_self
@@ -1874,6 +1918,12 @@ _docker_node_tasks() {
 }
 
 _docker_node_update() {
+	case "$prev" in
+		--availability|--membership|--role)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--availability --help --membership --role" -- "$cur" ) )
