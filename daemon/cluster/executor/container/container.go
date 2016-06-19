@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	// Explictly use the kernel's default setting for CPU quota of 100ms.
+	// Explicitly use the kernel's default setting for CPU quota of 100ms.
 	// https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
 	cpuQuotaPeriod = 100 * time.Millisecond
 

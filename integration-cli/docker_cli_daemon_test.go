@@ -2408,7 +2408,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
 	out, err := s.d.Cmd("run", "--rm", "busybox", "ls")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 
-	// Run with default runtime explicitely
+	// Run with default runtime explicitly
 	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 
@@ -2491,7 +2491,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
 
-	// Run with default runtime explicitely
+	// Run with default runtime explicitly
 	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 }
@@ -2504,7 +2504,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *check.C) {
 	out, err := s.d.Cmd("run", "--rm", "busybox", "ls")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 
-	// Run with default runtime explicitely
+	// Run with default runtime explicitly
 	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 
@@ -2553,7 +2553,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *check.C) {
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
 
-	// Run with default runtime explicitely
+	// Run with default runtime explicitly
 	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 }

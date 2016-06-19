@@ -13,7 +13,7 @@ type NetworkCreateResponse struct {
 	ID string `json:"Id"`
 }
 
-// VirtualAddress represents a virtual adress.
+// VirtualAddress represents a virtual address.
 type VirtualAddress struct {
 	IPv4 string
 	IPv6 string

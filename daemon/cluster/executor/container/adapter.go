@@ -70,7 +70,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 			}
 			return err
 		}
-		// TOOD(stevvooe): Report this status somewhere.
+		// TODO(stevvooe): Report this status somewhere.
 		logrus.Debugln("pull progress", m)
 	}
 	// if the final stream object contained an error, return it
@@ -126,7 +126,7 @@ func (c *containerAdapter) create(ctx context.Context, backend executorpkg.Backe
 		return err
 	}
 
-	// Docker daemon currently doesnt support multiple networks in container create
+	// Docker daemon currently doesn't support multiple networks in container create
 	// Connect to all other networks
 	nc := c.container.connectNetworkingConfig()
 
