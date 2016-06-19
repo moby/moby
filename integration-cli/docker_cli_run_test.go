@@ -61,7 +61,7 @@ func (s *DockerSuite) TestRunLeakyFileDescriptors(c *check.C) {
 
 // it should be possible to lookup Google DNS
 // this will fail when Internet access is unavailable
-func (s *DockerSuite) TestRunLookupGoogleDns(c *check.C) {
+func (s *DockerSuite) TestRunLookupGoogleDNS(c *check.C) {
 	testRequires(c, Network, NotArm)
 	image := DefaultImage
 	if daemonPlatform == "windows" {
@@ -1255,7 +1255,7 @@ func (s *DockerSuite) TestRunDisallowBindMountingRootToRoot(c *check.C) {
 }
 
 // Verify that a container gets default DNS when only localhost resolvers exist
-func (s *DockerSuite) TestRunDnsDefaultOptions(c *check.C) {
+func (s *DockerSuite) TestRunDNSDefaultOptions(c *check.C) {
 	// Not applicable on Windows as this is testing Unix specific functionality
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
@@ -1289,7 +1289,7 @@ func (s *DockerSuite) TestRunDnsDefaultOptions(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunDnsOptions(c *check.C) {
+func (s *DockerSuite) TestRunDNSOptions(c *check.C) {
 	// Not applicable on Windows as Windows does not support --dns*, or
 	// the Unix-specific functionality of resolv.conf.
 	testRequires(c, DaemonIsLinux)
@@ -1313,7 +1313,7 @@ func (s *DockerSuite) TestRunDnsOptions(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunDnsRepeatOptions(c *check.C) {
+func (s *DockerSuite) TestRunDNSRepeatOptions(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _, _ := dockerCmdWithStdoutStderr(c, "run", "--dns=1.1.1.1", "--dns=2.2.2.2", "--dns-search=mydomain", "--dns-search=mydomain2", "--dns-opt=ndots:9", "--dns-opt=timeout:3", "busybox", "cat", "/etc/resolv.conf")
 
@@ -1323,7 +1323,7 @@ func (s *DockerSuite) TestRunDnsRepeatOptions(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunDnsOptionsBasedOnHostResolvConf(c *check.C) {
+func (s *DockerSuite) TestRunDNSOptionsBasedOnHostResolvConf(c *check.C) {
 	// Not applicable on Windows as testing Unix specific functionality
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
@@ -2907,7 +2907,7 @@ func (s *DockerSuite) TestRunContainerWithReadonlyEtcHostsAndLinkedContainer(c *
 	}
 }
 
-func (s *DockerSuite) TestRunContainerWithReadonlyRootfsWithDnsFlag(c *check.C) {
+func (s *DockerSuite) TestRunContainerWithReadonlyRootfsWithDNSFlag(c *check.C) {
 	// Not applicable on Windows which does not support either --read-only or --dns.
 	// --read-only + userns has remount issues
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
@@ -3719,7 +3719,7 @@ func (s *DockerSuite) TestRunContainerNetworkModeToSelf(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestRunContainerNetModeWithDnsMacHosts(c *check.C) {
+func (s *DockerSuite) TestRunContainerNetModeWithDNSMacHosts(c *check.C) {
 	// Not applicable on Windows which does not support --net=container
 	testRequires(c, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "-d", "--name", "parent", "busybox", "top")
@@ -4433,7 +4433,7 @@ func (s *DockerSuite) TestRunTooLongHostname(c *check.C) {
 }
 
 // Test case for #21976
-func (s *DockerSuite) TestRunDnsInHostMode(c *check.C) {
+func (s *DockerSuite) TestRunDNSInHostMode(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	expectedOutput := "nameserver 127.0.0.1"
