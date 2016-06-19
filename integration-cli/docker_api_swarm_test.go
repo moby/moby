@@ -578,6 +578,31 @@ func (s *DockerSwarmSuite) TestApiSwarmLeaveOnPendingJoin(c *check.C) {
 	c.Assert(id, checker.HasPrefix, strings.TrimSpace(id2))
 }
 
+// #23705
+func (s *DockerSwarmSuite) TestApiSwarmRestoreOnPendingJoin(c *check.C) {
+	d := s.AddDaemon(c, false, false)
+	go d.Join("nosuchhost:1234", "", "", false) // will block on pending state
+
+	for i := 0; ; i++ {
+		info, err := d.info()
+		c.Assert(err, checker.IsNil)
+		if info.LocalNodeState == swarm.LocalNodeStatePending {
+			break
+		}
+		if i > 10 {
+			c.Fatalf("node did not go to pending state: %v", info.LocalNodeState)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	c.Assert(d.Stop(), checker.IsNil)
+	c.Assert(d.Start(), checker.IsNil)
+
+	info, err := d.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
+}
+
 func (s *DockerSwarmSuite) TestApiSwarmManagerRestore(c *check.C) {
 	d1 := s.AddDaemon(c, true, true)
 
