@@ -1099,14 +1099,22 @@ func (n *network) getSvcRecords(ep *endpoint) []etchosts.Record {
 	n.Lock()
 	defer n.Unlock()
 
+	if ep == nil {
+		return nil
+	}
+
 	var recs []etchosts.Record
 	sr, _ := n.ctrlr.svcRecords[n.id]
+	epName := ep.Name()
 
 	for h, ip := range sr.svcMap {
-		if ep != nil && strings.Split(h, ".")[0] == ep.Name() {
+		if strings.Split(h, ".")[0] == epName {
 			continue
 		}
-
+		if len(ip) == 0 {
+			log.Warnf("Found empty list of IP addresses for service %s on network %s (%s)", h, n.Name(), n.ID())
+			continue
+		}
 		recs = append(recs, etchosts.Record{
 			Hosts: h,
 			IP:    ip[0].String(),
