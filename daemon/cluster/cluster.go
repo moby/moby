@@ -93,16 +93,11 @@ func New(config Config) (*Cluster, error) {
 		reconnectDelay: initialReconnectDelay,
 	}
 
-	dt, err := ioutil.ReadFile(filepath.Join(root, stateFile))
+	st, err := c.loadState()
 	if err != nil {
 		if os.IsNotExist(err) {
 			return c, nil
 		}
-		return nil, err
-	}
-
-	var st state
-	if err := json.Unmarshal(dt, &st); err != nil {
 		return nil, err
 	}
 
@@ -122,6 +117,25 @@ func New(config Config) (*Cluster, error) {
 	}
 	go c.reconnectOnFailure(ctx)
 	return c, nil
+}
+
+func (c *Cluster) loadState() (*state, error) {
+	dt, err := ioutil.ReadFile(filepath.Join(c.root, stateFile))
+	if err != nil {
+		return nil, err
+	}
+	// missing certificate means no actual state to restore from
+	if _, err := os.Stat(filepath.Join(c.root, "certificates/swarm-node.crt")); err != nil {
+		if os.IsNotExist(err) {
+			c.clearState()
+		}
+		return nil, err
+	}
+	var st state
+	if err := json.Unmarshal(dt, &st); err != nil {
+		return nil, err
+	}
+	return &st, nil
 }
 
 func (c *Cluster) saveState() error {
@@ -410,6 +424,7 @@ func (c *Cluster) Leave(force bool) error {
 }
 
 func (c *Cluster) clearState() error {
+	// todo: backup this data instead of removing?
 	if err := os.RemoveAll(c.root); err != nil {
 		return err
 	}
