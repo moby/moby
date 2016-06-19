@@ -658,4 +658,4 @@ data volumes.
 * [Select a storage driver](selectadriver.md)
 * [AUFS storage driver in practice](aufs-driver.md)
 * [Btrfs storage driver in practice](btrfs-driver.md)
-* [daemon reference](../../reference/commandline/dockerd/#storage-driver-options)
+* [daemon reference](../../reference/commandline/dockerd.md#storage-driver-options)
