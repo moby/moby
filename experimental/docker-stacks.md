@@ -3,15 +3,12 @@
 ## Overview
 
 Docker Stacks are an experimental feature introduced in Docker 1.12, alongside
-the new concepts of Swarms and Services inside the Engine.
+the concept of swarm mode, and Nodes and Services in the Engine API.
 
 A Dockerfile can be built into an image, and containers can be created from that
-image. Similarly, a docker-compose.yml can be built into a **bundle**, and
-**stacks** can be created from that bundle. In that sense, the bundle is a
-multi-services distributable image format.
+image. Similarly, a docker-compose.yml can be built into a **distributed application bundle**, and **stacks** can be created from that bundle. In that sense, the bundle is a multi-services distributable image format.
 
-As of 1.12, the feature is introduced as experimental, and Docker Engine doesn't
-support distribution of bundles.
+As of Docker 1.12, the feature is experimental. Neither Docker Engine nor the Docker Registry support distribution of bundles.
 
 ## Producing a bundle
 
@@ -96,3 +93,79 @@ Tasks are managed using the `docker stack` command:
     
     Run 'docker stack COMMAND --help' for more information on a command.
     ```
+
+## Bundle file format
+
+Distributed application bundles are described in a JSON format. When bundles are persisted as files, the file extension is `.dab` (Docker 1.12RC2 tools use `.dsb` for the file extension—this will be updated in the next release client).
+
+A bundle has two top-level fields: `version` and `services`. The version used by Docker 1.12 tools is `0.1`.
+
+`services` in the bundle are the services that comprise the app. They correspond to the new `Service` object introduced in the 1.12 Docker Engine API.
+
+A service has the following fields:
+
+<dl>
+    <dt>
+        Image (required) <code>string</code>
+    </dt>
+    <dd>
+The image that the service will run. Docker images should be referenced with full content hash to fully specify the deployment artifact for the service. Example: <code>postgres@sha256:f76245b04ddbcebab5bb6c28e76947f49222c99fec4aadb0bb1c24821a9e83ef</code>
+    </dd>
+
+    <dt>
+        Command <code>[]string</code>
+    </dt>
+    <dd>
+        Command to run in service containers.
+    </dd>
+
+    <dt>
+        Args <code>[]string</code>
+    </dt>
+    <dd>
+        Arguments passed to the service containers.
+    </dd>
+
+    <dt>
+        Env <code>[]string</code>
+    </dt>
+    <dd>
+        Environment variables.
+    </dd>
+
+    <dt>
+        Labels <code>map[string]string</code>
+    </dt>
+    <dd>
+        Labels used for setting meta data on services.
+    </dd>
+
+    <dt>
+        Ports <code>[]Port</code>
+    </dt>
+    <dd>
+        Service ports (composed of `Port` (`int`) and `Protocol` (`string`). A service description can only specify the container port to be exposed. These ports can be mapped on runtime hosts at the operator's discretion.
+    </dd>
+
+    <dt>
+        WorkingDir <code>string</code>
+    </dt>
+    <dd>
+        Working directory inside the service containers.
+    </dd>
+
+    <dt>
+        User <code>string</code>
+    </dt>
+    <dd>
+        Username or UID (format: <name|uid>[:<group|gid>]).
+    </dd>
+
+    <dt>
+        Networks <code>[]string</code>
+    </dt>
+    <dd>
+        Networks that the service containers should be connected to. An entity deploying a bundle should create networks as needed.
+    </dd>
+</dl>
+
