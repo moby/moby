@@ -67,7 +67,7 @@ func NewBuildCommand(dockerCli *client.DockerCli) *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "build PATH | URL | -",
+		Use:   "build [OPTIONS] PATH | URL | -",
 		Short: "Build an image from a Dockerfile",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
