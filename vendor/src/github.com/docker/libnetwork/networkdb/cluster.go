@@ -397,6 +397,12 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 				return false
 			}
 
+			// Do not bulk sync state which is in the
+			// process of getting deleted.
+			if entry.deleting {
+				return false
+			}
+
 			params := strings.Split(path[1:], "/")
 			tEvent := TableEvent{
 				Type:      TableEventTypeCreate,
