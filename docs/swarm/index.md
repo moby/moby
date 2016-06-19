@@ -80,5 +80,15 @@ roll-back a task to a previous version of the service.
 ## What's next?
 * Learn swarm mode [key concepts](key-concepts.md).
 * Get started with the [swarm mode tutorial](swarm-tutorial/index.md).
+* Explore swarm mode CLI commands:
+    * [swarm init](../reference/commandline/swarm_init.md)
+    * [swarm join](../reference/commandline/swarm_join.md)
+    * [service create](../reference/commandline/service_create.md)
+    * [service inspect](../reference/commandline/service_inspect.md)
+    * [service ls](../reference/commandline/service_ls.md)
+    * [service rm](../reference/commandline/service_rm.md)
+    * [service scale](../reference/commandline/service_scale.md)
+    * [service tasks](../reference/commandline/service_tasks.md)
+    * [service update](../reference/commandline/service_update.md)
 
 <p style="margin-bottom:300px">&nbsp;</p>
