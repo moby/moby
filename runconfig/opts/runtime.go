@@ -9,16 +9,17 @@ import (
 
 // RuntimeOpt defines a map of Runtimes
 type RuntimeOpt struct {
-	name   string
-	values *map[string]types.Runtime
+	name             string
+	stockRuntimeName string
+	values           *map[string]types.Runtime
 }
 
 // NewNamedRuntimeOpt creates a new RuntimeOpt
-func NewNamedRuntimeOpt(name string, ref *map[string]types.Runtime) *RuntimeOpt {
+func NewNamedRuntimeOpt(name string, ref *map[string]types.Runtime, stockRuntime string) *RuntimeOpt {
 	if ref == nil {
 		ref = &map[string]types.Runtime{}
 	}
-	return &RuntimeOpt{name: name, values: ref}
+	return &RuntimeOpt{name: name, values: ref, stockRuntimeName: stockRuntime}
 }
 
 // Name returns the name of the NamedListOpts in the configuration.
@@ -40,8 +41,8 @@ func (o *RuntimeOpt) Set(val string) error {
 	}
 
 	parts[0] = strings.ToLower(parts[0])
-	if parts[0] == types.DefaultRuntimeName {
-		return fmt.Errorf("runtime name 'default' is reserved")
+	if parts[0] == o.stockRuntimeName {
+		return fmt.Errorf("runtime name '%s' is reserved", o.stockRuntimeName)
 	}
 
 	if _, ok := (*o.values)[parts[0]]; ok {

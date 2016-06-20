@@ -2409,7 +2409,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
 	c.Assert(err, check.IsNil, check.Commentf(out))
 
 	// Run with default runtime explicitly
-	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
+	out, err = s.d.Cmd("run", "--rm", "--runtime=runc", "busybox", "ls")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 
 	// Run with oci (same path as default) but keep it around
@@ -2434,7 +2434,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
 	<-time.After(1 * time.Second)
 
 	// Run with default runtime
-	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
+	out, err = s.d.Cmd("run", "--rm", "--runtime=runc", "busybox", "ls")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 
 	// Run with "oci"
@@ -2451,8 +2451,8 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
 	config = `
 {
     "runtimes": {
-        "default": {
-            "path": "docker-runc"
+        "runc": {
+            "path": "my-runc"
         }
     }
 }
@@ -2463,7 +2463,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
 	<-time.After(1 * time.Second)
 
 	content, _ := ioutil.ReadFile(s.d.logFile.Name())
-	c.Assert(string(content), checker.Contains, `file configuration validation failed (runtime name 'default' is reserved)`)
+	c.Assert(string(content), checker.Contains, `file configuration validation failed (runtime name 'runc' is reserved)`)
 
 	// Check that we can select a default runtime
 	config = `
@@ -2492,7 +2492,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
 	c.Assert(out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
 
 	// Run with default runtime explicitly
-	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
+	out, err = s.d.Cmd("run", "--rm", "--runtime=runc", "busybox", "ls")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 }
 
@@ -2505,7 +2505,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *check.C) {
 	c.Assert(err, check.IsNil, check.Commentf(out))
 
 	// Run with default runtime explicitly
-	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
+	out, err = s.d.Cmd("run", "--rm", "--runtime=runc", "busybox", "ls")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 
 	// Run with oci (same path as default) but keep it around
@@ -2523,7 +2523,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// Run with default runtime
-	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
+	out, err = s.d.Cmd("run", "--rm", "--runtime=runc", "busybox", "ls")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 
 	// Run with "oci"
@@ -2538,11 +2538,11 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *check.C) {
 
 	// Check that we can't override the default runtime
 	s.d.Stop()
-	err = s.d.Start("--add-runtime", "default=docker-runc")
+	err = s.d.Start("--add-runtime", "runc=my-runc")
 	c.Assert(err, check.NotNil)
 
 	content, _ := ioutil.ReadFile(s.d.logFile.Name())
-	c.Assert(string(content), checker.Contains, `runtime name 'default' is reserved`)
+	c.Assert(string(content), checker.Contains, `runtime name 'runc' is reserved`)
 
 	// Check that we can select a default runtime
 	s.d.Stop()
@@ -2554,6 +2554,6 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *check.C) {
 	c.Assert(out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
 
 	// Run with default runtime explicitly
-	out, err = s.d.Cmd("run", "--rm", "--runtime=default", "busybox", "ls")
+	out, err = s.d.Cmd("run", "--rm", "--runtime=runc", "busybox", "ls")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 }
