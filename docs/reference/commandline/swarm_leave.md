@@ -23,10 +23,10 @@ This command causes the node to leave the swarm.
 On a manager node:
 ```bash
 $ docker node ls
-ID              NAME           STATUS  AVAILABILITY/MEMBERSHIP  MANAGER STATUS  LEADER
-04zm7ue1fd1q    swarm-node-02  READY   ACTIVE                                   
-2fg70txcrde2    swarm-node-01  READY   ACTIVE                   REACHABLE       
-3l1f6uzcuoa3 *  swarm-master   READY   ACTIVE                   REACHABLE       Yes
+ID                           NAME      MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS         LEADER
+7ln70fl22uw2dvjn2ft53m3q5    worker2   Accepted    Ready   Active
+dkp8vy1dq1kxleu9g4u78tlag    worker1   Accepted    Ready   Active        Reachable
+dvfxp4zseq4s0rih1selh0d20 *  manager1  Accepted    Ready   Active        Reachable              Yes
 ```
 
 On a worker node:
@@ -38,10 +38,10 @@ Node left the default swarm.
 On a manager node:
 ```bash
 $ docker node ls
-ID              NAME           STATUS  AVAILABILITY/MEMBERSHIP  MANAGER STATUS  LEADER
-04zm7ue1fd1q    swarm-node-02  DOWN    ACTIVE                                   
-2fg70txcrde2    swarm-node-01  READY   ACTIVE                   REACHABLE       
-3l1f6uzcuoa3 *  swarm-master   READY   ACTIVE                   REACHABLE       Yes
+ID                           NAME      MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS         LEADER
+7ln70fl22uw2dvjn2ft53m3q5    worker2   Accepted    Down    Active
+dkp8vy1dq1kxleu9g4u78tlag    worker1   Accepted    Ready   Active        Reachable
+dvfxp4zseq4s0rih1selh0d20 *  manager1  Accepted    Ready   Active        Reachable              Yes
 ```
 
 ## Related information

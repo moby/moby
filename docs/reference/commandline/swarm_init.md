@@ -28,17 +28,17 @@ in the newly created one node Swarm cluster.
 
 ```bash
 $ docker swarm init --listen-addr 192.168.99.121:2377
-Initializing a new swarm
+Swarm initialized: current node (1ujecd0j9n3ro9i6628smdmth) is now a manager.
 $ docker node ls
-ID              NAME          STATUS  AVAILABILITY/MEMBERSHIP  MANAGER STATUS  LEADER
-3l1f6uzcuoa3 *  swarm-master  READY   ACTIVE                   REACHABLE       Yes
+ID                           NAME      MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS          LEADER
+1ujecd0j9n3ro9i6628smdmth *  manager1  Accepted    Ready   Active        Reachable               Yes
 ```
 
 ###	--auto-accept value
 
 This flag controls node acceptance into the cluster. By default, both `worker` and `manager`
 nodes are auto accepted by the cluster. This can be changed by specifing what kinds of nodes
-can be auto-accepted into the cluster. If auto-accept is not turned on, then 
+can be auto-accepted into the cluster. If auto-accept is not turned on, then
 [node accept](node_accept.md) can be used to explicitly accept a node into the cluster.
 
 For example, the following initializes a cluster with auto-acceptance of workers, but not managers
@@ -46,7 +46,7 @@ For example, the following initializes a cluster with auto-acceptance of workers
 
 ```bash
 $ docker swarm init --listen-addr 192.168.99.121:2377 --auto-accept worker
-Initializing a new swarm
+Swarm initialized: current node (1m8cdsylxbf3lk8qriqt07hx1) is now a manager.
 ```
 
 ### `--force-new-cluster`

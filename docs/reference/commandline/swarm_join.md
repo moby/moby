@@ -28,23 +28,23 @@ targeted by this command becomes a `manager`. If it is not specified, it becomes
 
 ```bash
 $ docker swarm join --manager --listen-addr 192.168.99.122:2377 192.168.99.121:2377
-This node is attempting to join a Swarm as a manager.
+This node joined a Swarm as a manager.
 $ docker node ls
-ID              NAME           STATUS  AVAILABILITY/MEMBERSHIP  MANAGER STATUS  LEADER
-2fg70txcrde2    swarm-node-01  READY   ACTIVE                   REACHABLE       
-3l1f6uzcuoa3 *  swarm-master   READY   ACTIVE                   REACHABLE       Yes
+ID                           NAME      MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS         LEADER
+dkp8vy1dq1kxleu9g4u78tlag *  manager2  Accepted    Ready   Active        Reachable
+dvfxp4zseq4s0rih1selh0d20    manager1  Accepted    Ready   Active        Reachable              Yes
 ```
 
 ### Join a node to swarm as a worker
 
 ```bash
 $ docker swarm join --listen-addr 192.168.99.123:2377 192.168.99.121:2377
-This node is attempting to join a Swarm.
+This node joined a Swarm as a worker.
 $ docker node ls
-ID              NAME           STATUS  AVAILABILITY/MEMBERSHIP  MANAGER STATUS  LEADER
-04zm7ue1fd1q    swarm-node-02  READY   ACTIVE                                   
-2fg70txcrde2    swarm-node-01  READY   ACTIVE                   REACHABLE       
-3l1f6uzcuoa3 *  swarm-master   READY   ACTIVE                   REACHABLE       Yes
+ID                           NAME      MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS         LEADER
+7ln70fl22uw2dvjn2ft53m3q5    worker2   Accepted    Ready   Active
+dkp8vy1dq1kxleu9g4u78tlag    worker1   Accepted    Ready   Active        Reachable
+dvfxp4zseq4s0rih1selh0d20 *  manager1  Accepted    Ready   Active        Reachable              Yes
 ```
 
 ### `--manager`
