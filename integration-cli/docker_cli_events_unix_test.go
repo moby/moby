@@ -244,14 +244,14 @@ func (s *DockerSuite) TestEventsContainerWithMultiNetwork(c *check.C) {
 	out, _ := dockerCmd(c, "events", "--since", since, "--until", until, "-f", "type=network")
 	netEvents := strings.Split(strings.TrimSpace(out), "\n")
 
-	// NOTE: order in which disconnect takes place is undetermined,
-	// so don't check for the *full* name
+	// received two network disconnect events
 	c.Assert(len(netEvents), checker.Equals, 2)
 	c.Assert(netEvents[0], checker.Contains, "disconnect")
-	c.Assert(netEvents[0], checker.Contains, "test-event-network-local-")
-
 	c.Assert(netEvents[1], checker.Contains, "disconnect")
-	c.Assert(netEvents[1], checker.Contains, "test-event-network-local-")
+
+	//both networks appeared in the network event output
+	c.Assert(out, checker.Contains, "test-event-network-local-1")
+	c.Assert(out, checker.Contains, "test-event-network-local-2")
 }
 
 func (s *DockerSuite) TestEventsStreaming(c *check.C) {
