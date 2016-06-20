@@ -295,7 +295,7 @@ func (s *DockerSwarmSuite) TestApiSwarmPromoteDemote(c *check.C) {
 			break
 		}
 		if i > 100 {
-			c.Errorf("node did not turn into manager")
+			c.Errorf("node did not turn into worker")
 		} else {
 			break
 		}
@@ -708,6 +708,39 @@ func (s *DockerSwarmSuite) TestApiSwarmInvalidAddress(c *check.C) {
 	status, _, err = d.SockRequest("POST", "/swarm/join", req2)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusInternalServerError)
+}
+
+func (s *DockerSwarmSuite) TestApiSwarmForceNewCluster(c *check.C) {
+	d1 := s.AddDaemon(c, true, true)
+	d2 := s.AddDaemon(c, true, true)
+
+	instances := 2
+	id := d1.createService(c, simpleTestService, setInstances(instances))
+	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d2.checkActiveContainerCount), checker.Equals, instances)
+
+	c.Assert(d2.Stop(), checker.IsNil)
+
+	time.Sleep(5 * time.Second)
+
+	c.Assert(d1.Init(swarm.InitRequest{
+		ForceNewCluster: true,
+		Spec: swarm.Spec{
+			AcceptancePolicy: autoAcceptPolicy,
+		},
+	}), checker.IsNil)
+
+	waitAndAssert(c, defaultReconciliationTimeout, d1.checkActiveContainerCount, checker.Equals, instances)
+
+	d3 := s.AddDaemon(c, true, true)
+	info, err := d3.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.ControlAvailable, checker.Equals, true)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+
+	instances = 4
+	d3.updateService(c, d3.getService(c, id), setInstances(instances))
+
+	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d3.checkActiveContainerCount), checker.Equals, instances)
 }
 
 func simpleTestService(s *swarm.Service) {
