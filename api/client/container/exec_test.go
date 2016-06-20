@@ -1,41 +1,40 @@
-package client
+package container
 
 import (
-	"fmt"
-	"io/ioutil"
 	"testing"
 
-	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/engine-api/types"
 )
 
 type arguments struct {
-	args []string
+	options   execOptions
+	container string
+	execCmd   []string
 }
 
 func TestParseExec(t *testing.T) {
-	invalids := map[*arguments]error{
-		&arguments{[]string{"-unknown"}}: fmt.Errorf("flag provided but not defined: -unknown"),
-		&arguments{[]string{"-u"}}:       fmt.Errorf("flag needs an argument: -u"),
-		&arguments{[]string{"--user"}}:   fmt.Errorf("flag needs an argument: --user"),
-	}
 	valids := map[*arguments]*types.ExecConfig{
 		&arguments{
-			[]string{"container", "command"},
+			execCmd: []string{"command"},
 		}: {
 			Cmd:          []string{"command"},
 			AttachStdout: true,
 			AttachStderr: true,
 		},
 		&arguments{
-			[]string{"container", "command1", "command2"},
+			execCmd: []string{"command1", "command2"},
 		}: {
 			Cmd:          []string{"command1", "command2"},
 			AttachStdout: true,
 			AttachStderr: true,
 		},
 		&arguments{
-			[]string{"-i", "-t", "-u", "uid", "container", "command"},
+			options: execOptions{
+				interactive: true,
+				tty:         true,
+				user:        "uid",
+			},
+			execCmd: []string{"command"},
 		}: {
 			User:         "uid",
 			AttachStdin:  true,
@@ -45,7 +44,10 @@ func TestParseExec(t *testing.T) {
 			Cmd:          []string{"command"},
 		},
 		&arguments{
-			[]string{"-d", "container", "command"},
+			options: execOptions{
+				detach: true,
+			},
+			execCmd: []string{"command"},
 		}: {
 			AttachStdin:  false,
 			AttachStdout: false,
@@ -54,7 +56,12 @@ func TestParseExec(t *testing.T) {
 			Cmd:          []string{"command"},
 		},
 		&arguments{
-			[]string{"-t", "-i", "-d", "container", "command"},
+			options: execOptions{
+				tty:         true,
+				interactive: true,
+				detach:      true,
+			},
+			execCmd: []string{"command"},
 		}: {
 			AttachStdin:  false,
 			AttachStdout: false,
@@ -64,21 +71,9 @@ func TestParseExec(t *testing.T) {
 			Cmd:          []string{"command"},
 		},
 	}
-	for invalid, expectedError := range invalids {
-		cmd := flag.NewFlagSet("exec", flag.ContinueOnError)
-		cmd.ShortUsage = func() {}
-		cmd.SetOutput(ioutil.Discard)
-		_, err := ParseExec(cmd, invalid.args)
-		if err == nil || err.Error() != expectedError.Error() {
-			t.Fatalf("Expected an error [%v] for %v, got %v", expectedError, invalid, err)
-		}
 
-	}
 	for valid, expectedExecConfig := range valids {
-		cmd := flag.NewFlagSet("exec", flag.ContinueOnError)
-		cmd.ShortUsage = func() {}
-		cmd.SetOutput(ioutil.Discard)
-		execConfig, err := ParseExec(cmd, valid.args)
+		execConfig, err := parseExec(&valid.options, valid.container, valid.execCmd)
 		if err != nil {
 			t.Fatal(err)
 		}
