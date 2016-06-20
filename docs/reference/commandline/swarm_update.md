@@ -8,8 +8,6 @@ parent = "smn_cli"
 +++
 <![end-metadata]-->
 
-**Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
-
 # swarm update
 
     Usage:  docker swarm update [OPTIONS]
