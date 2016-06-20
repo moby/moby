@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/engine-api/types/swarm"
 	"github.com/go-check/check"
 )
 
@@ -213,12 +214,15 @@ func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *Swarm
 
 	if joinSwarm == true {
 		if len(s.daemons) > 0 {
-			c.Assert(d.Join(s.daemons[0].listenAddr, "", "", manager), check.IsNil)
+			c.Assert(d.Join(swarm.JoinRequest{
+				RemoteAddrs: []string{s.daemons[0].listenAddr},
+				Manager:     manager}), check.IsNil)
 		} else {
-			aa := make(map[string]bool)
-			aa["worker"] = true
-			aa["manager"] = true
-			c.Assert(d.Init(aa, ""), check.IsNil)
+			c.Assert(d.Init(swarm.InitRequest{
+				Spec: swarm.Spec{
+					AcceptancePolicy: autoAcceptPolicy,
+				},
+			}), check.IsNil)
 		}
 	}
 
