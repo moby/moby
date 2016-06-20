@@ -3825,7 +3825,7 @@ List services
         "UpdatedAt": "2016-06-07T21:07:29.962229872Z",
         "Spec": {
           "Name": "hopeful_cori",
-          "Task": {
+          "TaskTemplate": {
             "ContainerSpec": {
               "Image": "redis"
             },
@@ -3840,7 +3840,7 @@ List services
           },
           "Mode": {
             "Replicated": {
-              "Instances": 1
+              "Replicas": 1
             }
           },
           "UpdateConfig": {
@@ -3908,7 +3908,7 @@ Create a service
 
     {
       "Name": "redis",
-      "Task": {
+      "TaskTemplate": {
         "ContainerSpec": {
           "Image": "redis"
         },
@@ -3921,7 +3921,7 @@ Create a service
       },
       "Mode": {
         "Replicated": {
-          "Instances": 1
+          "Replicas": 1
         }
       },
       "UpdateConfig": {
@@ -3957,7 +3957,7 @@ JSON Parameters:
     - **Name** – User-defined name for the service.
     - **Labels** – A map of labels to associate with the service (e.g.,
       `{"key":"value"[,"key2":"value2"]}`).
-- **Task** – Specification of the tasks to start as part of the new service.
+- **TaskTemplate** – Specification of the tasks to start as part of the new service.
     - **ContainerSpec** - Container settings for containers started as part of this task.
         - **Image** – A string specifying the image name to use for the container.
         - **Command** – The command to be run in the image.
@@ -3967,21 +3967,21 @@ JSON Parameters:
         - **User** – A string value specifying the user inside the container.
         - **Labels** – A map of labels to associate with the service (e.g.,
           `{"key":"value"[,"key2":"value2"]}`).
-        - **Mounts** – Specification for mounts to be added to containers created as part of the new
+        - **Mounts** – Specification for mounts to be added to containers created as part of the new.
           service.
             - **Target** – Container path.
-            - **Source** – Optional host path to be mounted in the target.
-            - **Type** – The mount type (`bind`, `epheremal`, or `volume`).
-            - **VolumeName** – A name for the volume.
-            - **Populate** – A boolean indicating if volume should be populated with the data form the
-              target (defaults to false).
-            - **Propagation** – A propagation mode with the value `[r]private`, `[r]shared`, or
-              `[r]slave` (`bind` type mounts only).
-            - **MCSAccessMode** – MCS label for sharing mode (`bind` type mounts only).
+            - **Source** – Mount source (e.g. a volume name, a host path).
+            - **Type** – The mount type (`bind`, or `volume`).
             - **Writable** – A boolean indicating whether the mount should be writable.
-            - **VolumeTemplate** – Optional configuration for the volume.
-                - **Annotations** – User-defined name and labels for the volume.
-                - **Driver** – Name of the driver to be used and driver-specific options.
+            - **BindOptions** - Optional configuration for the `bind` type.
+              - **Propagation** – A propagation mode with the value `[r]private`, `[r]shared`, or `[r]slave`.
+            - **VolumeOptions** – Optional configuration for the `volume` type.
+                - **Populate** – A boolean indicating if volume should be
+                  populated with the data from the target. (Default false)
+                - **Labels** – User-defined name and labels for the volume.
+                - **DriverConfig** – Map of driver-specific options.
+                  - **Name** - Name of the driver to use to create the volume.
+                  - **Options** - key/value map of driver specific options.
         - **StopGracePeriod** – Amount of time to wait for the container to terminate before
           forcefully killing it.
     - **Resources** – Resource requirements which apply to each individual container created as part
@@ -4077,7 +4077,7 @@ Return information on the service `id`.
         },
         "Mode": {
           "Replicated": {
-            "Instances": 1
+            "Replicas": 1
           }
         },
         "UpdateConfig": {
@@ -4175,7 +4175,7 @@ Update the service `id`.
     - **Name** – User-defined name for the service.
     - **Labels** – A map of labels to associate with the service (e.g.,
       `{"key":"value"[,"key2":"value2"]}`).
-- **Task** – Specification of the tasks to start as part of the new service.
+- **TaskTemplate** – Specification of the tasks to start as part of the new service.
     - **ContainerSpec** - Container settings for containers started as part of this task.
         - **Image** – A string specifying the image name to use for the container.
         - **Command** – The command to be run in the image.
@@ -4188,18 +4188,17 @@ Update the service `id`.
         - **Mounts** – Specification for mounts to be added to containers created as part of the new
           service.
             - **Target** – Container path.
-            - **Source** – Optional host path to be mounted in the target.
-            - **Type** – The mount type (`bind`, `epheremal`, or `volume`).
-            - **VolumeName** – A name for the volume.
-            - **Populate** – A boolean indicating if volume should be populated with the data form the
-              target (defaults to false).
-            - **Propagation** – A propagation mode with the value `[r]private`, `[r]shared`, or
-              `[r]slave` (`bind` type mounts only).
-            - **MCSAccessMode** – MCS label for sharing mode (`bind` type mounts only).
+            - **Source** – Mount source (e.g. a volume name, a host path).
+            - **Type** – The mount type (`bind`, or `volume`).
             - **Writable** – A boolean indicating whether the mount should be writable.
-            - **VolumeTemplate** – Optional configuration for the volume.
-                - **Annotations** – User-defined name and labels for the volume.
-                - **Driver** – Name of the driver to be used and driver-specific options.
+            - **BindOptions** - Optional configuration for the `bind` type
+              - **Propagation** – A propagation mode with the value `[r]private`, `[r]shared`, or `[r]slave`.
+            - **VolumeOptions** – Optional configuration for the `volume` type.
+                - **Populate** – A boolean indicating if volume should be populated with the data from the target. (Default false)
+                - **Labels** – User-defined name and labels for the volume.
+                - **DriverConfig** – Map of driver-specific options.
+                  - **Name** - Name of the driver to use to create the volume
+                  - **Options** - key/value map of driver specific options
         - **StopGracePeriod** – Amount of time to wait for the container to terminate before
           forcefully killing it.
     - **Resources** – Resource requirements which apply to each individual container created as part
