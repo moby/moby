@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"golang.org/x/net/context"
@@ -34,6 +35,11 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	flags.String("image", "", "Service image tag")
 	flags.String("args", "", "Service command args")
 	addServiceFlags(cmd, opts)
+	flags.StringSlice(flagEnvRemove, []string{}, "Remove an environment variable")
+	flags.StringSlice(flagLabelRemove, []string{}, "The key of a label to remove")
+	flags.StringSlice(flagMountRemove, []string{}, "The mount target for a mount to remove")
+	flags.StringSlice(flagPublishRemove, []string{}, "The target port to remove")
+	flags.StringSlice(flagNetworkRemove, []string{}, "The name of a network to remove")
 	return cmd
 }
 
@@ -136,7 +142,7 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 	updateLabels(flags, &spec.Labels)
 	updateString("image", &cspec.Image)
 	updateStringToSlice(flags, "args", &cspec.Args)
-	updateListOpts("env", &cspec.Env)
+	updateEnvironment(flags, &cspec.Env)
 	updateString("workdir", &cspec.Dir)
 	updateString(flagUser, &cspec.User)
 	updateMounts(flags, &cspec.Mounts)
@@ -169,7 +175,10 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		updateDurationOpt((flagRestartWindow), task.RestartPolicy.Window)
 	}
 
-	// TODO: The constraints field is fixed in #23773
+	if flags.Changed(flagConstraint) {
+		task.Placement = &swarm.Placement{}
+		updateSlice(flagConstraint, &task.Placement.Constraints)
+	}
 
 	if err := updateReplicas(flags, &spec.Mode); err != nil {
 		return err
@@ -209,20 +218,6 @@ func updateStringToSlice(flags *pflag.FlagSet, flag string, field *[]string) err
 	return err
 }
 
-func updateLabels(flags *pflag.FlagSet, field *map[string]string) {
-	if !flags.Changed(flagLabel) {
-		return
-	}
-
-	values := flags.Lookup(flagLabel).Value.(*opts.ListOpts).GetAll()
-
-	localLabels := map[string]string{}
-	for key, value := range runconfigopts.ConvertKVStringsToMap(values) {
-		localLabels[key] = value
-	}
-	*field = localLabels
-}
-
 func anyChanged(flags *pflag.FlagSet, fields ...string) bool {
 	for _, flag := range fields {
 		if flags.Changed(flag) {
@@ -232,42 +227,107 @@ func anyChanged(flags *pflag.FlagSet, fields ...string) bool {
 	return false
 }
 
-// TODO: should this override by destination path, or does swarm handle that?
-func updateMounts(flags *pflag.FlagSet, mounts *[]swarm.Mount) {
-	if !flags.Changed(flagMount) {
-		return
+func updateLabels(flags *pflag.FlagSet, field *map[string]string) {
+	if flags.Changed(flagLabel) {
+		if field == nil {
+			*field = map[string]string{}
+		}
+
+		values := flags.Lookup(flagLabel).Value.(*opts.ListOpts).GetAll()
+		for key, value := range runconfigopts.ConvertKVStringsToMap(values) {
+			(*field)[key] = value
+		}
 	}
 
-	*mounts = flags.Lookup(flagMount).Value.(*MountOpt).Value()
+	if field != nil && flags.Changed(flagLabelRemove) {
+		toRemove, _ := flags.GetStringSlice(flagLabelRemove)
+		for _, label := range toRemove {
+			delete(*field, label)
+		}
+	}
 }
 
-// TODO: should this override by name, or does swarm handle that?
+func updateEnvironment(flags *pflag.FlagSet, field *[]string) {
+	if flags.Changed(flagEnv) {
+		value := flags.Lookup(flagEnv).Value.(*opts.ListOpts)
+		*field = append(*field, value.GetAll()...)
+	}
+	if flags.Changed(flagEnvRemove) {
+		toRemove, _ := flags.GetStringSlice(flagEnvRemove)
+		for _, envRemove := range toRemove {
+			for i, env := range *field {
+				key := envKey(env)
+				if key == envRemove {
+					*field = append((*field)[:i], (*field)[i+1:]...)
+				}
+			}
+		}
+	}
+}
+
+func envKey(value string) string {
+	kv := strings.SplitN(value, "=", 2)
+	return kv[0]
+}
+
+func updateMounts(flags *pflag.FlagSet, mounts *[]swarm.Mount) {
+	if flags.Changed(flagMount) {
+		values := flags.Lookup(flagMount).Value.(*MountOpt).Value()
+		*mounts = append(*mounts, values...)
+	}
+	if flags.Changed(flagMountRemove) {
+		toRemove, _ := flags.GetStringSlice(flagMountRemove)
+		for _, mountTarget := range toRemove {
+			for i, mount := range *mounts {
+				if mount.Target == mountTarget {
+					*mounts = append((*mounts)[:i], (*mounts)[i+1:]...)
+				}
+			}
+		}
+	}
+}
+
 func updatePorts(flags *pflag.FlagSet, portConfig *[]swarm.PortConfig) {
-	if !flags.Changed(flagPublish) {
-		return
+	if flags.Changed(flagPublish) {
+		values := flags.Lookup(flagPublish).Value.(*opts.ListOpts).GetAll()
+		ports, portBindings, _ := nat.ParsePortSpecs(values)
+
+		for port := range ports {
+			*portConfig = append(*portConfig, convertPortToPortConfig(port, portBindings)...)
+		}
 	}
 
-	values := flags.Lookup(flagPublish).Value.(*opts.ListOpts).GetAll()
-	ports, portBindings, _ := nat.ParsePortSpecs(values)
-
-	var localPortConfig []swarm.PortConfig
-	for port := range ports {
-		localPortConfig = append(localPortConfig, convertPortToPortConfig(port, portBindings)...)
+	if flags.Changed(flagPublishRemove) {
+		toRemove, _ := flags.GetStringSlice(flagPublishRemove)
+		for _, rawTargetPort := range toRemove {
+			targetPort := nat.Port(rawTargetPort)
+			for i, port := range *portConfig {
+				if string(port.Protocol) == targetPort.Proto() &&
+					port.TargetPort == uint32(targetPort.Int()) {
+					*portConfig = append((*portConfig)[:i], (*portConfig)[i+1:]...)
+				}
+			}
+		}
 	}
-	*portConfig = localPortConfig
 }
 
 func updateNetworks(flags *pflag.FlagSet, attachments *[]swarm.NetworkAttachmentConfig) {
-	if !flags.Changed(flagNetwork) {
-		return
+	if flags.Changed(flagNetwork) {
+		networks, _ := flags.GetStringSlice(flagNetwork)
+		for _, network := range networks {
+			*attachments = append(*attachments, swarm.NetworkAttachmentConfig{Target: network})
+		}
 	}
-	networks, _ := flags.GetStringSlice(flagNetwork)
-
-	var localAttachments []swarm.NetworkAttachmentConfig
-	for _, network := range networks {
-		localAttachments = append(localAttachments, swarm.NetworkAttachmentConfig{Target: network})
+	if flags.Changed(flagNetworkRemove) {
+		toRemove, _ := flags.GetStringSlice(flagNetworkRemove)
+		for _, networkTarget := range toRemove {
+			for i, network := range *attachments {
+				if network.Target == networkTarget {
+					*attachments = append((*attachments)[:i], (*attachments)[i+1:]...)
+				}
+			}
+		}
 	}
-	*attachments = localAttachments
 }
 
 func updateReplicas(flags *pflag.FlagSet, serviceMode *swarm.ServiceMode) error {
