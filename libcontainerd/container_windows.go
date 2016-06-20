@@ -274,6 +274,8 @@ func (ctr *container) shutdown() error {
 	if err == hcsshim.ErrVmcomputeOperationPending {
 		// Explicit timeout to avoid a (remote) possibility that shutdown hangs indefinitely.
 		err = ctr.hcsContainer.WaitTimeout(shutdownTimeout)
+	} else if err == hcsshim.ErrVmcomputeAlreadyStopped {
+		err = nil
 	}
 
 	if err != nil {
@@ -293,9 +295,12 @@ func (ctr *container) terminate() error {
 
 	if err == hcsshim.ErrVmcomputeOperationPending {
 		err = ctr.hcsContainer.WaitTimeout(terminateTimeout)
+	} else if err == hcsshim.ErrVmcomputeAlreadyStopped {
+		err = nil
 	}
 
 	if err != nil {
+		logrus.Debugf("error terminating container %s %v", ctr.containerID, err)
 		return err
 	}
 
