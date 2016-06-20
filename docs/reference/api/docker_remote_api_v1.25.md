@@ -3,6 +3,7 @@
 title = "Remote API v1.25"
 description = "API Documentation for Docker"
 keywords = ["API, Docker, rcli, REST,  documentation"]
+draft = true
 [menu.main]
 parent="engine_remoteapi"
 weight=-6
