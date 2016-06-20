@@ -461,7 +461,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.StringVar(&opts.name, flagName, "", "Service name")
 	flags.VarP(&opts.labels, flagLabel, "l", "Service labels")
 
-	flags.VarP(&opts.env, "env", "e", "Set environment variables")
+	flags.VarP(&opts.env, flagEnv, "e", "Set environment variables")
 	flags.StringVarP(&opts.workdir, "workdir", "w", "", "Working directory inside the container")
 	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID")
 	flags.Var(&opts.mounts, flagMount, "Attach a mount to the service")
@@ -494,14 +494,20 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 const (
 	flagConstraint         = "constraint"
 	flagEndpointMode       = "endpoint-mode"
+	flagEnv                = "env"
+	flagEnvRemove          = "remove-env"
 	flagLabel              = "label"
+	flagLabelRemove        = "remove-label"
 	flagLimitCPU           = "limit-cpu"
 	flagLimitMemory        = "limit-memory"
 	flagMode               = "mode"
 	flagMount              = "mount"
+	flagMountRemove        = "remove-mount"
 	flagName               = "name"
 	flagNetwork            = "network"
+	flagNetworkRemove      = "remove-network"
 	flagPublish            = "publish"
+	flagPublishRemove      = "remove-publish"
 	flagReplicas           = "replicas"
 	flagReserveCPU         = "reserve-cpu"
 	flagReserveMemory      = "reserve-memory"
