@@ -3,12 +3,11 @@
 title = "node update"
 description = "The node update command description and usage"
 keywords = ["resources, update, dynamically"]
+advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++
 <![end-metadata]-->
-
-**Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
 
 ## update
 
