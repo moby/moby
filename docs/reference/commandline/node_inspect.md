@@ -3,6 +3,7 @@
 title = "node inspect"
 description = "The node inspect command description and usage"
 keywords = ["node, inspect"]
+advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++

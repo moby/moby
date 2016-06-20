@@ -3,6 +3,7 @@
 title = "node tasks"
 description = "The node tasks command description and usage"
 keywords = ["node, tasks"]
+advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++

@@ -3,6 +3,7 @@
 title = "swarm leave"
 description = "The swarm leave command description and usage"
 keywords = ["swarm, leave"]
+advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++

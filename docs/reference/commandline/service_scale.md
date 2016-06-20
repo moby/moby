@@ -3,6 +3,7 @@
 title = "service scale"
 description = "The service scale command description and usage"
 keywords = ["service, scale"]
+advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++

@@ -3,7 +3,7 @@
 title = "service create"
 description = "The service create command description and usage"
 keywords = ["service, create"]
-
+advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++
