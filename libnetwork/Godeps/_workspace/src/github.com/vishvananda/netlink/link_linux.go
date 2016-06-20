@@ -14,6 +14,11 @@ import (
 
 const SizeofLinkStats = 0x5c
 
+const (
+	TUNTAP_MODE_TUN TuntapMode = syscall.IFF_TUN
+	TUNTAP_MODE_TAP TuntapMode = syscall.IFF_TAP
+)
+
 var native = nl.NativeEndian()
 var lookupByDump = false
 
@@ -671,6 +676,11 @@ func (h *Handle) LinkAdd(link Link) error {
 		data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
 		nl.NewRtAttrChild(data, nl.IFLA_IPVLAN_MODE, nl.Uint16Attr(uint16(ipv.Mode)))
 	} else if macv, ok := link.(*Macvlan); ok {
+		if macv.Mode != MACVLAN_MODE_DEFAULT {
+			data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+			nl.NewRtAttrChild(data, nl.IFLA_MACVLAN_MODE, nl.Uint32Attr(macvlanModes[macv.Mode]))
+		}
+	} else if macv, ok := link.(*Macvtap); ok {
 		if macv.Mode != MACVLAN_MODE_DEFAULT {
 			data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
 			nl.NewRtAttrChild(data, nl.IFLA_MACVLAN_MODE, nl.Uint32Attr(macvlanModes[macv.Mode]))

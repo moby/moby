@@ -3,8 +3,6 @@ package netlink
 import (
 	"fmt"
 	"net"
-
-	"github.com/vishvananda/netlink/nl"
 )
 
 // XfrmStateAlgo represents the algorithm to use for the ipsec encryption.
@@ -93,7 +91,7 @@ func (sa XfrmState) Print(stats bool) string {
 }
 
 func printLimit(lmt uint64) string {
-	if lmt == nl.XFRM_INF {
+	if lmt == ^uint64(0) {
 		return "(INF)"
 	}
 	return fmt.Sprintf("%d", lmt)
