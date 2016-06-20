@@ -678,7 +678,10 @@ system's list of trusted CAs instead of enabling `--insecure-registry`.
 
 ## Legacy Registries
 
-Enabling `--disable-legacy-registry` forces a docker daemon to only interact with registries which support the V2 protocol.  Specifically, the daemon will not attempt `push`, `pull` and `login` to v1 registries.  The exception to this is `search` which can still be performed on v1 registries.
+Enabling `--disable-legacy-registry` forces a docker daemon to only interact with
+registries which support the V2 protocol.  Specifically, the daemon will not 
+attempt `push`, `pull` and `login` to v1 registries.  The exception to this is 
+`search` which can still be performed on v1 registries.
 
 ## Running a Docker daemon behind an HTTPS_PROXY
 
@@ -765,7 +768,8 @@ The currently supported cluster store options are:
 
 *  `kv.path`
 
-    Specifies the path in the Key/Value store. If not configured, the default value is 'docker/nodes'.
+    Specifies the path in the Key/Value store. If not configured, the default 
+    value is 'docker/nodes'.
 
 ## Access authorization
 
@@ -789,12 +793,14 @@ multiple plugins installed, at least one must allow the request for it to
 complete.
 
 For information about how to create an authorization plugin, see [authorization
-plugin](../../extend/plugins_authorization.md) section in the Docker extend section of this documentation.
+plugin](../../extend/plugins_authorization.md) section in the Docker extend 
+section of this documentation.
 
 
 ## Daemon user namespace options
 
-The Linux kernel [user namespace support](http://man7.org/linux/man-pages/man7/user_namespaces.7.html) provides additional security by enabling
+The Linux kernel [user namespace support](http://man7.org/linux/man-pages/man7/user_namespaces.7.html) 
+provides additional security by enabling
 a process, and therefore a container, to have a unique range of user and
 group IDs which are outside the traditional user and group range utilized by
 the host system. Potentially the most important security improvement is that,
@@ -824,6 +830,19 @@ and provided subordinate uid and gid ranges. This default user will be named
 > content is downloaded. This design preserves the same performance for `docker
 > pull`, `docker push`, and container startup as users expect with
 > user namespaces disabled.
+
+> **Note**: Due to the need to segregate content in the Docker daemon’s local 
+> cache of layer data by the mappings provided, once you use an experimental 
+> build with user namespaces, the root of your graph directory (`/var/lib/docker`
+> by default) will have one additional level of indirection which correlates to
+> the remapped root uid and gid. For example, if the remapping user provided to
+> the `--userns-remap` flag has subordinate user and group ranges that begin with
+> `ID 10000`, then the root of the graph directory for all images and containers
+> running with that remap setting will reside in `/var/lib/docker/10000.10000`.
+> If you want or need to return to a Docker build which is not enabled for user
+> namespaces, the simplest method to return is to stop the current experimental
+> daemon, move the content in `/var/lib/docker/0.0` back to `/var/lib/docker` 
+> and then restart Docker with your non-user namespaces enabled Docker daemon binary.
 
 ### Starting the daemon with user namespaces enabled
 
@@ -891,9 +910,20 @@ If the system administrator has set up multiple ranges for a single user or
 group, the Docker daemon will read all the available ranges and use the
 following algorithm to create the mapping ranges:
 
-1. The range segments found for the particular user will be sorted by *start ID* ascending.
-2. Map segments will be created from each range in increasing value with a length matching the length of each segment. Therefore the range segment with the lowest numeric starting value will be equal to the remapped root, and continue up through host uid/gid equal to the range segment length. As an example, if the lowest segment starts at ID 1000 and has a length of 100, then a map of 1000 -> 0 (the remapped root) up through 1100 -> 100 will be created from this segment. If the next segment starts at ID 10000, then the next map will start with mapping 10000 -> 101 up to the length of this second segment. This will continue until no more segments are found in the subordinate files for this user.
-3. If more than five range segments exist for a single user, only the first five will be utilized, matching the kernel's limitation of only five entries in `/proc/self/uid_map` and `proc/self/gid_map`.
+1. The range segments found for the particular user will be sorted by *start ID* 
+ascending.
+2. Map segments will be created from each range in increasing value with a length
+matching the length of each segment. Therefore the range segment with the lowest
+numeric starting value will be equal to the remapped root, and continue up 
+through host uid/gid equal to the range segment length. As an example, if the 
+lowest segment starts at ID 1000 and has a length of 100, then a map of 
+1000 -> 0 (the remapped root) up through 1100 -> 100 will be created from this 
+segment. If the next segment starts at ID 10000, then the next map will start 
+with mapping 10000 -> 101 up to the length of this second segment. This will 
+continue until no more segments are found in the subordinate files for this user.
+3. If more than five range segments exist for a single user, only the first 
+five will be utilized, matching the kernel's limitation of only five entries 
+in `/proc/self/uid_map` and `proc/self/gid_map`.
 
 ### Disable user namespace for a container
 
@@ -911,8 +941,11 @@ The following standard Docker features are currently incompatible when
 running a Docker daemon with user namespaces enabled:
 
  - sharing PID or NET namespaces with the host (`--pid=host` or `--net=host`)
- - A `--readonly` container filesystem (this is a Linux kernel restriction against remounting with modified flags of a currently mounted filesystem when inside a user namespace)
- - external (volume or graph) drivers which are unaware/incapable of using daemon user mappings
+ - A `--readonly` container filesystem (this is a Linux kernel restriction 
+ against remounting with modified flags of a currently mounted filesystem when 
+ inside a user namespace)
+ - external (volume or graph) drivers which are unaware/incapable of using 
+ daemon user mappings
  - Using `--privileged` mode flag on `docker run` (unless also specifying `--userns=host`)
 
 In general, user namespaces are an advanced feature and will require
