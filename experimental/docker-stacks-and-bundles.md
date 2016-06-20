@@ -1,14 +1,13 @@
-# Docker Stacks
+# Docker Stacks and Distributed Application Bundles
 
 ## Overview
 
-Docker Stacks are an experimental feature introduced in Docker 1.12, alongside
-the concept of swarm mode, and Nodes and Services in the Engine API.
+Docker Stacks and Distributed Application Bundles are experimental features introduced in Docker 1.12 and Docker Compose 1.8, alongside the concept of swarm mode, and Nodes and Services in the Engine API.
 
 A Dockerfile can be built into an image, and containers can be created from that
 image. Similarly, a docker-compose.yml can be built into a **distributed application bundle**, and **stacks** can be created from that bundle. In that sense, the bundle is a multi-services distributable image format.
 
-As of Docker 1.12, the feature is experimental. Neither Docker Engine nor the Docker Registry support distribution of bundles.
+As of Docker 1.12 and Compose 1.8, the features are experimental. Neither Docker Engine nor the Docker Registry support distribution of bundles.
 
 ## Producing a bundle
 
