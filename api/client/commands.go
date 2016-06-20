@@ -4,7 +4,6 @@ package client
 func (cli *DockerCli) Command(name string) func(...string) error {
 	return map[string]func(...string) error{
 		"exec":    cli.CmdExec,
-		"info":    cli.CmdInfo,
 		"inspect": cli.CmdInspect,
 		"update":  cli.CmdUpdate,
 	}[name]
