@@ -1531,6 +1531,7 @@ _docker_service() {
 		inspect
 		ls list
 		rm remove
+		scale
 		tasks
 		update
 	"
@@ -1590,6 +1591,82 @@ _docker_service_create() {
 	esac
 }
 
+_docker_service_inspect() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--format -f --help --pretty -p" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_services
+	esac
+}
+
+_docker_service_list() {
+	_docker_service_ls
+}
+
+_docker_service_ls() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "-f --filter --help --quiet -q" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_service_remove() {
+	_docker_service_rm
+}
+
+_docker_service_rm() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_services
+	esac
+}
+
+_docker_service_scale() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $(compgen -S "=" -W "$(__docker_services $1)" -- "$cur") )
+			__docker_nospace
+			;;
+	esac
+}
+
+_docker_service_tasks() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--all -a --filter -f --help --no-resolve -n" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_services
+	esac
+}
+
 _docker_service_update() {
 	local options_with_args="
 		--arg
@@ -1639,77 +1716,13 @@ _docker_service_update() {
 	esac
 }
 
-_docker_service_inspect() {
-	case "$prev" in
-		--format|-f)
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--format -f --help --pretty -p" -- "$cur" ) )
-			;;
-		*)
-			__docker_complete_services
-	esac
-}
-
-_docker_service_tasks() {
-	case "$prev" in
-		--format|-f)
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--all -a --filter -f --help --no-resolve -n" -- "$cur" ) )
-			;;
-		*)
-			__docker_complete_services
-	esac
-}
-
-_docker_service_remove() {
-	_docker_service_rm
-}
-
-_docker_service_rm() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
-			;;
-		*)
-			__docker_complete_services
-	esac
-}
-
-_docker_service_list() {
-	_docker_service_ls
-}
-
-_docker_service_ls() {
-	case "$prev" in
-		--format|-f)
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "-f --filter --help --quiet -q" -- "$cur" ) )
-			;;
-	esac
-}
-
 _docker_swarm() {
 	local subcommands="
 		init
-		join
-		update
-		leave
 		inspect
+		join
+		leave
+		update
 	"
 	__docker_subcommands "$subcommands" && return
 
@@ -1724,17 +1737,51 @@ _docker_swarm() {
 }
 
 _docker_swarm_init() {
+	case "$prev" in
+		--auto-accept|--listen-addr|--secret)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --auto-accept --force-new-cluster --secret" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--auto-accept --force-new-cluster --help --listen-addr --secret" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_swarm_inspect() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--format -f --help" -- "$cur" ) )
 			;;
 	esac
 }
 
 _docker_swarm_join() {
+	case "$prev" in
+		--ca-hash|--listen-addr|--secret)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--ca-hash --help --listen-addr --manager --secret" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_swarm_leave() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--force --help" -- "$cur" ) )
 			;;
 	esac
 }
@@ -1753,30 +1800,14 @@ _docker_swarm_update() {
 	esac
 }
 
-_docker_swarm_leave() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--force --help" -- "$cur" ) )
-			;;
-	esac
-}
-
-_docker_swarm_inspect() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--format --help" -- "$cur" ) )
-			;;
-	esac
-}
-
 _docker_node() {
 	local subcommands="
 		accept
 		demote
 		inspect
-		ls
+		ls list
 		promote
-		rm
+		rm remove
 		tasks
 		update
 	"
@@ -1802,20 +1833,46 @@ _docker_node_accept() {
 	esac
 }
 
-_docker_node_inspect() {
+_docker_node_demote() {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --format --pretty" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_manager_nodes
+	esac
+}
+
+_docker_node_inspect() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--format -f --help --pretty -p" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_nodes
 	esac
 }
 
+_docker_node_list() {
+	_docker_node_ls
+}
+
 _docker_node_ls() {
+	case "$prev" in
+		--filter|-f)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --filter --quiet" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--filter -f --help --quiet -q" -- "$cur" ) )
 			;;
 	esac
 }
@@ -1830,14 +1887,8 @@ _docker_node_promote() {
 	esac
 }
 
-_docker_node_demote() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
-			;;
-		*)
-			__docker_complete_manager_nodes
-	esac
+_docker_node_remove() {
+	_docker_node_rm
 }
 
 _docker_node_rm() {
@@ -1851,9 +1902,15 @@ _docker_node_rm() {
 }
 
 _docker_node_tasks() {
+	case "$prev" in
+		--filter|-f)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --no-resolve --filter --all" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--all -a --filter -f --help --no-resolve -n" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_nodes_plus_self
@@ -1861,9 +1918,15 @@ _docker_node_tasks() {
 }
 
 _docker_node_update() {
+	case "$prev" in
+		--availability|--membership|--role)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --availability --membership --role" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--availability --help --membership --role" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_nodes
