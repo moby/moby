@@ -437,7 +437,7 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *check.C) {
 	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c))
 	c.Assert(err, checker.IsNil)
 
-	c.Assert(out, checker.Contains, fmt.Sprintf("daemon reload %s (cluster-advertise=, cluster-store=, cluster-store-opts={}, debug=true, default-runtime=default, labels=[\"bar=foo\"], max-concurrent-downloads=1, max-concurrent-uploads=5, name=%s, runtimes=default:{docker-runc []})", daemonID, daemonName))
+	c.Assert(out, checker.Contains, fmt.Sprintf("daemon reload %s (cluster-advertise=, cluster-store=, cluster-store-opts={}, debug=true, default-runtime=runc, labels=[\"bar=foo\"], max-concurrent-downloads=1, max-concurrent-uploads=5, name=%s, runtimes=runc:{docker-runc []})", daemonID, daemonName))
 }
 
 func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *check.C) {
