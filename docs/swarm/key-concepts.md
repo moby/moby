@@ -82,7 +82,7 @@ running the task for the service.  All nodes in the swarm cluster route ingress
 connections to a running task instance.
 
 Swarm mode has an internal DNS component that automatically assigns each service
-in the swarm DNS entry. The swarm manager uses **internal load balancing**
+in the swarm a DNS entry. The swarm manager uses **internal load balancing** to
 distribute requests among services within the cluster based upon the DNS name of
 the service.
 
