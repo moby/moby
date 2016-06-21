@@ -172,7 +172,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 	args = append(args, providedArgs...)
 	d.cmd = exec.Command(dockerdBinary, args...)
-
+	d.cmd.Env = append(os.Environ(), "DOCKER_SERVICE_PREFER_OFFLINE_IMAGE=1")
 	d.cmd.Stdout = out
 	d.cmd.Stderr = out
 	d.logFile = out

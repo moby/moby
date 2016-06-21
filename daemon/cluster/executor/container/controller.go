@@ -2,6 +2,7 @@ package container
 
 import (
 	"fmt"
+	"os"
 
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/engine-api/types"
@@ -84,19 +85,21 @@ func (r *controller) Prepare(ctx context.Context) error {
 		return err
 	}
 
-	if err := r.adapter.pullImage(ctx); err != nil {
-		// NOTE(stevvooe): We always try to pull the image to make sure we have
-		// the most up to date version. This will return an error, but we only
-		// log it. If the image truly doesn't exist, the create below will
-		// error out.
-		//
-		// This gives us some nice behavior where we use up to date versions of
-		// mutable tags, but will still run if the old image is available but a
-		// registry is down.
-		//
-		// If you don't want this behavior, lock down your image to an
-		// immutable tag or digest.
-		log.G(ctx).WithError(err).Error("pulling image failed")
+	if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" {
+		if err := r.adapter.pullImage(ctx); err != nil {
+			// NOTE(stevvooe): We always try to pull the image to make sure we have
+			// the most up to date version. This will return an error, but we only
+			// log it. If the image truly doesn't exist, the create below will
+			// error out.
+			//
+			// This gives us some nice behavior where we use up to date versions of
+			// mutable tags, but will still run if the old image is available but a
+			// registry is down.
+			//
+			// If you don't want this behavior, lock down your image to an
+			// immutable tag or digest.
+			log.G(ctx).WithError(err).Error("pulling image failed")
+		}
 	}
 
 	if err := r.adapter.create(ctx, r.backend); err != nil {
