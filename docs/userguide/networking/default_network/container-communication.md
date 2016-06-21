@@ -44,7 +44,7 @@ Many using Docker will want `ip_forward` to be on, to at least make
 communication _possible_ between containers and the wider world. May also be
 needed for inter-container communication if you are in a multiple bridge setup.
 
-Docker will   never make changes to your system `iptables` rules if you set
+Docker will never make changes to your system `iptables` rules if you set
 `--iptables=false` when the daemon starts.  Otherwise the Docker server will
 append forwarding rules to the `DOCKER` filter chain.
 
