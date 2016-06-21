@@ -1448,9 +1448,15 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *check.C) {
 	// This test case is meant to test monitoring resolv.conf when it is
 	// a regular file not a bind mounc. So we unmount resolv.conf and replace
 	// it with a file containing the original settings.
-	cmd := exec.Command("umount", "/etc/resolv.conf")
-	if _, err = runCommand(cmd); err != nil {
+	mounted, err := mount.Mounted("/etc/resolv.conf")
+	if err != nil {
 		c.Fatal(err)
+	}
+	if mounted {
+		cmd := exec.Command("umount", "/etc/resolv.conf")
+		if _, err = runCommand(cmd); err != nil {
+			c.Fatal(err)
+		}
 	}
 
 	//cleanup
