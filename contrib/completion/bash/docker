@@ -2176,6 +2176,7 @@ _docker_run() {
 		--security-opt
 		--shm-size
 		--stop-signal
+		--storage-opt
 		--tmpfs
 		--sysctl
 		--ulimit
@@ -2360,6 +2361,11 @@ _docker_run() {
 			if [ "${COMPREPLY[*]}" != "no-new-privileges" ] ; then
 				__docker_nospace
 			fi
+			return
+			;;
+		--storage-opt)
+			COMPREPLY=( $( compgen -W "size" -S = -- "$cur") )
+			__docker_nospace
 			return
 			;;
 		--user|-u)
