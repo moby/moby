@@ -35,7 +35,7 @@ NETWORK ID          NAME                DRIVER
 cf03ee007fb4        host                host
 ```
 
-Historically, these three networks are  part of Docker's implementation. When
+Historically, these three networks are part of Docker's implementation. When
 you run a container you can use the `--net` flag to specify which network you
 want to run a container on. These three networks are still available to you.
 

@@ -55,7 +55,7 @@ Docker Engine is a client-server application with these major components:
 
 ![Docker Engine Components Flow](article-img/engine-components-flow.png)
 
-The CLI imakes use of the Docker REST API to control or interact with the Docker daemon through scripting or direct CLI commands. Many other Docker applications make use of the underlying API and CLI.
+The CLI makes use of the Docker REST API to control or interact with the Docker daemon through scripting or direct CLI commands. Many other Docker applications make use of the underlying API and CLI.
 
 The daemon creates and manages Docker objects.  Docker objects include images, containers, networks, data volumes, and so forth.
 
@@ -252,7 +252,7 @@ isolated workspace we call the *container*.  When you run a container, Docker
 creates a set of *namespaces* for that container.
 
 This provides a layer of isolation: each aspect of a container runs in its own
-namespace and does not have access outside it.
+namespace and does not have access outside of it.
 
 Some of the namespaces that Docker Engine uses on Linux are:
 
