@@ -18,7 +18,7 @@ type restartOptions struct {
 	containers []string
 }
 
-// NewRestartCommand creats a new cobra.Command for `docker restart`
+// NewRestartCommand creates a new cobra.Command for `docker restart`
 func NewRestartCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts restartOptions
 

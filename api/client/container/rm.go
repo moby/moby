@@ -20,7 +20,7 @@ type rmOptions struct {
 	containers []string
 }
 
-// NewRmCommand creats a new cobra.Command for `docker rm`
+// NewRmCommand creates a new cobra.Command for `docker rm`
 func NewRmCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts rmOptions
 
