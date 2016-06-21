@@ -693,7 +693,7 @@ _docker_build() {
 		--cgroup-parent
 		--cpuset-cpus
 		--cpuset-mems
-		--cpu-shares
+		--cpu-shares -c
 		--cpu-period
 		--cpu-quota
 		--file -f
@@ -2141,7 +2141,7 @@ _docker_run() {
 		--cpu-quota
 		--cpuset-cpus
 		--cpuset-mems
-		--cpu-shares
+		--cpu-shares -c
 		--device
 		--device-read-bps
 		--device-read-iops
@@ -2543,7 +2543,7 @@ _docker_update() {
 		--cpu-quota
 		--cpuset-cpus
 		--cpuset-mems
-		--cpu-shares
+		--cpu-shares -c
 		--kernel-memory
 		--memory -m
 		--memory-reservation
