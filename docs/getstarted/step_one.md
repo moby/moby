@@ -25,7 +25,7 @@ weight = 1
 
 ### Docker for Mac
 
-Docker for Mac is our newest offering for the Mac. It runs as a native Mac application and uses <a href="https://github.com/mist64/xhyve/" target="_blank">xhyve</a> to virutalize the Docker Engine environment and Linux kernel-specific features for the Docker daemon.
+Docker for Mac is our newest offering for the Mac. It runs as a native Mac application and uses <a href="https://github.com/mist64/xhyve/" target="_blank">xhyve</a> to virtualize the Docker Engine environment and Linux kernel-specific features for the Docker daemon.
 
 <a class="button" href="https://download.docker.com/mac/beta/Docker.dmg">Get Docker for Mac</a>
 
@@ -47,7 +47,7 @@ See [Docker Toolbox Overview](/toolbox/overview.md) for help on installing Docke
 
 ### Docker for Windows
 
-Docker for Windows is our newest offering for PCs. It runs as a native Windows application and uses Hyper-V to virutalize the Docker Engine environment and Linux kernel-specific features for the Docker daemon.
+Docker for Windows is our newest offering for PCs. It runs as a native Windows application and uses Hyper-V to virtualize the Docker Engine environment and Linux kernel-specific features for the Docker daemon.
 
 <a class="button" href="https://download.docker.com/win/beta/InstallDocker.msi">Get Docker for Windows</a>
 
