@@ -751,7 +751,7 @@ func (s *DockerSuite) TestRunUserByIDBig(c *check.C) {
 	if err == nil {
 		c.Fatal("No error, but must be.", out)
 	}
-	if !strings.Contains(out, libcontainerUser.ErrRange.Error()) {
+	if !strings.Contains(strings.ToUpper(out), strings.ToUpper(libcontainerUser.ErrRange.Error())) {
 		c.Fatalf("expected error about uids range, got %s", out)
 	}
 }
@@ -764,7 +764,7 @@ func (s *DockerSuite) TestRunUserByIDNegative(c *check.C) {
 	if err == nil {
 		c.Fatal("No error, but must be.", out)
 	}
-	if !strings.Contains(out, libcontainerUser.ErrRange.Error()) {
+	if !strings.Contains(strings.ToUpper(out), strings.ToUpper(libcontainerUser.ErrRange.Error())) {
 		c.Fatalf("expected error about uids range, got %s", out)
 	}
 }
