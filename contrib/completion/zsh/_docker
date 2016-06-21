@@ -965,6 +965,7 @@ __docker_subcommand() {
                 "($help)--ipv6[Enable IPv6 networking]" \
                 "($help -l --log-level)"{-l=,--log-level=}"[Logging level]:level:(debug info warn error fatal)" \
                 "($help)*--label=[Key=value labels]:label: " \
+                "($help)--live-restore[Enable live restore of docker when containers are still running]" \
                 "($help)--log-driver=[Default driver for container logs]:Logging driver:(awslogs etwlogs fluentd gcplogs gelf journald json-file none splunk syslog)" \
                 "($help)*--log-opt=[Log driver specific options]:log driver options:__docker_log_options" \
                 "($help)--max-concurrent-downloads[Set the max concurrent downloads for each pull]" \
