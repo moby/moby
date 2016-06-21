@@ -20,7 +20,7 @@ You have two options for installing Docker on Windows:
 
 Docker for Windows is our newest offering for PCs. It runs as a native Windows application and uses Hyper-V to virtualize the Docker Engine environment and Linux kernel-specific features for the Docker daemon.
 
-Go to [Getting Started with Docker for Windows](/docker-for-windows/index.md) for download and install instructions, and to learn all about Docker for Windows.
+Go to [Getting Started with Docker for Windows](https://docs.docker.com/docker-for-windows/) for download and install instructions, and to learn all about Docker for Windows.
 
 **Requirements**
 
