@@ -24,11 +24,6 @@ import (
 	"github.com/spf13/pflag"
 )
 
-const (
-	errCmdNotFound          = "not found or does not exist"
-	errCmdCouldNotBeInvoked = "could not be invoked"
-)
-
 type runOptions struct {
 	autoRemove bool
 	detach     bool
