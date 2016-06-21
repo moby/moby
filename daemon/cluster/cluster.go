@@ -13,10 +13,12 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/daemon/cluster/executor/container"
 	"github.com/docker/docker/errors"
+	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/runconfig"
 	apitypes "github.com/docker/engine-api/types"
@@ -30,6 +32,7 @@ const swarmDirName = "swarm"
 const controlSocket = "control.sock"
 const swarmConnectTimeout = 20 * time.Second
 const stateFile = "docker-state.json"
+const defaultAddr = "0.0.0.0:2377"
 
 const (
 	initialReconnectDelay = 100 * time.Millisecond
@@ -50,6 +53,26 @@ var ErrPendingSwarmExists = fmt.Errorf("This node is processing an existing join
 
 // ErrSwarmJoinTimeoutReached is returned when cluster join could not complete before timeout was reached.
 var ErrSwarmJoinTimeoutReached = fmt.Errorf("Timeout was reached before node was joined. Attempt to join the cluster will continue in the background. Use \"docker info\" command to see the current Swarm status of your node.")
+
+// defaultSpec contains some sane defaults if cluster options are missing on init
+var defaultSpec = types.Spec{
+	Raft: types.RaftConfig{
+		SnapshotInterval:           10000,
+		KeepOldSnapshots:           0,
+		LogEntriesForSlowFollowers: 500,
+		HeartbeatTick:              1,
+		ElectionTick:               3,
+	},
+	CAConfig: types.CAConfig{
+		NodeCertExpiry: 90 * 24 * time.Hour,
+	},
+	Dispatcher: types.DispatcherConfig{
+		HeartbeatPeriod: uint64((5 * time.Second).Nanoseconds()),
+	},
+	Orchestration: types.OrchestrationConfig{
+		TaskHistoryRetentionLimit: 10,
+	},
+}
 
 type state struct {
 	ListenAddr string
@@ -282,6 +305,12 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 		c.conn = nil
 		c.ready = false
 	}
+
+	if err := validateAndSanitizeInitRequest(&req); err != nil {
+		c.Unlock()
+		return "", err
+	}
+
 	// todo: check current state existing
 	n, ctx, err := c.startNewNode(req.ForceNewCluster, req.ListenAddr, "", "", "", false)
 	if err != nil {
@@ -292,7 +321,7 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 
 	select {
 	case <-n.Ready():
-		if err := initAcceptancePolicy(n, req.Spec.AcceptancePolicy); err != nil {
+		if err := initClusterSpec(n, req.Spec); err != nil {
 			return "", err
 		}
 		go c.reconnectOnFailure(ctx)
@@ -319,10 +348,11 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 		c.Unlock()
 		return errSwarmExists(node)
 	}
-	// todo: check current state existing
-	if len(req.RemoteAddrs) == 0 {
-		return fmt.Errorf("at least 1 RemoteAddr is required to join")
+	if err := validateAndSanitizeJoinRequest(&req); err != nil {
+		c.Unlock()
+		return err
 	}
+	// todo: check current state existing
 	n, ctx, err := c.startNewNode(false, req.ListenAddr, req.RemoteAddrs[0], req.Secret, req.CACertHash, req.Manager)
 	if err != nil {
 		c.Unlock()
@@ -1030,6 +1060,76 @@ func (c *Cluster) managerStats() (current bool, reachable int, unreachable int, 
 	return
 }
 
+func validateAndSanitizeInitRequest(req *types.InitRequest) error {
+	var err error
+	req.ListenAddr, err = validateAddr(req.ListenAddr)
+	if err != nil {
+		return fmt.Errorf("invalid ListenAddr %q: %v", req.ListenAddr, err)
+	}
+
+	spec := &req.Spec
+	// provide sane defaults instead of erroring
+	if spec.Name == "" {
+		spec.Name = "default"
+	}
+	if spec.Raft.SnapshotInterval == 0 {
+		spec.Raft.SnapshotInterval = defaultSpec.Raft.SnapshotInterval
+	}
+	if spec.Raft.LogEntriesForSlowFollowers == 0 {
+		spec.Raft.LogEntriesForSlowFollowers = defaultSpec.Raft.LogEntriesForSlowFollowers
+	}
+	if spec.Raft.ElectionTick == 0 {
+		spec.Raft.ElectionTick = defaultSpec.Raft.ElectionTick
+	}
+	if spec.Raft.HeartbeatTick == 0 {
+		spec.Raft.HeartbeatTick = defaultSpec.Raft.HeartbeatTick
+	}
+	if spec.Dispatcher.HeartbeatPeriod == 0 {
+		spec.Dispatcher.HeartbeatPeriod = defaultSpec.Dispatcher.HeartbeatPeriod
+	}
+	if spec.CAConfig.NodeCertExpiry == 0 {
+		spec.CAConfig.NodeCertExpiry = defaultSpec.CAConfig.NodeCertExpiry
+	}
+	if spec.Orchestration.TaskHistoryRetentionLimit == 0 {
+		spec.Orchestration.TaskHistoryRetentionLimit = defaultSpec.Orchestration.TaskHistoryRetentionLimit
+	}
+	return nil
+}
+
+func validateAndSanitizeJoinRequest(req *types.JoinRequest) error {
+	var err error
+	req.ListenAddr, err = validateAddr(req.ListenAddr)
+	if err != nil {
+		return fmt.Errorf("invalid ListenAddr %q: %v", req.ListenAddr, err)
+	}
+	if len(req.RemoteAddrs) == 0 {
+		return fmt.Errorf("at least 1 RemoteAddr is required to join")
+	}
+	for i := range req.RemoteAddrs {
+		req.RemoteAddrs[i], err = validateAddr(req.RemoteAddrs[i])
+		if err != nil {
+			return fmt.Errorf("invalid remoteAddr %q: %v", req.RemoteAddrs[i], err)
+		}
+	}
+	if req.CACertHash != "" {
+		if _, err := digest.ParseDigest(req.CACertHash); err != nil {
+			return fmt.Errorf("invalid CACertHash %q, %v", req.CACertHash, err)
+		}
+	}
+	return nil
+}
+
+func validateAddr(addr string) (string, error) {
+	if addr == "" {
+		return addr, fmt.Errorf("invalid empty address")
+	}
+	newaddr, err := opts.ParseTCPAddr(addr, defaultAddr)
+	if err != nil {
+		return addr, nil
+	}
+	return strings.TrimPrefix(newaddr, "tcp://"), nil
+}
+
 func errSwarmExists(node *swarmagent.Node) error {
 	if node.NodeMembership() != swarmapi.NodeMembershipAccepted {
 		return ErrPendingSwarmExists
@@ -1037,7 +1137,7 @@ func errSwarmExists(node *swarmagent.Node) error {
 	return ErrSwarmExists
 }
 
-func initAcceptancePolicy(node *swarmagent.Node, acceptancePolicy types.AcceptancePolicy) error {
+func initClusterSpec(node *swarmagent.Node, spec types.Spec) error {
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	for conn := range node.ListenControlSocket(ctx) {
 		if ctx.Err() != nil {
@@ -1061,15 +1161,14 @@ func initAcceptancePolicy(node *swarmagent.Node, acceptancePolicy types.Acceptan
 				cluster = lcr.Clusters[0]
 				break
 			}
-			spec := &cluster.Spec
-
-			if err := convert.SwarmSpecUpdateAcceptancePolicy(spec, acceptancePolicy, nil); err != nil {
+			newspec, err := convert.SwarmSpecToGRPCandMerge(spec, &cluster.Spec)
+			if err != nil {
 				return fmt.Errorf("error updating cluster settings: %v", err)
 			}
-			_, err := client.UpdateCluster(ctx, &swarmapi.UpdateClusterRequest{
+			_, err = client.UpdateCluster(ctx, &swarmapi.UpdateClusterRequest{
 				ClusterID:      cluster.ID,
 				ClusterVersion: &cluster.Meta.Version,
-				Spec:           spec,
+				Spec:           &newspec,
 			})
 			if err != nil {
 				return fmt.Errorf("error updating cluster settings: %v", err)

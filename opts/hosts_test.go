@@ -130,12 +130,12 @@ func TestParseTCP(t *testing.T) {
 		"localhost:5555/path":         "tcp://localhost:5555/path",
 	}
 	for invalidAddr, expectedError := range invalids {
-		if addr, err := parseTCPAddr(invalidAddr, defaultHTTPHost); err == nil || err.Error() != expectedError {
+		if addr, err := ParseTCPAddr(invalidAddr, defaultHTTPHost); err == nil || err.Error() != expectedError {
 			t.Errorf("tcp %v address expected error %v return, got %s and addr %v", invalidAddr, expectedError, err, addr)
 		}
 	}
 	for validAddr, expectedAddr := range valids {
-		if addr, err := parseTCPAddr(validAddr, defaultHTTPHost); err != nil || addr != expectedAddr {
+		if addr, err := ParseTCPAddr(validAddr, defaultHTTPHost); err != nil || addr != expectedAddr {
 			t.Errorf("%v -> expected %v, got %v and addr %v", validAddr, expectedAddr, err, addr)
 		}
 	}
