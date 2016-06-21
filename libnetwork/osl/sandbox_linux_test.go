@@ -197,7 +197,7 @@ func TestDisableIPv6DAD(t *testing.T) {
 		LinkAttrs: netlink.LinkAttrs{Name: "sideA"},
 		PeerName:  "sideB",
 	}
-	nlh, err := netlink.NewHandle()
+	nlh, err := netlink.NewHandle(syscall.NETLINK_ROUTE)
 	if err != nil {
 		t.Fatal(err)
 	}

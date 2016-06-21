@@ -7,6 +7,40 @@ import (
 	"github.com/vishvananda/netlink/nl"
 )
 
+// NOTE: function is in here because it uses other linux functions
+func NewHtbClass(attrs ClassAttrs, cattrs HtbClassAttrs) *HtbClass {
+	mtu := 1600
+	rate := cattrs.Rate / 8
+	ceil := cattrs.Ceil / 8
+	buffer := cattrs.Buffer
+	cbuffer := cattrs.Cbuffer
+
+	if ceil == 0 {
+		ceil = rate
+	}
+
+	if buffer == 0 {
+		buffer = uint32(float64(rate)/Hz() + float64(mtu))
+	}
+	buffer = uint32(Xmittime(rate, buffer))
+
+	if cbuffer == 0 {
+		cbuffer = uint32(float64(ceil)/Hz() + float64(mtu))
+	}
+	cbuffer = uint32(Xmittime(ceil, cbuffer))
+
+	return &HtbClass{
+		ClassAttrs: attrs,
+		Rate:       rate,
+		Ceil:       ceil,
+		Buffer:     buffer,
+		Cbuffer:    cbuffer,
+		Quantum:    10,
+		Level:      0,
+		Prio:       0,
+	}
+}
+
 // ClassDel will delete a class from the system.
 // Equivalent to: `tc class del $class`
 func ClassDel(class Class) error {

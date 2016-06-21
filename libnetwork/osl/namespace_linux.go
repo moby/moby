@@ -30,7 +30,6 @@ var (
 	gpmWg            sync.WaitGroup
 	gpmCleanupPeriod = 60 * time.Second
 	gpmChan          = make(chan chan struct{})
-	nsOnce           sync.Once
 )
 
 // The networkNamespace type is the linux implementation of the Sandbox
@@ -196,7 +195,7 @@ func NewSandbox(key string, osCreate, isRestore bool) (Sandbox, error) {
 	}
 	defer sboxNs.Close()
 
-	n.nlHandle, err = netlink.NewHandleAt(sboxNs)
+	n.nlHandle, err = netlink.NewHandleAt(sboxNs, syscall.NETLINK_ROUTE)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a netlink handle: %v", err)
 	}
@@ -238,7 +237,7 @@ func GetSandboxForExternalKey(basePath string, key string) (Sandbox, error) {
 	}
 	defer sboxNs.Close()
 
-	n.nlHandle, err = netlink.NewHandleAt(sboxNs)
+	n.nlHandle, err = netlink.NewHandleAt(sboxNs, syscall.NETLINK_ROUTE)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a netlink handle: %v", err)
 	}
@@ -326,7 +325,6 @@ func (n *networkNamespace) InvokeFunc(f func()) error {
 
 // InitOSContext initializes OS context while configuring network resources
 func InitOSContext() func() {
-	nsOnce.Do(ns.Init)
 	runtime.LockOSThread()
 	if err := ns.SetNamespace(); err != nil {
 		log.Error(err)
