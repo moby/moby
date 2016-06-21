@@ -186,7 +186,8 @@ The `-w` lets the command being executed inside directory given, here
     $ docker create -it --storage-opt size=120G fedora /bin/bash
 
 This (size) will allow to set the container rootfs size to 120G at creation time. 
-User cannot pass a size less than the Default BaseFS Size.
+User cannot pass a size less than the Default BaseFS Size. This option is only 
+available for the `devicemapper`, `btrfs`, and `zfs` graph drivers.
 
 ### Mount tmpfs (--tmpfs)
 
