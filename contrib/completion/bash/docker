@@ -946,6 +946,7 @@ _docker_daemon() {
 			return
 			;;
 		--storage-opt)
+			local btrfs_options="btrfs.min_space"
 			local devicemapper_options="
 				dm.basesize
 				dm.blkdiscard
@@ -965,7 +966,10 @@ _docker_daemon() {
 
 			case $(__docker_value_of_option '--storage-driver|-s') in
 				'')
-					COMPREPLY=( $( compgen -W "$devicemapper_options $zfs_options" -S = -- "$cur" ) )
+					COMPREPLY=( $( compgen -W "$btrfs_options $devicemapper_options $zfs_options" -S = -- "$cur" ) )
+					;;
+				btrfs)
+					COMPREPLY=( $( compgen -W "$btrfs_options" -S = -- "$cur" ) )
 					;;
 				devicemapper)
 					COMPREPLY=( $( compgen -W "$devicemapper_options" -S = -- "$cur" ) )
