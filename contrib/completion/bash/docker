@@ -1355,6 +1355,7 @@ _docker_network_connect() {
 		--ip
 		--ip6
 		--link
+		--link-local-ip
 	"
 
 	local boolean_options="
@@ -2157,6 +2158,7 @@ _docker_run() {
 		--label-file
 		--label -l
 		--link
+		--link-local-ip
 		--log-driver
 		--log-opt
 		--mac-address
