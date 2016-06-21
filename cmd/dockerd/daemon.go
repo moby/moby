@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -31,11 +30,10 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/libcontainerd"
-	"github.com/docker/docker/opts"
+	dopts "github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/listeners"
-	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
@@ -43,46 +41,27 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/spf13/pflag"
 )
 
 const (
-	daemonConfigFileFlag = "-config-file"
+	flagDaemonConfigFile = "config-file"
 )
 
 // DaemonCli represents the daemon CLI.
 type DaemonCli struct {
 	*daemon.Config
-	commonFlags *cliflags.CommonFlags
-	configFile  *string
+	configFile *string
+	flags      *pflag.FlagSet
 
 	api             *apiserver.Server
 	d               *daemon.Daemon
 	authzMiddleware *authorization.Middleware // authzMiddleware enables to dynamically reload the authorization plugins
 }
 
-func presentInHelp(usage string) string { return usage }
-func absentFromHelp(string) string      { return "" }
-
-// NewDaemonCli returns a pre-configured daemon CLI
+// NewDaemonCli returns a daemon CLI
 func NewDaemonCli() *DaemonCli {
-	// TODO(tiborvass): remove InstallFlags?
-	daemonConfig := new(daemon.Config)
-	daemonConfig.LogConfig.Config = make(map[string]string)
-	daemonConfig.ClusterOpts = make(map[string]string)
-
-	daemonConfig.InstallFlags(flag.CommandLine, presentInHelp)
-	configFile := flag.CommandLine.String([]string{daemonConfigFileFlag}, defaultDaemonConfigFile, "Daemon configuration file")
-	flag.CommandLine.Require(flag.Exact, 0)
-
-	if runtime.GOOS != "linux" {
-		daemonConfig.V2Only = true
-	}
-
-	return &DaemonCli{
-		Config:      daemonConfig,
-		commonFlags: cliflags.InitCommonFlags(),
-		configFile:  configFile,
-	}
+	return &DaemonCli{}
 }
 
 func migrateKey() (err error) {
@@ -126,24 +105,25 @@ func migrateKey() (err error) {
 	return nil
 }
 
-func (cli *DaemonCli) start() (err error) {
+func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 	stopc := make(chan bool)
 	defer close(stopc)
 
 	// warn from uuid package when running the daemon
 	uuid.Loggerf = logrus.Warnf
 
-	flags := flag.CommandLine
-	cli.commonFlags.PostParse()
+	opts.common.SetDefaultOptions(opts.flags)
 
-	if cli.commonFlags.TrustKey == "" {
-		cli.commonFlags.TrustKey = filepath.Join(getDaemonConfDir(), cliflags.DefaultTrustKeyFile)
+	if opts.common.TrustKey == "" {
+		opts.common.TrustKey = filepath.Join(
+			getDaemonConfDir(),
+			cliflags.DefaultTrustKeyFile)
 	}
-	cliConfig, err := loadDaemonCliConfig(cli.Config, flags, cli.commonFlags, *cli.configFile)
-	if err != nil {
+	if cli.Config, err = loadDaemonCliConfig(opts); err != nil {
 		return err
 	}
-	cli.Config = cliConfig
+	cli.configFile = &opts.configFile
+	cli.flags = opts.flags
 
 	if cli.Config.Debug {
 		utils.EnableDebug()
@@ -215,7 +195,7 @@ func (cli *DaemonCli) start() (err error) {
 
 	for i := 0; i < len(cli.Config.Hosts); i++ {
 		var err error
-		if cli.Config.Hosts[i], err = opts.ParseHost(cli.Config.TLS, cli.Config.Hosts[i]); err != nil {
+		if cli.Config.Hosts[i], err = dopts.ParseHost(cli.Config.TLS, cli.Config.Hosts[i]); err != nil {
 			return fmt.Errorf("error parsing -H %s : %v", cli.Config.Hosts[i], err)
 		}
 
@@ -250,7 +230,8 @@ func (cli *DaemonCli) start() (err error) {
 	if err := migrateKey(); err != nil {
 		return err
 	}
-	cli.TrustKeyPath = cli.commonFlags.TrustKey
+	// FIXME: why is this down here instead of with the other TrustKey logic above?
+	cli.TrustKeyPath = opts.common.TrustKey
 
 	registryService := registry.NewService(cli.Config.ServiceOptions)
 	containerdRemote, err := libcontainerd.New(cli.getLibcontainerdRoot(), cli.getPlatformRemoteOptions()...)
@@ -341,7 +322,7 @@ func (cli *DaemonCli) reloadConfig() {
 		}
 	}
 
-	if err := daemon.ReloadConfiguration(*cli.configFile, flag.CommandLine, reload); err != nil {
+	if err := daemon.ReloadConfiguration(*cli.configFile, cli.flags, reload); err != nil {
 		logrus.Error(err)
 	}
 }
@@ -367,25 +348,27 @@ func shutdownDaemon(d *daemon.Daemon, timeout time.Duration) {
 	}
 }
 
-func loadDaemonCliConfig(config *daemon.Config, flags *flag.FlagSet, commonConfig *cliflags.CommonFlags, configFile string) (*daemon.Config, error) {
-	config.Debug = commonConfig.Debug
-	config.Hosts = commonConfig.Hosts
-	config.LogLevel = commonConfig.LogLevel
-	config.TLS = commonConfig.TLS
-	config.TLSVerify = commonConfig.TLSVerify
+func loadDaemonCliConfig(opts daemonOptions) (*daemon.Config, error) {
+	config := opts.daemonConfig
+	flags := opts.flags
+	config.Debug = opts.common.Debug
+	config.Hosts = opts.common.Hosts
+	config.LogLevel = opts.common.LogLevel
+	config.TLS = opts.common.TLS
+	config.TLSVerify = opts.common.TLSVerify
 	config.CommonTLSOptions = daemon.CommonTLSOptions{}
 
-	if commonConfig.TLSOptions != nil {
-		config.CommonTLSOptions.CAFile = commonConfig.TLSOptions.CAFile
-		config.CommonTLSOptions.CertFile = commonConfig.TLSOptions.CertFile
-		config.CommonTLSOptions.KeyFile = commonConfig.TLSOptions.KeyFile
+	if opts.common.TLSOptions != nil {
+		config.CommonTLSOptions.CAFile = opts.common.TLSOptions.CAFile
+		config.CommonTLSOptions.CertFile = opts.common.TLSOptions.CertFile
+		config.CommonTLSOptions.KeyFile = opts.common.TLSOptions.KeyFile
 	}
 
-	if configFile != "" {
-		c, err := daemon.MergeDaemonConfigurations(config, flags, configFile)
+	if opts.configFile != "" {
+		c, err := daemon.MergeDaemonConfigurations(config, flags, opts.configFile)
 		if err != nil {
-			if flags.IsSet(daemonConfigFileFlag) || !os.IsNotExist(err) {
-				return nil, fmt.Errorf("unable to configure the Docker daemon with file %s: %v\n", configFile, err)
+			if flags.Changed(flagDaemonConfigFile) || !os.IsNotExist(err) {
+				return nil, fmt.Errorf("unable to configure the Docker daemon with file %s: %v\n", opts.configFile, err)
 			}
 		}
 		// the merged configuration can be nil if the config file didn't exist.
@@ -401,7 +384,7 @@ func loadDaemonCliConfig(config *daemon.Config, flags *flag.FlagSet, commonConfi
 
 	// Regardless of whether the user sets it to true or false, if they
 	// specify TLSVerify at all then we need to turn on TLS
-	if config.IsValueSet(cliflags.TLSVerifyKey) {
+	if config.IsValueSet(cliflags.FlagTLSVerify) {
 		config.TLS = true
 	}
 

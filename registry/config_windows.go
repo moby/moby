@@ -20,6 +20,6 @@ func cleanPath(s string) string {
 }
 
 // installCliPlatformFlags handles any platform specific flags for the service.
-func (options *ServiceOptions) installCliPlatformFlags(cmd *flag.FlagSet, usageFn func(string) string) {
+func (options *ServiceOptions) installCliPlatformFlags(flags *flag.FlagSet) string) {
 	// No Windows specific flags.
 }

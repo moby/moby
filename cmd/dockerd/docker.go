@@ -2,59 +2,61 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/cli"
+	cliflags "github.com/docker/docker/cli/flags"
+	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/dockerversion"
-	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
-var (
-	daemonCli = NewDaemonCli()
-	flHelp    = flag.Bool([]string{"h", "-help"}, false, "Print usage")
-	flVersion = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
-)
+type daemonOptions struct {
+	version      bool
+	configFile   string
+	daemonConfig *daemon.Config
+	common       *cliflags.CommonOptions
+	flags        *pflag.FlagSet
+}
 
-func main() {
-	if reexec.Init() {
-		return
+func newDaemonCommand() *cobra.Command {
+	opts := daemonOptions{
+		daemonConfig: daemon.NewConfig(),
+		common:       cliflags.NewCommonOptions(),
 	}
 
-	// Set terminal emulation based on platform as required.
-	_, stdout, stderr := term.StdStreams()
-
-	logrus.SetOutput(stderr)
-
-	flag.Merge(flag.CommandLine, daemonCli.commonFlags.FlagSet)
-
-	flag.Usage = func() {
-		fmt.Fprint(stdout, "Usage: dockerd [OPTIONS]\n\n")
-		fmt.Fprint(stdout, "A self-sufficient runtime for containers.\n\nOptions:\n")
-
-		flag.CommandLine.SetOutput(stdout)
-		flag.PrintDefaults()
+	cmd := &cobra.Command{
+		Use:           "dockerd [OPTIONS]",
+		Short:         "A self-sufficient runtime for containers.",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		Args:          cli.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			opts.flags = cmd.Flags()
+			return runDaemon(opts)
+		},
 	}
-	flag.CommandLine.ShortUsage = func() {
-		fmt.Fprint(stderr, "\nUsage:\tdockerd [OPTIONS]\n")
-	}
+	// TODO: SetUsageTemplate, SetHelpTemplate, SetFlagErrorFunc
 
-	if err := flag.CommandLine.ParseFlags(os.Args[1:], false); err != nil {
-		os.Exit(1)
-	}
+	flags := cmd.Flags()
+	flags.BoolP("help", "h", false, "Print usage")
+	flags.MarkShorthandDeprecated("help", "please use --help")
+	flags.BoolVarP(&opts.version, "version", "v", false, "Print version information and quit")
+	flags.StringVar(&opts.configFile, flagDaemonConfigFile, defaultDaemonConfigFile, "Daemon configuration file")
+	opts.common.InstallFlags(flags)
+	opts.daemonConfig.InstallFlags(flags)
 
-	if *flVersion {
+	return cmd
+}
+
+func runDaemon(opts daemonOptions) error {
+	if opts.version {
 		showVersion()
-		return
-	}
-
-	if *flHelp {
-		// if global flag --help is present, regardless of what other options and commands there are,
-		// just print the usage.
-		flag.Usage()
-		return
+		return nil
 	}
 
 	// On Windows, this may be launching as a service or with an option to
@@ -64,13 +66,13 @@ func main() {
 		logrus.Fatal(err)
 	}
 
-	if !stop {
-		err = daemonCli.start()
-		notifyShutdown(err)
-		if err != nil {
-			logrus.Fatal(err)
-		}
+	if stop {
+		return nil
 	}
+
+	err = NewDaemonCli().start(opts)
+	notifyShutdown(err)
+	return err
 }
 
 func showVersion() {
@@ -78,5 +80,21 @@ func showVersion() {
 		fmt.Printf("Docker version %s, build %s, experimental\n", dockerversion.Version, dockerversion.GitCommit)
 	} else {
 		fmt.Printf("Docker version %s, build %s\n", dockerversion.Version, dockerversion.GitCommit)
+	}
+}
+
+func main() {
+	if reexec.Init() {
+		return
+	}
+
+	// Set terminal emulation based on platform as required.
+	_, stdout, stderr := term.StdStreams()
+	logrus.SetOutput(stderr)
+
+	cmd := newDaemonCommand()
+	cmd.SetOutput(stdout)
+	if err := cmd.Execute(); err != nil {
+		logrus.Fatal(err)
 	}
 }

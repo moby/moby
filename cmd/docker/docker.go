@@ -101,6 +101,7 @@ func initClientFlags(commonFlags *cliflags.CommonFlags) *cliflags.ClientFlags {
 
 	clientFlags.PostParse = func() {
 		clientFlags.Common.PostParse()
+		cliflags.SetDaemonLogLevel(commonOpts.LogLevel)
 
 		if clientFlags.ConfigDir != "" {
 			cliconfig.SetConfigDir(clientFlags.ConfigDir)
