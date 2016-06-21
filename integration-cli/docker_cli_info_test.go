@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"strings"
@@ -47,6 +48,17 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 	for _, linePrefix := range stringsToCheck {
 		c.Assert(out, checker.Contains, linePrefix, check.Commentf("couldn't find string %v in output", linePrefix))
 	}
+}
+
+// TestInfoFormat tests `docker info --format`
+func (s *DockerSuite) TestInfoFormat(c *check.C) {
+	out, status := dockerCmd(c, "info", "--format", "{{json .}}")
+	c.Assert(status, checker.Equals, 0)
+	var m map[string]interface{}
+	err := json.Unmarshal([]byte(out), &m)
+	c.Assert(err, checker.IsNil)
+	_, _, err = dockerCmdWithError("info", "--format", "{{.badString}}")
+	c.Assert(err, checker.NotNil)
 }
 
 // TestInfoDiscoveryBackend verifies that a daemon run with `--cluster-advertise` and
