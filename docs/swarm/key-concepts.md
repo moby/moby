@@ -22,7 +22,7 @@ are built using **SwarmKit**. Engines participating in a cluster are
 running in **swarm mode**. You enable swarm mode for the Engine by either
 initializing a swarm or joining an existing swarm.
 
-A **swarm** is a self-organizing cluster of Docker Engines where you deploy
+A **swarm** is a cluster of Docker Engines where you deploy
 [services](#Services-and-tasks). The Docker Engine CLI includes the commands for
 swarm management, such as adding and removing nodes. The CLI also includes the
 commands you need to deploy services to the swarm and manage service
