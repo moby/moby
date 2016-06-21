@@ -70,7 +70,7 @@ func parseDockerDaemonHost(addr string) (string, error) {
 
 	switch addrParts[0] {
 	case "tcp":
-		return parseTCPAddr(addrParts[1], DefaultTCPHost)
+		return ParseTCPAddr(addrParts[1], DefaultTCPHost)
 	case "unix":
 		return parseSimpleProtoAddr("unix", addrParts[1], DefaultUnixSocket)
 	case "npipe":
@@ -97,12 +97,12 @@ func parseSimpleProtoAddr(proto, addr, defaultAddr string) (string, error) {
 	return fmt.Sprintf("%s://%s", proto, addr), nil
 }
 
-// parseTCPAddr parses and validates that the specified address is a valid TCP
+// ParseTCPAddr parses and validates that the specified address is a valid TCP
 // address. It returns a formatted TCP address, either using the address parsed
 // from tryAddr, or the contents of defaultAddr if tryAddr is a blank string.
 // tryAddr is expected to have already been Trim()'d
 // defaultAddr must be in the full `tcp://host:port` form
-func parseTCPAddr(tryAddr string, defaultAddr string) (string, error) {
+func ParseTCPAddr(tryAddr string, defaultAddr string) (string, error) {
 	if tryAddr == "" || tryAddr == "tcp://" {
 		return defaultAddr, nil
 	}
@@ -127,8 +127,11 @@ func parseTCPAddr(tryAddr string, defaultAddr string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	host, port, err := net.SplitHostPort(u.Host)
+	if err != nil {
+		// try port addition once
+		host, port, err = net.SplitHostPort(net.JoinHostPort(u.Host, defaultPort))
+	}
 	if err != nil {
 		return "", fmt.Errorf("Invalid bind address format: %s", tryAddr)
 	}

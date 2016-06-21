@@ -2,7 +2,6 @@ package swarm
 
 import (
 	"fmt"
-	"time"
 
 	"golang.org/x/net/context"
 
@@ -13,16 +12,8 @@ import (
 	"github.com/spf13/pflag"
 )
 
-type updateOptions struct {
-	autoAccept          AutoAcceptOption
-	secret              string
-	taskHistoryLimit    int64
-	dispatcherHeartbeat time.Duration
-	nodeCertExpiry      time.Duration
-}
-
 func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
-	opts := updateOptions{autoAccept: NewAutoAcceptOption()}
+	opts := swarmOptions{autoAccept: NewAutoAcceptOption()}
 
 	cmd := &cobra.Command{
 		Use:   "update",
@@ -33,16 +24,11 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 		},
 	}
 
-	flags := cmd.Flags()
-	flags.Var(&opts.autoAccept, flagAutoAccept, "Auto acceptance policy (worker, manager or none)")
-	flags.StringVar(&opts.secret, flagSecret, "", "Set secret value needed to accept nodes into cluster")
-	flags.Int64Var(&opts.taskHistoryLimit, flagTaskHistoryLimit, 10, "Task history retention limit")
-	flags.DurationVar(&opts.dispatcherHeartbeat, flagDispatcherHeartbeat, time.Duration(5*time.Second), "Dispatcher heartbeat period")
-	flags.DurationVar(&opts.nodeCertExpiry, flagCertExpiry, time.Duration(90*24*time.Hour), "Validity period for node certificates")
+	addSwarmFlags(cmd.Flags(), &opts)
 	return cmd
 }
 
-func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts updateOptions) error {
+func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts swarmOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
