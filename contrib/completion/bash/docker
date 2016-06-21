@@ -1049,6 +1049,7 @@ _docker_events() {
 				export
 				import
 				kill
+				load
 				mount
 				oom
 				pause
@@ -1058,6 +1059,7 @@ _docker_events() {
 				rename
 				resize
 				restart
+				save
 				start
 				stop
 				tag
