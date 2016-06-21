@@ -942,7 +942,7 @@ _docker_daemon() {
 			return
 			;;
 		--storage-driver|-s)
-			COMPREPLY=( $( compgen -W "aufs btrfs devicemapper overlay vfs zfs" -- "$(echo $cur | tr '[:upper:]' '[:lower:]')" ) )
+			COMPREPLY=( $( compgen -W "aufs btrfs devicemapper overlay  overlay2 vfs zfs" -- "$(echo $cur | tr '[:upper:]' '[:lower:]')" ) )
 			return
 			;;
 		--storage-opt)
