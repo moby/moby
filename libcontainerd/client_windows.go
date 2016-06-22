@@ -295,9 +295,8 @@ func (clnt *client) Signal(containerID string, sig int) error {
 	} else {
 		// Terminate Process
 		if err := cont.hcsProcess.Kill(); err != nil {
+			// ignore errors
 			logrus.Warnf("Failed to terminate pid %d in %s: %q", cont.systemPid, containerID, err)
-			// Ignore errors
-			err = nil
 		}
 	}
 

@@ -113,7 +113,7 @@ func (pm *Manager) Push(name string, metaHeader http.Header, authConfig *types.A
 	_, err = distribution.Push(name, pm.registryService, metaHeader, authConfig, config, rootfs)
 	// XXX: Ignore returning digest for now.
 	// Since digest needs to be written to the ProgressWriter.
-	return nil
+	return err
 }
 
 // Remove deletes plugin's root directory.
