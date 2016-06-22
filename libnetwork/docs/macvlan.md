@@ -176,7 +176,7 @@ docker run --net=macvlan50 -it --name macvlan_test6 --rm alpine /bin/sh
 
 **Vlan ID 60**
 
-In the second network, tagged and isolated by the Docker host, `eth0.60` is the parent interface tagged with vlan id `60` specified with `-o parent=eth0.60`. The `macvlan_mode=` defaults to `macvlan_mode=bridge`. It can also be explicitly set with the same result as shown in the next example.
+In the second network, tagged and isolated by the Docker host, `eth0.60` is the parent interface tagged with vlan id `60` specified with `-o parent=eth0.60`. The `macvlan_mode=` defaults to `macvlan_mode=bridge`. It can also be explicitly set with the same result, as shown in the next example.
 
 ```
 # now add networks and hosts as you would normally by attaching to the master (sub)interface that is tagged. 
@@ -232,12 +232,16 @@ Hosts on the same VLAN are typically on the same subnet and almost always are gr
 
 The following specifies both v4 and v6 addresses. An address from each family will be assigned to each container. You can specify either family type explicitly or allow the Libnetwork IPAM to assign them from the subnet pool.
 
+*Note on IPv6:* When declaring a v6 subnet with a `docker network create`, the flag `--ipv6` is required along with the subnet (in the following example `--subnet=2001:db8:abc8::/64`). Similar to IPv4 functionality, if a IPv6 `--gateway` is not specified, the first usable address in the v6 subnet is inferred and assigned as the gateway for the broadcast domain.
+
+The following example creates a network with multiple IPv4 and IPv6 subnets. The network is attached to a sub-interface of `eth0.218`. By specifying `eth0.218` as the parent, the driver will create the sub-interface (if it does not already exist) and tag all traffic for containers in the network with a VLAN ID of 218. The physical switch port on the ToR (top of rack) network port needs to have 802.1Q trunking enabled for communications in and out of the host to work. 
+
 ```
 # Create multiple subnets w/ dual stacks:
 docker network  create  -d macvlan \
     --subnet=192.168.216.0/24 --subnet=192.168.218.0/24 \
     --gateway=192.168.216.1  --gateway=192.168.218.1 \
-    --subnet=2001:db8:abc8::/64 --gateway=2001:db8:abc8::10 \
+    --ipv6 --subnet=2001:db8:abc8::/64 --gateway=2001:db8:abc8::10 \
      -o parent=eth0.218 \
      -o macvlan_mode=bridge macvlan216
 
@@ -260,6 +264,16 @@ docker run --net=macvlan216 --ip=192.168.218.11 -it --rm alpine /bin/sh
 # From inside the container shell ping the other host on the same subnet and then exit
 $ ping -c4 192.168.218.10
 $ exit
+
+# Start a container in the back explicitly declaring the v6 address
+docker run --net=macvlan216 --ip6=2001:db8:abc8::20 -itd alpine /bin/sh
+
+# Start another container pinging the v6 address of the previous container started in the background
+docker run --net=macvlan216 -it --rm alpine /bin/sh
+$ ping6 -c4 2001:db8:abc8::20
+$ exit
+# Or, run the ping as a explicit process
+docker run --net=macvlan216 -it --rm alpine ping6 -c4 2001:db8:abc8::20
 ```
 
 View the details of one of the containers:
@@ -285,7 +299,65 @@ $ ip -6 route
   2001:db8:abc4::/64 dev eth0  proto kernel  metric 256
   2001:db8:abc8::/64 dev eth0  proto kernel  metric 256
   default via 2001:db8:abc8::10 dev eth0  metric 1024
+  
+#Containers can have both v4 and v6 addresses assigned to their interfaces or
+# Both v4 and v6 addresses can be assigned to the container's interface
+docker run --net=macvlan216 --ip=192.168.216.50  --ip6=2001:db8:abc8::50 -it --rm alpine /bin/sh
+
+# View the details of the dual stack eth0 interface from inside of the container
+$ ip a show eth0
+95: eth0@if91: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue state UNKNOWN
+    link/ether 02:42:c0:a8:d8:32 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.216.50/24 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 2001:db8:abc8::50/64 scope global flags 02
+       valid_lft forever preferred_lft forever
 ```
+
+The next example demonstrates how default gateways are inferred if the `--gateway` option is not specified for a subnet in the `docker network create ...` command. If the gateway is not specified, the first usable address in the subnet is selected. It also demonstrates how `--ip-range` and `--aux-address` are used in conjunction to exclude address assignments within a network and reserve sub-pools of usable addresses within a network's subnet. All traffic is untagged since `eth0` is used rather then a sub-interface.
+
+```
+docker network create -d macvlan \
+  --subnet=192.168.136.0/24 \
+  --subnet=192.168.138.0/24 \
+  --ipv6 --subnet=fd11::/64 \
+  --ip-range=192.168.136.0/25 \
+  --ip-range=192.168.138.0/25 \
+  --aux-address="reserved1=fd11::2" \
+  --aux-address="reserved2=192.168.136.2" \
+  --aux-address="reserved3=192.168.138.2" \
+  -o parent=eth0 mcv0
+  
+docker run --net=mcv0 -it --rm alpine /bin/sh
+```
+
+Next is the output from a running container provisioned on the example network named `mcv0`.
+
+```
+# Container eth0 output (the fe80::42:c0ff:fea8:8803/64 address is the local link addr)
+ip address show eth0
+100: eth0@if2: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue state UNKNOWN
+    link/ether 02:42:c0:a8:88:03 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.136.3/24 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fd11::3/64 scope global flags 02
+       valid_lft forever preferred_lft forever
+    inet6 fe80::42:c0ff:fea8:8803/64 scope link
+       valid_lft forever preferred_lft forever
+       
+# IPv4 routing table from within the container
+$ ip route
+default via 192.168.136.1 dev eth0
+192.168.136.0/24 dev eth0  src 192.168.136.3
+
+# IPv6 routing table from within the container (the second v6 addresses is the local link addr)
+$ ip -6 route
+fd11::/64 dev eth0  metric 256
+fe80::/64 dev eth0  metric 256
+default via fd11::1 dev eth0  metric 1024
+```    
+
+- After the examples, `docker rm -f `docker ps -qa`` can be used to remove all existing containers on the host, both running and stopped.
 
 A key takeaway is, operators have the ability to map their physical network into their virtual network for integrating containers into their environment with no operational overhauls required. NetOps simply drops an 802.1q trunk into the Docker host. That virtual link would be the `-o parent=` passed in the network creation. For untagged (non-VLAN) links, it is as simple as `-o parent=eth0` or for 802.1q trunks with VLAN IDs each network gets mapped to the corresponding VLAN/Subnet from the network.
 
