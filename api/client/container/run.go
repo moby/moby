@@ -14,6 +14,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/cli/cobraadaptor"
 	opttypes "github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
@@ -48,7 +49,6 @@ func NewRunCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runRun(dockerCli, cmd.Flags(), &opts, copts)
 		},
 	}
-	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	flags := cmd.Flags()
 	flags.SetInterspersed(false)
@@ -70,7 +70,7 @@ func NewRunCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 func flagErrorFunc(cmd *cobra.Command, err error) error {
 	return cli.StatusError{
-		Status:     cli.FlagErrorFunc(cmd, err).Error(),
+		Status:     cobraadaptor.FlagErrorFunc(cmd, err).Error(),
 		StatusCode: 125,
 	}
 }

@@ -8,16 +8,14 @@ import (
 	"github.com/docker/docker/utils"
 
 	"github.com/docker/docker/api/client"
-	cliflags "github.com/docker/docker/cli/flags"
 )
 
 func TestClientDebugEnabled(t *testing.T) {
 	defer utils.DisableDebug()
 
-	opts := cliflags.NewClientOptions()
-	cmd := newDockerCommand(&client.DockerCli{}, opts)
+	cmd := newDockerCommand(&client.DockerCli{})
+	cmd.Flags().Set("debug", "true")
 
-	opts.Common.Debug = true
 	if err := cmd.PersistentPreRunE(cmd, []string{}); err != nil {
 		t.Fatalf("Unexpected error: %s", err.Error())
 	}

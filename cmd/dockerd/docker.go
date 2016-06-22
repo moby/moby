@@ -5,6 +5,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/cli/cobraadaptor"
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/dockerversion"
@@ -40,15 +41,14 @@ func newDaemonCommand() *cobra.Command {
 			return runDaemon(opts)
 		},
 	}
-	// TODO: SetUsageTemplate, SetHelpTemplate, SetFlagErrorFunc
+	cobraadaptor.SetupRootCommand(cmd)
 
 	flags := cmd.Flags()
-	flags.BoolP("help", "h", false, "Print usage")
-	flags.MarkShorthandDeprecated("help", "please use --help")
 	flags.BoolVarP(&opts.version, "version", "v", false, "Print version information and quit")
 	flags.StringVar(&opts.configFile, flagDaemonConfigFile, defaultDaemonConfigFile, "Daemon configuration file")
 	opts.common.InstallFlags(flags)
 	opts.daemonConfig.InstallFlags(flags)
+	installServiceFlags(flags)
 
 	return cmd
 }

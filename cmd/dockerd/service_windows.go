@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -11,7 +12,7 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
-	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/spf13/pflag"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/debug"
@@ -20,10 +21,10 @@ import (
 )
 
 var (
-	flServiceName       = flag.String([]string{"-service-name"}, "docker", "Set the Windows service name")
-	flRegisterService   = flag.Bool([]string{"-register-service"}, false, "Register the service and exit")
-	flUnregisterService = flag.Bool([]string{"-unregister-service"}, false, "Unregister the service and exit")
-	flRunService        = flag.Bool([]string{"-run-service"}, false, "")
+	flServiceName       *string
+	flRegisterService   *bool
+	flUnregisterService *bool
+	flRunService        *bool
 
 	setStdHandle = syscall.NewLazyDLL("kernel32.dll").NewProc("SetStdHandle")
 	oldStderr    syscall.Handle
@@ -43,6 +44,13 @@ const (
 
 	eventExtraOffset = 10 // Add this to any event to get a string that supports extended data
 )
+
+func installServiceFlags(flags *pflag.FlagSet) {
+	flServiceName = flags.String("service-name", "docker", "Set the Windows service name")
+	flRegisterService = flags.Bool("register-service", false, "Register the service and exit")
+	flUnregisterService = flags.Bool("unregister-service", false, "Unregister the service and exit")
+	flRunService = flags.Bool("run-service", false, "")
+}
 
 type handler struct {
 	tosvc   chan bool

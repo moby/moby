@@ -158,7 +158,7 @@ func (config *Config) InstallCommonFlags(flags *pflag.FlagSet) {
 	flags.StringVarP(&config.Pidfile, "pidfile", "p", defaultPidFile, "Path to use for daemon PID file")
 	flags.StringVarP(&config.Root, "graph", "g", defaultGraph, "Root of the Docker runtime")
 	flags.BoolVarP(&config.AutoRestart, "restart", "r", true, "--restart on the daemon has been deprecated in favor of --restart policies on docker run")
-	flags.MarkDeprecated("restart", "Please use a restart policy on ducker run")
+	flags.MarkDeprecated("restart", "Please use a restart policy on docker run")
 	flags.StringVarP(&config.GraphDriver, "storage-driver", "s", "", "Storage driver to use")
 	flags.IntVar(&config.Mtu, "mtu", 0, "Set the containers network MTU")
 	flags.BoolVar(&config.RawLogs, "raw-logs", false, "Full timestamps without ANSI coloring")
@@ -300,7 +300,7 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		// TODO: Rewrite configuration logic to avoid same issue with other nullable values, like numbers.
 		namedOptions := make(map[string]interface{})
 		for key, value := range configSet {
-			f := flags.Lookup("-" + key)
+			f := flags.Lookup(key)
 			if f == nil { // ignore named flags that don't match
 				namedOptions[key] = value
 				continue
@@ -354,8 +354,7 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 	// 1. Search keys from the file that we don't recognize as flags.
 	unknownKeys := make(map[string]interface{})
 	for key, value := range config {
-		flagName := "-" + key
-		if flag := flags.Lookup(flagName); flag == nil {
+		if flag := flags.Lookup(key); flag == nil {
 			unknownKeys[key] = value
 		}
 	}
@@ -396,8 +395,6 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 		} else {
 			// search flag name in the json configuration payload
 			for _, name := range []string{f.Name, f.Shorthand} {
-				name = strings.TrimLeft(name, "-")
-
 				if value, ok := config[name]; ok {
 					conflicts = append(conflicts, printConflict(name, f.Value.String(), value))
 					break

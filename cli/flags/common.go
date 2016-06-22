@@ -43,9 +43,7 @@ type CommonOptions struct {
 
 // NewCommonOptions returns a new CommonOptions
 func NewCommonOptions() *CommonOptions {
-	return &CommonOptions{
-		TLSOptions: &tlsconfig.Options{},
-	}
+	return &CommonOptions{}
 }
 
 // InstallFlags adds flags for the common options on the FlagSet
@@ -61,13 +59,14 @@ func (commonOpts *CommonOptions) InstallFlags(flags *pflag.FlagSet) {
 
 	// TODO use flag flags.String("identity"}, "i", "", "Path to libtrust key file")
 
+	commonOpts.TLSOptions = &tlsconfig.Options{}
 	tlsOptions := commonOpts.TLSOptions
 	flags.StringVar(&tlsOptions.CAFile, "tlscacert", filepath.Join(dockerCertPath, DefaultCaFile), "Trust certs signed only by this CA")
 	flags.StringVar(&tlsOptions.CertFile, "tlscert", filepath.Join(dockerCertPath, DefaultCertFile), "Path to TLS certificate file")
 	flags.StringVar(&tlsOptions.KeyFile, "tlskey", filepath.Join(dockerCertPath, DefaultKeyFile), "Path to TLS key file")
 
 	hostOpt := opts.NewNamedListOptsRef("hosts", &commonOpts.Hosts, opts.ValidateHost)
-	flags.VarP(hostOpt, "-host", "H", "Daemon socket(s) to connect to")
+	flags.VarP(hostOpt, "host", "H", "Daemon socket(s) to connect to")
 }
 
 // SetDefaultOptions sets default values for options after flag parsing is

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 
 	"github.com/docker/docker/api"
@@ -164,22 +165,23 @@ func (cli *DockerCli) Initialize(opts *cliflags.ClientOptions) error {
 	if cli.out != nil {
 		cli.outFd, cli.isTerminalOut = term.GetFdInfo(cli.out)
 	}
+
+	if opts.Common.TrustKey == "" {
+		cli.keyFile = filepath.Join(cliconfig.ConfigDir(), cliflags.DefaultTrustKeyFile)
+	} else {
+		cli.keyFile = opts.Common.TrustKey
+	}
+
 	return nil
 }
 
 // NewDockerCli returns a DockerCli instance with IO output and error streams set by in, out and err.
-// The key file, protocol (i.e. unix) and address are passed in as strings, along with the tls.Config. If the tls.Config
-// is set the client scheme will be set to https.
-// The client will be given a 32-second timeout (see https://github.com/docker/docker/pull/8035).
-func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientOpts *cliflags.ClientOptions) *DockerCli {
-	cli := &DockerCli{
+func NewDockerCli(in io.ReadCloser, out, err io.Writer) *DockerCli {
+	return &DockerCli{
 		in:  in,
 		out: out,
 		err: err,
-		// TODO: just pass trustKey, not the entire opts struct
-		keyFile: clientOpts.Common.TrustKey,
 	}
-	return cli
 }
 
 // LoadDefaultConfigFile attempts to load the default config file and returns
