@@ -63,7 +63,7 @@ func ParseHost(defaultToTLS bool, val string) (string, error) {
 // parseDockerDaemonHost parses the specified address and returns an address that will be used as the host.
 // Depending of the address specified, this may return one of the global Default* strings defined in hosts.go.
 func parseDockerDaemonHost(addr string) (string, error) {
-	addrParts := strings.Split(addr, "://")
+	addrParts := strings.SplitN(addr, "://", 2)
 	if len(addrParts) == 1 && addrParts[0] != "" {
 		addrParts = []string{"tcp", addrParts[0]}
 	}
