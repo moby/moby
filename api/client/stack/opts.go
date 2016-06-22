@@ -15,11 +15,11 @@ func addBundlefileFlag(opt *string, flags *pflag.FlagSet) {
 	flags.StringVarP(
 		opt,
 		"bundle", "f", "",
-		"Path to a bundle (Default: STACK.dsb)")
+		"Path to a Distributed Application Bundle file (Default: STACK.dab)")
 }
 
 func loadBundlefile(stderr io.Writer, namespace string, path string) (*bundlefile.Bundlefile, error) {
-	defaultPath := fmt.Sprintf("%s.dsb", namespace)
+	defaultPath := fmt.Sprintf("%s.dab", namespace)
 
 	if path == "" {
 		path = defaultPath
