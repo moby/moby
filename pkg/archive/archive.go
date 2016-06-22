@@ -100,7 +100,7 @@ const (
 )
 
 const (
-	// AUFSWhiteoutFormat is the default format for whitesouts
+	// AUFSWhiteoutFormat is the default format for whiteouts
 	AUFSWhiteoutFormat WhiteoutFormat = iota
 	// OverlayWhiteoutFormat formats whiteout according to the overlay
 	// standard.

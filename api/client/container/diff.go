@@ -15,7 +15,7 @@ type diffOptions struct {
 	container string
 }
 
-// NewDiffCommand creats a new cobra.Command for `docker diff`
+// NewDiffCommand creates a new cobra.Command for `docker diff`
 func NewDiffCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts diffOptions
 

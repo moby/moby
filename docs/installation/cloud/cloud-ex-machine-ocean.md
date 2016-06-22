@@ -126,7 +126,7 @@ To generate your access token:
         default          -        virtualbox     Running   tcp://192.168.99.100:2376   
         docker-sandbox   *        digitalocean   Running   tcp://45.55.222.72:2376     
 
-6. Run some `docker-machine` commands to inspect the remote host. For example, `docker-machine ip <machine>` gets the host IP adddress and `docker-machine inspect <machine>` lists all the details.
+6. Run some `docker-machine` commands to inspect the remote host. For example, `docker-machine ip <machine>` gets the host IP address and `docker-machine inspect <machine>` lists all the details.
 
         $ docker-machine ip docker-sandbox
         104.131.43.236
