@@ -88,7 +88,8 @@ func DisableEcho(fd uintptr, state *State) error {
 }
 
 // SetRawTerminal puts the terminal connected to the given file descriptor into
-// raw mode and returns the previous state.
+// raw mode and returns the previous state. On UNIX, this puts both the input
+// and output into raw mode. On Windows, it only puts the input into raw mode.
 func SetRawTerminal(fd uintptr) (*State, error) {
 	oldState, err := MakeRaw(fd)
 	if err != nil {
@@ -96,6 +97,13 @@ func SetRawTerminal(fd uintptr) (*State, error) {
 	}
 	handleInterrupt(fd, oldState)
 	return oldState, err
+}
+
+// SetRawTerminalOutput puts the output of terminal connected to the given file
+// descriptor into raw mode. On UNIX, this does nothing and returns nil for the
+// state. On Windows, it disables LF -> CRLF translation.
+func SetRawTerminalOutput(fd uintptr) (*State, error) {
+	return nil, nil
 }
 
 func handleInterrupt(fd uintptr, state *State) {
