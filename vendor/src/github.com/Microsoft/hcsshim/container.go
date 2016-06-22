@@ -2,8 +2,6 @@ package hcsshim
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"runtime"
 	"syscall"
 	"time"
@@ -16,14 +14,6 @@ var (
 )
 
 const pendingUpdatesQuery = `{ "PropertyTypes" : ["PendingUpdates"]}`
-
-// ContainerError is an error encountered in HCS
-type ContainerError struct {
-	Container *container
-	Operation string
-	ExtraInfo string
-	Err       error
-}
 
 type container struct {
 	handle         hcsSystem
@@ -253,7 +243,7 @@ func (container *container) properties(query string) (*containerProperties, erro
 	}
 
 	if propertiesp == nil {
-		return nil, errors.New("Unexpected result from hcsGetComputeSystemProperties, properties should never be nil")
+		return nil, ErrUnexpectedValue
 	}
 	propertiesRaw := convertAndFreeCoTaskMemBytes(propertiesp)
 
@@ -485,47 +475,4 @@ func (container *container) unregisterCallback() error {
 	handle = 0
 
 	return nil
-}
-
-func (e *ContainerError) Error() string {
-	if e == nil {
-		return "<nil>"
-	}
-
-	if e.Container == nil {
-		return "unexpected nil container for error: " + e.Err.Error()
-	}
-
-	s := "container " + e.Container.id
-
-	if e.Operation != "" {
-		s += " encountered an error during " + e.Operation
-	}
-
-	if e.Err != nil {
-		s += fmt.Sprintf(" failed in Win32: %s (0x%x)", e.Err, win32FromError(e.Err))
-	}
-
-	if e.ExtraInfo != "" {
-		s += " extra info: " + e.ExtraInfo
-	}
-
-	return s
-}
-
-func makeContainerError(container *container, operation string, extraInfo string, err error) error {
-	// Don't wrap errors created in hcsshim
-	if err == ErrTimeout ||
-		err == ErrUnexpectedProcessAbort ||
-		err == ErrUnexpectedContainerExit ||
-		err == ErrHandleClose ||
-		err == ErrInvalidProcessState ||
-		err == ErrInvalidNotificationType ||
-		err == ErrVmcomputeOperationPending {
-		return err
-	}
-
-	containerError := &ContainerError{Container: container, Operation: operation, ExtraInfo: extraInfo, Err: err}
-	logrus.Error(containerError)
-	return containerError
 }

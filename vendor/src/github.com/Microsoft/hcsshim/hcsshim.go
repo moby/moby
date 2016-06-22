@@ -97,8 +97,6 @@ const (
 	ERROR_SHUTDOWN_IN_PROGRESS = syscall.Errno(1115)
 	WSAEINVAL                  = syscall.Errno(10022)
 
-	ErrVmcomputeOperationPending = syscall.Errno(0xC0370103)
-
 	// Timeout on wait calls
 	TimeoutInfinite = 0xFFFFFFFF
 )
