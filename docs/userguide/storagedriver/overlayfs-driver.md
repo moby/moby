@@ -193,7 +193,7 @@ mount arguments.
 The lowerest layer contains the "link" file which contains the name of the shortened
 identifier, and the "diff" directory which contains the contents.
 
-    $ /var/lib/docker/overlay2/3a36935c9df35472229c57f4a27105a136f5e4dbef0f87905b2e506e494e348b/
+    $ ls /var/lib/docker/overlay2/3a36935c9df35472229c57f4a27105a136f5e4dbef0f87905b2e506e494e348b/
     diff  link
     $ cat /var/lib/docker/overlay2/3a36935c9df35472229c57f4a27105a136f5e4dbef0f87905b2e506e494e348b/link
     6Y5IM2XC7TSNIJZZFLJCS6I4I4
