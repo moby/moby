@@ -55,7 +55,7 @@ func NewPsCommand(dockerCli *client.DockerCli) *cobra.Command {
 	flags.BoolVarP(&opts.all, "all", "a", false, "Show all containers (default shows just running)")
 	flags.BoolVar(&opts.noTrunc, "no-trunc", false, "Don't truncate output")
 	flags.BoolVarP(&opts.nLatest, "latest", "l", false, "Show the latest created container (includes all states)")
-	flags.IntVarP(&opts.last, "", "n", -1, "Show n last created containers (includes all states)")
+	flags.IntVarP(&opts.last, "last", "n", -1, "Show n last created containers (includes all states)")
 	flags.StringVarP(&opts.format, "format", "", "", "Pretty-print containers using a Go template")
 	flags.StringSliceVarP(&opts.filter, "filter", "f", []string{}, "Filter output based on conditions provided")
 
