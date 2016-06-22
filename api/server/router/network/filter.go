@@ -8,8 +8,6 @@ import (
 	"github.com/docker/engine-api/types/filters"
 )
 
-type filterHandler func([]types.NetworkResource, string) ([]types.NetworkResource, error)
-
 var (
 	// AcceptedFilters is an acceptable filters for validation
 	AcceptedFilters = map[string]bool{

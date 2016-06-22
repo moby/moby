@@ -25,7 +25,6 @@ import (
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/pkg/jsonmessage"
-	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/engine-api/types"
@@ -45,12 +44,6 @@ var (
 	releasesRole = path.Join(data.CanonicalTargetsRole, "releases")
 	untrusted    bool
 )
-
-// addTrustedFlags is the mflag version of AddTrustedFlags
-func addTrustedFlags(fs *flag.FlagSet, verify bool) {
-	trusted, message := setupTrustedFlag(verify)
-	fs.BoolVar(&untrusted, []string{"-disable-content-trust"}, !trusted, message)
-}
 
 // AddTrustedFlags adds content trust flags to the current command flagset
 func AddTrustedFlags(fs *pflag.FlagSet, verify bool) {
