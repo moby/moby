@@ -165,7 +165,6 @@ func (h *Handle) RuleList(family int) ([]Rule, error) {
 		}
 
 		rule := NewRule()
-		rule.RtMsg = msg
 
 		for j := range attrs {
 			switch attrs[j].Attr.Type {
