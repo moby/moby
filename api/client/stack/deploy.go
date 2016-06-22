@@ -31,7 +31,7 @@ func newDeployCommand(dockerCli *client.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "deploy [OPTIONS] STACK",
 		Aliases: []string{"up"},
-		Short:   "Create and update a stack",
+		Short:   "Create and update a stack from a Distributed Application Bundle (DAB)",
 		Args:    cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.namespace = args[0]
