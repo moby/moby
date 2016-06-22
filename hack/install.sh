@@ -243,8 +243,7 @@ do_install() {
 		lsb_dist='centos'
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/redhat-release ]; then
-		# we use centos for both redhat and centos releases
-		lsb_dist='centos'
+		lsb_dist='redhat'
 	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/os-release ]; then
 		lsb_dist="$(. /etc/os-release && echo "$ID")"
@@ -438,6 +437,10 @@ do_install() {
 			;;
 
 		fedora|centos|redhat|oraclelinux)
+			if [ "${lsb_dist}" = "redhat" ]; then
+				# we use the centos repository for both redhat and centos releases
+				lsb_dist='centos'
+			fi
 			$sh_c "cat >/etc/yum.repos.d/docker-${repo}.repo" <<-EOF
 			[docker-${repo}-repo]
 			name=Docker ${repo} Repository
