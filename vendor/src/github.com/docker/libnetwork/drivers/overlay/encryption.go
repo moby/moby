@@ -33,7 +33,10 @@ type key struct {
 }
 
 func (k *key) String() string {
-	return fmt.Sprintf("(key: %s, tag: 0x%x)", hex.EncodeToString(k.value)[0:5], k.tag)
+	if k != nil {
+		return fmt.Sprintf("(key: %s, tag: 0x%x)", hex.EncodeToString(k.value)[0:5], k.tag)
+	}
+	return ""
 }
 
 type spi struct {
@@ -556,24 +559,4 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 	log.Debugf("Updated: %v", spis)
 
 	return spis
-}
-
-func parseEncryptionKey(value, tag string) (*key, error) {
-	var (
-		k   *key
-		err error
-	)
-	if value == "" {
-		return nil, nil
-	}
-	k = &key{}
-	if k.value, err = hex.DecodeString(value); err != nil {
-		return nil, types.BadRequestErrorf("failed to decode key (%s): %v", value, err)
-	}
-	t, err := strconv.ParseUint(tag, 10, 64)
-	if err != nil {
-		return nil, types.BadRequestErrorf("failed to decode tag (%s): %v", tag, err)
-	}
-	k.tag = uint32(t)
-	return k, nil
 }

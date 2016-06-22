@@ -306,9 +306,9 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 		}
 		keys := make([]*key, 0, len(encrData.Keys))
 		for i := 0; i < len(encrData.Keys); i++ {
-			k, err := parseEncryptionKey(encrData.Keys[i], encrData.Tags[i])
-			if err != nil {
-				return err
+			k := &key{
+				value: encrData.Keys[i],
+				tag:   uint32(encrData.Tags[i]),
 			}
 			keys = append(keys, k)
 		}
@@ -319,17 +319,23 @@ func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) 
 		if !ok {
 			return fmt.Errorf("invalid encryption key notification data")
 		}
-		newKey, err = parseEncryptionKey(encrData.Key, encrData.Tag)
-		if err != nil {
-			return err
+		if encrData.Key != nil {
+			newKey = &key{
+				value: encrData.Key,
+				tag:   uint32(encrData.Tag),
+			}
 		}
-		priKey, err = parseEncryptionKey(encrData.Primary, encrData.PrimaryTag)
-		if err != nil {
-			return err
+		if encrData.Primary != nil {
+			priKey = &key{
+				value: encrData.Primary,
+				tag:   uint32(encrData.PrimaryTag),
+			}
 		}
-		delKey, err = parseEncryptionKey(encrData.Prune, encrData.PruneTag)
-		if err != nil {
-			return err
+		if encrData.Prune != nil {
+			delKey = &key{
+				value: encrData.Prune,
+				tag:   uint32(encrData.PruneTag),
+			}
 		}
 		d.updateKeys(newKey, priKey, delKey)
 	default:

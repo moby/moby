@@ -3,6 +3,7 @@ package overlay
 import (
 	"fmt"
 	"strings"
+	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/netutils"
@@ -128,7 +129,7 @@ func deleteVxlanByVNI(path string, vni uint32) error {
 		}
 		defer ns.Close()
 
-		nlh, err = netlink.NewHandleAt(ns)
+		nlh, err = netlink.NewHandleAt(ns, syscall.NETLINK_ROUTE)
 		if err != nil {
 			return fmt.Errorf("failed to get netlink handle for ns %s: %v", path, err)
 		}
