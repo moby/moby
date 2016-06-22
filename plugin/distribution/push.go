@@ -97,7 +97,7 @@ func Push(name string, rs registry.Service, metaHeader http.Header, authConfig *
 			return "", err
 		}
 		// The canonical descriptor is set the mediatype again, just in case.
-		// Dont touch the digest or the size here.
+		// Don't touch the digest or the size here.
 		desc.MediaType = mt
 		logrus.Debugf("pushed blob: %s %s", desc.MediaType, desc.Digest)
 		descs = append(descs, desc)
