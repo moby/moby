@@ -12,64 +12,52 @@ import (
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/dockerversion"
-	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
-var (
-	commonFlags = cliflags.InitCommonFlags()
-	clientFlags = initClientFlags(commonFlags)
-	flHelp      = flag.Bool([]string{"h", "-help"}, false, "Print usage")
-	flVersion   = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
-)
+func newDockerCommand(dockerCli *client.DockerCli, opts *cliflags.ClientOptions) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:           "docker [OPTIONS] COMMAND [arg...]",
+		Short:         "A self-sufficient runtime for containers.",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		Args:          cli.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if opts.Version {
+				showVersion()
+				return nil
+			}
+			fmt.Fprintf(dockerCli.Err(), "\n"+cmd.UsageString())
+			return nil
+		},
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			dockerPreRun(cmd.Flags(), opts)
+			return dockerCli.Initialize(opts)
+		},
+	}
+	cobraadaptor.SetupRootCommand(cmd, dockerCli)
+
+	flags := cmd.Flags()
+	flags.BoolVarP(&opts.Version, "version", "v", false, "Print version information and quit")
+	flags.StringVar(&opts.ConfigDir, "config", cliconfig.ConfigDir(), "Location of client config files")
+	opts.Common.InstallFlags(flags)
+
+	return cmd
+}
 
 func main() {
 	// Set terminal emulation based on platform as required.
 	stdin, stdout, stderr := term.StdStreams()
-
 	logrus.SetOutput(stderr)
 
-	flag.Merge(flag.CommandLine, clientFlags.FlagSet, commonFlags.FlagSet)
+	opts := cliflags.NewClientOptions()
+	dockerCli := client.NewDockerCli(stdin, stdout, stderr, opts)
+	cmd := newDockerCommand(dockerCli, opts)
 
-	cobraAdaptor := cobraadaptor.NewCobraAdaptor(clientFlags)
-
-	flag.Usage = func() {
-		fmt.Fprint(stdout, "Usage: docker [OPTIONS] COMMAND [arg...]\n       docker [ --help | -v | --version ]\n\n")
-		fmt.Fprint(stdout, "A self-sufficient runtime for containers.\n\nOptions:\n")
-
-		flag.CommandLine.SetOutput(stdout)
-		flag.PrintDefaults()
-
-		help := "\nCommands:\n"
-
-		dockerCommands := append(cli.DockerCommandUsage, cobraAdaptor.Usage()...)
-		for _, cmd := range sortCommands(dockerCommands) {
-			help += fmt.Sprintf("    %-10.10s%s\n", cmd.Name, cmd.Description)
-		}
-
-		help += "\nRun 'docker COMMAND --help' for more information on a command."
-		fmt.Fprintf(stdout, "%s\n", help)
-	}
-
-	flag.Parse()
-
-	if *flVersion {
-		showVersion()
-		return
-	}
-
-	if *flHelp {
-		// if global flag --help is present, regardless of what other options and commands there are,
-		// just print the usage.
-		flag.Usage()
-		return
-	}
-
-	clientCli := client.NewDockerCli(stdin, stdout, stderr, clientFlags)
-
-	c := cli.New(clientCli, NewDaemonProxy(), cobraAdaptor)
-	if err := c.Run(flag.Args()...); err != nil {
+	if err := cmd.Execute(); err != nil {
 		if sterr, ok := err.(cli.StatusError); ok {
 			if sterr.Status != "" {
 				fmt.Fprintln(stderr, sterr.Status)
@@ -94,26 +82,22 @@ func showVersion() {
 	}
 }
 
-func initClientFlags(commonFlags *cliflags.CommonFlags) *cliflags.ClientFlags {
-	clientFlags := &cliflags.ClientFlags{FlagSet: new(flag.FlagSet), Common: commonFlags}
-	client := clientFlags.FlagSet
-	client.StringVar(&clientFlags.ConfigDir, []string{"-config"}, cliconfig.ConfigDir(), "Location of client config files")
+func dockerPreRun(flags *pflag.FlagSet, opts *cliflags.ClientOptions) {
+	opts.Common.SetDefaultOptions(flags)
+	cliflags.SetDaemonLogLevel(opts.Common.LogLevel)
 
-	clientFlags.PostParse = func() {
-		clientFlags.Common.PostParse()
-		cliflags.SetDaemonLogLevel(commonOpts.LogLevel)
-
-		if clientFlags.ConfigDir != "" {
-			cliconfig.SetConfigDir(clientFlags.ConfigDir)
-		}
-
-		if clientFlags.Common.TrustKey == "" {
-			clientFlags.Common.TrustKey = filepath.Join(cliconfig.ConfigDir(), cliflags.DefaultTrustKeyFile)
-		}
-
-		if clientFlags.Common.Debug {
-			utils.EnableDebug()
-		}
+	// TODO: remove this, set a default in New, and pass it in opts
+	if opts.ConfigDir != "" {
+		cliconfig.SetConfigDir(opts.ConfigDir)
 	}
-	return clientFlags
+
+	if opts.Common.TrustKey == "" {
+		opts.Common.TrustKey = filepath.Join(
+			cliconfig.ConfigDir(),
+			cliflags.DefaultTrustKeyFile)
+	}
+
+	if opts.Common.Debug {
+		utils.EnableDebug()
+	}
 }

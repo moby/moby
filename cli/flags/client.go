@@ -1,14 +1,13 @@
 package flags
 
-import (
-	"github.com/spf13/pflag"
-)
-
-// ClientFlags represents flags for the docker client.
-type ClientFlags struct {
-	FlagSet   *pflag.FlagSet
+// ClientOptions are the options used to configure the client cli
+type ClientOptions struct {
 	Common    *CommonOptions
-	PostParse func()
-
 	ConfigDir string
+	Version   bool
+}
+
+// NewClientOptions returns a new ClientOptions
+func NewClientOptions() *ClientOptions {
+	return &ClientOptions{Common: NewCommonOptions()}
 }

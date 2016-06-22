@@ -14,33 +14,18 @@ import (
 	"github.com/docker/docker/api/client/system"
 	"github.com/docker/docker/api/client/volume"
 	"github.com/docker/docker/cli"
-	cliflags "github.com/docker/docker/cli/flags"
-	"github.com/docker/docker/pkg/term"
 	"github.com/spf13/cobra"
 )
 
-// CobraAdaptor is an adaptor for supporting spf13/cobra commands in the
-// docker/cli framework
-type CobraAdaptor struct {
-	rootCmd   *cobra.Command
-	dockerCli *client.DockerCli
-}
-
-// NewCobraAdaptor returns a new handler
-func NewCobraAdaptor(clientFlags *cliflags.ClientFlags) CobraAdaptor {
-	stdin, stdout, stderr := term.StdStreams()
-	dockerCli := client.NewDockerCli(stdin, stdout, stderr, clientFlags)
-
-	var rootCmd = &cobra.Command{
-		Use:           "docker [OPTIONS]",
-		Short:         "A self-sufficient runtime for containers",
-		SilenceUsage:  true,
-		SilenceErrors: true,
-	}
+// SetupRootCommand sets default usage, help, and error handling for the
+// root command.
+// TODO: move to cmd/docker/docker?
+// TODO: split into common setup and client setup
+func SetupRootCommand(rootCmd *cobra.Command, dockerCli *client.DockerCli) {
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.SetHelpTemplate(helpTemplate)
 	rootCmd.SetFlagErrorFunc(cli.FlagErrorFunc)
-	rootCmd.SetOutput(stdout)
+	rootCmd.SetOutput(dockerCli.Out())
 	rootCmd.AddCommand(
 		node.NewNodeCommand(dockerCli),
 		service.NewServiceCommand(dockerCli),
@@ -94,44 +79,6 @@ func NewCobraAdaptor(clientFlags *cliflags.ClientFlags) CobraAdaptor {
 
 	rootCmd.PersistentFlags().BoolP("help", "h", false, "Print usage")
 	rootCmd.PersistentFlags().MarkShorthandDeprecated("help", "please use --help")
-
-	return CobraAdaptor{
-		rootCmd:   rootCmd,
-		dockerCli: dockerCli,
-	}
-}
-
-// Usage returns the list of commands and their short usage string for
-// all top level cobra commands.
-func (c CobraAdaptor) Usage() []cli.Command {
-	cmds := []cli.Command{}
-	for _, cmd := range c.rootCmd.Commands() {
-		if cmd.Name() != "" {
-			cmds = append(cmds, cli.Command{Name: cmd.Name(), Description: cmd.Short})
-		}
-	}
-	return cmds
-}
-
-func (c CobraAdaptor) run(cmd string, args []string) error {
-	if err := c.dockerCli.Initialize(); err != nil {
-		return err
-	}
-	// Prepend the command name to support normal cobra command delegation
-	c.rootCmd.SetArgs(append([]string{cmd}, args...))
-	return c.rootCmd.Execute()
-}
-
-// Command returns a cli command handler if one exists
-func (c CobraAdaptor) Command(name string) func(...string) error {
-	for _, cmd := range c.rootCmd.Commands() {
-		if cmd.Name() == name {
-			return func(args ...string) error {
-				return c.run(name, args)
-			}
-		}
-	}
-	return nil
 }
 
 // GetRootCommand returns the root command. Required to generate the man pages
