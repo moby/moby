@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sync"
 	"syscall"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/ns"
@@ -290,7 +291,12 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 	}
 
 	// Up the interface.
-	if err := nlh.LinkSetUp(iface); err != nil {
+	cnt := 0
+	for err = nlh.LinkSetUp(iface); err != nil && cnt < 3; cnt++ {
+		log.Debugf("retrying link setup because of: %v", err)
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err != nil {
 		return fmt.Errorf("failed to set link up: %v", err)
 	}
 
