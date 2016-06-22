@@ -264,6 +264,9 @@ func (c *controller) SetKeys(keys []*types.EncryptionKey) error {
 		c.Unlock()
 		return nil
 	}
+	if len(keys) < keyringSize {
+		return c.handleKeyChangeV1(keys)
+	}
 	return c.handleKeyChange(keys)
 }
 
