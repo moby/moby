@@ -77,6 +77,9 @@ func (l *JSONFileLogger) readLogs(logWatcher *logger.LogWatcher, config logger.R
 	}
 
 	if !config.Follow {
+		if err := latestFile.Close(); err != nil {
+			logrus.Errorf("Error closing file: %v", err)
+		}
 		return
 	}
 
