@@ -88,8 +88,12 @@ func runList(dockerCli *client.DockerCli, opts listOptions) error {
 
 var listDescription = `
 
-Lists all the volumes Docker knows about. You can filter using the **-f** or **--filter** flag. The filtering format is a **key=value** pair. To specify more than one filter,  pass multiple flags (for example,  **--filter "foo=bar" --filter "bif=baz"**)
+Lists all the volumes Docker knows about. You can filter using the **-f** or
+**--filter** flag. The filtering format is a **key=value** pair. To specify
+more than one filter,  pass multiple flags (for example,
+**--filter "foo=bar" --filter "bif=baz"**)
 
-There is a single supported filter **dangling=value** which takes a boolean of **true** or **false**.
+There is a single supported filter **dangling=value** which takes a boolean of
+**true** or **false**.
 
 `

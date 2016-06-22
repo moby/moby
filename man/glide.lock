@@ -48,5 +48,5 @@ imports:
   repo: https://github.com/dnephin/cobra
   subpackages:
   - doc
-  version: dc45219961f875acff5ee07ed263e5dc19e0c5f1
+  version: v1.3
 devImports: []
