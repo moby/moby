@@ -69,9 +69,20 @@ func runList(dockerCli *client.DockerCli, opts listOptions) error {
 			return err
 		}
 
+		nodes, err := client.NodeList(ctx, types.NodeListOptions{})
+		if err != nil {
+			return err
+		}
+		activeNodes := make(map[string]struct{})
+		for _, n := range nodes {
+			if n.Status.State == swarm.NodeStateReady {
+				activeNodes[n.ID] = struct{}{}
+			}
+		}
+
 		running := map[string]int{}
 		for _, task := range tasks {
-			if task.Status.State == "running" {
+			if _, nodeActive := activeNodes[task.NodeID]; nodeActive && task.Status.State == "running" {
 				running[task.ServiceID]++
 			}
 		}
