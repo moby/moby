@@ -75,7 +75,7 @@ clone git github.com/hashicorp/go-multierror fcdddc395df1ddf4247c69bd436e84cfa07
 clone git github.com/hashicorp/serf 598c54895cc5a7b1a24a398d635e8c0ea0959870
 clone git github.com/docker/libkv 7283ef27ed32fe267388510a91709b307bb9942c
 clone git github.com/vishvananda/netns 604eaf189ee867d8c147fafc28def2394e878d25
-clone git github.com/vishvananda/netlink 7995ff5647a22cbf0dc41bf5c0e977bdb0d5c6b7
+clone git github.com/vishvananda/netlink 734d02c3e202f682c74b71314b2c61eec0170fd4
 clone git github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
 clone git github.com/samuel/go-zookeeper d0e0d8e11f318e000a8cc434616d69e329edc374
 clone git github.com/deckarep/golang-set ef32fa3046d9f249d399f98ebaf9be944430fd1d

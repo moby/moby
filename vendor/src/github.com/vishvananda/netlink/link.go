@@ -3,7 +3,6 @@ package netlink
 import (
 	"fmt"
 	"net"
-	"syscall"
 )
 
 // Link represents a link device from netlink. Shared link attributes
@@ -172,11 +171,6 @@ func (macvtap Macvtap) Type() string {
 }
 
 type TuntapMode uint16
-
-const (
-	TUNTAP_MODE_TUN TuntapMode = syscall.IFF_TUN
-	TUNTAP_MODE_TAP TuntapMode = syscall.IFF_TAP
-)
 
 // Tuntap links created via /dev/tun/tap, but can be destroyed via netlink
 type Tuntap struct {

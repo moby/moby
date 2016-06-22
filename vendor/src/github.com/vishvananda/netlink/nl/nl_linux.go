@@ -22,6 +22,9 @@ const (
 	FAMILY_V6  = syscall.AF_INET6
 )
 
+// SupportedNlFamilies contains the list of netlink families this netlink package supports
+var SupportedNlFamilies = []int{syscall.NETLINK_ROUTE, syscall.NETLINK_XFRM}
+
 var nextSeqNr uint32
 
 // GetIPFamily returns the family type of a net.IP.
@@ -175,9 +178,8 @@ func (a *RtAttr) Serialize() []byte {
 
 type NetlinkRequest struct {
 	syscall.NlMsghdr
-	Data        []NetlinkRequestData
-	RouteSocket *NetlinkSocket
-	XfmrSocket  *NetlinkSocket
+	Data    []NetlinkRequestData
+	Sockets map[int]*SocketHandle
 }
 
 // Serialize the Netlink Request into a byte array
@@ -209,7 +211,7 @@ func (req *NetlinkRequest) AddData(data NetlinkRequestData) {
 }
 
 // Execute the request against a the given sockType.
-// Returns a list of netlink messages in seriaized format, optionally filtered
+// Returns a list of netlink messages in serialized format, optionally filtered
 // by resType.
 func (req *NetlinkRequest) Execute(sockType int, resType uint16) ([][]byte, error) {
 	var (
@@ -217,15 +219,12 @@ func (req *NetlinkRequest) Execute(sockType int, resType uint16) ([][]byte, erro
 		err error
 	)
 
-	switch sockType {
-	case syscall.NETLINK_XFRM:
-		s = req.XfmrSocket
-	case syscall.NETLINK_ROUTE:
-		s = req.RouteSocket
-	default:
-		return nil, fmt.Errorf("Socket type %d is not handled", sockType)
+	if req.Sockets != nil {
+		if sh, ok := req.Sockets[sockType]; ok {
+			s = sh.Socket
+			req.Seq = atomic.AddUint32(&sh.Seq, 1)
+		}
 	}
-
 	sharedSocket := s != nil
 
 	if s == nil {
@@ -485,4 +484,18 @@ func netlinkRouteAttrAndValue(b []byte) (*syscall.RtAttr, []byte, int, error) {
 		return nil, nil, 0, syscall.EINVAL
 	}
 	return a, b[syscall.SizeofRtAttr:], rtaAlignOf(int(a.Len)), nil
+}
+
+// SocketHandle contains the netlink socket and the associated
+// sequence counter for a specific netlink family
+type SocketHandle struct {
+	Seq    uint32
+	Socket *NetlinkSocket
+}
+
+// Close closes the netlink socket
+func (sh *SocketHandle) Close() {
+	if sh.Socket != nil {
+		sh.Socket.Close()
+	}
 }

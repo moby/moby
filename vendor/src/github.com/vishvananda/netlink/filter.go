@@ -1,11 +1,6 @@
 package netlink
 
-import (
-	"errors"
-	"fmt"
-
-	"github.com/vishvananda/netlink/nl"
-)
+import "fmt"
 
 type Filter interface {
 	Attrs() *FilterAttrs
@@ -215,74 +210,6 @@ type FilterFwAttrs struct {
 	Action    TcPolAct
 	Overhead  uint16
 	LinkLayer int
-}
-
-// Fw filter filters on firewall marks
-type Fw struct {
-	FilterAttrs
-	ClassId uint32
-	// TODO remove nl type from interface
-	Police nl.TcPolice
-	InDev  string
-	// TODO Action
-	Mask   uint32
-	AvRate uint32
-	Rtab   [256]uint32
-	Ptab   [256]uint32
-}
-
-func NewFw(attrs FilterAttrs, fattrs FilterFwAttrs) (*Fw, error) {
-	var rtab [256]uint32
-	var ptab [256]uint32
-	rcellLog := -1
-	pcellLog := -1
-	avrate := fattrs.AvRate / 8
-	police := nl.TcPolice{}
-	police.Rate.Rate = fattrs.Rate / 8
-	police.PeakRate.Rate = fattrs.PeakRate / 8
-	buffer := fattrs.Buffer
-	linklayer := nl.LINKLAYER_ETHERNET
-
-	if fattrs.LinkLayer != nl.LINKLAYER_UNSPEC {
-		linklayer = fattrs.LinkLayer
-	}
-
-	police.Action = int32(fattrs.Action)
-	if police.Rate.Rate != 0 {
-		police.Rate.Mpu = fattrs.Mpu
-		police.Rate.Overhead = fattrs.Overhead
-		if CalcRtable(&police.Rate, rtab, rcellLog, fattrs.Mtu, linklayer) < 0 {
-			return nil, errors.New("TBF: failed to calculate rate table")
-		}
-		police.Burst = uint32(Xmittime(uint64(police.Rate.Rate), uint32(buffer)))
-	}
-	police.Mtu = fattrs.Mtu
-	if police.PeakRate.Rate != 0 {
-		police.PeakRate.Mpu = fattrs.Mpu
-		police.PeakRate.Overhead = fattrs.Overhead
-		if CalcRtable(&police.PeakRate, ptab, pcellLog, fattrs.Mtu, linklayer) < 0 {
-			return nil, errors.New("POLICE: failed to calculate peak rate table")
-		}
-	}
-
-	return &Fw{
-		FilterAttrs: attrs,
-		ClassId:     fattrs.ClassId,
-		InDev:       fattrs.InDev,
-		Mask:        fattrs.Mask,
-		Police:      police,
-		AvRate:      avrate,
-		Rtab:        rtab,
-		Ptab:        ptab,
-	}, nil
-}
-
-func (filter *Fw) Attrs() *FilterAttrs {
-	return &filter.FilterAttrs
-}
-
-func (filter *Fw) Type() string {
-	return "fw"
 }
 
 type BpfFilter struct {
