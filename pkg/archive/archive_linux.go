@@ -26,6 +26,7 @@ func (overlayWhiteoutConverter) ConvertWrite(hdr *tar.Header, path string, fi os
 		hdr.Name = WhiteoutPrefix + hdr.Name
 		hdr.Mode = 0600
 		hdr.Typeflag = tar.TypeReg
+		hdr.Size = 0
 	}
 
 	if fi.Mode()&os.ModeDir != 0 {
