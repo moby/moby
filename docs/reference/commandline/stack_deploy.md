@@ -58,3 +58,4 @@ axqh55ipl40h  vossibility-stack_vossibility-collector  1 icecrime/vossibility-co
 * [stack rm](stack_rm.md)
 * [stack services](stack_services.md)
 * [stack tasks](stack_tasks.md)
+* [stack ls](stack_ls.md)

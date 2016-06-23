@@ -16,10 +16,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	listItemFmt = "%s\t%s\t%s\t%s\t%s\n"
-)
-
 type servicesOptions struct {
 	quiet     bool
 	filter    opts.FilterOpt
