@@ -1251,6 +1251,7 @@ __docker_subcommand() {
                 "($help)--rm[Remove intermediate containers when it exits]" \
                 "($help)--sig-proxy[Proxy all received signals to the process (non-TTY mode only)]" \
                 "($help)--stop-signal=[Signal to kill a container]:signal:_signals" \
+                "($help)--storage-opt=[Set storage driver options per container]:storage options:->storage-opt" \
                 "($help -): :__docker_images" \
                 "($help -):command: _command_names -e" \
                 "($help -)*::arguments: _normal" && ret=0
@@ -1261,6 +1262,14 @@ __docker_subcommand() {
                         _wanted alias expl "Alias" compadd -E "" && ret=0
                     else
                         __docker_runningcontainers -qS ":" && ret=0
+                    fi
+                    ;;
+                (storage-opt)
+                    if compset -P "*="; then
+                        _message "value" && ret=0
+                    else
+                        opts=('size')
+                        _describe -t filter-opts "storage options" opts -qS "=" && ret=0
                     fi
                     ;;
             esac
