@@ -63,7 +63,7 @@ func (s *DockerSuite) TestRenameCheckNames(c *check.C) {
 
 	name, err := inspectFieldWithError("first_name", "Name")
 	c.Assert(err, checker.NotNil, check.Commentf(name))
-	c.Assert(err.Error(), checker.Contains, "No such image, container or task: first_name")
+	c.Assert(err.Error(), checker.Contains, "No such container, image or task: first_name")
 }
 
 func (s *DockerSuite) TestRenameInvalidName(c *check.C) {
@@ -129,7 +129,7 @@ func (s *DockerSuite) TestRenameContainerWithLinkedContainer(c *check.C) {
 	db1, _ := dockerCmd(c, "run", "--name", "db1", "-d", "busybox", "top")
 	dockerCmd(c, "run", "--name", "app1", "-d", "--link", "db1:/mysql", "busybox", "top")
 	dockerCmd(c, "rename", "app1", "app2")
-	out, _, err := dockerCmdWithError("inspect", "--format='{{ .Id }}'", "app2/mysql")
+	out, _, err := dockerCmdWithError("inspect", "--format={{ .Id }}", "app2/mysql")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Equals, strings.TrimSpace(db1))
 }

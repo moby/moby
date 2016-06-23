@@ -326,7 +326,7 @@ func (s *DockerDaemonSuite) TestDaemonIptablesCreate(c *check.C) {
 	}
 
 	// make sure the container is not running
-	runningOut, err := s.d.Cmd("inspect", "--format='{{.State.Running}}'", "top")
+	runningOut, err := s.d.Cmd("inspect", "--format={{.State.Running}}", "top")
 	if err != nil {
 		c.Fatalf("Could not inspect on container: %s, %v", out, err)
 	}
@@ -2196,7 +2196,7 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonCrash(c *check.C) {
 	}
 
 	// container should be running.
-	out, err = s.d.Cmd("inspect", "--format='{{.State.Running}}'", id)
+	out, err = s.d.Cmd("inspect", "--format={{.State.Running}}", id)
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
 	out = strings.TrimSpace(out)
 	if out != "true" {

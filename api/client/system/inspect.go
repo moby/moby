@@ -2,6 +2,7 @@ package system
 
 import (
 	"fmt"
+	"strings"
 
 	"golang.org/x/net/context"
 
@@ -85,14 +86,18 @@ func inspectAll(ctx context.Context, dockerCli *client.DockerCli, getSize bool) 
 			return i, rawImage, err
 		}
 
-		// Search for task with that id if an image doesn't exists.
+		// Search for task with that id if an image doesn't exist.
 		t, rawTask, err := client.TaskInspectWithRaw(ctx, ref)
-		if err == nil || !apiclient.IsErrNotFound(err) {
+		if err == nil || !(apiclient.IsErrNotFound(err) || isErrorNoSwarmMode(err)) {
 			if getSize {
 				fmt.Fprintln(dockerCli.Err(), "WARNING: --size ignored for tasks")
 			}
 			return t, rawTask, err
 		}
-		return nil, nil, fmt.Errorf("Error: No such image, container or task: %s", ref)
+		return nil, nil, fmt.Errorf("Error: No such container, image or task: %s", ref)
 	}
+}
+
+func isErrorNoSwarmMode(err error) bool {
+	return strings.Contains(err.Error(), "This node is not a swarm manager")
 }
