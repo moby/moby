@@ -38,7 +38,7 @@ Options:
       --restart-condition string     Restart when condition is met (none, on_failure, or any)
       --restart-delay value          Delay between restart attempts (default none)
       --restart-max-attempts value   Maximum number of restarts before giving up (default none)
-      --restart-window value         Window used to evalulate the restart policy (default none)
+      --restart-window value         Window used to evaluate the restart policy (default none)
       --stop-grace-period value      Time to wait before force killing a container (default none)
       --update-delay duration        Delay between updates
       --update-parallelism uint      Maximum number of tasks updated simultaneously
