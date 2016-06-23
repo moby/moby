@@ -74,7 +74,7 @@ Docker Hub is the central hub for Docker. It hosts public Docker images
 and provides services to help you build and manage your Docker
 environment. To learn more:
 
-Go to [Using Docker Hub](https://docs.docker.com/docker-hub).
+Go to [Using Docker Hub](https://docs.docker.com/docker-hub/).
 
 ### Docker Machine
 
@@ -108,7 +108,7 @@ Go to [Docker Swarm user guide](https://docs.docker.com/swarm/).
 * [Docker Hub](https://hub.docker.com)
 * [Docker blog](https://blog.docker.com/)
 * [Docker documentation](https://docs.docker.com/)
-* [Docker Getting Started Guide](https://docs.docker.com/mac/started/)
+* [Docker Getting Started Guide](../getstarted/index.md)
 * [Docker code on GitHub](https://github.com/docker/docker)
 * [Docker mailing
   list](https://groups.google.com/forum/#!forum/docker-user)
