@@ -208,8 +208,8 @@ $ docker network inspect isolated_nw
             "Driver": "default",
             "Config": [
                 {
-                    "Subnet": "172.21.0.0/16",
-                    "Gateway": "172.21.0.1/16"
+                    "Subnet": "172.25.0.0/16",
+                    "Gateway": "172.25.0.1/16"
                 }
             ]
         },
