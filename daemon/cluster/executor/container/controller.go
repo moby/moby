@@ -152,9 +152,6 @@ func (r *controller) Wait(pctx context.Context) error {
 	defer cancel()
 
 	err := r.adapter.wait(ctx)
-	if err != nil {
-		return err
-	}
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
@@ -166,6 +163,7 @@ func (r *controller) Wait(pctx context.Context) error {
 		if ec, ok := err.(exec.ExitCoder); ok {
 			ee.code = ec.ExitCode()
 		}
+		return ee
 	}
 	return nil
 }
