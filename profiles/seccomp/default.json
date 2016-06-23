@@ -1265,7 +1265,20 @@
 		{
 			"name": "setsockopt",
 			"action": "SCMP_ACT_ALLOW",
-			"args": []
+			"args": [
+				{
+					"index": 1,
+					"value": 41,
+					"valueTwo": 0,
+					"op": "SCMP_CMP_MASKED_EQ"
+				},
+				{
+					"index": 2,
+					"value": 96,
+					"valueTwo": 0,
+					"op": "SCMP_CMP_MASKED_EQ"
+				}
+			]
 		},
 		{
 			"name": "set_thread_area",

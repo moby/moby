@@ -9,6 +9,7 @@ if [ "$DOCKER_ENGINE_GOOS" = "linux" ]; then
 		gcc -g -Wall -static contrib/syscall-test/userns.c -o "${tmpdir}/userns-test"
 		gcc -g -Wall -static contrib/syscall-test/ns.c -o "${tmpdir}/ns-test"
 		gcc -g -Wall -static contrib/syscall-test/acct.c -o "${tmpdir}/acct-test"
+		gcc -g -Wall -static contrib/syscall-test/setsockopt.c -o "${tmpdir}/setsockopt-test"
 
 		dockerfile="${tmpdir}/Dockerfile"
 		cat <<-EOF > "$dockerfile"
