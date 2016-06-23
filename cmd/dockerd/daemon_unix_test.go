@@ -3,8 +3,6 @@
 package main
 
 import (
-	"io/ioutil"
-	"os"
 	"testing"
 
 	"github.com/docker/docker/daemon"
@@ -102,30 +100,13 @@ func TestLoadDaemonConfigWithTrueDefaultValuesLeaveDefaults(t *testing.T) {
 }
 
 func TestLoadDaemonConfigWithLegacyRegistryOptions(t *testing.T) {
-	c := &daemon.Config{}
-	common := &cliflags.CommonFlags{}
-	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
-	c.ServiceOptions.InstallCliFlags(flags, absentFromHelp)
+	content := `{"disable-legacy-registry": true}`
+	tempFile := tempfile.NewTempFile(t, "config", content)
+	defer tempFile.Remove()
 
-	f, err := ioutil.TempFile("", "docker-config-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	configFile := f.Name()
-	defer os.Remove(configFile)
-
-	f.Write([]byte(`{"disable-legacy-registry": true}`))
-	f.Close()
-
-	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if loadedConfig == nil {
-		t.Fatal("expected configuration, got nil")
-	}
-
-	if !loadedConfig.V2Only {
-		t.Fatal("expected disable-legacy-registry to be true, got false")
-	}
+	opts := defaultOptions(tempFile.Name())
+	loadedConfig, err := loadDaemonCliConfig(opts)
+	assert.NilError(t, err)
+	assert.NotNil(t, loadedConfig)
+	assert.Equal(t, loadedConfig.V2Only, true)
 }

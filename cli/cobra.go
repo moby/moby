@@ -1,4 +1,4 @@
-package cobraadaptor
+package cli
 
 import (
 	"fmt"
@@ -15,12 +15,6 @@ func SetupRootCommand(rootCmd *cobra.Command) {
 
 	rootCmd.PersistentFlags().BoolP("help", "h", false, "Print usage")
 	rootCmd.PersistentFlags().MarkShorthandDeprecated("help", "please use --help")
-}
-
-// GetRootCommand returns the root command. Required to generate the man pages
-// and reference docs from a script outside this package.
-func (c CobraAdaptor) GetRootCommand() *cobra.Command {
-	return c.rootCmd
 }
 
 // FlagErrorFunc prints an error messages which matches the format of the

@@ -130,7 +130,7 @@ func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
 func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
 	content := `{
 		"registry-mirrors": ["https://mirrors.docker.com"],
-		"insecure-registries": ["https://insecure.docker.com"],
+		"insecure-registries": ["https://insecure.docker.com"]
 	}`
 	tempFile := tempfile.NewTempFile(t, "config", content)
 	defer tempFile.Remove()
