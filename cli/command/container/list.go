@@ -52,6 +52,13 @@ func NewPsCommand(dockerCli *command.DockerCli) *cobra.Command {
 	return cmd
 }
 
+func newListCommand(dockerCli *command.DockerCli) *cobra.Command {
+	cmd := *NewPsCommand(dockerCli)
+	cmd.Aliases = []string{"ps", "list"}
+	cmd.Use = "ls [OPTIONS]"
+	return &cmd
+}
+
 type preProcessor struct {
 	types.Container
 	opts *types.ContainerListOptions
