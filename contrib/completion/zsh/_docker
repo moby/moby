@@ -563,6 +563,7 @@ __docker_network_subcommand() {
                 "($help)--ip=[Container IPv4 address]:IPv4: " \
                 "($help)--ip6=[Container IPv6 address]:IPv6: " \
                 "($help)*--link=[Add a link to another container]:link:->link" \
+                "($help)*--link-local-ip=[Add a link-local address for the container]:IPv4/IPv6: " \
                 "($help -)1:network:__docker_networks" \
                 "($help -)2:containers:__docker_containers" && ret=0
 
@@ -820,6 +821,7 @@ __docker_subcommand() {
         "($help)--ip6=[Container IPv6 address]:IPv6: "
         "($help)--ipc=[IPC namespace to use]:IPC namespace: "
         "($help)*--link=[Add link to another container]:link:->link"
+        "($help)*--link-local-ip=[Add a link-local address for the container]:IPv4/IPv6: "
         "($help)*"{-l=,--label=}"[Container metadata]:label: "
         "($help)--log-driver=[Default driver for container logs]:Logging driver:(awslogs etwlogs fluentd gcplogs gelf journald json-file none splunk syslog)"
         "($help)*--log-opt=[Log driver specific options]:log driver options:__docker_log_options"
