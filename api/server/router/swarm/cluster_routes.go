@@ -109,7 +109,7 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 
 	id, err := sr.backend.CreateService(service)
 	if err != nil {
-		logrus.Errorf("Error reating service %s: %v", id, err)
+		logrus.Errorf("Error creating service %s: %v", id, err)
 		return err
 	}
 
