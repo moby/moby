@@ -32,8 +32,8 @@ func NewStackCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 // NewTopLevelDeployCommand returns a command for `docker deploy`
 func NewTopLevelDeployCommand(dockerCli *command.DockerCli) *cobra.Command {
-	cmd := newDeployCommand(dockerCli)
+	cmd := *newDeployCommand(dockerCli)
 	// Remove the aliases at the top level
 	cmd.Aliases = []string{}
-	return cmd
+	return &cmd
 }
