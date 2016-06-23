@@ -23,6 +23,7 @@ func NewStackCommand(dockerCli *command.DockerCli) *cobra.Command {
 	cmd.AddCommand(
 		newConfigCommand(dockerCli),
 		newDeployCommand(dockerCli),
+		newListCommand(dockerCli),
 		newRemoveCommand(dockerCli),
 		newServicesCommand(dockerCli),
 		newPsCommand(dockerCli),
