@@ -249,6 +249,8 @@ echo '- Network Drivers:'
 {
 	echo '- "'$(wrap_color 'overlay' blue)'":'
 	check_flags VXLAN | sed 's/^/  /'
+	echo '  Optional (for secure networks):'
+	check_flags XFRM_ALGO XFRM_USER | sed 's/^/  /'
 } | sed 's/^/  /'
 
 echo '- Storage Drivers:'

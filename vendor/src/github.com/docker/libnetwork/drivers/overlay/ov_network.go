@@ -284,7 +284,7 @@ func populateVNITbl() {
 			}
 			defer ns.Close()
 
-			nlh, err := netlink.NewHandleAt(ns)
+			nlh, err := netlink.NewHandleAt(ns, syscall.NETLINK_ROUTE)
 			if err != nil {
 				logrus.Errorf("Could not open netlink handle during vni population for ns %s: %v", path, err)
 				return nil
