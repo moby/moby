@@ -109,7 +109,7 @@ rpm_import_repository_key() {
 	local tmpdir=$(mktemp -d)
 	chmod 600 "$tmpdir"
 	for key_server in $key_servers ; do
-		gpg --homedir "$tmpdir" --keyserver-options http-proxy=$http_proxy --keyserver "$key_server" --recv-keys "$key" && break
+		gpg --homedir "$tmpdir" --keyserver "$key_server" --recv-keys "$key" && break
 	done
 	gpg --homedir "$tmpdir" -k "$key" >/dev/null
 	gpg --homedir "$tmpdir" --export --armor "$key" > "$tmpdir"/repo.key
@@ -425,7 +425,7 @@ do_install() {
 			(
 			set -x
 			for key_server in $key_servers ; do
-				$sh_c "apt-key adv --keyserver hkp://${key_server}:80 --recv-keys ${gpg_fingerprint}" && break
+				$sh_c "apt-key adv --keyserver hkp://${key_server}:80 --keyserver-options http-proxy=$http_proxy --recv-keys ${gpg_fingerprint}" && break
 			done
 			$sh_c "apt-key adv -k ${gpg_fingerprint} >/dev/null"
 			$sh_c "mkdir -p /etc/apt/sources.list.d"
