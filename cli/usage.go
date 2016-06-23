@@ -7,9 +7,7 @@ type Command struct {
 }
 
 // DockerCommandUsage lists the top level docker commands and their short usage
-var DockerCommandUsage = []Command{
-	{"inspect", "Return low-level information on a container, image or task"},
-}
+var DockerCommandUsage = []Command{}
 
 // DockerCommands stores all the docker command
 var DockerCommands = make(map[string]Command)

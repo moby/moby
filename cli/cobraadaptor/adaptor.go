@@ -83,6 +83,7 @@ func NewCobraAdaptor(clientFlags *cliflags.ClientFlags) CobraAdaptor {
 		image.NewTagCommand(dockerCli),
 		network.NewNetworkCommand(dockerCli),
 		system.NewEventsCommand(dockerCli),
+		system.NewInspectCommand(dockerCli),
 		registry.NewLoginCommand(dockerCli),
 		registry.NewLogoutCommand(dockerCli),
 		system.NewVersionCommand(dockerCli),
