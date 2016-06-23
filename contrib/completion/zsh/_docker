@@ -786,7 +786,7 @@ __docker_subcommand() {
         "($help)--userns=[Container user namespace]:user namespace:(host)"
     )
     opts_build_create_run_update=(
-        "($help)--cpu-shares=[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)"
+        "($help -c --cpu-shares)"{-c=,--cpu-shares=}"[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)"
         "($help)--cpu-period=[Limit the CPU CFS (Completely Fair Scheduler) period]:CPU period: "
         "($help)--cpu-quota=[Limit the CPU CFS (Completely Fair Scheduler) quota]:CPU quota: "
         "($help)--cpuset-cpus=[CPUs in which to allow execution]:CPUs: "
