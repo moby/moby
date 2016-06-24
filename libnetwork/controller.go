@@ -144,7 +144,7 @@ type controller struct {
 	unWatchCh              chan *endpoint
 	svcRecords             map[string]svcInfo
 	nmap                   map[string]*netWatch
-	serviceBindings        map[string]*service
+	serviceBindings        map[serviceKey]*service
 	defOsSbox              osl.Sandbox
 	ingressSandbox         *sandbox
 	sboxOnce               sync.Once
@@ -167,7 +167,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		cfg:             config.ParseConfigOptions(cfgOptions...),
 		sandboxes:       sandboxTable{},
 		svcRecords:      make(map[string]svcInfo),
-		serviceBindings: make(map[string]*service),
+		serviceBindings: make(map[serviceKey]*service),
 		agentInitDone:   make(chan struct{}),
 	}
 
