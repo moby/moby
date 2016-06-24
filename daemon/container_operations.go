@@ -410,7 +410,7 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) error {
 
 	// always connect default network first since only default
 	// network mode support link and we need do some setting
-	// on sanbox initialize for link, but the sandbox only be initialized
+	// on sandbox initialize for link, but the sandbox only be initialized
 	// on first network connecting.
 	defaultNetName := runconfig.DefaultDaemonNetworkMode().NetworkName()
 	if nConf, ok := container.NetworkSettings.Networks[defaultNetName]; ok {
