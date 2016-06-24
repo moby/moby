@@ -31,12 +31,12 @@ type MappedDir struct {
 }
 
 type HvRuntime struct {
-	ImagePath string `json:",omitempty"`
+	ImagePath    string `json:",omitempty"`
+	SkipTemplate bool   `json:",omitempty"`
 }
 
 // ContainerConfig is used as both the input of CreateContainer
 // and to convert the parameters to JSON for passing onto the HCS
-// TODO Windows: @darrenstahlmsft Add ProcessorCount
 type ContainerConfig struct {
 	SystemType              string      // HCS requires this to be hard-coded to "Container"
 	Name                    string      // Name of the container. We use the docker ID.
@@ -47,6 +47,7 @@ type ContainerConfig struct {
 	LayerFolderPath         string      // Where the layer folders are located
 	Layers                  []Layer     // List of storage layers
 	Credentials             string      `json:",omitempty"` // Credentials information
+	ProcessorCount          uint32      `json:",omitempty"` // Number of processors to assign to the container.
 	ProcessorWeight         uint64      `json:",omitempty"` // CPU Shares 0..10000 on Windows; where 0 will be omitted and HCS will default.
 	ProcessorMaximum        int64       `json:",omitempty"` // CPU maximum usage percent 1..100
 	StorageIOPSMaximum      uint64      `json:",omitempty"` // Maximum Storage IOPS
@@ -61,18 +62,6 @@ type ContainerConfig struct {
 	HvRuntime               *HvRuntime  // Hyper-V container settings
 	Servicing               bool        // True if this container is for servicing
 }
-
-const (
-	notificationTypeNone           string = "None"
-	notificationTypeGracefulExit   string = "GracefulExit"
-	notificationTypeForcedExit     string = "ForcedExit"
-	notificationTypeUnexpectedExit string = "UnexpectedExit"
-	notificationTypeReboot         string = "Reboot"
-	notificationTypeConstructed    string = "Constructed"
-	notificationTypeStarted        string = "Started"
-	notificationTypePaused         string = "Paused"
-	notificationTypeUnknown        string = "Unknown"
-)
 
 // Container represents a created (but not necessarily running) container.
 type Container interface {
