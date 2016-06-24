@@ -91,13 +91,12 @@ func (c *containerConfig) image() string {
 func (c *containerConfig) volumes() map[string]struct{} {
 	r := make(map[string]struct{})
 
-	for _, mount := range c.spec().Mounts {
+	for _, m := range c.spec().Mounts {
 		// pick off all the volume mounts.
-		if mount.Type != api.MountTypeVolume {
+		if m.Type != api.MountTypeVolume || m.Source != "" {
 			continue
 		}
-
-		r[fmt.Sprintf("%s:%s", mount.Target, getMountMask(&mount))] = struct{}{}
+		r[m.Target] = struct{}{}
 	}
 
 	return r
@@ -165,7 +164,7 @@ func (c *containerConfig) bindMounts() []string {
 
 	for _, val := range c.spec().Mounts {
 		mask := getMountMask(&val)
-		if val.Type == api.MountTypeBind {
+		if val.Type == api.MountTypeBind || (val.Type == api.MountTypeVolume && val.Source != "") {
 			r = append(r, fmt.Sprintf("%s:%s:%s", val.Source, val.Target, mask))
 		}
 	}
