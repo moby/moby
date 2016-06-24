@@ -13,6 +13,7 @@ import (
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/docker/go-connections/nat"
+	shlex "github.com/flynn-archive/go-shlex"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -31,7 +32,7 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.String("image", "", "Service image tag")
-	flags.StringSlice("arg", []string{}, "Service command args")
+	flags.String("args", "", "Service command args")
 	addServiceFlags(cmd, opts)
 	return cmd
 }
@@ -91,12 +92,6 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		}
 	}
 
-	updateSlice := func(flag string, field *[]string) {
-		if flags.Changed(flag) {
-			*field, _ = flags.GetStringSlice(flag)
-		}
-	}
-
 	updateInt64Value := func(flag string, field *int64) {
 		if flags.Changed(flag) {
 			*field = flags.Lookup(flag).Value.(int64Value).Value()
@@ -140,7 +135,7 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 	updateString(flagName, &spec.Name)
 	updateLabels(flags, &spec.Labels)
 	updateString("image", &cspec.Image)
-	updateSlice("arg", &cspec.Args)
+	updateStringToSlice(flags, "args", &cspec.Args)
 	updateListOpts("env", &cspec.Env)
 	updateString("workdir", &cspec.Dir)
 	updateString(flagUser, &cspec.User)
@@ -174,10 +169,7 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		updateDurationOpt((flagRestartWindow), task.RestartPolicy.Window)
 	}
 
-	if flags.Changed(flagConstraint) {
-		task.Placement = &swarm.Placement{}
-		updateSlice(flagConstraint, &task.Placement.Constraints)
-	}
+	// TODO: The constraints field is fixed in #23773
 
 	if err := updateReplicas(flags, &spec.Mode); err != nil {
 		return err
@@ -204,6 +196,17 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		updatePorts(flags, &spec.EndpointSpec.Ports)
 	}
 	return nil
+}
+
+func updateStringToSlice(flags *pflag.FlagSet, flag string, field *[]string) error {
+	if !flags.Changed(flag) {
+		return nil
+	}
+
+	value, _ := flags.GetString(flag)
+	valueSlice, err := shlex.Split(value)
+	*field = valueSlice
+	return err
 }
 
 func updateLabels(flags *pflag.FlagSet, field *map[string]string) {
