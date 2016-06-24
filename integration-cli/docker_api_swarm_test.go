@@ -111,8 +111,8 @@ func (s *DockerSwarmSuite) testAPISwarmManualAcceptance(c *check.C, secret strin
 		if info.LocalNodeState == swarm.LocalNodeStateActive {
 			break
 		}
-		if i > 10 {
-			c.Errorf("node did not become active")
+		if i > 100 {
+			c.Fatalf("node did not become active")
 		}
 		time.Sleep(200 * time.Millisecond)
 	}
@@ -249,7 +249,7 @@ func (s *DockerSwarmSuite) TestApiSwarmPromoteDemote(c *check.C) {
 		if info.ControlAvailable {
 			break
 		}
-		if i > 10 {
+		if i > 100 {
 			c.Errorf("node did not turn into manager")
 		} else {
 			break
@@ -268,7 +268,7 @@ func (s *DockerSwarmSuite) TestApiSwarmPromoteDemote(c *check.C) {
 		if !info.ControlAvailable {
 			break
 		}
-		if i > 10 {
+		if i > 100 {
 			c.Errorf("node did not turn into manager")
 		} else {
 			break
@@ -563,11 +563,17 @@ func (s *DockerSwarmSuite) TestApiSwarmLeaveOnPendingJoin(c *check.C) {
 
 	go d2.Join("nosuchhost:1234", "", "", false) // will block on pending state
 
-	time.Sleep(1 * time.Second)
-
-	info, err := d2.info()
-	c.Assert(err, checker.IsNil)
-	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStatePending)
+	for i := 0; ; i++ {
+		info, err := d2.info()
+		c.Assert(err, checker.IsNil)
+		if info.LocalNodeState == swarm.LocalNodeStatePending {
+			break
+		}
+		if i > 100 {
+			c.Fatalf("node did not go to pending state: %v", info.LocalNodeState)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 
 	c.Assert(d2.Leave(true), checker.IsNil)
 
@@ -589,7 +595,7 @@ func (s *DockerSwarmSuite) TestApiSwarmRestoreOnPendingJoin(c *check.C) {
 		if info.LocalNodeState == swarm.LocalNodeStatePending {
 			break
 		}
-		if i > 10 {
+		if i > 100 {
 			c.Fatalf("node did not go to pending state: %v", info.LocalNodeState)
 		}
 		time.Sleep(100 * time.Millisecond)
