@@ -85,8 +85,8 @@ type Config struct {
 	Backend executorpkg.Backend
 }
 
-// Cluster provides capabilities to pariticipate in a cluster as worker or a
-// manager and a worker.
+// Cluster provides capabilities to participate in a cluster as a worker or a
+// manager.
 type Cluster struct {
 	sync.RWMutex
 	root           string
@@ -414,11 +414,11 @@ func (c *Cluster) Leave(force bool) error {
 						c.Unlock()
 						return fmt.Errorf(msg)
 					}
-					msg += fmt.Sprintf("Leaving cluster will leave you with  %v managers out of %v. This means Raft quorum will be lost and your cluster will become inaccessible. ", reachable-1, reachable+unreachable)
+					msg += fmt.Sprintf("Leaving cluster will leave you with %v managers out of %v. This means Raft quorum will be lost and your cluster will become inaccessible. ", reachable-1, reachable+unreachable)
 				}
 			}
 		} else {
-			msg += "Doing so may lose the consenus of your cluster. "
+			msg += "Doing so may lose the consensus of your cluster. "
 		}
 
 		msg += "Only way to restore a cluster that has lost consensus is to reinitialize it with `--force-new-cluster`. Use `--force` to ignore this message."
@@ -470,7 +470,7 @@ func (c *Cluster) getRequestContext() context.Context { // TODO: not needed when
 	return ctx
 }
 
-// Inspect retrives the confuguration properties of managed swarm cluster.
+// Inspect retrieves the configuration properties of a managed swarm cluster.
 func (c *Cluster) Inspect() (types.Swarm, error) {
 	c.RLock()
 	defer c.RUnlock()
@@ -523,21 +523,21 @@ func (c *Cluster) Update(version uint64, spec types.Spec) error {
 	return err
 }
 
-// IsManager returns true is Cluster is participating as a manager.
+// IsManager returns true if Cluster is participating as a manager.
 func (c *Cluster) IsManager() bool {
 	c.RLock()
 	defer c.RUnlock()
 	return c.isActiveManager()
 }
 
-// IsAgent returns true is Cluster is participating as a worker/agent.
+// IsAgent returns true if Cluster is participating as a worker/agent.
 func (c *Cluster) IsAgent() bool {
 	c.RLock()
 	defer c.RUnlock()
 	return c.ready
 }
 
-// GetListenAddress returns the listening address for current maanger's
+// GetListenAddress returns the listening address for current manager's
 // consensus and dispatcher APIs.
 func (c *Cluster) GetListenAddress() string {
 	c.RLock()
@@ -548,7 +548,7 @@ func (c *Cluster) GetListenAddress() string {
 	return ""
 }
 
-// GetRemoteAddress returns a known advertise address of a remote maanger if
+// GetRemoteAddress returns a known advertise address of a remote manager if
 // available.
 // todo: change to array/connect with info
 func (c *Cluster) GetRemoteAddress() string {
@@ -686,7 +686,7 @@ func (c *Cluster) CreateService(s types.ServiceSpec) (string, error) {
 	return r.Service.ID, nil
 }
 
-// GetService returns a service based on a ID or name.
+// GetService returns a service based on an ID or name.
 func (c *Cluster) GetService(input string) (types.Service, error) {
 	c.RLock()
 	defer c.RUnlock()
@@ -777,7 +777,7 @@ func (c *Cluster) GetNodes(options apitypes.NodeListOptions) ([]types.Node, erro
 	return nodes, nil
 }
 
-// GetNode returns a node based on a ID or name.
+// GetNode returns a node based on an ID or name.
 func (c *Cluster) GetNode(input string) (types.Node, error) {
 	c.RLock()
 	defer c.RUnlock()
@@ -886,7 +886,7 @@ func (c *Cluster) GetTask(input string) (types.Task, error) {
 	return convert.TaskFromGRPC(*task), nil
 }
 
-// GetNetwork returns a cluster network by ID.
+// GetNetwork returns a cluster network by an ID.
 func (c *Cluster) GetNetwork(input string) (apitypes.NetworkResource, error) {
 	c.RLock()
 	defer c.RUnlock()
