@@ -108,3 +108,16 @@ func (s *DockerSuite) TestRenameAnonymousContainer(c *check.C) {
 	_, _, err := dockerCmdWithError("run", "--net", "network1", "busybox", "ping", count, "1", "container1")
 	c.Assert(err, check.IsNil, check.Commentf("Embedded DNS lookup fails after renaming anonymous container: %v", err))
 }
+
+func (s *DockerSuite) TestRenameContainerWithSameName(c *check.C) {
+	out, _ := runSleepingContainer(c, "--name", "old")
+	ContainerID := strings.TrimSpace(out)
+
+	out, _, err := dockerCmdWithError("rename", "old", "old")
+	c.Assert(err, checker.NotNil, check.Commentf("Renaming a container with the same name should have failed"))
+	c.Assert(out, checker.Contains, "Renaming a container with the same name", check.Commentf("%v", err))
+
+	out, _, err = dockerCmdWithError("rename", ContainerID, "old")
+	c.Assert(err, checker.NotNil, check.Commentf("Renaming a container with the same name should have failed"))
+	c.Assert(out, checker.Contains, "Renaming a container with the same name", check.Commentf("%v", err))
+}
