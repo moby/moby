@@ -208,7 +208,7 @@ func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *Swarm
 		port:   defaultSwarmPort + s.portIndex,
 	}
 	d.listenAddr = fmt.Sprintf("0.0.0.0:%d", d.port)
-	err := d.StartWithBusybox()
+	err := d.StartWithBusybox("--iptables=false") // avoid networking conflicts
 	c.Assert(err, check.IsNil)
 
 	if joinSwarm == true {
