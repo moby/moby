@@ -493,6 +493,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 
 const (
 	flagConstraint         = "constraint"
+	flagConstraintRemove   = "remove-constraint"
 	flagEndpointMode       = "endpoint-mode"
 	flagEnv                = "env"
 	flagEnvRemove          = "remove-env"
