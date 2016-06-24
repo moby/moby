@@ -9,8 +9,7 @@ import (
 
 func TestUpdateServiceArgs(t *testing.T) {
 	flags := newUpdateCommand(nil).Flags()
-	flags.Set("arg", "the")
-	flags.Set("arg", "new args")
+	flags.Set("args", "the \"new args\"")
 
 	spec := &swarm.ServiceSpec{}
 	cspec := &spec.TaskTemplate.ContainerSpec
