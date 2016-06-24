@@ -757,7 +757,7 @@ func (s *DockerSuite) TestRunUserByIDBig(c *check.C) {
 	if err == nil {
 		c.Fatal("No error, but must be.", out)
 	}
-	if !strings.Contains(out, libcontainerUser.ErrRange.Error()) {
+	if !strings.Contains(strings.ToUpper(out), strings.ToUpper(libcontainerUser.ErrRange.Error())) {
 		c.Fatalf("expected error about uids range, got %s", out)
 	}
 }
@@ -770,7 +770,7 @@ func (s *DockerSuite) TestRunUserByIDNegative(c *check.C) {
 	if err == nil {
 		c.Fatal("No error, but must be.", out)
 	}
-	if !strings.Contains(out, libcontainerUser.ErrRange.Error()) {
+	if !strings.Contains(strings.ToUpper(out), strings.ToUpper(libcontainerUser.ErrRange.Error())) {
 		c.Fatalf("expected error about uids range, got %s", out)
 	}
 }
@@ -1454,9 +1454,15 @@ func (s *DockerSuite) TestRunResolvconfUpdate(c *check.C) {
 	// This test case is meant to test monitoring resolv.conf when it is
 	// a regular file not a bind mounc. So we unmount resolv.conf and replace
 	// it with a file containing the original settings.
-	cmd := exec.Command("umount", "/etc/resolv.conf")
-	if _, err = runCommand(cmd); err != nil {
+	mounted, err := mount.Mounted("/etc/resolv.conf")
+	if err != nil {
 		c.Fatal(err)
+	}
+	if mounted {
+		cmd := exec.Command("umount", "/etc/resolv.conf")
+		if _, err = runCommand(cmd); err != nil {
+			c.Fatal(err)
+		}
 	}
 
 	//cleanup
