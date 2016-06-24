@@ -93,3 +93,7 @@ func (s *journald) Log(msg *logger.Message) error {
 func (s *journald) Name() string {
 	return name
 }
+
+func (s *journald) UpdateConfig(cfg map[string]string) error {
+	return nil
+}

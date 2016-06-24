@@ -7,6 +7,7 @@ import (
 	"golang.org/x/net/context"
 
 	Cli "github.com/docker/docker/cli"
+	DOpts "github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/types/container"
@@ -29,6 +30,9 @@ func (cli *DockerCli) CmdUpdate(args ...string) error {
 	flMemorySwap := cmd.String([]string{"-memory-swap"}, "", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap")
 	flKernelMemory := cmd.String([]string{"-kernel-memory"}, "", "Kernel memory limit")
 	flRestartPolicy := cmd.String([]string{"-restart"}, "", "Restart policy to apply when a container exits")
+
+	logOpts := make(map[string]string)
+	cmd.Var(DOpts.NewNamedMapOpts("log-opts", logOpts, nil), []string{"-log-opt"}, "Set log driver options")
 
 	cmd.Require(flag.Min, 1)
 	cmd.ParseFlags(args, true)
@@ -94,9 +98,14 @@ func (cli *DockerCli) CmdUpdate(args ...string) error {
 		CPUQuota:          *flCPUQuota,
 	}
 
+	logConfig := container.LogConfig{
+		Config: logOpts,
+	}
+
 	updateConfig := container.UpdateConfig{
 		Resources:     resources,
 		RestartPolicy: restartPolicy,
+		LogConfig:     logConfig,
 	}
 
 	ctx := context.Background()

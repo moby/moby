@@ -108,6 +108,20 @@ func (w *RotateFileWriter) MaxFiles() int {
 	return w.maxFiles
 }
 
+// SetMaxFiles set maximum number of files
+func (w *RotateFileWriter) SetMaxFiles(maxFiles int) {
+	w.mu.Lock()
+	w.maxFiles = maxFiles
+	w.mu.Unlock()
+}
+
+// SetCapacity set max file size
+func (w *RotateFileWriter) SetCapacity(capacity int64) {
+	w.mu.Lock()
+	w.capacity = capacity
+	w.mu.Unlock()
+}
+
 //NotifyRotate returns the new subscriber
 func (w *RotateFileWriter) NotifyRotate() chan interface{} {
 	return w.notifyRotate.Subscribe()

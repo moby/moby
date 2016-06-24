@@ -83,6 +83,10 @@ func (etwLogger *etwLogs) Name() string {
 	return name
 }
 
+func (etwLogger *etwLogs) UpdateConfig(cfg map[string]string) error {
+	return nil
+}
+
 func createLogMessage(etwLogger *etwLogs, msg *logger.Message) string {
 	return fmt.Sprintf("container_name: %s, image_name: %s, container_id: %s, image_id: %s, source: %s, log: %s",
 		etwLogger.containerName,

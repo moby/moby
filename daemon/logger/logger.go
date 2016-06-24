@@ -62,6 +62,7 @@ type Logger interface {
 	Log(*Message) error
 	Name() string
 	Close() error
+	UpdateConfig(map[string]string) error
 }
 
 // ReadConfig is the configuration passed into ReadLogs.

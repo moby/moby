@@ -154,6 +154,10 @@ func (f *fluentd) Name() string {
 	return name
 }
 
+func (f *fluentd) UpdateConfig(cfg map[string]string) error {
+	return nil
+}
+
 // ValidateLogOpt looks for fluentd specific log option fluentd-address.
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {

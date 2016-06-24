@@ -181,6 +181,10 @@ func (l *logStream) Close() error {
 	return nil
 }
 
+func (l *logStream) UpdateConfig(cfg map[string]string) error {
+	return nil
+}
+
 // create creates a log stream for the instance of the awslogs logging driver
 func (l *logStream) create() error {
 	input := &cloudwatchlogs.CreateLogStreamInput{
