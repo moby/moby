@@ -160,6 +160,13 @@ func (m *MountOpt) Set(value string) error {
 		return mount.VolumeOptions
 	}
 
+	bindOptions := func() *swarm.BindOptions {
+		if mount.BindOptions == nil {
+			mount.BindOptions = new(swarm.BindOptions)
+		}
+		return mount.BindOptions
+	}
+
 	setValueOnMap := func(target map[string]string, value string) {
 		parts := strings.SplitN(value, "=", 2)
 		if len(parts) == 1 {
@@ -194,7 +201,7 @@ func (m *MountOpt) Set(value string) error {
 				return fmt.Errorf("invalid value for writable: %s", value)
 			}
 		case "bind-propagation":
-			mount.BindOptions.Propagation = swarm.MountPropagation(strings.ToUpper(value))
+			bindOptions().Propagation = swarm.MountPropagation(strings.ToUpper(value))
 		case "volume-populate":
 			volumeOptions().Populate, err = strconv.ParseBool(value)
 			if err != nil {
