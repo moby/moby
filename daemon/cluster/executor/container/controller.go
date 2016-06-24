@@ -60,7 +60,6 @@ func (r *controller) ContainerStatus(ctx context.Context) (*api.ContainerStatus,
 
 // Update tasks a recent task update and applies it to the container.
 func (r *controller) Update(ctx context.Context, t *api.Task) error {
-	log.G(ctx).Warnf("task updates not yet supported")
 	// TODO(stevvooe): While assignment of tasks is idempotent, we do allow
 	// updates of metadata, such as labelling, as well as any other properties
 	// that make sense.
