@@ -35,15 +35,27 @@ func TestUpdateLabels(t *testing.T) {
 	assert.Equal(t, labels["toadd"], "newlabel")
 }
 
+func TestUpdatePlacement(t *testing.T) {
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("constraint", "node=toadd")
+	flags.Set("remove-constraint", "node!=toremove")
+
+	placement := &swarm.Placement{
+		Constraints: []string{"node!=toremove", "container=tokeep"},
+	}
+
+	updatePlacement(flags, placement)
+	assert.Equal(t, len(placement.Constraints), 2)
+	assert.Equal(t, placement.Constraints[0], "container=tokeep")
+	assert.Equal(t, placement.Constraints[1], "node=toadd")
+}
+
 func TestUpdateEnvironment(t *testing.T) {
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("env", "toadd=newenv")
 	flags.Set("remove-env", "toremove")
 
-	envs := []string{
-		"toremove=theenvtoremove",
-		"tokeep=value",
-	}
+	envs := []string{"toremove=theenvtoremove", "tokeep=value"}
 
 	updateEnvironment(flags, &envs)
 	assert.Equal(t, len(envs), 2)

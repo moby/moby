@@ -36,10 +36,11 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	flags.String("args", "", "Service command args")
 	addServiceFlags(cmd, opts)
 	flags.StringSlice(flagEnvRemove, []string{}, "Remove an environment variable")
-	flags.StringSlice(flagLabelRemove, []string{}, "The key of a label to remove")
-	flags.StringSlice(flagMountRemove, []string{}, "The mount target for a mount to remove")
-	flags.StringSlice(flagPublishRemove, []string{}, "The target port to remove")
-	flags.StringSlice(flagNetworkRemove, []string{}, "The name of a network to remove")
+	flags.StringSlice(flagLabelRemove, []string{}, "Remove a label by its key")
+	flags.StringSlice(flagMountRemove, []string{}, "Remove a mount by its target path")
+	flags.StringSlice(flagPublishRemove, []string{}, "Remove a published port by its target port")
+	flags.StringSlice(flagNetworkRemove, []string{}, "Remove a network by name")
+	flags.StringSlice(flagConstraintRemove, []string{}, "Remove a constraint")
 	return cmd
 }
 
@@ -176,8 +177,10 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 	}
 
 	if flags.Changed(flagConstraint) {
-		task.Placement = &swarm.Placement{}
-		updateSlice(flagConstraint, &task.Placement.Constraints)
+		if task.Placement == nil {
+			task.Placement = &swarm.Placement{}
+		}
+		updatePlacement(flags, task.Placement)
 	}
 
 	if err := updateReplicas(flags, &spec.Mode); err != nil {
@@ -227,6 +230,19 @@ func anyChanged(flags *pflag.FlagSet, fields ...string) bool {
 	return false
 }
 
+func updatePlacement(flags *pflag.FlagSet, placement *swarm.Placement) {
+	field, _ := flags.GetStringSlice(flagConstraint)
+	constraints := &placement.Constraints
+	placement.Constraints = append(placement.Constraints, field...)
+
+	toRemove := buildToRemoveSet(flags, flagConstraintRemove)
+	for i, constraint := range placement.Constraints {
+		if _, exists := toRemove[constraint]; exists {
+			*constraints = append((*constraints)[:i], (*constraints)[i+1:]...)
+		}
+	}
+}
+
 func updateLabels(flags *pflag.FlagSet, field *map[string]string) {
 	if flags.Changed(flagLabel) {
 		if field == nil {
@@ -252,15 +268,11 @@ func updateEnvironment(flags *pflag.FlagSet, field *[]string) {
 		value := flags.Lookup(flagEnv).Value.(*opts.ListOpts)
 		*field = append(*field, value.GetAll()...)
 	}
-	if flags.Changed(flagEnvRemove) {
-		toRemove, _ := flags.GetStringSlice(flagEnvRemove)
-		for _, envRemove := range toRemove {
-			for i, env := range *field {
-				key := envKey(env)
-				if key == envRemove {
-					*field = append((*field)[:i], (*field)[i+1:]...)
-				}
-			}
+	toRemove := buildToRemoveSet(flags, flagEnvRemove)
+	for i, env := range *field {
+		key := envKey(env)
+		if _, exists := toRemove[key]; exists {
+			*field = append((*field)[:i], (*field)[i+1:]...)
 		}
 	}
 }
@@ -270,19 +282,30 @@ func envKey(value string) string {
 	return kv[0]
 }
 
+func buildToRemoveSet(flags *pflag.FlagSet, flag string) map[string]struct{} {
+	var empty struct{}
+	toRemove := make(map[string]struct{})
+
+	if !flags.Changed(flag) {
+		return toRemove
+	}
+
+	toRemoveSlice, _ := flags.GetStringSlice(flag)
+	for _, key := range toRemoveSlice {
+		toRemove[key] = empty
+	}
+	return toRemove
+}
+
 func updateMounts(flags *pflag.FlagSet, mounts *[]swarm.Mount) {
 	if flags.Changed(flagMount) {
 		values := flags.Lookup(flagMount).Value.(*MountOpt).Value()
 		*mounts = append(*mounts, values...)
 	}
-	if flags.Changed(flagMountRemove) {
-		toRemove, _ := flags.GetStringSlice(flagMountRemove)
-		for _, mountTarget := range toRemove {
-			for i, mount := range *mounts {
-				if mount.Target == mountTarget {
-					*mounts = append((*mounts)[:i], (*mounts)[i+1:]...)
-				}
-			}
+	toRemove := buildToRemoveSet(flags, flagMountRemove)
+	for i, mount := range *mounts {
+		if _, exists := toRemove[mount.Target]; exists {
+			*mounts = append((*mounts)[:i], (*mounts)[i+1:]...)
 		}
 	}
 }
@@ -318,14 +341,10 @@ func updateNetworks(flags *pflag.FlagSet, attachments *[]swarm.NetworkAttachment
 			*attachments = append(*attachments, swarm.NetworkAttachmentConfig{Target: network})
 		}
 	}
-	if flags.Changed(flagNetworkRemove) {
-		toRemove, _ := flags.GetStringSlice(flagNetworkRemove)
-		for _, networkTarget := range toRemove {
-			for i, network := range *attachments {
-				if network.Target == networkTarget {
-					*attachments = append((*attachments)[:i], (*attachments)[i+1:]...)
-				}
-			}
+	toRemove := buildToRemoveSet(flags, flagNetworkRemove)
+	for i, network := range *attachments {
+		if _, exists := toRemove[network.Target]; exists {
+			*attachments = append((*attachments)[:i], (*attachments)[i+1:]...)
 		}
 	}
 }
