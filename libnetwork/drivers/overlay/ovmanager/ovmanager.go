@@ -20,7 +20,7 @@ import (
 const (
 	networkType  = "overlay"
 	vxlanIDStart = 256
-	vxlanIDEnd   = 1000
+	vxlanIDEnd   = (1 << 24) - 1
 )
 
 type networkTable map[string]*network
