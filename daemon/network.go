@@ -152,7 +152,7 @@ func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nod
 
 		sb, err := controller.NewSandbox("ingress-sbox", libnetwork.OptionIngress())
 		if err != nil {
-			logrus.Errorf("Failed creating ingress sanbox: %v", err)
+			logrus.Errorf("Failed creating ingress sandbox: %v", err)
 			return
 		}
 
