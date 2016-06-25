@@ -29,7 +29,7 @@ WARNING: Unsupported key 'network_mode' in services.nsqd - ignoring
 WARNING: Unsupported key 'links' in services.nsqd - ignoring
 WARNING: Unsupported key 'volumes' in services.nsqd - ignoring
 [...]
-Wrote bundle to vossibility-stack.dsb
+Wrote bundle to vossibility-stack.dab
 ```
 
 ## Creating a stack from a bundle
@@ -44,7 +44,7 @@ Usage:  docker deploy [OPTIONS] STACK
 Create and update a stack
 
 Options:
-  -f, --bundle string   Path to a bundle (Default: STACK.dsb)
+  -f, --bundle string   Path to a bundle (Default: STACK.dab)
       --help            Print usage
 ```
 
@@ -52,7 +52,7 @@ Let's deploy the stack created before:
 
 ```bash
 # docker deploy vossibility-stack
-Loading bundle from vossibility-stack.dsb
+Loading bundle from vossibility-stack.dab
 Creating service vossibility-stack_elasticsearch
 Creating service vossibility-stack_kibana
 Creating service vossibility-stack_logstash
