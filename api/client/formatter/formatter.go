@@ -124,11 +124,29 @@ func (ctx ContainerContext) Write() {
 		}
 	case rawFormatKey:
 		if ctx.Quiet {
-			ctx.Format = `container_id: {{.ID}}`
+			ctx.Format = fmt.Sprintf(`%s: {{.ID}}`, containerIDHeader)
 		} else {
-			ctx.Format = `container_id: {{.ID}}\nimage: {{.Image}}\ncommand: {{.Command}}\ncreated_at: {{.CreatedAt}}\nstatus: {{.Status}}\nnames: {{.Names}}\nlabels: {{.Labels}}\nports: {{.Ports}}\n`
+			ctx.Format = fmt.Sprintf(`%s: {{.ID}}
+%s: {{.Image}}
+%s: {{.Command}}
+%s: {{.CreatedAt}}
+%s: {{.Status}}
+%s: {{.Names}}
+%s: {{.Labels}}
+%s: {{.Ports}}
+`,
+				containerIDHeader,
+				imageHeader,
+				commandHeader,
+				createdAtHeader,
+				statusHeader,
+				namesHeader,
+				labelsHeader,
+				portsHeader,
+			)
+
 			if ctx.Size {
-				ctx.Format += `size: {{.Size}}\n`
+				ctx.Format += fmt.Sprintf("%s: {{.Size}}\n", sizeHeader)
 			}
 		}
 	}
