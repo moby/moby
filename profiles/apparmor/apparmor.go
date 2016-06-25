@@ -102,6 +102,8 @@ func IsLoaded(name string) error {
 	if err != nil {
 		return err
 	}
+	defer file.Close()
+
 	r := bufio.NewReader(file)
 	for {
 		p, err := r.ReadString('\n')

@@ -174,17 +174,18 @@ func (s *saveSession) save(outStream io.Writer) error {
 
 	if len(reposLegacy) > 0 {
 		reposFile := filepath.Join(tempDir, legacyRepositoriesFileName)
-		f, err := os.OpenFile(reposFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+		rf, err := os.OpenFile(reposFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 		if err != nil {
-			f.Close()
 			return err
 		}
-		if err := json.NewEncoder(f).Encode(reposLegacy); err != nil {
+
+		if err := json.NewEncoder(rf).Encode(reposLegacy); err != nil {
+			rf.Close()
 			return err
 		}
-		if err := f.Close(); err != nil {
-			return err
-		}
+
+		rf.Close()
+
 		if err := system.Chtimes(reposFile, time.Unix(0, 0), time.Unix(0, 0)); err != nil {
 			return err
 		}
@@ -193,15 +194,16 @@ func (s *saveSession) save(outStream io.Writer) error {
 	manifestFileName := filepath.Join(tempDir, manifestFileName)
 	f, err := os.OpenFile(manifestFileName, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
+		return err
+	}
+
+	if err := json.NewEncoder(f).Encode(manifest); err != nil {
 		f.Close()
 		return err
 	}
-	if err := json.NewEncoder(f).Encode(manifest); err != nil {
-		return err
-	}
-	if err := f.Close(); err != nil {
-		return err
-	}
+
+	f.Close()
+
 	if err := system.Chtimes(manifestFileName, time.Unix(0, 0), time.Unix(0, 0)); err != nil {
 		return err
 	}

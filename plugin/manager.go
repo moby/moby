@@ -299,6 +299,7 @@ func (pm *Manager) init() error {
 		}
 		return err
 	}
+	defer dt.Close()
 
 	if err := json.NewDecoder(dt).Decode(&pm.plugins); err != nil {
 		return err

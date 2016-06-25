@@ -216,11 +216,11 @@ func (r *remote) Client(b Backend) (Client, error) {
 
 func (r *remote) updateEventTimestamp(t time.Time) {
 	f, err := os.OpenFile(r.eventTsPath, syscall.O_CREAT|syscall.O_WRONLY|syscall.O_TRUNC, 0600)
-	defer f.Close()
 	if err != nil {
 		logrus.Warnf("libcontainerd: failed to open event timestamp file: %v", err)
 		return
 	}
+	defer f.Close()
 
 	b, err := t.MarshalText()
 	if err != nil {
@@ -245,11 +245,11 @@ func (r *remote) getLastEventTimestamp() time.Time {
 	}
 
 	f, err := os.Open(r.eventTsPath)
-	defer f.Close()
 	if err != nil {
 		logrus.Warnf("libcontainerd: Unable to access last event ts: %v", err)
 		return t
 	}
+	defer f.Close()
 
 	b := make([]byte, fi.Size())
 	n, err := f.Read(b)
@@ -329,10 +329,10 @@ func (r *remote) handleEventStream(events containerd.API_EventsClient) {
 func (r *remote) runContainerdDaemon() error {
 	pidFilename := filepath.Join(r.stateDir, containerdPidFilename)
 	f, err := os.OpenFile(pidFilename, os.O_RDWR|os.O_CREATE, 0600)
-	defer f.Close()
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 
 	// File exist, check if the daemon is alive
 	b := make([]byte, 8)

@@ -38,6 +38,7 @@ func TestTestNegative(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Dockerfile missing for %s: %v", dir, err)
 		}
+		defer df.Close()
 
 		d := Directive{LookingForDirectives: true}
 		SetEscapeToken(DefaultEscapeToken, &d)
@@ -45,8 +46,6 @@ func TestTestNegative(t *testing.T) {
 		if err == nil {
 			t.Fatalf("No error parsing broken dockerfile for %s", dir)
 		}
-
-		df.Close()
 	}
 }
 
