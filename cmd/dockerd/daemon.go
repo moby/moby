@@ -14,6 +14,7 @@ import (
 	"github.com/docker/distribution/uuid"
 	"github.com/docker/docker/api"
 	apiserver "github.com/docker/docker/api/server"
+	apibackend "github.com/docker/docker/api/server/backend"
 	"github.com/docker/docker/api/server/middleware"
 	"github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/api/server/router/build"
@@ -410,17 +411,18 @@ func loadDaemonCliConfig(config *daemon.Config, flags *flag.FlagSet, commonConfi
 
 func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
 	decoder := runconfig.ContainerDecoder{}
+	backend := apibackend.New(d, c)
 
 	routers := []router.Router{
 		container.NewRouter(d, decoder),
 		image.NewRouter(d, decoder),
-		systemrouter.NewRouter(d, c),
+		systemrouter.NewRouter(backend),
 		volume.NewRouter(d),
 		build.NewRouter(dockerfile.NewBuildManager(d)),
 		swarmrouter.NewRouter(c),
 	}
 	if d.NetworkControllerEnabled() {
-		routers = append(routers, network.NewRouter(d, c))
+		routers = append(routers, network.NewRouter(backend))
 	}
 	routers = addExperimentalRouters(routers)
 
