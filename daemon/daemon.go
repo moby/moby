@@ -117,11 +117,13 @@ func (daemon *Daemon) restore() error {
 		return err
 	}
 
+	containerCount := 0
 	for _, v := range dir {
 		id := v.Name()
 		container, err := daemon.load(id)
 		if !debug && logrus.GetLevel() == logrus.InfoLevel {
 			fmt.Print(".")
+			containerCount++
 		}
 		if err != nil {
 			logrus.Errorf("Failed to load container %v: %v", id, err)
@@ -306,7 +308,7 @@ func (daemon *Daemon) restore() error {
 	group.Wait()
 
 	if !debug {
-		if logrus.GetLevel() == logrus.InfoLevel {
+		if logrus.GetLevel() == logrus.InfoLevel && containerCount > 0 {
 			fmt.Println()
 		}
 		logrus.Info("Loading containers: done.")
