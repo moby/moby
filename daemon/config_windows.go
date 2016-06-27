@@ -50,7 +50,7 @@ func (config *Config) GetRuntime(name string) *types.Runtime {
 
 // GetDefaultRuntimeName returns the current default runtime
 func (config *Config) GetDefaultRuntimeName() string {
-	return types.DefaultRuntimeName
+	return stockRuntimeName
 }
 
 // GetAllRuntimes returns a copy of the runtimes map

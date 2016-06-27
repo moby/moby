@@ -532,7 +532,7 @@ func (daemon *Daemon) platformReload(config *Config, attributes *map[string]stri
 	if config.IsValueSet("runtimes") {
 		daemon.configStore.Runtimes = config.Runtimes
 		// Always set the default one
-		daemon.configStore.Runtimes[types.DefaultRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary}
+		daemon.configStore.Runtimes[stockRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary}
 	}
 
 	if config.DefaultRuntime != "" {
@@ -574,12 +574,12 @@ func verifyDaemonSettings(config *Config) error {
 	}
 
 	if config.DefaultRuntime == "" {
-		config.DefaultRuntime = types.DefaultRuntimeName
+		config.DefaultRuntime = stockRuntimeName
 	}
 	if config.Runtimes == nil {
 		config.Runtimes = make(map[string]types.Runtime)
 	}
-	config.Runtimes[types.DefaultRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary}
+	config.Runtimes[stockRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary}
 
 	return nil
 }
