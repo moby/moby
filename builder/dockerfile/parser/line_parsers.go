@@ -21,7 +21,7 @@ var (
 
 // ignore the current argument. This will still leave a command parsed, but
 // will not incorporate the arguments into the ast.
-func parseIgnore(rest string) (*Node, map[string]bool, error) {
+func parseIgnore(rest string, d *Directive) (*Node, map[string]bool, error) {
 	return &Node{}, nil, nil
 }
 
@@ -30,12 +30,12 @@ func parseIgnore(rest string) (*Node, map[string]bool, error) {
 //
 // ONBUILD RUN foo bar -> (onbuild (run foo bar))
 //
-func parseSubCommand(rest string) (*Node, map[string]bool, error) {
+func parseSubCommand(rest string, d *Directive) (*Node, map[string]bool, error) {
 	if rest == "" {
 		return nil, nil, nil
 	}
 
-	_, child, err := ParseLine(rest)
+	_, child, err := ParseLine(rest, d)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -46,7 +46,7 @@ func parseSubCommand(rest string) (*Node, map[string]bool, error) {
 // helper to parse words (i.e space delimited or quoted strings) in a statement.
 // The quotes are preserved as part of this function and they are stripped later
 // as part of processWords().
-func parseWords(rest string) []string {
+func parseWords(rest string, d *Directive) []string {
 	const (
 		inSpaces = iota // looking for start of a word
 		inWord
@@ -96,7 +96,7 @@ func parseWords(rest string) []string {
 				blankOK = true
 				phase = inQuote
 			}
-			if ch == tokenEscape {
+			if ch == d.EscapeToken {
 				if pos+chWidth == len(rest) {
 					continue // just skip an escape token at end of line
 				}
@@ -115,7 +115,7 @@ func parseWords(rest string) []string {
 				phase = inWord
 			}
 			// The escape token is special except for ' quotes - can't escape anything for '
-			if ch == tokenEscape && quote != '\'' {
+			if ch == d.EscapeToken && quote != '\'' {
 				if pos+chWidth == len(rest) {
 					phase = inWord
 					continue // just skip the escape token at end
@@ -133,14 +133,14 @@ func parseWords(rest string) []string {
 
 // parse environment like statements. Note that this does *not* handle
 // variable interpolation, which will be handled in the evaluator.
-func parseNameVal(rest string, key string) (*Node, map[string]bool, error) {
+func parseNameVal(rest string, key string, d *Directive) (*Node, map[string]bool, error) {
 	// This is kind of tricky because we need to support the old
 	// variant:   KEY name value
 	// as well as the new one:    KEY name=value ...
 	// The trigger to know which one is being used will be whether we hit
 	// a space or = first.  space ==> old, "=" ==> new
 
-	words := parseWords(rest)
+	words := parseWords(rest, d)
 	if len(words) == 0 {
 		return nil, nil, nil
 	}
@@ -187,12 +187,12 @@ func parseNameVal(rest string, key string) (*Node, map[string]bool, error) {
 	return rootnode, nil, nil
 }
 
-func parseEnv(rest string) (*Node, map[string]bool, error) {
-	return parseNameVal(rest, "ENV")
+func parseEnv(rest string, d *Directive) (*Node, map[string]bool, error) {
+	return parseNameVal(rest, "ENV", d)
 }
 
-func parseLabel(rest string) (*Node, map[string]bool, error) {
-	return parseNameVal(rest, "LABEL")
+func parseLabel(rest string, d *Directive) (*Node, map[string]bool, error) {
+	return parseNameVal(rest, "LABEL", d)
 }
 
 // parses a statement containing one or more keyword definition(s) and/or
@@ -203,8 +203,8 @@ func parseLabel(rest string) (*Node, map[string]bool, error) {
 // In addition, a keyword definition alone is of the form `keyword` like `name1`
 // above. And the assignments `name2=` and `name3=""` are equivalent and
 // assign an empty value to the respective keywords.
-func parseNameOrNameVal(rest string) (*Node, map[string]bool, error) {
-	words := parseWords(rest)
+func parseNameOrNameVal(rest string, d *Directive) (*Node, map[string]bool, error) {
+	words := parseWords(rest, d)
 	if len(words) == 0 {
 		return nil, nil, nil
 	}
@@ -229,7 +229,7 @@ func parseNameOrNameVal(rest string) (*Node, map[string]bool, error) {
 
 // parses a whitespace-delimited set of arguments. The result is effectively a
 // linked list of string arguments.
-func parseStringsWhitespaceDelimited(rest string) (*Node, map[string]bool, error) {
+func parseStringsWhitespaceDelimited(rest string, d *Directive) (*Node, map[string]bool, error) {
 	if rest == "" {
 		return nil, nil, nil
 	}
@@ -253,7 +253,7 @@ func parseStringsWhitespaceDelimited(rest string) (*Node, map[string]bool, error
 }
 
 // parsestring just wraps the string in quotes and returns a working node.
-func parseString(rest string) (*Node, map[string]bool, error) {
+func parseString(rest string, d *Directive) (*Node, map[string]bool, error) {
 	if rest == "" {
 		return nil, nil, nil
 	}
@@ -263,7 +263,7 @@ func parseString(rest string) (*Node, map[string]bool, error) {
 }
 
 // parseJSON converts JSON arrays to an AST.
-func parseJSON(rest string) (*Node, map[string]bool, error) {
+func parseJSON(rest string, d *Directive) (*Node, map[string]bool, error) {
 	rest = strings.TrimLeftFunc(rest, unicode.IsSpace)
 	if !strings.HasPrefix(rest, "[") {
 		return nil, nil, fmt.Errorf(`Error parsing "%s" as a JSON array`, rest)
@@ -296,12 +296,12 @@ func parseJSON(rest string) (*Node, map[string]bool, error) {
 // parseMaybeJSON determines if the argument appears to be a JSON array. If
 // so, passes to parseJSON; if not, quotes the result and returns a single
 // node.
-func parseMaybeJSON(rest string) (*Node, map[string]bool, error) {
+func parseMaybeJSON(rest string, d *Directive) (*Node, map[string]bool, error) {
 	if rest == "" {
 		return nil, nil, nil
 	}
 
-	node, attrs, err := parseJSON(rest)
+	node, attrs, err := parseJSON(rest, d)
 
 	if err == nil {
 		return node, attrs, nil
@@ -318,8 +318,8 @@ func parseMaybeJSON(rest string) (*Node, map[string]bool, error) {
 // parseMaybeJSONToList determines if the argument appears to be a JSON array. If
 // so, passes to parseJSON; if not, attempts to parse it as a whitespace
 // delimited string.
-func parseMaybeJSONToList(rest string) (*Node, map[string]bool, error) {
-	node, attrs, err := parseJSON(rest)
+func parseMaybeJSONToList(rest string, d *Directive) (*Node, map[string]bool, error) {
+	node, attrs, err := parseJSON(rest, d)
 
 	if err == nil {
 		return node, attrs, nil
@@ -328,11 +328,11 @@ func parseMaybeJSONToList(rest string) (*Node, map[string]bool, error) {
 		return nil, nil, err
 	}
 
-	return parseStringsWhitespaceDelimited(rest)
+	return parseStringsWhitespaceDelimited(rest, d)
 }
 
 // The HEALTHCHECK command is like parseMaybeJSON, but has an extra type argument.
-func parseHealthConfig(rest string) (*Node, map[string]bool, error) {
+func parseHealthConfig(rest string, d *Directive) (*Node, map[string]bool, error) {
 	// Find end of first argument
 	var sep int
 	for ; sep < len(rest); sep++ {
@@ -352,7 +352,7 @@ func parseHealthConfig(rest string) (*Node, map[string]bool, error) {
 	}
 
 	typ := rest[:sep]
-	cmd, attrs, err := parseMaybeJSON(rest[next:])
+	cmd, attrs, err := parseMaybeJSON(rest[next:], d)
 	if err != nil {
 		return nil, nil, err
 	}
