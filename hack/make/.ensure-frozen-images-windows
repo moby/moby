@@ -1,10 +1,9 @@
 #!/bin/bash
-set -e
+set +e
 
 # This scripts sets up the required images for Windows to Windows CI
 
 # Tag (microsoft/)windowsservercore as latest
-set +e
 ! BUILD=$(docker images | grep windowsservercore | grep -v latest | awk '{print $2}')
 if [ -z $BUILD ]; then
 	echo "ERROR: Could not find windowsservercore images"
@@ -18,9 +17,9 @@ if [ -z $IMAGENAME ]; then
 	exit 1
 fi
 
+set -e
 ! LATESTCOUNT=$(docker images | grep windowsservercore | grep -v $BUILD | wc -l)
 if [ $LATESTCOUNT -ne 1 ]; then
-	set -e
 	docker tag $IMAGENAME:$BUILD windowsservercore:latest
 	echo "INFO: Tagged $IMAGENAME:$BUILD as windowsservercore:latest"
 fi
