@@ -387,6 +387,11 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 func NewDaemon(config *Config, registryService registry.Service, containerdRemote libcontainerd.Remote) (daemon *Daemon, err error) {
 	setDefaultMtu(config)
 
+	// Ensure that we have a correct root key limit for launching containers.
+	if err := ModifyRootKeyLimit(); err != nil {
+		logrus.Warnf("unable to modify root key limit, number of containers could be limitied by this quota: %v", err)
+	}
+
 	// Ensure we have compatible and valid configuration options
 	if err := verifyDaemonSettings(config); err != nil {
 		return nil, err
