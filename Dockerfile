@@ -255,6 +255,16 @@ RUN set -x \
 	&& cp bin/ctr /usr/local/bin/docker-containerd-ctr \
 	&& rm -rf "$GOPATH"
 
+ENV GRIMES_COMMIT f207601a8d19a534cc90d9e26e037e9931ccb9db
+RUN set -x \
+    && export GOPATH="$(mktemp -d)" \
+	&& git clone https://github.com/crosbymichael/grimes.git "$GOPATH/grimes" \
+	&& cd "$GOPATH/grimes" \
+	&& git checkout -q "$GRIMES_COMMIT" \
+	&& make \
+	&& cp init /usr/local/bin/docker-init \
+	&& rm -rf "$GOPATH"
+
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]
 

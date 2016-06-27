@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -585,6 +586,26 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 		cwd = "/"
 	}
 	s.Process.Args = append([]string{c.Path}, c.Args...)
+
+	// only add the custom init if it is specified and the container is running in its
+	// own private pid namespace.  It does not make sense to add if it is running in the
+	// host namespace or another container's pid namespace where we already have an init
+	if c.HostConfig.PidMode.IsPrivate() {
+		if (c.HostConfig.Init != nil && *c.HostConfig.Init) ||
+			(c.HostConfig.Init == nil && daemon.configStore.Init) {
+			s.Process.Args = append([]string{"/dev/init", c.Path}, c.Args...)
+			path, err := exec.LookPath("docker-init")
+			if err != nil {
+				return err
+			}
+			s.Mounts = append(s.Mounts, specs.Mount{
+				Destination: "/dev/init",
+				Type:        "bind",
+				Source:      path,
+				Options:     []string{"bind", "ro"},
+			})
+		}
+	}
 	s.Process.Cwd = cwd
 	s.Process.Env = c.CreateDaemonEnvironment(linkedEnv)
 	s.Process.Terminal = c.Config.Tty

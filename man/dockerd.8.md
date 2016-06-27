@@ -34,6 +34,7 @@ dockerd - Enable daemon mode
 [**-H**|**--host**[=*[]*]]
 [**--help**]
 [**--icc**[=*true*]]
+[**--init**[=*false*]]
 [**--insecure-registry**[=*[]*]]
 [**--ip**[=*0.0.0.0*]]
 [**--ip-forward**[=*true*]]
@@ -165,6 +166,9 @@ unix://[/path/to/socket] to use.
 
 **--icc**=*true*|*false*
   Allow unrestricted inter\-container and Docker daemon host communication. If disabled, containers can still be linked together using the **--link** option (see **docker-run(1)**). Default is true.
+
+**--init**
+Run an init process inside containers for signal forwarding and process reaping.
 
 **--insecure-registry**=[]
   Enable insecure registry communication, i.e., enable un-encrypted and/or untrusted communication.

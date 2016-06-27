@@ -78,40 +78,6 @@ func (s *DockerSuite) TestEventsUntag(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestEventsContainerFailStartDie(c *check.C) {
-	_, _, err := dockerCmdWithError("run", "--name", "testeventdie", "busybox", "blerg")
-	c.Assert(err, checker.NotNil, check.Commentf("Container run with command blerg should have failed, but it did not"))
-
-	out, _ := dockerCmd(c, "events", "--since=0", "--until", daemonUnixTime(c))
-	events := strings.Split(strings.TrimSpace(out), "\n")
-
-	nEvents := len(events)
-	c.Assert(nEvents, checker.GreaterOrEqualThan, 1) //Missing expected event
-
-	actions := eventActionsByIDAndType(c, events, "testeventdie", "container")
-
-	var startEvent bool
-	var dieEvent bool
-	for _, a := range actions {
-		switch a {
-		case "start":
-			startEvent = true
-		case "die":
-			dieEvent = true
-		}
-	}
-
-	// Windows platform is different from Linux, it will start container whatever
-	// so Windows can get start/die event but Linux can't
-	if daemonPlatform == "windows" {
-		c.Assert(startEvent, checker.True, check.Commentf("Start event not found: %v\n%v", actions, events))
-		c.Assert(dieEvent, checker.True, check.Commentf("Die event not found: %v\n%v", actions, events))
-	} else {
-		c.Assert(startEvent, checker.False, check.Commentf("Start event not expected: %v\n%v", actions, events))
-		c.Assert(dieEvent, checker.False, check.Commentf("Die event not expected: %v\n%v", actions, events))
-	}
-}
-
 func (s *DockerSuite) TestEventsLimit(c *check.C) {
 	var waitGroup sync.WaitGroup
 	errChan := make(chan error, 17)
