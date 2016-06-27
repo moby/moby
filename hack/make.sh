@@ -255,7 +255,7 @@ bundle() {
 	source "$SCRIPTDIR/make/$bundle" "$@"
 }
 
-copy_containerd() {
+copy_binaries() {
 	dir="$1"
 	# Add nested executables to bundle dir so we have complete set of
 	# them available, but only if the native OS/ARCH is the same as the
@@ -263,7 +263,7 @@ copy_containerd() {
 	if [ "$(go env GOOS)/$(go env GOARCH)" == "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
 		if [ -x /usr/local/bin/docker-runc ]; then
 			echo "Copying nested executables into $dir"
-			for file in containerd containerd-shim containerd-ctr runc; do
+			for file in containerd containerd-shim containerd-ctr runc init; do
 				cp `which "docker-$file"` "$dir/"
 				if [ "$2" == "hash" ]; then
 					hash_files "$dir/docker-$file"
