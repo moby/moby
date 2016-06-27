@@ -74,6 +74,7 @@ func Push(name string, rs registry.Service, metaHeader http.Header, authConfig *
 		r := io.TeeReader(f, h)
 		_, err = io.Copy(bw, r)
 		if err != nil {
+			f.Close()
 			logrus.Debugf("Error in io.Copy: %v", err)
 			return "", err
 		}

@@ -155,12 +155,18 @@ func Handle(capability string, callback func(string, *plugins.Client)) {
 
 func (pm *Manager) get(name string) (*plugin, error) {
 	pm.RLock()
+	defer pm.RUnlock()
+
 	id, nameOk := pm.nameToID[name]
-	p, idOk := pm.plugins[id]
-	pm.RUnlock()
-	if !nameOk || !idOk {
+	if !nameOk {
 		return nil, ErrNotFound(name)
 	}
+
+	p, idOk := pm.plugins[id]
+	if !idOk {
+		return nil, ErrNotFound(name)
+	}
+
 	return p, nil
 }
 

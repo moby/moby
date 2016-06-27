@@ -191,6 +191,7 @@ func WritePullData(pd PullData, dest string, extract bool) error {
 		if !extract {
 			f, err := os.Create(filepath.Join(dest, fmt.Sprintf("layer%d.tar", i)))
 			if err != nil {
+				l.Close()
 				return err
 			}
 			io.Copy(f, l)
