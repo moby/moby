@@ -103,7 +103,7 @@ Example output:
      Availability:          Active
     Manager Status:
      Address:               172.17.0.2:2377
-     Raft status:           Reachable
+     Raft Status:           Reachable
      Leader:                Yes
     Platform:
      Operating System:      linux
