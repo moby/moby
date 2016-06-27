@@ -85,6 +85,13 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 		configuration.HvRuntime = &hcsshim.HvRuntime{
 			ImagePath: spec.Windows.HvRuntime.ImagePath,
 		}
+
+		// Images with build verison < 14350 don't support running with clone, but
+		// Windows cannot automatically detect this. Explicitly block cloning in this
+		// case.
+		if build := buildFromVersion(spec.Platform.OSVersion); build > 0 && build < 14350 {
+			configuration.HvRuntime.SkipTemplate = true
+		}
 	}
 
 	if configuration.HvPartition {
