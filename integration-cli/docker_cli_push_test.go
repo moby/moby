@@ -287,7 +287,7 @@ func (s *DockerTrustSuite) TestTrustedPush(c *check.C) {
 	s.trustedCmd(pullCmd)
 	out, _, err = runCommandWithOutput(pullCmd)
 	c.Assert(err, check.IsNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Status: Image is up to date", check.Commentf(out))
 
 	// Assert that we rotated the snapshot key to the server by checking our local keystore
 	contents, err := ioutil.ReadDir(filepath.Join(cliconfig.ConfigDir(), "trust/private/tuf_keys", privateRegistryURL, "dockerclitrusted/pushtest"))
@@ -312,7 +312,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithEnvPasswords(c *check.C) {
 	s.trustedCmd(pullCmd)
 	out, _, err = runCommandWithOutput(pullCmd)
 	c.Assert(err, check.IsNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Status: Image is up to date", check.Commentf(out))
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithFailingServer(c *check.C) {
@@ -358,7 +358,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithExistingTag(c *check.C) {
 	s.trustedCmd(pullCmd)
 	out, _, err = runCommandWithOutput(pullCmd)
 	c.Assert(err, check.IsNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Status: Image is up to date", check.Commentf(out))
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithExistingSignedTag(c *check.C) {
@@ -492,7 +492,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithReleasesDelegationOnly(c *check.C)
 	s.trustedCmd(pullCmd)
 	out, _, err = runCommandWithOutput(pullCmd)
 	c.Assert(err, check.IsNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Status: Image is up to date", check.Commentf(out))
 }
 
 func (s *DockerTrustSuite) TestTrustedPushSignsAllFirstLevelRolesWeHaveKeysFor(c *check.C) {

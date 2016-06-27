@@ -403,10 +403,21 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 		if err = p.config.ReferenceStore.AddDigest(canonical, imageID, true); err != nil {
 			return false, err
 		}
-	} else if err = p.config.ReferenceStore.AddTag(ref, imageID, true); err != nil {
-		return false, err
-	}
+	} else {
+		digest, err := reference.WithDigest(ref, manifestDigest)
+		if err != nil {
+			return false, err
+		}
+		// Best effort store the digest, this could fail if the digest was
+		// already saved from a different tag.
+		if err := p.config.ReferenceStore.AddDigest(digest, imageID, true); err != nil {
+			logrus.Errorf("Failed to store digest reference %s: %s", manifestDigest, err.Error())
+		}
 
+		if err = p.config.ReferenceStore.AddTag(ref, imageID, true); err != nil {
+			return false, err
+		}
+	}
 	return true, nil
 }
 
