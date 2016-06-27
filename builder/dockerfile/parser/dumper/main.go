@@ -22,7 +22,10 @@ func main() {
 			panic(err)
 		}
 
-		ast, err := parser.Parse(f)
+		d := parser.Directive{LookingForDirectives: true}
+		parser.SetEscapeToken(parser.DefaultEscapeToken, &d)
+
+		ast, err := parser.Parse(f, &d)
 		if err != nil {
 			panic(err)
 		} else {

@@ -36,26 +36,32 @@ type Node struct {
 	EndLine    int             // the line in the original dockerfile where the node ends
 }
 
-const defaultTokenEscape = "\\"
+// Directive is the structure used during a build run to hold the state of
+// parsing directives.
+type Directive struct {
+	EscapeToken           rune           // Current escape token
+	LineContinuationRegex *regexp.Regexp // Current line contination regex
+	LookingForDirectives  bool           // Whether we are currently looking for directives
+	EscapeSeen            bool           // Whether the escape directive has been seen
+}
 
 var (
-	dispatch              map[string]func(string) (*Node, map[string]bool, error)
-	tokenWhitespace       = regexp.MustCompile(`[\t\v\f\r ]+`)
-	tokenLineContinuation *regexp.Regexp
-	tokenEscape           = rune(defaultTokenEscape[0])
-	tokenEscapeCommand    = regexp.MustCompile(`^#[ \t]*escape[ \t]*=[ \t]*(?P<escapechar>.).*$`)
-	tokenComment          = regexp.MustCompile(`^#.*$`)
-	lookingForDirectives  bool
-	directiveEscapeSeen   bool
+	dispatch           map[string]func(string, *Directive) (*Node, map[string]bool, error)
+	tokenWhitespace    = regexp.MustCompile(`[\t\v\f\r ]+`)
+	tokenEscapeCommand = regexp.MustCompile(`^#[ \t]*escape[ \t]*=[ \t]*(?P<escapechar>.).*$`)
+	tokenComment       = regexp.MustCompile(`^#.*$`)
 )
 
-// setTokenEscape sets the default token for escaping characters in a Dockerfile.
-func setTokenEscape(s string) error {
+// DefaultEscapeToken is the default escape token
+const DefaultEscapeToken = "\\"
+
+// SetEscapeToken sets the default token for escaping characters in a Dockerfile.
+func SetEscapeToken(s string, d *Directive) error {
 	if s != "`" && s != "\\" {
 		return fmt.Errorf("invalid ESCAPE '%s'. Must be ` or \\", s)
 	}
-	tokenEscape = rune(s[0])
-	tokenLineContinuation = regexp.MustCompile(`\` + s + `[ \t]*$`)
+	d.EscapeToken = rune(s[0])
+	d.LineContinuationRegex = regexp.MustCompile(`\` + s + `[ \t]*$`)
 	return nil
 }
 
@@ -66,7 +72,7 @@ func init() {
 	// reformulating the arguments according to the rules in the parser
 	// functions. Errors are propagated up by Parse() and the resulting AST can
 	// be incorporated directly into the existing AST as a next.
-	dispatch = map[string]func(string) (*Node, map[string]bool, error){
+	dispatch = map[string]func(string, *Directive) (*Node, map[string]bool, error){
 		command.Add:         parseMaybeJSONToList,
 		command.Arg:         parseNameOrNameVal,
 		command.Cmd:         parseMaybeJSON,
@@ -89,36 +95,35 @@ func init() {
 }
 
 // ParseLine parse a line and return the remainder.
-func ParseLine(line string) (string, *Node, error) {
-
+func ParseLine(line string, d *Directive) (string, *Node, error) {
 	// Handle the parser directive '# escape=<char>. Parser directives must precede
 	// any builder instruction or other comments, and cannot be repeated.
-	if lookingForDirectives {
+	if d.LookingForDirectives {
 		tecMatch := tokenEscapeCommand.FindStringSubmatch(strings.ToLower(line))
 		if len(tecMatch) > 0 {
-			if directiveEscapeSeen == true {
+			if d.EscapeSeen == true {
 				return "", nil, fmt.Errorf("only one escape parser directive can be used")
 			}
 			for i, n := range tokenEscapeCommand.SubexpNames() {
 				if n == "escapechar" {
-					if err := setTokenEscape(tecMatch[i]); err != nil {
+					if err := SetEscapeToken(tecMatch[i], d); err != nil {
 						return "", nil, err
 					}
-					directiveEscapeSeen = true
+					d.EscapeSeen = true
 					return "", nil, nil
 				}
 			}
 		}
 	}
 
-	lookingForDirectives = false
+	d.LookingForDirectives = false
 
 	if line = stripComments(line); line == "" {
 		return "", nil, nil
 	}
 
-	if tokenLineContinuation.MatchString(line) {
-		line = tokenLineContinuation.ReplaceAllString(line, "")
+	if d.LineContinuationRegex.MatchString(line) {
+		line = d.LineContinuationRegex.ReplaceAllString(line, "")
 		return line, nil, nil
 	}
 
@@ -130,7 +135,7 @@ func ParseLine(line string) (string, *Node, error) {
 	node := &Node{}
 	node.Value = cmd
 
-	sexp, attrs, err := fullDispatch(cmd, args)
+	sexp, attrs, err := fullDispatch(cmd, args, d)
 	if err != nil {
 		return "", nil, err
 	}
@@ -145,10 +150,7 @@ func ParseLine(line string) (string, *Node, error) {
 
 // Parse is the main parse routine.
 // It handles an io.ReadWriteCloser and returns the root of the AST.
-func Parse(rwc io.Reader) (*Node, error) {
-	directiveEscapeSeen = false
-	lookingForDirectives = true
-	setTokenEscape(defaultTokenEscape) // Assume the default token for escape
+func Parse(rwc io.Reader, d *Directive) (*Node, error) {
 	currentLine := 0
 	root := &Node{}
 	root.StartLine = -1
@@ -163,7 +165,7 @@ func Parse(rwc io.Reader) (*Node, error) {
 		}
 		scannedLine := strings.TrimLeftFunc(string(scannedBytes), unicode.IsSpace)
 		currentLine++
-		line, child, err := ParseLine(scannedLine)
+		line, child, err := ParseLine(scannedLine, d)
 		if err != nil {
 			return nil, err
 		}
@@ -178,7 +180,7 @@ func Parse(rwc io.Reader) (*Node, error) {
 					continue
 				}
 
-				line, child, err = ParseLine(line + newline)
+				line, child, err = ParseLine(line+newline, d)
 				if err != nil {
 					return nil, err
 				}
@@ -188,7 +190,7 @@ func Parse(rwc io.Reader) (*Node, error) {
 				}
 			}
 			if child == nil && line != "" {
-				_, child, err = ParseLine(line)
+				_, child, err = ParseLine(line, d)
 				if err != nil {
 					return nil, err
 				}
