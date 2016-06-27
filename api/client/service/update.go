@@ -162,7 +162,7 @@ func updateService(spec *swarm.ServiceSpec, flags *pflag.FlagSet) error {
 		updateSlice(flagConstraint, &task.Placement.Constraints)
 	}
 
-	if err := updateMode(flags, &spec.Mode); err != nil {
+	if err := updateReplicas(flags, &spec.Mode); err != nil {
 		return err
 	}
 
@@ -250,40 +250,14 @@ func updateNetworks(flags *pflag.FlagSet, attachments *[]swarm.NetworkAttachment
 	*attachments = localAttachments
 }
 
-func updateMode(flags *pflag.FlagSet, serviceMode *swarm.ServiceMode) error {
-	if !flags.Changed(flagMode) && !flags.Changed(flagReplicas) {
+func updateReplicas(flags *pflag.FlagSet, serviceMode *swarm.ServiceMode) error {
+	if !flags.Changed(flagReplicas) {
 		return nil
 	}
 
-	var mode string
-	if flags.Changed(flagMode) {
-		mode, _ = flags.GetString(flagMode)
-	}
-
-	if !(mode == "replicated" || serviceMode.Replicated != nil) && flags.Changed(flagReplicas) {
+	if serviceMode.Replicated == nil {
 		return fmt.Errorf("replicas can only be used with replicated mode")
 	}
-
-	if mode == "global" {
-		serviceMode.Replicated = nil
-		serviceMode.Global = &swarm.GlobalService{}
-		return nil
-	}
-
-	if flags.Changed(flagReplicas) {
-		replicas := flags.Lookup(flagReplicas).Value.(*Uint64Opt).Value()
-		serviceMode.Replicated = &swarm.ReplicatedService{Replicas: replicas}
-		serviceMode.Global = nil
-		return nil
-	}
-
-	if mode == "replicated" {
-		if serviceMode.Replicated != nil {
-			return nil
-		}
-		serviceMode.Replicated = &swarm.ReplicatedService{Replicas: &DefaultReplicas}
-		serviceMode.Global = nil
-	}
-
+	serviceMode.Replicated.Replicas = flags.Lookup(flagReplicas).Value.(*Uint64Opt).Value()
 	return nil
 }
