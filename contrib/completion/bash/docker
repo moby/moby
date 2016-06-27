@@ -1555,47 +1555,7 @@ _docker_service() {
 }
 
 _docker_service_create() {
-	local options_with_args="
-		--constraint
-		--endpoint-mode
-		--env -e
-		--label -l
-		--limit-cpu
-		--limit-memory
-		--mode
-		--mount -m
-		--name
-		--network
-		--publish -p
-		--replicas
-		--reserve-cpu
-		--reserve-memory
-		--restart-condition
-		--restart-delay
-		--restart-max-attempts
-		--restart-window
-		--stop-grace-period
-		--update-delay
-		--update-parallelism
-		--user -u
-		--workdir -w
-	"
-
-	local boolean_options="
-		--help
-	"
-
-	case "$prev" in
-		$(__docker_to_extglob "$options_with_args") )
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "$boolean_options $options_with_args" -- "$cur" ) )
-			;;
-	esac
+	_docker_service_update
 }
 
 _docker_service_inspect() {
@@ -1675,13 +1635,12 @@ _docker_service_tasks() {
 }
 
 _docker_service_update() {
+	local $subcommand="${words[$subcommand_pos]}"
+
 	local options_with_args="
-		--arg
-		--command
 		--constraint
 		--endpoint-mode
 		--env -e
-		--image
 		--label -l
 		--limit-cpu
 		--limit-memory
@@ -1708,7 +1667,47 @@ _docker_service_update() {
 		--help
 	"
 
+	if [ "$subcommand" = "update" ] ; then
+		options_with_args="$options_with_args
+			--arg
+			--command
+			--image
+		"
+
+		case "$prev" in
+			--image)
+				__docker_complete_image_repos_and_tags
+				return
+				;;
+		esac
+	fi
+
 	case "$prev" in
+		--endpoint-mode)
+			COMPREPLY=( $( compgen -W "DNSRR VIP" -- "$cur" ) )
+			return
+			;;
+		--env|-e)
+			COMPREPLY=( $( compgen -e -S = -- "$cur" ) )
+			__docker_nospace
+			return
+			;;
+		--mode)
+			COMPREPLY=( $( compgen -W "global replicated" -- "$cur" ) )
+			return
+			;;
+		--network)
+			__docker_complete_networks
+			return
+			;;
+		--restart-condition)
+			COMPREPLY=( $( compgen -W "any none on_failure" -- "$cur" ) )
+			return
+			;;
+		--user|-u)
+			__docker_complete_user_group
+			return
+			;;
 		$(__docker_to_extglob "$options_with_args") )
 			return
 			;;
@@ -1719,7 +1718,9 @@ _docker_service_update() {
 			COMPREPLY=( $( compgen -W "$boolean_options $options_with_args" -- "$cur" ) )
 			;;
 		*)
-			__docker_complete_services
+			if [ "$subcommand" = "update" ] ; then
+				__docker_complete_services
+			fi
 	esac
 }
 
@@ -1745,7 +1746,11 @@ _docker_swarm() {
 
 _docker_swarm_init() {
 	case "$prev" in
-		--auto-accept|--listen-addr|--secret)
+		--auto-accept)
+			COMPREPLY=( $( compgen -W "manager none worker" -- "$cur" ) )
+			return
+			;;
+		--listen-addr|--secret)
 			return
 			;;
 	esac
@@ -1795,7 +1800,11 @@ _docker_swarm_leave() {
 
 _docker_swarm_update() {
 	case "$prev" in
-		--auto-accept|--cert-expiry|--dispatcher-heartbeat|--secret|--task-history-limit)
+		--auto-accept)
+			COMPREPLY=( $( compgen -W "manager none worker" -- "$cur" ) )
+			return
+			;;
+		--cert-expiry|--dispatcher-heartbeat|--secret|--task-history-limit)
 			return
 			;;
 	esac
@@ -1926,7 +1935,16 @@ _docker_node_tasks() {
 
 _docker_node_update() {
 	case "$prev" in
-		--availability|--membership|--role)
+		--availability)
+			COMPREPLY=( $( compgen -W "active drain pause" -- "$cur" ) )
+			return
+			;;
+		--membership)
+			COMPREPLY=( $( compgen -W "accepted rejected" -- "$cur" ) )
+			return
+			;;
+		--role)
+			COMPREPLY=( $( compgen -W "manager worker" -- "$cur" ) )
 			return
 			;;
 	esac
