@@ -101,11 +101,16 @@ func (pm *Manager) List() ([]types.Plugin, error) {
 // Push pushes a plugin to the store.
 func (pm *Manager) Push(name string, metaHeader http.Header, authConfig *types.AuthConfig) error {
 	p, err := pm.get(name)
+	if err != nil {
+		return err
+	}
 	dest := filepath.Join(pm.libRoot, p.P.ID)
 	config, err := os.Open(filepath.Join(dest, "manifest.json"))
 	if err != nil {
 		return err
 	}
+	defer config.Close()
+
 	rootfs, err := archive.Tar(filepath.Join(dest, "rootfs"), archive.Gzip)
 	if err != nil {
 		return err
