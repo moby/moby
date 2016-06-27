@@ -548,7 +548,6 @@ Return low-level information on the container `id`
 		},
 		"Created": "2015-01-06T15:47:31.485331387Z",
 		"Driver": "devicemapper",
-		"ExecDriver": "native-0.2",
 		"ExecIDs": null,
 		"HostConfig": {
 			"Binds": null,
