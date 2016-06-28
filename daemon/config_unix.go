@@ -123,7 +123,7 @@ func (config *Config) GetAllRuntimes() map[string]types.Runtime {
 }
 
 func (config *Config) isSwarmCompatible() error {
-	if config.IsValueSet("cluster-store") || config.IsValueSet("cluster-advertise") {
+	if config.ClusterStore != "" || config.ClusterAdvertise != "" {
 		return fmt.Errorf("--cluster-store and --cluster-advertise daemon configurations are incompatible with swarm mode")
 	}
 	if config.LiveRestore {
