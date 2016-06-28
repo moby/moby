@@ -2,7 +2,6 @@ package ovmanager
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -111,7 +110,8 @@ func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, 
 		}
 
 		if err := n.obtainVxlanID(s); err != nil {
-			log.Printf("Could not obtain vxlan id for pool %s: %v", s.subnetIP, err)
+			n.releaseVxlanID()
+			return nil, fmt.Errorf("could not obtain vxlan id for pool %s: %v", s.subnetIP, err)
 		}
 
 		n.subnets = append(n.subnets, s)
