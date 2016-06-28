@@ -556,11 +556,8 @@ func TestParseModes(t *testing.T) {
 
 func TestParseRestartPolicy(t *testing.T) {
 	invalids := map[string]string{
-		"something":          "invalid restart policy something",
-		"always:2":           "maximum restart count not valid with restart policy of \"always\"",
-		"always:2:3":         "maximum restart count not valid with restart policy of \"always\"",
-		"on-failure:invalid": `strconv.ParseInt: parsing "invalid": invalid syntax`,
-		"on-failure:2:5":     "restart count format is not valid, usage: 'on-failure:N' or 'on-failure'",
+		"always:2:3":         "invalid restart policy format",
+		"on-failure:invalid": "maximum retry count must be an integer",
 	}
 	valids := map[string]container.RestartPolicy{
 		"": {},
