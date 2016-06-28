@@ -94,6 +94,17 @@ func (daemon *Daemon) LogDaemonEventWithAttributes(action string, attributes map
 	}
 }
 
+// LogEventWithAttributes generates an generic event with specific given attributes
+func (daemon *Daemon) LogEventWithAttributes(eventtype, id string, action string, attributes map[string]string) {
+	if daemon.EventsService != nil {
+		actor := events.Actor{
+			ID:         id,
+			Attributes: attributes,
+		}
+		daemon.EventsService.Log(action, eventtype, actor)
+	}
+}
+
 // SubscribeToEvents returns the currently record of events, a channel to stream new events from, and a function to cancel the stream of events.
 func (daemon *Daemon) SubscribeToEvents(since, until time.Time, filter filters.Args) ([]events.Message, chan interface{}) {
 	ef := daemonevents.NewFilter(filter)

@@ -9,8 +9,14 @@ const (
 	VolumeEventType = "volume"
 	// NetworkEventType is the event type that networks generate
 	NetworkEventType = "network"
-	// DaemonEventType is the event type that daemon generate
+	// DaemonEventType is the event type that daemon generates
 	DaemonEventType = "daemon"
+	// SwarmEventType is the event type that swarm generates
+	SwarmEventType = "swarm"
+	// NodeEventType is the event type that nodes generate
+	NodeEventType = "node"
+	// ServiceEventType is the event type that services generate
+	ServiceEventType = "service"
 )
 
 // Actor describes something that generates events,
