@@ -2106,6 +2106,10 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check
 	}
 	cid = strings.TrimSpace(cid)
 
+	pid, err := s.d.Cmd("inspect", "-f", "{{.State.Pid}}", cid)
+	t.Assert(err, check.IsNil)
+	pid = strings.TrimSpace(pid)
+
 	// Kill the daemon
 	if err := s.d.Kill(); err != nil {
 		t.Fatal(err)
@@ -2119,10 +2123,10 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check
 
 	// Give time to containerd to process the command if we don't
 	// the exit event might be received after we do the inspect
-	pidCmd := exec.Command("pidof", "top")
+	pidCmd := exec.Command("kill", "-0", pid)
 	_, ec, _ := runCommandWithOutput(pidCmd)
 	for ec == 0 {
-		time.Sleep(3 * time.Second)
+		time.Sleep(1 * time.Second)
 		_, ec, _ = runCommandWithOutput(pidCmd)
 	}
 
@@ -2200,6 +2204,10 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *che
 	}
 	cid = strings.TrimSpace(cid)
 
+	pid, err := s.d.Cmd("inspect", "-f", "{{.State.Pid}}", cid)
+	t.Assert(err, check.IsNil)
+	pid = strings.TrimSpace(pid)
+
 	// pause the container
 	if _, err := s.d.Cmd("pause", cid); err != nil {
 		t.Fatal(cid, err)
@@ -2218,10 +2226,10 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *che
 
 	// Give time to containerd to process the command if we don't
 	// the resume event might be received after we do the inspect
-	pidCmd := exec.Command("pidof", "top")
+	pidCmd := exec.Command("kill", "-0", pid)
 	_, ec, _ := runCommandWithOutput(pidCmd)
 	for ec == 0 {
-		time.Sleep(3 * time.Second)
+		time.Sleep(1 * time.Second)
 		_, ec, _ = runCommandWithOutput(pidCmd)
 	}
 
