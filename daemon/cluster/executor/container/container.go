@@ -13,6 +13,8 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 	enginecontainer "github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/events"
+	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/engine-api/types/network"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
@@ -419,4 +421,12 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 	}
 
 	return clustertypes.NetworkCreateRequest{na.Network.ID, types.NetworkCreateRequest{Name: name, NetworkCreate: options}}, nil
+}
+
+func (c containerConfig) eventFilter() filters.Args {
+	filter := filters.NewArgs()
+	filter.Add("type", events.ContainerEventType)
+	filter.Add("name", c.name())
+	filter.Add("label", fmt.Sprintf("%v.task.id=%v", systemLabelPrefix, c.task.ID))
+	return filter
 }
