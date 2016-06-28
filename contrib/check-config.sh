@@ -232,6 +232,7 @@ flags=(
 	CGROUP_HUGETLB
 	NET_CLS_CGROUP $netprio
 	CFS_BANDWIDTH FAIR_GROUP_SCHED RT_GROUP_SCHED
+	IP_VS
 )
 check_flags "${flags[@]}"
 
