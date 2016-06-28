@@ -121,3 +121,15 @@ func (s *DockerSuite) TestRenameContainerWithSameName(c *check.C) {
 	c.Assert(err, checker.NotNil, check.Commentf("Renaming a container with the same name should have failed"))
 	c.Assert(out, checker.Contains, "Renaming a container with the same name", check.Commentf("%v", err))
 }
+
+// Test case for #23973
+func (s *DockerSuite) TestRenameContainerWithLinkedContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	db1, _ := dockerCmd(c, "run", "--name", "db1", "-d", "busybox", "top")
+	dockerCmd(c, "run", "--name", "app1", "-d", "--link", "db1:/mysql", "busybox", "top")
+	dockerCmd(c, "rename", "app1", "app2")
+	out, _, err := dockerCmdWithError("inspect", "--format='{{ .Id }}'", "app2/mysql")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, strings.TrimSpace(db1))
+}
