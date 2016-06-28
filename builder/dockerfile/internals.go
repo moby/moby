@@ -172,7 +172,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	}
 
 	cmd := b.runConfig.Cmd
-	b.runConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), "#(nop) %s %s in %s ", cmdName, srcHash, dest))
+	b.runConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), fmt.Sprintf("#(nop) %s %s in %s ", cmdName, srcHash, dest)))
 	defer func(cmd strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
 
 	if hit, err := b.probeCache(); err != nil {
