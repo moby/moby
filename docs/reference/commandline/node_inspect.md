@@ -15,6 +15,7 @@ parent = "smn_cli"
 
     Display detailed information on one or more nodes
 
+
       -f, --format=       Format the output using the given go template.
       --help              Print usage
       -p, --pretty        Print the information in a human friendly format.
