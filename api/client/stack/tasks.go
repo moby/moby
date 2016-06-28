@@ -3,6 +3,8 @@
 package stack
 
 import (
+	"fmt"
+
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/client"
@@ -43,6 +45,7 @@ func newTasksCommand(dockerCli *client.DockerCli) *cobra.Command {
 }
 
 func runTasks(dockerCli *client.DockerCli, opts tasksOptions) error {
+	namespace := opts.namespace
 	client := dockerCli.Client()
 	ctx := context.Background()
 
@@ -56,6 +59,11 @@ func runTasks(dockerCli *client.DockerCli, opts tasksOptions) error {
 	tasks, err := client.TaskList(ctx, types.TaskListOptions{Filter: filter})
 	if err != nil {
 		return err
+	}
+
+	if len(tasks) == 0 {
+		fmt.Fprintf(dockerCli.Out(), "Nothing found in stack: %s\n", namespace)
+		return nil
 	}
 
 	return task.Print(dockerCli, ctx, tasks, idresolver.New(client, opts.noResolve))
