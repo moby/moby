@@ -4,6 +4,7 @@ aliases = [
 "/mac/started/",
 "/windows/started/",
 "/linux/started/",
+"/getting-started/"
 ]
 title = "Get Started with Docker"
 description = "Getting started with Docker"
