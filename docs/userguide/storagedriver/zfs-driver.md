@@ -129,6 +129,27 @@ Stop the Docker daemon. Then, ensure that you have a spare block device at
 `/dev/xvdb`. The device identifier may be be different in your environment and 
 you should substitute your own values throughout the procedure.
 
+### Install Zfs on Ubuntu 16.04 LTS
+
+1. If it is running, stop the Docker `daemon`.
+
+2. Install the `zfs` package.
+
+        $ sudo apt-get install -y zfs
+        Reading package lists... Done
+        Building dependency tree
+        <output truncated>
+
+3. Verify that the `zfs` module is loaded correctly.
+
+        $ lsmod | grep zfs
+        zfs                  2813952  3
+        zunicode              331776  1 zfs
+        zcommon                57344  1 zfs
+        znvpair                90112  2 zfs,zcommon
+        spl                   102400  3 zfs,zcommon,znvpair
+        zavl                   16384  1 zfs
+
 ### Install Zfs on Ubuntu 14.04 LTS
 
 1. If it is running, stop the Docker `daemon`.
