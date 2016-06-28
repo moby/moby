@@ -436,8 +436,8 @@ do_install() {
 			exit 0
 			;;
 
-		fedora|centos|redhat|oraclelinux)
-			if [ "${lsb_dist}" = "redhat" ]; then
+		fedora|centos|redhat|redhatenterpriseserver|oraclelinux)
+			if [ "${lsb_dist}" = "redhat" ] || [ "${lsb_dist}" = "redhatenterpriseserver" ]; then
 				# we use the centos repository for both redhat and centos releases
 				lsb_dist='centos'
 			fi
