@@ -94,8 +94,9 @@ RUN set -x \
 
 # Install Go
 # We don't have official binary tarballs for ARM64, eigher for Go or bootstrap,
-# so we use the official armv6 released binaries as a GOROOT_BOOTSTRAP, and
-# build Go from source code.
+# so we use gccgo as bootstrap to build Go from source code.
+# We don't use the official ARMv6 released binaries as a GOROOT_BOOTSTRAP, because
+# not all ARM64 platforms support 32-bit mode. 32-bit mode is optional for ARMv8.
 ENV GO_VERSION 1.6.2
 RUN mkdir /usr/src/go && curl -fsSL https://storage.googleapis.com/golang/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/src/go -xz --strip-components=1 \
 	&& cd /usr/src/go/src \
