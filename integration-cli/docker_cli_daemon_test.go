@@ -1551,6 +1551,11 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *chec
 	out, err := s.d.Cmd("run", "-d", "busybox", "top")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
 	id := strings.TrimSpace(out)
+
+	pid, err := s.d.Cmd("inspect", "-f", "{{.State.Pid}}", id)
+	c.Assert(err, check.IsNil)
+	pid = strings.TrimSpace(pid)
+
 	c.Assert(s.d.cmd.Process.Signal(os.Kill), check.IsNil)
 	mountOut, err := ioutil.ReadFile("/proc/self/mountinfo")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
@@ -1559,10 +1564,10 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *chec
 	comment := check.Commentf("%s should stay mounted from older daemon start:\nDaemon root repository %s\n%s", id, s.d.folder, mountOut)
 	c.Assert(strings.Contains(string(mountOut), id), check.Equals, true, comment)
 
-	// kill the container
-	runCmd := exec.Command(ctrBinary, "--address", "unix:///var/run/docker/libcontainerd/docker-containerd.sock", "containers", "kill", id)
+	// kill the process
+	runCmd := exec.Command("kill", "-9", pid)
 	if out, ec, err := runCommandWithOutput(runCmd); err != nil {
-		c.Fatalf("Failed to run ctr, ExitCode: %d, err: %v output: %s id: %s\n", ec, err, out, id)
+		c.Fatalf("Failed to kill process, ExitCode: %d, err: %v output: %s\n", ec, err, out)
 	}
 
 	// restart daemon.
@@ -2095,7 +2100,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithNames(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check.C) {
 	// TODO(mlaventure): Not sure what would the exit code be on windows
 	testRequires(t, DaemonIsLinux)
-	if err := s.d.StartWithBusybox(); err != nil {
+	if err := s.d.StartWithBusybox("--live-restore"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2106,28 +2111,31 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check
 	}
 	cid = strings.TrimSpace(cid)
 
+	pid, err := s.d.Cmd("inspect", "-f", "{{.State.Pid}}", cid)
+	t.Assert(err, check.IsNil)
+	pid = strings.TrimSpace(pid)
+
 	// Kill the daemon
 	if err := s.d.Kill(); err != nil {
 		t.Fatal(err)
 	}
 
-	// kill the container
-	runCmd := exec.Command(ctrBinary, "--address", "unix:///var/run/docker/libcontainerd/docker-containerd.sock", "containers", "kill", cid)
+	// Kill the process
+	runCmd := exec.Command("kill", "-9", pid)
 	if out, ec, err := runCommandWithOutput(runCmd); err != nil {
-		t.Fatalf("Failed to run ctr, ExitCode: %d, err: '%v' output: '%s' cid: '%s'\n", ec, err, out, cid)
+		t.Fatalf("Failed to kill process, ExitCode: %d, err: '%v' output: '%s'\n", ec, err, out)
 	}
 
-	// Give time to containerd to process the command if we don't
-	// the exit event might be received after we do the inspect
-	pidCmd := exec.Command("pidof", "top")
+	// Give time for process to exit
+	pidCmd := exec.Command("kill", "-0", pid)
 	_, ec, _ := runCommandWithOutput(pidCmd)
 	for ec == 0 {
-		time.Sleep(3 * time.Second)
+		time.Sleep(1 * time.Second)
 		_, ec, _ = runCommandWithOutput(pidCmd)
 	}
 
 	// restart the daemon
-	if err := s.d.Start(); err != nil {
+	if err := s.d.Start("--live-restore"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2136,8 +2144,8 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check
 	t.Assert(err, check.IsNil)
 
 	out = strings.TrimSpace(out)
-	if out != "143" {
-		t.Fatalf("Expected exit code '%s' got '%s' for container '%s'\n", "143", out, cid)
+	if out != "137" {
+		t.Fatalf("Expected exit code '%s' got '%s' for container '%s'\n", "137", out, cid)
 	}
 
 }
@@ -2183,64 +2191,6 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonCrash(c *check.C) {
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
 	comment = check.Commentf("%s is still mounted from older daemon start:\nDaemon root repository %s\n%s", id, s.d.folder, mountOut)
 	c.Assert(strings.Contains(string(mountOut), id), check.Equals, false, comment)
-}
-
-// TestDaemonRestartWithUnpausedRunningContainer requires live restore of running containers.
-func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *check.C) {
-	// TODO(mlaventure): Not sure what would the exit code be on windows
-	testRequires(t, DaemonIsLinux)
-	if err := s.d.StartWithBusybox("--live-restore"); err != nil {
-		t.Fatal(err)
-	}
-
-	cid, err := s.d.Cmd("run", "-d", "--name", "test", "busybox", "top")
-	defer s.d.Stop()
-	if err != nil {
-		t.Fatal(cid, err)
-	}
-	cid = strings.TrimSpace(cid)
-
-	// pause the container
-	if _, err := s.d.Cmd("pause", cid); err != nil {
-		t.Fatal(cid, err)
-	}
-
-	// Kill the daemon
-	if err := s.d.Kill(); err != nil {
-		t.Fatal(err)
-	}
-
-	// resume the container
-	runCmd := exec.Command(ctrBinary, "--address", "unix:///var/run/docker/libcontainerd/docker-containerd.sock", "containers", "resume", cid)
-	if out, ec, err := runCommandWithOutput(runCmd); err != nil {
-		t.Fatalf("Failed to run ctr, ExitCode: %d, err: '%v' output: '%s' cid: '%s'\n", ec, err, out, cid)
-	}
-
-	// Give time to containerd to process the command if we don't
-	// the resume event might be received after we do the inspect
-	pidCmd := exec.Command("pidof", "top")
-	_, ec, _ := runCommandWithOutput(pidCmd)
-	for ec == 0 {
-		time.Sleep(3 * time.Second)
-		_, ec, _ = runCommandWithOutput(pidCmd)
-	}
-
-	// restart the daemon
-	if err := s.d.Start("--live-restore"); err != nil {
-		t.Fatal(err)
-	}
-
-	// Check that we've got the correct status
-	out, err := s.d.Cmd("inspect", "-f", "{{.State.Status}}", cid)
-	t.Assert(err, check.IsNil)
-
-	out = strings.TrimSpace(out)
-	if out != "running" {
-		t.Fatalf("Expected exit code '%s' got '%s' for container '%s'\n", "running", out, cid)
-	}
-	if _, err := s.d.Cmd("kill", cid); err != nil {
-		t.Fatal(err)
-	}
 }
 
 // TestRunLinksChanged checks that creating a new container with the same name does not update links

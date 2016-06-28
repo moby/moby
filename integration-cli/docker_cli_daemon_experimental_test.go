@@ -19,6 +19,15 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPluginEnabled(c *check.C) {
 		c.Fatalf("Could not install plugin: %v %s", err, out)
 	}
 
+	defer func() {
+		if out, err := s.d.Cmd("plugin", "disable", pluginName); err != nil {
+			c.Fatalf("Could not disable plugin: %v %s", err, out)
+		}
+		if out, err := s.d.Cmd("plugin", "remove", pluginName); err != nil {
+			c.Fatalf("Could not remove plugin: %v %s", err, out)
+		}
+	}()
+
 	if err := s.d.Restart(); err != nil {
 		c.Fatalf("Could not restart daemon: %v", err)
 	}
@@ -40,6 +49,12 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPluginDisabled(c *check.C) {
 	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pluginName, "--disable"); err != nil {
 		c.Fatalf("Could not install plugin: %v %s", err, out)
 	}
+
+	defer func() {
+		if out, err := s.d.Cmd("plugin", "remove", pluginName); err != nil {
+			c.Fatalf("Could not remove plugin: %v %s", err, out)
+		}
+	}()
 
 	if err := s.d.Restart(); err != nil {
 		c.Fatalf("Could not restart daemon: %v", err)
