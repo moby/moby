@@ -472,8 +472,12 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemonRestart(c 
 // Ensures that the daemon handles when the plugin responds to a `Get` request with a null volume and a null error.
 // Prior the daemon would panic in this scenario.
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGetEmptyResponse(c *check.C) {
-	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "--name", "abc2", "--opt", "ninja=1")
-	out, _, err := dockerCmdWithError("volume", "inspect", "abc2")
+	c.Assert(s.d.Start(), checker.IsNil)
+
+	out, err := s.d.Cmd("volume", "create", "-d", "test-external-volume-driver", "--name", "abc2", "--opt", "ninja=1")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	out, err = s.d.Cmd("volume", "inspect", "abc2")
 	c.Assert(err, checker.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "No such volume")
 }
