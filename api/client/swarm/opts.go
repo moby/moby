@@ -14,10 +14,10 @@ import (
 
 const (
 	defaultListenAddr = "0.0.0.0:2377"
-	// WORKER constant for worker name
-	WORKER = "WORKER"
-	// MANAGER constant for manager name
-	MANAGER = "MANAGER"
+
+	worker  = "WORKER"
+	manager = "MANAGER"
+	none    = "NONE"
 
 	flagAutoAccept          = "auto-accept"
 	flagCertExpiry          = "cert-expiry"
@@ -30,8 +30,8 @@ const (
 
 var (
 	defaultPolicies = []swarm.Policy{
-		{Role: WORKER, Autoaccept: true},
-		{Role: MANAGER, Autoaccept: false},
+		{Role: worker, Autoaccept: true},
+		{Role: manager, Autoaccept: false},
 	}
 )
 
@@ -86,40 +86,33 @@ func NewListenAddrOption() NodeAddrOption {
 
 // AutoAcceptOption is a value type for auto-accept policy
 type AutoAcceptOption struct {
-	values map[string]bool
+	values map[string]struct{}
 }
 
 // String prints a string representation of this option
 func (o *AutoAcceptOption) String() string {
 	keys := []string{}
-	for key, value := range o.values {
-		keys = append(keys, fmt.Sprintf("%s=%v", strings.ToLower(key), value))
+	for key := range o.values {
+		keys = append(keys, fmt.Sprintf("%s=true", strings.ToLower(key)))
 	}
 	return strings.Join(keys, ", ")
 }
 
 // Set sets a new value on this option
-func (o *AutoAcceptOption) Set(value string) error {
-	value = strings.ToUpper(value)
-	switch value {
-	case "", "NONE":
-		if accept, ok := o.values[WORKER]; ok && accept {
-			return fmt.Errorf("value NONE is incompatible with %s", WORKER)
+func (o *AutoAcceptOption) Set(acceptValues string) error {
+	for _, value := range strings.Split(acceptValues, ",") {
+		value = strings.ToUpper(value)
+		switch value {
+		case none, worker, manager:
+			o.values[value] = struct{}{}
+		default:
+			return fmt.Errorf("must be one / combination of %s, %s; or NONE", worker, manager)
 		}
-		if accept, ok := o.values[MANAGER]; ok && accept {
-			return fmt.Errorf("value NONE is incompatible with %s", MANAGER)
-		}
-		o.values[WORKER] = false
-		o.values[MANAGER] = false
-	case WORKER, MANAGER:
-		if accept, ok := o.values[value]; ok && !accept {
-			return fmt.Errorf("value NONE is incompatible with %s", value)
-		}
-		o.values[value] = true
-	default:
-		return fmt.Errorf("must be one of %s, %s, NONE", WORKER, MANAGER)
 	}
-
+	// NONE must stand alone, so if any non-NONE setting exist with it, error with conflict
+	if o.isPresent(none) && len(o.values) > 1 {
+		return fmt.Errorf("value NONE cannot be specified alongside other node types")
+	}
 	return nil
 }
 
@@ -133,7 +126,11 @@ func (o *AutoAcceptOption) Policies(secret *string) []swarm.Policy {
 	policies := []swarm.Policy{}
 	for _, p := range defaultPolicies {
 		if len(o.values) != 0 {
-			p.Autoaccept = o.values[string(p.Role)]
+			if _, ok := o.values[string(p.Role)]; ok {
+				p.Autoaccept = true
+			} else {
+				p.Autoaccept = false
+			}
 		}
 		p.Secret = secret
 		policies = append(policies, p)
@@ -141,9 +138,15 @@ func (o *AutoAcceptOption) Policies(secret *string) []swarm.Policy {
 	return policies
 }
 
+// isPresent returns whether the key exists in the set or not
+func (o *AutoAcceptOption) isPresent(key string) bool {
+	_, c := o.values[key]
+	return c
+}
+
 // NewAutoAcceptOption returns a new auto-accept option
 func NewAutoAcceptOption() AutoAcceptOption {
-	return AutoAcceptOption{values: make(map[string]bool)}
+	return AutoAcceptOption{values: make(map[string]struct{})}
 }
 
 // ExternalCAOption is a Value type for parsing external CA specifications.
