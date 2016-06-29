@@ -21,8 +21,8 @@ func TestUpdateServiceArgs(t *testing.T) {
 
 func TestUpdateLabels(t *testing.T) {
 	flags := newUpdateCommand(nil).Flags()
-	flags.Set("label", "toadd=newlabel")
-	flags.Set("remove-label", "toremove")
+	flags.Set("label-add", "toadd=newlabel")
+	flags.Set("label-rm", "toremove")
 
 	labels := map[string]string{
 		"toremove": "thelabeltoremove",
@@ -37,8 +37,8 @@ func TestUpdateLabels(t *testing.T) {
 
 func TestUpdatePlacement(t *testing.T) {
 	flags := newUpdateCommand(nil).Flags()
-	flags.Set("constraint", "node=toadd")
-	flags.Set("remove-constraint", "node!=toremove")
+	flags.Set("constraint-add", "node=toadd")
+	flags.Set("constraint-rm", "node!=toremove")
 
 	placement := &swarm.Placement{
 		Constraints: []string{"node!=toremove", "container=tokeep"},
@@ -52,8 +52,8 @@ func TestUpdatePlacement(t *testing.T) {
 
 func TestUpdateEnvironment(t *testing.T) {
 	flags := newUpdateCommand(nil).Flags()
-	flags.Set("env", "toadd=newenv")
-	flags.Set("remove-env", "toremove")
+	flags.Set("env-add", "toadd=newenv")
+	flags.Set("env-rm", "toremove")
 
 	envs := []string{"toremove=theenvtoremove", "tokeep=value"}
 
@@ -65,8 +65,8 @@ func TestUpdateEnvironment(t *testing.T) {
 
 func TestUpdateMounts(t *testing.T) {
 	flags := newUpdateCommand(nil).Flags()
-	flags.Set("mount", "type=volume,target=/toadd")
-	flags.Set("remove-mount", "/toremove")
+	flags.Set("mount-add", "type=volume,target=/toadd")
+	flags.Set("mount-rm", "/toremove")
 
 	mounts := []swarm.Mount{
 		{Target: "/toremove", Type: swarm.MountType("BIND")},
@@ -81,8 +81,8 @@ func TestUpdateMounts(t *testing.T) {
 
 func TestUpdateNetworks(t *testing.T) {
 	flags := newUpdateCommand(nil).Flags()
-	flags.Set("network", "toadd")
-	flags.Set("remove-network", "toremove")
+	flags.Set("network-add", "toadd")
+	flags.Set("network-rm", "toremove")
 
 	attachments := []swarm.NetworkAttachmentConfig{
 		{Target: "toremove", Aliases: []string{"foo"}},
@@ -97,8 +97,8 @@ func TestUpdateNetworks(t *testing.T) {
 
 func TestUpdatePorts(t *testing.T) {
 	flags := newUpdateCommand(nil).Flags()
-	flags.Set("publish", "1000:1000")
-	flags.Set("remove-publish", "333/udp")
+	flags.Set("publish-add", "1000:1000")
+	flags.Set("publish-rm", "333/udp")
 
 	portConfigs := []swarm.PortConfig{
 		{TargetPort: 333, Protocol: swarm.PortConfigProtocol("udp")},
