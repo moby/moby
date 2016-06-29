@@ -19,6 +19,21 @@ func Equal(t TestingT, actual, expected interface{}) {
 	}
 }
 
+//EqualStringSlice compares two slices and fails the test if they do not contain
+// the same items.
+func EqualStringSlice(t TestingT, actual, expected []string) {
+	if len(actual) != len(expected) {
+		t.Fatalf("Expected (length %d): %q\nActual (length %d): %q",
+			len(expected), expected, len(actual), actual)
+	}
+	for i, item := range actual {
+		if item != expected[i] {
+			t.Fatalf("Slices differ at element %d, expected %q got %q",
+				i, expected[i], item)
+		}
+	}
+}
+
 // NilError asserts that the error is nil, otherwise it fails the test.
 func NilError(t TestingT, err error) {
 	if err != nil {
