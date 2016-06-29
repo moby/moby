@@ -45,7 +45,7 @@ func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, serviceID stri
 		return err
 	}
 
-	err = updateService(&service.Spec, flags)
+	err = updateService(flags, &service.Spec)
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, serviceID stri
 	return nil
 }
 
-func updateService(spec *swarm.ServiceSpec, flags *pflag.FlagSet) error {
+func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 
 	updateString := func(flag string, field *string) {
 		if flags.Changed(flag) {
@@ -123,7 +123,7 @@ func updateService(spec *swarm.ServiceSpec, flags *pflag.FlagSet) error {
 	updateLabels(flags, &spec.Labels)
 	updateString("image", &cspec.Image)
 	updateSlice("command", &cspec.Command)
-	updateSlice("arg", &cspec.Command)
+	updateSlice("arg", &cspec.Args)
 	updateListOpts("env", &cspec.Env)
 	updateString("workdir", &cspec.Dir)
 	updateString(flagUser, &cspec.User)
