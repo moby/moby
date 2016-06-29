@@ -197,53 +197,74 @@ __docker_complete_runtimes() {
 	COMPREPLY=( $(compgen -W "$(__docker_runtimes)" -- "$cur") )
 }
 
+# Returns a list of all nodes. Additional arguments to `docker node`
+# may be specified in order to filter the node list, e.g.
+# `__docker_nodes --filter role=manager`
+# An optional first argument `--id|--name` may be used to limit
+# the output to the IDs or names of matching nodes.
 __docker_nodes() {
-	local fields='$1,$2'  # node names & IDs
-	__docker_q node ls | sed -e 's/\*//g' | awk "NR>1 {print $fields}"
+	local fields='$1,$2'  # default: node IDs & names
+	if [ "$1" = "--id" ] ; then
+		fields='$1' # IDs only
+		shift
+	elif [ "$1" = "--name" ] ; then
+		fields='$2' # names only
+		shift
+	fi
+	__docker_q node ls "$@" | tr -d '*' | awk "NR>1 {print $fields}"
 }
 
+# Applies completion of nodes based on the current value of `$cur` or
+# the value of the optional first argument `--cur`, if given.
+# Additional filters may be appended, see `__docker_nodes`.
 __docker_complete_nodes() {
-	COMPREPLY=( $(compgen -W "$(__docker_nodes $1)" -- "$cur") )
+	local current=$cur
+	if [ "$1" = "--cur" ] ; then
+		current="$2"
+		shift 2
+	fi
+	COMPREPLY=( $(compgen -W "$(__docker_nodes "$@")" -- "$current") )
 }
 
 __docker_complete_nodes_plus_self() {
-	COMPREPLY=( $(compgen -W "$(__docker_nodes $1) self" -- "$cur") )
+	__docker_complete_nodes "$@"
+	COMPREPLY+=( self )
 }
 
-__docker_pending_nodes() {
-	local fields='$1'  # node ID
-	__docker_q node ls --filter membership=pending | awk "NR>1 {print $fields}"
-}
-
-__docker_complete_pending_nodes() {
-	COMPREPLY=( $(compgen -W "$(__docker_pending_nodes $1)" -- "$cur") )
-}
-
-__docker_manager_nodes() {
-	local fields='$1,$2'  # node names & IDs
-	__docker_q node ls --filter role=manager | awk "NR>1 {print $fields}"
-}
-
-__docker_complete_manager_nodes() {
-	COMPREPLY=( $(compgen -W "$(__docker_manager_nodes $1)" -- "$cur") )
-}
-
-__docker_worker_nodes() {
-	local fields='$1,$2'  # node names & IDs
-	__docker_q node ls --filter role=worker | awk "NR>1 {print $fields}"
-}
-
-__docker_complete_worker_nodes() {
-	COMPREPLY=( $(compgen -W "$(__docker_worker_nodes $1)" -- "$cur") )
-}
-
+# Returns a list of all services. Additional arguments to `docker service ls`
+# may be specified in order to filter the service list, e.g.
+# `__docker_services --filter name=xxx`
+# An optional first argument `--id|--name` may be used to limit
+# the output to the IDs or names of matching services.
 __docker_services() {
-        local fields='$1,$2'  # service names & IDs
-        __docker_q service ls | awk "NR>1 {print $fields}"
+	local fields='$1,$2'  # default: service IDs & names
+	if [ "$1" = "--id" ] ; then
+		fields='$1' # IDs only
+		shift
+	elif [ "$1" = "--name" ] ; then
+		fields='$2' # names only
+		shift
+	fi
+        __docker_q service ls "$@" | awk "NR>1 {print $fields}"
 }
 
+# Applies completion of services based on the current value of `$cur` or
+# the value of the optional first argument `--cur`, if given.
+# Additional filters may be appended, see `__docker_services`.
 __docker_complete_services() {
-	COMPREPLY=( $(compgen -W "$(__docker_services $1)" -- "$cur") )
+	local current=$cur
+	if [ "$1" = "--cur" ] ; then
+		current="$2"
+		shift 2
+	fi
+	COMPREPLY=( $(compgen -W "$(__docker_services "$@")" -- "$current") )
+}
+
+# Appends the word passed as an argument to every word in `$COMPREPLY`.
+# Normally you do this with `compgen -S`. This function exists so that you can use
+# the __docker_complete_XXX functions in cases where you need a suffix.
+__docker_append_to_completions() {
+	COMPREPLY=( ${COMPREPLY[@]/%/"$1"} )
 }
 
 # Finds the position of the first word that is neither option nor an option's argument.
@@ -1579,15 +1600,29 @@ _docker_service_list() {
 }
 
 _docker_service_ls() {
+	local key=$(__docker_map_key_of_current_option '--filter|-f')
+	case "$key" in
+		id)
+			__docker_complete_services --cur "${cur##*=}" --id
+			return
+			;;
+		name)
+			__docker_complete_services --cur "${cur##*=}" --name
+			return
+			;;
+	esac
+
 	case "$prev" in
-		--format|-f)
+		--filter|-f)
+			COMPREPLY=( $( compgen -W "id label name" -S = -- "$cur" ) )
+			__docker_nospace
 			return
 			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "-f --filter --help --quiet -q" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--filter -f --help --quiet -q" -- "$cur" ) )
 			;;
 	esac
 }
@@ -1612,15 +1647,30 @@ _docker_service_scale() {
 			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
 			;;
 		*)
-			COMPREPLY=( $(compgen -S "=" -W "$(__docker_services $1)" -- "$cur") )
+			__docker_complete_services
+			__docker_append_to_completions "="
 			__docker_nospace
 			;;
 	esac
 }
 
 _docker_service_tasks() {
+	local key=$(__docker_map_key_of_current_option '--filter|-f')
+	case "$key" in
+		desired-state)
+			COMPREPLY=( $( compgen -W "accepted running" -- "${cur##*=}" ) )
+			return
+			;;
+		name)
+			__docker_complete_services --cur "${cur##*=}" --name
+			return
+			;;
+	esac
+
 	case "$prev" in
-		--format|-f)
+		--filter|-f)
+			COMPREPLY=( $( compgen -W "desired-state id name" -S = -- "$cur" ) )
+			__docker_nospace
 			return
 			;;
 	esac
@@ -1630,7 +1680,11 @@ _docker_service_tasks() {
 			COMPREPLY=( $( compgen -W "--all -a --filter -f --help --no-resolve -n" -- "$cur" ) )
 			;;
 		*)
-			__docker_complete_services
+			local counter=$(__docker_pos_first_nonflag '--filter|-f')
+			if [ $cword -eq $counter ]; then
+				__docker_complete_services
+			fi
+			;;
 	esac
 }
 
@@ -1845,7 +1899,7 @@ _docker_node_accept() {
 			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
 			;;
 		*)
-			__docker_complete_pending_nodes
+			__docker_complete_nodes --id --filter membership=pending
 	esac
 }
 
@@ -1855,7 +1909,7 @@ _docker_node_demote() {
 			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
 			;;
 		*)
-			__docker_complete_manager_nodes
+			__docker_complete_nodes --filter role=manager
 	esac
 }
 
@@ -1880,8 +1934,22 @@ _docker_node_list() {
 }
 
 _docker_node_ls() {
+	local key=$(__docker_map_key_of_current_option '--filter|-f')
+	case "$key" in
+		id)
+			__docker_complete_nodes --cur "${cur##*=}" --id
+			return
+			;;
+		name)
+			__docker_complete_nodes --cur "${cur##*=}" --name
+			return
+			;;
+	esac
+
 	case "$prev" in
 		--filter|-f)
+			COMPREPLY=( $( compgen -W "id label name" -S = -- "$cur" ) )
+			__docker_nospace
 			return
 			;;
 	esac
@@ -1899,7 +1967,7 @@ _docker_node_promote() {
 			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
 			;;
 		*)
-			__docker_complete_worker_nodes
+			__docker_complete_nodes --filter role=worker
 	esac
 }
 
@@ -1918,8 +1986,22 @@ _docker_node_rm() {
 }
 
 _docker_node_tasks() {
+	local key=$(__docker_map_key_of_current_option '--filter|-f')
+	case "$key" in
+		desired-state)
+			COMPREPLY=( $( compgen -W "accepted running" -- "${cur##*=}" ) )
+			return
+			;;
+		name)
+			__docker_complete_services --cur "${cur##*=}" --name
+			return
+			;;
+	esac
+
 	case "$prev" in
 		--filter|-f)
+			COMPREPLY=( $( compgen -W "desired-state id label name" -S = -- "$cur" ) )
+			__docker_nospace
 			return
 			;;
 	esac
@@ -1929,7 +2011,11 @@ _docker_node_tasks() {
 			COMPREPLY=( $( compgen -W "--all -a --filter -f --help --no-resolve -n" -- "$cur" ) )
 			;;
 		*)
-			__docker_complete_nodes_plus_self
+			local counter=$(__docker_pos_first_nonflag '--filter|-f')
+			if [ $cword -eq $counter ]; then
+				__docker_complete_nodes_plus_self
+			fi
+			;;
 	esac
 }
 
