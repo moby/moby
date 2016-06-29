@@ -41,5 +41,3 @@ removed the service. The CLI returns a message that the service is not found:
 
 In the next step of the tutorial, you set up a new service and and apply a
 [rolling update](rolling-update.md).
-
-<p style="margin-bottom:300px">&nbsp;</p>

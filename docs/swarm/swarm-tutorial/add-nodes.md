@@ -66,5 +66,3 @@ the `docker node ls` command to see the worker nodes:
 
 Now your swarm consists of a manager and two worker nodes. In the next step of
 the tutorial, you [deploy a service](deploy-service.md) to the swarm.
-
-<p style="margin-bottom:300px">&nbsp;</p>

@@ -129,5 +129,3 @@ drained node to an active state:
   * during a rolling update
   * when you set another node to `Drain` availability
   * when a task fails on another active node
-
-<p style="margin-bottom:300px">&nbsp;</p>

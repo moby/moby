@@ -17,5 +17,3 @@ weight=10
 
 -   [Begin the tutorial](index.md) - Setup your environment to prepare
     to build a swarm.
-
-<p style="margin-bottom:300px">&nbsp;</p>

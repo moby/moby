@@ -46,5 +46,3 @@ example, the tutorial uses a machine named `manager1`.
 ## What's next?
 
 Now you've deployed a service to the swarm, you're ready to [inspect the service](inspect-service.md).
-
-<p style="margin-bottom:300px">&nbsp;</p>
