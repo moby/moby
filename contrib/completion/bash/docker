@@ -21,6 +21,8 @@
 # setting environment variables.
 #
 # DOCKER_COMPLETION_SHOW_NETWORK_IDS
+# DOCKER_COMPLETION_SHOW_NODE_IDS
+# DOCKER_COMPLETION_SHOW_SERVICE_IDS
 #   "no"  - Show names only (default)
 #   "yes" - Show names and ids
 #
@@ -200,10 +202,15 @@ __docker_complete_runtimes() {
 # Returns a list of all nodes. Additional arguments to `docker node`
 # may be specified in order to filter the node list, e.g.
 # `__docker_nodes --filter role=manager`
+# By default, only node names are completed.
+# Set DOCKER_COMPLETION_SHOW_NODE_IDS=yes to also complete node IDs.
 # An optional first argument `--id|--name` may be used to limit
-# the output to the IDs or names of matching nodes.
+# the output to the IDs or names of matching nodes. This setting takes
+# precedence over the environment setting.
 __docker_nodes() {
-	local fields='$1,$2'  # default: node IDs & names
+	local fields='$2'  # default: node name only
+	[ "${DOCKER_COMPLETION_SHOW_NODE_IDS}" = yes ] && fields='$1,$2' # ID and name
+
 	if [ "$1" = "--id" ] ; then
 		fields='$1' # IDs only
 		shift
@@ -234,10 +241,15 @@ __docker_complete_nodes_plus_self() {
 # Returns a list of all services. Additional arguments to `docker service ls`
 # may be specified in order to filter the service list, e.g.
 # `__docker_services --filter name=xxx`
+# By default, only node names are completed.
+# Set DOCKER_COMPLETION_SHOW_SERVICE_IDS=yes to also complete service IDs.
 # An optional first argument `--id|--name` may be used to limit
-# the output to the IDs or names of matching services.
+# the output to the IDs or names of matching services. This setting takes
+# precedence over the environment setting.
 __docker_services() {
-	local fields='$1,$2'  # default: service IDs & names
+	local fields='$2'  # default: service name only
+	[ "${DOCKER_COMPLETION_SHOW_SERVICE_IDS}" = yes ] && fields='$1,$2' # ID & name
+
 	if [ "$1" = "--id" ] ; then
 		fields='$1' # IDs only
 		shift
