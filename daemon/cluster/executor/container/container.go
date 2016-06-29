@@ -404,6 +404,9 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 			Driver: na.Network.IPAM.Driver.Name,
 		},
 		Options:        na.Network.DriverState.Options,
+		Labels:         na.Network.Spec.Annotations.Labels,
+		Internal:       na.Network.Spec.Internal,
+		EnableIPv6:     na.Network.Spec.Ipv6Enabled,
 		CheckDuplicate: true,
 	}
 
