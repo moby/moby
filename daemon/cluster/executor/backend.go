@@ -33,4 +33,5 @@ type Backend interface {
 	SetNetworkBootstrapKeys([]*networktypes.EncryptionKey) error
 	SetClusterProvider(provider cluster.Provider)
 	IsSwarmCompatible() error
+	LogEventWithAttributes(eventtype, id string, action string, attributes map[string]string)
 }

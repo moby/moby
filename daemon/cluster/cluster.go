@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -321,6 +322,9 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 		if err := initClusterSpec(n, req.Spec); err != nil {
 			return "", err
 		}
+		c.LogSwarmEvent(n, "init", map[string]string{
+			"listenAddr": req.ListenAddr,
+		})
 		go c.reconnectOnFailure(ctx)
 		return n.NodeID(), nil
 	case <-ctx.Done():
@@ -371,6 +375,11 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 			return ErrSwarmJoinTimeoutReached
 		case <-n.Ready():
 			go c.reconnectOnFailure(ctx)
+			c.LogSwarmEvent(n, "join", map[string]string{
+				"listenAddr":  req.ListenAddr,
+				"remoteAddrs": strings.Join(req.RemoteAddrs, ","),
+				"manager":     strconv.FormatBool(req.Manager),
+			})
 			return nil
 		case <-ctx.Done():
 			c.RLock()
@@ -447,6 +456,7 @@ func (c *Cluster) Leave(force bool) error {
 	if err := c.clearState(); err != nil {
 		return err
 	}
+	c.LogSwarmEvent(node, "leave", map[string]string{})
 	return nil
 }
 
@@ -691,7 +701,6 @@ func (c *Cluster) CreateService(s types.ServiceSpec) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	return r.Service.ID, nil
 }
 
