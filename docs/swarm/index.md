@@ -90,5 +90,3 @@ roll-back a task to a previous version of the service.
     * [service scale](../reference/commandline/service_scale.md)
     * [service tasks](../reference/commandline/service_tasks.md)
     * [service update](../reference/commandline/service_update.md)
-
-<p style="margin-bottom:300px">&nbsp;</p>

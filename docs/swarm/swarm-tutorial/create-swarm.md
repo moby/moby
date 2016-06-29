@@ -77,6 +77,3 @@ node. For example, the tutorial uses a machine named `manager1`.
 
 In the next section of the tutorial, we'll [add two more nodes](add-nodes.md) to
 the cluster.
-
-
-<p style="margin-bottom:300px">&nbsp;</p>

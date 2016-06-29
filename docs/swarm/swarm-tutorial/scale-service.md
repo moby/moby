@@ -70,5 +70,3 @@ connected. The following example shows the tasks running on `manager1`:
 
 At this point in the tutorial, you're finished with the `helloworld` service.
 The next step shows how to [delete the service](delete-service.md).
-
-<p style="margin-bottom:300px">&nbsp;</p>

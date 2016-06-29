@@ -103,5 +103,3 @@ desired state:
     entered the `RUNNING` state in approximately 10 second increments.
 
 Next, learn about how to [drain a node](drain-node.md) in the Swarm.
-
-<p style="margin-bottom:300px">&nbsp;</p>

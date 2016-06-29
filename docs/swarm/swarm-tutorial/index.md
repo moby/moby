@@ -90,5 +90,3 @@ The tutorial uses `manager1` : `192.168.99.100`.
 ## What's next?
 
 After you have set up your environment, you're ready to [create a swarm](create-swarm.md).
-
-<p style="margin-bottom:300px">&nbsp;</p>
