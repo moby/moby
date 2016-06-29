@@ -71,11 +71,7 @@ func createChainIDFromParent(parent layer.ChainID, dgsts ...layer.DiffID) layer.
 	return createChainIDFromParent(layer.ChainID(dgst), dgsts[1:]...)
 }
 
-func (ls *mockLayerStore) Register(reader io.Reader, parentID layer.ChainID) (layer.Layer, error) {
-	return ls.RegisterWithDescriptor(reader, parentID, distribution.Descriptor{})
-}
-
-func (ls *mockLayerStore) RegisterWithDescriptor(reader io.Reader, parentID layer.ChainID, _ distribution.Descriptor) (layer.Layer, error) {
+func (ls *mockLayerStore) Register(reader io.Reader, parentID layer.ChainID, descriptor distribution.Descriptor) (layer.Layer, error) {
 	var (
 		parent layer.Layer
 		err    error
@@ -270,7 +266,7 @@ func TestSuccessfulDownload(t *testing.T) {
 	firstDescriptor := descriptors[0].(*mockDownloadDescriptor)
 
 	// Pre-register the first layer to simulate an already-existing layer
-	l, err := layerStore.Register(firstDescriptor.mockTarStream(), "")
+	l, err := layerStore.Register(firstDescriptor.mockTarStream(), "", distribution.Descriptor{})
 	if err != nil {
 		t.Fatal(err)
 	}

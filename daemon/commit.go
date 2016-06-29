@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/distribution"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/container"
@@ -171,7 +172,8 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		osFeatures = img.OSFeatures
 	}
 
-	l, err := daemon.layerStore.Register(rwTar, rootFS.ChainID())
+	// TODO(runcom): generate descriptor
+	l, err := daemon.layerStore.Register(rwTar, rootFS.ChainID(), distribution.Descriptor{})
 	if err != nil {
 		return "", err
 	}

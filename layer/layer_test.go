@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/vfs"
@@ -104,7 +105,7 @@ func createLayer(ls Store, parent ChainID, layerFunc layerInit) (Layer, error) {
 	}
 	defer ts.Close()
 
-	layer, err := ls.Register(ts, parent)
+	layer, err := ls.Register(ts, parent, distribution.Descriptor{})
 	if err != nil {
 		return nil, err
 	}
@@ -497,7 +498,7 @@ func TestTarStreamStability(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer1, err := ls.Register(bytes.NewReader(tar1), "")
+	layer1, err := ls.Register(bytes.NewReader(tar1), "", distribution.Descriptor{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -516,7 +517,7 @@ func TestTarStreamStability(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer2, err := ls.Register(bytes.NewReader(tar2), layer1.ChainID())
+	layer2, err := ls.Register(bytes.NewReader(tar2), layer1.ChainID(), distribution.Descriptor{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -684,12 +685,12 @@ func TestRegisterExistingLayer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer2a, err := ls.Register(bytes.NewReader(tar1), layer1.ChainID())
+	layer2a, err := ls.Register(bytes.NewReader(tar1), layer1.ChainID(), distribution.Descriptor{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	layer2b, err := ls.Register(bytes.NewReader(tar1), layer1.ChainID())
+	layer2b, err := ls.Register(bytes.NewReader(tar1), layer1.ChainID(), distribution.Descriptor{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -724,12 +725,12 @@ func TestTarStreamVerification(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer1, err := ls.Register(bytes.NewReader(tar1), "")
+	layer1, err := ls.Register(bytes.NewReader(tar1), "", distribution.Descriptor{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	layer2, err := ls.Register(bytes.NewReader(tar2), "")
+	layer2, err := ls.Register(bytes.NewReader(tar2), "", distribution.Descriptor{})
 	if err != nil {
 		t.Fatal(err)
 	}
