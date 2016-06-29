@@ -51,7 +51,7 @@ func filterNetworks(nws []types.NetworkResource, filter filters.Args) ([]types.N
 		return nil, err
 	}
 
-	var displayNet []types.NetworkResource
+	displayNet := []types.NetworkResource{}
 	for _, nw := range nws {
 		if filter.Include("driver") {
 			if !filter.ExactMatch("driver", nw.Driver) {
