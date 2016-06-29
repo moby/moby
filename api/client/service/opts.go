@@ -217,7 +217,7 @@ func (m *MountOpt) Set(value string) error {
 			}
 			setValueOnMap(volumeOptions().DriverConfig.Options, value)
 		default:
-			return fmt.Errorf("unexpected key '%s' in '%s'", key, value)
+			return fmt.Errorf("unexpected key '%s' in '%s'", key, field)
 		}
 	}
 
