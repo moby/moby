@@ -60,6 +60,7 @@ The currently supported filters are:
 
 * [id](#id)
 * [name](#name)
+* [desired_state](#desired_state)
 
 
 #### ID
@@ -82,6 +83,11 @@ $ docker service tasks -f "name=redis.1" redis
 ID                         NAME      SERVICE  IMAGE        DESIRED STATE  LAST STATE         NODE
 0qihejybwf1x5vqi8lgzlgnpq  redis.1   redis    redis:3.0.6  Running        Running 8 seconds  manager1
 ```
+
+
+#### desired_state
+
+The `desired_state` filter can take the values `running` and `accepted`.
 
 
 ## Related information
