@@ -412,7 +412,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 
 	// set up SIGUSR1 handler on Unix-like systems, or a Win32 global event
 	// on Windows to dump Go routine stacks
-	setupDumpStackTrap()
+	setupDumpStackTrap(config.Root)
 
 	uidMaps, gidMaps, err := setupRemappedRoot(config)
 	if err != nil {
