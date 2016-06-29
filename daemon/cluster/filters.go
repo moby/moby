@@ -68,7 +68,7 @@ func newListTasksFilters(filter filters.Args) (*swarmapi.ListTasksRequest_Filter
 		"label":         true,
 		"service":       true,
 		"node":          true,
-		"desired_state": true,
+		"desired-state": true,
 	}
 	if err := filter.Validate(accepted); err != nil {
 		return nil, err
@@ -81,11 +81,11 @@ func newListTasksFilters(filter filters.Args) (*swarmapi.ListTasksRequest_Filter
 		NodeIDs:    filter.Get("node"),
 	}
 
-	for _, s := range filter.Get("desired_state") {
+	for _, s := range filter.Get("desired-state") {
 		if state, ok := swarmapi.TaskState_value[strings.ToUpper(s)]; ok {
 			f.DesiredStates = append(f.DesiredStates, swarmapi.TaskState(state))
 		} else if s != "" {
-			return nil, fmt.Errorf("Invalid desired_state filter: '%s'", s)
+			return nil, fmt.Errorf("Invalid desired-state filter: '%s'", s)
 		}
 	}
 
