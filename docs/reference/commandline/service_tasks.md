@@ -60,7 +60,7 @@ The currently supported filters are:
 
 * [id](#id)
 * [name](#name)
-* [desired_state](#desired_state)
+* [desired-state](#desired-state)
 
 
 #### ID
@@ -85,9 +85,9 @@ ID                         NAME      SERVICE  IMAGE        DESIRED STATE  LAST S
 ```
 
 
-#### desired_state
+#### desired-state
 
-The `desired_state` filter can take the values `running` and `accepted`.
+The `desired-state` filter can take the values `running` and `accepted`.
 
 
 ## Related information
