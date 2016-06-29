@@ -1760,7 +1760,7 @@ a base64-encoded AuthConfig object.
     {
             "username": "jdoe",
             "password": "secret",
-            "email": "jdoe@acme.com",
+            "email": "jdoe@acme.com"
     }
         ```
 

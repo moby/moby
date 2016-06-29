@@ -1727,7 +1727,7 @@ Query Parameters:
     {
             "username": "jdoe",
             "password": "secret",
-            "email": "jdoe@acme.com",
+            "email": "jdoe@acme.com"
     }
         ```
 
