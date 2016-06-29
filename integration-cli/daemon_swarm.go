@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/go-check/check"
 )
@@ -129,6 +130,32 @@ func (d *SwarmDaemon) getService(c *check.C, id string) *swarm.Service {
 	c.Assert(json.Unmarshal(out, &service), checker.IsNil)
 	c.Assert(service.ID, checker.Equals, id)
 	return &service
+}
+
+func (d *SwarmDaemon) getServiceTasks(c *check.C, service string) []swarm.Task {
+	var tasks []swarm.Task
+
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("desired-state", "running")
+	filterArgs.Add("service", service)
+	filters, err := filters.ToParam(filterArgs)
+	c.Assert(err, checker.IsNil)
+
+	status, out, err := d.SockRequest("GET", "/tasks?filters="+filters, nil)
+	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+	c.Assert(json.Unmarshal(out, &tasks), checker.IsNil)
+	return tasks
+}
+
+func (d *SwarmDaemon) getTask(c *check.C, id string) swarm.Task {
+	var task swarm.Task
+
+	status, out, err := d.SockRequest("GET", "/tasks/"+id, nil)
+	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+	c.Assert(json.Unmarshal(out, &task), checker.IsNil)
+	return task
 }
 
 func (d *SwarmDaemon) updateService(c *check.C, service *swarm.Service, f ...serviceConstructor) {

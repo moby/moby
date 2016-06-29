@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/docker/docker/cliconfig"
@@ -194,9 +195,10 @@ func init() {
 }
 
 type DockerSwarmSuite struct {
-	ds        *DockerSuite
-	daemons   []*SwarmDaemon
-	portIndex int
+	ds          *DockerSuite
+	daemons     []*SwarmDaemon
+	daemonsLock sync.Mutex // protect access to daemons
+	portIndex   int
 }
 
 func (s *DockerSwarmSuite) SetUpTest(c *check.C) {
@@ -227,19 +229,23 @@ func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *Swarm
 	}
 
 	s.portIndex++
+	s.daemonsLock.Lock()
 	s.daemons = append(s.daemons, d)
+	s.daemonsLock.Unlock()
 
 	return d
 }
 
 func (s *DockerSwarmSuite) TearDownTest(c *check.C) {
 	testRequires(c, DaemonIsLinux)
+	s.daemonsLock.Lock()
 	for _, d := range s.daemons {
 		d.Stop()
 	}
 	s.daemons = nil
-	s.portIndex = 0
+	s.daemonsLock.Unlock()
 
+	s.portIndex = 0
 	s.ds.TearDownTest(c)
 }
 
