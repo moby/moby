@@ -251,6 +251,12 @@ do_install() {
 
 	lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
 
+	# Special case redhatenterpriseserver
+	if [ "${lsb_dist}" = "redhatenterpriseserver" ]; then
+        	# Set it to redhat, it will be changed to centos below anyways
+        	lsb_dist='redhat'
+	fi
+
 	case "$lsb_dist" in
 
 		ubuntu)
