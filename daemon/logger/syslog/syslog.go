@@ -105,7 +105,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		return nil, err
 	}
 
-	syslogFormatter, syslogFramer, err := parseLogFormat(ctx.Config["syslog-format"])
+	syslogFormatter, syslogFramer, err := parseLogFormat(ctx.Config["syslog-format"], proto)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +205,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 	if _, err := parseFacility(cfg["syslog-facility"]); err != nil {
 		return err
 	}
-	if _, _, err := parseLogFormat(cfg["syslog-format"]); err != nil {
+	if _, _, err := parseLogFormat(cfg["syslog-format"], ""); err != nil {
 		return err
 	}
 	return nil
@@ -241,16 +241,22 @@ func parseTLSConfig(cfg map[string]string) (*tls.Config, error) {
 	return tlsconfig.Client(opts)
 }
 
-func parseLogFormat(logFormat string) (syslog.Formatter, syslog.Framer, error) {
+func parseLogFormat(logFormat, proto string) (syslog.Formatter, syslog.Framer, error) {
 	switch logFormat {
 	case "":
 		return syslog.UnixFormatter, syslog.DefaultFramer, nil
 	case "rfc3164":
 		return syslog.RFC3164Formatter, syslog.DefaultFramer, nil
 	case "rfc5424":
-		return rfc5424formatterWithAppNameAsTag, syslog.RFC5425MessageLengthFramer, nil
+		if proto == secureProto {
+			return rfc5424formatterWithAppNameAsTag, syslog.RFC5425MessageLengthFramer, nil
+		}
+		return rfc5424formatterWithAppNameAsTag, syslog.DefaultFramer, nil
 	case "rfc5424micro":
-		return rfc5424microformatterWithAppNameAsTag, syslog.RFC5425MessageLengthFramer, nil
+		if proto == secureProto {
+			return rfc5424microformatterWithAppNameAsTag, syslog.RFC5425MessageLengthFramer, nil
+		}
+		return rfc5424microformatterWithAppNameAsTag, syslog.DefaultFramer, nil
 	default:
 		return nil, nil, errors.New("Invalid syslog format")
 	}
