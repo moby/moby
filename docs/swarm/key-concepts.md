@@ -89,5 +89,3 @@ the service.
 ## What's next?
 * Read the [swarm mode overview](index.md).
 * Get started with the [swarm mode tutorial](swarm-tutorial/index.md).
-
-<p style="margin-bottom:300px">&nbsp;</p>

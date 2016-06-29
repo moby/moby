@@ -128,5 +128,3 @@ the container for the task.
 
 Next, you can [change the scale](scale-service.md) for the service running in
 the swarm.
-
-  <p style="margin-bottom:300px">&nbsp;</p>
