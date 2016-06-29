@@ -41,12 +41,12 @@ than one filter, then pass multiple flags (e.g., `--filter "foo=bar" --filter "b
 
 The currently supported filters are:
 
-* name
-* id
-* label
-* desired_state
+* [name](#name)
+* [id](#id)
+* [label](#label)
+* [desired_state](#desired_state)
 
-### name
+#### name
 
 The `name` filter matches on all or part of a task's name.
 
@@ -61,7 +61,7 @@ The following filter matches all tasks with a name containing the `redis` string
     0tgctg8h8cech4w0k0gwrmr23  redis.10  redis    redis:3.0.6  Running 5 seconds   Running        swarm-manager1
 
 
-### id
+#### id
 
 The `id` filter matches a task's id.
 
@@ -83,6 +83,11 @@ ID                         NAME     SERVICE  IMAGE        LAST STATE          DE
 b465edgho06e318egmgjbqo4o  redis.6  redis    redis:3.0.6  Running 10 minutes  Running        swarm-manager1
 bg8c07zzg87di2mufeq51a2qp  redis.7  redis    redis:3.0.6  Running 9 minutes   Running        swarm-manager1
 ```
+
+
+#### desired_state
+
+The `desired_state` filter can take the values `running` and `accepted`.
 
 
 ## Related information
