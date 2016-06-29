@@ -1816,7 +1816,13 @@ _docker_swarm_init() {
 			COMPREPLY=( $( compgen -W "manager none worker" -- "$cur" ) )
 			return
 			;;
-		--listen-addr|--secret)
+		--listen-addr)
+			if [[ $cur == *: ]] ; then
+				COMPREPLY=( $( compgen -W "2377" -- "${cur##*:}" ) )
+			fi
+			return
+			;;
+		--secret)
 			return
 			;;
 	esac
@@ -1844,7 +1850,13 @@ _docker_swarm_inspect() {
 
 _docker_swarm_join() {
 	case "$prev" in
-		--ca-hash|--listen-addr|--secret)
+		--ca-hash|--secret)
+			return
+			;;
+		--listen-addr)
+			if [[ $cur == *: ]] ; then
+				COMPREPLY=( $( compgen -W "2377" -- "${cur##*:}" ) )
+			fi
 			return
 			;;
 	esac
@@ -1852,6 +1864,9 @@ _docker_swarm_join() {
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--ca-hash --help --listen-addr --manager --secret" -- "$cur" ) )
+			;;
+		*:)
+			COMPREPLY=( $( compgen -W "2377" -- "${cur##*:}" ) )
 			;;
 	esac
 }
