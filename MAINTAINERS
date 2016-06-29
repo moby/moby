@@ -54,6 +54,7 @@
 		people = [
 			"jamtur01",
 			"moxiegirl",
+			"sfsmithcha",
 			"sven",
 			"thajeztah"
 		]
@@ -239,6 +240,11 @@
 	Name = "Antonio Murdaca"
 	Email = "runcom@redhat.com"
 	GitHub = "runcom"
+
+	[people.sfsmithcha]
+	Name = "Charles Smith"
+	Email = "charles.smith@docker.com"
+	GitHub = "sfsmithcha"
 
 	[people.shykes]
 	Name = "Solomon Hykes"
