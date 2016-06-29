@@ -145,22 +145,19 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 		n.(*network).deleteSvcRecords("tasks."+alias, ip, nil, false)
 	}
 
-	// Make sure to remove the right IP since if vip is
-	// not valid we would have added a DNS RR record.
-	svcIP := vip
-	if len(svcIP) == 0 {
-		svcIP = ip
-	}
-	n.(*network).deleteSvcRecords(name, svcIP, nil, false)
-	for _, alias := range aliases {
-		n.(*network).deleteSvcRecords(alias, svcIP, nil, false)
+	// If we are doing DNS RR add the endpoint IP to DNS record
+	// right away.
+	if len(vip) == 0 {
+		n.(*network).deleteSvcRecords(name, ip, nil, false)
+		for _, alias := range aliases {
+			n.(*network).deleteSvcRecords(alias, ip, nil, false)
+		}
 	}
 
 	s.Lock()
-	defer s.Unlock()
-
 	lb, ok := s.loadBalancers[nid]
 	if !ok {
+		s.Unlock()
 		return nil
 	}
 
@@ -184,6 +181,15 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 	// sandboxes in the network only if the vip is valid.
 	if len(vip) != 0 {
 		n.(*network).rmLBBackend(ip, vip, lb.fwMark, ingressPorts, rmService)
+	}
+	s.Unlock()
+
+	// Remove the DNS record for VIP only if we are removing the service
+	if rmService && len(vip) != 0 {
+		n.(*network).deleteSvcRecords(name, vip, nil, false)
+		for _, alias := range aliases {
+			n.(*network).deleteSvcRecords(alias, vip, nil, false)
+		}
 	}
 
 	return nil
