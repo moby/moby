@@ -3663,7 +3663,7 @@ Join an existing new Swarm
 
     {
       "ListenAddr": "0.0.0.0:4500",
-      "RemoteAddr": "node1:4500",
+      "RemoteAddrs": ["node1:4500"],
       "Secret": "",
       "CACertHash": "",
       "Manager": false
