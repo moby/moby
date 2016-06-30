@@ -204,6 +204,7 @@ using the `docker volume create` command.
 
 ```bash
 $ docker volume create -d flocker --name my-named-volume -o size=20GB
+
 $ docker run -d -P \
   -v my-named-volume:/opt/webapp \
   --name web training/webapp python app.py

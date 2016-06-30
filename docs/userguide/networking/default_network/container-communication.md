@@ -31,9 +31,13 @@ set `--ip-forward=false` and your system's kernel has it enabled, the
 or to turn it on manually:
 ```
   $ sysctl net.ipv4.conf.all.forwarding
+
   net.ipv4.conf.all.forwarding = 0
+
   $ sysctl net.ipv4.conf.all.forwarding=1
+
   $ sysctl net.ipv4.conf.all.forwarding
+
   net.ipv4.conf.all.forwarding = 1
 ```
 
@@ -98,6 +102,7 @@ You can run the `iptables` command on your Docker host to see whether the `FORWA
 # When --icc=false, you should see a DROP rule:
 
 $ sudo iptables -L -n
+
 ...
 Chain FORWARD (policy ACCEPT)
 target     prot opt source               destination
@@ -110,6 +115,7 @@ DROP       all  --  0.0.0.0/0            0.0.0.0/0
 # the subsequent DROP policy for all other packets:
 
 $ sudo iptables -L -n
+
 ...
 Chain FORWARD (policy ACCEPT)
 target     prot opt source               destination

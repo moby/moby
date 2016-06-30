@@ -42,7 +42,9 @@ bridge network for you.
 
 ```bash
 $ docker network create simple-network
+
 69568e6336d8c96bbf57869030919f7c69524f71183b44d80948bd3927c87f6a
+
 $ docker network inspect simple-network
 [
     {
@@ -134,8 +136,11 @@ For example, now let's use `-o` or `--opt` options to specify an IP address bind
 
 ```bash
 $ docker network create -o "com.docker.network.bridge.host_binding_ipv4"="172.23.0.1" my-network
+
 b1a086897963e6a2e7fc6868962e55e746bee8ad0c97b54a5831054b5f62672a
+
 $ docker network inspect my-network
+
 [
     {
         "Name": "my-network",
@@ -158,9 +163,13 @@ $ docker network inspect my-network
         }
     }
 ]
+
 $ docker run -d -P --name redis --net my-network redis
+
 bafb0c808c53104b2c90346f284bda33a69beadcab4fc83ab8f2c5a4410cd129
+
 $ docker ps
+
 CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                        NAMES
 bafb0c808c53        redis               "/entrypoint.sh redis"   4 seconds ago       Up 3 seconds        172.23.0.1:32770->6379/tcp   redis
 ```
@@ -179,9 +188,11 @@ Create two containers for this example:
 
 ```bash
 $ docker run -itd --name=container1 busybox
+
 18c062ef45ac0c026ee48a83afa39d25635ee5f02b58de4abc8f467bcaa28731
 
 $ docker run -itd --name=container2 busybox
+
 498eaaaf328e1018042c04b2de04036fc04719a6e39a097a4f4866043a2c2152
 ```
 
@@ -189,6 +200,7 @@ Then create an isolated, `bridge` network to test with.
 
 ```bash
 $ docker network create -d bridge --subnet 172.25.0.0/16 isolated_nw
+
 06a62f1c73c4e3107c0f555b7a5f163309827bfbbf999840166065a8f35455a8
 ```
 
@@ -197,7 +209,9 @@ the connection:
 
 ```
 $ docker network connect isolated_nw container2
+
 $ docker network inspect isolated_nw
+
 [
     {
         "Name": "isolated_nw",
@@ -234,6 +248,7 @@ the network on launch using the `docker run` command's `--net` option:
 
 ```bash
 $ docker run --net=isolated_nw --ip=172.25.3.3 -itd --name=container3 busybox
+
 467a7863c3f0277ef8e661b38427737f28099b61fa55622d6c30fb288d88c551
 ```
 
@@ -251,6 +266,7 @@ Now, inspect the network resources used by `container3`.
 
 ```bash
 $ docker inspect --format='{{json .NetworkSettings.Networks}}'  container3
+
 {"isolated_nw":{"IPAMConfig":{"IPv4Address":"172.25.3.3"},"NetworkID":"1196a4c5af43a21ae38ef34515b6af19236a3fc48122cf585e3f3054d509679b",
 "EndpointID":"dffc7ec2915af58cc827d995e6ebdc897342be0420123277103c40ae35579103","Gateway":"172.25.0.1","IPAddress":"172.25.3.3","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"MacAddress":"02:42:ac:19:03:03"}}
 ```
@@ -258,6 +274,7 @@ Repeat this command for `container2`. If you have Python installed, you can pret
 
 ```bash
 $ docker inspect --format='{{json .NetworkSettings.Networks}}'  container2 | python -m json.tool
+
 {
     "bridge": {
         "NetworkID":"7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812",
@@ -391,6 +408,7 @@ same network and cannot communicate. Test, this now by attaching to
 
 ```bash
 $ docker attach container3
+
 / # ping 172.17.0.2
 PING 172.17.0.2 (172.17.0.2): 56 data bytes
 ^C
@@ -433,6 +451,7 @@ for other containers in the same network.
 
 ```bash
 $ docker run --net=isolated_nw -itd --name=container4 --link container5:c5 busybox
+
 01b5df970834b77a9eadbaff39051f237957bd35c4c56f11193e0594cfd5117c
 ```
 
@@ -453,6 +472,7 @@ c4.
 
 ```bash
 $ docker run --net=isolated_nw -itd --name=container5 --link container4:c4 busybox
+
 72eccf2208336f31e9e33ba327734125af00d1e1d2657878e2ee8154fbb23c7a
 ```
 
@@ -462,6 +482,7 @@ container name and its alias c5 and `container5` will be able to reach
 
 ```bash
 $ docker attach container4
+
 / # ping -w 4 c5
 PING c5 (172.25.0.5): 56 data bytes
 64 bytes from 172.25.0.5: seq=0 ttl=64 time=0.070 ms
@@ -487,6 +508,7 @@ round-trip min/avg/max = 0.070/0.081/0.097 ms
 
 ```bash
 $ docker attach container5
+
 / # ping -w 4 c4
 PING c4 (172.25.0.4): 56 data bytes
 64 bytes from 172.25.0.4: seq=0 ttl=64 time=0.065 ms
@@ -608,11 +630,13 @@ with a network alias.
 
 ```bash
 $ docker run --net=isolated_nw -itd --name=container6 --net-alias app busybox
+
 8ebe6767c1e0361f27433090060b33200aac054a68476c3be87ef4005eb1df17
 ```
 
 ```bash
 $ docker attach container4
+
 / # ping -w 4 app
 PING app (172.25.0.6): 56 data bytes
 64 bytes from 172.25.0.6: seq=0 ttl=64 time=0.070 ms
@@ -679,6 +703,7 @@ network-scoped alias within the same network. For example, let's launch
 
 ```bash
 $ docker run --net=isolated_nw -itd --name=container7 --net-alias app busybox
+
 3138c678c123b8799f4c7cc6a0cecc595acbdfa8bf81f621834103cd4f504554
 ```
 
@@ -692,6 +717,7 @@ verify that `container7` is resolving the `app` alias.
 
 ```bash
 $ docker attach container4
+
 / # ping -w 4 app
 PING app (172.25.0.6): 56 data bytes
 64 bytes from 172.25.0.6: seq=0 ttl=64 time=0.070 ms
@@ -706,6 +732,7 @@ round-trip min/avg/max = 0.070/0.081/0.097 ms
 $ docker stop container6
 
 $ docker attach container4
+
 / # ping -w 4 app
 PING app (172.25.0.7): 56 data bytes
 64 bytes from 172.25.0.7: seq=0 ttl=64 time=0.095 ms
@@ -728,6 +755,7 @@ disconnect` command.
 $ docker network disconnect isolated_nw container2
 
 $ docker inspect --format='{{json .NetworkSettings.Networks}}'  container2 | python -m json.tool
+
 {
     "bridge": {
         "NetworkID":"7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812",
@@ -744,6 +772,7 @@ $ docker inspect --format='{{json .NetworkSettings.Networks}}'  container2 | pyt
 
 
 $ docker network inspect isolated_nw
+
 [
     {
         "Name": "isolated_nw",
@@ -831,12 +860,15 @@ be connected to the network.
 
 ```bash
 $ docker run -d --name redis_db --net multihost redis
+
 ERROR: Cannot start container bc0b19c089978f7845633027aa3435624ca3d12dd4f4f764b61eac4c0610f32e: container already connected to network multihost
 
 $ docker rm -f redis_db
+
 $ docker network disconnect -f multihost redis_db
 
 $ docker run -d --name redis_db --net multihost redis
+
 7d986da974aeea5e9f7aca7e510bdb216d58682faa83a9040c2f2adc0544795a
 ```
 
@@ -851,6 +883,7 @@ $ docker network disconnect isolated_nw container3
 
 ```bash
 docker network inspect isolated_nw
+
 [
     {
         "Name": "isolated_nw",
@@ -878,6 +911,7 @@ List all your networks to verify the `isolated_nw` was removed:
 
 ```bash
 $ docker network ls
+
 NETWORK ID          NAME                DRIVER
 72314fa53006        host                host                
 f7ab26d71dbd        bridge              bridge              
