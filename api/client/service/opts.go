@@ -444,6 +444,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags := cmd.Flags()
 	flags.StringVar(&opts.name, flagName, "", "Service name")
 	flags.VarP(&opts.labels, flagLabel, "l", "Service labels")
+	flags.StringSliceVar(&opts.command, flagEntrypoint, []string{}, "Overwrite the default ENTRYPOINT of the image")
 
 	flags.VarP(&opts.env, "env", "e", "Set environment variables")
 	flags.StringVarP(&opts.workdir, "workdir", "w", "", "Working directory inside the container")
@@ -478,6 +479,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 const (
 	flagConstraint         = "constraint"
 	flagEndpointMode       = "endpoint-mode"
+	flagEntrypoint         = "entrypoint"
 	flagLabel              = "label"
 	flagLimitCPU           = "limit-cpu"
 	flagLimitMemory        = "limit-memory"

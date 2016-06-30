@@ -39,8 +39,6 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.String("image", "", "Service image tag")
-	// TODO: make this entrypoint and share with create
-	flags.StringSlice("command", []string{}, "Service command")
 	addServiceFlags(cmd, newServiceOptions())
 	return cmd
 }
@@ -156,7 +154,7 @@ func updateService(flags *pflag.FlagSet, args []string, spec *swarm.ServiceSpec)
 	updateString(flagName, &spec.Name)
 	updateLabels(flags, &spec.Labels)
 	updateString("image", &cspec.Image)
-	updateSlice("command", &cspec.Command)
+	updateSlice(flagEntrypoint, &cspec.Command)
 	updateListOpts("env", &cspec.Env)
 	updateString("workdir", &cspec.Dir)
 	updateString(flagUser, &cspec.User)

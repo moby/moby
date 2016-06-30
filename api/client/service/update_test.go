@@ -9,7 +9,7 @@ import (
 
 func TestUpdateServiceCommandAndArgs(t *testing.T) {
 	flags := newUpdateCommand(nil).Flags()
-	flags.Set("command", "newcommand")
+	flags.Set("entrypoint", "newcommand")
 	args := []string{"the", "new args"}
 
 	spec := &swarm.ServiceSpec{}
