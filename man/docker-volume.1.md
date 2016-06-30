@@ -36,7 +36,7 @@ For full details on using docker volume visit Docker's online documentation.
   See **docker-volume-create(1)** for full documentation on the **create** command.
 
 **inspect**
-  Return low-level information on a volume
+  Display detailed information on one or more volumes
   See **docker-volume-inspect(1)** for full documentation on the **inspect** command.
 
 **ls**

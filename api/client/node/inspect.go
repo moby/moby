@@ -27,7 +27,7 @@ func newInspectCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "inspect [OPTIONS] self|NODE [NODE...]",
-		Short: "Inspect a node in the swarm",
+		Short: "Display detailed information on one or more nodes",
 		Args:  cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.nodeIds = args
