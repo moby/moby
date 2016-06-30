@@ -8,6 +8,7 @@ import (
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/manager/state/store"
+	"github.com/docker/swarmkit/protobuf/ptypes"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -15,6 +16,7 @@ import (
 
 var (
 	errNetworkUpdateNotSupported = errors.New("changing network in service is not supported")
+	errModeChangeNotAllowed      = errors.New("service mode change is not allowed")
 )
 
 func validateResources(r *api.Resources) error {
@@ -45,21 +47,70 @@ func validateResourceRequirements(r *api.ResourceRequirements) error {
 	return nil
 }
 
-func validateServiceSpecTemplate(spec *api.ServiceSpec) error {
-	if err := validateResourceRequirements(spec.Task.Resources); err != nil {
+func validateRestartPolicy(rp *api.RestartPolicy) error {
+	if rp == nil {
+		return nil
+	}
+
+	if rp.Delay != nil {
+		delay, err := ptypes.Duration(rp.Delay)
+		if err != nil {
+			return err
+		}
+		if delay < 0 {
+			return grpc.Errorf(codes.InvalidArgument, "TaskSpec: restart-delay cannot be negative")
+		}
+	}
+
+	if rp.Window != nil {
+		win, err := ptypes.Duration(rp.Window)
+		if err != nil {
+			return err
+		}
+		if win < 0 {
+			return grpc.Errorf(codes.InvalidArgument, "TaskSpec: restart-window cannot be negative")
+		}
+	}
+
+	return nil
+}
+
+func validateUpdate(uc *api.UpdateConfig) error {
+	if uc == nil {
+		return nil
+	}
+
+	delay, err := ptypes.Duration(&uc.Delay)
+	if err != nil {
 		return err
 	}
 
-	if spec.Task.GetRuntime() == nil {
+	if delay < 0 {
+		return grpc.Errorf(codes.InvalidArgument, "TaskSpec: update-delay cannot be negative")
+	}
+
+	return nil
+}
+
+func validateTask(taskSpec api.TaskSpec) error {
+	if err := validateResourceRequirements(taskSpec.Resources); err != nil {
+		return err
+	}
+
+	if err := validateRestartPolicy(taskSpec.Restart); err != nil {
+		return err
+	}
+
+	if taskSpec.GetRuntime() == nil {
 		return grpc.Errorf(codes.InvalidArgument, "TaskSpec: missing runtime")
 	}
 
-	_, ok := spec.Task.GetRuntime().(*api.TaskSpec_Container)
+	_, ok := taskSpec.GetRuntime().(*api.TaskSpec_Container)
 	if !ok {
 		return grpc.Errorf(codes.Unimplemented, "RuntimeSpec: unimplemented runtime in service spec")
 	}
 
-	container := spec.Task.GetContainer()
+	container := taskSpec.GetContainer()
 	if container == nil {
 		return grpc.Errorf(codes.InvalidArgument, "ContainerSpec: missing in service spec")
 	}
@@ -99,7 +150,13 @@ func validateServiceSpec(spec *api.ServiceSpec) error {
 	if err := validateAnnotations(spec.Annotations); err != nil {
 		return err
 	}
-	if err := validateServiceSpecTemplate(spec); err != nil {
+	if err := validateTask(spec.Task); err != nil {
+		return err
+	}
+	if err := validateUpdate(spec.Update); err != nil {
+		return err
+	}
+	if err := validateEndpointSpec(spec.Endpoint); err != nil {
 		return err
 	}
 	return nil
@@ -179,6 +236,12 @@ func (s *Server) UpdateService(ctx context.Context, request *api.UpdateServiceRe
 			return errNetworkUpdateNotSupported
 		}
 
+		// orchestrator is designed to be stateless, so it should not deal
+		// with service mode change (comparing current config with previous config).
+		// proper way to change service mode is to delete and re-add.
+		if request.Spec != nil && reflect.TypeOf(service.Spec.Mode) != reflect.TypeOf(request.Spec.Mode) {
+			return errModeChangeNotAllowed
+		}
 		service.Meta.Version = *request.ServiceVersion
 		service.Spec = *request.Spec.Copy()
 		return store.UpdateService(tx, service)

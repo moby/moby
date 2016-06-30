@@ -19,6 +19,7 @@ import (
 	"github.com/docker/swarmkit/manager/allocator"
 	"github.com/docker/swarmkit/manager/controlapi"
 	"github.com/docker/swarmkit/manager/dispatcher"
+	"github.com/docker/swarmkit/manager/health"
 	"github.com/docker/swarmkit/manager/keymanager"
 	"github.com/docker/swarmkit/manager/orchestrator"
 	"github.com/docker/swarmkit/manager/raftpicker"
@@ -38,6 +39,10 @@ const (
 // Config is used to tune the Manager.
 type Config struct {
 	SecurityConfig *ca.SecurityConfig
+
+	// ExternalCAs is a list of initial CAs to which a manager node
+	// will make certificate signing requests for node certificates.
+	ExternalCAs []*api.ExternalCA
 
 	ProtoAddr map[string]string
 	// ProtoListener will be used for grpc serving if it's not nil,
@@ -83,8 +88,7 @@ type Manager struct {
 	localserver            *grpc.Server
 	RaftNode               *raft.Node
 
-	mu   sync.Mutex
-	once sync.Once
+	mu sync.Mutex
 
 	stopped chan struct{}
 }
@@ -202,13 +206,7 @@ func New(config *Config) (*Manager, error) {
 		ForceNewCluster: config.ForceNewCluster,
 		TLSCredentials:  config.SecurityConfig.ClientTLSCreds,
 	}
-	RaftNode, err := raft.NewNode(context.TODO(), newNodeOpts)
-	if err != nil {
-		for _, lis := range listeners {
-			lis.Close()
-		}
-		return nil, fmt.Errorf("can't create raft node: %v", err)
-	}
+	RaftNode := raft.NewNode(context.TODO(), newNodeOpts)
 
 	opts := []grpc.ServerOption{
 		grpc.Creds(config.SecurityConfig.ServerTLSCreds)}
@@ -275,6 +273,10 @@ func (m *Manager) Run(parent context.Context) error {
 				raftCfg.HeartbeatTick = uint32(m.RaftNode.Config.HeartbeatTick)
 
 				clusterID := m.config.SecurityConfig.ClientTLSCreds.Organization()
+
+				initialCAConfig := ca.DefaultCAConfig()
+				initialCAConfig.ExternalCAs = m.config.ExternalCAs
+
 				s.Update(func(tx store.Tx) error {
 					// Add a default cluster object to the
 					// store. Don't check the error because
@@ -294,7 +296,7 @@ func (m *Manager) Run(parent context.Context) error {
 								HeartbeatPeriod: ptypes.DurationProto(dispatcher.DefaultHeartBeatPeriod),
 							},
 							Raft:     raftCfg,
-							CAConfig: ca.DefaultCAConfig(),
+							CAConfig: initialCAConfig,
 						},
 						RootCA: api.RootCA{
 							CAKey:      rootCA.Key,
@@ -327,7 +329,7 @@ func (m *Manager) Run(parent context.Context) error {
 					log.G(ctx).WithError(err).Error("root key-encrypting-key rotation failed")
 				}
 
-				m.replicatedOrchestrator = orchestrator.New(s)
+				m.replicatedOrchestrator = orchestrator.NewReplicatedOrchestrator(s)
 				m.globalOrchestrator = orchestrator.NewGlobalOrchestrator(s)
 				m.taskReaper = orchestrator.NewTaskReaper(s)
 				m.scheduler = scheduler.New(s)
@@ -421,14 +423,6 @@ func (m *Manager) Run(parent context.Context) error {
 		}
 	}()
 
-	go func() {
-		err := m.RaftNode.Run(ctx)
-		if err != nil {
-			log.G(ctx).Error(err)
-			m.Stop(ctx)
-		}
-	}()
-
 	proxyOpts := []grpc.DialOption{
 		grpc.WithBackoffMaxDelay(2 * time.Second),
 		grpc.WithTransportCredentials(m.config.SecurityConfig.ClientTLSCreds),
@@ -443,12 +437,14 @@ func (m *Manager) Run(parent context.Context) error {
 	}
 
 	baseControlAPI := controlapi.NewServer(m.RaftNode.MemoryStore(), m.RaftNode)
+	healthServer := health.NewHealthServer()
 
 	authenticatedControlAPI := api.NewAuthenticatedWrapperControlServer(baseControlAPI, authorize)
 	authenticatedDispatcherAPI := api.NewAuthenticatedWrapperDispatcherServer(m.Dispatcher, authorize)
 	authenticatedCAAPI := api.NewAuthenticatedWrapperCAServer(m.caserver, authorize)
 	authenticatedNodeCAAPI := api.NewAuthenticatedWrapperNodeCAServer(m.caserver, authorize)
 	authenticatedRaftAPI := api.NewAuthenticatedWrapperRaftServer(m.RaftNode, authorize)
+	authenticatedHealthAPI := api.NewAuthenticatedWrapperHealthServer(healthServer, authorize)
 	authenticatedRaftMembershipAPI := api.NewAuthenticatedWrapperRaftMembershipServer(m.RaftNode, authorize)
 
 	proxyDispatcherAPI := api.NewRaftProxyDispatcherServer(authenticatedDispatcherAPI, cs, m.RaftNode, ca.WithMetadataForwardTLSInfo)
@@ -470,6 +466,7 @@ func (m *Manager) Run(parent context.Context) error {
 	api.RegisterCAServer(m.server, proxyCAAPI)
 	api.RegisterNodeCAServer(m.server, proxyNodeCAAPI)
 	api.RegisterRaftServer(m.server, authenticatedRaftAPI)
+	api.RegisterHealthServer(m.server, authenticatedHealthAPI)
 	api.RegisterRaftMembershipServer(m.server, proxyRaftMembershipAPI)
 	api.RegisterControlServer(m.localserver, localProxyControlAPI)
 	api.RegisterControlServer(m.server, authenticatedControlAPI)
@@ -491,6 +488,24 @@ func (m *Manager) Run(parent context.Context) error {
 			}
 		}(proto, l)
 	}
+
+	// Set the raft server as serving for the health server
+	healthServer.SetServingStatus("Raft", api.HealthCheckResponse_SERVING)
+
+	if err := m.RaftNode.JoinAndStart(); err != nil {
+		for _, lis := range m.listeners {
+			lis.Close()
+		}
+		return fmt.Errorf("can't initialize raft node: %v", err)
+	}
+
+	go func() {
+		err := m.RaftNode.Run(ctx)
+		if err != nil {
+			log.G(ctx).Error(err)
+			m.Stop(ctx)
+		}
+	}()
 
 	if err := raft.WaitForLeader(ctx, m.RaftNode); err != nil {
 		m.server.Stop()

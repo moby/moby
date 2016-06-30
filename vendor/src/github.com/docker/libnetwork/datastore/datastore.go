@@ -54,11 +54,12 @@ var (
 )
 
 type datastore struct {
-	scope   string
-	store   store.Store
-	cache   *cache
-	watchCh chan struct{}
-	active  bool
+	scope      string
+	store      store.Store
+	cache      *cache
+	watchCh    chan struct{}
+	active     bool
+	sequential bool
 	sync.Mutex
 }
 
@@ -190,6 +191,10 @@ func newClient(scope string, kv string, addr string, config *store.Config, cache
 	if cached && scope != LocalScope {
 		return nil, fmt.Errorf("caching supported only for scope %s", LocalScope)
 	}
+	sequential := false
+	if scope == LocalScope {
+		sequential = true
+	}
 
 	if config == nil {
 		config = &store.Config{}
@@ -216,7 +221,7 @@ func newClient(scope string, kv string, addr string, config *store.Config, cache
 		return nil, err
 	}
 
-	ds := &datastore{scope: scope, store: store, active: true, watchCh: make(chan struct{})}
+	ds := &datastore{scope: scope, store: store, active: true, watchCh: make(chan struct{}), sequential: sequential}
 	if cached {
 		ds.cache = newCache(ds)
 	}
@@ -375,8 +380,10 @@ func (ds *datastore) PutObjectAtomic(kvObject KVObject) error {
 		pair     *store.KVPair
 		err      error
 	)
-	ds.Lock()
-	defer ds.Unlock()
+	if ds.sequential {
+		ds.Lock()
+		defer ds.Unlock()
+	}
 
 	if kvObject == nil {
 		return types.BadRequestErrorf("invalid KV Object : nil")
@@ -420,8 +427,10 @@ add_cache:
 
 // PutObject adds a new Record based on an object into the datastore
 func (ds *datastore) PutObject(kvObject KVObject) error {
-	ds.Lock()
-	defer ds.Unlock()
+	if ds.sequential {
+		ds.Lock()
+		defer ds.Unlock()
+	}
 
 	if kvObject == nil {
 		return types.BadRequestErrorf("invalid KV Object : nil")
@@ -456,8 +465,10 @@ func (ds *datastore) putObjectWithKey(kvObject KVObject, key ...string) error {
 
 // GetObject returns a record matching the key
 func (ds *datastore) GetObject(key string, o KVObject) error {
-	ds.Lock()
-	defer ds.Unlock()
+	if ds.sequential {
+		ds.Lock()
+		defer ds.Unlock()
+	}
 
 	if ds.cache != nil {
 		return ds.cache.get(key, o)
@@ -490,8 +501,10 @@ func (ds *datastore) ensureParent(parent string) error {
 }
 
 func (ds *datastore) List(key string, kvObject KVObject) ([]KVObject, error) {
-	ds.Lock()
-	defer ds.Unlock()
+	if ds.sequential {
+		ds.Lock()
+		defer ds.Unlock()
+	}
 
 	if ds.cache != nil {
 		return ds.cache.list(kvObject)
@@ -536,8 +549,10 @@ func (ds *datastore) List(key string, kvObject KVObject) ([]KVObject, error) {
 
 // DeleteObject unconditionally deletes a record from the store
 func (ds *datastore) DeleteObject(kvObject KVObject) error {
-	ds.Lock()
-	defer ds.Unlock()
+	if ds.sequential {
+		ds.Lock()
+		defer ds.Unlock()
+	}
 
 	// cleaup the cache first
 	if ds.cache != nil {
@@ -555,8 +570,10 @@ func (ds *datastore) DeleteObject(kvObject KVObject) error {
 
 // DeleteObjectAtomic performs atomic delete on a record
 func (ds *datastore) DeleteObjectAtomic(kvObject KVObject) error {
-	ds.Lock()
-	defer ds.Unlock()
+	if ds.sequential {
+		ds.Lock()
+		defer ds.Unlock()
+	}
 
 	if kvObject == nil {
 		return types.BadRequestErrorf("invalid KV Object : nil")
@@ -588,8 +605,10 @@ del_cache:
 
 // DeleteTree unconditionally deletes a record from the store
 func (ds *datastore) DeleteTree(kvObject KVObject) error {
-	ds.Lock()
-	defer ds.Unlock()
+	if ds.sequential {
+		ds.Lock()
+		defer ds.Unlock()
+	}
 
 	// cleaup the cache first
 	if ds.cache != nil {

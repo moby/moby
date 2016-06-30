@@ -104,7 +104,8 @@ func (u *Updater) Run(ctx context.Context, service *api.Service, tasks []*api.Ta
 	dirtyTasks := []*api.Task{}
 	for _, t := range tasks {
 		if !reflect.DeepEqual(service.Spec.Task, t.Spec) ||
-			!reflect.DeepEqual(service.Endpoint, t.Endpoint) {
+			(t.Endpoint != nil &&
+				!reflect.DeepEqual(service.Spec.Endpoint, t.Endpoint.Spec)) {
 			dirtyTasks = append(dirtyTasks, t)
 		}
 	}
@@ -190,6 +191,9 @@ func (u *Updater) updateTask(ctx context.Context, service *api.Service, original
 		t := store.GetTask(tx, original.ID)
 		if t == nil {
 			return fmt.Errorf("task %s not found while trying to update it", original.ID)
+		}
+		if t.DesiredState > api.TaskStateRunning {
+			return fmt.Errorf("task %s was already shut down when reached by updater", original.ID)
 		}
 		t.DesiredState = api.TaskStateShutdown
 		if err := store.UpdateTask(tx, t); err != nil {

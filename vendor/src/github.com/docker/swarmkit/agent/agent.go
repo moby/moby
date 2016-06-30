@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/rand"
 	"reflect"
-	"sync"
 	"time"
 
 	"github.com/docker/swarmkit/api"
@@ -37,7 +36,6 @@ type Agent struct {
 	stopped chan struct{} // requests shutdown
 	closed  chan struct{} // only closed in run
 	err     error         // read only after closed is closed
-	mu      sync.Mutex
 }
 
 // New returns a new agent, ready for task dispatch.

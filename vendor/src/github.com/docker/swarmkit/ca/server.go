@@ -355,7 +355,7 @@ func (s *Server) Run(ctx context.Context) error {
 	s.mu.Lock()
 	if s.isRunning() {
 		s.mu.Unlock()
-		return fmt.Errorf("CA signer is stopped")
+		return fmt.Errorf("CA signer is already running")
 	}
 	s.wg.Add(1)
 	defer s.wg.Done()
@@ -443,12 +443,14 @@ func (s *Server) Run(ctx context.Context) error {
 func (s *Server) Stop() error {
 	s.mu.Lock()
 	if !s.isRunning() {
+		s.mu.Unlock()
 		return fmt.Errorf("CA signer is already stopped")
 	}
 	s.cancel()
 	s.mu.Unlock()
 	// wait for all handlers to finish their CA deals,
 	s.wg.Wait()
+	s.started = make(chan struct{})
 	return nil
 }
 
@@ -530,6 +532,21 @@ func (s *Server) updateCluster(ctx context.Context, cluster *api.Cluster) {
 			}).Debugf("Root CA updated successfully")
 		}
 	}
+
+	// Update our security config with the list of External CA URLs
+	// from the new cluster state.
+
+	// TODO(aaronl): In the future, this will be abstracted with an
+	// ExternalCA interface that has different implementations for
+	// different CA types. At the moment, only CFSSL is supported.
+	var cfsslURLs []string
+	for _, ca := range cluster.Spec.CAConfig.ExternalCAs {
+		if ca.Protocol == api.ExternalCA_CAProtocolCFSSL {
+			cfsslURLs = append(cfsslURLs, ca.URL)
+		}
+	}
+
+	s.securityConfig.externalCA.UpdateURLs(cfsslURLs...)
 }
 
 // evaluateAndSignNodeCert implements the logic of which certificates to sign
@@ -555,13 +572,8 @@ func (s *Server) evaluateAndSignNodeCert(ctx context.Context, node *api.Node) {
 
 // signNodeCert does the bulk of the work for signing a certificate
 func (s *Server) signNodeCert(ctx context.Context, node *api.Node) {
-	if !s.securityConfig.RootCA().CanSign() {
-		log.G(ctx).WithFields(logrus.Fields{
-			"node.id": node.ID,
-			"method":  "(*Server).signNodeCert",
-		}).Errorf("no valid signer found")
-		return
-	}
+	rootCA := s.securityConfig.RootCA()
+	externalCA := s.securityConfig.externalCA
 
 	node = node.Copy()
 	nodeID := node.ID
@@ -576,7 +588,20 @@ func (s *Server) signNodeCert(ctx context.Context, node *api.Node) {
 	}
 
 	// Attempt to sign the CSR
-	cert, err := s.securityConfig.RootCA().ParseValidateAndSignCSR(node.Certificate.CSR, node.Certificate.CN, role, s.securityConfig.ClientTLSCreds.Organization())
+	var (
+		rawCSR = node.Certificate.CSR
+		cn     = node.Certificate.CN
+		ou     = role
+		org    = s.securityConfig.ClientTLSCreds.Organization()
+	)
+
+	// Try using the external CA first.
+	cert, err := externalCA.Sign(PrepareCSR(rawCSR, cn, ou, org))
+	if err == ErrNoExternalCAURLs {
+		// No external CA servers configured. Try using the local CA.
+		cert, err = rootCA.ParseValidateAndSignCSR(rawCSR, cn, ou, org)
+	}
+
 	if err != nil {
 		log.G(ctx).WithFields(logrus.Fields{
 			"node.id": node.ID,

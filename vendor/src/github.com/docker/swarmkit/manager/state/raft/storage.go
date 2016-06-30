@@ -162,6 +162,22 @@ func (n *Node) readWAL(ctx context.Context, snapshot *raftpb.Snapshot, forceNewC
 	}
 	n.Config.ID = raftNode.RaftID
 
+	// All members that are no longer part of the cluster must be added to
+	// the removed list right away, so that we don't try to connect to them
+	// before processing the configuration change entries, which could make
+	// us get stuck.
+	for _, ent := range ents {
+		if ent.Index <= st.Commit && ent.Type == raftpb.EntryConfChange {
+			var cc raftpb.ConfChange
+			if err := cc.Unmarshal(ent.Data); err != nil {
+				return fmt.Errorf("error unmarshalling config change: %v", err)
+			}
+			if cc.Type == raftpb.ConfChangeRemoveNode {
+				n.cluster.RemoveMember(cc.NodeID)
+			}
+		}
+	}
+
 	if forceNewCluster {
 		// discard the previously uncommitted entries
 		for i, ent := range ents {
@@ -174,6 +190,23 @@ func (n *Node) readWAL(ctx context.Context, snapshot *raftpb.Snapshot, forceNewC
 
 		// force append the configuration change entries
 		toAppEnts := createConfigChangeEnts(getIDs(snapshot, ents), uint64(n.Config.ID), st.Term, st.Commit)
+
+		// All members that are being removed as part of the
+		// force-new-cluster process must be added to the
+		// removed list right away, so that we don't try to
+		// connect to them before processing the configuration
+		// change entries, which could make us get stuck.
+		for _, ccEnt := range toAppEnts {
+			if ccEnt.Type == raftpb.EntryConfChange {
+				var cc raftpb.ConfChange
+				if err := cc.Unmarshal(ccEnt.Data); err != nil {
+					return fmt.Errorf("error unmarshalling force-new-cluster config change: %v", err)
+				}
+				if cc.Type == raftpb.ConfChangeRemoveNode {
+					n.cluster.RemoveMember(cc.NodeID)
+				}
+			}
+		}
 		ents = append(ents, toAppEnts...)
 
 		// force commit newly appended entries
@@ -347,9 +380,10 @@ func (n *Node) restoreFromSnapshot(data []byte, forceNewCluster bool) error {
 				return err
 			}
 		}
-		for _, removedMember := range snapshot.Membership.Removed {
-			n.cluster.RemoveMember(removedMember)
-		}
+	}
+
+	for _, removedMember := range snapshot.Membership.Removed {
+		n.cluster.RemoveMember(removedMember)
 	}
 
 	return nil

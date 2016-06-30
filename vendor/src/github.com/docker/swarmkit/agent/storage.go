@@ -1,8 +1,6 @@
 package agent
 
 import (
-	"bytes"
-
 	"github.com/boltdb/bolt"
 	"github.com/docker/swarmkit/api"
 	"github.com/gogo/protobuf/proto"
@@ -21,12 +19,6 @@ var (
 	bucketKeyData           = []byte("data")
 	bucketKeyStatus         = []byte("status")
 )
-
-type bucketKeyPath [][]byte
-
-func (bk bucketKeyPath) String() string {
-	return string(bytes.Join([][]byte(bk), []byte("/")))
-}
 
 // InitDB prepares a database for writing task data.
 //

@@ -55,7 +55,7 @@ type ContainerStatuser interface {
 // correct status depending on the tasks current state according to the result.
 //
 // Unlike Do, if an error is returned, the status should still be reported. The
-// error merely reports the
+// error merely reports the failure at getting the controller.
 func Resolve(ctx context.Context, task *api.Task, executor Executor) (Controller, *api.TaskStatus, error) {
 	status := task.Status.Copy()
 

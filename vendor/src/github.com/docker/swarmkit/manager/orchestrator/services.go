@@ -1,6 +1,8 @@
 package orchestrator
 
 import (
+	"sort"
+
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
@@ -68,6 +70,27 @@ func (r *ReplicatedOrchestrator) resolveService(ctx context.Context, task *api.T
 	return service
 }
 
+type taskWithIndex struct {
+	task *api.Task
+
+	// index is a counter that counts this task as the nth instance of
+	// the service on its node. This is used for sorting the tasks so that
+	// when scaling down we leave tasks more evenly balanced.
+	index int
+}
+
+type tasksByIndex []taskWithIndex
+
+func (ts tasksByIndex) Len() int      { return len(ts) }
+func (ts tasksByIndex) Swap(i, j int) { ts[i], ts[j] = ts[j], ts[i] }
+
+func (ts tasksByIndex) Less(i, j int) bool {
+	if ts[i].index < 0 {
+		return false
+	}
+	return ts[i].index < ts[j].index
+}
+
 func (r *ReplicatedOrchestrator) reconcile(ctx context.Context, service *api.Service) {
 	var (
 		tasks []*api.Task
@@ -97,8 +120,6 @@ func (r *ReplicatedOrchestrator) reconcile(ctx context.Context, service *api.Ser
 	deploy := service.Spec.GetMode().(*api.ServiceSpec_Replicated)
 	specifiedInstances := int(deploy.Replicated.Replicas)
 
-	// TODO(aaronl): Add support for restart delays.
-
 	switch {
 	case specifiedInstances > numTasks:
 		log.G(ctx).Debugf("Service %s was scaled up from %d to %d instances", service.ID, numTasks, specifiedInstances)
@@ -115,9 +136,35 @@ func (r *ReplicatedOrchestrator) reconcile(ctx context.Context, service *api.Ser
 	case specifiedInstances < numTasks:
 		// Update up to N tasks then remove the extra
 		log.G(ctx).Debugf("Service %s was scaled down from %d to %d instances", service.ID, numTasks, specifiedInstances)
-		r.updater.Update(ctx, service, runningTasks[:specifiedInstances])
+
+		// Preferentially remove tasks on the nodes that have the most
+		// copies of this service, to leave a more balanced result.
+		// Assign each task an index that counts it as the nth copy of
+		// of the service on its node (1, 2, 3, ...), and sort the
+		// tasks by this counter value.
+
+		instancesByNode := make(map[string]int)
+		tasksWithIndices := make(tasksByIndex, 0, numTasks)
+
+		for _, t := range runningTasks {
+			if t.NodeID != "" {
+				instancesByNode[t.NodeID]++
+				tasksWithIndices = append(tasksWithIndices, taskWithIndex{task: t, index: instancesByNode[t.NodeID]})
+			} else {
+				tasksWithIndices = append(tasksWithIndices, taskWithIndex{task: t, index: -1})
+			}
+		}
+
+		sort.Sort(tasksWithIndices)
+
+		sortedTasks := make([]*api.Task, 0, numTasks)
+		for _, t := range tasksWithIndices {
+			sortedTasks = append(sortedTasks, t.task)
+		}
+
+		r.updater.Update(ctx, service, sortedTasks[:specifiedInstances])
 		_, err = r.store.Batch(func(batch *store.Batch) error {
-			r.removeTasks(ctx, batch, service, runningTasks[specifiedInstances:])
+			r.removeTasks(ctx, batch, service, sortedTasks[specifiedInstances:])
 			return nil
 		})
 		if err != nil {
