@@ -113,3 +113,66 @@ func TestMountOptSetErrorInvalidWritable(t *testing.T) {
 	var mount MountOpt
 	assert.Error(t, mount.Set("type=VOLUME,writable=yes"), "invalid value for writable: yes")
 }
+
+func TestMountRaw(t *testing.T) {
+	type c struct {
+		raw      string
+		expected swarm.Mount
+	}
+	cases := []c{
+		{"/banana:/unicorn", swarm.Mount{Type: swarm.MountTypeBind, Source: "/banana", Target: "/unicorn", Writable: true}},
+		{"/banana:/unicorn:ro", swarm.Mount{Type: swarm.MountTypeBind, Source: "/banana", Target: "/unicorn"}},
+		{"/banana:/unicorn:ro,rprivate", swarm.Mount{Type: swarm.MountTypeBind, Source: "/banana", Target: "/unicorn", BindOptions: &swarm.BindOptions{Propagation: "rprivate"}}},
+		{"/banana:/unicorn:rprivate", swarm.Mount{Type: swarm.MountTypeBind, Source: "/banana", Target: "/unicorn", Writable: true, BindOptions: &swarm.BindOptions{Propagation: "rprivate"}}},
+		{"banana:/unicorn", swarm.Mount{Type: swarm.MountTypeVolume, Source: "banana", Target: "/unicorn", Writable: true, VolumeOptions: &swarm.VolumeOptions{Populate: true}}},
+		{"banana:/unicorn:ro", swarm.Mount{Type: swarm.MountTypeVolume, Source: "banana", Target: "/unicorn", VolumeOptions: &swarm.VolumeOptions{Populate: true}}},
+		{"banana:/unicorn:ro,nocopy", swarm.Mount{Type: swarm.MountTypeVolume, Source: "banana", Target: "/unicorn", VolumeOptions: &swarm.VolumeOptions{Populate: false}}},
+		{"banana:/unicorn:nocopy", swarm.Mount{Type: swarm.MountTypeVolume, Source: "banana", Target: "/unicorn", Writable: true, VolumeOptions: &swarm.VolumeOptions{Populate: false}}},
+		{"/unicorn", swarm.Mount{Type: swarm.MountTypeVolume, Target: "/unicorn", Writable: true, VolumeOptions: &swarm.VolumeOptions{Populate: true}}},
+		{`c:\banana:/unicorn`, swarm.Mount{Type: swarm.MountTypeBind, Source: `c:\banana`, Target: "/unicorn", Writable: true}},
+		{`c:\banana:/unicorn:ro`, swarm.Mount{Type: swarm.MountTypeBind, Source: `c:\banana`, Target: "/unicorn"}},
+		{`c:\banana:c:\unicorn`, swarm.Mount{Type: swarm.MountTypeBind, Source: `c:\banana`, Target: `c:\unicorn`, Writable: true}},
+		{`c:\banana:c:\unicorn:ro`, swarm.Mount{Type: swarm.MountTypeBind, Source: `c:\banana`, Target: `c:\unicorn`}},
+		{`c:\banana:c:\unicorn:ro,rprivate`, swarm.Mount{Type: swarm.MountTypeBind, Source: `c:\banana`, Target: `c:\unicorn`, BindOptions: &swarm.BindOptions{Propagation: "rprivate"}}},
+		{`c:\banana:c:\unicorn:rprivate`, swarm.Mount{Type: swarm.MountTypeBind, Source: `c:\banana`, Target: `c:\unicorn`, Writable: true, BindOptions: &swarm.BindOptions{Propagation: "rprivate"}}},
+		{`c:\banana`, swarm.Mount{Type: swarm.MountTypeVolume, Target: `c:\banana`, Writable: true, VolumeOptions: &swarm.VolumeOptions{Populate: true}}},
+	}
+
+	for i, c := range cases {
+		t.Logf("case %d - %s", i, c.raw)
+		var m mountRawOpt
+		if err := m.Set(c.raw); err != nil {
+			t.Fatal(err)
+		}
+		if len(m.values) == 0 {
+			t.Fatal("mounts not set")
+		}
+		actual := m.values[0]
+
+		if actual.Source != c.expected.Source {
+			t.Fatalf("expected source '%s' to match '%s'", actual.Source, c.expected.Source)
+		}
+		if actual.Target != c.expected.Target {
+			t.Fatalf("expected destination '%s' to match '%s'", actual.Target, c.expected.Target)
+		}
+		if actual.Writable != c.expected.Writable {
+			t.Fatalf("expected writable '%v' to match '%v'", actual.Writable, c.expected.Writable)
+		}
+		if c.expected.VolumeOptions != nil {
+			if actual.VolumeOptions == nil {
+				t.Fatal("unexpected nil VolumeOptions")
+			}
+			if actual.VolumeOptions.Populate != c.expected.VolumeOptions.Populate {
+				t.Fatalf("expected volume-populate '%v' to match '%v'", actual.VolumeOptions.Populate, c.expected.VolumeOptions.Populate)
+			}
+		}
+		if c.expected.BindOptions != nil {
+			if actual.BindOptions == nil {
+				t.Fatal("unexpected nil BindOptions")
+			}
+			if actual.BindOptions.Propagation != c.expected.BindOptions.Propagation {
+				t.Fatalf("expected bind-propagation '%v' to match '%v'", actual.BindOptions.Propagation, c.expected.BindOptions.Propagation)
+			}
+		}
+	}
+}

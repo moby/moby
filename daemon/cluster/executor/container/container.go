@@ -93,7 +93,7 @@ func (c *containerConfig) volumes() map[string]struct{} {
 
 	for _, mount := range c.spec().Mounts {
 		// pick off all the volume mounts.
-		if mount.Type != api.MountTypeVolume {
+		if mount.Type != api.MountTypeVolume || mount.Source != "" {
 			continue
 		}
 
@@ -165,7 +165,7 @@ func (c *containerConfig) bindMounts() []string {
 
 	for _, val := range c.spec().Mounts {
 		mask := getMountMask(&val)
-		if val.Type == api.MountTypeBind {
+		if val.Type == api.MountTypeBind || (val.Type == api.MountTypeVolume && val.Source != "") {
 			r = append(r, fmt.Sprintf("%s:%s:%s", val.Source, val.Target, mask))
 		}
 	}
