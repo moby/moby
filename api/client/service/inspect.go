@@ -28,7 +28,7 @@ func newInspectCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "inspect [OPTIONS] SERVICE [SERVICE...]",
-		Short: "Inspect a service",
+		Short: "Display detailed information on one or more services",
 		Args:  cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.refs = args

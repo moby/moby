@@ -13,7 +13,7 @@ parent = "smn_cli"
 
     Usage: docker node inspect [OPTIONS] self|NODE [NODE...]
 
-    Return low-level information on a volume
+    Display detailed information on one or more nodes
 
       -f, --format=       Format the output using the given go template.
       --help              Print usage

@@ -3460,7 +3460,7 @@ Return low-level information on the node `id`
 
 **Example request**:
 
-      GET /node/24ifsmvkjbyhk HTTP/1.1
+      GET /nodes/24ifsmvkjbyhk HTTP/1.1
 
 **Example response**:
 
@@ -3903,7 +3903,7 @@ Create a service
 
 **Example request**:
 
-    POST /service/create HTTP/1.1
+    POST /services/create HTTP/1.1
     Content-Type: application/json
 
     {
@@ -4020,13 +4020,13 @@ JSON Parameters:
 **Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
 might be subject to non backward-compatible changes.
 
-`DELETE /service/(id or name)`
+`DELETE /services/(id or name)`
 
 Stop and remove the service `id`
 
 **Example request**:
 
-    DELETE /service/16253994b7c4 HTTP/1.1
+    DELETE /services/16253994b7c4 HTTP/1.1
 
 **Example response**:
 
@@ -4038,18 +4038,18 @@ Stop and remove the service `id`
 -   **404** – no such service
 -   **500** – server error
 
-### Inspect a service
+### Inspect one or more services
 
 **Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
 might be subject to non backward-compatible changes.
 
-`GET /service/(id or name)`
+`GET /services/(id or name)`
 
 Return information on the service `id`.
 
 **Example request**:
 
-    GET /service/1cb4dnqcyx6m66g2t538x3rxha HTTP/1.1
+    GET /services/1cb4dnqcyx6m66g2t538x3rxha HTTP/1.1
 
 **Example response**:
 
@@ -4123,13 +4123,13 @@ Return information on the service `id`.
 **Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
 might be subject to non backward-compatible changes.
 
-`POST /service/(id or name)/update`
+`POST /services/(id or name)/update`
 
 Update the service `id`.
 
 **Example request**:
 
-    POST /service/1cb4dnqcyx6m66g2t538x3rxha/update HTTP/1.1
+    POST /services/1cb4dnqcyx6m66g2t538x3rxha/update HTTP/1.1
 
     {
       "Name": "top",
