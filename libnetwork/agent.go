@@ -102,7 +102,7 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 				deleted = cKey.Key
 			}
 
-			if cKey.Subsystem == subsysGossip /* subsysIPSec */ {
+			if cKey.Subsystem == subsysIPSec {
 				drvEnc.Prune = cKey.Key
 				drvEnc.PruneTag = cKey.LamportTime
 			}
@@ -128,7 +128,7 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 				a.networkDB.SetKey(key.Key)
 			}
 
-			if key.Subsystem == subsysGossip /*subsysIPSec*/ {
+			if key.Subsystem == subsysIPSec {
 				drvEnc.Key = key.Key
 				drvEnc.Tag = key.LamportTime
 			}
@@ -138,7 +138,7 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	key, tag := c.getPrimaryKeyTag(subsysGossip)
 	a.networkDB.SetPrimaryKey(key)
 
-	//key, tag = c.getPrimaryKeyTag(subsysIPSec)
+	key, tag = c.getPrimaryKeyTag(subsysIPSec)
 	drvEnc.Primary = key
 	drvEnc.PrimaryTag = tag
 
@@ -317,17 +317,12 @@ func (c *controller) agentInit(bindAddrOrInterface string) error {
 		return nil
 	}
 
-	drvEnc := discoverapi.DriverEncryptionConfig{}
-
-	keys, tags := c.getKeys(subsysGossip) // getKeys(subsysIPSec)
-	drvEnc.Keys = keys
-	drvEnc.Tags = tags
-
 	bindAddr, err := resolveAddr(bindAddrOrInterface)
 	if err != nil {
 		return err
 	}
 
+	keys, tags := c.getKeys(subsysGossip)
 	hostname, _ := os.Hostname()
 	nDB, err := networkdb.New(&networkdb.Config{
 		BindAddr: bindAddr,
@@ -349,6 +344,11 @@ func (c *controller) agentInit(bindAddrOrInterface string) error {
 	}
 
 	go c.handleTableEvents(ch, c.handleEpTableEvent)
+
+	drvEnc := discoverapi.DriverEncryptionConfig{}
+	keys, tags = c.getKeys(subsysIPSec)
+	drvEnc.Keys = keys
+	drvEnc.Tags = tags
 
 	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
 		err := driver.DiscoverNew(discoverapi.EncryptionKeysConfig, drvEnc)
@@ -380,7 +380,7 @@ func (c *controller) agentDriverNotify(d driverapi.Driver) {
 	})
 
 	drvEnc := discoverapi.DriverEncryptionConfig{}
-	keys, tags := c.getKeys(subsysGossip) // getKeys(subsysIPSec)
+	keys, tags := c.getKeys(subsysIPSec)
 	drvEnc.Keys = keys
 	drvEnc.Tags = tags
 
