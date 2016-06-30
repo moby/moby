@@ -117,8 +117,8 @@ func (c *containerConfig) config() *enginecontainer.Config {
 		// If Command is provided, we replace the whole invocation with Command
 		// by replacing Entrypoint and specifying Cmd. Args is ignored in this
 		// case.
-		config.Entrypoint = append(config.Entrypoint, c.spec().Command[0])
-		config.Cmd = append(config.Cmd, c.spec().Command[1:]...)
+		config.Entrypoint = append(config.Entrypoint, c.spec().Command...)
+		config.Cmd = append(config.Cmd, c.spec().Args...)
 	} else if len(c.spec().Args) > 0 {
 		// In this case, we assume the image has an Entrypoint and Args
 		// specifies the arguments for that entrypoint.

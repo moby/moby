@@ -49,7 +49,7 @@ func runInspect(dockerCli *client.DockerCli, opts inspectOptions) error {
 		if err != nil {
 			return nil, nil, err
 		}
-		node, err := client.NodeInspect(ctx, nodeRef)
+		node, _, err := client.NodeInspectWithRaw(ctx, nodeRef)
 		return node, nil, err
 	}
 
