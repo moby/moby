@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/multiplatform"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/docker/go-connections/nat"
@@ -131,6 +132,115 @@ func (i *Uint64Opt) String() string {
 // Value returns the uint64
 func (i *Uint64Opt) Value() *uint64 {
 	return i.value
+}
+
+type mountRawOpt struct {
+	values []swarm.Mount
+}
+
+func (m *mountRawOpt) Type() string {
+	return "mount-raw"
+}
+
+// String returns a string repr of this option
+func (m *mountRawOpt) String() string {
+	mounts := []string{}
+	for _, mount := range m.values {
+		repr := fmt.Sprintf("%s %s %s", mount.Type, mount.Source, mount.Target)
+		mounts = append(mounts, repr)
+	}
+	return strings.Join(mounts, ", ")
+}
+
+// Value returns the mounts
+func (m *mountRawOpt) Value() []swarm.Mount {
+	return m.values
+}
+
+// Set a new mount value
+func (m *mountRawOpt) Set(value string) error {
+	raw := value
+	var mnt swarm.Mount
+
+	pos := mountRawIndex(raw)
+	if pos == -1 {
+		// no separator, this is an anonymous volume
+		mnt.Type = swarm.MountTypeVolume
+		mnt.Target = raw
+		mnt.Writable = true
+		mnt.VolumeOptions = &swarm.VolumeOptions{Populate: true}
+		m.values = append(m.values, mnt)
+		return nil
+	}
+
+	if multiplatform.IsAbsWindows(raw) || multiplatform.IsAbsUnix(raw) {
+		mnt.Type = swarm.MountTypeBind
+	} else {
+		mnt.Type = swarm.MountTypeVolume
+		// enable populate be default
+		mnt.VolumeOptions = &swarm.VolumeOptions{Populate: true}
+	}
+	mnt.Writable = true
+	mnt.Source = raw[:pos]
+
+	raw = raw[pos+1:]
+
+	// get the next section
+	pos = mountRawIndex(raw)
+	if pos == -1 {
+		// Couldn't find another separator, so it's done
+		mnt.Target = raw
+		m.values = append(m.values, mnt)
+		return nil
+	}
+	mnt.Target = raw[:pos]
+
+	raw = raw[pos+1:]
+	for _, opt := range strings.Split(raw, ",") {
+		switch opt {
+		case "private", "rprivate", "slave", "rslave", "shared", "rshared":
+			if mnt.Type != swarm.MountTypeBind {
+				return fmt.Errorf("option '%s' not supported for type '%s'", opt, mnt.Type)
+			}
+			mnt.BindOptions = &swarm.BindOptions{Propagation: swarm.MountPropagation(opt)}
+		case "ro":
+			mnt.Writable = false
+		case "nocopy":
+			if mnt.Type != swarm.MountTypeVolume {
+				return fmt.Errorf("option '%s' not supported for type '%s'", opt, mnt.Type)
+			}
+			mnt.VolumeOptions.Populate = false
+		}
+	}
+	m.values = append(m.values, mnt)
+	return nil
+}
+
+// mountRawIndex takes a raw mount string (e.g. `-v /foo:/bar`) and gives the
+// index pos of the separator `:` that splits the first part from the rest
+// It is able to handle Windows paths or unix paths, or non-paths.
+// examples:
+//   `/foo:/bar` will split `/foo` from `/bar`
+//   `foo:/bar` will split `foo` from `/bar`
+//   `/foo:/bar:ro` will split `/foo` from `/bar:ro`
+//   `c:\foo:/bar` will split `c:\foo` from `/bar`
+//   `c:\foo:c:\bar will split `c:\foo` from `c:\bar`
+//   `c:\foo:c:\bar:ro will split `c:\foo` from c:\bar:ro`
+func mountRawIndex(s string) int {
+	var skipFirst bool
+	if multiplatform.IsAbsWindows(s) && multiplatform.VolumeNameWindows(s) != "" {
+		skipFirst = true
+	}
+	pos := strings.Index(s, ":")
+	if skipFirst && pos != -1 {
+		pos2 := strings.Index(s[pos+1:], ":")
+		if pos2 != -1 {
+			pos = pos + 1 + pos2
+		} else {
+			pos = -1
+		}
+	}
+	return pos
 }
 
 // MountOpt is a Value type for parsing mounts
@@ -352,15 +462,16 @@ func ValidatePort(value string) (string, error) {
 }
 
 type serviceOptions struct {
-	name    string
-	labels  opts.ListOpts
-	image   string
-	command []string
-	args    []string
-	env     opts.ListOpts
-	workdir string
-	user    string
-	mounts  MountOpt
+	name      string
+	labels    opts.ListOpts
+	image     string
+	command   []string
+	args      []string
+	env       opts.ListOpts
+	workdir   string
+	user      string
+	mounts    MountOpt
+	mountsRaw mountRawOpt
 
 	resources resourceOptions
 	stopGrace DurationOpt
@@ -401,7 +512,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 				Env:             opts.env.GetAll(),
 				Dir:             opts.workdir,
 				User:            opts.user,
-				Mounts:          opts.mounts.Value(),
+				Mounts:          append(opts.mounts.Value(), opts.mountsRaw.Value()...),
 				StopGracePeriod: opts.stopGrace.Value(),
 			},
 			Resources:     opts.resources.ToResourceRequirements(),
@@ -447,6 +558,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.StringVarP(&opts.workdir, "workdir", "w", "", "Working directory inside the container")
 	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID")
 	flags.VarP(&opts.mounts, flagMount, "m", "Attach a mount to the service")
+	flags.VarP(&opts.mountsRaw, flagVolume, "v", "Attach a mount to the service")
 
 	flags.Var(&opts.resources.limitCPU, flagLimitCPU, "Limit CPUs")
 	flags.Var(&opts.resources.limitMemBytes, flagLimitMemory, "Limit Memory")
@@ -493,4 +605,5 @@ const (
 	flagUpdateDelay        = "update-delay"
 	flagUpdateParallelism  = "update-parallelism"
 	flagUser               = "user"
+	flagVolume             = "volume"
 )
