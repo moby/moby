@@ -3644,8 +3644,15 @@ JSON Parameters:
           election.
     - **Dispatcher** – Configuration settings for the task dispatcher.
         - **HeartbeatPeriod** – The delay for an agent to send a heartbeat to the dispatcher.
-    - **CAConfig** – CA configuration.
+    - **CAConfig** – Certificate authority configuration.
         - **NodeCertExpiry** – Automatic expiry for nodes certificates.
+        - **ExternalCA** - Configuration for forwarding signing requests to an external
+          certificate authority.
+            - **Protocol** - Protocol for communication with the external CA
+              (currently only "cfssl" is supported).
+            - **URL** - URL where certificate signing requests should be sent.
+            - **Options** - An object with key/value pairs that are interpreted
+              as protocol-specific options for the external CA driver.
 
 ### Join an existing Swarm
 
@@ -3792,6 +3799,13 @@ JSON Parameters:
     - **HeartbeatPeriod** – The delay for an agent to send a heartbeat to the dispatcher.
 - **CAConfig** – CA configuration.
     - **NodeCertExpiry** – Automatic expiry for nodes certificates.
+    - **ExternalCA** - Configuration for forwarding signing requests to an external
+      certificate authority.
+        - **Protocol** - Protocol for communication with the external CA
+          (currently only "cfssl" is supported).
+        - **URL** - URL where certificate signing requests should be sent.
+        - **Options** - An object with key/value pairs that are interpreted
+          as protocol-specific options for the external CA driver.
 
 ## 3.8 Services
 

@@ -17,6 +17,7 @@ parent = "smn_cli"
 
     Options:
           --auto-accept value               Auto acceptance policy (worker, manager or none)
+          --external-ca value               Specifications of one or more certificate signing endpoints
           --dispatcher-heartbeat duration   Dispatcher heartbeat period (default 5s)
           --help                            Print usage
           --secret string                   Set secret value needed to accept nodes into cluster

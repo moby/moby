@@ -17,6 +17,7 @@ parent = "smn_cli"
 
 	Options:
 	      --auto-accept value   Acceptance policy (default [worker,manager])
+	      --external-ca value   Specifications of one or more certificate signing endpoints
 	      --force-new-cluster   Force create a new cluster from current state.
 	      --help                Print usage
 	      --listen-addr value   Listen address (default 0.0.0.0:2377)
@@ -34,7 +35,7 @@ ID                           NAME      MEMBERSHIP  STATUS  AVAILABILITY  MANAGER
 1ujecd0j9n3ro9i6628smdmth *  manager1  Accepted    Ready   Active        Reachable               Yes
 ```
 
-###	--auto-accept value
+### `--auto-accept value`
 
 This flag controls node acceptance into the cluster. By default, both `worker` and `manager`
 nodes are auto accepted by the cluster. This can be changed by specifing what kinds of nodes
@@ -48,6 +49,13 @@ For example, the following initializes a cluster with auto-acceptance of workers
 $ docker swarm init --listen-addr 192.168.99.121:2377 --auto-accept worker
 Swarm initialized: current node (1m8cdsylxbf3lk8qriqt07hx1) is now a manager.
 ```
+
+### `--external-ca value`
+
+This flag sets up the swarm to use an external CA to issue node certificates. The value takes
+the form `protocol=X,url=Y`. The value for `protocol` specifies what protocol should be used
+to send signing requests to the external CA. Currently, the only supported value is `cfssl`.
+The URL specifies the endpoint where signing requests should be submitted.
 
 ### `--force-new-cluster`
 
