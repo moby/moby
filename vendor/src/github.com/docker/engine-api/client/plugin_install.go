@@ -31,6 +31,7 @@ func (cli *Client) PluginInstall(ctx context.Context, name string, options types
 	}
 	var privileges types.PluginPrivileges
 	if err := json.NewDecoder(resp.body).Decode(&privileges); err != nil {
+		ensureReaderClosed(resp)
 		return err
 	}
 	ensureReaderClosed(resp)

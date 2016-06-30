@@ -15,6 +15,7 @@ import (
 type registeredNode struct {
 	SessionID  string
 	Heartbeat  *heartbeat.Heartbeat
+	Registered time.Time
 	Node       *api.Node
 	Disconnect chan struct{} // signal to disconnect
 	mu         sync.Mutex
@@ -41,15 +42,17 @@ func (rn *registeredNode) checkSessionID(sessionID string) error {
 type nodeStore struct {
 	periodChooser         *periodChooser
 	gracePeriodMultiplier time.Duration
+	rateLimitPeriod       time.Duration
 	nodes                 map[string]*registeredNode
 	mu                    sync.RWMutex
 }
 
-func newNodeStore(hbPeriod, hbEpsilon time.Duration, graceMultiplier int) *nodeStore {
+func newNodeStore(hbPeriod, hbEpsilon time.Duration, graceMultiplier int, rateLimitPeriod time.Duration) *nodeStore {
 	return &nodeStore{
 		nodes:                 make(map[string]*registeredNode),
 		periodChooser:         newPeriodChooser(hbPeriod, hbEpsilon),
 		gracePeriodMultiplier: time.Duration(graceMultiplier),
+		rateLimitPeriod:       rateLimitPeriod,
 	}
 }
 
@@ -77,6 +80,19 @@ func (s *nodeStore) AddUnknown(n *api.Node, expireFunc func()) error {
 	return nil
 }
 
+// CheckRateLimit returs error if node with specified id is allowed to re-register
+// again.
+func (s *nodeStore) CheckRateLimit(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if existRn, ok := s.nodes[id]; ok {
+		if time.Since(existRn.Registered) < s.rateLimitPeriod {
+			return grpc.Errorf(codes.Unavailable, "node %s attempted registration too recently", id)
+		}
+	}
+	return nil
+}
+
 // Add adds new node and returns it, it replaces existing without notification.
 func (s *nodeStore) Add(n *api.Node, expireFunc func()) *registeredNode {
 	s.mu.Lock()
@@ -88,6 +104,7 @@ func (s *nodeStore) Add(n *api.Node, expireFunc func()) *registeredNode {
 	rn := &registeredNode{
 		SessionID:  identity.NewID(), // session ID is local to the dispatcher.
 		Node:       n,
+		Registered: time.Now(),
 		Disconnect: make(chan struct{}),
 	}
 	s.nodes[n.ID] = rn

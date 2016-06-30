@@ -268,7 +268,7 @@ func _ServiceSpec_OneofSizer(msg proto.Message) (n int) {
 // instructing Swarm on how this service should work on the particular
 // network.
 type ServiceSpec_NetworkAttachmentConfig struct {
-	// Target specifies the target network for attachement. This value may be a
+	// Target specifies the target network for attachment. This value may be a
 	// network name or identifier. Only identifiers are supported at this time.
 	Target string `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	// Aliases specifies a list of discoverable alternate names for the service on this Target.
@@ -281,7 +281,7 @@ func (*ServiceSpec_NetworkAttachmentConfig) Descriptor() ([]byte, []int) {
 	return fileDescriptorSpecs, []int{1, 0}
 }
 
-// ReplicatedService set the reconcilation target to certain number of replicas.
+// ReplicatedService sets the reconciliation target to certain number of replicas.
 type ReplicatedService struct {
 	Replicas uint64 `protobuf:"varint,1,opt,name=replicas,proto3" json:"replicas,omitempty"`
 }
@@ -290,7 +290,7 @@ func (m *ReplicatedService) Reset()                    { *m = ReplicatedService{
 func (*ReplicatedService) ProtoMessage()               {}
 func (*ReplicatedService) Descriptor() ([]byte, []int) { return fileDescriptorSpecs, []int{2} }
 
-// GlobalService represent global service.
+// GlobalService represents global service.
 type GlobalService struct {
 }
 
@@ -415,9 +415,12 @@ type ContainerSpec struct {
 	// executable and the following elements are treated as arguments.
 	//
 	// If command is empty, execution will fall back to the image's entrypoint.
+	//
+	// Command should only be used when overriding entrypoint.
 	Command []string `protobuf:"bytes,3,rep,name=command" json:"command,omitempty"`
 	// Args specifies arguments provided to the image's entrypoint.
-	// Ignored if command is specified.
+	//
+	// If Command and Args are provided, Args will be appended to Command.
 	Args []string `protobuf:"bytes,4,rep,name=args" json:"args,omitempty"`
 	// Env specifies the environment variables for the container in NAME=VALUE
 	// format. These must be compliant with  [IEEE Std

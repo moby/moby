@@ -124,6 +124,14 @@ func (c *MutableTLSCreds) LoadNewTLSConfig(newConfig *tls.Config) error {
 	return nil
 }
 
+// Config returns the current underlying TLS config.
+func (c *MutableTLSCreds) Config() *tls.Config {
+	c.Lock()
+	defer c.Unlock()
+
+	return c.config
+}
+
 // Role returns the OU for the certificate encapsulated in this TransportAuthenticator
 func (c *MutableTLSCreds) Role() string {
 	c.Lock()

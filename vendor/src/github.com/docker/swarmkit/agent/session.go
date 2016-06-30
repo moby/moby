@@ -26,7 +26,6 @@ var (
 // agent through errs, messages and tasks.
 type session struct {
 	agent     *Agent
-	nodeID    string
 	sessionID string
 	session   api.Dispatcher_SessionClient
 	errs      chan error

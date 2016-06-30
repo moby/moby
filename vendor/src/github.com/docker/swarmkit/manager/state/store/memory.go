@@ -23,7 +23,6 @@ const (
 	indexID           = "id"
 	indexName         = "name"
 	indexServiceID    = "serviceid"
-	indexServiceMode  = "servicemode"
 	indexNodeID       = "nodeid"
 	indexSlot         = "slot"
 	indexCN           = "cn"

@@ -272,7 +272,7 @@ func (p *Picker) PickAddr() (string, error) {
 	p.mu.Lock()
 	p.peer = peer
 	p.mu.Unlock()
-	return p.peer.Addr, err
+	return peer.Addr, err
 }
 
 // State returns the connectivity state of the underlying connections.
