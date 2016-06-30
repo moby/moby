@@ -12,7 +12,7 @@ parent = "smn_cli"
 
     Usage:  docker network connect [OPTIONS] NETWORK CONTAINER
 
-    Connects a container to a network
+    Connect a container to a network
 
       --alias=[]         Add network-scoped alias for the container
       --help             Print usage
