@@ -167,7 +167,7 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool) ([]*types.Imag
 			} else {
 				continue
 			}
-		} else if danglingOnly {
+		} else if danglingOnly && len(newImage.RepoTags) > 0 {
 			continue
 		}
 
