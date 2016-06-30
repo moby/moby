@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/runconfig"
 	apitypes "github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/filters"
 	types "github.com/docker/engine-api/types/swarm"
 	swarmagent "github.com/docker/swarmkit/agent"
 	swarmapi "github.com/docker/swarmkit/api"
@@ -855,7 +856,33 @@ func (c *Cluster) GetTasks(options apitypes.TaskListOptions) ([]types.Task, erro
 		return nil, c.errNoManager()
 	}
 
-	filters, err := newListTasksFilters(options.Filter)
+	byName := func(filter filters.Args) error {
+		if filter.Include("service") {
+			serviceFilters := filter.Get("service")
+			for _, serviceFilter := range serviceFilters {
+				service, err := c.GetService(serviceFilter)
+				if err != nil {
+					return err
+				}
+				filter.Del("service", serviceFilter)
+				filter.Add("service", service.ID)
+			}
+		}
+		if filter.Include("node") {
+			nodeFilters := filter.Get("node")
+			for _, nodeFilter := range nodeFilters {
+				node, err := c.GetNode(nodeFilter)
+				if err != nil {
+					return err
+				}
+				filter.Del("node", nodeFilter)
+				filter.Add("node", node.ID)
+			}
+		}
+		return nil
+	}
+
+	filters, err := newListTasksFilters(options.Filter, byName)
 	if err != nil {
 		return nil, err
 	}
