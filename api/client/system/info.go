@@ -48,7 +48,7 @@ func runInfo(dockerCli *client.DockerCli) error {
 
 			// print a warning if devicemapper is using a loopback file
 			if pair[0] == "Data loop file" {
-				fmt.Fprintln(dockerCli.Err(), " WARNING: Usage of loopback devices is strongly discouraged for production use. Use `--storage-opt dm.thinpooldev` to specifies a custom block storage device.")
+				fmt.Fprintln(dockerCli.Err(), " WARNING: Usage of loopback devices is strongly discouraged for production use. Use `--storage-opt dm.thinpooldev` to specify a custom block storage device.")
 			}
 		}
 
