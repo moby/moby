@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
@@ -40,9 +41,7 @@ func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWri
 
 		var postForm map[string]interface{}
 		if err := json.Unmarshal(b, &postForm); err == nil {
-			if _, exists := postForm["password"]; exists {
-				postForm["password"] = "*****"
-			}
+			maskSecretKeys(postForm)
 			formStr, errMarshal := json.Marshal(postForm)
 			if errMarshal == nil {
 				logrus.Debugf("form data: %s", string(formStr))
@@ -52,5 +51,26 @@ func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWri
 		}
 
 		return handler(ctx, w, r, vars)
+	}
+}
+
+func maskSecretKeys(inp interface{}) {
+	if arr, ok := inp.([]interface{}); ok {
+		for _, f := range arr {
+			maskSecretKeys(f)
+		}
+		return
+	}
+	if form, ok := inp.(map[string]interface{}); ok {
+	loop0:
+		for k, v := range form {
+			for _, m := range []string{"password", "secret"} {
+				if strings.EqualFold(m, k) {
+					form[k] = "*****"
+					continue loop0
+				}
+			}
+			maskSecretKeys(v)
+		}
 	}
 }
