@@ -2034,6 +2034,14 @@ func (s *DockerSuite) TestRunBindMounts(c *check.C) {
 // Ensure that CIDFile gets deleted if it's empty
 // Perform this test by making `docker run` fail
 func (s *DockerSuite) TestRunCidFileCleanupIfEmpty(c *check.C) {
+	// Windows Server 2016 RS1 builds load the windowsservercore image from a tar rather than
+	// a .WIM file, and the tar layer has the default CMD set (same as the Linux ubuntu image),
+	// where-as the TP5 .WIM had a blank CMD. Hence this test is not applicable on RS1 or later
+	// builds as the command won't fail as it's not blank
+	if daemonPlatform == "windows" && windowsDaemonKV >= 14375 {
+		c.Skip("Not applicable on Windows RS1 or later builds")
+	}
+
 	tmpDir, err := ioutil.TempDir("", "TestRunCidFile")
 	if err != nil {
 		c.Fatal(err)
