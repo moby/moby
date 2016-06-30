@@ -14,10 +14,11 @@ import (
 // Writes are concurrent, so you need implement some sync in your logger
 type Copier struct {
 	// srcs is map of name -> reader pairs, for example "stdout", "stderr"
-	srcs     map[string]io.Reader
-	dst      Logger
-	copyJobs sync.WaitGroup
-	closed   chan struct{}
+	srcs      map[string]io.Reader
+	dst       Logger
+	copyJobs  sync.WaitGroup
+	closeOnce sync.Once
+	closed    chan struct{}
 }
 
 // NewCopier creates a new Copier
@@ -74,9 +75,7 @@ func (c *Copier) Wait() {
 
 // Close closes the copier
 func (c *Copier) Close() {
-	select {
-	case <-c.closed:
-	default:
+	c.closeOnce.Do(func() {
 		close(c.closed)
-	}
+	})
 }
