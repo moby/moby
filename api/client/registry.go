@@ -149,8 +149,8 @@ func (cli *DockerCli) ConfigureAuth(flUser, flPassword, serverAddress string, is
 	return authconfig, nil
 }
 
-// ResolveAuthConfigFromImage retrieves that AuthConfig using the image string
-func (cli *DockerCli) ResolveAuthConfigFromImage(ctx context.Context, image string) (types.AuthConfig, error) {
+// resolveAuthConfigFromImage retrieves that AuthConfig using the image string
+func (cli *DockerCli) resolveAuthConfigFromImage(ctx context.Context, image string) (types.AuthConfig, error) {
 	registryRef, err := reference.ParseNamed(image)
 	if err != nil {
 		return types.AuthConfig{}, err
@@ -166,7 +166,7 @@ func (cli *DockerCli) ResolveAuthConfigFromImage(ctx context.Context, image stri
 // RetrieveAuthTokenFromImage retrieves an encoded auth token given a complete image
 func (cli *DockerCli) RetrieveAuthTokenFromImage(ctx context.Context, image string) (string, error) {
 	// Retrieve encoded auth token from the image reference
-	authConfig, err := cli.ResolveAuthConfigFromImage(ctx, image)
+	authConfig, err := cli.resolveAuthConfigFromImage(ctx, image)
 	if err != nil {
 		return "", err
 	}
