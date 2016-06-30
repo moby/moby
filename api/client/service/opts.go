@@ -373,6 +373,8 @@ type serviceOptions struct {
 	update        updateOptions
 	networks      []string
 	endpoint      endpointOptions
+
+	registryAuth bool
 }
 
 func newServiceOptions() *serviceOptions {
@@ -436,7 +438,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 	return service, nil
 }
 
-// addServiceFlags adds all flags that are common to both `create` and `update.
+// addServiceFlags adds all flags that are common to both `create` and `update`.
 // Any flags that are not common are added separately in the individual command
 func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags := cmd.Flags()
@@ -469,6 +471,8 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.StringSliceVar(&opts.networks, flagNetwork, []string{}, "Network attachments")
 	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode(Valid values: vip, dnsrr)")
 	flags.VarP(&opts.endpoint.ports, flagPublish, "p", "Publish a port as a node port")
+
+	flags.BoolVar(&opts.registryAuth, flagRegistryAuth, false, "Send registry authentication details to Swarm agents")
 }
 
 const (
@@ -493,4 +497,5 @@ const (
 	flagUpdateDelay        = "update-delay"
 	flagUpdateParallelism  = "update-parallelism"
 	flagUser               = "user"
+	flagRegistryAuth       = "registry-auth"
 )

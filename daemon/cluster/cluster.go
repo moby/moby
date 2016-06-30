@@ -689,7 +689,11 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (string
 	}
 
 	if encodedAuth != "" {
-		serviceSpec.Task.Runtime.(*swarmapi.TaskSpec_Container).Container.PullOptions = &swarmapi.ContainerSpec_PullOptions{RegistryAuth: encodedAuth}
+		ctnr := serviceSpec.Task.GetContainer()
+		if ctnr == nil {
+			return "", fmt.Errorf("service does not use container tasks")
+		}
+		ctnr.PullOptions = &swarmapi.ContainerSpec_PullOptions{RegistryAuth: encodedAuth}
 	}
 
 	r, err := c.client.CreateService(ctx, &swarmapi.CreateServiceRequest{Spec: &serviceSpec})
@@ -731,7 +735,23 @@ func (c *Cluster) UpdateService(serviceID string, version uint64, spec types.Ser
 	}
 
 	if encodedAuth != "" {
-		serviceSpec.Task.Runtime.(*swarmapi.TaskSpec_Container).Container.PullOptions = &swarmapi.ContainerSpec_PullOptions{RegistryAuth: encodedAuth}
+		ctnr := serviceSpec.Task.GetContainer()
+		if ctnr == nil {
+			return fmt.Errorf("service does not use container tasks")
+		}
+		ctnr.PullOptions = &swarmapi.ContainerSpec_PullOptions{RegistryAuth: encodedAuth}
+	} else {
+		// this is needed because if the encodedAuth isn't being updated then we
+		// shouldn't lose it, and continue to use the one that was already present
+		currentService, err := getService(c.getRequestContext(), c.client, serviceID)
+		if err != nil {
+			return err
+		}
+		ctnr := currentService.Spec.Task.GetContainer()
+		if ctnr == nil {
+			return fmt.Errorf("service does not use container tasks")
+		}
+		serviceSpec.Task.GetContainer().PullOptions = ctnr.PullOptions
 	}
 
 	_, err = c.client.UpdateService(

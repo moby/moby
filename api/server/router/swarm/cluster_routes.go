@@ -107,6 +107,7 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 
+	// Get returns "" if the header does not exist
 	encodedAuth := r.Header.Get("X-Registry-Auth")
 
 	id, err := sr.backend.CreateService(service, encodedAuth)
@@ -132,6 +133,7 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 		return fmt.Errorf("Invalid service version '%s': %s", rawVersion, err.Error())
 	}
 
+	// Get returns "" if the header does not exist
 	encodedAuth := r.Header.Get("X-Registry-Auth")
 
 	if err := sr.backend.UpdateService(vars["id"], version, service, encodedAuth); err != nil {
