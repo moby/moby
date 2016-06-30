@@ -5,6 +5,7 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
@@ -157,4 +158,14 @@ func (s *DockerSwarmSuite) TestSwarmIncompatibleDaemon(c *check.C) {
 	c.Assert(string(content), checker.Contains, "--live-restore daemon configuration is incompatible with swarm mode")
 	// restart for teardown
 	c.Assert(d.Start(), checker.IsNil)
+}
+
+// Test case for #24090
+func (s *DockerSwarmSuite) TestSwarmNodeListHostname(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	// The first line should contain "HOSTNAME"
+	out, err := d.Cmd("node", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.Split(out, "\n")[0], checker.Contains, "HOSTNAME")
 }

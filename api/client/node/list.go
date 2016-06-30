@@ -74,15 +74,11 @@ func printTable(out io.Writer, nodes []swarm.Node, info types.Info) {
 	// Ignore flushing errors
 	defer writer.Flush()
 
-	fmt.Fprintf(writer, listItemFmt, "ID", "NAME", "MEMBERSHIP", "STATUS", "AVAILABILITY", "MANAGER STATUS")
+	fmt.Fprintf(writer, listItemFmt, "ID", "HOSTNAME", "MEMBERSHIP", "STATUS", "AVAILABILITY", "MANAGER STATUS")
 	for _, node := range nodes {
-		name := node.Spec.Name
+		name := node.Description.Hostname
 		availability := string(node.Spec.Availability)
 		membership := string(node.Spec.Membership)
-
-		if name == "" {
-			name = node.Description.Hostname
-		}
 
 		reachability := ""
 		if node.ManagerStatus != nil {
