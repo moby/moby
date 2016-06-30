@@ -253,7 +253,7 @@ func (m *MountOpt) Value() []swarm.Mount {
 	return m.values
 }
 
-type updateOptions struct {
+type updateConfigOptions struct {
 	parallelism uint64
 	delay       time.Duration
 }
@@ -370,7 +370,7 @@ type serviceOptions struct {
 
 	restartPolicy restartPolicyOptions
 	constraints   []string
-	update        updateOptions
+	update        updateConfigOptions
 	networks      []string
 	endpoint      endpointOptions
 
