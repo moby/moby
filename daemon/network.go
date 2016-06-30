@@ -8,6 +8,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/errors"
+	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/network"
@@ -333,6 +334,11 @@ func (daemon *Daemon) GetNetworkDriverList() map[string]bool {
 	}
 	// TODO : Replace this with proper libnetwork API
 	pluginList["overlay"] = true
+
+	remotes, _ := plugins.GetAll("NetworkDriver")
+	for _, remote := range remotes {
+		pluginList[remote.Name()] = true
+	}
 
 	return pluginList
 }
