@@ -9,9 +9,9 @@ import (
 )
 
 // ServiceCreate creates a new Service.
-func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec) (types.ServiceCreateResponse, error) {
+func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec, headers map[string][]string) (types.ServiceCreateResponse, error) {
 	var response types.ServiceCreateResponse
-	resp, err := cli.post(ctx, "/services/create", nil, service, nil)
+	resp, err := cli.post(ctx, "/services/create", nil, service, headers)
 	if err != nil {
 		return response, err
 	}

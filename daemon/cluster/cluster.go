@@ -663,7 +663,7 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 }
 
 // CreateService creates a new service in a managed swarm cluster.
-func (c *Cluster) CreateService(s types.ServiceSpec) (string, error) {
+func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (string, error) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -682,6 +682,15 @@ func (c *Cluster) CreateService(s types.ServiceSpec) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	if encodedAuth != "" {
+		ctnr := serviceSpec.Task.GetContainer()
+		if ctnr == nil {
+			return "", fmt.Errorf("service does not use container tasks")
+		}
+		ctnr.PullOptions = &swarmapi.ContainerSpec_PullOptions{RegistryAuth: encodedAuth}
+	}
+
 	r, err := c.client.CreateService(ctx, &swarmapi.CreateServiceRequest{Spec: &serviceSpec})
 	if err != nil {
 		return "", err
@@ -707,7 +716,7 @@ func (c *Cluster) GetService(input string) (types.Service, error) {
 }
 
 // UpdateService updates existing service to match new properties.
-func (c *Cluster) UpdateService(serviceID string, version uint64, spec types.ServiceSpec) error {
+func (c *Cluster) UpdateService(serviceID string, version uint64, spec types.ServiceSpec, encodedAuth string) error {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -718,6 +727,26 @@ func (c *Cluster) UpdateService(serviceID string, version uint64, spec types.Ser
 	serviceSpec, err := convert.ServiceSpecToGRPC(spec)
 	if err != nil {
 		return err
+	}
+
+	if encodedAuth != "" {
+		ctnr := serviceSpec.Task.GetContainer()
+		if ctnr == nil {
+			return fmt.Errorf("service does not use container tasks")
+		}
+		ctnr.PullOptions = &swarmapi.ContainerSpec_PullOptions{RegistryAuth: encodedAuth}
+	} else {
+		// this is needed because if the encodedAuth isn't being updated then we
+		// shouldn't lose it, and continue to use the one that was already present
+		currentService, err := getService(c.getRequestContext(), c.client, serviceID)
+		if err != nil {
+			return err
+		}
+		ctnr := currentService.Spec.Task.GetContainer()
+		if ctnr == nil {
+			return fmt.Errorf("service does not use container tasks")
+		}
+		serviceSpec.Task.GetContainer().PullOptions = ctnr.PullOptions
 	}
 
 	_, err = c.client.UpdateService(
