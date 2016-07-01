@@ -48,9 +48,9 @@ func runTasks(dockerCli *client.DockerCli, opts tasksOptions) error {
 
 	filter := opts.filter.Value()
 	filter.Add("label", labelNamespace+"="+opts.namespace)
-	if !opts.all && !filter.Include("desired_state") {
-		filter.Add("desired_state", string(swarm.TaskStateRunning))
-		filter.Add("desired_state", string(swarm.TaskStateAccepted))
+	if !opts.all && !filter.Include("desired-state") {
+		filter.Add("desired-state", string(swarm.TaskStateRunning))
+		filter.Add("desired-state", string(swarm.TaskStateAccepted))
 	}
 
 	tasks, err := client.TaskList(ctx, types.TaskListOptions{Filter: filter})

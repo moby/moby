@@ -44,7 +44,7 @@ The currently supported filters are:
 * [name](#name)
 * [id](#id)
 * [label](#label)
-* [desired_state](#desired_state)
+* [desired-state](#desired-state)
 
 #### name
 
@@ -85,9 +85,9 @@ bg8c07zzg87di2mufeq51a2qp  redis.7  redis    redis:3.0.6  Running 9 minutes   Ru
 ```
 
 
-#### desired_state
+#### desired-state
 
-The `desired_state` filter can take the values `running` and `accepted`.
+The `desired-state` filter can take the values `running` and `accepted`.
 
 
 ## Related information
