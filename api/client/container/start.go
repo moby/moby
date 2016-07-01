@@ -63,8 +63,9 @@ func runStart(dockerCli *client.DockerCli, opts *startOptions) error {
 			return err
 		}
 
+		// We always use c.ID instead of container to maintain consistency during `docker start`
 		if !c.Config.Tty {
-			sigc := dockerCli.ForwardAllSignals(ctx, container)
+			sigc := dockerCli.ForwardAllSignals(ctx, c.ID)
 			defer signal.StopCatch(sigc)
 		}
 
@@ -86,7 +87,7 @@ func runStart(dockerCli *client.DockerCli, opts *startOptions) error {
 			in = dockerCli.In()
 		}
 
-		resp, errAttach := dockerCli.Client().ContainerAttach(ctx, container, options)
+		resp, errAttach := dockerCli.Client().ContainerAttach(ctx, c.ID, options)
 		if errAttach != nil && errAttach != httputil.ErrPersistEOF {
 			// ContainerAttach return an ErrPersistEOF (connection closed)
 			// means server met an error and put it in Hijacked connection
@@ -103,7 +104,7 @@ func runStart(dockerCli *client.DockerCli, opts *startOptions) error {
 		})
 
 		// 3. Start the container.
-		if err := dockerCli.Client().ContainerStart(ctx, container, types.ContainerStartOptions{}); err != nil {
+		if err := dockerCli.Client().ContainerStart(ctx, c.ID, types.ContainerStartOptions{}); err != nil {
 			cancelFun()
 			<-cErr
 			return err
@@ -111,14 +112,14 @@ func runStart(dockerCli *client.DockerCli, opts *startOptions) error {
 
 		// 4. Wait for attachment to break.
 		if c.Config.Tty && dockerCli.IsTerminalOut() {
-			if err := dockerCli.MonitorTtySize(ctx, container, false); err != nil {
+			if err := dockerCli.MonitorTtySize(ctx, c.ID, false); err != nil {
 				fmt.Fprintf(dockerCli.Err(), "Error monitoring TTY size: %s\n", err)
 			}
 		}
 		if attchErr := <-cErr; attchErr != nil {
 			return attchErr
 		}
-		_, status, err := getExitCode(dockerCli, ctx, container)
+		_, status, err := getExitCode(dockerCli, ctx, c.ID)
 		if err != nil {
 			return err
 		}

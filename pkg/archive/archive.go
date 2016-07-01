@@ -100,7 +100,7 @@ const (
 )
 
 const (
-	// AUFSWhiteoutFormat is the default format for whitesouts
+	// AUFSWhiteoutFormat is the default format for whiteouts
 	AUFSWhiteoutFormat WhiteoutFormat = iota
 	// OverlayWhiteoutFormat formats whiteout according to the overlay
 	// standard.
@@ -359,7 +359,7 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		return err
 	}
 
-	if hdr.Typeflag == tar.TypeReg {
+	if hdr.Typeflag == tar.TypeReg && hdr.Size > 0 {
 		file, err := os.Open(path)
 		if err != nil {
 			return err

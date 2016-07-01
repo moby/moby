@@ -16,6 +16,6 @@ weight = 0
 
 This section contains the following topics:
 
-* [Docker Swarm overview](index.md)
-* [Docker Swarm key concepts](key-concepts.md)
-* [Getting Started with Docker Swarm](swarm-tutorial/index.md)
+* [Docker swarm mode overview](index.md)
+* [Docker swarm mode key concepts](key-concepts.md)
+* [Getting Started with Docker swarm mode](swarm-tutorial/index.md)

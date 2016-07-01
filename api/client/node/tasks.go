@@ -48,14 +48,14 @@ func runTasks(dockerCli *client.DockerCli, opts tasksOptions) error {
 	if err != nil {
 		return nil
 	}
-	node, err := client.NodeInspect(ctx, nodeRef)
+	node, _, err := client.NodeInspectWithRaw(ctx, nodeRef)
 	if err != nil {
 		return err
 	}
 
 	filter := opts.filter.Value()
 	filter.Add("node", node.ID)
-	if !opts.all {
+	if !opts.all && !filter.Include("desired_state") {
 		filter.Add("desired_state", string(swarm.TaskStateRunning))
 		filter.Add("desired_state", string(swarm.TaskStateAccepted))
 

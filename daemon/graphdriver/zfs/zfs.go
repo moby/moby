@@ -99,6 +99,9 @@ func Init(base string, opt []string, uidMaps, gidMaps []idtools.IDMap) (graphdri
 		return nil, fmt.Errorf("BUG: zfs get all -t filesystem -rHp '%s' should contain '%s'", options.fsName, options.fsName)
 	}
 
+	if err := mount.MakePrivate(base); err != nil {
+		return nil, err
+	}
 	d := &Driver{
 		dataset:          rootDataset,
 		options:          options,

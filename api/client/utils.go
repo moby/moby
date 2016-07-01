@@ -134,7 +134,7 @@ func CopyToFile(outfile string, r io.Reader) error {
 	return nil
 }
 
-// ForwardAllSignals forwards signals to the contianer
+// ForwardAllSignals forwards signals to the container
 // TODO: this can be unexported again once all container commands are under
 // api/client/container
 func (cli *DockerCli) ForwardAllSignals(ctx context.Context, cid string) chan os.Signal {

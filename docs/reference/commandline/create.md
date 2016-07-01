@@ -149,12 +149,13 @@ then be used from the subsequent container:
     drwx--S---  2 1000 staff  460 Dec  5 00:51 .ssh
     drwxr-xr-x 32 1000 staff 1140 Dec  5 04:01 docker
 
-Set storage driver options per container. 
+Set storage driver options per container.
 
     $ docker create -it --storage-opt size=120G fedora /bin/bash
 
 This (size) will allow to set the container rootfs size to 120G at creation time. 
-User cannot pass a size less than the Default BaseFS Size. 
+User cannot pass a size less than the Default BaseFS Size. This option is only 
+available for the `devicemapper`, `btrfs`, and `zfs` graph drivers.
 
 ### Specify isolation technology for container (--isolation)
 

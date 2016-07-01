@@ -11,6 +11,7 @@ import (
 	"errors"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/pkg/jsonlog"
@@ -83,6 +84,7 @@ type LogWatcher struct {
 	Msg chan *Message
 	// For sending error messages that occur while while reading logs.
 	Err           chan error
+	closeOnce     sync.Once
 	closeNotifier chan struct{}
 }
 
@@ -98,11 +100,9 @@ func NewLogWatcher() *LogWatcher {
 // Close notifies the underlying log reader to stop.
 func (w *LogWatcher) Close() {
 	// only close if not already closed
-	select {
-	case <-w.closeNotifier:
-	default:
+	w.closeOnce.Do(func() {
 		close(w.closeNotifier)
-	}
+	})
 }
 
 // WatchClose returns a channel receiver that receives notification

@@ -160,6 +160,13 @@ func (m *MountOpt) Set(value string) error {
 		return mount.VolumeOptions
 	}
 
+	bindOptions := func() *swarm.BindOptions {
+		if mount.BindOptions == nil {
+			mount.BindOptions = new(swarm.BindOptions)
+		}
+		return mount.BindOptions
+	}
+
 	setValueOnMap := func(target map[string]string, value string) {
 		parts := strings.SplitN(value, "=", 2)
 		if len(parts) == 1 {
@@ -194,7 +201,7 @@ func (m *MountOpt) Set(value string) error {
 				return fmt.Errorf("invalid value for writable: %s", value)
 			}
 		case "bind-propagation":
-			mount.BindOptions.Propagation = swarm.MountPropagation(strings.ToUpper(value))
+			bindOptions().Propagation = swarm.MountPropagation(strings.ToUpper(value))
 		case "volume-populate":
 			volumeOptions().Populate, err = strconv.ParseBool(value)
 			if err != nil {
@@ -210,7 +217,7 @@ func (m *MountOpt) Set(value string) error {
 			}
 			setValueOnMap(volumeOptions().DriverConfig.Options, value)
 		default:
-			return fmt.Errorf("unexpected key '%s' in '%s'", key, value)
+			return fmt.Errorf("unexpected key '%s' in '%s'", key, field)
 		}
 	}
 
@@ -310,7 +317,7 @@ func (e *endpointOptions) ToEndpointSpec() *swarm.EndpointSpec {
 	}
 
 	return &swarm.EndpointSpec{
-		Mode:  swarm.ResolutionMode(e.mode),
+		Mode:  swarm.ResolutionMode(strings.ToLower(e.mode)),
 		Ports: portConfigs,
 	}
 }
@@ -366,6 +373,8 @@ type serviceOptions struct {
 	update        updateOptions
 	networks      []string
 	endpoint      endpointOptions
+
+	registryAuth bool
 }
 
 func newServiceOptions() *serviceOptions {
@@ -429,7 +438,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 	return service, nil
 }
 
-// addServiceFlags adds all flags that are common to both `create` and `update.
+// addServiceFlags adds all flags that are common to both `create` and `update`.
 // Any flags that are not common are added separately in the individual command
 func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags := cmd.Flags()
@@ -438,22 +447,21 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 
 	flags.VarP(&opts.env, "env", "e", "Set environment variables")
 	flags.StringVarP(&opts.workdir, "workdir", "w", "", "Working directory inside the container")
-	flags.StringVarP(&opts.user, "user", "u", "", "Username or UID")
+	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID")
 	flags.VarP(&opts.mounts, flagMount, "m", "Attach a mount to the service")
 
 	flags.Var(&opts.resources.limitCPU, flagLimitCPU, "Limit CPUs")
 	flags.Var(&opts.resources.limitMemBytes, flagLimitMemory, "Limit Memory")
 	flags.Var(&opts.resources.resCPU, flagReserveCPU, "Reserve CPUs")
 	flags.Var(&opts.resources.resMemBytes, flagReserveMemory, "Reserve Memory")
-	flags.Var(&opts.stopGrace, "stop-grace-period", "Time to wait before force killing a container")
+	flags.Var(&opts.stopGrace, flagStopGracePeriod, "Time to wait before force killing a container")
 
-	flags.StringVar(&opts.mode, flagMode, "replicated", "Service mode (replicated or global)")
 	flags.Var(&opts.replicas, flagReplicas, "Number of tasks")
 
 	flags.StringVar(&opts.restartPolicy.condition, flagRestartCondition, "", "Restart when condition is met (none, on_failure, or any)")
 	flags.Var(&opts.restartPolicy.delay, flagRestartDelay, "Delay between restart attempts")
 	flags.Var(&opts.restartPolicy.maxAttempts, flagRestartMaxAttempts, "Maximum number of restarts before giving up")
-	flags.Var(&opts.restartPolicy.window, flagRestartWindow, "Window used to evalulate the restart policy")
+	flags.Var(&opts.restartPolicy.window, flagRestartWindow, "Window used to evaluate the restart policy")
 
 	flags.StringSliceVar(&opts.constraints, flagConstraint, []string{}, "Placement constraints")
 
@@ -461,28 +469,33 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.DurationVar(&opts.update.delay, flagUpdateDelay, time.Duration(0), "Delay between updates")
 
 	flags.StringSliceVar(&opts.networks, flagNetwork, []string{}, "Network attachments")
-	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode(Valid values: VIP, DNSRR)")
+	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode(Valid values: vip, dnsrr)")
 	flags.VarP(&opts.endpoint.ports, flagPublish, "p", "Publish a port as a node port")
+
+	flags.BoolVar(&opts.registryAuth, flagRegistryAuth, false, "Send registry authentication details to Swarm agents")
 }
 
 const (
 	flagConstraint         = "constraint"
-	flagName               = "name"
+	flagEndpointMode       = "endpoint-mode"
 	flagLabel              = "label"
 	flagLimitCPU           = "limit-cpu"
 	flagLimitMemory        = "limit-memory"
+	flagMode               = "mode"
+	flagMount              = "mount"
+	flagName               = "name"
+	flagNetwork            = "network"
+	flagPublish            = "publish"
+	flagReplicas           = "replicas"
 	flagReserveCPU         = "reserve-cpu"
 	flagReserveMemory      = "reserve-memory"
-	flagMount              = "mount"
-	flagMode               = "mode"
-	flagReplicas           = "replicas"
-	flagPublish            = "publish"
-	flagNetwork            = "network"
 	flagRestartCondition   = "restart-condition"
 	flagRestartDelay       = "restart-delay"
 	flagRestartMaxAttempts = "restart-max-attempts"
 	flagRestartWindow      = "restart-window"
-	flagEndpointMode       = "endpoint-mode"
-	flagUpdateParallelism  = "update-parallelism"
+	flagStopGracePeriod    = "stop-grace-period"
 	flagUpdateDelay        = "update-delay"
+	flagUpdateParallelism  = "update-parallelism"
+	flagUser               = "user"
+	flagRegistryAuth       = "registry-auth"
 )

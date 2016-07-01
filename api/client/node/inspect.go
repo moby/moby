@@ -27,7 +27,7 @@ func newInspectCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "inspect [OPTIONS] self|NODE [NODE...]",
-		Short: "Inspect a node in the swarm",
+		Short: "Display detailed information on one or more nodes",
 		Args:  cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.nodeIds = args
@@ -49,7 +49,7 @@ func runInspect(dockerCli *client.DockerCli, opts inspectOptions) error {
 		if err != nil {
 			return nil, nil, err
 		}
-		node, err := client.NodeInspect(ctx, nodeRef)
+		node, _, err := client.NodeInspectWithRaw(ctx, nodeRef)
 		return node, nil, err
 	}
 
@@ -96,7 +96,7 @@ func printNode(out io.Writer, node swarm.Node) {
 	if node.ManagerStatus != nil {
 		fmt.Fprintln(out, "Manager Status:")
 		fmt.Fprintf(out, " Address:\t\t%s\n", node.ManagerStatus.Addr)
-		fmt.Fprintf(out, " Raft status:\t\t%s\n", client.PrettyPrint(node.ManagerStatus.Reachability))
+		fmt.Fprintf(out, " Raft Status:\t\t%s\n", client.PrettyPrint(node.ManagerStatus.Reachability))
 		leader := "No"
 		if node.ManagerStatus.Leader {
 			leader = "Yes"

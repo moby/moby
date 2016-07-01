@@ -1759,7 +1759,7 @@ a base64-encoded AuthConfig object.
     {
             "username": "jdoe",
             "password": "secret",
-            "email": "jdoe@acme.com",
+            "email": "jdoe@acme.com"
     }
         ```
 
@@ -2275,14 +2275,14 @@ Show the docker version information
     Content-Type: application/json
 
     {
-         "Version": "1.10.0-dev",
+         "Version": "1.12.0",
          "Os": "linux",
          "KernelVersion": "3.19.0-23-generic",
-         "GoVersion": "go1.4.3",
-         "GitCommit": "e75da4b",
+         "GoVersion": "go1.6.2",
+         "GitCommit": "deadbee",
          "Arch": "amd64",
          "ApiVersion": "1.24",
-         "BuildTime": "2015-12-01T07:09:13.444803460+00:00",
+         "BuildTime": "2016-06-14T07:09:13.444803460+00:00",
          "Experimental": true
     }
 
@@ -3460,7 +3460,7 @@ Return low-level information on the node `id`
 
 **Example request**:
 
-      GET /node/24ifsmvkjbyhk HTTP/1.1
+      GET /nodes/24ifsmvkjbyhk HTTP/1.1
 
 **Example response**:
 
@@ -3644,8 +3644,15 @@ JSON Parameters:
           election.
     - **Dispatcher** – Configuration settings for the task dispatcher.
         - **HeartbeatPeriod** – The delay for an agent to send a heartbeat to the dispatcher.
-    - **CAConfig** – CA configuration.
+    - **CAConfig** – Certificate authority configuration.
         - **NodeCertExpiry** – Automatic expiry for nodes certificates.
+        - **ExternalCA** - Configuration for forwarding signing requests to an external
+          certificate authority.
+            - **Protocol** - Protocol for communication with the external CA
+              (currently only "cfssl" is supported).
+            - **URL** - URL where certificate signing requests should be sent.
+            - **Options** - An object with key/value pairs that are interpreted
+              as protocol-specific options for the external CA driver.
 
 ### Join an existing Swarm
 
@@ -3663,7 +3670,7 @@ Join an existing new Swarm
 
     {
       "ListenAddr": "0.0.0.0:4500",
-      "RemoteAddr": "node1:4500",
+      "RemoteAddrs": ["node1:4500"],
       "Secret": "",
       "CACertHash": "",
       "Manager": false
@@ -3792,6 +3799,13 @@ JSON Parameters:
     - **HeartbeatPeriod** – The delay for an agent to send a heartbeat to the dispatcher.
 - **CAConfig** – CA configuration.
     - **NodeCertExpiry** – Automatic expiry for nodes certificates.
+    - **ExternalCA** - Configuration for forwarding signing requests to an external
+      certificate authority.
+        - **Protocol** - Protocol for communication with the external CA
+          (currently only "cfssl" is supported).
+        - **URL** - URL where certificate signing requests should be sent.
+        - **Options** - An object with key/value pairs that are interpreted
+          as protocol-specific options for the external CA driver.
 
 ## 3.8 Services
 
@@ -3825,7 +3839,7 @@ List services
         "UpdatedAt": "2016-06-07T21:07:29.962229872Z",
         "Spec": {
           "Name": "hopeful_cori",
-          "Task": {
+          "TaskTemplate": {
             "ContainerSpec": {
               "Image": "redis"
             },
@@ -3840,7 +3854,7 @@ List services
           },
           "Mode": {
             "Replicated": {
-              "Instances": 1
+              "Replicas": 1
             }
           },
           "UpdateConfig": {
@@ -3903,12 +3917,12 @@ Create a service
 
 **Example request**:
 
-    POST /service/create HTTP/1.1
+    POST /services/create HTTP/1.1
     Content-Type: application/json
 
     {
       "Name": "redis",
-      "Task": {
+      "TaskTemplate": {
         "ContainerSpec": {
           "Image": "redis"
         },
@@ -3921,7 +3935,7 @@ Create a service
       },
       "Mode": {
         "Replicated": {
-          "Instances": 1
+          "Replicas": 1
         }
       },
       "UpdateConfig": {
@@ -3957,7 +3971,7 @@ JSON Parameters:
     - **Name** – User-defined name for the service.
     - **Labels** – A map of labels to associate with the service (e.g.,
       `{"key":"value"[,"key2":"value2"]}`).
-- **Task** – Specification of the tasks to start as part of the new service.
+- **TaskTemplate** – Specification of the tasks to start as part of the new service.
     - **ContainerSpec** - Container settings for containers started as part of this task.
         - **Image** – A string specifying the image name to use for the container.
         - **Command** – The command to be run in the image.
@@ -3967,21 +3981,21 @@ JSON Parameters:
         - **User** – A string value specifying the user inside the container.
         - **Labels** – A map of labels to associate with the service (e.g.,
           `{"key":"value"[,"key2":"value2"]}`).
-        - **Mounts** – Specification for mounts to be added to containers created as part of the new
+        - **Mounts** – Specification for mounts to be added to containers created as part of the new.
           service.
             - **Target** – Container path.
-            - **Source** – Optional host path to be mounted in the target.
-            - **Type** – The mount type (`bind`, `epheremal`, or `volume`).
-            - **VolumeName** – A name for the volume.
-            - **Populate** – A boolean indicating if volume should be populated with the data form the
-              target (defaults to false).
-            - **Propagation** – A propagation mode with the value `[r]private`, `[r]shared`, or
-              `[r]slave` (`bind` type mounts only).
-            - **MCSAccessMode** – MCS label for sharing mode (`bind` type mounts only).
+            - **Source** – Mount source (e.g. a volume name, a host path).
+            - **Type** – The mount type (`bind`, or `volume`).
             - **Writable** – A boolean indicating whether the mount should be writable.
-            - **VolumeTemplate** – Optional configuration for the volume.
-                - **Annotations** – User-defined name and labels for the volume.
-                - **Driver** – Name of the driver to be used and driver-specific options.
+            - **BindOptions** - Optional configuration for the `bind` type.
+              - **Propagation** – A propagation mode with the value `[r]private`, `[r]shared`, or `[r]slave`.
+            - **VolumeOptions** – Optional configuration for the `volume` type.
+                - **Populate** – A boolean indicating if volume should be
+                  populated with the data from the target. (Default false)
+                - **Labels** – User-defined name and labels for the volume.
+                - **DriverConfig** – Map of driver-specific options.
+                  - **Name** - Name of the driver to use to create the volume.
+                  - **Options** - key/value map of driver specific options.
         - **StopGracePeriod** – Amount of time to wait for the container to terminate before
           forcefully killing it.
     - **Resources** – Resource requirements which apply to each individual container created as part
@@ -4020,13 +4034,13 @@ JSON Parameters:
 **Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
 might be subject to non backward-compatible changes.
 
-`DELETE /service/(id or name)`
+`DELETE /services/(id or name)`
 
 Stop and remove the service `id`
 
 **Example request**:
 
-    DELETE /service/16253994b7c4 HTTP/1.1
+    DELETE /services/16253994b7c4 HTTP/1.1
 
 **Example response**:
 
@@ -4038,18 +4052,18 @@ Stop and remove the service `id`
 -   **404** – no such service
 -   **500** – server error
 
-### Inspect a service
+### Inspect one or more services
 
 **Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
 might be subject to non backward-compatible changes.
 
-`GET /service/(id or name)`
+`GET /services/(id or name)`
 
 Return information on the service `id`.
 
 **Example request**:
 
-    GET /service/1cb4dnqcyx6m66g2t538x3rxha HTTP/1.1
+    GET /services/1cb4dnqcyx6m66g2t538x3rxha HTTP/1.1
 
 **Example response**:
 
@@ -4077,7 +4091,7 @@ Return information on the service `id`.
         },
         "Mode": {
           "Replicated": {
-            "Instances": 1
+            "Replicas": 1
           }
         },
         "UpdateConfig": {
@@ -4123,13 +4137,13 @@ Return information on the service `id`.
 **Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
 might be subject to non backward-compatible changes.
 
-`POST /service/(id or name)/update`
+`POST /services/(id or name)/update`
 
 Update the service `id`.
 
 **Example request**:
 
-    POST /service/1cb4dnqcyx6m66g2t538x3rxha/update HTTP/1.1
+    POST /services/1cb4dnqcyx6m66g2t538x3rxha/update HTTP/1.1
 
     {
       "Name": "top",
@@ -4175,7 +4189,7 @@ Update the service `id`.
     - **Name** – User-defined name for the service.
     - **Labels** – A map of labels to associate with the service (e.g.,
       `{"key":"value"[,"key2":"value2"]}`).
-- **Task** – Specification of the tasks to start as part of the new service.
+- **TaskTemplate** – Specification of the tasks to start as part of the new service.
     - **ContainerSpec** - Container settings for containers started as part of this task.
         - **Image** – A string specifying the image name to use for the container.
         - **Command** – The command to be run in the image.
@@ -4188,18 +4202,17 @@ Update the service `id`.
         - **Mounts** – Specification for mounts to be added to containers created as part of the new
           service.
             - **Target** – Container path.
-            - **Source** – Optional host path to be mounted in the target.
-            - **Type** – The mount type (`bind`, `epheremal`, or `volume`).
-            - **VolumeName** – A name for the volume.
-            - **Populate** – A boolean indicating if volume should be populated with the data form the
-              target (defaults to false).
-            - **Propagation** – A propagation mode with the value `[r]private`, `[r]shared`, or
-              `[r]slave` (`bind` type mounts only).
-            - **MCSAccessMode** – MCS label for sharing mode (`bind` type mounts only).
+            - **Source** – Mount source (e.g. a volume name, a host path).
+            - **Type** – The mount type (`bind`, or `volume`).
             - **Writable** – A boolean indicating whether the mount should be writable.
-            - **VolumeTemplate** – Optional configuration for the volume.
-                - **Annotations** – User-defined name and labels for the volume.
-                - **Driver** – Name of the driver to be used and driver-specific options.
+            - **BindOptions** - Optional configuration for the `bind` type
+              - **Propagation** – A propagation mode with the value `[r]private`, `[r]shared`, or `[r]slave`.
+            - **VolumeOptions** – Optional configuration for the `volume` type.
+                - **Populate** – A boolean indicating if volume should be populated with the data from the target. (Default false)
+                - **Labels** – User-defined name and labels for the volume.
+                - **DriverConfig** – Map of driver-specific options.
+                  - **Name** - Name of the driver to use to create the volume
+                  - **Options** - key/value map of driver specific options
         - **StopGracePeriod** – Amount of time to wait for the container to terminate before
           forcefully killing it.
     - **Resources** – Resource requirements which apply to each individual container created as part

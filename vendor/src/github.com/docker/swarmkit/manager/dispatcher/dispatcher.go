@@ -29,6 +29,7 @@ const (
 	DefaultHeartBeatPeriod       = 5 * time.Second
 	defaultHeartBeatEpsilon      = 500 * time.Millisecond
 	defaultGracePeriodMultiplier = 3
+	defaultRateLimitPeriod       = 16 * time.Second
 
 	// maxBatchItems is the threshold of queued writes that should
 	// trigger an actual transaction to commit them to the shared store.
@@ -59,9 +60,12 @@ var (
 // DefautConfig.
 type Config struct {
 	// Addr configures the address the dispatcher reports to agents.
-	Addr                  string
-	HeartbeatPeriod       time.Duration
-	HeartbeatEpsilon      time.Duration
+	Addr             string
+	HeartbeatPeriod  time.Duration
+	HeartbeatEpsilon time.Duration
+	// RateLimitPeriod specifies how often node with same ID can try to register
+	// new session.
+	RateLimitPeriod       time.Duration
 	GracePeriodMultiplier int
 }
 
@@ -70,6 +74,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		HeartbeatPeriod:       DefaultHeartBeatPeriod,
 		HeartbeatEpsilon:      defaultHeartBeatEpsilon,
+		RateLimitPeriod:       defaultRateLimitPeriod,
 		GracePeriodMultiplier: defaultGracePeriodMultiplier,
 	}
 }
@@ -116,12 +121,11 @@ func (b weightedPeerByNodeID) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
 func New(cluster Cluster, c *Config) *Dispatcher {
 	return &Dispatcher{
 		addr:                      c.Addr,
-		nodes:                     newNodeStore(c.HeartbeatPeriod, c.HeartbeatEpsilon, c.GracePeriodMultiplier),
+		nodes:                     newNodeStore(c.HeartbeatPeriod, c.HeartbeatEpsilon, c.GracePeriodMultiplier, c.RateLimitPeriod),
 		store:                     cluster.MemoryStore(),
 		cluster:                   cluster,
 		mgrQueue:                  watch.NewQueue(16),
 		keyMgrQueue:               watch.NewQueue(16),
-		lastSeenManagers:          getWeightedPeers(cluster),
 		taskUpdates:               make(map[string]*api.TaskStatus),
 		processTaskUpdatesTrigger: make(chan struct{}, 1),
 		config: c,
@@ -149,12 +153,12 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 	d.mu.Lock()
 	if d.isRunning() {
 		d.mu.Unlock()
-		return fmt.Errorf("dispatcher is stopped")
+		return fmt.Errorf("dispatcher is already running")
 	}
 	logger := log.G(ctx).WithField("module", "dispatcher")
 	ctx = log.WithLogger(ctx, logger)
 	if err := d.markNodesUnknown(ctx); err != nil {
-		logger.Errorf("failed to mark all nodes unknown: %v", err)
+		logger.Errorf(`failed to move all nodes to "unknown" state: %v`, err)
 	}
 	configWatcher, cancel, err := store.ViewAndWatch(
 		d.store,
@@ -164,7 +168,10 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 				return err
 			}
 			if err == nil && len(clusters) == 1 {
-				d.config.HeartbeatPeriod = time.Duration(clusters[0].Spec.Dispatcher.HeartbeatPeriod)
+				heartbeatPeriod, err := ptypes.Duration(clusters[0].Spec.Dispatcher.HeartbeatPeriod)
+				if err == nil && heartbeatPeriod > 0 {
+					d.config.HeartbeatPeriod = heartbeatPeriod
+				}
 				if clusters[0].NetworkBootstrapKeys != nil {
 					d.networkBootstrapKeys = clusters[0].NetworkBootstrapKeys
 				}
@@ -174,6 +181,7 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 		state.EventUpdateCluster{},
 	)
 	if err != nil {
+		d.mu.Unlock()
 		return err
 	}
 	defer cancel()
@@ -213,8 +221,15 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 		case v := <-configWatcher:
 			cluster := v.(state.EventUpdateCluster)
 			d.mu.Lock()
-			d.config.HeartbeatPeriod = time.Duration(cluster.Cluster.Spec.Dispatcher.HeartbeatPeriod)
-			d.nodes.updatePeriod(d.config.HeartbeatPeriod, d.config.HeartbeatEpsilon, d.config.GracePeriodMultiplier)
+			if cluster.Cluster.Spec.Dispatcher.HeartbeatPeriod != nil {
+				// ignore error, since Spec has passed validation before
+				heartbeatPeriod, _ := ptypes.Duration(cluster.Cluster.Spec.Dispatcher.HeartbeatPeriod)
+				if heartbeatPeriod != d.config.HeartbeatPeriod {
+					// only call d.nodes.updatePeriod when heartbeatPeriod changes
+					d.config.HeartbeatPeriod = heartbeatPeriod
+					d.nodes.updatePeriod(d.config.HeartbeatPeriod, d.config.HeartbeatEpsilon, d.config.GracePeriodMultiplier)
+				}
+			}
 			d.networkBootstrapKeys = cluster.Cluster.NetworkBootstrapKeys
 			d.mu.Unlock()
 			d.keyMgrQueue.Publish(struct{}{})
@@ -228,6 +243,7 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 func (d *Dispatcher) Stop() error {
 	d.mu.Lock()
 	if !d.isRunning() {
+		d.mu.Unlock()
 		return fmt.Errorf("dispatcher is already stopped")
 	}
 	d.cancel()
@@ -270,20 +286,20 @@ func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
 				}
 				node.Status = api.NodeStatus{
 					State:   api.NodeStatus_UNKNOWN,
-					Message: "Node marked as unknown due to leadership change in cluster",
+					Message: `Node moved to "unknown" state due to leadership change in cluster`,
 				}
 				nodeID := node.ID
 
 				expireFunc := func() {
 					log := log.WithField("node", nodeID)
-					nodeStatus := api.NodeStatus{State: api.NodeStatus_DOWN, Message: "heartbeat failure for unknown node"}
+					nodeStatus := api.NodeStatus{State: api.NodeStatus_DOWN, Message: `heartbeat failure for node in "unknown" state`}
 					log.Debugf("heartbeat expiration for unknown node")
 					if err := d.nodeRemove(nodeID, nodeStatus); err != nil {
-						log.WithError(err).Errorf("failed deregistering node after heartbeat expiration for unknown node")
+						log.WithError(err).Errorf(`failed deregistering node after heartbeat expiration for node in "unknown" state`)
 					}
 				}
 				if err := d.nodes.AddUnknown(node, expireFunc); err != nil {
-					return fmt.Errorf("add unknown node failed: %v", err)
+					return fmt.Errorf(`adding node in "unknown" state to node store failed: %v`, err)
 				}
 				if err := store.UpdateNode(tx, node); err != nil {
 					return fmt.Errorf("update failed %v", err)
@@ -291,7 +307,7 @@ func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
 				return nil
 			})
 			if err != nil {
-				log.WithField("node", n.ID).WithError(err).Errorf("failed to mark node as unknown")
+				log.WithField("node", n.ID).WithError(err).Errorf(`failed to move node to "unknown" state`)
 			}
 		}
 		return nil
@@ -315,6 +331,10 @@ func (d *Dispatcher) isRunning() bool {
 func (d *Dispatcher) register(ctx context.Context, nodeID string, description *api.NodeDescription) (string, string, error) {
 	// prevent register until we're ready to accept it
 	if err := d.isRunningLocked(); err != nil {
+		return "", "", err
+	}
+
+	if err := d.nodes.CheckRateLimit(nodeID); err != nil {
 		return "", "", err
 	}
 
@@ -678,8 +698,8 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 	keyMgrUpdates, keyMgrCancel := d.keyMgrQueue.Watch()
 	defer keyMgrCancel()
 
-	// disconnect is a helper forcibly shutdown connection
-	disconnect := func() error {
+	// disconnectNode is a helper forcibly shutdown connection
+	disconnectNode := func() error {
 		// force disconnect by shutting down the stream.
 		transportStream, ok := transport.StreamFromContext(stream.Context())
 		if ok {
@@ -709,6 +729,8 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 
 		var mgrs []*api.WeightedPeer
 
+		var disconnect bool
+
 		select {
 		case ev := <-managerUpdates:
 			mgrs = ev.([]*api.WeightedPeer)
@@ -717,9 +739,9 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		case <-stream.Context().Done():
 			return stream.Context().Err()
 		case <-node.Disconnect:
-			return disconnect()
+			disconnect = true
 		case <-d.ctx.Done():
-			return disconnect()
+			disconnect = true
 		case <-keyMgrUpdates:
 		}
 		if mgrs == nil {
@@ -733,6 +755,9 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 			NetworkBootstrapKeys: d.networkBootstrapKeys,
 		}); err != nil {
 			return err
+		}
+		if disconnect {
+			return disconnectNode()
 		}
 	}
 }

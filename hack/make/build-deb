@@ -90,16 +90,6 @@ set -e
 		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
 			RUN cp -aL hack/make/.build-deb debian
 			RUN { echo '$debSource (${debVersion}-0~${suite}) $suite; urgency=low'; echo; echo '  * Version: $VERSION'; echo; echo " -- $debMaintainer  $debDate"; } > debian/changelog && cat >&2 debian/changelog
-		EOF
-		# Remove the following case-based substitution when none of these are supported, and the TasksMax value is uncommented in docker.service
-		case "$version" in
-		debian-jessie|debian-wheezy|ubuntu-precise|ubuntu-trusty|ubuntu-wily)
-			;;
-		*)
-			echo "RUN sed -i -- 's/#TasksMax=infinity/TasksMax=infinity/' contrib/init/systemd/docker.service" >> "$DEST/$version/Dockerfile.build"
-			;;
-		esac
-		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
 			RUN dpkg-buildpackage -uc -us -I.git
 		EOF
 		tempImage="docker-temp/build-deb:$version"

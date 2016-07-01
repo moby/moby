@@ -2,7 +2,6 @@ package swarm
 
 import (
 	"fmt"
-	"time"
 
 	"golang.org/x/net/context"
 
@@ -13,37 +12,23 @@ import (
 	"github.com/spf13/pflag"
 )
 
-type updateOptions struct {
-	autoAccept          AutoAcceptOption
-	secret              string
-	taskHistoryLimit    int64
-	dispatcherHeartbeat time.Duration
-	nodeCertExpiry      time.Duration
-}
-
 func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
-	opts := updateOptions{autoAccept: NewAutoAcceptOption()}
-	var flags *pflag.FlagSet
+	opts := swarmOptions{autoAccept: NewAutoAcceptOption()}
 
 	cmd := &cobra.Command{
 		Use:   "update",
 		Short: "Update the Swarm",
 		Args:  cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runUpdate(dockerCli, flags, opts)
+			return runUpdate(dockerCli, cmd.Flags(), opts)
 		},
 	}
 
-	flags = cmd.Flags()
-	flags.Var(&opts.autoAccept, "auto-accept", "Auto acceptance policy (worker, manager or none)")
-	flags.StringVar(&opts.secret, "secret", "", "Set secret value needed to accept nodes into cluster")
-	flags.Int64Var(&opts.taskHistoryLimit, "task-history-limit", 10, "Task history retention limit")
-	flags.DurationVar(&opts.dispatcherHeartbeat, "dispatcher-heartbeat", time.Duration(5*time.Second), "Dispatcher heartbeat period")
-	flags.DurationVar(&opts.nodeCertExpiry, "cert-expiry", time.Duration(90*24*time.Hour), "Validity period for node certificates")
+	addSwarmFlags(cmd.Flags(), &opts)
 	return cmd
 }
 
-func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts updateOptions) error {
+func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts swarmOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
@@ -69,14 +54,14 @@ func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts updateOpt
 func mergeSwarm(swarm *swarm.Swarm, flags *pflag.FlagSet) error {
 	spec := &swarm.Spec
 
-	if flags.Changed("auto-accept") {
-		value := flags.Lookup("auto-accept").Value.(*AutoAcceptOption)
+	if flags.Changed(flagAutoAccept) {
+		value := flags.Lookup(flagAutoAccept).Value.(*AutoAcceptOption)
 		spec.AcceptancePolicy.Policies = value.Policies(nil)
 	}
 
 	var psecret *string
-	if flags.Changed("secret") {
-		secret, _ := flags.GetString("secret")
+	if flags.Changed(flagSecret) {
+		secret, _ := flags.GetString(flagSecret)
 		psecret = &secret
 	}
 
@@ -84,20 +69,25 @@ func mergeSwarm(swarm *swarm.Swarm, flags *pflag.FlagSet) error {
 		spec.AcceptancePolicy.Policies[i].Secret = psecret
 	}
 
-	if flags.Changed("task-history-limit") {
-		spec.Orchestration.TaskHistoryRetentionLimit, _ = flags.GetInt64("task-history-limit")
+	if flags.Changed(flagTaskHistoryLimit) {
+		spec.Orchestration.TaskHistoryRetentionLimit, _ = flags.GetInt64(flagTaskHistoryLimit)
 	}
 
-	if flags.Changed("dispatcher-heartbeat") {
-		if v, err := flags.GetDuration("dispatcher-heartbeat"); err == nil {
+	if flags.Changed(flagDispatcherHeartbeat) {
+		if v, err := flags.GetDuration(flagDispatcherHeartbeat); err == nil {
 			spec.Dispatcher.HeartbeatPeriod = uint64(v.Nanoseconds())
 		}
 	}
 
-	if flags.Changed("cert-expiry") {
-		if v, err := flags.GetDuration("cert-expiry"); err == nil {
+	if flags.Changed(flagCertExpiry) {
+		if v, err := flags.GetDuration(flagCertExpiry); err == nil {
 			spec.CAConfig.NodeCertExpiry = v
 		}
+	}
+
+	if flags.Changed(flagExternalCA) {
+		value := flags.Lookup(flagExternalCA).Value.(*ExternalCAOption)
+		spec.CAConfig.ExternalCAs = value.Value()
 	}
 
 	return nil

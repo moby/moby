@@ -380,9 +380,14 @@ func (s *DockerRegistrySuite) TestDeleteImageByIDOnlyPulledByDigest(c *check.C) 
 	dockerCmd(c, "pull", imageReference)
 	// just in case...
 
+	dockerCmd(c, "tag", imageReference, repoName+":sometag")
+
 	imageID := inspectField(c, imageReference, "Id")
 
 	dockerCmd(c, "rmi", imageID)
+
+	_, err = inspectFieldWithError(imageID, "Id")
+	c.Assert(err, checker.NotNil, check.Commentf("image should have been deleted"))
 }
 
 func (s *DockerRegistrySuite) TestDeleteImageWithDigestAndTag(c *check.C) {
@@ -406,6 +411,40 @@ func (s *DockerRegistrySuite) TestDeleteImageWithDigestAndTag(c *check.C) {
 	inspectField(c, repoTag, "Id")
 
 	dockerCmd(c, "rmi", repoTag)
+
+	// rmi should have deleted the tag, the digest reference, and the image itself
+	_, err = inspectFieldWithError(imageID, "Id")
+	c.Assert(err, checker.NotNil, check.Commentf("image should have been deleted"))
+}
+
+func (s *DockerRegistrySuite) TestDeleteImageWithDigestAndMultiRepoTag(c *check.C) {
+	pushDigest, err := setupImage(c)
+	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
+
+	repo2 := fmt.Sprintf("%s/%s", repoName, "repo2")
+
+	// pull from the registry using the <name>@<digest> reference
+	imageReference := fmt.Sprintf("%s@%s", repoName, pushDigest)
+	dockerCmd(c, "pull", imageReference)
+
+	imageID := inspectField(c, imageReference, "Id")
+
+	repoTag := repoName + ":sometag"
+	repoTag2 := repo2 + ":othertag"
+	dockerCmd(c, "tag", imageReference, repoTag)
+	dockerCmd(c, "tag", imageReference, repoTag2)
+
+	dockerCmd(c, "rmi", repoTag)
+
+	// rmi should have deleted repoTag and image reference, but left repoTag2
+	inspectField(c, repoTag2, "Id")
+	_, err = inspectFieldWithError(imageReference, "Id")
+	c.Assert(err, checker.NotNil, check.Commentf("image digest reference should have been removed"))
+
+	_, err = inspectFieldWithError(repoTag, "Id")
+	c.Assert(err, checker.NotNil, check.Commentf("image tag reference should have been removed"))
+
+	dockerCmd(c, "rmi", repoTag2)
 
 	// rmi should have deleted the tag, the digest reference, and the image itself
 	_, err = inspectFieldWithError(imageID, "Id")

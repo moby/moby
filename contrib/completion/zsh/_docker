@@ -415,8 +415,8 @@ __docker_complete_events_filter() {
             (event)
                 local -a event_opts
                 event_opts=('attach' 'commit' 'connect' 'copy' 'create' 'delete' 'destroy' 'detach' 'die' 'disconnect' 'exec_create' 'exec_detach'
-                'exec_start' 'export' 'import' 'kill' 'mount' 'oom' 'pause' 'pull' 'push' 'reload' 'rename' 'resize' 'restart' 'start' 'stop' 'tag'
-                'top' 'unmount' 'unpause' 'untag' 'update')
+                'exec_start' 'export' 'import' 'kill' 'load'  'mount' 'oom' 'pause' 'pull' 'push' 'reload' 'rename' 'resize' 'restart' 'save' 'start'
+                'stop' 'tag' 'top' 'unmount' 'unpause' 'untag' 'update')
                 _describe -t event-filter-opts "event filter options" event_opts && ret=0
                 ;;
             (image)
@@ -538,7 +538,7 @@ __docker_networks_names() {
 __docker_network_commands() {
     local -a _docker_network_subcommands
     _docker_network_subcommands=(
-        "connect:Connects a container to a network"
+        "connect:Connect a container to a network"
         "create:Creates a new network with a name specified by the user"
         "disconnect:Disconnects a container from a network"
         "inspect:Displays detailed information on a network"
@@ -563,6 +563,7 @@ __docker_network_subcommand() {
                 "($help)--ip=[Container IPv4 address]:IPv4: " \
                 "($help)--ip6=[Container IPv6 address]:IPv6: " \
                 "($help)*--link=[Add a link to another container]:link:->link" \
+                "($help)*--link-local-ip=[Add a link-local address for the container]:IPv4/IPv6: " \
                 "($help -)1:network:__docker_networks" \
                 "($help -)2:containers:__docker_containers" && ret=0
 
@@ -693,7 +694,7 @@ __docker_volume_commands() {
     local -a _docker_volume_subcommands
     _docker_volume_subcommands=(
         "create:Create a volume"
-        "inspect:Return low-level information on a volume"
+        "inspect:Display detailed information on one or more volumes"
         "ls:List volumes"
         "rm:Remove a volume"
     )
@@ -786,7 +787,7 @@ __docker_subcommand() {
         "($help)--userns=[Container user namespace]:user namespace:(host)"
     )
     opts_build_create_run_update=(
-        "($help)--cpu-shares=[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)"
+        "($help -c --cpu-shares)"{-c=,--cpu-shares=}"[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)"
         "($help)--cpu-period=[Limit the CPU CFS (Completely Fair Scheduler) period]:CPU period: "
         "($help)--cpu-quota=[Limit the CPU CFS (Completely Fair Scheduler) quota]:CPU quota: "
         "($help)--cpuset-cpus=[CPUs in which to allow execution]:CPUs: "
@@ -820,6 +821,7 @@ __docker_subcommand() {
         "($help)--ip6=[Container IPv6 address]:IPv6: "
         "($help)--ipc=[IPC namespace to use]:IPC namespace: "
         "($help)*--link=[Add link to another container]:link:->link"
+        "($help)*--link-local-ip=[Add a link-local address for the container]:IPv4/IPv6: "
         "($help)*"{-l=,--label=}"[Container metadata]:label: "
         "($help)--log-driver=[Default driver for container logs]:Logging driver:(awslogs etwlogs fluentd gcplogs gelf journald json-file none splunk syslog)"
         "($help)*--log-opt=[Log driver specific options]:log driver options:__docker_log_options"
@@ -965,6 +967,7 @@ __docker_subcommand() {
                 "($help)--ipv6[Enable IPv6 networking]" \
                 "($help -l --log-level)"{-l=,--log-level=}"[Logging level]:level:(debug info warn error fatal)" \
                 "($help)*--label=[Key=value labels]:label: " \
+                "($help)--live-restore[Enable live restore of docker when containers are still running]" \
                 "($help)--log-driver=[Default driver for container logs]:Logging driver:(awslogs etwlogs fluentd gcplogs gelf journald json-file none splunk syslog)" \
                 "($help)*--log-opt=[Log driver specific options]:log driver options:__docker_log_options" \
                 "($help)--max-concurrent-downloads[Set the max concurrent downloads for each pull]" \
@@ -973,7 +976,7 @@ __docker_subcommand() {
                 "($help -p --pidfile)"{-p=,--pidfile=}"[Path to use for daemon PID file]:PID file:_files" \
                 "($help)--raw-logs[Full timestamps without ANSI coloring]" \
                 "($help)*--registry-mirror=[Preferred Docker registry mirror]:registry mirror: " \
-                "($help -s --storage-driver)"{-s=,--storage-driver=}"[Storage driver to use]:driver:(aufs devicemapper btrfs zfs overlay)" \
+                "($help -s --storage-driver)"{-s=,--storage-driver=}"[Storage driver to use]:driver:(aufs btrfs devicemapper overlay overlay2 vfs zfs)" \
                 "($help)--selinux-enabled[Enable selinux support]" \
                 "($help)*--storage-opt=[Storage driver options]:storage driver options: " \
                 "($help)--tls[Use TLS]" \
@@ -1250,6 +1253,7 @@ __docker_subcommand() {
                 "($help)--rm[Remove intermediate containers when it exits]" \
                 "($help)--sig-proxy[Proxy all received signals to the process (non-TTY mode only)]" \
                 "($help)--stop-signal=[Signal to kill a container]:signal:_signals" \
+                "($help)--storage-opt=[Set storage driver options per container]:storage options:->storage-opt" \
                 "($help -): :__docker_images" \
                 "($help -):command: _command_names -e" \
                 "($help -)*::arguments: _normal" && ret=0
@@ -1260,6 +1264,14 @@ __docker_subcommand() {
                         _wanted alias expl "Alias" compadd -E "" && ret=0
                     else
                         __docker_runningcontainers -qS ":" && ret=0
+                    fi
+                    ;;
+                (storage-opt)
+                    if compset -P "*="; then
+                        _message "value" && ret=0
+                    else
+                        opts=('size')
+                        _describe -t filter-opts "storage options" opts -qS "=" && ret=0
                     fi
                     ;;
             esac

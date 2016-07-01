@@ -38,8 +38,13 @@ func newContainerAdapter(b executorpkg.Backend, task *api.Task) (*containerAdapt
 }
 
 func (c *containerAdapter) pullImage(ctx context.Context) error {
+	spec := c.container.spec()
+
 	// if the image needs to be pulled, the auth config will be retrieved and updated
-	encodedAuthConfig := c.container.spec().RegistryAuth
+	var encodedAuthConfig string
+	if spec.PullOptions != nil {
+		encodedAuthConfig = spec.PullOptions.RegistryAuth
+	}
 
 	authConfig := &types.AuthConfig{}
 	if encodedAuthConfig != "" {
@@ -64,7 +69,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 			}
 			return err
 		}
-		// TOOD(stevvooe): Report this status somewhere.
+		// TODO(stevvooe): Report this status somewhere.
 		logrus.Debugln("pull progress", m)
 	}
 	// if the final stream object contained an error, return it
@@ -120,7 +125,7 @@ func (c *containerAdapter) create(ctx context.Context, backend executorpkg.Backe
 		return err
 	}
 
-	// Docker daemon currently doesnt support multiple networks in container create
+	// Docker daemon currently doesn't support multiple networks in container create
 	// Connect to all other networks
 	nc := c.container.connectNetworkingConfig()
 
@@ -157,7 +162,7 @@ func (c *containerAdapter) inspect(ctx context.Context) (types.ContainerJSON, er
 // events issues a call to the events API and returns a channel with all
 // events. The stream of events can be shutdown by cancelling the context.
 //
-// A chan struct{} is returned that will be closed if the event procressing
+// A chan struct{} is returned that will be closed if the event processing
 // fails and needs to be restarted.
 func (c *containerAdapter) wait(ctx context.Context) error {
 	return c.backend.ContainerWaitWithContext(ctx, c.container.name())

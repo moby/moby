@@ -27,8 +27,6 @@ var (
 // Cluster represents a set of active
 // raft Members
 type Cluster struct {
-	id uint64
-
 	mu      sync.RWMutex
 	members map[uint64]*Member
 
@@ -103,17 +101,15 @@ func (c *Cluster) RemoveMember(id uint64) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.members[id] == nil {
-		return ErrIDNotFound
-	}
-
-	conn := c.members[id].Conn
-	if conn != nil {
-		_ = conn.Close()
+	if c.members[id] != nil {
+		conn := c.members[id].Conn
+		if conn != nil {
+			_ = conn.Close()
+		}
+		delete(c.members, id)
 	}
 
 	c.removed[id] = true
-	delete(c.members, id)
 	return nil
 }
 

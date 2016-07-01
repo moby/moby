@@ -59,7 +59,6 @@ func (r *controller) ContainerStatus(ctx context.Context) (*api.ContainerStatus,
 
 // Update tasks a recent task update and applies it to the container.
 func (r *controller) Update(ctx context.Context, t *api.Task) error {
-	log.G(ctx).Warnf("task updates not yet supported")
 	// TODO(stevvooe): While assignment of tasks is idempotent, we do allow
 	// updates of metadata, such as labelling, as well as any other properties
 	// that make sense.
@@ -152,9 +151,6 @@ func (r *controller) Wait(pctx context.Context) error {
 	defer cancel()
 
 	err := r.adapter.wait(ctx)
-	if err != nil {
-		return err
-	}
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
@@ -166,6 +162,7 @@ func (r *controller) Wait(pctx context.Context) error {
 		if ec, ok := err.(exec.ExitCoder); ok {
 			ee.code = ec.ExitCode()
 		}
+		return ee
 	}
 	return nil
 }

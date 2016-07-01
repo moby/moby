@@ -58,8 +58,15 @@ message JoinRequest {
 }
 
 message JoinResponse {
+	// RaftID is the ID assigned to the new member.
 	uint64 raft_id = 1 [(gogoproto.customname) = "RaftID"];
+
+	// Members is the membership set of the cluster.
 	repeated RaftMember members = 2;
+
+	// RemovedMembers is a list of members that have been removed from
+	// the cluster, so the new node can avoid communicating with them.
+	repeated uint64 removed_members = 3;
 }
 
 message LeaveRequest {

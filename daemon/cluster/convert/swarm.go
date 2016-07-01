@@ -3,6 +3,7 @@ package convert
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -26,13 +27,21 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 				HeartbeatTick:              c.Spec.Raft.HeartbeatTick,
 				ElectionTick:               c.Spec.Raft.ElectionTick,
 			},
-			Dispatcher: types.DispatcherConfig{
-				HeartbeatPeriod: c.Spec.Dispatcher.HeartbeatPeriod,
-			},
 		},
 	}
 
+	heartbeatPeriod, _ := ptypes.Duration(c.Spec.Dispatcher.HeartbeatPeriod)
+	swarm.Spec.Dispatcher.HeartbeatPeriod = uint64(heartbeatPeriod)
+
 	swarm.Spec.CAConfig.NodeCertExpiry, _ = ptypes.Duration(c.Spec.CAConfig.NodeCertExpiry)
+
+	for _, ca := range c.Spec.CAConfig.ExternalCAs {
+		swarm.Spec.CAConfig.ExternalCAs = append(swarm.Spec.CAConfig.ExternalCAs, &types.ExternalCA{
+			Protocol: types.ExternalCAProtocol(strings.ToLower(ca.Protocol.String())),
+			URL:      ca.URL,
+			Options:  ca.Options,
+		})
+	}
 
 	// Meta
 	swarm.Version.Index = c.Meta.Version.Index
@@ -76,11 +85,23 @@ func SwarmSpecToGRPCandMerge(s types.Spec, existingSpec *swarmapi.ClusterSpec) (
 			ElectionTick:               s.Raft.ElectionTick,
 		},
 		Dispatcher: swarmapi.DispatcherConfig{
-			HeartbeatPeriod: s.Dispatcher.HeartbeatPeriod,
+			HeartbeatPeriod: ptypes.DurationProto(time.Duration(s.Dispatcher.HeartbeatPeriod)),
 		},
 		CAConfig: swarmapi.CAConfig{
 			NodeCertExpiry: ptypes.DurationProto(s.CAConfig.NodeCertExpiry),
 		},
+	}
+
+	for _, ca := range s.CAConfig.ExternalCAs {
+		protocol, ok := swarmapi.ExternalCA_CAProtocol_value[strings.ToUpper(string(ca.Protocol))]
+		if !ok {
+			return swarmapi.ClusterSpec{}, fmt.Errorf("invalid protocol: %q", ca.Protocol)
+		}
+		spec.CAConfig.ExternalCAs = append(spec.CAConfig.ExternalCAs, &swarmapi.ExternalCA{
+			Protocol: swarmapi.ExternalCA_CAProtocol(protocol),
+			URL:      ca.URL,
+			Options:  ca.Options,
+		})
 	}
 
 	if err := SwarmSpecUpdateAcceptancePolicy(&spec, s.AcceptancePolicy, existingSpec); err != nil {

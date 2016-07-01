@@ -45,7 +45,6 @@ The currently supported filters are:
 * name
 * id
 * label
-* desired_state
 
 ### name
 

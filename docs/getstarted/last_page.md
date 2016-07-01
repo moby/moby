@@ -10,7 +10,7 @@ description = "Getting started with Docker"
 keywords = ["beginner, getting started, Docker"]
 [menu.main]
 identifier = "getstart_learn_more"
-parent = "getstart_all"
+parent = "tutorial_getstart_menu"
 weight = 7
 +++
 <![end-metadata]-->
@@ -30,11 +30,11 @@ Depending on your interest, the Docker documentation contains a wealth of inform
   </tr>
   <tr>
     <td class="tg-031e">More about Docker for Mac, features, examples, FAQs, relationship to Docker Machine and Docker Toolbox, and how this fits in the Docker ecosystem</td>
-    <td class="tg-031e">[Getting Started with Docker for Mac](/docker-for-mac/index.md)</td>
+    <td class="tg-031e">[Getting Started with Docker for Mac](https://docs.docker.com/docker-for-mac/)</td>
   </tr>
   <tr>
-    <td class="tg-031e">More about Docker for Windows, More about Docker for Windows, features, examples, FAQs, relationship to Docker Machine and Docker Toolbox, and how this fits in the Docker ecosystem</td>
-    <td class="tg-031e">[Getting Started with Docker for Windows](/docker-for-mac/index.md)</td>
+    <td class="tg-031e">More about Docker for Windows, features, examples, FAQs, relationship to Docker Machine and Docker Toolbox, and how this fits in the Docker ecosystem</td>
+    <td class="tg-031e">[Getting Started with Docker for Windows](https://docs.docker.com/docker-for-windows/)</td>
   </tr>
   <tr>
     <td class="tg-031e">More about Docker Toolbox</td>

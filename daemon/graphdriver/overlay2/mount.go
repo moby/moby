@@ -32,12 +32,6 @@ type mountOptions struct {
 }
 
 func mountFrom(dir, device, target, mType, label string) error {
-
-	r, w, err := os.Pipe()
-	if err != nil {
-		return fmt.Errorf("mountfrom pipe failure: %v", err)
-	}
-
 	options := &mountOptions{
 		Device: device,
 		Target: target,
@@ -47,7 +41,10 @@ func mountFrom(dir, device, target, mType, label string) error {
 	}
 
 	cmd := reexec.Command("docker-mountfrom", dir)
-	cmd.Stdin = r
+	w, err := cmd.StdinPipe()
+	if err != nil {
+		return fmt.Errorf("mountfrom error on pipe creation: %v", err)
+	}
 
 	output := bytes.NewBuffer(nil)
 	cmd.Stdout = output

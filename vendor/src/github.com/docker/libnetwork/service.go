@@ -1,6 +1,7 @@
 package libnetwork
 
 import (
+	"fmt"
 	"net"
 	"sync"
 )
@@ -12,6 +13,27 @@ var (
 	fwMarkCtrMu sync.Mutex
 )
 
+type portConfigs []*PortConfig
+
+func (p portConfigs) String() string {
+	if len(p) == 0 {
+		return ""
+	}
+
+	pc := p[0]
+	str := fmt.Sprintf("%d:%d/%s", pc.PublishedPort, pc.TargetPort, PortConfig_Protocol_name[int32(pc.Protocol)])
+	for _, pc := range p[1:] {
+		str = str + fmt.Sprintf(",%d:%d/%s", pc.PublishedPort, pc.TargetPort, PortConfig_Protocol_name[int32(pc.Protocol)])
+	}
+
+	return str
+}
+
+type serviceKey struct {
+	id    string
+	ports string
+}
+
 type service struct {
 	name string // Service Name
 	id   string // Service ID
@@ -21,7 +43,7 @@ type service struct {
 	loadBalancers map[string]*loadBalancer
 
 	// List of ingress ports exposed by the service
-	ingressPorts []*PortConfig
+	ingressPorts portConfigs
 
 	sync.Mutex
 }

@@ -24,20 +24,35 @@ func newCreateCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runCreate(dockerCli, opts)
 		},
 	}
+	flags := cmd.Flags()
+	flags.StringVar(&opts.mode, flagMode, "replicated", "Service mode (replicated or global)")
 	addServiceFlags(cmd, opts)
 	cmd.Flags().SetInterspersed(false)
 	return cmd
 }
 
 func runCreate(dockerCli *client.DockerCli, opts *serviceOptions) error {
-	client := dockerCli.Client()
+	apiClient := dockerCli.Client()
+	headers := map[string][]string{}
 
 	service, err := opts.ToService()
 	if err != nil {
 		return err
 	}
 
-	response, err := client.ServiceCreate(context.Background(), service)
+	ctx := context.Background()
+
+	// only send auth if flag was set
+	if opts.registryAuth {
+		// Retrieve encoded auth token from the image reference
+		encodedAuth, err := dockerCli.RetrieveAuthTokenFromImage(ctx, opts.image)
+		if err != nil {
+			return err
+		}
+		headers["X-Registry-Auth"] = []string{encodedAuth}
+	}
+
+	response, err := apiClient.ServiceCreate(ctx, service, headers)
 	if err != nil {
 		return err
 	}

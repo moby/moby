@@ -18,18 +18,17 @@ import (
 
 func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	opts := newServiceOptions()
-	var flags *pflag.FlagSet
 
 	cmd := &cobra.Command{
 		Use:   "update [OPTIONS] SERVICE",
 		Short: "Update a service",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runUpdate(dockerCli, flags, args[0])
+			return runUpdate(dockerCli, cmd.Flags(), args[0])
 		},
 	}
 
-	flags = cmd.Flags()
+	flags := cmd.Flags()
 	flags.String("image", "", "Service image tag")
 	flags.StringSlice("command", []string{}, "Service command")
 	flags.StringSlice("arg", []string{}, "Service command args")
@@ -38,19 +37,37 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 }
 
 func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, serviceID string) error {
-	client := dockerCli.Client()
+	apiClient := dockerCli.Client()
 	ctx := context.Background()
+	headers := map[string][]string{}
 
-	service, _, err := client.ServiceInspectWithRaw(ctx, serviceID)
+	service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID)
 	if err != nil {
 		return err
 	}
 
-	err = mergeService(&service.Spec, flags)
+	err = updateService(flags, &service.Spec)
 	if err != nil {
 		return err
 	}
-	err = client.ServiceUpdate(ctx, service.ID, service.Version, service.Spec)
+
+	// only send auth if flag was set
+	sendAuth, err := flags.GetBool(flagRegistryAuth)
+	if err != nil {
+		return err
+	}
+	if sendAuth {
+		// Retrieve encoded auth token from the image reference
+		// This would be the old image if it didn't change in this update
+		image := service.Spec.TaskTemplate.ContainerSpec.Image
+		encodedAuth, err := dockerCli.RetrieveAuthTokenFromImage(ctx, image)
+		if err != nil {
+			return err
+		}
+		headers["X-Registry-Auth"] = []string{encodedAuth}
+	}
+
+	err = apiClient.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, headers)
 	if err != nil {
 		return err
 	}
@@ -59,52 +76,52 @@ func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, serviceID stri
 	return nil
 }
 
-func mergeService(spec *swarm.ServiceSpec, flags *pflag.FlagSet) error {
+func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 
-	mergeString := func(flag string, field *string) {
+	updateString := func(flag string, field *string) {
 		if flags.Changed(flag) {
 			*field, _ = flags.GetString(flag)
 		}
 	}
 
-	mergeListOpts := func(flag string, field *[]string) {
+	updateListOpts := func(flag string, field *[]string) {
 		if flags.Changed(flag) {
 			value := flags.Lookup(flag).Value.(*opts.ListOpts)
 			*field = value.GetAll()
 		}
 	}
 
-	mergeSlice := func(flag string, field *[]string) {
+	updateSlice := func(flag string, field *[]string) {
 		if flags.Changed(flag) {
 			*field, _ = flags.GetStringSlice(flag)
 		}
 	}
 
-	mergeInt64Value := func(flag string, field *int64) {
+	updateInt64Value := func(flag string, field *int64) {
 		if flags.Changed(flag) {
 			*field = flags.Lookup(flag).Value.(int64Value).Value()
 		}
 	}
 
-	mergeDuration := func(flag string, field *time.Duration) {
+	updateDuration := func(flag string, field *time.Duration) {
 		if flags.Changed(flag) {
 			*field, _ = flags.GetDuration(flag)
 		}
 	}
 
-	mergeDurationOpt := func(flag string, field *time.Duration) {
+	updateDurationOpt := func(flag string, field *time.Duration) {
 		if flags.Changed(flag) {
 			*field = *flags.Lookup(flag).Value.(*DurationOpt).Value()
 		}
 	}
 
-	mergeUint64 := func(flag string, field *uint64) {
+	updateUint64 := func(flag string, field *uint64) {
 		if flags.Changed(flag) {
 			*field, _ = flags.GetUint64(flag)
 		}
 	}
 
-	mergeUint64Opt := func(flag string, field *uint64) {
+	updateUint64Opt := func(flag string, field *uint64) {
 		if flags.Changed(flag) {
 			*field = *flags.Lookup(flag).Value.(*Uint64Opt).Value()
 		}
@@ -112,37 +129,39 @@ func mergeService(spec *swarm.ServiceSpec, flags *pflag.FlagSet) error {
 
 	cspec := &spec.TaskTemplate.ContainerSpec
 	task := &spec.TaskTemplate
-	mergeString(flagName, &spec.Name)
-	mergeLabels(flags, &spec.Labels)
-	mergeString("image", &cspec.Image)
-	mergeSlice("command", &cspec.Command)
-	mergeSlice("arg", &cspec.Command)
-	mergeListOpts("env", &cspec.Env)
-	mergeString("workdir", &cspec.Dir)
-	mergeString("user", &cspec.User)
-	mergeMounts(flags, &cspec.Mounts)
 
-	if flags.Changed(flagLimitCPU) || flags.Changed(flagLimitMemory) {
+	taskResources := func() *swarm.ResourceRequirements {
 		if task.Resources == nil {
 			task.Resources = &swarm.ResourceRequirements{}
 		}
-		task.Resources.Limits = &swarm.Resources{}
-		mergeInt64Value(flagLimitCPU, &task.Resources.Limits.NanoCPUs)
-		mergeInt64Value(flagLimitMemory, &task.Resources.Limits.MemoryBytes)
+		return task.Resources
+	}
+
+	updateString(flagName, &spec.Name)
+	updateLabels(flags, &spec.Labels)
+	updateString("image", &cspec.Image)
+	updateSlice("command", &cspec.Command)
+	updateSlice("arg", &cspec.Args)
+	updateListOpts("env", &cspec.Env)
+	updateString("workdir", &cspec.Dir)
+	updateString(flagUser, &cspec.User)
+	updateMounts(flags, &cspec.Mounts)
+
+	if flags.Changed(flagLimitCPU) || flags.Changed(flagLimitMemory) {
+		taskResources().Limits = &swarm.Resources{}
+		updateInt64Value(flagLimitCPU, &task.Resources.Limits.NanoCPUs)
+		updateInt64Value(flagLimitMemory, &task.Resources.Limits.MemoryBytes)
 
 	}
 	if flags.Changed(flagReserveCPU) || flags.Changed(flagReserveMemory) {
-		if task.Resources == nil {
-			task.Resources = &swarm.ResourceRequirements{}
-		}
-		task.Resources.Reservations = &swarm.Resources{}
-		mergeInt64Value(flagReserveCPU, &task.Resources.Reservations.NanoCPUs)
-		mergeInt64Value(flagReserveMemory, &task.Resources.Reservations.MemoryBytes)
+		taskResources().Reservations = &swarm.Resources{}
+		updateInt64Value(flagReserveCPU, &task.Resources.Reservations.NanoCPUs)
+		updateInt64Value(flagReserveMemory, &task.Resources.Reservations.MemoryBytes)
 	}
 
-	mergeDurationOpt("stop-grace-period", cspec.StopGracePeriod)
+	updateDurationOpt(flagStopGracePeriod, cspec.StopGracePeriod)
 
-	if flags.Changed(flagRestartCondition) || flags.Changed(flagRestartDelay) || flags.Changed(flagRestartMaxAttempts) || flags.Changed(flagRestartWindow) {
+	if anyChanged(flags, flagRestartCondition, flagRestartDelay, flagRestartMaxAttempts, flagRestartWindow) {
 		if task.RestartPolicy == nil {
 			task.RestartPolicy = &swarm.RestartPolicy{}
 		}
@@ -151,29 +170,29 @@ func mergeService(spec *swarm.ServiceSpec, flags *pflag.FlagSet) error {
 			value, _ := flags.GetString(flagRestartCondition)
 			task.RestartPolicy.Condition = swarm.RestartPolicyCondition(value)
 		}
-		mergeDurationOpt(flagRestartDelay, task.RestartPolicy.Delay)
-		mergeUint64Opt(flagRestartMaxAttempts, task.RestartPolicy.MaxAttempts)
-		mergeDurationOpt((flagRestartWindow), task.RestartPolicy.Window)
+		updateDurationOpt(flagRestartDelay, task.RestartPolicy.Delay)
+		updateUint64Opt(flagRestartMaxAttempts, task.RestartPolicy.MaxAttempts)
+		updateDurationOpt((flagRestartWindow), task.RestartPolicy.Window)
 	}
 
 	if flags.Changed(flagConstraint) {
 		task.Placement = &swarm.Placement{}
-		mergeSlice(flagConstraint, &task.Placement.Constraints)
+		updateSlice(flagConstraint, &task.Placement.Constraints)
 	}
 
-	if err := mergeMode(flags, &spec.Mode); err != nil {
+	if err := updateReplicas(flags, &spec.Mode); err != nil {
 		return err
 	}
 
-	if flags.Changed(flagUpdateParallelism) || flags.Changed(flagUpdateDelay) {
+	if anyChanged(flags, flagUpdateParallelism, flagUpdateDelay) {
 		if spec.UpdateConfig == nil {
 			spec.UpdateConfig = &swarm.UpdateConfig{}
 		}
-		mergeUint64(flagUpdateParallelism, &spec.UpdateConfig.Parallelism)
-		mergeDuration(flagUpdateDelay, &spec.UpdateConfig.Delay)
+		updateUint64(flagUpdateParallelism, &spec.UpdateConfig.Parallelism)
+		updateDuration(flagUpdateDelay, &spec.UpdateConfig.Delay)
 	}
 
-	mergeNetworks(flags, &spec.Networks)
+	updateNetworks(flags, &spec.Networks)
 	if flags.Changed(flagEndpointMode) {
 		value, _ := flags.GetString(flagEndpointMode)
 		spec.EndpointSpec.Mode = swarm.ResolutionMode(value)
@@ -183,38 +202,45 @@ func mergeService(spec *swarm.ServiceSpec, flags *pflag.FlagSet) error {
 		if spec.EndpointSpec == nil {
 			spec.EndpointSpec = &swarm.EndpointSpec{}
 		}
-		mergePorts(flags, &spec.EndpointSpec.Ports)
+		updatePorts(flags, &spec.EndpointSpec.Ports)
 	}
 	return nil
 }
 
-func mergeLabels(flags *pflag.FlagSet, field *map[string]string) {
+func updateLabels(flags *pflag.FlagSet, field *map[string]string) {
 	if !flags.Changed(flagLabel) {
 		return
 	}
 
-	if *field == nil {
-		*field = make(map[string]string)
-	}
-
 	values := flags.Lookup(flagLabel).Value.(*opts.ListOpts).GetAll()
+
+	localLabels := map[string]string{}
 	for key, value := range runconfigopts.ConvertKVStringsToMap(values) {
-		(*field)[key] = value
+		localLabels[key] = value
 	}
+	*field = localLabels
+}
+
+func anyChanged(flags *pflag.FlagSet, fields ...string) bool {
+	for _, flag := range fields {
+		if flags.Changed(flag) {
+			return true
+		}
+	}
+	return false
 }
 
 // TODO: should this override by destination path, or does swarm handle that?
-func mergeMounts(flags *pflag.FlagSet, mounts *[]swarm.Mount) {
+func updateMounts(flags *pflag.FlagSet, mounts *[]swarm.Mount) {
 	if !flags.Changed(flagMount) {
 		return
 	}
 
-	values := flags.Lookup(flagMount).Value.(*MountOpt).Value()
-	*mounts = append(*mounts, values...)
+	*mounts = flags.Lookup(flagMount).Value.(*MountOpt).Value()
 }
 
 // TODO: should this override by name, or does swarm handle that?
-func mergePorts(flags *pflag.FlagSet, portConfig *[]swarm.PortConfig) {
+func updatePorts(flags *pflag.FlagSet, portConfig *[]swarm.PortConfig) {
 	if !flags.Changed(flagPublish) {
 		return
 	}
@@ -222,55 +248,34 @@ func mergePorts(flags *pflag.FlagSet, portConfig *[]swarm.PortConfig) {
 	values := flags.Lookup(flagPublish).Value.(*opts.ListOpts).GetAll()
 	ports, portBindings, _ := nat.ParsePortSpecs(values)
 
+	var localPortConfig []swarm.PortConfig
 	for port := range ports {
-		*portConfig = append(*portConfig, convertPortToPortConfig(port, portBindings)...)
+		localPortConfig = append(localPortConfig, convertPortToPortConfig(port, portBindings)...)
 	}
+	*portConfig = localPortConfig
 }
 
-func mergeNetworks(flags *pflag.FlagSet, attachments *[]swarm.NetworkAttachmentConfig) {
+func updateNetworks(flags *pflag.FlagSet, attachments *[]swarm.NetworkAttachmentConfig) {
 	if !flags.Changed(flagNetwork) {
 		return
 	}
 	networks, _ := flags.GetStringSlice(flagNetwork)
+
+	var localAttachments []swarm.NetworkAttachmentConfig
 	for _, network := range networks {
-		*attachments = append(*attachments, swarm.NetworkAttachmentConfig{Target: network})
+		localAttachments = append(localAttachments, swarm.NetworkAttachmentConfig{Target: network})
 	}
+	*attachments = localAttachments
 }
 
-func mergeMode(flags *pflag.FlagSet, serviceMode *swarm.ServiceMode) error {
-	if !flags.Changed(flagMode) && !flags.Changed(flagReplicas) {
+func updateReplicas(flags *pflag.FlagSet, serviceMode *swarm.ServiceMode) error {
+	if !flags.Changed(flagReplicas) {
 		return nil
 	}
 
-	var mode string
-	if flags.Changed(flagMode) {
-		mode, _ = flags.GetString(flagMode)
-	}
-
-	if !(mode == "replicated" || serviceMode.Replicated != nil) && flags.Changed(flagReplicas) {
+	if serviceMode.Replicated == nil {
 		return fmt.Errorf("replicas can only be used with replicated mode")
 	}
-
-	if mode == "global" {
-		serviceMode.Replicated = nil
-		serviceMode.Global = &swarm.GlobalService{}
-		return nil
-	}
-
-	if flags.Changed(flagReplicas) {
-		replicas := flags.Lookup(flagReplicas).Value.(*Uint64Opt).Value()
-		serviceMode.Replicated = &swarm.ReplicatedService{Replicas: replicas}
-		serviceMode.Global = nil
-		return nil
-	}
-
-	if mode == "replicated" {
-		if serviceMode.Replicated != nil {
-			return nil
-		}
-		serviceMode.Replicated = &swarm.ReplicatedService{Replicas: &DefaultReplicas}
-		serviceMode.Global = nil
-	}
-
+	serviceMode.Replicated.Replicas = flags.Lookup(flagReplicas).Value.(*Uint64Opt).Value()
 	return nil
 }

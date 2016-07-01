@@ -14,7 +14,7 @@ parent = "smn_cli"
 
     Usage: docker node inspect [OPTIONS] self|NODE [NODE...]
 
-    Return low-level information on a volume
+    Display detailed information on one or more nodes
 
       -f, --format=       Format the output using the given go template.
       --help              Print usage
@@ -104,7 +104,7 @@ Example output:
      Availability:          Active
     Manager Status:
      Address:               172.17.0.2:2377
-     Raft status:           Reachable
+     Raft Status:           Reachable
      Leader:                Yes
     Platform:
      Operating System:      linux

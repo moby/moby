@@ -88,8 +88,8 @@ func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) strin
 	cmd.StringVar(&config.ContainerdAddr, []string{"-containerd"}, "", usageFn("Path to containerd socket"))
 	cmd.BoolVar(&config.LiveRestore, []string{"-live-restore"}, false, usageFn("Enable live restore of docker when containers are still running"))
 	config.Runtimes = make(map[string]types.Runtime)
-	cmd.Var(runconfigopts.NewNamedRuntimeOpt("runtimes", &config.Runtimes), []string{"-add-runtime"}, usageFn("Register an additional OCI compatible runtime"))
-	cmd.StringVar(&config.DefaultRuntime, []string{"-default-runtime"}, types.DefaultRuntimeName, usageFn("Default OCI runtime to be used"))
+	cmd.Var(runconfigopts.NewNamedRuntimeOpt("runtimes", &config.Runtimes, stockRuntimeName), []string{"-add-runtime"}, usageFn("Register an additional OCI compatible runtime"))
+	cmd.StringVar(&config.DefaultRuntime, []string{"-default-runtime"}, stockRuntimeName, usageFn("Default OCI runtime to be used"))
 
 	config.attachExperimentalFlags(cmd, usageFn)
 }
@@ -123,7 +123,7 @@ func (config *Config) GetAllRuntimes() map[string]types.Runtime {
 }
 
 func (config *Config) isSwarmCompatible() error {
-	if config.IsValueSet("cluster-store") || config.IsValueSet("cluster-advertise") {
+	if config.ClusterStore != "" || config.ClusterAdvertise != "" {
 		return fmt.Errorf("--cluster-store and --cluster-advertise daemon configurations are incompatible with swarm mode")
 	}
 	if config.LiveRestore {

@@ -255,7 +255,7 @@ func (g *GlobalOrchestrator) reconcileOneNode(ctx context.Context, node *api.Nod
 		return
 	}
 	// typically there are only a few global services on a node
-	// iterate thru all of them one by one. If raft store visits become a concern,
+	// iterate through all of them one by one. If raft store visits become a concern,
 	// it can be optimized.
 	for _, service := range g.globalServices {
 		g.reconcileServiceOneNode(ctx, service.ID, node.ID)

@@ -51,7 +51,7 @@ var (
 	// greater than the 125 max.
 	ErrMaxDepthExceeded = errors.New("max depth exceeded")
 
-	// ErrNotSupported is used when the action is not supppoted
+	// ErrNotSupported is used when the action is not supported
 	// on the current platform
 	ErrNotSupported = errors.New("not support on this platform")
 )

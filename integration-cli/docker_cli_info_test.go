@@ -36,7 +36,7 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 	}
 
 	if DaemonIsLinux.Condition() {
-		stringsToCheck = append(stringsToCheck, "Runtimes:", "Default Runtime: default")
+		stringsToCheck = append(stringsToCheck, "Runtimes:", "Default Runtime: runc")
 	}
 
 	if utils.ExperimentalBuild() {

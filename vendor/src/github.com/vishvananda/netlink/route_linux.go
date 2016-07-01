@@ -11,6 +11,14 @@ import (
 // RtAttr is shared so it is in netlink_linux.go
 
 const (
+	SCOPE_UNIVERSE Scope = syscall.RT_SCOPE_UNIVERSE
+	SCOPE_SITE     Scope = syscall.RT_SCOPE_SITE
+	SCOPE_LINK     Scope = syscall.RT_SCOPE_LINK
+	SCOPE_HOST     Scope = syscall.RT_SCOPE_HOST
+	SCOPE_NOWHERE  Scope = syscall.RT_SCOPE_NOWHERE
+)
+
+const (
 	RT_FILTER_PROTOCOL uint64 = 1 << (1 + iota)
 	RT_FILTER_SCOPE
 	RT_FILTER_TYPE
@@ -22,6 +30,26 @@ const (
 	RT_FILTER_GW
 	RT_FILTER_TABLE
 )
+
+const (
+	FLAG_ONLINK    NextHopFlag = syscall.RTNH_F_ONLINK
+	FLAG_PERVASIVE NextHopFlag = syscall.RTNH_F_PERVASIVE
+)
+
+var testFlags = []flagString{
+	{f: FLAG_ONLINK, s: "onlink"},
+	{f: FLAG_PERVASIVE, s: "pervasive"},
+}
+
+func (r *Route) ListFlags() []string {
+	var flags []string
+	for _, tf := range testFlags {
+		if r.Flags&int(tf.f) != 0 {
+			flags = append(flags, tf.s)
+		}
+	}
+	return flags
+}
 
 // RouteAdd will add a route to the system.
 // Equivalent to: `ip route add $route`
@@ -100,6 +128,37 @@ func (h *Handle) routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg
 			gwData = route.Gw.To16()
 		}
 		rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_GATEWAY, gwData))
+	}
+
+	if len(route.MultiPath) > 0 {
+		buf := []byte{}
+		for _, nh := range route.MultiPath {
+			rtnh := &nl.RtNexthop{
+				RtNexthop: syscall.RtNexthop{
+					Hops:    uint8(nh.Hops),
+					Ifindex: int32(nh.LinkIndex),
+					Len:     uint16(syscall.SizeofRtNexthop),
+				},
+			}
+			var gwData []byte
+			if nh.Gw != nil {
+				gwFamily := nl.GetIPFamily(nh.Gw)
+				if family != -1 && family != gwFamily {
+					return fmt.Errorf("gateway, source, and destination ip are not the same IP family")
+				}
+				var gw *nl.RtAttr
+				if gwFamily == FAMILY_V4 {
+					gw = nl.NewRtAttr(syscall.RTA_GATEWAY, []byte(nh.Gw.To4()))
+				} else {
+					gw = nl.NewRtAttr(syscall.RTA_GATEWAY, []byte(nh.Gw.To16()))
+				}
+				gwData := gw.Serialize()
+				rtnh.Len += uint16(len(gwData))
+			}
+			buf = append(buf, rtnh.Serialize()...)
+			buf = append(buf, gwData...)
+		}
+		rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_MULTIPATH, buf))
 	}
 
 	if route.Table > 0 {
@@ -275,6 +334,40 @@ func deserializeRoute(m []byte) (Route, error) {
 			route.Priority = int(native.Uint32(attr.Value[0:4]))
 		case syscall.RTA_TABLE:
 			route.Table = int(native.Uint32(attr.Value[0:4]))
+		case syscall.RTA_MULTIPATH:
+			parseRtNexthop := func(value []byte) (*NexthopInfo, []byte, error) {
+				if len(value) < syscall.SizeofRtNexthop {
+					return nil, nil, fmt.Errorf("Lack of bytes")
+				}
+				nh := nl.DeserializeRtNexthop(value)
+				if len(value) < int(nh.RtNexthop.Len) {
+					return nil, nil, fmt.Errorf("Lack of bytes")
+				}
+				info := &NexthopInfo{
+					LinkIndex: int(nh.RtNexthop.Ifindex),
+					Hops:      int(nh.RtNexthop.Hops),
+				}
+				attrs, err := nl.ParseRouteAttr(value[syscall.SizeofRtNexthop:int(nh.RtNexthop.Len)])
+				if err != nil {
+					return nil, nil, err
+				}
+				for _, attr := range attrs {
+					switch attr.Attr.Type {
+					case syscall.RTA_GATEWAY:
+						info.Gw = net.IP(attr.Value)
+					}
+				}
+				return info, value[int(nh.RtNexthop.Len):], nil
+			}
+			rest := attr.Value
+			for len(rest) > 0 {
+				info, buf, err := parseRtNexthop(rest)
+				if err != nil {
+					return route, err
+				}
+				route.MultiPath = append(route.MultiPath, info)
+				rest = buf
+			}
 		}
 	}
 	return route, nil

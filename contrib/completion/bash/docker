@@ -693,7 +693,7 @@ _docker_build() {
 		--cgroup-parent
 		--cpuset-cpus
 		--cpuset-mems
-		--cpu-shares
+		--cpu-shares -c
 		--cpu-period
 		--cpu-quota
 		--file -f
@@ -942,10 +942,11 @@ _docker_daemon() {
 			return
 			;;
 		--storage-driver|-s)
-			COMPREPLY=( $( compgen -W "aufs btrfs devicemapper overlay vfs zfs" -- "$(echo $cur | tr '[:upper:]' '[:lower:]')" ) )
+			COMPREPLY=( $( compgen -W "aufs btrfs devicemapper overlay  overlay2 vfs zfs" -- "$(echo $cur | tr '[:upper:]' '[:lower:]')" ) )
 			return
 			;;
 		--storage-opt)
+			local btrfs_options="btrfs.min_space"
 			local devicemapper_options="
 				dm.basesize
 				dm.blkdiscard
@@ -965,7 +966,10 @@ _docker_daemon() {
 
 			case $(__docker_value_of_option '--storage-driver|-s') in
 				'')
-					COMPREPLY=( $( compgen -W "$devicemapper_options $zfs_options" -S = -- "$cur" ) )
+					COMPREPLY=( $( compgen -W "$btrfs_options $devicemapper_options $zfs_options" -S = -- "$cur" ) )
+					;;
+				btrfs)
+					COMPREPLY=( $( compgen -W "$btrfs_options" -S = -- "$cur" ) )
 					;;
 				devicemapper)
 					COMPREPLY=( $( compgen -W "$devicemapper_options" -S = -- "$cur" ) )
@@ -1049,6 +1053,7 @@ _docker_events() {
 				export
 				import
 				kill
+				load
 				mount
 				oom
 				pause
@@ -1058,6 +1063,7 @@ _docker_events() {
 				rename
 				resize
 				restart
+				save
 				start
 				stop
 				tag
@@ -1355,6 +1361,7 @@ _docker_network_connect() {
 		--ip
 		--ip6
 		--link
+		--link-local-ip
 	"
 
 	local boolean_options="
@@ -1528,11 +1535,12 @@ _docker_network() {
 _docker_service() {
 	local subcommands="
 		create
-		tasks
 		inspect
+		ls list
+		rm remove
+		scale
+		tasks
 		update
-		ls
-		rm
 	"
 	__docker_subcommands "$subcommands" && return
 
@@ -1547,41 +1555,45 @@ _docker_service() {
 }
 
 _docker_service_create() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--help --constraint --endpoint-ingress --endpoint-mode --env --label --limit-cpu --limit-memory --mode --name --network --publish --reserve-cpu --reserve-memory --restart-condition --restart-delay --restart-max-attempts --restart-window --replicas --stop-grace-period --update-delay --update-parallelism --user --volume --workdir" -- "$cur" ) )
-			;;
-	esac
-}
-
-_docker_service_update() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--arg --command --constraint --endpoint-ingress --endpoint-mode --env --help --image --label --limit-cpu --limit-memory --mode --name --network --publish --reserve-cpu --reserve-memory --restart-condition--restart-delay --restart-max-attempts --restart-window --replicas --stop-grace-period --update-delay --update-parallelism --user --volume --workdir" -- "$cur" ) )
-			;;
-		*)
-			__docker_complete_services
-	esac
+	_docker_service_update
 }
 
 _docker_service_inspect() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --format --pretty" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--format -f --help --pretty -p" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_services
 	esac
 }
 
-_docker_service_tasks() {
+_docker_service_list() {
+	_docker_service_ls
+}
+
+_docker_service_ls() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --all --filter --no-resolve" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "-f --filter --help --quiet -q" -- "$cur" ) )
 			;;
-		*)
-			__docker_complete_services
 	esac
+}
+
+_docker_service_remove() {
+	_docker_service_rm
 }
 
 _docker_service_rm() {
@@ -1594,21 +1606,131 @@ _docker_service_rm() {
 	esac
 }
 
-_docker_service_ls() {
+_docker_service_scale() {
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
 			;;
+		*)
+			COMPREPLY=( $(compgen -S "=" -W "$(__docker_services $1)" -- "$cur") )
+			__docker_nospace
+			;;
+	esac
+}
+
+_docker_service_tasks() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--all -a --filter -f --help --no-resolve -n" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_services
+	esac
+}
+
+_docker_service_update() {
+	local $subcommand="${words[$subcommand_pos]}"
+
+	local options_with_args="
+		--constraint
+		--endpoint-mode
+		--env -e
+		--label -l
+		--limit-cpu
+		--limit-memory
+		--mode
+		--mount -m
+		--name
+		--network
+		--publish -p
+		--replicas
+		--reserve-cpu
+		--reserve-memory
+		--restart-condition
+		--restart-delay
+		--restart-max-attempts
+		--restart-window
+		--stop-grace-period
+		--update-delay
+		--update-parallelism
+		--user -u
+		--workdir -w
+	"
+
+	local boolean_options="
+		--help
+	"
+
+	if [ "$subcommand" = "update" ] ; then
+		options_with_args="$options_with_args
+			--arg
+			--command
+			--image
+		"
+
+		case "$prev" in
+			--image)
+				__docker_complete_image_repos_and_tags
+				return
+				;;
+		esac
+	fi
+
+	case "$prev" in
+		--endpoint-mode)
+			COMPREPLY=( $( compgen -W "DNSRR VIP" -- "$cur" ) )
+			return
+			;;
+		--env|-e)
+			COMPREPLY=( $( compgen -e -S = -- "$cur" ) )
+			__docker_nospace
+			return
+			;;
+		--mode)
+			COMPREPLY=( $( compgen -W "global replicated" -- "$cur" ) )
+			return
+			;;
+		--network)
+			__docker_complete_networks
+			return
+			;;
+		--restart-condition)
+			COMPREPLY=( $( compgen -W "any none on_failure" -- "$cur" ) )
+			return
+			;;
+		--user|-u)
+			__docker_complete_user_group
+			return
+			;;
+		$(__docker_to_extglob "$options_with_args") )
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$boolean_options $options_with_args" -- "$cur" ) )
+			;;
+		*)
+			if [ "$subcommand" = "update" ] ; then
+				__docker_complete_services
+			fi
 	esac
 }
 
 _docker_swarm() {
 	local subcommands="
 		init
-		join
-		update
-		leave
 		inspect
+		join
+		leave
+		update
 	"
 	__docker_subcommands "$subcommands" && return
 
@@ -1623,31 +1745,47 @@ _docker_swarm() {
 }
 
 _docker_swarm_init() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--help --auto-accept --force-new-cluster --secret" -- "$cur" ) )
-			;;
-	esac
-}
-
-_docker_swarm_join() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--ca-hash --help --listen-addr --manager --secret" -- "$cur" ) )
-			;;
-	esac
-}
-
-_docker_swarm_update() {
 	case "$prev" in
-		--auto-accept|--cert-expiry|--dispatcher-heartbeat|--secret|--task-history-limit)
+		--auto-accept)
+			COMPREPLY=( $( compgen -W "manager none worker" -- "$cur" ) )
+			return
+			;;
+		--listen-addr|--secret)
 			return
 			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--auto-accept --cert-expiry --dispatcher-heartbeat --help --secret --task-history-limit" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--auto-accept --force-new-cluster --help --listen-addr --secret" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_swarm_inspect() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--format -f --help" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_swarm_join() {
+	case "$prev" in
+		--ca-hash|--listen-addr|--secret)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--ca-hash --help --listen-addr --manager --secret" -- "$cur" ) )
 			;;
 	esac
 }
@@ -1660,10 +1798,20 @@ _docker_swarm_leave() {
 	esac
 }
 
-_docker_swarm_inspect() {
+_docker_swarm_update() {
+	case "$prev" in
+		--auto-accept)
+			COMPREPLY=( $( compgen -W "manager none worker" -- "$cur" ) )
+			return
+			;;
+		--cert-expiry|--dispatcher-heartbeat|--secret|--task-history-limit)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--format --help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--auto-accept --cert-expiry --dispatcher-heartbeat --help --secret --task-history-limit" -- "$cur" ) )
 			;;
 	esac
 }
@@ -1673,9 +1821,9 @@ _docker_node() {
 		accept
 		demote
 		inspect
-		ls
+		ls list
 		promote
-		rm
+		rm remove
 		tasks
 		update
 	"
@@ -1701,20 +1849,46 @@ _docker_node_accept() {
 	esac
 }
 
-_docker_node_inspect() {
+_docker_node_demote() {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --format --pretty" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_manager_nodes
+	esac
+}
+
+_docker_node_inspect() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--format -f --help --pretty -p" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_nodes
 	esac
 }
 
+_docker_node_list() {
+	_docker_node_ls
+}
+
 _docker_node_ls() {
+	case "$prev" in
+		--filter|-f)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --filter --quiet" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--filter -f --help --quiet -q" -- "$cur" ) )
 			;;
 	esac
 }
@@ -1729,14 +1903,8 @@ _docker_node_promote() {
 	esac
 }
 
-_docker_node_demote() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
-			;;
-		*)
-			__docker_complete_manager_nodes
-	esac
+_docker_node_remove() {
+	_docker_node_rm
 }
 
 _docker_node_rm() {
@@ -1750,9 +1918,15 @@ _docker_node_rm() {
 }
 
 _docker_node_tasks() {
+	case "$prev" in
+		--filter|-f)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --no-resolve --filter --all" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--all -a --filter -f --help --no-resolve -n" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_nodes_plus_self
@@ -1760,9 +1934,24 @@ _docker_node_tasks() {
 }
 
 _docker_node_update() {
+	case "$prev" in
+		--availability)
+			COMPREPLY=( $( compgen -W "active drain pause" -- "$cur" ) )
+			return
+			;;
+		--membership)
+			COMPREPLY=( $( compgen -W "accepted rejected" -- "$cur" ) )
+			return
+			;;
+		--role)
+			COMPREPLY=( $( compgen -W "manager worker" -- "$cur" ) )
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --availability --membership --role" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--availability --help --membership --role" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_nodes
@@ -1970,7 +2159,7 @@ _docker_run() {
 		--cpu-quota
 		--cpuset-cpus
 		--cpuset-mems
-		--cpu-shares
+		--cpu-shares -c
 		--device
 		--device-read-bps
 		--device-read-iops
@@ -1993,6 +2182,7 @@ _docker_run() {
 		--label-file
 		--label -l
 		--link
+		--link-local-ip
 		--log-driver
 		--log-opt
 		--mac-address
@@ -2012,6 +2202,7 @@ _docker_run() {
 		--security-opt
 		--shm-size
 		--stop-signal
+		--storage-opt
 		--tmpfs
 		--sysctl
 		--ulimit
@@ -2198,6 +2389,11 @@ _docker_run() {
 			fi
 			return
 			;;
+		--storage-opt)
+			COMPREPLY=( $( compgen -W "size" -S = -- "$cur") )
+			__docker_nospace
+			return
+			;;
 		--user|-u)
 			__docker_complete_user_group
 			return
@@ -2365,7 +2561,7 @@ _docker_update() {
 		--cpu-quota
 		--cpuset-cpus
 		--cpuset-mems
-		--cpu-shares
+		--cpu-shares -c
 		--kernel-memory
 		--memory -m
 		--memory-reservation

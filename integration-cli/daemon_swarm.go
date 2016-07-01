@@ -21,22 +21,18 @@ type SwarmDaemon struct {
 	listenAddr string
 }
 
+// default policy in tests is allow-all
+var autoAcceptPolicy = swarm.AcceptancePolicy{
+	Policies: []swarm.Policy{
+		{Role: swarm.NodeRoleWorker, Autoaccept: true},
+		{Role: swarm.NodeRoleManager, Autoaccept: true},
+	},
+}
+
 // Init initializes a new swarm cluster.
-func (d *SwarmDaemon) Init(autoAccept map[string]bool, secret string) error {
-	req := swarm.InitRequest{
-		ListenAddr: d.listenAddr,
-	}
-	for _, role := range []swarm.NodeRole{swarm.NodeRoleManager, swarm.NodeRoleWorker} {
-		policy := swarm.Policy{
-			Role:       role,
-			Autoaccept: autoAccept[strings.ToLower(string(role))],
-		}
-
-		if secret != "" {
-			policy.Secret = &secret
-		}
-
-		req.Spec.AcceptancePolicy.Policies = append(req.Spec.AcceptancePolicy.Policies, policy)
+func (d *SwarmDaemon) Init(req swarm.InitRequest) error {
+	if req.ListenAddr == "" {
+		req.ListenAddr = d.listenAddr
 	}
 	status, out, err := d.SockRequest("POST", "/swarm/init", req)
 	if status != http.StatusOK {
@@ -53,17 +49,10 @@ func (d *SwarmDaemon) Init(autoAccept map[string]bool, secret string) error {
 	return nil
 }
 
-// Join joins a current daemon with existing cluster.
-func (d *SwarmDaemon) Join(remoteAddr, secret, cahash string, manager bool) error {
-	req := swarm.JoinRequest{
-		ListenAddr:  d.listenAddr,
-		RemoteAddrs: []string{remoteAddr},
-		Manager:     manager,
-		CACertHash:  cahash,
-	}
-
-	if secret != "" {
-		req.Secret = secret
+// Join joins a daemon to an existing cluster.
+func (d *SwarmDaemon) Join(req swarm.JoinRequest) error {
+	if req.ListenAddr == "" {
+		req.ListenAddr = d.listenAddr
 	}
 	status, out, err := d.SockRequest("POST", "/swarm/join", req)
 	if status != http.StatusOK {

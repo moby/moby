@@ -3,10 +3,11 @@ package container
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/reference"
@@ -18,7 +19,7 @@ import (
 )
 
 const (
-	// Explictly use the kernel's default setting for CPU quota of 100ms.
+	// Explicitly use the kernel's default setting for CPU quota of 100ms.
 	// https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
 	cpuQuotaPeriod = 100 * time.Millisecond
 
@@ -116,8 +117,8 @@ func (c *containerConfig) config() *enginecontainer.Config {
 		// If Command is provided, we replace the whole invocation with Command
 		// by replacing Entrypoint and specifying Cmd. Args is ignored in this
 		// case.
-		config.Entrypoint = append(config.Entrypoint, c.spec().Command[0])
-		config.Cmd = append(config.Cmd, c.spec().Command[1:]...)
+		config.Entrypoint = append(config.Entrypoint, c.spec().Command...)
+		config.Cmd = append(config.Cmd, c.spec().Args...)
 	} else if len(c.spec().Args) > 0 {
 		// In this case, we assume the image has an Entrypoint and Args
 		// specifies the arguments for that entrypoint.
@@ -345,7 +346,7 @@ func (c *containerConfig) serviceConfig() *clustertypes.ServiceConfig {
 		return nil
 	}
 
-	log.Printf("Creating service config in agent for t = %+v", c.task)
+	logrus.Debugf("Creating service config in agent for t = %+v", c.task)
 	svcCfg := &clustertypes.ServiceConfig{
 		Name:             c.task.ServiceAnnotations.Name,
 		Aliases:          make(map[string][]string),
@@ -403,6 +404,9 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 			Driver: na.Network.IPAM.Driver.Name,
 		},
 		Options:        na.Network.DriverState.Options,
+		Labels:         na.Network.Spec.Annotations.Labels,
+		Internal:       na.Network.Spec.Internal,
+		EnableIPv6:     na.Network.Spec.Ipv6Enabled,
 		CheckDuplicate: true,
 	}
 

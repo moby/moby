@@ -137,6 +137,7 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, ima
 	descriptorTemplate := v2PushDescriptor{
 		v2MetadataService: p.v2MetadataService,
 		repoInfo:          p.repoInfo,
+		ref:               p.ref,
 		repo:              p.repo,
 		pushState:         &p.pushState,
 	}
@@ -222,13 +223,14 @@ type v2PushDescriptor struct {
 	layer             layer.Layer
 	v2MetadataService *metadata.V2MetadataService
 	repoInfo          reference.Named
+	ref               reference.Named
 	repo              distribution.Repository
 	pushState         *pushState
 	remoteDescriptor  distribution.Descriptor
 }
 
 func (pd *v2PushDescriptor) Key() string {
-	return "v2push:" + pd.repo.Named().Name() + " " + pd.layer.DiffID().String()
+	return "v2push:" + pd.ref.FullName() + " " + pd.layer.DiffID().String()
 }
 
 func (pd *v2PushDescriptor) ID() string {

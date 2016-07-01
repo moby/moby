@@ -133,6 +133,9 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /containers/{name:.*}/copy` is now removed and errors out starting from this API version.
 * API errors are now returned as JSON instead of plain text.
 * `POST /containers/create` and `POST /containers/(id)/start` allow you to configure kernel parameters (sysctls) for use in the container.
+* `POST /v1.23/containers/<container ID>/exec` and `POST /v1.23/exec/<exec ID>/start`
+  no longer expects a "Container" field to be present. This property was not used
+  and is no longer sent by the docker client.
 
 ### v1.23 API changes
 

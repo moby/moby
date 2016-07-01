@@ -42,6 +42,9 @@ func runPush(dockerCli *client.DockerCli, name string) error {
 	ctx := context.Background()
 
 	repoInfo, err := registry.ParseRepositoryInfo(named)
+	if err != nil {
+		return err
+	}
 	authConfig := dockerCli.ResolveAuthConfig(ctx, repoInfo.Index)
 
 	encodedAuth, err := client.EncodeAuthToBase64(authConfig)

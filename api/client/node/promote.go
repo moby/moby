@@ -7,34 +7,25 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 func newPromoteCommand(dockerCli *client.DockerCli) *cobra.Command {
-	var flags *pflag.FlagSet
-
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "promote NODE [NODE...]",
 		Short: "Promote a node to a manager in the swarm",
 		Args:  cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runPromote(dockerCli, flags, args)
+			return runPromote(dockerCli, args)
 		},
 	}
-
-	flags = cmd.Flags()
-	return cmd
 }
 
-func runPromote(dockerCli *client.DockerCli, flags *pflag.FlagSet, args []string) error {
-	for _, id := range args {
-		if err := runUpdate(dockerCli, id, func(node *swarm.Node) {
-			node.Spec.Role = swarm.NodeRoleManager
-		}); err != nil {
-			return err
-		}
-		fmt.Fprintf(dockerCli.Out(), "Node %s promoted to a manager in the swarm.\n", id)
+func runPromote(dockerCli *client.DockerCli, nodes []string) error {
+	promote := func(node *swarm.Node) {
+		node.Spec.Role = swarm.NodeRoleManager
 	}
-
-	return nil
+	success := func(nodeID string) {
+		fmt.Fprintf(dockerCli.Out(), "Node %s promoted to a manager in the swarm.\n", nodeID)
+	}
+	return updateNodes(dockerCli, nodes, promote, success)
 }

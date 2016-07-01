@@ -3,6 +3,7 @@ package overlay
 import (
 	"fmt"
 	"net"
+	"syscall"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
@@ -29,6 +30,12 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 
 	if n.secure && len(d.keys) == 0 {
 		return fmt.Errorf("cannot join secure network: encryption keys not present")
+	}
+
+	nlh := ns.NlHandle()
+
+	if n.secure && !nlh.SupportsNetlinkFamily(syscall.NETLINK_XFRM) {
+		return fmt.Errorf("cannot join secure network: required modules to install IPSEC rules are missing on host")
 	}
 
 	s := n.getSubnetforIP(ep.addr)
@@ -64,8 +71,6 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	if err := d.writeEndpointToStore(ep); err != nil {
 		return fmt.Errorf("failed to update overlay endpoint %s to local data store: %v", ep.id[0:7], err)
 	}
-
-	nlh := ns.NlHandle()
 
 	// Set the container interface and its peer MTU to 1450 to allow
 	// for 50 bytes vxlan encap (inner eth header(14) + outer IP(20) +
