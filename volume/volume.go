@@ -34,7 +34,7 @@ type Driver interface {
 	List() ([]Volume, error)
 	// Get retrieves the volume with the requested name
 	Get(name string) (Volume, error)
-	// Scope returns the scope of the driver (e.g. `golbal` or `local`).
+	// Scope returns the scope of the driver (e.g. `global` or `local`).
 	// Scope determines how the driver is handled at a cluster level
 	Scope() string
 }
