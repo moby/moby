@@ -136,7 +136,7 @@ clone git google.golang.org/cloud dae7e3d993bc3812a2185af60552bb6b847e52a0 https
 clone git github.com/docker/docker-credential-helpers v0.3.0
 
 # containerd
-clone git github.com/docker/containerd b93a33be39bc4ef0fb00bfcb79147a28c33d9d43
+clone git github.com/docker/containerd 1b3a81545ca79456086dc2aa424357be98b962ee
 
 # cluster
 clone git github.com/docker/swarmkit 3f135f206179ea157aeef2d1d401eb795f618da8
