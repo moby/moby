@@ -17,9 +17,10 @@ Usage:  docker swarm join [OPTIONS] HOST:PORT
 Join a swarm as a node and/or manager
 
 Options:
-      --help                Print usage
-      --listen-addr value   Listen address (default 0.0.0.0:2377)
-      --token string        Token for entry into the swarm
+      --advertise-addr value   Advertised address (format: <ip|hostname|interface>[:port])
+      --help                   Print usage
+      --listen-addr value      Listen address
+      --token string           Token for entry into the swarm
 ```
 
 Join a node to a swarm. The node joins as a manager node or worker node based upon the token you
@@ -31,7 +32,7 @@ pass a worker token, the node joins as a worker.
 The example below demonstrates joining a manager node using a manager token.
 
 ```bash
-$ docker swarm join --token SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-7p73s1dx5in4tatdymyhg9hu2 --listen-addr 192.168.99.122:2377 192.168.99.121:2377
+$ docker swarm join --token SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-7p73s1dx5in4tatdymyhg9hu2 192.168.99.121:2377
 This node joined a swarm as a manager.
 $ docker node ls
 ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
@@ -48,7 +49,7 @@ should join as workers instead. Managers should be stable hosts that have static
 The example below demonstrates joining a worker node using a worker token.
 
 ```bash
-$ docker swarm join --token SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-1awxwuwd3z9j1z3puu7rcgdbx --listen-addr 192.168.99.123:2377 192.168.99.121:2377
+$ docker swarm join --token SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-1awxwuwd3z9j1z3puu7rcgdbx 192.168.99.121:2377
 This node joined a swarm as a worker.
 $ docker node ls
 ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
@@ -59,7 +60,36 @@ dvfxp4zseq4s0rih1selh0d20 *  manager1  Ready   Active        Leader
 
 ### `--listen-addr value`
 
-The node listens for inbound swarm manager traffic on this IP:PORT
+If the node is a manager, it will listen for inbound Swarm manager traffic on this
+address. The default is to listen on 0.0.0.0:2377. It is also possible to specify a
+network interface to listen on that interface's address; for example `--listen-addr eth0:2377`.
+
+Specifying a port is optional. If the value is a bare IP address, hostname, or interface
+name, the default port 2377 will be used.
+
+This flag is generally not necessary when joining an existing swarm.
+
+### `--advertise-addr value`
+
+This flag specifies the address that will be advertised to other members of the
+swarm for API access. If unspecified, Docker will check if the system has a
+single IP address, and use that IP address with with the listening port (see
+`--listen-addr`). If the system has multiple IP addresses, `--advertise-addr`
+must be specified so that the correct address is chosen for inter-manager
+communication and overlay networking.
+
+It is also possible to specify a network interface to advertise that interface's address;
+for example `--advertise-addr eth0:2377`.
+
+Specifying a port is optional. If the value is a bare IP address, hostname, or interface
+name, the default port 2377 will be used.
+
+This flag is generally not necessary when joining an existing swarm.
+
+### `--manager`
+
+Joins the node as a manager
+>>>>>>> 22565e1... Split advertised address from listen address
 
 ### `--token string`
 

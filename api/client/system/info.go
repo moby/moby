@@ -86,6 +86,7 @@ func runInfo(dockerCli *client.DockerCli) error {
 			fmt.Fprintf(dockerCli.Out(), " Managers: %d\n", info.Swarm.Managers)
 			fmt.Fprintf(dockerCli.Out(), " Nodes: %d\n", info.Swarm.Nodes)
 		}
+		fmt.Fprintf(dockerCli.Out(), " Node Address: %s\n", info.Swarm.NodeAddr)
 	}
 
 	if len(info.Runtimes) > 0 {

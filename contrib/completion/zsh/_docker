@@ -1203,6 +1203,7 @@ __docker_swarm_subcommand() {
         (init)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                "($help)--advertise-addr[Advertised address]:ip\:port: " \
                 "($help)*--external-ca=[Specifications of one or more certificate signing endpoints]:endpoint: " \
                 "($help)--force-new-cluster[Force create a new cluster from current state]" \
                 "($help)--listen-addr=[Listen address]:ip\:port: " && ret=0
@@ -1215,6 +1216,7 @@ __docker_swarm_subcommand() {
         (join)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                "($help)--advertise-addr[Advertised address]:ip\:port: " \
                 "($help)--listen-addr=[Listen address]:ip\:port: " \
                 "($help)--token=[Token for entry into the swarm]:secret: " \
                 "($help -):host\:port: " && ret=0

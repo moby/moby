@@ -3614,8 +3614,11 @@ Initialize a new Swarm
 
 JSON Parameters:
 
-- **ListenAddr** – Listen address used for inter-manager communication, as well as determining.
-  the networking interface used for the VXLAN Tunnel Endpoint (VTEP).
+- **ListenAddr** – Listen address used for inter-manager communication, as well as determining
+  the networking interface used for the VXLAN Tunnel Endpoint (VTEP). This can either be an
+  address/port combination in the form `192.168.1.1:4567`, or an interface followed by a port
+  number, like `eth0:4567`. If the port number is omitted, the default swarm listening port is
+  used.
 - **ForceNewCluster** – Force creating a new Swarm even if already part of one.
 - **Spec** – Configuration settings of the new Swarm.
     - **Orchestration** – Configuration settings for the orchestration aspects of the Swarm.

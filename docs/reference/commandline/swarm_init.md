@@ -17,12 +17,13 @@ Usage:  docker swarm init [OPTIONS]
 Initialize a swarm
 
 Options:
+      --advertise-addr value            Advertised address (format: <ip|hostname|interface>[:port])
       --cert-expiry duration            Validity period for node certificates (default 2160h0m0s)
       --dispatcher-heartbeat duration   Dispatcher heartbeat period (default 5s)
       --external-ca value               Specifications of one or more certificate signing endpoints
       --force-new-cluster               Force create a new cluster from current state.
       --help                            Print usage
-      --listen-addr value               Listen address (default 0.0.0.0:2377)
+      --listen-addr value               Listen address (format: <ip|hostname|interface>[:port])
       --task-history-limit int          Task history retention limit (default 5)
 ```
 
@@ -31,7 +32,7 @@ in the newly created one node swarm cluster.
 
 
 ```bash
-$ docker swarm init --listen-addr 192.168.99.121:2377
+$ docker swarm init --advertise-addr 192.168.99.121
 Swarm initialized: current node (bvz81updecsj6wjz393c09vti) is now a manager.
 
 To add a worker to this swarm, run the following command:
@@ -70,11 +71,31 @@ The URL specifies the endpoint where signing requests should be submitted.
 
 ### `--force-new-cluster`
 
-This flag forces an existing node that was part of a quorum that was lost to restart as a single node Manager without losing its data
+This flag forces an existing node that was part of a quorum that was lost to restart as a single node Manager without losing its data.
 
 ### `--listen-addr value`
 
-The node listens for inbound swarm manager traffic on this IP:PORT
+The node listens for inbound Swarm manager traffic on this address. The default is to listen on
+0.0.0.0:2377. It is also possible to specify a network interface to listen on that interface's
+address; for example `--listen-addr eth0:2377`.
+
+Specifying a port is optional. If the value is a bare IP address, hostname, or interface
+name, the default port 2377 will be used.
+
+### `--advertise-addr value`
+
+This flag specifies the address that will be advertised to other members of the
+swarm for API access and overlay networking. If unspecified, Docker will check
+if the system has a single IP address, and use that IP address with with the
+listening port (see `--listen-addr`). If the system has multiple IP addresses,
+`--advertise-addr` must be specified so that the correct address is chosen for
+inter-manager communication and overlay networking.
+
+It is also possible to specify a network interface to advertise that interface's address;
+for example `--advertise-addr eth0:2377`.
+
+Specifying a port is optional. If the value is a bare IP address, hostname, or interface
+name, the default port 2377 will be used.
 
 ### `--task-history-limit`
 

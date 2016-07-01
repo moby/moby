@@ -18,6 +18,7 @@ const (
 	flagCertExpiry          = "cert-expiry"
 	flagDispatcherHeartbeat = "dispatcher-heartbeat"
 	flagListenAddr          = "listen-addr"
+	flagAdvertiseAddr       = "advertise-addr"
 	flagToken               = "token"
 	flagTaskHistoryLimit    = "task-history-limit"
 	flagExternalCA          = "external-ca"
