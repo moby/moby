@@ -14,7 +14,9 @@ import (
 type joinOptions struct {
 	remote     string
 	listenAddr NodeAddrOption
-	token      string
+	// Not a NodeAddrOption because it has no default port.
+	advertiseAddr string
+	token         string
 }
 
 func newJoinCommand(dockerCli *client.DockerCli) *cobra.Command {
@@ -33,7 +35,8 @@ func newJoinCommand(dockerCli *client.DockerCli) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.Var(&opts.listenAddr, flagListenAddr, "Listen address")
+	flags.Var(&opts.listenAddr, flagListenAddr, "Listen address (format: <ip|hostname|interface>[:port])")
+	flags.StringVar(&opts.advertiseAddr, flagAdvertiseAddr, "", "Advertised address (format: <ip|hostname|interface>[:port])")
 	flags.StringVar(&opts.token, flagToken, "", "Token for entry into the swarm")
 	return cmd
 }
@@ -43,9 +46,10 @@ func runJoin(dockerCli *client.DockerCli, opts joinOptions) error {
 	ctx := context.Background()
 
 	req := swarm.JoinRequest{
-		JoinToken:   opts.token,
-		ListenAddr:  opts.listenAddr.String(),
-		RemoteAddrs: []string{opts.remote},
+		JoinToken:     opts.token,
+		ListenAddr:    opts.listenAddr.String(),
+		AdvertiseAddr: opts.advertiseAddr,
+		RemoteAddrs:   []string{opts.remote},
 	}
 	err := client.SwarmJoin(ctx, req)
 	if err != nil {

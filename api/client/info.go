@@ -79,6 +79,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 			fmt.Fprintf(cli.out, " Managers: %d\n", info.Swarm.Managers)
 			fmt.Fprintf(cli.out, " Nodes: %d\n", info.Swarm.Nodes)
 		}
+		fmt.Fprintf(cli.out, " Node Address: %s\n", info.Swarm.NodeAddr)
 	}
 
 	if len(info.Runtimes) > 0 {

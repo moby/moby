@@ -1839,11 +1839,17 @@ _docker_swarm_init() {
 			fi
 			return
 			;;
+		--advertise-addr)
+			if [[ $cur == *: ]] ; then
+				COMPREPLY=( $( compgen -W "2377" -- "${cur##*:}" ) )
+			fi
+			return
+			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--force-new-cluster --help --listen-addr" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--advertise-addr --force-new-cluster --help --listen-addr" -- "$cur" ) )
 			;;
 	esac
 }
@@ -1873,11 +1879,17 @@ _docker_swarm_join() {
 			fi
 			return
 			;;
+		--advertise-addr)
+			if [[ $cur == *: ]] ; then
+				COMPREPLY=( $( compgen -W "2377" -- "${cur##*:}" ) )
+			fi
+			return
+			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --listen-addr --token" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--adveritse-addr --help --listen-addr --token" -- "$cur" ) )
 			;;
 		*:)
 			COMPREPLY=( $( compgen -W "2377" -- "${cur##*:}" ) )
