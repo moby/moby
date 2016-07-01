@@ -19,6 +19,8 @@ Update a node
 Options:
       --availability string   Availability of the node (active/pause/drain)
       --help                  Print usage
+      --label-add value       Add or update a node label (key=value) (default [])
+      --label-rm value        Remove a node label if exists (default [])
       --membership string     Membership of the node (accepted/rejected)
       --role string           Role of the node (worker/manager)
 ```
