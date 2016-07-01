@@ -244,7 +244,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install containerd
-ENV CONTAINERD_COMMIT b93a33be39bc4ef0fb00bfcb79147a28c33d9d43
+ENV CONTAINERD_COMMIT 1b3a81545ca79456086dc2aa424357be98b962ee
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \
