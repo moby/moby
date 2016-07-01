@@ -269,7 +269,10 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 		if v.DriverName() != driverName && driverName != "" && driverName != volume.DefaultDriverName {
 			return nil, errNameConflict
 		}
-		return v, nil
+		// check exist in driver
+		if driverName == "" || driverName == volume.DefaultDriverName {
+			return v, nil
+		}
 	}
 
 	// Since there isn't a specified driver name, let's see if any of the existing drivers have this volume name
