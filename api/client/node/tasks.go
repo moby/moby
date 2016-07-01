@@ -48,7 +48,7 @@ func runTasks(dockerCli *client.DockerCli, opts tasksOptions) error {
 	if err != nil {
 		return nil
 	}
-	node, err := client.NodeInspect(ctx, nodeRef)
+	node, _, err := client.NodeInspectWithRaw(ctx, nodeRef)
 	if err != nil {
 		return err
 	}

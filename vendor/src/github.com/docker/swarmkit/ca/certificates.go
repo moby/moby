@@ -167,7 +167,16 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths Cert
 	}
 
 	// Get the remote manager to issue a CA signed certificate for this node
-	signedCert, err := GetRemoteSignedCertificate(ctx, csr, role, secret, rca.Pool, picker, transport, nodeInfo)
+	// Retry up to 5 times in case the manager we first try to contact isn't
+	// responding properly (for example, it may have just been demoted).
+	var signedCert []byte
+	for i := 0; i != 5; i++ {
+		signedCert, err = GetRemoteSignedCertificate(ctx, csr, role, secret, rca.Pool, picker, transport, nodeInfo)
+		if err == nil {
+			break
+		}
+		log.Warningf("error fetching signed node certificate: %v", err)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -192,6 +201,12 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths Cert
 		return nil, err
 	}
 
+	// Create a valid TLSKeyPair out of the PEM encoded private key and certificate
+	tlsKeyPair, err := tls.X509KeyPair(signedCert, key)
+	if err != nil {
+		return nil, err
+	}
+
 	log.Infof("Downloaded new TLS credentials with role: %s.", role)
 
 	// Ensure directory exists
@@ -210,13 +225,27 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths Cert
 		return nil, err
 	}
 
-	// Create a valid TLSKeyPair out of the PEM encoded private key and certificate
-	tlsKeyPair, err := tls.X509KeyPair(signedCert, key)
-	if err != nil {
-		return nil, err
+	return &tlsKeyPair, nil
+}
+
+// PrepareCSR creates a CFSSL Sign Request based on the given raw CSR and
+// overrides the Subject and Hosts with the given extra args.
+func PrepareCSR(csrBytes []byte, cn, ou, org string) cfsigner.SignRequest {
+	// All managers get added the subject-alt-name of CA, so they can be
+	// used for cert issuance.
+	hosts := []string{ou}
+	if ou == ManagerRole {
+		hosts = append(hosts, CARole)
 	}
 
-	return &tlsKeyPair, nil
+	return cfsigner.SignRequest{
+		Request: string(csrBytes),
+		// OU is used for Authentication of the node type. The CN has the random
+		// node ID.
+		Subject: &cfsigner.Subject{CN: cn, Names: []cfcsr.Name{{OU: ou, O: org}}},
+		// Adding ou as DNS alt name, so clients can connect to ManagerRole and CARole
+		Hosts: hosts,
+	}
 }
 
 // ParseValidateAndSignCSR returns a signed certificate from a particular rootCA and a CSR.
@@ -225,25 +254,21 @@ func (rca *RootCA) ParseValidateAndSignCSR(csrBytes []byte, cn, ou, org string) 
 		return nil, ErrNoValidSigner
 	}
 
-	// All managers get added the subject-alt-name of CA, so they can be used for cert issuance
-	hosts := []string{ou}
-	if ou == ManagerRole {
-		hosts = append(hosts, CARole)
-	}
+	signRequest := PrepareCSR(csrBytes, cn, ou, org)
 
-	cert, err := rca.Signer.Sign(cfsigner.SignRequest{
-		Request: string(csrBytes),
-		// OU is used for Authentication of the node type. The CN has the random
-		// node ID.
-		Subject: &cfsigner.Subject{CN: cn, Names: []cfcsr.Name{{OU: ou, O: org}}},
-		// Adding ou as DNS alt name, so clients can connect to ManagerRole and CARole
-		Hosts: hosts,
-	})
+	cert, err := rca.Signer.Sign(signRequest)
 	if err != nil {
 		log.Debugf("failed to sign node certificate: %v", err)
 		return nil, err
 	}
 
+	return rca.AppendFirstRootPEM(cert)
+}
+
+// AppendFirstRootPEM appends the first certificate from this RootCA's cert
+// bundle to the given cert bundle (which should already be encoded as a series
+// of PEM-encoded certificate blocks).
+func (rca *RootCA) AppendFirstRootPEM(cert []byte) ([]byte, error) {
 	// Append the first root CA Cert to the certificate, to create a valid chain
 	// Get the first Root CA Cert on the bundle
 	firstRootCA, _, err := helpers.ParseOneCertificateFromPEM(rca.Cert)
@@ -390,7 +415,7 @@ func GetLocalRootCA(baseDir string) (RootCA, error) {
 
 	rootCA, err := NewRootCA(cert, key, DefaultNodeCertExpiration)
 	if err == nil {
-		log.Debugf("successfully loaded the signer for the Root CA: %s", paths.RootCA.Cert)
+		log.Debugf("successfully loaded the Root CA: %s", paths.RootCA.Cert)
 	}
 
 	return rootCA, err
@@ -602,7 +627,7 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, role, secret st
 	}
 	defer conn.Close()
 
-	// Create a CAClient to retreive a new Certificate
+	// Create a CAClient to retrieve a new Certificate
 	caClient := api.NewNodeCAClient(conn)
 
 	// Convert our internal string roles into an API role
@@ -644,7 +669,15 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, role, secret st
 			if statusResponse.Certificate == nil {
 				return nil, fmt.Errorf("no certificate in CertificateStatus response")
 			}
-			return statusResponse.Certificate.Certificate, nil
+
+			// The certificate in the response must match the CSR
+			// we submitted. If we are getting a response for a
+			// certificate that was previously issued, we need to
+			// retry until the certificate gets updated per our
+			// current request.
+			if bytes.Equal(statusResponse.Certificate.CSR, csr) {
+				return statusResponse.Certificate.Certificate, nil
+			}
 		}
 
 		// If we're still pending, the issuance failed, or the state is unknown

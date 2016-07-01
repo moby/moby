@@ -15,7 +15,7 @@ type ServiceSpec struct {
 	Annotations
 
 	// TaskTemplate defines how the service should construct new tasks when
-	// ochestrating this service.
+	// orchestrating this service.
 	TaskTemplate TaskSpec                  `json:",omitempty"`
 	Mode         ServiceMode               `json:",omitempty"`
 	UpdateConfig *UpdateConfig             `json:",omitempty"`

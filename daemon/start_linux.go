@@ -5,7 +5,6 @@ import (
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/libcontainerd"
-	"github.com/docker/engine-api/types"
 )
 
 func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Container) (*[]libcontainerd.CreateOption, error) {
@@ -13,7 +12,7 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 
 	// Ensure a runtime has been assigned to this container
 	if container.HostConfig.Runtime == "" {
-		container.HostConfig.Runtime = types.DefaultRuntimeName
+		container.HostConfig.Runtime = stockRuntimeName
 		container.ToDisk()
 	}
 

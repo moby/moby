@@ -35,6 +35,14 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 
 	swarm.Spec.CAConfig.NodeCertExpiry, _ = ptypes.Duration(c.Spec.CAConfig.NodeCertExpiry)
 
+	for _, ca := range c.Spec.CAConfig.ExternalCAs {
+		swarm.Spec.CAConfig.ExternalCAs = append(swarm.Spec.CAConfig.ExternalCAs, &types.ExternalCA{
+			Protocol: types.ExternalCAProtocol(strings.ToLower(ca.Protocol.String())),
+			URL:      ca.URL,
+			Options:  ca.Options,
+		})
+	}
+
 	// Meta
 	swarm.Version.Index = c.Meta.Version.Index
 	swarm.CreatedAt, _ = ptypes.Timestamp(c.Meta.CreatedAt)
@@ -82,6 +90,18 @@ func SwarmSpecToGRPCandMerge(s types.Spec, existingSpec *swarmapi.ClusterSpec) (
 		CAConfig: swarmapi.CAConfig{
 			NodeCertExpiry: ptypes.DurationProto(s.CAConfig.NodeCertExpiry),
 		},
+	}
+
+	for _, ca := range s.CAConfig.ExternalCAs {
+		protocol, ok := swarmapi.ExternalCA_CAProtocol_value[strings.ToUpper(string(ca.Protocol))]
+		if !ok {
+			return swarmapi.ClusterSpec{}, fmt.Errorf("invalid protocol: %q", ca.Protocol)
+		}
+		spec.CAConfig.ExternalCAs = append(spec.CAConfig.ExternalCAs, &swarmapi.ExternalCA{
+			Protocol: swarmapi.ExternalCA_CAProtocol(protocol),
+			URL:      ca.URL,
+			Options:  ca.Options,
+		})
 	}
 
 	if err := SwarmSpecUpdateAcceptancePolicy(&spec, s.AcceptancePolicy, existingSpec); err != nil {

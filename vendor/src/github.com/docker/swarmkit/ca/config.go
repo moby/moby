@@ -45,7 +45,8 @@ const (
 type SecurityConfig struct {
 	mu sync.Mutex
 
-	rootCA *RootCA
+	rootCA     *RootCA
+	externalCA *ExternalCA
 
 	ServerTLSCreds *MutableTLSCreds
 	ClientTLSCreds *MutableTLSCreds
@@ -60,8 +61,19 @@ type CertificateUpdate struct {
 
 // NewSecurityConfig initializes and returns a new SecurityConfig.
 func NewSecurityConfig(rootCA *RootCA, clientTLSCreds, serverTLSCreds *MutableTLSCreds) *SecurityConfig {
+	// Make a new TLS config for the external CA client without a
+	// ServerName value set.
+	clientTLSConfig := clientTLSCreds.Config()
+
+	externalCATLSConfig := &tls.Config{
+		Certificates: clientTLSConfig.Certificates,
+		RootCAs:      clientTLSConfig.RootCAs,
+		MinVersion:   tls.VersionTLS12,
+	}
+
 	return &SecurityConfig{
 		rootCA:         rootCA,
+		externalCA:     NewExternalCA(rootCA, externalCATLSConfig),
 		ClientTLSCreds: clientTLSCreds,
 		ServerTLSCreds: serverTLSCreds,
 	}
@@ -164,8 +176,18 @@ func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, caHash, secret
 			return nil, err
 		}
 
-		// Get the remote CA certificate, verify integrity with the hash provided
-		rootCA, err = GetRemoteCA(ctx, d, picker)
+		// Get the remote CA certificate, verify integrity with the
+		// hash provided. Retry up to 5 times, in case the manager we
+		// first try to contact is not responding properly (it may have
+		// just been demoted, for example).
+
+		for i := 0; i != 5; i++ {
+			rootCA, err = GetRemoteCA(ctx, d, picker)
+			if err == nil {
+				break
+			}
+			log.Warningf("failed to retrieve remote root CA certificate: %v", err)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -180,9 +202,9 @@ func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, caHash, secret
 		return nil, err
 	}
 
-	// At this point we've successfully loaded the CA details from disk, or successfully
-	// downloaded them remotely.
-	// The next step is to try to load our certificates.
+	// At this point we've successfully loaded the CA details from disk, or
+	// successfully downloaded them remotely. The next step is to try to
+	// load our certificates.
 	clientTLSCreds, serverTLSCreds, err = LoadTLSCreds(rootCA, paths.Node)
 	if err != nil {
 		log.Debugf("no valid local TLS credentials found: %v", err)
@@ -204,6 +226,9 @@ func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, caHash, secret
 				}
 			}
 			tlsKeyPair, err = rootCA.IssueAndSaveNewCertificates(paths.Node, cn, proposedRole, org)
+			if err != nil {
+				return nil, err
+			}
 		} else {
 			// There was an error loading our Credentials, let's get a new certificate issued
 			// Last argument is nil because at this point we don't have any valid TLS creds
@@ -211,7 +236,6 @@ func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, caHash, secret
 			if err != nil {
 				return nil, err
 			}
-
 		}
 		// Create the Server TLS Credentials for this node. These will not be used by agents.
 		serverTLSCreds, err = rootCA.NewServerTLSCredentials(tlsKeyPair)
@@ -236,12 +260,7 @@ func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, caHash, secret
 		log.Debugf("loaded local TLS credentials: %s.", paths.Node.Cert)
 	}
 
-	return &SecurityConfig{
-		rootCA: &rootCA,
-
-		ServerTLSCreds: serverTLSCreds,
-		ClientTLSCreds: clientTLSCreds,
-	}, nil
+	return NewSecurityConfig(&rootCA, clientTLSCreds, serverTLSCreds), nil
 }
 
 // RenewTLSConfig will continuously monitor for the necessity of renewing the local certificates, either by
@@ -316,6 +335,14 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, baseCertDir string, 
 				log.Debugf("failed to update the client TLS credentials: %v", err)
 				updates <- CertificateUpdate{Err: err}
 			}
+
+			// Update the external CA to use the new client TLS
+			// config using a copy without a serverName specified.
+			s.externalCA.UpdateTLSConfig(&tls.Config{
+				Certificates: clientTLSConfig.Certificates,
+				RootCAs:      clientTLSConfig.RootCAs,
+				MinVersion:   tls.VersionTLS12,
+			})
 
 			err = s.ServerTLSCreds.LoadNewTLSConfig(serverTLSConfig)
 			if err != nil {
@@ -405,7 +432,7 @@ func LoadTLSCreds(rootCA RootCA, paths CertPaths) (*MutableTLSCreds, *MutableTLS
 		}
 
 		keyPair, newErr = tls.X509KeyPair(cert, key)
-		if err != nil {
+		if newErr != nil {
 			return nil, nil, err
 		}
 	}

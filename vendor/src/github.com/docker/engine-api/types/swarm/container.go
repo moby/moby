@@ -54,7 +54,7 @@ const (
 	MountPropagationSlave MountPropagation = "slave"
 )
 
-// BindOptions define options specific to mounts of type "bind".
+// BindOptions defines options specific to mounts of type "bind".
 type BindOptions struct {
 	Propagation MountPropagation `json:",omitempty"`
 }

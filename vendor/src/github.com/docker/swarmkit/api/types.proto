@@ -447,9 +447,29 @@ message AcceptancePolicy {
 }
 
 
+message ExternalCA {
+	enum CAProtocol {
+		CFSSL = 0 [(gogoproto.enumvalue_customname) = "CAProtocolCFSSL"];
+	}
+
+	// Protocol is the protocol used by this external CA.
+	CAProtocol protocol = 1;
+
+	// URL is the URL where the external CA can be reached.
+	string url = 2 [(gogoproto.customname) = "URL"];
+
+	// Options is a set of additional key/value pairs whose interpretation
+	// depends on the specified CA type.
+	map<string, string> options = 3;
+}
+
 message CAConfig {
 	// NodeCertExpiry is the duration certificates should be issued for
 	Duration node_cert_expiry = 1;
+
+	// ExternalCAs is a list of CAs to which a manager node will make
+	// certificate signing requests for node certificates.
+	repeated ExternalCA external_cas = 2 [(gogoproto.customname) = "ExternalCAs"];
 }
 
 // OrchestrationConfig defines cluster-level orchestration settings.

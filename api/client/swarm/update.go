@@ -85,5 +85,10 @@ func mergeSwarm(swarm *swarm.Swarm, flags *pflag.FlagSet) error {
 		}
 	}
 
+	if flags.Changed(flagExternalCA) {
+		value := flags.Lookup(flagExternalCA).Value.(*ExternalCAOption)
+		spec.CAConfig.ExternalCAs = value.Value()
+	}
+
 	return nil
 }

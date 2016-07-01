@@ -42,7 +42,7 @@ func updateNodes(dockerCli *client.DockerCli, nodes []string, mergeNode func(nod
 	ctx := context.Background()
 
 	for _, nodeID := range nodes {
-		node, err := client.NodeInspect(ctx, nodeID)
+		node, _, err := client.NodeInspectWithRaw(ctx, nodeID)
 		if err != nil {
 			return err
 		}

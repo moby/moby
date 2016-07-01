@@ -48,13 +48,18 @@ func (c *controller) addServiceBinding(name, sid, nid, eid string, vip net.IP, i
 		return err
 	}
 
+	skey := serviceKey{
+		id:    sid,
+		ports: portConfigs(ingressPorts).String(),
+	}
+
 	c.Lock()
-	s, ok := c.serviceBindings[sid]
+	s, ok := c.serviceBindings[skey]
 	if !ok {
 		// Create a new service if we are seeing this service
 		// for the first time.
 		s = newService(name, sid, ingressPorts)
-		c.serviceBindings[sid] = s
+		c.serviceBindings[skey] = s
 	}
 	c.Unlock()
 
@@ -121,8 +126,13 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 		return err
 	}
 
+	skey := serviceKey{
+		id:    sid,
+		ports: portConfigs(ingressPorts).String(),
+	}
+
 	c.Lock()
-	s, ok := c.serviceBindings[sid]
+	s, ok := c.serviceBindings[skey]
 	if !ok {
 		c.Unlock()
 		return nil
@@ -135,22 +145,19 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 		n.(*network).deleteSvcRecords("tasks."+alias, ip, nil, false)
 	}
 
-	// Make sure to remove the right IP since if vip is
-	// not valid we would have added a DNS RR record.
-	svcIP := vip
-	if len(svcIP) == 0 {
-		svcIP = ip
-	}
-	n.(*network).deleteSvcRecords(name, svcIP, nil, false)
-	for _, alias := range aliases {
-		n.(*network).deleteSvcRecords(alias, svcIP, nil, false)
+	// If we are doing DNS RR add the endpoint IP to DNS record
+	// right away.
+	if len(vip) == 0 {
+		n.(*network).deleteSvcRecords(name, ip, nil, false)
+		for _, alias := range aliases {
+			n.(*network).deleteSvcRecords(alias, ip, nil, false)
+		}
 	}
 
 	s.Lock()
-	defer s.Unlock()
-
 	lb, ok := s.loadBalancers[nid]
 	if !ok {
+		s.Unlock()
 		return nil
 	}
 
@@ -167,13 +174,22 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 	if len(s.loadBalancers) == 0 {
 		// All loadbalancers for the service removed. Time to
 		// remove the service itself.
-		delete(c.serviceBindings, sid)
+		delete(c.serviceBindings, skey)
 	}
 
 	// Remove loadbalancer service(if needed) and backend in all
 	// sandboxes in the network only if the vip is valid.
 	if len(vip) != 0 {
 		n.(*network).rmLBBackend(ip, vip, lb.fwMark, ingressPorts, rmService)
+	}
+	s.Unlock()
+
+	// Remove the DNS record for VIP only if we are removing the service
+	if rmService && len(vip) != 0 {
+		n.(*network).deleteSvcRecords(name, vip, nil, false)
+		for _, alias := range aliases {
+			n.(*network).deleteSvcRecords(alias, vip, nil, false)
+		}
 	}
 
 	return nil
@@ -314,7 +330,7 @@ func (sb *sandbox) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*P
 	if addService {
 		var iPorts []*PortConfig
 		if sb.ingress {
-			iPorts = ingressPorts
+			iPorts = filterPortConfigs(ingressPorts, false)
 			if err := programIngress(gwIP, iPorts, false); err != nil {
 				logrus.Errorf("Failed to add ingress: %v", err)
 				return
@@ -383,7 +399,7 @@ func (sb *sandbox) rmLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*Po
 
 		var iPorts []*PortConfig
 		if sb.ingress {
-			iPorts = ingressPorts
+			iPorts = filterPortConfigs(ingressPorts, true)
 			if err := programIngress(gwIP, iPorts, true); err != nil {
 				logrus.Errorf("Failed to delete ingress: %v", err)
 			}
@@ -401,7 +417,46 @@ var (
 	ingressOnce     sync.Once
 	ingressProxyMu  sync.Mutex
 	ingressProxyTbl = make(map[string]io.Closer)
+	portConfigMu    sync.Mutex
+	portConfigTbl   = make(map[PortConfig]int)
 )
+
+func filterPortConfigs(ingressPorts []*PortConfig, isDelete bool) []*PortConfig {
+	portConfigMu.Lock()
+	iPorts := make([]*PortConfig, 0, len(ingressPorts))
+	for _, pc := range ingressPorts {
+		if isDelete {
+			if cnt, ok := portConfigTbl[*pc]; ok {
+				// This is the last reference to this
+				// port config. Delete the port config
+				// and add it to filtered list to be
+				// plumbed.
+				if cnt == 1 {
+					delete(portConfigTbl, *pc)
+					iPorts = append(iPorts, pc)
+					continue
+				}
+
+				portConfigTbl[*pc] = cnt - 1
+			}
+
+			continue
+		}
+
+		if cnt, ok := portConfigTbl[*pc]; ok {
+			portConfigTbl[*pc] = cnt + 1
+			continue
+		}
+
+		// We are adding it for the first time. Add it to the
+		// filter list to be plumbed.
+		portConfigTbl[*pc] = 1
+		iPorts = append(iPorts, pc)
+	}
+	portConfigMu.Unlock()
+
+	return iPorts
+}
 
 func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) error {
 	addDelOpt := "-I"
