@@ -37,8 +37,8 @@ ID                           NAME      MEMBERSHIP  STATUS  AVAILABILITY  MANAGER
 
 ### `--auto-accept value`
 
-This flag controls node acceptance into the cluster. By default, both `worker` and `manager`
-nodes are auto accepted by the cluster. This can be changed by specifing what kinds of nodes
+This flag controls node acceptance into the cluster. By default, `worker` nodes are
+automatically accepted by the cluster. This can be changed by specifing what kinds of nodes
 can be auto-accepted into the cluster. If auto-accept is not turned on, then
 [node accept](node_accept.md) can be used to explicitly accept a node into the cluster.
 
