@@ -13,7 +13,7 @@ parent = "smn_cli"
 
     Usage:  docker swarm update [OPTIONS]
 
-    update the Swarm.
+    Update the Swarm.
 
     Options:
           --auto-accept value               Auto acceptance policy (worker, manager or none)
