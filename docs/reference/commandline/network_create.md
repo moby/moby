@@ -38,8 +38,8 @@ network driver you can specify that `DRIVER` here also. If you don't specify the
 `--driver` option, the command automatically creates a `bridge` network for you.
 When you install Docker Engine it creates a `bridge` network automatically. This
 network corresponds to the `docker0` bridge that Engine has traditionally relied
-on. When launch a new container with  `docker run` it automatically connects to
-this bridge network. You cannot remove this default bridge network but you can
+on. When you launch a new container with  `docker run` it automatically connects to
+this bridge network. You cannot remove this default bridge network, but you can
 create new ones using the `network create` command.
 
 ```bash
@@ -48,7 +48,7 @@ $ docker network create -d bridge my-bridge-network
 
 Bridge networks are isolated networks on a single Engine installation. If you
 want to create a network that spans multiple Docker hosts each running an
-Engine, you must create an `overlay` network. Unlike `bridge` networks overlay
+Engine, you must create an `overlay` network. Unlike `bridge` networks, overlay
 networks require some pre-existing conditions before you can create one. These
 conditions are:
 
@@ -65,9 +65,9 @@ The `dockerd` options that support the `overlay` network are:
 To read more about these options and how to configure them, see ["*Get started
 with multi-host network*"](../../userguide/networking/get-started-overlay.md).
 
-It is also a good idea, though not required, that you install Docker Swarm on to
+While not required, it is a good idea to install Docker Swarm to
 manage the cluster that makes up your network. Swarm provides sophisticated
-discovery and server management that can assist your implementation.
+discovery and server management tools that can assist your implementation.
 
 Once you have prepared the `overlay` network prerequisites you simply choose a
 Docker host in the cluster and issue the following to create the network:
@@ -82,15 +82,15 @@ name conflicts.
 
 ## Connect containers
 
-When you start a container use the `--net` flag to connect it to a network.
-This adds the `busybox` container to the `mynet` network.
+When you start a container, use the `--net` flag to connect it to a network.
+This example adds the `busybox` container to the `mynet` network:
 
 ```bash
 $ docker run -itd --net=mynet busybox
 ```
 
 If you want to add a container to a network after the container is already
-running use the `docker network connect` subcommand.
+running, use the `docker network connect` subcommand.
 
 You can connect multiple containers to the same network. Once connected, the
 containers can communicate using only another container's IP address or name.
