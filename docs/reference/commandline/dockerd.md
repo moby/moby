@@ -63,6 +63,7 @@ weight = -1
       --registry-mirror=[]                   Preferred Docker registry mirror
       -s, --storage-driver=""                Storage driver to use
       --selinux-enabled                      Enable selinux support
+      --seccomp-profile                      Path to seccomp profile
       --storage-opt=[]                       Set storage driver options
       --tls                                  Use TLS; implied by --tlsverify
       --tlscacert="~/.docker/ca.pem"         Trust certs signed only by this CA

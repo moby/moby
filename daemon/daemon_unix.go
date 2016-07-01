@@ -4,6 +4,7 @@ package daemon
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -58,6 +59,25 @@ const (
 	cgroupFsDriver      = "cgroupfs"
 	cgroupSystemdDriver = "systemd"
 )
+
+func (daemon *Daemon) setupDefaultSeccompProfile() error {
+	if daemon.configStore.SeccompProfile != "" {
+		daemon.seccompProfilePath = daemon.configStore.SeccompProfile
+		b, err := ioutil.ReadFile(daemon.configStore.SeccompProfile)
+		if err != nil {
+			return fmt.Errorf("opening seccomp profile (%s) failed: %v", daemon.configStore.SeccompProfile, err)
+		}
+		daemon.seccompProfile = b
+		p := struct {
+			DefaultAction string `json:"defaultAction"`
+		}{}
+		if err := json.Unmarshal(daemon.seccompProfile, &p); err != nil {
+			return err
+		}
+		daemon.seccompProfileWeak = specs.Action(p.DefaultAction) != specs.ActErrno && specs.Action(p.DefaultAction) != specs.ActKill
+	}
+	return nil
+}
 
 func getMemoryResources(config containertypes.Resources) *specs.Memory {
 	memory := specs.Memory{}

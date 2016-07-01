@@ -27,6 +27,10 @@ const (
 	solarisMaxCPUShares  = 65535
 )
 
+func (daemon *Daemon) setupDefaultSeccompProfile() error {
+	return nil
+}
+
 func (daemon *Daemon) cleanupMountsByID(id string) error {
 	return nil
 }

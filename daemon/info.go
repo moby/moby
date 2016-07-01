@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"fmt"
 	"os"
 	"runtime"
 	"sync/atomic"
@@ -67,15 +68,22 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		}
 	})
 
-	var securityOptions []string
+	securityOptions := make(map[string][][2]string)
 	if sysInfo.AppArmor {
-		securityOptions = append(securityOptions, "apparmor")
+		securityOptions["apparmor"] = [][2]string{}
 	}
 	if sysInfo.Seccomp {
-		securityOptions = append(securityOptions, "seccomp")
+		profile := daemon.seccompProfilePath
+		if profile == "" {
+			profile = "default"
+		}
+		securityOptions["seccomp"] = [][2]string{
+			{"ProfileWeak", fmt.Sprintf("%v", daemon.seccompProfileWeak)},
+			{"Profile", profile},
+		}
 	}
 	if selinuxEnabled() {
-		securityOptions = append(securityOptions, "selinux")
+		securityOptions["selinux"] = [][2]string{}
 	}
 
 	v := &types.Info{
