@@ -75,11 +75,13 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	// Set the container interface and its peer MTU to 1450 to allow
 	// for 50 bytes vxlan encap (inner eth header(14) + outer IP(20) +
 	// outer UDP(8) + vxlan header(8))
+	mtu := n.maxMTU()
+
 	veth, err := nlh.LinkByName(overlayIfName)
 	if err != nil {
 		return fmt.Errorf("cound not find link by name %s: %v", overlayIfName, err)
 	}
-	err = nlh.LinkSetMTU(veth, vxlanVethMTU)
+	err = nlh.LinkSetMTU(veth, mtu)
 	if err != nil {
 		return err
 	}
@@ -93,7 +95,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	if err != nil {
 		return fmt.Errorf("could not find link by name %s: %v", containerIfName, err)
 	}
-	err = nlh.LinkSetMTU(veth, vxlanVethMTU)
+	err = nlh.LinkSetMTU(veth, mtu)
 	if err != nil {
 		return err
 	}
