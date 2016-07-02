@@ -84,9 +84,6 @@ The tutorial uses `manager1` : `192.168.99.100`.
 * **TCP** and **UDP port 7946** for communication among nodes
 * **TCP** and **UDP port 4789** for overlay network traffic
 
->**Tip**: Docker recommends that every node in the cluster be on the same layer
-3 (IP) subnet with all traffic permitted between nodes.
-
 ## What's next?
 
 After you have set up your environment, you're ready to [create a swarm](create-swarm.md).
