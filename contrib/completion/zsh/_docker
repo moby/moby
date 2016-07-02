@@ -936,6 +936,238 @@ __docker_plugin_subcommand() {
 
 # EO plugin
 
+# BO service
+
+__docker_service_complete_ls_filters() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+
+    if compset -P '*='; then
+        case "${${words[-1]%=*}#*=}" in
+            (id)
+                __docker_complete_services_ids && ret=0
+                ;;
+            (name)
+                __docker_complete_services_names && ret=0
+                ;;
+            *)
+                _message 'value' && ret=0
+                ;;
+        esac
+    else
+        opts=('id' 'label' 'name')
+        _describe -t filter-opts "filter options" opts -qS "=" && ret=0
+    fi
+
+    return ret
+}
+
+__docker_service_complete_tasks_filters() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+
+    if compset -P '*='; then
+        case "${${words[-1]%=*}#*=}" in
+            (desired-state)
+                state_opts=('accepted' 'running')
+                _describe -t state-opts "desired state options" state_opts && ret=0
+                ;;
+            *)
+                _message 'value' && ret=0
+                ;;
+        esac
+    else
+        opts=('desired-state' 'id' 'label' 'name')
+        _describe -t filter-opts "filter options" opts -qS "=" && ret=0
+    fi
+
+    return ret
+}
+
+__docker_services() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+    local line s
+    declare -a lines services
+
+    type=$1; shift
+
+    lines=(${(f)"$(_call_program commands docker $docker_options service ls)"})
+
+    # Parse header line to find columns
+    local i=1 j=1 k header=${lines[1]}
+    declare -A begin end
+    while (( j < ${#header} - 1 )); do
+        i=$(( j + ${${header[$j,-1]}[(i)[^ ]]} - 1 ))
+        j=$(( i + ${${header[$i,-1]}[(i)  ]} - 1 ))
+        k=$(( j + ${${header[$j,-1]}[(i)[^ ]]} - 2 ))
+        begin[${header[$i,$((j-1))]}]=$i
+        end[${header[$i,$((j-1))]}]=$k
+    done
+    end[${header[$i,$((j-1))]}]=-1
+    lines=(${lines[2,-1]})
+
+    # Service ID
+    if [[ $type = (ids|all) ]]; then
+        for line in $lines; do
+            s="${line[${begin[ID]},${end[ID]}]%% ##}"
+            s="$s:${(l:7:: :::)${${line[${begin[IMAGE]},${end[IMAGE]}]}%% ##}}"
+            services=($services $s)
+        done
+    fi
+
+    # Names
+    if [[ $type = (names|all) ]]; then
+        for line in $lines; do
+            s="${line[${begin[NAME]},${end[NAME]}]%% ##}"
+            s="$s:${(l:7:: :::)${${line[${begin[IMAGE]},${end[IMAGE]}]}%% ##}}"
+            services=($services $s)
+        done
+    fi
+
+    _describe -t services-list "services" services "$@" && ret=0
+    return ret
+}
+
+__docker_complete_services() {
+    [[ $PREFIX = -* ]] && return 1
+    __docker_services all "$@"
+}
+
+__docker_complete_services_ids() {
+    [[ $PREFIX = -* ]] && return 1
+    __docker_services ids "$@"
+}
+
+__docker_complete_services_names() {
+    [[ $PREFIX = -* ]] && return 1
+    __docker_services names "$@"
+}
+
+__docker_service_commands() {
+    local -a _docker_service_subcommands
+    _docker_service_subcommands=(
+        "create:Create a new service"
+        "inspect:Display detailed information on one or more services"
+        "ls:List services"
+        "rm:Remove a service"
+        "scale:Scale one or multiple services"
+        "tasks:List the tasks of a service"
+        "update:Update a service"
+    )
+    _describe -t docker-service-commands "docker service command" _docker_service_subcommands
+}
+
+__docker_service_subcommand() {
+    local -a _command_args opts_help opts_create_update
+    local expl help="--help"
+    integer ret=1
+
+    opts_help=("(: -)--help[Print usage]")
+    opts_create_update=(
+        "($help)*--constraint=[Placement constraints]:constraint: "
+        "($help)--endpoint-mode=[Placement constraints]:mode:(VIP DNSRR)"
+        "($help)*"{-e=,--env=}"[Set environment variables]:env: "
+        "($help)*--label=[Service labels]:label: "
+        "($help)--limit-cpu=[Limit CPUs]:value: "
+        "($help)--limit-memory=[Limit Memory]:value: "
+        "($help)--mode=[Limit Memory]:mode:(global replicated)"
+        "($help)*"{-m=,--mount=}"[Attach a mount to the service]:mount: "
+        "($help)--name=[Service name]:name: "
+        "($help)*--network=[Network attachments]:network: "
+        "($help)*"{-p=,--publish=}"[Publish a port as a node port]:port: "
+        "($help)--replicas=[Number of tasks]:replicas: "
+        "($help)--reserve-cpu=[Reserve CPUs]:value: "
+        "($help)--reserve-memory=[Reserve Memory]:value: "
+        "($help)--restart-condition=[Restart when condition is met]:mode:(any none on_failure)"
+        "($help)--restart-delay=[Delay between restart attempts]:delay: "
+        "($help)--restart-max-attempts=[Maximum number of restarts before giving up]:max-attempts: "
+        "($help)--restart-window=[Window used to evaluate the restart policy]:window: "
+        "($help)--stop-grace-period=[Time to wait before force killing a container]:grace period: "
+        "($help)--update-delay=[Delay between updates]:delay: "
+        "($help)--update-parallelism=[Maximum number of tasks updated simultaneously]:number: "
+        "($help -u --user)"{-u=,--user=}"[Username or UID]:user:_users"
+        "($help -w --workdir)"{-w=,--workdir=}"[Working directory inside the container]:directory:_directories"
+    )
+
+    case "$words[1]" in
+        (create)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                $opts_create_update \
+                "($help -): :__docker_images" \
+                "($help -):command: _command_names -e" \
+                "($help -)*::arguments: _normal" && ret=0
+            ;;
+        (inspect)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " \
+                "($help -p --pretty)"{-p,--pretty}"[Print the information in a human friendly format]" \
+                "($help -)*:service:__docker_complete_services" && ret=0
+            ;;
+        (ls|list)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help)*"{-f=,--filter=}"[Filter output based on conditions provided]:filter:->filter-options" \
+                "($help -q --quiet)"{-q,--quiet}"[Only display IDs]" && ret=0
+            case $state in
+                (filter-options)
+                    __docker_service_complete_ls_filters && ret=0
+                    ;;
+            esac
+            ;;
+        (rm|remove)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -)*:service:__docker_complete_services" && ret=0
+            ;;
+        (scale)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -)*:service:->values" && ret=0
+            case $state in
+                (values)
+                    if compset -P '*='; then
+                        _message 'replicas' && ret=0
+                    else
+                        __docker_complete_services -qS "="
+                    fi
+                    ;;
+            esac
+            ;;
+        (tasks)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -a --all)"{-a,--all}"[Display all tasks]" \
+                "($help)*"{-f=,--filter=}"[Provide filter values]:filter:->filter-options" \
+                "($help -n --no-resolve)"{-n,--no-resolve}"[Do not map IDs to Names]" \
+                "($help -)1:service:__docker_complete_services" && ret=0
+            case $state in
+                (filter-options)
+                    __docker_service_complete_tasks_filters && ret=0
+                    ;;
+            esac
+            ;;
+        (update)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                $opts_create_update \
+                "($help)--arg=[Service command args]:arguments: _normal" \
+                "($help)--command=[Service command]:command: _command_names -e" \
+                "($help)--image=[Service image tag]:image:__docker_repositories" \
+                "($help -)1:service:__docker_complete_services" && ret=0
+            ;;
+        (help)
+            _arguments $(__docker_arguments) ":subcommand:__docker_service_commands" && ret=0
+            ;;
+    esac
+
+    return ret
+}
+
+# EO service
+
 # BO swarm
 
 __docker_swarm_commands() {
@@ -1704,6 +1936,23 @@ __docker_subcommand() {
             case $state in
                 (filter-options)
                     __docker_complete_search_filters && ret=0
+                    ;;
+            esac
+            ;;
+        (service)
+            local curcontext="$curcontext" state
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -): :->command" \
+                "($help -)*:: :->option-or-argument" && ret=0
+
+            case $state in
+                (command)
+                    __docker_service_commands && ret=0
+                    ;;
+                (option-or-argument)
+                    curcontext=${curcontext%:*:*}:docker-${words[-1]}:
+                    __docker_service_subcommand && ret=0
                     ;;
             esac
             ;;
