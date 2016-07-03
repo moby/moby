@@ -179,7 +179,7 @@ flag exists to allow special use-cases, like running Docker within Docker.
     $ docker  run -w /path/to/dir/ -i -t  ubuntu pwd
 
 The `-w` lets the command being executed inside directory given, here
-`/path/to/dir/`. If the path does not exists it is created inside the container.
+`/path/to/dir/`. If the path does not exist it is created inside the container.
 
 ### Set storage driver options per container
 
