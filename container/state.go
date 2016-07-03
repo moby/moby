@@ -195,7 +195,7 @@ func (s *State) ExitCode() int {
 	return res
 }
 
-// SetExitCode set current exitcode for the state. Take lock before if state
+// SetExitCode sets current exitcode for the state. Take lock before if state
 // may be shared.
 func (s *State) SetExitCode(ec int) {
 	s.exitCode = ec
@@ -214,7 +214,7 @@ func (s *State) SetRunning(pid int, initial bool) {
 	}
 }
 
-// SetStoppedLocking locks the container state is sets it to "stopped".
+// SetStoppedLocking locks the container state and sets it to "stopped".
 func (s *State) SetStoppedLocking(exitStatus *ExitStatus) {
 	s.Lock()
 	s.SetStopped(exitStatus)
@@ -290,7 +290,7 @@ func (s *State) SetRemovalInProgress() bool {
 	return false
 }
 
-// ResetRemovalInProgress make the RemovalInProgress state to false.
+// ResetRemovalInProgress makes the RemovalInProgress state to false.
 func (s *State) ResetRemovalInProgress() {
 	s.Lock()
 	s.RemovalInProgress = false
