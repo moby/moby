@@ -6,6 +6,7 @@ dockerd - Enable daemon mode
 
 # SYNOPSIS
 **dockerd**
+[**--add-runtime**[=*[]*]]
 [**--api-cors-header**=[=*API-CORS-HEADER*]]
 [**--authorization-plugin**[=*[]*]]
 [**-b**|**--bridge**[=*BRIDGE*]]
@@ -74,6 +75,9 @@ format.
 **dockerd [OPTIONS]**
 
 # OPTIONS
+
+**--add-runtime**=[]
+  Set additional OCI compatible runtime.
 
 **--api-cors-header**=""
   Set CORS headers in the remote API. Default is cors disabled. Give urls like "http://foo, http://bar, ...". Give "*" to allow all.
