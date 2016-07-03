@@ -86,7 +86,7 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 			ImagePath: spec.Windows.HvRuntime.ImagePath,
 		}
 
-		// Images with build verison < 14350 don't support running with clone, but
+		// Images with build version < 14350 don't support running with clone, but
 		// Windows cannot automatically detect this. Explicitly block cloning in this
 		// case.
 		if build := buildFromVersion(spec.Platform.OSVersion); build > 0 && build < 14350 {

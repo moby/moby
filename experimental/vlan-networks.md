@@ -627,7 +627,7 @@ docker network  create  -d ipvlan \
 
 
 # Start a few of containers on the network (ipnet110) 
-# in seperate terminals and check connectivity
+# in separate terminals and check connectivity
 docker run --net=ipnet110 -it --rm alpine /bin/sh
 # Start a second container specifying the v6 address
 docker run --net=ipnet110 --ip6=2001:db8:abc6::10 -it --rm alpine /bin/sh

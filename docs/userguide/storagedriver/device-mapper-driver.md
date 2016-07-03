@@ -312,7 +312,7 @@ assumes that the Docker daemon is in the `stopped` state.
 
 14. Configure the Docker daemon with specific devicemapper options.
 
-	There are two ways to do this. You can set options on the commmand line if you start the daemon there:
+	There are two ways to do this. You can set options on the command line if you start the daemon there:
 
 	```bash
 	--storage-driver=devicemapper --storage-opt=dm.thinpooldev=/dev/mapper/docker-thinpool --storage-opt dm.use_deferred_removal=true
