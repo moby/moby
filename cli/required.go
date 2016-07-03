@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NoArgs validate args and returns an error if there are any args
+// NoArgs validates args and returns an error if there are any args
 func NoArgs(cmd *cobra.Command, args []string) error {
 	if len(args) == 0 {
 		return nil
