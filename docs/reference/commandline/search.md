@@ -49,7 +49,7 @@ This example displays images with a name containing 'busybox':
     ofayau/busybox-libc32            Busybox with 32 bits (and 64 bits) libs         1                    [OK]
     peelsky/zulu-openjdk-busybox                                                     1                    [OK]
     skomma/busybox-data              Docker image suitable for data volume cont...   1                    [OK]
-    elektritter/busybox-teamspeak    Leightweight teamspeak3 container based on...   1                    [OK]
+    elektritter/busybox-teamspeak    Lightweight teamspeak3 container based on...    1                    [OK]
     socketplane/busybox                                                              1                    [OK]
     oveits/docker-nginx-busybox      This is a tiny NginX docker image based on...   0                    [OK]
     ggtools/busybox-ubuntu           Busybox ubuntu version with extra goodies       0                    [OK]

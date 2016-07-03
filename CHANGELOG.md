@@ -891,7 +891,7 @@ by another client (#15489)
 #### Security
 - Fix tar breakout vulnerability
 * Extractions are now sandboxed chroot
-- Security options are no longer committed to images
+- Security options are no longer comitted to images
 
 #### Runtime
 - Fix deadlock in `docker ps -f exited=1`
@@ -1317,7 +1317,7 @@ by another client (#15489)
 * Update issue filing instructions
 * Warn against the use of symlinks for Docker's storage folder
 * Replace the Firefox example with an IceWeasel example
-* Rewrite the PostgresSQL example using a Dockerfile and add more details to it
+* Rewrite the PostgreSQL example using a Dockerfile and add more details to it
 * Improve the OS X documentation
 
 #### Remote API

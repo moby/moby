@@ -367,7 +367,7 @@ func (daemon *Daemon) registerLink(parent, child *container.Container, alias str
 	return nil
 }
 
-// SetClusterProvider sets a component for quering the current cluster state.
+// SetClusterProvider sets a component for querying the current cluster state.
 func (daemon *Daemon) SetClusterProvider(clusterProvider cluster.Provider) {
 	daemon.clusterProvider = clusterProvider
 	daemon.netController.SetClusterProvider(clusterProvider)
