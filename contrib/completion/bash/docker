@@ -2036,14 +2036,14 @@ _docker_ps() {
 			__docker_nospace
 			return
 			;;
-		--format|-n)
+		--format|--last|-n)
 			return
 			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--all -a --filter -f --format --help --latest -l -n --no-trunc --quiet -q --size -s" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--all -a --filter -f --format --help --last -n --latest -l --no-trunc --quiet -q --size -s" -- "$cur" ) )
 			;;
 	esac
 }
