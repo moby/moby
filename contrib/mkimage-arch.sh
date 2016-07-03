@@ -48,7 +48,8 @@ IFS=','
 PKGIGNORE="${PKGIGNORE[*]}"
 unset IFS
 
-case "$(uname -m)" in
+arch="$(uname -m)"
+case "$arch" in
 	armv*)
 		if pacman -Q archlinuxarm-keyring >/dev/null 2>&1; then
 			pacman-key --init
@@ -57,12 +58,18 @@ case "$(uname -m)" in
 			echo "Could not find archlinuxarm-keyring. Please, install it and run pacman-key --populate archlinuxarm"
 			exit 1
 		fi
-		PACMAN_CONF='./mkimage-archarm-pacman.conf'
+		PACMAN_CONF=$(mktemp ${TMPDIR:-/var/tmp}/pacman-conf-archlinux-XXXXXXXXX)
+		version="$(echo $arch | cut -c 5)"
+		sed "s/Architecture = armv/Architecture = armv${version}h/g" './mkimage-archarm-pacman.conf' > "${PACMAN_CONF}"
 		PACMAN_MIRRORLIST='Server = http://mirror.archlinuxarm.org/$arch/$repo'
 		PACMAN_EXTRA_PKGS='archlinuxarm-keyring'
-		EXPECT_TIMEOUT=120
+		if [ "$version" -lt 7 ]; then
+			EXPECT_TIMEOUT=1800 # Some armv6 based devices can be very slow (e.g. RPiv1)
+		else
+			EXPECT_TIMEOUT=120
+		fi
 		ARCH_KEYRING=archlinuxarm
-		DOCKER_IMAGE_NAME=archlinuxarm
+		DOCKER_IMAGE_NAME="armv${version}h/archlinux"
 		;;
 	*)
 		PACMAN_CONF='./mkimage-arch-pacman.conf'
@@ -89,6 +96,7 @@ expect <<EOF
 		-exact "anyway? \[Y/n\] " { send -- "n\r"; exp_continue }
 		-exact "(default=all): " { send -- "\r"; exp_continue }
 		-exact "installation? \[Y/n\]" { send -- "y\r"; exp_continue }
+		-exact "delete it? \[Y/n\]" { send -- "y\r"; exp_continue }
 	}
 EOF
 
