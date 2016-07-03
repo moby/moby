@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# This script exists as backwards compatiblity for CI
+# This script exists as backwards compatibility for CI
 (
     DEST="${DEST}-client"
     ABS_DEST="${ABS_DEST}-client"

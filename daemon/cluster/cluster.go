@@ -1031,7 +1031,7 @@ func getNetwork(ctx context.Context, c swarmapi.ControlClient, input string) (*s
 		}
 
 		if l := len(rl.Networks); l > 1 {
-			return nil, fmt.Errorf("network %s is ambigious (%d matches found)", input, l)
+			return nil, fmt.Errorf("network %s is ambiguous (%d matches found)", input, l)
 		}
 
 		return rl.Networks[0], nil

@@ -155,7 +155,7 @@ option is ignored if the address protocol is not `tcp+tls`.
 is ignored if the address protocol is not `tcp+tls`.
 
 `syslog-tls-skip-verify` configures the TLS verification. This verification is
-enabled by default, but it can be overriden by setting this option to `true`.
+enabled by default, but it can be overridden by setting this option to `true`.
 This option is ignored if the address protocol is not `tcp+tls`.
 
 `tag` configures a string that is appended to the APP-NAME in the syslog
