@@ -77,7 +77,7 @@ axqh55ipl40h  vossibility-stack_vossibility-collector  1 icecrime/vossibility-co
 
 ## Managing stacks
 
-Tasks are managed using the `docker stack` command:
+Stacks are managed using the `docker stack` command:
 
 ```bash
 # docker stack --help
