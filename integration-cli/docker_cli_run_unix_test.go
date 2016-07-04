@@ -955,6 +955,14 @@ func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *check.C) {
 		{
 			"name": "chmod",
 			"action": "SCMP_ACT_ERRNO"
+		},
+		{
+			"name":"fchmod",
+			"action": "SCMP_ACT_ERRNO"
+		},
+		{
+			"name": "fchmodat",
+			"action":"SCMP_ACT_ERRNO"
 		}
 	]
 }`
