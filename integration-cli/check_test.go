@@ -80,7 +80,7 @@ type DockerSchema1RegistrySuite struct {
 }
 
 func (s *DockerSchema1RegistrySuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, RegistryHosting)
+	testRequires(c, DaemonIsLinux, RegistryHosting, NotArm64)
 	s.reg = setupRegistry(c, true, "", "")
 	s.d = NewDaemon(c)
 }
