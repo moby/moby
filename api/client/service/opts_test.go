@@ -78,7 +78,7 @@ func TestMountOptString(t *testing.T) {
 
 func TestMountOptSetNoError(t *testing.T) {
 	var mount MountOpt
-	assert.NilError(t, mount.Set("type=bind,target=/target,source=/foo"))
+	assert.NilError(t, mount.Set("bind,target=/target,source=/foo"))
 
 	mounts := mount.Value()
 	assert.Equal(t, len(mounts), 1)
@@ -89,75 +89,70 @@ func TestMountOptSetNoError(t *testing.T) {
 	})
 }
 
-func TestMountOptSetErrorNoType(t *testing.T) {
-	var mount MountOpt
-	assert.Error(t, mount.Set("target=/target,source=/foo"), "type is required")
-}
-
 func TestMountOptSetErrorNoTarget(t *testing.T) {
 	var mount MountOpt
-	assert.Error(t, mount.Set("type=VOLUME,source=/foo"), "target is required")
+	assert.Error(t, mount.Set("VOLUME,name=/foo"), "target is required")
 }
 
 func TestMountOptSetErrorInvalidKey(t *testing.T) {
 	var mount MountOpt
-	assert.Error(t, mount.Set("type=VOLUME,bogus=foo"), "unexpected key 'bogus'")
+	assert.Error(t, mount.Set("VOLUME,bogus=foo"), "unexpected key 'bogus'")
 }
 
 func TestMountOptSetErrorInvalidField(t *testing.T) {
 	var mount MountOpt
-	assert.Error(t, mount.Set("type=VOLUME,bogus"), "invalid field 'bogus'")
+	assert.Error(t, mount.Set("VOLUME,bogus"), "invalid field \"bogus\"")
 }
 
 func TestMountOptSetErrorInvalidWritable(t *testing.T) {
 	var mount MountOpt
-	assert.Error(t, mount.Set("type=VOLUME,readonly=no"), "invalid value for readonly: no")
+	assert.Error(t, mount.Set("VOLUME,readonly=no"), "invalid value for readonly: no")
 }
 
 func TestMountOptDefaultEnableWritable(t *testing.T) {
 	var m MountOpt
-	assert.NilError(t, m.Set("type=bind,target=/foo,source=/foo"))
+	assert.NilError(t, m.Set("bind,target=/foo,source=/foo"))
 	assert.Equal(t, m.values[0].ReadOnly, false)
 
 	m = MountOpt{}
-	assert.NilError(t, m.Set("type=bind,target=/foo,source=/foo,readonly"))
+	assert.NilError(t, m.Set("bind,target=/foo,source=/foo,readonly"))
 	assert.Equal(t, m.values[0].ReadOnly, true)
 
 	m = MountOpt{}
-	assert.NilError(t, m.Set("type=bind,target=/foo,source=/foo,readonly=1"))
+	assert.NilError(t, m.Set("bind,target=/foo,source=/foo,readonly=1"))
 	assert.Equal(t, m.values[0].ReadOnly, true)
 
 	m = MountOpt{}
-	assert.NilError(t, m.Set("type=bind,target=/foo,source=/foo,readonly=0"))
+	assert.NilError(t, m.Set("bind,target=/foo,source=/foo,readonly=0"))
 	assert.Equal(t, m.values[0].ReadOnly, false)
 }
 
 func TestMountOptVolumeNoCopy(t *testing.T) {
 	var m MountOpt
-	assert.Error(t, m.Set("type=volume,target=/foo,volume-nocopy"), "source is required")
+	assert.Error(t, m.Set("volume,target=/foo,volume-nocopy"), "name is required")
 
 	m = MountOpt{}
-	assert.NilError(t, m.Set("type=volume,target=/foo,source=foo"))
+	assert.NilError(t, m.Set("volume,target=/foo,name=foo"))
 	assert.Equal(t, m.values[0].VolumeOptions == nil, true)
 
 	m = MountOpt{}
-	assert.NilError(t, m.Set("type=volume,target=/foo,source=foo,volume-nocopy=true"))
+	assert.NilError(t, m.Set("volume,target=/foo,name=foo,volume-nocopy=true"))
 	assert.Equal(t, m.values[0].VolumeOptions != nil, true)
 	assert.Equal(t, m.values[0].VolumeOptions.NoCopy, true)
 
 	m = MountOpt{}
-	assert.NilError(t, m.Set("type=volume,target=/foo,source=foo,volume-nocopy"))
+	assert.NilError(t, m.Set("volume,target=/foo,name=foo,volume-nocopy"))
 	assert.Equal(t, m.values[0].VolumeOptions != nil, true)
 	assert.Equal(t, m.values[0].VolumeOptions.NoCopy, true)
 
 	m = MountOpt{}
-	assert.NilError(t, m.Set("type=volume,target=/foo,source=foo,volume-nocopy=1"))
+	assert.NilError(t, m.Set("volume,target=/foo,name=foo,volume-nocopy=1"))
 	assert.Equal(t, m.values[0].VolumeOptions != nil, true)
 	assert.Equal(t, m.values[0].VolumeOptions.NoCopy, true)
 }
 
 func TestMountOptTypeConflict(t *testing.T) {
 	var m MountOpt
-	assert.Error(t, m.Set("type=bind,target=/foo,source=/foo,volume-nocopy=true"), "cannot mix")
-	assert.Error(t, m.Set("type=volume,target=/foo,source=/foo,bind-propagation=rprivate"), "cannot mix")
+	assert.Error(t, m.Set("bind,target=/foo,source=/foo,volume-nocopy=true"), "unexpected key 'volume-nocopy'")
+	assert.Error(t, m.Set("volume,target=/foo,source=/foo,bind-propagation=rprivate"), "unexpected key 'source'")
 }
