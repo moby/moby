@@ -56,6 +56,8 @@ func runInit(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts initOptions
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Swarm initialized: current node (%s) is now a manager.\n", nodeID)
+
+	fmt.Fprintf(dockerCli.Out(), "Swarm initialized: current node (%s) is now a manager.\n", nodeID)
+
 	return nil
 }
