@@ -299,6 +299,17 @@ __docker_complete_pid() {
     return ret
 }
 
+__docker_complete_runtimes() {
+    [[ $PREFIX = -*  ]] && return 1
+    integer ret=1
+
+    emulate -L zsh
+    setopt extendedglob
+    local -a runtimes_opts
+    runtimes_opts=(${(ps: :)${(f)${${"$(_call_program commands docker $docker_options info)"##*$'\n'Runtimes: }%%$'\n'^ *}}})
+    _describe -t runtimes-opts "runtimes options" runtimes_opts && ret=0
+}
+
 __docker_complete_ps_filters() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
@@ -1296,6 +1307,7 @@ __docker_subcommand() {
         (daemon)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                "($help)*--add-runtime=[Register an additional OCI compatible runtime]:runtime:__docker_complete_runtimes" \
                 "($help)--api-cors-header=[CORS headers in the remote API]:CORS headers: " \
                 "($help)*--authorization-plugin=[Authorization plugins to load]" \
                 "($help -b --bridge)"{-b=,--bridge=}"[Attach containers to a network bridge]:bridge:_net_interfaces" \
@@ -1648,6 +1660,7 @@ __docker_subcommand() {
                 "($help)--health-timeout=[Maximum time to allow one check to run]:time: " \
                 "($help)--no-healthcheck[Disable any container-specified HEALTHCHECK]" \
                 "($help)--rm[Remove intermediate containers when it exits]" \
+                "($help)--runtime=[Name of the runtime to be used for that container]:runtime:__docker_complete_runtimes" \
                 "($help)--sig-proxy[Proxy all received signals to the process (non-TTY mode only)]" \
                 "($help)--stop-signal=[Signal to kill a container]:signal:_signals" \
                 "($help)--storage-opt=[Set storage driver options per container]:storage options:->storage-opt" \
