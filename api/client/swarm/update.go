@@ -47,7 +47,8 @@ func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts swarmOpti
 		return err
 	}
 
-	fmt.Println("Swarm updated.")
+	fmt.Fprintln(dockerCli.Out(), "Swarm updated.")
+
 	return nil
 }
 

@@ -33,7 +33,7 @@ func runRemove(dockerCli *client.DockerCli, networks []string) error {
 			status = 1
 			continue
 		}
-		fmt.Fprintf(dockerCli.Err(), "%s\n", name)
+		fmt.Fprintf(dockerCli.Out(), "%s\n", name)
 	}
 
 	if status != 0 {
