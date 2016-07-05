@@ -111,5 +111,53 @@ func TestMountOptSetErrorInvalidField(t *testing.T) {
 
 func TestMountOptSetErrorInvalidWritable(t *testing.T) {
 	var mount MountOpt
-	assert.Error(t, mount.Set("type=VOLUME,writable=yes"), "invalid value for writable: yes")
+	assert.Error(t, mount.Set("type=VOLUME,readonly=no"), "invalid value for readonly: no")
+}
+
+func TestMountOptDefaultEnableWritable(t *testing.T) {
+	var m MountOpt
+	assert.NilError(t, m.Set("type=bind,target=/foo,source=/foo"))
+	assert.Equal(t, m.values[0].ReadOnly, false)
+
+	m = MountOpt{}
+	assert.NilError(t, m.Set("type=bind,target=/foo,source=/foo,readonly"))
+	assert.Equal(t, m.values[0].ReadOnly, true)
+
+	m = MountOpt{}
+	assert.NilError(t, m.Set("type=bind,target=/foo,source=/foo,readonly=1"))
+	assert.Equal(t, m.values[0].ReadOnly, true)
+
+	m = MountOpt{}
+	assert.NilError(t, m.Set("type=bind,target=/foo,source=/foo,readonly=0"))
+	assert.Equal(t, m.values[0].ReadOnly, false)
+}
+
+func TestMountOptVolumeNoCopy(t *testing.T) {
+	var m MountOpt
+	assert.Error(t, m.Set("type=volume,target=/foo,volume-nocopy"), "source is required")
+
+	m = MountOpt{}
+	assert.NilError(t, m.Set("type=volume,target=/foo,source=foo"))
+	assert.Equal(t, m.values[0].VolumeOptions == nil, true)
+
+	m = MountOpt{}
+	assert.NilError(t, m.Set("type=volume,target=/foo,source=foo,volume-nocopy=true"))
+	assert.Equal(t, m.values[0].VolumeOptions != nil, true)
+	assert.Equal(t, m.values[0].VolumeOptions.NoCopy, true)
+
+	m = MountOpt{}
+	assert.NilError(t, m.Set("type=volume,target=/foo,source=foo,volume-nocopy"))
+	assert.Equal(t, m.values[0].VolumeOptions != nil, true)
+	assert.Equal(t, m.values[0].VolumeOptions.NoCopy, true)
+
+	m = MountOpt{}
+	assert.NilError(t, m.Set("type=volume,target=/foo,source=foo,volume-nocopy=1"))
+	assert.Equal(t, m.values[0].VolumeOptions != nil, true)
+	assert.Equal(t, m.values[0].VolumeOptions.NoCopy, true)
+}
+
+func TestMountOptTypeConflict(t *testing.T) {
+	var m MountOpt
+	assert.Error(t, m.Set("type=bind,target=/foo,source=/foo,volume-nocopy=true"), "cannot mix")
+	assert.Error(t, m.Set("type=volume,target=/foo,source=/foo,bind-propagation=rprivate"), "cannot mix")
 }

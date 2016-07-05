@@ -3986,11 +3986,11 @@ JSON Parameters:
             - **Target** – Container path.
             - **Source** – Mount source (e.g. a volume name, a host path).
             - **Type** – The mount type (`bind`, or `volume`).
-            - **Writable** – A boolean indicating whether the mount should be writable.
+            - **ReadOnly** – A boolean indicating whether the mount should be read-only.
             - **BindOptions** - Optional configuration for the `bind` type.
               - **Propagation** – A propagation mode with the value `[r]private`, `[r]shared`, or `[r]slave`.
             - **VolumeOptions** – Optional configuration for the `volume` type.
-                - **Populate** – A boolean indicating if volume should be
+                - **NoCopy** – A boolean indicating if volume should be
                   populated with the data from the target. (Default false)
                 - **Labels** – User-defined name and labels for the volume.
                 - **DriverConfig** – Map of driver-specific options.
@@ -4204,11 +4204,12 @@ Update the service `id`.
             - **Target** – Container path.
             - **Source** – Mount source (e.g. a volume name, a host path).
             - **Type** – The mount type (`bind`, or `volume`).
-            - **Writable** – A boolean indicating whether the mount should be writable.
+            - **ReadOnly** – A boolean indicating whether the mount should be read-only.
             - **BindOptions** - Optional configuration for the `bind` type
               - **Propagation** – A propagation mode with the value `[r]private`, `[r]shared`, or `[r]slave`.
             - **VolumeOptions** – Optional configuration for the `volume` type.
-                - **Populate** – A boolean indicating if volume should be populated with the data from the target. (Default false)
+                - **NoCopy** – A boolean indicating if volume should be
+                  populated with the data from the target. (Default false)
                 - **Labels** – User-defined name and labels for the volume.
                 - **DriverConfig** – Map of driver-specific options.
                   - **Name** - Name of the driver to use to create the volume
