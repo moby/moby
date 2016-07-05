@@ -135,6 +135,8 @@ func (c *controller) acceptClientConnections(sock string, l net.Listener) {
 			continue
 		}
 		go func() {
+			defer conn.Close()
+
 			err := c.processExternalKey(conn)
 			ret := success
 			if err != nil {
