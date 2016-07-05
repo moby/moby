@@ -393,7 +393,7 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 	oldTagImageID, err := p.config.ReferenceStore.Get(ref)
 	if err == nil {
 		if oldTagImageID == imageID {
-			return false, nil
+			return false, addDigestReference(p.config.ReferenceStore, ref, manifestDigest, imageID)
 		}
 	} else if err != reference.ErrDoesNotExist {
 		return false, err
@@ -403,10 +403,14 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 		if err = p.config.ReferenceStore.AddDigest(canonical, imageID, true); err != nil {
 			return false, err
 		}
-	} else if err = p.config.ReferenceStore.AddTag(ref, imageID, true); err != nil {
-		return false, err
+	} else {
+		if err = addDigestReference(p.config.ReferenceStore, ref, manifestDigest, imageID); err != nil {
+			return false, err
+		}
+		if err = p.config.ReferenceStore.AddTag(ref, imageID, true); err != nil {
+			return false, err
+		}
 	}
-
 	return true, nil
 }
 

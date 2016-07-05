@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
@@ -202,4 +203,23 @@ func ValidateRepoName(name string) error {
 		return fmt.Errorf("'%s' is a reserved name", api.NoBaseImageSpecifier)
 	}
 	return nil
+}
+
+func addDigestReference(store reference.Store, ref reference.Named, dgst digest.Digest, imageID image.ID) error {
+	dgstRef, err := reference.WithDigest(ref, dgst)
+	if err != nil {
+		return err
+	}
+
+	if oldTagImageID, err := store.Get(dgstRef); err == nil {
+		if oldTagImageID != imageID {
+			// Updating digests not supported by reference store
+			logrus.Errorf("Image ID for digest %s changed from %s to %s, cannot update", dgst.String(), oldTagImageID, imageID)
+		}
+		return nil
+	} else if err != reference.ErrDoesNotExist {
+		return err
+	}
+
+	return store.AddDigest(dgstRef, imageID, true)
 }
