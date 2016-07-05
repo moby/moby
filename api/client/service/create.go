@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	"github.com/docker/engine-api/types"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -33,7 +34,7 @@ func newCreateCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 func runCreate(dockerCli *client.DockerCli, opts *serviceOptions) error {
 	apiClient := dockerCli.Client()
-	headers := map[string][]string{}
+	createOpts := types.ServiceCreateOptions{}
 
 	service, err := opts.ToService()
 	if err != nil {
@@ -49,10 +50,10 @@ func runCreate(dockerCli *client.DockerCli, opts *serviceOptions) error {
 		if err != nil {
 			return err
 		}
-		headers["X-Registry-Auth"] = []string{encodedAuth}
+		createOpts.EncodedRegistryAuth = encodedAuth
 	}
 
-	response, err := apiClient.ServiceCreate(ctx, service, headers)
+	response, err := apiClient.ServiceCreate(ctx, service, createOpts)
 	if err != nil {
 		return err
 	}

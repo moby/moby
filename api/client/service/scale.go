@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	"github.com/docker/engine-api/types"
 	"github.com/spf13/cobra"
 )
 
@@ -77,7 +78,7 @@ func runServiceScale(dockerCli *client.DockerCli, serviceID string, scale string
 	}
 	serviceMode.Replicated.Replicas = &uintScale
 
-	err = client.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, nil)
+	err = client.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	if err != nil {
 		return err
 	}
