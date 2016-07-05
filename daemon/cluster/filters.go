@@ -61,7 +61,7 @@ func newListServicesFilters(filter filters.Args) (*swarmapi.ListServicesRequest_
 	}, nil
 }
 
-func newListTasksFilters(filter filters.Args) (*swarmapi.ListTasksRequest_Filters, error) {
+func newListTasksFilters(filter filters.Args, transformFunc func(filters.Args) error) (*swarmapi.ListTasksRequest_Filters, error) {
 	accepted := map[string]bool{
 		"name":          true,
 		"id":            true,
@@ -72,6 +72,11 @@ func newListTasksFilters(filter filters.Args) (*swarmapi.ListTasksRequest_Filter
 	}
 	if err := filter.Validate(accepted); err != nil {
 		return nil, err
+	}
+	if transformFunc != nil {
+		if err := transformFunc(filter); err != nil {
+			return nil, err
+		}
 	}
 	f := &swarmapi.ListTasksRequest_Filters{
 		Names:      filter.Get("name"),

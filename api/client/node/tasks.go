@@ -44,7 +44,7 @@ func runTasks(dockerCli *client.DockerCli, opts tasksOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
-	nodeRef, err := nodeReference(client, ctx, opts.nodeID)
+	nodeRef, err := Reference(client, ctx, opts.nodeID)
 	if err != nil {
 		return nil
 	}
