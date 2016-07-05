@@ -163,9 +163,13 @@ func (c *containerConfig) bindMounts() []string {
 	var r []string
 
 	for _, val := range c.spec().Mounts {
-		mask := getMountMask(&val)
 		if val.Type == api.MountTypeBind || (val.Type == api.MountTypeVolume && val.Source != "") {
-			r = append(r, fmt.Sprintf("%s:%s:%s", val.Source, val.Target, mask))
+			mask := getMountMask(&val)
+			spec := fmt.Sprintf("%s:%s", val.Source, val.Target)
+			if mask != "" {
+				spec = fmt.Sprintf("%s:%s", spec, mask)
+			}
+			r = append(r, spec)
 		}
 	}
 
@@ -173,9 +177,9 @@ func (c *containerConfig) bindMounts() []string {
 }
 
 func getMountMask(m *api.Mount) string {
-	maskOpts := []string{"ro"}
-	if m.Writable {
-		maskOpts[0] = "rw"
+	var maskOpts []string
+	if m.ReadOnly {
+		maskOpts = append(maskOpts, "ro")
 	}
 
 	if m.BindOptions != nil {
@@ -196,7 +200,7 @@ func getMountMask(m *api.Mount) string {
 	}
 
 	if m.VolumeOptions != nil {
-		if !m.VolumeOptions.Populate {
+		if m.VolumeOptions.NoCopy {
 			maskOpts = append(maskOpts, "nocopy")
 		}
 	}

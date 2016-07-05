@@ -176,10 +176,16 @@ func (m *MountOpt) Set(value string) error {
 		}
 	}
 
+	// Set writable as the default
 	for _, field := range fields {
 		parts := strings.SplitN(field, "=", 2)
-		if len(parts) == 1 && strings.ToLower(parts[0]) == "writable" {
-			mount.Writable = true
+		if len(parts) == 1 && strings.ToLower(parts[0]) == "readonly" {
+			mount.ReadOnly = true
+			continue
+		}
+
+		if len(parts) == 1 && strings.ToLower(parts[0]) == "volume-nocopy" {
+			volumeOptions().NoCopy = true
 			continue
 		}
 
@@ -195,15 +201,16 @@ func (m *MountOpt) Set(value string) error {
 			mount.Source = value
 		case "target":
 			mount.Target = value
-		case "writable":
-			mount.Writable, err = strconv.ParseBool(value)
+		case "readonly":
+			ro, err := strconv.ParseBool(value)
 			if err != nil {
-				return fmt.Errorf("invalid value for writable: %s", value)
+				return fmt.Errorf("invalid value for readonly: %s", value)
 			}
+			mount.ReadOnly = ro
 		case "bind-propagation":
 			bindOptions().Propagation = swarm.MountPropagation(strings.ToUpper(value))
-		case "volume-populate":
-			volumeOptions().Populate, err = strconv.ParseBool(value)
+		case "volume-nocopy":
+			volumeOptions().NoCopy, err = strconv.ParseBool(value)
 			if err != nil {
 				return fmt.Errorf("invalid value for populate: %s", value)
 			}
@@ -227,6 +234,17 @@ func (m *MountOpt) Set(value string) error {
 
 	if mount.Target == "" {
 		return fmt.Errorf("target is required")
+	}
+
+	if mount.VolumeOptions != nil && mount.Source == "" {
+		return fmt.Errorf("source is required when specifying volume-* options")
+	}
+
+	if mount.Type == swarm.MountType("BIND") && mount.VolumeOptions != nil {
+		return fmt.Errorf("cannot mix 'volume-*' options with mount type '%s'", swarm.MountTypeBind)
+	}
+	if mount.Type == swarm.MountType("VOLUME") && mount.BindOptions != nil {
+		return fmt.Errorf("cannot mix 'bind-*' options with mount type '%s'", swarm.MountTypeVolume)
 	}
 
 	m.values = append(m.values, mount)

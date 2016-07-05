@@ -2,6 +2,9 @@
 package assert
 
 import (
+	"fmt"
+	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -15,7 +18,7 @@ type TestingT interface {
 // they are not equal.
 func Equal(t TestingT, actual, expected interface{}) {
 	if expected != actual {
-		t.Fatalf("Expected '%v' (%T) got '%v' (%T)", expected, expected, actual, actual)
+		fatal(t, fmt.Sprintf("Expected '%v' (%T) got '%v' (%T)", expected, expected, actual, actual))
 	}
 }
 
@@ -37,7 +40,7 @@ func EqualStringSlice(t TestingT, actual, expected []string) {
 // NilError asserts that the error is nil, otherwise it fails the test.
 func NilError(t TestingT, err error) {
 	if err != nil {
-		t.Fatalf("Expected no error, got: %s", err.Error())
+		fatal(t, fmt.Sprintf("Expected no error, got: %s", err.Error()))
 	}
 }
 
@@ -45,11 +48,11 @@ func NilError(t TestingT, err error) {
 // otherwise it fails the test.
 func Error(t TestingT, err error, contains string) {
 	if err == nil {
-		t.Fatalf("Expected an error, but error was nil")
+		fatal(t, "Expected an error, but error was nil")
 	}
 
 	if !strings.Contains(err.Error(), contains) {
-		t.Fatalf("Expected error to contain '%s', got '%s'", contains, err.Error())
+		fatal(t, fmt.Sprintf("Expected error to contain '%s', got '%s'", contains, err.Error()))
 	}
 }
 
@@ -57,6 +60,11 @@ func Error(t TestingT, err error, contains string) {
 // test.
 func Contains(t TestingT, actual, contains string) {
 	if !strings.Contains(actual, contains) {
-		t.Fatalf("Expected '%s' to contain '%s'", actual, contains)
+		fatal(t, fmt.Sprintf("Expected '%s' to contain '%s'", actual, contains))
 	}
+}
+
+func fatal(t TestingT, msg string) {
+	_, file, line, _ := runtime.Caller(2)
+	t.Fatalf("%s:%d: %s", filepath.Base(file), line, msg)
 }
