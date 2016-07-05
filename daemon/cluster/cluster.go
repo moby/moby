@@ -411,18 +411,18 @@ func (c *Cluster) Leave(force bool) error {
 			if err == nil {
 				if active && reachable-2 <= unreachable {
 					if reachable == 1 && unreachable == 0 {
-						msg += "Leaving last manager will remove all current state of the cluster. Use `--force` to ignore this message. "
+						msg += "Removing the last manager will erase all current state of the cluster. Use `--force` to ignore this message. "
 						c.Unlock()
 						return fmt.Errorf(msg)
 					}
-					msg += fmt.Sprintf("Leaving cluster will leave you with %v managers out of %v. This means Raft quorum will be lost and your cluster will become inaccessible. ", reachable-1, reachable+unreachable)
+					msg += fmt.Sprintf("Leaving the cluster will leave you with %v managers out of %v. This means Raft quorum will be lost and your cluster will become inaccessible. ", reachable-1, reachable+unreachable)
 				}
 			}
 		} else {
 			msg += "Doing so may lose the consensus of your cluster. "
 		}
 
-		msg += "Only way to restore a cluster that has lost consensus is to reinitialize it with `--force-new-cluster`. Use `--force` to ignore this message."
+		msg += "The only way to restore a cluster that has lost consensus is to reinitialize it with `--force-new-cluster`. Use `--force` to ignore this message."
 		c.Unlock()
 		return fmt.Errorf(msg)
 	}
