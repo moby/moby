@@ -516,12 +516,14 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 			return warnings, fmt.Errorf("cgroup-parent for systemd cgroup should be a valid slice named as \"xxx.slice\"")
 		}
 	}
-	if hostConfig.Runtime == "" {
-		hostConfig.Runtime = daemon.configStore.GetDefaultRuntimeName()
+
+	runtimeName := hostConfig.Runtime
+	if runtimeName == "" {
+		runtimeName = daemon.configStore.GetDefaultRuntimeName()
 	}
 
-	if rt := daemon.configStore.GetRuntime(hostConfig.Runtime); rt == nil {
-		return warnings, fmt.Errorf("Unknown runtime specified %s", hostConfig.Runtime)
+	if rt := daemon.configStore.GetRuntime(runtimeName); rt == nil {
+		return warnings, fmt.Errorf("Unknown runtime specified %s", runtimeName)
 	}
 
 	return warnings, nil
