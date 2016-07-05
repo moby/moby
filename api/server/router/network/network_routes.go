@@ -81,6 +81,10 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		return err
 	}
 
+	if _, err := n.clusterProvider.GetNetwork(create.Name); err == nil {
+		return libnetwork.NetworkNameError(create.Name)
+	}
+
 	nw, err := n.backend.CreateNetwork(create)
 	if err != nil {
 		if _, ok := err.(libnetwork.ManagerRedirectError); !ok {
