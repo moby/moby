@@ -469,7 +469,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.DurationVar(&opts.update.delay, flagUpdateDelay, time.Duration(0), "Delay between updates")
 
 	flags.StringSliceVar(&opts.networks, flagNetwork, []string{}, "Network attachments")
-	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode(Valid values: vip, dnsrr)")
+	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode (vip or dnsrr)")
 	flags.VarP(&opts.endpoint.ports, flagPublish, "p", "Publish a port as a node port")
 
 	flags.BoolVar(&opts.registryAuth, flagRegistryAuth, false, "Send registry authentication details to Swarm agents")
