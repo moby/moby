@@ -127,6 +127,11 @@ type BlobDescriptorService interface {
 	Clear(ctx context.Context, dgst digest.Digest) error
 }
 
+// BlobDescriptorServiceFactory creates middleware for BlobDescriptorService.
+type BlobDescriptorServiceFactory interface {
+	BlobAccessController(svc BlobDescriptorService) BlobDescriptorService
+}
+
 // ReadSeekCloser is the primary reader type for blob data, combining
 // io.ReadSeeker with io.Closer.
 type ReadSeekCloser interface {

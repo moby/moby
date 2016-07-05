@@ -1,6 +1,6 @@
-# Distribution maintainers file
+# go-events maintainers file
 #
-# This file describes who runs the docker/distribution project and how.
+# This file describes who runs the docker/go-events project and how.
 # This is a living document - if you see something out of date or missing, speak up!
 #
 # It is structured to be consumable by both humans and programs.
@@ -12,10 +12,8 @@
 	[Org."Core maintainers"]
 		people = [
 			"aaronlehmann",
-			"dmcgowan",
-			"dmp42",
-			"richardscothern",
-			"shykes",
+			"aluzzardi",
+			"lk4d4",
 			"stevvooe",
 		]
 
@@ -32,25 +30,15 @@
 	Email = "aaron.lehmann@docker.com"
 	GitHub = "aaronlehmann"
 
-	[people.dmcgowan]
-	Name = "Derek McGowan"
-	Email = "derek@mcgstyle.net"
-	GitHub = "dmcgowan"
+	[people.aluzzardi]
+	Name = "Andrea Luzzardi"
+	Email = "al@docker.com"
+	GitHub = "aluzzardi"
 
-	[people.dmp42]
-	Name = "Olivier Gambier"
-	Email = "olivier@docker.com"
-	GitHub = "dmp42"
-
-	[people.richardscothern]
-	Name = "Richard Scothern"
-	Email = "richard.scothern@gmail.com"
-	GitHub = "richardscothern"
-
-	[people.shykes]
-	Name = "Solomon Hykes"
-	Email = "solomon@docker.com"
-	GitHub = "shykes"
+	[people.lk4d4]
+	Name = "Alexander Morozov"
+	Email = "lk4d4@docker.com"
+	GitHub = "lk4d4"
 
 	[people.stevvooe]
 	Name = "Stephen Day"

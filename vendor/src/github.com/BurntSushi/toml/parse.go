@@ -81,7 +81,7 @@ func (p *parser) next() item {
 }
 
 func (p *parser) bug(format string, v ...interface{}) {
-	log.Fatalf("BUG: %s\n\n", fmt.Sprintf(format, v...))
+	log.Panicf("BUG: %s\n\n", fmt.Sprintf(format, v...))
 }
 
 func (p *parser) expect(typ itemType) item {
@@ -216,7 +216,7 @@ func (p *parser) value(it item) (interface{}, tomlType) {
 	case itemDatetime:
 		t, err := time.Parse("2006-01-02T15:04:05Z", it.val)
 		if err != nil {
-			p.bug("Expected Zulu formatted DateTime, but got '%s'.", it.val)
+			p.panicf("Invalid RFC3339 Zulu DateTime: '%s'.", it.val)
 		}
 		return t, p.typeOfPrimitive(it)
 	case itemArray:
@@ -401,7 +401,7 @@ func stripFirstNewline(s string) string {
 	if len(s) == 0 || s[0] != '\n' {
 		return s
 	}
-	return s[1:len(s)]
+	return s[1:]
 }
 
 func stripEscapedWhitespace(s string) string {
@@ -481,12 +481,7 @@ func (p *parser) asciiEscapeToUnicode(bs []byte) rune {
 		p.bug("Could not parse '%s' as a hexadecimal number, but the "+
 			"lexer claims it's OK: %s", s, err)
 	}
-
-	// BUG(burntsushi)
-	// I honestly don't understand how this works. I can't seem
-	// to find a way to make this fail. I figured this would fail on invalid
-	// UTF-8 characters like U+DCFF, but it doesn't.
-	if !utf8.ValidString(string(rune(hex))) {
+	if !utf8.ValidRune(rune(hex)) {
 		p.panicf("Escaped character '\\u%s' is not valid UTF-8.", s)
 	}
 	return rune(hex)
