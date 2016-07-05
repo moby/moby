@@ -246,11 +246,33 @@ type NodeListOptions struct {
 	Filter filters.Args
 }
 
+// ServiceCreateOptions contains the options to use when creating a service.
+type ServiceCreateOptions struct {
+	// EncodedRegistryAuth is the encoded registry authorization credentials to
+	// use when updating the service.
+	//
+	// This field follows the format of the X-Registry-Auth header.
+	EncodedRegistryAuth string
+}
+
 // ServiceCreateResponse contains the information returned to a client
 // on the  creation of a new service.
 type ServiceCreateResponse struct {
 	// ID is the ID of the created service.
 	ID string
+}
+
+// ServiceUpdateOptions contains the options to be used for updating services.
+type ServiceUpdateOptions struct {
+	// EncodedRegistryAuth is the encoded registry authorization credentials to
+	// use when updating the service.
+	//
+	// This field follows the format of the X-Registry-Auth header.
+	EncodedRegistryAuth string
+
+	// TODO(stevvooe): Consider moving the version parameter of ServiceUpdate
+	// into this field. While it does open API users up to racy writes, most
+	// users may not need that level of consistency in practice.
 }
 
 // ServiceListOptions holds parameters to list  services with.
