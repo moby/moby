@@ -72,6 +72,7 @@
 	# - close an issue or pull request when it's inappropriate or off-topic
 
 		people = [
+			"mgoelzer",
 			"programmerq",
 			"thajeztah"
 		]
@@ -220,6 +221,11 @@
 	Name = "Madhu Venugopal"
 	Email = "madhu@docker.com"
 	GitHub = "mavenugo"
+
+	[people.mgoelzer]
+	Name = "Mike Goelzer"
+	Email = "mike.goelzer@docker.com"
+	GitHub = "mgoelzer"
 
 	[people.mhbauer]
 	Name = "Morgan Bauer"
