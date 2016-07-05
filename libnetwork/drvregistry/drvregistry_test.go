@@ -9,6 +9,9 @@ import (
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipamapi"
+	builtinIpam "github.com/docker/libnetwork/ipams/builtin"
+	nullIpam "github.com/docker/libnetwork/ipams/null"
+	remoteIpam "github.com/docker/libnetwork/ipams/remote"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -90,9 +93,26 @@ func getNew(t *testing.T) *DrvRegistry {
 		t.Fatal(err)
 	}
 
+	err = initIPAMDrivers(reg, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	return reg
 }
 
+func initIPAMDrivers(r *DrvRegistry, lDs, gDs interface{}) error {
+	for _, fn := range [](func(ipamapi.Callback, interface{}, interface{}) error){
+		builtinIpam.Init,
+		remoteIpam.Init,
+		nullIpam.Init,
+	} {
+		if err := fn(r, lDs, gDs); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 func TestNew(t *testing.T) {
 	getNew(t)
 }
