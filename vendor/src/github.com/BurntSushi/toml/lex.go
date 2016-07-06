@@ -272,8 +272,6 @@ func lexTableNameStart(lx *lexer) stateFn {
 		lx.ignore()
 		lx.push(lexTableNameEnd)
 		return lexValue // reuse string lexing
-	case isWhitespace(r):
-		return lexTableNameStart
 	default:
 		return lexBareTableName
 	}
@@ -560,7 +558,6 @@ func lexMultilineRawString(lx *lexer) stateFn {
 func lexMultilineStringEscape(lx *lexer) stateFn {
 	// Handle the special case first:
 	if isNL(lx.next()) {
-		lx.next()
 		return lexMultilineString
 	} else {
 		lx.backup()

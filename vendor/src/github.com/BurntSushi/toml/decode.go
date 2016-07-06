@@ -225,6 +225,9 @@ func (md *MetaData) unify(data interface{}, rv reflect.Value) error {
 func (md *MetaData) unifyStruct(mapping interface{}, rv reflect.Value) error {
 	tmap, ok := mapping.(map[string]interface{})
 	if !ok {
+		if mapping == nil {
+			return nil
+		}
 		return mismatch(rv, "map", mapping)
 	}
 
@@ -267,6 +270,9 @@ func (md *MetaData) unifyStruct(mapping interface{}, rv reflect.Value) error {
 func (md *MetaData) unifyMap(mapping interface{}, rv reflect.Value) error {
 	tmap, ok := mapping.(map[string]interface{})
 	if !ok {
+		if tmap == nil {
+			return nil
+		}
 		return badtype("map", mapping)
 	}
 	if rv.IsNil() {
@@ -292,6 +298,9 @@ func (md *MetaData) unifyMap(mapping interface{}, rv reflect.Value) error {
 func (md *MetaData) unifyArray(data interface{}, rv reflect.Value) error {
 	datav := reflect.ValueOf(data)
 	if datav.Kind() != reflect.Slice {
+		if !datav.IsValid() {
+			return nil
+		}
 		return badtype("slice", data)
 	}
 	sliceLen := datav.Len()
@@ -305,12 +314,16 @@ func (md *MetaData) unifyArray(data interface{}, rv reflect.Value) error {
 func (md *MetaData) unifySlice(data interface{}, rv reflect.Value) error {
 	datav := reflect.ValueOf(data)
 	if datav.Kind() != reflect.Slice {
+		if !datav.IsValid() {
+			return nil
+		}
 		return badtype("slice", data)
 	}
-	sliceLen := datav.Len()
-	if rv.IsNil() {
-		rv.Set(reflect.MakeSlice(rv.Type(), sliceLen, sliceLen))
+	n := datav.Len()
+	if rv.IsNil() || rv.Cap() < n {
+		rv.Set(reflect.MakeSlice(rv.Type(), n, n))
 	}
+	rv.SetLen(n)
 	return md.unifySliceArray(datav, rv)
 }
 

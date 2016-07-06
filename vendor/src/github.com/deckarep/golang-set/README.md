@@ -22,7 +22,7 @@ I have to give some credit for helping seed the idea with this post on [stackove
 
 ## Features (as of 9/22/2014)
 
-* a CartesionProduct() method has been added with unit-tests: [Read more about the cartesion product](http://en.wikipedia.org/wiki/Cartesian_product)
+* a CartesianProduct() method has been added with unit-tests: [Read more about the cartesian product](http://en.wikipedia.org/wiki/Cartesian_product)
 
 ## Features (as of 9/15/2014)
 

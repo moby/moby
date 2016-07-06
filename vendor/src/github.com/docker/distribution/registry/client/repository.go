@@ -394,11 +394,26 @@ func (o etagOption) Apply(ms distribution.ManifestService) error {
 	return fmt.Errorf("etag options is a client-only option")
 }
 
+// ReturnContentDigest allows a client to set a the content digest on
+// a successful request from the 'Docker-Content-Digest' header. This
+// returned digest is represents the digest which the registry uses
+// to refer to the content and can be used to delete the content.
+func ReturnContentDigest(dgst *digest.Digest) distribution.ManifestServiceOption {
+	return contentDigestOption{dgst}
+}
+
+type contentDigestOption struct{ digest *digest.Digest }
+
+func (o contentDigestOption) Apply(ms distribution.ManifestService) error {
+	return nil
+}
+
 func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...distribution.ManifestServiceOption) (distribution.Manifest, error) {
 	var (
 		digestOrTag string
 		ref         reference.Named
 		err         error
+		contentDgst *digest.Digest
 	)
 
 	for _, option := range options {
@@ -408,6 +423,8 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 			if err != nil {
 				return nil, err
 			}
+		} else if opt, ok := option.(contentDigestOption); ok {
+			contentDgst = opt.digest
 		} else {
 			err := option.Apply(ms)
 			if err != nil {
@@ -450,6 +467,12 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 	if resp.StatusCode == http.StatusNotModified {
 		return nil, distribution.ErrManifestNotModified
 	} else if SuccessStatus(resp.StatusCode) {
+		if contentDgst != nil {
+			dgst, err := digest.ParseDigest(resp.Header.Get("Docker-Content-Digest"))
+			if err == nil {
+				*contentDgst = dgst
+			}
+		}
 		mt := resp.Header.Get("Content-Type")
 		body, err := ioutil.ReadAll(resp.Body)
 
