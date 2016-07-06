@@ -191,12 +191,13 @@ func (n *networkRouter) buildNetworkResource(nw libnetwork.Network) *types.Netwo
 			continue
 		}
 		sb := ei.Sandbox()
-		key := "ep-" + e.ID()
+		tmpID := e.ID()
+		key := "ep-" + tmpID
 		if sb != nil {
 			key = sb.ContainerID()
 		}
 
-		r.Containers[key] = buildEndpointResource(e)
+		r.Containers[key] = buildEndpointResource(tmpID, e.Name(), ei)
 	}
 	return r
 }
@@ -256,15 +257,12 @@ func buildIpamResources(r *types.NetworkResource, nwInfo libnetwork.NetworkInfo)
 	}
 }
 
-func buildEndpointResource(e libnetwork.Endpoint) types.EndpointResource {
+func buildEndpointResource(id string, name string, info libnetwork.EndpointInfo) types.EndpointResource {
 	er := types.EndpointResource{}
-	if e == nil {
-		return er
-	}
 
-	er.EndpointID = e.ID()
-	er.Name = e.Name()
-	ei := e.Info()
+	er.EndpointID = id
+	er.Name = name
+	ei := info
 	if ei == nil {
 		return er
 	}
