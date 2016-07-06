@@ -83,7 +83,7 @@ created. For more information see [docker/migrator]
 
 Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to contribute
 issues, fixes, and patches to this project. If you are contributing code, see
-the instructions for [building a development environment](docs/building.md).
+the instructions for [building a development environment](docs/recipes/building.md).
 
 ## Support
 

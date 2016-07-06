@@ -231,11 +231,19 @@ func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *check.C) {
 	c.Assert(len(digest2), checker.GreaterThan, 0, check.Commentf("no digest found for pushed manifest"))
 	c.Assert(digest1, check.Equals, digest2)
 
+	// ensure that pushing again produces the same digest
+	out3, _, err := dockerCmdWithError("push", destRepoName)
+	c.Assert(err, check.IsNil, check.Commentf("pushing the image to the private registry has failed: %s", out2))
+
+	digest3 := reference.DigestRegexp.FindString(out3)
+	c.Assert(len(digest2), checker.GreaterThan, 0, check.Commentf("no digest found for pushed manifest"))
+	c.Assert(digest3, check.Equals, digest2)
+
 	// ensure that we can pull and run the cross-repo-pushed repository
 	dockerCmd(c, "rmi", destRepoName)
 	dockerCmd(c, "pull", destRepoName)
-	out3, _ := dockerCmd(c, "run", destRepoName, "echo", "-n", "hello world")
-	c.Assert(out3, check.Equals, "hello world")
+	out4, _ := dockerCmd(c, "run", destRepoName, "echo", "-n", "hello world")
+	c.Assert(out4, check.Equals, "hello world")
 }
 
 func (s *DockerSchema1RegistrySuite) TestCrossRepositoryLayerPushNotSupported(c *check.C) {
