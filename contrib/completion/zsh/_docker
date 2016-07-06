@@ -705,7 +705,7 @@ __docker_nodes() {
 
     type=$1; shift
     filter=$1; shift
-    [[ $filter != "none") ]] && args=("-f $filter")
+    [[ $filter != "none" ]] && args=("-f $filter")
 
     lines=(${(f)"$(_call_program commands docker $docker_options node ls $args)"})
     # Parse header line to find columns
