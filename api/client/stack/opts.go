@@ -35,6 +35,7 @@ func loadBundlefile(stderr io.Writer, namespace string, path string) (*bundlefil
 	if err != nil {
 		return nil, err
 	}
+	defer reader.Close()
 
 	bundle, err := bundlefile.LoadFile(reader)
 	if err != nil {
