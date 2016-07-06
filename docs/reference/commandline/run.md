@@ -663,3 +663,11 @@ network namespace, run this command:
       Sysctls beginning with net.*
 
   If you use the `--net=host` option using these sysctls will not be allowed.
+
+### Specify which runtime to use with a container (--runtime)
+
+This option is useful to try out a new version of a runtime or take
+advantage of runtimes using different backends (e.g. VM, Unikernels).
+
+If no runtime is specified the container will **always** use whatever
+is the currently defined default runtime when being started.

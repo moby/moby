@@ -173,3 +173,11 @@ daemon is running on Windows server, or `hyperv` if running on Windows client.  
 | `hyperv`   | Hyper-V hypervisor partition-based isolation.                                                                                                                  |
 
 Specifying the `--isolation` flag without a value is the same as setting `--isolation="default"`.
+
+### Specify which runtime to use with a container (--runtime)
+
+This option is useful to try out a new version of a runtime or take
+advantage of runtimes using different backends (e.g. VM, Unikernels).
+
+If no runtime is specified the container will **always** use whatever
+is the currently defined default runtime when being started.

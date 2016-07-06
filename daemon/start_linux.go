@@ -9,16 +9,16 @@ import (
 
 func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Container) (*[]libcontainerd.CreateOption, error) {
 	createOptions := []libcontainerd.CreateOption{}
+	runtimeName := container.HostConfig.Runtime
 
 	// Ensure a runtime has been assigned to this container
-	if container.HostConfig.Runtime == "" {
-		container.HostConfig.Runtime = stockRuntimeName
-		container.ToDisk()
+	if runtimeName == "" {
+		runtimeName = stockRuntimeName
 	}
 
-	rt := daemon.configStore.GetRuntime(container.HostConfig.Runtime)
+	rt := daemon.configStore.GetRuntime(runtimeName)
 	if rt == nil {
-		return nil, fmt.Errorf("no such runtime '%s'", container.HostConfig.Runtime)
+		return nil, fmt.Errorf("no such runtime '%s'", runtimeName)
 	}
 	createOptions = append(createOptions, libcontainerd.WithRuntime(rt.Path, rt.Args))
 
