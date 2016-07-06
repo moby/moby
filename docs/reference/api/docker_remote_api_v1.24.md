@@ -361,7 +361,7 @@ Create a container
 **JSON parameters**:
 
 -   **Hostname** - A string value containing the hostname to use for the
-      container.
+      container. This must be a valid RFC 1123 hostname.
 -   **Domainname** - A string value containing the domain name to use
       for the container.
 -   **User** - A string value specifying the user inside the container.

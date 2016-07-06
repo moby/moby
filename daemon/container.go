@@ -203,7 +203,7 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 
 // verifyContainerSettings performs validation of the hostconfig and config
 // structures.
-func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) ([]string, error) {
+func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool, validateHostname bool) ([]string, error) {
 
 	// First perform verification of settings common across all platforms.
 	if config != nil {
@@ -222,10 +222,10 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 		}
 
 		// Validate if the given hostname is RFC 1123 (https://tools.ietf.org/html/rfc1123) compliant.
-		if len(config.Hostname) > 0 {
+		if validateHostname && len(config.Hostname) > 0 {
 			// RFC1123 specifies that 63 bytes is the maximium length
 			// Windows has the limitation of 63 bytes in length
-			// Linux hostname is limited to HOST_NAME_MAX=64, not not including the terminating null byte.
+			// Linux hostname is limited to HOST_NAME_MAX=64, not including the terminating null byte.
 			// We limit the length to 63 bytes here to match RFC1035 and RFC1123.
 			matched, _ := regexp.MatchString("^(([[:alnum:]]|[[:alnum:]][[:alnum:]\\-]*[[:alnum:]])\\.)*([[:alnum:]]|[[:alnum:]][[:alnum:]\\-]*[[:alnum:]])$", config.Hostname)
 			if len(config.Hostname) > 63 || !matched {
