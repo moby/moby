@@ -11,13 +11,14 @@ parent = "smn_cli"
 
 # service scale
 
-    Usage:	docker service scale SERVICE=REPLICAS [SERVICE=REPLICAS...]
+```markdown
+Usage:  docker service scale SERVICE=REPLICAS [SERVICE=REPLICAS...]
 
-    Scale one or multiple services
+Scale one or multiple services
 
-    Options:
-          --help   Print usage
-
+Options:
+      --help   Print usage
+```
 
 ## Examples
 

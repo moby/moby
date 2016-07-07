@@ -10,13 +10,20 @@ parent = "smn_cli"
 
 # docker network ls
 
-    Usage:  docker network ls [OPTIONS]
+```markdown
+Usage:  docker network ls [OPTIONS]
 
-    List networks
-      -f, --filter=[]       Filter output based on conditions provided
-      --help                Print usage
-      --no-trunc            Do not truncate the output
-      -q, --quiet           Only display numeric IDs
+List networks
+
+Aliases:
+  ls, list
+
+Options:
+  -f, --filter value   Provide filter values (i.e. 'dangling=true') (default [])
+      --help           Print usage
+      --no-trunc       Do not truncate the output
+  -q, --quiet          Only display volume names
+```
 
 Lists all the networks the Engine `daemon` knows about. This includes the
 networks that span across multiple hosts in a cluster, for example:

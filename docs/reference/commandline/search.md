@@ -10,17 +10,20 @@ parent = "smn_cli"
 
 # search
 
-    Usage: docker search [OPTIONS] TERM
+```markdown
+Usage:  docker search [OPTIONS] TERM
 
-    Search the Docker Hub for images
+Search the Docker Hub for images
 
-      --filter=[]          Filter output based on these conditions:
-                           - is-automated=(true|false)
-                           - is-official=(true|false)
-                           - stars=<number> - image has at least 'number' stars
-      --help               Print usage
-      --limit=25           Maximum returned search results
-      --no-trunc           Don't truncate output
+Options:
+  -f, --filter value   Filter output based on conditions provided (default [])
+                       - is-automated=(true|false)
+                       - is-official=(true|false)
+                       - stars=<number> - image has at least 'number' stars
+      --help           Print usage
+      --limit int      Max number of search results (default 25)
+      --no-trunc       Don't truncate output
+```
 
 Search [Docker Hub](https://hub.docker.com) for images
 

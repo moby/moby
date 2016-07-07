@@ -44,6 +44,7 @@ func NewCopyCommand(dockerCli *client.DockerCli) *cobra.Command {
 	docker cp [OPTIONS] SRC_PATH|- CONTAINER:DEST_PATH`,
 		Short: "Copy files/folders between a container and the local filesystem",
 		Long: strings.Join([]string{
+			"Copy files/folders between a container and the local filesystem\n",
 			"\nUse '-' as the source to read a tar archive from stdin\n",
 			"and extract it to a directory destination in a container.\n",
 			"Use '-' as the destination to stream a tar archive of a\n",

@@ -11,17 +11,22 @@ parent = "smn_cli"
 
 # swarm init
 
-	Usage:	docker swarm init [OPTIONS]
+```markdown
+Usage:  docker swarm init [OPTIONS]
 
-	Initialize a Swarm.
+Initialize a Swarm
 
-	Options:
-	      --auto-accept value   Acceptance policy (default [worker,manager])
-	      --external-ca value   Specifications of one or more certificate signing endpoints
-	      --force-new-cluster   Force create a new cluster from current state.
-	      --help                Print usage
-	      --listen-addr value   Listen address (default 0.0.0.0:2377)
-	      --secret string       Set secret value needed to accept nodes into cluster
+Options:
+      --auto-accept value               Auto acceptance policy (worker, manager or none)
+      --cert-expiry duration            Validity period for node certificates (default 2160h0m0s)
+      --dispatcher-heartbeat duration   Dispatcher heartbeat period (default 5s)
+      --external-ca value               Specifications of one or more certificate signing endpoints
+      --force-new-cluster               Force create a new cluster from current state.
+      --help                            Print usage
+      --listen-addr value               Listen address (default 0.0.0.0:2377)
+      --secret string                   Set secret value needed to accept nodes into cluster
+      --task-history-limit int          Task history retention limit (default 10)
+```
 
 Initialize a Swarm cluster. The docker engine targeted by this command becomes a manager
 in the newly created one node Swarm cluster.
@@ -61,6 +66,15 @@ For example, the following initializes a cluster with auto-acceptance of workers
 $ docker swarm init --listen-addr 192.168.99.121:2377 --auto-accept worker
 ```
 
+### `--cert-expiry`
+
+This flag sets the validity period for node certificates.
+
+### `--dispatcher-heartbeat`
+
+This flags sets the frequency with which nodes are told to use as a
+period to report their health.
+
 ### `--external-ca value`
 
 This flag sets up the swarm to use an external CA to issue node certificates. The value takes
@@ -79,6 +93,10 @@ The node listens for inbound Swarm manager traffic on this IP:PORT
 ### `--secret string`
 
 Secret value needed to accept nodes into the Swarm
+
+### `--task-history-limit`
+
+This flag sets up task history retention limit.
 
 ## Related information
 
