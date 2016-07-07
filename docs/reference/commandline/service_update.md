@@ -20,7 +20,7 @@ Options:
       --arg value                    Service command args (default [])
       --command value                Service command (default [])
       --constraint value             Placement constraints (default [])
-      --endpoint-mode string         Endpoint mode(Valid values: VIP, DNSRR)
+      --endpoint-mode string         Endpoint mode (vip or dnsrr)
   -e, --env value                    Set environment variables (default [])
       --help                         Print usage
       --image string                 Service image tag
