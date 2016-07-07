@@ -5,7 +5,6 @@ package windows
 import (
 	"bufio"
 	"bytes"
-	"crypto/sha512"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,7 +16,6 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
 	"unsafe"
 
 	"github.com/Microsoft/go-winio"
@@ -446,78 +444,6 @@ func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
 	defer d.Put(id)
 
 	return archive.ChangesSize(layerFs, changes), nil
-}
-
-// CustomImageInfo is the object returned by the driver describing the base
-// image.
-type CustomImageInfo struct {
-	ID          string
-	Name        string
-	Version     string
-	Path        string
-	Size        int64
-	CreatedTime time.Time
-	OSVersion   string   `json:"-"`
-	OSFeatures  []string `json:"-"`
-}
-
-// GetCustomImageInfos returns the image infos for window specific
-// base images which should always be present.
-func (d *Driver) GetCustomImageInfos() ([]CustomImageInfo, error) {
-	strData, err := hcsshim.GetSharedBaseImages()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to restore base images: %s", err)
-	}
-
-	type customImageInfoList struct {
-		Images []CustomImageInfo
-	}
-
-	var infoData customImageInfoList
-
-	if err = json.Unmarshal([]byte(strData), &infoData); err != nil {
-		err = fmt.Errorf("JSON unmarshal returned error=%s", err)
-		logrus.Error(err)
-		return nil, err
-	}
-
-	var images []CustomImageInfo
-
-	for _, imageData := range infoData.Images {
-		folderName := filepath.Base(imageData.Path)
-
-		// Use crypto hash of the foldername to generate a docker style id.
-		h := sha512.Sum384([]byte(folderName))
-		id := fmt.Sprintf("%x", h[:32])
-
-		if err := d.Create(id, "", "", nil); err != nil {
-			return nil, err
-		}
-		// Create the alternate ID file.
-		if err := d.setID(id, folderName); err != nil {
-			return nil, err
-		}
-
-		imageData.ID = id
-
-		// For now, hard code that all base images except nanoserver depend on win32k support
-		if imageData.Name != "NanoServer" {
-			imageData.OSFeatures = append(imageData.OSFeatures, "win32k")
-		}
-
-		versionData := strings.Split(imageData.Version, ".")
-		if len(versionData) != 4 {
-			logrus.Warnf("Could not parse Windows version %s", imageData.Version)
-		} else {
-			// Include just major.minor.build, skip the fourth version field, which does not influence
-			// OS compatibility.
-			imageData.OSVersion = strings.Join(versionData[:3], ".")
-		}
-
-		images = append(images, imageData)
-	}
-
-	return images, nil
 }
 
 // GetMetadata returns custom driver information.

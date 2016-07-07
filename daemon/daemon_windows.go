@@ -1,27 +1,18 @@
 package daemon
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/daemon/graphdriver/windows" // register the windows graph driver
-	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/reference"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/engine-api/types"
 	pblkiodev "github.com/docker/engine-api/types/blkiodev"
@@ -379,85 +370,6 @@ func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container
 	// We do not unmount if a Hyper-V container
 	if !daemon.runAsHyperVContainer(container) {
 		return daemon.Unmount(container)
-	}
-	return nil
-}
-
-func restoreCustomImage(is image.Store, ls layer.Store, rs reference.Store) error {
-	type graphDriverStore interface {
-		GraphDriver() graphdriver.Driver
-	}
-
-	gds, ok := ls.(graphDriverStore)
-	if !ok {
-		return nil
-	}
-
-	driver := gds.GraphDriver()
-	wd, ok := driver.(*windows.Driver)
-	if !ok {
-		return nil
-	}
-
-	imageInfos, err := wd.GetCustomImageInfos()
-	if err != nil {
-		return err
-	}
-
-	// Convert imageData to valid image configuration
-	for _, info := range imageInfos {
-		name := strings.ToLower(info.Name)
-
-		type registrar interface {
-			RegisterDiffID(graphID string, size int64) (layer.Layer, error)
-		}
-		r, ok := ls.(registrar)
-		if !ok {
-			return errors.New("Layerstore doesn't support RegisterDiffID")
-		}
-		if _, err := r.RegisterDiffID(info.ID, info.Size); err != nil {
-			return err
-		}
-		// layer is intentionally not released
-
-		rootFS := image.NewRootFSWithBaseLayer(filepath.Base(info.Path))
-
-		// Create history for base layer
-		config, err := json.Marshal(&image.Image{
-			V1Image: image.V1Image{
-				DockerVersion: dockerversion.Version,
-				Architecture:  runtime.GOARCH,
-				OS:            runtime.GOOS,
-				Created:       info.CreatedTime,
-			},
-			RootFS:     rootFS,
-			History:    []image.History{},
-			OSVersion:  info.OSVersion,
-			OSFeatures: info.OSFeatures,
-		})
-
-		named, err := reference.ParseNamed(name)
-		if err != nil {
-			return err
-		}
-
-		ref, err := reference.WithTag(named, info.Version)
-		if err != nil {
-			return err
-		}
-
-		id, err := is.Create(config)
-		if err != nil {
-			logrus.Warnf("Failed to restore custom image %s with error: %s.", name, err)
-			logrus.Warnf("Skipping image %s...", name)
-			continue
-		}
-
-		if err := rs.AddTag(ref, id, true); err != nil {
-			return err
-		}
-
-		logrus.Debugf("Registered base layer %s as %s", ref, id)
 	}
 	return nil
 }
