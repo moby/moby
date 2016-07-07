@@ -426,10 +426,10 @@ message IssuanceStatus {
 
 message AcceptancePolicy {
 	message RoleAdmissionPolicy {
-		message HashedSecret {
-			// The actual hashed content
+		message Secret {
+			// The actual content (possibly hashed)
 			bytes data = 1;
-			// The type of hash we are using
+			// The type of hash we are using, or "plaintext"
 			string alg = 2;
 		}
 
@@ -439,12 +439,11 @@ message AcceptancePolicy {
 		bool autoaccept = 2;
 		// Secret represents a user-provided string that is necessary for new
 		// nodes to join the cluster
-		HashedSecret secret = 3;
+		Secret secret = 3;
 	}
 
 	repeated RoleAdmissionPolicy policies = 1;
 }
-
 
 message ExternalCA {
 	enum CAProtocol {

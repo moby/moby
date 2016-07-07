@@ -18,14 +18,19 @@ type ConstraintFilter struct {
 
 // SetTask returns true when the filter is enable for a given task.
 func (f *ConstraintFilter) SetTask(t *api.Task) bool {
-	if t.Spec.Placement != nil && len(t.Spec.Placement.Constraints) > 0 {
-		constraints, err := ParseExprs(t.Spec.Placement.Constraints)
-		if err == nil {
-			f.constraints = constraints
-			return true
-		}
+	if t.Spec.Placement == nil || len(t.Spec.Placement.Constraints) == 0 {
+		return false
 	}
-	return false
+
+	constraints, err := ParseExprs(t.Spec.Placement.Constraints)
+	if err != nil {
+		// constraints have been validated at controlapi
+		// if in any case it finds an error here, treat this task
+		// as constraint filter disabled.
+		return false
+	}
+	f.constraints = constraints
+	return true
 }
 
 // Check returns true if the task's constraint is supported by the given node.

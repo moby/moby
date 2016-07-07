@@ -70,6 +70,15 @@ func (r *ReplicatedOrchestrator) resolveService(ctx context.Context, task *api.T
 	return service
 }
 
+type tasksByRunningState []*api.Task
+
+func (ts tasksByRunningState) Len() int      { return len(ts) }
+func (ts tasksByRunningState) Swap(i, j int) { ts[i], ts[j] = ts[j], ts[i] }
+
+func (ts tasksByRunningState) Less(i, j int) bool {
+	return ts[i].Status.State == api.TaskStateRunning && ts[j].Status.State != api.TaskStateRunning
+}
+
 type taskWithIndex struct {
 	task *api.Task
 
@@ -139,6 +148,14 @@ func (r *ReplicatedOrchestrator) reconcile(ctx context.Context, service *api.Ser
 
 		// Preferentially remove tasks on the nodes that have the most
 		// copies of this service, to leave a more balanced result.
+
+		// First sort tasks such that tasks which are currently running
+		// (in terms of observed state) appear before non-running tasks.
+		// This will cause us to prefer to remove non-running tasks, all
+		// other things being equal in terms of node balance.
+
+		sort.Sort(tasksByRunningState(runningTasks))
+
 		// Assign each task an index that counts it as the nth copy of
 		// of the service on its node (1, 2, 3, ...), and sort the
 		// tasks by this counter value.

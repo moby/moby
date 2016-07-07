@@ -136,13 +136,13 @@ func SwarmSpecUpdateAcceptancePolicy(spec *swarmapi.ClusterSpec, acceptancePolic
 					hashPwd, _ = bcrypt.GenerateFromPassword([]byte(*p.Secret), 0)
 					hashs[*p.Secret] = hashPwd
 				}
-				policy.Secret = &swarmapi.AcceptancePolicy_RoleAdmissionPolicy_HashedSecret{
+				policy.Secret = &swarmapi.AcceptancePolicy_RoleAdmissionPolicy_Secret{
 					Data: hashPwd,
 					Alg:  "bcrypt",
 				}
 			}
 		} else if oldSecret := getOldSecret(oldSpec, policy.Role); oldSecret != nil { // else use the old one.
-			policy.Secret = &swarmapi.AcceptancePolicy_RoleAdmissionPolicy_HashedSecret{
+			policy.Secret = &swarmapi.AcceptancePolicy_RoleAdmissionPolicy_Secret{
 				Data: oldSecret.Data,
 				Alg:  oldSecret.Alg,
 			}
@@ -153,7 +153,7 @@ func SwarmSpecUpdateAcceptancePolicy(spec *swarmapi.ClusterSpec, acceptancePolic
 	return nil
 }
 
-func getOldSecret(oldSpec *swarmapi.ClusterSpec, role swarmapi.NodeRole) *swarmapi.AcceptancePolicy_RoleAdmissionPolicy_HashedSecret {
+func getOldSecret(oldSpec *swarmapi.ClusterSpec, role swarmapi.NodeRole) *swarmapi.AcceptancePolicy_RoleAdmissionPolicy_Secret {
 	if oldSpec == nil {
 		return nil
 	}
