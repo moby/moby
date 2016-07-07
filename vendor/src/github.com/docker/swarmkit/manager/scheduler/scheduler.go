@@ -177,8 +177,8 @@ func (s *Scheduler) createTask(ctx context.Context, t *api.Task) int {
 		return 0
 	}
 
-	nodeInfo := s.nodeHeap.nodeInfo(t.NodeID)
-	if nodeInfo.addTask(t) {
+	nodeInfo, err := s.nodeHeap.nodeInfo(t.NodeID)
+	if err == nil && nodeInfo.addTask(t) {
 		s.nodeHeap.updateNode(nodeInfo)
 	}
 
@@ -224,8 +224,8 @@ func (s *Scheduler) updateTask(ctx context.Context, t *api.Task) int {
 	}
 
 	s.allTasks[t.ID] = t
-	nodeInfo := s.nodeHeap.nodeInfo(t.NodeID)
-	if nodeInfo.addTask(t) {
+	nodeInfo, err := s.nodeHeap.nodeInfo(t.NodeID)
+	if err == nil && nodeInfo.addTask(t) {
 		s.nodeHeap.updateNode(nodeInfo)
 	}
 
@@ -235,14 +235,14 @@ func (s *Scheduler) updateTask(ctx context.Context, t *api.Task) int {
 func (s *Scheduler) deleteTask(ctx context.Context, t *api.Task) {
 	delete(s.allTasks, t.ID)
 	delete(s.preassignedTasks, t.ID)
-	nodeInfo := s.nodeHeap.nodeInfo(t.NodeID)
-	if nodeInfo.removeTask(t) {
+	nodeInfo, err := s.nodeHeap.nodeInfo(t.NodeID)
+	if err == nil && nodeInfo.removeTask(t) {
 		s.nodeHeap.updateNode(nodeInfo)
 	}
 }
 
 func (s *Scheduler) createOrUpdateNode(n *api.Node) {
-	nodeInfo := s.nodeHeap.nodeInfo(n.ID)
+	nodeInfo, _ := s.nodeHeap.nodeInfo(n.ID)
 	var resources api.Resources
 	if n.Description != nil && n.Description.Resources != nil {
 		resources = *n.Description.Resources
@@ -275,9 +275,10 @@ func (s *Scheduler) processPreassignedTasks(ctx context.Context) {
 	}
 	for _, decision := range failed {
 		s.allTasks[decision.old.ID] = decision.old
-		nodeInfo := s.nodeHeap.nodeInfo(decision.new.NodeID)
-		nodeInfo.removeTask(decision.new)
-		s.nodeHeap.updateNode(nodeInfo)
+		nodeInfo, err := s.nodeHeap.nodeInfo(decision.new.NodeID)
+		if err == nil && nodeInfo.removeTask(decision.new) {
+			s.nodeHeap.updateNode(nodeInfo)
+		}
 	}
 }
 
@@ -309,9 +310,10 @@ func (s *Scheduler) tick(ctx context.Context) {
 	for _, decision := range failed {
 		s.allTasks[decision.old.ID] = decision.old
 
-		nodeInfo := s.nodeHeap.nodeInfo(decision.new.NodeID)
-		nodeInfo.removeTask(decision.new)
-		s.nodeHeap.updateNode(nodeInfo)
+		nodeInfo, err := s.nodeHeap.nodeInfo(decision.new.NodeID)
+		if err == nil && nodeInfo.removeTask(decision.new) {
+			s.nodeHeap.updateNode(nodeInfo)
+		}
 
 		// enqueue task for next scheduling attempt
 		s.enqueue(decision.old)
@@ -368,7 +370,11 @@ func (s *Scheduler) applySchedulingDecisions(ctx context.Context, schedulingDeci
 
 // taskFitNode checks if a node has enough resource to accommodate a task
 func (s *Scheduler) taskFitNode(ctx context.Context, t *api.Task, nodeID string) *api.Task {
-	nodeInfo := s.nodeHeap.nodeInfo(nodeID)
+	nodeInfo, err := s.nodeHeap.nodeInfo(nodeID)
+	if err != nil {
+		// node does not exist in heap (it may have been deleted)
+		return nil
+	}
 	s.pipeline.SetTask(t)
 	if !s.pipeline.Process(&nodeInfo) {
 		// this node cannot accommodate this task
@@ -407,8 +413,8 @@ func (s *Scheduler) scheduleTask(ctx context.Context, t *api.Task) *api.Task {
 	}
 	s.allTasks[t.ID] = &newT
 
-	nodeInfo := s.nodeHeap.nodeInfo(n.ID)
-	if nodeInfo.addTask(&newT) {
+	nodeInfo, err := s.nodeHeap.nodeInfo(n.ID)
+	if err == nil && nodeInfo.addTask(&newT) {
 		s.nodeHeap.updateNode(nodeInfo)
 	}
 	return &newT

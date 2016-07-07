@@ -562,6 +562,7 @@ func (n *Node) initManagerConnection(ctx context.Context, ready chan<- struct{})
 	for {
 		s, err := conn.WaitForStateChange(ctx, state)
 		if err != nil {
+			n.setControlSocket(nil)
 			return err
 		}
 		if s == grpc.Ready {

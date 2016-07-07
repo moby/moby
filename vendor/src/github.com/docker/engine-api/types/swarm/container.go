@@ -30,7 +30,7 @@ type Mount struct {
 	Type     MountType `json:",omitempty"`
 	Source   string    `json:",omitempty"`
 	Target   string    `json:",omitempty"`
-	Writable bool      `json:",omitempty"`
+	ReadOnly bool      `json:",omitempty"`
 
 	BindOptions   *BindOptions   `json:",omitempty"`
 	VolumeOptions *VolumeOptions `json:",omitempty"`
@@ -61,7 +61,7 @@ type BindOptions struct {
 
 // VolumeOptions represents the options for a mount of type volume.
 type VolumeOptions struct {
-	Populate     bool              `json:",omitempty"`
+	NoCopy       bool              `json:",omitempty"`
 	Labels       map[string]string `json:",omitempty"`
 	DriverConfig *Driver           `json:",omitempty"`
 }

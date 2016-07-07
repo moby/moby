@@ -150,9 +150,8 @@ message Mount {
 	// Target path in container
 	string target = 3;
 
-	// Writable should be set to true if the mount should be writable from the
-	// container.
-	bool writable = 4;
+	// ReadOnly should be set to true if the mount should not be writable.
+	bool readonly = 4 [(gogoproto.customname) = "ReadOnly"];
 
 	// BindOptions specifies options that are specific to a bind mount.
 	message BindOptions {
@@ -174,8 +173,8 @@ message Mount {
 
 	// VolumeOptions contains parameters for mounting the volume.
 	message VolumeOptions {
-		// populate volume with data from target
-		bool populate = 1;
+		// nocopy prevents automatic copying of data to the volume with data from target
+		bool nocopy = 1 [(gogoproto.customname) = "NoCopy"];
 
 		// labels to apply to the volume if creating
 		map<string, string> labels = 2;
