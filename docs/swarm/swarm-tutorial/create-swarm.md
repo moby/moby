@@ -62,7 +62,7 @@ node. For example, the tutorial uses a machine named `manager1`.
     ```
     $ docker node ls
 
-    ID                           NAME      MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
+    ID                           HOSTNAME  MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
     dxn1zf6l61qsb1josjja83ngz *  manager1  Accepted    Ready   Active        Reachable       Yes
 
     ```

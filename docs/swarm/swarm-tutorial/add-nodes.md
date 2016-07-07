@@ -50,7 +50,7 @@ the existing Swarm.
 the `docker node ls` command to see the worker nodes:
 
     ```bash
-    ID                           NAME      MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
+    ID                           HOSTNAME  MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
     03g1y59jwfg7cf99w4lt0f662    worker2   Accepted    Ready   Active
     9j68exjopxe7wfl6yuxml7a7j    worker1   Accepted    Ready   Active
     dxn1zf6l61qsb1josjja83ngz *  manager1  Accepted    Ready   Active        Reachable       Yes
