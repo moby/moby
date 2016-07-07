@@ -10,10 +10,13 @@ parent = "smn_cli"
 
 # rename
 
-    Usage: docker rename [OPTIONS] OLD_NAME NEW_NAME
+```markdown
+Usage:  docker rename OLD_NAME NEW_NAME
 
-    Rename a container
+Rename a container
 
-      --help          Print usage
+Options:
+      --help   Print usage
+```
 
 The `docker rename` command allows the container to be renamed to a different name.

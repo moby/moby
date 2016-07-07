@@ -10,14 +10,17 @@ parent = "smn_cli"
 
 # load
 
-    Usage: docker load [OPTIONS]
+```markdown
+Usage:  docker load [OPTIONS]
 
-    Load an image from a tar archive or STDIN and shows image names or
-    IDs imported.
+Load an image from a tar archive or STDIN
 
-      --help             Print usage
-      -i, --input=""     Read from a tar archive file, instead of STDIN. The tarball may be compressed with gzip, bzip, or xz
-      -q, --quiet        Suppress the load progress bar but still outputs the imported images
+Options:
+      --help           Print usage
+  -i, --input string   Read from tar archive file, instead of STDIN.
+                       The tarball may be compressed with gzip, bzip, or xz
+  -q, --quiet          Suppress the load output but still outputs the imported images
+```
 
 Loads a tarred repository from a file or the standard input stream.
 Restores both images and tags.
