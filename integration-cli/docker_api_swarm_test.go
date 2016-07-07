@@ -277,8 +277,6 @@ func (s *DockerSwarmSuite) TestApiSwarmPromoteDemote(c *check.C) {
 		}
 		if i > 100 {
 			c.Errorf("node did not turn into manager")
-		} else {
-			break
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -296,8 +294,6 @@ func (s *DockerSwarmSuite) TestApiSwarmPromoteDemote(c *check.C) {
 		}
 		if i > 100 {
 			c.Errorf("node did not turn into worker")
-		} else {
-			break
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
