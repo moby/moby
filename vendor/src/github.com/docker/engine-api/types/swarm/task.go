@@ -54,6 +54,11 @@ type TaskSpec struct {
 	Resources     *ResourceRequirements `json:",omitempty"`
 	RestartPolicy *RestartPolicy        `json:",omitempty"`
 	Placement     *Placement            `json:",omitempty"`
+
+	// LogDriver specifies the LogDriver to use for tasks created from this
+	// spec. If not present, the one on cluster default on swarm.Spec will be
+	// used, finally falling back to the engine default if not specified.
+	LogDriver *Driver `json:",omitempty"`
 }
 
 // Resources represents resources (CPU/Memory).
