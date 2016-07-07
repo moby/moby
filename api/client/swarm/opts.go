@@ -237,7 +237,7 @@ func parseExternalCA(caSpec string) (*swarm.ExternalCA, error) {
 
 func addSwarmFlags(flags *pflag.FlagSet, opts *swarmOptions) {
 	flags.Var(&opts.autoAccept, flagAutoAccept, "Auto acceptance policy (worker, manager or none)")
-	flags.StringVar(&opts.secret, flagSecret, "", "Set secret value needed to accept nodes into cluster")
+	flags.StringVar(&opts.secret, flagSecret, "", "Set secret value needed to join a cluster")
 	flags.Int64Var(&opts.taskHistoryLimit, flagTaskHistoryLimit, 10, "Task history retention limit")
 	flags.DurationVar(&opts.dispatcherHeartbeat, flagDispatcherHeartbeat, time.Duration(5*time.Second), "Dispatcher heartbeat period")
 	flags.DurationVar(&opts.nodeCertExpiry, flagCertExpiry, time.Duration(90*24*time.Hour), "Validity period for node certificates")

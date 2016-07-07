@@ -27,7 +27,7 @@ targeted by this command becomes a `manager`. If it is not specified, it becomes
 ### Join a node to swarm as a manager
 
 ```bash
-$ docker swarm join --manager --listen-addr 192.168.99.122:2377 192.168.99.121:2377
+$ docker swarm join --secret 4ao565v9jsuogtq5t8s379ulb --manager --listen-addr 192.168.99.122:2377 192.168.99.121:2377
 This node joined a Swarm as a manager.
 $ docker node ls
 ID                           HOSTNAME  MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS         LEADER
@@ -38,7 +38,7 @@ dvfxp4zseq4s0rih1selh0d20    manager1  Accepted    Ready   Active        Reachab
 ### Join a node to swarm as a worker
 
 ```bash
-$ docker swarm join --listen-addr 192.168.99.123:2377 192.168.99.121:2377
+$ docker swarm join --secret 4ao565v9jsuogtq5t8s379ulb --listen-addr 192.168.99.123:2377 192.168.99.121:2377
 This node joined a Swarm as a worker.
 $ docker node ls
 ID                           HOSTNAME  MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS         LEADER
