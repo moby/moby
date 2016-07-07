@@ -30,6 +30,10 @@ var (
 		func() bool { return daemonPlatform == "linux" },
 		"Test requires a Linux daemon",
 	}
+	ExperimentalDaemon = testRequirement{
+		func() bool { return utils.ExperimentalBuild() },
+		"Test requires an experimental daemon",
+	}
 	NotExperimentalDaemon = testRequirement{
 		func() bool { return !utils.ExperimentalBuild() },
 		"Test requires a non experimental daemon",
@@ -38,9 +42,17 @@ var (
 		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "arm" },
 		"Test requires a daemon not running on ARM",
 	}
+	NotArm64 = testRequirement{
+		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "arm64" },
+		"Test requires a daemon not running on arm64",
+	}
 	NotPpc64le = testRequirement{
 		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "ppc64le" },
 		"Test requires a daemon not running on ppc64le",
+	}
+	NotS390X = testRequirement{
+		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "s390x" },
+		"Test requires a daemon not running on s390x",
 	}
 	SameHostDaemon = testRequirement{
 		func() bool { return isLocalDaemon },

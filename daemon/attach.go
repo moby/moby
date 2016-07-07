@@ -73,9 +73,9 @@ func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadClose
 	return daemon.containerAttach(container, stdin, stdout, stderr, false, stream, nil)
 }
 
-func (daemon *Daemon) containerAttach(container *container.Container, stdin io.ReadCloser, stdout, stderr io.Writer, logs, stream bool, keys []byte) error {
+func (daemon *Daemon) containerAttach(c *container.Container, stdin io.ReadCloser, stdout, stderr io.Writer, logs, stream bool, keys []byte) error {
 	if logs {
-		logDriver, err := daemon.getLogger(container)
+		logDriver, err := daemon.getLogger(c)
 		if err != nil {
 			return err
 		}
@@ -105,7 +105,7 @@ func (daemon *Daemon) containerAttach(container *container.Container, stdin io.R
 		}
 	}
 
-	daemon.LogContainerEvent(container, "attach")
+	daemon.LogContainerEvent(c, "attach")
 
 	//stream
 	if stream {
@@ -114,16 +114,33 @@ func (daemon *Daemon) containerAttach(container *container.Container, stdin io.R
 			r, w := io.Pipe()
 			go func() {
 				defer w.Close()
-				defer logrus.Debugf("Closing buffered stdin pipe")
+				defer logrus.Debug("Closing buffered stdin pipe")
 				io.Copy(w, stdin)
 			}()
 			stdinPipe = r
 		}
-		<-container.Attach(stdinPipe, stdout, stderr, keys)
+
+		waitChan := make(chan struct{})
+		if c.Config.StdinOnce && !c.Config.Tty {
+			go func() {
+				c.WaitStop(-1 * time.Second)
+				close(waitChan)
+			}()
+		}
+
+		err := <-c.Attach(stdinPipe, stdout, stderr, keys)
+		if err != nil {
+			if _, ok := err.(container.DetachError); ok {
+				daemon.LogContainerEvent(c, "detach")
+			} else {
+				logrus.Errorf("attach failed with error: %v", err)
+			}
+		}
+
 		// If we are in stdinonce mode, wait for the process to end
 		// otherwise, simply return
-		if container.Config.StdinOnce && !container.Config.Tty {
-			container.WaitStop(-1 * time.Second)
+		if c.Config.StdinOnce && !c.Config.Tty {
+			<-waitChan
 		}
 	}
 	return nil

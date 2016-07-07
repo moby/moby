@@ -10,15 +10,15 @@ parent = "smn_cli"
 
 # inspect
 
-    Usage: docker inspect [OPTIONS] CONTAINER|IMAGE [CONTAINER|IMAGE...]
+    Usage: docker inspect [OPTIONS] CONTAINER|IMAGE|TASK [CONTAINER|IMAGE|TASK...]
 
-    Return low-level information on a container or image
+    Return low-level information on a container or image or task
 
-      -f, --format=""         Format the output using the given go template
-      --help                  Print usage
-      --type=container|image  Return JSON for specified type, permissible
-                              values are "image" or "container"
-      -s, --size              Display total file sizes if the type is container
+      -f, --format=""              Format the output using the given go template
+      --help                       Print usage
+      --type=container|image|task  Return JSON for specified type, permissible
+                                   values are "image" or "container" or "task"
+      -s, --size                   Display total file sizes if the type is container
 
 By default, this will render all results in a JSON array. If the container and
 image have the same name, this will return container JSON for unspecified type.
@@ -36,7 +36,7 @@ straightforward manner.
 
     $ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $INSTANCE_ID
 
-**Get an instance's MAC Address:**
+**Get an instance's MAC address:**
 
 For the most part, you can pick out any field from the JSON in a fairly
 straightforward manner.
@@ -47,14 +47,18 @@ straightforward manner.
 
     $ docker inspect --format='{{.LogPath}}' $INSTANCE_ID
 
-**List All Port Bindings:**
+**Get a Task's image name:**
+
+    $ docker inspect --format='{{.Container.Spec.Image}}' $INSTANCE_ID
+
+**List all port bindings:**
 
 One can loop over arrays and maps in the results to produce simple text
 output:
 
     $ docker inspect --format='{{range $p, $conf := .NetworkSettings.Ports}} {{$p}} -> {{(index $conf 0).HostPort}} {{end}}' $INSTANCE_ID
 
-**Find a Specific Port Mapping:**
+**Find a specific port mapping:**
 
 The `.Field` syntax doesn't work when the field name begins with a
 number, but the template language's `index` function does. The

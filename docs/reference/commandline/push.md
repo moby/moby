@@ -19,6 +19,7 @@ parent = "smn_cli"
 
 Use `docker push` to share your images to the [Docker Hub](https://hub.docker.com)
 registry or to a self-hosted one.
+[Read more about valid image names and tags](tag.md).
 
 Killing the `docker push` process, for example by pressing `CTRL-c` while it is
 running in a terminal, will terminate the push operation.

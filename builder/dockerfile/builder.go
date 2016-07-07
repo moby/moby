@@ -22,15 +22,16 @@ import (
 )
 
 var validCommitCommands = map[string]bool{
-	"cmd":        true,
-	"entrypoint": true,
-	"env":        true,
-	"expose":     true,
-	"label":      true,
-	"onbuild":    true,
-	"user":       true,
-	"volume":     true,
-	"workdir":    true,
+	"cmd":         true,
+	"entrypoint":  true,
+	"healthcheck": true,
+	"env":         true,
+	"expose":      true,
+	"label":       true,
+	"onbuild":     true,
+	"user":        true,
+	"volume":      true,
+	"workdir":     true,
 }
 
 // BuiltinAllowedBuildArgs is list of built-in allowed build args

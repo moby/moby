@@ -48,6 +48,13 @@ var (
 	errInvalidNetwork  = fmt.Errorf("invalid network settings while building port map info")
 )
 
+// DetachError is special error which returned in case of container detach.
+type DetachError struct{}
+
+func (DetachError) Error() string {
+	return "detached from container"
+}
+
 // CommonContainer holds the fields for a container which are
 // applicable across all platforms supported by the daemon.
 type CommonContainer struct {
@@ -59,6 +66,7 @@ type CommonContainer struct {
 	RWLayer         layer.RWLayer  `json:"-"`
 	ID              string
 	Created         time.Time
+	Managed         bool
 	Path            string
 	Args            []string
 	Config          *containertypes.Config
@@ -207,13 +215,13 @@ func (container *Container) SetupWorkingDirectory(rootUID, rootGID int) error {
 		return nil
 	}
 
+	container.Config.WorkingDir = filepath.Clean(container.Config.WorkingDir)
+
 	// If can't mount container FS at this point (eg Hyper-V Containers on
 	// Windows) bail out now with no action.
 	if !container.canMountFS() {
 		return nil
 	}
-
-	container.Config.WorkingDir = filepath.Clean(container.Config.WorkingDir)
 
 	pth, err := container.GetResourcePath(container.Config.WorkingDir)
 	if err != nil {
@@ -315,6 +323,7 @@ func (container *Container) StartLogger(cfg containertypes.LogConfig) (logger.Lo
 		ContainerCreated:    container.Created,
 		ContainerEnv:        container.Config.Env,
 		ContainerLabels:     container.Config.Labels,
+		DaemonName:          "docker",
 	}
 
 	// Set logging file for "json-logger"
@@ -385,14 +394,13 @@ func AttachStreams(ctx context.Context, streamConfig *runconfig.StreamConfig, op
 		if stdin == nil || !openStdin {
 			return
 		}
-		logrus.Debugf("attach: stdin: begin")
+		logrus.Debug("attach: stdin: begin")
 
 		var err error
 		if tty {
 			_, err = copyEscapable(cStdin, stdin, keys)
 		} else {
 			_, err = io.Copy(cStdin, stdin)
-
 		}
 		if err == io.ErrClosedPipe {
 			err = nil
@@ -412,7 +420,7 @@ func AttachStreams(ctx context.Context, streamConfig *runconfig.StreamConfig, op
 				cStderr.Close()
 			}
 		}
-		logrus.Debugf("attach: stdin: end")
+		logrus.Debug("attach: stdin: end")
 		wg.Done()
 	}()
 
@@ -484,20 +492,27 @@ func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64
 		nr, er := src.Read(buf)
 		if nr > 0 {
 			// ---- Docker addition
+			preservBuf := []byte{}
 			for i, key := range keys {
+				preservBuf = append(preservBuf, buf[0:nr]...)
 				if nr != 1 || buf[0] != key {
 					break
 				}
 				if i == len(keys)-1 {
-					if err := src.Close(); err != nil {
-						return 0, err
-					}
-					return 0, nil
+					src.Close()
+					return 0, DetachError{}
 				}
 				nr, er = src.Read(buf)
 			}
-			// ---- End of docker
-			nw, ew := dst.Write(buf[0:nr])
+			var nw int
+			var ew error
+			if len(preservBuf) > 0 {
+				nw, ew = dst.Write(preservBuf)
+				nr = len(preservBuf)
+			} else {
+				// ---- End of docker
+				nw, ew = dst.Write(buf[0:nr])
+			}
 			if nw > 0 {
 				written += int64(nw)
 			}
@@ -524,7 +539,7 @@ func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64
 // ShouldRestart decides whether the daemon should restart the container or not.
 // This is based on the container's restart policy.
 func (container *Container) ShouldRestart() bool {
-	shouldRestart, _, _ := container.restartManager.ShouldRestart(uint32(container.ExitCode), container.HasBeenManuallyStopped, container.FinishedAt.Sub(container.StartedAt))
+	shouldRestart, _, _ := container.restartManager.ShouldRestart(uint32(container.ExitCode()), container.HasBeenManuallyStopped, container.FinishedAt.Sub(container.StartedAt))
 	return shouldRestart
 }
 
@@ -651,7 +666,8 @@ func getEndpointPortMapInfo(ep libnetwork.Endpoint) (nat.PortMap, error) {
 	return pm, nil
 }
 
-func getSandboxPortMapInfo(sb libnetwork.Sandbox) nat.PortMap {
+// GetSandboxPortMapInfo retrieves the current port-mapping programmed for the given sandbox
+func GetSandboxPortMapInfo(sb libnetwork.Sandbox) nat.PortMap {
 	pm := nat.PortMap{}
 	if sb == nil {
 		return pm
@@ -773,14 +789,41 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 
 	if epConfig != nil {
 		ipam := epConfig.IPAMConfig
-		if ipam != nil && (ipam.IPv4Address != "" || ipam.IPv6Address != "") {
+		if ipam != nil && (ipam.IPv4Address != "" || ipam.IPv6Address != "" || len(ipam.LinkLocalIPs) > 0) {
+			var ipList []net.IP
+			for _, ips := range ipam.LinkLocalIPs {
+				if ip := net.ParseIP(ips); ip != nil {
+					ipList = append(ipList, ip)
+				}
+			}
 			createOptions = append(createOptions,
-				libnetwork.CreateOptionIpam(net.ParseIP(ipam.IPv4Address), net.ParseIP(ipam.IPv6Address), nil))
+				libnetwork.CreateOptionIpam(net.ParseIP(ipam.IPv4Address), net.ParseIP(ipam.IPv6Address), ipList, nil))
 		}
 
 		for _, alias := range epConfig.Aliases {
 			createOptions = append(createOptions, libnetwork.CreateOptionMyAlias(alias))
 		}
+	}
+
+	if container.NetworkSettings.Service != nil {
+		svcCfg := container.NetworkSettings.Service
+
+		var vip string
+		if svcCfg.VirtualAddresses[n.ID()] != nil {
+			vip = svcCfg.VirtualAddresses[n.ID()].IPv4
+		}
+
+		var portConfigs []*libnetwork.PortConfig
+		for _, portConfig := range svcCfg.ExposedPorts {
+			portConfigs = append(portConfigs, &libnetwork.PortConfig{
+				Name:          portConfig.Name,
+				Protocol:      libnetwork.PortConfig_Protocol(portConfig.Protocol),
+				TargetPort:    portConfig.TargetPort,
+				PublishedPort: portConfig.PublishedPort,
+			})
+		}
+
+		createOptions = append(createOptions, libnetwork.CreateOptionService(svcCfg.Name, svcCfg.ID, net.ParseIP(vip), portConfigs, svcCfg.Aliases[n.ID()]))
 	}
 
 	if !containertypes.NetworkMode(n.Name()).IsUserDefined() {
@@ -808,7 +851,7 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 	}
 
 	// Port-mapping rules belong to the container & applicable only to non-internal networks
-	portmaps := getSandboxPortMapInfo(sb)
+	portmaps := GetSandboxPortMapInfo(sb)
 	if n.Info().Internal() || len(portmaps) > 0 {
 		return createOptions, nil
 	}

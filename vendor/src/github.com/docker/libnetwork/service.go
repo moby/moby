@@ -1,80 +1,61 @@
 package libnetwork
 
-import "net"
+import (
+	"fmt"
+	"net"
+	"sync"
+)
+
+var (
+	// A global monotonic counter to assign firewall marks to
+	// services.
+	fwMarkCtr   uint32 = 256
+	fwMarkCtrMu sync.Mutex
+)
+
+type portConfigs []*PortConfig
+
+func (p portConfigs) String() string {
+	if len(p) == 0 {
+		return ""
+	}
+
+	pc := p[0]
+	str := fmt.Sprintf("%d:%d/%s", pc.PublishedPort, pc.TargetPort, PortConfig_Protocol_name[int32(pc.Protocol)])
+	for _, pc := range p[1:] {
+		str = str + fmt.Sprintf(",%d:%d/%s", pc.PublishedPort, pc.TargetPort, PortConfig_Protocol_name[int32(pc.Protocol)])
+	}
+
+	return str
+}
+
+type serviceKey struct {
+	id    string
+	ports string
+}
 
 type service struct {
-	name     string
-	id       string
-	backEnds map[string]map[string]net.IP
+	name string // Service Name
+	id   string // Service ID
+
+	// Map of loadbalancers for the service one-per attached
+	// network. It is keyed with network ID.
+	loadBalancers map[string]*loadBalancer
+
+	// List of ingress ports exposed by the service
+	ingressPorts portConfigs
+
+	sync.Mutex
 }
 
-func newService(name string, id string) *service {
-	return &service{
-		name:     name,
-		id:       id,
-		backEnds: make(map[string]map[string]net.IP),
-	}
-}
+type loadBalancer struct {
+	vip    net.IP
+	fwMark uint32
 
-func (c *controller) addServiceBinding(name, sid, nid, eid string, ip net.IP) error {
-	var s *service
+	// Map of backend IPs backing this loadbalancer on this
+	// network. It is keyed with endpoint ID.
+	backEnds map[string]net.IP
 
-	n, err := c.NetworkByID(nid)
-	if err != nil {
-		return err
-	}
-
-	c.Lock()
-	s, ok := c.serviceBindings[sid]
-	if !ok {
-		s = newService(name, sid)
-	}
-
-	netBackEnds, ok := s.backEnds[nid]
-	if !ok {
-		netBackEnds = make(map[string]net.IP)
-		s.backEnds[nid] = netBackEnds
-	}
-
-	netBackEnds[eid] = ip
-	c.serviceBindings[sid] = s
-	c.Unlock()
-
-	n.(*network).addSvcRecords(name, ip, nil, false)
-	return nil
-}
-
-func (c *controller) rmServiceBinding(name, sid, nid, eid string, ip net.IP) error {
-	n, err := c.NetworkByID(nid)
-	if err != nil {
-		return err
-	}
-
-	c.Lock()
-	s, ok := c.serviceBindings[sid]
-	if !ok {
-		c.Unlock()
-		return nil
-	}
-
-	netBackEnds, ok := s.backEnds[nid]
-	if !ok {
-		c.Unlock()
-		return nil
-	}
-
-	delete(netBackEnds, eid)
-
-	if len(netBackEnds) == 0 {
-		delete(s.backEnds, nid)
-	}
-
-	if len(s.backEnds) == 0 {
-		delete(c.serviceBindings, sid)
-	}
-	c.Unlock()
-
-	n.(*network).deleteSvcRecords(name, ip, nil, false)
-
-	return err
+	// Back pointer to service to which the loadbalancer belongs.
+	service *service
 }

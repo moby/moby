@@ -45,6 +45,7 @@ docker-run - Run a command in a new container
 [**-l**|**--label**[=*[]*]]
 [**--label-file**[=*[]*]]
 [**--link**[=*[]*]]
+[**--link-local-ip**[=*[]*]]
 [**--log-driver**[=*[]*]]
 [**--log-opt**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
@@ -103,7 +104,7 @@ pull** IMAGE, before it starts the container from that image.
 
    In foreground mode (the default when **-d**
 is not specified), **docker run** can start the process in the container
-and attach the console to the process’s standard input, output, and standard
+and attach the console to the process's standard input, output, and standard
 error. It can even pretend to be a TTY (this is what most commandline
 executables expect) and pass along signals. The **-a** option can be set for
 each of stdin, stdout, and stderr.
@@ -219,7 +220,7 @@ See **config-json(5)** for documentation on using a configuration file.
    Limit write rate to a device (e.g. --device-write-bps=/dev/sda:1mb)
 
 **--device-write-iops**=[]
-   Limit write rate a a device (e.g. --device-write-iops=/dev/sda:1000)
+   Limit write rate to a device (e.g. --device-write-iops=/dev/sda:1000)
 
 **--dns-search**=[]
    Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)
@@ -297,7 +298,9 @@ redirection on the host system.
                                'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
 
 **--isolation**="*default*"
-   Isolation specifies the type of isolation technology used by containers.
+   Isolation specifies the type of isolation technology used by containers. Note
+that the default on Windows server is `process`, and the default on Windows client
+is `hyperv`. Linux only supports `default`.
 
 **-l**, **--label**=[]
    Set metadata on the container (e.g., --label com.example.key=value)
@@ -323,6 +326,9 @@ uses **--link** when starting the new client container, then the client
 container can access the exposed port via a private networking interface. Docker
 will set some environment variables in the client container to help indicate
 which interface and port to use.
+
+**--link-local-ip**=[]
+   Add one or more link-local IPv4/IPv6 addresses to the container's interface
 
 **--log-driver**="*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*awslogs*|*splunk*|*etwlogs*|*gcplogs*|*none*"
   Logging driver for container. Default is defined by daemon `--log-driver` flag.
@@ -486,7 +492,7 @@ its root filesystem mounted as read only prohibiting any writes.
    $ docker run -it --storage-opt size=120G fedora /bin/bash
 
    This (size) will allow to set the container rootfs size to 120G at creation time. User cannot pass a size less than the Default BaseFS Size.
-   This option is only available for the `devicemapper`, `btrfs` and `zfs` graphrivers.
+   This option is only available for the `devicemapper`, `btrfs`, and `zfs` graph drivers.
 
 **--stop-signal**=*SIGTERM*
   Signal to stop a container. Default is SIGTERM.
@@ -735,7 +741,7 @@ This should list the message sent to logger.
 
 If you do not specify -a then Docker will attach everything (stdin,stdout,stderr)
 . You can specify to which of the three standard streams (stdin, stdout, stderr)
-you’d like to connect instead, as in:
+you'd like to connect instead, as in:
 
     # docker run -a stdin -a stdout -i -t fedora /bin/bash
 
@@ -849,7 +855,7 @@ If a container is connected to the default bridge network and `linked`
 with other containers, then the container's `/etc/hosts` file is updated
 with the linked container's name.
 
-> **Note** Since Docker may live update the container’s `/etc/hosts` file, there
+> **Note** Since Docker may live update the container's `/etc/hosts` file, there
 may be situations when processes inside the container can end up reading an
 empty or incomplete `/etc/hosts` file. In most cases, retrying the read again
 should fix the problem.

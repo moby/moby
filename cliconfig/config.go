@@ -16,11 +16,6 @@ const (
 	ConfigFileName = "config.json"
 	configFileDir  = ".docker"
 	oldConfigfile  = ".dockercfg"
-
-	// This constant is only used for really old config files when the
-	// URL wasn't saved as part of the config file and it was just
-	// assumed to be this value.
-	defaultIndexserver = "https://index.docker.io/v1/"
 )
 
 var (

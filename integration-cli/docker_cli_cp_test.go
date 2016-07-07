@@ -647,7 +647,7 @@ func (s *DockerSuite) TestCpSymlinkFromConToHostFollowSymlink(c *check.C) {
 	}
 	os.Remove(expectedPath)
 
-	// now test copy symbol link to an non-existing file in host
+	// now test copy symbol link to a non-existing file in host
 	expectedPath = filepath.Join(testDir, "somefile_host")
 	// expectedPath shouldn't exist, if exists, remove it
 	if _, err := os.Lstat(expectedPath); err == nil {

@@ -54,6 +54,7 @@ Creates a new container.
       -l, --label=[]                Set metadata on the container (e.g., --label=com.example.key=value)
       --label-file=[]               Read in a line delimited file of labels
       --link=[]                     Add link to another container
+      --link-local-ip=[]            Container IPv4/IPv6 link-local addresses (e.g. 169.254.0.77, fe80::77)
       --log-driver=""               Logging driver for container
       --log-opt=[]                  Log driver specific options
       -m, --memory=""               Memory limit
@@ -78,6 +79,7 @@ Creates a new container.
       --privileged                  Give extended privileges to this container
       --read-only                   Mount the container's root filesystem as read only
       --restart="no"                Restart policy (no, on-failure[:max-retry], always, unless-stopped)
+      --runtime=""                  Name of the runtime to be used for that container
       --security-opt=[]             Security options
       --stop-signal="SIGTERM"       Signal to stop a container
       --shm-size=[]                 Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.  Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`.
@@ -147,12 +149,13 @@ then be used from the subsequent container:
     drwx--S---  2 1000 staff  460 Dec  5 00:51 .ssh
     drwxr-xr-x 32 1000 staff 1140 Dec  5 04:01 docker
 
-Set storage driver options per container. 
+Set storage driver options per container.
 
     $ docker create -it --storage-opt size=120G fedora /bin/bash
 
 This (size) will allow to set the container rootfs size to 120G at creation time. 
-User cannot pass a size less than the Default BaseFS Size. 
+User cannot pass a size less than the Default BaseFS Size. This option is only 
+available for the `devicemapper`, `btrfs`, and `zfs` graph drivers.
 
 ### Specify isolation technology for container (--isolation)
 
@@ -164,7 +167,8 @@ Linux namespaces. On Microsoft Windows, you can specify these values:
 
 | Value     | Description                                                                                                                                                   |
 |-----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `default` | Use the value specified by the Docker daemon's `--exec-opt` . If the `daemon` does not specify an isolation technology, Microsoft Windows uses `process` as its default value.  |
+| `default` | Use the value specified by the Docker daemon's `--exec-opt` . If the `daemon` does not specify an isolation technology, Microsoft Windows uses `process` as its default value if the
+daemon is running on Windows server, or `hyperv` if running on Windows client.  |
 | `process` | Namespace isolation only.                                                                                                                                     |
 | `hyperv`   | Hyper-V hypervisor partition-based isolation.                                                                                                                  |
 

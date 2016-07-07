@@ -31,7 +31,7 @@ type ImagePushConfig struct {
 	ProgressOutput progress.Output
 	// RegistryService is the registry service to use for TLS configuration
 	// and endpoint lookup.
-	RegistryService *registry.Service
+	RegistryService registry.Service
 	// ImageEventLogger notifies events for a given image
 	ImageEventLogger func(id, name, action string)
 	// MetadataStore is the storage backend for distribution-specific
@@ -88,7 +88,7 @@ func NewPusher(ref reference.Named, endpoint registry.APIEndpoint, repoInfo *reg
 	return nil, fmt.Errorf("unknown version %d for registry %s", endpoint.Version, endpoint.URL)
 }
 
-// Push initiates a push operation on the repository named localName.
+// Push initiates a push operation on ref.
 // ref is the specific variant of the image to be pushed.
 // If no tag is provided, all tags will be pushed.
 func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushConfig) error {

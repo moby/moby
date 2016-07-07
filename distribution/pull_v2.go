@@ -133,6 +133,7 @@ type v2LayerDescriptor struct {
 	V2MetadataService *metadata.V2MetadataService
 	tmpFile           *os.File
 	verifier          digest.Verifier
+	src               distribution.Descriptor
 }
 
 func (ld *v2LayerDescriptor) Key() string {
@@ -180,9 +181,8 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 	}
 
 	tmpFile := ld.tmpFile
-	blobs := ld.repo.Blobs(ctx)
 
-	layerDownload, err := blobs.Open(ctx, ld.digest)
+	layerDownload, err := ld.open(ctx)
 	if err != nil {
 		logrus.Errorf("Error initiating layer download: %v", err)
 		if err == distribution.ErrBlobUnknown {
@@ -208,7 +208,7 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 		size = 0
 	} else {
 		if size != 0 && offset > size {
-			logrus.Debugf("Partial download is larger than full blob. Starting over")
+			logrus.Debug("Partial download is larger than full blob. Starting over")
 			offset = 0
 			if err := ld.truncateDownloadFile(); err != nil {
 				return nil, 0, xfer.DoNotRetry{Err: err}
@@ -393,7 +393,7 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 	oldTagImageID, err := p.config.ReferenceStore.Get(ref)
 	if err == nil {
 		if oldTagImageID == imageID {
-			return false, nil
+			return false, addDigestReference(p.config.ReferenceStore, ref, manifestDigest, imageID)
 		}
 	} else if err != reference.ErrDoesNotExist {
 		return false, err
@@ -403,10 +403,14 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 		if err = p.config.ReferenceStore.AddDigest(canonical, imageID, true); err != nil {
 			return false, err
 		}
-	} else if err = p.config.ReferenceStore.AddTag(ref, imageID, true); err != nil {
-		return false, err
+	} else {
+		if err = addDigestReference(p.config.ReferenceStore, ref, manifestDigest, imageID); err != nil {
+			return false, err
+		}
+		if err = p.config.ReferenceStore.AddTag(ref, imageID, true); err != nil {
+			return false, err
+		}
 	}
-
 	return true, nil
 }
 
@@ -501,6 +505,22 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 		return imageID, manifestDigest, nil
 	}
 
+	var descriptors []xfer.DownloadDescriptor
+
+	// Note that the order of this loop is in the direction of bottom-most
+	// to top-most, so that the downloads slice gets ordered correctly.
+	for _, d := range mfst.Layers {
+		layerDescriptor := &v2LayerDescriptor{
+			digest:            d.Digest,
+			repo:              p.repo,
+			repoInfo:          p.repoInfo,
+			V2MetadataService: p.V2MetadataService,
+			src:               d,
+		}
+
+		descriptors = append(descriptors, layerDescriptor)
+	}
+
 	configChan := make(chan []byte, 1)
 	errChan := make(chan error, 1)
 	var cancel func()
@@ -516,21 +536,6 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 		}
 		configChan <- configJSON
 	}()
-
-	var descriptors []xfer.DownloadDescriptor
-
-	// Note that the order of this loop is in the direction of bottom-most
-	// to top-most, so that the downloads slice gets ordered correctly.
-	for _, d := range mfst.References() {
-		layerDescriptor := &v2LayerDescriptor{
-			digest:            d.Digest,
-			repo:              p.repo,
-			repoInfo:          p.repoInfo,
-			V2MetadataService: p.V2MetadataService,
-		}
-
-		descriptors = append(descriptors, layerDescriptor)
-	}
 
 	var (
 		configJSON         []byte       // raw serialized image config

@@ -658,7 +658,7 @@ func (s *DockerSuite) TestPsImageIDAfterUpdate(c *check.C) {
 	out, _, err = runCommandWithOutput(runCmd)
 	c.Assert(err, checker.IsNil)
 
-	runCmd = exec.Command(dockerBinary, "tag", "-f", updatedImageName, originalImageName)
+	runCmd = exec.Command(dockerBinary, "tag", updatedImageName, originalImageName)
 	out, _, err = runCommandWithOutput(runCmd)
 	c.Assert(err, checker.IsNil)
 
@@ -786,4 +786,81 @@ func (s *DockerSuite) TestPsShowMounts(c *check.C) {
 	// empty results filtering by unknown mount point
 	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+prefix+slash+"this-path-was-never-mounted")
 	c.Assert(strings.TrimSpace(string(out)), checker.HasLen, 0)
+}
+
+func (s *DockerSuite) TestPsFormatSize(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	runSleepingContainer(c)
+
+	out, _ := dockerCmd(c, "ps", "--format", "table {{.Size}}")
+	lines := strings.Split(out, "\n")
+	c.Assert(lines[1], checker.Not(checker.Equals), "0 B", check.Commentf("Should not display a size of 0 B"))
+
+	out, _ = dockerCmd(c, "ps", "--size", "--format", "table {{.Size}}")
+	lines = strings.Split(out, "\n")
+	c.Assert(lines[0], checker.Equals, "SIZE", check.Commentf("Should only have one size column"))
+
+	out, _ = dockerCmd(c, "ps", "--size", "--format", "raw")
+	lines = strings.Split(out, "\n")
+	c.Assert(lines[8], checker.HasPrefix, "size:", check.Commentf("Size should be appended on a newline"))
+}
+
+func (s *DockerSuite) TestPsListContainersFilterNetwork(c *check.C) {
+	// TODO default network on Windows is not called "bridge", and creating a
+	// custom network fails on Windows fails with "Error response from daemon: plugin not found")
+	testRequires(c, DaemonIsLinux)
+
+	// create some containers
+	runSleepingContainer(c, "--net=bridge", "--name=onbridgenetwork")
+	runSleepingContainer(c, "--net=none", "--name=onnonenetwork")
+
+	// Filter docker ps on non existing network
+	out, _ := dockerCmd(c, "ps", "--filter", "network=doesnotexist")
+	containerOut := strings.TrimSpace(string(out))
+	lines := strings.Split(containerOut, "\n")
+
+	// skip header
+	lines = lines[1:]
+
+	// ps output should have no containers
+	c.Assert(lines, checker.HasLen, 0)
+
+	// Filter docker ps on network bridge
+	out, _ = dockerCmd(c, "ps", "--filter", "network=bridge")
+	containerOut = strings.TrimSpace(string(out))
+
+	lines = strings.Split(containerOut, "\n")
+
+	// skip header
+	lines = lines[1:]
+
+	// ps output should have only one container
+	c.Assert(lines, checker.HasLen, 1)
+
+	// Making sure onbridgenetwork is on the output
+	c.Assert(containerOut, checker.Contains, "onbridgenetwork", check.Commentf("Missing the container on network\n"))
+
+	// Filter docker ps on networks bridge and none
+	out, _ = dockerCmd(c, "ps", "--filter", "network=bridge", "--filter", "network=none")
+	containerOut = strings.TrimSpace(string(out))
+
+	lines = strings.Split(containerOut, "\n")
+
+	// skip header
+	lines = lines[1:]
+
+	//ps output should have both the containers
+	c.Assert(lines, checker.HasLen, 2)
+
+	// Making sure onbridgenetwork and onnonenetwork is on the output
+	c.Assert(containerOut, checker.Contains, "onnonenetwork", check.Commentf("Missing the container on none network\n"))
+	c.Assert(containerOut, checker.Contains, "onbridgenetwork", check.Commentf("Missing the container on bridge network\n"))
+
+	nwID, _ := dockerCmd(c, "network", "inspect", "--format", "{{.ID}}", "bridge")
+
+	// Filter by network ID
+	out, _ = dockerCmd(c, "ps", "--filter", "network="+nwID)
+	containerOut = strings.TrimSpace(string(out))
+
+	c.Assert(containerOut, checker.Contains, "onbridgenetwork")
 }

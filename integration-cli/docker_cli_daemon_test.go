@@ -1,4 +1,4 @@
-// +build !windows
+// +build linux
 
 package main
 
@@ -28,6 +28,16 @@ import (
 	"github.com/go-check/check"
 	"github.com/kr/pty"
 )
+
+// TestLegacyDaemonCommand test starting docker daemon using "deprecated" docker daemon
+// command. Remove this test when we remove this.
+func (s *DockerDaemonSuite) TestLegacyDaemonCommand(c *check.C) {
+	cmd := exec.Command(dockerBinary, "daemon", "--storage-driver=vfs", "--debug")
+	err := cmd.Start()
+	c.Assert(err, checker.IsNil, check.Commentf("could not start daemon using 'docker daemon'"))
+
+	c.Assert(cmd.Process.Kill(), checker.IsNil)
+}
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithRunningContainersPorts(c *check.C) {
 	if err := s.d.StartWithBusybox(); err != nil {
@@ -439,7 +449,7 @@ func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 }
 
 // TestDaemonIPv6FixedCIDRAndMac checks that when the daemon is started with ipv6 fixed CIDR
-// the running containers are given a an IPv6 address derived from the MAC address and the ipv6 fixed CIDR
+// the running containers are given an IPv6 address derived from the MAC address and the ipv6 fixed CIDR
 func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDRAndMac(c *check.C) {
 	// IPv6 setup is messing with local bridge address.
 	testRequires(c, SameHostDaemon)
@@ -1454,7 +1464,7 @@ func (s *DockerDaemonSuite) TestHttpsRun(c *check.C) {
 
 // TestTlsVerify verifies that --tlsverify=false turns on tls
 func (s *DockerDaemonSuite) TestTlsVerify(c *check.C) {
-	out, err := exec.Command(dockerBinary, "daemon", "--tlsverify=false").CombinedOutput()
+	out, err := exec.Command(dockerdBinary, "--tlsverify=false").CombinedOutput()
 	if err == nil || !strings.Contains(string(out), "Could not load X509 key pair") {
 		c.Fatalf("Daemon should not have started due to missing certs: %v\n%s", err, string(out))
 	}
@@ -1464,7 +1474,7 @@ func (s *DockerDaemonSuite) TestTlsVerify(c *check.C) {
 // by using a rogue client certificate and checks that it fails with the expected error.
 func (s *DockerDaemonSuite) TestHttpsInfoRogueCert(c *check.C) {
 	const (
-		errBadCertificate   = "remote error: bad certificate"
+		errBadCertificate   = "bad certificate"
 		testDaemonHTTPSAddr = "tcp://localhost:4271"
 	)
 
@@ -1577,9 +1587,8 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterGracefulShutdown(c *check.C) {
 
 	// Send SIGINT and daemon should clean up
 	c.Assert(s.d.cmd.Process.Signal(os.Interrupt), check.IsNil)
-
-	// Wait a bit for the daemon to handle cleanups.
-	time.Sleep(3 * time.Second)
+	// Wait for the daemon to stop.
+	c.Assert(<-s.d.wait, checker.IsNil)
 
 	mountOut, err := ioutil.ReadFile("/proc/self/mountinfo")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
@@ -1614,35 +1623,6 @@ func (s *DockerDaemonSuite) TestRunContainerWithBridgeNone(c *check.C) {
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
 	c.Assert(out, check.Equals, fmt.Sprintf("%s", stdout),
 		check.Commentf("The network interfaces in container should be the same with host when --net=host when bridge network is disabled: %s", out))
-}
-
-// os.Kill should kill daemon ungracefully, leaving behind container mounts.
-// A subsequent daemon restart shoud clean up said mounts.
-func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonKill(c *check.C) {
-	testRequires(c, NotExperimentalDaemon)
-	c.Assert(s.d.StartWithBusybox(), check.IsNil)
-
-	out, err := s.d.Cmd("run", "-d", "busybox", "top")
-	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
-	id := strings.TrimSpace(out)
-	c.Assert(s.d.cmd.Process.Signal(os.Kill), check.IsNil)
-	mountOut, err := ioutil.ReadFile("/proc/self/mountinfo")
-	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
-
-	// container mounts should exist even after daemon has crashed.
-	comment := check.Commentf("%s should stay mounted from older daemon start:\nDaemon root repository %s\n%s", id, s.d.folder, mountOut)
-	c.Assert(strings.Contains(string(mountOut), id), check.Equals, true, comment)
-
-	// restart daemon.
-	if err := s.d.Restart(); err != nil {
-		c.Fatal(err)
-	}
-
-	// Now, container mounts should be gone.
-	mountOut, err = ioutil.ReadFile("/proc/self/mountinfo")
-	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
-	comment = check.Commentf("%s is still mounted from older daemon start:\nDaemon root repository %s\n%s", id, s.d.folder, mountOut)
-	c.Assert(strings.Contains(string(mountOut), id), check.Equals, false, comment)
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithContainerRunning(t *check.C) {
@@ -2111,6 +2091,166 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithNames(c *check.C) {
 	c.Assert(test3validated, check.Equals, true)
 }
 
+// TestDaemonRestartWithKilledRunningContainer requires live restore of running containers
+func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check.C) {
+	// TODO(mlaventure): Not sure what would the exit code be on windows
+	testRequires(t, DaemonIsLinux)
+	if err := s.d.StartWithBusybox(); err != nil {
+		t.Fatal(err)
+	}
+
+	cid, err := s.d.Cmd("run", "-d", "--name", "test", "busybox", "top")
+	defer s.d.Stop()
+	if err != nil {
+		t.Fatal(cid, err)
+	}
+	cid = strings.TrimSpace(cid)
+
+	pid, err := s.d.Cmd("inspect", "-f", "{{.State.Pid}}", cid)
+	t.Assert(err, check.IsNil)
+	pid = strings.TrimSpace(pid)
+
+	// Kill the daemon
+	if err := s.d.Kill(); err != nil {
+		t.Fatal(err)
+	}
+
+	// kill the container
+	runCmd := exec.Command(ctrBinary, "--address", "unix:///var/run/docker/libcontainerd/docker-containerd.sock", "containers", "kill", cid)
+	if out, ec, err := runCommandWithOutput(runCmd); err != nil {
+		t.Fatalf("Failed to run ctr, ExitCode: %d, err: '%v' output: '%s' cid: '%s'\n", ec, err, out, cid)
+	}
+
+	// Give time to containerd to process the command if we don't
+	// the exit event might be received after we do the inspect
+	pidCmd := exec.Command("kill", "-0", pid)
+	_, ec, _ := runCommandWithOutput(pidCmd)
+	for ec == 0 {
+		time.Sleep(1 * time.Second)
+		_, ec, _ = runCommandWithOutput(pidCmd)
+	}
+
+	// restart the daemon
+	if err := s.d.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Check that we've got the correct exit code
+	out, err := s.d.Cmd("inspect", "-f", "{{.State.ExitCode}}", cid)
+	t.Assert(err, check.IsNil)
+
+	out = strings.TrimSpace(out)
+	if out != "143" {
+		t.Fatalf("Expected exit code '%s' got '%s' for container '%s'\n", "143", out, cid)
+	}
+
+}
+
+// os.Kill should kill daemon ungracefully, leaving behind live containers.
+// The live containers should be known to the restarted daemon. Stopping
+// them now, should remove the mounts.
+func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonCrash(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	c.Assert(s.d.StartWithBusybox("--live-restore"), check.IsNil)
+
+	out, err := s.d.Cmd("run", "-d", "busybox", "top")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+	id := strings.TrimSpace(out)
+
+	c.Assert(s.d.cmd.Process.Signal(os.Kill), check.IsNil)
+	mountOut, err := ioutil.ReadFile("/proc/self/mountinfo")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
+
+	// container mounts should exist even after daemon has crashed.
+	comment := check.Commentf("%s should stay mounted from older daemon start:\nDaemon root repository %s\n%s", id, s.d.folder, mountOut)
+	c.Assert(strings.Contains(string(mountOut), id), check.Equals, true, comment)
+
+	// restart daemon.
+	if err := s.d.Restart("--live-restore"); err != nil {
+		c.Fatal(err)
+	}
+
+	// container should be running.
+	out, err = s.d.Cmd("inspect", "--format='{{.State.Running}}'", id)
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+	out = strings.TrimSpace(out)
+	if out != "true" {
+		c.Fatalf("Container %s expected to stay alive after daemon restart", id)
+	}
+
+	// 'docker stop' should work.
+	out, err = s.d.Cmd("stop", id)
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+
+	// Now, container mounts should be gone.
+	mountOut, err = ioutil.ReadFile("/proc/self/mountinfo")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
+	comment = check.Commentf("%s is still mounted from older daemon start:\nDaemon root repository %s\n%s", id, s.d.folder, mountOut)
+	c.Assert(strings.Contains(string(mountOut), id), check.Equals, false, comment)
+}
+
+// TestDaemonRestartWithUnpausedRunningContainer requires live restore of running containers.
+func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *check.C) {
+	// TODO(mlaventure): Not sure what would the exit code be on windows
+	testRequires(t, DaemonIsLinux)
+	if err := s.d.StartWithBusybox("--live-restore"); err != nil {
+		t.Fatal(err)
+	}
+
+	cid, err := s.d.Cmd("run", "-d", "--name", "test", "busybox", "top")
+	defer s.d.Stop()
+	if err != nil {
+		t.Fatal(cid, err)
+	}
+	cid = strings.TrimSpace(cid)
+
+	pid, err := s.d.Cmd("inspect", "-f", "{{.State.Pid}}", cid)
+	t.Assert(err, check.IsNil)
+	pid = strings.TrimSpace(pid)
+
+	// pause the container
+	if _, err := s.d.Cmd("pause", cid); err != nil {
+		t.Fatal(cid, err)
+	}
+
+	// Kill the daemon
+	if err := s.d.Kill(); err != nil {
+		t.Fatal(err)
+	}
+
+	// resume the container
+	runCmd := exec.Command(ctrBinary, "--address", "unix:///var/run/docker/libcontainerd/docker-containerd.sock", "containers", "resume", cid)
+	if out, ec, err := runCommandWithOutput(runCmd); err != nil {
+		t.Fatalf("Failed to run ctr, ExitCode: %d, err: '%v' output: '%s' cid: '%s'\n", ec, err, out, cid)
+	}
+
+	// Give time to containerd to process the command if we don't
+	// the resume event might be received after we do the inspect
+	pidCmd := exec.Command("kill", "-0", pid)
+	_, ec, _ := runCommandWithOutput(pidCmd)
+	for ec == 0 {
+		time.Sleep(1 * time.Second)
+		_, ec, _ = runCommandWithOutput(pidCmd)
+	}
+
+	// restart the daemon
+	if err := s.d.Start("--live-restore"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Check that we've got the correct status
+	out, err := s.d.Cmd("inspect", "-f", "{{.State.Status}}", cid)
+	t.Assert(err, check.IsNil)
+
+	out = strings.TrimSpace(out)
+	if out != "running" {
+		t.Fatalf("Expected exit code '%s' got '%s' for container '%s'\n", "running", out, cid)
+	}
+	if _, err := s.d.Cmd("kill", cid); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // TestRunLinksChanged checks that creating a new container with the same name does not update links
 // this ensures that the old, pre gh#16032 functionality continues on
 func (s *DockerDaemonSuite) TestRunLinksChanged(c *check.C) {
@@ -2348,4 +2488,232 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *chec
 	content, _ = ioutil.ReadFile(s.d.logFile.Name())
 	c.Assert(string(content), checker.Contains, expectedMaxConcurrentUploads)
 	c.Assert(string(content), checker.Contains, expectedMaxConcurrentDownloads)
+}
+
+func (s *DockerDaemonSuite) TestBuildOnDisabledBridgeNetworkDaemon(c *check.C) {
+	err := s.d.StartWithBusybox("-b=none", "--iptables=false")
+	c.Assert(err, check.IsNil)
+	s.d.c.Logf("dockerBinary %s", dockerBinary)
+	out, code, err := s.d.buildImageWithOut("busyboxs",
+		`FROM busybox
+                RUN cat /etc/hosts`, false)
+	comment := check.Commentf("Failed to build image. output %s, exitCode %d, err %v", out, code, err)
+	c.Assert(err, check.IsNil, comment)
+	c.Assert(code, check.Equals, 0, comment)
+}
+
+// Test case for #21976
+func (s *DockerDaemonSuite) TestDaemonDNSInHostMode(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	err := s.d.StartWithBusybox("--dns", "1.2.3.4")
+	c.Assert(err, checker.IsNil)
+
+	expectedOutput := "nameserver 1.2.3.4"
+	out, _ := s.d.Cmd("run", "--net=host", "busybox", "cat", "/etc/resolv.conf")
+	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
+}
+
+// Test case for #21976
+func (s *DockerDaemonSuite) TestDaemonDNSSearchInHostMode(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	err := s.d.StartWithBusybox("--dns-search", "example.com")
+	c.Assert(err, checker.IsNil)
+
+	expectedOutput := "search example.com"
+	out, _ := s.d.Cmd("run", "--net=host", "busybox", "cat", "/etc/resolv.conf")
+	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
+}
+
+// Test case for #21976
+func (s *DockerDaemonSuite) TestDaemonDNSOptionsInHostMode(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	err := s.d.StartWithBusybox("--dns-opt", "timeout:3")
+	c.Assert(err, checker.IsNil)
+
+	expectedOutput := "options timeout:3"
+	out, _ := s.d.Cmd("run", "--net=host", "busybox", "cat", "/etc/resolv.conf")
+	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
+}
+
+func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
+	conf, err := ioutil.TempFile("", "config-file-")
+	c.Assert(err, check.IsNil)
+	configName := conf.Name()
+	conf.Close()
+	defer os.Remove(configName)
+
+	config := `
+{
+    "runtimes": {
+        "oci": {
+            "path": "docker-runc"
+        },
+        "vm": {
+            "path": "/usr/local/bin/vm-manager",
+            "runtimeArgs": [
+                "--debug"
+            ]
+        }
+    }
+}
+`
+	ioutil.WriteFile(configName, []byte(config), 0644)
+	err = s.d.StartWithBusybox("--config-file", configName)
+	c.Assert(err, check.IsNil)
+
+	// Run with default runtime
+	out, err := s.d.Cmd("run", "--rm", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with default runtime explicitly
+	out, err = s.d.Cmd("run", "--rm", "--runtime=runc", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with oci (same path as default) but keep it around
+	out, err = s.d.Cmd("run", "--name", "oci-runtime-ls", "--runtime=oci", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with "vm"
+	out, err = s.d.Cmd("run", "--rm", "--runtime=vm", "busybox", "ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
+
+	// Reset config to only have the default
+	config = `
+{
+    "runtimes": {
+    }
+}
+`
+	ioutil.WriteFile(configName, []byte(config), 0644)
+	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+	// Give daemon time to reload config
+	<-time.After(1 * time.Second)
+
+	// Run with default runtime
+	out, err = s.d.Cmd("run", "--rm", "--runtime=runc", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with "oci"
+	out, err = s.d.Cmd("run", "--rm", "--runtime=oci", "busybox", "ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Unknown runtime specified oci")
+
+	// Start previously created container with oci
+	out, err = s.d.Cmd("start", "oci-runtime-ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Unknown runtime specified oci")
+
+	// Check that we can't override the default runtime
+	config = `
+{
+    "runtimes": {
+        "runc": {
+            "path": "my-runc"
+        }
+    }
+}
+`
+	ioutil.WriteFile(configName, []byte(config), 0644)
+	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+	// Give daemon time to reload config
+	<-time.After(1 * time.Second)
+
+	content, _ := ioutil.ReadFile(s.d.logFile.Name())
+	c.Assert(string(content), checker.Contains, `file configuration validation failed (runtime name 'runc' is reserved)`)
+
+	// Check that we can select a default runtime
+	config = `
+{
+    "default-runtime": "vm",
+    "runtimes": {
+        "oci": {
+            "path": "docker-runc"
+        },
+        "vm": {
+            "path": "/usr/local/bin/vm-manager",
+            "runtimeArgs": [
+                "--debug"
+            ]
+        }
+    }
+}
+`
+	ioutil.WriteFile(configName, []byte(config), 0644)
+	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+	// Give daemon time to reload config
+	<-time.After(1 * time.Second)
+
+	out, err = s.d.Cmd("run", "--rm", "busybox", "ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
+
+	// Run with default runtime explicitly
+	out, err = s.d.Cmd("run", "--rm", "--runtime=runc", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+}
+
+func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *check.C) {
+	err := s.d.StartWithBusybox("--add-runtime", "oci=docker-runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
+	c.Assert(err, check.IsNil)
+
+	// Run with default runtime
+	out, err := s.d.Cmd("run", "--rm", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with default runtime explicitly
+	out, err = s.d.Cmd("run", "--rm", "--runtime=runc", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with oci (same path as default) but keep it around
+	out, err = s.d.Cmd("run", "--name", "oci-runtime-ls", "--runtime=oci", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with "vm"
+	out, err = s.d.Cmd("run", "--rm", "--runtime=vm", "busybox", "ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
+
+	// Start a daemon without any extra runtimes
+	s.d.Stop()
+	err = s.d.StartWithBusybox()
+	c.Assert(err, check.IsNil)
+
+	// Run with default runtime
+	out, err = s.d.Cmd("run", "--rm", "--runtime=runc", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// Run with "oci"
+	out, err = s.d.Cmd("run", "--rm", "--runtime=oci", "busybox", "ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Unknown runtime specified oci")
+
+	// Start previously created container with oci
+	out, err = s.d.Cmd("start", "oci-runtime-ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Unknown runtime specified oci")
+
+	// Check that we can't override the default runtime
+	s.d.Stop()
+	err = s.d.Start("--add-runtime", "runc=my-runc")
+	c.Assert(err, check.NotNil)
+
+	content, _ := ioutil.ReadFile(s.d.logFile.Name())
+	c.Assert(string(content), checker.Contains, `runtime name 'runc' is reserved`)
+
+	// Check that we can select a default runtime
+	s.d.Stop()
+	err = s.d.StartWithBusybox("--default-runtime=vm", "--add-runtime", "oci=docker-runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
+	c.Assert(err, check.IsNil)
+
+	out, err = s.d.Cmd("run", "--rm", "busybox", "ls")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "/usr/local/bin/vm-manager: no such file or directory")
+
+	// Run with default runtime explicitly
+	out, err = s.d.Cmd("run", "--rm", "--runtime=runc", "busybox", "ls")
+	c.Assert(err, check.IsNil, check.Commentf(out))
 }

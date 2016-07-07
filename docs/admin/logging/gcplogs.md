@@ -5,7 +5,6 @@ description = "Describes how to use the Google Cloud Logging driver."
 keywords = ["gcplogs, google, docker, logging, driver"]
 [menu.main]
 parent = "smn_logging"
-weight = 2
 +++
 <![end-metadata]-->
 
@@ -35,7 +34,7 @@ Otherwise, the user must specify which project to log to using the `--gcp-projec
 log option and Docker will attempt to obtain credentials from the
 <a href="https://developers.google.com/identity/protocols/application-default-credentials" target="_blank">Google Application Default Credential</a>.
 The `--gcp-project` takes precedence over information discovered from the metadata server
-so a Docker daemon running in a Google Cloud Project can be overriden to log to a different
+so a Docker daemon running in a Google Cloud Project can be overridden to log to a different
 Google Cloud Project using `--gcp-project`.
 
 ## gcplogs options

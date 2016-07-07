@@ -18,12 +18,12 @@ func setupBridgeIPv4(config *networkConfiguration, i *bridgeInterface) error {
 
 	if !types.CompareIPNet(addrv4.IPNet, config.AddressIPv4) {
 		if addrv4.IPNet != nil {
-			if err := netlink.AddrDel(i.Link, &addrv4); err != nil {
+			if err := i.nlh.AddrDel(i.Link, &addrv4); err != nil {
 				return fmt.Errorf("failed to remove current ip address from bridge: %v", err)
 			}
 		}
 		log.Debugf("Assigning address to bridge interface %s: %s", config.BridgeName, config.AddressIPv4)
-		if err := netlink.AddrAdd(i.Link, &netlink.Addr{IPNet: config.AddressIPv4}); err != nil {
+		if err := i.nlh.AddrAdd(i.Link, &netlink.Addr{IPNet: config.AddressIPv4}); err != nil {
 			return &IPv4AddrAddError{IP: config.AddressIPv4, Err: err}
 		}
 	}

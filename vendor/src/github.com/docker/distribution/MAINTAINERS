@@ -32,11 +32,6 @@
 	Email = "aaron.lehmann@docker.com"
 	GitHub = "aaronlehmann"
 
-	[people.brianbland]
-	Name = "Brian Bland"
-	Email = "brian.bland@docker.com"
-	GitHub = "BrianBland"
-
 	[people.dmcgowan]
 	Name = "Derek McGowan"
 	Email = "derek@mcgstyle.net"

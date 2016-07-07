@@ -40,5 +40,5 @@ func (s *DockerSuite) TestResizeApiResponseWhenContainerNotStarted(c *check.C) {
 	c.Assert(status, check.Equals, http.StatusInternalServerError)
 	c.Assert(err, check.IsNil)
 
-	c.Assert(string(body), checker.Contains, "is not running", check.Commentf("resize should fail with message 'Container is not running'"))
+	c.Assert(getErrorMessage(c, body), checker.Contains, "is not running", check.Commentf("resize should fail with message 'Container is not running'"))
 }

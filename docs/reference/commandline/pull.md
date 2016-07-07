@@ -29,7 +29,7 @@ use `docker pull`.
 
 ## Proxy configuration
 
-If you are behind a HTTP proxy server, for example in corporate settings,
+If you are behind an HTTP proxy server, for example in corporate settings,
 before open a connect to registry, you may need to configure the Docker
 daemon's proxy settings, using the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY`
 environment variables. To set these environment variables on a host using
@@ -162,7 +162,7 @@ MAINTAINER some maintainer <maintainer@example.com>
 
 ## Pulling from a different registry
 
-By default, `docker pull` pulls images from Docker Hub. It is also possible to
+By default, `docker pull` pulls images from [Docker Hub](https://hub.docker.com). It is also possible to
 manually specify the path of a registry to pull from. For example, if you have
 set up a local registry, you can specify its path to pull from it. A registry
 path is similar to a URL, but does not contain a protocol specifier (`https://`).

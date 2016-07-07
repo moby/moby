@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -182,7 +183,10 @@ func (s *DockerSuite) TestExecTTYWithoutStdin(c *check.C) {
 			return
 		}
 
-		expected := "cannot enable tty mode"
+		expected := "the input device is not a TTY"
+		if runtime.GOOS == "windows" {
+			expected += ".  If you are using mintty, try prefixing the command with 'winpty'"
+		}
 		if out, _, err := runCommandWithOutput(cmd); err == nil {
 			errChan <- fmt.Errorf("exec should have failed")
 			return

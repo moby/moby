@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 )
 
@@ -14,6 +15,7 @@ type roLayer struct {
 	cacheID    string
 	size       int64
 	layerStore *layerStore
+	descriptor distribution.Descriptor
 
 	referenceCount int
 	references     map[Layer]struct{}
@@ -117,6 +119,12 @@ func storeLayer(tx MetadataTransaction, layer *roLayer) error {
 	}
 	if err := tx.SetCacheID(layer.cacheID); err != nil {
 		return err
+	}
+	// Do not store empty descriptors
+	if layer.descriptor.Digest != "" {
+		if err := tx.SetDescriptor(layer.descriptor); err != nil {
+			return err
+		}
 	}
 	if layer.parent != nil {
 		if err := tx.SetParent(layer.parent.chainID); err != nil {

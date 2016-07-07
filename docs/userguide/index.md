@@ -1,12 +1,12 @@
 <!--[metadata]>
 +++
-title = "User guide"
+title = "User Guide"
 description = "How to use the Docker Engine user guide"
 keywords = ["engine, introduction, documentation, about, technology, docker, user, guide, framework, home,  intro"]
 [menu.main]
 parent="engine_use"
 identifier = "engine_guide"
-weight="-80"
+weight="-78"
 +++
 <![end-metadata]-->
 
@@ -18,12 +18,12 @@ This guide helps users learn how to use Docker Engine.
 
 ## Learn by example
 
-- [Hello world in a container](containers/dockerizing.md)
-- [Build your own images](containers/dockerimages.md)
-- [Network containers](containers/networkingcontainers.md)
-- [Run a simple application](containers/usingdocker.md)
-- [Manage data in containers](containers/dockervolumes.md)
-- [Store images on Docker Hub](containers/dockerrepos.md)
+- [Hello world in a container](../tutorials/dockerizing.md)
+- [Build your own images](../tutorials/dockerimages.md)
+- [Network containers](../tutorials/networkingcontainers.md)
+- [Run a simple application](../tutorials/usingdocker.md)
+- [Manage data in containers](../tutorials/dockervolumes.md)
+- [Store images on Docker Hub](../tutorials/dockerrepos.md)
 
 ## Work with images
 

@@ -16,7 +16,7 @@ func TestAtomicWriteToFile(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	expected := []byte("barbaz")
-	if err := AtomicWriteFile(filepath.Join(tmpDir, "foo"), expected, 0600); err != nil {
+	if err := AtomicWriteFile(filepath.Join(tmpDir, "foo"), expected, 0666); err != nil {
 		t.Fatalf("Error writing to file: %v", err)
 	}
 
@@ -27,5 +27,13 @@ func TestAtomicWriteToFile(t *testing.T) {
 
 	if bytes.Compare(actual, expected) != 0 {
 		t.Fatalf("Data mismatch, expected %q, got %q", expected, actual)
+	}
+
+	st, err := os.Stat(filepath.Join(tmpDir, "foo"))
+	if err != nil {
+		t.Fatalf("Error statting file: %v", err)
+	}
+	if expected := os.FileMode(0666); st.Mode() != expected {
+		t.Fatalf("Mode mismatched, expected %o, got %o", expected, st.Mode())
 	}
 }

@@ -21,3 +21,7 @@ func normaliseWorkdir(current string, requested string) (string, error) {
 	}
 	return requested, nil
 }
+
+func errNotJSON(command, _ string) error {
+	return fmt.Errorf("%s requires the arguments to be in JSON form", command)
+}

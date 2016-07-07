@@ -10,8 +10,10 @@ import (
 )
 
 var (
-	// the docker binary to use
+	// the docker client binary to use
 	dockerBinary = "docker"
+	// the docker daemon binary to use
+	dockerdBinary = "dockerd"
 
 	// path to containerd's ctr binary
 	ctrBinary = "docker-containerd-ctr"

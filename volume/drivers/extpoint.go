@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/pkg/locker"
-	"github.com/docker/docker/pkg/plugins"
+	"github.com/docker/docker/plugin"
 	"github.com/docker/docker/volume"
 )
 
@@ -24,15 +24,12 @@ func NewVolumeDriver(name string, c client) volume.Driver {
 	return &volumeDriverAdapter{name: name, proxy: proxy}
 }
 
-type opts map[string]string
-type list []*proxyVolume
-
 // volumeDriver defines the available functions that volume plugins must implement.
 // This interface is only defined to generate the proxy objects.
 // It's not intended to be public or reused.
 type volumeDriver interface {
 	// Create a volume with the given name
-	Create(name string, opts opts) (err error)
+	Create(name string, opts map[string]string) (err error)
 	// Remove the volume with the given name
 	Remove(name string) (err error)
 	// Get the mountpoint of the given volume
@@ -42,9 +39,11 @@ type volumeDriver interface {
 	// Unmount the given volume
 	Unmount(name, id string) (err error)
 	// List lists all the volumes known to the driver
-	List() (volumes list, err error)
+	List() (volumes []*proxyVolume, err error)
 	// Get retrieves the volume with the requested name
 	Get(name string) (volume *proxyVolume, err error)
+	// Capabilities gets the list of capabilities of the driver
+	Capabilities() (capabilities volume.Capability, err error)
 }
 
 type driverExtpoint struct {
@@ -67,6 +66,11 @@ func Register(extension volume.Driver, name string) bool {
 	if exists {
 		return false
 	}
+
+	if err := validateDriver(extension); err != nil {
+		return false
+	}
+
 	drivers.extensions[name] = extension
 	return true
 }
@@ -84,10 +88,10 @@ func Unregister(name string) bool {
 	return true
 }
 
-// Lookup returns the driver associated with the given name. If a
+// lookup returns the driver associated with the given name. If a
 // driver with the given name has not been registered it checks if
 // there is a VolumeDriver plugin available with the given name.
-func Lookup(name string) (volume.Driver, error) {
+func lookup(name string) (volume.Driver, error) {
 	drivers.driverLock.Lock(name)
 	defer drivers.driverLock.Unlock(name)
 
@@ -98,7 +102,7 @@ func Lookup(name string) (volume.Driver, error) {
 		return ext, nil
 	}
 
-	pl, err := plugins.Get(name, extName)
+	p, err := plugin.LookupWithCapability(name, extName)
 	if err != nil {
 		return nil, fmt.Errorf("Error looking up volume plugin %s: %v", name, err)
 	}
@@ -109,9 +113,21 @@ func Lookup(name string) (volume.Driver, error) {
 		return ext, nil
 	}
 
-	d := NewVolumeDriver(name, pl.Client)
+	d := NewVolumeDriver(name, p.Client())
+	if err := validateDriver(d); err != nil {
+		return nil, err
+	}
+
 	drivers.extensions[name] = d
 	return d, nil
+}
+
+func validateDriver(vd volume.Driver) error {
+	scope := vd.Scope()
+	if scope != volume.LocalScope && scope != volume.GlobalScope {
+		return fmt.Errorf("Driver %q provided an invalid capability scope: %s", vd.Name(), scope)
+	}
+	return nil
 }
 
 // GetDriver returns a volume driver by its name.
@@ -120,7 +136,7 @@ func GetDriver(name string) (volume.Driver, error) {
 	if name == "" {
 		name = volume.DefaultDriverName
 	}
-	return Lookup(name)
+	return lookup(name)
 }
 
 // GetDriverList returns list of volume drivers registered.
@@ -137,9 +153,9 @@ func GetDriverList() []string {
 
 // GetAllDrivers lists all the registered drivers
 func GetAllDrivers() ([]volume.Driver, error) {
-	plugins, err := plugins.GetAll(extName)
+	plugins, err := plugin.FindWithCapability(extName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error listing plugins: %v", err)
 	}
 	var ds []volume.Driver
 
@@ -151,13 +167,14 @@ func GetAllDrivers() ([]volume.Driver, error) {
 	}
 
 	for _, p := range plugins {
-		ext, ok := drivers.extensions[p.Name]
+		name := p.Name()
+		ext, ok := drivers.extensions[name]
 		if ok {
 			continue
 		}
 
-		ext = NewVolumeDriver(p.Name, p.Client)
-		drivers.extensions[p.Name] = ext
+		ext = NewVolumeDriver(name, p.Client())
+		drivers.extensions[name] = ext
 		ds = append(ds, ext)
 	}
 	return ds, nil

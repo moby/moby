@@ -28,7 +28,7 @@ This guide is broken into major sections that take you through learning the basi
 Docker Engine offers a containerization platform to power your applications. To
 learn how to Dockerize applications and run them:
 
-Go to [Dockerizing Applications](containers/dockerizing.md).
+Go to [Dockerizing Applications](../tutorials/dockerizing.md).
 
 
 ## Working with containers
@@ -38,7 +38,7 @@ Go to [Dockerizing Applications](containers/dockerizing.md).
 Once you get a grip on running your applications in Docker containers, you'll learn how to manage those containers. To find out
 about how to inspect, monitor and manage containers:
 
-Go to [Working with Containers](containers/usingdocker.md).
+Go to [Working with Containers](../tutorials/usingdocker.md).
 
 ## Working with Docker images
 
@@ -47,7 +47,7 @@ Go to [Working with Containers](containers/usingdocker.md).
 Once you've learnt how to use Docker it's time to take the next step and
 learn how to build your own application images with Docker.
 
-Go to [Working with Docker Images](containers/dockerimages.md).
+Go to [Working with Docker Images](../tutorials/dockerimages.md).
 
 ## Networking containers
 
@@ -55,14 +55,14 @@ Until now we've seen how to build individual applications inside Docker
 containers. Now learn how to build whole application stacks with Docker
 networking.
 
-Go to [Networking Containers](containers/networkingcontainers.md).
+Go to [Networking Containers](../tutorials/networkingcontainers.md).
 
 ## Managing data in containers
 
 Now we know how to link Docker containers together the next step is
 learning how to manage data, volumes and mounts inside our containers.
 
-Go to [Managing Data in Containers](containers/dockervolumes.md).
+Go to [Managing Data in Containers](../tutorials/dockervolumes.md).
 
 ## Docker products that complement Engine
 
@@ -74,7 +74,7 @@ Docker Hub is the central hub for Docker. It hosts public Docker images
 and provides services to help you build and manage your Docker
 environment. To learn more:
 
-Go to [Using Docker Hub](https://docs.docker.com/docker-hub).
+Go to [Using Docker Hub](https://docs.docker.com/docker-hub/).
 
 ### Docker Machine
 
@@ -87,7 +87,7 @@ Go to [Docker Machine user guide](https://docs.docker.com/machine/).
 
 ### Docker Compose
 
-Docker Compose allows you to define a application's components -- their containers,
+Docker Compose allows you to define an application's components -- their containers,
 configuration, links and volumes -- in a single file. Then a single command
 will set everything up and start your application running.
 
@@ -108,7 +108,7 @@ Go to [Docker Swarm user guide](https://docs.docker.com/swarm/).
 * [Docker Hub](https://hub.docker.com)
 * [Docker blog](https://blog.docker.com/)
 * [Docker documentation](https://docs.docker.com/)
-* [Docker Getting Started Guide](https://docs.docker.com/mac/started/)
+* [Docker Getting Started Guide](../getstarted/index.md)
 * [Docker code on GitHub](https://github.com/docker/docker)
 * [Docker mailing
   list](https://groups.google.com/forum/#!forum/docker-user)

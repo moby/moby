@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,9 +24,6 @@ import (
 
 // Daemon represents a Docker daemon for the testing framework.
 type Daemon struct {
-	// Defaults to "daemon"
-	// Useful to set to --daemon or -d for checking backwards compatibility
-	Command     string
 	GlobalFlags []string
 
 	id                string
@@ -72,7 +70,6 @@ func NewDaemon(c *check.C) *Daemon {
 	}
 
 	return &Daemon{
-		Command:       "daemon",
 		id:            id,
 		c:             c,
 		folder:        daemonFolder,
@@ -137,11 +134,10 @@ func (d *Daemon) Start(args ...string) error {
 
 // StartWithLogFile will start the daemon and attach its streams to a given file.
 func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
-	dockerBinary, err := exec.LookPath(dockerBinary)
+	dockerdBinary, err := exec.LookPath(dockerdBinary)
 	d.c.Assert(err, check.IsNil, check.Commentf("[%s] could not find docker binary in $PATH", d.id))
 
 	args := append(d.GlobalFlags,
-		d.Command,
 		"--containerd", "/var/run/docker/libcontainerd/docker-containerd.sock",
 		"--graph", d.root,
 		"--exec-root", filepath.Join(d.folder, "exec-root"),
@@ -175,8 +171,8 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	}
 
 	args = append(args, providedArgs...)
-	d.cmd = exec.Command(dockerBinary, args...)
-
+	d.cmd = exec.Command(dockerdBinary, args...)
+	d.cmd.Env = append(os.Environ(), "DOCKER_SERVICE_PREFER_OFFLINE_IMAGE=1")
 	d.cmd.Stdout = out
 	d.cmd.Stderr = out
 	d.logFile = out
@@ -297,9 +293,9 @@ out1:
 		select {
 		case err := <-d.wait:
 			return err
-		case <-time.After(15 * time.Second):
+		case <-time.After(20 * time.Second):
 			// time for stopping jobs and run onShutdown hooks
-			d.c.Log("timeout")
+			d.c.Logf("timeout: %v", d.id)
 			break out1
 		}
 	}
@@ -311,7 +307,7 @@ out2:
 			return err
 		case <-tick:
 			i++
-			if i > 4 {
+			if i > 5 {
 				d.c.Logf("tried to interrupt daemon for %d times, now try to kill it", i)
 				break out2
 			}
@@ -457,6 +453,27 @@ func (d *Daemon) CmdWithArgs(daemonArgs []string, name string, arg ...string) (s
 	return string(b), err
 }
 
+// SockRequest executes a socket request on a daemon and returns statuscode and output.
+func (d *Daemon) SockRequest(method, endpoint string, data interface{}) (int, []byte, error) {
+	jsonData := bytes.NewBuffer(nil)
+	if err := json.NewEncoder(jsonData).Encode(data); err != nil {
+		return -1, nil, err
+	}
+
+	res, body, err := d.SockRequestRaw(method, endpoint, jsonData, "application/json")
+	if err != nil {
+		return -1, nil, err
+	}
+	b, err := readBody(body)
+	return res.StatusCode, b, err
+}
+
+// SockRequestRaw executes a socket request on a daemon and returns a http
+// response and a reader for the output data.
+func (d *Daemon) SockRequestRaw(method, endpoint string, data io.Reader, ct string) (*http.Response, io.ReadCloser, error) {
+	return sockRequestRawToDaemon(method, endpoint, data, ct, d.sock())
+}
+
 // LogFileName returns the path the the daemon's log file
 func (d *Daemon) LogFileName() string {
 	return d.logFile.Name()
@@ -464,6 +481,16 @@ func (d *Daemon) LogFileName() string {
 
 func (d *Daemon) getIDByName(name string) (string, error) {
 	return d.inspectFieldWithError(name, "Id")
+}
+
+func (d *Daemon) activeContainers() (ids []string) {
+	out, _ := d.Cmd("ps", "-q")
+	for _, id := range strings.Split(out, "\n") {
+		if id = strings.TrimSpace(id); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return
 }
 
 func (d *Daemon) inspectFilter(name, filter string) (string, error) {
@@ -485,4 +512,18 @@ func (d *Daemon) findContainerIP(id string) string {
 		d.c.Log(err)
 	}
 	return strings.Trim(out, " \r\n'")
+}
+
+func (d *Daemon) buildImageWithOut(name, dockerfile string, useCache bool, buildFlags ...string) (string, int, error) {
+	buildCmd := buildImageCmdWithHost(name, dockerfile, d.sock(), useCache, buildFlags...)
+	return runCommandWithOutput(buildCmd)
+}
+
+func (d *Daemon) checkActiveContainerCount(c *check.C) (interface{}, check.CommentInterface) {
+	out, err := d.Cmd("ps", "-q")
+	c.Assert(err, checker.IsNil)
+	if len(strings.TrimSpace(out)) == 0 {
+		return 0, nil
+	}
+	return len(strings.Split(strings.TrimSpace(out), "\n")), check.Commentf("output: %q", string(out))
 }

@@ -4,8 +4,6 @@ var (
 	// Slice of drivers that should be used in order
 	priority = []string{
 		"windowsfilter",
-		"windowsdiff",
-		"vfs",
 	}
 )
 

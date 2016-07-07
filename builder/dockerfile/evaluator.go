@@ -58,22 +58,24 @@ var evaluateTable map[string]func(*Builder, []string, map[string]bool, string) e
 
 func init() {
 	evaluateTable = map[string]func(*Builder, []string, map[string]bool, string) error{
-		command.Env:        env,
-		command.Label:      label,
-		command.Maintainer: maintainer,
-		command.Add:        add,
-		command.Copy:       dispatchCopy, // copy() is a go builtin
-		command.From:       from,
-		command.Onbuild:    onbuild,
-		command.Workdir:    workdir,
-		command.Run:        run,
-		command.Cmd:        cmd,
-		command.Entrypoint: entrypoint,
-		command.Expose:     expose,
-		command.Volume:     volume,
-		command.User:       user,
-		command.StopSignal: stopSignal,
-		command.Arg:        arg,
+		command.Add:         add,
+		command.Arg:         arg,
+		command.Cmd:         cmd,
+		command.Copy:        dispatchCopy, // copy() is a go builtin
+		command.Entrypoint:  entrypoint,
+		command.Env:         env,
+		command.Expose:      expose,
+		command.From:        from,
+		command.Healthcheck: healthcheck,
+		command.Label:       label,
+		command.Maintainer:  maintainer,
+		command.Onbuild:     onbuild,
+		command.Run:         run,
+		command.Shell:       shell,
+		command.StopSignal:  stopSignal,
+		command.User:        user,
+		command.Volume:      volume,
+		command.Workdir:     workdir,
 	}
 }
 

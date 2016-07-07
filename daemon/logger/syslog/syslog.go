@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -91,7 +90,7 @@ func rfc5424microformatterWithAppNameAsTag(p syslog.Priority, hostname, tag, con
 // the context. Supported context configuration variables are
 // syslog-address, syslog-facility, syslog-format.
 func New(ctx logger.Context) (logger.Logger, error) {
-	tag, err := loggerutils.ParseLogTag(ctx, "{{.ID}}")
+	tag, err := loggerutils.ParseLogTag(ctx, "{{.DaemonName}}/{{.ID}}")
 	if err != nil {
 		return nil, err
 	}
@@ -111,17 +110,15 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		return nil, err
 	}
 
-	logTag := path.Base(os.Args[0]) + "/" + tag
-
 	var log *syslog.Writer
 	if proto == secureProto {
 		tlsConfig, tlsErr := parseTLSConfig(ctx.Config)
 		if tlsErr != nil {
 			return nil, tlsErr
 		}
-		log, err = syslog.DialWithTLSConfig(proto, address, facility, logTag, tlsConfig)
+		log, err = syslog.DialWithTLSConfig(proto, address, facility, tag, tlsConfig)
 	} else {
-		log, err = syslog.Dial(proto, address, facility, logTag)
+		log, err = syslog.Dial(proto, address, facility, tag)
 	}
 
 	if err != nil {

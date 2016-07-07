@@ -12,13 +12,14 @@ parent = "smn_cli"
 
     Usage:  docker network connect [OPTIONS] NETWORK CONTAINER
 
-    Connects a container to a network
+    Connect a container to a network
 
       --alias=[]         Add network-scoped alias for the container
       --help             Print usage
       --ip               IPv4 Address
       --ip6              IPv6 Address
       --link=[]          Add a link to another container
+      --link-local-ip=[] IPv4/IPv6 link-local addresses
 
 Connects a container to a network. You can connect a container by name
 or by ID. Once connected, the container can communicate with other containers in

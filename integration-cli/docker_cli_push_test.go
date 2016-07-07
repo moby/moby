@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/distribution/digest"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
@@ -215,7 +215,7 @@ func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *check.C) {
 	// ensure that none of the layers were mounted from another repository during push
 	c.Assert(strings.Contains(out1, "Mounted from"), check.Equals, false)
 
-	digest1 := digest.DigestRegexp.FindString(out1)
+	digest1 := reference.DigestRegexp.FindString(out1)
 	c.Assert(len(digest1), checker.GreaterThan, 0, check.Commentf("no digest found for pushed manifest"))
 
 	destRepoName := fmt.Sprintf("%v/dockercli/crossrepopush", privateRegistryURL)
@@ -227,15 +227,23 @@ func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *check.C) {
 	// ensure that layers were mounted from the first repo during push
 	c.Assert(strings.Contains(out2, "Mounted from dockercli/busybox"), check.Equals, true)
 
-	digest2 := digest.DigestRegexp.FindString(out2)
+	digest2 := reference.DigestRegexp.FindString(out2)
 	c.Assert(len(digest2), checker.GreaterThan, 0, check.Commentf("no digest found for pushed manifest"))
 	c.Assert(digest1, check.Equals, digest2)
+
+	// ensure that pushing again produces the same digest
+	out3, _, err := dockerCmdWithError("push", destRepoName)
+	c.Assert(err, check.IsNil, check.Commentf("pushing the image to the private registry has failed: %s", out2))
+
+	digest3 := reference.DigestRegexp.FindString(out3)
+	c.Assert(len(digest2), checker.GreaterThan, 0, check.Commentf("no digest found for pushed manifest"))
+	c.Assert(digest3, check.Equals, digest2)
 
 	// ensure that we can pull and run the cross-repo-pushed repository
 	dockerCmd(c, "rmi", destRepoName)
 	dockerCmd(c, "pull", destRepoName)
-	out3, _ := dockerCmd(c, "run", destRepoName, "echo", "-n", "hello world")
-	c.Assert(out3, check.Equals, "hello world")
+	out4, _ := dockerCmd(c, "run", destRepoName, "echo", "-n", "hello world")
+	c.Assert(out4, check.Equals, "hello world")
 }
 
 func (s *DockerSchema1RegistrySuite) TestCrossRepositoryLayerPushNotSupported(c *check.C) {
@@ -248,7 +256,7 @@ func (s *DockerSchema1RegistrySuite) TestCrossRepositoryLayerPushNotSupported(c 
 	// ensure that none of the layers were mounted from another repository during push
 	c.Assert(strings.Contains(out1, "Mounted from"), check.Equals, false)
 
-	digest1 := digest.DigestRegexp.FindString(out1)
+	digest1 := reference.DigestRegexp.FindString(out1)
 	c.Assert(len(digest1), checker.GreaterThan, 0, check.Commentf("no digest found for pushed manifest"))
 
 	destRepoName := fmt.Sprintf("%v/dockercli/crossrepopush", privateRegistryURL)
@@ -260,9 +268,9 @@ func (s *DockerSchema1RegistrySuite) TestCrossRepositoryLayerPushNotSupported(c 
 	// schema1 registry should not support cross-repo layer mounts, so ensure that this does not happen
 	c.Assert(strings.Contains(out2, "Mounted from"), check.Equals, false)
 
-	digest2 := digest.DigestRegexp.FindString(out2)
+	digest2 := reference.DigestRegexp.FindString(out2)
 	c.Assert(len(digest2), checker.GreaterThan, 0, check.Commentf("no digest found for pushed manifest"))
-	c.Assert(digest1, check.Equals, digest2)
+	c.Assert(digest1, check.Not(check.Equals), digest2)
 
 	// ensure that we can pull and run the second pushed repository
 	dockerCmd(c, "rmi", destRepoName)
@@ -287,7 +295,7 @@ func (s *DockerTrustSuite) TestTrustedPush(c *check.C) {
 	s.trustedCmd(pullCmd)
 	out, _, err = runCommandWithOutput(pullCmd)
 	c.Assert(err, check.IsNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Status: Image is up to date", check.Commentf(out))
 
 	// Assert that we rotated the snapshot key to the server by checking our local keystore
 	contents, err := ioutil.ReadDir(filepath.Join(cliconfig.ConfigDir(), "trust/private/tuf_keys", privateRegistryURL, "dockerclitrusted/pushtest"))
@@ -312,7 +320,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithEnvPasswords(c *check.C) {
 	s.trustedCmd(pullCmd)
 	out, _, err = runCommandWithOutput(pullCmd)
 	c.Assert(err, check.IsNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Status: Image is up to date", check.Commentf(out))
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithFailingServer(c *check.C) {
@@ -321,7 +329,8 @@ func (s *DockerTrustSuite) TestTrustedPushWithFailingServer(c *check.C) {
 	dockerCmd(c, "tag", "busybox", repoName)
 
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmdWithServer(pushCmd, "https://example.com:81/")
+	// Using a name that doesn't resolve to an address makes this test faster
+	s.trustedCmdWithServer(pushCmd, "https://server.invalid:81/")
 	out, _, err := runCommandWithOutput(pushCmd)
 	c.Assert(err, check.NotNil, check.Commentf("Missing error while running trusted push w/ no server"))
 	c.Assert(out, checker.Contains, "error contacting notary server", check.Commentf("Missing expected output on trusted push"))
@@ -333,7 +342,8 @@ func (s *DockerTrustSuite) TestTrustedPushWithoutServerAndUntrusted(c *check.C) 
 	dockerCmd(c, "tag", "busybox", repoName)
 
 	pushCmd := exec.Command(dockerBinary, "push", "--disable-content-trust", repoName)
-	s.trustedCmdWithServer(pushCmd, "https://example.com/")
+	// Using a name that doesn't resolve to an address makes this test faster
+	s.trustedCmdWithServer(pushCmd, "https://server.invalid")
 	out, _, err := runCommandWithOutput(pushCmd)
 	c.Assert(err, check.IsNil, check.Commentf("trusted push with no server and --disable-content-trust failed: %s\n%s", err, out))
 	c.Assert(out, check.Not(checker.Contains), "Error establishing connection to notary repository", check.Commentf("Missing expected output on trusted push with --disable-content-trust:"))
@@ -356,7 +366,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithExistingTag(c *check.C) {
 	s.trustedCmd(pullCmd)
 	out, _, err = runCommandWithOutput(pullCmd)
 	c.Assert(err, check.IsNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Status: Image is up to date", check.Commentf(out))
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithExistingSignedTag(c *check.C) {
@@ -490,7 +500,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithReleasesDelegationOnly(c *check.C)
 	s.trustedCmd(pullCmd)
 	out, _, err = runCommandWithOutput(pullCmd)
 	c.Assert(err, check.IsNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Status: Image is up to date", check.Commentf(out))
 }
 
 func (s *DockerTrustSuite) TestTrustedPushSignsAllFirstLevelRolesWeHaveKeysFor(c *check.C) {

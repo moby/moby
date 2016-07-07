@@ -26,7 +26,7 @@ version, open a terminal and use `uname -r` to display your kernel version:
     $ uname -r
     3.19.5-100.fc21.x86_64
 
-If your kernel is at a older version, you must update it.
+If your kernel is at an older version, you must update it.
 
 Finally, is it recommended that you fully update your system. Please keep in
 mind that your system should be fully patched to fix any potential kernel bugs. Any

@@ -55,7 +55,7 @@ type Canonical interface {
 func ParseNamed(s string) (Named, error) {
 	named, err := distreference.ParseNamed(s)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing reference: %q is not a valid repository/tag", s)
+		return nil, fmt.Errorf("Error parsing reference: %q is not a valid repository/tag: %s", s, err)
 	}
 	r, err := WithName(named.Name())
 	if err != nil {
@@ -155,7 +155,7 @@ func IsNameOnly(ref Named) bool {
 	return true
 }
 
-// ParseIDOrReference parses string for a image ID or a reference. ID can be
+// ParseIDOrReference parses string for an image ID or a reference. ID can be
 // without a default prefix.
 func ParseIDOrReference(idOrRef string) (digest.Digest, Named, error) {
 	if err := v1.ValidateID(idOrRef); err == nil {

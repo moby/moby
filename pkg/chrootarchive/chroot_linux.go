@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+
+	"github.com/docker/docker/pkg/mount"
 )
 
 // chroot on linux uses pivot_root instead of chroot
@@ -15,13 +17,12 @@ import (
 // Old root is removed after the call to pivot_root so it is no longer available under the new root.
 // This is similar to how libcontainer sets up a container's rootfs
 func chroot(path string) (err error) {
-	// Create new mount namespace so mounts don't leak
 	if err := syscall.Unshare(syscall.CLONE_NEWNS); err != nil {
 		return fmt.Errorf("Error creating mount namespace before pivot: %v", err)
 	}
-	// path must be a different fs for pivot_root, so bind-mount to itself to ensure this
-	if err := syscall.Mount(path, path, "", syscall.MS_BIND, ""); err != nil {
-		return fmt.Errorf("Error mounting pivot dir before pivot: %v", err)
+
+	if err := mount.MakeRPrivate(path); err != nil {
+		return err
 	}
 
 	// setup oldRoot for pivot_root
@@ -44,17 +45,24 @@ func chroot(path string) (err error) {
 
 		errCleanup := os.Remove(pivotDir)
 		// pivotDir doesn't exist if pivot_root failed and chroot+chdir was successful
-		// but we already cleaned it up on failed pivot_root
+		// because we already cleaned it up on failed pivot_root
 		if errCleanup != nil && !os.IsNotExist(errCleanup) {
 			errCleanup = fmt.Errorf("Error cleaning up after pivot: %v", errCleanup)
 			if err == nil {
 				err = errCleanup
 			}
 		}
+
+		if errCleanup := syscall.Unmount("/", syscall.MNT_DETACH); errCleanup != nil {
+			if err == nil {
+				err = fmt.Errorf("error unmounting root: %v", errCleanup)
+			}
+			return
+		}
 	}()
 
 	if err := syscall.PivotRoot(path, pivotDir); err != nil {
-		// If pivot fails, fall back to the normal chroot after cleaning up temp dir for pivot_root
+		// If pivot fails, fall back to the normal chroot after cleaning up temp dir
 		if err := os.Remove(pivotDir); err != nil {
 			return fmt.Errorf("Error cleaning up after failed pivot: %v", err)
 		}

@@ -8,120 +8,88 @@ import (
 	"github.com/docker/docker/api/client/inspect"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/utils/templates"
 	"github.com/docker/engine-api/client"
 )
 
-// CmdInspect displays low-level information on one or more containers or images.
+// CmdInspect displays low-level information on one or more containers, images or tasks.
 //
-// Usage: docker inspect [OPTIONS] CONTAINER|IMAGE [CONTAINER|IMAGE...]
+// Usage: docker inspect [OPTIONS] CONTAINER|IMAGE|TASK [CONTAINER|IMAGE|TASK...]
 func (cli *DockerCli) CmdInspect(args ...string) error {
-	cmd := Cli.Subcmd("inspect", []string{"CONTAINER|IMAGE [CONTAINER|IMAGE...]"}, Cli.DockerCommands["inspect"].Description, true)
+	cmd := Cli.Subcmd("inspect", []string{"CONTAINER|IMAGE|TASK [CONTAINER|IMAGE|TASK...]"}, Cli.DockerCommands["inspect"].Description, true)
 	tmplStr := cmd.String([]string{"f", "-format"}, "", "Format the output using the given go template")
-	inspectType := cmd.String([]string{"-type"}, "", "Return JSON for specified type, (e.g image or container)")
+	inspectType := cmd.String([]string{"-type"}, "", "Return JSON for specified type, (e.g image, container or task)")
 	size := cmd.Bool([]string{"s", "-size"}, false, "Display total file sizes if the type is container")
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)
 
-	if *inspectType != "" && *inspectType != "container" && *inspectType != "image" {
+	if *inspectType != "" && *inspectType != "container" && *inspectType != "image" && *inspectType != "task" {
 		return fmt.Errorf("%q is not a valid value for --type", *inspectType)
 	}
 
-	var elementSearcher inspectSearcher
+	ctx := context.Background()
+
+	var elementSearcher inspect.GetRefFunc
 	switch *inspectType {
 	case "container":
-		elementSearcher = cli.inspectContainers(*size)
+		elementSearcher = cli.inspectContainers(ctx, *size)
 	case "image":
-		elementSearcher = cli.inspectImages(*size)
+		elementSearcher = cli.inspectImages(ctx, *size)
+	case "task":
+		if *size {
+			fmt.Fprintln(cli.err, "WARNING: --size ignored for tasks")
+		}
+		elementSearcher = cli.inspectTasks(ctx)
 	default:
-		elementSearcher = cli.inspectAll(*size)
+		elementSearcher = cli.inspectAll(ctx, *size)
 	}
 
-	return cli.inspectElements(*tmplStr, cmd.Args(), elementSearcher)
+	return inspect.Inspect(cli.out, cmd.Args(), *tmplStr, elementSearcher)
 }
 
-func (cli *DockerCli) inspectContainers(getSize bool) inspectSearcher {
+func (cli *DockerCli) inspectContainers(ctx context.Context, getSize bool) inspect.GetRefFunc {
 	return func(ref string) (interface{}, []byte, error) {
-		return cli.client.ContainerInspectWithRaw(context.Background(), ref, getSize)
-	}
-}
-
-func (cli *DockerCli) inspectImages(getSize bool) inspectSearcher {
-	return func(ref string) (interface{}, []byte, error) {
-		return cli.client.ImageInspectWithRaw(context.Background(), ref, getSize)
+		return cli.client.ContainerInspectWithRaw(ctx, ref, getSize)
 	}
 }
 
-func (cli *DockerCli) inspectAll(getSize bool) inspectSearcher {
+func (cli *DockerCli) inspectImages(ctx context.Context, getSize bool) inspect.GetRefFunc {
 	return func(ref string) (interface{}, []byte, error) {
-		c, rawContainer, err := cli.client.ContainerInspectWithRaw(context.Background(), ref, getSize)
+		return cli.client.ImageInspectWithRaw(ctx, ref, getSize)
+	}
+}
+
+func (cli *DockerCli) inspectTasks(ctx context.Context) inspect.GetRefFunc {
+	return func(ref string) (interface{}, []byte, error) {
+		return cli.client.TaskInspectWithRaw(ctx, ref)
+	}
+}
+
+func (cli *DockerCli) inspectAll(ctx context.Context, getSize bool) inspect.GetRefFunc {
+	return func(ref string) (interface{}, []byte, error) {
+		c, rawContainer, err := cli.client.ContainerInspectWithRaw(ctx, ref, getSize)
 		if err != nil {
 			// Search for image with that id if a container doesn't exist.
 			if client.IsErrContainerNotFound(err) {
-				i, rawImage, err := cli.client.ImageInspectWithRaw(context.Background(), ref, getSize)
+				i, rawImage, err := cli.client.ImageInspectWithRaw(ctx, ref, getSize)
 				if err != nil {
 					if client.IsErrImageNotFound(err) {
-						return nil, nil, fmt.Errorf("Error: No such image or container: %s", ref)
+						// Search for task with that id if an image doesn't exists.
+						t, rawTask, err := cli.client.TaskInspectWithRaw(ctx, ref)
+						if err != nil {
+							return nil, nil, fmt.Errorf("Error: No such image, container or task: %s", ref)
+						}
+						if getSize {
+							fmt.Fprintln(cli.err, "WARNING: --size ignored for tasks")
+						}
+						return t, rawTask, nil
 					}
 					return nil, nil, err
 				}
-				return i, rawImage, err
+				return i, rawImage, nil
 			}
 			return nil, nil, err
 		}
-		return c, rawContainer, err
+		return c, rawContainer, nil
 	}
-}
-
-type inspectSearcher func(ref string) (interface{}, []byte, error)
-
-func (cli *DockerCli) inspectElements(tmplStr string, references []string, searchByReference inspectSearcher) error {
-	elementInspector, err := cli.newInspectorWithTemplate(tmplStr)
-	if err != nil {
-		return Cli.StatusError{StatusCode: 64, Status: err.Error()}
-	}
-
-	var inspectErr error
-	for _, ref := range references {
-		element, raw, err := searchByReference(ref)
-		if err != nil {
-			inspectErr = err
-			break
-		}
-
-		if err := elementInspector.Inspect(element, raw); err != nil {
-			inspectErr = err
-			break
-		}
-	}
-
-	if err := elementInspector.Flush(); err != nil {
-		cli.inspectErrorStatus(err)
-	}
-
-	if status := cli.inspectErrorStatus(inspectErr); status != 0 {
-		return Cli.StatusError{StatusCode: status}
-	}
-	return nil
-}
-
-func (cli *DockerCli) inspectErrorStatus(err error) (status int) {
-	if err != nil {
-		fmt.Fprintf(cli.err, "%s\n", err)
-		status = 1
-	}
-	return
-}
-
-func (cli *DockerCli) newInspectorWithTemplate(tmplStr string) (inspect.Inspector, error) {
-	elementInspector := inspect.NewIndentedInspector(cli.out)
-	if tmplStr != "" {
-		tmpl, err := templates.Parse(tmplStr)
-		if err != nil {
-			return nil, fmt.Errorf("Template parsing error: %s", err)
-		}
-		elementInspector = inspect.NewTemplateInspector(cli.out, tmpl)
-	}
-	return elementInspector, nil
 }

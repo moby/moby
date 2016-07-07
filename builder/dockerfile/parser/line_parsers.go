@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 var (
@@ -58,10 +59,11 @@ func parseWords(rest string) []string {
 	quote := '\000'
 	blankOK := false
 	var ch rune
+	var chWidth int
 
-	for pos := 0; pos <= len(rest); pos++ {
+	for pos := 0; pos <= len(rest); pos += chWidth {
 		if pos != len(rest) {
-			ch = rune(rest[pos])
+			ch, chWidth = utf8.DecodeRuneInString(rest[pos:])
 		}
 
 		if phase == inSpaces { // Looking for start of word
@@ -94,16 +96,16 @@ func parseWords(rest string) []string {
 				blankOK = true
 				phase = inQuote
 			}
-			if ch == '\\' {
-				if pos+1 == len(rest) {
-					continue // just skip \ at end
+			if ch == tokenEscape {
+				if pos+chWidth == len(rest) {
+					continue // just skip an escape token at end of line
 				}
-				// If we're not quoted and we see a \, then always just
-				// add \ plus the char to the word, even if the char
+				// If we're not quoted and we see an escape token, then always just
+				// add the escape token plus the char to the word, even if the char
 				// is a quote.
 				word += string(ch)
-				pos++
-				ch = rune(rest[pos])
+				pos += chWidth
+				ch, chWidth = utf8.DecodeRuneInString(rest[pos:])
 			}
 			word += string(ch)
 			continue
@@ -112,16 +114,15 @@ func parseWords(rest string) []string {
 			if ch == quote {
 				phase = inWord
 			}
-			// \ is special except for ' quotes - can't escape anything for '
-			if ch == '\\' && quote != '\'' {
-				if pos+1 == len(rest) {
+			// The escape token is special except for ' quotes - can't escape anything for '
+			if ch == tokenEscape && quote != '\'' {
+				if pos+chWidth == len(rest) {
 					phase = inWord
-					continue // just skip \ at end
+					continue // just skip the escape token at end
 				}
-				pos++
-				nextCh := rune(rest[pos])
+				pos += chWidth
 				word += string(ch)
-				ch = nextCh
+				ch, chWidth = utf8.DecodeRuneInString(rest[pos:])
 			}
 			word += string(ch)
 		}
@@ -328,4 +329,33 @@ func parseMaybeJSONToList(rest string) (*Node, map[string]bool, error) {
 	}
 
 	return parseStringsWhitespaceDelimited(rest)
+}
+
+// The HEALTHCHECK command is like parseMaybeJSON, but has an extra type argument.
+func parseHealthConfig(rest string) (*Node, map[string]bool, error) {
+	// Find end of first argument
+	var sep int
+	for ; sep < len(rest); sep++ {
+		if unicode.IsSpace(rune(rest[sep])) {
+			break
+		}
+	}
+	next := sep
+	for ; next < len(rest); next++ {
+		if !unicode.IsSpace(rune(rest[next])) {
+			break
+		}
+	}
+
+	if sep == 0 {
+		return nil, nil, nil
+	}
+
+	typ := rest[:sep]
+	cmd, attrs, err := parseMaybeJSON(rest[next:])
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &Node{Value: typ, Next: cmd, Attributes: attrs}, nil, err
 }

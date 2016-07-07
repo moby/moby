@@ -85,8 +85,15 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 			return nil
 		case msg, ok := <-logs.Msg:
 			if !ok {
-				logrus.Debugf("logs: end stream")
+				logrus.Debug("logs: end stream")
 				logs.Close()
+				if cLog != container.LogDriver {
+					// Since the logger isn't cached in the container, which occurs if it is running, it
+					// must get explicitly closed here to avoid leaking it and any file handles it has.
+					if err := cLog.Close(); err != nil {
+						logrus.Errorf("Error closing logger: %v", err)
+					}
+				}
 				return nil
 			}
 			logLine := msg.Line
@@ -124,7 +131,7 @@ func (daemon *Daemon) StartLogging(container *container.Container) error {
 		return fmt.Errorf("Failed to initialize logging driver: %v", err)
 	}
 
-	copier := logger.NewCopier(container.ID, map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)
+	copier := logger.NewCopier(map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)
 	container.LogCopier = copier
 	copier.Run()
 	container.LogDriver = l

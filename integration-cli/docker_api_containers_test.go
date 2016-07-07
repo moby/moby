@@ -168,94 +168,6 @@ func (s *DockerSuite) TestContainerApiGetChanges(c *check.C) {
 	c.Assert(success, checker.True, check.Commentf("/etc/passwd has been removed but is not present in the diff"))
 }
 
-func (s *DockerSuite) TestContainerApiStartVolumeBinds(c *check.C) {
-	// TODO Windows CI: Investigate further why this fails on Windows to Windows CI.
-	testRequires(c, DaemonIsLinux)
-	path := "/foo"
-	if daemonPlatform == "windows" {
-		path = `c:\foo`
-	}
-	name := "testing"
-	config := map[string]interface{}{
-		"Image":   "busybox",
-		"Volumes": map[string]struct{}{path: {}},
-	}
-
-	status, _, err := sockRequest("POST", "/containers/create?name="+name, config)
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusCreated)
-
-	bindPath := randomTmpDirPath("test", daemonPlatform)
-	config = map[string]interface{}{
-		"Binds": []string{bindPath + ":" + path},
-	}
-	status, _, err = sockRequest("POST", "/containers/"+name+"/start", config)
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusNoContent)
-
-	pth, err := inspectMountSourceField(name, path)
-	c.Assert(err, checker.IsNil)
-	c.Assert(pth, checker.Equals, bindPath, check.Commentf("expected volume host path to be %s, got %s", bindPath, pth))
-}
-
-// Test for GH#10618
-func (s *DockerSuite) TestContainerApiStartDupVolumeBinds(c *check.C) {
-	// TODO Windows to Windows CI - Port this
-	testRequires(c, DaemonIsLinux)
-	name := "testdups"
-	config := map[string]interface{}{
-		"Image":   "busybox",
-		"Volumes": map[string]struct{}{"/tmp": {}},
-	}
-
-	status, _, err := sockRequest("POST", "/containers/create?name="+name, config)
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusCreated)
-
-	bindPath1 := randomTmpDirPath("test1", daemonPlatform)
-	bindPath2 := randomTmpDirPath("test2", daemonPlatform)
-
-	config = map[string]interface{}{
-		"Binds": []string{bindPath1 + ":/tmp", bindPath2 + ":/tmp"},
-	}
-	status, body, err := sockRequest("POST", "/containers/"+name+"/start", config)
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusInternalServerError)
-	c.Assert(string(body), checker.Contains, "Duplicate mount point", check.Commentf("Expected failure due to duplicate bind mounts to same path, instead got: %q with error: %v", string(body), err))
-}
-
-func (s *DockerSuite) TestContainerApiStartVolumesFrom(c *check.C) {
-	// TODO Windows to Windows CI - Port this
-	testRequires(c, DaemonIsLinux)
-	volName := "voltst"
-	volPath := "/tmp"
-
-	dockerCmd(c, "run", "--name", volName, "-v", volPath, "busybox")
-
-	name := "TestContainerApiStartVolumesFrom"
-	config := map[string]interface{}{
-		"Image":   "busybox",
-		"Volumes": map[string]struct{}{volPath: {}},
-	}
-
-	status, _, err := sockRequest("POST", "/containers/create?name="+name, config)
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusCreated)
-
-	config = map[string]interface{}{
-		"VolumesFrom": []string{volName},
-	}
-	status, _, err = sockRequest("POST", "/containers/"+name+"/start", config)
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusNoContent)
-
-	pth, err := inspectMountSourceField(name, volPath)
-	c.Assert(err, checker.IsNil)
-	pth2, err := inspectMountSourceField(volName, volPath)
-	c.Assert(err, checker.IsNil)
-	c.Assert(pth, checker.Equals, pth2, check.Commentf("expected volume host path to be %s, got %s", pth, pth2))
-}
-
 func (s *DockerSuite) TestGetContainerStats(c *check.C) {
 	// Problematic on Windows as Windows does not support stats
 	testRequires(c, DaemonIsLinux)
@@ -442,27 +354,6 @@ func (s *DockerSuite) TestGetStoppedContainerStats(c *check.C) {
 	}
 }
 
-// #9981 - Allow a docker created volume (ie, one in /var/lib/docker/volumes) to be used to overwrite (via passing in Binds on api start) an existing volume
-func (s *DockerSuite) TestPostContainerBindNormalVolume(c *check.C) {
-	// TODO Windows to Windows CI - Port this
-	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "create", "-v", "/foo", "--name=one", "busybox")
-
-	fooDir, err := inspectMountSourceField("one", "/foo")
-	c.Assert(err, checker.IsNil)
-
-	dockerCmd(c, "create", "-v", "/foo", "--name=two", "busybox")
-
-	bindSpec := map[string][]string{"Binds": {fooDir + ":/foo"}}
-	status, _, err := sockRequest("POST", "/containers/two/start", bindSpec)
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusNoContent)
-
-	fooDir2, err := inspectMountSourceField("two", "/foo")
-	c.Assert(err, checker.IsNil)
-	c.Assert(fooDir2, checker.Equals, fooDir, check.Commentf("expected volume path to be %s, got: %s", fooDir, fooDir2))
-}
-
 func (s *DockerSuite) TestContainerApiPause(c *check.C) {
 	// Problematic on Windows as Windows does not support pause
 	testRequires(c, DaemonIsLinux)
@@ -589,10 +480,10 @@ func (s *DockerSuite) TestContainerApiBadPort(c *check.C) {
 	jsonData := bytes.NewBuffer(nil)
 	json.NewEncoder(jsonData).Encode(config)
 
-	status, b, err := sockRequest("POST", "/containers/create", config)
+	status, body, err := sockRequest("POST", "/containers/create", config)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusInternalServerError)
-	c.Assert(strings.TrimSpace(string(b)), checker.Equals, `Invalid port specification: "aa80"`, check.Commentf("Incorrect error msg: %s", string(b)))
+	c.Assert(getErrorMessage(c, body), checker.Equals, `Invalid port specification: "aa80"`, check.Commentf("Incorrect error msg: %s", body))
 }
 
 func (s *DockerSuite) TestContainerApiCreate(c *check.C) {
@@ -618,12 +509,12 @@ func (s *DockerSuite) TestContainerApiCreate(c *check.C) {
 func (s *DockerSuite) TestContainerApiCreateEmptyConfig(c *check.C) {
 	config := map[string]interface{}{}
 
-	status, b, err := sockRequest("POST", "/containers/create", config)
+	status, body, err := sockRequest("POST", "/containers/create", config)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusInternalServerError)
 
-	expected := "Config cannot be empty in order to create a container\n"
-	c.Assert(string(b), checker.Equals, expected)
+	expected := "Config cannot be empty in order to create a container"
+	c.Assert(getErrorMessage(c, body), checker.Equals, expected)
 }
 
 func (s *DockerSuite) TestContainerApiCreateMultipleNetworksConfig(c *check.C) {
@@ -639,14 +530,15 @@ func (s *DockerSuite) TestContainerApiCreateMultipleNetworksConfig(c *check.C) {
 		},
 	}
 
-	status, b, err := sockRequest("POST", "/containers/create", config)
+	status, body, err := sockRequest("POST", "/containers/create", config)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusBadRequest)
+	msg := getErrorMessage(c, body)
 	// network name order in error message is not deterministic
-	c.Assert(string(b), checker.Contains, "Container cannot be connected to network endpoints")
-	c.Assert(string(b), checker.Contains, "net1")
-	c.Assert(string(b), checker.Contains, "net2")
-	c.Assert(string(b), checker.Contains, "net3")
+	c.Assert(msg, checker.Contains, "Container cannot be connected to network endpoints")
+	c.Assert(msg, checker.Contains, "net1")
+	c.Assert(msg, checker.Contains, "net2")
+	c.Assert(msg, checker.Contains, "net3")
 }
 
 func (s *DockerSuite) TestContainerApiCreateWithHostName(c *check.C) {
@@ -887,26 +779,6 @@ func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *check.C) {
 	c.Assert(string(b), checker.Contains, "Minimum memory limit allowed is 4MB")
 }
 
-func (s *DockerSuite) TestStartWithTooLowMemoryLimit(c *check.C) {
-	// TODO Windows: Port once memory is supported
-	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "create", "busybox")
-
-	containerID := strings.TrimSpace(out)
-
-	config := `{
-                "CpuShares": 100,
-                "Memory":    524287
-        }`
-
-	res, body, err := sockRequestRaw("POST", "/containers/"+containerID+"/start", strings.NewReader(config), "application/json")
-	c.Assert(err, checker.IsNil)
-	b, err2 := readBody(body)
-	c.Assert(err2, checker.IsNil)
-	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
-	c.Assert(string(b), checker.Contains, "Minimum memory limit allowed is 4MB")
-}
-
 func (s *DockerSuite) TestContainerApiRename(c *check.C) {
 	// TODO Windows: Debug why this sometimes fails on TP5. For now, leave disabled
 	testRequires(c, DaemonIsLinux)
@@ -973,13 +845,12 @@ func (s *DockerSuite) TestContainerApiStart(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusCreated)
 
-	conf := make(map[string]interface{})
-	status, _, err = sockRequest("POST", "/containers/"+name+"/start", conf)
+	status, _, err = sockRequest("POST", "/containers/"+name+"/start", nil)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNoContent)
 
 	// second call to start should give 304
-	status, _, err = sockRequest("POST", "/containers/"+name+"/start", conf)
+	status, _, err = sockRequest("POST", "/containers/"+name+"/start", nil)
 	c.Assert(err, checker.IsNil)
 
 	// TODO(tibor): figure out why this doesn't work on windows
@@ -1022,7 +893,7 @@ func (s *DockerSuite) TestContainerApiWait(c *check.C) {
 	c.Assert(waitres.StatusCode, checker.Equals, 0)
 }
 
-func (s *DockerSuite) TestContainerApiCopy(c *check.C) {
+func (s *DockerSuite) TestContainerApiCopyNotExistsAnyMore(c *check.C) {
 	// TODO Windows to Windows CI. This can be ported.
 	testRequires(c, DaemonIsLinux)
 	name := "test-container-api-copy"
@@ -1032,7 +903,22 @@ func (s *DockerSuite) TestContainerApiCopy(c *check.C) {
 		Resource: "/test.txt",
 	}
 
-	status, body, err := sockRequest("POST", "/containers/"+name+"/copy", postData)
+	status, _, err := sockRequest("POST", "/containers/"+name+"/copy", postData)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusNotFound)
+}
+
+func (s *DockerSuite) TestContainerApiCopyPre124(c *check.C) {
+	// TODO Windows to Windows CI. This can be ported.
+	testRequires(c, DaemonIsLinux)
+	name := "test-container-api-copy"
+	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
+
+	postData := types.CopyConfig{
+		Resource: "/test.txt",
+	}
+
+	status, body, err := sockRequest("POST", "/v1.23/containers/"+name+"/copy", postData)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK)
 
@@ -1053,7 +939,7 @@ func (s *DockerSuite) TestContainerApiCopy(c *check.C) {
 	c.Assert(found, checker.True)
 }
 
-func (s *DockerSuite) TestContainerApiCopyResourcePathEmpty(c *check.C) {
+func (s *DockerSuite) TestContainerApiCopyResourcePathEmptyPr124(c *check.C) {
 	// TODO Windows to Windows CI. This can be ported.
 	testRequires(c, DaemonIsLinux)
 	name := "test-container-api-copy-resource-empty"
@@ -1063,13 +949,13 @@ func (s *DockerSuite) TestContainerApiCopyResourcePathEmpty(c *check.C) {
 		Resource: "",
 	}
 
-	status, body, err := sockRequest("POST", "/containers/"+name+"/copy", postData)
+	status, body, err := sockRequest("POST", "/v1.23/containers/"+name+"/copy", postData)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusInternalServerError)
 	c.Assert(string(body), checker.Matches, "Path cannot be empty\n")
 }
 
-func (s *DockerSuite) TestContainerApiCopyResourcePathNotFound(c *check.C) {
+func (s *DockerSuite) TestContainerApiCopyResourcePathNotFoundPre124(c *check.C) {
 	// TODO Windows to Windows CI. This can be ported.
 	testRequires(c, DaemonIsLinux)
 	name := "test-container-api-copy-resource-not-found"
@@ -1079,18 +965,18 @@ func (s *DockerSuite) TestContainerApiCopyResourcePathNotFound(c *check.C) {
 		Resource: "/notexist",
 	}
 
-	status, body, err := sockRequest("POST", "/containers/"+name+"/copy", postData)
+	status, body, err := sockRequest("POST", "/v1.23/containers/"+name+"/copy", postData)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusInternalServerError)
 	c.Assert(string(body), checker.Matches, "Could not find the file /notexist in container "+name+"\n")
 }
 
-func (s *DockerSuite) TestContainerApiCopyContainerNotFound(c *check.C) {
+func (s *DockerSuite) TestContainerApiCopyContainerNotFoundPr124(c *check.C) {
 	postData := types.CopyConfig{
 		Resource: "/something",
 	}
 
-	status, _, err := sockRequest("POST", "/containers/notexists/copy", postData)
+	status, _, err := sockRequest("POST", "/v1.23/containers/notexists/copy", postData)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNotFound)
 }
@@ -1112,7 +998,7 @@ func (s *DockerSuite) TestContainerApiDeleteNotExist(c *check.C) {
 	status, body, err := sockRequest("DELETE", "/containers/doesnotexist", nil)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNotFound)
-	c.Assert(string(body), checker.Matches, "No such container: doesnotexist\n")
+	c.Assert(getErrorMessage(c, body), checker.Matches, "No such container: doesnotexist")
 }
 
 func (s *DockerSuite) TestContainerApiDeleteForce(c *check.C) {
@@ -1189,16 +1075,21 @@ func (s *DockerSuite) TestContainerApiDeleteRemoveVolume(c *check.C) {
 func (s *DockerSuite) TestContainerApiChunkedEncoding(c *check.C) {
 	// TODO Windows CI: This can be ported
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "create", "-v", "/foo", "busybox", "true")
-	id := strings.TrimSpace(out)
 
-	conn, err := sockConn(time.Duration(10 * time.Second))
+	conn, err := sockConn(time.Duration(10*time.Second), "")
 	c.Assert(err, checker.IsNil)
 	client := httputil.NewClientConn(conn, nil)
 	defer client.Close()
 
-	bindCfg := strings.NewReader(`{"Binds": ["/tmp:/foo"]}`)
-	req, err := http.NewRequest("POST", "/containers/"+id+"/start", bindCfg)
+	config := map[string]interface{}{
+		"Image":     "busybox",
+		"Cmd":       append([]string{"/bin/sh", "-c"}, defaultSleepCommand...),
+		"OpenStdin": true,
+	}
+	b, err := json.Marshal(config)
+	c.Assert(err, checker.IsNil)
+
+	req, err := http.NewRequest("POST", "/containers/create", bytes.NewBuffer(b))
 	c.Assert(err, checker.IsNil)
 	req.Header.Set("Content-Type", "application/json")
 	// This is a cheat to make the http request do chunked encoding
@@ -1207,18 +1098,9 @@ func (s *DockerSuite) TestContainerApiChunkedEncoding(c *check.C) {
 	req.ContentLength = -1
 
 	resp, err := client.Do(req)
-	c.Assert(err, checker.IsNil, check.Commentf("error starting container with chunked encoding"))
+	c.Assert(err, checker.IsNil, check.Commentf("error creating container with chunked encoding"))
 	resp.Body.Close()
-	c.Assert(resp.StatusCode, checker.Equals, 204)
-
-	out = inspectFieldJSON(c, id, "HostConfig.Binds")
-
-	var binds []string
-	c.Assert(json.NewDecoder(strings.NewReader(out)).Decode(&binds), checker.IsNil)
-	c.Assert(binds, checker.HasLen, 1, check.Commentf("Got unexpected binds: %v", binds))
-
-	expected := "/tmp:/foo"
-	c.Assert(binds[0], checker.Equals, expected, check.Commentf("got incorrect bind spec"))
+	c.Assert(resp.StatusCode, checker.Equals, http.StatusCreated)
 }
 
 func (s *DockerSuite) TestContainerApiPostContainerStop(c *check.C) {
@@ -1302,59 +1184,6 @@ func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCapAddDrop(c *che
 	c.Assert(status, checker.Equals, http.StatusCreated)
 }
 
-// #14640
-func (s *DockerSuite) TestPostContainersStartWithoutLinksInHostConfig(c *check.C) {
-	// TODO Windows: Windows doesn't support supplying a hostconfig on start.
-	// An alternate test could be written to validate the negative testing aspect of this
-	testRequires(c, DaemonIsLinux)
-	name := "test-host-config-links"
-	dockerCmd(c, append([]string{"create", "--name", name, "busybox"}, defaultSleepCommand...)...)
-
-	hc := inspectFieldJSON(c, name, "HostConfig")
-	config := `{"HostConfig":` + hc + `}`
-
-	res, b, err := sockRequestRaw("POST", "/containers/"+name+"/start", strings.NewReader(config), "application/json")
-	c.Assert(err, checker.IsNil)
-	c.Assert(res.StatusCode, checker.Equals, http.StatusNoContent)
-	b.Close()
-}
-
-// #14640
-func (s *DockerSuite) TestPostContainersStartWithLinksInHostConfig(c *check.C) {
-	// TODO Windows: Windows doesn't support supplying a hostconfig on start.
-	// An alternate test could be written to validate the negative testing aspect of this
-	testRequires(c, DaemonIsLinux)
-	name := "test-host-config-links"
-	dockerCmd(c, "run", "--name", "foo", "-d", "busybox", "top")
-	dockerCmd(c, "create", "--name", name, "--link", "foo:bar", "busybox", "top")
-
-	hc := inspectFieldJSON(c, name, "HostConfig")
-	config := `{"HostConfig":` + hc + `}`
-
-	res, b, err := sockRequestRaw("POST", "/containers/"+name+"/start", strings.NewReader(config), "application/json")
-	c.Assert(err, checker.IsNil)
-	c.Assert(res.StatusCode, checker.Equals, http.StatusNoContent)
-	b.Close()
-}
-
-// #14640
-func (s *DockerSuite) TestPostContainersStartWithLinksInHostConfigIdLinked(c *check.C) {
-	// Windows does not support links
-	testRequires(c, DaemonIsLinux)
-	name := "test-host-config-links"
-	out, _ := dockerCmd(c, "run", "--name", "link0", "-d", "busybox", "top")
-	id := strings.TrimSpace(out)
-	dockerCmd(c, "create", "--name", name, "--link", id, "busybox", "top")
-
-	hc := inspectFieldJSON(c, name, "HostConfig")
-	config := `{"HostConfig":` + hc + `}`
-
-	res, b, err := sockRequestRaw("POST", "/containers/"+name+"/start", strings.NewReader(config), "application/json")
-	c.Assert(err, checker.IsNil)
-	c.Assert(res.StatusCode, checker.Equals, http.StatusNoContent)
-	b.Close()
-}
-
 // #14915
 func (s *DockerSuite) TestContainerApiCreateNoHostConfig118(c *check.C) {
 	config := struct {
@@ -1419,8 +1248,8 @@ func (s *DockerSuite) TestPostContainersCreateWithWrongCpusetValues(c *check.C) 
 	status, body, err := sockRequest("POST", "/containers/create?name="+name, c1)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusInternalServerError)
-	expected := "Invalid value 1-42,, for cpuset cpus\n"
-	c.Assert(string(body), checker.Equals, expected)
+	expected := "Invalid value 1-42,, for cpuset cpus"
+	c.Assert(getErrorMessage(c, body), checker.Equals, expected)
 
 	c2 := struct {
 		Image      string
@@ -1430,25 +1259,8 @@ func (s *DockerSuite) TestPostContainersCreateWithWrongCpusetValues(c *check.C) 
 	status, body, err = sockRequest("POST", "/containers/create?name="+name, c2)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusInternalServerError)
-	expected = "Invalid value 42-3,1-- for cpuset mems\n"
-	c.Assert(string(body), checker.Equals, expected)
-}
-
-func (s *DockerSuite) TestStartWithNilDNS(c *check.C) {
-	// TODO Windows: Add once DNS is supported
-	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "create", "busybox")
-	containerID := strings.TrimSpace(out)
-
-	config := `{"HostConfig": {"Dns": null}}`
-
-	res, b, err := sockRequestRaw("POST", "/containers/"+containerID+"/start", strings.NewReader(config), "application/json")
-	c.Assert(err, checker.IsNil)
-	c.Assert(res.StatusCode, checker.Equals, http.StatusNoContent)
-	b.Close()
-
-	dns := inspectFieldJSON(c, containerID, "HostConfig.Dns")
-	c.Assert(dns, checker.Equals, "[]")
+	expected = "Invalid value 42-3,1-- for cpuset mems"
+	c.Assert(getErrorMessage(c, body), checker.Equals, expected)
 }
 
 func (s *DockerSuite) TestPostContainersCreateShmSizeNegative(c *check.C) {
@@ -1462,7 +1274,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeNegative(c *check.C) {
 	status, body, err := sockRequest("POST", "/containers/create", config)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusInternalServerError)
-	c.Assert(string(body), checker.Contains, "SHM size must be greater than 0")
+	c.Assert(getErrorMessage(c, body), checker.Contains, "SHM size must be greater than 0")
 }
 
 func (s *DockerSuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *check.C) {
@@ -1598,9 +1410,11 @@ func (s *DockerSuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *che
 	status, b, err := sockRequest("POST", "/containers/create?name="+name, config)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusInternalServerError)
+
 	expected := "Invalid value 1001, range for oom score adj is [-1000, 1000]"
-	if !strings.Contains(string(b), expected) {
-		c.Fatalf("Expected output to contain %q, got %q", expected, string(b))
+	msg := getErrorMessage(c, b)
+	if !strings.Contains(msg, expected) {
+		c.Fatalf("Expected output to contain %q, got %q", expected, msg)
 	}
 
 	config = struct {
@@ -1612,12 +1426,13 @@ func (s *DockerSuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *che
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusInternalServerError)
 	expected = "Invalid value -1001, range for oom score adj is [-1000, 1000]"
-	if !strings.Contains(string(b), expected) {
-		c.Fatalf("Expected output to contain %q, got %q", expected, string(b))
+	msg = getErrorMessage(c, b)
+	if !strings.Contains(msg, expected) {
+		c.Fatalf("Expected output to contain %q, got %q", expected, msg)
 	}
 }
 
-// test case for #22210 where an emtpy container name caused panic.
+// test case for #22210 where an empty container name caused panic.
 func (s *DockerSuite) TestContainerApiDeleteWithEmptyName(c *check.C) {
 	status, out, err := sockRequest("DELETE", "/containers/", nil)
 	c.Assert(err, checker.IsNil)

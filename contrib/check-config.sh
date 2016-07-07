@@ -232,6 +232,7 @@ flags=(
 	CGROUP_HUGETLB
 	NET_CLS_CGROUP $netprio
 	CFS_BANDWIDTH FAIR_GROUP_SCHED RT_GROUP_SCHED
+	IP_VS
 )
 check_flags "${flags[@]}"
 
@@ -249,6 +250,8 @@ echo '- Network Drivers:'
 {
 	echo '- "'$(wrap_color 'overlay' blue)'":'
 	check_flags VXLAN | sed 's/^/  /'
+	echo '  Optional (for secure networks):'
+	check_flags XFRM_ALGO XFRM_USER | sed 's/^/  /'
 } | sed 's/^/  /'
 
 echo '- Storage Drivers:'
@@ -275,3 +278,16 @@ echo '- Storage Drivers:'
 } | sed 's/^/  /'
 echo
 
+check_limit_over()
+{
+	if [ $(cat "$1") -le "$2" ]; then
+		wrap_bad "- $1" "$(cat $1)"
+		wrap_color "    This should be set to at least $2, for example set: sysctl -w kernel/keys/root_maxkeys=1000000" bold black
+	else
+		wrap_good "- $1" "$(cat $1)"
+	fi
+}
+
+echo 'Limits:'
+check_limit_over /proc/sys/kernel/keys/root_maxkeys 10000
+echo

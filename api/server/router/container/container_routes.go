@@ -131,8 +131,15 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 	// net/http otherwise seems to swallow any headers related to chunked encoding
 	// including r.TransferEncoding
 	// allow a nil body for backwards compatibility
+
+	version := httputils.VersionFromContext(ctx)
 	var hostConfig *container.HostConfig
-	if r.Body != nil && (r.ContentLength > 0 || r.ContentLength == -1) {
+	// A non-nil json object is at least 7 characters.
+	if r.ContentLength > 7 || r.ContentLength == -1 {
+		if versions.GreaterThanOrEqualTo(version, "1.24") {
+			return validationError{fmt.Errorf("starting container with HostConfig was deprecated since v1.10 and removed in v1.12")}
+		}
+
 		if err := httputils.CheckForJSON(r); err != nil {
 			return err
 		}
@@ -141,11 +148,11 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 		if err != nil {
 			return err
 		}
-
 		hostConfig = c
 	}
 
-	if err := s.backend.ContainerStart(vars["name"], hostConfig); err != nil {
+	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
+	if err := s.backend.ContainerStart(vars["name"], hostConfig, validateHostname); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -305,6 +312,7 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 		return err
 	}
 
+	version := httputils.VersionFromContext(ctx)
 	var updateConfig container.UpdateConfig
 
 	decoder := json.NewDecoder(r.Body)
@@ -318,7 +326,8 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 	}
 
 	name := vars["name"]
-	warnings, err := s.backend.ContainerUpdate(name, hostConfig)
+	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
+	warnings, err := s.backend.ContainerUpdate(name, hostConfig, validateHostname)
 	if err != nil {
 		return err
 	}
@@ -345,13 +354,14 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	version := httputils.VersionFromContext(ctx)
 	adjustCPUShares := versions.LessThan(version, "1.19")
 
+	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
 	ccr, err := s.backend.ContainerCreate(types.ContainerCreateConfig{
 		Name:             name,
 		Config:           config,
 		HostConfig:       hostConfig,
 		NetworkingConfig: networkingConfig,
 		AdjustCPUShares:  adjustCPUShares,
-	})
+	}, validateHostname)
 	if err != nil {
 		return err
 	}

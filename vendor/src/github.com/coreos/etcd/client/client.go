@@ -24,6 +24,7 @@ import (
 	"net/url"
 	"reflect"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -34,6 +35,7 @@ var (
 	ErrNoEndpoints           = errors.New("client: no endpoints available")
 	ErrTooManyRedirects      = errors.New("client: too many redirects")
 	ErrClusterUnavailable    = errors.New("client: etcd cluster is unavailable or misconfigured")
+	ErrNoLeaderEndpoint      = errors.New("client: no leader endpoint available")
 	errTooManyRedirectChecks = errors.New("client: too many redirect checks")
 )
 
@@ -47,6 +49,29 @@ var DefaultTransport CancelableTransport = &http.Transport{
 	}).Dial,
 	TLSHandshakeTimeout: 10 * time.Second,
 }
+
+type EndpointSelectionMode int
+
+const (
+	// EndpointSelectionRandom is the default value of the 'SelectionMode'.
+	// As the name implies, the client object will pick a node from the members
+	// of the cluster in a random fashion. If the cluster has three members, A, B,
+	// and C, the client picks any node from its three members as its request
+	// destination.
+	EndpointSelectionRandom EndpointSelectionMode = iota
+
+	// If 'SelectionMode' is set to 'EndpointSelectionPrioritizeLeader',
+	// requests are sent directly to the cluster leader. This reduces
+	// forwarding roundtrips compared to making requests to etcd followers
+	// who then forward them to the cluster leader. In the event of a leader
+	// failure, however, clients configured this way cannot prioritize among
+	// the remaining etcd followers. Therefore, when a client sets 'SelectionMode'
+	// to 'EndpointSelectionPrioritizeLeader', it must use 'client.AutoSync()' to
+	// maintain its knowledge of current cluster state.
+	//
+	// This mode should be used with Client.AutoSync().
+	EndpointSelectionPrioritizeLeader
+)
 
 type Config struct {
 	// Endpoints defines a set of URLs (schemes, hosts and ports only)
@@ -73,7 +98,7 @@ type Config struct {
 	// CheckRedirect specifies the policy for handling HTTP redirects.
 	// If CheckRedirect is not nil, the Client calls it before
 	// following an HTTP redirect. The sole argument is the number of
-	// requests that have alrady been made. If CheckRedirect returns
+	// requests that have already been made. If CheckRedirect returns
 	// an error, Client.Do will not make any further requests and return
 	// the error back it to the caller.
 	//
@@ -99,11 +124,17 @@ type Config struct {
 	// watch start. But if server is behind some kind of proxy, the response
 	// header may be cached at proxy, and Client cannot rely on this behavior.
 	//
+	// Especially, wait request will ignore this timeout.
+	//
 	// One API call may send multiple requests to different etcd servers until it
 	// succeeds. Use context of the API to specify the overall timeout.
 	//
 	// A HeaderTimeoutPerRequest of zero means no timeout.
 	HeaderTimeoutPerRequest time.Duration
+
+	// SelectionMode is an EndpointSelectionMode enum that specifies the
+	// policy for choosing the etcd cluster node to which requests are sent.
+	SelectionMode EndpointSelectionMode
 }
 
 func (cfg *Config) transport() CancelableTransport {
@@ -162,6 +193,11 @@ type Client interface {
 	// this may differ from the initial Endpoints provided in the Config.
 	Endpoints() []string
 
+	// SetEndpoints sets the set of API endpoints used by Client to resolve
+	// HTTP requests. If the given endpoints are not valid, an error will be
+	// returned
+	SetEndpoints(eps []string) error
+
 	httpClient
 }
 
@@ -169,6 +205,7 @@ func New(cfg Config) (Client, error) {
 	c := &httpClusterClient{
 		clientFactory: newHTTPClientFactory(cfg.transport(), cfg.checkRedirect(), cfg.HeaderTimeoutPerRequest),
 		rand:          rand.New(rand.NewSource(int64(time.Now().Nanosecond()))),
+		selectionMode: cfg.SelectionMode,
 	}
 	if cfg.Username != "" {
 		c.credentials = &credentials{
@@ -176,7 +213,7 @@ func New(cfg Config) (Client, error) {
 			password: cfg.Password,
 		}
 	}
-	if err := c.reset(cfg.Endpoints); err != nil {
+	if err := c.SetEndpoints(cfg.Endpoints); err != nil {
 		return nil, err
 	}
 	return c, nil
@@ -216,10 +253,21 @@ type httpClusterClient struct {
 	pinned        int
 	credentials   *credentials
 	sync.RWMutex
-	rand *rand.Rand
+	rand          *rand.Rand
+	selectionMode EndpointSelectionMode
 }
 
-func (c *httpClusterClient) reset(eps []string) error {
+func (c *httpClusterClient) getLeaderEndpoint() (string, error) {
+	mAPI := NewMembersAPI(c)
+	leader, err := mAPI.Leader(context.Background())
+	if err != nil {
+		return "", err
+	}
+
+	return leader.ClientURLs[0], nil // TODO: how to handle multiple client URLs?
+}
+
+func (c *httpClusterClient) SetEndpoints(eps []string) error {
 	if len(eps) == 0 {
 		return ErrNoEndpoints
 	}
@@ -233,9 +281,28 @@ func (c *httpClusterClient) reset(eps []string) error {
 		neps[i] = *u
 	}
 
-	c.endpoints = shuffleEndpoints(c.rand, neps)
-	// TODO: pin old endpoint if possible, and rebalance when new endpoint appears
-	c.pinned = 0
+	switch c.selectionMode {
+	case EndpointSelectionRandom:
+		c.endpoints = shuffleEndpoints(c.rand, neps)
+		c.pinned = 0
+	case EndpointSelectionPrioritizeLeader:
+		c.endpoints = neps
+		lep, err := c.getLeaderEndpoint()
+		if err != nil {
+			return ErrNoLeaderEndpoint
+		}
+
+		for i := range c.endpoints {
+			if c.endpoints[i].String() == lep {
+				c.pinned = i
+				break
+			}
+		}
+		// If endpoints doesn't have the lu, just keep c.pinned = 0.
+		// Forwarding between follower and leader would be required but it works.
+	default:
+		return errors.New(fmt.Sprintf("invalid endpoint selection mode: %d", c.selectionMode))
+	}
 
 	return nil
 }
@@ -275,7 +342,9 @@ func (c *httpClusterClient) Do(ctx context.Context, act httpAction) (*http.Respo
 		resp, body, err = hc.Do(ctx, action)
 		if err != nil {
 			cerr.Errors = append(cerr.Errors, err)
-			// mask previous errors with context error, which is controlled by user
+			if err == ctx.Err() {
+				return nil, nil, ctx.Err()
+			}
 			if err == context.Canceled || err == context.DeadlineExceeded {
 				return nil, nil, err
 			}
@@ -341,7 +410,7 @@ func (c *httpClusterClient) Sync(ctx context.Context) error {
 		return nil
 	}
 
-	return c.reset(eps)
+	return c.SetEndpoints(eps)
 }
 
 func (c *httpClusterClient) AutoSync(ctx context.Context, interval time.Duration) error {
@@ -378,9 +447,24 @@ func (c *simpleHTTPClient) Do(ctx context.Context, act httpAction) (*http.Respon
 		return nil, nil, err
 	}
 
-	hctx, hcancel := context.WithCancel(ctx)
-	if c.headerTimeout > 0 {
+	isWait := false
+	if req != nil && req.URL != nil {
+		ws := req.URL.Query().Get("wait")
+		if len(ws) != 0 {
+			var err error
+			isWait, err = strconv.ParseBool(ws)
+			if err != nil {
+				return nil, nil, fmt.Errorf("wrong wait value %s (%v for %+v)", ws, err, req)
+			}
+		}
+	}
+
+	var hctx context.Context
+	var hcancel context.CancelFunc
+	if !isWait && c.headerTimeout > 0 {
 		hctx, hcancel = context.WithTimeout(ctx, c.headerTimeout)
+	} else {
+		hctx, hcancel = context.WithCancel(ctx)
 	}
 	defer hcancel()
 

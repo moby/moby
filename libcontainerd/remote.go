@@ -9,6 +9,8 @@ type Remote interface {
 	// Cleanup stops containerd if it was started by libcontainerd.
 	// Note this is not used on Windows as there is no remote containerd.
 	Cleanup()
+	// UpdateOptions allows various remote options to be updated at runtime.
+	UpdateOptions(...RemoteOption) error
 }
 
 // RemoteOption allows to configure parameters of remotes.

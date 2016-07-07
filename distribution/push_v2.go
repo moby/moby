@@ -137,6 +137,7 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, ima
 	descriptorTemplate := v2PushDescriptor{
 		v2MetadataService: p.v2MetadataService,
 		repoInfo:          p.repoInfo,
+		ref:               p.ref,
 		repo:              p.repo,
 		pushState:         &p.pushState,
 	}
@@ -199,6 +200,11 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, ima
 
 	manifestDigest := digest.FromBytes(canonicalManifest)
 	progress.Messagef(p.config.ProgressOutput, "", "%s: digest: %s size: %d", ref.Tag(), manifestDigest, len(canonicalManifest))
+
+	if err := addDigestReference(p.config.ReferenceStore, ref, manifestDigest, imageID); err != nil {
+		return err
+	}
+
 	// Signal digest to the trust client so it can sign the
 	// push, if appropriate.
 	progress.Aux(p.config.ProgressOutput, PushResult{Tag: ref.Tag(), Digest: manifestDigest, Size: len(canonicalManifest)})
@@ -222,13 +228,14 @@ type v2PushDescriptor struct {
 	layer             layer.Layer
 	v2MetadataService *metadata.V2MetadataService
 	repoInfo          reference.Named
+	ref               reference.Named
 	repo              distribution.Repository
 	pushState         *pushState
 	remoteDescriptor  distribution.Descriptor
 }
 
 func (pd *v2PushDescriptor) Key() string {
-	return "v2push:" + pd.repo.Named().Name() + " " + pd.layer.DiffID().String()
+	return "v2push:" + pd.ref.FullName() + " " + pd.layer.DiffID().String()
 }
 
 func (pd *v2PushDescriptor) ID() string {
@@ -240,6 +247,13 @@ func (pd *v2PushDescriptor) DiffID() layer.DiffID {
 }
 
 func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.Output) (distribution.Descriptor, error) {
+	if fs, ok := pd.layer.(distribution.Describable); ok {
+		if d := fs.Descriptor(); len(d.URLs) > 0 {
+			progress.Update(progressOutput, pd.ID(), "Skipped foreign layer")
+			return d, nil
+		}
+	}
+
 	diffID := pd.DiffID()
 
 	pd.pushState.Lock()

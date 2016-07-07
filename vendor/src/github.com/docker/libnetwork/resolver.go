@@ -62,6 +62,21 @@ type extDNSEntry struct {
 	extOnce sync.Once
 }
 
+type sboxQuery struct {
+	sboxID string
+	dnsID  uint16
+}
+
+type clientConnGC struct {
+	toDelete bool
+	client   clientConn
+}
+
+var (
+	queryGCMutex sync.Mutex
+	queryGC      map[sboxQuery]*clientConnGC
+)
+
 // resolver implements the Resolver interface
 type resolver struct {
 	sb         *sandbox
@@ -79,6 +94,21 @@ type resolver struct {
 
 func init() {
 	rand.Seed(time.Now().Unix())
+	queryGC = make(map[sboxQuery]*clientConnGC)
+	go func() {
+		ticker := time.NewTicker(1 * time.Minute)
+		for range ticker.C {
+			queryGCMutex.Lock()
+			for query, conn := range queryGC {
+				if !conn.toDelete {
+					conn.toDelete = true
+					continue
+				}
+				delete(queryGC, query)
+			}
+			queryGCMutex.Unlock()
+		}
+	}()
 }
 
 // NewResolver creates a new instance of the Resolver
@@ -275,15 +305,48 @@ func (r *resolver) handlePTRQuery(ptr string, query *dns.Msg) (*dns.Msg, error) 
 	return resp, nil
 }
 
+func (r *resolver) handleSRVQuery(svc string, query *dns.Msg) (*dns.Msg, error) {
+	srv, ip, err := r.sb.ResolveService(svc)
+
+	if err != nil {
+		return nil, err
+	}
+	if len(srv) != len(ip) {
+		return nil, fmt.Errorf("invalid reply for SRV query %s", svc)
+	}
+
+	resp := createRespMsg(query)
+
+	for i, r := range srv {
+		rr := new(dns.SRV)
+		rr.Hdr = dns.RR_Header{Name: svc, Rrtype: dns.TypePTR, Class: dns.ClassINET, Ttl: respTTL}
+		rr.Port = r.Port
+		rr.Target = r.Target
+		resp.Answer = append(resp.Answer, rr)
+
+		rr1 := new(dns.A)
+		rr1.Hdr = dns.RR_Header{Name: r.Target, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: respTTL}
+		rr1.A = ip[i]
+		resp.Extra = append(resp.Extra, rr1)
+	}
+	return resp, nil
+
+}
+
 func truncateResp(resp *dns.Msg, maxSize int, isTCP bool) {
 	if !isTCP {
 		resp.Truncated = true
 	}
 
+	srv := resp.Question[0].Qtype == dns.TypeSRV
 	// trim the Answer RRs one by one till the whole message fits
 	// within the reply size
 	for resp.Len() > maxSize {
 		resp.Answer = resp.Answer[:len(resp.Answer)-1]
+
+		if srv && len(resp.Extra) > 0 {
+			resp.Extra = resp.Extra[:len(resp.Extra)-1]
+		}
 	}
 }
 
@@ -299,12 +362,16 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 		return
 	}
 	name := query.Question[0].Name
-	if query.Question[0].Qtype == dns.TypeA {
+
+	switch query.Question[0].Qtype {
+	case dns.TypeA:
 		resp, err = r.handleIPQuery(name, query, types.IPv4)
-	} else if query.Question[0].Qtype == dns.TypeAAAA {
+	case dns.TypeAAAA:
 		resp, err = r.handleIPQuery(name, query, types.IPv6)
-	} else if query.Question[0].Qtype == dns.TypePTR {
+	case dns.TypePTR:
 		resp, err = r.handlePTRQuery(name, query)
+	case dns.TypeSRV:
+		resp, err = r.handleSRVQuery(name, query)
 	}
 
 	if err != nil {
@@ -333,6 +400,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 		writer = w
 	} else {
 		queryID := query.Id
+	extQueryLoop:
 		for i := 0; i < maxExtDNS; i++ {
 			extDNS := &r.extDNSList[i]
 			if extDNS.ipStr == "" {
@@ -398,14 +466,26 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 				log.Debugf("Send to DNS server failed, %s", err)
 				continue
 			}
+			for {
+				// If a reply comes after a read timeout it will remain in the socket buffer
+				// and will be read after sending next query. To ignore such stale replies
+				// save the query context in a GC queue when read timesout. On the next reply
+				// if the context is present in the GC queue its a old reply. Ignore it and
+				// read again
+				resp, err = co.ReadMsg()
+				if err != nil {
+					if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
+						r.addQueryToGC(w, query)
+					}
+					r.forwardQueryEnd(w, query)
+					log.Debugf("Read from DNS server failed, %s", err)
+					continue extQueryLoop
+				}
 
-			resp, err = co.ReadMsg()
-			if err != nil {
-				r.forwardQueryEnd(w, query)
-				log.Debugf("Read from DNS server failed, %s", err)
-				continue
+				if !r.checkRespInGC(w, resp) {
+					break
+				}
 			}
-
 			// Retrieves the context for the forwarded query and returns the client connection
 			// to send the reply to
 			writer = r.forwardQueryEnd(w, resp)
@@ -462,6 +542,49 @@ func (r *resolver) forwardQueryStart(w dns.ResponseWriter, msg *dns.Msg, queryID
 	}
 
 	return true
+}
+
+func (r *resolver) addQueryToGC(w dns.ResponseWriter, msg *dns.Msg) {
+	if w.LocalAddr().Network() != "udp" {
+		return
+	}
+
+	r.queryLock.Lock()
+	cc, ok := r.client[msg.Id]
+	r.queryLock.Unlock()
+	if !ok {
+		return
+	}
+
+	query := sboxQuery{
+		sboxID: r.sb.ID(),
+		dnsID:  msg.Id,
+	}
+	clientGC := &clientConnGC{
+		client: cc,
+	}
+	queryGCMutex.Lock()
+	queryGC[query] = clientGC
+	queryGCMutex.Unlock()
+}
+
+func (r *resolver) checkRespInGC(w dns.ResponseWriter, msg *dns.Msg) bool {
+	if w.LocalAddr().Network() != "udp" {
+		return false
+	}
+
+	query := sboxQuery{
+		sboxID: r.sb.ID(),
+		dnsID:  msg.Id,
+	}
+
+	queryGCMutex.Lock()
+	defer queryGCMutex.Unlock()
+	if _, ok := queryGC[query]; ok {
+		delete(queryGC, query)
+		return true
+	}
+	return false
 }
 
 func (r *resolver) forwardQueryEnd(w dns.ResponseWriter, msg *dns.Msg) dns.ResponseWriter {

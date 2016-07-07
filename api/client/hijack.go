@@ -11,7 +11,9 @@ import (
 	"github.com/docker/engine-api/types"
 )
 
-func (cli *DockerCli) holdHijackedConnection(ctx context.Context, tty bool, inputStream io.ReadCloser, outputStream, errorStream io.Writer, resp types.HijackedResponse) error {
+// HoldHijackedConnection handles copying input to and output from streams to the
+// connection
+func (cli *DockerCli) HoldHijackedConnection(ctx context.Context, tty bool, inputStream io.ReadCloser, outputStream, errorStream io.Writer, resp types.HijackedResponse) error {
 	var (
 		err         error
 		restoreOnce sync.Once
@@ -44,7 +46,7 @@ func (cli *DockerCli) holdHijackedConnection(ctx context.Context, tty bool, inpu
 				_, err = stdcopy.StdCopy(outputStream, errorStream, resp.Reader)
 			}
 
-			logrus.Debugf("[hijack] End of stdout")
+			logrus.Debug("[hijack] End of stdout")
 			receiveStdout <- err
 		}()
 	}
@@ -60,7 +62,7 @@ func (cli *DockerCli) holdHijackedConnection(ctx context.Context, tty bool, inpu
 					cli.restoreTerminal(inputStream)
 				})
 			}
-			logrus.Debugf("[hijack] End of stdin")
+			logrus.Debug("[hijack] End of stdin")
 		}
 
 		if err := resp.CloseWrite(); err != nil {

@@ -2,13 +2,16 @@ package daemon
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/runconfig"
 	volumestore "github.com/docker/docker/volume/store"
 	"github.com/docker/engine-api/types"
 	containertypes "github.com/docker/engine-api/types/container"
@@ -16,13 +19,22 @@ import (
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
-// ContainerCreate creates a container.
-func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (types.ContainerCreateResponse, error) {
+// CreateManagedContainer creates a container that is managed by a Service
+func (daemon *Daemon) CreateManagedContainer(params types.ContainerCreateConfig, validateHostname bool) (types.ContainerCreateResponse, error) {
+	return daemon.containerCreate(params, true, validateHostname)
+}
+
+// ContainerCreate creates a regular container
+func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig, validateHostname bool) (types.ContainerCreateResponse, error) {
+	return daemon.containerCreate(params, false, validateHostname)
+}
+
+func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, managed bool, validateHostname bool) (types.ContainerCreateResponse, error) {
 	if params.Config == nil {
 		return types.ContainerCreateResponse{}, fmt.Errorf("Config cannot be empty in order to create a container")
 	}
 
-	warnings, err := daemon.verifyContainerSettings(params.HostConfig, params.Config, false)
+	warnings, err := daemon.verifyContainerSettings(params.HostConfig, params.Config, false, validateHostname)
 	if err != nil {
 		return types.ContainerCreateResponse{Warnings: warnings}, err
 	}
@@ -40,7 +52,7 @@ func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (types
 		return types.ContainerCreateResponse{Warnings: warnings}, err
 	}
 
-	container, err := daemon.create(params)
+	container, err := daemon.create(params, managed)
 	if err != nil {
 		return types.ContainerCreateResponse{Warnings: warnings}, daemon.imageNotExistToErrcode(err)
 	}
@@ -49,7 +61,7 @@ func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (types
 }
 
 // Create creates a new container from the given configuration with a given name.
-func (daemon *Daemon) create(params types.ContainerCreateConfig) (retC *container.Container, retErr error) {
+func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (retC *container.Container, retErr error) {
 	var (
 		container *container.Container
 		img       *image.Image
@@ -73,7 +85,7 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig) (retC *containe
 		return nil, err
 	}
 
-	if container, err = daemon.newContainer(params.Name, params.Config, imgID); err != nil {
+	if container, err = daemon.newContainer(params.Name, params.Config, imgID, managed); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -122,6 +134,9 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig) (retC *containe
 	if params.NetworkingConfig != nil {
 		endpointsConfigs = params.NetworkingConfig.EndpointsConfig
 	}
+	// Make sure NetworkMode has an acceptable value. We do this to ensure
+	// backwards API compatibility.
+	container.HostConfig = runconfig.SetDefaultNetModeIfBlank(container.HostConfig)
 
 	if err := daemon.updateContainerNetworkSettings(container, endpointsConfigs); err != nil {
 		return nil, err
@@ -138,8 +153,8 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig) (retC *containe
 	return container, nil
 }
 
-func (daemon *Daemon) generateSecurityOpt(ipcMode containertypes.IpcMode, pidMode containertypes.PidMode) ([]string, error) {
-	if ipcMode.IsHost() || pidMode.IsHost() {
+func (daemon *Daemon) generateSecurityOpt(ipcMode containertypes.IpcMode, pidMode containertypes.PidMode, privileged bool) ([]string, error) {
+	if ipcMode.IsHost() || pidMode.IsHost() || privileged {
 		return label.DisableSecOpt(), nil
 	}
 
@@ -217,4 +232,29 @@ func (daemon *Daemon) VolumeCreate(name, driverName string, opts, labels map[str
 	apiV := volumeToAPIType(v)
 	apiV.Mountpoint = v.Path()
 	return apiV, nil
+}
+
+func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *image.Image) error {
+	if img != nil && img.Config != nil {
+		if err := merge(config, img.Config); err != nil {
+			return err
+		}
+	}
+	if len(config.Entrypoint) == 0 && len(config.Cmd) == 0 {
+		return fmt.Errorf("No command specified")
+	}
+	return nil
+}
+
+// Checks if the client set configurations for more than one network while creating a container
+func (daemon *Daemon) verifyNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
+	if nwConfig == nil || len(nwConfig.EndpointsConfig) <= 1 {
+		return nil
+	}
+	l := make([]string, 0, len(nwConfig.EndpointsConfig))
+	for k := range nwConfig.EndpointsConfig {
+		l = append(l, k)
+	}
+	err := fmt.Errorf("Container cannot be connected to network endpoints: %s", strings.Join(l, ", "))
+	return errors.NewBadRequestError(err)
 }

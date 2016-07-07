@@ -43,7 +43,7 @@ var (
 		"high",
 		"hopeful",
 		"hungry",
-		"insane",
+		"infallible",
 		"jolly",
 		"jovial",
 		"kickass",
@@ -54,6 +54,7 @@ var (
 		"naughty",
 		"nauseous",
 		"nostalgic",
+		"peaceful",
 		"pedantic",
 		"pensive",
 		"prickly",
@@ -73,6 +74,7 @@ var (
 		"thirsty",
 		"tiny",
 		"trusting",
+		"zen",
 	}
 
 	// Docker, starting from 0.7.x, generates names from notable scientists and hackers.
@@ -193,6 +195,9 @@ var (
 
 		// Annie Easley - She was a leading member of the team which developed software for the Centaur rocket stage and one of the first African-Americans in her field. https://en.wikipedia.org/wiki/Annie_Easley
 		"easley",
+
+		// Thomas Alva Edison, prolific inventor https://en.wikipedia.org/wiki/Thomas_Edison
+		"edison",
 
 		// Albert Einstein invented the general theory of relativity. https://en.wikipedia.org/wiki/Albert_Einstein
 		"einstein",
@@ -377,6 +382,9 @@ var (
 		// Isaac Newton invented classic mechanics and modern optics. https://en.wikipedia.org/wiki/Isaac_Newton
 		"newton",
 
+		// Florence Nightingale, more prominently known as a nurse, was also the first female member of the Royal Statistical Society and a pioneer in statistical graphics https://en.wikipedia.org/wiki/Florence_Nightingale#Statistics_and_sanitary_reform
+		"nightingale",
+
 		// Alfred Nobel - a Swedish chemist, engineer, innovator, and armaments manufacturer (inventor of dynamite) - https://en.wikipedia.org/wiki/Alfred_Nobel
 		"nobel",
 
@@ -499,6 +507,9 @@ var (
 
 		// Marlyn Wescoff - one of the original programmers of the ENIAC. https://en.wikipedia.org/wiki/ENIAC - https://en.wikipedia.org/wiki/Marlyn_Meltzer
 		"wescoff",
+
+		// Andrew Wiles - Notable British mathematician who proved the enigmatic Fermat's Last Theorem - https://en.wikipedia.org/wiki/Andrew_Wiles
+		"wiles",
 
 		// Roberta Williams, did pioneering work in graphical adventure games for personal computers, particularly the King's Quest series. https://en.wikipedia.org/wiki/Roberta_Williams
 		"williams",

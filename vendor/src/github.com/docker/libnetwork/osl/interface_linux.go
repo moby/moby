@@ -3,14 +3,16 @@ package osl
 import (
 	"fmt"
 	"net"
-	"os/exec"
 	"regexp"
 	"sync"
 	"syscall"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netns"
 )
 
 // IfaceOption is a function option type to set interface options
@@ -24,6 +26,7 @@ type nwIface struct {
 	mac         net.HardwareAddr
 	address     *net.IPNet
 	addressIPv6 *net.IPNet
+	llAddrs     []*net.IPNet
 	routes      []*net.IPNet
 	bridge      bool
 	ns          *networkNamespace
@@ -86,6 +89,13 @@ func (i *nwIface) AddressIPv6() *net.IPNet {
 	return types.GetIPNetCopy(i.addressIPv6)
 }
 
+func (i *nwIface) LinkLocalAddresses() []*net.IPNet {
+	i.Lock()
+	defer i.Unlock()
+
+	return i.llAddrs
+}
+
 func (i *nwIface) Routes() []*net.IPNet {
 	i.Lock()
 	defer i.Unlock()
@@ -118,52 +128,50 @@ func (i *nwIface) Remove() error {
 	i.Unlock()
 
 	n.Lock()
-	path := n.path
 	isDefault := n.isDefault
+	nlh := n.nlHandle
 	n.Unlock()
 
-	return nsInvoke(path, func(nsFD int) error { return nil }, func(callerFD int) error {
-		// Find the network inteerface identified by the DstName attribute.
-		iface, err := netlink.LinkByName(i.DstName())
-		if err != nil {
+	// Find the network inteerface identified by the DstName attribute.
+	iface, err := nlh.LinkByName(i.DstName())
+	if err != nil {
+		return err
+	}
+
+	// Down the interface before configuring
+	if err := nlh.LinkSetDown(iface); err != nil {
+		return err
+	}
+
+	err = nlh.LinkSetName(iface, i.SrcName())
+	if err != nil {
+		log.Debugf("LinkSetName failed for interface %s: %v", i.SrcName(), err)
+		return err
+	}
+
+	// if it is a bridge just delete it.
+	if i.Bridge() {
+		if err := nlh.LinkDel(iface); err != nil {
+			return fmt.Errorf("failed deleting bridge %q: %v", i.SrcName(), err)
+		}
+	} else if !isDefault {
+		// Move the network interface to caller namespace.
+		if err := nlh.LinkSetNsFd(iface, ns.ParseHandlerInt()); err != nil {
+			log.Debugf("LinkSetNsPid failed for interface %s: %v", i.SrcName(), err)
 			return err
 		}
+	}
 
-		// Down the interface before configuring
-		if err := netlink.LinkSetDown(iface); err != nil {
-			return err
+	n.Lock()
+	for index, intf := range n.iFaces {
+		if intf == i {
+			n.iFaces = append(n.iFaces[:index], n.iFaces[index+1:]...)
+			break
 		}
+	}
+	n.Unlock()
 
-		err = netlink.LinkSetName(iface, i.SrcName())
-		if err != nil {
-			log.Debugf("LinkSetName failed for interface %s: %v", i.SrcName(), err)
-			return err
-		}
-
-		// if it is a bridge just delete it.
-		if i.Bridge() {
-			if err := netlink.LinkDel(iface); err != nil {
-				return fmt.Errorf("failed deleting bridge %q: %v", i.SrcName(), err)
-			}
-		} else if !isDefault {
-			// Move the network interface to caller namespace.
-			if err := netlink.LinkSetNsFd(iface, callerFD); err != nil {
-				log.Debugf("LinkSetNsPid failed for interface %s: %v", i.SrcName(), err)
-				return err
-			}
-		}
-
-		n.Lock()
-		for index, intf := range n.iFaces {
-			if intf == i {
-				n.iFaces = append(n.iFaces[:index], n.iFaces[index+1:]...)
-				break
-			}
-		}
-		n.Unlock()
-
-		return nil
-	})
+	return nil
 }
 
 // Returns the sandbox's side veth interface statistics
@@ -172,28 +180,24 @@ func (i *nwIface) Statistics() (*types.InterfaceStatistics, error) {
 	n := i.ns
 	i.Unlock()
 
-	n.Lock()
-	path := n.path
-	n.Unlock()
-
-	s := &types.InterfaceStatistics{}
-
-	err := nsInvoke(path, func(nsFD int) error { return nil }, func(callerFD int) error {
-		// For some reason ioutil.ReadFile(netStatsFile) reads the file in
-		// the default netns when this code is invoked from docker.
-		// Executing "cat <netStatsFile>" works as expected.
-		data, err := exec.Command("cat", netStatsFile).Output()
-		if err != nil {
-			return fmt.Errorf("failure opening %s: %v", netStatsFile, err)
-		}
-		return scanInterfaceStats(string(data), i.DstName(), s)
-	})
-
+	l, err := n.nlHandle.LinkByName(i.DstName())
 	if err != nil {
-		err = fmt.Errorf("failed to retrieve the statistics for %s in netns %s: %v", i.DstName(), path, err)
+		return nil, fmt.Errorf("failed to retrieve the statistics for %s in netns %s: %v", i.DstName(), n.path, err)
 	}
 
-	return s, err
+	stats := l.Attrs().Statistics
+	if stats == nil {
+		return nil, fmt.Errorf("no statistics were returned")
+	}
+
+	return &types.InterfaceStatistics{
+		RxBytes:   uint64(stats.RxBytes),
+		TxBytes:   uint64(stats.TxBytes),
+		RxPackets: uint64(stats.RxPackets),
+		TxPackets: uint64(stats.TxPackets),
+		RxDropped: uint64(stats.RxDropped),
+		TxDropped: uint64(stats.TxDropped),
+	}, nil
 }
 
 func (n *networkNamespace) findDst(srcName string, isBridge bool) string {
@@ -233,17 +237,24 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 
 	path := n.path
 	isDefault := n.isDefault
+	nlh := n.nlHandle
+	nlhHost := ns.NlHandle()
 	n.Unlock()
 
-	return nsInvoke(path, func(nsFD int) error {
-		// If it is a bridge interface we have to create the bridge inside
-		// the namespace so don't try to lookup the interface using srcName
-		if i.bridge {
-			return nil
+	// If it is a bridge interface we have to create the bridge inside
+	// the namespace so don't try to lookup the interface using srcName
+	if i.bridge {
+		link := &netlink.Bridge{
+			LinkAttrs: netlink.LinkAttrs{
+				Name: i.srcName,
+			},
 		}
-
+		if err := nlh.LinkAdd(link); err != nil {
+			return fmt.Errorf("failed to create bridge %q: %v", i.srcName, err)
+		}
+	} else {
 		// Find the network interface identified by the SrcName attribute.
-		iface, err := netlink.LinkByName(i.srcName)
+		iface, err := nlhHost.LinkByName(i.srcName)
 		if err != nil {
 			return fmt.Errorf("failed to get link by name %q: %v", i.srcName, err)
 		}
@@ -252,63 +263,59 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 		// namespace only if the namespace is not a default
 		// type
 		if !isDefault {
-			if err := netlink.LinkSetNsFd(iface, nsFD); err != nil {
+			newNs, err := netns.GetFromPath(path)
+			if err != nil {
+				return fmt.Errorf("failed get network namespace %q: %v", path, err)
+			}
+			defer newNs.Close()
+			if err := nlhHost.LinkSetNsFd(iface, int(newNs)); err != nil {
 				return fmt.Errorf("failed to set namespace on link %q: %v", i.srcName, err)
 			}
 		}
+	}
 
-		return nil
-	}, func(callerFD int) error {
-		if i.bridge {
-			link := &netlink.Bridge{
-				LinkAttrs: netlink.LinkAttrs{
-					Name: i.srcName,
-				},
-			}
+	// Find the network interface identified by the SrcName attribute.
+	iface, err := nlh.LinkByName(i.srcName)
+	if err != nil {
+		return fmt.Errorf("failed to get link by name %q: %v", i.srcName, err)
+	}
 
-			if err := netlink.LinkAdd(link); err != nil {
-				return fmt.Errorf("failed to create bridge %q: %v", i.srcName, err)
-			}
-		}
+	// Down the interface before configuring
+	if err := nlh.LinkSetDown(iface); err != nil {
+		return fmt.Errorf("failed to set link down: %v", err)
+	}
 
-		// Find the network interface identified by the SrcName attribute.
-		iface, err := netlink.LinkByName(i.srcName)
-		if err != nil {
-			return fmt.Errorf("failed to get link by name %q: %v", i.srcName, err)
-		}
+	// Configure the interface now this is moved in the proper namespace.
+	if err := configureInterface(nlh, iface, i); err != nil {
+		return err
+	}
 
-		// Down the interface before configuring
-		if err := netlink.LinkSetDown(iface); err != nil {
-			return fmt.Errorf("failed to set link down: %v", err)
-		}
+	// Up the interface.
+	cnt := 0
+	for err = nlh.LinkSetUp(iface); err != nil && cnt < 3; cnt++ {
+		log.Debugf("retrying link setup because of: %v", err)
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to set link up: %v", err)
+	}
 
-		// Configure the interface now this is moved in the proper namespace.
-		if err := configureInterface(iface, i); err != nil {
-			return err
-		}
+	// Set the routes on the interface. This can only be done when the interface is up.
+	if err := setInterfaceRoutes(nlh, iface, i); err != nil {
+		return fmt.Errorf("error setting interface %q routes to %q: %v", iface.Attrs().Name, i.Routes(), err)
+	}
 
-		// Up the interface.
-		if err := netlink.LinkSetUp(iface); err != nil {
-			return fmt.Errorf("failed to set link up: %v", err)
-		}
+	n.Lock()
+	n.iFaces = append(n.iFaces, i)
+	n.Unlock()
 
-		// Set the routes on the interface. This can only be done when the interface is up.
-		if err := setInterfaceRoutes(iface, i); err != nil {
-			return fmt.Errorf("error setting interface %q routes to %q: %v", iface.Attrs().Name, i.Routes(), err)
-		}
-
-		n.Lock()
-		n.iFaces = append(n.iFaces, i)
-		n.Unlock()
-
-		return nil
-	})
+	return nil
 }
 
-func configureInterface(iface netlink.Link, i *nwIface) error {
+func configureInterface(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
 	ifaceName := iface.Attrs().Name
 	ifaceConfigurators := []struct {
-		Fn         func(netlink.Link, *nwIface) error
+		Fn         func(*netlink.Handle, netlink.Link, *nwIface) error
 		ErrMessage string
 	}{
 		{setInterfaceName, fmt.Sprintf("error renaming interface %q to %q", ifaceName, i.DstName())},
@@ -316,56 +323,67 @@ func configureInterface(iface netlink.Link, i *nwIface) error {
 		{setInterfaceIP, fmt.Sprintf("error setting interface %q IP to %v", ifaceName, i.Address())},
 		{setInterfaceIPv6, fmt.Sprintf("error setting interface %q IPv6 to %v", ifaceName, i.AddressIPv6())},
 		{setInterfaceMaster, fmt.Sprintf("error setting interface %q master to %q", ifaceName, i.DstMaster())},
+		{setInterfaceLinkLocalIPs, fmt.Sprintf("error setting interface %q link local IPs to %v", ifaceName, i.LinkLocalAddresses())},
 	}
 
 	for _, config := range ifaceConfigurators {
-		if err := config.Fn(iface, i); err != nil {
+		if err := config.Fn(nlh, iface, i); err != nil {
 			return fmt.Errorf("%s: %v", config.ErrMessage, err)
 		}
 	}
 	return nil
 }
 
-func setInterfaceMaster(iface netlink.Link, i *nwIface) error {
+func setInterfaceMaster(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
 	if i.DstMaster() == "" {
 		return nil
 	}
 
-	return netlink.LinkSetMaster(iface, &netlink.Bridge{
+	return nlh.LinkSetMaster(iface, &netlink.Bridge{
 		LinkAttrs: netlink.LinkAttrs{Name: i.DstMaster()}})
 }
 
-func setInterfaceMAC(iface netlink.Link, i *nwIface) error {
+func setInterfaceMAC(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
 	if i.MacAddress() == nil {
 		return nil
 	}
-	return netlink.LinkSetHardwareAddr(iface, i.MacAddress())
+	return nlh.LinkSetHardwareAddr(iface, i.MacAddress())
 }
 
-func setInterfaceIP(iface netlink.Link, i *nwIface) error {
+func setInterfaceIP(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
 	if i.Address() == nil {
 		return nil
 	}
 
 	ipAddr := &netlink.Addr{IPNet: i.Address(), Label: ""}
-	return netlink.AddrAdd(iface, ipAddr)
+	return nlh.AddrAdd(iface, ipAddr)
 }
 
-func setInterfaceIPv6(iface netlink.Link, i *nwIface) error {
+func setInterfaceIPv6(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
 	if i.AddressIPv6() == nil {
 		return nil
 	}
 	ipAddr := &netlink.Addr{IPNet: i.AddressIPv6(), Label: "", Flags: syscall.IFA_F_NODAD}
-	return netlink.AddrAdd(iface, ipAddr)
+	return nlh.AddrAdd(iface, ipAddr)
 }
 
-func setInterfaceName(iface netlink.Link, i *nwIface) error {
-	return netlink.LinkSetName(iface, i.DstName())
+func setInterfaceLinkLocalIPs(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
+	for _, llIP := range i.LinkLocalAddresses() {
+		ipAddr := &netlink.Addr{IPNet: llIP}
+		if err := nlh.AddrAdd(iface, ipAddr); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func setInterfaceRoutes(iface netlink.Link, i *nwIface) error {
+func setInterfaceName(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
+	return nlh.LinkSetName(iface, i.DstName())
+}
+
+func setInterfaceRoutes(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
 	for _, route := range i.Routes() {
-		err := netlink.RouteAdd(&netlink.Route{
+		err := nlh.RouteAdd(&netlink.Route{
 			Scope:     netlink.SCOPE_LINK,
 			LinkIndex: iface.Attrs().Index,
 			Dst:       route,

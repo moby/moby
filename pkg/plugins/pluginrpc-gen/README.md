@@ -43,16 +43,6 @@ supplying `--tag`. This flag can be specified multiple times.
 
 ## Known issues
 
-The parser can currently only handle types which are not specifically a map or
-a slice.  
-You can, however, create a type that uses a map or a slice internally, for instance:
-
-```go
-type opts map[string]string
-```
-
-This `opts` type will work, whreas using a `map[string]string` directly will not.
-
 ## go-generate
 
 You can also use this with go-generate, which is pretty awesome.  

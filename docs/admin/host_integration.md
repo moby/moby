@@ -74,7 +74,7 @@ a new service that will be started after the docker daemon service has started.
     ExecStop=/usr/bin/docker stop -t 2 redis_server
 
     [Install]
-    WantedBy=local.target
+    WantedBy=default.target
 
 If you need to pass options to the redis container (such as `--env`),
 then you'll need to use `docker run` rather than `docker start`. This will
@@ -84,5 +84,6 @@ and removed when the service is stopped.
     [Service]
     ...
     ExecStart=/usr/bin/docker run --env foo=bar --name redis_server redis
-    ExecStop=/usr/bin/docker stop -t 2 redis_server ; /usr/bin/docker rm -f redis_server
+    ExecStop=/usr/bin/docker stop -t 2 redis_server
+    ExecStopPost=/usr/bin/docker rm -f redis_server
     ...

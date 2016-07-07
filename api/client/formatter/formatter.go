@@ -114,35 +114,27 @@ type ImageContext struct {
 func (ctx ContainerContext) Write() {
 	switch ctx.Format {
 	case tableFormatKey:
-		ctx.Format = defaultContainerTableFormat
 		if ctx.Quiet {
 			ctx.Format = defaultQuietFormat
+		} else {
+			ctx.Format = defaultContainerTableFormat
+			if ctx.Size {
+				ctx.Format += `\t{{.Size}}`
+			}
 		}
 	case rawFormatKey:
 		if ctx.Quiet {
 			ctx.Format = `container_id: {{.ID}}`
 		} else {
-			ctx.Format = `container_id: {{.ID}}
-image: {{.Image}}
-command: {{.Command}}
-created_at: {{.CreatedAt}}
-status: {{.Status}}
-names: {{.Names}}
-labels: {{.Labels}}
-ports: {{.Ports}}
-`
+			ctx.Format = `container_id: {{.ID}}\nimage: {{.Image}}\ncommand: {{.Command}}\ncreated_at: {{.CreatedAt}}\nstatus: {{.Status}}\nnames: {{.Names}}\nlabels: {{.Labels}}\nports: {{.Ports}}\n`
 			if ctx.Size {
-				ctx.Format += `size: {{.Size}}
-`
+				ctx.Format += `size: {{.Size}}\n`
 			}
 		}
 	}
 
 	ctx.buffer = bytes.NewBufferString("")
 	ctx.preformat()
-	if ctx.table && ctx.Size {
-		ctx.finalFormat += "\t{{.Size}}"
-	}
 
 	tmpl, err := ctx.parseFormat()
 	if err != nil {
@@ -161,6 +153,10 @@ ports: {{.Ports}}
 	}
 
 	ctx.postformat(tmpl, &containerContext{})
+}
+
+func isDangling(image types.Image) bool {
+	return len(image.RepoTags) == 1 && image.RepoTags[0] == "<none>:<none>" && len(image.RepoDigests) == 1 && image.RepoDigests[0] == "<none>@<none>"
 }
 
 func (ctx ImageContext) Write() {
@@ -208,42 +204,98 @@ virtual_size: {{.Size}}
 	}
 
 	for _, image := range ctx.Images {
+		images := []*imageContext{}
+		if isDangling(image) {
+			images = append(images, &imageContext{
+				trunc:  ctx.Trunc,
+				i:      image,
+				repo:   "<none>",
+				tag:    "<none>",
+				digest: "<none>",
+			})
+		} else {
+			repoTags := map[string][]string{}
+			repoDigests := map[string][]string{}
 
-		repoTags := image.RepoTags
-		repoDigests := image.RepoDigests
-
-		if len(repoTags) == 1 && repoTags[0] == "<none>:<none>" && len(repoDigests) == 1 && repoDigests[0] == "<none>@<none>" {
-			// dangling image - clear out either repoTags or repoDigests so we only show it once below
-			repoDigests = []string{}
-		}
-		// combine the tags and digests lists
-		tagsAndDigests := append(repoTags, repoDigests...)
-		for _, repoAndRef := range tagsAndDigests {
-			repo := "<none>"
-			tag := "<none>"
-			digest := "<none>"
-
-			if !strings.HasPrefix(repoAndRef, "<none>") {
-				ref, err := reference.ParseNamed(repoAndRef)
+			for _, refString := range append(image.RepoTags) {
+				ref, err := reference.ParseNamed(refString)
 				if err != nil {
 					continue
 				}
-				repo = ref.Name()
-
-				switch x := ref.(type) {
-				case reference.Canonical:
-					digest = x.Digest().String()
-				case reference.NamedTagged:
-					tag = x.Tag()
+				if nt, ok := ref.(reference.NamedTagged); ok {
+					repoTags[ref.Name()] = append(repoTags[ref.Name()], nt.Tag())
 				}
 			}
-			imageCtx := &imageContext{
-				trunc:  ctx.Trunc,
-				i:      image,
-				repo:   repo,
-				tag:    tag,
-				digest: digest,
+			for _, refString := range append(image.RepoDigests) {
+				ref, err := reference.ParseNamed(refString)
+				if err != nil {
+					continue
+				}
+				if c, ok := ref.(reference.Canonical); ok {
+					repoDigests[ref.Name()] = append(repoDigests[ref.Name()], c.Digest().String())
+				}
 			}
+
+			for repo, tags := range repoTags {
+				digests := repoDigests[repo]
+
+				// Do not display digests as their own row
+				delete(repoDigests, repo)
+
+				if !ctx.Digest {
+					// Ignore digest references, just show tag once
+					digests = nil
+				}
+
+				for _, tag := range tags {
+					if len(digests) == 0 {
+						images = append(images, &imageContext{
+							trunc:  ctx.Trunc,
+							i:      image,
+							repo:   repo,
+							tag:    tag,
+							digest: "<none>",
+						})
+						continue
+					}
+					// Display the digests for each tag
+					for _, dgst := range digests {
+						images = append(images, &imageContext{
+							trunc:  ctx.Trunc,
+							i:      image,
+							repo:   repo,
+							tag:    tag,
+							digest: dgst,
+						})
+					}
+
+				}
+			}
+
+			// Show rows for remaining digest only references
+			for repo, digests := range repoDigests {
+				// If digests are displayed, show row per digest
+				if ctx.Digest {
+					for _, dgst := range digests {
+						images = append(images, &imageContext{
+							trunc:  ctx.Trunc,
+							i:      image,
+							repo:   repo,
+							tag:    "<none>",
+							digest: dgst,
+						})
+					}
+				} else {
+					images = append(images, &imageContext{
+						trunc: ctx.Trunc,
+						i:     image,
+						repo:  repo,
+						tag:   "<none>",
+					})
+				}
+			}
+		}
+		for _, imageCtx := range images {
 			err = ctx.contextFormat(tmpl, imageCtx)
 			if err != nil {
 				return

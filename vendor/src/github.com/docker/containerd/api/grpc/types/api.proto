@@ -47,6 +47,9 @@ message CreateContainerRequest {
 	string stderr = 6; // path to file where stderr will be written (optional)
 	repeated string labels = 7;
 	bool noPivotRoot = 8;
+	string runtime = 9;
+	repeated string runtimeArgs = 10;
+	string checkpointDir = 11; // Directory where checkpoints are stored
 }
 
 message CreateContainerResponse {
@@ -98,6 +101,7 @@ message AddProcessResponse {
 message CreateCheckpointRequest {
 	string id = 1; // ID of container
 	Checkpoint checkpoint = 2; // Checkpoint configuration
+	string checkpointDir = 3; // Directory where checkpoints are stored
 }
 
 message CreateCheckpointResponse {
@@ -106,6 +110,7 @@ message CreateCheckpointResponse {
 message DeleteCheckpointRequest {
 	string id = 1; // ID of container
 	string name = 2; // Name of checkpoint
+	string checkpointDir = 3; // Directory where checkpoints are stored
 }
 
 message DeleteCheckpointResponse {
@@ -113,6 +118,7 @@ message DeleteCheckpointResponse {
 
 message ListCheckpointRequest {
 	string id = 1; // ID of container
+	string checkpointDir = 2; // Directory where checkpoints are stored
 }
 
 message Checkpoint {
@@ -121,6 +127,7 @@ message Checkpoint {
 	bool tcp = 3; // allow open tcp connections
 	bool unixSockets = 4; // allow external unix sockets
 	bool shell = 5; // allow shell-jobs
+	repeated string emptyNS = 6;
 }
 
 message ListCheckpointResponse {
@@ -183,16 +190,17 @@ message UpdateContainerRequest {
 }
 
 message UpdateResource {
-	uint32 blkioWeight =1;
-	uint32 cpuShares = 2;
-	uint32 cpuPeriod = 3;
-	uint32 cpuQuota = 4;
+	uint64 blkioWeight =1;
+	uint64 cpuShares = 2;
+	uint64 cpuPeriod = 3;
+	uint64 cpuQuota = 4;
 	string cpusetCpus = 5;
 	string cpusetMems = 6;
-	uint32 memoryLimit = 7;
-	uint32 memorySwap = 8;
-	uint32 memoryReservation = 9;
-	uint32 kernelMemoryLimit = 10;
+	uint64 memoryLimit = 7;
+	uint64 memorySwap = 8;
+	uint64 memoryReservation = 9;
+	uint64 kernelMemoryLimit = 10;
+	uint64 kernelTCPMemoryLimit = 11;
 }
 
 message UpdateContainerResponse {

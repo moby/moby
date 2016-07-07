@@ -33,6 +33,7 @@ const (
 	containerdBinary          = "docker-containerd"
 	containerdPidFilename     = "docker-containerd.pid"
 	containerdSockFilename    = "docker-containerd.sock"
+	containerdStateDir        = "containerd"
 	eventTimestampFilename    = "event.ts"
 )
 
@@ -49,7 +50,10 @@ type remote struct {
 	clients       []*client
 	eventTsPath   string
 	pastEvents    map[string]*containerd.Event
+	runtime       string
 	runtimeArgs   []string
+	daemonWaitCh  chan struct{}
+	liveRestore   bool
 }
 
 // New creates a fresh instance of libcontainerd remote.
@@ -109,6 +113,15 @@ func New(stateDir string, options ...RemoteOption) (_ Remote, err error) {
 	return r, nil
 }
 
+func (r *remote) UpdateOptions(options ...RemoteOption) error {
+	for _, option := range options {
+		if err := option.Apply(r); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (r *remote) handleConnectionChange() {
 	var transientFailureCount = 0
 	state := grpc.Idle
@@ -129,6 +142,7 @@ func (r *remote) handleConnectionChange() {
 					transientFailureCount = 0
 					if utils.IsProcessAlive(r.daemonPid) {
 						utils.KillProcess(r.daemonPid)
+						<-r.daemonWaitCh
 					}
 					if err := r.runContainerdDaemon(); err != nil { //FIXME: Handle error
 						logrus.Errorf("error restarting containerd: %v", err)
@@ -181,6 +195,7 @@ func (r *remote) Client(b Backend) (Client, error) {
 		},
 		remote:        r,
 		exitNotifiers: make(map[string]*exitNotifier),
+		liveRestore:   r.liveRestore,
 	}
 
 	r.Lock()
@@ -223,14 +238,14 @@ func (r *remote) getLastEventTimestamp() int64 {
 	f, err := os.Open(r.eventTsPath)
 	defer f.Close()
 	if err != nil {
-		logrus.Warn("libcontainerd: Unable to access last event ts: %v", err)
+		logrus.Warnf("libcontainerd: Unable to access last event ts: %v", err)
 		return t.Unix()
 	}
 
 	b := make([]byte, fi.Size())
 	n, err := f.Read(b)
 	if err != nil || n != len(b) {
-		logrus.Warn("libcontainerd: Unable to read last event ts: %v", err)
+		logrus.Warnf("libcontainerd: Unable to read last event ts: %v", err)
 		return t.Unix()
 	}
 
@@ -352,8 +367,13 @@ func (r *remote) runContainerdDaemon() error {
 	args := []string{
 		"-l", fmt.Sprintf("unix://%s", r.rpcAddr),
 		"--shim", "docker-containerd-shim",
-		"--runtime", "docker-runc",
 		"--metrics-interval=0",
+		"--start-timeout", "2m",
+		"--state-dir", filepath.Join(r.stateDir, containerdStateDir),
+	}
+	if r.runtime != "" {
+		args = append(args, "--runtime")
+		args = append(args, r.runtime)
 	}
 	if r.debugLog {
 		args = append(args, "--debug")
@@ -388,7 +408,11 @@ func (r *remote) runContainerdDaemon() error {
 		return err
 	}
 
-	go cmd.Wait() // Reap our child when needed
+	r.daemonWaitCh = make(chan struct{})
+	go func() {
+		cmd.Wait()
+		close(r.daemonWaitCh)
+	}() // Reap our child when needed
 	r.daemonPid = cmd.Process.Pid
 	return nil
 }
@@ -406,6 +430,22 @@ func (a rpcAddr) Apply(r Remote) error {
 		return nil
 	}
 	return fmt.Errorf("WithRemoteAddr option not supported for this remote")
+}
+
+// WithRuntimePath sets the path of the runtime to be used as the
+// default by containerd
+func WithRuntimePath(rt string) RemoteOption {
+	return runtimePath(rt)
+}
+
+type runtimePath string
+
+func (rt runtimePath) Apply(r Remote) error {
+	if remote, ok := r.(*remote); ok {
+		remote.runtime = string(rt)
+		return nil
+	}
+	return fmt.Errorf("WithRuntime option not supported for this remote")
 }
 
 // WithRuntimeArgs sets the list of runtime args passed to containerd
@@ -451,4 +491,22 @@ func (d debugLog) Apply(r Remote) error {
 		return nil
 	}
 	return fmt.Errorf("WithDebugLog option not supported for this remote")
+}
+
+// WithLiveRestore defines if containers are stopped on shutdown or restored.
+func WithLiveRestore(v bool) RemoteOption {
+	return liveRestore(v)
+}
+
+type liveRestore bool
+
+func (l liveRestore) Apply(r Remote) error {
+	if remote, ok := r.(*remote); ok {
+		remote.liveRestore = bool(l)
+		for _, c := range remote.clients {
+			c.liveRestore = bool(l)
+		}
+		return nil
+	}
+	return fmt.Errorf("WithLiveRestore option not supported for this remote")
 }

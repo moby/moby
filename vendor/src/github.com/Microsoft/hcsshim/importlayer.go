@@ -148,6 +148,8 @@ func (r *legacyLayerWriterWrapper) Close() error {
 }
 
 // NewLayerWriter returns a new layer writer for creating a layer on disk.
+// The caller must have taken the SeBackupPrivilege and SeRestorePrivilege privileges
+// to call this and any methods on the resulting LayerWriter.
 func NewLayerWriter(info DriverInfo, layerID string, parentLayerPaths []string) (LayerWriter, error) {
 	if len(parentLayerPaths) == 0 {
 		// This is a base layer. It gets imported differently.

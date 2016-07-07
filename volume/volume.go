@@ -4,14 +4,23 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"syscall"
 
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
+	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 // DefaultDriverName is the driver name used for the driver
 // implemented in the local package.
-const DefaultDriverName string = "local"
+const DefaultDriverName = "local"
+
+// Scopes define if a volume has is cluster-wide (global) or local only.
+// Scopes are returned by the volume driver when it is queried for capabilities and then set on a volume
+const (
+	LocalScope  = "local"
+	GlobalScope = "global"
+)
 
 // Driver is for creating and removing volumes.
 type Driver interface {
@@ -25,6 +34,18 @@ type Driver interface {
 	List() ([]Volume, error)
 	// Get retrieves the volume with the requested name
 	Get(name string) (Volume, error)
+	// Scope returns the scope of the driver (e.g. `global` or `local`).
+	// Scope determines how the driver is handled at a cluster level
+	Scope() string
+}
+
+// Capability defines a set of capabilities that a driver is able to handle.
+type Capability struct {
+	// Scope is the scope of the driver, `global` or `local`
+	// A `global` scope indicates that the driver manages volumes across the cluster
+	// A `local` scope indicates that the driver only manages volumes resources local to the host
+	// Scope is declared by the driver
+	Scope string
 }
 
 // Volume is a place to store data. It is backed by a specific driver, and can be mounted.
@@ -42,6 +63,18 @@ type Volume interface {
 	Unmount(id string) error
 	// Status returns low-level status information about a volume
 	Status() map[string]interface{}
+}
+
+// LabeledVolume wraps a Volume with user-defined labels
+type LabeledVolume interface {
+	Labels() map[string]string
+	Volume
+}
+
+// ScopedVolume wraps a volume with a cluster scope (e.g., `local` or `global`)
+type ScopedVolume interface {
+	Scope() string
+	Volume
 }
 
 // MountPoint is the intersection point between a volume and a container. It
@@ -73,7 +106,7 @@ type MountPoint struct {
 
 // Setup sets up a mount point by either mounting the volume if it is
 // configured, or creating the source directory if supplied.
-func (m *MountPoint) Setup() (string, error) {
+func (m *MountPoint) Setup(mountLabel string) (string, error) {
 	if m.Volume != nil {
 		if m.ID == "" {
 			m.ID = stringid.GenerateNonCryptoID()
@@ -84,12 +117,15 @@ func (m *MountPoint) Setup() (string, error) {
 		return "", fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
 	}
 	// system.MkdirAll() produces an error if m.Source exists and is a file (not a directory),
-	// so first check if the path does not exist
-	if _, err := os.Stat(m.Source); err != nil {
-		if !os.IsNotExist(err) {
-			return "", err
+	if err := system.MkdirAll(m.Source, 0755); err != nil {
+		if perr, ok := err.(*os.PathError); ok {
+			if perr.Err != syscall.ENOTDIR {
+				return "", err
+			}
 		}
-		if err := system.MkdirAll(m.Source, 0755); err != nil {
+	}
+	if label.RelabelNeeded(m.Mode) {
+		if err := label.Relabel(m.Source, mountLabel, label.IsShared(m.Mode)); err != nil {
 			return "", err
 		}
 	}
@@ -102,6 +138,17 @@ func (m *MountPoint) Path() string {
 		return m.Volume.Path()
 	}
 	return m.Source
+}
+
+// Type returns the type of mount point
+func (m *MountPoint) Type() string {
+	if m.Name != "" {
+		return "VOLUME"
+	}
+	if m.Source != "" {
+		return "BIND"
+	}
+	return "EPHEMERAL"
 }
 
 // ParseVolumesFrom ensures that the supplied volumes-from is valid.

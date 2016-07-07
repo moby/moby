@@ -107,7 +107,7 @@ Trust for an image tag is managed through the use of signing keys. A key set is
 created when an operation using content trust is first invoked. A key set consists
 of the following classes of keys:
 
-- an offline key that is the root of content trust for a image tag
+- an offline key that is the root of content trust for an image tag
 - repository or tagging keys that sign tags
 - server-managed keys such as the timestamp key, which provides freshness
 	security guarantees for your repository

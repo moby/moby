@@ -121,6 +121,75 @@ func (s *DockerSuite) TestImagesFilterLabelWithCommit(c *check.C) {
 	c.Assert(out, check.Equals, imageID)
 }
 
+func (s *DockerSuite) TestImagesFilterSinceAndBefore(c *check.C) {
+	imageID1, err := buildImage("image:1", `FROM `+minimalBaseImage()+`
+LABEL number=1`, true)
+	c.Assert(err, checker.IsNil)
+	imageID2, err := buildImage("image:2", `FROM `+minimalBaseImage()+`
+LABEL number=2`, true)
+	c.Assert(err, checker.IsNil)
+	imageID3, err := buildImage("image:3", `FROM `+minimalBaseImage()+`
+LABEL number=3`, true)
+	c.Assert(err, checker.IsNil)
+
+	expected := []string{imageID3, imageID2}
+
+	out, _ := dockerCmd(c, "images", "-f", "since=image:1", "image")
+	c.Assert(assertImageList(out, expected), checker.Equals, true, check.Commentf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
+
+	out, _ = dockerCmd(c, "images", "-f", "since="+imageID1, "image")
+	c.Assert(assertImageList(out, expected), checker.Equals, true, check.Commentf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
+
+	expected = []string{imageID3}
+
+	out, _ = dockerCmd(c, "images", "-f", "since=image:2", "image")
+	c.Assert(assertImageList(out, expected), checker.Equals, true, check.Commentf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
+
+	out, _ = dockerCmd(c, "images", "-f", "since="+imageID2, "image")
+	c.Assert(assertImageList(out, expected), checker.Equals, true, check.Commentf("SINCE filter: Image list is not in the correct order: %v\n%s", expected, out))
+
+	expected = []string{imageID2, imageID1}
+
+	out, _ = dockerCmd(c, "images", "-f", "before=image:3", "image")
+	c.Assert(assertImageList(out, expected), checker.Equals, true, check.Commentf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
+
+	out, _ = dockerCmd(c, "images", "-f", "before="+imageID3, "image")
+	c.Assert(assertImageList(out, expected), checker.Equals, true, check.Commentf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
+
+	expected = []string{imageID1}
+
+	out, _ = dockerCmd(c, "images", "-f", "before=image:2", "image")
+	c.Assert(assertImageList(out, expected), checker.Equals, true, check.Commentf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
+
+	out, _ = dockerCmd(c, "images", "-f", "before="+imageID2, "image")
+	c.Assert(assertImageList(out, expected), checker.Equals, true, check.Commentf("BEFORE filter: Image list is not in the correct order: %v\n%s", expected, out))
+}
+
+func assertImageList(out string, expected []string) bool {
+	lines := strings.Split(strings.Trim(out, "\n "), "\n")
+
+	if len(lines)-1 != len(expected) {
+		return false
+	}
+
+	imageIDIndex := strings.Index(lines[0], "IMAGE ID")
+	for i := 0; i < len(expected); i++ {
+		imageID := lines[i+1][imageIDIndex : imageIDIndex+12]
+		found := false
+		for _, e := range expected {
+			if imageID == e[7:19] {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (s *DockerSuite) TestImagesFilterSpaceTrimCase(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	imageName := "images_filter_test"
@@ -171,7 +240,7 @@ func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *check.C) {
 	imageID := stringid.TruncateID(strings.TrimSpace(out))
 
 	// overwrite the tag, making the previous image dangling
-	dockerCmd(c, "tag", "-f", "busybox", "foobox")
+	dockerCmd(c, "tag", "busybox", "foobox")
 
 	out, _ = dockerCmd(c, "images", "-q", "-f", "dangling=true")
 	// Expect one dangling image

@@ -113,11 +113,17 @@ type FileGetCloser interface {
 	Close() error
 }
 
+// Checker makes checks on specified filesystems.
+type Checker interface {
+	// IsMounted returns true if the provided path is mounted for the specific checker
+	IsMounted(path string) bool
+}
+
 func init() {
 	drivers = make(map[string]InitFunc)
 }
 
-// Register registers a InitFunc for the driver.
+// Register registers an InitFunc for the driver.
 func Register(name string, initFunc InitFunc) error {
 	if _, exists := drivers[name]; exists {
 		return fmt.Errorf("Name already registered %s", name)

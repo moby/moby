@@ -19,6 +19,13 @@ func init() {
 	reexec.Register("setup-resolver", reexecSetupResolver)
 }
 
+const (
+	// outputChain used for docker embed dns
+	outputChain = "DOCKER_OUTPUT"
+	//postroutingchain used for docker embed dns
+	postroutingchain = "DOCKER_POSTROUTING"
+)
+
 func reexecSetupResolver() {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
@@ -31,10 +38,10 @@ func reexecSetupResolver() {
 	_, ipPort, _ := net.SplitHostPort(os.Args[2])
 	_, tcpPort, _ := net.SplitHostPort(os.Args[3])
 	rules := [][]string{
-		{"-t", "nat", "-A", "OUTPUT", "-d", resolverIP, "-p", "udp", "--dport", dnsPort, "-j", "DNAT", "--to-destination", os.Args[2]},
-		{"-t", "nat", "-A", "POSTROUTING", "-s", resolverIP, "-p", "udp", "--sport", ipPort, "-j", "SNAT", "--to-source", ":" + dnsPort},
-		{"-t", "nat", "-A", "OUTPUT", "-d", resolverIP, "-p", "tcp", "--dport", dnsPort, "-j", "DNAT", "--to-destination", os.Args[3]},
-		{"-t", "nat", "-A", "POSTROUTING", "-s", resolverIP, "-p", "tcp", "--sport", tcpPort, "-j", "SNAT", "--to-source", ":" + dnsPort},
+		{"-t", "nat", "-I", outputChain, "-d", resolverIP, "-p", "udp", "--dport", dnsPort, "-j", "DNAT", "--to-destination", os.Args[2]},
+		{"-t", "nat", "-I", postroutingchain, "-s", resolverIP, "-p", "udp", "--sport", ipPort, "-j", "SNAT", "--to-source", ":" + dnsPort},
+		{"-t", "nat", "-I", outputChain, "-d", resolverIP, "-p", "tcp", "--dport", dnsPort, "-j", "DNAT", "--to-destination", os.Args[3]},
+		{"-t", "nat", "-I", postroutingchain, "-s", resolverIP, "-p", "tcp", "--sport", tcpPort, "-j", "SNAT", "--to-source", ":" + dnsPort},
 	}
 
 	f, err := os.OpenFile(os.Args[1], os.O_RDONLY, 0)
@@ -48,6 +55,23 @@ func reexecSetupResolver() {
 	if err = netns.Set(netns.NsHandle(nsFD)); err != nil {
 		log.Errorf("setting into container net ns %v failed, %v", os.Args[1], err)
 		os.Exit(3)
+	}
+
+	// insert outputChain and postroutingchain
+	err = iptables.RawCombinedOutputNative("-t", "nat", "-C", "OUTPUT", "-d", resolverIP, "-j", outputChain)
+	if err == nil {
+		iptables.RawCombinedOutputNative("-t", "nat", "-F", outputChain)
+	} else {
+		iptables.RawCombinedOutputNative("-t", "nat", "-N", outputChain)
+		iptables.RawCombinedOutputNative("-t", "nat", "-I", "OUTPUT", "-d", resolverIP, "-j", outputChain)
+	}
+
+	err = iptables.RawCombinedOutputNative("-t", "nat", "-C", "POSTROUTING", "-d", resolverIP, "-j", postroutingchain)
+	if err == nil {
+		iptables.RawCombinedOutputNative("-t", "nat", "-F", postroutingchain)
+	} else {
+		iptables.RawCombinedOutputNative("-t", "nat", "-N", postroutingchain)
+		iptables.RawCombinedOutputNative("-t", "nat", "-I", "POSTROUTING", "-d", resolverIP, "-j", postroutingchain)
 	}
 
 	for _, rule := range rules {

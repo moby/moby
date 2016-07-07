@@ -43,6 +43,7 @@ docker-create - Create a new container
 [**-l**|**--label**[=*[]*]]
 [**--label-file**[=*[]*]]
 [**--link**[=*[]*]]
+[**--link-local-ip**[=*[]*]]
 [**--log-driver**[=*[]*]]
 [**--log-opt**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
@@ -197,7 +198,9 @@ two memory nodes.
                                'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
 
 **--isolation**="*default*"
-   Isolation specifies the type of isolation technology used by containers. 
+   Isolation specifies the type of isolation technology used by containers. Note
+that the default on Windows server is `process`, and the default on Windows client
+is `hyperv`. Linux only supports `default`.
 
 **--kernel-memory**=""
    Kernel memory limit (format: `<number>[<unit>]`, where unit = b, k, m or g)
@@ -217,6 +220,9 @@ millions of trillions.
 **--link**=[]
    Add link to another container in the form of <name or id>:alias or just
    <name or id> in which case the alias will match the name.
+
+**--link-local-ip**=[]
+   Add one or more link-local IPv4/IPv6 addresses to the container's interface
 
 **--log-driver**="*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*awslogs*|*splunk*|*etwlogs*|*gcplogs*|*none*"
   Logging driver for container. Default is defined by daemon `--log-driver` flag.
@@ -334,7 +340,7 @@ unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
    $ docker create -it --storage-opt size=120G fedora /bin/bash
 
    This (size) will allow to set the container rootfs size to 120G at creation time. User cannot pass a size less than the Default BaseFS Size.
-   This option is only available for the `devicemapper`, `btrfs` and `zfs` graphrivers.
+   This option is only available for the `devicemapper`, `btrfs`, and `zfs` graph drivers.
   
 **--stop-signal**=*SIGTERM*
   Signal to stop a container. Default is SIGTERM.

@@ -48,7 +48,7 @@ type store struct {
 	referencesByIDCache map[image.ID]map[string]Named
 }
 
-// Repository maps tags to image IDs. The key is a a stringified Reference,
+// Repository maps tags to image IDs. The key is a stringified Reference,
 // including the repository name.
 type repository map[string]image.ID
 

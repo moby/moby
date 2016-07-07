@@ -41,14 +41,22 @@ storage driver:
      Paused: 1
      Stopped: 10
     Images: 52
-    Server Version: 1.11.1
+    Server Version: 1.12.0-dev
     Storage Driver: overlay
      Backing Filesystem: extfs
     Logging Driver: json-file
     Cgroup Driver: cgroupfs
     Plugins:
      Volume: local
-     Network: bridge null host
+     Network: bridge null host overlay
+    Swarm: 
+     NodeID: 0gac67oclbxq7
+     IsManager: YES
+     Managers: 2
+     Nodes: 2
+    Runtimes: default
+    Default Runtime: default
+    Security Options: apparmor seccomp
     Kernel Version: 4.4.0-21-generic
     Operating System: Ubuntu 16.04 LTS
     OSType: linux

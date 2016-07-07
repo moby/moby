@@ -33,6 +33,9 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 	if err != nil {
 		return err
 	}
+	if s.clusterProvider != nil {
+		info.Swarm = s.clusterProvider.Info()
+	}
 
 	return httputils.WriteJSON(w, http.StatusOK, info)
 }

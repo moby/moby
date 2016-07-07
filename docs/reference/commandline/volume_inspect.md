@@ -12,7 +12,7 @@ parent = "smn_cli"
 
     Usage: docker volume inspect [OPTIONS] VOLUME [VOLUME...]
 
-    Return low-level information on a volume
+    Display detailed information on one or more volumes
 
       -f, --format=       Format the output using the given go template.
       --help              Print usage
@@ -45,4 +45,4 @@ Example output:
 * [volume create](volume_create.md)
 * [volume ls](volume_ls.md)
 * [volume rm](volume_rm.md)
-* [Understand Data Volumes](../../userguide/containers/dockervolumes.md)
+* [Understand Data Volumes](../../tutorials/dockervolumes.md)

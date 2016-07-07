@@ -69,6 +69,9 @@ type Descriptor struct {
 	// against against this digest.
 	Digest digest.Digest `json:"digest,omitempty"`
 
+	// URLs contains the source URLs of this content.
+	URLs []string `json:"urls,omitempty"`
+
 	// NOTE: Before adding a field here, please ensure that all
 	// other options have been exhausted. Much of the type relationships
 	// depend on the simplicity of this type.
@@ -122,6 +125,11 @@ type BlobDescriptorService interface {
 
 	// Clear enables descriptors to be unlinked
 	Clear(ctx context.Context, dgst digest.Digest) error
+}
+
+// BlobDescriptorServiceFactory creates middleware for BlobDescriptorService.
+type BlobDescriptorServiceFactory interface {
+	BlobAccessController(svc BlobDescriptorService) BlobDescriptorService
 }
 
 // ReadSeekCloser is the primary reader type for blob data, combining

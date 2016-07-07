@@ -2,7 +2,6 @@ package layer
 
 import (
 	"io"
-	"sync"
 
 	"github.com/docker/docker/pkg/archive"
 )
@@ -50,14 +49,6 @@ func (ml *mountedLayer) Parent() Layer {
 	return nil
 }
 
-func (ml *mountedLayer) Mount(mountLabel string) (string, error) {
-	return ml.layerStore.driver.Get(ml.mountID, mountLabel)
-}
-
-func (ml *mountedLayer) Unmount() error {
-	return ml.layerStore.driver.Put(ml.mountID)
-}
-
 func (ml *mountedLayer) Size() (int64, error) {
 	return ml.layerStore.driver.DiffSize(ml.mountID, ml.cacheParent())
 }
@@ -83,106 +74,30 @@ func (ml *mountedLayer) hasReferences() bool {
 	return len(ml.references) > 0
 }
 
-func (ml *mountedLayer) incActivityCount(ref RWLayer) error {
-	rl, ok := ml.references[ref]
-	if !ok {
-		return ErrLayerNotRetained
-	}
-
-	if err := rl.acquire(); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (ml *mountedLayer) deleteReference(ref RWLayer) error {
-	rl, ok := ml.references[ref]
-	if !ok {
+	if _, ok := ml.references[ref]; !ok {
 		return ErrLayerNotRetained
-	}
-
-	if err := rl.release(); err != nil {
-		return err
 	}
 	delete(ml.references, ref)
-
 	return nil
 }
 
 func (ml *mountedLayer) retakeReference(r RWLayer) {
 	if ref, ok := r.(*referencedRWLayer); ok {
-		ref.activityCount = 0
 		ml.references[ref] = ref
 	}
 }
 
 type referencedRWLayer struct {
 	*mountedLayer
-
-	activityL     sync.Mutex
-	activityCount int
-}
-
-func (rl *referencedRWLayer) acquire() error {
-	rl.activityL.Lock()
-	defer rl.activityL.Unlock()
-
-	rl.activityCount++
-
-	return nil
-}
-
-func (rl *referencedRWLayer) release() error {
-	rl.activityL.Lock()
-	defer rl.activityL.Unlock()
-
-	if rl.activityCount > 0 {
-		return ErrActiveMount
-	}
-
-	rl.activityCount = -1
-
-	return nil
 }
 
 func (rl *referencedRWLayer) Mount(mountLabel string) (string, error) {
-	rl.activityL.Lock()
-	defer rl.activityL.Unlock()
-
-	if rl.activityCount == -1 {
-		return "", ErrLayerNotRetained
-	}
-
-	if rl.activityCount > 0 {
-		rl.activityCount++
-		return rl.path, nil
-	}
-
-	m, err := rl.mountedLayer.Mount(mountLabel)
-	if err == nil {
-		rl.activityCount++
-		rl.path = m
-	}
-	return m, err
+	return rl.layerStore.driver.Get(rl.mountedLayer.mountID, mountLabel)
 }
 
 // Unmount decrements the activity count and unmounts the underlying layer
 // Callers should only call `Unmount` once per call to `Mount`, even on error.
 func (rl *referencedRWLayer) Unmount() error {
-	rl.activityL.Lock()
-	defer rl.activityL.Unlock()
-
-	if rl.activityCount == 0 {
-		return ErrNotMounted
-	}
-	if rl.activityCount == -1 {
-		return ErrLayerNotRetained
-	}
-
-	rl.activityCount--
-	if rl.activityCount > 0 {
-		return nil
-	}
-
-	return rl.mountedLayer.Unmount()
+	return rl.layerStore.driver.Put(rl.mountedLayer.mountID)
 }

@@ -156,7 +156,7 @@ full and understand the problems behind deletes.
 While, at first glance, implementing deleting seems simple, there are a number
 mitigating factors that make many solutions not ideal or even pathological in
 the context of a registry. The following paragraph discuss the background and
-approaches that could be applied to a arrive at a solution.
+approaches that could be applied to arrive at a solution.
 
 The goal of deletes in any system is to remove unused or unneeded data. Only
 data requested for deletion should be removed and no other data. Removing

@@ -35,6 +35,7 @@
 			"estesp",
 			"icecrime",
 			"jhowardmsft",
+			"justincormack",
 			"lk4d4",
 			"mavenugo",
 			"mhbauer",
@@ -53,6 +54,7 @@
 		people = [
 			"jamtur01",
 			"moxiegirl",
+			"sfsmithcha",
 			"sven",
 			"thajeztah"
 		]
@@ -70,6 +72,7 @@
 	# - close an issue or pull request when it's inappropriate or off-topic
 
 		people = [
+			"mgoelzer",
 			"programmerq",
 			"thajeztah"
 		]
@@ -204,6 +207,11 @@
 	Email = "jess@linux.com"
 	GitHub = "jfrazelle"
 
+	[people.justincormack]
+	Name = "Justin Cormack"
+	Email = "justin.cormack@docker.com"
+	GitHub = "justincormack"
+
 	[people.lk4d4]
 	Name = "Alexander Morozov"
 	Email = "lk4d4@docker.com"
@@ -213,6 +221,11 @@
 	Name = "Madhu Venugopal"
 	Email = "madhu@docker.com"
 	GitHub = "mavenugo"
+
+	[people.mgoelzer]
+	Name = "Mike Goelzer"
+	Email = "mike.goelzer@docker.com"
+	GitHub = "mgoelzer"
 
 	[people.mhbauer]
 	Name = "Morgan Bauer"
@@ -233,6 +246,11 @@
 	Name = "Antonio Murdaca"
 	Email = "runcom@redhat.com"
 	GitHub = "runcom"
+
+	[people.sfsmithcha]
+	Name = "Charles Smith"
+	Email = "charles.smith@docker.com"
+	GitHub = "sfsmithcha"
 
 	[people.shykes]
 	Name = "Solomon Hykes"

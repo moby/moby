@@ -16,6 +16,15 @@ const (
 	IPv6
 )
 
+// EncryptionKey is the libnetwork representation of the key distributed by the lead
+// manager.
+type EncryptionKey struct {
+	Subsystem   string
+	Algorithm   int32
+	Key         []byte
+	LamportTime uint64
+}
+
 // UUID represents a globally unique ID of various resources like network and endpoint
 type UUID string
 
@@ -24,7 +33,7 @@ type QosPolicy struct {
 	MaxEgressBandwidth uint64
 }
 
-// TransportPort represent a local Layer 4 endpoint
+// TransportPort represents a local Layer 4 endpoint
 type TransportPort struct {
 	Proto Protocol
 	Port  uint16
@@ -70,7 +79,7 @@ func (t *TransportPort) FromString(s string) error {
 	return BadRequestErrorf("invalid format for transport port: %s", s)
 }
 
-// PortBinding represent a port binding between the container and the host
+// PortBinding represents a port binding between the container and the host
 type PortBinding struct {
 	Proto       Protocol
 	IP          net.IP
@@ -116,7 +125,7 @@ func (p *PortBinding) GetCopy() PortBinding {
 	}
 }
 
-// String return the PortBinding structure in string form
+// String returns the PortBinding structure in string form
 func (p *PortBinding) String() string {
 	ret := fmt.Sprintf("%s/", p.Proto)
 	if p.IP != nil {

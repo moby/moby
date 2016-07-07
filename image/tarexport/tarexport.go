@@ -1,6 +1,7 @@
 package tarexport
 
 import (
+	"github.com/docker/distribution"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/reference"
@@ -15,10 +16,11 @@ const (
 )
 
 type manifestItem struct {
-	Config   string
-	RepoTags []string
-	Layers   []string
-	Parent   image.ID `json:",omitempty"`
+	Config       string
+	RepoTags     []string
+	Layers       []string
+	Parent       image.ID                                 `json:",omitempty"`
+	LayerSources map[layer.DiffID]distribution.Descriptor `json:",omitempty"`
 }
 
 type tarexporter struct {

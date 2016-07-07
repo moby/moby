@@ -305,7 +305,7 @@ func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error 
 		ns.Path = fmt.Sprintf("/proc/%d/ns/pid", pc.State.GetPID())
 		setNamespace(s, ns)
 		if userNS {
-			// to share an PID namespace, they must also share a user namespace
+			// to share a PID namespace, they must also share a user namespace
 			nsUser := specs.Namespace{Type: "user"}
 			nsUser.Path = fmt.Sprintf("/proc/%d/ns/user", pc.State.GetPID())
 			setNamespace(s, nsUser)
@@ -459,7 +459,7 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 		userMounts[m.Destination] = struct{}{}
 	}
 
-	// Filter out mounts that are overriden by user supplied mounts
+	// Filter out mounts that are overridden by user supplied mounts
 	var defaultMounts []specs.Mount
 	_, mountDev := userMounts["/dev"]
 	for _, m := range s.Mounts {
@@ -480,14 +480,18 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 		}
 
 		if m.Source == "tmpfs" {
-			opt := []string{"noexec", "nosuid", "nodev", volume.DefaultPropagationMode}
-			if m.Data != "" {
-				opt = append(opt, strings.Split(m.Data, ",")...)
-			} else {
-				opt = append(opt, "size=65536k")
+			data := c.HostConfig.Tmpfs[m.Destination]
+			options := []string{"noexec", "nosuid", "nodev", volume.DefaultPropagationMode}
+			if data != "" {
+				options = append(options, strings.Split(data, ",")...)
 			}
 
-			s.Mounts = append(s.Mounts, specs.Mount{Destination: m.Destination, Source: m.Source, Type: "tmpfs", Options: opt})
+			merged, err := mount.MergeTmpfsOptions(options)
+			if err != nil {
+				return err
+			}
+
+			s.Mounts = append(s.Mounts, specs.Mount{Destination: m.Destination, Source: m.Source, Type: "tmpfs", Options: merged})
 			continue
 		}
 

@@ -2,9 +2,12 @@
 
 package seccomp
 
-import "github.com/docker/engine-api/types"
-
-var (
-	// DefaultProfile is a nil pointer on unsupported systems.
-	DefaultProfile *types.Seccomp
+import (
+	"github.com/docker/engine-api/types"
+	"github.com/opencontainers/specs/specs-go"
 )
+
+// DefaultProfile returns a nil pointer on unsupported systems.
+func DefaultProfile(rs *specs.Spec) *types.Seccomp {
+	return nil
+}

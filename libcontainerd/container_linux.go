@@ -2,6 +2,7 @@ package libcontainerd
 
 import (
 	"encoding/json"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -20,7 +21,27 @@ type container struct {
 
 	// Platform specific fields are below here.
 	pauseMonitor
-	oom bool
+	oom         bool
+	runtime     string
+	runtimeArgs []string
+}
+
+type runtime struct {
+	path string
+	args []string
+}
+
+// WithRuntime sets the runtime to be used for the created container
+func WithRuntime(path string, args []string) CreateOption {
+	return runtime{path, args}
+}
+
+func (rt runtime) Apply(p interface{}) error {
+	if pr, ok := p.(*container); ok {
+		pr.runtime = rt.path
+		pr.runtimeArgs = rt.args
+	}
+	return nil
 }
 
 func (ctr *container) clean() error {
@@ -83,6 +104,8 @@ func (ctr *container) start() error {
 		Stderr:     ctr.fifo(syscall.Stderr),
 		// check to see if we are running in ramdisk to disable pivot root
 		NoPivotRoot: os.Getenv("DOCKER_RAMDISK") != "",
+		Runtime:     ctr.runtime,
+		RuntimeArgs: ctr.runtimeArgs,
 	}
 	ctr.client.appendContainer(ctr)
 
@@ -193,4 +216,19 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 		logrus.Debugf("event unhandled: %+v", e)
 	}
 	return nil
+}
+
+// discardFifos attempts to fully read the container fifos to unblock processes
+// that may be blocked on the writer side.
+func (ctr *container) discardFifos() {
+	for _, i := range []int{syscall.Stdout, syscall.Stderr} {
+		f := ctr.fifo(i)
+		c := make(chan struct{})
+		go func() {
+			close(c) // this channel is used to not close the writer too early, before readonly open has been called.
+			io.Copy(ioutil.Discard, openReaderFromFifo(f))
+		}()
+		<-c
+		closeReaderFifo(f) // avoid blocking permanently on open if there is no writer side
+	}
 }

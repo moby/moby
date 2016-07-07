@@ -190,6 +190,11 @@ Images using the v2 or later image format have a content-addressable identifier
 called a digest. As long as the input used to generate the image is unchanged,
 the digest value is predictable and referenceable.
 
+The following example runs a container from the `alpine` image with the 
+`sha256:9cacb71397b640eca97488cf08582ae4e4068513101088e9f96c9814bfda95e0` digest:
+
+    $ docker run alpine@sha256:9cacb71397b640eca97488cf08582ae4e4068513101088e9f96c9814bfda95e0 date
+
 ## PID settings (--pid)
 
     --pid=""  : Set the PID (Process) Namespace mode for the container,
@@ -283,18 +288,19 @@ of the containers.
 
 ## Network settings
 
-    --dns=[]         : Set custom dns servers for the container
-    --net="bridge"   : Connect a container to a network
-                        'bridge': create a network stack on the default Docker bridge
-                        'none': no networking
-                        'container:<name|id>': reuse another container's network stack
-                        'host': use the Docker host network stack
-                        '<network-name>|<network-id>': connect to a user-defined network
-    --net-alias=[]   : Add network-scoped alias for the container
-    --add-host=""    : Add a line to /etc/hosts (host:IP)
-    --mac-address="" : Sets the container's Ethernet device's MAC address
-    --ip=""          : Sets the container's Ethernet device's IPv4 address
-    --ip6=""         : Sets the container's Ethernet device's IPv6 address
+    --dns=[]           : Set custom dns servers for the container
+    --net="bridge"     : Connect a container to a network
+                          'bridge': create a network stack on the default Docker bridge
+                          'none': no networking
+                          'container:<name|id>': reuse another container's network stack
+                          'host': use the Docker host network stack
+                          '<network-name>|<network-id>': connect to a user-defined network
+    --net-alias=[]     : Add network-scoped alias for the container
+    --add-host=""      : Add a line to /etc/hosts (host:IP)
+    --mac-address=""   : Sets the container's Ethernet device's MAC address
+    --ip=""            : Sets the container's Ethernet device's IPv4 address
+    --ip6=""           : Sets the container's Ethernet device's IPv6 address
+    --link-local-ip=[] : Sets one or more container's Ethernet device's link local IPv4/IPv6 addresses
 
 By default, all containers have networking enabled and they can make any
 outgoing connections. The operator can completely disable networking
@@ -382,11 +388,14 @@ name, they must be linked.
 With the network set to `host` a container will share the host's
 network stack and all interfaces from the host will be available to the
 container.  The container's hostname will match the hostname on the host
-system.  Note that `--add-host` `--dns` `--dns-search`
-`--dns-opt` and `--mac-address` are invalid in `host` netmode. Even in `host`
+system. Note that `--mac-address` is invalid in `host` netmode. Even in `host`
 network mode a container has its own UTS namespace by default. As such
 `--hostname` is allowed in `host` network mode and will only change the
 hostname inside the container.
+Similar to `--hostname`, the `--add-host`, `--dns`, `--dns-search`, and
+`--dns-opt` options can be used in `host` network mode. These options update
+`/etc/hosts` or `/etc/resolv.conf` inside the container. No change are made to
+`/etc/hosts` and `/etc/resolv.conf` on the host.
 
 Compared to the default `bridge` mode, the `host` mode gives *significantly*
 better networking performance since it uses the host's native networking stack
@@ -630,15 +639,12 @@ with the same logic -- if the original volume was specified with a name it will 
 
 
 You can override the default labeling scheme for each container by specifying
-the `--security-opt` flag. For example, you can specify the MCS/MLS level, a
-requirement for MLS systems. Specifying the level in the following command
+the `--security-opt` flag. Specifying the level in the following command
 allows you to share the same content between containers.
 
     $ docker run --security-opt label=level:s0:c100,c200 -it fedora bash
 
-An MLS example might be:
-
-    $ docker run --security-opt label=level:TopSecret -it rhel7 bash
+> **Note**: Automatic translation of MLS labels is not currently supported.
 
 To disable the security labeling for this container versus running with the
 `--permissive` flag, use the following command:
@@ -1073,7 +1079,7 @@ Both flags take limits in the `<device-path>:<limit>` format. Both read and
 write rates must be a positive integer.
 
 ## Additional groups
-    --group-add: Add additional groups to run as 
+    --group-add: Add additional groups to run as
 
 By default, the docker container process runs with the supplementary groups looked
 up for the specified user. If one wants to add more to that list of groups, then
@@ -1088,14 +1094,6 @@ one can use this flag:
     --cap-drop: Drop Linux capabilities
     --privileged=false: Give extended privileges to this container
     --device=[]: Allows you to run devices inside the container without the --privileged flag.
-
-> **Note:**
-> With Docker 1.10 and greater, the default seccomp profile will also block
-> syscalls, regardless of `--cap-add` passed to the container. We recommend in
-> these cases to create your own custom seccomp profile based off our
-> [default](https://github.com/docker/docker/blob/master/profiles/seccomp/default.json).
-> Or if you don't want to run with the default seccomp profile, you can pass
-> `--security-opt=seccomp=unconfined` on run.
 
 By default, Docker containers are "unprivileged" and cannot, for
 example, run a Docker daemon inside a Docker container. This is because
@@ -1214,6 +1212,11 @@ To mount a FUSE based filesystem, you need to combine both `--cap-add` and
     -rw-rw-r-- 1 1000 1000    461 Dec  4 06:08 .gitignore
     ....
 
+The default seccomp profile will adjust to the selected capabilities, in order to allow
+use of facilities allowed by the capabilities, so you should not have to adjust this,
+since Docker 1.12. In Docker 1.10 and 1.11 this did not happen and it may be necessary
+to use a custom seccomp profile or use `--security-opt seccomp=unconfined` when adding
+capabilities.
 
 ## Logging drivers (--log-driver)
 
@@ -1253,6 +1256,7 @@ Dockerfile instruction and how the operator can override that setting.
     #entrypoint-default-command-to-execute-at-runtime)
  - [EXPOSE (Incoming Ports)](#expose-incoming-ports)
  - [ENV (Environment Variables)](#env-environment-variables)
+ - [HEALTHCHECK](#healthcheck)
  - [VOLUME (Shared Filesystems)](#volume-shared-filesystems)
  - [USER](#user)
  - [WORKDIR](#workdir)
@@ -1401,6 +1405,65 @@ above, or already defined by the developer with a Dockerfile `ENV`:
 
 Similarly the operator can set the **hostname** with `-h`.
 
+### HEALTHCHECK
+
+```
+  --health-cmd            Command to run to check health
+  --health-interval       Time between running the check
+  --health-retries        Consecutive failures needed to report unhealthy
+  --health-timeout        Maximum time to allow one check to run
+  --no-healthcheck        Disable any container-specified HEALTHCHECK
+```
+
+Example:
+
+    $ docker run --name=test -d \
+        --health-cmd='stat /etc/passwd || exit 1' \
+        --health-interval=2s \
+        busybox sleep 1d
+    $ sleep 2; docker inspect --format='{{.State.Health.Status}}' test
+    healthy
+    $ docker exec test rm /etc/passwd
+    $ sleep 2; docker inspect --format='{{json .State.Health}}' test
+    {
+      "Status": "unhealthy",
+      "FailingStreak": 3,
+      "Log": [
+        {
+          "Start": "2016-05-25T17:22:04.635478668Z",
+          "End": "2016-05-25T17:22:04.7272552Z",
+          "ExitCode": 0,
+          "Output": "  File: /etc/passwd\n  Size: 334       \tBlocks: 8          IO Block: 4096   regular file\nDevice: 32h/50d\tInode: 12          Links: 1\nAccess: (0664/-rw-rw-r--)  Uid: (    0/    root)   Gid: (    0/    root)\nAccess: 2015-12-05 22:05:32.000000000\nModify: 2015..."
+        },
+        {
+          "Start": "2016-05-25T17:22:06.732900633Z",
+          "End": "2016-05-25T17:22:06.822168935Z",
+          "ExitCode": 0,
+          "Output": "  File: /etc/passwd\n  Size: 334       \tBlocks: 8          IO Block: 4096   regular file\nDevice: 32h/50d\tInode: 12          Links: 1\nAccess: (0664/-rw-rw-r--)  Uid: (    0/    root)   Gid: (    0/    root)\nAccess: 2015-12-05 22:05:32.000000000\nModify: 2015..."
+        },
+        {
+          "Start": "2016-05-25T17:22:08.823956535Z",
+          "End": "2016-05-25T17:22:08.897359124Z",
+          "ExitCode": 1,
+          "Output": "stat: can't stat '/etc/passwd': No such file or directory\n"
+        },
+        {
+          "Start": "2016-05-25T17:22:10.898802931Z",
+          "End": "2016-05-25T17:22:10.969631866Z",
+          "ExitCode": 1,
+          "Output": "stat: can't stat '/etc/passwd': No such file or directory\n"
+        },
+        {
+          "Start": "2016-05-25T17:22:12.971033523Z",
+          "End": "2016-05-25T17:22:13.082015516Z",
+          "ExitCode": 1,
+          "Output": "stat: can't stat '/etc/passwd': No such file or directory\n"
+        }
+      ]
+    }
+
+The health status is also displayed in the `docker ps` output.
+
 ### TMPFS (mount tmpfs filesystems)
 
 ```bash
@@ -1440,8 +1503,8 @@ The example below mounts an empty tmpfs into the container with the `rw`,
 > a volume.
 
 The volumes commands are complex enough to have their own documentation
-in section [*Managing data in
-containers*](../userguide/containers/dockervolumes.md). A developer can define
+in section [*Manage data in
+containers*](../tutorials/dockervolumes.md). A developer can define
 one or more `VOLUME`'s associated with an image, but only the operator
 can give access from one container to another (or from a container to a
 volume mounted on the host).
@@ -1451,7 +1514,7 @@ The `host-src` can either be an absolute path or a `name` value. If you
 supply an absolute path for the `host-dir`, Docker bind-mounts to the path
 you specify. If you supply a `name`, Docker creates a named volume by that `name`.
 
-A `name` value must start with start with an alphanumeric character,
+A `name` value must start with an alphanumeric character,
 followed by `a-z0-9`, `_` (underscore), `.` (period) or `-` (hyphen).
 An absolute path starts with a `/` (forward slash).
 
@@ -1470,7 +1533,7 @@ Dockerfile `USER` instruction. When starting a container, the operator can overr
 the `USER` instruction by passing the `-u` option.
 
     -u="", --user="": Sets the username or UID used and optionally the groupname or GID for the specified command.
- 
+
     The followings examples are all valid:
     --user=[ user | user:group | uid | uid:gid | user:gid | uid:group ]
 

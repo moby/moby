@@ -65,7 +65,7 @@ func (rm *restartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped 
 	if rm.active {
 		return false, nil, fmt.Errorf("invalid call on active restartmanager")
 	}
-	// if the container ran for more than 10s, reguardless of status and policy reset the
+	// if the container ran for more than 10s, regardless of status and policy reset the
 	// the timeout back to the default.
 	if executionDuration.Seconds() >= 10 {
 		rm.timeout = 0

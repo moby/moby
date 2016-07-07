@@ -106,7 +106,8 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 	}
 
 	// Now run the user process in container.
-	if err := s.backend.ContainerExecStart(execName, stdin, stdout, stderr); err != nil {
+	// Maybe we should we pass ctx here if we're not detaching?
+	if err := s.backend.ContainerExecStart(context.Background(), execName, stdin, stdout, stderr); err != nil {
 		if execStartCheck.Detach {
 			return err
 		}

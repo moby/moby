@@ -21,24 +21,36 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 		return fmt.Errorf("Neither old nor new names may be empty")
 	}
 
+	if newName[0] != '/' {
+		newName = "/" + newName
+	}
+
 	container, err := daemon.GetContainer(oldName)
 	if err != nil {
 		return err
 	}
 
 	oldName = container.Name
+	oldIsAnonymousEndpoint := container.NetworkSettings.IsAnonymousEndpoint
+
+	if oldName == newName {
+		return fmt.Errorf("Renaming a container with the same name as its current name")
+	}
 
 	container.Lock()
 	defer container.Unlock()
+
 	if newName, err = daemon.reserveName(container.ID, newName); err != nil {
 		return fmt.Errorf("Error when allocating new name: %v", err)
 	}
 
 	container.Name = newName
+	container.NetworkSettings.IsAnonymousEndpoint = false
 
 	defer func() {
 		if err != nil {
 			container.Name = oldName
+			container.NetworkSettings.IsAnonymousEndpoint = oldIsAnonymousEndpoint
 			daemon.reserveName(container.ID, oldName)
 			daemon.releaseName(newName)
 		}
@@ -61,6 +73,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	defer func() {
 		if err != nil {
 			container.Name = oldName
+			container.NetworkSettings.IsAnonymousEndpoint = oldIsAnonymousEndpoint
 			if e := container.ToDisk(); e != nil {
 				logrus.Errorf("%s: Failed in writing to Disk on rename failure: %v", container.ID, e)
 			}

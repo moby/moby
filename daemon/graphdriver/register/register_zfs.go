@@ -1,4 +1,4 @@
-// +build !exclude_graphdriver_zfs,linux !exclude_graphdriver_zfs,freebsd
+// +build !exclude_graphdriver_zfs,linux !exclude_graphdriver_zfs,freebsd, solaris
 
 package register
 

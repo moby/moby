@@ -19,6 +19,7 @@ import (
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/portmapper"
@@ -90,6 +91,7 @@ type connectivityConfiguration struct {
 
 type bridgeEndpoint struct {
 	id              string
+	nid             string
 	srcName         string
 	addr            *net.IPNet
 	addrv6          *net.IPNet
@@ -98,6 +100,8 @@ type bridgeEndpoint struct {
 	containerConfig *containerConfiguration
 	extConnConfig   *connectivityConfiguration
 	portMapping     []types.PortBinding // Operation port bindings
+	dbIndex         uint64
+	dbExists        bool
 }
 
 type bridgeNetwork struct {
@@ -119,6 +123,7 @@ type driver struct {
 	isolationChain *iptables.ChainInfo
 	networks       map[string]*bridgeNetwork
 	store          datastore.DataStore
+	nlh            *netlink.Handle
 	sync.Mutex
 }
 
@@ -583,13 +588,26 @@ func (d *driver) createNetwork(config *networkConfiguration) error {
 	defer osl.InitOSContext()()
 
 	networkList := d.getNetworks()
-	for _, nw := range networkList {
+	for i, nw := range networkList {
 		nw.Lock()
 		nwConfig := nw.config
 		nw.Unlock()
 		if err := nwConfig.Conflicts(config); err != nil {
-			return types.ForbiddenErrorf("cannot create network %s (%s): conflicts with network %s (%s): %s",
-				config.ID, config.BridgeName, nwConfig.ID, nwConfig.BridgeName, err.Error())
+			if config.DefaultBridge {
+				// We encountered and identified a stale default network
+				// We must delete it as libnetwork is the source of thruth
+				// The default network being created must be the only one
+				// This can happen only from docker 1.12 on ward
+				logrus.Infof("Removing stale default bridge network %s (%s)", nwConfig.ID, nwConfig.BridgeName)
+				if err := d.DeleteNetwork(nwConfig.ID); err != nil {
+					logrus.Warnf("Failed to remove stale default network: %s (%s): %v. Will remove from store.", nwConfig.ID, nwConfig.BridgeName, err)
+					d.storeDelete(nwConfig)
+				}
+				networkList = append(networkList[:i], networkList[i+1:]...)
+			} else {
+				return types.ForbiddenErrorf("cannot create network %s (%s): conflicts with network %s (%s): %s",
+					config.ID, config.BridgeName, nwConfig.ID, nwConfig.BridgeName, err.Error())
+			}
 		}
 	}
 
@@ -615,8 +633,15 @@ func (d *driver) createNetwork(config *networkConfiguration) error {
 		}
 	}()
 
+	// Initialize handle when needed
+	d.Lock()
+	if d.nlh == nil {
+		d.nlh = ns.NlHandle()
+	}
+	d.Unlock()
+
 	// Create or retrieve the bridge L3 interface
-	bridgeIface := newInterface(config)
+	bridgeIface := newInterface(d.nlh, config)
 	network.bridge = bridgeIface
 
 	// Verify the network configuration does not conflict with previously installed
@@ -750,15 +775,9 @@ func (d *driver) DeleteNetwork(nid string) error {
 		return err
 	}
 
-	// Cannot remove network if endpoints are still present
-	if len(n.endpoints) != 0 {
-		err = ActiveEndpointsError(n.id)
-		return err
-	}
-
 	// We only delete the bridge when it's not the default bridge. This is keep the backward compatible behavior.
 	if !config.DefaultBridge {
-		if err := netlink.LinkDel(n.bridge.Link); err != nil {
+		if err := d.nlh.LinkDel(n.bridge.Link); err != nil {
 			logrus.Warnf("Failed to remove bridge interface %s on network %s delete: %v", config.BridgeName, nid, err)
 		}
 	}
@@ -772,12 +791,12 @@ func (d *driver) DeleteNetwork(nid string) error {
 	return d.storeDelete(config)
 }
 
-func addToBridge(ifaceName, bridgeName string) error {
-	link, err := netlink.LinkByName(ifaceName)
+func addToBridge(nlh *netlink.Handle, ifaceName, bridgeName string) error {
+	link, err := nlh.LinkByName(ifaceName)
 	if err != nil {
 		return fmt.Errorf("could not find interface %s: %v", ifaceName, err)
 	}
-	if err = netlink.LinkSetMaster(link,
+	if err = nlh.LinkSetMaster(link,
 		&netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: bridgeName}}); err != nil {
 		logrus.Debugf("Failed to add %s to bridge via netlink.Trying ioctl: %v", ifaceName, err)
 		iface, err := net.InterfaceByName(ifaceName)
@@ -795,8 +814,8 @@ func addToBridge(ifaceName, bridgeName string) error {
 	return nil
 }
 
-func setHairpinMode(link netlink.Link, enable bool) error {
-	err := netlink.LinkSetHairpin(link, enable)
+func setHairpinMode(nlh *netlink.Handle, link netlink.Link, enable bool) error {
+	err := nlh.LinkSetHairpin(link, enable)
 	if err != nil && err != syscall.EINVAL {
 		// If error is not EINVAL something else went wrong, bail out right away
 		return fmt.Errorf("unable to set hairpin mode on %s via netlink: %v",
@@ -873,7 +892,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 
 	// Create and add the endpoint
 	n.Lock()
-	endpoint := &bridgeEndpoint{id: eid, config: epConfig}
+	endpoint := &bridgeEndpoint{id: eid, nid: nid, config: epConfig}
 	n.endpoints[eid] = endpoint
 	n.Unlock()
 
@@ -887,13 +906,13 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}()
 
 	// Generate a name for what will be the host side pipe interface
-	hostIfName, err := netutils.GenerateIfaceName(vethPrefix, vethLen)
+	hostIfName, err := netutils.GenerateIfaceName(d.nlh, vethPrefix, vethLen)
 	if err != nil {
 		return err
 	}
 
 	// Generate a name for what will be the sandbox side pipe interface
-	containerIfName, err := netutils.GenerateIfaceName(vethPrefix, vethLen)
+	containerIfName, err := netutils.GenerateIfaceName(d.nlh, vethPrefix, vethLen)
 	if err != nil {
 		return err
 	}
@@ -902,29 +921,29 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	veth := &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{Name: hostIfName, TxQLen: 0},
 		PeerName:  containerIfName}
-	if err = netlink.LinkAdd(veth); err != nil {
+	if err = d.nlh.LinkAdd(veth); err != nil {
 		return types.InternalErrorf("failed to add the host (%s) <=> sandbox (%s) pair interfaces: %v", hostIfName, containerIfName, err)
 	}
 
 	// Get the host side pipe interface handler
-	host, err := netlink.LinkByName(hostIfName)
+	host, err := d.nlh.LinkByName(hostIfName)
 	if err != nil {
 		return types.InternalErrorf("failed to find host side interface %s: %v", hostIfName, err)
 	}
 	defer func() {
 		if err != nil {
-			netlink.LinkDel(host)
+			d.nlh.LinkDel(host)
 		}
 	}()
 
 	// Get the sandbox side pipe interface handler
-	sbox, err := netlink.LinkByName(containerIfName)
+	sbox, err := d.nlh.LinkByName(containerIfName)
 	if err != nil {
 		return types.InternalErrorf("failed to find sandbox side interface %s: %v", containerIfName, err)
 	}
 	defer func() {
 		if err != nil {
-			netlink.LinkDel(sbox)
+			d.nlh.LinkDel(sbox)
 		}
 	}()
 
@@ -934,23 +953,23 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 
 	// Add bridge inherited attributes to pipe interfaces
 	if config.Mtu != 0 {
-		err = netlink.LinkSetMTU(host, config.Mtu)
+		err = d.nlh.LinkSetMTU(host, config.Mtu)
 		if err != nil {
 			return types.InternalErrorf("failed to set MTU on host interface %s: %v", hostIfName, err)
 		}
-		err = netlink.LinkSetMTU(sbox, config.Mtu)
+		err = d.nlh.LinkSetMTU(sbox, config.Mtu)
 		if err != nil {
 			return types.InternalErrorf("failed to set MTU on sandbox interface %s: %v", containerIfName, err)
 		}
 	}
 
 	// Attach host side pipe interface into the bridge
-	if err = addToBridge(hostIfName, config.BridgeName); err != nil {
+	if err = addToBridge(d.nlh, hostIfName, config.BridgeName); err != nil {
 		return fmt.Errorf("adding interface %s to bridge %s failed: %v", hostIfName, config.BridgeName, err)
 	}
 
 	if !dconfig.EnableUserlandProxy {
-		err = setHairpinMode(host, true)
+		err = setHairpinMode(d.nlh, host, true)
 		if err != nil {
 			return err
 		}
@@ -971,7 +990,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 
 	// Up the host interface after finishing all netlink configuration
-	if err = netlink.LinkSetUp(host); err != nil {
+	if err = d.nlh.LinkSetUp(host); err != nil {
 		return fmt.Errorf("could not set link up for host interface %s: %v", hostIfName, err)
 	}
 
@@ -998,6 +1017,10 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		if err = ifInfo.SetIPAddress(endpoint.addrv6); err != nil {
 			return err
 		}
+	}
+
+	if err = d.storeUpdate(endpoint); err != nil {
+		return fmt.Errorf("failed to save bridge endpoint %s to store: %v", endpoint.id[0:7], err)
 	}
 
 	return nil
@@ -1056,8 +1079,12 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 
 	// Try removal of link. Discard error: it is a best effort.
 	// Also make sure defer does not see this error either.
-	if link, err := netlink.LinkByName(ep.srcName); err == nil {
-		netlink.LinkDel(link)
+	if link, err := d.nlh.LinkByName(ep.srcName); err == nil {
+		d.nlh.LinkDel(link)
+	}
+
+	if err := d.storeDelete(ep); err != nil {
+		logrus.Warnf("Failed to remove bridge endpoint %s from store: %v", ep.id[0:7], err)
 	}
 
 	return nil
@@ -1214,6 +1241,11 @@ func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string
 	endpoint.portMapping, err = network.allocatePorts(endpoint, network.config.DefaultBindingIP, d.config.EnableUserlandProxy)
 	if err != nil {
 		return err
+	}
+
+	if err = d.storeUpdate(endpoint); err != nil {
+		endpoint.portMapping = nil
+		return fmt.Errorf("failed to update bridge endpoint %s to store: %v", endpoint.id[0:7], err)
 	}
 
 	if !network.config.EnableICC {

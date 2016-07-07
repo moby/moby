@@ -16,7 +16,11 @@ parent = "smn_cli"
 
       -a, --all            Show all images (default hides intermediate images)
       --digests            Show digests
-      -f, --filter=[]      Filter output based on conditions provided
+      -f, --filter=[]      Filter output based on these conditions:
+                           - dangling=(true|false)
+                           - label=<key> or label=<key>=<value>
+                           - before=(<image-name>[:tag]|<image-id>|<image@digest>)
+                           - since=(<image-name>[:tag]|<image-id>|<image@digest>)
       --help               Print usage
       --no-trunc           Don't truncate output
       -q, --quiet          Only show numeric IDs
@@ -121,6 +125,8 @@ The currently supported filters are:
 
 * dangling (boolean - true or false)
 * label (`label=<key>` or `label=<key>=<value>`)
+* before (`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`) - filters images created before given id or references
+* since (`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`) - filters images created since given id or references
 
 ##### Untagged images (dangling)
 
@@ -165,18 +171,55 @@ The following filter matches images with the `com.example.version` label regardl
 
     REPOSITORY          TAG                 IMAGE ID            CREATED              SIZE
     match-me-1          latest              eeae25ada2aa        About a minute ago   188.3 MB
-    match-me-2          latest              eeae25ada2aa        About a minute ago   188.3 MB
+    match-me-2          latest              dea752e4e117        About a minute ago   188.3 MB
 
 The following filter matches images with the `com.example.version` label with the `1.0` value.
 
     $ docker images --filter "label=com.example.version=1.0"
     REPOSITORY          TAG                 IMAGE ID            CREATED              SIZE
-    match-me            latest              eeae25ada2aa        About a minute ago   188.3 MB
+    match-me            latest              511136ea3c5a        About a minute ago   188.3 MB
 
 In this example, with the `0.1` value, it returns an empty set because no matches were found.
 
     $ docker images --filter "label=com.example.version=0.1"
     REPOSITORY          TAG                 IMAGE ID            CREATED              SIZE
+
+#### Before
+
+The `before` filter shows only images created before the image with
+given id or reference. For example, having these images:
+
+    $ docker images
+    REPOSITORY          TAG                 IMAGE ID            CREATED              SIZE
+    image1              latest              eeae25ada2aa        4 minutes ago        188.3 MB
+    image2              latest              dea752e4e117        9 minutes ago        188.3 MB
+    image3              latest              511136ea3c5a        25 minutes ago       188.3 MB
+
+Filtering with `before` would give:
+
+    $ docker images --filter "before=image1"
+    REPOSITORY          TAG                 IMAGE ID            CREATED              SIZE
+    image2              latest              dea752e4e117        9 minutes ago        188.3 MB
+    image3              latest              511136ea3c5a        25 minutes ago       188.3 MB
+
+#### Since
+
+The `since` filter shows only images created after the image with
+given id or reference. For example, having these images:
+
+    $ docker images
+    REPOSITORY          TAG                 IMAGE ID            CREATED              SIZE
+    image1              latest              eeae25ada2aa        4 minutes ago        188.3 MB
+    image2              latest              dea752e4e117        9 minutes ago        188.3 MB
+    image3              latest              511136ea3c5a        25 minutes ago       188.3 MB
+
+Filtering with `since` would give:
+
+    $ docker images --filter "since=image3"
+    REPOSITORY          TAG                 IMAGE ID            CREATED              SIZE
+    image1              latest              eeae25ada2aa        4 minutes ago        188.3 MB
+    image2              latest              dea752e4e117        9 minutes ago        188.3 MB
+
 
 ## Formatting
 

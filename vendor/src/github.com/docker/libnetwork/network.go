@@ -64,6 +64,7 @@ type NetworkInfo interface {
 	IPv6Enabled() bool
 	Internal() bool
 	Labels() map[string]string
+	Dynamic() bool
 }
 
 // EndpointWalker is a client provided function which will be used to walk the Endpoints.
@@ -74,6 +75,20 @@ type svcInfo struct {
 	svcMap     map[string][]net.IP
 	svcIPv6Map map[string][]net.IP
 	ipMap      map[string]string
+	service    map[string][]servicePorts
+}
+
+// backing container or host's info
+type serviceTarget struct {
+	name string
+	ip   net.IP
+	port uint16
+}
+
+type servicePorts struct {
+	portName string
+	proto    string
+	target   []serviceTarget
 }
 
 // IpamConf contains all the ipam related configurations for a network
@@ -171,7 +186,9 @@ type network struct {
 	drvOnce      *sync.Once
 	internal     bool
 	inDelete     bool
+	ingress      bool
 	driverTables []string
+	dynamic      bool
 	sync.Mutex
 }
 
@@ -312,6 +329,7 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 	dstN.drvOnce = n.drvOnce
 	dstN.internal = n.internal
 	dstN.inDelete = n.inDelete
+	dstN.ingress = n.ingress
 
 	// copy labels
 	if dstN.labels == nil {
@@ -418,6 +436,7 @@ func (n *network) MarshalJSON() ([]byte, error) {
 	}
 	netMap["internal"] = n.internal
 	netMap["inDelete"] = n.inDelete
+	netMap["ingress"] = n.ingress
 	return json.Marshal(netMap)
 }
 
@@ -508,6 +527,9 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 	if v, ok := netMap["inDelete"]; ok {
 		n.inDelete = v.(bool)
 	}
+	if v, ok := netMap["ingress"]; ok {
+		n.ingress = v.(bool)
+	}
 	// Reconcile old networks with the recently added `--ipv6` flag
 	if !n.enableIPv6 {
 		n.enableIPv6 = len(n.ipamV6Info) > 0
@@ -536,6 +558,14 @@ func NetworkOptionGeneric(generic map[string]interface{}) NetworkOption {
 		for k, v := range generic {
 			n.generic[k] = v
 		}
+	}
+}
+
+// NetworkOptionIngress returns an option setter to indicate if a network is
+// an ingress network.
+func NetworkOptionIngress() NetworkOption {
+	return func(n *network) {
+		n.ingress = true
 	}
 }
 
@@ -600,6 +630,13 @@ func NetworkOptionDriverOpts(opts map[string]string) NetworkOption {
 func NetworkOptionLabels(labels map[string]string) NetworkOption {
 	return func(n *network) {
 		n.labels = labels
+	}
+}
+
+// NetworkOptionDynamic function returns an option setter for dynamic option for a network
+func NetworkOptionDynamic() NetworkOption {
+	return func(n *network) {
+		n.dynamic = true
 	}
 }
 
@@ -669,7 +706,7 @@ func (n *network) driver(load bool) (driverapi.Driver, error) {
 	if cap != nil {
 		n.scope = cap.DataScope
 	}
-	if c.cfg.Daemon.IsAgent {
+	if c.isAgent() {
 		// If we are running in agent mode then all networks
 		// in libnetwork are local scope regardless of the
 		// backing driver.
@@ -799,6 +836,12 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 	n = ep.network
 
 	ep.processOptions(options...)
+
+	for _, llIPNet := range ep.Iface().LinkLocalAddresses() {
+		if !llIPNet.IP.IsLinkLocalUnicast() {
+			return nil, types.BadRequestErrorf("invalid link local IP address: %v", llIPNet.IP)
+		}
+	}
 
 	if opt, ok := ep.generic[netlabel.MacAddress]; ok {
 		if mac, ok := opt.(net.HardwareAddr); ok {
@@ -1056,14 +1099,22 @@ func (n *network) getSvcRecords(ep *endpoint) []etchosts.Record {
 	n.Lock()
 	defer n.Unlock()
 
+	if ep == nil {
+		return nil
+	}
+
 	var recs []etchosts.Record
 	sr, _ := n.ctrlr.svcRecords[n.id]
+	epName := ep.Name()
 
 	for h, ip := range sr.svcMap {
-		if ep != nil && strings.Split(h, ".")[0] == ep.Name() {
+		if strings.Split(h, ".")[0] == epName {
 			continue
 		}
-
+		if len(ip) == 0 {
+			log.Warnf("Found empty list of IP addresses for service %s on network %s (%s)", h, n.Name(), n.ID())
+			continue
+		}
 		recs = append(recs, etchosts.Record{
 			Hosts: h,
 			IP:    ip[0].String(),
@@ -1080,8 +1131,7 @@ func (n *network) getController() *controller {
 }
 
 func (n *network) ipamAllocate() error {
-	// For now also exclude bridge from using new ipam
-	if n.Type() == "host" || n.Type() == "null" {
+	if n.hasSpecialDriver() {
 		return nil
 	}
 
@@ -1196,6 +1246,7 @@ func (n *network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 		d := &IpamInfo{}
 		(*infoList)[i] = d
 
+		d.AddressSpace = n.addrSpace
 		d.PoolID, d.Pool, d.Meta, err = n.requestPoolHelper(ipam, n.addrSpace, cfg.PreferredPool, cfg.SubPool, n.ipamOptions, ipVer == 6)
 		if err != nil {
 			return err
@@ -1251,8 +1302,7 @@ func (n *network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 }
 
 func (n *network) ipamRelease() {
-	// For now exclude host and null
-	if n.Type() == "host" || n.Type() == "null" {
+	if n.hasSpecialDriver() {
 		return
 	}
 	ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
@@ -1427,6 +1477,13 @@ func (n *network) Internal() bool {
 	return n.internal
 }
 
+func (n *network) Dynamic() bool {
+	n.Lock()
+	defer n.Unlock()
+
+	return n.dynamic
+}
+
 func (n *network) IPv6Enabled() bool {
 	n.Lock()
 	defer n.Unlock()
@@ -1452,4 +1509,9 @@ func (n *network) TableEventRegister(tableName string) error {
 
 	n.driverTables = append(n.driverTables, tableName)
 	return nil
+}
+
+// Special drivers are ones which do not need to perform any network plumbing
+func (n *network) hasSpecialDriver() bool {
+	return n.Type() == "host" || n.Type() == "null"
 }

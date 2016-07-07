@@ -104,7 +104,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		OSType:             platform.OSType,
 		Architecture:       platform.Architecture,
 		RegistryConfig:     daemon.RegistryService.ServiceConfig(),
-		NCPU:               runtime.NumCPU(),
+		NCPU:               sysinfo.NumCPU(),
 		MemTotal:           meminfo.MemTotal,
 		DockerRootDir:      daemon.configStore.Root,
 		Labels:             daemon.configStore.Labels,
@@ -131,6 +131,8 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		v.CPUCfsQuota = sysInfo.CPUCfsQuota
 		v.CPUShares = sysInfo.CPUShares
 		v.CPUSet = sysInfo.Cpuset
+		v.Runtimes = daemon.configStore.GetAllRuntimes()
+		v.DefaultRuntime = daemon.configStore.GetDefaultRuntimeName()
 	}
 
 	hostname := ""

@@ -6,9 +6,13 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"runtime"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"unsafe"
+
+	"github.com/vishvananda/netns"
 )
 
 const (
@@ -17,6 +21,9 @@ const (
 	FAMILY_V4  = syscall.AF_INET
 	FAMILY_V6  = syscall.AF_INET6
 )
+
+// SupportedNlFamilies contains the list of netlink families this netlink package supports
+var SupportedNlFamilies = []int{syscall.NETLINK_ROUTE, syscall.NETLINK_XFRM}
 
 var nextSeqNr uint32
 
@@ -171,7 +178,8 @@ func (a *RtAttr) Serialize() []byte {
 
 type NetlinkRequest struct {
 	syscall.NlMsghdr
-	Data []NetlinkRequestData
+	Data    []NetlinkRequestData
+	Sockets map[int]*SocketHandle
 }
 
 // Serialize the Netlink Request into a byte array
@@ -203,14 +211,32 @@ func (req *NetlinkRequest) AddData(data NetlinkRequestData) {
 }
 
 // Execute the request against a the given sockType.
-// Returns a list of netlink messages in seriaized format, optionally filtered
+// Returns a list of netlink messages in serialized format, optionally filtered
 // by resType.
 func (req *NetlinkRequest) Execute(sockType int, resType uint16) ([][]byte, error) {
-	s, err := getNetlinkSocket(sockType)
-	if err != nil {
-		return nil, err
+	var (
+		s   *NetlinkSocket
+		err error
+	)
+
+	if req.Sockets != nil {
+		if sh, ok := req.Sockets[sockType]; ok {
+			s = sh.Socket
+			req.Seq = atomic.AddUint32(&sh.Seq, 1)
+		}
 	}
-	defer s.Close()
+	sharedSocket := s != nil
+
+	if s == nil {
+		s, err = getNetlinkSocket(sockType)
+		if err != nil {
+			return nil, err
+		}
+		defer s.Close()
+	} else {
+		s.Lock()
+		defer s.Unlock()
+	}
 
 	if err := s.Send(req); err != nil {
 		return nil, err
@@ -231,7 +257,10 @@ done:
 		}
 		for _, m := range msgs {
 			if m.Header.Seq != req.Seq {
-				return nil, fmt.Errorf("Wrong Seq nr %d, expected 1", m.Header.Seq)
+				if sharedSocket {
+					continue
+				}
+				return nil, fmt.Errorf("Wrong Seq nr %d, expected %d", m.Header.Seq, req.Seq)
 			}
 			if m.Header.Pid != pid {
 				return nil, fmt.Errorf("Wrong pid %d, expected %d", m.Header.Pid, pid)
@@ -276,6 +305,7 @@ func NewNetlinkRequest(proto, flags int) *NetlinkRequest {
 type NetlinkSocket struct {
 	fd  int
 	lsa syscall.SockaddrNetlink
+	sync.Mutex
 }
 
 func getNetlinkSocket(protocol int) (*NetlinkSocket, error) {
@@ -293,6 +323,32 @@ func getNetlinkSocket(protocol int) (*NetlinkSocket, error) {
 	}
 
 	return s, nil
+}
+
+// GetNetlinkSocketAt opens a netlink socket in the network namespace newNs
+// and positions the thread back into the network namespace specified by curNs,
+// when done. If curNs is close, the function derives the current namespace and
+// moves back into it when done. If newNs is close, the socket will be opened
+// in the current network namespace.
+func GetNetlinkSocketAt(newNs, curNs netns.NsHandle, protocol int) (*NetlinkSocket, error) {
+	var err error
+
+	if newNs.IsOpen() {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		if !curNs.IsOpen() {
+			if curNs, err = netns.Get(); err != nil {
+				return nil, fmt.Errorf("could not get current namespace while creating netlink socket: %v", err)
+			}
+			defer curNs.Close()
+		}
+		if err := netns.Set(newNs); err != nil {
+			return nil, fmt.Errorf("failed to set into network namespace %d while creating netlink socket: %v", newNs, err)
+		}
+		defer netns.Set(curNs)
+	}
+
+	return getNetlinkSocket(protocol)
 }
 
 // Create a netlink socket with a given protocol (e.g. NETLINK_ROUTE)
@@ -323,6 +379,7 @@ func Subscribe(protocol int, groups ...uint) (*NetlinkSocket, error) {
 
 func (s *NetlinkSocket) Close() {
 	syscall.Close(s.fd)
+	s.fd = -1
 }
 
 func (s *NetlinkSocket) GetFd() int {
@@ -330,6 +387,9 @@ func (s *NetlinkSocket) GetFd() int {
 }
 
 func (s *NetlinkSocket) Send(request *NetlinkRequest) error {
+	if s.fd < 0 {
+		return fmt.Errorf("Send called on a closed socket")
+	}
 	if err := syscall.Sendto(s.fd, request.Serialize(), 0, &s.lsa); err != nil {
 		return err
 	}
@@ -337,6 +397,9 @@ func (s *NetlinkSocket) Send(request *NetlinkRequest) error {
 }
 
 func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, error) {
+	if s.fd < 0 {
+		return nil, fmt.Errorf("Receive called on a closed socket")
+	}
 	rb := make([]byte, syscall.Getpagesize())
 	nr, _, err := syscall.Recvfrom(s.fd, rb, 0)
 	if err != nil {
@@ -421,4 +484,18 @@ func netlinkRouteAttrAndValue(b []byte) (*syscall.RtAttr, []byte, int, error) {
 		return nil, nil, 0, syscall.EINVAL
 	}
 	return a, b[syscall.SizeofRtAttr:], rtaAlignOf(int(a.Len)), nil
+}
+
+// SocketHandle contains the netlink socket and the associated
+// sequence counter for a specific netlink family
+type SocketHandle struct {
+	Seq    uint32
+	Socket *NetlinkSocket
+}
+
+// Close closes the netlink socket
+func (sh *SocketHandle) Close() {
+	if sh.Socket != nil {
+		sh.Socket.Close()
+	}
 }

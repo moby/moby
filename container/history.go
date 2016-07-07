@@ -24,11 +24,6 @@ func (history *History) Swap(i, j int) {
 	containers[i], containers[j] = containers[j], containers[i]
 }
 
-// Add the given container to history.
-func (history *History) Add(container *Container) {
-	*history = append(*history, container)
-}
-
 // sort orders the history by creation date in descendant order.
 func (history *History) sort() {
 	sort.Sort(history)

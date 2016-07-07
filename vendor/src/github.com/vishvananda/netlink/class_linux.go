@@ -7,18 +7,64 @@ import (
 	"github.com/vishvananda/netlink/nl"
 )
 
+// NOTE: function is in here because it uses other linux functions
+func NewHtbClass(attrs ClassAttrs, cattrs HtbClassAttrs) *HtbClass {
+	mtu := 1600
+	rate := cattrs.Rate / 8
+	ceil := cattrs.Ceil / 8
+	buffer := cattrs.Buffer
+	cbuffer := cattrs.Cbuffer
+
+	if ceil == 0 {
+		ceil = rate
+	}
+
+	if buffer == 0 {
+		buffer = uint32(float64(rate)/Hz() + float64(mtu))
+	}
+	buffer = uint32(Xmittime(rate, buffer))
+
+	if cbuffer == 0 {
+		cbuffer = uint32(float64(ceil)/Hz() + float64(mtu))
+	}
+	cbuffer = uint32(Xmittime(ceil, cbuffer))
+
+	return &HtbClass{
+		ClassAttrs: attrs,
+		Rate:       rate,
+		Ceil:       ceil,
+		Buffer:     buffer,
+		Cbuffer:    cbuffer,
+		Quantum:    10,
+		Level:      0,
+		Prio:       0,
+	}
+}
+
 // ClassDel will delete a class from the system.
 // Equivalent to: `tc class del $class`
 func ClassDel(class Class) error {
-	return classModify(syscall.RTM_DELTCLASS, 0, class)
+	return pkgHandle.ClassDel(class)
+}
+
+// ClassDel will delete a class from the system.
+// Equivalent to: `tc class del $class`
+func (h *Handle) ClassDel(class Class) error {
+	return h.classModify(syscall.RTM_DELTCLASS, 0, class)
 }
 
 // ClassChange will change a class in place
 // Equivalent to: `tc class change $class`
 // The parent and handle MUST NOT be changed.
-
 func ClassChange(class Class) error {
-	return classModify(syscall.RTM_NEWTCLASS, 0, class)
+	return pkgHandle.ClassChange(class)
+}
+
+// ClassChange will change a class in place
+// Equivalent to: `tc class change $class`
+// The parent and handle MUST NOT be changed.
+func (h *Handle) ClassChange(class Class) error {
+	return h.classModify(syscall.RTM_NEWTCLASS, 0, class)
 }
 
 // ClassReplace will replace a class to the system.
@@ -27,21 +73,36 @@ func ClassChange(class Class) error {
 // If a class already exist with this parent/handle pair, the class is changed.
 // If a class does not already exist with this parent/handle, a new class is created.
 func ClassReplace(class Class) error {
-	return classModify(syscall.RTM_NEWTCLASS, syscall.NLM_F_CREATE, class)
+	return pkgHandle.ClassReplace(class)
+}
+
+// ClassReplace will replace a class to the system.
+// quivalent to: `tc class replace $class`
+// The handle MAY be changed.
+// If a class already exist with this parent/handle pair, the class is changed.
+// If a class does not already exist with this parent/handle, a new class is created.
+func (h *Handle) ClassReplace(class Class) error {
+	return h.classModify(syscall.RTM_NEWTCLASS, syscall.NLM_F_CREATE, class)
 }
 
 // ClassAdd will add a class to the system.
 // Equivalent to: `tc class add $class`
 func ClassAdd(class Class) error {
-	return classModify(
+	return pkgHandle.ClassAdd(class)
+}
+
+// ClassAdd will add a class to the system.
+// Equivalent to: `tc class add $class`
+func (h *Handle) ClassAdd(class Class) error {
+	return h.classModify(
 		syscall.RTM_NEWTCLASS,
 		syscall.NLM_F_CREATE|syscall.NLM_F_EXCL,
 		class,
 	)
 }
 
-func classModify(cmd, flags int, class Class) error {
-	req := nl.NewNetlinkRequest(cmd, flags|syscall.NLM_F_ACK)
+func (h *Handle) classModify(cmd, flags int, class Class) error {
+	req := h.newNetlinkRequest(cmd, flags|syscall.NLM_F_ACK)
 	base := class.Attrs()
 	msg := &nl.TcMsg{
 		Family:  nl.FAMILY_ALL,
@@ -73,20 +134,20 @@ func classPayload(req *nl.NetlinkRequest, class Class) error {
 		opt.Prio = htb.Prio
 		// TODO: Handle Debug properly. For now default to 0
 		/* Calculate {R,C}Tab and set Rate and Ceil */
-		cell_log := -1
-		ccell_log := -1
+		cellLog := -1
+		ccellLog := -1
 		linklayer := nl.LINKLAYER_ETHERNET
 		mtu := 1600
 		var rtab [256]uint32
 		var ctab [256]uint32
 		tcrate := nl.TcRateSpec{Rate: uint32(htb.Rate)}
-		if CalcRtable(&tcrate, rtab, cell_log, uint32(mtu), linklayer) < 0 {
-			return errors.New("HTB: failed to calculate rate table.")
+		if CalcRtable(&tcrate, rtab, cellLog, uint32(mtu), linklayer) < 0 {
+			return errors.New("HTB: failed to calculate rate table")
 		}
 		opt.Rate = tcrate
 		tcceil := nl.TcRateSpec{Rate: uint32(htb.Ceil)}
-		if CalcRtable(&tcceil, ctab, ccell_log, uint32(mtu), linklayer) < 0 {
-			return errors.New("HTB: failed to calculate ceil rate table.")
+		if CalcRtable(&tcceil, ctab, ccellLog, uint32(mtu), linklayer) < 0 {
+			return errors.New("HTB: failed to calculate ceil rate table")
 		}
 		opt.Ceil = tcceil
 		nl.NewRtAttrChild(options, nl.TCA_HTB_PARMS, opt.Serialize())
@@ -101,14 +162,21 @@ func classPayload(req *nl.NetlinkRequest, class Class) error {
 // Equivalent to: `tc class show`.
 // Generally returns nothing if link and parent are not specified.
 func ClassList(link Link, parent uint32) ([]Class, error) {
-	req := nl.NewNetlinkRequest(syscall.RTM_GETTCLASS, syscall.NLM_F_DUMP)
+	return pkgHandle.ClassList(link, parent)
+}
+
+// ClassList gets a list of classes in the system.
+// Equivalent to: `tc class show`.
+// Generally returns nothing if link and parent are not specified.
+func (h *Handle) ClassList(link Link, parent uint32) ([]Class, error) {
+	req := h.newNetlinkRequest(syscall.RTM_GETTCLASS, syscall.NLM_F_DUMP)
 	msg := &nl.TcMsg{
 		Family: nl.FAMILY_ALL,
 		Parent: parent,
 	}
 	if link != nil {
 		base := link.Attrs()
-		ensureIndex(base)
+		h.ensureIndex(base)
 		msg.Ifindex = int32(base.Index)
 	}
 	req.AddData(msg)
