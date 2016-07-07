@@ -31,7 +31,7 @@ in the newly created one node Swarm cluster.
 $ docker swarm init --listen-addr 192.168.99.121:2377
 Swarm initialized: current node (1ujecd0j9n3ro9i6628smdmth) is now a manager.
 $ docker node ls
-ID                           NAME      MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS          LEADER
+ID                           HOSTNAME  MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS          LEADER
 1ujecd0j9n3ro9i6628smdmth *  manager1  Accepted    Ready   Active        Reachable               Yes
 ```
 
