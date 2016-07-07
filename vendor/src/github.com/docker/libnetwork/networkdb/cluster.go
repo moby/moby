@@ -14,7 +14,7 @@ import (
 	"github.com/hashicorp/memberlist"
 )
 
-const reapInterval = 2 * time.Second
+const reapInterval = 30 * time.Second
 
 type logWriter struct{}
 
