@@ -67,13 +67,13 @@ type NetworkSpec struct {
 	IPAMOptions         *IPAMOptions `json:",omitempty"`
 }
 
-// NetworkAttachmentConfig represents the configuration of a network attachement.
+// NetworkAttachmentConfig represents the configuration of a network attachment.
 type NetworkAttachmentConfig struct {
 	Target  string   `json:",omitempty"`
 	Aliases []string `json:",omitempty"`
 }
 
-// NetworkAttachment represents a network attchement.
+// NetworkAttachment represents a network attachment.
 type NetworkAttachment struct {
 	Network   Network  `json:",omitempty"`
 	Addresses []string `json:",omitempty"`

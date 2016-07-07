@@ -444,12 +444,12 @@ type VolumeCreateRequest struct {
 // NetworkResource is the body of the "get network" http response message
 type NetworkResource struct {
 	Name       string                      // Name is the requested name of the network
-	ID         string                      `json:"Id"` // ID uniquely indentifies a network on a single machine
+	ID         string                      `json:"Id"` // ID uniquely identifies a network on a single machine
 	Scope      string                      // Scope describes the level at which the network exists (e.g. `global` for cluster-wide or `local` for machine level)
 	Driver     string                      // Driver is the Driver name used to create the network (e.g. `bridge`, `overlay`)
 	EnableIPv6 bool                        // EnableIPv6 represents whether to enable IPv6
 	IPAM       network.IPAM                // IPAM is the network's IP Address Management
-	Internal   bool                        // Internal respresents if the network is used internal only
+	Internal   bool                        // Internal represents if the network is used internal only
 	Containers map[string]EndpointResource // Containers contains endpoints belonging to the network
 	Options    map[string]string           // Options holds the network specific options to use for when creating the network
 	Labels     map[string]string           // Labels holds metadata specific to the network being created
