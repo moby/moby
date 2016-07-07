@@ -4007,7 +4007,7 @@ JSON Parameters:
             - **Memory** – Memory reservation
     - **RestartPolicy** – Specification for the restart policy which applies to containers created
       as part of this service.
-        - **Condition** – Condition for restart (`none`, `on_failure`, or `any`).
+        - **Condition** – Condition for restart (`none`, `on-failure`, or `any`).
         - **Delay** – Delay between restart attempts.
         - **Attempts** – Maximum attempts to restart a given container before giving up (default value
           is 0, which is ignored).
@@ -4225,7 +4225,7 @@ Update the service `id`.
             - **Memory** – Memory reservation
     - **RestartPolicy** – Specification for the restart policy which applies to containers created
       as part of this service.
-        - **Condition** – Condition for restart (`none`, `on_failure`, or `any`).
+        - **Condition** – Condition for restart (`none`, `on-failure`, or `any`).
         - **Delay** – Delay between restart attempts.
         - **Attempts** – Maximum attempts to restart a given container before giving up (default value
           is 0, which is ignored).
