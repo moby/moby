@@ -1701,7 +1701,7 @@ _docker_service_update() {
 			return
 			;;
 		--restart-condition)
-			COMPREPLY=( $( compgen -W "any none on_failure" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "any none on-failure" -- "$cur" ) )
 			return
 			;;
 		--user|-u)

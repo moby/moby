@@ -93,7 +93,7 @@ const (
 	// RestartPolicyConditionNone NONE
 	RestartPolicyConditionNone RestartPolicyCondition = "none"
 	// RestartPolicyConditionOnFailure ON_FAILURE
-	RestartPolicyConditionOnFailure RestartPolicyCondition = "on_failure"
+	RestartPolicyConditionOnFailure RestartPolicyCondition = "on-failure"
 	// RestartPolicyConditionAny ANY
 	RestartPolicyConditionAny RestartPolicyCondition = "any"
 )
