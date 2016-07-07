@@ -47,6 +47,8 @@ RUN apt-get update && apt-get install -y \
 	python-pip \
 	python-websocket \
 	gccgo \
+	iproute2 \
+	iputils-ping \
 	--no-install-recommends
 
 # Install armhf loader to use armv6 binaries on armv8
