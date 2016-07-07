@@ -18,7 +18,7 @@ Create a new service
 
 Options:
       --constraint value             Placement constraints (default [])
-      --endpoint-mode string         Endpoint mode(Valid values: VIP, DNSRR)
+      --endpoint-mode string         Endpoint mode(Valid values: vip, dnsrr)
   -e, --env value                    Set environment variables (default [])
       --help                         Print usage
   -l, --label value                  Service labels (default [])
@@ -29,6 +29,7 @@ Options:
       --name string                  Service name
       --network value                Network attachments (default [])
   -p, --publish value                Publish a port as a node port (default [])
+      --registry-auth                Send registry authentication details to Swarm agents
       --replicas value               Number of tasks (default none)
       --reserve-cpu value            Reserve CPUs (default 0.000)
       --reserve-memory value         Reserve Memory (default 0 B)
