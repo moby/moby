@@ -193,6 +193,11 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 			return nil, err
 		}
 	}
+
+	if err = initIPAMDrivers(drvRegistry, nil, c.getStore(datastore.GlobalScope)); err != nil {
+		return nil, err
+	}
+
 	c.drvRegistry = drvRegistry
 
 	if c.cfg != nil && c.cfg.Cluster.Watcher != nil {
