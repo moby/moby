@@ -92,7 +92,7 @@ RUN cd /usr/local/lvm2 \
 
 # Configure the container for OSX cross compilation
 ENV OSX_SDK MacOSX10.11.sdk
-ENV OSX_CROSS_COMMIT 8aa9b71a394905e6c5f4b59e2b97b87a004658a4
+ENV OSX_CROSS_COMMIT a9317c18a3a457ca0a657f08cc4d0d43c6cf8953
 RUN set -x \
 	&& export OSXCROSS_PATH="/osxcross" \
 	&& git clone https://github.com/tpoechtrager/osxcross.git $OSXCROSS_PATH \
