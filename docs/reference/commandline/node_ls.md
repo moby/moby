@@ -11,17 +11,19 @@ parent = "smn_cli"
 
 # node ls
 
-    Usage:  docker node ls [OPTIONS]
+```markdown
+Usage:  docker node ls [OPTIONS]
 
-    List nodes in the swarm
+List nodes in the swarm
 
-    Aliases:
-      ls, list
+Aliases:
+  ls, list
 
-    Options:
-      -f, --filter value   Filter output based on conditions provided
-          --help           Print usage
-      -q, --quiet          Only display IDs
+Options:
+  -f, --filter value   Filter output based on conditions provided
+      --help           Print usage
+  -q, --quiet          Only display IDs
+```
 
 Lists all the nodes that the Docker Swarm manager knows about. You can filter using the `-f` or `--filter` flag. Refer to the [filtering](#filtering) section for more information about available filter options.
 

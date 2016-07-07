@@ -11,16 +11,17 @@ parent = "smn_cli"
 
 ## update
 
-    Usage: docker node update [OPTIONS] Node
+```markdown
+Usage:  docker node update [OPTIONS] NODE
 
-    Update a node
+Update a node
 
-    Options:
+Options:
       --availability string   Availability of the node (active/pause/drain)
       --help                  Print usage
       --membership string     Membership of the node (accepted/rejected)
       --role string           Role of the node (worker/manager)
-
+```
 
 
 ## Related information

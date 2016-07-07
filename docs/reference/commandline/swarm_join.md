@@ -11,15 +11,18 @@ parent = "smn_cli"
 
 # swarm join
 
-	Usage:	docker swarm join [OPTIONS] HOST:PORT
+```markdown
+Usage:  docker swarm join [OPTIONS] HOST:PORT
 
-	Join a Swarm as a node and/or manager.
+Join a Swarm as a node and/or manager
 
-	Options:
-	      --help                Print usage
-	      --listen-addr value   Listen address (default 0.0.0.0:2377)
-	      --manager             Try joining as a manager.
-	      --secret string       Secret for node acceptance
+Options:
+      --ca-hash string      Hash of the Root Certificate Authority certificate used for trusted join
+      --help                Print usage
+      --listen-addr value   Listen address (default 0.0.0.0:2377)
+      --manager             Try joining as a manager.
+      --secret string       Secret for node acceptance
+```
 
 Join a node to a Swarm cluster. If the `--manager` flag is specified, the docker engine
 targeted by this command becomes a `manager`. If it is not specified, it becomes a `worker`.
@@ -47,13 +50,17 @@ dkp8vy1dq1kxleu9g4u78tlag    worker1   Accepted    Ready   Active        Reachab
 dvfxp4zseq4s0rih1selh0d20 *  manager1  Accepted    Ready   Active        Reachable              Yes
 ```
 
-### `--manager`
+### `--ca-hash`
 
-Joins the node as a manager
+Hash of the Root Certificate Authority certificate used for trusted join.
 
 ### `--listen-addr value`
 
 The node listens for inbound Swarm manager traffic on this IP:PORT
+
+### `--manager`
+
+Joins the node as a manager
 
 ### `--secret string`
 

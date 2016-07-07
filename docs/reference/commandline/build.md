@@ -10,32 +10,38 @@ parent = "smn_cli"
 
 # build
 
-    Usage: docker build [OPTIONS] PATH | URL | -
+```markdown
+Usage:  docker build [OPTIONS] PATH | URL | -
 
-    Build a new image from the source code at PATH
+Build an image from a Dockerfile
 
-      --build-arg=[]                  Set build-time variables
-      --cpu-shares                    CPU Shares (relative weight)
-      --cgroup-parent=""              Optional parent cgroup for the container
-      --cpu-period=0                  Limit the CPU CFS (Completely Fair Scheduler) period
-      --cpu-quota=0                   Limit the CPU CFS (Completely Fair Scheduler) quota
-      --cpuset-cpus=""                CPUs in which to allow execution, e.g. `0-3`, `0,1`
-      --cpuset-mems=""                MEMs in which to allow execution, e.g. `0-3`, `0,1`
-      --disable-content-trust=true    Skip image verification
-      -f, --file=""                   Name of the Dockerfile (Default is 'PATH/Dockerfile')
-      --force-rm                      Always remove intermediate containers
-      --help                          Print usage
-      --isolation=""                  Container isolation technology
-      --label=[]                      Set metadata for an image
-      -m, --memory=""                 Memory limit for all build containers
-      --memory-swap=""                A positive integer equal to memory plus swap. Specify -1 to enable unlimited swap.
-      --no-cache                      Do not use cache when building the image
-      --pull                          Always attempt to pull a newer version of the image
-      -q, --quiet                     Suppress the build output and print image ID on success
-      --rm=true                       Remove intermediate containers after a successful build
-      --shm-size=[]                   Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.  Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`.
-      -t, --tag=[]                    Name and optionally a tag in the 'name:tag' format
-      --ulimit=[]                     Ulimit options
+Options:
+      --build-arg value         Set build-time variables (default [])
+      --cgroup-parent string    Optional parent cgroup for the container
+      --cpu-period int          Limit the CPU CFS (Completely Fair Scheduler) period
+      --cpu-quota int           Limit the CPU CFS (Completely Fair Scheduler) quota
+  -c, --cpu-shares int          CPU shares (relative weight)
+      --cpuset-cpus string      CPUs in which to allow execution (0-3, 0,1)
+      --cpuset-mems string      MEMs in which to allow execution (0-3, 0,1)
+      --disable-content-trust   Skip image verification (default true)
+  -f, --file string             Name of the Dockerfile (Default is 'PATH/Dockerfile')
+      --force-rm                Always remove intermediate containers
+      --help                    Print usage
+      --isolation string        Container isolation technology
+      --label value             Set metadata for an image (default [])
+  -m, --memory string           Memory limit
+      --memory-swap string      Swap limit equal to memory plus swap: '-1' to enable unlimited swap
+      --no-cache                Do not use cache when building the image
+      --pull                    Always attempt to pull a newer version of the image
+  -q, --quiet                   Suppress the build output and print image ID on success
+      --rm                      Remove intermediate containers after a successful build (default true)
+      --shm-size string         Size of /dev/shm, default value is 64MB.
+                                The format is `<number><unit>`. `number` must be greater than `0`.
+                                Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes),
+                                or `g` (gigabytes). If you omit the unit, the system uses bytes.
+  -t, --tag value               Name and optionally a tag in the 'name:tag' format (default [])
+      --ulimit value            Ulimit options (default [])
+```
 
 Builds Docker images from a Dockerfile and a "context". A build's context is
 the files located in the specified `PATH` or `URL`. The build process can refer

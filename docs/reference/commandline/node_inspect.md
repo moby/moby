@@ -11,14 +11,16 @@ parent = "smn_cli"
 
 # node inspect
 
-    Usage: docker node inspect [OPTIONS] self|NODE [NODE...]
+```markdown
+Usage:  docker node inspect [OPTIONS] self|NODE [NODE...]
 
-    Display detailed information on one or more nodes
+Display detailed information on one or more nodes
 
-
-      -f, --format=       Format the output using the given go template.
-      --help              Print usage
-      -p, --pretty        Print the information in a human friendly format.
+Options:
+  -f, --format string   Format the output using the given go template
+      --help            Print usage
+  -p, --pretty          Print the information in a human friendly format.
+```
 
 Returns information about a node. By default, this command renders all results
 in a JSON array. You can specify an alternate format to execute a

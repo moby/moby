@@ -11,12 +11,15 @@ parent = "smn_cli"
 
 # swarm leave
 
-	Usage:	docker swarm leave
+```markdown
+Usage:  docker swarm leave [OPTIONS]
 
-	Leave a Swarm swarm.
+Leave a Swarm
 
-	Options:
-	      --help   Print usage
+Options:
+      --force   Force leave ignoring warnings.
+      --help    Print usage
+```
 
 This command causes the node to leave the swarm.
 
