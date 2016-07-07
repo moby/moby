@@ -35,7 +35,7 @@ Options:
       --replicas value               Number of tasks (default none)
       --reserve-cpu value            Reserve CPUs (default 0.000)
       --reserve-memory value         Reserve Memory (default 0 B)
-      --restart-condition string     Restart when condition is met (none, on_failure, or any)
+      --restart-condition string     Restart when condition is met (none, on-failure, or any)
       --restart-delay value          Delay between restart attempts (default none)
       --restart-max-attempts value   Maximum number of restarts before giving up (default none)
       --restart-window value         Window used to evaluate the restart policy (default none)

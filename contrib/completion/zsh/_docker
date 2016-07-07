@@ -1079,7 +1079,7 @@ __docker_service_subcommand() {
         "($help)--replicas=[Number of tasks]:replicas: "
         "($help)--reserve-cpu=[Reserve CPUs]:value: "
         "($help)--reserve-memory=[Reserve Memory]:value: "
-        "($help)--restart-condition=[Restart when condition is met]:mode:(any none on_failure)"
+        "($help)--restart-condition=[Restart when condition is met]:mode:(any none on-failure)"
         "($help)--restart-delay=[Delay between restart attempts]:delay: "
         "($help)--restart-max-attempts=[Maximum number of restarts before giving up]:max-attempts: "
         "($help)--restart-window=[Window used to evaluate the restart policy]:window: "
