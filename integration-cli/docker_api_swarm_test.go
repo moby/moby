@@ -5,8 +5,11 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -766,4 +769,109 @@ func setGlobalMode(s *swarm.Service) {
 	s.Spec.Mode = swarm.ServiceMode{
 		Global: &swarm.GlobalService{},
 	}
+}
+
+func checkClusterHealth(c *check.C, cl []*SwarmDaemon, managerCount, workerCount int) {
+	var totalMCount, totalWCount int
+	for _, d := range cl {
+		info, err := d.info()
+		c.Assert(err, check.IsNil)
+		if !info.ControlAvailable {
+			totalWCount++
+			continue
+		}
+		var leaderFound bool
+		totalMCount++
+		var mCount, wCount int
+		for _, n := range d.listNodes(c) {
+			c.Assert(n.Status.State, checker.Equals, swarm.NodeStateReady, check.Commentf("state of node %s, reported by %s", n.ID, d.Info.NodeID))
+			c.Assert(n.Spec.Availability, checker.Equals, swarm.NodeAvailabilityActive, check.Commentf("availability of node %s, reported by %s", n.ID, d.Info.NodeID))
+			c.Assert(n.Spec.Membership, checker.Equals, swarm.NodeMembershipAccepted, check.Commentf("membership of node %s, reported by %s", n.ID, d.Info.NodeID))
+			if n.Spec.Role == swarm.NodeRoleManager {
+				c.Assert(n.ManagerStatus, checker.NotNil, check.Commentf("manager status of node %s (manager), reported by %s", n.ID, d.Info.NodeID))
+				if n.ManagerStatus.Leader {
+					leaderFound = true
+				}
+				mCount++
+			} else {
+				c.Assert(n.ManagerStatus, checker.IsNil, check.Commentf("manager status of node %s (worker), reported by %s", n.ID, d.Info.NodeID))
+				wCount++
+			}
+		}
+		c.Assert(leaderFound, checker.True, check.Commentf("lack of leader reported by node %s", info.NodeID))
+		c.Assert(mCount, checker.Equals, managerCount, check.Commentf("managers count reported by node %s", info.NodeID))
+		c.Assert(wCount, checker.Equals, workerCount, check.Commentf("workers count reported by node %s", info.NodeID))
+	}
+	c.Assert(totalMCount, checker.Equals, managerCount)
+	c.Assert(totalWCount, checker.Equals, workerCount)
+}
+
+func (s *DockerSwarmSuite) TestApiSwarmRestartCluster(c *check.C) {
+	mCount, wCount := 5, 1
+
+	var nodes []*SwarmDaemon
+	for i := 0; i < mCount; i++ {
+		manager := s.AddDaemon(c, true, true)
+		info, err := manager.info()
+		c.Assert(err, checker.IsNil)
+		c.Assert(info.ControlAvailable, checker.True)
+		c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+		nodes = append(nodes, manager)
+	}
+
+	for i := 0; i < wCount; i++ {
+		worker := s.AddDaemon(c, true, false)
+		info, err := worker.info()
+		c.Assert(err, checker.IsNil)
+		c.Assert(info.ControlAvailable, checker.False)
+		c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+		nodes = append(nodes, worker)
+	}
+
+	// stop whole cluster
+	{
+		var wg sync.WaitGroup
+		wg.Add(len(nodes))
+		errs := make(chan error, len(nodes))
+
+		for _, d := range nodes {
+			go func(daemon *SwarmDaemon) {
+				defer wg.Done()
+				if err := daemon.Stop(); err != nil {
+					errs <- err
+				}
+				if root := os.Getenv("DOCKER_REMAP_ROOT"); root != "" {
+					daemon.root = filepath.Dir(daemon.root)
+				}
+			}(d)
+		}
+		wg.Wait()
+		close(errs)
+		for err := range errs {
+			c.Assert(err, check.IsNil)
+		}
+	}
+
+	// start whole cluster
+	{
+		var wg sync.WaitGroup
+		wg.Add(len(nodes))
+		errs := make(chan error, len(nodes))
+
+		for _, d := range nodes {
+			go func(daemon *SwarmDaemon) {
+				defer wg.Done()
+				if err := daemon.Start("--iptables=false"); err != nil {
+					errs <- err
+				}
+			}(d)
+		}
+		wg.Wait()
+		close(errs)
+		for err := range errs {
+			c.Assert(err, check.IsNil)
+		}
+	}
+
+	checkClusterHealth(c, nodes, mCount, wCount)
 }
