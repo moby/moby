@@ -23,13 +23,13 @@ func (s *DockerSwarmSuite) TestApiSwarmInit(c *check.C) {
 	d1 := s.AddDaemon(c, true, true)
 	info, err := d1.info()
 	c.Assert(err, checker.IsNil)
-	c.Assert(info.ControlAvailable, checker.Equals, true)
+	c.Assert(info.ControlAvailable, checker.True)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 
 	d2 := s.AddDaemon(c, true, false)
 	info, err = d2.info()
 	c.Assert(err, checker.IsNil)
-	c.Assert(info.ControlAvailable, checker.Equals, false)
+	c.Assert(info.ControlAvailable, checker.False)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 
 	// Leaving cluster
@@ -37,14 +37,14 @@ func (s *DockerSwarmSuite) TestApiSwarmInit(c *check.C) {
 
 	info, err = d2.info()
 	c.Assert(err, checker.IsNil)
-	c.Assert(info.ControlAvailable, checker.Equals, false)
+	c.Assert(info.ControlAvailable, checker.False)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 
 	c.Assert(d2.Join(swarm.JoinRequest{RemoteAddrs: []string{d1.listenAddr}}), checker.IsNil)
 
 	info, err = d2.info()
 	c.Assert(err, checker.IsNil)
-	c.Assert(info.ControlAvailable, checker.Equals, false)
+	c.Assert(info.ControlAvailable, checker.False)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 
 	// Current state restoring after restarts
@@ -60,12 +60,12 @@ func (s *DockerSwarmSuite) TestApiSwarmInit(c *check.C) {
 
 	info, err = d1.info()
 	c.Assert(err, checker.IsNil)
-	c.Assert(info.ControlAvailable, checker.Equals, true)
+	c.Assert(info.ControlAvailable, checker.True)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 
 	info, err = d2.info()
 	c.Assert(err, checker.IsNil)
-	c.Assert(info.ControlAvailable, checker.Equals, false)
+	c.Assert(info.ControlAvailable, checker.False)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 }
 
@@ -118,17 +118,7 @@ func (s *DockerSwarmSuite) testAPISwarmManualAcceptance(c *check.C, secret strin
 	d1.updateNode(c, info.NodeID, func(n *swarm.Node) {
 		n.Spec.Membership = swarm.NodeMembershipAccepted
 	})
-	for i := 0; ; i++ {
-		info, err := d3.info()
-		c.Assert(err, checker.IsNil)
-		if info.LocalNodeState == swarm.LocalNodeStateActive {
-			break
-		}
-		if i > 100 {
-			c.Fatalf("node did not become active")
-		}
-		time.Sleep(200 * time.Millisecond)
-	}
+	waitAndAssert(c, defaultReconciliationTimeout, d3.checkLocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmSecretAcceptance(c *check.C) {
@@ -268,42 +258,20 @@ func (s *DockerSwarmSuite) TestApiSwarmPromoteDemote(c *check.C) {
 
 	info, err := d2.info()
 	c.Assert(err, checker.IsNil)
-	c.Assert(info.ControlAvailable, checker.Equals, false)
+	c.Assert(info.ControlAvailable, checker.False)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 
 	d1.updateNode(c, d2.NodeID, func(n *swarm.Node) {
 		n.Spec.Role = swarm.NodeRoleManager
 	})
 
-	for i := 0; ; i++ {
-		info, err := d2.info()
-		c.Assert(err, checker.IsNil)
-		c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
-		if info.ControlAvailable {
-			break
-		}
-		if i > 100 {
-			c.Errorf("node did not turn into manager")
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
+	waitAndAssert(c, defaultReconciliationTimeout, d2.checkControlAvailable, checker.True)
 
 	d1.updateNode(c, d2.NodeID, func(n *swarm.Node) {
 		n.Spec.Role = swarm.NodeRoleWorker
 	})
 
-	for i := 0; ; i++ {
-		info, err := d2.info()
-		c.Assert(err, checker.IsNil)
-		c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
-		if !info.ControlAvailable {
-			break
-		}
-		if i > 100 {
-			c.Errorf("node did not turn into worker")
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
+	waitAndAssert(c, defaultReconciliationTimeout, d2.checkControlAvailable, checker.False)
 
 	// Demoting last node should fail
 	node := d1.getNode(c, d1.NodeID)
@@ -316,25 +284,14 @@ func (s *DockerSwarmSuite) TestApiSwarmPromoteDemote(c *check.C) {
 	info, err = d1.info()
 	c.Assert(err, checker.IsNil)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
-	c.Assert(info.ControlAvailable, checker.Equals, true)
+	c.Assert(info.ControlAvailable, checker.True)
 
 	// Promote already demoted node
 	d1.updateNode(c, d2.NodeID, func(n *swarm.Node) {
 		n.Spec.Role = swarm.NodeRoleManager
 	})
 
-	for i := 0; ; i++ {
-		info, err := d2.info()
-		c.Assert(err, checker.IsNil)
-		c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
-		if info.ControlAvailable {
-			break
-		}
-		if i > 100 {
-			c.Errorf("node did not turn into manager")
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
+	waitAndAssert(c, defaultReconciliationTimeout, d2.checkControlAvailable, checker.True)
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmServicesCreate(c *check.C) {
@@ -632,17 +589,7 @@ func (s *DockerSwarmSuite) TestApiSwarmLeaveOnPendingJoin(c *check.C) {
 		RemoteAddrs: []string{"nosuchhost:1234"},
 	}) // will block on pending state
 
-	for i := 0; ; i++ {
-		info, err := d2.info()
-		c.Assert(err, checker.IsNil)
-		if info.LocalNodeState == swarm.LocalNodeStatePending {
-			break
-		}
-		if i > 100 {
-			c.Fatalf("node did not go to pending state: %v", info.LocalNodeState)
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
+	waitAndAssert(c, defaultReconciliationTimeout, d2.checkLocalNodeState, checker.Equals, swarm.LocalNodeStatePending)
 
 	c.Assert(d2.Leave(true), checker.IsNil)
 
@@ -660,17 +607,7 @@ func (s *DockerSwarmSuite) TestApiSwarmRestoreOnPendingJoin(c *check.C) {
 		RemoteAddrs: []string{"nosuchhost:1234"},
 	}) // will block on pending state
 
-	for i := 0; ; i++ {
-		info, err := d.info()
-		c.Assert(err, checker.IsNil)
-		if info.LocalNodeState == swarm.LocalNodeStatePending {
-			break
-		}
-		if i > 100 {
-			c.Fatalf("node did not go to pending state: %v", info.LocalNodeState)
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkLocalNodeState, checker.Equals, swarm.LocalNodeStatePending)
 
 	c.Assert(d.Stop(), checker.IsNil)
 	c.Assert(d.Start(), checker.IsNil)
@@ -777,7 +714,7 @@ func (s *DockerSwarmSuite) TestApiSwarmForceNewCluster(c *check.C) {
 	d3 := s.AddDaemon(c, true, true)
 	info, err := d3.info()
 	c.Assert(err, checker.IsNil)
-	c.Assert(info.ControlAvailable, checker.Equals, true)
+	c.Assert(info.ControlAvailable, checker.True)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 
 	instances = 4
