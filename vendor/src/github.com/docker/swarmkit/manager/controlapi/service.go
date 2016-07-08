@@ -7,6 +7,7 @@ import (
 	"github.com/docker/engine-api/types/reference"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/identity"
+	"github.com/docker/swarmkit/manager/scheduler"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 	"golang.org/x/net/context"
@@ -75,6 +76,14 @@ func validateRestartPolicy(rp *api.RestartPolicy) error {
 	return nil
 }
 
+func validatePlacement(placement *api.Placement) error {
+	if placement == nil {
+		return nil
+	}
+	_, err := scheduler.ParseExprs(placement.Constraints)
+	return err
+}
+
 func validateUpdate(uc *api.UpdateConfig) error {
 	if uc == nil {
 		return nil
@@ -98,6 +107,10 @@ func validateTask(taskSpec api.TaskSpec) error {
 	}
 
 	if err := validateRestartPolicy(taskSpec.Restart); err != nil {
+		return err
+	}
+
+	if err := validatePlacement(taskSpec.Placement); err != nil {
 		return err
 	}
 

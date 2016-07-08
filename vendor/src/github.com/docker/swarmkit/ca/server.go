@@ -1,6 +1,8 @@
 package ca
 
 import (
+	"crypto/subtle"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -255,7 +257,7 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 }
 
 // checkSecretValidity verifies if a secret string matches the secret hash stored in the
-// Acceptance Policy. It currently only supports bcrypted hashes.
+// Acceptance Policy. It currently only supports bcrypted hashes and plaintext.
 func checkSecretValidity(policy *api.AcceptancePolicy_RoleAdmissionPolicy, secret string) error {
 	if policy == nil || secret == "" {
 		return fmt.Errorf("invalid policy or secret")
@@ -264,6 +266,11 @@ func checkSecretValidity(policy *api.AcceptancePolicy_RoleAdmissionPolicy, secre
 	switch strings.ToLower(policy.Secret.Alg) {
 	case "bcrypt":
 		return bcrypt.CompareHashAndPassword(policy.Secret.Data, []byte(secret))
+	case "plaintext":
+		if subtle.ConstantTimeCompare(policy.Secret.Data, []byte(secret)) == 1 {
+			return nil
+		}
+		return errors.New("incorrect secret")
 	}
 
 	return fmt.Errorf("hash algorithm not supported: %s", policy.Secret.Alg)

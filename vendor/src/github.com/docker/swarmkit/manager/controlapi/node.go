@@ -2,6 +2,7 @@ package controlapi
 
 import (
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/manager/state/raft/membership"
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -188,8 +189,10 @@ func (s *Server) UpdateNode(ctx context.Context, request *api.UpdateNodeRequest)
 
 	var (
 		node   *api.Node
+		member *membership.Member
 		demote bool
 	)
+
 	err := s.store.Update(func(tx store.Tx) error {
 		node = store.GetNode(tx, request.NodeID)
 		if node == nil {
@@ -199,12 +202,24 @@ func (s *Server) UpdateNode(ctx context.Context, request *api.UpdateNodeRequest)
 		// Demotion sanity checks.
 		if node.Spec.Role == api.NodeRoleManager && request.Spec.Role == api.NodeRoleWorker {
 			demote = true
+
+			// Check for manager entries in Store.
 			managers, err := store.FindNodes(tx, store.ByRole(api.NodeRoleManager))
 			if err != nil {
 				return grpc.Errorf(codes.Internal, "internal store error: %v", err)
 			}
 			if len(managers) == 1 && managers[0].ID == node.ID {
 				return grpc.Errorf(codes.FailedPrecondition, "attempting to demote the last manager of the swarm")
+			}
+
+			// Check for node in memberlist
+			if member = s.raft.GetMemberByNodeID(request.NodeID); member == nil {
+				return grpc.Errorf(codes.NotFound, "can't find manager in raft memberlist")
+			}
+
+			// Quorum safeguard
+			if !s.raft.CanRemoveMember(member.RaftID) {
+				return grpc.Errorf(codes.FailedPrecondition, "can't remove member from the raft: this would result in a loss of quorum")
 			}
 		}
 
@@ -220,14 +235,12 @@ func (s *Server) UpdateNode(ctx context.Context, request *api.UpdateNodeRequest)
 	}
 
 	if demote && s.raft != nil {
-		memberlist := s.raft.GetMemberlist()
-		for raftID, member := range memberlist {
-			if member.NodeID == request.NodeID {
-				if err := s.raft.RemoveMember(ctx, raftID); err != nil {
-					return nil, err
-				}
-				break
-			}
+		// TODO(abronan): the remove can potentially fail and leave the node with
+		// an incorrect role (worker rather than manager), we need to reconcile the
+		// memberlist with the desired state rather than attempting to remove the
+		// member once.
+		if err := s.raft.RemoveMember(ctx, member.RaftID); err != nil {
+			return nil, grpc.Errorf(codes.Internal, "cannot demote manager to worker: %v", err)
 		}
 	}
 

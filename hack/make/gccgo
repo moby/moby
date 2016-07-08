@@ -5,6 +5,9 @@ BINARY_NAME="dockerd-$VERSION"
 BINARY_EXTENSION="$(binary_extension)"
 BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
 
+PROXY_NAME="docker-proxy-$VERSION"
+PROXY_FULLNAME="$PROXY_NAME$BINARY_EXTENSION"
+
 CLIENTBIN_NAME="docker-$VERSION"
 CLIENTBIN_FULLNAME="$CLIENTBIN_NAME$BINARY_EXTENSION"
 
@@ -28,6 +31,21 @@ go build -compiler=gccgo \
 
 echo "Created binary: $DEST/$BINARY_FULLNAME"
 ln -sf "$BINARY_FULLNAME" "$DEST/dockerd$BINARY_EXTENSION"
+
+go build -compiler=gccgo \
+	-o "$DEST/$PROXY_FULLNAME" \
+	"${BUILDFLAGS[@]}" \
+	-gccgoflags "
+		-g
+		$EXTLDFLAGS_STATIC
+		-Wl,--no-export-dynamic
+		-ldl
+		-pthread
+	" \
+	./vendor/src/github.com/docker/libnetwork/cmd/proxy
+
+echo "Created binary: $DEST/$PROXY_FULLNAME"
+ln -sf "$PROXY_FULLNAME" "$DEST/docker-proxy$BINARY_EXTENSION"
 
 copy_containerd "$DEST" "hash"
 hash_files "$DEST/$BINARY_FULLNAME"

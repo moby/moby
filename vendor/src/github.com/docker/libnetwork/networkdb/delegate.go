@@ -130,6 +130,11 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 		return
 	}
 
+	// Ignore messages that this node generated.
+	if tEvent.NodeName == nDB.config.NodeName {
+		return
+	}
+
 	// Do not rebroadcast a bulk sync
 	if rebroadcast := nDB.handleTableEvent(&tEvent); rebroadcast && !isBulkSync {
 		var err error

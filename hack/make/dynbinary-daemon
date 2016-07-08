@@ -9,4 +9,7 @@ set -e
 	export BUILDFLAGS=( "${BUILDFLAGS[@]/netgo /}" ) # disable netgo, since we don't need it for a dynamic binary
 	export BUILDFLAGS=( "${BUILDFLAGS[@]/static_build /}" ) # we're not building a "static" binary here
 	source "${MAKEDIR}/.binary"
+	export BINARY_SHORT_NAME='docker-proxy'
+	export SOURCE_PATH='./vendor/src/github.com/docker/libnetwork/cmd/proxy'
+	source "${MAKEDIR}/.binary"
 )

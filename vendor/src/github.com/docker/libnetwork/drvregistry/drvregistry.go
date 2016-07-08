@@ -8,10 +8,6 @@ import (
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/types"
-
-	builtinIpam "github.com/docker/libnetwork/ipams/builtin"
-	nullIpam "github.com/docker/libnetwork/ipams/null"
-	remoteIpam "github.com/docker/libnetwork/ipams/remote"
 )
 
 type driverData struct {
@@ -62,10 +58,6 @@ func New(lDs, gDs interface{}, dfn DriverNotifyFunc, ifn IPAMNotifyFunc) (*DrvRe
 		ipamDrivers: make(ipamTable),
 		dfn:         dfn,
 		ifn:         ifn,
-	}
-
-	if err := r.initIPAMs(lDs, gDs); err != nil {
-		return nil, err
 	}
 
 	return r, nil
@@ -155,20 +147,6 @@ func (r *DrvRegistry) IPAMDefaultAddressSpaces(name string) (string, string, err
 	}
 
 	return i.defaultLocalAddressSpace, i.defaultGlobalAddressSpace, nil
-}
-
-func (r *DrvRegistry) initIPAMs(lDs, gDs interface{}) error {
-	for _, fn := range [](func(ipamapi.Callback, interface{}, interface{}) error){
-		builtinIpam.Init,
-		remoteIpam.Init,
-		nullIpam.Init,
-	} {
-		if err := fn(r, nil, gDs); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // RegisterDriver registers the network driver when it gets discovered.
