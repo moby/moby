@@ -71,7 +71,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	if sysInfo.AppArmor {
 		securityOptions = append(securityOptions, "apparmor")
 	}
-	if sysInfo.Seccomp {
+	if sysInfo.Seccomp && supportsSeccomp {
 		securityOptions = append(securityOptions, "seccomp")
 	}
 	if selinuxEnabled() {
