@@ -27,6 +27,8 @@ type ReplicatedOrchestrator struct {
 
 	updater  *UpdateSupervisor
 	restarts *RestartSupervisor
+
+	cluster *api.Cluster // local cluster instance
 }
 
 // NewReplicatedOrchestrator creates a new ReplicatedOrchestrator.
@@ -61,6 +63,7 @@ func (r *ReplicatedOrchestrator) Run(ctx context.Context) error {
 			return
 		}
 		err = r.initServices(readTx)
+		err = r.initCluster(readTx)
 	})
 	if err != nil {
 		return err
@@ -74,9 +77,11 @@ func (r *ReplicatedOrchestrator) Run(ctx context.Context) error {
 			// TODO(stevvooe): Use ctx to limit running time of operation.
 			r.handleTaskEvent(ctx, event)
 			r.handleServiceEvent(ctx, event)
-			switch event.(type) {
+			switch v := event.(type) {
 			case state.EventCommit:
 				r.tick(ctx)
+			case state.EventUpdateCluster:
+				r.cluster = v.Cluster
 			}
 		case <-r.stopChan:
 			return nil
@@ -99,7 +104,16 @@ func (r *ReplicatedOrchestrator) tick(ctx context.Context) {
 	r.tickServices(ctx)
 }
 
-func newTask(service *api.Service, instance uint64) *api.Task {
+func newTask(cluster *api.Cluster, service *api.Service, instance uint64) *api.Task {
+	var logDriver *api.Driver
+	if service.Spec.Task.LogDriver != nil {
+		// use the log driver specific to the task, if we have it.
+		logDriver = service.Spec.Task.LogDriver
+	} else if cluster != nil {
+		// pick up the cluster default, if available.
+		logDriver = cluster.Spec.DefaultLogDriver // nil is okay here.
+	}
+
 	// NOTE(stevvooe): For now, we don't override the container naming and
 	// labeling scheme in the agent. If we decide to do this in the future,
 	// they should be overridden here.
@@ -118,6 +132,7 @@ func newTask(service *api.Service, instance uint64) *api.Task {
 			Spec: service.Spec.Endpoint.Copy(),
 		},
 		DesiredState: api.TaskStateRunning,
+		LogDriver:    logDriver,
 	}
 }
 

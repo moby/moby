@@ -16,6 +16,21 @@ import (
 // specifications. This is different from task-level orchestration, which
 // responds to changes in individual tasks (or nodes which run them).
 
+func (r *ReplicatedOrchestrator) initCluster(readTx store.ReadTx) error {
+	clusters, err := store.FindClusters(readTx, store.ByName("default"))
+	if err != nil {
+		return err
+	}
+
+	if len(clusters) != 1 {
+		// we'll just pick it when it is created.
+		return nil
+	}
+
+	r.cluster = clusters[0]
+	return nil
+}
+
 func (r *ReplicatedOrchestrator) initServices(readTx store.ReadTx) error {
 	services, err := store.FindServices(readTx, store.All)
 	if err != nil {
@@ -133,7 +148,7 @@ func (r *ReplicatedOrchestrator) reconcile(ctx context.Context, service *api.Ser
 	case specifiedInstances > numTasks:
 		log.G(ctx).Debugf("Service %s was scaled up from %d to %d instances", service.ID, numTasks, specifiedInstances)
 		// Update all current tasks then add missing tasks
-		r.updater.Update(ctx, service, runningTasks)
+		r.updater.Update(ctx, r.cluster, service, runningTasks)
 		_, err = r.store.Batch(func(batch *store.Batch) error {
 			r.addTasks(ctx, batch, service, runningInstances, specifiedInstances-numTasks)
 			return nil
@@ -179,7 +194,7 @@ func (r *ReplicatedOrchestrator) reconcile(ctx context.Context, service *api.Ser
 			sortedTasks = append(sortedTasks, t.task)
 		}
 
-		r.updater.Update(ctx, service, sortedTasks[:specifiedInstances])
+		r.updater.Update(ctx, r.cluster, service, sortedTasks[:specifiedInstances])
 		_, err = r.store.Batch(func(batch *store.Batch) error {
 			r.removeTasks(ctx, batch, service, sortedTasks[specifiedInstances:])
 			return nil
@@ -190,7 +205,7 @@ func (r *ReplicatedOrchestrator) reconcile(ctx context.Context, service *api.Ser
 
 	case specifiedInstances == numTasks:
 		// Simple update, no scaling - update all tasks.
-		r.updater.Update(ctx, service, runningTasks)
+		r.updater.Update(ctx, r.cluster, service, runningTasks)
 	}
 }
 
@@ -206,7 +221,7 @@ func (r *ReplicatedOrchestrator) addTasks(ctx context.Context, batch *store.Batc
 		}
 
 		err := batch.Update(func(tx store.Tx) error {
-			return store.CreateTask(tx, newTask(service, instance))
+			return store.CreateTask(tx, newTask(r.cluster, service, instance))
 		})
 		if err != nil {
 			log.G(ctx).Errorf("Failed to create task: %v", err)
