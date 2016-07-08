@@ -189,6 +189,7 @@ install -p -m 644 contrib/syntax/nano/Dockerfile.nanorc $RPM_BUILD_ROOT/usr/shar
 /%{_bindir}/docker-containerd
 /%{_bindir}/docker-containerd-shim
 /%{_bindir}/docker-containerd-ctr
+/%{_bindir}/docker-proxy
 /%{_bindir}/docker-runc
 /%{_sysconfdir}/udev/rules.d/80-docker.rules
 %if 0%{?is_systemd}
