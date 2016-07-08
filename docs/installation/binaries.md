@@ -130,11 +130,13 @@ directory named `docker` in your current location.
 $ tar -xvzf docker-latest.tgz
 
 docker/
-docker/docker-containerd-ctr
 docker/docker
 docker/docker-containerd
-docker/docker-runc
+docker/docker-containerd-ctr
 docker/docker-containerd-shim
+docker/docker-proxy
+docker/docker-runc
+docker/dockerd
 ```
 
 Engine requires these binaries to be installed in your host's `$PATH`.
@@ -154,7 +156,7 @@ $ mv docker/* /usr/bin/
 You can manually start the Engine in daemon mode using:
 
 ```bash
-$ sudo docker daemon &
+$ sudo dockerd &
 ```
 
 The GitHub repository provides samples of init-scripts you can use to control
