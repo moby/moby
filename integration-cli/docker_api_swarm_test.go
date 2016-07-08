@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -298,7 +299,36 @@ func (s *DockerSwarmSuite) TestApiSwarmPromoteDemote(c *check.C) {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	// todo: test raft qourum stability
+	// Demoting last node should fail
+	node := d1.getNode(c, d1.NodeID)
+	node.Spec.Role = swarm.NodeRoleWorker
+	url := fmt.Sprintf("/nodes/%s/update?version=%d", node.ID, node.Version.Index)
+	status, out, err := d1.SockRequest("POST", url, node.Spec)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusInternalServerError, check.Commentf("output: %q", string(out)))
+	c.Assert(string(out), checker.Contains, "last manager of the swarm")
+	info, err = d1.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+	c.Assert(info.ControlAvailable, checker.Equals, true)
+
+	// Promote already demoted node
+	d1.updateNode(c, d2.NodeID, func(n *swarm.Node) {
+		n.Spec.Role = swarm.NodeRoleManager
+	})
+
+	for i := 0; ; i++ {
+		info, err := d2.info()
+		c.Assert(err, checker.IsNil)
+		c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+		if info.ControlAvailable {
+			break
+		}
+		if i > 100 {
+			c.Errorf("node did not turn into manager")
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmServicesCreate(c *check.C) {
