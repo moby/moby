@@ -109,22 +109,15 @@ func GetManager() *Manager {
 
 // Init (was NewManager) instantiates the singleton Manager.
 // TODO: revert this to NewManager once we get rid of all the singletons.
-func Init(root, execRoot string, remote libcontainerd.Remote, rs registry.Service, liveRestore bool) (err error) {
+func Init(root string, remote libcontainerd.Remote, rs registry.Service, liveRestore bool) (err error) {
 	if manager != nil {
 		return nil
 	}
 
 	root = filepath.Join(root, "plugins")
-	execRoot = filepath.Join(execRoot, "plugins")
-	for _, dir := range []string{root, execRoot} {
-		if err := os.MkdirAll(dir, 0700); err != nil {
-			return err
-		}
-	}
-
 	manager = &Manager{
 		libRoot:         root,
-		runRoot:         execRoot,
+		runRoot:         "/run/docker",
 		plugins:         make(map[string]*plugin),
 		nameToID:        make(map[string]string),
 		handlers:        make(map[string]func(string, *plugins.Client)),
