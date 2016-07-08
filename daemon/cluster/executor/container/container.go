@@ -88,20 +88,6 @@ func (c *containerConfig) image() string {
 	return reference.WithDefaultTag(ref).String()
 }
 
-func (c *containerConfig) volumes() map[string]struct{} {
-	r := make(map[string]struct{})
-
-	for _, m := range c.spec().Mounts {
-		// pick off all the volume mounts.
-		if m.Type != api.MountTypeVolume || m.Source != "" {
-			continue
-		}
-		r[m.Target] = struct{}{}
-	}
-
-	return r
-}
-
 func (c *containerConfig) config() *enginecontainer.Config {
 	config := &enginecontainer.Config{
 		Labels:     c.labels(),
@@ -159,20 +145,48 @@ func (c *containerConfig) labels() map[string]string {
 	return labels
 }
 
-func (c *containerConfig) bindMounts() []string {
-	var r []string
+// volumes gets placed into the Volumes field on the containerConfig.
+func (c *containerConfig) volumes() map[string]struct{} {
+	r := make(map[string]struct{})
+	// Volumes *only* creates anonymous volumes. The rest is mixed in with
+	// binds, which aren't actually binds. Basically, any volume that
+	// results in a single component must be added here.
+	//
+	// This is reversed engineered from the behavior of the engine API.
+	for _, mount := range c.spec().Mounts {
+		if mount.Type == api.MountTypeVolume && mount.Source == "" {
+			r[mount.Target] = struct{}{}
+		}
+	}
+	return r
+}
 
-	for _, val := range c.spec().Mounts {
-		if val.Type == api.MountTypeBind || (val.Type == api.MountTypeVolume && val.Source != "") {
-			mask := getMountMask(&val)
-			spec := fmt.Sprintf("%s:%s", val.Source, val.Target)
+func (c *containerConfig) tmpfs() map[string]string {
+	r := make(map[string]string)
+
+	for _, spec := range c.spec().Mounts {
+		if spec.Type != api.MountTypeTmpfs {
+			continue
+		}
+
+		r[spec.Target] = getMountMask(&spec)
+	}
+
+	return r
+}
+
+func (c *containerConfig) binds() []string {
+	var r []string
+	for _, mount := range c.spec().Mounts {
+		if mount.Type == api.MountTypeBind || (mount.Type == api.MountTypeVolume && mount.Source != "") {
+			spec := fmt.Sprintf("%s:%s", mount.Source, mount.Target)
+			mask := getMountMask(&mount)
 			if mask != "" {
 				spec = fmt.Sprintf("%s:%s", spec, mask)
 			}
 			r = append(r, spec)
 		}
 	}
-
 	return r
 }
 
@@ -182,7 +196,16 @@ func getMountMask(m *api.Mount) string {
 		maskOpts = append(maskOpts, "ro")
 	}
 
-	if m.BindOptions != nil {
+	switch m.Type {
+	case api.MountTypeVolume:
+		if m.VolumeOptions != nil && m.VolumeOptions.NoCopy {
+			maskOpts = append(maskOpts, "nocopy")
+		}
+	case api.MountTypeBind:
+		if m.BindOptions == nil {
+			break
+		}
+
 		switch m.BindOptions.Propagation {
 		case api.MountPropagationPrivate:
 			maskOpts = append(maskOpts, "private")
@@ -197,20 +220,56 @@ func getMountMask(m *api.Mount) string {
 		case api.MountPropagationRSlave:
 			maskOpts = append(maskOpts, "rslave")
 		}
-	}
+	case api.MountTypeTmpfs:
+		if m.TmpfsOptions == nil {
+			break
+		}
 
-	if m.VolumeOptions != nil {
-		if m.VolumeOptions.NoCopy {
-			maskOpts = append(maskOpts, "nocopy")
+		if m.TmpfsOptions.Mode != 0 {
+			maskOpts = append(maskOpts, fmt.Sprintf("mode=%o", m.TmpfsOptions.Mode))
+		}
+
+		if m.TmpfsOptions.SizeBytes != 0 {
+			// calculate suffix here, making this linux specific, but that is
+			// okay, since API is that way anyways.
+
+			// we do this by finding the suffix that divides evenly into the
+			// value, returing the value itself, with no suffix, if it fails.
+			//
+			// For the most part, we don't enforce any semantic to this values.
+			// The operating system will usually align this and enforce minimum
+			// and maximums.
+			var (
+				size   = m.TmpfsOptions.SizeBytes
+				suffix string
+			)
+			for _, r := range []struct {
+				suffix  string
+				divisor int64
+			}{
+				{"g", 1 << 30},
+				{"m", 1 << 20},
+				{"k", 1 << 10},
+			} {
+				if size%r.divisor == 0 {
+					size = size / r.divisor
+					suffix = r.suffix
+					break
+				}
+			}
+
+			maskOpts = append(maskOpts, fmt.Sprintf("size=%d%s", size, suffix))
 		}
 	}
+
 	return strings.Join(maskOpts, ",")
 }
 
 func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 	return &enginecontainer.HostConfig{
 		Resources: c.resources(),
-		Binds:     c.bindMounts(),
+		Binds:     c.binds(),
+		Tmpfs:     c.tmpfs(),
 	}
 }
 
