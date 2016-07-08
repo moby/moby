@@ -579,7 +579,11 @@ func verifyDaemonSettings(config *Config) error {
 	if config.Runtimes == nil {
 		config.Runtimes = make(map[string]types.Runtime)
 	}
-	config.Runtimes[stockRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary}
+	stockRuntimeOpts := []string{}
+	if UsingSystemd(config) {
+		stockRuntimeOpts = append(stockRuntimeOpts, "--systemd-cgroup=true")
+	}
+	config.Runtimes[stockRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary, Args: stockRuntimeOpts}
 
 	return nil
 }
