@@ -139,12 +139,14 @@ message Mount {
 
 		BIND = 0 [(gogoproto.enumvalue_customname) = "MountTypeBind"]; // Bind mount host dir
 		VOLUME = 1 [(gogoproto.enumvalue_customname) = "MountTypeVolume"];  // Remote storage volumes
+		TMPFS = 2 [(gogoproto.enumvalue_customname) = "MountTypeTmpfs"]; // Mount a tmpfs
 	}
 
 	// Type defines the nature of the mount.
 	Type type = 1;
 
-	// Source path to mount
+	// Source specifies the name of the mount. Depending on mount type, this
+	// may be a volume name or a host path, or even ignored.
 	string source = 2;
 
 	// Target path in container
@@ -186,13 +188,57 @@ message Mount {
 		Driver driver_config = 3;
 	}
 
+	message TmpfsOptions {
+		// Size sets the size of the tmpfs, in bytes.
+		//
+		// This will be converted to an operating system specific value
+		// depending on the host. For example, on linux, it will be convered to
+		// use a 'k', 'm' or 'g' syntax. BSD, though not widely supported with
+		// docker, uses a straight byte value.
+		//
+		// Percentages are not supported.
+		int64 size_bytes = 1;
+
+		// Mode of the tmpfs upon creation
+		int32 mode = 2 [(gogoproto.customtype) = "os.FileMode", (gogoproto.nullable) = false];
+
+		// TODO(stevvooe): There are several more tmpfs flags, specified in the
+		// daemon, that are accepted. Only the most basic are added for now.
+		//
+		// From docker/docker/pkg/mount/flags.go:
+		//
+		// var validFlags = map[string]bool{
+		// 	"":          true,
+		// 	"size":      true, X
+		// 	"mode":      true, X
+		// 	"uid":       true,
+		// 	"gid":       true,
+		// 	"nr_inodes": true,
+		// 	"nr_blocks": true,
+		// 	"mpol":      true,
+		// }
+		//
+		// Some of these may be straightforward to add, but others, such as
+		// uid/gid have implications in a clustered system.
+	}
+
 	// Depending on type, one of bind_options or volumes_options will be set.
 
 	// BindOptions configures properties of a bind mount type.
+	//
+	// For mounts of type bind, the source must be an absolute host path.
 	BindOptions bind_options = 5;
 
 	// VolumeOptions configures the properties specific to a volume mount type.
+	//
+	// For mounts of type volume, the source will be used as the volume name.
 	VolumeOptions volume_options = 6;
+
+	// TmpfsOptions allows one to set options for mounting a temporary
+	// filesystem.
+	//
+	// The source field will be ignored when using mounts of type tmpfs.
+	TmpfsOptions tmpfs_options = 7;
 
 	// TODO(stevvooe): It be better to use a oneof field above, although the
 	// type is enough to make the decision, while being primary to the
