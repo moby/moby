@@ -25,7 +25,13 @@ DOCKER_ENVS := \
 	-e DOCKER_USERLANDPROXY \
 	-e TESTDIRS \
 	-e TESTFLAGS \
-	-e TIMEOUT
+	-e TIMEOUT \
+	-e HTTP_PROXY \
+	-e HTTPS_PROXY \
+	-e NO_PROXY \
+	-e http_proxy \
+	-e https_proxy \
+	-e no_proxy
 # note: we _cannot_ add "-e DOCKER_BUILDTAGS" here because even if it's unset in the shell, that would shadow the "ENV DOCKER_BUILDTAGS" set in our Dockerfile, which is very important for our official builds
 
 # to allow `make BIND_DIR=. shell` or `make BIND_DIR= test`
@@ -44,7 +50,7 @@ GIT_BRANCH_CLEAN := $(shell echo $(GIT_BRANCH) | sed -e "s/[^[:alnum:]]/-/g")
 DOCKER_IMAGE := docker-dev$(if $(GIT_BRANCH_CLEAN),:$(GIT_BRANCH_CLEAN))
 DOCKER_DOCS_IMAGE := docker-docs$(if $(GIT_BRANCH_CLEAN),:$(GIT_BRANCH_CLEAN))
 
-DOCKER_FLAGS := docker run --rm -i --privileged $(DOCKER_USERDEF_ENVS) $(DOCKER_ENVS) $(DOCKER_MOUNT)
+DOCKER_FLAGS := docker run --rm -i --privileged $(DOCKER_ENVS) $(DOCKER_MOUNT)
 
 # if this session isn't interactive, then we don't want to allocate a
 # TTY, which would fail, but if it is interactive, we do want to attach
