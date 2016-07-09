@@ -28,6 +28,7 @@ func ServiceFromGRPC(s swarmapi.Service) types.Service {
 				Resources:     resourcesFromGRPC(s.Spec.Task.Resources),
 				RestartPolicy: restartPolicyFromGRPC(s.Spec.Task.Restart),
 				Placement:     placementFromGRPC(s.Spec.Task.Placement),
+				LogDriver:     driverFromGRPC(s.Spec.Task.LogDriver),
 			},
 
 			Networks:     networks,
@@ -86,6 +87,7 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 		},
 		Task: swarmapi.TaskSpec{
 			Resources: resourcesToGRPC(s.TaskTemplate.Resources),
+			LogDriver: driverToGRPC(s.TaskTemplate.LogDriver),
 		},
 		Networks: networks,
 	}
@@ -250,4 +252,26 @@ func placementFromGRPC(p *swarmapi.Placement) *types.Placement {
 	}
 
 	return r
+}
+
+func driverFromGRPC(p *swarmapi.Driver) *types.Driver {
+	if p == nil {
+		return nil
+	}
+
+	return &types.Driver{
+		Name:    p.Name,
+		Options: p.Options,
+	}
+}
+
+func driverToGRPC(p *types.Driver) *swarmapi.Driver {
+	if p == nil {
+		return nil
+	}
+
+	return &swarmapi.Driver{
+		Name:    p.Name,
+		Options: p.Options,
+	}
 }

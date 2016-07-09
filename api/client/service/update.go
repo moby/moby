@@ -211,6 +211,11 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		}
 		updatePorts(flags, &spec.EndpointSpec.Ports)
 	}
+
+	if err := updateLogDriver(flags, &spec.TaskTemplate); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -384,5 +389,29 @@ func updateReplicas(flags *pflag.FlagSet, serviceMode *swarm.ServiceMode) error 
 		return fmt.Errorf("replicas can only be used with replicated mode")
 	}
 	serviceMode.Replicated.Replicas = flags.Lookup(flagReplicas).Value.(*Uint64Opt).Value()
+	return nil
+}
+
+// updateLogDriver updates the log driver only if the log driver flag is set.
+// All options will be replaced with those provided on the command line.
+func updateLogDriver(flags *pflag.FlagSet, taskTemplate *swarm.TaskSpec) error {
+	if !flags.Changed(flagLogDriver) {
+		return nil
+	}
+
+	name, err := flags.GetString(flagLogDriver)
+	if err != nil {
+		return err
+	}
+
+	if name == "" {
+		return nil
+	}
+
+	taskTemplate.LogDriver = &swarm.Driver{
+		Name:    name,
+		Options: runconfigopts.ConvertKVStringsToMap(flags.Lookup(flagLogOpt).Value.(*opts.ListOpts).GetAll()),
+	}
+
 	return nil
 }

@@ -22,6 +22,7 @@ func TaskFromGRPC(t swarmapi.Task) types.Task {
 			Resources:     resourcesFromGRPC(t.Spec.Resources),
 			RestartPolicy: restartPolicyFromGRPC(t.Spec.Restart),
 			Placement:     placementFromGRPC(t.Spec.Placement),
+			LogDriver:     driverFromGRPC(t.Spec.LogDriver),
 		},
 		Status: types.TaskStatus{
 			State:   types.TaskState(strings.ToLower(t.Status.State.String())),
