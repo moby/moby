@@ -3,10 +3,13 @@ package system
 import (
 	"syscall"
 	"unsafe"
+
+	"github.com/Sirupsen/logrus"
 )
 
 var (
-	ntuserApiset = syscall.NewLazyDLL("ext-ms-win-ntuser-window-l1-1-0")
+	ntuserApiset      = syscall.NewLazyDLL("ext-ms-win-ntuser-window-l1-1-0")
+	procGetVersionExW = modkernel32.NewProc("GetVersionExW")
 )
 
 // OSVersion is a wrapper for Windows version information
@@ -16,6 +19,21 @@ type OSVersion struct {
 	MajorVersion uint8
 	MinorVersion uint8
 	Build        uint16
+}
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/ms724833(v=vs.85).aspx
+type osVersionInfoEx struct {
+	OSVersionInfoSize uint32
+	MajorVersion      uint32
+	MinorVersion      uint32
+	BuildNumber       uint32
+	PlatformID        uint32
+	CSDVersion        [128]uint16
+	ServicePackMajor  uint16
+	ServicePackMinor  uint16
+	SuiteMask         uint16
+	ProductType       byte
+	Reserve           byte
 }
 
 // GetOSVersion gets the operating system version on Windows. Note that
@@ -32,6 +50,18 @@ func GetOSVersion() OSVersion {
 	osv.MinorVersion = uint8(osv.Version >> 8 & 0xFF)
 	osv.Build = uint16(osv.Version >> 16)
 	return osv
+}
+
+// IsWindowsClient returns true if the SKU is client
+func IsWindowsClient() bool {
+	osviex := &osVersionInfoEx{OSVersionInfoSize: 284}
+	r1, _, err := procGetVersionExW.Call(uintptr(unsafe.Pointer(osviex)))
+	if r1 == 0 {
+		logrus.Warnf("GetVersionExW failed - assuming server SKU: %v", err)
+		return false
+	}
+	const verNTWorkstation = 0x00000001
+	return osviex.ProductType == verNTWorkstation
 }
 
 // Unmount is a platform-specific helper function to call

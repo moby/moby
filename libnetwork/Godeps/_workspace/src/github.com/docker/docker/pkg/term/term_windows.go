@@ -83,11 +83,13 @@ func useNativeConsole() bool {
 		return false
 	}
 
-	// TODO Windows. The native emulator still has issues which
-	// mean it shouldn't be enabled for everyone. Change this next line to true
-	// to change the default to "enable if available". In the meantime, users
-	// can still try it out by using USE_NATIVE_CONSOLE env variable.
-	return false
+	// Must have a post-TP5 RS1 build of Windows Server 2016/Windows 10 for
+	// the native console to be usable.
+	if osv.Build < 14350 {
+		return false
+	}
+
+	return true
 }
 
 // getNativeConsole returns the console modes ('state') for the native Windows console
