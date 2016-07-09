@@ -34,6 +34,7 @@ type Config struct {
 	Ulimits              map[string]*units.Ulimit `json:"default-ulimits,omitempty"`
 	Runtimes             map[string]types.Runtime `json:"runtimes,omitempty"`
 	DefaultRuntime       string                   `json:"default-runtime,omitempty"`
+	SeccompProfile       string                   `json:"seccomp-profile,omitempty"`
 }
 
 // bridgeConfig stores all the bridge driver specific
@@ -86,6 +87,7 @@ func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) strin
 	cmd.StringVar(&config.CgroupParent, []string{"-cgroup-parent"}, "", usageFn("Set parent cgroup for all containers"))
 	cmd.StringVar(&config.RemappedRoot, []string{"-userns-remap"}, "", usageFn("User/Group setting for user namespaces"))
 	cmd.StringVar(&config.ContainerdAddr, []string{"-containerd"}, "", usageFn("Path to containerd socket"))
+	cmd.StringVar(&config.SeccompProfile, []string{"-seccomp-profile"}, "", usageFn("Path to seccomp profile"))
 	cmd.BoolVar(&config.LiveRestore, []string{"-live-restore"}, false, usageFn("Enable live restore of docker when containers are still running"))
 	config.Runtimes = make(map[string]types.Runtime)
 	cmd.Var(runconfigopts.NewNamedRuntimeOpt("runtimes", &config.Runtimes, stockRuntimeName), []string{"-add-runtime"}, usageFn("Register an additional OCI compatible runtime"))

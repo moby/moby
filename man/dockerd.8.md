@@ -54,6 +54,7 @@ dockerd - Enable daemon mode
 [**--registry-mirror**[=*[]*]]
 [**-s**|**--storage-driver**[=*STORAGE-DRIVER*]]
 [**--selinux-enabled**]
+[**--seccomp-profile**[=*SECCOMP-PROFILE*]]
 [**--storage-opt**[=*[]*]]
 [**--tls**]
 [**--tlscacert**[=*~/.docker/ca.pem*]]
@@ -235,6 +236,9 @@ output otherwise.
 
 **--selinux-enabled**=*true*|*false*
   Enable selinux support. Default is false. SELinux does not presently support either of the overlay storage drivers.
+
+**--seccomp-profile**=""
+  Path to a json seccomp profile to be used as a default for containers.
 
 **--storage-opt**=[]
   Set storage driver options. See STORAGE DRIVER OPTIONS.

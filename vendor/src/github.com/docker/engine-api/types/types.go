@@ -252,7 +252,7 @@ type Info struct {
 	ServerVersion      string
 	ClusterStore       string
 	ClusterAdvertise   string
-	SecurityOptions    []string
+	SecurityOptions    map[string][][2]string
 	Runtimes           map[string]Runtime
 	DefaultRuntime     string
 	Swarm              swarm.Info

@@ -89,6 +89,9 @@ type Daemon struct {
 	discoveryWatcher          discoveryReloader
 	root                      string
 	seccompEnabled            bool
+	seccompProfile            []byte
+	seccompProfilePath        string
+	seccompProfileWeak        bool
 	shutdown                  bool
 	uidMaps                   []idtools.IDMap
 	gidMaps                   []idtools.IDMap
@@ -459,6 +462,10 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 			}
 		}
 	}()
+
+	if err := d.setupDefaultSeccompProfile(); err != nil {
+		return nil, err
+	}
 
 	// Set the default isolation mode (only applicable on Windows)
 	if err := d.setDefaultIsolation(); err != nil {

@@ -918,6 +918,40 @@ func (s *DockerSuite) TestRunSysctls(c *check.C) {
 	}
 }
 
+func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled)
+
+	err := s.d.StartWithBusybox()
+	c.Assert(err, check.IsNil)
+
+	// 1) verify I can run containers with the Docker default shipped profile which allows chmod
+	_, err = s.d.Cmd("run", "busybox", "chmod", "777", ".")
+	c.Assert(err, check.IsNil)
+
+	jsonData := `{
+	"defaultAction": "SCMP_ACT_ALLOW",
+	"syscalls": [
+		{
+			"name": "chmod",
+			"action": "SCMP_ACT_ERRNO"
+		}
+	]
+}`
+	tmpFile, err := ioutil.TempFile("", "profile.json")
+	c.Assert(err, check.IsNil)
+	defer tmpFile.Close()
+	_, err = tmpFile.Write([]byte(jsonData))
+	c.Assert(err, check.IsNil)
+
+	// 2) restart the daemon and add a custom seccomp profile in which we deny chmod
+	err = s.d.Restart("--seccomp-profile=" + tmpFile.Name())
+	c.Assert(err, check.IsNil)
+
+	out, err := s.d.Cmd("run", "busybox", "chmod", "777", ".")
+	c.Assert(err, check.NotNil)
+	c.Assert(out, checker.Contains, "Operation not permitted")
+}
+
 // TestRunSeccompProfileDenyUnshare checks that 'docker run --security-opt seccomp=/tmp/profile.json debian:jessie unshare' exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyUnshare(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled, NotArm, Apparmor)

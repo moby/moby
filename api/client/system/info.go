@@ -101,9 +101,31 @@ func runInfo(dockerCli *client.DockerCli) error {
 		fmt.Fprintf(dockerCli.Out(), "Default Runtime: %s\n", info.DefaultRuntime)
 	}
 
-	fmt.Fprintf(dockerCli.Out(), "Security Options:")
-	ioutils.FprintfIfNotEmpty(dockerCli.Out(), " %s", strings.Join(info.SecurityOptions, " "))
-	fmt.Fprintf(dockerCli.Out(), "\n")
+	fmt.Fprintf(dockerCli.Out(), "Security Options:\n")
+	if len(info.SecurityOptions) != 0 {
+		for s, opts := range info.SecurityOptions {
+			fmt.Fprintf(dockerCli.Out(), " %s", s)
+			if len(opts) != 0 {
+				fmt.Fprintf(dockerCli.Out(), "\n")
+				for _, o := range opts {
+					// seccomp specific warnings
+					if o[0] == "ProfileWeak" {
+						if o[1] == "true" {
+							fmt.Fprintln(dockerCli.Err(), "  WARNING: The seccomp profile you are using can be considered weak because it's not a whitelist")
+						}
+						continue
+					}
+					if o[0] == "Profile" && o[1] != "default" {
+						fmt.Fprintln(dockerCli.Err(), "  WARNING: You're not using the Docker's default seccomp profile")
+					}
+					fmt.Fprintf(dockerCli.Out(), "  %s: %s", o[0], o[1])
+					fmt.Fprintf(dockerCli.Out(), "\n")
+				}
+			} else {
+				fmt.Fprintf(dockerCli.Out(), "\n")
+			}
+		}
+	}
 
 	ioutils.FprintfIfNotEmpty(dockerCli.Out(), "Kernel Version: %s\n", info.KernelVersion)
 	ioutils.FprintfIfNotEmpty(dockerCli.Out(), "Operating System: %s\n", info.OperatingSystem)
