@@ -358,6 +358,27 @@ func convertPortToPortConfig(
 	return ports
 }
 
+type logDriverOptions struct {
+	name string
+	opts opts.ListOpts
+}
+
+func newLogDriverOptions() logDriverOptions {
+	return logDriverOptions{opts: opts.NewListOpts(runconfigopts.ValidateEnv)}
+}
+
+func (ldo *logDriverOptions) toLogDriver() *swarm.Driver {
+	if ldo.name == "" {
+		return nil
+	}
+
+	// set the log driver only if specified.
+	return &swarm.Driver{
+		Name:    ldo.name,
+		Options: runconfigopts.ConvertKVStringsToMap(ldo.opts.GetAll()),
+	}
+}
+
 // ValidatePort validates a string is in the expected format for a port definition
 func ValidatePort(value string) (string, error) {
 	portMappings, err := nat.ParsePortSpec(value)
@@ -392,6 +413,8 @@ type serviceOptions struct {
 	endpoint      endpointOptions
 
 	registryAuth bool
+
+	logDriver logDriverOptions
 }
 
 func newServiceOptions() *serviceOptions {
@@ -401,6 +424,7 @@ func newServiceOptions() *serviceOptions {
 		endpoint: endpointOptions{
 			ports: opts.NewListOpts(ValidatePort),
 		},
+		logDriver: newLogDriverOptions(),
 	}
 }
 
@@ -427,6 +451,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 			Placement: &swarm.Placement{
 				Constraints: opts.constraints,
 			},
+			LogDriver: opts.logDriver.toLogDriver(),
 		},
 		Mode: swarm.ServiceMode{},
 		UpdateConfig: &swarm.UpdateConfig{
@@ -482,6 +507,9 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode (vip or dnsrr)")
 
 	flags.BoolVar(&opts.registryAuth, flagRegistryAuth, false, "Send registry authentication details to Swarm agents")
+
+	flags.StringVar(&opts.logDriver.name, flagLogDriver, "", "Logging driver for service")
+	flags.Var(&opts.logDriver.opts, flagLogOpt, "Logging driver options")
 }
 
 const (
@@ -520,4 +548,6 @@ const (
 	flagUpdateParallelism  = "update-parallelism"
 	flagUser               = "user"
 	flagRegistryAuth       = "registry-auth"
+	flagLogDriver          = "log-driver"
+	flagLogOpt             = "log-opt"
 )
