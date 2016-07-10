@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/pkg/locker"
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/utils"
+	"github.com/golang/protobuf/ptypes"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
@@ -225,40 +226,43 @@ func (r *remote) updateEventTimestamp(t time.Time) {
 		f.Truncate(0)
 		return
 	}
-
 }
 
-func (r *remote) getLastEventTimestamp() int64 {
+func (r *remote) getLastEventTimestamp() time.Time {
 	t := time.Now()
 
 	fi, err := os.Stat(r.eventTsPath)
 	if os.IsNotExist(err) || fi.Size() == 0 {
-		return t.Unix()
+		return t
 	}
 
 	f, err := os.Open(r.eventTsPath)
 	defer f.Close()
 	if err != nil {
 		logrus.Warnf("libcontainerd: Unable to access last event ts: %v", err)
-		return t.Unix()
+		return t
 	}
 
 	b := make([]byte, fi.Size())
 	n, err := f.Read(b)
 	if err != nil || n != len(b) {
 		logrus.Warnf("libcontainerd: Unable to read last event ts: %v", err)
-		return t.Unix()
+		return t
 	}
 
 	t.UnmarshalText(b)
 
-	return t.Unix()
+	return t
 }
 
 func (r *remote) startEventsMonitor() error {
 	// First, get past events
+	tsp, err := ptypes.TimestampProto(r.getLastEventTimestamp())
+	if err != nil {
+		logrus.Errorf("libcontainerd: failed to convert timestamp: %q", err)
+	}
 	er := &containerd.EventsRequest{
-		Timestamp: uint64(r.getLastEventTimestamp()),
+		Timestamp: tsp,
 	}
 	events, err := r.apiClient.Events(context.Background(), er)
 	if err != nil {
@@ -269,7 +273,6 @@ func (r *remote) startEventsMonitor() error {
 }
 
 func (r *remote) handleEventStream(events containerd.API_EventsClient) {
-	live := false
 	for {
 		e, err := events.Recv()
 		if err != nil {
@@ -283,45 +286,34 @@ func (r *remote) handleEventStream(events containerd.API_EventsClient) {
 			return
 		}
 
-		if live == false {
-			logrus.Debugf("received past containerd event: %#v", e)
+		logrus.Debugf("received containerd event: %#v", e)
 
-			// Pause/Resume events should never happens after exit one
-			switch e.Type {
-			case StateExit:
-				r.pastEvents[e.Id] = e
-			case StatePause:
-				r.pastEvents[e.Id] = e
-			case StateResume:
-				r.pastEvents[e.Id] = e
-			case stateLive:
-				live = true
-				r.updateEventTimestamp(time.Unix(int64(e.Timestamp), 0))
+		var container *container
+		var c *client
+		r.RLock()
+		for _, c = range r.clients {
+			container, err = c.getContainer(e.Id)
+			if err == nil {
+				break
 			}
-		} else {
-			logrus.Debugf("received containerd event: %#v", e)
-
-			var container *container
-			var c *client
-			r.RLock()
-			for _, c = range r.clients {
-				container, err = c.getContainer(e.Id)
-				if err == nil {
-					break
-				}
-			}
-			r.RUnlock()
-			if container == nil {
-				logrus.Errorf("no state for container: %q", err)
-				continue
-			}
-
-			if err := container.handleEvent(e); err != nil {
-				logrus.Errorf("error processing state change for %s: %v", e.Id, err)
-			}
-
-			r.updateEventTimestamp(time.Unix(int64(e.Timestamp), 0))
 		}
+		r.RUnlock()
+		if container == nil {
+			logrus.Errorf("libcontainerd: %q", err)
+			continue
+		}
+
+		if err := container.handleEvent(e); err != nil {
+			logrus.Errorf("libcontainerd: error processing state change for %s: %v", e.Id, err)
+		}
+
+		tsp, err := ptypes.Timestamp(e.Timestamp)
+		if err != nil {
+			logrus.Errorf("libcontainerd: failed to convert event timestamp: %q", err)
+			continue
+		}
+
+		r.updateEventTimestamp(tsp)
 	}
 }
 
