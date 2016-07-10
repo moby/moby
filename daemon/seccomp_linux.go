@@ -11,6 +11,8 @@ import (
 	"github.com/opencontainers/specs/specs-go"
 )
 
+var supportsSeccomp = true
+
 func setSeccomp(daemon *Daemon, rs *specs.Spec, c *container.Container) error {
 	var profile *specs.Seccomp
 	var err error
