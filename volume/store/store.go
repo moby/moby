@@ -212,7 +212,6 @@ func (s *VolumeStore) list() ([]volume.Volume, []string, error) {
 }
 
 // CreateWithRef creates a volume with the given name and driver and stores the ref
-// This is just like Create() except we store the reference while holding the lock.
 // This ensures there's no race between creating a volume and then storing a reference.
 func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels map[string]string) (volume.Volume, error) {
 	name = normaliseVolumeName(name)
@@ -229,17 +228,9 @@ func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels m
 }
 
 // Create creates a volume with the given name and driver.
+// This is just like CreateWithRef() except we don't store a reference while holding the lock.
 func (s *VolumeStore) Create(name, driverName string, opts, labels map[string]string) (volume.Volume, error) {
-	name = normaliseVolumeName(name)
-	s.locks.Lock(name)
-	defer s.locks.Unlock(name)
-
-	v, err := s.create(name, driverName, opts, labels)
-	if err != nil {
-		return nil, &OpErr{Err: err, Name: name, Op: "create"}
-	}
-	s.setNamed(v, "")
-	return v, nil
+	return s.CreateWithRef(name, driverName, "", opts, labels)
 }
 
 // create asks the given driver to create a volume with the name/opts.
