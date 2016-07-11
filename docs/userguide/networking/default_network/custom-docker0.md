@@ -30,6 +30,7 @@ Once you have one or more containers up and running, you can confirm that Docker
 # Display bridge info
 
 $ sudo brctl show
+
 bridge name     bridge id               STP enabled     interfaces
 docker0         8000.3a1d7362b4ee       no              veth65f9
                                                         vethdda6
@@ -45,6 +46,7 @@ Finally, the `docker0` Ethernet bridge settings are used every time you create a
 $ docker run -i -t --rm base /bin/bash
 
 $$ ip addr show eth0
+
 24: eth0: <BROADCAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
     link/ether 32:6f:e0:35:57:91 brd ff:ff:ff:ff:ff:ff
     inet 172.17.0.3/16 scope global eth0
@@ -53,6 +55,7 @@ $$ ip addr show eth0
        valid_lft forever preferred_lft forever
 
 $$ ip route
+
 default via 172.17.42.1 dev eth0
 172.17.0.0/16 dev eth0  proto kernel  scope link  src 172.17.0.3
 

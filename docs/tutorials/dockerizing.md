@@ -30,6 +30,7 @@ Running an application inside a container takes a single command: `docker run`.
 Let's run a hello world container.
 
     $ docker run ubuntu /bin/echo 'Hello world'
+
     Hello world
 
 You just launched your first container!
@@ -59,6 +60,7 @@ the container stops once the command is executed.
 Let's specify a new command to run in the container.
 
     $ docker run -t -i ubuntu /bin/bash
+
     root@af8bae53bdd3:/#
 
 In this example:
@@ -78,8 +80,11 @@ command prompt inside it:
 Let's try running some commands inside the container:
 
     root@af8bae53bdd3:/# pwd
+
     /
+
     root@af8bae53bdd3:/# ls
+
     bin boot dev etc home lib lib64 media mnt opt proc root run sbin srv sys tmp usr var
 
 In this example:
@@ -100,6 +105,7 @@ finished, the container stops.
 Let's create a container that runs as a daemon.
 
     $ docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done"
+
     1e5535038e285177d5214659a068137486f96ee5c2e85a4ac52dc83f2ebe4147
 
 In this example:
@@ -132,6 +138,7 @@ The `docker ps` command queries the Docker daemon for information about all the 
 about.
 
     $ docker ps
+
     CONTAINER ID  IMAGE         COMMAND               CREATED        STATUS       PORTS NAMES
     1e5535038e28  ubuntu  /bin/sh -c 'while tr  2 minutes ago  Up 1 minute        insane_babbage
 
@@ -154,6 +161,7 @@ command.
 Let's use the container name `insane_babbage`.
 
     $ docker logs insane_babbage
+
     hello world
     hello world
     hello world
@@ -169,6 +177,7 @@ Dockerized application!
 Next, run the `docker stop` command to stop our detached container.
 
     $ docker stop insane_babbage
+
     insane_babbage
 
 The `docker stop` command tells Docker to politely stop the running
@@ -177,6 +186,7 @@ container and returns the name of the container it stopped.
 Let's check it worked with the `docker ps` command.
 
     $ docker ps
+
     CONTAINER ID  IMAGE         COMMAND               CREATED        STATUS       PORTS NAMES
 
 Excellent. Our container is stopped.
