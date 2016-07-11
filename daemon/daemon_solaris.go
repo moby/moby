@@ -161,3 +161,7 @@ func (daemon *Daemon) setDefaultIsolation() error {
 func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
 	return types.RootFS{}
 }
+
+func setupDaemonProcess(config *Config) error {
+	return nil
+}

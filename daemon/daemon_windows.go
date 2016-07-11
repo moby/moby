@@ -431,3 +431,7 @@ func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
 		BaseLayer: rootfs.BaseLayer,
 	}
 }
+
+func setupDaemonProcess(config *Config) error {
+	return nil
+}

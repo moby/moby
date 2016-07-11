@@ -434,7 +434,11 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		}
 	}
 
-	if err = setupDaemonRoot(config, realRoot, rootUID, rootGID); err != nil {
+	if err := setupDaemonRoot(config, realRoot, rootUID, rootGID); err != nil {
+		return nil, err
+	}
+
+	if err := setupDaemonProcess(config); err != nil {
 		return nil, err
 	}
 

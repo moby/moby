@@ -1139,3 +1139,19 @@ func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
 		Layers: layers,
 	}
 }
+
+// setupDaemonProcess sets various settings for the daemon's process
+func setupDaemonProcess(config *Config) error {
+	// setup the daemons oom_score_adj
+	return setupOOMScoreAdj(config.OOMScoreAdjust)
+}
+
+func setupOOMScoreAdj(score int) error {
+	f, err := os.OpenFile("/proc/self/oom_score_adj", os.O_WRONLY, 0)
+	if err != nil {
+		return err
+	}
+	_, err = f.WriteString(strconv.Itoa(score))
+	f.Close()
+	return err
+}
