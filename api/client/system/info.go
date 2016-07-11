@@ -58,7 +58,6 @@ func runInfo(dockerCli *client.DockerCli) error {
 			fmt.Fprintf(dockerCli.Out(), "%s: %s\n", pair[0], pair[1])
 		}
 	}
-	ioutils.FprintfIfNotEmpty(dockerCli.Out(), "Execution Driver: %s\n", info.ExecutionDriver)
 	ioutils.FprintfIfNotEmpty(dockerCli.Out(), "Logging Driver: %s\n", info.LoggingDriver)
 	ioutils.FprintfIfNotEmpty(dockerCli.Out(), "Cgroup Driver: %s\n", info.CgroupDriver)
 
