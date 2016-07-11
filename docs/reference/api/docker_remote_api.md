@@ -137,6 +137,8 @@ This section lists each version from latest to oldest.  Each listing includes a 
   no longer expects a "Container" field to be present. This property was not used
   and is no longer sent by the docker client.
 * `POST /containers/create/` now validates the hostname (should be a valid RFC 1123 hostname).
+* `POST /containers/create/` `HostConfig.PidMode` field now accepts `container:<name|id>`,
+  to have the container join the PID namespace of an existing container.
 
 ### v1.23 API changes
 
