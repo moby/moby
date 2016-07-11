@@ -1267,7 +1267,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeNegative(c *check.C) {
 	status, body, err := sockRequest("POST", "/containers/create", config)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusInternalServerError)
-	c.Assert(getErrorMessage(c, body), checker.Contains, "SHM size must be greater than 0")
+	c.Assert(getErrorMessage(c, body), checker.Contains, "SHM size can not be less than 0")
 }
 
 func (s *DockerSuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *check.C) {
