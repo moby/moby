@@ -54,6 +54,7 @@ type remote struct {
 	runtimeArgs   []string
 	daemonWaitCh  chan struct{}
 	liveRestore   bool
+	oomScore      int
 }
 
 // New creates a fresh instance of libcontainerd remote.
@@ -402,7 +403,10 @@ func (r *remote) runContainerdDaemon() error {
 		return err
 	}
 	logrus.Infof("New containerd process, pid: %d", cmd.Process.Pid)
-
+	if err := setOOMScore(cmd.Process.Pid, r.oomScore); err != nil {
+		utils.KillProcess(cmd.Process.Pid)
+		return err
+	}
 	if _, err := f.WriteString(fmt.Sprintf("%d", cmd.Process.Pid)); err != nil {
 		utils.KillProcess(cmd.Process.Pid)
 		return err
@@ -415,6 +419,16 @@ func (r *remote) runContainerdDaemon() error {
 	}() // Reap our child when needed
 	r.daemonPid = cmd.Process.Pid
 	return nil
+}
+
+func setOOMScore(pid, score int) error {
+	f, err := os.OpenFile(fmt.Sprintf("/proc/%d/oom_score_adj", pid), os.O_WRONLY, 0)
+	if err != nil {
+		return err
+	}
+	_, err = f.WriteString(strconv.Itoa(score))
+	f.Close()
+	return err
 }
 
 // WithRemoteAddr sets the external containerd socket to connect to.
@@ -509,4 +523,19 @@ func (l liveRestore) Apply(r Remote) error {
 		return nil
 	}
 	return fmt.Errorf("WithLiveRestore option not supported for this remote")
+}
+
+// WithOOMScore defines the oom_score_adj to set for the containerd process.
+func WithOOMScore(score int) RemoteOption {
+	return oomScore(score)
+}
+
+type oomScore int
+
+func (o oomScore) Apply(r Remote) error {
+	if remote, ok := r.(*remote); ok {
+		remote.oomScore = int(o)
+		return nil
+	}
+	return fmt.Errorf("WithOOMScore option not supported for this remote")
 }
