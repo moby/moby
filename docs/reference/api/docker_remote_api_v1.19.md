@@ -176,6 +176,7 @@ Create a container
              "CpusetMems": "0,1",
              "BlkioWeight": 300,
              "OomKillDisable": false,
+             "PidMode": "",
              "PortBindings": { "22/tcp": [{ "HostPort": "11022" }] },
              "PublishAllPorts": false,
              "Privileged": false,
@@ -253,6 +254,9 @@ Json Parameters:
     -   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
     -   **BlkioWeight** - Block IO weight (relative weight) accepts a weight value between 10 and 1000.
     -   **OomKillDisable** - Boolean value, whether to disable OOM Killer for the container or not.
+    -   **PidMode** - Set the PID (Process) Namespace mode for the container;
+          `"container:<name|id>"`: joins another container's PID namespace
+          `"host"`: use the host's PID namespace inside the container
     -   **PortBindings** - A map of exposed container ports and the host port they
           should map to. A JSON object in the form
           `{ <port>/<protocol>: [{ "HostPort": "<port>" }] }`
@@ -388,6 +392,7 @@ Return low-level information on the container `id`
 			"MemorySwap": 0,
 			"OomKillDisable": false,
 			"NetworkMode": "bridge",
+			"PidMode": "",
 			"PortBindings": {},
 			"Privileged": false,
 			"ReadonlyRootfs": false,
