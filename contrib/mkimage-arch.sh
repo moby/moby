@@ -63,11 +63,7 @@ case "$arch" in
 		sed "s/Architecture = armv/Architecture = armv${version}h/g" './mkimage-archarm-pacman.conf' > "${PACMAN_CONF}"
 		PACMAN_MIRRORLIST='Server = http://mirror.archlinuxarm.org/$arch/$repo'
 		PACMAN_EXTRA_PKGS='archlinuxarm-keyring'
-		if [ "$version" -lt 7 ]; then
-			EXPECT_TIMEOUT=1800 # Some armv6 based devices can be very slow (e.g. RPiv1)
-		else
-			EXPECT_TIMEOUT=120
-		fi
+		EXPECT_TIMEOUT=1800 # Most armv* based devices can be very slow (e.g. RPiv1)
 		ARCH_KEYRING=archlinuxarm
 		DOCKER_IMAGE_NAME="armv${version}h/archlinux"
 		;;
