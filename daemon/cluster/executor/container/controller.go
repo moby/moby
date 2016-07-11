@@ -6,6 +6,7 @@ import (
 
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/events"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
@@ -153,20 +154,39 @@ func (r *controller) Wait(pctx context.Context) error {
 	ctx, cancel := context.WithCancel(pctx)
 	defer cancel()
 
+	healthErr := make(chan error, 1)
+	go func() {
+		ectx, cancel := context.WithCancel(ctx) // cancel event context on first event
+		defer cancel()
+		if err := r.checkHealth(ectx); err == ErrContainerUnhealthy {
+			healthErr <- ErrContainerUnhealthy
+			if err := r.Shutdown(ectx); err != nil {
+				log.G(ectx).WithError(err).Debug("shutdown failed on unhealthy")
+			}
+		}
+	}()
+
 	err := r.adapter.wait(ctx)
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
+
 	if err != nil {
 		ee := &exitError{}
-		if err.Error() != "" {
-			ee.cause = err
-		}
 		if ec, ok := err.(exec.ExitCoder); ok {
 			ee.code = ec.ExitCode()
 		}
+		select {
+		case e := <-healthErr:
+			ee.cause = e
+		default:
+			if err.Error() != "" {
+				ee.cause = err
+			}
+		}
 		return ee
 	}
+
 	return nil
 }
 
@@ -250,6 +270,21 @@ func (r *controller) Close() error {
 	return nil
 }
 
+func (r *controller) matchevent(event events.Message) bool {
+	if event.Type != events.ContainerEventType {
+		return false
+	}
+
+	// TODO(stevvooe): Filter based on ID matching, in addition to name.
+
+	// Make sure the events are for this container.
+	if event.Actor.Attributes["name"] != r.adapter.container.name() {
+		return false
+	}
+
+	return true
+}
+
 func (r *controller) checkClosed() error {
 	select {
 	case <-r.closed:
@@ -288,4 +323,27 @@ func (e *exitError) ExitCode() int {
 
 func (e *exitError) Cause() error {
 	return e.cause
+}
+
+// checkHealth blocks until unhealthy container is detected or ctx exits
+func (r *controller) checkHealth(ctx context.Context) error {
+	eventq := r.adapter.events(ctx)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-r.closed:
+			return nil
+		case event := <-eventq:
+			if !r.matchevent(event) {
+				continue
+			}
+
+			switch event.Action {
+			case "health_status: unhealthy":
+				return ErrContainerUnhealthy
+			}
+		}
+	}
 }
