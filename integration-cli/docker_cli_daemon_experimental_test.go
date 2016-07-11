@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
+	"syscall"
 
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
@@ -129,7 +129,11 @@ func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
 		c.Fatalf("Could not kill daemon: %v", err)
 	}
 
-	time.Sleep(5 * time.Second)
+	for {
+		if err := syscall.Kill(s.d.cmd.Process.Pid, 0); err == syscall.ESRCH {
+			break
+		}
+	}
 
 	cmd := exec.Command("pgrep", "-f", "plugin-no-remove")
 	if out, ec, err := runCommandWithOutput(cmd); ec != 1 {

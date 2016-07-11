@@ -178,7 +178,7 @@ func (daemon *Daemon) restore() error {
 			rm := c.RestartManager(false)
 			if c.IsRunning() || c.IsPaused() {
 				if err := daemon.containerd.Restore(c.ID, libcontainerd.WithRestartManager(rm)); err != nil {
-					logrus.Errorf("Failed to restore with containerd: %q", err)
+					logrus.Errorf("Failed to restore %s with containerd: %s", c.ID, err)
 					return
 				}
 				if !c.HostConfig.NetworkMode.IsContainer() && c.IsRunning() {

@@ -21,6 +21,7 @@ import (
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/utils"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/grpclog"
@@ -40,22 +41,22 @@ const (
 
 type remote struct {
 	sync.RWMutex
-	apiClient     containerd.APIClient
-	daemonPid     int
-	stateDir      string
-	rpcAddr       string
-	startDaemon   bool
-	closeManually bool
-	debugLog      bool
-	rpcConn       *grpc.ClientConn
-	clients       []*client
-	eventTsPath   string
-	pastEvents    map[string]*containerd.Event
-	runtime       string
-	runtimeArgs   []string
-	daemonWaitCh  chan struct{}
-	liveRestore   bool
-	oomScore      int
+	apiClient            containerd.APIClient
+	daemonPid            int
+	stateDir             string
+	rpcAddr              string
+	startDaemon          bool
+	closeManually        bool
+	debugLog             bool
+	rpcConn              *grpc.ClientConn
+	clients              []*client
+	eventTsPath          string
+	runtime              string
+	runtimeArgs          []string
+	daemonWaitCh         chan struct{}
+	liveRestore          bool
+	oomScore             int
+	restoreFromTimestamp *timestamp.Timestamp
 }
 
 // New creates a fresh instance of libcontainerd remote.
@@ -69,7 +70,6 @@ func New(stateDir string, options ...RemoteOption) (_ Remote, err error) {
 		stateDir:    stateDir,
 		daemonPid:   -1,
 		eventTsPath: filepath.Join(stateDir, eventTimestampFilename),
-		pastEvents:  make(map[string]*containerd.Event),
 	}
 	for _, option := range options {
 		if err := option.Apply(r); err != nil {
@@ -105,6 +105,14 @@ func New(stateDir string, options ...RemoteOption) (_ Remote, err error) {
 
 	r.rpcConn = conn
 	r.apiClient = containerd.NewAPIClient(conn)
+
+	// Get the timestamp to restore from
+	t := r.getLastEventTimestamp()
+	tsp, err := ptypes.TimestampProto(t)
+	if err != nil {
+		logrus.Errorf("libcontainerd: failed to convert timestamp: %q", err)
+	}
+	r.restoreFromTimestamp = tsp
 
 	go r.handleConnectionChange()
 
@@ -257,7 +265,8 @@ func (r *remote) getLastEventTimestamp() time.Time {
 
 func (r *remote) startEventsMonitor() error {
 	// First, get past events
-	tsp, err := ptypes.TimestampProto(r.getLastEventTimestamp())
+	t := r.getLastEventTimestamp()
+	tsp, err := ptypes.TimestampProto(t)
 	if err != nil {
 		logrus.Errorf("libcontainerd: failed to convert timestamp: %q", err)
 	}
@@ -299,7 +308,7 @@ func (r *remote) handleEventStream(events containerd.API_EventsClient) {
 		}
 		r.RUnlock()
 		if container == nil {
-			logrus.Errorf("libcontainerd: %q", err)
+			logrus.Warnf("libcontainerd: unknown container %s", e.Id)
 			continue
 		}
 
