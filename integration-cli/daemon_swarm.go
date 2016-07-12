@@ -148,6 +148,39 @@ func (d *SwarmDaemon) getServiceTasks(c *check.C, service string) []swarm.Task {
 	return tasks
 }
 
+func (d *SwarmDaemon) checkRunningTaskImages(c *check.C) (interface{}, check.CommentInterface) {
+	var tasks []swarm.Task
+
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("desired-state", "running")
+	filters, err := filters.ToParam(filterArgs)
+	c.Assert(err, checker.IsNil)
+
+	status, out, err := d.SockRequest("GET", "/tasks?filters="+filters, nil)
+	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+	c.Assert(json.Unmarshal(out, &tasks), checker.IsNil)
+
+	result := make(map[string]int)
+	for _, task := range tasks {
+		if task.Status.State == swarm.TaskStateRunning {
+			result[task.Spec.ContainerSpec.Image]++
+		}
+	}
+	return result, nil
+}
+
+func (d *SwarmDaemon) checkNodeReadyCount(c *check.C) (interface{}, check.CommentInterface) {
+	nodes := d.listNodes(c)
+	var readyCount int
+	for _, node := range nodes {
+		if node.Status.State == swarm.NodeStateReady {
+			readyCount++
+		}
+	}
+	return readyCount, nil
+}
+
 func (d *SwarmDaemon) getTask(c *check.C, id string) swarm.Task {
 	var task swarm.Task
 
