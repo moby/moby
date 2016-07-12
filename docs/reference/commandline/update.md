@@ -38,9 +38,23 @@ space-separated list of container names or IDs.
 
 With the exception of the `--kernel-memory` value, you can specify these
 options on a running or a stopped container. You can only update
-`--kernel-memory` on a stopped container. When you run `docker update` on
-stopped container, the next time you restart it, the container uses those
-values.
+`--kernel-memory` on a stopped container or on a running container with
+kernel memory initialized. For example, if you started a container with
+command:
+
+    # docker run -ti --name test --kernel-memory 50M ubuntu bash
+
+You can update kernel memory of this running container:
+
+    # docker update --kernel-memory 80M test
+
+If you started a container without kernel memory initialized:
+
+    # docker run -ti --name test2 --memory 300M ubuntu bash
+
+Update kernel memory of running container `test2` will fail, you can only
+stop the container and update kernel memory then. The next time you
+restart it, the container uses the new value.
 
 Another configuration you can change with this command is restart policy,
 new restart policy will take effect instantly after you run `docker update`
