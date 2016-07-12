@@ -371,6 +371,52 @@ func (s *DockerSwarmSuite) TestApiSwarmServicesCreateGlobal(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, d5.checkActiveContainerCount, checker.Equals, 1)
 }
 
+func (s *DockerSwarmSuite) TestApiSwarmServicesUpdate(c *check.C) {
+	const nodeCount = 3
+	var daemons [nodeCount]*SwarmDaemon
+	for i := 0; i < nodeCount; i++ {
+		daemons[i] = s.AddDaemon(c, true, i == 0)
+	}
+	// wait for nodes ready
+	waitAndAssert(c, 5*time.Second, daemons[0].checkNodeReadyCount, checker.Equals, nodeCount)
+
+	// service image at start
+	image1 := "busybox:latest"
+	// target image in update
+	image2 := "busybox:test"
+
+	// create a different tag
+	for _, d := range daemons {
+		out, err := d.Cmd("tag", image1, image2)
+		c.Assert(err, checker.IsNil, check.Commentf(out))
+	}
+
+	// create service
+	instances := 5
+	parallelism := 2
+	id := daemons[0].createService(c, serviceForUpdate, setInstances(instances))
+
+	// wait for tasks ready
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkRunningTaskImages, checker.DeepEquals,
+		map[string]int{image1: instances})
+
+	// issue service update
+	service := daemons[0].getService(c, id)
+	daemons[0].updateService(c, service, setImage(image2))
+
+	// first batch
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkRunningTaskImages, checker.DeepEquals,
+		map[string]int{image1: instances - parallelism, image2: parallelism})
+
+	// 2nd batch
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkRunningTaskImages, checker.DeepEquals,
+		map[string]int{image1: instances - 2*parallelism, image2: 2 * parallelism})
+
+	// 3nd batch
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkRunningTaskImages, checker.DeepEquals,
+		map[string]int{image2: instances})
+}
+
 func (s *DockerSwarmSuite) TestApiSwarmServicesStateReporting(c *check.C) {
 	testRequires(c, Network)
 	testRequires(c, SameHostDaemon)
@@ -779,6 +825,29 @@ func simpleTestService(s *swarm.Service) {
 	s.Spec.Name = "top"
 }
 
+func serviceForUpdate(s *swarm.Service) {
+	var ureplicas uint64
+	ureplicas = 1
+	s.Spec = swarm.ServiceSpec{
+		TaskTemplate: swarm.TaskSpec{
+			ContainerSpec: swarm.ContainerSpec{
+				Image:   "busybox:latest",
+				Command: []string{"/bin/top"},
+			},
+		},
+		Mode: swarm.ServiceMode{
+			Replicated: &swarm.ReplicatedService{
+				Replicas: &ureplicas,
+			},
+		},
+		UpdateConfig: &swarm.UpdateConfig{
+			Parallelism: 2,
+			Delay:       8 * time.Second,
+		},
+	}
+	s.Spec.Name = "updatetest"
+}
+
 func setInstances(replicas int) serviceConstructor {
 	ureplicas := uint64(replicas)
 	return func(s *swarm.Service) {
@@ -787,6 +856,12 @@ func setInstances(replicas int) serviceConstructor {
 				Replicas: &ureplicas,
 			},
 		}
+	}
+}
+
+func setImage(image string) serviceConstructor {
+	return func(s *swarm.Service) {
+		s.Spec.TaskTemplate.ContainerSpec.Image = image
 	}
 }
 
