@@ -73,6 +73,16 @@ with auto-acceptance of both `worker` and `manager` nodes
 $ docker swarm init --listen-addr 192.168.99.121:2377 --auto-accept worker,manager
 ```
 
+To disable auto acceptance, use the `none` option. Note that this option cannot
+be combined with other values. When disabling auto acceptance, nodes must be
+manually accepted or rejected using `docker node accept` or `docker node rm`.
+
+The following example enables swarm mode with auto acceptance disabled:
+
+```bash
+$ docker swarm init --listen-addr 192.168.99.121:2377 --auto-accept none
+```
+
 ### `--cert-expiry`
 
 This flag sets the validity period for node certificates.
@@ -110,3 +120,5 @@ This flag sets up task history retention limit.
 * [swarm join](swarm_join.md)
 * [swarm leave](swarm_leave.md)
 * [swarm update](swarm_update.md)
+* [node accept](node_accept.md)
+* [node rm](node_rm.md)
