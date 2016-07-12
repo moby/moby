@@ -360,6 +360,10 @@ func (nDB *NetworkDB) bulkSync(nid string, nodes []string, all bool) ([]string, 
 		nodes = nDB.mRandomNodes(1, nodes)
 	}
 
+	if len(nodes) == 0 {
+		return nil, nil
+	}
+
 	logrus.Debugf("%s: Initiating bulk sync with nodes %v", nDB.config.NodeName, nodes)
 	var err error
 	var networks []string
