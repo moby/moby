@@ -294,6 +294,15 @@ func (s *DockerSwarmSuite) TestApiSwarmPromoteDemote(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, d2.checkControlAvailable, checker.True)
 }
 
+func (s *DockerSwarmSuite) TestApiSwarmServicesEmptyList(c *check.C) {
+	testRequires(c, Network)
+	d := s.AddDaemon(c, true, true)
+
+	services := d.listServices(c)
+	c.Assert(services, checker.NotNil)
+	c.Assert(len(services), checker.Equals, 0, check.Commentf("services: %#v", services))
+}
+
 func (s *DockerSwarmSuite) TestApiSwarmServicesCreate(c *check.C) {
 	testRequires(c, Network)
 	d := s.AddDaemon(c, true, true)
