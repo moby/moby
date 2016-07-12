@@ -683,6 +683,8 @@ func (daemon *Daemon) Shutdown() error {
 		}
 	}
 
+	pluginShutdown()
+
 	if err := daemon.cleanupMounts(); err != nil {
 		return err
 	}

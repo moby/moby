@@ -47,6 +47,7 @@ type plugin struct {
 	client            *plugins.Client
 	restartManager    restartmanager.RestartManager
 	runtimeSourcePath string
+	exitChan          chan bool
 }
 
 func (p *plugin) Client() *plugins.Client {
@@ -98,6 +99,7 @@ type Manager struct {
 	registryService  registry.Service
 	handleLegacy     bool
 	liveRestore      bool
+	shutdown         bool
 }
 
 // GetManager returns the singleton plugin Manager
@@ -250,9 +252,22 @@ func LookupWithCapability(name, capability string) (Plugin, error) {
 	return nil, ErrInadequateCapability{name, capability}
 }
 
-// StateChanged updates daemon inter...
+// StateChanged updates plugin internals using from libcontainerd events.
 func (pm *Manager) StateChanged(id string, e libcontainerd.StateInfo) error {
 	logrus.Debugf("plugin state changed %s %#v", id, e)
+
+	switch e.State {
+	case libcontainerd.StateExit:
+		pm.RLock()
+		p, idOk := pm.plugins[id]
+		pm.RUnlock()
+		if !idOk {
+			return ErrNotFound(id)
+		}
+		if pm.shutdown == true {
+			p.exitChan <- true
+		}
+	}
 
 	return nil
 }
