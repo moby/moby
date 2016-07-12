@@ -56,7 +56,7 @@ storage driver and a node that is part of a 2 node Swarm cluster:
      Network: bridge null host overlay
     Swarm: 
      NodeID: 0gac67oclbxq7
-     IsManager: YES
+     Is Manager: true
      Managers: 2
      Nodes: 2
     Runtimes: default
