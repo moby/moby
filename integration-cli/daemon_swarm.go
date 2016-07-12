@@ -212,6 +212,16 @@ func (d *SwarmDaemon) listNodes(c *check.C) []swarm.Node {
 	return nodes
 }
 
+func (d *SwarmDaemon) listServices(c *check.C) []swarm.Service {
+	status, out, err := d.SockRequest("GET", "/services", nil)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+
+	services := []swarm.Service{}
+	c.Assert(json.Unmarshal(out, &services), checker.IsNil)
+	return services
+}
+
 func (d *SwarmDaemon) updateSwarm(c *check.C, f ...specConstructor) {
 	var sw swarm.Swarm
 	status, out, err := d.SockRequest("GET", "/swarm", nil)
