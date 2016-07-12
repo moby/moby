@@ -37,12 +37,12 @@ cf03ee007fb4        host                host
 ```
 
 Historically, these three networks are part of Docker's implementation. When
-you run a container you can use the `--net` flag to specify which network you
+you run a container you can use the `--network` flag to specify which network you
 want to run a container on. These three networks are still available to you.
 
 The `bridge` network represents the `docker0` network present in all Docker
 installations. Unless you specify otherwise with the `docker run
---net=<NETWORK>` option, the Docker daemon connects containers to this network
+--network=<NETWORK>` option, the Docker daemon connects containers to this network
 by default. You can see this bridge as part of a host's network stack by using
 the `ifconfig` command on the host.
 
@@ -352,10 +352,10 @@ c5ee82f76de3        isolated_nw         bridge
 
 ```
 
-After you create the network, you can launch containers on it using  the `docker run --net=<NETWORK>` option.
+After you create the network, you can launch containers on it using  the `docker run --network=<NETWORK>` option.
 
 ```
-$ docker run --net=isolated_nw -itd --name=container3 busybox
+$ docker run --network=isolated_nw -itd --name=container3 busybox
 
 8c1a0a5be480921d669a073393ade66a3fc49933f08bcc5515b37b8144f6d47c
 
@@ -473,7 +473,7 @@ provides complete isolation for the containers.
 
 Then, on each host, launch containers making sure to specify the network name.
 
-    $ docker run -itd --net=my-multi-host-network busybox
+    $ docker run -itd --network=my-multi-host-network busybox
 
 Once connected, each container has access to all the containers in the network
 regardless of which Docker host the container was launched on.

@@ -78,13 +78,13 @@ Options:
       --memory-swap string          Swap limit equal to memory plus swap: '-1' to enable unlimited swap
       --memory-swappiness int       Tune container memory swappiness (0 to 100) (default -1).
       --name string                 Assign a name to the container
-      --net string                  Connect a container to a network (default "default")
+      --network-alias value         Add network-scoped alias for the container (default [])
+      --network string              Connect a container to a network
                                     'bridge': create a network stack on the default Docker bridge
                                     'none': no networking
                                     'container:<name|id>': reuse another container's network stack
                                     'host': use the Docker host network stack
                                     '<network-name>|<network-id>': connect to a user-defined network
-      --net-alias value             Add network-scoped alias for the container (default [])
       --no-healthcheck              Disable any container-specified HEALTHCHECK
       --oom-kill-disable            Disable OOM Killer
       --oom-score-adj int           Tune host's OOM preferences (-1000 to 1000)
@@ -360,20 +360,20 @@ For additional information on working with labels, see [*Labels - custom
 metadata in Docker*](../../userguide/labels-custom-metadata.md) in the Docker User
 Guide.
 
-### Connect a container to a network (--net)
+### Connect a container to a network (--network)
 
-When you start a container use the `--net` flag to connect it to a network.
+When you start a container use the `--network` flag to connect it to a network.
 This adds the `busybox` container to the `my-net` network.
 
 ```bash
-$ docker run -itd --net=my-net busybox
+$ docker run -itd --network=my-net busybox
 ```
 
 You can also choose the IP addresses for the container with `--ip` and `--ip6`
 flags when you start the container on a user-defined network.
 
 ```bash
-$ docker run -itd --net=my-net --ip=10.10.9.75 busybox
+$ docker run -itd --network=my-net --ip=10.10.9.75 busybox
 ```
 
 If you want to add a running container to a network use the `docker network connect` subcommand.
@@ -673,4 +673,4 @@ network namespace, run this command:
   `Network Namespace`:
       Sysctls beginning with net.*
 
-  If you use the `--net=host` option using these sysctls will not be allowed.
+  If you use the `--network=host` option using these sysctls will not be allowed.

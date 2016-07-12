@@ -198,9 +198,9 @@ To build web applications that act in concert but do so securely, create a
 network. Networks, by definition, provide complete isolation for containers. You
 can add containers to a network when you first run a container.
 
-Launch a container running a PostgreSQL database and pass it the `--net=my-bridge-network` flag to connect it to your new network:
+Launch a container running a PostgreSQL database and pass it the `--network=my-bridge-network` flag to connect it to your new network:
 
-    $ docker run -d --net=my-bridge-network --name db training/postgres
+    $ docker run -d --network=my-bridge-network --name db training/postgres
 
 If you inspect your `my-bridge-network` you'll see it has a container attached.
 You can also inspect your container to see where it is connected:

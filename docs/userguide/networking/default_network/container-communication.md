@@ -42,7 +42,7 @@ or to turn it on manually:
 ```
 
 > **Note**: this setting does not affect containers that use the host
-> network stack (`--net=host`).
+> network stack (`--network=host`).
 
 Many using Docker will want `ip_forward` to be on, to at least make
 communication _possible_ between containers and the wider world. May also be
