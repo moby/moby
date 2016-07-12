@@ -50,6 +50,9 @@ func setupSeccomp(config *types.Seccomp) (newConfig *specs.Seccomp, err error) {
 
 	// Loop through all syscall blocks and convert them to libcontainer format
 	for _, call := range config.Syscalls {
+		if call.Name == "" {
+			continue
+		}
 		newCall := specs.Syscall{
 			Name:   call.Name,
 			Action: specs.Action(call.Action),
