@@ -61,10 +61,6 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 		return errCannotUpdate(container.ID, fmt.Errorf("Container is marked for removal and cannot be \"update\"."))
 	}
 
-	if container.IsRunning() && hostConfig.KernelMemory != 0 {
-		return errCannotUpdate(container.ID, fmt.Errorf("Can not update kernel memory to a running container, please stop it first."))
-	}
-
 	if err := container.UpdateContainer(hostConfig); err != nil {
 		restoreConfig = true
 		return errCannotUpdate(container.ID, err)
