@@ -150,6 +150,10 @@ func (daemon *Daemon) mergeAndVerifyLogConfig(cfg *containertypes.LogConfig) err
 		cfg.Type = daemon.defaultLogConfig.Type
 	}
 
+	if cfg.Config == nil {
+		cfg.Config = make(map[string]string)
+	}
+
 	if cfg.Type == daemon.defaultLogConfig.Type {
 		for k, v := range daemon.defaultLogConfig.Config {
 			if _, ok := cfg.Config[k]; !ok {
