@@ -46,17 +46,20 @@ every 10 seconds:
     ```bash
     $ docker service inspect redis --pretty
 
-    ID:		0u6a4s31ybk7yw2wyvtikmu50
-    Name:		redis
-    Mode:		REPLICATED
-     Replicas:		3
+    ID:             0u6a4s31ybk7yw2wyvtikmu50
+    Name:           redis
+    Mode:           Replicated
+     Replicas:      3
     Placement:
-     Strategy:	SPREAD
+     Strategy:      Spread
     UpdateConfig:
-     Parallelism:	1
-     Delay:		10s
+     Parallelism:   1
+     Delay:         10s
     ContainerSpec:
-     Image:		redis:3.0.6
+     Image:         redis:3.0.6
+    Resources:
+    Reservations:
+    Limits:
     ```
 
 4. Now you can update the container image for `redis`. The swarm  manager
@@ -71,19 +74,22 @@ applies the update to nodes according to the `UpdateConfig` policy:
 desired state:
 
     ```bash
-    docker service inspect --pretty redis
+    $ docker service inspect --pretty redis
 
-    ID:		0u6a4s31ybk7yw2wyvtikmu50
-    Name:		redis
-    Mode:		REPLICATED
-     Replicas:		3
+    ID:             0u6a4s31ybk7yw2wyvtikmu50
+    Name:           redis
+    Mode:           Replicated
+     Replicas:      3
     Placement:
-     Strategy:	SPREAD
+     Strategy:      Spread
     UpdateConfig:
-     Parallelism:	1
-     Delay:		10s
+     Parallelism:   1
+     Delay:         10s
     ContainerSpec:
-     Image:		redis:3.0.7
+     Image:         redis:3.0.7
+    Resources:
+    Reservations:
+    Limits:
    ```
 
 6. Run `docker service tasks <TASK-ID>` to watch the rolling update:
