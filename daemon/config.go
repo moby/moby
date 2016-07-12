@@ -220,6 +220,30 @@ func parseClusterAdvertiseSettings(clusterStore, clusterAdvertise string) (strin
 	return advertise, nil
 }
 
+// GetConflictFreeLabels validate Labels for conflict
+// In swarm the duplicates for labels are removed
+// so we only take same values here, no conflict values
+// If the key-value is the same we will only take the last label
+func GetConflictFreeLabels(labels []string) ([]string, error) {
+	labelMap := map[string]string{}
+	for _, label := range labels {
+		stringSlice := strings.SplitN(label, "=", 2)
+		if len(stringSlice) > 1 {
+			// If there is a conflict we will return an error
+			if v, ok := labelMap[stringSlice[0]]; ok && v != stringSlice[1] {
+				return nil, fmt.Errorf("conflict labels for %s=%s and %s=%s", stringSlice[0], stringSlice[1], stringSlice[0], v)
+			}
+			labelMap[stringSlice[0]] = stringSlice[1]
+		}
+	}
+
+	newLabels := []string{}
+	for k, v := range labelMap {
+		newLabels = append(newLabels, fmt.Sprintf("%s=%s", k, v))
+	}
+	return newLabels, nil
+}
+
 // ReloadConfiguration reads the configuration in the host and reloads the daemon and server.
 func ReloadConfiguration(configFile string, flags *pflag.FlagSet, reload func(*Config)) error {
 	logrus.Infof("Got signal to reload configuration, reloading from: %s", configFile)
@@ -230,6 +254,23 @@ func ReloadConfiguration(configFile string, flags *pflag.FlagSet, reload func(*C
 
 	if err := ValidateConfiguration(newConfig); err != nil {
 		return fmt.Errorf("file configuration validation failed (%v)", err)
+	}
+
+	// Labels of the docker engine used to allow multiple values associated with the same key.
+	// This is deprecated in 1.13, and, be removed after 3 release cycles.
+	// The following will check the conflict of labels, and report a warning for deprecation.
+	//
+	// TODO: After 3 release cycles (1.16) an error will be returned, and labels will be
+	// sanitized to consolidate duplicate key-value pairs (config.Labels = newLabels):
+	//
+	// newLabels, err := GetConflictFreeLabels(newConfig.Labels)
+	// if err != nil {
+	//      return err
+	// }
+	// newConfig.Labels = newLabels
+	//
+	if _, err := GetConflictFreeLabels(newConfig.Labels); err != nil {
+		logrus.Warnf("Engine labels with duplicate keys and conflicting values have been deprecated: %s", err)
 	}
 
 	reload(newConfig)

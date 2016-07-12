@@ -396,6 +396,23 @@ func loadDaemonCliConfig(opts daemonOptions) (*daemon.Config, error) {
 		return nil, err
 	}
 
+	// Labels of the docker engine used to allow multiple values associated with the same key.
+	// This is deprecated in 1.13, and, be removed after 3 release cycles.
+	// The following will check the conflict of labels, and report a warning for deprecation.
+	//
+	// TODO: After 3 release cycles (1.16) an error will be returned, and labels will be
+	// sanitized to consolidate duplicate key-value pairs (config.Labels = newLabels):
+	//
+	// newLabels, err := daemon.GetConflictFreeLabels(config.Labels)
+	// if err != nil {
+	//	return nil, err
+	// }
+	// config.Labels = newLabels
+	//
+	if _, err := daemon.GetConflictFreeLabels(config.Labels); err != nil {
+		logrus.Warnf("Engine labels with duplicate keys and conflicting values have been deprecated: %s", err)
+	}
+
 	// Regardless of whether the user sets it to true or false, if they
 	// specify TLSVerify at all then we need to turn on TLS
 	if config.IsValueSet(cliflags.FlagTLSVerify) {
