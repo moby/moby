@@ -81,6 +81,7 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 	}
 
 	if spec.Windows.HvRuntime != nil {
+		configuration.VolumePath = "" // Always empty for Hyper-V containers
 		configuration.HvPartition = true
 		configuration.HvRuntime = &hcsshim.HvRuntime{
 			ImagePath: spec.Windows.HvRuntime.ImagePath,

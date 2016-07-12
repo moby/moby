@@ -169,7 +169,7 @@ func printContainerSpec(out io.Writer, containerSpec swarm.ContainerSpec) {
 		for _, v := range containerSpec.Mounts {
 			fmt.Fprintf(out, "  Target = %s\n", v.Target)
 			fmt.Fprintf(out, "  Source = %s\n", v.Source)
-			fmt.Fprintf(out, "  Writable = %v\n", v.Writable)
+			fmt.Fprintf(out, "  ReadOnly = %v\n", v.ReadOnly)
 			fmt.Fprintf(out, "  Type = %v\n", v.Type)
 		}
 	}

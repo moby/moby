@@ -149,7 +149,7 @@ func (r *ReplicatedOrchestrator) tickTasks(ctx context.Context) {
 						}
 
 						// Restart task if applicable
-						if err := r.restarts.Restart(ctx, tx, service, *t); err != nil {
+						if err := r.restarts.Restart(ctx, tx, r.cluster, service, *t); err != nil {
 							return err
 						}
 					}

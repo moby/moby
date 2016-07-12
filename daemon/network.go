@@ -292,10 +292,6 @@ func (daemon *Daemon) UpdateContainerServiceConfig(containerName string, service
 	return nil
 }
 
-func errClusterNetworkConnect() error {
-	return fmt.Errorf("cannot connect or disconnect managed containers on a network")
-}
-
 // ConnectContainerToNetwork connects the given container to the given
 // network. If either cannot be found, an err is returned. If the
 // network cannot be set up, an err is returned.
@@ -303,9 +299,6 @@ func (daemon *Daemon) ConnectContainerToNetwork(containerName, networkName strin
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return err
-	}
-	if container.Managed {
-		return errClusterNetworkConnect()
 	}
 	return daemon.ConnectToNetwork(container, networkName, endpointConfig)
 }
@@ -319,9 +312,6 @@ func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, netwo
 			return daemon.ForceEndpointDelete(containerName, network)
 		}
 		return err
-	}
-	if container.Managed {
-		return errClusterNetworkConnect()
 	}
 	return daemon.DisconnectFromNetwork(container, network, force)
 }

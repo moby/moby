@@ -10,15 +10,18 @@ parent = "smn_cli"
 
 # volume create
 
-    Usage: docker volume create [OPTIONS]
+```markdown
+Usage:  docker volume create [OPTIONS]
 
-    Create a volume
+Create a volume
 
-      -d, --driver=local    Specify volume driver name
-      --help                Print usage
-      --label=[]            Set metadata for a volume
-      --name=               Specify volume name
-      -o, --opt=map[]       Set driver specific options
+Options:
+  -d, --driver string   Specify volume driver name (default "local")
+      --help            Print usage
+      --label value     Set metadata for a volume (default [])
+      --name string     Specify volume name
+  -o, --opt value       Set driver specific options (default map[])
+```
 
 Creates a new volume that containers can consume and store data in. If a name is not specified, Docker generates a random name. You create a volume and then configure the container to use it, for example:
 

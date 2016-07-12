@@ -545,10 +545,6 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		return nil, fmt.Errorf("Couldn't create Tag store repositories: %s", err)
 	}
 
-	if err := restoreCustomImage(d.imageStore, d.layerStore, referenceStore); err != nil {
-		return nil, fmt.Errorf("Couldn't restore custom images: %s", err)
-	}
-
 	migrationStart := time.Now()
 	if err := v1.Migrate(config.Root, graphDriver, d.layerStore, d.imageStore, referenceStore, distributionMetadataStore); err != nil {
 		logrus.Errorf("Graph migration failed: %q. Your old graph data was found to be too inconsistent for upgrading to content-addressable storage. Some of the old data was probably not upgraded. We recommend starting over with a clean storage directory if possible.", err)
@@ -652,8 +648,12 @@ func (daemon *Daemon) Shutdown() error {
 	// Keep mounts and networking running on daemon shutdown if
 	// we are to keep containers running and restore them.
 	if daemon.configStore.LiveRestore {
-		return nil
+		// check if there are any running containers, if none we should do some cleanup
+		if ls, err := daemon.Containers(&types.ContainerListOptions{}); len(ls) != 0 || err != nil {
+			return nil
+		}
 	}
+
 	if daemon.containers != nil {
 		logrus.Debug("starting clean shutdown of all containers...")
 		daemon.containers.ApplyAll(func(c *container.Container) {
@@ -682,6 +682,8 @@ func (daemon *Daemon) Shutdown() error {
 			logrus.Errorf("Error during layer Store.Cleanup(): %v", err)
 		}
 	}
+
+	pluginShutdown()
 
 	if err := daemon.cleanupMounts(); err != nil {
 		return err

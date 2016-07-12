@@ -97,7 +97,7 @@ if the volume is read/write.
 ### Mount a host directory as a data volume
 
 In addition to creating a volume using the `-v` flag you can also mount a
-directory from your Engine daemon's host into a container.
+directory from your Docker engine's host into a container.
 
 ```bash
 $ docker run -d -P --name web -v /src/webapp:/opt/webapp training/webapp python app.py
@@ -119,10 +119,10 @@ followed by `a-z0-9`, `_` (underscore), `.` (period) or `-` (hyphen).
 An absolute path starts with a `/` (forward slash).
 
 For example, you can specify either `/foo` or `foo` for a `host-dir` value.
-If you supply the `/foo` value, Engine creates a bind-mount. If you supply
-the `foo` specification, Engine creates a named volume.
+If you supply the `/foo` value, the Docker Engine creates a bind-mount. If you supply
+the `foo` specification, the Docker Engine creates a named volume.
 
-If you are using Docker Machine on Mac or Windows, your Engine daemon has only
+If you are using Docker Machine on Mac or Windows, your Docker Engine daemon has only
 limited access to your OS X or Windows filesystem. Docker Machine tries to
 auto-share your `/Users` (OS X) or `C:\Users` (Windows) directory.  So, you can
 mount files or directories on OS X using.
@@ -146,8 +146,8 @@ Docker `-v` flag.
 Mounting a host directory can be useful for testing. For example, you can mount
 source code inside a container. Then, change the source code and see its effect
 on the application in real time. The directory on the host must be specified as
-an absolute path and if the directory doesn't exist the Engine daemon automatically
-creates it for you.
+an absolute path and if the directory doesn't exist the Docker Engine daemon
+automatically creates it for you.
 
 Docker volumes default to mount in read-write mode, but you can also set it to
 be mounted read-only.
@@ -204,6 +204,7 @@ using the `docker volume create` command.
 
 ```bash
 $ docker volume create -d flocker --name my-named-volume -o size=20GB
+
 $ docker run -d -P \
   -v my-named-volume:/opt/webapp \
   --name web training/webapp python app.py
@@ -344,7 +345,7 @@ restore testing using your preferred tools.
 A Docker data volume persists after a container is deleted. You can create named
 or anonymous volumes. Named volumes have a specific source form outside the
 container, for example `awesome:/bar`. Anonymous volumes have no specific
-source. When the container is deleted, you should instruction the Engine daemon
+source. When the container is deleted, you should instruct the Docker Engine daemon
 to clean up anonymous volumes. To do this, use the `--rm` option, for example:
 
 ```bash
@@ -352,7 +353,7 @@ $ docker run --rm -v /foo -v awesome:/bar busybox top
 ```
 
 This command creates an anonymous `/foo` volume. When the container is removed,
-Engine removes the `/foo` volume but not the `awesome` volume.
+the Docker Engine removes the `/foo` volume but not the `awesome` volume.
 
 ## Important tips on using shared volumes
 

@@ -8,6 +8,8 @@ import (
 	"github.com/docker/libnetwork/drivers/overlay/ovmanager"
 	"github.com/docker/libnetwork/drvregistry"
 	"github.com/docker/libnetwork/ipamapi"
+	builtinIpam "github.com/docker/libnetwork/ipams/builtin"
+	nullIpam "github.com/docker/libnetwork/ipams/null"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"golang.org/x/net/context"
@@ -74,6 +76,15 @@ func New() (*NetworkAllocator, error) {
 	// Add the manager component of overlay driver to the registry.
 	if err := reg.AddDriver(DefaultDriver, defaultDriverInitFunc, nil); err != nil {
 		return nil, err
+	}
+
+	for _, fn := range [](func(ipamapi.Callback, interface{}, interface{}) error){
+		builtinIpam.Init,
+		nullIpam.Init,
+	} {
+		if err := fn(reg, nil, nil); err != nil {
+			return nil, err
+		}
 	}
 
 	pa, err := newPortAllocator()

@@ -227,3 +227,16 @@ func (d *SwarmDaemon) updateSwarm(c *check.C, f ...specConstructor) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
 }
+
+func (d *SwarmDaemon) checkLocalNodeState(c *check.C) (interface{}, check.CommentInterface) {
+	info, err := d.info()
+	c.Assert(err, checker.IsNil)
+	return info.LocalNodeState, nil
+}
+
+func (d *SwarmDaemon) checkControlAvailable(c *check.C) (interface{}, check.CommentInterface) {
+	info, err := d.info()
+	c.Assert(err, checker.IsNil)
+	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+	return info.ControlAvailable, nil
+}

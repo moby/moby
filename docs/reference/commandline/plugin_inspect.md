@@ -11,12 +11,14 @@ parent = "smn_cli"
 
 # plugin inspect (experimental)
 
-    Usage: docker plugin inspect PLUGIN
+```markdown
+Usage:  docker plugin inspect PLUGIN
 
-    Return low-level information about a plugin
+Inspect a plugin
 
-      --help              Print usage
-
+Options:
+      --help   Print usage
+```
 
 Returns information about a plugin. By default, this command renders all results
 in a JSON array.

@@ -725,6 +725,13 @@ func (c *Cluster) UpdateService(serviceID string, version uint64, spec types.Ser
 		return c.errNoManager()
 	}
 
+	ctx := c.getRequestContext()
+
+	err := populateNetworkID(ctx, c.client, &spec)
+	if err != nil {
+		return err
+	}
+
 	serviceSpec, err := convert.ServiceSpecToGRPC(spec)
 	if err != nil {
 		return err

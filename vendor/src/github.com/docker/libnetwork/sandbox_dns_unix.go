@@ -275,7 +275,15 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 	if err != nil {
 		return err
 	}
-	if err = ioutil.WriteFile(tmpHashFile.Name(), []byte(newRC.Hash), filePerm); err != nil {
+	if err = tmpHashFile.Chmod(filePerm); err != nil {
+		tmpHashFile.Close()
+		return err
+	}
+	_, err = tmpHashFile.Write([]byte(newRC.Hash))
+	if err1 := tmpHashFile.Close(); err == nil {
+		err = err1
+	}
+	if err != nil {
 		return err
 	}
 	return os.Rename(tmpHashFile.Name(), hashFile)

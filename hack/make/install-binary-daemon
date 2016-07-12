@@ -7,4 +7,5 @@ rm -rf "$DEST"
 	DEST="$(dirname $DEST)/binary-daemon"
 	source "${MAKEDIR}/.binary-setup"
 	install_binary "${DEST}/${DOCKER_DAEMON_BINARY_NAME}"
+	install_binary "${DEST}/${DOCKER_PROXY_BINARY_NAME}"
 )

@@ -155,6 +155,16 @@ message Task {
 	// A copy of runtime state of service endpoint from Service
 	// object to be distributed to agents as part of the task.
 	Endpoint endpoint = 12;
+
+	// LogDriver specifies the selected log driver to use for the task. Agent
+	// processes should always favor the value in this field.
+	//
+	// If present in the TaskSpec, this will be a copy of that value. The
+	// orchestrator may choose to insert a value here, which should be honored,
+	// such a cluster default or policy-based value.
+	//
+	// If not present, the daemon's default will be used.
+	Driver log_driver = 13;
 }
 
 // NetworkAttachment specifies the network parameters of attachment to

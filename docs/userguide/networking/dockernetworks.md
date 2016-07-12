@@ -29,6 +29,7 @@ these networks using the `docker network ls` command:
 
 ```
 $ docker network ls
+
 NETWORK ID          NAME                DRIVER
 7fca4eb8c647        bridge              bridge
 9f904ee27bf5        none                null
@@ -47,6 +48,7 @@ the `ifconfig` command on the host.
 
 ```
 $ ifconfig
+
 docker0   Link encap:Ethernet  HWaddr 02:42:47:bc:3a:eb  
           inet addr:172.17.0.1  Bcast:0.0.0.0  Mask:255.255.0.0
           inet6 addr: fe80::42:47ff:febc:3aeb/64 Scope:Link
@@ -100,6 +102,7 @@ command returns information about a network:
 
 ```
 $ docker network inspect bridge
+
 [
    {
        "Name": "bridge",
@@ -132,9 +135,11 @@ The `docker run` command automatically adds new containers to this network.
 
 ```
 $ docker run -itd --name=container1 busybox
+
 3386a527aa08b37ea9232cbcace2d2458d49f44bb05a6b775fba7ddd40d8f92c
 
 $ docker run -itd --name=container2 busybox
+
 94447ca479852d29aeddca75c28f7104df3c3196d7b6d83061879e339946805c
 ```
 
@@ -142,6 +147,7 @@ Inspecting the `bridge` network again after starting two containers shows both n
 
 ```
 $ docker network inspect bridge
+
 {[
     {
         "Name": "bridge",
@@ -215,6 +221,7 @@ Then use `ping` for about 3 seconds to test the connectivity of the containers o
 
 ```
 root@0cb243cd1293:/# ping -w3 172.17.0.3
+
 PING 172.17.0.3 (172.17.0.3): 56 data bytes
 64 bytes from 172.17.0.3: seq=0 ttl=64 time=0.096 ms
 64 bytes from 172.17.0.3: seq=1 ttl=64 time=0.080 ms
@@ -229,6 +236,7 @@ Finally, use the `cat` command to check the `container1` network configuration:
 
 ```
 root@0cb243cd1293:/# cat /etc/hosts
+
 172.17.0.2	3386a527aa08
 127.0.0.1	localhost
 ::1	localhost ip6-localhost ip6-loopback
@@ -243,6 +251,7 @@ To detach from a `container1` and leave it running use `CTRL-p CTRL-q`.Then, att
 $ docker attach container2
 
 root@0cb243cd1293:/# ifconfig
+
 eth0      Link encap:Ethernet  HWaddr 02:42:AC:11:00:03  
           inet addr:172.17.0.3  Bcast:0.0.0.0  Mask:255.255.0.0
           inet6 addr: fe80::42:acff:fe11:3/64 Scope:Link
@@ -262,6 +271,7 @@ lo        Link encap:Local Loopback
           RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
 
 root@0cb243cd1293:/# ping -w3 172.17.0.2
+
 PING 172.17.0.2 (172.17.0.2): 56 data bytes
 64 bytes from 172.17.0.2: seq=0 ttl=64 time=0.067 ms
 64 bytes from 172.17.0.2: seq=1 ttl=64 time=0.075 ms
@@ -311,6 +321,7 @@ $ docker network create --driver bridge isolated_nw
 1196a4c5af43a21ae38ef34515b6af19236a3fc48122cf585e3f3054d509679b
 
 $ docker network inspect isolated_nw
+
 [
     {
         "Name": "isolated_nw",
@@ -332,6 +343,7 @@ $ docker network inspect isolated_nw
 ]
 
 $ docker network ls
+
 NETWORK ID          NAME                DRIVER
 9f904ee27bf5        none                null
 cf03ee007fb4        host                host
@@ -344,6 +356,7 @@ After you create the network, you can launch containers on it using  the `docker
 
 ```
 $ docker run --net=isolated_nw -itd --name=container3 busybox
+
 8c1a0a5be480921d669a073393ade66a3fc49933f08bcc5515b37b8144f6d47c
 
 $ docker network inspect isolated_nw

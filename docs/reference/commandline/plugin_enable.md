@@ -11,11 +11,14 @@ parent = "smn_cli"
 
 # plugin enable (experimental)
 
-    Usage: docker plugin enable PLUGIN
+```markdown
+Usage:  docker plugin enable PLUGIN
 
-    Enable a plugin
+Enable a plugin
 
-      --help             Print usage
+Options:
+      --help   Print usage
+```
 
 Enables a plugin. The plugin must be installed before it can be enabled,
 see [`docker plugin install`](plugin_install.md).

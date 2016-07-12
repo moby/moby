@@ -53,8 +53,8 @@ bk658fpbex0d57cqcwoe3jthu  redis.2   redis   redis:3.0.6  Running 9 seconds   Ru
 
 The filtering flag (`-f` or `--filter`) format is a `key=value` pair. If there
 is more than one filter, then pass multiple flags (e.g. `--filter "foo=bar" --filter "bif=baz"`).
-Multiple filter flags are combined as an `OR` filter. For example, 
-`-f type=custom -f type=builtin` returns both `custom` and `builtin` networks.
+Multiple filter flags are combined as an `OR` filter. For example,
+`-f name=redis.1 -f name=redis.7` returns both `redis.1` and `redis.7` tasks.
 
 The currently supported filters are:
 

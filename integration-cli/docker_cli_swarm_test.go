@@ -106,7 +106,7 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *check.C) {
 
 	c.Assert(d.Leave(true), checker.IsNil)
 
-	out, err = d.Cmd("swarm", "init", "--auto-accept", "none")
+	out, err = d.Cmd("swarm", "init", "--auto-accept", "none", "--secret", "")
 	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
 
 	spec = getSpec()

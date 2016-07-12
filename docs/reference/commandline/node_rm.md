@@ -11,17 +11,21 @@ parent = "smn_cli"
 
 # node rm
 
-	Usage:	docker node rm NODE [NODE...]
+```markdown
+Usage:  docker node rm NODE [NODE...]
 
-	Remove a node from the swarm
+Remove a node from the swarm
 
-	Aliases:
-	  rm, remove
+Aliases:
+  rm, remove
 
-	Options:
-	      --help   Print usage
+Options:
+      --help   Print usage
+```
 
-Removes nodes that are specified. 
+Removes specified nodes from a swarm. Rejects nodes with `Pending`
+membership from the swarm.
+
 
 Example output:
 

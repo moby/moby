@@ -407,6 +407,8 @@ func cmd(b *Builder, args []string, attributes map[string]bool, original string)
 	}
 
 	b.runConfig.Cmd = strslice.StrSlice(cmdSlice)
+	// set config as already being escaped, this prevents double escaping on windows
+	b.runConfig.ArgsEscaped = true
 
 	if err := b.commit("", b.runConfig.Cmd, fmt.Sprintf("CMD %q", cmdSlice)); err != nil {
 		return err

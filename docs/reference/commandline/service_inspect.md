@@ -12,7 +12,7 @@ parent = "smn_cli"
 # service inspect
 
 ```Markdown
-Usage:	docker service inspect [OPTIONS] SERVICE [SERVICE...]
+Usage:  docker service inspect [OPTIONS] SERVICE [SERVICE...]
 
 Display detailed information on one or more services
 

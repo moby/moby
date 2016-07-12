@@ -2194,7 +2194,6 @@ Display system-wide information
         "DockerRootDir": "/var/lib/docker",
         "Driver": "btrfs",
         "DriverStatus": [[""]],
-        "ExecutionDriver": "native-0.1",
         "ExperimentalBuild": false,
         "HttpProxy": "http://test:test@localhost:8080",
         "HttpsProxy": "https://test:test@localhost:8080",
@@ -3986,11 +3985,11 @@ JSON Parameters:
             - **Target** – Container path.
             - **Source** – Mount source (e.g. a volume name, a host path).
             - **Type** – The mount type (`bind`, or `volume`).
-            - **Writable** – A boolean indicating whether the mount should be writable.
+            - **ReadOnly** – A boolean indicating whether the mount should be read-only.
             - **BindOptions** - Optional configuration for the `bind` type.
               - **Propagation** – A propagation mode with the value `[r]private`, `[r]shared`, or `[r]slave`.
             - **VolumeOptions** – Optional configuration for the `volume` type.
-                - **Populate** – A boolean indicating if volume should be
+                - **NoCopy** – A boolean indicating if volume should be
                   populated with the data from the target. (Default false)
                 - **Labels** – User-defined name and labels for the volume.
                 - **DriverConfig** – Map of driver-specific options.
@@ -4008,7 +4007,7 @@ JSON Parameters:
             - **Memory** – Memory reservation
     - **RestartPolicy** – Specification for the restart policy which applies to containers created
       as part of this service.
-        - **Condition** – Condition for restart (`none`, `on_failure`, or `any`).
+        - **Condition** – Condition for restart (`none`, `on-failure`, or `any`).
         - **Delay** – Delay between restart attempts.
         - **Attempts** – Maximum attempts to restart a given container before giving up (default value
           is 0, which is ignored).
@@ -4204,11 +4203,12 @@ Update the service `id`.
             - **Target** – Container path.
             - **Source** – Mount source (e.g. a volume name, a host path).
             - **Type** – The mount type (`bind`, or `volume`).
-            - **Writable** – A boolean indicating whether the mount should be writable.
+            - **ReadOnly** – A boolean indicating whether the mount should be read-only.
             - **BindOptions** - Optional configuration for the `bind` type
               - **Propagation** – A propagation mode with the value `[r]private`, `[r]shared`, or `[r]slave`.
             - **VolumeOptions** – Optional configuration for the `volume` type.
-                - **Populate** – A boolean indicating if volume should be populated with the data from the target. (Default false)
+                - **NoCopy** – A boolean indicating if volume should be
+                  populated with the data from the target. (Default false)
                 - **Labels** – User-defined name and labels for the volume.
                 - **DriverConfig** – Map of driver-specific options.
                   - **Name** - Name of the driver to use to create the volume
@@ -4225,7 +4225,7 @@ Update the service `id`.
             - **Memory** – Memory reservation
     - **RestartPolicy** – Specification for the restart policy which applies to containers created
       as part of this service.
-        - **Condition** – Condition for restart (`none`, `on_failure`, or `any`).
+        - **Condition** – Condition for restart (`none`, `on-failure`, or `any`).
         - **Delay** – Delay between restart attempts.
         - **Attempts** – Maximum attempts to restart a given container before giving up (default value
           is 0, which is ignored).

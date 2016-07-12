@@ -41,5 +41,5 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *check.C) {
 
 	c.Assert(mounts[0].Name, checker.Equals, "foo")
 	c.Assert(mounts[0].Destination, checker.Equals, "/foo")
-	c.Assert(mounts[0].RW, checker.Equals, false)
+	c.Assert(mounts[0].RW, checker.Equals, true)
 }

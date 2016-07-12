@@ -184,13 +184,13 @@ func deployServices(
 		if service, exists := existingServiceMap[name]; exists {
 			fmt.Fprintf(out, "Updating service %s (id: %s)\n", name, service.ID)
 
-			// TODO(nishanttotla): Pass headers with X-Registry-Auth
+			// TODO(nishanttotla): Pass auth token
 			if err := apiClient.ServiceUpdate(
 				ctx,
 				service.ID,
 				service.Version,
 				serviceSpec,
-				nil,
+				types.ServiceUpdateOptions{},
 			); err != nil {
 				return err
 			}
@@ -198,7 +198,7 @@ func deployServices(
 			fmt.Fprintf(out, "Creating service %s\n", name)
 
 			// TODO(nishanttotla): Pass headers with X-Registry-Auth
-			if _, err := apiClient.ServiceCreate(ctx, serviceSpec, nil); err != nil {
+			if _, err := apiClient.ServiceCreate(ctx, serviceSpec, types.ServiceCreateOptions{}); err != nil {
 				return err
 			}
 		}

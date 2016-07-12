@@ -12,13 +12,13 @@ parent = "smn_cli"
 # service create
 
 ```Markdown
-Usage:	docker service create [OPTIONS] IMAGE [COMMAND] [ARG...]
+Usage:  docker service create [OPTIONS] IMAGE [COMMAND] [ARG...]
 
 Create a new service
 
 Options:
       --constraint value             Placement constraints (default [])
-      --endpoint-mode string         Endpoint mode(Valid values: VIP, DNSRR)
+      --endpoint-mode string         Endpoint mode (vip or dnsrr)
   -e, --env value                    Set environment variables (default [])
       --help                         Print usage
   -l, --label value                  Service labels (default [])
@@ -29,10 +29,11 @@ Options:
       --name string                  Service name
       --network value                Network attachments (default [])
   -p, --publish value                Publish a port as a node port (default [])
+      --registry-auth                Send registry authentication details to Swarm agents
       --replicas value               Number of tasks (default none)
       --reserve-cpu value            Reserve CPUs (default 0.000)
       --reserve-memory value         Reserve Memory (default 0 B)
-      --restart-condition string     Restart when condition is met (none, on_failure, or any)
+      --restart-condition string     Restart when condition is met (none, on-failure, or any)
       --restart-delay value          Delay between restart attempts (default none)
       --restart-max-attempts value   Maximum number of restarts before giving up (default none)
       --restart-window value         Window used to evaluate the restart policy (default none)
@@ -93,7 +94,7 @@ ID            NAME    REPLICAS  IMAGE        COMMAND
 ```
 
 
-### Create a service with a rolling update constraints
+### Create a service with a rolling update policy
 
 
 ```bash
@@ -132,7 +133,7 @@ $ docker service create \
 For more information about labels, refer to [apply custom
 metadata](../../userguide/labels-custom-metadata.md)
 
-### Service mode
+### Set service mode
 
 Is this a replicated service or a global service. A replicated service runs as
 many tasks as specified, while a global service runs on each active node in the
@@ -144,6 +145,33 @@ The following command creates a "global" service:
 $ docker service create --name redis_2 --mode global redis:3.0.6
 ```
 
+### Specify service constraints
+
+You can limit the set of nodes where a task can be scheduled by defining
+constraint expressions. Multiple constraints find nodes that satisfy every
+expression (AND match). Constraints can match node or Docker Engine labels as
+follows:
+
+| node attribute | matches | example |
+|:------------- |:-------------| :---------------------------------------------|
+| node.id | node ID | `node.id == 2ivku8v2gvtg4`                               |
+| node.hostname | node hostname | `node.hostname != node-2`                    |
+| node.role | node role: manager | `node.role == manager`                      |
+| node.labels | user defined node labels | `node.labels.security == high`      |
+| engine.labels | Docker Engine's labels | `engine.labels.operatingsystem == ubuntu 14.04`|
+
+`engine.labels` apply to Docker Engine labels like operating system,
+drivers, etc. Swarm administrators add `node.labels` for operational purposes by
+using the `docker node update` command.
+
+For example, the following limits tasks for the redis service to nodes where the
+node type label equals queue:
+
+```bash
+$ docker service create \
+  --name redis_2 \
+  --constraint node.labels.type == queue
+```
 
 ## Related information
 

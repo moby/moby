@@ -11,11 +11,14 @@ parent = "smn_cli"
 
 # plugin disable (experimental)
 
-    Usage: docker plugin disable PLUGIN
+```markdown
+Usage:  docker plugin disable PLUGIN
 
-    Disable a plugin
+Disable a plugin
 
-      --help             Print usage
+Options:
+      --help   Print usage
+```
 
 Disables a plugin. The plugin must be installed before it can be disabled,
 see [`docker plugin install`](plugin_install.md).

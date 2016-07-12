@@ -182,6 +182,7 @@ You can detect the mode by viewing the `docker info` command:
 
 ```bash
 $ sudo docker info
+
 Containers: 0
 Images: 0
 Storage Driver: devicemapper
@@ -416,6 +417,7 @@ the specifics of the existing configuration use `docker info`:
 
 ```bash
 $ sudo docker info
+
 Containers: 0
  Running: 0
  Paused: 0
@@ -453,6 +455,7 @@ The `Data Space` values show that the pool is 100GB total. This example extends 
 
 	```bash
 	$ sudo ls -lh /var/lib/docker/devicemapper/devicemapper/
+
 	total 1175492
 	-rw------- 1 root root 100G Mar 30 05:22 data
 	-rw------- 1 root root 2.0G Mar 31 11:17 metadata
@@ -468,6 +471,7 @@ The `Data Space` values show that the pool is 100GB total. This example extends 
 
 	```bash
 	$ sudo ls -lh /var/lib/docker/devicemapper/devicemapper/
+
 	total 1.2G
 	-rw------- 1 root root 200G Apr 14 08:47 data
 	-rw------- 1 root root 2.0G Apr 19 13:27 metadata
@@ -477,9 +481,13 @@ The `Data Space` values show that the pool is 100GB total. This example extends 
 
 	```bash
 	$ sudo blockdev --getsize64 /dev/loop0
+
 	107374182400
+
 	$ sudo losetup -c /dev/loop0
+
 	$ sudo blockdev --getsize64 /dev/loop0
+
 	214748364800
 	```
 
@@ -489,6 +497,7 @@ The `Data Space` values show that the pool is 100GB total. This example extends 
 
 	```bash
 	$ sudo dmsetup status | grep pool
+
 	docker-8:1-123141-pool: 0 209715200 thin-pool 91
 	422/524288 18338/1638400 - rw discard_passdown queue_if_no_space -
 	```
@@ -499,6 +508,7 @@ The `Data Space` values show that the pool is 100GB total. This example extends 
 
 	```bash
 	$ sudo dmsetup table docker-8:1-123141-pool
+
 	0 209715200 thin-pool 7:1 7:0 128 32768 1 skip_block_zeroing
 	```
 
@@ -540,6 +550,7 @@ disk partition.
 
 	```bash
 	$ sudo vgextend vg-docker /dev/sdh1
+
 	Volume group "vg-docker" successfully extended
 	```
 
@@ -549,6 +560,7 @@ disk partition.
 
 	```bash
 	$ sudo lvextend  -l+100%FREE -n vg-docker/data
+
 	Extending logical volume data to 200 GiB
 	Logical volume data successfully resized
 	```
@@ -559,6 +571,7 @@ disk partition.
 
 	```bash
 	$ sudo dmsetup status | grep pool
+
 	docker-253:17-1835016-pool: 0 96460800 thin-pool 51593 6270/1048576 701943/753600 - rw no_discard_passdown queue_if_no_space
 	```
 
@@ -568,6 +581,7 @@ disk partition.
 
 	```bash
 	$ sudo dmsetup table docker-253:17-1835016-pool
+
 	0 96460800 thin-pool 252:0 252:1 128 32768 1 skip_block_zeroing
 	```
 
@@ -580,6 +594,7 @@ disk partition.
 
 	```bash
 	$ sudo blockdev --getsize64 /dev/vg-docker/data
+
 	264132100096
 	```
 
