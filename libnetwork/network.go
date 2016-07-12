@@ -320,6 +320,7 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 	dstN.id = n.id
 	dstN.networkType = n.networkType
 	dstN.scope = n.scope
+	dstN.dynamic = n.dynamic
 	dstN.ipamType = n.ipamType
 	dstN.enableIPv6 = n.enableIPv6
 	dstN.persist = n.persist
@@ -706,7 +707,7 @@ func (n *network) driver(load bool) (driverapi.Driver, error) {
 	if cap != nil {
 		n.scope = cap.DataScope
 	}
-	if c.isAgent() {
+	if c.isAgent() || n.dynamic {
 		// If we are running in agent mode then all networks
 		// in libnetwork are local scope regardless of the
 		// backing driver.
