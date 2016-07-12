@@ -572,7 +572,7 @@ The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
   For systems that have recent aufs version (i.e., `dirperm1` mount option can
   be set), docker will attempt to fix the issue automatically by mounting
   the layers with `dirperm1` option. More details on `dirperm1` option can be
-  found at [`aufs` man page](http://aufs.sourceforge.net/aufs3/man.html)
+  found at [`aufs` man page](https://github.com/sfjro/aufs3-linux/tree/aufs3.18/Documentation/filesystems/aufs)
 
   If your system doesn't have support for `dirperm1`, the issue describes a workaround.
 
