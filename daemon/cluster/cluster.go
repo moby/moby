@@ -654,7 +654,7 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 		return nil, err
 	}
 
-	var services []types.Service
+	services := []types.Service{}
 
 	for _, service := range r.Services {
 		services = append(services, convert.ServiceFromGRPC(*service))
