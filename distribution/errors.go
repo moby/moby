@@ -89,7 +89,7 @@ func retryOnError(err error) error {
 		}
 	case errcode.Error:
 		switch v.Code {
-		case errcode.ErrorCodeUnauthorized, errcode.ErrorCodeUnsupported, errcode.ErrorCodeDenied, errcode.ErrorCodeTooManyRequests:
+		case errcode.ErrorCodeUnauthorized, errcode.ErrorCodeUnsupported, errcode.ErrorCodeDenied, errcode.ErrorCodeTooManyRequests, v2.ErrorCodeNameUnknown:
 			return xfer.DoNotRetry{Err: err}
 		}
 	case *url.Error:
