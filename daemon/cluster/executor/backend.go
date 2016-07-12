@@ -27,6 +27,7 @@ type Backend interface {
 	ContainerStart(name string, hostConfig *container.HostConfig, validateHostname bool) error
 	ContainerStop(name string, seconds int) error
 	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error
+	DeleteNetworkAttachment(id, networkID string) error
 	UpdateContainerServiceConfig(containerName string, serviceConfig *clustertypes.ServiceConfig) error
 	ContainerInspectCurrent(name string, size bool) (*types.ContainerJSON, error)
 	ContainerWaitWithContext(ctx context.Context, name string) error

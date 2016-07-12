@@ -138,7 +138,7 @@ func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n li
 			return fmt.Errorf("container %s is not connected to the network %s", container.ID, n.Name())
 		}
 	} else {
-		if err := disconnectFromNetwork(container, n, false); err != nil {
+		if err := disconnectFromNetwork(daemon, container, n, false); err != nil {
 			return err
 		}
 	}

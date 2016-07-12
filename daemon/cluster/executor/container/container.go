@@ -469,9 +469,21 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 	if !ok {
 		return clustertypes.NetworkCreateRequest{}, errors.New("container: unknown network referenced")
 	}
+	return NetworkCreateFromAttachment(name, na)
+}
+
+// NetworkCreateFromAttachment is a convinience function
+func NetworkCreateFromAttachment(name string, na *api.NetworkAttachment) (clustertypes.NetworkCreateRequest, error) {
+	if na == nil {
+		return clustertypes.NetworkCreateRequest{}, errors.New("invalid network attachment")
+	}
+
+	nwName := name
+	if nwName == "" {
+		nwName = na.Network.Spec.Annotations.Name
+	}
 
 	options := types.NetworkCreate{
-		// ID:     na.Network.ID,
 		Driver: na.Network.DriverState.Name,
 		IPAM: network.IPAM{
 			Driver: na.Network.IPAM.Driver.Name,
@@ -479,6 +491,7 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 		Options:        na.Network.DriverState.Options,
 		Labels:         na.Network.Spec.Annotations.Labels,
 		Internal:       na.Network.Spec.Internal,
+		Legacy:         na.Network.Spec.Legacy,
 		EnableIPv6:     na.Network.Spec.Ipv6Enabled,
 		CheckDuplicate: true,
 	}
@@ -492,7 +505,13 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 		options.IPAM.Config = append(options.IPAM.Config, c)
 	}
 
-	return clustertypes.NetworkCreateRequest{na.Network.ID, types.NetworkCreateRequest{Name: name, NetworkCreate: options}}, nil
+	return clustertypes.NetworkCreateRequest{
+		na.Network.ID,
+		types.NetworkCreateRequest{
+			Name:          nwName,
+			NetworkCreate: options,
+		},
+	}, nil
 }
 
 func (c containerConfig) eventFilter() filters.Args {

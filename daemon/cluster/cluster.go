@@ -17,12 +17,14 @@ import (
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/daemon/cluster/executor/container"
+	"github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/errors"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/runconfig"
 	apitypes "github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
+	apinetworktypes "github.com/docker/engine-api/types/network"
 	types "github.com/docker/engine-api/types/swarm"
 	swarmagent "github.com/docker/swarmkit/agent"
 	swarmapi "github.com/docker/swarmkit/api"
@@ -35,6 +37,7 @@ const swarmConnectTimeout = 20 * time.Second
 const swarmRequestTimeout = 20 * time.Second
 const stateFile = "docker-state.json"
 const defaultAddr = "0.0.0.0:2377"
+const attachmentTimeout = time.Second
 
 const (
 	initialReconnectDelay = 100 * time.Millisecond
@@ -1214,6 +1217,118 @@ func (c *Cluster) RemoveNetwork(input string) error {
 		return err
 	}
 	return nil
+}
+
+type epListener struct {
+	channel chan *swarmapi.NetworkAttachment
+}
+
+func (epl *epListener) Notify(list []*swarmapi.NetworkAttachment) {
+	for _, na := range list {
+		epl.channel <- na
+	}
+}
+
+// AllocateEndpoint allocates the cluster resources for a container endpoint.
+func (c *Cluster) AllocateEndpoint(network string, containerID string, addresses []string) (interface{}, interface{}, error) {
+	if runconfig.IsPreDefinedNetwork(network) {
+		return nil, nil, errors.NewRequestForbiddenError(fmt.Errorf("a container cannot be attached to a pre-defined network"))
+	}
+
+	mgr := c.NetworkAttachmentManager()
+
+	// Register for network attachment notifications
+	listener := &epListener{channel: make(chan *swarmapi.NetworkAttachment)}
+	listenerID, err := mgr.Register(listener)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to register for executor attachment notifications: %v", err)
+	}
+	defer mgr.Leave(listenerID)
+
+	// Format network attachment request
+	naConfig := &swarmapi.NetworkAttachmentConfig{
+		NodeID:    c.Node.NodeID(),
+		Target:    network,
+		Addresses: addresses,
+	}
+	naConfig.Annotations.Name = fmt.Sprintf("%s-%s", network, containerID)
+
+	epConfig := &apinetworktypes.EndpointSettings{
+		IPAMConfig: &apinetworktypes.EndpointIPAMConfig{},
+	}
+
+	var (
+		sem         = make(chan struct{})
+		nwCreateReq provider.NetworkCreateRequest
+	)
+
+	go func() {
+		defer func() {
+			sem <- struct{}{}
+		}()
+		// Wait for allocation notification
+		for {
+			select {
+			case na := <-listener.channel:
+				if na.Config.Annotations.Name == naConfig.Annotations.Name {
+					logrus.Debugf("Received expected executor attachmnet: %s (%s) %v: %v", na.ID, na.Config.Annotations.Name, na.Status.State, na.Addresses)
+					for _, ips := range na.Addresses {
+						ip, _, err := net.ParseCIDR(ips)
+						if err != nil {
+							logrus.Warnf("Failed to parse swarm allocated address for executor attachment (%v):%v", ips, err)
+							continue
+						}
+						if ip.To4() == nil {
+							epConfig.IPAMConfig.IPv6Address = ip.String()
+							continue
+						}
+						epConfig.IPAMConfig.IPv4Address = ip.String()
+					}
+					nwCreateReq, _ = container.NetworkCreateFromAttachment("", na)
+					return
+				}
+			case <-time.After(attachmentTimeout):
+				c.DeallocateEndpoint(epConfig.EndpointID)
+				err = fmt.Errorf("timed out while waiting for endpoint IPAM allocation")
+				return
+			}
+		}
+	}()
+
+	// Request for attachment allocation
+	ctx, cancel := c.getRequestContext()
+	defer cancel()
+
+	naID, err := mgr.CreateAttachment(ctx, naConfig)
+	if err != nil {
+		return epConfig, nwCreateReq, err
+	}
+	epConfig.EndpointID = naID
+
+	<-sem
+
+	return epConfig, &nwCreateReq, err
+}
+
+// DeallocateEndpoint releases the endpoint resources.
+func (c *Cluster) DeallocateEndpoint(id string) (err error) {
+	if mgr := c.NetworkAttachmentManager(); mgr != nil {
+		ctx, cancel := c.getRequestContext()
+		defer cancel()
+		if err := mgr.RemoveAttachment(ctx, id); err != nil {
+			logrus.Warnf("Failure in deallocating endpoint %s: %v", id, err)
+		}
+	}
+	return
+}
+
+func (c *Cluster) clearNetworkAttachments() {
+	mgr := c.NetworkAttachmentManager()
+	for _, a := range mgr.ListAttachments() {
+		if err := c.config.Backend.DeleteNetworkAttachment(a.ID, a.Network.ID); err != nil {
+			logrus.Warnf("Failed to disconnect container from network %s, on swarm node down", a.Network.ID, err)
+		}
+	}
 }
 
 func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.ControlClient, s *types.ServiceSpec) error {

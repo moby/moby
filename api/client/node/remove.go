@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	types "github.com/docker/engine-api/types"
 	"github.com/spf13/cobra"
 )
 
@@ -26,7 +27,7 @@ func runRemove(dockerCli *client.DockerCli, args []string) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 	for _, nodeID := range args {
-		err := client.NodeRemove(ctx, nodeID)
+		err := client.NodeRemove(ctx, nodeID, types.NodeRemoveOptions{Force: false})
 		if err != nil {
 			return err
 		}

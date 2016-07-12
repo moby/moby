@@ -10,6 +10,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/docker/daemon/network"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/stringid"
@@ -352,9 +353,6 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 		if err != nil {
 			return err
 		}
-		if !container.Managed && n.Info().Dynamic() {
-			return errClusterNetworkOnRun(networkName)
-		}
 		networkName = n.Name()
 	}
 	if container.NetworkSettings == nil {
@@ -499,6 +497,44 @@ func cleanOperationalData(es *networktypes.EndpointSettings) {
 	es.MacAddress = ""
 }
 
+func (daemon *Daemon) populateManagedNetwork(nwIDOrName string) (libnetwork.Network, error) {
+	// Force allocation of probe endpoint to retrieve the network
+	i1, i2, err := daemon.clusterProvider.AllocateEndpoint(nwIDOrName, "probe", nil)
+	if err != nil {
+		return nil, err
+	}
+	epc, ok := i1.(*networktypes.EndpointSettings)
+	if !ok {
+		return nil, fmt.Errorf("failure in decoding endpoint config type: %v", err)
+	}
+	cncr, ok := i2.(*provider.NetworkCreateRequest)
+	if !ok {
+		return nil, fmt.Errorf("failure in decoding network create request: %v", err)
+	}
+	nwID := cncr.ID
+	ncr := cncr.NetworkCreateRequest
+	if err := daemon.clusterProvider.DeallocateEndpoint(epc.EndpointID); err != nil {
+		logrus.Warnf("Failed to deallocate probe endpoint (Addresses: (%v, %v): %v",
+			epc.IPAMConfig.IPv4Address, epc.IPAMConfig.IPv6Address, err)
+	}
+
+	// Only if legacy mode swarm network needs to be returned
+	if !ncr.NetworkCreate.Legacy {
+		return nil, libnetwork.ErrNoSuchNetwork(nwIDOrName)
+	}
+	// Populate managed network locally
+	logrus.Infof("Populating managed network %s locally...", nwID)
+	if _, err = daemon.createNetwork(ncr, nwID, true); err != nil { // && !network_exist_error (races)
+		return nil, fmt.Errorf("failed to populate managed network locally: %v", err)
+	}
+	n, err := daemon.FindNetwork(nwID)
+	if err != nil {
+		// Should not happen
+		return nil, fmt.Errorf("failed to retrieve succesfully populated network %v: %v", nwID, err)
+	}
+	return n, nil
+}
+
 func (daemon *Daemon) updateNetworkConfig(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings, updateSettings bool) (libnetwork.Network, error) {
 	if container.HostConfig.NetworkMode.IsContainer() {
 		return nil, runconfig.ErrConflictSharedNetwork
@@ -562,10 +598,50 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 
 	controller := daemon.netController
 
+	originalIPAMConfig := endpointConfig.IPAMConfig
+
+	if !container.Managed && n.Info().Dynamic() {
+		if !n.Info().Legacy() {
+			return fmt.Errorf("cannot connect container to non legacy cluster network")
+		}
+		// Need to allocate the endpoint with swarm manager. Will retrieve the endpoint ID and addresses.
+		var addresses []string
+		if originalIPAMConfig != nil {
+			if originalIPAMConfig.IPv4Address != "" {
+				addresses = append(addresses, originalIPAMConfig.IPv4Address)
+			}
+			if originalIPAMConfig.IPv6Address != "" {
+				addresses = append(addresses, originalIPAMConfig.IPv6Address)
+			}
+		}
+		i1, _, err := daemon.clusterProvider.AllocateEndpoint(n.ID(), container.ID, addresses)
+		if err != nil {
+			return err
+		}
+		epc, ok := i1.(*networktypes.EndpointSettings)
+		if !ok {
+			return fmt.Errorf("failure in decoding endpoint config type: %v", err)
+		}
+		endpointConfig.EndpointID = epc.EndpointID
+		endpointConfig.IPAMConfig = epc.IPAMConfig
+		defer func() {
+			if err != nil {
+				if e := daemon.clusterProvider.DeallocateEndpoint(endpointConfig.EndpointID); e != nil {
+					logrus.Warnf("Failed to deallocate endpoint (Addresses: (%v, %v): %v",
+						endpointConfig.IPAMConfig.IPv4Address, endpointConfig.IPAMConfig.IPv6Address, e)
+				}
+			}
+		}()
+	}
+
 	sb := daemon.getNetworkSandbox(container)
 	createOptions, err := container.BuildCreateEndpointOptions(n, endpointConfig, sb)
 	if err != nil {
 		return err
+	}
+
+	if endpointConfig.EndpointID != "" {
+		createOptions = append(createOptions, libnetwork.CreateOptionID(endpointConfig.EndpointID))
 	}
 
 	endpointName := strings.TrimPrefix(container.Name, "/")
@@ -575,11 +651,17 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 	}
 	defer func() {
 		if err != nil {
+			if !container.Managed && n.Info().Dynamic() && n.Info().Legacy() {
+				if e := daemon.clusterProvider.DeallocateEndpoint(ep.ID()); e != nil {
+					logrus.Warnf("Failed to deallocate endpoint %s on rollback: %v", ep.ID(), e)
+				}
+			}
 			if e := ep.Delete(false); e != nil {
 				logrus.Warnf("Could not rollback container connection to network %s", idOrName)
 			}
 		}
 	}()
+	endpointConfig.IPAMConfig = originalIPAMConfig
 	container.NetworkSettings.Networks[n.Name()] = endpointConfig
 
 	if err := daemon.updateEndpointNetworkSettings(container, n, ep); err != nil {
@@ -627,7 +709,7 @@ func (daemon *Daemon) ForceEndpointDelete(name string, n libnetwork.Network) err
 	return ep.Delete(true)
 }
 
-func disconnectFromNetwork(container *container.Container, n libnetwork.Network, force bool) error {
+func disconnectFromNetwork(daemon *Daemon, container *container.Container, n libnetwork.Network, force bool) error {
 	var (
 		ep   libnetwork.Endpoint
 		sbox libnetwork.Sandbox
@@ -667,6 +749,12 @@ func disconnectFromNetwork(container *container.Container, n libnetwork.Network,
 	}
 
 	container.NetworkSettings.Ports = getPortMapInfo(sbox)
+
+	if !container.Managed && n.Info().Dynamic() {
+		if err := daemon.clusterProvider.DeallocateEndpoint(ep.ID()); err != nil {
+			logrus.Warnf("Failed to deallocate endpoint %s: %v", ep.ID(), err)
+		}
+	}
 
 	if err := ep.Delete(false); err != nil {
 		return fmt.Errorf("endpoint delete failed for container %s on network %s: %v", container.ID, n.Name(), err)
@@ -745,6 +833,13 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 	for n, epSettings := range settings {
 		if nw, err := daemon.FindNetwork(n); err == nil {
 			networks = append(networks, nw)
+			if !container.Managed && nw.Info().Dynamic() {
+				if cp := daemon.clusterProvider; cp != nil {
+					if err := cp.DeallocateEndpoint(epSettings.EndpointID); err != nil {
+						logrus.Warnf("Failed to deallocate endpoint %s on container stop: %v", epSettings.EndpointID, err)
+					}
+				}
+			}
 		}
 		cleanOperationalData(epSettings)
 	}
