@@ -1,6 +1,8 @@
 #!/usr/bin/make -f
 
 VERSION = $(shell cat VERSION)
+SYSTEMD_VERSION := $(shell dpkg-query -W -f='$${Version}\n' systemd | cut -d- -f1)
+SYSTEMD_GT_227 := $(shell [ '$(SYSTEMD_VERSION)' ] && [ '$(SYSTEMD_VERSION)' -gt 227 ] && echo true )
 
 override_dh_gencontrol:
 	# if we're on Ubuntu, we need to Recommends: apparmor
@@ -32,6 +34,10 @@ override_dh_auto_install:
 override_dh_installinit:
 	# use "docker" as our service name, not "docker-engine"
 	dh_installinit --name=docker
+ifeq (true, $(SYSTEMD_GT_227))
+	$(warning "Setting TasksMax=infinity")
+	sed -i -- 's/#TasksMax=infinity/TasksMax=infinity/' debian/docker-engine/lib/systemd/system/docker.service
+endif
 
 override_dh_installudev:
 	# match our existing priority
