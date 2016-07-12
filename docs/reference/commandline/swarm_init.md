@@ -17,7 +17,7 @@ Usage:  docker swarm init [OPTIONS]
 Initialize a Swarm
 
 Options:
-      --auto-accept value               Auto acceptance policy (worker, manager or none)
+      --auto-accept value               Auto acceptance policy (default worker)
       --cert-expiry duration            Validity period for node certificates (default 2160h0m0s)
       --dispatcher-heartbeat duration   Dispatcher heartbeat period (default 5s)
       --external-ca value               Specifications of one or more certificate signing endpoints
@@ -64,6 +64,13 @@ For example, the following initializes a cluster with auto-acceptance of workers
 
 ```bash
 $ docker swarm init --listen-addr 192.168.99.121:2377 --auto-accept worker
+```
+
+It is possible to pass a comma-separated list of node types. The following initializes a cluster
+with auto-acceptance of both `worker` and `manager` nodes
+
+```bash
+$ docker swarm init --listen-addr 192.168.99.121:2377 --auto-accept worker,manager
 ```
 
 ### `--cert-expiry`
