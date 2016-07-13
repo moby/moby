@@ -912,6 +912,7 @@ _docker_daemon() {
 		--max-concurrent-downloads
 		--max-concurrent-uploads
 		--mtu
+		--oom-score-adjust
 		--pidfile -p
 		--registry-mirror
 		--storage-driver -s
