@@ -7,10 +7,14 @@ import (
 	"io"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/server/httputils"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/events"
+	"github.com/docker/engine-api/types/versions"
 	"github.com/docker/libnetwork"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
@@ -115,13 +119,16 @@ func (c *containerAdapter) removeNetworks(ctx context.Context) error {
 func (c *containerAdapter) create(ctx context.Context, backend executorpkg.Backend) error {
 	var cr types.ContainerCreateResponse
 	var err error
+	version := httputils.VersionFromContext(ctx)
+	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
+
 	if cr, err = backend.CreateManagedContainer(types.ContainerCreateConfig{
 		Name:       c.container.name(),
 		Config:     c.container.config(),
 		HostConfig: c.container.hostConfig(),
 		// Use the first network in container create
 		NetworkingConfig: c.container.createNetworkingConfig(),
-	}); err != nil {
+	}, validateHostname); err != nil {
 		return err
 	}
 
@@ -145,7 +152,9 @@ func (c *containerAdapter) create(ctx context.Context, backend executorpkg.Backe
 }
 
 func (c *containerAdapter) start(ctx context.Context) error {
-	return c.backend.ContainerStart(c.container.name(), nil)
+	version := httputils.VersionFromContext(ctx)
+	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
+	return c.backend.ContainerStart(c.container.name(), nil, validateHostname)
 }
 
 func (c *containerAdapter) inspect(ctx context.Context) (types.ContainerJSON, error) {
@@ -161,9 +170,40 @@ func (c *containerAdapter) inspect(ctx context.Context) (types.ContainerJSON, er
 
 // events issues a call to the events API and returns a channel with all
 // events. The stream of events can be shutdown by cancelling the context.
-//
-// A chan struct{} is returned that will be closed if the event processing
-// fails and needs to be restarted.
+func (c *containerAdapter) events(ctx context.Context) <-chan events.Message {
+	log.G(ctx).Debugf("waiting on events")
+	buffer, l := c.backend.SubscribeToEvents(time.Time{}, time.Time{}, c.container.eventFilter())
+	eventsq := make(chan events.Message, len(buffer))
+
+	for _, event := range buffer {
+		eventsq <- event
+	}
+
+	go func() {
+		defer c.backend.UnsubscribeFromEvents(l)
+
+		for {
+			select {
+			case ev := <-l:
+				jev, ok := ev.(events.Message)
+				if !ok {
+					log.G(ctx).Warnf("unexpected event message: %q", ev)
+					continue
+				}
+				select {
+				case eventsq <- jev:
+				case <-ctx.Done():
+					return
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return eventsq
+}
+
 func (c *containerAdapter) wait(ctx context.Context) error {
 	return c.backend.ContainerWaitWithContext(ctx, c.container.name())
 }

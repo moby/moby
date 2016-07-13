@@ -19,8 +19,14 @@ type Config struct {
 	// updated with managers weights as observed by the agent.
 	Managers picker.Remotes
 
-	// Conn specifies the client connection Agent will use
+	// Conn specifies the client connection Agent will use.
 	Conn *grpc.ClientConn
+
+	// Picker is the picker used by Conn.
+	// TODO(aaronl): This is only part of the config to allow resetting the
+	// GRPC connection. This should be refactored to address the coupling
+	// between Conn and Picker.
+	Picker *picker.Picker
 
 	// Executor specifies the executor to use for the agent.
 	Executor exec.Executor

@@ -12,6 +12,13 @@ import (
 	"github.com/spf13/pflag"
 )
 
+const (
+	generatedSecretEntropyBytes = 16
+	generatedSecretBase         = 36
+	// floor(log(2^128-1, 36)) + 1
+	maxGeneratedSecretLength = 25
+)
+
 type initOptions struct {
 	swarmOptions
 	listenAddr      NodeAddrOption
@@ -46,6 +53,12 @@ func runInit(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts initOptions
 	client := dockerCli.Client()
 	ctx := context.Background()
 
+	// If no secret was specified, we create a random one
+	if !flags.Changed("secret") {
+		opts.secret = generateRandomSecret()
+		fmt.Fprintf(dockerCli.Out(), "No --secret provided. Generated random secret:\n\t%s\n\n", opts.secret)
+	}
+
 	req := swarm.InitRequest{
 		ListenAddr:      opts.listenAddr.String(),
 		ForceNewCluster: opts.forceNewCluster,
@@ -56,6 +69,27 @@ func runInit(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts initOptions
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Swarm initialized: current node (%s) is now a manager.\n", nodeID)
+
+	fmt.Fprintf(dockerCli.Out(), "Swarm initialized: current node (%s) is now a manager.\n\n", nodeID)
+
+	// Fetch CAHash and Address from the API
+	info, err := client.Info(ctx)
+	if err != nil {
+		return err
+	}
+
+	node, _, err := client.NodeInspectWithRaw(ctx, nodeID)
+	if err != nil {
+		return err
+	}
+
+	if node.ManagerStatus != nil && info.Swarm.CACertHash != "" {
+		var secretArgs string
+		if opts.secret != "" {
+			secretArgs = "--secret " + opts.secret
+		}
+		fmt.Fprintf(dockerCli.Out(), "To add a worker to this swarm, run the following command:\n\tdocker swarm join %s \\\n\t--ca-hash %s \\\n\t%s\n", secretArgs, info.Swarm.CACertHash, node.ManagerStatus.Addr)
+	}
+
 	return nil
 }

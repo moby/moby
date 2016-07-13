@@ -115,6 +115,7 @@ Lastly, you've specified a command for our container to run: `python app.py`. Th
 Now you can see your running container using the `docker ps` command.
 
     $ docker ps -l
+
     CONTAINER ID  IMAGE                   COMMAND       CREATED        STATUS        PORTS                    NAMES
     bc533791f3f5  training/webapp:latest  python app.py 5 seconds ago  Up 2 seconds  0.0.0.0:49155->5000/tcp  nostalgic_morse
 
@@ -186,6 +187,7 @@ specify the ID or name of our container and then the port for which we need the
 corresponding public-facing port.
 
     $ docker port nostalgic_morse 5000
+
     0.0.0.0:49155
 
 In this case you've looked up what port is mapped externally to port 5000 inside
@@ -197,6 +199,7 @@ You can also find out a bit more about what's happening with our application and
 use another of the commands you've learned, `docker logs`.
 
     $ docker logs -f nostalgic_morse
+
     * Running on http://0.0.0.0:5000/
     10.0.2.2 - - [23/May/2014 20:16:31] "GET / HTTP/1.1" 200 -
     10.0.2.2 - - [23/May/2014 20:16:31] "GET /favicon.ico HTTP/1.1" 404 -
@@ -212,6 +215,7 @@ In addition to the container's logs we can also examine the processes
 running inside it using the `docker top` command.
 
     $ docker top nostalgic_morse
+
     PID                 USER                COMMAND
     854                 root                python app.py
 
@@ -245,6 +249,7 @@ We can also narrow down the information we want to return by requesting a
 specific element, for example to return the container's IP address we would:
 
     $ docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' nostalgic_morse
+
     172.17.0.5
 
 ## Stopping our web application container
@@ -253,6 +258,7 @@ Okay you've seen web application working. Now you can stop it using the
 `docker stop` command and the name of our container: `nostalgic_morse`.
 
     $ docker stop nostalgic_morse
+
     nostalgic_morse
 
 We can now use the `docker ps` command to check if the container has
@@ -268,6 +274,7 @@ can create a new container or restart the old one. Look at
 starting your previous container back up.
 
     $ docker start nostalgic_morse
+
     nostalgic_morse
 
 Now quickly run `docker ps -l` again to see the running container is
@@ -284,6 +291,7 @@ Your colleague has let you know that they've now finished with the container
 and won't need it again. Now, you can remove it using the `docker rm` command.
 
     $ docker rm nostalgic_morse
+
     Error: Impossible to remove a running container, please stop it first or use -f
     2014/05/24 08:12:56 Error: failed to remove one or more containers
 
@@ -292,8 +300,11 @@ you from accidentally removing a running container you might need. You can try
 this again by stopping the container first.
 
     $ docker stop nostalgic_morse
+
     nostalgic_morse
+
     $ docker rm nostalgic_morse
+
     nostalgic_morse
 
 And now our container is stopped and deleted.

@@ -84,5 +84,6 @@ and removed when the service is stopped.
     [Service]
     ...
     ExecStart=/usr/bin/docker run --env foo=bar --name redis_server redis
-    ExecStop=/usr/bin/docker stop -t 2 redis_server ; /usr/bin/docker rm -f redis_server
+    ExecStop=/usr/bin/docker stop -t 2 redis_server
+    ExecStopPost=/usr/bin/docker rm -f redis_server
     ...

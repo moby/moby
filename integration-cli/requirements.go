@@ -42,6 +42,10 @@ var (
 		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "arm" },
 		"Test requires a daemon not running on ARM",
 	}
+	NotArm64 = testRequirement{
+		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "arm64" },
+		"Test requires a daemon not running on arm64",
+	}
 	NotPpc64le = testRequirement{
 		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "ppc64le" },
 		"Test requires a daemon not running on ppc64le",

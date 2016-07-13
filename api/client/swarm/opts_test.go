@@ -40,35 +40,51 @@ func TestNodeAddrOptionSetInvalidFormat(t *testing.T) {
 func TestAutoAcceptOptionSetWorker(t *testing.T) {
 	opt := NewAutoAcceptOption()
 	assert.NilError(t, opt.Set("worker"))
-	assert.Equal(t, opt.values[WORKER], true)
+	assert.Equal(t, opt.isPresent(worker), true)
 }
 
 func TestAutoAcceptOptionSetManager(t *testing.T) {
 	opt := NewAutoAcceptOption()
 	assert.NilError(t, opt.Set("manager"))
-	assert.Equal(t, opt.values[MANAGER], true)
+	assert.Equal(t, opt.isPresent(manager), true)
 }
 
 func TestAutoAcceptOptionSetInvalid(t *testing.T) {
 	opt := NewAutoAcceptOption()
-	assert.Error(t, opt.Set("bogus"), "must be one of")
+	assert.Error(t, opt.Set("bogus"), "must be one / combination")
+}
+
+func TestAutoAcceptOptionSetEmpty(t *testing.T) {
+	opt := NewAutoAcceptOption()
+	assert.Error(t, opt.Set(""), "must be one / combination")
 }
 
 func TestAutoAcceptOptionSetNone(t *testing.T) {
 	opt := NewAutoAcceptOption()
 	assert.NilError(t, opt.Set("none"))
-	assert.Equal(t, opt.values[MANAGER], false)
-	assert.Equal(t, opt.values[WORKER], false)
+	assert.Equal(t, opt.isPresent(manager), false)
+	assert.Equal(t, opt.isPresent(worker), false)
+}
+
+func TestAutoAcceptOptionSetTwo(t *testing.T) {
+	opt := NewAutoAcceptOption()
+	assert.NilError(t, opt.Set("worker,manager"))
+	assert.Equal(t, opt.isPresent(manager), true)
+	assert.Equal(t, opt.isPresent(worker), true)
 }
 
 func TestAutoAcceptOptionSetConflict(t *testing.T) {
 	opt := NewAutoAcceptOption()
-	assert.NilError(t, opt.Set("manager"))
-	assert.Error(t, opt.Set("none"), "value NONE is incompatible with MANAGER")
+	assert.Error(t, opt.Set("none,manager"), "value NONE cannot be specified alongside other node types")
 
 	opt = NewAutoAcceptOption()
-	assert.NilError(t, opt.Set("none"))
-	assert.Error(t, opt.Set("worker"), "value NONE is incompatible with WORKER")
+	assert.Error(t, opt.Set("none,worker"), "value NONE cannot be specified alongside other node types")
+
+	opt = NewAutoAcceptOption()
+	assert.Error(t, opt.Set("worker,none,manager"), "value NONE cannot be specified alongside other node types")
+
+	opt = NewAutoAcceptOption()
+	assert.Error(t, opt.Set("worker,manager,none"), "value NONE cannot be specified alongside other node types")
 }
 
 func TestAutoAcceptOptionPoliciesDefault(t *testing.T) {
@@ -78,12 +94,12 @@ func TestAutoAcceptOptionPoliciesDefault(t *testing.T) {
 	policies := opt.Policies(&secret)
 	assert.Equal(t, len(policies), 2)
 	assert.Equal(t, policies[0], swarm.Policy{
-		Role:       WORKER,
+		Role:       worker,
 		Autoaccept: true,
 		Secret:     &secret,
 	})
 	assert.Equal(t, policies[1], swarm.Policy{
-		Role:       MANAGER,
+		Role:       manager,
 		Autoaccept: false,
 		Secret:     &secret,
 	})
@@ -98,12 +114,12 @@ func TestAutoAcceptOptionPoliciesWithManager(t *testing.T) {
 	policies := opt.Policies(&secret)
 	assert.Equal(t, len(policies), 2)
 	assert.Equal(t, policies[0], swarm.Policy{
-		Role:       WORKER,
+		Role:       worker,
 		Autoaccept: false,
 		Secret:     &secret,
 	})
 	assert.Equal(t, policies[1], swarm.Policy{
-		Role:       MANAGER,
+		Role:       manager,
 		Autoaccept: true,
 		Secret:     &secret,
 	})

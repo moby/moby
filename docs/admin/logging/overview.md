@@ -25,7 +25,7 @@ supported:
 | `json-file` | Default logging driver for Docker. Writes JSON messages to file.                                                              |
 | `syslog`    | Syslog logging driver for Docker. Writes log messages to syslog.                                                              |
 | `journald`  | Journald logging driver for Docker. Writes log messages to `journald`.                                                        |
-| `gelf`      | Graylog Extended Log Format (GELF) logging driver for Docker. Writes log messages to a GELF endpoint likeGraylog or Logstash. |
+| `gelf`      | Graylog Extended Log Format (GELF) logging driver for Docker. Writes log messages to a GELF endpoint like Graylog or Logstash. |
 | `fluentd`   | Fluentd logging driver for Docker. Writes log messages to `fluentd` (forward input).                                          |
 | `awslogs`   | Amazon CloudWatch Logs logging driver for Docker. Writes log messages to Amazon CloudWatch Logs.                              |
 | `splunk`    | Splunk logging driver for Docker. Writes log messages to `splunk` using HTTP Event Collector.                                 |
@@ -155,7 +155,7 @@ option is ignored if the address protocol is not `tcp+tls`.
 is ignored if the address protocol is not `tcp+tls`.
 
 `syslog-tls-skip-verify` configures the TLS verification. This verification is
-enabled by default, but it can be overriden by setting this option to `true`.
+enabled by default, but it can be overridden by setting this option to `true`.
 This option is ignored if the address protocol is not `tcp+tls`.
 
 `tag` configures a string that is appended to the APP-NAME in the syslog

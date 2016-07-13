@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/docker/go-connections/nat"
 	"github.com/spf13/cobra"
@@ -39,7 +40,7 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, serviceID string) error {
 	apiClient := dockerCli.Client()
 	ctx := context.Background()
-	headers := map[string][]string{}
+	updateOpts := types.ServiceUpdateOptions{}
 
 	service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID)
 	if err != nil {
@@ -64,10 +65,10 @@ func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, serviceID stri
 		if err != nil {
 			return err
 		}
-		headers["X-Registry-Auth"] = []string{encodedAuth}
+		updateOpts.EncodedRegistryAuth = encodedAuth
 	}
 
-	err = apiClient.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, headers)
+	err = apiClient.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, updateOpts)
 	if err != nil {
 		return err
 	}

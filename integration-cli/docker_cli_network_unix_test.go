@@ -1660,3 +1660,15 @@ func (s *DockerDaemonSuite) TestDaemonRestartRestoreBridgeNetwork(t *check.C) {
 		t.Fatal(err)
 	}
 }
+
+func (s *DockerNetworkSuite) TestDockerNetworkFlagAlias(c *check.C) {
+	dockerCmd(c, "network", "create", "user")
+	output, status := dockerCmd(c, "run", "--rm", "--network=user", "--network-alias=foo", "busybox", "true")
+	c.Assert(status, checker.Equals, 0, check.Commentf("unexpected status code %d (%s)", status, output))
+
+	output, status, _ = dockerCmdWithError("run", "--rm", "--net=user", "--network=user", "busybox", "true")
+	c.Assert(status, checker.Equals, 0, check.Commentf("unexpected status code %d (%s)", status, output))
+
+	output, status, _ = dockerCmdWithError("run", "--rm", "--network=user", "--net-alias=foo", "--network-alias=bar", "busybox", "true")
+	c.Assert(status, checker.Equals, 0, check.Commentf("unexpected status code %d (%s)", status, output))
+}

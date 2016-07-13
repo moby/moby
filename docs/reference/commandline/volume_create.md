@@ -10,15 +10,18 @@ parent = "smn_cli"
 
 # volume create
 
-    Usage: docker volume create [OPTIONS]
+```markdown
+Usage:  docker volume create [OPTIONS]
 
-    Create a volume
+Create a volume
 
-      -d, --driver=local    Specify volume driver name
-      --help                Print usage
-      --label=[]            Set metadata for a volume
-      --name=               Specify volume name
-      -o, --opt=map[]       Set driver specific options
+Options:
+  -d, --driver string   Specify volume driver name (default "local")
+      --help            Print usage
+      --label value     Set metadata for a volume (default [])
+      --name string     Specify volume name
+  -o, --opt value       Set driver specific options (default map[])
+```
 
 Creates a new volume that containers can consume and store data in. If a name is not specified, Docker generates a random name. You create a volume and then configure the container to use it, for example:
 
@@ -54,17 +57,24 @@ different volume drivers may do different things (or nothing at all).
 
 The built-in `local` driver on Windows does not support any options.
 
-The built-in `local` driver on Linux accepts options similar to the linux `mount`
-command:
+The built-in `local` driver on Linux accepts options similar to the linux `mount` command. You can provide multiple options by passing the `--opt` flag multiple times. Some `mount` options (such as the `o` option) can take a comma-separated list of options. Complete list of available mount options can be found [here](http://man7.org/linux/man-pages/man8/mount.8.html).
+ 
+For example, the following creates a `tmpfs` volume called `foo` with a size of 100 megabyte and `uid` of 1000.
 
 ```bash
-$ docker volume create --driver local --opt type=tmpfs --opt device=tmpfs --opt o=size=100m,uid=1000
+$ docker volume create --driver local --opt type=tmpfs --opt device=tmpfs --opt o=size=100m,uid=1000 --name foo
 ```
 
-Another example:
+Another example that uses `btrfs`:
 
 ```bash
-$ docker volume create --driver local --opt type=btrfs --opt device=/dev/sda2
+$ docker volume create --driver local --opt type=btrfs --opt device=/dev/sda2 --name foo
+```
+
+Another example that uses `nfs` to mount the `/path/to/dir` in `rw` mode from `192.168.1.1`:
+
+```bash
+$ docker volume create --driver local --opt type=nfs --opt o=addr=192.168.1.1,rw --opt device=:/path/to/dir --name foo
 ```
 
 

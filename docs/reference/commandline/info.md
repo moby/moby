@@ -10,13 +10,14 @@ parent = "smn_cli"
 
 # info
 
+```markdown
+Usage:  docker info
 
-    Usage: docker info [OPTIONS]
+Display system-wide information
 
-    Display system-wide information
-
-      --help              Print usage
-
+Options:
+      --help   Print usage
+```
 
 This command displays system wide information regarding the Docker installation.
 Information displayed includes the kernel version, number of containers and images.

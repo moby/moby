@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/runconfig"
 	apitypes "github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/filters"
 	types "github.com/docker/engine-api/types/swarm"
 	swarmagent "github.com/docker/swarmkit/agent"
 	swarmapi "github.com/docker/swarmkit/api"
@@ -411,18 +412,18 @@ func (c *Cluster) Leave(force bool) error {
 			if err == nil {
 				if active && reachable-2 <= unreachable {
 					if reachable == 1 && unreachable == 0 {
-						msg += "Leaving last manager will remove all current state of the cluster. Use `--force` to ignore this message. "
+						msg += "Removing the last manager will erase all current state of the cluster. Use `--force` to ignore this message. "
 						c.Unlock()
 						return fmt.Errorf(msg)
 					}
-					msg += fmt.Sprintf("Leaving cluster will leave you with %v managers out of %v. This means Raft quorum will be lost and your cluster will become inaccessible. ", reachable-1, reachable+unreachable)
+					msg += fmt.Sprintf("Leaving the cluster will leave you with %v managers out of %v. This means Raft quorum will be lost and your cluster will become inaccessible. ", reachable-1, reachable+unreachable)
 				}
 			}
 		} else {
 			msg += "Doing so may lose the consensus of your cluster. "
 		}
 
-		msg += "Only way to restore a cluster that has lost consensus is to reinitialize it with `--force-new-cluster`. Use `--force` to ignore this message."
+		msg += "The only way to restore a cluster that has lost consensus is to reinitialize it with `--force-new-cluster`. Use `--force` to ignore this message."
 		c.Unlock()
 		return fmt.Errorf(msg)
 	}
@@ -653,7 +654,7 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 		return nil, err
 	}
 
-	var services []types.Service
+	services := []types.Service{}
 
 	for _, service := range r.Services {
 		services = append(services, convert.ServiceFromGRPC(*service))
@@ -722,6 +723,13 @@ func (c *Cluster) UpdateService(serviceID string, version uint64, spec types.Ser
 
 	if !c.isActiveManager() {
 		return c.errNoManager()
+	}
+
+	ctx := c.getRequestContext()
+
+	err := populateNetworkID(ctx, c.client, &spec)
+	if err != nil {
+		return err
 	}
 
 	serviceSpec, err := convert.ServiceSpecToGRPC(spec)
@@ -884,7 +892,33 @@ func (c *Cluster) GetTasks(options apitypes.TaskListOptions) ([]types.Task, erro
 		return nil, c.errNoManager()
 	}
 
-	filters, err := newListTasksFilters(options.Filter)
+	byName := func(filter filters.Args) error {
+		if filter.Include("service") {
+			serviceFilters := filter.Get("service")
+			for _, serviceFilter := range serviceFilters {
+				service, err := c.GetService(serviceFilter)
+				if err != nil {
+					return err
+				}
+				filter.Del("service", serviceFilter)
+				filter.Add("service", service.ID)
+			}
+		}
+		if filter.Include("node") {
+			nodeFilters := filter.Get("node")
+			for _, nodeFilter := range nodeFilters {
+				node, err := c.GetNode(nodeFilter)
+				if err != nil {
+					return err
+				}
+				filter.Del("node", nodeFilter)
+				filter.Add("node", node.ID)
+			}
+		}
+		return nil
+	}
+
+	filters, err := newListTasksFilters(options.Filter, byName)
 	if err != nil {
 		return nil, err
 	}
@@ -1031,7 +1065,7 @@ func getNetwork(ctx context.Context, c swarmapi.ControlClient, input string) (*s
 		}
 
 		if l := len(rl.Networks); l > 1 {
-			return nil, fmt.Errorf("network %s is ambigious (%d matches found)", input, l)
+			return nil, fmt.Errorf("network %s is ambiguous (%d matches found)", input, l)
 		}
 
 		return rl.Networks[0], nil

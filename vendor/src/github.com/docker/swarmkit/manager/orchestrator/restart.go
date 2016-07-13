@@ -59,7 +59,7 @@ func NewRestartSupervisor(store *store.MemoryStore) *RestartSupervisor {
 
 // Restart initiates a new task to replace t if appropriate under the service's
 // restart policy.
-func (r *RestartSupervisor) Restart(ctx context.Context, tx store.Tx, service *api.Service, t api.Task) error {
+func (r *RestartSupervisor) Restart(ctx context.Context, tx store.Tx, cluster *api.Cluster, service *api.Service, t api.Task) error {
 	// TODO(aluzzardi): This function should not depend on `service`.
 
 	t.DesiredState = api.TaskStateShutdown
@@ -76,9 +76,9 @@ func (r *RestartSupervisor) Restart(ctx context.Context, tx store.Tx, service *a
 	var restartTask *api.Task
 
 	if isReplicatedService(service) {
-		restartTask = newTask(service, t.Slot)
+		restartTask = newTask(cluster, service, t.Slot)
 	} else if isGlobalService(service) {
-		restartTask = newTask(service, 0)
+		restartTask = newTask(cluster, service, 0)
 		restartTask.NodeID = t.NodeID
 	} else {
 		log.G(ctx).Error("service not supported by restart supervisor")

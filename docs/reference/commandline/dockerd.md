@@ -17,6 +17,7 @@ weight = -1
     A self-sufficient runtime for linux containers.
 
     Options:
+      --add-runtime=[]                       Register an additional OCI compatible runtime
       --api-cors-header=""                   Set CORS headers in the remote API
       --authorization-plugin=[]              Set authorization plugins to load
       -b, --bridge=""                        Attach containers to a network bridge
@@ -60,7 +61,6 @@ weight = -1
       -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
       --raw-logs                             Full timestamps without ANSI coloring
       --registry-mirror=[]                   Preferred Docker registry mirror
-      --add-runtime=[]                       Register an additional OCI compatible runtime
       -s, --storage-driver=""                Storage driver to use
       --selinux-enabled                      Enable selinux support
       --storage-opt=[]                       Set storage driver options
@@ -566,6 +566,17 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
     Example use:
         $ docker daemon -s btrfs --storage-opt btrfs.min_space=10G
 
+#### Overlay2 options
+
+* `overlay2.override_kernel_check`
+
+    Overrides the Linux kernel version check allowing overlay2. Support for
+    specifying multiple lower directories needed by overlay2 was added to the
+    Linux kernel in 4.0.0. However some older kernel versions may be patched
+    to add multiple lower directory support for OverlayFS. This option should
+    only be used after verifying this support exists in the kernel. Applying
+    this option on a kernel without this support will cause failures on mount.
+
 ## Docker runtime execution options
 
 The Docker daemon relies on a
@@ -910,8 +921,8 @@ This option will completely disable user namespace mapping for the container's u
 The following standard Docker features are currently incompatible when
 running a Docker daemon with user namespaces enabled:
 
- - sharing PID or NET namespaces with the host (`--pid=host` or `--net=host`)
- - A `--readonly` container filesystem (this is a Linux kernel restriction against remounting with modified flags of a currently mounted filesystem when inside a user namespace)
+ - sharing PID or NET namespaces with the host (`--pid=host` or `--network=host`)
+ - A `--read-only` container filesystem (this is a Linux kernel restriction against remounting with modified flags of a currently mounted filesystem when inside a user namespace)
  - external (volume or graph) drivers which are unaware/incapable of using daemon user mappings
  - Using `--privileged` mode flag on `docker run` (unless also specifying `--userns=host`)
 
@@ -1108,6 +1119,7 @@ The following daemon options must be configured for each daemon:
 -g, --graph=/var/lib/docker            Root of the Docker runtime
 -p, --pidfile=/var/run/docker.pid      Path to use for daemon PID file
 -H, --host=[]                          Daemon socket(s) to connect to
+--iptables=true                        Enable addition of iptables rules
 --config-file=/etc/docker/daemon.json  Daemon configuration file
 --tlscacert="~/.docker/ca.pem"         Trust certs signed only by this CA
 --tlscert="~/.docker/cert.pem"         Path to TLS certificate file
@@ -1126,6 +1138,10 @@ set this parameter separately for each daemon.
 - `-p, --pidfile=/var/run/docker.pid` is the path where the process ID of the daemon is stored. Specify the path for your
 pid file here.
 - `--host=[]` specifies where the Docker daemon will listen for client connections. If unspecified, it defaults to `/var/run/docker.sock`.
+- `--iptables=false` prevents the Docker daemon from adding iptables rules. If
+  multiple daemons manage iptables rules, they may overwrite rules set by
+  another daemon. Be aware that disabling this option requires you to manually
+  add iptables rules to expose container ports.
 - `--config-file=/etc/docker/daemon.json` is the path where configuration file is stored. You can use it instead of
 daemon flags. Specify the path for each daemon.
 - `--tls*` Docker daemon supports `--tlsverify` mode that enforces encrypted and authenticated remote connections.

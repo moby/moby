@@ -94,6 +94,7 @@ type Node struct {
 	wal         *wal.WAL
 	snapshotter *snap.Snapshotter
 	wasLeader   bool
+	restored    bool
 	isMember    uint32
 	joinAddr    string
 
@@ -394,6 +395,18 @@ func (n *Node) Run(ctx context.Context) error {
 				}
 			}
 
+			// If we are the only registered member after
+			// restoring from the state, campaign to be the
+			// leader.
+			if !n.restored {
+				if len(n.cluster.Members()) <= 1 {
+					if err := n.Campaign(n.Ctx); err != nil {
+						panic("raft: cannot campaign to be the leader on node restore")
+					}
+				}
+				n.restored = true
+			}
+
 			// Advance the state machine
 			n.Advance()
 
@@ -638,7 +651,14 @@ func (n *Node) Leave(ctx context.Context, req *api.LeaveRequest) (*api.LeaveResp
 	return &api.LeaveResponse{}, nil
 }
 
-// RemoveMember submits a configuration change to remove a member from the raft cluster.
+// CanRemoveMember checks if a member can be removed from
+// the context of the current node.
+func (n *Node) CanRemoveMember(id uint64) bool {
+	return n.cluster.CanRemoveMember(n.Config.ID, id)
+}
+
+// RemoveMember submits a configuration change to remove a member from the raft cluster
+// after checking if the operation would not result in a loss of quorum.
 func (n *Node) RemoveMember(ctx context.Context, id uint64) error {
 	n.membershipLock.Lock()
 	defer n.membershipLock.Unlock()
@@ -828,6 +848,18 @@ func (n *Node) GetMemberlist() map[uint64]*api.RaftMember {
 	return memberlist
 }
 
+// GetMemberByNodeID returns member information based
+// on its generic Node ID.
+func (n *Node) GetMemberByNodeID(nodeID string) *membership.Member {
+	members := n.cluster.Members()
+	for _, member := range members {
+		if member.NodeID == nodeID {
+			return member
+		}
+	}
+	return nil
+}
+
 // IsMember checks if the raft node has effectively joined
 // a cluster of existing members.
 func (n *Node) IsMember() bool {
@@ -968,6 +1000,14 @@ func (n *Node) sendToMember(members map[uint64]*membership.Member, m raftpb.Mess
 			panic("node is nil")
 		}
 		n.ReportUnreachable(m.To)
+
+		// Bounce the connection
+		newConn, err := n.ConnectToMember(conn.Addr, 0)
+		if err != nil {
+			n.Config.Logger.Errorf("could connect to member ID %x at %s: %v", m.To, conn.Addr, err)
+		} else {
+			n.cluster.ReplaceMemberConnection(m.To, newConn)
+		}
 	} else if m.Type == raftpb.MsgSnap {
 		n.ReportSnapshot(m.To, raft.SnapshotFinish)
 	}
@@ -1170,11 +1210,6 @@ func (n *Node) applyRemoveNode(cc raftpb.ConfChange) (err error) {
 		if err = n.Campaign(n.Ctx); err != nil {
 			return err
 		}
-	}
-
-	// Do not unregister yourself
-	if n.Config.ID == cc.NodeID {
-		return nil
 	}
 
 	return n.cluster.RemoveMember(cc.NodeID)

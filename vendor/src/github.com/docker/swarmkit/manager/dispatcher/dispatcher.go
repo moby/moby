@@ -328,14 +328,14 @@ func (d *Dispatcher) isRunning() bool {
 }
 
 // register is used for registration of node with particular dispatcher.
-func (d *Dispatcher) register(ctx context.Context, nodeID string, description *api.NodeDescription) (string, string, error) {
+func (d *Dispatcher) register(ctx context.Context, nodeID string, description *api.NodeDescription) (string, error) {
 	// prevent register until we're ready to accept it
 	if err := d.isRunningLocked(); err != nil {
-		return "", "", err
+		return "", err
 	}
 
 	if err := d.nodes.CheckRateLimit(nodeID); err != nil {
-		return "", "", err
+		return "", err
 	}
 
 	// create or update node in store
@@ -355,7 +355,7 @@ func (d *Dispatcher) register(ctx context.Context, nodeID string, description *a
 
 	})
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
 	expireFunc := func() {
@@ -377,7 +377,7 @@ func (d *Dispatcher) register(ctx context.Context, nodeID string, description *a
 	// time a node registers, we invalidate the session and issue a new
 	// session, once identity is proven. This will cause misbehaved agents to
 	// be kicked when multiple connections are made.
-	return rn.Node.ID, rn.SessionID, nil
+	return rn.SessionID, nil
 }
 
 // UpdateTaskStatus updates status of task. Node should send such updates
@@ -650,7 +650,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 	}
 
 	// register the node.
-	nodeID, sessionID, err := d.register(stream.Context(), nodeID, r.Description)
+	sessionID, err := d.register(stream.Context(), nodeID, r.Description)
 	if err != nil {
 		return err
 	}

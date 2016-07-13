@@ -18,7 +18,7 @@ func NewTagCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts tagOptions
 
 	cmd := &cobra.Command{
-		Use:   "tag IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]",
+		Use:   "tag IMAGE[:TAG] IMAGE[:TAG]",
 		Short: "Tag an image into a repository",
 		Args:  cli.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -1432,7 +1432,7 @@ func (s *DockerSuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *che
 	}
 }
 
-// test case for #22210 where an emtpy container name caused panic.
+// test case for #22210 where an empty container name caused panic.
 func (s *DockerSuite) TestContainerApiDeleteWithEmptyName(c *check.C) {
 	status, out, err := sockRequest("DELETE", "/containers/", nil)
 	c.Assert(err, checker.IsNil)

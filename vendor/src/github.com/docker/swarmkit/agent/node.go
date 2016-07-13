@@ -375,8 +375,9 @@ func (n *Node) runAgent(ctx context.Context, db *bolt.DB, creds credentials.Tran
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
+	picker := picker.NewPicker(n.remotes, manager.Addr)
 	conn, err := grpc.Dial(manager.Addr,
-		grpc.WithPicker(picker.NewPicker(n.remotes, manager.Addr)),
+		grpc.WithPicker(picker),
 		grpc.WithTransportCredentials(creds),
 		grpc.WithBackoffMaxDelay(maxSessionFailureBackoff))
 	if err != nil {
@@ -389,6 +390,7 @@ func (n *Node) runAgent(ctx context.Context, db *bolt.DB, creds credentials.Tran
 		Executor:         n.config.Executor,
 		DB:               db,
 		Conn:             conn,
+		Picker:           picker,
 		NotifyRoleChange: n.roleChangeReq,
 	})
 	if err != nil {
@@ -562,6 +564,7 @@ func (n *Node) initManagerConnection(ctx context.Context, ready chan<- struct{})
 	for {
 		s, err := conn.WaitForStateChange(ctx, state)
 		if err != nil {
+			n.setControlSocket(nil)
 			return err
 		}
 		if s == grpc.Ready {

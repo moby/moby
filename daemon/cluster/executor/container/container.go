@@ -13,6 +13,8 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 	enginecontainer "github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/events"
+	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/engine-api/types/network"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
@@ -88,21 +90,6 @@ func (c *containerConfig) image() string {
 	return reference.WithDefaultTag(ref).String()
 }
 
-func (c *containerConfig) volumes() map[string]struct{} {
-	r := make(map[string]struct{})
-
-	for _, mount := range c.spec().Mounts {
-		// pick off all the volume mounts.
-		if mount.Type != api.MountTypeVolume {
-			continue
-		}
-
-		r[fmt.Sprintf("%s:%s", mount.Target, getMountMask(&mount))] = struct{}{}
-	}
-
-	return r
-}
-
 func (c *containerConfig) config() *enginecontainer.Config {
 	config := &enginecontainer.Config{
 		Labels:     c.labels(),
@@ -160,26 +147,67 @@ func (c *containerConfig) labels() map[string]string {
 	return labels
 }
 
-func (c *containerConfig) bindMounts() []string {
-	var r []string
-
-	for _, val := range c.spec().Mounts {
-		mask := getMountMask(&val)
-		if val.Type == api.MountTypeBind {
-			r = append(r, fmt.Sprintf("%s:%s:%s", val.Source, val.Target, mask))
+// volumes gets placed into the Volumes field on the containerConfig.
+func (c *containerConfig) volumes() map[string]struct{} {
+	r := make(map[string]struct{})
+	// Volumes *only* creates anonymous volumes. The rest is mixed in with
+	// binds, which aren't actually binds. Basically, any volume that
+	// results in a single component must be added here.
+	//
+	// This is reversed engineered from the behavior of the engine API.
+	for _, mount := range c.spec().Mounts {
+		if mount.Type == api.MountTypeVolume && mount.Source == "" {
+			r[mount.Target] = struct{}{}
 		}
+	}
+	return r
+}
+
+func (c *containerConfig) tmpfs() map[string]string {
+	r := make(map[string]string)
+
+	for _, spec := range c.spec().Mounts {
+		if spec.Type != api.MountTypeTmpfs {
+			continue
+		}
+
+		r[spec.Target] = getMountMask(&spec)
 	}
 
 	return r
 }
 
+func (c *containerConfig) binds() []string {
+	var r []string
+	for _, mount := range c.spec().Mounts {
+		if mount.Type == api.MountTypeBind || (mount.Type == api.MountTypeVolume && mount.Source != "") {
+			spec := fmt.Sprintf("%s:%s", mount.Source, mount.Target)
+			mask := getMountMask(&mount)
+			if mask != "" {
+				spec = fmt.Sprintf("%s:%s", spec, mask)
+			}
+			r = append(r, spec)
+		}
+	}
+	return r
+}
+
 func getMountMask(m *api.Mount) string {
-	maskOpts := []string{"ro"}
-	if m.Writable {
-		maskOpts[0] = "rw"
+	var maskOpts []string
+	if m.ReadOnly {
+		maskOpts = append(maskOpts, "ro")
 	}
 
-	if m.BindOptions != nil {
+	switch m.Type {
+	case api.MountTypeVolume:
+		if m.VolumeOptions != nil && m.VolumeOptions.NoCopy {
+			maskOpts = append(maskOpts, "nocopy")
+		}
+	case api.MountTypeBind:
+		if m.BindOptions == nil {
+			break
+		}
+
 		switch m.BindOptions.Propagation {
 		case api.MountPropagationPrivate:
 			maskOpts = append(maskOpts, "private")
@@ -194,21 +222,66 @@ func getMountMask(m *api.Mount) string {
 		case api.MountPropagationRSlave:
 			maskOpts = append(maskOpts, "rslave")
 		}
-	}
+	case api.MountTypeTmpfs:
+		if m.TmpfsOptions == nil {
+			break
+		}
 
-	if m.VolumeOptions != nil {
-		if !m.VolumeOptions.Populate {
-			maskOpts = append(maskOpts, "nocopy")
+		if m.TmpfsOptions.Mode != 0 {
+			maskOpts = append(maskOpts, fmt.Sprintf("mode=%o", m.TmpfsOptions.Mode))
+		}
+
+		if m.TmpfsOptions.SizeBytes != 0 {
+			// calculate suffix here, making this linux specific, but that is
+			// okay, since API is that way anyways.
+
+			// we do this by finding the suffix that divides evenly into the
+			// value, returing the value itself, with no suffix, if it fails.
+			//
+			// For the most part, we don't enforce any semantic to this values.
+			// The operating system will usually align this and enforce minimum
+			// and maximums.
+			var (
+				size   = m.TmpfsOptions.SizeBytes
+				suffix string
+			)
+			for _, r := range []struct {
+				suffix  string
+				divisor int64
+			}{
+				{"g", 1 << 30},
+				{"m", 1 << 20},
+				{"k", 1 << 10},
+			} {
+				if size%r.divisor == 0 {
+					size = size / r.divisor
+					suffix = r.suffix
+					break
+				}
+			}
+
+			maskOpts = append(maskOpts, fmt.Sprintf("size=%d%s", size, suffix))
 		}
 	}
+
 	return strings.Join(maskOpts, ",")
 }
 
 func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
-	return &enginecontainer.HostConfig{
+	hc := &enginecontainer.HostConfig{
 		Resources: c.resources(),
-		Binds:     c.bindMounts(),
+		Binds:     c.binds(),
+		Tmpfs:     c.tmpfs(),
 	}
+
+	if c.task.LogDriver != nil {
+		hc.LogConfig = enginecontainer.LogConfig{
+			Type:   c.task.LogDriver.Name,
+			Config: c.task.LogDriver.Options,
+		}
+	}
+
+	return hc
 }
 
 // This handles the case of volumes that are defined inside a service Mount
@@ -420,4 +493,12 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 	}
 
 	return clustertypes.NetworkCreateRequest{na.Network.ID, types.NetworkCreateRequest{Name: name, NetworkCreate: options}}, nil
+}
+
+func (c containerConfig) eventFilter() filters.Args {
+	filter := filters.NewArgs()
+	filter.Add("type", events.ContainerEventType)
+	filter.Add("name", c.name())
+	filter.Add("label", fmt.Sprintf("%v.task.id=%v", systemLabelPrefix, c.task.ID))
+	return filter
 }

@@ -4915,7 +4915,7 @@ func (s *DockerSuite) TestBuildRenamedDockerfile(c *check.C) {
 	}
 
 	if expected := fmt.Sprintf("The Dockerfile (%s) must be within the build context (.)", nonDockerfileFile); !strings.Contains(out, expected) {
-		c.Fatalf("wrong error messsage:%v\nexpected to contain=%v", out, expected)
+		c.Fatalf("wrong error message:%v\nexpected to contain=%v", out, expected)
 	}
 
 	out, _, err = dockerCmdInDir(c, filepath.Join(ctx.Dir, "files"), "build", "-f", filepath.Join("..", "Dockerfile"), "-t", "test6", "..")

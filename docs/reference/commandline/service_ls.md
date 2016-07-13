@@ -13,8 +13,6 @@ parent = "smn_cli"
 # service ls
 
 ```Markdown
-docker service ls --help
-
 Usage:	docker service ls [OPTIONS]
 
 List services

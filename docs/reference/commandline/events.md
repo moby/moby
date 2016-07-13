@@ -10,14 +10,17 @@ parent = "smn_cli"
 
 # events
 
-    Usage: docker events [OPTIONS]
+```markdown
+Usage:  docker events [OPTIONS]
 
-    Get real time events from the server
+Get real time events from the server
 
-      -f, --filter=[]    Filter output based on conditions provided
-      --help             Print usage
-      --since=""         Show all events created since timestamp
-      --until=""         Stream events until this timestamp
+Options:
+  -f, --filter value   Filter output based on conditions provided (default [])
+      --help           Print usage
+      --since string   Show all events created since timestamp
+      --until string   Stream events until this timestamp
+```
 
 Docker containers report the following events:
 

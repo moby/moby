@@ -37,6 +37,7 @@ Let's start with listing the images you have locally on our host. You can
 do this using the `docker images` command like so:
 
     $ docker images
+
     REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
     ubuntu              14.04               1d073211c498        3 days ago          187.9 MB
     busybox             latest              2c5ac3f849df        5 days ago          1.113 MB
@@ -87,6 +88,7 @@ can download it using the `docker pull` command. Suppose you'd like to
 download the `centos` image.
 
     $ docker pull centos
+
     Pulling repository centos
     b7de3133ff98: Pulling dependent layers
     5cc9e91966f7: Pulling fs layer
@@ -101,6 +103,7 @@ can run a container from this image and you won't have to wait to
 download the image.
 
     $ docker run -t -i centos /bin/bash
+
     bash-4.1#
 
 ## Finding images
@@ -158,6 +161,7 @@ You've identified a suitable image, `training/sinatra`, and now you can download
 The team can now use this image by running their own containers.
 
     $ docker run -t -i training/sinatra /bin/bash
+
     root@a8cb6ce02d85:/#
 
 ## Creating our own images
@@ -176,6 +180,7 @@ To update an image you first need to create a container from the image
 you'd like to update.
 
     $ docker run -t -i training/sinatra /bin/bash
+
     root@0b2616b0e5a8:/#
 
 > **Note:**
@@ -195,6 +200,7 @@ command.
 
     $ docker commit -m "Added json gem" -a "Kate Smith" \
     0b2616b0e5a8 ouruser/sinatra:v2
+
     4f177bd27a9ff0f6dc2a830403925b5360bfe0b93d476f7fc3231110e7f71b1c
 
 Here you've used the `docker commit` command. You've specified two flags: `-m`
@@ -217,6 +223,7 @@ You can then look at our new `ouruser/sinatra` image using the `docker images`
 command.
 
     $ docker images
+
     REPOSITORY          TAG     IMAGE ID       CREATED       SIZE
     training/sinatra    latest  5bc342fa0b91   10 hours ago  446.7 MB
     ouruser/sinatra     v2      3c59e02ddd1a   10 hours ago  446.7 MB
@@ -225,6 +232,7 @@ command.
 To use our new image to create a container you can then:
 
     $ docker run -t -i ouruser/sinatra:v2 /bin/bash
+
     root@78e82f680994:/#
 
 ### Building an image from a `Dockerfile`
@@ -240,7 +248,9 @@ tell Docker how to build our image.
 First, create a directory and a `Dockerfile`.
 
     $ mkdir sinatra
+
     $ cd sinatra
+
     $ touch Dockerfile
 
 If you are using Docker Machine on Windows, you may access your host
@@ -275,6 +285,7 @@ Sinatra gem.
 Now let's take our `Dockerfile` and use the `docker build` command to build an image.
 
     $ docker build -t ouruser/sinatra:v2 .
+
     Sending build context to Docker daemon 2.048 kB
     Sending build context to Docker daemon
     Step 1 : FROM ubuntu:14.04
@@ -469,6 +480,7 @@ containers will get removed to clean things up.
 You can then create a container from our new image.
 
     $ docker run -t -i ouruser/sinatra:v2 /bin/bash
+
     root@8196968dac35:/#
 
 > **Note:**
@@ -495,6 +507,7 @@ user name, the repository name and the new tag.
 Now, see your new tag using the `docker images` command.
 
     $ docker images ouruser/sinatra
+
     REPOSITORY          TAG     IMAGE ID      CREATED        SIZE
     ouruser/sinatra     latest  5db5f8471261  11 hours ago   446.7 MB
     ouruser/sinatra     devel   5db5f8471261  11 hours ago   446.7 MB
@@ -508,6 +521,7 @@ unchanged, the digest value is predictable. To list image digest values, use
 the `--digests` flag:
 
     $ docker images --digests | head
+
     REPOSITORY        TAG      DIGEST                                                                     IMAGE ID      CREATED       SIZE
     ouruser/sinatra   latest   sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf    5db5f8471261  11 hours ago  446.7 MB
 
@@ -527,6 +541,7 @@ allows you to share it with others, either publicly, or push it into [a
 private repository](https://hub.docker.com/account/billing-plans/).
 
     $ docker push ouruser/sinatra
+
     The push refers to a repository [ouruser/sinatra] (len: 1)
     Sending image list
     Pushing repository ouruser/sinatra (3 tags)
@@ -540,6 +555,7 @@ containers](usingdocker.md) using the `docker rmi` command.
 Delete the `training/sinatra` image as you don't need it anymore.
 
     $ docker rmi training/sinatra
+
     Untagged: training/sinatra:latest
     Deleted: 5bc342fa0b91cabf65246837015197eecfa24b2213ed6a51a8974ae250fedd8d
     Deleted: ed0fffdcdae5eb2c3a55549857a8be7fc8bc4241fb19ad714364cbfd7a56b22f
