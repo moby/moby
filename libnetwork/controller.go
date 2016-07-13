@@ -639,13 +639,18 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		return nil, err
 	}
 
-	if err = network.joinCluster(); err != nil {
-		log.Errorf("Failed to join network %s into agent cluster: %v", name, err)
-	}
-
-	network.addDriverWatches()
+	joinCluster(network)
 
 	return network, nil
+}
+
+var joinCluster NetworkWalker = func(nw Network) bool {
+	n := nw.(*network)
+	if err := n.joinCluster(); err != nil {
+		log.Errorf("Failed to join network %s (%s) into agent cluster: %v", n.Name(), n.ID(), err)
+	}
+	n.addDriverWatches()
+	return false
 }
 
 func (c *controller) reservePools() {
