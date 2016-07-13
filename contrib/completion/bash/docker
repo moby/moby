@@ -1731,6 +1731,7 @@ _docker_service_update() {
 
 	local boolean_options="
 		--help
+		--registry-auth
 	"
 
 	if [ "$subcommand" = "update" ] ; then
