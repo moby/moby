@@ -40,24 +40,65 @@ compatibility. The default Docker profile (found [here](https://github.com/docke
 ```json
 {
 	"defaultAction": "SCMP_ACT_ERRNO",
-	"architectures": [
-		"SCMP_ARCH_X86_64",
-		"SCMP_ARCH_X86",
-		"SCMP_ARCH_X32"
+	"archMap": [
+		{
+			"architecture": "SCMP_ARCH_X86_64",
+			"subArchitectures": [
+				"SCMP_ARCH_X86",
+				"SCMP_ARCH_X32"
+			]
+		},
+		...
 	],
 	"syscalls": [
 		{
-			"name": "accept",
+			"names": [
+				"accept",
+				"accept4",
+				"access",
+				"alarm",
+				"alarm",
+				"bind",
+				"brk",
+				...
+				"waitid",
+				"waitpid",
+				"write",
+				"writev"
+			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": []
+			"args": [],
+			"comment": "",
+			"includes": {},
+			"excludes": {}
 		},
 		{
-			"name": "accept4",
+			"names": [
+				"clone"
+			],
 			"action": "SCMP_ACT_ALLOW",
-			"args": []
+			"args": [
+				{
+					"index": 1,
+					"value": 2080505856,
+					"valueTwo": 0,
+					"op": "SCMP_CMP_MASKED_EQ"
+				}
+			],
+			"comment": "s390 parameter ordering for clone is different",
+			"includes": {
+				"arches": [
+					"s390",
+					"s390x"
+				]
+			},
+			"excludes": {
+				"caps": [
+					"CAP_SYS_ADMIN"
+				]
+			}
 		},
 		...
-	]
 }
 ```
 

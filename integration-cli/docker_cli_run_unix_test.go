@@ -1166,7 +1166,7 @@ func (s *DockerSuite) TestRunApparmorProcDirectory(c *check.C) {
 // make sure the default profile can be successfully parsed (using unshare as it is
 // something which we know is blocked in the default profile)
 func (s *DockerSuite) TestRunSeccompWithDefaultProfile(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled, NotArm, NotPpc64le, NotS390X)
+	testRequires(c, SameHostDaemon, seccompEnabled)
 
 	out, _, err := dockerCmdWithError("run", "--security-opt", "seccomp=../profiles/seccomp/default.json", "debian:jessie", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami")
 	c.Assert(err, checker.NotNil, check.Commentf(out))
@@ -1258,4 +1258,95 @@ func (s *DockerSuite) TestRunUserDeviceAllowed(c *check.C) {
 	file := "/sys/fs/cgroup/devices/devices.list"
 	out, _ := dockerCmd(c, "run", "--device", "/dev/snd/timer:w", "busybox", "cat", file)
 	c.Assert(out, checker.Contains, fmt.Sprintf("c %d:%d w", stat.Rdev/256, stat.Rdev%256))
+}
+
+func (s *DockerDaemonSuite) TestRunSeccompJSONNewFormat(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled)
+
+	err := s.d.StartWithBusybox()
+	c.Assert(err, check.IsNil)
+
+	jsonData := `{
+	"defaultAction": "SCMP_ACT_ALLOW",
+	"syscalls": [
+		{
+			"names": ["chmod", "fchmod", "fchmodat"],
+			"action": "SCMP_ACT_ERRNO"
+		}
+	]
+}`
+	tmpFile, err := ioutil.TempFile("", "profile.json")
+	c.Assert(err, check.IsNil)
+	defer tmpFile.Close()
+	_, err = tmpFile.Write([]byte(jsonData))
+	c.Assert(err, check.IsNil)
+
+	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile.Name(), "busybox", "chmod", "777", ".")
+	c.Assert(err, check.NotNil)
+	c.Assert(out, checker.Contains, "Operation not permitted")
+}
+
+func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled)
+
+	err := s.d.StartWithBusybox()
+	c.Assert(err, check.IsNil)
+
+	jsonData := `{
+	"defaultAction": "SCMP_ACT_ALLOW",
+	"syscalls": [
+		{
+			"name": "chmod",
+			"names": ["fchmod", "fchmodat"],
+			"action": "SCMP_ACT_ERRNO"
+		}
+	]
+}`
+	tmpFile, err := ioutil.TempFile("", "profile.json")
+	c.Assert(err, check.IsNil)
+	defer tmpFile.Close()
+	_, err = tmpFile.Write([]byte(jsonData))
+	c.Assert(err, check.IsNil)
+
+	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile.Name(), "busybox", "chmod", "777", ".")
+	c.Assert(err, check.NotNil)
+	c.Assert(out, checker.Contains, "'name' and 'names' were specified in the seccomp profile, use either 'name' or 'names'")
+}
+
+func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled)
+
+	err := s.d.StartWithBusybox()
+	c.Assert(err, check.IsNil)
+
+	jsonData := `{
+	"archMap": [
+		{
+			"architecture": "SCMP_ARCH_X86_64",
+			"subArchitectures": [
+				"SCMP_ARCH_X86",
+				"SCMP_ARCH_X32"
+			]
+		}
+	],
+	"architectures": [
+		"SCMP_ARCH_X32"
+	],
+	"defaultAction": "SCMP_ACT_ALLOW",
+	"syscalls": [
+		{
+			"names": ["chmod", "fchmod", "fchmodat"],
+			"action": "SCMP_ACT_ERRNO"
+		}
+	]
+}`
+	tmpFile, err := ioutil.TempFile("", "profile.json")
+	c.Assert(err, check.IsNil)
+	defer tmpFile.Close()
+	_, err = tmpFile.Write([]byte(jsonData))
+	c.Assert(err, check.IsNil)
+
+	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile.Name(), "busybox", "chmod", "777", ".")
+	c.Assert(err, check.NotNil)
+	c.Assert(out, checker.Contains, "'architectures' and 'archMap' were specified in the seccomp profile, use either 'architectures' or 'archMap'")
 }
