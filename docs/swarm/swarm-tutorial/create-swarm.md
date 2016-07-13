@@ -22,51 +22,59 @@ node. For example, the tutorial uses a machine named `manager1`.
 
 2. Run the following command to create a new swarm:
 
-    ```
+    ```bash
     docker swarm init --listen-addr <MANAGER-IP>:<PORT>
     ```
 
-    In the tutorial, the following command creates a swarm on the `manager1` machine:
+    In the tutorial, the following command creates a swarm on the `manager1`
+    machine:
 
-    ```
+    ```bash
     $ docker swarm init --listen-addr 192.168.99.100:2377
     No --secret provided. Generated random secret:
-        4ao565v9jsuogtq5t8s379ulb
+      4ao565v9jsuogtq5t8s379ulb
 
-    Swarm initialized: current node (dxn1zf6l61qsb1josjja83ngz) is now a manager.
+    Swarm initialized: current node (dxn1zf6l61qsb1josjja83ngz) is now a
+    manager.
 
     To add a worker to this swarm, run the following command:
-        docker swarm join --secret 4ao565v9jsuogtq5t8s379ulb \
-        --ca-hash sha256:07ce22bd1a7619f2adc0d63bd110479a170e7c4e69df05b67a1aa2705c88ef09 \
-        192.168.99.100:2377
+      docker swarm join --secret 4ao565v9jsuogtq5t8s379ulb \
+      --ca-hash sha256:07ce22bd1a7619f2adc0d63bd110479a170e7c4e69df05b67a1aa2705c88ef09 \
+      192.168.99.100:2377
     ```
 
     The `--listen-addr` flag configures the manager node to listen on port
     `2377`. The other nodes in the swarm must be able to access the manager at
     the IP address.
 
+    The `--ca-hash` flag provides the identity of the root CA for the manager
+    node.
+
+2. Save the output of `docker swarm init` that includes the command to join
+worker nodes to the swarm.
+
 3. Run `docker info` to view the current state of the swarm:
 
-     ```
-     $ docker info
+    ```bash
+    $ docker info
 
-     Containers: 2
-      Running: 0
-      Paused: 0
-      Stopped: 2
-     ...snip...
-     Swarm: active
+    Containers: 2
+    Running: 0
+    Paused: 0
+    Stopped: 2
+      ...snip...
+    Swarm: active
       NodeID: dxn1zf6l61qsb1josjja83ngz
       Is Manager: true
       Managers: 1
       Nodes: 1
       CA Certificate Hash: sha256:b7986d3baeff2f5664dfe350eec32e2383539ec1a802ba541c4eb829056b5f61
-     ...snip...
-     ```
+      ...snip...
+    ```
 
 4. Run the `docker node ls` command to view information about nodes:
 
-    ```
+    ```bash
     $ docker node ls
 
     ID                           HOSTNAME  MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
@@ -74,11 +82,11 @@ node. For example, the tutorial uses a machine named `manager1`.
 
     ```
 
-     The `*` next to the node id, indicates that you're currently connected on
-     this node.
+    The `*` next to the node id indicates that you're currently connected on
+    this node.
 
-     Docker Engine swarm mode automatically names the node for the machine host
-     name. The tutorial covers other columns in later steps.
+    Docker Engine swarm mode automatically names the node for the machine host
+    name. The tutorial covers other columns in later steps.
 
 ## What's next?
 
