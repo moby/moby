@@ -464,7 +464,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.VarP(&opts.env, "env", "e", "Set environment variables")
 	flags.StringVarP(&opts.workdir, "workdir", "w", "", "Working directory inside the container")
 	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID")
-	flags.VarP(&opts.mounts, flagMount, "m", "Attach a mount to the service")
+	flags.Var(&opts.mounts, flagMount, "Attach a mount to the service")
 
 	flags.Var(&opts.resources.limitCPU, flagLimitCPU, "Limit CPUs")
 	flags.Var(&opts.resources.limitMemBytes, flagLimitMemory, "Limit Memory")
