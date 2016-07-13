@@ -801,7 +801,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 			// If not a stub, then we already have a complete sandbox.
 			if !s.isStub {
 				c.Unlock()
-				return nil, types.BadRequestErrorf("container %s is already present: %v", containerID, s)
+				return nil, types.ForbiddenErrorf("container %s is already present: %v", containerID, s)
 			}
 
 			// We already have a stub sandbox from the
@@ -836,7 +836,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 	c.Lock()
 	if sb.ingress && c.ingressSandbox != nil {
 		c.Unlock()
-		return nil, fmt.Errorf("ingress sandbox already present")
+		return nil, types.ForbiddenErrorf("ingress sandbox already present")
 	}
 
 	if sb.ingress {
