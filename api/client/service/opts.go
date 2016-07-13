@@ -373,7 +373,6 @@ type serviceOptions struct {
 	name    string
 	labels  opts.ListOpts
 	image   string
-	command []string
 	args    []string
 	env     opts.ListOpts
 	workdir string
@@ -416,7 +415,6 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: swarm.ContainerSpec{
 				Image:           opts.image,
-				Command:         opts.command,
 				Args:            opts.args,
 				Env:             opts.env.GetAll(),
 				Dir:             opts.workdir,

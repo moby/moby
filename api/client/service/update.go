@@ -31,7 +31,6 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.String("image", "", "Service image tag")
-	flags.StringSlice("command", []string{}, "Service command")
 	flags.StringSlice("arg", []string{}, "Service command args")
 	addServiceFlags(cmd, opts)
 	return cmd
@@ -141,7 +140,6 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 	updateString(flagName, &spec.Name)
 	updateLabels(flags, &spec.Labels)
 	updateString("image", &cspec.Image)
-	updateSlice("command", &cspec.Command)
 	updateSlice("arg", &cspec.Args)
 	updateListOpts("env", &cspec.Env)
 	updateString("workdir", &cspec.Dir)

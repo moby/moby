@@ -1736,7 +1736,6 @@ _docker_service_update() {
 	if [ "$subcommand" = "update" ] ; then
 		options_with_args="$options_with_args
 			--arg
-			--command
 			--image
 		"
 
