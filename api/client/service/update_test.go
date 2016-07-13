@@ -9,18 +9,42 @@ import (
 
 func TestUpdateServiceCommandAndArgs(t *testing.T) {
 	flags := newUpdateCommand(nil).Flags()
-	flags.Set("command", "the")
-	flags.Set("command", "new")
-	flags.Set("command", "command")
-	flags.Set("arg", "the")
-	flags.Set("arg", "new args")
+	flags.Set("entrypoint", "newcommand")
+	args := []string{"the", "new args"}
 
 	spec := &swarm.ServiceSpec{}
 	cspec := &spec.TaskTemplate.ContainerSpec
 	cspec.Command = []string{"old", "command"}
 	cspec.Args = []string{"old", "args"}
 
-	updateService(flags, spec)
-	assert.EqualStringSlice(t, cspec.Command, []string{"the", "new", "command"})
+	updateService(flags, args, spec)
+	assert.EqualStringSlice(t, cspec.Command, []string{"newcommand"})
 	assert.EqualStringSlice(t, cspec.Args, []string{"the", "new args"})
+}
+
+func TestUpdateServiceClearArgs(t *testing.T) {
+	flags := newUpdateCommand(nil).Flags()
+	args := []string{""}
+
+	spec := &swarm.ServiceSpec{}
+	cspec := &spec.TaskTemplate.ContainerSpec
+	cspec.Args = []string{"old", "args"}
+
+	updateService(flags, args, spec)
+	assert.EqualStringSlice(t, cspec.Args, []string{})
+}
+
+func TestUpdateServiceNoChange(t *testing.T) {
+	flags := newUpdateCommand(nil).Flags()
+	args := []string{}
+
+	spec := &swarm.ServiceSpec{}
+	cspec := &spec.TaskTemplate.ContainerSpec
+	cspec.Args = []string{"old", "args"}
+
+	specCopy := *spec
+	cspecCopy := &specCopy.TaskTemplate.ContainerSpec
+
+	updateService(flags, args, spec)
+	assert.EqualStringSlice(t, cspec.Args, cspecCopy.Args)
 }

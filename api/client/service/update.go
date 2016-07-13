@@ -17,37 +17,44 @@ import (
 	"github.com/spf13/pflag"
 )
 
+type updateOptions struct {
+	args      []string
+	serviceID string
+}
+
 func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
-	opts := newServiceOptions()
+	var opts updateOptions
 
 	cmd := &cobra.Command{
-		Use:   "update [OPTIONS] SERVICE",
+		Use:   "update [OPTIONS] SERVICE [ARG...]",
 		Short: "Update a service",
-		Args:  cli.ExactArgs(1),
+		Args:  cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runUpdate(dockerCli, cmd.Flags(), args[0])
+			opts.serviceID = args[0]
+			if len(args) > 1 {
+				opts.args = args[1:]
+			}
+			return runUpdate(dockerCli, cmd.Flags(), opts)
 		},
 	}
 
 	flags := cmd.Flags()
 	flags.String("image", "", "Service image tag")
-	flags.StringSlice("command", []string{}, "Service command")
-	flags.StringSlice("arg", []string{}, "Service command args")
-	addServiceFlags(cmd, opts)
+	addServiceFlags(cmd, newServiceOptions())
 	return cmd
 }
 
-func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, serviceID string) error {
+func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts updateOptions) error {
 	apiClient := dockerCli.Client()
 	ctx := context.Background()
 	updateOpts := types.ServiceUpdateOptions{}
 
-	service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID)
+	service, _, err := apiClient.ServiceInspectWithRaw(ctx, opts.serviceID)
 	if err != nil {
 		return err
 	}
 
-	err = updateService(flags, &service.Spec)
+	err = updateService(flags, opts.args, &service.Spec)
 	if err != nil {
 		return err
 	}
@@ -73,11 +80,11 @@ func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, serviceID stri
 		return err
 	}
 
-	fmt.Fprintf(dockerCli.Out(), "%s\n", serviceID)
+	fmt.Fprintf(dockerCli.Out(), "%s\n", opts.serviceID)
 	return nil
 }
 
-func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
+func updateService(flags *pflag.FlagSet, args []string, spec *swarm.ServiceSpec) error {
 
 	updateString := func(flag string, field *string) {
 		if flags.Changed(flag) {
@@ -138,11 +145,17 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		return task.Resources
 	}
 
+	switch {
+	case len(args) == 1 && args[0] == "":
+		cspec.Args = []string{}
+	case len(args) > 0:
+		cspec.Args = args
+	}
+
 	updateString(flagName, &spec.Name)
 	updateLabels(flags, &spec.Labels)
 	updateString("image", &cspec.Image)
-	updateSlice("command", &cspec.Command)
-	updateSlice("arg", &cspec.Args)
+	updateSlice(flagEntrypoint, &cspec.Command)
 	updateListOpts("env", &cspec.Env)
 	updateString("workdir", &cspec.Dir)
 	updateString(flagUser, &cspec.User)
