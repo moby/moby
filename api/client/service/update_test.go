@@ -35,6 +35,15 @@ func TestUpdateLabels(t *testing.T) {
 	assert.Equal(t, labels["toadd"], "newlabel")
 }
 
+func TestUpdateLabelsRemoveALabelThatDoesNotExist(t *testing.T) {
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("label-rm", "dne")
+
+	labels := map[string]string{"foo": "theoldlabel"}
+	updateLabels(flags, &labels)
+	assert.Equal(t, len(labels), 1)
+}
+
 func TestUpdatePlacement(t *testing.T) {
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("constraint-add", "node=toadd")
@@ -61,6 +70,18 @@ func TestUpdateEnvironment(t *testing.T) {
 	assert.Equal(t, len(envs), 2)
 	assert.Equal(t, envs[0], "tokeep=value")
 	assert.Equal(t, envs[1], "toadd=newenv")
+}
+
+func TestUpdateEnvironmentWithDuplicateValues(t *testing.T) {
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("env-add", "foo=newenv")
+	flags.Set("env-add", "foo=dupe")
+	flags.Set("env-rm", "foo")
+
+	envs := []string{"foo=value"}
+
+	updateEnvironment(flags, &envs)
+	assert.Equal(t, len(envs), 0)
 }
 
 func TestUpdateMounts(t *testing.T) {

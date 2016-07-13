@@ -103,13 +103,6 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		}
 	}
 
-	updateListOpts := func(flag string, field *[]string) {
-		if flags.Changed(flag) {
-			value := flags.Lookup(flag).Value.(*opts.ListOpts)
-			*field = value.GetAll()
-		}
-	}
-
 	updateInt64Value := func(flag string, field *int64) {
 		if flags.Changed(flag) {
 			*field = flags.Lookup(flag).Value.(int64Value).Value()
@@ -243,15 +236,10 @@ func anyChanged(flags *pflag.FlagSet, fields ...string) bool {
 
 func updatePlacement(flags *pflag.FlagSet, placement *swarm.Placement) {
 	field, _ := flags.GetStringSlice(flagConstraintAdd)
-	constraints := &placement.Constraints
 	placement.Constraints = append(placement.Constraints, field...)
 
 	toRemove := buildToRemoveSet(flags, flagConstraintRemove)
-	for i, constraint := range placement.Constraints {
-		if _, exists := toRemove[constraint]; exists {
-			*constraints = append((*constraints)[:i], (*constraints)[i+1:]...)
-		}
-	}
+	placement.Constraints = removeItems(placement.Constraints, toRemove, itemKey)
 }
 
 func updateLabels(flags *pflag.FlagSet, field *map[string]string) {
@@ -280,17 +268,16 @@ func updateEnvironment(flags *pflag.FlagSet, field *[]string) {
 		*field = append(*field, value.GetAll()...)
 	}
 	toRemove := buildToRemoveSet(flags, flagEnvRemove)
-	for i, env := range *field {
-		key := envKey(env)
-		if _, exists := toRemove[key]; exists {
-			*field = append((*field)[:i], (*field)[i+1:]...)
-		}
-	}
+	*field = removeItems(*field, toRemove, envKey)
 }
 
 func envKey(value string) string {
 	kv := strings.SplitN(value, "=", 2)
 	return kv[0]
+}
+
+func itemKey(value string) string {
+	return value
 }
 
 func buildToRemoveSet(flags *pflag.FlagSet, flag string) map[string]struct{} {
@@ -308,17 +295,34 @@ func buildToRemoveSet(flags *pflag.FlagSet, flag string) map[string]struct{} {
 	return toRemove
 }
 
+func removeItems(
+	seq []string,
+	toRemove map[string]struct{},
+	keyFunc func(string) string,
+) []string {
+	newSeq := []string{}
+	for _, item := range seq {
+		if _, exists := toRemove[keyFunc(item)]; !exists {
+			newSeq = append(newSeq, item)
+		}
+	}
+	return newSeq
+}
+
 func updateMounts(flags *pflag.FlagSet, mounts *[]swarm.Mount) {
 	if flags.Changed(flagMountAdd) {
 		values := flags.Lookup(flagMountAdd).Value.(*MountOpt).Value()
 		*mounts = append(*mounts, values...)
 	}
 	toRemove := buildToRemoveSet(flags, flagMountRemove)
-	for i, mount := range *mounts {
-		if _, exists := toRemove[mount.Target]; exists {
-			*mounts = append((*mounts)[:i], (*mounts)[i+1:]...)
+
+	newMounts := []swarm.Mount{}
+	for _, mount := range *mounts {
+		if _, exists := toRemove[mount.Target]; !exists {
+			newMounts = append(newMounts, mount)
 		}
 	}
+	*mounts = newMounts
 }
 
 func updatePorts(flags *pflag.FlagSet, portConfig *[]swarm.PortConfig) {
@@ -331,19 +335,27 @@ func updatePorts(flags *pflag.FlagSet, portConfig *[]swarm.PortConfig) {
 		}
 	}
 
-	if flags.Changed(flagPublishRemove) {
-		toRemove := flags.Lookup(flagPublishRemove).Value.(*opts.ListOpts).GetAll()
+	if !flags.Changed(flagPublishRemove) {
+		return
+	}
+	toRemove := flags.Lookup(flagPublishRemove).Value.(*opts.ListOpts).GetAll()
+	newPorts := []swarm.PortConfig{}
+portLoop:
+	for _, port := range *portConfig {
 		for _, rawTargetPort := range toRemove {
 			targetPort := nat.Port(rawTargetPort)
-			for i, port := range *portConfig {
-				if string(port.Protocol) == targetPort.Proto() &&
-					port.TargetPort == uint32(targetPort.Int()) {
-					*portConfig = append((*portConfig)[:i], (*portConfig)[i+1:]...)
-					break
-				}
+			if equalPort(targetPort, port) {
+				continue portLoop
 			}
 		}
+		newPorts = append(newPorts, port)
 	}
+	*portConfig = newPorts
+}
+
+func equalPort(targetPort nat.Port, port swarm.PortConfig) bool {
+	return (string(port.Protocol) == targetPort.Proto() &&
+		port.TargetPort == uint32(targetPort.Int()))
 }
 
 func updateNetworks(flags *pflag.FlagSet, attachments *[]swarm.NetworkAttachmentConfig) {
@@ -354,11 +366,13 @@ func updateNetworks(flags *pflag.FlagSet, attachments *[]swarm.NetworkAttachment
 		}
 	}
 	toRemove := buildToRemoveSet(flags, flagNetworkRemove)
-	for i, network := range *attachments {
-		if _, exists := toRemove[network.Target]; exists {
-			*attachments = append((*attachments)[:i], (*attachments)[i+1:]...)
+	newNetworks := []swarm.NetworkAttachmentConfig{}
+	for _, network := range *attachments {
+		if _, exists := toRemove[network.Target]; !exists {
+			newNetworks = append(newNetworks, network)
 		}
 	}
+	*attachments = newNetworks
 }
 
 func updateReplicas(flags *pflag.FlagSet, serviceMode *swarm.ServiceMode) error {
