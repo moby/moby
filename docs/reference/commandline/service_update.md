@@ -18,7 +18,6 @@ Update a service
 
 Options:
       --arg value                    Service command args (default [])
-      --command value                Service command (default [])
       --constraint value             Placement constraints (default [])
       --endpoint-mode string         Endpoint mode (vip or dnsrr)
   -e, --env value                    Set environment variables (default [])

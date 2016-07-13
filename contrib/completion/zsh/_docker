@@ -1154,7 +1154,6 @@ __docker_service_subcommand() {
                 $opts_help \
                 $opts_create_update \
                 "($help)--arg=[Service command args]:arguments: _normal" \
-                "($help)--command=[Service command]:command: _command_names -e" \
                 "($help)--image=[Service image tag]:image:__docker_repositories" \
                 "($help -)1:service:__docker_complete_services" && ret=0
             ;;
