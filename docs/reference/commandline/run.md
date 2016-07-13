@@ -224,7 +224,7 @@ will automatically create this directory on the host for you. In the
 example above, Docker will create the `/doesnt/exist`
 folder before starting your container.
 
-    $ docker run --read-only -v /icanwrite busybox touch /icanwrite here
+    $ docker run --read-only -v /icanwrite busybox touch /icanwrite/here
 
 Volumes can be used in combination with `--read-only` to control where
 a container writes files. The `--read-only` flag mounts the container's root
