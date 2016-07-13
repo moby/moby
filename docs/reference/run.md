@@ -630,10 +630,8 @@ with the same logic -- if the original volume was specified with a name it will 
     --security-opt="label=type:TYPE"   : Set the label type for the container
     --security-opt="label=level:LEVEL" : Set the label level for the container
     --security-opt="label=disable"     : Turn off label confinement for the container
-    --security-opt="apparmor=PROFILE"  : Set the apparmor profile to be applied
-                                         to the container
-    --security-opt="no-new-privileges" : Disable container processes from gaining
-                                         new privileges
+    --security-opt="apparmor=PROFILE"  : Set the apparmor profile to be applied to the container
+    --security-opt="no-new-privileges" : Disable container processes from gaining new privileges
     --security-opt="seccomp=unconfined": Turn off seccomp confinement for the container
     --security-opt="seccomp=profile.json: White listed syscalls seccomp Json file to be used as a seccomp filter
 
@@ -665,7 +663,10 @@ privileges, you can execute the following command:
 
     $ docker run --security-opt no-new-privileges -it centos bash
 
-For more details, see [kernel documentation](https://www.kernel.org/doc/Documentation/prctl/no_new_privs.txt).
+This means that commands that raise privileges such as `su` or `sudo` will no longer work.
+It also causes any seccomp filters to be applied later, after privileges have been dropped
+which may mean you can have a more restrictive set of filters.
+For more details, see the [kernel documentation](https://www.kernel.org/doc/Documentation/prctl/no_new_privs.txt).
 
 ## Specifying custom cgroups
 
