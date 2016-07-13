@@ -2312,8 +2312,8 @@ _docker_run() {
 		--memory-swappiness
 		--memory-reservation
 		--name
-		--net
-		--net-alias
+		--network
+		--network-alias
 		--oom-score-adj
 		--pid
 		--pids-limit
@@ -2469,7 +2469,7 @@ _docker_run() {
 			__docker_complete_log_options
 			return
 			;;
-		--net)
+		--network)
 			case "$cur" in
 				container:*)
 					local cur=${cur#*:}
