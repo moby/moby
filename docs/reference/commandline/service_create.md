@@ -25,7 +25,7 @@ Options:
       --limit-cpu value              Limit CPUs (default 0.000)
       --limit-memory value           Limit Memory (default 0 B)
       --mode string                  Service mode (replicated or global) (default "replicated")
-  -m, --mount value                  Attach a mount to the service
+      --mount value                  Attach a mount to the service
       --name string                  Service name
       --network value                Network attachments (default [])
   -p, --publish value                Publish a port as a node port (default [])

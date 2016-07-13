@@ -19,7 +19,7 @@ Display detailed information on one or more nodes
 Options:
   -f, --format string   Format the output using the given go template
       --help            Print usage
-  -p, --pretty          Print the information in a human friendly format.
+      --pretty          Print the information in a human friendly format.
 ```
 
 Returns information about a node. By default, this command renders all results

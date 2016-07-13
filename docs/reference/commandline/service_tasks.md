@@ -20,7 +20,7 @@ Options:
   -a, --all            Display all tasks
   -f, --filter value   Filter output based on conditions provided
       --help           Print usage
-  -n, --no-resolve     Do not map IDs to Names
+      --no-resolve     Do not map IDs to Names
 ```
 
 Lists the tasks that are running as part of the specified service. This command

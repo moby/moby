@@ -26,7 +26,7 @@ Options:
   -l, --label value                  Service labels (default [])
       --limit-cpu value              Limit CPUs (default 0.000)
       --limit-memory value           Limit Memory (default 0 B)
-  -m, --mount value                  Attach a mount to the service
+      --mount value                  Attach a mount to the service
       --name string                  Service name
       --network value                Network attachments (default [])
   -p, --publish value                Publish a port as a node port (default [])

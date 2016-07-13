@@ -34,7 +34,7 @@ func newTasksCommand(dockerCli *client.DockerCli) *cobra.Command {
 	}
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.all, "all", "a", false, "Display all instances")
-	flags.BoolVarP(&opts.noResolve, "no-resolve", "n", false, "Do not map IDs to Names")
+	flags.BoolVar(&opts.noResolve, "no-resolve", false, "Do not map IDs to Names")
 	flags.VarP(&opts.filter, "filter", "f", "Filter output based on conditions provided")
 
 	return cmd
