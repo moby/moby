@@ -26,6 +26,7 @@ type nwIface struct {
 	mac         net.HardwareAddr
 	address     *net.IPNet
 	addressIPv6 *net.IPNet
+	ipAliases   []*net.IPNet
 	llAddrs     []*net.IPNet
 	routes      []*net.IPNet
 	bridge      bool
@@ -94,6 +95,13 @@ func (i *nwIface) LinkLocalAddresses() []*net.IPNet {
 	defer i.Unlock()
 
 	return i.llAddrs
+}
+
+func (i *nwIface) IPAliases() []*net.IPNet {
+	i.Lock()
+	defer i.Unlock()
+
+	return i.ipAliases
 }
 
 func (i *nwIface) Routes() []*net.IPNet {
@@ -324,6 +332,7 @@ func configureInterface(nlh *netlink.Handle, iface netlink.Link, i *nwIface) err
 		{setInterfaceIPv6, fmt.Sprintf("error setting interface %q IPv6 to %v", ifaceName, i.AddressIPv6())},
 		{setInterfaceMaster, fmt.Sprintf("error setting interface %q master to %q", ifaceName, i.DstMaster())},
 		{setInterfaceLinkLocalIPs, fmt.Sprintf("error setting interface %q link local IPs to %v", ifaceName, i.LinkLocalAddresses())},
+		{setInterfaceIPAliases, fmt.Sprintf("error setting interface %q IP Aliases to %v", ifaceName, i.IPAliases())},
 	}
 
 	for _, config := range ifaceConfigurators {
@@ -370,6 +379,16 @@ func setInterfaceIPv6(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error
 func setInterfaceLinkLocalIPs(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
 	for _, llIP := range i.LinkLocalAddresses() {
 		ipAddr := &netlink.Addr{IPNet: llIP}
+		if err := nlh.AddrAdd(iface, ipAddr); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func setInterfaceIPAliases(nlh *netlink.Handle, iface netlink.Link, i *nwIface) error {
+	for _, si := range i.IPAliases() {
+		ipAddr := &netlink.Addr{IPNet: si}
 		if err := nlh.AddrAdd(iface, ipAddr); err != nil {
 			return err
 		}

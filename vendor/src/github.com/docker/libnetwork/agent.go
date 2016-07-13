@@ -358,6 +358,8 @@ func (c *controller) agentInit(bindAddrOrInterface string) error {
 		return false
 	})
 
+	c.WalkNetworks(joinCluster)
+
 	return nil
 }
 
