@@ -161,16 +161,7 @@ func (tr *authTransport) CancelRequest(req *http.Request) {
 	}
 }
 
-// NewSession creates a new session
-// TODO(tiborvass): remove authConfig param once registry client v2 is vendored
-func NewSession(client *http.Client, authConfig *types.AuthConfig, endpoint *V1Endpoint) (r *Session, err error) {
-	r = &Session{
-		authConfig:    authConfig,
-		client:        client,
-		indexEndpoint: endpoint,
-		id:            stringid.GenerateRandomID(),
-	}
-
+func authorizeClient(client *http.Client, authConfig *types.AuthConfig, endpoint *V1Endpoint) error {
 	var alwaysSetBasicAuth bool
 
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
@@ -178,7 +169,7 @@ func NewSession(client *http.Client, authConfig *types.AuthConfig, endpoint *V1E
 	if endpoint.String() != IndexServer && endpoint.URL.Scheme == "https" {
 		info, err := endpoint.Ping()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if info.Standalone && authConfig != nil {
 			logrus.Debugf("Endpoint %s is eligible for private registry. Enabling decorator.", endpoint.String())
@@ -192,11 +183,30 @@ func NewSession(client *http.Client, authConfig *types.AuthConfig, endpoint *V1E
 
 	jar, err := cookiejar.New(nil)
 	if err != nil {
-		return nil, errors.New("cookiejar.New is not supposed to return an error")
+		return errors.New("cookiejar.New is not supposed to return an error")
 	}
 	client.Jar = jar
 
-	return r, nil
+	return nil
+}
+
+func newSession(client *http.Client, authConfig *types.AuthConfig, endpoint *V1Endpoint) *Session {
+	return &Session{
+		authConfig:    authConfig,
+		client:        client,
+		indexEndpoint: endpoint,
+		id:            stringid.GenerateRandomID(),
+	}
+}
+
+// NewSession creates a new session
+// TODO(tiborvass): remove authConfig param once registry client v2 is vendored
+func NewSession(client *http.Client, authConfig *types.AuthConfig, endpoint *V1Endpoint) (*Session, error) {
+	if err := authorizeClient(client, authConfig, endpoint); err != nil {
+		return nil, err
+	}
+
+	return newSession(client, authConfig, endpoint), nil
 }
 
 // ID returns this registry session's ID.

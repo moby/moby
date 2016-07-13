@@ -10,6 +10,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 	registrytypes "github.com/docker/engine-api/types/registry"
@@ -132,10 +133,43 @@ func (s *DefaultService) Search(ctx context.Context, term string, limit int, aut
 		return nil, err
 	}
 
-	r, err := NewSession(endpoint.client, authConfig, endpoint)
-	if err != nil {
-		return nil, err
+	var client *http.Client
+	if authConfig != nil && authConfig.IdentityToken != "" && authConfig.Username != "" {
+		creds := NewStaticCredentialStore(authConfig)
+		scopes := []auth.Scope{
+			auth.RegistryScope{
+				Name:    "catalog",
+				Actions: []string{"search"},
+			},
+		}
+
+		modifiers := DockerHeaders(userAgent, nil)
+		v2Client, foundV2, err := v2AuthHTTPClient(endpoint.URL, endpoint.client.Transport, modifiers, creds, scopes)
+		if err != nil {
+			if fErr, ok := err.(fallbackError); ok {
+				logrus.Errorf("Cannot use identity token for search, v2 auth not supported: %v", fErr.err)
+			} else {
+				return nil, err
+			}
+		} else if foundV2 {
+			// Copy non transport http client features
+			v2Client.Timeout = endpoint.client.Timeout
+			v2Client.CheckRedirect = endpoint.client.CheckRedirect
+			v2Client.Jar = endpoint.client.Jar
+
+			logrus.Debugf("using v2 client for search to %s", endpoint.URL)
+			client = v2Client
+		}
 	}
+
+	if client == nil {
+		client = endpoint.client
+		if err := authorizeClient(client, authConfig, endpoint); err != nil {
+			return nil, err
+		}
+	}
+
+	r := newSession(client, authConfig, endpoint)
 
 	if index.Official {
 		localName := remoteName
