@@ -57,10 +57,10 @@ node. For example, the tutorial uses a machine named `manager1`.
      ...snip...
      Swarm: active
       NodeID: dxn1zf6l61qsb1josjja83ngz
-      IsManager: Yes
+      Is Manager: true
       Managers: 1
       Nodes: 1
-      CACertHash: sha256:b7986d3baeff2f5664dfe350eec32e2383539ec1a802ba541c4eb829056b5f61
+      CA Certificate Hash: sha256:b7986d3baeff2f5664dfe350eec32e2383539ec1a802ba541c4eb829056b5f61
      ...snip...
      ```
 
