@@ -3151,6 +3151,10 @@ Sets up an exec instance in a running container `id`
       "AttachStderr": true,
       "Cmd": ["sh"],
       "DetachKeys": "ctrl-p,ctrl-q",
+      "Env": [
+        "FOO=bar",
+        "BAZ=quux"
+      ],
       "Privileged": true,
       "Tty": true,
       "User": "123:456"
@@ -3175,6 +3179,7 @@ Sets up an exec instance in a running container `id`
         container. Format is a single character `[a-Z]` or `ctrl-<value>`
         where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 -   **Tty** - Boolean value to allocate a pseudo-TTY.
+-   **Env** - A list of environment variables in the form of `["VAR=value", ...]`
 -   **Cmd** - Command to run specified as a string or an array of strings.
 -   **Privileged** - Boolean value, runs the exec process with extended privileges.
 -   **User** - A string value specifying the user, and optionally, group to run

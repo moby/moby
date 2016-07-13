@@ -131,6 +131,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /containers/create` now takes `StopTimeout` field.
 * `POST /services/create` and `POST /services/(id or name)/update` now accept `Monitor` and `MaxFailureRatio` parameters, which control the response to failures during service updates.
 * `GET /networks/(name)` now returns `Created`.
+* `POST /containers/(id or name)/exec` now accepts an `Env` field, which holds a list of environment variables to be set in the context of the command execution.
 
 ### v1.24 API changes
 

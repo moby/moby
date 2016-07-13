@@ -127,7 +127,7 @@ func (d *Daemon) ContainerExecCreate(name string, config *types.ExecConfig) (str
 	if err != nil {
 		return "", err
 	}
-	execConfig.Env = utils.ReplaceOrAppendEnvValues(container.CreateDaemonEnvironment(config.Tty, linkedEnv), execConfig.Env)
+	execConfig.Env = utils.ReplaceOrAppendEnvValues(container.CreateDaemonEnvironment(config.Tty, linkedEnv), config.Env)
 	if len(execConfig.User) == 0 {
 		execConfig.User = container.Config.User
 	}
