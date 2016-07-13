@@ -20,7 +20,7 @@ Options:
   -a, --all            Display all instances
   -f, --filter value   Filter output based on conditions provided
       --help           Print usage
-  -n, --no-resolve     Do not map IDs to Names
+      --no-resolve     Do not map IDs to Names
 ```
 
 Lists all the tasks on a Node that Docker knows about. You can filter using the `-f` or `--filter` flag. Refer to the [filtering](#filtering) section for more information about available filter options.
