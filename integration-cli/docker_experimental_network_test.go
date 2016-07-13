@@ -589,3 +589,17 @@ func linkExists(c *check.C, master string) (string, error) {
 	}
 	return out, err
 }
+
+func deleteInterface(c *check.C, ifName string) {
+	ifCmd := exec.Command("ip", "link", "delete", ifName)
+	out, _, err := runCommandWithOutput(ifCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	flushCmd := exec.Command("iptables", "-t", "nat", "--flush")
+	out, _, err = runCommandWithOutput(flushCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	flushCmd = exec.Command("iptables", "--flush")
+	out, _, err = runCommandWithOutput(flushCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+}

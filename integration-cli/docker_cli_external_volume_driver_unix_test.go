@@ -58,7 +58,9 @@ func (s *DockerExternalVolumeSuite) TearDownTest(c *check.C) {
 
 func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 	mux := http.NewServeMux()
-	s.server = httptest.NewServer(mux)
+	s.d = NewDaemon(c)
+	s.server = s.d.newHTTPTestServer(mux)
+	s.d.Stop()
 
 	type pluginRequest struct {
 		Name string

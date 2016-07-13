@@ -5,11 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"syscall"
 	"testing"
 
 	"github.com/docker/docker/cliconfig"
-	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/go-check/check"
@@ -176,7 +174,7 @@ type DockerDaemonSuite struct {
 }
 
 func (s *DockerDaemonSuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	s.d = NewDaemon(c)
 }
 
@@ -186,21 +184,6 @@ func (s *DockerDaemonSuite) TearDownTest(c *check.C) {
 		s.d.Stop()
 	}
 	s.ds.TearDownTest(c)
-}
-
-func (s *DockerDaemonSuite) TearDownSuite(c *check.C) {
-	err := filepath.Walk(daemonSockRoot, func(path string, fi os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if fi.Mode() == os.ModeSocket {
-			syscall.Unlink(path)
-		}
-		return nil
-	})
-	c.Assert(err, checker.IsNil, check.Commentf("error while cleaning up daemon sockets"))
-	err = os.RemoveAll(daemonSockRoot)
-	c.Assert(err, checker.IsNil, check.Commentf("could not cleanup daemon socket root"))
 }
 
 const defaultSwarmPort = 2477
@@ -227,9 +210,7 @@ func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *Swarm
 		Daemon: NewDaemon(c),
 		port:   defaultSwarmPort + s.portIndex,
 	}
-	d.listenAddr = fmt.Sprintf("0.0.0.0:%d", d.port)
-	err := d.StartWithBusybox("--iptables=false", "--swarm-default-advertise-addr=lo") // avoid networking conflicts
-	c.Assert(err, check.IsNil)
+	c.Assert(d.StartWithBusybox(), check.IsNil)
 
 	if joinSwarm == true {
 		if len(s.daemons) > 0 {
@@ -239,7 +220,7 @@ func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *Swarm
 				token = tokens.Manager
 			}
 			c.Assert(d.Join(swarm.JoinRequest{
-				RemoteAddrs: []string{s.daemons[0].listenAddr},
+				RemoteAddrs: []string{s.daemons[0].defaultListenAddress()},
 				JoinToken:   token,
 			}), check.IsNil)
 		} else {

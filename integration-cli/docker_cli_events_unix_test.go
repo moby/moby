@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -400,7 +401,8 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	// daemon config file
-	configFilePath := "test.json"
+	configFilePath, err := filepath.Abs("test.json")
+	c.Assert(err, checker.IsNil)
 	configFile, err := os.Create(configFilePath)
 	c.Assert(err, checker.IsNil)
 	defer os.Remove(configFilePath)
@@ -430,7 +432,7 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *check.C) {
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
 
-	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+	s.d.Signal(syscall.SIGHUP)
 
 	time.Sleep(3 * time.Second)
 
@@ -444,7 +446,8 @@ func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	// daemon config file
-	configFilePath := "test.json"
+	configFilePath, err := filepath.Abs("test.json")
+	c.Assert(err, checker.IsNil)
 	configFile, err := os.Create(configFilePath)
 	c.Assert(err, checker.IsNil)
 	defer os.Remove(configFilePath)
@@ -468,7 +471,7 @@ func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *check.C) {
 	}
 	c.Assert(daemonID, checker.Not(checker.Equals), "")
 
-	syscall.Kill(s.d.cmd.Process.Pid, syscall.SIGHUP)
+	s.d.Signal(syscall.SIGHUP)
 
 	time.Sleep(3 * time.Second)
 

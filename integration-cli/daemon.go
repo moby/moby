@@ -6,12 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/docker/docker/opts"
@@ -20,6 +23,7 @@ import (
 	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/go-connections/sockets"
 	"github.com/go-check/check"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 var daemonSockRoot = filepath.Join(os.TempDir(), "docker-integration")
@@ -35,12 +39,14 @@ type Daemon struct {
 	root              string
 	stdin             io.WriteCloser
 	stdout, stderr    io.ReadCloser
-	cmd               *exec.Cmd
 	storageDriver     string
 	wait              chan error
 	userlandProxy     bool
-	useDefaultHost    bool
 	useDefaultTLSHost bool
+	containerID       string
+	dockerdPID        string
+	ip                string
+	tlsAddr           string
 }
 
 type clientConfig struct {
@@ -74,8 +80,31 @@ func NewDaemon(c *check.C) *Daemon {
 		}
 	}
 
+	args := []string{"run", "-p", strconv.Itoa(opts.DefaultTLSHTTPPort), "-itd", "--privileged", "--pid=host", "-e", "PATH", "-e", "DOCKER_SERVICE_PREFER_OFFLINE_IMAGE=1", "debian:jessie", "nsenter", "-t", "1", "-m", "sh"}
+	cmd := exec.Command(dockerBinary, args...)
+	out, err := cmd.CombinedOutput()
+	c.Assert(err, check.IsNil, check.Commentf("error starting daemon for container: %s", string(out)))
+	containerID := strings.TrimSpace(string(out))
+
+	cmd = exec.Command(dockerBinary, "inspect", "-f", "{{.NetworkSettings.Networks.bridge.IPAddress}}", containerID)
+	out, err = cmd.CombinedOutput()
+	c.Assert(err, check.IsNil, check.Commentf("error getting daemon ip: %s", string(out)))
+	ip := strings.TrimSpace(string(out))
+
+	cmd = exec.Command(dockerBinary, "port", containerID, strconv.Itoa(opts.DefaultTLSHTTPPort))
+	out, err = cmd.CombinedOutput()
+	c.Assert(err, check.IsNil, check.Commentf("error getting tls port: %s", string(out)))
+	_, port, err := net.SplitHostPort(strings.TrimSpace(string(out)))
+	c.Assert(err, check.IsNil)
+	tlsAddr := net.JoinHostPort(opts.DefaultHTTPHost, port)
+
+	c.Assert(ip, check.Not(check.Equals), "")
+
 	return &Daemon{
 		id:            id,
+		containerID:   containerID,
+		tlsAddr:       tlsAddr,
+		ip:            ip,
 		c:             c,
 		folder:        daemonFolder,
 		root:          daemonRoot,
@@ -92,10 +121,14 @@ func (d *Daemon) getClientConfig() (*clientConfig, error) {
 		proto     string
 	)
 	if d.useDefaultTLSHost {
+		wd, err := os.Getwd()
+		if err != nil {
+			return nil, err
+		}
 		option := &tlsconfig.Options{
-			CAFile:   "fixtures/https/ca.pem",
-			CertFile: "fixtures/https/client-cert.pem",
-			KeyFile:  "fixtures/https/client-key.pem",
+			CAFile:   filepath.Join(wd, "fixtures/https/ca.pem"),
+			CertFile: filepath.Join(wd, "fixtures/https/client-cert.pem"),
+			KeyFile:  filepath.Join(wd, "fixtures/https/client-key.pem"),
 		}
 		tlsConfig, err := tlsconfig.Client(*option)
 		if err != nil {
@@ -104,17 +137,12 @@ func (d *Daemon) getClientConfig() (*clientConfig, error) {
 		transport = &http.Transport{
 			TLSClientConfig: tlsConfig,
 		}
-		addr = fmt.Sprintf("%s:%d", opts.DefaultHTTPHost, opts.DefaultTLSHTTPPort)
+		addr = d.tlsAddr
 		scheme = "https"
 		proto = "tcp"
-	} else if d.useDefaultHost {
-		addr = opts.DefaultUnixSocket
-		proto = "unix"
-		scheme = "http"
-		transport = &http.Transport{}
 	} else {
-		addr = d.sockPath()
-		proto = "unix"
+		addr = fmt.Sprintf("%s:%d", d.ip, opts.DefaultHTTPPort)
+		proto = "tcp"
 		scheme = "http"
 		transport = &http.Transport{}
 	}
@@ -143,14 +171,17 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	d.c.Assert(err, check.IsNil, check.Commentf("[%s] could not find docker binary in $PATH", d.id))
 
 	args := append(d.GlobalFlags,
+		"--cgroup-parent", "/docker/"+d.containerID+"/docker",
 		"--containerd", "/var/run/docker/libcontainerd/docker-containerd.sock",
 		"--graph", d.root,
 		"--exec-root", filepath.Join(d.folder, "exec-root"),
 		"--pidfile", fmt.Sprintf("%s/docker.pid", d.folder),
 		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
 	)
-	if !(d.useDefaultHost || d.useDefaultTLSHost) {
-		args = append(args, []string{"--host", d.sock()}...)
+	if d.useDefaultTLSHost {
+		args = append(args, []string{"--host", fmt.Sprintf("tcp://0.0.0.0:%d", opts.DefaultTLSHTTPPort)}...)
+	} else {
+		args = append(args, []string{"--host", fmt.Sprintf("tcp://%s:%d", d.ip, opts.DefaultHTTPPort)}...)
 	}
 	if root := os.Getenv("DOCKER_REMAP_ROOT"); root != "" {
 		args = append(args, []string{"--userns-remap", root}...)
@@ -175,21 +206,23 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		args = append(args, "--storage-driver", d.storageDriver)
 	}
 
-	args = append(args, providedArgs...)
-	d.cmd = exec.Command(dockerdBinary, args...)
-	d.cmd.Env = append(os.Environ(), "DOCKER_SERVICE_PREFER_OFFLINE_IMAGE=1")
-	d.cmd.Stdout = out
-	d.cmd.Stderr = out
+	args = append([]string{"exec", d.containerID, dockerdBinary}, append(args, providedArgs...)...)
+	if terminal.IsTerminal(int(out.Fd())) {
+		args = append([]string{args[0], "-t"}, args[1:]...)
+	}
+	cmd := exec.Command(dockerBinary, args...)
+	cmd.Stdout = out
+	cmd.Stderr = out
 	d.logFile = out
 
-	if err := d.cmd.Start(); err != nil {
+	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("[%s] could not start daemon container: %v", d.id, err)
 	}
 
 	wait := make(chan error)
 
 	go func() {
-		wait <- d.cmd.Wait()
+		wait <- cmd.Wait()
 		d.c.Logf("[%s] exiting daemon", d.id)
 		close(wait)
 	}()
@@ -230,6 +263,10 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 				d.c.Logf("[%s] received status != 200 OK: %s", d.id, resp.Status)
 			}
 			d.c.Logf("[%s] daemon started", d.id)
+			d.dockerdPID, err = d.getDockerdPID()
+			if err != nil {
+				return err
+			}
 			d.root, err = d.queryRootDir()
 			if err != nil {
 				return fmt.Errorf("[%s] error querying daemon for root directory: %v", d.id, err)
@@ -252,16 +289,15 @@ func (d *Daemon) StartWithBusybox(arg ...string) error {
 
 // Kill will send a SIGKILL to the daemon
 func (d *Daemon) Kill() error {
-	if d.cmd == nil || d.wait == nil {
+	if d.wait == nil {
 		return errors.New("daemon not started")
 	}
 
 	defer func() {
 		d.logFile.Close()
-		d.cmd = nil
 	}()
 
-	if err := d.cmd.Process.Kill(); err != nil {
+	if err := d.Signal(syscall.SIGKILL); err != nil {
 		d.c.Logf("Could not kill daemon: %v", err)
 		return err
 	}
@@ -273,25 +309,37 @@ func (d *Daemon) Kill() error {
 	return nil
 }
 
+// Signal sends a specified signal to the current daemon process
+func (d *Daemon) Signal(sig syscall.Signal) error {
+	if d.wait == nil {
+		return errors.New("daemon not started")
+	}
+	if _, err := d.runInSandbox("kill", fmt.Sprintf("-%d", sig), d.dockerdPID); err != nil {
+		return fmt.Errorf("could not send signal: %v", err)
+	}
+	return nil
+}
+
 // Stop will send a SIGINT every second and wait for the daemon to stop.
 // If it timeouts, a SIGKILL is sent.
 // Stop will not delete the daemon directory. If a purged daemon is needed,
 // instantiate a new one with NewDaemon.
 func (d *Daemon) Stop() error {
-	if d.cmd == nil || d.wait == nil {
+	if d.wait == nil {
 		return errors.New("daemon not started")
 	}
 
 	defer func() {
 		d.logFile.Close()
-		d.cmd = nil
+		// remove pid file even if daemon isn't running any more
+		os.Remove(fmt.Sprintf("%s/docker.pid", d.folder))
 	}()
 
 	i := 1
 	tick := time.Tick(time.Second)
 
-	if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
-		return fmt.Errorf("could not send signal: %v", err)
+	if err := d.Signal(syscall.SIGINT); err != nil {
+		return err
 	}
 out1:
 	for {
@@ -316,19 +364,15 @@ out2:
 				d.c.Logf("tried to interrupt daemon for %d times, now try to kill it", i)
 				break out2
 			}
-			d.c.Logf("Attempt #%d: daemon is still running with pid %d", i, d.cmd.Process.Pid)
-			if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
-				return fmt.Errorf("could not send signal: %v", err)
+			d.c.Logf("Attempt #%d: daemon is still running", i)
+			if err := d.Signal(syscall.SIGINT); err != nil {
+				d.c.Logf("could not send signal: %v", err)
 			}
 		}
 	}
 
-	if err := d.cmd.Process.Kill(); err != nil {
+	if err := d.Signal(syscall.SIGKILL); err != nil {
 		d.c.Logf("Could not kill daemon: %v", err)
-		return err
-	}
-
-	if err := os.Remove(fmt.Sprintf("%s/docker.pid", d.folder)); err != nil {
 		return err
 	}
 
@@ -369,6 +413,32 @@ func (d *Daemon) LoadBusybox() error {
 		d.c.Logf("could not remove %s: %v", bb, err)
 	}
 	return nil
+}
+
+// runInSandbox executes a command in the container where the daemon is running.
+func (d *Daemon) runInSandbox(args ...string) (string, error) {
+	cmd := exec.Command(dockerBinary, append([]string{"exec", d.containerID}, args...)...)
+	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
+
+// getDockerdPID returns the PID of current dockerd process
+func (d *Daemon) getDockerdPID() (string, error) {
+	cmd := exec.Command(dockerBinary, "top", d.containerID, "x", "-o", "pid,comm")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	for _, l := range strings.Split(string(out), "\n") {
+		f := strings.Fields(l)
+		if len(f) < 2 {
+			return "", fmt.Errorf("invalid ps output")
+		}
+		if f[1] == dockerdBinary {
+			return f[0], nil
+		}
+	}
+	return "", fmt.Errorf("dockerd pid not found")
 }
 
 func (d *Daemon) queryRootDir() (string, error) {
@@ -415,11 +485,10 @@ func (d *Daemon) queryRootDir() (string, error) {
 }
 
 func (d *Daemon) sock() string {
-	return fmt.Sprintf("unix://" + d.sockPath())
-}
-
-func (d *Daemon) sockPath() string {
-	return filepath.Join(daemonSockRoot, d.id+".sock")
+	if d.useDefaultTLSHost {
+		return fmt.Sprintf("tcp://%s", d.tlsAddr)
+	}
+	return fmt.Sprintf("tcp://%s:%d", d.ip, opts.DefaultHTTPPort)
 }
 
 func (d *Daemon) waitRun(contID string) error {
@@ -456,7 +525,11 @@ func (d *Daemon) prependHostArg(args []string) []string {
 			return args
 		}
 	}
-	return append([]string{"--host", d.sock()}, args...)
+	newargs := []string{"--host", d.sock()}
+	if d.useDefaultTLSHost {
+		newargs = append(newargs, "--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/client-cert.pem", "--tlskey", "fixtures/https/client-key.pem")
+	}
+	return append(newargs, args...)
 }
 
 // SockRequest executes a socket request on a daemon and returns statuscode and output.
@@ -532,4 +605,21 @@ func (d *Daemon) checkActiveContainerCount(c *check.C) (interface{}, check.Comme
 		return 0, nil
 	}
 	return len(strings.Split(strings.TrimSpace(out), "\n")), check.Commentf("output: %q", string(out))
+}
+
+// newHTTPTestServer starts a new http test server on the gateway interface so
+// all container daemons can access it
+func (d *Daemon) newHTTPTestServer(handler http.Handler) *httptest.Server {
+	out, err := exec.Command(dockerBinary, "inspect", "-f", "{{.NetworkSettings.Networks.bridge.Gateway}}", d.containerID).Output()
+	d.c.Assert(err, checker.IsNil)
+	gw := strings.TrimSpace(string(out))
+	d.c.Assert(gw, checker.Not(checker.Equals), "")
+	l, err := net.Listen("tcp", gw+":0")
+	d.c.Assert(err, checker.IsNil)
+	ts := &httptest.Server{
+		Listener: l,
+		Config:   &http.Server{Handler: handler},
+	}
+	ts.Start()
+	return ts
 }

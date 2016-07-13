@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net"
 	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
@@ -52,7 +51,7 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 // TestInfoDiscoveryBackend verifies that a daemon run with `--cluster-advertise` and
 // `--cluster-store` properly show the backend's endpoint in info output.
 func (s *DockerSuite) TestInfoDiscoveryBackend(c *check.C) {
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
+	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
 
 	d := NewDaemon(c)
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
@@ -70,7 +69,7 @@ func (s *DockerSuite) TestInfoDiscoveryBackend(c *check.C) {
 // TestInfoDiscoveryInvalidAdvertise verifies that a daemon run with
 // an invalid `--cluster-advertise` configuration
 func (s *DockerSuite) TestInfoDiscoveryInvalidAdvertise(c *check.C) {
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
+	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
 
 	d := NewDaemon(c)
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
@@ -87,7 +86,7 @@ func (s *DockerSuite) TestInfoDiscoveryInvalidAdvertise(c *check.C) {
 // TestInfoDiscoveryAdvertiseInterfaceName verifies that a daemon run with `--cluster-advertise`
 // configured with interface name properly show the advertise ip-address in info output.
 func (s *DockerSuite) TestInfoDiscoveryAdvertiseInterfaceName(c *check.C) {
-	testRequires(c, SameHostDaemon, Network, DaemonIsLinux)
+	testRequires(c, SameHostDaemon, Network, DaemonIsLinux, NotUserNamespace)
 
 	d := NewDaemon(c)
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
@@ -97,18 +96,10 @@ func (s *DockerSuite) TestInfoDiscoveryAdvertiseInterfaceName(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	defer d.Stop()
 
-	iface, err := net.InterfaceByName(discoveryAdvertise)
-	c.Assert(err, checker.IsNil)
-	addrs, err := iface.Addrs()
-	c.Assert(err, checker.IsNil)
-	c.Assert(len(addrs), checker.GreaterThan, 0)
-	ip, _, err := net.ParseCIDR(addrs[0].String())
-	c.Assert(err, checker.IsNil)
-
 	out, err := d.Cmd("info")
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Store: %s\n", discoveryBackend))
-	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Advertise: %s:2375\n", ip.String()))
+	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Advertise: %s:2375\n", d.ip))
 }
 
 func (s *DockerSuite) TestInfoDisplaysRunningContainers(c *check.C) {
@@ -153,7 +144,7 @@ func (s *DockerSuite) TestInfoDisplaysStoppedContainers(c *check.C) {
 }
 
 func (s *DockerSuite) TestInfoDebug(c *check.C) {
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
+	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
 
 	d := NewDaemon(c)
 	err := d.Start("--debug")
@@ -172,7 +163,7 @@ func (s *DockerSuite) TestInfoDebug(c *check.C) {
 }
 
 func (s *DockerSuite) TestInsecureRegistries(c *check.C) {
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
+	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
 
 	registryCIDR := "192.168.1.0/24"
 	registryHost := "insecurehost.com:5000"

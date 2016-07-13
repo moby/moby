@@ -21,7 +21,6 @@ import (
 var defaultReconciliationTimeout = 30 * time.Second
 
 func (s *DockerSwarmSuite) TestApiSwarmInit(c *check.C) {
-	// todo: should find a better way to verify that components are running than /info
 	d1 := s.AddDaemon(c, true, true)
 	info, err := d1.info()
 	c.Assert(err, checker.IsNil)
@@ -42,7 +41,7 @@ func (s *DockerSwarmSuite) TestApiSwarmInit(c *check.C) {
 	c.Assert(info.ControlAvailable, checker.False)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 
-	c.Assert(d2.Join(swarm.JoinRequest{JoinToken: d1.joinTokens(c).Worker, RemoteAddrs: []string{d1.listenAddr}}), checker.IsNil)
+	c.Assert(d2.Join(swarm.JoinRequest{JoinToken: d1.joinTokens(c).Worker, RemoteAddrs: []string{d1.defaultListenAddress()}}), checker.IsNil)
 
 	info, err = d2.info()
 	c.Assert(err, checker.IsNil)
@@ -76,14 +75,14 @@ func (s *DockerSwarmSuite) TestApiSwarmJoinToken(c *check.C) {
 	c.Assert(d1.Init(swarm.InitRequest{}), checker.IsNil)
 
 	d2 := s.AddDaemon(c, false, false)
-	err := d2.Join(swarm.JoinRequest{RemoteAddrs: []string{d1.listenAddr}})
+	err := d2.Join(swarm.JoinRequest{RemoteAddrs: []string{d1.defaultListenAddress()}})
 	c.Assert(err, checker.NotNil)
 	c.Assert(err.Error(), checker.Contains, "join token is necessary")
 	info, err := d2.info()
 	c.Assert(err, checker.IsNil)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 
-	err = d2.Join(swarm.JoinRequest{JoinToken: "foobaz", RemoteAddrs: []string{d1.listenAddr}})
+	err = d2.Join(swarm.JoinRequest{JoinToken: "foobaz", RemoteAddrs: []string{d1.defaultListenAddress()}})
 	c.Assert(err, checker.NotNil)
 	c.Assert(err.Error(), checker.Contains, "join token is necessary")
 	info, err = d2.info()
@@ -92,7 +91,7 @@ func (s *DockerSwarmSuite) TestApiSwarmJoinToken(c *check.C) {
 
 	workerToken := d1.joinTokens(c).Worker
 
-	c.Assert(d2.Join(swarm.JoinRequest{JoinToken: workerToken, RemoteAddrs: []string{d1.listenAddr}}), checker.IsNil)
+	c.Assert(d2.Join(swarm.JoinRequest{JoinToken: workerToken, RemoteAddrs: []string{d1.defaultListenAddress()}}), checker.IsNil)
 	info, err = d2.info()
 	c.Assert(err, checker.IsNil)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
@@ -104,7 +103,7 @@ func (s *DockerSwarmSuite) TestApiSwarmJoinToken(c *check.C) {
 	// change tokens
 	d1.rotateTokens(c)
 
-	err = d2.Join(swarm.JoinRequest{JoinToken: workerToken, RemoteAddrs: []string{d1.listenAddr}})
+	err = d2.Join(swarm.JoinRequest{JoinToken: workerToken, RemoteAddrs: []string{d1.defaultListenAddress()}})
 	c.Assert(err, checker.NotNil)
 	c.Assert(err.Error(), checker.Contains, "join token is necessary")
 	info, err = d2.info()
@@ -113,7 +112,7 @@ func (s *DockerSwarmSuite) TestApiSwarmJoinToken(c *check.C) {
 
 	workerToken = d1.joinTokens(c).Worker
 
-	c.Assert(d2.Join(swarm.JoinRequest{JoinToken: workerToken, RemoteAddrs: []string{d1.listenAddr}}), checker.IsNil)
+	c.Assert(d2.Join(swarm.JoinRequest{JoinToken: workerToken, RemoteAddrs: []string{d1.defaultListenAddress()}}), checker.IsNil)
 	info, err = d2.info()
 	c.Assert(err, checker.IsNil)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
@@ -125,14 +124,14 @@ func (s *DockerSwarmSuite) TestApiSwarmJoinToken(c *check.C) {
 	// change spec, don't change tokens
 	d1.updateSwarm(c, func(s *swarm.Spec) {})
 
-	err = d2.Join(swarm.JoinRequest{RemoteAddrs: []string{d1.listenAddr}})
+	err = d2.Join(swarm.JoinRequest{RemoteAddrs: []string{d1.defaultListenAddress()}})
 	c.Assert(err, checker.NotNil)
 	c.Assert(err.Error(), checker.Contains, "join token is necessary")
 	info, err = d2.info()
 	c.Assert(err, checker.IsNil)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 
-	c.Assert(d2.Join(swarm.JoinRequest{JoinToken: workerToken, RemoteAddrs: []string{d1.listenAddr}}), checker.IsNil)
+	c.Assert(d2.Join(swarm.JoinRequest{JoinToken: workerToken, RemoteAddrs: []string{d1.defaultListenAddress()}}), checker.IsNil)
 	info, err = d2.info()
 	c.Assert(err, checker.IsNil)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
@@ -148,7 +147,7 @@ func (s *DockerSwarmSuite) TestApiSwarmCAHash(c *check.C) {
 	splitToken := strings.Split(d1.joinTokens(c).Worker, "-")
 	splitToken[2] = "1kxftv4ofnc6mt30lmgipg6ngf9luhwqopfk1tz6bdmnkubg0e"
 	replacementToken := strings.Join(splitToken, "-")
-	err := d2.Join(swarm.JoinRequest{JoinToken: replacementToken, RemoteAddrs: []string{d1.listenAddr}})
+	err := d2.Join(swarm.JoinRequest{JoinToken: replacementToken, RemoteAddrs: []string{d1.defaultListenAddress()}})
 	c.Assert(err, checker.NotNil)
 	c.Assert(err.Error(), checker.Contains, "remote CA does not match fingerprint")
 }

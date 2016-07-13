@@ -10,7 +10,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
@@ -24,7 +26,6 @@ import (
 	remoteipam "github.com/docker/libnetwork/ipams/remote/api"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/go-check/check"
-	"github.com/vishvananda/netlink"
 )
 
 const dummyNetworkDriver = "dummy-network-driver"
@@ -57,10 +58,24 @@ func (s *DockerNetworkSuite) SetUpSuite(c *check.C) {
 	mux := http.NewServeMux()
 	s.server = httptest.NewServer(mux)
 	c.Assert(s.server, check.NotNil, check.Commentf("Failed to start an HTTP Server"))
-	setupRemoteNetworkDrivers(c, mux, s.server.URL, dummyNetworkDriver, dummyIpamDriver)
+	setupRemoteNetworkDriversInHost(c, mux, s.server.URL, dummyNetworkDriver, dummyIpamDriver)
 }
 
-func setupRemoteNetworkDrivers(c *check.C, mux *http.ServeMux, url, netDrv, ipamDrv string) {
+// setupRemoteNetworkDriversInDaemon sets up network driver hanlder so daemon
+// can access it.
+// TODO: refactor the tests to only use one method. No reason why half of the tests use separate daemons and half use the main ones.
+func setupRemoteNetworkDriversInDaemon(d *Daemon, mux *http.ServeMux, url, netDrv, ipamDrv string) {
+	setupRemoteNetworkDrivers(d.c, mux, url, netDrv, ipamDrv, d.runInSandbox)
+}
+
+func setupRemoteNetworkDriversInHost(c *check.C, mux *http.ServeMux, url, netDrv, ipamDrv string) {
+	setupRemoteNetworkDrivers(c, mux, url, netDrv, ipamDrv, func(args ...string) (string, error) {
+		out, err := exec.Command(args[0], args[1:]...).CombinedOutput()
+		return string(out), err
+	})
+}
+
+func setupRemoteNetworkDrivers(c *check.C, mux *http.ServeMux, url, netDrv, ipamDrv string, netlinkHook func(...string) (string, error)) {
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
@@ -96,10 +111,10 @@ func setupRemoteNetworkDrivers(c *check.C, mux *http.ServeMux, url, netDrv, ipam
 	mux.HandleFunc(fmt.Sprintf("/%s.Join", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 
-		veth := &netlink.Veth{
-			LinkAttrs: netlink.LinkAttrs{Name: "randomIfName", TxQLen: 0}, PeerName: "cnt0"}
-		if err := netlink.LinkAdd(veth); err != nil {
+		out, err := netlinkHook("ip", "link", "add", "randomIfName", "type", "veth", "peer", "name", "cnt0")
+		if err != nil {
 			fmt.Fprintf(w, `{"Error":"failed to add veth pair: `+err.Error()+`"}`)
+			c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
 		} else {
 			fmt.Fprintf(w, `{"InterfaceName":{ "SrcName":"cnt0", "DstPrefix":"veth"}}`)
 		}
@@ -112,9 +127,7 @@ func setupRemoteNetworkDrivers(c *check.C, mux *http.ServeMux, url, netDrv, ipam
 
 	mux.HandleFunc(fmt.Sprintf("/%s.DeleteEndpoint", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
-		if link, err := netlink.LinkByName("cnt0"); err == nil {
-			netlink.LinkDel(link)
-		}
+		netlinkHook("ip", "link", "del", "cnt0")
 		fmt.Fprintf(w, "null")
 	})
 
@@ -733,9 +746,9 @@ func (s *DockerDaemonSuite) TestDockerNetworkNoDiscoveryDefaultBridgeNetwork(c *
 	hostsFile := "/etc/hosts"
 	bridgeName := "external-bridge"
 	bridgeIP := "192.169.255.254/24"
-	out, err := createInterface(c, "bridge", bridgeName, bridgeIP)
+	out, err := s.d.createInterface(c, "bridge", bridgeName, bridgeIP)
 	c.Assert(err, check.IsNil, check.Commentf(out))
-	defer deleteInterface(c, bridgeName)
+	defer s.d.deleteInterface(c, bridgeName)
 
 	err = s.d.StartWithBusybox("--bridge", bridgeName)
 	c.Assert(err, check.IsNil)
@@ -916,8 +929,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkDriverUngracefulRestart(c *check.C
 	did := "did"
 
 	mux := http.NewServeMux()
-	server := httptest.NewServer(mux)
-	setupRemoteNetworkDrivers(c, mux, server.URL, dnd, did)
+	server := s.d.newHTTPTestServer(mux)
+	setupRemoteNetworkDriversInDaemon(s.d, mux, server.URL, dnd, did)
 
 	s.d.StartWithBusybox()
 	_, err := s.d.Cmd("network", "create", "-d", dnd, "--subnet", "1.1.1.0/24", "net1")
@@ -927,7 +940,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDriverUngracefulRestart(c *check.C
 	c.Assert(err, checker.IsNil)
 
 	// Kill daemon and restart
-	if err = s.d.cmd.Process.Kill(); err != nil {
+	if err = s.d.Signal(syscall.SIGKILL); err != nil {
 		c.Fatal(err)
 	}
 
@@ -947,8 +960,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkDriverUngracefulRestart(c *check.C
 
 	// Restart the custom dummy plugin
 	mux = http.NewServeMux()
-	server = httptest.NewServer(mux)
-	setupRemoteNetworkDrivers(c, mux, server.URL, dnd, did)
+	server = s.d.newHTTPTestServer(mux)
+	setupRemoteNetworkDriversInDaemon(s.d, mux, server.URL, dnd, did)
 
 	// trying to reuse the same ip must succeed
 	_, err = s.d.Cmd("run", "-itd", "--net", "net1", "--name", "bar", "--ip", "1.1.1.10", "busybox", "sh")
@@ -1048,7 +1061,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkMultipleNetworksUngracefulDaemonRe
 	verifyContainerIsConnectedToNetworks(c, s.d, cName, nwList)
 
 	// Kill daemon and restart
-	if err := s.d.cmd.Process.Kill(); err != nil {
+	if err := s.d.Signal(syscall.SIGKILL); err != nil {
 		c.Fatal(err)
 	}
 	s.d.Restart()
@@ -1082,7 +1095,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c 
 	}
 
 	// Kill daemon ungracefully and restart
-	if err := s.d.cmd.Process.Kill(); err != nil {
+	if err := s.d.Signal(syscall.SIGKILL); err != nil {
 		c.Fatal(err)
 	}
 	if err := s.d.Restart(); err != nil {

@@ -75,7 +75,9 @@ func (s *DockerAuthzSuite) TearDownTest(c *check.C) {
 
 func (s *DockerAuthzSuite) SetUpSuite(c *check.C) {
 	mux := http.NewServeMux()
-	s.server = httptest.NewServer(mux)
+	s.d = NewDaemon(c)
+	s.server = s.d.newHTTPTestServer(mux)
+	s.d.Stop()
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		b, err := json.Marshal(plugins.Manifest{Implements: []string{authorization.AuthZApiImplements}})
@@ -222,20 +224,25 @@ func (s *DockerAuthzSuite) TestAuthZPluginAllowRequest(c *check.C) {
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginTls(c *check.C) {
+	s.d.useDefaultTLSHost = true
+	defer func() {
+		s.d.useDefaultTLSHost = false
+	}()
 
-	const testDaemonHTTPSAddr = "tcp://localhost:4271"
+	wd, err := os.Getwd()
+	c.Assert(err, checker.IsNil)
+
 	// start the daemon and load busybox, --net=none build fails otherwise
 	// cause it needs to pull busybox
 	if err := s.d.Start(
 		"--authorization-plugin="+testAuthZPlugin,
 		"--tlsverify",
 		"--tlscacert",
-		"fixtures/https/ca.pem",
+		filepath.Join(wd, "fixtures/https/ca.pem"),
 		"--tlscert",
-		"fixtures/https/server-cert.pem",
+		filepath.Join(wd, "fixtures/https/server-cert.pem"),
 		"--tlskey",
-		"fixtures/https/server-key.pem",
-		"-H", testDaemonHTTPSAddr); err != nil {
+		filepath.Join(wd, "fixtures/https/server-key.pem")); err != nil {
 		c.Fatalf("Could not start daemon with busybox: %v", err)
 	}
 
@@ -249,7 +256,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginTls(c *check.C) {
 		"--tlscert", "fixtures/https/client-cert.pem",
 		"--tlskey", "fixtures/https/client-key.pem",
 		"-H",
-		testDaemonHTTPSAddr,
+		s.d.sock(),
 		"version",
 	)
 	if !strings.Contains(out, "Server") {
@@ -284,8 +291,9 @@ func (s *DockerAuthzSuite) TestAuthZPluginApiDenyResponse(c *check.C) {
 	s.ctrl.resRes.Msg = unauthorizedMessage
 
 	daemonURL, err := url.Parse(s.d.sock())
+	c.Assert(err, check.IsNil)
 
-	conn, err := net.DialTimeout(daemonURL.Scheme, daemonURL.Path, time.Second*10)
+	conn, err := net.DialTimeout(daemonURL.Scheme, daemonURL.Host, time.Second*10)
 	c.Assert(err, check.IsNil)
 	client := httputil.NewClientConn(conn, nil)
 	req, err := http.NewRequest("GET", "/version", nil)
