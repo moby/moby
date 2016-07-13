@@ -19,34 +19,41 @@ to add worker nodes.
 1. Open a terminal and ssh into the machine where you want to run a worker node.
 This tutorial uses the name `worker1`.
 
-2. Run the following command to create a worker node joined to
-the existing swarm:
+2. Run the command produced by the `docker swarm init` output from the
+[Create a swarm](create-swarm.md) tutorial step to create a worker node joined to the existing swarm:
 
+    ```bash
+    $ docker swarm join --secret 4ao565v9jsuogtq5t8s379ulb \
+      --ca-hash sha256:07ce22bd1a7619f2adc0d63bd110479a170e7c4e69df05b67a1aa2705c88ef09 \
+      192.168.99.100:2377
     ```
+
+    If you don't have the command available, you can run the following command:
+
+    ```bash
     docker swarm join --secret <SECRET> <MANAGER-IP>:<PORT>
     ```
 
-    Replace `<SECRET>` with the secret that was printed by `docker swarm init` in the
-    previous step. Replace `<MANAGER-IP>` with the address of the manager node
-    and `<PORT>` with the port where the manager listens.
+    Replace `<SECRET>` with the secret that was printed by `docker swarm init`
+    in the previous step. Replace `<MANAGER-IP>` with the address of the manager
+    node and `<PORT>` with the port where the manager listens.
 
-    In the tutorial, the following command joins `worker1` to the swarm on `manager1`:
-
-    ```
-    $ docker swarm join --secret 4ao565v9jsuogtq5t8s379ulb 192.168.99.100:2377
-
-    This node joined a Swarm as a worker.
-    ```
+    The command generated from `docker swarm init` includes the `--ca-hash` to
+    securely identify the manager node according to its root CA. For the
+    tutorial, it is OK to join without it.
 
 3. Open a terminal and ssh into the machine where you want to run a second
 worker node. This tutorial uses the name `worker2`.
 
-4. Run `docker swarm join --secret <SECRET> <MANAGER-IP>:<PORT>` to create a worker node joined to
-the existing Swarm.
+4. Run the command produced by the `docker swarm init` output from the
+[Create a swarm](create-swarm.md) tutorial step to create a second worker node
+joined to the existing swarm:
 
-    Replace `<SECRET>` with the secret that was printed by `docker swarm init` in the
-    previous step. Replace `<MANAGER-IP>` with the address of the manager node
-    and `<PORT>` with the port where the manager listens.
+    ```bash
+    $ docker swarm join --secret 4ao565v9jsuogtq5t8s379ulb \
+      --ca-hash sha256:07ce22bd1a7619f2adc0d63bd110479a170e7c4e69df05b67a1aa2705c88ef09 \
+      192.168.99.100:2377
+    ```
 
 5. Open a terminal and ssh into the machine where the manager node runs and run
 the `docker node ls` command to see the worker nodes:
