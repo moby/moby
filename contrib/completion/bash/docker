@@ -1710,7 +1710,6 @@ _docker_service_update() {
 		--label -l
 		--limit-cpu
 		--limit-memory
-		--mode
 		--mount -m
 		--name
 		--network
@@ -1734,6 +1733,18 @@ _docker_service_update() {
 		--registry-auth
 	"
 
+	if [ "$subcommand" = "create" ] ; then
+		options_with_args="$options_with_args
+			--mode
+		"
+
+		case "$prev" in
+			--mode)
+				COMPREPLY=( $( compgen -W "global replicated" -- "$cur" ) )
+				return
+				;;
+		esac
+	fi
 	if [ "$subcommand" = "update" ] ; then
 		options_with_args="$options_with_args
 			--arg
@@ -1751,16 +1762,12 @@ _docker_service_update() {
 
 	case "$prev" in
 		--endpoint-mode)
-			COMPREPLY=( $( compgen -W "DNSRR VIP" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "dnsrr vip" -- "$cur" ) )
 			return
 			;;
 		--env|-e)
 			COMPREPLY=( $( compgen -e -S = -- "$cur" ) )
 			__docker_nospace
-			return
-			;;
-		--mode)
-			COMPREPLY=( $( compgen -W "global replicated" -- "$cur" ) )
 			return
 			;;
 		--network)
