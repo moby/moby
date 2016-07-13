@@ -11,5 +11,6 @@ set -e
 	source "${MAKEDIR}/.binary"
 	export BINARY_SHORT_NAME='docker-proxy'
 	export SOURCE_PATH='./vendor/src/github.com/docker/libnetwork/cmd/proxy'
+	export LDFLAGS_STATIC_DOCKER='-linkmode=external'
 	source "${MAKEDIR}/.binary"
 )
