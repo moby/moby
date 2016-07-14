@@ -445,6 +445,7 @@ Status Codes:
 -   **400** – bad parameter
 -   **404** – no such container
 -   **406** – impossible to attach (container not running)
+-   **409** – conflict
 -   **500** – server error
 
 ### Inspect a container
@@ -1351,6 +1352,7 @@ Status Codes:
 -   **204** – no error
 -   **400** – bad parameter
 -   **404** – no such container
+-   **409** – conflict
 -   **500** – server error
 
 ### Copy files or folders from a container
