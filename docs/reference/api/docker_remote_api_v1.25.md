@@ -493,6 +493,7 @@ Create a container
 -   **400** – bad parameter
 -   **404** – no such container
 -   **406** – impossible to attach (container not running)
+-   **409** – conflict
 -   **500** – server error
 
 ### Inspect a container
@@ -1409,6 +1410,7 @@ Remove the container `id` from the filesystem
 -   **204** – no error
 -   **400** – bad parameter
 -   **404** – no such container
+-   **409** – conflict
 -   **500** – server error
 
 ### Retrieving information about files and folders in a container
