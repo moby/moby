@@ -120,14 +120,11 @@ Labels:
 Mode:		REPLICATED
  Replicas:		5
 Placement:
- Strategy:	Spread
 UpdateConfig:
  Parallelism:	0
 ContainerSpec:
  Image:		nginx:alpine
 Resources:
-Reservations:
-Limits:
 Ports:
  Name =
  Protocol = tcp
