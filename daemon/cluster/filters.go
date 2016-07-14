@@ -55,9 +55,9 @@ func newListServicesFilters(filter filters.Args) (*swarmapi.ListServicesRequest_
 		return nil, err
 	}
 	return &swarmapi.ListServicesRequest_Filters{
-		Names:      filter.Get("name"),
-		IDPrefixes: filter.Get("id"),
-		Labels:     runconfigopts.ConvertKVStringsToMap(filter.Get("label")),
+		NamePrefixes: filter.Get("name"),
+		IDPrefixes:   filter.Get("id"),
+		Labels:       runconfigopts.ConvertKVStringsToMap(filter.Get("label")),
 	}, nil
 }
 
