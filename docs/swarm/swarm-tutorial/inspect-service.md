@@ -33,7 +33,6 @@ about a service in an easily readable format.
     Mode:		REPLICATED
      Replicas:		1
     Placement:
-     Strategy:	SPREAD
     UpdateConfig:
      Parallelism:	1
     ContainerSpec:
