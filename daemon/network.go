@@ -59,6 +59,7 @@ func (daemon *Daemon) GetNetworkByID(partialID string) (libnetwork.Network, erro
 }
 
 // GetNetworkByName function returns a network for a given network name.
+// If no network name is given, the default network is returned.
 func (daemon *Daemon) GetNetworkByName(name string) (libnetwork.Network, error) {
 	c := daemon.netController
 	if c == nil {
