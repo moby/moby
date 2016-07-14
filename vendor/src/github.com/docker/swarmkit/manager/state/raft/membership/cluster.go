@@ -113,6 +113,28 @@ func (c *Cluster) RemoveMember(id uint64) error {
 	return nil
 }
 
+// ReplaceMemberConnection replaces the member's GRPC connection and GRPC
+// client.
+func (c *Cluster) ReplaceMemberConnection(id uint64, newConn *Member) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	oldMember, ok := c.members[id]
+	if !ok {
+		return ErrIDNotFound
+	}
+
+	oldMember.Conn.Close()
+
+	newMember := *oldMember
+	newMember.Conn = newConn.Conn
+	newMember.RaftClient = newConn.RaftClient
+
+	c.members[id] = &newMember
+
+	return nil
+}
+
 // IsIDRemoved checks if a Member is in the remove set.
 func (c *Cluster) IsIDRemoved(id uint64) bool {
 	c.mu.RLock()
@@ -165,19 +187,11 @@ func (c *Cluster) ValidateConfigurationChange(cc raftpb.ConfChange) error {
 // that might block or harm the Cluster on Member recovery
 func (c *Cluster) CanRemoveMember(from uint64, id uint64) bool {
 	members := c.Members()
-
-	nmembers := 0
 	nreachable := 0
 
 	for _, m := range members {
-		// Skip the node that is going to be deleted
-		if m.RaftID == id {
-			continue
-		}
-
 		// Local node from where the remove is issued
 		if m.RaftID == from {
-			nmembers++
 			nreachable++
 			continue
 		}
@@ -186,8 +200,6 @@ func (c *Cluster) CanRemoveMember(from uint64, id uint64) bool {
 		if err == nil && connState == grpc.Ready {
 			nreachable++
 		}
-
-		nmembers++
 	}
 
 	// Special case of 2 managers
@@ -195,7 +207,7 @@ func (c *Cluster) CanRemoveMember(from uint64, id uint64) bool {
 		return false
 	}
 
-	nquorum := nmembers/2 + 1
+	nquorum := (len(members)+1)/2 + 1
 	if nreachable < nquorum {
 		return false
 	}

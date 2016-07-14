@@ -10,8 +10,10 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/docker/go-connections/nat"
+	shlex "github.com/flynn-archive/go-shlex"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -30,8 +32,7 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.String("image", "", "Service image tag")
-	flags.StringSlice("command", []string{}, "Service command")
-	flags.StringSlice("arg", []string{}, "Service command args")
+	flags.String("args", "", "Service command args")
 	addServiceFlags(cmd, opts)
 	return cmd
 }
@@ -39,7 +40,7 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, serviceID string) error {
 	apiClient := dockerCli.Client()
 	ctx := context.Background()
-	headers := map[string][]string{}
+	updateOpts := types.ServiceUpdateOptions{}
 
 	service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID)
 	if err != nil {
@@ -64,10 +65,10 @@ func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, serviceID stri
 		if err != nil {
 			return err
 		}
-		headers["X-Registry-Auth"] = []string{encodedAuth}
+		updateOpts.EncodedRegistryAuth = encodedAuth
 	}
 
-	err = apiClient.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, headers)
+	err = apiClient.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, updateOpts)
 	if err != nil {
 		return err
 	}
@@ -88,12 +89,6 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		if flags.Changed(flag) {
 			value := flags.Lookup(flag).Value.(*opts.ListOpts)
 			*field = value.GetAll()
-		}
-	}
-
-	updateSlice := func(flag string, field *[]string) {
-		if flags.Changed(flag) {
-			*field, _ = flags.GetStringSlice(flag)
 		}
 	}
 
@@ -140,8 +135,7 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 	updateString(flagName, &spec.Name)
 	updateLabels(flags, &spec.Labels)
 	updateString("image", &cspec.Image)
-	updateSlice("command", &cspec.Command)
-	updateSlice("arg", &cspec.Args)
+	updateStringToSlice(flags, "args", &cspec.Args)
 	updateListOpts("env", &cspec.Env)
 	updateString("workdir", &cspec.Dir)
 	updateString(flagUser, &cspec.User)
@@ -175,10 +169,7 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		updateDurationOpt((flagRestartWindow), task.RestartPolicy.Window)
 	}
 
-	if flags.Changed(flagConstraint) {
-		task.Placement = &swarm.Placement{}
-		updateSlice(flagConstraint, &task.Placement.Constraints)
-	}
+	// TODO: The constraints field is fixed in #23773
 
 	if err := updateReplicas(flags, &spec.Mode); err != nil {
 		return err
@@ -205,6 +196,17 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		updatePorts(flags, &spec.EndpointSpec.Ports)
 	}
 	return nil
+}
+
+func updateStringToSlice(flags *pflag.FlagSet, flag string, field *[]string) error {
+	if !flags.Changed(flag) {
+		return nil
+	}
+
+	value, _ := flags.GetString(flag)
+	valueSlice, err := shlex.Split(value)
+	*field = valueSlice
+	return err
 }
 
 func updateLabels(flags *pflag.FlagSet, field *map[string]string) {

@@ -3,6 +3,8 @@
 package stack
 
 import (
+	"fmt"
+
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/client"
@@ -36,13 +38,14 @@ func newTasksCommand(dockerCli *client.DockerCli) *cobra.Command {
 	}
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.all, "all", "a", false, "Display all tasks")
-	flags.BoolVarP(&opts.noResolve, "no-resolve", "n", false, "Do not map IDs to Names")
+	flags.BoolVar(&opts.noResolve, "no-resolve", false, "Do not map IDs to Names")
 	flags.VarP(&opts.filter, "filter", "f", "Filter output based on conditions provided")
 
 	return cmd
 }
 
 func runTasks(dockerCli *client.DockerCli, opts tasksOptions) error {
+	namespace := opts.namespace
 	client := dockerCli.Client()
 	ctx := context.Background()
 
@@ -56,6 +59,11 @@ func runTasks(dockerCli *client.DockerCli, opts tasksOptions) error {
 	tasks, err := client.TaskList(ctx, types.TaskListOptions{Filter: filter})
 	if err != nil {
 		return err
+	}
+
+	if len(tasks) == 0 {
+		fmt.Fprintf(dockerCli.Out(), "Nothing found in stack: %s\n", namespace)
+		return nil
 	}
 
 	return task.Print(dockerCli, ctx, tasks, idresolver.New(client, opts.noResolve))

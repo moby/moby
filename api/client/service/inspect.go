@@ -42,7 +42,7 @@ func newInspectCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.format, "format", "f", "", "Format the output using the given go template")
-	flags.BoolVarP(&opts.pretty, "pretty", "p", false, "Print the information in a human friendly format.")
+	flags.BoolVar(&opts.pretty, "pretty", false, "Print the information in a human friendly format.")
 	return cmd
 }
 
@@ -153,9 +153,6 @@ func printService(out io.Writer, service swarm.Service) {
 
 func printContainerSpec(out io.Writer, containerSpec swarm.ContainerSpec) {
 	fmt.Fprintf(out, " Image:\t\t%s\n", containerSpec.Image)
-	if len(containerSpec.Command) > 0 {
-		fmt.Fprintf(out, " Command:\t%s\n", strings.Join(containerSpec.Command, " "))
-	}
 	if len(containerSpec.Args) > 0 {
 		fmt.Fprintf(out, " Args:\t\t%s\n", strings.Join(containerSpec.Args, " "))
 	}
@@ -169,7 +166,7 @@ func printContainerSpec(out io.Writer, containerSpec swarm.ContainerSpec) {
 		for _, v := range containerSpec.Mounts {
 			fmt.Fprintf(out, "  Target = %s\n", v.Target)
 			fmt.Fprintf(out, "  Source = %s\n", v.Source)
-			fmt.Fprintf(out, "  Writable = %v\n", v.Writable)
+			fmt.Fprintf(out, "  ReadOnly = %v\n", v.ReadOnly)
 			fmt.Fprintf(out, "  Type = %v\n", v.Type)
 		}
 	}

@@ -330,7 +330,7 @@ func (c *networkConfiguration) conflictsWithNetworks(id string, others []*bridge
 		// bridges. This could not be completely caught by the config conflict
 		// check, because networks which config does not specify the AddressIPv4
 		// get their address and subnet selected by the driver (see electBridgeIPv4())
-		if c.AddressIPv4 != nil {
+		if c.AddressIPv4 != nil && nwBridge.bridgeIPv4 != nil {
 			if nwBridge.bridgeIPv4.Contains(c.AddressIPv4.IP) ||
 				c.AddressIPv4.Contains(nwBridge.bridgeIPv4.IP) {
 				return types.ForbiddenErrorf("conflicts with network %s (%s) by ip network", nwID, nwConfig.BridgeName)

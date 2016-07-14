@@ -127,6 +127,14 @@ func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nod
 				return
 			}
 
+			// Cleanup any stale endpoints that might be left over during previous iterations
+			epList := n.Endpoints()
+			for _, ep := range epList {
+				if err := ep.Delete(true); err != nil {
+					logrus.Errorf("Failed to delete endpoint %s (%s): %v", ep.Name(), ep.ID(), err)
+				}
+			}
+
 			if err := n.Delete(); err != nil {
 				logrus.Errorf("Failed to delete stale ingress network %s: %v", n.ID(), err)
 				return
@@ -152,7 +160,9 @@ func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nod
 
 		sb, err := controller.NewSandbox("ingress-sbox", libnetwork.OptionIngress())
 		if err != nil {
-			logrus.Errorf("Failed creating ingress sandbox: %v", err)
+			if _, ok := err.(networktypes.ForbiddenError); !ok {
+				logrus.Errorf("Failed creating ingress sandbox: %v", err)
+			}
 			return
 		}
 
@@ -292,10 +302,6 @@ func (daemon *Daemon) UpdateContainerServiceConfig(containerName string, service
 	return nil
 }
 
-func errClusterNetworkConnect() error {
-	return fmt.Errorf("cannot connect or disconnect managed containers on a network")
-}
-
 // ConnectContainerToNetwork connects the given container to the given
 // network. If either cannot be found, an err is returned. If the
 // network cannot be set up, an err is returned.
@@ -303,9 +309,6 @@ func (daemon *Daemon) ConnectContainerToNetwork(containerName, networkName strin
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return err
-	}
-	if container.Managed {
-		return errClusterNetworkConnect()
 	}
 	return daemon.ConnectToNetwork(container, networkName, endpointConfig)
 }
@@ -319,9 +322,6 @@ func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, netwo
 			return daemon.ForceEndpointDelete(containerName, network)
 		}
 		return err
-	}
-	if container.Managed {
-		return errClusterNetworkConnect()
 	}
 	return daemon.DisconnectFromNetwork(container, network, force)
 }

@@ -10,13 +10,14 @@ parent = "smn_cli"
 
 # info
 
+```markdown
+Usage:  docker info
 
-    Usage: docker info [OPTIONS]
+Display system-wide information
 
-    Display system-wide information
-
-      --help              Print usage
-
+Options:
+      --help   Print usage
+```
 
 This command displays system wide information regarding the Docker installation.
 Information displayed includes the kernel version, number of containers and images.
@@ -55,7 +56,7 @@ storage driver and a node that is part of a 2 node Swarm cluster:
      Network: bridge null host overlay
     Swarm: 
      NodeID: 0gac67oclbxq7
-     IsManager: YES
+     Is Manager: true
      Managers: 2
      Nodes: 2
     Runtimes: default

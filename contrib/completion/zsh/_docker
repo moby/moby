@@ -705,7 +705,7 @@ __docker_nodes() {
 
     type=$1; shift
     filter=$1; shift
-    [[ $filter != "none") ]] && args=("-f $filter")
+    [[ $filter != "none" ]] && args=("-f $filter")
 
     lines=(${(f)"$(_call_program commands docker $docker_options node ls $args)"})
     # Parse header line to find columns
@@ -808,7 +808,7 @@ __docker_node_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " \
-                "($help -p --pretty)"{-p,--pretty}"[Print the information in a human friendly format]" \
+                "($help --pretty)--pretty[Print the information in a human friendly format]" \
                 "($help -)*:node:__docker_complete_nodes" && ret=0
             ;;
         (ls|list)
@@ -832,7 +832,7 @@ __docker_node_subcommand() {
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Display all instances]" \
                 "($help)*"{-f=,--filter=}"[Provide filter values]:filter:->filter-options" \
-                "($help -n --no-resolve)"{-n,--no-resolve}"[Do not map IDs to Names]" \
+                "($help --no-resolve)--no-resolve[Do not map IDs to Names]" \
                 "($help -)1:node:__docker_complete_nodes" && ret=0
             case $state in
                 (filter-options)
@@ -1072,14 +1072,14 @@ __docker_service_subcommand() {
         "($help)--limit-cpu=[Limit CPUs]:value: "
         "($help)--limit-memory=[Limit Memory]:value: "
         "($help)--mode=[Limit Memory]:mode:(global replicated)"
-        "($help)*"{-m=,--mount=}"[Attach a mount to the service]:mount: "
+        "($help)*--mount=[Attach a mount to the service]:mount: "
         "($help)--name=[Service name]:name: "
         "($help)*--network=[Network attachments]:network: "
         "($help)*"{-p=,--publish=}"[Publish a port as a node port]:port: "
         "($help)--replicas=[Number of tasks]:replicas: "
         "($help)--reserve-cpu=[Reserve CPUs]:value: "
         "($help)--reserve-memory=[Reserve Memory]:value: "
-        "($help)--restart-condition=[Restart when condition is met]:mode:(any none on_failure)"
+        "($help)--restart-condition=[Restart when condition is met]:mode:(any none on-failure)"
         "($help)--restart-delay=[Delay between restart attempts]:delay: "
         "($help)--restart-max-attempts=[Maximum number of restarts before giving up]:max-attempts: "
         "($help)--restart-window=[Window used to evaluate the restart policy]:window: "
@@ -1103,7 +1103,7 @@ __docker_service_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " \
-                "($help -p --pretty)"{-p,--pretty}"[Print the information in a human friendly format]" \
+                "($help --pretty)--pretty[Print the information in a human friendly format]" \
                 "($help -)*:service:__docker_complete_services" && ret=0
             ;;
         (ls|list)
@@ -1141,7 +1141,7 @@ __docker_service_subcommand() {
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Display all tasks]" \
                 "($help)*"{-f=,--filter=}"[Provide filter values]:filter:->filter-options" \
-                "($help -n --no-resolve)"{-n,--no-resolve}"[Do not map IDs to Names]" \
+                "($help --no-resolve)--no-resolve[Do not map IDs to Names]" \
                 "($help -)1:service:__docker_complete_services" && ret=0
             case $state in
                 (filter-options)
@@ -1154,7 +1154,6 @@ __docker_service_subcommand() {
                 $opts_help \
                 $opts_create_update \
                 "($help)--arg=[Service command args]:arguments: _normal" \
-                "($help)--command=[Service command]:command: _command_names -e" \
                 "($help)--image=[Service image tag]:image:__docker_repositories" \
                 "($help -)1:service:__docker_complete_services" && ret=0
             ;;

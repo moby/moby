@@ -20,6 +20,7 @@ DOCKER_ENVS := \
 	-e DOCKER_GITCOMMIT \
 	-e DOCKER_GRAPHDRIVER=$(DOCKER_GRAPHDRIVER) \
 	-e DOCKER_INCREMENTAL_BINARY \
+	-e DOCKER_PORT \
 	-e DOCKER_REMAP_ROOT \
 	-e DOCKER_STORAGE_OPTS \
 	-e DOCKER_USERLANDPROXY \
@@ -43,8 +44,9 @@ GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 GIT_BRANCH_CLEAN := $(shell echo $(GIT_BRANCH) | sed -e "s/[^[:alnum:]]/-/g")
 DOCKER_IMAGE := docker-dev$(if $(GIT_BRANCH_CLEAN),:$(GIT_BRANCH_CLEAN))
 DOCKER_DOCS_IMAGE := docker-docs$(if $(GIT_BRANCH_CLEAN),:$(GIT_BRANCH_CLEAN))
+DOCKER_PORT_FORWARD := $(if $(DOCKER_PORT),-p "$(DOCKER_PORT)",)
 
-DOCKER_FLAGS := docker run --rm -i --privileged $(DOCKER_ENVS) $(DOCKER_MOUNT)
+DOCKER_FLAGS := docker run --rm -i --privileged $(DOCKER_ENVS) $(DOCKER_MOUNT) $(DOCKER_PORT_FORWARD)
 
 # if this session isn't interactive, then we don't want to allocate a
 # TTY, which would fail, but if it is interactive, we do want to attach
@@ -96,6 +98,9 @@ install: ## install the linux binaries
 
 rpm: build ## build the rpm packages
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-rpm
+
+run: build ## run the docker daemon in a container
+	$(DOCKER_RUN_DOCKER) sh -c "KEEPBUNDLE=1 hack/make.sh install-binary run"
 
 shell: build ## start a shell inside the build env
 	$(DOCKER_RUN_DOCKER) bash

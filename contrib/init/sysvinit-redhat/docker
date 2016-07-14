@@ -32,122 +32,122 @@ logfile="/var/log/$prog"
 [ -e /etc/sysconfig/$prog ] && . /etc/sysconfig/$prog
 
 prestart() {
-    service cgconfig status > /dev/null
+	service cgconfig status > /dev/null
 
-    if [[ $? != 0 ]]; then
-        service cgconfig start
-    fi
+	if [[ $? != 0 ]]; then
+		service cgconfig start
+	fi
 
 }
 
 start() {
-    if [ ! -x $exec ]; then
-      if [ ! -e $exec ]; then
-        echo "Docker executable $exec not found"
-      else
-        echo "You do not have permission to execute the Docker executable $exec"
-      fi	      
-      exit 5
-    fi
+	if [ ! -x $exec ]; then
+		if [ ! -e $exec ]; then
+			echo "Docker executable $exec not found"
+		else
+			echo "You do not have permission to execute the Docker executable $exec"
+		fi
+		exit 5
+	fi
 
-    check_for_cleanup
+	check_for_cleanup
 
-    if ! [ -f $pidfile ]; then
-        prestart
-        printf "Starting $prog:\t"
-        echo "\n$(date)\n" >> $logfile
-        "$unshare" -m -- $exec $other_args >> $logfile 2>&1 &
-        pid=$!
-        touch $lockfile
-        # wait up to 10 seconds for the pidfile to exist.  see
-        # https://github.com/docker/docker/issues/5359
-        tries=0
-        while [ ! -f $pidfile -a $tries -lt 10 ]; do
-            sleep 1
-            tries=$((tries + 1))
-            echo -n '.'
-        done
-        if [ ! -f $pidfile ]; then
-          failure
-          echo
-          exit 1
-        fi
-        success
-        echo
-    else
-        failure
-        echo
-        printf "$pidfile still exists...\n"
-        exit 7
-    fi
+	if ! [ -f $pidfile ]; then
+		prestart
+		printf "Starting $prog:\t"
+		echo "\n$(date)\n" >> $logfile
+		"$unshare" -m -- $exec $other_args >> $logfile 2>&1 &
+		pid=$!
+		touch $lockfile
+		# wait up to 10 seconds for the pidfile to exist.  see
+		# https://github.com/docker/docker/issues/5359
+		tries=0
+		while [ ! -f $pidfile -a $tries -lt 10 ]; do
+			sleep 1
+			tries=$((tries + 1))
+			echo -n '.'
+		done
+		if [ ! -f $pidfile ]; then
+			failure
+			echo
+			exit 1
+		fi
+		success
+		echo
+	else
+		failure
+		echo
+		printf "$pidfile still exists...\n"
+		exit 7
+	fi
 }
 
 stop() {
-    echo -n $"Stopping $prog: "
-    killproc -p $pidfile -d 300 $prog
-    retval=$?
-    echo
-    [ $retval -eq 0 ] && rm -f $lockfile
-    return $retval
+	echo -n $"Stopping $prog: "
+	killproc -p $pidfile -d 300 $prog
+	retval=$?
+	echo
+	[ $retval -eq 0 ] && rm -f $lockfile
+	return $retval
 }
 
 restart() {
-    stop
-    start
+	stop
+	start
 }
 
 reload() {
-    restart
+	restart
 }
 
 force_reload() {
-    restart
+	restart
 }
 
 rh_status() {
-    status -p $pidfile $prog
+	status -p $pidfile $prog
 }
 
 rh_status_q() {
-    rh_status >/dev/null 2>&1
+	rh_status >/dev/null 2>&1
 }
 
 
 check_for_cleanup() {
-    if [ -f ${pidfile} ]; then
-        /bin/ps -fp $(cat ${pidfile}) > /dev/null || rm ${pidfile}
-    fi
+	if [ -f ${pidfile} ]; then
+		/bin/ps -fp $(cat ${pidfile}) > /dev/null || rm ${pidfile}
+	fi
 }
 
 case "$1" in
-    start)
-        rh_status_q && exit 0
-        $1
-        ;;
-    stop)
-        rh_status_q || exit 0
-        $1
-        ;;
-    restart)
-        $1
-        ;;
-    reload)
-        rh_status_q || exit 7
-        $1
-        ;;
-    force-reload)
-        force_reload
-        ;;
-    status)
-        rh_status
-        ;;
-    condrestart|try-restart)
-        rh_status_q || exit 0
-        restart
-        ;;
-    *)
-        echo $"Usage: $0 {start|stop|status|restart|condrestart|try-restart|reload|force-reload}"
-        exit 2
+	start)
+		rh_status_q && exit 0
+		$1
+		;;
+	stop)
+		rh_status_q || exit 0
+		$1
+		;;
+	restart)
+		$1
+		;;
+	reload)
+		rh_status_q || exit 7
+		$1
+		;;
+	force-reload)
+		force_reload
+		;;
+	status)
+		rh_status
+		;;
+	condrestart|try-restart)
+		rh_status_q || exit 0
+		restart
+		;;
+	*)
+		echo $"Usage: $0 {start|stop|status|restart|condrestart|try-restart|reload|force-reload}"
+		exit 2
 esac
 
 exit $?

@@ -101,6 +101,7 @@ single 8GB general purpose SSD EBS volume. The Docker data directory
 (`/var/lib/docker`) was consuming 2GB of space.
 
     $ docker images
+
     REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
     jenkins             latest              285c9f0f9d3d        17 hours ago        708.5 MB
     mysql               latest              d39c3fa09ced        8 days ago          360.3 MB
@@ -111,9 +112,11 @@ single 8GB general purpose SSD EBS volume. The Docker data directory
     ubuntu              15.04               c8be1ac8145a        7 weeks ago         131.3 MB
     
     $ sudo du -hs /var/lib/docker
+
     2.0G    /var/lib/docker
     
     $ time docker run --rm -v /var/lib/docker:/var/lib/docker docker/v1.10-migrator
+
     Unable to find image 'docker/v1.10-migrator:latest' locally
     latest: Pulling from docker/v1.10-migrator
     ed1f33c5883d: Pull complete
@@ -203,6 +206,7 @@ images with `docker pull` and `docker push`. The command below pulls the
 `ubuntu:15.04` Docker image from Docker Hub.
 
     $ docker pull ubuntu:15.04
+
     15.04: Pulling from library/ubuntu
     1ba8ac955b97: Pull complete
     f157c4e5ede7: Pull complete
@@ -226,6 +230,7 @@ image being pulled from Docker Hub, followed by a directory listing on a host
 running version 1.9.1 of the Docker Engine.
 
     $  docker pull ubuntu:15.04
+
     15.04: Pulling from library/ubuntu
     47984b517ca9: Pull complete
     df6e891a3ea9: Pull complete
@@ -235,6 +240,7 @@ running version 1.9.1 of the Docker Engine.
     Status: Downloaded newer image for ubuntu:15.04
 
     $ ls /var/lib/docker/aufs/layers
+
     47984b517ca9ca0312aced5c9698753ffa964c2015f2a5f18e5efa9848cf30e2
     c8be1ac8145a6e59a55667f573883749ad66eaeef92b4df17e5ea1260e2d7356
     df6e891a3ea9cdce2a388a2cf1b1711629557454fd120abd5be6d32329a0e0ac
@@ -294,6 +300,7 @@ command.
    command:
 
         $ docker build -t changed-ubuntu .
+
         Sending build context to Docker daemon 2.048 kB
         Step 1 : FROM ubuntu:15.04
          ---> 3f7bcee56709
@@ -411,14 +418,23 @@ Let's see what happens if we spin up 5 containers based on our `changed-ubuntu`
 5 times.
 
         $ docker run -dit changed-ubuntu bash
+
         75bab0d54f3cf193cfdc3a86483466363f442fba30859f7dcd1b816b6ede82d4
+
         $ docker run -dit changed-ubuntu bash
+
         9280e777d109e2eb4b13ab211553516124a3d4d4280a0edfc7abf75c59024d47
+
         $ docker run -dit changed-ubuntu bash
+
         a651680bd6c2ef64902e154eeb8a064b85c9abf08ac46f922ad8dfc11bb5cd8a
+
         $ docker run -dit changed-ubuntu bash
+
         8eb24b3b2d246f225b24f2fca39625aaad71689c392a7b552b78baf264647373
+
         $ docker run -dit changed-ubuntu bash
+
         0ad25d06bdf6fca0dedc38301b2aff7478b3e1ce3d1acd676573bba57cb1cfef
 
     This launches 5 containers based on the `changed-ubuntu` image.  As each 
@@ -442,6 +458,7 @@ creating each container.
 3. List the contents of the local storage area.
 
         $ sudo ls /var/lib/docker/containers
+
         0ad25d06bdf6fca0dedc38301b2aff7478b3e1ce3d1acd676573bba57cb1cfef
         9280e777d109e2eb4b13ab211553516124a3d4d4280a0edfc7abf75c59024d47
         75bab0d54f3cf193cfdc3a86483466363f442fba30859f7dcd1b816b6ede82d4

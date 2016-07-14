@@ -169,6 +169,7 @@ Create a container
                "MemorySwap": 0,
                "CpuShares": 512,
                "CpusetCpus": "0,1",
+               "PidMode": "",
                "PortBindings": { "22/tcp": [{ "HostPort": "11022" }] },
                "PublishAllPorts": false,
                "Privileged": false,
@@ -242,6 +243,9 @@ Json Parameters:
     -   **CpuShares** - An integer value containing the CPU Shares for container
           (ie. the relative weight vs other containers).
     -   **CpusetCpus** - String value containing the cgroups CpusetCpus to use.
+    -   **PidMode** - Set the PID (Process) Namespace mode for the container;
+          `"container:<name|id>"`: joins another container's PID namespace
+          `"host"`: use the host's PID namespace inside the container
     -   **PortBindings** - A map of exposed container ports and the host port they
           should map to. It should be specified in the form
           `{ <port>/<protocol>: [{ "HostPort": "<port>" }] }`
@@ -373,6 +377,7 @@ Return low-level information on the container `id`
 			"Memory": 0,
 			"MemorySwap": 0,
 			"NetworkMode": "bridge",
+			"PidMode": "",
 			"PortBindings": {},
 			"Privileged": false,
 			"ReadonlyRootfs": false,

@@ -311,6 +311,7 @@ Create a container
              "MemorySwappiness": 60,
              "OomKillDisable": false,
              "OomScoreAdj": 500,
+             "PidMode": "",
              "PidsLimit": -1,
              "PortBindings": { "22/tcp": [{ "HostPort": "11022" }] },
              "PublishAllPorts": false,
@@ -362,7 +363,7 @@ Create a container
 **JSON parameters**:
 
 -   **Hostname** - A string value containing the hostname to use for the
-      container.
+      container. This must be a valid RFC 1123 hostname.
 -   **Domainname** - A string value containing the domain name to use
       for the container.
 -   **User** - A string value specifying the user inside the container.
@@ -422,6 +423,9 @@ Create a container
     -   **MemorySwappiness** - Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
     -   **OomKillDisable** - Boolean value, whether to disable OOM Killer for the container or not.
     -   **OomScoreAdj** - An integer value containing the score given to the container in order to tune OOM killer preferences.
+    -   **PidMode** - Set the PID (Process) Namespace mode for the container;
+          `"container:<name|id>"`: joins another container's PID namespace
+          `"host"`: use the host's PID namespace inside the container
     -   **PidsLimit** - Tune a container's pids limit. Set -1 for unlimited.
     -   **PortBindings** - A map of exposed container ports and the host port they
           should map to. A JSON object in the form
@@ -583,6 +587,7 @@ Return low-level information on the container `id`
 			"OomKillDisable": false,
 			"OomScoreAdj": 500,
 			"NetworkMode": "bridge",
+			"PidMode": "",
 			"PortBindings": {},
 			"Privileged": false,
 			"ReadonlyRootfs": false,
@@ -2194,7 +2199,6 @@ Display system-wide information
         "DockerRootDir": "/var/lib/docker",
         "Driver": "btrfs",
         "DriverStatus": [[""]],
-        "ExecutionDriver": "native-0.1",
         "ExperimentalBuild": false,
         "HttpProxy": "http://test:test@localhost:8080",
         "HttpsProxy": "https://test:test@localhost:8080",
@@ -3986,11 +3990,11 @@ JSON Parameters:
             - **Target** – Container path.
             - **Source** – Mount source (e.g. a volume name, a host path).
             - **Type** – The mount type (`bind`, or `volume`).
-            - **Writable** – A boolean indicating whether the mount should be writable.
+            - **ReadOnly** – A boolean indicating whether the mount should be read-only.
             - **BindOptions** - Optional configuration for the `bind` type.
               - **Propagation** – A propagation mode with the value `[r]private`, `[r]shared`, or `[r]slave`.
             - **VolumeOptions** – Optional configuration for the `volume` type.
-                - **Populate** – A boolean indicating if volume should be
+                - **NoCopy** – A boolean indicating if volume should be
                   populated with the data from the target. (Default false)
                 - **Labels** – User-defined name and labels for the volume.
                 - **DriverConfig** – Map of driver-specific options.
@@ -4008,7 +4012,7 @@ JSON Parameters:
             - **Memory** – Memory reservation
     - **RestartPolicy** – Specification for the restart policy which applies to containers created
       as part of this service.
-        - **Condition** – Condition for restart (`none`, `on_failure`, or `any`).
+        - **Condition** – Condition for restart (`none`, `on-failure`, or `any`).
         - **Delay** – Delay between restart attempts.
         - **Attempts** – Maximum attempts to restart a given container before giving up (default value
           is 0, which is ignored).
@@ -4204,11 +4208,12 @@ Update the service `id`.
             - **Target** – Container path.
             - **Source** – Mount source (e.g. a volume name, a host path).
             - **Type** – The mount type (`bind`, or `volume`).
-            - **Writable** – A boolean indicating whether the mount should be writable.
+            - **ReadOnly** – A boolean indicating whether the mount should be read-only.
             - **BindOptions** - Optional configuration for the `bind` type
               - **Propagation** – A propagation mode with the value `[r]private`, `[r]shared`, or `[r]slave`.
             - **VolumeOptions** – Optional configuration for the `volume` type.
-                - **Populate** – A boolean indicating if volume should be populated with the data from the target. (Default false)
+                - **NoCopy** – A boolean indicating if volume should be
+                  populated with the data from the target. (Default false)
                 - **Labels** – User-defined name and labels for the volume.
                 - **DriverConfig** – Map of driver-specific options.
                   - **Name** - Name of the driver to use to create the volume
@@ -4225,7 +4230,7 @@ Update the service `id`.
             - **Memory** – Memory reservation
     - **RestartPolicy** – Specification for the restart policy which applies to containers created
       as part of this service.
-        - **Condition** – Condition for restart (`none`, `on_failure`, or `any`).
+        - **Condition** – Condition for restart (`none`, `on-failure`, or `any`).
         - **Delay** – Delay between restart attempts.
         - **Attempts** – Maximum attempts to restart a given container before giving up (default value
           is 0, which is ignored).

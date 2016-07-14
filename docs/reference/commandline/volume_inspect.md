@@ -10,12 +10,15 @@ parent = "smn_cli"
 
 # volume inspect
 
-    Usage: docker volume inspect [OPTIONS] VOLUME [VOLUME...]
+```markdown
+Usage:  docker volume inspect [OPTIONS] VOLUME [VOLUME...]
 
-    Display detailed information on one or more volumes
+Display detailed information on one or more volumes
 
-      -f, --format=       Format the output using the given go template.
-      --help              Print usage
+Options:
+  -f, --format string   Format the output using the given go template
+      --help            Print usage
+```
 
 Returns information about a volume. By default, this command renders all results
 in a JSON array. You can specify an alternate format to execute a

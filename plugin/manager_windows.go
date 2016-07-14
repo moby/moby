@@ -23,3 +23,7 @@ func (pm *Manager) disable(p *plugin) error {
 func (pm *Manager) restore(p *plugin) error {
 	return fmt.Errorf("Not implemented")
 }
+
+// Shutdown plugins
+func (pm *Manager) Shutdown() {
+}

@@ -572,7 +572,7 @@ The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
   For systems that have recent aufs version (i.e., `dirperm1` mount option can
   be set), docker will attempt to fix the issue automatically by mounting
   the layers with `dirperm1` option. More details on `dirperm1` option can be
-  found at [`aufs` man page](http://aufs.sourceforge.net/aufs3/man.html)
+  found at [`aufs` man page](https://github.com/sfjro/aufs3-linux/tree/aufs3.18/Documentation/filesystems/aufs)
 
   If your system doesn't have support for `dirperm1`, the issue describes a workaround.
 
@@ -1292,8 +1292,9 @@ subsequent line 3. The `USER` at line 4 evaluates to `what_user` as `user` is
 defined and the `what_user` value was passed on the command line. Prior to its definition by an
 `ARG` instruction, any use of a variable results in an empty string.
 
-> **Note:** It is not recommended to use build-time variables for
->  passing secrets like github keys, user credentials etc.
+> **Warning:** It is not recommended to use build-time variables for
+>  passing secrets like github keys, user credentials etc. Build-time variable
+>  values are visible to any user of the image with the `docker history` command.
 
 You can use an `ARG` or an `ENV` instruction to specify variables that are
 available to the `RUN` instruction. Environment variables defined using the

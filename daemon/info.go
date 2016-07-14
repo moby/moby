@@ -51,6 +51,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	meminfo, err := system.ReadMemInfo()
 	if err != nil {
 		logrus.Errorf("Could not read system memory info: %v", err)
+		meminfo = &system.MemInfo{}
 	}
 
 	sysInfo := sysinfo.New(true)
@@ -71,7 +72,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	if sysInfo.AppArmor {
 		securityOptions = append(securityOptions, "apparmor")
 	}
-	if sysInfo.Seccomp {
+	if sysInfo.Seccomp && supportsSeccomp {
 		securityOptions = append(securityOptions, "seccomp")
 	}
 	if selinuxEnabled() {

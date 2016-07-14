@@ -14,7 +14,7 @@ import (
 	"github.com/hashicorp/memberlist"
 )
 
-const reapInterval = 2 * time.Second
+const reapInterval = 30 * time.Second
 
 type logWriter struct{}
 
@@ -358,6 +358,10 @@ func (nDB *NetworkDB) bulkSync(nid string, nodes []string, all bool) ([]string, 
 	if !all {
 		// If not all, then just pick one.
 		nodes = nDB.mRandomNodes(1, nodes)
+	}
+
+	if len(nodes) == 0 {
+		return nil, nil
 	}
 
 	logrus.Debugf("%s: Initiating bulk sync with nodes %v", nDB.config.NodeName, nodes)

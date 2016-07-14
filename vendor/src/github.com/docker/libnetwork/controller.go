@@ -193,6 +193,11 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 			return nil, err
 		}
 	}
+
+	if err = initIPAMDrivers(drvRegistry, nil, c.getStore(datastore.GlobalScope)); err != nil {
+		return nil, err
+	}
+
 	c.drvRegistry = drvRegistry
 
 	if c.cfg != nil && c.cfg.Cluster.Watcher != nil {
@@ -634,13 +639,18 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		return nil, err
 	}
 
-	if err = network.joinCluster(); err != nil {
-		log.Errorf("Failed to join network %s into agent cluster: %v", name, err)
-	}
-
-	network.addDriverWatches()
+	joinCluster(network)
 
 	return network, nil
+}
+
+var joinCluster NetworkWalker = func(nw Network) bool {
+	n := nw.(*network)
+	if err := n.joinCluster(); err != nil {
+		log.Errorf("Failed to join network %s (%s) into agent cluster: %v", n.Name(), n.ID(), err)
+	}
+	n.addDriverWatches()
+	return false
 }
 
 func (c *controller) reservePools() {
@@ -796,7 +806,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 			// If not a stub, then we already have a complete sandbox.
 			if !s.isStub {
 				c.Unlock()
-				return nil, types.BadRequestErrorf("container %s is already present: %v", containerID, s)
+				return nil, types.ForbiddenErrorf("container %s is already present: %v", containerID, s)
 			}
 
 			// We already have a stub sandbox from the
@@ -831,7 +841,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 	c.Lock()
 	if sb.ingress && c.ingressSandbox != nil {
 		c.Unlock()
-		return nil, fmt.Errorf("ingress sandbox already present")
+		return nil, types.ForbiddenErrorf("ingress sandbox already present")
 	}
 
 	if sb.ingress {

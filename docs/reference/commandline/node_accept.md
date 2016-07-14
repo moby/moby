@@ -10,9 +10,14 @@ parent = "smn_cli"
 
 # node accept
 
-    Usage:  docker node accept NODE [NODE...]
+```markdown
+Usage:  docker node accept NODE [NODE...]
 
-    Accept a node in the swarm
+Accept a node in the swarm
+
+Options:
+      --help   Print usage
+```
 
 Accept a node into the swarm. This command targets a docker engine that is a manager in the swarm cluster.
 

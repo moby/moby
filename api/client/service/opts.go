@@ -176,10 +176,16 @@ func (m *MountOpt) Set(value string) error {
 		}
 	}
 
+	// Set writable as the default
 	for _, field := range fields {
 		parts := strings.SplitN(field, "=", 2)
-		if len(parts) == 1 && strings.ToLower(parts[0]) == "writable" {
-			mount.Writable = true
+		if len(parts) == 1 && strings.ToLower(parts[0]) == "readonly" {
+			mount.ReadOnly = true
+			continue
+		}
+
+		if len(parts) == 1 && strings.ToLower(parts[0]) == "volume-nocopy" {
+			volumeOptions().NoCopy = true
 			continue
 		}
 
@@ -195,15 +201,16 @@ func (m *MountOpt) Set(value string) error {
 			mount.Source = value
 		case "target":
 			mount.Target = value
-		case "writable":
-			mount.Writable, err = strconv.ParseBool(value)
+		case "readonly":
+			ro, err := strconv.ParseBool(value)
 			if err != nil {
-				return fmt.Errorf("invalid value for writable: %s", value)
+				return fmt.Errorf("invalid value for readonly: %s", value)
 			}
+			mount.ReadOnly = ro
 		case "bind-propagation":
 			bindOptions().Propagation = swarm.MountPropagation(strings.ToUpper(value))
-		case "volume-populate":
-			volumeOptions().Populate, err = strconv.ParseBool(value)
+		case "volume-nocopy":
+			volumeOptions().NoCopy, err = strconv.ParseBool(value)
 			if err != nil {
 				return fmt.Errorf("invalid value for populate: %s", value)
 			}
@@ -227,6 +234,17 @@ func (m *MountOpt) Set(value string) error {
 
 	if mount.Target == "" {
 		return fmt.Errorf("target is required")
+	}
+
+	if mount.VolumeOptions != nil && mount.Source == "" {
+		return fmt.Errorf("source is required when specifying volume-* options")
+	}
+
+	if mount.Type == swarm.MountType("BIND") && mount.VolumeOptions != nil {
+		return fmt.Errorf("cannot mix 'volume-*' options with mount type '%s'", swarm.MountTypeBind)
+	}
+	if mount.Type == swarm.MountType("VOLUME") && mount.BindOptions != nil {
+		return fmt.Errorf("cannot mix 'bind-*' options with mount type '%s'", swarm.MountTypeVolume)
 	}
 
 	m.values = append(m.values, mount)
@@ -355,7 +373,6 @@ type serviceOptions struct {
 	name    string
 	labels  opts.ListOpts
 	image   string
-	command []string
 	args    []string
 	env     opts.ListOpts
 	workdir string
@@ -398,7 +415,6 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: swarm.ContainerSpec{
 				Image:           opts.image,
-				Command:         opts.command,
 				Args:            opts.args,
 				Env:             opts.env.GetAll(),
 				Dir:             opts.workdir,
@@ -448,7 +464,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.VarP(&opts.env, "env", "e", "Set environment variables")
 	flags.StringVarP(&opts.workdir, "workdir", "w", "", "Working directory inside the container")
 	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID")
-	flags.VarP(&opts.mounts, flagMount, "m", "Attach a mount to the service")
+	flags.Var(&opts.mounts, flagMount, "Attach a mount to the service")
 
 	flags.Var(&opts.resources.limitCPU, flagLimitCPU, "Limit CPUs")
 	flags.Var(&opts.resources.limitMemBytes, flagLimitMemory, "Limit Memory")
@@ -458,7 +474,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 
 	flags.Var(&opts.replicas, flagReplicas, "Number of tasks")
 
-	flags.StringVar(&opts.restartPolicy.condition, flagRestartCondition, "", "Restart when condition is met (none, on_failure, or any)")
+	flags.StringVar(&opts.restartPolicy.condition, flagRestartCondition, "", "Restart when condition is met (none, on-failure, or any)")
 	flags.Var(&opts.restartPolicy.delay, flagRestartDelay, "Delay between restart attempts")
 	flags.Var(&opts.restartPolicy.maxAttempts, flagRestartMaxAttempts, "Maximum number of restarts before giving up")
 	flags.Var(&opts.restartPolicy.window, flagRestartWindow, "Window used to evaluate the restart policy")
@@ -469,7 +485,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.DurationVar(&opts.update.delay, flagUpdateDelay, time.Duration(0), "Delay between updates")
 
 	flags.StringSliceVar(&opts.networks, flagNetwork, []string{}, "Network attachments")
-	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode(Valid values: vip, dnsrr)")
+	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode (vip or dnsrr)")
 	flags.VarP(&opts.endpoint.ports, flagPublish, "p", "Publish a port as a node port")
 
 	flags.BoolVar(&opts.registryAuth, flagRegistryAuth, false, "Send registry authentication details to Swarm agents")

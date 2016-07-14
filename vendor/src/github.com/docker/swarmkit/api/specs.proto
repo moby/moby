@@ -114,6 +114,10 @@ message TaskSpec {
 
 	// Placement specifies node selection constraints
 	Placement placement = 5;
+
+	// LogDriver specifies the log driver to use for the task. Any runtime will
+	// direct logs into the specified driver for the duration of the task.
+	Driver log_driver = 6;
 }
 
 // Container specifies runtime parameters for a container.
@@ -243,4 +247,11 @@ message ClusterSpec {
 
 	// CAConfig defines cluster-level certificate authority settings.
 	CAConfig ca_config = 6 [(gogoproto.nullable) = false, (gogoproto.customname) = "CAConfig"];
+
+	// DefaultLogDriver specifies the log driver to use for the cluster if not
+	// specified for each task.
+	//
+	// If this is changed, only new tasks will pick up the new log driver.
+	// Existing tasks will continue to use the previous default until rescheduled.
+	Driver default_log_driver = 7;
 }

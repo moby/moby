@@ -36,6 +36,7 @@ RUN apt-get update && apt-get install -y \
 	libapparmor-dev \
 	libc6-dev \
 	libcap-dev \
+	libltdl-dev \
 	libsqlite3-dev \
 	libsystemd-dev \
 	mercurial \
@@ -47,6 +48,8 @@ RUN apt-get update && apt-get install -y \
 	python-pip \
 	python-websocket \
 	gccgo \
+	iproute2 \
+	iputils-ping \
 	--no-install-recommends
 
 # Install armhf loader to use armv6 binaries on armv8

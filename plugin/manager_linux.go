@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/libcontainerd"
@@ -127,4 +128,40 @@ func (pm *Manager) disable(p *plugin) error {
 	p.P.Active = false
 	pm.save()
 	return nil
+}
+
+// Shutdown stops all plugins and called during daemon shutdown.
+func (pm *Manager) Shutdown() {
+	pm.RLock()
+	defer pm.RUnlock()
+
+	pm.shutdown = true
+	for _, p := range pm.plugins {
+		if p.restartManager != nil {
+			if err := p.restartManager.Cancel(); err != nil {
+				logrus.Error(err)
+			}
+		}
+		if pm.containerdClient != nil {
+			p.exitChan = make(chan bool)
+			err := pm.containerdClient.Signal(p.P.ID, int(syscall.SIGTERM))
+			if err != nil {
+				logrus.Errorf("Sending SIGTERM to plugin failed with error: %v", err)
+			} else {
+				select {
+				case <-p.exitChan:
+					logrus.Debug("Clean shutdown of plugin")
+				case <-time.After(time.Second * 10):
+					logrus.Debug("Force shutdown plugin")
+					if err := pm.containerdClient.Signal(p.P.ID, int(syscall.SIGKILL)); err != nil {
+						logrus.Errorf("Sending SIGKILL to plugin failed with error: %v", err)
+					}
+				}
+			}
+			close(p.exitChan)
+		}
+		if err := os.RemoveAll(p.runtimeSourcePath); err != nil {
+			logrus.Errorf("Remove plugin runtime failed with error: %v", err)
+		}
+	}
 }

@@ -60,12 +60,12 @@ clone git golang.org/x/net 2beffdc2e92c8a3027590f898fe88f69af48a3f8 https://gith
 clone git golang.org/x/sys eb2c74142fd19a79b3f237334c7384d5167b1b46 https://github.com/golang/sys.git
 clone git github.com/docker/go-units 651fc226e7441360384da338d0fd37f2440ffbe3
 clone git github.com/docker/go-connections fa2850ff103453a9ad190da0df0af134f0314b3d
-clone git github.com/docker/engine-api 62043eb79d581a32ea849645277023c550732e52
+clone git github.com/docker/engine-api 1d247454d4307fb1ddf10d09fd2996394b085904
 clone git github.com/RackSec/srslog 259aed10dfa74ea2961eddd1d9847619f6e98837
 clone git github.com/imdario/mergo 0.2.1
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork 377a7337f2387cce3be1df7a4503446147b68ff1
+clone git github.com/docker/libnetwork 905d374c096ca1f3a9b75529e52518b7540179f3
 clone git github.com/docker/go-events 39718a26497694185f8fb58a7d6f31947f3dc42d
 clone git github.com/armon/go-radix e39d623f12e8e41c7b5529e9a9dd67a1e2261f80
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
@@ -87,7 +87,7 @@ clone git github.com/boltdb/bolt v1.2.1
 clone git github.com/miekg/dns 75e6e86cc601825c5dbcd4e0c209eab180997cd7
 
 # get graph and distribution packages
-clone git github.com/docker/distribution 5bbf65499960b184fe8e0f045397375e1a6722b8
+clone git github.com/docker/distribution 4e17ab5d319ac5b70b2769442947567a83386fbc
 clone git github.com/vbatts/tar-split v0.9.11
 
 # get go-zfs packages
@@ -139,7 +139,7 @@ clone git github.com/docker/docker-credential-helpers v0.3.0
 clone git github.com/docker/containerd 1b3a81545ca79456086dc2aa424357be98b962ee
 
 # cluster
-clone git github.com/docker/swarmkit 036a4a1e934bd1bbb35c3ec7f85dea2ba6d4e336
+clone git github.com/docker/swarmkit 6478bc19cf4bc1d7ba2d6f04ccaacf099508f4a0
 clone git github.com/golang/mock bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
 clone git github.com/gogo/protobuf 43a2e0b1c32252bfbbdf81f7faa7a88fb3fa4028
 clone git github.com/cloudflare/cfssl b895b0549c0ff676f92cf09ba971ae02bb41367b
@@ -164,5 +164,6 @@ clone git github.com/pkg/errors 01fa4104b9c248c8945d14d9f128454d5b28d595
 clone git github.com/spf13/cobra 75205f23b3ea70dc7ae5e900d074e010c23c37e9 https://github.com/dnephin/cobra.git
 clone git github.com/spf13/pflag cb88ea77998c3f024757528e3305022ab50b43be
 clone git github.com/inconshreveable/mousetrap 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+clone git github.com/flynn-archive/go-shlex 3f9db97f856818214da2e1057f8ad84803971cff
 
 clean

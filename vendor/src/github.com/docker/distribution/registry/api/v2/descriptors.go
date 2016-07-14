@@ -1497,8 +1497,8 @@ var routeDescriptors = []RouteDescriptor{
 				Description: "Retrieve a sorted, json list of repositories available in the registry.",
 				Requests: []RequestDescriptor{
 					{
-						Name:        "Catalog Fetch Complete",
-						Description: "Request an unabridged list of repositories available.",
+						Name:        "Catalog Fetch",
+						Description: "Request an unabridged list of repositories available.  The implementation may impose a maximum limit and return a partial set with pagination links.",
 						Successes: []ResponseDescriptor{
 							{
 								Description: "Returns the unabridged list of repositories as a json response.",

@@ -11,15 +11,18 @@ parent = "smn_cli"
 
 # swarm join
 
-	Usage:	docker swarm join [OPTIONS] HOST:PORT
+```markdown
+Usage:  docker swarm join [OPTIONS] HOST:PORT
 
-	Join a Swarm as a node and/or manager.
+Join a Swarm as a node and/or manager
 
-	Options:
-	      --help                Print usage
-	      --listen-addr value   Listen address (default 0.0.0.0:2377)
-	      --manager             Try joining as a manager.
-	      --secret string       Secret for node acceptance
+Options:
+      --ca-hash string      Hash of the Root Certificate Authority certificate used for trusted join
+      --help                Print usage
+      --listen-addr value   Listen address (default 0.0.0.0:2377)
+      --manager             Try joining as a manager.
+      --secret string       Secret for node acceptance
+```
 
 Join a node to a Swarm cluster. If the `--manager` flag is specified, the docker engine
 targeted by this command becomes a `manager`. If it is not specified, it becomes a `worker`.
@@ -27,10 +30,10 @@ targeted by this command becomes a `manager`. If it is not specified, it becomes
 ### Join a node to swarm as a manager
 
 ```bash
-$ docker swarm join --manager --listen-addr 192.168.99.122:2377 192.168.99.121:2377
+$ docker swarm join --secret 4ao565v9jsuogtq5t8s379ulb --manager --listen-addr 192.168.99.122:2377 192.168.99.121:2377
 This node joined a Swarm as a manager.
 $ docker node ls
-ID                           NAME      MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS         LEADER
+ID                           HOSTNAME  MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS         LEADER
 dkp8vy1dq1kxleu9g4u78tlag *  manager2  Accepted    Ready   Active        Reachable
 dvfxp4zseq4s0rih1selh0d20    manager1  Accepted    Ready   Active        Reachable              Yes
 ```
@@ -38,22 +41,26 @@ dvfxp4zseq4s0rih1selh0d20    manager1  Accepted    Ready   Active        Reachab
 ### Join a node to swarm as a worker
 
 ```bash
-$ docker swarm join --listen-addr 192.168.99.123:2377 192.168.99.121:2377
+$ docker swarm join --secret 4ao565v9jsuogtq5t8s379ulb --listen-addr 192.168.99.123:2377 192.168.99.121:2377
 This node joined a Swarm as a worker.
 $ docker node ls
-ID                           NAME      MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS         LEADER
+ID                           HOSTNAME  MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS         LEADER
 7ln70fl22uw2dvjn2ft53m3q5    worker2   Accepted    Ready   Active
 dkp8vy1dq1kxleu9g4u78tlag    worker1   Accepted    Ready   Active        Reachable
 dvfxp4zseq4s0rih1selh0d20 *  manager1  Accepted    Ready   Active        Reachable              Yes
 ```
 
-### `--manager`
+### `--ca-hash`
 
-Joins the node as a manager
+Hash of the Root Certificate Authority certificate used for trusted join.
 
 ### `--listen-addr value`
 
 The node listens for inbound Swarm manager traffic on this IP:PORT
+
+### `--manager`
+
+Joins the node as a manager
 
 ### `--secret string`
 

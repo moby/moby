@@ -10,22 +10,25 @@ parent = "smn_cli"
 
 ## update
 
-    Usage: docker update [OPTIONS] CONTAINER [CONTAINER...]
+```markdown
+Usage:  docker update [OPTIONS] CONTAINER [CONTAINER...]
 
-    Update configuration of one or more containers
+Update configuration of one or more containers
 
-      --help=false               Print usage
-      --blkio-weight=0           Block IO (relative weight), between 10 and 1000
-      --cpu-shares=0             CPU shares (relative weight)
-      --cpu-period=0             Limit the CPU CFS (Completely Fair Scheduler) period
-      --cpu-quota=0              Limit the CPU CFS (Completely Fair Scheduler) quota
-      --cpuset-cpus=""           CPUs in which to allow execution (0-3, 0,1)
-      --cpuset-mems=""           Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
-      -m, --memory=""            Memory limit
-      --memory-reservation=""    Memory soft limit
-      --memory-swap=""           A positive integer equal to memory plus swap. Specify -1 to enable unlimited swap
-      --kernel-memory=""         Kernel memory limit: container must be stopped
-      --restart                  Restart policy to apply when a container exits
+Options:
+      --blkio-weight value          Block IO (relative weight), between 10 and 1000
+      --cpu-period int              Limit CPU CFS (Completely Fair Scheduler) period
+      --cpu-quota int               Limit CPU CFS (Completely Fair Scheduler) quota
+  -c, --cpu-shares int              CPU shares (relative weight)
+      --cpuset-cpus string          CPUs in which to allow execution (0-3, 0,1)
+      --cpuset-mems string          MEMs in which to allow execution (0-3, 0,1)
+      --help                        Print usage
+      --kernel-memory string        Kernel memory limit
+  -m, --memory string               Memory limit
+      --memory-reservation string   Memory soft limit
+      --memory-swap string          Swap limit equal to memory plus swap: '-1' to enable unlimited swap
+      --restart string              Restart policy to apply when a container exits
+```
 
 The `docker update` command dynamically updates container configuration.
 You can use this command to prevent containers from consuming too many resources
@@ -35,9 +38,23 @@ space-separated list of container names or IDs.
 
 With the exception of the `--kernel-memory` value, you can specify these
 options on a running or a stopped container. You can only update
-`--kernel-memory` on a stopped container. When you run `docker update` on
-stopped container, the next time you restart it, the container uses those
-values.
+`--kernel-memory` on a stopped container or on a running container with
+kernel memory initialized. For example, if you started a container with
+command:
+
+    # docker run -ti --name test --kernel-memory 50M ubuntu bash
+
+You can update kernel memory of this running container:
+
+    # docker update --kernel-memory 80M test
+
+If you started a container without kernel memory initialized:
+
+    # docker run -ti --name test2 --memory 300M ubuntu bash
+
+Update kernel memory of running container `test2` will fail, you can only
+stop the container and update kernel memory then. The next time you
+restart it, the container uses the new value.
 
 Another configuration you can change with this command is restart policy,
 new restart policy will take effect instantly after you run `docker update`

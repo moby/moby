@@ -19,12 +19,10 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
-	"github.com/docker/docker/reference"
 	"github.com/docker/docker/runconfig"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/types"
@@ -579,7 +577,11 @@ func verifyDaemonSettings(config *Config) error {
 	if config.Runtimes == nil {
 		config.Runtimes = make(map[string]types.Runtime)
 	}
-	config.Runtimes[stockRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary}
+	stockRuntimeOpts := []string{}
+	if UsingSystemd(config) {
+		stockRuntimeOpts = append(stockRuntimeOpts, "--systemd-cgroup=true")
+	}
+	config.Runtimes[stockRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary, Args: stockRuntimeOpts}
 
 	return nil
 }
@@ -1064,11 +1066,6 @@ func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container
 	return daemon.Unmount(container)
 }
 
-func restoreCustomImage(is image.Store, ls layer.Store, rs reference.Store) error {
-	// Unix has no custom images to register
-	return nil
-}
-
 func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 	if !c.IsRunning() {
 		return nil, errNotRunning{c.ID}
@@ -1141,4 +1138,20 @@ func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
 		Type:   rootfs.Type,
 		Layers: layers,
 	}
+}
+
+// setupDaemonProcess sets various settings for the daemon's process
+func setupDaemonProcess(config *Config) error {
+	// setup the daemons oom_score_adj
+	return setupOOMScoreAdj(config.OOMScoreAdjust)
+}
+
+func setupOOMScoreAdj(score int) error {
+	f, err := os.OpenFile("/proc/self/oom_score_adj", os.O_WRONLY, 0)
+	if err != nil {
+		return err
+	}
+	_, err = f.WriteString(strconv.Itoa(score))
+	f.Close()
+	return err
 }

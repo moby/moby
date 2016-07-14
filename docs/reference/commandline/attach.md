@@ -10,14 +10,17 @@ parent = "smn_cli"
 
 # attach
 
-    Usage: docker attach [OPTIONS] CONTAINER
+```markdown
+Usage: docker attach [OPTIONS] CONTAINER
 
-    Attach to a running container
+Attach to a running container
 
-      --detach-keys="<sequence>"       Set up escape key sequence
-      --help                           Print usage
-      --no-stdin                       Do not attach STDIN
-      --sig-proxy=true                 Proxy all received signals to the process
+Options:
+      --detach-keys string   Override the key sequence for detaching a container
+      --help                 Print usage
+      --no-stdin             Do not attach STDIN
+      --sig-proxy            Proxy all received signals to the process (default true)
+```
 
 The `docker attach` command allows you to attach to a running container using
 the container's ID or name, either to view its ongoing output or to control it

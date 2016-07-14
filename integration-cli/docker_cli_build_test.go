@@ -4599,26 +4599,9 @@ func (s *DockerSuite) TestBuildNotVerboseSuccess(c *check.C) {
 		if outRegexp.Find([]byte(stdout)) == nil {
 			c.Fatalf("Test %s expected stdout to match the [%v] regexp, but it is [%v]", te.Name, outRegexp, stdout)
 		}
-		if runtime.GOOS == "windows" {
-			// stderr contains a security warning on Windows if the daemon isn't Windows
-			lines := strings.Split(stderr, "\n")
-			warningCount := 0
-			for _, v := range lines {
-				warningText := "SECURITY WARNING: You are building a Docker image from Windows against a non-Windows Docker host."
-				if strings.Contains(v, warningText) {
-					warningCount++
-				}
-				if v != "" && !strings.Contains(v, warningText) {
-					c.Fatalf("Stderr contains unexpected output line: %q", v)
-				}
-			}
-			if warningCount != 1 && daemonPlatform != "windows" {
-				c.Fatalf("Test %s didn't get security warning running from Windows to non-Windows", te.Name)
-			}
-		} else {
-			if stderr != "" {
-				c.Fatalf("Test %s expected stderr to be empty, but it is [%#v]", te.Name, stderr)
-			}
+
+		if stderr != "" {
+			c.Fatalf("Test %s expected stderr to be empty, but it is [%#v]", te.Name, stderr)
 		}
 	}
 
@@ -4691,17 +4674,16 @@ func (s *DockerSuite) TestBuildStderr(c *check.C) {
 		c.Fatal(err)
 	}
 
-	if runtime.GOOS == "windows" {
-		// stderr might contain a security warning on windows
-		lines := strings.Split(stderr, "\n")
-		for _, v := range lines {
-			if v != "" && !strings.Contains(v, "SECURITY WARNING:") {
-				c.Fatalf("Stderr contains unexpected output line: %q", v)
-			}
+	if runtime.GOOS == "windows" &&
+		daemonPlatform != "windows" {
+		// Windows to non-Windows should have a security warning
+		if !strings.Contains(stderr, "SECURITY WARNING:") {
+			c.Fatalf("Stderr contains unexpected output: %q", stderr)
 		}
 	} else {
+		// Other platform combinations should have no stderr written too
 		if stderr != "" {
-			c.Fatalf("Stderr should have been empty, instead its: %q", stderr)
+			c.Fatalf("Stderr should have been empty, instead it's: %q", stderr)
 		}
 	}
 }
@@ -6958,5 +6940,30 @@ func (s *DockerSuite) TestBuildShellWindowsPowershell(c *check.C) {
 	}
 	if !strings.Contains(out, "\nJohn\n") {
 		c.Fatalf("Line with 'John' not found in output %q", out)
+	}
+}
+
+// #22868. Make sure shell-form CMD is marked as escaped in the config of the image
+func (s *DockerSuite) TestBuildCmdShellArgsEscaped(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	name := "testbuildcmdshellescaped"
+
+	_, err := buildImage(name, `
+  FROM `+minimalBaseImage()+`
+  CMD "tasklist"
+  `, true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	res := inspectFieldJSON(c, name, "Config.ArgsEscaped")
+	if res != "true" {
+		c.Fatalf("CMD did not update Config.ArgsEscaped on image: %v", res)
+	}
+	dockerCmd(c, "run", "--name", "inspectme", name)
+	dockerCmd(c, "wait", "inspectme")
+	res = inspectFieldJSON(c, name, "Config.Cmd")
+
+	if res != `["cmd","/S","/C","\"tasklist\""]` {
+		c.Fatalf("CMD was not escaped Config.Cmd: got %v", res)
 	}
 }

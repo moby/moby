@@ -51,7 +51,7 @@ common Ethernet switch; no more, no less.
 How mature is the code providing kernel namespaces and private
 networking? Kernel namespaces were introduced [between kernel version
 2.6.15 and
-2.6.26](http://lxc.sourceforge.net/index.php/about/kernel-namespaces/).
+2.6.26](http://man7.org/linux/man-pages/man7/namespaces.7.html).
 This means that since July 2008 (date of the 2.6.26 release
 ), namespace code has been exercised and scrutinized on a large
 number of production systems. And there is more: the design and

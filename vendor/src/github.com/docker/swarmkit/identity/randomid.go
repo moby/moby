@@ -16,9 +16,8 @@ var (
 // parameters for random identifier generation. We can tweak this when there is
 // time for further analysis.
 const (
-	randomIDEntropyBytes     = 16
-	randomNodeIDEntropyBytes = 8
-	randomIDBase             = 36
+	randomIDEntropyBytes = 16
+	randomIDBase         = 36
 
 	// To ensure that all identifiers are fixed length, we make sure they
 	// get padded out to 25 characters, which is the maximum for the base36
@@ -28,8 +27,7 @@ const (
 	// was calculated from floor(log(2^128-1, 36)) + 1.
 	//
 	// See http://mathworld.wolfram.com/NumberLength.html for more information.
-	maxRandomIDLength     = 25
-	maxRandomNodeIDLength = 13
+	maxRandomIDLength = 25
 )
 
 // NewID generates a new identifier for use where random identifiers with low

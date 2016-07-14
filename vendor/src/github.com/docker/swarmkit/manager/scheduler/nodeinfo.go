@@ -23,7 +23,7 @@ func newNodeInfo(n *api.Node, tasks map[string]*api.Task, availableResources api
 }
 
 func (nodeInfo *NodeInfo) removeTask(t *api.Task) bool {
-	if nodeInfo.Tasks == nil || nodeInfo.Node == nil {
+	if nodeInfo.Tasks == nil {
 		return false
 	}
 	if _, ok := nodeInfo.Tasks[t.ID]; !ok {
@@ -39,9 +39,6 @@ func (nodeInfo *NodeInfo) removeTask(t *api.Task) bool {
 }
 
 func (nodeInfo *NodeInfo) addTask(t *api.Task) bool {
-	if nodeInfo.Node == nil {
-		return false
-	}
 	if nodeInfo.Tasks == nil {
 		nodeInfo.Tasks = make(map[string]*api.Task)
 	}
