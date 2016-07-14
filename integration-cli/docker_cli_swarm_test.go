@@ -169,3 +169,45 @@ func (s *DockerSwarmSuite) TestSwarmNodeListHostname(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.Split(out, "\n")[0], checker.Contains, "HOSTNAME")
 }
+
+// Test case for #24270
+func (s *DockerSwarmSuite) TestSwarmServiceListFilter(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name1 := "redis-cluster-md5"
+	name2 := "redis-cluster"
+	name3 := "other-cluster"
+	out, err := d.Cmd("service", "create", "--name", name1, "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	out, err = d.Cmd("service", "create", "--name", name2, "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	out, err = d.Cmd("service", "create", "--name", name3, "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	filter1 := "name=redis-cluster-md5"
+	filter2 := "name=redis-cluster"
+
+	// We search checker.Contains with `name+" "` to prevent prefix only.
+	out, err = d.Cmd("service", "ls", "--filter", filter1)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name1+" ")
+	c.Assert(out, checker.Not(checker.Contains), name2+" ")
+	c.Assert(out, checker.Not(checker.Contains), name3+" ")
+
+	out, err = d.Cmd("service", "ls", "--filter", filter2)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name1+" ")
+	c.Assert(out, checker.Contains, name2+" ")
+	c.Assert(out, checker.Not(checker.Contains), name3+" ")
+
+	out, err = d.Cmd("service", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name1+" ")
+	c.Assert(out, checker.Contains, name2+" ")
+	c.Assert(out, checker.Contains, name3+" ")
+}
