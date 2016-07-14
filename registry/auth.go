@@ -91,6 +91,35 @@ func (lcs loginCredentialStore) SetRefreshToken(u *url.URL, service, token strin
 	lcs.authConfig.IdentityToken = token
 }
 
+type staticCredentialStore struct {
+	auth *types.AuthConfig
+}
+
+// NewStaticCredentialStore returns a credential store
+// which always returns the same credential values.
+func NewStaticCredentialStore(auth *types.AuthConfig) auth.CredentialStore {
+	return staticCredentialStore{
+		auth: auth,
+	}
+}
+
+func (scs staticCredentialStore) Basic(*url.URL) (string, string) {
+	if scs.auth == nil {
+		return "", ""
+	}
+	return scs.auth.Username, scs.auth.Password
+}
+
+func (scs staticCredentialStore) RefreshToken(*url.URL, string) string {
+	if scs.auth == nil {
+		return ""
+	}
+	return scs.auth.IdentityToken
+}
+
+func (scs staticCredentialStore) SetRefreshToken(*url.URL, string, string) {
+}
+
 type fallbackError struct {
 	err error
 }
@@ -108,33 +137,14 @@ func loginV2(authConfig *types.AuthConfig, endpoint APIEndpoint, userAgent strin
 	modifiers := DockerHeaders(userAgent, nil)
 	authTransport := transport.NewTransport(NewTransport(endpoint.TLSConfig), modifiers...)
 
-	challengeManager, foundV2, err := PingV2Registry(endpoint, authTransport)
-	if err != nil {
-		if !foundV2 {
-			err = fallbackError{err: err}
-		}
-		return "", "", err
-	}
-
 	credentialAuthConfig := *authConfig
 	creds := loginCredentialStore{
 		authConfig: &credentialAuthConfig,
 	}
 
-	tokenHandlerOptions := auth.TokenHandlerOptions{
-		Transport:     authTransport,
-		Credentials:   creds,
-		OfflineAccess: true,
-		ClientID:      AuthClientID,
-	}
-	tokenHandler := auth.NewTokenHandlerWithOptions(tokenHandlerOptions)
-	basicHandler := auth.NewBasicHandler(creds)
-	modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler))
-	tr := transport.NewTransport(authTransport, modifiers...)
-
-	loginClient := &http.Client{
-		Transport: tr,
-		Timeout:   15 * time.Second,
+	loginClient, foundV2, err := v2AuthHTTPClient(endpoint.URL, authTransport, modifiers, creds, nil)
+	if err != nil {
+		return "", "", err
 	}
 
 	endpointStr := strings.TrimRight(endpoint.URL.String(), "/") + "/v2/"
@@ -165,6 +175,34 @@ func loginV2(authConfig *types.AuthConfig, endpoint APIEndpoint, userAgent strin
 	}
 
 	return "Login Succeeded", credentialAuthConfig.IdentityToken, nil
+
+}
+
+func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifiers []transport.RequestModifier, creds auth.CredentialStore, scopes []auth.Scope) (*http.Client, bool, error) {
+	challengeManager, foundV2, err := PingV2Registry(endpoint, authTransport)
+	if err != nil {
+		if !foundV2 {
+			err = fallbackError{err: err}
+		}
+		return nil, foundV2, err
+	}
+
+	tokenHandlerOptions := auth.TokenHandlerOptions{
+		Transport:     authTransport,
+		Credentials:   creds,
+		OfflineAccess: true,
+		ClientID:      AuthClientID,
+		Scopes:        scopes,
+	}
+	tokenHandler := auth.NewTokenHandlerWithOptions(tokenHandlerOptions)
+	basicHandler := auth.NewBasicHandler(creds)
+	modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler))
+	tr := transport.NewTransport(authTransport, modifiers...)
+
+	return &http.Client{
+		Transport: tr,
+		Timeout:   15 * time.Second,
+	}, foundV2, nil
 
 }
 
@@ -215,7 +253,7 @@ func (err PingResponseError) Error() string {
 // challenge manager for the supported authentication types and
 // whether v2 was confirmed by the response. If a response is received but
 // cannot be interpreted a PingResponseError will be returned.
-func PingV2Registry(endpoint APIEndpoint, transport http.RoundTripper) (auth.ChallengeManager, bool, error) {
+func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (auth.ChallengeManager, bool, error) {
 	var (
 		foundV2   = false
 		v2Version = auth.APIVersion{
@@ -228,7 +266,7 @@ func PingV2Registry(endpoint APIEndpoint, transport http.RoundTripper) (auth.Cha
 		Transport: transport,
 		Timeout:   15 * time.Second,
 	}
-	endpointStr := strings.TrimRight(endpoint.URL.String(), "/") + "/v2/"
+	endpointStr := strings.TrimRight(endpoint.String(), "/") + "/v2/"
 	req, err := http.NewRequest("GET", endpointStr, nil)
 	if err != nil {
 		return nil, false, err

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/docker/distribution"
@@ -18,21 +17,6 @@ import (
 	"github.com/docker/go-connections/sockets"
 	"golang.org/x/net/context"
 )
-
-type dumbCredentialStore struct {
-	auth *types.AuthConfig
-}
-
-func (dcs dumbCredentialStore) Basic(*url.URL) (string, string) {
-	return dcs.auth.Username, dcs.auth.Password
-}
-
-func (dcs dumbCredentialStore) RefreshToken(*url.URL, string) string {
-	return dcs.auth.IdentityToken
-}
-
-func (dcs dumbCredentialStore) SetRefreshToken(*url.URL, string, string) {
-}
 
 // NewV2Repository returns a repository (v2 only). It creates an HTTP transport
 // providing timeout settings and authentication support, and also verifies the
@@ -68,7 +52,7 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 	modifiers := registry.DockerHeaders(dockerversion.DockerUserAgent(ctx), metaHeaders)
 	authTransport := transport.NewTransport(base, modifiers...)
 
-	challengeManager, foundVersion, err := registry.PingV2Registry(endpoint, authTransport)
+	challengeManager, foundVersion, err := registry.PingV2Registry(endpoint.URL, authTransport)
 	if err != nil {
 		transportOK := false
 		if responseErr, ok := err.(registry.PingResponseError); ok {
@@ -86,7 +70,7 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 		passThruTokenHandler := &existingTokenHandler{token: authConfig.RegistryToken}
 		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, passThruTokenHandler))
 	} else {
-		creds := dumbCredentialStore{auth: authConfig}
+		creds := registry.NewStaticCredentialStore(authConfig)
 		tokenHandlerOptions := auth.TokenHandlerOptions{
 			Transport:   authTransport,
 			Credentials: creds,
