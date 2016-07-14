@@ -225,8 +225,9 @@ func (ctr *container) discardFifos() {
 		f := ctr.fifo(i)
 		c := make(chan struct{})
 		go func() {
+			r := openReaderFromFifo(f)
 			close(c) // this channel is used to not close the writer too early, before readonly open has been called.
-			io.Copy(ioutil.Discard, openReaderFromFifo(f))
+			io.Copy(ioutil.Discard, r)
 		}()
 		<-c
 		closeReaderFifo(f) // avoid blocking permanently on open if there is no writer side
