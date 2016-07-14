@@ -22,7 +22,7 @@ func (s *DockerSwarmSuite) TestServiceUpdatePort(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 1)
 
 	// Update the service: changed the port mapping from 8080:8081 to 8082:8083.
-	_, err = d.Cmd("service", "update", "-p", "8082:8083", serviceName)
+	_, err = d.Cmd("service", "update", "--publish-add", "8082:8083", "--publish-rm", "8081", serviceName)
 	c.Assert(err, checker.IsNil)
 
 	// Inspect the service and verify port mapping

@@ -459,12 +459,9 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags := cmd.Flags()
 	flags.StringVar(&opts.name, flagName, "", "Service name")
-	flags.VarP(&opts.labels, flagLabel, "l", "Service labels")
 
-	flags.VarP(&opts.env, "env", "e", "Set environment variables")
 	flags.StringVarP(&opts.workdir, "workdir", "w", "", "Working directory inside the container")
 	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID")
-	flags.Var(&opts.mounts, flagMount, "Attach a mount to the service")
 
 	flags.Var(&opts.resources.limitCPU, flagLimitCPU, "Limit CPUs")
 	flags.Var(&opts.resources.limitMemBytes, flagLimitMemory, "Limit Memory")
@@ -479,29 +476,38 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.Var(&opts.restartPolicy.maxAttempts, flagRestartMaxAttempts, "Maximum number of restarts before giving up")
 	flags.Var(&opts.restartPolicy.window, flagRestartWindow, "Window used to evaluate the restart policy")
 
-	flags.StringSliceVar(&opts.constraints, flagConstraint, []string{}, "Placement constraints")
-
 	flags.Uint64Var(&opts.update.parallelism, flagUpdateParallelism, 0, "Maximum number of tasks updated simultaneously")
 	flags.DurationVar(&opts.update.delay, flagUpdateDelay, time.Duration(0), "Delay between updates")
 
-	flags.StringSliceVar(&opts.networks, flagNetwork, []string{}, "Network attachments")
 	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode (vip or dnsrr)")
-	flags.VarP(&opts.endpoint.ports, flagPublish, "p", "Publish a port as a node port")
 
 	flags.BoolVar(&opts.registryAuth, flagRegistryAuth, false, "Send registry authentication details to Swarm agents")
 }
 
 const (
 	flagConstraint         = "constraint"
+	flagConstraintRemove   = "constraint-rm"
+	flagConstraintAdd      = "constraint-add"
 	flagEndpointMode       = "endpoint-mode"
+	flagEnv                = "env"
+	flagEnvRemove          = "env-rm"
+	flagEnvAdd             = "env-add"
 	flagLabel              = "label"
+	flagLabelRemove        = "label-rm"
+	flagLabelAdd           = "label-add"
 	flagLimitCPU           = "limit-cpu"
 	flagLimitMemory        = "limit-memory"
 	flagMode               = "mode"
 	flagMount              = "mount"
+	flagMountRemove        = "mount-rm"
+	flagMountAdd           = "mount-add"
 	flagName               = "name"
 	flagNetwork            = "network"
+	flagNetworkRemove      = "network-rm"
+	flagNetworkAdd         = "network-add"
 	flagPublish            = "publish"
+	flagPublishRemove      = "publish-rm"
+	flagPublishAdd         = "publish-add"
 	flagReplicas           = "replicas"
 	flagReserveCPU         = "reserve-cpu"
 	flagReserveMemory      = "reserve-memory"
