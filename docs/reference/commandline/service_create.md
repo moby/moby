@@ -172,7 +172,8 @@ node type label equals queue:
 ```bash
 $ docker service create \
   --name redis_2 \
-  --constraint node.labels.type == queue
+  --constraint 'node.labels.type == queue' \
+  redis:3.0.6
 ```
 
 ## Related information
