@@ -143,8 +143,8 @@ func (r *remote) handleConnectionChange() {
 					transientFailureCount = 0
 					if utils.IsProcessAlive(r.daemonPid) {
 						utils.KillProcess(r.daemonPid)
-						<-r.daemonWaitCh
 					}
+					<-r.daemonWaitCh
 					if err := r.runContainerdDaemon(); err != nil { //FIXME: Handle error
 						logrus.Errorf("error restarting containerd: %v", err)
 					}
