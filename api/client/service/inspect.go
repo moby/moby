@@ -102,7 +102,6 @@ func printService(out io.Writer, service swarm.Service) {
 		}
 	}
 	fmt.Fprintln(out, "Placement:")
-	fmt.Fprintln(out, " Strategy:\tSpread")
 	if service.Spec.TaskTemplate.Placement != nil && len(service.Spec.TaskTemplate.Placement.Constraints) > 0 {
 		ioutils.FprintfIfNotEmpty(out, " Constraints\t: %s\n", strings.Join(service.Spec.TaskTemplate.Placement.Constraints, ", "))
 	}
@@ -114,24 +113,23 @@ func printService(out io.Writer, service swarm.Service) {
 	fmt.Fprintf(out, "ContainerSpec:\n")
 	printContainerSpec(out, service.Spec.TaskTemplate.ContainerSpec)
 
-	if service.Spec.TaskTemplate.Resources != nil {
+	resources := service.Spec.TaskTemplate.Resources
+	if resources != nil {
 		fmt.Fprintln(out, "Resources:")
-		printResources := func(out io.Writer, r *swarm.Resources) {
+		printResources := func(out io.Writer, requirement string, r *swarm.Resources) {
+			if r == nil || (r.MemoryBytes == 0 && r.NanoCPUs == 0) {
+				return
+			}
+			fmt.Fprintf(out, " %s:\n", requirement)
 			if r.NanoCPUs != 0 {
-				fmt.Fprintf(out, " CPU:\t\t%g\n", float64(r.NanoCPUs)/1e9)
+				fmt.Fprintf(out, "  CPU:\t\t%g\n", float64(r.NanoCPUs)/1e9)
 			}
 			if r.MemoryBytes != 0 {
-				fmt.Fprintf(out, " Memory:\t\t%s\n", units.BytesSize(float64(r.MemoryBytes)))
+				fmt.Fprintf(out, "  Memory:\t%s\n", units.BytesSize(float64(r.MemoryBytes)))
 			}
 		}
-		if service.Spec.TaskTemplate.Resources.Reservations != nil {
-			fmt.Fprintln(out, "Reservations:")
-			printResources(out, service.Spec.TaskTemplate.Resources.Reservations)
-		}
-		if service.Spec.TaskTemplate.Resources.Limits != nil {
-			fmt.Fprintln(out, "Limits:")
-			printResources(out, service.Spec.TaskTemplate.Resources.Limits)
-		}
+		printResources(out, "Reservations", resources.Reservations)
+		printResources(out, "Limits", resources.Limits)
 	}
 	if len(service.Spec.Networks) > 0 {
 		fmt.Fprintf(out, "Networks:")
