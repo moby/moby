@@ -60,11 +60,15 @@ There are two ways to install Docker Engine.  You can install with the `dnf` pac
 
         $ sudo dnf install docker-engine
 
-5. Start the Docker daemon.
+5. Enable the socket and service.
+
+		$ sudo systemctl enable docker.socket docker.service
+
+6. Start the Docker daemon.
 
 		$ sudo systemctl start docker
 
-6. Verify `docker` is installed correctly by running a test image in a container.
+7. Verify `docker` is installed correctly by running a test image in a container.
 
 
         $ sudo docker run hello-world
@@ -109,11 +113,15 @@ There are two ways to install Docker Engine.  You can install with the `dnf` pac
 
 	This script adds the `docker.repo` repository and installs Docker.
 
-4. Start the Docker daemon.
+4. Enable the socket and service.
+
+		$ sudo systemctl enable docker.socket docker.service
+
+5. Start the Docker daemon.
 
         $ sudo systemctl start docker
 
-5. Verify `docker` is installed correctly by running a test image in a container.
+6. Verify `docker` is installed correctly by running a test image in a container.
 
 		$ sudo docker run hello-world
 
@@ -150,12 +158,6 @@ To create the `docker` group and add your user:
 5. Verify your work by running `docker` without `sudo`.
 
         $ docker run hello-world
-
-## Start the docker daemon at boot
-
-To ensure Docker starts when you boot your system, do the following:
-
-    $ sudo systemctl enable docker
 
 If you need to add an HTTP Proxy, set a different directory or partition for the
 Docker runtime files, or make other customizations, read our Systemd article to
