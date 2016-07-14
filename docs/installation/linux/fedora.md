@@ -12,7 +12,7 @@ weight=-3
 
 # Fedora
 
-Docker is supported on Fedora version 22 and 23. This page instructs you to install
+Docker is supported on Fedora version 22, 23, and 24. This page instructs you to install
 using Docker-managed release packages and installation mechanisms. Using these
 packages ensures you get the latest release of Docker. If you wish to install
 using Fedora-managed packages, consult your Fedora release documentation for
