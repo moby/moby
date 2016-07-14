@@ -17,19 +17,25 @@ Usage:  docker service update [OPTIONS] SERVICE
 Update a service
 
 Options:
-      --arg value                    Service command args (default [])
-      --constraint value             Placement constraints (default [])
+      --args string                  Service command args
+      --constraint-add value         Add or update placement constraints (default [])
+      --constraint-rm value          Remove a constraint (default [])
       --endpoint-mode string         Endpoint mode (vip or dnsrr)
-  -e, --env value                    Set environment variables (default [])
+      --env-add value                Add or update environment variables (default [])
+      --env-rm value                 Remove an environment variable (default [])
       --help                         Print usage
       --image string                 Service image tag
-  -l, --label value                  Service labels (default [])
+      --label-add value              Add or update service labels (default [])
+      --label-rm value               Remove a label by its key (default [])
       --limit-cpu value              Limit CPUs (default 0.000)
       --limit-memory value           Limit Memory (default 0 B)
-      --mount value                  Attach a mount to the service
+      --mount-add value              Add or update a mount on a service
+      --mount-rm value               Remove a mount by its target path (default [])
       --name string                  Service name
-      --network value                Network attachments (default [])
-  -p, --publish value                Publish a port as a node port (default [])
+      --network-add value            Add or update network attachments (default [])
+      --network-rm value             Remove a network by name (default [])
+      --publish-add value            Add or update a published port (default [])
+      --publish-rm value             Remove a published port by its target port (default [])
       --registry-auth                Send registry authentication details to Swarm agents
       --replicas value               Number of tasks (default none)
       --reserve-cpu value            Reserve CPUs (default 0.000)
@@ -54,7 +60,7 @@ for further information.
 ### Update a service
 
 ```bash
-$ docker service update --limit-cpu 2 redis 
+$ docker service update --limit-cpu 2 redis
 ```
 
 ## Related information
