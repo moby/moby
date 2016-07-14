@@ -125,6 +125,9 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /containers/create` now takes a `Mounts` field in `HostConfig` which replaces `Binds` and `Volumes`. *note*: `Binds` and `Volumes` are still available but are exclusive with `Mounts`
 * `POST /build` now performs a preliminary validation of the `Dockerfile` before starting the build, and returns an error if the syntax is incorrect. Note that this change is _unversioned_ and applied to all API versions.
 * `POST /build` accepts `cachefrom` parameter to specify images used for build cache.
+* `GET /networks/` endpoint now correctly returns a list of *all* networks,
+  instead of the default network if a trailing slash is provided, but no `name`
+  or `id`.
 
 ### v1.24 API changes
 
