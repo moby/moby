@@ -56,7 +56,7 @@ func runInit(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts initOptions
 	// If no secret was specified, we create a random one
 	if !flags.Changed("secret") {
 		opts.secret = generateRandomSecret()
-		fmt.Fprintf(dockerCli.Out(), "No --secret provided. Generated random secret:\n\t%s\n\n", opts.secret)
+		fmt.Fprintf(dockerCli.Out(), "No --secret provided. Generated random secret:\n    %s\n\n", opts.secret)
 	}
 
 	req := swarm.InitRequest{
@@ -88,7 +88,7 @@ func runInit(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts initOptions
 		if opts.secret != "" {
 			secretArgs = "--secret " + opts.secret
 		}
-		fmt.Fprintf(dockerCli.Out(), "To add a worker to this swarm, run the following command:\n\tdocker swarm join %s \\\n\t--ca-hash %s \\\n\t%s\n", secretArgs, info.Swarm.CACertHash, node.ManagerStatus.Addr)
+		fmt.Fprintf(dockerCli.Out(), "To add a worker to this swarm, run the following command:\n    docker swarm join %s \\\n    --ca-hash %s \\\n    %s\n", secretArgs, info.Swarm.CACertHash, node.ManagerStatus.Addr)
 	}
 
 	return nil
