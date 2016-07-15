@@ -33,6 +33,7 @@ var acceptedPsFilterTags = map[string]bool{
 	"label":     true,
 	"name":      true,
 	"status":    true,
+	"health":    true,
 	"since":     true,
 	"volume":    true,
 	"network":   true,
@@ -258,6 +259,17 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 		}
 	}
 
+	err = psFilters.WalkValues("health", func(value string) error {
+		if !container.IsValidHealthString(value) {
+			return fmt.Errorf("Unrecognised filter value for health: %s", value)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	var beforeContFilter, sinceContFilter *container.Container
 
 	err = psFilters.WalkValues("before", func(value string) error {
@@ -381,6 +393,11 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 
 	// Do not include container if its status doesn't match the filter
 	if !ctx.filters.Match("status", container.State.StateString()) {
+		return excludeContainer
+	}
+
+	// Do not include container if its health doesn't match the filter
+	if !ctx.filters.ExactMatch("health", container.State.HealthString()) {
 		return excludeContainer
 	}
 

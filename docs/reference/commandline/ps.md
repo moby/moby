@@ -33,6 +33,7 @@ Options:
                         - ancestor=(<image-name>[:tag]|<image-id>|<image@digest>)
                           containers created from an image or a descendant.
                         - is-task=(true|false)
+                        - health=(starting|healthy|unhealthy|none)
       --format string   Pretty-print containers using a Go template
       --help            Print usage
   -n, --last int        Show n last created containers (includes all states) (default -1)
@@ -81,6 +82,7 @@ The currently supported filters are:
 * isolation (default|process|hyperv)   (Windows daemon only)
 * volume (volume name or mount point) - filters containers that mount volumes.
 * network (network id or name) - filters containers connected to the provided network
+* health (starting|healthy|unhealthy|none) - filters containers based on healthcheck status
 
 #### Label
 

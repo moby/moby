@@ -280,9 +280,10 @@ type HealthcheckResult struct {
 
 // Health states
 const (
-	Starting  = "starting"  // Starting indicates that the container is not yet ready
-	Healthy   = "healthy"   // Healthy indicates that the container is running correctly
-	Unhealthy = "unhealthy" // Unhealthy indicates that the container has a problem
+	NoHealthcheck = "none"      // Indicates there is no healthcheck
+	Starting      = "starting"  // Starting indicates that the container is not yet ready
+	Healthy       = "healthy"   // Healthy indicates that the container is running correctly
+	Unhealthy     = "unhealthy" // Unhealthy indicates that the container has a problem
 )
 
 // Health stores information about the container's healthcheck results

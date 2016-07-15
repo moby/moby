@@ -241,7 +241,8 @@ List containers
   -   `since`=(`<container id>` or `<container name>`)
   -   `volume`=(`<volume name>` or `<mount point destination>`)
   -   `network`=(`<network id>` or `<network name>`)
-
+  -   `health`=(`starting`|`healthy`|`unhealthy`|`none`)
+ 
 **Status codes**:
 
 -   **200** – no error

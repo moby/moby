@@ -227,6 +227,48 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestPsListContainersFilterHealth(c *check.C) {
+	// Test legacy no health check
+	out, _ := runSleepingContainer(c, "--name=none_legacy")
+	containerID := strings.TrimSpace(out)
+
+	waitForContainer(containerID)
+
+	out, _ = dockerCmd(c, "ps", "-q", "-l", "--no-trunc", "--filter=health=none")
+	containerOut := strings.TrimSpace(out)
+	c.Assert(containerOut, checker.Equals, containerID, check.Commentf("Expected id %s, got %s for legacy none filter, output: %q", containerID, containerOut, out))
+
+	// Test no health check specified explicitly
+	out, _ = runSleepingContainer(c, "--name=none", "--no-healthcheck")
+	containerID = strings.TrimSpace(out)
+
+	waitForContainer(containerID)
+
+	out, _ = dockerCmd(c, "ps", "-q", "-l", "--no-trunc", "--filter=health=none")
+	containerOut = strings.TrimSpace(out)
+	c.Assert(containerOut, checker.Equals, containerID, check.Commentf("Expected id %s, got %s for none filter, output: %q", containerID, containerOut, out))
+
+	// Test failing health check
+	out, _ = runSleepingContainer(c, "--name=failing_container", "--health-cmd=exit 1", "--health-interval=1s")
+	containerID = strings.TrimSpace(out)
+
+	waitForHealthStatus(c, "failing_container", "starting", "unhealthy")
+
+	out, _ = dockerCmd(c, "ps", "-q", "--no-trunc", "--filter=health=unhealthy")
+	containerOut = strings.TrimSpace(out)
+	c.Assert(containerOut, checker.Equals, containerID, check.Commentf("Expected containerID %s, got %s for unhealthy filter, output: %q", containerID, containerOut, out))
+
+	// Check passing healthcheck
+	out, _ = runSleepingContainer(c, "--name=passing_container", "--health-cmd=exit 0", "--health-interval=1s")
+	containerID = strings.TrimSpace(out)
+
+	waitForHealthStatus(c, "passing_container", "starting", "healthy")
+
+	out, _ = dockerCmd(c, "ps", "-q", "--no-trunc", "--filter=health=healthy")
+	containerOut = strings.TrimSpace(out)
+	c.Assert(containerOut, checker.Equals, containerID, check.Commentf("Expected containerID %s, got %s for healthy filter, output: %q", containerID, containerOut, out))
+}
+
 func (s *DockerSuite) TestPsListContainersFilterID(c *check.C) {
 	// start container
 	out, _ := dockerCmd(c, "run", "-d", "busybox")
@@ -239,7 +281,6 @@ func (s *DockerSuite) TestPsListContainersFilterID(c *check.C) {
 	out, _ = dockerCmd(c, "ps", "-a", "-q", "--filter=id="+firstID)
 	containerOut := strings.TrimSpace(out)
 	c.Assert(containerOut, checker.Equals, firstID[:12], check.Commentf("Expected id %s, got %s for exited filter, output: %q", firstID[:12], containerOut, out))
-
 }
 
 func (s *DockerSuite) TestPsListContainersFilterName(c *check.C) {

@@ -4,7 +4,29 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/api/types"
 )
+
+func TestIsValidHealthString(t *testing.T) {
+	contexts := []struct {
+		Health   string
+		Expected bool
+	}{
+		{types.Healthy, true},
+		{types.Unhealthy, true},
+		{types.Starting, true},
+		{types.NoHealthcheck, true},
+		{"fail", false},
+	}
+
+	for _, c := range contexts {
+		v := IsValidHealthString(c.Health)
+		if v != c.Expected {
+			t.Fatalf("Expected %t, but got %t", c.Expected, v)
+		}
+	}
+}
 
 func TestStateRunStop(t *testing.T) {
 	s := NewState()

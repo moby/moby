@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/go-check/check"
+
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/go-check/check"
 )
 
 func waitForStatus(c *check.C, name string, prev string, expected string) {
