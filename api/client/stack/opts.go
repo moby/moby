@@ -18,6 +18,10 @@ func addBundlefileFlag(opt *string, flags *pflag.FlagSet) {
 		"Path to a Distributed Application Bundle file (Default: STACK.dab)")
 }
 
+func addRegistryAuthFlag(opt *bool, flags *pflag.FlagSet) {
+	flags.BoolVar(opt, "registry-auth", false, "Send registry authentication details to Swarm agents")
+}
+
 func loadBundlefile(stderr io.Writer, namespace string, path string) (*bundlefile.Bundlefile, error) {
 	defaultPath := fmt.Sprintf("%s.dab", namespace)
 
