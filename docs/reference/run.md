@@ -698,6 +698,7 @@ container:
 | `--device-read-iops="" `   | Limit read rate (IO per second) from a device (format: `<device-path>:<number>`). Number is a positive integer.                                 |
 | `--device-write-iops="" `  | Limit write rate (IO per second) to a device (format: `<device-path>:<number>`). Number is a positive integer.                                  |
 | `--oom-kill-disable=false` | Whether to disable OOM Killer for the container or not.                                                                                         |
+| `--oom-score-adj=0`        | Tune container's OOM preferences (-1000 to 1000)                                                                                                |
 | `--memory-swappiness=""`   | Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.                                                            |
 | `--shm-size=""`            | Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`. Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`. |
 
@@ -830,7 +831,10 @@ The following example, illustrates a dangerous way to use the flag:
     $ docker run -it --oom-kill-disable ubuntu:14.04 /bin/bash
 
 The container has unlimited memory which can cause the host to run out memory
-and require killing system processes to free memory.
+and require killing system processes to free memory. The `--oom-score-adj`
+parameter can be changed to select the priority of which containers will
+be killed when the system is out of memory, with negative scores making them
+less likely to be killed an positive more likely.
 
 ### Kernel memory constraints
 
