@@ -31,7 +31,7 @@ func main() {
 	flag.Merge(flag.CommandLine, daemonCli.commonFlags.FlagSet)
 
 	flag.Usage = func() {
-		fmt.Fprint(stdout, "Usage: dockerd [ --help | -v | --version ]\n\n")
+		fmt.Fprint(stdout, "Usage: dockerd [OPTIONS]\n\n")
 		fmt.Fprint(stdout, "A self-sufficient runtime for containers.\n\nOptions:\n")
 
 		flag.CommandLine.SetOutput(stdout)

@@ -121,10 +121,10 @@ format.
   IPv6 address of the container default gateway
 
 **--default-ulimit**=[]
-  Set default ulimits for containers.
+  Default ulimits for containers.
 
 **--disable-legacy-registry**=*true*|*false*
-  Do not contact legacy registries
+  Disable contacting legacy registries
 
 **--dns**=""
   Force Docker to use specific DNS servers
