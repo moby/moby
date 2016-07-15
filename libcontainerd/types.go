@@ -1,6 +1,10 @@
 package libcontainerd
 
-import "io"
+import (
+	"io"
+
+	"golang.org/x/net/context"
+)
 
 // State constants used in state change reporting.
 const (
@@ -35,7 +39,7 @@ type Client interface {
 	Create(containerID string, spec Spec, options ...CreateOption) error
 	Signal(containerID string, sig int) error
 	SignalProcess(containerID string, processFriendlyName string, sig int) error
-	AddProcess(containerID, processFriendlyName string, process Process) error
+	AddProcess(ctx context.Context, containerID, processFriendlyName string, process Process) error
 	Resize(containerID, processFriendlyName string, width, height int) error
 	Pause(containerID string) error
 	Resume(containerID string) error

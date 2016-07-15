@@ -28,7 +28,7 @@ type client struct {
 	liveRestore   bool
 }
 
-func (clnt *client) AddProcess(containerID, processFriendlyName string, specp Process) error {
+func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendlyName string, specp Process) error {
 	clnt.lock(containerID)
 	defer clnt.unlock(containerID)
 	container, err := clnt.getContainer(containerID)
@@ -89,7 +89,7 @@ func (clnt *client) AddProcess(containerID, processFriendlyName string, specp Pr
 		return err
 	}
 
-	if _, err := clnt.remote.apiClient.AddProcess(context.Background(), r); err != nil {
+	if _, err := clnt.remote.apiClient.AddProcess(ctx, r); err != nil {
 		p.closeFifos(iopipe)
 		return err
 	}
