@@ -141,7 +141,7 @@ func printService(out io.Writer, service swarm.Service) {
 	if len(service.Endpoint.Ports) > 0 {
 		fmt.Fprintln(out, "Ports:")
 		for _, port := range service.Endpoint.Ports {
-			fmt.Fprintf(out, " Name = %s\n", port.Name)
+			ioutils.FprintfIfNotEmpty(out, " Name = %s\n", port.Name)
 			fmt.Fprintf(out, " Protocol = %s\n", port.Protocol)
 			fmt.Fprintf(out, " TargetPort = %d\n", port.TargetPort)
 			fmt.Fprintf(out, " PublishedPort = %d\n", port.PublishedPort)
