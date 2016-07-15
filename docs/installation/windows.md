@@ -34,7 +34,7 @@ If you have an earlier Windows system that doesn't meet the Docker for Windows r
 
 See [Docker Toolbox Overview](/toolbox/overview.md) for help on installing Docker with Toolbox.
 
-The Docker Toolbox setup does not run Docker natively in OS X. Instead, it uses `docker-machine` to create and attach to a virtual machine (VM). This machine is a Linux VM that hosts Docker for you on your Mac.
+The Docker Toolbox setup does not run Docker natively on Windows. Instead, it uses `docker-machine` to create and attach to a virtual machine (VM). This machine is a Linux VM that hosts Docker for you on your Windows system.
 
 **Requirements**
 
