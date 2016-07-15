@@ -9,9 +9,10 @@ import (
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
 
+	"io/ioutil"
+
 	"github.com/docker/docker/utils/templates"
 	"github.com/spf13/cobra"
-	"io/ioutil"
 )
 
 type psOptions struct {
@@ -23,16 +24,6 @@ type psOptions struct {
 	last    int
 	format  string
 	filter  []string
-}
-
-type preProcessor struct {
-	opts *types.ContainerListOptions
-}
-
-// Size sets the size option when called by a template execution.
-func (p *preProcessor) Size() bool {
-	p.opts.Size = true
-	return true
 }
 
 // NewPsCommand creates a new cobra.Command for `docker ps`
@@ -62,39 +53,65 @@ func NewPsCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runPs(dockerCli *client.DockerCli, opts *psOptions) error {
-	ctx := context.Background()
+type preProcessor struct {
+	types.Container
+	opts *types.ContainerListOptions
+}
 
-	if opts.nLatest && opts.last == -1 {
-		opts.last = 1
-	}
+// Size sets the size option when called by a template execution.
+func (p *preProcessor) Size() bool {
+	p.opts.Size = true
+	return true
+}
 
-	containerFilterArgs := filters.NewArgs()
-	for _, f := range opts.filter {
-		var err error
-		containerFilterArgs, err = filters.ParseFlag(f, containerFilterArgs)
-		if err != nil {
-			return err
-		}
-	}
+func buildContainerListOptions(opts *psOptions) (*types.ContainerListOptions, error) {
 
-	options := types.ContainerListOptions{
+	options := &types.ContainerListOptions{
 		All:    opts.all,
 		Limit:  opts.last,
 		Size:   opts.size,
-		Filter: containerFilterArgs,
+		Filter: filters.NewArgs(),
 	}
 
-	pre := &preProcessor{opts: &options}
+	if opts.nLatest && opts.last == -1 {
+		options.Limit = 1
+	}
+
+	for _, f := range opts.filter {
+		var err error
+		options.Filter, err = filters.ParseFlag(f, options.Filter)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Currently only used with Size, so we can determine if the user
+	// put {{.Size}} in their format.
+	pre := &preProcessor{opts: options}
 	tmpl, err := templates.Parse(opts.format)
 
+	if err != nil {
+		return nil, err
+	}
+
+	// This shouldn't error out but swallowing the error makes it harder
+	// to track down if preProcessor issues come up. Ref #24696
+	if err := tmpl.Execute(ioutil.Discard, pre); err != nil {
+		return nil, err
+	}
+
+	return options, nil
+}
+
+func runPs(dockerCli *client.DockerCli, opts *psOptions) error {
+	ctx := context.Background()
+
+	listOptions, err := buildContainerListOptions(opts)
 	if err != nil {
 		return err
 	}
 
-	_ = tmpl.Execute(ioutil.Discard, pre)
-
-	containers, err := dockerCli.Client().ContainerList(ctx, options)
+	containers, err := dockerCli.Client().ContainerList(ctx, *listOptions)
 	if err != nil {
 		return err
 	}
@@ -115,7 +132,7 @@ func runPs(dockerCli *client.DockerCli, opts *psOptions) error {
 			Quiet:  opts.quiet,
 			Trunc:  !opts.noTrunc,
 		},
-		Size:       opts.size,
+		Size:       listOptions.Size,
 		Containers: containers,
 	}
 
