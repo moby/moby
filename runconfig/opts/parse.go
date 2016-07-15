@@ -194,10 +194,10 @@ func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 	flags.MarkHidden("net-alias")
 
 	// Logging and storage
-	flags.StringVar(&copts.flLoggingDriver, "log-driver", "", "Logging driver for container")
+	flags.StringVar(&copts.flLoggingDriver, "log-driver", "", "Logging driver for the container")
 	flags.StringVar(&copts.flVolumeDriver, "volume-driver", "", "Optional volume driver for the container")
 	flags.Var(&copts.flLoggingOpts, "log-opt", "Log driver options")
-	flags.Var(&copts.flStorageOpt, "storage-opt", "Set storage driver options per container")
+	flags.Var(&copts.flStorageOpt, "storage-opt", "Storage driver options for the container")
 	flags.Var(&copts.flTmpfs, "tmpfs", "Mount a tmpfs directory")
 	flags.Var(&copts.flVolumesFrom, "volumes-from", "Mount volumes from the specified container(s)")
 	flags.VarP(&copts.flVolumes, "volume", "v", "Bind mount a volume")
