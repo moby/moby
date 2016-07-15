@@ -31,7 +31,7 @@ const (
 	splunkCANameKey             = "splunk-caname"
 	splunkInsecureSkipVerifyKey = "splunk-insecureskipverify"
 	splunkFormatKey             = "splunk-format"
-	splunkVerifyConnectionKey   = "splunk-verifyconnection"
+	splunkVerifyConnectionKey   = "splunk-verify-connection"
 	envKey                      = "env"
 	labelsKey                   = "labels"
 	tagKey                      = "tag"
