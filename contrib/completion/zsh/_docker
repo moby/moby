@@ -1580,6 +1580,7 @@ __docker_subcommand() {
                 "($help)--max-concurrent-downloads[Set the max concurrent downloads for each pull]" \
                 "($help)--max-concurrent-uploads[Set the max concurrent uploads for each push]" \
                 "($help)--mtu=[Network MTU]:mtu:(0 576 1420 1500 9000)" \
+                "($help)--oom-score-adjust=[Set the oom_score_adj for the daemon]:oom-score:(-500)" \
                 "($help -p --pidfile)"{-p=,--pidfile=}"[Path to use for daemon PID file]:PID file:_files" \
                 "($help)--raw-logs[Full timestamps without ANSI coloring]" \
                 "($help)*--registry-mirror=[Preferred Docker registry mirror]:registry mirror: " \
