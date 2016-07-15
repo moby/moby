@@ -79,7 +79,9 @@ func (r emptyReader) Read(b []byte) (int, error) {
 
 func openReaderFromFifo(fn string) io.Reader {
 	r, w := io.Pipe()
+	c := make(chan struct{})
 	go func() {
+		close(c)
 		stdoutf, err := os.OpenFile(fn, syscall.O_RDONLY, 0)
 		if err != nil {
 			r.CloseWithError(err)
@@ -90,6 +92,7 @@ func openReaderFromFifo(fn string) io.Reader {
 		w.Close()
 		stdoutf.Close()
 	}()
+	<-c // wait for the goroutine to get scheduled and syscall to block
 	return r
 }
 
