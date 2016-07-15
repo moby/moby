@@ -143,7 +143,9 @@ retry:
 	if inc {
 		ec.Count++
 	} else {
-		ec.Count--
+		if ec.Count > 0 {
+			ec.Count--
+		}
 	}
 	ec.Unlock()
 
