@@ -78,8 +78,11 @@ func runInstall(dockerCli *client.DockerCli, opts pluginOptions) error {
 		// TODO: Rename PrivilegeFunc, it has nothing to do with privileges
 		PrivilegeFunc: registryAuthFunc,
 	}
-
-	return dockerCli.Client().PluginInstall(ctx, ref.String(), options)
+	if err := dockerCli.Client().PluginInstall(ctx, ref.String(), options); err != nil {
+		return err
+	}
+	fmt.Fprintln(dockerCli.Out(), opts.name)
+	return nil
 }
 
 func acceptPrivileges(dockerCli *client.DockerCli, name string) func(privileges types.PluginPrivileges) (bool, error) {
