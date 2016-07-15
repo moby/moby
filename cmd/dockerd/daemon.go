@@ -256,7 +256,6 @@ func (cli *DaemonCli) start() (err error) {
 	if err != nil {
 		return err
 	}
-	cli.api = api
 	signal.Trap(func() {
 		cli.stop()
 		<-stopc // wait for daemonCli.start() to return
