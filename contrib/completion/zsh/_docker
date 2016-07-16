@@ -808,7 +808,7 @@ __docker_node_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " \
-                "($help --pretty)--pretty[Print the information in a human friendly format]" \
+                "($help)--pretty[Print the information in a human friendly format]" \
                 "($help -)*:node:__docker_complete_nodes" && ret=0
             ;;
         (ls|list)
@@ -832,7 +832,7 @@ __docker_node_subcommand() {
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Display all instances]" \
                 "($help)*"{-f=,--filter=}"[Provide filter values]:filter:->filter-options" \
-                "($help --no-resolve)--no-resolve[Do not map IDs to Names]" \
+                "($help)--no-resolve[Do not map IDs to Names]" \
                 "($help -)1:node:__docker_complete_nodes" && ret=0
             case $state in
                 (filter-options)
@@ -1104,7 +1104,7 @@ __docker_service_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " \
-                "($help --pretty)--pretty[Print the information in a human friendly format]" \
+                "($help)--pretty[Print the information in a human friendly format]" \
                 "($help -)*:service:__docker_complete_services" && ret=0
             ;;
         (ls|list)
@@ -1142,7 +1142,7 @@ __docker_service_subcommand() {
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Display all tasks]" \
                 "($help)*"{-f=,--filter=}"[Provide filter values]:filter:->filter-options" \
-                "($help --no-resolve)--no-resolve[Do not map IDs to Names]" \
+                "($help)--no-resolve[Do not map IDs to Names]" \
                 "($help -)1:service:__docker_complete_services" && ret=0
             case $state in
                 (filter-options)
