@@ -9,7 +9,7 @@
 //	Define flags using flag.String(), Bool(), Int(), etc.
 //
 //	This declares an integer flag, -f or --flagname, stored in the pointer ip, with type *int.
-//		import "flag /github.com/docker/docker/pkg/mflag"
+//		import flag "github.com/docker/docker/pkg/mflag"
 //		var ip = flag.Int([]string{"f", "-flagname"}, 1234, "help message for flagname")
 //	If you like, you can bind the flag to a variable using the Var() functions.
 //		var flagvar int
