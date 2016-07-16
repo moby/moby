@@ -17,7 +17,7 @@ import (
 //
 // Usage: docker exec [OPTIONS] CONTAINER COMMAND [ARG...]
 func (cli *DockerCli) CmdExec(args ...string) error {
-	cmd := Cli.Subcmd("exec", []string{"CONTAINER COMMAND [ARG...]"}, Cli.DockerCommands["exec"].Description, true)
+	cmd := Cli.Subcmd("exec", []string{"[OPTIONS] CONTAINER COMMAND [ARG...]"}, Cli.DockerCommands["exec"].Description, true)
 	detachKeys := cmd.String([]string{"-detach-keys"}, "", "Override the key sequence for detaching a container")
 
 	execConfig, err := ParseExec(cmd, args)
