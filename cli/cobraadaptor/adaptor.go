@@ -32,7 +32,7 @@ func NewCobraAdaptor(clientFlags *cliflags.ClientFlags) CobraAdaptor {
 	dockerCli := client.NewDockerCli(stdin, stdout, stderr, clientFlags)
 
 	var rootCmd = &cobra.Command{
-		Use:           "docker",
+		Use:           "docker [OPTIONS]",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -131,7 +131,7 @@ func (c CobraAdaptor) Command(name string) func(...string) error {
 	return nil
 }
 
-var usageTemplate = `Usage:	{{if not .HasSubCommands}}{{if .HasLocalFlags}}{{appendIfNotPresent .UseLine "[OPTIONS]"}}{{else}}{{.UseLine}}{{end}}{{end}}{{if .HasSubCommands}}{{ .CommandPath}} COMMAND{{end}}
+var usageTemplate = `Usage:	{{if not .HasSubCommands}}{{.UseLine}}{{end}}{{if .HasSubCommands}}{{ .CommandPath}} COMMAND{{end}}
 
 {{with or .Long .Short }}{{. | trim}}{{end}}{{if gt .Aliases 0}}
 

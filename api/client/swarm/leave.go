@@ -18,7 +18,7 @@ func newLeaveCommand(dockerCli *client.DockerCli) *cobra.Command {
 	opts := leaveOptions{}
 
 	cmd := &cobra.Command{
-		Use:   "leave",
+		Use:   "leave [OPTIONS]",
 		Short: "Leave a Swarm",
 		Args:  cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

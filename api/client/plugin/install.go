@@ -25,7 +25,7 @@ type pluginOptions struct {
 func newInstallCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var options pluginOptions
 	cmd := &cobra.Command{
-		Use:   "install PLUGIN",
+		Use:   "install [OPTIONS] PLUGIN",
 		Short: "Install a plugin",
 		Args:  cli.RequiresMinArgs(1), // TODO: allow for set args
 		RunE: func(cmd *cobra.Command, args []string) error {
