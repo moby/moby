@@ -23,7 +23,7 @@ type attachOptions struct {
 	container string
 }
 
-// NewAttachCommand creats a new cobra.Command for `docker attach`
+// NewAttachCommand creates a new cobra.Command for `docker attach`
 func NewAttachCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts attachOptions
 
