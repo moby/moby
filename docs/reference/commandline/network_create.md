@@ -16,19 +16,19 @@ Usage:	docker network create [OPTIONS]
 Create a network
 
 Options:
-      --aux-address value    auxiliary ipv4 or ipv6 addresses used by Network
+      --aux-address value    Auxiliary IPv4 or IPv6 addresses used by Network
                              driver (default map[])
   -d, --driver string        Driver to manage the Network (default "bridge")
-      --gateway value        ipv4 or ipv6 Gateway for the master subnet (default [])
+      --gateway value        IPv4 or IPv6 Gateway for the master subnet (default [])
       --help                 Print usage
-      --internal             restricts external access to the network
-      --ip-range value       allocate container ip from a sub-range (default [])
+      --internal             Restrict external access to the network
+      --ip-range value       Allocate container ip from a sub-range (default [])
       --ipam-driver string   IP Address Management Driver (default "default")
-      --ipam-opt value       set IPAM driver specific options (default map[])
-      --ipv6                 enable IPv6 networking
+      --ipam-opt value       Set IPAM driver specific options (default map[])
+      --ipv6                 Enable IPv6 networking
       --label value          Set metadata on a network (default [])
   -o, --opt value            Set driver specific options (default map[])
-      --subnet value         subnet in CIDR format that represents a
+      --subnet value         Subnet in CIDR format that represents a
                              network segment (default [])
 ```
 
@@ -163,9 +163,9 @@ network driver, again with their approximate equivalents to `docker daemon`.
 
 | Argument     | Equivalent     | Description                                |
 |--------------|----------------|--------------------------------------------|
-| `--gateway`  | -              | ipv4 or ipv6 Gateway for the master subnet |
+| `--gateway`  | -              | IPv4 or IPv6 Gateway for the master subnet |
 | `--ip-range` | `--fixed-cidr` | Allocate IPs from a range                  |
-| `--internal` | -              | Restricts external access to the network   |
+| `--internal` | -              | Restrict external access to the network   |
 | `--ipv6`     | `--ipv6`       | Enable IPv6 networking                     |
 | `--subnet`   | `--bip`        | Subnet for network                         |
 

@@ -53,16 +53,16 @@ func newCreateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	flags.StringVarP(&opts.driver, "driver", "d", "bridge", "Driver to manage the Network")
 	flags.VarP(&opts.driverOpts, "opt", "o", "Set driver specific options")
 	flags.StringSliceVar(&opts.labels, "label", []string{}, "Set metadata on a network")
-	flags.BoolVar(&opts.internal, "internal", false, "restricts external access to the network")
-	flags.BoolVar(&opts.ipv6, "ipv6", false, "enable IPv6 networking")
+	flags.BoolVar(&opts.internal, "internal", false, "Restrict external access to the network")
+	flags.BoolVar(&opts.ipv6, "ipv6", false, "Enable IPv6 networking")
 
 	flags.StringVar(&opts.ipamDriver, "ipam-driver", "default", "IP Address Management Driver")
-	flags.StringSliceVar(&opts.ipamSubnet, "subnet", []string{}, "subnet in CIDR format that represents a network segment")
-	flags.StringSliceVar(&opts.ipamIPRange, "ip-range", []string{}, "allocate container ip from a sub-range")
-	flags.StringSliceVar(&opts.ipamGateway, "gateway", []string{}, "ipv4 or ipv6 Gateway for the master subnet")
+	flags.StringSliceVar(&opts.ipamSubnet, "subnet", []string{}, "Subnet in CIDR format that represents a network segment")
+	flags.StringSliceVar(&opts.ipamIPRange, "ip-range", []string{}, "Allocate container ip from a sub-range")
+	flags.StringSliceVar(&opts.ipamGateway, "gateway", []string{}, "IPv4 or IPv6 Gateway for the master subnet")
 
-	flags.Var(&opts.ipamAux, "aux-address", "auxiliary ipv4 or ipv6 addresses used by Network driver")
-	flags.Var(&opts.ipamOpt, "ipam-opt", "set IPAM driver specific options")
+	flags.Var(&opts.ipamAux, "aux-address", "Auxiliary IPv4 or IPv6 addresses used by Network driver")
+	flags.Var(&opts.ipamOpt, "ipam-opt", "Set IPAM driver specific options")
 
 	return cmd
 }
