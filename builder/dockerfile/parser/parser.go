@@ -176,10 +176,17 @@ func Parse(rwc io.Reader, d *Directive) (*Node, error) {
 				newline := scanner.Text()
 				currentLine++
 
-				if stripComments(strings.TrimSpace(newline)) == "" {
-					continue
+				// If escape followed by a comment line then stop
+				// Note here that comment line starts with `#` at
+				// the first pos of the line
+				if stripComments(newline) == "" {
+					break
 				}
 
+				// If escape followed by an empty line then stop
+				if strings.TrimSpace(newline) == "" {
+					break
+				}
 				line, child, err = ParseLine(line+newline, d)
 				if err != nil {
 					return nil, err
