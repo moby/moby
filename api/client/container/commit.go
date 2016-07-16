@@ -25,7 +25,7 @@ type commitOptions struct {
 	config  string
 }
 
-// NewCommitCommand creats a new cobra.Command for `docker commit`
+// NewCommitCommand creates a new cobra.Command for `docker commit`
 func NewCommitCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts commitOptions
 

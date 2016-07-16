@@ -15,7 +15,7 @@ type unpauseOptions struct {
 	containers []string
 }
 
-// NewUnpauseCommand creats a new cobra.Command for `docker unpause`
+// NewUnpauseCommand creates a new cobra.Command for `docker unpause`
 func NewUnpauseCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts unpauseOptions
 

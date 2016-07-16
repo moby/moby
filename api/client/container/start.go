@@ -24,7 +24,7 @@ type startOptions struct {
 	containers []string
 }
 
-// NewStartCommand creats a new cobra.Command for `docker start`
+// NewStartCommand creates a new cobra.Command for `docker start`
 func NewStartCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts startOptions
 

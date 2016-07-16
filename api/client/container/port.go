@@ -18,7 +18,7 @@ type portOptions struct {
 	port string
 }
 
-// NewPortCommand creats a new cobra.Command for `docker port`
+// NewPortCommand creates a new cobra.Command for `docker port`
 func NewPortCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts portOptions
 

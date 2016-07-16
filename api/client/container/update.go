@@ -32,7 +32,7 @@ type updateOptions struct {
 	containers []string
 }
 
-// NewUpdateCommand creats a new cobra.Command for `docker update`
+// NewUpdateCommand creates a new cobra.Command for `docker update`
 func NewUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts updateOptions
 

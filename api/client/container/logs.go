@@ -28,7 +28,7 @@ type logsOptions struct {
 	container string
 }
 
-// NewLogsCommand creats a new cobra.Command for `docker logs`
+// NewLogsCommand creates a new cobra.Command for `docker logs`
 func NewLogsCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts logsOptions
 

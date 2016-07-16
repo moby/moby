@@ -24,7 +24,7 @@ type eventsOptions struct {
 	filter []string
 }
 
-// NewEventsCommand creats a new cobra.Command for `docker events`
+// NewEventsCommand creates a new cobra.Command for `docker events`
 func NewEventsCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts eventsOptions
 

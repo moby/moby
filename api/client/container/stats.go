@@ -27,7 +27,7 @@ type statsOptions struct {
 	containers []string
 }
 
-// NewStatsCommand creats a new cobra.Command for `docker stats`
+// NewStatsCommand creates a new cobra.Command for `docker stats`
 func NewStatsCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts statsOptions
 

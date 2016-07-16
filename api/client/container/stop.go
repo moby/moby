@@ -18,7 +18,7 @@ type stopOptions struct {
 	containers []string
 }
 
-// NewStopCommand creats a new cobra.Command for `docker stop`
+// NewStopCommand creates a new cobra.Command for `docker stop`
 func NewStopCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts stopOptions
 
