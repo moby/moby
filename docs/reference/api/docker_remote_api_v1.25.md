@@ -4007,11 +4007,11 @@ JSON Parameters:
     - **Resources** – Resource requirements which apply to each individual container created as part
       of the service.
         - **Limits** – Define resources limits.
-            - **CPU** – CPU limit
-            - **Memory** – Memory limit
+            - **NanoCPUs** – CPU limit in units of 10<sup>-9</sup> CPU shares.
+            - **MemoryBytes** – Memory limit in Bytes.
         - **Reservation** – Define resources reservation.
-            - **CPU** – CPU reservation
-            - **Memory** – Memory reservation
+            - **NanoCPUs** – CPU reservation in units of 10<sup>-9</sup> CPU shares.
+            - **MemoryBytes** – Memory reservation in Bytes.
     - **RestartPolicy** – Specification for the restart policy which applies to containers created
       as part of this service.
         - **Condition** – Condition for restart (`none`, `on-failure`, or `any`).
