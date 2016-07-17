@@ -1237,7 +1237,7 @@ the path to the alternate build instructions file to use.
 
 The archive may include any number of other files,
 which are accessible in the build context (See the [*ADD build
-command*](../../reference/builder.md#dockerbuilder)).
+command*](../../reference/builder.md#add)).
 
 The build is canceled if the client drops the connection by quitting
 or being killed.
