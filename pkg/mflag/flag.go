@@ -33,7 +33,7 @@
 //	will display: `Warning: '-flagname' is deprecated, it will be removed soon. See usage.`
 //	so you can only use `-f`.
 //
-//	You can also group one letter flags, bif you declare
+//	You can also group one letter flags, if you declare
 //		var v = flag.Bool([]string{"v", "-verbose"}, false, "help message for verbose")
 //		var s = flag.Bool([]string{"s", "-slow"}, false, "help message for slow")
 //	you will be able to use the -vs or -sv
