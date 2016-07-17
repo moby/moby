@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"fmt"
-	"path"
 	"sort"
 
 	"github.com/docker/docker/image"
@@ -141,7 +140,7 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool) ([]*types.Imag
 					if ref.String() != filter {
 						continue
 					}
-				} else if matched, err := path.Match(filter, ref.Name()); !matched || err != nil { // name only match, FIXME: docs say exact
+				} else if ref.Name() != filter { // name only match
 					continue
 				}
 			}
