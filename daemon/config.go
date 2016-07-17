@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	swarmopts "github.com/docker/docker/api/client/swarm"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/discovery"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -70,6 +71,14 @@ type CommonTLSOptions struct {
 	KeyFile  string `json:"tlskey,omitempty"`
 }
 
+// SwarmJoinOptions defines configuration to join a swarm cluster
+// during daemon startup.
+type SwarmJoinOptions struct {
+	ListenAddr    string `json:"swarm-join-listen-addr,omitempty"`
+	AdvertiseAddr string `json:"swarm-join-advertise-addr,omitempty"`
+	Token         string `json:"swarm-join-token,omitempty"`
+}
+
 // CommonConfig defines the configuration of a docker daemon which is
 // common across platforms.
 // It includes json tags to deserialize configuration from a file
@@ -121,6 +130,9 @@ type CommonConfig struct {
 	// may take place at a time for each push.
 	MaxConcurrentUploads *int `json:"max-concurrent-uploads,omitempty"`
 
+	// SwarmJoin is the list of remote addresses to join a swarm cluster
+	SwarmJoin []string `json:"swarm-join,omitempty"`
+
 	Debug     bool     `json:"debug,omitempty"`
 	Hosts     []string `json:"hosts,omitempty"`
 	LogLevel  string   `json:"log-level,omitempty"`
@@ -140,6 +152,7 @@ type CommonConfig struct {
 	LogConfig
 	bridgeConfig // bridgeConfig holds bridge network specific configuration.
 	registry.ServiceOptions
+	SwarmJoinOptions
 
 	reloadLock sync.Mutex
 	valuesSet  map[string]interface{}
@@ -181,6 +194,12 @@ func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string)
 
 	config.MaxConcurrentDownloads = &maxConcurrentDownloads
 	config.MaxConcurrentUploads = &maxConcurrentUploads
+
+	defaultListenAddr := swarmopts.NewListenAddrOption()
+	cmd.Var(opts.NewListOptsRef(&config.SwarmJoin, nil), []string{"-swarm-join"}, usageFn("Remote addresses of the swarm clusters to join"))
+	cmd.StringVar(&config.SwarmJoinOptions.ListenAddr, []string{"-swarm-join-listen-addr"}, defaultListenAddr.String(), usageFn("Listen address (format: <ip|interface>[:port]) to join swarm"))
+	cmd.StringVar(&config.SwarmJoinOptions.AdvertiseAddr, []string{"-swarm-join-advertise-addr"}, "", usageFn("Advertised address (format: <ip|interface>[:port]) to join swarm"))
+	cmd.StringVar(&config.SwarmJoinOptions.Token, []string{"-swarm-join-token"}, "", usageFn("Token for entry into the swarm"))
 }
 
 // IsValueSet returns true if a configuration value

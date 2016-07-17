@@ -42,6 +42,7 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
+	swarmtypes "github.com/docker/engine-api/types/swarm"
 	"github.com/docker/go-connections/tlsconfig"
 )
 
@@ -279,6 +280,18 @@ func (cli *DaemonCli) start() (err error) {
 		logrus.Fatalf("Error creating cluster component: %v", err)
 	}
 
+	if len(cli.Config.SwarmJoin) > 0 {
+		req := swarmtypes.JoinRequest{
+			RemoteAddrs:   cli.Config.SwarmJoin,
+			ListenAddr:    cli.Config.SwarmJoinOptions.ListenAddr,
+			AdvertiseAddr: cli.Config.SwarmJoinOptions.AdvertiseAddr,
+			JoinToken:     cli.Config.SwarmJoinOptions.Token,
+		}
+		if err := c.Join(req); err != nil {
+			logrus.Fatalf("Error joining swarm cluster: %v", err)
+		}
+	}
+
 	logrus.Info("Daemon has completed initialization")
 
 	logrus.WithFields(logrus.Fields{
@@ -443,4 +456,8 @@ func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config
 		handleAuthorization := authorization.NewMiddleware(authZPlugins)
 		s.UseMiddleware(handleAuthorization)
 	}
+}
+
+func joinCluster(c *cluster.Cluster) error {
+	return nil
 }
