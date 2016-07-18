@@ -36,8 +36,6 @@ func (pm *Manager) enable(p *plugin) error {
 		return err
 	}
 
-	//TODO: check net.Dial
-
 	pm.Lock() // fixme: lock single record
 	p.P.Active = true
 	pm.save()
