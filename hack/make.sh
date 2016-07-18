@@ -28,8 +28,6 @@ export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export MAKEDIR="$SCRIPTDIR/make"
 export PKG_CONFIG=${PKG_CONFIG:-pkg-config}
 
-: ${TEST_REPEAT:=0}
-
 # We're a nice, sexy, little shell script, and people might try to run us;
 # but really, they shouldn't. We want to be in a container!
 inContainer="AssumeSoInitially"
@@ -223,65 +221,6 @@ if \
 ; then
 	HAVE_GO_TEST_COVER=1
 fi
-
-# If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
-# You can use this to select certain tests to run, eg.
-#
-#     TESTFLAGS='-test.run ^TestBuild$' ./hack/make.sh test-unit
-#
-# For integration-cli test, we use [gocheck](https://labix.org/gocheck), if you want
-# to run certain tests on your local host, you should run with command:
-#
-#     TESTFLAGS='-check.f DockerSuite.TestBuild*' ./hack/make.sh binary test-integration-cli
-#
-go_test_dir() {
-	dir=$1
-	coverpkg=$2
-	testcover=()
-	testcoverprofile=()
-	testbinary="$DEST/test.main"
-	if [ "$HAVE_GO_TEST_COVER" ]; then
-		# if our current go install has -cover, we want to use it :)
-		mkdir -p "$DEST/coverprofiles"
-		coverprofile="docker${dir#.}"
-		coverprofile="$ABS_DEST/coverprofiles/${coverprofile//\//-}"
-		testcover=( -test.cover )
-		testcoverprofile=( -test.coverprofile "$coverprofile" $coverpkg )
-	fi
-	(
-		echo '+ go test' $TESTFLAGS "${DOCKER_PKG}${dir#.}"
-		cd "$dir"
-		export DEST="$ABS_DEST" # we're in a subshell, so this is safe -- our integration-cli tests need DEST, and "cd" screws it up
-		go test -c -o "$testbinary" ${testcover[@]} -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}"
-		i=0
-		while ((++i)); do
-			test_env "$testbinary" ${testcoverprofile[@]} $TESTFLAGS
-			if [ $i -gt "$TEST_REPEAT" ]; then
-				break
-			fi
-			echo "Repeating test ($i)"
-		done
-	)
-}
-test_env() {
-	# use "env -i" to tightly control the environment variables that bleed into the tests
-	env -i \
-		DEST="$DEST" \
-		DOCKER_TLS_VERIFY="$DOCKER_TEST_TLS_VERIFY" \
-		DOCKER_CERT_PATH="$DOCKER_TEST_CERT_PATH" \
-		DOCKER_ENGINE_GOARCH="$DOCKER_ENGINE_GOARCH" \
-		DOCKER_GRAPHDRIVER="$DOCKER_GRAPHDRIVER" \
-		DOCKER_USERLANDPROXY="$DOCKER_USERLANDPROXY" \
-		DOCKER_HOST="$DOCKER_HOST" \
-		DOCKER_REMAP_ROOT="$DOCKER_REMAP_ROOT" \
-		DOCKER_REMOTE_DAEMON="$DOCKER_REMOTE_DAEMON" \
-		GOPATH="$GOPATH" \
-		GOTRACEBACK=all \
-		HOME="$ABS_DEST/fake-HOME" \
-		PATH="$PATH" \
-		TEMP="$TEMP" \
-		"$@"
-}
 
 # a helper to provide ".exe" when it's appropriate
 binary_extension() {

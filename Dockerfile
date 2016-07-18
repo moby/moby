@@ -201,6 +201,8 @@ ENV DOCKER_BUILDTAGS apparmor pkcs11 seccomp selinux
 
 # Let us use a .bashrc file
 RUN ln -sfv $PWD/.bashrc ~/.bashrc
+# Add integration helps to bashrc
+RUN echo "source $PWD/hack/make/.integration-test-helpers" >> /etc/bash.bashrc
 
 # Register Docker's bash completion.
 RUN ln -sv $PWD/contrib/completion/bash/docker /etc/bash_completion.d/docker
