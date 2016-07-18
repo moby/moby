@@ -60,9 +60,9 @@ There are two ways to install Docker Engine.  You can install with the `dnf` pac
 
         $ sudo dnf install docker-engine
 
-5. Enable the socket and service.
+5. Enable the service.
 
-		$ sudo systemctl enable docker.socket docker.service
+		$ sudo systemctl enable docker.service
 
 6. Start the Docker daemon.
 
@@ -113,9 +113,9 @@ There are two ways to install Docker Engine.  You can install with the `dnf` pac
 
 	This script adds the `docker.repo` repository and installs Docker.
 
-4. Enable the socket and service.
+4. Enable the service.
 
-		$ sudo systemctl enable docker.socket docker.service
+		$ sudo systemctl enable docker.service
 
 5. Start the Docker daemon.
 
