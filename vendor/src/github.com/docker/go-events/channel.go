@@ -10,7 +10,7 @@ type Channel struct {
 	closed chan struct{}
 }
 
-// NewChannel returns a channel. If buffer is non-zero, the channel is
+// NewChannel returns a channel. If buffer is zero, the channel is
 // unbuffered.
 func NewChannel(buffer int) *Channel {
 	return &Channel{
