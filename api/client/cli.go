@@ -47,8 +47,10 @@ type DockerCli struct {
 	isTerminalOut bool
 	// client is the http client that performs all API operations
 	client client.APIClient
-	// state holds the terminal state
-	state *term.State
+	// state holds the terminal input state
+	inState *term.State
+	// outState holds the terminal output state
+	outState *term.State
 }
 
 // Initialize calls the init function that will setup the configuration for the client
@@ -124,19 +126,31 @@ func (cli *DockerCli) ImagesFormat() string {
 }
 
 func (cli *DockerCli) setRawTerminal() error {
-	if cli.isTerminalIn && os.Getenv("NORAW") == "" {
-		state, err := term.SetRawTerminal(cli.inFd)
-		if err != nil {
-			return err
+	if os.Getenv("NORAW") == "" {
+		if cli.isTerminalIn {
+			state, err := term.SetRawTerminal(cli.inFd)
+			if err != nil {
+				return err
+			}
+			cli.inState = state
 		}
-		cli.state = state
+		if cli.isTerminalOut {
+			state, err := term.SetRawTerminalOutput(cli.outFd)
+			if err != nil {
+				return err
+			}
+			cli.outState = state
+		}
 	}
 	return nil
 }
 
 func (cli *DockerCli) restoreTerminal(in io.Closer) error {
-	if cli.state != nil {
-		term.RestoreTerminal(cli.inFd, cli.state)
+	if cli.inState != nil {
+		term.RestoreTerminal(cli.inFd, cli.inState)
+	}
+	if cli.outState != nil {
+		term.RestoreTerminal(cli.outFd, cli.outState)
 	}
 	// WARNING: DO NOT REMOVE THE OS CHECK !!!
 	// For some reason this Close call blocks on darwin..
