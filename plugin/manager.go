@@ -54,6 +54,11 @@ func (p *plugin) Client() *plugins.Client {
 	return p.client
 }
 
+// IsLegacy returns true for legacy plugins and false otherwise.
+func (p *plugin) IsLegacy() bool {
+	return false
+}
+
 func (p *plugin) Name() string {
 	name := p.P.Name
 	if len(p.P.Tag) > 0 {
