@@ -596,7 +596,7 @@ root@3cce0d3575f3:/# ip -6 route
 default via 2001:db8:abc9::22 dev eth0  metric 1024
 ```
 
-Start a second container with a specific `--ip4` address and ping the first host using ipv4 packets:
+Start a second container with a specific `--ip4` address and ping the first host using IPv4 packets:
 
 ```
 docker run --net=ipvlan140 --ip=192.168.140.10 -it --rm alpine /bin/sh
