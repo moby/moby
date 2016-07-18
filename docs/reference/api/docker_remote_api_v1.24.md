@@ -2283,7 +2283,7 @@ Show the docker version information
          "Version": "1.12.0",
          "Os": "linux",
          "KernelVersion": "3.19.0-23-generic",
-         "GoVersion": "go1.6.2",
+         "GoVersion": "go1.6.3",
          "GitCommit": "deadbee",
          "Arch": "amd64",
          "ApiVersion": "1.24",
