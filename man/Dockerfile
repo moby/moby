@@ -1,4 +1,4 @@
-FROM golang:1.6.2
+FROM golang:1.6.3
 RUN mkdir -p /go/src/github.com/cpuguy83
 RUN mkdir -p /go/src/github.com/cpuguy83 \
     && git clone -b v1.0.5 https://github.com/cpuguy83/go-md2man.git /go/src/github.com/cpuguy83/go-md2man \
