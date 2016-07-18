@@ -446,6 +446,31 @@ func (s *DockerSwarmSuite) TestApiSwarmServicesStateReporting(c *check.C) {
 	}
 }
 
+func (s *DockerSwarmSuite) TestApiSwarmLeaderProxy(c *check.C) {
+	// add three managers, one of these is leader
+	d1 := s.AddDaemon(c, true, true)
+	d2 := s.AddDaemon(c, true, true)
+	d3 := s.AddDaemon(c, true, true)
+
+	// start a service by hitting each of the 3 managers
+	d1.createService(c, simpleTestService, func(s *swarm.Service) {
+		s.Spec.Name = "test1"
+	})
+	d2.createService(c, simpleTestService, func(s *swarm.Service) {
+		s.Spec.Name = "test2"
+	})
+	d3.createService(c, simpleTestService, func(s *swarm.Service) {
+		s.Spec.Name = "test3"
+	})
+
+	// 3 services should be started now, because the requests were proxied to leader
+	// query each node and make sure it returns 3 services
+	for _, d := range []*SwarmDaemon{d1, d2, d3} {
+		services := d.listServices(c)
+		c.Assert(services, checker.HasLen, 3)
+	}
+}
+
 func (s *DockerSwarmSuite) TestApiSwarmRaftQuorum(c *check.C) {
 	testRequires(c, Network)
 	d1 := s.AddDaemon(c, true, true)
