@@ -4,6 +4,7 @@ package main
 
 import (
 	"io/ioutil"
+	"os"
 	"testing"
 
 	cliflags "github.com/docker/docker/cli/flags"
@@ -208,5 +209,34 @@ func TestLoadDaemonConfigWithTrueDefaultValuesLeaveDefaults(t *testing.T) {
 
 	if !loadedConfig.EnableUserlandProxy {
 		t.Fatal("expected userland proxy to be enabled, got disabled")
+	}
+}
+
+func TestLoadDaemonConfigWithLegacyRegistryOptions(t *testing.T) {
+	c := &daemon.Config{}
+	common := &cliflags.CommonFlags{}
+	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+	c.ServiceOptions.InstallCliFlags(flags, absentFromHelp)
+
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	configFile := f.Name()
+	defer os.Remove(configFile)
+
+	f.Write([]byte(`{"disable-legacy-registry": true}`))
+	f.Close()
+
+	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loadedConfig == nil {
+		t.Fatal("expected configuration, got nil")
+	}
+
+	if !loadedConfig.V2Only {
+		t.Fatal("expected disable-legacy-registry to be true, got false")
 	}
 }

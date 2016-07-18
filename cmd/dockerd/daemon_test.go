@@ -267,7 +267,7 @@ func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
 	configFile := f.Name()
 	defer os.Remove(configFile)
 
-	f.Write([]byte(`{"registry-mirrors": ["https://mirrors.docker.com"], "insecure-registries": ["https://insecure.docker.com"], "disable-legacy-registry": true}`))
+	f.Write([]byte(`{"registry-mirrors": ["https://mirrors.docker.com"], "insecure-registries": ["https://insecure.docker.com"]}`))
 	f.Close()
 
 	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
@@ -286,9 +286,5 @@ func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
 	r := loadedConfig.InsecureRegistries
 	if len(r) != 1 {
 		t.Fatalf("expected 1 insecure registries, got %d", len(r))
-	}
-
-	if !loadedConfig.V2Only {
-		t.Fatal("expected disable-legacy-registry to be true, got false")
 	}
 }
