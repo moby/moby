@@ -375,7 +375,7 @@ func (daemon *Daemon) checkImageDeleteConflict(imgID image.ID, mask conflictType
 	if mask&conflictActiveReference != 0 && len(daemon.referenceStore.References(imgID)) > 0 {
 		return &imageDeleteConflict{
 			imgID:   imgID,
-			message: "image is referenced in one or more repositories",
+			message: "image is referenced in multiple repositories",
 		}
 	}
 
