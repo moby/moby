@@ -118,7 +118,9 @@ func lookup(name string) (volume.Driver, error) {
 		return nil, err
 	}
 
-	drivers.extensions[name] = d
+	if p.IsLegacy() {
+		drivers.extensions[name] = d
+	}
 	return d, nil
 }
 
@@ -174,7 +176,9 @@ func GetAllDrivers() ([]volume.Driver, error) {
 		}
 
 		ext = NewVolumeDriver(name, p.Client())
-		drivers.extensions[name] = ext
+		if p.IsLegacy() {
+			drivers.extensions[name] = ext
+		}
 		ds = append(ds, ext)
 	}
 	return ds, nil
