@@ -77,7 +77,7 @@ func (options *ServiceOptions) InstallCliFlags(cmd *flag.FlagSet, usageFn func(s
 	insecureRegistries := opts.NewNamedListOptsRef("insecure-registries", &options.InsecureRegistries, ValidateIndexName)
 	cmd.Var(insecureRegistries, []string{"-insecure-registry"}, usageFn("Enable insecure registry communication"))
 
-	cmd.BoolVar(&options.V2Only, []string{"-disable-legacy-registry"}, false, usageFn("Do not contact legacy registries"))
+	cmd.BoolVar(&options.V2Only, []string{"-disable-legacy-registry"}, false, usageFn("Disable contacting legacy registries"))
 }
 
 // newServiceConfig returns a new instance of ServiceConfig

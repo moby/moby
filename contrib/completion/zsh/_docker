@@ -1551,13 +1551,13 @@ __docker_subcommand() {
                 "($help)--default-gateway[Container default gateway IPv4 address]:IPv4 address: " \
                 "($help)--default-gateway-v6[Container default gateway IPv6 address]:IPv6 address: " \
                 "($help)--cluster-store=[URL of the distributed storage backend]:Cluster Store:->cluster-store" \
-                "($help)--cluster-advertise=[Address of the daemon instance to advertise]:Instance to advertise (host\:port): " \
-                "($help)*--cluster-store-opt=[Cluster options]:Cluster options:->cluster-store-options" \
+                "($help)--cluster-advertise=[Address or interface name to advertise]:Instance to advertise (host\:port): " \
+                "($help)*--cluster-store-opt=[Cluster store options]:Cluster options:->cluster-store-options" \
                 "($help)*--dns=[DNS server to use]:DNS: " \
                 "($help)*--dns-search=[DNS search domains to use]:DNS search: " \
                 "($help)*--dns-opt=[DNS options to use]:DNS option: " \
-                "($help)*--default-ulimit=[Default ulimit settings for containers]:ulimit: " \
-                "($help)--disable-legacy-registry[Do not contact legacy registries]" \
+                "($help)*--default-ulimit=[Default ulimits for containers]:ulimit: " \
+                "($help)--disable-legacy-registry[Disable contacting legacy registries]" \
                 "($help)*--exec-opt=[Runtime execution options]:runtime execution options: " \
                 "($help)--exec-root=[Root directory for execution state files]:path:_directories" \
                 "($help)--fixed-cidr=[IPv4 subnet for fixed IPs]:IPv4 subnet: " \
@@ -1576,7 +1576,7 @@ __docker_subcommand() {
                 "($help)*--label=[Key=value labels]:label: " \
                 "($help)--live-restore[Enable live restore of docker when containers are still running]" \
                 "($help)--log-driver=[Default driver for container logs]:Logging driver:(awslogs etwlogs fluentd gcplogs gelf journald json-file none splunk syslog)" \
-                "($help)*--log-opt=[Log driver specific options]:log driver options:__docker_log_options" \
+                "($help)*--log-opt=[Default log driver options for containers]:log driver options:__docker_log_options" \
                 "($help)--max-concurrent-downloads[Set the max concurrent downloads for each pull]" \
                 "($help)--max-concurrent-uploads[Set the max concurrent uploads for each push]" \
                 "($help)--mtu=[Network MTU]:mtu:(0 576 1420 1500 9000)" \
@@ -1896,7 +1896,7 @@ __docker_subcommand() {
                 "($help)--runtime=[Name of the runtime to be used for that container]:runtime:__docker_complete_runtimes" \
                 "($help)--sig-proxy[Proxy all received signals to the process (non-TTY mode only)]" \
                 "($help)--stop-signal=[Signal to kill a container]:signal:_signals" \
-                "($help)--storage-opt=[Set storage driver options per container]:storage options:->storage-opt" \
+                "($help)--storage-opt=[Storage driver options for the container]:storage options:->storage-opt" \
                 "($help -): :__docker_images" \
                 "($help -):command: _command_names -e" \
                 "($help -)*::arguments: _normal" && ret=0
