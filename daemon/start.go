@@ -158,6 +158,12 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 			container.SetExitCode(126)
 		}
 
+		// attempted to mount a file onto a directory, or a directory onto a file, maybe from user specified bind mounts
+		if strings.Contains(errDesc, syscall.ENOTDIR.Error()) {
+			errDesc += ": Are you trying to mount a directory onto a file (or vice-versa)? Check if the specified host path exists and is the expected type"
+			container.SetExitCode(127)
+		}
+
 		container.Reset(false)
 
 		return fmt.Errorf("%s", errDesc)
