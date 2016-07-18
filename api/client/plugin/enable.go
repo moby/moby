@@ -37,5 +37,9 @@ func runEnable(dockerCli *client.DockerCli, name string) error {
 	if !ok {
 		return fmt.Errorf("invalid name: %s", named.String())
 	}
-	return dockerCli.Client().PluginEnable(context.Background(), ref.String())
+	if err := dockerCli.Client().PluginEnable(context.Background(), ref.String()); err != nil {
+		return err
+	}
+	fmt.Fprintln(dockerCli.Out(), name)
+	return nil
 }
