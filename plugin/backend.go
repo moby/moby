@@ -22,7 +22,11 @@ func (pm *Manager) Disable(name string) error {
 	if err != nil {
 		return err
 	}
-	return pm.disable(p)
+	if err := pm.disable(p); err != nil {
+		return err
+	}
+	pm.pluginEventLogger(p.PluginObj.ID, name, "disable")
+	return nil
 }
 
 // Enable activates a plugin, which implies that they are ready to be used by containers.
@@ -31,7 +35,11 @@ func (pm *Manager) Enable(name string) error {
 	if err != nil {
 		return err
 	}
-	return pm.enable(p)
+	if err := pm.enable(p); err != nil {
+		return err
+	}
+	pm.pluginEventLogger(p.PluginObj.ID, name, "enable")
+	return nil
 }
 
 // Inspect examines a plugin manifest
@@ -40,10 +48,10 @@ func (pm *Manager) Inspect(name string) (tp types.Plugin, err error) {
 	if err != nil {
 		return tp, err
 	}
-	return p.P, nil
+	return p.PluginObj, nil
 }
 
-// Pull pulls a plugin and enables it.
+// Pull pulls a plugin and computes the privileges required to install it.
 func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.AuthConfig) (types.PluginPrivileges, error) {
 	ref, err := reference.ParseNamed(name)
 	if err != nil {
@@ -86,14 +94,15 @@ func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.A
 	pm.save()
 	pm.Unlock()
 
-	return computePrivileges(&p.P.Manifest), nil
+	pm.pluginEventLogger(pluginID, name, "pull")
+	return computePrivileges(&p.PluginObj.Manifest), nil
 }
 
 // List displays the list of plugins and associated metadata.
 func (pm *Manager) List() ([]types.Plugin, error) {
 	out := make([]types.Plugin, 0, len(pm.plugins))
 	for _, p := range pm.plugins {
-		out = append(out, p.P)
+		out = append(out, p.PluginObj)
 	}
 	return out, nil
 }
@@ -104,7 +113,7 @@ func (pm *Manager) Push(name string, metaHeader http.Header, authConfig *types.A
 	if err != nil {
 		return err
 	}
-	dest := filepath.Join(pm.libRoot, p.P.ID)
+	dest := filepath.Join(pm.libRoot, p.PluginObj.ID)
 	config, err := os.Open(filepath.Join(dest, "manifest.json"))
 	if err != nil {
 		return err
@@ -127,7 +136,11 @@ func (pm *Manager) Remove(name string) error {
 	if err != nil {
 		return err
 	}
-	return pm.remove(p)
+	if err := pm.remove(p); err != nil {
+		return err
+	}
+	pm.pluginEventLogger(p.PluginObj.ID, name, "remove")
+	return nil
 }
 
 // Set sets plugin args

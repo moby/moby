@@ -21,7 +21,7 @@ import (
 )
 
 func (pm *Manager) enable(p *plugin) error {
-	if p.P.Active {
+	if p.PluginObj.Active {
 		return fmt.Errorf("plugin %s is already enabled", p.Name())
 	}
 	spec, err := pm.initSpec(p)
@@ -30,14 +30,14 @@ func (pm *Manager) enable(p *plugin) error {
 	}
 
 	p.restartManager = restartmanager.New(container.RestartPolicy{Name: "always"}, 0)
-	if err := pm.containerdClient.Create(p.P.ID, libcontainerd.Spec(*spec), libcontainerd.WithRestartManager(p.restartManager)); err != nil { // POC-only
+	if err := pm.containerdClient.Create(p.PluginObj.ID, libcontainerd.Spec(*spec), libcontainerd.WithRestartManager(p.restartManager)); err != nil { // POC-only
 		if err := p.restartManager.Cancel(); err != nil {
 			logrus.Errorf("enable: restartManager.Cancel failed due to %v", err)
 		}
 		return err
 	}
 
-	socket := p.P.Manifest.Interface.Socket
+	socket := p.PluginObj.Manifest.Interface.Socket
 	p.client, err = plugins.NewClient("unix://"+filepath.Join(p.runtimeSourcePath, socket), nil)
 	if err != nil {
 		if err := p.restartManager.Cancel(); err != nil {
@@ -47,11 +47,11 @@ func (pm *Manager) enable(p *plugin) error {
 	}
 
 	pm.Lock() // fixme: lock single record
-	p.P.Active = true
+	p.PluginObj.Active = true
 	pm.save()
 	pm.Unlock()
 
-	for _, typ := range p.P.Manifest.Interface.Types {
+	for _, typ := range p.PluginObj.Manifest.Interface.Types {
 		if handler := pm.handlers[typ.String()]; handler != nil {
 			handler(p.Name(), p.Client())
 		}
@@ -62,19 +62,19 @@ func (pm *Manager) enable(p *plugin) error {
 
 func (pm *Manager) restore(p *plugin) error {
 	p.restartManager = restartmanager.New(container.RestartPolicy{Name: "always"}, 0)
-	return pm.containerdClient.Restore(p.P.ID, libcontainerd.WithRestartManager(p.restartManager))
+	return pm.containerdClient.Restore(p.PluginObj.ID, libcontainerd.WithRestartManager(p.restartManager))
 }
 
 func (pm *Manager) initSpec(p *plugin) (*specs.Spec, error) {
 	s := oci.DefaultSpec()
 
-	rootfs := filepath.Join(pm.libRoot, p.P.ID, "rootfs")
+	rootfs := filepath.Join(pm.libRoot, p.PluginObj.ID, "rootfs")
 	s.Root = specs.Root{
 		Path:     rootfs,
 		Readonly: false, // TODO: all plugins should be readonly? settable in manifest?
 	}
 
-	mounts := append(p.P.Config.Mounts, types.PluginMount{
+	mounts := append(p.PluginObj.Config.Mounts, types.PluginMount{
 		Source:      &p.runtimeSourcePath,
 		Destination: defaultPluginRuntimeDestination,
 		Type:        "bind",
@@ -104,12 +104,12 @@ func (pm *Manager) initSpec(p *plugin) (*specs.Spec, error) {
 		s.Mounts = append(s.Mounts, m)
 	}
 
-	envs := make([]string, 1, len(p.P.Config.Env)+1)
+	envs := make([]string, 1, len(p.PluginObj.Config.Env)+1)
 	envs[0] = "PATH=" + system.DefaultPathEnv
-	envs = append(envs, p.P.Config.Env...)
+	envs = append(envs, p.PluginObj.Config.Env...)
 
-	args := append(p.P.Manifest.Entrypoint, p.P.Config.Args...)
-	cwd := p.P.Manifest.Workdir
+	args := append(p.PluginObj.Manifest.Entrypoint, p.PluginObj.Config.Args...)
+	cwd := p.PluginObj.Manifest.Workdir
 	if len(cwd) == 0 {
 		cwd = "/"
 	}
@@ -124,19 +124,19 @@ func (pm *Manager) initSpec(p *plugin) (*specs.Spec, error) {
 }
 
 func (pm *Manager) disable(p *plugin) error {
-	if !p.P.Active {
+	if !p.PluginObj.Active {
 		return fmt.Errorf("plugin %s is already disabled", p.Name())
 	}
 	if err := p.restartManager.Cancel(); err != nil {
 		logrus.Error(err)
 	}
-	if err := pm.containerdClient.Signal(p.P.ID, int(syscall.SIGKILL)); err != nil {
+	if err := pm.containerdClient.Signal(p.PluginObj.ID, int(syscall.SIGKILL)); err != nil {
 		logrus.Error(err)
 	}
 	os.RemoveAll(p.runtimeSourcePath)
 	pm.Lock() // fixme: lock single record
 	defer pm.Unlock()
-	p.P.Active = false
+	p.PluginObj.Active = false
 	pm.save()
 	return nil
 }
@@ -148,7 +148,7 @@ func (pm *Manager) Shutdown() {
 
 	pm.shutdown = true
 	for _, p := range pm.plugins {
-		if pm.liveRestore && p.P.Active {
+		if pm.liveRestore && p.PluginObj.Active {
 			logrus.Debug("Plugin active when liveRestore is set, skipping shutdown")
 			continue
 		}
@@ -157,9 +157,9 @@ func (pm *Manager) Shutdown() {
 				logrus.Error(err)
 			}
 		}
-		if pm.containerdClient != nil && p.P.Active {
+		if pm.containerdClient != nil && p.PluginObj.Active {
 			p.exitChan = make(chan bool)
-			err := pm.containerdClient.Signal(p.P.ID, int(syscall.SIGTERM))
+			err := pm.containerdClient.Signal(p.PluginObj.ID, int(syscall.SIGTERM))
 			if err != nil {
 				logrus.Errorf("Sending SIGTERM to plugin failed with error: %v", err)
 			} else {
@@ -168,14 +168,14 @@ func (pm *Manager) Shutdown() {
 					logrus.Debug("Clean shutdown of plugin")
 				case <-time.After(time.Second * 10):
 					logrus.Debug("Force shutdown plugin")
-					if err := pm.containerdClient.Signal(p.P.ID, int(syscall.SIGKILL)); err != nil {
+					if err := pm.containerdClient.Signal(p.PluginObj.ID, int(syscall.SIGKILL)); err != nil {
 						logrus.Errorf("Sending SIGKILL to plugin failed with error: %v", err)
 					}
 				}
 			}
 			close(p.exitChan)
 			pm.Lock()
-			p.P.Active = false
+			p.PluginObj.Active = false
 			pm.save()
 			pm.Unlock()
 		}
