@@ -39,11 +39,15 @@ func NewStopCommand(dockerCli *command.DockerCli) *cobra.Command {
 
 func runStop(dockerCli *command.DockerCli, opts *stopOptions) error {
 	ctx := context.Background()
+	timeout := time.Duration(opts.time) * time.Second
 
 	var errs []string
+
+	errChan := parallelOperation(ctx, opts.containers, func(ctx context.Context, id string) error {
+		return dockerCli.Client().ContainerStop(ctx, id, &timeout)
+	})
 	for _, container := range opts.containers {
-		timeout := time.Duration(opts.time) * time.Second
-		if err := dockerCli.Client().ContainerStop(ctx, container, &timeout); err != nil {
+		if err := <-errChan; err != nil {
 			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(dockerCli.Out(), "%s\n", container)

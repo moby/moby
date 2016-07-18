@@ -90,3 +90,35 @@ func getExitCode(dockerCli *command.DockerCli, ctx context.Context, containerID 
 	}
 	return c.State.Running, c.State.ExitCode, nil
 }
+
+func parallelOperation(ctx context.Context, cids []string, op func(ctx context.Context, id string) error) chan error {
+	if len(cids) == 0 {
+		return nil
+	}
+	const defaultParallel int = 50
+	sem := make(chan struct{}, defaultParallel)
+	errChan := make(chan error)
+
+	// make sure result is printed in correct order
+	output := map[string]chan error{}
+	for _, c := range cids {
+		output[c] = make(chan error, 1)
+	}
+	go func() {
+		for _, c := range cids {
+			err := <-output[c]
+			errChan <- err
+		}
+	}()
+
+	go func() {
+		for _, c := range cids {
+			sem <- struct{}{} // Wait for active queue sem to drain.
+			go func(container string) {
+				output[container] <- op(ctx, container)
+				<-sem
+			}(c)
+		}
+	}()
+	return errChan
+}
