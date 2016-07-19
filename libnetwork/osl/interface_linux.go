@@ -303,6 +303,7 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 	for err = nlh.LinkSetUp(iface); err != nil && cnt < 3; cnt++ {
 		log.Debugf("retrying link setup because of: %v", err)
 		time.Sleep(10 * time.Millisecond)
+		err = nlh.LinkSetUp(iface)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to set link up: %v", err)
