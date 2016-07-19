@@ -400,7 +400,7 @@ func (d *Daemon) queryRootDir() (string, error) {
 	var b []byte
 	var i Info
 	b, err = readBody(body)
-	if err == nil && resp.StatusCode == 200 {
+	if err == nil && resp.StatusCode == http.StatusOK {
 		// read the docker root dir
 		if err = json.Unmarshal(b, &i); err == nil {
 			return i.DockerRootDir, nil
