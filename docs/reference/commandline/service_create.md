@@ -131,7 +131,7 @@ $ docker service create \
 ```
 
 For more information about labels, refer to [apply custom
-metadata](../../userguide/labels-custom-metadata.md)
+metadata](../../userguide/labels-custom-metadata.md).
 
 ### Set service mode
 
@@ -162,7 +162,7 @@ follows:
 
 `engine.labels` apply to Docker Engine labels like operating system,
 drivers, etc. Swarm administrators add `node.labels` for operational purposes by
-using the `docker node update` command.
+using the [`docker node update`](node_update.md) command.
 
 For example, the following limits tasks for the redis service to nodes where the
 node type label equals queue:
