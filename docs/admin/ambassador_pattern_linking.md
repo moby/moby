@@ -6,7 +6,7 @@ description = "Using the Ambassador pattern to abstract (network) services"
 keywords = ["Examples, Usage, links, docker, documentation, examples, names, name,  container naming"]
 [menu.main]
 parent = "engine_admin"
-weight = 6
+weight = 15
 +++
 <![end-metadata]-->
 

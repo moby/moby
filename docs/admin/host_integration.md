@@ -6,6 +6,7 @@ description = "How to generate scripts for upstart, systemd, etc."
 keywords = ["systemd, upstart, supervisor, docker, documentation,  host integration"]
 [menu.main]
 parent = "engine_admin"
+weight="5"
 +++
 <![end-metadata]-->
 
