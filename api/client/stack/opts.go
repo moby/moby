@@ -12,9 +12,9 @@ import (
 )
 
 func addBundlefileFlag(opt *string, flags *pflag.FlagSet) {
-	flags.StringVarP(
+	flags.StringVar(
 		opt,
-		"bundle", "f", "",
+		"bundle", "",
 		"Path to a Distributed Application Bundle file (Default: STACK.dab)")
 }
 
