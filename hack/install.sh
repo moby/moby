@@ -389,12 +389,10 @@ do_install() {
 			}
 
 			if [ "$lsb_dist" = "raspbian" ]; then
-				# overlay is preferred to use on Raspbian
-				if [ ! -f /etc/modules-load.d/docker.conf ]; then
-					# Load kernel module 'overlay' at boot time
-					( set -x; $sh_c "modprobe overlay" )
-					( set -x; $sh_c "echo overlay > /etc/modules-load.d/docker.conf" )
-				fi
+				# Create Raspbian specific systemd init file, use overlay by default
+				( set -x; $sh_c "mkdir -p /etc/systemd/system" )
+				( set -x; $sh_c "$curl https://raw.githubusercontent.com/docker/docker/master/contrib/init/systemd/docker.service > /etc/systemd/system/docker.service" )
+				( set -x; $sh_c "sed -i 's/dockerd/dockerd --storage-driver overlay/' /etc/systemd/system/docker.service" )
 			else
 				# aufs is preferred over devicemapper; try to ensure the driver is available.
 				if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
