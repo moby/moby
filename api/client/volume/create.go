@@ -26,7 +26,7 @@ func newCreateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "create",
+		Use:   "create [OPTIONS]",
 		Short: "Create a volume",
 		Args:  cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

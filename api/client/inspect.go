@@ -15,7 +15,7 @@ import (
 //
 // Usage: docker inspect [OPTIONS] CONTAINER|IMAGE|TASK [CONTAINER|IMAGE|TASK...]
 func (cli *DockerCli) CmdInspect(args ...string) error {
-	cmd := Cli.Subcmd("inspect", []string{"CONTAINER|IMAGE|TASK [CONTAINER|IMAGE|TASK...]"}, Cli.DockerCommands["inspect"].Description, true)
+	cmd := Cli.Subcmd("inspect", []string{"[OPTIONS] CONTAINER|IMAGE|TASK [CONTAINER|IMAGE|TASK...]"}, Cli.DockerCommands["inspect"].Description, true)
 	tmplStr := cmd.String([]string{"f", "-format"}, "", "Format the output using the given go template")
 	inspectType := cmd.String([]string{"-type"}, "", "Return JSON for specified type, (e.g image, container or task)")
 	size := cmd.Bool([]string{"s", "-size"}, false, "Display total file sizes if the type is container")

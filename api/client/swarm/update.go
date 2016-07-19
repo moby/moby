@@ -16,7 +16,7 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	opts := swarmOptions{autoAccept: NewAutoAcceptOption()}
 
 	cmd := &cobra.Command{
-		Use:   "update",
+		Use:   "update [OPTIONS]",
 		Short: "Update the Swarm",
 		Args:  cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
