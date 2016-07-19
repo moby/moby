@@ -6,6 +6,7 @@ description = "Installing and using Puppet"
 keywords = ["puppet, installation, usage, docker,  documentation"]
 [menu.main]
 parent = "engine_admin"
+weight="12"
 +++
 <![end-metadata]-->
 

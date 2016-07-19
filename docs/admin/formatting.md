@@ -5,7 +5,7 @@ description = "CLI and log output formatting reference"
 keywords = ["format, formatting, output, templates, log"]
 [menu.main]
 parent = "engine_admin"
-weight=-90
+weight=7
 +++
 <![end-metadata]-->
 
