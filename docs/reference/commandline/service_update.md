@@ -71,6 +71,6 @@ $ docker service update --limit-cpu 2 redis
 
 * [service create](service_create.md)
 * [service inspect](service_inspect.md)
-* [service tasks](service_tasks.md)
+* [service ps](service_ps.md)
 * [service ls](service_ls.md)
 * [service rm](service_rm.md)

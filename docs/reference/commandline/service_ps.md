@@ -1,17 +1,18 @@
 <!--[metadata]>
 +++
-title = "service tasks"
-description = "The service tasks command description and usage"
-keywords = ["service, tasks"]
+title = "service ps"
+description = "The service ps command description and usage"
+keywords = ["service, tasks", "ps"]
+aliases = ["/engine/reference/commandline/service_tasks/"]
 [menu.main]
 parent = "smn_cli"
 +++
 <![end-metadata]-->
 
-# service tasks
+# service ps
 
 ```Markdown
-Usage:	docker service tasks [OPTIONS] SERVICE
+Usage:	docker service ps [OPTIONS] SERVICE
 
 List the tasks of a service
 
@@ -33,7 +34,7 @@ has to be run targeting a manager node.
 The following command shows all the tasks that are part of the `redis` service:
 
 ```bash
-$ docker service tasks redis
+$ docker service ps redis
 ID                         NAME      SERVICE IMAGE        LAST STATE          DESIRED STATE  NODE
 0qihejybwf1x5vqi8lgzlgnpq  redis.1   redis   redis:3.0.6  Running 8 seconds   Running        manager1
 bk658fpbex0d57cqcwoe3jthu  redis.2   redis   redis:3.0.6  Running 9 seconds   Running        worker2
@@ -67,7 +68,7 @@ The currently supported filters are:
 The `id` filter matches on all or a prefix of a task's ID.
 
 ```bash
-$ docker service tasks -f "id=8" redis
+$ docker service ps -f "id=8" redis
 ID                         NAME      SERVICE  IMAGE        LAST STATE         DESIRED STATE  NODE
 8ryt076polmclyihzx67zsssj  redis.4   redis    redis:3.0.6  Running 4 minutes  Running        worker1
 8eaxrb2fqpbnv9x30vr06i6vt  redis.10  redis    redis:3.0.6  Running 4 minutes  Running        manager1
@@ -78,7 +79,7 @@ ID                         NAME      SERVICE  IMAGE        LAST STATE         DE
 The `name` filter matches on task names.
 
 ```bash
-$ docker service tasks -f "name=redis.1" redis
+$ docker service ps -f "name=redis.1" redis
 ID                         NAME      SERVICE  IMAGE        DESIRED STATE  LAST STATE         NODE
 0qihejybwf1x5vqi8lgzlgnpq  redis.1   redis    redis:3.0.6  Running        Running 8 seconds  manager1
 ```

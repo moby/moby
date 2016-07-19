@@ -120,6 +120,6 @@ Example output:
 ## Related information
 
 * [node update](node_update.md)
-* [node tasks](node_tasks.md)
+* [node ps](node_ps.md)
 * [node ls](node_ls.md)
 * [node rm](node_rm.md)

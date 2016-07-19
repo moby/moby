@@ -133,10 +133,10 @@ desired state:
     To avoid repeating certain update failures, you may need to reconfigure the
     service by passing flags to `docker service update`.
 
-6. Run `docker service tasks <SERVICE-ID>` to watch the rolling update:
+6. Run `docker service ps <SERVICE-ID>` to watch the rolling update:
 
     ```bash
-    $ docker service tasks redis
+    $ docker service ps redis
 
     ID                         NAME     SERVICE  IMAGE        LAST STATE              DESIRED STATE  NODE
     dos1zffgeofhagnve8w864fco  redis.1  redis    redis:3.0.7  Running 37 seconds      Running        worker1
