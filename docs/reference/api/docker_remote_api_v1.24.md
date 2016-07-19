@@ -1090,7 +1090,7 @@ Restart the container `id`
 
 **Example response**:
 
-    HTTP/1.1 204 No Content
+    HTTP/1.1 200 No Content
 
 **Query parameters**:
 
@@ -1098,7 +1098,7 @@ Restart the container `id`
 
 **Status codes**:
 
--   **204** – no error
+-   **200** – OK
 -   **404** – no such container
 -   **500** – server error
 
@@ -1114,7 +1114,7 @@ Kill the container `id`
 
 **Example response**:
 
-    HTTP/1.1 204 No Content
+    HTTP/1.1 200 No Content
 
 **Query parameters**:
 
@@ -1123,7 +1123,7 @@ Kill the container `id`
 
 **Status codes**:
 
--   **204** – no error
+-   **200** – OK
 -   **404** – no such container
 -   **500** – server error
 
