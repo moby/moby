@@ -1711,6 +1711,8 @@ _docker_service_update() {
 		--label -l
 		--limit-cpu
 		--limit-memory
+		--log-driver
+		--log-opt
 		--mount
 		--name
 		--network
@@ -1733,6 +1735,8 @@ _docker_service_update() {
 		--help
 		--registry-auth
 	"
+
+	__docker_complete_log_driver_options && return
 
 	if [ "$subcommand" = "create" ] ; then
 		options_with_args="$options_with_args
@@ -1768,6 +1772,14 @@ _docker_service_update() {
 		--env|-e)
 			COMPREPLY=( $( compgen -e -S = -- "$cur" ) )
 			__docker_nospace
+			return
+			;;
+		--log-driver)
+			__docker_complete_log_drivers
+			return
+			;;
+		--log-opt)
+			__docker_complete_log_options
 			return
 			;;
 		--network)
