@@ -21,8 +21,9 @@ func newAcceptCommand(dockerCli *client.DockerCli) *cobra.Command {
 }
 
 func runAccept(dockerCli *client.DockerCli, nodes []string) error {
-	accept := func(node *swarm.Node) {
+	accept := func(node *swarm.Node) error {
 		node.Spec.Membership = swarm.NodeMembershipAccepted
+		return nil
 	}
 	success := func(nodeID string) {
 		fmt.Fprintf(dockerCli.Out(), "Node %s accepted in the swarm.\n", nodeID)

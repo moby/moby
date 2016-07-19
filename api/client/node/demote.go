@@ -21,8 +21,9 @@ func newDemoteCommand(dockerCli *client.DockerCli) *cobra.Command {
 }
 
 func runDemote(dockerCli *client.DockerCli, nodes []string) error {
-	demote := func(node *swarm.Node) {
+	demote := func(node *swarm.Node) error {
 		node.Spec.Role = swarm.NodeRoleWorker
+		return nil
 	}
 	success := func(nodeID string) {
 		fmt.Fprintf(dockerCli.Out(), "Manager %s demoted in the swarm.\n", nodeID)

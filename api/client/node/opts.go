@@ -4,17 +4,36 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/docker/docker/opts"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/types/swarm"
 )
 
 type nodeOptions struct {
+	annotations
 	role         string
 	membership   string
 	availability string
 }
 
+type annotations struct {
+	name   string
+	labels opts.ListOpts
+}
+
+func newNodeOptions() *nodeOptions {
+	return &nodeOptions{
+		annotations: annotations{
+			labels: opts.NewListOpts(nil),
+		},
+	}
+}
+
 func (opts *nodeOptions) ToNodeSpec() (swarm.NodeSpec, error) {
 	var spec swarm.NodeSpec
+
+	spec.Annotations.Name = opts.annotations.name
+	spec.Annotations.Labels = runconfigopts.ConvertKVStringsToMap(opts.annotations.labels.GetAll())
 
 	switch swarm.NodeRole(strings.ToLower(opts.role)) {
 	case swarm.NodeRoleWorker:
