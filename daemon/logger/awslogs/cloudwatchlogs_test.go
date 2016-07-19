@@ -150,10 +150,11 @@ func TestPublishBatchSuccess(t *testing.T) {
 			NextSequenceToken: aws.String(nextSequenceToken),
 		},
 	}
-
-	events := []*cloudwatchlogs.InputLogEvent{
+	events := []wrappedEvent{
 		{
-			Message: aws.String(logline),
+			inputLogEvent: &cloudwatchlogs.InputLogEvent{
+				Message: aws.String(logline),
+			},
 		},
 	}
 
@@ -177,7 +178,7 @@ func TestPublishBatchSuccess(t *testing.T) {
 	if len(argument.LogEvents) != 1 {
 		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
 	}
-	if argument.LogEvents[0] != events[0] {
+	if argument.LogEvents[0] != events[0].inputLogEvent {
 		t.Error("Expected event to equal input")
 	}
 }
@@ -194,9 +195,11 @@ func TestPublishBatchError(t *testing.T) {
 		errorResult: errors.New("Error!"),
 	}
 
-	events := []*cloudwatchlogs.InputLogEvent{
+	events := []wrappedEvent{
 		{
-			Message: aws.String(logline),
+			inputLogEvent: &cloudwatchlogs.InputLogEvent{
+				Message: aws.String(logline),
+			},
 		},
 	}
 
@@ -226,9 +229,11 @@ func TestPublishBatchInvalidSeqSuccess(t *testing.T) {
 		},
 	}
 
-	events := []*cloudwatchlogs.InputLogEvent{
+	events := []wrappedEvent{
 		{
-			Message: aws.String(logline),
+			inputLogEvent: &cloudwatchlogs.InputLogEvent{
+				Message: aws.String(logline),
+			},
 		},
 	}
 
@@ -253,7 +258,7 @@ func TestPublishBatchInvalidSeqSuccess(t *testing.T) {
 	if len(argument.LogEvents) != 1 {
 		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
 	}
-	if argument.LogEvents[0] != events[0] {
+	if argument.LogEvents[0] != events[0].inputLogEvent {
 		t.Error("Expected event to equal input")
 	}
 
@@ -270,7 +275,7 @@ func TestPublishBatchInvalidSeqSuccess(t *testing.T) {
 	if len(argument.LogEvents) != 1 {
 		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
 	}
-	if argument.LogEvents[0] != events[0] {
+	if argument.LogEvents[0] != events[0].inputLogEvent {
 		t.Error("Expected event to equal input")
 	}
 }
@@ -287,9 +292,11 @@ func TestPublishBatchAlreadyAccepted(t *testing.T) {
 		errorResult: awserr.New(dataAlreadyAcceptedCode, "use token token", nil),
 	}
 
-	events := []*cloudwatchlogs.InputLogEvent{
+	events := []wrappedEvent{
 		{
-			Message: aws.String(logline),
+			inputLogEvent: &cloudwatchlogs.InputLogEvent{
+				Message: aws.String(logline),
+			},
 		},
 	}
 
@@ -314,7 +321,7 @@ func TestPublishBatchAlreadyAccepted(t *testing.T) {
 	if len(argument.LogEvents) != 1 {
 		t.Errorf("Expected LogEvents to contain 1 element, but contains %d", len(argument.LogEvents))
 	}
-	if argument.LogEvents[0] != events[0] {
+	if argument.LogEvents[0] != events[0].inputLogEvent {
 		t.Error("Expected event to equal input")
 	}
 }
