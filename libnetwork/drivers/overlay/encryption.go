@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"hash/fnv"
 	"net"
 	"sync"
 	"syscall"
@@ -353,13 +354,13 @@ func spExists(sp *netlink.XfrmPolicy) (bool, error) {
 }
 
 func buildSPI(src, dst net.IP, st uint32) int {
-	spi := int(st)
-	f := src[len(src)-4:]
-	t := dst[len(dst)-4:]
-	for i := 0; i < 4; i++ {
-		spi = spi ^ (int(f[i])^int(t[3-i]))<<uint32(8*i)
-	}
-	return spi
+	b := make([]byte, 4)
+	binary.BigEndian.PutUint32(b, st)
+	h := fnv.New32a()
+	h.Write(src)
+	h.Write(b)
+	h.Write(dst)
+	return int(binary.BigEndian.Uint32(h.Sum(nil)))
 }
 
 func buildAeadAlgo(k *key, s int) *netlink.XfrmStateAlgo {
