@@ -28,7 +28,7 @@ type client struct {
 	liveRestore   bool
 }
 
-func (clnt *client) AddProcess(containerID, processFriendlyName string, specp Process) error {
+func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendlyName string, specp Process) error {
 	clnt.lock(containerID)
 	defer clnt.unlock(containerID)
 	container, err := clnt.getContainer(containerID)
@@ -89,7 +89,7 @@ func (clnt *client) AddProcess(containerID, processFriendlyName string, specp Pr
 		return err
 	}
 
-	if _, err := clnt.remote.apiClient.AddProcess(context.Background(), r); err != nil {
+	if _, err := clnt.remote.apiClient.AddProcess(ctx, r); err != nil {
 		p.closeFifos(iopipe)
 		return err
 	}
@@ -281,15 +281,9 @@ func (clnt *client) cleanupOldRootfs(containerID string) {
 	}
 }
 
-func (clnt *client) setExited(containerID string) error {
+func (clnt *client) setExited(containerID string, exitCode uint32) error {
 	clnt.lock(containerID)
 	defer clnt.unlock(containerID)
-
-	var exitCode uint32
-	if event, ok := clnt.remote.pastEvents[containerID]; ok {
-		exitCode = event.Status
-		delete(clnt.remote.pastEvents, containerID)
-	}
 
 	err := clnt.backend.StateChanged(containerID, StateInfo{
 		CommonStateInfo: CommonStateInfo{
@@ -393,7 +387,7 @@ func (clnt *client) getOrCreateExitNotifier(containerID string) *exitNotifier {
 	return w
 }
 
-func (clnt *client) restore(cont *containerd.Container, options ...CreateOption) (err error) {
+func (clnt *client) restore(cont *containerd.Container, lastEvent *containerd.Event, options ...CreateOption) (err error) {
 	clnt.lock(cont.Id)
 	defer clnt.unlock(cont.Id)
 
@@ -441,66 +435,132 @@ func (clnt *client) restore(cont *containerd.Container, options ...CreateOption)
 		return err
 	}
 
-	if event, ok := clnt.remote.pastEvents[containerID]; ok {
+	if lastEvent != nil {
 		// This should only be a pause or resume event
-		if event.Type == StatePause || event.Type == StateResume {
+		if lastEvent.Type == StatePause || lastEvent.Type == StateResume {
 			return clnt.backend.StateChanged(containerID, StateInfo{
 				CommonStateInfo: CommonStateInfo{
-					State: event.Type,
+					State: lastEvent.Type,
 					Pid:   container.systemPid,
 				}})
 		}
 
-		logrus.Warnf("unexpected backlog event: %#v", event)
+		logrus.Warnf("unexpected backlog event: %#v", lastEvent)
 	}
 
 	return nil
 }
 
-func (clnt *client) Restore(containerID string, options ...CreateOption) error {
-	if clnt.liveRestore {
-		cont, err := clnt.getContainerdContainer(containerID)
-		if err == nil && cont.Status != "stopped" {
-			if err := clnt.restore(cont, options...); err != nil {
-				logrus.Errorf("error restoring %s: %v", containerID, err)
-			}
-			return nil
-		}
-		return clnt.setExited(containerID)
+func (clnt *client) getContainerLastEvent(containerID string) (*containerd.Event, error) {
+	er := &containerd.EventsRequest{
+		Timestamp:  clnt.remote.restoreFromTimestamp,
+		StoredOnly: true,
+		Id:         containerID,
+	}
+	events, err := clnt.remote.apiClient.Events(context.Background(), er)
+	if err != nil {
+		logrus.Errorf("libcontainerd: failed to get container events stream for %s: %q", er.Id, err)
+		return nil, err
 	}
 
+	var ev *containerd.Event
+	for {
+		e, err := events.Recv()
+		if err != nil {
+			if err.Error() == "EOF" {
+				break
+			}
+			logrus.Errorf("libcontainerd: failed to get container event for %s: %q", containerID, err)
+			return nil, err
+		}
+
+		logrus.Debugf("libcontainerd: received past event %#v", e)
+
+		switch e.Type {
+		case StateExit, StatePause, StateResume:
+			ev = e
+		}
+	}
+
+	return ev, nil
+}
+
+func (clnt *client) Restore(containerID string, options ...CreateOption) error {
+	// Synchronize with live events
+	clnt.remote.Lock()
+	defer clnt.remote.Unlock()
+	// Check that containerd still knows this container.
+	//
+	// In the unlikely event that Restore for this container process
+	// the its past event before the main loop, the event will be
+	// processed twice. However, this is not an issue as all those
+	// events will do is change the state of the container to be
+	// exactly the same.
 	cont, err := clnt.getContainerdContainer(containerID)
-	if err == nil && cont.Status != "stopped" {
-		w := clnt.getOrCreateExitNotifier(containerID)
-		clnt.lock(cont.Id)
-		container := clnt.newContainer(cont.BundlePath)
-		container.systemPid = systemPid(cont)
-		clnt.appendContainer(container)
-		clnt.unlock(cont.Id)
+	// Get its last event
+	ev, eerr := clnt.getContainerLastEvent(containerID)
+	if err != nil || cont.Status == "Stopped" {
+		if err != nil && !strings.Contains(err.Error(), "container not found") {
+			// Legitimate error
+			return err
+		}
 
-		container.discardFifos()
+		// If ev is nil, then we already consumed all the event of the
+		// container, included the "exit" one.
+		// Thus we return to avoid overriding the Exit Code.
+		if ev == nil {
+			logrus.Warnf("libcontainerd: restore was called on a fully synced container (%s)", containerID)
+			return nil
+		}
 
-		if err := clnt.Signal(containerID, int(syscall.SIGTERM)); err != nil {
-			logrus.Errorf("error sending sigterm to %v: %v", containerID, err)
+		// get the exit status for this container
+		ec := uint32(0)
+		if eerr == nil && ev.Type == StateExit {
+			ec = ev.Status
+		}
+		clnt.setExited(containerID, ec)
+
+		return nil
+	}
+
+	// container is still alive
+	if clnt.liveRestore {
+		if err := clnt.restore(cont, ev, options...); err != nil {
+			logrus.Errorf("error restoring %s: %v", containerID, err)
+		}
+		return nil
+	}
+
+	// Kill the container if liveRestore == false
+	w := clnt.getOrCreateExitNotifier(containerID)
+	clnt.lock(cont.Id)
+	container := clnt.newContainer(cont.BundlePath)
+	container.systemPid = systemPid(cont)
+	clnt.appendContainer(container)
+	clnt.unlock(cont.Id)
+
+	container.discardFifos()
+
+	if err := clnt.Signal(containerID, int(syscall.SIGTERM)); err != nil {
+		logrus.Errorf("error sending sigterm to %v: %v", containerID, err)
+	}
+	select {
+	case <-time.After(10 * time.Second):
+		if err := clnt.Signal(containerID, int(syscall.SIGKILL)); err != nil {
+			logrus.Errorf("error sending sigkill to %v: %v", containerID, err)
 		}
 		select {
-		case <-time.After(10 * time.Second):
-			if err := clnt.Signal(containerID, int(syscall.SIGKILL)); err != nil {
-				logrus.Errorf("error sending sigkill to %v: %v", containerID, err)
-			}
-			select {
-			case <-time.After(2 * time.Second):
-			case <-w.wait():
-				return nil
-			}
+		case <-time.After(2 * time.Second):
 		case <-w.wait():
 			return nil
 		}
+	case <-w.wait():
+		return nil
 	}
 
 	clnt.deleteContainer(containerID)
 
-	return clnt.setExited(containerID)
+	return clnt.setExited(containerID, uint32(255))
 }
 
 type exitNotifier struct {

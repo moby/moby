@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
@@ -36,6 +35,7 @@ import (
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
 	lntypes "github.com/docker/libnetwork/types"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/opencontainers/runc/libcontainer/label"
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/opencontainers/specs/specs-go"
@@ -1119,7 +1119,10 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 			}
 		}
 	}
-	s.Read = time.Unix(int64(stats.Timestamp), 0)
+	s.Read, err = ptypes.Timestamp(stats.Timestamp)
+	if err != nil {
+		return nil, err
+	}
 	return s, nil
 }
 
