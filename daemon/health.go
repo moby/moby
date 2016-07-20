@@ -41,7 +41,6 @@ const (
 
 	exitStatusHealthy   = 0 // Container is healthy
 	exitStatusUnhealthy = 1 // Container is unhealthy
-	exitStatusStarting  = 2 // Container needs more time to start
 )
 
 // probe implementations know how to run a particular type of probe.
@@ -127,12 +126,10 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 	if result.ExitCode == exitStatusHealthy {
 		h.FailingStreak = 0
 		h.Status = types.Healthy
-	} else if result.ExitCode == exitStatusStarting && c.State.Health.Status == types.Starting {
-		// The container is not ready yet. Remain in the starting state.
 	} else {
 		// Failure (including invalid exit code)
 		h.FailingStreak++
-		if c.State.Health.FailingStreak >= retries {
+		if h.FailingStreak >= retries {
 			h.Status = types.Unhealthy
 		}
 		// Else we're starting or healthy. Stay in that state.

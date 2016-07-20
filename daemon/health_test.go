@@ -94,22 +94,6 @@ func TestHealthStates(t *testing.T) {
 	handleResult(c.State.StartedAt.Add(3*time.Second), 1)
 	expect("health_status: unhealthy")
 
-	// starting -> starting -> starting ->
-	// healthy -> starting (invalid transition)
-
-	reset(c)
-
-	handleResult(c.State.StartedAt.Add(20*time.Second), 2)
-	handleResult(c.State.StartedAt.Add(40*time.Second), 2)
-	if c.State.Health.Status != types.Starting {
-		t.Errorf("Expecting starting, but got %#v\n", c.State.Health.Status)
-	}
-
-	handleResult(c.State.StartedAt.Add(50*time.Second), 0)
-	expect("health_status: healthy")
-	handleResult(c.State.StartedAt.Add(60*time.Second), 2)
-	expect("health_status: unhealthy")
-
 	// Test retries
 
 	reset(c)
