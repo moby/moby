@@ -852,6 +852,8 @@ __docker_node_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help)--availability=[Availability of the node]:availability:(active pause drain)" \
+                "($help)*--label-add=[Add or update a node label]:key=value: " \
+                "($help)*--label-rm=[Remove a node label if exists]:label: " \
                 "($help)--membership=[Membership of the node]:membership:(accepted rejected)" \
                 "($help)--role=[Role of the node]:role:(manager worker)" \
                 "($help -)1:node:__docker_complete_nodes" && ret=0
