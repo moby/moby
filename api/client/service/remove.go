@@ -13,7 +13,7 @@ import (
 func newRemoveCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	cmd := &cobra.Command{
-		Use:     "rm [OPTIONS] SERVICE",
+		Use:     "rm [OPTIONS] SERVICE [SERVICE...]",
 		Aliases: []string{"remove"},
 		Short:   "Remove a service",
 		Args:    cli.RequiresMinArgs(1),
