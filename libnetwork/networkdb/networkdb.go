@@ -107,9 +107,9 @@ type Config struct {
 	// NodeName is the cluster wide unique name for this node.
 	NodeName string
 
-	// BindAddr is the local node's IP address that we bind to for
+	// AdvertiseAddr is the node's IP address that we advertise for
 	// cluster communication.
-	BindAddr string
+	AdvertiseAddr string
 
 	// BindPort is the local node's port to which we bind to for
 	// cluster communication.

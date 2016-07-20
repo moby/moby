@@ -8,12 +8,13 @@ import (
 	"sync"
 	"syscall"
 
+	"strconv"
+
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
-	"strconv"
 )
 
 const (
@@ -85,6 +86,7 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal
 	}
 
 	lIP := types.GetMinimalIP(net.ParseIP(d.bindAddress))
+	aIP := types.GetMinimalIP(net.ParseIP(d.advertiseAddress))
 	nodes := map[string]net.IP{}
 
 	switch {
@@ -107,7 +109,7 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal
 
 	if add {
 		for _, rIP := range nodes {
-			if err := setupEncryption(lIP, rIP, vxlanID, d.secMap, d.keys); err != nil {
+			if err := setupEncryption(lIP, aIP, rIP, vxlanID, d.secMap, d.keys); err != nil {
 				log.Warnf("Failed to program network encryption between %s and %s: %v", lIP, rIP, err)
 			}
 		}
@@ -122,7 +124,7 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal
 	return nil
 }
 
-func setupEncryption(localIP, remoteIP net.IP, vni uint32, em *encrMap, keys []*key) error {
+func setupEncryption(localIP, advIP, remoteIP net.IP, vni uint32, em *encrMap, keys []*key) error {
 	log.Debugf("Programming encryption for vxlan %d between %s and %s", vni, localIP, remoteIP)
 	rIPs := remoteIP.String()
 
@@ -134,7 +136,7 @@ func setupEncryption(localIP, remoteIP net.IP, vni uint32, em *encrMap, keys []*
 	}
 
 	for i, k := range keys {
-		spis := &spi{buildSPI(localIP, remoteIP, k.tag), buildSPI(remoteIP, localIP, k.tag)}
+		spis := &spi{buildSPI(advIP, remoteIP, k.tag), buildSPI(remoteIP, advIP, k.tag)}
 		dir := reverse
 		if i == 0 {
 			dir = bidir

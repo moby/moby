@@ -26,8 +26,9 @@ const (
 
 // NodeDiscoveryData represents the structure backing the node discovery data json string
 type NodeDiscoveryData struct {
-	Address string
-	Self    bool
+	Address     string
+	BindAddress string
+	Self        bool
 }
 
 // DatastoreConfigData is the data for the datastore update event message

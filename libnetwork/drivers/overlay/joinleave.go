@@ -119,7 +119,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	}
 
 	d.peerDbAdd(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac,
-		net.ParseIP(d.bindAddress), true)
+		net.ParseIP(d.advertiseAddress), true)
 
 	if err := d.checkEncryption(nid, nil, n.vxlanID(s), true, true); err != nil {
 		log.Warn(err)
@@ -128,7 +128,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	buf, err := proto.Marshal(&PeerRecord{
 		EndpointIP:       ep.addr.String(),
 		EndpointMAC:      ep.mac.String(),
-		TunnelEndpointIP: d.bindAddress,
+		TunnelEndpointIP: d.advertiseAddress,
 	})
 	if err != nil {
 		return err
@@ -159,7 +159,7 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 
 	// Ignore local peers. We already know about them and they
 	// should not be added to vxlan fdb.
-	if peer.TunnelEndpointIP == d.bindAddress {
+	if peer.TunnelEndpointIP == d.advertiseAddress {
 		return
 	}
 

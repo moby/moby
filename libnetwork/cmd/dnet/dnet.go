@@ -306,7 +306,11 @@ func (d *dnetConnection) IsAgent() bool {
 	return d.Orchestration.Agent
 }
 
-func (d *dnetConnection) GetListenAddress() string {
+func (d *dnetConnection) GetAdvertiseAddress() string {
+	return d.Orchestration.Bind
+}
+
+func (d *dnetConnection) GetLocalAddress() string {
 	return d.Orchestration.Bind
 }
 
