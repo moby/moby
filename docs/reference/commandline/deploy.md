@@ -17,7 +17,7 @@ Usage:  docker deploy [OPTIONS] STACK
 Create and update a stack from a Distributed Application Bundle (DAB)
 
 Options:
-      --bundle string   Path to a Distributed Application Bundle file (Default: STACK.dab)
+      --file   string   Path to a Distributed Application Bundle file (Default: STACK.dab)
       --help            Print usage
 ```
 
