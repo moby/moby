@@ -35,7 +35,10 @@ func newRemoveCommand(dockerCli *client.DockerCli) *cobra.Command {
 func runRemove(dockerCli *client.DockerCli, opts removeOptions) error {
 	namespace := opts.namespace
 	client := dockerCli.Client()
+
 	stderr := dockerCli.Err()
+	stdout := dockerCli.Out()
+
 	ctx := context.Background()
 	hasError := false
 
@@ -44,10 +47,12 @@ func runRemove(dockerCli *client.DockerCli, opts removeOptions) error {
 		return err
 	}
 	for _, service := range services {
-		fmt.Fprintf(stderr, "Removing service %s\n", service.Spec.Name)
+		fmt.Fprintf(stdout, "Removing service %s\n", service.Spec.Name)
 		if err := client.ServiceRemove(ctx, service.ID); err != nil {
 			hasError = true
 			fmt.Fprintf(stderr, "Failed to remove service %s: %s", service.ID, err)
+		} else {
+			fmt.Fprintln(stdout, "Succeed")
 		}
 	}
 
@@ -56,15 +61,17 @@ func runRemove(dockerCli *client.DockerCli, opts removeOptions) error {
 		return err
 	}
 	for _, network := range networks {
-		fmt.Fprintf(stderr, "Removing network %s\n", network.Name)
+		fmt.Fprintf(stdout, "Removing network %s\n", network.Name)
 		if err := client.NetworkRemove(ctx, network.ID); err != nil {
 			hasError = true
 			fmt.Fprintf(stderr, "Failed to remove network %s: %s", network.ID, err)
+		} else {
+			fmt.Fprintln(stdout, "Succeed")
 		}
 	}
 
 	if len(services) == 0 && len(networks) == 0 {
-		fmt.Fprintf(dockerCli.Out(), "Nothing found in stack: %s\n", namespace)
+		fmt.Fprintf(stdout, "Nothing found in stack: %s\n", namespace)
 		return nil
 	}
 
