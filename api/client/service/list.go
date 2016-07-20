@@ -57,7 +57,7 @@ func runList(dockerCli *client.DockerCli, opts listOptions) error {
 
 	out := dockerCli.Out()
 	if opts.quiet {
-		printQuiet(out, services)
+		PrintQuiet(out, services)
 	} else {
 		taskFilter := filters.NewArgs()
 		for _, service := range services {
@@ -73,23 +73,30 @@ func runList(dockerCli *client.DockerCli, opts listOptions) error {
 		if err != nil {
 			return err
 		}
-		activeNodes := make(map[string]struct{})
-		for _, n := range nodes {
-			if n.Status.State == swarm.NodeStateReady {
-				activeNodes[n.ID] = struct{}{}
-			}
-		}
 
-		running := map[string]int{}
-		for _, task := range tasks {
-			if _, nodeActive := activeNodes[task.NodeID]; nodeActive && task.Status.State == "running" {
-				running[task.ServiceID]++
-			}
-		}
-
-		printTable(out, services, running)
+		PrintNotQuiet(out, services, nodes, tasks)
 	}
 	return nil
+}
+
+// PrintNotQuiet shows service list in a non-quiet way.
+// Besides this, command `docker stack services xxx` will call this, too.
+func PrintNotQuiet(out io.Writer, services []swarm.Service, nodes []swarm.Node, tasks []swarm.Task) {
+	activeNodes := make(map[string]struct{})
+	for _, n := range nodes {
+		if n.Status.State == swarm.NodeStateReady {
+			activeNodes[n.ID] = struct{}{}
+		}
+	}
+
+	running := map[string]int{}
+	for _, task := range tasks {
+		if _, nodeActive := activeNodes[task.NodeID]; nodeActive && task.Status.State == "running" {
+			running[task.ServiceID]++
+		}
+	}
+
+	printTable(out, services, running)
 }
 
 func printTable(out io.Writer, services []swarm.Service, running map[string]int) {
@@ -117,7 +124,9 @@ func printTable(out io.Writer, services []swarm.Service, running map[string]int)
 	}
 }
 
-func printQuiet(out io.Writer, services []swarm.Service) {
+// PrintQuiet shows service list in a quiet way.
+// Besides this, command `docker stack services xxx` will call this, too.
+func PrintQuiet(out io.Writer, services []swarm.Service) {
 	for _, service := range services {
 		fmt.Fprintln(out, service.ID)
 	}
