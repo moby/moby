@@ -31,10 +31,10 @@ The following example disables and removes the `no-remove:latest` plugin;
 
 ```bash
 $ docker plugin disable tiborvass/no-remove
-no-remove:latest
+tiborvass/no-remove
 
 $ docker plugin rm tiborvass/no-remove:latest
-no-remove:latest
+tiborvass/no-remove
 ```
 
 ## Related information
