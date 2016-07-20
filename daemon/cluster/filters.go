@@ -21,9 +21,9 @@ func newListNodesFilters(filter filters.Args) (*swarmapi.ListNodesRequest_Filter
 		return nil, err
 	}
 	f := &swarmapi.ListNodesRequest_Filters{
-		Names:      filter.Get("name"),
-		IDPrefixes: filter.Get("id"),
-		Labels:     runconfigopts.ConvertKVStringsToMap(filter.Get("label")),
+		NamePrefixes: filter.Get("name"),
+		IDPrefixes:   filter.Get("id"),
+		Labels:       runconfigopts.ConvertKVStringsToMap(filter.Get("label")),
 	}
 
 	for _, r := range filter.Get("role") {
@@ -55,9 +55,9 @@ func newListServicesFilters(filter filters.Args) (*swarmapi.ListServicesRequest_
 		return nil, err
 	}
 	return &swarmapi.ListServicesRequest_Filters{
-		Names:      filter.Get("name"),
-		IDPrefixes: filter.Get("id"),
-		Labels:     runconfigopts.ConvertKVStringsToMap(filter.Get("label")),
+		NamePrefixes: filter.Get("name"),
+		IDPrefixes:   filter.Get("id"),
+		Labels:       runconfigopts.ConvertKVStringsToMap(filter.Get("label")),
 	}, nil
 }
 
@@ -79,11 +79,11 @@ func newListTasksFilters(filter filters.Args, transformFunc func(filters.Args) e
 		}
 	}
 	f := &swarmapi.ListTasksRequest_Filters{
-		Names:      filter.Get("name"),
-		IDPrefixes: filter.Get("id"),
-		Labels:     runconfigopts.ConvertKVStringsToMap(filter.Get("label")),
-		ServiceIDs: filter.Get("service"),
-		NodeIDs:    filter.Get("node"),
+		NamePrefixes: filter.Get("name"),
+		IDPrefixes:   filter.Get("id"),
+		Labels:       runconfigopts.ConvertKVStringsToMap(filter.Get("label")),
+		ServiceIDs:   filter.Get("service"),
+		NodeIDs:      filter.Get("node"),
 	}
 
 	for _, s := range filter.Get("desired-state") {
