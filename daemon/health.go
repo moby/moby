@@ -60,6 +60,7 @@ type cmdProbe struct {
 // exec the healthcheck command in the container.
 // Returns the exit code and probe output (if any)
 func (p *cmdProbe) run(ctx context.Context, d *Daemon, container *container.Container) (*types.HealthcheckResult, error) {
+
 	cmdSlice := strslice.StrSlice(container.Config.Healthcheck.Test)[1:]
 	if p.shell {
 		if runtime.GOOS != "windows" {
@@ -157,8 +158,10 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 			ctx, cancelProbe := context.WithTimeout(context.Background(), probeTimeout)
 			results := make(chan *types.HealthcheckResult)
 			go func() {
+				healthChecksCounter.Inc()
 				result, err := probe.run(ctx, d, c)
 				if err != nil {
+					healthChecksFailedCounter.Inc()
 					logrus.Warnf("Health check for container %s error: %v", c.ID, err)
 					results <- &types.HealthcheckResult{
 						ExitCode: -1,

@@ -248,6 +248,15 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 		return fmt.Errorf("Error starting daemon: %v", err)
 	}
 
+	if cli.Config.MetricsAddress != "" {
+		if !d.HasExperimental() {
+			return fmt.Errorf("metrics-addr is only supported when experimental is enabled")
+		}
+		if err := startMetricsServer(cli.Config.MetricsAddress); err != nil {
+			return err
+		}
+	}
+
 	name, _ := os.Hostname()
 
 	c, err := cluster.New(cluster.Config{

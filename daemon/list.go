@@ -165,7 +165,9 @@ func (daemon *Daemon) filterByNameIDMatches(ctx *listContext) []*container.Conta
 
 // reduceContainers parses the user's filtering options and generates the list of containers to return based on a reducer.
 func (daemon *Daemon) reduceContainers(config *types.ContainerListOptions, reducer containerReducer) ([]*types.Container, error) {
-	containers := []*types.Container{}
+	var (
+		containers = []*types.Container{}
+	)
 
 	ctx, err := daemon.foldFilter(config)
 	if err != nil {
@@ -190,6 +192,7 @@ func (daemon *Daemon) reduceContainers(config *types.ContainerListOptions, reduc
 			ctx.idx++
 		}
 	}
+
 	return containers, nil
 }
 
