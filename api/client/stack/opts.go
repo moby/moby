@@ -14,7 +14,7 @@ import (
 func addBundlefileFlag(opt *string, flags *pflag.FlagSet) {
 	flags.StringVar(
 		opt,
-		"bundle", "",
+		"file", "",
 		"Path to a Distributed Application Bundle file (Default: STACK.dab)")
 }
 
@@ -26,7 +26,7 @@ func loadBundlefile(stderr io.Writer, namespace string, path string) (*bundlefil
 	}
 	if _, err := os.Stat(path); err != nil {
 		return nil, fmt.Errorf(
-			"Bundle %s not found. Specify the path with -f or --bundle",
+			"Bundle %s not found. Specify the path with --file",
 			path)
 	}
 

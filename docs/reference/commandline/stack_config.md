@@ -17,7 +17,7 @@ Usage:  docker stack config [OPTIONS] STACK
 Print the stack configuration
 
 Options:
-      --bundle string   Path to a Distributed Application Bundle file (Default: STACK.dab)
+      --file   string   Path to a Distributed Application Bundle file (Default: STACK.dab)
       --help            Print usage
 ```
 
