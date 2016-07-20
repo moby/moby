@@ -25,6 +25,7 @@ Options:
       --container-label value            Service container labels (default [])
       --endpoint-mode string             Endpoint mode (vip or dnsrr)
   -e, --env value                        Set environment variables (default [])
+      --env-file value                   Read in a file of environment variables (default [])
       --group-add value                  Add additional user groups to the container (default [])
       --help                             Print usage
   -l, --label value                      Service labels (default [])

@@ -395,6 +395,7 @@ type serviceOptions struct {
 	image           string
 	args            []string
 	env             opts.ListOpts
+	envFile         opts.ListOpts
 	workdir         string
 	user            string
 	groups          []string
@@ -422,6 +423,7 @@ func newServiceOptions() *serviceOptions {
 		labels:          opts.NewListOpts(runconfigopts.ValidateEnv),
 		containerLabels: opts.NewListOpts(runconfigopts.ValidateEnv),
 		env:             opts.NewListOpts(runconfigopts.ValidateEnv),
+		envFile:         opts.NewListOpts(nil),
 		endpoint: endpointOptions{
 			ports: opts.NewListOpts(ValidatePort),
 		},
@@ -432,6 +434,25 @@ func newServiceOptions() *serviceOptions {
 func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 	var service swarm.ServiceSpec
 
+	envVariables, err := runconfigopts.ReadKVStrings(opts.envFile.GetAll(), opts.env.GetAll())
+	if err != nil {
+		return service, err
+	}
+
+	currentEnv := make([]string, 0, len(envVariables))
+	for _, env := range envVariables { // need to process each var, in order
+		k := strings.SplitN(env, "=", 2)[0]
+		for i, current := range currentEnv { // remove duplicates
+			if current == env {
+				continue // no update required, may hide this behind flag to preserve order of envVariables
+			}
+			if strings.HasPrefix(current, k+"=") {
+				currentEnv = append(currentEnv[:i], currentEnv[i+1:]...)
+			}
+		}
+		currentEnv = append(currentEnv, env)
+	}
+
 	service = swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
 			Name:   opts.name,
@@ -441,7 +462,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 			ContainerSpec: swarm.ContainerSpec{
 				Image:           opts.image,
 				Args:            opts.args,
-				Env:             opts.env.GetAll(),
+				Env:             currentEnv,
 				Labels:          runconfigopts.ConvertKVStringsToMap(opts.containerLabels.GetAll()),
 				Dir:             opts.workdir,
 				User:            opts.user,
@@ -532,6 +553,7 @@ const (
 	flagContainerLabelAdd     = "container-label-add"
 	flagEndpointMode          = "endpoint-mode"
 	flagEnv                   = "env"
+	flagEnvFile               = "env-file"
 	flagEnvRemove             = "env-rm"
 	flagEnvAdd                = "env-add"
 	flagGroupAdd              = "group-add"
