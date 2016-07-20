@@ -321,6 +321,8 @@ func (s *Server) ListServices(ctx context.Context, request *api.ListServicesRequ
 		switch {
 		case request.Filters != nil && len(request.Filters.Names) > 0:
 			services, err = store.FindServices(tx, buildFilters(store.ByName, request.Filters.Names))
+		case request.Filters != nil && len(request.Filters.NamePrefixes) > 0:
+			services, err = store.FindServices(tx, buildFilters(store.ByNamePrefix, request.Filters.NamePrefixes))
 		case request.Filters != nil && len(request.Filters.IDPrefixes) > 0:
 			services, err = store.FindServices(tx, buildFilters(store.ByIDPrefix, request.Filters.IDPrefixes))
 		default:
@@ -335,6 +337,9 @@ func (s *Server) ListServices(ctx context.Context, request *api.ListServicesRequ
 		services = filterServices(services,
 			func(e *api.Service) bool {
 				return filterContains(e.Spec.Annotations.Name, request.Filters.Names)
+			},
+			func(e *api.Service) bool {
+				return filterContainsPrefix(e.Spec.Annotations.Name, request.Filters.NamePrefixes)
 			},
 			func(e *api.Service) bool {
 				return filterContainsPrefix(e.ID, request.Filters.IDPrefixes)
