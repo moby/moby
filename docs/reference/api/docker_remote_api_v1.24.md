@@ -3926,33 +3926,68 @@ Create a service
     Content-Type: application/json
 
     {
-      "Name": "redis",
+      "Name": "web",
       "TaskTemplate": {
         "ContainerSpec": {
-          "Image": "redis"
+          "Image": "nginx:alpine",
+          "Mounts": [
+            {
+              "ReadOnly": true,
+              "Source": "web-data",
+              "Target": "/usr/share/nginx/html",
+              "Type": "VOLUME",
+              "VolumeOptions": {
+                "DriverConfig": {
+                },
+                "Labels": {
+                  "com.example.something": "something-value"
+                }
+              }
+            }
+          ],
+          "User": "33"
         },
+        "LogDriver": {
+          "Name": "json-file",
+          "Options": {
+            "max-file": "3",
+            "max-size": "10M"
+          }
+        },
+        "Placement": {},
         "Resources": {
-          "Limits": {},
-          "Reservations": {}
+          "Limits": {
+            "MemoryBytes": 104857600.0
+          },
+          "Reservations": {
+          }
         },
-        "RestartPolicy": {},
-        "Placement": {}
+        "RestartPolicy": {
+          "Condition": "on-failure",
+          "Delay": 10000000000.0,
+          "MaxAttempts": 10
+        }
       },
       "Mode": {
         "Replicated": {
-          "Replicas": 1
+          "Replicas": 4
         }
       },
       "UpdateConfig": {
-        "Parallelism": 1
+        "Delay": 30000000000.0,
+        "Parallelism": 2
       },
       "EndpointSpec": {
-        "ExposedPorts": [
+        "Ports": [
           {
             "Protocol": "tcp",
-            "Port": 6379
+            "PublishedPort": 8080,
+            "TargetPort": 80
           }
         ]
+      },
+      "Labels": {
+        "foo": "bar"
       }
     }
 
@@ -3986,8 +4021,8 @@ JSON Parameters:
         - **User** – A string value specifying the user inside the container.
         - **Labels** – A map of labels to associate with the service (e.g.,
           `{"key":"value"[,"key2":"value2"]}`).
-        - **Mounts** – Specification for mounts to be added to containers created as part of the new.
-          service.
+        - **Mounts** – Specification for mounts to be added to containers
+          created as part of the service.
             - **Target** – Container path.
             - **Source** – Mount source (e.g. a volume name, a host path).
             - **Type** – The mount type (`bind`, or `volume`).
@@ -4003,6 +4038,11 @@ JSON Parameters:
                   - **Options** - key/value map of driver specific options.
         - **StopGracePeriod** – Amount of time to wait for the container to terminate before
           forcefully killing it.
+    - **LogDriver** - Log configuration for containers created as part of the
+      service.
+        - **Name** - Name of the logging driver to use (`json-file`, `syslog`,
+          `journald`, `gelf`, `fluentd`, `awslogs`, `splunk`, `etwlogs`, `none`).
+        - **Options** - Driver-specific options.
     - **Resources** – Resource requirements which apply to each individual container created as part
       of the service.
         - **Limits** – Define resources limits.

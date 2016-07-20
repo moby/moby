@@ -29,6 +29,8 @@ Options:
       --label-rm value               Remove a label by its key (default [])
       --limit-cpu value              Limit CPUs (default 0.000)
       --limit-memory value           Limit Memory (default 0 B)
+      --log-driver string            Logging driver for service
+      --log-opt value                Logging driver options (default [])
       --mount-add value              Add or update a mount on a service
       --mount-rm value               Remove a mount by its target path (default [])
       --name string                  Service name
