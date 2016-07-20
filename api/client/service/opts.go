@@ -176,32 +176,37 @@ func (m *MountOpt) Set(value string) error {
 		}
 	}
 
+	mount.Type = swarm.MountTypeVolume // default to volume mounts
 	// Set writable as the default
 	for _, field := range fields {
 		parts := strings.SplitN(field, "=", 2)
-		if len(parts) == 1 && strings.ToLower(parts[0]) == "readonly" {
-			mount.ReadOnly = true
-			continue
-		}
+		key := strings.ToLower(parts[0])
 
-		if len(parts) == 1 && strings.ToLower(parts[0]) == "volume-nocopy" {
-			volumeOptions().NoCopy = true
-			continue
+		if len(parts) == 1 {
+			if key == "readonly" || key == "ro" {
+				mount.ReadOnly = true
+				continue
+			}
+
+			if key == "volume-nocopy" {
+				volumeOptions().NoCopy = true
+				continue
+			}
 		}
 
 		if len(parts) != 2 {
 			return fmt.Errorf("invalid field '%s' must be a key=value pair", field)
 		}
 
-		key, value := parts[0], parts[1]
-		switch strings.ToLower(key) {
+		value := parts[1]
+		switch key {
 		case "type":
 			mount.Type = swarm.MountType(strings.ToLower(value))
-		case "source":
+		case "source", "name", "src":
 			mount.Source = value
-		case "target":
+		case "target", "dst", "dest", "destination", "path":
 			mount.Target = value
-		case "readonly":
+		case "readonly", "ro":
 			ro, err := strconv.ParseBool(value)
 			if err != nil {
 				return fmt.Errorf("invalid value for readonly: %s", value)
