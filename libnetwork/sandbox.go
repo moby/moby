@@ -413,7 +413,12 @@ func (sb *sandbox) ResolveIP(ip string) string {
 	for _, ep := range sb.getConnectedEndpoints() {
 		n := ep.getNetwork()
 
-		sr, ok := n.getController().svcRecords[n.ID()]
+		c := n.getController()
+
+		c.Lock()
+		sr, ok := c.svcRecords[n.ID()]
+		c.Unlock()
+
 		if !ok {
 			continue
 		}
@@ -454,7 +459,12 @@ func (sb *sandbox) ResolveService(name string) ([]*net.SRV, []net.IP, error) {
 	for _, ep := range sb.getConnectedEndpoints() {
 		n := ep.getNetwork()
 
-		sr, ok := n.getController().svcRecords[n.ID()]
+		c := n.getController()
+
+		c.Lock()
+		sr, ok := c.svcRecords[n.ID()]
+		c.Unlock()
+
 		if !ok {
 			continue
 		}
