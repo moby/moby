@@ -224,6 +224,8 @@ func (s *Server) ListNetworks(ctx context.Context, request *api.ListNetworksRequ
 		switch {
 		case request.Filters != nil && len(request.Filters.Names) > 0:
 			networks, err = store.FindNetworks(tx, buildFilters(store.ByName, request.Filters.Names))
+		case request.Filters != nil && len(request.Filters.NamePrefixes) > 0:
+			networks, err = store.FindNetworks(tx, buildFilters(store.ByNamePrefix, request.Filters.NamePrefixes))
 		case request.Filters != nil && len(request.Filters.IDPrefixes) > 0:
 			networks, err = store.FindNetworks(tx, buildFilters(store.ByIDPrefix, request.Filters.IDPrefixes))
 		default:
@@ -238,6 +240,9 @@ func (s *Server) ListNetworks(ctx context.Context, request *api.ListNetworksRequ
 		networks = filterNetworks(networks,
 			func(e *api.Network) bool {
 				return filterContains(e.Spec.Annotations.Name, request.Filters.Names)
+			},
+			func(e *api.Network) bool {
+				return filterContainsPrefix(e.Spec.Annotations.Name, request.Filters.NamePrefixes)
 			},
 			func(e *api.Network) bool {
 				return filterContainsPrefix(e.ID, request.Filters.IDPrefixes)

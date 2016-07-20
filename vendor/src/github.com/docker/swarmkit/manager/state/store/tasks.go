@@ -175,7 +175,7 @@ func GetTask(tx ReadTx, id string) *api.Task {
 func FindTasks(tx ReadTx, by By) ([]*api.Task, error) {
 	checkType := func(by By) error {
 		switch by.(type) {
-		case byName, byIDPrefix, byDesiredState, byNode, byService, bySlot:
+		case byName, byNamePrefix, byIDPrefix, byDesiredState, byNode, byService, bySlot:
 			return nil
 		default:
 			return ErrInvalidFindBy
@@ -226,6 +226,10 @@ func (ti taskIndexerByName) FromObject(obj interface{}) (bool, []byte, error) {
 
 	// Add the null character as a terminator
 	return true, []byte(strings.ToLower(t.ServiceAnnotations.Name) + "\x00"), nil
+}
+
+func (ti taskIndexerByName) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	return prefixFromArgs(args...)
 }
 
 type taskIndexerByServiceID struct{}

@@ -85,6 +85,7 @@ type Node struct {
 	config               *NodeConfig
 	remotes              *persistentRemotes
 	role                 string
+	roleCond             *sync.Cond
 	conn                 *grpc.ClientConn
 	connCond             *sync.Cond
 	nodeID               string
@@ -98,7 +99,6 @@ type Node struct {
 	agent                *Agent
 	manager              *manager.Manager
 	roleChangeReq        chan api.NodeRole // used to send role updates from the dispatcher api on promotion/demotion
-	managerRoleCh        chan struct{}
 }
 
 // NewNode returns new Node instance.
@@ -128,8 +128,8 @@ func NewNode(c *NodeConfig) (*Node, error) {
 		ready:                make(chan struct{}),
 		certificateRequested: make(chan struct{}),
 		roleChangeReq:        make(chan api.NodeRole, 1),
-		managerRoleCh:        make(chan struct{}, 32), // 32 just for the case
 	}
+	n.roleCond = sync.NewCond(n.RLocker())
 	n.connCond = sync.NewCond(n.RLocker())
 	if err := n.loadCertificates(); err != nil {
 		return nil, err
@@ -240,28 +240,34 @@ func (n *Node) run(ctx context.Context) (err error) {
 		return err
 	}
 
-	if n.role == ca.ManagerRole {
-		n.managerRoleCh <- struct{}{}
-	}
-
 	forceCertRenewal := make(chan struct{})
 	go func() {
-		n.RLock()
-		lastRole := n.role
-		n.RUnlock()
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case apirole := <-n.roleChangeReq:
+				n.Lock()
+				lastRole := n.role
 				role := ca.AgentRole
 				if apirole == api.NodeRoleManager {
 					role = ca.ManagerRole
 				}
-				if lastRole != role {
-					forceCertRenewal <- struct{}{}
+				if lastRole == role {
+					n.Unlock()
+					continue
 				}
-				lastRole = role
+				// switch role to agent immediately to shutdown manager early
+				if role == ca.AgentRole {
+					n.role = role
+					n.roleCond.Broadcast()
+				}
+				n.Unlock()
+				select {
+				case forceCertRenewal <- struct{}{}:
+				case <-ctx.Done():
+					return
+				}
 			}
 		}
 	}()
@@ -271,18 +277,13 @@ func (n *Node) run(ctx context.Context) (err error) {
 		for {
 			select {
 			case certUpdate := <-updates:
-				if ctx.Err() != nil {
-					return
-				}
 				if certUpdate.Err != nil {
 					logrus.Warnf("error renewing TLS certificate: %v", certUpdate.Err)
 					continue
 				}
 				n.Lock()
 				n.role = certUpdate.Role
-				if n.role == ca.ManagerRole {
-					n.managerRoleCh <- struct{}{}
-				}
+				n.roleCond.Broadcast()
 				n.Unlock()
 			case <-ctx.Done():
 				return
@@ -535,6 +536,7 @@ func (n *Node) loadCertificates() error {
 	n.role = clientTLSCreds.Role()
 	n.nodeID = clientTLSCreds.NodeID()
 	n.nodeMembership = api.NodeMembershipAccepted
+	n.roleCond.Broadcast()
 	n.Unlock()
 
 	return nil
@@ -571,8 +573,8 @@ func (n *Node) initManagerConnection(ctx context.Context, ready chan<- struct{})
 			n.setControlSocket(conn)
 			if ready != nil {
 				close(ready)
+				ready = nil
 			}
-			ready = nil
 		} else if state == grpc.Shutdown {
 			n.setControlSocket(nil)
 		}
@@ -580,85 +582,101 @@ func (n *Node) initManagerConnection(ctx context.Context, ready chan<- struct{})
 	}
 }
 
+func (n *Node) waitRole(ctx context.Context, role string) error {
+	n.roleCond.L.Lock()
+	if role == n.role {
+		n.roleCond.L.Unlock()
+		return nil
+	}
+	finishCh := make(chan struct{})
+	defer close(finishCh)
+	go func() {
+		select {
+		case <-finishCh:
+		case <-ctx.Done():
+			// call broadcast to shutdown this function
+			n.roleCond.Broadcast()
+		}
+	}()
+	defer n.roleCond.L.Unlock()
+	for role != n.role {
+		n.roleCond.Wait()
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+	}
+	return nil
+}
+
 func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig, ready chan struct{}) error {
 	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-n.managerRoleCh:
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			n.Lock()
-			// in case if we missed some notifications
-			if n.role != ca.ManagerRole {
-				n.Unlock()
-				continue
-			}
-			n.Unlock()
-			remoteAddr, _ := n.remotes.Select(n.nodeID)
-			m, err := manager.New(&manager.Config{
-				ForceNewCluster: n.config.ForceNewCluster,
-				ProtoAddr: map[string]string{
-					"tcp":  n.config.ListenRemoteAPI,
-					"unix": n.config.ListenControlAPI,
-				},
-				SecurityConfig: securityConfig,
-				ExternalCAs:    n.config.ExternalCAs,
-				JoinRaft:       remoteAddr.Addr,
-				StateDir:       n.config.StateDir,
-				HeartbeatTick:  n.config.HeartbeatTick,
-				ElectionTick:   n.config.ElectionTick,
-			})
-			if err != nil {
-				return err
-			}
-			done := make(chan struct{})
-			go func() {
-				m.Run(context.Background()) // todo: store error
-				close(done)
-			}()
-
-			n.Lock()
-			n.manager = m
-			n.Unlock()
-
-			connCtx, connCancel := context.WithCancel(ctx)
-			go n.initManagerConnection(connCtx, ready)
-
-			// this happens only on initial start
-			if ready != nil {
-				go func(ready chan struct{}) {
-					select {
-					case <-ready:
-						n.remotes.Observe(api.Peer{NodeID: n.nodeID, Addr: n.config.ListenRemoteAPI}, 5)
-					case <-connCtx.Done():
-					}
-				}(ready)
-			}
-
-			ready = nil
-
-			select {
-			case <-ctx.Done():
-				m.Stop(context.Background()) // todo: this should be sync like other components
-				<-done
-			// in case of demotion manager will stop itself
-			case <-done:
-			}
-			connCancel()
-
-			n.Lock()
-			n.manager = nil
-			if n.conn != nil {
-				n.conn.Close()
-			}
-			n.Unlock()
-
-			if ctx.Err() != nil {
-				return err
-			}
+		if err := n.waitRole(ctx, ca.ManagerRole); err != nil {
+			return err
 		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		remoteAddr, _ := n.remotes.Select(n.nodeID)
+		m, err := manager.New(&manager.Config{
+			ForceNewCluster: n.config.ForceNewCluster,
+			ProtoAddr: map[string]string{
+				"tcp":  n.config.ListenRemoteAPI,
+				"unix": n.config.ListenControlAPI,
+			},
+			SecurityConfig: securityConfig,
+			ExternalCAs:    n.config.ExternalCAs,
+			JoinRaft:       remoteAddr.Addr,
+			StateDir:       n.config.StateDir,
+			HeartbeatTick:  n.config.HeartbeatTick,
+			ElectionTick:   n.config.ElectionTick,
+		})
+		if err != nil {
+			return err
+		}
+		done := make(chan struct{})
+		go func() {
+			m.Run(context.Background()) // todo: store error
+			close(done)
+		}()
+
+		n.Lock()
+		n.manager = m
+		n.Unlock()
+
+		connCtx, connCancel := context.WithCancel(ctx)
+		go n.initManagerConnection(connCtx, ready)
+
+		// this happens only on initial start
+		if ready != nil {
+			go func(ready chan struct{}) {
+				select {
+				case <-ready:
+					n.remotes.Observe(api.Peer{NodeID: n.nodeID, Addr: n.config.ListenRemoteAPI}, 5)
+				case <-connCtx.Done():
+				}
+			}(ready)
+			ready = nil
+		}
+
+		if err := n.waitRole(ctx, ca.AgentRole); err != nil {
+			m.Stop(context.Background())
+		}
+
+		select {
+		case <-done:
+		case <-ctx.Done():
+			m.Stop(context.Background())
+			return ctx.Err()
+		}
+
+		connCancel()
+
+		n.Lock()
+		n.manager = nil
+		if n.conn != nil {
+			n.conn.Close()
+		}
+		n.Unlock()
 	}
 }
 

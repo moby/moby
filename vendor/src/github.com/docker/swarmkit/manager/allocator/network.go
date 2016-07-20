@@ -23,28 +23,31 @@ const (
 	ingressSubnet      = "10.255.0.0/16"
 )
 
-var ingressNetwork = &api.Network{
-	Spec: api.NetworkSpec{
-		Annotations: api.Annotations{
-			Name: ingressNetworkName,
-			Labels: map[string]string{
-				"com.docker.swarm.internal": "true",
+func newIngressNetwork() *api.Network {
+	return &api.Network{
+		Spec: api.NetworkSpec{
+			Annotations: api.Annotations{
+				Name: ingressNetworkName,
+				Labels: map[string]string{
+					"com.docker.swarm.internal": "true",
+				},
 			},
-		},
-		DriverConfig: &api.Driver{},
-		IPAM: &api.IPAMOptions{
-			Driver: &api.Driver{},
-			Configs: []*api.IPAMConfig{
-				{
-					Subnet: ingressSubnet,
+			DriverConfig: &api.Driver{},
+			IPAM: &api.IPAMOptions{
+				Driver: &api.Driver{},
+				Configs: []*api.IPAMConfig{
+					{
+						Subnet: ingressSubnet,
+					},
 				},
 			},
 		},
-	},
+	}
 }
 
 // Network context information which is used throughout the network allocation code.
 type networkContext struct {
+	ingressNetwork *api.Network
 	// Instance of the low-level network allocator which performs
 	// the actual network allocation.
 	nwkAllocator *networkallocator.NetworkAllocator
@@ -75,6 +78,7 @@ func (a *Allocator) doNetworkInit(ctx context.Context) error {
 		unallocatedTasks:    make(map[string]*api.Task),
 		unallocatedServices: make(map[string]*api.Service),
 		unallocatedNetworks: make(map[string]*api.Network),
+		ingressNetwork:      newIngressNetwork(),
 	}
 
 	// Check if we have the ingress network. If not found create
@@ -83,7 +87,7 @@ func (a *Allocator) doNetworkInit(ctx context.Context) error {
 	a.store.View(func(tx store.ReadTx) {
 		networks, err = store.FindNetworks(tx, store.ByName(ingressNetworkName))
 		if len(networks) > 0 {
-			ingressNetwork = networks[0]
+			nc.ingressNetwork = networks[0]
 		}
 	})
 	if err != nil {
@@ -94,8 +98,8 @@ func (a *Allocator) doNetworkInit(ctx context.Context) error {
 	// using the predefined template.
 	if len(networks) == 0 {
 		if err := a.store.Update(func(tx store.Tx) error {
-			ingressNetwork.ID = identity.NewID()
-			if err := store.CreateNetwork(tx, ingressNetwork); err != nil {
+			nc.ingressNetwork.ID = identity.NewID()
+			if err := store.CreateNetwork(tx, nc.ingressNetwork); err != nil {
 				return err
 			}
 
@@ -107,7 +111,7 @@ func (a *Allocator) doNetworkInit(ctx context.Context) error {
 		a.store.View(func(tx store.ReadTx) {
 			networks, err = store.FindNetworks(tx, store.ByName(ingressNetworkName))
 			if len(networks) > 0 {
-				ingressNetwork = networks[0]
+				nc.ingressNetwork = networks[0]
 			}
 		})
 		if err != nil {
@@ -119,14 +123,14 @@ func (a *Allocator) doNetworkInit(ctx context.Context) error {
 	// Try to complete ingress network allocation before anything else so
 	// that the we can get the preferred subnet for ingress
 	// network.
-	if !na.IsAllocated(ingressNetwork) {
-		if err := a.allocateNetwork(ctx, nc, ingressNetwork); err != nil {
+	if !na.IsAllocated(nc.ingressNetwork) {
+		if err := a.allocateNetwork(ctx, nc, nc.ingressNetwork); err != nil {
 			log.G(ctx).Errorf("failed allocating ingress network during init: %v", err)
 		}
 
 		// Update store after allocation
 		if err := a.store.Update(func(tx store.Tx) error {
-			if err := store.UpdateNetwork(tx, ingressNetwork); err != nil {
+			if err := store.UpdateNetwork(tx, nc.ingressNetwork); err != nil {
 				return err
 			}
 
@@ -173,7 +177,7 @@ func (a *Allocator) doNetworkInit(ctx context.Context) error {
 			node.Attachment = &api.NetworkAttachment{}
 		}
 
-		node.Attachment.Network = ingressNetwork.Copy()
+		node.Attachment.Network = nc.ingressNetwork.Copy()
 		if err := a.allocateNode(ctx, nc, node); err != nil {
 			log.G(ctx).Errorf("Failed to allocate network resources for node %s during init: %v", node.ID, err)
 		}
@@ -189,11 +193,7 @@ func (a *Allocator) doNetworkInit(ctx context.Context) error {
 	}
 
 	for _, s := range services {
-		if s.Spec.Endpoint == nil {
-			continue
-		}
-
-		if na.IsServiceAllocated(s) {
+		if !serviceAllocationNeeded(s, nc) {
 			continue
 		}
 
@@ -375,7 +375,7 @@ func (a *Allocator) doNodeAlloc(ctx context.Context, nc *networkContext, ev even
 			node.Attachment = &api.NetworkAttachment{}
 		}
 
-		node.Attachment.Network = ingressNetwork.Copy()
+		node.Attachment.Network = nc.ingressNetwork.Copy()
 		if err := a.allocateNode(ctx, nc, node); err != nil {
 			log.G(ctx).Errorf("Fauled to allocate network resources for node %s: %v", node.ID, err)
 		}
@@ -449,7 +449,7 @@ func (a *Allocator) taskCreateNetworkAttachments(t *api.Task, s *api.Service) {
 	// ports to the external world. Automatically attach the task
 	// to the ingress network.
 	if s.Spec.Endpoint != nil && len(s.Spec.Endpoint.Ports) != 0 {
-		networks = append(networks, &api.NetworkAttachment{Network: ingressNetwork})
+		networks = append(networks, &api.NetworkAttachment{Network: a.netCtx.ingressNetwork})
 	}
 
 	a.store.View(func(tx store.ReadTx) {
@@ -581,7 +581,7 @@ func (a *Allocator) allocateService(ctx context.Context, nc *networkContext, s *
 		if len(s.Spec.Endpoint.Ports) != 0 {
 			var found bool
 			for _, vip := range s.Endpoint.VirtualIPs {
-				if vip.NetworkID == ingressNetwork.ID {
+				if vip.NetworkID == nc.ingressNetwork.ID {
 					found = true
 					break
 				}
@@ -589,7 +589,7 @@ func (a *Allocator) allocateService(ctx context.Context, nc *networkContext, s *
 
 			if !found {
 				s.Endpoint.VirtualIPs = append(s.Endpoint.VirtualIPs,
-					&api.Endpoint_VirtualIP{NetworkID: ingressNetwork.ID})
+					&api.Endpoint_VirtualIP{NetworkID: nc.ingressNetwork.ID})
 			}
 		}
 	}

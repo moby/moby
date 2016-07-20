@@ -93,6 +93,19 @@ type Manager struct {
 	stopped chan struct{}
 }
 
+type closeOnceListener struct {
+	once sync.Once
+	net.Listener
+}
+
+func (l *closeOnceListener) Close() error {
+	var err error
+	l.once.Do(func() {
+		err = l.Listener.Close()
+	})
+	return err
+}
+
 // New creates a Manager which has not started to accept requests yet.
 func New(config *Config) (*Manager, error) {
 	dispatcherConfig := dispatcher.DefaultConfig()
@@ -481,7 +494,10 @@ func (m *Manager) Run(parent context.Context) error {
 					"addr":  lis.Addr().String()}))
 			if proto == "unix" {
 				log.G(ctx).Info("Listening for local connections")
-				errServe <- m.localserver.Serve(lis)
+				// we need to disallow double closes because UnixListener.Close
+				// can delete unix-socket file of newer listener. grpc calls
+				// Close twice indeed: in Serve and in Stop.
+				errServe <- m.localserver.Serve(&closeOnceListener{Listener: lis})
 			} else {
 				log.G(ctx).Info("Listening for connections")
 				errServe <- m.server.Serve(lis)

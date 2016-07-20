@@ -167,7 +167,7 @@ func GetService(tx ReadTx, id string) *api.Service {
 func FindServices(tx ReadTx, by By) ([]*api.Service, error) {
 	checkType := func(by By) error {
 		switch by.(type) {
-		case byName, byIDPrefix:
+		case byName, byNamePrefix, byIDPrefix:
 			return nil
 		default:
 			return ErrInvalidFindBy
@@ -218,4 +218,8 @@ func (si serviceIndexerByName) FromObject(obj interface{}) (bool, []byte, error)
 
 	// Add the null character as a terminator
 	return true, []byte(strings.ToLower(s.Spec.Annotations.Name) + "\x00"), nil
+}
+
+func (si serviceIndexerByName) PrefixFromArgs(args ...interface{}) ([]byte, error) {
+	return prefixFromArgs(args...)
 }
