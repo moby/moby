@@ -90,8 +90,8 @@ func TestUpdateMounts(t *testing.T) {
 	flags.Set("mount-rm", "/toremove")
 
 	mounts := []swarm.Mount{
-		{Target: "/toremove", Type: swarm.MountType("BIND")},
-		{Target: "/tokeep", Type: swarm.MountType("BIND")},
+		{Target: "/toremove", Type: swarm.MountTypeBind},
+		{Target: "/tokeep", Type: swarm.MountTypeBind},
 	}
 
 	updateMounts(flags, &mounts)
@@ -122,7 +122,7 @@ func TestUpdatePorts(t *testing.T) {
 	flags.Set("publish-rm", "333/udp")
 
 	portConfigs := []swarm.PortConfig{
-		{TargetPort: 333, Protocol: swarm.PortConfigProtocol("udp")},
+		{TargetPort: 333, Protocol: swarm.PortConfigProtocolUDP},
 		{TargetPort: 555},
 	}
 
