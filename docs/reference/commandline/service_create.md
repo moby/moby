@@ -24,6 +24,8 @@ Options:
   -l, --label value                  Service labels (default [])
       --limit-cpu value              Limit CPUs (default 0.000)
       --limit-memory value           Limit Memory (default 0 B)
+      --log-driver string            Logging driver for service
+      --log-opt value                Logging driver options (default [])
       --mode string                  Service mode (replicated or global) (default "replicated")
       --mount value                  Attach a mount to the service
       --name string                  Service name
