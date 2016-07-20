@@ -78,7 +78,6 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		if info.Swarm.ControlAvailable {
 			fmt.Fprintf(cli.out, " Managers: %d\n", info.Swarm.Managers)
 			fmt.Fprintf(cli.out, " Nodes: %d\n", info.Swarm.Nodes)
-			ioutils.FprintfIfNotEmpty(cli.out, " CA Certificate Hash: %s\n", info.Swarm.CACertHash)
 		}
 	}
 

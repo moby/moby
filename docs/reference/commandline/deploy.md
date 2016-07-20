@@ -19,7 +19,7 @@ Create and update a stack from a Distributed Application Bundle (DAB)
 Options:
       --file   string   Path to a Distributed Application Bundle file (Default: STACK.dab)
       --help            Print usage
-      --registry-auth   Send registry authentication details to Swarm agents
+      --registry-auth   Send registry authentication details to swarm agents
 ```
 
 Create and update a stack from a `dab` file. This command has to be

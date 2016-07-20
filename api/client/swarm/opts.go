@@ -15,29 +15,15 @@ import (
 const (
 	defaultListenAddr = "0.0.0.0:2377"
 
-	worker  = "WORKER"
-	manager = "MANAGER"
-	none    = "NONE"
-
-	flagAutoAccept          = "auto-accept"
 	flagCertExpiry          = "cert-expiry"
 	flagDispatcherHeartbeat = "dispatcher-heartbeat"
 	flagListenAddr          = "listen-addr"
-	flagSecret              = "secret"
+	flagToken               = "token"
 	flagTaskHistoryLimit    = "task-history-limit"
 	flagExternalCA          = "external-ca"
 )
 
-var (
-	defaultPolicies = []swarm.Policy{
-		{Role: worker, Autoaccept: true},
-		{Role: manager, Autoaccept: false},
-	}
-)
-
 type swarmOptions struct {
-	autoAccept          AutoAcceptOption
-	secret              string
 	taskHistoryLimit    int64
 	dispatcherHeartbeat time.Duration
 	nodeCertExpiry      time.Duration
@@ -82,71 +68,6 @@ func NewNodeAddrOption(addr string) NodeAddrOption {
 // NewListenAddrOption returns a NodeAddrOption with default values
 func NewListenAddrOption() NodeAddrOption {
 	return NewNodeAddrOption(defaultListenAddr)
-}
-
-// AutoAcceptOption is a value type for auto-accept policy
-type AutoAcceptOption struct {
-	values map[string]struct{}
-}
-
-// String prints a string representation of this option
-func (o *AutoAcceptOption) String() string {
-	keys := []string{}
-	for key := range o.values {
-		keys = append(keys, fmt.Sprintf("%s=true", strings.ToLower(key)))
-	}
-	return strings.Join(keys, ", ")
-}
-
-// Set sets a new value on this option
-func (o *AutoAcceptOption) Set(acceptValues string) error {
-	for _, value := range strings.Split(acceptValues, ",") {
-		value = strings.ToUpper(value)
-		switch value {
-		case none, worker, manager:
-			o.values[value] = struct{}{}
-		default:
-			return fmt.Errorf("must be one / combination of %s, %s; or NONE", worker, manager)
-		}
-	}
-	// NONE must stand alone, so if any non-NONE setting exist with it, error with conflict
-	if o.isPresent(none) && len(o.values) > 1 {
-		return fmt.Errorf("value NONE cannot be specified alongside other node types")
-	}
-	return nil
-}
-
-// Type returns the type of this option
-func (o *AutoAcceptOption) Type() string {
-	return "auto-accept"
-}
-
-// Policies returns a representation of this option for the api
-func (o *AutoAcceptOption) Policies(secret *string) []swarm.Policy {
-	policies := []swarm.Policy{}
-	for _, p := range defaultPolicies {
-		if len(o.values) != 0 {
-			if _, ok := o.values[string(p.Role)]; ok {
-				p.Autoaccept = true
-			} else {
-				p.Autoaccept = false
-			}
-		}
-		p.Secret = secret
-		policies = append(policies, p)
-	}
-	return policies
-}
-
-// isPresent returns whether the key exists in the set or not
-func (o *AutoAcceptOption) isPresent(key string) bool {
-	_, c := o.values[key]
-	return c
-}
-
-// NewAutoAcceptOption returns a new auto-accept option
-func NewAutoAcceptOption() AutoAcceptOption {
-	return AutoAcceptOption{values: make(map[string]struct{})}
 }
 
 // ExternalCAOption is a Value type for parsing external CA specifications.
@@ -239,8 +160,6 @@ func parseExternalCA(caSpec string) (*swarm.ExternalCA, error) {
 }
 
 func addSwarmFlags(flags *pflag.FlagSet, opts *swarmOptions) {
-	flags.Var(&opts.autoAccept, flagAutoAccept, "Auto acceptance policy (worker, manager or none)")
-	flags.StringVar(&opts.secret, flagSecret, "", "Set secret value needed to join a cluster")
 	flags.Int64Var(&opts.taskHistoryLimit, flagTaskHistoryLimit, 10, "Task history retention limit")
 	flags.DurationVar(&opts.dispatcherHeartbeat, flagDispatcherHeartbeat, time.Duration(5*time.Second), "Dispatcher heartbeat period")
 	flags.DurationVar(&opts.nodeCertExpiry, flagCertExpiry, time.Duration(90*24*time.Hour), "Validity period for node certificates")
@@ -249,11 +168,6 @@ func addSwarmFlags(flags *pflag.FlagSet, opts *swarmOptions) {
 
 func (opts *swarmOptions) ToSpec() swarm.Spec {
 	spec := swarm.Spec{}
-	if opts.secret != "" {
-		spec.AcceptancePolicy.Policies = opts.autoAccept.Policies(&opts.secret)
-	} else {
-		spec.AcceptancePolicy.Policies = opts.autoAccept.Policies(nil)
-	}
 	spec.Orchestration.TaskHistoryRetentionLimit = opts.taskHistoryLimit
 	spec.Dispatcher.HeartbeatPeriod = uint64(opts.dispatcherHeartbeat.Nanoseconds())
 	spec.CAConfig.NodeCertExpiry = opts.nodeCertExpiry

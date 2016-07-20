@@ -216,15 +216,17 @@ func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *Swarm
 
 	if joinSwarm == true {
 		if len(s.daemons) > 0 {
+			tokens := s.daemons[0].joinTokens(c)
+			token := tokens.Worker
+			if manager {
+				token = tokens.Manager
+			}
 			c.Assert(d.Join(swarm.JoinRequest{
 				RemoteAddrs: []string{s.daemons[0].listenAddr},
-				Manager:     manager}), check.IsNil)
-		} else {
-			c.Assert(d.Init(swarm.InitRequest{
-				Spec: swarm.Spec{
-					AcceptancePolicy: autoAcceptPolicy,
-				},
+				JoinToken:   token,
 			}), check.IsNil)
+		} else {
+			c.Assert(d.Init(swarm.InitRequest{}), check.IsNil)
 		}
 	}
 

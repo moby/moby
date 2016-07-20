@@ -111,7 +111,6 @@ read the [`dockerd`](dockerd.md) reference page.
 
 | Command | Description                                                        |
 |:--------|:-------------------------------------------------------------------|
-| [node accept](node_accept.md) | Accept a node into the swarm                 |
 | [node promote](node_promote.md) | Promote a node that is pending a promotion to manager |
 | [node demote](node_demote.md) | Demotes an existing manager so that it is no longer a manager |
 | [node inspect](node_inspect.md) | Inspect a node in the swarm                |
@@ -124,10 +123,11 @@ read the [`dockerd`](dockerd.md) reference page.
 
 | Command | Description                                                        |
 |:--------|:-------------------------------------------------------------------|
-| [swarm init](swarm_init.md) | Initialize a Swarm                             |
-| [swarm join](swarm_join.md) | Join a Swarm as a manager node or worker node  |
+| [swarm init](swarm_init.md) | Initialize a swarm                             |
+| [swarm join](swarm_join.md) | Join a swarm as a manager node or worker node  |
 | [swarm leave](swarm_leave.md) | Remove the current node from the swarm       |
 | [swarm update](swarm_update.md) | Update attributes of a swarm               |
+| [swarm join-token](swarm_join_token.md) | Display or rotate join tokens      |
 
 ### Swarm service commands
 

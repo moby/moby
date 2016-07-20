@@ -27,7 +27,6 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVar(&nodeOpts.role, flagRole, "", "Role of the node (worker/manager)")
-	flags.StringVar(&nodeOpts.membership, flagMembership, "", "Membership of the node (accepted/rejected)")
 	flags.StringVar(&nodeOpts.availability, flagAvailability, "", "Availability of the node (active/pause/drain)")
 	flags.Var(&nodeOpts.annotations.labels, flagLabelAdd, "Add or update a node label (key=value)")
 	labelKeys := opts.NewListOpts(nil)
@@ -76,13 +75,6 @@ func mergeNodeUpdate(flags *pflag.FlagSet) func(*swarm.Node) error {
 			}
 			spec.Role = swarm.NodeRole(str)
 		}
-		if flags.Changed(flagMembership) {
-			str, err := flags.GetString(flagMembership)
-			if err != nil {
-				return err
-			}
-			spec.Membership = swarm.NodeMembership(str)
-		}
 		if flags.Changed(flagAvailability) {
 			str, err := flags.GetString(flagAvailability)
 			if err != nil {
@@ -115,7 +107,6 @@ func mergeNodeUpdate(flags *pflag.FlagSet) func(*swarm.Node) error {
 
 const (
 	flagRole         = "role"
-	flagMembership   = "membership"
 	flagAvailability = "availability"
 	flagLabelAdd     = "label-add"
 	flagLabelRemove  = "label-rm"
