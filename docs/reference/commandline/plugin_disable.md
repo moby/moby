@@ -24,26 +24,31 @@ Disables a plugin. The plugin must be installed before it can be disabled,
 see [`docker plugin install`](plugin_install.md).
 
 
-The following example shows that the `no-remove` plugin is currently installed
+The following example shows that the `no-remove` plugin is installed
 and active:
 
 ```bash
 $ docker plugin ls
-NAME        	            TAG			ACTIVE
-tiborvass/no-remove	    latest		true
+
+NAME                        TAG           ACTIVE
+tiborvass/no-remove         latest        true
 ```
+
 To disable the plugin, use the following command:
 
 ```bash
-$ docker plugin disable tiborvass/no-remove:latest
+$ docker plugin disable tiborvass/no-remove
+
+tiborvass/no-remove
 ```
 
 After the plugin is disabled, it appears as "inactive" in the list of plugins:
 
 ```bash
 $ docker plugin ls
-NAME			VERSION		ACTIVE
-tiborvass/no-remove	latest		false
+
+NAME                    VERSION           ACTIVE
+tiborvass/no-remove     latest            false
 ```
 
 ## Related information
