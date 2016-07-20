@@ -242,6 +242,14 @@ __docker_get_log_options() {
     return ret
 }
 
+__docker_log_drivers() {
+    [[ $PREFIX = -*  ]] && return 1
+    integer ret=1
+    drivers=(awslogs etwlogs fluentd gcplogs gelf journald json-file none splunk syslog)
+    _describe -t log-drivers "log drivers" drivers && ret=0
+    return ret
+}
+
 __docker_log_options() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
@@ -1071,6 +1079,8 @@ __docker_service_subcommand() {
         "($help)*--label=[Service labels]:label: "
         "($help)--limit-cpu=[Limit CPUs]:value: "
         "($help)--limit-memory=[Limit Memory]:value: "
+        "($help)--log-driver=[Logging driver for service]:logging driver:__docker_log_drivers"
+        "($help)*--log-opt=[Logging driver options]:log driver options:__docker_log_options"
         "($help)*--mount=[Attach a mount to the service]:mount: "
         "($help)--name=[Service name]:name: "
         "($help)*--network=[Network attachments]:network: "
@@ -1429,7 +1439,7 @@ __docker_subcommand() {
         "($help)*--link=[Add link to another container]:link:->link"
         "($help)*--link-local-ip=[Add a link-local address for the container]:IPv4/IPv6: "
         "($help)*"{-l=,--label=}"[Container metadata]:label: "
-        "($help)--log-driver=[Default driver for container logs]:Logging driver:(awslogs etwlogs fluentd gcplogs gelf journald json-file none splunk syslog)"
+        "($help)--log-driver=[Default driver for container logs]:logging driver:__docker_log_drivers"
         "($help)*--log-opt=[Log driver specific options]:log driver options:__docker_log_options"
         "($help)--mac-address=[Container MAC address]:MAC address: "
         "($help)--name=[Container name]:name: "
@@ -1575,7 +1585,7 @@ __docker_subcommand() {
                 "($help -l --log-level)"{-l=,--log-level=}"[Logging level]:level:(debug info warn error fatal)" \
                 "($help)*--label=[Key=value labels]:label: " \
                 "($help)--live-restore[Enable live restore of docker when containers are still running]" \
-                "($help)--log-driver=[Default driver for container logs]:Logging driver:(awslogs etwlogs fluentd gcplogs gelf journald json-file none splunk syslog)" \
+                "($help)--log-driver=[Default driver for container logs]:logging driver:__docker_log_drivers" \
                 "($help)*--log-opt=[Default log driver options for containers]:log driver options:__docker_log_options" \
                 "($help)--max-concurrent-downloads[Set the max concurrent downloads for each pull]" \
                 "($help)--max-concurrent-uploads[Set the max concurrent uploads for each push]" \
