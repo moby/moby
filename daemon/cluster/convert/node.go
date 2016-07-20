@@ -15,7 +15,6 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 		ID: n.ID,
 		Spec: types.NodeSpec{
 			Role:         types.NodeRole(strings.ToLower(n.Spec.Role.String())),
-			Membership:   types.NodeMembership(strings.ToLower(n.Spec.Membership.String())),
 			Availability: types.NodeAvailability(strings.ToLower(n.Spec.Availability.String())),
 		},
 		Status: types.NodeStatus{
@@ -77,12 +76,6 @@ func NodeSpecToGRPC(s types.NodeSpec) (swarmapi.NodeSpec, error) {
 		spec.Role = swarmapi.NodeRole(role)
 	} else {
 		return swarmapi.NodeSpec{}, fmt.Errorf("invalid Role: %q", s.Role)
-	}
-
-	if membership, ok := swarmapi.NodeSpec_Membership_value[strings.ToUpper(string(s.Membership))]; ok {
-		spec.Membership = swarmapi.NodeSpec_Membership(membership)
-	} else {
-		return swarmapi.NodeSpec{}, fmt.Errorf("invalid Membership: %q", s.Membership)
 	}
 
 	if availability, ok := swarmapi.NodeSpec_Availability_value[strings.ToUpper(string(s.Availability))]; ok {

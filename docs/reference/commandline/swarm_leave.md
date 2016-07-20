@@ -14,7 +14,7 @@ parent = "smn_cli"
 ```markdown
 Usage:  docker swarm leave [OPTIONS]
 
-Leave a Swarm
+Leave a swarm
 
 Options:
       --force   Force leave ignoring warnings.
@@ -26,10 +26,10 @@ This command causes the node to leave the swarm.
 On a manager node:
 ```bash
 $ docker node ls
-ID                           HOSTNAME  MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS         LEADER
-7ln70fl22uw2dvjn2ft53m3q5    worker2   Accepted    Ready   Active
-dkp8vy1dq1kxleu9g4u78tlag    worker1   Accepted    Ready   Active        Reachable
-dvfxp4zseq4s0rih1selh0d20 *  manager1  Accepted    Ready   Active        Reachable              Yes
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+7ln70fl22uw2dvjn2ft53m3q5    worker2   Ready   Active
+dkp8vy1dq1kxleu9g4u78tlag    worker1   Ready   Active        Reachable
+dvfxp4zseq4s0rih1selh0d20 *  manager1  Ready   Active        Leader
 ```
 
 On a worker node:
@@ -41,10 +41,10 @@ Node left the default swarm.
 On a manager node:
 ```bash
 $ docker node ls
-ID                           HOSTNAME  MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS         LEADER
-7ln70fl22uw2dvjn2ft53m3q5    worker2   Accepted    Down    Active
-dkp8vy1dq1kxleu9g4u78tlag    worker1   Accepted    Ready   Active        Reachable
-dvfxp4zseq4s0rih1selh0d20 *  manager1  Accepted    Ready   Active        Reachable              Yes
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+7ln70fl22uw2dvjn2ft53m3q5    worker2   Down    Active
+dkp8vy1dq1kxleu9g4u78tlag    worker1   Ready   Active        Reachable
+dvfxp4zseq4s0rih1selh0d20 *  manager1  Ready   Active        Leader
 ```
 
 ## Related information

@@ -11,7 +11,7 @@ type Backend interface {
 	Join(req types.JoinRequest) error
 	Leave(force bool) error
 	Inspect() (types.Swarm, error)
-	Update(uint64, types.Spec) error
+	Update(uint64, types.Spec, types.UpdateFlags) error
 	GetServices(basictypes.ServiceListOptions) ([]types.Service, error)
 	GetService(string) (types.Service, error)
 	CreateService(types.ServiceSpec, string) (string, error)

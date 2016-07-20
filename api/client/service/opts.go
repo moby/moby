@@ -506,7 +506,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 
 	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode (vip or dnsrr)")
 
-	flags.BoolVar(&opts.registryAuth, flagRegistryAuth, false, "Send registry authentication details to Swarm agents")
+	flags.BoolVar(&opts.registryAuth, flagRegistryAuth, false, "Send registry authentication details to swarm agents")
 
 	flags.StringVar(&opts.logDriver.name, flagLogDriver, "", "Logging driver for service")
 	flags.Var(&opts.logDriver.opts, flagLogOpt, "Logging driver options")

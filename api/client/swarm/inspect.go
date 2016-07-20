@@ -18,7 +18,7 @@ func newInspectCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "inspect [OPTIONS]",
-		Short: "Inspect the Swarm",
+		Short: "Inspect the swarm",
 		Args:  cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runInspect(dockerCli, opts)

@@ -12,7 +12,6 @@ import (
 type nodeOptions struct {
 	annotations
 	role         string
-	membership   string
 	availability string
 }
 
@@ -43,14 +42,6 @@ func (opts *nodeOptions) ToNodeSpec() (swarm.NodeSpec, error) {
 	case "":
 	default:
 		return swarm.NodeSpec{}, fmt.Errorf("invalid role %q, only worker and manager are supported", opts.role)
-	}
-
-	switch swarm.NodeMembership(strings.ToLower(opts.membership)) {
-	case swarm.NodeMembershipAccepted:
-		spec.Membership = swarm.NodeMembershipAccepted
-	case "":
-	default:
-		return swarm.NodeSpec{}, fmt.Errorf("invalid membership %q, only accepted is supported", opts.membership)
 	}
 
 	switch swarm.NodeAvailability(strings.ToLower(opts.availability)) {

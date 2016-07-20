@@ -22,14 +22,6 @@ type SwarmDaemon struct {
 	listenAddr string
 }
 
-// default policy in tests is allow-all
-var autoAcceptPolicy = swarm.AcceptancePolicy{
-	Policies: []swarm.Policy{
-		{Role: swarm.NodeRoleWorker, Autoaccept: true},
-		{Role: swarm.NodeRoleManager, Autoaccept: true},
-	},
-}
-
 // Init initializes a new swarm cluster.
 func (d *SwarmDaemon) Init(req swarm.InitRequest) error {
 	if req.ListenAddr == "" {
@@ -269,6 +261,28 @@ func (d *SwarmDaemon) updateSwarm(c *check.C, f ...specConstructor) {
 	status, out, err = d.SockRequest("POST", url, sw.Spec)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+}
+
+func (d *SwarmDaemon) rotateTokens(c *check.C) {
+	var sw swarm.Swarm
+	status, out, err := d.SockRequest("GET", "/swarm", nil)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+	c.Assert(json.Unmarshal(out, &sw), checker.IsNil)
+
+	url := fmt.Sprintf("/swarm/update?version=%d&rotate_worker_token=true&rotate_manager_token=true", sw.Version.Index)
+	status, out, err = d.SockRequest("POST", url, sw.Spec)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+}
+
+func (d *SwarmDaemon) joinTokens(c *check.C) swarm.JoinTokens {
+	var sw swarm.Swarm
+	status, out, err := d.SockRequest("GET", "/swarm", nil)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+	c.Assert(json.Unmarshal(out, &sw), checker.IsNil)
+	return sw.JoinTokens
 }
 
 func (d *SwarmDaemon) checkLocalNodeState(c *check.C) (interface{}, check.CommentInterface) {

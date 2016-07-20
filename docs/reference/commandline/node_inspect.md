@@ -41,7 +41,6 @@ Example output:
         "UpdatedAt": "2016-06-16T22:52:45.230878043Z",
         "Spec": {
             "Role": "manager",
-            "Membership": "accepted",
             "Availability": "active"
         },
         "Description": {

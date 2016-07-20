@@ -2,6 +2,7 @@ package swarm
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
@@ -13,9 +14,7 @@ import (
 type joinOptions struct {
 	remote     string
 	listenAddr NodeAddrOption
-	manager    bool
-	secret     string
-	CACertHash string
+	token      string
 }
 
 func newJoinCommand(dockerCli *client.DockerCli) *cobra.Command {
@@ -25,7 +24,7 @@ func newJoinCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "join [OPTIONS] HOST:PORT",
-		Short: "Join a Swarm as a node and/or manager",
+		Short: "Join a swarm as a node and/or manager",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.remote = args[0]
@@ -35,9 +34,7 @@ func newJoinCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.Var(&opts.listenAddr, flagListenAddr, "Listen address")
-	flags.BoolVar(&opts.manager, "manager", false, "Try joining as a manager.")
-	flags.StringVar(&opts.secret, flagSecret, "", "Secret for node acceptance")
-	flags.StringVar(&opts.CACertHash, "ca-hash", "", "Hash of the Root Certificate Authority certificate used for trusted join")
+	flags.StringVar(&opts.token, flagToken, "", "Token for entry into the swarm")
 	return cmd
 }
 
@@ -46,20 +43,29 @@ func runJoin(dockerCli *client.DockerCli, opts joinOptions) error {
 	ctx := context.Background()
 
 	req := swarm.JoinRequest{
-		Manager:     opts.manager,
-		Secret:      opts.secret,
+		JoinToken:   opts.token,
 		ListenAddr:  opts.listenAddr.String(),
 		RemoteAddrs: []string{opts.remote},
-		CACertHash:  opts.CACertHash,
 	}
 	err := client.SwarmJoin(ctx, req)
 	if err != nil {
 		return err
 	}
-	if opts.manager {
-		fmt.Fprintln(dockerCli.Out(), "This node joined a Swarm as a manager.")
-	} else {
-		fmt.Fprintln(dockerCli.Out(), "This node joined a Swarm as a worker.")
+
+	info, err := client.Info(ctx)
+	if err != nil {
+		return err
 	}
+
+	_, _, err = client.NodeInspectWithRaw(ctx, info.Swarm.NodeID)
+	if err != nil {
+		// TODO(aaronl): is there a better way to do this?
+		if strings.Contains(err.Error(), "This node is not a swarm manager.") {
+			fmt.Fprintln(dockerCli.Out(), "This node joined a swarm as a worker.")
+		}
+	} else {
+		fmt.Fprintln(dockerCli.Out(), "This node joined a swarm as a manager.")
+	}
+
 	return nil
 }

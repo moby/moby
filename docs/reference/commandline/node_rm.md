@@ -23,14 +23,13 @@ Options:
       --help   Print usage
 ```
 
-Removes specified nodes from a swarm. Rejects nodes with `Pending`
-membership from the swarm.
+Removes specified nodes from a swarm.
 
 
 Example output:
 
     $ docker node rm swarm-node-02
-    Node swarm-node-02 removed from Swarm
+    Node swarm-node-02 removed from swarm
 
 
 ## Related information

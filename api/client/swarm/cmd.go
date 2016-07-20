@@ -25,6 +25,7 @@ func NewSwarmCommand(dockerCli *client.DockerCli) *cobra.Command {
 		newUpdateCommand(dockerCli),
 		newLeaveCommand(dockerCli),
 		newInspectCommand(dockerCli),
+		newJoinTokenCommand(dockerCli),
 	)
 	return cmd
 }
