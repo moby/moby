@@ -517,6 +517,57 @@ func (s *DockerSwarmSuite) TestApiSwarmLeaderProxy(c *check.C) {
 	}
 }
 
+func (s *DockerSwarmSuite) TestApiSwarmLeaderElection(c *check.C) {
+	// Create 3 nodes
+	d1 := s.AddDaemon(c, true, true)
+	d2 := s.AddDaemon(c, true, true)
+	d3 := s.AddDaemon(c, true, true)
+
+	// assert that the first node we made is the leader, and the other two are followers
+	c.Assert(d1.getNode(c, d1.NodeID).ManagerStatus.Leader, checker.True)
+	c.Assert(d1.getNode(c, d2.NodeID).ManagerStatus.Leader, checker.False)
+	c.Assert(d1.getNode(c, d3.NodeID).ManagerStatus.Leader, checker.False)
+
+	leader := d1
+
+	// stop the leader
+	leader.Stop()
+
+	// wait for an election to occur
+	var newleader *SwarmDaemon
+
+	for _, d := range []*SwarmDaemon{d2, d3} {
+		if d.getNode(c, d.NodeID).ManagerStatus.Leader {
+			newleader = d
+			break
+		}
+	}
+
+	// assert that we have a new leader
+	c.Assert(newleader, checker.NotNil)
+
+	// add the old leader back
+	leader.Start()
+
+	// clear leader and reinit the followers list
+	followers := make([]*SwarmDaemon, 0, 3)
+
+	// pick out the leader and the followers again
+	for _, d := range []*SwarmDaemon{d1, d2, d3} {
+		if d1.getNode(c, d.NodeID).ManagerStatus.Leader {
+			leader = d
+		} else {
+			followers = append(followers, d)
+		}
+	}
+
+	// verify that we still only have 1 leader and 2 followers
+	c.Assert(leader, checker.NotNil)
+	c.Assert(followers, checker.HasLen, 2)
+	// and that after we added d1 back, the leader hasn't changed
+	c.Assert(leader.NodeID, checker.Equals, newleader.NodeID)
+}
+
 func (s *DockerSwarmSuite) TestApiSwarmRaftQuorum(c *check.C) {
 	testRequires(c, Network)
 	d1 := s.AddDaemon(c, true, true)
