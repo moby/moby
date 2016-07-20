@@ -389,7 +389,7 @@ do_install() {
 			}
 
 			if [ "$lsb_dist" = "raspbian" ]; then
-				# Create Raspbian specific systemd init file, use overlay by default
+				# Create Raspbian specific systemd unit file, use overlay by default
 				( set -x; $sh_c "mkdir -p /etc/systemd/system" )
 				( set -x; $sh_c "$curl https://raw.githubusercontent.com/docker/docker/master/contrib/init/systemd/docker.service > /etc/systemd/system/docker.service" )
 				( set -x; $sh_c "sed -i 's/dockerd/dockerd --storage-driver overlay/' /etc/systemd/system/docker.service" )
