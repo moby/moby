@@ -218,7 +218,7 @@ func (m *MountOpt) Set(value string) error {
 			setValueOnMap(volumeOptions().Labels, value)
 		case "volume-driver":
 			volumeOptions().DriverConfig.Name = value
-		case "volume-driver-opt":
+		case "volume-opt":
 			if volumeOptions().DriverConfig.Options == nil {
 				volumeOptions().DriverConfig.Options = make(map[string]string)
 			}
