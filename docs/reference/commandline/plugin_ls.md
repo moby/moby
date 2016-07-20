@@ -30,8 +30,9 @@ Example output:
 
 ```bash
 $ docker plugin ls
-NAME                	VERSION             ACTIVE
-tiborvass/no-remove	latest              true
+
+NAME                  VERSION             ACTIVE
+tiborvass/no-remove   latest              true
 ```
 
 ## Related information
