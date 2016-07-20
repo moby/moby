@@ -27,4 +27,5 @@ Displays the configuration of a stack.
 
 * [stack deploy](stack_deploy.md)
 * [stack rm](stack_rm.md)
+* [stack services](stack_services.md)
 * [stack tasks](stack_tasks.md)
