@@ -156,7 +156,7 @@ func (rca *RootCA) IssueAndSaveNewCertificates(paths CertPaths, cn, ou, org stri
 
 // RequestAndSaveNewCertificates gets new certificates issued, either by signing them locally if a signer is
 // available, or by requesting them from the remote server at remoteAddr.
-func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths CertPaths, role, secret string, picker *picker.Picker, transport credentials.TransportAuthenticator, nodeInfo chan<- api.IssueNodeCertificateResponse) (*tls.Certificate, error) {
+func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths CertPaths, token string, picker *picker.Picker, transport credentials.TransportAuthenticator, nodeInfo chan<- api.IssueNodeCertificateResponse) (*tls.Certificate, error) {
 	// Create a new key/pair and CSR for the new manager
 	// Write the new CSR and the new key to a temporary location so we can survive crashes on rotation
 	tempPaths := genTempPaths(paths)
@@ -171,7 +171,7 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths Cert
 	// responding properly (for example, it may have just been demoted).
 	var signedCert []byte
 	for i := 0; i != 5; i++ {
-		signedCert, err = GetRemoteSignedCertificate(ctx, csr, role, secret, rca.Pool, picker, transport, nodeInfo)
+		signedCert, err = GetRemoteSignedCertificate(ctx, csr, token, rca.Pool, picker, transport, nodeInfo)
 		if err == nil {
 			break
 		}
@@ -207,7 +207,9 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths Cert
 		return nil, err
 	}
 
-	log.Infof("Downloaded new TLS credentials with role: %s.", role)
+	if len(X509Cert.Subject.OrganizationalUnit) != 0 {
+		log.Infof("Downloaded new TLS credentials with role: %s.", X509Cert.Subject.OrganizationalUnit[0])
+	}
 
 	// Ensure directory exists
 	err = os.MkdirAll(filepath.Dir(paths.Cert), 0755)
@@ -480,7 +482,7 @@ func GetRemoteCA(ctx context.Context, d digest.Digest, picker *picker.Picker) (R
 		return RootCA{}, fmt.Errorf("failed to append certificate to cert pool")
 	}
 
-	return RootCA{Cert: response.Certificate, Pool: pool}, nil
+	return RootCA{Cert: response.Certificate, Digest: digest.FromBytes(response.Certificate), Pool: pool}, nil
 }
 
 // CreateAndWriteRootCA creates a Certificate authority for a new Swarm Cluster, potentially
@@ -595,9 +597,10 @@ func GenerateAndWriteNewKey(paths CertPaths) (csr, key []byte, err error) {
 	return
 }
 
-// GetRemoteSignedCertificate submits a CSR together with the intended role to a remote CA server address
-// available through a picker, and that is part of a CA identified by a specific certificate pool.
-func GetRemoteSignedCertificate(ctx context.Context, csr []byte, role, secret string, rootCAPool *x509.CertPool, picker *picker.Picker, creds credentials.TransportAuthenticator, nodeInfo chan<- api.IssueNodeCertificateResponse) ([]byte, error) {
+// GetRemoteSignedCertificate submits a CSR to a remote CA server address
+// available through a picker, and that is part of a CA identified by a
+// specific certificate pool.
+func GetRemoteSignedCertificate(ctx context.Context, csr []byte, token string, rootCAPool *x509.CertPool, picker *picker.Picker, creds credentials.TransportAuthenticator, nodeInfo chan<- api.IssueNodeCertificateResponse) ([]byte, error) {
 	if rootCAPool == nil {
 		return nil, fmt.Errorf("valid root CA pool required")
 	}
@@ -630,14 +633,8 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, role, secret st
 	// Create a CAClient to retrieve a new Certificate
 	caClient := api.NewNodeCAClient(conn)
 
-	// Convert our internal string roles into an API role
-	apiRole, err := FormatRole(role)
-	if err != nil {
-		return nil, err
-	}
-
 	// Send the Request and retrieve the request token
-	issueRequest := &api.IssueNodeCertificateRequest{CSR: csr, Role: apiRole, Secret: secret}
+	issueRequest := &api.IssueNodeCertificateRequest{CSR: csr, Token: token}
 	issueResponse, err := caClient.IssueNodeCertificate(ctx, issueRequest)
 	if err != nil {
 		return nil, err

@@ -97,6 +97,13 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 		}
 		cluster.Meta.Version = *request.ClusterVersion
 		cluster.Spec = *request.Spec.Copy()
+
+		if request.Rotation.RotateWorkerToken {
+			cluster.RootCA.JoinTokens.Worker = ca.GenerateJoinToken(s.rootCA)
+		}
+		if request.Rotation.RotateManagerToken {
+			cluster.RootCA.JoinTokens.Manager = ca.GenerateJoinToken(s.rootCA)
+		}
 		return store.UpdateCluster(tx, cluster)
 	})
 	if err != nil {
@@ -193,6 +200,7 @@ func redactClusters(clusters []*api.Cluster) []*api.Cluster {
 			RootCA: api.RootCA{
 				CACert:     cluster.RootCA.CACert,
 				CACertHash: cluster.RootCA.CACertHash,
+				JoinTokens: cluster.RootCA.JoinTokens,
 			},
 		}
 

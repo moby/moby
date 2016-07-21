@@ -7,6 +7,7 @@ package keymanager
 // plane information. It can also be used to encrypt overlay data traffic.
 import (
 	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"sync"
 	"time"
@@ -87,7 +88,7 @@ func New(store *store.MemoryStore, config *Config) *KeyManager {
 	return &KeyManager{
 		config:  config,
 		store:   store,
-		keyRing: &keyRing{},
+		keyRing: &keyRing{lClock: genSkew()},
 	}
 }
 
@@ -229,4 +230,13 @@ func (k *KeyManager) Stop() error {
 	}
 	k.cancel()
 	return nil
+}
+
+// genSkew generates a random uint64 number between 0 and 65535
+func genSkew() uint64 {
+	b := make([]byte, 2)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	return uint64(binary.BigEndian.Uint16(b))
 }

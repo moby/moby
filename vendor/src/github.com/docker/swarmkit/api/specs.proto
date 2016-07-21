@@ -233,8 +233,10 @@ message NetworkSpec {
 message ClusterSpec {
 	Annotations annotations = 1 [(gogoproto.nullable) = false];
 
-	// AcceptancePolicy defines the certificate issuance policy.
-	AcceptancePolicy acceptance_policy = 2 [(gogoproto.nullable) = false];
+	// DEPRECATED: AcceptancePolicy defines the certificate issuance policy.
+	// Acceptance policy is no longer customizable, and secrets have been
+	// replaced with join tokens.
+	AcceptancePolicy acceptance_policy = 2 [deprecated=true, (gogoproto.nullable) = false];
 
 	// Orchestration defines cluster-level orchestration settings.
 	OrchestrationConfig orchestration = 3 [(gogoproto.nullable) = false];
@@ -248,10 +250,6 @@ message ClusterSpec {
 	// CAConfig defines cluster-level certificate authority settings.
 	CAConfig ca_config = 6 [(gogoproto.nullable) = false, (gogoproto.customname) = "CAConfig"];
 
-	// DefaultLogDriver specifies the log driver to use for the cluster if not
-	// specified for each task.
-	//
-	// If this is changed, only new tasks will pick up the new log driver.
-	// Existing tasks will continue to use the previous default until rescheduled.
-	Driver default_log_driver = 7;
+	// TaskDefaults specifies the default values to use for task creation.
+	TaskDefaults task_defaults = 7 [(gogoproto.nullable) = false];
 }
