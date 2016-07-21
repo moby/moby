@@ -73,7 +73,7 @@ clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece581016509
 clone git github.com/hashicorp/memberlist 88ac4de0d1a0ca6def284b571342db3b777a4c37
 clone git github.com/hashicorp/go-multierror fcdddc395df1ddf4247c69bd436e84cfa0733f7e
 clone git github.com/hashicorp/serf 598c54895cc5a7b1a24a398d635e8c0ea0959870
-clone git github.com/docker/libkv 7283ef27ed32fe267388510a91709b307bb9942c
+clone git github.com/docker/libkv v0.2.1
 clone git github.com/vishvananda/netns 604eaf189ee867d8c147fafc28def2394e878d25
 clone git github.com/vishvananda/netlink 734d02c3e202f682c74b71314b2c61eec0170fd4
 clone git github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
