@@ -26,6 +26,7 @@ const (
 	vxlanIDEnd   = (1 << 24) - 1
 	vxlanPort    = 4789
 	vxlanVethMTU = 1450
+	secureOption = "encrypted"
 )
 
 var initVxlanIdm = make(chan (bool), 1)
