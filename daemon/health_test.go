@@ -17,6 +17,28 @@ func reset(c *container.Container) {
 	c.State.Health.Status = types.Starting
 }
 
+func TestNoneHealthcheck(t *testing.T) {
+	c := &container.Container{
+		CommonContainer: container.CommonContainer{
+			ID:   "container_id",
+			Name: "container_name",
+			Config: &containertypes.Config{
+				Image: "image_name",
+				Healthcheck: &containertypes.HealthConfig{
+					Test: []string{"NONE"},
+				},
+			},
+			State: &container.State{},
+		},
+	}
+	daemon := &Daemon{}
+
+	daemon.initHealthMonitor(c)
+	if c.State.Health != nil {
+		t.Errorf("Expecting Health to be nil, but was not")
+	}
+}
+
 func TestHealthStates(t *testing.T) {
 	e := events.New()
 	_, l, _ := e.Subscribe()
