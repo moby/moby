@@ -378,6 +378,10 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 		return nil
 	}
 
+	c.Lock()
+	c.cfg = cfg
+	c.Unlock()
+
 	var dsConfig *discoverapi.DatastoreConfigData
 	for scope, sCfg := range cfg.Scopes {
 		if scope == datastore.LocalScope || !sCfg.IsValid() {

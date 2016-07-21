@@ -65,7 +65,7 @@ clone git github.com/RackSec/srslog 259aed10dfa74ea2961eddd1d9847619f6e98837
 clone git github.com/imdario/mergo 0.2.1
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork 905d374c096ca1f3a9b75529e52518b7540179f3
+clone git github.com/docker/libnetwork 83ab4deaa2da3deb32cb5e64ceec43801dc17370
 clone git github.com/docker/go-events afb2b9f2c23f33ada1a22b03651775fdc65a5089
 clone git github.com/armon/go-radix e39d623f12e8e41c7b5529e9a9dd67a1e2261f80
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
@@ -75,7 +75,7 @@ clone git github.com/hashicorp/go-multierror fcdddc395df1ddf4247c69bd436e84cfa07
 clone git github.com/hashicorp/serf 598c54895cc5a7b1a24a398d635e8c0ea0959870
 clone git github.com/docker/libkv v0.2.1
 clone git github.com/vishvananda/netns 604eaf189ee867d8c147fafc28def2394e878d25
-clone git github.com/vishvananda/netlink 734d02c3e202f682c74b71314b2c61eec0170fd4
+clone git github.com/vishvananda/netlink e73bad418fd727ed3a02830b1af1ad0283a1de6c
 clone git github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
 clone git github.com/samuel/go-zookeeper d0e0d8e11f318e000a8cc434616d69e329edc374
 clone git github.com/deckarep/golang-set ef32fa3046d9f249d399f98ebaf9be944430fd1d
