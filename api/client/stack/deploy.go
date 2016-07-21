@@ -21,8 +21,9 @@ const (
 )
 
 type deployOptions struct {
-	bundlefile string
-	namespace  string
+	bundlefile       string
+	namespace        string
+	sendRegistryAuth bool
 }
 
 func newDeployCommand(dockerCli *client.DockerCli) *cobra.Command {
@@ -41,6 +42,7 @@ func newDeployCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	addBundlefileFlag(&opts.bundlefile, flags)
+	addRegistryAuthFlag(&opts.sendRegistryAuth, flags)
 	return cmd
 }
 
@@ -56,7 +58,7 @@ func runDeploy(dockerCli *client.DockerCli, opts deployOptions) error {
 	if err := updateNetworks(ctx, dockerCli, networks, opts.namespace); err != nil {
 		return err
 	}
-	return deployServices(ctx, dockerCli, bundle.Services, opts.namespace)
+	return deployServices(ctx, dockerCli, bundle.Services, opts.namespace, opts.sendRegistryAuth)
 }
 
 func getUniqueNetworkNames(services map[string]bundlefile.Service) []string {
@@ -129,6 +131,7 @@ func deployServices(
 	dockerCli *client.DockerCli,
 	services map[string]bundlefile.Service,
 	namespace string,
+	sendAuth bool,
 ) error {
 	apiClient := dockerCli.Client()
 	out := dockerCli.Out()
@@ -181,24 +184,40 @@ func deployServices(
 			cspec.User = *service.User
 		}
 
+		encodedAuth := ""
+		if sendAuth {
+			// Retrieve encoded auth token from the image reference
+			image := serviceSpec.TaskTemplate.ContainerSpec.Image
+			encodedAuth, err = dockerCli.RetrieveAuthTokenFromImage(ctx, image)
+			if err != nil {
+				return err
+			}
+		}
+
 		if service, exists := existingServiceMap[name]; exists {
 			fmt.Fprintf(out, "Updating service %s (id: %s)\n", name, service.ID)
 
-			// TODO(nishanttotla): Pass auth token
+			updateOpts := types.ServiceUpdateOptions{}
+			if sendAuth {
+				updateOpts.EncodedRegistryAuth = encodedAuth
+			}
 			if err := apiClient.ServiceUpdate(
 				ctx,
 				service.ID,
 				service.Version,
 				serviceSpec,
-				types.ServiceUpdateOptions{},
+				updateOpts,
 			); err != nil {
 				return err
 			}
 		} else {
 			fmt.Fprintf(out, "Creating service %s\n", name)
 
-			// TODO(nishanttotla): Pass headers with X-Registry-Auth
-			if _, err := apiClient.ServiceCreate(ctx, serviceSpec, types.ServiceCreateOptions{}); err != nil {
+			createOpts := types.ServiceCreateOptions{}
+			if sendAuth {
+				createOpts.EncodedRegistryAuth = encodedAuth
+			}
+			if _, err := apiClient.ServiceCreate(ctx, serviceSpec, createOpts); err != nil {
 				return err
 			}
 		}
