@@ -24,6 +24,7 @@ import (
 	containerd "github.com/docker/containerd/api/grpc/types"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/container"
+	dcluster "github.com/docker/docker/daemon/cluster"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/engine-api/types"
@@ -100,6 +101,7 @@ type Daemon struct {
 	containerdRemote          libcontainerd.Remote
 	defaultIsolation          containertypes.Isolation // Default isolation mode on Windows
 	clusterProvider           cluster.Provider
+	cluster                   *dcluster.Cluster
 }
 
 func (daemon *Daemon) restore() error {
@@ -1052,4 +1054,14 @@ func copyBlkioEntry(entries []*containerd.BlkioStatsEntry) []types.BlkioStatEntr
 		}
 	}
 	return out
+}
+
+// GetCluster returns the cluster
+func (daemon *Daemon) GetCluster() *dcluster.Cluster {
+	return daemon.cluster
+}
+
+// SetCluster sets the cluster
+func (daemon *Daemon) SetCluster(cluster *dcluster.Cluster) {
+	daemon.cluster = cluster
 }

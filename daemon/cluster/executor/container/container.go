@@ -269,9 +269,10 @@ func getMountMask(m *api.Mount) string {
 
 func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 	hc := &enginecontainer.HostConfig{
-		Resources: c.resources(),
-		Binds:     c.binds(),
-		Tmpfs:     c.tmpfs(),
+		Resources:    c.resources(),
+		Binds:        c.binds(),
+		Tmpfs:        c.tmpfs(),
+		InspectionFS: true,
 	}
 
 	if c.task.LogDriver != nil {

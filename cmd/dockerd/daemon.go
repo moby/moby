@@ -291,6 +291,7 @@ func (cli *DaemonCli) start() (err error) {
 	}).Info("Docker daemon")
 
 	cli.initMiddlewares(api, serverConfig)
+	d.SetCluster(c)
 	initRouter(api, d, c)
 
 	cli.d = d

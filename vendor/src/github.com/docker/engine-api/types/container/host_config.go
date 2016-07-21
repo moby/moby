@@ -310,6 +310,7 @@ type HostConfig struct {
 	ShmSize         int64             // Total shm memory usage
 	Sysctls         map[string]string `json:",omitempty"` // List of Namespaced sysctls used for the container
 	Runtime         string            `json:",omitempty"` // Runtime to use with this container
+	InspectionFS    bool              // Enables docker inspection filesystem
 
 	// Applicable to Windows
 	ConsoleSize [2]int    // Initial console size

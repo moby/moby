@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/inspectionfs"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/symlink"
@@ -30,13 +31,14 @@ type Container struct {
 	CommonContainer
 
 	// Fields below here are platform specific.
-	AppArmorProfile string
-	HostnamePath    string
-	HostsPath       string
-	ShmPath         string
-	ResolvConfPath  string
-	SeccompProfile  string
-	NoNewPrivileges bool
+	AppArmorProfile  string
+	HostnamePath     string
+	HostsPath        string
+	ShmPath          string
+	ResolvConfPath   string
+	InspectionFSPath string
+	SeccompProfile   string
+	NoNewPrivileges  bool
 }
 
 // ExitStatus provides exit reasons for a container.
@@ -416,4 +418,45 @@ func cleanResourcePath(path string) string {
 // can be mounted locally. A no-op on non-Windows platforms
 func (container *Container) canMountFS() bool {
 	return true
+}
+
+func (container *Container) MountInspectionFS(connector inspectionfs.DaemonConnector) error {
+	s, err := container.GetRootResourcePath("inspectionfs")
+	if err != nil {
+		return err
+	}
+	container.InspectionFSPath = s
+
+	if err := os.MkdirAll(container.InspectionFSPath, 0700); err != nil {
+		return err
+	}
+
+	server, err := inspectionfs.NewServer(container.InspectionFSPath, connector)
+	if err != nil {
+		return err
+	}
+	go server.Serve()
+	return nil
+}
+
+func (container *Container) UnmountInspectionFS() error {
+	return syscall.Unmount(container.InspectionFSPath, 0)
+}
+
+func (container *Container) InspectionFSMounts() []Mount {
+	var mounts []Mount
+
+	// /sys and /proc are read-only, so we use /dev instead.
+	dest := "/dev/docker"
+	if !container.HasMountFor(dest) && container.InspectionFSPath != "" {
+		label.SetFileLabel(container.InspectionFSPath, container.MountLabel)
+		mounts = append(mounts, Mount{
+			Source:      container.InspectionFSPath,
+			Destination: dest,
+			Writable:    false,
+			Propagation: volume.DefaultPropagationMode,
+		})
+	}
+
+	return mounts
 }
