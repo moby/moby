@@ -55,7 +55,7 @@ dockerd - Enable daemon mode
 [**-s**|**--storage-driver**[=*STORAGE-DRIVER*]]
 [**--selinux-enabled**]
 [**--storage-opt**[=*[]*]]
-[**--swarm-default-advertise-addr**[=*IP|HOSTNAME|INTERFACE*]]
+[**--swarm-default-advertise-addr**[=*IP|INTERFACE*]]
 [**--tls**]
 [**--tlscacert**[=*~/.docker/ca.pem*]]
 [**--tlscert**[=*~/.docker/cert.pem*]]
@@ -240,7 +240,7 @@ output otherwise.
 **--storage-opt**=[]
   Set storage driver options. See STORAGE DRIVER OPTIONS.
 
-**--swarm-default-advertise-addr**=*IP|HOSTNAME|INTERFACE*
+**--swarm-default-advertise-addr**=*IP|INTERFACE*
   Set default address or interface for swarm to advertise as its externally-reachable address to other cluster
   members. This can be a hostname, an IP address, or an interface such as `eth0`. A port cannot be specified with
   this option.
