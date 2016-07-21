@@ -1445,7 +1445,7 @@ _docker_network_create() {
 			return
 			;;
 		--driver|-d)
-			local plugins=" $(__docker_plugins Network) "
+			local plugins="$(__docker_plugins Network) macvlan"
 			# remove drivers that allow one instance only
 			plugins=${plugins/ host / }
 			plugins=${plugins/ null / }
