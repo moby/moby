@@ -6393,7 +6393,7 @@ func (s *DockerSuite) TestBuildWorkdirWindowsPath(c *check.C) {
 	name := "testbuildworkdirwindowspath"
 
 	_, err := buildImage(name, `
-	FROM windowsservercore
+	FROM `+WindowsBaseImage+`
 	RUN mkdir C:\\work
 	WORKDIR C:\\work
 	RUN if "%CD%" NEQ "C:\work" exit -1
