@@ -196,7 +196,7 @@ func (m *MountOpt) Set(value string) error {
 		key, value := parts[0], parts[1]
 		switch strings.ToLower(key) {
 		case "type":
-			mount.Type = swarm.MountType(strings.ToUpper(value))
+			mount.Type = swarm.MountType(strings.ToLower(value))
 		case "source":
 			mount.Source = value
 		case "target":
@@ -208,7 +208,7 @@ func (m *MountOpt) Set(value string) error {
 			}
 			mount.ReadOnly = ro
 		case "bind-propagation":
-			bindOptions().Propagation = swarm.MountPropagation(strings.ToUpper(value))
+			bindOptions().Propagation = swarm.MountPropagation(strings.ToLower(value))
 		case "volume-nocopy":
 			volumeOptions().NoCopy, err = strconv.ParseBool(value)
 			if err != nil {
@@ -240,10 +240,10 @@ func (m *MountOpt) Set(value string) error {
 		return fmt.Errorf("source is required when specifying volume-* options")
 	}
 
-	if mount.Type == swarm.MountType("BIND") && mount.VolumeOptions != nil {
+	if mount.Type == swarm.MountTypeBind && mount.VolumeOptions != nil {
 		return fmt.Errorf("cannot mix 'volume-*' options with mount type '%s'", swarm.MountTypeBind)
 	}
-	if mount.Type == swarm.MountType("VOLUME") && mount.BindOptions != nil {
+	if mount.Type == swarm.MountTypeVolume && mount.BindOptions != nil {
 		return fmt.Errorf("cannot mix 'bind-*' options with mount type '%s'", swarm.MountTypeVolume)
 	}
 

@@ -61,18 +61,18 @@ func TestMountOptString(t *testing.T) {
 	mount := MountOpt{
 		values: []swarm.Mount{
 			{
-				Type:   swarm.MountType("BIND"),
+				Type:   swarm.MountTypeBind,
 				Source: "/home/path",
 				Target: "/target",
 			},
 			{
-				Type:   swarm.MountType("VOLUME"),
+				Type:   swarm.MountTypeVolume,
 				Source: "foo",
 				Target: "/target/foo",
 			},
 		},
 	}
-	expected := "BIND /home/path /target, VOLUME foo /target/foo"
+	expected := "bind /home/path /target, volume foo /target/foo"
 	assert.Equal(t, mount.String(), expected)
 }
 
@@ -83,7 +83,7 @@ func TestMountOptSetNoError(t *testing.T) {
 	mounts := mount.Value()
 	assert.Equal(t, len(mounts), 1)
 	assert.Equal(t, mounts[0], swarm.Mount{
-		Type:   swarm.MountType("BIND"),
+		Type:   swarm.MountTypeBind,
 		Source: "/foo",
 		Target: "/target",
 	})
@@ -96,22 +96,22 @@ func TestMountOptSetErrorNoType(t *testing.T) {
 
 func TestMountOptSetErrorNoTarget(t *testing.T) {
 	var mount MountOpt
-	assert.Error(t, mount.Set("type=VOLUME,source=/foo"), "target is required")
+	assert.Error(t, mount.Set("type=volume,source=/foo"), "target is required")
 }
 
 func TestMountOptSetErrorInvalidKey(t *testing.T) {
 	var mount MountOpt
-	assert.Error(t, mount.Set("type=VOLUME,bogus=foo"), "unexpected key 'bogus'")
+	assert.Error(t, mount.Set("type=volume,bogus=foo"), "unexpected key 'bogus'")
 }
 
 func TestMountOptSetErrorInvalidField(t *testing.T) {
 	var mount MountOpt
-	assert.Error(t, mount.Set("type=VOLUME,bogus"), "invalid field 'bogus'")
+	assert.Error(t, mount.Set("type=volume,bogus"), "invalid field 'bogus'")
 }
 
 func TestMountOptSetErrorInvalidWritable(t *testing.T) {
 	var mount MountOpt
-	assert.Error(t, mount.Set("type=VOLUME,readonly=no"), "invalid value for readonly: no")
+	assert.Error(t, mount.Set("type=volume,readonly=no"), "invalid value for readonly: no")
 }
 
 func TestMountOptDefaultEnableWritable(t *testing.T) {

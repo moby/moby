@@ -3935,7 +3935,7 @@ Create a service
               "ReadOnly": true,
               "Source": "web-data",
               "Target": "/usr/share/nginx/html",
-              "Type": "VOLUME",
+              "Type": "volume",
               "VolumeOptions": {
                 "DriverConfig": {
                 },
