@@ -301,7 +301,6 @@ func (m *Manager) Run(parent context.Context) error {
 							Annotations: api.Annotations{
 								Name: store.DefaultClusterName,
 							},
-							AcceptancePolicy: ca.DefaultAcceptancePolicy(),
 							Orchestration: api.OrchestrationConfig{
 								TaskHistoryRetentionLimit: defaultTaskHistoryRetentionLimit,
 							},
@@ -315,6 +314,10 @@ func (m *Manager) Run(parent context.Context) error {
 							CAKey:      rootCA.Key,
 							CACert:     rootCA.Cert,
 							CACertHash: rootCA.Digest.String(),
+							JoinTokens: api.JoinTokens{
+								Worker:  ca.GenerateJoinToken(rootCA),
+								Manager: ca.GenerateJoinToken(rootCA),
+							},
 						},
 					})
 					// Add Node entry for ourself, if one
@@ -449,7 +452,7 @@ func (m *Manager) Run(parent context.Context) error {
 		return err
 	}
 
-	baseControlAPI := controlapi.NewServer(m.RaftNode.MemoryStore(), m.RaftNode)
+	baseControlAPI := controlapi.NewServer(m.RaftNode.MemoryStore(), m.RaftNode, m.config.SecurityConfig.RootCA())
 	healthServer := health.NewHealthServer()
 
 	authenticatedControlAPI := api.NewAuthenticatedWrapperControlServer(baseControlAPI, authorize)

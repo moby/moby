@@ -43,11 +43,8 @@ type NodeConfig struct {
 	// remote managers and certificates.
 	StateDir string
 
-	// CAHash to be used on the first certificate request.
-	CAHash string
-
-	// Secret to be used on the first certificate request.
-	Secret string
+	// JoinToken is the token to be used on the first certificate request.
+	JoinToken string
 
 	// ExternalCAs is a list of CAs to which a manager node
 	// will make certificate signing requests for node certificates.
@@ -73,9 +70,6 @@ type NodeConfig struct {
 	// HeartbeatTick defines the amount of ticks between each
 	// heartbeat sent to other members for health-check purposes
 	HeartbeatTick uint32
-
-	// todo: temporary to bypass promotion not working yet
-	IsManager bool
 }
 
 // Node implements the primary node functionality for a member of a swarm
@@ -193,11 +187,6 @@ func (n *Node) run(ctx context.Context) (err error) {
 		}
 	}
 
-	csrRole := n.role
-	if n.config.IsManager { // todo: temporary
-		csrRole = ca.ManagerRole
-	}
-
 	// Obtain new certs and setup TLS certificates renewal for this node:
 	// - We call LoadOrCreateSecurityConfig which blocks until a valid certificate has been issued
 	// - We retrieve the nodeID from LoadOrCreateSecurityConfig through the info channel. This allows
@@ -220,7 +209,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 	}()
 
 	certDir := filepath.Join(n.config.StateDir, "certificates")
-	securityConfig, err := ca.LoadOrCreateSecurityConfig(ctx, certDir, n.config.CAHash, n.config.Secret, csrRole, picker.NewPicker(n.remotes), issueResponseChan)
+	securityConfig, err := ca.LoadOrCreateSecurityConfig(ctx, certDir, n.config.JoinToken, ca.ManagerRole, picker.NewPicker(n.remotes), issueResponseChan)
 	if err != nil {
 		return err
 	}

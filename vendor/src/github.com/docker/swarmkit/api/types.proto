@@ -521,6 +521,17 @@ message OrchestrationConfig {
 	// TaskHistoryRetentionLimit is the number of historic tasks to keep per instance or
 	// node. If negative, never remove completed or failed tasks.
 	int64 task_history_retention_limit = 1;
+
+}
+
+// TaskDefaults specifies default values for task creation.
+message TaskDefaults {
+	// LogDriver specifies the log driver to use for the cluster if not
+	// specified for each task.
+	//
+	// If this is changed, only new tasks will pick up the new log driver.
+	// Existing tasks will continue to use the previous default until rescheduled.
+	Driver log_driver = 1;
 }
 
 // DispatcherConfig defines cluster-level dispatcher settings.
@@ -554,6 +565,15 @@ message Placement {
 	repeated string constraints = 1;
 }
 
+// JoinToken contains the join tokens for workers and managers.
+message JoinTokens {
+	// Worker is the join token workers may use to join the swarm.
+	string worker = 1;
+
+	// Manager is the join token workers may use to join the swarm.
+	string manager = 2;
+}
+
 message RootCA {
 	// CAKey is the root CA private key.
 	bytes ca_key = 1 [(gogoproto.customname) = "CAKey"];
@@ -563,6 +583,9 @@ message RootCA {
 
 	// CACertHash is the digest of the CA Certificate.
 	string ca_cert_hash = 3 [(gogoproto.customname) = "CACertHash"];
+
+	// JoinTokens contains the join tokens for workers and managers.
+	JoinTokens join_tokens = 4 [(gogoproto.nullable) = false];
 }
 
 
