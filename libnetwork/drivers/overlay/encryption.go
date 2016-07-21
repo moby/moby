@@ -2,8 +2,10 @@ package overlay
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"hash/fnv"
 	"net"
 	"sync"
 	"syscall"
@@ -216,7 +218,6 @@ func programMangle(vni uint32, add bool) (err error) {
 
 func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (fSA *netlink.XfrmState, rSA *netlink.XfrmState, err error) {
 	var (
-		crypt       *netlink.XfrmStateAlgo
 		action      = "Removing"
 		xfrmProgram = ns.NlHandle().XfrmStateDel
 	)
@@ -224,7 +225,6 @@ func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (f
 	if add {
 		action = "Adding"
 		xfrmProgram = ns.NlHandle().XfrmStateAdd
-		crypt = &netlink.XfrmStateAlgo{Name: "cbc(aes)", Key: k.value}
 	}
 
 	if dir&reverse > 0 {
@@ -236,7 +236,7 @@ func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (f
 			Mode:  netlink.XFRM_MODE_TRANSPORT,
 		}
 		if add {
-			rSA.Crypt = crypt
+			rSA.Aead = buildAeadAlgo(k, spi.reverse)
 		}
 
 		exists, err := saExists(rSA)
@@ -261,7 +261,7 @@ func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (f
 			Mode:  netlink.XFRM_MODE_TRANSPORT,
 		}
 		if add {
-			fSA.Crypt = crypt
+			fSA.Aead = buildAeadAlgo(k, spi.forward)
 		}
 
 		exists, err := saExists(fSA)
@@ -354,13 +354,23 @@ func spExists(sp *netlink.XfrmPolicy) (bool, error) {
 }
 
 func buildSPI(src, dst net.IP, st uint32) int {
-	spi := int(st)
-	f := src[len(src)-4:]
-	t := dst[len(dst)-4:]
-	for i := 0; i < 4; i++ {
-		spi = spi ^ (int(f[i])^int(t[3-i]))<<uint32(8*i)
+	b := make([]byte, 4)
+	binary.BigEndian.PutUint32(b, st)
+	h := fnv.New32a()
+	h.Write(src)
+	h.Write(b)
+	h.Write(dst)
+	return int(binary.BigEndian.Uint32(h.Sum(nil)))
+}
+
+func buildAeadAlgo(k *key, s int) *netlink.XfrmStateAlgo {
+	salt := make([]byte, 4)
+	binary.BigEndian.PutUint32(salt, uint32(s))
+	return &netlink.XfrmStateAlgo{
+		Name:   "rfc4106(gcm(aes))",
+		Key:    append(k.value, salt...),
+		ICVLen: 64,
 	}
-	return spi
 }
 
 func (d *driver) secMapWalk(f func(string, []*spi) ([]*spi, bool)) error {
