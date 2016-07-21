@@ -12,12 +12,13 @@ parent = "smn_cli"
 # service scale
 
 ```markdown
-Usage:  docker service scale SERVICE=REPLICAS [SERVICE=REPLICAS...]
+Usage:  docker service scale [OPTIONS] SERVICE=REPLICAS [SERVICE=REPLICAS...]
 
 Scale one or multiple services
 
 Options:
-      --help   Print usage
+      --help            Print usage
+      --registry-auth   Send registry authentication details to Swarm agents
 ```
 
 ## Examples
