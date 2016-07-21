@@ -31,10 +31,10 @@ run your manager node. For example, the tutorial uses a machine named
     ```bash
     $ docker node ls
 
-    ID                           HOSTNAME  MEMBERSHIP  STATUS  AVAILABILITY     MANAGER STATUS  LEADER
-    1bcef6utixb0l0ca7gxuivsj0    worker2   Accepted    Ready   Active
-    38ciaotwjuritcdtn9npbnkuz    worker1   Accepted    Ready   Active
-    e216jshn25ckzbvmwlnh5jr3g *  manager1  Accepted    Ready   Active        Reachable       Yes
+    ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+    1bcef6utixb0l0ca7gxuivsj0    worker2   Ready   Active
+    38ciaotwjuritcdtn9npbnkuz    worker1   Ready   Active
+    e216jshn25ckzbvmwlnh5jr3g *  manager1  Ready   Active        Leader
     ```
 
 2. If you aren't still running the `redis` service from the [rolling
