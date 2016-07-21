@@ -1041,6 +1041,7 @@ func (daemon *Daemon) networkOptions(dconfig *Config, activeSandboxes map[string
 	}
 
 	options = append(options, nwconfig.OptionDataDir(dconfig.Root))
+	options = append(options, nwconfig.OptionExecRoot(dconfig.GetExecRoot()))
 
 	dd := runconfig.DefaultDaemonNetworkMode()
 	dn := runconfig.DefaultDaemonNetworkMode().NetworkName()
