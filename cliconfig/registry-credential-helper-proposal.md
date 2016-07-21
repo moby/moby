@@ -2,6 +2,8 @@
 
    Different registries may want to authenticate their users in ways that aren't currently (well) supported. This may include, for example, 2-factor authentication, or auth flows which differ depending on the context.
 
+   For example, GCR currently requires for the Docker commands to be wrapped in 'gcloud docker' in order for requests to be elegantly authenticated. Allowing for a registry-specific credential helper would allow for us to deprecate this scheme.
+
 * What are the requirements this change should meet?
 
    Registries should be able to provide their users with an authentication plugin which can provide the Docker client with that user's registry-specific credentials. This plugin framework should work well with the existing credential stores, and several should be configurable at a given time so that the user can work with multiple respoitories from the same client without having to modify their docker config every time a context switch happens.
