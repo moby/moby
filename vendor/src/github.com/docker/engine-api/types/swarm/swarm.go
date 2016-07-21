@@ -6,43 +6,41 @@ import "time"
 type Swarm struct {
 	ID string
 	Meta
-	Spec Spec
+	Spec       Spec
+	JoinTokens JoinTokens
+}
+
+// JoinTokens contains the tokens workers and managers need to join the swarm.
+type JoinTokens struct {
+	Worker  string
+	Manager string
 }
 
 // Spec represents the spec of a swarm.
 type Spec struct {
 	Annotations
 
-	AcceptancePolicy AcceptancePolicy    `json:",omitempty"`
-	Orchestration    OrchestrationConfig `json:",omitempty"`
-	Raft             RaftConfig          `json:",omitempty"`
-	Dispatcher       DispatcherConfig    `json:",omitempty"`
-	CAConfig         CAConfig            `json:",omitempty"`
-
-	// DefaultLogDriver sets the log driver to use at task creation time if
-	// unspecified by a task.
-	//
-	// Updating this value will only have an affect on new tasks. Old tasks
-	// will continue use their previously configured log driver until
-	// recreated.
-	DefaultLogDriver *Driver `json:",omitempty"`
-}
-
-// AcceptancePolicy represents the list of policies.
-type AcceptancePolicy struct {
-	Policies []Policy `json:",omitempty"`
-}
-
-// Policy represents a role, autoaccept and secret.
-type Policy struct {
-	Role       NodeRole
-	Autoaccept bool
-	Secret     *string `json:",omitempty"`
+	Orchestration OrchestrationConfig `json:",omitempty"`
+	Raft          RaftConfig          `json:",omitempty"`
+	Dispatcher    DispatcherConfig    `json:",omitempty"`
+	CAConfig      CAConfig            `json:",omitempty"`
+	TaskDefaults  TaskDefaults        `json:",omitempty"`
 }
 
 // OrchestrationConfig represents orchestration configuration.
 type OrchestrationConfig struct {
 	TaskHistoryRetentionLimit int64 `json:",omitempty"`
+}
+
+// TaskDefaults parameterizes cluster-level task creation with default values.
+type TaskDefaults struct {
+	// LogDriver selects the log driver to use for tasks created in the
+	// orchestrator if unspecified by a service.
+	//
+	// Updating this value will only have an affect on new tasks. Old tasks
+	// will continue use their previously configured log driver until
+	// recreated.
+	LogDriver *Driver `json:",omitempty"`
 }
 
 // RaftConfig represents raft configuration.
@@ -81,17 +79,17 @@ type ExternalCA struct {
 // InitRequest is the request used to init a swarm.
 type InitRequest struct {
 	ListenAddr      string
+	AdvertiseAddr   string
 	ForceNewCluster bool
 	Spec            Spec
 }
 
 // JoinRequest is the request used to join a swarm.
 type JoinRequest struct {
-	ListenAddr  string
-	RemoteAddrs []string
-	Secret      string // accept by secret
-	CACertHash  string
-	Manager     bool
+	ListenAddr    string
+	AdvertiseAddr string
+	RemoteAddrs   []string
+	JoinToken     string // accept by secret
 }
 
 // LocalNodeState represents the state of the local node.
@@ -110,7 +108,8 @@ const (
 
 // Info represents generic information about swarm.
 type Info struct {
-	NodeID string
+	NodeID   string
+	NodeAddr string
 
 	LocalNodeState   LocalNodeState
 	ControlAvailable bool
@@ -119,11 +118,16 @@ type Info struct {
 	RemoteManagers []Peer
 	Nodes          int
 	Managers       int
-	CACertHash     string
 }
 
 // Peer represents a peer.
 type Peer struct {
 	NodeID string
 	Addr   string
+}
+
+// UpdateFlags contains flags for SwarmUpdate.
+type UpdateFlags struct {
+	RotateWorkerToken  bool
+	RotateManagerToken bool
 }
