@@ -31,29 +31,28 @@ node. For example, the tutorial uses a machine named `manager1`.
 
     ```bash
     $ docker swarm init --listen-addr 192.168.99.100:2377
-    No --secret provided. Generated random secret:
-      4ao565v9jsuogtq5t8s379ulb
-
-    Swarm initialized: current node (dxn1zf6l61qsb1josjja83ngz) is now a
-    manager.
+    Swarm initialized: current node (dxn1zf6l61qsb1josjja83ngz) is now a manager.
 
     To add a worker to this swarm, run the following command:
-      docker swarm join --secret 4ao565v9jsuogtq5t8s379ulb \
-      --ca-hash sha256:07ce22bd1a7619f2adc0d63bd110479a170e7c4e69df05b67a1aa2705c88ef09 \
-      192.168.99.100:2377
+        docker swarm join \
+        --token SWMTKN-1-49nj1cmql0jkz5s954yi3oex3nedyz0fb0xx14ie39trti4wxv-8vxv8rssmk743ojnwacrr2e7c \
+        192.168.99.100:2377
+
+    To add a manager to this swarm, run the following command:
+        docker swarm join \
+        --token SWMTKN-1-61ztec5kyafptydic6jfc1i33t37flcl4nuipzcusor96k7kby-5vy9t8u35tuqm7vh67lrz9xp6 \
+        192.168.99.100:2377
     ```
 
     The `--listen-addr` flag configures the manager node to listen on port
     `2377`. The other nodes in the swarm must be able to access the manager at
     the IP address.
 
-    The `--ca-hash` flag provides the identity of the root CA for the manager
-    node.
+    The output incudes the commands to join new nodes to the swarm. Nodes will
+    join as managers or workers depending on the value for the `--swarm-token`
+    flag.
 
-2. Save the output of `docker swarm init` that includes the command to join
-worker nodes to the swarm.
-
-3. Run `docker info` to view the current state of the swarm:
+2. Run `docker info` to view the current state of the swarm:
 
     ```bash
     $ docker info
@@ -68,17 +67,16 @@ worker nodes to the swarm.
       Is Manager: true
       Managers: 1
       Nodes: 1
-      CA Certificate Hash: sha256:b7986d3baeff2f5664dfe350eec32e2383539ec1a802ba541c4eb829056b5f61
       ...snip...
     ```
 
-4. Run the `docker node ls` command to view information about nodes:
+3. Run the `docker node ls` command to view information about nodes:
 
     ```bash
     $ docker node ls
 
-    ID                           HOSTNAME  MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
-    dxn1zf6l61qsb1josjja83ngz *  manager1  Accepted    Ready   Active        Reachable       Yes
+    ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+    dxn1zf6l61qsb1josjja83ngz *  manager1  Ready   Active        Leader
 
     ```
 
