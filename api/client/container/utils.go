@@ -7,7 +7,7 @@ import (
 	clientapi "github.com/docker/engine-api/client"
 )
 
-// getExitCode perform an inspect on the container. It returns
+// getExitCode performs an inspect on the container. It returns
 // the running state and the exit code.
 func getExitCode(dockerCli *client.DockerCli, ctx context.Context, containerID string) (bool, int, error) {
 	c, err := dockerCli.Client().ContainerInspect(ctx, containerID)

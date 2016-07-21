@@ -128,7 +128,7 @@ func (t *testRegistryV2) Close() {
 }
 
 func (t *testRegistryV2) getBlobFilename(blobDigest digest.Digest) string {
-	// Split the digest into it's algorithm and hex components.
+	// Split the digest into its algorithm and hex components.
 	dgstAlg, dgstHex := blobDigest.Algorithm(), blobDigest.Hex()
 
 	// The path to the target blob data looks something like:
