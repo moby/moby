@@ -17,9 +17,9 @@ Usage:  docker swarm join [OPTIONS] HOST:PORT
 Join a swarm as a node and/or manager
 
 Options:
-      --advertise-addr value   Advertised address (format: <ip|hostname|interface>[:port])
+      --advertise-addr value   Advertised address (format: <ip|interface>[:port])
       --help                   Print usage
-      --listen-addr value      Listen address
+      --listen-addr value      Listen address (format: <ip|interface>[:port)
       --token string           Token for entry into the swarm
 ```
 
@@ -64,7 +64,7 @@ If the node is a manager, it will listen for inbound Swarm manager traffic on th
 address. The default is to listen on 0.0.0.0:2377. It is also possible to specify a
 network interface to listen on that interface's address; for example `--listen-addr eth0:2377`.
 
-Specifying a port is optional. If the value is a bare IP address, hostname, or interface
+Specifying a port is optional. If the value is a bare IP address, or interface
 name, the default port 2377 will be used.
 
 This flag is generally not necessary when joining an existing swarm.
@@ -81,7 +81,7 @@ communication and overlay networking.
 It is also possible to specify a network interface to advertise that interface's address;
 for example `--advertise-addr eth0:2377`.
 
-Specifying a port is optional. If the value is a bare IP address, hostname, or interface
+Specifying a port is optional. If the value is a bare IP address, or interface
 name, the default port 2377 will be used.
 
 This flag is generally not necessary when joining an existing swarm.
