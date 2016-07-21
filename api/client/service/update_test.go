@@ -86,8 +86,8 @@ func TestUpdateEnvironmentWithDuplicateValues(t *testing.T) {
 
 func TestUpdateMounts(t *testing.T) {
 	flags := newUpdateCommand(nil).Flags()
-	flags.Set("mount-add", "type=volume,target=/toadd")
-	flags.Set("mount-rm", "/toremove")
+	assert.NilError(t, flags.Set("mount-add", "volume,name=foo,target=/toadd"))
+	assert.NilError(t, flags.Set("mount-rm", "/toremove"))
 
 	mounts := []swarm.Mount{
 		{Target: "/toremove", Type: swarm.MountType("BIND")},

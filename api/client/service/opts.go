@@ -148,84 +148,39 @@ func (m *MountOpt) Set(value string) error {
 
 	mount := swarm.Mount{}
 
-	volumeOptions := func() *swarm.VolumeOptions {
-		if mount.VolumeOptions == nil {
-			mount.VolumeOptions = &swarm.VolumeOptions{
-				Labels: make(map[string]string),
-			}
-		}
-		if mount.VolumeOptions.DriverConfig == nil {
-			mount.VolumeOptions.DriverConfig = &swarm.Driver{}
-		}
-		return mount.VolumeOptions
-	}
-
-	bindOptions := func() *swarm.BindOptions {
-		if mount.BindOptions == nil {
-			mount.BindOptions = new(swarm.BindOptions)
-		}
-		return mount.BindOptions
-	}
-
-	setValueOnMap := func(target map[string]string, value string) {
-		parts := strings.SplitN(value, "=", 2)
-		if len(parts) == 1 {
-			target[value] = ""
-		} else {
-			target[parts[0]] = parts[1]
-		}
-	}
-
-	// Set writable as the default
+	mount.Type, fields = getMountType(fields)
 	for _, field := range fields {
 		parts := strings.SplitN(field, "=", 2)
-		if len(parts) == 1 && strings.ToLower(parts[0]) == "readonly" {
-			mount.ReadOnly = true
-			continue
-		}
 
-		if len(parts) == 1 && strings.ToLower(parts[0]) == "volume-nocopy" {
-			volumeOptions().NoCopy = true
+		if len(parts) == 1 {
+			if err := m.setKeylessValue(&mount, field); err != nil {
+				return err
+			}
 			continue
-		}
-
-		if len(parts) != 2 {
-			return fmt.Errorf("invalid field '%s' must be a key=value pair", field)
 		}
 
 		key, value := parts[0], parts[1]
-		switch strings.ToLower(key) {
-		case "type":
-			mount.Type = swarm.MountType(strings.ToUpper(value))
-		case "source":
-			mount.Source = value
-		case "target":
-			mount.Target = value
-		case "readonly":
-			ro, err := strconv.ParseBool(value)
-			if err != nil {
-				return fmt.Errorf("invalid value for readonly: %s", value)
-			}
-			mount.ReadOnly = ro
-		case "bind-propagation":
-			bindOptions().Propagation = swarm.MountPropagation(strings.ToUpper(value))
-		case "volume-nocopy":
-			volumeOptions().NoCopy, err = strconv.ParseBool(value)
-			if err != nil {
-				return fmt.Errorf("invalid value for populate: %s", value)
-			}
-		case "volume-label":
-			setValueOnMap(volumeOptions().Labels, value)
-		case "volume-driver":
-			volumeOptions().DriverConfig.Name = value
-		case "volume-driver-opt":
-			if volumeOptions().DriverConfig.Options == nil {
-				volumeOptions().DriverConfig.Options = make(map[string]string)
-			}
-			setValueOnMap(volumeOptions().DriverConfig.Options, value)
-		default:
-			return fmt.Errorf("unexpected key '%s' in '%s'", key, field)
+		ok, err := m.setFieldValue(&mount, key, value)
+		if err != nil {
+			return err
 		}
+		if ok {
+			continue
+		}
+
+		switch mount.Type {
+		case swarm.MountType("BIND"):
+			ok, err = m.setBindValue(&mount, key, value)
+		case swarm.MountType("VOLUME"):
+			ok, err = m.setVolumeValue(&mount, key, value)
+		}
+		if err != nil {
+			return err
+		}
+		if ok {
+			continue
+		}
+		return fmt.Errorf("unexpected key '%s' in '%s'", key, field)
 	}
 
 	if mount.Type == "" {
@@ -237,18 +192,107 @@ func (m *MountOpt) Set(value string) error {
 	}
 
 	if mount.VolumeOptions != nil && mount.Source == "" {
-		return fmt.Errorf("source is required when specifying volume-* options")
-	}
-
-	if mount.Type == swarm.MountType("BIND") && mount.VolumeOptions != nil {
-		return fmt.Errorf("cannot mix 'volume-*' options with mount type '%s'", swarm.MountTypeBind)
-	}
-	if mount.Type == swarm.MountType("VOLUME") && mount.BindOptions != nil {
-		return fmt.Errorf("cannot mix 'bind-*' options with mount type '%s'", swarm.MountTypeVolume)
+		return fmt.Errorf("name is required when specifying volume-* options")
 	}
 
 	m.values = append(m.values, mount)
 	return nil
+}
+
+func (m *MountOpt) setKeylessValue(mount *swarm.Mount, field string) error {
+	switch strings.ToLower(field) {
+	case "readonly":
+		mount.ReadOnly = true
+	case "volume-nocopy":
+		defaultVolumeOptions(mount).NoCopy = true
+	case "bind", "volume":
+		return fmt.Errorf("mount type %q must be the first field", field)
+	default:
+		return fmt.Errorf("invalid field %q must be a key=value pair", field)
+	}
+	return nil
+}
+
+func defaultVolumeOptions(mount *swarm.Mount) *swarm.VolumeOptions {
+	if mount.VolumeOptions == nil {
+		mount.VolumeOptions = &swarm.VolumeOptions{
+			Labels: make(map[string]string),
+		}
+	}
+	if mount.VolumeOptions.DriverConfig == nil {
+		mount.VolumeOptions.DriverConfig = &swarm.Driver{}
+	}
+	return mount.VolumeOptions
+}
+
+func (m *MountOpt) setFieldValue(mount *swarm.Mount, key, value string) (bool, error) {
+	switch strings.ToLower(key) {
+	case "target", "dst", "path":
+		mount.Target = value
+	case "readonly":
+		var err error
+		mount.ReadOnly, err = strconv.ParseBool(value)
+		if err != nil {
+			return false, fmt.Errorf("invalid value for readonly: %s", value)
+		}
+	default:
+		return false, nil
+	}
+	return true, nil
+}
+
+func (m *MountOpt) setBindValue(mount *swarm.Mount, key, value string) (bool, error) {
+	bindOptions := func() *swarm.BindOptions {
+		if mount.BindOptions == nil {
+			mount.BindOptions = new(swarm.BindOptions)
+		}
+		return mount.BindOptions
+	}
+
+	switch strings.ToLower(key) {
+	case "source", "src":
+		mount.Source = value
+	case "propagation":
+		bindOptions().Propagation = swarm.MountPropagation(strings.ToUpper(value))
+	default:
+		return false, nil
+	}
+	return true, nil
+}
+
+func (m *MountOpt) setVolumeValue(mount *swarm.Mount, key, value string) (bool, error) {
+	setValueOnMap := func(target map[string]string, value string) {
+		parts := strings.SplitN(value, "=", 2)
+		if len(parts) == 1 {
+			target[value] = ""
+		} else {
+			target[parts[0]] = parts[1]
+		}
+	}
+
+	var err error
+	switch strings.ToLower(key) {
+	case "name":
+		mount.Source = value
+	case "volume-label":
+		setValueOnMap(defaultVolumeOptions(mount).Labels, value)
+	case "volume-driver":
+		defaultVolumeOptions(mount).DriverConfig.Name = value
+	case "volume-opt":
+		if defaultVolumeOptions(mount).DriverConfig.Options == nil {
+			defaultVolumeOptions(mount).DriverConfig.Options = make(map[string]string)
+		}
+		setValueOnMap(defaultVolumeOptions(mount).DriverConfig.Options, value)
+	case "volume-nocopy":
+		defaultVolumeOptions(mount).NoCopy, err = strconv.ParseBool(value)
+		if err != nil {
+			return false, fmt.Errorf("invalid value for populate: %s", value)
+		}
+	default:
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // Type returns the type of this option
@@ -269,6 +313,21 @@ func (m *MountOpt) String() string {
 // Value returns the mounts
 func (m *MountOpt) Value() []swarm.Mount {
 	return m.values
+}
+
+func getMountType(fields []string) (swarm.MountType, []string) {
+	if len(fields) == 0 {
+		return swarm.MountType("VOLUME"), fields
+	}
+
+	switch strings.ToLower(fields[0]) {
+	case "bind":
+		return swarm.MountType("BIND"), fields[1:]
+	case "volume":
+		return swarm.MountType("VOLUME"), fields[1:]
+	default:
+		return swarm.MountType("VOLUME"), fields
+	}
 }
 
 type updateOptions struct {

@@ -14,7 +14,7 @@ import (
 
 func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *check.C) {
 	d := s.AddDaemon(c, true, true)
-	out, err := d.Cmd("service", "create", "--mount", "type=volume,source=foo,target=/foo", "busybox", "top")
+	out, err := d.Cmd("service", "create", "--mount", "volume,name=foo,target=/foo", "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	id := strings.TrimSpace(out)
 
