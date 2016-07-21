@@ -37,7 +37,8 @@ default.
 
 The current version of the API is v1.24 which means calling `/info` is the same
 as calling `/v1.24/info`. To call an older version of the API use
-`/v1.23/info`.
+`/v1.23/info`. If a newer daemon is installed, new properties may be returned
+even when calling older versions of the API.
 
 Use the table below to find the API version for a Docker version:
 
