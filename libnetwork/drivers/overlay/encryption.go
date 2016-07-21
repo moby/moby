@@ -19,8 +19,9 @@ import (
 )
 
 const (
-	mark    = uint32(0xD0C4E3)
-	timeout = 30
+	mark         = uint32(0xD0C4E3)
+	timeout      = 30
+	pktExpansion = 26 // SPI(4) + SeqN(4) + IV(8) + PadLength(1) + NextHeader(1) + ICV(8)
 )
 
 const (
@@ -569,4 +570,15 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 	log.Debugf("Updated: %v", spis)
 
 	return spis
+}
+
+func (n *network) maxMTU() int {
+	mtu := vxlanVethMTU
+	if n.secure {
+		// In case of encryption account for the
+		// esp packet espansion and padding
+		mtu -= pktExpansion
+		mtu -= (mtu % 4)
+	}
+	return mtu
 }
