@@ -3618,11 +3618,6 @@ JSON Parameters:
   the networking interface used for the VXLAN Tunnel Endpoint (VTEP).
 - **ForceNewCluster** – Force creating a new Swarm even if already part of one.
 - **Spec** – Configuration settings of the new Swarm.
-    - **Policies** – An array of acceptance policies.
-        - **Role** – The role that policy applies to (`MANAGER` or `WORKER`)
-        - **Autoaccept** – A boolean indicating whether nodes joining for that role should be
-          automatically accepted in the Swarm.
-        - **Secret** – An optional secret to provide for nodes to join the Swarm.
     - **Orchestration** – Configuration settings for the orchestration aspects of the Swarm.
         - **TaskHistoryRetentionLimit** – Maximum number of tasks history stored.
     - **Raft** – Raft related configuration.
