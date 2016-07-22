@@ -86,8 +86,7 @@ take a manager node offline for maintenance. See [node promote](../../reference/
 You can also demote a manager node to a worker node. See
 [node demote](../../reference/commandline/node_demote.md).
 
-<!-- TODO For when How services work guide is ready
+
 ## What's Next
 
 * Read about how swarm mode [services](services.md) work.
--->
