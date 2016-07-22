@@ -52,8 +52,6 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	//libnetwork.SetTestDataStore(controller, datastore.NewCustomDataStore(datastore.NewMockStore()))
-
 	x := m.Run()
 	controller.Stop()
 	os.Exit(x)
