@@ -776,9 +776,7 @@ func (ep *endpoint) Delete(force bool) error {
 	}()
 
 	// unwatch for service records
-	if !n.getController().isAgent() {
-		n.getController().unWatchSvcRecord(ep)
-	}
+	n.getController().unWatchSvcRecord(ep)
 
 	if err = ep.deleteEndpoint(force); err != nil && !force {
 		return err
