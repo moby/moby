@@ -426,9 +426,8 @@ func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
 		layers = append(layers, l.String())
 	}
 	return types.RootFS{
-		Type:      rootfs.Type,
-		Layers:    layers,
-		BaseLayer: rootfs.BaseLayer,
+		Type:   rootfs.Type,
+		Layers: layers,
 	}
 }
 
