@@ -267,6 +267,14 @@ message ListClustersResponse {
 	repeated Cluster clusters = 1;
 }
 
+message JoinTokenRotation {
+	// RotateWorkerToken tells UpdateCluster to rotate the worker secret.
+	bool rotate_worker_token = 1;
+
+	// RotateManagerSecret tells UpdateCluster to rotate the manager secret.
+	bool rotate_manager_token = 2;
+}
+
 message UpdateClusterRequest {
 	// ClusterID is the cluster ID to update.
 	string cluster_id = 1 [(gogoproto.customname) = "ClusterID"];
@@ -276,6 +284,9 @@ message UpdateClusterRequest {
 
 	// Spec is the new spec to apply to the cluster.
 	ClusterSpec spec = 3;
+
+	// Rotation contains flags for join token rotation
+	JoinTokenRotation rotation = 4 [(gogoproto.nullable) = false];
 }
 
 message UpdateClusterResponse {

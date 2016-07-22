@@ -93,7 +93,7 @@ func (tm *taskManager) run(ctx context.Context) {
 		case <-run:
 			// always check for shutdown before running.
 			select {
-			case <-shutdown:
+			case <-tm.shutdown:
 				continue // ignore run request and handle shutdown
 			case <-tm.closed:
 				continue
@@ -141,6 +141,13 @@ func (tm *taskManager) run(ctx context.Context) {
 			// This branch is always executed when an operations completes. The
 			// goal is to decide whether or not we re-dispatch the operation.
 			cancel = nil
+
+			select {
+			case <-tm.shutdown:
+				shutdown = tm.shutdown // re-enable the shutdown branch
+				continue               // no dispatch if we are in shutdown.
+			default:
+			}
 
 			switch err {
 			case exec.ErrTaskNoop:
@@ -203,6 +210,12 @@ func (tm *taskManager) run(ctx context.Context) {
 			if cancel != nil {
 				// cancel outstanding operation.
 				cancel()
+
+				// subtle: after a cancellation, we want to avoid busy wait
+				// here. this gets renabled in the errs branch and we'll come
+				// back around and try shutdown again.
+				shutdown = nil // turn off this branch until op proceeds
+				continue       // wait until operation actually exits.
 			}
 
 			// TODO(stevvooe): This should be left for the repear.

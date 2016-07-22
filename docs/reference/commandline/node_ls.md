@@ -30,10 +30,10 @@ Lists all the nodes that the Docker Swarm manager knows about. You can filter us
 Example output:
 
     $ docker node ls
-    ID                           HOSTNAME        MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
-    1bcef6utixb0l0ca7gxuivsj0    swarm-worker2   Accepted    Ready   Active
-    38ciaotwjuritcdtn9npbnkuz    swarm-worker1   Accepted    Ready   Active
-    e216jshn25ckzbvmwlnh5jr3g *  swarm-manager1  Accepted    Ready   Active        Reachable       Yes
+    ID                           HOSTNAME        STATUS  AVAILABILITY  MANAGER STATUS
+    1bcef6utixb0l0ca7gxuivsj0    swarm-worker2   Ready   Active
+    38ciaotwjuritcdtn9npbnkuz    swarm-worker1   Ready   Active
+    e216jshn25ckzbvmwlnh5jr3g *  swarm-manager1  Ready   Active        Leader
 
 
 ## Filtering
@@ -54,16 +54,16 @@ The `name` filter matches on all or part of a node name.
 The following filter matches the node with a name equal to `swarm-master` string.
 
     $ docker node ls -f name=swarm-manager1
-    ID                           HOSTNAME        MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
-    e216jshn25ckzbvmwlnh5jr3g *  swarm-manager1  Accepted    Ready   Active        Reachable       Yes
+    ID                           HOSTNAME        STATUS  AVAILABILITY  MANAGER STATUS
+    e216jshn25ckzbvmwlnh5jr3g *  swarm-manager1  Ready   Active        Leader
 
 ### id
 
 The `id` filter matches all or part of a node's id.
 
     $ docker node ls -f id=1
-    ID                         HOSTNAME       MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
-    1bcef6utixb0l0ca7gxuivsj0  swarm-worker2  Accepted    Ready   Active
+    ID                         HOSTNAME       STATUS  AVAILABILITY  MANAGER STATUS
+    1bcef6utixb0l0ca7gxuivsj0  swarm-worker2  Ready   Active
 
 
 #### label
@@ -75,8 +75,8 @@ The following filter matches nodes with the `usage` label regardless of its valu
 
 ```bash
 $ docker node ls -f "label=foo"
-ID                         HOSTNAME       MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
-1bcef6utixb0l0ca7gxuivsj0  swarm-worker2  Accepted    Ready   Active
+ID                         HOSTNAME       STATUS  AVAILABILITY  MANAGER STATUS
+1bcef6utixb0l0ca7gxuivsj0  swarm-worker2  Ready   Active
 ```
 
 

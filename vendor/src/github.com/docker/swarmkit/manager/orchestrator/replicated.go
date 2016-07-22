@@ -111,7 +111,7 @@ func newTask(cluster *api.Cluster, service *api.Service, instance uint64) *api.T
 		logDriver = service.Spec.Task.LogDriver
 	} else if cluster != nil {
 		// pick up the cluster default, if available.
-		logDriver = cluster.Spec.DefaultLogDriver // nil is okay here.
+		logDriver = cluster.Spec.TaskDefaults.LogDriver // nil is okay here.
 	}
 
 	// NOTE(stevvooe): For now, we don't override the container naming and

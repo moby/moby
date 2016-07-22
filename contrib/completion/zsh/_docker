@@ -1087,7 +1087,7 @@ __docker_service_subcommand() {
         "($help)--name=[Service name]:name: "
         "($help)*--network=[Network attachments]:network: "
         "($help)*"{-p=,--publish=}"[Publish a port as a node port]:port: "
-        "($help)--registry-auth[Send registry authentication details to Swarm agents]"
+        "($help)--registry-auth[Send registry authentication details to swarm agents]"
         "($help)--replicas=[Number of tasks]:replicas: "
         "($help)--reserve-cpu=[Reserve CPUs]:value: "
         "($help)--reserve-memory=[Reserve Memory]:value: "
@@ -1185,11 +1185,11 @@ __docker_service_subcommand() {
 __docker_swarm_commands() {
     local -a _docker_swarm_subcommands
     _docker_swarm_subcommands=(
-        "init:Initialize a Swarm"
-        "inspect:Inspect the Swarm"
-        "join:Join a Swarm as a node and/or manager"
-        "leave:Leave a Swarm"
-        "update:Update the Swarm"
+        "init:Initialize a swarm"
+        "inspect:Inspect the swarm"
+        "join:Join a swarm as a node and/or manager"
+        "leave:Leave a swarm"
+        "update:Update the swarm"
     )
     _describe -t docker-swarm-commands "docker swarm command" _docker_swarm_subcommands
 }

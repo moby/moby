@@ -3351,7 +3351,6 @@ List nodes
         "UpdatedAt": "2016-06-07T20:31:11.999868824Z",
         "Spec": {
           "Role": "MANAGER",
-          "Membership": "ACCEPTED",
           "Availability": "ACTIVE"
         },
         "Description": {
@@ -3481,7 +3480,6 @@ Return low-level information on the node `id`
       "UpdatedAt": "2016-06-07T20:31:11.999868824Z",
       "Spec": {
         "Role": "MANAGER",
-        "Membership": "ACCEPTED",
         "Availability": "ACTIVE"
       },
       "Description": {
@@ -3595,18 +3593,6 @@ Initialize a new Swarm
       "ListenAddr": "0.0.0.0:4500",
       "ForceNewCluster": false,
       "Spec": {
-        "AcceptancePolicy": {
-          "Policies": [
-            {
-              "Role": "MANAGER",
-              "Autoaccept": false
-            },
-            {
-              "Role": "WORKER",
-              "Autoaccept": true
-            }
-          ]
-        },
         "Orchestration": {},
         "Raft": {},
         "Dispatcher": {},
@@ -3676,9 +3662,7 @@ Join an existing new Swarm
     {
       "ListenAddr": "0.0.0.0:4500",
       "RemoteAddrs": ["node1:4500"],
-      "Secret": "",
-      "CACertHash": "",
-      "Manager": false
+      "JoinToken": "SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-7p73s1dx5in4tatdymyhg9hu2"
     }
 
 **Example response**:
@@ -3698,9 +3682,7 @@ JSON Parameters:
 - **ListenAddr** – Listen address used for inter-manager communication if the node gets promoted to
   manager, as well as determining the networking interface used for the VXLAN Tunnel Endpoint (VTEP).
 - **RemoteAddr** – Address of any manager node already participating in the Swarm to join.
-- **Secret** – Secret token for joining this Swarm.
-- **CACertHash** – Optional hash of the root CA to avoid relying on trust on first use.
-- **Manager** – Directly join as a manager (only for a Swarm configured to autoaccept managers).
+- **JoinToken** – Secret token for joining this Swarm.
 
 ### Leave a Swarm
 
@@ -3741,18 +3723,6 @@ Update a Swarm
 
     {
       "Name": "default",
-      "AcceptancePolicy": {
-        "Policies": [
-          {
-            "Role": "WORKER",
-            "Autoaccept": false
-          },
-          {
-            "Role": "MANAGER",
-            "Autoaccept": false
-          }
-        ]
-      },
       "Orchestration": {
         "TaskHistoryRetentionLimit": 10
       },
@@ -3767,6 +3737,10 @@ Update a Swarm
       },
       "CAConfig": {
         "NodeCertExpiry": 7776000000000000
+      },
+      "JoinTokens": {
+        "Worker": "SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-1awxwuwd3z9j1z3puu7rcgdbx",
+        "Manager": "SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-7p73s1dx5in4tatdymyhg9hu2"
       }
     }
 
@@ -3777,6 +3751,13 @@ Update a Swarm
     Content-Length: 0
     Content-Type: text/plain; charset=utf-8
 
+**Query parameters**:
+
+- **version** – The version number of the swarm object being updated. This is
+  required to avoid conflicting writes.
+- **rotate_worker_token** - Set to `true` to rotate the worker join token.
+- **rotate_manager_token** - Set to `true` to rotate the manager join token.
+
 **Status codes**:
 
 - **200** – no error
@@ -3785,11 +3766,6 @@ Update a Swarm
 
 JSON Parameters:
 
-- **Policies** – An array of acceptance policies.
-    - **Role** – The role that policy applies to (`MANAGER` or `WORKER`)
-    - **Autoaccept** – A boolean indicating whether nodes joining for that role should be
-      automatically accepted in the Swarm.
-    - **Secret** – An optional secret to provide for nodes to join the Swarm.
 - **Orchestration** – Configuration settings for the orchestration aspects of the Swarm.
     - **TaskHistoryRetentionLimit** – Maximum number of tasks history stored.
 - **Raft** – Raft related configuration.
@@ -3811,6 +3787,9 @@ JSON Parameters:
         - **URL** - URL where certificate signing requests should be sent.
         - **Options** - An object with key/value pairs that are interpreted
           as protocol-specific options for the external CA driver.
+- **JoinTokens** - Tokens that can be used by other nodes to join the Swarm.
+    - **Worker** - Token to use for joining as a worker.
+    - **Manager** - Token to use for joining as a manager.
 
 ## 3.8 Services
 
@@ -4292,6 +4271,10 @@ Update the service `id`.
           of: `"Ports": { "<port>/<tcp|udp>: {}" }`
     - **VirtualIPs**
 
+**Query parameters**:
+
+- **version** – The version number of the service object being updated. This is
+  required to avoid conflicting writes.
 
 **Status codes**:
 

@@ -66,7 +66,15 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 		return fmt.Errorf("Invalid swarm version '%s': %s", rawVersion, err.Error())
 	}
 
-	if err := sr.backend.Update(version, swarm); err != nil {
+	var flags types.UpdateFlags
+	if r.URL.Query().Get("rotate_worker_token") == "true" {
+		flags.RotateWorkerToken = true
+	}
+	if r.URL.Query().Get("rotate_manager_token") == "true" {
+		flags.RotateManagerToken = true
+	}
+
+	if err := sr.backend.Update(version, swarm, flags); err != nil {
 		logrus.Errorf("Error configuring swarm: %v", err)
 		return err
 	}

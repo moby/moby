@@ -28,5 +28,4 @@ $ docker node promote <node name>
 
 ## Related information
 
-* [node accept](node_accept.md)
 * [node demote](node_demote.md)
