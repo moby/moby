@@ -53,9 +53,16 @@ func ServiceFromGRPC(s swarmapi.Service) types.Service {
 		}
 
 		service.Spec.UpdateConfig.Delay, _ = ptypes.Duration(&s.Spec.Update.Delay)
+
+		switch s.Spec.Update.FailureAction {
+		case swarmapi.UpdateConfig_PAUSE:
+			service.Spec.UpdateConfig.FailureAction = types.UpdateFailureActionPause
+		case swarmapi.UpdateConfig_CONTINUE:
+			service.Spec.UpdateConfig.FailureAction = types.UpdateFailureActionContinue
+		}
 	}
 
-	//Mode
+	// Mode
 	switch t := s.Spec.GetMode().(type) {
 	case *swarmapi.ServiceSpec_Global:
 		service.Spec.Mode.Global = &types.GlobalService{}
@@ -63,6 +70,23 @@ func ServiceFromGRPC(s swarmapi.Service) types.Service {
 		service.Spec.Mode.Replicated = &types.ReplicatedService{
 			Replicas: &t.Replicated.Replicas,
 		}
+	}
+
+	// UpdateStatus
+	service.UpdateStatus = types.UpdateStatus{}
+	if s.UpdateStatus != nil {
+		switch s.UpdateStatus.State {
+		case swarmapi.UpdateStatus_UPDATING:
+			service.UpdateStatus.State = types.UpdateStateUpdating
+		case swarmapi.UpdateStatus_PAUSED:
+			service.UpdateStatus.State = types.UpdateStatePaused
+		case swarmapi.UpdateStatus_COMPLETED:
+			service.UpdateStatus.State = types.UpdateStateCompleted
+		}
+
+		service.UpdateStatus.StartedAt, _ = ptypes.Timestamp(s.UpdateStatus.StartedAt)
+		service.UpdateStatus.CompletedAt, _ = ptypes.Timestamp(s.UpdateStatus.CompletedAt)
+		service.UpdateStatus.Message = s.UpdateStatus.Message
 	}
 
 	return service
@@ -111,9 +135,19 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 	}
 
 	if s.UpdateConfig != nil {
+		var failureAction swarmapi.UpdateConfig_FailureAction
+		switch s.UpdateConfig.FailureAction {
+		case types.UpdateFailureActionPause, "":
+			failureAction = swarmapi.UpdateConfig_PAUSE
+		case types.UpdateFailureActionContinue:
+			failureAction = swarmapi.UpdateConfig_CONTINUE
+		default:
+			return swarmapi.ServiceSpec{}, fmt.Errorf("unrecongized update failure action %s", s.UpdateConfig.FailureAction)
+		}
 		spec.Update = &swarmapi.UpdateConfig{
-			Parallelism: s.UpdateConfig.Parallelism,
-			Delay:       *ptypes.DurationProto(s.UpdateConfig.Delay),
+			Parallelism:   s.UpdateConfig.Parallelism,
+			Delay:         *ptypes.DurationProto(s.UpdateConfig.Delay),
+			FailureAction: failureAction,
 		}
 	}
 

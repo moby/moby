@@ -1726,6 +1726,7 @@ _docker_service_update() {
 		--restart-window
 		--stop-grace-period
 		--update-delay
+		--update-failure-action
 		--update-parallelism
 		--user -u
 		--workdir -w
