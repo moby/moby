@@ -177,11 +177,12 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container) ([]lib
 	// Legacy Link feature is supported only for the default bridge network.
 	// return if this call to build join options is not for default bridge network
 	// Legacy Link is only supported by docker run --link
-	if _, ok := container.NetworkSettings.Networks[defaultNetName]; !container.HostConfig.NetworkMode.IsDefault() || !ok {
+	bridgeSettings, ok := container.NetworkSettings.Networks[defaultNetName]
+	if !ok {
 		return sboxOptions, nil
 	}
 
-	if container.NetworkSettings.Networks[defaultNetName].EndpointID == "" {
+	if bridgeSettings.EndpointID == "" {
 		return sboxOptions, nil
 	}
 
@@ -209,7 +210,6 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container) ([]lib
 		}
 	}
 
-	bridgeSettings := container.NetworkSettings.Networks[defaultNetName]
 	for alias, parent := range daemon.parents(container) {
 		if daemon.configStore.DisableBridge || !container.HostConfig.NetworkMode.IsPrivate() {
 			continue
