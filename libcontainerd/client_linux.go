@@ -343,7 +343,7 @@ func (clnt *client) newContainer(dir string, options ...CreateOption) *container
 	}
 	for _, option := range options {
 		if err := option.Apply(container); err != nil {
-			logrus.Error(err)
+			logrus.Errorf("libcontainerd: newContainer(): %v", err)
 		}
 	}
 	return container
@@ -391,7 +391,7 @@ func (clnt *client) restore(cont *containerd.Container, lastEvent *containerd.Ev
 	clnt.lock(cont.Id)
 	defer clnt.unlock(cont.Id)
 
-	logrus.Debugf("restore container %s state %s", cont.Id, cont.Status)
+	logrus.Debugf("libcontainerd: restore container %s state %s", cont.Id, cont.Status)
 
 	containerID := cont.Id
 	if _, err := clnt.getContainer(containerID); err == nil {
@@ -445,7 +445,7 @@ func (clnt *client) restore(cont *containerd.Container, lastEvent *containerd.Ev
 				}})
 		}
 
-		logrus.Warnf("unexpected backlog event: %#v", lastEvent)
+		logrus.Warnf("libcontainerd: unexpected backlog event: %#v", lastEvent)
 	}
 
 	return nil
@@ -526,7 +526,7 @@ func (clnt *client) Restore(containerID string, options ...CreateOption) error {
 	// container is still alive
 	if clnt.liveRestore {
 		if err := clnt.restore(cont, ev, options...); err != nil {
-			logrus.Errorf("error restoring %s: %v", containerID, err)
+			logrus.Errorf("libcontainerd: error restoring %s: %v", containerID, err)
 		}
 		return nil
 	}
@@ -542,12 +542,12 @@ func (clnt *client) Restore(containerID string, options ...CreateOption) error {
 	container.discardFifos()
 
 	if err := clnt.Signal(containerID, int(syscall.SIGTERM)); err != nil {
-		logrus.Errorf("error sending sigterm to %v: %v", containerID, err)
+		logrus.Errorf("libcontainerd: error sending sigterm to %v: %v", containerID, err)
 	}
 	select {
 	case <-time.After(10 * time.Second):
 		if err := clnt.Signal(containerID, int(syscall.SIGKILL)); err != nil {
-			logrus.Errorf("error sending sigkill to %v: %v", containerID, err)
+			logrus.Errorf("libcontainerd: error sending sigkill to %v: %v", containerID, err)
 		}
 		select {
 		case <-time.After(2 * time.Second):
