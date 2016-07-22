@@ -522,6 +522,8 @@ func (c *controller) Config() config.Config {
 }
 
 func (c *controller) isManager() bool {
+	c.Lock()
+	defer c.Unlock()
 	if c.cfg == nil || c.cfg.Daemon.ClusterProvider == nil {
 		return false
 	}
@@ -529,6 +531,8 @@ func (c *controller) isManager() bool {
 }
 
 func (c *controller) isAgent() bool {
+	c.Lock()
+	defer c.Unlock()
 	if c.cfg == nil || c.cfg.Daemon.ClusterProvider == nil {
 		return false
 	}
