@@ -987,8 +987,8 @@ func (s *DockerDaemonSuite) TestDaemonICCPing(c *check.C) {
 
 	// But, Pinging external or a Host interface must succeed
 	pingCmd := fmt.Sprintf("ping -c 1 %s -W 1", ip.String())
-	runArgs := []string{"--rm", "busybox", "sh", "-c", pingCmd}
-	_, err = d.Cmd("run", runArgs...)
+	runArgs := []string{"run", "--rm", "busybox", "sh", "-c", pingCmd}
+	_, err = d.Cmd(runArgs...)
 	c.Assert(err, check.IsNil)
 }
 
@@ -1433,8 +1433,14 @@ func (s *DockerDaemonSuite) TestHttpsInfo(c *check.C) {
 		c.Fatalf("Could not start daemon with busybox: %v", err)
 	}
 
-	daemonArgs := []string{"--host", testDaemonHTTPSAddr, "--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/client-cert.pem", "--tlskey", "fixtures/https/client-key.pem"}
-	out, err := s.d.CmdWithArgs(daemonArgs, "info")
+	args := []string{
+		"--host", testDaemonHTTPSAddr,
+		"--tlsverify", "--tlscacert", "fixtures/https/ca.pem",
+		"--tlscert", "fixtures/https/client-cert.pem",
+		"--tlskey", "fixtures/https/client-key.pem",
+		"info",
+	}
+	out, err := s.d.Cmd(args...)
 	if err != nil {
 		c.Fatalf("Error Occurred: %s and output: %s", err, out)
 	}
@@ -1452,8 +1458,14 @@ func (s *DockerDaemonSuite) TestHttpsRun(c *check.C) {
 		c.Fatalf("Could not start daemon with busybox: %v", err)
 	}
 
-	daemonArgs := []string{"--host", testDaemonHTTPSAddr, "--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/client-cert.pem", "--tlskey", "fixtures/https/client-key.pem"}
-	out, err := s.d.CmdWithArgs(daemonArgs, "run", "busybox", "echo", "TLS response")
+	args := []string{
+		"--host", testDaemonHTTPSAddr,
+		"--tlsverify", "--tlscacert", "fixtures/https/ca.pem",
+		"--tlscert", "fixtures/https/client-cert.pem",
+		"--tlskey", "fixtures/https/client-key.pem",
+		"run", "busybox", "echo", "TLS response",
+	}
+	out, err := s.d.Cmd(args...)
 	if err != nil {
 		c.Fatalf("Error Occurred: %s and output: %s", err, out)
 	}
@@ -1484,8 +1496,14 @@ func (s *DockerDaemonSuite) TestHttpsInfoRogueCert(c *check.C) {
 		c.Fatalf("Could not start daemon with busybox: %v", err)
 	}
 
-	daemonArgs := []string{"--host", testDaemonHTTPSAddr, "--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/client-rogue-cert.pem", "--tlskey", "fixtures/https/client-rogue-key.pem"}
-	out, err := s.d.CmdWithArgs(daemonArgs, "info")
+	args := []string{
+		"--host", testDaemonHTTPSAddr,
+		"--tlsverify", "--tlscacert", "fixtures/https/ca.pem",
+		"--tlscert", "fixtures/https/client-rogue-cert.pem",
+		"--tlskey", "fixtures/https/client-rogue-key.pem",
+		"info",
+	}
+	out, err := s.d.Cmd(args...)
 	if err == nil || !strings.Contains(out, errBadCertificate) {
 		c.Fatalf("Expected err: %s, got instead: %s and output: %s", errBadCertificate, err, out)
 	}
@@ -1503,8 +1521,14 @@ func (s *DockerDaemonSuite) TestHttpsInfoRogueServerCert(c *check.C) {
 		c.Fatalf("Could not start daemon with busybox: %v", err)
 	}
 
-	daemonArgs := []string{"--host", testDaemonRogueHTTPSAddr, "--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/client-rogue-cert.pem", "--tlskey", "fixtures/https/client-rogue-key.pem"}
-	out, err := s.d.CmdWithArgs(daemonArgs, "info")
+	args := []string{
+		"--host", testDaemonRogueHTTPSAddr,
+		"--tlsverify", "--tlscacert", "fixtures/https/ca.pem",
+		"--tlscert", "fixtures/https/client-rogue-cert.pem",
+		"--tlskey", "fixtures/https/client-rogue-key.pem",
+		"info",
+	}
+	out, err := s.d.Cmd(args...)
 	if err == nil || !strings.Contains(out, errCaUnknown) {
 		c.Fatalf("Expected err: %s, got instead: %s and output: %s", errCaUnknown, err, out)
 	}
@@ -1970,9 +1994,9 @@ func (s *DockerDaemonSuite) TestDaemonRestartContainerLinksRestart(c *check.C) {
 	parent2Args = append([]string{"run", "-d"}, parent2Args...)
 	parent2Args = append(parent2Args, []string{"--name=parent2", "--restart=always", "busybox", "top"}...)
 
-	_, err = d.Cmd(parent1Args[0], parent1Args[1:]...)
+	_, err = d.Cmd(parent1Args...)
 	c.Assert(err, check.IsNil)
-	_, err = d.Cmd(parent2Args[0], parent2Args[1:]...)
+	_, err = d.Cmd(parent2Args...)
 	c.Assert(err, check.IsNil)
 
 	err = d.Stop()

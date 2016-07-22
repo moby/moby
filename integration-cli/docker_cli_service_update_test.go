@@ -14,10 +14,10 @@ func (s *DockerSwarmSuite) TestServiceUpdatePort(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	serviceName := "TestServiceUpdatePort"
-	serviceArgs := append([]string{"create", "--name", serviceName, "-p", "8080:8081", defaultSleepImage}, defaultSleepCommand...)
+	serviceArgs := append([]string{"service", "create", "--name", serviceName, "-p", "8080:8081", defaultSleepImage}, defaultSleepCommand...)
 
 	// Create a service with a port mapping of 8080:8081.
-	out, err := d.Cmd("service", serviceArgs...)
+	out, err := d.Cmd(serviceArgs...)
 	c.Assert(err, checker.IsNil)
 	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 1)
 
