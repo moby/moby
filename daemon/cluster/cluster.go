@@ -625,7 +625,7 @@ func (c *Cluster) isActiveManager() bool {
 // Call with read lock.
 func (c *Cluster) errNoManager() error {
 	if c.node == nil {
-		return fmt.Errorf("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join --manager\" to connect this node to swarm and try again.")
+		return fmt.Errorf("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
 	}
 	if c.node.Manager() != nil {
 		return fmt.Errorf("This node is not a swarm manager. Manager is being prepared or has trouble connecting to the cluster.")
