@@ -141,7 +141,7 @@ func (r *remote) handleConnectionChange() {
 			break
 		}
 		state = s
-		logrus.Debugf("containerd connection state change: %v", s)
+		logrus.Debugf("libcontainerd: containerd connection state change: %v", s)
 
 		if r.daemonPid != -1 {
 			switch state {
@@ -155,7 +155,7 @@ func (r *remote) handleConnectionChange() {
 					}
 					<-r.daemonWaitCh
 					if err := r.runContainerdDaemon(); err != nil { //FIXME: Handle error
-						logrus.Errorf("error restarting containerd: %v", err)
+						logrus.Errorf("libcontainerd: error restarting containerd: %v", err)
 					}
 				} else {
 					state = grpc.Idle
@@ -290,12 +290,12 @@ func (r *remote) handleEventStream(events containerd.API_EventsClient) {
 				// ignore error if grpc remote connection is closed manually
 				return
 			}
-			logrus.Errorf("failed to receive event from containerd: %v", err)
+			logrus.Errorf("libcontainerd: failed to receive event from containerd: %v", err)
 			go r.startEventsMonitor()
 			return
 		}
 
-		logrus.Debugf("received containerd event: %#v", e)
+		logrus.Debugf("libcontainerd: received containerd event: %#v", e)
 
 		var container *container
 		var c *client
@@ -347,7 +347,7 @@ func (r *remote) runContainerdDaemon() error {
 			return err
 		}
 		if utils.IsProcessAlive(int(pid)) {
-			logrus.Infof("previous instance of containerd still alive (%d)", pid)
+			logrus.Infof("libcontainerd: previous instance of containerd still alive (%d)", pid)
 			r.daemonPid = int(pid)
 			return nil
 		}
@@ -385,7 +385,7 @@ func (r *remote) runContainerdDaemon() error {
 			args = append(args, "--runtime-args")
 			args = append(args, v)
 		}
-		logrus.Debugf("runContainerdDaemon: runtimeArgs: %s", args)
+		logrus.Debugf("libcontainerd: runContainerdDaemon: runtimeArgs: %s", args)
 	}
 
 	cmd := exec.Command(containerdBinary, args...)
@@ -403,7 +403,7 @@ func (r *remote) runContainerdDaemon() error {
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	logrus.Infof("New containerd process, pid: %d", cmd.Process.Pid)
+	logrus.Infof("libcontainerd: new containerd process, pid: %d", cmd.Process.Pid)
 	if err := setOOMScore(cmd.Process.Pid, r.oomScore); err != nil {
 		utils.KillProcess(cmd.Process.Pid)
 		return err
