@@ -1770,7 +1770,11 @@ func (s *DockerSuite) TestRunCleanupCmdOnEntrypoint(c *check.C) {
 	out = strings.TrimSpace(out)
 	expected := "root"
 	if daemonPlatform == "windows" {
-		expected = `user manager\containeradministrator`
+		if WindowsBaseImage == "windowsservercore" {
+			expected = `user manager\containeradministrator`
+		} else {
+			expected = `ContainerAdministrator` // nanoserver
+		}
 	}
 	if out != expected {
 		c.Fatalf("Expected output %s, got %q", expected, out)
