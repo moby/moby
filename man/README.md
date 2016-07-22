@@ -8,7 +8,7 @@ Do *not* edit the man pages in the man1 directory. Instead, update the
 Cobra command or amend the Markdown files for legacy pages.
 
 
-## Generate the mange pages
+## Generate the man pages
 
 From within the project root directory run:
 
