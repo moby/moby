@@ -63,12 +63,14 @@ func (s *DockerSuite) TestRunLeakyFileDescriptors(c *check.C) {
 // this will fail when Internet access is unavailable
 func (s *DockerSuite) TestRunLookupGoogleDNS(c *check.C) {
 	testRequires(c, Network, NotArm)
-	image := DefaultImage
 	if daemonPlatform == "windows" {
-		// nslookup isn't present in Windows busybox. Is built-in.
-		image = WindowsBaseImage
+		// nslookup isn't present in Windows busybox. Is built-in. Further,
+		// nslookup isn't present in nanoserver. Hence just use PowerShell...
+		dockerCmd(c, "run", WindowsBaseImage, "powershell", "Resolve-DNSName", "google.com")
+	} else {
+		dockerCmd(c, "run", DefaultImage, "nslookup", "google.com")
 	}
-	dockerCmd(c, "run", image, "nslookup", "google.com")
+
 }
 
 // the exit code should be 0
