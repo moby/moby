@@ -1815,6 +1815,7 @@ _docker_swarm() {
 		init
 		inspect
 		join
+		join-token
 		leave
 		update
 	"
@@ -1880,6 +1881,20 @@ _docker_swarm_join() {
 			;;
 		*:)
 			COMPREPLY=( $( compgen -W "2377" -- "${cur##*:}" ) )
+			;;
+	esac
+}
+
+_docker_swarm_join-token() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --quiet -q --rotate" -- "$cur" ) )
+			;;
+		*)
+			local counter=$( __docker_pos_first_nonflag )
+			if [ $cword -eq $counter ]; then
+				COMPREPLY=( $( compgen -W "manager worker" -- "$cur" ) )
+			fi
 			;;
 	esac
 }
