@@ -131,12 +131,12 @@ func (pm *Manager) Push(name string, metaHeader http.Header, authConfig *types.A
 }
 
 // Remove deletes plugin's root directory.
-func (pm *Manager) Remove(name string) error {
+func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
 	p, err := pm.get(name)
 	if err != nil {
 		return err
 	}
-	if err := pm.remove(p); err != nil {
+	if err := pm.remove(p, config.ForceRemove); err != nil {
 		return err
 	}
 	pm.pluginEventLogger(p.PluginObj.ID, name, "remove")
