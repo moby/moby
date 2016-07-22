@@ -544,6 +544,8 @@ func (clnt *client) Restore(containerID string, options ...CreateOption) error {
 	if err := clnt.Signal(containerID, int(syscall.SIGTERM)); err != nil {
 		logrus.Errorf("libcontainerd: error sending sigterm to %v: %v", containerID, err)
 	}
+	// Let the main loop handle the exit event
+	clnt.remote.Unlock()
 	select {
 	case <-time.After(10 * time.Second):
 		if err := clnt.Signal(containerID, int(syscall.SIGKILL)); err != nil {
@@ -552,9 +554,13 @@ func (clnt *client) Restore(containerID string, options ...CreateOption) error {
 		select {
 		case <-time.After(2 * time.Second):
 		case <-w.wait():
+			// relock because of the defer
+			clnt.remote.Lock()
 			return nil
 		}
 	case <-w.wait():
+		// relock because of the defer
+		clnt.remote.Lock()
 		return nil
 	}
 
