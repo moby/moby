@@ -782,7 +782,6 @@ __docker_complete_worker_nodes() {
 __docker_node_commands() {
     local -a _docker_node_subcommands
     _docker_node_subcommands=(
-        "accept:Accept a node in the swarm"
         "demote:Demote a node as manager in the swarm"
         "inspect:Display detailed information on one or more nodes"
         "ls:List nodes in the swarm"
@@ -802,7 +801,7 @@ __docker_node_subcommand() {
     opts_help=("(: -)--help[Print usage]")
 
     case "$words[1]" in
-        (accept|rm|remove)
+        (rm|remove)
              _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -)*:node:__docker_complete_pending_nodes" && ret=0
@@ -854,7 +853,6 @@ __docker_node_subcommand() {
                 "($help)--availability=[Availability of the node]:availability:(active pause drain)" \
                 "($help)*--label-add=[Add or update a node label]:key=value: " \
                 "($help)*--label-rm=[Remove a node label if exists]:label: " \
-                "($help)--membership=[Membership of the node]:membership:(accepted rejected)" \
                 "($help)--role=[Role of the node]:role:(manager worker)" \
                 "($help -)1:node:__docker_complete_nodes" && ret=0
             ;;
@@ -1205,11 +1203,9 @@ __docker_swarm_subcommand() {
         (init)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)--auto-accept=[Acceptance policy]:policy:(manager none worker)" \
                 "($help)*--external-ca=[Specifications of one or more certificate signing endpoints]:endpoint: " \
                 "($help)--force-new-cluster[Force create a new cluster from current state]" \
-                "($help)--listen-addr[Listen address]:ip\:port: " \
-                "($help)--secret[Set secret value needed to accept nodes into cluster]:secret: " && ret=0
+                "($help)--listen-addr=[Listen address]:ip\:port: " && ret=0
             ;;
         (inspect)
             _arguments $(__docker_arguments) \
@@ -1219,10 +1215,8 @@ __docker_swarm_subcommand() {
         (join)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)--ca-hash=[Hash of the Root Certificate Authority certificate used for trusted join]:hash: " \
-                "($help)--listen-addr[Listen address]:ip\:port: " \
-                "($help)--manager[Try joining as a manager]" \
-                "($help)--secret[Secret for node acceptance]:secret: " \
+                "($help)--listen-addr=[Listen address]:ip\:port: " \
+                "($help)--token=[Token for entry into the swarm]:secret: " \
                 "($help -):host\:port: " && ret=0
             ;;
         (leave)
@@ -1232,11 +1226,9 @@ __docker_swarm_subcommand() {
         (update)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)--auto-accept=[Acceptance policy]:policy:(manager none worker)" \
                 "($help)--cert-expiry=[Validity period for node certificates]:duration: " \
                 "($help)--dispatcher-heartbeat=[Dispatcher heartbeat period]:duration: " \
-                "($help)--secret[Set secret value needed to accept nodes into cluster]:secret: " \
-                "($help)--task-history-limit[Task history retention limit]:limit: " && ret=0
+                "($help)--task-history-limit=[Task history retention limit]:limit: " && ret=0
             ;;
         (help)
             _arguments $(__docker_arguments) ":subcommand:__docker_network_commands" && ret=0
