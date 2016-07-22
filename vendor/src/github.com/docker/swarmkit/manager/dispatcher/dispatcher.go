@@ -52,7 +52,7 @@ var (
 	// ErrSessionInvalid returned when the session in use is no longer valid.
 	// The node should re-register and start a new session.
 	ErrSessionInvalid = errors.New("session invalid")
-	// ErrNodeNotFound returned when the Node doesn't exists in raft.
+	// ErrNodeNotFound returned when the Node doesn't exist in raft.
 	ErrNodeNotFound = errors.New("node not found")
 )
 

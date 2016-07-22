@@ -247,10 +247,11 @@ func (tm *taskManager) run(ctx context.Context) {
 //
 // This used to decide whether or not to propagate a task update to a controller.
 func tasksEqual(a, b *api.Task) bool {
-	a, b = a.Copy(), b.Copy()
+	// shallow copy
+	copyA, copyB := *a, *b
 
-	a.Status, b.Status = api.TaskStatus{}, api.TaskStatus{}
-	a.Meta, b.Meta = api.Meta{}, api.Meta{}
+	copyA.Status, copyB.Status = api.TaskStatus{}, api.TaskStatus{}
+	copyA.Meta, copyB.Meta = api.Meta{}, api.Meta{}
 
-	return reflect.DeepEqual(a, b)
+	return reflect.DeepEqual(&copyA, &copyB)
 }
