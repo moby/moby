@@ -33,7 +33,7 @@ import (
 
 const (
 	// defaultTaskHistoryRetentionLimit is the number of tasks to keep.
-	defaultTaskHistoryRetentionLimit = 10
+	defaultTaskHistoryRetentionLimit = 5
 )
 
 // Config is used to tune the Manager.
@@ -48,6 +48,9 @@ type Config struct {
 	// ProtoListener will be used for grpc serving if it's not nil,
 	// ProtoAddr fields will be used to create listeners otherwise.
 	ProtoListener map[string]net.Listener
+
+	// AdvertiseAddr is a map of addresses to advertise, by protocol.
+	AdvertiseAddr string
 
 	// JoinRaft is an optional address of a node in an existing raft
 	// cluster to join.
@@ -120,41 +123,17 @@ func New(config *Config) (*Manager, error) {
 
 	tcpAddr := config.ProtoAddr["tcp"]
 
+	if config.AdvertiseAddr != "" {
+		tcpAddr = config.AdvertiseAddr
+	}
+
 	if tcpAddr == "" {
 		return nil, errors.New("no tcp listen address or listener provided")
 	}
 
-	listenHost, listenPort, err := net.SplitHostPort(tcpAddr)
-	if err == nil {
-		ip := net.ParseIP(listenHost)
-		if ip != nil && ip.IsUnspecified() {
-			// Find our local IP address associated with the default route.
-			// This may not be the appropriate address to use for internal
-			// cluster communications, but it seems like the best default.
-			// The admin can override this address if necessary.
-			conn, err := net.Dial("udp", "8.8.8.8:53")
-			if err != nil {
-				return nil, fmt.Errorf("could not determine local IP address: %v", err)
-			}
-			localAddr := conn.LocalAddr().String()
-			conn.Close()
-
-			listenHost, _, err = net.SplitHostPort(localAddr)
-			if err != nil {
-				return nil, fmt.Errorf("could not split local IP address: %v", err)
-			}
-
-			tcpAddr = net.JoinHostPort(listenHost, listenPort)
-		}
-	}
-
-	// TODO(stevvooe): Reported address of manager is plumbed to listen addr
-	// for now, may want to make this separate. This can be tricky to get right
-	// so we need to make it easy to override. This needs to be the address
-	// through which agent nodes access the manager.
 	dispatcherConfig.Addr = tcpAddr
 
-	err = os.MkdirAll(filepath.Dir(config.ProtoAddr["unix"]), 0700)
+	err := os.MkdirAll(filepath.Dir(config.ProtoAddr["unix"]), 0700)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create socket directory: %v", err)
 	}
@@ -359,7 +338,7 @@ func (m *Manager) Run(parent context.Context) error {
 				if err != nil {
 					log.G(ctx).WithError(err).Error("failed to create allocator")
 					// TODO(stevvooe): It doesn't seem correct here to fail
-					// creating the allocator but then use it anyways.
+					// creating the allocator but then use it anyway.
 				}
 
 				go func(keyManager *keymanager.KeyManager) {

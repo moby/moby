@@ -2,10 +2,13 @@ package exec
 
 import (
 	"fmt"
+	"reflect"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
+	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
@@ -182,6 +185,10 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 	// is completed.
 	defer func() {
 		logStateChange(ctx, task.DesiredState, task.Status.State, status.State)
+
+		if !reflect.DeepEqual(status, task.Status) {
+			status.Timestamp = ptypes.MustTimestampProto(time.Now())
+		}
 	}()
 
 	// extract the container status from the container, if supported.

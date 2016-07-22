@@ -2,8 +2,10 @@ package raft
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/rand"
+	"net"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -537,13 +539,33 @@ func (n *Node) Join(ctx context.Context, req *api.JoinRequest) (*api.JoinRespons
 		}
 	}
 
+	remoteAddr := req.Addr
+
+	// If the joining node sent an address like 0.0.0.0:4242, automatically
+	// determine its actual address based on the GRPC connection. This
+	// avoids the need for a prospective member to know its own address.
+
+	requestHost, requestPort, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid address %s in raft join request", remoteAddr)
+	}
+
+	requestIP := net.ParseIP(requestHost)
+	if requestIP != nil && requestIP.IsUnspecified() {
+		remoteHost, _, err := net.SplitHostPort(nodeInfo.RemoteAddr)
+		if err != nil {
+			return nil, err
+		}
+		remoteAddr = net.JoinHostPort(remoteHost, requestPort)
+	}
+
 	// We do not bother submitting a configuration change for the
 	// new member if we can't contact it back using its address
-	if err := n.checkHealth(ctx, req.Addr, 5*time.Second); err != nil {
+	if err := n.checkHealth(ctx, remoteAddr, 5*time.Second); err != nil {
 		return nil, err
 	}
 
-	err = n.addMember(ctx, req.Addr, raftID, nodeInfo.NodeID)
+	err = n.addMember(ctx, remoteAddr, raftID, nodeInfo.NodeID)
 	if err != nil {
 		log.WithError(err).Errorf("failed to add member")
 		return nil, err

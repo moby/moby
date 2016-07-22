@@ -3,6 +3,7 @@ package controlapi
 import (
 	"errors"
 	"reflect"
+	"strconv"
 
 	"github.com/docker/engine-api/types/reference"
 	"github.com/docker/swarmkit/api"
@@ -144,6 +145,10 @@ func validateEndpointSpec(epSpec *api.EndpointSpec) error {
 		return nil
 	}
 
+	if len(epSpec.Ports) > 0 && epSpec.Mode == api.ResolutionModeDNSRoundRobin {
+		return grpc.Errorf(codes.InvalidArgument, "EndpointSpec: ports can't be used with dnsrr mode")
+	}
+
 	portSet := make(map[api.PortConfig]struct{})
 	for _, port := range epSpec.Ports {
 		if _, ok := portSet[*port]; ok {
@@ -175,6 +180,59 @@ func validateServiceSpec(spec *api.ServiceSpec) error {
 	return nil
 }
 
+// checkPortConflicts does a best effort to find if the passed in spec has port
+// conflicts with existing services.
+func (s *Server) checkPortConflicts(spec *api.ServiceSpec) error {
+	if spec.Endpoint == nil {
+		return nil
+	}
+
+	pcToString := func(pc *api.PortConfig) string {
+		port := strconv.FormatUint(uint64(pc.PublishedPort), 10)
+		return port + "/" + pc.Protocol.String()
+	}
+
+	reqPorts := make(map[string]bool)
+	for _, pc := range spec.Endpoint.Ports {
+		if pc.PublishedPort > 0 {
+			reqPorts[pcToString(pc)] = true
+		}
+	}
+	if len(reqPorts) == 0 {
+		return nil
+	}
+
+	var (
+		services []*api.Service
+		err      error
+	)
+
+	s.store.View(func(tx store.ReadTx) {
+		services, err = store.FindServices(tx, store.All)
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, service := range services {
+		if service.Spec.Endpoint != nil {
+			for _, pc := range service.Spec.Endpoint.Ports {
+				if reqPorts[pcToString(pc)] {
+					return grpc.Errorf(codes.InvalidArgument, "port '%d' is already in use by service %s", pc.PublishedPort, service.ID)
+				}
+			}
+		}
+		if service.Endpoint != nil {
+			for _, pc := range service.Endpoint.Ports {
+				if reqPorts[pcToString(pc)] {
+					return grpc.Errorf(codes.InvalidArgument, "port '%d' is already in use by service %s", pc.PublishedPort, service.ID)
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // CreateService creates and return a Service based on the provided ServiceSpec.
 // - Returns `InvalidArgument` if the ServiceSpec is malformed.
 // - Returns `Unimplemented` if the ServiceSpec references unimplemented features.
@@ -182,6 +240,10 @@ func validateServiceSpec(spec *api.ServiceSpec) error {
 // - Returns an error if the creation fails.
 func (s *Server) CreateService(ctx context.Context, request *api.CreateServiceRequest) (*api.CreateServiceResponse, error) {
 	if err := validateServiceSpec(request.Spec); err != nil {
+		return nil, err
+	}
+
+	if err := s.checkPortConflicts(request.Spec); err != nil {
 		return nil, err
 	}
 
@@ -239,6 +301,19 @@ func (s *Server) UpdateService(ctx context.Context, request *api.UpdateServiceRe
 	}
 
 	var service *api.Service
+	s.store.View(func(tx store.ReadTx) {
+		service = store.GetService(tx, request.ServiceID)
+	})
+	if service == nil {
+		return nil, grpc.Errorf(codes.NotFound, "service %s not found", request.ServiceID)
+	}
+
+	if request.Spec.Endpoint != nil && !reflect.DeepEqual(request.Spec.Endpoint, service.Spec.Endpoint) {
+		if err := s.checkPortConflicts(request.Spec); err != nil {
+			return nil, err
+		}
+	}
+
 	err := s.store.Update(func(tx store.Tx) error {
 		service = store.GetService(tx, request.ServiceID)
 		if service == nil {
@@ -257,6 +332,10 @@ func (s *Server) UpdateService(ctx context.Context, request *api.UpdateServiceRe
 		}
 		service.Meta.Version = *request.ServiceVersion
 		service.Spec = *request.Spec.Copy()
+
+		// Reset update status
+		service.UpdateStatus = nil
+
 		return store.UpdateService(tx, service)
 	})
 	if err != nil {
