@@ -547,7 +547,7 @@ const (
 	flagUpdateDelay        = "update-delay"
 	flagUpdateParallelism  = "update-parallelism"
 	flagUser               = "user"
-	flagRegistryAuth       = "registry-auth"
+	flagRegistryAuth       = "with-registry-auth"
 	flagLogDriver          = "log-driver"
 	flagLogOpt             = "log-opt"
 )

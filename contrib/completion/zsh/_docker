@@ -1085,7 +1085,6 @@ __docker_service_subcommand() {
         "($help)--name=[Service name]:name: "
         "($help)*--network=[Network attachments]:network: "
         "($help)*"{-p=,--publish=}"[Publish a port as a node port]:port: "
-        "($help)--registry-auth[Send registry authentication details to swarm agents]"
         "($help)--replicas=[Number of tasks]:replicas: "
         "($help)--reserve-cpu=[Reserve CPUs]:value: "
         "($help)--reserve-memory=[Reserve Memory]:value: "
@@ -1097,6 +1096,7 @@ __docker_service_subcommand() {
         "($help)--update-delay=[Delay between updates]:delay: "
         "($help)--update-parallelism=[Maximum number of tasks updated simultaneously]:number: "
         "($help -u --user)"{-u=,--user=}"[Username or UID]:user:_users"
+        "($help)--with-registry-auth[Send registry authentication details to swarm agents]"
         "($help -w --workdir)"{-w=,--workdir=}"[Working directory inside the container]:directory:_directories"
     )
 

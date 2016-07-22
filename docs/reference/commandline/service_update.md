@@ -38,7 +38,6 @@ Options:
       --network-rm value             Remove a network by name (default [])
       --publish-add value            Add or update a published port (default [])
       --publish-rm value             Remove a published port by its target port (default [])
-      --registry-auth                Send registry authentication details to swarm agents
       --replicas value               Number of tasks (default none)
       --reserve-cpu value            Reserve CPUs (default 0.000)
       --reserve-memory value         Reserve Memory (default 0 B)
@@ -50,6 +49,7 @@ Options:
       --update-delay duration        Delay between updates
       --update-parallelism uint      Maximum number of tasks updated simultaneously
   -u, --user string                  Username or UID
+      --with-registry-auth           Send registry authentication details to Swarm agents
   -w, --workdir string               Working directory inside the container
 ```
 
