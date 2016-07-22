@@ -1832,24 +1832,17 @@ _docker_swarm() {
 
 _docker_swarm_init() {
 	case "$prev" in
-		--auto-accept)
-			COMPREPLY=( $( compgen -W "manager none worker" -- "$cur" ) )
-			return
-			;;
 		--listen-addr)
 			if [[ $cur == *: ]] ; then
 				COMPREPLY=( $( compgen -W "2377" -- "${cur##*:}" ) )
 			fi
 			return
 			;;
-		--secret)
-			return
-			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--auto-accept --force-new-cluster --help --listen-addr --secret" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--force-new-cluster --help --listen-addr" -- "$cur" ) )
 			;;
 	esac
 }
@@ -1870,7 +1863,7 @@ _docker_swarm_inspect() {
 
 _docker_swarm_join() {
 	case "$prev" in
-		--ca-hash|--secret)
+		--token)
 			return
 			;;
 		--listen-addr)
@@ -1883,7 +1876,7 @@ _docker_swarm_join() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--ca-hash --help --listen-addr --manager --secret" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--help --listen-addr --token" -- "$cur" ) )
 			;;
 		*:)
 			COMPREPLY=( $( compgen -W "2377" -- "${cur##*:}" ) )
@@ -1901,25 +1894,20 @@ _docker_swarm_leave() {
 
 _docker_swarm_update() {
 	case "$prev" in
-		--auto-accept)
-			COMPREPLY=( $( compgen -W "manager none worker" -- "$cur" ) )
-			return
-			;;
-		--cert-expiry|--dispatcher-heartbeat|--secret|--task-history-limit)
+		--cert-expiry|--dispatcher-heartbeat|--task-history-limit)
 			return
 			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--auto-accept --cert-expiry --dispatcher-heartbeat --help --secret --task-history-limit" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--cert-expiry --dispatcher-heartbeat --help --task-history-limit" -- "$cur" ) )
 			;;
 	esac
 }
 
 _docker_node() {
 	local subcommands="
-		accept
 		demote
 		inspect
 		ls list
@@ -1937,16 +1925,6 @@ _docker_node() {
 		*)
 			COMPREPLY=( $( compgen -W "$subcommands" -- "$cur" ) )
 			;;
-	esac
-}
-
-_docker_node_accept() {
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
-			;;
-		*)
-			__docker_complete_nodes --id --filter membership=pending
 	esac
 }
 
@@ -2072,10 +2050,6 @@ _docker_node_update() {
 			COMPREPLY=( $( compgen -W "active drain pause" -- "$cur" ) )
 			return
 			;;
-		--membership)
-			COMPREPLY=( $( compgen -W "accepted rejected" -- "$cur" ) )
-			return
-			;;
 		--role)
 			COMPREPLY=( $( compgen -W "manager worker" -- "$cur" ) )
 			return
@@ -2087,7 +2061,7 @@ _docker_node_update() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--availability --help --label-add --label-rm --membership --role" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--availability --help --label-add --label-rm --role" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_nodes
