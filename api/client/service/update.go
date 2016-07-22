@@ -191,12 +191,13 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		return err
 	}
 
-	if anyChanged(flags, flagUpdateParallelism, flagUpdateDelay) {
+	if anyChanged(flags, flagUpdateParallelism, flagUpdateDelay, flagUpdateFailureAction) {
 		if spec.UpdateConfig == nil {
 			spec.UpdateConfig = &swarm.UpdateConfig{}
 		}
 		updateUint64(flagUpdateParallelism, &spec.UpdateConfig.Parallelism)
 		updateDuration(flagUpdateDelay, &spec.UpdateConfig.Delay)
+		updateString(flagUpdateFailureAction, &spec.UpdateConfig.FailureAction)
 	}
 
 	updateNetworks(flags, &spec.Networks)

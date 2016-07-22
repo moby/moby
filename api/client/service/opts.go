@@ -274,6 +274,7 @@ func (m *MountOpt) Value() []swarm.Mount {
 type updateOptions struct {
 	parallelism uint64
 	delay       time.Duration
+	onFailure   string
 }
 
 type resourceOptions struct {
@@ -455,8 +456,9 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 		},
 		Mode: swarm.ServiceMode{},
 		UpdateConfig: &swarm.UpdateConfig{
-			Parallelism: opts.update.parallelism,
-			Delay:       opts.update.delay,
+			Parallelism:   opts.update.parallelism,
+			Delay:         opts.update.delay,
+			FailureAction: opts.update.onFailure,
 		},
 		Networks:     convertNetworks(opts.networks),
 		EndpointSpec: opts.endpoint.ToEndpointSpec(),
@@ -503,6 +505,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 
 	flags.Uint64Var(&opts.update.parallelism, flagUpdateParallelism, 1, "Maximum number of tasks updated simultaneously (0 to update all at once)")
 	flags.DurationVar(&opts.update.delay, flagUpdateDelay, time.Duration(0), "Delay between updates")
+	flags.StringVar(&opts.update.onFailure, flagUpdateFailureAction, "pause", "Action on update failure (pause|continue)")
 
 	flags.StringVar(&opts.endpoint.mode, flagEndpointMode, "", "Endpoint mode (vip or dnsrr)")
 
@@ -513,41 +516,42 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 }
 
 const (
-	flagConstraint         = "constraint"
-	flagConstraintRemove   = "constraint-rm"
-	flagConstraintAdd      = "constraint-add"
-	flagEndpointMode       = "endpoint-mode"
-	flagEnv                = "env"
-	flagEnvRemove          = "env-rm"
-	flagEnvAdd             = "env-add"
-	flagLabel              = "label"
-	flagLabelRemove        = "label-rm"
-	flagLabelAdd           = "label-add"
-	flagLimitCPU           = "limit-cpu"
-	flagLimitMemory        = "limit-memory"
-	flagMode               = "mode"
-	flagMount              = "mount"
-	flagMountRemove        = "mount-rm"
-	flagMountAdd           = "mount-add"
-	flagName               = "name"
-	flagNetwork            = "network"
-	flagNetworkRemove      = "network-rm"
-	flagNetworkAdd         = "network-add"
-	flagPublish            = "publish"
-	flagPublishRemove      = "publish-rm"
-	flagPublishAdd         = "publish-add"
-	flagReplicas           = "replicas"
-	flagReserveCPU         = "reserve-cpu"
-	flagReserveMemory      = "reserve-memory"
-	flagRestartCondition   = "restart-condition"
-	flagRestartDelay       = "restart-delay"
-	flagRestartMaxAttempts = "restart-max-attempts"
-	flagRestartWindow      = "restart-window"
-	flagStopGracePeriod    = "stop-grace-period"
-	flagUpdateDelay        = "update-delay"
-	flagUpdateParallelism  = "update-parallelism"
-	flagUser               = "user"
-	flagRegistryAuth       = "with-registry-auth"
-	flagLogDriver          = "log-driver"
-	flagLogOpt             = "log-opt"
+	flagConstraint          = "constraint"
+	flagConstraintRemove    = "constraint-rm"
+	flagConstraintAdd       = "constraint-add"
+	flagEndpointMode        = "endpoint-mode"
+	flagEnv                 = "env"
+	flagEnvRemove           = "env-rm"
+	flagEnvAdd              = "env-add"
+	flagLabel               = "label"
+	flagLabelRemove         = "label-rm"
+	flagLabelAdd            = "label-add"
+	flagLimitCPU            = "limit-cpu"
+	flagLimitMemory         = "limit-memory"
+	flagMode                = "mode"
+	flagMount               = "mount"
+	flagMountRemove         = "mount-rm"
+	flagMountAdd            = "mount-add"
+	flagName                = "name"
+	flagNetwork             = "network"
+	flagNetworkRemove       = "network-rm"
+	flagNetworkAdd          = "network-add"
+	flagPublish             = "publish"
+	flagPublishRemove       = "publish-rm"
+	flagPublishAdd          = "publish-add"
+	flagReplicas            = "replicas"
+	flagReserveCPU          = "reserve-cpu"
+	flagReserveMemory       = "reserve-memory"
+	flagRestartCondition    = "restart-condition"
+	flagRestartDelay        = "restart-delay"
+	flagRestartMaxAttempts  = "restart-max-attempts"
+	flagRestartWindow       = "restart-window"
+	flagStopGracePeriod     = "stop-grace-period"
+	flagUpdateDelay         = "update-delay"
+	flagUpdateFailureAction = "update-failure-action"
+	flagUpdateParallelism   = "update-parallelism"
+	flagUser                = "user"
+	flagRegistryAuth        = "with-registry-auth"
+	flagLogDriver           = "log-driver"
+	flagLogOpt              = "log-opt"
 )

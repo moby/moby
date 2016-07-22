@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"golang.org/x/net/context"
 
@@ -101,6 +102,17 @@ func printService(out io.Writer, service swarm.Service) {
 			fmt.Fprintf(out, " Replicas:\t%d\n", *service.Spec.Mode.Replicated.Replicas)
 		}
 	}
+
+	if service.UpdateStatus.State != "" {
+		fmt.Fprintln(out, "Update status:")
+		fmt.Fprintf(out, " State:\t\t%s\n", service.UpdateStatus.State)
+		fmt.Fprintf(out, " Started:\t%s ago\n", strings.ToLower(units.HumanDuration(time.Since(service.UpdateStatus.StartedAt))))
+		if service.UpdateStatus.State == swarm.UpdateStateCompleted {
+			fmt.Fprintf(out, " Completed:\t%s ago\n", strings.ToLower(units.HumanDuration(time.Since(service.UpdateStatus.CompletedAt))))
+		}
+		fmt.Fprintf(out, " Message:\t%s\n", service.UpdateStatus.Message)
+	}
+
 	fmt.Fprintln(out, "Placement:")
 	if service.Spec.TaskTemplate.Placement != nil && len(service.Spec.TaskTemplate.Placement.Constraints) > 0 {
 		ioutils.FprintfIfNotEmpty(out, " Constraints\t: %s\n", strings.Join(service.Spec.TaskTemplate.Placement.Constraints, ", "))
@@ -110,6 +122,7 @@ func printService(out io.Writer, service swarm.Service) {
 	if service.Spec.UpdateConfig.Delay.Nanoseconds() > 0 {
 		fmt.Fprintf(out, " Delay:\t\t%s\n", service.Spec.UpdateConfig.Delay)
 	}
+	fmt.Fprintf(out, " On failure:\t%s\n", service.Spec.UpdateConfig.FailureAction)
 	fmt.Fprintf(out, "ContainerSpec:\n")
 	printContainerSpec(out, service.Spec.TaskTemplate.ContainerSpec)
 
