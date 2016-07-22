@@ -653,7 +653,7 @@ func (s *DockerSuite) TestEventsContainerRestart(c *check.C) {
 	// wait until test2 is auto removed.
 	waitTime := 10 * time.Second
 	if daemonPlatform == "windows" {
-		// nslookup isn't present in Windows busybox. Is built-in.
+		// Windows takes longer...
 		waitTime = 90 * time.Second
 	}
 
