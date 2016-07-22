@@ -1733,7 +1733,7 @@ _docker_service_update() {
 
 	local boolean_options="
 		--help
-		--registry-auth
+		--with-registry-auth
 	"
 
 	__docker_complete_log_driver_options && return
