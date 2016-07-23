@@ -77,8 +77,18 @@ func (c *containerConfig) name() string {
 		return c.task.Annotations.Name
 	}
 
-	// fallback to service.slot.id.
-	return strings.Join([]string{c.task.ServiceAnnotations.Name, fmt.Sprint(c.task.Slot), c.task.ID}, ".")
+	// fallback to service.slot.id
+	return fmt.Sprintf("%s.%s", c.shortName(), c.task.ID)
+}
+
+func (c *containerConfig) shortName() string {
+	if c.task.Annotations.Name != "" {
+		// if set, use the container Annotations.Name field, set in the orchestrator.
+		return c.task.Annotations.Name
+	}
+
+	// fallback to service.slot
+	return fmt.Sprintf("%s.%s", c.task.ServiceAnnotations.Name, fmt.Sprint(c.task.Slot))
 }
 
 func (c *containerConfig) image() string {
@@ -343,7 +353,7 @@ func (c *containerConfig) createNetworkingConfig() *network.NetworkingConfig {
 
 	epConfig := make(map[string]*network.EndpointSettings)
 	if len(networks) > 0 {
-		epConfig[networks[0].Network.Spec.Annotations.Name] = getEndpointConfig(networks[0])
+		epConfig[networks[0].Network.Spec.Annotations.Name] = getEndpointConfig(c.shortName(), networks[0])
 	}
 
 	return &network.NetworkingConfig{EndpointsConfig: epConfig}
@@ -363,12 +373,12 @@ func (c *containerConfig) connectNetworkingConfig() *network.NetworkingConfig {
 
 	epConfig := make(map[string]*network.EndpointSettings)
 	for _, na := range networks[1:] {
-		epConfig[na.Network.Spec.Annotations.Name] = getEndpointConfig(na)
+		epConfig[na.Network.Spec.Annotations.Name] = getEndpointConfig(c.shortName(), na)
 	}
 	return &network.NetworkingConfig{EndpointsConfig: epConfig}
 }
 
-func getEndpointConfig(na *api.NetworkAttachment) *network.EndpointSettings {
+func getEndpointConfig(shortName string, na *api.NetworkAttachment) *network.EndpointSettings {
 	var ipv4, ipv6 string
 	for _, addr := range na.Addresses {
 		ip, _, err := net.ParseCIDR(addr)
@@ -386,12 +396,18 @@ func getEndpointConfig(na *api.NetworkAttachment) *network.EndpointSettings {
 		}
 	}
 
-	return &network.EndpointSettings{
+	ep := &network.EndpointSettings{
 		IPAMConfig: &network.EndpointIPAMConfig{
 			IPv4Address: ipv4,
 			IPv6Address: ipv6,
 		},
 	}
+
+	if shortName != "" {
+		ep.Aliases = []string{shortName}
+	}
+
+	return ep
 }
 
 func (c *containerConfig) virtualIP(networkID string) string {
