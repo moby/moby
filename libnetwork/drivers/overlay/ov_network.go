@@ -63,6 +63,7 @@ type network struct {
 	initErr   error
 	subnets   []*subnet
 	secure    bool
+	mtu       int
 	sync.Mutex
 }
 
@@ -113,6 +114,15 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		}
 		if _, ok := optMap[secureOption]; ok {
 			n.secure = true
+		}
+		if val, ok := optMap[netlabel.DriverMTU]; ok {
+			var err error
+			if n.mtu, err = strconv.Atoi(val); err != nil {
+				return fmt.Errorf("failed to parse %v: %v", val, err)
+			}
+			if n.mtu < 0 {
+				return fmt.Errorf("invalid MTU value: %v", n.mtu)
+			}
 		}
 	}
 
@@ -315,7 +325,7 @@ func networkOnceInit() {
 		return
 	}
 
-	err := createVxlan("testvxlan", 1)
+	err := createVxlan("testvxlan", 1, 0)
 	if err != nil {
 		logrus.Errorf("Failed to create testvxlan interface: %v", err)
 		return
@@ -459,7 +469,7 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 		return fmt.Errorf("bridge creation in sandbox failed for subnet %q: %v", s.subnetIP.String(), err)
 	}
 
-	err := createVxlan(vxlanName, n.vxlanID(s))
+	err := createVxlan(vxlanName, n.vxlanID(s), n.maxMTU())
 	if err != nil {
 		return err
 	}
@@ -732,6 +742,7 @@ func (n *network) Value() []byte {
 
 	m["secure"] = n.secure
 	m["subnets"] = netJSON
+	m["mtu"] = n.mtu
 	b, err = json.Marshal(m)
 	if err != nil {
 		return []byte{}
@@ -780,6 +791,9 @@ func (n *network) SetValue(value []byte) error {
 	if isMap {
 		if val, ok := m["secure"]; ok {
 			n.secure = val.(bool)
+		}
+		if val, ok := m["mtu"]; ok {
+			n.mtu = int(val.(float64))
 		}
 		bytes, err := json.Marshal(m["subnets"])
 		if err != nil {

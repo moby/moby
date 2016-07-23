@@ -550,7 +550,11 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 }
 
 func (n *network) maxMTU() int {
-	mtu := vxlanVethMTU
+	mtu := 1500
+	if n.mtu != 0 {
+		mtu = n.mtu
+	}
+	mtu -= vxlanEncap
 	if n.secure {
 		// In case of encryption account for the
 		// esp packet espansion and padding
