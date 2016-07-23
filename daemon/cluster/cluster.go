@@ -810,7 +810,7 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string) (string
 	ctx, cancel := c.getRequestContext()
 	defer cancel()
 
-	err := populateNetworkID(ctx, c.client, &s)
+	err := c.populateNetworkID(ctx, c.client, &s)
 	if err != nil {
 		return "", err
 	}
@@ -867,7 +867,7 @@ func (c *Cluster) UpdateService(serviceID string, version uint64, spec types.Ser
 	ctx, cancel := c.getRequestContext()
 	defer cancel()
 
-	err := populateNetworkID(ctx, c.client, &spec)
+	err := c.populateNetworkID(ctx, c.client, &spec)
 	if err != nil {
 		return err
 	}
@@ -1208,10 +1208,14 @@ func (c *Cluster) RemoveNetwork(input string) error {
 	return nil
 }
 
-func populateNetworkID(ctx context.Context, c swarmapi.ControlClient, s *types.ServiceSpec) error {
+func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.ControlClient, s *types.ServiceSpec) error {
 	for i, n := range s.Networks {
-		apiNetwork, err := getNetwork(ctx, c, n.Target)
+		apiNetwork, err := getNetwork(ctx, client, n.Target)
 		if err != nil {
+			if ln, _ := c.config.Backend.FindNetwork(n.Target); ln != nil && !ln.Info().Dynamic() {
+				err = fmt.Errorf("network %s is not eligible for docker services", ln.Name())
+				return errors.NewRequestForbiddenError(err)
+			}
 			return err
 		}
 		s.Networks[i].Target = apiNetwork.ID

@@ -10,6 +10,7 @@ import (
 	"github.com/docker/engine-api/types/events"
 	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/engine-api/types/network"
+	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/cluster"
 	networktypes "github.com/docker/libnetwork/types"
 	"golang.org/x/net/context"
@@ -19,6 +20,7 @@ import (
 type Backend interface {
 	CreateManagedNetwork(clustertypes.NetworkCreateRequest) error
 	DeleteManagedNetwork(name string) error
+	FindNetwork(idName string) (libnetwork.Network, error)
 	SetupIngress(req clustertypes.NetworkCreateRequest, nodeIP string) error
 	PullImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error
 	CreateManagedContainer(config types.ContainerCreateConfig, validateHostname bool) (types.ContainerCreateResponse, error)
