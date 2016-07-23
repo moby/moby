@@ -40,7 +40,7 @@ Options:
       --restart-window value         Window used to evaluate the restart policy (default none)
       --stop-grace-period value      Time to wait before force killing a container (default none)
       --update-delay duration        Delay between updates
-      --update-parallelism uint      Maximum number of tasks updated simultaneously
+      --update-parallelism uint      Maximum number of tasks updated simultaneously (0 to update all at once) (default 1)
   -u, --user string                  Username or UID
       --with-registry-auth           Send registry authentication details to Swarm agents
   -w, --workdir string               Working directory inside the container
