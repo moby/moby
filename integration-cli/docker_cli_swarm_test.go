@@ -274,3 +274,52 @@ func (s *DockerSwarmSuite) TestSwarmRemoveInternalNetwork(c *check.C) {
 	c.Assert(strings.TrimSpace(out), checker.Contains, name)
 	c.Assert(strings.TrimSpace(out), checker.Contains, "is a pre-defined network and cannot be removed")
 }
+
+// Test case for #24108, also the case from:
+// https://github.com/docker/docker/pull/24620#issuecomment-233715656
+func (s *DockerSwarmSuite) TestSwarmTaskListFilter(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name := "redis-cluster-md5"
+	out, err := d.Cmd("service", "create", "--name", name, "--replicas=3", "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	filter := "name=redis-cluster"
+
+	out, err = d.Cmd("service", "ps", "--filter", filter, name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name+".1")
+	c.Assert(out, checker.Contains, name+".2")
+	c.Assert(out, checker.Contains, name+".3")
+
+	out, err = d.Cmd("service", "ps", "--filter", "name="+name+".1", name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name+".1")
+	c.Assert(out, checker.Not(checker.Contains), name+".2")
+	c.Assert(out, checker.Not(checker.Contains), name+".3")
+
+	out, err = d.Cmd("service", "ps", "--filter", "name=none", name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Not(checker.Contains), name+".1")
+	c.Assert(out, checker.Not(checker.Contains), name+".2")
+	c.Assert(out, checker.Not(checker.Contains), name+".3")
+
+	name = "redis-cluster-sha1"
+	out, err = d.Cmd("service", "create", "--name", name, "--mode=global", "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	filter = "name=redis-cluster"
+	out, err = d.Cmd("service", "ps", "--filter", filter, name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name)
+
+	out, err = d.Cmd("service", "ps", "--filter", "name="+name, name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name)
+
+	out, err = d.Cmd("service", "ps", "--filter", "name=none", name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Not(checker.Contains), name)
+}
