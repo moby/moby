@@ -41,7 +41,7 @@ run your manager node. For example, the tutorial uses a machine named
 update](rolling-update.md) tutorial, start it now:
 
     ```bash
-    $ docker service create --replicas 3 --name redis --update-delay 10s --update-parallelism 1 redis:3.0.6
+    $ docker service create --replicas 3 --name redis --update-delay 10s redis:3.0.6
 
     c5uo6kdmzpon37mgj9mwglcfw
     ```
