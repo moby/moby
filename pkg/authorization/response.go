@@ -35,7 +35,7 @@ type ResponseModifier interface {
 	// OverrideStatusCode replaces the status code of the HTTP reply
 	OverrideStatusCode(statusCode int)
 
-	// Flush flushes all data to the HTTP response
+	// FlushAll flushes all data to the HTTP response
 	FlushAll() error
 
 	// Hijacked indicates the response has been hijacked by the Docker daemon
