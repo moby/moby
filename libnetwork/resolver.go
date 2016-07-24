@@ -474,6 +474,11 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 				// read again
 				resp, err = co.ReadMsg()
 				if err != nil {
+					// Truncated DNS replies should be sent to the client so that the
+					// client can retry over TCP
+					if err == dns.ErrTruncated && resp != nil {
+						break
+					}
 					if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
 						r.addQueryToGC(w, query)
 					}
