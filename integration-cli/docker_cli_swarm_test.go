@@ -3,7 +3,6 @@
 package main
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"strings"
 	"time"
@@ -17,12 +16,8 @@ func (s *DockerSwarmSuite) TestSwarmUpdate(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	getSpec := func() swarm.Spec {
-		out, err := d.Cmd("swarm", "inspect")
-		c.Assert(err, checker.IsNil)
-		var sw []swarm.Swarm
-		c.Assert(json.Unmarshal([]byte(out), &sw), checker.IsNil)
-		c.Assert(len(sw), checker.Equals, 1)
-		return sw[0].Spec
+		sw := d.getSwarm(c)
+		return sw.Spec
 	}
 
 	out, err := d.Cmd("swarm", "update", "--cert-expiry", "30h", "--dispatcher-heartbeat", "11s")
@@ -44,12 +39,8 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *check.C) {
 	d := s.AddDaemon(c, false, false)
 
 	getSpec := func() swarm.Spec {
-		out, err := d.Cmd("swarm", "inspect")
-		c.Assert(err, checker.IsNil)
-		var sw []swarm.Swarm
-		c.Assert(json.Unmarshal([]byte(out), &sw), checker.IsNil)
-		c.Assert(len(sw), checker.Equals, 1)
-		return sw[0].Spec
+		sw := d.getSwarm(c)
+		return sw.Spec
 	}
 
 	out, err := d.Cmd("swarm", "init", "--cert-expiry", "30h", "--dispatcher-heartbeat", "11s")

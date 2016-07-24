@@ -118,6 +118,8 @@ type Info struct {
 	RemoteManagers []Peer
 	Nodes          int
 	Managers       int
+
+	Cluster Swarm
 }
 
 // Peer represents a peer.
