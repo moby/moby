@@ -33,6 +33,7 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 		"Volume:",
 		"Network:",
 		"Security Options:",
+		"Live Restore Enabled:",
 	}
 
 	if DaemonIsLinux.Condition() {

@@ -212,5 +212,8 @@ func runInfo(dockerCli *client.DockerCli) error {
 			fmt.Fprintf(dockerCli.Out(), " %s/%d\n", registry.IP.String(), mask)
 		}
 	}
+
+	fmt.Fprintf(dockerCli.Out(), "Live Restore Enabled: %v\n", info.LiveRestoreEnabled)
+
 	return nil
 }
