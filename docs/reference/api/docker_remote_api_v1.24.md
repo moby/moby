@@ -3750,8 +3750,8 @@ Update a Swarm
 
 - **version** – The version number of the swarm object being updated. This is
   required to avoid conflicting writes.
-- **rotate_worker_token** - Set to `true` to rotate the worker join token.
-- **rotate_manager_token** - Set to `true` to rotate the manager join token.
+- **rotateWorkerToken** - Set to `true` (or `1`) to rotate the worker join token.
+- **rotateManagerToken** - Set to `true` (or `1`) to rotate the manager join token.
 
 **Status codes**:
 

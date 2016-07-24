@@ -270,7 +270,7 @@ func (d *SwarmDaemon) rotateTokens(c *check.C) {
 	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
 	c.Assert(json.Unmarshal(out, &sw), checker.IsNil)
 
-	url := fmt.Sprintf("/swarm/update?version=%d&rotate_worker_token=true&rotate_manager_token=true", sw.Version.Index)
+	url := fmt.Sprintf("/swarm/update?version=%d&rotateWorkerToken=true&rotateManagerToken=true", sw.Version.Index)
 	status, out, err = d.SockRequest("POST", url, sw.Spec)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
