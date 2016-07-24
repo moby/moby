@@ -21,7 +21,7 @@ Options:
       --dispatcher-heartbeat duration   Dispatcher heartbeat period (default 5s)
       --external-ca value               Specifications of one or more certificate signing endpoints
       --help                            Print usage
-      --task-history-limit int          Task history retention limit (default 10)
+      --task-history-limit int          Task history retention limit (default 5)
 ```
 
 Updates a swarm cluster with new parameter values. This command must target a manager node.
