@@ -5402,7 +5402,7 @@ func (s *DockerSuite) TestBuildNoDupOutput(c *check.C) {
 		c.Fatalf("Build should have worked: %q", err)
 	}
 
-	exp := "\nStep 2 : RUN env\n"
+	exp := "\nStep 2/2 : RUN env\n"
 	if !strings.Contains(out, exp) {
 		c.Fatalf("Bad output\nGot:%s\n\nExpected to contain:%s\n", out, exp)
 	}
@@ -5419,7 +5419,7 @@ func (s *DockerSuite) TestBuildStartsFromOne(c *check.C) {
 		c.Fatalf("Build should have worked: %q", err)
 	}
 
-	exp := "\nStep 1 : FROM busybox\n"
+	exp := "\nStep 1/1 : FROM busybox\n"
 	if !strings.Contains(out, exp) {
 		c.Fatalf("Bad output\nGot:%s\n\nExpected to contain:%s\n", out, exp)
 	}
@@ -6965,5 +6965,18 @@ func (s *DockerSuite) TestBuildCmdShellArgsEscaped(c *check.C) {
 
 	if res != `["cmd","/S","/C","\"tasklist\""]` {
 		c.Fatalf("CMD was not escaped Config.Cmd: got %v", res)
+	}
+}
+
+// Test case for #24912.
+func (s *DockerSuite) TestBuildStepsWithProgress(c *check.C) {
+	name := "testbuildstepswithprogress"
+
+	totalRun := 5
+	_, out, err := buildImageWithOut(name, "FROM busybox\n"+strings.Repeat("RUN echo foo\n", totalRun), true)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, fmt.Sprintf("Step 1/%d : FROM busybox", 1+totalRun))
+	for i := 2; i <= 1+totalRun; i++ {
+		c.Assert(out, checker.Contains, fmt.Sprintf("Step %d/%d : RUN echo foo", i, 1+totalRun))
 	}
 }
