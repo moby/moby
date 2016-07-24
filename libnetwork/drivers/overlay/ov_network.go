@@ -111,7 +111,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 				vnis = append(vnis, uint32(vni))
 			}
 		}
-		if _, ok := optMap["secure"]; ok {
+		if _, ok := optMap[secureOption]; ok {
 			n.secure = true
 		}
 	}
