@@ -729,6 +729,11 @@ func (c *Cluster) Info() types.Info {
 
 	if c.isActiveManager() {
 		info.ControlAvailable = true
+		swarm, err := c.Inspect()
+		if err != nil {
+			info.Error = err.Error()
+		}
+		info.Cluster = swarm
 		if r, err := c.client.ListNodes(ctx, &swarmapi.ListNodesRequest{}); err == nil {
 			info.Nodes = len(r.Nodes)
 			for _, n := range r.Nodes {
