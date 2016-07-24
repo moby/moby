@@ -951,6 +951,7 @@ func (daemon *Daemon) Reload(config *Config) error {
 
 	// We emit daemon reload event here with updatable configurations
 	attributes["debug"] = fmt.Sprintf("%t", daemon.configStore.Debug)
+	attributes["live-restore"] = fmt.Sprintf("%t", daemon.configStore.LiveRestoreEnabled)
 	attributes["cluster-store"] = daemon.configStore.ClusterStore
 	if daemon.configStore.ClusterOpts != nil {
 		opts, _ := json.Marshal(daemon.configStore.ClusterOpts)
