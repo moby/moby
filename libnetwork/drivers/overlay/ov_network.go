@@ -150,6 +150,13 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		return fmt.Errorf("failed to update data store for network %v: %v", n.id, err)
 	}
 
+	// Make sure no rule is on the way from any stale secure network
+	if !n.secure {
+		for _, vni := range vnis {
+			programMangle(vni, false)
+		}
+	}
+
 	if nInfo != nil {
 		if err := nInfo.TableEventRegister(ovPeerTable); err != nil {
 			return err
