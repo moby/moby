@@ -23,7 +23,7 @@ Options:
       --force-new-cluster               Force create a new cluster from current state.
       --help                            Print usage
       --listen-addr value               Listen address (default 0.0.0.0:2377)
-      --task-history-limit int          Task history retention limit (default 10)
+      --task-history-limit int          Task history retention limit (default 5)
 ```
 
 Initialize a swarm cluster. The docker engine targeted by this command becomes a manager
