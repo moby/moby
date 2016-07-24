@@ -124,6 +124,11 @@ func (config *Config) GetAllRuntimes() map[string]types.Runtime {
 	return rts
 }
 
+// GetExecRoot returns the user configured Exec-root
+func (config *Config) GetExecRoot() string {
+	return config.ExecRoot
+}
+
 func (config *Config) isSwarmCompatible() error {
 	if config.ClusterStore != "" || config.ClusterAdvertise != "" {
 		return fmt.Errorf("--cluster-store and --cluster-advertise daemon configurations are incompatible with swarm mode")

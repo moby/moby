@@ -624,11 +624,9 @@ func (s *DockerSwarmSuite) TestApiSwarmLeaveOnPendingJoin(c *check.C) {
 
 	go d2.Join(swarm.JoinRequest{
 		RemoteAddrs: []string{"nosuchhost:1234"},
-	}) // will block on pending state
+	})
 
-	waitAndAssert(c, defaultReconciliationTimeout, d2.checkLocalNodeState, checker.Equals, swarm.LocalNodeStatePending)
-
-	c.Assert(d2.Leave(true), checker.IsNil)
+	waitAndAssert(c, defaultReconciliationTimeout, d2.checkLocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 
 	waitAndAssert(c, defaultReconciliationTimeout, d2.checkActiveContainerCount, checker.Equals, 1)
 
@@ -642,9 +640,9 @@ func (s *DockerSwarmSuite) TestApiSwarmRestoreOnPendingJoin(c *check.C) {
 	d := s.AddDaemon(c, false, false)
 	go d.Join(swarm.JoinRequest{
 		RemoteAddrs: []string{"nosuchhost:1234"},
-	}) // will block on pending state
+	})
 
-	waitAndAssert(c, defaultReconciliationTimeout, d.checkLocalNodeState, checker.Equals, swarm.LocalNodeStatePending)
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkLocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 
 	c.Assert(d.Stop(), checker.IsNil)
 	c.Assert(d.Start(), checker.IsNil)

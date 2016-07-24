@@ -35,6 +35,7 @@ func (b ByTime) Less(i, j int) bool { return b[i].LamportTime < b[j].LamportTime
 type agent struct {
 	networkDB         *networkdb.NetworkDB
 	bindAddr          string
+	advertiseAddr     string
 	epTblCancel       func()
 	driverCancelFuncs map[string][]func()
 }
@@ -236,25 +237,14 @@ func (c *controller) handleKeyChangeV1(keys []*types.EncryptionKey) error {
 func (c *controller) agentSetup() error {
 	clusterProvider := c.cfg.Daemon.ClusterProvider
 
-	bindAddr, _, _ := net.SplitHostPort(clusterProvider.GetListenAddress())
+	bindAddr := clusterProvider.GetLocalAddress()
+	advAddr := clusterProvider.GetAdvertiseAddress()
 	remote := clusterProvider.GetRemoteAddress()
 	remoteAddr, _, _ := net.SplitHostPort(remote)
 
-	// Determine the BindAddress from RemoteAddress or through best-effort routing
-	if !isValidClusteringIP(bindAddr) {
-		if !isValidClusteringIP(remoteAddr) {
-			remote = "8.8.8.8:53"
-		}
-		conn, err := net.Dial("udp", remote)
-		if err == nil {
-			bindHostPort := conn.LocalAddr().String()
-			bindAddr, _, _ = net.SplitHostPort(bindHostPort)
-			conn.Close()
-		}
-	}
-
-	if bindAddr != "" && c.agent == nil {
-		if err := c.agentInit(bindAddr); err != nil {
+	logrus.Infof("Initializing Libnetwork Agent Local-addr=%s Adv-addr=%s Remote-addr =%s", bindAddr, advAddr, remoteAddr)
+	if advAddr != "" && c.agent == nil {
+		if err := c.agentInit(bindAddr, advAddr); err != nil {
 			logrus.Errorf("Error in agentInit : %v", err)
 		} else {
 			c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
@@ -312,7 +302,7 @@ func (c *controller) getPrimaryKeyTag(subsys string) ([]byte, uint64) {
 	return keys[1].Key, keys[1].LamportTime
 }
 
-func (c *controller) agentInit(bindAddrOrInterface string) error {
+func (c *controller) agentInit(bindAddrOrInterface, advertiseAddr string) error {
 	if !c.isAgent() {
 		return nil
 	}
@@ -325,9 +315,9 @@ func (c *controller) agentInit(bindAddrOrInterface string) error {
 	keys, tags := c.getKeys(subsysGossip)
 	hostname, _ := os.Hostname()
 	nDB, err := networkdb.New(&networkdb.Config{
-		BindAddr: bindAddr,
-		NodeName: hostname,
-		Keys:     keys,
+		AdvertiseAddr: advertiseAddr,
+		NodeName:      hostname,
+		Keys:          keys,
 	})
 
 	if err != nil {
@@ -339,6 +329,7 @@ func (c *controller) agentInit(bindAddrOrInterface string) error {
 	c.agent = &agent{
 		networkDB:         nDB,
 		bindAddr:          bindAddr,
+		advertiseAddr:     advertiseAddr,
 		epTblCancel:       cancel,
 		driverCancelFuncs: make(map[string][]func()),
 	}
@@ -377,8 +368,9 @@ func (c *controller) agentDriverNotify(d driverapi.Driver) {
 	}
 
 	d.DiscoverNew(discoverapi.NodeDiscovery, discoverapi.NodeDiscoveryData{
-		Address: c.agent.bindAddr,
-		Self:    true,
+		Address:     c.agent.advertiseAddr,
+		BindAddress: c.agent.bindAddr,
+		Self:        true,
 	})
 
 	drvEnc := discoverapi.DriverEncryptionConfig{}

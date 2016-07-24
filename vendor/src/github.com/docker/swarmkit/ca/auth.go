@@ -122,7 +122,7 @@ func AuthorizeForwardedRoleAndOrg(ctx context.Context, authorizedRoles, forwarde
 		// This was a forwarded request. Authorize the forwarder, and
 		// check if the forwarded role matches one of the authorized
 		// roles.
-		forwardedID, forwardedOrg, forwardedOUs := forwardedTLSInfoFromContext(ctx)
+		_, forwardedID, forwardedOrg, forwardedOUs := forwardedTLSInfoFromContext(ctx)
 
 		if len(forwardedOUs) == 0 || forwardedID == "" || forwardedOrg == "" {
 			return "", grpc.Errorf(codes.PermissionDenied, "Permission denied: missing information in forwarded request")
@@ -178,6 +178,10 @@ type RemoteNodeInfo struct {
 	// ForwardedBy contains information for the node that forwarded this
 	// request. It is set to nil if the request was received directly.
 	ForwardedBy *RemoteNodeInfo
+
+	// RemoteAddr is the address that this node is connecting to the cluster
+	// from.
+	RemoteAddr string
 }
 
 // RemoteNode returns the node ID and role from the client's TLS certificate.
@@ -195,18 +199,30 @@ func RemoteNode(ctx context.Context) (RemoteNodeInfo, error) {
 		org = certSubj.Organization[0]
 	}
 
+	peer, ok := peer.FromContext(ctx)
+	if !ok {
+		return RemoteNodeInfo{}, grpc.Errorf(codes.PermissionDenied, "Permission denied: no peer info")
+	}
+
 	directInfo := RemoteNodeInfo{
 		Roles:        certSubj.OrganizationalUnit,
 		NodeID:       certSubj.CommonName,
 		Organization: org,
+		RemoteAddr:   peer.Addr.String(),
 	}
 
 	if isForwardedRequest(ctx) {
-		cn, org, ous := forwardedTLSInfoFromContext(ctx)
+		remoteAddr, cn, org, ous := forwardedTLSInfoFromContext(ctx)
 		if len(ous) == 0 || cn == "" || org == "" {
 			return RemoteNodeInfo{}, grpc.Errorf(codes.PermissionDenied, "Permission denied: missing information in forwarded request")
 		}
-		return RemoteNodeInfo{Roles: ous, NodeID: cn, Organization: org, ForwardedBy: &directInfo}, nil
+		return RemoteNodeInfo{
+			Roles:        ous,
+			NodeID:       cn,
+			Organization: org,
+			ForwardedBy:  &directInfo,
+			RemoteAddr:   remoteAddr,
+		}, nil
 	}
 
 	return directInfo, nil

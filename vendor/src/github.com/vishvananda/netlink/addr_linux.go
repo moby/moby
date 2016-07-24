@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/vishvananda/netlink/nl"
+	"github.com/vishvananda/netns"
 )
 
 // IFA_FLAGS is a u32 attribute.
@@ -192,7 +193,17 @@ type AddrUpdate struct {
 // AddrSubscribe takes a chan down which notifications will be sent
 // when addresses change.  Close the 'done' chan to stop subscription.
 func AddrSubscribe(ch chan<- AddrUpdate, done <-chan struct{}) error {
-	s, err := nl.Subscribe(syscall.NETLINK_ROUTE, syscall.RTNLGRP_IPV4_IFADDR, syscall.RTNLGRP_IPV6_IFADDR)
+	return addrSubscribe(netns.None(), netns.None(), ch, done)
+}
+
+// AddrSubscribeAt works like AddrSubscribe plus it allows the caller
+// to choose the network namespace in which to subscribe (ns).
+func AddrSubscribeAt(ns netns.NsHandle, ch chan<- AddrUpdate, done <-chan struct{}) error {
+	return addrSubscribe(ns, netns.None(), ch, done)
+}
+
+func addrSubscribe(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-chan struct{}) error {
+	s, err := nl.SubscribeAt(newNs, curNs, syscall.NETLINK_ROUTE, syscall.RTNLGRP_IPV4_IFADDR, syscall.RTNLGRP_IPV6_IFADDR)
 	if err != nil {
 		return err
 	}

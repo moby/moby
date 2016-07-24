@@ -62,8 +62,14 @@ func (r *ReplicatedOrchestrator) Run(ctx context.Context) error {
 		if err = r.initTasks(ctx, readTx); err != nil {
 			return
 		}
-		err = r.initServices(readTx)
-		err = r.initCluster(readTx)
+
+		if err = r.initServices(readTx); err != nil {
+			return
+		}
+
+		if err = r.initCluster(readTx); err != nil {
+			return
+		}
 	})
 	if err != nil {
 		return err

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -73,14 +74,35 @@ var defaultSpec = types.Spec{
 }
 
 type state struct {
+	// LocalAddr is this machine's local IP or hostname, if specified.
+	LocalAddr string
+	// RemoteAddr is the address that was given to "swarm join. It is used
+	// to find LocalAddr if necessary.
+	RemoteAddr string
+	// ListenAddr is the address we bind to, including a port.
 	ListenAddr string
+	// AdvertiseAddr is the address other nodes should connect to,
+	// including a port.
+	AdvertiseAddr string
+}
+
+// NetworkSubnetsProvider exposes functions for retrieving the subnets
+// of networks managed by Docker, so they can be filtered.
+type NetworkSubnetsProvider interface {
+	V4Subnets() []net.IPNet
+	V6Subnets() []net.IPNet
 }
 
 // Config provides values for Cluster.
 type Config struct {
-	Root    string
-	Name    string
-	Backend executorpkg.Backend
+	Root                   string
+	Name                   string
+	Backend                executorpkg.Backend
+	NetworkSubnetsProvider NetworkSubnetsProvider
+
+	// DefaultAdvertiseAddr is the default host/IP or network interface to use
+	// if no AdvertiseAddr value is specified.
+	DefaultAdvertiseAddr string
 }
 
 // Cluster provides capabilities to participate in a cluster as a worker or a
@@ -88,13 +110,17 @@ type Config struct {
 type Cluster struct {
 	sync.RWMutex
 	*node
-	root        string
-	config      Config
-	configEvent chan struct{} // todo: make this array and goroutine safe
-	listenAddr  string
-	stop        bool
-	err         error
-	cancelDelay func()
+	root            string
+	config          Config
+	configEvent     chan struct{} // todo: make this array and goroutine safe
+	localAddr       string
+	actualLocalAddr string // after resolution, not persisted
+	remoteAddr      string
+	listenAddr      string
+	advertiseAddr   string
+	stop            bool
+	err             error
+	cancelDelay     func()
 }
 
 type node struct {
@@ -126,7 +152,7 @@ func New(config Config) (*Cluster, error) {
 		return nil, err
 	}
 
-	n, err := c.startNewNode(false, st.ListenAddr, "", "")
+	n, err := c.startNewNode(false, st.LocalAddr, st.RemoteAddr, st.ListenAddr, st.AdvertiseAddr, "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +188,12 @@ func (c *Cluster) loadState() (*state, error) {
 }
 
 func (c *Cluster) saveState() error {
-	dt, err := json.Marshal(state{ListenAddr: c.listenAddr})
+	dt, err := json.Marshal(state{
+		LocalAddr:     c.localAddr,
+		RemoteAddr:    c.remoteAddr,
+		ListenAddr:    c.listenAddr,
+		AdvertiseAddr: c.advertiseAddr,
+	})
 	if err != nil {
 		return err
 	}
@@ -195,7 +226,7 @@ func (c *Cluster) reconnectOnFailure(n *node) {
 			return
 		}
 		var err error
-		n, err = c.startNewNode(false, c.listenAddr, c.getRemoteAddress(), "")
+		n, err = c.startNewNode(false, c.localAddr, c.getRemoteAddress(), c.listenAddr, c.advertiseAddr, c.getRemoteAddress(), "")
 		if err != nil {
 			c.err = err
 			close(n.done)
@@ -204,24 +235,55 @@ func (c *Cluster) reconnectOnFailure(n *node) {
 	}
 }
 
-func (c *Cluster) startNewNode(forceNewCluster bool, listenAddr, joinAddr, joinToken string) (*node, error) {
+func (c *Cluster) startNewNode(forceNewCluster bool, localAddr, remoteAddr, listenAddr, advertiseAddr, joinAddr, joinToken string) (*node, error) {
 	if err := c.config.Backend.IsSwarmCompatible(); err != nil {
 		return nil, err
 	}
+
+	actualLocalAddr := localAddr
+	if actualLocalAddr == "" {
+		// If localAddr was not specified, resolve it automatically
+		// based on the route to joinAddr. localAddr can only be left
+		// empty on "join".
+		listenHost, _, err := net.SplitHostPort(listenAddr)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse listen address: %v", err)
+		}
+
+		listenAddrIP := net.ParseIP(listenHost)
+		if listenAddrIP == nil || !listenAddrIP.IsUnspecified() {
+			actualLocalAddr = listenHost
+		} else {
+			if remoteAddr == "" {
+				// Should never happen except using swarms created by
+				// old versions that didn't save remoteAddr.
+				remoteAddr = "8.8.8.8:53"
+			}
+			conn, err := net.Dial("udp", remoteAddr)
+			if err != nil {
+				return nil, fmt.Errorf("could not find local IP address: %v", err)
+			}
+			localHostPort := conn.LocalAddr().String()
+			actualLocalAddr, _, _ = net.SplitHostPort(localHostPort)
+			conn.Close()
+		}
+	}
+
 	c.node = nil
 	c.cancelDelay = nil
 	c.stop = false
 	n, err := swarmagent.NewNode(&swarmagent.NodeConfig{
-		Hostname:         c.config.Name,
-		ForceNewCluster:  forceNewCluster,
-		ListenControlAPI: filepath.Join(c.root, controlSocket),
-		ListenRemoteAPI:  listenAddr,
-		JoinAddr:         joinAddr,
-		StateDir:         c.root,
-		JoinToken:        joinToken,
-		Executor:         container.NewExecutor(c.config.Backend),
-		HeartbeatTick:    1,
-		ElectionTick:     3,
+		Hostname:           c.config.Name,
+		ForceNewCluster:    forceNewCluster,
+		ListenControlAPI:   filepath.Join(c.root, controlSocket),
+		ListenRemoteAPI:    listenAddr,
+		AdvertiseRemoteAPI: advertiseAddr,
+		JoinAddr:           joinAddr,
+		StateDir:           c.root,
+		JoinToken:          joinToken,
+		Executor:           container.NewExecutor(c.config.Backend),
+		HeartbeatTick:      1,
+		ElectionTick:       3,
 	})
 	if err != nil {
 		return nil, err
@@ -236,8 +298,13 @@ func (c *Cluster) startNewNode(forceNewCluster bool, listenAddr, joinAddr, joinT
 		reconnectDelay: initialReconnectDelay,
 	}
 	c.node = node
+	c.localAddr = localAddr
+	c.actualLocalAddr = actualLocalAddr // not saved
+	c.remoteAddr = remoteAddr
 	c.listenAddr = listenAddr
+	c.advertiseAddr = advertiseAddr
 	c.saveState()
+
 	c.config.Backend.SetClusterProvider(c)
 	go func() {
 		err := n.Err(ctx)
@@ -301,8 +368,49 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 		return "", err
 	}
 
+	listenHost, listenPort, err := resolveListenAddr(req.ListenAddr)
+	if err != nil {
+		c.Unlock()
+		return "", err
+	}
+
+	advertiseHost, advertisePort, err := c.resolveAdvertiseAddr(req.AdvertiseAddr, listenPort)
+	if err != nil {
+		c.Unlock()
+		return "", err
+	}
+
+	localAddr := listenHost
+
+	// If the advertise address is not one of the system's
+	// addresses, we also require a listen address.
+	listenAddrIP := net.ParseIP(listenHost)
+	if listenAddrIP != nil && listenAddrIP.IsUnspecified() {
+		advertiseIP := net.ParseIP(advertiseHost)
+		if advertiseIP == nil {
+			// not an IP
+			c.Unlock()
+			return "", errMustSpecifyListenAddr
+		}
+
+		systemIPs := listSystemIPs()
+
+		found := false
+		for _, systemIP := range systemIPs {
+			if systemIP.Equal(advertiseIP) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			c.Unlock()
+			return "", errMustSpecifyListenAddr
+		}
+		localAddr = advertiseIP.String()
+	}
+
 	// todo: check current state existing
-	n, err := c.startNewNode(req.ForceNewCluster, req.ListenAddr, "", "")
+	n, err := c.startNewNode(req.ForceNewCluster, localAddr, "", net.JoinHostPort(listenHost, listenPort), net.JoinHostPort(advertiseHost, advertisePort), "", "")
 	if err != nil {
 		c.Unlock()
 		return "", err
@@ -339,8 +447,23 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 		c.Unlock()
 		return err
 	}
+
+	listenHost, listenPort, err := resolveListenAddr(req.ListenAddr)
+	if err != nil {
+		c.Unlock()
+		return err
+	}
+
+	var advertiseAddr string
+	advertiseHost, advertisePort, err := c.resolveAdvertiseAddr(req.AdvertiseAddr, listenPort)
+	// For joining, we don't need to provide an advertise address,
+	// since the remote side can detect it.
+	if err == nil {
+		advertiseAddr = net.JoinHostPort(advertiseHost, advertisePort)
+	}
+
 	// todo: check current state existing
-	n, err := c.startNewNode(false, req.ListenAddr, req.RemoteAddrs[0], req.JoinToken)
+	n, err := c.startNewNode(false, "", req.RemoteAddrs[0], net.JoinHostPort(listenHost, listenPort), advertiseAddr, req.RemoteAddrs[0], req.JoinToken)
 	if err != nil {
 		c.Unlock()
 		return err
@@ -530,15 +653,22 @@ func (c *Cluster) IsAgent() bool {
 	return c.node != nil && c.ready
 }
 
-// GetListenAddress returns the listening address for current manager's
-// consensus and dispatcher APIs.
-func (c *Cluster) GetListenAddress() string {
+// GetLocalAddress returns the local address.
+func (c *Cluster) GetLocalAddress() string {
 	c.RLock()
 	defer c.RUnlock()
-	if c.isActiveManager() {
-		return c.listenAddr
+	return c.actualLocalAddr
+}
+
+// GetAdvertiseAddress returns the remotely reachable address of this node.
+func (c *Cluster) GetAdvertiseAddress() string {
+	c.RLock()
+	defer c.RUnlock()
+	if c.advertiseAddr != "" {
+		advertiseHost, _, _ := net.SplitHostPort(c.advertiseAddr)
+		return advertiseHost
 	}
-	return ""
+	return c.actualLocalAddr
 }
 
 // GetRemoteAddress returns a known advertise address of a remote manager if
@@ -572,7 +702,10 @@ func (c *Cluster) ListenClusterEvents() <-chan struct{} {
 
 // Info returns information about the current cluster state.
 func (c *Cluster) Info() types.Info {
-	var info types.Info
+	info := types.Info{
+		NodeAddr: c.GetAdvertiseAddress(),
+	}
+
 	c.RLock()
 	defer c.RUnlock()
 

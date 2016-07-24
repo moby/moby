@@ -38,6 +38,10 @@ func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) strin
 	config.attachExperimentalFlags(cmd, usageFn)
 }
 
+// GetExecRoot returns the user configured Exec-root
+func (config *Config) GetExecRoot() string {
+	return config.ExecRoot
+}
 func (config *Config) isSwarmCompatible() error {
 	return nil
 }

@@ -2,23 +2,27 @@ package overlay
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"hash/fnv"
 	"net"
 	"sync"
 	"syscall"
+
+	"strconv"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
-	"strconv"
 )
 
 const (
-	mark    = uint32(0xD0C4E3)
-	timeout = 30
+	mark         = uint32(0xD0C4E3)
+	timeout      = 30
+	pktExpansion = 26 // SPI(4) + SeqN(4) + IV(8) + PadLength(1) + NextHeader(1) + ICV(8)
 )
 
 const (
@@ -85,6 +89,7 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal
 	}
 
 	lIP := types.GetMinimalIP(net.ParseIP(d.bindAddress))
+	aIP := types.GetMinimalIP(net.ParseIP(d.advertiseAddress))
 	nodes := map[string]net.IP{}
 
 	switch {
@@ -107,7 +112,7 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal
 
 	if add {
 		for _, rIP := range nodes {
-			if err := setupEncryption(lIP, rIP, vxlanID, d.secMap, d.keys); err != nil {
+			if err := setupEncryption(lIP, aIP, rIP, vxlanID, d.secMap, d.keys); err != nil {
 				log.Warnf("Failed to program network encryption between %s and %s: %v", lIP, rIP, err)
 			}
 		}
@@ -122,7 +127,7 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal
 	return nil
 }
 
-func setupEncryption(localIP, remoteIP net.IP, vni uint32, em *encrMap, keys []*key) error {
+func setupEncryption(localIP, advIP, remoteIP net.IP, vni uint32, em *encrMap, keys []*key) error {
 	log.Debugf("Programming encryption for vxlan %d between %s and %s", vni, localIP, remoteIP)
 	rIPs := remoteIP.String()
 
@@ -134,7 +139,7 @@ func setupEncryption(localIP, remoteIP net.IP, vni uint32, em *encrMap, keys []*
 	}
 
 	for i, k := range keys {
-		spis := &spi{buildSPI(localIP, remoteIP, k.tag), buildSPI(remoteIP, localIP, k.tag)}
+		spis := &spi{buildSPI(advIP, remoteIP, k.tag), buildSPI(remoteIP, advIP, k.tag)}
 		dir := reverse
 		if i == 0 {
 			dir = bidir
@@ -216,7 +221,6 @@ func programMangle(vni uint32, add bool) (err error) {
 
 func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (fSA *netlink.XfrmState, rSA *netlink.XfrmState, err error) {
 	var (
-		crypt       *netlink.XfrmStateAlgo
 		action      = "Removing"
 		xfrmProgram = ns.NlHandle().XfrmStateDel
 	)
@@ -224,7 +228,6 @@ func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (f
 	if add {
 		action = "Adding"
 		xfrmProgram = ns.NlHandle().XfrmStateAdd
-		crypt = &netlink.XfrmStateAlgo{Name: "cbc(aes)", Key: k.value}
 	}
 
 	if dir&reverse > 0 {
@@ -236,7 +239,7 @@ func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (f
 			Mode:  netlink.XFRM_MODE_TRANSPORT,
 		}
 		if add {
-			rSA.Crypt = crypt
+			rSA.Aead = buildAeadAlgo(k, spi.reverse)
 		}
 
 		exists, err := saExists(rSA)
@@ -261,7 +264,7 @@ func programSA(localIP, remoteIP net.IP, spi *spi, k *key, dir int, add bool) (f
 			Mode:  netlink.XFRM_MODE_TRANSPORT,
 		}
 		if add {
-			fSA.Crypt = crypt
+			fSA.Aead = buildAeadAlgo(k, spi.forward)
 		}
 
 		exists, err := saExists(fSA)
@@ -354,13 +357,23 @@ func spExists(sp *netlink.XfrmPolicy) (bool, error) {
 }
 
 func buildSPI(src, dst net.IP, st uint32) int {
-	spi := int(st)
-	f := src[len(src)-4:]
-	t := dst[len(dst)-4:]
-	for i := 0; i < 4; i++ {
-		spi = spi ^ (int(f[i])^int(t[3-i]))<<uint32(8*i)
+	b := make([]byte, 4)
+	binary.BigEndian.PutUint32(b, st)
+	h := fnv.New32a()
+	h.Write(src)
+	h.Write(b)
+	h.Write(dst)
+	return int(binary.BigEndian.Uint32(h.Sum(nil)))
+}
+
+func buildAeadAlgo(k *key, s int) *netlink.XfrmStateAlgo {
+	salt := make([]byte, 4)
+	binary.BigEndian.PutUint32(salt, uint32(s))
+	return &netlink.XfrmStateAlgo{
+		Name:   "rfc4106(gcm(aes))",
+		Key:    append(k.value, salt...),
+		ICVLen: 64,
 	}
-	return spi
 }
 
 func (d *driver) secMapWalk(f func(string, []*spi) ([]*spi, bool)) error {
@@ -559,4 +572,15 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 	log.Debugf("Updated: %v", spis)
 
 	return spis
+}
+
+func (n *network) maxMTU() int {
+	mtu := vxlanVethMTU
+	if n.secure {
+		// In case of encryption account for the
+		// esp packet espansion and padding
+		mtu -= pktExpansion
+		mtu -= (mtu % 4)
+	}
+	return mtu
 }

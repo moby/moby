@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	// alpnProtoStr are the specified application level protocols for gRPC.
+	// alpnProtoStr is the specified application level protocols for gRPC.
 	alpnProtoStr = []string{"h2"}
 )
 
