@@ -160,7 +160,7 @@ func parseExternalCA(caSpec string) (*swarm.ExternalCA, error) {
 }
 
 func addSwarmFlags(flags *pflag.FlagSet, opts *swarmOptions) {
-	flags.Int64Var(&opts.taskHistoryLimit, flagTaskHistoryLimit, 10, "Task history retention limit")
+	flags.Int64Var(&opts.taskHistoryLimit, flagTaskHistoryLimit, 5, "Task history retention limit")
 	flags.DurationVar(&opts.dispatcherHeartbeat, flagDispatcherHeartbeat, time.Duration(5*time.Second), "Dispatcher heartbeat period")
 	flags.DurationVar(&opts.nodeCertExpiry, flagCertExpiry, time.Duration(90*24*time.Hour), "Validity period for node certificates")
 	flags.Var(&opts.externalCA, flagExternalCA, "Specifications of one or more certificate signing endpoints")
