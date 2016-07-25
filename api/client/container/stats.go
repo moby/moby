@@ -192,13 +192,23 @@ func runStats(dockerCli *client.DockerCli, opts *statsOptions) error {
 
 	for range time.Tick(500 * time.Millisecond) {
 		printHeader()
+		toRemove := []string{}
 		cStats.mu.Lock()
 		for _, s := range cStats.cs {
 			if err := s.Display(w); err != nil && !opts.noStream {
 				logrus.Debugf("stats: got error for %s: %v", s.Name, err)
+				if err == io.EOF {
+					toRemove = append(toRemove, s.Name)
+				}
 			}
 		}
 		cStats.mu.Unlock()
+		for _, name := range toRemove {
+			cStats.remove(name)
+		}
+		if len(cStats.cs) == 0 && !showAll {
+			return nil
+		}
 		w.Flush()
 		if opts.noStream {
 			break
