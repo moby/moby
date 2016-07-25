@@ -67,7 +67,7 @@ func (ctr *container) cleanProcess(id string) {
 	if p, ok := ctr.processes[id]; ok {
 		for _, i := range []int{syscall.Stdin, syscall.Stdout, syscall.Stderr} {
 			if err := os.Remove(p.fifo(i)); err != nil {
-				logrus.Warnf("failed to remove %v for process %v: %v", p.fifo(i), id, err)
+				logrus.Warnf("libcontainerd: failed to remove %v for process %v: %v", p.fifo(i), id, err)
 			}
 		}
 	}
@@ -161,7 +161,7 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 		if st.State == StateExit && ctr.restartManager != nil {
 			restart, wait, err := ctr.restartManager.ShouldRestart(e.Status, false, time.Since(ctr.startedAt))
 			if err != nil {
-				logrus.Warnf("container %s %v", ctr.containerID, err)
+				logrus.Warnf("libcontainerd: container %s %v", ctr.containerID, err)
 			} else if restart {
 				st.State = StateRestart
 				ctr.restarting = true
@@ -176,11 +176,11 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 						ctr.clean()
 						ctr.client.q.append(e.Id, func() {
 							if err := ctr.client.backend.StateChanged(e.Id, st); err != nil {
-								logrus.Error(err)
+								logrus.Errorf("libcontainerd: %v", err)
 							}
 						})
 						if err != restartmanager.ErrRestartCanceled {
-							logrus.Error(err)
+							logrus.Errorf("libcontainerd: %v", err)
 						}
 					} else {
 						ctr.start()
@@ -200,7 +200,7 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 		}
 		ctr.client.q.append(e.Id, func() {
 			if err := ctr.client.backend.StateChanged(e.Id, st); err != nil {
-				logrus.Error(err)
+				logrus.Errorf("libcontainerd: backend.StateChanged(): %v", err)
 			}
 			if e.Type == StatePause || e.Type == StateResume {
 				ctr.pauseMonitor.handle(e.Type)
@@ -213,7 +213,7 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 		})
 
 	default:
-		logrus.Debugf("event unhandled: %+v", e)
+		logrus.Debugf("libcontainerd: event unhandled: %+v", e)
 	}
 	return nil
 }

@@ -47,13 +47,13 @@ func (ctr *container) start() error {
 
 	// Start the container.  If this is a servicing container, this call will block
 	// until the container is done with the servicing execution.
-	logrus.Debugln("Starting container ", ctr.containerID)
+	logrus.Debugln("libcontainerd: starting container ", ctr.containerID)
 	if err = ctr.hcsContainer.Start(); err != nil {
-		logrus.Errorf("Failed to start container: %s", err)
+		logrus.Errorf("libcontainerd: failed to start container: %s", err)
 		if err := ctr.terminate(); err != nil {
-			logrus.Errorf("Failed to cleanup after a failed Start. %s", err)
+			logrus.Errorf("libcontainerd: failed to cleanup after a failed Start. %s", err)
 		} else {
-			logrus.Debugln("Cleaned up after failed Start by calling Terminate")
+			logrus.Debugln("libcontainerd: cleaned up after failed Start by calling Terminate")
 		}
 		return err
 	}
@@ -79,11 +79,11 @@ func (ctr *container) start() error {
 	// Start the command running in the container.
 	hcsProcess, err := ctr.hcsContainer.CreateProcess(createProcessParms)
 	if err != nil {
-		logrus.Errorf("CreateProcess() failed %s", err)
+		logrus.Errorf("libcontainerd: CreateProcess() failed %s", err)
 		if err := ctr.terminate(); err != nil {
-			logrus.Errorf("Failed to cleanup after a failed CreateProcess. %s", err)
+			logrus.Errorf("libcontainerd: failed to cleanup after a failed CreateProcess. %s", err)
 		} else {
-			logrus.Debugln("Cleaned up after failed CreateProcess by calling Terminate")
+			logrus.Debugln("libcontainerd: cleaned up after failed CreateProcess by calling Terminate")
 		}
 		return err
 	}
@@ -100,7 +100,7 @@ func (ctr *container) start() error {
 		exitCode := ctr.waitProcessExitCode(&ctr.process)
 
 		if exitCode != 0 {
-			logrus.Warnf("Servicing container %s returned non-zero exit code %d", ctr.containerID, exitCode)
+			logrus.Warnf("libcontainerd: servicing container %s returned non-zero exit code %d", ctr.containerID, exitCode)
 			return ctr.terminate()
 		}
 
@@ -111,9 +111,9 @@ func (ctr *container) start() error {
 	var stdin io.WriteCloser
 	stdin, stdout, stderr, err = hcsProcess.Stdio()
 	if err != nil {
-		logrus.Errorf("failed to get stdio pipes: %s", err)
+		logrus.Errorf("libcontainerd: failed to get stdio pipes: %s", err)
 		if err := ctr.terminate(); err != nil {
-			logrus.Errorf("Failed to cleanup after a failed Stdio. %s", err)
+			logrus.Errorf("libcontainerd: failed to cleanup after a failed Stdio. %s", err)
 		}
 		return err
 	}
@@ -134,7 +134,7 @@ func (ctr *container) start() error {
 	}
 
 	// Save the PID
-	logrus.Debugf("Process started - PID %d", pid)
+	logrus.Debugf("libcontainerd: process started - PID %d", pid)
 	ctr.systemPid = uint32(pid)
 
 	// Spin up a go routine waiting for exit to handle cleanup
@@ -163,7 +163,7 @@ func (ctr *container) waitProcessExitCode(process *process) int {
 	err := process.hcsProcess.Wait()
 	if err != nil {
 		if herr, ok := err.(*hcsshim.ProcessError); ok && herr.Err != syscall.ERROR_BROKEN_PIPE {
-			logrus.Warnf("Wait failed (container may have been killed): %s", err)
+			logrus.Warnf("libcontainerd: Wait() failed (container may have been killed): %s", err)
 		}
 		// Fall through here, do not return. This ensures we attempt to continue the
 		// shutdown in HCS and tell the docker engine that the process/container
@@ -173,7 +173,7 @@ func (ctr *container) waitProcessExitCode(process *process) int {
 	exitCode, err := process.hcsProcess.ExitCode()
 	if err != nil {
 		if herr, ok := err.(*hcsshim.ProcessError); ok && herr.Err != syscall.ERROR_BROKEN_PIPE {
-			logrus.Warnf("Unable to get exit code from container %s", ctr.containerID)
+			logrus.Warnf("libcontainerd: unable to get exit code from container %s", ctr.containerID)
 		}
 		// Since we got an error retrieving the exit code, make sure that the code we return
 		// doesn't incorrectly indicate success.
@@ -185,7 +185,7 @@ func (ctr *container) waitProcessExitCode(process *process) int {
 	}
 
 	if err := process.hcsProcess.Close(); err != nil {
-		logrus.Error(err)
+		logrus.Errorf("libcontainerd: hcsProcess.Close(): %v", err)
 	}
 
 	return exitCode
@@ -195,7 +195,7 @@ func (ctr *container) waitProcessExitCode(process *process) int {
 // equivalent to (in the linux containerd world) where events come in for
 // state change notifications from containerd.
 func (ctr *container) waitExit(process *process, isFirstProcessToStart bool) error {
-	logrus.Debugln("waitExit on pid", process.systemPid)
+	logrus.Debugln("libcontainerd: waitExit() on pid", process.systemPid)
 
 	exitCode := ctr.waitProcessExitCode(process)
 
@@ -216,16 +216,16 @@ func (ctr *container) waitExit(process *process, isFirstProcessToStart bool) err
 	} else {
 		updatePending, err := ctr.hcsContainer.HasPendingUpdates()
 		if err != nil {
-			logrus.Warnf("HasPendingUpdates failed (container may have been killed): %s", err)
+			logrus.Warnf("libcontainerd: HasPendingUpdates() failed (container may have been killed): %s", err)
 		} else {
 			si.UpdatePending = updatePending
 		}
 
-		logrus.Debugf("Shutting down container %s", ctr.containerID)
+		logrus.Debugf("libcontainerd: shutting down container %s", ctr.containerID)
 		if err := ctr.shutdown(); err != nil {
-			logrus.Debugf("Failed to shutdown container %s", ctr.containerID)
+			logrus.Debugf("libcontainerd: failed to shutdown container %s", ctr.containerID)
 		} else {
-			logrus.Debugf("Completed shutting down container %s", ctr.containerID)
+			logrus.Debugf("libcontainerd: completed shutting down container %s", ctr.containerID)
 		}
 		if err := ctr.hcsContainer.Close(); err != nil {
 			logrus.Error(err)
@@ -263,12 +263,12 @@ func (ctr *container) waitExit(process *process, isFirstProcessToStart bool) err
 	}
 
 	// Call into the backend to notify it of the state change.
-	logrus.Debugf("waitExit() calling backend.StateChanged %+v", si)
+	logrus.Debugf("libcontainerd: waitExit() calling backend.StateChanged %+v", si)
 	if err := ctr.client.backend.StateChanged(ctr.containerID, si); err != nil {
 		logrus.Error(err)
 	}
 
-	logrus.Debugf("waitExit() completed OK, %+v", si)
+	logrus.Debugf("libcontainerd: waitExit() completed OK, %+v", si)
 	return nil
 }
 
@@ -283,7 +283,7 @@ func (ctr *container) shutdown() error {
 	}
 
 	if err != nil {
-		logrus.Debugf("error shutting down container %s %v calling terminate", ctr.containerID, err)
+		logrus.Debugf("libcontainerd: error shutting down container %s %v calling terminate", ctr.containerID, err)
 		if err := ctr.terminate(); err != nil {
 			return err
 		}
@@ -304,7 +304,7 @@ func (ctr *container) terminate() error {
 	}
 
 	if err != nil {
-		logrus.Debugf("error terminating container %s %v", ctr.containerID, err)
+		logrus.Debugf("libcontainerd: error terminating container %s %v", ctr.containerID, err)
 		return err
 	}
 
