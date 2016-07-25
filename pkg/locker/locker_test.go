@@ -1,6 +1,7 @@
 package locker
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -121,4 +122,56 @@ func TestLockerConcurrency(t *testing.T) {
 	if ctr, exists := l.locks["test"]; exists {
 		t.Fatalf("lock should not exist: %v", ctr)
 	}
+}
+
+func TestLockerCancelWithError(t *testing.T) {
+	// 1. (Outside) Lock
+	// 2. (Outside) CancelWithError
+	// 3. -> GoInside
+	// 4.    (Inside)  Lock (later, it should get an error, not the lock)
+	// 5. (Outside) Unlock
+	// 6.    Now, the inside Lock gets the lock chance,
+	//       but it checks locks[name].err, find error, so it Unlock
+	//       Then, the locks[name] is deleted
+	//    <- (Inside) Return error, lock fail
+	// 7. (Outside) Lock this name again
+	//    (this time, it is a new lock, so it won't return error)
+
+	l := New()
+	testErr := fmt.Errorf("test error")
+
+	if err := l.Lock("test"); err != nil {
+		t.Fatalf("lock's error should be nil before CancelWithError")
+	}
+	l.CancelWithError("test", testErr)
+
+	chErr := make(chan error)
+	goInside := make(chan struct{})
+	defer close(chErr)
+	go func() {
+		<-goInside
+		err := l.Lock("test")
+		chErr <- err
+	}()
+
+	goInside <- struct{}{}
+	l.Unlock("test")
+
+	select {
+	case err := <-chErr:
+		if err != testErr {
+			t.Fatalf("lock's error is '%v', should be '%v'", err, testErr)
+		}
+		// Since lock has an error, the lock should not be Locked
+		if ctr, exists := l.locks["test"]; exists {
+			t.Fatalf("lock should not exist: %v", ctr)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatalf("lock should not be blocked")
+	}
+
+	if err := l.Lock("test"); err != nil {
+		t.Fatalf("lock's error should be nil because it is a new lock")
+	}
+	l.Unlock("test")
 }
