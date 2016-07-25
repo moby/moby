@@ -90,7 +90,7 @@ Docker image comprising five layers.
     Digest: sha256:46fb5d001b88ad904c5c732b086b596b92cfb4a4840a3abd0e35dbb6870585e4
     Status: Downloaded newer image for ubuntu:latest
 
-Each image layer has it's own directory under `/var/lib/docker/overlay/`. This 
+Each image layer has its own directory under `/var/lib/docker/overlay/`. This 
 is where the contents of each image layer are stored. 
 
 The output of the command below shows the five directories that store the 

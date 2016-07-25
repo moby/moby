@@ -305,7 +305,7 @@ func (a *Driver) Remove(id string) error {
 }
 
 // Get returns the rootfs path for the id.
-// This will mount the dir at it's given path
+// This will mount the dir at its given path
 func (a *Driver) Get(id, mountLabel string) (string, error) {
 	parents, err := a.getParentLayerPaths(id)
 	if err != nil && !os.IsNotExist(err) {

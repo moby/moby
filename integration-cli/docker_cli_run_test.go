@@ -4095,7 +4095,7 @@ func (s *DockerSuite) TestRunNonExistingCmd(c *check.C) {
 
 // TestCmdCannotBeInvoked checks that 'docker run busybox /etc' exits with 126, or
 // 127 on Windows. The difference is that in Windows, the container must be started
-// as that's when the check is made (and yes, by it's design...)
+// as that's when the check is made (and yes, by its design...)
 func (s *DockerSuite) TestCmdCannotBeInvoked(c *check.C) {
 	expected := 126
 	if daemonPlatform == "windows" {
