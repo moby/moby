@@ -203,6 +203,7 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 }
 
 // Get a suitable probe implementation for the container's healthcheck configuration.
+// Nil will be returned if no healthcheck was configured or NONE was set.
 func getProbe(c *container.Container) probe {
 	config := c.Config.Healthcheck
 	if config == nil || len(config.Test) == 0 {
@@ -244,7 +245,8 @@ func (d *Daemon) updateHealthMonitor(c *container.Container) {
 // two instances at once.
 // Called with c locked.
 func (d *Daemon) initHealthMonitor(c *container.Container) {
-	if c.Config.Healthcheck == nil {
+	// If no healthcheck is setup then don't init the monitor
+	if getProbe(c) == nil {
 		return
 	}
 
@@ -254,7 +256,6 @@ func (d *Daemon) initHealthMonitor(c *container.Container) {
 	if c.State.Health == nil {
 		h := &container.Health{}
 		h.Status = types.Starting
-		h.FailingStreak = 0
 		c.State.Health = h
 	}
 
