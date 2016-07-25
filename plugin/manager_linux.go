@@ -3,6 +3,7 @@
 package plugin
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -20,6 +21,9 @@ import (
 )
 
 func (pm *Manager) enable(p *plugin) error {
+	if p.P.Active {
+		return fmt.Errorf("plugin %s is already enabled", p.Name())
+	}
 	spec, err := pm.initSpec(p)
 	if err != nil {
 		return err
@@ -27,12 +31,18 @@ func (pm *Manager) enable(p *plugin) error {
 
 	p.restartManager = restartmanager.New(container.RestartPolicy{Name: "always"}, 0)
 	if err := pm.containerdClient.Create(p.P.ID, libcontainerd.Spec(*spec), libcontainerd.WithRestartManager(p.restartManager)); err != nil { // POC-only
+		if err := p.restartManager.Cancel(); err != nil {
+			logrus.Errorf("enable: restartManager.Cancel failed due to %v", err)
+		}
 		return err
 	}
 
 	socket := p.P.Manifest.Interface.Socket
 	p.client, err = plugins.NewClient("unix://"+filepath.Join(p.runtimeSourcePath, socket), nil)
 	if err != nil {
+		if err := p.restartManager.Cancel(); err != nil {
+			logrus.Errorf("enable: restartManager.Cancel failed due to %v", err)
+		}
 		return err
 	}
 
@@ -114,6 +124,9 @@ func (pm *Manager) initSpec(p *plugin) (*specs.Spec, error) {
 }
 
 func (pm *Manager) disable(p *plugin) error {
+	if !p.P.Active {
+		return fmt.Errorf("plugin %s is already disabled", p.Name())
+	}
 	if err := p.restartManager.Cancel(); err != nil {
 		logrus.Error(err)
 	}
