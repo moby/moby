@@ -44,11 +44,8 @@ func ParseMountSpec(spec, volumeDriver string) (*MountPoint, error) {
 		RW:          true,
 		Propagation: DefaultPropagationMode,
 	}
-	if strings.Count(spec, ":") > 2 {
-		return nil, errInvalidSpec(spec)
-	}
 
-	arr := strings.SplitN(spec, ":", 3)
+	arr := strings.SplitN(spec, ":", 4)
 	if arr[0] == "" {
 		return nil, errInvalidSpec(spec)
 	}
@@ -70,12 +67,36 @@ func ParseMountSpec(spec, volumeDriver string) (*MountPoint, error) {
 		// HostSourcePath+DestinationPath+Mode
 		mp.Source = arr[0]
 		mp.Destination = arr[1]
-		mp.Mode = arr[2] // Mode field is used by SELinux to decide whether to apply label
+		mp.Mode = arr[2]
+
 		if !ValidMountMode(mp.Mode) {
 			return nil, errInvalidMode(mp.Mode)
 		}
+
 		mp.RW = ReadWrite(mp.Mode)
 		mp.Propagation = GetPropagation(mp.Mode)
+	case 4:
+		// HostSourcePath+DestinationPath+Mode+MountOptions
+		mp.Source = arr[0]
+		mp.Destination = arr[1]
+		mp.Mode = arr[2]
+
+		if mp.Mode == "" {
+			return nil, errInvalidSpec(spec)
+		}
+
+		if !ValidMountMode(mp.Mode) {
+			return nil, errInvalidMode(mp.Mode)
+		}
+
+		mp.RW = ReadWrite(mp.Mode)
+		mp.Propagation = GetPropagation(mp.Mode)
+
+		var err error
+		mp.Opt, err = parseOpts(arr[3])
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, errInvalidSpec(spec)
 	}
@@ -183,4 +204,20 @@ func ReadWrite(mode string) bool {
 	}
 
 	return true
+}
+
+func parseOpts(optsIn string) (map[string]string, error) {
+	opts := map[string]string{}
+
+	for _, o := range strings.Split(optsIn, ",") {
+		keyValue := strings.SplitN(o, "=", 2)
+		if len(keyValue) == 2 {
+			key := keyValue[0]
+			opts[key] = keyValue[1]
+		} else {
+			return nil, errInvalidMountOption(o)
+		}
+	}
+
+	return opts, nil
 }

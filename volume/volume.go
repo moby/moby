@@ -26,7 +26,7 @@ const (
 type Driver interface {
 	// Name returns the name of the volume driver.
 	Name() string
-	// Create makes a new volume with the given id.
+	// Create makes a new volume with the given id. Opts can be nil.
 	Create(name string, opts map[string]string) (Volume, error)
 	// Remove deletes the volume.
 	Remove(vol Volume) (err error)
@@ -57,8 +57,8 @@ type Volume interface {
 	// Path returns the absolute path to the volume.
 	Path() string
 	// Mount mounts the volume and returns the absolute path to
-	// where it can be consumed.
-	Mount(id string) (string, error)
+	// where it can be consumed. Opts can be nil.
+	Mount(id string, opts map[string]string) (string, error)
 	// Unmount unmounts the volume when it is no longer in use.
 	Unmount(id string) error
 	// Status returns low-level status information about a volume
@@ -81,12 +81,13 @@ type ScopedVolume interface {
 // specifies which volume is to be used and where inside a container it should
 // be mounted.
 type MountPoint struct {
-	Source      string // Container host directory
-	Destination string // Inside the container
-	RW          bool   // True if writable
-	Name        string // Name set by user
-	Driver      string // Volume driver to use
-	Volume      Volume `json:"-"`
+	Source      string            // Container host directory
+	Destination string            // Inside the container
+	RW          bool              // True if writable
+	Name        string            // Name set by user
+	Driver      string            // Volume driver to use
+	Volume      Volume            `json:"-"`
+	Opt         map[string]string //Mount options
 
 	// Note Mode is not used on Windows
 	Mode string `json:"Relabel"` // Originally field was `Relabel`"
@@ -111,7 +112,7 @@ func (m *MountPoint) Setup(mountLabel string) (string, error) {
 		if m.ID == "" {
 			m.ID = stringid.GenerateNonCryptoID()
 		}
-		return m.Volume.Mount(m.ID)
+		return m.Volume.Mount(m.ID, m.Opt)
 	}
 	if len(m.Source) == 0 {
 		return "", fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
@@ -187,4 +188,8 @@ func errInvalidMode(mode string) error {
 
 func errInvalidSpec(spec string) error {
 	return fmt.Errorf("Invalid volume specification: '%s'", spec)
+}
+
+func errInvalidMountOption(spec string) error {
+	return fmt.Errorf("Invalid mount option: '%s'. Options must be formatted as 'key=value'", spec)
 }

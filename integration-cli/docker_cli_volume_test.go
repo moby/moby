@@ -299,3 +299,22 @@ func (s *DockerSuite) TestVolumeCliCreateLabelMultiple(c *check.C) {
 		c.Assert(strings.TrimSpace(out), check.Equals, v)
 	}
 }
+
+func (s *DockerSuite) TestVolumeCliVolumeMountOpts(c *check.C) {
+	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
+
+	dockerCmd(c, "volume", "create", "--name", "soo")
+	_, status := dockerCmd(c, "run", "-v", "soo:"+prefix+"/foo:ro:foo=bar", "busybox", "ls", "/")
+	c.Assert(status, check.Equals, 0)
+
+	_, status = dockerCmd(c, "run", "-v", "soo:"+prefix+"/foo:ro:url=https://fakeurl.biz", "busybox", "ls", "/")
+	c.Assert(status, check.Equals, 0)
+
+	var err error
+	_, status, err = dockerCmdWithError("run", "-v", "soo:"+prefix+"/foo:ro:badOptionFormat", "busybox", "ls", "/")
+	c.Assert(status, check.Not(check.Equals), 0)
+	c.Assert(err, check.NotNil)
+
+	_, status = dockerCmd(c, "run", "-v", "soo:"+prefix+"/foo:ro:foo=bar,foo2=bar2", "busybox", "ls", "/")
+	c.Assert(status, check.Equals, 0)
+}

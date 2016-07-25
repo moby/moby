@@ -1,8 +1,6 @@
 package mount
 
-import (
-	"time"
-)
+import "time"
 
 // GetMounts retrieves a list of mounts for the current running process.
 func GetMounts() ([]*Info, error) {

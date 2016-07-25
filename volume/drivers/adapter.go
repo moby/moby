@@ -141,9 +141,9 @@ func (a *volumeAdapter) CachedPath() string {
 	return a.eMount
 }
 
-func (a *volumeAdapter) Mount(id string) (string, error) {
+func (a *volumeAdapter) Mount(id string, opts map[string]string) (string, error) {
 	var err error
-	a.eMount, err = a.proxy.Mount(a.name, id)
+	a.eMount, err = a.proxy.Mount(a.name, id, opts)
 	return a.eMount, err
 }
 
