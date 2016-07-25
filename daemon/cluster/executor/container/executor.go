@@ -1,6 +1,7 @@
 package container
 
 import (
+	"sort"
 	"strings"
 
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
@@ -46,6 +47,8 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 	// the plugin list by default.
 	addPlugins("Network", append([]string{"overlay"}, info.Plugins.Network...))
 	addPlugins("Authorization", info.Plugins.Authorization)
+
+	sort.Sort(sortedPlugins(plugins))
 
 	// parse []string labels into a map[string]string
 	labels := map[string]string{}
@@ -136,4 +139,17 @@ func (e *executor) SetNetworkBootstrapKeys(keys []*api.EncryptionKey) error {
 	e.backend.SetNetworkBootstrapKeys(nwKeys)
 
 	return nil
+}
+
+type sortedPlugins []api.PluginDescription
+
+func (sp sortedPlugins) Len() int { return len(sp) }
+
+func (sp sortedPlugins) Swap(i, j int) { sp[i], sp[j] = sp[j], sp[i] }
+
+func (sp sortedPlugins) Less(i, j int) bool {
+	if sp[i].Type != sp[j].Type {
+		return sp[i].Type < sp[j].Type
+	}
+	return sp[i].Name < sp[j].Name
 }
