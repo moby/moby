@@ -43,7 +43,6 @@ import (
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/idtools"
 	mountpk "github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/pkg/stringid"
 
 	"github.com/opencontainers/runc/libcontainer/label"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
@@ -492,7 +491,7 @@ func (a *Driver) Cleanup() error {
 
 	for _, m := range dirs {
 		if err := a.unmount(m); err != nil {
-			logrus.Debugf("aufs error unmounting %s: %s", stringid.TruncateID(m), err)
+			logrus.Debugf("aufs error unmounting %s: %s", m, err)
 		}
 	}
 	return mountpk.Unmount(a.root)
