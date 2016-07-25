@@ -291,11 +291,14 @@ func programSP(fSA *netlink.XfrmState, rSA *netlink.XfrmState, add bool) error {
 		xfrmProgram = ns.NlHandle().XfrmPolicyAdd
 	}
 
-	fullMask := net.CIDRMask(8*len(fSA.Src), 8*len(fSA.Src))
+	// Create a congruent cidr
+	s := types.GetMinimalIP(fSA.Src)
+	d := types.GetMinimalIP(fSA.Dst)
+	fullMask := net.CIDRMask(8*len(s), 8*len(s))
 
 	fPol := &netlink.XfrmPolicy{
-		Src:     &net.IPNet{IP: fSA.Src, Mask: fullMask},
-		Dst:     &net.IPNet{IP: fSA.Dst, Mask: fullMask},
+		Src:     &net.IPNet{IP: s, Mask: fullMask},
+		Dst:     &net.IPNet{IP: d, Mask: fullMask},
 		Dir:     netlink.XFRM_DIR_OUT,
 		Proto:   17,
 		DstPort: 4789,
@@ -491,7 +494,7 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 	}
 
 	if newIdx > -1 {
-		// +RSA2
+		// +rSA2
 		programSA(lIP, rIP, spis[newIdx], curKeys[newIdx], reverse, true)
 	}
 
@@ -500,10 +503,13 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 		fSA2, _, _ := programSA(lIP, rIP, spis[priIdx], curKeys[priIdx], forward, true)
 
 		// +fSP2, -fSP1
-		fullMask := net.CIDRMask(8*len(fSA2.Src), 8*len(fSA2.Src))
+		s := types.GetMinimalIP(fSA2.Src)
+		d := types.GetMinimalIP(fSA2.Dst)
+		fullMask := net.CIDRMask(8*len(s), 8*len(s))
+
 		fSP1 := &netlink.XfrmPolicy{
-			Src:     &net.IPNet{IP: fSA2.Src, Mask: fullMask},
-			Dst:     &net.IPNet{IP: fSA2.Dst, Mask: fullMask},
+			Src:     &net.IPNet{IP: s, Mask: fullMask},
+			Dst:     &net.IPNet{IP: d, Mask: fullMask},
 			Dir:     netlink.XFRM_DIR_OUT,
 			Proto:   17,
 			DstPort: 4789,
