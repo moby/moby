@@ -135,12 +135,16 @@ func (pm *Manager) Shutdown() {
 
 	pm.shutdown = true
 	for _, p := range pm.plugins {
+		if pm.liveRestore && p.P.Active {
+			logrus.Debug("Plugin active when liveRestore is set, skipping shutdown")
+			continue
+		}
 		if p.restartManager != nil {
 			if err := p.restartManager.Cancel(); err != nil {
 				logrus.Error(err)
 			}
 		}
-		if pm.containerdClient != nil {
+		if pm.containerdClient != nil && p.P.Active {
 			p.exitChan = make(chan bool)
 			err := pm.containerdClient.Signal(p.P.ID, int(syscall.SIGTERM))
 			if err != nil {
@@ -157,6 +161,10 @@ func (pm *Manager) Shutdown() {
 				}
 			}
 			close(p.exitChan)
+			pm.Lock()
+			p.P.Active = false
+			pm.save()
+			pm.Unlock()
 		}
 		if err := os.RemoveAll(p.runtimeSourcePath); err != nil {
 			logrus.Errorf("Remove plugin runtime failed with error: %v", err)
