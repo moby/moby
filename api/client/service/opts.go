@@ -178,12 +178,11 @@ func (m *MountOpt) Set(value string) error {
 		key := strings.ToLower(parts[0])
 
 		if len(parts) == 1 {
-			if key == "readonly" || key == "ro" {
+			switch key {
+			case "readonly", "ro":
 				mount.ReadOnly = true
 				continue
-			}
-
-			if key == "volume-nocopy" {
+			case "volume-nocopy":
 				volumeOptions().NoCopy = true
 				continue
 			}
@@ -197,16 +196,15 @@ func (m *MountOpt) Set(value string) error {
 		switch key {
 		case "type":
 			mount.Type = swarm.MountType(strings.ToLower(value))
-		case "source", "name", "src":
+		case "source", "src":
 			mount.Source = value
-		case "target", "dst", "dest", "destination", "path":
+		case "target", "dst", "destination":
 			mount.Target = value
 		case "readonly", "ro":
-			ro, err := strconv.ParseBool(value)
+			mount.ReadOnly, err = strconv.ParseBool(value)
 			if err != nil {
-				return fmt.Errorf("invalid value for readonly: %s", value)
+				return fmt.Errorf("invalid value for %s: %s", key, value)
 			}
-			mount.ReadOnly = ro
 		case "bind-propagation":
 			bindOptions().Propagation = swarm.MountPropagation(strings.ToLower(value))
 		case "volume-nocopy":
