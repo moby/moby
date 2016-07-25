@@ -18,6 +18,7 @@ Create a new service
 
 Options:
       --constraint value               Placement constraints (default [])
+      --container-label value          Service container labels (default [])
       --endpoint-mode string           Endpoint mode (vip or dnsrr)
   -e, --env value                      Set environment variables (default [])
       --help                           Print usage

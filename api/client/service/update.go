@@ -38,11 +38,13 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	flags.Var(newListOptsVar(), flagEnvRemove, "Remove an environment variable")
 	flags.Var(newListOptsVar(), flagLabelRemove, "Remove a label by its key")
+	flags.Var(newListOptsVar(), flagContainerLabelRemove, "Remove a container label by its key")
 	flags.Var(newListOptsVar(), flagMountRemove, "Remove a mount by its target path")
 	flags.Var(newListOptsVar(), flagPublishRemove, "Remove a published port by its target port")
 	flags.Var(newListOptsVar(), flagNetworkRemove, "Remove a network by name")
 	flags.Var(newListOptsVar(), flagConstraintRemove, "Remove a constraint")
 	flags.Var(&opts.labels, flagLabelAdd, "Add or update service labels")
+	flags.Var(&opts.containerLabels, flagContainerLabelAdd, "Add or update container labels")
 	flags.Var(&opts.env, flagEnvAdd, "Add or update environment variables")
 	flags.Var(&opts.mounts, flagMountAdd, "Add or update a mount on a service")
 	flags.StringSliceVar(&opts.constraints, flagConstraintAdd, []string{}, "Add or update placement constraints")
@@ -145,6 +147,7 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 
 	updateString(flagName, &spec.Name)
 	updateLabels(flags, &spec.Labels)
+	updateContainerLabels(flags, &cspec.Labels)
 	updateString("image", &cspec.Image)
 	updateStringToSlice(flags, "args", &cspec.Args)
 	updateEnvironment(flags, &cspec.Env)
@@ -246,6 +249,26 @@ func updatePlacement(flags *pflag.FlagSet, placement *swarm.Placement) {
 
 	toRemove := buildToRemoveSet(flags, flagConstraintRemove)
 	placement.Constraints = removeItems(placement.Constraints, toRemove, itemKey)
+}
+
+func updateContainerLabels(flags *pflag.FlagSet, field *map[string]string) {
+	if flags.Changed(flagContainerLabelAdd) {
+		if field == nil {
+			*field = map[string]string{}
+		}
+
+		values := flags.Lookup(flagContainerLabelAdd).Value.(*opts.ListOpts).GetAll()
+		for key, value := range runconfigopts.ConvertKVStringsToMap(values) {
+			(*field)[key] = value
+		}
+	}
+
+	if field != nil && flags.Changed(flagContainerLabelRemove) {
+		toRemove := flags.Lookup(flagContainerLabelRemove).Value.(*opts.ListOpts).GetAll()
+		for _, label := range toRemove {
+			delete(*field, label)
+		}
+	}
 }
 
 func updateLabels(flags *pflag.FlagSet, field *map[string]string) {
