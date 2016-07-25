@@ -1305,6 +1305,9 @@ or two examples of how to pass more parameters to that ENTRYPOINT:
     $ docker run -it --entrypoint /bin/bash example/redis -c ls -l
     $ docker run -it --entrypoint /usr/bin/redis-cli example/redis --help
 
+> **Note**: Passing `--entrypoint` will clear out any default command set on the
+> image (i.e. any `CMD` instruction in the Dockerfile used to build it).
+
 ### EXPOSE (incoming ports)
 
 The following `run` command options work with container networking:
