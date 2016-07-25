@@ -121,7 +121,7 @@ func (n *networkRouter) postNetworkConnect(ctx context.Context, w http.ResponseW
 	}
 
 	if nw.Info().Dynamic() {
-		return newNetworkForbiddenError("Operation not supported for swarm scoped networks")
+		return newNetworkForbiddenError("operation not supported for swarm scoped networks")
 	}
 
 	return n.backend.ConnectContainerToNetwork(connect.Container, nw.Name(), connect.EndpointConfig)
@@ -147,7 +147,7 @@ func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.Respon
 	}
 
 	if nw.Info().Dynamic() {
-		return newNetworkForbiddenError("Operation not supported for swarm scoped networks")
+		return newNetworkForbiddenError("operation not supported for swarm scoped networks")
 	}
 
 	return n.backend.DisconnectContainerFromNetwork(disconnect.Container, nw, disconnect.Force)

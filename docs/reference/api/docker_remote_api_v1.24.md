@@ -3259,6 +3259,7 @@ Content-Type: application/json
 **Status codes**:
 
 - **200** - no error
+- **403** - operation not supported for swarm scoped networks
 - **404** - network or container is not found
 - **500** - Internal Server Error
 
@@ -3291,6 +3292,7 @@ Content-Type: application/json
 **Status codes**:
 
 - **200** - no error
+- **403** - operation not supported for swarm scoped networks
 - **404** - network or container not found
 - **500** - Internal Server Error
 
