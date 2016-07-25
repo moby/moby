@@ -3966,7 +3966,8 @@ Create a service
       },
       "UpdateConfig": {
         "Delay": 30000000000.0,
-        "Parallelism": 2
+        "Parallelism": 2,
+        "FailureAction": "pause"
       },
       "EndpointSpec": {
         "Ports": [
@@ -4056,6 +4057,8 @@ JSON Parameters:
     - **Parallelism** – Maximum number of tasks to be updated in one iteration (0 means unlimited
       parallelism).
     - **Delay** – Amount of time between updates.
+    - **FailureAction** - Action to take if an updated task fails to run, or stops running during the
+      update. Values are `continue` and `pause`.
 - **Networks** – Array of network names or IDs to attach the service to.
 - **Endpoint** – Properties that can be configured to access and load balance a service.
     - **Spec** –

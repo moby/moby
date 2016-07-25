@@ -791,8 +791,9 @@ func serviceForUpdate(s *swarm.Service) {
 			},
 		},
 		UpdateConfig: &swarm.UpdateConfig{
-			Parallelism: 2,
-			Delay:       8 * time.Second,
+			Parallelism:   2,
+			Delay:         8 * time.Second,
+			FailureAction: swarm.UpdateFailureActionContinue,
 		},
 	}
 	s.Spec.Name = "updatetest"
