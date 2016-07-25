@@ -42,16 +42,16 @@ const (
 )
 
 // ErrNoSwarm is returned on leaving a cluster that was never initialized
-var ErrNoSwarm = fmt.Errorf("This node is not part of swarm")
+var ErrNoSwarm = fmt.Errorf("This node is not part of a swarm")
 
 // ErrSwarmExists is returned on initialize or join request for a cluster that has already been activated
-var ErrSwarmExists = fmt.Errorf("This node is already part of a swarm cluster. Use \"docker swarm leave\" to leave this cluster and join another one.")
+var ErrSwarmExists = fmt.Errorf("This node is already part of a swarm. Use \"docker swarm leave\" to leave this swarm and join another one.")
 
 // ErrPendingSwarmExists is returned on initialize or join request for a cluster that is already processing a similar request but has not succeeded yet.
 var ErrPendingSwarmExists = fmt.Errorf("This node is processing an existing join request that has not succeeded yet. Use \"docker swarm leave\" to cancel the current request.")
 
 // ErrSwarmJoinTimeoutReached is returned when cluster join could not complete before timeout was reached.
-var ErrSwarmJoinTimeoutReached = fmt.Errorf("Timeout was reached before node was joined. Attempt to join the cluster will continue in the background. Use \"docker info\" command to see the current swarm status of your node.")
+var ErrSwarmJoinTimeoutReached = fmt.Errorf("Timeout was reached before node was joined. The attempt to join the swarm will continue in the background. Use the \"docker info\" command to see the current swarm status of your node.")
 
 // defaultSpec contains some sane defaults if cluster options are missing on init
 var defaultSpec = types.Spec{
@@ -519,24 +519,24 @@ func (c *Cluster) Leave(force bool) error {
 	}
 
 	if node.Manager() != nil && !force {
-		msg := "You are attempting to leave cluster on a node that is participating as a manager. "
+		msg := "You are attempting to leave the swarm on a node that is participating as a manager. "
 		if c.isActiveManager() {
 			active, reachable, unreachable, err := c.managerStats()
 			if err == nil {
 				if active && reachable-2 <= unreachable {
 					if reachable == 1 && unreachable == 0 {
-						msg += "Removing the last manager will erase all current state of the cluster. Use `--force` to ignore this message. "
+						msg += "Removing the last manager erases all current state of the swarm. Use `--force` to ignore this message. "
 						c.Unlock()
 						return fmt.Errorf(msg)
 					}
-					msg += fmt.Sprintf("Leaving the cluster will leave you with %v managers out of %v. This means Raft quorum will be lost and your cluster will become inaccessible. ", reachable-1, reachable+unreachable)
+					msg += fmt.Sprintf("Removing this node leaves %v managers out of %v. Without a Raft quorum your swarm will be inaccessible. ", reachable-1, reachable+unreachable)
 				}
 			}
 		} else {
 			msg += "Doing so may lose the consensus of your cluster. "
 		}
 
-		msg += "The only way to restore a cluster that has lost consensus is to reinitialize it with `--force-new-cluster`. Use `--force` to ignore this message."
+		msg += "The only way to restore a swarm that has lost consensus is to reinitialize it with `--force-new-cluster`. Use `--force` to suppress this message."
 		c.Unlock()
 		return fmt.Errorf(msg)
 	}

@@ -199,7 +199,7 @@ di9wxgz8dtuh9d2hn089ecqkf    node06    Accepted    Ready   Active
 
 ## Manager advertise address
 
-When initiating or joining a Swarm cluster, you have to specify the `--listen-addr`
+When initiating or joining a swarm, you have to specify the `--listen-addr`
 flag to advertise your address to other Manager nodes in the cluster.
 
 We recommend that you use a *fixed IP address* for the advertised address, otherwise

@@ -2281,7 +2281,7 @@ Show the docker version information
     Content-Type: application/json
 
     {
-         "Version": "1.12.0-dev",
+         "Version": "1.13.0",
          "Os": "linux",
          "KernelVersion": "3.19.0-23-generic",
          "GoVersion": "go1.6.3",
@@ -3324,7 +3324,7 @@ Instruct the driver to remove the network (`id`).
 
 ## 3.6 Nodes
 
-**Note**: Nodes operations require to first be part of a Swarm.
+**Note**: Node operations require the engine to be part of a swarm.
 
 ### List nodes
 
@@ -3574,12 +3574,12 @@ Return low-level information on the node `id`
 
 ## 3.7 Swarm
 
-### Initialize a new Swarm
+### Initialize a new swarm
 
 
 `POST /swarm/init`
 
-Initialize a new Swarm
+Initialize a new swarm
 
 **Example request**:
 
@@ -3608,7 +3608,7 @@ Initialize a new Swarm
 
 - **200** – no error
 - **400** – bad parameter
-- **406** – node is already part of a Swarm
+- **406** – node is already part of a swarm
 
 JSON Parameters:
 
@@ -3622,9 +3622,9 @@ JSON Parameters:
   number, like `eth0:4567`. If the port number is omitted, the port number from the listen
   address is used. If `AdvertiseAddr` is not specified, it will be automatically detected when
   possible.
-- **ForceNewCluster** – Force creating a new Swarm even if already part of one.
-- **Spec** – Configuration settings of the new Swarm.
-    - **Orchestration** – Configuration settings for the orchestration aspects of the Swarm.
+- **ForceNewCluster** – Force creation of a new swarm.
+- **Spec** – Configuration settings for the new swarm.
+    - **Orchestration** – Configuration settings for the orchestration aspects of the swarm.
         - **TaskHistoryRetentionLimit** – Maximum number of tasks history stored.
     - **Raft** – Raft related configuration.
         - **SnapshotInterval** – Number of logs entries between snapshot.
@@ -3646,12 +3646,11 @@ JSON Parameters:
             - **Options** - An object with key/value pairs that are interpreted
               as protocol-specific options for the external CA driver.
 
-### Join an existing Swarm
-
+### Join an existing swarm
 
 `POST /swarm/join`
 
-Join an existing new Swarm
+Join an existing swarm
 
 **Example request**:
 
@@ -3675,7 +3674,7 @@ Join an existing new Swarm
 
 - **200** – no error
 - **400** – bad parameter
-- **406** – node is already part of a Swarm
+- **406** – node is already part of a swarm
 
 JSON Parameters:
 
@@ -3686,15 +3685,15 @@ JSON Parameters:
   number, like `eth0:4567`. If the port number is omitted, the port number from the listen
   address is used. If `AdvertiseAddr` is not specified, it will be automatically detected when
   possible.
-- **RemoteAddr** – Address of any manager node already participating in the Swarm to join.
+- **RemoteAddr** – Address of any manager node already participating in the swarm.
 - **JoinToken** – Secret token for joining this Swarm.
 
-### Leave a Swarm
+### Leave a swarm
 
 
 `POST /swarm/leave`
 
-Leave a Swarm
+Leave a swarm
 
 **Example request**:
 
@@ -3709,14 +3708,14 @@ Leave a Swarm
 **Status codes**:
 
 - **200** – no error
-- **406** – node is not part of a Swarm
+- **406** – node is not part of a swarm
 
-### Update a Swarm
+### Update a swarm
 
 
 `POST /swarm/update`
 
-Update a Swarm
+Update a swarm
 
 **Example request**:
 
@@ -3763,11 +3762,11 @@ Update a Swarm
 
 - **200** – no error
 - **400** – bad parameter
-- **406** – node is not part of a Swarm
+- **406** – node is not part of a swarm
 
 JSON Parameters:
 
-- **Orchestration** – Configuration settings for the orchestration aspects of the Swarm.
+- **Orchestration** – Configuration settings for the orchestration aspects of the swarm.
     - **TaskHistoryRetentionLimit** – Maximum number of tasks history stored.
 - **Raft** – Raft related configuration.
     - **SnapshotInterval** – Number of logs entries between snapshot.
@@ -3788,13 +3787,13 @@ JSON Parameters:
         - **URL** - URL where certificate signing requests should be sent.
         - **Options** - An object with key/value pairs that are interpreted
           as protocol-specific options for the external CA driver.
-- **JoinTokens** - Tokens that can be used by other nodes to join the Swarm.
+- **JoinTokens** - Tokens that can be used by other nodes to join the swarm.
     - **Worker** - Token to use for joining as a worker.
     - **Manager** - Token to use for joining as a manager.
 
 ## 3.8 Services
 
-**Note**: Service operations require to first be part of a Swarm.
+**Note**: Service operations require to first be part of a swarm.
 
 ### List services
 
@@ -3980,7 +3979,7 @@ Create a service
 **Status codes**:
 
 - **201** – no error
-- **406** – server error or node is not part of a Swarm
+- **406** – server error or node is not part of a swarm
 
 JSON Parameters:
 
@@ -4074,7 +4073,7 @@ Stop and remove the service `id`
 -   **404** – no such service
 -   **500** – server error
 
-### Inspect one or more service
+### Inspect one or more services
 
 
 `GET /services/(id or name)`
@@ -4278,7 +4277,7 @@ Update the service `id`.
 
 ## 3.9 Tasks
 
-**Note**: Tasks operations require to first be part of a Swarm.
+**Note**: Task operations require the engine to be part of a swarm.
 
 ### List tasks
 

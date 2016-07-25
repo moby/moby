@@ -20,7 +20,7 @@ Options:
 
 ```
 
-Demotes an existing manager so that it is no longer a manager. This command targets a docker engine that is a manager in the swarm cluster.
+Demotes an existing manager so that it is no longer a manager. This command targets a docker engine that is a manager in the swarm.
 
 
 ```bash

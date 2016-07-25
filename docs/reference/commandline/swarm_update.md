@@ -23,7 +23,7 @@ Options:
       --task-history-limit int          Task history retention limit (default 5)
 ```
 
-Updates a swarm cluster with new parameter values. This command must target a manager node.
+Updates a swarm with new parameter values. This command must target a manager node.
 
 
 ```bash
