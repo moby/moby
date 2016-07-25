@@ -88,15 +88,15 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal
 		return types.ForbiddenErrorf("encryption key is not present")
 	}
 
-	lIP := types.GetMinimalIP(net.ParseIP(d.bindAddress))
-	aIP := types.GetMinimalIP(net.ParseIP(d.advertiseAddress))
+	lIP := net.ParseIP(d.bindAddress)
+	aIP := net.ParseIP(d.advertiseAddress)
 	nodes := map[string]net.IP{}
 
 	switch {
 	case isLocal:
 		if err := d.peerDbNetworkWalk(nid, func(pKey *peerKey, pEntry *peerEntry) bool {
 			if !lIP.Equal(pEntry.vtep) {
-				nodes[pEntry.vtep.String()] = types.GetMinimalIP(pEntry.vtep)
+				nodes[pEntry.vtep.String()] = pEntry.vtep
 			}
 			return false
 		}); err != nil {
@@ -104,7 +104,7 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal
 		}
 	default:
 		if len(d.network(nid).endpoints) > 0 {
-			nodes[rIP.String()] = types.GetMinimalIP(rIP)
+			nodes[rIP.String()] = rIP
 		}
 	}
 
@@ -337,7 +337,7 @@ func saExists(sa *netlink.XfrmState) (bool, error) {
 		return false, nil
 	default:
 		err = fmt.Errorf("Error while checking for SA existence: %v", err)
-		log.Debug(err)
+		log.Warn(err)
 		return false, err
 	}
 }
@@ -351,7 +351,7 @@ func spExists(sp *netlink.XfrmPolicy) (bool, error) {
 		return false, nil
 	default:
 		err = fmt.Errorf("Error while checking for SP existence: %v", err)
-		log.Debug(err)
+		log.Warn(err)
 		return false, err
 	}
 }
@@ -411,7 +411,7 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 		newIdx = -1
 		priIdx = -1
 		delIdx = -1
-		lIP    = types.GetMinimalIP(net.ParseIP(d.bindAddress))
+		lIP    = net.ParseIP(d.bindAddress)
 	)
 
 	d.Lock()
@@ -440,7 +440,7 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 	}
 
 	d.secMapWalk(func(rIPs string, spis []*spi) ([]*spi, bool) {
-		rIP := types.GetMinimalIP(net.ParseIP(rIPs))
+		rIP := net.ParseIP(rIPs)
 		return updateNodeKey(lIP, rIP, spis, d.keys, newIdx, priIdx, delIdx), false
 	})
 
@@ -466,10 +466,9 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 }
 
 /********************************************************
- * Steady state: rSA0, rSA1, fSA0, fSP0
- * Rotation --> %rSA0, +rSA2, +fSA1, +fSP1/-fSP0, -fSA0,
- * Half state:   rSA0, rSA1, rSA2, fSA1, fSP1
- * Steady state: rSA1, rSA2, fSA1, fSP1
+ * Steady state: rSA0, rSA1, rSA2, fSA1, fSP1
+ * Rotation --> -rSA0, +rSA3, +fSA2, +fSP2/-fSP1, -fSA1
+ * Steady state: rSA1, rSA2, rSA3, fSA2, fSP2
  *********************************************************/
 
 // Spis and keys are sorted in such away the one in position 0 is the primary
@@ -488,20 +487,8 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 	}
 
 	if delIdx != -1 {
-		// %rSA0
-		rSA0 := &netlink.XfrmState{
-			Src:    rIP,
-			Dst:    lIP,
-			Proto:  netlink.XFRM_PROTO_ESP,
-			Spi:    spis[delIdx].reverse,
-			Mode:   netlink.XFRM_MODE_TRANSPORT,
-			Crypt:  &netlink.XfrmStateAlgo{Name: "cbc(aes)", Key: curKeys[delIdx].value},
-			Limits: netlink.XfrmStateLimits{TimeSoft: timeout},
-		}
-		log.Debugf("Updating rSA0{%s}", rSA0)
-		if err := ns.NlHandle().XfrmStateUpdate(rSA0); err != nil {
-			log.Warnf("Failed to update rSA0{%s}: %v", rSA0, err)
-		}
+		// -rSA0
+		programSA(rIP, lIP, spis[delIdx], nil, reverse, false)
 	}
 
 	if newIdx > -1 {
@@ -510,14 +497,14 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 	}
 
 	if priIdx > 0 {
-		// +fSA1
-		fSA1, _, _ := programSA(lIP, rIP, spis[priIdx], curKeys[priIdx], forward, true)
+		// +fSA2
+		fSA2, _, _ := programSA(lIP, rIP, spis[priIdx], curKeys[priIdx], forward, true)
 
-		// +fSP1, -fSP0
-		fullMask := net.CIDRMask(8*len(fSA1.Src), 8*len(fSA1.Src))
+		// +fSP2, -fSP1
+		fullMask := net.CIDRMask(8*len(fSA2.Src), 8*len(fSA2.Src))
 		fSP1 := &netlink.XfrmPolicy{
-			Src:     &net.IPNet{IP: fSA1.Src, Mask: fullMask},
-			Dst:     &net.IPNet{IP: fSA1.Dst, Mask: fullMask},
+			Src:     &net.IPNet{IP: fSA2.Src, Mask: fullMask},
+			Dst:     &net.IPNet{IP: fSA2.Dst, Mask: fullMask},
 			Dir:     netlink.XFRM_DIR_OUT,
 			Proto:   17,
 			DstPort: 4789,
@@ -526,11 +513,11 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 			},
 			Tmpls: []netlink.XfrmPolicyTmpl{
 				{
-					Src:   fSA1.Src,
-					Dst:   fSA1.Dst,
+					Src:   fSA2.Src,
+					Dst:   fSA2.Dst,
 					Proto: netlink.XFRM_PROTO_ESP,
 					Mode:  netlink.XFRM_MODE_TRANSPORT,
-					Spi:   fSA1.Spi,
+					Spi:   fSA2.Spi,
 				},
 			},
 		}
@@ -539,20 +526,8 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 			log.Warnf("Failed to update fSP{%s}: %v", fSP1, err)
 		}
 
-		// -fSA0
-		fSA0 := &netlink.XfrmState{
-			Src:    lIP,
-			Dst:    rIP,
-			Proto:  netlink.XFRM_PROTO_ESP,
-			Spi:    spis[0].forward,
-			Mode:   netlink.XFRM_MODE_TRANSPORT,
-			Crypt:  &netlink.XfrmStateAlgo{Name: "cbc(aes)", Key: curKeys[0].value},
-			Limits: netlink.XfrmStateLimits{TimeHard: timeout},
-		}
-		log.Debugf("Removing fSA0{%s}", fSA0)
-		if err := ns.NlHandle().XfrmStateUpdate(fSA0); err != nil {
-			log.Warnf("Failed to remove fSA0{%s}: %v", fSA0, err)
-		}
+		// -fSA1
+		programSA(lIP, rIP, spis[0], nil, forward, false)
 	}
 
 	// swap
@@ -575,7 +550,11 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 }
 
 func (n *network) maxMTU() int {
-	mtu := vxlanVethMTU
+	mtu := 1500
+	if n.mtu != 0 {
+		mtu = n.mtu
+	}
+	mtu -= vxlanEncap
 	if n.secure {
 		// In case of encryption account for the
 		// esp packet espansion and padding
