@@ -1186,6 +1186,7 @@ __docker_swarm_commands() {
         "init:Initialize a swarm"
         "inspect:Inspect the swarm"
         "join:Join a swarm as a node and/or manager"
+        "join-token:Manage join tokens"
         "leave:Leave a swarm"
         "update:Update the swarm"
     )
@@ -1220,6 +1221,13 @@ __docker_swarm_subcommand() {
                 "($help)--listen-addr=[Listen address]:ip\:port: " \
                 "($help)--token=[Token for entry into the swarm]:secret: " \
                 "($help -):host\:port: " && ret=0
+            ;;
+        (join-token)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -q --quiet)"{-q,--quiet}"[Only display token]" \
+                "($help)--rotate[Rotate join token]" \
+                "($help -):role:(manager worker)" && ret=0
             ;;
         (leave)
             _arguments $(__docker_arguments) \
