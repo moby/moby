@@ -8,6 +8,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/server/httputils"
+	"github.com/docker/docker/errors"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/engine-api/types/network"
@@ -121,7 +122,8 @@ func (n *networkRouter) postNetworkConnect(ctx context.Context, w http.ResponseW
 	}
 
 	if nw.Info().Dynamic() {
-		return newNetworkForbiddenError("operation not supported for swarm scoped networks")
+		err := fmt.Errorf("operation not supported for swarm scoped networks")
+		return errors.NewRequestForbiddenError(err)
 	}
 
 	return n.backend.ConnectContainerToNetwork(connect.Container, nw.Name(), connect.EndpointConfig)
@@ -147,7 +149,8 @@ func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.Respon
 	}
 
 	if nw.Info().Dynamic() {
-		return newNetworkForbiddenError("operation not supported for swarm scoped networks")
+		err := fmt.Errorf("operation not supported for swarm scoped networks")
+		return errors.NewRequestForbiddenError(err)
 	}
 
 	return n.backend.DisconnectContainerFromNetwork(disconnect.Container, nw, disconnect.Force)
@@ -291,18 +294,4 @@ func buildEndpointResource(e libnetwork.Endpoint) types.EndpointResource {
 		}
 	}
 	return er
-}
-
-// networkForbiddenError represents an authorization deny error
-type networkForbiddenError struct {
-	error
-}
-
-// HTTPErrorStatusCode returns the authorization error status code (forbidden)
-func (e networkForbiddenError) HTTPErrorStatusCode() int {
-	return http.StatusForbidden
-}
-
-func newNetworkForbiddenError(msg string) networkForbiddenError {
-	return networkForbiddenError{error: fmt.Errorf("%s", msg)}
 }
