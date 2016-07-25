@@ -1524,10 +1524,7 @@ The possible values are:
 
 - 0: success - the container is healthy and ready for use
 - 1: unhealthy - the container is not working correctly
-- 2: starting - the container is not ready for use yet, but is working correctly
-
-If the probe returns 2 ("starting") when the container has already moved out of the
-"starting" state then it is treated as "unhealthy" instead.
+- 2: reserved - do not use this exit code
 
 For example, to check every five minutes or so that a web-server is able to
 serve the site's main page within three seconds:
