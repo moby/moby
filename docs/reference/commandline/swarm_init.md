@@ -28,8 +28,8 @@ Options:
       --task-history-limit int          Task history retention limit (default 5)
 ```
 
-Initialize a swarm cluster. The docker engine targeted by this command becomes a manager
-in the newly created one node swarm cluster.
+Initialize a swarm. The docker engine targeted by this command becomes a manager
+in the newly created single-node swarm.
 
 
 ```bash

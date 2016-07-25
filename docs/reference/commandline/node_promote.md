@@ -19,7 +19,7 @@ Options:
       --help   Print usage
 ```
 
-Promotes a node that is pending a promotion to manager. This command targets a docker engine that is a manager in the swarm cluster.
+Promotes a node to manager. This command targets a docker engine that is a manager in the swarm.
 
 
 ```bash

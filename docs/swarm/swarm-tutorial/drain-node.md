@@ -1,7 +1,7 @@
 <!--[metadata]>
 +++
 title = "Drain a node"
-description = "Drain nodes on the Swarm"
+description = "Drain nodes on the swarm"
 keywords = ["tutorial, cluster management, swarm, service, drain"]
 [menu.main]
 identifier="swarm-tutorial-drain-node"
@@ -45,7 +45,7 @@ update](rolling-update.md) tutorial, start it now:
     c5uo6kdmzpon37mgj9mwglcfw
     ```
 
-4. Run `docker service ps redis` to see how the Swarm manager assigned the
+4. Run `docker service ps redis` to see how the swarm manager assigned the
 tasks to different nodes:
 
     ```bash
@@ -84,7 +84,7 @@ had a task assigned to it:
 
     The drained node shows `Drain` for `AVAILABILITY`.
 
-7. Run `docker service ps redis` to see how the Swarm manager updated the
+7. Run `docker service ps redis` to see how the swarm manager updated the
 task assignments for the `redis` service:
 
     ```bash
