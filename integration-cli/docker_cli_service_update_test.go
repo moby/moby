@@ -43,3 +43,44 @@ func (s *DockerSwarmSuite) TestServiceUpdatePort(c *check.C) {
 	}
 	c.Assert(portConfig, checker.DeepEquals, expected)
 }
+
+func (s *DockerSwarmSuite) TestServiceUpdateLabel(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+	out, err := d.Cmd("service", "create", "--name=test", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	service := d.getService(c, "test")
+	c.Assert(service.Spec.Labels, checker.HasLen, 0)
+
+	// add label to empty set
+	out, err = d.Cmd("service", "update", "test", "--label-add", "foo=bar")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	service = d.getService(c, "test")
+	c.Assert(service.Spec.Labels, checker.HasLen, 1)
+	c.Assert(service.Spec.Labels["foo"], checker.Equals, "bar")
+
+	// add label to non-empty set
+	out, err = d.Cmd("service", "update", "test", "--label-add", "foo2=bar")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	service = d.getService(c, "test")
+	c.Assert(service.Spec.Labels, checker.HasLen, 2)
+	c.Assert(service.Spec.Labels["foo2"], checker.Equals, "bar")
+
+	out, err = d.Cmd("service", "update", "test", "--label-rm", "foo2")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	service = d.getService(c, "test")
+	c.Assert(service.Spec.Labels, checker.HasLen, 1)
+	c.Assert(service.Spec.Labels["foo2"], checker.Equals, "")
+
+	out, err = d.Cmd("service", "update", "test", "--label-rm", "foo")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	service = d.getService(c, "test")
+	c.Assert(service.Spec.Labels, checker.HasLen, 0)
+	c.Assert(service.Spec.Labels["foo"], checker.Equals, "")
+
+	// now make sure we can add again
+	out, err = d.Cmd("service", "update", "test", "--label-add", "foo=bar")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	service = d.getService(c, "test")
+	c.Assert(service.Spec.Labels, checker.HasLen, 1)
+	c.Assert(service.Spec.Labels["foo"], checker.Equals, "bar")
+}
