@@ -6947,10 +6947,9 @@ func (s *DockerSuite) TestBuildShellWindowsPowershell(c *check.C) {
 func (s *DockerSuite) TestBuildCmdShellArgsEscaped(c *check.C) {
 	testRequires(c, DaemonIsWindows)
 	name := "testbuildcmdshellescaped"
-
 	_, err := buildImage(name, `
   FROM `+minimalBaseImage()+`
-  CMD "tasklist"
+  CMD "ipconfig"
   `, true)
 	if err != nil {
 		c.Fatal(err)
@@ -6963,7 +6962,7 @@ func (s *DockerSuite) TestBuildCmdShellArgsEscaped(c *check.C) {
 	dockerCmd(c, "wait", "inspectme")
 	res = inspectFieldJSON(c, name, "Config.Cmd")
 
-	if res != `["cmd","/S","/C","\"tasklist\""]` {
+	if res != `["cmd","/S","/C","\"ipconfig\""]` {
 		c.Fatalf("CMD was not escaped Config.Cmd: got %v", res)
 	}
 }
