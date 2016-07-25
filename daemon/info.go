@@ -80,11 +80,17 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	}
 
 	v := &types.Info{
-		ID:                 daemon.ID,
-		Containers:         int(cRunning + cPaused + cStopped),
-		ContainersRunning:  int(cRunning),
-		ContainersPaused:   int(cPaused),
-		ContainersStopped:  int(cStopped),
+		ID:                           daemon.ID,
+		Containers:                   int(cRunning + cPaused + cStopped),
+		ContainersRunning:            int(cRunning),
+		ContainersPaused:             int(cPaused),
+		ContainersStopped:            int(cStopped),
+		ContainersSinceStartCreated:  daemon.counts.created,
+		ContainersSinceStartExited:   daemon.counts.exited,
+		ContainersSinceStartPaused:   daemon.counts.paused,
+		ContainersSinceStartStarted:  daemon.counts.started,
+		ContainersSinceStartRestored: daemon.counts.restored,
+		ContainersSinceStartUnpaused: daemon.counts.unpaused,
 		Images:             len(daemon.imageStore.Map()),
 		Driver:             daemon.GraphDriverName(),
 		DriverStatus:       daemon.layerStore.DriverStatus(),

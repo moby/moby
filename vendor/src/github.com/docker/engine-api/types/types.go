@@ -205,57 +205,63 @@ type Version struct {
 // Info contains response of Remote API:
 // GET "/info"
 type Info struct {
-	ID                 string
-	Containers         int
-	ContainersRunning  int
-	ContainersPaused   int
-	ContainersStopped  int
-	Images             int
-	Driver             string
-	DriverStatus       [][2]string
-	SystemStatus       [][2]string
-	Plugins            PluginsInfo
-	MemoryLimit        bool
-	SwapLimit          bool
-	KernelMemory       bool
-	CPUCfsPeriod       bool `json:"CpuCfsPeriod"`
-	CPUCfsQuota        bool `json:"CpuCfsQuota"`
-	CPUShares          bool
-	CPUSet             bool
-	IPv4Forwarding     bool
-	BridgeNfIptables   bool
-	BridgeNfIP6tables  bool `json:"BridgeNfIp6tables"`
-	Debug              bool
-	NFd                int
-	OomKillDisable     bool
-	NGoroutines        int
-	SystemTime         string
-	ExecutionDriver    string
-	LoggingDriver      string
-	CgroupDriver       string
-	NEventsListener    int
-	KernelVersion      string
-	OperatingSystem    string
-	OSType             string
-	Architecture       string
-	IndexServerAddress string
-	RegistryConfig     *registry.ServiceConfig
-	NCPU               int
-	MemTotal           int64
-	DockerRootDir      string
-	HTTPProxy          string `json:"HttpProxy"`
-	HTTPSProxy         string `json:"HttpsProxy"`
-	NoProxy            string
-	Name               string
-	Labels             []string
-	ExperimentalBuild  bool
-	ServerVersion      string
-	ClusterStore       string
-	ClusterAdvertise   string
-	SecurityOptions    []string
-	Runtimes           map[string]Runtime
-	DefaultRuntime     string
-	Swarm              swarm.Info
+	ID                           string
+	Containers                   int
+	ContainersRunning            int
+	ContainersPaused             int
+	ContainersStopped            int
+	ContainersSinceStartCreated  uint64
+	ContainersSinceStartExited   uint64
+	ContainersSinceStartPaused   uint64
+	ContainersSinceStartRestored uint64
+	ContainersSinceStartStarted  uint64
+	ContainersSinceStartUnpaused uint64
+	Images                       int
+	Driver                       string
+	DriverStatus                 [][2]string
+	SystemStatus                 [][2]string
+	Plugins                      PluginsInfo
+	MemoryLimit                  bool
+	SwapLimit                    bool
+	KernelMemory                 bool
+	CPUCfsPeriod                 bool `json:"CpuCfsPeriod"`
+	CPUCfsQuota                  bool `json:"CpuCfsQuota"`
+	CPUShares                    bool
+	CPUSet                       bool
+	IPv4Forwarding               bool
+	BridgeNfIptables             bool
+	BridgeNfIP6tables            bool `json:"BridgeNfIp6tables"`
+	Debug                        bool
+	NFd                          int
+	OomKillDisable               bool
+	NGoroutines                  int
+	SystemTime                   string
+	ExecutionDriver              string
+	LoggingDriver                string
+	CgroupDriver                 string
+	NEventsListener              int
+	KernelVersion                string
+	OperatingSystem              string
+	OSType                       string
+	Architecture                 string
+	IndexServerAddress           string
+	RegistryConfig               *registry.ServiceConfig
+	NCPU                         int
+	MemTotal                     int64
+	DockerRootDir                string
+	HTTPProxy                    string `json:"HttpProxy"`
+	HTTPSProxy                   string `json:"HttpsProxy"`
+	NoProxy                      string
+	Name                         string
+	Labels                       []string
+	ExperimentalBuild            bool
+	ServerVersion                string
+	ClusterStore                 string
+	ClusterAdvertise             string
+	SecurityOptions              []string
+	Runtimes                     map[string]Runtime
+	DefaultRuntime               string
+	Swarm                        swarm.Info
 }
 
 // PluginsInfo is a temp struct holding Plugins name
