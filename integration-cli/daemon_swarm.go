@@ -120,7 +120,6 @@ func (d *SwarmDaemon) getService(c *check.C, id string) *swarm.Service {
 	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
 	c.Assert(err, checker.IsNil)
 	c.Assert(json.Unmarshal(out, &service), checker.IsNil)
-	c.Assert(service.ID, checker.Equals, id)
 	return &service
 }
 

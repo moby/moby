@@ -250,7 +250,7 @@ func updatePlacement(flags *pflag.FlagSet, placement *swarm.Placement) {
 
 func updateLabels(flags *pflag.FlagSet, field *map[string]string) {
 	if flags.Changed(flagLabelAdd) {
-		if field == nil {
+		if *field == nil {
 			*field = map[string]string{}
 		}
 
@@ -260,7 +260,7 @@ func updateLabels(flags *pflag.FlagSet, field *map[string]string) {
 		}
 	}
 
-	if field != nil && flags.Changed(flagLabelRemove) {
+	if *field != nil && flags.Changed(flagLabelRemove) {
 		toRemove := flags.Lookup(flagLabelRemove).Value.(*opts.ListOpts).GetAll()
 		for _, label := range toRemove {
 			delete(*field, label)
