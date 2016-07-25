@@ -536,9 +536,6 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) error {
 			}
 		}
 
-		if sb.resolver != nil {
-			sb.resolver.FlushExtServers()
-		}
 	}
 
 	if !sb.needDefaultGW() {
@@ -618,10 +615,6 @@ func (ep *endpoint) Leave(sbox Sandbox, options ...EndpointOption) error {
 
 	sb.joinLeaveStart()
 	defer sb.joinLeaveEnd()
-
-	if sb.resolver != nil {
-		sb.resolver.FlushExtServers()
-	}
 
 	return ep.sbLeave(sb, false, options...)
 }
@@ -776,9 +769,7 @@ func (ep *endpoint) Delete(force bool) error {
 	}()
 
 	// unwatch for service records
-	if !n.getController().isAgent() {
-		n.getController().unWatchSvcRecord(ep)
-	}
+	n.getController().unWatchSvcRecord(ep)
 
 	if err = ep.deleteEndpoint(force); err != nil && !force {
 		return err
