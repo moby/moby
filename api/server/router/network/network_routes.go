@@ -2,6 +2,7 @@ package network
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"golang.org/x/net/context"
@@ -119,6 +120,10 @@ func (n *networkRouter) postNetworkConnect(ctx context.Context, w http.ResponseW
 		return err
 	}
 
+	if nw.Info().Dynamic() {
+		return newNetworkForbiddenError("Operation not supported for swarm scoped networks")
+	}
+
 	return n.backend.ConnectContainerToNetwork(connect.Container, nw.Name(), connect.EndpointConfig)
 }
 
@@ -139,6 +144,10 @@ func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.Respon
 	nw, err := n.backend.FindNetwork(vars["id"])
 	if err != nil {
 		return err
+	}
+
+	if nw.Info().Dynamic() {
+		return newNetworkForbiddenError("Operation not supported for swarm scoped networks")
 	}
 
 	return n.backend.DisconnectContainerFromNetwork(disconnect.Container, nw, disconnect.Force)
@@ -282,4 +291,18 @@ func buildEndpointResource(e libnetwork.Endpoint) types.EndpointResource {
 		}
 	}
 	return er
+}
+
+// networkForbiddenError represents an authorization deny error
+type networkForbiddenError struct {
+	error
+}
+
+// HTTPErrorStatusCode returns the authorization error status code (forbidden)
+func (e networkForbiddenError) HTTPErrorStatusCode() int {
+	return http.StatusForbidden
+}
+
+func newNetworkForbiddenError(msg string) networkForbiddenError {
+	return networkForbiddenError{error: fmt.Errorf("%s", msg)}
 }
