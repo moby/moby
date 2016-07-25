@@ -29,7 +29,6 @@ update delay:
       --replicas 3 \
       --name redis \
       --update-delay 10s \
-      --update-parallelism 1 \
       redis:3.0.6
 
     0u6a4s31ybk7yw2wyvtikmu50
@@ -37,18 +36,21 @@ update delay:
 
     You configure the rolling update policy at service deployment time.
 
-    The `--update-parallelism` flag configures the number of service tasks that
-    the scheduler can update simultaneously. When updates to individual tasks
-    return a state of `RUNNING` or `FAILED`, the scheduler schedules another
-    task to update until all tasks are updated.
-
     The `--update-delay` flag configures the time delay between updates to a
-    service task or sets of tasks.
+    service task or sets of tasks. You can describe the time `T` as a
+    combination of the number of seconds `Ts`, minutes `Tm`, or hours `Th`. So
+    `10m30s` indicates a 10 minute 30 second delay.
 
-    You can describe the time `T` as a combination of the number of seconds
-    `Ts`, minutes `Tm`, or hours `Th`. So `10m30s` indicates a 10 minute 30
-    second delay.
+    By default the scheduler updates 1 task at a time. You can pass the
+    `--update-parallelism` flag to configure the maximum number of service tasks
+    that the scheduler updates simultaneously.
 
+    By default, when an update to an individual task returns a state of
+    `RUNNING`, the scheduler schedules another task to update until all tasks
+    are updated. If, at any time during an update a task returns `FAILED`, the
+    scheduler pauses the update. You can control the behavior using the
+    `--update-failure-action` flag for `docker service create` or
+    `docker service update`.
 
 3. Inspect the `redis` service:
 
@@ -77,13 +79,15 @@ applies the update to nodes according to the `UpdateConfig` policy:
     redis
     ```
 
-    The scheduler applies rolling updates as follows:
+    The scheduler applies rolling updates as follows by default:
 
-    * Stop the initial number of tasks according to `--update-parallelism`.
-    * Schedule updates for the stopped tasks.
-    * Start the containers for the updated tasks.
-    * After an update to a task completes, wait for the specified delay
-    period before stopping the next task.
+    * Stop the first task.
+    * Schedule update for the stopped task.
+    * Start the container for the updated task.
+    * If the update to a task returns `RUNNING`, wait for the
+    specified delay period then stop the next task.
+    * If, at any time during the update, a task returns `FAILED`, pause the
+    update.
 
 5. Run `docker service inspect --pretty redis` to see the new image in the
 desired state:
@@ -105,7 +109,31 @@ desired state:
     Resources:
     ```
 
-6. Run `docker service tasks <TASK-ID>` to watch the rolling update:
+    The output of `service inspect` shows if your update paused due to failure:
+
+    ```bash
+    $ docker service inspect --pretty redis
+
+    ID:             0u6a4s31ybk7yw2wyvtikmu50
+    Name:           redis
+    ...snip...
+    Update status:
+     State:      paused
+     Started:    11 seconds ago
+     Message:    update paused due to failure or early termination of task 9p7ith557h8ndf0ui9s0q951b
+    ...snip...
+    ```
+
+    To restart a paused update run `docker service update <SERVICE-ID>`. For example:
+
+    ```bash
+    docker service update redis
+    ```
+
+    To avoid repeating certain update failures, you may need to reconfigure the
+    service by passing flags to `docker service update`.
+
+6. Run `docker service tasks <SERVICE-ID>` to watch the rolling update:
 
     ```bash
     $ docker service tasks redis
