@@ -3,23 +3,23 @@
 aliases = [
 "/engine/swarm/manager-administration-guide/"
 ]
-title = "Swarm Manager Administration Guide"
+title = "Swarm administration guide"
 description = "Manager administration guide"
 keywords = ["docker, container, cluster, swarm, manager, raft"]
 advisory = "rc"
 [menu.main]
 identifier="manager_admin_guide"
 parent="engine_swarm"
-weight="12"
+weight="20"
 +++
 <![end-metadata]-->
 
 # Administer and maintain a swarm of Docker Engines
 
 When you run a swarm of Docker Engines, **manager nodes** are the key components
-for managing the cluster and storing the cluster state. It is important to understand
-some key features of manager nodes in order to properly deploy and maintain the
-swarm.
+for managing the cluster and storing the cluster state. It is important to
+understand some key features of manager nodes in order to properly deploy and
+maintain the swarm.
 
 This article covers the following swarm administration tasks:
 
