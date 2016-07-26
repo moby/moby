@@ -3,6 +3,7 @@ package system
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"golang.org/x/net/context"
 
@@ -30,7 +31,8 @@ func NewInfoCommand(dockerCli *client.DockerCli) *cobra.Command {
 }
 
 func runInfo(dockerCli *client.DockerCli) error {
-	info, err := dockerCli.Client().Info(context.Background())
+	ctx := context.Background()
+	info, err := dockerCli.Client().Info(ctx)
 	if err != nil {
 		return err
 	}
@@ -83,8 +85,19 @@ func runInfo(dockerCli *client.DockerCli) error {
 		}
 		fmt.Fprintf(dockerCli.Out(), " Is Manager: %v\n", info.Swarm.ControlAvailable)
 		if info.Swarm.ControlAvailable {
+			fmt.Fprintf(dockerCli.Out(), " ClusterID: %s\n", info.Swarm.Cluster.ID)
 			fmt.Fprintf(dockerCli.Out(), " Managers: %d\n", info.Swarm.Managers)
 			fmt.Fprintf(dockerCli.Out(), " Nodes: %d\n", info.Swarm.Nodes)
+			fmt.Fprintf(dockerCli.Out(), " Orchestration:\n")
+			fmt.Fprintf(dockerCli.Out(), "  Task History Retention Limit: %d\n", info.Swarm.Cluster.Spec.Orchestration.TaskHistoryRetentionLimit)
+			fmt.Fprintf(dockerCli.Out(), " Raft:\n")
+			fmt.Fprintf(dockerCli.Out(), "  Snapshot interval: %d\n", info.Swarm.Cluster.Spec.Raft.SnapshotInterval)
+			fmt.Fprintf(dockerCli.Out(), "  Heartbeat tick: %d\n", info.Swarm.Cluster.Spec.Raft.HeartbeatTick)
+			fmt.Fprintf(dockerCli.Out(), "  Election tick: %d\n", info.Swarm.Cluster.Spec.Raft.ElectionTick)
+			fmt.Fprintf(dockerCli.Out(), " Dispatcher:\n")
+			fmt.Fprintf(dockerCli.Out(), "  Heartbeat period: %s\n", units.HumanDuration(time.Duration(info.Swarm.Cluster.Spec.Dispatcher.HeartbeatPeriod)))
+			fmt.Fprintf(dockerCli.Out(), " CA configuration:\n")
+			fmt.Fprintf(dockerCli.Out(), "  Expiry duration: %s\n", units.HumanDuration(info.Swarm.Cluster.Spec.CAConfig.NodeCertExpiry))
 		}
 		fmt.Fprintf(dockerCli.Out(), " Node Address: %s\n", info.Swarm.NodeAddr)
 	}
