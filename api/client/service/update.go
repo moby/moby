@@ -98,7 +98,6 @@ func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, serviceID stri
 }
 
 func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
-
 	updateString := func(flag string, field *string) {
 		if flags.Changed(flag) {
 			*field, _ = flags.GetString(flag)
@@ -117,9 +116,10 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		}
 	}
 
-	updateDurationOpt := func(flag string, field *time.Duration) {
+	updateDurationOpt := func(flag string, field **time.Duration) {
 		if flags.Changed(flag) {
-			*field = *flags.Lookup(flag).Value.(*DurationOpt).Value()
+			val := *flags.Lookup(flag).Value.(*DurationOpt).Value()
+			*field = &val
 		}
 	}
 
@@ -129,9 +129,10 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		}
 	}
 
-	updateUint64Opt := func(flag string, field *uint64) {
+	updateUint64Opt := func(flag string, field **uint64) {
 		if flags.Changed(flag) {
-			*field = *flags.Lookup(flag).Value.(*Uint64Opt).Value()
+			val := *flags.Lookup(flag).Value.(*Uint64Opt).Value()
+			*field = &val
 		}
 	}
 
@@ -159,7 +160,6 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		taskResources().Limits = &swarm.Resources{}
 		updateInt64Value(flagLimitCPU, &task.Resources.Limits.NanoCPUs)
 		updateInt64Value(flagLimitMemory, &task.Resources.Limits.MemoryBytes)
-
 	}
 	if flags.Changed(flagReserveCPU) || flags.Changed(flagReserveMemory) {
 		taskResources().Reservations = &swarm.Resources{}
@@ -167,7 +167,7 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		updateInt64Value(flagReserveMemory, &task.Resources.Reservations.MemoryBytes)
 	}
 
-	updateDurationOpt(flagStopGracePeriod, cspec.StopGracePeriod)
+	updateDurationOpt(flagStopGracePeriod, &cspec.StopGracePeriod)
 
 	if anyChanged(flags, flagRestartCondition, flagRestartDelay, flagRestartMaxAttempts, flagRestartWindow) {
 		if task.RestartPolicy == nil {
@@ -178,9 +178,9 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 			value, _ := flags.GetString(flagRestartCondition)
 			task.RestartPolicy.Condition = swarm.RestartPolicyCondition(value)
 		}
-		updateDurationOpt(flagRestartDelay, task.RestartPolicy.Delay)
-		updateUint64Opt(flagRestartMaxAttempts, task.RestartPolicy.MaxAttempts)
-		updateDurationOpt((flagRestartWindow), task.RestartPolicy.Window)
+		updateDurationOpt(flagRestartDelay, &task.RestartPolicy.Delay)
+		updateUint64Opt(flagRestartMaxAttempts, &task.RestartPolicy.MaxAttempts)
+		updateDurationOpt(flagRestartWindow, &task.RestartPolicy.Window)
 	}
 
 	if anyChanged(flags, flagConstraintAdd, flagConstraintRemove) {
@@ -206,6 +206,9 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 	updateNetworks(flags, &spec.Networks)
 	if flags.Changed(flagEndpointMode) {
 		value, _ := flags.GetString(flagEndpointMode)
+		if spec.EndpointSpec == nil {
+			spec.EndpointSpec = &swarm.EndpointSpec{}
+		}
 		spec.EndpointSpec.Mode = swarm.ResolutionMode(value)
 	}
 
@@ -409,7 +412,7 @@ func updateReplicas(flags *pflag.FlagSet, serviceMode *swarm.ServiceMode) error 
 		return nil
 	}
 
-	if serviceMode.Replicated == nil {
+	if serviceMode == nil || serviceMode.Replicated == nil {
 		return fmt.Errorf("replicas can only be used with replicated mode")
 	}
 	serviceMode.Replicated.Replicas = flags.Lookup(flagReplicas).Value.(*Uint64Opt).Value()
