@@ -35,8 +35,7 @@ set -e
 	debDate="$(date --rfc-2822)"
 
 	# if go-md2man is available, pre-generate the man pages
-	./man/generate.sh || true
-	# TODO decide if it's worth getting go-md2man in _each_ builder environment to avoid this
+	make manpages
 
 	builderDir="contrib/builder/deb/${PACKAGE_ARCH}"
 	pkgs=( $(find "${builderDir}/"*/ -type d) )
