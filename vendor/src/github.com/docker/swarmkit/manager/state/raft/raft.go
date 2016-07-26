@@ -401,7 +401,9 @@ func (n *Node) Run(ctx context.Context) error {
 			// restoring from the state, campaign to be the
 			// leader.
 			if !n.restored {
-				if len(n.cluster.Members()) <= 1 {
+				// Node ID should be in the progress list to Campaign
+				_, ok := n.Node.Status().Progress[n.Config.ID]
+				if len(n.cluster.Members()) <= 1 && ok {
 					if err := n.Campaign(n.Ctx); err != nil {
 						panic("raft: cannot campaign to be the leader on node restore")
 					}
@@ -779,10 +781,27 @@ func (n *Node) LeaderAddr() (string, error) {
 
 // registerNode registers a new node on the cluster memberlist
 func (n *Node) registerNode(node *api.RaftMember) error {
+	if n.cluster.IsIDRemoved(node.RaftID) {
+		return nil
+	}
+
 	member := &membership.Member{}
 
-	if n.cluster.GetMember(node.RaftID) != nil || n.cluster.IsIDRemoved(node.RaftID) {
-		// member already exists
+	existingMember := n.cluster.GetMember(node.RaftID)
+	if existingMember != nil {
+		// Member already exists
+
+		// If the address is different from what we thought it was,
+		// update it. This can happen if we just joined a cluster
+		// and are adding ourself now with the remotely-reachable
+		// address.
+		if existingMember.Addr != node.Addr {
+			member.RaftMember = node
+			member.RaftClient = existingMember.RaftClient
+			member.Conn = existingMember.Conn
+			n.cluster.AddMember(member)
+		}
+
 		return nil
 	}
 
