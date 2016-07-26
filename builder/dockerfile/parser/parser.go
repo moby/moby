@@ -36,18 +36,18 @@ type Node struct {
 	EndLine    int             // the line in the original dockerfile where the node ends
 }
 
+const defaultTokenEscape = "\\"
+
 var (
 	dispatch              map[string]func(string) (*Node, map[string]bool, error)
 	tokenWhitespace       = regexp.MustCompile(`[\t\v\f\r ]+`)
 	tokenLineContinuation *regexp.Regexp
-	tokenEscape           rune
+	tokenEscape           = rune(defaultTokenEscape[0])
 	tokenEscapeCommand    = regexp.MustCompile(`^#[ \t]*escape[ \t]*=[ \t]*(?P<escapechar>.).*$`)
 	tokenComment          = regexp.MustCompile(`^#.*$`)
 	lookingForDirectives  bool
 	directiveEscapeSeen   bool
 )
-
-const defaultTokenEscape = "\\"
 
 // setTokenEscape sets the default token for escaping characters in a Dockerfile.
 func setTokenEscape(s string) error {
