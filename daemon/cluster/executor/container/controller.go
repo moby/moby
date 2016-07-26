@@ -87,6 +87,11 @@ func (r *controller) Prepare(ctx context.Context) error {
 
 	if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" {
 		if err := r.adapter.pullImage(ctx); err != nil {
+			cause := errors.Cause(err)
+			if cause == context.Canceled || cause == context.DeadlineExceeded {
+				return err
+			}
+
 			// NOTE(stevvooe): We always try to pull the image to make sure we have
 			// the most up to date version. This will return an error, but we only
 			// log it. If the image truly doesn't exist, the create below will
