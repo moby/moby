@@ -25,6 +25,10 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 	nDB.Lock()
 	defer nDB.Unlock()
 
+	if nEvent.NodeName == nDB.config.NodeName {
+		return false
+	}
+
 	nodeNetworks, ok := nDB.networks[nEvent.NodeName]
 	if !ok {
 		// We haven't heard about this node at all.  Ignore the leave
