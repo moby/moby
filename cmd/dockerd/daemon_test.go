@@ -120,7 +120,7 @@ func TestLoadDaemonCliConfigWithTLSVerify(t *testing.T) {
 	}
 
 	if !loadedConfig.TLS {
-		t.Fatalf("expected TLS enabled, got %q", loadedConfig)
+		t.Fatalf("expected TLS disabled, got %q", loadedConfig)
 	}
 }
 
