@@ -2,7 +2,6 @@
 Description=Docker Application Container Engine
 Documentation=https://docs.docker.com
 After=network.target
-Requires=docker.socket
 
 [Service]
 Type=notify
