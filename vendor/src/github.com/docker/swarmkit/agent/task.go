@@ -1,11 +1,11 @@
 package agent
 
 import (
-	"reflect"
 	"time"
 
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/api/equality"
 	"github.com/docker/swarmkit/log"
 	"golang.org/x/net/context"
 )
@@ -175,7 +175,7 @@ func (tm *taskManager) run(ctx context.Context) {
 		case status := <-statusq:
 			tm.task.Status = *status
 		case task := <-tm.updateq:
-			if tasksEqual(task, tm.task) {
+			if equality.TasksEqualStable(task, tm.task) {
 				continue // ignore the update
 			}
 
@@ -240,18 +240,4 @@ func (tm *taskManager) run(ctx context.Context) {
 			return
 		}
 	}
-}
-
-// tasksEqual returns true if the tasks are functionaly equal, ignoring status,
-// version and other superfluous fields.
-//
-// This used to decide whether or not to propagate a task update to a controller.
-func tasksEqual(a, b *api.Task) bool {
-	// shallow copy
-	copyA, copyB := *a, *b
-
-	copyA.Status, copyB.Status = api.TaskStatus{}, api.TaskStatus{}
-	copyA.Meta, copyB.Meta = api.Meta{}, api.Meta{}
-
-	return reflect.DeepEqual(&copyA, &copyB)
 }
