@@ -142,7 +142,58 @@ func (r *controller) Start(ctx context.Context) error {
 		return errors.Wrap(err, "starting container failed")
 	}
 
-	return nil
+	// no health check
+	if ctnr.Config == nil || ctnr.Config.Healthcheck == nil {
+		return nil
+	}
+
+	healthCmd := ctnr.Config.Healthcheck.Test
+
+	if len(healthCmd) == 0 || healthCmd[0] == "NONE" {
+		return nil
+	}
+
+	// wait for container to be healthy
+	eventq := r.adapter.events(ctx)
+
+	var healthErr error
+	for {
+		select {
+		case event := <-eventq:
+			if !r.matchevent(event) {
+				continue
+			}
+
+			switch event.Action {
+			case "die": // exit on terminal events
+				ctnr, err := r.adapter.inspect(ctx)
+				if err != nil {
+					return errors.Wrap(err, "die event received")
+				} else if ctnr.State.ExitCode != 0 {
+					return &exitError{code: ctnr.State.ExitCode, cause: healthErr}
+				}
+
+				return nil
+			case "destroy":
+				// If we get here, something has gone wrong but we want to exit
+				// and report anyways.
+				return ErrContainerDestroyed
+			case "health_status: unhealthy":
+				// in this case, we stop the container and report unhealthy status
+				if err := r.Shutdown(ctx); err != nil {
+					return errors.Wrap(err, "unhealthy container shutdown failed")
+				}
+				// set health check error, and wait for container to fully exit ("die" event)
+				healthErr = ErrContainerUnhealthy
+			case "health_status: healthy":
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-r.closed:
+			return r.err
+		}
+	}
 }
 
 // Wait on the container to exit.
