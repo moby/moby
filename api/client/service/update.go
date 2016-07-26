@@ -253,7 +253,7 @@ func updatePlacement(flags *pflag.FlagSet, placement *swarm.Placement) {
 
 func updateContainerLabels(flags *pflag.FlagSet, field *map[string]string) {
 	if flags.Changed(flagContainerLabelAdd) {
-		if field == nil {
+		if *field == nil {
 			*field = map[string]string{}
 		}
 
@@ -263,7 +263,7 @@ func updateContainerLabels(flags *pflag.FlagSet, field *map[string]string) {
 		}
 	}
 
-	if field != nil && flags.Changed(flagContainerLabelRemove) {
+	if *field != nil && flags.Changed(flagContainerLabelRemove) {
 		toRemove := flags.Lookup(flagContainerLabelRemove).Value.(*opts.ListOpts).GetAll()
 		for _, label := range toRemove {
 			delete(*field, label)
