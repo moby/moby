@@ -76,7 +76,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 		// first. We can only remove this reference if either force is
 		// true, there are multiple repository references to this
 		// image, or there are no containers using the given reference.
-		if !(force || len(repoRefs) > 1) {
+		if !force && isSingleReference(repoRefs) {
 			if container := daemon.getContainerUsingImage(imgID); container != nil {
 				// If we removed the repository reference then
 				// this image would remain "dangling" and since
