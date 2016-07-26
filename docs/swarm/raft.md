@@ -7,7 +7,7 @@ advisory = "rc"
 [menu.main]
 identifier="raft"
 parent="engine_swarm"
-weight="13"
+weight="21"
 +++
 <![end-metadata]-->
 

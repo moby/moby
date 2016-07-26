@@ -1,9 +1,10 @@
 <!--[metadata]>
 +++
-title = "Manage a Swarm (1.12 RC)"
-description = "How to use Docker Swarm to create and manage Docker Engine clusters"
+title = "Manage a swarm (1.12 RC)"
+description = "How to use Docker Engine swarm mode"
 keywords = [" docker, documentation, developer, "]
 advisory = "rc"
+type = "menu"
 [menu.main]
 identifier = "engine_swarm"
 parent = "engine_use"
@@ -12,7 +13,7 @@ weight = 0
 <![end-metadata]-->
 
 
-## Use Docker Swarm to create and manage clusters of Docker Engine called Swarms
+## Use Docker Engine to create and manage a swarm
 
 This section contains the following topics:
 
