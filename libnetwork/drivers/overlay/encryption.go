@@ -488,7 +488,7 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 
 	if delIdx != -1 {
 		// -rSA0
-		programSA(rIP, lIP, spis[delIdx], nil, reverse, false)
+		programSA(lIP, rIP, spis[delIdx], nil, reverse, false)
 	}
 
 	if newIdx > -1 {
