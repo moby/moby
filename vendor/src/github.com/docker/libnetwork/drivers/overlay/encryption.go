@@ -95,7 +95,7 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal
 	switch {
 	case isLocal:
 		if err := d.peerDbNetworkWalk(nid, func(pKey *peerKey, pEntry *peerEntry) bool {
-			if !lIP.Equal(pEntry.vtep) {
+			if !aIP.Equal(pEntry.vtep) {
 				nodes[pEntry.vtep.String()] = pEntry.vtep
 			}
 			return false
@@ -488,7 +488,7 @@ func updateNodeKey(lIP, rIP net.IP, idxs []*spi, curKeys []*key, newIdx, priIdx,
 
 	if delIdx != -1 {
 		// -rSA0
-		programSA(rIP, lIP, spis[delIdx], nil, reverse, false)
+		programSA(lIP, rIP, spis[delIdx], nil, reverse, false)
 	}
 
 	if newIdx > -1 {
