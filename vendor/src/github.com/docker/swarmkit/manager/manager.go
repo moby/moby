@@ -3,7 +3,6 @@ package manager
 import (
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -121,16 +120,26 @@ func New(config *Config) (*Manager, error) {
 		config.ProtoAddr["tcp"] = config.ProtoListener["tcp"].Addr().String()
 	}
 
-	tcpAddr := config.ProtoAddr["tcp"]
-
-	if config.AdvertiseAddr != "" {
-		tcpAddr = config.AdvertiseAddr
-	}
+	// If an AdvertiseAddr was specified, we use that as our
+	// externally-reachable address.
+	tcpAddr := config.AdvertiseAddr
 
 	if tcpAddr == "" {
-		return nil, errors.New("no tcp listen address or listener provided")
+		// Otherwise, we know we are joining an existing swarm. Use a
+		// wildcard address to trigger remote autodetection of our
+		// address.
+		_, tcpAddrPort, err := net.SplitHostPort(config.ProtoAddr["tcp"])
+		if err != nil {
+			return nil, fmt.Errorf("missing or invalid listen address %s", config.ProtoAddr["tcp"])
+		}
+
+		// Even with an IPv6 listening address, it's okay to use
+		// 0.0.0.0 here. Any "unspecified" (wildcard) IP will
+		// be substituted with the actual source address.
+		tcpAddr = net.JoinHostPort("0.0.0.0", tcpAddrPort)
 	}
 
+	// FIXME(aaronl): Remove this. It appears to be unused.
 	dispatcherConfig.Addr = tcpAddr
 
 	err := os.MkdirAll(filepath.Dir(config.ProtoAddr["unix"]), 0700)

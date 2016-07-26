@@ -14,6 +14,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/api/equality"
 	"github.com/docker/swarmkit/ca"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state"
@@ -29,7 +30,7 @@ const (
 	DefaultHeartBeatPeriod       = 5 * time.Second
 	defaultHeartBeatEpsilon      = 500 * time.Millisecond
 	defaultGracePeriodMultiplier = 3
-	defaultRateLimitPeriod       = 16 * time.Second
+	defaultRateLimitPeriod       = 8 * time.Second
 
 	// maxBatchItems is the threshold of queued writes that should
 	// trigger an actual transaction to commit them to the shared store.
@@ -572,20 +573,44 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 			return err
 		}
 
-		select {
-		case event := <-nodeTasks:
-			switch v := event.(type) {
-			case state.EventCreateTask:
-				tasksMap[v.Task.ID] = v.Task
-			case state.EventUpdateTask:
-				tasksMap[v.Task.ID] = v.Task
-			case state.EventDeleteTask:
-				delete(tasksMap, v.Task.ID)
+		// bursty events should be processed in batches and sent out snapshot
+		const modificationBatchLimit = 200
+		const eventPausedGap = 50 * time.Millisecond
+		var modificationCnt int
+		// eventPaused is true when there have been modifications
+		// but next event has not arrived within eventPausedGap
+		eventPaused := false
+
+		for modificationCnt < modificationBatchLimit && !eventPaused {
+			select {
+			case event := <-nodeTasks:
+				switch v := event.(type) {
+				case state.EventCreateTask:
+					tasksMap[v.Task.ID] = v.Task
+					modificationCnt++
+				case state.EventUpdateTask:
+					if oldTask, exists := tasksMap[v.Task.ID]; exists {
+						if equality.TasksEqualStable(oldTask, v.Task) {
+							// this update should not trigger action at agent
+							tasksMap[v.Task.ID] = v.Task
+							continue
+						}
+					}
+					tasksMap[v.Task.ID] = v.Task
+					modificationCnt++
+				case state.EventDeleteTask:
+					delete(tasksMap, v.Task.ID)
+					modificationCnt++
+				}
+			case <-time.After(eventPausedGap):
+				if modificationCnt > 0 {
+					eventPaused = true
+				}
+			case <-stream.Context().Done():
+				return stream.Context().Err()
+			case <-d.ctx.Done():
+				return d.ctx.Err()
 			}
-		case <-stream.Context().Done():
-			return stream.Context().Err()
-		case <-d.ctx.Done():
-			return d.ctx.Err()
 		}
 	}
 }
