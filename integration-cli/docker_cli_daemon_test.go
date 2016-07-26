@@ -378,6 +378,7 @@ func (s *DockerSuite) TestDaemonIPv6Enabled(c *check.C) {
 	for i := range addrs {
 		if addrs[i].String() == expected {
 			found = true
+			break
 		}
 	}
 
