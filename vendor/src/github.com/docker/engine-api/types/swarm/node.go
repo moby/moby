@@ -15,7 +15,6 @@ type Node struct {
 type NodeSpec struct {
 	Annotations
 	Role         NodeRole         `json:",omitempty"`
-	Membership   NodeMembership   `json:",omitempty"`
 	Availability NodeAvailability `json:",omitempty"`
 }
 
@@ -27,16 +26,6 @@ const (
 	NodeRoleWorker NodeRole = "worker"
 	// NodeRoleManager MANAGER
 	NodeRoleManager NodeRole = "manager"
-)
-
-// NodeMembership represents the membership of a node.
-type NodeMembership string
-
-const (
-	// NodeMembershipPending PENDING
-	NodeMembershipPending NodeMembership = "pending"
-	// NodeMembershipAccepted ACCEPTED
-	NodeMembershipAccepted NodeMembership = "accepted"
 )
 
 // NodeAvailability represents the availability of a node.

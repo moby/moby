@@ -22,41 +22,52 @@ Redis 3.0.7 container image using rolling updates.
 run your manager node. For example, the tutorial uses a machine named
 `manager1`.
 
-2. Deploy Redis 3.0.6 to the swarm and configure the swarm to update one node
-every 10 seconds:
+2. Deploy Redis 3.0.6 to the swarm and configure the swarm with a 10 second
+update delay:
 
     ```bash
-    $ docker service create --replicas 3 --name redis --update-delay 10s --update-parallelism 1 redis:3.0.6
+    $ docker service create \
+      --replicas 3 \
+      --name redis \
+      --update-delay 10s \
+      --update-parallelism 1 \
+      redis:3.0.6
 
     0u6a4s31ybk7yw2wyvtikmu50
     ```
 
     You configure the rolling update policy at service deployment time.
 
-    The `--update-parallelism` flag configures the number of service tasks
-    to update simultaneously.
+    The `--update-parallelism` flag configures the number of service tasks that
+    the scheduler can update simultaneously. When updates to individual tasks
+    return a state of `RUNNING` or `FAILED`, the scheduler schedules another
+    task to update until all tasks are updated.
 
     The `--update-delay` flag configures the time delay between updates to a
-    service task or sets of tasks. You can describe the time `T` as a
-    combination of the number of seconds `Ts`, minutes `Tm`, or hours `Th`. So
-    `10m30s` indicates a 10 minute 30 second delay.
+    service task or sets of tasks.
+
+    You can describe the time `T` as a combination of the number of seconds
+    `Ts`, minutes `Tm`, or hours `Th`. So `10m30s` indicates a 10 minute 30
+    second delay.
+
 
 3. Inspect the `redis` service:
 
     ```bash
-    $ docker service inspect redis --pretty
+    $ docker service inspect --pretty redis
 
-    ID:		0u6a4s31ybk7yw2wyvtikmu50
-    Name:		redis
-    Mode:		REPLICATED
-     Replicas:		3
+    ID:             0u6a4s31ybk7yw2wyvtikmu50
+    Name:           redis
+    Mode:           Replicated
+     Replicas:      3
     Placement:
-     Strategy:	SPREAD
+     Strategy:	    Spread
     UpdateConfig:
-     Parallelism:	1
-     Delay:		10s
+     Parallelism:   1
+     Delay:         10s
     ContainerSpec:
-     Image:		redis:3.0.6
+     Image:         redis:3.0.6
+    Resources:
     ```
 
 4. Now you can update the container image for `redis`. The swarm  manager
@@ -67,24 +78,33 @@ applies the update to nodes according to the `UpdateConfig` policy:
     redis
     ```
 
+    The scheduler applies rolling updates as follows:
+
+    * Stop the initial number of tasks according to `--update-parallelism`.
+    * Schedule updates for the stopped tasks.
+    * Start the containers for the updated tasks.
+    * After an update to a task completes, wait for the specified delay
+    period before stopping the next task.
+
 5. Run `docker service inspect --pretty redis` to see the new image in the
 desired state:
 
     ```bash
-    docker service inspect --pretty redis
+    $ docker service inspect --pretty redis
 
-    ID:		0u6a4s31ybk7yw2wyvtikmu50
-    Name:		redis
-    Mode:		REPLICATED
-     Replicas:		3
+    ID:             0u6a4s31ybk7yw2wyvtikmu50
+    Name:           redis
+    Mode:           Replicated
+     Replicas:      3
     Placement:
-     Strategy:	SPREAD
+     Strategy:	    Spread
     UpdateConfig:
-     Parallelism:	1
-     Delay:		10s
+     Parallelism:   1
+     Delay:         10s
     ContainerSpec:
-     Image:		redis:3.0.7
-   ```
+     Image:         redis:3.0.7
+    Resources:
+    ```
 
 6. Run `docker service tasks <TASK-ID>` to watch the rolling update:
 
@@ -99,7 +119,6 @@ desired state:
 
     Before Swarm updates all of the tasks, you can see that some are running
     `redis:3.0.6` while others are running `redis:3.0.7`. The output above shows
-    the state once the rolling updates are done. You can see that each instances
-    entered the `RUNNING` state in approximately 10 second increments.
+    the state once the rolling updates are done.
 
 Next, learn about how to [drain a node](drain-node.md) in the Swarm.

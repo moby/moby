@@ -143,12 +143,12 @@ func (m *MountPoint) Path() string {
 // Type returns the type of mount point
 func (m *MountPoint) Type() string {
 	if m.Name != "" {
-		return "VOLUME"
+		return "volume"
 	}
 	if m.Source != "" {
-		return "BIND"
+		return "bind"
 	}
-	return "EPHEMERAL"
+	return "ephemeral"
 }
 
 // ParseVolumesFrom ensures that the supplied volumes-from is valid.

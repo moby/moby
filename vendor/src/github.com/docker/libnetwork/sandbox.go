@@ -413,7 +413,12 @@ func (sb *sandbox) ResolveIP(ip string) string {
 	for _, ep := range sb.getConnectedEndpoints() {
 		n := ep.getNetwork()
 
-		sr, ok := n.getController().svcRecords[n.ID()]
+		c := n.getController()
+
+		c.Lock()
+		sr, ok := c.svcRecords[n.ID()]
+		c.Unlock()
+
 		if !ok {
 			continue
 		}
@@ -454,7 +459,12 @@ func (sb *sandbox) ResolveService(name string) ([]*net.SRV, []net.IP, error) {
 	for _, ep := range sb.getConnectedEndpoints() {
 		n := ep.getNetwork()
 
-		sr, ok := n.getController().svcRecords[n.ID()]
+		c := n.getController()
+
+		c.Lock()
+		sr, ok := c.svcRecords[n.ID()]
+		c.Unlock()
+
 		if !ok {
 			continue
 		}
@@ -575,7 +585,11 @@ func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoin
 			ep.Unlock()
 		}
 
-		sr, ok := n.getController().svcRecords[n.ID()]
+		c := n.getController()
+		c.Lock()
+		sr, ok := c.svcRecords[n.ID()]
+		c.Unlock()
+
 		if !ok {
 			continue
 		}
@@ -722,6 +736,10 @@ func (sb *sandbox) restoreOslSandbox() error {
 		if len(i.llAddrs) != 0 {
 			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().LinkLocalAddresses(i.llAddrs))
 		}
+		if len(ep.virtualIP) != 0 {
+			vipAlias := &net.IPNet{IP: ep.virtualIP, Mask: net.CIDRMask(32, 32)}
+			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().IPAliases([]*net.IPNet{vipAlias}))
+		}
 		Ifaces[fmt.Sprintf("%s+%s", i.srcName, i.dstPrefix)] = ifaceOptions
 		if joinInfo != nil {
 			for _, r := range joinInfo.StaticRoutes {
@@ -774,6 +792,10 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 		}
 		if len(i.llAddrs) != 0 {
 			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().LinkLocalAddresses(i.llAddrs))
+		}
+		if len(ep.virtualIP) != 0 {
+			vipAlias := &net.IPNet{IP: ep.virtualIP, Mask: net.CIDRMask(32, 32)}
+			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().IPAliases([]*net.IPNet{vipAlias}))
 		}
 		if i.mac != nil {
 			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().MacAddress(i.mac))

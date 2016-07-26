@@ -202,7 +202,7 @@ use the btrfs storage engine on Oracle Linux 7.
 
 If you have a current Basic or Premier Support Subscription for Oracle Linux,
 you can report any issues you have with the installation of Docker via a Service
-Request at [My Oracle Support](http://support.oracle.com).
+Request at [My Oracle Support](https://support.oracle.com).
 
 If you do not have an Oracle Linux Support Subscription, you can use the [Oracle
 Linux

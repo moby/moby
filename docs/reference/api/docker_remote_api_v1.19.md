@@ -310,6 +310,7 @@ Status Codes:
 -   **400** – bad parameter
 -   **404** – no such container
 -   **406** – impossible to attach (container not running)
+-   **409** – conflict
 -   **500** – server error
 
 ### Inspect a container
@@ -1081,6 +1082,7 @@ Status Codes:
 -   **204** – no error
 -   **400** – bad parameter
 -   **404** – no such container
+-   **409** – conflict
 -   **500** – server error
 
 ### Copy files or folders from a container
@@ -1235,7 +1237,7 @@ the path to the alternate build instructions file to use.
 
 The archive may include any number of other files,
 which are accessible in the build context (See the [*ADD build
-command*](../../reference/builder.md#dockerbuilder)).
+command*](../../reference/builder.md#add)).
 
 The build is canceled if the client drops the connection by quitting
 or being killed.

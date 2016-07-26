@@ -20,7 +20,7 @@ Display detailed information on one or more services
 Options:
   -f, --format string   Format the output using the given go template
       --help            Print usage
-  -p, --pretty          Print the information in a human friendly format.
+      --pretty          Print the information in a human friendly format.
 ```
 
 
@@ -120,14 +120,11 @@ Labels:
 Mode:		REPLICATED
  Replicas:		5
 Placement:
- Strategy:	Spread
 UpdateConfig:
  Parallelism:	0
 ContainerSpec:
  Image:		nginx:alpine
 Resources:
-Reservations:
-Limits:
 Ports:
  Name =
  Protocol = tcp

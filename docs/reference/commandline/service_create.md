@@ -19,31 +19,34 @@ Usage:  docker service create [OPTIONS] IMAGE [COMMAND] [ARG...]
 Create a new service
 
 Options:
-      --constraint value             Placement constraints (default [])
-      --endpoint-mode string         Endpoint mode (vip or dnsrr)
-  -e, --env value                    Set environment variables (default [])
-      --help                         Print usage
-  -l, --label value                  Service labels (default [])
-      --limit-cpu value              Limit CPUs (default 0.000)
-      --limit-memory value           Limit Memory (default 0 B)
-      --mode string                  Service mode (replicated or global) (default "replicated")
-  -m, --mount value                  Attach a mount to the service
-      --name string                  Service name
-      --network value                Network attachments (default [])
-  -p, --publish value                Publish a port as a node port (default [])
-      --registry-auth                Send registry authentication details to Swarm agents
-      --replicas value               Number of tasks (default none)
-      --reserve-cpu value            Reserve CPUs (default 0.000)
-      --reserve-memory value         Reserve Memory (default 0 B)
-      --restart-condition string     Restart when condition is met (none, on-failure, or any)
-      --restart-delay value          Delay between restart attempts (default none)
-      --restart-max-attempts value   Maximum number of restarts before giving up (default none)
-      --restart-window value         Window used to evaluate the restart policy (default none)
-      --stop-grace-period value      Time to wait before force killing a container (default none)
-      --update-delay duration        Delay between updates
-      --update-parallelism uint      Maximum number of tasks updated simultaneously
-  -u, --user string                  Username or UID
-  -w, --workdir string               Working directory inside the container
+      --constraint value               Placement constraints (default [])
+      --endpoint-mode string           Endpoint mode (vip or dnsrr)
+  -e, --env value                      Set environment variables (default [])
+      --help                           Print usage
+  -l, --label value                    Service labels (default [])
+      --limit-cpu value                Limit CPUs (default 0.000)
+      --limit-memory value             Limit Memory (default 0 B)
+      --log-driver string              Logging driver for service
+      --log-opt value                  Logging driver options (default [])
+      --mode string                    Service mode (replicated or global) (default "replicated")
+      --mount value                    Attach a mount to the service
+      --name string                    Service name
+      --network value                  Network attachments (default [])
+  -p, --publish value                  Publish a port as a node port (default [])
+      --replicas value                 Number of tasks (default none)
+      --reserve-cpu value              Reserve CPUs (default 0.000)
+      --reserve-memory value           Reserve Memory (default 0 B)
+      --restart-condition string       Restart when condition is met (none, on-failure, or any)
+      --restart-delay value            Delay between restart attempts (default none)
+      --restart-max-attempts value     Maximum number of restarts before giving up (default none)
+      --restart-window value           Window used to evaluate the restart policy (default none)
+      --stop-grace-period value        Time to wait before force killing a container (default none)
+      --update-delay duration          Delay between updates
+      --update-failure-action string   Action on update failure (pause|continue) (default "pause")
+      --update-parallelism uint        Maximum number of tasks updated simultaneously (0 to update all at once) (default 1)
+  -u, --user string                    Username or UID
+      --with-registry-auth             Send registry authentication details to Swarm agents
+  -w, --workdir string                 Working directory inside the container
 ```
 
 Creates a service as described by the specified parameters. This command has to
@@ -133,7 +136,7 @@ $ docker service create \
 ```
 
 For more information about labels, refer to [apply custom
-metadata](../../userguide/labels-custom-metadata.md)
+metadata](../../userguide/labels-custom-metadata.md).
 
 ### Set service mode
 
@@ -164,7 +167,7 @@ follows:
 
 `engine.labels` apply to Docker Engine labels like operating system,
 drivers, etc. Swarm administrators add `node.labels` for operational purposes by
-using the `docker node update` command.
+using the [`docker node update`](node_update.md) command.
 
 For example, the following limits tasks for the redis service to nodes where the
 node type label equals queue:
@@ -172,7 +175,8 @@ node type label equals queue:
 ```bash
 $ docker service create \
   --name redis_2 \
-  --constraint node.labels.type == queue
+  --constraint 'node.labels.type == queue' \
+  redis:3.0.6
 ```
 
 ## Related information

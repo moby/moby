@@ -105,7 +105,7 @@ func TestGetContainer(t *testing.T) {
 	}
 
 	if container, _ := daemon.GetContainer("d22d69a2b896"); container != c5 {
-		t.Fatal("Should match a container where the provided prefix is an exact match to the it's name, and is also a prefix for it's ID")
+		t.Fatal("Should match a container where the provided prefix is an exact match to the its name, and is also a prefix for its ID")
 	}
 
 	if _, err := daemon.GetContainer("3cdbd1"); err == nil {

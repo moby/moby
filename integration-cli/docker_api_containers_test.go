@@ -215,28 +215,20 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
 
 	buf := &integration.ChannelBuffer{make(chan []byte, 1)}
 	defer buf.Close()
+
+	_, body, err := sockRequestRaw("GET", "/containers/"+id+"/stats?stream=1", nil, "application/json")
+	c.Assert(err, checker.IsNil)
+	defer body.Close()
+
 	chErr := make(chan error, 1)
 	go func() {
-		_, body, err := sockRequestRaw("GET", "/containers/"+id+"/stats?stream=1", nil, "application/json")
-		if err != nil {
-			chErr <- err
-		}
-		defer body.Close()
 		_, err = io.Copy(buf, body)
 		chErr <- err
-	}()
-	defer func() {
-		select {
-		case err := <-chErr:
-			c.Assert(err, checker.IsNil)
-		default:
-			return
-		}
 	}()
 
 	b := make([]byte, 32)
 	// make sure we've got some stats
-	_, err := buf.ReadTimeout(b, 2*time.Second)
+	_, err = buf.ReadTimeout(b, 2*time.Second)
 	c.Assert(err, checker.IsNil)
 
 	// Now remove without `-f` and make sure we are still pulling stats
@@ -245,7 +237,8 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
 	_, err = buf.ReadTimeout(b, 2*time.Second)
 	c.Assert(err, checker.IsNil)
 
-	dockerCmd(c, "kill", id)
+	dockerCmd(c, "rm", "-f", id)
+	c.Assert(<-chErr, checker.IsNil)
 }
 
 // regression test for gh13421

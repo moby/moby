@@ -83,9 +83,9 @@ func (d *driver) populateEndpoints() error {
 		n, ok := d.networks[ep.nid]
 		if !ok {
 			logrus.Debugf("Network (%s) not found for restored bridge endpoint (%s)", ep.nid[0:7], ep.id[0:7])
-			logrus.Debugf("Deleting stale bridge endpoint (%s) from store", ep.nid[0:7])
+			logrus.Debugf("Deleting stale bridge endpoint (%s) from store", ep.id[0:7])
 			if err := d.storeDelete(ep); err != nil {
-				logrus.Debugf("Failed to delete stale bridge endpoint (%s) from store", ep.nid[0:7])
+				logrus.Debugf("Failed to delete stale bridge endpoint (%s) from store", ep.id[0:7])
 			}
 			continue
 		}

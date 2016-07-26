@@ -21,8 +21,9 @@ func newPromoteCommand(dockerCli *client.DockerCli) *cobra.Command {
 }
 
 func runPromote(dockerCli *client.DockerCli, nodes []string) error {
-	promote := func(node *swarm.Node) {
+	promote := func(node *swarm.Node) error {
 		node.Spec.Role = swarm.NodeRoleManager
+		return nil
 	}
 	success := func(nodeID string) {
 		fmt.Fprintf(dockerCli.Out(), "Node %s promoted to a manager in the swarm.\n", nodeID)

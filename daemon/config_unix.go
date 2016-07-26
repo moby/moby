@@ -34,6 +34,7 @@ type Config struct {
 	Ulimits              map[string]*units.Ulimit `json:"default-ulimits,omitempty"`
 	Runtimes             map[string]types.Runtime `json:"runtimes,omitempty"`
 	DefaultRuntime       string                   `json:"default-runtime,omitempty"`
+	OOMScoreAdjust       int                      `json:"oom-score-adjust,omitempty"`
 }
 
 // bridgeConfig stores all the bridge driver specific
@@ -67,7 +68,7 @@ func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) strin
 	cmd.BoolVar(&config.EnableSelinuxSupport, []string{"-selinux-enabled"}, false, usageFn("Enable selinux support"))
 	cmd.StringVar(&config.SocketGroup, []string{"G", "-group"}, "docker", usageFn("Group for the unix socket"))
 	config.Ulimits = make(map[string]*units.Ulimit)
-	cmd.Var(runconfigopts.NewUlimitOpt(&config.Ulimits), []string{"-default-ulimit"}, usageFn("Set default ulimits for containers"))
+	cmd.Var(runconfigopts.NewUlimitOpt(&config.Ulimits), []string{"-default-ulimit"}, usageFn("Default ulimits for containers"))
 	cmd.BoolVar(&config.bridgeConfig.EnableIPTables, []string{"#iptables", "-iptables"}, true, usageFn("Enable addition of iptables rules"))
 	cmd.BoolVar(&config.bridgeConfig.EnableIPForward, []string{"#ip-forward", "-ip-forward"}, true, usageFn("Enable net.ipv4.ip_forward"))
 	cmd.BoolVar(&config.bridgeConfig.EnableIPMasq, []string{"-ip-masq"}, true, usageFn("Enable IP masquerading"))
@@ -89,7 +90,8 @@ func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) strin
 	cmd.BoolVar(&config.LiveRestore, []string{"-live-restore"}, false, usageFn("Enable live restore of docker when containers are still running"))
 	config.Runtimes = make(map[string]types.Runtime)
 	cmd.Var(runconfigopts.NewNamedRuntimeOpt("runtimes", &config.Runtimes, stockRuntimeName), []string{"-add-runtime"}, usageFn("Register an additional OCI compatible runtime"))
-	cmd.StringVar(&config.DefaultRuntime, []string{"-default-runtime"}, stockRuntimeName, usageFn("Default OCI runtime to be used"))
+	cmd.StringVar(&config.DefaultRuntime, []string{"-default-runtime"}, stockRuntimeName, usageFn("Default OCI runtime for containers"))
+	cmd.IntVar(&config.OOMScoreAdjust, []string{"-oom-score-adjust"}, -500, usageFn("Set the oom_score_adj for the daemon"))
 
 	config.attachExperimentalFlags(cmd, usageFn)
 }
@@ -120,6 +122,11 @@ func (config *Config) GetAllRuntimes() map[string]types.Runtime {
 	rts := config.Runtimes
 	config.reloadLock.Unlock()
 	return rts
+}
+
+// GetExecRoot returns the user configured Exec-root
+func (config *Config) GetExecRoot() string {
+	return config.ExecRoot
 }
 
 func (config *Config) isSwarmCompatible() error {

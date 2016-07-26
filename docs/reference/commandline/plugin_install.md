@@ -12,7 +12,7 @@ parent = "smn_cli"
 # plugin install (experimental)
 
 ```markdown
-Usage:  docker plugin install PLUGIN [OPTIONS]
+Usage:  docker plugin install [OPTIONS] PLUGIN
 
 Install a plugin
 
@@ -33,17 +33,21 @@ the plugin needs and enabling the plugin.
 
 ```bash
 $ docker plugin install tiborvass/no-remove
-Plugin "tiborvass/no-remove:latest" requested the following privileges:
- - Networking: host
- - Mounting host path: /data
+
+Plugin "tiborvass/no-remove" is requesting the following privileges:
+ - network: [host]
+ - mount: [/data]
+ - device: [/dev/cpu_dma_latency]
 Do you grant the above permissions? [y/N] y
+tiborvass/no-remove
 ```
 
 After the plugin is installed, it appears in the list of plugins:
 
 ```bash
 $ docker plugin ls
-NAME                	VERSION             ACTIVE
+
+NAME                  VERSION             ACTIVE
 tiborvass/no-remove   latest              true
 ```
 

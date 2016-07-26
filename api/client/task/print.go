@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	psTaskItemFmt = "%s\t%s\t%s\t%s\t%s %s ago\t%s\t%s\n"
+	psTaskItemFmt = "%s\t%s\t%s\t%s\t%s\t%s %s ago\t%s\n"
+	maxErrLength  = 30
 )
 
 type tasksBySlot []swarm.Task
@@ -47,7 +48,9 @@ func Print(dockerCli *client.DockerCli, ctx context.Context, tasks []swarm.Task,
 
 	// Ignore flushing errors
 	defer writer.Flush()
-	fmt.Fprintln(writer, strings.Join([]string{"ID", "NAME", "SERVICE", "IMAGE", "LAST STATE", "DESIRED STATE", "NODE"}, "\t"))
+	fmt.Fprintln(writer, strings.Join([]string{"ID", "NAME", "IMAGE", "NODE", "DESIRED STATE", "CURRENT STATE", "ERROR"}, "\t"))
+
+	prevName := ""
 	for _, task := range tasks {
 		serviceValue, err := resolver.Resolve(ctx, swarm.Service{}, task.ServiceID)
 		if err != nil {
@@ -57,21 +60,39 @@ func Print(dockerCli *client.DockerCli, ctx context.Context, tasks []swarm.Task,
 		if err != nil {
 			return err
 		}
+
 		name := serviceValue
 		if task.Slot > 0 {
 			name = fmt.Sprintf("%s.%d", name, task.Slot)
 		}
+
+		// Indent the name if necessary
+		indentedName := name
+		if prevName == name {
+			indentedName = fmt.Sprintf(" \\_ %s", indentedName)
+		}
+		prevName = name
+
+		// Trim and quote the error message.
+		taskErr := task.Status.Err
+		if len(taskErr) > maxErrLength {
+			taskErr = fmt.Sprintf("%s…", taskErr[:maxErrLength-1])
+		}
+		if len(taskErr) > 0 {
+			taskErr = fmt.Sprintf("\"%s\"", taskErr)
+		}
+
 		fmt.Fprintf(
 			writer,
 			psTaskItemFmt,
 			task.ID,
-			name,
-			serviceValue,
+			indentedName,
 			task.Spec.ContainerSpec.Image,
+			nodeValue,
+			client.PrettyPrint(task.DesiredState),
 			client.PrettyPrint(task.Status.State),
 			strings.ToLower(units.HumanDuration(time.Since(task.Status.Timestamp))),
-			client.PrettyPrint(task.DesiredState),
-			nodeValue,
+			taskErr,
 		)
 	}
 

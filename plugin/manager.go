@@ -54,6 +54,11 @@ func (p *plugin) Client() *plugins.Client {
 	return p.client
 }
 
+// IsLegacy returns true for legacy plugins and false otherwise.
+func (p *plugin) IsLegacy() bool {
+	return false
+}
+
 func (p *plugin) Name() string {
 	name := p.P.Name
 	if len(p.P.Tag) > 0 {
@@ -109,22 +114,15 @@ func GetManager() *Manager {
 
 // Init (was NewManager) instantiates the singleton Manager.
 // TODO: revert this to NewManager once we get rid of all the singletons.
-func Init(root, execRoot string, remote libcontainerd.Remote, rs registry.Service, liveRestore bool) (err error) {
+func Init(root string, remote libcontainerd.Remote, rs registry.Service, liveRestore bool) (err error) {
 	if manager != nil {
 		return nil
 	}
 
 	root = filepath.Join(root, "plugins")
-	execRoot = filepath.Join(execRoot, "plugins")
-	for _, dir := range []string{root, execRoot} {
-		if err := os.MkdirAll(dir, 0700); err != nil {
-			return err
-		}
-	}
-
 	manager = &Manager{
 		libRoot:         root,
-		runRoot:         execRoot,
+		runRoot:         "/run/docker",
 		plugins:         make(map[string]*plugin),
 		nameToID:        make(map[string]string),
 		handlers:        make(map[string]func(string, *plugins.Client)),
@@ -321,7 +319,7 @@ func (pm *Manager) init() error {
 			if requiresManualRestore {
 				// if liveRestore is not enabled, the plugin will be stopped now so we should enable it
 				if err := pm.enable(p); err != nil {
-					logrus.Errorf("Error restoring plugin '%s': %s", p.Name(), err)
+					logrus.Errorf("Error enabling plugin '%s': %s", p.Name(), err)
 				}
 			}
 		}(p)

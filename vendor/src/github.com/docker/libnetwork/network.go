@@ -1105,8 +1105,12 @@ func (n *network) getSvcRecords(ep *endpoint) []etchosts.Record {
 	}
 
 	var recs []etchosts.Record
-	sr, _ := n.ctrlr.svcRecords[n.id]
+
 	epName := ep.Name()
+
+	n.ctrlr.Lock()
+	sr, _ := n.ctrlr.svcRecords[n.id]
+	n.ctrlr.Unlock()
 
 	for h, ip := range sr.svcMap {
 		if strings.Split(h, ".")[0] == epName {

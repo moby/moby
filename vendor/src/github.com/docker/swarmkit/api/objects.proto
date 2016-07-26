@@ -62,6 +62,10 @@ message Service {
 	// the optional fields like node_port or virtual_ip and it
 	// could be auto allocated by the system.
 	Endpoint endpoint = 4;
+
+	// UpdateStatus contains the status of an update, if one is in
+	// progress.
+	UpdateStatus update_status = 5;
 }
 
 // Endpoint specified all the network parameters required to

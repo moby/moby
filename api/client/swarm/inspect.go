@@ -11,7 +11,6 @@ import (
 
 type inspectOptions struct {
 	format string
-	//	pretty  bool
 }
 
 func newInspectCommand(dockerCli *client.DockerCli) *cobra.Command {
@@ -19,19 +18,15 @@ func newInspectCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "inspect [OPTIONS]",
-		Short: "Inspect the Swarm",
+		Short: "Inspect the swarm",
 		Args:  cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// if opts.pretty && len(opts.format) > 0 {
-			//	return fmt.Errorf("--format is incompatible with human friendly format")
-			// }
 			return runInspect(dockerCli, opts)
 		},
 	}
 
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.format, "format", "f", "", "Format the output using the given go template")
-	//flags.BoolVarP(&opts.pretty, "pretty", "h", false, "Print the information in a human friendly format.")
 	return cmd
 }
 
@@ -48,9 +43,5 @@ func runInspect(dockerCli *client.DockerCli, opts inspectOptions) error {
 		return swarm, nil, nil
 	}
 
-	//	if !opts.pretty {
 	return inspect.Inspect(dockerCli.Out(), []string{""}, opts.format, getRef)
-	//	}
-
-	//return printHumanFriendly(dockerCli.Out(), opts.refs, getRef)
 }

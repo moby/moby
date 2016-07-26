@@ -12,10 +12,13 @@ import (
 	"github.com/docker/swarmkit/manager/dispatcher/heartbeat"
 )
 
+const rateLimitCount = 3
+
 type registeredNode struct {
 	SessionID  string
 	Heartbeat  *heartbeat.Heartbeat
 	Registered time.Time
+	Attempts   int
 	Node       *api.Node
 	Disconnect chan struct{} // signal to disconnect
 	mu         sync.Mutex
@@ -86,9 +89,14 @@ func (s *nodeStore) CheckRateLimit(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if existRn, ok := s.nodes[id]; ok {
-		if time.Since(existRn.Registered) < s.rateLimitPeriod {
-			return grpc.Errorf(codes.Unavailable, "node %s attempted registration too recently", id)
+		if time.Since(existRn.Registered) > s.rateLimitPeriod {
+			existRn.Attempts = 0
 		}
+		existRn.Attempts++
+		if existRn.Attempts > rateLimitCount {
+			return grpc.Errorf(codes.Unavailable, "node %s exceeded rate limit count of registrations", id)
+		}
+		existRn.Registered = time.Now()
 	}
 	return nil
 }
@@ -97,14 +105,22 @@ func (s *nodeStore) CheckRateLimit(id string) error {
 func (s *nodeStore) Add(n *api.Node, expireFunc func()) *registeredNode {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	var attempts int
+	var registered time.Time
 	if existRn, ok := s.nodes[n.ID]; ok {
+		attempts = existRn.Attempts
+		registered = existRn.Registered
 		existRn.Heartbeat.Stop()
 		delete(s.nodes, n.ID)
+	}
+	if registered.IsZero() {
+		registered = time.Now()
 	}
 	rn := &registeredNode{
 		SessionID:  identity.NewID(), // session ID is local to the dispatcher.
 		Node:       n,
-		Registered: time.Now(),
+		Registered: registered,
+		Attempts:   attempts,
 		Disconnect: make(chan struct{}),
 	}
 	s.nodes[n.ID] = rn

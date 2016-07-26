@@ -45,8 +45,8 @@ type ExecConfig struct {
 	Privileged   bool     // Is the container in privileged mode
 	Tty          bool     // Attach standard streams to a tty.
 	AttachStdin  bool     // Attach the standard input, makes possible user interaction
-	AttachStderr bool     // Attach the standard output
-	AttachStdout bool     // Attach the standard error
+	AttachStderr bool     // Attach the standard error
+	AttachStdout bool     // Attach the standard output
 	Detach       bool     // Execute in detach mode
 	DetachKeys   string   // Escape keys for detach
 	Cmd          []string // Execution commands and args

@@ -61,60 +61,73 @@ func TestMountOptString(t *testing.T) {
 	mount := MountOpt{
 		values: []swarm.Mount{
 			{
-				Type:   swarm.MountType("BIND"),
+				Type:   swarm.MountTypeBind,
 				Source: "/home/path",
 				Target: "/target",
 			},
 			{
-				Type:   swarm.MountType("VOLUME"),
+				Type:   swarm.MountTypeVolume,
 				Source: "foo",
 				Target: "/target/foo",
 			},
 		},
 	}
-	expected := "BIND /home/path /target, VOLUME foo /target/foo"
+	expected := "bind /home/path /target, volume foo /target/foo"
 	assert.Equal(t, mount.String(), expected)
 }
 
 func TestMountOptSetNoError(t *testing.T) {
-	var mount MountOpt
-	assert.NilError(t, mount.Set("type=bind,target=/target,source=/foo"))
+	for _, testcase := range []string{
+		// tests several aliases that should have same result.
+		"type=bind,target=/target,source=/source",
+		"type=bind,src=/source,dst=/target",
+		"type=bind,name=/source,dst=/target",
+		"type=bind,name=/source,path=/target",
+	} {
+		var mount MountOpt
 
-	mounts := mount.Value()
-	assert.Equal(t, len(mounts), 1)
-	assert.Equal(t, mounts[0], swarm.Mount{
-		Type:   swarm.MountType("BIND"),
-		Source: "/foo",
-		Target: "/target",
-	})
+		assert.NilError(t, mount.Set(testcase))
+
+		mounts := mount.Value()
+		assert.Equal(t, len(mounts), 1)
+		assert.Equal(t, mounts[0], swarm.Mount{
+			Type:   swarm.MountTypeBind,
+			Source: "/source",
+			Target: "/target",
+		})
+	}
 }
 
-func TestMountOptSetErrorNoType(t *testing.T) {
+// TestMountOptDefaultType ensures that a mount without the type defaults to a
+// volume mount.
+func TestMountOptDefaultType(t *testing.T) {
 	var mount MountOpt
-	assert.Error(t, mount.Set("target=/target,source=/foo"), "type is required")
+	assert.NilError(t, mount.Set("target=/target,source=/foo"))
+	assert.Equal(t, mount.values[0].Type, swarm.MountTypeVolume)
 }
 
 func TestMountOptSetErrorNoTarget(t *testing.T) {
 	var mount MountOpt
-	assert.Error(t, mount.Set("type=VOLUME,source=/foo"), "target is required")
+	assert.Error(t, mount.Set("type=volume,source=/foo"), "target is required")
 }
 
 func TestMountOptSetErrorInvalidKey(t *testing.T) {
 	var mount MountOpt
-	assert.Error(t, mount.Set("type=VOLUME,bogus=foo"), "unexpected key 'bogus'")
+	assert.Error(t, mount.Set("type=volume,bogus=foo"), "unexpected key 'bogus'")
 }
 
 func TestMountOptSetErrorInvalidField(t *testing.T) {
 	var mount MountOpt
-	assert.Error(t, mount.Set("type=VOLUME,bogus"), "invalid field 'bogus'")
+	assert.Error(t, mount.Set("type=volume,bogus"), "invalid field 'bogus'")
 }
 
-func TestMountOptSetErrorInvalidWritable(t *testing.T) {
+func TestMountOptSetErrorInvalidReadOnly(t *testing.T) {
 	var mount MountOpt
-	assert.Error(t, mount.Set("type=VOLUME,readonly=no"), "invalid value for readonly: no")
+	assert.Error(t, mount.Set("type=volume,readonly=no"), "invalid value for readonly: no")
+	assert.Error(t, mount.Set("type=volume,readonly=invalid"), "invalid value for readonly: invalid")
 }
 
-func TestMountOptDefaultEnableWritable(t *testing.T) {
+func TestMountOptDefaultEnableReadOnly(t *testing.T) {
 	var m MountOpt
 	assert.NilError(t, m.Set("type=bind,target=/foo,source=/foo"))
 	assert.Equal(t, m.values[0].ReadOnly, false)

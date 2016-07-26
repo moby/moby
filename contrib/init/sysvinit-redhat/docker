@@ -22,9 +22,9 @@
 # Source function library.
 . /etc/rc.d/init.d/functions
 
-prog="dockerd"
+prog="docker"
 unshare=/usr/bin/unshare
-exec="/usr/bin/$prog"
+exec="/usr/bin/dockerd"
 pidfile="/var/run/$prog.pid"
 lockfile="/var/lock/subsys/$prog"
 logfile="/var/log/$prog"

@@ -89,7 +89,7 @@ RUN set -x \
 
 ## BUILD GOLANG 1.6
 # NOTE: ppc64le has compatibility issues with older versions of go, so make sure the version >= 1.6
-ENV GO_VERSION 1.6.2
+ENV GO_VERSION 1.6.3
 ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz
 ENV GO_DOWNLOAD_SHA256 787b0b750d037016a30c6ed05a8a70a91b2e9db4bd9b1a2453aa502a63f1bccc
 ENV GOROOT_BOOTSTRAP /usr/local
@@ -215,7 +215,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install containerd
-ENV CONTAINERD_COMMIT 1b3a81545ca79456086dc2aa424357be98b962ee
+ENV CONTAINERD_COMMIT 0ac3cd1be170d180b2baed755e8f0da547ceb267
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \

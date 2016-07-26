@@ -29,5 +29,4 @@ $ docker node demote <node name>
 
 ## Related information
 
-* [node accept](node_accept.md)
 * [node promote](node_promote.md)

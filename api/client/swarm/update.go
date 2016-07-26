@@ -13,11 +13,11 @@ import (
 )
 
 func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
-	opts := swarmOptions{autoAccept: NewAutoAcceptOption()}
+	opts := swarmOptions{}
 
 	cmd := &cobra.Command{
-		Use:   "update",
-		Short: "Update the Swarm",
+		Use:   "update [OPTIONS]",
+		Short: "Update the swarm",
 		Args:  cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runUpdate(dockerCli, cmd.Flags(), opts)
@@ -32,6 +32,8 @@ func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts swarmOpti
 	client := dockerCli.Client()
 	ctx := context.Background()
 
+	var updateFlags swarm.UpdateFlags
+
 	swarm, err := client.SwarmInspect(ctx)
 	if err != nil {
 		return err
@@ -42,7 +44,7 @@ func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts swarmOpti
 		return err
 	}
 
-	err = client.SwarmUpdate(ctx, swarm.Version, swarm.Spec)
+	err = client.SwarmUpdate(ctx, swarm.Version, swarm.Spec, updateFlags)
 	if err != nil {
 		return err
 	}
@@ -54,21 +56,6 @@ func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts swarmOpti
 
 func mergeSwarm(swarm *swarm.Swarm, flags *pflag.FlagSet) error {
 	spec := &swarm.Spec
-
-	if flags.Changed(flagAutoAccept) {
-		value := flags.Lookup(flagAutoAccept).Value.(*AutoAcceptOption)
-		spec.AcceptancePolicy.Policies = value.Policies(nil)
-	}
-
-	var psecret *string
-	if flags.Changed(flagSecret) {
-		secret, _ := flags.GetString(flagSecret)
-		psecret = &secret
-	}
-
-	for i := range spec.AcceptancePolicy.Policies {
-		spec.AcceptancePolicy.Policies[i].Secret = psecret
-	}
 
 	if flags.Changed(flagTaskHistoryLimit) {
 		spec.Orchestration.TaskHistoryRetentionLimit, _ = flags.GetInt64(flagTaskHistoryLimit)

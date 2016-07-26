@@ -1,11 +1,14 @@
 package ca
 
 import (
+	cryptorand "crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"math/rand"
 	"path/filepath"
 	"strings"
@@ -28,9 +31,7 @@ const (
 	nodeTLSCertFilename = "swarm-node.crt"
 	nodeTLSKeyFilename  = "swarm-node.key"
 	nodeCSRFilename     = "swarm-node.csr"
-)
 
-const (
 	rootCN = "swarm-ca"
 	// ManagerRole represents the Manager node type, and is used for authorization to endpoints
 	ManagerRole = "swarm-manager"
@@ -38,6 +39,13 @@ const (
 	AgentRole = "swarm-worker"
 	// CARole represents the CA node type, and is used for clients attempting to get new certificates issued
 	CARole = "swarm-ca"
+
+	generatedSecretEntropyBytes = 16
+	joinTokenBase               = 36
+	// ceil(log(2^128-1, 36))
+	maxGeneratedSecretLength = 25
+	// ceil(log(2^256-1, 36))
+	base36DigestLen = 50
 )
 
 // SecurityConfig is used to represent a node's security configuration. It includes information about
@@ -148,10 +156,36 @@ func NewConfigPaths(baseCertDir string) *SecurityConfigPaths {
 	}
 }
 
+// GenerateJoinToken creates a new join token.
+func GenerateJoinToken(rootCA *RootCA) string {
+	var secretBytes [generatedSecretEntropyBytes]byte
+
+	if _, err := cryptorand.Read(secretBytes[:]); err != nil {
+		panic(fmt.Errorf("failed to read random bytes: %v", err))
+	}
+
+	var nn, digest big.Int
+	nn.SetBytes(secretBytes[:])
+	digest.SetString(rootCA.Digest.Hex(), 16)
+	return fmt.Sprintf("SWMTKN-1-%0[1]*s-%0[3]*s", base36DigestLen, digest.Text(joinTokenBase), maxGeneratedSecretLength, nn.Text(joinTokenBase))
+}
+
+func getCAHashFromToken(token string) (digest.Digest, error) {
+	split := strings.Split(token, "-")
+	if len(split) != 4 || split[0] != "SWMTKN" || split[1] != "1" {
+		return "", errors.New("invalid join token")
+	}
+
+	var digestInt big.Int
+	digestInt.SetString(split[2], joinTokenBase)
+
+	return digest.ParseDigest(fmt.Sprintf("sha256:%0[1]*s", 64, digestInt.Text(16)))
+}
+
 // LoadOrCreateSecurityConfig encapsulates the security logic behind joining a cluster.
 // Every node requires at least a set of TLS certificates with which to join the cluster with.
 // In the case of a manager, these certificates will be used both for client and server credentials.
-func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, caHash, secret, proposedRole string, picker *picker.Picker, nodeInfo chan<- api.IssueNodeCertificateResponse) (*SecurityConfig, error) {
+func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, token, proposedRole string, picker *picker.Picker, nodeInfo chan<- api.IssueNodeCertificateResponse) (*SecurityConfig, error) {
 	paths := NewConfigPaths(baseCertDir)
 
 	var (
@@ -171,9 +205,12 @@ func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, caHash, secret
 		// Get a digest for the optional CA hash string that we've been provided
 		// If we were provided a non-empty string, and it is an invalid hash, return
 		// otherwise, allow the invalid digest through.
-		d, err := digest.ParseDigest(caHash)
-		if err != nil && caHash != "" {
-			return nil, err
+		var d digest.Digest
+		if token != "" {
+			d, err = getCAHashFromToken(token)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		// Get the remote CA certificate, verify integrity with the
@@ -232,7 +269,7 @@ func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, caHash, secret
 		} else {
 			// There was an error loading our Credentials, let's get a new certificate issued
 			// Last argument is nil because at this point we don't have any valid TLS creds
-			tlsKeyPair, err = rootCA.RequestAndSaveNewCertificates(ctx, paths.Node, proposedRole, secret, picker, nil, nodeInfo)
+			tlsKeyPair, err = rootCA.RequestAndSaveNewCertificates(ctx, paths.Node, token, picker, nil, nodeInfo)
 			if err != nil {
 				return nil, err
 			}
@@ -304,11 +341,10 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, baseCertDir string, 
 			}
 			log.Infof("Renewing TLS Certificate.")
 
-			// Let's request new certs. Renewals don't require a secret.
+			// Let's request new certs. Renewals don't require a token.
 			rootCA := s.RootCA()
 			tlsKeyPair, err := rootCA.RequestAndSaveNewCertificates(ctx,
 				paths.Node,
-				s.ClientTLSCreds.Role(),
 				"",
 				picker,
 				s.ClientTLSCreds,

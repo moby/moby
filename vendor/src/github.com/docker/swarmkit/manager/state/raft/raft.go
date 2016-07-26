@@ -2,8 +2,10 @@ package raft
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/rand"
+	"net"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -399,7 +401,9 @@ func (n *Node) Run(ctx context.Context) error {
 			// restoring from the state, campaign to be the
 			// leader.
 			if !n.restored {
-				if len(n.cluster.Members()) <= 1 {
+				// Node ID should be in the progress list to Campaign
+				_, ok := n.Node.Status().Progress[n.Config.ID]
+				if len(n.cluster.Members()) <= 1 && ok {
 					if err := n.Campaign(n.Ctx); err != nil {
 						panic("raft: cannot campaign to be the leader on node restore")
 					}
@@ -537,13 +541,33 @@ func (n *Node) Join(ctx context.Context, req *api.JoinRequest) (*api.JoinRespons
 		}
 	}
 
+	remoteAddr := req.Addr
+
+	// If the joining node sent an address like 0.0.0.0:4242, automatically
+	// determine its actual address based on the GRPC connection. This
+	// avoids the need for a prospective member to know its own address.
+
+	requestHost, requestPort, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid address %s in raft join request", remoteAddr)
+	}
+
+	requestIP := net.ParseIP(requestHost)
+	if requestIP != nil && requestIP.IsUnspecified() {
+		remoteHost, _, err := net.SplitHostPort(nodeInfo.RemoteAddr)
+		if err != nil {
+			return nil, err
+		}
+		remoteAddr = net.JoinHostPort(remoteHost, requestPort)
+	}
+
 	// We do not bother submitting a configuration change for the
 	// new member if we can't contact it back using its address
-	if err := n.checkHealth(ctx, req.Addr, 5*time.Second); err != nil {
+	if err := n.checkHealth(ctx, remoteAddr, 5*time.Second); err != nil {
 		return nil, err
 	}
 
-	err = n.addMember(ctx, req.Addr, raftID, nodeInfo.NodeID)
+	err = n.addMember(ctx, remoteAddr, raftID, nodeInfo.NodeID)
 	if err != nil {
 		log.WithError(err).Errorf("failed to add member")
 		return nil, err
@@ -757,10 +781,27 @@ func (n *Node) LeaderAddr() (string, error) {
 
 // registerNode registers a new node on the cluster memberlist
 func (n *Node) registerNode(node *api.RaftMember) error {
+	if n.cluster.IsIDRemoved(node.RaftID) {
+		return nil
+	}
+
 	member := &membership.Member{}
 
-	if n.cluster.GetMember(node.RaftID) != nil || n.cluster.IsIDRemoved(node.RaftID) {
-		// member already exists
+	existingMember := n.cluster.GetMember(node.RaftID)
+	if existingMember != nil {
+		// Member already exists
+
+		// If the address is different from what we thought it was,
+		// update it. This can happen if we just joined a cluster
+		// and are adding ourself now with the remotely-reachable
+		// address.
+		if existingMember.Addr != node.Addr {
+			member.RaftMember = node
+			member.RaftClient = existingMember.RaftClient
+			member.Conn = existingMember.Conn
+			n.cluster.AddMember(member)
+		}
+
 		return nil
 	}
 
@@ -1206,10 +1247,26 @@ func (n *Node) applyRemoveNode(cc raftpb.ConfChange) (err error) {
 	// If the node from where the remove is issued is
 	// a follower and the leader steps down, Campaign
 	// to be the leader.
-	if cc.NodeID == n.Leader() {
+
+	if cc.NodeID == n.Leader() && !n.IsLeader() {
 		if err = n.Campaign(n.Ctx); err != nil {
 			return err
 		}
+	}
+
+	if cc.NodeID == n.Config.ID {
+		// wait the commit ack to be sent before closing connection
+		n.asyncTasks.Wait()
+
+		// if there are only 2 nodes in the cluster, and leader is leaving
+		// before closing the connection, leader has to ensure that follower gets
+		// noticed about this raft conf change commit. Otherwise, follower would
+		// assume there are still 2 nodes in the cluster and won't get elected
+		// into the leader by acquiring the majority (2 nodes)
+
+		// while n.asyncTasks.Wait() could be helpful in this case
+		// it's the best-effort strategy, because this send could be fail due to some errors (such as time limit exceeds)
+		// TODO(Runshen Zhu): use leadership transfer to solve this case, after vendoring raft 3.0+
 	}
 
 	return n.cluster.RemoveMember(cc.NodeID)

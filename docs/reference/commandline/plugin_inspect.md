@@ -30,98 +30,109 @@ $ docker plugin inspect tiborvass/no-remove:latest
 ```
 ```JSON
 {
-    "Manifest": {
-        "ManifestVersion": "",
-        "Description": "A test plugin for Docker",
-        "Documentation": "https://docs.docker.com/engine/extend/plugins/",
-        "Entrypoint": [
-            "plugin-no-remove",
-            "/data"
-        ],
-        "Interface": {
-            "Types": [
-                "docker.volumedriver/1.0"
-            ],
-            "Socket": "plugins.sock"
-        },
-        "Network": {
-            "Type": "host"
-        },
-        "Capabilities": null,
-        "Mounts": [
-            {
-                "Name": "",
-                "Description": "",
-                "Settable": false,
-                "Source": "/data",
-                "Destination": "/data",
-                "Type": "bind",
-                "Options": [
-                    "shared",
-                    "rbind"
-                ]
-            },
-            {
-                "Name": "",
-                "Description": "",
-                "Settable": false,
-                "Source": null,
-                "Destination": "/foobar",
-                "Type": "tmpfs",
-                "Options": null
-            }
-        ],
-        "Devices": [
-            {
-                "Name": "device",
-                "Description": "a host device to mount",
-                "Settable": false,
-                "Path": null
-            }
-        ],
-        "Env": [
-            {
-                "Name": "DEBUG",
-                "Description": "If set, prints debug messages",
-                "Settable": false,
-                "Value": null
-            }
-        ],
-        "Args": [
-            {
-                "Name": "arg1",
-                "Description": "a command line argument",
-                "Settable": false,
-                "Value": null
-            }
+  "Id": "8c74c978c434745c3ade82f1bc0acf38d04990eaf494fa507c16d9f1daa99c21",
+  "Name": "tiborvass/no-remove",
+  "Tag": "latest",
+  "Active": true,
+  "Config": {
+    "Mounts": [
+      {
+        "Name": "",
+        "Description": "",
+        "Settable": null,
+        "Source": "/data",
+        "Destination": "/data",
+        "Type": "bind",
+        "Options": [
+          "shared",
+          "rbind"
         ]
+      },
+      {
+        "Name": "",
+        "Description": "",
+        "Settable": null,
+        "Source": null,
+        "Destination": "/foobar",
+        "Type": "tmpfs",
+        "Options": null
+      }
+    ],
+    "Env": [
+      "DEBUG=1"
+    ],
+    "Args": null,
+    "Devices": null
+  },
+  "Manifest": {
+    "ManifestVersion": "v0",
+    "Description": "A test plugin for Docker",
+    "Documentation": "https://docs.docker.com/engine/extend/plugins/",
+    "Interface": {
+      "Types": [
+        "docker.volumedriver/1.0"
+      ],
+      "Socket": "plugins.sock"
     },
-    "Config": {
-        "Mounts": [
-            {
-                "Source": "/data",
-                "Destination": "/data",
-                "Type": "bind",
-                "Options": [
-                    "shared",
-                    "rbind"
-                ]
-            },
-            {
-                "Source": null,
-                "Destination": "/foobar",
-                "Type": "tmpfs",
-                "Options": null
-            }
-        ],
-        "Env": [],
-        "Args": [],
-        "Devices": null
+    "Entrypoint": [
+      "plugin-no-remove",
+      "/data"
+    ],
+    "Workdir": "",
+    "User": {
     },
-    "Active": true,
-    "Name": "tiborvass/no-remove",
-    "Tag": "latest",
-    "ID": "ac9d36b664921d61813254f7e9946f10e3cadbb676346539f1705fcaf039c01f"
+    "Network": {
+      "Type": "host"
+    },
+    "Capabilities": null,
+    "Mounts": [
+      {
+        "Name": "",
+        "Description": "",
+        "Settable": null,
+        "Source": "/data",
+        "Destination": "/data",
+        "Type": "bind",
+        "Options": [
+          "shared",
+          "rbind"
+        ]
+      },
+      {
+        "Name": "",
+        "Description": "",
+        "Settable": null,
+        "Source": null,
+        "Destination": "/foobar",
+        "Type": "tmpfs",
+        "Options": null
+      }
+    ],
+    "Devices": [
+      {
+        "Name": "device",
+        "Description": "a host device to mount",
+        "Settable": null,
+        "Path": "/dev/cpu_dma_latency"
+      }
+    ],
+    "Env": [
+      {
+        "Name": "DEBUG",
+        "Description": "If set, prints debug messages",
+        "Settable": null,
+        "Value": "1"
+      }
+    ],
+    "Args": {
+      "Name": "args",
+      "Description": "command line arguments",
+      "Settable": null,
+      "Value": [
+
+      ]
+    }
+  }
 }
 ```
 (output formatted for readability)

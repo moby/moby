@@ -378,6 +378,10 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 		return nil
 	}
 
+	c.Lock()
+	c.cfg = cfg
+	c.Unlock()
+
 	var dsConfig *discoverapi.DatastoreConfigData
 	for scope, sCfg := range cfg.Scopes {
 		if scope == datastore.LocalScope || !sCfg.IsValid() {
@@ -522,6 +526,8 @@ func (c *controller) Config() config.Config {
 }
 
 func (c *controller) isManager() bool {
+	c.Lock()
+	defer c.Unlock()
 	if c.cfg == nil || c.cfg.Daemon.ClusterProvider == nil {
 		return false
 	}
@@ -529,6 +535,8 @@ func (c *controller) isManager() bool {
 }
 
 func (c *controller) isAgent() bool {
+	c.Lock()
+	defer c.Unlock()
 	if c.cfg == nil || c.cfg.Daemon.ClusterProvider == nil {
 		return false
 	}
@@ -639,13 +647,18 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		return nil, err
 	}
 
-	if err = network.joinCluster(); err != nil {
-		log.Errorf("Failed to join network %s into agent cluster: %v", name, err)
-	}
-
-	network.addDriverWatches()
+	joinCluster(network)
 
 	return network, nil
+}
+
+var joinCluster NetworkWalker = func(nw Network) bool {
+	n := nw.(*network)
+	if err := n.joinCluster(); err != nil {
+		log.Errorf("Failed to join network %s (%s) into agent cluster: %v", n.Name(), n.ID(), err)
+	}
+	n.addDriverWatches()
+	return false
 }
 
 func (c *controller) reservePools() {
@@ -801,7 +814,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 			// If not a stub, then we already have a complete sandbox.
 			if !s.isStub {
 				c.Unlock()
-				return nil, types.BadRequestErrorf("container %s is already present: %v", containerID, s)
+				return nil, types.ForbiddenErrorf("container %s is already present: %v", containerID, s)
 			}
 
 			// We already have a stub sandbox from the
@@ -836,7 +849,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 	c.Lock()
 	if sb.ingress && c.ingressSandbox != nil {
 		c.Unlock()
-		return nil, fmt.Errorf("ingress sandbox already present")
+		return nil, types.ForbiddenErrorf("ingress sandbox already present")
 	}
 
 	if sb.ingress {

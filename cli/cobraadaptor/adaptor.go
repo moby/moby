@@ -32,7 +32,8 @@ func NewCobraAdaptor(clientFlags *cliflags.ClientFlags) CobraAdaptor {
 	dockerCli := client.NewDockerCli(stdin, stdout, stderr, clientFlags)
 
 	var rootCmd = &cobra.Command{
-		Use:           "docker",
+		Use:           "docker [OPTIONS]",
+		Short:         "A self-sufficient runtime for containers",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -129,9 +130,15 @@ func (c CobraAdaptor) Command(name string) func(...string) error {
 	return nil
 }
 
-var usageTemplate = `Usage:	{{if not .HasSubCommands}}{{if .HasLocalFlags}}{{appendIfNotPresent .UseLine "[OPTIONS]"}}{{else}}{{.UseLine}}{{end}}{{end}}{{if .HasSubCommands}}{{ .CommandPath}} COMMAND{{end}}
+// GetRootCommand returns the root command. Required to generate the man pages
+// and reference docs from a script outside this package.
+func (c CobraAdaptor) GetRootCommand() *cobra.Command {
+	return c.rootCmd
+}
 
-{{with or .Long .Short }}{{. | trim}}{{end}}{{if gt .Aliases 0}}
+var usageTemplate = `Usage:	{{if not .HasSubCommands}}{{.UseLine}}{{end}}{{if .HasSubCommands}}{{ .CommandPath}} COMMAND{{end}}
+
+{{ .Short | trim }}{{if gt .Aliases 0}}
 
 Aliases:
   {{.NameAndAliases}}{{end}}{{if .HasExample}}

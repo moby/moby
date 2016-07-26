@@ -227,7 +227,7 @@ __docker_get_log_options() {
     gelf_options=("env" "gelf-address" "gelf-compression-level" "gelf-compression-type" "labels" "tag")
     journald_options=("env" "labels" "tag")
     json_file_options=("env" "labels" "max-file" "max-size")
-    syslog_options=("syslog-address" "syslog-format" "syslog-tls-ca-cert" "syslog-tls-cert" "syslog-tls-key" "syslog-tls-skip-verify" "syslog-facility" "tag")
+    syslog_options=("env" "labels" "syslog-address" "syslog-facility" "syslog-format" "syslog-tls-ca-cert" "syslog-tls-cert" "syslog-tls-key" "syslog-tls-skip-verify" "tag")
     splunk_options=("env" "labels" "splunk-caname" "splunk-capath" "splunk-index" "splunk-insecureskipverify" "splunk-source" "splunk-sourcetype" "splunk-token" "splunk-url" "tag")
 
     [[ $log_driver = (awslogs|all) ]] && _describe -t awslogs-options "awslogs options" awslogs_options "$@" && ret=0
@@ -239,6 +239,14 @@ __docker_get_log_options() {
     [[ $log_driver = (syslog|all) ]] && _describe -t syslog-options "syslog options" syslog_options "$@" && ret=0
     [[ $log_driver = (splunk|all) ]] && _describe -t splunk-options "splunk options" splunk_options "$@" && ret=0
 
+    return ret
+}
+
+__docker_log_drivers() {
+    [[ $PREFIX = -*  ]] && return 1
+    integer ret=1
+    drivers=(awslogs etwlogs fluentd gcplogs gelf journald json-file none splunk syslog)
+    _describe -t log-drivers "log drivers" drivers && ret=0
     return ret
 }
 
@@ -775,7 +783,6 @@ __docker_complete_worker_nodes() {
 __docker_node_commands() {
     local -a _docker_node_subcommands
     _docker_node_subcommands=(
-        "accept:Accept a node in the swarm"
         "demote:Demote a node as manager in the swarm"
         "inspect:Display detailed information on one or more nodes"
         "ls:List nodes in the swarm"
@@ -795,7 +802,7 @@ __docker_node_subcommand() {
     opts_help=("(: -)--help[Print usage]")
 
     case "$words[1]" in
-        (accept|rm|remove)
+        (rm|remove)
              _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -)*:node:__docker_complete_pending_nodes" && ret=0
@@ -809,7 +816,7 @@ __docker_node_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " \
-                "($help -p --pretty)"{-p,--pretty}"[Print the information in a human friendly format]" \
+                "($help)--pretty[Print the information in a human friendly format]" \
                 "($help -)*:node:__docker_complete_nodes" && ret=0
             ;;
         (ls|list)
@@ -833,7 +840,7 @@ __docker_node_subcommand() {
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Display all instances]" \
                 "($help)*"{-f=,--filter=}"[Provide filter values]:filter:->filter-options" \
-                "($help -n --no-resolve)"{-n,--no-resolve}"[Do not map IDs to Names]" \
+                "($help)--no-resolve[Do not map IDs to Names]" \
                 "($help -)1:node:__docker_complete_nodes" && ret=0
             case $state in
                 (filter-options)
@@ -845,7 +852,8 @@ __docker_node_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help)--availability=[Availability of the node]:availability:(active pause drain)" \
-                "($help)--membership=[Membership of the node]:membership:(accepted rejected)" \
+                "($help)*--label-add=[Add or update a node label]:key=value: " \
+                "($help)*--label-rm=[Remove a node label if exists]:label: " \
                 "($help)--role=[Role of the node]:role:(manager worker)" \
                 "($help -)1:node:__docker_complete_nodes" && ret=0
             ;;
@@ -1067,13 +1075,14 @@ __docker_service_subcommand() {
     opts_help=("(: -)--help[Print usage]")
     opts_create_update=(
         "($help)*--constraint=[Placement constraints]:constraint: "
-        "($help)--endpoint-mode=[Placement constraints]:mode:(VIP DNSRR)"
+        "($help)--endpoint-mode=[Placement constraints]:mode:(dnsrr vip)"
         "($help)*"{-e=,--env=}"[Set environment variables]:env: "
         "($help)*--label=[Service labels]:label: "
         "($help)--limit-cpu=[Limit CPUs]:value: "
         "($help)--limit-memory=[Limit Memory]:value: "
-        "($help)--mode=[Limit Memory]:mode:(global replicated)"
-        "($help)*"{-m=,--mount=}"[Attach a mount to the service]:mount: "
+        "($help)--log-driver=[Logging driver for service]:logging driver:__docker_log_drivers"
+        "($help)*--log-opt=[Logging driver options]:log driver options:__docker_log_options"
+        "($help)*--mount=[Attach a mount to the service]:mount: "
         "($help)--name=[Service name]:name: "
         "($help)*--network=[Network attachments]:network: "
         "($help)*"{-p=,--publish=}"[Publish a port as a node port]:port: "
@@ -1086,8 +1095,10 @@ __docker_service_subcommand() {
         "($help)--restart-window=[Window used to evaluate the restart policy]:window: "
         "($help)--stop-grace-period=[Time to wait before force killing a container]:grace period: "
         "($help)--update-delay=[Delay between updates]:delay: "
+        "($help)--update-failure-action=[Action on update failure]:mode:(pause continue)"
         "($help)--update-parallelism=[Maximum number of tasks updated simultaneously]:number: "
         "($help -u --user)"{-u=,--user=}"[Username or UID]:user:_users"
+        "($help)--with-registry-auth[Send registry authentication details to swarm agents]"
         "($help -w --workdir)"{-w=,--workdir=}"[Working directory inside the container]:directory:_directories"
     )
 
@@ -1096,6 +1107,7 @@ __docker_service_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 $opts_create_update \
+                "($help)--mode=[Service Mode]:mode:(global replicated)" \
                 "($help -): :__docker_images" \
                 "($help -):command: _command_names -e" \
                 "($help -)*::arguments: _normal" && ret=0
@@ -1104,7 +1116,7 @@ __docker_service_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " \
-                "($help -p --pretty)"{-p,--pretty}"[Print the information in a human friendly format]" \
+                "($help)--pretty[Print the information in a human friendly format]" \
                 "($help -)*:service:__docker_complete_services" && ret=0
             ;;
         (ls|list)
@@ -1142,7 +1154,7 @@ __docker_service_subcommand() {
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Display all tasks]" \
                 "($help)*"{-f=,--filter=}"[Provide filter values]:filter:->filter-options" \
-                "($help -n --no-resolve)"{-n,--no-resolve}"[Do not map IDs to Names]" \
+                "($help)--no-resolve[Do not map IDs to Names]" \
                 "($help -)1:service:__docker_complete_services" && ret=0
             case $state in
                 (filter-options)
@@ -1155,7 +1167,6 @@ __docker_service_subcommand() {
                 $opts_help \
                 $opts_create_update \
                 "($help)--arg=[Service command args]:arguments: _normal" \
-                "($help)--command=[Service command]:command: _command_names -e" \
                 "($help)--image=[Service image tag]:image:__docker_repositories" \
                 "($help -)1:service:__docker_complete_services" && ret=0
             ;;
@@ -1174,11 +1185,12 @@ __docker_service_subcommand() {
 __docker_swarm_commands() {
     local -a _docker_swarm_subcommands
     _docker_swarm_subcommands=(
-        "init:Initialize a Swarm"
-        "inspect:Inspect the Swarm"
-        "join:Join a Swarm as a node and/or manager"
-        "leave:Leave a Swarm"
-        "update:Update the Swarm"
+        "init:Initialize a swarm"
+        "inspect:Inspect the swarm"
+        "join:Join a swarm as a node and/or manager"
+        "join-token:Manage join tokens"
+        "leave:Leave a swarm"
+        "update:Update the swarm"
     )
     _describe -t docker-swarm-commands "docker swarm command" _docker_swarm_subcommands
 }
@@ -1194,11 +1206,10 @@ __docker_swarm_subcommand() {
         (init)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)--auto-accept=[Acceptance policy]:policy:(manager none worker)" \
+                "($help)--advertise-addr[Advertised address]:ip\:port: " \
                 "($help)*--external-ca=[Specifications of one or more certificate signing endpoints]:endpoint: " \
                 "($help)--force-new-cluster[Force create a new cluster from current state]" \
-                "($help)--listen-addr[Listen address]:ip\:port: " \
-                "($help)--secret[Set secret value needed to accept nodes into cluster]:secret: " && ret=0
+                "($help)--listen-addr=[Listen address]:ip\:port: " && ret=0
             ;;
         (inspect)
             _arguments $(__docker_arguments) \
@@ -1208,11 +1219,17 @@ __docker_swarm_subcommand() {
         (join)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)--ca-hash=[Hash of the Root Certificate Authority certificate used for trusted join]:hash: " \
-                "($help)--listen-addr[Listen address]:ip\:port: " \
-                "($help)--manager[Try joining as a manager]" \
-                "($help)--secret[Secret for node acceptance]:secret: " \
+                "($help)--advertise-addr[Advertised address]:ip\:port: " \
+                "($help)--listen-addr=[Listen address]:ip\:port: " \
+                "($help)--token=[Token for entry into the swarm]:secret: " \
                 "($help -):host\:port: " && ret=0
+            ;;
+        (join-token)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -q --quiet)"{-q,--quiet}"[Only display token]" \
+                "($help)--rotate[Rotate join token]" \
+                "($help -):role:(manager worker)" && ret=0
             ;;
         (leave)
             _arguments $(__docker_arguments) \
@@ -1221,11 +1238,9 @@ __docker_swarm_subcommand() {
         (update)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)--auto-accept=[Acceptance policy]:policy:(manager none worker)" \
                 "($help)--cert-expiry=[Validity period for node certificates]:duration: " \
                 "($help)--dispatcher-heartbeat=[Dispatcher heartbeat period]:duration: " \
-                "($help)--secret[Set secret value needed to accept nodes into cluster]:secret: " \
-                "($help)--task-history-limit[Task history retention limit]:limit: " && ret=0
+                "($help)--task-history-limit=[Task history retention limit]:limit: " && ret=0
             ;;
         (help)
             _arguments $(__docker_arguments) ":subcommand:__docker_network_commands" && ret=0
@@ -1430,12 +1445,12 @@ __docker_subcommand() {
         "($help)*--link=[Add link to another container]:link:->link"
         "($help)*--link-local-ip=[Add a link-local address for the container]:IPv4/IPv6: "
         "($help)*"{-l=,--label=}"[Container metadata]:label: "
-        "($help)--log-driver=[Default driver for container logs]:Logging driver:(awslogs etwlogs fluentd gcplogs gelf journald json-file none splunk syslog)"
+        "($help)--log-driver=[Default driver for container logs]:logging driver:__docker_log_drivers"
         "($help)*--log-opt=[Log driver specific options]:log driver options:__docker_log_options"
         "($help)--mac-address=[Container MAC address]:MAC address: "
         "($help)--name=[Container name]:name: "
-        "($help)--net=[Connect a container to a network]:network mode:(bridge none container host)"
-        "($help)*--net-alias=[Add network-scoped alias for the container]:alias: "
+        "($help)--network=[Connect a container to a network]:network mode:(bridge none container host)"
+        "($help)*--network-alias=[Add network-scoped alias for the container]:alias: "
         "($help)--oom-kill-disable[Disable OOM Killer]"
         "($help)--oom-score-adj[Tune the host's OOM preferences for containers (accepts -1000 to 1000)]"
         "($help)--pids-limit[Tune container pids limit (set -1 for unlimited)]"
@@ -1552,13 +1567,13 @@ __docker_subcommand() {
                 "($help)--default-gateway[Container default gateway IPv4 address]:IPv4 address: " \
                 "($help)--default-gateway-v6[Container default gateway IPv6 address]:IPv6 address: " \
                 "($help)--cluster-store=[URL of the distributed storage backend]:Cluster Store:->cluster-store" \
-                "($help)--cluster-advertise=[Address of the daemon instance to advertise]:Instance to advertise (host\:port): " \
-                "($help)*--cluster-store-opt=[Cluster options]:Cluster options:->cluster-store-options" \
+                "($help)--cluster-advertise=[Address or interface name to advertise]:Instance to advertise (host\:port): " \
+                "($help)*--cluster-store-opt=[Cluster store options]:Cluster options:->cluster-store-options" \
                 "($help)*--dns=[DNS server to use]:DNS: " \
                 "($help)*--dns-search=[DNS search domains to use]:DNS search: " \
                 "($help)*--dns-opt=[DNS options to use]:DNS option: " \
-                "($help)*--default-ulimit=[Default ulimit settings for containers]:ulimit: " \
-                "($help)--disable-legacy-registry[Do not contact legacy registries]" \
+                "($help)*--default-ulimit=[Default ulimits for containers]:ulimit: " \
+                "($help)--disable-legacy-registry[Disable contacting legacy registries]" \
                 "($help)*--exec-opt=[Runtime execution options]:runtime execution options: " \
                 "($help)--exec-root=[Root directory for execution state files]:path:_directories" \
                 "($help)--fixed-cidr=[IPv4 subnet for fixed IPs]:IPv4 subnet: " \
@@ -1576,11 +1591,12 @@ __docker_subcommand() {
                 "($help -l --log-level)"{-l=,--log-level=}"[Logging level]:level:(debug info warn error fatal)" \
                 "($help)*--label=[Key=value labels]:label: " \
                 "($help)--live-restore[Enable live restore of docker when containers are still running]" \
-                "($help)--log-driver=[Default driver for container logs]:Logging driver:(awslogs etwlogs fluentd gcplogs gelf journald json-file none splunk syslog)" \
-                "($help)*--log-opt=[Log driver specific options]:log driver options:__docker_log_options" \
+                "($help)--log-driver=[Default driver for container logs]:logging driver:__docker_log_drivers" \
+                "($help)*--log-opt=[Default log driver options for containers]:log driver options:__docker_log_options" \
                 "($help)--max-concurrent-downloads[Set the max concurrent downloads for each pull]" \
                 "($help)--max-concurrent-uploads[Set the max concurrent uploads for each push]" \
                 "($help)--mtu=[Network MTU]:mtu:(0 576 1420 1500 9000)" \
+                "($help)--oom-score-adjust=[Set the oom_score_adj for the daemon]:oom-score:(-500)" \
                 "($help -p --pidfile)"{-p=,--pidfile=}"[Path to use for daemon PID file]:PID file:_files" \
                 "($help)--raw-logs[Full timestamps without ANSI coloring]" \
                 "($help)*--registry-mirror=[Preferred Docker registry mirror]:registry mirror: " \
@@ -1879,7 +1895,7 @@ __docker_subcommand() {
                 "($help)--runtime=[Name of the runtime to be used for that container]:runtime:__docker_complete_runtimes" \
                 "($help)--sig-proxy[Proxy all received signals to the process (non-TTY mode only)]" \
                 "($help)--stop-signal=[Signal to kill a container]:signal:_signals" \
-                "($help)--storage-opt=[Set storage driver options per container]:storage options:->storage-opt" \
+                "($help)--storage-opt=[Storage driver options for the container]:storage options:->storage-opt" \
                 "($help -): :__docker_images" \
                 "($help -):command: _command_names -e" \
                 "($help -)*::arguments: _normal" && ret=0

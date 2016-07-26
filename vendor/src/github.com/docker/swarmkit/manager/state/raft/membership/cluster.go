@@ -187,9 +187,13 @@ func (c *Cluster) ValidateConfigurationChange(cc raftpb.ConfChange) error {
 // that might block or harm the Cluster on Member recovery
 func (c *Cluster) CanRemoveMember(from uint64, id uint64) bool {
 	members := c.Members()
-	nreachable := 0
+	nreachable := 0 // reachable managers after removal
 
 	for _, m := range members {
+		if m.RaftID == id {
+			continue
+		}
+
 		// Local node from where the remove is issued
 		if m.RaftID == from {
 			nreachable++
@@ -202,12 +206,7 @@ func (c *Cluster) CanRemoveMember(from uint64, id uint64) bool {
 		}
 	}
 
-	// Special case of 2 managers
-	if nreachable == 1 && len(members) <= 2 {
-		return false
-	}
-
-	nquorum := (len(members)+1)/2 + 1
+	nquorum := (len(members)-1)/2 + 1
 	if nreachable < nquorum {
 		return false
 	}

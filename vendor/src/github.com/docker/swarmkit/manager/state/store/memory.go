@@ -577,6 +577,12 @@ func (tx readTx) findIterators(table string, by By, checkType func(By) error) ([
 			return nil, err
 		}
 		return []memdb.ResultIterator{it}, nil
+	case byNamePrefix:
+		it, err := tx.memDBTx.Get(table, indexName+prefix, strings.ToLower(string(v)))
+		if err != nil {
+			return nil, err
+		}
+		return []memdb.ResultIterator{it}, nil
 	case byNode:
 		it, err := tx.memDBTx.Get(table, indexNodeID, string(v))
 		if err != nil {

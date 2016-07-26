@@ -15,74 +15,44 @@ parent = "smn_cli"
 ```markdown
 Usage:  docker swarm init [OPTIONS]
 
-Initialize a Swarm
+Initialize a swarm
 
 Options:
-      --auto-accept value               Auto acceptance policy (default worker)
+      --advertise-addr value            Advertised address (format: <ip|interface>[:port])
       --cert-expiry duration            Validity period for node certificates (default 2160h0m0s)
       --dispatcher-heartbeat duration   Dispatcher heartbeat period (default 5s)
       --external-ca value               Specifications of one or more certificate signing endpoints
       --force-new-cluster               Force create a new cluster from current state.
       --help                            Print usage
-      --listen-addr value               Listen address (default 0.0.0.0:2377)
-      --secret string                   Set secret value needed to accept nodes into cluster
-      --task-history-limit int          Task history retention limit (default 10)
+      --listen-addr value               Listen address (format: <ip|interface>[:port])
+      --task-history-limit int          Task history retention limit (default 5)
 ```
 
-Initialize a Swarm cluster. The docker engine targeted by this command becomes a manager
-in the newly created one node Swarm cluster.
+Initialize a swarm cluster. The docker engine targeted by this command becomes a manager
+in the newly created one node swarm cluster.
 
 
 ```bash
-$ docker swarm init --listen-addr 192.168.99.121:2377
-No --secret provided. Generated random secret:
-	4ao565v9jsuogtq5t8s379ulb
-
-Swarm initialized: current node (1ujecd0j9n3ro9i6628smdmth) is now a manager.
+$ docker swarm init --advertise-addr 192.168.99.121
+Swarm initialized: current node (bvz81updecsj6wjz393c09vti) is now a manager.
 
 To add a worker to this swarm, run the following command:
-	docker swarm join --secret 4ao565v9jsuogtq5t8s379ulb \
-	--ca-hash sha256:07ce22bd1a7619f2adc0d63bd110479a170e7c4e69df05b67a1aa2705c88ef09 \
-	192.168.99.121:2377
-$ docker node ls
-ID                           HOSTNAME  MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS          LEADER
-1ujecd0j9n3ro9i6628smdmth *  manager1  Accepted    Ready   Active        Reachable               Yes
+    docker swarm join \
+    --token SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-1awxwuwd3z9j1z3puu7rcgdbx \
+    172.17.0.2:2377
+
+To add a manager to this swarm, run the following command:
+    docker swarm join \
+    --token SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-7p73s1dx5in4tatdymyhg9hu2 \
+    172.17.0.2:2377
 ```
 
-If a secret for joining new nodes is not provided with `--secret`, `docker swarm init` will
-generate a random one and print it to the terminal (as seen in the example above). To initialize
-a swarm with no secret, use `--secret ""`.
+`docker swarm init` generates two random tokens, a worker token and a manager token. When you join
+a new node to the swarm, the node joins as a worker or manager node based upon the token you pass
+to [swarm join](swarm_join.md).
 
-### `--auto-accept value`
-
-This flag controls node acceptance into the cluster. By default, `worker` nodes are
-automatically accepted by the cluster. This can be changed by specifying what kinds of nodes
-can be auto-accepted into the cluster. If auto-accept is not turned on, then
-[node accept](node_accept.md) can be used to explicitly accept a node into the cluster.
-
-For example, the following initializes a cluster with auto-acceptance of workers, but not managers
-
-
-```bash
-$ docker swarm init --listen-addr 192.168.99.121:2377 --auto-accept worker
-```
-
-It is possible to pass a comma-separated list of node types. The following initializes a cluster
-with auto-acceptance of both `worker` and `manager` nodes
-
-```bash
-$ docker swarm init --listen-addr 192.168.99.121:2377 --auto-accept worker,manager
-```
-
-To disable auto acceptance, use the `none` option. Note that this option cannot
-be combined with other values. When disabling auto acceptance, nodes must be
-manually accepted or rejected using `docker node accept` or `docker node rm`.
-
-The following example enables swarm mode with auto acceptance disabled:
-
-```bash
-$ docker swarm init --listen-addr 192.168.99.121:2377 --auto-accept none
-```
+After you create the swarm, you can display or rotate the token using
+[swarm join-token](swarm_join_token.md).
 
 ### `--cert-expiry`
 
@@ -102,15 +72,31 @@ The URL specifies the endpoint where signing requests should be submitted.
 
 ### `--force-new-cluster`
 
-This flag forces an existing node that was part of a quorum that was lost to restart as a single node Manager without losing its data
+This flag forces an existing node that was part of a quorum that was lost to restart as a single node Manager without losing its data.
 
 ### `--listen-addr value`
 
-The node listens for inbound Swarm manager traffic on this IP:PORT
+The node listens for inbound Swarm manager traffic on this address. The default is to listen on
+0.0.0.0:2377. It is also possible to specify a network interface to listen on that interface's
+address; for example `--listen-addr eth0:2377`.
 
-### `--secret string`
+Specifying a port is optional. If the value is a bare IP address or interface
+name, the default port 2377 will be used.
 
-Secret value needed to accept nodes into the Swarm
+### `--advertise-addr value`
+
+This flag specifies the address that will be advertised to other members of the
+swarm for API access and overlay networking. If unspecified, Docker will check
+if the system has a single IP address, and use that IP address with with the
+listening port (see `--listen-addr`). If the system has multiple IP addresses,
+`--advertise-addr` must be specified so that the correct address is chosen for
+inter-manager communication and overlay networking.
+
+It is also possible to specify a network interface to advertise that interface's address;
+for example `--advertise-addr eth0:2377`.
+
+Specifying a port is optional. If the value is a bare IP address or interface
+name, the default port 2377 will be used.
 
 ### `--task-history-limit`
 
@@ -121,5 +107,5 @@ This flag sets up task history retention limit.
 * [swarm join](swarm_join.md)
 * [swarm leave](swarm_leave.md)
 * [swarm update](swarm_update.md)
-* [node accept](node_accept.md)
+* [swarm join-token](swarm_join_token.md)
 * [node rm](node_rm.md)

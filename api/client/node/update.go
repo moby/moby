@@ -5,6 +5,8 @@ import (
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/opts"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -12,7 +14,7 @@ import (
 )
 
 func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
-	var opts nodeOptions
+	nodeOpts := newNodeOptions()
 
 	cmd := &cobra.Command{
 		Use:   "update [OPTIONS] NODE",
@@ -24,9 +26,11 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.StringVar(&opts.role, flagRole, "", "Role of the node (worker/manager)")
-	flags.StringVar(&opts.membership, flagMembership, "", "Membership of the node (accepted/rejected)")
-	flags.StringVar(&opts.availability, flagAvailability, "", "Availability of the node (active/pause/drain)")
+	flags.StringVar(&nodeOpts.role, flagRole, "", "Role of the node (worker/manager)")
+	flags.StringVar(&nodeOpts.availability, flagAvailability, "", "Availability of the node (active/pause/drain)")
+	flags.Var(&nodeOpts.annotations.labels, flagLabelAdd, "Add or update a node label (key=value)")
+	labelKeys := opts.NewListOpts(nil)
+	flags.Var(&labelKeys, flagLabelRemove, "Remove a node label if exists")
 	return cmd
 }
 
@@ -37,7 +41,7 @@ func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, nodeID string)
 	return updateNodes(dockerCli, []string{nodeID}, mergeNodeUpdate(flags), success)
 }
 
-func updateNodes(dockerCli *client.DockerCli, nodes []string, mergeNode func(node *swarm.Node), success func(nodeID string)) error {
+func updateNodes(dockerCli *client.DockerCli, nodes []string, mergeNode func(node *swarm.Node) error, success func(nodeID string)) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
@@ -47,7 +51,10 @@ func updateNodes(dockerCli *client.DockerCli, nodes []string, mergeNode func(nod
 			return err
 		}
 
-		mergeNode(&node)
+		err = mergeNode(&node)
+		if err != nil {
+			return err
+		}
 		err = client.NodeUpdate(ctx, node.ID, node.Version, node.Spec)
 		if err != nil {
 			return err
@@ -57,27 +64,50 @@ func updateNodes(dockerCli *client.DockerCli, nodes []string, mergeNode func(nod
 	return nil
 }
 
-func mergeNodeUpdate(flags *pflag.FlagSet) func(*swarm.Node) {
-	return func(node *swarm.Node) {
+func mergeNodeUpdate(flags *pflag.FlagSet) func(*swarm.Node) error {
+	return func(node *swarm.Node) error {
 		spec := &node.Spec
 
 		if flags.Changed(flagRole) {
-			str, _ := flags.GetString(flagRole)
+			str, err := flags.GetString(flagRole)
+			if err != nil {
+				return err
+			}
 			spec.Role = swarm.NodeRole(str)
 		}
-		if flags.Changed(flagMembership) {
-			str, _ := flags.GetString(flagMembership)
-			spec.Membership = swarm.NodeMembership(str)
-		}
 		if flags.Changed(flagAvailability) {
-			str, _ := flags.GetString(flagAvailability)
+			str, err := flags.GetString(flagAvailability)
+			if err != nil {
+				return err
+			}
 			spec.Availability = swarm.NodeAvailability(str)
 		}
+		if spec.Annotations.Labels == nil {
+			spec.Annotations.Labels = make(map[string]string)
+		}
+		if flags.Changed(flagLabelAdd) {
+			labels := flags.Lookup(flagLabelAdd).Value.(*opts.ListOpts).GetAll()
+			for k, v := range runconfigopts.ConvertKVStringsToMap(labels) {
+				spec.Annotations.Labels[k] = v
+			}
+		}
+		if flags.Changed(flagLabelRemove) {
+			keys := flags.Lookup(flagLabelRemove).Value.(*opts.ListOpts).GetAll()
+			for _, k := range keys {
+				// if a key doesn't exist, fail the command explicitly
+				if _, exists := spec.Annotations.Labels[k]; !exists {
+					return fmt.Errorf("key %s doesn't exist in node's labels", k)
+				}
+				delete(spec.Annotations.Labels, k)
+			}
+		}
+		return nil
 	}
 }
 
 const (
 	flagRole         = "role"
-	flagMembership   = "membership"
 	flagAvailability = "availability"
+	flagLabelAdd     = "label-add"
+	flagLabelRemove  = "label-rm"
 )

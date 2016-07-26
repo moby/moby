@@ -74,14 +74,12 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		if info.Swarm.Error != "" {
 			fmt.Fprintf(cli.out, " Error: %v\n", info.Swarm.Error)
 		}
+		fmt.Fprintf(cli.out, " Is Manager: %v\n", info.Swarm.ControlAvailable)
 		if info.Swarm.ControlAvailable {
-			fmt.Fprintf(cli.out, " IsManager: Yes\n")
 			fmt.Fprintf(cli.out, " Managers: %d\n", info.Swarm.Managers)
 			fmt.Fprintf(cli.out, " Nodes: %d\n", info.Swarm.Nodes)
-			ioutils.FprintfIfNotEmpty(cli.out, " CACertHash: %s\n", info.Swarm.CACertHash)
-		} else {
-			fmt.Fprintf(cli.out, " IsManager: No\n")
 		}
+		fmt.Fprintf(cli.out, " Node Address: %s\n", info.Swarm.NodeAddr)
 	}
 
 	if len(info.Runtimes) > 0 {

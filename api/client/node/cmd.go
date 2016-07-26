@@ -23,7 +23,6 @@ func NewNodeCommand(dockerCli *client.DockerCli) *cobra.Command {
 		},
 	}
 	cmd.AddCommand(
-		newAcceptCommand(dockerCli),
 		newDemoteCommand(dockerCli),
 		newInspectCommand(dockerCli),
 		newListCommand(dockerCli),

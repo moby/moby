@@ -4,17 +4,35 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/docker/docker/opts"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/types/swarm"
 )
 
 type nodeOptions struct {
+	annotations
 	role         string
-	membership   string
 	availability string
+}
+
+type annotations struct {
+	name   string
+	labels opts.ListOpts
+}
+
+func newNodeOptions() *nodeOptions {
+	return &nodeOptions{
+		annotations: annotations{
+			labels: opts.NewListOpts(nil),
+		},
+	}
 }
 
 func (opts *nodeOptions) ToNodeSpec() (swarm.NodeSpec, error) {
 	var spec swarm.NodeSpec
+
+	spec.Annotations.Name = opts.annotations.name
+	spec.Annotations.Labels = runconfigopts.ConvertKVStringsToMap(opts.annotations.labels.GetAll())
 
 	switch swarm.NodeRole(strings.ToLower(opts.role)) {
 	case swarm.NodeRoleWorker:
@@ -24,14 +42,6 @@ func (opts *nodeOptions) ToNodeSpec() (swarm.NodeSpec, error) {
 	case "":
 	default:
 		return swarm.NodeSpec{}, fmt.Errorf("invalid role %q, only worker and manager are supported", opts.role)
-	}
-
-	switch swarm.NodeMembership(strings.ToLower(opts.membership)) {
-	case swarm.NodeMembershipAccepted:
-		spec.Membership = swarm.NodeMembershipAccepted
-	case "":
-	default:
-		return swarm.NodeSpec{}, fmt.Errorf("invalid membership %q, only accepted is supported", opts.membership)
 	}
 
 	switch swarm.NodeAvailability(strings.ToLower(opts.availability)) {

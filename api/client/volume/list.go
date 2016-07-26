@@ -31,9 +31,10 @@ func newListCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts listOptions
 
 	cmd := &cobra.Command{
-		Use:     "ls",
+		Use:     "ls [OPTIONS]",
 		Aliases: []string{"list"},
 		Short:   "List volumes",
+		Long:    listDescription,
 		Args:    cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runList(dockerCli, opts)
@@ -84,3 +85,15 @@ func runList(dockerCli *client.DockerCli, opts listOptions) error {
 	w.Flush()
 	return nil
 }
+
+var listDescription = `
+
+Lists all the volumes Docker knows about. You can filter using the **-f** or
+**--filter** flag. The filtering format is a **key=value** pair. To specify
+more than one filter,  pass multiple flags (for example,
+**--filter "foo=bar" --filter "bif=baz"**)
+
+There is a single supported filter **dangling=value** which takes a boolean of
+**true** or **false**.
+
+`

@@ -20,7 +20,7 @@ Display detailed information on one or more nodes
 Options:
   -f, --format string   Format the output using the given go template
       --help            Print usage
-  -p, --pretty          Print the information in a human friendly format.
+      --pretty          Print the information in a human friendly format.
 ```
 
 Returns information about a node. By default, this command renders all results
@@ -42,7 +42,6 @@ Example output:
         "UpdatedAt": "2016-06-16T22:52:45.230878043Z",
         "Spec": {
             "Role": "manager",
-            "Membership": "accepted",
             "Availability": "active"
         },
         "Description": {

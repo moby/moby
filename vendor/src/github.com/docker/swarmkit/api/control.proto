@@ -88,6 +88,8 @@ message ListNodesRequest {
 		map<string, string> labels = 3;
 		repeated NodeSpec.Membership memberships = 4;
 		repeated NodeRole roles = 5;
+		// NamePrefixes matches all objects with the given prefixes
+		repeated string name_prefixes = 6;
 	}
 
 	Filters filters = 1;
@@ -141,6 +143,8 @@ message ListTasksRequest {
 		repeated string service_ids = 4 [(gogoproto.customname) = "ServiceIDs"];
 		repeated string node_ids = 5 [(gogoproto.customname) = "NodeIDs"];
 		repeated docker.swarmkit.v1.TaskState desired_states = 6;
+		// NamePrefixes matches all objects with the given prefixes
+		repeated string name_prefixes = 7;
 	}
 
 	Filters filters = 1;
@@ -188,6 +192,8 @@ message ListServicesRequest {
 		repeated string names = 1;
 		repeated string id_prefixes = 2 [(gogoproto.customname) = "IDPrefixes"];
 		map<string, string> labels = 3;
+		// NamePrefixes matches all objects with the given prefixes
+		repeated string name_prefixes = 4;
 	}
 
 	Filters filters = 1;
@@ -226,6 +232,8 @@ message ListNetworksRequest {
 		repeated string names = 1;
 		repeated string id_prefixes = 2 [(gogoproto.customname) = "IDPrefixes"];
 		map<string, string> labels = 3;
+		// NamePrefixes matches all objects with the given prefixes
+		repeated string name_prefixes = 4;
 	}
 
 	Filters filters = 1;
@@ -248,6 +256,8 @@ message ListClustersRequest {
 		repeated string names = 1;
 		repeated string id_prefixes = 2 [(gogoproto.customname) = "IDPrefixes"];
 		map<string, string> labels = 3;
+		// NamePrefixes matches all objects with the given prefixes
+		repeated string name_prefixes = 4;
 	}
 
 	Filters filters = 1;
@@ -255,6 +265,14 @@ message ListClustersRequest {
 
 message ListClustersResponse {
 	repeated Cluster clusters = 1;
+}
+
+message JoinTokenRotation {
+	// RotateWorkerToken tells UpdateCluster to rotate the worker secret.
+	bool rotate_worker_token = 1;
+
+	// RotateManagerSecret tells UpdateCluster to rotate the manager secret.
+	bool rotate_manager_token = 2;
 }
 
 message UpdateClusterRequest {
@@ -266,6 +284,9 @@ message UpdateClusterRequest {
 
 	// Spec is the new spec to apply to the cluster.
 	ClusterSpec spec = 3;
+
+	// Rotation contains flags for join token rotation
+	JoinTokenRotation rotation = 4 [(gogoproto.nullable) = false];
 }
 
 message UpdateClusterResponse {

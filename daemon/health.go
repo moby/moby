@@ -41,7 +41,6 @@ const (
 
 	exitStatusHealthy   = 0 // Container is healthy
 	exitStatusUnhealthy = 1 // Container is unhealthy
-	exitStatusStarting  = 2 // Container needs more time to start
 )
 
 // probe implementations know how to run a particular type of probe.
@@ -127,12 +126,10 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 	if result.ExitCode == exitStatusHealthy {
 		h.FailingStreak = 0
 		h.Status = types.Healthy
-	} else if result.ExitCode == exitStatusStarting && c.State.Health.Status == types.Starting {
-		// The container is not ready yet. Remain in the starting state.
 	} else {
 		// Failure (including invalid exit code)
 		h.FailingStreak++
-		if c.State.Health.FailingStreak >= retries {
+		if h.FailingStreak >= retries {
 			h.Status = types.Unhealthy
 		}
 		// Else we're starting or healthy. Stay in that state.
@@ -203,6 +200,7 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 }
 
 // Get a suitable probe implementation for the container's healthcheck configuration.
+// Nil will be returned if no healthcheck was configured or NONE was set.
 func getProbe(c *container.Container) probe {
 	config := c.Config.Healthcheck
 	if config == nil || len(config.Test) == 0 {
@@ -244,7 +242,8 @@ func (d *Daemon) updateHealthMonitor(c *container.Container) {
 // two instances at once.
 // Called with c locked.
 func (d *Daemon) initHealthMonitor(c *container.Container) {
-	if c.Config.Healthcheck == nil {
+	// If no healthcheck is setup then don't init the monitor
+	if getProbe(c) == nil {
 		return
 	}
 
@@ -254,7 +253,6 @@ func (d *Daemon) initHealthMonitor(c *container.Container) {
 	if c.State.Health == nil {
 		h := &container.Health{}
 		h.Status = types.Starting
-		h.FailingStreak = 0
 		c.State.Health = h
 	}
 

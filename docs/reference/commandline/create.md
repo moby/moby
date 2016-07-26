@@ -64,7 +64,7 @@ Options:
       --label-file value            Read in a line delimited file of labels (default [])
       --link value                  Add link to another container (default [])
       --link-local-ip value         Container IPv4/IPv6 link-local addresses (default [])
-      --log-driver string           Logging driver for container
+      --log-driver string           Logging driver for the container
       --log-opt value               Log driver options (default [])
       --mac-address string          Container MAC address (e.g. 92:d0:c6:0a:29:33)
   -m, --memory string               Memory limit
@@ -97,7 +97,7 @@ Options:
                                     Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes),
                                     or `g` (gigabytes). If you omit the unit, the system uses bytes.
       --stop-signal string          Signal to stop a container, SIGTERM by default (default "SIGTERM")
-      --storage-opt value           Set storage driver options per container (default [])
+      --storage-opt value           Storage driver options for the container (default [])
       --sysctl value                Sysctl options (default map[])
       --tmpfs value                 Mount a tmpfs directory (default [])
   -t, --tty                         Allocate a pseudo-TTY

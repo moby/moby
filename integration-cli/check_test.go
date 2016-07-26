@@ -211,20 +211,22 @@ func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *Swarm
 		port:   defaultSwarmPort + s.portIndex,
 	}
 	d.listenAddr = fmt.Sprintf("0.0.0.0:%d", d.port)
-	err := d.StartWithBusybox("--iptables=false") // avoid networking conflicts
+	err := d.StartWithBusybox("--iptables=false", "--swarm-default-advertise-addr=lo") // avoid networking conflicts
 	c.Assert(err, check.IsNil)
 
 	if joinSwarm == true {
 		if len(s.daemons) > 0 {
+			tokens := s.daemons[0].joinTokens(c)
+			token := tokens.Worker
+			if manager {
+				token = tokens.Manager
+			}
 			c.Assert(d.Join(swarm.JoinRequest{
 				RemoteAddrs: []string{s.daemons[0].listenAddr},
-				Manager:     manager}), check.IsNil)
-		} else {
-			c.Assert(d.Init(swarm.InitRequest{
-				Spec: swarm.Spec{
-					AcceptancePolicy: autoAcceptPolicy,
-				},
+				JoinToken:   token,
 			}), check.IsNil)
+		} else {
+			c.Assert(d.Init(swarm.InitRequest{}), check.IsNil)
 		}
 	}
 

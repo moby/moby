@@ -97,6 +97,13 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 		}
 		cluster.Meta.Version = *request.ClusterVersion
 		cluster.Spec = *request.Spec.Copy()
+
+		if request.Rotation.RotateWorkerToken {
+			cluster.RootCA.JoinTokens.Worker = ca.GenerateJoinToken(s.rootCA)
+		}
+		if request.Rotation.RotateManagerToken {
+			cluster.RootCA.JoinTokens.Manager = ca.GenerateJoinToken(s.rootCA)
+		}
 		return store.UpdateCluster(tx, cluster)
 	})
 	if err != nil {
@@ -143,6 +150,8 @@ func (s *Server) ListClusters(ctx context.Context, request *api.ListClustersRequ
 		switch {
 		case request.Filters != nil && len(request.Filters.Names) > 0:
 			clusters, err = store.FindClusters(tx, buildFilters(store.ByName, request.Filters.Names))
+		case request.Filters != nil && len(request.Filters.NamePrefixes) > 0:
+			clusters, err = store.FindClusters(tx, buildFilters(store.ByNamePrefix, request.Filters.NamePrefixes))
 		case request.Filters != nil && len(request.Filters.IDPrefixes) > 0:
 			clusters, err = store.FindClusters(tx, buildFilters(store.ByIDPrefix, request.Filters.IDPrefixes))
 		default:
@@ -157,6 +166,9 @@ func (s *Server) ListClusters(ctx context.Context, request *api.ListClustersRequ
 		clusters = filterClusters(clusters,
 			func(e *api.Cluster) bool {
 				return filterContains(e.Spec.Annotations.Name, request.Filters.Names)
+			},
+			func(e *api.Cluster) bool {
+				return filterContainsPrefix(e.Spec.Annotations.Name, request.Filters.NamePrefixes)
 			},
 			func(e *api.Cluster) bool {
 				return filterContainsPrefix(e.ID, request.Filters.IDPrefixes)
@@ -188,6 +200,7 @@ func redactClusters(clusters []*api.Cluster) []*api.Cluster {
 			RootCA: api.RootCA{
 				CACert:     cluster.RootCA.CACert,
 				CACertHash: cluster.RootCA.CACertHash,
+				JoinTokens: cluster.RootCA.JoinTokens,
 			},
 		}
 

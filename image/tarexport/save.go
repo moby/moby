@@ -307,7 +307,7 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 	defer layer.ReleaseAndLog(s.ls, l)
 
 	if oldPath, exists := s.diffIDPaths[l.DiffID()]; exists {
-		relPath, err := filepath.Rel(layerPath, oldPath)
+		relPath, err := filepath.Rel(outDir, oldPath)
 		if err != nil {
 			return distribution.Descriptor{}, err
 		}

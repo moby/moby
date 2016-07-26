@@ -58,6 +58,11 @@ func (config *Config) GetAllRuntimes() map[string]types.Runtime {
 	return map[string]types.Runtime{}
 }
 
+// GetExecRoot returns the user configured Exec-root
+func (config *Config) GetExecRoot() string {
+	return ""
+}
+
 func (config *Config) isSwarmCompatible() error {
 	return nil
 }

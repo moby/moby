@@ -25,49 +25,12 @@ func (s *DockerSwarmSuite) TestSwarmUpdate(c *check.C) {
 		return sw[0].Spec
 	}
 
-	out, err := d.Cmd("swarm", "update", "--cert-expiry", "30h", "--dispatcher-heartbeat", "11s", "--auto-accept", "manager", "--auto-accept", "worker", "--secret", "foo")
+	out, err := d.Cmd("swarm", "update", "--cert-expiry", "30h", "--dispatcher-heartbeat", "11s")
 	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
 
 	spec := getSpec()
 	c.Assert(spec.CAConfig.NodeCertExpiry, checker.Equals, 30*time.Hour)
 	c.Assert(spec.Dispatcher.HeartbeatPeriod, checker.Equals, uint64(11*time.Second))
-
-	c.Assert(spec.AcceptancePolicy.Policies, checker.HasLen, 2)
-
-	for _, p := range spec.AcceptancePolicy.Policies {
-		c.Assert(p.Autoaccept, checker.Equals, true)
-		c.Assert(p.Secret, checker.NotNil)
-		c.Assert(*p.Secret, checker.Not(checker.Equals), "")
-	}
-
-	out, err = d.Cmd("swarm", "update", "--auto-accept", "none")
-	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
-
-	spec = getSpec()
-	c.Assert(spec.CAConfig.NodeCertExpiry, checker.Equals, 30*time.Hour)
-	c.Assert(spec.Dispatcher.HeartbeatPeriod, checker.Equals, uint64(11*time.Second))
-
-	c.Assert(spec.AcceptancePolicy.Policies, checker.HasLen, 2)
-
-	for _, p := range spec.AcceptancePolicy.Policies {
-		c.Assert(p.Autoaccept, checker.Equals, false)
-		// secret is still set
-		c.Assert(p.Secret, checker.NotNil)
-		c.Assert(*p.Secret, checker.Not(checker.Equals), "")
-	}
-
-	out, err = d.Cmd("swarm", "update", "--auto-accept", "manager", "--secret", "")
-	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
-
-	spec = getSpec()
-
-	c.Assert(spec.AcceptancePolicy.Policies, checker.HasLen, 2)
-
-	for _, p := range spec.AcceptancePolicy.Policies {
-		c.Assert(p.Autoaccept, checker.Equals, p.Role == swarm.NodeRoleManager)
-		// secret has been removed
-		c.Assert(p.Secret, checker.IsNil)
-	}
 
 	// setting anything under 30m for cert-expiry is not allowed
 	out, err = d.Cmd("swarm", "update", "--cert-expiry", "15m")
@@ -89,37 +52,21 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *check.C) {
 		return sw[0].Spec
 	}
 
-	out, err := d.Cmd("swarm", "init", "--cert-expiry", "30h", "--dispatcher-heartbeat", "11s", "--auto-accept", "manager", "--auto-accept", "worker", "--secret", "foo")
+	out, err := d.Cmd("swarm", "init", "--cert-expiry", "30h", "--dispatcher-heartbeat", "11s")
 	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
 
 	spec := getSpec()
 	c.Assert(spec.CAConfig.NodeCertExpiry, checker.Equals, 30*time.Hour)
 	c.Assert(spec.Dispatcher.HeartbeatPeriod, checker.Equals, uint64(11*time.Second))
 
-	c.Assert(spec.AcceptancePolicy.Policies, checker.HasLen, 2)
-
-	for _, p := range spec.AcceptancePolicy.Policies {
-		c.Assert(p.Autoaccept, checker.Equals, true)
-		c.Assert(p.Secret, checker.NotNil)
-		c.Assert(*p.Secret, checker.Not(checker.Equals), "")
-	}
-
 	c.Assert(d.Leave(true), checker.IsNil)
 
-	out, err = d.Cmd("swarm", "init", "--auto-accept", "none", "--secret", "")
+	out, err = d.Cmd("swarm", "init")
 	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
 
 	spec = getSpec()
 	c.Assert(spec.CAConfig.NodeCertExpiry, checker.Equals, 90*24*time.Hour)
 	c.Assert(spec.Dispatcher.HeartbeatPeriod, checker.Equals, uint64(5*time.Second))
-
-	c.Assert(spec.AcceptancePolicy.Policies, checker.HasLen, 2)
-
-	for _, p := range spec.AcceptancePolicy.Policies {
-		c.Assert(p.Autoaccept, checker.Equals, false)
-		c.Assert(p.Secret, checker.IsNil)
-	}
-
 }
 
 func (s *DockerSwarmSuite) TestSwarmInitIPv6(c *check.C) {
@@ -168,4 +115,88 @@ func (s *DockerSwarmSuite) TestSwarmNodeListHostname(c *check.C) {
 	out, err := d.Cmd("node", "ls")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.Split(out, "\n")[0], checker.Contains, "HOSTNAME")
+}
+
+// Test case for #24270
+func (s *DockerSwarmSuite) TestSwarmServiceListFilter(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name1 := "redis-cluster-md5"
+	name2 := "redis-cluster"
+	name3 := "other-cluster"
+	out, err := d.Cmd("service", "create", "--name", name1, "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	out, err = d.Cmd("service", "create", "--name", name2, "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	out, err = d.Cmd("service", "create", "--name", name3, "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	filter1 := "name=redis-cluster-md5"
+	filter2 := "name=redis-cluster"
+
+	// We search checker.Contains with `name+" "` to prevent prefix only.
+	out, err = d.Cmd("service", "ls", "--filter", filter1)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name1+" ")
+	c.Assert(out, checker.Not(checker.Contains), name2+" ")
+	c.Assert(out, checker.Not(checker.Contains), name3+" ")
+
+	out, err = d.Cmd("service", "ls", "--filter", filter2)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name1+" ")
+	c.Assert(out, checker.Contains, name2+" ")
+	c.Assert(out, checker.Not(checker.Contains), name3+" ")
+
+	out, err = d.Cmd("service", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name1+" ")
+	c.Assert(out, checker.Contains, name2+" ")
+	c.Assert(out, checker.Contains, name3+" ")
+}
+
+func (s *DockerSwarmSuite) TestSwarmNodeListFilter(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	out, err := d.Cmd("node", "inspect", "--format", "{{ .Description.Hostname }}", "self")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	name := strings.TrimSpace(out)
+
+	filter := "name=" + name[:4]
+
+	out, err = d.Cmd("node", "ls", "--filter", filter)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name)
+
+	out, err = d.Cmd("node", "ls", "--filter", "name=none")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Not(checker.Contains), name)
+}
+
+func (s *DockerSwarmSuite) TestSwarmNodeTaskListFilter(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name := "redis-cluster-md5"
+	out, err := d.Cmd("service", "create", "--name", name, "--replicas=3", "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	filter := "name=redis-cluster"
+
+	out, err = d.Cmd("node", "tasks", "--filter", filter, "self")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name+".1")
+	c.Assert(out, checker.Contains, name+".2")
+	c.Assert(out, checker.Contains, name+".3")
+
+	out, err = d.Cmd("node", "tasks", "--filter", "name=none", "self")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Not(checker.Contains), name+".1")
+	c.Assert(out, checker.Not(checker.Contains), name+".2")
+	c.Assert(out, checker.Not(checker.Contains), name+".3")
 }

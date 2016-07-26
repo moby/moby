@@ -155,11 +155,6 @@ func Subcmd(name string, synopses []string, description string, exitOnError bool
 	}
 
 	flags.ShortUsage = func() {
-		options := ""
-		if flags.FlagCountUndeprecated() > 0 {
-			options = " [OPTIONS]"
-		}
-
 		if len(synopses) == 0 {
 			synopses = []string{""}
 		}
@@ -176,7 +171,7 @@ func Subcmd(name string, synopses []string, description string, exitOnError bool
 				synopsis = " " + synopsis
 			}
 
-			fmt.Fprintf(flags.Out(), "\n%sdocker %s%s%s", lead, name, options, synopsis)
+			fmt.Fprintf(flags.Out(), "\n%sdocker %s%s", lead, name, synopsis)
 		}
 
 		fmt.Fprintf(flags.Out(), "\n\n%s\n", description)

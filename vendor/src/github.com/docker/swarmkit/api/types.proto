@@ -277,6 +277,54 @@ message UpdateConfig {
 
 	// Amount of time between updates.
 	Duration delay = 2 [(gogoproto.nullable) = false];
+
+	enum FailureAction {
+		PAUSE = 0;
+		CONTINUE = 1;
+		// TODO(aaronl): Add ROLLBACK as a supported failure mode.
+		// (#486)
+	}
+
+	// FailureAction is the action to take when an update failures.
+	// Currently, a failure is defined as a single updated task failing to
+	// reach the RUNNING state. In the future, there will be configuration
+	// to define what is treated as a failure (see #486 for a proposal).
+	FailureAction failure_action = 3;
+}
+
+// UpdateStatus is the status of an update in progress.
+message UpdateStatus {
+	enum UpdateState {
+		UNKNOWN = 0;
+		UPDATING = 1;
+		PAUSED = 2;
+		COMPLETED = 3;
+		// TODO(aaronl): add ROLLING_BACK, ROLLED_BACK as part of
+		// rollback support.
+	}
+
+	// State is the state of this update. It indicates whether the
+	// update is in progress, completed, or is paused.
+	UpdateState state = 1;
+
+	// StartedAt is the time at which the update was started.
+	Timestamp started_at = 2;
+
+	// CompletedAt is the time at which the update completed.
+	Timestamp completed_at = 3;
+
+	// TODO(aaronl): Consider adding a timestamp showing when the most
+	// recent task update took place. Currently, this is nontrivial
+	// because each service update kicks off a replacement update, so
+	// updating the service object with a timestamp at every step along
+	// the rolling update would cause the rolling update to be constantly
+	// restarted.
+
+	// Message explains how the update got into its current state. For
+	// example, if the update is paused, it will explain what is preventing
+	// the update from proceeding (typically the failure of a task to start up
+	// when OnFailure is PAUSE).
+	string message = 4;
 }
 
 // TaskState enumerates the states that a task progresses through within an
@@ -521,6 +569,17 @@ message OrchestrationConfig {
 	// TaskHistoryRetentionLimit is the number of historic tasks to keep per instance or
 	// node. If negative, never remove completed or failed tasks.
 	int64 task_history_retention_limit = 1;
+
+}
+
+// TaskDefaults specifies default values for task creation.
+message TaskDefaults {
+	// LogDriver specifies the log driver to use for the cluster if not
+	// specified for each task.
+	//
+	// If this is changed, only new tasks will pick up the new log driver.
+	// Existing tasks will continue to use the previous default until rescheduled.
+	Driver log_driver = 1;
 }
 
 // DispatcherConfig defines cluster-level dispatcher settings.
@@ -554,6 +613,15 @@ message Placement {
 	repeated string constraints = 1;
 }
 
+// JoinToken contains the join tokens for workers and managers.
+message JoinTokens {
+	// Worker is the join token workers may use to join the swarm.
+	string worker = 1;
+
+	// Manager is the join token workers may use to join the swarm.
+	string manager = 2;
+}
+
 message RootCA {
 	// CAKey is the root CA private key.
 	bytes ca_key = 1 [(gogoproto.customname) = "CAKey"];
@@ -563,6 +631,9 @@ message RootCA {
 
 	// CACertHash is the digest of the CA Certificate.
 	string ca_cert_hash = 3 [(gogoproto.customname) = "CACertHash"];
+
+	// JoinTokens contains the join tokens for workers and managers.
+	JoinTokens join_tokens = 4 [(gogoproto.nullable) = false];
 }
 
 

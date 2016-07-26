@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package types;
 
+import "google/protobuf/timestamp.proto";
+
 service API {
 	rpc GetServerVersion(GetServerVersionRequest) returns (GetServerVersionResponse) {}
 	rpc CreateContainer(CreateContainerRequest) returns (CreateContainerResponse) {}
@@ -185,7 +187,7 @@ message StateResponse {
 message UpdateContainerRequest {
 	string id = 1; // ID of container
 	string pid = 2;
-	string status = 3; // Status to whcih containerd will try to change
+	string status = 3; // Status to which containerd will try to change
 	UpdateResource resources =4;
 }
 
@@ -207,7 +209,10 @@ message UpdateContainerResponse {
 }
 
 message EventsRequest {
-	uint64 timestamp = 1;
+	// Tag 1 is deprecated (old uint64 timestamp)
+	google.protobuf.Timestamp timestamp = 2;
+	bool storedOnly = 3;
+	string id = 4;
 }
 
 message Event {
@@ -215,7 +220,8 @@ message Event {
 	string id = 2;
 	uint32 status = 3;
 	string pid = 4;
-	uint64 timestamp = 5;
+	// Tag 5 is deprecated (old uint64 timestamp)
+	google.protobuf.Timestamp timestamp = 6;
 }
 
 message NetworkStats {
@@ -277,7 +283,7 @@ message BlkioStatsEntry {
 }
 
 message BlkioStats {
-	repeated BlkioStatsEntry io_service_bytes_recursive = 1; // number of bytes tranferred to and from the block device
+	repeated BlkioStatsEntry io_service_bytes_recursive = 1; // number of bytes transferred to and from the block device
 	repeated BlkioStatsEntry io_serviced_recursive = 2;
 	repeated BlkioStatsEntry io_queued_recursive = 3;
 	repeated BlkioStatsEntry io_service_time_recursive = 4;
@@ -305,7 +311,8 @@ message CgroupStats {
 message StatsResponse {
 	repeated NetworkStats network_stats = 1;
 	CgroupStats cgroup_stats = 2;
-	uint64 timestamp = 3;
+	// Tag 3 is deprecated (old uint64 timestamp)
+	google.protobuf.Timestamp timestamp = 4;
 };
 
 message StatsRequest {

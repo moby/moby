@@ -378,7 +378,7 @@ The rules:
 5. Document _all_ declarations and methods, even private ones. Declare
    expectations, caveats and anything else that may be important. If a type
    gets exported, having the comments already there will ensure it's ready.
-6. Variable name length should be proportional to it's context and no longer.
+6. Variable name length should be proportional to its context and no longer.
    `noCommaALongVariableNameLikeThisIsNotMoreClearWhenASimpleCommentWouldDo`.
    In practice, short methods will have short variable names and globals will
    have longer names.
@@ -386,7 +386,7 @@ The rules:
    and re-examine why you need a compound name. If you still think you need a
    compound name, lose the underscore.
 8. No utils or helpers packages. If a function is not general enough to
-   warrant it's own package, it has not been written generally enough to be a
+   warrant its own package, it has not been written generally enough to be a
    part of a util package. Just leave it unexported and well-documented.
 9. All tests should run with `go test` and outside tooling should not be
    required. No, we don't need another unit testing framework. Assertion
