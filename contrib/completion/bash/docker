@@ -1741,6 +1741,7 @@ _docker_service_update() {
 
 	if [ "$subcommand" = "create" ] ; then
 		options_with_args="$options_with_args
+			--container-label
 			--mode
 		"
 
@@ -1754,6 +1755,8 @@ _docker_service_update() {
 	if [ "$subcommand" = "update" ] ; then
 		options_with_args="$options_with_args
 			--arg
+			--container-label-add
+			--container-label-rm
 			--image
 		"
 
