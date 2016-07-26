@@ -1814,7 +1814,6 @@ _docker_service_update() {
 _docker_swarm() {
 	local subcommands="
 		init
-		inspect
 		join
 		join-token
 		leave
@@ -1851,20 +1850,6 @@ _docker_swarm_init() {
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--advertise-addr --force-new-cluster --help --listen-addr" -- "$cur" ) )
-			;;
-	esac
-}
-
-_docker_swarm_inspect() {
-	case "$prev" in
-		--format|-f)
-			return
-			;;
-	esac
-
-	case "$cur" in
-		-*)
-			COMPREPLY=( $( compgen -W "--format -f --help" -- "$cur" ) )
 			;;
 	esac
 }
