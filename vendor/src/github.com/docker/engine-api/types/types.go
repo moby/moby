@@ -256,6 +256,7 @@ type Info struct {
 	Runtimes           map[string]Runtime
 	DefaultRuntime     string
 	Swarm              swarm.Info
+	LiveRestore        bool
 }
 
 // PluginsInfo is a temp struct holding Plugins name
