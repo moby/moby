@@ -6,6 +6,7 @@ import (
 	"io"
 	"runtime"
 	"strconv"
+	"sync/atomic"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/exec"
@@ -38,6 +39,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 			"exitCode": strconv.Itoa(int(e.ExitCode)),
 		}
 		daemon.updateHealthMonitor(c)
+		atomic.AddUint64(&daemon.counts.exited, 1)
 		daemon.LogContainerEventWithAttributes(c, "die", attributes)
 		daemon.Cleanup(c)
 		// FIXME: here is race condition between two RUN instructions in Dockerfile
@@ -86,16 +88,24 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 			return err
 		}
 		daemon.initHealthMonitor(c)
+		if e.State == libcontainerd.StateStart {
+			atomic.AddUint64(&daemon.counts.started, 1)
+		} else {
+			atomic.AddUint64(&daemon.counts.restored, 1)
+		}
+
 		daemon.LogContainerEvent(c, "start")
 	case libcontainerd.StatePause:
 		// Container is already locked in this case
 		c.Paused = true
 		daemon.updateHealthMonitor(c)
+		atomic.AddUint64(&daemon.counts.paused, 1)
 		daemon.LogContainerEvent(c, "pause")
 	case libcontainerd.StateResume:
 		// Container is already locked in this case
 		c.Paused = false
 		daemon.updateHealthMonitor(c)
+		atomic.AddUint64(&daemon.counts.unpaused, 1)
 		daemon.LogContainerEvent(c, "unpause")
 	}
 

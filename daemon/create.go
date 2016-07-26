@@ -3,6 +3,7 @@ package daemon
 import (
 	"fmt"
 	"strings"
+	"sync/atomic"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
@@ -149,6 +150,7 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	if err := daemon.Register(container); err != nil {
 		return nil, err
 	}
+	atomic.AddUint64(&daemon.counts.created, 1)
 	daemon.LogContainerEvent(container, "create")
 	return container, nil
 }

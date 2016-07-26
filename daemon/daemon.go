@@ -67,6 +67,16 @@ var (
 	errSystemNotSupported = fmt.Errorf("The Docker daemon is not supported on this platform.")
 )
 
+// ContainerCounts keeps counts of containers since this daemon was started
+type ContainerCounts struct {
+	created  uint64
+	exited   uint64
+	paused   uint64
+	restored uint64
+	started  uint64
+	unpaused uint64
+}
+
 // Daemon holds information about the Docker daemon.
 type Daemon struct {
 	ID                        string
@@ -100,6 +110,7 @@ type Daemon struct {
 	containerdRemote          libcontainerd.Remote
 	defaultIsolation          containertypes.Isolation // Default isolation mode on Windows
 	clusterProvider           cluster.Provider
+	counts                    ContainerCounts
 }
 
 func (daemon *Daemon) restore() error {
