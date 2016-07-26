@@ -14,6 +14,8 @@ import (
 	containerd "github.com/docker/containerd/api/grpc/types"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	specs "github.com/opencontainers/specs/specs-go"
 	"golang.org/x/net/context"
 )
@@ -451,11 +453,11 @@ func (clnt *client) restore(cont *containerd.Container, lastEvent *containerd.Ev
 	return nil
 }
 
-func (clnt *client) getContainerLastEvent(containerID string) (*containerd.Event, error) {
+func (clnt *client) getContainerLastEventSinceTime(id string, tsp *timestamp.Timestamp) (*containerd.Event, error) {
 	er := &containerd.EventsRequest{
-		Timestamp:  clnt.remote.restoreFromTimestamp,
+		Timestamp:  tsp,
 		StoredOnly: true,
-		Id:         containerID,
+		Id:         id,
 	}
 	events, err := clnt.remote.apiClient.Events(context.Background(), er)
 	if err != nil {
@@ -470,7 +472,7 @@ func (clnt *client) getContainerLastEvent(containerID string) (*containerd.Event
 			if err.Error() == "EOF" {
 				break
 			}
-			logrus.Errorf("libcontainerd: failed to get container event for %s: %q", containerID, err)
+			logrus.Errorf("libcontainerd: failed to get container event for %s: %q", id, err)
 			return nil, err
 		}
 
@@ -483,6 +485,30 @@ func (clnt *client) getContainerLastEvent(containerID string) (*containerd.Event
 	}
 
 	return ev, nil
+}
+
+func (clnt *client) getContainerLastEvent(id string) (*containerd.Event, error) {
+	ev, err := clnt.getContainerLastEventSinceTime(id, clnt.remote.restoreFromTimestamp)
+	if err == nil && ev == nil {
+		// If ev is nil and the container is running in containerd,
+		// we already consumed all the event of the
+		// container, included the "exit" one.
+		// Thus, we request all events containerd has in memory for
+		// this container in order to get the last one (which should
+		// be an exit event)
+		logrus.Warnf("libcontainerd: client is out of sync, restore was called on a fully synced container (%s).", id)
+		// Request all events since beginning of time
+		t := time.Unix(0, 0)
+		tsp, err := ptypes.TimestampProto(t)
+		if err != nil {
+			logrus.Errorf("libcontainerd: getLastEventSinceTime() failed to convert timestamp: %q", err)
+			return nil, err
+		}
+
+		return clnt.getContainerLastEventSinceTime(id, tsp)
+	}
+
+	return ev, err
 }
 
 func (clnt *client) Restore(containerID string, options ...CreateOption) error {
