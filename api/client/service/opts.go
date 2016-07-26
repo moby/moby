@@ -392,14 +392,15 @@ func ValidatePort(value string) (string, error) {
 }
 
 type serviceOptions struct {
-	name    string
-	labels  opts.ListOpts
-	image   string
-	args    []string
-	env     opts.ListOpts
-	workdir string
-	user    string
-	mounts  MountOpt
+	name            string
+	labels          opts.ListOpts
+	containerLabels opts.ListOpts
+	image           string
+	args            []string
+	env             opts.ListOpts
+	workdir         string
+	user            string
+	mounts          MountOpt
 
 	resources resourceOptions
 	stopGrace DurationOpt
@@ -420,8 +421,9 @@ type serviceOptions struct {
 
 func newServiceOptions() *serviceOptions {
 	return &serviceOptions{
-		labels: opts.NewListOpts(runconfigopts.ValidateEnv),
-		env:    opts.NewListOpts(runconfigopts.ValidateEnv),
+		labels:          opts.NewListOpts(runconfigopts.ValidateEnv),
+		containerLabels: opts.NewListOpts(runconfigopts.ValidateEnv),
+		env:             opts.NewListOpts(runconfigopts.ValidateEnv),
 		endpoint: endpointOptions{
 			ports: opts.NewListOpts(ValidatePort),
 		},
@@ -442,6 +444,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 				Image:           opts.image,
 				Args:            opts.args,
 				Env:             opts.env.GetAll(),
+				Labels:          runconfigopts.ConvertKVStringsToMap(opts.containerLabels.GetAll()),
 				Dir:             opts.workdir,
 				User:            opts.user,
 				Mounts:          opts.mounts.Value(),
@@ -516,42 +519,45 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 }
 
 const (
-	flagConstraint          = "constraint"
-	flagConstraintRemove    = "constraint-rm"
-	flagConstraintAdd       = "constraint-add"
-	flagEndpointMode        = "endpoint-mode"
-	flagEnv                 = "env"
-	flagEnvRemove           = "env-rm"
-	flagEnvAdd              = "env-add"
-	flagLabel               = "label"
-	flagLabelRemove         = "label-rm"
-	flagLabelAdd            = "label-add"
-	flagLimitCPU            = "limit-cpu"
-	flagLimitMemory         = "limit-memory"
-	flagMode                = "mode"
-	flagMount               = "mount"
-	flagMountRemove         = "mount-rm"
-	flagMountAdd            = "mount-add"
-	flagName                = "name"
-	flagNetwork             = "network"
-	flagNetworkRemove       = "network-rm"
-	flagNetworkAdd          = "network-add"
-	flagPublish             = "publish"
-	flagPublishRemove       = "publish-rm"
-	flagPublishAdd          = "publish-add"
-	flagReplicas            = "replicas"
-	flagReserveCPU          = "reserve-cpu"
-	flagReserveMemory       = "reserve-memory"
-	flagRestartCondition    = "restart-condition"
-	flagRestartDelay        = "restart-delay"
-	flagRestartMaxAttempts  = "restart-max-attempts"
-	flagRestartWindow       = "restart-window"
-	flagStopGracePeriod     = "stop-grace-period"
-	flagUpdateDelay         = "update-delay"
-	flagUpdateFailureAction = "update-failure-action"
-	flagUpdateParallelism   = "update-parallelism"
-	flagUser                = "user"
-	flagRegistryAuth        = "with-registry-auth"
-	flagLogDriver           = "log-driver"
-	flagLogOpt              = "log-opt"
+	flagConstraint           = "constraint"
+	flagConstraintRemove     = "constraint-rm"
+	flagConstraintAdd        = "constraint-add"
+	flagContainerLabel       = "container-label"
+	flagContainerLabelRemove = "container-label-rm"
+	flagContainerLabelAdd    = "container-label-add"
+	flagEndpointMode         = "endpoint-mode"
+	flagEnv                  = "env"
+	flagEnvRemove            = "env-rm"
+	flagEnvAdd               = "env-add"
+	flagLabel                = "label"
+	flagLabelRemove          = "label-rm"
+	flagLabelAdd             = "label-add"
+	flagLimitCPU             = "limit-cpu"
+	flagLimitMemory          = "limit-memory"
+	flagMode                 = "mode"
+	flagMount                = "mount"
+	flagMountRemove          = "mount-rm"
+	flagMountAdd             = "mount-add"
+	flagName                 = "name"
+	flagNetwork              = "network"
+	flagNetworkRemove        = "network-rm"
+	flagNetworkAdd           = "network-add"
+	flagPublish              = "publish"
+	flagPublishRemove        = "publish-rm"
+	flagPublishAdd           = "publish-add"
+	flagReplicas             = "replicas"
+	flagReserveCPU           = "reserve-cpu"
+	flagReserveMemory        = "reserve-memory"
+	flagRestartCondition     = "restart-condition"
+	flagRestartDelay         = "restart-delay"
+	flagRestartMaxAttempts   = "restart-max-attempts"
+	flagRestartWindow        = "restart-window"
+	flagStopGracePeriod      = "stop-grace-period"
+	flagUpdateDelay          = "update-delay"
+	flagUpdateFailureAction  = "update-failure-action"
+	flagUpdateParallelism    = "update-parallelism"
+	flagUser                 = "user"
+	flagRegistryAuth         = "with-registry-auth"
+	flagLogDriver            = "log-driver"
+	flagLogOpt               = "log-opt"
 )

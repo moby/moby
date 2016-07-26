@@ -20,6 +20,8 @@ Options:
       --args string                    Service command args
       --constraint-add value           Add or update placement constraints (default [])
       --constraint-rm value            Remove a constraint (default [])
+      --container-label-add value      Add or update container labels (default [])
+      --container-label-rm value       Remove a container label by its key (default [])
       --endpoint-mode string           Endpoint mode (vip or dnsrr)
       --env-add value                  Add or update environment variables (default [])
       --env-rm value                   Remove an environment variable (default [])
