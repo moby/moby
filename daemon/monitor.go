@@ -119,22 +119,6 @@ func (daemon *Daemon) AttachStreams(id string, iop libcontainerd.IOPipe) error {
 		}
 	}
 
-	if stdin := s.Stdin(); stdin != nil {
-		if iop.Stdin != nil {
-			go func() {
-				io.Copy(iop.Stdin, stdin)
-				iop.Stdin.Close()
-			}()
-		}
-	} else {
-		if c != nil && !c.Config.Tty {
-			// tty is enabled, so dont close containerd's iopipe stdin.
-			if iop.Stdin != nil {
-				iop.Stdin.Close()
-			}
-		}
-	}
-
 	copyFunc := func(w io.Writer, r io.Reader) {
 		s.Add(1)
 		go func() {
@@ -150,6 +134,22 @@ func (daemon *Daemon) AttachStreams(id string, iop libcontainerd.IOPipe) error {
 	}
 	if iop.Stderr != nil {
 		copyFunc(s.Stderr(), iop.Stderr)
+	}
+
+	if stdin := s.Stdin(); stdin != nil {
+		if iop.Stdin != nil {
+			go func() {
+				io.Copy(iop.Stdin, stdin)
+				iop.Stdin.Close()
+			}()
+		}
+	} else {
+		if c != nil && !c.Config.Tty {
+			// tty is enabled, so dont close containerd's iopipe stdin.
+			if iop.Stdin != nil {
+				iop.Stdin.Close()
+			}
+		}
 	}
 
 	return nil
