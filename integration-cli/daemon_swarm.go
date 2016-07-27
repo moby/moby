@@ -300,3 +300,26 @@ func (d *SwarmDaemon) checkControlAvailable(c *check.C) (interface{}, check.Comm
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 	return info.ControlAvailable, nil
 }
+
+func (d *SwarmDaemon) checkLeader(c *check.C) (interface{}, check.CommentInterface) {
+	errList := check.Commentf("could not get node list")
+	status, out, err := d.SockRequest("GET", "/nodes", nil)
+	if err != nil {
+		return err, errList
+	}
+	if status != http.StatusOK {
+		return fmt.Errorf("expected http status OK, got: %d", status), errList
+	}
+
+	var ls []swarm.Node
+	if err := json.Unmarshal(out, &ls); err != nil {
+		return err, errList
+	}
+
+	for _, node := range ls {
+		if node.ManagerStatus != nil && node.ManagerStatus.Leader {
+			return nil, nil
+		}
+	}
+	return fmt.Errorf("no leader"), check.Commentf("could not find leader")
+}
