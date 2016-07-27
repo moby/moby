@@ -285,13 +285,13 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 	}
 
 	defer func() {
+		if err := tx.Cancel(); err != nil {
+			logrus.Errorf("Error canceling metadata transaction %q: %s", tx.String(), err)
+		}
 		if err != nil {
 			logrus.Debugf("Cleaning up layer %s: %v", layer.cacheID, err)
 			if err := ls.driver.Remove(layer.cacheID); err != nil {
 				logrus.Errorf("Error cleaning up cache layer %s: %v", layer.cacheID, err)
-			}
-			if err := tx.Cancel(); err != nil {
-				logrus.Errorf("Error canceling metadata transaction %q: %s", tx.String(), err)
 			}
 		}
 	}()
