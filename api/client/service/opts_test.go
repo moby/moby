@@ -81,8 +81,8 @@ func TestMountOptSetNoError(t *testing.T) {
 		// tests several aliases that should have same result.
 		"type=bind,target=/target,source=/source",
 		"type=bind,src=/source,dst=/target",
-		"type=bind,name=/source,dst=/target",
-		"type=bind,name=/source,path=/target",
+		"type=bind,source=/source,dst=/target",
+		"type=bind,src=/source,target=/target",
 	} {
 		var mount MountOpt
 
