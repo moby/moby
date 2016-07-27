@@ -505,12 +505,20 @@ func (clnt *client) Restore(containerID string, options ...CreateOption) error {
 			return err
 		}
 
-		// If ev is nil, then we already consumed all the event of the
-		// container, included the "exit" one.
-		// Thus we return to avoid overriding the Exit Code.
 		if ev == nil {
-			logrus.Warnf("libcontainerd: restore was called on a fully synced container (%s)", containerID)
-			return nil
+			if _, err := clnt.getContainer(containerID); err == nil {
+				// If ev is nil and the container is running in containerd,
+				// we already consumed all the event of the
+				// container, included the "exit" one.
+				// Thus we return to avoid overriding the Exit Code.
+				logrus.Warnf("libcontainerd: restore was called on a fully synced container (%s)", containerID)
+				return nil
+			}
+			// the container is not running so we need to fix the state within docker
+			ev = &containerd.Event{
+				Type:   StateExit,
+				Status: 1,
+			}
 		}
 
 		// get the exit status for this container
