@@ -13,17 +13,19 @@ import (
 // SwarmFromGRPC converts a grpc Cluster to a Swarm.
 func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 	swarm := types.Swarm{
-		ID: c.ID,
-		Spec: types.Spec{
-			Orchestration: types.OrchestrationConfig{
-				TaskHistoryRetentionLimit: c.Spec.Orchestration.TaskHistoryRetentionLimit,
-			},
-			Raft: types.RaftConfig{
-				SnapshotInterval:           c.Spec.Raft.SnapshotInterval,
-				KeepOldSnapshots:           c.Spec.Raft.KeepOldSnapshots,
-				LogEntriesForSlowFollowers: c.Spec.Raft.LogEntriesForSlowFollowers,
-				HeartbeatTick:              c.Spec.Raft.HeartbeatTick,
-				ElectionTick:               c.Spec.Raft.ElectionTick,
+		ClusterInfo: types.ClusterInfo{
+			ID: c.ID,
+			Spec: types.Spec{
+				Orchestration: types.OrchestrationConfig{
+					TaskHistoryRetentionLimit: c.Spec.Orchestration.TaskHistoryRetentionLimit,
+				},
+				Raft: types.RaftConfig{
+					SnapshotInterval:           c.Spec.Raft.SnapshotInterval,
+					KeepOldSnapshots:           c.Spec.Raft.KeepOldSnapshots,
+					LogEntriesForSlowFollowers: c.Spec.Raft.LogEntriesForSlowFollowers,
+					HeartbeatTick:              c.Spec.Raft.HeartbeatTick,
+					ElectionTick:               c.Spec.Raft.ElectionTick,
+				},
 			},
 		},
 		JoinTokens: types.JoinTokens{
