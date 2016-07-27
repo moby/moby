@@ -181,16 +181,25 @@ func (s *DockerSwarmSuite) TestSwarmNodeTaskListFilter(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 3)
 
 	filter := "name=redis-cluster"
+	contains := true
 
-	out, err = d.Cmd("node", "tasks", "--filter", filter, "self")
-	c.Assert(err, checker.IsNil)
-	c.Assert(out, checker.Contains, name+".1")
-	c.Assert(out, checker.Contains, name+".2")
-	c.Assert(out, checker.Contains, name+".3")
+	// give enough time for tasks to actually be scheduled
+	checkNames := func(c *check.C) (interface{}, check.CommentInterface) {
+		out, err = d.Cmd("node", "tasks", "--filter", filter, "self")
+		if err != nil {
+			return false, check.Commentf("could not get task list: %v", err)
+		}
 
-	out, err = d.Cmd("node", "tasks", "--filter", "name=none", "self")
-	c.Assert(err, checker.IsNil)
-	c.Assert(out, checker.Not(checker.Contains), name+".1")
-	c.Assert(out, checker.Not(checker.Contains), name+".2")
-	c.Assert(out, checker.Not(checker.Contains), name+".3")
+		for _, num := range []string{"1", "2", "3"} {
+			if contains != strings.Contains(out, name+"."+num) {
+				return false, check.Commentf("task output unexepected:\n%s", out)
+			}
+		}
+		return true, nil
+	}
+	waitAndAssert(c, defaultReconciliationTimeout, checkNames, checker.True)
+
+	contains = false
+	filter = "name=none"
+	waitAndAssert(c, defaultReconciliationTimeout, checkNames, checker.True)
 }
