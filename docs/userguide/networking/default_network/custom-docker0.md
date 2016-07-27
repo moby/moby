@@ -12,7 +12,7 @@ parent = "smn_networking_def"
 
 The information in this section explains how to customize the Docker default bridge. This is a `bridge` network named `bridge` created automatically when you install Docker.  
 
-**Note**: The [Docker networks feature](../dockernetworks.md) allows you to create user-defined networks in addition to the default bridge network.
+**Note**: The [Docker networks feature](../index.md) allows you to create user-defined networks in addition to the default bridge network.
 
 By default, the Docker server creates and configures the host system's `docker0` interface as an _Ethernet bridge_ inside the Linux kernel that can pass packets back and forth between other physical or virtual network interfaces so that they behave as a single Ethernet network.
 
