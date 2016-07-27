@@ -563,6 +563,8 @@ func (clnt *client) Restore(containerID string, options ...CreateOption) error {
 		clnt.remote.Lock()
 		return nil
 	}
+	// relock because of the defer
+	clnt.remote.Lock()
 
 	clnt.deleteContainer(containerID)
 
