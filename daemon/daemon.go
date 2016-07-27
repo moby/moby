@@ -658,7 +658,7 @@ func (daemon *Daemon) Shutdown() error {
 
 	pluginShutdown()
 
-	if daemon.configStore.LiveRestore && daemon.containers != nil {
+	if daemon.configStore.LiveRestoreEnabled && daemon.containers != nil {
 		// check if there are any running containers, if none we should do some cleanup
 		if ls, err := daemon.Containers(&types.ContainerListOptions{}); len(ls) != 0 || err != nil {
 			return nil
@@ -916,8 +916,8 @@ func (daemon *Daemon) Reload(config *Config) error {
 		daemon.configStore.Debug = config.Debug
 	}
 	if config.IsValueSet("live-restore") {
-		daemon.configStore.LiveRestore = config.LiveRestore
-		if err := daemon.containerdRemote.UpdateOptions(libcontainerd.WithLiveRestore(config.LiveRestore)); err != nil {
+		daemon.configStore.LiveRestoreEnabled = config.LiveRestoreEnabled
+		if err := daemon.containerdRemote.UpdateOptions(libcontainerd.WithLiveRestore(config.LiveRestoreEnabled)); err != nil {
 			return err
 		}
 
@@ -1076,7 +1076,7 @@ func (daemon *Daemon) networkOptions(dconfig *Config, activeSandboxes map[string
 	options = append(options, nwconfig.OptionLabels(dconfig.Labels))
 	options = append(options, driverOptions(dconfig)...)
 
-	if daemon.configStore != nil && daemon.configStore.LiveRestore && len(activeSandboxes) != 0 {
+	if daemon.configStore != nil && daemon.configStore.LiveRestoreEnabled && len(activeSandboxes) != 0 {
 		options = append(options, nwconfig.OptionActiveSandboxes(activeSandboxes))
 	}
 
