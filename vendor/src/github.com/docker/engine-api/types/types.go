@@ -256,7 +256,10 @@ type Info struct {
 	Runtimes           map[string]Runtime
 	DefaultRuntime     string
 	Swarm              swarm.Info
-	LiveRestore        bool
+	// LiveRestoreEnabled determines whether containers should be kept
+	// running when the daemon is shutdown or upon daemon start if
+	// running containers are detected
+	LiveRestoreEnabled bool
 }
 
 // PluginsInfo is a temp struct holding Plugins name
