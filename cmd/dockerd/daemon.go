@@ -262,10 +262,6 @@ func (cli *DaemonCli) start() (err error) {
 		<-stopc // wait for daemonCli.start() to return
 	})
 
-	if err := pluginInit(cli.Config, containerdRemote, registryService); err != nil {
-		return err
-	}
-
 	d, err := daemon.NewDaemon(cli.Config, registryService, containerdRemote)
 	if err != nil {
 		return fmt.Errorf("Error starting daemon: %v", err)

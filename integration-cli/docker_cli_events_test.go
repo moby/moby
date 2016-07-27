@@ -297,6 +297,32 @@ func (s *DockerSuite) TestEventsImageLoad(c *check.C) {
 	c.Assert(matches["action"], checker.Equals, "save", check.Commentf("matches: %v\nout:\n%s\n", matches, out))
 }
 
+func (s *DockerSuite) TestEventsPluginOps(c *check.C) {
+	testRequires(c, DaemonIsLinux, ExperimentalDaemon)
+
+	pluginName := "tiborvass/no-remove:latest"
+	since := daemonUnixTime(c)
+
+	dockerCmd(c, "plugin", "install", pluginName, "--grant-all-permissions")
+	dockerCmd(c, "plugin", "disable", pluginName)
+	dockerCmd(c, "plugin", "remove", pluginName)
+
+	out, _ := dockerCmd(c, "events", "--since", since, "--until", daemonUnixTime(c))
+	events := strings.Split(out, "\n")
+	events = events[:len(events)-1]
+
+	nEvents := len(events)
+	c.Assert(nEvents, checker.GreaterOrEqualThan, 4)
+
+	pluginEvents := eventActionsByIDAndType(c, events, pluginName, "plugin")
+	c.Assert(pluginEvents, checker.HasLen, 4, check.Commentf("events: %v", events))
+
+	c.Assert(pluginEvents[0], checker.Equals, "pull", check.Commentf(out))
+	c.Assert(pluginEvents[1], checker.Equals, "enable", check.Commentf(out))
+	c.Assert(pluginEvents[2], checker.Equals, "disable", check.Commentf(out))
+	c.Assert(pluginEvents[3], checker.Equals, "remove", check.Commentf(out))
+}
+
 func (s *DockerSuite) TestEventsFilters(c *check.C) {
 	since := daemonUnixTime(c)
 	dockerCmd(c, "run", "--rm", "busybox", "true")
