@@ -3,7 +3,6 @@
 title = "swarm join-token"
 description = "The swarm join-token command description and usage"
 keywords = ["swarm, join-token"]
-advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++

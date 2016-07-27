@@ -3,7 +3,6 @@
 title = "service rm"
 description = "The service rm command description and usage"
 keywords = ["service, rm"]
-advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++

@@ -3327,8 +3327,6 @@ Instruct the driver to remove the network (`id`).
 
 ### List nodes
 
-**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
-might be subject to non backward-compatible changes.
 
 `GET /nodes`
 
@@ -3457,8 +3455,6 @@ List nodes
 
 ### Inspect a node
 
-**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
-might be subject to non backward-compatible changes.
 
 `GET /nodes/<id>`
 
@@ -3579,8 +3575,6 @@ Return low-level information on the node `id`
 
 ### Initialize a new Swarm
 
-**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
-might be subject to non backward-compatible changes.
 
 `POST /swarm/init`
 
@@ -3653,8 +3647,6 @@ JSON Parameters:
 
 ### Join an existing Swarm
 
-**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
-might be subject to non backward-compatible changes.
 
 `POST /swarm/join`
 
@@ -3698,8 +3690,6 @@ JSON Parameters:
 
 ### Leave a Swarm
 
-**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
-might be subject to non backward-compatible changes.
 
 `POST /swarm/leave`
 
@@ -3722,8 +3712,6 @@ Leave a Swarm
 
 ### Update a Swarm
 
-**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
-might be subject to non backward-compatible changes.
 
 `POST /swarm/update`
 
@@ -3809,8 +3797,6 @@ JSON Parameters:
 
 ### List services
 
-**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
-might be subject to non backward-compatible changes.
 
 `GET /services`
 
@@ -3904,8 +3890,6 @@ List services
 
 ### Create a service
 
-**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
-might be subject to non backward-compatible changes.
 
 `POST /services/create`
 
@@ -4070,8 +4054,6 @@ JSON Parameters:
 
 ### Remove a service
 
-**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
-might be subject to non backward-compatible changes.
 
 `DELETE /services/(id or name)`
 
@@ -4093,8 +4075,6 @@ Stop and remove the service `id`
 
 ### Inspect one or more services
 
-**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
-might be subject to non backward-compatible changes.
 
 `GET /services/(id or name)`
 
@@ -4173,8 +4153,6 @@ Return information on the service `id`.
 
 ### Update a service
 
-**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
-might be subject to non backward-compatible changes.
 
 `POST /services/(id or name)/update`
 
@@ -4303,8 +4281,6 @@ Update the service `id`.
 
 ### List tasks
 
-**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
-might be subject to non backward-compatible changes.
 
 `GET /tasks`
 
@@ -4536,8 +4512,6 @@ List tasks
 
 ### Inspect a task
 
-**Warning**: this endpoint is part of the Swarm management feature introduced in Docker 1.12, and
-might be subject to non backward-compatible changes.
 
 `GET /tasks/(task id)`
 
