@@ -1053,6 +1053,17 @@ func (s *DockerSuite) TestRunSeccompAllowPrivCloneUserns(c *check.C) {
 	}
 }
 
+// TestRunSeccompProfileAllow32Bit checks that 32 bit code can run on x86_64
+// with the default seccomp profile.
+func (s *DockerSuite) TestRunSeccompProfileAllow32Bit(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled, IsAmd64)
+
+	runCmd := exec.Command(dockerBinary, "run", "syscall-test", "exit32-test", "id")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		c.Fatalf("expected to be able to run 32 bit code, got %s: %v", out, err)
+	}
+}
+
 // TestRunSeccompAllowSetrlimit checks that 'docker run debian:jessie ulimit -v 1048510' succeeds.
 func (s *DockerSuite) TestRunSeccompAllowSetrlimit(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled)
