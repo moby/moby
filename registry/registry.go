@@ -163,8 +163,7 @@ func addRequiredHeadersToRedirectedRequests(req *http.Request, via []*http.Reque
 // default TLS configuration.
 func NewTransport(tlsConfig *tls.Config) *http.Transport {
 	if tlsConfig == nil {
-		var cfg = tlsconfig.ServerDefault
-		tlsConfig = &cfg
+		tlsConfig = &tlsconfig.ServerDefault
 	}
 
 	direct := &net.Dialer{
