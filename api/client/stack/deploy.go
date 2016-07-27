@@ -152,8 +152,8 @@ func deployServices(
 		var ports []swarm.PortConfig
 		for _, portSpec := range service.Ports {
 			ports = append(ports, swarm.PortConfig{
-				Protocol:   swarm.PortConfigProtocol(portSpec.Protocol),
-				TargetPort: portSpec.Port,
+				Protocol:      swarm.PortConfigProtocol(portSpec.Protocol),
+				PublishedPort: portSpec.Port,
 			})
 		}
 
