@@ -726,6 +726,12 @@ func (sb *sandbox) restoreOslSandbox() error {
 		joinInfo := ep.joinInfo
 		i := ep.iface
 		ep.Unlock()
+
+		if i == nil {
+			log.Errorf("error restoring endpoint %s for container %s", ep.Name(), sb.ContainerID())
+			continue
+		}
+
 		ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().Address(i.addr), sb.osSbox.InterfaceOptions().Routes(i.routes))
 		if i.addrv6 != nil && i.addrv6.IP.To16() != nil {
 			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().AddressIPv6(i.addrv6))
