@@ -431,44 +431,56 @@ func (s *DockerSwarmSuite) TestApiSwarmLeaderElection(c *check.C) {
 	c.Assert(d1.getNode(c, d2.NodeID).ManagerStatus.Leader, checker.False)
 	c.Assert(d1.getNode(c, d3.NodeID).ManagerStatus.Leader, checker.False)
 
-	leader := d1
+	d1.Stop() // stop the leader
 
-	// stop the leader
-	leader.Stop()
+	var (
+		leader    *SwarmDaemon   // keep track of leader
+		followers []*SwarmDaemon // keep track of followers
+	)
+	checkLeader := func(nodes ...*SwarmDaemon) checkF {
+		return func(c *check.C) (interface{}, check.CommentInterface) {
+			// clear these out before each run
+			leader = nil
+			followers = nil
+			for _, d := range nodes {
+				if d.getNode(c, d.NodeID).ManagerStatus.Leader {
+					leader = d
+				} else {
+					followers = append(followers, d)
+				}
+			}
+
+			if leader == nil {
+				return false, check.Commentf("no leader elected")
+			}
+
+			return true, check.Commentf("elected %v", leader.id)
+		}
+	}
 
 	// wait for an election to occur
-	var newleader *SwarmDaemon
-
-	for _, d := range []*SwarmDaemon{d2, d3} {
-		if d.getNode(c, d.NodeID).ManagerStatus.Leader {
-			newleader = d
-			break
-		}
-	}
+	waitAndAssert(c, defaultReconciliationTimeout, checkLeader(d2, d3), checker.True)
 
 	// assert that we have a new leader
-	c.Assert(newleader, checker.NotNil)
+	c.Assert(leader, checker.NotNil)
 
-	// add the old leader back
-	leader.Start()
+	// Keep track of the current leader, since we want that to be chosen.
+	stableleader := leader
 
-	// clear leader and reinit the followers list
-	followers := make([]*SwarmDaemon, 0, 3)
+	// add the d1, the initial leader, back
+	d1.Start()
 
+	// TODO(stevvooe): may need to wait for rejoin here
+
+	// wait for possible election
+	waitAndAssert(c, defaultReconciliationTimeout, checkLeader(d1, d2, d3), checker.True)
 	// pick out the leader and the followers again
-	for _, d := range []*SwarmDaemon{d1, d2, d3} {
-		if d1.getNode(c, d.NodeID).ManagerStatus.Leader {
-			leader = d
-		} else {
-			followers = append(followers, d)
-		}
-	}
 
 	// verify that we still only have 1 leader and 2 followers
 	c.Assert(leader, checker.NotNil)
 	c.Assert(followers, checker.HasLen, 2)
 	// and that after we added d1 back, the leader hasn't changed
-	c.Assert(leader.NodeID, checker.Equals, newleader.NodeID)
+	c.Assert(leader.NodeID, checker.Equals, stableleader.NodeID)
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmRaftQuorum(c *check.C) {
