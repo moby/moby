@@ -71,6 +71,7 @@ type Builder struct {
 	disableCommit    bool
 	cacheBusted      bool
 	allowedBuildArgs map[string]bool // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
+	directive        parser.Directive
 
 	// TODO: remove once docker.Commit can receive a tag
 	id string
@@ -130,9 +131,15 @@ func NewBuilder(clientCtx context.Context, config *types.ImageBuildOptions, back
 		tmpContainers:    map[string]struct{}{},
 		id:               stringid.GenerateNonCryptoID(),
 		allowedBuildArgs: make(map[string]bool),
+		directive: parser.Directive{
+			EscapeSeen:           false,
+			LookingForDirectives: true,
+		},
 	}
+	parser.SetEscapeToken(parser.DefaultEscapeToken, &b.directive) // Assume the default token for escape
+
 	if dockerfile != nil {
-		b.dockerfile, err = parser.Parse(dockerfile)
+		b.dockerfile, err = parser.Parse(dockerfile, &b.directive)
 		if err != nil {
 			return nil, err
 		}
@@ -218,7 +225,7 @@ func (b *Builder) build(stdout io.Writer, stderr io.Writer, out io.Writer) (stri
 		for k, v := range b.options.Labels {
 			line += fmt.Sprintf("%q=%q ", k, v)
 		}
-		_, node, err := parser.ParseLine(line)
+		_, node, err := parser.ParseLine(line, &b.directive)
 		if err != nil {
 			return "", err
 		}
@@ -291,7 +298,12 @@ func (b *Builder) Cancel() {
 //
 // TODO: Remove?
 func BuildFromConfig(config *container.Config, changes []string) (*container.Config, error) {
-	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
+	b, err := NewBuilder(context.Background(), nil, nil, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")), &b.directive)
 	if err != nil {
 		return nil, err
 	}
@@ -303,10 +315,6 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 		}
 	}
 
-	b, err := NewBuilder(context.Background(), nil, nil, nil, nil)
-	if err != nil {
-		return nil, err
-	}
 	b.runConfig = config
 	b.Stdout = ioutil.Discard
 	b.Stderr = ioutil.Discard
