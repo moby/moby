@@ -1,10 +1,11 @@
-package node
+package service
 
 import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/api/client/idresolver"
+	"github.com/docker/docker/api/client/node"
 	"github.com/docker/docker/api/client/task"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
@@ -12,22 +13,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type tasksOptions struct {
-	nodeID    string
+type psOptions struct {
+	serviceID string
 	noResolve bool
 	filter    opts.FilterOpt
 }
 
-func newTasksCommand(dockerCli *client.DockerCli) *cobra.Command {
-	opts := tasksOptions{filter: opts.NewFilterOpt()}
+func newPSCommand(dockerCli *client.DockerCli) *cobra.Command {
+	opts := psOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
-		Use:   "tasks [OPTIONS] self|NODE",
-		Short: "List tasks running on a node",
+		Use:   "ps [OPTIONS] SERVICE",
+		Short: "List the tasks of a service",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			opts.nodeID = args[0]
-			return runTasks(dockerCli, opts)
+			opts.serviceID = args[0]
+			return runPS(dockerCli, opts)
 		},
 	}
 	flags := cmd.Flags()
@@ -37,24 +38,30 @@ func newTasksCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runTasks(dockerCli *client.DockerCli, opts tasksOptions) error {
+func runPS(dockerCli *client.DockerCli, opts psOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
-	nodeRef, err := Reference(client, ctx, opts.nodeID)
-	if err != nil {
-		return nil
-	}
-	node, _, err := client.NodeInspectWithRaw(ctx, nodeRef)
+	service, _, err := client.ServiceInspectWithRaw(ctx, opts.serviceID)
 	if err != nil {
 		return err
 	}
 
 	filter := opts.filter.Value()
-	filter.Add("node", node.ID)
-	tasks, err := client.TaskList(
-		ctx,
-		types.TaskListOptions{Filter: filter})
+	filter.Add("service", service.ID)
+	if filter.Include("node") {
+		nodeFilters := filter.Get("node")
+		for _, nodeFilter := range nodeFilters {
+			nodeReference, err := node.Reference(client, ctx, nodeFilter)
+			if err != nil {
+				return err
+			}
+			filter.Del("node", nodeFilter)
+			filter.Add("node", nodeReference)
+		}
+	}
+
+	tasks, err := client.TaskList(ctx, types.TaskListOptions{Filter: filter})
 	if err != nil {
 		return err
 	}

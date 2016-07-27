@@ -683,7 +683,7 @@ __docker_node_complete_ls_filters() {
     return ret
 }
 
-__docker_node_complete_tasks_filters() {
+__docker_node_complete_ps_filters() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
 
@@ -787,7 +787,7 @@ __docker_node_commands() {
         "ls:List nodes in the swarm"
         "promote:Promote a node as manager in the swarm"
         "rm:Remove a node from the swarm"
-        "tasks:List tasks running on a node"
+        "ps:List tasks running on a node"
         "update:Update a node"
     )
     _describe -t docker-node-commands "docker node command" _docker_node_subcommands
@@ -834,7 +834,7 @@ __docker_node_subcommand() {
                 $opts_help \
                 "($help -)*:node:__docker_complete_worker_nodes" && ret=0
             ;;
-        (tasks)
+        (ps)
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Display all instances]" \
@@ -843,7 +843,7 @@ __docker_node_subcommand() {
                 "($help -)1:node:__docker_complete_nodes" && ret=0
             case $state in
                 (filter-options)
-                    __docker_node_complete_tasks_filters && ret=0
+                    __docker_node_complete_ps_filters && ret=0
                     ;;
             esac
             ;;
@@ -970,7 +970,7 @@ __docker_service_complete_ls_filters() {
     return ret
 }
 
-__docker_service_complete_tasks_filters() {
+__docker_service_complete_ps_filters() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
 
@@ -1060,7 +1060,7 @@ __docker_service_commands() {
         "ls:List services"
         "rm:Remove a service"
         "scale:Scale one or multiple services"
-        "tasks:List the tasks of a service"
+        "ps:List the tasks of a service"
         "update:Update a service"
     )
     _describe -t docker-service-commands "docker service command" _docker_service_subcommands
@@ -1148,7 +1148,7 @@ __docker_service_subcommand() {
                     ;;
             esac
             ;;
-        (tasks)
+        (ps)
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Display all tasks]" \
@@ -1157,7 +1157,7 @@ __docker_service_subcommand() {
                 "($help -)1:service:__docker_complete_services" && ret=0
             case $state in
                 (filter-options)
-                    __docker_service_complete_tasks_filters && ret=0
+                    __docker_service_complete_ps_filters && ret=0
                     ;;
             esac
             ;;

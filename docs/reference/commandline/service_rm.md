@@ -45,5 +45,5 @@ ID            NAME   SCALE  IMAGE        COMMAND
 * [service inspect](service_inspect.md)
 * [service ls](service_ls.md)
 * [service scale](service_scale.md)
-* [service tasks](service_tasks.md)
+* [service ps](service_ps.md)
 * [service update](service_update.md)

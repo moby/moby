@@ -45,11 +45,11 @@ update](rolling-update.md) tutorial, start it now:
     c5uo6kdmzpon37mgj9mwglcfw
     ```
 
-4. Run `docker service tasks redis` to see how the Swarm manager assigned the
+4. Run `docker service ps redis` to see how the Swarm manager assigned the
 tasks to different nodes:
 
     ```bash
-    $ docker service tasks redis
+    $ docker service ps redis
 
     ID                         NAME     SERVICE  IMAGE        LAST STATE          DESIRED STATE  NODE
     7q92v0nr1hcgts2amcjyqg3pq  redis.1  redis    redis:3.0.6  Running 26 seconds  Running        manager1
@@ -84,11 +84,11 @@ had a task assigned to it:
 
     The drained node shows `Drain` for `AVAILABILITY`.
 
-7. Run `docker service tasks redis` to see how the Swarm manager updated the
+7. Run `docker service ps redis` to see how the Swarm manager updated the
 task assignments for the `redis` service:
 
     ```bash
-    $ docker service tasks redis
+    $ docker service ps redis
 
     ID                         NAME     SERVICE  IMAGE        LAST STATE              DESIRED STATE  NODE
     7q92v0nr1hcgts2amcjyqg3pq  redis.1  redis    redis:3.0.6  Running 4 minutes       Running        manager1

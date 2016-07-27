@@ -104,5 +104,5 @@ ID            NAME   REPLICAS  IMAGE        COMMAND
 * [service inspect](service_inspect.md)
 * [service rm](service_rm.md)
 * [service scale](service_scale.md)
-* [service tasks](service_tasks.md)
+* [service ps](service_ps.md)
 * [service update](service_update.md)

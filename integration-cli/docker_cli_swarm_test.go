@@ -182,13 +182,13 @@ func (s *DockerSwarmSuite) TestSwarmNodeTaskListFilter(c *check.C) {
 
 	filter := "name=redis-cluster"
 
-	out, err = d.Cmd("node", "tasks", "--filter", filter, "self")
+	out, err = d.Cmd("node", "ps", "--filter", filter, "self")
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, name+".1")
 	c.Assert(out, checker.Contains, name+".2")
 	c.Assert(out, checker.Contains, name+".3")
 
-	out, err = d.Cmd("node", "tasks", "--filter", "name=none", "self")
+	out, err = d.Cmd("node", "ps", "--filter", "name=none", "self")
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Not(checker.Contains), name+".1")
 	c.Assert(out, checker.Not(checker.Contains), name+".2")

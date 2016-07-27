@@ -13,7 +13,7 @@ weight=18
 # Scale the service in the swarm
 
 Once you have [deployed a service](deploy-service.md) to a swarm, you are ready
-to use the Docker CLI to scale the number of service tasks in
+to use the Docker CLI to scale the number of service ps in
 the swarm.
 
 1. If you haven't already, open a terminal and ssh into the machine where you
@@ -35,10 +35,10 @@ service running in the swarm:
     helloworld scaled to 5
     ```
 
-3. Run `docker service tasks <SERVICE-ID>` to see the updated task list:
+3. Run `docker service ps <SERVICE-ID>` to see the updated task list:
 
     ```
-    $ docker service tasks helloworld
+    $ docker service ps helloworld
 
     ID                         NAME          SERVICE     IMAGE   LAST STATE          DESIRED STATE  NODE
     8p1vev3fq5zm0mi8g0as41w35  helloworld.1  helloworld  alpine  Running 7 minutes   Running        worker2

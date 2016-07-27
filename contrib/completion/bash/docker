@@ -1573,7 +1573,7 @@ _docker_service() {
 		ls list
 		rm remove
 		scale
-		tasks
+		ps
 		update
 	"
 	__docker_subcommands "$subcommands" && return
@@ -1667,7 +1667,7 @@ _docker_service_scale() {
 	esac
 }
 
-_docker_service_tasks() {
+_docker_service_ps() {
 	local key=$(__docker_map_key_of_current_option '--filter|-f')
 	case "$key" in
 		desired-state)
@@ -1929,7 +1929,7 @@ _docker_node() {
 		ls list
 		promote
 		rm remove
-		tasks
+		ps
 		update
 	"
 	__docker_subcommands "$subcommands" && return
@@ -2026,7 +2026,7 @@ _docker_node_rm() {
 	esac
 }
 
-_docker_node_tasks() {
+_docker_node_ps() {
 	local key=$(__docker_map_key_of_current_option '--filter|-f')
 	case "$key" in
 		desired-state)

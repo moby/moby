@@ -20,7 +20,7 @@ func (s *DockerSwarmSuite) TestStackRemove(c *check.C) {
 func (s *DockerSwarmSuite) TestStackTasks(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
-	stackArgs := append([]string{"tasks", "UNKNOWN_STACK"})
+	stackArgs := append([]string{"ps", "UNKNOWN_STACK"})
 
 	out, err := d.Cmd("stack", stackArgs...)
 	c.Assert(err, checker.IsNil)
