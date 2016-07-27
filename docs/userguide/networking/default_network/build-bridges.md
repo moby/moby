@@ -14,7 +14,7 @@ This section explains how to build your own bridge to replace the Docker default
 bridge. This is a `bridge` network named `bridge` created automatically when you
 install Docker.
 
-> **Note**: The [Docker networks feature](../dockernetworks.md) allows you to
+> **Note**: The [Docker networks feature](../index.md) allows you to
 create user-defined networks in addition to the default bridge network.
 
 You can set up your own bridge before starting Docker and use `-b BRIDGE` or

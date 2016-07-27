@@ -13,7 +13,7 @@ weight=-2
 
 The information in this section explains legacy container links within the Docker default bridge. This is a `bridge` network named `bridge` created automatically when you install Docker.
 
-Before the [Docker networks feature](../dockernetworks.md), you could use the
+Before the [Docker networks feature](../index.md), you could use the
 Docker link feature to allow containers to discover each other and securely
 transfer information about one container to another container. With the
 introduction of the Docker networks feature, you can still create links but they
