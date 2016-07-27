@@ -1134,7 +1134,7 @@ func (fs *FlagSet) Parse(arguments []string) error {
 func (fs *FlagSet) ParseFlags(args []string, withHelp bool) error {
 	var help *bool
 	if withHelp {
-		help = fs.Bool([]string{"#help", "-help"}, false, "Print usage")
+		help = fs.Bool([]string{"#help", "-help", "h"}, false, "Print usage")
 	}
 	if err := fs.Parse(args); err != nil {
 		return err
