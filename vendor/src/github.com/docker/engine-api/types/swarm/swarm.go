@@ -2,11 +2,17 @@ package swarm
 
 import "time"
 
-// Swarm represents a swarm.
-type Swarm struct {
+// ClusterInfo represents info about a the cluster for outputing in "info"
+// it contains the same information as "Swarm", but without the JoinTokens
+type ClusterInfo struct {
 	ID string
 	Meta
-	Spec       Spec
+	Spec Spec
+}
+
+// Swarm represents a swarm.
+type Swarm struct {
+	ClusterInfo
 	JoinTokens JoinTokens
 }
 
@@ -119,7 +125,7 @@ type Info struct {
 	Nodes          int
 	Managers       int
 
-	Cluster Swarm
+	Cluster ClusterInfo
 }
 
 // Peer represents a peer.

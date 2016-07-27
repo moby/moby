@@ -733,7 +733,10 @@ func (c *Cluster) Info() types.Info {
 		if err != nil {
 			info.Error = err.Error()
 		}
-		info.Cluster = swarm
+
+		// Strip JoinTokens
+		info.Cluster = swarm.ClusterInfo
+
 		if r, err := c.client.ListNodes(ctx, &swarmapi.ListNodesRequest{}); err == nil {
 			info.Nodes = len(r.Nodes)
 			for _, n := range r.Nodes {
