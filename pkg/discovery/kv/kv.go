@@ -92,8 +92,15 @@ func (s *Discovery) Initialize(uris string, heartbeat time.Duration, ttl time.Du
 			// The actual TLS config that will be used
 			TLS: tlsConfig,
 		}
+	} else if (clusterOpts["kv.Username"] != "" && clusterOpts["kv.Password"] != "") {
+		log.Info("Initializing discovery with basic auth")
+		config = &stor.Config{
+			Username: clusterOpts["kv.Username"],
+			Password: clusterOpts["kv.Password"]
+		}
+
 	} else {
-		log.Info("Initializing discovery without TLS")
+		log.Info("Initializing discovery without authentication")
 	}
 
 	// Creates a new store, will ignore options given
