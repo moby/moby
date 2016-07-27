@@ -452,7 +452,7 @@ Docker Engine for use with `overlay` network. There are three options to set:
         <td>Describes the location of the KV service.</td>
     </tr>
     <tr>
-        <td><pre>--cluster-advertise=HOST_IP|HOST_IFACE:PORT</pre></td>
+        <td><pre>--cluster-advertise=HOST_IP&#124;HOST_IFACE:PORT</pre></td>
         <td>The IP address or interface of the HOST used for clustering.</td>
     </tr>
     <tr>
