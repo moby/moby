@@ -270,10 +270,12 @@ func (l *logStream) collectBatch() {
 // publishBatch calls PutLogEvents for a given set of InputLogEvents,
 // accounting for sequencing requirements (each request must reference the
 // sequence token returned by the previous request).
-func (l *logStream) publishBatch(events []*cloudwatchlogs.InputLogEvent) {
-	if len(events) == 0 {
+func (l *logStream) publishBatch(origEvents []*cloudwatchlogs.InputLogEvent) {
+	if len(origEvents) == 0 {
 		return
 	}
+	events := make([]*cloudwatchlogs.InputLogEvent, len(origEvents))
+	copy(events, origEvents)
 
 	sort.Sort(byTimestamp(events))
 
