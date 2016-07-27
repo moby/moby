@@ -1,5 +1,14 @@
 #!/usr/bin/env bash
 
+# vendor.sh can now accept command line arguments
+#
+# Usage:
+# vendor.sh github.com/docker/engine-api will revendor only the engine-api dependency.
+# vendor.sh github.com/docker/engine-api v0.3.3 will vendor only engine-api at the specified tag/commit.
+# vendor.sh git github.com/docker/engine-api v0.3.3 is the same but specifies the VCS for cases where the VCS is something else than git
+# vendor.sh git golang.org/x/sys eb2c74142fd19a79b3f237334c7384d5167b1b46 https://github.com/golang/sys.git will vendor only golang.org/x/sys downloading from the specified URL
+
+
 PROJECT=github.com/docker/docker
 
 # Downloads dependencies into vendor/ directory
