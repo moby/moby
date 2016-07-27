@@ -7,7 +7,7 @@ keywords = [" docker, logging, driver"]
 [menu.main]
 parent = "engine_admin"
 identifier = "smn_logging"
-weight=8
+weight=9
 +++
 <![end-metadata]-->
 

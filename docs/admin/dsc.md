@@ -6,6 +6,7 @@ description = "Using DSC to configure a new Docker host"
 keywords = ["powershell, dsc, installation, usage, docker,  documentation"]
 [menu.main]
 parent = "engine_admin"
+weight="10"
 +++
 <![end-metadata]-->
 

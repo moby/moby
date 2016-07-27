@@ -6,6 +6,7 @@ description = "Installation and using Docker via Chef"
 keywords = ["chef, installation, usage, docker,  documentation"]
 [menu.main]
 parent = "engine_admin"
+weight="11"
 +++
 <![end-metadata]-->
 

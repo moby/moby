@@ -6,6 +6,7 @@ description = "Controlling and configuring Docker using systemd"
 keywords = ["docker, daemon, systemd,  configuration"]
 [menu.main]
 parent = "engine_admin"
+weight="7"
 +++
 <![end-metadata]-->
 
