@@ -17,23 +17,23 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type tasksOptions struct {
+type psOptions struct {
 	all       bool
 	filter    opts.FilterOpt
 	namespace string
 	noResolve bool
 }
 
-func newTasksCommand(dockerCli *client.DockerCli) *cobra.Command {
-	opts := tasksOptions{filter: opts.NewFilterOpt()}
+func newPSCommand(dockerCli *client.DockerCli) *cobra.Command {
+	opts := psOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
-		Use:   "tasks [OPTIONS] STACK",
+		Use:   "ps [OPTIONS] STACK",
 		Short: "List the tasks in the stack",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.namespace = args[0]
-			return runTasks(dockerCli, opts)
+			return runPS(dockerCli, opts)
 		},
 	}
 	flags := cmd.Flags()
@@ -44,7 +44,7 @@ func newTasksCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runTasks(dockerCli *client.DockerCli, opts tasksOptions) error {
+func runPS(dockerCli *client.DockerCli, opts psOptions) error {
 	namespace := opts.namespace
 	client := dockerCli.Client()
 	ctx := context.Background()

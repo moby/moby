@@ -105,10 +105,34 @@ desired state:
     Resources:
     ```
 
-6. Run `docker service tasks <TASK-ID>` to watch the rolling update:
+    The output of `service inspect` shows if your update paused due to failure:
 
     ```bash
-    $ docker service tasks redis
+    $ docker service inspect --pretty redis
+
+    ID:             0u6a4s31ybk7yw2wyvtikmu50
+    Name:           redis
+    ...snip...
+    Update status:
+     State:      paused
+     Started:    11 seconds ago
+     Message:    update paused due to failure or early termination of task 9p7ith557h8ndf0ui9s0q951b
+    ...snip...
+    ```
+
+    To restart a paused update run `docker service update <SERVICE-ID>`. For example:
+
+    ```bash
+    docker service update redis
+    ```
+
+    To avoid repeating certain update failures, you may need to reconfigure the
+    service by passing flags to `docker service update`.
+
+6. Run `docker service ps <SERVICE-ID>` to watch the rolling update:
+
+    ```bash
+    $ docker service ps redis
 
     ID                         NAME     SERVICE  IMAGE        LAST STATE              DESIRED STATE  NODE
     dos1zffgeofhagnve8w864fco  redis.1  redis    redis:3.0.7  Running 37 seconds      Running        worker1
