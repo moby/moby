@@ -28,6 +28,7 @@ be found.
 + Add `--max-concurrent-downloads` and `--max-concurrent-uploads` daemon flags useful for situations where network connections don't support multiple downloads/uploads [#22445](https://github.com/docker/docker/pull/22445)
 * Registry operations now honor the `ALL_PROXY` environment variable [#22316](https://github.com/docker/docker/pull/22316)
 * Provide more information to the user on `docker load` [#23377](https://github.com/docker/docker/pull/23377)
+* Always save registry digest metadata about images pushed and pulled [#23996](https://github.com/docker/docker/pull/23996)
 
 ### Logging
 
@@ -41,6 +42,7 @@ be found.
 ### Networking
 
 + Built-in Virtual-IP based  internal and ingress load-balancing using IPVS [#23361](https://github.com/docker/docker/pull/23361)
++ Routing Mesh using ingress overlay network [#23361](https://github.com/docker/docker/pull/23361)
 + Secured multi-host overlay networking using encrypted control-plane and Data-plane [#23361](https://github.com/docker/docker/pull/23361)
 + MacVlan driver is out of experimental [#23524](https://github.com/docker/docker/pull/23524)
 + Add `driver` filter to `network ls` [#22319](https://github.com/docker/docker/pull/22319)
@@ -72,6 +74,7 @@ be found.
 - Fix API/CLI discrepancy on hostname validation [#21641](https://github.com/docker/docker/pull/21641)
 - Fix discrepancy in the format of sizes in `stats` from HumanSize to BytesSize [#21773](https://github.com/docker/docker/pull/21773)
 - authz: when request is denied return forbbiden exit code (403) [#22448](https://github.com/docker/docker/pull/22448)
+- Windows: fix tty-related displaying issues [#23878](https://github.com/docker/docker/pull/23878)
 
 ### Runtime
 
@@ -89,6 +92,7 @@ be found.
 + Add a `detach` event [#22898](https://github.com/docker/docker/pull/22898)
 + Add support for setting sysctls with `--sysctl` [#19265](https://github.com/docker/docker/pull/19265)
 + Add `--storage-opt` flag to `create` and `run` allowing to set `size` on devicemapper [#19367](https://github.com/docker/docker/pull/19367)
++ Add `--oom-score-adjust` daemon flag with a default value of `-500` making the daemon less likely to be killed before containers [#24516](https://github.com/docker/docker/pull/24516)
 * Undeprecate the `-c` short alias of `--cpu-shares` on `run`, `build`, `create`, `update` [#22621](https://github.com/docker/docker/pull/22621)
 * Prevent from using aufs and overlay graphdrivers on an eCryptfs mount [#23121](https://github.com/docker/docker/pull/23121)
 - Fix issues with tmpfs mount ordering [#22329](https://github.com/docker/docker/pull/22329)
@@ -107,10 +111,10 @@ be found.
 
 ### Swarm Mode
 
-+ New `swarm` command to manage swarms with `init`, `join`, `leave`, `update` subcommands [#23361](https://github.com/docker/docker/pull/23361)
-+ New `service` command to manage swarm-wide services with `create`, `inspect`, `update`, `remove`, `tasks` subcommands [#23361](https://github.com/docker/docker/pull/23361)
-+ New `node` command to manage nodes with `accept`, `promote`, `demote`, `inspect`, `update`, `tasks`, `ls` and `rm` subcommands [#23361](https://github.com/docker/docker/pull/23361)
-+ (experimental) New `stack` and `deploy` commands to manage and deploy multi-service applications [#23522](https://github.com/docker/docker/pull/23522)
++ New `swarm` command to manage swarms with `init`, `join`, `join-token`, `leave`, `update` subcommands [#23361](https://github.com/docker/docker/pull/23361) [#24823](https://github.com/docker/docker/pull/24823)
++ New `service` command to manage swarm-wide services with `create`, `inspect`, `update`, `rm`, `ps` subcommands [#23361](https://github.com/docker/docker/pull/23361) [#25140](https://github.com/docker/docker/pull/25140)
++ New `node` command to manage nodes with `accept`, `promote`, `demote`, `inspect`, `update`, `ps`, `ls` and `rm` subcommands [#23361](https://github.com/docker/docker/pull/23361) [#25140](https://github.com/docker/docker/pull/25140)
++ (experimental) New `stack` and `deploy` commands to manage and deploy multi-service applications [#23522](https://github.com/docker/docker/pull/23522) [#25140](https://github.com/docker/docker/pull/25140)
 
 ### Volume
 
