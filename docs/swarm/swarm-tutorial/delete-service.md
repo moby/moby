@@ -3,7 +3,6 @@
 title = "Delete the service"
 description = "Remove the service from the swarm"
 keywords = ["tutorial, cluster management, swarm, service"]
-advisory = "rc"
 [menu.main]
 identifier="swarm-tutorial-delete-service"
 parent="swarm-tutorial"

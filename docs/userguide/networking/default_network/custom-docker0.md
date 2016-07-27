@@ -20,7 +20,7 @@ Docker configures `docker0` with an IP address, netmask and IP allocation range.
 
 - `--bip=CIDR` -- supply a specific IP address and netmask for the `docker0` bridge, using standard CIDR notation like `192.168.1.5/24`.
 
-- `--fixed-cidr=CIDR` -- restrict the IP range from the `docker0` subnet, using the standard CIDR notation like `172.167.1.0/28`. This range must be an IPv4 range for fixed IPs (ex: 10.20.0.0/16) and must be a subset of the bridge IP range (`docker0` or set using `--bridge`). For example with `--fixed-cidr=192.168.1.0/25`, IPs for your containers will be chosen from the first half of `192.168.1.0/24` subnet.
+- `--fixed-cidr=CIDR` -- restrict the IP range from the `docker0` subnet, using the standard CIDR notation like `172.16.1.0/28`. This range must be an IPv4 range for fixed IPs (ex: 10.20.0.0/16) and must be a subset of the bridge IP range (`docker0` or set using `--bridge`). For example with `--fixed-cidr=192.168.1.0/25`, IPs for your containers will be chosen from the first half of `192.168.1.0/24` subnet.
 
 - `--mtu=BYTES` -- override the maximum packet length on `docker0`.
 

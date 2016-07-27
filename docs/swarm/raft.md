@@ -3,11 +3,10 @@
 title = "Raft consensus in swarm mode"
 description = "Raft consensus algorithm in swarm mode"
 keywords = ["docker, container, cluster, swarm, raft"]
-advisory = "rc"
 [menu.main]
 identifier="raft"
 parent="engine_swarm"
-weight="13"
+weight="21"
 +++
 <![end-metadata]-->
 

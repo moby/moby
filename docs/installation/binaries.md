@@ -118,7 +118,7 @@ For example:
 > **Note** These instructions are for Docker Engine 1.11 and up. Engine 1.10 and
 > under consists of a single binary, and instructions for those versions are
 > different. To install version 1.10 or below, follow the instructions in the 
-> <a href="/v1.10/engine/installation/binaries/" target="_blank">1.10 documentation</a>.
+> <a href="https://docs.docker.com/v1.10/engine/installation/binaries/" target="_blank">1.10 documentation</a>.
 
 
 #### Install the Linux binaries
@@ -217,7 +217,7 @@ For example:
 
 > **Note** These instructions are for Engine 1.11 and up. Instructions for older
 > versions are slightly different. To install version 1.10 or below, follow the
-> instructions in the <a href="/v1.10/engine/installation/binaries/" target="_blank">1.10 documentation</a>.
+> instructions in the <a href="https://docs.docker.com/v1.10/engine/installation/binaries/" target="_blank">1.10 documentation</a>.
 
 ## Giving non-root access
 
