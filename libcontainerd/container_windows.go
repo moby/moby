@@ -249,7 +249,13 @@ func (ctr *container) waitExit(process *process, isFirstProcessToStart bool) err
 						}
 						logrus.Error(err)
 					} else {
-						ctr.client.Create(ctr.containerID, ctr.ociSpec, ctr.options...)
+						if err := ctr.client.Create(ctr.containerID, ctr.ociSpec, ctr.options...); err != nil {
+							si.State = StateExit
+							if err := ctr.client.backend.StateChanged(ctr.containerID, si); err != nil {
+								logrus.Error(err)
+							}
+							logrus.Error(err)
+						}
 					}
 				}()
 			}
