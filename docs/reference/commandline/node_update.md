@@ -3,7 +3,6 @@
 title = "node update"
 description = "The node update command description and usage"
 keywords = ["resources, update, dynamically"]
-advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++

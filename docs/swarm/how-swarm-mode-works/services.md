@@ -6,7 +6,6 @@ aliases = [
 title = "How services work"
 description = "How swarm mode services work"
 keywords = ["docker, container, cluster, swarm mode, node"]
-advisory = "rc"
 [menu.main]
 identifier="how-services-work"
 parent="how-swarm-works"

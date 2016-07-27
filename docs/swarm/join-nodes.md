@@ -3,7 +3,6 @@
 title = "Join nodes to a swarm"
 description = "Add worker and manager nodes to a swarm"
 keywords = ["guide, swarm mode, node"]
-advisory = "rc"
 [menu.main]
 identifier="join-nodes-guide"
 parent="engine_swarm"

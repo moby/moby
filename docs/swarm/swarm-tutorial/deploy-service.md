@@ -3,7 +3,6 @@
 title = "Deploy a service"
 description = "Deploy a service to the swarm"
 keywords = ["tutorial, cluster management, swarm mode"]
-advisory = "rc"
 [menu.main]
 identifier="deploy-application"
 parent="swarm-tutorial"

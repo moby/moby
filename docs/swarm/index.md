@@ -3,7 +3,6 @@
 title = "Swarm mode overview"
 description = "Docker Engine swarm mode overview"
 keywords = ["docker, container, cluster, swarm"]
-advisory = "rc"
 [menu.main]
 identifier="swarm_overview"
 parent="engine_swarm"

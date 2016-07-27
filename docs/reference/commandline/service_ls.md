@@ -3,7 +3,6 @@
 title = "service ls"
 description = "The service ls command description and usage"
 keywords = ["service, ls"]
-advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++

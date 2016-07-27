@@ -3,7 +3,6 @@
 title = "service tasks"
 description = "The service tasks command description and usage"
 keywords = ["service, tasks"]
-advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++

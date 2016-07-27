@@ -3,7 +3,6 @@
 title = "swarm init"
 description = "The swarm init command description and usage"
 keywords = ["swarm, init"]
-advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++
