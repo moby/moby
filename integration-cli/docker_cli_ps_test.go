@@ -802,7 +802,7 @@ func (s *DockerSuite) TestPsFormatSize(c *check.C) {
 
 	out, _ = dockerCmd(c, "ps", "--size", "--format", "raw")
 	lines = strings.Split(out, "\n")
-	c.Assert(lines[8], checker.HasPrefix, "size:", check.Commentf("Size should be appended on a newline"))
+	c.Assert(lines[8], checker.HasPrefix, "SIZE:", check.Commentf("Size should be appended on a newline"))
 }
 
 func (s *DockerSuite) TestPsListContainersFilterNetwork(c *check.C) {

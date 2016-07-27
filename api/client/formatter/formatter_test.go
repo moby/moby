@@ -90,23 +90,23 @@ containerID2        ubuntu              ""                  24 hours ago        
 					Format: "raw",
 				},
 			},
-			fmt.Sprintf(`container_id: containerID1
-image: ubuntu
-command: ""
-created_at: %s
-status: 
-names: foobar_baz
-labels: 
-ports: 
+			fmt.Sprintf(`CONTAINER ID: containerID1
+IMAGE: ubuntu
+COMMAND: ""
+CREATED AT: %s
+STATUS: 
+NAMES: foobar_baz
+LABELS: 
+PORTS: 
 
-container_id: containerID2
-image: ubuntu
-command: ""
-created_at: %s
-status: 
-names: foobar_bar
-labels: 
-ports: 
+CONTAINER ID: containerID2
+IMAGE: ubuntu
+COMMAND: ""
+CREATED AT: %s
+STATUS: 
+NAMES: foobar_bar
+LABELS: 
+PORTS: 
 
 `, expectedTime, expectedTime),
 		},
@@ -117,25 +117,25 @@ ports:
 				},
 				Size: true,
 			},
-			fmt.Sprintf(`container_id: containerID1
-image: ubuntu
-command: ""
-created_at: %s
-status: 
-names: foobar_baz
-labels: 
-ports: 
-size: 0 B
+			fmt.Sprintf(`CONTAINER ID: containerID1
+IMAGE: ubuntu
+COMMAND: ""
+CREATED AT: %s
+STATUS: 
+NAMES: foobar_baz
+LABELS: 
+PORTS: 
+SIZE: 0 B
 
-container_id: containerID2
-image: ubuntu
-command: ""
-created_at: %s
-status: 
-names: foobar_bar
-labels: 
-ports: 
-size: 0 B
+CONTAINER ID: containerID2
+IMAGE: ubuntu
+COMMAND: ""
+CREATED AT: %s
+STATUS: 
+NAMES: foobar_bar
+LABELS: 
+PORTS: 
+SIZE: 0 B
 
 `, expectedTime, expectedTime),
 		},
@@ -146,7 +146,7 @@ size: 0 B
 					Quiet:  true,
 				},
 			},
-			"container_id: containerID1\ncontainer_id: containerID2\n",
+			"CONTAINER ID: containerID1\nCONTAINER ID: containerID2\n",
 		},
 		// Custom Format
 		{
