@@ -757,13 +757,17 @@ func (s *DockerSwarmSuite) TestApiSwarmForceNewCluster(c *check.C) {
 }
 
 func simpleTestService(s *swarm.Service) {
-	var ureplicas uint64
-	ureplicas = 1
+	ureplicas := uint64(1)
+	restartDelay := time.Duration(100 * time.Millisecond)
+
 	s.Spec = swarm.ServiceSpec{
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: swarm.ContainerSpec{
 				Image:   "busybox:latest",
 				Command: []string{"/bin/top"},
+			},
+			RestartPolicy: &swarm.RestartPolicy{
+				Delay: &restartDelay,
 			},
 		},
 		Mode: swarm.ServiceMode{
@@ -776,13 +780,17 @@ func simpleTestService(s *swarm.Service) {
 }
 
 func serviceForUpdate(s *swarm.Service) {
-	var ureplicas uint64
-	ureplicas = 1
+	ureplicas := uint64(1)
+	restartDelay := time.Duration(100 * time.Millisecond)
+
 	s.Spec = swarm.ServiceSpec{
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: swarm.ContainerSpec{
 				Image:   "busybox:latest",
 				Command: []string{"/bin/top"},
+			},
+			RestartPolicy: &swarm.RestartPolicy{
+				Delay: &restartDelay,
 			},
 		},
 		Mode: swarm.ServiceMode{
@@ -792,7 +800,7 @@ func serviceForUpdate(s *swarm.Service) {
 		},
 		UpdateConfig: &swarm.UpdateConfig{
 			Parallelism:   2,
-			Delay:         8 * time.Second,
+			Delay:         4 * time.Second,
 			FailureAction: swarm.UpdateFailureActionContinue,
 		},
 	}
