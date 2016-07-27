@@ -108,6 +108,7 @@ func RunCommandWithOutputForDuration(cmd *exec.Cmd, duration time.Duration) (out
 	err = cmd.Start()
 	if err != nil {
 		err = fmt.Errorf("Fail to start command %v : %v", cmd, err)
+		// return
 	}
 
 	type exitInfo struct {
