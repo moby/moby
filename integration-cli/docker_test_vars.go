@@ -3,8 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 
 	"github.com/docker/docker/pkg/reexec"
 )
@@ -65,6 +68,9 @@ var (
 	// WindowsBaseImage is the name of the base image for Windows testing
 	// Environment variable WINDOWS_BASE_IMAGE can override this
 	WindowsBaseImage = "windowsservercore"
+
+	// daemonPid is the pid of the main test daemon
+	daemonPid int
 )
 
 const (
@@ -133,5 +139,13 @@ func init() {
 	if len(os.Getenv("WINDOWS_BASE_IMAGE")) > 0 {
 		WindowsBaseImage = os.Getenv("WINDOWS_BASE_IMAGE")
 		fmt.Println("INFO: Windows Base image is ", WindowsBaseImage)
+	}
+
+	dest := os.Getenv("DEST")
+	b, err = ioutil.ReadFile(filepath.Join(dest, "docker.pid"))
+	if err == nil {
+		if p, err := strconv.ParseInt(string(b), 10, 32); err == nil {
+			daemonPid = int(p)
+		}
 	}
 }

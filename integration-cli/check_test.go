@@ -34,6 +34,12 @@ func init() {
 type DockerSuite struct {
 }
 
+func (s *DockerSuite) OnTimeout(c *check.C) {
+	if daemonPid > 0 && isLocalDaemon {
+		signalDaemonDump(daemonPid)
+	}
+}
+
 func (s *DockerSuite) TearDownTest(c *check.C) {
 	unpauseAllContainers()
 	deleteAllContainers()
@@ -52,6 +58,10 @@ type DockerRegistrySuite struct {
 	ds  *DockerSuite
 	reg *testRegistryV2
 	d   *Daemon
+}
+
+func (s *DockerRegistrySuite) OnTimeout(c *check.C) {
+	s.d.DumpStackAndQuit()
 }
 
 func (s *DockerRegistrySuite) SetUpTest(c *check.C) {
@@ -82,6 +92,10 @@ type DockerSchema1RegistrySuite struct {
 	d   *Daemon
 }
 
+func (s *DockerSchema1RegistrySuite) OnTimeout(c *check.C) {
+	s.d.DumpStackAndQuit()
+}
+
 func (s *DockerSchema1RegistrySuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, RegistryHosting, NotArm64)
 	s.reg = setupRegistry(c, true, "", "")
@@ -108,6 +122,10 @@ type DockerRegistryAuthHtpasswdSuite struct {
 	ds  *DockerSuite
 	reg *testRegistryV2
 	d   *Daemon
+}
+
+func (s *DockerRegistryAuthHtpasswdSuite) OnTimeout(c *check.C) {
+	s.d.DumpStackAndQuit()
 }
 
 func (s *DockerRegistryAuthHtpasswdSuite) SetUpTest(c *check.C) {
@@ -138,6 +156,10 @@ type DockerRegistryAuthTokenSuite struct {
 	ds  *DockerSuite
 	reg *testRegistryV2
 	d   *Daemon
+}
+
+func (s *DockerRegistryAuthTokenSuite) OnTimeout(c *check.C) {
+	s.d.DumpStackAndQuit()
 }
 
 func (s *DockerRegistryAuthTokenSuite) SetUpTest(c *check.C) {
@@ -173,6 +195,10 @@ func init() {
 type DockerDaemonSuite struct {
 	ds *DockerSuite
 	d  *Daemon
+}
+
+func (s *DockerDaemonSuite) OnTimeout(c *check.C) {
+	s.d.DumpStackAndQuit()
 }
 
 func (s *DockerDaemonSuite) SetUpTest(c *check.C) {
@@ -216,6 +242,14 @@ type DockerSwarmSuite struct {
 	daemons     []*SwarmDaemon
 	daemonsLock sync.Mutex // protect access to daemons
 	portIndex   int
+}
+
+func (s *DockerSwarmSuite) OnTimeout(c *check.C) {
+	s.daemonsLock.Lock()
+	defer s.daemonsLock.Unlock()
+	for _, d := range s.daemons {
+		d.DumpStackAndQuit()
+	}
 }
 
 func (s *DockerSwarmSuite) SetUpTest(c *check.C) {

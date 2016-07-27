@@ -273,6 +273,16 @@ func (d *Daemon) Kill() error {
 	return nil
 }
 
+// DumpStackAndQuit sends SIGQUIT to the daemon, which triggers it to dump its
+// stack to its log file and exit
+// This is used primarily for gathering debug information on test timeout
+func (d *Daemon) DumpStackAndQuit() {
+	if d.cmd == nil || d.cmd.Process == nil {
+		return
+	}
+	signalDaemonDump(d.cmd.Process.Pid)
+}
+
 // Stop will send a SIGINT every second and wait for the daemon to stop.
 // If it timeouts, a SIGKILL is sent.
 // Stop will not delete the daemon directory. If a purged daemon is needed,
