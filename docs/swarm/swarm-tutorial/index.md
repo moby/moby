@@ -3,7 +3,6 @@
 title = "Set up for the tutorial"
 description = "Getting Started tutorial for Docker Engine swarm mode"
 keywords = ["tutorial, cluster management, swarm mode"]
-advisory = "rc"
 [menu.main]
 identifier="tutorial-setup"
 parent="swarm-tutorial"

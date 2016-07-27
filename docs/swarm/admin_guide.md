@@ -6,7 +6,6 @@ aliases = [
 title = "Swarm administration guide"
 description = "Manager administration guide"
 keywords = ["docker, container, cluster, swarm, manager, raft"]
-advisory = "rc"
 [menu.main]
 identifier="manager_admin_guide"
 parent="engine_swarm"

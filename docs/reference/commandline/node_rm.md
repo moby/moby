@@ -3,7 +3,6 @@
 title = "node rm"
 description = "The node rm command description and usage"
 keywords = ["node, remove"]
-advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++

@@ -3,7 +3,6 @@
 title = "node ls"
 description = "The node ls command description and usage"
 keywords = ["node, list"]
-advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++

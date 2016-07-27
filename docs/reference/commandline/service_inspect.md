@@ -3,7 +3,6 @@
 title = "service inspect"
 description = "The service inspect command description and usage"
 keywords = ["service, inspect"]
-advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++

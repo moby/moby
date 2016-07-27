@@ -1,9 +1,8 @@
 <!--[metadata]>
 +++
-title = "Manage a swarm (1.12 RC)"
+title = "Manage a swarm"
 description = "How to use Docker Engine swarm mode"
 keywords = [" docker, documentation, developer, "]
-advisory = "rc"
 type = "menu"
 [menu.main]
 identifier = "engine_swarm"

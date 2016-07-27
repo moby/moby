@@ -3,7 +3,6 @@
 title = "Run Docker Engine in swarm mode"
 description = "Run Docker Engine in swarm mode"
 keywords = ["guide, swarm mode, node"]
-advisory = "rc"
 [menu.main]
 identifier="initialize-swarm-guide"
 parent="engine_swarm"

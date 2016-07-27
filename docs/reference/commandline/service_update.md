@@ -3,7 +3,6 @@
 title = "service update"
 description = "The service update command description and usage"
 keywords = ["service, update"]
-advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++

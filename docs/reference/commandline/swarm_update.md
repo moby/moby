@@ -3,7 +3,6 @@
 title = "swarm update"
 description = "The swarm update command description and usage"
 keywords = ["swarm, update"]
-advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++

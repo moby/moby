@@ -3,7 +3,6 @@
 title = "swarm join"
 description = "The swarm join command description and usage"
 keywords = ["swarm, join"]
-advisory = "rc"
 [menu.main]
 parent = "smn_cli"
 +++
