@@ -37,9 +37,9 @@ limits on a single container or on many. To specify more than one container,
 provide space-separated list of container names or IDs.
 
 With the exception of the `--kernel-memory` option, you can specify these
-options on a running or a stopped container. You can only update
-`--kernel-memory` on a stopped container or on a running container with
-kernel memory initialized.
+options on a running or a stopped container. On kernel version older than
+4.6, you can only update `--kernel-memory` on a stopped container or on
+a running container with kernel memory initialized.
 
 ## EXAMPLES
 
@@ -66,9 +66,10 @@ $ docker update --cpu-shares 512 -m 300M abebf7571666 hopeful_morse
 ### Update a container's kernel memory constraints
 
 You can update a container's kernel memory limit using the `--kernel-memory`
-option. This option can be updated on a running container only if the container
-was started with `--kernel-memory`. If the container was started *without*
-`--kernel-memory` you need to stop the container before updating kernel memory.
+option. On kernel version older than 4.6, this option can be updated on a
+running container only if the container was started with `--kernel-memory`.
+If the container was started *without* `--kernel-memory` you need to stop
+the container before updating kernel memory.
 
 For example, if you started a container with this command:
 
@@ -92,6 +93,8 @@ Update kernel memory of running container `test2` will fail. You need to stop
 the container before updating the `--kernel-memory` setting. The next time you
 start it, the container uses the new value.
 
+Kernel version newer than (include) 4.6 does not have this limitation, you
+can use `--kernel-memory` the same way as other options.
 
 ### Update a container's restart policy
 
