@@ -167,3 +167,9 @@ clone git github.com/inconshreveable/mousetrap 76626ae9c91c4f2a10f34cad8ce83ea42
 clone git github.com/flynn-archive/go-shlex 3f9db97f856818214da2e1057f8ad84803971cff
 
 clean
+
+# colors
+
+clone git github.com/fatih/color 533cd7fd8a85905f67a1753afb4deddc85ea174f
+clone git github.com/mattn/go-colorable 9cbef7c35391cca05f15f8181dc0b18bc9736dbb
+clone git github.com/mattn/go-isatty 56b76bdf51f7708750eac80fa38b952bb9f32639
