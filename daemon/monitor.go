@@ -125,6 +125,23 @@ func (daemon *Daemon) AttachStreams(id string, iop libcontainerd.IOPipe) error {
 		}
 	}
 
+	copyFunc := func(w io.Writer, r io.Reader) {
+		s.Add(1)
+		go func() {
+			if _, err := io.Copy(w, r); err != nil {
+				logrus.Errorf("%v stream copy error: %v", id, err)
+			}
+			s.Done()
+		}()
+	}
+
+	if iop.Stdout != nil {
+		copyFunc(s.Stdout(), iop.Stdout)
+	}
+	if iop.Stderr != nil {
+		copyFunc(s.Stderr(), iop.Stderr)
+	}
+
 	if stdin := s.Stdin(); stdin != nil {
 		if iop.Stdin != nil {
 			go func() {
@@ -142,23 +159,6 @@ func (daemon *Daemon) AttachStreams(id string, iop libcontainerd.IOPipe) error {
 				iop.Stdin.Close()
 			}
 		}
-	}
-
-	copyFunc := func(w io.Writer, r io.Reader) {
-		s.Add(1)
-		go func() {
-			if _, err := io.Copy(w, r); err != nil {
-				logrus.Errorf("%v stream copy error: %v", id, err)
-			}
-			s.Done()
-		}()
-	}
-
-	if iop.Stdout != nil {
-		copyFunc(s.Stdout(), iop.Stdout)
-	}
-	if iop.Stderr != nil {
-		copyFunc(s.Stderr(), iop.Stderr)
 	}
 
 	return nil
