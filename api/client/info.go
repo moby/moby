@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"golang.org/x/net/context"
 
@@ -23,7 +24,8 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	info, err := cli.client.Info(context.Background())
+	ctx := context.Background()
+	info, err := cli.client.Info(ctx)
 	if err != nil {
 		return err
 	}
@@ -76,8 +78,19 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		}
 		fmt.Fprintf(cli.out, " Is Manager: %v\n", info.Swarm.ControlAvailable)
 		if info.Swarm.ControlAvailable {
+			fmt.Fprintf(cli.out, " ClusterID: %s\n", info.Swarm.Cluster.ID)
 			fmt.Fprintf(cli.out, " Managers: %d\n", info.Swarm.Managers)
 			fmt.Fprintf(cli.out, " Nodes: %d\n", info.Swarm.Nodes)
+			fmt.Fprintf(cli.out, " Orchestration:\n")
+			fmt.Fprintf(cli.out, "  Task History Retention Limit: %d\n", info.Swarm.Cluster.Spec.Orchestration.TaskHistoryRetentionLimit)
+			fmt.Fprintf(cli.out, " Raft:\n")
+			fmt.Fprintf(cli.out, "  Snapshot interval: %d\n", info.Swarm.Cluster.Spec.Raft.SnapshotInterval)
+			fmt.Fprintf(cli.out, "  Heartbeat tick: %d\n", info.Swarm.Cluster.Spec.Raft.HeartbeatTick)
+			fmt.Fprintf(cli.out, "  Election tick: %d\n", info.Swarm.Cluster.Spec.Raft.ElectionTick)
+			fmt.Fprintf(cli.out, " Dispatcher:\n")
+			fmt.Fprintf(cli.out, "  Heartbeat period: %s\n", units.HumanDuration(time.Duration(info.Swarm.Cluster.Spec.Dispatcher.HeartbeatPeriod)))
+			fmt.Fprintf(cli.out, " CA configuration:\n")
+			fmt.Fprintf(cli.out, "  Expiry duration: %s\n", units.HumanDuration(info.Swarm.Cluster.Spec.CAConfig.NodeCertExpiry))
 		}
 		fmt.Fprintf(cli.out, " Node Address: %s\n", info.Swarm.NodeAddr)
 	}
