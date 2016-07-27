@@ -372,7 +372,7 @@ func (pm *Manager) remove(p *plugin) error {
 	delete(pm.plugins, p.PluginObj.ID)
 	delete(pm.nameToID, p.Name())
 	pm.save()
-	return nil
+	return os.RemoveAll(filepath.Join(pm.libRoot, p.PluginObj.ID))
 }
 
 func (pm *Manager) set(p *plugin, args []string) error {
