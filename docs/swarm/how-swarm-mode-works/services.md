@@ -1,8 +1,5 @@
 <!--[metadata]>
 +++
-aliases = [
-"/engine/swarm/how-swarm-mode-works/"
-]
 title = "How services work"
 description = "How swarm mode services work"
 keywords = ["docker, container, cluster, swarm mode, node"]
