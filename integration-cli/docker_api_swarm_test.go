@@ -481,11 +481,17 @@ func (s *DockerSwarmSuite) TestApiSwarmRaftQuorum(c *check.C) {
 
 	c.Assert(d2.Stop(), checker.IsNil)
 
+	// make sure there is a leader
+	waitAndAssert(c, defaultReconciliationTimeout, d1.checkLeader, checker.IsNil)
+
 	d1.createService(c, simpleTestService, func(s *swarm.Service) {
 		s.Spec.Name = "top1"
 	})
 
 	c.Assert(d3.Stop(), checker.IsNil)
+
+	// make sure there is a leader
+	waitAndAssert(c, defaultReconciliationTimeout, d1.checkLeader, checker.IsNil)
 
 	var service swarm.Service
 	simpleTestService(&service)
@@ -495,6 +501,9 @@ func (s *DockerSwarmSuite) TestApiSwarmRaftQuorum(c *check.C) {
 	c.Assert(status, checker.Equals, http.StatusInternalServerError, check.Commentf("deadline exceeded", string(out)))
 
 	c.Assert(d2.Start(), checker.IsNil)
+
+	// make sure there is a leader
+	waitAndAssert(c, defaultReconciliationTimeout, d1.checkLeader, checker.IsNil)
 
 	d1.createService(c, simpleTestService, func(s *swarm.Service) {
 		s.Spec.Name = "top3"
