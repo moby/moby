@@ -92,7 +92,7 @@ func (s *Discovery) Initialize(uris string, heartbeat time.Duration, ttl time.Du
 			// The actual TLS config that will be used
 			TLS: tlsConfig,
 		}
-	} else if (clusterOpts["kv.username"] != "" && clusterOpts["kv.password"] != "") {
+	} else if clusterOpts["kv.username"] != "" && clusterOpts["kv.password"] != "" {
 		log.Info("Initializing discovery with basic auth")
 		config = &store.Config{
 			Username: clusterOpts["kv.username"],
