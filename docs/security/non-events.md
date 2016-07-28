@@ -73,6 +73,14 @@ seccomp profile.
 A bug in eBPF -- the special in-kernel DSL used to express things like seccomp
 filters -- allowed arbitrary reads of kernel memory. The `bpf()` system call
 is blocked inside Docker containers using (ironically) seccomp.
+* [CVE-2016-3134](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2016-3134),
+[4997](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2016-4997),
+[4998](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2016-4998):
+A bug in setsockopt with `IPT_SO_SET_REPLACE`, `ARPT_SO_SET_REPLACE`,  and
+`ARPT_SO_SET_REPLACE` causing memory corruption / local privilege escalation.
+These arguments are blocked by `CAP_NET_ADMIN`, which Docker does not allow by
+default.
+
 
 Bugs *not* mitigated:
 
