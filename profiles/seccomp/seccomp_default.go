@@ -1297,7 +1297,22 @@ func DefaultProfile(rs *specs.Spec) *types.Seccomp {
 		{
 			Name:   "setsockopt",
 			Action: types.ActAllow,
-			Args:   []*types.Arg{},
+			Args: []*types.Arg{
+				{
+					// disallow IPT_SO_SET_REPLACE, ARPT_SO_SET_REPLACE when SOL_IP,
+					// and IP6T_SO_SET_REPLACE when SOL_IPV6
+					Index:    1,
+					Value:    0x0 | 0x29,
+					ValueTwo: 0,
+					Op:       types.OpMaskedEqual,
+				},
+				{
+					Index:    2,
+					Value:    0x40 | 0x60,
+					ValueTwo: 0,
+					Op:       types.OpMaskedEqual,
+				},
+			},
 		},
 		{
 			Name:   "set_thread_area",

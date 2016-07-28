@@ -1064,6 +1064,20 @@ func (s *DockerSuite) TestRunSeccompAllowSetrlimit(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunSeccompDefaultProfileSetsockopt(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled, NotUserNamespace)
+
+	out, _, err := dockerCmdWithError("run", "syscall-test", "setsockopt-test")
+	if err == nil || !strings.Contains(out, "Operation not permitted") {
+		c.Fatalf("expected Operation not permitted, got: %s", out)
+	}
+
+	out, _, err = dockerCmdWithError("run", "--cap-add", "ALL", "syscall-test", "setsockopt-test")
+	if err == nil {
+		c.Fatalf("expected Operation not permitted, got: %s", out)
+	}
+}
+
 func (s *DockerSuite) TestRunSeccompDefaultProfileAcct(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled, NotUserNamespace)
 
