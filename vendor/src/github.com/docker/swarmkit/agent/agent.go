@@ -12,12 +12,12 @@ import (
 )
 
 const (
-	initialSessionFailureBackoff = time.Second
+	initialSessionFailureBackoff = 100 * time.Millisecond
 	maxSessionFailureBackoff     = 8 * time.Second
 )
 
 // Agent implements the primary node functionality for a member of a swarm
-// cluster. The primary functionality id to run and report on the status of
+// cluster. The primary functionality is to run and report on the status of
 // tasks assigned to the node.
 type Agent struct {
 	config *Config

@@ -187,7 +187,7 @@ func (n *Node) run(ctx context.Context) (err error) {
 	if n.config.JoinAddr != "" || n.config.ForceNewCluster {
 		n.remotes = newPersistentRemotes(filepath.Join(n.config.StateDir, stateFilename))
 		if n.config.JoinAddr != "" {
-			n.remotes.Observe(api.Peer{Addr: n.config.JoinAddr}, 1)
+			n.remotes.Observe(api.Peer{Addr: n.config.JoinAddr}, picker.DefaultObservationWeight)
 		}
 	}
 
@@ -647,7 +647,7 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 			go func(ready chan struct{}) {
 				select {
 				case <-ready:
-					n.remotes.Observe(api.Peer{NodeID: n.nodeID, Addr: n.config.ListenRemoteAPI}, 5)
+					n.remotes.Observe(api.Peer{NodeID: n.nodeID, Addr: n.config.ListenRemoteAPI}, picker.DefaultObservationWeight)
 				case <-connCtx.Done():
 				}
 			}(ready)

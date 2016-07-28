@@ -377,7 +377,7 @@ func (a *Allocator) doNodeAlloc(ctx context.Context, nc *networkContext, ev even
 
 		node.Attachment.Network = nc.ingressNetwork.Copy()
 		if err := a.allocateNode(ctx, nc, node); err != nil {
-			log.G(ctx).Errorf("Fauled to allocate network resources for node %s: %v", node.ID, err)
+			log.G(ctx).Errorf("Failed to allocate network resources for node %s: %v", node.ID, err)
 		}
 	}
 }
