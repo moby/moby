@@ -20,7 +20,7 @@ type Backend interface {
 	GetNodes(basictypes.NodeListOptions) ([]types.Node, error)
 	GetNode(string) (types.Node, error)
 	UpdateNode(string, uint64, types.NodeSpec) error
-	RemoveNode(string) error
+	RemoveNode(string, bool) error
 	GetTasks(basictypes.TaskListOptions) ([]types.Task, error)
 	GetTask(string) (types.Task, error)
 }
