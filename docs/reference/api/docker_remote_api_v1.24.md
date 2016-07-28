@@ -3351,8 +3351,12 @@ List nodes
         "CreatedAt": "2016-06-07T20:31:11.853781916Z",
         "UpdatedAt": "2016-06-07T20:31:11.999868824Z",
         "Spec": {
+          "Name": "my-node",
           "Role": "MANAGER",
           "Availability": "ACTIVE"
+          "Labels": {
+              "foo": "bar"
+          }
         },
         "Description": {
           "Hostname": "bf3067039e47",
@@ -3366,11 +3370,22 @@ List nodes
           },
           "Engine": {
             "EngineVersion": "1.12.0-dev",
+            "Labels": {
+                "foo": "bar",
+            }
             "Plugins": [
               {
                 "Type": "Volume",
                 "Name": "local"
               },
+              {
+                "Type": "Network",
+                "Name": "bridge"
+              }
+              {
+                "Type": "Network",
+                "Name": "null"
+              }
               {
                 "Type": "Network",
                 "Name": "overlay"
@@ -3379,63 +3394,12 @@ List nodes
           }
         },
         "Status": {
-          "State": "READY"
+          "State": "ready"
         },
-        "Manager": {
-          "Raft": {
-            "RaftID": 10070664527094528000,
-            "Addr": "172.17.0.2:4500",
-            "Status": {
-              "Leader": true,
-              "Reachability": "REACHABLE"
-            }
-          }
-        },
-        "Attachment": {
-          "Network": {
-            "ID": "4qvuz4ko70xaltuqbt8956gd1",
-            "Version": {
-              "Index": 6
-            },
-            "CreatedAt": "2016-06-07T20:31:11.912919752Z",
-            "UpdatedAt": "2016-06-07T20:31:11.921784144Z",
-            "Spec": {
-              "Name": "ingress",
-              "Labels": {
-                "com.docker.swarm.internal": "true"
-              },
-              "DriverConfiguration": {},
-              "IPAM": {
-                "Driver": {},
-                "Configs": [
-                  {
-                    "Family": "UNKNOWN",
-                    "Subnet": "10.255.0.0/16"
-                  }
-                ]
-              }
-            },
-            "DriverState": {
-              "Name": "overlay",
-              "Options": {
-                "com.docker.network.driver.overlay.vxlanid_list": "256"
-              }
-            },
-            "IPAM": {
-              "Driver": {
-                "Name": "default"
-              },
-              "Configs": [
-                {
-                  "Family": "UNKNOWN",
-                  "Subnet": "10.255.0.0/16"
-                }
-              ]
-            }
-          },
-          "Addresses": [
-            "10.255.0.2/16"
-          ]
+        "ManagerStatus": {
+          "Leader": true,
+          "Reachability": "reachable",
+          "Addr": "172.17.0.2:2377""
         }
       }
     ]
@@ -3478,8 +3442,12 @@ Return low-level information on the node `id`
       "CreatedAt": "2016-06-07T20:31:11.853781916Z",
       "UpdatedAt": "2016-06-07T20:31:11.999868824Z",
       "Spec": {
+        "Name": "my-node",
         "Role": "MANAGER",
         "Availability": "ACTIVE"
+        "Labels": {
+            "foo": "bar"
+        }
       },
       "Description": {
         "Hostname": "bf3067039e47",
@@ -3493,11 +3461,22 @@ Return low-level information on the node `id`
         },
         "Engine": {
           "EngineVersion": "1.12.0-dev",
+          "Labels": {
+              "foo": "bar",
+          }
           "Plugins": [
             {
               "Type": "Volume",
               "Name": "local"
             },
+            {
+              "Type": "Network",
+              "Name": "bridge"
+            }
+            {
+              "Type": "Network",
+              "Name": "null"
+            }
             {
               "Type": "Network",
               "Name": "overlay"
@@ -3506,63 +3485,12 @@ Return low-level information on the node `id`
         }
       },
       "Status": {
-        "State": "READY"
+        "State": "ready"
       },
-      "Manager": {
-        "Raft": {
-          "RaftID": 10070664527094528000,
-          "Addr": "172.17.0.2:4500",
-          "Status": {
-            "Leader": true,
-            "Reachability": "REACHABLE"
-          }
-        }
-      },
-      "Attachment": {
-        "Network": {
-          "ID": "4qvuz4ko70xaltuqbt8956gd1",
-          "Version": {
-            "Index": 6
-          },
-          "CreatedAt": "2016-06-07T20:31:11.912919752Z",
-          "UpdatedAt": "2016-06-07T20:31:11.921784144Z",
-          "Spec": {
-            "Name": "ingress",
-            "Labels": {
-              "com.docker.swarm.internal": "true"
-            },
-            "DriverConfiguration": {},
-            "IPAM": {
-              "Driver": {},
-              "Configs": [
-                {
-                  "Family": "UNKNOWN",
-                  "Subnet": "10.255.0.0/16"
-                }
-              ]
-            }
-          },
-          "DriverState": {
-            "Name": "overlay",
-            "Options": {
-              "com.docker.network.driver.overlay.vxlanid_list": "256"
-            }
-          },
-          "IPAM": {
-            "Driver": {
-              "Name": "default"
-            },
-            "Configs": [
-              {
-                "Family": "UNKNOWN",
-                "Subnet": "10.255.0.0/16"
-              }
-            ]
-          }
-        },
-        "Addresses": [
-          "10.255.0.2/16"
-        ]
+      "ManagerStatus": {
+        "Leader": true,
+        "Reachability": "reachable",
+        "Addr": "172.17.0.2:2377""
       }
     }
 
@@ -3587,8 +3515,8 @@ Initialize a new swarm
     Content-Type: application/json
 
     {
-      "ListenAddr": "0.0.0.0:4500",
-      "AdvertiseAddr": "192.168.1.1:4500",
+      "ListenAddr": "0.0.0.0:2377",
+      "AdvertiseAddr": "192.168.1.1:2377",
       "ForceNewCluster": false,
       "Spec": {
         "Orchestration": {},
@@ -3658,9 +3586,9 @@ Join an existing swarm
     Content-Type: application/json
 
     {
-      "ListenAddr": "0.0.0.0:4500",
-      "AdvertiseAddr": "192.168.1.1:4500",
-      "RemoteAddrs": ["node1:4500"],
+      "ListenAddr": "0.0.0.0:2377",
+      "AdvertiseAddr: "192.168.1.1:2377",
+      "RemoteAddrs": ["node1:2377"],
       "JoinToken": "SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-7p73s1dx5in4tatdymyhg9hu2"
     }
 
