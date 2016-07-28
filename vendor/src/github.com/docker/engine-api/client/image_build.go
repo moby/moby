@@ -109,11 +109,10 @@ func imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, erro
 	return query, nil
 }
 
-func getDockerOS(serverHeader string) string {
-	var osType string
+func getDockerOS(serverHeader string) (osType string) {
 	matches := headerRegexp.FindStringSubmatch(serverHeader)
-	if len(matches) > 0 {
-		osType = matches[1]
+	if len(matches) < 2 {
+		return ""
 	}
-	return osType
+	return matches[1]
 }
