@@ -94,9 +94,9 @@ func (s *Discovery) Initialize(uris string, heartbeat time.Duration, ttl time.Du
 		}
 	} else if (clusterOpts["kv.username"] != "" && clusterOpts["kv.password"] != "") {
 		log.Info("Initializing discovery with basic auth")
-		config = &stor.Config{
+		config = &store.Config{
 			Username: clusterOpts["kv.username"],
-			Password: clusterOpts["kv.password"]
+			Password: clusterOpts["kv.password"],
 		}
 
 	} else {
