@@ -165,7 +165,8 @@ func (l *logStream) Log(msg *logger.Message) error {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
 	if !l.closed {
-		l.messages <- msg
+		// buffer up the data, making sure to copy the Line data
+		l.messages <- logger.CopyMessage(msg)
 	}
 	return nil
 }

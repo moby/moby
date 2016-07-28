@@ -84,10 +84,17 @@ func validateLogOpt(cfg map[string]string) error {
 }
 
 func (s *journald) Log(msg *logger.Message) error {
-	if msg.Source == "stderr" {
-		return journal.Send(string(msg.Line), journal.PriErr, s.vars)
+	vars := map[string]string{}
+	for k, v := range s.vars {
+		vars[k] = v
 	}
-	return journal.Send(string(msg.Line), journal.PriInfo, s.vars)
+	if msg.Partial {
+		vars["CONTAINER_PARTIAL_MESSAGE"] = "true"
+	}
+	if msg.Source == "stderr" {
+		return journal.Send(string(msg.Line), journal.PriErr, vars)
+	}
+	return journal.Send(string(msg.Line), journal.PriInfo, vars)
 }
 
 func (s *journald) Name() string {
