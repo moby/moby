@@ -84,9 +84,6 @@ func validateLogOpt(cfg map[string]string) error {
 }
 
 func (s *journald) Log(msg *logger.Message) error {
-	if msg.Source == "stderr" {
-		return journal.Send(string(msg.Line), journal.PriErr, s.vars)
-	}
 	return journal.Send(string(msg.Line), journal.PriInfo, s.vars)
 }
 
