@@ -946,6 +946,43 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshare(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunSeccompProfileEmtpyNameIgnored(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled)
+
+	jsonData := `{
+	"defaultAction": "SCMP_ACT_ALLOW",
+	"syscalls": [
+		{
+			"action": "SCMP_ACT_ERRNO"
+		},
+		{
+			"name": "chmod",
+			"action": "SCMP_ACT_ERRNO"
+		},
+		{
+			"name":"fchmod",
+			"action": "SCMP_ACT_ERRNO"
+		},
+		{
+			"name": "fchmodat",
+			"action":"SCMP_ACT_ERRNO"
+		}
+	]
+}`
+	tmpFile, err := ioutil.TempFile("", "profile.json")
+	c.Assert(err, check.IsNil)
+	defer tmpFile.Close()
+
+	if _, err := tmpFile.Write([]byte(jsonData)); err != nil {
+		c.Fatal(err)
+	}
+	runCmd := exec.Command(dockerBinary, "run", "--security-opt", "seccomp="+tmpFile.Name(), "busybox", "chmod", "400", "/etc/hostname")
+	out, _, _ := runCommandWithOutput(runCmd)
+	if !strings.Contains(out, "Operation not permitted") {
+		c.Fatalf("expected chmod with seccomp profile denied to fail, got %s", out)
+	}
+}
+
 // TestRunSeccompProfileDenyChmod checks that 'docker run --security-opt seccomp=/tmp/profile.json busybox chmod 400 /etc/hostname' exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled)
