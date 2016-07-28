@@ -1,4 +1,4 @@
-FROM    alpine:3.4
+FROM    armhf/alpine:3.4
 
 RUN     apk add -U git go bash curl gcc musl-dev make
 
