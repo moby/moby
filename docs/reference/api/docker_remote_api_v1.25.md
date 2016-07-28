@@ -3980,6 +3980,7 @@ Create a service
 
 - **201** – no error
 - **406** – server error or node is not part of a swarm
+- **409** – name conflicts with an existing object
 
 JSON Parameters:
 
