@@ -6966,3 +6966,26 @@ func (s *DockerSuite) TestBuildCmdShellArgsEscaped(c *check.C) {
 		c.Fatalf("CMD was not escaped Config.Cmd: got %v", res)
 	}
 }
+
+func (s *DockerSuite) TestBuildHashedBuildTimeArg(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	imgName := "testbuildhashedbuildtimearg"
+	envKey := "http_proxy"
+	envVal := "http://accout:password@server:port"
+	args := []string{
+		"--build-arg", fmt.Sprintf("%s=%s", envKey, envVal),
+	}
+	dockerfile := fmt.Sprintf(`FROM busybox
+	RUN echo "Hello world"`)
+
+	if _, err := buildImage(imgName, dockerfile, true, args...); err != nil {
+		c.Fatalf("failed to build image with build-arg: %v", err)
+	}
+
+	out, _ := dockerCmd(c, "history", "--no-trunc", imgName)
+	outputTabs := strings.Split(out, "\n")[1]
+	// envVal should already be hashed
+	if strings.Contains(outputTabs, envVal) {
+		c.Fatalf("envVal of envKey %s should already be hashed", envKey)
+	}
+}
