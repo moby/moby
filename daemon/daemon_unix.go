@@ -288,8 +288,8 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		return warnings, fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage")
 	}
 	if resources.MemorySwappiness != nil && *resources.MemorySwappiness != -1 && !sysInfo.MemorySwappiness {
-		warnings = append(warnings, "Your kernel does not support memory swappiness capabilities, memory swappiness discarded.")
-		logrus.Warn("Your kernel does not support memory swappiness capabilities, memory swappiness discarded.")
+		warnings = append(warnings, "Your kernel does not support memory swappiness capabilities. Memory swappiness discarded.")
+		logrus.Warn("Your kernel does not support memory swappiness capabilities. Memory swappiness discarded.")
 		resources.MemorySwappiness = nil
 	}
 	if resources.MemorySwappiness != nil {
@@ -307,7 +307,7 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		return warnings, fmt.Errorf("Minimum memory reservation allowed is 4MB")
 	}
 	if resources.Memory > 0 && resources.MemoryReservation > 0 && resources.Memory < resources.MemoryReservation {
-		return warnings, fmt.Errorf("Minimum memory limit should be larger than memory reservation limit, see usage")
+		return warnings, fmt.Errorf("Minimum memory limit can not be less than memory reservation limit, see usage")
 	}
 	if resources.KernelMemory > 0 && !sysInfo.KernelMemory {
 		warnings = append(warnings, "Your kernel does not support kernel memory limit capabilities. Limitation discarded.")
@@ -325,15 +325,15 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		// only produce warnings if the setting wasn't to *disable* the OOM Kill; no point
 		// warning the caller if they already wanted the feature to be off
 		if *resources.OomKillDisable {
-			warnings = append(warnings, "Your kernel does not support OomKillDisable, OomKillDisable discarded.")
-			logrus.Warn("Your kernel does not support OomKillDisable, OomKillDisable discarded.")
+			warnings = append(warnings, "Your kernel does not support OomKillDisable. OomKillDisable discarded.")
+			logrus.Warn("Your kernel does not support OomKillDisable. OomKillDisable discarded.")
 		}
 		resources.OomKillDisable = nil
 	}
 
 	if resources.PidsLimit != 0 && !sysInfo.PidsLimit {
-		warnings = append(warnings, "Your kernel does not support pids limit capabilities, pids limit discarded.")
-		logrus.Warn("Your kernel does not support pids limit capabilities, pids limit discarded.")
+		warnings = append(warnings, "Your kernel does not support pids limit capabilities. Pids limit discarded.")
+		logrus.Warn("Your kernel does not support pids limit capabilities. Pids limit discarded.")
 		resources.PidsLimit = 0
 	}
 
@@ -400,28 +400,28 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		return warnings, fmt.Errorf("Invalid QoS settings: %s does not support Maximum IO Bandwidth or Maximum IO IOps", runtime.GOOS)
 	}
 	if len(resources.BlkioWeightDevice) > 0 && !sysInfo.BlkioWeightDevice {
-		warnings = append(warnings, "Your kernel does not support Block I/O weight_device.")
-		logrus.Warn("Your kernel does not support Block I/O weight_device. Weight-device discarded.")
+		warnings = append(warnings, "Your kernel does not support Block I/O weight-device. Weight-device discarded.")
+		logrus.Warn("Your kernel does not support Block I/O weight-device. Weight-device discarded.")
 		resources.BlkioWeightDevice = []*pblkiodev.WeightDevice{}
 	}
 	if len(resources.BlkioDeviceReadBps) > 0 && !sysInfo.BlkioReadBpsDevice {
-		warnings = append(warnings, "Your kernel does not support Block read limit in bytes per second.")
-		logrus.Warn("Your kernel does not support Block I/O read limit in bytes per second. --device-read-bps discarded.")
+		warnings = append(warnings, "Your kernel does not support Block read limit in bytes per second. Device read bps discarded.")
+		logrus.Warn("Your kernel does not support Block I/O read limit in bytes per second. Device read bps discarded.")
 		resources.BlkioDeviceReadBps = []*pblkiodev.ThrottleDevice{}
 	}
 	if len(resources.BlkioDeviceWriteBps) > 0 && !sysInfo.BlkioWriteBpsDevice {
-		warnings = append(warnings, "Your kernel does not support Block write limit in bytes per second.")
-		logrus.Warn("Your kernel does not support Block I/O write limit in bytes per second. --device-write-bps discarded.")
+		warnings = append(warnings, "Your kernel does not support Block write limit in bytes per second. Device write bps discarded.")
+		logrus.Warn("Your kernel does not support Block I/O write limit in bytes per second. Device write bps discarded.")
 		resources.BlkioDeviceWriteBps = []*pblkiodev.ThrottleDevice{}
 	}
 	if len(resources.BlkioDeviceReadIOps) > 0 && !sysInfo.BlkioReadIOpsDevice {
-		warnings = append(warnings, "Your kernel does not support Block read limit in IO per second.")
-		logrus.Warn("Your kernel does not support Block I/O read limit in IO per second. -device-read-iops discarded.")
+		warnings = append(warnings, "Your kernel does not support Block read limit in IO per second. Device read iops discarded.")
+		logrus.Warn("Your kernel does not support Block I/O read limit in IO per second. Device read iops discarded.")
 		resources.BlkioDeviceReadIOps = []*pblkiodev.ThrottleDevice{}
 	}
 	if len(resources.BlkioDeviceWriteIOps) > 0 && !sysInfo.BlkioWriteIOpsDevice {
-		warnings = append(warnings, "Your kernel does not support Block write limit in IO per second.")
-		logrus.Warn("Your kernel does not support Block I/O write limit in IO per second. --device-write-iops discarded.")
+		warnings = append(warnings, "Your kernel does not support Block write limit in IO per second. Device write iops discarded.")
+		logrus.Warn("Your kernel does not support Block I/O write limit in IO per second. Device write iops discarded.")
 		resources.BlkioDeviceWriteIOps = []*pblkiodev.ThrottleDevice{}
 	}
 
@@ -481,7 +481,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	warnings = append(warnings, w...)
 
 	if hostConfig.ShmSize < 0 {
-		return warnings, fmt.Errorf("SHM size must be greater than 0")
+		return warnings, fmt.Errorf("SHM size can not be less than 0")
 	}
 
 	if hostConfig.OomScoreAdj < -1000 || hostConfig.OomScoreAdj > 1000 {
