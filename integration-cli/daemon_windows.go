@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strconv"
 	"syscall"
 	"unsafe"
@@ -39,4 +40,8 @@ func signalDaemonDump(pid int) {
 		return
 	}
 	pulseEvent(h2, procPulseEvent)
+}
+
+func signalDaemonReload(pid int) error {
+	return fmt.Errorf("daemon reload not supported")
 }

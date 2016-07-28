@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/engine-api/types/events"
 	"github.com/docker/go-connections/sockets"
 	"github.com/go-check/check"
 )
@@ -542,4 +543,51 @@ func (d *Daemon) checkActiveContainerCount(c *check.C) (interface{}, check.Comme
 		return 0, nil
 	}
 	return len(strings.Split(strings.TrimSpace(out), "\n")), check.Commentf("output: %q", string(out))
+}
+
+func (d *Daemon) reloadConfig() error {
+	if d.cmd == nil || d.cmd.Process == nil {
+		return fmt.Errorf("daemon is not running")
+	}
+
+	errCh := make(chan error)
+	started := make(chan struct{})
+	go func() {
+		_, body, err := sockRequestRawToDaemon("GET", "/events", nil, "", d.sock())
+		close(started)
+		if err != nil {
+			errCh <- err
+		}
+		defer body.Close()
+		dec := json.NewDecoder(body)
+		for {
+			var e events.Message
+			if err := dec.Decode(&e); err != nil {
+				errCh <- err
+				return
+			}
+			if e.Type != events.DaemonEventType {
+				continue
+			}
+			if e.Action != "reload" {
+				continue
+			}
+			close(errCh) // notify that we are done
+			return
+		}
+	}()
+
+	<-started
+	if err := signalDaemonReload(d.cmd.Process.Pid); err != nil {
+		return fmt.Errorf("error signaling daemon reload: %v", err)
+	}
+	select {
+	case err := <-errCh:
+		if err != nil {
+			return fmt.Errorf("error waiting for daemon reload event: %v", err)
+		}
+	case <-time.After(30 * time.Second):
+		return fmt.Errorf("timeout waiting for daemon reload event")
+	}
+	return nil
 }
