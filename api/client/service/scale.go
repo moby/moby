@@ -13,15 +13,27 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type scaleOptions struct {
+	args             []string
+	sendRegistryAuth bool
+}
+
 func newScaleCommand(dockerCli *client.DockerCli) *cobra.Command {
-	return &cobra.Command{
-		Use:   "scale SERVICE=REPLICAS [SERVICE=REPLICAS...]",
+	opts := scaleOptions{}
+
+	cmd := &cobra.Command{
+		Use:   "scale [OPTIONS] SERVICE=REPLICAS [SERVICE=REPLICAS...]",
 		Short: "Scale one or multiple services",
 		Args:  scaleArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runScale(dockerCli, args)
+			opts.args = args
+			return runScale(dockerCli, opts)
 		},
 	}
+
+	flags := cmd.Flags()
+	flags.BoolVar(&opts.sendRegistryAuth, flagRegistryAuth, false, "Send registry authentication details to Swarm agents")
+	return cmd
 }
 
 func scaleArgs(cmd *cobra.Command, args []string) error {
@@ -42,12 +54,12 @@ func scaleArgs(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runScale(dockerCli *client.DockerCli, args []string) error {
+func runScale(dockerCli *client.DockerCli, opts scaleOptions) error {
 	var errors []string
-	for _, arg := range args {
+	for _, arg := range opts.args {
 		parts := strings.SplitN(arg, "=", 2)
 		serviceID, scale := parts[0], parts[1]
-		if err := runServiceScale(dockerCli, serviceID, scale); err != nil {
+		if err := runServiceScale(dockerCli, serviceID, scale, opts.sendRegistryAuth); err != nil {
 			errors = append(errors, fmt.Sprintf("%s: %s", serviceID, err.Error()))
 		}
 	}
@@ -58,9 +70,10 @@ func runScale(dockerCli *client.DockerCli, args []string) error {
 	return fmt.Errorf(strings.Join(errors, "\n"))
 }
 
-func runServiceScale(dockerCli *client.DockerCli, serviceID string, scale string) error {
+func runServiceScale(dockerCli *client.DockerCli, serviceID string, scale string, sendAuth bool) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
+	updateOpts := types.ServiceUpdateOptions{}
 
 	service, _, err := client.ServiceInspectWithRaw(ctx, serviceID)
 
@@ -78,7 +91,17 @@ func runServiceScale(dockerCli *client.DockerCli, serviceID string, scale string
 	}
 	serviceMode.Replicated.Replicas = &uintScale
 
-	err = client.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, types.ServiceUpdateOptions{})
+	if sendAuth {
+		// Retrieve encoded auth token from the image reference
+		image := service.Spec.TaskTemplate.ContainerSpec.Image
+		encodedAuth, err := dockerCli.RetrieveAuthTokenFromImage(ctx, image)
+		if err != nil {
+			return err
+		}
+		updateOpts.EncodedRegistryAuth = encodedAuth
+	}
+
+	err = client.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, updateOpts)
 	if err != nil {
 		return err
 	}
