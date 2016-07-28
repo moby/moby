@@ -224,6 +224,11 @@ if \
 	HAVE_GO_TEST_COVER=1
 fi
 
+GCCGOFLAGS=
+if [[ "$(go version)" == *"gccgo"* ]]; then
+	GCCGOFLAGS+=-gccgoflags="-lpthread"
+fi
+
 # If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
 # You can use this to select certain tests to run, eg.
 #
@@ -234,34 +239,39 @@ fi
 #
 #     TESTFLAGS='-check.f DockerSuite.TestBuild*' ./hack/make.sh binary test-integration-cli
 #
-go_test_dir() {
-	dir=$1
-	coverpkg=$2
+go_test_pkgs() {
+	pkgs=$@
 	testcover=()
-	testcoverprofile=()
-	testbinary="$DEST/test.main"
+	testcoverargs=()
 	if [ "$HAVE_GO_TEST_COVER" ]; then
 		# if our current go install has -cover, we want to use it :)
-		mkdir -p "$DEST/coverprofiles"
-		coverprofile="docker${dir#.}"
-		coverprofile="$ABS_DEST/coverprofiles/${coverprofile//\//-}"
-		testcover=( -test.cover )
-		testcoverprofile=( -test.coverprofile "$coverprofile" $coverpkg )
+		#
+		# coverprofile is temporarily put into $pkg/cover.out.
+		# then it is moved to $DEST/coverprofiles/docker-$pkg.
+		#
+		# `go run -test.coverprofile` is not allowed for multiple packages. so we use `-args`
+		testcover=( -cover )
+		testcoverargs=( -args -test.coverprofile "cover.out" )
+		mkdir -p $ABS_DEST/coverprofiles
 	fi
-	(
-		echo '+ go test' $TESTFLAGS "${DOCKER_PKG}${dir#.}"
-		cd "$dir"
-		export DEST="$ABS_DEST" # we're in a subshell, so this is safe -- our integration-cli tests need DEST, and "cd" screws it up
-		go test -c -o "$testbinary" ${testcover[@]} -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}"
-		i=0
-		while ((++i)); do
-			test_env "$testbinary" ${testcoverprofile[@]} $TESTFLAGS
-			if [ $i -gt "$TEST_REPEAT" ]; then
-				break
-			fi
-			echo "Repeating test ($i)"
+	i=0
+	while ((++i)); do
+		test_env go test ${testcover[@]} $GCCGOFLAGS -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS $pkgs ${testcoverargs[@]}
+		if [ $i -gt "$TEST_REPEAT" ]; then
+			break
+		fi
+		echo "Repeating test ($i)"
+	done
+	if [ "$HAVE_GO_TEST_COVER" ]; then
+		for from in $( find . -name cover.out ); do
+			# e.g. from=./api/client/cover.out, to=$ABS_DEST/coverprofiles/docker-api-client
+			dirname=$(dirname $(realpath $from))
+			pkgname=$(echo $dirname | sed -e "s@.*$DOCKER_PKG@docker@")
+			to=$ABS_DEST/coverprofiles/${pkgname//\//-}
+			mv $from $to
+			echo "Found the coverage data for $to"
 		done
-	)
+	fi
 }
 test_env() {
 	# use "env -i" to tightly control the environment variables that bleed into the tests
@@ -280,6 +290,8 @@ test_env() {
 		HOME="$ABS_DEST/fake-HOME" \
 		PATH="$PATH" \
 		TEMP="$TEMP" \
+		USERPROFILE="$ABS_DEST/fake-USERPROFILE" \
+		ProgramData="$ABS_DEST/fake-ProgramData" \
 		"$@"
 }
 

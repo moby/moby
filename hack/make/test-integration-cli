@@ -2,8 +2,16 @@
 set -e
 
 bundle_test_integration_cli() {
-	TESTFLAGS="$TESTFLAGS -check.v -check.timeout=${TIMEOUT} -test.timeout=360m"
-	go_test_dir ./integration-cli
+	TESTFLAGS+=" -check.v -check.timeout=${TIMEOUT} -test.timeout=360m"
+	(
+		cd integration-cli
+		if [ "$HAVE_GO_TEST_COVER" ]; then
+			# '-args -test.coverprofile "cover.out"' does not work for integration-cli. so we need this line.
+			TESTFLAGS+=" -coverprofile cover.out"
+		fi
+		export DEST="$ABS_DEST" # we're in a subshell, so this is safe -- our integration-cli tests need DEST, and "cd" screws it up
+		go_test_pkgs .
+	)
 }
 
 # subshell so that we can export PATH without breaking other things
