@@ -9,6 +9,9 @@ if [ "$DOCKER_ENGINE_GOOS" = "linux" ]; then
 		gcc -g -Wall -static contrib/syscall-test/userns.c -o "${tmpdir}/userns-test"
 		gcc -g -Wall -static contrib/syscall-test/ns.c -o "${tmpdir}/ns-test"
 		gcc -g -Wall -static contrib/syscall-test/acct.c -o "${tmpdir}/acct-test"
+		if [ "$DOCKER_ENGINE_OSARCH" = "linux/amd64" ]; then
+			gcc -s -m32 -nostdlib contrib/syscall-test/exit32.s -o "${tmpdir}/exit32-test"
+		fi
 
 		dockerfile="${tmpdir}/Dockerfile"
 		cat <<-EOF > "$dockerfile"

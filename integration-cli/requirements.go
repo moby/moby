@@ -38,6 +38,10 @@ var (
 		func() bool { return !utils.ExperimentalBuild() },
 		"Test requires a non experimental daemon",
 	}
+	IsAmd64 = testRequirement{
+		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") == "amd64" },
+		"Test requires a daemon running on amd64",
+	}
 	NotArm = testRequirement{
 		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "arm" },
 		"Test requires a daemon not running on ARM",
