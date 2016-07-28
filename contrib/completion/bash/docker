@@ -959,7 +959,7 @@ _docker_daemon() {
 			return
 			;;
 		--cluster-store-opt)
-			COMPREPLY=( $( compgen -W "discovery.heartbeat discovery.ttl kv.cacertfile kv.certfile kv.keyfile kv.path" -S = -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "discovery.heartbeat discovery.ttl kv.cacertfile kv.certfile kv.keyfile kv.username kv.password kv.path" -S = -- "$cur" ) )
 			__docker_nospace
 			return
 			;;

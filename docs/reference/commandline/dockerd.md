@@ -784,6 +784,16 @@ The currently supported cluster store options are:
     private key is used as the client key for communication with the
     Key/Value store.
 
+*  `kv.username`
+
+    Specifies a username to be used for basic authentication with the Key/Value
+    store.
+
+*  `kv.password`
+
+    Specifies a password to be used for basic authentication with the Key/Value
+    store.
+
 *  `kv.path`
 
     Specifies the path in the Key/Value store. If not configured, the default value is 'docker/nodes'.
