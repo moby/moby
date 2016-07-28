@@ -94,10 +94,13 @@ case "$1" in
 		chgrp docker "$DOCKER_LOGFILE"
 
 		ulimit -n 1048576
+
+		# Having non-zero limits causes performance problems due to accounting overhead
+		# in the kernel. We recommend using cgroups to do container-local accounting.
 		if [ "$BASH" ]; then
-			ulimit -u 1048576
+			ulimit -u unlimited
 		else
-			ulimit -p 1048576
+			ulimit -p unlimited
 		fi
 
 		log_begin_msg "Starting $DOCKER_DESC: $BASE"
