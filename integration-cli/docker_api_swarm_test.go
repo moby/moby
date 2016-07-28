@@ -853,19 +853,49 @@ func setGlobalMode(s *swarm.Service) {
 
 func checkClusterHealth(c *check.C, cl []*SwarmDaemon, managerCount, workerCount int) {
 	var totalMCount, totalWCount int
+
 	for _, d := range cl {
-		info, err := d.info()
-		c.Assert(err, check.IsNil)
+		var (
+			info swarm.Info
+			err  error
+		)
+
+		// check info in a waitAndAssert, because if the cluster doesn't have a leader, `info` will return an error
+		checkInfo := func(c *check.C) (interface{}, check.CommentInterface) {
+			info, err = d.info()
+			return err, check.Commentf("cluster not ready in time")
+		}
+		waitAndAssert(c, defaultReconciliationTimeout, checkInfo, checker.IsNil)
 		if !info.ControlAvailable {
 			totalWCount++
 			continue
 		}
+
 		var leaderFound bool
 		totalMCount++
 		var mCount, wCount int
+
 		for _, n := range d.listNodes(c) {
-			c.Assert(n.Status.State, checker.Equals, swarm.NodeStateReady, check.Commentf("state of node %s, reported by %s", n.ID, d.Info.NodeID))
-			c.Assert(n.Spec.Availability, checker.Equals, swarm.NodeAvailabilityActive, check.Commentf("availability of node %s, reported by %s", n.ID, d.Info.NodeID))
+			waitReady := func(c *check.C) (interface{}, check.CommentInterface) {
+				if n.Status.State == swarm.NodeStateReady {
+					return true, nil
+				}
+				nn := d.getNode(c, n.ID)
+				n = *nn
+				return n.Status.State == swarm.NodeStateReady, check.Commentf("state of node %s, reported by %s", n.ID, d.Info.NodeID)
+			}
+			waitAndAssert(c, defaultReconciliationTimeout, waitReady, checker.True)
+
+			waitActive := func(c *check.C) (interface{}, check.CommentInterface) {
+				if n.Spec.Availability == swarm.NodeAvailabilityActive {
+					return true, nil
+				}
+				nn := d.getNode(c, n.ID)
+				n = *nn
+				return n.Spec.Availability == swarm.NodeAvailabilityActive, check.Commentf("availability of node %s, reported by %s", n.ID, d.Info.NodeID)
+			}
+			waitAndAssert(c, defaultReconciliationTimeout, waitActive, checker.True)
+
 			if n.Spec.Role == swarm.NodeRoleManager {
 				c.Assert(n.ManagerStatus, checker.NotNil, check.Commentf("manager status of node %s (manager), reported by %s", n.ID, d.Info.NodeID))
 				if n.ManagerStatus.Leader {
