@@ -1185,7 +1185,6 @@ __docker_swarm_commands() {
     local -a _docker_swarm_subcommands
     _docker_swarm_subcommands=(
         "init:Initialize a swarm"
-        "inspect:Inspect the swarm"
         "join:Join a swarm as a node and/or manager"
         "join-token:Manage join tokens"
         "leave:Leave a swarm"
@@ -1209,11 +1208,6 @@ __docker_swarm_subcommand() {
                 "($help)*--external-ca=[Specifications of one or more certificate signing endpoints]:endpoint: " \
                 "($help)--force-new-cluster[Force create a new cluster from current state]" \
                 "($help)--listen-addr=[Listen address]:ip\:port: " && ret=0
-            ;;
-        (inspect)
-            _arguments $(__docker_arguments) \
-                $opts_help \
-                "($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " && ret=0
             ;;
         (join)
             _arguments $(__docker_arguments) \
