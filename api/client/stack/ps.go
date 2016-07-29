@@ -25,7 +25,7 @@ type psOptions struct {
 	noResolve bool
 }
 
-func newPSCommand(dockerCli *client.DockerCli) *cobra.Command {
+func newPsCommand(dockerCli *client.DockerCli) *cobra.Command {
 	opts := psOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
