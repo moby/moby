@@ -98,6 +98,12 @@ func runInfo(dockerCli *client.DockerCli) error {
 			fmt.Fprintf(dockerCli.Out(), "  Heartbeat Period: %s\n", units.HumanDuration(time.Duration(info.Swarm.Cluster.Spec.Dispatcher.HeartbeatPeriod)))
 			fmt.Fprintf(dockerCli.Out(), " CA Configuration:\n")
 			fmt.Fprintf(dockerCli.Out(), "  Expiry Duration: %s\n", units.HumanDuration(info.Swarm.Cluster.Spec.CAConfig.NodeCertExpiry))
+			if len(info.Swarm.Cluster.Spec.CAConfig.ExternalCAs) > 0 {
+				fmt.Fprintf(dockerCli.Out(), "  External CAs:\n")
+				for _, entry := range info.Swarm.Cluster.Spec.CAConfig.ExternalCAs {
+					fmt.Fprintf(dockerCli.Out(), "    %s: %s\n", entry.Protocol, entry.URL)
+				}
+			}
 		}
 		fmt.Fprintf(dockerCli.Out(), " Node Address: %s\n", info.Swarm.NodeAddr)
 	}
