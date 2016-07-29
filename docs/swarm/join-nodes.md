@@ -29,6 +29,11 @@ also run tasks.
 Before you add nodes to a swarm you must install Docker Engine 1.12 or later on
 the host machine.
 
+The Docker Engine joins the swarm depending on the **join-token** you provide to
+the `docker swarm join` command. The node only uses the token at join time. If
+you subsequently rotate the token, it doesn't affect existing swarm nodes. Refer
+to [Run Docker Engine in swarm mode](swarm-mode.md#view-the-join-command-or-update-a-swarm-join-token).
+
 ## Join as a worker node
 
 To retrieve the join command including the join token for worker nodes, run the
@@ -99,30 +104,6 @@ $ docker swarm join \
 
 This node joined a swarm as a manager.
 ```
-
-<!--TODO WIP
-Manager nodes use the listen address for cluster management communications. The
-other nodes on the swarm must be able to access the manager node on the
-IP address and port you specify for the listen address.
-
-Especially when there are multiple active network interfaces, you should
-you explicitly define the listen address when you add a manager node to the a
-swarm:
-
-  ```bash
-  docker swarm join \
-  --token <MANAGER-TOKEN> \
-  --listen-addr <NODE-IP>:<PORT> \
-  <MANAGER-IP>:<PORT>
-  ```
-this will change for https://github.com/docker/docker/pull/24237 ->>
-Replace <NODE-IP> with the IP address of the node that is joining the swarm.
-Replace <MANAGER-IP> with the address of the swarm manager.
-
-Only manager nodes use the listen address. If you specify `--listen-addr` for a
-worker node, the node only uses the listen address if it is promoted to a
-manager.
--->
 
 ## Learn More
 

@@ -21,13 +21,17 @@ Options:
       --rotate   Rotate join token
 ```
 
-Join tokens are secrets that determine whether or not a node will join the swarm as a manager node
-or a worker node. You pass the token using the `--token flag` when you run
-[swarm join](swarm_join.md). You can access the current tokens or rotate the tokens using
-`swarm join-token`.
+Join tokens are secrets that allow a node to join the swarm. There are two
+different join tokens available, one for the worker role and one for the manager
+role. You pass the token using the `--token` flag when you run
+[swarm join](swarm_join.md). Nodes use the join token only when they join the
+swarm.
 
-Run with only a single `worker` or `manager` argument, it will print a command for joining a new
-node to the swarm, including the necessary token:
+You can view or rotate the join tokens using `swarm join-token`.
+
+As a convenience, you can pass `worker` or `manager` as an argument to
+`join-token` to print the full `docker swarm join` command to join a new node to
+the swarm:
 
 ```bash
 $ docker swarm join-token worker
@@ -64,7 +68,22 @@ SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-b30ljddcqhef9b9v4rs7
 
 ### `--rotate`
 
-Update the join token for a specified role with a new token and print the token.
+Because tokens allow new nodes to join the swarm, you should keep them secret.
+Be particularly careful with manager tokens since they allow new manager nodes
+to join the swarm. A rogue manager has the potential to disrupt the operation of
+your swarm.
+
+Rotate your swarm's join token if a token gets checked-in to version control,
+stolen, or a node is compromised. You may also want to periodically rotate the
+token to ensure any unknown token leaks do not allow a rogue node to join
+the swarm.
+
+To rotate the join token and print the newly generated token, run
+`docker swarm join-token --rotate` and pass the role: `manager` or `worker`.
+
+Rotating a join-token means that no new nodes will be able to join the swarm
+using the old token. Rotation does not affect existing nodes in the swarm
+because the join token is only used for authorizing new nodes joining the swarm.
 
 ### `--quiet`
 
