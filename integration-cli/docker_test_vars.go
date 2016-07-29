@@ -7,6 +7,7 @@ import (
 	"os/exec"
 
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/engine-api/types/container"
 )
 
 var (
@@ -65,6 +66,9 @@ var (
 	// WindowsBaseImage is the name of the base image for Windows testing
 	// Environment variable WINDOWS_BASE_IMAGE can override this
 	WindowsBaseImage = "windowsservercore"
+
+	// isolation is the isolation mode of the daemon under test
+	isolation container.Isolation
 )
 
 const (
