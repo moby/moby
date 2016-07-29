@@ -67,29 +67,36 @@ func (cli *DockerCli) inspectTasks(ctx context.Context) inspect.GetRefFunc {
 
 func (cli *DockerCli) inspectAll(ctx context.Context, getSize bool) inspect.GetRefFunc {
 	return func(ref string) (interface{}, []byte, error) {
+		// search for container with that id
 		c, rawContainer, err := cli.client.ContainerInspectWithRaw(ctx, ref, getSize)
-		if err != nil {
-			// Search for image with that id if a container doesn't exist.
-			if client.IsErrContainerNotFound(err) {
-				i, rawImage, err := cli.client.ImageInspectWithRaw(ctx, ref, getSize)
-				if err != nil {
-					if client.IsErrImageNotFound(err) {
-						// Search for task with that id if an image doesn't exists.
-						t, rawTask, err := cli.client.TaskInspectWithRaw(ctx, ref)
-						if err != nil {
-							return nil, nil, fmt.Errorf("Error: No such image, container or task: %s", ref)
-						}
-						if getSize {
-							fmt.Fprintln(cli.err, "WARNING: --size ignored for tasks")
-						}
-						return t, rawTask, nil
-					}
-					return nil, nil, err
-				}
-				return i, rawImage, nil
-			}
+		if err == nil {
+			return c, rawContainer, nil
+		}
+		// When err is container not found, skip to search image, task.
+		// Otherwise, just return this err.
+		if !client.IsErrContainerNotFound(err) {
 			return nil, nil, err
 		}
-		return c, rawContainer, nil
+
+		// Search for image with that id if a container doesn't exist.
+		i, rawImage, err := cli.client.ImageInspectWithRaw(ctx, ref, getSize)
+		if err == nil {
+			return i, rawImage, nil
+		}
+		// When err is image not found, skip to search task.
+		// Otherwise, just return this err.
+		if !client.IsErrImageNotFound(err) {
+			return nil, nil, err
+		}
+
+		// Search for task with that id if an image doesn't exist.
+		t, rawTask, err := cli.client.TaskInspectWithRaw(ctx, ref)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Error: No such image, container or task: %s", ref)
+		}
+		if getSize {
+			fmt.Fprintln(cli.err, "WARNING: --size ignored for tasks")
+		}
+		return t, rawTask, nil
 	}
 }

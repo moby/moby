@@ -335,7 +335,7 @@ func setupRemappedRoot(config *Config) ([]idtools.IDMap, []idtools.IDMap, error)
 
 func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error {
 	config.Root = rootDir
-	// Create the root directory if it doesn't exists
+	// Create the root directory if it doesn't exist
 	if err := system.MkdirAll(config.Root, 0700); err != nil && !os.IsExist(err) {
 		return err
 	}
