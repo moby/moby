@@ -84,7 +84,7 @@ func runList(dockerCli *client.DockerCli, opts listOptions) error {
 func PrintNotQuiet(out io.Writer, services []swarm.Service, nodes []swarm.Node, tasks []swarm.Task) {
 	activeNodes := make(map[string]struct{})
 	for _, n := range nodes {
-		if n.Status.State == swarm.NodeStateReady {
+		if n.Status.State != swarm.NodeStateDown {
 			activeNodes[n.ID] = struct{}{}
 		}
 	}
