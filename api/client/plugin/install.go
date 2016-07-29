@@ -27,7 +27,7 @@ func newInstallCommand(dockerCli *client.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "install [OPTIONS] PLUGIN",
 		Short: "Install a plugin",
-		Args:  cli.RequiresMinArgs(1), // TODO: allow for set args
+		Args:  cli.ExactArgs(1), // TODO: allow for set args
 		RunE: func(cmd *cobra.Command, args []string) error {
 			options.name = args[0]
 			return runInstall(dockerCli, options)

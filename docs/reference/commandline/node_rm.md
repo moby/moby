@@ -13,7 +13,7 @@ parent = "smn_cli"
 ```markdown
 Usage:  docker node rm NODE [NODE...]
 
-Remove a node from the swarm
+Remove one or more nodes from the swarm
 
 Aliases:
   rm, remove

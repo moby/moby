@@ -11,9 +11,9 @@ parent = "smn_cli"
 # network rm
 
 ```markdown
-Usage:  docker network rm NETWORK [NETWORK]...
+Usage:  docker network rm NETWORK [NETWORK...]
 
-Remove a network
+Remove one or more networks
 
 Aliases:
   rm, remove

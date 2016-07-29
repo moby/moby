@@ -17,7 +17,7 @@ func newListCommand(dockerCli *client.DockerCli) *cobra.Command {
 		Use:     "ls",
 		Short:   "List plugins",
 		Aliases: []string{"list"},
-		Args:    cli.ExactArgs(0),
+		Args:    cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runList(dockerCli)
 		},
