@@ -1555,3 +1555,73 @@ func (s *DockerSwarmSuite) TestSwarmNetworkCreateDup(c *check.C) {
 		}
 	}
 }
+
+func (s *DockerSwarmSuite) TestSwarmServicePsMultipleServiceIDs(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name1 := "top1"
+	out, err := d.Cmd("service", "create", "--name", name1, "--replicas=3", "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	id1 := strings.TrimSpace(out)
+
+	name2 := "top2"
+	out, err = d.Cmd("service", "create", "--name", name2, "--replicas=3", "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	id2 := strings.TrimSpace(out)
+
+	// make sure task has been deployed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 6)
+
+	out, err = d.Cmd("service", "ps", name1)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name1+".1")
+	c.Assert(out, checker.Contains, name1+".2")
+	c.Assert(out, checker.Contains, name1+".3")
+	c.Assert(out, checker.Not(checker.Contains), name2+".1")
+	c.Assert(out, checker.Not(checker.Contains), name2+".2")
+	c.Assert(out, checker.Not(checker.Contains), name2+".3")
+
+	out, err = d.Cmd("service", "ps", name1, name2)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name1+".1")
+	c.Assert(out, checker.Contains, name1+".2")
+	c.Assert(out, checker.Contains, name1+".3")
+	c.Assert(out, checker.Contains, name2+".1")
+	c.Assert(out, checker.Contains, name2+".2")
+	c.Assert(out, checker.Contains, name2+".3")
+
+	// Name Prefix
+	out, err = d.Cmd("service", "ps", "to")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name1+".1")
+	c.Assert(out, checker.Contains, name1+".2")
+	c.Assert(out, checker.Contains, name1+".3")
+	c.Assert(out, checker.Contains, name2+".1")
+	c.Assert(out, checker.Contains, name2+".2")
+	c.Assert(out, checker.Contains, name2+".3")
+
+	// Name Prefix (no hit)
+	out, err = d.Cmd("service", "ps", "noname")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "no such services: noname")
+
+	out, err = d.Cmd("service", "ps", id1)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name1+".1")
+	c.Assert(out, checker.Contains, name1+".2")
+	c.Assert(out, checker.Contains, name1+".3")
+	c.Assert(out, checker.Not(checker.Contains), name2+".1")
+	c.Assert(out, checker.Not(checker.Contains), name2+".2")
+	c.Assert(out, checker.Not(checker.Contains), name2+".3")
+
+	out, err = d.Cmd("service", "ps", id1, id2)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name1+".1")
+	c.Assert(out, checker.Contains, name1+".2")
+	c.Assert(out, checker.Contains, name1+".3")
+	c.Assert(out, checker.Contains, name2+".1")
+	c.Assert(out, checker.Contains, name2+".2")
+	c.Assert(out, checker.Contains, name2+".3")
+}
