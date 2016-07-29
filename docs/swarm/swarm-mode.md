@@ -73,10 +73,41 @@ To add a manager to this swarm, run the following command:
     192.168.99.100:2377
 ```
 
+### Configure the advertise address
+
+Manager nodes use an advertise address to allow other nodes in the swarm access
+to the Swarmkit API and overlay networking. The other nodes on the swarm must be
+able to access the manager node on its advertise address IP address.
+
+If you don't specify an advertise address, Docker checks if the system has a
+single IP address. If so, Docker uses the IP address with with the listening
+port `2377` by default. If the system has multiple IP addresses, you must
+specify the correct  `--advertise-addr` to enable inter-manager communication
+and overlay networking:
+
+```bash
+$ docker swarm init --advertise-addr <MANAGER-IP>
+```
+
+You must also specify the `--advertise-addr` if the address where other nodes
+reach the first manager node is not the same address the manager sees as its
+own. For instance, in a cloud setup that spans different regions, hosts have
+both internal addresses for access within the region and external addresses that
+you use for access from outside that region. In this case, specify the external
+address with `--advertise-addr` so that the node can propogate that information
+to other nodes that subsequently connect to it.
+
+Refer to the `docker swarm init` [CLI reference](../reference/commandline/swarm_init.md)
+for more detail on the advertise address.
+
 ### View the join command or update a swarm join token
 
-The manager node requires a secret token for a new node to join the swarm. The
-token for worker nodes is different from the token for manager nodes.
+Nodes require a secret token to join the swarm. The token for worker nodes is
+different from the token for manager nodes. Nodes only use the join-token at the
+moment they join the swarm. Rotating the join token after a node has already
+joined a swarm does not affect the node's swarm membership. Token rotation
+ensures an old token cannot be used by any new nodes attempting to join the
+swarm.
 
 To retrieve the join command including the join token for worker nodes, run:
 
@@ -110,10 +141,29 @@ $ docker swarm join-token --quiet worker
 SWMTKN-1-49nj1cmql0jkz5s954yi3oex3nedyz0fb0xx14ie39trti4wxv-8vxv8rssmk743ojnwacrr2e7c
 ```
 
-Pass the `--rotate` for `swarm join-token` to the token for a worker or manager
+Be careful with the join tokens because they are the secrets necessary to join
+the swarm. In particular, checking a secret into version control is a bad
+practice because it would allow anyone with access to the the application source
+code to add new nodes to the swarm. Manager tokens are especially sensitive
+because they allow a new manager node to join and gain control over the whole
+swarm.
+
+We recommend that you rotate the join tokens in the following circumstances:
+
+* If a token was checked-in by accident into a version control system, group
+chat or accidentally printed to your logs.
+* If you suspect a node has been compromised.
+* If you wish to guarantee that no new nodes can join the swarm.
+
+Additionally, it is a best practice to implement a regular rotation schedule for
+any secret including swarm join tokens. We recommend that you rotate your tokens
+at least every 6 months.
+
+Run `swarm join-token --rotate` to invalidate the old token and generate a new
+token. Specify whether you want to rotate the token for `worker` or `manager`
 nodes:
 
-```
+```bash
 $docker swarm join-token  --rotate worker
 
 To add a worker to this swarm, run the following command:
