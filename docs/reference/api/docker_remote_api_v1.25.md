@@ -4498,12 +4498,14 @@ List tasks
 
 **Query parameters**:
 
+- **all** – 1/True/true or 0/False/false, Show all containers.
+    Only tasks that will be running or are currently running are shown by default(i.e., this defaults to false)
+
 - **filters** – a JSON encoded value of the filters (a `map[string][]string`) to process on the
   services list. Available filters:
   - `id=<task id>`
   - `name=<task name>`
   - `service=<service name>`
-
 **Status codes**:
 
 - **200** – no error

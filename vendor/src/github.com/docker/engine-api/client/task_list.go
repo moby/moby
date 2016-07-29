@@ -23,6 +23,10 @@ func (cli *Client) TaskList(ctx context.Context, options types.TaskListOptions) 
 		query.Set("filters", filterJSON)
 	}
 
+	if options.All {
+		query.Set("all", "1")
+	}
+
 	resp, err := cli.get(ctx, "/tasks", query, nil)
 	if err != nil {
 		return nil, err

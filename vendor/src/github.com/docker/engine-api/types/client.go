@@ -283,4 +283,5 @@ type ServiceListOptions struct {
 // TaskListOptions holds parameters to list  tasks with.
 type TaskListOptions struct {
 	Filter filters.Args
+	All    bool
 }

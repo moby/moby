@@ -150,6 +150,42 @@ func (s *DockerSwarmSuite) TestSwarmServiceListFilter(c *check.C) {
 	c.Assert(out, checker.Contains, name3+" ")
 }
 
+func (s *DockerSwarmSuite) TestSwarmServiceTaskList(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name := "service_ps_test"
+	out, err := d.Cmd("service", "create", "--replicas=2", "--name", name, "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 2)
+
+	out, err = d.Cmd("service", "ps", name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name+".1")
+	c.Assert(out, checker.Contains, name+".2")
+
+	// Remove one replica to test to make sure ps only shows the correct tasks
+	// with and w/o the all flag set.
+	out, err = d.Cmd("service", "scale", name+"=1")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 1)
+
+	out, err = d.Cmd("service", "ps", name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Count, name, 1)
+	c.Assert(out, checker.Contains, "Running")
+	c.Assert(out, checker.Not(checker.Contains), "Shutdown")
+
+	out, err = d.Cmd("service", "ps", name, "-a")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Count, name, 2)
+	c.Assert(out, checker.Contains, "Running")
+	c.Assert(out, checker.Contains, "Shutdown")
+}
+
 func (s *DockerSwarmSuite) TestSwarmNodeListFilter(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
@@ -157,6 +193,10 @@ func (s *DockerSwarmSuite) TestSwarmNodeListFilter(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 	name := strings.TrimSpace(out)
+
+	out, err = d.Cmd("node", "inspect", "--format", "{{ .Description.Hostname }}")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, name)
 
 	filter := "name=" + name[:4]
 
@@ -193,4 +233,51 @@ func (s *DockerSwarmSuite) TestSwarmNodeTaskListFilter(c *check.C) {
 	c.Assert(out, checker.Not(checker.Contains), name+".1")
 	c.Assert(out, checker.Not(checker.Contains), name+".2")
 	c.Assert(out, checker.Not(checker.Contains), name+".3")
+}
+
+func (s *DockerSwarmSuite) TestSwarmNodeTaskList(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name := "node_ps_test"
+	out, err := d.Cmd("service", "create", "--replicas=2", "--name", name, "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 2)
+
+	out, err = d.Cmd("node", "ps")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, name+".1")
+	c.Assert(out, checker.Contains, name+".2")
+
+	// Remove one replica to test to make sure ps only shows the correct tasks
+	// with and w/o the all flag set.
+	out, err = d.Cmd("service", "scale", name+"=1")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, 1)
+
+	out, err = d.Cmd("node", "ps")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Count, name, 1)
+	c.Assert(out, checker.Contains, "Running")
+
+	out, err = d.Cmd("node", "ps", "-f", "desired-state=shutdown")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Count, name, 1)
+	c.Assert(out, checker.Contains, "Shutdown")
+
+	out, err = d.Cmd("node", "ps", "-a")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Count, name, 2)
+	c.Assert(out, checker.Contains, "Running")
+	c.Assert(out, checker.Contains, "Shutdown")
+
+	// All should trump our filter
+	out, err = d.Cmd("node", "ps", "-a", "-f", "desired-state=running")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Count, name, 2)
+	c.Assert(out, checker.Contains, "Running")
+	c.Assert(out, checker.Contains, "Shutdown")
 }

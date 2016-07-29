@@ -235,7 +235,12 @@ func (sr *swarmRouter) getTasks(ctx context.Context, w http.ResponseWriter, r *h
 		return err
 	}
 
-	tasks, err := sr.backend.GetTasks(basictypes.TaskListOptions{Filter: filter})
+	options := basictypes.TaskListOptions{
+		Filter: filter,
+		All:    httputils.BoolValue(r, "all"),
+	}
+
+	tasks, err := sr.backend.GetTasks(options)
 	if err != nil {
 		logrus.Errorf("Error getting tasks: %v", err)
 		return err
