@@ -63,6 +63,7 @@ type NetworkInfo interface {
 	Scope() string
 	IPv6Enabled() bool
 	Internal() bool
+	Legacy() bool
 	Labels() map[string]string
 	Dynamic() bool
 }
@@ -185,6 +186,7 @@ type network struct {
 	stopWatchCh  chan struct{}
 	drvOnce      *sync.Once
 	internal     bool
+	legacy       bool
 	inDelete     bool
 	ingress      bool
 	driverTables []string
@@ -600,6 +602,18 @@ func NetworkOptionInternalNetwork() NetworkOption {
 	}
 }
 
+// NetworkOptionLegacyNetwork returns an option setter to config the network
+// to be legacy
+func NetworkOptionLegacyNetwork() NetworkOption {
+	return func(n *network) {
+		if n.generic == nil {
+			n.generic = make(map[string]interface{})
+		}
+		n.legacy = true
+		n.generic[netlabel.Legacy] = true
+	}
+}
+
 // NetworkOptionIpam function returns an option setter for the ipam configuration for this network
 func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ipV6 []*IpamConf, opts map[string]string) NetworkOption {
 	return func(n *network) {
@@ -825,7 +839,6 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 	}
 
 	ep := &endpoint{name: name, generic: make(map[string]interface{}), iface: &endpointInterface{}}
-	ep.id = stringid.GenerateRandomID()
 
 	// Initialize ep.network with a possibly stale copy of n. We need this to get network from
 	// store. But once we get it from store we will have the most uptodate copy possibly.
@@ -838,6 +851,10 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 	n = ep.network
 
 	ep.processOptions(options...)
+
+	if ep.id == "" {
+		ep.id = stringid.GenerateRandomID()
+	}
 
 	for _, llIPNet := range ep.Iface().LinkLocalAddresses() {
 		if !llIPNet.IP.IsLinkLocalUnicast() {
@@ -1488,6 +1505,13 @@ func (n *network) Dynamic() bool {
 	defer n.Unlock()
 
 	return n.dynamic
+}
+
+func (n *network) Legacy() bool {
+	n.Lock()
+	defer n.Unlock()
+
+	return n.legacy
 }
 
 func (n *network) IPv6Enabled() bool {
