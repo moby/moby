@@ -754,9 +754,14 @@ func (s *DockerSwarmSuite) TestApiSwarmForceNewCluster(c *check.C) {
 	id := d1.createService(c, simpleTestService, setInstances(instances))
 	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d2.checkActiveContainerCount), checker.Equals, instances)
 
-	c.Assert(d2.Stop(), checker.IsNil)
+	// drain d2, all containers should move to d1
+	d1.updateNode(c, d2.NodeID, func(n *swarm.Node) {
+		n.Spec.Availability = swarm.NodeAvailabilityDrain
+	})
+	waitAndAssert(c, defaultReconciliationTimeout, d1.checkActiveContainerCount, checker.Equals, instances)
+	waitAndAssert(c, defaultReconciliationTimeout, d2.checkActiveContainerCount, checker.Equals, 0)
 
-	time.Sleep(5 * time.Second)
+	c.Assert(d2.Stop(), checker.IsNil)
 
 	c.Assert(d1.Init(swarm.InitRequest{
 		ForceNewCluster: true,
