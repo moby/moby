@@ -52,6 +52,14 @@ func runDeploy(dockerCli *client.DockerCli, opts deployOptions) error {
 		return err
 	}
 
+	info, err := dockerCli.Client().Info(context.Background())
+	if err != nil {
+		return err
+	}
+	if !info.Swarm.ControlAvailable {
+		return fmt.Errorf("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
+	}
+
 	networks := getUniqueNetworkNames(bundle.Services)
 	ctx := context.Background()
 
