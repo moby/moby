@@ -13,9 +13,9 @@ parent = "smn_cli"
 # service rm
 
 ```Markdown
-Usage:	docker service rm [OPTIONS] SERVICE
+Usage:	docker service rm [OPTIONS] SERVICE [SERVICE...]
 
-Remove a service
+Remove one or more services
 
 Aliases:
   rm, remove

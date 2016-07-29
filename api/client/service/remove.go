@@ -15,7 +15,7 @@ func newRemoveCommand(dockerCli *client.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "rm [OPTIONS] SERVICE [SERVICE...]",
 		Aliases: []string{"remove"},
-		Short:   "Remove a service",
+		Short:   "Remove one or more services",
 		Args:    cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runRemove(dockerCli, args)

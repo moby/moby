@@ -13,7 +13,7 @@ parent = "smn_cli"
 ```markdown
 Usage:  docker node demote NODE [NODE...]
 
-Demote a node from manager in the swarm
+Demote one or more nodes from manager in the swarm
 
 Options:
       --help   Print usage

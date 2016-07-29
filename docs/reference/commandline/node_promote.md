@@ -13,7 +13,7 @@ parent = "smn_cli"
 ```markdown
 Usage:  docker node promote NODE [NODE...]
 
-Promote a node to a manager in the swarm
+Promote one or more nodes to manager in the swarm
 
 Options:
       --help   Print usage
