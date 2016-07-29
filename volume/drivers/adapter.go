@@ -9,7 +9,6 @@ import (
 )
 
 var (
-	errInvalidScope = errors.New("invalid scope")
 	errNoSuchVolume = errors.New("no such volume")
 )
 
