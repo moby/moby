@@ -214,7 +214,7 @@ func (s *DockerSuite) TestExecParseError(c *check.C) {
 	cmd := exec.Command(dockerBinary, "exec", "top")
 	_, stderr, _, err := runCommandWithStdoutStderr(cmd)
 	c.Assert(err, checker.NotNil)
-	c.Assert(stderr, checker.Contains, "See '"+dockerBinary+" exec --help'")
+	c.Assert(stderr, checker.Contains, "See 'docker exec --help'")
 }
 
 func (s *DockerSuite) TestExecStopNotHanging(c *check.C) {

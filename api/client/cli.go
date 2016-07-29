@@ -87,7 +87,12 @@ func (cli *DockerCli) ConfigFile() *configfile.ConfigFile {
 	return cli.configFile
 }
 
-// IsTerminalOut returns true if the clients stdin is a TTY
+// IsTerminalIn returns true if the clients stdin is a TTY
+func (cli *DockerCli) IsTerminalIn() bool {
+	return cli.isTerminalIn
+}
+
+// IsTerminalOut returns true if the clients stdout is a TTY
 func (cli *DockerCli) IsTerminalOut() bool {
 	return cli.isTerminalOut
 }
