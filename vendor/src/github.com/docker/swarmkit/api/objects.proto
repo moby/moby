@@ -185,6 +185,18 @@ message NetworkAttachment {
 
 	// List of aliases by which a task is resolved in a network
 	repeated string aliases = 3;
+
+	// The network attachment ID
+	string id = 4 [(gogoproto.customname) = "ID"];
+
+	Meta meta = 5 [(gogoproto.nullable) = false];
+
+	// NodeID specifies the node where the attachment is taking place.
+	string node_id = 6 [(gogoproto.customname) = "NodeID"];
+
+	NetworkAttachmentConfig config = 7 [(gogoproto.nullable) = false];
+
+	AttachmentStatus status = 8 [(gogoproto.nullable) = false];
 }
 
 message Network {

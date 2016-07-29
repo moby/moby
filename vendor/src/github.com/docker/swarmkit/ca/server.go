@@ -309,15 +309,6 @@ func (s *Server) Run(ctx context.Context) error {
 	logger := log.G(ctx).WithField("module", "ca")
 	ctx = log.WithLogger(ctx, logger)
 
-	// Run() should never be called twice, but just in case, we're
-	// attempting to close the started channel in a safe way
-	select {
-	case <-s.started:
-		return fmt.Errorf("CA server cannot be started more than once")
-	default:
-		close(s.started)
-	}
-
 	// Retrieve the channels to keep track of changes in the cluster
 	// Retrieve all the currently registered nodes
 	var nodes []*api.Node
@@ -346,6 +337,7 @@ func (s *Server) Run(ctx context.Context) error {
 	s.mu.Lock()
 	s.ctx, s.cancel = context.WithCancel(ctx)
 	s.mu.Unlock()
+	close(s.started)
 
 	if err != nil {
 		log.G(ctx).WithFields(logrus.Fields{

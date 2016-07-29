@@ -1,7 +1,7 @@
 package store
 
 import (
-	"errors"
+	"fmt"
 
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/manager/state"
@@ -40,9 +40,16 @@ func Apply(store *MemoryStore, item events.Event) (err error) {
 		case state.EventDeleteNode:
 			return DeleteNode(tx, v.Node.ID)
 
+		case state.EventCreateAttachment:
+			return CreateAttachment(tx, v.Attachment)
+		case state.EventUpdateAttachment:
+			return UpdateAttachment(tx, v.Attachment)
+		case state.EventDeleteAttachment:
+			return DeleteAttachment(tx, v.Attachment.ID)
+
 		case state.EventCommit:
 			return nil
 		}
-		return errors.New("unrecognized event type")
+		return fmt.Errorf("unrecognized event type: %v", item)
 	})
 }

@@ -48,6 +48,12 @@ service Dispatcher { // maybe dispatch, al likes this
 	rpc Tasks(TasksRequest) returns (stream TasksMessage) {
 		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-worker" roles: "swarm-manager" };
 	};
+
+	// NetworkAttachments is a stream of network attachment resources
+	// allocated for the node.
+	rpc NetworkAttachments(NetworkAttachmentsRequest) returns (stream NetworkAttachmentMessage) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-worker" roles: "swarm-manager" };
+	};
 }
 
 // SessionRequest starts a session.
@@ -152,3 +158,11 @@ message TasksMessage {
 	repeated Task tasks = 1;
 }
 
+message NetworkAttachmentsRequest {
+	string session_id = 1 [(gogoproto.customname) = "SessionID"];
+}
+
+message NetworkAttachmentMessage {
+	// Attachments is the set of Network attachments that have been allocated for the node.
+	repeated NetworkAttachment attachments = 1;
+}

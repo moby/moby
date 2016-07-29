@@ -12,12 +12,12 @@ import (
 )
 
 const (
-	initialSessionFailureBackoff = time.Second
+	initialSessionFailureBackoff = 100 * time.Millisecond
 	maxSessionFailureBackoff     = 8 * time.Second
 )
 
 // Agent implements the primary node functionality for a member of a swarm
-// cluster. The primary functionality id to run and report on the status of
+// cluster. The primary functionality is to run and report on the status of
 // tasks assigned to the node.
 type Agent struct {
 	config *Config
@@ -30,6 +30,7 @@ type Agent struct {
 
 	sessionq chan sessionOperation
 	worker   Worker
+	attMgr   *attachmentManager
 
 	started chan struct{}
 	ready   chan struct{}
@@ -53,6 +54,8 @@ func New(config *Config) (*Agent, error) {
 		closed:   make(chan struct{}),
 		ready:    make(chan struct{}),
 	}
+
+	a.attMgr = newAttachmentManager(a)
 
 	return a, nil
 }
@@ -166,6 +169,8 @@ func (a *Agent) run(ctx context.Context) {
 			if err := a.worker.Assign(ctx, msg.Tasks); err != nil {
 				log.G(ctx).WithError(err).Error("task assignment failed")
 			}
+		case msg := <-session.attachments:
+			a.attMgr.notify(ctx, msg.Attachments)
 		case msg := <-session.messages:
 			if err := a.handleSessionMessage(ctx, msg); err != nil {
 				log.G(ctx).WithError(err).Error("session message handler failed")

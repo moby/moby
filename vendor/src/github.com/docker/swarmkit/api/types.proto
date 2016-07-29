@@ -407,6 +407,24 @@ message TaskStatus {
 	}
 }
 
+// AttachmentState enumerates the states that a network attachment progresses through.
+enum AttachmentState {
+	option (gogoproto.goproto_enum_prefix) = false;
+	option (gogoproto.enum_customname) = "AttachmentState";
+	CREATED = 0 [(gogoproto.enumvalue_customname)="AttachmentStateCreated"];
+	RESERVED = 64 [(gogoproto.enumvalue_customname)="AttachmentStateAllocated"]; // successful allocation of network attachment resources
+	RELEASED = 128 [(gogoproto.enumvalue_customname) = "AttachmentStateReleased"]; // network attachment resources released
+	FAILURE = 256 [(gogoproto.enumvalue_customname) = "AttachmentStateFailed"]; // network attachment resources allocation failed
+}
+
+message AttachmentStatus {
+	Timestamp timestamp = 1;
+
+	AttachmentState state = 2;
+
+	string message = 3;
+}
+
 // IPAMConfig specifies parameters for IP Address Management.
 message IPAMConfig {
 	// TODO(stevvooe): It may make more sense to manage IPAM and network

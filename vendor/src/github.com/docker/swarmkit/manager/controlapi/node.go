@@ -283,7 +283,7 @@ func (s *Server) RemoveNode(ctx context.Context, request *api.RemoveNodeRequest)
 				return grpc.Errorf(codes.FailedPrecondition, "node %s is a cluster manager and is a member of the raft cluster. It must be demoted to worker before removal", request.NodeID)
 			}
 		}
-		if node.Status.State == api.NodeStatus_READY {
+		if !request.Force && node.Status.State == api.NodeStatus_READY {
 			return grpc.Errorf(codes.FailedPrecondition, "node %s is not down and can't be removed", request.NodeID)
 		}
 		return store.DeleteNode(tx, request.NodeID)

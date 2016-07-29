@@ -200,7 +200,7 @@ func (tm *taskManager) run(ctx context.Context) {
 				cancel() // cancel outstanding if necessary.
 			} else {
 				// If this channel op fails, it means there is already a
-				// message un the run queue.
+				// message on the run queue.
 				select {
 				case run <- struct{}{}:
 				default:

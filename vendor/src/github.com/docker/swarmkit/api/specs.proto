@@ -227,6 +227,9 @@ message NetworkSpec {
 	bool internal = 4;
 
 	IPAMOptions ipam = 5 [(gogoproto.customname) = "IPAM"];
+	
+	// If a network is marked as legacy, user can run and connect containers onto it
+	bool legacy = 6;
 }
 
 // ClusterSpec specifies global cluster settings.
@@ -252,4 +255,22 @@ message ClusterSpec {
 
 	// TaskDefaults specifies the default values to use for task creation.
 	TaskDefaults task_defaults = 7 [(gogoproto.nullable) = false];
+}
+
+// NetworkAttachmentConfig specifies the allocation information
+// for the network attachment.
+message NetworkAttachmentConfig {
+	Annotations annotations = 1 [(gogoproto.nullable) = false];
+
+	// NodeID specifies the node on which the attachment is to be placed
+	string node_id = 2 [(gogoproto.customname) = "NodeID"];
+
+	// Target specifies the network to attach to.
+	string target = 3;
+
+	// Addresses are the IPv4/IPv6 addresses specified for this attachment.
+	repeated string addresses = 4;
+
+	// Aliases are the aliases specified for this attachment.
+	repeated string aliases = 5;
 }
