@@ -550,6 +550,11 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 		if unmarshalledConfig.RootFS == nil {
 			return "", "", errors.New("image config has no rootfs section")
 		}
+		// https://github.com/docker/docker/issues/24766 - Err on the side of caution,
+		// explicitly blocking images intended for linux from the Windows daemon
+		if unmarshalledConfig.OS == "linux" {
+			return "", "", fmt.Errorf("image operating system %q cannot be used on this platform", unmarshalledConfig.OS)
+		}
 		downloadRootFS = *unmarshalledConfig.RootFS
 		downloadRootFS.DiffIDs = []layer.DiffID{}
 	} else {
