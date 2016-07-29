@@ -69,13 +69,13 @@ func NewDaemonCli() *DaemonCli {
 	daemonConfig.LogConfig.Config = make(map[string]string)
 	daemonConfig.ClusterOpts = make(map[string]string)
 
-	if runtime.GOOS != "linux" {
-		daemonConfig.V2Only = true
-	}
-
 	daemonConfig.InstallFlags(flag.CommandLine, presentInHelp)
 	configFile := flag.CommandLine.String([]string{daemonConfigFileFlag}, defaultDaemonConfigFile, "Daemon configuration file")
 	flag.CommandLine.Require(flag.Exact, 0)
+
+	if runtime.GOOS != "linux" {
+		daemonConfig.V2Only = true
+	}
 
 	return &DaemonCli{
 		Config:      daemonConfig,

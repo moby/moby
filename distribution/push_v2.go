@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -169,6 +170,11 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, ima
 
 	putOptions := []distribution.ManifestServiceOption{distribution.WithTag(ref.Tag())}
 	if _, err = manSvc.Put(ctx, manifest, putOptions...); err != nil {
+		if runtime.GOOS == "windows" {
+			logrus.Warnf("failed to upload schema2 manifest: %v", err)
+			return err
+		}
+
 		logrus.Warnf("failed to upload schema2 manifest: %v - falling back to schema1", err)
 
 		manifestRef, err := distreference.WithTag(p.repo.Named(), ref.Tag())

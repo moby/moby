@@ -2,6 +2,10 @@
 
 package registry
 
+import (
+	flag "github.com/docker/docker/pkg/mflag"
+)
+
 var (
 	// CertsDir is the directory where certificates are stored
 	CertsDir = "/etc/docker/certs.d"
@@ -13,4 +17,9 @@ var (
 // which contain those characters (such as : on Windows)
 func cleanPath(s string) string {
 	return s
+}
+
+// installCliPlatformFlags handles any platform specific flags for the service.
+func (options *ServiceOptions) installCliPlatformFlags(cmd *flag.FlagSet, usageFn func(string) string) {
+	cmd.BoolVar(&options.V2Only, []string{"-disable-legacy-registry"}, false, usageFn("Disable contacting legacy registries"))
 }
