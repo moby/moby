@@ -89,7 +89,7 @@ bg8c07zzg87di2mufeq51a2qp  redis.7  redis    redis:3.0.6  Running 9 minutes   Ru
 
 #### desired-state
 
-The `desired-state` filter can take the values `running` and `accepted`.
+The `desired-state` filter can take the values `running`, `shutdown`, and `accepted`.
 
 
 ## Related information

@@ -87,7 +87,7 @@ ID                         NAME      SERVICE  IMAGE        DESIRED STATE  LAST S
 
 #### desired-state
 
-The `desired-state` filter can take the values `running` and `accepted`.
+The `desired-state` filter can take the values `running`, `shutdown`, and `accepted`.
 
 
 ## Related information
