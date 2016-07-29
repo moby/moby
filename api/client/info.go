@@ -91,6 +91,12 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 			fmt.Fprintf(cli.out, "  Heartbeat Period: %s\n", units.HumanDuration(time.Duration(info.Swarm.Cluster.Spec.Dispatcher.HeartbeatPeriod)))
 			fmt.Fprintf(cli.out, " CA Configuration:\n")
 			fmt.Fprintf(cli.out, "  Expiry Duration: %s\n", units.HumanDuration(info.Swarm.Cluster.Spec.CAConfig.NodeCertExpiry))
+			if len(info.Swarm.Cluster.Spec.CAConfig.ExternalCAs) > 0 {
+				fmt.Fprintf(cli.out, "  External CAs:\n")
+				for _, entry := range info.Swarm.Cluster.Spec.CAConfig.ExternalCAs {
+					fmt.Fprintf(cli.out, "    %s: %s\n", entry.Protocol, entry.URL)
+				}
+			}
 		}
 		fmt.Fprintf(cli.out, " Node Address: %s\n", info.Swarm.NodeAddr)
 	}
