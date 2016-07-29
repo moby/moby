@@ -75,7 +75,7 @@ availability. Because swarm mode manager nodes share data using Raft, there
 must be an odd number of managers. The swarm can continue to function after as
 long as a quorum of more than half of the manager nodes are available.
 
-For more detail about swarm managers and administering a swarm cluster, see
+For more detail about swarm managers and administering a swarm, see
 [Administer and maintain a swarm of Docker Engines](admin_guide.md).
 
 To retrieve the join command including the join token for manager nodes, run the

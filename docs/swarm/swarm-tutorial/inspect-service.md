@@ -103,7 +103,7 @@ service:
 
     In this case, the one instance of the `helloworld` service is running on the
     `worker2` node. You may see the service running on your manager node. By
-    default, manager nodes in a Swarm can execute tasks just like worker nodes.
+    default, manager nodes in a swarm can execute tasks just like worker nodes.
 
     Swarm also shows you the `DESIRED STATE` and `LAST STATE` of the service
     task so you can see if tasks are running according to the service

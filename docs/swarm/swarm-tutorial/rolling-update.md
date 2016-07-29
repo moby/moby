@@ -1,7 +1,7 @@
 <!--[metadata]>
 +++
 title = "Apply rolling updates"
-description = "Apply rolling updates to a service on the Swarm"
+description = "Apply rolling updates to a service on the swarm"
 keywords = ["tutorial, cluster management, swarm, service, rolling-update"]
 [menu.main]
 identifier="swarm-tutorial-rolling-update"
@@ -148,4 +148,4 @@ desired state:
     `redis:3.0.6` while others are running `redis:3.0.7`. The output above shows
     the state once the rolling updates are done.
 
-Next, learn about how to [drain a node](drain-node.md) in the Swarm.
+Next, learn about how to [drain a node](drain-node.md) in the swarm.
