@@ -30,6 +30,10 @@ func NewTagCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.SetInterspersed(false)
+	// TODO remove dummy '--force' / '-f' flag for 1.13. It's only there for backward compatibility
+	var forceTag bool
+	flags.BoolVarP(&forceTag, "force", "f", false, "Force the tagging even if there's a conflict")
+	flags.MarkDeprecated("force", "force tagging is now enabled by default. This flag will be removed in Docker 1.13")
 
 	return cmd
 }
