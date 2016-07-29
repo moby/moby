@@ -1206,7 +1206,7 @@ func (n *network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, preferredPo
 		}()
 
 		// If this is a preferred pool request and the network
-		// is local scope and there is a overlap, we fail the
+		// is local scope and there is an overlap, we fail the
 		// network creation right here. The pool will be
 		// released in the defer.
 		if preferredPool != "" {
