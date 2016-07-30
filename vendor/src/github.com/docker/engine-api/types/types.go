@@ -454,6 +454,7 @@ type NetworkResource struct {
 	EnableIPv6 bool                        // EnableIPv6 represents whether to enable IPv6
 	IPAM       network.IPAM                // IPAM is the network's IP Address Management
 	Internal   bool                        // Internal represents if the network is used internal only
+	Legacy     bool                        // Legacy allows to run containers on this swarm network
 	Containers map[string]EndpointResource // Containers contains endpoints belonging to the network
 	Options    map[string]string           // Options holds the network specific options to use for when creating the network
 	Labels     map[string]string           // Labels holds metadata specific to the network being created
@@ -475,6 +476,7 @@ type NetworkCreate struct {
 	EnableIPv6     bool
 	IPAM           network.IPAM
 	Internal       bool
+	Legacy         bool
 	Options        map[string]string
 	Labels         map[string]string
 }
