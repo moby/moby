@@ -56,7 +56,7 @@ func GetOSVersion() OSVersion {
 func IsWindowsClient() bool {
 	osviex := &osVersionInfoEx{OSVersionInfoSize: 284}
 	r1, _, err := procGetVersionExW.Call(uintptr(unsafe.Pointer(osviex)))
-	if r1 == 0 {
+	if err != nil || r1 == 0 {
 		logrus.Warnf("GetVersionExW failed - assuming server SKU: %v", err)
 		return false
 	}
