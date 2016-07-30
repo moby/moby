@@ -21,7 +21,6 @@ import (
 var defaultReconciliationTimeout = 30 * time.Second
 
 func (s *DockerSwarmSuite) TestApiSwarmInit(c *check.C) {
-	testRequires(c, Network)
 	// todo: should find a better way to verify that components are running than /info
 	d1 := s.AddDaemon(c, true, true)
 	info, err := d1.info()
@@ -73,7 +72,6 @@ func (s *DockerSwarmSuite) TestApiSwarmInit(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmJoinToken(c *check.C) {
-	testRequires(c, Network)
 	d1 := s.AddDaemon(c, false, false)
 	c.Assert(d1.Init(swarm.InitRequest{}), checker.IsNil)
 
@@ -145,7 +143,6 @@ func (s *DockerSwarmSuite) TestApiSwarmJoinToken(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmCAHash(c *check.C) {
-	testRequires(c, Network)
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, false, false)
 	splitToken := strings.Split(d1.joinTokens(c).Worker, "-")
@@ -157,7 +154,6 @@ func (s *DockerSwarmSuite) TestApiSwarmCAHash(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmPromoteDemote(c *check.C) {
-	testRequires(c, Network)
 	d1 := s.AddDaemon(c, false, false)
 	c.Assert(d1.Init(swarm.InitRequest{}), checker.IsNil)
 	d2 := s.AddDaemon(c, true, false)
@@ -201,7 +197,6 @@ func (s *DockerSwarmSuite) TestApiSwarmPromoteDemote(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmServicesEmptyList(c *check.C) {
-	testRequires(c, Network)
 	d := s.AddDaemon(c, true, true)
 
 	services := d.listServices(c)
@@ -210,7 +205,6 @@ func (s *DockerSwarmSuite) TestApiSwarmServicesEmptyList(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmServicesCreate(c *check.C) {
-	testRequires(c, Network)
 	d := s.AddDaemon(c, true, true)
 
 	instances := 2
@@ -227,7 +221,6 @@ func (s *DockerSwarmSuite) TestApiSwarmServicesCreate(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmServicesMultipleAgents(c *check.C) {
-	testRequires(c, Network)
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, false)
 	d3 := s.AddDaemon(c, true, false)
@@ -256,7 +249,6 @@ func (s *DockerSwarmSuite) TestApiSwarmServicesMultipleAgents(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmServicesCreateGlobal(c *check.C) {
-	testRequires(c, Network)
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, false)
 	d3 := s.AddDaemon(c, true, false)
@@ -321,7 +313,6 @@ func (s *DockerSwarmSuite) TestApiSwarmServicesUpdate(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmServicesStateReporting(c *check.C) {
-	testRequires(c, Network)
 	testRequires(c, SameHostDaemon)
 	testRequires(c, DaemonIsLinux)
 
@@ -484,7 +475,6 @@ func (s *DockerSwarmSuite) TestApiSwarmLeaderElection(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmRaftQuorum(c *check.C) {
-	testRequires(c, Network)
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, true)
 	d3 := s.AddDaemon(c, true, true)
@@ -523,7 +513,6 @@ func (s *DockerSwarmSuite) TestApiSwarmRaftQuorum(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmListNodes(c *check.C) {
-	testRequires(c, Network)
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, false)
 	d3 := s.AddDaemon(c, true, false)
@@ -543,7 +532,6 @@ loop0:
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmNodeUpdate(c *check.C) {
-	testRequires(c, Network)
 	d := s.AddDaemon(c, true, true)
 
 	nodes := d.listNodes(c)
@@ -557,7 +545,6 @@ func (s *DockerSwarmSuite) TestApiSwarmNodeUpdate(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmNodeDrainPause(c *check.C) {
-	testRequires(c, Network)
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, false)
 
@@ -612,7 +599,6 @@ func (s *DockerSwarmSuite) TestApiSwarmNodeDrainPause(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmLeaveRemovesContainer(c *check.C) {
-	testRequires(c, Network)
 	d := s.AddDaemon(c, true, true)
 
 	instances := 2
@@ -674,7 +660,6 @@ func (s *DockerSwarmSuite) TestApiSwarmRestoreOnPendingJoin(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmManagerRestore(c *check.C) {
-	testRequires(c, Network)
 	d1 := s.AddDaemon(c, true, true)
 
 	instances := 2
@@ -704,7 +689,6 @@ func (s *DockerSwarmSuite) TestApiSwarmManagerRestore(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestApiSwarmScaleNoRollingUpdate(c *check.C) {
-	testRequires(c, Network)
 	d := s.AddDaemon(c, true, true)
 
 	instances := 2
