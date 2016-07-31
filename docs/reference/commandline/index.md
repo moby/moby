@@ -117,7 +117,7 @@ read the [`dockerd`](dockerd.md) reference page.
 | [node update](node_update.md) | Update attributes for a node                 |
 | [node ps](node_ps.md) | List tasks running on a node                   |
 | [node ls](node_ls.md) | List nodes in the swarm                              |
-| [node rm](node_rm.md) | Remove a node from the swarm                         |
+| [node rm](node_rm.md) | Remove one or more nodes from the swarm                         |
 
 ### Swarm swarm commands
 

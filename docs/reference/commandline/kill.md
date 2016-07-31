@@ -13,7 +13,7 @@ parent = "smn_cli"
 ```markdown
 Usage:  docker kill [OPTIONS] CONTAINER [CONTAINER...]
 
-Kill one or more running container
+Kill one or more running containers
 
 Options:
       --help            Print usage
