@@ -243,15 +243,13 @@ To create the `docker` group and add your user:
 
 1. Log into Ubuntu as a user with `sudo` privileges.
 
-    This procedure assumes you log in as the `ubuntu` user.
-
 2. Create the `docker` group.
 
         $ sudo groupadd docker
 
 3. Add your user to `docker` group.
 
-        $ sudo usermod -aG docker ubuntu
+        $ sudo usermod -aG docker $USER
 
 4. Log out and log back in.
 
