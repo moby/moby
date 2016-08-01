@@ -66,6 +66,11 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 	for j := 0; j < len(args); j++ {
 		// name  ==> args[j]
 		// value ==> args[j+1]
+
+		if len(args[j]) == 0 {
+			return fmt.Errorf("ENV names can not be blank")
+		}
+
 		newVar := args[j] + "=" + args[j+1] + ""
 		commitStr += " " + newVar
 
@@ -129,6 +134,11 @@ func label(b *Builder, args []string, attributes map[string]bool, original strin
 	for j := 0; j < len(args); j++ {
 		// name  ==> args[j]
 		// value ==> args[j+1]
+
+		if len(args[j]) == 0 {
+			return fmt.Errorf("LABEL names can not be blank")
+		}
+
 		newVar := args[j] + "=" + args[j+1] + ""
 		commitStr += " " + newVar
 
@@ -696,6 +706,10 @@ func arg(b *Builder, args []string, attributes map[string]bool, original string)
 	// name-value pair). If possible, it will be good to harmonize the two.
 	if strings.Contains(arg, "=") {
 		parts := strings.SplitN(arg, "=", 2)
+		if len(parts[0]) == 0 {
+			return fmt.Errorf("ARG names can not be blank")
+		}
+
 		name = parts[0]
 		value = parts[1]
 		hasDefault = true
