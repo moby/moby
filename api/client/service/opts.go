@@ -488,7 +488,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags := cmd.Flags()
 	flags.StringVar(&opts.name, flagName, "", "Service name")
 
-	flags.StringVarP(&opts.workdir, "workdir", "w", "", "Working directory inside the container")
+	flags.StringVarP(&opts.workdir, flagWorkdir, "w", "", "Working directory inside the container")
 	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID")
 
 	flags.Var(&opts.resources.limitCPU, flagLimitCPU, "Limit CPUs")
@@ -555,6 +555,7 @@ const (
 	flagUpdateFailureAction  = "update-failure-action"
 	flagUpdateParallelism    = "update-parallelism"
 	flagUser                 = "user"
+	flagWorkdir              = "workdir"
 	flagRegistryAuth         = "with-registry-auth"
 	flagLogDriver            = "log-driver"
 	flagLogOpt               = "log-opt"
