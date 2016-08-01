@@ -213,8 +213,9 @@ $ docker service create \
 
 The swarm extends `my-network` to each node running the service.
 
-<!-- TODO when overlay-security-model is published
-For more information, refer to [Note on Docker 1.12 Overlay Network Security Model](../userguide/networking/overlay-security-model.md).-->
+For more information on overlay networking and service discovery, refer to
+[Attach services to an overlay network](networking.md). See also
+[Docker swarm mode overlay network security model](../userguide/networking/overlay-security-model.md).
 
 ## Configure update behavior
 

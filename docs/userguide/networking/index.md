@@ -437,6 +437,8 @@ Overlay networks for a swarm are not available to containers started with
 `docker run` that don't run as part of a swarm mode service. For more
 information refer to [Docker swarm mode overlay network security model](overlay-security-model.md).
 
+See also [Attach services to an overlay network](../../swarm/networking.md).
+
 ### An overlay network with an external key-value store
 
 If you are not using Docker Engine in swarm mode, the `overlay` network requires
