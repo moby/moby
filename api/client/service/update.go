@@ -152,7 +152,7 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 	updateString("image", &cspec.Image)
 	updateStringToSlice(flags, "args", &cspec.Args)
 	updateEnvironment(flags, &cspec.Env)
-	updateString("workdir", &cspec.Dir)
+	updateString(flagWorkdir, &cspec.Dir)
 	updateString(flagUser, &cspec.User)
 	updateMounts(flags, &cspec.Mounts)
 
