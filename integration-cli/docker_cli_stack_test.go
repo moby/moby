@@ -10,9 +10,9 @@ import (
 func (s *DockerSwarmSuite) TestStackRemove(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
-	stackArgs := append([]string{"remove", "UNKNOWN_STACK"})
+	stackArgs := append([]string{"stack", "remove", "UNKNOWN_STACK"})
 
-	out, err := d.Cmd("stack", stackArgs...)
+	out, err := d.Cmd(stackArgs...)
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, check.Equals, "Nothing found in stack: UNKNOWN_STACK\n")
 }
@@ -20,9 +20,9 @@ func (s *DockerSwarmSuite) TestStackRemove(c *check.C) {
 func (s *DockerSwarmSuite) TestStackTasks(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
-	stackArgs := append([]string{"ps", "UNKNOWN_STACK"})
+	stackArgs := append([]string{"stack", "ps", "UNKNOWN_STACK"})
 
-	out, err := d.Cmd("stack", stackArgs...)
+	out, err := d.Cmd(stackArgs...)
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, check.Equals, "Nothing found in stack: UNKNOWN_STACK\n")
 }
@@ -30,9 +30,9 @@ func (s *DockerSwarmSuite) TestStackTasks(c *check.C) {
 func (s *DockerSwarmSuite) TestStackServices(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
-	stackArgs := append([]string{"services", "UNKNOWN_STACK"})
+	stackArgs := append([]string{"stack", "services", "UNKNOWN_STACK"})
 
-	out, err := d.Cmd("stack", stackArgs...)
+	out, err := d.Cmd(stackArgs...)
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, check.Equals, "Nothing found in stack: UNKNOWN_STACK\n")
 }

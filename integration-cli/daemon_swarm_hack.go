@@ -15,6 +15,6 @@ func (s *DockerSwarmSuite) getDaemon(c *check.C, nodeID string) *SwarmDaemon {
 }
 
 // nodeCmd executes a command on a given node via the normal docker socket
-func (s *DockerSwarmSuite) nodeCmd(c *check.C, id, cmd string, args ...string) (string, error) {
-	return s.getDaemon(c, id).Cmd(cmd, args...)
+func (s *DockerSwarmSuite) nodeCmd(c *check.C, id string, args ...string) (string, error) {
+	return s.getDaemon(c, id).Cmd(args...)
 }

@@ -435,22 +435,19 @@ func (d *Daemon) getBaseDeviceSize(c *check.C) int64 {
 
 // Cmd will execute a docker CLI command against this Daemon.
 // Example: d.Cmd("version") will run docker -H unix://path/to/unix.sock version
-func (d *Daemon) Cmd(name string, arg ...string) (string, error) {
-	args := []string{"--host", d.sock(), name}
-	args = append(args, arg...)
-	c := exec.Command(dockerBinary, args...)
+func (d *Daemon) Cmd(args ...string) (string, error) {
+	c := exec.Command(dockerBinary, d.prependHostArg(args)...)
 	b, err := c.CombinedOutput()
 	return string(b), err
 }
 
-// CmdWithArgs will execute a docker CLI command against a daemon with the
-// given additional arguments
-func (d *Daemon) CmdWithArgs(daemonArgs []string, name string, arg ...string) (string, error) {
-	args := append(daemonArgs, name)
-	args = append(args, arg...)
-	c := exec.Command(dockerBinary, args...)
-	b, err := c.CombinedOutput()
-	return string(b), err
+func (d *Daemon) prependHostArg(args []string) []string {
+	for _, arg := range args {
+		if arg == "--host" || arg == "-H" {
+			return args
+		}
+	}
+	return append([]string{"--host", d.sock()}, args...)
 }
 
 // SockRequest executes a socket request on a daemon and returns statuscode and output.
