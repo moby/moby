@@ -10,6 +10,7 @@ var (
 	left = [...]string{
 		"admiring",
 		"adoring",
+		"affectionate",
 		"agitated",
 		"amazing",
 		"angry",
@@ -28,7 +29,9 @@ var (
 		"distracted",
 		"dreamy",
 		"drunk",
+		"eager",
 		"ecstatic",
+		"elastic",
 		"elated",
 		"elegant",
 		"evil",
@@ -118,6 +121,9 @@ var (
 
 		// Laura Bassi, the world's first female professor https://en.wikipedia.org/wiki/Laura_Bassi
 		"bassi",
+
+		// Hugh Beaver, British engineer, founder of the Guinness Book of World Records https://en.wikipedia.org/wiki/Hugh_Beaver
+		"beaver",
 
 		// Alexander Graham Bell - an eminent Scottish-born scientist, inventor, engineer and innovator who is credited with inventing the first practical telephone - https://en.wikipedia.org/wiki/Alexander_Graham_Bell
 		"bell",
@@ -246,6 +252,9 @@ var (
 
 		// Jane Goodall - British primatologist, ethologist, and anthropologist who is considered to be the world's foremost expert on chimpanzees - https://en.wikipedia.org/wiki/Jane_Goodall
 		"goodall",
+
+		// Lois Haibt - American computer scientist, part of the team at IBM that developed FORTRAN - https://en.wikipedia.org/wiki/Lois_Haibt
+		"haibt",
 
 		// Margaret Hamilton - Director of the Software Engineering Division of the MIT Instrumentation Laboratory, which developed on-board flight software for the Apollo space program. https://en.wikipedia.org/wiki/Margaret_Hamilton_(scientist)
 		"hamilton",
