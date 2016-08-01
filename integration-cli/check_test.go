@@ -5,9 +5,11 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"syscall"
 	"testing"
 
 	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/go-check/check"
@@ -184,6 +186,21 @@ func (s *DockerDaemonSuite) TearDownTest(c *check.C) {
 		s.d.Stop()
 	}
 	s.ds.TearDownTest(c)
+}
+
+func (s *DockerDaemonSuite) TearDownSuite(c *check.C) {
+	err := filepath.Walk(daemonSockRoot, func(path string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if fi.Mode() == os.ModeSocket {
+			syscall.Unlink(path)
+		}
+		return nil
+	})
+	c.Assert(err, checker.IsNil, check.Commentf("error while cleaning up daemon sockets"))
+	err = os.RemoveAll(daemonSockRoot)
+	c.Assert(err, checker.IsNil, check.Commentf("could not cleanup daemon socket root"))
 }
 
 const defaultSwarmPort = 2477

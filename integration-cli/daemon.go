@@ -22,6 +22,8 @@ import (
 	"github.com/go-check/check"
 )
 
+var daemonSockRoot = filepath.Join(os.TempDir(), "docker-integration")
+
 // Daemon represents a Docker daemon for the testing framework.
 type Daemon struct {
 	GlobalFlags []string
@@ -53,6 +55,9 @@ type clientConfig struct {
 func NewDaemon(c *check.C) *Daemon {
 	dest := os.Getenv("DEST")
 	c.Assert(dest, check.Not(check.Equals), "", check.Commentf("Please set the DEST environment variable"))
+
+	err := os.MkdirAll(daemonSockRoot, 0700)
+	c.Assert(err, checker.IsNil, check.Commentf("could not create daemon socket root"))
 
 	id := fmt.Sprintf("d%d", time.Now().UnixNano()%100000000)
 	dir := filepath.Join(dest, id)
@@ -108,7 +113,7 @@ func (d *Daemon) getClientConfig() (*clientConfig, error) {
 		scheme = "http"
 		transport = &http.Transport{}
 	} else {
-		addr = filepath.Join(d.folder, "docker.sock")
+		addr = d.sockPath()
 		proto = "unix"
 		scheme = "http"
 		transport = &http.Transport{}
@@ -410,7 +415,11 @@ func (d *Daemon) queryRootDir() (string, error) {
 }
 
 func (d *Daemon) sock() string {
-	return fmt.Sprintf("unix://%s/docker.sock", d.folder)
+	return fmt.Sprintf("unix://" + d.sockPath())
+}
+
+func (d *Daemon) sockPath() string {
+	return filepath.Join(daemonSockRoot, d.id+".sock")
 }
 
 func (d *Daemon) waitRun(contID string) error {
