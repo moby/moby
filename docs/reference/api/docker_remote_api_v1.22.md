@@ -1219,6 +1219,7 @@ Status Codes:
 -   **200** – no error, no upgrade header found
 -   **400** – bad parameter
 -   **404** – no such container
+-   **409** - container is paused
 -   **500** – server error
 
     **Stream details**:
