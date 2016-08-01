@@ -312,6 +312,153 @@ func (s *DockerSwarmSuite) TestApiSwarmServicesUpdate(c *check.C) {
 		map[string]int{image2: instances})
 }
 
+func (s *DockerSwarmSuite) TestApiSwarmServiceConstraintRole(c *check.C) {
+	const nodeCount = 3
+	var daemons [nodeCount]*SwarmDaemon
+	for i := 0; i < nodeCount; i++ {
+		daemons[i] = s.AddDaemon(c, true, i == 0)
+	}
+	// wait for nodes ready
+	waitAndAssert(c, 5*time.Second, daemons[0].checkNodeReadyCount, checker.Equals, nodeCount)
+
+	// create service
+	constraints := []string{"node.role==worker"}
+	instances := 3
+	id := daemons[0].createService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
+	// wait for tasks ready
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceRunningTasks(c, id), checker.Equals, instances)
+	// validate tasks are running on worker nodes
+	tasks := daemons[0].getServiceTasks(c, id)
+	for _, task := range tasks {
+		node := daemons[0].getNode(c, task.NodeID)
+		c.Assert(node.Spec.Role, checker.Equals, swarm.NodeRoleWorker)
+	}
+	//remove service
+	daemons[0].removeService(c, id)
+
+	// create service
+	constraints = []string{"node.role!=worker"}
+	id = daemons[0].createService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
+	// wait for tasks ready
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceRunningTasks(c, id), checker.Equals, instances)
+	tasks = daemons[0].getServiceTasks(c, id)
+	// validate tasks are running on manager nodes
+	for _, task := range tasks {
+		node := daemons[0].getNode(c, task.NodeID)
+		c.Assert(node.Spec.Role, checker.Equals, swarm.NodeRoleManager)
+	}
+	//remove service
+	daemons[0].removeService(c, id)
+
+	// create service
+	constraints = []string{"node.role==nosuchrole"}
+	id = daemons[0].createService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
+	// wait for tasks created
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceTasks(c, id), checker.Equals, instances)
+	// let scheduler try
+	time.Sleep(250 * time.Millisecond)
+	// validate tasks are not assigned to any node
+	tasks = daemons[0].getServiceTasks(c, id)
+	for _, task := range tasks {
+		c.Assert(task.NodeID, checker.Equals, "")
+	}
+}
+
+func (s *DockerSwarmSuite) TestApiSwarmServiceConstraintLabel(c *check.C) {
+	const nodeCount = 3
+	var daemons [nodeCount]*SwarmDaemon
+	for i := 0; i < nodeCount; i++ {
+		daemons[i] = s.AddDaemon(c, true, i == 0)
+	}
+	// wait for nodes ready
+	waitAndAssert(c, 5*time.Second, daemons[0].checkNodeReadyCount, checker.Equals, nodeCount)
+	nodes := daemons[0].listNodes(c)
+	c.Assert(len(nodes), checker.Equals, nodeCount)
+
+	// add labels to nodes
+	daemons[0].updateNode(c, nodes[0].ID, func(n *swarm.Node) {
+		n.Spec.Annotations.Labels = map[string]string{
+			"security": "high",
+		}
+	})
+	for i := 1; i < nodeCount; i++ {
+		daemons[0].updateNode(c, nodes[i].ID, func(n *swarm.Node) {
+			n.Spec.Annotations.Labels = map[string]string{
+				"security": "low",
+			}
+		})
+	}
+
+	// create service
+	instances := 3
+	constraints := []string{"node.labels.security==high"}
+	id := daemons[0].createService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
+	// wait for tasks ready
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceRunningTasks(c, id), checker.Equals, instances)
+	tasks := daemons[0].getServiceTasks(c, id)
+	// validate all tasks are running on nodes[0]
+	for _, task := range tasks {
+		c.Assert(task.NodeID, checker.Equals, nodes[0].ID)
+	}
+	//remove service
+	daemons[0].removeService(c, id)
+
+	// create service
+	constraints = []string{"node.labels.security!=high"}
+	id = daemons[0].createService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
+	// wait for tasks ready
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceRunningTasks(c, id), checker.Equals, instances)
+	tasks = daemons[0].getServiceTasks(c, id)
+	// validate all tasks are NOT running on nodes[0]
+	for _, task := range tasks {
+		c.Assert(task.NodeID, checker.Not(checker.Equals), nodes[0].ID)
+	}
+	//remove service
+	daemons[0].removeService(c, id)
+
+	constraints = []string{"node.labels.security==medium"}
+	id = daemons[0].createService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
+	// wait for tasks created
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceTasks(c, id), checker.Equals, instances)
+	// let scheduler try
+	time.Sleep(250 * time.Millisecond)
+	tasks = daemons[0].getServiceTasks(c, id)
+	// validate tasks are not assigned
+	for _, task := range tasks {
+		c.Assert(task.NodeID, checker.Equals, "")
+	}
+	//remove service
+	daemons[0].removeService(c, id)
+
+	// multiple constraints
+	constraints = []string{
+		"node.labels.security==high",
+		fmt.Sprintf("node.id==%s", nodes[1].ID),
+	}
+	id = daemons[0].createService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
+	// wait for tasks created
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceTasks(c, id), checker.Equals, instances)
+	// let scheduler try
+	time.Sleep(250 * time.Millisecond)
+	tasks = daemons[0].getServiceTasks(c, id)
+	// validate tasks are not assigned
+	for _, task := range tasks {
+		c.Assert(task.NodeID, checker.Equals, "")
+	}
+	// make nodes[1] fulfills the constraints
+	daemons[0].updateNode(c, nodes[1].ID, func(n *swarm.Node) {
+		n.Spec.Annotations.Labels = map[string]string{
+			"security": "high",
+		}
+	})
+	// wait for tasks ready
+	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].checkServiceRunningTasks(c, id), checker.Equals, instances)
+	tasks = daemons[0].getServiceTasks(c, id)
+	for _, task := range tasks {
+		c.Assert(task.NodeID, checker.Equals, nodes[1].ID)
+	}
+}
+
 func (s *DockerSwarmSuite) TestApiSwarmServicesStateReporting(c *check.C) {
 	testRequires(c, SameHostDaemon)
 	testRequires(c, DaemonIsLinux)
@@ -831,6 +978,15 @@ func setInstances(replicas int) serviceConstructor {
 func setImage(image string) serviceConstructor {
 	return func(s *swarm.Service) {
 		s.Spec.TaskTemplate.ContainerSpec.Image = image
+	}
+}
+
+func setConstraints(constraints []string) serviceConstructor {
+	return func(s *swarm.Service) {
+		if s.Spec.TaskTemplate.Placement == nil {
+			s.Spec.TaskTemplate.Placement = &swarm.Placement{}
+		}
+		s.Spec.TaskTemplate.Placement.Constraints = constraints
 	}
 }
 
