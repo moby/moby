@@ -36,7 +36,7 @@ and try the [swarm mode tutorial](swarm-tutorial/index.md).
 
 When you run the command to create a swarm, the Docker Engine starts running in swarm mode.
 
-Run [`docker swarm init`](/engine/reference/commandline/swarm_init.md)]
+Run [`docker swarm init`](../reference/commandline/swarm_init.md)
 to create a single-node swarm on the current node. The Engine sets up the swarm
 as follows:
 
