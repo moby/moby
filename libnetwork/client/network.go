@@ -207,7 +207,7 @@ func (cli *NetworkCli) CmdNetworkInfo(chain string, args ...string) error {
 }
 
 // Helper function to predict if a string is a name or id or partial-id
-// This provides a best-effort mechanism to identify a id with the help of GET Filter APIs
+// This provides a best-effort mechanism to identify an id with the help of GET Filter APIs
 // Being a UI, its most likely that name will be used by the user, which is used to lookup
 // the corresponding ID. If ID is not found, this function will assume that the passed string
 // is an ID by itself.

@@ -2304,7 +2304,7 @@ func (nip *notimpl) NotImplemented() {}
 type inter struct{}
 
 func (it *inter) Error() string {
-	return "I am a internal error"
+	return "I am an internal error"
 }
 func (it *inter) Internal() {}
 

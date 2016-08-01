@@ -316,7 +316,7 @@ func (sb *sandbox) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*P
 
 	i, err := ipvs.New(sb.Key())
 	if err != nil {
-		logrus.Errorf("Failed to create a ipvs handle for sbox %s: %v", sb.Key(), err)
+		logrus.Errorf("Failed to create an ipvs handle for sbox %s: %v", sb.Key(), err)
 		return
 	}
 	defer i.Close()
@@ -371,7 +371,7 @@ func (sb *sandbox) rmLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*Po
 
 	i, err := ipvs.New(sb.Key())
 	if err != nil {
-		logrus.Errorf("Failed to create a ipvs handle for sbox %s: %v", sb.Key(), err)
+		logrus.Errorf("Failed to create an ipvs handle for sbox %s: %v", sb.Key(), err)
 		return
 	}
 	defer i.Close()

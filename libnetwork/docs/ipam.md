@@ -116,7 +116,7 @@ During registration, the remote driver will receive a POST message to the URL `/
 
 ### RequestPool
 
-This API is for registering a address pool with the IPAM driver. Multiple identical calls must return the same result.
+This API is for registering an address pool with the IPAM driver. Multiple identical calls must return the same result.
 It is the IPAM driver's responsibility to keep a reference count for the pool.
 
 ```go

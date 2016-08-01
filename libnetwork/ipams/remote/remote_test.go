@@ -42,7 +42,7 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 
 	server := httptest.NewServer(mux)
 	if server == nil {
-		t.Fatal("Failed to start a HTTP Server")
+		t.Fatal("Failed to start an HTTP Server")
 	}
 
 	if err := ioutil.WriteFile(fmt.Sprintf("/etc/docker/plugins/%s.spec", name), []byte(server.URL), 0644); err != nil {

@@ -345,7 +345,7 @@ func startTestDriver() error {
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	if server == nil {
-		return fmt.Errorf("Failed to start a HTTP Server")
+		return fmt.Errorf("Failed to start an HTTP Server")
 	}
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
