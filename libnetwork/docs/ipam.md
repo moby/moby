@@ -1,6 +1,6 @@
 # IPAM Driver
 
-During the Network and Endpoints lifecyle, the CNM model controls the IP address assignment for network and endpoint interfaces via the IPAM driver(s).
+During the Network and Endpoints lifecycle, the CNM model controls the IP address assignment for network and endpoint interfaces via the IPAM driver(s).
 Libnetwork has a default, built-in IPAM driver and allows third party IPAM drivers to be dynamically plugged. On network creation, the user can specify which IPAM driver libnetwork needs to use for the network's IP address management. This document explains the APIs with which the IPAM driver needs to comply, and the corresponding HTTPS request/response body relevant for remote drivers.
 
 
