@@ -97,7 +97,7 @@ type NetworkController interface {
 	// Sandboxes returns the list of Sandbox(s) managed by this controller.
 	Sandboxes() []Sandbox
 
-	// WlakSandboxes uses the provided function to walk the Sandbox(s) managed by this controller.
+	// WalkSandboxes uses the provided function to walk the Sandbox(s) managed by this controller.
 	WalkSandboxes(walker SandboxWalker)
 
 	// SandboxByID returns the Sandbox which has the passed id. If not found, a types.NotFoundError is returned.
