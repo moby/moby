@@ -179,72 +179,15 @@ func (cli *DaemonCli) start() (err error) {
 		}()
 	}
 
-	serverConfig := &apiserver.Config{
-		Logging:     true,
-		SocketGroup: cli.Config.SocketGroup,
-		Version:     dockerversion.Version,
-		EnableCors:  cli.Config.EnableCors,
-		CorsHeaders: cli.Config.CorsHeaders,
-	}
-
-	if cli.Config.TLS {
-		tlsOptions := tlsconfig.Options{
-			CAFile:   cli.Config.CommonTLSOptions.CAFile,
-			CertFile: cli.Config.CommonTLSOptions.CertFile,
-			KeyFile:  cli.Config.CommonTLSOptions.KeyFile,
-		}
-
-		if cli.Config.TLSVerify {
-			// server requires and verifies client's certificate
-			tlsOptions.ClientAuth = tls.RequireAndVerifyClientCert
-		}
-		tlsConfig, err := tlsconfig.Server(tlsOptions)
-		if err != nil {
-			return err
-		}
-		serverConfig.TLSConfig = tlsConfig
-	}
-
 	if len(cli.Config.Hosts) == 0 {
 		cli.Config.Hosts = make([]string, 1)
 	}
-
-	api := apiserver.New(serverConfig)
-	cli.api = api
-
-	for i := 0; i < len(cli.Config.Hosts); i++ {
-		var err error
-		if cli.Config.Hosts[i], err = opts.ParseHost(cli.Config.TLS, cli.Config.Hosts[i]); err != nil {
-			return fmt.Errorf("error parsing -H %s : %v", cli.Config.Hosts[i], err)
-		}
-
-		protoAddr := cli.Config.Hosts[i]
-		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
-		if len(protoAddrParts) != 2 {
-			return fmt.Errorf("bad format %s, expected PROTO://ADDR", protoAddr)
-		}
-
-		proto := protoAddrParts[0]
-		addr := protoAddrParts[1]
-
-		// It's a bad idea to bind to TCP without tlsverify.
-		if proto == "tcp" && (serverConfig.TLSConfig == nil || serverConfig.TLSConfig.ClientAuth != tls.RequireAndVerifyClientCert) {
-			logrus.Warn("[!] DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING [!]")
-		}
-		ls, err := listeners.Init(proto, addr, serverConfig.SocketGroup, serverConfig.TLSConfig)
-		if err != nil {
-			return err
-		}
-		ls = wrapListeners(proto, ls)
-		// If we're binding to a TCP port, make sure that a container doesn't try to use it.
-		if proto == "tcp" {
-			if err := allocateDaemonPort(addr); err != nil {
-				return err
-			}
-		}
-		logrus.Debugf("Listener created for HTTP on %s (%s)", protoAddrParts[0], protoAddrParts[1])
-		api.Accept(protoAddrParts[1], ls...)
+	api, err := cli.newAPI(cli.Config.Hosts)
+	if err != nil {
+		return err
 	}
+	// set the default api on the client
+	cli.api = api
 
 	if err := migrateKey(); err != nil {
 		return err
@@ -287,7 +230,6 @@ func (cli *DaemonCli) start() (err error) {
 		"graphdriver": d.GraphDriverName(),
 	}).Info("Docker daemon")
 
-	cli.initMiddlewares(api, serverConfig)
 	initRouter(api, d, c)
 
 	cli.d = d
@@ -424,14 +366,14 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
 	s.InitRouter(utils.IsDebugEnabled(), routers...)
 }
 
-func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config) {
-	v := cfg.Version
+func (cli *DaemonCli) initMiddlewares(s *apiserver.Server) {
+	v := s.Config().Version
 
 	vm := middleware.NewVersionMiddleware(v, api.DefaultVersion, api.MinVersion)
 	s.UseMiddleware(vm)
 
-	if cfg.EnableCors {
-		c := middleware.NewCORSMiddleware(cfg.CorsHeaders)
+	if s.Config().EnableCors {
+		c := middleware.NewCORSMiddleware(s.Config().CorsHeaders)
 		s.UseMiddleware(c)
 	}
 
@@ -443,4 +385,83 @@ func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config
 		handleAuthorization := authorization.NewMiddleware(authZPlugins)
 		s.UseMiddleware(handleAuthorization)
 	}
+}
+
+func (cli *DaemonCli) newTLSConfig() (*tls.Config, error) {
+	if !cli.Config.TLS {
+		return nil, nil
+	}
+	tlsOptions := tlsconfig.Options{
+		CAFile:   cli.Config.CommonTLSOptions.CAFile,
+		CertFile: cli.Config.CommonTLSOptions.CertFile,
+		KeyFile:  cli.Config.CommonTLSOptions.KeyFile,
+	}
+	if cli.Config.TLSVerify {
+		// server requires and verifies client's certificate
+		tlsOptions.ClientAuth = tls.RequireAndVerifyClientCert
+	}
+	return tlsconfig.Server(tlsOptions)
+}
+
+func (cli *DaemonCli) newServerConfig(tls *tls.Config) *apiserver.Config {
+	return &apiserver.Config{
+		Logging:     true,
+		SocketGroup: cli.Config.SocketGroup,
+		Version:     dockerversion.Version,
+		EnableCors:  cli.Config.EnableCors,
+		CorsHeaders: cli.Config.CorsHeaders,
+		TLSConfig:   tls,
+	}
+}
+
+func (cli *DaemonCli) newAPI(hosts []string) (*apiserver.Server, error) {
+	tlsConfig, err := cli.newTLSConfig()
+	if err != nil {
+		return nil, err
+	}
+	var (
+		config = cli.newServerConfig(tlsConfig)
+		api    = apiserver.New(config)
+	)
+
+	for i := 0; i < len(hosts); i++ {
+		var err error
+		if hosts[i], err = opts.ParseHost(cli.Config.TLS, hosts[i]); err != nil {
+			return nil, fmt.Errorf("error parsing -H %s : %v", hosts[i], err)
+		}
+
+		protoAddrParts := strings.SplitN(hosts[i], "://", 2)
+		if len(protoAddrParts) != 2 {
+			return nil, fmt.Errorf("bad format %s, expected PROTO://ADDR", hosts[i])
+		}
+
+		var (
+			proto = protoAddrParts[0]
+			addr  = protoAddrParts[1]
+		)
+
+		// It's a bad idea to bind to TCP without tlsverify.
+		if proto == "tcp" &&
+			(config.TLSConfig == nil || config.TLSConfig.ClientAuth != tls.RequireAndVerifyClientCert) {
+			logrus.Warn("[!] DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING [!]")
+		}
+
+		ls, err := listeners.Init(proto, addr, config.SocketGroup, config.TLSConfig)
+		if err != nil {
+			return nil, err
+		}
+		ls = wrapListeners(proto, ls)
+
+		// If we're binding to a TCP port, make sure that a container doesn't try to use it.
+		if proto == "tcp" {
+			if err := allocateDaemonPort(addr); err != nil {
+				return nil, err
+			}
+		}
+		logrus.Debugf("Listener created for HTTP on %s (%s)", proto, addr)
+		api.Accept(addr, ls...)
+	}
+	cli.initMiddlewares(api)
+
+	return api, nil
 }
