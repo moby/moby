@@ -4504,6 +4504,9 @@ List tasks
   - `id=<task id>`
   - `name=<task name>`
   - `service=<service name>`
+  - `node=<node id>`
+  - `label=key` or `label="key=value"`
+  - `desired-state=(running | shutdown | accepted)`
 
 **Status codes**:
 
