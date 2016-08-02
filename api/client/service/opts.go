@@ -489,7 +489,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 	flags.StringVar(&opts.name, flagName, "", "Service name")
 
 	flags.StringVarP(&opts.workdir, flagWorkdir, "w", "", "Working directory inside the container")
-	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID")
+	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID (format: <name|uid>[:<group|gid>])")
 
 	flags.Var(&opts.resources.limitCPU, flagLimitCPU, "Limit CPUs")
 	flags.Var(&opts.resources.limitMemBytes, flagLimitMemory, "Limit Memory")
