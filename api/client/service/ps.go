@@ -16,6 +16,7 @@ import (
 type psOptions struct {
 	serviceID string
 	noResolve bool
+	all       bool
 	filter    opts.FilterOpt
 }
 
@@ -32,6 +33,7 @@ func newPSCommand(dockerCli *client.DockerCli) *cobra.Command {
 		},
 	}
 	flags := cmd.Flags()
+	flags.BoolVarP(&opts.all, "all", "a", false, "Show all tasks (default shows tasks that are or will be running)")
 	flags.BoolVar(&opts.noResolve, "no-resolve", false, "Do not map IDs to Names")
 	flags.VarP(&opts.filter, "filter", "f", "Filter output based on conditions provided")
 
@@ -61,7 +63,12 @@ func runPS(dockerCli *client.DockerCli, opts psOptions) error {
 		}
 	}
 
-	tasks, err := client.TaskList(ctx, types.TaskListOptions{Filter: filter})
+	options := types.TaskListOptions{
+		Filter: filter,
+		All:    opts.all,
+	}
+
+	tasks, err := client.TaskList(ctx, options)
 	if err != nil {
 		return err
 	}

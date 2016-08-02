@@ -6,7 +6,6 @@ import (
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/api/client/idresolver"
 	"github.com/docker/docker/api/client/task"
-	"github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	"github.com/docker/engine-api/types"
 	"github.com/spf13/cobra"
@@ -14,6 +13,8 @@ import (
 
 type psOptions struct {
 	nodeID    string
+	all       bool
+	self      bool
 	noResolve bool
 	filter    opts.FilterOpt
 }
@@ -22,15 +23,21 @@ func newPSCommand(dockerCli *client.DockerCli) *cobra.Command {
 	opts := psOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
-		Use:   "ps [OPTIONS] self|NODE",
-		Short: "List tasks running on a node",
-		Args:  cli.ExactArgs(1),
+		Use:   "ps [OPTIONS] [NODE]",
+		Short: "List tasks running on a node (default to current node)",
+		Args:  nil,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				args = []string{"self"}
+			}
+
 			opts.nodeID = args[0]
+
 			return runPS(dockerCli, opts)
 		},
 	}
 	flags := cmd.Flags()
+	flags.BoolVarP(&opts.all, "all", "a", false, "Show all tasks (default shows tasks that are or will be running)")
 	flags.BoolVar(&opts.noResolve, "no-resolve", false, "Do not map IDs to Names")
 	flags.VarP(&opts.filter, "filter", "f", "Filter output based on conditions provided")
 
@@ -52,9 +59,13 @@ func runPS(dockerCli *client.DockerCli, opts psOptions) error {
 
 	filter := opts.filter.Value()
 	filter.Add("node", node.ID)
-	tasks, err := client.TaskList(
-		ctx,
-		types.TaskListOptions{Filter: filter})
+
+	options := types.TaskListOptions{
+		Filter: filter,
+		All:    opts.all,
+	}
+
+	tasks, err := client.TaskList(ctx, options)
 	if err != nil {
 		return err
 	}

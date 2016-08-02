@@ -8,7 +8,6 @@ import (
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/api/client/inspect"
-	"github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/docker/go-units"
@@ -26,10 +25,13 @@ func newInspectCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts inspectOptions
 
 	cmd := &cobra.Command{
-		Use:   "inspect [OPTIONS] self|NODE [NODE...]",
-		Short: "Display detailed information on one or more nodes",
-		Args:  cli.RequiresMinArgs(1),
+		Use:   "inspect [OPTIONS] [NODE...]",
+		Short: "Display detailed information on one or more nodes (default to current node)",
+		Args:  nil,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				args = []string{"self"}
+			}
 			opts.nodeIds = args
 			return runInspect(dockerCli, opts)
 		},

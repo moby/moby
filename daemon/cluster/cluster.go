@@ -1080,6 +1080,18 @@ func (c *Cluster) GetTasks(options apitypes.TaskListOptions) ([]types.Task, erro
 		return nil
 	}
 
+	if !options.All && !options.Filter.Include("desired-state") {
+		options.Filter.Add("desired-state", "running")
+	}
+
+	// if all was set then that trumps any other desired state filters
+	if options.All {
+		options.Filter.WalkValues("desired-state", func(value string) error {
+			options.Filter.Del("desired-state", value)
+			return nil
+		})
+	}
+
 	filters, err := newListTasksFilters(options.Filter, byName)
 	if err != nil {
 		return nil, err

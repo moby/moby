@@ -11,9 +11,9 @@ parent = "smn_cli"
 # node inspect
 
 ```markdown
-Usage:  docker node inspect [OPTIONS] self|NODE [NODE...]
+Usage:  docker node inspect [OPTIONS] [NODE...]
 
-Display detailed information on one or more nodes
+Display detailed information on one or more nodes (default to current node)
 
 Options:
   -f, --format string   Format the output using the given go template

@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/daemon/cluster/executor/container"
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/go-check/check"
 )
@@ -54,7 +55,7 @@ func (s *DockerSwarmSuite) TestServiceHealthRun(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
 		out, _ := d.Cmd("inspect", "--format={{.State.Health.Status}}", containerID)
 		return strings.TrimSpace(out), nil
-	}, checker.Equals, "healthy")
+	}, checker.Equals, types.Healthy)
 
 	// make it fail
 	d.Cmd("exec", containerID, "rm", "/status")
@@ -62,7 +63,7 @@ func (s *DockerSwarmSuite) TestServiceHealthRun(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
 		out, _ := d.Cmd("inspect", "--format={{.State.Health.Status}}", containerID)
 		return strings.TrimSpace(out), nil
-	}, checker.Equals, "unhealthy")
+	}, checker.Equals, types.Unhealthy)
 
 	// Task should be terminated
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
