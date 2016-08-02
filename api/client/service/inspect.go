@@ -149,6 +149,7 @@ func printService(out io.Writer, service swarm.Service) {
 		for _, n := range service.Spec.Networks {
 			fmt.Fprintf(out, " %s", n.Target)
 		}
+		fmt.Fprintln(out, "")
 	}
 
 	if len(service.Endpoint.Ports) > 0 {
