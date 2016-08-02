@@ -23,7 +23,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/user"
-	"github.com/opencontainers/specs/specs-go"
+	specs "github.com/opencontainers/specs/specs-go"
 )
 
 func setResources(s *specs.Spec, r containertypes.Resources) error {
@@ -663,6 +663,11 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 	}
 	ms = append(ms, c.IpcMounts()...)
 	ms = append(ms, c.TmpfsMounts()...)
+	ims, err := c.IntrospectionMounts()
+	if err != nil {
+		return nil, err
+	}
+	ms = append(ms, ims...)
 	sort.Sort(mounts(ms))
 	if err := setMounts(daemon, &s, c, ms); err != nil {
 		return nil, fmt.Errorf("linux mounts: %v", err)

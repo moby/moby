@@ -12,6 +12,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
@@ -405,6 +406,29 @@ func (container *Container) TmpfsMounts() []Mount {
 		})
 	}
 	return mounts
+}
+
+// IntrospectionMounts returns the list of mounts for introspection support
+func (container *Container) IntrospectionMounts() ([]Mount, error) {
+	if !container.HostConfig.Privileged {
+		return nil, nil
+	}
+	path, err := os.Readlink(reexec.Self())
+	if err != nil {
+		return nil, err
+	}
+	return []Mount{
+		{
+			Source:      filepath.Join(filepath.Dir(path), "docker"),
+			Destination: "/usr/bin/docker",
+			Writable:    true,
+		},
+		{
+			Source:      "/run/docker-introspection.sock",
+			Destination: "/run/docker.sock",
+			Writable:    true,
+		},
+	}, nil
 }
 
 // cleanResourcePath cleans a resource path and prepares to combine with mnt path

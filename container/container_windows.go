@@ -58,6 +58,11 @@ func (container *Container) TmpfsMounts() []Mount {
 	return mounts
 }
 
+// IntrospectionMounts returns the list of mounts for introspection support
+func (container *Container) IntrospectionMounts() ([]Mount, error) {
+	return nil, nil
+}
+
 // UpdateContainer updates configuration of a container
 func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfig) error {
 	container.Lock()

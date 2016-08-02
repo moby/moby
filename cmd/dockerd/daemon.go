@@ -55,8 +55,9 @@ type DaemonCli struct {
 	commonFlags *cliflags.CommonFlags
 	configFile  *string
 
-	api *apiserver.Server
-	d   *daemon.Daemon
+	api           *apiserver.Server
+	introspection *apiserver.Server
+	d             *daemon.Daemon
 }
 
 func presentInHelp(usage string) string { return usage }
@@ -182,12 +183,20 @@ func (cli *DaemonCli) start() (err error) {
 	if len(cli.Config.Hosts) == 0 {
 		cli.Config.Hosts = make([]string, 1)
 	}
+
+	// create the default api
 	api, err := cli.newAPI(cli.Config.Hosts)
 	if err != nil {
 		return err
 	}
-	// set the default api on the client
 	cli.api = api
+
+	// create the introspection api
+	introspectionAPI, err := cli.newAPI([]string{"unix:///run/docker-introspection.sock"})
+	if err != nil {
+		return err
+	}
+	cli.introspection = introspectionAPI
 
 	if err := migrateKey(); err != nil {
 		return err
@@ -230,7 +239,13 @@ func (cli *DaemonCli) start() (err error) {
 		"graphdriver": d.GraphDriverName(),
 	}).Info("Docker daemon")
 
-	initRouter(api, d, c)
+	// setup the default routes
+	defaultRoutes := getRouters(d, c)
+	api.InitRouter(utils.IsDebugEnabled(), defaultRoutes...)
+
+	// setup the introspections routes without cluster capabilities
+	introspectionRoutes := getRouters(d, nil)
+	introspectionAPI.InitRouter(utils.IsDebugEnabled(), introspectionRoutes...)
 
 	cli.d = d
 	cli.setupConfigReloadTrap()
@@ -238,15 +253,25 @@ func (cli *DaemonCli) start() (err error) {
 	// The serve API routine never exits unless an error occurs
 	// We need to start it as a goroutine and wait on it so
 	// daemon doesn't exit
-	serveAPIWait := make(chan error)
-	go api.Wait(serveAPIWait)
+	var (
+		apiWait           = make(chan error)
+		introspectionWait = make(chan error)
+	)
+	go api.Wait(apiWait)
+	go introspectionAPI.Wait(introspectionWait)
 
 	// after the daemon is done setting up we can notify systemd api
 	notifySystem()
 
 	// Daemon is fully initialized and handling API traffic
 	// Wait for serve API to complete
-	errAPI := <-serveAPIWait
+	var errAPI error
+	select {
+	case err := <-apiWait:
+		errAPI = err
+	case err := <-introspectionWait:
+		errAPI = err
+	}
 	c.Cleanup()
 	shutdownDaemon(d, 15)
 	containerdRemote.Cleanup()
@@ -284,6 +309,7 @@ func (cli *DaemonCli) reloadConfig() {
 
 func (cli *DaemonCli) stop() {
 	cli.api.Close()
+	cli.introspection.Close()
 }
 
 // shutdownDaemon just wraps daemon.Shutdown() to handle a timeout in case
@@ -347,23 +373,23 @@ func loadDaemonCliConfig(config *daemon.Config, flags *flag.FlagSet, commonConfi
 	return config, nil
 }
 
-func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
+func getRouters(d *daemon.Daemon, c *cluster.Cluster) []router.Router {
 	decoder := runconfig.ContainerDecoder{}
-
 	routers := []router.Router{
 		container.NewRouter(d, decoder),
 		image.NewRouter(d, decoder),
 		systemrouter.NewRouter(d, c),
 		volume.NewRouter(d),
 		build.NewRouter(dockerfile.NewBuildManager(d)),
-		swarmrouter.NewRouter(c),
 	}
 	if d.NetworkControllerEnabled() {
 		routers = append(routers, network.NewRouter(d, c))
 	}
 	routers = addExperimentalRouters(routers)
-
-	s.InitRouter(utils.IsDebugEnabled(), routers...)
+	if c != nil {
+		routers = append(routers, swarmrouter.NewRouter(c))
+	}
+	return routers
 }
 
 func (cli *DaemonCli) initMiddlewares(s *apiserver.Server) {
