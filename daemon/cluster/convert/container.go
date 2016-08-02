@@ -19,6 +19,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 		Env:     c.Env,
 		Dir:     c.Dir,
 		User:    c.User,
+		Groups:  c.Groups,
 	}
 
 	// Mounts
@@ -67,6 +68,7 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		Env:     c.Env,
 		Dir:     c.Dir,
 		User:    c.User,
+		Groups:  c.Groups,
 	}
 
 	if c.StopGracePeriod != nil {

@@ -24,6 +24,8 @@ Options:
       --endpoint-mode string           Endpoint mode (vip or dnsrr)
       --env-add value                  Add or update environment variables (default [])
       --env-rm value                   Remove an environment variable (default [])
+      --group-add value                Add additional user groups to the container (default [])
+      --group-rm value                 Remove previously added user groups from the container (default [])
       --help                           Print usage
       --image string                   Service image tag
       --label-add value                Add or update service labels (default [])

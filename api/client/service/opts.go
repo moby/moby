@@ -399,6 +399,7 @@ type serviceOptions struct {
 	env             opts.ListOpts
 	workdir         string
 	user            string
+	groups          []string
 	mounts          MountOpt
 
 	resources resourceOptions
@@ -446,6 +447,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 				Labels:          runconfigopts.ConvertKVStringsToMap(opts.containerLabels.GetAll()),
 				Dir:             opts.workdir,
 				User:            opts.user,
+				Groups:          opts.groups,
 				Mounts:          opts.mounts.Value(),
 				StopGracePeriod: opts.stopGrace.Value(),
 			},
@@ -491,6 +493,7 @@ func addServiceFlags(cmd *cobra.Command, opts *serviceOptions) {
 
 	flags.StringVarP(&opts.workdir, flagWorkdir, "w", "", "Working directory inside the container")
 	flags.StringVarP(&opts.user, flagUser, "u", "", "Username or UID (format: <name|uid>[:<group|gid>])")
+	flags.StringSliceVar(&opts.groups, flagGroupAdd, []string{}, "Add additional user groups to the container")
 
 	flags.Var(&opts.resources.limitCPU, flagLimitCPU, "Limit CPUs")
 	flags.Var(&opts.resources.limitMemBytes, flagLimitMemory, "Limit Memory")
@@ -528,6 +531,8 @@ const (
 	flagEnv                  = "env"
 	flagEnvRemove            = "env-rm"
 	flagEnvAdd               = "env-add"
+	flagGroupAdd             = "group-add"
+	flagGroupRemove          = "group-rm"
 	flagLabel                = "label"
 	flagLabelRemove          = "label-rm"
 	flagLabelAdd             = "label-add"
