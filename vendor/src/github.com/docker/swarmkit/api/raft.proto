@@ -124,5 +124,6 @@ message StoreAction {
 		Task task = 4;
 		Network network = 5;
 		Cluster cluster = 6;
+		NetworkAttachment attachment = 7;
 	}
 }

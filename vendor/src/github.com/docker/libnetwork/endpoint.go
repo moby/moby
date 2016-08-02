@@ -777,6 +777,15 @@ func (ep *endpoint) Delete(force bool) error {
 
 	ep.releaseAddress()
 
+	if n.Dynamic() && n.getController().isAgent() {
+		if n.getEpCnt().EndpointCnt() == 0 {
+			log.Debugf("Removing dynamic network %v", n.Name())
+			if err := n.Delete(); err != nil {
+				log.Warnf("Failed to remove dynamic network %q (%s)", n.Name(), n.ID())
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -931,6 +940,14 @@ func CreateOptionService(name, id string, vip net.IP, ingressPorts []*PortConfig
 func CreateOptionMyAlias(alias string) EndpointOption {
 	return func(ep *endpoint) {
 		ep.myAliases = append(ep.myAliases, alias)
+	}
+}
+
+// CreateOptionID function returns an option setter for setting
+// the endpoint ID.
+func CreateOptionID(id string) EndpointOption {
+	return func(ep *endpoint) {
+		ep.id = id
 	}
 }
 

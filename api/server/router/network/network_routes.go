@@ -2,13 +2,11 @@ package network
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/errors"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/engine-api/types/network"
@@ -121,11 +119,6 @@ func (n *networkRouter) postNetworkConnect(ctx context.Context, w http.ResponseW
 		return err
 	}
 
-	if nw.Info().Dynamic() {
-		err := fmt.Errorf("operation not supported for swarm scoped networks")
-		return errors.NewRequestForbiddenError(err)
-	}
-
 	return n.backend.ConnectContainerToNetwork(connect.Container, nw.Name(), connect.EndpointConfig)
 }
 
@@ -146,11 +139,6 @@ func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.Respon
 	nw, err := n.backend.FindNetwork(vars["id"])
 	if err != nil {
 		return err
-	}
-
-	if nw.Info().Dynamic() {
-		err := fmt.Errorf("operation not supported for swarm scoped networks")
-		return errors.NewRequestForbiddenError(err)
 	}
 
 	return n.backend.DisconnectContainerFromNetwork(disconnect.Container, nw, disconnect.Force)
@@ -195,6 +183,7 @@ func (n *networkRouter) buildNetworkResource(nw libnetwork.Network) *types.Netwo
 	buildIpamResources(r, info)
 	r.Internal = info.Internal()
 	r.Labels = info.Labels()
+	r.Legacy = info.Legacy()
 
 	epl := nw.Endpoints()
 	for _, e := range epl {

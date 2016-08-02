@@ -284,6 +284,92 @@ func (e EventDeleteNetwork) matches(watchEvent events.Event) bool {
 	return true
 }
 
+// AttachmentCheckFunc is the type of function used to perform filtering checks on
+// api.Service structures.
+type AttachmentCheckFunc func(n1, n2 *api.NetworkAttachment) bool
+
+// AttachmentCheckID is a AttachmentCheckFunc for matching network IDs.
+func AttachmentCheckID(a1, a2 *api.NetworkAttachment) bool {
+	return a1.ID == a2.ID
+}
+
+// AttachmentCheckNodeID is a AttachmentCheckFunc for matching node IDs.
+func AttachmentCheckNodeID(a1, a2 *api.NetworkAttachment) bool {
+	return a1.NodeID == a2.NodeID
+}
+
+// EventCreateAttachment is the type used to put CreateAttachment events on the
+// publish/subscribe queue and filter these events in calls to Watch.
+type EventCreateAttachment struct {
+	Attachment *api.NetworkAttachment
+	// Checks is a list of functions to call to filter events for a watch
+	// stream. They are applied with AND logic. They are only applicable for
+	// calls to Watch.
+	Checks []AttachmentCheckFunc
+}
+
+func (e EventCreateAttachment) matches(watchEvent events.Event) bool {
+	typedEvent, ok := watchEvent.(EventCreateAttachment)
+	if !ok {
+		return false
+	}
+
+	for _, check := range e.Checks {
+		if !check(e.Attachment, typedEvent.Attachment) {
+			return false
+		}
+	}
+	return true
+}
+
+// EventUpdateAttachment is the type used to put UpdateAttachment events on the
+// publish/subscribe queue and filter these events in calls to Watch.
+type EventUpdateAttachment struct {
+	Attachment *api.NetworkAttachment
+	// Checks is a list of functions to call to filter events for a watch
+	// stream. They are applied with AND logic. They are only applicable for
+	// calls to Watch.
+	Checks []AttachmentCheckFunc
+}
+
+func (e EventUpdateAttachment) matches(watchEvent events.Event) bool {
+	typedEvent, ok := watchEvent.(EventUpdateAttachment)
+	if !ok {
+		return false
+	}
+
+	for _, check := range e.Checks {
+		if !check(e.Attachment, typedEvent.Attachment) {
+			return false
+		}
+	}
+	return true
+}
+
+// EventDeleteAttachment is the type used to put DeleteAttachment events on the
+// publish/subscribe queue and filter these events in calls to Watch.
+type EventDeleteAttachment struct {
+	Attachment *api.NetworkAttachment
+	// Checks is a list of functions to call to filter events for a watch
+	// stream. They are applied with AND logic. They are only applicable for
+	// calls to Watch.
+	Checks []AttachmentCheckFunc
+}
+
+func (e EventDeleteAttachment) matches(watchEvent events.Event) bool {
+	typedEvent, ok := watchEvent.(EventDeleteAttachment)
+	if !ok {
+		return false
+	}
+
+	for _, check := range e.Checks {
+		if !check(e.Attachment, typedEvent.Attachment) {
+			return false
+		}
+	}
+	return true
+}
+
 // NodeCheckFunc is the type of function used to perform filtering checks on
 // api.Service structures.
 type NodeCheckFunc func(n1, n2 *api.Node) bool

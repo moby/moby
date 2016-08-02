@@ -60,12 +60,12 @@ clone git golang.org/x/net 2beffdc2e92c8a3027590f898fe88f69af48a3f8 https://gith
 clone git golang.org/x/sys eb2c74142fd19a79b3f237334c7384d5167b1b46 https://github.com/golang/sys.git
 clone git github.com/docker/go-units 651fc226e7441360384da338d0fd37f2440ffbe3
 clone git github.com/docker/go-connections fa2850ff103453a9ad190da0df0af134f0314b3d
-clone git github.com/docker/engine-api 3d1601b9d2436a70b0dfc045a23f6503d19195df
+clone git github.com/docker/engine-api b92feb196dda80cbbfad8217c8db7dd086f7c671 https://github.com/aboch/engine-api.git
 clone git github.com/RackSec/srslog 259aed10dfa74ea2961eddd1d9847619f6e98837
 clone git github.com/imdario/mergo 0.2.1
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork 5e7bf83ab07c197d1bef6ec073d9f19ce59e3eb2
+clone git github.com/docker/libnetwork 1c5096fb611454f0f7b7174e30025130689784a4 https://github.com/aboch/libnetwork_new.git
 clone git github.com/docker/go-events afb2b9f2c23f33ada1a22b03651775fdc65a5089
 clone git github.com/armon/go-radix e39d623f12e8e41c7b5529e9a9dd67a1e2261f80
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
@@ -139,7 +139,7 @@ clone git github.com/docker/docker-credential-helpers v0.3.0
 clone git github.com/docker/containerd 0ac3cd1be170d180b2baed755e8f0da547ceb267
 
 # cluster
-clone git github.com/docker/swarmkit 9d4c2f73124e70f8fa85f9076635b827d17b109f
+clone git github.com/docker/swarmkit 59b49b126186e28cbaed85aaf656bf37c5d8754a https://github.com/aboch/swarmkit
 clone git github.com/golang/mock bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
 clone git github.com/gogo/protobuf 43a2e0b1c32252bfbbdf81f7faa7a88fb3fa4028
 clone git github.com/cloudflare/cfssl b895b0549c0ff676f92cf09ba971ae02bb41367b

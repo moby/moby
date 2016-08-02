@@ -8,4 +8,6 @@ type Provider interface {
 	GetAdvertiseAddress() string
 	GetRemoteAddress() string
 	ListenClusterEvents() <-chan struct{}
+	AllocateEndpoint(string, string, []string) (interface{}, interface{}, error)
+	DeallocateEndpoint(string) error
 }

@@ -105,6 +105,8 @@ func (a *Allocator) Run(ctx context.Context) error {
 		state.EventCreateNode{},
 		state.EventUpdateNode{},
 		state.EventDeleteNode{},
+		state.EventCreateAttachment{},
+		state.EventDeleteAttachment{},
 		state.EventCommit{},
 	)
 

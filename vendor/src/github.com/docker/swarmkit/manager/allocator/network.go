@@ -333,6 +333,8 @@ func (a *Allocator) doNetworkAlloc(ctx context.Context, ev events.Event) {
 		if err := nc.nwkAllocator.ServiceDeallocate(s); err != nil {
 			log.G(ctx).Errorf("Failed deallocation during delete of service %s: %v", s.ID, err)
 		}
+	case state.EventCreateAttachment, state.EventDeleteAttachment:
+		a.doAttachmentAlloc(ctx, nc, ev)
 	case state.EventCreateNode, state.EventUpdateNode, state.EventDeleteNode:
 		a.doNodeAlloc(ctx, nc, ev)
 	case state.EventCreateTask, state.EventUpdateTask, state.EventDeleteTask:
@@ -367,6 +369,9 @@ func (a *Allocator) doNodeAlloc(ctx context.Context, nc *networkContext, ev even
 				log.G(ctx).Errorf("Failed freeing network resources for node %s: %v", node.ID, err)
 			}
 		}
+	}
+	if isDelete || node.Status.State == api.NodeStatus_DOWN {
+		a.releaseAttachmentsOnNodeDown(ctx, nc, node.ID)
 		return
 	}
 
@@ -377,7 +382,7 @@ func (a *Allocator) doNodeAlloc(ctx context.Context, nc *networkContext, ev even
 
 		node.Attachment.Network = nc.ingressNetwork.Copy()
 		if err := a.allocateNode(ctx, nc, node); err != nil {
-			log.G(ctx).Errorf("Fauled to allocate network resources for node %s: %v", node.ID, err)
+			log.G(ctx).Errorf("Failed to allocate network resources for node %s: %v", node.ID, err)
 		}
 	}
 }
@@ -826,4 +831,72 @@ func updateTaskStatus(t *api.Task, newStatus api.TaskState, message string) {
 	t.Status.State = newStatus
 	t.Status.Message = message
 	t.Status.Timestamp = ptypes.MustTimestampProto(time.Now())
+}
+
+func updateAttachmentStatus(t *api.NetworkAttachment, newStatus api.AttachmentState, message string) {
+	t.Status.State = newStatus
+	t.Status.Message = message
+	t.Status.Timestamp = ptypes.MustTimestampProto(time.Now())
+}
+
+func (a *Allocator) doAttachmentAlloc(ctx context.Context, nc *networkContext, ev events.Event) {
+	var (
+		na     *api.NetworkAttachment
+		update bool
+	)
+
+	switch v := ev.(type) {
+	case state.EventCreateAttachment:
+		na = v.Attachment
+		update = true
+		if err := nc.nwkAllocator.AllocateAttachment(na); err != nil {
+			log.G(ctx).Errorf("Failed allocating resources for attachment %s: %v", na.ID, err)
+			updateAttachmentStatus(na, api.AttachmentStateFailed, err.Error())
+			break
+		}
+		updateAttachmentStatus(na, api.AttachmentStateAllocated, "allocated")
+	case state.EventDeleteAttachment:
+		na = v.Attachment
+		if err := nc.nwkAllocator.DeallocateAttachment(na); err != nil {
+			log.G(ctx).Errorf("Failed freeing resources for attachment %s: %v", na.ID, err)
+			updateAttachmentStatus(na, api.AttachmentStateFailed, err.Error())
+			break
+		}
+		updateAttachmentStatus(na, api.AttachmentStateReleased, "released")
+	default:
+		return
+	}
+
+	log.G(ctx).Debugf("Allocator processed network attachment object: %s (%s) %v: %v",
+		na.ID, na.Config.Annotations.Name, na.Addresses, na.Status.State)
+
+	if update {
+		if err := a.store.Update(func(tx store.Tx) error {
+			return store.UpdateAttachment(tx, na)
+		}); err != nil {
+			log.G(ctx).Errorf("failed updating state in store transaction for network attachment %s: %v", na.ID, err)
+		}
+	}
+}
+
+func (a *Allocator) releaseAttachmentsOnNodeDown(ctx context.Context, nc *networkContext, nodeID string) {
+	var (
+		err         error
+		attachments []*api.NetworkAttachment
+	)
+	// remove user allocated attachments existing on this node
+	a.store.View(func(tx store.ReadTx) {
+		attachments, err = store.FindAttachments(tx, store.ByNodeID(nodeID))
+	})
+	if err != nil {
+		log.G(ctx).Errorf("Failed get list of network attachment on node %s delete: %v", nodeID, err)
+		return
+	}
+	for _, na := range attachments {
+		log.G(ctx).Debugf("Deallocating attahcment %s on node %s going down", na.ID, nodeID)
+		if err := nc.nwkAllocator.DeallocateAttachment(na); err != nil {
+			log.G(ctx).Errorf("Failed freeing resources for attachment %s on node %s delete: %v", na.ID, nodeID, err)
+			updateAttachmentStatus(na, api.AttachmentStateFailed, err.Error())
+		}
+	}
 }

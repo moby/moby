@@ -28,13 +28,21 @@ func (daemon *Daemon) FindNetwork(idName string) (libnetwork.Network, error) {
 	if err != nil && !isNoSuchNetworkError(err) {
 		return nil, err
 	}
-
 	if n != nil {
 		return n, nil
 	}
 
 	// Find by id
-	return daemon.GetNetworkByID(idName)
+	n, err = daemon.GetNetworkByID(idName)
+	if err != nil && daemon.clusterProvider == nil {
+		return nil, err
+	}
+	if n != nil {
+		return n, nil
+	}
+
+	// It could be a swarm managed network, check and populate it
+	return daemon.populateManagedNetwork(idName)
 }
 
 func isNoSuchNetworkError(err error) bool {
@@ -248,6 +256,9 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 	if create.Internal {
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionInternalNetwork())
 	}
+	if create.Legacy {
+		nwOptions = append(nwOptions, libnetwork.NetworkOptionLegacyNetwork())
+	}
 	if agent {
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionDynamic())
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionPersist(false))
@@ -324,6 +335,36 @@ func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, netwo
 		return err
 	}
 	return daemon.DisconnectFromNetwork(container, network, force)
+}
+
+// DeleteNetworkAttachment deletes the corresponding network endpoint
+// and removes the container if that was its only network connection.
+func (daemon *Daemon) DeleteNetworkAttachment(id, networkID string) error {
+	n, err := daemon.FindNetwork(networkID)
+	if err != nil {
+		return err
+	}
+	for _, c := range daemon.List() {
+		eps, ok := c.NetworkSettings.Networks[n.Name()]
+		if !ok {
+			continue
+		}
+		if eps.EndpointID == id {
+			if len(c.NetworkSettings.Networks) == 1 {
+				logrus.Infof("Stopping legacy container %s (%s) that is running on swarm network %s", c.ID, c.Name, n.Name())
+				err := daemon.ContainerStop(c.Name, 0)
+				if err != nil {
+					logrus.Warnf("Failed to remove container: %v", err)
+				}
+			} else {
+				logrus.Infof("Disconnecting legacy container %s (%s) from swarm network %s", c.ID, c.Name, n.Name())
+				if err := daemon.DisconnectFromNetwork(c, n, true); err != nil {
+					logrus.Warnf("Failed to disconnect container: %v", err)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // GetNetworkDriverList returns the list of plugins drivers
