@@ -40,6 +40,13 @@ type ContainerStatsConfig struct {
 	Version   string
 }
 
+// ContainerStatsAllConfig holds information for configuring the runtime
+// behavior of a backend.ContainerStatsAll() call.
+type ContainerStatsAllConfig struct {
+	ContainerStatsConfig
+	All bool
+}
+
 // ExecInspect holds information about a running process started
 // with docker exec.
 type ExecInspect struct {

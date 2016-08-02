@@ -9,6 +9,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/versions"
@@ -44,7 +45,7 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 		outStream = wf
 	}
 
-	var preCPUStats types.CPUStats
+	var preCPUStats *types.CPUStats
 	var preRead time.Time
 	getStatJSON := func(v interface{}) *types.StatsJSON {
 		ss := v.(types.StatsJSON)
@@ -52,7 +53,7 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 		ss.ID = container.ID
 		ss.PreCPUStats = preCPUStats
 		ss.PreRead = preRead
-		preCPUStats = ss.CPUStats
+		preCPUStats = &ss.CPUStats
 		preRead = ss.Read
 		return &ss
 	}
@@ -155,4 +156,100 @@ func (daemon *Daemon) GetContainerStats(container *container.Container) (*types.
 	}
 
 	return stats, nil
+}
+
+// ContainerStatsAll writes information about containers to the stream
+// given in the config object.
+func (daemon *Daemon) ContainerStatsAll(ctx context.Context, config *backend.ContainerStatsAllConfig) error {
+	outStream := config.OutStream
+	if config.Stream {
+		wf := ioutils.NewWriteFlusher(outStream)
+		defer wf.Close()
+		wf.Flush()
+		outStream = wf
+	}
+
+	enc := json.NewEncoder(outStream)
+
+	updates := daemon.subscribeToContainerStatsAll()
+	defer daemon.unsubscribeToContainerStatsAll(updates)
+
+	for {
+		select {
+		case v, ok := <-updates:
+			if !ok {
+				return nil
+			}
+
+			statsJSON, ok := v.(map[string]*types.StatsJSON)
+			if !ok {
+				// malformed data!
+				logrus.Errorf("receive malformed stats data")
+				continue
+			}
+
+			var preCPUNotExits bool
+			if !config.Stream {
+				// prime the cpu stats so they aren't 0 in the final output
+				for _, ss := range statsJSON {
+					if ss.PreCPUStats == nil {
+						preCPUNotExits = true
+						break
+					}
+				}
+
+				// if there's stats without preCPUNotExits
+				if preCPUNotExits {
+					continue
+				}
+			}
+
+			if config.All {
+				containers := daemon.List()
+				for _, cnt := range containers {
+					if _, ok := statsJSON[cnt.ID]; !ok {
+						statsJSON[cnt.ID] = &types.StatsJSON{}
+					}
+				}
+			}
+			if err := enc.Encode(statsJSON); err != nil {
+				return err
+			}
+
+			if !config.Stream {
+				return nil
+			}
+		case <-ctx.Done():
+			return nil
+		}
+	}
+}
+
+func (daemon *Daemon) subscribeToContainerStatsAll() chan interface{} {
+	return daemon.statsCollector.collectAll()
+}
+
+func (daemon *Daemon) unsubscribeToContainerStatsAll(ch chan interface{}) {
+	daemon.statsCollector.unsubscribeAll(ch)
+}
+
+// GetContainerStatsAllRunning collects stats of all the running containers
+func (daemon *Daemon) GetContainerStatsAllRunning() map[string]*types.StatsJSON {
+	allStats := make(map[string]*types.StatsJSON)
+	containers := daemon.List()
+	for _, cnt := range containers {
+		if !cnt.IsRunning() {
+			continue
+		}
+		stats, err := daemon.GetContainerStats(cnt)
+		if err != nil {
+			if _, ok := err.(errNotRunning); !ok {
+				logrus.Errorf("collecting stats for %s: %v", cnt.ID, err)
+			}
+			continue
+		}
+
+		allStats[cnt.ID] = stats
+	}
+	return allStats
 }

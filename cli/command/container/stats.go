@@ -8,14 +8,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/filters"
+	"golang.org/x/net/context"
+
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/cli/command/formatter"
 	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
 )
 
 type statsOptions struct {
@@ -54,32 +52,6 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 
 	ctx := context.Background()
 
-	// monitorContainerEvents watches for container creation and removal (only
-	// used when calling `docker stats` without arguments).
-	monitorContainerEvents := func(started chan<- struct{}, c chan events.Message) {
-		f := filters.NewArgs()
-		f.Add("type", "container")
-		options := types.EventsOptions{
-			Filters: f,
-		}
-
-		eventq, errq := dockerCli.Client().Events(ctx, options)
-
-		// Whether we successfully subscribed to eventq or not, we can now
-		// unblock the main goroutine.
-		close(started)
-
-		for {
-			select {
-			case event := <-eventq:
-				c <- event
-			case err := <-errq:
-				closeChan <- err
-				return
-			}
-		}
-	}
-
 	// Get the daemonOSType if not set already
 	if daemonOSType == "" {
 		svctx := context.Background()
@@ -94,65 +66,11 @@ func runStats(dockerCli *command.DockerCli, opts *statsOptions) error {
 	waitFirst := &sync.WaitGroup{}
 
 	cStats := stats{}
-	// getContainerList simulates creation event for all previously existing
-	// containers (only used when calling `docker stats` without arguments).
-	getContainerList := func() {
-		options := types.ContainerListOptions{
-			All: opts.all,
-		}
-		cs, err := dockerCli.Client().ContainerList(ctx, options)
-		if err != nil {
-			closeChan <- err
-		}
-		for _, container := range cs {
-			s := formatter.NewContainerStats(container.ID[:12], daemonOSType)
-			if cStats.add(s) {
-				waitFirst.Add(1)
-				go collect(ctx, s, dockerCli.Client(), !opts.noStream, waitFirst)
-			}
-		}
-	}
-
 	if showAll {
-		// If no names were specified, start a long running goroutine which
-		// monitors container events. We make sure we're subscribed before
-		// retrieving the list of running containers to avoid a race where we
-		// would "miss" a creation.
-		started := make(chan struct{})
-		eh := command.InitEventHandler()
-		eh.Handle("create", func(e events.Message) {
-			if opts.all {
-				s := formatter.NewContainerStats(e.ID[:12], daemonOSType)
-				if cStats.add(s) {
-					waitFirst.Add(1)
-					go collect(ctx, s, dockerCli.Client(), !opts.noStream, waitFirst)
-				}
-			}
-		})
-
-		eh.Handle("start", func(e events.Message) {
-			s := formatter.NewContainerStats(e.ID[:12], daemonOSType)
-			if cStats.add(s) {
-				waitFirst.Add(1)
-				go collect(ctx, s, dockerCli.Client(), !opts.noStream, waitFirst)
-			}
-		})
-
-		eh.Handle("die", func(e events.Message) {
-			if !opts.all {
-				cStats.remove(e.ID[:12])
-			}
-		})
-
-		eventChan := make(chan events.Message)
-		go eh.Watch(eventChan)
-		go monitorContainerEvents(started, eventChan)
-		defer close(eventChan)
-		<-started
-
-		// Start a short-lived goroutine to retrieve the initial list of
-		// containers.
-		getContainerList()
+		waitFirst.Add(1)
+		go func() {
+			closeChan <- cStats.collectAll(ctx, dockerCli.Client(), opts.all, !opts.noStream, waitFirst)
+		}()
 	} else {
 		// Artificially send creation events for the containers we were asked to
 		// monitor (same code path than we use when monitoring all containers).

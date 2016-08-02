@@ -74,6 +74,29 @@ func (s *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 	return s.backend.ContainerStats(ctx, vars["name"], config)
 }
 
+func (s *containerRouter) getContainersStatsAll(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	stream := httputils.BoolValueOrDefault(r, "stream", true)
+	if !stream {
+		w.Header().Set("Content-Type", "application/json")
+	}
+	all := httputils.BoolValueOrDefault(r, "all", false)
+
+	config := &backend.ContainerStatsAllConfig{
+		ContainerStatsConfig: backend.ContainerStatsConfig{
+			Stream:    stream,
+			OutStream: w,
+			Version:   string(httputils.VersionFromContext(ctx)),
+		},
+		All: all,
+	}
+
+	return s.backend.ContainerStatsAll(ctx, config)
+}
+
 func (s *containerRouter) getContainersLogs(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err

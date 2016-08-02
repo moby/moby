@@ -46,6 +46,7 @@ func (r *containerRouter) initRoutes() {
 		router.NewGetRoute("/containers/{name:.*}/changes", r.getContainersChanges),
 		router.NewGetRoute("/containers/{name:.*}/json", r.getContainersByName),
 		router.NewGetRoute("/containers/{name:.*}/top", r.getContainersTop),
+		router.Cancellable(router.NewGetRoute("/containers/-/stats", r.getContainersStatsAll)),
 		router.Cancellable(router.NewGetRoute("/containers/{name:.*}/logs", r.getContainersLogs)),
 		router.Cancellable(router.NewGetRoute("/containers/{name:.*}/stats", r.getContainersStats)),
 		router.NewGetRoute("/containers/{name:.*}/attach/ws", r.wsContainersAttach),
