@@ -115,6 +115,7 @@ message UpdateNodeResponse {
 // RemoveNodeRequest requests to delete the specified node from store.
 message RemoveNodeRequest {
 	string node_id = 1 [(gogoproto.customname) = "NodeID"];
+	bool force = 2;
 }
 
 message RemoveNodeResponse {

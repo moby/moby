@@ -20,6 +20,7 @@ import (
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/manager/state/watch"
+	"github.com/docker/swarmkit/picker"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 	"golang.org/x/net/context"
 )
@@ -60,8 +61,6 @@ var (
 // Config is configuration for Dispatcher. For default you should use
 // DefautConfig.
 type Config struct {
-	// Addr configures the address the dispatcher reports to agents.
-	Addr             string
 	HeartbeatPeriod  time.Duration
 	HeartbeatEpsilon time.Duration
 	// RateLimitPeriod specifies how often node with same ID can try to register
@@ -90,7 +89,6 @@ type Cluster interface {
 // Dispatcher is responsible for dispatching tasks and tracking agent health.
 type Dispatcher struct {
 	mu                   sync.Mutex
-	addr                 string
 	nodes                *nodeStore
 	store                *store.MemoryStore
 	mgrQueue             *watch.Queue
@@ -121,7 +119,6 @@ func (b weightedPeerByNodeID) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
 // NOTE: each handler which does something with raft must add to Dispatcher.wg
 func New(cluster Cluster, c *Config) *Dispatcher {
 	return &Dispatcher{
-		addr:                      c.Addr,
 		nodes:                     newNodeStore(c.HeartbeatPeriod, c.HeartbeatEpsilon, c.GracePeriodMultiplier, c.RateLimitPeriod),
 		store:                     cluster.MemoryStore(),
 		cluster:                   cluster,
@@ -142,7 +139,11 @@ func getWeightedPeers(cluster Cluster) []*api.WeightedPeer {
 				NodeID: m.NodeID,
 				Addr:   m.Addr,
 			},
-			Weight: 1,
+
+			// TODO(stevvooe): Calculate weight of manager selection based on
+			// cluster-level observations, such as number of connections and
+			// load.
+			Weight: picker.DefaultObservationWeight,
 		})
 	}
 	return mgrs
@@ -574,14 +575,18 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 		}
 
 		// bursty events should be processed in batches and sent out snapshot
-		const modificationBatchLimit = 200
-		const eventPausedGap = 50 * time.Millisecond
-		var modificationCnt int
-		// eventPaused is true when there have been modifications
-		// but next event has not arrived within eventPausedGap
-		eventPaused := false
+		const (
+			modificationBatchLimit = 200
+			eventPausedGap         = 50 * time.Millisecond
+		)
+		var (
+			modificationCnt    int
+			eventPausedTimer   *time.Timer
+			eventPausedTimeout <-chan time.Time
+		)
 
-		for modificationCnt < modificationBatchLimit && !eventPaused {
+	batchingLoop:
+		for modificationCnt < modificationBatchLimit {
 			select {
 			case event := <-nodeTasks:
 				switch v := event.(type) {
@@ -602,15 +607,23 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 					delete(tasksMap, v.Task.ID)
 					modificationCnt++
 				}
-			case <-time.After(eventPausedGap):
-				if modificationCnt > 0 {
-					eventPaused = true
+				if eventPausedTimer != nil {
+					eventPausedTimer.Reset(eventPausedGap)
+				} else {
+					eventPausedTimer = time.NewTimer(eventPausedGap)
+					eventPausedTimeout = eventPausedTimer.C
 				}
+			case <-eventPausedTimeout:
+				break batchingLoop
 			case <-stream.Context().Done():
 				return stream.Context().Err()
 			case <-d.ctx.Done():
 				return d.ctx.Err()
 			}
+		}
+
+		if eventPausedTimer != nil {
+			eventPausedTimer.Stop()
 		}
 	}
 }

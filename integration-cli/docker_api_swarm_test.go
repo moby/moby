@@ -691,6 +691,37 @@ func (s *DockerSwarmSuite) TestApiSwarmNodeUpdate(c *check.C) {
 	c.Assert(n.Spec.Availability, checker.Equals, swarm.NodeAvailabilityPause)
 }
 
+func (s *DockerSwarmSuite) TestApiSwarmNodeRemove(c *check.C) {
+	testRequires(c, Network)
+	d1 := s.AddDaemon(c, true, true)
+	d2 := s.AddDaemon(c, true, false)
+	_ = s.AddDaemon(c, true, false)
+
+	nodes := d1.listNodes(c)
+	c.Assert(len(nodes), checker.Equals, 3, check.Commentf("nodes: %#v", nodes))
+
+	// Getting the info so we can take the NodeID
+	d2Info, err := d2.info()
+	c.Assert(err, checker.IsNil)
+
+	// forceful removal of d2 should work
+	d1.removeNode(c, d2Info.NodeID, true)
+
+	nodes = d1.listNodes(c)
+	c.Assert(len(nodes), checker.Equals, 2, check.Commentf("nodes: %#v", nodes))
+
+	// Restart the node that was removed
+	err = d2.Restart()
+	c.Assert(err, checker.IsNil)
+
+	// Give some time for the node to rejoin
+	time.Sleep(1 * time.Second)
+
+	// Make sure the node didn't rejoin
+	nodes = d1.listNodes(c)
+	c.Assert(len(nodes), checker.Equals, 2, check.Commentf("nodes: %#v", nodes))
+}
+
 func (s *DockerSwarmSuite) TestApiSwarmNodeDrainPause(c *check.C) {
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, false)

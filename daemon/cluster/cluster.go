@@ -1023,7 +1023,7 @@ func (c *Cluster) UpdateNode(nodeID string, version uint64, spec types.NodeSpec)
 }
 
 // RemoveNode removes a node from a cluster
-func (c *Cluster) RemoveNode(input string) error {
+func (c *Cluster) RemoveNode(input string, force bool) error {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -1039,7 +1039,7 @@ func (c *Cluster) RemoveNode(input string) error {
 		return err
 	}
 
-	if _, err := c.client.RemoveNode(ctx, &swarmapi.RemoveNodeRequest{NodeID: node.ID}); err != nil {
+	if _, err := c.client.RemoveNode(ctx, &swarmapi.RemoveNodeRequest{NodeID: node.ID, Force: force}); err != nil {
 		return err
 	}
 	return nil
