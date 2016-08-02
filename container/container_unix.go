@@ -325,7 +325,7 @@ func (container *Container) UnmountVolumes(forceSyscall bool, volumeEventLog fun
 			return err
 		}
 
-		volumeMounts = append(volumeMounts, volume.MountPoint{Destination: dest, Volume: mntPoint.Volume})
+		volumeMounts = append(volumeMounts, volume.MountPoint{Destination: dest, Volume: mntPoint.Volume, ID: mntPoint.ID})
 	}
 
 	// Append any network mounts to the list (this is a no-op on Windows)
