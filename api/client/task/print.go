@@ -41,7 +41,7 @@ func (t tasksBySlot) Less(i, j int) bool {
 }
 
 // Print task information in a table format
-func Print(dockerCli *client.DockerCli, ctx context.Context, tasks []swarm.Task, resolver *idresolver.IDResolver) error {
+func Print(dockerCli *client.DockerCli, ctx context.Context, tasks []swarm.Task, resolver *idresolver.IDResolver, noTrunc bool) error {
 	sort.Stable(tasksBySlot(tasks))
 
 	writer := tabwriter.NewWriter(dockerCli.Out(), 0, 4, 2, ' ', 0)
@@ -75,7 +75,7 @@ func Print(dockerCli *client.DockerCli, ctx context.Context, tasks []swarm.Task,
 
 		// Trim and quote the error message.
 		taskErr := task.Status.Err
-		if len(taskErr) > maxErrLength {
+		if !noTrunc && len(taskErr) > maxErrLength {
 			taskErr = fmt.Sprintf("%s…", taskErr[:maxErrLength-1])
 		}
 		if len(taskErr) > 0 {

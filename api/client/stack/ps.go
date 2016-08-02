@@ -20,6 +20,7 @@ import (
 type psOptions struct {
 	all       bool
 	filter    opts.FilterOpt
+	noTrunc   bool
 	namespace string
 	noResolve bool
 }
@@ -38,6 +39,7 @@ func newPSCommand(dockerCli *client.DockerCli) *cobra.Command {
 	}
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.all, "all", "a", false, "Display all tasks")
+	flags.BoolVar(&opts.noTrunc, "no-trunc", false, "Do not truncate output")
 	flags.BoolVar(&opts.noResolve, "no-resolve", false, "Do not map IDs to Names")
 	flags.VarP(&opts.filter, "filter", "f", "Filter output based on conditions provided")
 
@@ -66,5 +68,5 @@ func runPS(dockerCli *client.DockerCli, opts psOptions) error {
 		return nil
 	}
 
-	return task.Print(dockerCli, ctx, tasks, idresolver.New(client, opts.noResolve))
+	return task.Print(dockerCli, ctx, tasks, idresolver.New(client, opts.noResolve), opts.noTrunc)
 }
