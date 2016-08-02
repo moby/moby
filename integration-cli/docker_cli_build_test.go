@@ -2020,6 +2020,42 @@ func (s *DockerSuite) TestBuildRelativeCopy(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestBuildBlankName(c *check.C) {
+	name := "testbuildblankname"
+	_, _, stderr, err := buildImageWithStdoutStderr(name,
+		`FROM busybox
+		ENV =`,
+		true)
+	if err == nil {
+		c.Fatal("Build was supposed to fail but didn't")
+	}
+	if !strings.Contains(stderr, "ENV names can not be blank") {
+		c.Fatalf("Missing error message, got: %s", stderr)
+	}
+
+	_, _, stderr, err = buildImageWithStdoutStderr(name,
+		`FROM busybox
+		LABEL =`,
+		true)
+	if err == nil {
+		c.Fatal("Build was supposed to fail but didn't")
+	}
+	if !strings.Contains(stderr, "LABEL names can not be blank") {
+		c.Fatalf("Missing error message, got: %s", stderr)
+	}
+
+	_, _, stderr, err = buildImageWithStdoutStderr(name,
+		`FROM busybox
+		ARG =foo`,
+		true)
+	if err == nil {
+		c.Fatal("Build was supposed to fail but didn't")
+	}
+	if !strings.Contains(stderr, "ARG names can not be blank") {
+		c.Fatalf("Missing error message, got: %s", stderr)
+	}
+}
+
 func (s *DockerSuite) TestBuildEnv(c *check.C) {
 	testRequires(c, DaemonIsLinux) // ENV expansion is different in Windows
 	name := "testbuildenv"
