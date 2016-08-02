@@ -47,6 +47,7 @@ func New(cfg *Config) *Server {
 	}
 }
 
+// Config returns the server's configuration
 func (s *Server) Config() *Config {
 	return s.cfg
 }
