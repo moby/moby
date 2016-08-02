@@ -139,23 +139,14 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 	}
 	c.Unlock()
 
-	// Delete the special "tasks.svc_name" backend record.
-	n.(*network).deleteSvcRecords("tasks."+name, ip, nil, false)
-	for _, alias := range aliases {
-		n.(*network).deleteSvcRecords("tasks."+alias, ip, nil, false)
-	}
-
-	// If we are doing DNS RR add the endpoint IP to DNS record
-	// right away.
-	if len(vip) == 0 {
-		n.(*network).deleteSvcRecords(name, ip, nil, false)
-		for _, alias := range aliases {
-			n.(*network).deleteSvcRecords(alias, ip, nil, false)
-		}
-	}
-
 	s.Lock()
 	lb, ok := s.loadBalancers[nid]
+	if !ok {
+		s.Unlock()
+		return nil
+	}
+
+	_, ok = lb.backEnds[eid]
 	if !ok {
 		s.Unlock()
 		return nil
@@ -183,6 +174,21 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 		n.(*network).rmLBBackend(ip, vip, lb.fwMark, ingressPorts, rmService)
 	}
 	s.Unlock()
+
+	// Delete the special "tasks.svc_name" backend record.
+	n.(*network).deleteSvcRecords("tasks."+name, ip, nil, false)
+	for _, alias := range aliases {
+		n.(*network).deleteSvcRecords("tasks."+alias, ip, nil, false)
+	}
+
+	// If we are doing DNS RR add the endpoint IP to DNS record
+	// right away.
+	if len(vip) == 0 {
+		n.(*network).deleteSvcRecords(name, ip, nil, false)
+		for _, alias := range aliases {
+			n.(*network).deleteSvcRecords(alias, ip, nil, false)
+		}
+	}
 
 	// Remove the DNS record for VIP only if we are removing the service
 	if rmService && len(vip) != 0 {
