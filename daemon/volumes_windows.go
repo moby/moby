@@ -44,8 +44,12 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 	return mnts, nil
 }
 
-// setBindModeIfNull is platform specific processing which is a no-op on
-// Windows.
+// setBindModeIfNull is platform specific processing which is a no-op on Windows.
 func setBindModeIfNull(bind *volume.MountPoint) *volume.MountPoint {
 	return bind
+}
+
+// copyMountPointPropagation is a platform specific function to copy the propagation
+// for a mount point from one struct to another. It is a no-op on Windows
+func copyMountPointPropagation(cp *volume.MountPoint, m *volume.MountPoint) {
 }

@@ -87,6 +87,15 @@ func init() {
 	}
 }
 
+// MountPoint is the intersection point between a volume and a container. It
+// specifies which volume is to be used and where inside a container it should
+// be mounted.
+type MountPoint struct {
+	CommonMountPoint
+
+	// Platform specific fields below here. There are none currently on Windows.
+}
+
 // BackwardsCompatible decides whether this mount point can be
 // used in old versions of Docker or not.
 // Windows volumes are never backwards compatible.
@@ -113,9 +122,11 @@ func ParseMountSpec(spec string, volumeDriver string) (*MountPoint, error) {
 	}
 
 	mp := &MountPoint{
-		Source:      matchgroups["source"],
-		Destination: matchgroups["destination"],
-		RW:          true,
+		CommonMountPoint: CommonMountPoint{
+			Source:      matchgroups["source"],
+			Destination: matchgroups["destination"],
+			RW:          true,
+		},
 	}
 	if strings.ToLower(matchgroups["mode"]) == "ro" {
 		mp.RW = false
@@ -203,4 +214,15 @@ func ValidMountMode(mode string) bool {
 // ReadWrite tells you if a mode string is a valid read-write mode or not.
 func ReadWrite(mode string) bool {
 	return rwModes[strings.ToLower(mode)]
+}
+
+// GetCopyMode gets the copy mode from the mode string for mounts. Not supported
+// on Windows - just return false,false
+func getCopyMode(mode string) (bool, bool) {
+	return false, false
+}
+
+// relabelIfNeeded is platform specific processing to relabel a bind. Noopon Windows.
+func (m *MountPoint) relabelIfNeeded(mountLabel string) error {
+	return nil
 }

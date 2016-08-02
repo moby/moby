@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 // read-write modes
@@ -18,6 +20,26 @@ var rwModes = map[string]bool{
 var labelModes = map[string]bool{
 	"Z": true,
 	"z": true,
+}
+
+const (
+	// DefaultCopyMode is the copy mode used by default for normal/named volumes
+	DefaultCopyMode = true
+)
+
+// MountPoint is the intersection point between a volume and a container. It
+// specifies which volume is to be used and where inside a container it should
+// be mounted.
+type MountPoint struct {
+	CommonMountPoint
+
+	// Platform specific fields below here.
+	Mode        string `json:"Relabel"` // Originally field was `Relabel`"
+	Propagation string // Mount propagation string
+	// Specifies if data should be copied from the container before the first mount
+	// Use a pointer here so we can tell if the user set this value explicitly
+	// This allows us to error out when the user explicitly enabled copy but we can't copy due to the volume being populated
+	CopyData bool `json:"-"`
 }
 
 // BackwardsCompatible decides whether this mount point can be
@@ -41,7 +63,9 @@ func ParseMountSpec(spec, volumeDriver string) (*MountPoint, error) {
 	spec = filepath.ToSlash(spec)
 
 	mp := &MountPoint{
-		RW:          true,
+		CommonMountPoint: CommonMountPoint{
+			RW: true,
+		},
 		Propagation: DefaultPropagationMode,
 	}
 	if strings.Count(spec, ":") > 2 {
@@ -183,4 +207,34 @@ func ReadWrite(mode string) bool {
 	}
 
 	return true
+}
+
+// {<copy mode>=isEnabled}
+var copyModes = map[string]bool{
+	"nocopy": false,
+}
+
+func copyModeExists(mode string) bool {
+	_, exists := copyModes[mode]
+	return exists
+}
+
+// GetCopyMode gets the copy mode from the mode string for mounts
+func getCopyMode(mode string) (bool, bool) {
+	for _, o := range strings.Split(mode, ",") {
+		if isEnabled, exists := copyModes[o]; exists {
+			return isEnabled, true
+		}
+	}
+	return DefaultCopyMode, false
+}
+
+// relabelIfNeeded is platform specific processing to relabel a bind
+func (m *MountPoint) relabelIfNeeded(mountLabel string) error {
+	if label.RelabelNeeded(m.Mode) {
+		if err := label.Relabel(m.Source, mountLabel, label.IsShared(m.Mode)); err != nil {
+			return err
+		}
+	}
+	return nil
 }

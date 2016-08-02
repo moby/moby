@@ -84,3 +84,9 @@ func setBindModeIfNull(bind *volume.MountPoint) *volume.MountPoint {
 	}
 	return bind
 }
+
+// copyMountPointPropagation is a platform specific function to copy the propagation
+// for a mount point from one struct to another.
+func copyMountPointPropagation(cp *volume.MountPoint, m *volume.MountPoint) {
+	cp.Propagation = m.Propagation
+}

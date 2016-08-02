@@ -8,7 +8,6 @@ import (
 
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
-	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 // DefaultDriverName is the driver name used for the driver
@@ -77,28 +76,17 @@ type ScopedVolume interface {
 	Volume
 }
 
-// MountPoint is the intersection point between a volume and a container. It
-// specifies which volume is to be used and where inside a container it should
-// be mounted.
-type MountPoint struct {
+// CommonMountPoint is the platform common fields for the intersection point
+// between a volume and a container. It specifies which volume is to be used and
+// where inside a container it should be mounted.
+type CommonMountPoint struct {
 	Source      string // Container host directory
 	Destination string // Inside the container
 	RW          bool   // True if writable
 	Name        string // Name set by user
 	Driver      string // Volume driver to use
 	Volume      Volume `json:"-"`
-
-	// Note Mode is not used on Windows
-	Mode string `json:"Relabel"` // Originally field was `Relabel`"
-
-	// Note Propagation is not used on Windows
-	Propagation string // Mount propagation string
 	Named       bool   // specifies if the mountpoint was specified by name
-
-	// Specifies if data should be copied from the container before the first mount
-	// Use a pointer here so we can tell if the user set this value explicitly
-	// This allows us to error out when the user explicitly enabled copy but we can't copy due to the volume being populated
-	CopyData bool `json:"-"`
 	// ID is the opaque ID used to pass to the volume driver.
 	// This should be set by calls to `Mount` and unset by calls to `Unmount`
 	ID string
@@ -124,11 +112,11 @@ func (m *MountPoint) Setup(mountLabel string) (string, error) {
 			}
 		}
 	}
-	if label.RelabelNeeded(m.Mode) {
-		if err := label.Relabel(m.Source, mountLabel, label.IsShared(m.Mode)); err != nil {
-			return "", err
-		}
+
+	if err := m.relabelIfNeeded(mountLabel); err != nil {
+		return "", err
 	}
+
 	return m.Source, nil
 }
 
