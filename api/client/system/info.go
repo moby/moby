@@ -220,6 +220,7 @@ func runInfo(dockerCli *client.DockerCli) error {
 	}
 
 	fmt.Fprintf(dockerCli.Out(), "Live Restore Enabled: %v\n", info.LiveRestoreEnabled)
+	fmt.Fprintf(dockerCli.Out(), "Default Isolation: %v\n", info.Isolation)
 
 	return nil
 }
