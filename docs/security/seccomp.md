@@ -35,7 +35,7 @@ CONFIG_SECCOMP=y
 
 The default seccomp profile provides a sane default for running containers with
 seccomp and disables around 44 system calls out of 300+. It is moderately protective while providing wide application
-compatibility. The default Docker profile (found [here](https://github.com/docker/docker/blob/master/profiles/seccomp/default.json) has a JSON layout in the following form:
+compatibility. The default Docker profile (found [here](https://github.com/docker/docker/blob/master/profiles/seccomp/default.json)) has a JSON layout in the following form:
 
 ```json
 {
