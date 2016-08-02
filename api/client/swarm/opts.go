@@ -19,6 +19,8 @@ const (
 	flagDispatcherHeartbeat = "dispatcher-heartbeat"
 	flagListenAddr          = "listen-addr"
 	flagAdvertiseAddr       = "advertise-addr"
+	flagQuiet               = "quiet"
+	flagRotate              = "rotate"
 	flagToken               = "token"
 	flagTaskHistoryLimit    = "task-history-limit"
 	flagExternalCA          = "external-ca"
