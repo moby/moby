@@ -1,7 +1,7 @@
 [Unit]
 Description=Docker Application Container Engine
 Documentation=https://docs.docker.com
-After=network.target docker.socket
+After=network.target docker.socket firewalld.service
 Requires=docker.socket
 
 [Service]
