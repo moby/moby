@@ -64,7 +64,7 @@ guaranteed if you encounter more than two network partitions.
 |      1       |     1      |         0         |
 |      2       |     2      |         0         |
 |    **3**     |     2      |       **1**       |
-|      4       |     3      |         2         |
+|      4       |     3      |         1         |
 |    **5**     |     3      |       **2**       |
 |      6       |     4      |         2         |
 |    **7**     |     4      |       **3**       |
