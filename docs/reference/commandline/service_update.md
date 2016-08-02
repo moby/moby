@@ -50,7 +50,7 @@ Options:
       --update-delay duration          Delay between updates
       --update-failure-action string   Action on update failure (pause|continue) (default "pause")
       --update-parallelism uint        Maximum number of tasks updated simultaneously (0 to update all at once) (default 1)
-  -u, --user string                    Username or UID
+  -u, --user string                    Username or UID (format: <name|uid>[:<group|gid>])
       --with-registry-auth             Send registry authentication details to Swarm agents
   -w, --workdir string                 Working directory inside the container
 ```
