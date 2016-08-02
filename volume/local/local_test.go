@@ -3,6 +3,7 @@ package local
 import (
 	"io/ioutil"
 	"os"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -245,5 +246,19 @@ func TestCreateWithOpts(t *testing.T) {
 	}
 	if !mounted {
 		t.Fatal("expected mount to still be active")
+	}
+
+	r, err = New(rootDir, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	v2, exists := r.volumes["test"]
+	if !exists {
+		t.Fatal("missing volume on restart")
+	}
+
+	if !reflect.DeepEqual(v.opts, v2.opts) {
+		t.Fatal("missing volume options on restart")
 	}
 }
