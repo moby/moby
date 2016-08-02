@@ -27,7 +27,7 @@ your production environment, swarm mode provides a fault-tolerant platform with
 cluster management features to keep your services running and available.
 
 These instructions assume you have installed the Docker Engine 1.12 or later on
-a machine to serve as a manager node in your swawrm.
+a machine to serve as a manager node in your swarm.
 
 If you haven't already, read through the [swarm mode key concepts](key-concepts.md)
 and try the [swarm mode tutorial](swarm-tutorial/index.md).
