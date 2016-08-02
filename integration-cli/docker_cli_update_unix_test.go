@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/engine-api/types"
 	"github.com/go-check/check"
 )
@@ -132,26 +133,36 @@ func (s *DockerSuite) TestUpdateKernelMemory(c *check.C) {
 func (s *DockerSuite) TestUpdateKernelMemoryUninitialized(c *check.C) {
 	testRequires(c, DaemonIsLinux, kernelMemorySupport)
 
+	isNewKernel := kernel.CheckKernelVersion(4, 6, 0)
 	name := "test-update-container"
 	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
 	_, _, err := dockerCmdWithError("update", "--kernel-memory", "100M", name)
-	// Update kernel memory to a running container without kernel memory initialized is not allowed.
-	c.Assert(err, check.NotNil)
+	// Update kernel memory to a running container without kernel memory initialized
+	// is not allowed before kernel version 4.6.
+	if !isNewKernel {
+		c.Assert(err, check.NotNil)
+	} else {
+		c.Assert(err, check.IsNil)
+	}
 
 	dockerCmd(c, "pause", name)
-	_, _, err = dockerCmdWithError("update", "--kernel-memory", "100M", name)
-	c.Assert(err, check.NotNil)
+	_, _, err = dockerCmdWithError("update", "--kernel-memory", "200M", name)
+	if !isNewKernel {
+		c.Assert(err, check.NotNil)
+	} else {
+		c.Assert(err, check.IsNil)
+	}
 	dockerCmd(c, "unpause", name)
 
 	dockerCmd(c, "stop", name)
-	dockerCmd(c, "update", "--kernel-memory", "100M", name)
+	dockerCmd(c, "update", "--kernel-memory", "300M", name)
 	dockerCmd(c, "start", name)
 
-	c.Assert(inspectField(c, name, "HostConfig.KernelMemory"), checker.Equals, "104857600")
+	c.Assert(inspectField(c, name, "HostConfig.KernelMemory"), checker.Equals, "314572800")
 
 	file := "/sys/fs/cgroup/memory/memory.kmem.limit_in_bytes"
 	out, _ := dockerCmd(c, "exec", name, "cat", file)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "104857600")
+	c.Assert(strings.TrimSpace(out), checker.Equals, "314572800")
 }
 
 func (s *DockerSuite) TestUpdateSwapMemoryOnly(c *check.C) {
