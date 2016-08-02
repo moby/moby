@@ -88,7 +88,9 @@ func New(scope string, rootUID, rootGID int) (*Root, error) {
 			path:       r.DataPath(name),
 		}
 		r.volumes[name] = v
-		if b, err := ioutil.ReadFile(filepath.Join(name, "opts.json")); err == nil {
+		optsFilePath := filepath.Join(rootDirectory, name, "opts.json")
+		if b, err := ioutil.ReadFile(optsFilePath); err == nil {
+			v.opts = &optsConfig{}
 			if err := json.Unmarshal(b, v.opts); err != nil {
 				return nil, err
 			}
