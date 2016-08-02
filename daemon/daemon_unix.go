@@ -194,17 +194,6 @@ func getBlkioThrottleDevices(devs []*blkiodev.ThrottleDevice) ([]specs.ThrottleD
 	return throttleDevices, nil
 }
 
-func checkKernelVersion(k, major, minor int) bool {
-	if v, err := kernel.GetKernelVersion(); err != nil {
-		logrus.Warnf("error getting kernel version: %s", err)
-	} else {
-		if kernel.CompareKernelVersion(*v, kernel.VersionInfo{Kernel: k, Major: major, Minor: minor}) < 0 {
-			return false
-		}
-	}
-	return true
-}
-
 func checkKernel() error {
 	// Check for unsupported kernel versions
 	// FIXME: it would be cleaner to not test for specific versions, but rather
@@ -215,7 +204,7 @@ func checkKernel() error {
 	// For details see https://github.com/docker/docker/issues/407
 	// Docker 1.11 and above doesn't actually run on kernels older than 3.4,
 	// due to containerd-shim usage of PR_SET_CHILD_SUBREAPER (introduced in 3.4).
-	if !checkKernelVersion(3, 10, 0) {
+	if !kernel.CheckKernelVersion(3, 10, 0) {
 		v, _ := kernel.GetKernelVersion()
 		if os.Getenv("DOCKER_NOWARN_KERNEL_VERSION") == "" {
 			logrus.Fatalf("Your Linux kernel version %s is not supported for running docker. Please upgrade your kernel to 3.10.0 or newer.", v.String())
@@ -317,7 +306,7 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	if resources.KernelMemory > 0 && resources.KernelMemory < linuxMinMemory {
 		return warnings, fmt.Errorf("Minimum kernel memory limit allowed is 4MB")
 	}
-	if resources.KernelMemory > 0 && !checkKernelVersion(4, 0, 0) {
+	if resources.KernelMemory > 0 && !kernel.CheckKernelVersion(4, 0, 0) {
 		warnings = append(warnings, "You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
 		logrus.Warn("You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
 	}
