@@ -90,7 +90,7 @@ func (s *DockerSuite) TestApiStatsNetworkStats(c *check.C) {
 
 	// Retrieve the container address
 	contIP := findContainerIP(c, id, "bridge")
-	numPings := 4
+	numPings := 1
 
 	var preRxPackets uint64
 	var preTxPackets uint64
