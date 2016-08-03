@@ -375,7 +375,12 @@ any options, the systems uses the following options:
 `rw,noexec,nosuid,nodev,size=65536k`.
 
 **-u**, **--user**=""
-   Username or UID
+   Sets the username or UID used and optionally the groupname or GID for the specified command.
+
+   The followings examples are all valid:
+   --user [user | user:group | uid | uid:gid | user:gid | uid:group ]
+
+   Without this argument root user will be used in the container by default.
 
 **--ulimit**=[]
    Ulimit options
