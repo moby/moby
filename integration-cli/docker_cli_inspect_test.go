@@ -328,18 +328,6 @@ func (s *DockerSuite) TestInspectSizeFlagContainer(c *check.C) {
 	c.Assert(strings.TrimSpace(sz[1]), check.Not(check.Equals), "<nil>")
 }
 
-func (s *DockerSuite) TestInspectSizeFlagImage(c *check.C) {
-	runSleepingContainer(c, "-d")
-
-	formatStr := "--format='{{.SizeRw}},{{.SizeRootFs}}'"
-	out, _, err := dockerCmdWithError("inspect", "-s", "--type=image", formatStr, "busybox")
-
-	// Template error rather than <no value>
-	// This is a more correct behavior because images don't have sizes associated.
-	c.Assert(err, check.Not(check.IsNil))
-	c.Assert(out, checker.Contains, "Template parsing error")
-}
-
 func (s *DockerSuite) TestInspectTemplateError(c *check.C) {
 	// Template parsing error for both the container and image.
 
