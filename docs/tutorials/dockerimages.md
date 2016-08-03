@@ -187,9 +187,13 @@ you'd like to update.
 > Take note of the container ID that has been created, `0b2616b0e5a8`, as you'll
 > need it in a moment.
 
-Inside our running container let's add the `json` gem.
+Inside our running container first let's update Ruby:
 
-    root@0b2616b0e5a8:/# gem install json
+    root@0b2616b0e5a8:/# apt-get install -y ruby2.0-dev
+
+Now let's add the `json` gem.
+
+    root@0b2616b0e5a8:/# gem2.0 install json
 
 Once this has completed let's exit our container using the `exit`
 command.
