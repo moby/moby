@@ -216,7 +216,7 @@ a `direct-lvm` configuration.
 The procedure below will create a logical volume configured as a thin pool to
 use as backing for the storage pool. It assumes that you have a spare block
 device at `/dev/xvdf` with enough free space to complete the task. The device
-identifier and volume sizes may be be different in your environment and you
+identifier and volume sizes may be different in your environment and you
 should substitute your own values throughout the procedure. The procedure also
 assumes that the Docker daemon is in the `stopped` state.
 
