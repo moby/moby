@@ -135,7 +135,7 @@ validate: build ## validate DCO, Seccomp profile generation, gofmt,\n./pkg/ isol
 	$(DOCKER_RUN_DOCKER) hack/make.sh validate-dco validate-default-seccomp validate-gofmt validate-pkg validate-lint validate-test validate-toml validate-vet validate-vendor
 
 manpages: ## Generate man pages from go source and markdown
-	docker build -t docker-manpage-dev -f man/Dockerfile .
+	docker build -t docker-manpage-dev -f "man/$(DOCKERFILE)" ./man
 	docker run \
 		-v $(PWD):/go/src/github.com/docker/docker/ \
 		docker-manpage-dev
