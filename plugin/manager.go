@@ -326,8 +326,8 @@ func (pm *Manager) init() error {
 				}
 			}
 		}(p)
-		group.Wait()
 	}
+	group.Wait()
 	return pm.save()
 }
 
