@@ -144,6 +144,7 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 	defer ctr.client.unlock(ctr.containerID)
 	switch e.Type {
 	case StateExit, StatePause, StateResume, StateOOM:
+		var waitRestart chan error
 		st := StateInfo{
 			CommonStateInfo: CommonStateInfo{
 				State:    e.Type,
@@ -166,8 +167,26 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 				st.State = StateRestart
 				ctr.restarting = true
 				ctr.client.deleteContainer(e.Id)
+				waitRestart = wait
+			}
+		}
+
+		// Remove process from list if we have exited
+		// We need to do so here in case the Message Handler decides to restart it.
+		switch st.State {
+		case StateExit:
+			ctr.clean()
+			ctr.client.deleteContainer(e.Id)
+		case StateExitProcess:
+			ctr.cleanProcess(st.ProcessID)
+		}
+		ctr.client.q.append(e.Id, func() {
+			if err := ctr.client.backend.StateChanged(e.Id, st); err != nil {
+				logrus.Errorf("libcontainerd: backend.StateChanged(): %v", err)
+			}
+			if st.State == StateRestart {
 				go func() {
-					err := <-wait
+					err := <-waitRestart
 					ctr.client.lock(ctr.containerID)
 					defer ctr.client.unlock(ctr.containerID)
 					ctr.restarting = false
@@ -187,21 +206,7 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 					}
 				}()
 			}
-		}
 
-		// Remove process from list if we have exited
-		// We need to do so here in case the Message Handler decides to restart it.
-		switch st.State {
-		case StateExit:
-			ctr.clean()
-			ctr.client.deleteContainer(e.Id)
-		case StateExitProcess:
-			ctr.cleanProcess(st.ProcessID)
-		}
-		ctr.client.q.append(e.Id, func() {
-			if err := ctr.client.backend.StateChanged(e.Id, st); err != nil {
-				logrus.Errorf("libcontainerd: backend.StateChanged(): %v", err)
-			}
 			if e.Type == StatePause || e.Type == StateResume {
 				ctr.pauseMonitor.handle(e.Type)
 			}
