@@ -34,6 +34,9 @@ message EndpointRecord {
 
 	// A list of aliases which are alternate names for the service
 	repeated string aliases = 7;
+
+	// List of aliases task specific aliases
+	repeated string task_aliases = 8;
 }
 
 // PortConfig specifies an exposed port which can be
