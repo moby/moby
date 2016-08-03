@@ -59,8 +59,8 @@ func (container *Container) TmpfsMounts() []Mount {
 }
 
 // IntrospectionMounts returns the list of mounts for introspection support
-func (container *Container) IntrospectionMounts() ([]Mount, error) {
-	return nil, nil
+func (container *Container) IntrospectionMounts() []Mount {
+	return nil
 }
 
 // UpdateContainer updates configuration of a container

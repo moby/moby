@@ -82,6 +82,7 @@ func (daemon *Daemon) load(id string) (*container.Container, error) {
 	if container.ID != id {
 		return container, fmt.Errorf("Container %s is stored at %s", container.ID, id)
 	}
+	container.ExecRoot = daemon.configStore.GetExecRoot()
 
 	return container, nil
 }
@@ -153,7 +154,7 @@ func (daemon *Daemon) GetByName(name string) (*container.Container, error) {
 // newBaseContainer creates a new container with its initial
 // configuration based on the root storage from the daemon.
 func (daemon *Daemon) newBaseContainer(id string) *container.Container {
-	return container.NewBaseContainer(id, daemon.containerRoot(id))
+	return container.NewBaseContainer(id, daemon.containerRoot(id), daemon.configStore.GetExecRoot())
 }
 
 func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint strslice.StrSlice, configCmd strslice.StrSlice) (string, []string) {

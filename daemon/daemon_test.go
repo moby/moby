@@ -120,8 +120,9 @@ func TestGetContainer(t *testing.T) {
 func initDaemonWithVolumeStore(tmp string) (*Daemon, error) {
 	var err error
 	daemon := &Daemon{
-		repository: tmp,
-		root:       tmp,
+		repository:  tmp,
+		root:        tmp,
+		configStore: &Config{},
 	}
 	daemon.volumes, err = store.New(tmp)
 	if err != nil {

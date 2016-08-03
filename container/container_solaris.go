@@ -79,8 +79,8 @@ func (container *Container) TmpfsMounts() []Mount {
 }
 
 // IntrospectionMounts returns the list of mounts for introspection support
-func (container *Container) IntrospectionMounts() ([]Mount, error) {
-	return nil, nil
+func (container *Container) IntrospectionMounts() []Mount {
+	return nil
 }
 
 // cleanResourcePath cleans a resource path and prepares to combine with mnt path
