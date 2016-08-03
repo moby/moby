@@ -353,9 +353,7 @@ func (this *FileOptions) GoString() string {
 	if this.UninterpretedOption != nil {
 		s = append(s, "UninterpretedOption: "+fmt.Sprintf("%#v", this.UninterpretedOption)+",\n")
 	}
-	if this.XXX_extensions != nil {
-		s = append(s, "XXX_extensions: "+extensionToGoStringDescriptor(this.XXX_extensions)+",\n")
-	}
+	s = append(s, "XXX_InternalExtensions: "+extensionToGoStringDescriptor(this)+",\n")
 	if this.XXX_unrecognized != nil {
 		s = append(s, "XXX_unrecognized:"+fmt.Sprintf("%#v", this.XXX_unrecognized)+",\n")
 	}
@@ -383,9 +381,7 @@ func (this *MessageOptions) GoString() string {
 	if this.UninterpretedOption != nil {
 		s = append(s, "UninterpretedOption: "+fmt.Sprintf("%#v", this.UninterpretedOption)+",\n")
 	}
-	if this.XXX_extensions != nil {
-		s = append(s, "XXX_extensions: "+extensionToGoStringDescriptor(this.XXX_extensions)+",\n")
-	}
+	s = append(s, "XXX_InternalExtensions: "+extensionToGoStringDescriptor(this)+",\n")
 	if this.XXX_unrecognized != nil {
 		s = append(s, "XXX_unrecognized:"+fmt.Sprintf("%#v", this.XXX_unrecognized)+",\n")
 	}
@@ -419,9 +415,7 @@ func (this *FieldOptions) GoString() string {
 	if this.UninterpretedOption != nil {
 		s = append(s, "UninterpretedOption: "+fmt.Sprintf("%#v", this.UninterpretedOption)+",\n")
 	}
-	if this.XXX_extensions != nil {
-		s = append(s, "XXX_extensions: "+extensionToGoStringDescriptor(this.XXX_extensions)+",\n")
-	}
+	s = append(s, "XXX_InternalExtensions: "+extensionToGoStringDescriptor(this)+",\n")
 	if this.XXX_unrecognized != nil {
 		s = append(s, "XXX_unrecognized:"+fmt.Sprintf("%#v", this.XXX_unrecognized)+",\n")
 	}
@@ -443,9 +437,7 @@ func (this *EnumOptions) GoString() string {
 	if this.UninterpretedOption != nil {
 		s = append(s, "UninterpretedOption: "+fmt.Sprintf("%#v", this.UninterpretedOption)+",\n")
 	}
-	if this.XXX_extensions != nil {
-		s = append(s, "XXX_extensions: "+extensionToGoStringDescriptor(this.XXX_extensions)+",\n")
-	}
+	s = append(s, "XXX_InternalExtensions: "+extensionToGoStringDescriptor(this)+",\n")
 	if this.XXX_unrecognized != nil {
 		s = append(s, "XXX_unrecognized:"+fmt.Sprintf("%#v", this.XXX_unrecognized)+",\n")
 	}
@@ -464,9 +456,7 @@ func (this *EnumValueOptions) GoString() string {
 	if this.UninterpretedOption != nil {
 		s = append(s, "UninterpretedOption: "+fmt.Sprintf("%#v", this.UninterpretedOption)+",\n")
 	}
-	if this.XXX_extensions != nil {
-		s = append(s, "XXX_extensions: "+extensionToGoStringDescriptor(this.XXX_extensions)+",\n")
-	}
+	s = append(s, "XXX_InternalExtensions: "+extensionToGoStringDescriptor(this)+",\n")
 	if this.XXX_unrecognized != nil {
 		s = append(s, "XXX_unrecognized:"+fmt.Sprintf("%#v", this.XXX_unrecognized)+",\n")
 	}
@@ -485,9 +475,7 @@ func (this *ServiceOptions) GoString() string {
 	if this.UninterpretedOption != nil {
 		s = append(s, "UninterpretedOption: "+fmt.Sprintf("%#v", this.UninterpretedOption)+",\n")
 	}
-	if this.XXX_extensions != nil {
-		s = append(s, "XXX_extensions: "+extensionToGoStringDescriptor(this.XXX_extensions)+",\n")
-	}
+	s = append(s, "XXX_InternalExtensions: "+extensionToGoStringDescriptor(this)+",\n")
 	if this.XXX_unrecognized != nil {
 		s = append(s, "XXX_unrecognized:"+fmt.Sprintf("%#v", this.XXX_unrecognized)+",\n")
 	}
@@ -506,9 +494,7 @@ func (this *MethodOptions) GoString() string {
 	if this.UninterpretedOption != nil {
 		s = append(s, "UninterpretedOption: "+fmt.Sprintf("%#v", this.UninterpretedOption)+",\n")
 	}
-	if this.XXX_extensions != nil {
-		s = append(s, "XXX_extensions: "+extensionToGoStringDescriptor(this.XXX_extensions)+",\n")
-	}
+	s = append(s, "XXX_InternalExtensions: "+extensionToGoStringDescriptor(this)+",\n")
 	if this.XXX_unrecognized != nil {
 		s = append(s, "XXX_unrecognized:"+fmt.Sprintf("%#v", this.XXX_unrecognized)+",\n")
 	}
@@ -616,11 +602,12 @@ func valueToGoStringDescriptor(v interface{}, typ string) string {
 	pv := reflect.Indirect(rv).Interface()
 	return fmt.Sprintf("func(v %v) *%v { return &v } ( %#v )", typ, typ, pv)
 }
-func extensionToGoStringDescriptor(e map[int32]github_com_gogo_protobuf_proto.Extension) string {
+func extensionToGoStringDescriptor(m github_com_gogo_protobuf_proto.Message) string {
+	e := github_com_gogo_protobuf_proto.GetUnsafeExtensionsMap(m)
 	if e == nil {
 		return "nil"
 	}
-	s := "map[int32]proto.Extension{"
+	s := "proto.NewUnsafeXXX_InternalExtensions(map[int32]proto.Extension{"
 	keys := make([]int, 0, len(e))
 	for k := range e {
 		keys = append(keys, int(k))
@@ -630,6 +617,6 @@ func extensionToGoStringDescriptor(e map[int32]github_com_gogo_protobuf_proto.Ex
 	for _, k := range keys {
 		ss = append(ss, strconv.Itoa(k)+": "+e[int32(k)].GoString())
 	}
-	s += strings.Join(ss, ",") + "}"
+	s += strings.Join(ss, ",") + "})"
 	return s
 }

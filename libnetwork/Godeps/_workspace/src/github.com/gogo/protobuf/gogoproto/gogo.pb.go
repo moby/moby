@@ -24,7 +24,9 @@ var _ = math.Inf
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the proto package it is being compiled against.
-const _ = proto.GoGoProtoPackageIsVersion1
+// A compilation error at this line likely means your copy of the
+// proto package needs to be updated.
+const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
 var E_GoprotoEnumPrefix = &proto.ExtensionDesc{
 	ExtendedType:  (*google_protobuf.EnumOptions)(nil),
@@ -586,6 +588,8 @@ func init() {
 	proto.RegisterExtension(E_Castkey)
 	proto.RegisterExtension(E_Castvalue)
 }
+
+func init() { proto.RegisterFile("gogo.proto", fileDescriptorGogo) }
 
 var fileDescriptorGogo = []byte{
 	// 1096 bytes of a gzipped FileDescriptorProto
