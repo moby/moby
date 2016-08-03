@@ -190,6 +190,11 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 					ctr.client.lock(ctr.containerID)
 					defer ctr.client.unlock(ctr.containerID)
 					ctr.restarting = false
+					if err == nil {
+						if err = ctr.start(); err != nil {
+							logrus.Errorf("libcontainerd: error restarting %v", err)
+						}
+					}
 					if err != nil {
 						st.State = StateExit
 						ctr.clean()
@@ -201,8 +206,6 @@ func (ctr *container) handleEvent(e *containerd.Event) error {
 						if err != restartmanager.ErrRestartCanceled {
 							logrus.Errorf("libcontainerd: %v", err)
 						}
-					} else {
-						ctr.start()
 					}
 				}()
 			}
