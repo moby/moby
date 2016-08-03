@@ -136,10 +136,16 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 		}
 	}
 
-	key, tag := c.getPrimaryKeyTag(subsysGossip)
+	key, tag, err := c.getPrimaryKeyTag(subsysGossip)
+	if err != nil {
+		return err
+	}
 	a.networkDB.SetPrimaryKey(key)
 
-	key, tag = c.getPrimaryKeyTag(subsysIPSec)
+	key, tag, err = c.getPrimaryKeyTag(subsysIPSec)
+	if err != nil {
+		return err
+	}
 	drvEnc.Primary = key
 	drvEnc.PrimaryTag = tag
 
@@ -289,9 +295,9 @@ func (c *controller) getKeys(subsys string) ([][]byte, []uint64) {
 	return keys, tags
 }
 
-// getPrimaryKeyTag returns the primary key for a given subsytem from the
+// getPrimaryKeyTag returns the primary key for a given subsystem from the
 // list of sorted key and the associated tag
-func (c *controller) getPrimaryKeyTag(subsys string) ([]byte, uint64) {
+func (c *controller) getPrimaryKeyTag(subsys string) ([]byte, uint64, error) {
 	sort.Sort(ByTime(c.keys))
 	keys := []*types.EncryptionKey{}
 	for _, key := range c.keys {
@@ -299,7 +305,10 @@ func (c *controller) getPrimaryKeyTag(subsys string) ([]byte, uint64) {
 			keys = append(keys, key)
 		}
 	}
-	return keys[1].Key, keys[1].LamportTime
+	if len(keys) < 2 {
+		return nil, 0, fmt.Errorf("primary key for subsystem %s not found", subsys)
+	}
+	return keys[1].Key, keys[1].LamportTime, nil
 }
 
 func (c *controller) agentInit(bindAddrOrInterface, advertiseAddr string) error {
