@@ -2019,7 +2019,7 @@ _docker_node_remove() {
 _docker_node_rm() {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--force --help" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_nodes
