@@ -113,6 +113,14 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 			}
 			container.ToDisk()
 			daemon.Cleanup(container)
+			// if containers AutoRemove flag is set, remove it after clean up
+			if container.HostConfig.AutoRemove {
+				container.Unlock()
+				if err := daemon.ContainerRm(container.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+					logrus.Errorf("can't remove container %s: %v", container.ID, err)
+				}
+				container.Lock()
+			}
 		}
 	}()
 
@@ -198,10 +206,4 @@ func (daemon *Daemon) Cleanup(container *container.Container) {
 		}
 	}
 	container.CancelAttachContext()
-
-	// if containers AutoRemove flag is set, remove it after clean up
-	if container.HostConfig.AutoRemove {
-		// If containers lock is not released, goroutine will guarantee no block
-		go daemon.ContainerRm(container.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true})
-	}
 }

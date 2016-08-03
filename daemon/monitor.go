@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/engine-api/types"
 )
 
 // StateChanged updates daemon state changes from containerd
@@ -29,6 +30,14 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		daemon.updateHealthMonitor(c)
 		daemon.LogContainerEvent(c, "oom")
 	case libcontainerd.StateExit:
+		// if containers AutoRemove flag is set, remove it after clean up
+		if c.HostConfig.AutoRemove {
+			defer func() {
+				if err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+					logrus.Errorf("can't remove container %s: %v", c.ID, err)
+				}
+			}()
+		}
 		c.Lock()
 		defer c.Unlock()
 		c.Wait()
