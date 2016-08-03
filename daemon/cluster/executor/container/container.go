@@ -53,6 +53,10 @@ func (c *containerConfig) setTask(t *api.Task) error {
 		return ErrImageRequired
 	}
 
+	if err := validateMounts(container.Mounts); err != nil {
+		return err
+	}
+
 	// index the networks by name
 	c.networksAttachments = make(map[string]*api.NetworkAttachment, len(t.Networks))
 	for _, attachment := range t.Networks {
