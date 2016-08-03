@@ -874,7 +874,7 @@ func (s *DockerSuite) TestContainerApiWait(c *check.C) {
 	if daemonPlatform == "windows" {
 		sleepCmd = "sleep"
 	}
-	dockerCmd(c, "run", "--name", name, "busybox", sleepCmd, "5")
+	dockerCmd(c, "run", "--name", name, "busybox", sleepCmd, "2")
 
 	status, body, err := sockRequest("POST", "/containers/"+name+"/wait", nil)
 	c.Assert(err, checker.IsNil)
