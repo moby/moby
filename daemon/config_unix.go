@@ -66,6 +66,7 @@ func (config *Config) InstallFlags(flags *pflag.FlagSet) {
 
 	// Then platform-specific install flags
 	flags.BoolVar(&config.EnableSelinuxSupport, "selinux-enabled", false, "Enable selinux support")
+	flags.StringVarP(&config.SocketGroup, "group", "G", "docker", "Group for the unix socket")
 	flags.Var(runconfigopts.NewUlimitOpt(&config.Ulimits), "default-ulimit", "Default ulimits for containers")
 	flags.BoolVar(&config.bridgeConfig.EnableIPTables, "iptables", true, "Enable addition of iptables rules")
 	flags.BoolVar(&config.bridgeConfig.EnableIPForward, "ip-forward", true, "Enable net.ipv4.ip_forward")

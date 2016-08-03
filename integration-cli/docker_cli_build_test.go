@@ -1555,12 +1555,12 @@ func (s *DockerSuite) TestBuildWithInaccessibleFilesInContext(c *check.C) {
 			c.Fatalf("failed to chmod file to 700: %s", err)
 		}
 
-		buildCmd := exec.Command("su", "unprivilegeduser", "-c", fmt.Sprintf("%s build -t %s .", dockerBinary, name))
-		buildCmd.Dir = ctx.Dir
-		if out, _, err := runCommandWithOutput(buildCmd); err != nil {
-			c.Fatalf("build should have worked: %s %s", err, out)
-		}
-
+		result := icmd.RunCmd(icmd.Cmd{
+			Dir: ctx.Dir,
+			Command: []string{"su", "unprivilegeduser", "-c",
+				fmt.Sprintf("%s build -t %s .", dockerBinary, name)},
+		})
+		result.Assert(c, icmd.Expected{})
 	}
 }
 

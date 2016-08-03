@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cli"
@@ -58,9 +59,11 @@ func runDaemon(opts daemonOptions) error {
 		return nil
 	}
 
+	daemonCli := NewDaemonCli()
+
 	// On Windows, this may be launching as a service or with an option to
 	// register the service.
-	stop, err := initService()
+	stop, err := initService(daemonCli)
 	if err != nil {
 		logrus.Fatal(err)
 	}
@@ -69,7 +72,7 @@ func runDaemon(opts daemonOptions) error {
 		return nil
 	}
 
-	err = NewDaemonCli().start(opts)
+	err = daemonCli.start(opts)
 	notifyShutdown(err)
 	return err
 }
@@ -94,6 +97,7 @@ func main() {
 	cmd := newDaemonCommand()
 	cmd.SetOutput(stdout)
 	if err := cmd.Execute(); err != nil {
-		logrus.Fatal(err)
+		fmt.Fprintf(stderr, "%s\n", err)
+		os.Exit(1)
 	}
 }

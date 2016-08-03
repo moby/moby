@@ -4,9 +4,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
 	"runtime"
 	"strings"
+
+	"github.com/spf13/cobra"
 )
 
 func newDaemonCommand() *cobra.Command {

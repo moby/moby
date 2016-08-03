@@ -19,13 +19,15 @@ import (
 
 func newDockerCommand(dockerCli *client.DockerCli) *cobra.Command {
 	opts := cliflags.NewClientOptions()
+	var flags *pflag.FlagSet
+
 	cmd := &cobra.Command{
 		Use:              "docker [OPTIONS] COMMAND [arg...]",
 		Short:            "A self-sufficient runtime for containers.",
 		SilenceUsage:     true,
 		SilenceErrors:    true,
 		TraverseChildren: true,
-		Args:             cli.NoArgs,
+		Args:             noArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if opts.Version {
 				showVersion()
@@ -35,13 +37,15 @@ func newDockerCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return nil
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			dockerPreRun(cmd.Flags(), opts)
+			// flags must be the top-level command flags, not cmd.Flags()
+			opts.Common.SetDefaultOptions(flags)
+			dockerPreRun(opts)
 			return dockerCli.Initialize(opts)
 		},
 	}
 	cli.SetupRootCommand(cmd)
 
-	flags := cmd.Flags()
+	flags = cmd.Flags()
 	flags.BoolVarP(&opts.Version, "version", "v", false, "Print version information and quit")
 	flags.StringVar(&opts.ConfigDir, "config", cliconfig.ConfigDir(), "Location of client config files")
 	opts.Common.InstallFlags(flags)
@@ -51,6 +55,14 @@ func newDockerCommand(dockerCli *client.DockerCli) *cobra.Command {
 	command.AddCommands(cmd, dockerCli)
 
 	return cmd
+}
+
+func noArgs(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return nil
+	}
+	return fmt.Errorf(
+		"docker: '%s' is not a docker command.\nSee 'docker --help'%s", args[0], ".")
 }
 
 func main() {
@@ -86,8 +98,7 @@ func showVersion() {
 	}
 }
 
-func dockerPreRun(flags *pflag.FlagSet, opts *cliflags.ClientOptions) {
-	opts.Common.SetDefaultOptions(flags)
+func dockerPreRun(opts *cliflags.ClientOptions) {
 	cliflags.SetDaemonLogLevel(opts.Common.LogLevel)
 
 	if opts.ConfigDir != "" {

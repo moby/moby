@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-func initService() (bool, error) {
+func initService(daemonCli *DaemonCli) (bool, error) {
 	return false, nil
 }
 

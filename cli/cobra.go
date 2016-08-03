@@ -28,7 +28,10 @@ func FlagErrorFunc(cmd *cobra.Command, err error) error {
 	if cmd.HasSubCommands() {
 		usage = "\n\n" + cmd.UsageString()
 	}
-	return fmt.Errorf("%s\nSee '%s --help'.%s", err, cmd.CommandPath(), usage)
+	return StatusError{
+		Status:     fmt.Sprintf("%s\nSee '%s --help'.%s", err, cmd.CommandPath(), usage),
+		StatusCode: 125,
+	}
 }
 
 var usageTemplate = `Usage:	{{if not .HasSubCommands}}{{.UseLine}}{{end}}{{if .HasSubCommands}}{{ .CommandPath}} COMMAND{{end}}

@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"errors"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -53,8 +52,9 @@ func installServiceFlags(flags *pflag.FlagSet) {
 }
 
 type handler struct {
-	tosvc   chan bool
-	fromsvc chan error
+	tosvc     chan bool
+	fromsvc   chan error
+	daemonCli *DaemonCli
 }
 
 type etwHook struct {
@@ -211,7 +211,7 @@ func unregisterService() error {
 	return nil
 }
 
-func initService() (bool, error) {
+func initService(daemonCli *DaemonCli) (bool, error) {
 	if *flUnregisterService {
 		if *flRegisterService {
 			return true, errors.New("--register-service and --unregister-service cannot be used together")
@@ -233,8 +233,9 @@ func initService() (bool, error) {
 	}
 
 	h := &handler{
-		tosvc:   make(chan bool),
-		fromsvc: make(chan error),
+		tosvc:     make(chan bool),
+		fromsvc:   make(chan error),
+		daemonCli: daemonCli,
 	}
 
 	var log *eventlog.Log
@@ -269,7 +270,7 @@ func initService() (bool, error) {
 
 func (h *handler) started() error {
 	// This must be delayed until daemonCli initializes Config.Root
-	err := initPanicFile(filepath.Join(daemonCli.Config.Root, "panic.log"))
+	err := initPanicFile(filepath.Join(h.daemonCli.Config.Root, "panic.log"))
 	if err != nil {
 		return err
 	}
@@ -306,12 +307,12 @@ Loop:
 		case c := <-r:
 			switch c.Cmd {
 			case svc.Cmd(windows.SERVICE_CONTROL_PARAMCHANGE):
-				daemonCli.reloadConfig()
+				h.daemonCli.reloadConfig()
 			case svc.Interrogate:
 				s <- c.CurrentStatus
 			case svc.Stop, svc.Shutdown:
 				s <- svc.Status{State: svc.StopPending, Accepts: 0}
-				daemonCli.stop()
+				h.daemonCli.stop()
 			}
 		}
 	}

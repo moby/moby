@@ -334,11 +334,8 @@ func (s *DockerSuite) TestUserDefinedNetworkAlias(c *check.C) {
 // Issue 9677.
 func (s *DockerSuite) TestRunWithDaemonFlags(c *check.C) {
 	out, _, err := dockerCmdWithError("--exec-opt", "foo=bar", "run", "-i", "busybox", "true")
-	if err != nil {
-		if !strings.Contains(out, "flag provided but not defined: --exec-opt") { // no daemon (client-only)
-			c.Fatal(err, out)
-		}
-	}
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "unknown flag: --exec-opt")
 }
 
 // Regression test for #4979
@@ -2663,15 +2660,11 @@ func (s *DockerSuite) TestRunTLSverify(c *check.C) {
 
 	// Regardless of whether we specify true or false we need to
 	// test to make sure tls is turned on if --tlsverify is specified at all
-	out, code, err := dockerCmdWithError("--tlsverify=false", "ps")
-	if err == nil || code == 0 || !strings.Contains(out, "trying to connect") {
-		c.Fatalf("Should have failed: \net:%v\nout:%v\nerr:%v", code, out, err)
-	}
+	result := dockerCmdWithResult("--tlsverify=false", "ps")
+	result.Assert(c, icmd.Expected{ExitCode: 1, Err: "trying to connect"})
 
-	out, code, err = dockerCmdWithError("--tlsverify=true", "ps")
-	if err == nil || code == 0 || !strings.Contains(out, "cert") {
-		c.Fatalf("Should have failed: \net:%v\nout:%v\nerr:%v", code, out, err)
-	}
+	result = dockerCmdWithResult("--tlsverify=true", "ps")
+	result.Assert(c, icmd.Expected{ExitCode: 1, Err: "cert"})
 }
 
 func (s *DockerSuite) TestRunPortFromDockerRangeInUse(c *check.C) {
