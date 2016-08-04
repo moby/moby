@@ -101,8 +101,8 @@ func runPs(dockerCli *client.DockerCli, opts *psOptions) error {
 
 	f := opts.format
 	if len(f) == 0 {
-		if len(dockerCli.PsFormat()) > 0 && !opts.quiet {
-			f = dockerCli.PsFormat()
+		if len(dockerCli.ConfigFile().PsFormat) > 0 && !opts.quiet {
+			f = dockerCli.ConfigFile().PsFormat
 		} else {
 			f = "table"
 		}

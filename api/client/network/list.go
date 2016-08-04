@@ -71,8 +71,8 @@ func runList(dockerCli *client.DockerCli, opts listOptions) error {
 
 	f := opts.format
 	if len(f) == 0 {
-		if len(dockerCli.NetworksFormat()) > 0 && !opts.quiet {
-			f = dockerCli.NetworksFormat()
+		if len(dockerCli.ConfigFile().NetworksFormat) > 0 && !opts.quiet {
+			f = dockerCli.ConfigFile().NetworksFormat
 		} else {
 			f = "table"
 		}

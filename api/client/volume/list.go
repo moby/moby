@@ -68,8 +68,8 @@ func runList(dockerCli *client.DockerCli, opts listOptions) error {
 
 	f := opts.format
 	if len(f) == 0 {
-		if len(dockerCli.VolumesFormat()) > 0 && !opts.quiet {
-			f = dockerCli.VolumesFormat()
+		if len(dockerCli.ConfigFile().VolumesFormat) > 0 && !opts.quiet {
+			f = dockerCli.ConfigFile().VolumesFormat
 		} else {
 			f = "table"
 		}
