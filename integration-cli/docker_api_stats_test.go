@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
@@ -89,7 +90,7 @@ func (s *DockerSuite) TestApiStatsNetworkStats(c *check.C) {
 
 	// Retrieve the container address
 	contIP := findContainerIP(c, id, "bridge")
-	numPings := 4
+	numPings := 1
 
 	var preRxPackets uint64
 	var preTxPackets uint64
@@ -145,18 +146,24 @@ func (s *DockerSuite) TestApiStatsNetworkStatsVersioning(c *check.C) {
 	out, _ := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
+	wg := sync.WaitGroup{}
 
 	for i := 17; i <= 21; i++ {
-		apiVersion := fmt.Sprintf("v1.%d", i)
-		statsJSONBlob := getVersionedStats(c, id, apiVersion)
-		if versions.LessThan(apiVersion, "v1.21") {
-			c.Assert(jsonBlobHasLTv121NetworkStats(statsJSONBlob), checker.Equals, true,
-				check.Commentf("Stats JSON blob from API %s %#v does not look like a <v1.21 API stats structure", apiVersion, statsJSONBlob))
-		} else {
-			c.Assert(jsonBlobHasGTE121NetworkStats(statsJSONBlob), checker.Equals, true,
-				check.Commentf("Stats JSON blob from API %s %#v does not look like a >=v1.21 API stats structure", apiVersion, statsJSONBlob))
-		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			apiVersion := fmt.Sprintf("v1.%d", i)
+			statsJSONBlob := getVersionedStats(c, id, apiVersion)
+			if versions.LessThan(apiVersion, "v1.21") {
+				c.Assert(jsonBlobHasLTv121NetworkStats(statsJSONBlob), checker.Equals, true,
+					check.Commentf("Stats JSON blob from API %s %#v does not look like a <v1.21 API stats structure", apiVersion, statsJSONBlob))
+			} else {
+				c.Assert(jsonBlobHasGTE121NetworkStats(statsJSONBlob), checker.Equals, true,
+					check.Commentf("Stats JSON blob from API %s %#v does not look like a >=v1.21 API stats structure", apiVersion, statsJSONBlob))
+			}
+		}()
 	}
+	wg.Wait()
 }
 
 func getNetworkStats(c *check.C, id string) map[string]types.NetworkStats {
