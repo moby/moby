@@ -281,7 +281,7 @@ func (d *driver) peerAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
 
 	// Add neighbor entry for the peer IP
 	if err := sbox.AddNeighbor(peerIP, peerMac, sbox.NeighborOptions().LinkName(s.vxlanName)); err != nil {
-		return fmt.Errorf("could not add neigbor entry into the sandbox: %v", err)
+		return fmt.Errorf("could not add neighbor entry into the sandbox: %v", err)
 	}
 
 	// Add fdb entry to the bridge for the peer mac
@@ -321,7 +321,7 @@ func (d *driver) peerDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPMas
 
 	// Delete neighbor entry for the peer IP
 	if err := sbox.DeleteNeighbor(peerIP, peerMac); err != nil {
-		return fmt.Errorf("could not delete neigbor entry into the sandbox: %v", err)
+		return fmt.Errorf("could not delete neighbor entry into the sandbox: %v", err)
 	}
 
 	if err := d.checkEncryption(nid, vtep, 0, false, false); err != nil {
