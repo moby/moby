@@ -11,6 +11,7 @@ type IPAM struct {
 	Driver  string
 	Options map[string]string //Per network IPAM driver options
 	Config  []IPAMConfig
+	Info    []IPAMInfo
 }
 
 // IPAMConfig represents IPAM configurations
@@ -19,6 +20,13 @@ type IPAMConfig struct {
 	IPRange    string            `json:",omitempty"`
 	Gateway    string            `json:",omitempty"`
 	AuxAddress map[string]string `json:"AuxiliaryAddresses,omitempty"`
+}
+
+// IPAMInfo represents IPAM operational information
+type IPAMInfo struct {
+	PoolID  string `json:",omitempty"`
+	Subnet  string `json:",omitempty"`
+	Gateway string `json:",omitempty"`
 }
 
 // EndpointIPAMConfig represents IPAM configurations for the endpoint

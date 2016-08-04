@@ -236,13 +236,12 @@ func buildIpamResources(r *types.NetworkResource, nwInfo libnetwork.NetworkInfo)
 		r.IPAM.Config = append(r.IPAM.Config, iData)
 	}
 
-	if len(r.IPAM.Config) == 0 {
-		for _, ip4Info := range ipv4Info {
-			iData := network.IPAMConfig{}
-			iData.Subnet = ip4Info.IPAMData.Pool.String()
-			iData.Gateway = ip4Info.IPAMData.Gateway.String()
-			r.IPAM.Config = append(r.IPAM.Config, iData)
-		}
+	for _, ip4Info := range ipv4Info {
+		iData := network.IPAMInfo{}
+		iData.PoolID = ip4Info.PoolID
+		iData.Subnet = ip4Info.IPAMData.Pool.String()
+		iData.Gateway = ip4Info.IPAMData.Gateway.String()
+		r.IPAM.Info = append(r.IPAM.Info, iData)
 	}
 
 	hasIpv6Conf := false
