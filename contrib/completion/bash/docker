@@ -2431,7 +2431,7 @@ _docker_run() {
 			return
 			;;
 		--env|-e)
-			COMPREPLY=( $( compgen -e -- "$cur" ) )
+			COMPREPLY=( $( compgen -e -S = -- "$cur" ) )
 			__docker_nospace
 			return
 			;;
