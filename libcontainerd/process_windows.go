@@ -4,6 +4,8 @@ import (
 	"io"
 
 	"github.com/Microsoft/hcsshim"
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/ioutils"
 )
 
 // process keeps the state for both main container process and exec process.
@@ -63,26 +65,18 @@ func (w *delToBsWriter) Write(b []byte) (int, error) {
 	return w.WriteCloser.Write(bc)
 }
 
-type stdInCloser struct {
-	io.WriteCloser
-	hcsshim.Process
-}
+func createStdInCloser(pipe io.WriteCloser, process hcsshim.Process) io.WriteCloser {
+	return ioutils.NewWriteCloserWrapper(pipe, func() error {
+		if err := pipe.Close(); err != nil {
+			return err
+		}
 
-func createStdInCloser(pipe io.WriteCloser, process hcsshim.Process) *stdInCloser {
-	return &stdInCloser{
-		WriteCloser: pipe,
-		Process:     process,
-	}
-}
+		err := process.CloseStdin()
+		if err != nil && !hcsshim.IsNotExist(err) {
+			logrus.Error(err)
+			return err
+		}
 
-func (stdin *stdInCloser) Close() error {
-	if err := stdin.WriteCloser.Close(); err != nil {
-		return err
-	}
-
-	return stdin.Process.CloseStdin()
-}
-
-func (stdin *stdInCloser) Write(p []byte) (n int, err error) {
-	return stdin.WriteCloser.Write(p)
+		return process.Close()
+	})
 }

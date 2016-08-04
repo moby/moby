@@ -77,7 +77,7 @@ func (ctr *container) start() error {
 	createProcessParms.CommandLine = strings.Join(ctr.ociSpec.Process.Args, " ")
 
 	// Start the command running in the container.
-	hcsProcess, err := ctr.hcsContainer.CreateProcess(createProcessParms)
+	newProcess, err := ctr.hcsContainer.CreateProcess(createProcessParms)
 	if err != nil {
 		logrus.Errorf("libcontainerd: CreateProcess() failed %s", err)
 		if err := ctr.terminate(); err != nil {
@@ -89,10 +89,21 @@ func (ctr *container) start() error {
 	}
 	ctr.startedAt = time.Now()
 
+	pid := newProcess.Pid()
+	openedProcess, err := ctr.hcsContainer.OpenProcess(pid)
+	if err != nil {
+		logrus.Errorf("CreateProcess() failed %s", err)
+		if err := ctr.terminate(); err != nil {
+			logrus.Errorf("Failed to cleanup after a failed CreateProcess. %s", err)
+		} else {
+			logrus.Debugln("Cleaned up after failed CreateProcess by calling Terminate")
+		}
+		return err
+	}
+
 	// Save the hcs Process and PID
 	ctr.process.friendlyName = InitFriendlyName
-	pid := hcsProcess.Pid()
-	ctr.process.hcsProcess = hcsProcess
+	ctr.process.hcsProcess = openedProcess
 
 	// If this is a servicing container, wait on the process synchronously here and
 	// immediately call shutdown/terminate when it returns.
@@ -109,7 +120,7 @@ func (ctr *container) start() error {
 
 	var stdout, stderr io.ReadCloser
 	var stdin io.WriteCloser
-	stdin, stdout, stderr, err = hcsProcess.Stdio()
+	stdin, stdout, stderr, err = newProcess.Stdio()
 	if err != nil {
 		logrus.Errorf("libcontainerd: failed to get stdio pipes: %s", err)
 		if err := ctr.terminate(); err != nil {
@@ -120,7 +131,7 @@ func (ctr *container) start() error {
 
 	iopipe := &IOPipe{Terminal: ctr.ociSpec.Process.Terminal}
 
-	iopipe.Stdin = createStdInCloser(stdin, hcsProcess)
+	iopipe.Stdin = createStdInCloser(stdin, newProcess)
 
 	// TEMP: Work around Windows BS/DEL behavior.
 	iopipe.Stdin = fixStdinBackspaceBehavior(iopipe.Stdin, ctr.ociSpec.Platform.OSVersion, ctr.ociSpec.Process.Terminal)
@@ -275,10 +286,10 @@ func (ctr *container) waitExit(process *process, isFirstProcessToStart bool) err
 func (ctr *container) shutdown() error {
 	const shutdownTimeout = time.Minute * 5
 	err := ctr.hcsContainer.Shutdown()
-	if err == hcsshim.ErrVmcomputeOperationPending {
+	if hcsshim.IsPending(err) {
 		// Explicit timeout to avoid a (remote) possibility that shutdown hangs indefinitely.
 		err = ctr.hcsContainer.WaitTimeout(shutdownTimeout)
-	} else if err == hcsshim.ErrVmcomputeAlreadyStopped {
+	} else if hcsshim.IsAlreadyStopped(err) {
 		err = nil
 	}
 
@@ -297,9 +308,9 @@ func (ctr *container) terminate() error {
 	const terminateTimeout = time.Minute * 5
 	err := ctr.hcsContainer.Terminate()
 
-	if err == hcsshim.ErrVmcomputeOperationPending {
+	if hcsshim.IsPending(err) {
 		err = ctr.hcsContainer.WaitTimeout(terminateTimeout)
-	} else if err == hcsshim.ErrVmcomputeAlreadyStopped {
+	} else if hcsshim.IsAlreadyStopped(err) {
 		err = nil
 	}
 

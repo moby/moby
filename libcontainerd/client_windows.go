@@ -221,6 +221,14 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 		return err
 	}
 
+	pid := newProcess.Pid()
+
+	openedProcess, err := container.hcsContainer.OpenProcess(pid)
+	if err != nil {
+		logrus.Errorf("AddProcess %s CreateProcess() failed %s", containerID, err)
+		return err
+	}
+
 	stdin, stdout, stderr, err = newProcess.Stdio()
 	if err != nil {
 		logrus.Errorf("libcontainerd: %s getting std pipes failed %s", containerID, err)
@@ -241,8 +249,6 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 		iopipe.Stderr = openReaderFromPipe(stderr)
 	}
 
-	pid := newProcess.Pid()
-
 	proc := &process{
 		processCommon: processCommon{
 			containerID:  containerID,
@@ -251,7 +257,7 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 			systemPid:    uint32(pid),
 		},
 		commandLine: createProcessParms.CommandLine,
-		hcsProcess:  newProcess,
+		hcsProcess:  openedProcess,
 	}
 
 	// Add the process to the container's list of processes
@@ -297,7 +303,7 @@ func (clnt *client) Signal(containerID string, sig int) error {
 	if syscall.Signal(sig) == syscall.SIGKILL {
 		// Terminate the compute system
 		if err := cont.hcsContainer.Terminate(); err != nil {
-			if err != hcsshim.ErrVmcomputeOperationPending {
+			if !hcsshim.IsPending(err) {
 				logrus.Errorf("libcontainerd: failed to terminate %s - %q", containerID, err)
 			}
 		}
