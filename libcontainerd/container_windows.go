@@ -281,10 +281,10 @@ func (ctr *container) waitExit(process *process, isFirstProcessToStart bool) err
 func (ctr *container) shutdown() error {
 	const shutdownTimeout = time.Minute * 5
 	err := ctr.hcsContainer.Shutdown()
-	if err == hcsshim.ErrVmcomputeOperationPending {
+	if hcsshim.IsPending(err) {
 		// Explicit timeout to avoid a (remote) possibility that shutdown hangs indefinitely.
 		err = ctr.hcsContainer.WaitTimeout(shutdownTimeout)
-	} else if err == hcsshim.ErrVmcomputeAlreadyStopped {
+	} else if hcsshim.IsAlreadyStopped(err) {
 		err = nil
 	}
 
@@ -303,9 +303,9 @@ func (ctr *container) terminate() error {
 	const terminateTimeout = time.Minute * 5
 	err := ctr.hcsContainer.Terminate()
 
-	if err == hcsshim.ErrVmcomputeOperationPending {
+	if hcsshim.IsPending(err) {
 		err = ctr.hcsContainer.WaitTimeout(terminateTimeout)
-	} else if err == hcsshim.ErrVmcomputeAlreadyStopped {
+	} else if hcsshim.IsAlreadyStopped(err) {
 		err = nil
 	}
 

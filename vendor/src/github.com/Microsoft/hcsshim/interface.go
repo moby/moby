@@ -90,6 +90,9 @@ type Container interface {
 	// HasPendingUpdates returns true if the container has updates pending to install.
 	HasPendingUpdates() (bool, error)
 
+	// Statistics returns statistics for a container.
+	Statistics() (Statistics, error)
+
 	// CreateProcess launches a new process within the container.
 	CreateProcess(c *ProcessConfig) (Process, error)
 

@@ -294,13 +294,13 @@ func (clnt *client) Signal(containerID string, sig int) error {
 	if syscall.Signal(sig) == syscall.SIGKILL {
 		// Terminate the compute system
 		if err := cont.hcsContainer.Terminate(); err != nil {
-			if err != hcsshim.ErrVmcomputeOperationPending {
+			if !hcsshim.IsPending(err) {
 				logrus.Errorf("libcontainerd: failed to terminate %s - %q", containerID, err)
 			}
 		}
 	} else {
 		// Terminate Process
-		if err := cont.hcsProcess.Kill(); err != nil {
+		if err := cont.hcsProcess.Kill(); err != nil && !hcsshim.IsAlreadyStopped(err) {
 			// ignore errors
 			logrus.Warnf("libcontainerd: failed to terminate pid %d in %s: %q", cont.systemPid, containerID, err)
 		}

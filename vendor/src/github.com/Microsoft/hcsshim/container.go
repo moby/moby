@@ -13,7 +13,10 @@ var (
 	defaultTimeout = time.Minute * 4
 )
 
-const pendingUpdatesQuery = `{ "PropertyTypes" : ["PendingUpdates"]}`
+const (
+	pendingUpdatesQuery = `{ "PropertyTypes" : ["PendingUpdates"]}`
+	statisticsQuery     = `{ "PropertyTypes" : ["Statistics"]}`
+)
 
 type container struct {
 	handle         hcsSystem
@@ -26,12 +29,59 @@ type containerProperties struct {
 	Name              string
 	SystemType        string
 	Owner             string
-	SiloGUID          string `json:"SiloGuid,omitempty"`
-	IsDummy           bool   `json:",omitempty"`
-	RuntimeID         string `json:"RuntimeId,omitempty"`
-	Stopped           bool   `json:",omitempty"`
-	ExitType          string `json:",omitempty"`
-	AreUpdatesPending bool   `json:",omitempty"`
+	SiloGUID          string     `json:"SiloGuid,omitempty"`
+	IsDummy           bool       `json:",omitempty"`
+	RuntimeID         string     `json:"RuntimeId,omitempty"`
+	Stopped           bool       `json:",omitempty"`
+	ExitType          string     `json:",omitempty"`
+	AreUpdatesPending bool       `json:",omitempty"`
+	ObRoot            string     `json:",omitempty"`
+	Statistics        Statistics `json:",omitempty"`
+}
+
+// MemoryStats holds the memory statistics for a container
+type MemoryStats struct {
+	UsageCommitBytes            uint64 `json:"MemoryUsageCommitBytes,omitempty"`
+	UsageCommitPeakBytes        uint64 `json:"MemoryUsageCommitPeakBytes,omitempty"`
+	UsagePrivateWorkingSetBytes uint64 `json:"MemoryUsagePrivateWorkingSetBytes,omitempty"`
+}
+
+// ProcessorStats holds the processor statistics for a container
+type ProcessorStats struct {
+	TotalRuntime100ns  uint64 `json:",omitempty"`
+	RuntimeUser100ns   uint64 `json:",omitempty"`
+	RuntimeKernel100ns uint64 `json:",omitempty"`
+}
+
+// StorageStats holds the storage statistics for a container
+type StorageStats struct {
+	ReadCountNormalized  uint64 `json:",omitempty"`
+	ReadSizeBytes        uint64 `json:",omitempty"`
+	WriteCountNormalized uint64 `json:",omitempty"`
+	WriteSizeBytes       uint64 `json:",omitempty"`
+}
+
+// NetworkStats holds the network statistics for a container
+type NetworkStats struct {
+	BytesReceived          uint64 `json:",omitempty"`
+	BytesSent              uint64 `json:",omitempty"`
+	PacketsReceived        uint64 `json:",omitempty"`
+	PacketsSent            uint64 `json:",omitempty"`
+	DroppedPacketsIncoming uint64 `json:",omitempty"`
+	DroppedPacketsOutgoing uint64 `json:",omitempty"`
+	EndpointId             string `json:",omitempty"`
+	InstanceId             string `json:",omitempty"`
+}
+
+// Statistics is the structure returned by a statistics call on a container
+type Statistics struct {
+	Timestamp          time.Time      `json:",omitempty"`
+	ContainerStartTime time.Time      `json:",omitempty"`
+	Uptime100ns        uint64         `json:",omitempty"`
+	Memory             MemoryStats    `json:",omitempty"`
+	Processor          ProcessorStats `json:",omitempty"`
+	Storage            StorageStats   `json:",omitempty"`
+	Network            []NetworkStats `json:",omitempty"`
 }
 
 // CreateContainer creates a new container with the given configuration but does not start it.
@@ -59,7 +109,7 @@ func CreateContainer(id string, c *ContainerConfig) (Container, error) {
 		var identity syscall.Handle
 		createError = hcsCreateComputeSystem(id, configuration, identity, &container.handle, &resultp)
 
-		if createError == nil || createError == ErrVmcomputeOperationPending {
+		if createError == nil || IsPending(createError) {
 			if err := container.registerCallback(); err != nil {
 				return nil, makeContainerError(container, operation, "", err)
 			}
@@ -122,8 +172,8 @@ func (container *container) Start() error {
 	return nil
 }
 
-// Shutdown requests a container shutdown, but it may not actually be shut down until Wait() succeeds.
-// It returns ErrVmcomputeOperationPending if the shutdown is in progress, nil if the shutdown is complete.
+// Shutdown requests a container shutdown, if IsPending() on the error returned is true,
+// it may not actually be shut down until Wait() succeeds.
 func (container *container) Shutdown() error {
 	operation := "Shutdown"
 	title := "HCSShim::Container::" + operation
@@ -133,9 +183,6 @@ func (container *container) Shutdown() error {
 	err := hcsShutdownComputeSystemTP5(container.handle, nil, &resultp)
 	err = processHcsResult(err, resultp)
 	if err != nil {
-		if err == ErrVmcomputeOperationPending {
-			return ErrVmcomputeOperationPending
-		}
 		return makeContainerError(container, operation, "", err)
 	}
 
@@ -143,8 +190,8 @@ func (container *container) Shutdown() error {
 	return nil
 }
 
-// Terminate requests a container terminate, but it may not actually be terminated until Wait() succeeds.
-// It returns ErrVmcomputeOperationPending if the shutdown is in progress, nil if the shutdown is complete.
+// Terminate requests a container terminate, if IsPending() on the error returned is true,
+// it may not actually be shut down until Wait() succeeds.
 func (container *container) Terminate() error {
 	operation := "Terminate"
 	title := "HCSShim::Container::" + operation
@@ -154,9 +201,6 @@ func (container *container) Terminate() error {
 	err := hcsTerminateComputeSystemTP5(container.handle, nil, &resultp)
 	err = processHcsResult(err, resultp)
 	if err != nil {
-		if err == ErrVmcomputeOperationPending {
-			return ErrVmcomputeOperationPending
-		}
 		return makeContainerError(container, operation, "", err)
 	}
 
@@ -190,8 +234,8 @@ func (container *container) waitTimeoutInternal(timeout uint32) (bool, error) {
 	return waitTimeoutInternalHelper(container, timeout)
 }
 
-// WaitTimeout synchronously waits for the container to terminate or the duration to elapse. It returns
-// ErrTimeout if the timeout duration expires before the container is shut down.
+// WaitTimeout synchronously waits for the container to terminate or the duration to elapse.
+// If the timeout expires, IsTimeout(err) == true
 func (container *container) WaitTimeout(timeout time.Duration) error {
 	operation := "WaitTimeout"
 	title := "HCSShim::Container::" + operation
@@ -205,8 +249,9 @@ func (container *container) WaitTimeout(timeout time.Duration) error {
 	} else {
 		finished, err := waitTimeoutHelper(container, timeout)
 		if !finished {
-			return ErrTimeout
-		} else if err != nil {
+			err = ErrTimeout
+		}
+		if err != nil {
 			return makeContainerError(container, operation, "", err)
 		}
 	}
@@ -246,12 +291,10 @@ func (container *container) properties(query string) (*containerProperties, erro
 		return nil, ErrUnexpectedValue
 	}
 	propertiesRaw := convertAndFreeCoTaskMemBytes(propertiesp)
-
 	properties := &containerProperties{}
 	if err := json.Unmarshal(propertiesRaw, properties); err != nil {
 		return nil, err
 	}
-
 	return properties, nil
 }
 
@@ -267,6 +310,20 @@ func (container *container) HasPendingUpdates() (bool, error) {
 
 	logrus.Debugf(title+" succeeded id=%s", container.id)
 	return properties.AreUpdatesPending, nil
+}
+
+// Statistics returns statistics for the container
+func (container *container) Statistics() (Statistics, error) {
+	operation := "Statistics"
+	title := "HCSShim::Container::" + operation
+	logrus.Debugf(title+" id=%s", container.id)
+	properties, err := container.properties(statisticsQuery)
+	if err != nil {
+		return Statistics{}, makeContainerError(container, operation, "", err)
+	}
+
+	logrus.Debugf(title+" succeeded id=%s", container.id)
+	return properties.Statistics, nil
 }
 
 // Pause pauses the execution of the container. This feature is not enabled in TP5.
@@ -323,7 +380,7 @@ func (container *container) CreateProcess(c *ProcessConfig) (Process, error) {
 
 	configurationb, err := json.Marshal(c)
 	if err != nil {
-		return nil, err
+		return nil, makeContainerError(container, operation, "", err)
 	}
 
 	configuration := string(configurationb)
