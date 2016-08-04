@@ -3,265 +3,73 @@ package formatter
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/engine-api/types"
 )
 
-func TestContainerContextWrite(t *testing.T) {
-	unixTime := time.Now().AddDate(0, 0, -1).Unix()
-	expectedTime := time.Unix(unixTime, 0).String()
+func TestImageContext(t *testing.T) {
+	imageID := stringid.GenerateRandomID()
+	unix := time.Now().Unix()
 
-	contexts := []struct {
-		context  ContainerContext
-		expected string
+	var ctx imageContext
+	cases := []struct {
+		imageCtx  imageContext
+		expValue  string
+		expHeader string
+		call      func() string
 	}{
-		// Errors
-		{
-			ContainerContext{
-				Context: Context{
-					Format: "{{InvalidFunction}}",
-				},
-			},
-			`Template parsing error: template: :1: function "InvalidFunction" not defined
-`,
-		},
-		{
-			ContainerContext{
-				Context: Context{
-					Format: "{{nil}}",
-				},
-			},
-			`Template parsing error: template: :1:2: executing "" at <nil>: nil is not a command
-`,
-		},
-		// Table Format
-		{
-			ContainerContext{
-				Context: Context{
-					Format: "table",
-				},
-			},
-			`CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
-containerID1        ubuntu              ""                  24 hours ago                                                foobar_baz
-containerID2        ubuntu              ""                  24 hours ago                                                foobar_bar
-`,
-		},
-		{
-			ContainerContext{
-				Context: Context{
-					Format: "table {{.Image}}",
-				},
-			},
-			"IMAGE\nubuntu\nubuntu\n",
-		},
-		{
-			ContainerContext{
-				Context: Context{
-					Format: "table {{.Image}}",
-				},
-				Size: true,
-			},
-			"IMAGE\nubuntu\nubuntu\n",
-		},
-		{
-			ContainerContext{
-				Context: Context{
-					Format: "table {{.Image}}",
-					Quiet:  true,
-				},
-			},
-			"IMAGE\nubuntu\nubuntu\n",
-		},
-		{
-			ContainerContext{
-				Context: Context{
-					Format: "table",
-					Quiet:  true,
-				},
-			},
-			"containerID1\ncontainerID2\n",
-		},
-		// Raw Format
-		{
-			ContainerContext{
-				Context: Context{
-					Format: "raw",
-				},
-			},
-			fmt.Sprintf(`container_id: containerID1
-image: ubuntu
-command: ""
-created_at: %s
-status: 
-names: foobar_baz
-labels: 
-ports: 
-
-container_id: containerID2
-image: ubuntu
-command: ""
-created_at: %s
-status: 
-names: foobar_bar
-labels: 
-ports: 
-
-`, expectedTime, expectedTime),
-		},
-		{
-			ContainerContext{
-				Context: Context{
-					Format: "raw",
-				},
-				Size: true,
-			},
-			fmt.Sprintf(`container_id: containerID1
-image: ubuntu
-command: ""
-created_at: %s
-status: 
-names: foobar_baz
-labels: 
-ports: 
-size: 0 B
-
-container_id: containerID2
-image: ubuntu
-command: ""
-created_at: %s
-status: 
-names: foobar_bar
-labels: 
-ports: 
-size: 0 B
-
-`, expectedTime, expectedTime),
-		},
-		{
-			ContainerContext{
-				Context: Context{
-					Format: "raw",
-					Quiet:  true,
-				},
-			},
-			"container_id: containerID1\ncontainer_id: containerID2\n",
-		},
-		// Custom Format
-		{
-			ContainerContext{
-				Context: Context{
-					Format: "{{.Image}}",
-				},
-			},
-			"ubuntu\nubuntu\n",
-		},
-		{
-			ContainerContext{
-				Context: Context{
-					Format: "{{.Image}}",
-				},
-				Size: true,
-			},
-			"ubuntu\nubuntu\n",
-		},
+		{imageContext{
+			i:     types.Image{ID: imageID},
+			trunc: true,
+		}, stringid.TruncateID(imageID), imageIDHeader, ctx.ID},
+		{imageContext{
+			i:     types.Image{ID: imageID},
+			trunc: false,
+		}, imageID, imageIDHeader, ctx.ID},
+		{imageContext{
+			i:     types.Image{Size: 10},
+			trunc: true,
+		}, "10 B", sizeHeader, ctx.Size},
+		{imageContext{
+			i:     types.Image{Created: unix},
+			trunc: true,
+		}, time.Unix(unix, 0).String(), createdAtHeader, ctx.CreatedAt},
+		// FIXME
+		// {imageContext{
+		// 	i:     types.Image{Created: unix},
+		// 	trunc: true,
+		// }, units.HumanDuration(time.Unix(unix, 0)), createdSinceHeader, ctx.CreatedSince},
+		{imageContext{
+			i:    types.Image{},
+			repo: "busybox",
+		}, "busybox", repositoryHeader, ctx.Repository},
+		{imageContext{
+			i:   types.Image{},
+			tag: "latest",
+		}, "latest", tagHeader, ctx.Tag},
+		{imageContext{
+			i:      types.Image{},
+			digest: "sha256:d149ab53f8718e987c3a3024bb8aa0e2caadf6c0328f1d9d850b2a2a67f2819a",
+		}, "sha256:d149ab53f8718e987c3a3024bb8aa0e2caadf6c0328f1d9d850b2a2a67f2819a", digestHeader, ctx.Digest},
 	}
 
-	for _, context := range contexts {
-		containers := []types.Container{
-			{ID: "containerID1", Names: []string{"/foobar_baz"}, Image: "ubuntu", Created: unixTime},
-			{ID: "containerID2", Names: []string{"/foobar_bar"}, Image: "ubuntu", Created: unixTime},
+	for _, c := range cases {
+		ctx = c.imageCtx
+		v := c.call()
+		if strings.Contains(v, ",") {
+			compareMultipleValues(t, v, c.expValue)
+		} else if v != c.expValue {
+			t.Fatalf("Expected %s, was %s\n", c.expValue, v)
 		}
-		out := bytes.NewBufferString("")
-		context.context.Output = out
-		context.context.Containers = containers
-		context.context.Write()
-		actual := out.String()
-		if actual != context.expected {
-			t.Fatalf("Expected \n%s, got \n%s", context.expected, actual)
+
+		h := ctx.fullHeader()
+		if h != c.expHeader {
+			t.Fatalf("Expected %s, was %s\n", c.expHeader, h)
 		}
-		// Clean buffer
-		out.Reset()
-	}
-}
-
-func TestContainerContextWriteWithNoContainers(t *testing.T) {
-	out := bytes.NewBufferString("")
-	containers := []types.Container{}
-
-	contexts := []struct {
-		context  ContainerContext
-		expected string
-	}{
-		{
-			ContainerContext{
-				Context: Context{
-					Format: "{{.Image}}",
-					Output: out,
-				},
-			},
-			"",
-		},
-		{
-			ContainerContext{
-				Context: Context{
-					Format: "table {{.Image}}",
-					Output: out,
-				},
-			},
-			"IMAGE\n",
-		},
-		{
-			ContainerContext{
-				Context: Context{
-					Format: "{{.Image}}",
-					Output: out,
-				},
-				Size: true,
-			},
-			"",
-		},
-		{
-			ContainerContext{
-				Context: Context{
-					Format: "table {{.Image}}",
-					Output: out,
-				},
-				Size: true,
-			},
-			"IMAGE\n",
-		},
-		{
-			ContainerContext{
-				Context: Context{
-					Format: "table {{.Image}}\t{{.Size}}",
-					Output: out,
-				},
-			},
-			"IMAGE               SIZE\n",
-		},
-		{
-			ContainerContext{
-				Context: Context{
-					Format: "table {{.Image}}\t{{.Size}}",
-					Output: out,
-				},
-				Size: true,
-			},
-			"IMAGE               SIZE\n",
-		},
-	}
-
-	for _, context := range contexts {
-		context.context.Containers = containers
-		context.context.Write()
-		actual := out.String()
-		if actual != context.expected {
-			t.Fatalf("Expected \n%s, got \n%s", context.expected, actual)
-		}
-		// Clean buffer
-		out.Reset()
 	}
 }
 
