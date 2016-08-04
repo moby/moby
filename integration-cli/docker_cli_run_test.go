@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/stringutils"
@@ -1856,32 +1857,18 @@ func (s *DockerSuite) TestRunExitOnStdinClose(c *check.C) {
 // Test run -i --restart xxx doesn't hang
 func (s *DockerSuite) TestRunInteractiveWithRestartPolicy(c *check.C) {
 	name := "test-inter-restart"
-	runCmd := exec.Command(dockerBinary, "run", "-i", "--name", name, "--restart=always", "busybox", "sh")
 
-	stdin, err := runCmd.StdinPipe()
-	c.Assert(err, checker.IsNil)
-
-	err = runCmd.Start()
-	c.Assert(err, checker.IsNil)
-	c.Assert(waitRun(name), check.IsNil)
-
-	_, err = stdin.Write([]byte("exit 11\n"))
-	c.Assert(err, checker.IsNil)
-
-	finish := make(chan error)
-	go func() {
-		finish <- runCmd.Wait()
-		close(finish)
+	result := icmd.StartCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "run", "-i", "--name", name, "--restart=always", "busybox", "sh"},
+		Stdin:   bytes.NewBufferString("exit 11"),
+	})
+	c.Assert(result.Error, checker.IsNil)
+	defer func() {
+		dockerCmdWithResult("stop", name).Assert(c, icmd.Expected{})
 	}()
-	delay := 10 * time.Second
-	select {
-	case <-finish:
-	case <-time.After(delay):
-		c.Fatal("run -i --restart hangs")
-	}
 
-	c.Assert(waitRun(name), check.IsNil)
-	dockerCmd(c, "stop", name)
+	result = icmd.WaitOnCmd(10*time.Second, result)
+	result.Assert(c, icmd.Expected{ExitCode: 11})
 }
 
 // Test for #2267

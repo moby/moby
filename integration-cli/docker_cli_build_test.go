@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"
 )
@@ -5063,13 +5064,11 @@ func (s *DockerSuite) TestBuildDockerfileOutsideContext(c *check.C) {
 		filepath.Join(ctx, "dockerfile1"),
 		filepath.Join(ctx, "dockerfile2"),
 	} {
-		out, _, err := dockerCmdWithError("build", "-t", name, "--no-cache", "-f", dockerfilePath, ".")
-		if err == nil {
-			c.Fatalf("Expected error with %s. Out: %s", dockerfilePath, out)
-		}
-		if !strings.Contains(out, "must be within the build context") && !strings.Contains(out, "Cannot locate Dockerfile") {
-			c.Fatalf("Unexpected error with %s. Out: %s", dockerfilePath, out)
-		}
+		result := dockerCmdWithResult("build", "-t", name, "--no-cache", "-f", dockerfilePath, ".")
+		result.Assert(c, icmd.Expected{
+			Err:      "must be within the build context",
+			ExitCode: 1,
+		})
 		deleteImages(name)
 	}
 

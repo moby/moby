@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/go-check/check"
 )
 
@@ -55,14 +56,18 @@ func (s *DockerSuite) TestVolumeCliInspectMulti(c *check.C) {
 	dockerCmd(c, "volume", "create", "--name", "test2")
 	dockerCmd(c, "volume", "create", "--name", "not-shown")
 
-	out, _, err := dockerCmdWithError("volume", "inspect", "--format='{{ .Name }}'", "test1", "test2", "doesntexist", "not-shown")
-	c.Assert(err, checker.NotNil)
+	result := dockerCmdWithResult("volume", "inspect", "--format={{ .Name }}", "test1", "test2", "doesntexist", "not-shown")
+	result.Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "No such volume: doesntexist",
+	})
+
+	out := result.Stdout()
 	outArr := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(outArr), check.Equals, 3, check.Commentf("\n%s", out))
+	c.Assert(len(outArr), check.Equals, 2, check.Commentf("\n%s", out))
 
 	c.Assert(out, checker.Contains, "test1")
 	c.Assert(out, checker.Contains, "test2")
-	c.Assert(out, checker.Contains, "Error: No such volume: doesntexist")
 	c.Assert(out, checker.Not(checker.Contains), "not-shown")
 }
 

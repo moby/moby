@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
@@ -908,9 +909,8 @@ func (s *DockerDaemonSuite) TestDaemonDefaultNetworkInvalidClusterConfig(c *chec
 	c.Assert(err, checker.IsNil)
 
 	// Start daemon with docker0 bridge
-	ifconfigCmd := exec.Command("ifconfig", defaultNetworkBridge)
-	_, err = runCommand(ifconfigCmd)
-	c.Assert(err, check.IsNil)
+	result := icmd.RunCommand("ifconfig", defaultNetworkBridge)
+	result.Assert(c, icmd.Expected{})
 
 	err = d.Restart(fmt.Sprintf("--cluster-store=%s", discoveryBackend))
 	c.Assert(err, checker.IsNil)
@@ -2235,7 +2235,6 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *che
 
 	pid, err := s.d.Cmd("inspect", "-f", "{{.State.Pid}}", cid)
 	t.Assert(err, check.IsNil)
-	pid = strings.TrimSpace(pid)
 
 	// pause the container
 	if _, err := s.d.Cmd("pause", cid); err != nil {
@@ -2248,19 +2247,18 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *che
 	}
 
 	// resume the container
-	runCmd := exec.Command(ctrBinary, "--address", "unix:///var/run/docker/libcontainerd/docker-containerd.sock", "containers", "resume", cid)
-	if out, ec, err := runCommandWithOutput(runCmd); err != nil {
-		t.Fatalf("Failed to run ctr, ExitCode: %d, err: '%v' output: '%s' cid: '%s'\n", ec, err, out, cid)
-	}
+	result := icmd.RunCommand(
+		ctrBinary,
+		"--address", "unix:///var/run/docker/libcontainerd/docker-containerd.sock",
+		"containers", "resume", cid)
+	result.Assert(t, icmd.Expected{})
 
 	// Give time to containerd to process the command if we don't
 	// the resume event might be received after we do the inspect
-	pidCmd := exec.Command("kill", "-0", pid)
-	_, ec, _ := runCommandWithOutput(pidCmd)
-	for ec == 0 {
-		time.Sleep(1 * time.Second)
-		_, ec, _ = runCommandWithOutput(pidCmd)
-	}
+	waitAndAssert(t, defaultReconciliationTimeout, func(*check.C) (interface{}, check.CommentInterface) {
+		result := icmd.RunCommand("kill", "-0", strings.TrimSpace(pid))
+		return result.ExitCode, nil
+	}, checker.Equals, 0)
 
 	// restart the daemon
 	if err := s.d.Start("--live-restore"); err != nil {

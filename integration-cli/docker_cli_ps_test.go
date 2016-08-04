@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/go-check/check"
 )
@@ -204,8 +205,11 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 	containerOut = strings.TrimSpace(out)
 	c.Assert(containerOut, checker.Equals, secondID)
 
-	out, _, _ = dockerCmdWithTimeout(time.Second*60, "ps", "-a", "-q", "--filter=status=rubbish")
-	c.Assert(out, checker.Contains, "Unrecognised filter value for status", check.Commentf("Expected error response due to invalid status filter output: %q", out))
+	result := dockerCmdWithTimeout(time.Second*60, "ps", "-a", "-q", "--filter=status=rubbish")
+	result.Assert(c, icmd.Expected{
+		ExitCode: 1,
+		Err:      "Unrecognised filter value for status",
+	})
 
 	// Windows doesn't support pausing of containers
 	if daemonPlatform != "windows" {
