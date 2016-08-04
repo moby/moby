@@ -147,12 +147,12 @@ To create an overlay network
 		└ Containers: 2
 		└ Reserved CPUs: 0 / 1
 		└ Reserved Memory: 0 B / 1.021 GiB
-		└ Labels: executiondriver=native-0.2, kernelversion=4.1.10-boot2docker, operatingsystem=Boot2Docker 1.9.0-rc1 (TCL 6.4); master : 4187d2c - Wed Oct 14 14:00:28 UTC 2015, provider=virtualbox, storagedriver=aufs
+		└ Labels: executiondriver=native-0.2, kernelversion=4.1.10-boot2docker, operatingsystem=Boot2Docker 1.9.0 (TCL 6.4); master : 4187d2c - Wed Oct 14 14:00:28 UTC 2015, provider=virtualbox, storagedriver=aufs
 		mhs-demo1: 192.168.99.105:2376
 		└ Containers: 1
 		└ Reserved CPUs: 0 / 1
 		└ Reserved Memory: 0 B / 1.021 GiB
-		└ Labels: executiondriver=native-0.2, kernelversion=4.1.10-boot2docker, operatingsystem=Boot2Docker 1.9.0-rc1 (TCL 6.4); master : 4187d2c - Wed Oct 14 14:00:28 UTC 2015, provider=virtualbox, storagedriver=aufs
+		└ Labels: executiondriver=native-0.2, kernelversion=4.1.10-boot2docker, operatingsystem=Boot2Docker 1.9.0 (TCL 6.4); master : 4187d2c - Wed Oct 14 14:00:28 UTC 2015, provider=virtualbox, storagedriver=aufs
 		CPUs: 2
 		Total Memory: 2.043 GiB
 		Name: 30438ece0915
