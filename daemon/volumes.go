@@ -230,3 +230,47 @@ func (daemon *Daemon) lazyInitializeVolume(containerID string, m *volume.MountPo
 	}
 	return nil
 }
+
+func backportMountSpec(container *container.Container) error {
+	for target, m := range container.MountPoints {
+		if m.Spec.Type != "" {
+			// if type is set on even one mount, no need to migrate
+			return nil
+		}
+		if m.Name != "" {
+			m.Type = mounttypes.TypeVolume
+			m.Spec.Type = mounttypes.TypeVolume
+
+			// make sure this is not an anyonmous volume before setting the spec source
+			if _, exists := container.Config.Volumes[target]; !exists {
+				m.Spec.Source = m.Name
+			}
+			if container.HostConfig.VolumeDriver != "" {
+				m.Spec.VolumeOptions = &mounttypes.VolumeOptions{
+					DriverConfig: &mounttypes.Driver{Name: container.HostConfig.VolumeDriver},
+				}
+			}
+			if strings.Contains(m.Mode, "nocopy") {
+				if m.Spec.VolumeOptions == nil {
+					m.Spec.VolumeOptions = &mounttypes.VolumeOptions{}
+				}
+				m.Spec.VolumeOptions.NoCopy = true
+			}
+		} else {
+			m.Type = mounttypes.TypeBind
+			m.Spec.Type = mounttypes.TypeBind
+			m.Spec.Source = m.Source
+			if m.Propagation != "" {
+				m.Spec.BindOptions = &mounttypes.BindOptions{
+					Propagation: m.Propagation,
+				}
+			}
+		}
+
+		m.Spec.Target = m.Destination
+		if !m.RW {
+			m.Spec.ReadOnly = true
+		}
+	}
+	return container.ToDiskLocking()
+}
