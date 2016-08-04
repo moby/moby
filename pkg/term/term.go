@@ -6,6 +6,7 @@ package term
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/signal"
@@ -109,9 +110,14 @@ func SetRawTerminalOutput(fd uintptr) (*State, error) {
 func handleInterrupt(fd uintptr, state *State) {
 	sigchan := make(chan os.Signal, 1)
 	signal.Notify(sigchan, os.Interrupt)
-
 	go func() {
-		_ = <-sigchan
-		RestoreTerminal(fd, state)
+		for range sigchan {
+			// quit cleanly and the new terminal item is on a new line
+			fmt.Println()
+			signal.Stop(sigchan)
+			close(sigchan)
+			RestoreTerminal(fd, state)
+			os.Exit(1)
+		}
 	}()
 }
