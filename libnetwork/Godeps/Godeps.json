@@ -1,6 +1,7 @@
 {
 	"ImportPath": "github.com/docker/libnetwork",
 	"GoVersion": "go1.5",
+	"GodepVersion": "v74",
 	"Packages": [
 		"./..."
 	],
@@ -241,18 +242,18 @@
 		},
 		{
 			"ImportPath": "github.com/gogo/protobuf/gogoproto",
-			"Comment": "v0.2-17-gc18eea6",
-			"Rev": "c18eea6ad611eecf94a9ba38471f59706199409e"
+			"Comment": "v0.2-55-ge33835a",
+			"Rev": "e33835a643a970c11ac74f6333f5f6866387a101"
 		},
 		{
 			"ImportPath": "github.com/gogo/protobuf/proto",
-			"Comment": "v0.2-17-gc18eea6",
-			"Rev": "c18eea6ad611eecf94a9ba38471f59706199409e"
+			"Comment": "v0.2-55-ge33835a",
+			"Rev": "e33835a643a970c11ac74f6333f5f6866387a101"
 		},
 		{
 			"ImportPath": "github.com/gogo/protobuf/protoc-gen-gogo/descriptor",
-			"Comment": "v0.2-17-gc18eea6",
-			"Rev": "c18eea6ad611eecf94a9ba38471f59706199409e"
+			"Comment": "v0.2-55-ge33835a",
+			"Rev": "e33835a643a970c11ac74f6333f5f6866387a101"
 		},
 		{
 			"ImportPath": "github.com/golang/protobuf/proto",

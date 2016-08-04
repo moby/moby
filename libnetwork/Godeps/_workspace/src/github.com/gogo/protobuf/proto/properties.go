@@ -1,7 +1,7 @@
-// Extensions for Protocol Buffers to create more go like structures.
+// Protocol Buffers for Go with Gadgets
 //
-// Copyright (c) 2013, Vastech SA (PTY) LTD. All rights reserved.
-// http://github.com/gogo/protobuf/gogoproto
+// Copyright (c) 2013, The GoGo Authors. All rights reserved.
+// http://github.com/gogo/protobuf
 //
 // Go support for Protocol Buffers - Google's data interchange format
 //
@@ -542,17 +542,13 @@ func (p *Properties) setEncAndDec(typ reflect.Type, f *reflect.StructField, lock
 			p.dec = (*Buffer).dec_slice_int64
 			p.packedDec = (*Buffer).dec_slice_packed_int64
 		case reflect.Uint8:
-			p.enc = (*Buffer).enc_slice_byte
 			p.dec = (*Buffer).dec_slice_byte
-			p.size = size_slice_byte
-			// This is a []byte, which is either a bytes field,
-			// or the value of a map field. In the latter case,
-			// we always encode an empty []byte, so we should not
-			// use the proto3 enc/size funcs.
-			// f == nil iff this is the key/value of a map field.
-			if p.proto3 && f != nil {
+			if p.proto3 {
 				p.enc = (*Buffer).enc_proto3_slice_byte
 				p.size = size_proto3_slice_byte
+			} else {
+				p.enc = (*Buffer).enc_slice_byte
+				p.size = size_slice_byte
 			}
 		case reflect.Float32, reflect.Float64:
 			switch t2.Bits() {
@@ -744,7 +740,9 @@ func getPropertiesLocked(t reflect.Type) *StructProperties {
 	propertiesMap[t] = prop
 
 	// build properties
-	prop.extendable = reflect.PtrTo(t).Implements(extendableProtoType)
+	prop.extendable = reflect.PtrTo(t).Implements(extendableProtoType) ||
+		reflect.PtrTo(t).Implements(extendableProtoV1Type) ||
+		reflect.PtrTo(t).Implements(extendableBytesType)
 	prop.unrecField = invalidField
 	prop.Prop = make([]*Properties, t.NumField())
 	prop.order = make([]int, t.NumField())
@@ -756,7 +754,11 @@ func getPropertiesLocked(t reflect.Type) *StructProperties {
 		name := f.Name
 		p.init(f.Type, name, f.Tag.Get("protobuf"), &f, false)
 
-		if f.Name == "XXX_extensions" { // special case
+		if f.Name == "XXX_InternalExtensions" { // special case
+			p.enc = (*Buffer).enc_exts
+			p.dec = nil // not needed
+			p.size = size_exts
+		} else if f.Name == "XXX_extensions" { // special case
 			if len(f.Tag.Get("protobuf")) > 0 {
 				p.enc = (*Buffer).enc_ext_slice_byte
 				p.dec = nil // not needed
@@ -766,13 +768,14 @@ func getPropertiesLocked(t reflect.Type) *StructProperties {
 				p.dec = nil // not needed
 				p.size = size_map
 			}
-		}
-		if f.Name == "XXX_unrecognized" { // special case
+		} else if f.Name == "XXX_unrecognized" { // special case
 			prop.unrecField = toField(&f)
 		}
-		oneof := f.Tag.Get("protobuf_oneof") != "" // special case
-		if oneof {
+		oneof := f.Tag.Get("protobuf_oneof") // special case
+		if oneof != "" {
 			isOneofMessage = true
+			// Oneof fields don't use the traditional protobuf tag.
+			p.OrigName = oneof
 		}
 		prop.Prop[i] = p
 		prop.order[i] = i
@@ -783,7 +786,7 @@ func getPropertiesLocked(t reflect.Type) *StructProperties {
 			}
 			print("\n")
 		}
-		if p.enc == nil && !strings.HasPrefix(f.Name, "XXX_") && !oneof {
+		if p.enc == nil && !strings.HasPrefix(f.Name, "XXX_") && oneof == "" {
 			fmt.Fprintln(os.Stderr, "proto: no encoder for", f.Name, f.Type.String(), "[GetProperties]")
 		}
 	}
@@ -921,3 +924,17 @@ func MessageName(x Message) string { return revProtoTypes[reflect.TypeOf(x)] }
 
 // MessageType returns the message type (pointer to struct) for a named message.
 func MessageType(name string) reflect.Type { return protoTypes[name] }
+
+// A registry of all linked proto files.
+var (
+	protoFiles = make(map[string][]byte) // file name => fileDescriptor
+)
+
+// RegisterFile is called from generated code and maps from the
+// full file name of a .proto file to its compressed FileDescriptorProto.
+func RegisterFile(filename string, fileDescriptor []byte) {
+	protoFiles[filename] = fileDescriptor
+}
+
+// FileDescriptor returns the compressed FileDescriptorProto for a .proto file.
+func FileDescriptor(filename string) []byte { return protoFiles[filename] }

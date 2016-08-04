@@ -471,6 +471,7 @@ func (ep *endpoint) addToCluster() error {
 			VirtualIP:    ep.virtualIP.String(),
 			IngressPorts: ingressPorts,
 			Aliases:      ep.svcAliases,
+			TaskAliases:  ep.myAliases,
 			EndpointIP:   ep.Iface().Address().IP.String(),
 		})
 
@@ -662,6 +663,7 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 	ip := net.ParseIP(epRec.EndpointIP)
 	ingressPorts := epRec.IngressPorts
 	aliases := epRec.Aliases
+	taskaliases := epRec.TaskAliases
 
 	if name == "" || ip == nil {
 		logrus.Errorf("Invalid endpoint name/ip received while handling service table event %s", value)
@@ -677,6 +679,9 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 		}
 
 		n.addSvcRecords(name, ip, nil, true)
+		for _, alias := range taskaliases {
+			n.addSvcRecords(alias, ip, nil, true)
+		}
 	} else {
 		if svcID != "" {
 			if err := c.rmServiceBinding(svcName, svcID, nid, eid, vip, ingressPorts, aliases, ip); err != nil {
@@ -686,5 +691,8 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 		}
 
 		n.deleteSvcRecords(name, ip, nil, true)
+		for _, alias := range taskaliases {
+			n.deleteSvcRecords(alias, ip, nil, true)
+		}
 	}
 }
