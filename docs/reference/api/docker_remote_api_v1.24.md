@@ -336,15 +336,16 @@ Create a container
              "ShmSize": 67108864
           },
           "NetworkingConfig": {
-          "EndpointsConfig": {
-              "isolated_nw" : {
-                  "IPAMConfig": {
-                      "IPv4Address":"172.20.30.33",
-                      "IPv6Address":"2001:db8:abcd::3033",
-                      "LinkLocalIPs:["169.254.34.68", "fe80::3468"]
-                  },
-                  "Links":["container_1", "container_2"],
-                  "Aliases":["server_x", "server_y"]
+              "EndpointsConfig": {
+                  "isolated_nw" : {
+                      "IPAMConfig": {
+                          "IPv4Address":"172.20.30.33",
+                          "IPv6Address":"2001:db8:abcd::3033",
+                          "LinkLocalIPs":["169.254.34.68", "fe80::3468"]
+                      },
+                      "Links":["container_1", "container_2"],
+                      "Aliases":["server_x", "server_y"]
+                  }
               }
           }
       }
@@ -3587,7 +3588,7 @@ Join an existing swarm
 
     {
       "ListenAddr": "0.0.0.0:2377",
-      "AdvertiseAddr: "192.168.1.1:2377",
+      "AdvertiseAddr": "192.168.1.1:2377",
       "RemoteAddrs": ["node1:2377"],
       "JoinToken": "SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-7p73s1dx5in4tatdymyhg9hu2"
     }

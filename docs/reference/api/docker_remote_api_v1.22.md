@@ -239,7 +239,7 @@ Create a container
            "Cmd": [
                    "date"
            ],
-           "Entrypoint": "",
+           "Entrypoint": null,
            "Image": "ubuntu",
            "Labels": {
                    "com.example.vendor": "Acme",
@@ -301,14 +301,15 @@ Create a container
              "ShmSize": 67108864
           },
           "NetworkingConfig": {
-          "EndpointsConfig": {
-              "isolated_nw" : {
-                  "IPAMConfig": {
-                      "IPv4Address":"172.20.30.33",
-                      "IPv6Address":"2001:db8:abcd::3033"
-                  },
-                  "Links":["container_1", "container_2"],
-                  "Aliases":["server_x", "server_y"]
+              "EndpointsConfig": {
+                  "isolated_nw" : {
+                      "IPAMConfig": {
+                          "IPv4Address":"172.20.30.33",
+                          "IPv6Address":"2001:db8:abcd::3033"
+                      },
+                      "Links":["container_1", "container_2"],
+                      "Aliases":["server_x", "server_y"]
+                  }
               }
           }
       }
