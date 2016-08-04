@@ -32,7 +32,7 @@ Example output:
 ```bash
 $ docker plugin ls
 
-NAME                  TAG                 DESCRIPTION                ACTIVE
+NAME                  TAG                 DESCRIPTION                ENABLED
 tiborvass/no-remove   latest              A test plugin for Docker   true
 ```
 

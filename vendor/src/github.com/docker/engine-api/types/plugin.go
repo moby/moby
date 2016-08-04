@@ -26,10 +26,11 @@ type PluginConfig struct {
 
 // Plugin represents a Docker plugin for the remote API
 type Plugin struct {
-	ID       string `json:"Id,omitempty"`
-	Name     string
-	Tag      string
-	Active   bool
+	ID   string `json:"Id,omitempty"`
+	Name string
+	Tag  string
+	// Enabled is true when the plugin is running, is false when the plugin is not running, only installed.
+	Enabled  bool
 	Config   PluginConfig
 	Manifest PluginManifest
 }

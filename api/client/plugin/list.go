@@ -45,7 +45,7 @@ func runList(dockerCli *client.DockerCli, opts listOptions) error {
 	}
 
 	w := tabwriter.NewWriter(dockerCli.Out(), 20, 1, 3, ' ', 0)
-	fmt.Fprintf(w, "NAME \tTAG \tDESCRIPTION\tACTIVE")
+	fmt.Fprintf(w, "NAME \tTAG \tDESCRIPTION\tENABLED")
 	fmt.Fprintf(w, "\n")
 
 	for _, p := range plugins {
@@ -55,7 +55,7 @@ func runList(dockerCli *client.DockerCli, opts listOptions) error {
 			desc = stringutils.Ellipsis(desc, 45)
 		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%v\n", p.Name, p.Tag, desc, p.Active)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%v\n", p.Name, p.Tag, desc, p.Enabled)
 	}
 	w.Flush()
 	return nil

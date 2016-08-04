@@ -84,7 +84,7 @@ func (pm *Manager) newPlugin(ref reference.Named, id string) *plugin {
 
 func (pm *Manager) restorePlugin(p *plugin) error {
 	p.runtimeSourcePath = filepath.Join(pm.runRoot, p.PluginObj.ID)
-	if p.PluginObj.Active {
+	if p.PluginObj.Enabled {
 		return pm.restore(p)
 	}
 	return nil
@@ -321,7 +321,7 @@ func (pm *Manager) init() error {
 
 			pm.Lock()
 			pm.nameToID[p.Name()] = p.PluginObj.ID
-			requiresManualRestore := !pm.liveRestore && p.PluginObj.Active
+			requiresManualRestore := !pm.liveRestore && p.PluginObj.Enabled
 			pm.Unlock()
 
 			if requiresManualRestore {
@@ -369,9 +369,9 @@ func (pm *Manager) initPlugin(p *plugin) error {
 }
 
 func (pm *Manager) remove(p *plugin, force bool) error {
-	if p.PluginObj.Active {
+	if p.PluginObj.Enabled {
 		if !force {
-			return fmt.Errorf("plugin %s is active", p.Name())
+			return fmt.Errorf("plugin %s is enabled", p.Name())
 		}
 		if err := pm.disable(p); err != nil {
 			logrus.Errorf("failed to disable plugin '%s': %s", p.Name(), err)
