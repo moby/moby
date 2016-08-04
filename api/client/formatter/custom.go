@@ -14,6 +14,7 @@ const (
 	labelsHeader       = "LABELS"
 	nameHeader         = "NAME"
 	driverHeader       = "DRIVER"
+	scopeHeader        = "SCOPE"
 )
 
 type subContext interface {

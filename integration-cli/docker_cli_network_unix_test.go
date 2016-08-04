@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -277,6 +278,43 @@ func (s *DockerNetworkSuite) TestDockerNetworkLsDefault(c *check.C) {
 	for _, nn := range defaults {
 		assertNwIsAvailable(c, nn)
 	}
+}
+
+func (s *DockerSuite) TestNetworkLsFormat(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out, _ := dockerCmd(c, "network", "ls", "--format", "{{.Name}}")
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+
+	expected := []string{"bridge", "host", "none"}
+	var names []string
+	for _, l := range lines {
+		names = append(names, l)
+	}
+	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with truncated names: %v, got: %v", expected, names))
+}
+
+func (s *DockerSuite) TestNetworkLsFormatDefaultFormat(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	config := `{
+		"networksFormat": "{{ .Name }} default"
+}`
+	d, err := ioutil.TempDir("", "integration-cli-")
+	c.Assert(err, checker.IsNil)
+	defer os.RemoveAll(d)
+
+	err = ioutil.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
+	c.Assert(err, checker.IsNil)
+
+	out, _ := dockerCmd(c, "--config", d, "network", "ls")
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+
+	expected := []string{"bridge default", "host default", "none default"}
+	var names []string
+	for _, l := range lines {
+		names = append(names, l)
+	}
+	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with truncated names: %v, got: %v", expected, names))
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkCreatePredefined(c *check.C) {

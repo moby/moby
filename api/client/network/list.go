@@ -1,15 +1,13 @@
 package network
 
 import (
-	"fmt"
 	"sort"
-	"text/tabwriter"
 
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/client/formatter"
 	"github.com/docker/docker/cli"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
 	"github.com/spf13/cobra"
@@ -24,6 +22,7 @@ func (r byNetworkName) Less(i, j int) bool { return r[i].Name < r[j].Name }
 type listOptions struct {
 	quiet   bool
 	noTrunc bool
+	format  string
 	filter  []string
 }
 
@@ -43,6 +42,7 @@ func newListCommand(dockerCli *client.DockerCli) *cobra.Command {
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "Only display volume names")
 	flags.BoolVar(&opts.noTrunc, "no-trunc", false, "Do not truncate the output")
+	flags.StringVar(&opts.format, "format", "", "Pretty-print networks using a Go template")
 	flags.StringSliceVarP(&opts.filter, "filter", "f", []string{}, "Provide filter values (i.e. 'dangling=true')")
 
 	return cmd
@@ -69,32 +69,28 @@ func runList(dockerCli *client.DockerCli, opts listOptions) error {
 		return err
 	}
 
-	w := tabwriter.NewWriter(dockerCli.Out(), 20, 1, 3, ' ', 0)
-	if !opts.quiet {
-		fmt.Fprintf(w, "NETWORK ID\tNAME\tDRIVER\tSCOPE")
-		fmt.Fprintf(w, "\n")
+	f := opts.format
+	if len(f) == 0 {
+		if len(dockerCli.NetworksFormat()) > 0 && !opts.quiet {
+			f = dockerCli.NetworksFormat()
+		} else {
+			f = "table"
+		}
 	}
 
 	sort.Sort(byNetworkName(networkResources))
-	for _, networkResource := range networkResources {
-		ID := networkResource.ID
-		netName := networkResource.Name
-		driver := networkResource.Driver
-		scope := networkResource.Scope
-		if !opts.noTrunc {
-			ID = stringid.TruncateID(ID)
-		}
-		if opts.quiet {
-			fmt.Fprintln(w, ID)
-			continue
-		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t",
-			ID,
-			netName,
-			driver,
-			scope)
-		fmt.Fprint(w, "\n")
+
+	networksCtx := formatter.NetworkContext{
+		Context: formatter.Context{
+			Output: dockerCli.Out(),
+			Format: f,
+			Quiet:  opts.quiet,
+			Trunc:  !opts.noTrunc,
+		},
+		Networks: networkResources,
 	}
-	w.Flush()
+
+	networksCtx.Write()
+
 	return nil
 }
