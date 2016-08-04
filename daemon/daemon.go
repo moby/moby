@@ -182,6 +182,10 @@ func (daemon *Daemon) restore() error {
 		wg.Add(1)
 		go func(c *container.Container) {
 			defer wg.Done()
+			if err := backportMountSpec(c); err != nil {
+				logrus.Errorf("Failed to migrate old mounts to use new spec format")
+			}
+
 			rm := c.RestartManager(false)
 			if c.IsRunning() || c.IsPaused() {
 				if err := daemon.containerd.Restore(c.ID, libcontainerd.WithRestartManager(rm)); err != nil {
