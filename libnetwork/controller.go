@@ -250,6 +250,21 @@ func (c *controller) SetKeys(keys []*types.EncryptionKey) error {
 	clusterConfigAvailable := c.clusterConfigAvailable
 	agent := c.agent
 	c.Unlock()
+
+	subsysKeys := make(map[string]int)
+	for _, key := range keys {
+		if key.Subsystem != subsysGossip &&
+			key.Subsystem != subsysIPSec {
+			return fmt.Errorf("key received for unrecognized subsystem")
+		}
+		subsysKeys[key.Subsystem]++
+	}
+	for s, count := range subsysKeys {
+		if count != keyringSize {
+			return fmt.Errorf("incorrect number of keys for susbsystem %v", s)
+		}
+	}
+
 	if len(existingKeys) == 0 {
 		c.Lock()
 		c.keys = keys
@@ -268,9 +283,6 @@ func (c *controller) SetKeys(keys []*types.EncryptionKey) error {
 		c.keys = keys
 		c.Unlock()
 		return nil
-	}
-	if len(keys) < keyringSize {
-		return c.handleKeyChangeV1(keys)
 	}
 	return c.handleKeyChange(keys)
 }

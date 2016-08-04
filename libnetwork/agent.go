@@ -164,82 +164,6 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	return nil
 }
 
-func (c *controller) handleKeyChangeV1(keys []*types.EncryptionKey) error {
-	drvEnc := discoverapi.DriverEncryptionUpdate{}
-
-	// Find the new key and add it to the key ring
-	a := c.agent
-	for _, key := range keys {
-		same := false
-		for _, cKey := range c.keys {
-			if same = cKey.LamportTime == key.LamportTime; same {
-				break
-			}
-		}
-		if !same {
-			c.keys = append(c.keys, key)
-			if key.Subsystem == subsysGossip {
-				a.networkDB.SetKey(key.Key)
-			}
-			if key.Subsystem == subsysGossip /*subsysIPSec*/ {
-				drvEnc.Key = key.Key
-				drvEnc.Tag = key.LamportTime
-			}
-			break
-		}
-	}
-	// Find the deleted key. If the deleted key was the primary key,
-	// a new primary key should be set before removing if from keyring.
-	deleted := []byte{}
-	for i, cKey := range c.keys {
-		same := false
-		for _, key := range keys {
-			if same = key.LamportTime == cKey.LamportTime; same {
-				break
-			}
-		}
-		if !same {
-			if cKey.Subsystem == subsysGossip {
-				deleted = cKey.Key
-			}
-			if cKey.Subsystem == subsysGossip /*subsysIPSec*/ {
-				drvEnc.Prune = cKey.Key
-				drvEnc.PruneTag = cKey.LamportTime
-			}
-			c.keys = append(c.keys[:i], c.keys[i+1:]...)
-			break
-		}
-	}
-
-	sort.Sort(ByTime(c.keys))
-	for _, key := range c.keys {
-		if key.Subsystem == subsysGossip {
-			a.networkDB.SetPrimaryKey(key.Key)
-			break
-		}
-	}
-	for _, key := range c.keys {
-		if key.Subsystem == subsysGossip /*subsysIPSec*/ {
-			drvEnc.Primary = key.Key
-			drvEnc.PrimaryTag = key.LamportTime
-			break
-		}
-	}
-	if len(deleted) > 0 {
-		a.networkDB.RemoveKey(deleted)
-	}
-
-	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
-		err := driver.DiscoverNew(discoverapi.EncryptionKeysUpdate, drvEnc)
-		if err != nil {
-			logrus.Warnf("Failed to update datapath keys in driver %s: %v", name, err)
-		}
-		return false
-	})
-
-	return nil
-}
-
 func (c *controller) agentSetup() error {
 	clusterProvider := c.cfg.Daemon.ClusterProvider
 
@@ -287,9 +211,6 @@ func (c *controller) getKeys(subsys string) ([][]byte, []uint64) {
 		}
 	}
 
-	if len(keys) < keyringSize {
-		return keys, tags
-	}
 	keys[0], keys[1] = keys[1], keys[0]
 	tags[0], tags[1] = tags[1], tags[0]
 	return keys, tags
@@ -304,9 +225,6 @@ func (c *controller) getPrimaryKeyTag(subsys string) ([]byte, uint64, error) {
 		if key.Subsystem == subsys {
 			keys = append(keys, key)
 		}
-	}
-	if len(keys) < 2 {
-		return nil, 0, fmt.Errorf("primary key for subsystem %s not found", subsys)
 	}
 	return keys[1].Key, keys[1].LamportTime, nil
 }
