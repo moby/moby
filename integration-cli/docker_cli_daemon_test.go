@@ -263,89 +263,6 @@ func (s *DockerDaemonSuite) TestDaemonStartBridgeWithoutIPAssociation(c *check.C
 	}
 }
 
-func (s *DockerDaemonSuite) TestDaemonIptablesClean(c *check.C) {
-	if err := s.d.StartWithBusybox(); err != nil {
-		c.Fatalf("Could not start daemon with busybox: %v", err)
-	}
-
-	if out, err := s.d.Cmd("run", "-d", "--name", "top", "-p", "80", "busybox:latest", "top"); err != nil {
-		c.Fatalf("Could not run top: %s, %v", out, err)
-	}
-
-	// get output from iptables with container running
-	ipTablesSearchString := "tcp dpt:80"
-	ipTablesCmd := exec.Command("iptables", "-nvL")
-	out, _, err := runCommandWithOutput(ipTablesCmd)
-	if err != nil {
-		c.Fatalf("Could not run iptables -nvL: %s, %v", out, err)
-	}
-
-	if !strings.Contains(out, ipTablesSearchString) {
-		c.Fatalf("iptables output should have contained %q, but was %q", ipTablesSearchString, out)
-	}
-
-	if err := s.d.Stop(); err != nil {
-		c.Fatalf("Could not stop daemon: %v", err)
-	}
-
-	// get output from iptables after restart
-	ipTablesCmd = exec.Command("iptables", "-nvL")
-	out, _, err = runCommandWithOutput(ipTablesCmd)
-	if err != nil {
-		c.Fatalf("Could not run iptables -nvL: %s, %v", out, err)
-	}
-
-	if strings.Contains(out, ipTablesSearchString) {
-		c.Fatalf("iptables output should not have contained %q, but was %q", ipTablesSearchString, out)
-	}
-}
-
-func (s *DockerDaemonSuite) TestDaemonIptablesCreate(c *check.C) {
-	if err := s.d.StartWithBusybox(); err != nil {
-		c.Fatalf("Could not start daemon with busybox: %v", err)
-	}
-
-	if out, err := s.d.Cmd("run", "-d", "--name", "top", "--restart=always", "-p", "80", "busybox:latest", "top"); err != nil {
-		c.Fatalf("Could not run top: %s, %v", out, err)
-	}
-
-	// get output from iptables with container running
-	ipTablesSearchString := "tcp dpt:80"
-	ipTablesCmd := exec.Command("iptables", "-nvL")
-	out, _, err := runCommandWithOutput(ipTablesCmd)
-	if err != nil {
-		c.Fatalf("Could not run iptables -nvL: %s, %v", out, err)
-	}
-
-	if !strings.Contains(out, ipTablesSearchString) {
-		c.Fatalf("iptables output should have contained %q, but was %q", ipTablesSearchString, out)
-	}
-
-	if err := s.d.Restart(); err != nil {
-		c.Fatalf("Could not restart daemon: %v", err)
-	}
-
-	// make sure the container is not running
-	runningOut, err := s.d.Cmd("inspect", "--format='{{.State.Running}}'", "top")
-	if err != nil {
-		c.Fatalf("Could not inspect on container: %s, %v", out, err)
-	}
-	if strings.TrimSpace(runningOut) != "true" {
-		c.Fatalf("Container should have been restarted after daemon restart. Status running should have been true but was: %q", strings.TrimSpace(runningOut))
-	}
-
-	// get output from iptables after restart
-	ipTablesCmd = exec.Command("iptables", "-nvL")
-	out, _, err = runCommandWithOutput(ipTablesCmd)
-	if err != nil {
-		c.Fatalf("Could not run iptables -nvL: %s, %v", out, err)
-	}
-
-	if !strings.Contains(out, ipTablesSearchString) {
-		c.Fatalf("iptables output after restart should have contained %q, but was %q", ipTablesSearchString, out)
-	}
-}
-
 // TestDaemonIPv6Enabled checks that when the daemon is started with --ipv6=true that the docker0 bridge
 // has the fe80::1 address and that a container is assigned a link-local address
 func (s *DockerSuite) TestDaemonIPv6Enabled(c *check.C) {
@@ -940,15 +857,6 @@ func (s *DockerDaemonSuite) TestDaemonIP(c *check.C) {
 
 	_, err = d.Cmd("run", "-d", "-p", "8000:8000", "busybox", "top")
 	c.Assert(err, check.IsNil)
-
-	ipTablesCmd := exec.Command("iptables", "-t", "nat", "-nvL")
-	out, _, err = runCommandWithOutput(ipTablesCmd)
-	c.Assert(err, check.IsNil)
-
-	regex := fmt.Sprintf("DNAT.*%s.*dpt:8000", ip.String())
-	matched, _ := regexp.MatchString(regex, out)
-	c.Assert(matched, check.Equals, true,
-		check.Commentf("iptables output should have contained %q, but was %q", regex, out))
 }
 
 func (s *DockerDaemonSuite) TestDaemonICCPing(c *check.C) {
