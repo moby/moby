@@ -73,10 +73,10 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 
 	// Inspect the options
 	out, _ = dockerCmd(c, "inspect",
-		"--format='timeout={{.Config.Healthcheck.Timeout}} "+
+		"--format=timeout={{.Config.Healthcheck.Timeout}} "+
 			"interval={{.Config.Healthcheck.Interval}} "+
 			"retries={{.Config.Healthcheck.Retries}} "+
-			"test={{.Config.Healthcheck.Test}}'", name)
+			"test={{.Config.Healthcheck.Test}}", name)
 	c.Check(out, checker.Equals, "timeout=30s interval=1s retries=0 test=[CMD-SHELL cat /status]\n")
 
 	// Start

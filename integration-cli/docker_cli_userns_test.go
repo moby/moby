@@ -45,7 +45,7 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *check.C) {
 	user := s.findUser(c, "userns")
 	c.Assert(uidgid[0], checker.Equals, user)
 
-	pid, err := s.d.Cmd("inspect", "--format='{{.State.Pid}}'", "userns")
+	pid, err := s.d.Cmd("inspect", "--format={{.State.Pid}}", "userns")
 	c.Assert(err, checker.IsNil, check.Commentf("Could not inspect running container: out: %q", pid))
 	// check the uid and gid maps for the PID to ensure root is remapped
 	// (cmd = cat /proc/<pid>/uid_map | grep -E '0\s+9999\s+1')
