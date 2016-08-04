@@ -136,6 +136,12 @@ func (cli *DockerCli) NetworksFormat() string {
 	return cli.configFile.NetworksFormat
 }
 
+// VolumesFormat returns the format string specified in the configuration.
+// String contains columns and format specification, for example {{ID}}\t{{Name}}
+func (cli *DockerCli) VolumesFormat() string {
+	return cli.configFile.VolumesFormat
+}
+
 func (cli *DockerCli) setRawTerminal() error {
 	if os.Getenv("NORAW") == "" {
 		if cli.isTerminalIn {

@@ -1,7 +1,10 @@
 package main
 
 import (
+	"io/ioutil"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
@@ -65,18 +68,60 @@ func (s *DockerSuite) TestVolumeCliInspectMulti(c *check.C) {
 
 func (s *DockerSuite) TestVolumeCliLs(c *check.C) {
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
-	out, _ := dockerCmd(c, "volume", "create", "--name", "aaa")
+	dockerCmd(c, "volume", "create", "--name", "aaa")
 
 	dockerCmd(c, "volume", "create", "--name", "test")
 
 	dockerCmd(c, "volume", "create", "--name", "soo")
 	dockerCmd(c, "run", "-v", "soo:"+prefix+"/foo", "busybox", "ls", "/")
 
-	out, _ = dockerCmd(c, "volume", "ls")
+	out, _ := dockerCmd(c, "volume", "ls")
 	outArr := strings.Split(strings.TrimSpace(out), "\n")
 	c.Assert(len(outArr), check.Equals, 4, check.Commentf("\n%s", out))
 
 	assertVolList(c, out, []string{"aaa", "soo", "test"})
+}
+
+func (s *DockerSuite) TestVolumeLsFormat(c *check.C) {
+	dockerCmd(c, "volume", "create", "--name", "aaa")
+	dockerCmd(c, "volume", "create", "--name", "test")
+	dockerCmd(c, "volume", "create", "--name", "soo")
+
+	out, _ := dockerCmd(c, "volume", "ls", "--format", "{{.Name}}")
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+
+	expected := []string{"aaa", "soo", "test"}
+	var names []string
+	for _, l := range lines {
+		names = append(names, l)
+	}
+	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with truncated names: %v, got: %v", expected, names))
+}
+
+func (s *DockerSuite) TestVolumeLsFormatDefaultFormat(c *check.C) {
+	dockerCmd(c, "volume", "create", "--name", "aaa")
+	dockerCmd(c, "volume", "create", "--name", "test")
+	dockerCmd(c, "volume", "create", "--name", "soo")
+
+	config := `{
+		"volumesFormat": "{{ .Name }} default"
+}`
+	d, err := ioutil.TempDir("", "integration-cli-")
+	c.Assert(err, checker.IsNil)
+	defer os.RemoveAll(d)
+
+	err = ioutil.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
+	c.Assert(err, checker.IsNil)
+
+	out, _ := dockerCmd(c, "--config", d, "volume", "ls")
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+
+	expected := []string{"aaa default", "soo default", "test default"}
+	var names []string
+	for _, l := range lines {
+		names = append(names, l)
+	}
+	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with truncated names: %v, got: %v", expected, names))
 }
 
 // assertVolList checks volume retrieved with ls command
