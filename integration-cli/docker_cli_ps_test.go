@@ -864,3 +864,37 @@ func (s *DockerSuite) TestPsListContainersFilterNetwork(c *check.C) {
 
 	c.Assert(containerOut, checker.Contains, "onbridgenetwork")
 }
+
+func (s *DockerSuite) TestPsByOrder(c *check.C) {
+	name1 := "xyz-abc"
+	out, err := runSleepingContainer(c, "--name", name1)
+	c.Assert(err, checker.NotNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	container1 := strings.TrimSpace(out)
+
+	name2 := "xyz-123"
+	out, err = runSleepingContainer(c, "--name", name2)
+	c.Assert(err, checker.NotNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	container2 := strings.TrimSpace(out)
+
+	name3 := "789-abc"
+	out, err = runSleepingContainer(c, "--name", name3)
+	c.Assert(err, checker.NotNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	name4 := "789-123"
+	out, err = runSleepingContainer(c, "--name", name4)
+	c.Assert(err, checker.NotNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	// Run multiple time should have the same result
+	out, err = dockerCmd(c, "ps", "--no-trunc", "-q", "-f", "name=xyz")
+	c.Assert(err, checker.NotNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, fmt.Sprintf("%s\n%s", container2, container1))
+
+	// Run multiple time should have the same result
+	out, err = dockerCmd(c, "ps", "--no-trunc", "-q", "-f", "name=xyz")
+	c.Assert(err, checker.NotNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, fmt.Sprintf("%s\n%s", container2, container1))
+}
