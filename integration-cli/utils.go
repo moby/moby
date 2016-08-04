@@ -52,10 +52,6 @@ func runCommandPipelineWithOutput(cmds ...*exec.Cmd) (output string, exitCode in
 	return integration.RunCommandPipelineWithOutput(cmds...)
 }
 
-func unmarshalJSON(data []byte, result interface{}) error {
-	return integration.UnmarshalJSON(data, result)
-}
-
 func convertSliceOfStringsToMap(input []string) map[string]struct{} {
 	return integration.ConvertSliceOfStringsToMap(input)
 }

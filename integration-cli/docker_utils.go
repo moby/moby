@@ -867,7 +867,7 @@ var errMountNotFound = errors.New("mount point not found")
 
 func inspectMountPointJSON(j, destination string) (types.MountPoint, error) {
 	var mp []types.MountPoint
-	if err := unmarshalJSON([]byte(j), &mp); err != nil {
+	if err := json.Unmarshal([]byte(j), &mp); err != nil {
 		return types.MountPoint{}, err
 	}
 

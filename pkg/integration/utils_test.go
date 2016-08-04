@@ -294,21 +294,6 @@ func TestRunCommandPipelineWithOutput(t *testing.T) {
 	}
 }
 
-// Simple simple test as it is just a passthrough for json.Unmarshal
-func TestUnmarshalJSON(t *testing.T) {
-	emptyResult := struct{}{}
-	if err := UnmarshalJSON([]byte(""), &emptyResult); err == nil {
-		t.Fatalf("Expected an error, got nothing")
-	}
-	result := struct{ Name string }{}
-	if err := UnmarshalJSON([]byte(`{"name": "name"}`), &result); err != nil {
-		t.Fatal(err)
-	}
-	if result.Name != "name" {
-		t.Fatalf("Expected result.name to be 'name', was '%s'", result.Name)
-	}
-}
-
 func TestConvertSliceOfStringsToMap(t *testing.T) {
 	input := []string{"a", "b"}
 	actual := ConvertSliceOfStringsToMap(input)

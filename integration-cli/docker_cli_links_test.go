@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -97,7 +98,7 @@ func (s *DockerSuite) TestLinksInspectLinksStarted(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "testinspectlink", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "top")
 	links := inspectFieldJSON(c, "testinspectlink", "HostConfig.Links")
 
-	err := unmarshalJSON([]byte(links), &result)
+	err := json.Unmarshal([]byte(links), &result)
 	c.Assert(err, checker.IsNil)
 
 	output := convertSliceOfStringsToMap(result)
@@ -116,7 +117,7 @@ func (s *DockerSuite) TestLinksInspectLinksStopped(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "testinspectlink", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "true")
 	links := inspectFieldJSON(c, "testinspectlink", "HostConfig.Links")
 
-	err := unmarshalJSON([]byte(links), &result)
+	err := json.Unmarshal([]byte(links), &result)
 	c.Assert(err, checker.IsNil)
 
 	output := convertSliceOfStringsToMap(result)

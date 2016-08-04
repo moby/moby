@@ -240,7 +240,7 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementEnv(c *check.C) {
 
 	envResult := []string{}
 
-	if err = unmarshalJSON([]byte(res), &envResult); err != nil {
+	if err = json.Unmarshal([]byte(res), &envResult); err != nil {
 		c.Fatal(err)
 	}
 
@@ -297,7 +297,7 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 
 	res := inspectFieldJSON(c, name, "Config.Volumes")
 
-	if err = unmarshalJSON([]byte(res), &result); err != nil {
+	if err = json.Unmarshal([]byte(res), &result); err != nil {
 		c.Fatal(err)
 	}
 
@@ -320,7 +320,7 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 
 	res = inspectFieldJSON(c, name, "Config.Volumes")
 
-	if err = unmarshalJSON([]byte(res), &result); err != nil {
+	if err = json.Unmarshal([]byte(res), &result); err != nil {
 		c.Fatal(err)
 	}
 
@@ -347,7 +347,7 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 
 	res = inspectFieldJSON(c, name, "Config.Volumes")
 
-	if err = unmarshalJSON([]byte(res), &result); err != nil {
+	if err = json.Unmarshal([]byte(res), &result); err != nil {
 		c.Fatal(err)
 	}
 
@@ -1704,7 +1704,7 @@ func (s *DockerSuite) TestBuildWithVolumes(c *check.C) {
 	}
 	res := inspectFieldJSON(c, name, "Config.Volumes")
 
-	err = unmarshalJSON([]byte(res), &result)
+	err = json.Unmarshal([]byte(res), &result)
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -1833,9 +1833,9 @@ func (s *DockerSuite) TestBuildWindowsAddCopyPathProcessing(c *check.C) {
 			ADD wc2 c:/wc2
 			WORKDIR c:/
 			RUN sh -c "[ $(cat c:/wc1) = 'hellowc1' ]"
-			RUN sh -c "[ $(cat c:/wc2) = 'worldwc2' ]"			
+			RUN sh -c "[ $(cat c:/wc2) = 'worldwc2' ]"
 
-			# Trailing slash on COPY/ADD, Windows-style path. 
+			# Trailing slash on COPY/ADD, Windows-style path.
 			WORKDIR /wd1
 			COPY wd1 c:/wd1/
 			WORKDIR /wd2

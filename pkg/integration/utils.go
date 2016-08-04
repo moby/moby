@@ -3,7 +3,6 @@ package integration
 import (
 	"archive/tar"
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -207,15 +206,6 @@ func RunCommandPipelineWithOutput(cmds ...*exec.Cmd) (output string, exitCode in
 
 	// wait on last cmd
 	return RunCommandWithOutput(cmds[len(cmds)-1])
-}
-
-// UnmarshalJSON deserialize a JSON in the given interface.
-func UnmarshalJSON(data []byte, result interface{}) error {
-	if err := json.Unmarshal(data, result); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // ConvertSliceOfStringsToMap converts a slices of string in a map

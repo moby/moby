@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -2397,7 +2398,7 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughExpose(c *check.C) {
 	id := strings.TrimSpace(out)
 	portstr := inspectFieldJSON(c, id, "NetworkSettings.Ports")
 	var ports nat.PortMap
-	if err := unmarshalJSON([]byte(portstr), &ports); err != nil {
+	if err := json.Unmarshal([]byte(portstr), &ports); err != nil {
 		c.Fatal(err)
 	}
 	for port, binding := range ports {
@@ -2827,7 +2828,7 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughPublish(c *check.C) {
 	portstr := inspectFieldJSON(c, id, "NetworkSettings.Ports")
 
 	var ports nat.PortMap
-	err := unmarshalJSON([]byte(portstr), &ports)
+	err := json.Unmarshal([]byte(portstr), &ports)
 	c.Assert(err, checker.IsNil, check.Commentf("failed to unmarshal: %v", portstr))
 	for port, binding := range ports {
 		portnum, _ := strconv.Atoi(strings.Split(string(port), "/")[0])
