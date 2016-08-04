@@ -245,6 +245,29 @@ func (s *DockerSuite) TestInspectBindMountPoint(c *check.C) {
 	c.Assert(m.RW, checker.Equals, false)
 }
 
+func (s *DockerSuite) TestInspectNamedMountPoint(c *check.C) {
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
+
+	dockerCmd(c, "run", "-d", "--name", "test", "-v", "data:"+prefix+slash+"data", "busybox", "cat")
+
+	vol := inspectFieldJSON(c, "test", "Mounts")
+
+	var mp []types.MountPoint
+	err := unmarshalJSON([]byte(vol), &mp)
+	c.Assert(err, checker.IsNil)
+
+	// check that there is only one mountpoint
+	c.Assert(mp, checker.HasLen, 1)
+
+	m := mp[0]
+
+	c.Assert(m.Name, checker.Equals, "data")
+	c.Assert(m.Driver, checker.Equals, "local")
+	c.Assert(m.Source, checker.Not(checker.Equals), "")
+	c.Assert(m.Destination, checker.Equals, prefix+slash+"data")
+	c.Assert(m.RW, checker.Equals, true)
+}
+
 // #14947
 func (s *DockerSuite) TestInspectTimesAsRFC3339Nano(c *check.C) {
 	testRequires(c, DaemonIsLinux)
