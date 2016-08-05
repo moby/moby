@@ -78,6 +78,11 @@ func (container *Container) TmpfsMounts() []Mount {
 	return mounts
 }
 
+// IntrospectionMounts returns the list of mounts for introspection support
+func (container *Container) IntrospectionMounts() []Mount {
+	return nil
+}
+
 // cleanResourcePath cleans a resource path and prepares to combine with mnt path
 func cleanResourcePath(path string) string {
 	return filepath.Join(string(os.PathSeparator), path)

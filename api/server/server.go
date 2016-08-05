@@ -47,6 +47,11 @@ func New(cfg *Config) *Server {
 	}
 }
 
+// Config returns the server's configuration
+func (s *Server) Config() *Config {
+	return s.cfg
+}
+
 // UseMiddleware appends a new middleware to the request chain.
 // This needs to be called before the API routes are configured.
 func (s *Server) UseMiddleware(m middleware.Middleware) {

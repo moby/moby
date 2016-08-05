@@ -407,6 +407,19 @@ func (container *Container) TmpfsMounts() []Mount {
 	return mounts
 }
 
+// IntrospectionMounts returns the list of mounts for introspection support
+func (container *Container) IntrospectionMounts() []Mount {
+	if !container.HostConfig.Privileged {
+		return nil
+	}
+	return []Mount{
+		{
+			Source:      filepath.Join(container.ExecRoot, "docker-introspection.sock"),
+			Destination: "/var/run/docker.sock",
+		},
+	}
+}
+
 // cleanResourcePath cleans a resource path and prepares to combine with mnt path
 func cleanResourcePath(path string) string {
 	return filepath.Join(string(os.PathSeparator), path)

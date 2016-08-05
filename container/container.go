@@ -87,13 +87,14 @@ type CommonContainer struct {
 	// logDriver for closing
 	LogDriver      logger.Logger  `json:"-"`
 	LogCopier      *logger.Copier `json:"-"`
+	ExecRoot       string         `json:"-"`
 	restartManager restartmanager.RestartManager
 	attachContext  *attachContext
 }
 
 // NewBaseContainer creates a new container with its
 // basic configuration.
-func NewBaseContainer(id, root string) *Container {
+func NewBaseContainer(id, root, execRoot string) *Container {
 	return &Container{
 		CommonContainer: CommonContainer{
 			ID:            id,
@@ -103,6 +104,7 @@ func NewBaseContainer(id, root string) *Container {
 			MountPoints:   make(map[string]*volume.MountPoint),
 			StreamConfig:  runconfig.NewStreamConfig(),
 			attachContext: &attachContext{},
+			ExecRoot:      execRoot,
 		},
 	}
 }
