@@ -25,10 +25,10 @@ func (tr *testRegistry) registerHandler(path string, h handlerFunc) {
 	tr.handlers[path] = h
 }
 
-func newTestRegistry(c *check.C) (*testRegistry, error) {
+func newTestRegistry(c *check.C, d *Daemon) (*testRegistry, error) {
 	testReg := &testRegistry{handlers: make(map[string]handlerFunc)}
 
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := d.newHTTPTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		url := r.URL.String()
 
 		var matched bool

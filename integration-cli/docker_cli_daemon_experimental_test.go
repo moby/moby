@@ -126,7 +126,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownLiveRestoreWithPlugins(c *check.C)
 		}
 	}()
 
-	if err := s.d.cmd.Process.Signal(os.Interrupt); err != nil {
+	if err := s.d.Signal(syscall.SIGINT); err != nil {
 		c.Fatalf("Could not kill daemon: %v", err)
 	}
 
@@ -157,12 +157,12 @@ func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
 		}
 	}()
 
-	if err := s.d.cmd.Process.Signal(os.Interrupt); err != nil {
+	if err := s.d.Signal(syscall.SIGINT); err != nil {
 		c.Fatalf("Could not kill daemon: %v", err)
 	}
 
 	for {
-		if err := syscall.Kill(s.d.cmd.Process.Pid, 0); err == syscall.ESRCH {
+		if _, err := s.d.getDockerdPID(); err != nil {
 			break
 		}
 	}

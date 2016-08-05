@@ -70,22 +70,22 @@ func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *check.C) {
 		loginUA string
 	)
 
-	buildReg, err := newTestRegistry(c)
+	buildReg, err := newTestRegistry(c, s.d)
 	c.Assert(err, check.IsNil)
 	registerUserAgentHandler(buildReg, &buildUA)
 	buildRepoName := fmt.Sprintf("%s/busybox", buildReg.hostport)
 
-	pullReg, err := newTestRegistry(c)
+	pullReg, err := newTestRegistry(c, s.d)
 	c.Assert(err, check.IsNil)
 	registerUserAgentHandler(pullReg, &pullUA)
 	pullRepoName := fmt.Sprintf("%s/busybox", pullReg.hostport)
 
-	pushReg, err := newTestRegistry(c)
+	pushReg, err := newTestRegistry(c, s.d)
 	c.Assert(err, check.IsNil)
 	registerUserAgentHandler(pushReg, &pushUA)
 	pushRepoName := fmt.Sprintf("%s/busybox", pushReg.hostport)
 
-	loginReg, err := newTestRegistry(c)
+	loginReg, err := newTestRegistry(c, s.d)
 	c.Assert(err, check.IsNil)
 	registerUserAgentHandler(loginReg, &loginUA)
 

@@ -197,6 +197,13 @@ var (
 		},
 		"Test cannot be run when remapping root",
 	}
+	IPVSEnabled = testRequirement{
+		func() bool {
+			_, err := os.Stat("/sys/module/ip_vs")
+			return err == nil
+		},
+		"Test ip_vs module is loaded",
+	}
 )
 
 // testRequires checks if the environment satisfies the requirements

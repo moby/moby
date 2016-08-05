@@ -50,6 +50,7 @@ func (s *DockerHubPullSuite) TearDownSuite(c *check.C) {
 		err := s.d.Stop()
 		c.Assert(err, checker.IsNil, check.Commentf("stopping push/pull test daemon: %v", err))
 	}
+	s.ds.TearDownTest(c) // clears daemon container
 }
 
 // SetUpTest declares that all tests of this suite require network.
@@ -63,7 +64,6 @@ func (s *DockerHubPullSuite) TearDownTest(c *check.C) {
 	images := strings.Split(out, "\n")
 	images = append([]string{"rmi", "-f"}, images...)
 	s.d.Cmd(images...)
-	s.ds.TearDownTest(c)
 }
 
 // Cmd executes a command against the suite daemon and returns the combined

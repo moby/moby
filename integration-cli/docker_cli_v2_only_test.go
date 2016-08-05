@@ -36,7 +36,7 @@ func makefile(contents string) (string, func(), error) {
 // TestV2Only ensures that a daemon in v2-only mode does not
 // attempt to contact any v1 registry endpoints.
 func (s *DockerRegistrySuite) TestV2Only(c *check.C) {
-	reg, err := newTestRegistry(c)
+	reg, err := newTestRegistry(c, s.d)
 	c.Assert(err, check.IsNil)
 
 	reg.registerHandler("/v2/", func(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +69,7 @@ func (s *DockerRegistrySuite) TestV2Only(c *check.C) {
 // and ensure v1 endpoints are hit for the following operations:
 // login, push, pull, build & run
 func (s *DockerRegistrySuite) TestV1(c *check.C) {
-	reg, err := newTestRegistry(c)
+	reg, err := newTestRegistry(c, s.d)
 	c.Assert(err, check.IsNil)
 
 	v2Pings := 0
