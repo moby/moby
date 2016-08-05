@@ -51,3 +51,10 @@ type ExecConfig struct {
 	DetachKeys   string   // Escape keys for detach
 	Cmd          []string // Execution commands and args
 }
+
+// PluginRmConfig holds arguments for the plugin remove
+// operation. This struct is used to tell the backend what operations
+// to perform.
+type PluginRmConfig struct {
+	ForceRemove bool
+}

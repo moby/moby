@@ -289,3 +289,8 @@ type ServiceListOptions struct {
 type TaskListOptions struct {
 	Filter filters.Args
 }
+
+// PluginRemoveOptions holds parameters to remove plugins.
+type PluginRemoveOptions struct {
+	Force bool
+}

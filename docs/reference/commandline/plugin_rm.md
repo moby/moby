@@ -12,7 +12,7 @@ parent = "smn_cli"
 # plugin rm (experimental)
 
 ```markdown
-Usage:  docker plugin rm PLUGIN
+Usage:  docker plugin rm [OPTIONS] PLUGIN [PLUGIN...]
 
 Remove a plugin
 
@@ -20,12 +20,14 @@ Aliases:
   rm, remove
 
 Options:
-      --help   Print usage
+      -f, --force  Force the removal of an active plugin
+          --help   Print usage
 ```
 
 Removes a plugin. You cannot remove a plugin if it is active, you must disable
 a plugin using the [`docker plugin disable`](plugin_disable.md) before removing
-it.
+it (or use --force, use of force is not recommended, since it can affect
+functioning of running containers using the plugin).
 
 The following example disables and removes the `no-remove:latest` plugin;
 

@@ -310,7 +310,7 @@ func (pm *Manager) init() error {
 		go func(p *plugin) {
 			defer group.Done()
 			if err := pm.restorePlugin(p); err != nil {
-				logrus.Errorf("Error restoring plugin '%s': %s", p.Name(), err)
+				logrus.Errorf("failed to restore plugin '%s': %s", p.Name(), err)
 				return
 			}
 
@@ -322,7 +322,7 @@ func (pm *Manager) init() error {
 			if requiresManualRestore {
 				// if liveRestore is not enabled, the plugin will be stopped now so we should enable it
 				if err := pm.enable(p); err != nil {
-					logrus.Errorf("Error enabling plugin '%s': %s", p.Name(), err)
+					logrus.Errorf("failed to enable plugin '%s': %s", p.Name(), err)
 				}
 			}
 		}(p)
@@ -363,9 +363,14 @@ func (pm *Manager) initPlugin(p *plugin) error {
 	return err
 }
 
-func (pm *Manager) remove(p *plugin) error {
+func (pm *Manager) remove(p *plugin, force bool) error {
 	if p.PluginObj.Active {
-		return fmt.Errorf("plugin %s is active", p.Name())
+		if !force {
+			return fmt.Errorf("plugin %s is active", p.Name())
+		}
+		if err := pm.disable(p); err != nil {
+			logrus.Errorf("failed to disable plugin '%s': %s", p.Name(), err)
+		}
 	}
 	pm.Lock() // fixme: lock single record
 	defer pm.Unlock()
@@ -380,7 +385,7 @@ func (pm *Manager) set(p *plugin, args []string) error {
 	for _, arg := range args {
 		i := strings.Index(arg, "=")
 		if i < 0 {
-			return fmt.Errorf("No equal sign '=' found in %s", arg)
+			return fmt.Errorf("no equal sign '=' found in %s", arg)
 		}
 		m[arg[:i]] = arg[i+1:]
 	}
@@ -393,7 +398,7 @@ func (pm *Manager) save() error {
 
 	jsonData, err := json.Marshal(pm.plugins)
 	if err != nil {
-		logrus.Debugf("Error in json.Marshal: %v", err)
+		logrus.Debugf("failure in json.Marshal: %v", err)
 		return err
 	}
 	ioutils.AtomicWriteFile(filePath, jsonData, 0600)
