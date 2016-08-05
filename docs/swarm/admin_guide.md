@@ -5,7 +5,7 @@ aliases = [
 ]
 title = "Swarm administration guide"
 description = "Manager administration guide"
-keywords = ["docker, container, cluster, swarm, manager, raft"]
+keywords = ["docker, container, swarm, manager, raft"]
 [menu.main]
 identifier="manager_admin_guide"
 parent="engine_swarm"
@@ -16,17 +16,20 @@ weight="20"
 # Administer and maintain a swarm of Docker Engines
 
 When you run a swarm of Docker Engines, **manager nodes** are the key components
-for managing the cluster and storing the cluster state. It is important to
+for managing the swarm and storing the swarm state. It is important to
 understand some key features of manager nodes in order to properly deploy and
 maintain the swarm.
 
 This article covers the following swarm administration tasks:
 
-* [Add Manager nodes for fault tolerance](#add-manager-nodes-for-fault-tolerance)
-* [Distributing manager nodes](#distributing-manager-nodes)
+* [Using a static IP for manager node advertise address](#use-a-static-ip-for-manager-node-advertise-address)
+* [Adding manager nodes for fault tolerance](#add-manager-nodes-for-fault-tolerance)
+* [Distributing manager nodes](#distribute-manager-nodes)
 * [Running manager-only nodes](#run-manager-only-nodes)
-* [Backing up the cluster state](#back-up-the-cluster-state)
+* [Backing up the swarm state](#back-up-the-swarm-state)
 * [Monitoring the swarm health](#monitor-swarm-health)
+* [Troubleshooting a manager node](#troubleshoot-a-manager-node)
+* [Forcefully removing a node](#force-remove-a-node)
 * [Recovering from disaster](#recover-from-disaster)
 
 Refer to [How swarm mode nodes work](how-swarm-mode-works/nodes.md)
@@ -36,20 +39,35 @@ worker nodes.
 ## Operating manager nodes in a swarm
 
 Swarm manager nodes use the [Raft Consensus Algorithm](raft.md) to manage the
-cluster state. You only need to understand some general concepts of Raft in
+swarm state. You only need to understand some general concepts of Raft in
 order to manage a swarm.
 
 There is no limit on the number of manager nodes. The decision about how many
 manager nodes to implement is a trade-off between performance and
 fault-tolerance. Adding manager nodes to a swarm makes the swarm more
 fault-tolerant. However, additional manager nodes reduce write performance
-because more nodes must acknowledge proposals to update the cluster state.
+because more nodes must acknowledge proposals to update the swarm state.
 This means more network round-trip traffic.
 
 Raft requires a majority of managers, also called a quorum, to agree on proposed
-updates to the cluster. A quorum of managers must also agree on node additions
+updates to the swarm. A quorum of managers must also agree on node additions
 and removals. Membership operations are subject to the same constraints as state
 replication.
+
+## Use a static IP for manager node advertise address
+
+When initiating a swarm, you have to specify the `--advertise-addr` flag to
+advertise your address to other manager nodes in the swarm. For more
+information, see [Run Docker Engine in swarm mode](swarm-mode.md#configure-the-advertise-address). Because manager nodes are
+meant to be a stable component of the infrastructure, you should use a *fixed
+IP address* for the advertise address to prevent the swarm from becoming
+unstable on machine reboot.
+
+If the whole swarm restarts and every manager node subsequently gets a new IP
+address, there is no way for any node to contact an existing manager. Therefore
+the swarm is hung while nodes to contact one another at their old IP addresses.
+
+Dynamic IP addresses are OK for worker nodes.
 
 ## Add manager nodes for fault tolerance
 
@@ -59,7 +77,7 @@ partition, there is a higher chance that a quorum remains available to process
 requests if the network is partitioned into two sets. Keeping a quorum is not
 guaranteed if you encounter more than two network partitions.
 
-| Cluster Size |  Majority  |  Fault Tolerance  |
+| Swarm Size |  Majority  |  Fault Tolerance  |
 |:------------:|:----------:|:-----------------:|
 |      1       |     1      |         0         |
 |      2       |     2      |         0         |
@@ -73,22 +91,22 @@ guaranteed if you encounter more than two network partitions.
 
 For example, in a swarm with *5 nodes*, if you lose *3 nodes*, you don't have a
 quorum. Therefore you can't add or remove nodes until you recover one of the
-unavailable manager nodes or recover the cluster with disaster recovery
+unavailable manager nodes or recover the swarm with disaster recovery
 commands. See [Recover from disaster](#recover-from-disaster).
 
 While it is possible to scale a swarm down to a single manager node, it is
 impossible to demote the last manager node. This ensures you maintain access to
 the swarm and that the swarm can still process requests. Scaling down to a
 single manager is an unsafe operation and is not recommended. If
-the last node leaves the cluster unexpetedly during the demote operation, the
-cluster swarm will become unavailable until you reboot the node or restart with
+the last node leaves the swarm unexpetedly during the demote operation, the
+swarm will become unavailable until you reboot the node or restart with
 `--force-new-cluster`.
 
-You manage cluster membership with the `docker swarm` and `docker node`
+You manage swarm membership with the `docker swarm` and `docker node`
 subsystems. Refer to [Add nodes to a swarm](join-nodes.md) for more information
 on how to add worker nodes and promote a worker node to be a manager.
 
-## Distributing manager nodes
+## Distribute manager nodes
 
 In addition to maintaining an odd number of manager nodes, pay attention to
 datacenter topology when placing managers. For optimal fault-tolerance, distribute
@@ -107,65 +125,54 @@ available to process requests and rebalance workloads.
 ## Run manager-only nodes
 
 By default manager nodes also act as a worker nodes. This means the scheduler
-can assign tasks to a manager node. For small and non-critical clusters
+can assign tasks to a manager node. For small and non-critical swarms
 assigning tasks to managers is relatively low-risk as long as you schedule
 services using **resource constraints** for *cpu* and *memory*.
 
 However, because manager nodes use the Raft consensus algorithm to replicate data
 in a consistent way, they are sensitive to resource starvation. You should
-isolate managers in your swarm from processes that might block cluster
-operations like cluster heartbeat or leader elections.
+isolate managers in your swarm from processes that might block swarm
+operations like swarm heartbeat or leader elections.
 
 To avoid interference with manager node operation, you can drain manager nodes
 to make them unavailable as worker nodes:
 
 ```bash
-docker node update --availability drain <NODE-ID>
+docker node update --availability drain <NODE>
 ```
 
 When you drain a node, the scheduler reassigns any tasks running on the node to
-other available worker nodes in the cluster. It also prevents the scheduler from
+other available worker nodes in the swarm. It also prevents the scheduler from
 assigning tasks to the node.
 
-## Back up the cluster state
+## Back up the swarm state
 
-Docker manager nodes store the cluster state and manager logs in the following
+Docker manager nodes store the swarm state and manager logs in the following
 directory:
 
-`/var/lib/docker/swarm/raft`
+```bash
+/var/lib/docker/swarm/raft
+```
 
-Back up the raft data directory often so that you can use it in case of disaster
-recovery.
-
-You should never restart a manager node with the data directory from another
-node (for example, by copying the `raft` directory from one node to another).
-The data directory is unique to a node ID and a node can only use a given node
-ID once to join the swarm. (ie. Node ID space should be globally unique)
-
-To cleanly re-join a manager node to a cluster:
-
-1. Run `docker node demote <id-node>` to demote the node to a worker.
-2. Run `docker node rm <id-node>` before adding a node back with a fresh state.
-3. Re-join the node to the cluster using `docker swarm join`.
-
-In case of [disaster recovery](#recover-from-disaster), you can take the raft data
-directory of one of the manager nodes to restore to a new swarm cluster.
+Back up the `raft` data directory often so that you can use it in case of
+[disaster recovery](#recover-from-disaster). Then you can take the `raft`
+directory of one of the manager nodes to restore to a new swarm.
 
 ## Monitor swarm health
 
-You can monitor the health of Manager nodes by querying the docker `nodes` API
+You can monitor the health of manager nodes by querying the docker `nodes` API
 in JSON format through the `/nodes` HTTP endpoint. Refer to the [nodes API documentation](../reference/api/docker_remote_api_v1.24.md#36-nodes)
 for more information.
 
 From the command line, run `docker node inspect <id-node>` to query the nodes.
-For instance, to query the reachability of the node as a Manager:
+For instance, to query the reachability of the node as a manager:
 
 ```bash
 docker node inspect manager1 --format "{{ .ManagerStatus.Reachability }}"
 reachable
 ```
 
-To query the status of the node as a Worker that accept tasks:
+To query the status of the node as a worker that accept tasks:
 
 ```bash
 docker node inspect manager1 --format "{{ .Status.State }}"
@@ -181,12 +188,13 @@ manager:
 
 - Restart the daemon and see if the manager comes back as reachable.
 - Reboot the machine.
-- If neither restarting or rebooting work, you should add another manager node or promote a worker to be a manager node. You also need to cleanly remove the failed node entry from the Manager set with `docker node demote <id-node>` and `docker node rm <id-node>`.
+- If neither restarting or rebooting work, you should add another manager node or promote a worker to be a manager node. You also need to cleanly remove the failed node entry from the manager set with `docker node demote <NODE>` and `docker node rm <id-node>`.
 
-Alternatively you can also get an overview of the cluster health with `docker node ls`:
+Alternatively you can also get an overview of the swarm health from a manager
+node with `docker node ls`:
 
 ```bash
-# From a Manager node
+
 docker node ls
 ID                           HOSTNAME  MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS
 1mhtdwhvsgr3c26xxbnzdc3yp    node05    Accepted    Ready   Active
@@ -197,44 +205,61 @@ bb1nrq2cswhtbg4mrsqnlx1ck    node03    Accepted    Ready   Active        Reachab
 di9wxgz8dtuh9d2hn089ecqkf    node06    Accepted    Ready   Active
 ```
 
-## Manager advertise address
+## Troubleshoot a manager node
 
-When initiating or joining a swarm, you have to specify the `--listen-addr`
-flag to advertise your address to other Manager nodes in the cluster.
+You should never restart a manager node by copying the `raft` directory from another node. The data directory is unique to a node ID. A node can only use a node ID once to join the swarm. The node ID space should be globally unique.
 
-We recommend that you use a *fixed IP address* for the advertised address, otherwise
-the cluster could become unstable on machine reboot.
+To cleanly re-join a manager node to a cluster:
 
-Indeed if the whole cluster restarts and every Manager gets a new IP address on
-restart, there is no way for any of those nodes to contact an existing Manager
-and the cluster will stay stuck trying to contact other nodes through their old address.
-While having dynamic IP addresses for Worker nodes is acceptable, Managers are
-meant to be a stable piece in the infrastructure thus it is highly recommended to
-deploy those critical nodes with static IPs.
+1. To demote the node to a worker, run `docker node demote <NODE>`.
+2. To remove the node from the swarm, run `docker node rm <NODE>`.
+3. Re-join the node to the swarm with a fresh state using `docker swarm join`.
+
+For more information on joining a manager node to a swarm, refer to
+[Join nodes to a swarm](join-nodes.md).
+
+## Force remove a node
+
+In most cases, you should shut down a node before removing it from a swarm with the `docker node rm` command. If a node becomes unreachable, unresponsive, or compromised you can forcefully remove the node without shutting it down by passing the `--force` flag. For instance, if `node9` becomes compromised:
+
+<!-- bash hint breaks block quote -->
+```
+$ docker node rm node9
+
+Error response from daemon: rpc error: code = 9 desc = node node9 is not down and can't be removed
+
+$ docker node rm --force node9
+
+Node node9 removed from swarm
+```
+
+Before you forcefully remove a manager node, you must first demote it to the
+worker role. Make sure that you always have an odd number of manager nodes if
+you demote or remove a manager
 
 ## Recover from disaster
 
-Swarm is resilient to failures and the cluster can recover from any number
+Swarm is resilient to failures and the swarm can recover from any number
 of temporary node failures (machine reboots or crash with restart).
 
 In a swarm of `N` managers, there must be a quorum of manager nodes greater than
 50% of the total number of managers (or `(N/2)+1`) in order for the swarm to
 process requests and remain available. This means the swarm can tolerate up to
-`(N-1)/2` permanent failures beyond which requests involving cluster management
+`(N-1)/2` permanent failures beyond which requests involving swarm management
 cannot be processed. These types of failures include data corruption or hardware
 failures.
 
 Even if you follow the guidelines here, it is possible that you can lose a
 quorum of manager nodes. If you can't recover the quorum by conventional
-means such as restarting faulty nodes, you can recover the cluster by running
+means such as restarting faulty nodes, you can recover the swarm by running
 `docker swarm init --force-new-cluster` on a manager node.
 
 ```bash
 # From the node to recover
-docker swarm init --force-new-cluster --listen-addr node01:2377
+docker swarm init --force-new-cluster --advertise-addr node01:2377
 ```
 
 The `--force-new-cluster` flag puts the Docker Engine into swarm mode as a
-manager node of a single-node cluster. It discards cluster membership information
+manager node of a single-node swarm. It discards swarm membership information
 that existed before the loss of the quorum but it retains data necessary to the
-Swarm cluster such as services, tasks and the list of worker nodes.
+Swarm such as services, tasks and the list of worker nodes.

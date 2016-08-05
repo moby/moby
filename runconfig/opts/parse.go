@@ -366,6 +366,9 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 	}
 	if copts.flEntrypoint != "" {
 		entrypoint = strslice.StrSlice{copts.flEntrypoint}
+	} else if flags.Changed("entrypoint") {
+		// if `--entrypoint=` is parsed then Entrypoint is reset
+		entrypoint = []string{""}
 	}
 
 	ports, portBindings, err := nat.ParsePortSpecs(copts.flPublish.GetAll())

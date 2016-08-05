@@ -136,7 +136,7 @@ validate: build ## validate DCO, Seccomp profile generation, gofmt,\n./pkg/ isol
 
 manpages: ## Generate man pages from go source and markdown
 	docker build -t docker-manpage-dev -f "man/$(DOCKERFILE)" ./man
-	docker run \
+	docker run --rm \
 		-v $(PWD):/go/src/github.com/docker/docker/ \
 		docker-manpage-dev
 
