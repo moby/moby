@@ -124,13 +124,13 @@ func resolveInterfaceAddr(specifiedInterface string) (net.IP, error) {
 			if ipAddr.IP.To4() != nil {
 				// IPv4
 				if interfaceAddr4 != nil {
-					return nil, fmt.Errorf("interface %s has more than one IPv4 address", specifiedInterface)
+					return nil, fmt.Errorf("interface %s has more than one IPv4 address (%s and %s)", specifiedInterface, interfaceAddr4, ipAddr.IP)
 				}
 				interfaceAddr4 = ipAddr.IP
 			} else {
 				// IPv6
 				if interfaceAddr6 != nil {
-					return nil, fmt.Errorf("interface %s has more than one IPv6 address", specifiedInterface)
+					return nil, fmt.Errorf("interface %s has more than one IPv6 address (%s and %s)", specifiedInterface, interfaceAddr6, ipAddr.IP)
 				}
 				interfaceAddr6 = ipAddr.IP
 			}
@@ -147,100 +147,6 @@ func resolveInterfaceAddr(specifiedInterface string) (net.IP, error) {
 		return interfaceAddr4, nil
 	}
 	return interfaceAddr6, nil
-}
-
-func (c *Cluster) resolveSystemAddr() (net.IP, error) {
-	// Use the system's only IP address, or fail if there are
-	// multiple addresses to choose from.
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		return nil, err
-	}
-
-	var systemAddr net.IP
-	var systemInterface net.Interface
-
-	// List Docker-managed subnets
-	v4Subnets := c.config.NetworkSubnetsProvider.V4Subnets()
-	v6Subnets := c.config.NetworkSubnetsProvider.V6Subnets()
-
-ifaceLoop:
-	for _, intf := range interfaces {
-		// Skip inactive interfaces and loopback interfaces
-		if (intf.Flags&net.FlagUp == 0) || (intf.Flags&net.FlagLoopback) != 0 {
-			continue
-		}
-
-		addrs, err := intf.Addrs()
-		if err != nil {
-			continue
-		}
-
-		var interfaceAddr4, interfaceAddr6 net.IP
-
-		for _, addr := range addrs {
-			ipAddr, ok := addr.(*net.IPNet)
-
-			// Skip loopback and link-local addresses
-			if !ok || !ipAddr.IP.IsGlobalUnicast() {
-				continue
-			}
-
-			if ipAddr.IP.To4() != nil {
-				// IPv4
-
-				// Ignore addresses in subnets that are managed by Docker.
-				for _, subnet := range v4Subnets {
-					if subnet.Contains(ipAddr.IP) {
-						continue ifaceLoop
-					}
-				}
-
-				if interfaceAddr4 != nil {
-					return nil, fmt.Errorf("could not choose an IP address to advertise since this system has multiple addresses on interface %s (%s and %s)", intf.Name, interfaceAddr4, ipAddr.IP)
-				}
-
-				interfaceAddr4 = ipAddr.IP
-			} else {
-				// IPv6
-
-				// Ignore addresses in subnets that are managed by Docker.
-				for _, subnet := range v6Subnets {
-					if subnet.Contains(ipAddr.IP) {
-						continue ifaceLoop
-					}
-				}
-
-				if interfaceAddr6 != nil {
-					return nil, fmt.Errorf("could not choose an IP address to advertise since this system has multiple addresses on interface %s (%s and %s)", intf.Name, interfaceAddr6, ipAddr.IP)
-				}
-
-				interfaceAddr6 = ipAddr.IP
-			}
-		}
-
-		// In the case that this interface has exactly one IPv4 address
-		// and exactly one IPv6 address, favor IPv4 over IPv6.
-		if interfaceAddr4 != nil {
-			if systemAddr != nil {
-				return nil, fmt.Errorf("could not choose an IP address to advertise since this system has multiple addresses on different interfaces (%s on %s and %s on %s)", systemAddr, systemInterface.Name, interfaceAddr4, intf.Name)
-			}
-			systemAddr = interfaceAddr4
-			systemInterface = intf
-		} else if interfaceAddr6 != nil {
-			if systemAddr != nil {
-				return nil, fmt.Errorf("could not choose an IP address to advertise since this system has multiple addresses on different interfaces (%s on %s and %s on %s)", systemAddr, systemInterface.Name, interfaceAddr6, intf.Name)
-			}
-			systemAddr = interfaceAddr6
-			systemInterface = intf
-		}
-	}
-
-	if systemAddr == nil {
-		return nil, errNoIP
-	}
-
-	return systemAddr, nil
 }
 
 func listSystemIPs() []net.IP {
@@ -267,4 +173,11 @@ func listSystemIPs() []net.IP {
 	}
 
 	return systemAddrs
+}
+
+func errMultipleIPs(interfaceA, interfaceB string, addrA, addrB net.IP) error {
+	if interfaceA == interfaceB {
+		return fmt.Errorf("could not choose an IP address to advertise since this system has multiple addresses on interface %s (%s and %s)", interfaceA, addrA, addrB)
+	}
+	return fmt.Errorf("could not choose an IP address to advertise since this system has multiple addresses on different interfaces (%s on %s and %s on %s)", addrA, interfaceA, addrB, interfaceB)
 }
