@@ -22,6 +22,10 @@ func newPromoteCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 func runPromote(dockerCli *client.DockerCli, nodes []string) error {
 	promote := func(node *swarm.Node) error {
+		if node.Spec.Role == swarm.NodeRoleManager {
+			fmt.Fprintf(dockerCli.Out(), "Node %s is already a manager.\n", node.ID)
+			return errNoRoleChange
+		}
 		node.Spec.Role = swarm.NodeRoleManager
 		return nil
 	}

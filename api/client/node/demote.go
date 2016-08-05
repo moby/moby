@@ -22,6 +22,10 @@ func newDemoteCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 func runDemote(dockerCli *client.DockerCli, nodes []string) error {
 	demote := func(node *swarm.Node) error {
+		if node.Spec.Role == swarm.NodeRoleWorker {
+			fmt.Fprintf(dockerCli.Out(), "Node %s is already a worker.\n", node.ID)
+			return errNoRoleChange
+		}
 		node.Spec.Role = swarm.NodeRoleWorker
 		return nil
 	}
