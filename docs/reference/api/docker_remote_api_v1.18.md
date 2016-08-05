@@ -145,7 +145,7 @@ Create a container
              "Cmd": [
                      "date"
              ],
-             "Entrypoint": "",
+             "Entrypoint": null,
              "Image": "ubuntu",
              "Labels": {
                      "com.example.vendor": "Acme",
