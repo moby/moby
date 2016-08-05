@@ -118,18 +118,6 @@ func (cli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
 	return nil
 }
 
-// PsFormat returns the format string specified in the configuration.
-// String contains columns and format specification, for example {{ID}}\t{{Name}}.
-func (cli *DockerCli) PsFormat() string {
-	return cli.configFile.PsFormat
-}
-
-// ImagesFormat returns the format string specified in the configuration.
-// String contains columns and format specification, for example {{ID}}\t{{Name}}.
-func (cli *DockerCli) ImagesFormat() string {
-	return cli.configFile.ImagesFormat
-}
-
 func (cli *DockerCli) setRawTerminal() error {
 	if os.Getenv("NORAW") == "" {
 		if cli.isTerminalIn {

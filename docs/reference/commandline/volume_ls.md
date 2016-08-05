@@ -23,6 +23,7 @@ Options:
                        - dangling=<boolean> a volume if referenced or not
                        - driver=<string> a volume's driver name
                        - name=<string> a volume's name
+      --format string  Pretty-print volumes using a Go template
       --help           Print usage
   -q, --quiet          Only display volume names
 ```
@@ -81,6 +82,36 @@ The following filter matches all volumes with a name containing the `rose` strin
     $ docker volume ls -f name=rose
     DRIVER              VOLUME NAME
     local               rosemary
+
+## Formatting
+
+The formatting options (`--format`) pretty-prints volumes output
+using a Go template.
+
+Valid placeholders for the Go template are listed below:
+
+Placeholder   | Description
+--------------|------------------------------------------------------------------------------------------
+`.Name`       | Network name
+`.Driver`     | Network driver
+`.Scope`      | Network scope (local, global)
+`.Mountpoint` | Whether the network is internal or not.
+`.Labels`     | All labels assigned to the volume.
+`.Label`      | Value of a specific label for this volume. For example `{{.Label "project.version"}}`
+
+When using the `--format` option, the `volume ls` command will either
+output the data exactly as the template declares or, when using the
+`table` directive, includes column headers as well.
+
+The following example uses a template without headers and outputs the
+`Name` and `Driver` entries separated by a colon for all volumes:
+
+```bash
+$ docker volume ls --format "{{.Name}}: {{.Driver}}"
+vol1: local
+vol2: local
+vol3: local
+```
 
 ## Related information
 

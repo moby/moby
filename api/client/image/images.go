@@ -79,8 +79,8 @@ func runImages(dockerCli *client.DockerCli, opts imagesOptions) error {
 
 	f := opts.format
 	if len(f) == 0 {
-		if len(dockerCli.ImagesFormat()) > 0 && !opts.quiet {
-			f = dockerCli.ImagesFormat()
+		if len(dockerCli.ConfigFile().ImagesFormat) > 0 && !opts.quiet {
+			f = dockerCli.ConfigFile().ImagesFormat
 		} else {
 			f = "table"
 		}
