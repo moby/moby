@@ -1,6 +1,7 @@
 package service
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/docker/docker/pkg/testutil/assert"
@@ -68,8 +69,10 @@ func TestUpdateEnvironment(t *testing.T) {
 
 	updateEnvironment(flags, &envs)
 	assert.Equal(t, len(envs), 2)
-	assert.Equal(t, envs[0], "tokeep=value")
-	assert.Equal(t, envs[1], "toadd=newenv")
+	// Order has been removed in updateEnvironment (map)
+	sort.Strings(envs)
+	assert.Equal(t, envs[0], "toadd=newenv")
+	assert.Equal(t, envs[1], "tokeep=value")
 }
 
 func TestUpdateEnvironmentWithDuplicateValues(t *testing.T) {
@@ -82,6 +85,18 @@ func TestUpdateEnvironmentWithDuplicateValues(t *testing.T) {
 
 	updateEnvironment(flags, &envs)
 	assert.Equal(t, len(envs), 0)
+}
+
+func TestUpdateEnvironmentWithDuplicateKeys(t *testing.T) {
+	// Test case for #25404
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("env-add", "A=b")
+
+	envs := []string{"A=c"}
+
+	updateEnvironment(flags, &envs)
+	assert.Equal(t, len(envs), 1)
+	assert.Equal(t, envs[0], "A=b")
 }
 
 func TestUpdateMounts(t *testing.T) {
