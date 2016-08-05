@@ -423,10 +423,6 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Named, unverif
 
 	rootFS := image.NewRootFS()
 
-	if err := detectBaseLayer(p.config.ImageStore, verifiedManifest, rootFS); err != nil {
-		return "", "", err
-	}
-
 	// remove duplicate layers and check parent chain validity
 	err = fixManifestLayers(verifiedManifest)
 	if err != nil {
@@ -542,24 +538,14 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 		unmarshalledConfig image.Image  // deserialized image config
 		downloadRootFS     image.RootFS // rootFS to use for registering layers.
 	)
-	if runtime.GOOS == "windows" {
-		configJSON, unmarshalledConfig, err = receiveConfig(configChan, errChan)
-		if err != nil {
-			return "", "", err
-		}
-		if unmarshalledConfig.RootFS == nil {
-			return "", "", errors.New("image config has no rootfs section")
-		}
-		// https://github.com/docker/docker/issues/24766 - Err on the side of caution,
-		// explicitly blocking images intended for linux from the Windows daemon
-		if unmarshalledConfig.OS == "linux" {
-			return "", "", fmt.Errorf("image operating system %q cannot be used on this platform", unmarshalledConfig.OS)
-		}
-		downloadRootFS = *unmarshalledConfig.RootFS
-		downloadRootFS.DiffIDs = []layer.DiffID{}
-	} else {
-		downloadRootFS = *image.NewRootFS()
+
+	// https://github.com/docker/docker/issues/24766 - Err on the side of caution,
+	// explicitly blocking images intended for linux from the Windows daemon
+	if runtime.GOOS == "windows" && unmarshalledConfig.OS == "linux" {
+		return "", "", fmt.Errorf("image operating system %q cannot be used on this platform", unmarshalledConfig.OS)
 	}
+
+	downloadRootFS = *image.NewRootFS()
 
 	rootFS, release, err := p.config.DownloadManager.Download(ctx, downloadRootFS, descriptors, p.config.ProgressOutput)
 	if err != nil {
