@@ -88,7 +88,6 @@ This flag is generally not necessary when joining an existing swarm.
 ### `--manager`
 
 Joins the node as a manager
->>>>>>> 22565e1... Split advertised address from listen address
 
 ### `--token string`
 
