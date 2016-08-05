@@ -710,7 +710,7 @@ func fwMarker() {
 		os.Exit(4)
 	}
 
-	if len(ingressPorts) != 0 && addDelOpt == "-A" {
+	if addDelOpt == "-A" {
 		ruleParams := strings.Fields(fmt.Sprintf("-m ipvs --ipvs -j SNAT --to-source %s", os.Args[6]))
 		if !iptables.Exists("nat", "POSTROUTING", ruleParams...) {
 			rule := append(strings.Fields("-t nat -A POSTROUTING"), ruleParams...)
