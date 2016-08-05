@@ -55,8 +55,9 @@ type DaemonCli struct {
 	commonFlags *cliflags.CommonFlags
 	configFile  *string
 
-	api *apiserver.Server
-	d   *daemon.Daemon
+	api             *apiserver.Server
+	d               *daemon.Daemon
+	authzMiddleware *authorization.Middleware // authzMiddleware enables to dynamically reload the authorization plugins
 }
 
 func presentInHelp(usage string) string { return usage }
@@ -317,10 +318,15 @@ func (cli *DaemonCli) start() (err error) {
 
 func (cli *DaemonCli) reloadConfig() {
 	reload := func(config *daemon.Config) {
+
+		// Reload the authorization plugin
+		cli.authzMiddleware.SetPlugins(config.AuthorizationPlugins)
+
 		if err := cli.d.Reload(config); err != nil {
 			logrus.Errorf("Error reconfiguring the daemon: %v", err)
 			return
 		}
+
 		if config.IsValueSet("debug") {
 			debugEnabled := utils.IsDebugEnabled()
 			switch {
@@ -438,9 +444,6 @@ func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config
 	u := middleware.NewUserAgentMiddleware(v)
 	s.UseMiddleware(u)
 
-	if len(cli.Config.AuthorizationPlugins) > 0 {
-		authZPlugins := authorization.NewPlugins(cli.Config.AuthorizationPlugins)
-		handleAuthorization := authorization.NewMiddleware(authZPlugins)
-		s.UseMiddleware(handleAuthorization)
-	}
+	cli.authzMiddleware = authorization.NewMiddleware(cli.Config.AuthorizationPlugins)
+	s.UseMiddleware(cli.authzMiddleware)
 }
