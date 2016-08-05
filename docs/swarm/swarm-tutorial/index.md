@@ -50,22 +50,15 @@ provider. This tutorial uses the following machine names:
 
 ###  Docker Engine 1.12 or later
 
-You must install Docker Engine on each one of the host machines. To use swarm
-mode, install the Docker Engine `v1.12.0` or later from the [Docker releases
-GitHub repository](https://github.com/docker/docker/releases). Alternatively,
-install the latest Docker for Mac or Docker for Windows Beta.
+To use swarm mode, you must [install Docker Engine](../../installation/index.md)
+on each one of the host machines. Alternatively, install the latest Docker for
+Mac or Docker for Windows.
 
->**Advisory**: Some multi-node features may not work for Docker for Mac Beta and
-Docker for Windows Beta. We're working on the multi-node features for GA.
+>**Note**: Docker for Mac and Docker for Windows let you use single-node
+features of swarm mode, like creating a swarm and creating a service. Multi-node
+features like joining additional nodes and scaling a service are not available.
 
 Verify that the Docker Engine daemon is running on each of the machines.
-
-<!-- See the following options to install:
-
-* [Install Docker Engine](../../installation/index.md).
-
-* [Example: Manual install on cloud provider](../../installation/cloud/cloud-ex-aws.md).
--->
 
 ### The IP address of the manager machine
 
