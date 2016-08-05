@@ -51,7 +51,7 @@ provider. This tutorial uses the following machine names:
 ###  Docker Engine 1.12 or later
 
 You must install Docker Engine on each one of the host machines. To use swarm
-mode, install the Docker Engine `v1.12.0-rc1` or later from the [Docker releases
+mode, install the Docker Engine `v1.12.0` or later from the [Docker releases
 GitHub repository](https://github.com/docker/docker/releases). Alternatively,
 install the latest Docker for Mac or Docker for Windows Beta.
 

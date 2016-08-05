@@ -423,7 +423,7 @@ Containers: 0
  Paused: 0
  Stopped: 0
 Images: 2
-Server Version: 1.11.0-rc2
+Server Version: 1.11.0
 Storage Driver: devicemapper
  Pool Name: docker-8:1-123141-pool
  Pool Blocksize: 65.54 kB
