@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -216,7 +217,9 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		if spec.EndpointSpec == nil {
 			spec.EndpointSpec = &swarm.EndpointSpec{}
 		}
-		updatePorts(flags, &spec.EndpointSpec.Ports)
+		if err := updatePorts(flags, &spec.EndpointSpec.Ports); err != nil {
+			return err
+		}
 	}
 
 	if err := updateLogDriver(flags, &spec.TaskTemplate); err != nil {
@@ -369,23 +372,54 @@ func updateMounts(flags *pflag.FlagSet, mounts *[]swarm.Mount) {
 	*mounts = newMounts
 }
 
-func updatePorts(flags *pflag.FlagSet, portConfig *[]swarm.PortConfig) {
+type byPortConfig []swarm.PortConfig
+
+func (r byPortConfig) Len() int      { return len(r) }
+func (r byPortConfig) Swap(i, j int) { r[i], r[j] = r[j], r[i] }
+func (r byPortConfig) Less(i, j int) bool {
+	// We convert PortConfig into `port/protocol`, e.g., `80/tcp`
+	// In updatePorts we already filter out with map so there is duplicate entries
+	return portConfigToString(&r[i]) < portConfigToString(&r[j])
+}
+
+func portConfigToString(portConfig *swarm.PortConfig) string {
+	protocol := portConfig.Protocol
+	if protocol == "" {
+		protocol = "tcp"
+	}
+	return fmt.Sprintf("%v/%s", portConfig.PublishedPort, protocol)
+}
+
+func updatePorts(flags *pflag.FlagSet, portConfig *[]swarm.PortConfig) error {
+	// The key of the map is `port/protocol`, e.g., `80/tcp`
+	portSet := map[string]swarm.PortConfig{}
+	// Check to see if there are any conflict in flags.
 	if flags.Changed(flagPublishAdd) {
 		values := flags.Lookup(flagPublishAdd).Value.(*opts.ListOpts).GetAll()
 		ports, portBindings, _ := nat.ParsePortSpecs(values)
 
 		for port := range ports {
-			*portConfig = append(*portConfig, convertPortToPortConfig(port, portBindings)...)
+			newConfigs := convertPortToPortConfig(port, portBindings)
+			for _, entry := range newConfigs {
+				if v, ok := portSet[portConfigToString(&entry)]; ok && v != entry {
+					return fmt.Errorf("conflicting port mapping between %v:%v/%s and %v:%v/%s", entry.PublishedPort, entry.TargetPort, entry.Protocol, v.PublishedPort, v.TargetPort, v.Protocol)
+				}
+				portSet[portConfigToString(&entry)] = entry
+			}
 		}
 	}
 
-	if !flags.Changed(flagPublishRemove) {
-		return
+	// Override previous PortConfig in service if there is any duplicate
+	for _, entry := range *portConfig {
+		if _, ok := portSet[portConfigToString(&entry)]; !ok {
+			portSet[portConfigToString(&entry)] = entry
+		}
 	}
+
 	toRemove := flags.Lookup(flagPublishRemove).Value.(*opts.ListOpts).GetAll()
 	newPorts := []swarm.PortConfig{}
 portLoop:
-	for _, port := range *portConfig {
+	for _, port := range portSet {
 		for _, rawTargetPort := range toRemove {
 			targetPort := nat.Port(rawTargetPort)
 			if equalPort(targetPort, port) {
@@ -394,7 +428,10 @@ portLoop:
 		}
 		newPorts = append(newPorts, port)
 	}
+	// Sort the PortConfig to avoid unnecessary updates
+	sort.Sort(byPortConfig(newPorts))
 	*portConfig = newPorts
+	return nil
 }
 
 func equalPort(targetPort nat.Port, port swarm.PortConfig) bool {
