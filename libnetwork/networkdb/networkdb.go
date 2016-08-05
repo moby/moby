@@ -371,7 +371,10 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 	nodeNetworks[nid] = &network{id: nid, ltime: ltime}
 	nodeNetworks[nid].tableBroadcasts = &memberlist.TransmitLimitedQueue{
 		NumNodes: func() int {
-			return len(nDB.networkNodes[nid])
+			nDB.RLock()
+			num := len(nDB.networkNodes[nid])
+			nDB.RUnlock()
+			return num
 		},
 		RetransmitMult: 4,
 	}
