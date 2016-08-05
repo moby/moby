@@ -221,9 +221,11 @@ func (nDB *NetworkDB) handleBulkSync(buf []byte) {
 	}
 
 	var nodeAddr net.IP
+	nDB.RLock()
 	if node, ok := nDB.nodes[bsm.NodeName]; ok {
 		nodeAddr = node.Addr
 	}
+	nDB.RUnlock()
 
 	if err := nDB.bulkSyncNode(bsm.Networks, bsm.NodeName, false); err != nil {
 		logrus.Errorf("Error in responding to bulk sync from node %s: %v", nodeAddr, err)
