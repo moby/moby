@@ -377,7 +377,9 @@ Create a container
 -   **Labels** - Adds a map of labels to a container. To specify a map: `{"key":"value"[,"key2":"value2"]}`
 -   **Cmd** - Command to run specified as a string or an array of strings.
 -   **Entrypoint** - Set the entry point for the container as a string or an array
-      of strings.
+      of strings. If the array consists of exactly one empty string (`[""]`) then the entry point
+      is reset to system default (i.e., the entry point used by docker when there is no `ENTRYPOINT`
+      instruction in the Dockerfile).
 -   **Image** - A string specifying the image name to use for the container.
 -   **Volumes** - An object mapping mount point paths (strings) inside the
       container to empty objects.

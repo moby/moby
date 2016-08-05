@@ -1305,6 +1305,10 @@ or two examples of how to pass more parameters to that ENTRYPOINT:
     $ docker run -it --entrypoint /bin/bash example/redis -c ls -l
     $ docker run -it --entrypoint /usr/bin/redis-cli example/redis --help
 
+You can reset a containers entrypoint by passing an empty string, for example:
+
+    $ docker run -it --entrypoint="" mysql bash
+
 > **Note**: Passing `--entrypoint` will clear out any default command set on the
 > image (i.e. any `CMD` instruction in the Dockerfile used to build it).
 
