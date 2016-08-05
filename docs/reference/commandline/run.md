@@ -95,7 +95,7 @@ Options:
   -P, --publish-all                 Publish all exposed ports to random ports
       --read-only                   Mount the container's root filesystem as read only
       --restart string              Restart policy to apply when a container exits (default "no")
-                                    Possible values are : no, on-failuer[:max-retry], always, unless-stopped
+                                    Possible values are : no, on-failure[:max-retry], always, unless-stopped
       --rm                          Automatically remove the container when it exits
       --runtime string              Runtime to use for this container
       --security-opt value          Security Options (default [])
