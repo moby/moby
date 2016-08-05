@@ -1614,10 +1614,10 @@ func (s *DockerSuite) TestBuildWithInaccessibleFilesInContext(c *check.C) {
 			c.Fatalf("failed to chown directory to root: %s", err)
 		}
 		if err = os.Chmod(pathToDirectoryWithoutReadAccess, 0444); err != nil {
-			c.Fatalf("failed to chmod directory to 755: %s", err)
+			c.Fatalf("failed to chmod directory to 444: %s", err)
 		}
 		if err = os.Chmod(pathToFileInDirectoryWithoutReadAccess, 0700); err != nil {
-			c.Fatalf("failed to chmod file to 444: %s", err)
+			c.Fatalf("failed to chmod file to 700: %s", err)
 		}
 
 		buildCmd := exec.Command("su", "unprivilegeduser", "-c", fmt.Sprintf("%s build -t %s .", dockerBinary, name))
