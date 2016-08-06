@@ -1,6 +1,7 @@
 package node
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/docker/docker/api/client"
@@ -11,6 +12,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"golang.org/x/net/context"
+)
+
+var (
+	errNoRoleChange = errors.New("role was already set to the requested value")
 )
 
 func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
@@ -53,6 +58,9 @@ func updateNodes(dockerCli *client.DockerCli, nodes []string, mergeNode func(nod
 
 		err = mergeNode(&node)
 		if err != nil {
+			if err == errNoRoleChange {
+				continue
+			}
 			return err
 		}
 		err = client.NodeUpdate(ctx, node.ID, node.Version, node.Spec)
