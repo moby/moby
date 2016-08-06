@@ -1788,7 +1788,8 @@ _docker_service_update() {
 			return
 			;;
 		--env|-e)
-			COMPREPLY=( $( compgen -e -S = -- "$cur" ) )
+			# we do not append a "=" here because "-e VARNAME" is legal systax, too
+			COMPREPLY=( $( compgen -e -- "$cur" ) )
 			__docker_nospace
 			return
 			;;
@@ -2457,6 +2458,7 @@ _docker_run() {
 			return
 			;;
 		--env|-e)
+			# we do not append a "=" here because "-e VARNAME" is legal systax, too
 			COMPREPLY=( $( compgen -e -- "$cur" ) )
 			__docker_nospace
 			return
