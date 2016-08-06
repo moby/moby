@@ -29,7 +29,7 @@ Updates a swarm cluster with new parameter values. This command must target a ma
 
 
 ```bash
-$ docker swarm update --cert-expirty 4000h0m0s
+$ docker swarm update --cert-expiry 720h
 ```
 
 ## Related information
