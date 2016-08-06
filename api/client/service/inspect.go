@@ -117,12 +117,15 @@ func printService(out io.Writer, service swarm.Service) {
 	if service.Spec.TaskTemplate.Placement != nil && len(service.Spec.TaskTemplate.Placement.Constraints) > 0 {
 		ioutils.FprintfIfNotEmpty(out, " Constraints\t: %s\n", strings.Join(service.Spec.TaskTemplate.Placement.Constraints, ", "))
 	}
-	fmt.Fprintf(out, "UpdateConfig:\n")
-	fmt.Fprintf(out, " Parallelism:\t%d\n", service.Spec.UpdateConfig.Parallelism)
-	if service.Spec.UpdateConfig.Delay.Nanoseconds() > 0 {
-		fmt.Fprintf(out, " Delay:\t\t%s\n", service.Spec.UpdateConfig.Delay)
+	if service.Spec.UpdateConfig != nil {
+		fmt.Fprintf(out, "UpdateConfig:\n")
+		fmt.Fprintf(out, " Parallelism:\t%d\n", service.Spec.UpdateConfig.Parallelism)
+		if service.Spec.UpdateConfig.Delay.Nanoseconds() > 0 {
+			fmt.Fprintf(out, " Delay:\t\t%s\n", service.Spec.UpdateConfig.Delay)
+		}
+		fmt.Fprintf(out, " On failure:\t%s\n", service.Spec.UpdateConfig.FailureAction)
 	}
-	fmt.Fprintf(out, " On failure:\t%s\n", service.Spec.UpdateConfig.FailureAction)
+
 	fmt.Fprintf(out, "ContainerSpec:\n")
 	printContainerSpec(out, service.Spec.TaskTemplate.ContainerSpec)
 
