@@ -27,7 +27,7 @@ Updates a swarm with new parameter values. This command must target a manager no
 
 
 ```bash
-$ docker swarm update --cert-expirty 4000h0m0s
+$ docker swarm update --cert-expiry 720h
 ```
 
 ## Related information
