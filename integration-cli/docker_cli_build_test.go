@@ -352,7 +352,7 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 	}
 
 	if _, ok := result[`\\\${FOO}`]; !ok {
-		c.Fatal(`Could not find volume \\\${FOO} set from env foo in volumes table`, result)
+		c.Fatal(`Could not find volume \\\${FOO} set from env foo in volumes table`)
 	}
 
 }
