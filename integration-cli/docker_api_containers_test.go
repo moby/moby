@@ -476,7 +476,7 @@ func (s *DockerSuite) TestContainerApiBadPort(c *check.C) {
 	status, body, err := sockRequest("POST", "/containers/create", config)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusInternalServerError)
-	c.Assert(getErrorMessage(c, body), checker.Equals, `Invalid port specification: "aa80"`, check.Commentf("Incorrect error msg: %s", body))
+	c.Assert(getErrorMessage(c, body), checker.Equals, `invalid port specification: "aa80"`, check.Commentf("Incorrect error msg: %s", body))
 }
 
 func (s *DockerSuite) TestContainerApiCreate(c *check.C) {
@@ -700,7 +700,7 @@ func (s *DockerSuite) TestContainerApiInvalidPortSyntax(c *check.C) {
 
 	b, err := readBody(body)
 	c.Assert(err, checker.IsNil)
-	c.Assert(string(b[:]), checker.Contains, "Invalid port")
+	c.Assert(string(b[:]), checker.Contains, "invalid port")
 }
 
 // Issue 7941 - test to make sure a "null" in JSON is just ignored.
