@@ -1,6 +1,8 @@
 package container
 
 import (
+	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 
@@ -37,10 +39,25 @@ func TestControllerValidateMountBind(t *testing.T) {
 		t.Fatalf("expected  error, got: %v", err)
 	}
 
-	// with proper source
+	// with non-existing source
 	if _, err := newTestControllerWithMount(api.Mount{
 		Type:   api.MountTypeBind,
-		Source: testAbsPath,
+		Source: "/some-non-existing-host-path/",
+		Target: testAbsPath,
+	}); err == nil || !strings.Contains(err.Error(), "invalid bind mount source") {
+		t.Fatalf("expected  error, got: %v", err)
+	}
+
+	// with proper source
+	tmpdir, err := ioutil.TempDir("", "TestControllerValidateMountBind")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.Remove(tmpdir)
+
+	if _, err := newTestControllerWithMount(api.Mount{
+		Type:   api.MountTypeBind,
+		Source: tmpdir,
 		Target: testAbsPath,
 	}); err != nil {
 		t.Fatalf("expected  error, got: %v", err)
@@ -68,6 +85,12 @@ func TestControllerValidateMountVolume(t *testing.T) {
 }
 
 func TestControllerValidateMountTarget(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestControllerValidateMountTarget")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.Remove(tmpdir)
+
 	// with improper target
 	if _, err := newTestControllerWithMount(api.Mount{
 		Type:   api.MountTypeBind,
@@ -80,7 +103,7 @@ func TestControllerValidateMountTarget(t *testing.T) {
 	// with proper target
 	if _, err := newTestControllerWithMount(api.Mount{
 		Type:   api.MountTypeBind,
-		Source: testAbsPath,
+		Source: tmpdir,
 		Target: testAbsPath,
 	}); err != nil {
 		t.Fatalf("expected no error, got: %v", err)
