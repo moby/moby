@@ -663,6 +663,12 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 	}
 	ms = append(ms, c.IpcMounts()...)
 	ms = append(ms, c.TmpfsMounts()...)
+	if c.HostConfig.InspectionFS {
+		if err := c.MountInspectionFS(&inspectionFSConnector{daemon: daemon, container: c}); err != nil {
+			return nil, err
+		}
+		ms = append(ms, c.InspectionFSMounts()...)
+	}
 	sort.Sort(mounts(ms))
 	if err := setMounts(daemon, &s, c, ms); err != nil {
 		return nil, fmt.Errorf("linux mounts: %v", err)

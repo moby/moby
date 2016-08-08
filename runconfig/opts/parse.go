@@ -103,6 +103,7 @@ type ContainerOptions struct {
 	flHealthTimeout     time.Duration
 	flHealthRetries     int
 	flRuntime           string
+	flInspectionfs      bool
 
 	Image string
 	Args  []string
@@ -242,6 +243,9 @@ func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 	flags.StringVar(&copts.flShmSize, "shm-size", "", "Size of /dev/shm, default value is 64MB")
 	flags.StringVar(&copts.flUTSMode, "uts", "", "UTS namespace to use")
 	flags.StringVar(&copts.flRuntime, "runtime", "", "Runtime to use for this container")
+
+	// Inspection FS
+	flags.BoolVar(&copts.flInspectionfs, "inspectionfs", false, "Mount a Docker inspection filesystem (/dev/docker)")
 	return copts
 }
 
@@ -587,6 +591,7 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 		Tmpfs:          tmpfs,
 		Sysctls:        copts.flSysctls.GetAll(),
 		Runtime:        copts.flRuntime,
+		InspectionFS:   copts.flInspectionfs,
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect
