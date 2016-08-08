@@ -240,6 +240,10 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *i
 			return err
 		}
 	}
+	// Reset the Entrypoint if it is [""]
+	if len(config.Entrypoint) == 1 && config.Entrypoint[0] == "" {
+		config.Entrypoint = nil
+	}
 	if len(config.Entrypoint) == 0 && len(config.Cmd) == 0 {
 		return fmt.Errorf("No command specified")
 	}

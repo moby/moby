@@ -478,3 +478,31 @@ func (s *DockerSuite) TestCreate64ByteHexID(c *check.C) {
 
 	dockerCmd(c, "create", imageID)
 }
+
+// Test case for #23498
+func (s *DockerSuite) TestCreateUnsetEntrypoint(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	name := "test-entrypoint"
+	dockerfile := `FROM busybox
+ADD entrypoint.sh /entrypoint.sh
+RUN chmod 755 /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+CMD echo foobar`
+
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"entrypoint.sh": `#!/bin/sh
+echo "I am an entrypoint"
+exec "$@"`,
+	})
+	c.Assert(err, check.IsNil)
+	defer ctx.Close()
+
+	_, err = buildImageFromContext(name, ctx, true)
+	c.Assert(err, check.IsNil)
+
+	out, _ := dockerCmd(c, "create", "--entrypoint=", name, "echo", "foo")
+	id := strings.TrimSpace(out)
+	c.Assert(id, check.Not(check.Equals), "")
+	out, _ = dockerCmd(c, "start", "-a", id)
+	c.Assert(strings.TrimSpace(out), check.Equals, "foo")
+}

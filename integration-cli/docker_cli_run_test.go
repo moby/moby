@@ -4497,3 +4497,33 @@ func (s *DockerSuite) TestRunAddHostInHostMode(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--add-host=extra:1.2.3.4", "--net=host", "busybox", "cat", "/etc/hosts")
 	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
 }
+
+// Test case for #23498
+func (s *DockerSuite) TestRunUnsetEntrypoint(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	name := "test-entrypoint"
+	dockerfile := `FROM busybox
+ADD entrypoint.sh /entrypoint.sh
+RUN chmod 755 /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+CMD echo foobar`
+
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"entrypoint.sh": `#!/bin/sh
+echo "I am an entrypoint"
+exec "$@"`,
+	})
+	c.Assert(err, check.IsNil)
+	defer ctx.Close()
+
+	_, err = buildImageFromContext(name, ctx, true)
+	c.Assert(err, check.IsNil)
+
+	out, _ := dockerCmd(c, "run", "--entrypoint=", "-t", name, "echo", "foo")
+	c.Assert(strings.TrimSpace(out), check.Equals, "foo")
+
+	// CMD will be reset as well (the same as setting a custom entrypoint)
+	_, _, err = dockerCmdWithError("run", "--entrypoint=", "-t", name)
+	c.Assert(err, check.NotNil)
+	c.Assert(err.Error(), checker.Contains, "No command specified")
+}
