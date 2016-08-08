@@ -119,7 +119,7 @@ You can also filter for a substring in a name as this shows:
 $ docker ps --filter "name=nostalgic"
 
 CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
-715ebfcee040        busybox             "top"               3 seconds ago       Up 1 seconds                            i_am_nostalgic
+715ebfcee040        busybox             "top"               3 seconds ago       Up 1 second                             i_am_nostalgic
 9b6247364a03        busybox             "top"               7 minutes ago       Up 7 minutes                            nostalgic_stallman
 673394ef1d4c        busybox             "top"               38 minutes ago      Up 38 minutes                           nostalgic_shockley
 ```

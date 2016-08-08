@@ -31,7 +31,7 @@ type unitMap map[string]int64
 var (
 	decimalMap = unitMap{"k": KB, "m": MB, "g": GB, "t": TB, "p": PB}
 	binaryMap  = unitMap{"k": KiB, "m": MiB, "g": GiB, "t": TiB, "p": PiB}
-	sizeRegex  = regexp.MustCompile(`^(\d+)([kKmMgGtTpP])?[bB]?$`)
+	sizeRegex  = regexp.MustCompile(`^(\d+(\.\d+)*) ?([kKmMgGtTpP])?[bB]?$`)
 )
 
 var decimapAbbrs = []string{"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
@@ -41,7 +41,8 @@ var binaryAbbrs = []string{"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB",
 // using custom format.
 func CustomSize(format string, size float64, base float64, _map []string) string {
 	i := 0
-	for size >= base {
+	unitsLimit := len(_map) - 1
+	for size >= base && i < unitsLimit {
 		size = size / base
 		i++
 	}
@@ -77,19 +78,19 @@ func RAMInBytes(size string) (int64, error) {
 // Parses the human-readable size string into the amount it represents.
 func parseSize(sizeStr string, uMap unitMap) (int64, error) {
 	matches := sizeRegex.FindStringSubmatch(sizeStr)
-	if len(matches) != 3 {
+	if len(matches) != 4 {
 		return -1, fmt.Errorf("invalid size: '%s'", sizeStr)
 	}
 
-	size, err := strconv.ParseInt(matches[1], 10, 0)
+	size, err := strconv.ParseFloat(matches[1], 64)
 	if err != nil {
 		return -1, err
 	}
 
-	unitPrefix := strings.ToLower(matches[2])
+	unitPrefix := strings.ToLower(matches[3])
 	if mul, ok := uMap[unitPrefix]; ok {
-		size *= mul
+		size *= float64(mul)
 	}
 
-	return size, nil
+	return int64(size), nil
 }
