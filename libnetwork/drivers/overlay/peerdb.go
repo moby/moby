@@ -168,14 +168,14 @@ func (d *driver) peerDbAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask
 }
 
 func (d *driver) peerDbDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPMask,
-	peerMac net.HardwareAddr, vtep net.IP) {
+	peerMac net.HardwareAddr, vtep net.IP) bool {
 	peerDbWg.Wait()
 
 	d.peerDb.Lock()
 	pMap, ok := d.peerDb.mp[nid]
 	if !ok {
 		d.peerDb.Unlock()
-		return
+		return false
 	}
 	d.peerDb.Unlock()
 
@@ -185,8 +185,20 @@ func (d *driver) peerDbDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPM
 	}
 
 	pMap.Lock()
+
+	if pEntry, ok := pMap.mp[pKey.String()]; ok {
+		// Mismatched endpoint ID(possibly outdated). Do not
+		// delete peerdb
+		if pEntry.eid != eid {
+			pMap.Unlock()
+			return false
+		}
+	}
+
 	delete(pMap.mp, pKey.String())
 	pMap.Unlock()
+
+	return true
 }
 
 func (d *driver) peerDbUpdateSandbox(nid string) {
@@ -301,7 +313,9 @@ func (d *driver) peerDelete(nid, eid string, peerIP net.IP, peerIPMask net.IPMas
 	}
 
 	if updateDb {
-		d.peerDbDelete(nid, eid, peerIP, peerIPMask, peerMac, vtep)
+		if !d.peerDbDelete(nid, eid, peerIP, peerIPMask, peerMac, vtep) {
+			return nil
+		}
 	}
 
 	n := d.network(nid)
