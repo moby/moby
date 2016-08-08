@@ -88,6 +88,7 @@ func printNode(out io.Writer, node swarm.Node) {
 	}
 
 	ioutils.FprintfIfNotEmpty(out, "Hostname:\t\t%s\n", node.Description.Hostname)
+	fmt.Fprintf(out, "Joined at:\t\t%s\n", client.PrettyPrint(node.CreatedAt))
 	fmt.Fprintln(out, "Status:")
 	fmt.Fprintf(out, " State:\t\t\t%s\n", client.PrettyPrint(node.Status.State))
 	ioutils.FprintfIfNotEmpty(out, " Message:\t\t%s\n", client.PrettyPrint(node.Status.Message))
