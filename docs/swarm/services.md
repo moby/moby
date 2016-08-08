@@ -204,7 +204,7 @@ the overlay network:
 ```bash
 $ docker service create \
   --replicas 3 \
-  --network my-multi-host-network \
+  --network my-network \
   --name my-web \
   nginx
 
