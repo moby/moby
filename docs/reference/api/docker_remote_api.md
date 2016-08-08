@@ -116,7 +116,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 
 [Docker Remote API v1.25](docker_remote_api_v1.25.md) documentation
 
-* `POST /containers/create` now takes `AutoRemove` in HostConfig, auto-removal will be done on daemon side.
+* `POST /containers/create` now takes `AutoRemove` in HostConfig, to enable auto-removal of the container on daemon side when the container's process exits.
 
 ### v1.24 API changes
 
