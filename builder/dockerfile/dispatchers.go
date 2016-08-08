@@ -155,7 +155,7 @@ func label(b *Builder, args []string, attributes map[string]bool, original strin
 //
 func add(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) < 2 {
-		return errAtLeastOneArgument("ADD")
+		return errAtLeastTwoArguments("ADD")
 	}
 
 	if err := b.flags.Parse(); err != nil {
@@ -171,7 +171,7 @@ func add(b *Builder, args []string, attributes map[string]bool, original string)
 //
 func dispatchCopy(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) < 2 {
-		return errAtLeastOneArgument("COPY")
+		return errAtLeastTwoArguments("COPY")
 	}
 
 	if err := b.flags.Parse(); err != nil {
@@ -758,6 +758,10 @@ func errAtLeastOneArgument(command string) error {
 
 func errExactlyOneArgument(command string) error {
 	return fmt.Errorf("%s requires exactly one argument", command)
+}
+
+func errAtLeastTwoArguments(command string) error {
+	return fmt.Errorf("%s requires at least two arguments", command)
 }
 
 func errTooManyArguments(command string) error {

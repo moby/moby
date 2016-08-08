@@ -28,7 +28,7 @@ func initDispatchTestCases() []dispatchTestCase {
 		dockerfile: `COPY
 	quux \
       bar`,
-		expectedError: "COPY requires at least one argument",
+		expectedError: "COPY requires at least two arguments",
 	},
 		{
 			name:          "ONBUILD forbidden FROM",
