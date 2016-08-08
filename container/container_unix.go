@@ -283,6 +283,11 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 		cResources.CpusetMems = resources.CpusetMems
 	}
 	if resources.Memory != 0 {
+		// if memory limit smaller than already set memoryswap limit and doesn't
+		// update the memoryswap limit, then error out.
+		if resources.Memory > cResources.MemorySwap && resources.MemorySwap == 0 {
+			return fmt.Errorf("Memory limit should be smaller than already set memoryswap limit, update the memoryswap at the same time")
+		}
 		cResources.Memory = resources.Memory
 	}
 	if resources.MemorySwap != 0 {

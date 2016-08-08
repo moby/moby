@@ -67,6 +67,12 @@ a running container with kernel memory initialized.
 **-m**, **--memory**=""
    Memory limit (format: <number><optional unit>, where unit = b, k, m or g)
 
+   Note that the memory should be smaller than the already set swap memory limit.
+   If you want update a memory limit bigger than the already set swap memory limit,
+   you should update swap memory limit at the same time. If you don't set swap memory 
+   limit on docker create/run but only memory limit, the swap memory is double
+   the memory limit.
+
 **--memory-reservation**=""
    Memory soft limit (format: <number>[<unit>], where unit = b, k, m or g)
 
