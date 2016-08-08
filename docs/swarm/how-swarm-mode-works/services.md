@@ -68,7 +68,7 @@ The underlying logic of Docker swarm mode is a general purpose scheduler and
 orchestrator.  The service and task abstractions themselves are unaware of the
 containers they implement.  Hypothetically, you could implement other types of
 tasks such as virtual machine tasks or non-containerized process tasks.  The
-scheduler and orchestrator are agnostic about they type of task. However, the
+scheduler and orchestrator are agnostic about their type of task. However, the
 current version of Docker only supports container tasks.
 
 The diagram below shows how swarm mode accepts service create requests and
