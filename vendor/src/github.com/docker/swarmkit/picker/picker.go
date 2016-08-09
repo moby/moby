@@ -185,7 +185,7 @@ func clip(x float64) float64 {
 func (mwr *remotesWeightedRandom) observe(peer api.Peer, weight float64) {
 
 	// While we have a decent, ad-hoc approach here to weight subsequent
-	// observerations, we may want to look into applying forward decay:
+	// observations, we may want to look into applying forward decay:
 	//
 	//  http://dimacs.rutgers.edu/~graham/pubs/papers/fwddecay.pdf
 	//

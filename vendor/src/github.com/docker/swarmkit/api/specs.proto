@@ -160,7 +160,14 @@ message ContainerSpec {
 	string dir = 6;
 
 	// User specifies the user that should be employed to run the container.
+	//
+	// Note that the primary group may be specified by appending the group name
+	// or id to the user name, separated by a `:`. This syntax is
+	// `<user>:<group>`.
 	string user = 7;
+
+	// Groups specifies supplementary groups available to the user.
+	repeated string groups = 11;
 
 	repeated Mount mounts = 8 [(gogoproto.nullable) = false];
 

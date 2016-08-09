@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/docker/swarmkit/api"
@@ -31,11 +32,13 @@ type Agent struct {
 	sessionq chan sessionOperation
 	worker   Worker
 
-	started chan struct{}
-	ready   chan struct{}
-	stopped chan struct{} // requests shutdown
-	closed  chan struct{} // only closed in run
-	err     error         // read only after closed is closed
+	started   chan struct{}
+	startOnce sync.Once // start only once
+	ready     chan struct{}
+	stopped   chan struct{} // requests shutdown
+	stopOnce  sync.Once     // only allow stop to be called once
+	closed    chan struct{} // only closed in run
+	err       error         // read only after closed is closed
 }
 
 // New returns a new agent, ready for task dispatch.
@@ -59,57 +62,50 @@ func New(config *Config) (*Agent, error) {
 
 // Start begins execution of the agent in the provided context, if not already
 // started.
+//
+// Start returns an error if the agent has already started.
 func (a *Agent) Start(ctx context.Context) error {
-	select {
-	case <-a.started:
-		select {
-		case <-a.closed:
-			return a.err
-		case <-a.stopped:
-			return errAgentStopped
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-			return errAgentStarted
-		}
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-	}
+	err := errAgentStarted
 
-	close(a.started)
-	go a.run(ctx)
+	a.startOnce.Do(func() {
+		close(a.started)
+		go a.run(ctx)
+		err = nil // clear error above, only once.
+	})
 
-	return nil
+	return err
 }
 
 // Stop shuts down the agent, blocking until full shutdown. If the agent is not
-// started, Stop will block until Started.
+// started, Stop will block until the agent has fully shutdown.
 func (a *Agent) Stop(ctx context.Context) error {
 	select {
 	case <-a.started:
-		select {
-		case <-a.closed:
-			return a.err
-		case <-a.stopped:
-			select {
-			case <-a.closed:
-				return a.err
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-			close(a.stopped)
-			// recurse and wait for closure
-			return a.Stop(ctx)
-		}
-	case <-ctx.Done():
-		return ctx.Err()
 	default:
 		return errAgentNotStarted
 	}
+
+	a.stop()
+
+	// wait till closed or context cancelled
+	select {
+	case <-a.closed:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// stop signals the agent shutdown process, returning true if this call was the
+// first to actually shutdown the agent.
+func (a *Agent) stop() bool {
+	var stopped bool
+	a.stopOnce.Do(func() {
+		close(a.stopped)
+		stopped = true
+	})
+
+	return stopped
 }
 
 // Err returns the error that caused the agent to shutdown or nil. Err blocks
@@ -133,7 +129,7 @@ func (a *Agent) run(ctx context.Context) {
 	defer cancel()
 	defer close(a.closed) // full shutdown.
 
-	ctx = log.WithLogger(ctx, log.G(ctx).WithField("module", "agent"))
+	ctx = log.WithModule(ctx, "agent")
 
 	log.G(ctx).Debugf("(*Agent).run")
 	defer log.G(ctx).Debugf("(*Agent).run exited")
@@ -197,11 +193,6 @@ func (a *Agent) run(ctx context.Context) {
 			sessionq = nil
 			// if we're here before <-registered, do nothing for that event
 			registered = nil
-
-			// Bounce the connection.
-			if a.config.Picker != nil {
-				a.config.Picker.Reset()
-			}
 		case <-session.closed:
 			log.G(ctx).Debugf("agent: rebuild session")
 
@@ -218,6 +209,7 @@ func (a *Agent) run(ctx context.Context) {
 			if a.err == nil {
 				a.err = ctx.Err()
 			}
+			session.close()
 
 			return
 		}

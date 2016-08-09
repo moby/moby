@@ -122,7 +122,6 @@ func (k *KeyManager) updateKey(cluster *api.Cluster) error {
 }
 
 func (k *KeyManager) rotateKey(ctx context.Context) error {
-	log := log.G(ctx).WithField("module", "keymanager")
 	var (
 		clusters []*api.Cluster
 		err      error
@@ -132,7 +131,7 @@ func (k *KeyManager) rotateKey(ctx context.Context) error {
 	})
 
 	if err != nil {
-		log.Errorf("reading cluster config failed, %v", err)
+		log.G(ctx).Errorf("reading cluster config failed, %v", err)
 		return err
 	}
 
@@ -173,7 +172,7 @@ func (k *KeyManager) rotateKey(ctx context.Context) error {
 // Run starts the keymanager, it doesn't return
 func (k *KeyManager) Run(ctx context.Context) error {
 	k.mu.Lock()
-	log := log.G(ctx).WithField("module", "keymanager")
+	ctx = log.WithModule(ctx, "keymanager")
 	var (
 		clusters []*api.Cluster
 		err      error
@@ -183,7 +182,7 @@ func (k *KeyManager) Run(ctx context.Context) error {
 	})
 
 	if err != nil {
-		log.Errorf("reading cluster config failed, %v", err)
+		log.G(ctx).Errorf("reading cluster config failed, %v", err)
 		k.mu.Unlock()
 		return err
 	}
@@ -196,7 +195,7 @@ func (k *KeyManager) Run(ctx context.Context) error {
 			}
 		}
 		if err := k.updateKey(cluster); err != nil {
-			log.Errorf("store update failed %v", err)
+			log.G(ctx).Errorf("store update failed %v", err)
 		}
 	} else {
 		k.keyRing.lClock = cluster.EncryptionKeyLamportClock
