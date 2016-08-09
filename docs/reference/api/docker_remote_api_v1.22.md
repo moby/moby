@@ -2608,6 +2608,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 **Example request**
 
     POST /images/load
+    Content-Type: application/x-tar
 
     Tarball in body
 
