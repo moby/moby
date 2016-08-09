@@ -73,6 +73,7 @@ func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
 
 	if os.Getenv("ConEmuANSI") == "ON" {
 		// The ConEmu terminal emulates ANSI on output streams well.
+		emulateStdin = true
 		emulateStdout = false
 		emulateStderr = false
 	}
