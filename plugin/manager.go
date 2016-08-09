@@ -321,7 +321,7 @@ func (pm *Manager) init() error {
 
 			if requiresManualRestore {
 				// if liveRestore is not enabled, the plugin will be stopped now so we should enable it
-				if err := pm.enable(p); err != nil {
+				if err := pm.enable(p, true); err != nil {
 					logrus.Errorf("failed to enable plugin '%s': %s", p.Name(), err)
 				}
 			}

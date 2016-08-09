@@ -20,8 +20,8 @@ import (
 	"github.com/opencontainers/specs/specs-go"
 )
 
-func (pm *Manager) enable(p *plugin) error {
-	if p.PluginObj.Active {
+func (pm *Manager) enable(p *plugin, force bool) error {
+	if p.PluginObj.Active && !force {
 		return fmt.Errorf("plugin %s is already enabled", p.Name())
 	}
 	spec, err := pm.initSpec(p)
