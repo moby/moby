@@ -3,7 +3,6 @@ package container
 import (
 	"fmt"
 	"strconv"
-	"time"
 
 	"golang.org/x/net/context"
 
@@ -16,16 +15,18 @@ import (
 	"github.com/docker/engine-api/types/filters"
 )
 
-func waitExitOrRemoved(dockerCli *client.DockerCli, ctx context.Context, containerID string, waitRemove bool, since time.Time) (int, error) {
+func waitExitOrRemoved(dockerCli *client.DockerCli, ctx context.Context, containerID string, waitRemove bool) (chan int, error) {
 	if len(containerID) == 0 {
 		// containerID can never be empty
 		panic("Internal Error: waitExitOrRemoved needs a containerID as parameter")
 	}
 
 	var exitCode int
+	statusChan := make(chan int)
 	exitChan := make(chan struct{})
 	detachChan := make(chan struct{})
 	destroyChan := make(chan struct{})
+	eventsErr := make(chan error)
 
 	// Start watch events
 	eh := system.InitEventHandler()
@@ -54,45 +55,59 @@ func waitExitOrRemoved(dockerCli *client.DockerCli, ctx context.Context, contain
 
 	eventChan := make(chan events.Message)
 	go eh.Watch(eventChan)
-	defer close(eventChan)
 
 	// Get events via Events API
 	f := filters.NewArgs()
 	f.Add("type", "container")
 	f.Add("container", containerID)
 	options := types.EventsOptions{
-		Since:   fmt.Sprintf("%d", since.Unix()),
 		Filters: f,
 	}
 	resBody, err := dockerCli.Client().Events(ctx, options)
 	if err != nil {
-		return -1, fmt.Errorf("can't get events from daemon: %v", err)
+		return nil, fmt.Errorf("can't get events from daemon: %v", err)
 	}
-	defer resBody.Close()
 
-	go system.DecodeEvents(resBody, func(event events.Message, err error) error {
-		if err != nil {
+	go func() {
+		eventsErr <- system.DecodeEvents(resBody, func(event events.Message, err error) error {
+			if err != nil {
+				return fmt.Errorf("decode events error: %v", err)
+			}
+			eventChan <- event
 			return nil
-		}
-		eventChan <- event
-		return nil
-	})
+		})
+		close(eventChan)
+	}()
 
-	if waitRemove {
-		select {
-		case <-destroyChan:
-			return exitCode, nil
-		case <-detachChan:
-			return 0, nil
+	go func() {
+		var waitErr error
+		if waitRemove {
+			select {
+			case <-destroyChan:
+				// keep exitcode and return
+			case <-detachChan:
+				exitCode = 0
+			case waitErr = <-eventsErr:
+				exitCode = 125
+			}
+		} else {
+			select {
+			case <-exitChan:
+				// keep exitcode and return
+			case <-detachChan:
+				exitCode = 0
+			case waitErr = <-eventsErr:
+				exitCode = 125
+			}
 		}
-	} else {
-		select {
-		case <-exitChan:
-			return exitCode, nil
-		case <-detachChan:
-			return 0, nil
+		if waitErr != nil {
+			logrus.Errorf("%v", waitErr)
 		}
-	}
+		statusChan <- exitCode
+
+		resBody.Close()
+	}()
+	return statusChan, nil
 }
 
 // getExitCode performs an inspect on the container. It returns

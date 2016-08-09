@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
-	"time"
 
 	"golang.org/x/net/context"
 
@@ -144,7 +143,6 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 		hostConfig.ConsoleSize[0], hostConfig.ConsoleSize[1] = dockerCli.GetTtySize()
 	}
 
-	startTime := time.Now()
 	ctx, cancelFun := context.WithCancel(context.Background())
 
 	createResponse, err := createContainer(ctx, dockerCli, config, hostConfig, networkingConfig, hostConfig.ContainerIDFile, opts.name)
@@ -221,6 +219,11 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 		})
 	}
 
+	statusChan, err := waitExitOrRemoved(dockerCli, context.Background(), createResponse.ID, hostConfig.AutoRemove)
+	if err != nil {
+		return fmt.Errorf("Error waiting container's exit code: %v", err)
+	}
+
 	//start the container
 	if err := client.ContainerStart(ctx, createResponse.ID, types.ContainerStartOptions{}); err != nil {
 		// If we have holdHijackedConnection, we should notify
@@ -233,9 +236,8 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 
 		reportError(stderr, cmdPath, err.Error(), false)
 		if hostConfig.AutoRemove {
-			if _, errWait := waitExitOrRemoved(dockerCli, context.Background(), createResponse.ID, hostConfig.AutoRemove, startTime); errWait != nil {
-				logrus.Debugf("Error waiting container's removal: %v", errWait)
-			}
+			// wait container to be removed
+			<-statusChan
 		}
 		return runStartContainerErr(err)
 	}
@@ -260,14 +262,7 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 		return nil
 	}
 
-	var status int
-
-	// Attached mode
-	status, err = waitExitOrRemoved(dockerCli, ctx, createResponse.ID, hostConfig.AutoRemove, startTime)
-	if err != nil {
-		return fmt.Errorf("Error waiting container to exit: %v", err)
-	}
-
+	status := <-statusChan
 	if status != 0 {
 		return cli.StatusError{StatusCode: status}
 	}
