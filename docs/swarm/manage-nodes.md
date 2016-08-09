@@ -69,25 +69,26 @@ pass the `--pretty` flag to print the results in human-readable format. For exam
 ```bash
 docker node inspect self --pretty
 
-ID:			ehkv3bcimagdese79dn78otj5
-Hostname:		node-1
+ID:                     ehkv3bcimagdese79dn78otj5
+Hostname:               node-1
+Joined at:              2016-06-16 22:52:44.9910662 +0000 utc
 Status:
- State:			Ready
- Availability:		Active
+ State:                 Ready
+ Availability:          Active
 Manager Status:
- Address:		172.17.0.2:2377
- Raft Status:		Reachable
- Leader:		Yes
+ Address:               172.17.0.2:2377
+ Raft Status:           Reachable
+ Leader:                Yes
 Platform:
- Operating System:	linux
- Architecture:		x86_64
+ Operating System:      linux
+ Architecture:          x86_64
 Resources:
- CPUs:			2
- Memory:		1.954 GiB
+ CPUs:                  2
+ Memory:                1.954 GiB
 Plugins:
-  Network:		overlay, host, bridge, overlay, null
-  Volume:		local
-Engine Version:		1.12.0-dev
+  Network:              overlay, host, bridge, overlay, null
+  Volume:               local
+Engine Version:         1.12.0-dev
 ```
 
 ## Update a node
