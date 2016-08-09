@@ -302,7 +302,7 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 	}
 
 	if _, ok := result["bar"]; !ok {
-		c.Fatal("Could not find volume bar set from env foo in volumes table")
+		c.Fatalf("Could not find volume bar set from env foo in volumes table, got %q", result)
 	}
 
 	deleteImages(name)
@@ -325,7 +325,7 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 	}
 
 	if _, ok := result["${FOO}"]; !ok {
-		c.Fatal("Could not find volume ${FOO} set from env foo in volumes table")
+		c.Fatalf("Could not find volume ${FOO} set from env foo in volumes table, got %q", result)
 	}
 
 	deleteImages(name)
@@ -352,7 +352,7 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 	}
 
 	if _, ok := result[`\\\${FOO}`]; !ok {
-		c.Fatal(`Could not find volume \\\${FOO} set from env foo in volumes table`, result)
+		c.Fatalf(`Could not find volume \\\${FOO} set from env foo in volumes table, got %q`, result)
 	}
 
 }
