@@ -241,7 +241,7 @@ func (s *DockerSuite) TestRestartContainerwithRestartPolicy(c *check.C) {
 	dockerCmd(c, "start", id2)
 }
 
-func (s *DockerSuite) TestRestartAutoRmoveContainer(c *check.C) {
+func (s *DockerSuite) TestRestartAutoRemoveContainer(c *check.C) {
 	out, _ := runSleepingContainer(c, "--rm")
 
 	id := strings.TrimSpace(string(out))
