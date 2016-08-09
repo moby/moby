@@ -170,7 +170,7 @@ Set storage driver options per container.
 
 This (size) will allow to set the container rootfs size to 120G at creation time. 
 User cannot pass a size less than the Default BaseFS Size. This option is only 
-available for the `devicemapper`, `btrfs`, and `zfs` graph drivers.
+available for the `devicemapper`, `btrfs`, `windowsfilter`, and `zfs` graph drivers.
 
 ### Specify isolation technology for container (--isolation)
 
