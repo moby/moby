@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/engine-api/types"
 	containertypes "github.com/docker/engine-api/types/container"
 )
@@ -19,6 +20,7 @@ func TestContainerDoubleDelete(t *testing.T) {
 	daemon := &Daemon{
 		repository: tmp,
 		root:       tmp,
+		opLock:     locker.New(),
 	}
 	daemon.containers = container.NewMemoryStore()
 

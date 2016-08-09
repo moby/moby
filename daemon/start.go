@@ -24,6 +24,8 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 	if err != nil {
 		return err
 	}
+	daemon.opLock.Lock(container.ID)
+	defer daemon.opLock.Unlock(container.ID)
 
 	if container.IsPaused() {
 		return fmt.Errorf("Cannot start a paused container, try unpause instead.")
@@ -78,11 +80,6 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 		return err
 	}
 
-	return daemon.containerStart(container)
-}
-
-// Start starts a container
-func (daemon *Daemon) Start(container *container.Container) error {
 	return daemon.containerStart(container)
 }
 

@@ -18,6 +18,9 @@ func (daemon *Daemon) ContainerRestart(name string, seconds int) error {
 	if err != nil {
 		return err
 	}
+
+	daemon.opLock.Lock(container.ID)
+	defer daemon.opLock.Unlock(container.ID)
 	if err := daemon.containerRestart(container, seconds); err != nil {
 		return fmt.Errorf("Cannot restart container %s: %v", name, err)
 	}

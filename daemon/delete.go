@@ -24,6 +24,9 @@ func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) 
 		return err
 	}
 
+	daemon.opLock.Lock(container.ID)
+	defer daemon.opLock.Unlock(container.ID)
+
 	// Container state RemovalInProgress should be used to avoid races.
 	if inProgress := container.SetRemovalInProgress(); inProgress {
 		return nil

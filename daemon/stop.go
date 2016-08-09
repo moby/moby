@@ -25,6 +25,10 @@ func (daemon *Daemon) ContainerStop(name string, seconds int) error {
 		err := fmt.Errorf("Container %s is already stopped", name)
 		return errors.NewErrorWithStatusCode(err, http.StatusNotModified)
 	}
+
+	daemon.opLock.Lock(container.ID)
+	defer daemon.opLock.Unlock(container.ID)
+
 	if err := daemon.containerStop(container, seconds); err != nil {
 		return fmt.Errorf("Cannot stop container %s: %v", name, err)
 	}
