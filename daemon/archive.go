@@ -30,6 +30,9 @@ func (daemon *Daemon) ContainerCopy(name string, res string) (io.ReadCloser, err
 		return nil, err
 	}
 
+	daemon.opLock.Lock(container.ID)
+	defer daemon.opLock.Unlock(container.ID)
+
 	if res[0] == '/' || res[0] == '\\' {
 		res = res[1:]
 	}
@@ -45,6 +48,9 @@ func (daemon *Daemon) ContainerStatPath(name string, path string) (stat *types.C
 		return nil, err
 	}
 
+	daemon.opLock.Lock(container.ID)
+	defer daemon.opLock.Unlock(container.ID)
+
 	return daemon.containerStatPath(container, path)
 }
 
@@ -56,6 +62,9 @@ func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io
 	if err != nil {
 		return nil, nil, err
 	}
+
+	daemon.opLock.Lock(container.ID)
+	defer daemon.opLock.Unlock(container.ID)
 
 	return daemon.containerArchivePath(container, path)
 }
@@ -72,15 +81,15 @@ func (daemon *Daemon) ContainerExtractToDir(name, path string, noOverwriteDirNon
 		return err
 	}
 
+	daemon.opLock.Lock(container.ID)
+	defer daemon.opLock.Unlock(container.ID)
+
 	return daemon.containerExtractToDir(container, path, noOverwriteDirNonDir, content)
 }
 
 // containerStatPath stats the filesystem resource at the specified path in this
 // container. Returns stat info about the resource.
 func (daemon *Daemon) containerStatPath(container *container.Container, path string) (stat *types.ContainerPathStat, err error) {
-	container.Lock()
-	defer container.Unlock()
-
 	if err = daemon.Mount(container); err != nil {
 		return nil, err
 	}
@@ -104,16 +113,6 @@ func (daemon *Daemon) containerStatPath(container *container.Container, path str
 // path in this container. Returns a tar archive of the resource and stat info
 // about the resource.
 func (daemon *Daemon) containerArchivePath(container *container.Container, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error) {
-	container.Lock()
-
-	defer func() {
-		if err != nil {
-			// Wait to unlock the container until the archive is fully read
-			// (see the ReadCloseWrapper func below) or if there is an error
-			// before that occurs.
-			container.Unlock()
-		}
-	}()
 
 	if err = daemon.Mount(container); err != nil {
 		return nil, nil, err
@@ -159,12 +158,10 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 		err := data.Close()
 		container.UnmountVolumes(true, daemon.LogVolumeEvent)
 		daemon.Unmount(container)
-		container.Unlock()
 		return err
 	})
 
 	daemon.LogContainerEvent(container, "archive-path")
-
 	return content, stat, nil
 }
 
@@ -175,9 +172,6 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 // given content would cause an existing directory to be replaced with a non-
 // directory and vice versa.
 func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, noOverwriteDirNonDir bool, content io.Reader) (err error) {
-	container.Lock()
-	defer container.Unlock()
-
 	if err = daemon.Mount(container); err != nil {
 		return err
 	}
@@ -274,17 +268,6 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 }
 
 func (daemon *Daemon) containerCopy(container *container.Container, resource string) (rc io.ReadCloser, err error) {
-	container.Lock()
-
-	defer func() {
-		if err != nil {
-			// Wait to unlock the container until the archive is fully read
-			// (see the ReadCloseWrapper func below) or if there is an error
-			// before that occurs.
-			container.Unlock()
-		}
-	}()
-
 	if err := daemon.Mount(container); err != nil {
 		return nil, err
 	}
@@ -331,7 +314,6 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 		err := archive.Close()
 		container.UnmountVolumes(true, daemon.LogVolumeEvent)
 		daemon.Unmount(container)
-		container.Unlock()
 		return err
 	})
 	daemon.LogContainerEvent(container, "copy")
@@ -355,6 +337,10 @@ func (daemon *Daemon) CopyOnBuild(cID string, destPath string, src builder.FileI
 	if err != nil {
 		return err
 	}
+
+	daemon.opLock.Lock(c.ID)
+	defer daemon.opLock.Unlock(c.ID)
+
 	err = daemon.Mount(c)
 	if err != nil {
 		return err
