@@ -3350,7 +3350,446 @@ Instruct the driver to remove the network (`id`).
 -   **404** - no such network
 -   **500** - server error
 
-## 3.6 Nodes
+## 3.6 Plugins (experimental)
+
+### List plugins
+
+`GET /plugins`
+
+Returns information about installed plugins.
+
+**Example request**:
+
+    GET /plugins HTTP/1.1
+
+**Example response**:
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+[
+  {
+    "Id": "5724e2c8652da337ab2eedd19fc6fc0ec908e4bd907c7421bf6a8dfc70c4c078",
+    "Name": "tiborvass/no-remove",
+    "Tag": "latest",
+    "Active": true,
+    "Config": {
+      "Mounts": [
+        {
+          "Name": "",
+          "Description": "",
+          "Settable": null,
+          "Source": "/data",
+          "Destination": "/data",
+          "Type": "bind",
+          "Options": [
+            "shared",
+            "rbind"
+          ]
+        },
+        {
+          "Name": "",
+          "Description": "",
+          "Settable": null,
+          "Source": null,
+          "Destination": "/foobar",
+          "Type": "tmpfs",
+          "Options": null
+        }
+      ],
+      "Env": [
+        "DEBUG=1"
+      ],
+      "Args": null,
+      "Devices": null
+    },
+    "Manifest": {
+      "ManifestVersion": "v0",
+      "Description": "A test plugin for Docker",
+      "Documentation": "https://docs.docker.com/engine/extend/plugins/",
+      "Interface": {
+        "Types": [
+          "docker.volumedriver/1.0"
+        ],
+        "Socket": "plugins.sock"
+      },
+      "Entrypoint": [
+        "plugin-no-remove",
+        "/data"
+      ],
+      "Workdir": "",
+      "User": {
+      },
+      "Network": {
+        "Type": "host"
+      },
+      "Capabilities": null,
+      "Mounts": [
+        {
+          "Name": "",
+          "Description": "",
+          "Settable": null,
+          "Source": "/data",
+          "Destination": "/data",
+          "Type": "bind",
+          "Options": [
+            "shared",
+            "rbind"
+          ]
+        },
+        {
+          "Name": "",
+          "Description": "",
+          "Settable": null,
+          "Source": null,
+          "Destination": "/foobar",
+          "Type": "tmpfs",
+          "Options": null
+        }
+      ],
+      "Devices": [
+        {
+          "Name": "device",
+          "Description": "a host device to mount",
+          "Settable": null,
+          "Path": "/dev/cpu_dma_latency"
+        }
+      ],
+      "Env": [
+        {
+          "Name": "DEBUG",
+          "Description": "If set, prints debug messages",
+          "Settable": null,
+          "Value": "1"
+        }
+      ],
+      "Args": {
+        "Name": "args",
+        "Description": "command line arguments",
+        "Settable": null,
+        "Value": [
+
+        ]
+      }
+    }
+  }
+]
+```
+
+**Status codes**:
+
+-   **200** - no error
+-   **500** - server error
+
+### Install a plugin
+
+`POST /plugins/pull?name=<plugin name>`
+
+Pulls and installs a plugin. After the plugin is installed, it can be enabled
+using the [`POST /plugins/(plugin name)/enable` endpoint](#enable-a-plugin).
+
+**Example request**:
+
+```
+POST /plugins/pull?name=tiborvass/no-remove:latest HTTP/1.1
+```
+
+The `:latest` tag is optional, and is used as default if omitted. When using
+this endpoint to pull a plugin from the registry, the `X-Registry-Auth` header
+can be used to include a base64-encoded AuthConfig object. Refer to the [create
+an image](#create-an-image) section for more details.
+
+**Example response**:
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+Content-Length: 175
+
+[
+  {
+    "Name": "network",
+    "Description": "",
+    "Value": [
+      "host"
+    ]
+  },
+  {
+    "Name": "mount",
+    "Description": "",
+    "Value": [
+      "/data"
+    ]
+  },
+  {
+    "Name": "device",
+    "Description": "",
+    "Value": [
+      "/dev/cpu_dma_latency"
+    ]
+  }
+]
+```
+
+**Query parameters**:
+
+- **name** -  Name of the plugin to pull. The name may include a tag or digest.
+    This parameter is required.
+
+**Status codes**:
+
+-   **200** - no error
+-   **500** - error parsing reference / not a valid repository/tag: repository
+      name must have at least one component
+-   **500** - plugin already exists
+
+### Inspect a plugin
+
+`GET /plugins/(plugin name)`
+
+Returns detailed information about an installed plugin.
+
+**Example request**:
+
+```
+GET /plugins/tiborvass/no-remove:latest HTTP/1.1
+```
+
+The `:latest` tag is optional, and is used as default if omitted.
+
+
+**Example response**:
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "Id": "5724e2c8652da337ab2eedd19fc6fc0ec908e4bd907c7421bf6a8dfc70c4c078",
+  "Name": "tiborvass/no-remove",
+  "Tag": "latest",
+  "Active": false,
+  "Config": {
+    "Mounts": [
+      {
+        "Name": "",
+        "Description": "",
+        "Settable": null,
+        "Source": "/data",
+        "Destination": "/data",
+        "Type": "bind",
+        "Options": [
+          "shared",
+          "rbind"
+        ]
+      },
+      {
+        "Name": "",
+        "Description": "",
+        "Settable": null,
+        "Source": null,
+        "Destination": "/foobar",
+        "Type": "tmpfs",
+        "Options": null
+      }
+    ],
+    "Env": [
+      "DEBUG=1"
+    ],
+    "Args": null,
+    "Devices": null
+  },
+  "Manifest": {
+    "ManifestVersion": "v0",
+    "Description": "A test plugin for Docker",
+    "Documentation": "https://docs.docker.com/engine/extend/plugins/",
+    "Interface": {
+      "Types": [
+        "docker.volumedriver/1.0"
+      ],
+      "Socket": "plugins.sock"
+    },
+    "Entrypoint": [
+      "plugin-no-remove",
+      "/data"
+    ],
+    "Workdir": "",
+    "User": {
+    },
+    "Network": {
+      "Type": "host"
+    },
+    "Capabilities": null,
+    "Mounts": [
+      {
+        "Name": "",
+        "Description": "",
+        "Settable": null,
+        "Source": "/data",
+        "Destination": "/data",
+        "Type": "bind",
+        "Options": [
+          "shared",
+          "rbind"
+        ]
+      },
+      {
+        "Name": "",
+        "Description": "",
+        "Settable": null,
+        "Source": null,
+        "Destination": "/foobar",
+        "Type": "tmpfs",
+        "Options": null
+      }
+    ],
+    "Devices": [
+      {
+        "Name": "device",
+        "Description": "a host device to mount",
+        "Settable": null,
+        "Path": "/dev/cpu_dma_latency"
+      }
+    ],
+    "Env": [
+      {
+        "Name": "DEBUG",
+        "Description": "If set, prints debug messages",
+        "Settable": null,
+        "Value": "1"
+      }
+    ],
+    "Args": {
+      "Name": "args",
+      "Description": "command line arguments",
+      "Settable": null,
+      "Value": [
+
+      ]
+    }
+  }
+}
+```
+
+**Status codes**:
+
+-   **200** - no error
+-   **404** - plugin not installed
+
+### Enable a plugin
+
+`POST /plugins/(plugin name)/enable`
+
+Enables a plugin
+
+**Example request**:
+
+```
+POST /plugins/tiborvass/no-remove:latest/enable HTTP/1.1
+```
+
+The `:latest` tag is optional, and is used as default if omitted.
+
+
+**Example response**:
+
+```
+HTTP/1.1 200 OK
+Content-Length: 0
+Content-Type: text/plain; charset=utf-8
+```
+
+**Status codes**:
+
+-   **200** - no error
+-   **500** - plugin is already enabled
+
+### Disable a plugin
+
+`POST /plugins/(plugin name)/disable`
+
+Disables a plugin
+
+**Example request**:
+
+```
+POST /plugins/tiborvass/no-remove:latest/disable HTTP/1.1
+```
+
+The `:latest` tag is optional, and is used as default if omitted.
+
+
+**Example response**:
+
+```
+HTTP/1.1 200 OK
+Content-Length: 0
+Content-Type: text/plain; charset=utf-8
+```
+
+**Status codes**:
+
+-   **200** - no error
+-   **500** - plugin is already disabled
+
+### Remove a plugin
+
+`DELETE /plugins/(plugin name)`
+
+Removes a plugin
+
+**Example request**:
+
+```
+DELETE /plugins/tiborvass/no-remove:latest HTTP/1.1
+```
+
+The `:latest` tag is optional, and is used as default if omitted.
+
+**Example response**:
+
+```
+HTTP/1.1 200 OK
+Content-Length: 0
+Content-Type: text/plain; charset=utf-8
+```
+
+**Status codes**:
+
+-   **200** - no error
+-   **404** - plugin not installed
+-   **500** - plugin is active
+
+<!-- TODO Document "docker plugin push" endpoint once we have "plugin build"
+
+### Push a plugin
+
+`POST /plugins/tiborvass/(plugin name)/push HTTP/1.1`
+
+Pushes a plugin to the registry.
+
+**Example request**:
+
+```
+POST /plugins/tiborvass/no-remove:latest HTTP/1.1
+```
+
+The `:latest` tag is optional, and is used as default if omitted. When using
+this endpoint to push a plugin to the registry, the `X-Registry-Auth` header
+can be used to include a base64-encoded AuthConfig object. Refer to the [create
+an image](#create-an-image) section for more details.
+
+**Example response**:
+
+**Status codes**:
+
+-   **200** - no error
+-   **404** - plugin not installed
+
+-->
+
+## 3.7 Nodes
 
 **Note**: Node operations require the engine to be part of a swarm.
 
@@ -3611,7 +4050,7 @@ JSON Parameters:
 -   **404** – no such node
 -   **500** – server error
 
-## 3.7 Swarm
+## 3.8 Swarm
 
 ### Initialize a new swarm
 
@@ -3830,7 +4269,7 @@ JSON Parameters:
     - **Worker** - Token to use for joining as a worker.
     - **Manager** - Token to use for joining as a manager.
 
-## 3.8 Services
+## 3.9 Services
 
 **Note**: Service operations require to first be part of a swarm.
 
@@ -4315,7 +4754,7 @@ Update the service `id`.
 -   **404** – no such service
 -   **500** – server error
 
-## 3.9 Tasks
+## 3.10 Tasks
 
 **Note**: Task operations require the engine to be part of a swarm.
 
