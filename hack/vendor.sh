@@ -19,7 +19,12 @@ case $# in
 	;;
 # If user passed arguments to the script
 1)
-	eval "$(grep -E "^clone [^ ]+ $1" "$0")"
+	path="$PWD/hack/vendor.sh"
+	if ! cloneGrep="$(grep -E "^clone [^ ]+ $1" "$path")"; then
+		echo >&2 "error: failed to find 'clone ... $1' in $path"
+		exit 1
+	fi
+	eval "$cloneGrep"
 	clean
 	exit 0
 	;;
