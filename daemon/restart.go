@@ -3,7 +3,6 @@ package daemon
 import (
 	"fmt"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 )
 
@@ -36,25 +35,11 @@ func (daemon *Daemon) containerRestart(container *container.Container, seconds i
 		defer daemon.Unmount(container)
 	}
 
-	// set AutoRemove flag to false before stop so the container won't be
-	// removed during restart process
-	autoRemove := container.HostConfig.AutoRemove
-
-	container.HostConfig.AutoRemove = false
-	err := daemon.containerStop(container, seconds)
-	// restore AutoRemove irrespective of whether the stop worked or not
-	container.HostConfig.AutoRemove = autoRemove
-	// containerStop will write HostConfig to disk, we shall restore AutoRemove
-	// in disk too
-	if toDiskErr := container.ToDiskLocking(); toDiskErr != nil {
-		logrus.Errorf("Write container to disk error: %v", toDiskErr)
-	}
-
-	if err != nil {
+	if err := daemon.containerStop(container, seconds); err != nil {
 		return err
 	}
 
-	if err = daemon.containerStart(container); err != nil {
+	if err := daemon.containerStart(container); err != nil {
 		return err
 	}
 

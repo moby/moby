@@ -147,7 +147,6 @@ func (daemon *Daemon) restore() error {
 	}
 
 	var migrateLegacyLinks bool
-	removeContainers := make(map[string]*container.Container)
 	restartContainers := make(map[*container.Container]chan struct{})
 	activeSandboxes := make(map[string]interface{})
 	for _, c := range containers {
@@ -195,14 +194,10 @@ func (daemon *Daemon) restore() error {
 			}
 			// fixme: only if not running
 			// get list of containers we need to restart
-			if !c.IsRunning() && !c.IsPaused() {
-				if daemon.configStore.AutoRestart && c.ShouldRestart() {
-					mapLock.Lock()
-					restartContainers[c] = make(chan struct{})
-					mapLock.Unlock()
-				} else if c.HostConfig != nil && c.HostConfig.AutoRemove {
-					removeContainers[c.ID] = c
-				}
+			if daemon.configStore.AutoRestart && !c.IsRunning() && !c.IsPaused() && c.ShouldRestart() {
+				mapLock.Lock()
+				restartContainers[c] = make(chan struct{})
+				mapLock.Unlock()
 			}
 
 			if c.RemovalInProgress {
@@ -288,18 +283,6 @@ func (daemon *Daemon) restore() error {
 	}
 	group.Wait()
 
-	removeGroup := sync.WaitGroup{}
-	for id := range removeContainers {
-		removeGroup.Add(1)
-		go func(cid string) {
-			if err := daemon.ContainerRm(cid, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
-				logrus.Errorf("Failed to remove container %s: %s", cid, err)
-			}
-			removeGroup.Done()
-		}(id)
-	}
-	removeGroup.Wait()
-
 	// any containers that were started above would already have had this done,
 	// however we need to now prepare the mountpoints for the rest of the containers as well.
 	// This shouldn't cause any issue running on the containers that already had this run.
@@ -312,11 +295,7 @@ func (daemon *Daemon) restore() error {
 		// has a volume and the volume dirver is not available.
 		if _, ok := restartContainers[c]; ok {
 			continue
-		} else if _, ok := removeContainers[c.ID]; ok {
-			// container is automatically removed, skip it.
-			continue
 		}
-
 		group.Add(1)
 		go func(c *container.Container) {
 			defer group.Done()
