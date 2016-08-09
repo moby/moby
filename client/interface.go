@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
@@ -120,7 +121,7 @@ type SwarmAPIClient interface {
 
 // SystemAPIClient defines API client methods for the system
 type SystemAPIClient interface {
-	Events(ctx context.Context, options types.EventsOptions) (io.ReadCloser, error)
+	Events(ctx context.Context, options types.EventsOptions) (<-chan events.Message, <-chan error)
 	Info(ctx context.Context) (types.Info, error)
 	RegistryLogin(ctx context.Context, auth types.AuthConfig) (types.AuthResponse, error)
 }
