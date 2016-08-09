@@ -2859,16 +2859,20 @@ func (s *DockerSuite) TestRunContainerWithWritableRootfs(c *check.C) {
 
 func (s *DockerSuite) TestRunContainerWithReadonlyRootfs(c *check.C) {
 	// Not applicable on Windows which does not support --read-only
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, UserNamespaceROMount)
 
-	testReadOnlyFile(c, "/file", "/etc/hosts", "/etc/resolv.conf", "/etc/hostname", "/sys/kernel", "/dev/.dont.touch.me")
+	testPriv := true
+	// don't test privileged mode subtest if user namespaces enabled
+	if root := os.Getenv("DOCKER_REMAP_ROOT"); root != "" {
+		testPriv = false
+	}
+	testReadOnlyFile(c, testPriv, "/file", "/etc/hosts", "/etc/resolv.conf", "/etc/hostname", "/sys/kernel", "/dev/.dont.touch.me")
 }
 
 func (s *DockerSuite) TestPermissionsPtsReadonlyRootfs(c *check.C) {
 	// Not applicable on Windows due to use of Unix specific functionality, plus
 	// the use of --read-only which is not supported.
-	// --read-only + userns has remount issues
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, UserNamespaceROMount)
 
 	// Ensure we have not broken writing /dev/pts
 	out, status := dockerCmd(c, "run", "--read-only", "--rm", "busybox", "mount")
@@ -2881,9 +2885,7 @@ func (s *DockerSuite) TestPermissionsPtsReadonlyRootfs(c *check.C) {
 	}
 }
 
-func testReadOnlyFile(c *check.C, filenames ...string) {
-	// Not applicable on Windows which does not support --read-only
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
+func testReadOnlyFile(c *check.C, testPriv bool, filenames ...string) {
 	touch := "touch " + strings.Join(filenames, " ")
 	out, _, err := dockerCmdWithError("run", "--read-only", "--rm", "busybox", "sh", "-c", touch)
 	c.Assert(err, checker.NotNil)
@@ -2891,6 +2893,10 @@ func testReadOnlyFile(c *check.C, filenames ...string) {
 	for _, f := range filenames {
 		expected := "touch: " + f + ": Read-only file system"
 		c.Assert(out, checker.Contains, expected)
+	}
+
+	if !testPriv {
+		return
 	}
 
 	out, _, err = dockerCmdWithError("run", "--read-only", "--privileged", "--rm", "busybox", "sh", "-c", touch)
@@ -2904,8 +2910,7 @@ func testReadOnlyFile(c *check.C, filenames ...string) {
 
 func (s *DockerSuite) TestRunContainerWithReadonlyEtcHostsAndLinkedContainer(c *check.C) {
 	// Not applicable on Windows which does not support --link
-	// --read-only + userns has remount issues
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, UserNamespaceROMount)
 
 	dockerCmd(c, "run", "-d", "--name", "test-etc-hosts-ro-linked", "busybox", "top")
 
@@ -2917,8 +2922,7 @@ func (s *DockerSuite) TestRunContainerWithReadonlyEtcHostsAndLinkedContainer(c *
 
 func (s *DockerSuite) TestRunContainerWithReadonlyRootfsWithDNSFlag(c *check.C) {
 	// Not applicable on Windows which does not support either --read-only or --dns.
-	// --read-only + userns has remount issues
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, UserNamespaceROMount)
 
 	out, _ := dockerCmd(c, "run", "--read-only", "--dns", "1.1.1.1", "busybox", "/bin/cat", "/etc/resolv.conf")
 	if !strings.Contains(string(out), "1.1.1.1") {
@@ -2928,8 +2932,7 @@ func (s *DockerSuite) TestRunContainerWithReadonlyRootfsWithDNSFlag(c *check.C) 
 
 func (s *DockerSuite) TestRunContainerWithReadonlyRootfsWithAddHostFlag(c *check.C) {
 	// Not applicable on Windows which does not support --read-only
-	// --read-only + userns has remount issues
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, UserNamespaceROMount)
 
 	out, _ := dockerCmd(c, "run", "--read-only", "--add-host", "testreadonly:127.0.0.1", "busybox", "/bin/cat", "/etc/hosts")
 	if !strings.Contains(string(out), "testreadonly") {
@@ -3284,8 +3287,7 @@ func (s *DockerSuite) TestRunNetworkFilesBindMountRO(c *check.C) {
 
 func (s *DockerSuite) TestRunNetworkFilesBindMountROFilesystem(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
-	// --read-only + userns has remount issues
-	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, SameHostDaemon, DaemonIsLinux, UserNamespaceROMount)
 
 	filename := createTmpFile(c, "test123")
 	defer os.Remove(filename)
