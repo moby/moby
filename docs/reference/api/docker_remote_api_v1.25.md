@@ -2679,6 +2679,32 @@ See the [image tarball format](#image-tarball-format) for more details.
 **Example response**:
 
     HTTP/1.1 200 OK
+    Content-Type: application/json
+    Transfer-Encoding: chunked
+
+    {"status":"Loading layer","progressDetail":{"current":32768,"total":1292800},"progress":"[=                                                 ] 32.77 kB/1.293 MB","id":"8ac8bfaff55a"}
+    {"status":"Loading layer","progressDetail":{"current":65536,"total":1292800},"progress":"[==                                                ] 65.54 kB/1.293 MB","id":"8ac8bfaff55a"}
+    {"status":"Loading layer","progressDetail":{"current":98304,"total":1292800},"progress":"[===                                               ]  98.3 kB/1.293 MB","id":"8ac8bfaff55a"}
+    {"status":"Loading layer","progressDetail":{"current":131072,"total":1292800},"progress":"[=====                                             ] 131.1 kB/1.293 MB","id":"8ac8bfaff55a"}
+    ...
+    {"stream":"Loaded image: busybox:latest\n"}
+
+**Example response**:
+
+If the "quiet" query parameter is set to `true` / `1` (`?quiet=1`), progress 
+details are suppressed, and only a confirmation message is returned as plain text
+once the action completes.
+
+    HTTP/1.1 200 OK
+    Content-Length: 29
+    Content-Type: text/plain; charset=utf-8
+
+    Loaded image: busybox:latest
+
+**Query parameters**:
+
+-   **quiet** – Boolean value, suppress progress details during load. Defaults
+      to `0` / `false` if omitted.
 
 **Status codes**:
 
