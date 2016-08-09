@@ -17,6 +17,7 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/allocator"
 	"github.com/docker/swarmkit/manager/controlapi"
+	"github.com/docker/swarmkit/manager/controlapi/hackpicker"
 	"github.com/docker/swarmkit/manager/dispatcher"
 	"github.com/docker/swarmkit/manager/health"
 	"github.com/docker/swarmkit/manager/keymanager"
@@ -350,11 +351,13 @@ func (m *Manager) Run(parent context.Context) error {
 					// creating the allocator but then use it anyway.
 				}
 
-				go func(keyManager *keymanager.KeyManager) {
-					if err := keyManager.Run(ctx); err != nil {
-						log.G(ctx).WithError(err).Error("keymanager failed with an error")
-					}
-				}(m.keyManager)
+				if m.keyManager != nil {
+					go func(keyManager *keymanager.KeyManager) {
+						if err := keyManager.Run(ctx); err != nil {
+							log.G(ctx).WithError(err).Error("keymanager failed with an error")
+						}
+					}(m.keyManager)
+				}
 
 				go func(d *dispatcher.Dispatcher) {
 					if err := d.Run(ctx); err != nil {
@@ -385,14 +388,17 @@ func (m *Manager) Run(parent context.Context) error {
 						log.G(ctx).WithError(err).Error("scheduler exited with an error")
 					}
 				}(m.scheduler)
+
 				go func(taskReaper *orchestrator.TaskReaper) {
 					taskReaper.Run()
 				}(m.taskReaper)
+
 				go func(orchestrator *orchestrator.ReplicatedOrchestrator) {
 					if err := orchestrator.Run(ctx); err != nil {
 						log.G(ctx).WithError(err).Error("replicated orchestrator exited with an error")
 					}
 				}(m.replicatedOrchestrator)
+
 				go func(globalOrchestrator *orchestrator.GlobalOrchestrator) {
 					if err := globalOrchestrator.Run(ctx); err != nil {
 						log.G(ctx).WithError(err).Error("global orchestrator exited with an error")
@@ -420,20 +426,33 @@ func (m *Manager) Run(parent context.Context) error {
 				m.scheduler.Stop()
 				m.scheduler = nil
 
-				m.keyManager.Stop()
-				m.keyManager = nil
+				if m.keyManager != nil {
+					m.keyManager.Stop()
+					m.keyManager = nil
+				}
 			}
 			m.mu.Unlock()
 		}
 	}()
 
 	proxyOpts := []grpc.DialOption{
-		grpc.WithBackoffMaxDelay(time.Second),
+		grpc.WithTimeout(5 * time.Second),
 		grpc.WithTransportCredentials(m.config.SecurityConfig.ClientTLSCreds),
 	}
 
 	cs := raftpicker.NewConnSelector(m.RaftNode, proxyOpts...)
 	m.connSelector = cs
+
+	// We need special connSelector for controlapi because it provides automatic
+	// leader tracking.
+	// Other APIs are using connSelector which errors out on leader change, but
+	// allows to react quickly to reelections.
+	controlAPIProxyOpts := []grpc.DialOption{
+		grpc.WithBackoffMaxDelay(time.Second),
+		grpc.WithTransportCredentials(m.config.SecurityConfig.ClientTLSCreds),
+	}
+
+	controlAPIConnSelector := hackpicker.NewConnSelector(m.RaftNode, controlAPIProxyOpts...)
 
 	authorize := func(ctx context.Context, roles []string) error {
 		// Authorize the remote roles, ensure they can only be forwarded by managers
@@ -464,7 +483,7 @@ func (m *Manager) Run(parent context.Context) error {
 	// this manager rather than forwarded requests (it has no TLS
 	// information to put in the metadata map).
 	forwardAsOwnRequest := func(ctx context.Context) (context.Context, error) { return ctx, nil }
-	localProxyControlAPI := api.NewRaftProxyControlServer(baseControlAPI, cs, m.RaftNode, forwardAsOwnRequest)
+	localProxyControlAPI := api.NewRaftProxyControlServer(baseControlAPI, controlAPIConnSelector, m.RaftNode, forwardAsOwnRequest)
 
 	// Everything registered on m.server should be an authenticated
 	// wrapper, or a proxy wrapping an authenticated wrapper!

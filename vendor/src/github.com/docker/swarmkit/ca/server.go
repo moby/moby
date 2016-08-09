@@ -306,8 +306,7 @@ func (s *Server) Run(ctx context.Context) error {
 	s.mu.Unlock()
 
 	defer s.wg.Done()
-	logger := log.G(ctx).WithField("module", "ca")
-	ctx = log.WithLogger(ctx, logger)
+	ctx = log.WithModule(ctx, "ca")
 
 	// Retrieve the channels to keep track of changes in the cluster
 	// Retrieve all the currently registered nodes

@@ -186,7 +186,7 @@ func (s *Server) ListClusters(ctx context.Context, request *api.ListClustersRequ
 }
 
 // redactClusters is a method that enforces a whitelist of fields that are ok to be
-// returned in the Cluster object. It should filter out all senstive information.
+// returned in the Cluster object. It should filter out all sensitive information.
 func redactClusters(clusters []*api.Cluster) []*api.Cluster {
 	var redactedClusters []*api.Cluster
 	// Only add public fields to the new clusters
