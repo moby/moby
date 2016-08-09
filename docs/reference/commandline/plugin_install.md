@@ -47,8 +47,8 @@ After the plugin is installed, it appears in the list of plugins:
 ```bash
 $ docker plugin ls
 
-NAME                  VERSION             ACTIVE
-tiborvass/no-remove   latest              true
+NAME                  TAG                 DESCRIPTION                ACTIVE
+tiborvass/no-remove   latest              A test plugin for Docker   true
 ```
 
 ## Related information
