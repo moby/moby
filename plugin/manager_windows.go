@@ -8,7 +8,7 @@ import (
 	"github.com/opencontainers/specs/specs-go"
 )
 
-func (pm *Manager) enable(p *plugin) error {
+func (pm *Manager) enable(p *plugin, force bool) error {
 	return fmt.Errorf("Not implemented")
 }
 
