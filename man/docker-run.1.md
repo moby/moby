@@ -468,9 +468,7 @@ its root filesystem mounted as read only prohibiting any writes.
    Restart policy to apply when a container exits (no, on-failure[:max-retry], always, unless-stopped).
 
 **--rm**=*true*|*false*
-   Automatically remove the container when it exits. The default is *false*.
-   `--rm` flag can work together with `-d`, and auto-removal will be done on daemon side. Note that it's
-incompatible with any restart policy other than `none`.
+   Automatically remove the container when it exits (incompatible with -d). The default is *false*.
 
 **--security-opt**=[]
    Security Options
