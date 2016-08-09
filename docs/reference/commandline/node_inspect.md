@@ -99,6 +99,7 @@ Example output:
     $ docker node inspect --pretty self
     ID:                     e216jshn25ckzbvmwlnh5jr3g
     Hostname:               swarm-manager
+    Joined at:              2016-06-16 22:52:44.9910662 +0000 utc
     Status:
      State:                 Ready
      Availability:          Active
