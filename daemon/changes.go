@@ -9,7 +9,8 @@ func (daemon *Daemon) ContainerChanges(name string) ([]archive.Change, error) {
 		return nil, err
 	}
 
-	container.Lock()
-	defer container.Unlock()
+	// make sure the container isn't removed while we are working
+	daemon.opLock.Lock(container.ID)
+	defer daemon.opLock.Unlock(container.ID)
 	return container.RWLayer.Changes()
 }

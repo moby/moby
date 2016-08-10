@@ -24,8 +24,6 @@ func (daemon *Daemon) ContainerUnpause(name string) error {
 func (daemon *Daemon) containerUnpause(container *container.Container) error {
 	daemon.opLock.Lock(container.ID)
 	defer daemon.opLock.Unlock(container.ID)
-	container.Lock()
-	defer container.Unlock()
 
 	// We cannot unpause the container which is not running
 	if !container.Running {

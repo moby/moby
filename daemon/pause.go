@@ -25,8 +25,6 @@ func (daemon *Daemon) ContainerPause(name string) error {
 func (daemon *Daemon) containerPause(container *container.Container) error {
 	daemon.opLock.Lock(container.ID)
 	defer daemon.opLock.Unlock(container.ID)
-	container.Lock()
-	defer container.Unlock()
 
 	// We cannot Pause the container which is not running
 	if !container.Running {

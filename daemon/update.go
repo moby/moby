@@ -46,6 +46,9 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 		return err
 	}
 
+	daemon.opLock.Lock(container.ID)
+	defer daemon.opLock.Unlock(container.ID)
+
 	restoreConfig := false
 	backupHostConfig := *container.HostConfig
 	defer func() {

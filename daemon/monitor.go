@@ -41,14 +41,16 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		c.Lock()
 		defer c.Unlock()
 		c.Wait()
-		c.Reset(false)
+		c.Reset()
 		c.SetStopped(platformConstructExitStatus(e))
 		attributes := map[string]string{
 			"exitCode": strconv.Itoa(int(e.ExitCode)),
 		}
 		daemon.updateHealthMonitor(c)
 		daemon.LogContainerEventWithAttributes(c, "die", attributes)
+		c.Unlock()
 		daemon.Cleanup(c)
+		c.Lock()
 		// FIXME: here is race condition between two RUN instructions in Dockerfile
 		// because they share same runconfig and change image. Must be fixed
 		// in builder/builder.go
@@ -59,7 +61,7 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 	case libcontainerd.StateRestart:
 		c.Lock()
 		defer c.Unlock()
-		c.Reset(false)
+		c.Reset()
 		c.RestartCount++
 		c.SetRestarting(platformConstructExitStatus(e))
 		attributes := map[string]string{
@@ -87,22 +89,25 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 			logrus.Warnf("Ignoring StateExitProcess for %v but no exec command found", e)
 		}
 	case libcontainerd.StateStart, libcontainerd.StateRestore:
-		// Container is already locked in this case
+		c.Lock()
+		defer c.Unlock()
 		c.SetRunning(int(e.Pid), e.State == libcontainerd.StateStart)
 		c.HasBeenManuallyStopped = false
 		if err := c.ToDisk(); err != nil {
-			c.Reset(false)
+			c.Reset()
 			return err
 		}
 		daemon.initHealthMonitor(c)
 		daemon.LogContainerEvent(c, "start")
 	case libcontainerd.StatePause:
-		// Container is already locked in this case
+		c.Lock()
+		defer c.Unlock()
 		c.Paused = true
 		daemon.updateHealthMonitor(c)
 		daemon.LogContainerEvent(c, "pause")
 	case libcontainerd.StateResume:
-		// Container is already locked in this case
+		c.Lock()
+		defer c.Unlock()
 		c.Paused = false
 		daemon.updateHealthMonitor(c)
 		daemon.LogContainerEvent(c, "unpause")
@@ -129,7 +134,7 @@ func (daemon *Daemon) AttachStreams(id string, iop libcontainerd.IOPipe) error {
 	} else {
 		s = c.StreamConfig
 		if err := daemon.StartLogging(c); err != nil {
-			c.Reset(false)
+			c.Reset()
 			return err
 		}
 	}

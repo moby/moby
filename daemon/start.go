@@ -52,15 +52,18 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 			if err := daemon.setHostConfig(container, hostConfig); err != nil {
 				return err
 			}
+			container.Lock()
 			newNetworkMode := container.HostConfig.NetworkMode
 			if string(oldNetworkMode) != string(newNetworkMode) {
 				// if user has change the network mode on starting, clean up the
 				// old networks. It is a deprecated feature and will be removed in Docker 1.12
 				container.NetworkSettings.Networks = nil
 				if err := container.ToDisk(); err != nil {
+					container.Unlock()
 					return err
 				}
 			}
+			container.Unlock()
 			container.InitDNSHostConfig()
 		}
 	} else {
@@ -88,14 +91,11 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 // between containers. The container is left waiting for a signal to
 // begin running.
 func (daemon *Daemon) containerStart(container *container.Container) (err error) {
-	container.Lock()
-	defer container.Unlock()
-
-	if container.Running {
+	if container.IsRunning() {
 		return nil
 	}
 
-	if container.RemovalInProgress || container.Dead {
+	if container.IsRemoving() || container.IsDead() {
 		return fmt.Errorf("Container is marked for removal and cannot be started.")
 	}
 
@@ -108,15 +108,13 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 			if container.ExitCode() == 0 {
 				container.SetExitCode(128)
 			}
-			container.ToDisk()
+			container.ToDiskLocking()
 			daemon.Cleanup(container)
 			// if containers AutoRemove flag is set, remove it after clean up
 			if container.HostConfig.AutoRemove {
-				container.Unlock()
 				if err := daemon.ContainerRm(container.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
 					logrus.Errorf("can't remove container %s: %v", container.ID, err)
 				}
-				container.Lock()
 			}
 		}
 	}()
@@ -127,7 +125,9 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 
 	// Make sure NetworkMode has an acceptable value. We do this to ensure
 	// backwards API compatibility.
+	container.Lock()
 	container.HostConfig = runconfig.SetDefaultNetModeIfBlank(container.HostConfig)
+	container.Unlock()
 
 	if err := daemon.initializeNetworking(container); err != nil {
 		return err
@@ -170,7 +170,7 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 			container.SetExitCode(127)
 		}
 
-		container.Reset(false)
+		container.Reset()
 
 		return fmt.Errorf("%s", errDesc)
 	}
