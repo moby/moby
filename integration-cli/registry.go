@@ -76,6 +76,8 @@ http:
 	if err != nil {
 		return nil, err
 	}
+	defer config.Close()
+
 	if _, err := fmt.Fprintf(config, template, tmp, privateRegistryURL, authTemplate); err != nil {
 		os.RemoveAll(tmp)
 		return nil, err

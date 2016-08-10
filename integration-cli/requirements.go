@@ -175,6 +175,7 @@ var (
 
 			// We need extra check on redhat based distributions
 			if f, err := os.Open("/sys/module/user_namespace/parameters/enable"); err == nil {
+				defer f.Close()
 				b := make([]byte, 1)
 				_, _ = f.Read(b)
 				if string(b) == "N" {

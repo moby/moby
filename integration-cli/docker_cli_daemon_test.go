@@ -1151,6 +1151,8 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverDefault(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer f.Close()
+
 	var res struct {
 		Log    string    `json:"log"`
 		Stream string    `json:"stream"`
@@ -1229,6 +1231,8 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverNoneOverride(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer f.Close()
+
 	var res struct {
 		Log    string    `json:"log"`
 		Stream string    `json:"stream"`

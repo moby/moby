@@ -35,6 +35,7 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 
 	tmpFile, err = os.Open(tmpFile.Name())
 	c.Assert(err, check.IsNil)
+	defer tmpFile.Close()
 
 	deleteImages(repoName)
 

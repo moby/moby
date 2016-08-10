@@ -124,6 +124,8 @@ func (pm *Manager) Push(name string, metaHeader http.Header, authConfig *types.A
 	if err != nil {
 		return err
 	}
+	defer rootfs.Close()
+
 	_, err = distribution.Push(name, pm.registryService, metaHeader, authConfig, config, rootfs)
 	// XXX: Ignore returning digest for now.
 	// Since digest needs to be written to the ProgressWriter.

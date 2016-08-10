@@ -255,9 +255,9 @@ func (b *Builder) download(srcURL string) (fi builder.FileInfo, err error) {
 	// ignoring error because the file was already opened successfully
 	tmpFileSt, err := tmpFile.Stat()
 	if err != nil {
+		tmpFile.Close()
 		return
 	}
-	tmpFile.Close()
 
 	// Set the mtime to the Last-Modified header value if present
 	// Otherwise just remove atime and mtime
@@ -271,6 +271,8 @@ func (b *Builder) download(srcURL string) (fi builder.FileInfo, err error) {
 			mTime = parsedMTime
 		}
 	}
+
+	tmpFile.Close()
 
 	if err = system.Chtimes(tmpFileName, mTime, mTime); err != nil {
 		return

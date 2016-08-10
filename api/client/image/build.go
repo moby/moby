@@ -162,6 +162,7 @@ func runBuild(dockerCli *client.DockerCli, options buildOptions) error {
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
+		defer f.Close()
 
 		var excludes []string
 		if err == nil {

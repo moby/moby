@@ -131,6 +131,7 @@ func testPushEmptyLayer(c *check.C) {
 
 	freader, err := os.Open(emptyTarball.Name())
 	c.Assert(err, check.IsNil, check.Commentf("Could not open test tarball"))
+	defer freader.Close()
 
 	importCmd := exec.Command(dockerBinary, "import", "-", repoName)
 	importCmd.Stdin = freader
