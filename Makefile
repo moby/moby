@@ -13,6 +13,7 @@ DOCKERFILE := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $$
 DOCKER_ENVS := \
 	-e BUILDFLAGS \
 	-e KEEPBUNDLE \
+	-e DOCKER_BUILD_ARGS \
 	-e DOCKER_BUILD_GOGC \
 	-e DOCKER_BUILD_PKGS \
 	-e DOCKER_DEBUG \
