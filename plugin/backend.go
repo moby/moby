@@ -3,7 +3,10 @@
 package plugin
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -114,11 +117,16 @@ func (pm *Manager) Push(name string, metaHeader http.Header, authConfig *types.A
 		return err
 	}
 	dest := filepath.Join(pm.libRoot, p.PluginObj.ID)
-	config, err := os.Open(filepath.Join(dest, "manifest.json"))
+	config, err := ioutil.ReadFile(filepath.Join(dest, "manifest.json"))
 	if err != nil {
 		return err
 	}
-	defer config.Close()
+
+	var dummy types.Plugin
+	err = json.Unmarshal(config, &dummy)
+	if err != nil {
+		return err
+	}
 
 	rootfs, err := archive.Tar(filepath.Join(dest, "rootfs"), archive.Gzip)
 	if err != nil {
@@ -126,7 +134,7 @@ func (pm *Manager) Push(name string, metaHeader http.Header, authConfig *types.A
 	}
 	defer rootfs.Close()
 
-	_, err = distribution.Push(name, pm.registryService, metaHeader, authConfig, config, rootfs)
+	_, err = distribution.Push(name, pm.registryService, metaHeader, authConfig, ioutil.NopCloser(bytes.NewReader(config)), rootfs)
 	// XXX: Ignore returning digest for now.
 	// Since digest needs to be written to the ProgressWriter.
 	return err
