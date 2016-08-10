@@ -68,7 +68,7 @@ func (tm *taskManager) run(ctx context.Context) {
 	ctx, cancelAll := context.WithCancel(ctx)
 	defer cancelAll() // cancel all child operations on exit.
 
-	ctx = log.WithLogger(ctx, log.G(ctx).WithField("module", "taskmanager"))
+	ctx = log.WithModule(ctx, "taskmanager")
 
 	var (
 		opctx    context.Context

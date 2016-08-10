@@ -163,7 +163,7 @@ func (r *ReplicatedOrchestrator) tickTasks(ctx context.Context) {
 		})
 
 		if err != nil {
-			log.G(ctx).WithError(err).Errorf("orchestator task removal batch failed")
+			log.G(ctx).WithError(err).Errorf("orchestrator task removal batch failed")
 		}
 
 		r.restartTasks = make(map[string]struct{})

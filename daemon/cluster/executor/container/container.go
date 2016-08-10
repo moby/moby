@@ -276,6 +276,7 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 		Resources: c.resources(),
 		Binds:     c.binds(),
 		Tmpfs:     c.tmpfs(),
+		GroupAdd:  c.spec().Groups,
 	}
 
 	if c.task.LogDriver != nil {

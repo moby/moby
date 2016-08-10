@@ -61,8 +61,8 @@ func (s *Scheduler) setupTasksList(tx store.ReadTx) error {
 	tasksByNode := make(map[string]map[string]*api.Task)
 	for _, t := range tasks {
 		// Ignore all tasks that have not reached ALLOCATED
-		// state.
-		if t.Status.State < api.TaskStateAllocated {
+		// state and tasks that no longer consume resources.
+		if t.Status.State < api.TaskStateAllocated || t.Status.State > api.TaskStateRunning {
 			continue
 		}
 
@@ -109,7 +109,30 @@ func (s *Scheduler) Run(ctx context.Context) error {
 	// Queue all unassigned tasks before processing changes.
 	s.tick(ctx)
 
+	const (
+		// commitDebounceGap is the amount of time to wait between
+		// commit events to debounce them.
+		commitDebounceGap = 50 * time.Millisecond
+		// maxLatency is a time limit on the debouncing.
+		maxLatency = time.Second
+	)
+	var (
+		debouncingStarted     time.Time
+		commitDebounceTimer   *time.Timer
+		commitDebounceTimeout <-chan time.Time
+	)
+
 	pendingChanges := 0
+
+	schedule := func() {
+		if len(s.preassignedTasks) > 0 {
+			s.processPreassignedTasks(ctx)
+		}
+		if pendingChanges > 0 {
+			s.tick(ctx)
+			pendingChanges = 0
+		}
+	}
 
 	// Watch for changes.
 	for {
@@ -131,15 +154,25 @@ func (s *Scheduler) Run(ctx context.Context) error {
 			case state.EventDeleteNode:
 				s.nodeHeap.remove(v.Node.ID)
 			case state.EventCommit:
-				if len(s.preassignedTasks) > 0 {
-					s.processPreassignedTasks(ctx)
-				}
-				if pendingChanges > 0 {
-					s.tick(ctx)
-					pendingChanges = 0
+				if commitDebounceTimer != nil {
+					if time.Since(debouncingStarted) > maxLatency {
+						commitDebounceTimer.Stop()
+						commitDebounceTimer = nil
+						commitDebounceTimeout = nil
+						schedule()
+					} else {
+						commitDebounceTimer.Reset(commitDebounceGap)
+					}
+				} else {
+					commitDebounceTimer = time.NewTimer(commitDebounceGap)
+					commitDebounceTimeout = commitDebounceTimer.C
+					debouncingStarted = time.Now()
 				}
 			}
-
+		case <-commitDebounceTimeout:
+			schedule()
+			commitDebounceTimer = nil
+			commitDebounceTimeout = nil
 		case <-s.stopChan:
 			return nil
 		}

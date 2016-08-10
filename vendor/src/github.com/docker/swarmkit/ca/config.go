@@ -109,12 +109,6 @@ func (s *SecurityConfig) UpdateRootCA(cert, key []byte, certExpiry time.Duration
 	return err
 }
 
-// DefaultPolicy is the default policy used by the signers to ensure that the only fields
-// from the remote CSRs we trust are: PublicKey, PublicKeyAlgorithm and SignatureAlgorithm.
-func DefaultPolicy() *cfconfig.Signing {
-	return SigningPolicy(DefaultNodeCertExpiration)
-}
-
 // SigningPolicy creates a policy used by the signer to ensure that the only fields
 // from the remote CSRs we trust are: PublicKey, PublicKeyAlgorithm and SignatureAlgorithm.
 // It receives the duration a certificate will be valid for
@@ -124,10 +118,14 @@ func SigningPolicy(certExpiry time.Duration) *cfconfig.Signing {
 		certExpiry = DefaultNodeCertExpiration
 	}
 
+	// Add the backdate
+	certExpiry = certExpiry + CertBackdate
+
 	return &cfconfig.Signing{
 		Default: &cfconfig.SigningProfile{
-			Usage:  []string{"signing", "key encipherment", "server auth", "client auth"},
-			Expiry: certExpiry,
+			Usage:    []string{"signing", "key encipherment", "server auth", "client auth"},
+			Expiry:   certExpiry,
+			Backdate: CertBackdate,
 			// Only trust the key components from the CSR. Everything else should
 			// come directly from API call params.
 			CSRWhitelist: &cfconfig.CSRWhitelist{
@@ -396,7 +394,7 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, baseCertDir string, 
 // calculateRandomExpiry returns a random duration between 50% and 80% of the original
 // duration
 func calculateRandomExpiry(expiresIn time.Duration) time.Duration {
-	if expiresIn.Minutes() < 1 {
+	if expiresIn.Minutes() <= 1 {
 		return time.Second
 	}
 

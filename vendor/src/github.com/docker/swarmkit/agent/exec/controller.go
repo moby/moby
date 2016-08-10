@@ -2,11 +2,11 @@ package exec
 
 import (
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/api/equality"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/pkg/errors"
@@ -186,7 +186,7 @@ func Do(ctx context.Context, task *api.Task, ctlr Controller) (*api.TaskStatus, 
 	defer func() {
 		logStateChange(ctx, task.DesiredState, task.Status.State, status.State)
 
-		if !reflect.DeepEqual(status, task.Status) {
+		if !equality.TaskStatusesEqualStable(status, &task.Status) {
 			status.Timestamp = ptypes.MustTimestampProto(time.Now())
 		}
 	}()
