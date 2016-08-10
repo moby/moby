@@ -79,9 +79,9 @@ func Push(name string, rs registry.Service, metaHeader http.Header, authConfig *
 			return "", err
 		}
 		f.Close()
-		mt := MediaTypeLayer
+		mt := schema2.MediaTypeLayer
 		if i == 0 {
-			mt = MediaTypeConfig
+			mt = schema2.MediaTypePluginConfig
 		}
 		// Commit completes the write process to the BlobService.
 		// The descriptor arg to Commit is called the "provisional" descriptor and
