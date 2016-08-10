@@ -1816,8 +1816,7 @@ Create a new image from a container's changes
 
 `GET /events`
 
-Get container events from docker, either in real time via streaming, or via
-polling (using since).
+Get container events from docker, in real time via streaming.
 
 Docker containers report the following events:
 
@@ -1843,8 +1842,8 @@ and Docker images report:
 
 **Query parameters**:
 
--   **since** – Timestamp used for polling
--   **until** – Timestamp used for polling
+-   **since** – Timestamp. Show all events created since timestamp and then stream
+-   **until** – Timestamp. Show events created until given timestamp and stop streaming
 -   **filters** – A json encoded value of the filters (a map[string][]string) to process on the event list. Available filters:
   -   `container=<string>`; -- container to filter
   -   `event=<string>`; -- event to filter
