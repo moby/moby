@@ -242,8 +242,8 @@ func (cli *DaemonCli) start() (err error) {
 				return err
 			}
 		}
-		logrus.Debugf("Listener created for HTTP on %s (%s)", protoAddrParts[0], protoAddrParts[1])
-		api.Accept(protoAddrParts[1], ls...)
+		logrus.Debugf("Listener created for HTTP on %s (%s)", proto, addr)
+		api.Accept(addr, ls...)
 	}
 
 	if err := migrateKey(); err != nil {
