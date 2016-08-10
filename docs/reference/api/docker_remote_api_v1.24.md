@@ -3380,8 +3380,8 @@ List nodes
         "UpdatedAt": "2016-06-07T20:31:11.999868824Z",
         "Spec": {
           "Name": "my-node",
-          "Role": "MANAGER",
-          "Availability": "ACTIVE"
+          "Role": "manager",
+          "Availability": "active"
           "Labels": {
               "foo": "bar"
           }
@@ -3471,8 +3471,8 @@ Return low-level information on the node `id`
       "UpdatedAt": "2016-06-07T20:31:11.999868824Z",
       "Spec": {
         "Name": "my-node",
-        "Role": "MANAGER",
-        "Availability": "ACTIVE"
+        "Role": "manager",
+        "Availability": "active"
         "Labels": {
             "foo": "bar"
         }
@@ -3521,6 +3521,89 @@ Return low-level information on the node `id`
         "Addr": "172.17.0.2:2377""
       }
     }
+
+**Status codes**:
+
+-   **200** – no error
+-   **404** – no such node
+-   **500** – server error
+
+### Remove a node
+
+
+`DELETE /nodes/<id>`
+
+Remove a node [`id`] from the Swarm.
+
+**Example request**:
+
+    DELETE /nodes/24ifsmvkjbyhk HTTP/1.1
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Length: 0
+    Content-Type: text/plain; charset=utf-8
+
+**Query parameters**:
+
+-   **force** - 1/True/true or 0/False/false, Force remove an active node.
+        Default `false`.
+
+**Status codes**:
+
+-   **200** – no error
+-   **404** – no such node
+-   **500** – server error
+
+### Update a node
+
+
+`POST /nodes/<id>/update`
+
+Update the node `id`.
+
+The payload of the `POST` request is the new `NodeSpec` and
+overrides the current `NodeSpec` for the specified node.
+
+If `Availability` or `Role` are omitted, this returns an
+error. Any other field omitted resets the current value to either
+an empty value or the default cluster-wide value.
+
+**Example Request**
+
+    POST /nodes/24ifsmvkjbyhk/update?version=8 HTTP/1.1
+    Content-Type: application/json
+
+    {
+      "Availability": "active",
+      "Name": "node-name",
+      "Role": "manager",
+      "Labels": {
+        "foo": "bar"
+      }
+    }
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Length: 0
+    Content-Type: text/plain; charset=utf-8
+
+**Query parameters**:
+
+- **version** – The version number of the node object being updated. This is
+  required to avoid conflicting writes.
+
+JSON Parameters:
+
+- **Annotations** – Optional medata to associate with the service.
+    - **Name** – User-defined name for the service.
+    - **Labels** – A map of labels to associate with the service (e.g.,
+      `{"key":"value"[,"key2":"value2"]}`).
+- **Role** - Role of the node (worker/manager).
+- **Availability** - Availability of the node (active/pause/drain).
+
 
 **Status codes**:
 
