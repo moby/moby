@@ -35,7 +35,7 @@ func (pm *Manager) Enable(name string) error {
 	if err != nil {
 		return err
 	}
-	if err := pm.enable(p); err != nil {
+	if err := pm.enable(p, false); err != nil {
 		return err
 	}
 	pm.pluginEventLogger(p.PluginObj.ID, name, "enable")
