@@ -51,8 +51,8 @@ func runList(dockerCli *client.DockerCli, opts listOptions) error {
 	for _, p := range plugins {
 		desc := strings.Replace(p.Manifest.Description, "\n", " ", -1)
 		desc = strings.Replace(desc, "\r", " ", -1)
-		if !opts.noTrunc && len(desc) > 45 {
-			desc = stringutils.Truncate(desc, 42) + "..."
+		if !opts.noTrunc {
+			desc = stringutils.Ellipsis(desc, 45)
 		}
 
 		fmt.Fprintf(w, "%s\t%s\t%s\t%v\n", p.Name, p.Tag, desc, p.Active)

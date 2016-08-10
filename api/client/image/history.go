@@ -79,8 +79,8 @@ func runHistory(dockerCli *client.DockerCli, opts historyOptions) error {
 	for _, entry := range history {
 		imageID = entry.ID
 		createdBy = strings.Replace(entry.CreatedBy, "\t", " ", -1)
-		if opts.noTrunc == false {
-			createdBy = stringutils.Truncate(createdBy, 45)
+		if !opts.noTrunc {
+			createdBy = stringutils.Ellipsis(createdBy, 45)
 			imageID = stringid.TruncateID(entry.ID)
 		}
 

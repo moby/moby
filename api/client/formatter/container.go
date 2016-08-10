@@ -124,7 +124,7 @@ func (c *containerContext) Command() string {
 	c.addHeader(commandHeader)
 	command := c.c.Command
 	if c.trunc {
-		command = stringutils.Truncate(command, 20)
+		command = stringutils.Ellipsis(command, 20)
 	}
 	return strconv.Quote(command)
 }
@@ -200,7 +200,7 @@ func (c *containerContext) Mounts() string {
 			name = m.Name
 		}
 		if c.trunc {
-			name = stringutils.Truncate(name, 15)
+			name = stringutils.Ellipsis(name, 15)
 		}
 		mounts = append(mounts, name)
 	}
