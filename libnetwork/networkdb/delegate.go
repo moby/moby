@@ -75,6 +75,15 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 	// time.
 	nDB.tableClock.Witness(tEvent.LTime)
 
+	// Ignore the table events for networks that are in the process of going away
+	nDB.RLock()
+	networks := nDB.networks[nDB.config.NodeName]
+	network, ok := networks[tEvent.NetworkID]
+	nDB.RUnlock()
+	if !ok || network.leaving {
+		return true
+	}
+
 	if entry, err := nDB.getEntry(tEvent.TableName, tEvent.NetworkID, tEvent.Key); err == nil {
 		// We have the latest state. Ignore the event
 		// since it is stale.
