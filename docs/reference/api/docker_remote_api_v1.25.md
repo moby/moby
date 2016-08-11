@@ -2912,7 +2912,12 @@ Return low-level information about the `exec` command `id`.
         {
           "Name": "tardis",
           "Driver": "local",
-          "Mountpoint": "/var/lib/docker/volumes/tardis"
+          "Mountpoint": "/var/lib/docker/volumes/tardis",
+          "Labels":{
+            "com.example.some-label": "some-value",
+            "com.example.some-other-label": "some-other-value"
+          },
+          "Scope": "local"
         }
       ],
       "Warnings": []
@@ -2956,13 +2961,16 @@ Create a volume
 
     {
       "Name": "tardis",
-      "Driver": "local",
+      "Driver": "custom",
       "Mountpoint": "/var/lib/docker/volumes/tardis",
-      "Status": null,
+      "Status": {
+        "hello": "world"
+      },
       "Labels": {
         "com.example.some-label": "some-value",
         "com.example.some-other-label": "some-other-value"
       },
+      "Scope": "local"
     }
 
 **Status codes**:
@@ -2976,7 +2984,12 @@ Create a volume
 - **Driver** - Name of the volume driver to use. Defaults to `local` for the name.
 - **DriverOpts** - A mapping of driver options and values. These options are
     passed directly to the driver and are driver specific.
-- **Labels** - Labels to set on the volume, specified as a map: `{"key":"value" [,"key2":"value2"]}`
+- **Labels** - Labels to set on the volume, specified as a map: `{"key":"value","key2":"value2"}`
+
+**JSON fields in response**:
+
+Refer to the [inspect a volume](#inspect-a-volume) section or details about the
+JSON fields returned in the response.
 
 ### Inspect a volume
 
@@ -2995,12 +3008,16 @@ Return low-level information on the volume `name`
 
     {
         "Name": "tardis",
-        "Driver": "local",
+        "Driver": "custom",
+        "Status": {
+          "hello": "world"
+        },
         "Mountpoint": "/var/lib/docker/volumes/tardis/_data",
         "Labels": {
             "com.example.some-label": "some-value",
             "com.example.some-other-label": "some-other-value"
-        }
+        },
+        "Scope": "local"
     }
 
 **Status codes**:
@@ -3008,6 +3025,23 @@ Return low-level information on the volume `name`
 -   **200** - no error
 -   **404** - no such volume
 -   **500** - server error
+
+**JSON fields in response**:
+
+The following fields can be returned in the API response. Empty fields, or
+fields that are not supported by the volume's driver may be omitted in the
+response.
+
+- **Name** - Name of the volume.
+- **Driver** - Name of the volume driver used by the volume.
+- **Mountpoint** - Mount path of the volume on the host.
+- **Status** - Low-level details about the volume, provided by the volume driver.
+    Details are returned as a map with key/value pairs: `{"key":"value","key2":"value2"}`.
+    The `Status` field is optional, and is omitted if the volume driver does not
+    support this feature.
+- **Labels** - Labels set on the volume, specified as a map: `{"key":"value","key2":"value2"}`.
+- **Scope** - Scope describes the level at which the volume exists, can be one of
+    `global` for cluster-wide or `local` for machine level. The default is `local`.
 
 ### Remove a volume
 
