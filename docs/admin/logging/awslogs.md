@@ -63,6 +63,19 @@ specified, the container ID is used as the log stream.
 > at a time.  Using the same log stream for multiple containers concurrently
 > can cause reduced logging performance.
 
+# awslogs-stream-template
+
+Specify a template to automatically generate the log stream name to use.  The
+template supports [logger.Context
+](https://godoc.org/github.com/docker/docker/daemon/logger#Context), so
+`awslogs-stream-template="{{ .ContainerID }}"` would be equivalent to the
+default behavior.
+
+> **Notes:**
+> Log streams within a given log group should only be used by one container
+> at a time.  Using the same log stream for multiple containers concurrently
+> can cause reduced logging performance.
+
 ## Credentials
 
 You must provide AWS credentials to the Docker daemon to use the `awslogs`

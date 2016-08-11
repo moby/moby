@@ -691,3 +691,47 @@ func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
 		}
 	}
 }
+
+func TestAWSLogsNameTemplate(t *testing.T) {
+	for i, test := range []struct {
+		Context logger.Context
+		Result  string
+		Error   error
+	}{
+		{logger.Context{Config: map[string]string{regionKey: "us-east-1", logStreamTemplateKey: "plaintext"}}, "plaintext", nil},
+		{logger.Context{Config: map[string]string{regionKey: "us-east-1", logStreamTemplateKey: fmt.Sprintf("{{ index .Config %q }}", regionKey)}}, "us-east-1", nil},
+		{logger.Context{Config: map[string]string{regionKey: "us-east-1", logStreamTemplateKey: "bad{{-template"}}, "", fmt.Errorf(`template: t:1: unexpected bad number syntax: "-t" in command`)},
+		{logger.Context{ContainerID: "someContainerID"}, "someContainerID", nil},
+		{logger.Context{Config: map[string]string{logStreamKey: "foo"}}, "foo", nil},
+		{logger.Context{Config: map[string]string{logStreamKey: "foo", logStreamTemplateKey: "bar"}}, "foo", nil},
+		{logger.Context{Config: map[string]string{logStreamTemplateKey: "bar:baz"}}, "", fmt.Errorf(`CloudWatch Logs stream names cannot contain colons or asterisks: "bar:baz"`)},
+	} {
+		r, err := getStreamName(test.Context)
+		if err != nil && err.Error() != test.Error.Error() {
+			t.Errorf("[%d] Expected err:%v got err:%v", i, test.Error, err)
+		} else if err == nil && r != test.Result {
+			t.Errorf("[%d] Expected %q got %q", i, test.Result, r)
+		}
+	}
+
+}
+
+func TestAWSLogsOptionValidation(t *testing.T) {
+	for i, test := range []struct {
+		Opts  map[string]string
+		Error string
+	}{
+		{map[string]string{regionKey: "someregion"}, "must specify a value for log opt 'awslogs-group'"},
+		{map[string]string{regionKey: "someregion", logGroupKey: "unspecified-stream-group"}, ""},
+		{map[string]string{regionKey: "someregion", logGroupKey: "single-stream-group", logStreamKey: "single-steram"}, ""},
+		{map[string]string{regionKey: "someregion", logGroupKey: "templated-stream-group", logStreamTemplateKey: "single-steram"}, ""},
+		{map[string]string{regionKey: "someregion", logGroupKey: "bad-stream-group", logStreamKey: "bad-config", logStreamTemplateKey: "single-steram"}, "Cannot specify both 'awslogs-stream' and 'awslogs-stream-template'"},
+	} {
+		err := ValidateLogOpt(test.Opts)
+		if test.Error == "" && err != nil {
+			t.Errorf("[%d] Unexpected error: %v", i, err)
+		} else if test.Error != "" && (err == nil || test.Error != err.Error()) {
+			t.Errorf("[%d] Incorrect error: %v (expected %v)", i, err, test.Error)
+		}
+	}
+}
