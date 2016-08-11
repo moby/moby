@@ -468,7 +468,10 @@ func (n *network) addDriverWatches() {
 		}
 
 		c.agent.networkDB.WalkTable(tableName, func(nid, key string, value []byte) bool {
-			d.EventNotify(driverapi.Create, n.ID(), tableName, key, value)
+			if nid == n.ID() {
+				d.EventNotify(driverapi.Create, nid, tableName, key, value)
+			}
+
 			return false
 		})
 	}

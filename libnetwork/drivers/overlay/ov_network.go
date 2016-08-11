@@ -637,6 +637,10 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 				continue
 			}
 
+			if !n.driver.isSerfAlive() {
+				continue
+			}
+
 			mac, IPmask, vtep, err := n.driver.resolvePeer(n.id, neigh.IP)
 			if err != nil {
 				logrus.Errorf("could not resolve peer %q: %v", neigh.IP, err)
