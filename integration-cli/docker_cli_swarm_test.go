@@ -194,3 +194,29 @@ func (s *DockerSwarmSuite) TestSwarmNodeTaskListFilter(c *check.C) {
 	c.Assert(out, checker.Not(checker.Contains), name+".2")
 	c.Assert(out, checker.Not(checker.Contains), name+".3")
 }
+
+// Test case for #25375
+func (s *DockerSwarmSuite) TestSwarmPublishAdd(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name := "top"
+	out, err := d.Cmd("service", "create", "--name", name, "--label", "x=y", "busybox", "top")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	out, err = d.Cmd("service", "update", "--publish-add", "80:80", name)
+	c.Assert(err, checker.IsNil)
+
+	out, err = d.Cmd("service", "update", "--publish-add", "80:80", name)
+	c.Assert(err, checker.IsNil)
+
+	out, err = d.Cmd("service", "update", "--publish-add", "80:80", "--publish-add", "80:20", name)
+	c.Assert(err, checker.NotNil)
+
+	out, err = d.Cmd("service", "update", "--publish-add", "80:20", name)
+	c.Assert(err, checker.IsNil)
+
+	out, err = d.Cmd("service", "inspect", "--format", "{{ .Spec.EndpointSpec.Ports }}", name)
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "[{ tcp 20 80}]")
+}
