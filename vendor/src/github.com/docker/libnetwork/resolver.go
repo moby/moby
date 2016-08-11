@@ -361,7 +361,10 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 
 			// Timeout has to be set for every IO operation.
 			extConn.SetDeadline(time.Now().Add(extIOTimeout))
-			co := &dns.Conn{Conn: extConn}
+			co := &dns.Conn{
+				Conn:    extConn,
+				UDPSize: uint16(maxSize),
+			}
 			defer co.Close()
 
 			// limits the number of outstanding concurrent queries.

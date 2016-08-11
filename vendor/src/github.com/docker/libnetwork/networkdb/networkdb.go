@@ -371,7 +371,10 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 	nodeNetworks[nid] = &network{id: nid, ltime: ltime}
 	nodeNetworks[nid].tableBroadcasts = &memberlist.TransmitLimitedQueue{
 		NumNodes: func() int {
-			return len(nDB.networkNodes[nid])
+			nDB.RLock()
+			num := len(nDB.networkNodes[nid])
+			nDB.RUnlock()
+			return num
 		},
 		RetransmitMult: 4,
 	}
@@ -395,7 +398,8 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 // this event across the cluster. This triggers this node leaving the
 // sub-cluster of this network and as a result will no longer
 // participate in the network-scoped gossip and bulk sync for this
-// network.
+// network. Also remove all the table entries for this network from
+// networkdb
 func (nDB *NetworkDB) LeaveNetwork(nid string) error {
 	ltime := nDB.networkClock.Increment()
 	if err := nDB.sendNetworkEvent(nid, NetworkEventTypeLeave, ltime); err != nil {
@@ -404,6 +408,36 @@ func (nDB *NetworkDB) LeaveNetwork(nid string) error {
 
 	nDB.Lock()
 	defer nDB.Unlock()
+	var (
+		paths   []string
+		entries []*entry
+	)
+
+	nwWalker := func(path string, v interface{}) bool {
+		entry, ok := v.(*entry)
+		if !ok {
+			return false
+		}
+		paths = append(paths, path)
+		entries = append(entries, entry)
+		return false
+	}
+
+	nDB.indexes[byNetwork].WalkPrefix(fmt.Sprintf("/%s", nid), nwWalker)
+	for _, path := range paths {
+		params := strings.Split(path[1:], "/")
+		tname := params[1]
+		key := params[2]
+
+		if _, ok := nDB.indexes[byTable].Delete(fmt.Sprintf("/%s/%s/%s", tname, nid, key)); !ok {
+			logrus.Errorf("Could not delete entry in table %s with network id %s and key %s as it does not exist", tname, nid, key)
+		}
+
+		if _, ok := nDB.indexes[byNetwork].Delete(fmt.Sprintf("/%s/%s/%s", nid, tname, key)); !ok {
+			logrus.Errorf("Could not delete entry in network %s with table name %s and key %s as it does not exist", nid, tname, key)
+		}
+	}
+
 	nodeNetworks, ok := nDB.networks[nDB.config.NodeName]
 	if !ok {
 		return fmt.Errorf("could not find self node for network %s while trying to leave", nid)

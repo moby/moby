@@ -111,6 +111,8 @@ func (a *allocator) RequestAddress(poolID string, address net.IP, options map[st
 	}
 	if res.Address != "" {
 		retAddress, err = types.ParseCIDR(res.Address)
+	} else {
+		return nil, nil, ipamapi.ErrNoIPReturned
 	}
 	return retAddress, res.Data, err
 }
