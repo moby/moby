@@ -80,8 +80,7 @@ clone git github.com/vishvananda/netlink e73bad418fd727ed3a02830b1af1ad0283a1de6
 clone git github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
 clone git github.com/samuel/go-zookeeper d0e0d8e11f318e000a8cc434616d69e329edc374
 clone git github.com/deckarep/golang-set ef32fa3046d9f249d399f98ebaf9be944430fd1d
-clone git github.com/coreos/etcd v2.3.2
-fix_rewritten_imports github.com/coreos/etcd
+clone git github.com/coreos/etcd 06e2338108fdc694349aed923f4a7e45cf0cec1f
 clone git github.com/ugorji/go f1f1a805ed361a0e078bb537e4ea78cd37dcf065
 clone git github.com/hashicorp/consul v0.5.2
 clone git github.com/boltdb/bolt v1.2.1
@@ -140,7 +139,7 @@ clone git github.com/docker/docker-credential-helpers v0.3.0
 clone git github.com/docker/containerd 0ac3cd1be170d180b2baed755e8f0da547ceb267
 
 # cluster
-clone git github.com/docker/swarmkit cb6d81316727941665594f153434e5ce2e425c9b
+clone git github.com/docker/swarmkit d5f249ec9a52ea48e875b5335a3a0c50f60db550
 clone git github.com/golang/mock bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
 clone git github.com/gogo/protobuf 43a2e0b1c32252bfbbdf81f7faa7a88fb3fa4028
 clone git github.com/cloudflare/cfssl b895b0549c0ff676f92cf09ba971ae02bb41367b
@@ -150,7 +149,7 @@ clone git github.com/mreiferson/go-httpclient 63fe23f7434723dc904c901043af07931f
 clone git github.com/hashicorp/go-memdb 98f52f52d7a476958fa9da671354d270c50661a7
 clone git github.com/hashicorp/go-immutable-radix 8e8ed81f8f0bf1bdd829593fdd5c29922c1ea990
 clone git github.com/hashicorp/golang-lru a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4
-clone git github.com/coreos/pkg 2c77715c4df99b5420ffcae14ead08f52104065d
+clone git github.com/coreos/pkg fa29b1d70f0beaddd4c7021607cc3c3be8ce94b8
 clone git github.com/pivotal-golang/clock 3fd3c1944c59d9742e1cd333672181cd1a6f9fa0
 clone git github.com/prometheus/client_golang e51041b3fa41cece0dca035740ba6411905be473
 clone git github.com/beorn7/perks b965b613227fddccbfffe13eae360ed3fa822f8d

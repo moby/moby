@@ -416,22 +416,21 @@ func (n *Node) Run(ctx context.Context) error {
 				}
 			}
 
+			// Advance the state machine
+			n.Advance()
+
 			// If we are the only registered member after
 			// restoring from the state, campaign to be the
 			// leader.
 			if !n.restored {
 				// Node ID should be in the progress list to Campaign
-				_, ok := n.Node.Status().Progress[n.Config.ID]
-				if len(n.cluster.Members()) <= 1 && ok {
+				if len(n.cluster.Members()) <= 1 {
 					if err := n.Campaign(n.Ctx); err != nil {
 						panic("raft: cannot campaign to be the leader on node restore")
 					}
 				}
 				n.restored = true
 			}
-
-			// Advance the state machine
-			n.Advance()
 
 		case snapshotIndex := <-n.snapshotInProgress:
 			if snapshotIndex > n.snapshotIndex {
@@ -1100,7 +1099,7 @@ func (n *Node) sendToMember(members map[uint64]*membership.Member, m raftpb.Mess
 		if err != nil {
 			n.Config.Logger.Errorf("could connect to member ID %x at %s: %v", m.To, conn.Addr, err)
 		} else {
-			n.cluster.ReplaceMemberConnection(m.To, newConn)
+			n.cluster.ReplaceMemberConnection(m.To, conn, newConn)
 		}
 	} else if m.Type == raftpb.MsgSnap {
 		n.ReportSnapshot(m.To, raft.SnapshotFinish)

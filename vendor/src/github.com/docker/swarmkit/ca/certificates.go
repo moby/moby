@@ -233,7 +233,7 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, paths Cert
 func PrepareCSR(csrBytes []byte, cn, ou, org string) cfsigner.SignRequest {
 	// All managers get added the subject-alt-name of CA, so they can be
 	// used for cert issuance.
-	hosts := []string{ou}
+	hosts := []string{ou, cn}
 	if ou == ManagerRole {
 		hosts = append(hosts, CARole)
 	}
