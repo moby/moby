@@ -46,7 +46,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithPluginEnabled(c *check.C) {
 	c.Assert(out, checker.Contains, "true")
 }
 
-// TestDaemonRestartWithPluginEnabled tests state restore for a disabled plugin
+// TestDaemonRestartWithPluginDisabled tests state restore for a disabled plugin
 func (s *DockerDaemonSuite) TestDaemonRestartWithPluginDisabled(c *check.C) {
 	if err := s.d.Start(); err != nil {
 		c.Fatalf("Could not start daemon: %v", err)
