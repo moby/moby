@@ -19,3 +19,11 @@ func TasksEqualStable(a, b *api.Task) bool {
 
 	return reflect.DeepEqual(&copyA, &copyB)
 }
+
+// TaskStatusesEqualStable compares the task status excluding timestamp fields.
+func TaskStatusesEqualStable(a, b *api.TaskStatus) bool {
+	copyA, copyB := *a, *b
+
+	copyA.Timestamp, copyB.Timestamp = nil, nil
+	return reflect.DeepEqual(&copyA, &copyB)
+}

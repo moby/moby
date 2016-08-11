@@ -15,6 +15,10 @@ import (
 
 var errRemotesUnavailable = fmt.Errorf("no remote hosts provided")
 
+// DefaultObservationWeight provides a weight to use for positive observations
+// that will balance well under repeated observations.
+const DefaultObservationWeight = 10
+
 // Remotes keeps track of remote addresses by weight, informed by
 // observations.
 type Remotes interface {
@@ -49,7 +53,7 @@ func NewRemotes(peers ...api.Peer) Remotes {
 	}
 
 	for _, peer := range peers {
-		mwr.Observe(peer, 1)
+		mwr.Observe(peer, DefaultObservationWeight)
 	}
 
 	return mwr
@@ -96,7 +100,7 @@ func (mwr *remotesWeightedRandom) Select(excludes ...string) (api.Peer, error) {
 
 	// bias to zero-weighted remotes have same probability. otherwise, we
 	// always select first entry when all are zero.
-	const bias = 0.1
+	const bias = 0.001
 
 	// clear out workspace
 	mwr.cdf = mwr.cdf[:0]
@@ -165,7 +169,7 @@ const (
 	// See
 	// https://en.wikipedia.org/wiki/Exponential_smoothing#Basic_exponential_smoothing
 	// for details.
-	remoteWeightSmoothingFactor = 0.7
+	remoteWeightSmoothingFactor = 0.5
 	remoteWeightMax             = 1 << 8
 )
 
@@ -228,7 +232,7 @@ func (p *Picker) Init(cc *grpc.ClientConn) error {
 	peer := p.peer
 	p.mu.Unlock()
 
-	p.r.ObserveIfExists(peer, 1)
+	p.r.ObserveIfExists(peer, DefaultObservationWeight)
 	c, err := grpc.NewConn(cc)
 	if err != nil {
 		return err
@@ -248,7 +252,7 @@ func (p *Picker) Pick(ctx context.Context) (transport.ClientTransport, error) {
 	p.mu.Unlock()
 	transport, err := p.conn.Wait(ctx)
 	if err != nil {
-		p.r.ObserveIfExists(peer, -1)
+		p.r.ObserveIfExists(peer, -DefaultObservationWeight)
 	}
 
 	return transport, err
@@ -261,7 +265,7 @@ func (p *Picker) PickAddr() (string, error) {
 	peer := p.peer
 	p.mu.Unlock()
 
-	p.r.ObserveIfExists(peer, -1) // downweight the current addr
+	p.r.ObserveIfExists(peer, -DefaultObservationWeight) // downweight the current addr
 
 	var err error
 	peer, err = p.r.Select()
@@ -299,15 +303,15 @@ func (p *Picker) WaitForStateChange(ctx context.Context, sourceState grpc.Connec
 	// TODO(stevvooe): This is questionable, but we'll see how it works.
 	switch state {
 	case grpc.Idle:
-		p.r.ObserveIfExists(peer, 1)
+		p.r.ObserveIfExists(peer, DefaultObservationWeight)
 	case grpc.Connecting:
-		p.r.ObserveIfExists(peer, 1)
+		p.r.ObserveIfExists(peer, DefaultObservationWeight)
 	case grpc.Ready:
-		p.r.ObserveIfExists(peer, 1)
+		p.r.ObserveIfExists(peer, DefaultObservationWeight)
 	case grpc.TransientFailure:
-		p.r.ObserveIfExists(peer, -1)
+		p.r.ObserveIfExists(peer, -DefaultObservationWeight)
 	case grpc.Shutdown:
-		p.r.ObserveIfExists(peer, -1)
+		p.r.ObserveIfExists(peer, -DefaultObservationWeight)
 	}
 
 	return state, err

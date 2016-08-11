@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/coreos/etcd/pkg/fileutil"
 	"github.com/coreos/etcd/raft"
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/coreos/etcd/snap"
@@ -80,7 +81,7 @@ func (n *Node) createWAL(nodeID string) (raft.Peer, error) {
 	}
 	n.wal, err = wal.Create(n.walDir(), metadata)
 	if err != nil {
-		return raft.Peer{}, fmt.Errorf("create wal error: %v", err)
+		return raft.Peer{}, fmt.Errorf("create WAL error: %v", err)
 	}
 
 	n.cluster.AddMember(&membership.Member{RaftMember: raftNode})
@@ -127,7 +128,7 @@ func (n *Node) readWAL(ctx context.Context, snapshot *raftpb.Snapshot, forceNewC
 	repaired := false
 	for {
 		if n.wal, err = wal.Open(n.walDir(), walsnap); err != nil {
-			return fmt.Errorf("open wal error: %v", err)
+			return fmt.Errorf("open WAL error: %v", err)
 		}
 		if metadata, st, ents, err = n.wal.ReadAll(); err != nil {
 			if err := n.wal.Close(); err != nil {
@@ -135,7 +136,7 @@ func (n *Node) readWAL(ctx context.Context, snapshot *raftpb.Snapshot, forceNewC
 			}
 			// we can only repair ErrUnexpectedEOF and we never repair twice.
 			if repaired || err != io.ErrUnexpectedEOF {
-				return fmt.Errorf("read wal error (%v) and cannot be repaired", err)
+				return fmt.Errorf("read WAL error (%v) and cannot be repaired", err)
 			}
 			if !wal.Repair(n.walDir()) {
 				return fmt.Errorf("WAL error (%v) cannot be repaired", err)
@@ -157,7 +158,7 @@ func (n *Node) readWAL(ctx context.Context, snapshot *raftpb.Snapshot, forceNewC
 
 	var raftNode api.RaftMember
 	if err := raftNode.Unmarshal(metadata); err != nil {
-		return fmt.Errorf("error unmarshalling wal metadata: %v", err)
+		return fmt.Errorf("error unmarshalling WAL metadata: %v", err)
 	}
 	n.Config.ID = raftNode.RaftID
 
@@ -274,25 +275,103 @@ func (n *Node) saveSnapshot(snapshot raftpb.Snapshot, keepOldSnapshots uint64) e
 	// This means that if the current snapshot doesn't appear in the
 	// directory for some strange reason, we won't delete anything, which
 	// is the safe behavior.
+	curSnapshotIdx := -1
 	var (
-		afterCurSnapshot bool
-		removeErr        error
+		removeErr      error
+		oldestSnapshot string
 	)
+
 	for i, snapFile := range snapshots {
-		if afterCurSnapshot {
-			if uint64(len(snapshots)-i) <= keepOldSnapshots {
-				return removeErr
-			}
-			err := os.Remove(filepath.Join(n.snapDir(), snapFile))
-			if err != nil && removeErr == nil {
-				removeErr = err
+		if curSnapshotIdx >= 0 && i > curSnapshotIdx {
+			if uint64(i-curSnapshotIdx) > keepOldSnapshots {
+				err := os.Remove(filepath.Join(n.snapDir(), snapFile))
+				if err != nil && removeErr == nil {
+					removeErr = err
+				}
+				continue
 			}
 		} else if snapFile == curSnapshot {
-			afterCurSnapshot = true
+			curSnapshotIdx = i
+		}
+		oldestSnapshot = snapFile
+	}
+
+	if removeErr != nil {
+		return removeErr
+	}
+
+	// Remove any WAL files that only contain data from before the oldest
+	// remaining snapshot.
+
+	if oldestSnapshot == "" {
+		return nil
+	}
+
+	// Parse index out of oldest snapshot's filename
+	var snapTerm, snapIndex uint64
+	_, err = fmt.Sscanf(oldestSnapshot, "%016x-%016x.snap", &snapTerm, &snapIndex)
+	if err != nil {
+		return fmt.Errorf("malformed snapshot filename %s: %v", oldestSnapshot, err)
+	}
+
+	// List the WALs
+	dirents, err = ioutil.ReadDir(n.walDir())
+	if err != nil {
+		return err
+	}
+
+	var wals []string
+	for _, dirent := range dirents {
+		if strings.HasSuffix(dirent.Name(), ".wal") {
+			wals = append(wals, dirent.Name())
 		}
 	}
 
-	return removeErr
+	// Sort WAL filenames in lexical order
+	sort.Sort(sort.StringSlice(wals))
+
+	found := false
+	deleteUntil := -1
+
+	for i, walName := range wals {
+		var walSeq, walIndex uint64
+		_, err = fmt.Sscanf(walName, "%016x-%016x.wal", &walSeq, &walIndex)
+		if err != nil {
+			return fmt.Errorf("could not parse WAL name %s: %v", walName, err)
+		}
+
+		if walIndex >= snapIndex {
+			deleteUntil = i - 1
+			found = true
+			break
+		}
+	}
+
+	// If all WAL files started with indices below the oldest snapshot's
+	// index, we can delete all but the newest WAL file.
+	if !found && len(wals) != 0 {
+		deleteUntil = len(wals) - 1
+	}
+
+	for i := 0; i < deleteUntil; i++ {
+		walPath := filepath.Join(n.walDir(), wals[i])
+		l, err := fileutil.NewLock(walPath)
+		if err != nil {
+			continue
+		}
+		err = l.TryLock()
+		if err != nil {
+			return fmt.Errorf("could not lock old WAL file %s for removal: %v", wals[i], err)
+		}
+		err = os.Remove(walPath)
+		l.Unlock()
+		l.Destroy()
+		if err != nil {
+			return fmt.Errorf("error removing old WAL file %s: %v", wals[i], err)
+		}
+	}
+
+	return nil
 }
 
 func (n *Node) doSnapshot(raftConfig *api.RaftConfig) {

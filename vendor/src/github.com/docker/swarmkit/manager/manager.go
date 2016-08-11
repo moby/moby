@@ -17,6 +17,7 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/allocator"
 	"github.com/docker/swarmkit/manager/controlapi"
+	"github.com/docker/swarmkit/manager/controlapi/hackpicker"
 	"github.com/docker/swarmkit/manager/dispatcher"
 	"github.com/docker/swarmkit/manager/health"
 	"github.com/docker/swarmkit/manager/keymanager"
@@ -89,9 +90,11 @@ type Manager struct {
 	server                 *grpc.Server
 	localserver            *grpc.Server
 	RaftNode               *raft.Node
+	connSelector           *raftpicker.ConnSelector
 
 	mu sync.Mutex
 
+	started chan struct{}
 	stopped chan struct{}
 }
 
@@ -220,6 +223,7 @@ func New(config *Config) (*Manager, error) {
 		server:      grpc.NewServer(opts...),
 		localserver: grpc.NewServer(opts...),
 		RaftNode:    RaftNode,
+		started:     make(chan struct{}),
 		stopped:     make(chan struct{}),
 	}
 
@@ -428,11 +432,23 @@ func (m *Manager) Run(parent context.Context) error {
 	}()
 
 	proxyOpts := []grpc.DialOption{
-		grpc.WithBackoffMaxDelay(2 * time.Second),
+		grpc.WithTimeout(5 * time.Second),
 		grpc.WithTransportCredentials(m.config.SecurityConfig.ClientTLSCreds),
 	}
 
 	cs := raftpicker.NewConnSelector(m.RaftNode, proxyOpts...)
+	m.connSelector = cs
+
+	// We need special connSelector for controlapi because it provides automatic
+	// leader tracking.
+	// Other APIs are using connSelector which errors out on leader change, but
+	// allows to react quickly to reelections.
+	controlAPIProxyOpts := []grpc.DialOption{
+		grpc.WithBackoffMaxDelay(time.Second),
+		grpc.WithTransportCredentials(m.config.SecurityConfig.ClientTLSCreds),
+	}
+
+	controlAPIConnSelector := hackpicker.NewConnSelector(m.RaftNode, controlAPIProxyOpts...)
 
 	authorize := func(ctx context.Context, roles []string) error {
 		// Authorize the remote roles, ensure they can only be forwarded by managers
@@ -463,7 +479,7 @@ func (m *Manager) Run(parent context.Context) error {
 	// this manager rather than forwarded requests (it has no TLS
 	// information to put in the metadata map).
 	forwardAsOwnRequest := func(ctx context.Context) (context.Context, error) { return ctx, nil }
-	localProxyControlAPI := api.NewRaftProxyControlServer(baseControlAPI, cs, m.RaftNode, forwardAsOwnRequest)
+	localProxyControlAPI := api.NewRaftProxyControlServer(baseControlAPI, controlAPIConnSelector, m.RaftNode, forwardAsOwnRequest)
 
 	// Everything registered on m.server should be an authenticated
 	// wrapper, or a proxy wrapping an authenticated wrapper!
@@ -505,6 +521,8 @@ func (m *Manager) Run(parent context.Context) error {
 		}
 		return fmt.Errorf("can't initialize raft node: %v", err)
 	}
+
+	close(m.started)
 
 	go func() {
 		err := m.RaftNode.Run(ctx)
@@ -560,12 +578,15 @@ func (m *Manager) Run(parent context.Context) error {
 func (m *Manager) Stop(ctx context.Context) {
 	log.G(ctx).Info("Stopping manager")
 
+	// It's not safe to start shutting down while the manager is still
+	// starting up.
+	<-m.started
+
 	// the mutex stops us from trying to stop while we're alrady stopping, or
 	// from returning before we've finished stopping.
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	select {
-
 	// check to see that we've already stopped
 	case <-m.stopped:
 		return
@@ -600,6 +621,9 @@ func (m *Manager) Stop(ctx context.Context) {
 		m.keyManager.Stop()
 	}
 
+	if m.connSelector != nil {
+		m.connSelector.Stop()
+	}
 	m.RaftNode.Shutdown()
 	// some time after this point, Run will receive an error from one of these
 	m.server.Stop()

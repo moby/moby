@@ -115,13 +115,19 @@ func (c *Cluster) RemoveMember(id uint64) error {
 
 // ReplaceMemberConnection replaces the member's GRPC connection and GRPC
 // client.
-func (c *Cluster) ReplaceMemberConnection(id uint64, newConn *Member) error {
+func (c *Cluster) ReplaceMemberConnection(id uint64, oldConn *Member, newConn *Member) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	oldMember, ok := c.members[id]
 	if !ok {
 		return ErrIDNotFound
+	}
+
+	if oldConn.Conn != oldMember.Conn {
+		// The connection was already replaced. Don't do it again.
+		newConn.Conn.Close()
+		return nil
 	}
 
 	oldMember.Conn.Close()
