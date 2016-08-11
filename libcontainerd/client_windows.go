@@ -321,7 +321,7 @@ func (clnt *client) SignalProcess(containerID string, processFriendlyName string
 
 	for _, p := range cont.processes {
 		if p.friendlyName == processFriendlyName {
-			return hcsshim.TerminateProcessInComputeSystem(containerID, p.systemPid)
+			return p.hcsProcess.Kill()
 		}
 	}
 
