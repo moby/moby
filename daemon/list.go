@@ -589,18 +589,12 @@ func (daemon *Daemon) filterVolumes(vols []volume.Volume, filter filters.Args) (
 			}
 		}
 		if filter.Include("label") {
-			v, err := daemon.volumes.Get(vol.Name())
-			if err != nil {
-				return nil, err
+			v, ok := vol.(volume.LabeledVolume)
+			if !ok {
+				continue
 			}
-			if v, ok := v.(interface {
-				Labels() map[string]string
-			}); ok {
-				labels := v.Labels()
-
-				if !filter.MatchKVList("label", labels) {
-					continue
-				}
+			if !filter.MatchKVList("label", v.Labels()) {
+				continue
 			}
 		}
 		retVols = append(retVols, vol)
