@@ -3,7 +3,6 @@ package container
 import (
 	"fmt"
 	"strconv"
-	"time"
 
 	"golang.org/x/net/context"
 
@@ -16,83 +15,66 @@ import (
 	"github.com/docker/engine-api/types/filters"
 )
 
-func waitExitOrRemoved(dockerCli *client.DockerCli, ctx context.Context, containerID string, waitRemove bool, since time.Time) (int, error) {
+func waitExitOrRemoved(dockerCli *client.DockerCli, ctx context.Context, containerID string, waitRemove bool) (chan int, error) {
 	if len(containerID) == 0 {
 		// containerID can never be empty
 		panic("Internal Error: waitExitOrRemoved needs a containerID as parameter")
 	}
 
-	var exitCode int
-	exitChan := make(chan struct{})
-	detachChan := make(chan struct{})
-	destroyChan := make(chan struct{})
+	statusChan := make(chan int)
+	exitCode := 125
 
-	// Start watch events
-	eh := system.InitEventHandler()
-	eh.Handle("die", func(e events.Message) {
-		if len(e.Actor.Attributes) > 0 {
-			for k, v := range e.Actor.Attributes {
-				if k == "exitCode" {
-					var err error
-					if exitCode, err = strconv.Atoi(v); err != nil {
-						logrus.Errorf("Can't convert %q to int: %v", v, err)
-					}
-					close(exitChan)
-					break
+	eventProcessor := func(e events.Message, err error) error {
+		if err != nil {
+			statusChan <- exitCode
+			return fmt.Errorf("failed to decode event: %v", err)
+		}
+
+		stopProcessing := false
+		switch e.Status {
+		case "die":
+			if v, ok := e.Actor.Attributes["exitCode"]; ok {
+				code, cerr := strconv.Atoi(v)
+				if cerr != nil {
+					logrus.Errorf("failed to convert exitcode '%q' to int: %v", v, cerr)
+				} else {
+					exitCode = code
 				}
 			}
+			if !waitRemove {
+				stopProcessing = true
+			}
+		case "detach":
+			exitCode = 0
+			stopProcessing = true
+		case "destroy":
+			stopProcessing = true
 		}
-	})
 
-	eh.Handle("detach", func(e events.Message) {
-		exitCode = 0
-		close(detachChan)
-	})
-	eh.Handle("destroy", func(e events.Message) {
-		close(destroyChan)
-	})
+		if stopProcessing {
+			statusChan <- exitCode
+			// stop the loop processing
+			return fmt.Errorf("done")
+		}
 
-	eventChan := make(chan events.Message)
-	go eh.Watch(eventChan)
-	defer close(eventChan)
+		return nil
+	}
 
 	// Get events via Events API
 	f := filters.NewArgs()
 	f.Add("type", "container")
 	f.Add("container", containerID)
 	options := types.EventsOptions{
-		Since:   fmt.Sprintf("%d", since.Unix()),
 		Filters: f,
 	}
 	resBody, err := dockerCli.Client().Events(ctx, options)
 	if err != nil {
-		return -1, fmt.Errorf("can't get events from daemon: %v", err)
+		return nil, fmt.Errorf("can't get events from daemon: %v", err)
 	}
-	defer resBody.Close()
 
-	go system.DecodeEvents(resBody, func(event events.Message, err error) error {
-		if err != nil {
-			return nil
-		}
-		eventChan <- event
-		return nil
-	})
+	go system.DecodeEvents(resBody, eventProcessor)
 
-	if waitRemove {
-		select {
-		case <-destroyChan:
-			return exitCode, nil
-		case <-detachChan:
-			return 0, nil
-		}
-	} else {
-		select {
-		case <-exitChan:
-			return exitCode, nil
-		case <-detachChan:
-			return 0, nil
-		}
-	}
+	return statusChan, nil
 }
 
 // getExitCode performs an inspect on the container. It returns
