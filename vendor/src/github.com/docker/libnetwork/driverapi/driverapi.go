@@ -115,7 +115,7 @@ type InterfaceNameInfo interface {
 // JoinInfo represents a set of resources that the driver has the ability to provide during
 // join time.
 type JoinInfo interface {
-	// InterfaceName returns a InterfaceNameInfo go interface to facilitate
+	// InterfaceName returns an InterfaceNameInfo go interface to facilitate
 	// setting the names for the interface.
 	InterfaceName() InterfaceNameInfo
 

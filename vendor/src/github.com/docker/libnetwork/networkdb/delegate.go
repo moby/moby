@@ -25,6 +25,10 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 	nDB.Lock()
 	defer nDB.Unlock()
 
+	if nEvent.NodeName == nDB.config.NodeName {
+		return false
+	}
+
 	nodeNetworks, ok := nDB.networks[nEvent.NodeName]
 	if !ok {
 		// We haven't heard about this node at all.  Ignore the leave
@@ -70,6 +74,15 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 	// Update our local clock if the received messages has newer
 	// time.
 	nDB.tableClock.Witness(tEvent.LTime)
+
+	// Ignore the table events for networks that are in the process of going away
+	nDB.RLock()
+	networks := nDB.networks[nDB.config.NodeName]
+	network, ok := networks[tEvent.NetworkID]
+	nDB.RUnlock()
+	if !ok || network.leaving {
+		return true
+	}
 
 	if entry, err := nDB.getEntry(tEvent.TableName, tEvent.NetworkID, tEvent.Key); err == nil {
 		// We have the latest state. Ignore the event
@@ -217,9 +230,11 @@ func (nDB *NetworkDB) handleBulkSync(buf []byte) {
 	}
 
 	var nodeAddr net.IP
+	nDB.RLock()
 	if node, ok := nDB.nodes[bsm.NodeName]; ok {
 		nodeAddr = node.Addr
 	}
+	nDB.RUnlock()
 
 	if err := nDB.bulkSyncNode(bsm.Networks, bsm.NodeName, false); err != nil {
 		logrus.Errorf("Error in responding to bulk sync from node %s: %v", nodeAddr, err)

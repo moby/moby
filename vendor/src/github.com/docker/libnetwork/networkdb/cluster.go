@@ -305,7 +305,10 @@ func (nDB *NetworkDB) gossip() {
 func (nDB *NetworkDB) bulkSyncTables() {
 	var networks []string
 	nDB.RLock()
-	for nid := range nDB.networks[nDB.config.NodeName] {
+	for nid, network := range nDB.networks[nDB.config.NodeName] {
+		if network.leaving {
+			continue
+		}
 		networks = append(networks, nid)
 	}
 	nDB.RUnlock()
