@@ -139,23 +139,14 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 	}
 	c.Unlock()
 
-	// Delete the special "tasks.svc_name" backend record.
-	n.(*network).deleteSvcRecords("tasks."+name, ip, nil, false)
-	for _, alias := range aliases {
-		n.(*network).deleteSvcRecords("tasks."+alias, ip, nil, false)
-	}
-
-	// If we are doing DNS RR add the endpoint IP to DNS record
-	// right away.
-	if len(vip) == 0 {
-		n.(*network).deleteSvcRecords(name, ip, nil, false)
-		for _, alias := range aliases {
-			n.(*network).deleteSvcRecords(alias, ip, nil, false)
-		}
-	}
-
 	s.Lock()
 	lb, ok := s.loadBalancers[nid]
+	if !ok {
+		s.Unlock()
+		return nil
+	}
+
+	_, ok = lb.backEnds[eid]
 	if !ok {
 		s.Unlock()
 		return nil
@@ -183,6 +174,21 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 		n.(*network).rmLBBackend(ip, vip, lb.fwMark, ingressPorts, rmService)
 	}
 	s.Unlock()
+
+	// Delete the special "tasks.svc_name" backend record.
+	n.(*network).deleteSvcRecords("tasks."+name, ip, nil, false)
+	for _, alias := range aliases {
+		n.(*network).deleteSvcRecords("tasks."+alias, ip, nil, false)
+	}
+
+	// If we are doing DNS RR add the endpoint IP to DNS record
+	// right away.
+	if len(vip) == 0 {
+		n.(*network).deleteSvcRecords(name, ip, nil, false)
+		for _, alias := range aliases {
+			n.(*network).deleteSvcRecords(alias, ip, nil, false)
+		}
+	}
 
 	// Remove the DNS record for VIP only if we are removing the service
 	if rmService && len(vip) != 0 {
@@ -255,7 +261,7 @@ func (sb *sandbox) populateLoadbalancers(ep *endpoint) {
 		addService := true
 		for _, ip := range lb.backEnds {
 			sb.addLBBackend(ip, lb.vip, lb.fwMark, lb.service.ingressPorts,
-				eIP, gwIP, addService)
+				eIP, gwIP, addService, n.ingress)
 			addService = false
 		}
 		lb.service.Unlock()
@@ -278,7 +284,7 @@ func (n *network) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*Po
 				gwIP = ep.Iface().Address().IP
 			}
 
-			sb.addLBBackend(ip, vip, fwMark, ingressPorts, ep.Iface().Address(), gwIP, addService)
+			sb.addLBBackend(ip, vip, fwMark, ingressPorts, ep.Iface().Address(), gwIP, addService, n.ingress)
 		}
 
 		return false
@@ -301,7 +307,7 @@ func (n *network) rmLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*Por
 				gwIP = ep.Iface().Address().IP
 			}
 
-			sb.rmLBBackend(ip, vip, fwMark, ingressPorts, ep.Iface().Address(), gwIP, rmService)
+			sb.rmLBBackend(ip, vip, fwMark, ingressPorts, ep.Iface().Address(), gwIP, rmService, n.ingress)
 		}
 
 		return false
@@ -309,14 +315,18 @@ func (n *network) rmLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*Por
 }
 
 // Add loadbalancer backend into one connected sandbox.
-func (sb *sandbox) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*PortConfig, eIP *net.IPNet, gwIP net.IP, addService bool) {
+func (sb *sandbox) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*PortConfig, eIP *net.IPNet, gwIP net.IP, addService bool, isIngressNetwork bool) {
 	if sb.osSbox == nil {
+		return
+	}
+
+	if isIngressNetwork && !sb.ingress {
 		return
 	}
 
 	i, err := ipvs.New(sb.Key())
 	if err != nil {
-		logrus.Errorf("Failed to create a ipvs handle for sbox %s: %v", sb.Key(), err)
+		logrus.Errorf("Failed to create an ipvs handle for sbox %s: %v", sb.Key(), err)
 		return
 	}
 	defer i.Close()
@@ -364,14 +374,18 @@ func (sb *sandbox) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*P
 }
 
 // Remove loadbalancer backend from one connected sandbox.
-func (sb *sandbox) rmLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*PortConfig, eIP *net.IPNet, gwIP net.IP, rmService bool) {
+func (sb *sandbox) rmLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*PortConfig, eIP *net.IPNet, gwIP net.IP, rmService bool, isIngressNetwork bool) {
 	if sb.osSbox == nil {
+		return
+	}
+
+	if isIngressNetwork && !sb.ingress {
 		return
 	}
 
 	i, err := ipvs.New(sb.Key())
 	if err != nil {
-		logrus.Errorf("Failed to create a ipvs handle for sbox %s: %v", sb.Key(), err)
+		logrus.Errorf("Failed to create an ipvs handle for sbox %s: %v", sb.Key(), err)
 		return
 	}
 	defer i.Close()
@@ -704,7 +718,7 @@ func fwMarker() {
 		os.Exit(4)
 	}
 
-	if len(ingressPorts) != 0 && addDelOpt == "-A" {
+	if addDelOpt == "-A" {
 		ruleParams := strings.Fields(fmt.Sprintf("-m ipvs --ipvs -j SNAT --to-source %s", os.Args[6]))
 		if !iptables.Exists("nat", "POSTROUTING", ruleParams...) {
 			rule := append(strings.Fields("-t nat -A POSTROUTING"), ruleParams...)

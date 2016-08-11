@@ -498,6 +498,38 @@ func (sb *sandbox) ResolveService(name string) ([]*net.SRV, []net.IP, error) {
 	return srv, ip, nil
 }
 
+func getDynamicNwEndpoints(epList []*endpoint) []*endpoint {
+	eps := []*endpoint{}
+	for _, ep := range epList {
+		n := ep.getNetwork()
+		if n.dynamic && !n.ingress {
+			eps = append(eps, ep)
+		}
+	}
+	return eps
+}
+
+func getIngressNwEndpoint(epList []*endpoint) *endpoint {
+	for _, ep := range epList {
+		n := ep.getNetwork()
+		if n.ingress {
+			return ep
+		}
+	}
+	return nil
+}
+
+func getLocalNwEndpoints(epList []*endpoint) []*endpoint {
+	eps := []*endpoint{}
+	for _, ep := range epList {
+		n := ep.getNetwork()
+		if !n.dynamic && !n.ingress {
+			eps = append(eps, ep)
+		}
+	}
+	return eps
+}
+
 func (sb *sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 	// Embedded server owns the docker network domain. Resolution should work
 	// for both container_name and container_name.network_name
@@ -528,6 +560,18 @@ func (sb *sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 	}
 
 	epList := sb.getConnectedEndpoints()
+
+	// In swarm mode services with exposed ports are connected to user overlay
+	// network, ingress network and docker_gwbridge network. Name resolution
+	// should prioritize returning the VIP/IPs on user overlay network.
+	newList := []*endpoint{}
+	if !sb.controller.isDistributedControl() {
+		newList = append(newList, getDynamicNwEndpoints(epList)...)
+		newList = append(newList, getIngressNwEndpoint(epList))
+		newList = append(newList, getLocalNwEndpoints(epList)...)
+		epList = newList
+	}
+
 	for i := 0; i < len(reqName); i++ {
 
 		// First check for local container alias

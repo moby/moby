@@ -140,7 +140,7 @@ func (i *nwIface) Remove() error {
 	nlh := n.nlHandle
 	n.Unlock()
 
-	// Find the network inteerface identified by the DstName attribute.
+	// Find the network interface identified by the DstName attribute.
 	iface, err := nlh.LinkByName(i.DstName())
 	if err != nil {
 		return err

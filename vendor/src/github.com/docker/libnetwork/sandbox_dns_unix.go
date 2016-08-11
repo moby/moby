@@ -290,7 +290,7 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 }
 
 // Embedded DNS server has to be enabled for this sandbox. Rebuild the container's
-// resolv.conf by doing the follwing
+// resolv.conf by doing the following
 // - Save the external name servers in resolv.conf in the sandbox
 // - Add only the embedded server's IP to container's resolv.conf
 // - If the embedded server needs any resolv.conf options add it to the current list

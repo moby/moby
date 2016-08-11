@@ -41,7 +41,7 @@ func (e TypeMismatchError) Error() string {
 	return fmt.Sprintf("type mismatch, field %s require type %v, actual type %v", e.Field, e.ExpectType, e.ActualType)
 }
 
-// Generic is an basic type to store arbitrary settings.
+// Generic is a basic type to store arbitrary settings.
 type Generic map[string]interface{}
 
 // NewGeneric returns a new Generic instance.
