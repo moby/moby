@@ -89,7 +89,13 @@ ID                         HOSTNAME       STATUS  AVAILABILITY  MANAGER STATUS
 
 ## Related information
 
+* [node accept](node_accept.md)
+* [node active](node_activate.md)
+* [node demote](node_demote.md)
+* [node drain](node_drain.md)
 * [node inspect](node_inspect.md)
-* [node update](node_update.md)
-* [node ps](node_ps.md)
+* [node pause](node_pause.md)
+* [node promote](node_promote.md)
 * [node rm](node_rm.md)
+* [node tasks](node_tasks.md)
+* [node update](node_update.md)

@@ -23,6 +23,15 @@ Options:
       --role string           Role of the node (worker/manager)
 ```
 
+This command is a *low-level* command to update membership, role and
+availability of a node. Each of these attributes can be updated using
+a simpler command such as `accept` for membership, `promote` or
+`demote` for role and `activate`, `drain` or `pause` for
+availability.
+
+This command must be run on a manager node, but may update any node in
+the swarm.
+
 ### Add label metadata to a node
 
 Add metadata to a swarm node using node labels. You can specify a node label as
@@ -56,9 +65,16 @@ entity within the swarm. Do not confuse them with the docker daemon labels for
 For more information about labels, refer to [apply custom
 metadata](../../userguide/labels-custom-metadata.md).
 
+
 ## Related information
 
+* [node accept](node_accept.md)
+* [node active](node_activate.md)
+* [node demote](node_demote.md)
+* [node drain](node_drain.md)
 * [node inspect](node_inspect.md)
-* [node ps](node_ps.md)
 * [node ls](node_ls.md)
+* [node pause](node_pause.md)
+* [node promote](node_promote.md)
 * [node rm](node_rm.md)
+* [node tasks](node_tasks.md)
