@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"strings"
 	"time"
@@ -193,4 +194,30 @@ func (s *DockerSwarmSuite) TestSwarmNodeTaskListFilter(c *check.C) {
 	c.Assert(out, checker.Not(checker.Contains), name+".1")
 	c.Assert(out, checker.Not(checker.Contains), name+".2")
 	c.Assert(out, checker.Not(checker.Contains), name+".3")
+}
+
+// Test case for #24087
+func (s *DockerSwarmSuite) TestSwarmJoinWithDaemon(c *check.C) {
+	d1 := s.AddDaemon(c, true, true)
+
+	out, err := d1.Cmd("swarm", "join-token", "-q", "manager")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	token := strings.TrimSpace(out)
+
+	d2 := NewDaemon(c)
+	c.Assert(d2.Start("--iptables=false",
+		"--swarm-join-token", token,
+		"--swarm-join-listen-addr", fmt.Sprintf("0.0.0.0:%d", s.portIndex),
+		"--swarm-join", d1.listenAddr), checker.IsNil)
+	defer d2.Stop()
+
+	out, err = d1.Cmd("node", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(len(strings.Split(strings.TrimSpace(out), "\n")), checker.Equals, 3)
+
+	out, err = d2.Cmd("node", "ls")
+	c.Assert(err, checker.IsNil)
+	c.Assert(len(strings.Split(strings.TrimSpace(out), "\n")), checker.Equals, 3)
 }
