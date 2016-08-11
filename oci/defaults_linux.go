@@ -81,6 +81,7 @@ func DefaultSpec() specs.Spec {
 		MaskedPaths: []string{
 			"/proc/kcore",
 			"/proc/latency_stats",
+			"/proc/timer_list",
 			"/proc/timer_stats",
 			"/proc/sched_debug",
 		},
