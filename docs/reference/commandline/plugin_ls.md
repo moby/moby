@@ -20,7 +20,8 @@ Aliases:
   ls, list
 
 Options:
-      --help   Print usage
+      --help	   Print usage
+      --no-trunc   Don't truncate output
 ```
 
 Lists all the plugins that are currently installed. You can install plugins
@@ -31,8 +32,8 @@ Example output:
 ```bash
 $ docker plugin ls
 
-NAME                  VERSION             ACTIVE
-tiborvass/no-remove   latest              true
+NAME                  TAG                 DESCRIPTION                ACTIVE
+tiborvass/no-remove   latest              A test plugin for Docker   true
 ```
 
 ## Related information

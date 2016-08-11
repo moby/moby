@@ -30,8 +30,8 @@ but disabled ("inactive"):
 ```bash
 $ docker plugin ls
 
-NAME                    VERSION             ACTIVE
-tiborvass/no-remove     latest              false
+NAME                  TAG                 DESCRIPTION                ACTIVE
+tiborvass/no-remove   latest              A test plugin for Docker   false
 ```
 
 To enable the plugin, use the following command:
@@ -47,8 +47,8 @@ After the plugin is enabled, it appears as "active" in the list of plugins:
 ```bash
 $ docker plugin ls
 
-NAME                    VERSION             ACTIVE
-tiborvass/no-remove     latest              true
+NAME                  TAG                 DESCRIPTION                ACTIVE
+tiborvass/no-remove   latest              A test plugin for Docker   true
 ```
 
 ## Related information
