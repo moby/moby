@@ -14,15 +14,9 @@ set -e
 #
 # ... and so on and so forth for the builds created by hack/make/build-rpm
 
-source "$(dirname "$BASH_SOURCE")/.integration-daemon-start"
-source "$(dirname "$BASH_SOURCE")/.detect-daemon-osarch"
-
 : ${DOCKER_RELEASE_DIR:=$DEST}
 YUMDIR=$DOCKER_RELEASE_DIR/yum/repo
 : ${GPG_KEYID:=releasedocker}
-
-# manage the repos for each distribution separately
-distros=( fedora centos opensuse oraclelinux )
 
 # get the release
 release="main"
@@ -35,44 +29,42 @@ if [ $DOCKER_EXPERIMENTAL ] || [[ "$VERSION" == *-dev ]] || [ -n "$(git status -
 	release="experimental"
 fi
 
-for distro in "${distros[@]}"; do
-	# Setup the yum repo
-	REPO=$YUMDIR/$release/$distro
+# Setup the yum repo
+for dir in bundles/$VERSION/build-rpm/*/; do
+	version="$(basename "$dir")"
+	suite="${version##*-}"
 
-	for dir in contrib/builder/rpm/${PACKAGE_ARCH}/$distro-*/; do
-		version="$(basename "$dir")"
-		suite="${version##*-}"
+	REPO=$YUMDIR/$release/$suite
 
-		# if the directory does not exist, initialize the yum repo
-		if [[ ! -d $REPO/$suite/Packages ]]; then
-			mkdir -p "$REPO/$suite/Packages"
+	# if the directory does not exist, initialize the yum repo
+	if [[ ! -d $REPO/$suite/Packages ]]; then
+		mkdir -p "$REPO/$suite/Packages"
 
-			createrepo --pretty "$REPO/$suite"
-		fi
+		createrepo --pretty "$REPO/$suite"
+	fi
 
-		# path to rpms
-		RPMFILE=( "bundles/$VERSION/build-rpm/$version/RPMS/"*"/docker-engine"*.rpm "bundles/$VERSION/build-rpm/$version/SRPMS/docker-engine"*.rpm )
+	# path to rpms
+	RPMFILE=( "bundles/$VERSION/build-rpm/$version/RPMS/"*"/docker-engine"*.rpm "bundles/$VERSION/build-rpm/$version/SRPMS/docker-engine"*.rpm )
 
-		# if we have a $GPG_PASSPHRASE we may as well
-		# sign the rpms before adding to repo
-		if [ ! -z $GPG_PASSPHRASE ]; then
-			# export our key to rpm import
-			gpg --armor --export "$GPG_KEYID" > /tmp/gpg
-			rpm --import /tmp/gpg
+	# if we have a $GPG_PASSPHRASE we may as well
+	# sign the rpms before adding to repo
+	if [ ! -z $GPG_PASSPHRASE ]; then
+		# export our key to rpm import
+		gpg --armor --export "$GPG_KEYID" > /tmp/gpg
+		rpm --import /tmp/gpg
 
-			# sign the rpms
-			echo "yes" | setsid rpm \
-				--define "_gpg_name $GPG_KEYID" \
-				--define "_signature gpg" \
-				--define "__gpg_check_password_cmd /bin/true" \
-				--define "__gpg_sign_cmd %{__gpg} gpg --batch --no-armor --passphrase '$GPG_PASSPHRASE' --no-secmem-warning -u '%{_gpg_name}' --sign --detach-sign --output %{__signature_filename} %{__plaintext_filename}" \
-				--resign "${RPMFILE[@]}"
-		fi
+		# sign the rpms
+		echo "yes" | setsid rpm \
+			--define "_gpg_name $GPG_KEYID" \
+			--define "_signature gpg" \
+			--define "__gpg_check_password_cmd /bin/true" \
+			--define "__gpg_sign_cmd %{__gpg} gpg --batch --no-armor --passphrase '$GPG_PASSPHRASE' --no-secmem-warning -u '%{_gpg_name}' --sign --detach-sign --output %{__signature_filename} %{__plaintext_filename}" \
+			--resign "${RPMFILE[@]}"
+	fi
 
-		# copy the rpms to the packages folder
-		cp "${RPMFILE[@]}" "$REPO/$suite/Packages"
+	# copy the rpms to the packages folder
+	cp "${RPMFILE[@]}" "$REPO/$suite/Packages"
 
-		# update the repo
-		createrepo --pretty --update "$REPO/$suite"
-	done
+	# update the repo
+	createrepo --pretty --update "$REPO/$suite"
 done
