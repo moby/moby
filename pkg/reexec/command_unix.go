@@ -1,4 +1,4 @@
-// +build freebsd solaris
+// +build freebsd solaris darwin
 
 package reexec
 
@@ -12,7 +12,7 @@ func Self() string {
 	return naiveSelf()
 }
 
-// Command returns *exec.Cmd which have Path as current binary.
+// Command returns *exec.Cmd which has Path as current binary.
 // For example if current binary is "docker" at "/usr/bin/", then cmd.Path will
 // be set to "/usr/bin/docker".
 func Command(args ...string) *exec.Cmd {
