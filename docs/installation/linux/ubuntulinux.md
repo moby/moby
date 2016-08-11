@@ -119,10 +119,10 @@ packages from the new repository:
 - Ubuntu Trusty 14.04 (LTS)
 
 For Ubuntu Trusty, Wily, and Xenial, it's recommended to install the
-`linux-image-extra` kernel package. The `linux-image-extra` package
+`linux-image-extra-*` kernel packages. The `linux-image-extra-*` packages
 allows you use the `aufs` storage driver.
 
-To install the `linux-image-extra` package for your kernel version:
+To install the `linux-image-extra-*` packages:
 
 1. Open a terminal on your Ubuntu host.
 
@@ -130,13 +130,11 @@ To install the `linux-image-extra` package for your kernel version:
 
         $ sudo apt-get update
 
-3. Install the recommended package.
+3. Install the recommended packages.
 
-        $ sudo apt-get install linux-image-extra-$(uname -r)
+        $ sudo apt-get install linux-image-extra-$(uname -r) linux-image-extra-virtual
 
 4. Go ahead and install Docker.
-
-If you are installing on Ubuntu 14.04 or 12.04, `apparmor` is required.  You can install it using: `apt-get install apparmor`
 
 #### Ubuntu Precise 12.04 (LTS)
 
