@@ -21,40 +21,44 @@ func waitExitOrRemoved(dockerCli *client.DockerCli, ctx context.Context, contain
 		panic("Internal Error: waitExitOrRemoved needs a containerID as parameter")
 	}
 
-	var exitCode int
 	statusChan := make(chan int)
-	exitChan := make(chan struct{})
-	detachChan := make(chan struct{})
-	destroyChan := make(chan struct{})
-	eventsErr := make(chan error)
+	exitCode := 125
 
-	// Start watch events
-	eh := system.InitEventHandler()
-	eh.Handle("die", func(e events.Message) {
-		if len(e.Actor.Attributes) > 0 {
-			for k, v := range e.Actor.Attributes {
-				if k == "exitCode" {
-					var err error
-					if exitCode, err = strconv.Atoi(v); err != nil {
-						logrus.Errorf("Can't convert %q to int: %v", v, err)
-					}
-					close(exitChan)
-					break
+	eventProcessor := func(e events.Message, err error) error {
+		if err != nil {
+			statusChan <- exitCode
+			return fmt.Errorf("failed to decode event: %v", err)
+		}
+
+		stopProcessing := false
+		switch e.Status {
+		case "die":
+			if v, ok := e.Actor.Attributes["exitCode"]; ok {
+				code, cerr := strconv.Atoi(v)
+				if cerr != nil {
+					logrus.Errorf("failed to convert exitcode '%q' to int: %v", v, cerr)
+				} else {
+					exitCode = code
 				}
 			}
+			if !waitRemove {
+				stopProcessing = true
+			}
+		case "detach":
+			exitCode = 0
+			stopProcessing = true
+		case "destroy":
+			stopProcessing = true
 		}
-	})
 
-	eh.Handle("detach", func(e events.Message) {
-		exitCode = 0
-		close(detachChan)
-	})
-	eh.Handle("destroy", func(e events.Message) {
-		close(destroyChan)
-	})
+		if stopProcessing {
+			statusChan <- exitCode
+			// stop the loop processing
+			return fmt.Errorf("done")
+		}
 
-	eventChan := make(chan events.Message)
-	go eh.Watch(eventChan)
+		return nil
+	}
 
 	// Get events via Events API
 	f := filters.NewArgs()
@@ -68,45 +72,8 @@ func waitExitOrRemoved(dockerCli *client.DockerCli, ctx context.Context, contain
 		return nil, fmt.Errorf("can't get events from daemon: %v", err)
 	}
 
-	go func() {
-		eventsErr <- system.DecodeEvents(resBody, func(event events.Message, err error) error {
-			if err != nil {
-				return fmt.Errorf("decode events error: %v", err)
-			}
-			eventChan <- event
-			return nil
-		})
-		close(eventChan)
-	}()
+	go system.DecodeEvents(resBody, eventProcessor)
 
-	go func() {
-		var waitErr error
-		if waitRemove {
-			select {
-			case <-destroyChan:
-				// keep exitcode and return
-			case <-detachChan:
-				exitCode = 0
-			case waitErr = <-eventsErr:
-				exitCode = 125
-			}
-		} else {
-			select {
-			case <-exitChan:
-				// keep exitcode and return
-			case <-detachChan:
-				exitCode = 0
-			case waitErr = <-eventsErr:
-				exitCode = 125
-			}
-		}
-		if waitErr != nil {
-			logrus.Errorf("%v", waitErr)
-		}
-		statusChan <- exitCode
-
-		resBody.Close()
-	}()
 	return statusChan, nil
 }
 
