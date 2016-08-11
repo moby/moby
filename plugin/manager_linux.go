@@ -90,7 +90,13 @@ func (pm *Manager) initSpec(p *plugin) (*specs.Spec, error) {
 		if mount.Source != nil {
 			m.Source = *mount.Source
 		}
+
 		if m.Source != "" && m.Type == "bind" {
+			/* Debugging issue #25511: Volumes and other content created under the
+			bind mount should be recursively propagated. rshared, not shared.
+			This could be the reason for EBUSY during removal. Override options
+			with rbind, rshared and see if CI errors are fixed. */
+			m.Options = []string{"rbind", "rshared"}
 			fi, err := os.Lstat(filepath.Join(rootfs, string(os.PathSeparator), m.Destination)) // TODO: followsymlinks
 			if err != nil {
 				return nil, err
