@@ -294,9 +294,10 @@ func (v *localVolume) Path() string {
 }
 
 // Mount implements the localVolume interface, returning the data location.
-func (v *localVolume) Mount(id string) (string, error) {
+func (v *localVolume) Mount(id string, _ map[string]string) (string, error) {
 	v.m.Lock()
 	defer v.m.Unlock()
+
 	if v.opts != nil {
 		if !v.active.mounted {
 			if err := v.mount(); err != nil {

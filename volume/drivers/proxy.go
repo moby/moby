@@ -4,6 +4,7 @@ package volumedrivers
 
 import (
 	"errors"
+
 	"github.com/docker/docker/volume"
 )
 
@@ -101,6 +102,7 @@ func (pp *volumeDriverProxy) Path(name string) (mountpoint string, err error) {
 type volumeDriverProxyMountRequest struct {
 	Name string
 	ID   string
+	Opts map[string]string
 }
 
 type volumeDriverProxyMountResponse struct {
@@ -108,7 +110,7 @@ type volumeDriverProxyMountResponse struct {
 	Err        string
 }
 
-func (pp *volumeDriverProxy) Mount(name string, id string) (mountpoint string, err error) {
+func (pp *volumeDriverProxy) Mount(name string, id string, opts map[string]string) (mountpoint string, err error) {
 	var (
 		req volumeDriverProxyMountRequest
 		ret volumeDriverProxyMountResponse
@@ -116,6 +118,7 @@ func (pp *volumeDriverProxy) Mount(name string, id string) (mountpoint string, e
 
 	req.Name = name
 	req.ID = id
+	req.Opts = opts
 	if err = pp.Call("VolumeDriver.Mount", req, &ret); err != nil {
 		return
 	}
