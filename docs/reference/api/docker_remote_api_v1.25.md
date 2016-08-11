@@ -3551,6 +3551,11 @@ Remove a node [`id`] from the Swarm.
     Content-Length: 0
     Content-Type: text/plain; charset=utf-8
 
+**Query parameters**:
+
+-   **force** - 1/True/true or 0/False/false, Force remove an active node.
+        Default `false`.
+
 **Status codes**:
 
 -   **200** – no error
