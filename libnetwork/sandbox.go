@@ -567,7 +567,10 @@ func (sb *sandbox) ResolveName(name string, ipType int) ([]net.IP, bool) {
 	newList := []*endpoint{}
 	if !sb.controller.isDistributedControl() {
 		newList = append(newList, getDynamicNwEndpoints(epList)...)
-		newList = append(newList, getIngressNwEndpoint(epList))
+		ingressEP := getIngressNwEndpoint(epList)
+		if ingressEP != nil {
+			newList = append(newList, ingressEP)
+		}
 		newList = append(newList, getLocalNwEndpoints(epList)...)
 		epList = newList
 	}
