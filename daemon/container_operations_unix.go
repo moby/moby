@@ -383,3 +383,7 @@ func isLinkable(child *container.Container) bool {
 func errRemovalContainer(containerID string) error {
 	return fmt.Errorf("Container %s is marked for removal and cannot be connected or disconnected to the network", containerID)
 }
+
+func enableIPOnPredefinedNetwork() bool {
+	return false
+}

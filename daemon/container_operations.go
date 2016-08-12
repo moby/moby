@@ -511,7 +511,7 @@ func (daemon *Daemon) updateNetworkConfig(container *container.Container, idOrNa
 	}
 
 	if !containertypes.NetworkMode(idOrName).IsUserDefined() {
-		if hasUserDefinedIPAddress(endpointConfig) {
+		if hasUserDefinedIPAddress(endpointConfig) && !enableIPOnPredefinedNetwork() {
 			return nil, runconfig.ErrUnsupportedNetworkAndIP
 		}
 		if endpointConfig != nil && len(endpointConfig.Aliases) > 0 {
