@@ -21,6 +21,7 @@ var acceptedVolumeFilterTags = map[string]bool{
 	"dangling": true,
 	"name":     true,
 	"driver":   true,
+	"label":    true,
 }
 
 var acceptedPsFilterTags = map[string]bool{
@@ -584,6 +585,15 @@ func (daemon *Daemon) filterVolumes(vols []volume.Volume, filter filters.Args) (
 		}
 		if filter.Include("driver") {
 			if !filter.Match("driver", vol.DriverName()) {
+				continue
+			}
+		}
+		if filter.Include("label") {
+			v, ok := vol.(volume.LabeledVolume)
+			if !ok {
+				continue
+			}
+			if !filter.MatchKVList("label", v.Labels()) {
 				continue
 			}
 		}
