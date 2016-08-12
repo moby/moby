@@ -54,6 +54,7 @@ $ $ docker service create --replicas 2 --network my-multi-host-network --name my
 
 Overlay networks for a swarm are not available to unmanaged containers. For more information refer to [Docker swarm mode overlay network security model](overlay-security-model.md).
 
+See also [Attach services to an overlay network](../../swarm/networking.md). 
 
 ## Overlay networking with an external key-value store
 
