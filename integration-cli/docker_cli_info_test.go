@@ -219,3 +219,44 @@ func (s *DockerDaemonSuite) TestRegistryMirrors(c *check.C) {
 	c.Assert(out, checker.Contains, fmt.Sprintf(" %s", registryMirror1))
 	c.Assert(out, checker.Contains, fmt.Sprintf(" %s", registryMirror2))
 }
+
+func (s *DockerDaemonSuite) TestInfoDiscoveryListen(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	discoveryBackend := "consul://consuladdr:consulport/some/path"
+	discoveryAdvertise := "1.1.1.1:2376"
+	discoveryListen := "127.0.0.1:2376"
+	err := s.d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend),
+		fmt.Sprintf("--cluster-advertise=%s", discoveryAdvertise),
+		fmt.Sprintf("--cluster-listen=%s", discoveryListen))
+	c.Assert(err, checker.IsNil)
+
+	out, err := s.d.Cmd("info")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Store: %s\n", discoveryBackend))
+	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Advertise: %s\n", discoveryAdvertise))
+	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Listen Address: %s\n", discoveryListen))
+}
+
+func (s *DockerDaemonSuite) TestInfoDiscoveryInvalidListen(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	discoveryBackend := "consul://consuladdr:consulport/some/path"
+	discoveryAdvertise := "1.1.1.1:2376"
+	discoveryListen := "127.0.0.1:2376"
+
+	// --cluster-listen with an invalid string is an error
+	err := s.d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend),
+		fmt.Sprintf("--cluster-advertise=%s", discoveryAdvertise),
+		"--cluster-listen=invalid")
+	c.Assert(err, checker.Not(checker.IsNil))
+
+	// --cluster-listen without --cluster-store and --cluster-advertise is an error
+	err = s.d.Start(fmt.Sprintf("--cluster-listen=%s", discoveryListen))
+	c.Assert(err, checker.Not(checker.IsNil))
+
+	// --cluster-listen with --cluster-store but without --cluster-advertise is an error
+	err = s.d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend),
+		fmt.Sprintf("--cluster-listen=%s", discoveryListen))
+	c.Assert(err, checker.Not(checker.IsNil))
+}

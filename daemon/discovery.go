@@ -200,8 +200,8 @@ func parseDiscoveryOptions(backendAddress string, clusterOpts map[string]string)
 }
 
 // modifiedDiscoverySettings returns whether the discovery configuration has been modified or not.
-func modifiedDiscoverySettings(config *Config, backendType, advertise string, clusterOpts map[string]string) bool {
-	if config.ClusterStore != backendType || config.ClusterAdvertise != advertise {
+func modifiedDiscoverySettings(config *Config, backendType, advertise string, listen string, clusterOpts map[string]string) bool {
+	if config.ClusterStore != backendType || config.ClusterAdvertise != advertise || config.ClusterListen != listen {
 		return true
 	}
 

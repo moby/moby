@@ -969,7 +969,7 @@ func (daemon *Daemon) IsShuttingDown() bool {
 
 // initDiscovery initializes the discovery watcher for this daemon.
 func (daemon *Daemon) initDiscovery(config *Config) error {
-	advertise, err := parseClusterAdvertiseSettings(config.ClusterStore, config.ClusterAdvertise)
+	advertise, listen, err := parseClusterAdvertiseAndListenSettings(config.ClusterStore, config.ClusterAdvertise, config.ClusterListen)
 	if err != nil {
 		if err == errDiscoveryDisabled {
 			return nil
@@ -978,6 +978,8 @@ func (daemon *Daemon) initDiscovery(config *Config) error {
 	}
 
 	config.ClusterAdvertise = advertise
+	config.ClusterListen = listen
+
 	discoveryWatcher, err := initDiscovery(config.ClusterStore, config.ClusterAdvertise, config.ClusterOpts)
 	if err != nil {
 		return fmt.Errorf("discovery initialization failed (%v)", err)
@@ -1115,12 +1117,16 @@ func (daemon *Daemon) Reload(config *Config) (err error) {
 func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
 	var err error
 	newAdvertise := daemon.configStore.ClusterAdvertise
+	newListen := daemon.configStore.ClusterListen
 	newClusterStore := daemon.configStore.ClusterStore
 	if config.IsValueSet("cluster-advertise") {
 		if config.IsValueSet("cluster-store") {
 			newClusterStore = config.ClusterStore
 		}
-		newAdvertise, err = parseClusterAdvertiseSettings(newClusterStore, config.ClusterAdvertise)
+		if config.IsValueSet("cluster-listen") {
+			newListen = config.ClusterListen
+		}
+		newAdvertise, newListen, err = parseClusterAdvertiseAndListenSettings(newClusterStore, config.ClusterAdvertise, newListen)
 		if err != nil && err != errDiscoveryDisabled {
 			return err
 		}
@@ -1133,7 +1139,7 @@ func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
 	}
 
 	// check discovery modifications
-	if !modifiedDiscoverySettings(daemon.configStore, newAdvertise, newClusterStore, config.ClusterOpts) {
+	if !modifiedDiscoverySettings(daemon.configStore, newAdvertise, newListen, newClusterStore, config.ClusterOpts) {
 		return nil
 	}
 
@@ -1159,6 +1165,7 @@ func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
 	daemon.configStore.ClusterStore = newClusterStore
 	daemon.configStore.ClusterOpts = config.ClusterOpts
 	daemon.configStore.ClusterAdvertise = newAdvertise
+	daemon.configStore.ClusterListen = newListen
 
 	if daemon.netController == nil {
 		return nil
@@ -1212,6 +1219,12 @@ func (daemon *Daemon) networkOptions(dconfig *Config, pg plugingetter.PluginGett
 
 	if dconfig.ClusterAdvertise != "" {
 		options = append(options, nwconfig.OptionDiscoveryAddress(dconfig.ClusterAdvertise))
+	}
+
+	if dconfig.ClusterListen != "" {
+		options = append(options, nwconfig.OptionDiscoveryBindAddress(dconfig.ClusterListen))
+	} else {
+		options = append(options, nwconfig.OptionDiscoveryBindAddress(dconfig.ClusterAdvertise))
 	}
 
 	options = append(options, nwconfig.OptionLabels(dconfig.Labels))
