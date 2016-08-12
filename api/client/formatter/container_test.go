@@ -60,12 +60,12 @@ func TestContainerPsContext(t *testing.T) {
 		{types.Container{
 			Mounts: []types.MountPoint{
 				{
-					Name:   "733908409c91817de8e92b0096373245f329f19a88e2c849f02460e9b3d1c203",
+					Name:   "this-is-a-long-volume-name-and-will-be-truncated-if-trunc-is-set",
 					Driver: "local",
 					Source: "/a/path",
 				},
 			},
-		}, true, "733908409c91817", mountsHeader, ctx.Mounts},
+		}, true, "this-is-a-lo...", mountsHeader, ctx.Mounts},
 		{types.Container{
 			Mounts: []types.MountPoint{
 				{
