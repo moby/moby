@@ -35,8 +35,6 @@ Options:
       --mount-add value                Add or update a mount on a service
       --mount-rm value                 Remove a mount by its target path (default [])
       --name string                    Service name
-      --network-add value              Add or update network attachments (default [])
-      --network-rm value               Remove a network by name (default [])
       --publish-add value              Add or update a published port (default [])
       --publish-rm value               Remove a published port by its target port (default [])
       --replicas value                 Number of tasks (default none)

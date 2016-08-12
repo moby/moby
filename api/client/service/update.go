@@ -42,14 +42,12 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	flags.Var(newListOptsVar(), flagContainerLabelRemove, "Remove a container label by its key")
 	flags.Var(newListOptsVar(), flagMountRemove, "Remove a mount by its target path")
 	flags.Var(newListOptsVar(), flagPublishRemove, "Remove a published port by its target port")
-	flags.Var(newListOptsVar(), flagNetworkRemove, "Remove a network by name")
 	flags.Var(newListOptsVar(), flagConstraintRemove, "Remove a constraint")
 	flags.Var(&opts.labels, flagLabelAdd, "Add or update service labels")
 	flags.Var(&opts.containerLabels, flagContainerLabelAdd, "Add or update container labels")
 	flags.Var(&opts.env, flagEnvAdd, "Add or update environment variables")
 	flags.Var(&opts.mounts, flagMountAdd, "Add or update a mount on a service")
 	flags.StringSliceVar(&opts.constraints, flagConstraintAdd, []string{}, "Add or update placement constraints")
-	flags.StringSliceVar(&opts.networks, flagNetworkAdd, []string{}, "Add or update network attachments")
 	flags.Var(&opts.endpoint.ports, flagPublishAdd, "Add or update a published port")
 	return cmd
 }
@@ -204,7 +202,6 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		updateString(flagUpdateFailureAction, &spec.UpdateConfig.FailureAction)
 	}
 
-	updateNetworks(flags, &spec.Networks)
 	if flags.Changed(flagEndpointMode) {
 		value, _ := flags.GetString(flagEndpointMode)
 		if spec.EndpointSpec == nil {
@@ -437,23 +434,6 @@ portLoop:
 func equalPort(targetPort nat.Port, port swarm.PortConfig) bool {
 	return (string(port.Protocol) == targetPort.Proto() &&
 		port.TargetPort == uint32(targetPort.Int()))
-}
-
-func updateNetworks(flags *pflag.FlagSet, attachments *[]swarm.NetworkAttachmentConfig) {
-	if flags.Changed(flagNetworkAdd) {
-		networks, _ := flags.GetStringSlice(flagNetworkAdd)
-		for _, network := range networks {
-			*attachments = append(*attachments, swarm.NetworkAttachmentConfig{Target: network})
-		}
-	}
-	toRemove := buildToRemoveSet(flags, flagNetworkRemove)
-	newNetworks := []swarm.NetworkAttachmentConfig{}
-	for _, network := range *attachments {
-		if _, exists := toRemove[network.Target]; !exists {
-			newNetworks = append(newNetworks, network)
-		}
-	}
-	*attachments = newNetworks
 }
 
 func updateReplicas(flags *pflag.FlagSet, serviceMode *swarm.ServiceMode) error {

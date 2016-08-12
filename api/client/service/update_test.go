@@ -115,22 +115,6 @@ func TestUpdateMounts(t *testing.T) {
 	assert.Equal(t, mounts[1].Target, "/toadd")
 }
 
-func TestUpdateNetworks(t *testing.T) {
-	flags := newUpdateCommand(nil).Flags()
-	flags.Set("network-add", "toadd")
-	flags.Set("network-rm", "toremove")
-
-	attachments := []swarm.NetworkAttachmentConfig{
-		{Target: "toremove", Aliases: []string{"foo"}},
-		{Target: "tokeep"},
-	}
-
-	updateNetworks(flags, &attachments)
-	assert.Equal(t, len(attachments), 2)
-	assert.Equal(t, attachments[0].Target, "tokeep")
-	assert.Equal(t, attachments[1].Target, "toadd")
-}
-
 func TestUpdatePorts(t *testing.T) {
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("publish-add", "1000:1000")
