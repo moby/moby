@@ -2692,14 +2692,14 @@ See the [image tarball format](#image-tarball-format) for more details.
 **Example response**:
 
 If the "quiet" query parameter is set to `true` / `1` (`?quiet=1`), progress 
-details are suppressed, and only a confirmation message is returned as plain text
-once the action completes.
+details are suppressed, and only a confirmation message is returned once the
+action completes.
 
     HTTP/1.1 200 OK
-    Content-Length: 29
-    Content-Type: text/plain; charset=utf-8
+    Content-Type: application/json
+    Transfer-Encoding: chunked
 
-    Loaded image: busybox:latest
+    {"stream":"Loaded image: busybox:latest\n"}
 
 **Query parameters**:
 
