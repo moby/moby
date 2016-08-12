@@ -46,7 +46,7 @@ node. For example, the tutorial uses a machine named `manager1`.
     to access the manager at the IP address.
 
     The output incudes the commands to join new nodes to the swarm. Nodes will
-    join as managers or workers depending on the value for the `--swarm-token`
+    join as managers or workers depending on the value for the `--token`
     flag.
 
 2. Run `docker info` to view the current state of the swarm:
