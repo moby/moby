@@ -538,8 +538,6 @@ const (
 	flagMountAdd             = "mount-add"
 	flagName                 = "name"
 	flagNetwork              = "network"
-	flagNetworkRemove        = "network-rm"
-	flagNetworkAdd           = "network-add"
 	flagPublish              = "publish"
 	flagPublishRemove        = "publish-rm"
 	flagPublishAdd           = "publish-add"
