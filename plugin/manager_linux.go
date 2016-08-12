@@ -174,10 +174,6 @@ func (pm *Manager) Shutdown() {
 				}
 			}
 			close(p.exitChan)
-			pm.Lock()
-			p.PluginObj.Active = false
-			pm.save()
-			pm.Unlock()
 		}
 		if err := os.RemoveAll(p.runtimeSourcePath); err != nil {
 			logrus.Errorf("Remove plugin runtime failed with error: %v", err)
