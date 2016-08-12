@@ -3115,7 +3115,7 @@ Content-Type: application/json
     "Config": [
       {
         "Subnet": "172.19.0.0/16",
-        "Gateway": "172.19.0.1/16"
+        "Gateway": "172.19.0.1"
       }
     ],
     "Options": {

@@ -183,7 +183,7 @@ If you inspect the network, you'll find that it has nothing in it.
                 "Config": [
                     {
                         "Subnet": "172.18.0.0/16",
-                        "Gateway": "172.18.0.1/16"
+                        "Gateway": "172.18.0.1"
                     }
                 ]
             },
