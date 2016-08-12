@@ -5,7 +5,54 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
-## 1.12.0 (2016-07-14)
+## 1.12.1
+
+### Client
+
+* Add `Join at` information in `node inspect --pretty` [#25512](https://github.com/docker/docker/pull/25512)
+- Fix a crash on `service inspect` [#25454](https://github.com/docker/docker/pull/25454)
+- Fix issue preventing `service update --env-add` to work as intended [#25427](https://github.com/docker/docker/pull/25427)
+- Fix issue preventing `service update --publish-add` to work as intended [#25428](https://github.com/docker/docker/pull/25428)
+
+### Contrib
+
++ Official ARM installation for Debian Jessie, Ubuntu Trusty, and Raspbian Jessie [#24815](https://github.com/docker/docker/pull/24815) [#25591](https://github.com/docker/docker/pull/25637)
+- Add selinux policy per distro/version, fixing issue preventing successful installation on Fedora 24 [#25334](https://github.com/docker/docker/pull/25334)
+* Add Oracle Linux distro specific selinux policy [#25593](https://github.com/docker/docker/pull/25593)
+
+### Networking
+
+- Fix issue preventing containers to be accessed by hostname with Docker overlay driver in Swarm Mode [#25603](https://github.com/docker/docker/pull/25603) [#25648](https://github.com/docker/docker/pull/25648)
+- Fix random network issues on service with published port [#25603](https://github.com/docker/docker/pull/25603)
+- Fix unreliable inter-service communication after scaling down and up [#25603](https://github.com/docker/docker/pull/25603)
+- Fix issue where removing all tasks on a node and adding it back breaks connectivity with other services [#25603](https://github.com/docker/docker/pull/25603)
+
+### Plugins (experimental)
+
+* Make daemon events listen for plugin lifecycle events [#24760](https://github.com/docker/docker/pull/24760)
+* Check for plugin state before enabling plugin [#25033](https://github.com/docker/docker/pull/25033)
+- Remove plugin root from filesystem on `plugin rm` [#25187](https://github.com/docker/docker/pull/25187)
+- Prevent deadlock when more than one plugin is installed [#25384](https://github.com/docker/docker/pull/25384)
+
+### Runtime
+
+* Mask join tokens in daemon logs [#25346](https://github.com/docker/docker/pull/25346)
+* `docker ps --filter` now orders the result by creation time [#25387](https://github.com/docker/docker/pull/25387)
+* Add `/proc/timer_list` to the masked paths list to prevent information leak from the host [#25630](https://github.com/docker/docker/pull/25630)
+- Fix various crashes [#25053](https://github.com/docker/docker/pull/25053)
+
+### Security
+
+* Allow systemd to run with only `--cap-add SYS_ADMIN` rather than having to also add `--cap-add DAC_READ_SEARCH` [#25567](https://github.com/docker/docker/pull/25567)
+
+### Volume
+
+- Persist local volume options after a daemon restart [#25316](https://github.com/docker/docker/pull/25316)
+- Fix an issue where the mount ID was not returned on volume unmount [#25333](https://github.com/docker/docker/pull/25333)
+- Fix an issue where a volume mount could inadvertently create a bind mount [#25309](https://github.com/docker/docker/pull/25309)
+- `service --mount type=bind,...` now errors out if source path does not exist [#25494](https://github.com/docker/docker/pull/25494)
+
+## 1.12.0 (2016-07-28)
 
 ### Builder
 
