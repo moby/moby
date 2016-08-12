@@ -11,8 +11,7 @@ parent = "engine_linux"
 
 # CRUX Linux
 
-Installing on CRUX Linux can be handled via the contrib ports from
-[James Mills](http://prologic.shortcircuit.net.au/) and are included in the
+Installing on CRUX Linux can be done using the
 official [contrib](http://crux.nu/portdb/?a=repo&q=contrib) ports:
 
 - docker
@@ -57,9 +56,9 @@ To start on system boot:
 
 ## Images
 
-There is a CRUX image maintained by [James Mills](http://prologic.shortcircuit.net.au/)
-as part of the Docker "Official Library" of images. To use this image simply pull it
-or use it as part of your `FROM` line in your `Dockerfile(s)`.
+There is a CRUX image as part of the Docker "Official Library" of images.
+To use this image simply pull it or use it as part of your `FROM` line in
+your `Dockerfile(s)`.
 
     $ docker pull crux
     $ docker run -i -t crux
