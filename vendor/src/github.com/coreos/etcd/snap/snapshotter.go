@@ -1,4 +1,4 @@
-// Copyright 2015 CoreOS, Inc.
+// Copyright 2015 The etcd Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	pioutil "github.com/coreos/etcd/pkg/ioutil"
 	"github.com/coreos/etcd/pkg/pbutil"
 	"github.com/coreos/etcd/raft"
 	"github.com/coreos/etcd/raft/raftpb"
@@ -45,6 +46,11 @@ var (
 	ErrEmptySnapshot = errors.New("snap: empty snapshot")
 	ErrCRCMismatch   = errors.New("snap: crc mismatch")
 	crcTable         = crc32.MakeTable(crc32.Castagnoli)
+
+	// A map of valid files that can be present in the snap folder.
+	validFiles = map[string]bool{
+		"db": true,
+	}
 )
 
 type Snapshotter struct {
@@ -78,9 +84,14 @@ func (s *Snapshotter) save(snapshot *raftpb.Snapshot) error {
 		marshallingDurations.Observe(float64(time.Since(start)) / float64(time.Second))
 	}
 
-	err = ioutil.WriteFile(path.Join(s.dir, fname), d, 0666)
+	err = pioutil.WriteAndSyncFile(path.Join(s.dir, fname), d, 0666)
 	if err == nil {
 		saveDurations.Observe(float64(time.Since(start)) / float64(time.Second))
+	} else {
+		err1 := os.Remove(path.Join(s.dir, fname))
+		if err1 != nil {
+			plog.Errorf("failed to remove broken snapshot file %s", path.Join(s.dir, fname))
+		}
 	}
 	return err
 }
@@ -175,7 +186,11 @@ func checkSuffix(names []string) []string {
 		if strings.HasSuffix(names[i], snapSuffix) {
 			snaps = append(snaps, names[i])
 		} else {
-			plog.Warningf("skipped unexpected non snapshot file %v", names[i])
+			// If we find a file which is not a snapshot then check if it's
+			// a vaild file. If not throw out a warning.
+			if _, ok := validFiles[names[i]]; !ok {
+				plog.Warningf("skipped unexpected non snapshot file %v", names[i])
+			}
 		}
 	}
 	return snaps

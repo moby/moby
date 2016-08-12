@@ -1,4 +1,4 @@
-// Copyright 2015 CoreOS, Inc.
+// Copyright 2015 The etcd Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !linux
+// Package ioutil implements I/O utility functions.
+package ioutil
 
-package fileutil
+import "io"
 
-import "os"
+// NewLimitedBufferReader returns a reader that reads from the given reader
+// but limits the amount of data returned to at most n bytes.
+func NewLimitedBufferReader(r io.Reader, n int) io.Reader {
+	return &limitedBufferReader{
+		r: r,
+		n: n,
+	}
+}
 
-// Preallocate tries to allocate the space for given
-// file. This operation is only supported on linux by a
-// few filesystems (btrfs, ext4, etc.).
-// If the operation is unsupported, no error will be returned.
-// Otherwise, the error encountered will be returned.
-func Preallocate(f *os.File, sizeInBytes int) error {
-	return nil
+type limitedBufferReader struct {
+	r io.Reader
+	n int
+}
+
+func (r *limitedBufferReader) Read(p []byte) (n int, err error) {
+	np := p
+	if len(np) > r.n {
+		np = np[:r.n]
+	}
+	return r.r.Read(np)
 }

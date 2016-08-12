@@ -182,6 +182,9 @@ func validateServiceSpec(spec *api.ServiceSpec) error {
 
 // checkPortConflicts does a best effort to find if the passed in spec has port
 // conflicts with existing services.
+// `serviceID string` is the service ID of the spec in service update. If
+// `serviceID` is not "", then conflicts check will be skipped against this
+// service (the service being updated).
 func (s *Server) checkPortConflicts(spec *api.ServiceSpec, serviceID string) error {
 	if spec.Endpoint == nil {
 		return nil
