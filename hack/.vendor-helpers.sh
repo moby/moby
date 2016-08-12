@@ -119,13 +119,6 @@ clean() {
 		-path vendor/src/github.com/mattn/go-sqlite3/code
 	)
 
-	# This package is required to build the Etcd client,
-	# but Etcd hard codes a local Godep full path.
-	# FIXME: fix_rewritten_imports fixes this problem in most platforms
-	# but it fails in very small corner cases where it makes the vendor
-	# script to remove this package.
-	# See: https://github.com/docker/docker/issues/19231
-	findArgs+=( -or -path vendor/src/github.com/ugorji/go/codec )
 	for import in "${imports[@]}"; do
 		[ "${#findArgs[@]}" -eq 0 ] || findArgs+=( -or )
 		findArgs+=( -path "vendor/src/$import" )
@@ -151,14 +144,4 @@ clean() {
 	$find vendor -type f -name '*.orig' -exec rm -v '{}' ';'
 
 	echo done
-}
-
-# Fix up hard-coded imports that refer to Godeps paths so they'll work with our vendoring
-fix_rewritten_imports () {
-       local pkg="$1"
-       local remove="${pkg}/Godeps/_workspace/src/"
-       local target="vendor/src/$pkg"
-
-       echo "$pkg: fixing rewritten imports"
-       $find "$target" -name \*.go -exec sed -i'.orig' -e "s|\"${remove}|\"|g" {} \;
 }
