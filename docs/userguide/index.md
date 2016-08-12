@@ -43,7 +43,7 @@ This guide helps users learn how to use Docker Engine.
 
 ## Configure networks
 
-- [Understand Docker container networks](networking/dockernetworks.md)
+- [Understand Docker container networks](networking/index.md)
 - [Embedded DNS server in user-defined networks](networking/configure-dns.md)
 - [Get started with multi-host networking](networking/get-started-overlay.md)
 - [Work with network commands](networking/work-with-networks.md)
@@ -55,8 +55,8 @@ This guide helps users learn how to use Docker Engine.
 - [Binding container ports to the host](networking/default_network/binding.md)
 - [Build your own bridge](networking/default_network/build-bridges.md)
 - [Configure container DNS](networking/default_network/configure-dns.md)
-- [Customize the docker0 bridge](networking/default_network/custom-docker0.md)  
-- [IPv6 with Docker](networking/default_network/ipv6.md)  
+- [Customize the docker0 bridge](networking/default_network/custom-docker0.md)
+- [IPv6 with Docker](networking/default_network/ipv6.md)
 
 ## Misc
 
