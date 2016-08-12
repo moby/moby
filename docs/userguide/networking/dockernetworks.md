@@ -333,7 +333,7 @@ $ docker network inspect isolated_nw
             "Config": [
                 {
                     "Subnet": "172.21.0.0/16",
-                    "Gateway": "172.21.0.1/16"
+                    "Gateway": "172.21.0.1"
                 }
             ]
         },
