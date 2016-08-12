@@ -30,8 +30,8 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 	)
 	if !quiet {
 		progressOutput = sf.NewProgressOutput(outStream, false)
-		outStream = &streamformatter.StdoutFormatter{Writer: outStream, StreamFormatter: streamformatter.NewJSONStreamFormatter()}
 	}
+	outStream = &streamformatter.StdoutFormatter{Writer: outStream, StreamFormatter: streamformatter.NewJSONStreamFormatter()}
 
 	tmpDir, err := ioutil.TempDir("", "docker-import-")
 	if err != nil {
