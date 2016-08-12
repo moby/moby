@@ -23,7 +23,7 @@ func NewKillCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "kill [OPTIONS] CONTAINER [CONTAINER...]",
-		Short: "Kill one or more running container",
+		Short: "Kill one or more running containers",
 		Args:  cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.containers = args

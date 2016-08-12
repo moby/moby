@@ -1668,11 +1668,6 @@ func DefaultProfile(rs *specs.Spec) *types.Seccomp {
 		case "CAP_DAC_READ_SEARCH":
 			syscalls = append(syscalls, []*types.Syscall{
 				{
-					Name:   "name_to_handle_at",
-					Action: types.ActAllow,
-					Args:   []*types.Arg{},
-				},
-				{
 					Name:   "open_by_handle_at",
 					Action: types.ActAllow,
 					Args:   []*types.Arg{},
@@ -1703,6 +1698,11 @@ func DefaultProfile(rs *specs.Spec) *types.Seccomp {
 				},
 				{
 					Name:   "mount",
+					Action: types.ActAllow,
+					Args:   []*types.Arg{},
+				},
+				{
+					Name:   "name_to_handle_at",
 					Action: types.ActAllow,
 					Args:   []*types.Arg{},
 				},

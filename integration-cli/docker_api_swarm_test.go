@@ -510,6 +510,37 @@ func (s *DockerSwarmSuite) TestApiSwarmNodeUpdate(c *check.C) {
 	c.Assert(n.Spec.Availability, checker.Equals, swarm.NodeAvailabilityPause)
 }
 
+func (s *DockerSwarmSuite) TestApiSwarmNodeRemove(c *check.C) {
+	testRequires(c, Network)
+	d1 := s.AddDaemon(c, true, true)
+	d2 := s.AddDaemon(c, true, false)
+	_ = s.AddDaemon(c, true, false)
+
+	nodes := d1.listNodes(c)
+	c.Assert(len(nodes), checker.Equals, 3, check.Commentf("nodes: %#v", nodes))
+
+	// Getting the info so we can take the NodeID
+	d2Info, err := d2.info()
+	c.Assert(err, checker.IsNil)
+
+	// forceful removal of d2 should work
+	d1.removeNode(c, d2Info.NodeID, true)
+
+	nodes = d1.listNodes(c)
+	c.Assert(len(nodes), checker.Equals, 2, check.Commentf("nodes: %#v", nodes))
+
+	// Restart the node that was removed
+	err = d2.Restart()
+	c.Assert(err, checker.IsNil)
+
+	// Give some time for the node to rejoin
+	time.Sleep(1 * time.Second)
+
+	// Make sure the node didn't rejoin
+	nodes = d1.listNodes(c)
+	c.Assert(len(nodes), checker.Equals, 2, check.Commentf("nodes: %#v", nodes))
+}
+
 func (s *DockerSwarmSuite) TestApiSwarmNodeDrainPause(c *check.C) {
 	testRequires(c, Network)
 	d1 := s.AddDaemon(c, true, true)
@@ -708,9 +739,14 @@ func (s *DockerSwarmSuite) TestApiSwarmForceNewCluster(c *check.C) {
 	id := d1.createService(c, simpleTestService, setInstances(instances))
 	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.checkActiveContainerCount, d2.checkActiveContainerCount), checker.Equals, instances)
 
-	c.Assert(d2.Stop(), checker.IsNil)
+	// drain d2, all containers should move to d1
+	d1.updateNode(c, d2.NodeID, func(n *swarm.Node) {
+		n.Spec.Availability = swarm.NodeAvailabilityDrain
+	})
+	waitAndAssert(c, defaultReconciliationTimeout, d1.checkActiveContainerCount, checker.Equals, instances)
+	waitAndAssert(c, defaultReconciliationTimeout, d2.checkActiveContainerCount, checker.Equals, 0)
 
-	time.Sleep(5 * time.Second)
+	c.Assert(d2.Stop(), checker.IsNil)
 
 	c.Assert(d1.Init(swarm.InitRequest{
 		ForceNewCluster: true,

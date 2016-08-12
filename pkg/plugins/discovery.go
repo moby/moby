@@ -116,7 +116,7 @@ func readPluginJSONInfo(name, path string) (*Plugin, error) {
 		return nil, err
 	}
 	p.name = name
-	if len(p.TLSConfig.CAFile) == 0 {
+	if p.TLSConfig != nil && len(p.TLSConfig.CAFile) == 0 {
 		p.TLSConfig.InsecureSkipVerify = true
 	}
 	p.activateWait = sync.NewCond(&sync.Mutex{})

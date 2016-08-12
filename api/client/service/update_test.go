@@ -1,6 +1,7 @@
 package service
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/docker/docker/pkg/testutil/assert"
@@ -68,8 +69,10 @@ func TestUpdateEnvironment(t *testing.T) {
 
 	updateEnvironment(flags, &envs)
 	assert.Equal(t, len(envs), 2)
-	assert.Equal(t, envs[0], "tokeep=value")
-	assert.Equal(t, envs[1], "toadd=newenv")
+	// Order has been removed in updateEnvironment (map)
+	sort.Strings(envs)
+	assert.Equal(t, envs[0], "toadd=newenv")
+	assert.Equal(t, envs[1], "tokeep=value")
 }
 
 func TestUpdateEnvironmentWithDuplicateValues(t *testing.T) {
@@ -82,6 +85,18 @@ func TestUpdateEnvironmentWithDuplicateValues(t *testing.T) {
 
 	updateEnvironment(flags, &envs)
 	assert.Equal(t, len(envs), 0)
+}
+
+func TestUpdateEnvironmentWithDuplicateKeys(t *testing.T) {
+	// Test case for #25404
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("env-add", "A=b")
+
+	envs := []string{"A=c"}
+
+	updateEnvironment(flags, &envs)
+	assert.Equal(t, len(envs), 1)
+	assert.Equal(t, envs[0], "A=b")
 }
 
 func TestUpdateMounts(t *testing.T) {
@@ -110,8 +125,56 @@ func TestUpdatePorts(t *testing.T) {
 		{TargetPort: 555},
 	}
 
-	updatePorts(flags, &portConfigs)
+	err := updatePorts(flags, &portConfigs)
+	assert.Equal(t, err, nil)
 	assert.Equal(t, len(portConfigs), 2)
-	assert.Equal(t, portConfigs[0].TargetPort, uint32(555))
-	assert.Equal(t, portConfigs[1].TargetPort, uint32(1000))
+	// Do a sort to have the order (might have changed by map)
+	targetPorts := []int{int(portConfigs[0].TargetPort), int(portConfigs[1].TargetPort)}
+	sort.Ints(targetPorts)
+	assert.Equal(t, targetPorts[0], 555)
+	assert.Equal(t, targetPorts[1], 1000)
+}
+
+func TestUpdatePortsDuplicateEntries(t *testing.T) {
+	// Test case for #25375
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("publish-add", "80:80")
+
+	portConfigs := []swarm.PortConfig{
+		{TargetPort: 80, PublishedPort: 80},
+	}
+
+	err := updatePorts(flags, &portConfigs)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, len(portConfigs), 1)
+	assert.Equal(t, portConfigs[0].TargetPort, uint32(80))
+}
+
+func TestUpdatePortsDuplicateKeys(t *testing.T) {
+	// Test case for #25375
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("publish-add", "80:20")
+
+	portConfigs := []swarm.PortConfig{
+		{TargetPort: 80, PublishedPort: 80},
+	}
+
+	err := updatePorts(flags, &portConfigs)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, len(portConfigs), 1)
+	assert.Equal(t, portConfigs[0].TargetPort, uint32(20))
+}
+
+func TestUpdatePortsConflictingFlags(t *testing.T) {
+	// Test case for #25375
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("publish-add", "80:80")
+	flags.Set("publish-add", "80:20")
+
+	portConfigs := []swarm.PortConfig{
+		{TargetPort: 80, PublishedPort: 80},
+	}
+
+	err := updatePorts(flags, &portConfigs)
+	assert.Error(t, err, "conflicting port mapping")
 }

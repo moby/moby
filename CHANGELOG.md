@@ -7,6 +7,36 @@ be found.
 
 ## 1.12.0 (2016-07-14)
 
+
+**IMPORTANT**:
+
+Docker 1.12.0 ships with an updated systemd unit file for rpm based installs
+(which includes RHEL, Fedora, CentOS, and Oracle Linux 7). When upgrading from
+an older version of docker, the upgrade process may not automatically install
+the updated version of the unit file, or fail to start the docker service if;
+
+- the systemd unit file (`/usr/lib/systemd/system/docker.service`) contains local changes, or
+- a systemd drop-in file is present, and contains `-H fd://` in the `ExecStart` directive
+
+Starting the docker service will produce an error:
+
+    Failed to start docker.service: Unit docker.socket failed to load: No such file or directory.
+
+or
+
+    no sockets found via socket activation: make sure the service was started by systemd.
+
+To resolve this:
+
+- Backup the current version of the unit file, and replace the file with the
+  version that ships with docker 1.12 (https://raw.githubusercontent.com/docker/docker/v1.12.0/contrib/init/systemd/docker.service.rpm)
+- Remove the `Requires=docker.socket` directive from the `/usr/lib/systemd/system/docker.service` file if present
+- Remove `-H fd://` from the `ExecStart` directive (both in the main unit file, and in any drop-in files present).
+
+After making those changes, run `sudo systemctl daemon-reload`, and `sudo
+systemctl restart docker` to reload changes and (re)start the docker daemon.
+
+
 ### Builder
 
 + New `HEALTHCHECK` Dockerfile instruction to support user-defined healthchecks [#23218](https://github.com/docker/docker/pull/23218)

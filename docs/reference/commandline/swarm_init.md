@@ -28,8 +28,8 @@ Options:
       --task-history-limit int          Task history retention limit (default 5)
 ```
 
-Initialize a swarm cluster. The docker engine targeted by this command becomes a manager
-in the newly created one node swarm cluster.
+Initialize a swarm. The docker engine targeted by this command becomes a manager
+in the newly created single-node swarm.
 
 
 ```bash
@@ -37,14 +37,12 @@ $ docker swarm init --advertise-addr 192.168.99.121
 Swarm initialized: current node (bvz81updecsj6wjz393c09vti) is now a manager.
 
 To add a worker to this swarm, run the following command:
+
     docker swarm join \
     --token SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-1awxwuwd3z9j1z3puu7rcgdbx \
     172.17.0.2:2377
 
-To add a manager to this swarm, run the following command:
-    docker swarm join \
-    --token SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-7p73s1dx5in4tatdymyhg9hu2 \
-    172.17.0.2:2377
+To add a manager to this swarm, run 'docker swarm join-token manager' and follow the instructions.
 ```
 
 `docker swarm init` generates two random tokens, a worker token and a manager token. When you join

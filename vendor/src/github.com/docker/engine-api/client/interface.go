@@ -94,7 +94,7 @@ type NetworkAPIClient interface {
 type NodeAPIClient interface {
 	NodeInspectWithRaw(ctx context.Context, nodeID string) (swarm.Node, []byte, error)
 	NodeList(ctx context.Context, options types.NodeListOptions) ([]swarm.Node, error)
-	NodeRemove(ctx context.Context, nodeID string) error
+	NodeRemove(ctx context.Context, nodeID string, options types.NodeRemoveOptions) error
 	NodeUpdate(ctx context.Context, nodeID string, version swarm.Version, node swarm.NodeSpec) error
 }
 

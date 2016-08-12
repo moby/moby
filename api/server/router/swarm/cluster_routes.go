@@ -219,7 +219,13 @@ func (sr *swarmRouter) updateNode(ctx context.Context, w http.ResponseWriter, r 
 }
 
 func (sr *swarmRouter) removeNode(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := sr.backend.RemoveNode(vars["id"]); err != nil {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	force := httputils.BoolValue(r, "force")
+
+	if err := sr.backend.RemoveNode(vars["id"], force); err != nil {
 		logrus.Errorf("Error removing node %s: %v", vars["id"], err)
 		return err
 	}

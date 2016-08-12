@@ -241,9 +241,14 @@ func (v VersionResponse) ServerOK() bool {
 	return v.Server != nil
 }
 
-// NodeListOptions holds parameters to list  nodes with.
+// NodeListOptions holds parameters to list nodes with.
 type NodeListOptions struct {
 	Filter filters.Args
+}
+
+// NodeRemoveOptions holds parameters to remove nodes with.
+type NodeRemoveOptions struct {
+	Force bool
 }
 
 // ServiceCreateOptions contains the options to use when creating a service.

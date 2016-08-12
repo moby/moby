@@ -8,7 +8,6 @@ import (
 
 var (
 	errNoSuchInterface         = errors.New("no such interface")
-	errMultipleIPs             = errors.New("could not choose an IP address to advertise since this system has multiple addresses")
 	errNoIP                    = errors.New("could not find the system's IP address")
 	errMustSpecifyListenAddr   = errors.New("must specify a listening address because the address to advertise is not recognized as a system address")
 	errBadListenAddr           = errors.New("listen address must be an IP address or network interface (with optional port number)")
@@ -159,6 +158,7 @@ func (c *Cluster) resolveSystemAddr() (net.IP, error) {
 	}
 
 	var systemAddr net.IP
+	var systemInterface net.Interface
 
 	// List Docker-managed subnets
 	v4Subnets := c.config.NetworkSubnetsProvider.V4Subnets()
@@ -197,7 +197,7 @@ ifaceLoop:
 				}
 
 				if interfaceAddr4 != nil {
-					return nil, errMultipleIPs
+					return nil, fmt.Errorf("could not choose an IP address to advertise since this system has multiple addresses on interface %s (%s and %s)", intf.Name, interfaceAddr4, ipAddr.IP)
 				}
 
 				interfaceAddr4 = ipAddr.IP
@@ -212,7 +212,7 @@ ifaceLoop:
 				}
 
 				if interfaceAddr6 != nil {
-					return nil, errMultipleIPs
+					return nil, fmt.Errorf("could not choose an IP address to advertise since this system has multiple addresses on interface %s (%s and %s)", intf.Name, interfaceAddr6, ipAddr.IP)
 				}
 
 				interfaceAddr6 = ipAddr.IP
@@ -223,14 +223,16 @@ ifaceLoop:
 		// and exactly one IPv6 address, favor IPv4 over IPv6.
 		if interfaceAddr4 != nil {
 			if systemAddr != nil {
-				return nil, errMultipleIPs
+				return nil, fmt.Errorf("could not choose an IP address to advertise since this system has multiple addresses on different interfaces (%s on %s and %s on %s)", systemAddr, systemInterface.Name, interfaceAddr4, intf.Name)
 			}
 			systemAddr = interfaceAddr4
+			systemInterface = intf
 		} else if interfaceAddr6 != nil {
 			if systemAddr != nil {
-				return nil, errMultipleIPs
+				return nil, fmt.Errorf("could not choose an IP address to advertise since this system has multiple addresses on different interfaces (%s on %s and %s on %s)", systemAddr, systemInterface.Name, interfaceAddr6, intf.Name)
 			}
 			systemAddr = interfaceAddr6
+			systemInterface = intf
 		}
 	}
 

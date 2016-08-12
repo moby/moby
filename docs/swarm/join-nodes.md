@@ -43,6 +43,7 @@ following command on a manager node:
 $ docker swarm join-token worker
 
 To add a worker to this swarm, run the following command:
+
     docker swarm join \
     --token SWMTKN-1-49nj1cmql0jkz5s954yi3oex3nedyz0fb0xx14ie39trti4wxv-8vxv8rssmk743ojnwacrr2e7c \
     192.168.99.100:2377
@@ -80,7 +81,7 @@ availability. Because swarm mode manager nodes share data using Raft, there
 must be an odd number of managers. The swarm can continue to function after as
 long as a quorum of more than half of the manager nodes are available.
 
-For more detail about swarm managers and administering a swarm cluster, see
+For more detail about swarm managers and administering a swarm, see
 [Administer and maintain a swarm of Docker Engines](admin_guide.md).
 
 To retrieve the join command including the join token for manager nodes, run the
@@ -90,6 +91,7 @@ following command on a manager node:
 $ docker swarm join-token manager
 
 To add a manager to this swarm, run the following command:
+
     docker swarm join \
     --token SWMTKN-1-61ztec5kyafptydic6jfc1i33t37flcl4nuipzcusor96k7kby-5vy9t8u35tuqm7vh67lrz9xp6 \
     192.168.99.100:2377

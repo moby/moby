@@ -42,7 +42,7 @@ func NewPsCommand(dockerCli *client.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ps [OPTIONS]",
 		Short: "List containers",
-		Args:  cli.ExactArgs(0),
+		Args:  cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runPs(dockerCli, &opts)
 		},

@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	initialSessionFailureBackoff = time.Second
+	initialSessionFailureBackoff = 100 * time.Millisecond
 	maxSessionFailureBackoff     = 8 * time.Second
 )
 
@@ -197,11 +197,6 @@ func (a *Agent) run(ctx context.Context) {
 			sessionq = nil
 			// if we're here before <-registered, do nothing for that event
 			registered = nil
-
-			// Bounce the connection.
-			if a.config.Picker != nil {
-				a.config.Picker.Reset()
-			}
 		case <-session.closed:
 			log.G(ctx).Debugf("agent: rebuild session")
 
@@ -218,6 +213,7 @@ func (a *Agent) run(ctx context.Context) {
 			if a.err == nil {
 				a.err = ctx.Err()
 			}
+			session.close()
 
 			return
 		}

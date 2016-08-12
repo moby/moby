@@ -87,7 +87,7 @@ check_forked() {
 			Upstream release is '$lsb_dist' version '$dist_version'.
 			EOF
 		else
-			if [ -r /etc/debian_version ] && [ "$lsb_dist" != "ubuntu" ]; then
+			if [ -r /etc/debian_version ] && [ "$lsb_dist" != "ubuntu" ] && [ "$lsb_dist" != "raspbian" ]; then
 				# We're Debian and don't even know it!
 				lsb_dist=debian
 				dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
@@ -129,10 +129,12 @@ do_install() {
 	case "$(uname -m)" in
 		*64)
 			;;
+		armv6l|armv7l)
+			;;
 		*)
 			cat >&2 <<-'EOF'
-			Error: you are not using a 64bit platform.
-			Docker currently only supports 64bit platforms.
+			Error: you are not using a 64bit platform or a Raspberry Pi (armv6l/armv7l).
+			Docker currently only supports 64bit platforms or a Raspberry Pi (armv6l/armv7l).
 			EOF
 			exit 1
 			;;
@@ -268,7 +270,7 @@ do_install() {
 			fi
 		;;
 
-		debian)
+		debian|raspbian)
 			dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
 			case "$dist_version" in
 				8)
@@ -375,7 +377,7 @@ do_install() {
 			exit 0
 			;;
 
-		ubuntu|debian)
+		ubuntu|debian|raspbian)
 			export DEBIAN_FRONTEND=noninteractive
 
 			did_apt_get_update=
@@ -386,24 +388,31 @@ do_install() {
 				fi
 			}
 
-			# aufs is preferred over devicemapper; try to ensure the driver is available.
-			if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
-				if uname -r | grep -q -- '-generic' && dpkg -l 'linux-image-*-generic' | grep -qE '^ii|^hi' 2>/dev/null; then
-					kern_extras="linux-image-extra-$(uname -r) linux-image-extra-virtual"
+			if [ "$lsb_dist" = "raspbian" ]; then
+				# Create Raspbian specific systemd unit file, use overlay by default
+				( set -x; $sh_c "mkdir -p /etc/systemd/system" )
+				( set -x; $sh_c "$curl https://raw.githubusercontent.com/docker/docker/master/contrib/init/systemd/docker.service > /etc/systemd/system/docker.service" )
+				( set -x; $sh_c "sed -i 's/dockerd/dockerd --storage-driver overlay/' /etc/systemd/system/docker.service" )
+			else
+				# aufs is preferred over devicemapper; try to ensure the driver is available.
+				if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
+					if uname -r | grep -q -- '-generic' && dpkg -l 'linux-image-*-generic' | grep -qE '^ii|^hi' 2>/dev/null; then
+						kern_extras="linux-image-extra-$(uname -r) linux-image-extra-virtual"
 
-					apt_get_update
-					( set -x; $sh_c 'sleep 3; apt-get install -y -q '"$kern_extras" ) || true
+						apt_get_update
+						( set -x; $sh_c 'sleep 3; apt-get install -y -q '"$kern_extras" ) || true
 
-					if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
-						echo >&2 'Warning: tried to install '"$kern_extras"' (for AUFS)'
-						echo >&2 ' but we still have no AUFS.  Docker may not work. Proceeding anyways!'
+						if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
+							echo >&2 'Warning: tried to install '"$kern_extras"' (for AUFS)'
+							echo >&2 ' but we still have no AUFS.  Docker may not work. Proceeding anyways!'
+							( set -x; sleep 10 )
+						fi
+					else
+						echo >&2 'Warning: current kernel is not supported by the linux-image-extra-virtual'
+						echo >&2 ' package.  We have no AUFS support.  Consider installing the packages'
+						echo >&2 ' linux-image-virtual kernel and linux-image-extra-virtual for AUFS support.'
 						( set -x; sleep 10 )
 					fi
-				else
-					echo >&2 'Warning: current kernel is not supported by the linux-image-extra-virtual'
-					echo >&2 ' package.  We have no AUFS support.  Consider installing the packages'
-					echo >&2 ' linux-image-virtual kernel and linux-image-extra-virtual for AUFS support.'
-					( set -x; sleep 10 )
 				fi
 			fi
 

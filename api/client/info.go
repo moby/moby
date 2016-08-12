@@ -84,13 +84,19 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 			fmt.Fprintf(cli.out, " Orchestration:\n")
 			fmt.Fprintf(cli.out, "  Task History Retention Limit: %d\n", info.Swarm.Cluster.Spec.Orchestration.TaskHistoryRetentionLimit)
 			fmt.Fprintf(cli.out, " Raft:\n")
-			fmt.Fprintf(cli.out, "  Snapshot interval: %d\n", info.Swarm.Cluster.Spec.Raft.SnapshotInterval)
-			fmt.Fprintf(cli.out, "  Heartbeat tick: %d\n", info.Swarm.Cluster.Spec.Raft.HeartbeatTick)
-			fmt.Fprintf(cli.out, "  Election tick: %d\n", info.Swarm.Cluster.Spec.Raft.ElectionTick)
+			fmt.Fprintf(cli.out, "  Snapshot Interval: %d\n", info.Swarm.Cluster.Spec.Raft.SnapshotInterval)
+			fmt.Fprintf(cli.out, "  Heartbeat Tick: %d\n", info.Swarm.Cluster.Spec.Raft.HeartbeatTick)
+			fmt.Fprintf(cli.out, "  Election Tick: %d\n", info.Swarm.Cluster.Spec.Raft.ElectionTick)
 			fmt.Fprintf(cli.out, " Dispatcher:\n")
-			fmt.Fprintf(cli.out, "  Heartbeat period: %s\n", units.HumanDuration(time.Duration(info.Swarm.Cluster.Spec.Dispatcher.HeartbeatPeriod)))
-			fmt.Fprintf(cli.out, " CA configuration:\n")
-			fmt.Fprintf(cli.out, "  Expiry duration: %s\n", units.HumanDuration(info.Swarm.Cluster.Spec.CAConfig.NodeCertExpiry))
+			fmt.Fprintf(cli.out, "  Heartbeat Period: %s\n", units.HumanDuration(time.Duration(info.Swarm.Cluster.Spec.Dispatcher.HeartbeatPeriod)))
+			fmt.Fprintf(cli.out, " CA Configuration:\n")
+			fmt.Fprintf(cli.out, "  Expiry Duration: %s\n", units.HumanDuration(info.Swarm.Cluster.Spec.CAConfig.NodeCertExpiry))
+			if len(info.Swarm.Cluster.Spec.CAConfig.ExternalCAs) > 0 {
+				fmt.Fprintf(cli.out, "  External CAs:\n")
+				for _, entry := range info.Swarm.Cluster.Spec.CAConfig.ExternalCAs {
+					fmt.Fprintf(cli.out, "    %s: %s\n", entry.Protocol, entry.URL)
+				}
+			}
 		}
 		fmt.Fprintf(cli.out, " Node Address: %s\n", info.Swarm.NodeAddr)
 	}

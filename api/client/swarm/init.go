@@ -72,5 +72,10 @@ func runInit(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts initOptions
 
 	fmt.Fprintf(dockerCli.Out(), "Swarm initialized: current node (%s) is now a manager.\n\n", nodeID)
 
-	return printJoinCommand(ctx, dockerCli, nodeID, true, true)
+	if err := printJoinCommand(ctx, dockerCli, nodeID, true, false); err != nil {
+		return err
+	}
+
+	fmt.Fprint(dockerCli.Out(), "To add a manager to this swarm, run 'docker swarm join-token manager' and follow the instructions.\n\n")
+	return nil
 }

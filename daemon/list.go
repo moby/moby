@@ -3,6 +3,7 @@ package daemon
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -86,6 +87,15 @@ type listContext struct {
 	*types.ContainerListOptions
 }
 
+// byContainerCreated is a temporary type used to sort a list of containers by creation time.
+type byContainerCreated []*container.Container
+
+func (r byContainerCreated) Len() int      { return len(r) }
+func (r byContainerCreated) Swap(i, j int) { r[i], r[j] = r[j], r[i] }
+func (r byContainerCreated) Less(i, j int) bool {
+	return r[i].Created.UnixNano() < r[j].Created.UnixNano()
+}
+
 // Containers returns the list of containers to show given the user's filtering.
 func (daemon *Daemon) Containers(config *types.ContainerListOptions) ([]*types.Container, error) {
 	return daemon.reduceContainers(config, daemon.transformContainer)
@@ -149,6 +159,11 @@ func (daemon *Daemon) filterByNameIDMatches(ctx *listContext) []*container.Conta
 	for id := range matches {
 		cntrs = append(cntrs, daemon.containers.Get(id))
 	}
+
+	// Restore sort-order after filtering
+	// Created gives us nanosec resolution for sorting
+	sort.Sort(sort.Reverse(byContainerCreated(cntrs)))
+
 	return cntrs
 }
 

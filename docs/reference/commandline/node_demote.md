@@ -13,14 +13,14 @@ parent = "smn_cli"
 ```markdown
 Usage:  docker node demote NODE [NODE...]
 
-Demote a node from manager in the swarm
+Demote one or more nodes from manager in the swarm
 
 Options:
       --help   Print usage
 
 ```
 
-Demotes an existing manager so that it is no longer a manager. This command targets a docker engine that is a manager in the swarm cluster.
+Demotes an existing manager so that it is no longer a manager. This command targets a docker engine that is a manager in the swarm.
 
 
 ```bash
