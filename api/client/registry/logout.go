@@ -43,7 +43,7 @@ func runLogout(dockerCli *client.DockerCli, serverAddress string) error {
 		return nil
 	}
 
-	fmt.Fprintf(dockerCli.Out(), "Remove login credentials for %s\n", serverAddress)
+	fmt.Fprintf(dockerCli.Out(), "Removing login credentials for %s\n", serverAddress)
 	if err := client.EraseCredentials(dockerCli.ConfigFile(), serverAddress); err != nil {
 		fmt.Fprintf(dockerCli.Err(), "WARNING: could not erase credentials: %v\n", err)
 	}
