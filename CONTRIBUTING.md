@@ -150,10 +150,10 @@ However, there might be a way to implement that feature *on top of* Docker.
 Fork the repository and make changes on your fork in a feature branch:
 
 - If it's a bug fix branch, name it XXXX-something where XXXX is the number of
-	the issue. 
+    the issue. 
 - If it's a feature branch, create an enhancement issue to announce
-	your intentions, and name it XXXX-something where XXXX is the number of the
-	issue.
+    your intentions, and name it XXXX-something where XXXX is the number of the
+    issue.
 
 Submit unit tests for your changes. Go has a great test framework built in; use
 it! Take a look at existing tests for inspiration. [Run the full test
@@ -343,14 +343,14 @@ do need a fair way to deal with people who are making our community suck.
   hammering them in the 3 strikes process.
 
 * The rules apply equally to everyone in the community, no matter how much
-	you've contributed.
+    you've contributed.
 
 * Extreme violations of a threatening, abusive, destructive or illegal nature
-	will be addressed immediately and are not subject to 3 strikes or forgiveness.
+    will be addressed immediately and are not subject to 3 strikes or forgiveness.
 
 * Contact abuse@docker.com to report abuse or appeal violations. In the case of
-	appeals, we know that mistakes happen, and we'll work with you to come up with a
-	fair solution if there has been a misunderstanding.
+    appeals, we know that mistakes happen, and we'll work with you to come up with a
+    fair solution if there has been a misunderstanding.
 
 ## Coding Style
 
