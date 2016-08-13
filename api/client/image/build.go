@@ -104,6 +104,22 @@ func NewBuildCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return cmd
 }
 
+// lastProgressOutput is the same as progress.Output except
+// that it only output with the last update. It is used in
+// non terminal scenarios to depresss verbose messages
+type lastProgressOutput struct {
+	output progress.Output
+}
+
+// WriteProgress formats progress information from a ProgressReader.
+func (out *lastProgressOutput) WriteProgress(prog progress.Progress) error {
+	if !prog.LastUpdate {
+		return nil
+	}
+
+	return out.output.WriteProgress(prog)
+}
+
 func runBuild(dockerCli *client.DockerCli, options buildOptions) error {
 
 	var (
@@ -211,6 +227,9 @@ func runBuild(dockerCli *client.DockerCli, options buildOptions) error {
 
 	// Setup an upload progress bar
 	progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(progBuff, true)
+	if !dockerCli.IsTerminalOut() {
+		progressOutput = &lastProgressOutput{output: progressOutput}
+	}
 
 	var body io.Reader = progress.NewProgressReader(buildCtx, progressOutput, 0, "", "Sending build context to Docker daemon")
 
