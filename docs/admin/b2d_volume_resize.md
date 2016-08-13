@@ -1,7 +1,7 @@
 <!--[metadata]>
 +++
 draft = "true"
-title = "Resizing a Boot2Docker volume    "
+title = "Resizing a Boot2Docker volume	"
 description = "Resizing a Boot2Docker volume in VirtualBox with GParted"
 keywords = ["boot2docker, volume,  virtualbox"]
 [menu.main]

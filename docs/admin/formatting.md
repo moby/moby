@@ -33,34 +33,34 @@ This is the complete list of the available functions with examples:
 Join concatenates a list of strings to create a single string.
 It puts a separator between each element in the list.
 
-    $ docker ps --format '{{join .Names " or "}}'
+	$ docker ps --format '{{join .Names " or "}}'
 
 ### Json
 
 Json encodes an element as a json string.
 
-    $ docker inspect --format '{{json .Mounts}}' container
+	$ docker inspect --format '{{json .Mounts}}' container
 
 ### Lower
 
 Lower turns a string into its lower case representation.
 
-    $ docker inspect --format "{{lower .Name}}" container
+	$ docker inspect --format "{{lower .Name}}" container
 
 ### Split
 
 Split slices a string into a list of strings separated by a separator.
 
-    # docker inspect --format '{{split (join .Names "/") "/"}}' container
+	# docker inspect --format '{{split (join .Names "/") "/"}}' container
 
 ### Title
 
 Title capitalizes a string.
 
-    $ docker inspect --format "{{title .Name}}" container
+	$ docker inspect --format "{{title .Name}}" container
 
 ### Upper
 
 Upper turms a string into its upper case representation.
 
-    $ docker inspect --format "{{upper .Name}}" container
+	$ docker inspect --format "{{upper .Name}}" container

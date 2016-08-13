@@ -149,11 +149,11 @@ case `192.168.1.52:6379`.
 
     # use alpine because its a minimal image with a package manager.
     # prettymuch all that is needed is a container that has a functioning env and socat (or equivalent)
-    FROM    alpine:3.2
-    MAINTAINER    SvenDowideit@home.org.au
+    FROM	alpine:3.2
+    MAINTAINER	SvenDowideit@home.org.au
 
     RUN apk update && \
-        apk add socat && \
-        rm -r /var/cache/
+    	apk add socat && \
+    	rm -r /var/cache/
 
-    CMD    env | grep _TCP= | (sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat -t 100000000 TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \&/' && echo wait) | sh
+    CMD	env | grep _TCP= | (sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat -t 100000000 TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \&/' && echo wait) | sh
