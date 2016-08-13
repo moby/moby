@@ -1,19 +1,20 @@
 <!--[metadata]>
 +++
-aliases=[
-"/engine/userguide/networking/dockernetworks/"
-]
 title = "Docker container networking"
 description = "How do we connect docker containers within and across hosts ?"
 keywords = ["Examples, Usage, network, docker, documentation, user guide, multihost, cluster"]
 [menu.main]
-identifier="networking_index"
 parent = "smn_networking"
 weight = -5
 +++
 <![end-metadata]-->
 
 # Understand Docker container networks
+
+To build web applications that act in concert but do so securely, use the Docker
+networks feature. Networks, by definition, provide complete isolation for
+containers. So, it is important to have control over the networks your
+applications run on. Docker container networks give you that control.
 
 This section provides an overview of the default networking behavior that Docker
 Engine delivers natively. It describes the type of networks created by default
@@ -48,7 +49,7 @@ the `ifconfig` command on the host.
 ```
 $ ifconfig
 
-docker0   Link encap:Ethernet  HWaddr 02:42:47:bc:3a:eb
+docker0   Link encap:Ethernet  HWaddr 02:42:47:bc:3a:eb  
           inet addr:172.17.0.1  Bcast:0.0.0.0  Mask:255.255.0.0
           inet6 addr: fe80::42:47ff:febc:3aeb/64 Scope:Link
           UP BROADCAST RUNNING MULTICAST  MTU:9001  Metric:1
@@ -71,7 +72,7 @@ ff00::0	ip6-mcastprefix
 ff02::1	ip6-allnodes
 ff02::2	ip6-allrouters
 root@0cb243cd1293:/# ifconfig
-lo        Link encap:Local Loopback
+lo        Link encap:Local Loopback  
           inet addr:127.0.0.1  Mask:255.0.0.0
           inet6 addr: ::1/128 Scope:Host
           UP LOOPBACK RUNNING  MTU:65536  Metric:1
@@ -197,7 +198,7 @@ $ docker attach container1
 
 root@0cb243cd1293:/# ifconfig
 ifconfig
-eth0      Link encap:Ethernet  HWaddr 02:42:AC:11:00:02
+eth0      Link encap:Ethernet  HWaddr 02:42:AC:11:00:02  
           inet addr:172.17.0.2  Bcast:0.0.0.0  Mask:255.255.0.0
           inet6 addr: fe80::42:acff:fe11:2/64 Scope:Link
           UP BROADCAST RUNNING MULTICAST  MTU:9001  Metric:1
@@ -206,7 +207,7 @@ eth0      Link encap:Ethernet  HWaddr 02:42:AC:11:00:02
           collisions:0 txqueuelen:0
           RX bytes:1296 (1.2 KiB)  TX bytes:648 (648.0 B)
 
-lo        Link encap:Local Loopback
+lo        Link encap:Local Loopback  
           inet addr:127.0.0.1  Mask:255.0.0.0
           inet6 addr: ::1/128 Scope:Host
           UP LOOPBACK RUNNING  MTU:65536  Metric:1
@@ -216,8 +217,7 @@ lo        Link encap:Local Loopback
           RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
 ```
 
-Then use `ping`to send three ICMP requests and test the connectivity of the
-containers on this `bridge` network.
+Then use `ping` for about 3 seconds to test the connectivity of the containers on this `bridge` network.
 
 ```
 root@0cb243cd1293:/# ping -w3 172.17.0.3
@@ -252,7 +252,7 @@ $ docker attach container2
 
 root@0cb243cd1293:/# ifconfig
 
-eth0      Link encap:Ethernet  HWaddr 02:42:AC:11:00:03
+eth0      Link encap:Ethernet  HWaddr 02:42:AC:11:00:03  
           inet addr:172.17.0.3  Bcast:0.0.0.0  Mask:255.255.0.0
           inet6 addr: fe80::42:acff:fe11:3/64 Scope:Link
           UP BROADCAST RUNNING MULTICAST  MTU:9001  Metric:1
@@ -261,7 +261,7 @@ eth0      Link encap:Ethernet  HWaddr 02:42:AC:11:00:03
           collisions:0 txqueuelen:0
           RX bytes:1166 (1.1 KiB)  TX bytes:1026 (1.0 KiB)
 
-lo        Link encap:Local Loopback
+lo        Link encap:Local Loopback  
           inet addr:127.0.0.1  Mask:255.0.0.0
           inet6 addr: ::1/128 Scope:Host
           UP LOOPBACK RUNNING  MTU:65536  Metric:1
@@ -295,10 +295,10 @@ The default `docker0` bridge network supports the use of port mapping and `docke
 ## User-defined networks
 
 You can create your own user-defined networks that better isolate containers.
-Docker provides some default **network drivers** for creating these networks.
-You can create a new **bridge network**, **overlay network** or **MACVLAN
-network**. You can also create a **network plugin** or **remote network**
-written to your own specifications.
+Docker provides some default **network drivers** for creating these
+networks. You can create a new **bridge network** or **overlay network**. You
+can also create a **network plugin** or **remote network**  written to your own
+specifications.
 
 You can create multiple networks. You can add containers to more than one
 network. Containers can only communicate within networks but not across
@@ -333,7 +333,7 @@ $ docker network inspect isolated_nw
             "Config": [
                 {
                     "Subnet": "172.21.0.0/16",
-                    "Gateway": "172.21.0.1/16"
+                    "Gateway": "172.21.0.1"
                 }
             ]
         },
@@ -404,55 +404,22 @@ network on a single host. You can, however, create significantly larger networks
 by creating an `overlay` network.
 
 
-### An overlay network with Docker Engine swarm mode
+### An overlay network
 
-You can create an overlay network on a manager node running in swarm mode
-without an external key-value store. The swarm makes the overlay network
-available only to nodes in the swarm that require it for a service. When you
-create a service that uses the overlay network, the manager node automatically
-extends the overlay network to nodes that run service tasks.
+Docker's `overlay` network driver supports multi-host networking natively
+out-of-the-box. This support is accomplished with the help of `libnetwork`, a
+built-in VXLAN-based overlay network driver, and Docker's `libkv` library.
 
-To learn more about running Docker Engine in swarm mode, refer to the
-[Swarm mode overview](../../swarm/index.md).
-
-The example below shows how to create a network and use it for a service from a manager node in the swarm:
-
-```bash
-# Create an overlay network `my-multi-host-network`.
-$ docker network create \
-  --driver overlay \
-  --subnet 10.0.9.0/24 \
-  my-multi-host-network
-
-400g6bwzd68jizzdx5pgyoe95
-
-# Create an nginx service and extend the my-multi-host-network to nodes where
-# the service's tasks run.
-$ $ docker service create --replicas 2 --network my-multi-host-network --name my-web nginx
-
-716thylsndqma81j6kkkb5aus
-```
-
-Overlay networks for a swarm are not available to containers started with
-`docker run` that don't run as part of a swarm mode service. For more
-information refer to [Docker swarm mode overlay network security model](overlay-security-model.md).
-
-### An overlay network with an external key-value store
-
-If you are not using Docker Engine in swarm mode, the `overlay` network requires
-a valid key-value store service. Supported key-value stores include Consul,
-Etcd, and ZooKeeper (Distributed store). Before creating a network on this
-version of the Engine, you must install and configure your chosen key-value
-store service. The Docker hosts that you intend to network and the service must
-be able to communicate.
-
->**Note:** Docker Engine running in swarm mode is not compatible with networking
-with an external key-value store.
+The `overlay` network requires a valid key-value store service. Currently,
+Docker's `libkv` supports Consul, Etcd, and ZooKeeper (Distributed store). Before
+creating a network you must install and configure your chosen key-value store
+service. The Docker hosts that you intend to network and the service must be
+able to communicate.
 
 ![Key-value store](images/key_value.png)
 
 Each host in the network must run a Docker Engine instance. The easiest way to
-provision the hosts is with Docker Machine.
+provision the hosts are with Docker Machine.
 
 ![Engine on each host](images/engine_on_net.png)
 
@@ -495,7 +462,7 @@ Docker Engine for use with `overlay` network. There are three options to set:
     </tbody>
 </table>
 
-Create an `overlay` network on one of the machines in the Swarm.
+Create an `overlay` network on one of the machines in the swarm.
 
     $ docker network create --driver overlay my-multi-host-network
 
