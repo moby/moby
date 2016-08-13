@@ -259,6 +259,11 @@ func (s *DockerSwarmSuite) TearDownTest(c *check.C) {
 	s.daemonsLock.Lock()
 	for _, d := range s.daemons {
 		d.Stop()
+		// raft state file is quite big (64MB) so remove it after every test
+		walDir := filepath.Join(d.root, "swarm/raft/wal")
+		if err := os.RemoveAll(walDir); err != nil {
+			c.Logf("error removing %v: %v", walDir, err)
+		}
 	}
 	s.daemons = nil
 	s.daemonsLock.Unlock()
