@@ -372,7 +372,7 @@ Create a container
 -   **AttachStdout** - Boolean value, attaches to `stdout`.
 -   **AttachStderr** - Boolean value, attaches to `stderr`.
 -   **Tty** - Boolean value, Attach standard streams to a `tty`, including `stdin` if it is not closed.
--   **OpenStdin** - Boolean value, opens stdin,
+-   **OpenStdin** - Boolean value, opens `stdin`,
 -   **StdinOnce** - Boolean value, close `stdin` after the 1 attached client disconnects.
 -   **Env** - A list of environment variables in the form of `["VAR=value"[,"VAR2=value2"]]`
 -   **Labels** - Adds a map of labels to a container. To specify a map: `{"key":"value"[,"key2":"value2"]}`
@@ -516,7 +516,7 @@ Return low-level information on the container `id`
     HTTP/1.1 200 OK
     Content-Type: application/json
 
-    {
+	{
 		"AppArmorProfile": "",
 		"Args": [
 			"-c",
@@ -1674,9 +1674,9 @@ or being killed.
 -   **t** – A name and optional tag to apply to the image in the `name:tag` format.
         If you omit the `tag` the default `latest` value is assumed.
         You can provide one or more `t` parameters.
--   **remote** – A Git repository URI or HTTP/HTTPS URI build source. If the
-        URI specifies a filename, the file's contents are placed into a file
-        called `Dockerfile`.
+-   **remote** – A Git repository URI or HTTP/HTTPS context URI. If the
+        URI points to a single text file, the file's contents are placed into
+        a file called `Dockerfile` and the image is built from that file.
 -   **q** – Suppress verbose build output.
 -   **nocache** – Do not use the cache when building the image.
 -   **pull** - Attempt to pull the image even if an older image exists locally.
@@ -1696,7 +1696,7 @@ or being killed.
 -   **shmsize** - Size of `/dev/shm` in bytes. The size must be greater than 0.  If omitted the system uses 64MB.
 -   **labels** – JSON map of string pairs for labels to set on the image.
 
-    Request Headers:
+**Request Headers**:
 
 -   **Content-type** – Set to `"application/tar"`.
 -   **X-Registry-Config** – A base64-url-safe-encoded Registry Auth Config JSON
@@ -1764,7 +1764,7 @@ a base64-encoded AuthConfig object.
         an image.
 -   **tag** – Tag or digest.
 
-    Request Headers:
+**Request Headers**:
 
 -   **X-Registry-Auth** – base64-encoded AuthConfig object, containing either login information, or a token
     - Credential based login:
@@ -1999,7 +1999,7 @@ The push is cancelled if the HTTP connection is closed.
 
 -   **tag** – The tag to associate with the image on the registry. This is optional.
 
-Request Headers:
+**Request Headers**:
 
 -   **X-Registry-Auth** – base64-encoded AuthConfig object, containing either login information, or a token
     - Credential based login:
@@ -2402,7 +2402,7 @@ Create a new image from a container's changes
 
 `GET /events`
 
-Get container events from docker, either in real time via streaming.
+Get container events from docker, in real time via streaming.
 
 Docker containers report the following events:
 
@@ -2432,7 +2432,7 @@ Docker daemon report the following event:
 
     HTTP/1.1 200 OK
     Content-Type: application/json
-    Server: Docker/1.10.0 (linux)
+    Server: Docker/1.11.0 (linux)
     Date: Fri, 29 Apr 2016 15:18:06 GMT
     Transfer-Encoding: chunked
 
@@ -2865,25 +2865,25 @@ Return low-level information about the `exec` command `id`.
     Content-Type: application/json
 
     {
-        "CanRemove": false,
-        "ContainerID": "b53ee82b53a40c7dca428523e34f741f3abc51d9f297a14ff874bf761b995126",
-        "DetachKeys": "",
-        "ExitCode": 2,
-        "ID": "f33bbfb39f5b142420f4759b2348913bd4a8d1a6d7fd56499cb41a1bb91d7b3b",
-        "OpenStderr": true,
-        "OpenStdin": true,
-        "OpenStdout": true,
-        "ProcessConfig": {
-            "arguments": [
-                "-c",
-                "exit 2"
-            ],
-            "entrypoint": "sh",
-            "privileged": false,
-            "tty": true,
-            "user": "1000"
-        },
-        "Running": false
+      "CanRemove": false,
+      "ContainerID": "b53ee82b53a40c7dca428523e34f741f3abc51d9f297a14ff874bf761b995126",
+      "DetachKeys": "",
+      "ExitCode": 2,
+      "ID": "f33bbfb39f5b142420f4759b2348913bd4a8d1a6d7fd56499cb41a1bb91d7b3b",
+      "OpenStderr": true,
+      "OpenStdin": true,
+      "OpenStdout": true,
+      "ProcessConfig": {
+        "arguments": [
+          "-c",
+          "exit 2"
+        ],
+        "entrypoint": "sh",
+        "privileged": false,
+        "tty": true,
+        "user": "1000"
+      },
+      "Running": false
     }
 
 **Status codes**:
@@ -2952,6 +2952,7 @@ Create a volume
         "com.example.some-label": "some-value",
         "com.example.some-other-label": "some-other-value"
       },
+      "Driver": "custom"
     }
 
 **Example response**:
@@ -3007,17 +3008,17 @@ Return low-level information on the volume `name`
     Content-Type: application/json
 
     {
-        "Name": "tardis",
-        "Driver": "custom",
-        "Status": {
-          "hello": "world"
-        },
-        "Mountpoint": "/var/lib/docker/volumes/tardis/_data",
-        "Labels": {
-            "com.example.some-label": "some-value",
-            "com.example.some-other-label": "some-other-value"
-        },
-        "Scope": "local"
+      "Name": "tardis",
+      "Driver": "custom",
+      "Mountpoint": "/var/lib/docker/volumes/tardis/_data",
+      "Status": {
+        "hello": "world"
+      },
+      "Labels": {
+          "com.example.some-label": "some-value",
+          "com.example.some-other-label": "some-other-value"
+      },
+      "Scope": "local"
     }
 
 **Status codes**:
@@ -3239,18 +3240,18 @@ Content-Type: application/json
   "EnableIPv6": true,
   "IPAM":{
     "Config":[
-       {
-          "Subnet":"172.20.0.0/16",
-          "IPRange":"172.20.10.0/24",
-          "Gateway":"172.20.10.11"
-        },
-        {
-          "Subnet":"2001:db8:abcd::/64",
-          "Gateway":"2001:db8:abcd::1011"
-        }
+      {
+        "Subnet":"172.20.0.0/16",
+        "IPRange":"172.20.10.0/24",
+        "Gateway":"172.20.10.11"
+      },
+      {
+        "Subnet":"2001:db8:abcd::/64",
+        "Gateway":"2001:db8:abcd::1011"
+      }
     ],
     "Options": {
-        "foo": "bar"
+      "foo": "bar"
     }
   },
   "Internal":true,
@@ -4473,7 +4474,6 @@ List services
 
 ### Create a service
 
-
 `POST /services/create`
 
 Create a service. When using this endpoint to create a service using a private
@@ -4568,7 +4568,7 @@ image](#create-an-image) section for more details.
 - **406** – server error or node is not part of a swarm
 - **409** – name conflicts with an existing object
 
-JSON Parameters:
+**JSON Parameters**:
 
 - **Annotations** – Optional medata to associate with the service.
     - **Name** – User-defined name for the service.
@@ -4748,7 +4748,6 @@ Return information on the service `id`.
 
 ### Update a service
 
-
 `POST /services/(id or name)/update`
 
 Update a service. When using this endpoint to create a service using a
@@ -4796,9 +4795,9 @@ image](#create-an-image) section for more details.
 
 **Example response**:
 
-      HTTP/1.1 200 OK
-      Content-Length: 0
-      Content-Type: text/plain; charset=utf-8
+    HTTP/1.1 200 OK
+    Content-Length: 0
+    Content-Type: text/plain; charset=utf-8
 
 **JSON Parameters**:
 
