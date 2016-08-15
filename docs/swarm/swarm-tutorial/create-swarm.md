@@ -40,7 +40,7 @@ node. For example, the tutorial uses a machine named `manager1`.
 
     To add a manager to this swarm, run the following command:
         docker swarm join \
-        --token SWMTKN-1-61ztec5kyafptydic6jfc1i33t37flcl4nuipzcusor96k7kby-5vy9t8u35tuqm7vh67lrz9xp6 \
+        --token SWMTKN-1-49nj1cmql0jkz5s954yi3oex3nedyz0fb0xx14ie39trti4wxv-5vy9t8u35tuqm7vh67lrz9xp6 \
         192.168.99.100:2377
     ```
 
