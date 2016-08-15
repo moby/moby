@@ -95,7 +95,7 @@ func (ctr *container) start() error {
 	ctr.process.hcsProcess = hcsProcess
 
 	// If this is a servicing container, wait on the process synchronously here and
-	// immediately call shutdown/terminate when it returns.
+	// if it succeeds, wait for it cleanly shutdown and merge into the parent container.
 	if isServicing {
 		exitCode := ctr.waitProcessExitCode(&ctr.process)
 
@@ -104,7 +104,7 @@ func (ctr *container) start() error {
 			return ctr.terminate()
 		}
 
-		return ctr.shutdown()
+		return ctr.hcsContainer.WaitTimeout(time.Minute * 5)
 	}
 
 	var stdout, stderr io.ReadCloser
