@@ -4240,6 +4240,10 @@ Leave a swarm
     Content-Length: 0
     Content-Type: text/plain; charset=utf-8
 
+**Query parameters**:
+
+- **force** - Boolean (0/1, false/true). Force leave swarm, even if this is the last manager or that it will break the cluster.
+
 **Status codes**:
 
 - **200** – no error
