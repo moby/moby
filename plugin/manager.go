@@ -253,20 +253,24 @@ func LookupWithCapability(name, capability string) (Plugin, error) {
 	return nil, ErrInadequateCapability{name, capability}
 }
 
-// StateChanged updates plugin internals using from libcontainerd events.
+// StateChanged updates plugin internals using libcontainerd events.
 func (pm *Manager) StateChanged(id string, e libcontainerd.StateInfo) error {
 	logrus.Debugf("plugin state changed %s %#v", id, e)
 
 	switch e.State {
 	case libcontainerd.StateExit:
+		var shutdown bool
 		pm.RLock()
-		p, idOk := pm.plugins[id]
+		shutdown = pm.shutdown
 		pm.RUnlock()
-		if !idOk {
-			return ErrNotFound(id)
-		}
-		if pm.shutdown == true {
-			p.exitChan <- true
+		if shutdown {
+			pm.RLock()
+			p, idOk := pm.plugins[id]
+			pm.RUnlock()
+			if !idOk {
+				return ErrNotFound(id)
+			}
+			close(p.exitChan)
 		}
 	}
 
