@@ -36,6 +36,9 @@ To resolve this:
 After making those changes, run `sudo systemctl daemon-reload`, and `sudo
 systemctl restart docker` to reload changes and (re)start the docker daemon.
 
+**IMPORTANT**: With Docker 1.12, a Linux docker installation now has two
+additional binaries; `dockerd`, and `docker-proxy`. If you have scripts for
+installing docker, please make sure to update them accordingly.
 
 ### Builder
 
@@ -108,6 +111,7 @@ systemctl restart docker` to reload changes and (re)start the docker daemon.
 
 ### Runtime
 
++ Split the userland proxy to a separate binary (`docker-proxy`) [#23312](https://github.com/docker/docker/pull/23312)
 + Add `--live-restore` daemon flag to keep containers running when daemon shuts down, and regain control on startup [#23213](https://github.com/docker/docker/pull/23213)
 + Ability to add OCI-compatible runtimes (via `--add-runtime` daemon flag) and select one with `--runtime` on `create` and `run` [#22983](https://github.com/docker/docker/pull/22983)
 + New `overlay2` graphdriver for Linux 4.0+ with multiple lower directory support [#22126](https://github.com/docker/docker/pull/22126)
