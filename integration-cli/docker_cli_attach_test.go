@@ -53,6 +53,7 @@ func (s *DockerSuite) TestAttachMultipleAndRestart(c *check.C) {
 			if err != nil {
 				c.Fatal(err)
 			}
+			defer out.Close()
 
 			if err := cmd.Start(); err != nil {
 				c.Fatal(err)
