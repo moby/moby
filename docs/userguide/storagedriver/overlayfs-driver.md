@@ -301,6 +301,13 @@ file in the image layer ("lowerdir") is not deleted. However, the whiteout file
 created in the "upperdir". This has the same effect as a whiteout file and 
 effectively masks the existence of the directory in the image's "lowerdir".
 
+- **Renaming directories**. Calling `rename(2)` for a directory is allowed only 
+when both of the source and the destination path are on the top layer. 
+Otherwise, it returns `EXDEV` ("cross-device link not permitted").
+
+So your application has to be designed so that it can handle `EXDEV` and fall 
+back to a "copy and unlink" strategy.
+
 ## Configure Docker with the `overlay`/`overlay2` storage driver
 
 To configure Docker to use the `overlay` storage driver your Docker host must be 
@@ -386,12 +393,6 @@ large. However, once the file has been copied up, all subsequent writes to that
 with AUFS. This is because AUFS supports more layers than OverlayFS and it is 
 possible to incur far larger latencies if searching through many AUFS layers.
 
-- **RPMs and Yum**. OverlayFS only implements a subset of the POSIX standards. 
-This can result in certain OverlayFS operations breaking POSIX standards. One 
-such operation is the *copy-up* operation. Therefore, using `yum` inside of a 
-container on a Docker host using the `overlay`/`overlay2` storage drivers is
-unlikely to work without implementing workarounds.
-
 - **Inode limits**. Use of the `overlay` storage driver can cause excessive 
 inode consumption. This is especially so as the number of images and containers
  on the Docker host grows. A Docker host with a large number of images and lots
@@ -413,3 +414,24 @@ performance. This is because they bypass the storage driver and do not incur
 any of the potential overheads introduced by thin provisioning and 
 copy-on-write. For this reason, you should place heavy write workloads on data 
 volumes.
+
+## OverlayFS compatibility
+To summarize the OverlayFS's aspect which is incompatible with other
+filesystems:
+
+- **open(2)**. OverlayFS only implements a subset of the POSIX standards. 
+This can result in certain OverlayFS operations breaking POSIX standards. One 
+such operation is the *copy-up* operation. Suppose that  your application calls 
+`fd1=open("foo", O_RDONLY)` and then `fd2=open("foo", O_RDWR)`. In this case, 
+your application expects `fd1` and `fd2` to refer to the same file. However, due 
+to a copy-up operation that occurs after the first calling to `open(2)`, the 
+descriptors refer to different files.
+
+`yum` is known to be affected unless the `yum-plugin-ovl` package is installed. 
+If the `yum-plugin-ovl` package is not available in your distribution (e.g. 
+RHEL/CentOS prior to 6.8 or 7.2), you may need to run `touch /var/lib/rpm/*` 
+before running `yum install`.
+
+- **rename(2)**. OverlayFS does not fully support the `rename(2)` system call. 
+Your application needs to detect its failure and fall back to a "copy and 
+unlink" strategy.

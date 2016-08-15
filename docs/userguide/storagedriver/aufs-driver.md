@@ -91,6 +91,16 @@ a whiteout file in the container's top layer. This whiteout file effectively
 existence in the image's read-only layers. This works the same no matter which
 of the image's read-only layers the file exists in.
 
+## Renaming directories with the AUFS storage driver
+
+Calling `rename(2)` for a directory is not fully supported on AUFS. It returns 
+`EXDEV` ("cross-device link not permitted"), even when both of the source and 
+the destination path are on a same AUFS layer, unless the directory has no 
+children.
+
+So your application has to be designed so that it can handle `EXDEV` and fall 
+back to a "copy and unlink" strategy.
+
 ## Configure Docker with AUFS
 
 You can only use the AUFS storage driver on Linux systems with AUFS installed.
@@ -210,6 +220,13 @@ performance. This is because they bypass the storage driver and do not incur
 any of the potential overheads introduced by thin provisioning and
 copy-on-write. For this reason, you may want to place heavy write workloads on
 data volumes.
+
+## AUFS compatibility
+
+To summarize the AUFS's aspect which is incompatible with other filesystems:
+
+- The AUFS does not fully support the `rename(2)` system call. Your application 
+needs to detect its failure and fall back to a "copy and unlink" strategy.
 
 ## Related information
 
