@@ -4404,7 +4404,10 @@ List services
 
 `POST /services/create`
 
-Create a service
+Create a service. When using this endpoint to create a service using a private
+repository from the registry, the `X-Registry-Auth` header must be used to
+include a base64-encoded AuthConfig object. Refer to the [create an
+image](#create-an-image) section for more details.
 
 **Example request**:
 
@@ -4564,6 +4567,14 @@ JSON Parameters:
           of: `"Ports": { "<port>/<tcp|udp>: {}" }`
     - **VirtualIPs**
 
+**Request Headers**:
+
+- **Content-type** – Set to `"application/json"`.
+- **X-Registry-Auth** – base64-encoded AuthConfig object, containing either
+  login information, or a token. Refer to the [create an image](#create-an-image)
+  section for more details.
+
+
 ### Remove a service
 
 
@@ -4668,11 +4679,16 @@ Return information on the service `id`.
 
 `POST /services/(id or name)/update`
 
-Update the service `id`.
+Update a service. When using this endpoint to create a service using a
+private repository from the registry, the `X-Registry-Auth` header can be used
+to update the authentication information for that is stored for the service.
+The header contains a base64-encoded AuthConfig object. Refer to the [create an
+image](#create-an-image) section for more details.
 
 **Example request**:
 
-    POST /services/1cb4dnqcyx6m66g2t538x3rxha/update HTTP/1.1
+    POST /services/1cb4dnqcyx6m66g2t538x3rxha/update?version=23 HTTP/1.1
+    Content-Type: application/json
 
     {
       "Name": "top",
@@ -4780,6 +4796,13 @@ Update the service `id`.
 
 - **version** – The version number of the service object being updated. This is
   required to avoid conflicting writes.
+
+**Request Headers**:
+
+- **Content-type** – Set to `"application/json"`.
+- **X-Registry-Auth** – base64-encoded AuthConfig object, containing either
+  login information, or a token. Refer to the [create an image](#create-an-image)
+  section for more details.
 
 **Status codes**:
 
