@@ -411,10 +411,10 @@ func TestSRVServiceQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Try resolving a service name with invalid protocol, should fail..
-	_, _, err = ep.Info().Sandbox().ResolveService("_http._icmp.web.swarm")
-	if err == nil {
-		t.Fatal(err)
+	// Service name with invalid protocol name. Should fail without error
+	_, ip, err = ep.Info().Sandbox().ResolveService("_http._icmp.web.swarm")
+	if len(ip) != 0 {
+		t.Fatal("Valid response for invalid service name")
 	}
 }
 
