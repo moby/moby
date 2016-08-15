@@ -41,6 +41,9 @@ systemctl restart docker` to reload changes and (re)start the docker daemon.
 - Fix a crash on `service inspect` [#25454](https://github.com/docker/docker/pull/25454)
 - Fix issue preventing `service update --env-add` to work as intended [#25427](https://github.com/docker/docker/pull/25427)
 - Fix issue preventing `service update --publish-add` to work as intended [#25428](https://github.com/docker/docker/pull/25428)
+- Remove `service update --network-add` and `service update --network-rm` flags
+  because this feature is not yet implemented in 1.12, but was inadvertently added
+  to the client in 1.12.0 [#25646](https://github.com/docker/docker/pull/25646) 
 
 ### Contrib
 
