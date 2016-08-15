@@ -647,7 +647,7 @@ func invokeFWMarker(path string, vip net.IP, fwMark uint32, ingressPorts []*Port
 
 	cmd := &exec.Cmd{
 		Path:   reexec.Self(),
-		Args:   append([]string{"fwmarker"}, path, vip.String(), fmt.Sprintf("%d", fwMark), addDelOpt, ingressPortsFile, eIP.IP.String()),
+		Args:   append([]string{"fwmarker"}, path, vip.String(), fmt.Sprintf("%d", fwMark), addDelOpt, ingressPortsFile, eIP.String()),
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 	}
@@ -719,7 +719,13 @@ func fwMarker() {
 	}
 
 	if addDelOpt == "-A" {
-		ruleParams := strings.Fields(fmt.Sprintf("-m ipvs --ipvs -j SNAT --to-source %s", os.Args[6]))
+		eIP, subnet, err := net.ParseCIDR(os.Args[6])
+		if err != nil {
+			logrus.Errorf("Failed to parse endpoint IP %s: %v", os.Args[6], err)
+			os.Exit(9)
+		}
+
+		ruleParams := strings.Fields(fmt.Sprintf("-m ipvs --ipvs -d %s -j SNAT --to-source %s", subnet, eIP))
 		if !iptables.Exists("nat", "POSTROUTING", ruleParams...) {
 			rule := append(strings.Fields("-t nat -A POSTROUTING"), ruleParams...)
 			rules = append(rules, rule)
