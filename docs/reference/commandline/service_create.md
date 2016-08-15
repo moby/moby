@@ -137,6 +137,114 @@ $ docker service create \
 For more information about labels, refer to [apply custom
 metadata](../../userguide/labels-custom-metadata.md).
 
+### Add volumes or bind-mounts
+
+The following table describes the options for defining mounts in a service:
+
+| Option                | Required          | Description
+|:----------------------|:------------------|:--------------------------------------------------------------------------------------------------------------------
+| **type**              |                   | The type of mount, can be either "volume", or "bind". Defaults to "volume" if no type is specified.<ul><li>`volume`: (default) mounts a [managed volume](volume_create.md) into the container.</li><li>`bind`: bind-mounts a directory or file from the host into the container.</li></ul>
+| **src**               | `bind`&nbsp;only  | <ul><li>`type=volume`: Use `src` to specify the name of the volume (e.g., `src=my-volume`). If a volume with the given name does not exist, it is automatically created. If this option is omitted, an ephemeral volume with a random name is generated. Random names are guaranteed to be unique on the host, but may not be unique cluster-wide. Ephemeral volumes have the same lifecycle as the container it is attached to, and are destroyed when the *container* is destroyed (which is upon `service update`, or when scaling or re-balancing the service).</li><li>`type=bind`: Use `src` to specify host-path to bind mount (e.g., `src=/path/on/host/`). When using a bind-mount (`"type=bind"`), the `src` path must be specified as an absolute path, and *must* be a pre-existing path, or an error is produced.</li></ul>
+| **source**            |                   | Alias for `src`.
+| **dst**               | yes               | Mount path inside the container, for example `/some/path/in/container/`. If the path does not exist in the container's filesystem, the Engine creates a directory at the specified location before mounting the volume or bind-mount.
+| **destination**       |                   | Alias for `dst`.
+| **target**            |                   | Alias for `dst`.
+| **readonly**          |                   | By default, the Engine mounts binds and volumes `read-write`. Pass the `readonly` option to mount the bind or volume `read-only` in the container.<br /><br />A value is optional:<ul><li>`true` or `1`: Default if you do not provide a value. Mounts the bind or volume read-only in the container.</li><li>`false` or `0`: Mounts the bind or volume read-write in the container.</li></ul>
+| **ro**                |                   | Alias for `readonly`.
+
+The following options can only be used for bind-mounts (`type=bind`);
+
+
+| Option                | Description
+|:----------------------|:--------------------------------------------------------------------------------------------------------------------
+| **bind-propagation**  | Bind propagation options to set on the mount at runtime. Valid options are `shared`, `slave`, `private`, `rshared`, `rslave`, and `rprivate`. Defaults to `rprivate` if not specified. For volumes, bind propagation is not configurable, and also defaults to `rprivate`.
+
+
+The following options can only be used for named volumes (`type=volume`);
+
+| Option                | Description
+|:----------------------|:--------------------------------------------------------------------------------------------------------------------
+| **volume-driver**     | Name of the volume-driver plugin to use for the volume. Defaults to the ``"local"`` volume driver to create the volume if it does not exist.
+| **volume-label**      | Custom metadata ("labels") to apply to the volume upon creation. Labels are provided as comma-separated list of key/value pairs, for example, `volume-label=hello=world`. For more information about labels, refer to [apply custom metadata](../../userguide/labels-custom-metadata.md).
+| **volume-nocopy**     | By default, if you attach an empty volume to a container, the Engine propagates the files and directories that are present at the mount-path (`dst`) inside the container into the volume. Set `volume-nocopy` to disables copying files from the container's filesystem to the volume and mount the empty volume.<br /><br />A value is optional:<ul><li>`true` or `1`: Default if you do not provide a value. Disables copying.</li><li>`false` or `0`: Enables copying.</li></ul>
+| **volume-opt**        | Volume driver-specific options to use when creating the volume. Options are provided as comma-separated list of key/value pairs, for example, `volume-opt=some-option=some-value,some-other-option=some-other-value`. For available options, refer to the documentation of the volume driver that is used.
+
+#### Differences between "--mount" and "--volume"
+
+The `--mount` flag features most options that are supported by the `-v` /
+`--volume` flag for `docker run`. There are some differences;
+
+- The `--mount` flag allows specifying a volume driver, and volume driver
+  options *per volume*, without having to create volumes in advance. When using
+  `docker run`, only a single volume driver can be specified (using the
+  `--volume-driver` flag), which is shared by all volumes.
+- The `--mount` flag allows specifying custom metadata ("labels") for the volume,
+  without having to create the volume out of band.
+- When using `type=bind`, the host-path must refer to an *existing* path on the
+  host, and is not automatically created if the path does not exist. If the
+  specified path does not exist on the host, an error is produced, and the
+  service will fail to be deployed succesfully.
+- The `--mount` flag does not allow you to relabel volumes with `Z` or `z`
+
+#### Create a service using a named volume
+
+The following example creates a service that uses a named volume:
+
+```bash
+$ docker service create \
+  --name my-service \
+  --replicas 3 \
+  --mount type=volume,source=my-volume,destination=/path/in/container,volume-label="color=red",volume-label="shape=round" \
+  nginx:alpine
+```
+
+For each replica of the service, the engine requests a volume named "my-volume"
+from the default ("local") volume driver where the task is deployed. If the
+volume does not exist, the engine creates a new volume and applies the "color"
+and "shape" labels.
+
+When the task is started, the volume is mounted on `/path/in/container/` inside
+the container.
+
+Be aware that the default ("local") volume is a locally scoped volume driver.
+This means that depending on where a task is deployed, either that task gets a
+*new* volume named "my-volume", or shares the same "my-volume" with other tasks
+of the same service. Multiple containers writing to a single shared volume can
+cause data corruption if the software running inside the container is not
+designed to handle concurrent processes writing to the same location. Also take
+into account that containers can be re-scheduled by the Swarm orchestrator and
+be deployed on a different node.
+
+#### Create a service that uses an anonymous (ephemeral) volume
+
+The following command creates a service with three replicas with an anonymous 
+volume on `/path/in/container`:
+
+```bash
+$ docker service create \
+  --name my-service \
+  --replicas 3 \
+  --mount type=volume,destination=/path/in/container \
+  nginx:alpine
+```
+
+In this example, no name (`source`) is specified for the volume, hence a new,
+*randomly named* volume is created for each task. This guarantees that each task
+gets its own volume, and volumes are not shared between tasks. Unnamed volumes
+are considered "ephemeral", and are destroyed when the container is destroyed.
+
+#### Create a service that uses a bind-mounted host directory
+
+The following example bind-mounts a host directory at `/path/in/container` in
+the containers backing the service:
+
+```bash
+$ docker service create \
+  --name my-service \
+  --mount type=bind,source=/path/on/host,destination=/path/in/container \
+  nginx:alpine
+```
+
 ### Set service mode (--mode)
 
 You can set the service mode to "replicated" (default) or to "global". A
@@ -159,13 +267,13 @@ constraint expressions. Multiple constraints find nodes that satisfy every
 expression (AND match). Constraints can match node or Docker Engine labels as
 follows:
 
-| node attribute | matches | example |
-|:------------- |:-------------| :---------------------------------------------|
-| node.id | node ID | `node.id == 2ivku8v2gvtg4`                               |
-| node.hostname | node hostname | `node.hostname != node-2`                    |
-| node.role | node role: manager | `node.role == manager`                      |
-| node.labels | user defined node labels | `node.labels.security == high`      |
-| engine.labels | Docker Engine's labels | `engine.labels.operatingsystem == ubuntu 14.04`|
+| node attribute  | matches                   | example                                         |
+|:----------------|:--------------------------|:------------------------------------------------|
+| node.id         | node ID                   | `node.id == 2ivku8v2gvtg4`                      |
+| node.hostname   | node hostname             | `node.hostname != node-2`                       |
+| node.role       | node role: manager        | `node.role == manager`                          |
+| node.labels     | user defined node labels  | `node.labels.security == high`                  |
+| engine.labels   | Docker Engine's labels    | `engine.labels.operatingsystem == ubuntu 14.04` |
 
 `engine.labels` apply to Docker Engine labels like operating system,
 drivers, etc. Swarm administrators add `node.labels` for operational purposes by
@@ -240,3 +348,6 @@ the service running on the node. For more information refer to
 * [service scale](service_scale.md)
 * [service ps](service_ps.md)
 * [service update](service_update.md)
+
+<style>table tr > td:first-child { white-space: nowrap;}</style>
+
