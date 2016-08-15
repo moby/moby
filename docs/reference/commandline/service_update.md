@@ -67,6 +67,35 @@ for further information.
 $ docker service update --limit-cpu 2 redis
 ```
 
+### Adding and removing mounts
+
+You can add, or remove bind-mounts or volumes to a service using the
+`--mount-add` and `--mount-rm` options.
+
+The following example creates a service using the `test-data` volume, then
+updates the service to mount another volume, and finally unmounts the first
+volume:
+
+```bash
+$ docker service create --name=myservice --mount type=volume,source=test-data,target=/somewhere nginx:alpine
+
+myservice
+
+$ docker service update --mount-add type=volume,source=other-volume,target=/somewhere-else myservice
+
+myservice
+
+$ docker service update --mount-rm /somewhere myservice
+
+myservice
+```
+
+The `--mount-rm` flag takes the `target` path of the mount. The `--mount-add`
+flag takes the same parameters as the `--mount` flag on `service create`. Refer
+to the [volumes and bind-mounts](service_create.md#volumes-and-bind-mounts-mount) section in the
+`service create` reference for details.
+
+
 ## Related information
 
 * [service create](service_create.md)
