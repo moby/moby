@@ -17,3 +17,6 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 
 func (sb *sandbox) populateLoadbalancers(ep *endpoint) {
 }
+
+func arrangeIngressFilterRule() {
+}
