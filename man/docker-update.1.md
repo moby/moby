@@ -148,3 +148,7 @@ To update restart policy for one or more containers:
 ```bash
 $ docker update --restart=on-failure:3 abebf7571666 hopeful_morse
 ```
+
+Note that if the container is started with "--rm" flag, you cannot update the restart
+policy for it. The `AutoRemove` and `RestartPolicy` are mutually exclusive for the
+container.
