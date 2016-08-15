@@ -33,8 +33,9 @@ fi
 for dir in bundles/$VERSION/build-rpm/*/; do
 	version="$(basename "$dir")"
 	suite="${version##*-}"
+	distro="${version%-*}"
 
-	REPO=$YUMDIR/$release/$suite
+	REPO=$YUMDIR/$release/$distro
 
 	# if the directory does not exist, initialize the yum repo
 	if [[ ! -d $REPO/$suite/Packages ]]; then
