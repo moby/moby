@@ -44,7 +44,7 @@ func newListCommand(dockerCli *client.DockerCli) *cobra.Command {
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "Only display volume names")
 	flags.StringVar(&opts.format, "format", "", "Pretty-print networks using a Go template")
-	flags.StringSliceVarP(&opts.filter, "filter", "f", []string{}, "Provide filter values (i.e. 'dangling=true')")
+	flags.StringSliceVarP(&opts.filter, "filter", "f", []string{}, "Provide filter values (e.g. 'dangling=true')")
 
 	return cmd
 }
@@ -98,7 +98,11 @@ Lists all the volumes Docker knows about. You can filter using the **-f** or
 more than one filter,  pass multiple flags (for example,
 **--filter "foo=bar" --filter "bif=baz"**)
 
-There is a single supported filter **dangling=value** which takes a boolean of
-**true** or **false**.
+The currently supported filters are:
+
+* **dangling** (boolean - **true** or **false**, **1** or **0**)
+* **driver** (a volume driver's name)
+* **label** (**label=<key>** or **label=<key>=<value>**)
+* **name** (a volume's name)
 
 `
