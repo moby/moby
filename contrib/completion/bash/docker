@@ -2182,7 +2182,7 @@ _docker_ps() {
 			return
 			;;
 		status)
-			COMPREPLY=( $( compgen -W "created dead exited paused restarting running" -- "${cur##*=}" ) )
+			COMPREPLY=( $( compgen -W "created dead exited paused restarting running removing" -- "${cur##*=}" ) )
 			return
 			;;
 		volume)
