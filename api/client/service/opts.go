@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
+	mounttypes "github.com/docker/engine-api/types/mount"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/docker/go-connections/nat"
 	units "github.com/docker/go-units"
@@ -130,7 +131,7 @@ func (i *Uint64Opt) Value() *uint64 {
 
 // MountOpt is a Value type for parsing mounts
 type MountOpt struct {
-	values []swarm.Mount
+	values []mounttypes.Mount
 }
 
 // Set a new mount value
@@ -141,23 +142,23 @@ func (m *MountOpt) Set(value string) error {
 		return err
 	}
 
-	mount := swarm.Mount{}
+	mount := mounttypes.Mount{}
 
-	volumeOptions := func() *swarm.VolumeOptions {
+	volumeOptions := func() *mounttypes.VolumeOptions {
 		if mount.VolumeOptions == nil {
-			mount.VolumeOptions = &swarm.VolumeOptions{
+			mount.VolumeOptions = &mounttypes.VolumeOptions{
 				Labels: make(map[string]string),
 			}
 		}
 		if mount.VolumeOptions.DriverConfig == nil {
-			mount.VolumeOptions.DriverConfig = &swarm.Driver{}
+			mount.VolumeOptions.DriverConfig = &mounttypes.Driver{}
 		}
 		return mount.VolumeOptions
 	}
 
-	bindOptions := func() *swarm.BindOptions {
+	bindOptions := func() *mounttypes.BindOptions {
 		if mount.BindOptions == nil {
-			mount.BindOptions = new(swarm.BindOptions)
+			mount.BindOptions = new(mounttypes.BindOptions)
 		}
 		return mount.BindOptions
 	}
@@ -171,7 +172,7 @@ func (m *MountOpt) Set(value string) error {
 		}
 	}
 
-	mount.Type = swarm.MountTypeVolume // default to volume mounts
+	mount.Type = mounttypes.TypeVolume // default to volume mounts
 	// Set writable as the default
 	for _, field := range fields {
 		parts := strings.SplitN(field, "=", 2)
@@ -195,7 +196,7 @@ func (m *MountOpt) Set(value string) error {
 		value := parts[1]
 		switch key {
 		case "type":
-			mount.Type = swarm.MountType(strings.ToLower(value))
+			mount.Type = mounttypes.Type(strings.ToLower(value))
 		case "source", "src":
 			mount.Source = value
 		case "target", "dst", "destination":
@@ -206,7 +207,7 @@ func (m *MountOpt) Set(value string) error {
 				return fmt.Errorf("invalid value for %s: %s", key, value)
 			}
 		case "bind-propagation":
-			bindOptions().Propagation = swarm.MountPropagation(strings.ToLower(value))
+			bindOptions().Propagation = mounttypes.Propagation(strings.ToLower(value))
 		case "volume-nocopy":
 			volumeOptions().NoCopy, err = strconv.ParseBool(value)
 			if err != nil {
@@ -238,11 +239,11 @@ func (m *MountOpt) Set(value string) error {
 		return fmt.Errorf("source is required when specifying volume-* options")
 	}
 
-	if mount.Type == swarm.MountTypeBind && mount.VolumeOptions != nil {
-		return fmt.Errorf("cannot mix 'volume-*' options with mount type '%s'", swarm.MountTypeBind)
+	if mount.Type == mounttypes.TypeBind && mount.VolumeOptions != nil {
+		return fmt.Errorf("cannot mix 'volume-*' options with mount type '%s'", mounttypes.TypeBind)
 	}
-	if mount.Type == swarm.MountTypeVolume && mount.BindOptions != nil {
-		return fmt.Errorf("cannot mix 'bind-*' options with mount type '%s'", swarm.MountTypeVolume)
+	if mount.Type == mounttypes.TypeVolume && mount.BindOptions != nil {
+		return fmt.Errorf("cannot mix 'bind-*' options with mount type '%s'", mounttypes.TypeVolume)
 	}
 
 	m.values = append(m.values, mount)
@@ -265,7 +266,7 @@ func (m *MountOpt) String() string {
 }
 
 // Value returns the mounts
-func (m *MountOpt) Value() []swarm.Mount {
+func (m *MountOpt) Value() []mounttypes.Mount {
 	return m.values
 }
 

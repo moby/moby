@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/testutil/assert"
+	mounttypes "github.com/docker/engine-api/types/mount"
 	"github.com/docker/engine-api/types/swarm"
 )
 
@@ -104,9 +105,9 @@ func TestUpdateMounts(t *testing.T) {
 	flags.Set("mount-add", "type=volume,target=/toadd")
 	flags.Set("mount-rm", "/toremove")
 
-	mounts := []swarm.Mount{
-		{Target: "/toremove", Type: swarm.MountTypeBind},
-		{Target: "/tokeep", Type: swarm.MountTypeBind},
+	mounts := []mounttypes.Mount{
+		{Target: "/toremove", Type: mounttypes.TypeBind},
+		{Target: "/tokeep", Type: mounttypes.TypeBind},
 	}
 
 	updateMounts(flags, &mounts)

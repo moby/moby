@@ -14,7 +14,7 @@ import (
 func (cli *Client) RegistryLogin(ctx context.Context, auth types.AuthConfig) (types.AuthResponse, error) {
 	resp, err := cli.post(ctx, "/auth", url.Values{}, auth, nil)
 
-	if resp != nil && resp.statusCode == http.StatusUnauthorized {
+	if resp.statusCode == http.StatusUnauthorized {
 		return types.AuthResponse{}, unauthorizedError{err}
 	}
 	if err != nil {

@@ -30,7 +30,7 @@ func runRemove(dockerCli *client.DockerCli, volumes []string) error {
 	status := 0
 
 	for _, name := range volumes {
-		if err := client.VolumeRemove(ctx, name); err != nil {
+		if err := client.VolumeRemove(ctx, name, false); err != nil {
 			fmt.Fprintf(dockerCli.Err(), "%s\n", err)
 			status = 1
 			continue

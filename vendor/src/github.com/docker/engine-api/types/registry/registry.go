@@ -16,6 +16,11 @@ type ServiceConfig struct {
 // unmarshalled to JSON
 type NetIPNet net.IPNet
 
+// String returns the CIDR notation of ipnet
+func (ipnet *NetIPNet) String() string {
+	return (*net.IPNet)(ipnet).String()
+}
+
 // MarshalJSON returns the JSON representation of the IPNet
 func (ipnet *NetIPNet) MarshalJSON() ([]byte, error) {
 	return json.Marshal((*net.IPNet)(ipnet).String())

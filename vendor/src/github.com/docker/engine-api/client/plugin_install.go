@@ -53,7 +53,7 @@ func (cli *Client) PluginInstall(ctx context.Context, name string, options types
 	return cli.PluginEnable(ctx, name)
 }
 
-func (cli *Client) tryPluginPull(ctx context.Context, query url.Values, registryAuth string) (*serverResponse, error) {
+func (cli *Client) tryPluginPull(ctx context.Context, query url.Values, registryAuth string) (serverResponse, error) {
 	headers := map[string][]string{"X-Registry-Auth": {registryAuth}}
 	return cli.post(ctx, "/plugins/pull", query, nil, headers)
 }
