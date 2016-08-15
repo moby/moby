@@ -38,6 +38,8 @@ const defaultOwner = "docker"
 // Create is the entrypoint to create a container from a spec, and if successfully
 // created, start it too.
 func (clnt *client) Create(containerID string, checkpoint string, checkpointDir string, spec Spec, options ...CreateOption) error {
+	clnt.lock(containerID)
+	defer clnt.unlock(containerID)
 	logrus.Debugln("libcontainerd: client.Create() with spec", spec)
 
 	configuration := &hcsshim.ContainerConfig{
@@ -220,6 +222,13 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 		return err
 	}
 
+	pid := newProcess.Pid()
+	openedProcess, err := container.hcsContainer.OpenProcess(pid)
+	if err != nil {
+		logrus.Errorf("AddProcess %s OpenProcess() failed %s", containerID, err)
+		return err
+	}
+
 	stdin, stdout, stderr, err = newProcess.Stdio()
 	if err != nil {
 		logrus.Errorf("libcontainerd: %s getting std pipes failed %s", containerID, err)
@@ -237,8 +246,6 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 		iopipe.Stderr = openReaderFromPipe(stderr)
 	}
 
-	pid := newProcess.Pid()
-
 	proc := &process{
 		processCommon: processCommon{
 			containerID:  containerID,
@@ -247,7 +254,7 @@ func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendly
 			systemPid:    uint32(pid),
 		},
 		commandLine: createProcessParms.CommandLine,
-		hcsProcess:  newProcess,
+		hcsProcess:  openedProcess,
 	}
 
 	// Add the process to the container's list of processes
@@ -279,7 +286,7 @@ func (clnt *client) Signal(containerID string, sig int) error {
 		err  error
 	)
 
-	// Get the container as we need it to find the pid of the process.
+	// Get the container as we need it to get the container handle.
 	clnt.lock(containerID)
 	defer clnt.unlock(containerID)
 	if cont, err = clnt.getContainer(containerID); err != nil {
