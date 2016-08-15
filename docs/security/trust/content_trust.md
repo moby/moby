@@ -33,7 +33,7 @@ and [Notary](../../reference/commandline/cli.md#notary) configuration
 for the docker client for more options.
 
 Once content trust is enabled, image publishers can sign their images. Image consumers can
-ensure that the images they use are signed. publishers and consumers can be
+ensure that the images they use are signed. Publishers and consumers can be
 individuals alone or in organizations. Docker's content trust supports users and
 automated processes such as builds.
 
