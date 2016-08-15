@@ -143,10 +143,12 @@ func (pm *Manager) disable(p *plugin) error {
 
 // Shutdown stops all plugins and called during daemon shutdown.
 func (pm *Manager) Shutdown() {
+	pm.Lock()
+	pm.shutdown = true
+	pm.Unlock()
+
 	pm.RLock()
 	defer pm.RUnlock()
-
-	pm.shutdown = true
 	for _, p := range pm.plugins {
 		if pm.liveRestore && p.PluginObj.Active {
 			logrus.Debug("Plugin active when liveRestore is set, skipping shutdown")
@@ -173,7 +175,6 @@ func (pm *Manager) Shutdown() {
 					}
 				}
 			}
-			close(p.exitChan)
 		}
 		if err := os.RemoveAll(p.runtimeSourcePath); err != nil {
 			logrus.Errorf("Remove plugin runtime failed with error: %v", err)
