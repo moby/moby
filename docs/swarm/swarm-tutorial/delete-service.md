@@ -20,7 +20,7 @@ you can delete the service from the swarm.
 run your manager node. For example, the tutorial uses a machine named
 `manager1`.
 
-2. Run `docker service remove helloworld` to remove the `helloworld` service.
+2. Run `docker service rm helloworld` to remove the `helloworld` service.
 
     ```
     $ docker service rm helloworld
