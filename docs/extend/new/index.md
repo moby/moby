@@ -1,20 +1,18 @@
 <!--[metadata]>
 +++
-title = "Extend Engine"
+title = "New Docker Plugin System"
 description = "How to extend Docker Engine with plugins"
 keywords = ["extend, plugins, docker, documentation, developer"]
 [menu.main]
-identifier = "engine_extend"
-parent = "engine_use"
-weight = 6
+identifier = "extend_new"
+parent = "engine_extend"
+weight = 7
 +++
 <![end-metadata]-->
 
 
-## Extending Docker Engine
+## New Docker Plugin System
 
 Currently, you can extend Docker Engine by adding a plugin. This section contains the following topics:
 
-* [New Docker Plugin System](new/index.md)
-* [Legacy Docker Plugins](legacy/index.md)
-
+* [Understand Docker plugins](plugins.md)
