@@ -240,6 +240,8 @@ binary (refer to [get the linux binary](
 you give the container the full access to create and manipulate the host's
 Docker daemon.
 
+For in-depth information about volumes, refer to [manage data in containers](../../tutorials/dockervolumes.md)
+
 ### Publish or expose port (-p, --expose)
 
     $ docker run -p 127.0.0.1:80:8080 ubuntu bash
