@@ -37,6 +37,8 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/migrate/v1"
+	"github.com/docker/docker/pkg/component"
+	compreg "github.com/docker/docker/pkg/component/registry"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/idtools"
@@ -538,6 +540,12 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		logrus.Warnf("Failed to configure golang's threads limit: %v", err)
 	}
 
+	if err := compreg.Get().ForEach(func(c component.Component) error {
+		return c.Init(config)
+	}); err != nil {
+		return nil, err
+	}
+
 	installDefaultAppArmorProfile()
 	daemonRepo := filepath.Join(config.Root, "containers")
 	if err := idtools.MkdirAllAs(daemonRepo, 0700, rootUID, rootGID); err != nil && !os.IsExist(err) {
@@ -675,6 +683,13 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 	return d, nil
 }
 
+// StartComponents starts all the components
+func (daemon *Daemon) StartComponents() error {
+	return compreg.Get().ForEach(func(c component.Component) error {
+		return c.Start(daemon.componentContext())
+	})
+}
+
 func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 	// TODO(windows): Handle docker restart with paused containers
 	if c.IsPaused() {
@@ -747,6 +762,13 @@ func (daemon *Daemon) Shutdown() error {
 		})
 	}
 
+	compreg.Get().ForEach(func(c component.Component) error {
+		if err := c.Shutdown(daemon.componentContext()); err != nil {
+			logrus.Errorf("Component %q shutdown error: %v", c.Provides(), err)
+		}
+		return nil
+	})
+
 	// trigger libnetwork Stop only if it's initialized
 	if daemon.netController != nil {
 		daemon.netController.Stop()
@@ -763,6 +785,11 @@ func (daemon *Daemon) Shutdown() error {
 	}
 
 	return nil
+}
+
+func (daemon *Daemon) componentContext() *component.Context {
+	// TODO:
+	return &component.Context{}
 }
 
 // Mount sets container.BaseFS
@@ -1011,6 +1038,12 @@ func (daemon *Daemon) Reload(config *Config) error {
 	logrus.Debugf("Reset Max Concurrent Uploads: %d", *daemon.configStore.MaxConcurrentUploads)
 	if daemon.uploadManager != nil {
 		daemon.uploadManager.SetConcurrency(*daemon.configStore.MaxConcurrentUploads)
+	}
+
+	if err := compreg.Get().ForEach(func(c component.Component) error {
+		return c.Reload(daemon.componentContext(), config)
+	}); err != nil {
+		return err
 	}
 
 	// We emit daemon reload event here with updatable configurations

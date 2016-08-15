@@ -15,6 +15,8 @@ import (
 	"github.com/docker/docker/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"github.com/docker/docker/pkg/component"
+	compreg "github.com/docker/docker/pkg/component/registry"
 )
 
 func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
@@ -53,6 +55,11 @@ func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
 	cmd.SetOutput(dockerCli.Out())
 	cmd.AddCommand(newDaemonCommand())
 	commands.AddCommands(cmd, dockerCli)
+
+	compreg.Get().ForEach(func(c component.Component) error {
+		cmd.AddCommand(c.CommandLine()...)
+		return nil
+	})
 
 	return cmd
 }

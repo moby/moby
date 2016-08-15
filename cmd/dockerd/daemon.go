@@ -32,6 +32,8 @@ import (
 	"github.com/docker/docker/libcontainerd"
 	dopts "github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/authorization"
+	"github.com/docker/docker/pkg/component"
+	compreg "github.com/docker/docker/pkg/component/registry"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/listeners"
 	"github.com/docker/docker/pkg/pidfile"
@@ -280,6 +282,9 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 
 	cli.d = d
 	cli.setupConfigReloadTrap()
+	if err := d.StartComponents(); err != nil {
+		return err
+	}
 
 	// The serve API routine never exits unless an error occurs
 	// We need to start it as a goroutine and wait on it so
@@ -420,6 +425,11 @@ func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
 	if d.NetworkControllerEnabled() {
 		routers = append(routers, network.NewRouter(d, c))
 	}
+
+	compreg.Get().ForEach(func(c component.Component) error {
+		routers = append(routers, c)
+		return nil
+	})
 
 	s.InitRouter(utils.IsDebugEnabled(), routers...)
 }
