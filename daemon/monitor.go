@@ -162,7 +162,9 @@ func (daemon *Daemon) AttachStreams(id string, iop libcontainerd.IOPipe) error {
 		if iop.Stdin != nil {
 			go func() {
 				io.Copy(iop.Stdin, stdin)
-				iop.Stdin.Close()
+				if err := iop.Stdin.Close(); err != nil {
+					logrus.Error(err)
+				}
 			}()
 		}
 	} else {
@@ -172,7 +174,9 @@ func (daemon *Daemon) AttachStreams(id string, iop libcontainerd.IOPipe) error {
 		if (c != nil && !c.Config.Tty) || (ec != nil && !ec.Tty && runtime.GOOS == "windows") {
 			// tty is enabled, so dont close containerd's iopipe stdin.
 			if iop.Stdin != nil {
-				iop.Stdin.Close()
+				if err := iop.Stdin.Close(); err != nil {
+					logrus.Error(err)
+				}
 			}
 		}
 	}

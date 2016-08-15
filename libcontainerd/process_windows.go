@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/Microsoft/hcsshim"
+	"github.com/docker/docker/pkg/ioutils"
 )
 
 // process keeps the state for both main container process and exec process.
@@ -29,26 +30,23 @@ func openReaderFromPipe(p io.ReadCloser) io.Reader {
 	return r
 }
 
-type stdInCloser struct {
-	io.WriteCloser
-	hcsshim.Process
-}
+func createStdInCloser(pipe io.WriteCloser, process hcsshim.Process) io.WriteCloser {
+	return ioutils.NewWriteCloserWrapper(pipe, func() error {
+		if err := pipe.Close(); err != nil {
+			return err
+		}
 
-func createStdInCloser(pipe io.WriteCloser, process hcsshim.Process) *stdInCloser {
-	return &stdInCloser{
-		WriteCloser: pipe,
-		Process:     process,
-	}
-}
+		// We do not need to lock container ID here, even though
+		// we are calling into hcsshim. This is safe, because the
+		// only place that closes this process handle is this method.
+		err := process.CloseStdin()
+		if err != nil && !hcsshim.IsNotExist(err) {
+			// This error will occur if the compute system is currently shutting down
+			if perr, ok := err.(*hcsshim.ProcessError); ok && perr.Err != hcsshim.ErrVmcomputeOperationInvalidState {
+				return err
+			}
+		}
 
-func (stdin *stdInCloser) Close() error {
-	if err := stdin.WriteCloser.Close(); err != nil {
-		return err
-	}
-
-	return stdin.Process.CloseStdin()
-}
-
-func (stdin *stdInCloser) Write(p []byte) (n int, err error) {
-	return stdin.WriteCloser.Write(p)
+		return process.Close()
+	})
 }
