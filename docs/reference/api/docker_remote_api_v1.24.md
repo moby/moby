@@ -327,6 +327,7 @@ Create a container
              "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
              "NetworkMode": "bridge",
              "Devices": [],
+             "Sysctls": { "net.ipv4.ip_forward": "1" },
              "Ulimits": [{}],
              "LogConfig": { "Type": "json-file", "Config": {} },
              "SecurityOpt": [],
