@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
 	apirouter "github.com/docker/docker/api/server/router"
+	"github.com/docker/docker/api/types"
 	"golang.org/x/net/context"
 )
 

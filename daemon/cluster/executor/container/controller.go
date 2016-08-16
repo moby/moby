@@ -6,8 +6,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
-	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	volumecomp "github.com/docker/docker/components/volume"
+	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	compreg "github.com/docker/docker/pkg/component/registry"
 	"github.com/docker/libnetwork"
 	"github.com/docker/swarmkit/agent/exec"

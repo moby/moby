@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	dockererrors "github.com/docker/docker/api/errors"
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"

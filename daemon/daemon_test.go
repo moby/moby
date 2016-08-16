@@ -11,6 +11,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	volumecomp "github.com/docker/docker/components/volume"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/pkg/component"
 	"github.com/docker/docker/pkg/discovery"
 	_ "github.com/docker/docker/pkg/discovery/memory"
@@ -122,15 +123,9 @@ func initDaemonWithVolumeComponent(tmp string) (*Daemon, error) {
 		repository: tmp,
 		root:       tmp,
 	}
-
-	comp := volumecomp.New()
-	daemon.volumeComponent = comp.Interface().(volumecomp.Volumes)
-	if err := comp.Init(component.Config{
-		Filesystem: component.FilesystemConfig{Root: tmp, UID: 0, GID: 0},
-	}); err != nil {
-		return nil, err
-	}
-	return daemon, nil
+	var err error
+	daemon.volumeComponent, err = newVolumeComponent(tmp)
+	return daemon, err
 }
 
 func newVolumeComponent(path string) (volumetypes.VolumeComponent, error) {

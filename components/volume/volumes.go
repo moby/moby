@@ -3,6 +3,9 @@ package volume
 import (
 	"fmt"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/component"
 	"github.com/docker/docker/pkg/stringid"
@@ -10,9 +13,6 @@ import (
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/store"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/filters"
 )
 
 type backend struct {

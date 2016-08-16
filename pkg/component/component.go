@@ -3,6 +3,7 @@ package component
 import (
 	"github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/cli/command"
 	"github.com/spf13/cobra"
 )
 

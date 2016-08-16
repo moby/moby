@@ -2,7 +2,8 @@ package volume
 
 import (
 	apirouter "github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/cli/command"
+	"github.com/docker/docker/components/volume/client"
 	"github.com/docker/docker/pkg/component"
 	"github.com/docker/docker/pkg/component/registry"
 	"github.com/spf13/cobra"
@@ -42,8 +43,8 @@ func (c *Component) Routes() []apirouter.Route {
 }
 
 // CommandLine returns the cli commands provided by this component
-func (c *Component) CommandLine() []*cobra.Command {
-	return nil
+func (c *Component) CommandLine(dockerCli *command.DockerCli) []*cobra.Command {
+	return []*cobra.Command{client.NewVolumeCommand(dockerCli)}
 }
 
 // Interface returns the Volumes interface for other components. It must be

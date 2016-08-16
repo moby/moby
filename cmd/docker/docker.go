@@ -11,12 +11,12 @@ import (
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/pkg/component"
+	compreg "github.com/docker/docker/pkg/component/registry"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/docker/docker/pkg/component"
-	compreg "github.com/docker/docker/pkg/component/registry"
 )
 
 func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
@@ -57,7 +57,7 @@ func newDockerCommand(dockerCli *command.DockerCli) *cobra.Command {
 	commands.AddCommands(cmd, dockerCli)
 
 	compreg.Get().ForEach(func(c component.Component) error {
-		cmd.AddCommand(c.CommandLine()...)
+		cmd.AddCommand(c.CommandLine(dockerCli)...)
 		return nil
 	})
 

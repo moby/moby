@@ -10,10 +10,10 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
-	"github.com/docker/docker/volume/store"
 )
 
 // Unix test as uses settings which are not available on Windows
@@ -205,27 +205,19 @@ func TestNetworkOptions(t *testing.T) {
 
 func TestMigratePre17Volumes(t *testing.T) {
 	rootDir, err := ioutil.TempDir("", "test-daemon-volumes")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 	defer os.RemoveAll(rootDir)
 
 	volumeRoot := filepath.Join(rootDir, "volumes")
-	err = os.MkdirAll(volumeRoot, 0755)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, os.MkdirAll(volumeRoot, 0755))
 
 	containerRoot := filepath.Join(rootDir, "containers")
 	cid := "1234"
-	err = os.MkdirAll(filepath.Join(containerRoot, cid), 0755)
+	assert.NilError(t, os.MkdirAll(filepath.Join(containerRoot, cid), 0755))
 
 	vid := "5678"
 	vfsPath := filepath.Join(rootDir, "vfs", "dir", vid)
-	err = os.MkdirAll(vfsPath, 0755)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, os.MkdirAll(vfsPath, 0755))
 
 	config := []byte(`
 		{
@@ -243,28 +235,25 @@ func TestMigratePre17Volumes(t *testing.T) {
 		}
 	`)
 
-	volStore, err := store.New(volumeRoot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	volumeComponent, err := newVolumeComponent(volumeRoot)
+	assert.NilError(t, err)
+
 	drv, err := local.New(volumeRoot, 0, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 	volumedrivers.Register(drv, volume.DefaultDriverName)
 
-	daemon := &Daemon{root: rootDir, repository: containerRoot, volumes: volStore}
+	daemon := &Daemon{
+		root:            rootDir,
+		repository:      containerRoot,
+		volumeComponent: volumeComponent,
+	}
 	err = ioutil.WriteFile(filepath.Join(containerRoot, cid, "config.v2.json"), config, 600)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
+
 	c, err := daemon.load(cid)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := daemon.verifyVolumesInfo(c); err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
+
+	assert.NilError(t, daemon.verifyVolumesInfo(c))
 
 	expected := map[string]volume.MountPoint{
 		"/foo":  {Destination: "/foo", RW: true, Name: vid},
