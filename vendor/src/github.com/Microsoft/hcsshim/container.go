@@ -59,7 +59,7 @@ func CreateContainer(id string, c *ContainerConfig) (Container, error) {
 		var identity syscall.Handle
 		createError = hcsCreateComputeSystem(id, configuration, identity, &container.handle, &resultp)
 
-		if createError == nil || createError == ErrVmcomputeOperationPending {
+		if createError == nil || IsPending(createError) {
 			if err := container.registerCallback(); err != nil {
 				return nil, makeContainerError(container, operation, "", err)
 			}
@@ -122,8 +122,8 @@ func (container *container) Start() error {
 	return nil
 }
 
-// Shutdown requests a container shutdown, but it may not actually be shut down until Wait() succeeds.
-// It returns ErrVmcomputeOperationPending if the shutdown is in progress, nil if the shutdown is complete.
+// Shutdown requests a container shutdown, if IsPending() on the error returned is true,
+// it may not actually be shut down until Wait() succeeds.
 func (container *container) Shutdown() error {
 	operation := "Shutdown"
 	title := "HCSShim::Container::" + operation
@@ -133,9 +133,6 @@ func (container *container) Shutdown() error {
 	err := hcsShutdownComputeSystemTP5(container.handle, nil, &resultp)
 	err = processHcsResult(err, resultp)
 	if err != nil {
-		if err == ErrVmcomputeOperationPending {
-			return ErrVmcomputeOperationPending
-		}
 		return makeContainerError(container, operation, "", err)
 	}
 
@@ -143,8 +140,8 @@ func (container *container) Shutdown() error {
 	return nil
 }
 
-// Terminate requests a container terminate, but it may not actually be terminated until Wait() succeeds.
-// It returns ErrVmcomputeOperationPending if the shutdown is in progress, nil if the shutdown is complete.
+// Terminate requests a container terminate, if IsPending() on the error returned is true,
+// it may not actually be shut down until Wait() succeeds.
 func (container *container) Terminate() error {
 	operation := "Terminate"
 	title := "HCSShim::Container::" + operation
@@ -154,9 +151,6 @@ func (container *container) Terminate() error {
 	err := hcsTerminateComputeSystemTP5(container.handle, nil, &resultp)
 	err = processHcsResult(err, resultp)
 	if err != nil {
-		if err == ErrVmcomputeOperationPending {
-			return ErrVmcomputeOperationPending
-		}
 		return makeContainerError(container, operation, "", err)
 	}
 
@@ -190,8 +184,8 @@ func (container *container) waitTimeoutInternal(timeout uint32) (bool, error) {
 	return waitTimeoutInternalHelper(container, timeout)
 }
 
-// WaitTimeout synchronously waits for the container to terminate or the duration to elapse. It returns
-// ErrTimeout if the timeout duration expires before the container is shut down.
+// WaitTimeout synchronously waits for the container to terminate or the duration to elapse.
+// If the timeout expires, IsTimeout(err) == true
 func (container *container) WaitTimeout(timeout time.Duration) error {
 	operation := "WaitTimeout"
 	title := "HCSShim::Container::" + operation
@@ -205,8 +199,9 @@ func (container *container) WaitTimeout(timeout time.Duration) error {
 	} else {
 		finished, err := waitTimeoutHelper(container, timeout)
 		if !finished {
-			return ErrTimeout
-		} else if err != nil {
+			err = ErrTimeout
+		}
+		if err != nil {
 			return makeContainerError(container, operation, "", err)
 		}
 	}
@@ -323,7 +318,7 @@ func (container *container) CreateProcess(c *ProcessConfig) (Process, error) {
 
 	configurationb, err := json.Marshal(c)
 	if err != nil {
-		return nil, err
+		return nil, makeContainerError(container, operation, "", err)
 	}
 
 	configuration := string(configurationb)
