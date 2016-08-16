@@ -19,9 +19,10 @@ Aliases:
   ls, list
 
 Options:
-  -f, --filter value   Provide filter values (i.e. 'dangling=true') (default [])
+  -f, --filter value   Provide filter values (e.g. 'dangling=true') (default [])
                        - dangling=<boolean> a volume if referenced or not
                        - driver=<string> a volume's driver name
+                       - label=<key> or label=<key>=<value>
                        - name=<string> a volume's name
       --format string  Pretty-print volumes using a Go template
       --help           Print usage
@@ -32,14 +33,16 @@ Lists all the volumes Docker knows about. You can filter using the `-f` or `--fi
 
 Example output:
 
-    $ docker volume create --name rosemary
-    rosemary
-    $docker volume create --name tyler
-    tyler
-    $ docker volume ls
-    DRIVER              VOLUME NAME
-    local               rosemary
-    local               tyler
+```bash
+$ docker volume create --name rosemary
+rosemary
+$docker volume create --name tyler
+tyler
+$ docker volume ls
+DRIVER              VOLUME NAME
+local               rosemary
+local               tyler
+```
 
 ## Filtering
 
@@ -50,17 +53,21 @@ The currently supported filters are:
 
 * dangling (boolean - true or false, 0 or 1)
 * driver (a volume driver's name)
+* label (`label=<key>` or `label=<key>=<value>`)
 * name (a volume's name)
 
 ### dangling
 
 The `dangling` filter matches on all volumes not referenced by any containers
 
-    $ docker run -d  -v tyler:/tmpwork  busybox
-    f86a7dd02898067079c99ceacd810149060a70528eff3754d0b0f1a93bd0af18
-    $ docker volume ls -f dangling=true
-    DRIVER              VOLUME NAME
-    local               rosemary
+```bash
+$ docker run -d  -v tyler:/tmpwork  busybox
+
+f86a7dd02898067079c99ceacd810149060a70528eff3754d0b0f1a93bd0af18
+$ docker volume ls -f dangling=true
+DRIVER              VOLUME NAME
+local               rosemary
+```
 
 ### driver
 
@@ -68,10 +75,59 @@ The `driver` filter matches on all or part of a volume's driver name.
 
 The following filter matches all volumes with a driver name containing the `local` string.
 
-    $ docker volume ls -f driver=local
-    DRIVER              VOLUME NAME
-    local               rosemary
-    local               tyler
+```bash
+$ docker volume ls -f driver=local
+
+DRIVER              VOLUME NAME
+local               rosemary
+local               tyler
+```
+
+#### Label
+
+The `label` filter matches volumes based on the presence of a `label` alone or
+a `label` and a value.
+
+First, let's create some volumes to illustrate this;
+
+```bash
+$ docker volume create --name the-doctor --label is-timelord=yes
+the-doctor
+$ docker volume create --name daleks --label is-timelord=no
+daleks
+```
+
+The following example filter matches volumes with the `is-timelord` label
+regardless of its value.
+
+```bash
+$ docker volume ls --filter label=is-timelord
+
+DRIVER              NAME
+local               daleks
+local               the-doctor
+```
+
+As can be seen in the above example, both volumes with `is-timelord=yes`, and
+`is-timelord=no` are returned.
+
+Filtering on both `key` *and* `value` of the label, produces the expected result:
+
+```bash
+$ docker volume ls --filter label=is-timelord=yes
+
+DRIVER              NAME
+local               the-doctor
+```
+
+Specifying multiple label filter produces an "and" search; all conditions
+should be met;
+
+```bash
+$ docker volume ls --filter label=is-timelord=yes --filter label=is-timelord=no
+
+DRIVER              NAME
+```
 
 ### name
 
