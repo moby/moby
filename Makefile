@@ -69,6 +69,9 @@ endif
 
 DOCKER_RUN_DOCKER := $(DOCKER_FLAGS) "$(DOCKER_IMAGE)"
 
+# shell command used for `make shell`
+SH := $(if $(SH),$(SH),bash)
+
 default: binary
 
 all: build ## validate all checks, build linux binaries, run all tests\ncross build non-linux binaries and generate archives
@@ -117,7 +120,7 @@ run: build ## run the docker daemon in a container
 	$(DOCKER_RUN_DOCKER) sh -c "KEEPBUNDLE=1 hack/make.sh install-binary run"
 
 shell: build ## start a shell inside the build env
-	$(DOCKER_RUN_DOCKER) bash
+	$(DOCKER_RUN_DOCKER) $(SH)
 
 test: build ## run the unit, integration and docker-py tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary cross test-unit test-integration-cli test-docker-py
