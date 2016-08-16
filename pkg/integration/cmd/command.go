@@ -10,6 +10,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/go-check/check"
 )
 
 type testingT interface {
@@ -61,17 +63,18 @@ type Result struct {
 // Assert compares the Result against the Expected struct, and fails the test if
 // any of the expcetations are not met.
 func (r *Result) Assert(t testingT, exp Expected) {
-	fails := r.Fails(exp)
-	if fails == "" {
+	err := r.Compare(exp)
+	if err == nil {
 		return
 	}
 
 	_, file, line, _ := runtime.Caller(1)
-	t.Fatalf("at %s:%d\n%s", filepath.Base(file), line, fails)
+	t.Fatalf("at %s:%d\n%s", filepath.Base(file), line, err.Error())
 }
 
-// Fails returns a formatted string which reports on any failed expectations
-func (r *Result) Fails(exp Expected) string {
+// Compare returns an formatted error with the command, stdout, stderr, exit
+// code, and any failed expectations
+func (r *Result) Compare(exp Expected) error {
 	errors := []string{}
 	add := func(format string, args ...interface{}) {
 		errors = append(errors, fmt.Sprintf(format, args...))
@@ -107,9 +110,9 @@ func (r *Result) Fails(exp Expected) string {
 	}
 
 	if len(errors) == 0 {
-		return ""
+		return nil
 	}
-	return fmt.Sprintf("%s\nFailures:\n%s\n", r, strings.Join(errors, "\n"))
+	return fmt.Errorf("%s\nFailures:\n%s\n", r, strings.Join(errors, "\n"))
 }
 
 func matchOutput(expected string, actual string) bool {
@@ -151,6 +154,9 @@ type Expected struct {
 	Err      string
 }
 
+// Success is the default expected result
+var Success = Expected{}
+
 // Stdout returns the stdout of the process as a string
 func (r *Result) Stdout() string {
 	return r.outBuffer.String()
@@ -175,9 +181,39 @@ func (r *Result) SetExitError(err error) {
 	r.ExitCode = ProcessExitCode(err)
 }
 
-// Cmd is a command to run. One of Command or CommandArgs can be used to set the
-// comand line. Command will be paased to shlex and split into a string slice.
-// CommandArgs is an already split command line.
+type matches struct{}
+
+// Info returns the CheckerInfo
+func (m *matches) Info() *check.CheckerInfo {
+	return &check.CheckerInfo{
+		Name:   "CommandMatches",
+		Params: []string{"result", "expected"},
+	}
+}
+
+// Check compares a result against the expected
+func (m *matches) Check(params []interface{}, names []string) (bool, string) {
+	result, ok := params[0].(*Result)
+	if !ok {
+		return false, fmt.Sprintf("result must be a *Result, not %T", params[0])
+	}
+	expected, ok := params[1].(Expected)
+	if !ok {
+		return false, fmt.Sprintf("expected must be an Expected, not %T", params[1])
+	}
+
+	err := result.Compare(expected)
+	if err == nil {
+		return true, ""
+	}
+	return false, err.Error()
+}
+
+// Matches is a gocheck.Checker for comparing a Result against an Expected
+var Matches = &matches{}
+
+// Cmd contains the arguments and options for a process to run as part of a test
+// suite.
 type Cmd struct {
 	Command []string
 	Timeout time.Duration

@@ -910,7 +910,7 @@ func (s *DockerDaemonSuite) TestDaemonDefaultNetworkInvalidClusterConfig(c *chec
 
 	// Start daemon with docker0 bridge
 	result := icmd.RunCommand("ifconfig", defaultNetworkBridge)
-	result.Assert(c, icmd.Expected{})
+	c.Assert(result, icmd.Matches, icmd.Success)
 
 	err = d.Restart(fmt.Sprintf("--cluster-store=%s", discoveryBackend))
 	c.Assert(err, checker.IsNil)
@@ -2251,7 +2251,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *che
 		ctrBinary,
 		"--address", "unix:///var/run/docker/libcontainerd/docker-containerd.sock",
 		"containers", "resume", cid)
-	result.Assert(t, icmd.Expected{})
+	t.Assert(result, icmd.Matches, icmd.Success)
 
 	// Give time to containerd to process the command if we don't
 	// the resume event might be received after we do the inspect

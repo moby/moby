@@ -479,7 +479,7 @@ func (s *DockerSuite) TestDockerNetworkInspectWithID(c *check.C) {
 
 func (s *DockerSuite) TestDockerInspectMultipleNetwork(c *check.C) {
 	result := dockerCmdWithResult("network", "inspect", "host", "none")
-	result.Assert(c, icmd.Expected{})
+	c.Assert(result, icmd.Matches, icmd.Success)
 
 	networkResources := []types.NetworkResource{}
 	err := json.Unmarshal([]byte(result.Stdout()), &networkResources)
@@ -488,7 +488,7 @@ func (s *DockerSuite) TestDockerInspectMultipleNetwork(c *check.C) {
 
 	// Should print an error, return an exitCode 1 *but* should print the host network
 	result = dockerCmdWithResult("network", "inspect", "host", "nonexistent")
-	result.Assert(c, icmd.Expected{
+	c.Assert(result, icmd.Matches, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Error: No such network: nonexistent",
 		Out:      "host",
@@ -500,7 +500,7 @@ func (s *DockerSuite) TestDockerInspectMultipleNetwork(c *check.C) {
 
 	// Should print an error and return an exitCode, nothing else
 	result = dockerCmdWithResult("network", "inspect", "nonexistent")
-	result.Assert(c, icmd.Expected{
+	c.Assert(result, icmd.Matches, icmd.Expected{
 		ExitCode: 1,
 		Err:      "Error: No such network: nonexistent",
 		Out:      "[]",

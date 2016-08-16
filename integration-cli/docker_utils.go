@@ -228,8 +228,9 @@ func readBody(b io.ReadCloser) ([]byte, error) {
 	return ioutil.ReadAll(b)
 }
 
-func deleteContainer(container string) error {
-	return icmd.RunCommand(dockerBinary, "rm", "-fv", container).Error
+func deleteContainer(container ...string) error {
+	result := icmd.RunCommand(dockerBinary, append([]string{"rm", "-fv"}, container...)...)
+	return result.Compare(icmd.Success)
 }
 
 func getAllContainers() (string, error) {
@@ -248,13 +249,15 @@ func deleteAllContainers() error {
 		fmt.Println(containers)
 		return err
 	}
-
-	if containers != "" {
-		if err = deleteContainer(containers); err != nil {
-			return err
-		}
+	if containers == "" {
+		return nil
 	}
-	return nil
+
+	err = deleteContainer(strings.Split(strings.TrimSpace(containers), "\n")...)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	return err
 }
 
 func deleteAllNetworks() error {
@@ -440,7 +443,7 @@ func dockerCmdWithError(args ...string) (string, int, error) {
 	}
 	result := icmd.RunCommand(dockerBinary, args...)
 	if result.Error != nil {
-		return result.Combined(), result.ExitCode, fmt.Errorf(result.Fails(icmd.Expected{}))
+		return result.Combined(), result.ExitCode, result.Compare(icmd.Success)
 	}
 	return result.Combined(), result.ExitCode, result.Error
 }
@@ -453,7 +456,7 @@ func dockerCmdWithStdoutStderr(c *check.C, args ...string) (string, string, int)
 	result := icmd.RunCommand(dockerBinary, args...)
 	// TODO: why is c ever nil?
 	if c != nil {
-		result.Assert(c, icmd.Expected{})
+		c.Assert(result, icmd.Matches, icmd.Success)
 	}
 	return result.Stdout(), result.Stderr(), result.ExitCode
 }
@@ -463,7 +466,7 @@ func dockerCmd(c *check.C, args ...string) (string, int) {
 		c.Fatalf(err.Error())
 	}
 	result := icmd.RunCommand(dockerBinary, args...)
-	result.Assert(c, icmd.Expected{})
+	c.Assert(result, icmd.Matches, icmd.Success)
 	return result.Combined(), result.ExitCode
 }
 
@@ -471,7 +474,7 @@ func dockerCmdWithResult(args ...string) *icmd.Result {
 	return icmd.RunCommand(dockerBinary, args...)
 }
 
-func binaryWithArgs(args []string) []string {
+func binaryWithArgs(args ...string) []string {
 	return append([]string{dockerBinary}, args...)
 }
 
@@ -480,7 +483,7 @@ func dockerCmdWithTimeout(timeout time.Duration, args ...string) *icmd.Result {
 	if err := validateArgs(args...); err != nil {
 		return &icmd.Result{Error: err}
 	}
-	return icmd.RunCmd(icmd.Cmd{Command: binaryWithArgs(args), Timeout: timeout})
+	return icmd.RunCmd(icmd.Cmd{Command: binaryWithArgs(args...), Timeout: timeout})
 }
 
 // execute a docker command in a directory
@@ -488,7 +491,7 @@ func dockerCmdInDir(c *check.C, path string, args ...string) (string, int, error
 	if err := validateArgs(args...); err != nil {
 		c.Fatalf(err.Error())
 	}
-	result := icmd.RunCmd(icmd.Cmd{Command: binaryWithArgs(args), Dir: path})
+	result := icmd.RunCmd(icmd.Cmd{Command: binaryWithArgs(args...), Dir: path})
 	return result.Combined(), result.ExitCode, result.Error
 }
 
@@ -498,7 +501,7 @@ func dockerCmdInDirWithTimeout(timeout time.Duration, path string, args ...strin
 		return &icmd.Result{Error: err}
 	}
 	return icmd.RunCmd(icmd.Cmd{
-		Command: binaryWithArgs(args),
+		Command: binaryWithArgs(args...),
 		Timeout: timeout,
 		Dir:     path,
 	})

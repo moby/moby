@@ -5065,7 +5065,7 @@ func (s *DockerSuite) TestBuildDockerfileOutsideContext(c *check.C) {
 		filepath.Join(ctx, "dockerfile2"),
 	} {
 		result := dockerCmdWithResult("build", "-t", name, "--no-cache", "-f", dockerfilePath, ".")
-		result.Assert(c, icmd.Expected{
+		c.Assert(result, icmd.Matches, icmd.Expected{
 			Err:      "must be within the build context",
 			ExitCode: 1,
 		})

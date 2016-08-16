@@ -163,7 +163,7 @@ func (s *DockerSuite) TestAttachPausedContainer(c *check.C) {
 	dockerCmd(c, "pause", "test")
 
 	result := dockerCmdWithResult("attach", "test")
-	result.Assert(c, icmd.Expected{
+	c.Assert(result, icmd.Matches, icmd.Expected{
 		Error:    "exit status 1",
 		ExitCode: 1,
 		Err:      "You cannot attach to a paused container, unpause it first",

@@ -90,11 +90,11 @@ func (s *DockerSuite) TestApiDockerApiVersion(c *check.C) {
 
 	// Test using the env var first
 	result := icmd.RunCmd(icmd.Cmd{
-		Command: binaryWithArgs([]string{"-H", server.URL[7:], "version"}),
-		Env:     []string{"DOCKER_API_VERSION=xxx"},
+		Command: binaryWithArgs("-H="+server.URL[7:], "version"),
+		Env:     appendBaseEnv(false, "DOCKER_API_VERSION=xxx"),
 	})
-	result.Assert(c, icmd.Expected{Out: "API version:  xxx", ExitCode: 1})
-	c.Assert(svrVersion, check.Equals, "/vxxx/version")
+	c.Assert(result, icmd.Matches, icmd.Expected{Out: "API version:  xxx", ExitCode: 1})
+	c.Assert(svrVersion, check.Equals, "/vxxx/version", check.Commentf("%s", result.Compare(icmd.Success)))
 }
 
 func (s *DockerSuite) TestApiErrorJSON(c *check.C) {

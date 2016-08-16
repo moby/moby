@@ -63,7 +63,7 @@ func (s *DockerSuite) TestEventsUntag(c *check.C) {
 		Command: []string{dockerBinary, "events", "--since=1"},
 		Timeout: time.Millisecond * 2500,
 	})
-	result.Assert(c, icmd.Expected{Timeout: true})
+	c.Assert(result, icmd.Matches, icmd.Expected{Timeout: true})
 
 	events := strings.Split(result.Stdout(), "\n")
 	nEvents := len(events)
@@ -280,7 +280,7 @@ func (s *DockerSuite) TestEventsImageLoad(c *check.C) {
 	dockerCmd(c, "load", "-i", "saveimg.tar")
 
 	result := icmd.RunCommand("rm", "-rf", "saveimg.tar")
-	result.Assert(c, icmd.Expected{})
+	c.Assert(result, icmd.Matches, icmd.Success)
 
 	out, _ = dockerCmd(c, "images", "-q", "--no-trunc", myImageName)
 	imageID := strings.TrimSpace(out)
