@@ -7,6 +7,8 @@ import (
 	"github.com/docker/docker/pkg/component"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
+	volumedrivers "github.com/docker/docker/volume/drivers"
+	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/store"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"

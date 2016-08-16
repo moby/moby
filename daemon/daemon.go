@@ -53,8 +53,6 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
-	volumedrivers "github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/store"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
@@ -602,12 +600,6 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		return nil, err
 	}
 
-	// Configure the volumes driver
-	volStore, err := d.configureVolumes(rootUID, rootGID)
-	if err != nil {
-		return nil, err
-	}
-
 	trustKey, err := api.LoadOrCreateTrustKey(config.TrustKeyPath)
 	if err != nil {
 		return nil, err
@@ -662,7 +654,6 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		Config: config.LogConfig.Config,
 	}
 	d.RegistryService = registryService
-	d.volumes = volStore
 	d.root = config.Root
 	d.uidMaps = uidMaps
 	d.gidMaps = gidMaps
@@ -939,18 +930,6 @@ func setDefaultMtu(config *Config) {
 	config.Mtu = defaultNetworkMtu
 }
 
-func (daemon *Daemon) configureVolumes(rootUID, rootGID int) (*store.VolumeStore, error) {
-	volumesDriver, err := local.New(daemon.configStore.Root, rootUID, rootGID)
-	if err != nil {
-		return nil, err
-	}
-
-	if !volumedrivers.Register(volumesDriver, volumesDriver.Name()) {
-		return nil, fmt.Errorf("local volume driver could not be registered")
-	}
-	return store.New(daemon.configStore.Root)
-}
-
 // IsShuttingDown tells whether the daemon is shutting down or not
 func (daemon *Daemon) IsShuttingDown() bool {
 	return daemon.shutdown
@@ -1047,8 +1026,10 @@ func (daemon *Daemon) Reload(config *Config) error {
 		daemon.uploadManager.SetConcurrency(*daemon.configStore.MaxConcurrentUploads)
 	}
 
+	// TODO: build up this config
+	compConfig := component.Config{}
 	if err := compreg.Get().ForEach(func(c component.Component) error {
-		return c.Reload(daemon.componentContext(), config)
+		return c.Reload(daemon.componentContext(), compConfig)
 	}); err != nil {
 		return err
 	}

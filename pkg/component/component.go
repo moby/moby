@@ -50,6 +50,7 @@ type Context struct {
 // Config is the configuration data provided to components
 type Config struct {
 	Filesystem FilesystemConfig
+}
 
 // FilesystemConfig is the configuration for the root filesystem used by
 // components
@@ -57,11 +58,6 @@ type FilesystemConfig struct {
 	Root string
 	UID  int
 	GID  int
-}
-
-// Events interface used by components to log events
-type Events interface {
-	Log(string, string, events.Actor)
 }
 
 // Events interface used by components to log events
