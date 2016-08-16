@@ -354,3 +354,17 @@ func (d *SwarmDaemon) checkLeader(c *check.C) (interface{}, check.CommentInterfa
 	}
 	return fmt.Errorf("no leader"), check.Commentf("could not find leader")
 }
+
+func (d *SwarmDaemon) cmdRetryOutOfSequence(args ...string) (string, error) {
+	for i := 0; ; i++ {
+		out, err := d.Cmd(args...)
+		if err != nil {
+			if strings.Contains(err.Error(), "update out of sequence") {
+				if i < 10 {
+					continue
+				}
+			}
+		}
+		return out, err
+	}
+}
