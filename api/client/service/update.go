@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/types"
+	mounttypes "github.com/docker/engine-api/types/mount"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/docker/go-connections/nat"
 	shlex "github.com/flynn-archive/go-shlex"
@@ -353,14 +354,14 @@ func removeItems(
 	return newSeq
 }
 
-func updateMounts(flags *pflag.FlagSet, mounts *[]swarm.Mount) {
+func updateMounts(flags *pflag.FlagSet, mounts *[]mounttypes.Mount) {
 	if flags.Changed(flagMountAdd) {
 		values := flags.Lookup(flagMountAdd).Value.(*MountOpt).Value()
 		*mounts = append(*mounts, values...)
 	}
 	toRemove := buildToRemoveSet(flags, flagMountRemove)
 
-	newMounts := []swarm.Mount{}
+	newMounts := []mounttypes.Mount{}
 	for _, mount := range *mounts {
 		if _, exists := toRemove[mount.Target]; !exists {
 			newMounts = append(newMounts, mount)

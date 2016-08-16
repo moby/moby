@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/testutil/assert"
-	"github.com/docker/engine-api/types/swarm"
+	mounttypes "github.com/docker/engine-api/types/mount"
 )
 
 func TestMemBytesString(t *testing.T) {
@@ -59,14 +59,14 @@ func TestUint64OptSetAndValue(t *testing.T) {
 
 func TestMountOptString(t *testing.T) {
 	mount := MountOpt{
-		values: []swarm.Mount{
+		values: []mounttypes.Mount{
 			{
-				Type:   swarm.MountTypeBind,
+				Type:   mounttypes.TypeBind,
 				Source: "/home/path",
 				Target: "/target",
 			},
 			{
-				Type:   swarm.MountTypeVolume,
+				Type:   mounttypes.TypeVolume,
 				Source: "foo",
 				Target: "/target/foo",
 			},
@@ -90,8 +90,8 @@ func TestMountOptSetNoError(t *testing.T) {
 
 		mounts := mount.Value()
 		assert.Equal(t, len(mounts), 1)
-		assert.Equal(t, mounts[0], swarm.Mount{
-			Type:   swarm.MountTypeBind,
+		assert.Equal(t, mounts[0], mounttypes.Mount{
+			Type:   mounttypes.TypeBind,
 			Source: "/source",
 			Target: "/target",
 		})
@@ -103,7 +103,7 @@ func TestMountOptSetNoError(t *testing.T) {
 func TestMountOptDefaultType(t *testing.T) {
 	var mount MountOpt
 	assert.NilError(t, mount.Set("target=/target,source=/foo"))
-	assert.Equal(t, mount.values[0].Type, swarm.MountTypeVolume)
+	assert.Equal(t, mount.values[0].Type, mounttypes.TypeVolume)
 }
 
 func TestMountOptSetErrorNoTarget(t *testing.T) {

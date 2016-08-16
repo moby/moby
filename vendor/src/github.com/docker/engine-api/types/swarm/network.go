@@ -92,7 +92,7 @@ type IPAMConfig struct {
 	Gateway string `json:",omitempty"`
 }
 
-// Driver represents a driver (network/volume).
+// Driver represents a network driver.
 type Driver struct {
 	Name    string            `json:",omitempty"`
 	Options map[string]string `json:",omitempty"`

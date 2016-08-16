@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/mount"
 	"github.com/docker/engine-api/types/network"
 	"github.com/docker/engine-api/types/registry"
 	"github.com/docker/engine-api/types/swarm"
@@ -230,7 +231,6 @@ type Info struct {
 	OomKillDisable     bool
 	NGoroutines        int
 	SystemTime         string
-	ExecutionDriver    string
 	LoggingDriver      string
 	CgroupDriver       string
 	NEventsListener    int
@@ -409,14 +409,16 @@ type DefaultNetworkSettings struct {
 }
 
 // MountPoint represents a mount point configuration inside the container.
+// This is used for reporting the mountpoints in use by a container.
 type MountPoint struct {
-	Name        string `json:",omitempty"`
+	Type        mount.Type `json:",omitempty"`
+	Name        string     `json:",omitempty"`
 	Source      string
 	Destination string
 	Driver      string `json:",omitempty"`
 	Mode        string
 	RW          bool
-	Propagation string
+	Propagation mount.Propagation
 }
 
 // Volume represents the configuration of a volume for the remote API

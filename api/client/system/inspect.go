@@ -54,7 +54,7 @@ func runInspect(dockerCli *client.DockerCli, opts inspectOptions) error {
 		}
 	case "image":
 		getRefFunc = func(ref string) (interface{}, []byte, error) {
-			return client.ImageInspectWithRaw(ctx, ref, opts.size)
+			return client.ImageInspectWithRaw(ctx, ref)
 		}
 	case "task":
 		if opts.size {
@@ -81,7 +81,7 @@ func inspectAll(ctx context.Context, dockerCli *client.DockerCli, getSize bool) 
 			return c, rawContainer, err
 		}
 		// Search for image with that id if a container doesn't exist.
-		i, rawImage, err := client.ImageInspectWithRaw(ctx, ref, getSize)
+		i, rawImage, err := client.ImageInspectWithRaw(ctx, ref)
 		if err == nil || !apiclient.IsErrNotFound(err) {
 			return i, rawImage, err
 		}

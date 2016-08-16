@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
+	mounttypes "github.com/docker/engine-api/types/mount"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
@@ -92,8 +93,8 @@ type MountPoint struct {
 	Mode string `json:"Relabel"` // Originally field was `Relabel`"
 
 	// Note Propagation is not used on Windows
-	Propagation string // Mount propagation string
-	Named       bool   // specifies if the mountpoint was specified by name
+	Propagation mounttypes.Propagation // Mount propagation string
+	Named       bool                   // specifies if the mountpoint was specified by name
 
 	// Specifies if data should be copied from the container before the first mount
 	// Use a pointer here so we can tell if the user set this value explicitly
