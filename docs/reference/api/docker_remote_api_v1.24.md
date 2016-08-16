@@ -4535,7 +4535,7 @@ image](#create-an-image) section for more details.
     Content-Type: application/json
 
     {
-      "Id":"ak7w3gjqoa3kuz8xcpnyy0pvl"
+      "ID":"ak7w3gjqoa3kuz8xcpnyy0pvl"
     }
 
 **Status codes**:
