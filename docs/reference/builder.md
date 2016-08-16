@@ -1075,8 +1075,6 @@ sys	0m 0.03s
 > `ENTRYPOINT [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
 > If you want shell processing then either use the *shell* form or execute
 > a shell directly, for example: `ENTRYPOINT [ "sh", "-c", "echo $HOME" ]`.
-> Variables that are defined in the `Dockerfile`using `ENV`, will be substituted by
-> the `Dockerfile` parser.
 
 ### Shell form ENTRYPOINT example
 
