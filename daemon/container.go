@@ -201,12 +201,6 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 		return err
 	}
 
-	// make sure links is not nil
-	// this ensures that on the next daemon restart we don't try to migrate from legacy sqlite links
-	if hostConfig.Links == nil {
-		hostConfig.Links = []string{}
-	}
-
 	container.HostConfig = hostConfig
 	return container.ToDisk()
 }
