@@ -11,32 +11,50 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/utils"
+	"github.com/docker/docker/utils/templates"
+	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/docker/go-units"
 	"github.com/spf13/cobra"
 )
 
+type infoOptions struct {
+	format string
+}
+
 // NewInfoCommand creates a new cobra.Command for `docker info`
 func NewInfoCommand(dockerCli *client.DockerCli) *cobra.Command {
+	var opts infoOptions
+
 	cmd := &cobra.Command{
 		Use:   "info",
 		Short: "Display system-wide information",
 		Args:  cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runInfo(dockerCli)
+			return runInfo(dockerCli, &opts)
 		},
 	}
-	return cmd
 
+	flags := cmd.Flags()
+
+	flags.StringVarP(&opts.format, "format", "f", "", "Format the output using the given go template")
+
+	return cmd
 }
 
-func runInfo(dockerCli *client.DockerCli) error {
+func runInfo(dockerCli *client.DockerCli, opts *infoOptions) error {
 	ctx := context.Background()
 	info, err := dockerCli.Client().Info(ctx)
 	if err != nil {
 		return err
 	}
+	if opts.format == "" {
+		return prettyPrintInfo(dockerCli, info)
+	}
+	return formatInfo(dockerCli, info, opts.format)
+}
 
+func prettyPrintInfo(dockerCli *client.DockerCli, info types.Info) error {
 	fmt.Fprintf(dockerCli.Out(), "Containers: %d\n", info.Containers)
 	fmt.Fprintf(dockerCli.Out(), " Running: %d\n", info.ContainersRunning)
 	fmt.Fprintf(dockerCli.Out(), " Paused: %d\n", info.ContainersPaused)
@@ -222,4 +240,15 @@ func runInfo(dockerCli *client.DockerCli) error {
 	fmt.Fprintf(dockerCli.Out(), "Live Restore Enabled: %v\n", info.LiveRestoreEnabled)
 
 	return nil
+}
+
+func formatInfo(dockerCli *client.DockerCli, info types.Info, format string) error {
+	tmpl, err := templates.Parse(format)
+	if err != nil {
+		return cli.StatusError{StatusCode: 64,
+			Status: "Template parsing error: " + err.Error()}
+	}
+	err = tmpl.Execute(dockerCli.Out(), info)
+	dockerCli.Out().Write([]byte{'\n'})
+	return err
 }

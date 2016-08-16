@@ -16,13 +16,18 @@ Usage:  docker info
 Display system-wide information
 
 Options:
-      --help   Print usage
+  -f, --format string   Format the output using the given go template
+      --help            Print usage
 ```
 
 This command displays system wide information regarding the Docker installation.
 Information displayed includes the kernel version, number of containers and images.
 The number of images shown is the number of unique images. The same image tagged
 under different names is counted only once.
+
+If a format is specified, the given template will be executed instead of the
+default format. Go's [text/template](http://golang.org/pkg/text/template/) package
+describes all the details of the format.
 
 Depending on the storage driver in use, additional information can be shown, such
 as pool name, data file, metadata file, data space used, total data space, metadata
@@ -144,3 +149,8 @@ information about the devicemapper storage driver is shown:
     Insecure registries:
      myinsecurehost:5000
      127.0.0.0/8
+
+You can also specify the output format:
+
+    $ docker info --format '{{json .}}'
+	{"ID":"I54V:OLXT:HVMM:TPKO:JPHQ:CQCD:JNLC:O3BZ:4ZVJ:43XJ:PFHZ:6N2S","Containers":14, ...}

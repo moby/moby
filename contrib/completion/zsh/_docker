@@ -1709,7 +1709,8 @@ __docker_subcommand() {
             ;;
         (info|version)
             _arguments $(__docker_arguments) \
-                $opts_help && ret=0
+                $opts_help \
+		"($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " && ret=0
             ;;
         (inspect)
             local state
