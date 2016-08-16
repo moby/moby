@@ -460,7 +460,7 @@ Create a container
             An ever increasing delay (double the previous delay, starting at 100mS)
             is added before each restart to prevent flooding the server.
     -   **AutoRemove** - Boolean value, set to `true` to automatically remove the container on daemon side
-            when the container's process exits.
+            when the container's process exits. Note that `RestartPolicy` other than `none` is exclusive to `AutoRemove`.
     -   **UsernsMode**  - Sets the usernamespace mode for the container when usernamespace remapping option is enabled.
            supported values are: `host`.
     -   **NetworkMode** - Sets the networking mode for the container. Supported

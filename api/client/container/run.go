@@ -95,6 +95,9 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 		return cli.StatusError{StatusCode: 125}
 	}
 
+	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
+		return ErrConflictRestartPolicyAndAutoRemove
+	}
 	if hostConfig.OomKillDisable != nil && *hostConfig.OomKillDisable && hostConfig.Memory == 0 {
 		fmt.Fprintf(stderr, "WARNING: Disabling the OOM killer on containers without setting a '-m/--memory' limit may be dangerous.\n")
 	}
@@ -165,9 +168,6 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 			defer close(waitDisplayID)
 			fmt.Fprintf(stdout, "%s\n", createResponse.ID)
 		}()
-	}
-	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
-		return ErrConflictRestartPolicyAndAutoRemove
 	}
 	attach := config.AttachStdin || config.AttachStdout || config.AttachStderr
 	if attach {
