@@ -4085,6 +4085,54 @@ JSON Parameters:
 
 ## 3.8 Swarm
 
+### Inspect swarm
+
+
+`GET /swarm`
+
+Inspect swarm
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+      "CreatedAt" : "2016-08-15T16:00:20.349727406Z",
+      "Spec" : {
+        "Dispatcher" : {
+          "HeartbeatPeriod" : 5000000000
+        },
+        "Orchestration" : {
+         "TaskHistoryRetentionLimit" : 10
+        },
+        "CAConfig" : {
+          "NodeCertExpiry" : 7776000000000000
+        },
+        "Raft" : {
+          "LogEntriesForSlowFollowers" : 500,
+          "HeartbeatTick" : 1,
+          "SnapshotInterval" : 10000,
+          "ElectionTick" : 3
+        },
+        "TaskDefaults" : {},
+        "Name" : "default"
+      },
+     "JoinTokens" : {
+        "Worker" : "SWMTKN-1-1h8aps2yszaiqmz2l3oc5392pgk8e49qhx2aj3nyv0ui0hez2a-6qmn92w6bu3jdvnglku58u11a",
+        "Manager" : "SWMTKN-1-1h8aps2yszaiqmz2l3oc5392pgk8e49qhx2aj3nyv0ui0hez2a-8llk83c4wm9lwioey2s316r9l"
+     },
+     "ID" : "70ilmkj2f6sp2137c753w2nmt",
+     "UpdatedAt" : "2016-08-15T16:32:09.623207604Z",
+     "Version" : {
+       "Index" : 51
+    }
+  }
+
+**Status codes**:
+
+- **200** - no error
+
 ### Initialize a new swarm
 
 
