@@ -56,6 +56,8 @@ systemctl restart docker` to reload changes and (re)start the docker daemon.
 - Fix random network issues on service with published port [#25603](https://github.com/docker/docker/pull/25603)
 - Fix unreliable inter-service communication after scaling down and up [#25603](https://github.com/docker/docker/pull/25603)
 - Fix issue where removing all tasks on a node and adding them back breaks connectivity with other services [#25603](https://github.com/docker/docker/pull/25603)
+- Fix issue where a task that fails to start results in a race, causing a `network xxx not found` error that masks the actual error [#25550](https://github.com/docker/docker/pull/25550)
+- Relax validation of SRV records for external services that use SRV records not formatted according to RFC 2782 [#25739](https://github.com/docker/docker/pull/25739)
 
 ### Plugins (experimental)
 
