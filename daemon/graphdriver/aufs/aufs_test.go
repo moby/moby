@@ -550,7 +550,7 @@ func TestExists(t *testing.T) {
 	}
 
 	if d.Exists("none") {
-		t.Fatal("id name should not exist in the driver")
+		t.Fatal("id none should not exist in the driver")
 	}
 
 	if !d.Exists("1") {
