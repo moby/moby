@@ -255,6 +255,9 @@ func (r *resolver) handleSRVQuery(svc string, query *dns.Msg) (*dns.Msg, error) 
 	if err != nil {
 		return nil, err
 	}
+	if len(srv) == 0 {
+		return nil, nil
+	}
 	if len(srv) != len(ip) {
 		return nil, fmt.Errorf("invalid reply for SRV query %s", svc)
 	}
