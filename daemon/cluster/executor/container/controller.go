@@ -91,7 +91,7 @@ func (r *controller) Prepare(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	volumes, ok := comp.(volumecomp.Volumes)
+	volumes, ok := comp.Interface().(volumecomp.Volumes)
 	if !ok {
 		return fmt.Errorf("Unexpected volume component %T", comp)
 	}

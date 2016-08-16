@@ -6,6 +6,9 @@ import (
 	"github.com/docker/docker/pkg/component"
 	"github.com/docker/docker/pkg/component/registry"
 	"github.com/spf13/cobra"
+
+	// TODO: move this under the component
+	"github.com/docker/docker/volume"
 )
 
 const (
@@ -16,7 +19,10 @@ const (
 // Volumes is the public interface for the volume component. It is used by other
 // compoennts.
 type Volumes interface {
-	Create(name, driverName string, opts, labels map[string]string) (*types.Volume, error)
+	Create(name, driverName, ref string, opts, labels map[string]string) (volume.Volume, error)
+	GetWithRef(name, driver, ref string) (volume.Volume, error)
+	Dereference(volume.Volume, string)
+	Remove(volume.Volume) error
 }
 
 // Component provides volume functionality to the engine
@@ -38,6 +44,12 @@ func (c *Component) Routes() []apirouter.Route {
 // CommandLine returns the cli commands provided by this component
 func (c *Component) CommandLine() []*cobra.Command {
 	return nil
+}
+
+// Interface returns the Volumes interface for other components. It must be
+// casted to the correct type.
+func (c *Component) Interface() interface{} {
+	return c.backend
 }
 
 // Init initializes the component

@@ -9,15 +9,15 @@ import (
 	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	volumecomp "github.com/docker/docker/components/volume"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/pkg/component"
 	"github.com/docker/docker/pkg/discovery"
 	_ "github.com/docker/docker/pkg/discovery/memory"
 	"github.com/docker/docker/pkg/registrar"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/volume"
 	volumedrivers "github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/local"
-	"github.com/docker/docker/volume/store"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -117,23 +117,19 @@ func TestGetContainer(t *testing.T) {
 	}
 }
 
-func initDaemonWithVolumeStore(tmp string) (*Daemon, error) {
-	var err error
+func initDaemonWithVolumeComponent(tmp string) (*Daemon, error) {
 	daemon := &Daemon{
 		repository: tmp,
 		root:       tmp,
 	}
-	daemon.volumes, err = store.New(tmp)
-	if err != nil {
+
+	comp := volumecomp.New()
+	daemon.volumeComponent = comp.Interface().(volumecomp.Volumes)
+	if err := comp.Init(component.Config{
+		Filesystem: component.FilesystemConfig{Root: tmp, UID: 0, GID: 0},
+	}); err != nil {
 		return nil, err
 	}
-
-	volumesDriver, err := local.New(tmp, 0, 0)
-	if err != nil {
-		return nil, err
-	}
-	volumedrivers.Register(volumesDriver, volumesDriver.Name())
-
 	return daemon, nil
 }
 
@@ -217,7 +213,7 @@ func TestContainerInitDNS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	daemon, err := initDaemonWithVolumeStore(tmp)
+	daemon, err := initDaemonWithVolumeComponent(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}

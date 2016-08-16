@@ -231,6 +231,7 @@ func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels m
 
 // Create creates a volume with the given name and driver.
 // This is just like CreateWithRef() except we don't store a reference while holding the lock.
+// TODO: remove?
 func (s *VolumeStore) Create(name, driverName string, opts, labels map[string]string) (volume.Volume, error) {
 	return s.CreateWithRef(name, driverName, "", opts, labels)
 }

@@ -49,14 +49,19 @@ func (b *backend) Inspect(name string) (*types.Volume, error) {
 	return apiV, nil
 }
 
+// GetWithRef returns a volume
+func (b *backend) GetWithRef(name, driver, ref string) (volume.Volume, error) {
+	return b.volumes.GetWithRef(name, driver, ref)
+}
+
 // VolumeCreate creates a volume with the specified name, driver, and opts
 // This is called directly from the remote API
-func (b *backend) Create(name, driverName string, opts, labels map[string]string) (*types.Volume, error) {
+func (b *backend) Create(name, driverName, ref string, opts, labels map[string]string) (volume.Volume, error) {
 	if name == "" {
 		name = stringid.GenerateNonCryptoID()
 	}
 
-	v, err := b.volumes.Create(name, driverName, opts, labels)
+	v, err := b.volumes.CreateWithRef(name, driverName, ref, opts, labels)
 	if err != nil {
 		if store.IsNameConflict(err) {
 			return nil, fmt.Errorf("A volume named %s already exists. Choose a different volume name.", name)
@@ -65,9 +70,7 @@ func (b *backend) Create(name, driverName string, opts, labels map[string]string
 	}
 
 	b.event(v.Name(), "create", map[string]string{"driver": v.DriverName()})
-	apiV := volumeToAPIType(v)
-	apiV.Mountpoint = v.Path()
-	return apiV, nil
+	return v, nil
 }
 
 var acceptedVolumeFilterTags = map[string]bool{
@@ -157,9 +160,9 @@ func (b *backend) filterVolumes(vols []volume.Volume, filter filters.Args) ([]vo
 	return retVols, nil
 }
 
-// Remove a volume by name.
+// RemoveByName a volume by name.
 // If the volume is referenced by a container it is not removed
-func (b *backend) Remove(name string, force bool) error {
+func (b *backend) RemoveByName(name string, force bool) error {
 	err := b.remove(name)
 	if err == nil || force {
 		b.volumes.Purge(name)
@@ -202,3 +205,15 @@ func volumeToAPIType(v volume.Volume) *types.Volume {
 	}
 	return tv
 }
+
+// Remove a volume
+func (b *backend) Remove(v volume.Volume) error {
+	return b.volumes.Remove(v)
+}
+
+// Dereference removes a reference to a volume in the store
+func (b *backend) Dereference(v volume.Volume, ref string) {
+	b.volumes.Dereference(v, ref)
+}
+
+var _ Volumes = &backend{}

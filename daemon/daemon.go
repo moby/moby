@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	volumecomp "github.com/docker/docker/components/volume"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
@@ -53,7 +54,6 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
-	"github.com/docker/docker/volume/store"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libtrust"
@@ -85,7 +85,6 @@ type Daemon struct {
 	RegistryService           registry.Service
 	EventsService             *events.Events
 	netController             libnetwork.NetworkController
-	volumes                   *store.VolumeStore
 	discoveryWatcher          discoveryReloader
 	root                      string
 	seccompEnabled            bool
@@ -100,6 +99,7 @@ type Daemon struct {
 	containerdRemote          libcontainerd.Remote
 	defaultIsolation          containertypes.Isolation // Default isolation mode on Windows
 	clusterProvider           cluster.Provider
+	volumeComponent           volumecomp.Volumes
 }
 
 func (daemon *Daemon) restore() error {
@@ -378,6 +378,20 @@ func (daemon *Daemon) RestartSwarmContainers() {
 
 	}
 	group.Wait()
+}
+
+// TODO: remove once all access to this component has moved into other
+// components
+func getVolumeComponent() (volumecomp.Volumes, error) {
+	comp, err := compreg.Get().Get(volumecomp.ComponentType)
+	if err != nil {
+		return nil, err
+	}
+	volumes, ok := comp.Interface().(volumecomp.Volumes)
+	if !ok {
+		return nil, fmt.Errorf("Unexpected volume component %T", comp)
+	}
+	return volumes, nil
 }
 
 // waitForNetworks is used during daemon initialization when starting up containers
@@ -662,6 +676,10 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 	d.nameIndex = registrar.NewRegistrar()
 	d.linkIndex = newLinkIndex()
 	d.containerdRemote = containerdRemote
+	d.volumeComponent, err = getVolumeComponent()
+	if err != nil {
+		return nil, err
+	}
 
 	go d.execCommandGC()
 
@@ -675,6 +693,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		return nil, err
 	}
 
+	// TODO: StartComponents might need to be called before this
 	if err := d.restore(); err != nil {
 		return nil, err
 	}

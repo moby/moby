@@ -70,11 +70,14 @@ func (v *router) postVolumesCreate(ctx context.Context, w http.ResponseWriter, r
 		return err
 	}
 
-	volume, err := v.backend.Create(req.Name, req.Driver, req.DriverOpts, req.Labels)
+	volume, err := v.backend.Create(req.Name, req.Driver, "", req.DriverOpts, req.Labels)
 	if err != nil {
 		return err
 	}
-	return httputils.WriteJSON(w, http.StatusCreated, volume)
+	apiV := volumeToAPIType(volume)
+	apiV.Mountpoint = volume.Path()
+
+	return httputils.WriteJSON(w, http.StatusCreated, apiV)
 }
 
 func (v *router) deleteVolumes(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -82,7 +85,7 @@ func (v *router) deleteVolumes(ctx context.Context, w http.ResponseWriter, r *ht
 		return err
 	}
 	force := httputils.BoolValue(r, "force")
-	if err := v.backend.Remove(vars["name"], force); err != nil {
+	if err := v.backend.RemoveByName(vars["name"], force); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)

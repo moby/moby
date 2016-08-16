@@ -53,6 +53,7 @@ func (m mounts) parts(i int) int {
 // 2. Select the volumes mounted from another containers. Overrides previously configured mount point destination.
 // 3. Select the bind mounts set by the client. Overrides previously configured mount point destinations.
 // 4. Cleanup old volumes that are about to be reassigned.
+// TODO: this method should move to the container component
 func (daemon *Daemon) registerMountPoints(container *container.Container, hostConfig *containertypes.HostConfig) (retErr error) {
 	binds := map[string]bool{}
 	mountPoints := map[string]*volume.MountPoint{}
@@ -63,7 +64,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 				if m.Volume == nil {
 					continue
 				}
-				daemon.volumes.Dereference(m.Volume, container.ID)
+				daemon.volumeComponent.Dereference(m.Volume, container.ID)
 			}
 		}
 	}()
@@ -98,7 +99,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			}
 
 			if len(cp.Source) == 0 {
-				v, err := daemon.volumes.GetWithRef(cp.Name, cp.Driver, container.ID)
+				v, err := daemon.volumeComponent.GetWithRef(cp.Name, cp.Driver, container.ID)
 				if err != nil {
 					return err
 				}
@@ -124,7 +125,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 
 		if bind.Type == mounttypes.TypeVolume {
 			// create the volume
-			v, err := daemon.volumes.CreateWithRef(bind.Name, bind.Driver, container.ID, nil, nil)
+			v, err := daemon.volumeComponent.Create(bind.Name, bind.Driver, container.ID, nil, nil)
 			if err != nil {
 				return err
 			}
@@ -191,7 +192,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 	for _, m := range mountPoints {
 		if m.BackwardsCompatible() {
 			if mp, exists := container.MountPoints[m.Destination]; exists && mp.Volume != nil {
-				daemon.volumes.Dereference(mp.Volume, container.ID)
+				daemon.volumeComponent.Dereference(mp.Volume, container.ID)
 			}
 		}
 	}
@@ -205,14 +206,11 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 // lazyInitializeVolume initializes a mountpoint's volume if needed.
 // This happens after a daemon restart.
 func (daemon *Daemon) lazyInitializeVolume(containerID string, m *volume.MountPoint) error {
+	var err error
 	if len(m.Driver) > 0 && m.Volume == nil {
-		v, err := daemon.volumes.GetWithRef(m.Name, m.Driver, containerID)
-		if err != nil {
-			return err
-		}
-		m.Volume = v
+		m.Volume, err = daemon.volumeComponent.GetWithRef(m.Name, m.Driver, containerID)
 	}
-	return nil
+	return err
 }
 
 func backportMountSpec(container *container.Container) error {
