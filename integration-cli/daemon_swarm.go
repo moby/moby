@@ -311,3 +311,17 @@ func (d *SwarmDaemon) checkControlAvailable(c *check.C) (interface{}, check.Comm
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 	return info.ControlAvailable, nil
 }
+
+func (d *SwarmDaemon) cmdRetryOutOfSequence(args ...string) (string, error) {
+	for i := 0; ; i++ {
+		out, err := d.Cmd(args[0], args[1:]...)
+		if err != nil {
+			if strings.Contains(err.Error(), "update out of sequence") {
+				if i < 10 {
+					continue
+				}
+			}
+		}
+		return out, err
+	}
+}
