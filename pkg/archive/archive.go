@@ -59,6 +59,7 @@ type (
 		// For each include when creating an archive, the included name will be
 		// replaced with the matching name from this map.
 		RebaseNames map[string]string
+		InUserNS    bool
 	}
 
 	// Archiver allows the reuse of most utility functions of this package
@@ -381,7 +382,7 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	return nil
 }
 
-func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool, chownOpts *TarChownOptions) error {
+func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, Lchown bool, chownOpts *TarChownOptions, inUserns bool) error {
 	// hdr.Mode is in linux format, which we can use for sycalls,
 	// but for os.Foo() calls we need the mode converted to os.FileMode,
 	// so use hdrInfo.Mode() (they differ for e.g. setuid bits)
@@ -409,7 +410,16 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		}
 		file.Close()
 
-	case tar.TypeBlock, tar.TypeChar, tar.TypeFifo:
+	case tar.TypeBlock, tar.TypeChar:
+		if inUserns { // cannot create devices in a userns
+			return nil
+		}
+		// Handle this is an OS-specific way
+		if err := handleTarTypeBlockCharFifo(hdr, path); err != nil {
+			return err
+		}
+
+	case tar.TypeFifo:
 		// Handle this is an OS-specific way
 		if err := handleTarTypeBlockCharFifo(hdr, path); err != nil {
 			return err
@@ -817,7 +827,7 @@ loop:
 			}
 		}
 
-		if err := createTarFile(path, dest, hdr, trBuf, !options.NoLchown, options.ChownOpts); err != nil {
+		if err := createTarFile(path, dest, hdr, trBuf, !options.NoLchown, options.ChownOpts, options.InUserNS); err != nil {
 			return err
 		}
 
