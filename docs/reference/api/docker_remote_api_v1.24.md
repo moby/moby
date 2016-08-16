@@ -4546,10 +4546,8 @@ image](#create-an-image) section for more details.
 
 JSON Parameters:
 
-- **Annotations** – Optional medata to associate with the service.
-    - **Name** – User-defined name for the service.
-    - **Labels** – A map of labels to associate with the service (e.g.,
-      `{"key":"value"[,"key2":"value2"]}`).
+- **Name** – User-defined name for the service.
+- **Labels** – A map of labels to associate with the service (e.g., `{"key":"value"[,"key2":"value2"]}`).
 - **TaskTemplate** – Specification of the tasks to start as part of the new service.
     - **ContainerSpec** - Container settings for containers started as part of this task.
         - **Image** – A string specifying the image name to use for the container.
@@ -4636,11 +4634,11 @@ Stop and remove the service `id`
 
 **Example response**:
 
-    HTTP/1.1 204 No Content
+    HTTP/1.1 200 No Content
 
 **Status codes**:
 
--   **204** – no error
+-   **200** – no error
 -   **404** – no such service
 -   **500** – server error
 
@@ -4778,10 +4776,8 @@ image](#create-an-image) section for more details.
 
 **JSON Parameters**:
 
-- **Annotations** – Optional medata to associate with the service.
-    - **Name** – User-defined name for the service.
-    - **Labels** – A map of labels to associate with the service (e.g.,
-      `{"key":"value"[,"key2":"value2"]}`).
+- **Name** – User-defined name for the service.
+- **Labels** – A map of labels to associate with the service (e.g., `{"key":"value"[,"key2":"value2"]}`).
 - **TaskTemplate** – Specification of the tasks to start as part of the new service.
     - **ContainerSpec** - Container settings for containers started as part of this task.
         - **Image** – A string specifying the image name to use for the container.
@@ -4857,7 +4853,7 @@ image](#create-an-image) section for more details.
 -   **200** – no error
 -   **404** – no such service
 -   **500** – server error
-
+ 
 ## 3.10 Tasks
 
 **Note**: Task operations require the engine to be part of a swarm.
