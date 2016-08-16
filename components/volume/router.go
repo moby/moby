@@ -6,64 +6,57 @@ import (
 
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/server/router"
+	apirouter "github.com/docker/docker/api/server/router"
 	"golang.org/x/net/context"
 )
 
-// volumeRouter is a router to talk with the volumes controller
-type volumeRouter struct {
-	backend Backend
-	routes  []router.Route
+// router is a router to talk with the volumes controller
+type router struct {
+	backend *backend
 }
 
-// NewRouter initializes a new volume router
-func NewRouter(b Backend) router.Router {
-	r := &volumeRouter{backend: b}
-	r.initRoutes()
-	return r
+func newRouter(b *backend) *router {
+	return &router{backend: b}
 }
 
 // Routes returns the available routes to the volumes controller
-func (r *volumeRouter) Routes() []router.Route {
-	return r.routes
-}
-
-func (r *volumeRouter) initRoutes() {
-	r.routes = []router.Route{
+func (v *router) Routes() []apirouter.Route {
+	return []apirouter.Route{
 		// GET
-		router.NewGetRoute("/volumes", r.getVolumesList),
-		router.NewGetRoute("/volumes/{name:.*}", r.getVolumeByName),
+		apirouter.NewGetRoute("/volumes", v.getVolumesList),
+		apirouter.NewGetRoute("/volumes/{name:.*}", v.getVolumeByName),
 		// POST
-		router.NewPostRoute("/volumes/create", r.postVolumesCreate),
+		apirouter.NewPostRoute("/volumes/create", v.postVolumesCreate),
 		// DELETE
-		router.NewDeleteRoute("/volumes/{name:.*}", r.deleteVolumes),
+		apirouter.NewDeleteRoute("/volumes/{name:.*}", v.deleteVolumes),
 	}
 }
-func (v *volumeRouter) getVolumesList(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+
+func (v *router) getVolumesList(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
-	volumes, warnings, err := v.backend.Volumes(r.Form.Get("filters"))
+	volumes, warnings, err := v.backend.List(r.Form.Get("filters"))
 	if err != nil {
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, &types.VolumesListResponse{Volumes: volumes, Warnings: warnings})
 }
 
-func (v *volumeRouter) getVolumeByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (v *router) getVolumeByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
-	volume, err := v.backend.VolumeInspect(vars["name"])
+	volume, err := v.backend.Inspect(vars["name"])
 	if err != nil {
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, volume)
 }
 
-func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (v *router) postVolumesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -77,19 +70,19 @@ func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWri
 		return err
 	}
 
-	volume, err := v.backend.VolumeCreate(req.Name, req.Driver, req.DriverOpts, req.Labels)
+	volume, err := v.backend.Create(req.Name, req.Driver, req.DriverOpts, req.Labels)
 	if err != nil {
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusCreated, volume)
 }
 
-func (v *volumeRouter) deleteVolumes(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (v *router) deleteVolumes(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 	force := httputils.BoolValue(r, "force")
-	if err := v.backend.VolumeRm(vars["name"], force); err != nil {
+	if err := v.backend.Remove(vars["name"], force); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)

@@ -3,29 +3,70 @@ package volume
 import (
 	apirouter "github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/pkg/component"
+	"github.com/docker/docker/pkg/component/registry"
 	"github.com/spf13/cobra"
 )
 
-// TODO: update the old interface with what is actually used
-// TODO: move types into this package
-type Backend interface {
-	Volumes(filter string) ([]*types.Volume, []string, error)
-	VolumeInspect(name string) (*types.Volume, error)
-	VolumeCreate(name, driverName string, opts, labels map[string]string) (*types.Volume, error)
-	VolumeRm(name string, force bool) error
+const (
+	// ComponentType is the name identifying this type of component
+	ComponentType = "volumes"
+)
+
+// Volumes is the public interface for the volume component. It is used by other
+// compoennts.
+type Volumes interface {
+	Create(name, driverName string, opts, labels map[string]string) (*types.Volume, error)
 }
 
-type VolumeComponent struct {
+// Component provides volume functionality to the engine
+type Component struct {
+	backend *backend
+	router  *router
 }
 
-func (c *VolumeComponent) Provides() string {
-	return "volumes"
+// Provides returns the component type
+func (c *Component) Provides() string {
+	return ComponentType
 }
 
-func (c *VolumeComponent) Routes() []apirouter.Route {
+// Routes returns the api routes provided by this component
+func (c *Component) Routes() []apirouter.Route {
+	return c.router.Routes()
+}
+
+// CommandLine returns the cli commands provided by this component
+func (c *Component) CommandLine() []*cobra.Command {
 	return nil
 }
 
-func (c *VolumeComponent) CommandLine() []*cobra.Command {
+// Init initializes the component
+func (c *Component) Init(config component.Config, events component.Events) error {
+	c.backend.eventsService = events
 	return nil
+}
+
+// Start the component using the context
+func (c *Component) Start(context *component.Context) error {
+	return nil
+}
+
+// Reload the component
+func (c *Component) Reload(context *component.Context, conf component.Config) error {
+	return nil
+}
+
+// Shutdown the component
+func (c *Component) Shutdown(context *component.Context) error {
+	return nil
+}
+
+// New returns a new component
+func New() *Component {
+	b := &backend{}
+	return &Component{router: newRouter(b), backend: b}
+}
+
+func init() {
+	registry.Get().Register(New())
 }

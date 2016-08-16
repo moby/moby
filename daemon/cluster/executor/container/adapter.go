@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/versions"
+	volumecomp "github.com/docker/docker/components/volume"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/libnetwork"
 	"github.com/docker/swarmkit/api"
@@ -295,7 +296,7 @@ func (c *containerAdapter) remove(ctx context.Context) error {
 	})
 }
 
-func (c *containerAdapter) createVolumes(ctx context.Context) error {
+func (c *containerAdapter) createVolumes(ctx context.Context, volumes volumecomp.Volumes) error {
 	// Create plugin volumes that are embedded inside a Mount
 	for _, mount := range c.container.task.Spec.GetContainer().Mounts {
 		if mount.Type != api.MountTypeVolume {
@@ -313,10 +314,11 @@ func (c *containerAdapter) createVolumes(ctx context.Context) error {
 		req := c.container.volumeCreateRequest(&mount)
 
 		// Check if this volume exists on the engine
-		if _, err := c.backend.VolumeCreate(req.Name, req.Driver, req.DriverOpts, req.Labels); err != nil {
-			// TODO(amitshukla): Today, volume create through the engine api does not return an error
-			// when the named volume with the same parameters already exists.
-			// It returns an error if the driver name is different - that is a valid error
+		if _, err := volumes.Create(req.Name, req.Driver, req.DriverOpts, req.Labels); err != nil {
+			// TODO(amitshukla): Today, volume create through the engine api does
+			// not return an error when the named volume with the same parameters
+			// already exists. It returns an error if the driver name is different
+			// - that is a valid error
 			return err
 		}
 

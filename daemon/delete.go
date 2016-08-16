@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/layer"
-	volumestore "github.com/docker/docker/volume/store"
 )
 
 // ContainerRm removes the container id from the filesystem. An error
@@ -129,34 +128,5 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 		}
 	}
 
-	return nil
-}
-
-// VolumeRm removes the volume with the given name.
-// If the volume is referenced by a container it is not removed
-// This is called directly from the remote API
-func (daemon *Daemon) VolumeRm(name string, force bool) error {
-	err := daemon.volumeRm(name)
-	if err == nil || force {
-		daemon.volumes.Purge(name)
-		return nil
-	}
-	return err
-}
-
-func (daemon *Daemon) volumeRm(name string) error {
-	v, err := daemon.volumes.Get(name)
-	if err != nil {
-		return err
-	}
-
-	if err := daemon.volumes.Remove(v); err != nil {
-		if volumestore.IsInUse(err) {
-			err := fmt.Errorf("Unable to remove volume, volume still in use: %v", err)
-			return errors.NewRequestConflictError(err)
-		}
-		return fmt.Errorf("Error while removing volume %s: %v", name, err)
-	}
-	daemon.LogVolumeEvent(v.Name(), "destroy", map[string]string{"driver": v.DriverName()})
 	return nil
 }

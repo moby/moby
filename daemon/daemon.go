@@ -518,7 +518,10 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 	}
 	os.Setenv("TMPDIR", realTmp)
 
-	d := &Daemon{configStore: config}
+	d := &Daemon{
+		configStore:   config,
+		EventsService: events.New(),
+	}
 	// Ensure the daemon is properly shutdown if there is a failure during
 	// initialization
 	defer func() {
@@ -541,7 +544,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 	}
 
 	if err := compreg.Get().ForEach(func(c component.Component) error {
-		return c.Init(config)
+		return c.Init(config, d.EventsService)
 	}); err != nil {
 		return nil, err
 	}
@@ -613,8 +616,6 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		return nil, err
 	}
 
-	eventsService := events.New()
-
 	referenceStore, err := reference.NewReferenceStore(filepath.Join(imageRoot, "repositories.json"))
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store repositories: %s", err)
@@ -653,7 +654,6 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		Config: config.LogConfig.Config,
 	}
 	d.RegistryService = registryService
-	d.EventsService = eventsService
 	d.volumes = volStore
 	d.root = config.Root
 	d.uidMaps = uidMaps

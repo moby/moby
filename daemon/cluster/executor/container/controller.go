@@ -7,6 +7,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
+	volumecomp "github.com/docker/docker/components/volume"
+	compreg "github.com/docker/docker/pkg/component/registry"
 	"github.com/docker/libnetwork"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
@@ -83,8 +85,19 @@ func (r *controller) Prepare(ctx context.Context) error {
 		return err
 	}
 
+	// TODO: store the component as part of the cluster component when it
+	// exists, so the casting to expected interface can be done only once.
+	comp, err := compreg.Get().Get(volumecomp.ComponentType)
+	if err != nil {
+		return err
+	}
+	volumes, ok := comp.(volumecomp.Volumes)
+	if !ok {
+		return fmt.Errorf("Unexpected volume component %T", comp)
+	}
+
 	// Make sure all the volumes that the task needs are created.
-	if err := r.adapter.createVolumes(ctx); err != nil {
+	if err := r.adapter.createVolumes(ctx, volumes); err != nil {
 		return err
 	}
 

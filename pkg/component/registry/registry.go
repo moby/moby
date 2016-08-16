@@ -13,11 +13,8 @@ type Registry struct {
 
 // Register adds a new component to the registry. If there is already a
 // component with the same ComponentType an error is returned.
-func (r *Registry) Register(c component.Component) error {
-	// TODO: validate component
-
+func (r *Registry) Register(c component.Component) {
 	r.components[c.Provides()] = c
-	return nil
 }
 
 // Get returns a Component by name that was previously registered

@@ -71,6 +71,7 @@ func (daemon *Daemon) LogPluginEventWithAttributes(pluginID, refName, action str
 }
 
 // LogVolumeEvent generates an event related to a volume.
+// TODO: remove
 func (daemon *Daemon) LogVolumeEvent(volumeID, action string, attributes map[string]string) {
 	actor := events.Actor{
 		ID:         volumeID,

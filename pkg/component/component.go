@@ -2,6 +2,7 @@ package component
 
 import (
 	"github.com/docker/docker/api/server/router"
+	"github.com/docker/docker/api/types/events"
 	"github.com/spf13/cobra"
 )
 
@@ -56,6 +57,11 @@ type FilesystemConfig struct {
 	Root string
 	UID  int
 	GID  int
+}
+
+// Events interface used by components to log events
+type Events interface {
+	Log(string, string, events.Actor)
 }
 
 // Events interface used by components to log events
