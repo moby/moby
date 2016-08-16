@@ -2831,7 +2831,7 @@ _docker_volume_ls() {
 
 	case "$prev" in
 		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "dangling driver name" -- "$cur" ) )
+			COMPREPLY=( $( compgen -S = -W "dangling driver label name" -- "$cur" ) )
 			__docker_nospace
 			return
 			;;
