@@ -65,8 +65,8 @@ known to the system, the hierarchy they belong to, and how many groups they cont
 
 You can also look at `/proc/<pid>/cgroup` to see which control groups a process
 belongs to. The control group will be shown as a path relative to the root of
-the hierarchy mountpoint; e.g., `/` means “this process has not been assigned into
-a particular group”, while `/lxc/pumpkin` means that the process is likely to be
+the hierarchy mountpoint; e.g., `/` means "this process has not been assigned into
+a particular group", while `/lxc/pumpkin` means that the process is likely to be
 a member of a container named `pumpkin`.
 
 ## Finding the cgroup for a given container
@@ -279,7 +279,7 @@ program (present in the host system) within any network namespace
 visible to the current process. This means that your host will be able
 to enter the network namespace of your containers, but your containers
 won't be able to access the host, nor their sibling containers.
-Containers will be able to “see” and affect their sub-containers,
+Containers will be able to "see" and affect their sub-containers,
 though.
 
 The exact format of the command is:
