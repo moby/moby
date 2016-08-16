@@ -444,16 +444,16 @@ func (sb *sandbox) ResolveService(name string) ([]*net.SRV, []net.IP, error) {
 
 	log.Debugf("Service name To resolve: %v", name)
 
+	// There are DNS implementaions that allow SRV queries for names not in
+	// the format defined by RFC 2782. Hence specific validations checks are
+	// not done
 	parts := strings.Split(name, ".")
 	if len(parts) < 3 {
-		return nil, nil, fmt.Errorf("invalid service name, %s", name)
+		return nil, nil, nil
 	}
 
 	portName := parts[0]
 	proto := parts[1]
-	if proto != "_tcp" && proto != "_udp" {
-		return nil, nil, fmt.Errorf("invalid protocol in service, %s", name)
-	}
 	svcName := strings.Join(parts[2:], ".")
 
 	for _, ep := range sb.getConnectedEndpoints() {
