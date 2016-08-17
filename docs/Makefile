@@ -1,4 +1,4 @@
-.PHONY: default docs docs-build docs-shell test
+.PHONY: default docs docs-build docs-draft docs-shell test
 
 # to allow `make DOCSDIR=docs docs-shell` (to create a bind mount in docs)
 DOCS_MOUNT := $(if $(DOCSDIR),-v $(CURDIR)/$(DOCSDIR):/$(DOCSDIR))
