@@ -137,7 +137,7 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 	// A non-nil json object is at least 7 characters.
 	if r.ContentLength > 7 || r.ContentLength == -1 {
 		if versions.GreaterThanOrEqualTo(version, "1.24") {
-			return validationError{fmt.Errorf("starting container with HostConfig was deprecated since v1.10 and removed in v1.12")}
+			return validationError{fmt.Errorf("starting container with non-empty request body was deprecated since v1.10 and removed in v1.12")}
 		}
 
 		if err := httputils.CheckForJSON(r); err != nil {
