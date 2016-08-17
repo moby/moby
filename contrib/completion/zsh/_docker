@@ -629,6 +629,7 @@ __docker_network_subcommand() {
                 $opts_help \
                 "($help)--no-trunc[Do not truncate the output]" \
                 "($help)*"{-f=,--filter=}"[Provide filter values]:filter:->filter-options" \
+                "($help)--format=[Pretty-print networks using a Go template]:template: " \
                 "($help -q --quiet)"{-q,--quiet}"[Only display numeric IDs]" && ret=0
             case $state in
                 (filter-options)
@@ -1348,6 +1349,7 @@ __docker_volume_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help)*"{-f=,--filter=}"[Provide filter values]:filter:->filter-options" \
+                "($help)--format=[Pretty-print volumes using a Go template]:template: " \
                 "($help -q --quiet)"{-q,--quiet}"[Only display volume names]" && ret=0
             case $state in
                 (filter-options)
@@ -1690,7 +1692,7 @@ __docker_subcommand() {
                 "($help -a --all)"{-a,--all}"[Show all images]" \
                 "($help)--digests[Show digests]" \
                 "($help)*"{-f=,--filter=}"[Filter values]:filter:->filter-options" \
-                "($help)--format[Pretty-print containers using a Go template]:format: " \
+                "($help)--format[Pretty-print containers using a Go template]:template: " \
                 "($help)--no-trunc[Do not truncate output]" \
                 "($help -q --quiet)"{-q,--quiet}"[Only show numeric IDs]" \
                 "($help -): :__docker_repositories" && ret=0
@@ -1837,7 +1839,7 @@ __docker_subcommand() {
                 "($help -a --all)"{-a,--all}"[Show all containers]" \
                 "($help)--before=[Show only container created before...]:containers:__docker_containers" \
                 "($help)*"{-f=,--filter=}"[Filter values]:filter:__docker_complete_ps_filters" \
-                "($help)--format[Pretty-print containers using a Go template]:format: " \
+                "($help)--format[Pretty-print containers using a Go template]:template: " \
                 "($help -l --latest)"{-l,--latest}"[Show only the latest created container]" \
                 "($help -n --last)"{-n=,--last=}"[Show n last created containers (includes all states)]:n:(1 5 10 25 50)" \
                 "($help)--no-trunc[Do not truncate output]" \
