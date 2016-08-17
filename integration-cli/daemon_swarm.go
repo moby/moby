@@ -359,7 +359,7 @@ func (d *SwarmDaemon) cmdRetryOutOfSequence(args ...string) (string, error) {
 	for i := 0; ; i++ {
 		out, err := d.Cmd(args...)
 		if err != nil {
-			if strings.Contains(err.Error(), "update out of sequence") {
+			if strings.Contains(out, "update out of sequence") {
 				if i < 10 {
 					continue
 				}
