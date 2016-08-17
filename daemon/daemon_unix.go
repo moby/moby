@@ -487,10 +487,10 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 		if hostConfig.Privileged {
 			return warnings, fmt.Errorf("Privileged mode is incompatible with user namespaces")
 		}
-		if hostConfig.NetworkMode.IsHost() {
+		if hostConfig.NetworkMode.IsHost() && !hostConfig.UsernsMode.IsHost() {
 			return warnings, fmt.Errorf("Cannot share the host's network namespace when user namespaces are enabled")
 		}
-		if hostConfig.PidMode.IsHost() {
+		if hostConfig.PidMode.IsHost() && !hostConfig.UsernsMode.IsHost() {
 			return warnings, fmt.Errorf("Cannot share the host PID namespace when user namespaces are enabled")
 		}
 		if hostConfig.ReadonlyRootfs {
