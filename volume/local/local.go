@@ -256,6 +256,9 @@ func (r *Root) Scope() string {
 }
 
 func (r *Root) validateName(name string) error {
+	if len(name) == 1 {
+		return validationError{fmt.Errorf("volume name is too short, names should be at least two alphanumeric characters")}
+	}
 	if !volumeNameRegex.MatchString(name) {
 		return validationError{fmt.Errorf("%q includes invalid characters for a local volume name, only %q are allowed", name, utils.RestrictedNameChars)}
 	}
