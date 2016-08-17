@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	defaultTimeOut = 30
+	defaultTimeOut     = 30
+	defaultHTTPTimeOut = 32 * time.Second
 )
 
 // NewClient creates a new plugin client (http).
@@ -53,6 +54,7 @@ func NewClient(addr string, tlsConfig *tlsconfig.Options) (*Client, error) {
 func NewClientWithTransport(tr transport.Transport) *Client {
 	return &Client{
 		http: &http.Client{
+			Timeout:   defaultHTTPTimeOut,
 			Transport: tr,
 		},
 		requestFactory: tr,
