@@ -475,7 +475,7 @@ type NetworkCreate struct {
 	CheckDuplicate bool
 	Driver         string
 	EnableIPv6     bool
-	IPAM           network.IPAM
+	IPAM           *network.IPAM
 	Internal       bool
 	Options        map[string]string
 	Labels         map[string]string
