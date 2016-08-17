@@ -1272,7 +1272,7 @@ __docker_volume_complete_ls_filters() {
                 ;;
         esac
     else
-        opts=('dangling' 'driver' 'name')
+        opts=('dangling' 'driver' 'label' 'name')
         _describe -t filter-opts "Filter Options" opts -qS "=" && ret=0
     fi
 
