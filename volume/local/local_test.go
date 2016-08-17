@@ -138,6 +138,7 @@ func TestCreate(t *testing.T) {
 func TestValidateName(t *testing.T) {
 	r := &Root{}
 	names := map[string]bool{
+		"x":           false,
 		"/testvol":    false,
 		"thing.d":     true,
 		"hello-world": true,
