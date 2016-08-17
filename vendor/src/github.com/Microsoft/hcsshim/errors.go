@@ -4,12 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"syscall"
-
-	"github.com/Sirupsen/logrus"
 )
 
 var (
-	// ErrHandleClose is an error returned when the handle generating the notification being waited on has been closed
+	// ErrComputeSystemDoesNotExist is an error encountered when the container being operated on no longer exists
+	ErrComputeSystemDoesNotExist = syscall.Errno(0xc037010e)
+
+	// ErrElementNotFound is an error encountered when the object being referenced does not exist
+	ErrElementNotFound = syscall.Errno(0x490)
+
+	// ErrHandleClose is an error encountered when the handle generating the notification being waited on has been closed
 	ErrHandleClose = errors.New("hcsshim: the handle generating this notification has been closed")
 
 	// ErrInvalidNotificationType is an error encountered when an invalid notification type is used
@@ -21,22 +25,28 @@ var (
 	// ErrTimeout is an error encountered when waiting on a notification times out
 	ErrTimeout = errors.New("hcsshim: timeout waiting for notification")
 
-	// ErrUnexpectedContainerExit is the error returned when a container exits while waiting for
+	// ErrUnexpectedContainerExit is the error encountered when a container exits while waiting for
 	// a different expected notification
 	ErrUnexpectedContainerExit = errors.New("unexpected container exit")
 
-	// ErrUnexpectedProcessAbort is the error returned when communication with the compute service
+	// ErrUnexpectedProcessAbort is the error encountered when communication with the compute service
 	// is lost while waiting for a notification
 	ErrUnexpectedProcessAbort = errors.New("lost communication with compute service")
 
-	// ErrUnexpectedValue is an error returned when hcs returns an invalid value
+	// ErrUnexpectedValue is an error encountered when hcs returns an invalid value
 	ErrUnexpectedValue = errors.New("unexpected value returned from hcs")
 
-	// ErrVmcomputeAlreadyStopped is an error returned when a shutdown or terminate request is made on a stopped container
+	// ErrVmcomputeAlreadyStopped is an error encountered when a shutdown or terminate request is made on a stopped container
 	ErrVmcomputeAlreadyStopped = syscall.Errno(0xc0370110)
 
-	// ErrVmcomputeOperationPending is an error returned when the operation is being completed asynchronously
+	// ErrVmcomputeOperationPending is an error encountered when the operation is being completed asynchronously
 	ErrVmcomputeOperationPending = syscall.Errno(0xC0370103)
+
+	// ErrVmcomputeOperationInvalidState is an error encountered when the compute system is not in a valid state for the requested operation
+	ErrVmcomputeOperationInvalidState = syscall.Errno(0xc0370105)
+
+	// ErrProcNotFound is an error encountered when the the process cannot be found
+	ErrProcNotFound = syscall.Errno(0x7f)
 )
 
 // ProcessError is an error encountered in HCS during an operation on a Process object
@@ -53,23 +63,6 @@ type ContainerError struct {
 	Operation string
 	ExtraInfo string
 	Err       error
-}
-
-func isKnownError(err error) bool {
-	// Don't wrap errors created in hcsshim
-	if err == ErrHandleClose ||
-		err == ErrInvalidNotificationType ||
-		err == ErrInvalidProcessState ||
-		err == ErrTimeout ||
-		err == ErrUnexpectedContainerExit ||
-		err == ErrUnexpectedProcessAbort ||
-		err == ErrUnexpectedValue ||
-		err == ErrVmcomputeAlreadyStopped ||
-		err == ErrVmcomputeOperationPending {
-		return true
-	}
-
-	return false
 }
 
 func (e *ContainerError) Error() string {
@@ -99,14 +92,11 @@ func (e *ContainerError) Error() string {
 }
 
 func makeContainerError(container *container, operation string, extraInfo string, err error) error {
-	// Return known errors to the client
-	if isKnownError(err) {
+	// Don't double wrap errors
+	if _, ok := err.(*ContainerError); ok {
 		return err
 	}
-
-	// Log any unexpected errors
 	containerError := &ContainerError{Container: container, Operation: operation, ExtraInfo: extraInfo, Err: err}
-	logrus.Error(containerError)
 	return containerError
 }
 
@@ -129,21 +119,72 @@ func (e *ProcessError) Error() string {
 		s += " " + e.Operation
 	}
 
-	if e.Err != nil {
+	switch e.Err.(type) {
+	case nil:
+		break
+	case syscall.Errno:
 		s += fmt.Sprintf(" failed in Win32: %s (0x%x)", e.Err, win32FromError(e.Err))
+	default:
+		s += fmt.Sprintf(" failed: %s", e.Error())
 	}
 
 	return s
 }
 
 func makeProcessError(process *process, operation string, extraInfo string, err error) error {
-	// Return known errors to the client
-	if isKnownError(err) {
+	// Don't double wrap errors
+	if _, ok := err.(*ProcessError); ok {
 		return err
 	}
-
-	// Log any unexpected errors
 	processError := &ProcessError{Process: process, Operation: operation, ExtraInfo: extraInfo, Err: err}
-	logrus.Error(processError)
 	return processError
+}
+
+// IsNotExist checks if an error is caused by the Container or Process not existing.
+// Note: Currently, ErrElementNotFound can mean that a Process has either
+// already exited, or does not exist. Both IsAlreadyStopped and IsNotExist
+// will currently return true when the error is ErrElementNotFound or ErrProcNotFound.
+func IsNotExist(err error) bool {
+	err = getInnerError(err)
+	return err == ErrComputeSystemDoesNotExist ||
+		err == ErrElementNotFound ||
+		err == ErrProcNotFound
+}
+
+// IsPending returns a boolean indicating whether the error is that
+// the requested operation is being completed in the background.
+func IsPending(err error) bool {
+	err = getInnerError(err)
+	return err == ErrVmcomputeOperationPending
+}
+
+// IsTimeout returns a boolean indicating whether the error is caused by
+// a timeout waiting for the operation to complete.
+func IsTimeout(err error) bool {
+	err = getInnerError(err)
+	return err == ErrTimeout
+}
+
+// IsAlreadyStopped returns a boolean indicating whether the error is caused by
+// a Container or Process being already stopped.
+// Note: Currently, ErrElementNotFound can mean that a Process has either
+// already exited, or does not exist. Both IsAlreadyStopped and IsNotExist
+// will currently return true when the error is ErrElementNotFound or ErrProcNotFound.
+func IsAlreadyStopped(err error) bool {
+	err = getInnerError(err)
+	return err == ErrVmcomputeAlreadyStopped ||
+		err == ErrElementNotFound ||
+		err == ErrProcNotFound
+}
+
+func getInnerError(err error) error {
+	switch pe := err.(type) {
+	case nil:
+		return nil
+	case *ContainerError:
+		err = pe.Err
+	case *ProcessError:
+		err = pe.Err
+	}
+	return err
 }
