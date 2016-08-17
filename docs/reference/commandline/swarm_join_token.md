@@ -11,7 +11,7 @@ parent = "smn_cli"
 # swarm join-token
 
 ```markdown
-Usage:	docker swarm join-token [--rotate] (worker|manager)
+Usage:	docker swarm join-token [OPTIONS] (worker|manager)
 
 Manage join tokens
 

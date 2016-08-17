@@ -16,7 +16,7 @@ func newJoinTokenCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var rotate, quiet bool
 
 	cmd := &cobra.Command{
-		Use:   "join-token [-q] [--rotate] (worker|manager)",
+		Use:   "join-token [OPTIONS] (worker|manager)",
 		Short: "Manage join tokens",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
