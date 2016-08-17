@@ -13,12 +13,13 @@ parent = "smn_cli"
 ```markdown
 Usage:  docker swarm join [OPTIONS] HOST:PORT
 
-Join a swarm as a node and/or manager
+Join a swarm as a worker node and/or manager
 
 Options:
       --advertise-addr value   Advertised address (format: <ip|interface>[:port])
       --help                   Print usage
       --listen-addr value      Listen address (format: <ip|interface>[:port)
+      --manager                Join as a manager
       --token string           Token for entry into the swarm
 ```
 
