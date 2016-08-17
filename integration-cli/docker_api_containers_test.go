@@ -881,7 +881,7 @@ func (s *DockerSuite) TestContainerApiStart(c *check.C) {
 	name := "testing-start"
 	config := map[string]interface{}{
 		"Image":     "busybox",
-		"Cmd":       append([]string{"/bin/sh", "-c"}, defaultSleepCommand...),
+		"Cmd":       append([]string{"/bin/sh", "-c"}, sleepCommandForDaemonPlatform()...),
 		"OpenStdin": true,
 	}
 
@@ -1117,7 +1117,7 @@ func (s *DockerSuite) TestContainerApiChunkedEncoding(c *check.C) {
 
 	config := map[string]interface{}{
 		"Image":     "busybox",
-		"Cmd":       append([]string{"/bin/sh", "-c"}, defaultSleepCommand...),
+		"Cmd":       append([]string{"/bin/sh", "-c"}, sleepCommandForDaemonPlatform()...),
 		"OpenStdin": true,
 	}
 	b, err := json.Marshal(config)

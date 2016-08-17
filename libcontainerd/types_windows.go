@@ -1,6 +1,9 @@
 package libcontainerd
 
-import "github.com/docker/docker/libcontainerd/windowsoci"
+import (
+	"github.com/Microsoft/hcsshim"
+	"github.com/docker/docker/libcontainerd/windowsoci"
+)
 
 // Spec is the base configuration for the container.
 type Spec windowsoci.WindowsSpec
@@ -11,11 +14,8 @@ type Process windowsoci.Process
 // User specifies user information for the containers main process.
 type User windowsoci.User
 
-// Summary contains a container summary from containerd
-type Summary struct {
-	Pid     uint32
-	Command string
-}
+// Summary contains a ProcessList item from HCS to support `top`
+type Summary hcsshim.ProcessListItem
 
 // StateInfo contains description about the new state container has entered.
 type StateInfo struct {

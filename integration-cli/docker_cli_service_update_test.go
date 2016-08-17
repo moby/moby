@@ -14,7 +14,7 @@ func (s *DockerSwarmSuite) TestServiceUpdatePort(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	serviceName := "TestServiceUpdatePort"
-	serviceArgs := append([]string{"service", "create", "--name", serviceName, "-p", "8080:8081", defaultSleepImage}, defaultSleepCommand...)
+	serviceArgs := append([]string{"service", "create", "--name", serviceName, "-p", "8080:8081", defaultSleepImage}, sleepCommandForDaemonPlatform()...)
 
 	// Create a service with a port mapping of 8080:8081.
 	out, err := d.Cmd(serviceArgs...)

@@ -410,26 +410,23 @@ func (clnt *client) GetPidsForContainer(containerID string) ([]int, error) {
 // visible on the container host. However, libcontainerd does have
 // that information.
 func (clnt *client) Summary(containerID string) ([]Summary, error) {
-	var s []Summary
+
+	// Get the libcontainerd container object
 	clnt.lock(containerID)
 	defer clnt.unlock(containerID)
-	cont, err := clnt.getContainer(containerID)
+	container, err := clnt.getContainer(containerID)
 	if err != nil {
 		return nil, err
 	}
-
-	// Add the first process
-	s = append(s, Summary{
-		Pid:     cont.containerCommon.systemPid,
-		Command: cont.ociSpec.Process.Args[0]})
-	// And add all the exec'd processes
-	for _, p := range cont.processes {
-		s = append(s, Summary{
-			Pid:     p.processCommon.systemPid,
-			Command: p.commandLine})
+	p, err := container.hcsContainer.ProcessList()
+	if err != nil {
+		return nil, err
 	}
-	return s, nil
-
+	pl := make([]Summary, len(p))
+	for i := range p {
+		pl[i] = Summary(p[i])
+	}
+	return pl, nil
 }
 
 // UpdateResources updates resources for a running container.
