@@ -32,8 +32,8 @@ type Stats struct{}
 // Resources defines updatable container resource values.
 type Resources struct{}
 
-// ServicingOption is an empty CreateOption with a no-op application that siginifies
-// the container needs to be use for a Windows servicing operation.
+// ServicingOption is an empty CreateOption with a no-op application that signifies
+// the container needs to be used for a Windows servicing operation.
 type ServicingOption struct {
 	IsServicing bool
 }
