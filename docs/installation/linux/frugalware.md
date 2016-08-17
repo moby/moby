@@ -25,7 +25,6 @@ in the packages. The core dependencies are:
 
  - systemd
  - lvm2
- - sqlite3
  - libguestfs
  - lxc
  - iproute2
