@@ -6,7 +6,7 @@ import (
 	"syscall"
 
 	"github.com/docker/engine-api/types"
-	"github.com/opencontainers/specs/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	libseccomp "github.com/seccomp/libseccomp-golang"
 )
 

@@ -5,7 +5,7 @@ package plugin
 import (
 	"fmt"
 
-	"github.com/opencontainers/specs/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func (pm *Manager) enable(p *plugin, force bool) error {

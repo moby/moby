@@ -2,7 +2,7 @@ package libcontainerd
 
 import (
 	containerd "github.com/docker/containerd/api/grpc/types"
-	"github.com/opencontainers/specs/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // Spec is the base configuration for the container.  It specifies platform
