@@ -38,6 +38,7 @@ const (
 type Task struct {
 	ID string
 	Meta
+	Annotations
 
 	Spec                TaskSpec            `json:",omitempty"`
 	ServiceID           string              `json:",omitempty"`

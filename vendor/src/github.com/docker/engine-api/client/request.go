@@ -123,11 +123,11 @@ func (cli *Client) sendClientRequest(ctx context.Context, method, path string, q
 
 		if err, ok := err.(net.Error); ok {
 			if err.Timeout() {
-				return serverResp, ErrConnectionFailed
+				return serverResp, ErrorConnectionFailed(cli.host)
 			}
 			if !err.Temporary() {
 				if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "dial unix") {
-					return serverResp, ErrConnectionFailed
+					return serverResp, ErrorConnectionFailed(cli.host)
 				}
 			}
 		}
