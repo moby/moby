@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/docker/engine-api/types"
-	"github.com/opencontainers/specs/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 //go:generate go run -tags 'seccomp' generate.go
