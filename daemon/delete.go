@@ -39,14 +39,7 @@ func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) 
 		return daemon.rmLink(container, name)
 	}
 
-	err = daemon.cleanupContainer(container, config.ForceRemove)
-	if err == nil || config.ForceRemove {
-		if e := daemon.removeMountPoints(container, config.RemoveVolume); e != nil {
-			logrus.Error(e)
-		}
-	}
-
-	return err
+	return daemon.cleanupContainer(container, config.ForceRemove, config.RemoveVolume)
 }
 
 func (daemon *Daemon) rmLink(container *container.Container, name string) error {
@@ -77,7 +70,7 @@ func (daemon *Daemon) rmLink(container *container.Container, name string) error 
 
 // cleanupContainer unregisters a container from the daemon, stops stats
 // collection and cleanly removes contents and metadata from the filesystem.
-func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemove bool) (err error) {
+func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemove, removeVolume bool) (err error) {
 	if container.IsRunning() {
 		if !forceRemove {
 			err := fmt.Errorf("You cannot remove a running container %s. Stop the container before attempting removal or use -f", container.ID)
@@ -115,6 +108,9 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 			selinuxFreeLxcContexts(container.ProcessLabel)
 			daemon.idIndex.Delete(container.ID)
 			daemon.containers.Delete(container.ID)
+			if e := daemon.removeMountPoints(container, removeVolume); e != nil {
+				logrus.Error(e)
+			}
 			daemon.LogContainerEvent(container, "destroy")
 		}
 	}()
