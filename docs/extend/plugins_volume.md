@@ -5,6 +5,7 @@ description = "How to manage data with external volume plugins"
 keywords = ["Examples, Usage, volume, docker, data, volumes, plugin, api"]
 [menu.main]
 parent = "engine_extend"
+weight=6
 +++
 <![end-metadata]-->
 
