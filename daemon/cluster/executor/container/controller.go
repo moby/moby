@@ -2,6 +2,7 @@ package container
 
 import (
 	"fmt"
+	"os"
 
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/engine-api/types"
@@ -89,39 +90,41 @@ func (r *controller) Prepare(ctx context.Context) error {
 		return err
 	}
 
-	if r.pulled == nil {
-		// Fork the pull to a different context to allow pull to continue
-		// on re-entrant calls to Prepare. This ensures that Prepare can be
-		// idempotent and not incur the extra cost of pulling when
-		// cancelled on updates.
-		var pctx context.Context
+	if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" {
+		if r.pulled == nil {
+			// Fork the pull to a different context to allow pull to continue
+			// on re-entrant calls to Prepare. This ensures that Prepare can be
+			// idempotent and not incur the extra cost of pulling when
+			// cancelled on updates.
+			var pctx context.Context
 
-		r.pulled = make(chan struct{})
-		pctx, r.cancelPull = context.WithCancel(context.Background()) // TODO(stevvooe): Bind a context to the entire controller.
+			r.pulled = make(chan struct{})
+			pctx, r.cancelPull = context.WithCancel(context.Background()) // TODO(stevvooe): Bind a context to the entire controller.
 
-		go func() {
-			defer close(r.pulled)
-			r.pullErr = r.adapter.pullImage(pctx) // protected by closing r.pulled
-		}()
-	}
+			go func() {
+				defer close(r.pulled)
+				r.pullErr = r.adapter.pullImage(pctx) // protected by closing r.pulled
+			}()
+		}
 
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-r.pulled:
-		if r.pullErr != nil {
-			// NOTE(stevvooe): We always try to pull the image to make sure we have
-			// the most up to date version. This will return an error, but we only
-			// log it. If the image truly doesn't exist, the create below will
-			// error out.
-			//
-			// This gives us some nice behavior where we use up to date versions of
-			// mutable tags, but will still run if the old image is available but a
-			// registry is down.
-			//
-			// If you don't want this behavior, lock down your image to an
-			// immutable tag or digest.
-			log.G(ctx).WithError(r.pullErr).Error("pulling image failed")
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-r.pulled:
+			if r.pullErr != nil {
+				// NOTE(stevvooe): We always try to pull the image to make sure we have
+				// the most up to date version. This will return an error, but we only
+				// log it. If the image truly doesn't exist, the create below will
+				// error out.
+				//
+				// This gives us some nice behavior where we use up to date versions of
+				// mutable tags, but will still run if the old image is available but a
+				// registry is down.
+				//
+				// If you don't want this behavior, lock down your image to an
+				// immutable tag or digest.
+				log.G(ctx).WithError(r.pullErr).Error("pulling image failed")
+			}
 		}
 	}
 
