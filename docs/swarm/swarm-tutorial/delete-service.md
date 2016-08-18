@@ -33,7 +33,7 @@ removed the service. The CLI returns a message that the service is not found:
     ```
     $ docker service inspect helloworld
     []
-    Error: no such service or task: helloworld
+    Error: no such service: helloworld
     ```
 
 ## What's next?
