@@ -9,15 +9,6 @@ weight=-80
 +++
 <![end-metadata]-->
 
-<!-- TODO (@thaJeztah) define more flexible table/td classes -->
-<style>
-table .no-wrap {
-    white-space: nowrap;
-}
-table code {
-    white-space: nowrap;
-}
-</style>
 # Docker run reference
 
 Docker runs processes in isolated containers. A container is a process
