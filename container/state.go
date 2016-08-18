@@ -86,6 +86,10 @@ func (s *State) StateString() string {
 		return "running"
 	}
 
+	if s.RemovalInProgress {
+		return "removing"
+	}
+
 	if s.Dead {
 		return "dead"
 	}
@@ -101,6 +105,7 @@ func (s *State) StateString() string {
 func IsValidStateString(s string) bool {
 	if s != "paused" &&
 		s != "restarting" &&
+		s != "removing" &&
 		s != "running" &&
 		s != "dead" &&
 		s != "created" &&

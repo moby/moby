@@ -340,7 +340,7 @@ __docker_complete_ps_filters() {
                 __docker_networks && ret=0
                 ;;
             (status)
-                status_opts=('created' 'dead' 'exited' 'paused' 'restarting' 'running')
+                status_opts=('created' 'dead' 'exited' 'paused' 'restarting' 'running' 'removing')
                 _describe -t status-filter-opts "Status Filter Options" status_opts && ret=0
                 ;;
             (volume)
