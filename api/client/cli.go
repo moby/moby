@@ -257,6 +257,9 @@ func newHTTPClient(host string, tlsOptions *tlsconfig.Options) (*http.Client, er
 	tr := &http.Transport{
 		TLSClientConfig: config,
 	}
+	if tmpStr := os.Getenv("DOCKER_DISABLE_PROXY"); tmpStr != "" {
+		tr.Proxy = nil
+	}
 	proto, addr, _, err := client.ParseHost(host)
 	if err != nil {
 		return nil, err

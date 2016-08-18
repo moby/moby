@@ -67,6 +67,7 @@ by the `docker` command line:
 * `DOCKER_CONTENT_TRUST_SERVER` The URL of the Notary server to use. This defaults
   to the same URL as the registry.
 * `DOCKER_TMPDIR` Location for temporary Docker files.
+* `DOCKER_DISABLE_PROXY` Ignores proxy environment variables.
 
 Because Docker is developed using 'Go', you can also use any environment
 variables used by the 'Go' runtime. In particular, you may find these useful:
