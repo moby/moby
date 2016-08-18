@@ -10,6 +10,7 @@ import (
 	"runtime"
 
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/cliconfig"
@@ -86,13 +87,53 @@ func (cli *DockerCli) ConfigFile() *configfile.ConfigFile {
 	return cli.configFile
 }
 
+// GetAllCredentials returns all of the credentials stored in all of the
+// configured credential stores.
+func (cli *DockerCli) GetAllCredentials() (map[string]types.AuthConfig, error) {
+	auths := make(map[string]types.AuthConfig)
+	for registry := range cli.configFile.CredentialHelpers {
+		helper := cli.CredentialsStore(registry)
+		newAuths, err := helper.GetAll()
+		if err != nil {
+			return nil, err
+		}
+		addAll(auths, newAuths)
+	}
+	defaultStore := cli.CredentialsStore("")
+	newAuths, err := defaultStore.GetAll()
+	if err != nil {
+		return nil, err
+	}
+	addAll(auths, newAuths)
+	return auths, nil
+}
+
+func addAll(to, from map[string]types.AuthConfig) {
+	for reg, ac := range from {
+		to[reg] = ac
+	}
+}
+
 // CredentialsStore returns a new credentials store based
-// on the settings provided in the configuration file.
-func (cli *DockerCli) CredentialsStore() credentials.Store {
-	if cli.configFile.CredentialsStore != "" {
-		return credentials.NewNativeStore(cli.configFile)
+// on the settings provided in the configuration file. Empty string returns
+// the default credential store.
+func (cli *DockerCli) CredentialsStore(serverAddress string) credentials.Store {
+	if helper := getConfiguredCredentialStore(cli.configFile, serverAddress); helper != "" {
+		return credentials.NewNativeStore(cli.configFile, helper)
 	}
 	return credentials.NewFileStore(cli.configFile)
+}
+
+// getConfiguredCredentialStore returns the credential helper configured for the
+// given registry, the default credsStore, or the empty string if neither are
+// configured.
+func getConfiguredCredentialStore(c *configfile.ConfigFile, serverAddress string) string {
+	if c.CredentialHelpers != nil && serverAddress != "" {
+		if helper, exists := c.CredentialHelpers[serverAddress]; exists {
+			return helper
+		}
+	}
+	return c.CredentialsStore
 }
 
 // Initialize the dockerCli runs initialization that must happen after command

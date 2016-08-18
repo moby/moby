@@ -22,8 +22,8 @@ type nativeStore struct {
 
 // NewNativeStore creates a new native store that
 // uses a remote helper program to manage credentials.
-func NewNativeStore(file *configfile.ConfigFile) Store {
-	name := remoteCredentialsPrefix + file.CredentialsStore
+func NewNativeStore(file *configfile.ConfigFile, helperSuffix string) Store {
+	name := remoteCredentialsPrefix + helperSuffix
 	return &nativeStore{
 		programFunc: client.NewShellProgramFunc(name),
 		fileStore:   NewFileStore(file),

@@ -86,7 +86,7 @@ func TestEmptyFile(t *testing.T) {
 	}
 }
 
-func TestEmptyJson(t *testing.T) {
+func TestEmptyJSON(t *testing.T) {
 	tmpHome, err := ioutil.TempDir("", "config-test")
 	if err != nil {
 		t.Fatal(err)
@@ -193,7 +193,7 @@ func TestOldValidAuth(t *testing.T) {
 	}
 }
 
-func TestOldJsonInvalid(t *testing.T) {
+func TestOldJSONInvalid(t *testing.T) {
 	tmpHome, err := ioutil.TempDir("", "config-test")
 	if err != nil {
 		t.Fatal(err)
@@ -219,7 +219,7 @@ func TestOldJsonInvalid(t *testing.T) {
 	}
 }
 
-func TestOldJson(t *testing.T) {
+func TestOldJSON(t *testing.T) {
 	tmpHome, err := ioutil.TempDir("", "config-test")
 	if err != nil {
 		t.Fatal(err)
@@ -265,7 +265,7 @@ func TestOldJson(t *testing.T) {
 	}
 }
 
-func TestNewJson(t *testing.T) {
+func TestNewJSON(t *testing.T) {
 	tmpHome, err := ioutil.TempDir("", "config-test")
 	if err != nil {
 		t.Fatal(err)
@@ -304,7 +304,7 @@ func TestNewJson(t *testing.T) {
 	}
 }
 
-func TestNewJsonNoEmail(t *testing.T) {
+func TestNewJSONNoEmail(t *testing.T) {
 	tmpHome, err := ioutil.TempDir("", "config-test")
 	if err != nil {
 		t.Fatal(err)
@@ -343,7 +343,7 @@ func TestNewJsonNoEmail(t *testing.T) {
 	}
 }
 
-func TestJsonWithPsFormat(t *testing.T) {
+func TestJSONWithPsFormat(t *testing.T) {
 	tmpHome, err := ioutil.TempDir("", "config-test")
 	if err != nil {
 		t.Fatal(err)
@@ -372,6 +372,78 @@ func TestJsonWithPsFormat(t *testing.T) {
 	configStr := saveConfigAndValidateNewFormat(t, config, tmpHome)
 	if !strings.Contains(configStr, `"psFormat":`) ||
 		!strings.Contains(configStr, "{{.ID}}") {
+		t.Fatalf("Should have save in new form: %s", configStr)
+	}
+}
+
+func TestJSONWithCredentialStore(t *testing.T) {
+	tmpHome, err := ioutil.TempDir("", "config-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpHome)
+
+	fn := filepath.Join(tmpHome, ConfigFileName)
+	js := `{
+		"auths": { "https://index.docker.io/v1/": { "auth": "am9lam9lOmhlbGxv", "email": "user@example.com" } },
+		"credsStore": "crazy-secure-storage"
+}`
+	if err := ioutil.WriteFile(fn, []byte(js), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	config, err := Load(tmpHome)
+	if err != nil {
+		t.Fatalf("Failed loading on empty json file: %q", err)
+	}
+
+	if config.CredentialsStore != "crazy-secure-storage" {
+		t.Fatalf("Unknown credential store: %s\n", config.CredentialsStore)
+	}
+
+	// Now save it and make sure it shows up in new form
+	configStr := saveConfigAndValidateNewFormat(t, config, tmpHome)
+	if !strings.Contains(configStr, `"credsStore":`) ||
+		!strings.Contains(configStr, "crazy-secure-storage") {
+		t.Fatalf("Should have save in new form: %s", configStr)
+	}
+}
+
+func TestJSONWithCredentialHelpers(t *testing.T) {
+	tmpHome, err := ioutil.TempDir("", "config-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpHome)
+
+	fn := filepath.Join(tmpHome, ConfigFileName)
+	js := `{
+		"auths": { "https://index.docker.io/v1/": { "auth": "am9lam9lOmhlbGxv", "email": "user@example.com" } },
+		"credHelpers": { "images.io": "images-io", "containers.com": "crazy-secure-storage" }
+}`
+	if err := ioutil.WriteFile(fn, []byte(js), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	config, err := Load(tmpHome)
+	if err != nil {
+		t.Fatalf("Failed loading on empty json file: %q", err)
+	}
+
+	if config.CredentialHelpers == nil {
+		t.Fatal("config.CredentialHelpers was nil")
+	} else if config.CredentialHelpers["images.io"] != "images-io" ||
+		config.CredentialHelpers["containers.com"] != "crazy-secure-storage" {
+		t.Fatalf("Credential helpers not deserialized properly: %v\n", config.CredentialHelpers)
+	}
+
+	// Now save it and make sure it shows up in new form
+	configStr := saveConfigAndValidateNewFormat(t, config, tmpHome)
+	if !strings.Contains(configStr, `"credHelpers":`) ||
+		!strings.Contains(configStr, "images.io") ||
+		!strings.Contains(configStr, "images-io") ||
+		!strings.Contains(configStr, "containers.com") ||
+		!strings.Contains(configStr, "crazy-secure-storage") {
 		t.Fatalf("Should have save in new form: %s", configStr)
 	}
 }
@@ -420,7 +492,7 @@ func TestConfigFile(t *testing.T) {
 	}
 }
 
-func TestJsonReaderNoFile(t *testing.T) {
+func TestJSONReaderNoFile(t *testing.T) {
 	js := ` { "auths": { "https://index.docker.io/v1/": { "auth": "am9lam9lOmhlbGxv", "email": "user@example.com" } } }`
 
 	config, err := LoadFromReader(strings.NewReader(js))
@@ -435,7 +507,7 @@ func TestJsonReaderNoFile(t *testing.T) {
 
 }
 
-func TestOldJsonReaderNoFile(t *testing.T) {
+func TestOldJSONReaderNoFile(t *testing.T) {
 	js := `{"https://index.docker.io/v1/":{"auth":"am9lam9lOmhlbGxv","email":"user@example.com"}}`
 
 	config, err := LegacyLoadFromReader(strings.NewReader(js))
@@ -449,7 +521,7 @@ func TestOldJsonReaderNoFile(t *testing.T) {
 	}
 }
 
-func TestJsonWithPsFormatNoFile(t *testing.T) {
+func TestJSONWithPsFormatNoFile(t *testing.T) {
 	js := `{
 		"auths": { "https://index.docker.io/v1/": { "auth": "am9lam9lOmhlbGxv", "email": "user@example.com" } },
 		"psFormat": "table {{.ID}}\\t{{.Label \"com.docker.label.cpu\"}}"
@@ -465,7 +537,7 @@ func TestJsonWithPsFormatNoFile(t *testing.T) {
 
 }
 
-func TestJsonSaveWithNoFile(t *testing.T) {
+func TestJSONSaveWithNoFile(t *testing.T) {
 	js := `{
 		"auths": { "https://index.docker.io/v1/": { "auth": "am9lam9lOmhlbGxv" } },
 		"psFormat": "table {{.ID}}\\t{{.Label \"com.docker.label.cpu\"}}"
@@ -507,7 +579,7 @@ func TestJsonSaveWithNoFile(t *testing.T) {
 	}
 }
 
-func TestLegacyJsonSaveWithNoFile(t *testing.T) {
+func TestLegacyJSONSaveWithNoFile(t *testing.T) {
 
 	js := `{"https://index.docker.io/v1/":{"auth":"am9lam9lOmhlbGxv","email":"user@example.com"}}`
 	config, err := LegacyLoadFromReader(strings.NewReader(js))
