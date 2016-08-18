@@ -73,7 +73,6 @@ DEFAULT_BUNDLES=(
 	test-integration-cli
 	test-docker-py
 
-	cover
 	cross
 	tgz
 )
