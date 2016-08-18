@@ -5,7 +5,7 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
-## 1.12.1 (2016-08-16)
+## 1.12.1 (2016-08-18)
 
 **IMPORTANT**: Docker 1.12 ships with an updated systemd unit file for rpm
 based installs (which includes RHEL, Fedora, CentOS, and Oracle Linux 7). When
@@ -76,6 +76,18 @@ systemctl restart docker` to reload changes and (re)start the docker daemon.
 
 * Add `/proc/timer_list` to the masked paths list to prevent information leak from the host [#25630](https://github.com/docker/docker/pull/25630)
 * Allow systemd to run with only `--cap-add SYS_ADMIN` rather than having to also add `--cap-add DAC_READ_SEARCH` or disabling seccomp filtering [#25567](https://github.com/docker/docker/pull/25567)
+
+### Swarm
+
+- Fix an issue where the swarm can get stuck electing a new leader after quorum is lost [#25055](https://github.com/docker/docker/issues/25055)
+- Fix unwanted rescheduling of containers after a leader failover [#25017](https://github.com/docker/docker/issues/25017)
+- Change swarm root CA key to P256 curve [swarmkit#1376](https://github.com/docker/swarmkit/pull/1376)
+- Allow forced removal of a node from a swarm [#25159](https://github.com/docker/docker/pull/25159)
+- Fix connection leak when a node leaves a swarm [swarmkit/#1277](https://github.com/docker/swarmkit/pull/1277)
+- Backdate swarm certificates by one hour to tolerate more clock skew [swarmkit/#1243](https://github.com/docker/swarmkit/pull/1243)
+- Avoid high CPU use with many unschedulable tasks [swarmkit/#1287](https://github.com/docker/swarmkit/pull/1287)
+- Fix issue with global tasks not starting up [swarmkit/#1295](https://github.com/docker/swarmkit/pull/1295)
+- Garbage collect raft logs [swarmkit/#1327](https://github.com/docker/swarmkit/pull/1327)
 
 ### Volume
 
