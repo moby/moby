@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -90,9 +91,12 @@ func New(scope string, rootUID, rootGID int) (*Root, error) {
 		r.volumes[name] = v
 		optsFilePath := filepath.Join(rootDirectory, name, "opts.json")
 		if b, err := ioutil.ReadFile(optsFilePath); err == nil {
-			v.opts = &optsConfig{}
-			if err := json.Unmarshal(b, v.opts); err != nil {
+			opts := optsConfig{}
+			if err := json.Unmarshal(b, &opts); err != nil {
 				return nil, err
+			}
+			if !reflect.DeepEqual(opts, optsConfig{}) {
+				v.opts = &opts
 			}
 
 			// unmount anything that may still be mounted (for example, from an unclean shutdown)
@@ -178,7 +182,7 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 		path:       path,
 	}
 
-	if opts != nil {
+	if len(opts) != 0 {
 		if err = setOpts(v, opts); err != nil {
 			return nil, err
 		}
