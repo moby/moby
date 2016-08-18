@@ -95,6 +95,8 @@ func New(scope string, rootUID, rootGID int) (*Root, error) {
 			if err := json.Unmarshal(b, &opts); err != nil {
 				return nil, err
 			}
+			// Make sure this isn't an empty optsConfig.
+			// This could be empty due to buggy behavior in older versions of Docker.
 			if !reflect.DeepEqual(opts, optsConfig{}) {
 				v.opts = &opts
 			}
