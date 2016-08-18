@@ -51,7 +51,7 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *check.C) {
 	c.Assert(spec.Dispatcher.HeartbeatPeriod, checker.Equals, uint64(11*time.Second))
 
 	c.Assert(d.Leave(true), checker.IsNil)
-
+	time.Sleep(500 * time.Millisecond) // https://github.com/docker/swarmkit/issues/1421
 	out, err = d.Cmd("swarm", "init")
 	c.Assert(err, checker.IsNil, check.Commentf("out: %v", out))
 

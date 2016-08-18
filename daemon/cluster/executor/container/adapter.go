@@ -144,13 +144,13 @@ func (c *containerAdapter) removeNetworks(ctx context.Context) error {
 	return nil
 }
 
-func (c *containerAdapter) create(ctx context.Context, backend executorpkg.Backend) error {
+func (c *containerAdapter) create(ctx context.Context) error {
 	var cr types.ContainerCreateResponse
 	var err error
 	version := httputils.VersionFromContext(ctx)
 	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
 
-	if cr, err = backend.CreateManagedContainer(types.ContainerCreateConfig{
+	if cr, err = c.backend.CreateManagedContainer(types.ContainerCreateConfig{
 		Name:       c.container.name(),
 		Config:     c.container.config(),
 		HostConfig: c.container.hostConfig(),
@@ -166,13 +166,13 @@ func (c *containerAdapter) create(ctx context.Context, backend executorpkg.Backe
 
 	if nc != nil {
 		for n, ep := range nc.EndpointsConfig {
-			if err := backend.ConnectContainerToNetwork(cr.ID, n, ep); err != nil {
+			if err := c.backend.ConnectContainerToNetwork(cr.ID, n, ep); err != nil {
 				return err
 			}
 		}
 	}
 
-	if err := backend.UpdateContainerServiceConfig(cr.ID, c.container.serviceConfig()); err != nil {
+	if err := c.backend.UpdateContainerServiceConfig(cr.ID, c.container.serviceConfig()); err != nil {
 		return err
 	}
 
@@ -257,7 +257,7 @@ func (c *containerAdapter) remove(ctx context.Context) error {
 	})
 }
 
-func (c *containerAdapter) createVolumes(ctx context.Context, backend executorpkg.Backend) error {
+func (c *containerAdapter) createVolumes(ctx context.Context) error {
 	// Create plugin volumes that are embedded inside a Mount
 	for _, mount := range c.container.task.Spec.GetContainer().Mounts {
 		if mount.Type != api.MountTypeVolume {
@@ -275,7 +275,7 @@ func (c *containerAdapter) createVolumes(ctx context.Context, backend executorpk
 		req := c.container.volumeCreateRequest(&mount)
 
 		// Check if this volume exists on the engine
-		if _, err := backend.VolumeCreate(req.Name, req.Driver, req.DriverOpts, req.Labels); err != nil {
+		if _, err := c.backend.VolumeCreate(req.Name, req.Driver, req.DriverOpts, req.Labels); err != nil {
 			// TODO(amitshukla): Today, volume create through the engine api does not return an error
 			// when the named volume with the same parameters already exists.
 			// It returns an error if the driver name is different - that is a valid error
