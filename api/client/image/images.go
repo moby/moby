@@ -9,6 +9,7 @@ import (
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
 	"github.com/spf13/cobra"
+	"strings"
 )
 
 type imagesOptions struct {
@@ -32,7 +33,12 @@ func NewImagesCommand(dockerCli *client.DockerCli) *cobra.Command {
 		Args:  cli.RequiresMaxArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) > 0 {
-				opts.matchName = args[0]
+				// library/foo filters on foo, but library/ still filters on library/
+				if name := strings.TrimPrefix(args[0], "library/"); name != "" {
+					opts.matchName = name
+				} else {
+					opts.matchName = args[0]
+				}
 			}
 			return runImages(dockerCli, opts)
 		},
