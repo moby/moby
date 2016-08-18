@@ -16,6 +16,7 @@ var (
 const (
 	pendingUpdatesQuery = `{ "PropertyTypes" : ["PendingUpdates"]}`
 	statisticsQuery     = `{ "PropertyTypes" : ["Statistics"]}`
+	processListQuery    = `{ "PropertyTypes" : ["ProcessList"]}`
 )
 
 type container struct {
@@ -29,14 +30,15 @@ type containerProperties struct {
 	Name              string
 	SystemType        string
 	Owner             string
-	SiloGUID          string     `json:"SiloGuid,omitempty"`
-	IsDummy           bool       `json:",omitempty"`
-	RuntimeID         string     `json:"RuntimeId,omitempty"`
-	Stopped           bool       `json:",omitempty"`
-	ExitType          string     `json:",omitempty"`
-	AreUpdatesPending bool       `json:",omitempty"`
-	ObRoot            string     `json:",omitempty"`
-	Statistics        Statistics `json:",omitempty"`
+	SiloGUID          string            `json:"SiloGuid,omitempty"`
+	IsDummy           bool              `json:",omitempty"`
+	RuntimeID         string            `json:"RuntimeId,omitempty"`
+	Stopped           bool              `json:",omitempty"`
+	ExitType          string            `json:",omitempty"`
+	AreUpdatesPending bool              `json:",omitempty"`
+	ObRoot            string            `json:",omitempty"`
+	Statistics        Statistics        `json:",omitempty"`
+	ProcessList       []ProcessListItem `json:",omitempty"`
 }
 
 // MemoryStats holds the memory statistics for a container
@@ -82,6 +84,18 @@ type Statistics struct {
 	Processor          ProcessorStats `json:",omitempty"`
 	Storage            StorageStats   `json:",omitempty"`
 	Network            []NetworkStats `json:",omitempty"`
+}
+
+// ProcessList is the structure of an item returned by a ProcessList call on a container
+type ProcessListItem struct {
+	CreateTimestamp              time.Time `json:",omitempty"`
+	ImageName                    string    `json:",omitempty"`
+	KernelTime100ns              uint64    `json:",omitempty"`
+	MemoryCommitBytes            uint64    `json:",omitempty"`
+	MemoryWorkingSetPrivateBytes uint64    `json:",omitempty"`
+	MemoryWorkingSetSharedBytes  uint64    `json:",omitempty"`
+	ProcessId                    uint32    `json:",omitempty"`
+	UserTime100ns                uint64    `json:",omitempty"`
 }
 
 // CreateContainer creates a new container with the given configuration but does not start it.
@@ -326,6 +340,20 @@ func (container *container) Statistics() (Statistics, error) {
 	return properties.Statistics, nil
 }
 
+// ProcessList returns an array of ProcessListItems for the container
+func (container *container) ProcessList() ([]ProcessListItem, error) {
+	operation := "ProcessList"
+	title := "HCSShim::Container::" + operation
+	logrus.Debugf(title+" id=%s", container.id)
+	properties, err := container.properties(processListQuery)
+	if err != nil {
+		return nil, makeContainerError(container, operation, "", err)
+	}
+
+	logrus.Debugf(title+" succeeded id=%s", container.id)
+	return properties.ProcessList, nil
+}
+
 // Pause pauses the execution of the container. This feature is not enabled in TP5.
 func (container *container) Pause() error {
 	operation := "Pause"
@@ -436,8 +464,10 @@ func (container *container) OpenProcess(pid int) (Process, error) {
 		container: container,
 	}
 
-	if err := process.registerCallback(); err != nil {
-		return nil, makeContainerError(container, operation, "", err)
+	if hcsCallbacksSupported {
+		if err := process.registerCallback(); err != nil {
+			return nil, makeContainerError(container, operation, "", err)
+		}
 	}
 
 	logrus.Debugf(title+" succeeded id=%s processid=%s", container.id, process.processID)
