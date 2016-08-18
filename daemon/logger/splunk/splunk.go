@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
@@ -47,17 +48,17 @@ type splunkLogger struct {
 }
 
 type splunkLoggerInline struct {
-	splunkLogger
+	*splunkLogger
 
 	nullEvent *splunkMessageEvent
 }
 
 type splunkLoggerJSON struct {
-	splunkLoggerInline
+	*splunkLoggerInline
 }
 
 type splunkLoggerRaw struct {
-	splunkLogger
+	*splunkLogger
 
 	prefix []byte
 }
@@ -209,14 +210,14 @@ func New(ctx logger.Context) (logger.Logger, error) {
 			Attrs: attrs,
 		}
 
-		return &splunkLoggerInline{*logger, nullEvent}, nil
+		return &splunkLoggerInline{logger, nullEvent}, nil
 	case splunkFormatJSON:
 		nullEvent := &splunkMessageEvent{
 			Tag:   tag,
 			Attrs: attrs,
 		}
 
-		return &splunkLoggerJSON{splunkLoggerInline{*logger, nullEvent}}, nil
+		return &splunkLoggerJSON{&splunkLoggerInline{logger, nullEvent}}, nil
 	case splunkFormatRaw:
 		var prefix bytes.Buffer
 		prefix.WriteString(tag)
@@ -228,7 +229,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 			prefix.WriteString(" ")
 		}
 
-		return &splunkLoggerRaw{*logger, prefix.Bytes()}, nil
+		return &splunkLoggerRaw{logger, prefix.Bytes()}, nil
 	default:
 		return nil, fmt.Errorf("Unexpected format %s", splunkFormat)
 	}
@@ -243,7 +244,7 @@ func (l *splunkLoggerInline) Log(msg *logger.Message) error {
 
 	message.Event = &event
 
-	return l.postMessage(&message)
+	return l.postMessage(message)
 }
 
 func (l *splunkLoggerJSON) Log(msg *logger.Message) error {
@@ -261,7 +262,7 @@ func (l *splunkLoggerJSON) Log(msg *logger.Message) error {
 
 	message.Event = &event
 
-	return l.postMessage(&message)
+	return l.postMessage(message)
 }
 
 func (l *splunkLoggerRaw) Log(msg *logger.Message) error {
@@ -269,11 +270,11 @@ func (l *splunkLoggerRaw) Log(msg *logger.Message) error {
 
 	message.Event = string(append(l.prefix, msg.Line...))
 
-	return l.postMessage(&message)
+	return l.postMessage(message)
 }
 
 func (l *splunkLogger) postMessage(message *splunkMessage) error {
-	jsonEvent, err := json.Marshal(&message)
+	jsonEvent, err := json.Marshal(message)
 	if err != nil {
 		return err
 	}
@@ -308,10 +309,10 @@ func (l *splunkLogger) Name() string {
 	return driverName
 }
 
-func (l *splunkLogger) createSplunkMessage(msg *logger.Message) splunkMessage {
+func (l *splunkLogger) createSplunkMessage(msg *logger.Message) *splunkMessage {
 	message := *l.nullMessage
-	message.Time = fmt.Sprintf("%f", float64(msg.Timestamp.UnixNano())/1000000000)
-	return message
+	message.Time = fmt.Sprintf("%f", float64(msg.Timestamp.UnixNano())/float64(time.Second))
+	return &message
 }
 
 // ValidateLogOpt looks for all supported by splunk driver options
