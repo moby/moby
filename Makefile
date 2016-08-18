@@ -95,6 +95,9 @@ cross: build ## cross build the binaries for darwin, freebsd and\nwindows
 win: build ## cross build the binary for windows
 	$(DOCKER_RUN_DOCKER) hack/make.sh win
 
+darwin: build ## cross build the binary for OS X
+	$(DOCKER_RUN_DOCKER) hack/make.sh darwin
+
 tgz: build ## build the archives (.zip on windows and .tgz\notherwise) containing the binaries
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross tgz
 
