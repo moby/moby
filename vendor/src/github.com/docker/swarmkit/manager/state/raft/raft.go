@@ -28,6 +28,7 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state/raft/membership"
 	"github.com/docker/swarmkit/manager/state/store"
+	"github.com/docker/swarmkit/manager/state/watch"
 	"github.com/gogo/protobuf/proto"
 	"github.com/pivotal-golang/clock"
 )
@@ -115,7 +116,7 @@ type Node struct {
 	// removeRaftCh notifies about node deletion from raft cluster
 	removeRaftCh        chan struct{}
 	removeRaftFunc      func()
-	leadershipBroadcast *events.Broadcaster
+	leadershipBroadcast *watch.Queue
 
 	// used to coordinate shutdown
 	stopMu sync.RWMutex
@@ -194,7 +195,7 @@ func NewNode(ctx context.Context, opts NewNodeOptions) *Node {
 		StateDir:            opts.StateDir,
 		joinAddr:            opts.JoinAddr,
 		sendTimeout:         2 * time.Second,
-		leadershipBroadcast: events.NewBroadcaster(),
+		leadershipBroadcast: watch.NewQueue(),
 	}
 	n.memoryStore = store.NewMemoryStore(n)
 
@@ -400,7 +401,7 @@ func (n *Node) Run(ctx context.Context) error {
 					n.wait.cancelAll()
 					if atomic.LoadUint32(&n.signalledLeadership) == 1 {
 						atomic.StoreUint32(&n.signalledLeadership, 0)
-						n.leadershipBroadcast.Write(IsFollower)
+						n.leadershipBroadcast.Publish(IsFollower)
 					}
 				} else if !wasLeader && rd.SoftState.RaftState == raft.StateLeader {
 					wasLeader = true
@@ -412,7 +413,7 @@ func (n *Node) Run(ctx context.Context) error {
 				// committed, broadcast our leadership status.
 				if n.caughtUp() {
 					atomic.StoreUint32(&n.signalledLeadership, 1)
-					n.leadershipBroadcast.Write(IsLeader)
+					n.leadershipBroadcast.Publish(IsLeader)
 				}
 			}
 
@@ -452,6 +453,9 @@ func (n *Node) Run(ctx context.Context) error {
 			return ErrMemberRemoved
 		case <-n.stopCh:
 			n.stop()
+			n.leadershipBroadcast.Close()
+			n.cluster.PeersBroadcast.Close()
+			n.memoryStore.Close()
 			return nil
 		}
 	}
@@ -814,6 +818,8 @@ func (n *Node) LeaderAddr() (string, error) {
 	if err := WaitForLeader(ctx, n); err != nil {
 		return "", ErrNoClusterLeader
 	}
+	n.stopMu.RLock()
+	defer n.stopMu.RUnlock()
 	if !n.IsMember() {
 		return "", ErrNoRaftMember
 	}
@@ -905,6 +911,12 @@ func (n *Node) GetVersion() *api.Version {
 
 	status := n.Node.Status()
 	return &api.Version{Index: status.Commit}
+}
+
+// SubscribePeers subscribes to peer updates in cluster. It sends always full
+// list of peers.
+func (n *Node) SubscribePeers() (q chan events.Event, cancel func()) {
+	return n.cluster.PeersBroadcast.Watch()
 }
 
 // GetMemberlist returns the current list of raft members in the cluster.
@@ -1344,14 +1356,7 @@ func (n *Node) ConnectToMember(addr string, timeout time.Duration) (*membership.
 // will be sent in form of raft.LeadershipState. Also cancel func is returned -
 // it should be called when listener is no longer interested in events.
 func (n *Node) SubscribeLeadership() (q chan events.Event, cancel func()) {
-	ch := events.NewChannel(0)
-	sink := events.Sink(events.NewQueue(ch))
-	n.leadershipBroadcast.Add(sink)
-	return ch.C, func() {
-		n.leadershipBroadcast.Remove(sink)
-		ch.Close()
-		sink.Close()
-	}
+	return n.leadershipBroadcast.Watch()
 }
 
 // createConfigChangeEnts creates a series of Raft entries (i.e.

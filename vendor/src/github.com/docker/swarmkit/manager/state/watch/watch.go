@@ -1,18 +1,25 @@
 package watch
 
-import "github.com/docker/go-events"
+import (
+	"sync"
+
+	"github.com/docker/go-events"
+)
 
 // Queue is the structure used to publish events and watch for them.
 type Queue struct {
-	broadcast *events.Broadcaster
+	mu          sync.Mutex
+	broadcast   *events.Broadcaster
+	cancelFuncs map[*events.Channel]func()
 }
 
 // NewQueue creates a new publish/subscribe queue which supports watchers.
 // The channels that it will create for subscriptions will have the buffer
 // size specified by buffer.
-func NewQueue(buffer int) *Queue {
+func NewQueue() *Queue {
 	return &Queue{
-		broadcast: events.NewBroadcaster(),
+		broadcast:   events.NewBroadcaster(),
+		cancelFuncs: make(map[*events.Channel]func()),
 	}
 }
 
@@ -35,14 +42,43 @@ func (q *Queue) CallbackWatch(matcher events.Matcher) (eventq chan events.Event,
 	}
 
 	q.broadcast.Add(sink)
-	return ch.C, func() {
+
+	cancelFunc := func() {
 		q.broadcast.Remove(sink)
 		ch.Close()
 		sink.Close()
+	}
+
+	q.mu.Lock()
+	q.cancelFuncs[ch] = cancelFunc
+	q.mu.Unlock()
+	return ch.C, func() {
+		q.mu.Lock()
+		cancelFunc := q.cancelFuncs[ch]
+		delete(q.cancelFuncs, ch)
+		q.mu.Unlock()
+
+		if cancelFunc != nil {
+			cancelFunc()
+		}
 	}
 }
 
 // Publish adds an item to the queue.
 func (q *Queue) Publish(item events.Event) {
 	q.broadcast.Write(item)
+}
+
+// Close closes the queue and frees the associated resources.
+func (q *Queue) Close() error {
+	// Make sure all watchers have been closed to avoid a deadlock when
+	// closing the broadcaster.
+	q.mu.Lock()
+	for _, cancelFunc := range q.cancelFuncs {
+		cancelFunc()
+	}
+	q.cancelFuncs = make(map[*events.Channel]func())
+	q.mu.Unlock()
+
+	return q.broadcast.Close()
 }

@@ -3,8 +3,6 @@ package dispatcher
 import (
 	"errors"
 	"fmt"
-	"reflect"
-	"sort"
 	"sync"
 	"time"
 
@@ -13,6 +11,7 @@ import (
 	"google.golang.org/grpc/transport"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/api/equality"
 	"github.com/docker/swarmkit/ca"
@@ -83,6 +82,7 @@ func DefaultConfig() *Config {
 // is implements it. This interface needed only for easier unit-testing.
 type Cluster interface {
 	GetMemberlist() map[uint64]*api.RaftMember
+	SubscribePeers() (chan events.Event, func())
 	MemoryStore() *store.MemoryStore
 }
 
@@ -120,15 +120,6 @@ type Dispatcher struct {
 	processUpdatesCond *sync.Cond
 }
 
-// weightedPeerByNodeID is a sort wrapper for []*api.WeightedPeer
-type weightedPeerByNodeID []*api.WeightedPeer
-
-func (b weightedPeerByNodeID) Less(i, j int) bool { return b[i].Peer.NodeID < b[j].Peer.NodeID }
-
-func (b weightedPeerByNodeID) Len() int { return len(b) }
-
-func (b weightedPeerByNodeID) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
-
 // New returns Dispatcher with cluster interface(usually raft.Node).
 // NOTE: each handler which does something with raft must add to Dispatcher.wg
 func New(cluster Cluster, c *Config) *Dispatcher {
@@ -136,8 +127,8 @@ func New(cluster Cluster, c *Config) *Dispatcher {
 		nodes:                 newNodeStore(c.HeartbeatPeriod, c.HeartbeatEpsilon, c.GracePeriodMultiplier, c.RateLimitPeriod),
 		store:                 cluster.MemoryStore(),
 		cluster:               cluster,
-		mgrQueue:              watch.NewQueue(16),
-		keyMgrQueue:           watch.NewQueue(16),
+		mgrQueue:              watch.NewQueue(),
+		keyMgrQueue:           watch.NewQueue(),
 		taskUpdates:           make(map[string]*api.TaskStatus),
 		nodeUpdates:           make(map[string]nodeUpdate),
 		processUpdatesTrigger: make(chan struct{}, 1),
@@ -204,34 +195,36 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 		d.mu.Unlock()
 		return err
 	}
+
+	peerWatcher, peerCancel := d.cluster.SubscribePeers()
+	defer peerCancel()
+	d.lastSeenManagers = getWeightedPeers(d.cluster)
+
 	defer cancel()
 	d.ctx, d.cancel = context.WithCancel(ctx)
 	d.mu.Unlock()
 
-	publishManagers := func() {
-		mgrs := getWeightedPeers(d.cluster)
-		sort.Sort(weightedPeerByNodeID(mgrs))
-		d.mu.Lock()
-		if reflect.DeepEqual(mgrs, d.lastSeenManagers) {
-			d.mu.Unlock()
-			return
+	publishManagers := func(peers []*api.Peer) {
+		var mgrs []*api.WeightedPeer
+		for _, p := range peers {
+			mgrs = append(mgrs, &api.WeightedPeer{
+				Peer:   p,
+				Weight: picker.DefaultObservationWeight,
+			})
 		}
+		d.mu.Lock()
 		d.lastSeenManagers = mgrs
 		d.mu.Unlock()
 		d.mgrQueue.Publish(mgrs)
 	}
-
-	publishManagers()
-	publishTicker := time.NewTicker(1 * time.Second)
-	defer publishTicker.Stop()
 
 	batchTimer := time.NewTimer(maxBatchInterval)
 	defer batchTimer.Stop()
 
 	for {
 		select {
-		case <-publishTicker.C:
-			publishManagers()
+		case ev := <-peerWatcher:
+			publishManagers(ev.([]*api.Peer))
 		case <-d.processUpdatesTrigger:
 			d.processUpdates()
 			batchTimer.Reset(maxBatchInterval)
@@ -252,7 +245,7 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 			}
 			d.networkBootstrapKeys = cluster.Cluster.NetworkBootstrapKeys
 			d.mu.Unlock()
-			d.keyMgrQueue.Publish(struct{}{})
+			d.keyMgrQueue.Publish(cluster.Cluster.NetworkBootstrapKeys)
 		case <-d.ctx.Done():
 			return nil
 		}
@@ -276,6 +269,9 @@ func (d *Dispatcher) Stop() error {
 	// before waiting.
 	d.processUpdatesCond.Broadcast()
 	d.processUpdatesLock.Unlock()
+
+	d.mgrQueue.Close()
+	d.keyMgrQueue.Close()
 
 	return nil
 }
@@ -760,6 +756,12 @@ func (d *Dispatcher) getManagers() []*api.WeightedPeer {
 	return d.lastSeenManagers
 }
 
+func (d *Dispatcher) getNetworkBootstrapKeys() []*api.EncryptionKey {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.networkBootstrapKeys
+}
+
 // Session is a stream which controls agent connection.
 // Each message contains list of backup Managers with weights. Also there is
 // a special boolean field Disconnect which if true indicates that node should
@@ -776,10 +778,15 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		return err
 	}
 
-	// register the node.
-	sessionID, err := d.register(stream.Context(), nodeID, r.Description)
-	if err != nil {
-		return err
+	var sessionID string
+	if _, err := d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
+		// register the node.
+		sessionID, err = d.register(stream.Context(), nodeID, r.Description)
+		if err != nil {
+			return err
+		}
+	} else {
+		sessionID = r.SessionID
 	}
 
 	fields := logrus.Fields{
@@ -815,7 +822,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		SessionID:            sessionID,
 		Node:                 nodeObj,
 		Managers:             d.getManagers(),
-		NetworkBootstrapKeys: d.networkBootstrapKeys,
+		NetworkBootstrapKeys: d.getNetworkBootstrapKeys(),
 	}); err != nil {
 		return err
 	}
@@ -854,9 +861,11 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 			return err
 		}
 
-		var mgrs []*api.WeightedPeer
-
-		var disconnect bool
+		var (
+			disconnect bool
+			mgrs       []*api.WeightedPeer
+			netKeys    []*api.EncryptionKey
+		)
 
 		select {
 		case ev := <-managerUpdates:
@@ -869,17 +878,21 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 			disconnect = true
 		case <-d.ctx.Done():
 			disconnect = true
-		case <-keyMgrUpdates:
+		case ev := <-keyMgrUpdates:
+			netKeys = ev.([]*api.EncryptionKey)
 		}
 		if mgrs == nil {
 			mgrs = d.getManagers()
+		}
+		if netKeys == nil {
+			netKeys = d.getNetworkBootstrapKeys()
 		}
 
 		if err := stream.Send(&api.SessionMessage{
 			SessionID:            sessionID,
 			Node:                 nodeObj,
 			Managers:             mgrs,
-			NetworkBootstrapKeys: d.networkBootstrapKeys,
+			NetworkBootstrapKeys: netKeys,
 		}); err != nil {
 			return err
 		}

@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/docker/swarmkit/api"
@@ -110,7 +111,7 @@ func (r *ReplicatedOrchestrator) tick(ctx context.Context) {
 	r.tickServices(ctx)
 }
 
-func newTask(cluster *api.Cluster, service *api.Service, instance uint64) *api.Task {
+func newTask(cluster *api.Cluster, service *api.Service, slot uint64) *api.Task {
 	var logDriver *api.Driver
 	if service.Spec.Task.LogDriver != nil {
 		// use the log driver specific to the task, if we have it.
@@ -120,15 +121,18 @@ func newTask(cluster *api.Cluster, service *api.Service, instance uint64) *api.T
 		logDriver = cluster.Spec.TaskDefaults.LogDriver // nil is okay here.
 	}
 
-	// NOTE(stevvooe): For now, we don't override the container naming and
-	// labeling scheme in the agent. If we decide to do this in the future,
-	// they should be overridden here.
+	taskID := identity.NewID()
+	// We use the following scheme to assign Task names to Annotations:
+	// Annotations.Name := <ServiceAnnotations.Name>.<Slot>.<TaskID>
+	name := fmt.Sprintf("%v.%v.%v", service.Spec.Annotations.Name, slot, taskID)
+
 	return &api.Task{
-		ID:                 identity.NewID(),
+		ID:                 taskID,
+		Annotations:        api.Annotations{Name: name},
 		ServiceAnnotations: service.Spec.Annotations,
 		Spec:               service.Spec.Task,
 		ServiceID:          service.ID,
-		Slot:               instance,
+		Slot:               slot,
 		Status: api.TaskStatus{
 			State:     api.TaskStateNew,
 			Timestamp: ptypes.MustTimestampProto(time.Now()),

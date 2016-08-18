@@ -226,7 +226,7 @@ func (g *GlobalOrchestrator) reconcileOneService(ctx context.Context, service *a
 	}
 
 	_, err = g.store.Batch(func(batch *store.Batch) error {
-		var updateTasks []*api.Task
+		var updateTasks []slot
 		for nodeID := range g.nodes {
 			ntasks := nodeTasks[nodeID]
 			// if restart policy considers this node has finished its task
@@ -239,8 +239,7 @@ func (g *GlobalOrchestrator) reconcileOneService(ctx context.Context, service *a
 			if len(ntasks) == 0 {
 				g.addTask(ctx, batch, service, nodeID)
 			} else {
-				updateTasks = append(updateTasks, ntasks[0])
-				g.removeTasks(ctx, batch, service, ntasks[1:])
+				updateTasks = append(updateTasks, ntasks)
 			}
 		}
 		if len(updateTasks) > 0 {
@@ -327,11 +326,8 @@ func (g *GlobalOrchestrator) reconcileServiceOneNode(ctx context.Context, servic
 			g.removeTasks(ctx, batch, service, tasks)
 			return nil
 		}
-		// this node needs to run 1 copy of the task
 		if len(tasks) == 0 {
 			g.addTask(ctx, batch, service, nodeID)
-		} else {
-			g.removeTasks(ctx, batch, service, tasks[1:])
 		}
 		return nil
 	})
@@ -365,7 +361,7 @@ func (g *GlobalOrchestrator) removeTask(ctx context.Context, batch *store.Batch,
 	// TODO(aaronl): optimistic update?
 	err := batch.Update(func(tx store.Tx) error {
 		t = store.GetTask(tx, t.ID)
-		if t != nil {
+		if t != nil && t.DesiredState < api.TaskStateShutdown {
 			t.DesiredState = api.TaskStateShutdown
 			return store.UpdateTask(tx, t)
 		}

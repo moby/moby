@@ -35,9 +35,14 @@ func NewUpdateSupervisor(store *store.MemoryStore, restartSupervisor *RestartSup
 	}
 }
 
-// Update starts an Update of `tasks` belonging to `service` in the background and returns immediately.
-// If an update for that service was already in progress, it will be cancelled before the new one starts.
-func (u *UpdateSupervisor) Update(ctx context.Context, cluster *api.Cluster, service *api.Service, tasks []*api.Task) {
+// Update starts an Update of `slots` belonging to `service` in the background
+// and returns immediately. Each slot contains a group of one or more tasks
+// occupying the same slot (replicated service) or node (global service). There
+// may be more than one task per slot in cases where an update is in progress
+// and the new task was started before the old one was shut down. If an update
+// for that service was already in progress, it will be cancelled before the
+// new one starts.
+func (u *UpdateSupervisor) Update(ctx context.Context, cluster *api.Cluster, service *api.Service, slots []slot) {
 	u.l.Lock()
 	defer u.l.Unlock()
 
@@ -54,7 +59,7 @@ func (u *UpdateSupervisor) Update(ctx context.Context, cluster *api.Cluster, ser
 	update := NewUpdater(u.store, u.restarts, cluster, service)
 	u.updates[id] = update
 	go func() {
-		update.Run(ctx, tasks)
+		update.Run(ctx, slots)
 		u.l.Lock()
 		if u.updates[id] == update {
 			delete(u.updates, id)
@@ -108,7 +113,7 @@ func (u *Updater) Cancel() {
 }
 
 // Run starts the update and returns only once its complete or cancelled.
-func (u *Updater) Run(ctx context.Context, tasks []*api.Task) {
+func (u *Updater) Run(ctx context.Context, slots []slot) {
 	defer close(u.doneChan)
 
 	service := u.newService
@@ -118,14 +123,14 @@ func (u *Updater) Run(ctx context.Context, tasks []*api.Task) {
 		return
 	}
 
-	dirtyTasks := []*api.Task{}
-	for _, t := range tasks {
-		if u.isTaskDirty(t) {
-			dirtyTasks = append(dirtyTasks, t)
+	var dirtySlots []slot
+	for _, slot := range slots {
+		if u.isSlotDirty(slot) {
+			dirtySlots = append(dirtySlots, slot)
 		}
 	}
 	// Abort immediately if all tasks are clean.
-	if len(dirtyTasks) == 0 {
+	if len(dirtySlots) == 0 {
 		if service.UpdateStatus != nil && service.UpdateStatus.State == api.UpdateStatus_UPDATING {
 			u.completeUpdate(ctx, service.ID)
 		}
@@ -144,16 +149,16 @@ func (u *Updater) Run(ctx context.Context, tasks []*api.Task) {
 	if parallelism == 0 {
 		// TODO(aluzzardi): We could try to optimize unlimited parallelism by performing updates in a single
 		// goroutine using a batch transaction.
-		parallelism = len(dirtyTasks)
+		parallelism = len(dirtySlots)
 	}
 
 	// Start the workers.
-	taskQueue := make(chan *api.Task)
+	slotQueue := make(chan slot)
 	wg := sync.WaitGroup{}
 	wg.Add(parallelism)
 	for i := 0; i < parallelism; i++ {
 		go func() {
-			u.worker(ctx, taskQueue)
+			u.worker(ctx, slotQueue)
 			wg.Done()
 		}()
 	}
@@ -174,15 +179,15 @@ func (u *Updater) Run(ctx context.Context, tasks []*api.Task) {
 
 	stopped := false
 
-taskLoop:
-	for _, t := range dirtyTasks {
+slotsLoop:
+	for _, slot := range dirtySlots {
 	retryLoop:
 		for {
 			// Wait for a worker to pick up the task or abort the update, whichever comes first.
 			select {
 			case <-u.stopChan:
 				stopped = true
-				break taskLoop
+				break slotsLoop
 			case ev := <-failedTaskWatch:
 				failedTask := ev.(state.EventUpdateTask).Task
 
@@ -193,15 +198,15 @@ taskLoop:
 					stopped = true
 					message := fmt.Sprintf("update paused due to failure or early termination of task %s", failedTask.ID)
 					u.pauseUpdate(ctx, service.ID, message)
-					break taskLoop
+					break slotsLoop
 				}
-			case taskQueue <- t:
+			case slotQueue <- slot:
 				break retryLoop
 			}
 		}
 	}
 
-	close(taskQueue)
+	close(slotQueue)
 	wg.Wait()
 
 	if !stopped {
@@ -209,16 +214,42 @@ taskLoop:
 	}
 }
 
-func (u *Updater) worker(ctx context.Context, queue <-chan *api.Task) {
-	for t := range queue {
-		updated := newTask(u.cluster, u.newService, t.Slot)
-		updated.DesiredState = api.TaskStateReady
-		if isGlobalService(u.newService) {
-			updated.NodeID = t.NodeID
+func (u *Updater) worker(ctx context.Context, queue <-chan slot) {
+	for slot := range queue {
+		// Do we have a task with the new spec in desired state = RUNNING?
+		// If so, all we have to do to complete the update is remove the
+		// other tasks. Or if we have a task with the new spec that has
+		// desired state < RUNNING, advance it to running and remove the
+		// other tasks.
+		var (
+			runningTask *api.Task
+			cleanTask   *api.Task
+		)
+		for _, t := range slot {
+			if !u.isTaskDirty(t) {
+				if t.DesiredState == api.TaskStateRunning {
+					runningTask = t
+					break
+				}
+				if t.DesiredState < api.TaskStateRunning {
+					cleanTask = t
+				}
+			}
 		}
+		if runningTask != nil {
+			u.useExistingTask(ctx, slot, runningTask)
+		} else if cleanTask != nil {
+			u.useExistingTask(ctx, slot, cleanTask)
+		} else {
+			updated := newTask(u.cluster, u.newService, slot[0].Slot)
+			updated.DesiredState = api.TaskStateReady
+			if isGlobalService(u.newService) {
+				updated.NodeID = slot[0].NodeID
+			}
 
-		if err := u.updateTask(ctx, t, updated); err != nil {
-			log.G(ctx).WithError(err).WithField("task.id", t.ID).Error("update failed")
+			if err := u.updateTask(ctx, slot, updated); err != nil {
+				log.G(ctx).WithError(err).WithField("task.id", updated.ID).Error("update failed")
+			}
 		}
 
 		if u.newService.Spec.Update != nil && (u.newService.Spec.Update.Delay.Seconds != 0 || u.newService.Spec.Update.Delay.Nanos != 0) {
@@ -236,8 +267,7 @@ func (u *Updater) worker(ctx context.Context, queue <-chan *api.Task) {
 	}
 }
 
-func (u *Updater) updateTask(ctx context.Context, original, updated *api.Task) error {
-	log.G(ctx).Debugf("replacing %s with %s", original.ID, updated.ID)
+func (u *Updater) updateTask(ctx context.Context, slot slot, updated *api.Task) error {
 	// Kick off the watch before even creating the updated task. This is in order to avoid missing any event.
 	taskUpdates, cancel := state.Watch(u.watchQueue, state.EventUpdateTask{
 		Task:   &api.Task{ID: updated.ID},
@@ -247,26 +277,27 @@ func (u *Updater) updateTask(ctx context.Context, original, updated *api.Task) e
 
 	var delayStartCh <-chan struct{}
 	// Atomically create the updated task and bring down the old one.
-	err := u.store.Update(func(tx store.Tx) error {
-		t := store.GetTask(tx, original.ID)
-		if t == nil {
-			return fmt.Errorf("task %s not found while trying to update it", original.ID)
-		}
-		if t.DesiredState > api.TaskStateRunning {
-			return fmt.Errorf("task %s was already shut down when reached by updater", original.ID)
-		}
-		t.DesiredState = api.TaskStateShutdown
-		if err := store.UpdateTask(tx, t); err != nil {
+	_, err := u.store.Batch(func(batch *store.Batch) error {
+		err := batch.Update(func(tx store.Tx) error {
+			if err := store.CreateTask(tx, updated); err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
 			return err
 		}
 
-		if err := store.CreateTask(tx, updated); err != nil {
-			return err
-		}
+		u.removeOldTasks(ctx, batch, slot)
 
-		// Wait for the old task to stop or time out, and then set the new one
-		// to RUNNING.
-		delayStartCh = u.restarts.DelayStart(ctx, tx, original, updated.ID, 0, true)
+		for _, t := range slot {
+			if t.DesiredState == api.TaskStateRunning {
+				// Wait for the old task to stop or time out, and then set the new one
+				// to RUNNING.
+				delayStartCh = u.restarts.DelayStart(ctx, nil, t, updated.ID, 0, true)
+				break
+			}
+		}
 
 		return nil
 
@@ -275,7 +306,9 @@ func (u *Updater) updateTask(ctx context.Context, original, updated *api.Task) e
 		return err
 	}
 
-	<-delayStartCh
+	if delayStartCh != nil {
+		<-delayStartCh
+	}
 
 	// Wait for the new task to come up.
 	// TODO(aluzzardi): Consider adding a timeout here.
@@ -292,6 +325,60 @@ func (u *Updater) updateTask(ctx context.Context, original, updated *api.Task) e
 	}
 }
 
+func (u *Updater) useExistingTask(ctx context.Context, slot slot, existing *api.Task) {
+	var removeTasks []*api.Task
+	for _, t := range slot {
+		if t != existing {
+			removeTasks = append(removeTasks, t)
+		}
+	}
+	if len(removeTasks) != 0 || existing.DesiredState != api.TaskStateRunning {
+		_, err := u.store.Batch(func(batch *store.Batch) error {
+			u.removeOldTasks(ctx, batch, removeTasks)
+
+			if existing.DesiredState != api.TaskStateRunning {
+				err := batch.Update(func(tx store.Tx) error {
+					t := store.GetTask(tx, existing.ID)
+					if t == nil {
+						return fmt.Errorf("task %s not found while trying to start it", existing.ID)
+					}
+					if t.DesiredState >= api.TaskStateRunning {
+						return fmt.Errorf("task %s was already started when reached by updater", existing.ID)
+					}
+					t.DesiredState = api.TaskStateRunning
+					return store.UpdateTask(tx, t)
+				})
+				if err != nil {
+					log.G(ctx).WithError(err).Errorf("starting task %s failed", existing.ID)
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			log.G(ctx).WithError(err).Error("updater batch transaction failed")
+		}
+	}
+}
+
+func (u *Updater) removeOldTasks(ctx context.Context, batch *store.Batch, removeTasks []*api.Task) {
+	for _, original := range removeTasks {
+		err := batch.Update(func(tx store.Tx) error {
+			t := store.GetTask(tx, original.ID)
+			if t == nil {
+				return fmt.Errorf("task %s not found while trying to shut it down", original.ID)
+			}
+			if t.DesiredState > api.TaskStateRunning {
+				return fmt.Errorf("task %s was already shut down when reached by updater", original.ID)
+			}
+			t.DesiredState = api.TaskStateShutdown
+			return store.UpdateTask(tx, t)
+		})
+		if err != nil {
+			log.G(ctx).WithError(err).Errorf("shutting down stale task %s failed", original.ID)
+		}
+	}
+}
+
 func (u *Updater) isTaskDirty(t *api.Task) bool {
 	return !reflect.DeepEqual(u.newService.Spec.Task, t.Spec) ||
 		(t.Endpoint != nil && !reflect.DeepEqual(u.newService.Spec.Endpoint, t.Endpoint.Spec))
@@ -300,6 +387,10 @@ func (u *Updater) isTaskDirty(t *api.Task) bool {
 func (u *Updater) isServiceDirty(service *api.Service) bool {
 	return !reflect.DeepEqual(u.newService.Spec.Task, service.Spec.Task) ||
 		!reflect.DeepEqual(u.newService.Spec.Endpoint, service.Spec.Endpoint)
+}
+
+func (u *Updater) isSlotDirty(slot slot) bool {
+	return len(slot) > 1 || (len(slot) == 1 && u.isTaskDirty(slot[0]))
 }
 
 func (u *Updater) startUpdate(ctx context.Context, serviceID string) {

@@ -37,13 +37,14 @@ import (
 const (
 	// Security Strength Equivalence
 	//-----------------------------------
-	//| Key-type |  ECC  |  DH/DSA/RSA  |
-	//|   Node   |  256  |     3072     |
-	//|   Root   |  384  |     7680     |
+	//| ECC  |  DH/DSA/RSA  |
+	//| 256  |     3072     |
+	//| 384  |     7680     |
 	//-----------------------------------
 
 	// RootKeySize is the default size of the root CA key
-	RootKeySize = 384
+	// It would be ideal for the root key to use P-384, but in P-384 is not optimized in go yet :(
+	RootKeySize = 256
 	// RootKeyAlgo defines the default algorithm for the root CA Key
 	RootKeyAlgo = "ecdsa"
 	// PassphraseENVVar defines the environment variable to look for the

@@ -24,7 +24,6 @@ import (
 	"compress/gzip"
 	"errors"
 	"fmt"
-	"hash/fnv"
 	"io"
 	"net/http"
 	"net/url"
@@ -85,6 +84,9 @@ const (
 // Handler returns the HTTP handler for the global Prometheus registry. It is
 // already instrumented with InstrumentHandler (using "prometheus" as handler
 // name). Usually the handler is used to handle the "/metrics" endpoint.
+//
+// Please note the issues described in the doc comment of InstrumentHandler. You
+// might want to consider using UninstrumentedHandler instead.
 func Handler() http.Handler {
 	return InstrumentHandler("prometheus", defRegistry)
 }
@@ -113,11 +115,13 @@ func Register(m Collector) error {
 }
 
 // MustRegister works like Register but panics where Register would have
-// returned an error.
-func MustRegister(m Collector) {
-	err := Register(m)
-	if err != nil {
-		panic(err)
+// returned an error. MustRegister is also Variadic, where Register only
+// accepts a single Collector to register.
+func MustRegister(m ...Collector) {
+	for i := range m {
+		if err := Register(m[i]); err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -134,8 +138,8 @@ func RegisterOrGet(m Collector) (Collector, error) {
 	return defRegistry.RegisterOrGet(m)
 }
 
-// MustRegisterOrGet works like Register but panics where RegisterOrGet would
-// have returned an error.
+// MustRegisterOrGet works like RegisterOrGet but panics where RegisterOrGet
+// would have returned an error.
 func MustRegisterOrGet(m Collector) Collector {
 	existing, err := RegisterOrGet(m)
 	if err != nil {
@@ -337,6 +341,9 @@ func (r *registry) Push(job, instance, pushURL, method string) error {
 	if !strings.Contains(pushURL, "://") {
 		pushURL = "http://" + pushURL
 	}
+	if strings.HasSuffix(pushURL, "/") {
+		pushURL = pushURL[:len(pushURL)-1]
+	}
 	pushURL = fmt.Sprintf("%s/metrics/jobs/%s", pushURL, url.QueryEscape(job))
 	if instance != "" {
 		pushURL += "/instances/" + url.QueryEscape(instance)
@@ -528,30 +535,25 @@ func (r *registry) checkConsistency(metricFamily *dto.MetricFamily, dtoMetric *d
 	}
 
 	// Is the metric unique (i.e. no other metric with the same name and the same label values)?
-	h := fnv.New64a()
-	var buf bytes.Buffer
-	buf.WriteString(metricFamily.GetName())
-	buf.WriteByte(separatorByte)
-	h.Write(buf.Bytes())
+	h := hashNew()
+	h = hashAdd(h, metricFamily.GetName())
+	h = hashAddByte(h, separatorByte)
 	// Make sure label pairs are sorted. We depend on it for the consistency
 	// check. Label pairs must be sorted by contract. But the point of this
 	// method is to check for contract violations. So we better do the sort
 	// now.
 	sort.Sort(LabelPairSorter(dtoMetric.Label))
 	for _, lp := range dtoMetric.Label {
-		buf.Reset()
-		buf.WriteString(lp.GetValue())
-		buf.WriteByte(separatorByte)
-		h.Write(buf.Bytes())
+		h = hashAdd(h, lp.GetValue())
+		h = hashAddByte(h, separatorByte)
 	}
-	metricHash := h.Sum64()
-	if _, exists := metricHashes[metricHash]; exists {
+	if _, exists := metricHashes[h]; exists {
 		return fmt.Errorf(
 			"collected metric %s %s was collected before with the same name and label values",
 			metricFamily.GetName(), dtoMetric,
 		)
 	}
-	metricHashes[metricHash] = struct{}{}
+	metricHashes[h] = struct{}{}
 
 	if desc == nil {
 		return nil // Nothing left to check if we have no desc.
@@ -722,5 +724,18 @@ func (s metricSorter) Less(i, j int) bool {
 			return vi < vj
 		}
 	}
-	return true
+
+	// We should never arrive here. Multiple metrics with the same
+	// label set in the same scrape will lead to undefined ingestion
+	// behavior. However, as above, we have to provide stable sorting
+	// here, even for inconsistent metrics. So sort equal metrics
+	// by their timestamp, with missing timestamps (implying "now")
+	// coming last.
+	if s[i].TimestampMs == nil {
+		return false
+	}
+	if s[j].TimestampMs == nil {
+		return true
+	}
+	return s[i].GetTimestampMs() < s[j].GetTimestampMs()
 }
