@@ -175,6 +175,27 @@ var (
 			errcode.ErrorCodeDenied,
 		},
 	}
+
+	tooManyRequestsDescriptor = ResponseDescriptor{
+		Name:        "Too Many Requests",
+		StatusCode:  http.StatusTooManyRequests,
+		Description: "The client made too many requests within a time interval.",
+		Headers: []ParameterDescriptor{
+			{
+				Name:        "Content-Length",
+				Type:        "integer",
+				Description: "Length of the JSON response body.",
+				Format:      "<length>",
+			},
+		},
+		Body: BodyDescriptor{
+			ContentType: "application/json; charset=utf-8",
+			Format:      errorsBody,
+		},
+		ErrorCodes: []errcode.ErrorCode{
+			errcode.ErrorCodeTooManyRequests,
+		},
+	}
 )
 
 const (
@@ -197,17 +218,6 @@ const (
 	    {
             "code": <error code>,
             "message": "<error message>",
-            "detail": ...
-        },
-        ...
-    ]
-}`
-
-	unauthorizedErrorsBody = `{
-	"errors:" [
-	    {
-            "code": "UNAUTHORIZED",
-            "message": "access to the requested resource is not authorized",
             "detail": ...
         },
         ...
@@ -391,6 +401,7 @@ var routeDescriptors = []RouteDescriptor{
 								StatusCode:  http.StatusNotFound,
 							},
 							unauthorizedResponseDescriptor,
+							tooManyRequestsDescriptor,
 						},
 					},
 				},
@@ -445,6 +456,7 @@ var routeDescriptors = []RouteDescriptor{
 							unauthorizedResponseDescriptor,
 							repositoryNotFoundResponseDescriptor,
 							deniedResponseDescriptor,
+							tooManyRequestsDescriptor,
 						},
 					},
 					{
@@ -481,6 +493,7 @@ var routeDescriptors = []RouteDescriptor{
 							unauthorizedResponseDescriptor,
 							repositoryNotFoundResponseDescriptor,
 							deniedResponseDescriptor,
+							tooManyRequestsDescriptor,
 						},
 					},
 				},
@@ -535,6 +548,7 @@ var routeDescriptors = []RouteDescriptor{
 							unauthorizedResponseDescriptor,
 							repositoryNotFoundResponseDescriptor,
 							deniedResponseDescriptor,
+							tooManyRequestsDescriptor,
 						},
 					},
 				},
@@ -592,6 +606,7 @@ var routeDescriptors = []RouteDescriptor{
 							unauthorizedResponseDescriptor,
 							repositoryNotFoundResponseDescriptor,
 							deniedResponseDescriptor,
+							tooManyRequestsDescriptor,
 							{
 								Name:        "Missing Layer(s)",
 								Description: "One or more layers may be missing during a manifest upload. If so, the missing layers will be enumerated in the error response.",
@@ -661,6 +676,7 @@ var routeDescriptors = []RouteDescriptor{
 							unauthorizedResponseDescriptor,
 							repositoryNotFoundResponseDescriptor,
 							deniedResponseDescriptor,
+							tooManyRequestsDescriptor,
 							{
 								Name:        "Unknown Manifest",
 								Description: "The specified `name` or `reference` are unknown to the registry and the delete was unable to proceed. Clients can assume the manifest was already deleted if this response is returned.",
@@ -769,6 +785,7 @@ var routeDescriptors = []RouteDescriptor{
 							unauthorizedResponseDescriptor,
 							repositoryNotFoundResponseDescriptor,
 							deniedResponseDescriptor,
+							tooManyRequestsDescriptor,
 						},
 					},
 					{
@@ -843,6 +860,7 @@ var routeDescriptors = []RouteDescriptor{
 							unauthorizedResponseDescriptor,
 							repositoryNotFoundResponseDescriptor,
 							deniedResponseDescriptor,
+							tooManyRequestsDescriptor,
 						},
 					},
 				},
@@ -909,6 +927,7 @@ var routeDescriptors = []RouteDescriptor{
 							unauthorizedResponseDescriptor,
 							repositoryNotFoundResponseDescriptor,
 							deniedResponseDescriptor,
+							tooManyRequestsDescriptor,
 						},
 					},
 				},
@@ -993,6 +1012,7 @@ var routeDescriptors = []RouteDescriptor{
 							unauthorizedResponseDescriptor,
 							repositoryNotFoundResponseDescriptor,
 							deniedResponseDescriptor,
+							tooManyRequestsDescriptor,
 						},
 					},
 					{
@@ -1039,6 +1059,7 @@ var routeDescriptors = []RouteDescriptor{
 							unauthorizedResponseDescriptor,
 							repositoryNotFoundResponseDescriptor,
 							deniedResponseDescriptor,
+							tooManyRequestsDescriptor,
 						},
 					},
 					{
@@ -1103,6 +1124,7 @@ var routeDescriptors = []RouteDescriptor{
 							unauthorizedResponseDescriptor,
 							repositoryNotFoundResponseDescriptor,
 							deniedResponseDescriptor,
+							tooManyRequestsDescriptor,
 						},
 					},
 				},
@@ -1175,6 +1197,7 @@ var routeDescriptors = []RouteDescriptor{
 							unauthorizedResponseDescriptor,
 							repositoryNotFoundResponseDescriptor,
 							deniedResponseDescriptor,
+							tooManyRequestsDescriptor,
 						},
 					},
 				},
@@ -1249,6 +1272,7 @@ var routeDescriptors = []RouteDescriptor{
 							unauthorizedResponseDescriptor,
 							repositoryNotFoundResponseDescriptor,
 							deniedResponseDescriptor,
+							tooManyRequestsDescriptor,
 						},
 					},
 					{
@@ -1334,6 +1358,7 @@ var routeDescriptors = []RouteDescriptor{
 							unauthorizedResponseDescriptor,
 							repositoryNotFoundResponseDescriptor,
 							deniedResponseDescriptor,
+							tooManyRequestsDescriptor,
 						},
 					},
 				},
@@ -1424,6 +1449,7 @@ var routeDescriptors = []RouteDescriptor{
 							unauthorizedResponseDescriptor,
 							repositoryNotFoundResponseDescriptor,
 							deniedResponseDescriptor,
+							tooManyRequestsDescriptor,
 						},
 					},
 				},
@@ -1480,6 +1506,7 @@ var routeDescriptors = []RouteDescriptor{
 							unauthorizedResponseDescriptor,
 							repositoryNotFoundResponseDescriptor,
 							deniedResponseDescriptor,
+							tooManyRequestsDescriptor,
 						},
 					},
 				},
