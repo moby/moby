@@ -8,6 +8,8 @@ package dockerfile
 // package.
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"regexp"
 	"runtime"
@@ -281,6 +283,21 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("WORKDIR %v", b.runConfig.WorkingDir))
 }
 
+func needsHash(key string) bool {
+	hashBuildArgs := []string{
+		"http_proxy",
+		"https_proxy",
+		"ftp_proxy",
+	}
+
+	for _, arg := range hashBuildArgs {
+		if strings.ToLower(key) == arg {
+			return true
+		}
+	}
+	return false
+}
+
 // RUN some command yo
 //
 // run a command and commit the image. Args are automatically prepended with
@@ -361,7 +378,23 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	saveCmd := config.Cmd
 	if len(cmdBuildEnv) > 0 {
 		sort.Strings(cmdBuildEnv)
-		tmpEnv := append([]string{fmt.Sprintf("|%d", len(cmdBuildEnv))}, cmdBuildEnv...)
+		saveCmdBuildEnv := []string{}
+
+		for _, env := range cmdBuildEnv {
+			buildEnv := strings.SplitN(env, "=", 2)
+			k := buildEnv[0]
+			v := buildEnv[1]
+			// hash build time args if needed
+			if needsHash(k) {
+				hasher := sha256.New()
+				hasher.Write([]byte(v))
+				saveCmdBuildEnv = append(saveCmdBuildEnv, fmt.Sprintf("%s=%s", k, hex.EncodeToString(hasher.Sum(nil))))
+			} else {
+				saveCmdBuildEnv = append(saveCmdBuildEnv, env)
+			}
+		}
+
+		tmpEnv := append([]string{fmt.Sprintf("|%d", len(saveCmdBuildEnv))}, saveCmdBuildEnv...)
 		saveCmd = strslice.StrSlice(append(tmpEnv, saveCmd...))
 	}
 
