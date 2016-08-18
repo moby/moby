@@ -1,87 +1,272 @@
 <!--[metadata]>
 +++
-title = "Extending Engine with plugins"
-description = "How to add additional functionality to Docker with plugins extensions"
-keywords = ["Examples, Usage, plugins, docker, documentation, user guide"]
+aliases = [
+"/engine/extend/"
+]
+title = "New Plugin System"
+description = "How to operate and create a plugin with the new system"
+keywords = ["API, Usage, plugins, documentation, developer"]
+advisory = "experimental"
 [menu.main]
 parent = "engine_extend"
-weight=-1
+weight=1
 +++
 <![end-metadata]-->
 
-# Understand Engine plugins
+# Docker Engine plugin system
 
-You can extend the capabilities of the Docker Engine by loading third-party
-plugins. This page explains the types of plugins and provides links to several
-volume and network plugins for Docker.
+This document describes the plugin system available today in the **experimental
+build** of Docker 1.12:
 
-## Types of plugins
+* [How to operate an existing plugin](#how-to-operate-a-plugin)
+* [How to develop a plugin](#how-to-develop-a-plugin)
 
-Plugins extend Docker's functionality.  They come in specific types.  For
-example, a [volume plugin](plugins_volume.md) might enable Docker
-volumes to persist across multiple Docker hosts and a
-[network plugin](plugins_network.md) might provide network plumbing.
+Unlike the legacy plugin system, you now manage plugins using Docker Engine:
 
-Currently Docker supports authorization, volume and network driver plugins. In the future it
-will support additional plugin types.
+* install plugins
+* start plugins
+* stop plugins
+* remove plugins
 
-## Installing a plugin
+The current Docker Engine plugin system only supports volume drivers. We are
+adding more plugin driver types in the future releases.
 
-Follow the instructions in the plugin's documentation.
+For information on Docker Engine plugins generally available in Docker Engine
+1.12 and earlier, refer to [Understand legacy Docker Engine plugins](legacy_plugins.md).
 
-## Finding a plugin
+## How to operate a plugin
 
-The sections below provide an inexhaustive overview of available plugins.
+Plugins are distributed as Docker images, so develpers can host them on Docker
+Hub or on a private registry.
 
-<style>
-#DocumentationText  tr td:first-child { white-space: nowrap;}
-</style>
+You install the plugin using a single command: `docker plugin install <PLUGIN>`.
+The `plugin install` command pulls the plugin from the Docker Hub or private
+registry. If necessary the CLI prompts you to accept any privilige requriements.
+For example the plugin may require access to a device on the host system.
+Finally it enables the plugin.
 
-### Network plugins
+Run `docker plugin ls` to check the status of installed plugins. The Engine
+markes plugins that are started without issues as `ENABLED`.
 
-Plugin                                                                              | Description
------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-[Contiv Networking](https://github.com/contiv/netplugin)                            | An open source network plugin to provide infrastructure and security policies for a multi-tenant micro services deployment, while providing an integration to physical network for non-container workload. Contiv Networking implements the remote driver and IPAM APIs available in Docker 1.9 onwards.
-[Kuryr Network Plugin](https://github.com/openstack/kuryr)                          | A network plugin is developed as part of the OpenStack Kuryr project and implements the Docker networking (libnetwork) remote driver API by utilizing Neutron, the OpenStack networking service. It includes an IPAM driver as well.
-[Weave Network Plugin](https://www.weave.works/docs/net/latest/introducing-weave/)    | A network plugin that creates a virtual network that connects your Docker containers - across multiple hosts or clouds and enables automatic discovery of applications. Weave networks are resilient, partition tolerant, secure and work in partially connected networks, and other adverse environments - all configured with delightful simplicity.
+After you install a plugin, the plugin behavior is the same as legacy plugins.
+The following example demonstrates how to install the `sshfs` plugin and use it
+to create a volume.
 
-### Volume plugins
+1.  Install the `sshfs` plugin.
 
-Plugin                                                                              | Description
------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-[Azure File Storage plugin](https://github.com/Azure/azurefile-dockervolumedriver)  | Lets you mount Microsoft [Azure File Storage](https://azure.microsoft.com/blog/azure-file-storage-now-generally-available/) shares to Docker containers as volumes using the SMB 3.0 protocol. [Learn more](https://azure.microsoft.com/blog/persistent-docker-volumes-with-azure-file-storage/).
-[Blockbridge plugin](https://github.com/blockbridge/blockbridge-docker-volume)      | A volume plugin that provides access to an extensible set of container-based persistent storage options. It supports single and multi-host Docker environments with features that include tenant isolation, automated provisioning, encryption, secure deletion, snapshots and QoS.
-[Contiv Volume Plugin](https://github.com/contiv/volplugin)                         | An open source volume plugin that provides multi-tenant, persistent, distributed storage with intent based consumption using ceph underneath.
-[Convoy plugin](https://github.com/rancher/convoy)                                  | A volume plugin for a variety of storage back-ends including device mapper and NFS. It's a simple standalone executable written in Go and provides the framework to support vendor-specific extensions such as snapshots, backups and restore.
-[DRBD plugin](https://www.drbd.org/en/supported-projects/docker)                    | A volume plugin that provides highly available storage replicated by [DRBD](https://www.drbd.org). Data written to the docker volume is replicated in a cluster of DRBD nodes.
-[Flocker plugin](https://clusterhq.com/docker-plugin/)                              | A volume plugin that provides multi-host portable volumes for Docker, enabling you to run databases and other stateful containers and move them around across a cluster of machines.
-[gce-docker plugin](https://github.com/mcuadros/gce-docker)                         | A volume plugin able to attach, format and mount Google Compute [persistent-disks](https://cloud.google.com/compute/docs/disks/persistent-disks).
-[GlusterFS plugin](https://github.com/calavera/docker-volume-glusterfs)             | A volume plugin that provides multi-host volumes management for Docker using GlusterFS.
-[Horcrux Volume Plugin](https://github.com/muthu-r/horcrux)                         | A volume plugin that allows on-demand, version controlled access to your data. Horcrux is an open-source plugin, written in Go, and supports SCP, [Minio](https://www.minio.io) and Amazon S3.
-[HPE 3Par Volume Plugin](https://github.com/hpe-storage/python-hpedockerplugin/)    | A volume plugin that supports HPE 3Par and StoreVirtual iSCSI storage arrays.
-[IPFS Volume Plugin](http://github.com/vdemeester/docker-volume-ipfs)               | An open source volume plugin that allows using an [ipfs](https://ipfs.io/) filesystem as a volume.
-[Keywhiz plugin](https://github.com/calavera/docker-volume-keywhiz)                 | A plugin that provides credentials and secret management using Keywhiz as a central repository.
-[Local Persist Plugin](https://github.com/CWSpear/local-persist)                    | A volume plugin that extends the default `local` driver's functionality by allowing you specify a mountpoint anywhere on the host, which enables the files to *always persist*, even if the volume is removed via `docker volume rm`.
-[NetApp Plugin](https://github.com/NetApp/netappdvp) (nDVP)                         | A volume plugin that provides direct integration with the Docker ecosystem for the NetApp storage portfolio. The nDVP package supports the provisioning and management of storage resources from the storage platform to Docker hosts, with a robust framework for adding additional platforms in the future.
-[Netshare plugin](https://github.com/ContainX/docker-volume-netshare)                 | A volume plugin that provides volume management for NFS 3/4, AWS EFS and CIFS file systems.
-[OpenStorage Plugin](https://github.com/libopenstorage/openstorage)                 | A cluster-aware volume plugin that provides volume management for file and block storage solutions.  It implements a vendor neutral specification for implementing extensions such as CoS, encryption, and snapshots. It has example drivers based on FUSE, NFS, NBD and EBS to name a few.
-[Quobyte Volume Plugin](https://github.com/quobyte/docker-volume)                   | A volume plugin that connects Docker to [Quobyte](http://www.quobyte.com/containers)'s data center file system, a general-purpose scalable and fault-tolerant storage platform.
-[REX-Ray plugin](https://github.com/emccode/rexray)                                 | A volume plugin which is written in Go and provides advanced storage functionality for many platforms including VirtualBox, EC2, Google Compute Engine, OpenStack, and EMC.
-[Virtuozzo Storage and Ploop plugin](https://github.com/virtuozzo/docker-volume-ploop) | A volume plugin with support for Virtuozzo Storage distributed cloud file system as well as ploop devices.
-[VMware vSphere Storage Plugin](https://github.com/vmware/docker-volume-vsphere)    | Docker Volume Driver for vSphere enables customers to address persistent storage requirements for Docker containers in vSphere environments.
+    ```bash
+    $ docker plugin install vieux/sshfs
 
-### Authorization plugins
+    Plugin "vieux/sshfs" is requesting the following privileges:
+    - network: [host]
+    - capabilities: [CAP_SYS_ADMIN]
+    Do you grant the above permissions? [y/N] y
 
- Plugin                                                       | Description                                                                                                                                                               
-------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
- [Twistlock AuthZ Broker](https://github.com/twistlock/authz) | A basic extendable authorization plugin that runs directly on the host or inside a container. This plugin allows you to define user policies that it evaluates during authorization. Basic authorization is provided if Docker daemon is started with the --tlsverify flag (username is extracted from the certificate common name).
+    vieux/sshfs
+    ```
 
-## Troubleshooting a plugin
+    The plugin requests 2 privileges, the `CAP_SYS_ADMIN` capability to be able
+    to do mount inside the plugin and `host networking`.
 
-If you are having problems with Docker after loading a plugin, ask the authors
-of the plugin for help. The Docker team may not be able to assist you.
+2. Check for a value of `true` the `ENABLED` column to verify the plugin
+started without error.
 
-## Writing a plugin
+    ```bash
+    $ docker plugin ls
 
-If you are interested in writing a plugin for Docker, or seeing how they work
-under the hood, see the [docker plugins reference](plugin_api.md).
+    NAME                TAG                 ENABLED
+    vieux/sshfs         latest              true
+    ```
+
+3. Create a volume using the plugin.
+
+    ```bash
+    $ docker volume create \
+      -d vieux/sshfs \
+      --name sshvolume \
+      -o sshcmd=user@1.2.3.4:/remote
+
+    sshvolume
+    ```
+
+4.  Use the volume `sshvolume`.
+
+    ```bash
+    $ docker run -v sshvolume:/data busybox ls /data
+
+    <content of /remote on machine 1.2.3.4>
+    ```
+
+5. Verify the plugin successfully created the volume.
+
+    ```bash
+    $ docker volume ls
+
+    DRIVER              NAME
+    vieux/sshfs         sshvolume
+    ```
+
+    You can stop a plugin with the `docker plugin disable`
+    command or remove a plugin with `docker plugin remove`.
+
+See the [command line reference](../reference/commandline/index.md) for more
+information.
+
+## How to develop a plugin
+
+Plugin creation is currently a manual process. We plan to add automation in a
+future release with a command such as `docker plugin build`.
+
+This section describes the format of an existing enabled plugin. You have to
+create and format the plugin files by hand.
+
+Plugins are stored in `/var/lib/docker/plugins`. For instance:
+
+```bash
+# ls -la /var/lib/docker/plugins
+total 20
+drwx------  4 root root 4096 Aug  8 18:03 .
+drwx--x--x 12 root root 4096 Aug  8 17:53 ..
+drwxr-xr-x  3 root root 4096 Aug  8 17:56 cd851ce43a403
+-rw-------  1 root root 2107 Aug  8 18:03 plugins.json
+```
+
+`plugins.json` is an inventory of all installed plugins. For example:
+
+```bash
+# cat plugins.json
+{
+  "cd851ce43a403": {
+    "plugin": {
+      "Manifest": {
+        "Args": {
+          "Value": null,
+          "Settable": null,
+          "Description": "",
+          "Name": ""
+        },
+        "Env": null,
+        "Devices": null,
+        "Mounts": null,
+        "Capabilities": [
+          "CAP_SYS_ADMIN"
+        ],
+        "ManifestVersion": "v0.1",
+        "Description": "sshFS plugin for Docker",
+        "Documentation": "https://docs.docker.com/engine/extend/plugins/",
+        "Interface": {
+          "Socket": "sshfs.sock",
+          "Types": [
+            "docker.volumedriver/1.0"
+          ]
+        },
+        "Entrypoint": [
+          "/go/bin/docker-volume-sshfs"
+        ],
+        "Workdir": "",
+        "User": {},
+        "Network": {
+          "Type": "host"
+        }
+      },
+      "Config": {
+        "Devices": null,
+        "Args": null,
+        "Env": [],
+        "Mounts": []
+      },
+      "Active": true,
+      "Tag": "latest",
+      "Name": "vieux/sshfs",
+      "Id": "cd851ce43a403"
+    }
+  }
+}
+```
+
+Each folder represents a plugin. For example:
+
+```bash
+# ls -la /var/lib/docker/plugins/cd851ce43a403
+total 12
+drwx------ 19 root root 4096 Aug  8 17:56 rootfs
+-rw-r--r--  1 root root   50 Aug  8 17:56 plugin-config.json
+-rw-------  1 root root  347 Aug  8 17:56 manifest.json
+```
+
+`rootfs` represents the root filesystem of the plugin. In this example, it was
+created from a Dockerfile as follows:
+
+>**Note:** `/run/docker/plugins` is mandatory for docker to communicate with
+the plugin._
+
+```bash
+$ git clone github.com/vieux/docker-volume-sshfs
+$ cd docker-volume-sshfs
+$ docker build -t rootfs .
+$ id=$(docker create rootfs true) # id was cd851ce43a403 when the image was created
+$ mkdir -p /var/lib/docker/plugins/$id/rootfs
+$ docker export "$id" | tar -x -C /var/lib/docker/plugins/$id/rootfs
+$ docker rm -vf "$id"
+$ docker rmi rootfs
+```
+
+`manifest.json` describes the plugin and `plugin-config.json` contains some
+runtime parameters. For example:
+
+```bash
+# cat manifest.json
+{
+	"manifestVersion": "v0.1",
+	"description": "sshFS plugin for Docker",
+	"documentation": "https://docs.docker.com/engine/extend/plugins/",
+	"entrypoint": ["/go/bin/docker-volume-sshfs"],
+	"network": {
+		   "type": "host"
+		   },
+		   "interface" : {
+		   	       "types": ["docker.volumedriver/1.0"],
+			       		"socket": "sshfs.sock"
+					},
+					"capabilities": ["CAP_SYS_ADMIN"]
+}
+```
+
+In this example, you can see the plugin is a volume driver, requires the
+`CAP_SYS_ADMIN` capability, `host networking`, `/go/bin/docker-volume-sshfs` as
+entrypoint and is going to use `/run/docker/plugins/sshfs.sock` to communicate
+with the Docker Engine.
+
+```bash
+# cat plugin-config.json
+{
+  "Devices": null,
+  "Args": null,
+  "Env": [],
+  "Mounts": []
+}
+```
+
+This plugin doesn't require runtime parameters.
+
+Both `manifest.json` and `plugin-config.json` are part of the `plugins.json`.
+`manifest.json` is read-only and `plugin-config.json` is read-write.
+
+To summarize, follow the steps below to create a plugin:
+
+0. Choose a name for the plugin. Plugin name uses the same format as images,
+for example: `<repo_name>/<name>`.
+1. Create a rootfs in `/var/lib/docker/plugins/$id/rootfs`.
+2. Create manifest.json file in `/var/lib/docker/plugins/$id/`.
+3. Create a `plugin-config.json` if needed.
+4. Create or add a section to `/var/lib/docker/plugins/plugins.json`. Use
+   `<user>/<name>` as “Name” and `$id` as “Id”.
+5. Restart the Docker Engine.
+6. Run `docker plugin ls`.
+    * If your plugin is listed as `ENABLED=true`, you can push it to the
+    registry.
+    * If the plugin is not listed or if `ENABLED=false`, something went wrong.
+    Check the daemon logs for errors.
+7. If you are not already logged in, use `docker login` to authenticate against
+   a registry.
+8. Run `docker plugin push <repo_name>/<name>` to push the plugin.
