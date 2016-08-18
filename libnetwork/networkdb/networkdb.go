@@ -326,6 +326,8 @@ func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
 
 		nDB.indexes[byTable].Insert(fmt.Sprintf("/%s/%s/%s", tname, nid, key), entry)
 		nDB.indexes[byNetwork].Insert(fmt.Sprintf("/%s/%s/%s", nid, tname, key), entry)
+
+		nDB.broadcaster.Write(makeEvent(opDelete, tname, nid, key, entry.value))
 		return false
 	})
 	nDB.Unlock()
