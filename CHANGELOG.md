@@ -5,15 +5,13 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
-## 1.12.0 (2016-07-14)
+## 1.12.1 (2016-08-18)
 
-
-**IMPORTANT**:
-
-Docker 1.12.0 ships with an updated systemd unit file for rpm based installs
-(which includes RHEL, Fedora, CentOS, and Oracle Linux 7). When upgrading from
-an older version of docker, the upgrade process may not automatically install
-the updated version of the unit file, or fail to start the docker service if;
+**IMPORTANT**: Docker 1.12 ships with an updated systemd unit file for rpm
+based installs (which includes RHEL, Fedora, CentOS, and Oracle Linux 7). When
+upgrading from an older version of docker, the upgrade process may not
+automatically install the updated version of the unit file, or fail to start
+the docker service if;
 
 - the systemd unit file (`/usr/lib/systemd/system/docker.service`) contains local changes, or
 - a systemd drop-in file is present, and contains `-H fd://` in the `ExecStart` directive
@@ -29,7 +27,99 @@ or
 To resolve this:
 
 - Backup the current version of the unit file, and replace the file with the
-  version that ships with docker 1.12 (https://raw.githubusercontent.com/docker/docker/v1.12.0/contrib/init/systemd/docker.service.rpm)
+  [version that ships with docker 1.12](https://raw.githubusercontent.com/docker/docker/v1.12.0/contrib/init/systemd/docker.service.rpm)
+- Remove the `Requires=docker.socket` directive from the `/usr/lib/systemd/system/docker.service` file if present
+- Remove `-H fd://` from the `ExecStart` directive (both in the main unit file, and in any drop-in files present).
+
+After making those changes, run `sudo systemctl daemon-reload`, and `sudo
+systemctl restart docker` to reload changes and (re)start the docker daemon.
+
+
+### Client
+
+* Add `Joined at` information in `node inspect --pretty` [#25512](https://github.com/docker/docker/pull/25512)
+- Fix a crash on `service inspect` [#25454](https://github.com/docker/docker/pull/25454)
+- Fix issue preventing `service update --env-add` to work as intended [#25427](https://github.com/docker/docker/pull/25427)
+- Fix issue preventing `service update --publish-add` to work as intended [#25428](https://github.com/docker/docker/pull/25428)
+- Remove `service update --network-add` and `service update --network-rm` flags
+  because this feature is not yet implemented in 1.12, but was inadvertently added
+  to the client in 1.12.0 [#25646](https://github.com/docker/docker/pull/25646) 
+
+### Contrib
+
++ Official ARM installation for Debian Jessie, Ubuntu Trusty, and Raspbian Jessie [#24815](https://github.com/docker/docker/pull/24815) [#25591](https://github.com/docker/docker/pull/25637)
+- Add selinux policy per distro/version, fixing issue preventing successful installation on Fedora 24, and Oracle Linux [#25334](https://github.com/docker/docker/pull/25334) [#25593](https://github.com/docker/docker/pull/25593)
+
+### Networking
+
+- Fix issue that prevented containers to be accessed by hostname with Docker overlay driver in Swarm Mode [#25603](https://github.com/docker/docker/pull/25603) [#25648](https://github.com/docker/docker/pull/25648)
+- Fix random network issues on service with published port [#25603](https://github.com/docker/docker/pull/25603)
+- Fix unreliable inter-service communication after scaling down and up [#25603](https://github.com/docker/docker/pull/25603)
+- Fix issue where removing all tasks on a node and adding them back breaks connectivity with other services [#25603](https://github.com/docker/docker/pull/25603)
+- Fix issue where a task that fails to start results in a race, causing a `network xxx not found` error that masks the actual error [#25550](https://github.com/docker/docker/pull/25550)
+- Relax validation of SRV records for external services that use SRV records not formatted according to RFC 2782 [#25739](https://github.com/docker/docker/pull/25739)
+
+### Plugins (experimental)
+
+* Make daemon events listen for plugin lifecycle events [#24760](https://github.com/docker/docker/pull/24760)
+* Check for plugin state before enabling plugin [#25033](https://github.com/docker/docker/pull/25033)
+- Remove plugin root from filesystem on `plugin rm` [#25187](https://github.com/docker/docker/pull/25187)
+- Prevent deadlock when more than one plugin is installed [#25384](https://github.com/docker/docker/pull/25384)
+
+### Runtime
+
+* Mask join tokens in daemon logs [#25346](https://github.com/docker/docker/pull/25346)
+- Fix `docker ps --filter` causing the results to no longer be sorted by creation time [#25387](https://github.com/docker/docker/pull/25387)
+- Fix various crashes [#25053](https://github.com/docker/docker/pull/25053)
+
+### Security
+
+* Add `/proc/timer_list` to the masked paths list to prevent information leak from the host [#25630](https://github.com/docker/docker/pull/25630)
+* Allow systemd to run with only `--cap-add SYS_ADMIN` rather than having to also add `--cap-add DAC_READ_SEARCH` or disabling seccomp filtering [#25567](https://github.com/docker/docker/pull/25567)
+
+### Swarm
+
+- Fix an issue where the swarm can get stuck electing a new leader after quorum is lost [#25055](https://github.com/docker/docker/issues/25055)
+- Fix unwanted rescheduling of containers after a leader failover [#25017](https://github.com/docker/docker/issues/25017)
+- Change swarm root CA key to P256 curve [swarmkit#1376](https://github.com/docker/swarmkit/pull/1376)
+- Allow forced removal of a node from a swarm [#25159](https://github.com/docker/docker/pull/25159)
+- Fix connection leak when a node leaves a swarm [swarmkit/#1277](https://github.com/docker/swarmkit/pull/1277)
+- Backdate swarm certificates by one hour to tolerate more clock skew [swarmkit/#1243](https://github.com/docker/swarmkit/pull/1243)
+- Avoid high CPU use with many unschedulable tasks [swarmkit/#1287](https://github.com/docker/swarmkit/pull/1287)
+- Fix issue with global tasks not starting up [swarmkit/#1295](https://github.com/docker/swarmkit/pull/1295)
+- Garbage collect raft logs [swarmkit/#1327](https://github.com/docker/swarmkit/pull/1327)
+
+### Volume
+
+- Persist local volume options after a daemon restart [#25316](https://github.com/docker/docker/pull/25316)
+- Fix an issue where the mount ID was not returned on volume unmount [#25333](https://github.com/docker/docker/pull/25333)
+- Fix an issue where a volume mount could inadvertently create a bind mount [#25309](https://github.com/docker/docker/pull/25309)
+- `docker service create --mount type=bind,...` now correctly validates if the source path exists, instead of creating it [#25494](https://github.com/docker/docker/pull/25494)
+
+## 1.12.0 (2016-07-28)
+
+
+**IMPORTANT**: Docker 1.12.0 ships with an updated systemd unit file for rpm
+based installs (which includes RHEL, Fedora, CentOS, and Oracle Linux 7). When
+upgrading from an older version of docker, the upgrade process may not
+automatically install the updated version of the unit file, or fail to start
+the docker service if;
+
+- the systemd unit file (`/usr/lib/systemd/system/docker.service`) contains local changes, or
+- a systemd drop-in file is present, and contains `-H fd://` in the `ExecStart` directive
+
+Starting the docker service will produce an error:
+
+    Failed to start docker.service: Unit docker.socket failed to load: No such file or directory.
+
+or
+
+    no sockets found via socket activation: make sure the service was started by systemd.
+
+To resolve this:
+
+- Backup the current version of the unit file, and replace the file with the
+  [version that ships with docker 1.12](https://raw.githubusercontent.com/docker/docker/v1.12.0/contrib/init/systemd/docker.service.rpm)
 - Remove the `Requires=docker.socket` directive from the `/usr/lib/systemd/system/docker.service` file if present
 - Remove `-H fd://` from the `ExecStart` directive (both in the main unit file, and in any drop-in files present).
 
