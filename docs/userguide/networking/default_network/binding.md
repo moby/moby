@@ -12,7 +12,7 @@ parent = "smn_networking_def"
 
 The information in this section explains binding container ports within the Docker default bridge. This is a `bridge` network named `bridge` created automatically when you install Docker.
 
-> **Note**: The [Docker networks feature](../dockernetworks.md) allows you to
+> **Note**: The [Docker networks feature](../index.md) allows you to
 create user-defined networks in addition to the default bridge network.
 
 By default Docker containers can make connections to the outside world, but the
@@ -100,6 +100,6 @@ address: this alternative is preferred for performance reasons.
 
 ## Related information
 
-- [Understand Docker container networks](../dockernetworks.md)
+- [Understand Docker container networks](../index.md)
 - [Work with network commands](../work-with-networks.md)
 - [Legacy container links](dockerlinks.md)

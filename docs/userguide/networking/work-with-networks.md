@@ -23,7 +23,7 @@ available through the Docker Engine CLI. These commands are:
 * `docker network inspect`
 
 While not required, it is a good idea to read [Understanding Docker
-network](dockernetworks.md) before trying the examples in this section. The
+network](index.md) before trying the examples in this section. The
 examples for the rely on a `bridge` network so that you can try them
 immediately.  If you would prefer to experiment with an `overlay` network see
 the [Getting started with multi-host networks](get-started-overlay.md) instead.

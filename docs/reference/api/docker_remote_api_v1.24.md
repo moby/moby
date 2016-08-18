@@ -327,6 +327,7 @@ Create a container
              "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
              "NetworkMode": "bridge",
              "Devices": [],
+             "Sysctls": { "net.ipv4.ip_forward": "1" },
              "Ulimits": [{}],
              "LogConfig": { "Type": "json-file", "Config": {} },
              "SecurityOpt": [],
@@ -4084,6 +4085,54 @@ JSON Parameters:
 
 ## 3.8 Swarm
 
+### Inspect swarm
+
+
+`GET /swarm`
+
+Inspect swarm
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+      "CreatedAt" : "2016-08-15T16:00:20.349727406Z",
+      "Spec" : {
+        "Dispatcher" : {
+          "HeartbeatPeriod" : 5000000000
+        },
+        "Orchestration" : {
+         "TaskHistoryRetentionLimit" : 10
+        },
+        "CAConfig" : {
+          "NodeCertExpiry" : 7776000000000000
+        },
+        "Raft" : {
+          "LogEntriesForSlowFollowers" : 500,
+          "HeartbeatTick" : 1,
+          "SnapshotInterval" : 10000,
+          "ElectionTick" : 3
+        },
+        "TaskDefaults" : {},
+        "Name" : "default"
+      },
+     "JoinTokens" : {
+        "Worker" : "SWMTKN-1-1h8aps2yszaiqmz2l3oc5392pgk8e49qhx2aj3nyv0ui0hez2a-6qmn92w6bu3jdvnglku58u11a",
+        "Manager" : "SWMTKN-1-1h8aps2yszaiqmz2l3oc5392pgk8e49qhx2aj3nyv0ui0hez2a-8llk83c4wm9lwioey2s316r9l"
+     },
+     "ID" : "70ilmkj2f6sp2137c753w2nmt",
+     "UpdatedAt" : "2016-08-15T16:32:09.623207604Z",
+     "Version" : {
+       "Index" : 51
+    }
+  }
+
+**Status codes**:
+
+- **200** - no error
+
 ### Initialize a new swarm
 
 
@@ -4403,7 +4452,10 @@ List services
 
 `POST /services/create`
 
-Create a service
+Create a service. When using this endpoint to create a service using a private
+repository from the registry, the `X-Registry-Auth` header must be used to
+include a base64-encoded AuthConfig object. Refer to the [create an
+image](#create-an-image) section for more details.
 
 **Example request**:
 
@@ -4483,7 +4535,7 @@ Create a service
     Content-Type: application/json
 
     {
-      "Id":"ak7w3gjqoa3kuz8xcpnyy0pvl"
+      "ID":"ak7w3gjqoa3kuz8xcpnyy0pvl"
     }
 
 **Status codes**:
@@ -4494,10 +4546,8 @@ Create a service
 
 JSON Parameters:
 
-- **Annotations** – Optional medata to associate with the service.
-    - **Name** – User-defined name for the service.
-    - **Labels** – A map of labels to associate with the service (e.g.,
-      `{"key":"value"[,"key2":"value2"]}`).
+- **Name** – User-defined name for the service.
+- **Labels** – A map of labels to associate with the service (e.g., `{"key":"value"[,"key2":"value2"]}`).
 - **TaskTemplate** – Specification of the tasks to start as part of the new service.
     - **ContainerSpec** - Container settings for containers started as part of this task.
         - **Image** – A string specifying the image name to use for the container.
@@ -4563,6 +4613,14 @@ JSON Parameters:
           of: `"Ports": { "<port>/<tcp|udp>: {}" }`
     - **VirtualIPs**
 
+**Request Headers**:
+
+- **Content-type** – Set to `"application/json"`.
+- **X-Registry-Auth** – base64-encoded AuthConfig object, containing either
+  login information, or a token. Refer to the [create an image](#create-an-image)
+  section for more details.
+
+
 ### Remove a service
 
 
@@ -4576,11 +4634,11 @@ Stop and remove the service `id`
 
 **Example response**:
 
-    HTTP/1.1 204 No Content
+    HTTP/1.1 200 No Content
 
 **Status codes**:
 
--   **204** – no error
+-   **200** – no error
 -   **404** – no such service
 -   **500** – server error
 
@@ -4667,11 +4725,16 @@ Return information on the service `id`.
 
 `POST /services/(id or name)/update`
 
-Update the service `id`.
+Update a service. When using this endpoint to create a service using a
+private repository from the registry, the `X-Registry-Auth` header can be used
+to update the authentication information for that is stored for the service.
+The header contains a base64-encoded AuthConfig object. Refer to the [create an
+image](#create-an-image) section for more details.
 
 **Example request**:
 
-    POST /services/1cb4dnqcyx6m66g2t538x3rxha/update HTTP/1.1
+    POST /services/1cb4dnqcyx6m66g2t538x3rxha/update?version=23 HTTP/1.1
+    Content-Type: application/json
 
     {
       "Name": "top",
@@ -4713,10 +4776,8 @@ Update the service `id`.
 
 **JSON Parameters**:
 
-- **Annotations** – Optional medata to associate with the service.
-    - **Name** – User-defined name for the service.
-    - **Labels** – A map of labels to associate with the service (e.g.,
-      `{"key":"value"[,"key2":"value2"]}`).
+- **Name** – User-defined name for the service.
+- **Labels** – A map of labels to associate with the service (e.g., `{"key":"value"[,"key2":"value2"]}`).
 - **TaskTemplate** – Specification of the tasks to start as part of the new service.
     - **ContainerSpec** - Container settings for containers started as part of this task.
         - **Image** – A string specifying the image name to use for the container.
@@ -4780,12 +4841,19 @@ Update the service `id`.
 - **version** – The version number of the service object being updated. This is
   required to avoid conflicting writes.
 
+**Request Headers**:
+
+- **Content-type** – Set to `"application/json"`.
+- **X-Registry-Auth** – base64-encoded AuthConfig object, containing either
+  login information, or a token. Refer to the [create an image](#create-an-image)
+  section for more details.
+
 **Status codes**:
 
 -   **200** – no error
 -   **404** – no such service
 -   **500** – server error
-
+ 
 ## 3.10 Tasks
 
 **Note**: Task operations require the engine to be part of a swarm.

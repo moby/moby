@@ -93,5 +93,5 @@ You can connect a container to one or more networks. The networks need not be th
 * [network disconnect](network_disconnect.md)
 * [network ls](network_ls.md)
 * [network rm](network_rm.md)
-* [Understand Docker container networks](../../userguide/networking/dockernetworks.md)
+* [Understand Docker container networks](../../userguide/networking/index.md)
 * [Work with networks](../../userguide/networking/work-with-networks.md)
