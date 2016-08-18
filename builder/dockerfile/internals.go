@@ -434,6 +434,7 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 			return err
 		}
 
+		total := len(ast.Children)
 		for i, n := range ast.Children {
 			switch strings.ToUpper(n.Value) {
 			case "ONBUILD":
@@ -442,7 +443,7 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 				return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", n.Value)
 			}
 
-			if err := b.dispatch(i, n); err != nil {
+			if err := b.dispatch(i, total, n); err != nil {
 				return err
 			}
 		}

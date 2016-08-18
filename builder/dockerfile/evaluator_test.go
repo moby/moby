@@ -184,7 +184,7 @@ func executeTestCase(t *testing.T, testCase dispatchTestCase) {
 
 	b := &Builder{runConfig: config, options: options, Stdout: ioutil.Discard, context: context}
 
-	err = b.dispatch(0, n.Children[0])
+	err = b.dispatch(0, len(n.Children), n.Children[0])
 
 	if err == nil {
 		t.Fatalf("No error when executing test %s", testCase.name)
