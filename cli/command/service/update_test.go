@@ -345,3 +345,43 @@ func TestUpdateHosts(t *testing.T) {
 	assert.Equal(t, hosts[1], "2001:db8:abc8::1 ipv6.net")
 	assert.Equal(t, hosts[2], "4.3.2.1 example.org")
 }
+
+func TestUpdatePortsRmWithProtocol(t *testing.T) {
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("publish-add", "8081:81")
+	flags.Set("publish-add", "8082:82")
+	flags.Set("publish-rm", "80")
+	flags.Set("publish-rm", "81/tcp")
+	flags.Set("publish-rm", "82/udp")
+
+	portConfigs := []swarm.PortConfig{
+		{TargetPort: 80, PublishedPort: 8080, Protocol: swarm.PortConfigProtocolTCP},
+	}
+
+	err := updatePorts(flags, &portConfigs)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, len(portConfigs), 1)
+	assert.Equal(t, portConfigs[0].TargetPort, uint32(82))
+}
+
+func TestValidatePort(t *testing.T) {
+	validPorts := []string{"80/tcp", "80", "80/udp"}
+	invalidPorts := map[string]string{
+		"9999999":   "out of range",
+		"80:80/tcp": "invalid port format",
+		"53:53/udp": "invalid port format",
+		"80:80":     "invalid port format",
+		"80/xyz":    "invalid protocol",
+		"tcp":       "invalid syntax",
+		"udp":       "invalid syntax",
+		"":          "invalid protocol",
+	}
+	for _, port := range validPorts {
+		_, err := validatePublishRemove(port)
+		assert.Equal(t, err, nil)
+	}
+	for port, e := range invalidPorts {
+		_, err := validatePublishRemove(port)
+		assert.Error(t, err, e)
+	}
+}

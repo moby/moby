@@ -47,7 +47,7 @@ func newUpdateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags.Var(newListOptsVar(), flagLabelRemove, "Remove a label by its key")
 	flags.Var(newListOptsVar(), flagContainerLabelRemove, "Remove a container label by its key")
 	flags.Var(newListOptsVar(), flagMountRemove, "Remove a mount by its target path")
-	flags.Var(newListOptsVar(), flagPublishRemove, "Remove a published port by its target port")
+	flags.Var(newListOptsVar().WithValidator(validatePublishRemove), flagPublishRemove, "Remove a published port by its target port")
 	flags.MarkHidden(flagPublishRemove)
 	flags.Var(newListOptsVar(), flagPortRemove, "Remove a port(target-port mandatory)")
 	flags.Var(newListOptsVar(), flagConstraintRemove, "Remove a constraint")
@@ -643,6 +643,23 @@ func portConfigToString(portConfig *swarm.PortConfig) string {
 	}
 
 	return fmt.Sprintf("%v:%v/%s/%s", portConfig.PublishedPort, portConfig.TargetPort, protocol, mode)
+}
+
+// This validation is only used for `--publish-rm`.
+// The `--publish-rm` takes:
+// <TargetPort>[/<Protocol>] (e.g., 80, 80/tcp, 53/udp)
+func validatePublishRemove(val string) (string, error) {
+	proto, port := nat.SplitProtoPort(val)
+	if proto != "tcp" && proto != "udp" {
+		return "", fmt.Errorf("invalid protocol '%s' for %s", proto, val)
+	}
+	if strings.Contains(port, ":") {
+		return "", fmt.Errorf("invalid port format: '%s', should be <TargetPort>[/<Protocol>] (e.g., 80, 80/tcp, 53/udp)", port)
+	}
+	if _, err := nat.ParsePort(port); err != nil {
+		return "", err
+	}
+	return val, nil
 }
 
 func updatePorts(flags *pflag.FlagSet, portConfig *[]swarm.PortConfig) error {
