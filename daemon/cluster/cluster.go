@@ -103,6 +103,9 @@ type Config struct {
 	// DefaultAdvertiseAddr is the default host/IP or network interface to use
 	// if no AdvertiseAddr value is specified.
 	DefaultAdvertiseAddr string
+
+	// path to store runtime state, such as the swarm control socket
+	RuntimeRoot string
 }
 
 // Cluster provides capabilities to participate in a cluster as a worker or a
@@ -111,6 +114,7 @@ type Cluster struct {
 	sync.RWMutex
 	*node
 	root            string
+	runtimeRoot     string
 	config          Config
 	configEvent     chan struct{} // todo: make this array and goroutine safe
 	localAddr       string
@@ -138,10 +142,17 @@ func New(config Config) (*Cluster, error) {
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, err
 	}
+	if config.RuntimeRoot == "" {
+		config.RuntimeRoot = root
+	}
+	if err := os.MkdirAll(config.RuntimeRoot, 0700); err != nil {
+		return nil, err
+	}
 	c := &Cluster{
 		root:        root,
 		config:      config,
 		configEvent: make(chan struct{}, 10),
+		runtimeRoot: config.RuntimeRoot,
 	}
 
 	st, err := c.loadState()
@@ -275,7 +286,7 @@ func (c *Cluster) startNewNode(forceNewCluster bool, localAddr, remoteAddr, list
 	n, err := swarmagent.NewNode(&swarmagent.NodeConfig{
 		Hostname:           c.config.Name,
 		ForceNewCluster:    forceNewCluster,
-		ListenControlAPI:   filepath.Join(c.root, controlSocket),
+		ListenControlAPI:   filepath.Join(c.runtimeRoot, controlSocket),
 		ListenRemoteAPI:    listenAddr,
 		AdvertiseRemoteAPI: advertiseAddr,
 		JoinAddr:           joinAddr,

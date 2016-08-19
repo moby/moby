@@ -41,6 +41,7 @@ type Daemon struct {
 	userlandProxy     bool
 	useDefaultHost    bool
 	useDefaultTLSHost bool
+	execRoot          string
 }
 
 type clientConfig struct {
@@ -81,6 +82,7 @@ func NewDaemon(c *check.C) *Daemon {
 		root:          daemonRoot,
 		storageDriver: os.Getenv("DOCKER_GRAPHDRIVER"),
 		userlandProxy: userlandProxy,
+		execRoot:      filepath.Join(os.TempDir(), "docker-execroot", id),
 	}
 }
 
@@ -145,7 +147,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	args := append(d.GlobalFlags,
 		"--containerd", "/var/run/docker/libcontainerd/docker-containerd.sock",
 		"--graph", d.root,
-		"--exec-root", filepath.Join(d.folder, "exec-root"),
+		"--exec-root", d.execRoot,
 		"--pidfile", fmt.Sprintf("%s/docker.pid", d.folder),
 		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
 	)
