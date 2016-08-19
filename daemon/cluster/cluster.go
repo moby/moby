@@ -509,6 +509,14 @@ func (c *Cluster) stopNode() error {
 	return nil
 }
 
+func removingManagerCausesLossOfQuorum(reachable, unreachable int) bool {
+	return reachable-2 <= unreachable
+}
+
+func isLastManager(reachable, unreachable int) bool {
+	return reachable == 1 && unreachable == 0
+}
+
 // Leave shuts down Cluster and removes current state.
 func (c *Cluster) Leave(force bool) error {
 	c.Lock()
@@ -523,8 +531,8 @@ func (c *Cluster) Leave(force bool) error {
 		if c.isActiveManager() {
 			active, reachable, unreachable, err := c.managerStats()
 			if err == nil {
-				if active && reachable-2 <= unreachable {
-					if reachable == 1 && unreachable == 0 {
+				if active && removingManagerCausesLossOfQuorum(reachable, unreachable) {
+					if isLastManager(reachable, unreachable) {
 						msg += "Removing the last manager erases all current state of the swarm. Use `--force` to ignore this message. "
 						c.Unlock()
 						return fmt.Errorf(msg)
@@ -1270,8 +1278,8 @@ func (c *Cluster) Cleanup() {
 	if c.isActiveManager() {
 		active, reachable, unreachable, err := c.managerStats()
 		if err == nil {
-			singlenode := active && reachable == 1 && unreachable == 0
-			if active && !singlenode && reachable-2 <= unreachable {
+			singlenode := active && isLastManager(reachable, unreachable)
+			if active && !singlenode && removingManagerCausesLossOfQuorum(reachable, unreachable) {
 				logrus.Errorf("Leaving cluster with %v managers left out of %v. Raft quorum will be lost.", reachable-1, reachable+unreachable)
 			}
 		}
