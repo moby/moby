@@ -210,7 +210,6 @@ func (s *State) SetExitCode(ec int) {
 func (s *State) SetRunning(pid int, initial bool) {
 	s.error = ""
 	s.Running = true
-	s.Paused = false
 	s.Restarting = false
 	s.exitCode = 0
 	s.Pid = pid
