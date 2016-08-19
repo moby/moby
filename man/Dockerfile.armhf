@@ -9,6 +9,7 @@ RUN     export GLIDE=v0.11.1; \
         mkdir -p ${TARGET} && \
         git clone https://github.com/Masterminds/glide.git ${TARGET}/glide && \
         cd ${TARGET}/glide && \
+        git checkout $GLIDE && \
         make build && \
         cp ./glide /usr/bin/glide && \
         cd / && rm -rf /go/src/* /go/bin/* /go/pkg/*
