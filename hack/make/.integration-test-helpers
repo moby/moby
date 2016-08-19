@@ -23,22 +23,15 @@ go_test_dir() {
 	testcover=()
 	testcoverprofile=()
 	testbinary="$DEST/test.main"
-	if [ "$HAVE_GO_TEST_COVER" ]; then
-		# if our current go install has -cover, we want to use it :)
-		mkdir -p "$DEST/coverprofiles"
-		coverprofile="docker${dir#.}"
-		coverprofile="$ABS_DEST/coverprofiles/${coverprofile//\//-}"
-		testcover=( -test.cover )
-		testcoverprofile=( -test.coverprofile "$coverprofile" $coverpkg )
-	fi
 	(
+		mkdir -p "$DEST/coverprofiles"
 		echo '+ go test' $TESTFLAGS "${DOCKER_PKG}${dir#.}"
 		cd "$dir"
 		export DEST="$ABS_DEST" # in a subshell this is safe -- our integration-cli tests need DEST, and "cd" screws it up
-		go test -c -o "$testbinary" ${testcover[@]} -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}"
+		go test -c -o "$testbinary" -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}"
 		i=0
 		while ((++i)); do
-			test_env "$testbinary" ${testcoverprofile[@]} $TESTFLAGS
+			test_env "$testbinary" $TESTFLAGS
 			if [ $i -gt "$TEST_REPEAT" ]; then
 				break
 			fi
