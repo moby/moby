@@ -307,13 +307,16 @@ func (c *controller) clusterAgentInit() {
 			c.Lock()
 			c.clusterConfigAvailable = false
 			c.agentInitDone = make(chan struct{})
+			c.keys = nil
 			c.Unlock()
 
 			if err := c.ingressSandbox.Delete(); err != nil {
 				log.Warnf("Could not delete ingress sandbox while leaving: %v", err)
 			}
 
+			c.Lock()
 			c.ingressSandbox = nil
+			c.Unlock()
 
 			n, err := c.NetworkByName("ingress")
 			if err != nil {

@@ -328,7 +328,10 @@ func (c *controller) agentClose() {
 	c.agent.epTblCancel()
 
 	c.agent.networkDB.Close()
+
+	c.Lock()
 	c.agent = nil
+	c.Unlock()
 }
 
 func (n *network) isClusterEligible() bool {
