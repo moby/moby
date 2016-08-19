@@ -1360,6 +1360,7 @@ __docker_volume_subcommand() {
         (rm)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                "($help -f --force)"{-f,--force}"[Force the removal of one or more volumes]" \
                 "($help -):volume:__docker_volumes" && ret=0
             ;;
         (help)
