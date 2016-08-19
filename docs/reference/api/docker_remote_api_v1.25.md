@@ -3062,6 +3062,11 @@ Instruct the driver to remove the volume (`name`).
 
     HTTP/1.1 204 No Content
 
+**Query Parameters**:
+
+-   **force** - 1/True/true or 0/False/false, Force the removal of the volume.
+        Default `false`.
+
 **Status codes**:
 
 -   **204** - no error
