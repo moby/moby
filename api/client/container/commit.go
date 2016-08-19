@@ -1,7 +1,6 @@
 package container
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"golang.org/x/net/context"
@@ -10,7 +9,6 @@ import (
 	"github.com/docker/docker/cli"
 	dockeropts "github.com/docker/docker/opts"
 	"github.com/docker/engine-api/types"
-	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/spf13/cobra"
 )
 
@@ -22,7 +20,6 @@ type commitOptions struct {
 	comment string
 	author  string
 	changes dockeropts.ListOpts
-	config  string
 }
 
 // NewCommitCommand creates a new cobra.Command for `docker commit`
@@ -53,10 +50,6 @@ func NewCommitCommand(dockerCli *client.DockerCli) *cobra.Command {
 	opts.changes = dockeropts.NewListOpts(nil)
 	flags.VarP(&opts.changes, "change", "c", "Apply Dockerfile instruction to the created image")
 
-	// FIXME: --run is deprecated, it will be replaced with inline Dockerfile commands.
-	flags.StringVar(&opts.config, "run", "", "This option is deprecated and will be removed in a future version in favor of inline Dockerfile-compatible commands")
-	flags.MarkDeprecated("run", "it will be replaced with inline Dockerfile commands.")
-
 	return cmd
 }
 
@@ -66,21 +59,12 @@ func runCommit(dockerCli *client.DockerCli, opts *commitOptions) error {
 	name := opts.container
 	reference := opts.reference
 
-	var config *containertypes.Config
-	if opts.config != "" {
-		config = &containertypes.Config{}
-		if err := json.Unmarshal([]byte(opts.config), config); err != nil {
-			return err
-		}
-	}
-
 	options := types.ContainerCommitOptions{
 		Reference: reference,
 		Comment:   opts.comment,
 		Author:    opts.author,
 		Changes:   opts.changes.GetAll(),
 		Pause:     opts.pause,
-		Config:    config,
 	}
 
 	response, err := dockerCli.Client().ContainerCommit(ctx, name, options)
