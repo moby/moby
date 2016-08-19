@@ -185,3 +185,15 @@ func (s *DockerSuite) TestStartAttachWithRename(c *check.C) {
 	_, stderr, _, _ := runCommandWithStdoutStderr(exec.Command(dockerBinary, "start", "-a", "before"))
 	c.Assert(stderr, checker.Not(checker.Contains), "No such container")
 }
+
+func (s *DockerSuite) TestStartReturnCorrectExitCode(c *check.C) {
+	dockerCmd(c, "create", "--restart=on-failure:2", "--name", "withRestart", "busybox", "sh", "-c", "exit 11")
+	dockerCmd(c, "create", "--rm", "--name", "withRm", "busybox", "sh", "-c", "exit 12")
+
+	_, exitCode, err := dockerCmdWithError("start", "-a", "withRestart")
+	c.Assert(err, checker.NotNil)
+	c.Assert(exitCode, checker.Equals, 11)
+	_, exitCode, err = dockerCmdWithError("start", "-a", "withRm")
+	c.Assert(err, checker.NotNil)
+	c.Assert(exitCode, checker.Equals, 12)
+}
