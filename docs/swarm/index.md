@@ -34,7 +34,7 @@ a swarm.
 * **Decentralized design:** Instead of handling differentiation between node
 roles at deployment time, the Docker Engine handles any specialization at
 runtime. You can deploy both kinds of nodes, managers and workers, using the
-Docker Engine. This means you can build an entire Swarm from a single disk
+Docker Engine. This means you can build an entire swarm from a single disk
 image.
 
 * **Declarative service model:** Docker Engine uses a declarative approach to
@@ -50,7 +50,7 @@ adding or removing tasks to maintain the desired state.
 the cluster state and reconciles any differences between the actual state your
 expressed desired state. For example, if you set up a service to run 10
 replicas of a container, and a worker machine hosting two of those replicas
-crashes, the manager will create two new replicas to replace the ones that
+crashes, the manager will create two new replicas to replace the replicas that
 crashed. The swarm manager assigns the new replicas to workers that are
 running and available.
 
