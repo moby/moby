@@ -72,13 +72,12 @@ If you don't already have a terminal open, open one now:
 
     The format for the login command is:
 
-        docker login --username=yourhubusername --email=youremail@company.com
+        docker login --username=yourhubusername --password=fake123
 
     When prompted, enter your password and press enter. So, for example:
 
-        $ docker login --username=maryatdocker --email=mary@docker.com
-        Password:
-        WARNING: login credentials saved in C:\Users\sven\.docker\config.json
+        $ docker login --username=maryatdocker --password=fake123
+        Password:        
         Login Succeeded
 
 9. Type the `docker push` command to push your image to your new repository.
