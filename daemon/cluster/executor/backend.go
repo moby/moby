@@ -34,7 +34,7 @@ type Backend interface {
 	ContainerKill(name string, sig uint64) error
 	SystemInfo() (*types.Info, error)
 	VolumeCreate(name, driverName string, opts, labels map[string]string) (*types.Volume, error)
-	ListContainersForNode(nodeID string) []string
+	Containers(config *types.ContainerListOptions) ([]*types.Container, error)
 	SetNetworkBootstrapKeys([]*networktypes.EncryptionKey) error
 	SetClusterProvider(provider cluster.Provider)
 	IsSwarmCompatible() error
