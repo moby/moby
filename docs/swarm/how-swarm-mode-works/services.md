@@ -22,11 +22,11 @@ When you create a service, you specify which container image to use and which
 commands to execute inside running containers. You also define options for the
 service including:
 
-* the port where the swarm will make the service available outside the swarm
-* an overlay network for the service to connect to other services in the swarm
+* The port where the swarm will make the service available outside the swarm
+* An overlay network for the service to connect to other services in the swarm
 * CPU and memory limits and reservations
-* a rolling update policy
-* the number of replicas of the image to run in the swarm
+* A rolling update policy
+* The number of replicas of the image to run in the swarm
 
 ## Services, tasks, and containers
 
