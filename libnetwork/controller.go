@@ -310,6 +310,16 @@ func (c *controller) clusterAgentInit() {
 			c.keys = nil
 			c.Unlock()
 
+			// We are leaving the cluster. Make sure we
+			// close the gossip so that we stop all
+			// incoming gossip updates before cleaning up
+			// any remaining service bindings. But before
+			// deleting the networks since the networks
+			// should still be present when cleaning up
+			// service bindings
+			c.agentClose()
+			c.cleanupServiceBindings("")
+
 			if err := c.ingressSandbox.Delete(); err != nil {
 				log.Warnf("Could not delete ingress sandbox while leaving: %v", err)
 			}
@@ -329,7 +339,6 @@ func (c *controller) clusterAgentInit() {
 				}
 			}
 
-			c.agentClose()
 			return
 		}
 	}
