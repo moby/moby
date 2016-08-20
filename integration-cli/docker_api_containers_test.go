@@ -1432,3 +1432,55 @@ func (s *DockerSuite) TestContainerApiDeleteWithEmptyName(c *check.C) {
 	c.Assert(status, checker.Equals, http.StatusBadRequest)
 	c.Assert(string(out), checker.Contains, "No container name or ID supplied")
 }
+
+func (s *DockerSuite) TestContainerApiStatsWithNetworkDisabled(c *check.C) {
+	// Problematic on Windows as Windows does not support stats
+	testRequires(c, DaemonIsLinux)
+
+	name := "testing-network-disabled"
+	config := map[string]interface{}{
+		"Image":           "busybox",
+		"Cmd":             []string{"top"},
+		"NetworkDisabled": true,
+	}
+
+	status, _, err := sockRequest("POST", "/containers/create?name="+name, config)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusCreated)
+
+	status, _, err = sockRequest("POST", "/containers/"+name+"/start", nil)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusNoContent)
+
+	c.Assert(waitRun(name), check.IsNil)
+
+	type b struct {
+		status int
+		body   []byte
+		err    error
+	}
+	bc := make(chan b, 1)
+	go func() {
+		status, body, err := sockRequest("GET", "/containers/"+name+"/stats", nil)
+		bc <- b{status, body, err}
+	}()
+
+	// allow some time to stream the stats from the container
+	time.Sleep(4 * time.Second)
+	dockerCmd(c, "rm", "-f", name)
+
+	// collect the results from the stats stream or timeout and fail
+	// if the stream was not disconnected.
+	select {
+	case <-time.After(2 * time.Second):
+		c.Fatal("stream was not closed after container was removed")
+	case sr := <-bc:
+		c.Assert(sr.err, checker.IsNil)
+		c.Assert(sr.status, checker.Equals, http.StatusOK)
+
+		// decode only one object from the stream
+		var s *types.Stats
+		dec := json.NewDecoder(bytes.NewBuffer(sr.body))
+		c.Assert(dec.Decode(&s), checker.IsNil)
+	}
+}
