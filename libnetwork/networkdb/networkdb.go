@@ -453,6 +453,20 @@ func (nDB *NetworkDB) LeaveNetwork(nid string) error {
 	return nil
 }
 
+// addNetworkNode adds the node to the list of nodes which participate
+// in the passed network only if it is not already present. Caller
+// should hold the NetworkDB lock while calling this
+func (nDB *NetworkDB) addNetworkNode(nid string, nodeName string) {
+	nodes := nDB.networkNodes[nid]
+	for _, node := range nodes {
+		if node == nodeName {
+			return
+		}
+	}
+
+	nDB.networkNodes[nid] = append(nDB.networkNodes[nid], nodeName)
+}
+
 // Deletes the node from the list of nodes which participate in the
 // passed network. Caller should hold the NetworkDB lock while calling
 // this
