@@ -11,6 +11,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/armon/go-radix"
 	"github.com/docker/go-events"
+	"github.com/docker/libnetwork/types"
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/serf/serf"
 )
@@ -217,7 +218,7 @@ func (nDB *NetworkDB) getEntry(tname, nid, key string) (*entry, error) {
 
 	e, ok := nDB.indexes[byTable].Get(fmt.Sprintf("/%s/%s/%s", tname, nid, key))
 	if !ok {
-		return nil, fmt.Errorf("could not get entry in table %s with network id %s and key %s", tname, nid, key)
+		return nil, types.NotFoundErrorf("could not get entry in table %s with network id %s and key %s", tname, nid, key)
 	}
 
 	return e.(*entry), nil
@@ -227,10 +228,16 @@ func (nDB *NetworkDB) getEntry(tname, nid, key string) (*entry, error) {
 // table, key) tuple and if the NetworkDB is part of the cluster
 // propogates this event to the cluster. It is an error to create an
 // entry for the same tuple for which there is already an existing
-// entry.
+// entry unless the current entry is deleting state.
 func (nDB *NetworkDB) CreateEntry(tname, nid, key string, value []byte) error {
-	if _, err := nDB.GetEntry(tname, nid, key); err == nil {
-		return fmt.Errorf("cannot create entry as the entry in table %s with network id %s and key %s already exists", tname, nid, key)
+	oldEntry, err := nDB.getEntry(tname, nid, key)
+	if err != nil {
+		if _, ok := err.(types.NotFoundError); !ok {
+			return fmt.Errorf("cannot create entry in table %s with network id %s and key %s: %v", tname, nid, key, err)
+		}
+	}
+	if oldEntry != nil && !oldEntry.deleting {
+		return fmt.Errorf("cannot create entry in table %s with network id %s and key %s, already exists", tname, nid, key)
 	}
 
 	entry := &entry{
