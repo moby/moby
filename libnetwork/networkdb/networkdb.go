@@ -203,9 +203,10 @@ func (nDB *NetworkDB) getEntry(tname, nid, key string) (*entry, error) {
 // table, key) tuple and if the NetworkDB is part of the cluster
 // propogates this event to the cluster. It is an error to create an
 // entry for the same tuple for which there is already an existing
-// entry.
+// entry unless the current entry is deleting state.
 func (nDB *NetworkDB) CreateEntry(tname, nid, key string, value []byte) error {
-	if _, err := nDB.GetEntry(tname, nid, key); err == nil {
+	e, _ := nDB.getEntry(tname, nid, key)
+	if e != nil && !e.deleting {
 		return fmt.Errorf("cannot create entry as the entry in table %s with network id %s and key %s already exists", tname, nid, key)
 	}
 
