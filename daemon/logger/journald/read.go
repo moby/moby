@@ -148,7 +148,11 @@ package journald
 import "C"
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
 	"unsafe"
@@ -276,7 +280,7 @@ func (s *journald) followJournal(logWatcher *logger.LogWatcher, config logger.Re
 	}
 }
 
-func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadConfig) {
+func (s *journald) readLocalLogs(logWatcher *logger.LogWatcher, config logger.ReadConfig) {
 	var j *C.sd_journal
 	var cmatch *C.char
 	var stamp C.uint64_t
@@ -389,7 +393,103 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 			}
 		}
 	}
-	return
+}
+
+func (s *journald) readRemoteLogs(logWatcher *logger.LogWatcher, config logger.ReadConfig) {
+	var sinceUnixMicro uint64
+
+	client := http.Client{}
+
+	// Build a url to get logs from systemd-journal-gatewayd.
+	containerID := s.vars["CONTAINER_ID_FULL"]
+	v := url.Values{}
+	v.Set("CONTAINER_ID_FULL", containerID)
+	if config.Follow {
+		v.Set("follow", "")
+	}
+	u := url.URL{
+		Scheme:   "http",
+		Host:     s.gatewayAddress,
+		Path:     "entries",
+		RawQuery: v.Encode(),
+	}
+
+	if !config.Since.IsZero() {
+		nano := config.Since.UnixNano()
+		sinceUnixMicro = uint64(nano / 1000)
+	}
+
+	// Send a request to get logs and get the response from systemd-journal-gatewayd.
+	req, err := http.NewRequest("GET", u.String(), nil)
+	req.Header.Add("Accept", "application/json")
+	if config.Tail > 0 {
+		req.Header.Add("Range", fmt.Sprintf("entries=:-%d:%d", config.Tail, config.Tail))
+	} else if sinceUnixMicro > 0 {
+		req.Header.Add("Range", fmt.Sprintf("entries=%x", sinceUnixMicro))
+	}
+	resp, err := client.Do(req)
+
+	defer close(logWatcher.Msg)
+	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close()
+	}
+
+	// Handle errors while opening journal.
+	fmtString := "error %q while opening journal from %s for container %q"
+	if err != nil {
+		logWatcher.Err <- fmt.Errorf(fmtString, err, s.gatewayAddress, containerID)
+		return
+	}
+	if resp != nil && resp.StatusCode >= 400 {
+		logWatcher.Err <- fmt.Errorf(fmtString, resp.Status, s.gatewayAddress, containerID)
+		return
+	}
+
+	// Read logs from the response body.
+	dec := json.NewDecoder(resp.Body)
+	for dec.More() {
+		fmtString := "Skip a log entry due to error %q while reading journal from %s for container %q"
+		attrs := make(map[string]string)
+		if err := dec.Decode(&attrs); err != nil {
+			logrus.Warnf(fmtString, err, s.gatewayAddress, containerID)
+			continue
+		}
+		micros, err := strconv.ParseInt(attrs["_SOURCE_REALTIME_TIMESTAMP"], 10, 64)
+		if err != nil {
+			logrus.Warnf(fmtString, err, s.gatewayAddress, containerID)
+			continue
+		}
+		if uint64(micros) < sinceUnixMicro {
+			continue
+		}
+		timestamp := time.Unix(0, micros*int64(time.Microsecond))
+		source := ""
+		switch attrs["PRIORITY"] {
+		case strconv.Itoa(int(journal.PriErr)):
+			source = "stderr"
+		case strconv.Itoa(int(journal.PriInfo)):
+			source = "stdout"
+		}
+		line := attrs["MESSAGE"]
+		if attrs["CONTAINER_PARTIAL_MESSAGE"] != "true" {
+			line += "\n"
+		}
+		logWatcher.Msg <- &logger.Message{
+			Line:      []byte(line),
+			Source:    source,
+			Timestamp: timestamp,
+			Attrs:     attrs,
+		}
+	}
+}
+
+func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadConfig) {
+	if s.gatewayAddress != "" {
+		s.readRemoteLogs(logWatcher, config)
+		return
+	}
+
+	s.readLocalLogs(logWatcher, config)
 }
 
 func (s *journald) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
