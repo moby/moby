@@ -500,9 +500,13 @@ func (n *network) initSubnetSandbox(s *subnet, restore bool) error {
 	vxlanName := n.generateVxlanName(s)
 
 	if restore {
-		n.restoreSubnetSandbox(s, brName, vxlanName)
+		if err := n.restoreSubnetSandbox(s, brName, vxlanName); err != nil {
+			return err
+		}
 	} else {
-		n.setupSubnetSandbox(s, brName, vxlanName)
+		if err := n.setupSubnetSandbox(s, brName, vxlanName); err != nil {
+			return err
+		}
 	}
 
 	n.Lock()
