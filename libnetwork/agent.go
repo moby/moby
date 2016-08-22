@@ -183,17 +183,20 @@ func (c *controller) agentSetup() error {
 				}
 				return false
 			})
-
-			if c.agent != nil {
-				close(c.agentInitDone)
-			}
 		}
 	}
+
 	if remoteAddr != "" {
 		if err := c.agentJoin(remoteAddr); err != nil {
 			logrus.Errorf("Error in agentJoin : %v", err)
+			return nil
 		}
 	}
+
+	if c.agent != nil {
+		close(c.agentInitDone)
+	}
+
 	return nil
 }
 
