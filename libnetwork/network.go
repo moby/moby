@@ -756,6 +756,19 @@ func (n *network) delete(force bool) error {
 		log.Warnf("Failed to update store after ipam release for network %s (%s): %v", n.Name(), n.ID(), err)
 	}
 
+	// We are about to delete the network. Leave the gossip
+	// cluster for the network to stop all incoming network
+	// specific gossip updates before cleaning up all the service
+	// bindings for the network. But cleanup service binding
+	// before deleting the network from the store since service
+	// bindings cleanup requires the network in the store.
+	n.cancelDriverWatches()
+	if err = n.leaveCluster(); err != nil {
+		log.Errorf("Failed leaving network %s from the agent cluster: %v", n.Name(), err)
+	}
+
+	c.cleanupServiceBindings(n.ID())
+
 	// deleteFromStore performs an atomic delete operation and the
 	// network.epCnt will help prevent any possible
 	// race between endpoint join and network delete
@@ -768,12 +781,6 @@ func (n *network) delete(force bool) error {
 
 	if err = c.deleteFromStore(n); err != nil {
 		return fmt.Errorf("error deleting network from store: %v", err)
-	}
-
-	n.cancelDriverWatches()
-
-	if err = n.leaveCluster(); err != nil {
-		log.Errorf("Failed leaving network %s from the agent cluster: %v", n.Name(), err)
 	}
 
 	return nil

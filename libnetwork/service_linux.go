@@ -28,13 +28,50 @@ func init() {
 	reexec.Register("fwmarker", fwMarker)
 }
 
-func newService(name string, id string, ingressPorts []*PortConfig) *service {
+func newService(name string, id string, ingressPorts []*PortConfig, aliases []string) *service {
 	return &service{
 		name:          name,
 		id:            id,
 		ingressPorts:  ingressPorts,
 		loadBalancers: make(map[string]*loadBalancer),
+		aliases:       aliases,
 	}
+}
+
+func (c *controller) cleanupServiceBindings(cleanupNID string) {
+	var cleanupFuncs []func()
+	c.Lock()
+	for _, s := range c.serviceBindings {
+		s.Lock()
+		for nid, lb := range s.loadBalancers {
+			if cleanupNID != "" && nid != cleanupNID {
+				continue
+			}
+
+			for eid, ip := range lb.backEnds {
+				service := s
+				loadBalancer := lb
+				networkID := nid
+				epID := eid
+				epIP := ip
+
+				cleanupFuncs = append(cleanupFuncs, func() {
+					if err := c.rmServiceBinding(service.name, service.id, networkID, epID, loadBalancer.vip,
+						service.ingressPorts, service.aliases, epIP); err != nil {
+						logrus.Errorf("Failed to remove service bindings for service %s network %s endpoint %s while cleanup: %v",
+							service.id, networkID, epID, err)
+					}
+				})
+			}
+		}
+		s.Unlock()
+	}
+	c.Unlock()
+
+	for _, f := range cleanupFuncs {
+		f()
+	}
+
 }
 
 func (c *controller) addServiceBinding(name, sid, nid, eid string, vip net.IP, ingressPorts []*PortConfig, aliases []string, ip net.IP) error {
@@ -58,7 +95,7 @@ func (c *controller) addServiceBinding(name, sid, nid, eid string, vip net.IP, i
 	if !ok {
 		// Create a new service if we are seeing this service
 		// for the first time.
-		s = newService(name, sid, ingressPorts)
+		s = newService(name, sid, ingressPorts, aliases)
 		c.serviceBindings[skey] = s
 	}
 	c.Unlock()
