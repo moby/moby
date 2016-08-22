@@ -99,11 +99,17 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 	case libcontainerd.StatePause:
 		// Container is already locked in this case
 		c.Paused = true
+		if err := c.ToDisk(); err != nil {
+			return err
+		}
 		daemon.updateHealthMonitor(c)
 		daemon.LogContainerEvent(c, "pause")
 	case libcontainerd.StateResume:
 		// Container is already locked in this case
 		c.Paused = false
+		if err := c.ToDisk(); err != nil {
+			return err
+		}
 		daemon.updateHealthMonitor(c)
 		daemon.LogContainerEvent(c, "unpause")
 	}
