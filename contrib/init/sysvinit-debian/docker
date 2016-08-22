@@ -142,7 +142,7 @@ case "$1" in
 
 	status)
 		check_init
-		status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DOCKER" "$DOCKER_DESC"
+		status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DOCKERD" "$DOCKER_DESC"
 		;;
 
 	*)
