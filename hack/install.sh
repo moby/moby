@@ -421,7 +421,7 @@ do_install() {
 				if command -v apparmor_parser >/dev/null 2>&1; then
 					echo 'apparmor is enabled in the kernel and apparmor utils were already installed'
 				else
-					echo 'apparmor is enabled in the kernel, but apparmor_parser missing'
+					echo 'apparmor is enabled in the kernel, but apparmor_parser is missing. Trying to install it..'
 					apt_get_update
 					( set -x; $sh_c 'sleep 3; apt-get install -y -q apparmor' )
 				fi
