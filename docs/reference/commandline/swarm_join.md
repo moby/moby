@@ -85,10 +85,6 @@ name, the default port 2377 will be used.
 
 This flag is generally not necessary when joining an existing swarm.
 
-### `--manager`
-
-Joins the node as a manager
-
 ### `--token string`
 
 Secret value required for nodes to join the swarm
