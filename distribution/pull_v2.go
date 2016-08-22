@@ -32,7 +32,11 @@ import (
 	"golang.org/x/net/context"
 )
 
-var errRootFSMismatch = errors.New("layers from manifest don't match image configuration")
+var (
+	errRootFSMismatch  = errors.New("layers from manifest don't match image configuration")
+	errMediaTypePlugin = errors.New("target is a plugin")
+	errRootFSInvalid   = errors.New("invalid rootfs in image configuration")
+)
 
 // ImageConfigPullError is an error pulling the image config blob
 // (only applies to schema2).
@@ -356,6 +360,12 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 		return false, fmt.Errorf("image manifest does not exist for tag or digest %q", tagOrDigest)
 	}
 
+	if m, ok := manifest.(*schema2.DeserializedManifest); ok {
+		if m.Manifest.Config.MediaType == schema2.MediaTypePluginConfig {
+			return false, errMediaTypePlugin
+		}
+	}
+
 	// If manSvc.Get succeeded, we can be confident that the registry on
 	// the other side speaks the v2 protocol.
 	p.confirmedV2 = true
@@ -572,6 +582,10 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 		if err != nil {
 			return "", "", err
 		}
+	}
+
+	if unmarshalledConfig.RootFS == nil {
+		return "", "", errRootFSInvalid
 	}
 
 	// The DiffIDs returned in rootFS MUST match those in the config.

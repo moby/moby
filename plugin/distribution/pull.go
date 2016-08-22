@@ -143,7 +143,7 @@ func Pull(name string, rs registry.Service, metaheader http.Header, authConfig *
 		logrus.Debugf("pull.go: error in json.Unmarshal(): %v", err)
 		return nil, err
 	}
-	if m.Config.MediaType != MediaTypeConfig {
+	if m.Config.MediaType != schema2.MediaTypePluginConfig {
 		return nil, ErrUnsupportedMediaType
 	}
 

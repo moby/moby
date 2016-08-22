@@ -3,6 +3,7 @@ package image
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"golang.org/x/net/context"
 
@@ -77,9 +78,16 @@ func runPull(dockerCli *client.DockerCli, opts pullOptions) error {
 
 	if client.IsTrusted() && !registryRef.HasDigest() {
 		// Check if tag is digest
-		return dockerCli.TrustedPull(ctx, repoInfo, registryRef, authConfig, requestPrivilege)
+		err = dockerCli.TrustedPull(ctx, repoInfo, registryRef, authConfig, requestPrivilege)
+	} else {
+		err = dockerCli.ImagePullPrivileged(ctx, authConfig, distributionRef.String(), requestPrivilege, opts.all)
+	}
+	if err != nil {
+		if strings.Contains(err.Error(), "target is a plugin") {
+			return errors.New(err.Error() + " - Use `docker plugin install`")
+		}
+		return err
 	}
 
-	return dockerCli.ImagePullPrivileged(ctx, authConfig, distributionRef.String(), requestPrivilege, opts.all)
-
+	return nil
 }
