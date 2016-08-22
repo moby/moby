@@ -53,6 +53,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 			n.leaveTime = time.Now()
 		}
 
+		nDB.addNetworkNode(nEvent.NetworkID, nEvent.NodeName)
 		return true
 	}
 
@@ -66,7 +67,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 		ltime: nEvent.LTime,
 	}
 
-	nDB.networkNodes[nEvent.NetworkID] = append(nDB.networkNodes[nEvent.NetworkID], nEvent.NodeName)
+	nDB.addNetworkNode(nEvent.NetworkID, nEvent.NodeName)
 	return true
 }
 
