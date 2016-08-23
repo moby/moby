@@ -95,8 +95,10 @@ type Image struct {
 	RepoDigests []string
 	Created     int64
 	Size        int64
+	SharedSize  int64
 	VirtualSize int64
 	Labels      map[string]string
+	Containers  int64
 }
 
 // GraphDriverData returns Image's graph driver config info
