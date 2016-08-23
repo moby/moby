@@ -185,7 +185,7 @@ In this step, you verify the new images is on your computer and then you run you
     This command, you might remember, lists the images you have locally.
 
         $ docker images
-        REPOSITORY           TAG          IMAGE ID          CREATED             VIRTUAL SIZE
+        REPOSITORY           TAG          IMAGE ID          CREATED             SIZE
         docker-whale         latest       7d9495d03763      4 minutes ago       273.7 MB
         docker/whalesay      latest       fb434121fc77      4 hours ago         247 MB
         hello-world          latest       91c95931e552      5 weeks ago         910 B
