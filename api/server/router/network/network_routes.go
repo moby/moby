@@ -2,7 +2,6 @@ package network
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"golang.org/x/net/context"
@@ -11,7 +10,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/errors"
 	"github.com/docker/libnetwork"
 )
 
@@ -116,17 +114,7 @@ func (n *networkRouter) postNetworkConnect(ctx context.Context, w http.ResponseW
 		return err
 	}
 
-	nw, err := n.backend.FindNetwork(vars["id"])
-	if err != nil {
-		return err
-	}
-
-	if nw.Info().Dynamic() {
-		err := fmt.Errorf("operation not supported for swarm scoped networks")
-		return errors.NewRequestForbiddenError(err)
-	}
-
-	return n.backend.ConnectContainerToNetwork(connect.Container, nw.Name(), connect.EndpointConfig)
+	return n.backend.ConnectContainerToNetwork(connect.Container, vars["id"], connect.EndpointConfig)
 }
 
 func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -141,13 +129,6 @@ func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.Respon
 
 	if err := json.NewDecoder(r.Body).Decode(&disconnect); err != nil {
 		return err
-	}
-
-	nw, _ := n.backend.FindNetwork(vars["id"])
-
-	if nw != nil && nw.Info().Dynamic() {
-		err := fmt.Errorf("operation not supported for swarm scoped networks")
-		return errors.NewRequestForbiddenError(err)
 	}
 
 	return n.backend.DisconnectContainerFromNetwork(disconnect.Container, vars["id"], disconnect.Force)

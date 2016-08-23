@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
 	networktypes "github.com/docker/libnetwork/types"
+	"golang.org/x/net/context"
 )
 
 // NetworkControllerEnabled checks if the networking stack is enabled.
@@ -184,6 +185,29 @@ func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nod
 // SetNetworkBootstrapKeys sets the bootstrap keys.
 func (daemon *Daemon) SetNetworkBootstrapKeys(keys []*networktypes.EncryptionKey) error {
 	return daemon.netController.SetKeys(keys)
+}
+
+// UpdateAttachment notifies the attacher about the attachment config.
+func (daemon *Daemon) UpdateAttachment(networkName, networkID, containerID string, config *network.NetworkingConfig) error {
+	if daemon.clusterProvider == nil {
+		return fmt.Errorf("cluster provider is not initialized")
+	}
+
+	if err := daemon.clusterProvider.UpdateAttachment(networkName, containerID, config); err != nil {
+		return daemon.clusterProvider.UpdateAttachment(networkID, containerID, config)
+	}
+
+	return nil
+}
+
+// WaitForDetachment makes the cluster manager wait for detachment of
+// the container from the network.
+func (daemon *Daemon) WaitForDetachment(ctx context.Context, networkName, networkID, taskID, containerID string) error {
+	if daemon.clusterProvider == nil {
+		return fmt.Errorf("cluster provider is not initialized")
+	}
+
+	return daemon.clusterProvider.WaitForDetachment(ctx, networkName, networkID, taskID, containerID)
 }
 
 // CreateManagedNetwork creates an agent network.

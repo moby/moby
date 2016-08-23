@@ -42,6 +42,13 @@ func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.Co
 		return nil, err
 	}
 
+	apiNetworks := make(map[string]*networktypes.EndpointSettings)
+	for name, epConf := range container.NetworkSettings.Networks {
+		if epConf.EndpointSettings != nil {
+			apiNetworks[name] = epConf.EndpointSettings
+		}
+	}
+
 	mountPoints := addMountPoints(container)
 	networkSettings := &types.NetworkSettings{
 		NetworkSettingsBase: types.NetworkSettingsBase{
@@ -56,7 +63,7 @@ func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.Co
 			SecondaryIPv6Addresses: container.NetworkSettings.SecondaryIPv6Addresses,
 		},
 		DefaultNetworkSettings: daemon.getDefaultNetworkSettings(container.NetworkSettings.Networks),
-		Networks:               container.NetworkSettings.Networks,
+		Networks:               apiNetworks,
 	}
 
 	return &types.ContainerJSON{
@@ -236,10 +243,10 @@ func (daemon *Daemon) getBackwardsCompatibleNetworkSettings(settings *network.Se
 
 // getDefaultNetworkSettings creates the deprecated structure that holds the information
 // about the bridge network for a container.
-func (daemon *Daemon) getDefaultNetworkSettings(networks map[string]*networktypes.EndpointSettings) types.DefaultNetworkSettings {
+func (daemon *Daemon) getDefaultNetworkSettings(networks map[string]*network.EndpointSettings) types.DefaultNetworkSettings {
 	var settings types.DefaultNetworkSettings
 
-	if defaultNetwork, ok := networks["bridge"]; ok {
+	if defaultNetwork, ok := networks["bridge"]; ok && defaultNetwork.EndpointSettings != nil {
 		settings.EndpointID = defaultNetwork.EndpointID
 		settings.Gateway = defaultNetwork.Gateway
 		settings.GlobalIPv6Address = defaultNetwork.GlobalIPv6Address

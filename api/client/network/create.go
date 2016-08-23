@@ -23,6 +23,7 @@ type createOptions struct {
 	labels     []string
 	internal   bool
 	ipv6       bool
+	attachable bool
 
 	ipamDriver  string
 	ipamSubnet  []string
@@ -55,6 +56,7 @@ func newCreateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	flags.StringSliceVar(&opts.labels, "label", []string{}, "Set metadata on a network")
 	flags.BoolVar(&opts.internal, "internal", false, "Restrict external access to the network")
 	flags.BoolVar(&opts.ipv6, "ipv6", false, "Enable IPv6 networking")
+	flags.BoolVar(&opts.attachable, "attachable", false, "Enable manual container attachment")
 
 	flags.StringVar(&opts.ipamDriver, "ipam-driver", "default", "IP Address Management Driver")
 	flags.StringSliceVar(&opts.ipamSubnet, "subnet", []string{}, "Subnet in CIDR format that represents a network segment")
@@ -87,6 +89,7 @@ func runCreate(dockerCli *client.DockerCli, opts createOptions) error {
 		CheckDuplicate: true,
 		Internal:       opts.internal,
 		EnableIPv6:     opts.ipv6,
+		Attachable:     opts.attachable,
 		Labels:         runconfigopts.ConvertKVStringsToMap(opts.labels),
 	}
 

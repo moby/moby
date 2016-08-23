@@ -15,10 +15,16 @@ func ServiceFromGRPC(s swarmapi.Service) types.Service {
 	spec := s.Spec
 	containerConfig := spec.Task.Runtime.(*swarmapi.TaskSpec_Container).Container
 
-	networks := make([]types.NetworkAttachmentConfig, 0, len(spec.Networks))
+	serviceNetworks := make([]types.NetworkAttachmentConfig, 0, len(spec.Networks))
 	for _, n := range spec.Networks {
-		networks = append(networks, types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
+		serviceNetworks = append(serviceNetworks, types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
 	}
+
+	taskNetworks := make([]types.NetworkAttachmentConfig, 0, len(spec.Task.Networks))
+	for _, n := range spec.Task.Networks {
+		taskNetworks = append(taskNetworks, types.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
+	}
+
 	service := types.Service{
 		ID: s.ID,
 
@@ -29,9 +35,10 @@ func ServiceFromGRPC(s swarmapi.Service) types.Service {
 				RestartPolicy: restartPolicyFromGRPC(s.Spec.Task.Restart),
 				Placement:     placementFromGRPC(s.Spec.Task.Placement),
 				LogDriver:     driverFromGRPC(s.Spec.Task.LogDriver),
+				Networks:      taskNetworks,
 			},
 
-			Networks:     networks,
+			Networks:     serviceNetworks,
 			EndpointSpec: endpointSpecFromGRPC(s.Spec.Endpoint),
 		},
 		Endpoint: endpointFromGRPC(s.Endpoint),
@@ -99,9 +106,14 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 		name = namesgenerator.GetRandomName(0)
 	}
 
-	networks := make([]*swarmapi.ServiceSpec_NetworkAttachmentConfig, 0, len(s.Networks))
+	serviceNetworks := make([]*swarmapi.NetworkAttachmentConfig, 0, len(s.Networks))
 	for _, n := range s.Networks {
-		networks = append(networks, &swarmapi.ServiceSpec_NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
+		serviceNetworks = append(serviceNetworks, &swarmapi.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
+	}
+
+	taskNetworks := make([]*swarmapi.NetworkAttachmentConfig, 0, len(s.TaskTemplate.Networks))
+	for _, n := range s.TaskTemplate.Networks {
+		taskNetworks = append(taskNetworks, &swarmapi.NetworkAttachmentConfig{Target: n.Target, Aliases: n.Aliases})
 	}
 
 	spec := swarmapi.ServiceSpec{
@@ -112,8 +124,9 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 		Task: swarmapi.TaskSpec{
 			Resources: resourcesToGRPC(s.TaskTemplate.Resources),
 			LogDriver: driverToGRPC(s.TaskTemplate.LogDriver),
+			Networks:  taskNetworks,
 		},
-		Networks: networks,
+		Networks: serviceNetworks,
 	}
 
 	containerSpec, err := containerToGRPC(s.TaskTemplate.ContainerSpec)

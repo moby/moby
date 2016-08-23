@@ -16,6 +16,7 @@ import (
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/links"
+	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
@@ -35,7 +36,7 @@ func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]s
 	children := daemon.children(container)
 
 	bridgeSettings := container.NetworkSettings.Networks[runconfig.DefaultDaemonNetworkMode().NetworkName()]
-	if bridgeSettings == nil {
+	if bridgeSettings == nil || bridgeSettings.EndpointSettings == nil {
 		return nil, nil
 	}
 
@@ -45,7 +46,7 @@ func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]s
 		}
 
 		childBridgeSettings := child.NetworkSettings.Networks[runconfig.DefaultDaemonNetworkMode().NetworkName()]
-		if childBridgeSettings == nil {
+		if childBridgeSettings == nil || childBridgeSettings.EndpointSettings == nil {
 			return nil, fmt.Errorf("container %s not attached to default bridge network", child.ID)
 		}
 
@@ -107,10 +108,17 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 		if container.RemovalInProgress || container.Dead {
 			return errRemovalContainer(container.ID)
 		}
-		if _, err := daemon.updateNetworkConfig(container, idOrName, endpointConfig, true); err != nil {
-			return err
+
+		n, err := daemon.FindNetwork(idOrName)
+		if err == nil && n != nil {
+			if err := daemon.updateNetworkConfig(container, n, endpointConfig, true); err != nil {
+				return err
+			}
+		} else {
+			container.NetworkSettings.Networks[idOrName] = &network.EndpointSettings{
+				EndpointSettings: endpointConfig,
+			}
 		}
-		container.NetworkSettings.Networks[idOrName] = endpointConfig
 	} else {
 		if err := daemon.connectToNetwork(container, idOrName, endpointConfig, true); err != nil {
 			return err
@@ -143,7 +151,7 @@ func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, netw
 			return runconfig.ErrConflictHostNetwork
 		}
 
-		if err := disconnectFromNetwork(container, n, false); err != nil {
+		if err := daemon.disconnectFromNetwork(container, n, false); err != nil {
 			return err
 		}
 	} else {

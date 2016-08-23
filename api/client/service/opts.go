@@ -451,6 +451,7 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 				Mounts:          opts.mounts.Value(),
 				StopGracePeriod: opts.stopGrace.Value(),
 			},
+			Networks:      convertNetworks(opts.networks),
 			Resources:     opts.resources.ToResourceRequirements(),
 			RestartPolicy: opts.restartPolicy.ToRestartPolicy(),
 			Placement: &swarm.Placement{
@@ -458,13 +459,13 @@ func (opts *serviceOptions) ToService() (swarm.ServiceSpec, error) {
 			},
 			LogDriver: opts.logDriver.toLogDriver(),
 		},
-		Mode: swarm.ServiceMode{},
+		Networks: convertNetworks(opts.networks),
+		Mode:     swarm.ServiceMode{},
 		UpdateConfig: &swarm.UpdateConfig{
 			Parallelism:   opts.update.parallelism,
 			Delay:         opts.update.delay,
 			FailureAction: opts.update.onFailure,
 		},
-		Networks:     convertNetworks(opts.networks),
 		EndpointSpec: opts.endpoint.ToEndpointSpec(),
 	}
 
