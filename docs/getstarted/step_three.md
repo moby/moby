@@ -99,7 +99,7 @@ Make sure Docker is running. On Docker for Mac and Docker for Windows, this is i
     `docker/whalesay` in the list.
 
         $ docker images
-        REPOSITORY           TAG         IMAGE ID            CREATED            VIRTUAL SIZE
+        REPOSITORY           TAG         IMAGE ID            CREATED            SIZE
         docker/whalesay      latest      fb434121fc77        3 hours ago        247 MB
         hello-world          latest      91c95931e552        5 weeks ago        910 B
 
