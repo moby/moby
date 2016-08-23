@@ -183,17 +183,23 @@ func (c *controller) agentSetup() error {
 				}
 				return false
 			})
-
-			if c.agent != nil {
-				close(c.agentInitDone)
-			}
 		}
 	}
+
 	if remoteAddr != "" {
 		if err := c.agentJoin(remoteAddr); err != nil {
 			logrus.Errorf("Error in agentJoin : %v", err)
+			return nil
 		}
 	}
+
+	c.Lock()
+	if c.agent != nil && c.agentInitDone != nil {
+		close(c.agentInitDone)
+		c.agentInitDone = nil
+	}
+	c.Unlock()
+
 	return nil
 }
 
@@ -328,7 +334,10 @@ func (c *controller) agentClose() {
 	c.agent.epTblCancel()
 
 	c.agent.networkDB.Close()
+
+	c.Lock()
 	c.agent = nil
+	c.Unlock()
 }
 
 func (n *network) isClusterEligible() bool {

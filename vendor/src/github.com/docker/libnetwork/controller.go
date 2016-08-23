@@ -307,8 +307,41 @@ func (c *controller) clusterAgentInit() {
 			c.Lock()
 			c.clusterConfigAvailable = false
 			c.agentInitDone = make(chan struct{})
+			c.keys = nil
 			c.Unlock()
+
+			// We are leaving the cluster. Make sure we
+			// close the gossip so that we stop all
+			// incoming gossip updates before cleaning up
+			// any remaining service bindings. But before
+			// deleting the networks since the networks
+			// should still be present when cleaning up
+			// service bindings
 			c.agentClose()
+			c.cleanupServiceBindings("")
+
+			c.Lock()
+			ingressSandbox := c.ingressSandbox
+			c.ingressSandbox = nil
+			c.Unlock()
+
+			if ingressSandbox != nil {
+				if err := ingressSandbox.Delete(); err != nil {
+					log.Warnf("Could not delete ingress sandbox while leaving: %v", err)
+				}
+			}
+
+			n, err := c.NetworkByName("ingress")
+			if err != nil {
+				log.Warnf("Could not find ingress network while leaving: %v", err)
+			}
+
+			if n != nil {
+				if err := n.Delete(); err != nil {
+					log.Warnf("Could not delete ingress network while leaving: %v", err)
+				}
+			}
+
 			return
 		}
 	}
@@ -317,7 +350,13 @@ func (c *controller) clusterAgentInit() {
 // AgentInitWait waits for agent initialization to be completed in the
 // controller.
 func (c *controller) AgentInitWait() {
-	<-c.agentInitDone
+	c.Lock()
+	agentInitDone := c.agentInitDone
+	c.Unlock()
+
+	if agentInitDone != nil {
+		<-agentInitDone
+	}
 }
 
 func (c *controller) makeDriverConfig(ntype string) map[string]interface{} {
@@ -660,6 +699,9 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 	}
 
 	joinCluster(network)
+	if !c.isDistributedControl() {
+		arrangeIngressFilterRule()
+	}
 
 	return network, nil
 }

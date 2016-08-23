@@ -200,10 +200,7 @@ func (nDB *NetworkDB) reapNetworks() {
 }
 
 func (nDB *NetworkDB) reapTableEntries() {
-	var (
-		paths   []string
-		entries []*entry
-	)
+	var paths []string
 
 	now := time.Now()
 
@@ -219,14 +216,12 @@ func (nDB *NetworkDB) reapTableEntries() {
 		}
 
 		paths = append(paths, path)
-		entries = append(entries, entry)
 		return false
 	})
 	nDB.RUnlock()
 
 	nDB.Lock()
-	for i, path := range paths {
-		entry := entries[i]
+	for _, path := range paths {
 		params := strings.Split(path[1:], "/")
 		tname := params[0]
 		nid := params[1]
@@ -239,8 +234,6 @@ func (nDB *NetworkDB) reapTableEntries() {
 		if _, ok := nDB.indexes[byNetwork].Delete(fmt.Sprintf("/%s/%s/%s", nid, tname, key)); !ok {
 			logrus.Errorf("Could not delete entry in network %s with table name %s and key %s as it does not exist", nid, tname, key)
 		}
-
-		nDB.broadcaster.Write(makeEvent(opDelete, tname, nid, key, entry.value))
 	}
 	nDB.Unlock()
 }

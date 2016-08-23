@@ -326,6 +326,8 @@ func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
 
 		nDB.indexes[byTable].Insert(fmt.Sprintf("/%s/%s/%s", tname, nid, key), entry)
 		nDB.indexes[byNetwork].Insert(fmt.Sprintf("/%s/%s/%s", nid, tname, key), entry)
+
+		nDB.broadcaster.Write(makeEvent(opDelete, tname, nid, key, entry.value))
 		return false
 	})
 	nDB.Unlock()
@@ -451,6 +453,20 @@ func (nDB *NetworkDB) LeaveNetwork(nid string) error {
 	n.ltime = ltime
 	n.leaving = true
 	return nil
+}
+
+// addNetworkNode adds the node to the list of nodes which participate
+// in the passed network only if it is not already present. Caller
+// should hold the NetworkDB lock while calling this
+func (nDB *NetworkDB) addNetworkNode(nid string, nodeName string) {
+	nodes := nDB.networkNodes[nid]
+	for _, node := range nodes {
+		if node == nodeName {
+			return
+		}
+	}
+
+	nDB.networkNodes[nid] = append(nDB.networkNodes[nid], nodeName)
 }
 
 // Deletes the node from the list of nodes which participate in the
