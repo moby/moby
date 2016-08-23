@@ -134,18 +134,11 @@ ENV DOCKER_CROSSPLATFORMS \
 	freebsd/amd64 freebsd/386 freebsd/arm \
 	windows/amd64 windows/386
 
-# This has been commented out and kept as reference because we don't support compiling with older Go anymore.
-# ENV GOFMT_VERSION 1.3.3
-# RUN curl -sSL https://storage.googleapis.com/golang/go${GOFMT_VERSION}.$(go env GOOS)-$(go env GOARCH).tar.gz | tar -C /go/bin -xz --strip-components=2 go/bin/gofmt
-
+# Dependency for golint
 ENV GO_TOOLS_COMMIT 823804e1ae08dbb14eb807afc7db9993bc9e3cc3
-# Grab Go's cover tool for dead-simple code coverage testing
-# Grab Go's vet tool for examining go code to find suspicious constructs
-# and help prevent errors that the compiler might not catch
 RUN git clone https://github.com/golang/tools.git /go/src/golang.org/x/tools \
-	&& (cd /go/src/golang.org/x/tools && git checkout -q $GO_TOOLS_COMMIT) \
-	&& go install -v golang.org/x/tools/cmd/cover \
-	&& go install -v golang.org/x/tools/cmd/vet
+	&& (cd /go/src/golang.org/x/tools && git checkout -q $GO_TOOLS_COMMIT)
+
 # Grab Go's lint tool
 ENV GO_LINT_COMMIT 32a87160691b3c96046c0c678fe57c5bef761456
 RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint \
