@@ -539,3 +539,40 @@ type DiskUsage struct {
 	Containers []*Container
 	Volumes    []*Volume
 }
+
+// ImagesPruneConfig contains the configuration for Remote API:
+// POST "/image/prune"
+type ImagesPruneConfig struct {
+	DanglingOnly bool
+}
+
+// ContainersPruneConfig contains the configuration for Remote API:
+// POST "/image/prune"
+type ContainersPruneConfig struct {
+}
+
+// VolumesPruneConfig contains the configuration for Remote API:
+// POST "/images/prune"
+type VolumesPruneConfig struct {
+}
+
+// ContainersPruneReport contains the response for Remote API:
+// POST "/containers/prune"
+type ContainersPruneReport struct {
+	ContainersDeleted []string
+	SpaceReclaimed    uint64
+}
+
+// VolumesPruneReport contains the response for Remote API:
+// POST "/volumes/prune"
+type VolumesPruneReport struct {
+	VolumesDeleted []string
+	SpaceReclaimed uint64
+}
+
+// ImagesPruneReport contains the response for Remote API:
+// POST "/image/prune"
+type ImagesPruneReport struct {
+	ImagesDeleted  []ImageDelete
+	SpaceReclaimed uint64
+}

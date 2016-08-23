@@ -524,3 +524,24 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 	}
 	return err
 }
+
+func (s *containerRouter) postContainersPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	if err := httputils.CheckForJSON(r); err != nil {
+		return err
+	}
+
+	var cfg types.ContainersPruneConfig
+	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		return err
+	}
+
+	pruneReport, err := s.backend.ContainersPrune(&cfg)
+	if err != nil {
+		return err
+	}
+	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
+}
