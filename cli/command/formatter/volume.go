@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
+	units "github.com/docker/go-units"
 )
 
 const (
@@ -12,6 +13,7 @@ const (
 	defaultVolumeTableFormat = "table {{.Driver}}\t{{.Name}}"
 
 	mountpointHeader = "MOUNTPOINT"
+	linksHeader      = "LINKS"
 	// Status header ?
 )
 
@@ -95,4 +97,20 @@ func (c *volumeContext) Label(name string) string {
 		return ""
 	}
 	return c.v.Labels[name]
+}
+
+func (c *volumeContext) Links() string {
+	c.AddHeader(linksHeader)
+	if c.v.Size == -1 {
+		return "N/A"
+	}
+	return fmt.Sprintf("%d", c.v.RefCount)
+}
+
+func (c *volumeContext) Size() string {
+	c.AddHeader(sizeHeader)
+	if c.v.Size == -1 {
+		return "N/A"
+	}
+	return units.HumanSize(float64(c.v.Size))
 }

@@ -1,6 +1,7 @@
 package formatter
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -227,4 +228,33 @@ func (c *imageContext) Size() string {
 	c.AddHeader(sizeHeader)
 	//NOTE: For backward compatibility we need to return VirtualSize
 	return units.HumanSizeWithPrecision(float64(c.i.VirtualSize), 3)
+}
+
+func (c *imageContext) Containers() string {
+	c.AddHeader(containersHeader)
+	if c.i.Containers == -1 {
+		return "N/A"
+	}
+	return fmt.Sprintf("%d", c.i.Containers)
+}
+
+func (c *imageContext) VirtualSize() string {
+	c.AddHeader(sizeHeader)
+	return units.HumanSize(float64(c.i.VirtualSize))
+}
+
+func (c *imageContext) SharedSize() string {
+	c.AddHeader(sharedSizeHeader)
+	if c.i.SharedSize == -1 {
+		return "N/A"
+	}
+	return units.HumanSize(float64(c.i.SharedSize))
+}
+
+func (c *imageContext) UniqueSize() string {
+	c.AddHeader(uniqueSizeHeader)
+	if c.i.Size == -1 {
+		return "N/A"
+	}
+	return units.HumanSize(float64(c.i.Size))
 }
