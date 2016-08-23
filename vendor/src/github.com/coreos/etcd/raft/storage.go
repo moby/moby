@@ -130,6 +130,9 @@ func (ms *MemoryStorage) Term(i uint64) (uint64, error) {
 	if i < offset {
 		return 0, ErrCompacted
 	}
+	if int(i-offset) >= len(ms.ents) {
+		return 0, ErrUnavailable
+	}
 	return ms.ents[i-offset].Term, nil
 }
 

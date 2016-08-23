@@ -197,8 +197,14 @@ func (na *NetworkAllocator) ServiceAllocate(s *api.Service) (err error) {
 		}
 	}
 
+	// Always prefer NetworkAttachmentConfig in the TaskSpec
+	specNetworks := s.Spec.Task.Networks
+	if len(specNetworks) == 0 && s != nil && len(s.Spec.Networks) != 0 {
+		specNetworks = s.Spec.Networks
+	}
+
 outer:
-	for _, nAttach := range s.Spec.Networks {
+	for _, nAttach := range specNetworks {
 		for _, vip := range s.Endpoint.VirtualIPs {
 			if vip.NetworkID == nAttach.Target {
 				continue outer
@@ -286,7 +292,7 @@ func (na *NetworkAllocator) IsTaskAllocated(t *api.Task) bool {
 func (na *NetworkAllocator) IsServiceAllocated(s *api.Service) bool {
 	// If endpoint mode is VIP and allocator does not have the
 	// service in VIP allocated set then it is not allocated.
-	if len(s.Spec.Networks) != 0 &&
+	if (len(s.Spec.Task.Networks) != 0 || len(s.Spec.Networks) != 0) &&
 		(s.Spec.Endpoint == nil ||
 			s.Spec.Endpoint.Mode == api.ResolutionModeVirtualIP) {
 		if _, ok := na.services[s.ID]; !ok {
@@ -527,7 +533,11 @@ func (na *NetworkAllocator) allocateNetworkIPs(nAttach *api.NetworkAttachment) e
 			var err error
 			addr, _, err = net.ParseCIDR(rawAddr)
 			if err != nil {
-				return err
+				addr = net.ParseIP(rawAddr)
+
+				if addr == nil {
+					return fmt.Errorf("could not parse address string %s: %v", rawAddr, err)
+				}
 			}
 		}
 

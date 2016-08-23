@@ -20,7 +20,7 @@ import (
 	"github.com/docker/distribution/digest"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/identity"
-	"github.com/docker/swarmkit/picker"
+	"github.com/docker/swarmkit/remotes"
 
 	"golang.org/x/net/context"
 )
@@ -183,7 +183,7 @@ func getCAHashFromToken(token string) (digest.Digest, error) {
 // LoadOrCreateSecurityConfig encapsulates the security logic behind joining a cluster.
 // Every node requires at least a set of TLS certificates with which to join the cluster with.
 // In the case of a manager, these certificates will be used both for client and server credentials.
-func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, token, proposedRole string, picker *picker.Picker, nodeInfo chan<- api.IssueNodeCertificateResponse) (*SecurityConfig, error) {
+func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, token, proposedRole string, remotes remotes.Remotes, nodeInfo chan<- api.IssueNodeCertificateResponse) (*SecurityConfig, error) {
 	paths := NewConfigPaths(baseCertDir)
 
 	var (
@@ -217,7 +217,7 @@ func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, token, propose
 		// just been demoted, for example).
 
 		for i := 0; i != 5; i++ {
-			rootCA, err = GetRemoteCA(ctx, d, picker)
+			rootCA, err = GetRemoteCA(ctx, d, remotes)
 			if err == nil {
 				break
 			}
@@ -267,7 +267,7 @@ func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, token, propose
 		} else {
 			// There was an error loading our Credentials, let's get a new certificate issued
 			// Last argument is nil because at this point we don't have any valid TLS creds
-			tlsKeyPair, err = rootCA.RequestAndSaveNewCertificates(ctx, paths.Node, token, picker, nil, nodeInfo)
+			tlsKeyPair, err = rootCA.RequestAndSaveNewCertificates(ctx, paths.Node, token, remotes, nil, nodeInfo)
 			if err != nil {
 				return nil, err
 			}
@@ -300,7 +300,7 @@ func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, token, propose
 
 // RenewTLSConfig will continuously monitor for the necessity of renewing the local certificates, either by
 // issuing them locally if key-material is available, or requesting them from a remote CA.
-func RenewTLSConfig(ctx context.Context, s *SecurityConfig, baseCertDir string, picker *picker.Picker, renew <-chan struct{}) <-chan CertificateUpdate {
+func RenewTLSConfig(ctx context.Context, s *SecurityConfig, baseCertDir string, remotes remotes.Remotes, renew <-chan struct{}) <-chan CertificateUpdate {
 	paths := NewConfigPaths(baseCertDir)
 	updates := make(chan CertificateUpdate)
 
@@ -344,7 +344,7 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, baseCertDir string, 
 			tlsKeyPair, err := rootCA.RequestAndSaveNewCertificates(ctx,
 				paths.Node,
 				"",
-				picker,
+				remotes,
 				s.ClientTLSCreds,
 				nil)
 			if err != nil {

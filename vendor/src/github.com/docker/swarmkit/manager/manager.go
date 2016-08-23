@@ -24,6 +24,7 @@ import (
 	"github.com/docker/swarmkit/manager/keymanager"
 	"github.com/docker/swarmkit/manager/orchestrator"
 	"github.com/docker/swarmkit/manager/raftpicker"
+	"github.com/docker/swarmkit/manager/resourceapi"
 	"github.com/docker/swarmkit/manager/scheduler"
 	"github.com/docker/swarmkit/manager/state/raft"
 	"github.com/docker/swarmkit/manager/state/store"
@@ -275,9 +276,12 @@ func (m *Manager) Run(parent context.Context) error {
 	}
 
 	baseControlAPI := controlapi.NewServer(m.RaftNode.MemoryStore(), m.RaftNode, m.config.SecurityConfig.RootCA())
+	baseResourceAPI := resourceapi.New(m.RaftNode.MemoryStore())
 	healthServer := health.NewHealthServer()
+	localHealthServer := health.NewHealthServer()
 
 	authenticatedControlAPI := api.NewAuthenticatedWrapperControlServer(baseControlAPI, authorize)
+	authenticatedResourceAPI := api.NewAuthenticatedWrapperResourceAllocatorServer(baseResourceAPI, authorize)
 	authenticatedDispatcherAPI := api.NewAuthenticatedWrapperDispatcherServer(m.Dispatcher, authorize)
 	authenticatedCAAPI := api.NewAuthenticatedWrapperCAServer(m.caserver, authorize)
 	authenticatedNodeCAAPI := api.NewAuthenticatedWrapperNodeCAServer(m.caserver, authorize)
@@ -289,6 +293,7 @@ func (m *Manager) Run(parent context.Context) error {
 	proxyCAAPI := api.NewRaftProxyCAServer(authenticatedCAAPI, cs, m.RaftNode, ca.WithMetadataForwardTLSInfo)
 	proxyNodeCAAPI := api.NewRaftProxyNodeCAServer(authenticatedNodeCAAPI, cs, m.RaftNode, ca.WithMetadataForwardTLSInfo)
 	proxyRaftMembershipAPI := api.NewRaftProxyRaftMembershipServer(authenticatedRaftMembershipAPI, cs, m.RaftNode, ca.WithMetadataForwardTLSInfo)
+	proxyResourceAPI := api.NewRaftProxyResourceAllocatorServer(authenticatedResourceAPI, cs, m.RaftNode, ca.WithMetadataForwardTLSInfo)
 
 	// localProxyControlAPI is a special kind of proxy. It is only wired up
 	// to receive requests from a trusted local socket, and these requests
@@ -306,9 +311,12 @@ func (m *Manager) Run(parent context.Context) error {
 	api.RegisterRaftServer(m.server, authenticatedRaftAPI)
 	api.RegisterHealthServer(m.server, authenticatedHealthAPI)
 	api.RegisterRaftMembershipServer(m.server, proxyRaftMembershipAPI)
-	api.RegisterControlServer(m.localserver, localProxyControlAPI)
 	api.RegisterControlServer(m.server, authenticatedControlAPI)
+	api.RegisterResourceAllocatorServer(m.server, proxyResourceAPI)
 	api.RegisterDispatcherServer(m.server, proxyDispatcherAPI)
+
+	api.RegisterControlServer(m.localserver, localProxyControlAPI)
+	api.RegisterHealthServer(m.localserver, localHealthServer)
 
 	errServe := make(chan error, 2)
 	for proto, l := range m.listeners {
@@ -317,11 +325,14 @@ func (m *Manager) Run(parent context.Context) error {
 
 	// Set the raft server as serving for the health server
 	healthServer.SetServingStatus("Raft", api.HealthCheckResponse_SERVING)
+	localHealthServer.SetServingStatus("ControlAPI", api.HealthCheckResponse_SERVING)
+
+	defer func() {
+		m.server.Stop()
+		m.localserver.Stop()
+	}()
 
 	if err := m.RaftNode.JoinAndStart(); err != nil {
-		for _, lis := range m.listeners {
-			lis.Close()
-		}
 		return fmt.Errorf("can't initialize raft node: %v", err)
 	}
 
@@ -336,13 +347,11 @@ func (m *Manager) Run(parent context.Context) error {
 	}()
 
 	if err := raft.WaitForLeader(ctx, m.RaftNode); err != nil {
-		m.server.Stop()
 		return err
 	}
 
 	c, err := raft.WaitForCluster(ctx, m.RaftNode)
 	if err != nil {
-		m.server.Stop()
 		return err
 	}
 	raftConfig := c.Spec.Raft
@@ -527,29 +536,31 @@ func (m *Manager) rotateRootCAKEK(ctx context.Context, clusterID string) error {
 
 }
 
-// handleLeadershipEvents reads out and discards all of the messages when the manager is stopped,
-// otherwise it handles the is leader event or is follower event.
+// handleLeadershipEvents handles the is leader event or is follower event.
 func (m *Manager) handleLeadershipEvents(ctx context.Context, leadershipCh chan events.Event) {
-	for leadershipEvent := range leadershipCh {
-		// read out and discard all of the messages when we've stopped
-		// don't acquire the mutex yet. if stopped is closed, we don't need
-		// this stops this loop from starving Run()'s attempt to Lock
+	for {
 		select {
-		case <-m.stopped:
-			continue
-		default:
-			// do nothing, we're not stopped
-		}
-		// we're not stopping so NOW acquire the mutex
-		m.mu.Lock()
-		newState := leadershipEvent.(raft.LeadershipState)
+		case leadershipEvent := <-leadershipCh:
+			m.mu.Lock()
+			select {
+			case <-m.stopped:
+				m.mu.Unlock()
+				return
+			default:
+			}
+			newState := leadershipEvent.(raft.LeadershipState)
 
-		if newState == raft.IsLeader {
-			m.becomeLeader(ctx)
-		} else if newState == raft.IsFollower {
-			m.becomeFollower()
+			if newState == raft.IsLeader {
+				m.becomeLeader(ctx)
+			} else if newState == raft.IsFollower {
+				m.becomeFollower()
+			}
+			m.mu.Unlock()
+		case <-m.stopped:
+			return
+		case <-ctx.Done():
+			return
 		}
-		m.mu.Unlock()
 	}
 }
 
@@ -609,7 +620,7 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 	m.globalOrchestrator = orchestrator.NewGlobalOrchestrator(s)
 	m.taskReaper = orchestrator.NewTaskReaper(s)
 	m.scheduler = scheduler.New(s)
-	m.keyManager = keymanager.New(m.RaftNode.MemoryStore(), keymanager.DefaultConfig())
+	m.keyManager = keymanager.New(s, keymanager.DefaultConfig())
 
 	// TODO(stevvooe): Allocate a context that can be used to
 	// shutdown underlying manager processes when leadership is

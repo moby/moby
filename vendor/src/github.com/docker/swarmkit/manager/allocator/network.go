@@ -165,7 +165,7 @@ func (a *Allocator) doNetworkInit(ctx context.Context) error {
 		nodes, err = store.FindNodes(tx, store.All)
 	})
 	if err != nil {
-		return fmt.Errorf("error listing all services in store while trying to allocate during init: %v", err)
+		return fmt.Errorf("error listing all nodes in store while trying to allocate during init: %v", err)
 	}
 
 	for _, node := range nodes {
@@ -420,9 +420,9 @@ func taskUpdateEndpoint(t *api.Task, endpoint *api.Endpoint) {
 }
 
 func (a *Allocator) taskCreateNetworkAttachments(t *api.Task, s *api.Service) {
-	// If service is nil or if task network attachments have
-	// already been filled in no need to do anything else.
-	if s == nil || len(t.Networks) != 0 {
+	// If task network attachments have already been filled in no
+	// need to do anything else.
+	if len(t.Networks) != 0 {
 		return
 	}
 
@@ -431,19 +431,31 @@ func (a *Allocator) taskCreateNetworkAttachments(t *api.Task, s *api.Service) {
 	// The service to which this task belongs is trying to expose
 	// ports to the external world. Automatically attach the task
 	// to the ingress network.
-	if s.Spec.Endpoint != nil && len(s.Spec.Endpoint.Ports) != 0 {
+	if s != nil && s.Spec.Endpoint != nil && len(s.Spec.Endpoint.Ports) != 0 {
 		networks = append(networks, &api.NetworkAttachment{Network: a.netCtx.ingressNetwork})
 	}
 
 	a.store.View(func(tx store.ReadTx) {
-		for _, na := range s.Spec.Networks {
+		// Always prefer NetworkAttachmentConfig in the TaskSpec
+		specNetworks := t.Spec.Networks
+		if len(specNetworks) == 0 && s != nil && len(s.Spec.Networks) != 0 {
+			specNetworks = s.Spec.Networks
+		}
+
+		for _, na := range specNetworks {
 			n := store.GetNetwork(tx, na.Target)
 			if n != nil {
 				var aliases []string
+				var addresses []string
+
 				for _, a := range na.Aliases {
 					aliases = append(aliases, a)
 				}
-				networks = append(networks, &api.NetworkAttachment{Network: n, Aliases: aliases})
+				for _, a := range na.Addresses {
+					addresses = append(addresses, a)
+				}
+
+				networks = append(networks, &api.NetworkAttachment{Network: n, Aliases: aliases, Addresses: addresses})
 			}
 		}
 	})
@@ -508,11 +520,11 @@ func (a *Allocator) doTaskAlloc(ctx context.Context, nc *networkContext, ev even
 				return
 			}
 		}
-
-		// Populate network attachments in the task
-		// based on service spec.
-		a.taskCreateNetworkAttachments(t, s)
 	}
+
+	// Populate network attachments in the task
+	// based on service spec.
+	a.taskCreateNetworkAttachments(t, s)
 
 	nc.unallocatedTasks[t.ID] = t
 }

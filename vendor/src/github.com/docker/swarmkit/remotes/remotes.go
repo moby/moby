@@ -1,4 +1,4 @@
-package picker
+package remotes
 
 import (
 	"fmt"
@@ -8,9 +8,6 @@ import (
 	"sync"
 
 	"github.com/docker/swarmkit/api"
-	"golang.org/x/net/context"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/transport"
 )
 
 var errRemotesUnavailable = fmt.Errorf("no remote hosts provided")
@@ -203,135 +200,4 @@ func (mwr *remotesWeightedRandom) observe(peer api.Peer, weight float64) {
 	wn := clip(α*w1 + (1-α)*w0)
 
 	mwr.remotes[peer] = int(math.Ceil(wn))
-}
-
-// Picker implements a grpc Picker
-type Picker struct {
-	r    Remotes
-	peer api.Peer // currently selected remote peer
-	conn *grpc.Conn
-	mu   sync.Mutex
-}
-
-var _ grpc.Picker = &Picker{}
-
-// NewPicker returns a Picker
-func NewPicker(r Remotes, initial ...string) *Picker {
-	var peer api.Peer
-	if len(initial) == 0 {
-		peer, _ = r.Select() // empty in case of error
-	} else {
-		peer = api.Peer{Addr: initial[0]}
-	}
-	return &Picker{r: r, peer: peer}
-}
-
-// Init does initial processing for the Picker, e.g., initiate some connections.
-func (p *Picker) Init(cc *grpc.ClientConn) error {
-	p.mu.Lock()
-	peer := p.peer
-	p.mu.Unlock()
-
-	p.r.ObserveIfExists(peer, DefaultObservationWeight)
-	c, err := grpc.NewConn(cc)
-	if err != nil {
-		return err
-	}
-
-	p.mu.Lock()
-	p.conn = c
-	p.mu.Unlock()
-	return nil
-}
-
-// Pick blocks until either a transport.ClientTransport is ready for the upcoming RPC
-// or some error happens.
-func (p *Picker) Pick(ctx context.Context) (transport.ClientTransport, error) {
-	p.mu.Lock()
-	peer := p.peer
-	p.mu.Unlock()
-	transport, err := p.conn.Wait(ctx)
-	if err != nil {
-		p.r.ObserveIfExists(peer, -DefaultObservationWeight)
-	}
-
-	return transport, err
-}
-
-// PickAddr picks a peer address for connecting. This will be called repeated for
-// connecting/reconnecting.
-func (p *Picker) PickAddr() (string, error) {
-	p.mu.Lock()
-	peer := p.peer
-	p.mu.Unlock()
-
-	p.r.ObserveIfExists(peer, -DefaultObservationWeight) // downweight the current addr
-
-	var err error
-	peer, err = p.r.Select()
-	if err != nil {
-		return "", err
-	}
-
-	p.mu.Lock()
-	p.peer = peer
-	p.mu.Unlock()
-	return peer.Addr, err
-}
-
-// State returns the connectivity state of the underlying connections.
-func (p *Picker) State() (grpc.ConnectivityState, error) {
-	return p.conn.State(), nil
-}
-
-// WaitForStateChange blocks until the state changes to something other than
-// the sourceState. It returns the new state or error.
-func (p *Picker) WaitForStateChange(ctx context.Context, sourceState grpc.ConnectivityState) (grpc.ConnectivityState, error) {
-	p.mu.Lock()
-	conn := p.conn
-	peer := p.peer
-	p.mu.Unlock()
-
-	state, err := conn.WaitForStateChange(ctx, sourceState)
-	if err != nil {
-		return state, err
-	}
-
-	// TODO(stevvooe): We may want to actually score the transition by checking
-	// sourceState.
-
-	// TODO(stevvooe): This is questionable, but we'll see how it works.
-	switch state {
-	case grpc.Idle:
-		p.r.ObserveIfExists(peer, DefaultObservationWeight)
-	case grpc.Connecting:
-		p.r.ObserveIfExists(peer, DefaultObservationWeight)
-	case grpc.Ready:
-		p.r.ObserveIfExists(peer, DefaultObservationWeight)
-	case grpc.TransientFailure:
-		p.r.ObserveIfExists(peer, -DefaultObservationWeight)
-	case grpc.Shutdown:
-		p.r.ObserveIfExists(peer, -DefaultObservationWeight)
-	}
-
-	return state, err
-}
-
-// Reset the current connection and force a reconnect to another address.
-func (p *Picker) Reset() error {
-	p.mu.Lock()
-	conn := p.conn
-	p.mu.Unlock()
-
-	conn.NotifyReset()
-	return nil
-}
-
-// Close closes all the Conn's owned by this Picker.
-func (p *Picker) Close() error {
-	p.mu.Lock()
-	conn := p.conn
-	p.mu.Unlock()
-
-	return conn.Close()
 }

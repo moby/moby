@@ -171,7 +171,12 @@ func (s *Server) RemoveNetwork(ctx context.Context, request *api.RemoveNetworkRe
 	}
 
 	for _, s := range services {
-		for _, na := range s.Spec.Networks {
+		specNetworks := s.Spec.Task.Networks
+		if len(specNetworks) == 0 {
+			specNetworks = s.Spec.Networks
+		}
+
+		for _, na := range specNetworks {
 			if na.Target == request.NetworkID {
 				return nil, grpc.Errorf(codes.FailedPrecondition, "network %s is in use", request.NetworkID)
 			}

@@ -144,6 +144,9 @@ type Node interface {
 	// to match MemoryStorage.Compact.
 	ApplyConfChange(cc pb.ConfChange) *pb.ConfState
 
+	// TransferLeadership attempts to transfer leadership to the given transferee.
+	TransferLeadership(ctx context.Context, lead, transferee uint64)
+
 	// ReadIndex request a read state. The read state will be set in the ready.
 	// Read state has a read index. Once the application advances further than the read
 	// index, any linearizable read requests issued before the read request can be
@@ -482,6 +485,15 @@ func (n *node) ReportSnapshot(id uint64, status SnapshotStatus) {
 	select {
 	case n.recvc <- pb.Message{Type: pb.MsgSnapStatus, From: id, Reject: rej}:
 	case <-n.done:
+	}
+}
+
+func (n *node) TransferLeadership(ctx context.Context, lead, transferee uint64) {
+	select {
+	// manually set 'from' and 'to', so that leader can voluntarily transfers its leadership
+	case n.recvc <- pb.Message{Type: pb.MsgTransferLeader, From: transferee, To: lead}:
+	case <-n.done:
+	case <-ctx.Done():
 	}
 }
 
