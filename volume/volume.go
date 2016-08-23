@@ -6,8 +6,8 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
 	mounttypes "github.com/docker/engine-api/types/mount"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
@@ -107,7 +107,7 @@ type MountPoint struct {
 
 // Setup sets up a mount point by either mounting the volume if it is
 // configured, or creating the source directory if supplied.
-func (m *MountPoint) Setup(mountLabel string) (string, error) {
+func (m *MountPoint) Setup(mountLabel string, rootUID, rootGID int) (string, error) {
 	if m.Volume != nil {
 		if m.ID == "" {
 			m.ID = stringid.GenerateNonCryptoID()
@@ -117,8 +117,9 @@ func (m *MountPoint) Setup(mountLabel string) (string, error) {
 	if len(m.Source) == 0 {
 		return "", fmt.Errorf("Unable to setup mount point, neither source nor volume defined")
 	}
-	// system.MkdirAll() produces an error if m.Source exists and is a file (not a directory),
-	if err := system.MkdirAll(m.Source, 0755); err != nil {
+	// idtools.MkdirAllNewAs() produces an error if m.Source exists and is a file (not a directory)
+	// also, makes sure that if the directory is created, the correct remapped rootUID/rootGID will own it
+	if err := idtools.MkdirAllNewAs(m.Source, 0755, rootUID, rootGID); err != nil {
 		if perr, ok := err.(*os.PathError); ok {
 			if perr.Err != syscall.ENOTDIR {
 				return "", err
