@@ -87,7 +87,7 @@ func init() {
 	var err error
 	dockerBinary, err = exec.LookPath(dockerBinary)
 	if err != nil {
-		fmt.Printf("ERROR: couldn't resolve full path to the Docker binary (%v)", err)
+		fmt.Printf("ERROR: couldn't resolve full path to the Docker binary (%v)\n", err)
 		os.Exit(1)
 	}
 	if registryImage := os.Getenv("REGISTRY_IMAGE"); registryImage != "" {
