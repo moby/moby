@@ -530,3 +530,12 @@ type Runtime struct {
 	Path string   `json:"path"`
 	Args []string `json:"runtimeArgs,omitempty"`
 }
+
+// DiskUsage contains response of Remote API:
+// GET "/system/df"
+type DiskUsage struct {
+	LayersSize int64
+	Images     []*Image
+	Containers []*Container
+	Volumes    []*Volume
+}
