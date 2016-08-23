@@ -139,7 +139,7 @@ clone git github.com/docker/docker-credential-helpers v0.3.0
 clone git github.com/docker/containerd 0ac3cd1be170d180b2baed755e8f0da547ceb267
 
 # cluster
-clone git github.com/docker/swarmkit d5f249ec9a52ea48e875b5335a3a0c50f60db550
+clone git github.com/docker/swarmkit 8a761950fb4d9251c335dc6149a8a02756cb3b10
 clone git github.com/golang/mock bd3c8e81be01eef76d4b503f5e687d2d1354d2d9
 clone git github.com/gogo/protobuf 43a2e0b1c32252bfbbdf81f7faa7a88fb3fa4028
 clone git github.com/cloudflare/cfssl b895b0549c0ff676f92cf09ba971ae02bb41367b
@@ -152,11 +152,11 @@ clone git github.com/hashicorp/go-immutable-radix 8e8ed81f8f0bf1bdd829593fdd5c29
 clone git github.com/hashicorp/golang-lru a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4
 clone git github.com/coreos/pkg fa29b1d70f0beaddd4c7021607cc3c3be8ce94b8
 clone git github.com/pivotal-golang/clock 3fd3c1944c59d9742e1cd333672181cd1a6f9fa0
-clone git github.com/prometheus/client_golang e51041b3fa41cece0dca035740ba6411905be473
-clone git github.com/beorn7/perks b965b613227fddccbfffe13eae360ed3fa822f8d
+clone git github.com/prometheus/client_golang 52437c81da6b127a9925d17eb3a382a2e5fd395e
+clone git github.com/beorn7/perks 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
 clone git github.com/prometheus/client_model fa8ad6fec33561be4280a8f0514318c79d7f6cb6
-clone git github.com/prometheus/common ffe929a3f4c4faeaa10f2b9535c2b1be3ad15650
-clone git github.com/prometheus/procfs 454a56f35412459b5e684fd5ec0f9211b94f002a
+clone git github.com/prometheus/common ebdfc6da46522d58825777cf1f90490a5b1ef1d8
+clone git github.com/prometheus/procfs abf152e5f3e97f2fafac028d2cc06c1feb87ffa5
 clone hg bitbucket.org/ww/goautoneg 75cd24fc2f2c2a2088577d12123ddee5f54e0675
 clone git github.com/matttproud/golang_protobuf_extensions fc2b8d3a73c4867e51861bbdd5ae3c1f0869dd6a
 clone git github.com/pkg/errors 01fa4104b9c248c8945d14d9f128454d5b28d595

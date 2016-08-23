@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -224,8 +225,15 @@ func (ti taskIndexerByName) FromObject(obj interface{}) (bool, []byte, error) {
 		panic("unexpected type passed to FromObject")
 	}
 
+	name := t.Annotations.Name
+	if name == "" {
+		// If Task name is not assigned then calculated name is used like before.
+		// This might be removed in the future.
+		name = fmt.Sprintf("%v.%v.%v", t.ServiceAnnotations.Name, t.Slot, t.Task.ID)
+	}
+
 	// Add the null character as a terminator
-	return true, []byte(strings.ToLower(t.ServiceAnnotations.Name) + "\x00"), nil
+	return true, []byte(strings.ToLower(name) + "\x00"), nil
 }
 
 func (ti taskIndexerByName) PrefixFromArgs(args ...interface{}) ([]byte, error) {

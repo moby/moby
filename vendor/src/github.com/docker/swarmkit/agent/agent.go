@@ -136,7 +136,7 @@ func (a *Agent) run(ctx context.Context) {
 
 	var (
 		backoff    time.Duration
-		session    = newSession(ctx, a, backoff) // start the initial session
+		session    = newSession(ctx, a, backoff, "") // start the initial session
 		registered = session.registered
 		ready      = a.ready // first session ready
 		sessionq   chan sessionOperation
@@ -198,7 +198,7 @@ func (a *Agent) run(ctx context.Context) {
 
 			// select a session registration delay from backoff range.
 			delay := time.Duration(rand.Int63n(int64(backoff)))
-			session = newSession(ctx, a, delay)
+			session = newSession(ctx, a, delay, session.sessionID)
 			registered = session.registered
 			sessionq = a.sessionq
 		case <-a.stopped:

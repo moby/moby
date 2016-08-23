@@ -57,12 +57,31 @@ func nowSeries(t ...time.Time) nower {
 // has a constant label named "handler" with the provided handlerName as
 // value. http_requests_total is a metric vector partitioned by HTTP method
 // (label name "method") and HTTP status code (label name "code").
+//
+// Note that InstrumentHandler has several issues:
+//
+// - It uses Summaries rather than Histograms. Summaries are not useful if
+// aggregation across multiple instances is required.
+//
+// - It uses microseconds as unit, which is deprecated and should be replaced by
+// seconds.
+//
+// - The size of the request is calculated in a separate goroutine. Since this
+// calculator requires access to the request header, it creates a race with
+// any writes to the header performed during request handling.
+// httputil.ReverseProxy is a prominent example for a handler
+// performing such writes.
+//
+// Upcoming versions of this package will provide ways of instrumenting HTTP
+// handlers that are more flexible and have fewer issues. Consider this function
+// DEPRECATED and prefer direct instrumentation in the meantime.
 func InstrumentHandler(handlerName string, handler http.Handler) http.HandlerFunc {
 	return InstrumentHandlerFunc(handlerName, handler.ServeHTTP)
 }
 
 // InstrumentHandlerFunc wraps the given function for instrumentation. It
-// otherwise works in the same way as InstrumentHandler.
+// otherwise works in the same way as InstrumentHandler (and shares the same
+// issues).
 func InstrumentHandlerFunc(handlerName string, handlerFunc func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
 	return InstrumentHandlerFuncWithOpts(
 		SummaryOpts{
@@ -73,13 +92,13 @@ func InstrumentHandlerFunc(handlerName string, handlerFunc func(http.ResponseWri
 	)
 }
 
-// InstrumentHandlerWithOpts works like InstrumentHandler but provides more
-// flexibility (at the cost of a more complex call syntax). As
-// InstrumentHandler, this function registers four metric collectors, but it
-// uses the provided SummaryOpts to create them. However, the fields "Name" and
-// "Help" in the SummaryOpts are ignored. "Name" is replaced by
-// "requests_total", "request_duration_microseconds", "request_size_bytes", and
-// "response_size_bytes", respectively. "Help" is replaced by an appropriate
+// InstrumentHandlerWithOpts works like InstrumentHandler (and shares the same
+// issues) but provides more flexibility (at the cost of a more complex call
+// syntax). As InstrumentHandler, this function registers four metric
+// collectors, but it uses the provided SummaryOpts to create them. However, the
+// fields "Name" and "Help" in the SummaryOpts are ignored. "Name" is replaced
+// by "requests_total", "request_duration_microseconds", "request_size_bytes",
+// and "response_size_bytes", respectively. "Help" is replaced by an appropriate
 // help string. The names of the variable labels of the http_requests_total
 // CounterVec are "method" (get, post, etc.), and "code" (HTTP status code).
 //
@@ -102,9 +121,10 @@ func InstrumentHandlerWithOpts(opts SummaryOpts, handler http.Handler) http.Hand
 	return InstrumentHandlerFuncWithOpts(opts, handler.ServeHTTP)
 }
 
-// InstrumentHandlerFuncWithOpts works like InstrumentHandlerFunc but provides
-// more flexibility (at the cost of a more complex call syntax). See
-// InstrumentHandlerWithOpts for details how the provided SummaryOpts are used.
+// InstrumentHandlerFuncWithOpts works like InstrumentHandlerFunc (and shares
+// the same issues) but provides more flexibility (at the cost of a more complex
+// call syntax). See InstrumentHandlerWithOpts for details how the provided
+// SummaryOpts are used.
 func InstrumentHandlerFuncWithOpts(opts SummaryOpts, handlerFunc func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
 	reqCnt := NewCounterVec(
 		CounterOpts{

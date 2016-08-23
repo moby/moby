@@ -20,7 +20,6 @@ import (
 // Most operations against docker's API are done through the container name,
 // which is unique to the task.
 type controller struct {
-	backend executorpkg.Backend
 	task    *api.Task
 	adapter *containerAdapter
 	closed  chan struct{}
@@ -41,7 +40,6 @@ func newController(b executorpkg.Backend, task *api.Task) (*controller, error) {
 	}
 
 	return &controller{
-		backend: b,
 		task:    task,
 		adapter: adapter,
 		closed:  make(chan struct{}),
@@ -86,7 +84,7 @@ func (r *controller) Prepare(ctx context.Context) error {
 	}
 
 	// Make sure all the volumes that the task needs are created.
-	if err := r.adapter.createVolumes(ctx, r.backend); err != nil {
+	if err := r.adapter.createVolumes(ctx); err != nil {
 		return err
 	}
 
@@ -128,7 +126,7 @@ func (r *controller) Prepare(ctx context.Context) error {
 		}
 	}
 
-	if err := r.adapter.create(ctx, r.backend); err != nil {
+	if err := r.adapter.create(ctx); err != nil {
 		if isContainerCreateNameConflict(err) {
 			if _, err := r.adapter.inspect(ctx); err != nil {
 				return err
