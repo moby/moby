@@ -24,6 +24,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/term"
+	"github.com/docker/engine-api/types/network"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/api"
 	"github.com/docker/libnetwork/config"
@@ -34,6 +35,7 @@ import (
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
 	"github.com/gorilla/mux"
+	"golang.org/x/net/context"
 )
 
 const (
@@ -327,6 +329,22 @@ func (d *dnetConnection) SetNetworkKeys([]*types.EncryptionKey) {
 
 func (d *dnetConnection) ListenClusterEvents() <-chan struct{} {
 	return d.configEvent
+}
+
+func (d *dnetConnection) AttachNetwork(string, string, []string) (*network.NetworkingConfig, error) {
+	return nil, nil
+}
+
+func (d *dnetConnection) DetachNetwork(string, string) error {
+	return nil
+}
+
+func (d *dnetConnection) UpdateAttachment(string, string, *network.NetworkingConfig) error {
+	return nil
+}
+
+func (d *dnetConnection) WaitForDetachment(context.Context, string, string, string) error {
+	return nil
 }
 
 func handleSignals(controller libnetwork.NetworkController) {
