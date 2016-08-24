@@ -49,9 +49,9 @@ func NewSimpleChallengeManager() ChallengeManager {
 	}
 }
 
-type simpleChallengeManager struct{
+type simpleChallengeManager struct {
 	sync.RWMutex
-	Challanges  map[string][]Challenge
+	Challanges map[string][]Challenge
 }
 
 func (m *simpleChallengeManager) GetChallenges(endpoint url.URL) ([]Challenge, error) {

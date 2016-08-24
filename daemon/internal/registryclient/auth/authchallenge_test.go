@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"testing"
 	"sync"
+	"testing"
 )
 
 func TestAuthChallengeParse(t *testing.T) {
@@ -82,7 +82,6 @@ func testAuthChallengeNormalization(t *testing.T, host string) {
 	}
 }
 
-
 func testAuthChallengeConcurrent(t *testing.T, host string) {
 
 	scm := NewSimpleChallengeManager()
@@ -104,7 +103,7 @@ func testAuthChallengeConcurrent(t *testing.T, host string) {
 	s.Add(2)
 	go func() {
 
-		for i:=0 ; i<200; i++ {
+		for i := 0; i < 200; i++ {
 			err = scm.AddResponse(resp)
 			if err != nil {
 				t.Fatal(err)
@@ -115,7 +114,7 @@ func testAuthChallengeConcurrent(t *testing.T, host string) {
 	go func() {
 		lowered := *url
 		lowered.Host = strings.ToLower(lowered.Host)
-		for k := 0; k < 200 ; k++ {
+		for k := 0; k < 200; k++ {
 			_, err := scm.GetChallenges(lowered)
 			if err != nil {
 				t.Fatal(err)
