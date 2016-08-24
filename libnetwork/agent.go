@@ -193,9 +193,12 @@ func (c *controller) agentSetup() error {
 		}
 	}
 
-	if c.agent != nil {
+	c.Lock()
+	if c.agent != nil && c.agentInitDone != nil {
 		close(c.agentInitDone)
+		c.agentInitDone = nil
 	}
+	c.Unlock()
 
 	return nil
 }
