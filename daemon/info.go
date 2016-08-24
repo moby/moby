@@ -175,12 +175,7 @@ func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {
 	var pluginsInfo types.PluginsInfo
 
 	pluginsInfo.Volume = volumedrivers.GetDriverList()
-
-	networkDriverList := daemon.GetNetworkDriverList()
-	for nd := range networkDriverList {
-		pluginsInfo.Network = append(pluginsInfo.Network, nd)
-	}
-
+	pluginsInfo.Network = daemon.GetNetworkDriverList()
 	pluginsInfo.Authorization = daemon.configStore.AuthorizationPlugins
 
 	return pluginsInfo
