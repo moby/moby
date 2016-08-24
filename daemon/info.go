@@ -3,6 +3,7 @@ package daemon
 import (
 	"os"
 	"runtime"
+	"sort"
 	"sync/atomic"
 	"time"
 
@@ -180,6 +181,8 @@ func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {
 	for nd := range networkDriverList {
 		pluginsInfo.Network = append(pluginsInfo.Network, nd)
 	}
+	// Sort so that the order is not random
+	sort.Strings(pluginsInfo.Network)
 
 	pluginsInfo.Authorization = daemon.configStore.AuthorizationPlugins
 
