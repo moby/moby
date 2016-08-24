@@ -181,7 +181,9 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 	updateEnvironment(flags, &cspec.Env)
 	updateString(flagWorkdir, &cspec.Dir)
 	updateString(flagUser, &cspec.User)
-	updateMounts(flags, &cspec.Mounts)
+	if err := updateMounts(flags, &cspec.Mounts); err != nil {
+		return err
+	}
 
 	if flags.Changed(flagLimitCPU) || flags.Changed(flagLimitMemory) {
 		taskResources().Limits = &swarm.Resources{}
@@ -402,20 +404,53 @@ func removeItems(
 	return newSeq
 }
 
-func updateMounts(flags *pflag.FlagSet, mounts *[]mounttypes.Mount) {
+type byMountSource []mounttypes.Mount
+
+func (m byMountSource) Len() int      { return len(m) }
+func (m byMountSource) Swap(i, j int) { m[i], m[j] = m[j], m[i] }
+func (m byMountSource) Less(i, j int) bool {
+	a, b := m[i], m[j]
+
+	if a.Source == b.Source {
+		return a.Target < b.Target
+	}
+
+	return a.Source < b.Source
+}
+
+func updateMounts(flags *pflag.FlagSet, mounts *[]mounttypes.Mount) error {
+
+	mountsByTarget := map[string]mounttypes.Mount{}
+
 	if flags.Changed(flagMountAdd) {
 		values := flags.Lookup(flagMountAdd).Value.(*opts.MountOpt).Value()
-		*mounts = append(*mounts, values...)
+		for _, mount := range values {
+			if _, ok := mountsByTarget[mount.Target]; ok {
+				return fmt.Errorf("duplicate mount target")
+			}
+			mountsByTarget[mount.Target] = mount
+		}
 	}
-	toRemove := buildToRemoveSet(flags, flagMountRemove)
+
+	// Add old list of mount points minus updated one.
+	for _, mount := range *mounts {
+		if _, ok := mountsByTarget[mount.Target]; !ok {
+			mountsByTarget[mount.Target] = mount
+		}
+	}
 
 	newMounts := []mounttypes.Mount{}
-	for _, mount := range *mounts {
+
+	toRemove := buildToRemoveSet(flags, flagMountRemove)
+
+	for _, mount := range mountsByTarget {
 		if _, exists := toRemove[mount.Target]; !exists {
 			newMounts = append(newMounts, mount)
 		}
 	}
+	sort.Sort(byMountSource(newMounts))
 	*mounts = newMounts
+	return nil
 }
 
 func updateGroups(flags *pflag.FlagSet, groups *[]string) error {
