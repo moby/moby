@@ -5,13 +5,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/go-check/check"
 )
 
@@ -89,15 +89,12 @@ func (s *DockerSuite) TestApiDockerApiVersion(c *check.C) {
 	defer server.Close()
 
 	// Test using the env var first
-	cmd := exec.Command(dockerBinary, "-H="+server.URL[7:], "version")
-	cmd.Env = appendBaseEnv(false, "DOCKER_API_VERSION=xxx")
-	out, _, _ := runCommandWithOutput(cmd)
-
-	c.Assert(svrVersion, check.Equals, "/vxxx/version")
-
-	if !strings.Contains(out, "API version:  xxx") {
-		c.Fatalf("Out didn't have 'xxx' for the API version, had:\n%s", out)
-	}
+	result := icmd.RunCmd(icmd.Cmd{
+		Command: binaryWithArgs("-H="+server.URL[7:], "version"),
+		Env:     appendBaseEnv(false, "DOCKER_API_VERSION=xxx"),
+	})
+	c.Assert(result, icmd.Matches, icmd.Expected{Out: "API version:  xxx", ExitCode: 1})
+	c.Assert(svrVersion, check.Equals, "/vxxx/version", check.Commentf("%s", result.Compare(icmd.Success)))
 }
 
 func (s *DockerSuite) TestApiErrorJSON(c *check.C) {

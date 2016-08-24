@@ -13,6 +13,7 @@ import (
 
 	"github.com/docker/docker/daemon/events/testutils"
 	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/go-check/check"
 )
 
@@ -57,11 +58,14 @@ func (s *DockerSuite) TestEventsUntag(c *check.C) {
 	dockerCmd(c, "tag", image, "utest:tag2")
 	dockerCmd(c, "rmi", "utest:tag1")
 	dockerCmd(c, "rmi", "utest:tag2")
-	eventsCmd := exec.Command(dockerBinary, "events", "--since=1")
-	out, exitCode, _, err := runCommandWithOutputForDuration(eventsCmd, time.Duration(time.Millisecond*2500))
-	c.Assert(err, checker.IsNil)
-	c.Assert(exitCode, checker.Equals, 0, check.Commentf("Failed to get events"))
-	events := strings.Split(out, "\n")
+
+	result := icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "events", "--since=1"},
+		Timeout: time.Millisecond * 2500,
+	})
+	c.Assert(result, icmd.Matches, icmd.Expected{Timeout: true})
+
+	events := strings.Split(result.Stdout(), "\n")
 	nEvents := len(events)
 	// The last element after the split above will be an empty string, so we
 	// get the two elements before the last, which are the untags we're
@@ -275,8 +279,8 @@ func (s *DockerSuite) TestEventsImageLoad(c *check.C) {
 	c.Assert(noImageID, checker.Equals, "", check.Commentf("Should not have any image"))
 	dockerCmd(c, "load", "-i", "saveimg.tar")
 
-	cmd := exec.Command("rm", "-rf", "saveimg.tar")
-	runCommand(cmd)
+	result := icmd.RunCommand("rm", "-rf", "saveimg.tar")
+	c.Assert(result, icmd.Matches, icmd.Success)
 
 	out, _ = dockerCmd(c, "images", "-q", "--no-trunc", myImageName)
 	imageID := strings.TrimSpace(out)

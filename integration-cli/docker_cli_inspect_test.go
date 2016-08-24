@@ -227,7 +227,7 @@ func (s *DockerSuite) TestInspectBindMountPoint(c *check.C) {
 	vol := inspectFieldJSON(c, "test", "Mounts")
 
 	var mp []types.MountPoint
-	err := unmarshalJSON([]byte(vol), &mp)
+	err := json.Unmarshal([]byte(vol), &mp)
 	c.Assert(err, checker.IsNil)
 
 	// check that there is only one mountpoint
@@ -253,7 +253,7 @@ func (s *DockerSuite) TestInspectNamedMountPoint(c *check.C) {
 	vol := inspectFieldJSON(c, "test", "Mounts")
 
 	var mp []types.MountPoint
-	err := unmarshalJSON([]byte(vol), &mp)
+	err := json.Unmarshal([]byte(vol), &mp)
 	c.Assert(err, checker.IsNil)
 
 	// check that there is only one mountpoint

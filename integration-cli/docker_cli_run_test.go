@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -20,6 +21,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/stringutils"
@@ -1855,32 +1857,18 @@ func (s *DockerSuite) TestRunExitOnStdinClose(c *check.C) {
 // Test run -i --restart xxx doesn't hang
 func (s *DockerSuite) TestRunInteractiveWithRestartPolicy(c *check.C) {
 	name := "test-inter-restart"
-	runCmd := exec.Command(dockerBinary, "run", "-i", "--name", name, "--restart=always", "busybox", "sh")
 
-	stdin, err := runCmd.StdinPipe()
-	c.Assert(err, checker.IsNil)
-
-	err = runCmd.Start()
-	c.Assert(err, checker.IsNil)
-	c.Assert(waitRun(name), check.IsNil)
-
-	_, err = stdin.Write([]byte("exit 11\n"))
-	c.Assert(err, checker.IsNil)
-
-	finish := make(chan error)
-	go func() {
-		finish <- runCmd.Wait()
-		close(finish)
+	result := icmd.StartCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "run", "-i", "--name", name, "--restart=always", "busybox", "sh"},
+		Stdin:   bytes.NewBufferString("exit 11"),
+	})
+	c.Assert(result.Error, checker.IsNil)
+	defer func() {
+		dockerCmdWithResult("stop", name).Assert(c, icmd.Success)
 	}()
-	delay := 10 * time.Second
-	select {
-	case <-finish:
-	case <-time.After(delay):
-		c.Fatal("run -i --restart hangs")
-	}
 
-	c.Assert(waitRun(name), check.IsNil)
-	dockerCmd(c, "stop", name)
+	result = icmd.WaitOnCmd(10*time.Second, result)
+	c.Assert(result, icmd.Matches, icmd.Expected{ExitCode: 11})
 }
 
 // Test for #2267
@@ -2397,7 +2385,7 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughExpose(c *check.C) {
 	id := strings.TrimSpace(out)
 	portstr := inspectFieldJSON(c, id, "NetworkSettings.Ports")
 	var ports nat.PortMap
-	if err := unmarshalJSON([]byte(portstr), &ports); err != nil {
+	if err := json.Unmarshal([]byte(portstr), &ports); err != nil {
 		c.Fatal(err)
 	}
 	for port, binding := range ports {
@@ -2827,7 +2815,7 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughPublish(c *check.C) {
 	portstr := inspectFieldJSON(c, id, "NetworkSettings.Ports")
 
 	var ports nat.PortMap
-	err := unmarshalJSON([]byte(portstr), &ports)
+	err := json.Unmarshal([]byte(portstr), &ports)
 	c.Assert(err, checker.IsNil, check.Commentf("failed to unmarshal: %v", portstr))
 	for port, binding := range ports {
 		portnum, _ := strconv.Atoi(strings.Split(string(port), "/")[0])
