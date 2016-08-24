@@ -24,7 +24,15 @@ import (
 
 const defaultPluginRuntimeDestination = "/run/docker/plugins"
 
-var manager *Manager
+var (
+	manager *Manager
+
+	/* allowV1PluginsFallback determines daemon's support for V1 plugins.
+	 * When the time comes to remove support for V1 plugins, flipping
+	 * this bool is all that will be needed.
+	 */
+	allowV1PluginsFallback = true
+)
 
 // ErrNotFound indicates that a plugin was not found locally.
 type ErrNotFound string
@@ -103,7 +111,6 @@ type Manager struct {
 	handlers          map[string]func(string, *plugins.Client)
 	containerdClient  libcontainerd.Client
 	registryService   registry.Service
-	handleLegacy      bool
 	liveRestore       bool
 	shutdown          bool
 	pluginEventLogger eventLogger
@@ -129,7 +136,6 @@ func Init(root string, remote libcontainerd.Remote, rs registry.Service, liveRes
 		nameToID:          make(map[string]string),
 		handlers:          make(map[string]func(string, *plugins.Client)),
 		registryService:   rs,
-		handleLegacy:      true,
 		liveRestore:       liveRestore,
 		pluginEventLogger: evL,
 	}
@@ -151,7 +157,7 @@ func Init(root string, remote libcontainerd.Remote, rs registry.Service, liveRes
 func Handle(capability string, callback func(string, *plugins.Client)) {
 	pluginType := fmt.Sprintf("docker.%s/1", strings.ToLower(capability))
 	manager.handlers[pluginType] = callback
-	if manager.handleLegacy {
+	if allowV1PluginsFallback {
 		plugins.Handle(capability, callback)
 	}
 }
@@ -175,12 +181,15 @@ func (pm *Manager) get(name string) (*plugin, error) {
 
 // FindWithCapability returns a list of plugins matching the given capability.
 func FindWithCapability(capability string) ([]Plugin, error) {
-	handleLegacy := true
 	result := make([]Plugin, 0, 1)
+
+	/* Daemon start always calls plugin.Init thereby initializing a manager.
+	 * So manager on experimental builds can never be nil, even while
+	 * handling legacy plugins. However, there are legacy plugin unit
+	 * tests where volume subsystem directly talks with the plugin,
+	 * bypassing the daemon. For such tests, this check is necessary.*/
 	if manager != nil {
-		handleLegacy = manager.handleLegacy
 		manager.RLock()
-		defer manager.RUnlock()
 		for _, p := range manager.plugins {
 			for _, typ := range p.PluginObj.Manifest.Interface.Types {
 				if strings.EqualFold(typ.Capability, capability) && typ.Prefix == "docker" {
@@ -189,16 +198,17 @@ func FindWithCapability(capability string) ([]Plugin, error) {
 				}
 			}
 		}
+		manager.RUnlock()
 	}
-	if handleLegacy {
+
+	// Lookup with legacy model.
+	if allowV1PluginsFallback {
 		pl, err := plugins.GetAll(capability)
 		if err != nil {
 			return nil, fmt.Errorf("legacy plugin: %v", err)
 		}
 		for _, p := range pl {
-			if _, ok := manager.nameToID[p.Name()]; !ok {
-				result = append(result, p)
-			}
+			result = append(result, p)
 		}
 	}
 	return result, nil
@@ -210,7 +220,8 @@ func LookupWithCapability(name, capability string) (Plugin, error) {
 		p   *plugin
 		err error
 	)
-	handleLegacy := true
+
+	// Lookup using new model.
 	if manager != nil {
 		fullName := name
 		if named, err := reference.ParseNamed(fullName); err == nil { // FIXME: validate
@@ -224,31 +235,30 @@ func LookupWithCapability(name, capability string) (Plugin, error) {
 			fullName = ref.String()
 		}
 		p, err = manager.get(fullName)
-		if err != nil {
-			if _, ok := err.(ErrNotFound); !ok {
-				return nil, err
+		if err == nil {
+			capability = strings.ToLower(capability)
+			for _, typ := range p.PluginObj.Manifest.Interface.Types {
+				if typ.Capability == capability && typ.Prefix == "docker" {
+					return p, nil
+				}
 			}
-			handleLegacy = manager.handleLegacy
-		} else {
-			handleLegacy = false
+			return nil, ErrInadequateCapability{name, capability}
+		}
+		if _, ok := err.(ErrNotFound); !ok {
+			return nil, err
 		}
 	}
-	if handleLegacy {
+
+	// Lookup using legacy model
+	if allowV1PluginsFallback {
 		p, err := plugins.Get(name, capability)
 		if err != nil {
 			return nil, fmt.Errorf("legacy plugin: %v", err)
 		}
 		return p, nil
-	} else if err != nil {
-		return nil, err
 	}
 
-	for _, typ := range p.PluginObj.Manifest.Interface.Types {
-		if strings.EqualFold(typ.Capability, capability) && typ.Prefix == "docker" {
-			return p, nil
-		}
-	}
-	return nil, ErrInadequateCapability{name, capability}
+	return nil, err
 }
 
 // StateChanged updates plugin internals using libcontainerd events.
