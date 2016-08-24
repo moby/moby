@@ -153,16 +153,6 @@ var (
 		},
 		"Test requires support for IPv6",
 	}
-	NotGCCGO = testRequirement{
-		func() bool {
-			out, err := exec.Command("go", "version").Output()
-			if err == nil && strings.Contains(string(out), "gccgo") {
-				return false
-			}
-			return true
-		},
-		"Test requires native Golang compiler instead of GCCGO",
-	}
 	UserNamespaceInKernel = testRequirement{
 		func() bool {
 			if _, err := os.Stat("/proc/self/uid_map"); os.IsNotExist(err) {
