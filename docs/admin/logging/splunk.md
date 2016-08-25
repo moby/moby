@@ -20,7 +20,7 @@ in Splunk Enterprise and Splunk Cloud.
 You can configure the default logging driver by passing the `--log-driver`
 option to the Docker daemon:
 
-    docker daemon --log-driver=splunk
+    dockerd --log-driver=splunk
 
 You can set the logging driver for a specific container by using the
 `--log-driver` option to `docker run`:

@@ -53,7 +53,7 @@ following:
     EnvironmentFile=-/etc/sysconfig/docker-storage
     EnvironmentFile=-/etc/sysconfig/docker-network
     ExecStart=
-    ExecStart=/usr/bin/docker daemon -H fd:// $OPTIONS \
+    ExecStart=/usr/bin/dockerd -H fd:// $OPTIONS \
               $DOCKER_STORAGE_OPTIONS \
               $DOCKER_NETWORK_OPTIONS \
               $BLOCK_REGISTRY \
@@ -90,7 +90,7 @@ In this example, we'll assume that your `docker.service` file looks something li
 
     [Service]
     Type=notify
-    ExecStart=/usr/bin/docker daemon -H fd://
+    ExecStart=/usr/bin/dockerd -H fd://
     LimitNOFILE=1048576
     LimitNPROC=1048576
     TasksMax=1048576
@@ -104,7 +104,7 @@ directory:
 
     [Service]
     ExecStart=
-    ExecStart=/usr/bin/docker daemon -H fd:// --graph="/mnt/docker-data" --storage-driver=overlay
+    ExecStart=/usr/bin/dockerd -H fd:// --graph="/mnt/docker-data" --storage-driver=overlay
 
 You can also set other environment variables in this file, for example, the
 `HTTP_PROXY` environment variables described below.
@@ -114,7 +114,7 @@ by a new configuration as follows:
 
     [Service]
     ExecStart=
-    ExecStart=/usr/bin/docker daemon -H fd:// --bip=172.17.42.1/16
+    ExecStart=/usr/bin/dockerd -H fd:// --bip=172.17.42.1/16
 
 If you fail to specify an empty configuration, Docker reports an error such as:
 

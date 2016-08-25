@@ -18,7 +18,7 @@ Logging</a>.
 You can configure the default logging driver by passing the `--log-driver`
 option to the Docker daemon:
 
-    docker daemon --log-driver=gcplogs
+    dockerd --log-driver=gcplogs
 
 You can set the logging driver for a specific container by using the
 `--log-driver` option to `docker run`:
