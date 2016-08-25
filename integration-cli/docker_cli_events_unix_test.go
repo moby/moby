@@ -4,6 +4,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -140,36 +141,27 @@ func (s *DockerSuite) TestEventsContainerFilterByName(c *check.C) {
 // #18453
 func (s *DockerSuite) TestEventsContainerFilterBeforeCreate(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	var (
-		out string
-		ch  chan struct{}
-	)
-	ch = make(chan struct{})
+	buf := &bytes.Buffer{}
+	cmd := exec.Command(dockerBinary, "events", "-f", "container=foo", "--since=0")
+	cmd.Stdout = buf
+	c.Assert(cmd.Start(), check.IsNil)
+	defer cmd.Wait()
+	defer cmd.Process.Kill()
 
-	// calculate the time it takes to create and start a container and sleep 2 seconds
-	// this is to make sure the docker event will recevie the event of container
-	since := daemonTime(c)
-	id, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	// Sleep for a second to make sure we are testing the case where events are listened before container starts.
+	time.Sleep(time.Second)
+	id, _ := dockerCmd(c, "run", "--name=foo", "-d", "busybox", "top")
 	cID := strings.TrimSpace(id)
-	waitRun(cID)
-	time.Sleep(2 * time.Second)
-	duration := daemonTime(c).Sub(since)
-
-	go func() {
-		// start events and wait for future events to
-		// make sure the new container shows up even when
-		// the event stream was created before the container.
-		t := daemonTime(c).Add(2 * duration)
-		out, _ = dockerCmd(c, "events", "-f", "container=foo", "--since=0", "--until", parseEventTime(t))
-		close(ch)
-	}()
-	// Sleep 2 second to wait docker event to start
-	time.Sleep(2 * time.Second)
-	id, _ = dockerCmd(c, "run", "--name=foo", "-d", "busybox", "top")
-	cID = strings.TrimSpace(id)
-	waitRun(cID)
-	<-ch
-	c.Assert(out, checker.Contains, cID, check.Commentf("Missing event of container (foo)"))
+	for i := 0; ; i++ {
+		out := buf.String()
+		if strings.Contains(out, cID) {
+			break
+		}
+		if i > 30 {
+			c.Fatalf("Missing event of container (foo, %v), got %q", cID, out)
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 }
 
 func (s *DockerSuite) TestVolumeEvents(c *check.C) {
