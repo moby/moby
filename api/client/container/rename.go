@@ -30,8 +30,6 @@ func NewRenameCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runRename(dockerCli, &opts)
 		},
 	}
-	cmd.SetFlagErrorFunc(flagErrorFunc)
-
 	return cmd
 }
 

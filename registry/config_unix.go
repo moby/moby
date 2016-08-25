@@ -3,7 +3,7 @@
 package registry
 
 import (
-	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/spf13/pflag"
 )
 
 var (
@@ -20,6 +20,6 @@ func cleanPath(s string) string {
 }
 
 // installCliPlatformFlags handles any platform specific flags for the service.
-func (options *ServiceOptions) installCliPlatformFlags(cmd *flag.FlagSet, usageFn func(string) string) {
-	cmd.BoolVar(&options.V2Only, []string{"-disable-legacy-registry"}, false, usageFn("Disable contacting legacy registries"))
+func (options *ServiceOptions) installCliPlatformFlags(flags *pflag.FlagSet) {
+	flags.BoolVar(&options.V2Only, "disable-legacy-registry", false, "Disable contacting legacy registries")
 }

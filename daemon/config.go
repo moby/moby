@@ -6,15 +6,16 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"runtime"
 	"strings"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/discovery"
-	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/registry"
 	"github.com/imdario/mergo"
+	"github.com/spf13/pflag"
 )
 
 const (
@@ -145,39 +146,37 @@ type CommonConfig struct {
 	valuesSet  map[string]interface{}
 }
 
-// InstallCommonFlags adds command-line options to the top-level flag parser for
-// the current process.
-// Subsequent calls to `flag.Parse` will populate config with values parsed
-// from the command-line.
-func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string) string) {
+// InstallCommonFlags adds flags to the pflag.FlagSet to configure the daemon
+func (config *Config) InstallCommonFlags(flags *pflag.FlagSet) {
 	var maxConcurrentDownloads, maxConcurrentUploads int
 
-	config.ServiceOptions.InstallCliFlags(cmd, usageFn)
+	config.ServiceOptions.InstallCliFlags(flags)
 
-	cmd.Var(opts.NewNamedListOptsRef("storage-opts", &config.GraphOptions, nil), []string{"-storage-opt"}, usageFn("Storage driver options"))
-	cmd.Var(opts.NewNamedListOptsRef("authorization-plugins", &config.AuthorizationPlugins, nil), []string{"-authorization-plugin"}, usageFn("Authorization plugins to load"))
-	cmd.Var(opts.NewNamedListOptsRef("exec-opts", &config.ExecOptions, nil), []string{"-exec-opt"}, usageFn("Runtime execution options"))
-	cmd.StringVar(&config.Pidfile, []string{"p", "-pidfile"}, defaultPidFile, usageFn("Path to use for daemon PID file"))
-	cmd.StringVar(&config.Root, []string{"g", "-graph"}, defaultGraph, usageFn("Root of the Docker runtime"))
-	cmd.BoolVar(&config.AutoRestart, []string{"#r", "#-restart"}, true, usageFn("--restart on the daemon has been deprecated in favor of --restart policies on docker run"))
-	cmd.StringVar(&config.GraphDriver, []string{"s", "-storage-driver"}, "", usageFn("Storage driver to use"))
-	cmd.IntVar(&config.Mtu, []string{"#mtu", "-mtu"}, 0, usageFn("Set the containers network MTU"))
-	cmd.BoolVar(&config.RawLogs, []string{"-raw-logs"}, false, usageFn("Full timestamps without ANSI coloring"))
+	flags.Var(opts.NewNamedListOptsRef("storage-opts", &config.GraphOptions, nil), "storage-opt", "Storage driver options")
+	flags.Var(opts.NewNamedListOptsRef("authorization-plugins", &config.AuthorizationPlugins, nil), "authorization-plugin", "Authorization plugins to load")
+	flags.Var(opts.NewNamedListOptsRef("exec-opts", &config.ExecOptions, nil), "exec-opt", "Runtime execution options")
+	flags.StringVarP(&config.Pidfile, "pidfile", "p", defaultPidFile, "Path to use for daemon PID file")
+	flags.StringVarP(&config.Root, "graph", "g", defaultGraph, "Root of the Docker runtime")
+	flags.BoolVarP(&config.AutoRestart, "restart", "r", true, "--restart on the daemon has been deprecated in favor of --restart policies on docker run")
+	flags.MarkDeprecated("restart", "Please use a restart policy on docker run")
+	flags.StringVarP(&config.GraphDriver, "storage-driver", "s", "", "Storage driver to use")
+	flags.IntVar(&config.Mtu, "mtu", 0, "Set the containers network MTU")
+	flags.BoolVar(&config.RawLogs, "raw-logs", false, "Full timestamps without ANSI coloring")
 	// FIXME: why the inconsistency between "hosts" and "sockets"?
-	cmd.Var(opts.NewListOptsRef(&config.DNS, opts.ValidateIPAddress), []string{"#dns", "-dns"}, usageFn("DNS server to use"))
-	cmd.Var(opts.NewNamedListOptsRef("dns-opts", &config.DNSOptions, nil), []string{"-dns-opt"}, usageFn("DNS options to use"))
-	cmd.Var(opts.NewListOptsRef(&config.DNSSearch, opts.ValidateDNSSearch), []string{"-dns-search"}, usageFn("DNS search domains to use"))
-	cmd.Var(opts.NewNamedListOptsRef("labels", &config.Labels, opts.ValidateLabel), []string{"-label"}, usageFn("Set key=value labels to the daemon"))
-	cmd.StringVar(&config.LogConfig.Type, []string{"-log-driver"}, "json-file", usageFn("Default driver for container logs"))
-	cmd.Var(opts.NewNamedMapOpts("log-opts", config.LogConfig.Config, nil), []string{"-log-opt"}, usageFn("Default log driver options for containers"))
-	cmd.StringVar(&config.ClusterAdvertise, []string{"-cluster-advertise"}, "", usageFn("Address or interface name to advertise"))
-	cmd.StringVar(&config.ClusterStore, []string{"-cluster-store"}, "", usageFn("URL of the distributed storage backend"))
-	cmd.Var(opts.NewNamedMapOpts("cluster-store-opts", config.ClusterOpts, nil), []string{"-cluster-store-opt"}, usageFn("Set cluster store options"))
-	cmd.StringVar(&config.CorsHeaders, []string{"-api-cors-header"}, "", usageFn("Set CORS headers in the remote API"))
-	cmd.IntVar(&maxConcurrentDownloads, []string{"-max-concurrent-downloads"}, defaultMaxConcurrentDownloads, usageFn("Set the max concurrent downloads for each pull"))
-	cmd.IntVar(&maxConcurrentUploads, []string{"-max-concurrent-uploads"}, defaultMaxConcurrentUploads, usageFn("Set the max concurrent uploads for each push"))
+	flags.Var(opts.NewListOptsRef(&config.DNS, opts.ValidateIPAddress), "dns", "DNS server to use")
+	flags.Var(opts.NewNamedListOptsRef("dns-opts", &config.DNSOptions, nil), "dns-opt", "DNS options to use")
+	flags.Var(opts.NewListOptsRef(&config.DNSSearch, opts.ValidateDNSSearch), "dns-search", "DNS search domains to use")
+	flags.Var(opts.NewNamedListOptsRef("labels", &config.Labels, opts.ValidateLabel), "label", "Set key=value labels to the daemon")
+	flags.StringVar(&config.LogConfig.Type, "log-driver", "json-file", "Default driver for container logs")
+	flags.Var(opts.NewNamedMapOpts("log-opts", config.LogConfig.Config, nil), "log-opt", "Default log driver options for containers")
+	flags.StringVar(&config.ClusterAdvertise, "cluster-advertise", "", "Address or interface name to advertise")
+	flags.StringVar(&config.ClusterStore, "cluster-store", "", "URL of the distributed storage backend")
+	flags.Var(opts.NewNamedMapOpts("cluster-store-opts", config.ClusterOpts, nil), "cluster-store-opt", "Set cluster store options")
+	flags.StringVar(&config.CorsHeaders, "api-cors-header", "", "Set CORS headers in the remote API")
+	flags.IntVar(&maxConcurrentDownloads, "max-concurrent-downloads", defaultMaxConcurrentDownloads, "Set the max concurrent downloads for each pull")
+	flags.IntVar(&maxConcurrentUploads, "max-concurrent-uploads", defaultMaxConcurrentUploads, "Set the max concurrent uploads for each push")
 
-	cmd.StringVar(&config.SwarmDefaultAdvertiseAddr, []string{"-swarm-default-advertise-addr"}, "", usageFn("Set default address or interface for swarm advertised address"))
+	flags.StringVar(&config.SwarmDefaultAdvertiseAddr, "swarm-default-advertise-addr", "", "Set default address or interface for swarm advertised address")
 
 	config.MaxConcurrentDownloads = &maxConcurrentDownloads
 	config.MaxConcurrentUploads = &maxConcurrentUploads
@@ -191,6 +190,18 @@ func (config *Config) IsValueSet(name string) bool {
 	}
 	_, ok := config.valuesSet[name]
 	return ok
+}
+
+// NewConfig returns a new fully initialized Config struct
+func NewConfig() *Config {
+	config := Config{}
+	config.LogConfig.Config = make(map[string]string)
+	config.ClusterOpts = make(map[string]string)
+
+	if runtime.GOOS != "linux" {
+		config.V2Only = true
+	}
+	return &config
 }
 
 func parseClusterAdvertiseSettings(clusterStore, clusterAdvertise string) (string, error) {
@@ -209,7 +220,7 @@ func parseClusterAdvertiseSettings(clusterStore, clusterAdvertise string) (strin
 }
 
 // ReloadConfiguration reads the configuration in the host and reloads the daemon and server.
-func ReloadConfiguration(configFile string, flags *flag.FlagSet, reload func(*Config)) error {
+func ReloadConfiguration(configFile string, flags *pflag.FlagSet, reload func(*Config)) error {
 	logrus.Infof("Got signal to reload configuration, reloading from: %s", configFile)
 	newConfig, err := getConflictFreeConfiguration(configFile, flags)
 	if err != nil {
@@ -234,7 +245,7 @@ type boolValue interface {
 // loads the file configuration in an isolated structure,
 // and merges the configuration provided from flags on top
 // if there are no conflicts.
-func MergeDaemonConfigurations(flagsConfig *Config, flags *flag.FlagSet, configFile string) (*Config, error) {
+func MergeDaemonConfigurations(flagsConfig *Config, flags *pflag.FlagSet, configFile string) (*Config, error) {
 	fileConfig, err := getConflictFreeConfiguration(configFile, flags)
 	if err != nil {
 		return nil, err
@@ -261,7 +272,7 @@ func MergeDaemonConfigurations(flagsConfig *Config, flags *flag.FlagSet, configF
 // getConflictFreeConfiguration loads the configuration from a JSON file.
 // It compares that configuration with the one provided by the flags,
 // and returns an error if there are conflicts.
-func getConflictFreeConfiguration(configFile string, flags *flag.FlagSet) (*Config, error) {
+func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Config, error) {
 	b, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		return nil, err
@@ -289,7 +300,7 @@ func getConflictFreeConfiguration(configFile string, flags *flag.FlagSet) (*Conf
 		// TODO: Rewrite configuration logic to avoid same issue with other nullable values, like numbers.
 		namedOptions := make(map[string]interface{})
 		for key, value := range configSet {
-			f := flags.Lookup("-" + key)
+			f := flags.Lookup(key)
 			if f == nil { // ignore named flags that don't match
 				namedOptions[key] = value
 				continue
@@ -301,7 +312,7 @@ func getConflictFreeConfiguration(configFile string, flags *flag.FlagSet) (*Conf
 		}
 		if len(namedOptions) > 0 {
 			// set also default for mergeVal flags that are boolValue at the same time.
-			flags.VisitAll(func(f *flag.Flag) {
+			flags.VisitAll(func(f *pflag.Flag) {
 				if opt, named := f.Value.(opts.NamedOption); named {
 					v, set := namedOptions[opt.Name()]
 					_, boolean := f.Value.(boolValue)
@@ -339,12 +350,11 @@ func configValuesSet(config map[string]interface{}) map[string]interface{} {
 // findConfigurationConflicts iterates over the provided flags searching for
 // duplicated configurations and unknown keys. It returns an error with all the conflicts if
 // it finds any.
-func findConfigurationConflicts(config map[string]interface{}, flags *flag.FlagSet) error {
+func findConfigurationConflicts(config map[string]interface{}, flags *pflag.FlagSet) error {
 	// 1. Search keys from the file that we don't recognize as flags.
 	unknownKeys := make(map[string]interface{})
 	for key, value := range config {
-		flagName := "-" + key
-		if flag := flags.Lookup(flagName); flag == nil {
+		if flag := flags.Lookup(key); flag == nil {
 			unknownKeys[key] = value
 		}
 	}
@@ -352,7 +362,7 @@ func findConfigurationConflicts(config map[string]interface{}, flags *flag.FlagS
 	// 2. Discard values that implement NamedOption.
 	// Their configuration name differs from their flag name, like `labels` and `label`.
 	if len(unknownKeys) > 0 {
-		unknownNamedConflicts := func(f *flag.Flag) {
+		unknownNamedConflicts := func(f *pflag.Flag) {
 			if namedOption, ok := f.Value.(opts.NamedOption); ok {
 				if _, valid := unknownKeys[namedOption.Name()]; valid {
 					delete(unknownKeys, namedOption.Name())
@@ -376,17 +386,15 @@ func findConfigurationConflicts(config map[string]interface{}, flags *flag.FlagS
 	}
 
 	// 3. Search keys that are present as a flag and as a file option.
-	duplicatedConflicts := func(f *flag.Flag) {
+	duplicatedConflicts := func(f *pflag.Flag) {
 		// search option name in the json configuration payload if the value is a named option
 		if namedOption, ok := f.Value.(opts.NamedOption); ok {
 			if optsValue, ok := config[namedOption.Name()]; ok {
 				conflicts = append(conflicts, printConflict(namedOption.Name(), f.Value.String(), optsValue))
 			}
 		} else {
-			// search flag name in the json configuration payload without trailing dashes
-			for _, name := range f.Names {
-				name = strings.TrimLeft(name, "-")
-
+			// search flag name in the json configuration payload
+			for _, name := range []string{f.Name, f.Shorthand} {
 				if value, ok := config[name]; ok {
 					conflicts = append(conflicts, printConflict(name, f.Value.String(), value))
 					break

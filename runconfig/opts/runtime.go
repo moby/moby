@@ -72,3 +72,8 @@ func (o *RuntimeOpt) GetMap() map[string]types.Runtime {
 
 	return map[string]types.Runtime{}
 }
+
+// Type returns the type of the option
+func (o *RuntimeOpt) Type() string {
+	return "runtime"
+}
