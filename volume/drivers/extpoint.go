@@ -107,7 +107,7 @@ func lookup(name string) (volume.Driver, error) {
 		return nil, fmt.Errorf("Error looking up volume plugin %s: %v", name, err)
 	}
 
-	d := NewVolumeDriver(name, p.Client())
+	d := NewVolumeDriver(p.Name(), p.Client())
 	if err := validateDriver(d); err != nil {
 		return nil, err
 	}

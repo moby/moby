@@ -181,14 +181,13 @@ func FindWithCapability(capability string) ([]Plugin, error) {
 		handleLegacy = manager.handleLegacy
 		manager.RLock()
 		defer manager.RUnlock()
-	pluginLoop:
 		for _, p := range manager.plugins {
 			for _, typ := range p.PluginObj.Manifest.Interface.Types {
-				if typ.Capability != capability || typ.Prefix != "docker" {
-					continue pluginLoop
+				if strings.EqualFold(typ.Capability, capability) && typ.Prefix == "docker" {
+					result = append(result, p)
+					break
 				}
 			}
-			result = append(result, p)
 		}
 	}
 	if handleLegacy {
@@ -244,9 +243,8 @@ func LookupWithCapability(name, capability string) (Plugin, error) {
 		return nil, err
 	}
 
-	capability = strings.ToLower(capability)
 	for _, typ := range p.PluginObj.Manifest.Interface.Types {
-		if typ.Capability == capability && typ.Prefix == "docker" {
+		if strings.EqualFold(typ.Capability, capability) && typ.Prefix == "docker" {
 			return p, nil
 		}
 	}
