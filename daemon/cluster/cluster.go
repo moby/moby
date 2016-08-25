@@ -893,6 +893,17 @@ func (c *Cluster) UpdateService(serviceID string, version uint64, spec types.Ser
 		return err
 	}
 
+	// Check if anything is modified in spec for update #25770
+	currentService, err := getService(ctx, c.client, serviceID)
+	if err != nil {
+		return err
+	}
+
+	if serviceSpec.String() == currentService.String() {
+		logrus.Infoln("No changes found for service specs, Skipping Update")
+		return nil
+	}
+
 	if encodedAuth != "" {
 		ctnr := serviceSpec.Task.GetContainer()
 		if ctnr == nil {
@@ -902,10 +913,6 @@ func (c *Cluster) UpdateService(serviceID string, version uint64, spec types.Ser
 	} else {
 		// this is needed because if the encodedAuth isn't being updated then we
 		// shouldn't lose it, and continue to use the one that was already present
-		currentService, err := getService(ctx, c.client, serviceID)
-		if err != nil {
-			return err
-		}
 		ctnr := currentService.Spec.Task.GetContainer()
 		if ctnr == nil {
 			return fmt.Errorf("service does not use container tasks")
