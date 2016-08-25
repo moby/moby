@@ -72,11 +72,13 @@ If you don't already have a terminal open, open one now:
 
     The format for the login command is:
 
-        docker login --username=yourhubusername --password=fake123
+        docker login 
 
     When prompted, enter your password and press enter. So, for example:
 
-        $ docker login --username=maryatdocker --password=fake123
+        $ docker login
+        Login with your Docker ID to push and pull images from Docker Hub. If you don't have a Docker ID, head over to https://hub.docker.com to create one.
+        Username: 
         Password:        
         Login Succeeded
 
