@@ -554,7 +554,11 @@ func (c *Cluster) Leave(force bool) error {
 	}
 	c.Unlock()
 	if nodeID := node.NodeID(); nodeID != "" {
-		for _, id := range c.config.Backend.ListContainersForNode(nodeID) {
+		nodeContainers, err := c.listContainerForNode(nodeID)
+		if err != nil {
+			return err
+		}
+		for _, id := range nodeContainers {
 			if err := c.config.Backend.ContainerRm(id, &apitypes.ContainerRmConfig{ForceRemove: true}); err != nil {
 				logrus.Errorf("error removing %v: %v", id, err)
 			}
@@ -566,6 +570,22 @@ func (c *Cluster) Leave(force bool) error {
 		return err
 	}
 	return nil
+}
+
+func (c *Cluster) listContainerForNode(nodeID string) ([]string, error) {
+	var ids []string
+	filters := filters.NewArgs()
+	filters.Add("label", fmt.Sprintf("com.docker.swarm.node.id=%s", nodeID))
+	containers, err := c.config.Backend.Containers(&apitypes.ContainerListOptions{
+		Filter: filters,
+	})
+	if err != nil {
+		return []string{}, err
+	}
+	for _, c := range containers {
+		ids = append(ids, c.ID)
+	}
+	return ids, nil
 }
 
 func (c *Cluster) clearState() error {
