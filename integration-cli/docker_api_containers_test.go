@@ -703,6 +703,66 @@ func (s *DockerSuite) TestContainerApiInvalidPortSyntax(c *check.C) {
 	c.Assert(string(b[:]), checker.Contains, "invalid port")
 }
 
+func (s *DockerSuite) TestContainerApiInvalidRestartPolicyName(c *check.C) {
+	config := `{
+		"Image": "busybox",
+		"HostConfig": {
+			"RestartPolicy": {
+				"Name": "something",
+				"MaximumRetryCount": 0
+			}
+		}
+	}`
+
+	res, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	c.Assert(err, checker.IsNil)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+
+	b, err := readBody(body)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(b[:]), checker.Contains, "invalid restart policy")
+}
+
+func (s *DockerSuite) TestContainerApiInvalidRestartPolicyRetryMismatch(c *check.C) {
+	config := `{
+		"Image": "busybox",
+		"HostConfig": {
+			"RestartPolicy": {
+				"Name": "always",
+				"MaximumRetryCount": 2
+			}
+		}
+	}`
+
+	res, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	c.Assert(err, checker.IsNil)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+
+	b, err := readBody(body)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(b[:]), checker.Contains, "maximum restart count not valid with restart policy")
+}
+
+func (s *DockerSuite) TestContainerApiInvalidRestartPolicyPositiveRetryCount(c *check.C) {
+	config := `{
+		"Image": "busybox",
+		"HostConfig": {
+			"RestartPolicy": {
+				"Name": "on-failure",
+				"MaximumRetryCount": -2
+			}
+		}
+	}`
+
+	res, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	c.Assert(err, checker.IsNil)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+
+	b, err := readBody(body)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(b[:]), checker.Contains, "maximum restart count must be a positive integer")
+}
+
 // Issue 7941 - test to make sure a "null" in JSON is just ignored.
 // W/o this fix a null in JSON would be parsed into a string var as "null"
 func (s *DockerSuite) TestContainerApiPostCreateNull(c *check.C) {

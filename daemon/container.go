@@ -255,6 +255,23 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 		}
 	}
 
+	p := hostConfig.RestartPolicy
+
+	switch p.Name {
+	case "always", "unless-stopped", "no":
+		if p.MaximumRetryCount != 0 {
+			return nil, fmt.Errorf("maximum restart count not valid with restart policy of '%s'", p.Name)
+		}
+	case "on-failure":
+		if p.MaximumRetryCount < 1 {
+			return nil, fmt.Errorf("maximum restart count must be a positive integer")
+		}
+	case "":
+	// do nothing
+	default:
+		return nil, fmt.Errorf("invalid restart policy '%s'", p.Name)
+	}
+
 	// Now do platform-specific verification
 	return verifyPlatformContainerSettings(daemon, hostConfig, config, update)
 }

@@ -729,34 +729,21 @@ func ParseRestartPolicy(policy string) (container.RestartPolicy, error) {
 		return p, nil
 	}
 
-	var (
-		parts = strings.Split(policy, ":")
-		name  = parts[0]
-	)
+	parts := strings.Split(policy, ":")
 
-	p.Name = name
-	switch name {
-	case "always", "unless-stopped":
-		if len(parts) > 1 {
-			return p, fmt.Errorf("maximum restart count not valid with restart policy of \"%s\"", name)
-		}
-	case "no":
-		// do nothing
-	case "on-failure":
-		if len(parts) > 2 {
-			return p, fmt.Errorf("restart count format is not valid, usage: 'on-failure:N' or 'on-failure'")
-		}
-		if len(parts) == 2 {
-			count, err := strconv.Atoi(parts[1])
-			if err != nil {
-				return p, err
-			}
-
-			p.MaximumRetryCount = count
-		}
-	default:
-		return p, fmt.Errorf("invalid restart policy %s", name)
+	if len(parts) > 2 {
+		return p, fmt.Errorf("invalid restart policy format")
 	}
+	if len(parts) == 2 {
+		count, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return p, fmt.Errorf("maximum retry count must be an integer")
+		}
+
+		p.MaximumRetryCount = count
+	}
+
+	p.Name = parts[0]
 
 	return p, nil
 }
