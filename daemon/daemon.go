@@ -40,6 +40,7 @@ import (
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/registrar"
 	"github.com/docker/docker/pkg/signal"
@@ -100,6 +101,7 @@ type Daemon struct {
 	containerdRemote          libcontainerd.Remote
 	defaultIsolation          containertypes.Isolation // Default isolation mode on Windows
 	clusterProvider           cluster.Provider
+	opLock                    *locker.Locker // protect concurrent container operations
 }
 
 func (daemon *Daemon) restore() error {
@@ -613,6 +615,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 	d.nameIndex = registrar.NewRegistrar()
 	d.linkIndex = newLinkIndex()
 	d.containerdRemote = containerdRemote
+	d.opLock = locker.New()
 
 	go d.execCommandGC()
 

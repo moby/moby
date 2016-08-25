@@ -5,9 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/go-units"
+	"golang.org/x/net/context"
 )
 
 // State holds the current container state, and has methods to get and
@@ -185,6 +184,24 @@ func (s *State) IsRunning() bool {
 	return res
 }
 
+// IsDead returns whether the Dead flag is set. Dead is set when there was an error
+// during removal that halted the remove operation
+func (s *State) IsDead() bool {
+	s.Lock()
+	res := s.Dead
+	s.Unlock()
+	return res
+}
+
+// IsRemoving returns whether the RemovalInProgress flag is set.
+// RemovalInProgress is set while the container is being removed
+func (s *State) IsRemoving() bool {
+	s.Lock()
+	res := s.RemovalInProgress
+	s.Unlock()
+	return res
+}
+
 // GetPID holds the process id of a container.
 func (s *State) GetPID() int {
 	s.Lock()
@@ -263,7 +280,9 @@ func (s *State) SetRestarting(exitStatus *ExitStatus) {
 // know the error that occurred when container transits to another state
 // when inspecting it
 func (s *State) SetError(err error) {
+	s.Lock()
 	s.error = err.Error()
+	s.Unlock()
 }
 
 // IsPaused returns whether the container is paused or not.

@@ -299,7 +299,9 @@ func (daemon *Daemon) UpdateContainerServiceConfig(containerName string, service
 		return err
 	}
 
+	container.Lock()
 	container.NetworkSettings.Service = serviceConfig
+	container.Unlock()
 	return nil
 }
 
@@ -311,6 +313,8 @@ func (daemon *Daemon) ConnectContainerToNetwork(containerName, networkName strin
 	if err != nil {
 		return err
 	}
+	daemon.opLock.Lock(container.ID)
+	defer daemon.opLock.Unlock(container.ID)
 	return daemon.ConnectToNetwork(container, networkName, endpointConfig)
 }
 
@@ -324,6 +328,8 @@ func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, netwo
 		}
 		return err
 	}
+	daemon.opLock.Lock(container.ID)
+	defer daemon.opLock.Unlock(container.ID)
 	return daemon.DisconnectFromNetwork(container, network, force)
 }
 

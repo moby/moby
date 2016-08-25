@@ -338,6 +338,9 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 		err error
 	)
 
+	container.Lock()
+	defer container.Unlock()
+
 	mode := container.HostConfig.NetworkMode
 	if container.Config.NetworkDisabled || mode.IsContainer() {
 		return nil
@@ -348,7 +351,9 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 		networkName = daemon.netController.Config().Daemon.DefaultNetwork
 	}
 	if mode.IsUserDefined() {
+		container.Unlock()
 		n, err = daemon.FindNetwork(networkName)
+		container.Lock()
 		if err != nil {
 			return err
 		}
@@ -608,6 +613,8 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 		return err
 	}
 
+	container.Lock()
+	defer container.Unlock()
 	if err := container.UpdateJoinInfo(n, ep); err != nil {
 		return fmt.Errorf("Updating join info failed: %v", err)
 	}
@@ -685,16 +692,22 @@ func (daemon *Daemon) initializeNetworking(container *container.Container) error
 		if err != nil {
 			return err
 		}
+		nc.Lock()
+		container.Lock()
 		container.HostnamePath = nc.HostnamePath
 		container.HostsPath = nc.HostsPath
 		container.ResolvConfPath = nc.ResolvConfPath
 		container.Config.Hostname = nc.Config.Hostname
 		container.Config.Domainname = nc.Config.Domainname
+		container.Unlock()
+		nc.Unlock()
 		return nil
 	}
 
 	if container.HostConfig.NetworkMode.IsHost() {
+		container.Lock()
 		container.Config.Hostname, err = os.Hostname()
+		container.Unlock()
 		if err != nil {
 			return err
 		}
