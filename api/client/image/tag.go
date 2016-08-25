@@ -13,7 +13,7 @@ type tagOptions struct {
 	name  string
 }
 
-// NewTagCommand create a new `docker tag` command
+// NewTagCommand creates a new `docker tag` command
 func NewTagCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts tagOptions
 

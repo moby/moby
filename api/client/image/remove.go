@@ -17,7 +17,7 @@ type removeOptions struct {
 	noPrune bool
 }
 
-// NewRemoveCommand create a new `docker remove` command
+// NewRemoveCommand creates a new `docker remove` command
 func NewRemoveCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts removeOptions
 

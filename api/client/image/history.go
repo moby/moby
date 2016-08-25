@@ -25,7 +25,7 @@ type historyOptions struct {
 	noTrunc bool
 }
 
-// NewHistoryCommand create a new `docker history` command
+// NewHistoryCommand creates a new `docker history` command
 func NewHistoryCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts historyOptions
 

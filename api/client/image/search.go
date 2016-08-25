@@ -29,7 +29,7 @@ type searchOptions struct {
 	automated bool
 }
 
-// NewSearchCommand create a new `docker search` command
+// NewSearchCommand creates a new `docker search` command
 func NewSearchCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts searchOptions
 
