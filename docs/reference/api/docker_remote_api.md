@@ -121,6 +121,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /containers/json` now accepts `removing` as a valid value for the `status` filter.
 * `DELETE /volumes/(name)` now accepts a `force` query parameter to force removal of volumes that were already removed out of band by the volume driver plugin.
 * `POST /containers/create/` and `POST /containers/(name)/update` now validates restart policies.
+* `POST /containers/create` now validates IPAMConfig in NetworkingConfig, and returns error for invalid IPv4 and IPv6 addresses (`--ip` and `--ip6` in `docker create/run`).
 
 ### v1.24 API changes
 
