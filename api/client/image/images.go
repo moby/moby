@@ -22,7 +22,7 @@ type imagesOptions struct {
 	filter      []string
 }
 
-// NewImagesCommand create a new `docker images` command
+// NewImagesCommand creates a new `docker images` command
 func NewImagesCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts imagesOptions
 
