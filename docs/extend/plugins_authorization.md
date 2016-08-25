@@ -110,7 +110,7 @@ Enable the authorization plugin with a dedicated command line flag in the
 value. This value can be the plugin’s socket or a path to a specification file.
 
 ```bash
-$ docker daemon --authorization-plugin=plugin1 --authorization-plugin=plugin2,...
+$ dockerd --authorization-plugin=plugin1 --authorization-plugin=plugin2,...
 ```
 
 Docker's authorization subsystem supports multiple `--authorization-plugin` parameters.
