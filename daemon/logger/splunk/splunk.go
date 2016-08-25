@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
@@ -30,6 +31,8 @@ const (
 	splunkCAPathKey             = "splunk-capath"
 	splunkCANameKey             = "splunk-caname"
 	splunkInsecureSkipVerifyKey = "splunk-insecureskipverify"
+	splunkFormatKey             = "splunk-format"
+	splunkVerifyConnectionKey   = "splunk-verify-connection"
 	envKey                      = "env"
 	labelsKey                   = "labels"
 	tagKey                      = "tag"
@@ -44,21 +47,43 @@ type splunkLogger struct {
 	nullMessage *splunkMessage
 }
 
+type splunkLoggerInline struct {
+	*splunkLogger
+
+	nullEvent *splunkMessageEvent
+}
+
+type splunkLoggerJSON struct {
+	*splunkLoggerInline
+}
+
+type splunkLoggerRaw struct {
+	*splunkLogger
+
+	prefix []byte
+}
+
 type splunkMessage struct {
-	Event      splunkMessageEvent `json:"event"`
-	Time       string             `json:"time"`
-	Host       string             `json:"host"`
-	Source     string             `json:"source,omitempty"`
-	SourceType string             `json:"sourcetype,omitempty"`
-	Index      string             `json:"index,omitempty"`
+	Event      interface{} `json:"event"`
+	Time       string      `json:"time"`
+	Host       string      `json:"host"`
+	Source     string      `json:"source,omitempty"`
+	SourceType string      `json:"sourcetype,omitempty"`
+	Index      string      `json:"index,omitempty"`
 }
 
 type splunkMessageEvent struct {
-	Line   string            `json:"line"`
+	Line   interface{}       `json:"line"`
 	Source string            `json:"source"`
 	Tag    string            `json:"tag,omitempty"`
 	Attrs  map[string]string `json:"attrs,omitempty"`
 }
+
+const (
+	splunkFormatRaw    = "raw"
+	splunkFormatJSON   = "json"
+	splunkFormatInline = "inline"
+)
 
 func init() {
 	if err := logger.RegisterLogDriver(driverName, New); err != nil {
@@ -122,21 +147,23 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		Transport: transport,
 	}
 
-	var nullMessage = &splunkMessage{
-		Host: hostname,
-	}
+	source := ctx.Config[splunkSourceKey]
+	sourceType := ctx.Config[splunkSourceTypeKey]
+	index := ctx.Config[splunkIndexKey]
 
-	// Optional parameters for messages
-	nullMessage.Source = ctx.Config[splunkSourceKey]
-	nullMessage.SourceType = ctx.Config[splunkSourceTypeKey]
-	nullMessage.Index = ctx.Config[splunkIndexKey]
+	var nullMessage = &splunkMessage{
+		Host:       hostname,
+		Source:     source,
+		SourceType: sourceType,
+		Index:      index,
+	}
 
 	tag, err := loggerutils.ParseLogTag(ctx, loggerutils.DefaultTemplate)
 	if err != nil {
 		return nil, err
 	}
-	nullMessage.Event.Tag = tag
-	nullMessage.Event.Attrs = ctx.ExtraAttributes(nil)
+
+	attrs := ctx.ExtraAttributes(nil)
 
 	logger := &splunkLogger{
 		client:      client,
@@ -146,22 +173,108 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		nullMessage: nullMessage,
 	}
 
-	err = verifySplunkConnection(logger)
-	if err != nil {
-		return nil, err
+	// By default we verify connection, but we allow use to skip that
+	verifyConnection := true
+	if verifyConnectionStr, ok := ctx.Config[splunkVerifyConnectionKey]; ok {
+		var err error
+		verifyConnection, err = strconv.ParseBool(verifyConnectionStr)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if verifyConnection {
+		err = verifySplunkConnection(logger)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return logger, nil
+	var splunkFormat string
+	if splunkFormatParsed, ok := ctx.Config[splunkFormatKey]; ok {
+		switch splunkFormatParsed {
+		case splunkFormatInline:
+		case splunkFormatJSON:
+		case splunkFormatRaw:
+		default:
+			return nil, fmt.Errorf("Unknown format specified %s, supported formats are inline, json and raw", splunkFormat)
+		}
+		splunkFormat = splunkFormatParsed
+	} else {
+		splunkFormat = splunkFormatInline
+	}
+
+	switch splunkFormat {
+	case splunkFormatInline:
+		nullEvent := &splunkMessageEvent{
+			Tag:   tag,
+			Attrs: attrs,
+		}
+
+		return &splunkLoggerInline{logger, nullEvent}, nil
+	case splunkFormatJSON:
+		nullEvent := &splunkMessageEvent{
+			Tag:   tag,
+			Attrs: attrs,
+		}
+
+		return &splunkLoggerJSON{&splunkLoggerInline{logger, nullEvent}}, nil
+	case splunkFormatRaw:
+		var prefix bytes.Buffer
+		prefix.WriteString(tag)
+		prefix.WriteString(" ")
+		for key, value := range attrs {
+			prefix.WriteString(key)
+			prefix.WriteString("=")
+			prefix.WriteString(value)
+			prefix.WriteString(" ")
+		}
+
+		return &splunkLoggerRaw{logger, prefix.Bytes()}, nil
+	default:
+		return nil, fmt.Errorf("Unexpected format %s", splunkFormat)
+	}
 }
 
-func (l *splunkLogger) Log(msg *logger.Message) error {
-	// Construct message as a copy of nullMessage
-	message := *l.nullMessage
-	message.Time = fmt.Sprintf("%f", float64(msg.Timestamp.UnixNano())/1000000000)
-	message.Event.Line = string(msg.Line)
-	message.Event.Source = msg.Source
+func (l *splunkLoggerInline) Log(msg *logger.Message) error {
+	message := l.createSplunkMessage(msg)
 
-	jsonEvent, err := json.Marshal(&message)
+	event := *l.nullEvent
+	event.Line = string(msg.Line)
+	event.Source = msg.Source
+
+	message.Event = &event
+
+	return l.postMessage(message)
+}
+
+func (l *splunkLoggerJSON) Log(msg *logger.Message) error {
+	message := l.createSplunkMessage(msg)
+	event := *l.nullEvent
+
+	var rawJSONMessage json.RawMessage
+	if err := json.Unmarshal(msg.Line, &rawJSONMessage); err == nil {
+		event.Line = &rawJSONMessage
+	} else {
+		event.Line = string(msg.Line)
+	}
+
+	event.Source = msg.Source
+
+	message.Event = &event
+
+	return l.postMessage(message)
+}
+
+func (l *splunkLoggerRaw) Log(msg *logger.Message) error {
+	message := l.createSplunkMessage(msg)
+
+	message.Event = string(append(l.prefix, msg.Line...))
+
+	return l.postMessage(message)
+}
+
+func (l *splunkLogger) postMessage(message *splunkMessage) error {
+	jsonEvent, err := json.Marshal(message)
 	if err != nil {
 		return err
 	}
@@ -196,6 +309,12 @@ func (l *splunkLogger) Name() string {
 	return driverName
 }
 
+func (l *splunkLogger) createSplunkMessage(msg *logger.Message) *splunkMessage {
+	message := *l.nullMessage
+	message.Time = fmt.Sprintf("%f", float64(msg.Timestamp.UnixNano())/float64(time.Second))
+	return &message
+}
+
 // ValidateLogOpt looks for all supported by splunk driver options
 func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
@@ -208,6 +327,8 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case splunkCAPathKey:
 		case splunkCANameKey:
 		case splunkInsecureSkipVerifyKey:
+		case splunkFormatKey:
+		case splunkVerifyConnectionKey:
 		case envKey:
 		case labelsKey:
 		case tagKey:
