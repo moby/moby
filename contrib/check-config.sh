@@ -268,6 +268,7 @@ echo '- Storage Drivers:'
 
 	echo '- "'$(wrap_color 'btrfs' blue)'":'
 	check_flags BTRFS_FS | sed 's/^/  /'
+	check_flags BTRFS_FS_POSIX_ACL | sed 's/^/  /'
 
 	echo '- "'$(wrap_color 'devicemapper' blue)'":'
 	check_flags BLK_DEV_DM DM_THIN_PROVISIONING | sed 's/^/  /'
