@@ -1,4 +1,4 @@
-.PHONY: all binary build build-gccgo cross deb docs gccgo help init-go-pkg-cache install manpages rpm run shell test test-docker-py test-integration-cli tgz test-unit validate win
+.PHONY: all binary build cross deb docs help init-go-pkg-cache install manpages rpm run shell test test-docker-py test-integration-cli tgz test-unit validate win
 
 # set the graph driver as the current graphdriver if not set
 DOCKER_GRAPHDRIVER := $(if $(DOCKER_GRAPHDRIVER),$(DOCKER_GRAPHDRIVER),$(shell docker info 2>&1 | grep "Storage Driver" | sed 's/.*: //'))
@@ -81,9 +81,6 @@ binary: build ## build the linux binaries
 build: bundles init-go-pkg-cache
 	docker build ${DOCKER_BUILD_ARGS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
 
-build-gccgo: bundles init-go-pkg-cache
-	docker build ${DOCKER_BUILD_ARGS} -t "$(DOCKER_IMAGE)-gccgo" -f Dockerfile.gccgo .
-
 bundles:
 	mkdir bundles
 
@@ -104,9 +101,6 @@ deb: build  ## build the deb packages
 
 docs: ## build the docs
 	$(MAKE) -C docs docs
-
-gccgo: build-gccgo ## build the gcc-go linux binaries
-	$(DOCKER_FLAGS) "$(DOCKER_IMAGE)-gccgo" hack/make.sh gccgo
 
 install: ## install the linux binaries
 	KEEPBUNDLE=1 hack/make.sh install-binary
