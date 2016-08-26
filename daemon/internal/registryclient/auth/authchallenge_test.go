@@ -102,25 +102,24 @@ func testAuthChallengeConcurrent(t *testing.T, host string) {
 	var s sync.WaitGroup
 	s.Add(2)
 	go func() {
-
+		defer s.Done()
 		for i := 0; i < 200; i++ {
 			err = scm.AddResponse(resp)
 			if err != nil {
-				t.Fatal(err)
+				t.Error(err)
 			}
 		}
-		s.Done()
 	}()
 	go func() {
+		defer s.Done()
 		lowered := *url
 		lowered.Host = strings.ToLower(lowered.Host)
 		for k := 0; k < 200; k++ {
 			_, err := scm.GetChallenges(lowered)
 			if err != nil {
-				t.Fatal(err)
+				t.Error(err)
 			}
 		}
-		s.Done()
 	}()
 	s.Wait()
 }
