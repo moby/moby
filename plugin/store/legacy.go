@@ -1,16 +1,18 @@
 // +build !experimental
 
-package plugin
+package store
 
-import "github.com/docker/docker/pkg/plugins"
+import (
+	"github.com/docker/docker/pkg/plugins"
+)
 
 // FindWithCapability returns a list of plugins matching the given capability.
-func FindWithCapability(capability string) ([]Plugin, error) {
+func FindWithCapability(capability string) ([]CompatPlugin, error) {
 	pl, err := plugins.GetAll(capability)
 	if err != nil {
 		return nil, err
 	}
-	result := make([]Plugin, len(pl))
+	result := make([]CompatPlugin, len(pl))
 	for i, p := range pl {
 		result[i] = p
 	}
@@ -18,6 +20,6 @@ func FindWithCapability(capability string) ([]Plugin, error) {
 }
 
 // LookupWithCapability returns a plugin matching the given name and capability.
-func LookupWithCapability(name, capability string) (Plugin, error) {
+func LookupWithCapability(name, capability string) (CompatPlugin, error) {
 	return plugins.Get(name, capability)
 }

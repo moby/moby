@@ -5,22 +5,23 @@ package plugin
 import (
 	"fmt"
 
+	"github.com/docker/docker/plugin/v2"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
-func (pm *Manager) enable(p *plugin, force bool) error {
+func (pm *Manager) enable(p *v2.Plugin, force bool) error {
 	return fmt.Errorf("Not implemented")
 }
 
-func (pm *Manager) initSpec(p *plugin) (*specs.Spec, error) {
+func (pm *Manager) initSpec(p *v2.Plugin) (*specs.Spec, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
 
-func (pm *Manager) disable(p *plugin) error {
+func (pm *Manager) disable(p *v2.Plugin) error {
 	return fmt.Errorf("Not implemented")
 }
 
-func (pm *Manager) restore(p *plugin) error {
+func (pm *Manager) restore(p *v2.Plugin) error {
 	return fmt.Errorf("Not implemented")
 }
 
