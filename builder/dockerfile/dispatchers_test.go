@@ -22,7 +22,8 @@ func TestCommandsExactlyOneArgument(t *testing.T) {
 		{"MAINTAINER", func(args []string) error { return maintainer(nil, args, nil, "") }},
 		{"FROM", func(args []string) error { return from(nil, args, nil, "") }},
 		{"WORKDIR", func(args []string) error { return workdir(nil, args, nil, "") }},
-		{"USER", func(args []string) error { return user(nil, args, nil, "") }}}
+		{"USER", func(args []string) error { return user(nil, args, nil, "") }},
+		{"STOPSIGNAL", func(args []string) error { return stopSignal(nil, args, nil, "") }}}
 
 	for _, command := range commands {
 		err := command.function([]string{})
@@ -31,9 +32,9 @@ func TestCommandsExactlyOneArgument(t *testing.T) {
 			t.Fatalf("Error should be present for %s command", command.name)
 		}
 
-		expectedError := fmt.Sprintf("%s requires exactly one argument", command.name)
+		expectedError := errExactlyOneArgument(command.name)
 
-		if err.Error() != expectedError {
+		if err.Error() != expectedError.Error() {
 			t.Fatalf("Wrong error message for %s. Got: %s. Should be: %s", command.name, err.Error(), expectedError)
 		}
 	}
@@ -44,6 +45,7 @@ func TestCommandsAtLeastOneArgument(t *testing.T) {
 		{"ENV", func(args []string) error { return env(nil, args, nil, "") }},
 		{"LABEL", func(args []string) error { return label(nil, args, nil, "") }},
 		{"ONBUILD", func(args []string) error { return onbuild(nil, args, nil, "") }},
+		{"HEALTHCHECK", func(args []string) error { return healthcheck(nil, args, nil, "") }},
 		{"EXPOSE", func(args []string) error { return expose(nil, args, nil, "") }},
 		{"VOLUME", func(args []string) error { return volume(nil, args, nil, "") }}}
 
@@ -54,9 +56,9 @@ func TestCommandsAtLeastOneArgument(t *testing.T) {
 			t.Fatalf("Error should be present for %s command", command.name)
 		}
 
-		expectedError := fmt.Sprintf("%s requires at least one argument", command.name)
+		expectedError := errAtLeastOneArgument(command.name)
 
-		if err.Error() != expectedError {
+		if err.Error() != expectedError.Error() {
 			t.Fatalf("Wrong error message for %s. Got: %s. Should be: %s", command.name, err.Error(), expectedError)
 		}
 	}
@@ -74,9 +76,9 @@ func TestCommandsAtLeastTwoArguments(t *testing.T) {
 			t.Fatalf("Error should be present for %s command", command.name)
 		}
 
-		expectedError := fmt.Sprintf("%s requires at least two arguments", command.name)
+		expectedError := errAtLeastTwoArguments(command.name)
 
-		if err.Error() != expectedError {
+		if err.Error() != expectedError.Error() {
 			t.Fatalf("Wrong error message for %s. Got: %s. Should be: %s", command.name, err.Error(), expectedError)
 		}
 	}
@@ -94,9 +96,35 @@ func TestCommandsTooManyArguments(t *testing.T) {
 			t.Fatalf("Error should be present for %s command", command.name)
 		}
 
-		expectedError := fmt.Sprintf("Bad input to %s, too many arguments", command.name)
+		expectedError := errTooManyArguments(command.name)
 
-		if err.Error() != expectedError {
+		if err.Error() != expectedError.Error() {
+			t.Fatalf("Wrong error message for %s. Got: %s. Should be: %s", command.name, err.Error(), expectedError)
+		}
+	}
+}
+
+func TestCommandseBlankNames(t *testing.T) {
+	bflags := &BFlags{}
+	config := &container.Config{}
+
+	b := &Builder{flags: bflags, runConfig: config, disableCommit: true}
+
+	commands := []commandWithFunction{
+		{"ENV", func(args []string) error { return env(b, args, nil, "") }},
+		{"LABEL", func(args []string) error { return label(b, args, nil, "") }},
+	}
+
+	for _, command := range commands {
+		err := command.function([]string{"", ""})
+
+		if err == nil {
+			t.Fatalf("Error should be present for %s command", command.name)
+		}
+
+		expectedError := errBlankCommandNames(command.name)
+
+		if err.Error() != expectedError.Error() {
 			t.Fatalf("Wrong error message for %s. Got: %s. Should be: %s", command.name, err.Error(), expectedError)
 		}
 	}
