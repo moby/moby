@@ -24,7 +24,7 @@ Options:
           --help   Print usage
 ```
 
-Removes a plugin. You cannot remove a plugin if it is active, you must disable
+Removes a plugin. You cannot remove a plugin if it is enabled, you must disable
 a plugin using the [`docker plugin disable`](plugin_disable.md) before removing
 it (or use --force, use of force is not recommended, since it can affect
 functioning of running containers using the plugin).

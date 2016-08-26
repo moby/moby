@@ -42,7 +42,7 @@ func (s *DockerSuite) TestPluginBasicOps(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	out, _, err = dockerCmdWithError("plugin", "remove", pNameWithTag)
-	c.Assert(out, checker.Contains, "is active")
+	c.Assert(out, checker.Contains, "is enabled")
 
 	_, _, err = dockerCmdWithError("plugin", "disable", pNameWithTag)
 	c.Assert(err, checker.IsNil)
@@ -63,7 +63,7 @@ func (s *DockerSuite) TestPluginForceRemove(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	out, _, err = dockerCmdWithError("plugin", "remove", pNameWithTag)
-	c.Assert(out, checker.Contains, "is active")
+	c.Assert(out, checker.Contains, "is enabled")
 
 	out, _, err = dockerCmdWithError("plugin", "remove", "--force", pNameWithTag)
 	c.Assert(err, checker.IsNil)

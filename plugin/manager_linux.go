@@ -21,7 +21,7 @@ import (
 )
 
 func (pm *Manager) enable(p *plugin, force bool) error {
-	if p.PluginObj.Active && !force {
+	if p.PluginObj.Enabled && !force {
 		return fmt.Errorf("plugin %s is already enabled", p.Name())
 	}
 	spec, err := pm.initSpec(p)
@@ -47,7 +47,7 @@ func (pm *Manager) enable(p *plugin, force bool) error {
 	}
 
 	pm.Lock() // fixme: lock single record
-	p.PluginObj.Active = true
+	p.PluginObj.Enabled = true
 	pm.save()
 	pm.Unlock()
 
@@ -130,7 +130,7 @@ func (pm *Manager) initSpec(p *plugin) (*specs.Spec, error) {
 }
 
 func (pm *Manager) disable(p *plugin) error {
-	if !p.PluginObj.Active {
+	if !p.PluginObj.Enabled {
 		return fmt.Errorf("plugin %s is already disabled", p.Name())
 	}
 	if err := p.restartManager.Cancel(); err != nil {
@@ -142,7 +142,7 @@ func (pm *Manager) disable(p *plugin) error {
 	os.RemoveAll(p.runtimeSourcePath)
 	pm.Lock() // fixme: lock single record
 	defer pm.Unlock()
-	p.PluginObj.Active = false
+	p.PluginObj.Enabled = false
 	pm.save()
 	return nil
 }
@@ -156,8 +156,8 @@ func (pm *Manager) Shutdown() {
 	pm.RLock()
 	defer pm.RUnlock()
 	for _, p := range pm.plugins {
-		if pm.liveRestore && p.PluginObj.Active {
-			logrus.Debug("Plugin active when liveRestore is set, skipping shutdown")
+		if pm.liveRestore && p.PluginObj.Enabled {
+			logrus.Debug("Plugin enabled when liveRestore is set, skipping shutdown")
 			continue
 		}
 		if p.restartManager != nil {
@@ -165,7 +165,7 @@ func (pm *Manager) Shutdown() {
 				logrus.Error(err)
 			}
 		}
-		if pm.containerdClient != nil && p.PluginObj.Active {
+		if pm.containerdClient != nil && p.PluginObj.Enabled {
 			p.exitChan = make(chan bool)
 			err := pm.containerdClient.Signal(p.PluginObj.ID, int(syscall.SIGTERM))
 			if err != nil {
