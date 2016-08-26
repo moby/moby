@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -244,8 +245,22 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *i
 }
 
 // Checks if the client set configurations for more than one network while creating a container
+// Also checks if the IPAMConfig is valid
 func (daemon *Daemon) verifyNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
-	if nwConfig == nil || len(nwConfig.EndpointsConfig) <= 1 {
+	if nwConfig == nil || len(nwConfig.EndpointsConfig) == 0 {
+		return nil
+	}
+	if len(nwConfig.EndpointsConfig) == 1 {
+		for _, v := range nwConfig.EndpointsConfig {
+			if v.IPAMConfig != nil {
+				if v.IPAMConfig.IPv4Address != "" && net.ParseIP(v.IPAMConfig.IPv4Address).To4() == nil {
+					return errors.NewBadRequestError(fmt.Errorf("invalid IPv4 address: %s", v.IPAMConfig.IPv4Address))
+				}
+				if v.IPAMConfig.IPv6Address != "" && net.ParseIP(v.IPAMConfig.IPv6Address).To16() == nil {
+					return errors.NewBadRequestError(fmt.Errorf("invalid IPv6 address: %s", v.IPAMConfig.IPv6Address))
+				}
+			}
+		}
 		return nil
 	}
 	l := make([]string, 0, len(nwConfig.EndpointsConfig))

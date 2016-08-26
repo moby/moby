@@ -1717,3 +1717,20 @@ func (s *DockerNetworkSuite) TestDockerNetworkFlagAlias(c *check.C) {
 	output, status, _ = dockerCmdWithError("run", "--rm", "--network=user", "--net-alias=foo", "--network-alias=bar", "busybox", "true")
 	c.Assert(status, checker.Equals, 0, check.Commentf("unexpected status code %d (%s)", status, output))
 }
+
+func (s *DockerNetworkSuite) TestDockerNetworkValidateIP(c *check.C) {
+	_, _, err := dockerCmdWithError("network", "create", "--ipv6", "--subnet=172.28.0.0/16", "--subnet=2001:db8:1234::/64", "mynet")
+	c.Assert(err, check.IsNil)
+	assertNwIsAvailable(c, "mynet")
+
+	_, _, err = dockerCmdWithError("run", "-d", "--name", "mynet0", "--net=mynet", "--ip", "172.28.99.88", "--ip6", "2001:db8:1234::9988", "busybox", "top")
+	c.Assert(err, check.IsNil)
+	c.Assert(waitRun("mynet0"), check.IsNil)
+	verifyIPAddressConfig(c, "mynet0", "mynet", "172.28.99.88", "2001:db8:1234::9988")
+	verifyIPAddresses(c, "mynet0", "mynet", "172.28.99.88", "2001:db8:1234::9988")
+
+	_, _, err = dockerCmdWithError("run", "--net=mynet", "--ip", "mynet_ip", "--ip6", "2001:db8:1234::9999", "busybox", "top")
+	c.Assert(err.Error(), checker.Contains, "invalid IPv4 address")
+	_, _, err = dockerCmdWithError("run", "--net=mynet", "--ip", "172.28.99.99", "--ip6", "mynet_ip6", "busybox", "top")
+	c.Assert(err.Error(), checker.Contains, "invalid IPv6 address")
+}
