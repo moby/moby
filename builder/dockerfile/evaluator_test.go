@@ -45,7 +45,7 @@ func initDispatchTestCases() []dispatchTestCase {
 		{
 			name:          "ARG two arguments",
 			dockerfile:    "ARG foo bar",
-			expectedError: "ARG requires exactly one argument definition",
+			expectedError: "ARG requires exactly one argument",
 			files:         nil,
 		},
 		{
