@@ -320,13 +320,16 @@ func (c *controller) clusterAgentInit() {
 			c.agentClose()
 			c.cleanupServiceBindings("")
 
-			if err := c.ingressSandbox.Delete(); err != nil {
-				log.Warnf("Could not delete ingress sandbox while leaving: %v", err)
-			}
-
 			c.Lock()
+			ingressSandbox := c.ingressSandbox
 			c.ingressSandbox = nil
 			c.Unlock()
+
+			if ingressSandbox != nil {
+				if err := ingressSandbox.Delete(); err != nil {
+					log.Warnf("Could not delete ingress sandbox while leaving: %v", err)
+				}
+			}
 
 			n, err := c.NetworkByName("ingress")
 			if err != nil {
