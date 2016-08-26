@@ -11,15 +11,16 @@ parent = "smn_cli"
 # inspect
 
 ```markdown
-Usage:  docker inspect [OPTIONS] CONTAINER|IMAGE|TASK [CONTAINER|IMAGE|TASK...]
+Usage:  docker inspect [OPTIONS] NAME|ID [NAME|ID...]
 
-Return low-level information on a container, image or task
+Return low-level information on one or multiple containers, images, volumes,
+networks, nodes, services, or tasks identified by name or ID.
 
   -f, --format       Format the output using the given go template
   --help             Print usage
   -s, --size         Display total file sizes if the type is container
                      values are "image" or "container" or "task
-  --type             Return JSON for specified type, (e.g image, container or task)
+  --type             Return JSON for specified type
 ```
 
 By default, this will render all results in a JSON array. If the container and

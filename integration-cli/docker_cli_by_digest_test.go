@@ -176,7 +176,7 @@ func (s *DockerRegistrySuite) TestRemoveImageByDigest(c *check.C) {
 	_, err = inspectFieldWithError(imageReference, "Id")
 	//unexpected nil err trying to inspect what should be a non-existent image
 	c.Assert(err, checker.NotNil)
-	c.Assert(err.Error(), checker.Contains, "No such container, image")
+	c.Assert(err.Error(), checker.Contains, "No such object")
 }
 
 func (s *DockerRegistrySuite) TestBuildByDigest(c *check.C) {
