@@ -196,7 +196,7 @@ func (s *DockerDaemonSuite) TestVolumePlugin(c *check.C) {
 		}
 	}()
 
-	out, err = s.d.Cmd("volume", "create", "-d", pluginName, "--name", volName)
+	out, err = s.d.Cmd("volume", "create", "-d", pluginName, volName)
 	if err != nil {
 		c.Fatalf("Could not create volume: %v %s", err, out)
 	}

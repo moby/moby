@@ -409,7 +409,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverRetryNotImmediatelyE
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverBindExternalVolume(c *check.C) {
-	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "--name", "foo")
+	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "foo")
 	dockerCmd(c, "run", "-d", "--name", "testing", "-v", "foo:/bar", "busybox", "top")
 
 	var mounts []struct {
@@ -424,7 +424,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverBindExternalVolume(c
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverList(c *check.C) {
-	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "--name", "abc3")
+	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "abc3")
 	out, _ := dockerCmd(c, "volume", "ls")
 	ls := strings.Split(strings.TrimSpace(out), "\n")
 	c.Assert(len(ls), check.Equals, 2, check.Commentf("\n%s", out))
@@ -443,7 +443,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *check.C) {
 	c.Assert(s.ec.gets, check.Equals, 1)
 	c.Assert(out, checker.Contains, "No such volume")
 
-	dockerCmd(c, "volume", "create", "--name", "test", "-d", "test-external-volume-driver")
+	dockerCmd(c, "volume", "create", "test", "-d", "test-external-volume-driver")
 	out, _ = dockerCmd(c, "volume", "inspect", "test")
 
 	type vol struct {
@@ -458,7 +458,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *check.C) {
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemonRestart(c *check.C) {
-	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "--name", "abc1")
+	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "abc1")
 	err := s.d.Restart()
 	c.Assert(err, checker.IsNil)
 
@@ -474,7 +474,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemonRestart(c 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGetEmptyResponse(c *check.C) {
 	c.Assert(s.d.Start(), checker.IsNil)
 
-	out, err := s.d.Cmd("volume", "create", "-d", "test-external-volume-driver", "--name", "abc2", "--opt", "ninja=1")
+	out, err := s.d.Cmd("volume", "create", "-d", "test-external-volume-driver", "abc2", "--opt", "ninja=1")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	out, err = s.d.Cmd("volume", "inspect", "abc2")
@@ -487,7 +487,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverPathCalls(c *check.C
 	c.Assert(s.d.Start(), checker.IsNil)
 	c.Assert(s.ec.paths, checker.Equals, 0)
 
-	out, err := s.d.Cmd("volume", "create", "--name=test", "--driver=test-external-volume-driver")
+	out, err := s.d.Cmd("volume", "create", "test", "--driver=test-external-volume-driver")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(s.ec.paths, checker.Equals, 1)
 
@@ -516,7 +516,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverCapabilities(c *chec
 	c.Assert(s.ec.caps, checker.Equals, 0)
 
 	for i := 0; i < 3; i++ {
-		out, err := s.d.Cmd("volume", "create", "-d", "test-external-volume-driver", "--name", fmt.Sprintf("test%d", i))
+		out, err := s.d.Cmd("volume", "create", "-d", "test-external-volume-driver", fmt.Sprintf("test%d", i))
 		c.Assert(err, checker.IsNil, check.Commentf(out))
 		c.Assert(s.ec.caps, checker.Equals, 1)
 		out, err = s.d.Cmd("volume", "inspect", "--format={{.Scope}}", fmt.Sprintf("test%d", i))

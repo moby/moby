@@ -270,11 +270,12 @@ func testCommand(cmd string, newEnvs []string, scanForHome bool, home string) er
 
 	// These commands will never print a short-usage so don't test
 	noShortUsage := map[string]string{
-		"images":  "",
-		"login":   "",
-		"logout":  "",
-		"network": "",
-		"stats":   "",
+		"images":        "",
+		"login":         "",
+		"logout":        "",
+		"network":       "",
+		"stats":         "",
+		"volume create": "",
 	}
 
 	if _, ok := noShortUsage[cmd]; !ok {

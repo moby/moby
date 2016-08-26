@@ -18,20 +18,29 @@ func (s *DockerSuite) TestVolumeCliCreate(c *check.C) {
 	_, err := runCommand(exec.Command(dockerBinary, "volume", "create", "-d", "nosuchdriver"))
 	c.Assert(err, check.Not(check.IsNil))
 
+	// test using hidden --name option
 	out, _ := dockerCmd(c, "volume", "create", "--name=test")
 	name := strings.TrimSpace(out)
 	c.Assert(name, check.Equals, "test")
+
+	out, _ = dockerCmd(c, "volume", "create", "test2")
+	name = strings.TrimSpace(out)
+	c.Assert(name, check.Equals, "test2")
 }
 
 func (s *DockerSuite) TestVolumeCliCreateOptionConflict(c *check.C) {
-	dockerCmd(c, "volume", "create", "--name=test")
-	out, _, err := dockerCmdWithError("volume", "create", "--name", "test", "--driver", "nosuchdriver")
+	dockerCmd(c, "volume", "create", "test")
+	out, _, err := dockerCmdWithError("volume", "create", "test", "--driver", "nosuchdriver")
 	c.Assert(err, check.NotNil, check.Commentf("volume create exception name already in use with another driver"))
 	c.Assert(out, checker.Contains, "A volume named test already exists")
 
 	out, _ = dockerCmd(c, "volume", "inspect", "--format={{ .Driver }}", "test")
-	_, _, err = dockerCmdWithError("volume", "create", "--name", "test", "--driver", strings.TrimSpace(out))
+	_, _, err = dockerCmdWithError("volume", "create", "test", "--driver", strings.TrimSpace(out))
 	c.Assert(err, check.IsNil)
+
+	// make sure hidden --name option conflicts with positional arg name
+	out, _, err = dockerCmdWithError("volume", "create", "--name", "test2", "test2")
+	c.Assert(err, check.NotNil, check.Commentf("Conflicting options: either specify --name or provide positional arg, not both"))
 }
 
 func (s *DockerSuite) TestVolumeCliInspect(c *check.C) {
@@ -46,15 +55,15 @@ func (s *DockerSuite) TestVolumeCliInspect(c *check.C) {
 	out, _ = dockerCmd(c, "volume", "inspect", "--format={{ .Name }}", name)
 	c.Assert(strings.TrimSpace(out), check.Equals, name)
 
-	dockerCmd(c, "volume", "create", "--name", "test")
+	dockerCmd(c, "volume", "create", "test")
 	out, _ = dockerCmd(c, "volume", "inspect", "--format={{ .Name }}", "test")
 	c.Assert(strings.TrimSpace(out), check.Equals, "test")
 }
 
 func (s *DockerSuite) TestVolumeCliInspectMulti(c *check.C) {
-	dockerCmd(c, "volume", "create", "--name", "test1")
-	dockerCmd(c, "volume", "create", "--name", "test2")
-	dockerCmd(c, "volume", "create", "--name", "not-shown")
+	dockerCmd(c, "volume", "create", "test1")
+	dockerCmd(c, "volume", "create", "test2")
+	dockerCmd(c, "volume", "create", "not-shown")
 
 	result := dockerCmdWithResult("volume", "inspect", "--format={{ .Name }}", "test1", "test2", "doesntexist", "not-shown")
 	c.Assert(result, icmd.Matches, icmd.Expected{
@@ -73,11 +82,11 @@ func (s *DockerSuite) TestVolumeCliInspectMulti(c *check.C) {
 
 func (s *DockerSuite) TestVolumeCliLs(c *check.C) {
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
-	dockerCmd(c, "volume", "create", "--name", "aaa")
+	dockerCmd(c, "volume", "create", "aaa")
 
-	dockerCmd(c, "volume", "create", "--name", "test")
+	dockerCmd(c, "volume", "create", "test")
 
-	dockerCmd(c, "volume", "create", "--name", "soo")
+	dockerCmd(c, "volume", "create", "soo")
 	dockerCmd(c, "run", "-v", "soo:"+prefix+"/foo", "busybox", "ls", "/")
 
 	out, _ := dockerCmd(c, "volume", "ls")
@@ -88,9 +97,9 @@ func (s *DockerSuite) TestVolumeCliLs(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumeLsFormat(c *check.C) {
-	dockerCmd(c, "volume", "create", "--name", "aaa")
-	dockerCmd(c, "volume", "create", "--name", "test")
-	dockerCmd(c, "volume", "create", "--name", "soo")
+	dockerCmd(c, "volume", "create", "aaa")
+	dockerCmd(c, "volume", "create", "test")
+	dockerCmd(c, "volume", "create", "soo")
 
 	out, _ := dockerCmd(c, "volume", "ls", "--format", "{{.Name}}")
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
@@ -104,9 +113,9 @@ func (s *DockerSuite) TestVolumeLsFormat(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumeLsFormatDefaultFormat(c *check.C) {
-	dockerCmd(c, "volume", "create", "--name", "aaa")
-	dockerCmd(c, "volume", "create", "--name", "test")
-	dockerCmd(c, "volume", "create", "--name", "soo")
+	dockerCmd(c, "volume", "create", "aaa")
+	dockerCmd(c, "volume", "create", "test")
+	dockerCmd(c, "volume", "create", "soo")
 
 	config := `{
 		"volumesFormat": "{{ .Name }} default"
@@ -147,9 +156,9 @@ func assertVolList(c *check.C, out string, expectVols []string) {
 
 func (s *DockerSuite) TestVolumeCliLsFilterDangling(c *check.C) {
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
-	dockerCmd(c, "volume", "create", "--name", "testnotinuse1")
-	dockerCmd(c, "volume", "create", "--name", "testisinuse1")
-	dockerCmd(c, "volume", "create", "--name", "testisinuse2")
+	dockerCmd(c, "volume", "create", "testnotinuse1")
+	dockerCmd(c, "volume", "create", "testisinuse1")
+	dockerCmd(c, "volume", "create", "testisinuse2")
 
 	// Make sure both "created" (but not started), and started
 	// containers are included in reference counting
@@ -225,7 +234,7 @@ func (s *DockerSuite) TestVolumeCliRm(c *check.C) {
 	out, _ := dockerCmd(c, "volume", "create")
 	id := strings.TrimSpace(out)
 
-	dockerCmd(c, "volume", "create", "--name", "test")
+	dockerCmd(c, "volume", "create", "test")
 	dockerCmd(c, "volume", "rm", id)
 	dockerCmd(c, "volume", "rm", "test")
 
@@ -290,7 +299,7 @@ func (s *DockerSuite) TestVolumeCliInspectTmplError(c *check.C) {
 func (s *DockerSuite) TestVolumeCliCreateWithOpts(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
-	dockerCmd(c, "volume", "create", "-d", "local", "--name", "test", "--opt=type=tmpfs", "--opt=device=tmpfs", "--opt=o=size=1m,uid=1000")
+	dockerCmd(c, "volume", "create", "-d", "local", "test", "--opt=type=tmpfs", "--opt=device=tmpfs", "--opt=o=size=1m,uid=1000")
 	out, _ := dockerCmd(c, "run", "-v", "test:/foo", "busybox", "mount")
 
 	mounts := strings.Split(out, "\n")
@@ -315,7 +324,7 @@ func (s *DockerSuite) TestVolumeCliCreateLabel(c *check.C) {
 	testLabel := "foo"
 	testValue := "bar"
 
-	out, _, err := dockerCmdWithError("volume", "create", "--label", testLabel+"="+testValue, "--name", testVol)
+	out, _, err := dockerCmdWithError("volume", "create", "--label", testLabel+"="+testValue, testVol)
 	c.Assert(err, check.IsNil)
 
 	out, _ = dockerCmd(c, "volume", "inspect", "--format={{ .Labels."+testLabel+" }}", testVol)
@@ -333,7 +342,6 @@ func (s *DockerSuite) TestVolumeCliCreateLabelMultiple(c *check.C) {
 	args := []string{
 		"volume",
 		"create",
-		"--name",
 		testVol,
 	}
 
@@ -352,11 +360,11 @@ func (s *DockerSuite) TestVolumeCliCreateLabelMultiple(c *check.C) {
 
 func (s *DockerSuite) TestVolumeCliLsFilterLabels(c *check.C) {
 	testVol1 := "testvolcreatelabel-1"
-	out, _, err := dockerCmdWithError("volume", "create", "--label", "foo=bar1", "--name", testVol1)
+	out, _, err := dockerCmdWithError("volume", "create", "--label", "foo=bar1", testVol1)
 	c.Assert(err, check.IsNil)
 
 	testVol2 := "testvolcreatelabel-2"
-	out, _, err = dockerCmdWithError("volume", "create", "--label", "foo=bar2", "--name", testVol2)
+	out, _, err = dockerCmdWithError("volume", "create", "--label", "foo=bar2", testVol2)
 	c.Assert(err, check.IsNil)
 
 	out, _ = dockerCmd(c, "volume", "ls", "--filter", "label=foo")
@@ -396,7 +404,7 @@ func (s *DockerSuite) TestVolumeCliRmForce(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	name := "test"
-	out, _ := dockerCmd(c, "volume", "create", "--name", name)
+	out, _ := dockerCmd(c, "volume", "create", name)
 	id := strings.TrimSpace(out)
 	c.Assert(id, checker.Equals, name)
 
@@ -410,7 +418,7 @@ func (s *DockerSuite) TestVolumeCliRmForce(c *check.C) {
 	dockerCmd(c, "volume", "rm", "-f", "test")
 	out, _ = dockerCmd(c, "volume", "ls")
 	c.Assert(out, checker.Not(checker.Contains), name)
-	dockerCmd(c, "volume", "create", "--name", "test")
+	dockerCmd(c, "volume", "create", "test")
 	out, _ = dockerCmd(c, "volume", "ls")
 	c.Assert(out, checker.Contains, name)
 }

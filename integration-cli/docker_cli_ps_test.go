@@ -704,7 +704,7 @@ func (s *DockerSuite) TestPsShowMounts(c *check.C) {
 
 	mp := prefix + slash + "test"
 
-	dockerCmd(c, "volume", "create", "--name", "ps-volume-test")
+	dockerCmd(c, "volume", "create", "ps-volume-test")
 	// volume mount containers
 	runSleepingContainer(c, "--name=volume-test-1", "--volume", "ps-volume-test:"+mp)
 	c.Assert(waitRun("volume-test-1"), checker.IsNil)
