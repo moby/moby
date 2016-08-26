@@ -89,14 +89,11 @@ download the `centos` image.
 
     $ docker pull centos
 
-    Pulling repository centos
-    b7de3133ff98: Pulling dependent layers
-    5cc9e91966f7: Pulling fs layer
-    511136ea3c5a: Download complete
-    ef52fb1fe610: Download complete
-    . . .
-
-    Status: Downloaded newer image for centos
+    Using default tag: latest
+    Trying to pull repository docker.io/library/centos ...
+    latest: Pulling from docker.io/library/centos
+    Digest: sha256: . . .
+    Status: Downloaded newer image for docker.io/centos:latest
 
 You can see that each layer of the image has been pulled down and now you
 can run a container from this image and you won't have to wait to
