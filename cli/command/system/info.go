@@ -107,7 +107,11 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 			fmt.Fprintf(dockerCli.Out(), " Managers: %d\n", info.Swarm.Managers)
 			fmt.Fprintf(dockerCli.Out(), " Nodes: %d\n", info.Swarm.Nodes)
 			fmt.Fprintf(dockerCli.Out(), " Orchestration:\n")
-			fmt.Fprintf(dockerCli.Out(), "  Task History Retention Limit: %d\n", info.Swarm.Cluster.Spec.Orchestration.TaskHistoryRetentionLimit)
+			taskHistoryRetentionLimit := int64(0)
+			if info.Swarm.Cluster.Spec.Orchestration.TaskHistoryRetentionLimit != nil {
+				taskHistoryRetentionLimit = *info.Swarm.Cluster.Spec.Orchestration.TaskHistoryRetentionLimit
+			}
+			fmt.Fprintf(dockerCli.Out(), "  Task History Retention Limit: %d\n", taskHistoryRetentionLimit)
 			fmt.Fprintf(dockerCli.Out(), " Raft:\n")
 			fmt.Fprintf(dockerCli.Out(), "  Snapshot Interval: %d\n", info.Swarm.Cluster.Spec.Raft.SnapshotInterval)
 			fmt.Fprintf(dockerCli.Out(), "  Heartbeat Tick: %d\n", info.Swarm.Cluster.Spec.Raft.HeartbeatTick)
