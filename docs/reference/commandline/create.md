@@ -90,6 +90,7 @@ Options:
       --read-only                   Mount the container's root filesystem as read only
       --restart string              Restart policy to apply when a container exits (default "no")
                                     Possible values are: no, on-failure[:max-retry], always, unless-stopped
+      --rm                          Automatically remove the container when it exits
       --runtime string              Runtime to use for this container
       --security-opt value          Security Options (default [])
       --shm-size string             Size of /dev/shm, default value is 64MB.
