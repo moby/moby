@@ -645,7 +645,7 @@ allows you to share the same content between containers.
 > **Note**: Automatic translation of MLS labels is not currently supported.
 
 To disable the security labeling for this container versus running with the
-`--permissive` flag, use the following command:
+`--privileged` flag, use the following command:
 
     $ docker run --security-opt label=disable -it fedora bash
 
