@@ -1274,6 +1274,22 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnectToStoppedContaine
 
 }
 
+func (s *DockerNetworkSuite) TestDockerNetworkDisconnectContainerNonexistingNetwork(c *check.C) {
+	dockerCmd(c, "network", "create", "test")
+	dockerCmd(c, "run", "--net=test", "-d", "--name=foo", "busybox", "top")
+	networks := inspectField(c, "foo", "NetworkSettings.Networks")
+	c.Assert(networks, checker.Contains, "test", check.Commentf("Should contain 'test' network"))
+
+	// Stop container and remove network
+	dockerCmd(c, "stop", "foo")
+	dockerCmd(c, "network", "rm", "test")
+
+	// Test disconnecting stopped container from nonexisting network
+	dockerCmd(c, "network", "disconnect", "-f", "test", "foo")
+	networks = inspectField(c, "foo", "NetworkSettings.Networks")
+	c.Assert(networks, checker.Not(checker.Contains), "test", check.Commentf("Should not contain 'test' network"))
+}
+
 func (s *DockerNetworkSuite) TestDockerNetworkConnectPreferredIP(c *check.C) {
 	// create two networks
 	dockerCmd(c, "network", "create", "--ipv6", "--subnet=172.28.0.0/16", "--subnet=2001:db8:1234::/64", "n0")

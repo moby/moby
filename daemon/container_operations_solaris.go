@@ -7,7 +7,6 @@ import (
 
 	"github.com/docker/docker/container"
 	networktypes "github.com/docker/engine-api/types/network"
-	"github.com/docker/libnetwork"
 )
 
 func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]string, error) {
@@ -25,7 +24,7 @@ func (daemon *Daemon) getSize(container *container.Container) (int64, int64) {
 }
 
 // DisconnectFromNetwork disconnects a container from the network
-func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n libnetwork.Network, force bool) error {
+func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, networkName string, force bool) error {
 	return fmt.Errorf("Solaris does not support disconnecting a running container from a network")
 }
 

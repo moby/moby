@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/runconfig"
 	containertypes "github.com/docker/engine-api/types/container"
 	networktypes "github.com/docker/engine-api/types/network"
-	"github.com/docker/libnetwork"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/label"
@@ -124,33 +123,38 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 }
 
 // DisconnectFromNetwork disconnects container from network n.
-func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n libnetwork.Network, force bool) error {
-	if container.HostConfig.NetworkMode.IsHost() && containertypes.NetworkMode(n.Type()).IsHost() {
-		return runconfig.ErrConflictHostNetwork
-	}
-	if !container.Running {
+func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, networkName string, force bool) error {
+	n, err := daemon.FindNetwork(networkName)
+	if !container.Running || (err != nil && force) {
 		if container.RemovalInProgress || container.Dead {
 			return errRemovalContainer(container.ID)
 		}
-		if _, ok := container.NetworkSettings.Networks[n.Name()]; ok {
-			delete(container.NetworkSettings.Networks, n.Name())
-		} else {
-			return fmt.Errorf("container %s is not connected to the network %s", container.ID, n.Name())
+		if _, ok := container.NetworkSettings.Networks[networkName]; !ok {
+			return fmt.Errorf("container %s is not connected to the network %s", container.ID, networkName)
 		}
-	} else {
+		delete(container.NetworkSettings.Networks, networkName)
+	} else if err == nil {
+		if container.HostConfig.NetworkMode.IsHost() && containertypes.NetworkMode(n.Type()).IsHost() {
+			return runconfig.ErrConflictHostNetwork
+		}
+
 		if err := disconnectFromNetwork(container, n, false); err != nil {
 			return err
 		}
+	} else {
+		return err
 	}
 
 	if err := container.ToDiskLocking(); err != nil {
 		return fmt.Errorf("Error saving container to disk: %v", err)
 	}
 
-	attributes := map[string]string{
-		"container": container.ID,
+	if n != nil {
+		attributes := map[string]string{
+			"container": container.ID,
+		}
+		daemon.LogNetworkEventWithAttributes(n, "disconnect", attributes)
 	}
-	daemon.LogNetworkEventWithAttributes(n, "disconnect", attributes)
 	return nil
 }
 

@@ -618,8 +618,13 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 	return nil
 }
 
-// ForceEndpointDelete deletes an endpoing from a network forcefully
-func (daemon *Daemon) ForceEndpointDelete(name string, n libnetwork.Network) error {
+// ForceEndpointDelete deletes an endpoint from a network forcefully
+func (daemon *Daemon) ForceEndpointDelete(name string, networkName string) error {
+	n, err := daemon.FindNetwork(networkName)
+	if err != nil {
+		return err
+	}
+
 	ep, err := n.EndpointByName(name)
 	if err != nil {
 		return err
