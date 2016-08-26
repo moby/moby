@@ -21,6 +21,7 @@ import (
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/testutil"
 	"github.com/docker/distribution/uuid"
 	"github.com/docker/libtrust"
@@ -948,6 +949,49 @@ func TestManifestTags(t *testing.T) {
 		t.Fatalf("unexpected tags returned: %v", expected)
 	}
 	// TODO(dmcgowan): Check for error cases
+}
+
+func TestObtainsErrorForMissingTag(t *testing.T) {
+	repo, _ := reference.ParseNamed("test.example.com/repo")
+
+	var m testutil.RequestResponseMap
+	var errors errcode.Errors
+	errors = append(errors, v2.ErrorCodeManifestUnknown.WithDetail("unknown manifest"))
+	errBytes, err := json.Marshal(errors)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m = append(m, testutil.RequestResponseMapping{
+		Request: testutil.Request{
+			Method: "GET",
+			Route:  "/v2/" + repo.Name() + "/manifests/1.0.0",
+		},
+		Response: testutil.Response{
+			StatusCode: http.StatusNotFound,
+			Body:       errBytes,
+			Headers: http.Header(map[string][]string{
+				"Content-Type": {"application/json; charset=utf-8"},
+			}),
+		},
+	})
+	e, c := testServer(m)
+	defer c()
+
+	ctx := context.Background()
+	r, err := NewRepository(ctx, repo, e, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tagService := r.Tags(ctx)
+
+	_, err = tagService.Get(ctx, "1.0.0")
+	if err == nil {
+		t.Fatalf("Expected an error")
+	}
+	if !strings.Contains(err.Error(), "manifest unknown") {
+		t.Fatalf("Expected unknown manifest error message")
+	}
 }
 
 func TestManifestTagsPaginated(t *testing.T) {
