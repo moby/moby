@@ -23,7 +23,6 @@ import (
 	"github.com/docker/docker/pkg/integration/checker"
 	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/pkg/testutil/tempfile"
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libtrust"
@@ -2352,32 +2351,42 @@ func (s *DockerSuite) TestDaemonDiscoveryBackendConfigReload(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	// daemon config file
-	tmpfile := tempfile.NewTempFile(c, "config-test", `{ "debug" : false }`)
-	defer tmpfile.Remove()
+	daemonConfig := `{ "debug" : false }`
+	configFile, err := ioutil.TempFile("", "test-daemon-discovery-backend-config-reload-config")
+	c.Assert(err, checker.IsNil, check.Commentf("could not create temp file for config reload"))
+	configFilePath := configFile.Name()
+	defer func() {
+		configFile.Close()
+		os.RemoveAll(configFile.Name())
+	}()
+
+	_, err = configFile.Write([]byte(daemonConfig))
+	c.Assert(err, checker.IsNil)
 
 	d := NewDaemon(c)
 	// --log-level needs to be set so that d.Start() doesn't add --debug causing
 	// a conflict with the config
-	err := d.Start("--config-file", tmpfile.Name(), "--log-level=info")
+	err = d.Start("--config-file", configFilePath, "--log-level=info")
 	c.Assert(err, checker.IsNil)
 	defer d.Stop()
 
 	// daemon config file
-	daemonConfig := `{
+	daemonConfig = `{
 	      "cluster-store": "consul://consuladdr:consulport/some/path",
 	      "cluster-advertise": "192.168.56.100:0",
 	      "debug" : false
 	}`
 
-	os.Remove(tmpfile.Name())
-	configFile, err := os.Create(tmpfile.Name())
+	err = configFile.Truncate(0)
 	c.Assert(err, checker.IsNil)
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
+	_, err = configFile.Seek(0, os.SEEK_SET)
+	c.Assert(err, checker.IsNil)
 
-	syscall.Kill(d.cmd.Process.Pid, syscall.SIGHUP)
+	_, err = configFile.Write([]byte(daemonConfig))
+	c.Assert(err, checker.IsNil)
 
-	time.Sleep(3 * time.Second)
+	err = d.reloadConfig()
+	c.Assert(err, checker.IsNil, check.Commentf("error reloading daemon config"))
 
 	out, err := d.Cmd("info")
 	c.Assert(err, checker.IsNil)
