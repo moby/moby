@@ -37,6 +37,7 @@ func (s *DockerSuite) TestImportBadURL(c *check.C) {
 	c.Assert(err, checker.NotNil, check.Commentf("import was supposed to fail but didn't"))
 	// Depending on your system you can get either of these errors
 	if !strings.Contains(out, "dial tcp") &&
+		!strings.Contains(out, "ApplyLayer exit status 1 stdout:  stderr: archive/tar: invalid tar header") &&
 		!strings.Contains(out, "Error processing tar file") {
 		c.Fatalf("expected an error msg but didn't get one.\nErr: %v\nOut: %v", err, out)
 	}
