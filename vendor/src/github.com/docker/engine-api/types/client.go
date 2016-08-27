@@ -151,6 +151,7 @@ type ImageBuildOptions struct {
 	// preserves the original image and creates a new one from the parent with all
 	// the changes applied to a single layer
 	Squash bool
+	CacheFrom      []string
 }
 
 // ImageBuildResponse holds information

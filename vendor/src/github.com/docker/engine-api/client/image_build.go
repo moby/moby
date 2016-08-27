@@ -110,6 +110,13 @@ func imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, erro
 		return query, err
 	}
 	query.Set("labels", string(labelsJSON))
+
+	cacheFromJSON, err := json.Marshal(options.CacheFrom)
+	if err != nil {
+		return query, err
+	}
+	query.Set("cachefrom", string(cacheFromJSON))
+
 	return query, nil
 }
 

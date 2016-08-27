@@ -149,6 +149,16 @@ type Image interface {
 // ImageCache abstracts an image cache store.
 // (parent image, child runconfig) -> child image
 type ImageCache interface {
+	// MakeImageCacheForBuild creates a stateful image cache that can be used to create images
+	// using already-existing layers from the cacheFrom images. It needs to be re-created for every
+	// build because it performs stateful actions such as probing the registry for the specified images.
+	MakeImageCacheForBuild(cacheFrom []string) ImageCacheForBuild
+}
+
+// ImageCacheForBuild represents a stateful image cache that is wound forward
+// at each step of the build process, until either there is a cache miss or
+// the image is built.
+type ImageCacheForBuild interface {
 	// GetCachedImageOnBuild returns a reference to a cached image whose parent equals `parent`
 	// and runconfig equals `cfg`. A cache miss is expected to return an empty ID and a nil error.
 	GetCachedImageOnBuild(parentID string, cfg *container.Config) (imageID string, err error)
