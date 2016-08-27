@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
@@ -386,10 +385,6 @@ func (s *containerRouter) deleteContainers(ctx context.Context, w http.ResponseW
 	}
 
 	if err := s.backend.ContainerRm(name, config); err != nil {
-		// Force a 404 for the empty string
-		if strings.Contains(strings.ToLower(err.Error()), "prefix can't be empty") {
-			return fmt.Errorf("no such container: \"\"")
-		}
 		return err
 	}
 
