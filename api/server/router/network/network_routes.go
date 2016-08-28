@@ -143,17 +143,14 @@ func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.Respon
 		return err
 	}
 
-	nw, err := n.backend.FindNetwork(vars["id"])
-	if err != nil {
-		return err
-	}
+	nw, _ := n.backend.FindNetwork(vars["id"])
 
-	if nw.Info().Dynamic() {
+	if nw != nil && nw.Info().Dynamic() {
 		err := fmt.Errorf("operation not supported for swarm scoped networks")
 		return errors.NewRequestForbiddenError(err)
 	}
 
-	return n.backend.DisconnectContainerFromNetwork(disconnect.Container, nw, disconnect.Force)
+	return n.backend.DisconnectContainerFromNetwork(disconnect.Container, vars["id"], disconnect.Force)
 }
 
 func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
