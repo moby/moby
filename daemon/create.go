@@ -42,7 +42,7 @@ func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, manage
 
 	err = daemon.verifyNetworkingConfig(params.NetworkingConfig)
 	if err != nil {
-		return types.ContainerCreateResponse{}, err
+		return types.ContainerCreateResponse{Warnings: warnings}, err
 	}
 
 	if params.HostConfig == nil {
