@@ -17,7 +17,8 @@ Usage:  docker plugin inspect PLUGIN
 Inspect a plugin
 
 Options:
-      --help   Print usage
+      -f, --format string   Format the output using the given go template
+          --help            Print usage
 ```
 
 Returns information about a plugin. By default, this command renders all results
@@ -137,6 +138,13 @@ $ docker plugin inspect tiborvass/no-remove:latest
 ```
 (output formatted for readability)
 
+
+```bash
+$ docker plugin inspect -f '{{.Id}}' tiborvass/no-remove:latest
+```
+```
+8c74c978c434745c3ade82f1bc0acf38d04990eaf494fa507c16d9f1daa99c21
+```
 
 
 ## Related information
