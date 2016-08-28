@@ -48,7 +48,7 @@ type DockerCli struct {
 	isTerminalOut bool
 	// client is the http client that performs all API operations
 	client client.APIClient
-	// state holds the terminal input state
+	// inState holds the terminal input state
 	inState *term.State
 	// outState holds the terminal output state
 	outState *term.State
