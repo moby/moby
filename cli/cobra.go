@@ -17,7 +17,7 @@ func SetupRootCommand(rootCmd *cobra.Command) {
 	rootCmd.PersistentFlags().MarkShorthandDeprecated("help", "please use --help")
 }
 
-// FlagErrorFunc prints an error messages which matches the format of the
+// FlagErrorFunc prints an error message which matches the format of the
 // docker/docker/cli error messages
 func FlagErrorFunc(cmd *cobra.Command, err error) error {
 	if err == nil {
