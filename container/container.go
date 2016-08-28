@@ -308,6 +308,11 @@ func (container *Container) CheckpointDir() string {
 	return filepath.Join(container.Root, "checkpoints")
 }
 
+// IntrospectionDir returns the directory contains the introspection data
+func (container *Container) IntrospectionDir() string {
+	return filepath.Join(container.Root, "introspection")
+}
+
 // StartLogger starts a new logger driver for the container.
 func (container *Container) StartLogger() (logger.Logger, error) {
 	cfg := container.HostConfig.LogConfig

@@ -99,6 +99,13 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 				Mode:      m.TmpfsOptions.Mode,
 			}
 		}
+
+		if m.IntrospectionOptions != nil {
+			mount.IntrospectionOptions = &mounttypes.IntrospectionOptions{
+				Scopes: m.IntrospectionOptions.Scopes,
+			}
+		}
+
 		containerSpec.Mounts = append(containerSpec.Mounts, mount)
 	}
 
@@ -265,6 +272,12 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 			mount.TmpfsOptions = &swarmapi.Mount_TmpfsOptions{
 				SizeBytes: m.TmpfsOptions.SizeBytes,
 				Mode:      m.TmpfsOptions.Mode,
+			}
+		}
+
+		if m.IntrospectionOptions != nil {
+			mount.IntrospectionOptions = &swarmapi.Mount_IntrospectionOptions{
+				Scopes: m.IntrospectionOptions.Scopes,
 			}
 		}
 
