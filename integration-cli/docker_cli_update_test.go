@@ -29,3 +29,13 @@ func (s *DockerSuite) TestUpdateRestartPolicy(c *check.C) {
 	maximumRetryCount := inspectField(c, id, "HostConfig.RestartPolicy.MaximumRetryCount")
 	c.Assert(maximumRetryCount, checker.Equals, "5")
 }
+
+func (s *DockerSuite) TestUpdateRestartWithAutoRemoveFlag(c *check.C) {
+	out, _ := runSleepingContainer(c, "--rm")
+	id := strings.TrimSpace(out)
+
+	// update restart policy for an AutoRemove container
+	out, _, err := dockerCmdWithError("update", "--restart=always", id)
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "Restart policy cannot be updated because AutoRemove is enabled for the container")
+}

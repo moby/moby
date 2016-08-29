@@ -172,7 +172,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	}
 
 	cmd := b.runConfig.Cmd
-	b.runConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), "#(nop) %s %s in %s ", cmdName, srcHash, dest))
+	b.runConfig.Cmd = strslice.StrSlice(append(getShell(b.runConfig), fmt.Sprintf("#(nop) %s %s in %s ", cmdName, srcHash, dest)))
 	defer func(cmd strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
 
 	if hit, err := b.probeCache(); err != nil {
@@ -181,7 +181,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 		return nil
 	}
 
-	container, err := b.docker.ContainerCreate(types.ContainerCreateConfig{Config: b.runConfig})
+	container, err := b.docker.ContainerCreate(types.ContainerCreateConfig{Config: b.runConfig}, true)
 	if err != nil {
 		return err
 	}
@@ -255,9 +255,9 @@ func (b *Builder) download(srcURL string) (fi builder.FileInfo, err error) {
 	// ignoring error because the file was already opened successfully
 	tmpFileSt, err := tmpFile.Stat()
 	if err != nil {
+		tmpFile.Close()
 		return
 	}
-	tmpFile.Close()
 
 	// Set the mtime to the Last-Modified header value if present
 	// Otherwise just remove atime and mtime
@@ -271,6 +271,8 @@ func (b *Builder) download(srcURL string) (fi builder.FileInfo, err error) {
 			mTime = parsedMTime
 		}
 	}
+
+	tmpFile.Close()
 
 	if err = system.Chtimes(tmpFileName, mTime, mTime); err != nil {
 		return
@@ -421,17 +423,18 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 		fmt.Fprintf(b.Stderr, "# Executing %d build %s...\n", nTriggers, word)
 	}
 
-	// Copy the ONBUILD triggers, and remove them from the config, since the config will be committed.
+	// Copy the ONBUILD triggers, and remove them from the config, since the config will be comitted.
 	onBuildTriggers := b.runConfig.OnBuild
 	b.runConfig.OnBuild = []string{}
 
 	// parse the ONBUILD triggers by invoking the parser
 	for _, step := range onBuildTriggers {
-		ast, err := parser.Parse(strings.NewReader(step))
+		ast, err := parser.Parse(strings.NewReader(step), &b.directive)
 		if err != nil {
 			return err
 		}
 
+		total := len(ast.Children)
 		for i, n := range ast.Children {
 			switch strings.ToUpper(n.Value) {
 			case "ONBUILD":
@@ -440,7 +443,7 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 				return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", n.Value)
 			}
 
-			if err := b.dispatch(i, n); err != nil {
+			if err := b.dispatch(i, total, n); err != nil {
 				return err
 			}
 		}
@@ -508,7 +511,7 @@ func (b *Builder) create() (string, error) {
 	c, err := b.docker.ContainerCreate(types.ContainerCreateConfig{
 		Config:     b.runConfig,
 		HostConfig: hostConfig,
-	})
+	}, true)
 	if err != nil {
 		return "", err
 	}
@@ -552,7 +555,7 @@ func (b *Builder) run(cID string) (err error) {
 		}
 	}()
 
-	if err := b.docker.ContainerStart(cID, nil); err != nil {
+	if err := b.docker.ContainerStart(cID, nil, true); err != nil {
 		return err
 	}
 
@@ -648,7 +651,7 @@ func (b *Builder) parseDockerfile() error {
 			return fmt.Errorf("The Dockerfile (%s) cannot be empty", b.options.Dockerfile)
 		}
 	}
-	b.dockerfile, err = parser.Parse(f)
+	b.dockerfile, err = parser.Parse(f, &b.directive)
 	if err != nil {
 		return err
 	}

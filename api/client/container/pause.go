@@ -15,11 +15,11 @@ type pauseOptions struct {
 	containers []string
 }
 
-// NewPauseCommand creats a new cobra.Command for `docker pause`
+// NewPauseCommand creates a new cobra.Command for `docker pause`
 func NewPauseCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts pauseOptions
 
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "pause CONTAINER [CONTAINER...]",
 		Short: "Pause all processes within one or more containers",
 		Args:  cli.RequiresMinArgs(1),
@@ -28,9 +28,6 @@ func NewPauseCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runPause(dockerCli, &opts)
 		},
 	}
-	cmd.SetFlagErrorFunc(flagErrorFunc)
-
-	return cmd
 }
 
 func runPause(dockerCli *client.DockerCli, opts *pauseOptions) error {

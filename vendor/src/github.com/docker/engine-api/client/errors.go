@@ -8,6 +8,11 @@ import (
 // ErrConnectionFailed is an error raised when the connection between the client and the server failed.
 var ErrConnectionFailed = errors.New("Cannot connect to the Docker daemon. Is the docker daemon running on this host?")
 
+// ErrorConnectionFailed returns an error with host in the error message when connection to docker daemon failed.
+func ErrorConnectionFailed(host string) error {
+	return fmt.Errorf("Cannot connect to the Docker daemon at %s. Is the docker daemon running?", host)
+}
+
 type notFound interface {
 	error
 	NotFound() bool // Is the error a NotFound error
@@ -131,6 +136,11 @@ func (e nodeNotFoundError) Error() string {
 	return fmt.Sprintf("Error: No such node: %s", e.nodeID)
 }
 
+// NoFound indicates that this error type is of NotFound
+func (e nodeNotFoundError) NotFound() bool {
+	return true
+}
+
 // IsErrNodeNotFound returns true if the error is caused
 // when a node is not found.
 func IsErrNodeNotFound(err error) bool {
@@ -148,6 +158,11 @@ func (e serviceNotFoundError) Error() string {
 	return fmt.Sprintf("Error: No such service: %s", e.serviceID)
 }
 
+// NoFound indicates that this error type is of NotFound
+func (e serviceNotFoundError) NotFound() bool {
+	return true
+}
+
 // IsErrServiceNotFound returns true if the error is caused
 // when a service is not found.
 func IsErrServiceNotFound(err error) bool {
@@ -163,6 +178,11 @@ type taskNotFoundError struct {
 // Error returns a string representation of a taskNotFoundError
 func (e taskNotFoundError) Error() string {
 	return fmt.Sprintf("Error: No such task: %s", e.taskID)
+}
+
+// NoFound indicates that this error type is of NotFound
+func (e taskNotFoundError) NotFound() bool {
+	return true
 }
 
 // IsErrTaskNotFound returns true if the error is caused

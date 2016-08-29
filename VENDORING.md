@@ -20,7 +20,7 @@ Each repo should:
 github releases file.
 
 The goal here is for consuming repos to be able to use the tag version and
-changelog updates to determine whether the vendoring will cause any  breaking or
+changelog updates to determine whether the vendoring will cause any breaking or
 backward incompatible changes. This also means that repos can specify having
 dependency on a package of a specific version or greater up to the next major
 release, without encountering breaking changes.

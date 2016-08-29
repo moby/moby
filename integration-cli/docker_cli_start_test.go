@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -170,4 +171,29 @@ func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
 		// Container running state wrong
 		c.Assert(out, checker.Equals, expected)
 	}
+}
+
+// Test case for #23716
+func (s *DockerSuite) TestStartAttachWithRename(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	dockerCmd(c, "create", "-t", "--name", "before", "busybox")
+	go func() {
+		c.Assert(waitRun("before"), checker.IsNil)
+		dockerCmd(c, "rename", "before", "after")
+		dockerCmd(c, "stop", "--time=2", "after")
+	}()
+	_, stderr, _, _ := runCommandWithStdoutStderr(exec.Command(dockerBinary, "start", "-a", "before"))
+	c.Assert(stderr, checker.Not(checker.Contains), "No such container")
+}
+
+func (s *DockerSuite) TestStartReturnCorrectExitCode(c *check.C) {
+	dockerCmd(c, "create", "--restart=on-failure:2", "--name", "withRestart", "busybox", "sh", "-c", "exit 11")
+	dockerCmd(c, "create", "--rm", "--name", "withRm", "busybox", "sh", "-c", "exit 12")
+
+	_, exitCode, err := dockerCmdWithError("start", "-a", "withRestart")
+	c.Assert(err, checker.NotNil)
+	c.Assert(exitCode, checker.Equals, 11)
+	_, exitCode, err = dockerCmdWithError("start", "-a", "withRm")
+	c.Assert(err, checker.NotNil)
+	c.Assert(exitCode, checker.Equals, 12)
 }

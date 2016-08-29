@@ -353,13 +353,13 @@ func (s *DockerExternalGraphdriverSuite) testExternalGraphDriver(name string, ex
 
 	err = s.d.Restart("-s", name)
 
-	out, err = s.d.Cmd("inspect", "--format='{{.GraphDriver.Name}}'", "graphtest")
+	out, err = s.d.Cmd("inspect", "--format={{.GraphDriver.Name}}", "graphtest")
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), check.Equals, name)
 
 	out, err = s.d.Cmd("diff", "graphtest")
 	c.Assert(err, check.IsNil, check.Commentf(out))
-	c.Assert(strings.Contains(out, "A /hello"), check.Equals, true, check.Commentf("diff ouput: %s", out))
+	c.Assert(strings.Contains(out, "A /hello"), check.Equals, true, check.Commentf("diff output: %s", out))
 
 	out, err = s.d.Cmd("rm", "-f", "graphtest")
 	c.Assert(err, check.IsNil, check.Commentf(out))

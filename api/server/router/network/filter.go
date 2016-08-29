@@ -8,8 +8,6 @@ import (
 	"github.com/docker/engine-api/types/filters"
 )
 
-type filterHandler func([]types.NetworkResource, string) ([]types.NetworkResource, error)
-
 var (
 	// AcceptedFilters is an acceptable filters for validation
 	AcceptedFilters = map[string]bool{
@@ -53,7 +51,7 @@ func filterNetworks(nws []types.NetworkResource, filter filters.Args) ([]types.N
 		return nil, err
 	}
 
-	var displayNet []types.NetworkResource
+	displayNet := []types.NetworkResource{}
 	for _, nw := range nws {
 		if filter.Include("driver") {
 			if !filter.ExactMatch("driver", nw.Driver) {

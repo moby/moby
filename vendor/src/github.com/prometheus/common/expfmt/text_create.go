@@ -14,7 +14,6 @@
 package expfmt
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"math"
@@ -285,21 +284,17 @@ func labelPairsToText(
 	return written, nil
 }
 
+var (
+	escape                = strings.NewReplacer("\\", `\\`, "\n", `\n`)
+	escapeWithDoubleQuote = strings.NewReplacer("\\", `\\`, "\n", `\n`, "\"", `\"`)
+)
+
 // escapeString replaces '\' by '\\', new line character by '\n', and - if
 // includeDoubleQuote is true - '"' by '\"'.
 func escapeString(v string, includeDoubleQuote bool) string {
-	result := bytes.NewBuffer(make([]byte, 0, len(v)))
-	for _, c := range v {
-		switch {
-		case c == '\\':
-			result.WriteString(`\\`)
-		case includeDoubleQuote && c == '"':
-			result.WriteString(`\"`)
-		case c == '\n':
-			result.WriteString(`\n`)
-		default:
-			result.WriteRune(c)
-		}
+	if includeDoubleQuote {
+		return escapeWithDoubleQuote.Replace(v)
 	}
-	return result.String()
+
+	return escape.Replace(v)
 }

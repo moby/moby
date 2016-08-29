@@ -97,6 +97,10 @@ func (s *containerStats) Collect(ctx context.Context, cli client.APIClient, stre
 			if err := dec.Decode(&v); err != nil {
 				dec = json.NewDecoder(io.MultiReader(dec.Buffered(), responseBody))
 				u <- err
+				if err == io.EOF {
+					break
+				}
+				time.Sleep(100 * time.Millisecond)
 				continue
 			}
 

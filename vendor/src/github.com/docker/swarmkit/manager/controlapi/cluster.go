@@ -17,7 +17,7 @@ func validateClusterSpec(spec *api.ClusterSpec) error {
 		return grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
-	// Validate that duration being provided is valid, and over our minimum
+	// Validate that expiry time being provided is valid, and over our minimum
 	if spec.CAConfig.NodeCertExpiry != nil {
 		expiry, err := ptypes.Duration(spec.CAConfig.NodeCertExpiry)
 		if err != nil {
@@ -35,6 +35,17 @@ func validateClusterSpec(spec *api.ClusterSpec) error {
 			if policy.Secret != nil && strings.ToLower(policy.Secret.Alg) != "bcrypt" {
 				return grpc.Errorf(codes.InvalidArgument, "hashing algorithm is not supported: %s", policy.Secret.Alg)
 			}
+		}
+	}
+
+	// Validate that heartbeatPeriod time being provided is valid
+	if spec.Dispatcher.HeartbeatPeriod != nil {
+		heartbeatPeriod, err := ptypes.Duration(spec.Dispatcher.HeartbeatPeriod)
+		if err != nil {
+			return grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		}
+		if heartbeatPeriod < 0 {
+			return grpc.Errorf(codes.InvalidArgument, "heartbeat time period cannot be a negative duration")
 		}
 	}
 
@@ -86,6 +97,13 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 		}
 		cluster.Meta.Version = *request.ClusterVersion
 		cluster.Spec = *request.Spec.Copy()
+
+		if request.Rotation.RotateWorkerToken {
+			cluster.RootCA.JoinTokens.Worker = ca.GenerateJoinToken(s.rootCA)
+		}
+		if request.Rotation.RotateManagerToken {
+			cluster.RootCA.JoinTokens.Manager = ca.GenerateJoinToken(s.rootCA)
+		}
 		return store.UpdateCluster(tx, cluster)
 	})
 	if err != nil {
@@ -132,6 +150,8 @@ func (s *Server) ListClusters(ctx context.Context, request *api.ListClustersRequ
 		switch {
 		case request.Filters != nil && len(request.Filters.Names) > 0:
 			clusters, err = store.FindClusters(tx, buildFilters(store.ByName, request.Filters.Names))
+		case request.Filters != nil && len(request.Filters.NamePrefixes) > 0:
+			clusters, err = store.FindClusters(tx, buildFilters(store.ByNamePrefix, request.Filters.NamePrefixes))
 		case request.Filters != nil && len(request.Filters.IDPrefixes) > 0:
 			clusters, err = store.FindClusters(tx, buildFilters(store.ByIDPrefix, request.Filters.IDPrefixes))
 		default:
@@ -146,6 +166,9 @@ func (s *Server) ListClusters(ctx context.Context, request *api.ListClustersRequ
 		clusters = filterClusters(clusters,
 			func(e *api.Cluster) bool {
 				return filterContains(e.Spec.Annotations.Name, request.Filters.Names)
+			},
+			func(e *api.Cluster) bool {
+				return filterContainsPrefix(e.Spec.Annotations.Name, request.Filters.NamePrefixes)
 			},
 			func(e *api.Cluster) bool {
 				return filterContainsPrefix(e.ID, request.Filters.IDPrefixes)
@@ -163,7 +186,7 @@ func (s *Server) ListClusters(ctx context.Context, request *api.ListClustersRequ
 }
 
 // redactClusters is a method that enforces a whitelist of fields that are ok to be
-// returned in the Cluster object. It should filter out all senstive information.
+// returned in the Cluster object. It should filter out all sensitive information.
 func redactClusters(clusters []*api.Cluster) []*api.Cluster {
 	var redactedClusters []*api.Cluster
 	// Only add public fields to the new clusters
@@ -177,6 +200,7 @@ func redactClusters(clusters []*api.Cluster) []*api.Cluster {
 			RootCA: api.RootCA{
 				CACert:     cluster.RootCA.CACert,
 				CACertHash: cluster.RootCA.CACertHash,
+				JoinTokens: cluster.RootCA.JoinTokens,
 			},
 		}
 

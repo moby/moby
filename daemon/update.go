@@ -7,10 +7,10 @@ import (
 )
 
 // ContainerUpdate updates configuration of the container
-func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig) ([]string, error) {
+func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig, validateHostname bool) ([]string, error) {
 	var warnings []string
 
-	warnings, err := daemon.verifyContainerSettings(hostConfig, nil, true)
+	warnings, err := daemon.verifyContainerSettings(hostConfig, nil, true, validateHostname)
 	if err != nil {
 		return warnings, err
 	}
@@ -59,10 +59,6 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 
 	if container.RemovalInProgress || container.Dead {
 		return errCannotUpdate(container.ID, fmt.Errorf("Container is marked for removal and cannot be \"update\"."))
-	}
-
-	if container.IsRunning() && hostConfig.KernelMemory != 0 {
-		return errCannotUpdate(container.ID, fmt.Errorf("Can not update kernel memory to a running container, please stop it first."))
 	}
 
 	if err := container.UpdateContainer(hostConfig); err != nil {

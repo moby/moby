@@ -104,7 +104,7 @@ func Pull(name string, rs registry.Service, metaheader http.Header, authConfig *
 		}
 		if !confirmedV2 {
 			logrus.Debugf("pull.go: !confirmedV2")
-			return nil, ErrUnSupportedRegistry
+			return nil, ErrUnsupportedRegistry
 		}
 		logrus.Debugf("Trying to pull %s from %s %s", repoInfo.Name(), endpoint.URL, endpoint.Version)
 		break
@@ -142,6 +142,9 @@ func Pull(name string, rs registry.Service, metaheader http.Header, authConfig *
 	if err := json.Unmarshal(pl, &m); err != nil {
 		logrus.Debugf("pull.go: error in json.Unmarshal(): %v", err)
 		return nil, err
+	}
+	if m.Config.MediaType != schema2.MediaTypePluginConfig {
+		return nil, ErrUnsupportedMediaType
 	}
 
 	pd := &pullData{
@@ -191,6 +194,7 @@ func WritePullData(pd PullData, dest string, extract bool) error {
 		if !extract {
 			f, err := os.Create(filepath.Join(dest, fmt.Sprintf("layer%d.tar", i)))
 			if err != nil {
+				l.Close()
 				return err
 			}
 			io.Copy(f, l)

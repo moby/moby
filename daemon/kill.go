@@ -55,7 +55,7 @@ func (daemon *Daemon) ContainerKill(name string, sig uint64) error {
 // or not running, or if there is a problem returned from the
 // underlying kill command.
 func (daemon *Daemon) killWithSignal(container *container.Container, sig int) error {
-	logrus.Debugf("Sending %d to %s", sig, container.ID)
+	logrus.Debugf("Sending kill signal %d to container %s", sig, container.ID)
 	container.Lock()
 	defer container.Unlock()
 
@@ -75,7 +75,7 @@ func (daemon *Daemon) killWithSignal(container *container.Container, sig int) er
 	}
 
 	// if the container is currently restarting we do not need to send the signal
-	// to the process.  Telling the monitor that it should exit on it's next event
+	// to the process. Telling the monitor that it should exit on its next event
 	// loop is enough
 	if container.Restarting {
 		return nil

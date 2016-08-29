@@ -6,12 +6,16 @@ keywords = ["security, authorization, authentication, docker, documentation, plu
 aliases = ["/engine/extend/authorization/"]
 [menu.main]
 parent = "engine_extend"
-weight = -1
+weight = 4
 +++
 <![end-metadata]-->
 
 
 # Create an authorization plugin
+
+This document describes Docker Engine authorization plugins generally
+available in Docker Engine 1.12 and earlier. To view information on plugins
+managed by Docker Engine, refer to [Docker Engine plugin system](plugins.md).
 
 Docker's out-of-the-box authorization model is all or nothing. Any user with
 permission to access the Docker daemon can run any Docker client command. The
@@ -51,7 +55,7 @@ respectively.
 
 ## Default user authorization mechanism
 
-If TLS is enabled in the [Docker daemon](https://docs.docker.com/engine/security/https/), the default user authorization flow extracts the user details from the certificate subject name.
+If TLS is enabled in the [Docker daemon](../security/https.md), the default user authorization flow extracts the user details from the certificate subject name.
 That is, the `User` field is set to the client certificate subject common name, and the `AuthenticationMethod` field is set to `TLS`.
 
 ## Basic architecture
@@ -104,9 +108,11 @@ support the Docker client interactions detailed in this section.
 Enable the authorization plugin with a dedicated command line flag in the
 `--authorization-plugin=PLUGIN_ID` format. The flag supplies a `PLUGIN_ID`
 value. This value can be the plugin’s socket or a path to a specification file.
+Authorization plugins can be loaded without restarting the daemon. Refer
+to the [`dockerd` documentation](../reference/commandline/dockerd.md#configuration-reloading) for more information.
 
 ```bash
-$ docker daemon --authorization-plugin=plugin1 --authorization-plugin=plugin2,...
+$ dockerd --authorization-plugin=plugin1 --authorization-plugin=plugin2,...
 ```
 
 Docker's authorization subsystem supports multiple `--authorization-plugin` parameters.
@@ -141,11 +147,11 @@ docker: Error response from daemon: plugin PLUGIN_NAME failed with error: AuthZP
 In addition to Docker's standard plugin registration method, each plugin
 should implement the following two methods:
 
-* `/AuthzPlugin.AuthZReq` This authorize request method is called before the Docker daemon processes the client request.
+* `/AuthZPlugin.AuthZReq` This authorize request method is called before the Docker daemon processes the client request.
 
-* `/AuthzPlugin.AuthZRes` This authorize response method is called before the response is returned from Docker daemon to the client.
+* `/AuthZPlugin.AuthZRes` This authorize response method is called before the response is returned from Docker daemon to the client.
 
-#### /AuthzPlugin.AuthZReq
+#### /AuthZPlugin.AuthZReq
 
 **Request**:
 
@@ -169,7 +175,7 @@ should implement the following two methods:
     "Err":   "The error message if things go wrong"
 }
 ```
-#### /AuthzPlugin.AuthZRes
+#### /AuthZPlugin.AuthZRes
 
 **Request**:
 

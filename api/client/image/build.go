@@ -67,7 +67,7 @@ func NewBuildCommand(dockerCli *client.DockerCli) *cobra.Command {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "build PATH | URL | -",
+		Use:   "build [OPTIONS] PATH | URL | -",
 		Short: "Build an image from a Dockerfile",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -102,6 +102,22 @@ func NewBuildCommand(dockerCli *client.DockerCli) *cobra.Command {
 	client.AddTrustedFlags(flags, true)
 
 	return cmd
+}
+
+// lastProgressOutput is the same as progress.Output except
+// that it only output with the last update. It is used in
+// non terminal scenarios to depresss verbose messages
+type lastProgressOutput struct {
+	output progress.Output
+}
+
+// WriteProgress formats progress information from a ProgressReader.
+func (out *lastProgressOutput) WriteProgress(prog progress.Progress) error {
+	if !prog.LastUpdate {
+		return nil
+	}
+
+	return out.output.WriteProgress(prog)
 }
 
 func runBuild(dockerCli *client.DockerCli, options buildOptions) error {
@@ -162,6 +178,7 @@ func runBuild(dockerCli *client.DockerCli, options buildOptions) error {
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
+		defer f.Close()
 
 		var excludes []string
 		if err == nil {
@@ -210,6 +227,9 @@ func runBuild(dockerCli *client.DockerCli, options buildOptions) error {
 
 	// Setup an upload progress bar
 	progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(progBuff, true)
+	if !dockerCli.IsTerminalOut() {
+		progressOutput = &lastProgressOutput{output: progressOutput}
+	}
 
 	var body io.Reader = progress.NewProgressReader(buildCtx, progressOutput, 0, "", "Sending build context to Docker daemon")
 
@@ -289,7 +309,7 @@ func runBuild(dockerCli *client.DockerCli, options buildOptions) error {
 
 	// Windows: show error message about modified file permissions if the
 	// daemon isn't running Windows.
-	if response.OSType != "windows" && runtime.GOOS == "windows" {
+	if response.OSType != "windows" && runtime.GOOS == "windows" && !options.quiet {
 		fmt.Fprintln(dockerCli.Err(), `SECURITY WARNING: You are building a Docker image from Windows against a non-Windows Docker host. All files and directories added to build context will have '-rwxr-xr-x' permissions. It is recommended to double check and reset permissions for sensitive files and directories.`)
 	}
 

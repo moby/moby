@@ -1,155 +1,231 @@
-// +build daemon,!windows,experimental
+// +build linux, experimental
 
 package main
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
-	"time"
+	"syscall"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
-// TestDaemonRestartWithKilledRunningContainer requires live restore of running containers
-func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check.C) {
-	// TODO(mlaventure): Not sure what would the exit code be on windows
-	testRequires(t, DaemonIsLinux)
-	if err := s.d.StartWithBusybox(); err != nil {
-		t.Fatal(err)
-	}
+var pluginName = "tiborvass/no-remove"
 
-	cid, err := s.d.Cmd("run", "-d", "--name", "test", "busybox", "top")
-	defer s.d.Stop()
-	if err != nil {
-		t.Fatal(cid, err)
-	}
-	cid = strings.TrimSpace(cid)
-
-	// Kill the daemon
-	if err := s.d.Kill(); err != nil {
-		t.Fatal(err)
-	}
-
-	// kill the container
-	runCmd := exec.Command(ctrBinary, "--address", "unix:///var/run/docker/libcontainerd/docker-containerd.sock", "containers", "kill", cid)
-	if out, ec, err := runCommandWithOutput(runCmd); err != nil {
-		t.Fatalf("Failed to run ctr, ExitCode: %d, err: '%v' output: '%s' cid: '%s'\n", ec, err, out, cid)
-	}
-
-	// Give time to containerd to process the command if we don't
-	// the exit event might be received after we do the inspect
-	time.Sleep(3 * time.Second)
-
-	// restart the daemon
+// TestDaemonRestartWithPluginEnabled tests state restore for an enabled plugin
+func (s *DockerDaemonSuite) TestDaemonRestartWithPluginEnabled(c *check.C) {
 	if err := s.d.Start(); err != nil {
-		t.Fatal(err)
+		c.Fatalf("Could not start daemon: %v", err)
 	}
 
-	// Check that we've got the correct exit code
-	out, err := s.d.Cmd("inspect", "-f", "{{.State.ExitCode}}", cid)
-	t.Assert(err, check.IsNil)
-
-	out = strings.TrimSpace(out)
-	if out != "143" {
-		t.Fatalf("Expected exit code '%s' got '%s' for container '%s'\n", "143", out, cid)
+	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pluginName); err != nil {
+		c.Fatalf("Could not install plugin: %v %s", err, out)
 	}
 
-}
+	defer func() {
+		if out, err := s.d.Cmd("plugin", "disable", pluginName); err != nil {
+			c.Fatalf("Could not disable plugin: %v %s", err, out)
+		}
+		if out, err := s.d.Cmd("plugin", "remove", pluginName); err != nil {
+			c.Fatalf("Could not remove plugin: %v %s", err, out)
+		}
+	}()
 
-// os.Kill should kill daemon ungracefully, leaving behind live containers.
-// The live containers should be known to the restarted daemon. Stopping
-// them now, should remove the mounts.
-func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonCrash(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	c.Assert(s.d.StartWithBusybox("--live-restore"), check.IsNil)
-
-	out, err := s.d.Cmd("run", "-d", "busybox", "top")
-	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
-	id := strings.TrimSpace(out)
-
-	c.Assert(s.d.cmd.Process.Signal(os.Kill), check.IsNil)
-	mountOut, err := ioutil.ReadFile("/proc/self/mountinfo")
-	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
-
-	// container mounts should exist even after daemon has crashed.
-	comment := check.Commentf("%s should stay mounted from older daemon start:\nDaemon root repository %s\n%s", id, s.d.folder, mountOut)
-	c.Assert(strings.Contains(string(mountOut), id), check.Equals, true, comment)
-
-	// restart daemon.
-	if err := s.d.Restart("--live-restore"); err != nil {
-		c.Fatal(err)
+	if err := s.d.Restart(); err != nil {
+		c.Fatalf("Could not restart daemon: %v", err)
 	}
 
-	// container should be running.
-	out, err = s.d.Cmd("inspect", "--format='{{.State.Running}}'", id)
-	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
-	out = strings.TrimSpace(out)
-	if out != "true" {
-		c.Fatalf("Container %s expected to stay alive after daemon restart", id)
-	}
-
-	// 'docker stop' should work.
-	out, err = s.d.Cmd("stop", id)
-	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
-
-	// Now, container mounts should be gone.
-	mountOut, err = ioutil.ReadFile("/proc/self/mountinfo")
-	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
-	comment = check.Commentf("%s is still mounted from older daemon start:\nDaemon root repository %s\n%s", id, s.d.folder, mountOut)
-	c.Assert(strings.Contains(string(mountOut), id), check.Equals, false, comment)
-}
-
-// TestDaemonRestartWithUnpausedRunningContainer requires live restore of running containers.
-func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *check.C) {
-	// TODO(mlaventure): Not sure what would the exit code be on windows
-	testRequires(t, DaemonIsLinux)
-	if err := s.d.StartWithBusybox("--live-restore"); err != nil {
-		t.Fatal(err)
-	}
-
-	cid, err := s.d.Cmd("run", "-d", "--name", "test", "busybox", "top")
-	defer s.d.Stop()
+	out, err := s.d.Cmd("plugin", "ls")
 	if err != nil {
-		t.Fatal(cid, err)
+		c.Fatalf("Could not list plugins: %v %s", err, out)
 	}
-	cid = strings.TrimSpace(cid)
+	c.Assert(out, checker.Contains, pluginName)
+	c.Assert(out, checker.Contains, "true")
+}
 
-	// pause the container
-	if _, err := s.d.Cmd("pause", cid); err != nil {
-		t.Fatal(cid, err)
-	}
-
-	// Kill the daemon
-	if err := s.d.Kill(); err != nil {
-		t.Fatal(err)
+// TestDaemonRestartWithPluginDisabled tests state restore for a disabled plugin
+func (s *DockerDaemonSuite) TestDaemonRestartWithPluginDisabled(c *check.C) {
+	if err := s.d.Start(); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
 	}
 
-	// resume the container
-	runCmd := exec.Command(ctrBinary, "--address", "unix:///var/run/docker/libcontainerd/docker-containerd.sock", "containers", "resume", cid)
-	if out, ec, err := runCommandWithOutput(runCmd); err != nil {
-		t.Fatalf("Failed to run ctr, ExitCode: %d, err: '%v' output: '%s' cid: '%s'\n", ec, err, out, cid)
+	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pluginName, "--disable"); err != nil {
+		c.Fatalf("Could not install plugin: %v %s", err, out)
 	}
 
-	// Give time to containerd to process the command if we don't
-	// the resume event might be received after we do the inspect
-	time.Sleep(3 * time.Second)
+	defer func() {
+		if out, err := s.d.Cmd("plugin", "remove", pluginName); err != nil {
+			c.Fatalf("Could not remove plugin: %v %s", err, out)
+		}
+	}()
 
-	// restart the daemon
+	if err := s.d.Restart(); err != nil {
+		c.Fatalf("Could not restart daemon: %v", err)
+	}
+
+	out, err := s.d.Cmd("plugin", "ls")
+	if err != nil {
+		c.Fatalf("Could not list plugins: %v %s", err, out)
+	}
+	c.Assert(out, checker.Contains, pluginName)
+	c.Assert(out, checker.Contains, "false")
+}
+
+// TestDaemonKillLiveRestoreWithPlugins SIGKILLs daemon started with --live-restore.
+// Plugins should continue to run.
+func (s *DockerDaemonSuite) TestDaemonKillLiveRestoreWithPlugins(c *check.C) {
 	if err := s.d.Start("--live-restore"); err != nil {
-		t.Fatal(err)
+		c.Fatalf("Could not start daemon: %v", err)
+	}
+	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pluginName); err != nil {
+		c.Fatalf("Could not install plugin: %v %s", err, out)
+	}
+	defer func() {
+		if err := s.d.Restart("--live-restore"); err != nil {
+			c.Fatalf("Could not restart daemon: %v", err)
+		}
+		if out, err := s.d.Cmd("plugin", "disable", pluginName); err != nil {
+			c.Fatalf("Could not disable plugin: %v %s", err, out)
+		}
+		if out, err := s.d.Cmd("plugin", "remove", pluginName); err != nil {
+			c.Fatalf("Could not remove plugin: %v %s", err, out)
+		}
+	}()
+
+	if err := s.d.Kill(); err != nil {
+		c.Fatalf("Could not kill daemon: %v", err)
 	}
 
-	// Check that we've got the correct status
-	out, err := s.d.Cmd("inspect", "-f", "{{.State.Status}}", cid)
-	t.Assert(err, check.IsNil)
+	cmd := exec.Command("pgrep", "-f", "plugin-no-remove")
+	if out, ec, err := runCommandWithOutput(cmd); ec != 0 {
+		c.Fatalf("Expected exit code '0', got %d err: %v output: %s ", ec, err, out)
+	}
+}
 
-	out = strings.TrimSpace(out)
-	if out != "running" {
-		t.Fatalf("Expected exit code '%s' got '%s' for container '%s'\n", "running", out, cid)
+// TestDaemonShutdownLiveRestoreWithPlugins SIGTERMs daemon started with --live-restore.
+// Plugins should continue to run.
+func (s *DockerDaemonSuite) TestDaemonShutdownLiveRestoreWithPlugins(c *check.C) {
+	if err := s.d.Start("--live-restore"); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
 	}
-	if _, err := s.d.Cmd("kill", cid); err != nil {
-		t.Fatal(err)
+	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pluginName); err != nil {
+		c.Fatalf("Could not install plugin: %v %s", err, out)
 	}
+	defer func() {
+		if err := s.d.Restart("--live-restore"); err != nil {
+			c.Fatalf("Could not restart daemon: %v", err)
+		}
+		if out, err := s.d.Cmd("plugin", "disable", pluginName); err != nil {
+			c.Fatalf("Could not disable plugin: %v %s", err, out)
+		}
+		if out, err := s.d.Cmd("plugin", "remove", pluginName); err != nil {
+			c.Fatalf("Could not remove plugin: %v %s", err, out)
+		}
+	}()
+
+	if err := s.d.cmd.Process.Signal(os.Interrupt); err != nil {
+		c.Fatalf("Could not kill daemon: %v", err)
+	}
+
+	cmd := exec.Command("pgrep", "-f", "plugin-no-remove")
+	if out, ec, err := runCommandWithOutput(cmd); ec != 0 {
+		c.Fatalf("Expected exit code '0', got %d err: %v output: %s ", ec, err, out)
+	}
+}
+
+// TestDaemonShutdownWithPlugins shuts down running plugins.
+func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
+	if err := s.d.Start(); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
+	}
+	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pluginName); err != nil {
+		c.Fatalf("Could not install plugin: %v %s", err, out)
+	}
+
+	defer func() {
+		if err := s.d.Restart(); err != nil {
+			c.Fatalf("Could not restart daemon: %v", err)
+		}
+		if out, err := s.d.Cmd("plugin", "disable", pluginName); err != nil {
+			c.Fatalf("Could not disable plugin: %v %s", err, out)
+		}
+		if out, err := s.d.Cmd("plugin", "remove", pluginName); err != nil {
+			c.Fatalf("Could not remove plugin: %v %s", err, out)
+		}
+	}()
+
+	if err := s.d.cmd.Process.Signal(os.Interrupt); err != nil {
+		c.Fatalf("Could not kill daemon: %v", err)
+	}
+
+	for {
+		if err := syscall.Kill(s.d.cmd.Process.Pid, 0); err == syscall.ESRCH {
+			break
+		}
+	}
+
+	cmd := exec.Command("pgrep", "-f", "plugin-no-remove")
+	if out, ec, err := runCommandWithOutput(cmd); ec != 1 {
+		c.Fatalf("Expected exit code '1', got %d err: %v output: %s ", ec, err, out)
+	}
+}
+
+// TestVolumePlugin tests volume creation using a plugin.
+func (s *DockerDaemonSuite) TestVolumePlugin(c *check.C) {
+	volName := "plugin-volume"
+	volRoot := "/data"
+	destDir := "/tmp/data/"
+	destFile := "foo"
+
+	if err := s.d.Start(); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
+	}
+	out, err := s.d.Cmd("plugin", "install", pluginName, "--grant-all-permissions")
+	if err != nil {
+		c.Fatalf("Could not install plugin: %v %s", err, out)
+	}
+	defer func() {
+		if out, err := s.d.Cmd("plugin", "disable", pluginName); err != nil {
+			c.Fatalf("Could not disable plugin: %v %s", err, out)
+		}
+		if out, err := s.d.Cmd("plugin", "remove", pluginName); err != nil {
+			c.Fatalf("Could not remove plugin: %v %s", err, out)
+		}
+	}()
+
+	out, err = s.d.Cmd("volume", "create", "-d", pluginName, volName)
+	if err != nil {
+		c.Fatalf("Could not create volume: %v %s", err, out)
+	}
+	defer func() {
+		if out, err := s.d.Cmd("volume", "remove", volName); err != nil {
+			c.Fatalf("Could not remove volume: %v %s", err, out)
+		}
+	}()
+
+	out, err = s.d.Cmd("volume", "ls")
+	if err != nil {
+		c.Fatalf("Could not list volume: %v %s", err, out)
+	}
+	c.Assert(out, checker.Contains, volName)
+	c.Assert(out, checker.Contains, pluginName)
+
+	mountPoint, err := s.d.Cmd("volume", "inspect", volName, "--format", "{{.Mountpoint}}")
+	if err != nil {
+		c.Fatalf("Could not inspect volume: %v %s", err, mountPoint)
+	}
+	mountPoint = strings.TrimSpace(mountPoint)
+
+	out, err = s.d.Cmd("run", "--rm", "-v", volName+":"+destDir, "busybox", "touch", destDir+destFile)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	path := filepath.Join(mountPoint, destFile)
+	_, err = os.Lstat(path)
+	c.Assert(err, checker.IsNil)
+
+	// tiborvass/no-remove is a volume plugin that persists data on disk at /data,
+	// even after the volume is removed. So perform an explicit filesystem cleanup.
+	os.RemoveAll(volRoot)
 }

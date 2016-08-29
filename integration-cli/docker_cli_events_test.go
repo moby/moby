@@ -13,6 +13,7 @@ import (
 
 	"github.com/docker/docker/daemon/events/testutils"
 	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/go-check/check"
 )
 
@@ -57,11 +58,14 @@ func (s *DockerSuite) TestEventsUntag(c *check.C) {
 	dockerCmd(c, "tag", image, "utest:tag2")
 	dockerCmd(c, "rmi", "utest:tag1")
 	dockerCmd(c, "rmi", "utest:tag2")
-	eventsCmd := exec.Command(dockerBinary, "events", "--since=1")
-	out, exitCode, _, err := runCommandWithOutputForDuration(eventsCmd, time.Duration(time.Millisecond*2500))
-	c.Assert(err, checker.IsNil)
-	c.Assert(exitCode, checker.Equals, 0, check.Commentf("Failed to get events"))
-	events := strings.Split(out, "\n")
+
+	result := icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "events", "--since=1"},
+		Timeout: time.Millisecond * 2500,
+	})
+	c.Assert(result, icmd.Matches, icmd.Expected{Timeout: true})
+
+	events := strings.Split(result.Stdout(), "\n")
 	nEvents := len(events)
 	// The last element after the split above will be an empty string, so we
 	// get the two elements before the last, which are the untags we're
@@ -275,8 +279,8 @@ func (s *DockerSuite) TestEventsImageLoad(c *check.C) {
 	c.Assert(noImageID, checker.Equals, "", check.Commentf("Should not have any image"))
 	dockerCmd(c, "load", "-i", "saveimg.tar")
 
-	cmd := exec.Command("rm", "-rf", "saveimg.tar")
-	runCommand(cmd)
+	result := icmd.RunCommand("rm", "-rf", "saveimg.tar")
+	c.Assert(result, icmd.Matches, icmd.Success)
 
 	out, _ = dockerCmd(c, "images", "-q", "--no-trunc", myImageName)
 	imageID := strings.TrimSpace(out)
@@ -295,6 +299,32 @@ func (s *DockerSuite) TestEventsImageLoad(c *check.C) {
 	matches = eventstestutils.ScanMap(events[0])
 	c.Assert(matches["id"], checker.Equals, imageID, check.Commentf("matches: %v\nout:\n%s\n", matches, out))
 	c.Assert(matches["action"], checker.Equals, "save", check.Commentf("matches: %v\nout:\n%s\n", matches, out))
+}
+
+func (s *DockerSuite) TestEventsPluginOps(c *check.C) {
+	testRequires(c, DaemonIsLinux, ExperimentalDaemon)
+
+	pluginName := "tiborvass/no-remove:latest"
+	since := daemonUnixTime(c)
+
+	dockerCmd(c, "plugin", "install", pluginName, "--grant-all-permissions")
+	dockerCmd(c, "plugin", "disable", pluginName)
+	dockerCmd(c, "plugin", "remove", pluginName)
+
+	out, _ := dockerCmd(c, "events", "--since", since, "--until", daemonUnixTime(c))
+	events := strings.Split(out, "\n")
+	events = events[:len(events)-1]
+
+	nEvents := len(events)
+	c.Assert(nEvents, checker.GreaterOrEqualThan, 4)
+
+	pluginEvents := eventActionsByIDAndType(c, events, pluginName, "plugin")
+	c.Assert(pluginEvents, checker.HasLen, 4, check.Commentf("events: %v", events))
+
+	c.Assert(pluginEvents[0], checker.Equals, "pull", check.Commentf(out))
+	c.Assert(pluginEvents[1], checker.Equals, "enable", check.Commentf(out))
+	c.Assert(pluginEvents[2], checker.Equals, "disable", check.Commentf(out))
+	c.Assert(pluginEvents[3], checker.Equals, "remove", check.Commentf(out))
 }
 
 func (s *DockerSuite) TestEventsFilters(c *check.C) {
@@ -653,7 +683,7 @@ func (s *DockerSuite) TestEventsContainerRestart(c *check.C) {
 	// wait until test2 is auto removed.
 	waitTime := 10 * time.Second
 	if daemonPlatform == "windows" {
-		// nslookup isn't present in Windows busybox. Is built-in.
+		// Windows takes longer...
 		waitTime = 90 * time.Second
 	}
 

@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"unsafe"
@@ -27,7 +28,9 @@ type ansiReader struct {
 	command  []byte
 }
 
-func newAnsiReader(nFile int) *ansiReader {
+// NewAnsiReader returns an io.ReadCloser that provides VT100 terminal emulation on top of a
+// Windows console input handle.
+func NewAnsiReader(nFile int) io.ReadCloser {
 	initLogger()
 	file, fd := winterm.GetStdFile(nFile)
 	return &ansiReader{

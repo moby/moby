@@ -3,44 +3,48 @@
 title = "plugin enable"
 description = "the plugin enable command description and usage"
 keywords = ["plugin, enable"]
+advisory = "experimental"
 [menu.main]
 parent = "smn_cli"
-advisory = "experimental"
 +++
 <![end-metadata]-->
 
 # plugin enable (experimental)
 
-    Usage: docker plugin enable PLUGIN
+```markdown
+Usage:  docker plugin enable PLUGIN
 
-    Enable a plugin
+Enable a plugin
 
-      --help             Print usage
+Options:
+      --help   Print usage
+```
 
 Enables a plugin. The plugin must be installed before it can be enabled,
 see [`docker plugin install`](plugin_install.md).
 
 
-The following example shows that the `no-remove` plugin is currently installed,
-but disabled ("inactive"):
+The following example shows that the `no-remove` plugin is installed,
+but disabled:
 
 ```bash
 $ docker plugin ls
-NAME                	VERSION             ACTIVE
-tiborvass/no-remove	latest              false
+
+NAME                  TAG                 DESCRIPTION                ENABLED
+tiborvass/no-remove   latest              A test plugin for Docker   false
 ```
+
 To enable the plugin, use the following command:
 
 ```bash
-$ docker plugin enable tiborvass/no-remove:latest
-```
+$ docker plugin enable tiborvass/no-remove
 
-After the plugin is enabled, it appears as "active" in the list of plugins:
+tiborvass/no-remove
 
-```bash
 $ docker plugin ls
-NAME                	VERSION             ACTIVE
-tiborvass/no-remove	latest              true
+
+NAME                  TAG                 DESCRIPTION                ENABLED
+tiborvass/no-remove   latest              A test plugin for Docker   true
 ```
 
 ## Related information

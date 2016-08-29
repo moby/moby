@@ -10,12 +10,15 @@ parent = "smn_cli"
 
 # version
 
-    Usage: docker version [OPTIONS]
+```markdown
+Usage:  docker version [OPTIONS]
 
-    Show the Docker version information.
+Show the Docker version information
 
-      -f, --format=""    Format the output using the given go template
-      --help             Print usage
+Options:
+  -f, --format string   Format the output using the given go template
+      --help            Print usage
+```
 
 By default, this will render all version information in an easy to read
 layout. If a format is specified, the given template will be executed instead.

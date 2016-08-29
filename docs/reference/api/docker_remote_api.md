@@ -37,7 +37,8 @@ default.
 
 The current version of the API is v1.25 which means calling `/info` is the same
 as calling `/v1.25/info`. To call an older version of the API use
-`/v1.24/info`.
+`/v1.24/info`. If a newer daemon is installed, new properties may be returned
+even when calling older versions of the API.
 
 Use the table below to find the API version for a Docker version:
 
@@ -111,12 +112,25 @@ Running `docker rmi` emits an **untag** event when removing an image name.  The 
 
 This section lists each version from latest to oldest.  Each listing includes a link to the full documentation set and the changes relevant in that release.
 
+### v1.25 API changes
+
+[Docker Remote API v1.25](docker_remote_api_v1.25.md) documentation
+
+* `POST /containers/create` now takes `AutoRemove` in HostConfig, to enable auto-removal of the container on daemon side when the container's process exits.
+* `GET /containers/json` and `GET /containers/(id or name)/json` now return `"removing"` as a value for the `State.Status` field if the container is being removed. Previously, "exited" was returned as status.
+* `GET /containers/json` now accepts `removing` as a valid value for the `status` filter.
+* `DELETE /volumes/(name)` now accepts a `force` query parameter to force removal of volumes that were already removed out of band by the volume driver plugin.
+* `POST /containers/create/` and `POST /containers/(name)/update` now validates restart policies.
+* `POST /containers/create` now validates IPAMConfig in NetworkingConfig, and returns error for invalid IPv4 and IPv6 addresses (`--ip` and `--ip6` in `docker create/run`).
+
 ### v1.24 API changes
 
 [Docker Remote API v1.24](docker_remote_api_v1.24.md) documentation
 
 * `POST /containers/create` now takes `StorageOpt` field.
 * `GET /info` now returns `SecurityOptions` field, showing if `apparmor`, `seccomp`, or `selinux` is supported.
+* `GET /info` no longer returns the `ExecutionDriver` property. This property was no longer used after integration
+  with ContainerD in Docker 1.11.
 * `GET /networks` now supports filtering by `label` and `driver`.
 * `GET /containers/json` now supports filtering containers by `network` name or id.
 * `POST /containers/create` now takes `MaximumIOps` and `MaximumIOBps` fields. Windows daemon only.
@@ -134,6 +148,12 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /containers/{name:.*}/copy` is now removed and errors out starting from this API version.
 * API errors are now returned as JSON instead of plain text.
 * `POST /containers/create` and `POST /containers/(id)/start` allow you to configure kernel parameters (sysctls) for use in the container.
+* `POST /containers/<container ID>/exec` and `POST /exec/<exec ID>/start`
+  no longer expects a "Container" field to be present. This property was not used
+  and is no longer sent by the docker client.
+* `POST /containers/create/` now validates the hostname (should be a valid RFC 1123 hostname).
+* `POST /containers/create/` `HostConfig.PidMode` field now accepts `container:<name|id>`,
+  to have the container join the PID namespace of an existing container.
 
 ### v1.23 API changes
 
@@ -155,6 +175,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /containers/create` with both `Hostname` and `Domainname` fields specified will result in the container's hostname being set to `Hostname`, rather than `Hostname.Domainname`.
 * `GET /volumes` now supports more filters, new added filters are `name` and `driver`.
 * `GET /containers/(id or name)/logs` now accepts a `details` query parameter to stream the extra attributes that were provided to the containers `LogOpts`, such as environment variables and labels, with the logs.
+* `POST /images/load` now returns progress information as a JSON stream, and has a `quiet` query parameter to suppress progress details.
 
 ### v1.22 API changes
 

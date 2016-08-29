@@ -16,7 +16,15 @@ import (
 // /etc/resolv.conf, and if it is not, appends it to the array of mounts.
 func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, error) {
 	var mounts []container.Mount
+	// TODO: tmpfs mounts should be part of Mountpoints
+	tmpfsMounts := make(map[string]bool)
+	for _, m := range c.TmpfsMounts() {
+		tmpfsMounts[m.Destination] = true
+	}
 	for _, m := range c.MountPoints {
+		if tmpfsMounts[m.Destination] {
+			continue
+		}
 		if err := daemon.lazyInitializeVolume(c.ID, m); err != nil {
 			return nil, err
 		}
@@ -29,7 +37,7 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 				Source:      path,
 				Destination: m.Destination,
 				Writable:    m.RW,
-				Propagation: m.Propagation,
+				Propagation: string(m.Propagation),
 			}
 			if m.Volume != nil {
 				attributes := map[string]string{
@@ -37,7 +45,7 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 					"container":   c.ID,
 					"destination": m.Destination,
 					"read/write":  strconv.FormatBool(m.RW),
-					"propagation": m.Propagation,
+					"propagation": string(m.Propagation),
 				}
 				daemon.LogVolumeEvent(m.Volume.Name(), "mount", attributes)
 			}

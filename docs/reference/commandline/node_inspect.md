@@ -8,17 +8,18 @@ parent = "smn_cli"
 +++
 <![end-metadata]-->
 
-**Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
-
 # node inspect
 
-    Usage: docker node inspect [OPTIONS] self|NODE [NODE...]
+```markdown
+Usage:  docker node inspect [OPTIONS] self|NODE [NODE...]
 
-    Return low-level information on a volume
+Display detailed information on one or more nodes
 
-      -f, --format=       Format the output using the given go template.
-      --help              Print usage
-      -p, --pretty        Print the information in a human friendly format.
+Options:
+  -f, --format string   Format the output using the given go template
+      --help            Print usage
+      --pretty          Print the information in a human friendly format.
+```
 
 Returns information about a node. By default, this command renders all results
 in a JSON array. You can specify an alternate format to execute a
@@ -30,17 +31,16 @@ Example output:
 
     $ docker node inspect swarm-manager
     [
-      {
-        "ID": "0gac67oclbxq7",
+    {
+        "ID": "e216jshn25ckzbvmwlnh5jr3g",
         "Version": {
-            "Index": 2028
+            "Index": 10
         },
-        "CreatedAt": "2016-06-06T20:49:32.720047494Z",
-        "UpdatedAt": "2016-06-07T00:23:31.207632893Z",
+        "CreatedAt": "2016-06-16T22:52:44.9910662Z",
+        "UpdatedAt": "2016-06-16T22:52:45.230878043Z",
         "Spec": {
-            "Role": "MANAGER",
-            "Membership": "ACCEPTED",
-            "Availability": "ACTIVE"
+            "Role": "manager",
+            "Availability": "active"
         },
         "Description": {
             "Hostname": "swarm-manager",
@@ -50,44 +50,62 @@ Example output:
             },
             "Resources": {
                 "NanoCPUs": 1000000000,
-                "MemoryBytes": 1044250624
+                "MemoryBytes": 1039843328
             },
             "Engine": {
                 "EngineVersion": "1.12.0",
-                "Labels": {
-                    "provider": "virtualbox"
-                }
+                "Plugins": [
+                    {
+                        "Type": "Volume",
+                        "Name": "local"
+                    },
+                    {
+                        "Type": "Network",
+                        "Name": "overlay"
+                    },
+                    {
+                        "Type": "Network",
+                        "Name": "null"
+                    },
+                    {
+                        "Type": "Network",
+                        "Name": "host"
+                    },
+                    {
+                        "Type": "Network",
+                        "Name": "bridge"
+                    },
+                    {
+                        "Type": "Network",
+                        "Name": "overlay"
+                    }
+                ]
             }
         },
         "Status": {
-            "State": "READY"
+            "State": "ready"
         },
-        "Manager": {
-            "Raft": {
-                "RaftID": 2143745093569717375,
-                "Addr": "192.168.99.118:4500",
-                "Status": {
-                    "Leader": true,
-                    "Reachability": "REACHABLE"
-                }
-            }
-        },
-        "Attachment": {},
-      }
+        "ManagerStatus": {
+            "Leader": true,
+            "Reachability": "reachable",
+            "Addr": "168.0.32.137:2377"
+        }
+    }
     ]
 
-    $ docker node inspect --format '{{ .Manager.Raft.Status.Leader }}' self
+    $ docker node inspect --format '{{ .ManagerStatus.Leader }}' self
     false
 
     $ docker node inspect --pretty self
-    ID:                     2otfhz83efcc7
-    Hostname:               ad960a848573
+    ID:                     e216jshn25ckzbvmwlnh5jr3g
+    Hostname:               swarm-manager
+    Joined at:              2016-06-16 22:52:44.9910662 +0000 utc
     Status:
      State:                 Ready
      Availability:          Active
     Manager Status:
      Address:               172.17.0.2:2377
-     Raft status:           Reachable
+     Raft Status:           Reachable
      Leader:                Yes
     Platform:
      Operating System:      linux
@@ -103,6 +121,6 @@ Example output:
 ## Related information
 
 * [node update](node_update.md)
-* [node tasks](node_tasks.md)
+* [node ps](node_ps.md)
 * [node ls](node_ls.md)
 * [node rm](node_rm.md)

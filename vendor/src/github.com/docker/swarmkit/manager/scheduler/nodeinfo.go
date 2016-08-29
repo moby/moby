@@ -6,10 +6,10 @@ import "github.com/docker/swarmkit/api"
 type NodeInfo struct {
 	*api.Node
 	Tasks              map[string]*api.Task
-	AvailableResources *api.Resources
+	AvailableResources api.Resources
 }
 
-func newNodeInfo(n *api.Node, tasks map[string]*api.Task, availableResources *api.Resources) NodeInfo {
+func newNodeInfo(n *api.Node, tasks map[string]*api.Task, availableResources api.Resources) NodeInfo {
 	nodeInfo := NodeInfo{
 		Node:               n,
 		Tasks:              make(map[string]*api.Task),
@@ -23,7 +23,7 @@ func newNodeInfo(n *api.Node, tasks map[string]*api.Task, availableResources *ap
 }
 
 func (nodeInfo *NodeInfo) removeTask(t *api.Task) bool {
-	if nodeInfo.Tasks == nil || nodeInfo.Node == nil {
+	if nodeInfo.Tasks == nil {
 		return false
 	}
 	if _, ok := nodeInfo.Tasks[t.ID]; !ok {
@@ -31,29 +31,22 @@ func (nodeInfo *NodeInfo) removeTask(t *api.Task) bool {
 	}
 
 	delete(nodeInfo.Tasks, t.ID)
-	if nodeInfo.AvailableResources != nil {
-		reservations := taskReservations(t.Spec)
-		nodeInfo.AvailableResources.MemoryBytes += reservations.MemoryBytes
-		nodeInfo.AvailableResources.NanoCPUs += reservations.NanoCPUs
-	}
+	reservations := taskReservations(t.Spec)
+	nodeInfo.AvailableResources.MemoryBytes += reservations.MemoryBytes
+	nodeInfo.AvailableResources.NanoCPUs += reservations.NanoCPUs
 
 	return true
 }
 
 func (nodeInfo *NodeInfo) addTask(t *api.Task) bool {
-	if nodeInfo.Node == nil {
-		return false
-	}
 	if nodeInfo.Tasks == nil {
 		nodeInfo.Tasks = make(map[string]*api.Task)
 	}
 	if _, ok := nodeInfo.Tasks[t.ID]; !ok {
 		nodeInfo.Tasks[t.ID] = t
-		if nodeInfo.AvailableResources != nil {
-			reservations := taskReservations(t.Spec)
-			nodeInfo.AvailableResources.MemoryBytes -= reservations.MemoryBytes
-			nodeInfo.AvailableResources.NanoCPUs -= reservations.NanoCPUs
-		}
+		reservations := taskReservations(t.Spec)
+		nodeInfo.AvailableResources.MemoryBytes -= reservations.MemoryBytes
+		nodeInfo.AvailableResources.NanoCPUs -= reservations.NanoCPUs
 		return true
 	}
 

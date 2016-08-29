@@ -13,6 +13,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/engine-api/types"
 	registrytypes "github.com/docker/engine-api/types/registry"
@@ -42,7 +43,7 @@ func EncodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 	return base64.URLEncoding.EncodeToString(buf), nil
 }
 
-// RegistryAuthenticationPrivilegedFunc return a RequestPrivilegeFunc from the specified registry index info
+// RegistryAuthenticationPrivilegedFunc returns a RequestPrivilegeFunc from the specified registry index info
 // for the given command.
 func (cli *DockerCli) RegistryAuthenticationPrivilegedFunc(index *registrytypes.IndexInfo, cmdName string) types.RequestPrivilegeFunc {
 	return func() (string, error) {
@@ -103,14 +104,14 @@ func (cli *DockerCli) ConfigureAuth(flUser, flPassword, serverAddress string, is
 	// will hit this if you attempt docker login from mintty where stdin
 	// is a pipe, not a character based console.
 	if flPassword == "" && !cli.isTerminalIn {
-		return authconfig, fmt.Errorf("Error: Cannot perform an interactive logon from a non TTY device")
+		return authconfig, fmt.Errorf("Error: Cannot perform an interactive login from a non TTY device")
 	}
 
 	authconfig.Username = strings.TrimSpace(authconfig.Username)
 
 	if flUser = strings.TrimSpace(flUser); flUser == "" {
 		if isDefaultRegistry {
-			// if this is a defauly registry (docker hub), then display the following message.
+			// if this is a default registry (docker hub), then display the following message.
 			fmt.Fprintln(cli.out, "Login with your Docker ID to push and pull images from Docker Hub. If you don't have a Docker ID, head over to https://hub.docker.com to create one.")
 		}
 		cli.promptWithDefault("Username", authconfig.Username)
@@ -146,6 +147,34 @@ func (cli *DockerCli) ConfigureAuth(flUser, flPassword, serverAddress string, is
 	authconfig.IdentityToken = ""
 
 	return authconfig, nil
+}
+
+// resolveAuthConfigFromImage retrieves that AuthConfig using the image string
+func (cli *DockerCli) resolveAuthConfigFromImage(ctx context.Context, image string) (types.AuthConfig, error) {
+	registryRef, err := reference.ParseNamed(image)
+	if err != nil {
+		return types.AuthConfig{}, err
+	}
+	repoInfo, err := registry.ParseRepositoryInfo(registryRef)
+	if err != nil {
+		return types.AuthConfig{}, err
+	}
+	authConfig := cli.ResolveAuthConfig(ctx, repoInfo.Index)
+	return authConfig, nil
+}
+
+// RetrieveAuthTokenFromImage retrieves an encoded auth token given a complete image
+func (cli *DockerCli) RetrieveAuthTokenFromImage(ctx context.Context, image string) (string, error) {
+	// Retrieve encoded auth token from the image reference
+	authConfig, err := cli.resolveAuthConfigFromImage(ctx, image)
+	if err != nil {
+		return "", err
+	}
+	encodedAuth, err := EncodeAuthToBase64(authConfig)
+	if err != nil {
+		return "", err
+	}
+	return encodedAuth, nil
 }
 
 func readInput(in io.Reader, out io.Writer) string {

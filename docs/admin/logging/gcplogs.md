@@ -18,7 +18,7 @@ Logging</a>.
 You can configure the default logging driver by passing the `--log-driver`
 option to the Docker daemon:
 
-    docker daemon --log-driver=gcplogs
+    dockerd --log-driver=gcplogs
 
 You can set the logging driver for a specific container by using the
 `--log-driver` option to `docker run`:
@@ -34,7 +34,7 @@ Otherwise, the user must specify which project to log to using the `--gcp-projec
 log option and Docker will attempt to obtain credentials from the
 <a href="https://developers.google.com/identity/protocols/application-default-credentials" target="_blank">Google Application Default Credential</a>.
 The `--gcp-project` takes precedence over information discovered from the metadata server
-so a Docker daemon running in a Google Cloud Project can be overriden to log to a different
+so a Docker daemon running in a Google Cloud Project can be overridden to log to a different
 Google Cloud Project using `--gcp-project`.
 
 ## gcplogs options

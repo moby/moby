@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	// alpnProtoStr are the specified application level protocols for gRPC.
+	// alpnProtoStr is the specified application level protocols for gRPC.
 	alpnProtoStr = []string{"h2"}
 )
 
@@ -122,6 +122,14 @@ func (c *MutableTLSCreds) LoadNewTLSConfig(newConfig *tls.Config) error {
 	c.config = newConfig
 
 	return nil
+}
+
+// Config returns the current underlying TLS config.
+func (c *MutableTLSCreds) Config() *tls.Config {
+	c.Lock()
+	defer c.Unlock()
+
+	return c.config
 }
 
 // Role returns the OU for the certificate encapsulated in this TransportAuthenticator

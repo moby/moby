@@ -3,7 +3,9 @@ package logger
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -114,5 +116,95 @@ func TestCopierSlow(t *testing.T) {
 	case <-time.After(200 * time.Millisecond):
 		t.Fatalf("failed to exit in time after the copier is closed")
 	case <-wait:
+	}
+}
+
+type BenchmarkLoggerDummy struct {
+}
+
+func (l *BenchmarkLoggerDummy) Log(m *Message) error { return nil }
+
+func (l *BenchmarkLoggerDummy) Close() error { return nil }
+
+func (l *BenchmarkLoggerDummy) Name() string { return "dummy" }
+
+func BenchmarkCopier64(b *testing.B) {
+	benchmarkCopier(b, 1<<6)
+}
+func BenchmarkCopier128(b *testing.B) {
+	benchmarkCopier(b, 1<<7)
+}
+func BenchmarkCopier256(b *testing.B) {
+	benchmarkCopier(b, 1<<8)
+}
+func BenchmarkCopier512(b *testing.B) {
+	benchmarkCopier(b, 1<<9)
+}
+func BenchmarkCopier1K(b *testing.B) {
+	benchmarkCopier(b, 1<<10)
+}
+func BenchmarkCopier2K(b *testing.B) {
+	benchmarkCopier(b, 1<<11)
+}
+func BenchmarkCopier4K(b *testing.B) {
+	benchmarkCopier(b, 1<<12)
+}
+func BenchmarkCopier8K(b *testing.B) {
+	benchmarkCopier(b, 1<<13)
+}
+func BenchmarkCopier16K(b *testing.B) {
+	benchmarkCopier(b, 1<<14)
+}
+func BenchmarkCopier32K(b *testing.B) {
+	benchmarkCopier(b, 1<<15)
+}
+func BenchmarkCopier64K(b *testing.B) {
+	benchmarkCopier(b, 1<<16)
+}
+func BenchmarkCopier128K(b *testing.B) {
+	benchmarkCopier(b, 1<<17)
+}
+func BenchmarkCopier256K(b *testing.B) {
+	benchmarkCopier(b, 1<<18)
+}
+
+func piped(b *testing.B, iterations int, delay time.Duration, buf []byte) io.Reader {
+	r, w, err := os.Pipe()
+	if err != nil {
+		b.Fatal(err)
+		return nil
+	}
+	go func() {
+		for i := 0; i < iterations; i++ {
+			time.Sleep(delay)
+			if n, err := w.Write(buf); err != nil || n != len(buf) {
+				if err != nil {
+					b.Fatal(err)
+				}
+				b.Fatal(fmt.Errorf("short write"))
+			}
+		}
+		w.Close()
+	}()
+	return r
+}
+
+func benchmarkCopier(b *testing.B, length int) {
+	b.StopTimer()
+	buf := []byte{'A'}
+	for len(buf) < length {
+		buf = append(buf, buf...)
+	}
+	buf = append(buf[:length-1], []byte{'\n'}...)
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		c := NewCopier(
+			map[string]io.Reader{
+				"buffer": piped(b, 10, time.Nanosecond, buf),
+			},
+			&BenchmarkLoggerDummy{})
+		c.Run()
+		c.Wait()
+		c.Close()
 	}
 }

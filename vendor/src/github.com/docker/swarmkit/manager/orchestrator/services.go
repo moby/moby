@@ -1,6 +1,8 @@
 package orchestrator
 
 import (
+	"sort"
+
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
@@ -13,6 +15,21 @@ import (
 // services and creates and destroys tasks as necessary to match the service
 // specifications. This is different from task-level orchestration, which
 // responds to changes in individual tasks (or nodes which run them).
+
+func (r *ReplicatedOrchestrator) initCluster(readTx store.ReadTx) error {
+	clusters, err := store.FindClusters(readTx, store.ByName("default"))
+	if err != nil {
+		return err
+	}
+
+	if len(clusters) != 1 {
+		// we'll just pick it when it is created.
+		return nil
+	}
+
+	r.cluster = clusters[0]
+	return nil
+}
 
 func (r *ReplicatedOrchestrator) initServices(readTx store.ReadTx) error {
 	services, err := store.FindServices(readTx, store.All)
@@ -69,80 +86,100 @@ func (r *ReplicatedOrchestrator) resolveService(ctx context.Context, task *api.T
 }
 
 func (r *ReplicatedOrchestrator) reconcile(ctx context.Context, service *api.Service) {
-	var (
-		tasks []*api.Task
-		err   error
-	)
-	r.store.View(func(tx store.ReadTx) {
-		tasks, err = store.FindTasks(tx, store.ByServiceID(service.ID))
-	})
+	runningSlots, err := getRunnableSlots(r.store, service.ID)
 	if err != nil {
 		log.G(ctx).WithError(err).Errorf("reconcile failed finding tasks")
 		return
 	}
 
-	runningTasks := make([]*api.Task, 0, len(tasks))
-	runningInstances := make(map[uint64]struct{}) // this could be a bitfield...
-	for _, t := range tasks {
-		// Technically the check below could just be
-		// t.DesiredState <= api.TaskStateRunning, but ignoring tasks
-		// with DesiredState == NEW simplifies the drainer unit tests.
-		if t.DesiredState > api.TaskStateNew && t.DesiredState <= api.TaskStateRunning {
-			runningTasks = append(runningTasks, t)
-			runningInstances[t.Slot] = struct{}{}
-		}
+	numSlots := len(runningSlots)
+
+	slotsSlice := make([]slot, 0, numSlots)
+	for _, slot := range runningSlots {
+		slotsSlice = append(slotsSlice, slot)
 	}
-	numTasks := len(runningTasks)
 
 	deploy := service.Spec.GetMode().(*api.ServiceSpec_Replicated)
-	specifiedInstances := int(deploy.Replicated.Replicas)
-
-	// TODO(aaronl): Add support for restart delays.
+	specifiedSlots := int(deploy.Replicated.Replicas)
 
 	switch {
-	case specifiedInstances > numTasks:
-		log.G(ctx).Debugf("Service %s was scaled up from %d to %d instances", service.ID, numTasks, specifiedInstances)
+	case specifiedSlots > numSlots:
+		log.G(ctx).Debugf("Service %s was scaled up from %d to %d instances", service.ID, numSlots, specifiedSlots)
 		// Update all current tasks then add missing tasks
-		r.updater.Update(ctx, service, runningTasks)
+		r.updater.Update(ctx, r.cluster, service, slotsSlice)
 		_, err = r.store.Batch(func(batch *store.Batch) error {
-			r.addTasks(ctx, batch, service, runningInstances, specifiedInstances-numTasks)
+			r.addTasks(ctx, batch, service, runningSlots, specifiedSlots-numSlots)
 			return nil
 		})
 		if err != nil {
 			log.G(ctx).WithError(err).Errorf("reconcile batch failed")
 		}
 
-	case specifiedInstances < numTasks:
+	case specifiedSlots < numSlots:
 		// Update up to N tasks then remove the extra
-		log.G(ctx).Debugf("Service %s was scaled down from %d to %d instances", service.ID, numTasks, specifiedInstances)
-		r.updater.Update(ctx, service, runningTasks[:specifiedInstances])
+		log.G(ctx).Debugf("Service %s was scaled down from %d to %d instances", service.ID, numSlots, specifiedSlots)
+
+		// Preferentially remove tasks on the nodes that have the most
+		// copies of this service, to leave a more balanced result.
+
+		// First sort tasks such that tasks which are currently running
+		// (in terms of observed state) appear before non-running tasks.
+		// This will cause us to prefer to remove non-running tasks, all
+		// other things being equal in terms of node balance.
+
+		sort.Sort(slotsByRunningState(slotsSlice))
+
+		// Assign each task an index that counts it as the nth copy of
+		// of the service on its node (1, 2, 3, ...), and sort the
+		// tasks by this counter value.
+
+		slotsByNode := make(map[string]int)
+		slotsWithIndices := make(slotsByIndex, 0, numSlots)
+
+		for _, slot := range slotsSlice {
+			if len(slot) == 1 && slot[0].NodeID != "" {
+				slotsByNode[slot[0].NodeID]++
+				slotsWithIndices = append(slotsWithIndices, slotWithIndex{slot: slot, index: slotsByNode[slot[0].NodeID]})
+			} else {
+				slotsWithIndices = append(slotsWithIndices, slotWithIndex{slot: slot, index: -1})
+			}
+		}
+
+		sort.Sort(slotsWithIndices)
+
+		sortedSlots := make([]slot, 0, numSlots)
+		for _, slot := range slotsWithIndices {
+			sortedSlots = append(sortedSlots, slot.slot)
+		}
+
+		r.updater.Update(ctx, r.cluster, service, sortedSlots[:specifiedSlots])
 		_, err = r.store.Batch(func(batch *store.Batch) error {
-			r.removeTasks(ctx, batch, service, runningTasks[specifiedInstances:])
+			r.removeTasks(ctx, batch, service, sortedSlots[specifiedSlots:])
 			return nil
 		})
 		if err != nil {
 			log.G(ctx).WithError(err).Errorf("reconcile batch failed")
 		}
 
-	case specifiedInstances == numTasks:
+	case specifiedSlots == numSlots:
 		// Simple update, no scaling - update all tasks.
-		r.updater.Update(ctx, service, runningTasks)
+		r.updater.Update(ctx, r.cluster, service, slotsSlice)
 	}
 }
 
-func (r *ReplicatedOrchestrator) addTasks(ctx context.Context, batch *store.Batch, service *api.Service, runningInstances map[uint64]struct{}, count int) {
-	instance := uint64(0)
+func (r *ReplicatedOrchestrator) addTasks(ctx context.Context, batch *store.Batch, service *api.Service, runningSlots map[uint64]slot, count int) {
+	slot := uint64(0)
 	for i := 0; i < count; i++ {
-		// Find an instance number that is missing a running task
+		// Find an slot number that is missing a running task
 		for {
-			instance++
-			if _, ok := runningInstances[instance]; !ok {
+			slot++
+			if _, ok := runningSlots[slot]; !ok {
 				break
 			}
 		}
 
 		err := batch.Update(func(tx store.Tx) error {
-			return store.CreateTask(tx, newTask(service, instance))
+			return store.CreateTask(tx, newTask(r.cluster, service, slot))
 		})
 		if err != nil {
 			log.G(ctx).Errorf("Failed to create task: %v", err)
@@ -150,19 +187,48 @@ func (r *ReplicatedOrchestrator) addTasks(ctx context.Context, batch *store.Batc
 	}
 }
 
-func (r *ReplicatedOrchestrator) removeTasks(ctx context.Context, batch *store.Batch, service *api.Service, tasks []*api.Task) {
-	for _, t := range tasks {
-		err := batch.Update(func(tx store.Tx) error {
-			// TODO(aaronl): optimistic update?
-			t = store.GetTask(tx, t.ID)
-			if t != nil {
-				t.DesiredState = api.TaskStateShutdown
-				return store.UpdateTask(tx, t)
+func (r *ReplicatedOrchestrator) removeTasks(ctx context.Context, batch *store.Batch, service *api.Service, slots []slot) {
+	for _, slot := range slots {
+		for _, t := range slot {
+			err := batch.Update(func(tx store.Tx) error {
+				// TODO(aaronl): optimistic update?
+				t = store.GetTask(tx, t.ID)
+				if t != nil && t.DesiredState < api.TaskStateShutdown {
+					t.DesiredState = api.TaskStateShutdown
+					return store.UpdateTask(tx, t)
+				}
+				return nil
+			})
+			if err != nil {
+				log.G(ctx).WithError(err).Errorf("removing task %s failed", t.ID)
 			}
-			return nil
-		})
-		if err != nil {
-			log.G(ctx).WithError(err).Errorf("removing task %s failed", t.ID)
 		}
 	}
+}
+
+// getRunnableSlots returns a map of slots that have at least one task with
+// a desired state above NEW and lesser or equal to RUNNING.
+func getRunnableSlots(s *store.MemoryStore, serviceID string) (map[uint64]slot, error) {
+	var (
+		tasks []*api.Task
+		err   error
+	)
+	s.View(func(tx store.ReadTx) {
+		tasks, err = store.FindTasks(tx, store.ByServiceID(serviceID))
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	runningSlots := make(map[uint64]slot)
+	for _, t := range tasks {
+		// Technically the check below could just be
+		// t.DesiredState <= api.TaskStateRunning, but ignoring tasks
+		// with DesiredState == NEW simplifies the drainer unit tests.
+		if t.DesiredState > api.TaskStateNew && t.DesiredState <= api.TaskStateRunning {
+			runningSlots[t.Slot] = append(runningSlots[t.Slot], t)
+		}
+	}
+
+	return runningSlots, nil
 }

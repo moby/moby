@@ -13,7 +13,7 @@ type NetworkCreateResponse struct {
 	ID string `json:"Id"`
 }
 
-// VirtualAddress represents a virtual adress.
+// VirtualAddress represents a virtual address.
 type VirtualAddress struct {
 	IPv4 string
 	IPv6 string
@@ -31,6 +31,7 @@ type PortConfig struct {
 type ServiceConfig struct {
 	ID               string
 	Name             string
+	Aliases          map[string][]string
 	VirtualAddresses map[string]*VirtualAddress
 	ExposedPorts     []*PortConfig
 }

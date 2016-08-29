@@ -30,7 +30,7 @@ driver stores the following metadata in the journal with each message:
 You can configure the default logging driver by passing the
 `--log-driver` option to the Docker daemon:
 
-    docker daemon --log-driver=journald
+    dockerd --log-driver=journald
 
 You can set the logging driver for a specific container by using the
 `--log-driver` option to `docker run`:

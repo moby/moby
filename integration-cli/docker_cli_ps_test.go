@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/go-check/check"
 )
@@ -204,8 +205,11 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 	containerOut = strings.TrimSpace(out)
 	c.Assert(containerOut, checker.Equals, secondID)
 
-	out, _, _ = dockerCmdWithTimeout(time.Second*60, "ps", "-a", "-q", "--filter=status=rubbish")
-	c.Assert(out, checker.Contains, "Unrecognised filter value for status", check.Commentf("Expected error response due to invalid status filter output: %q", out))
+	result := dockerCmdWithTimeout(time.Second*60, "ps", "-a", "-q", "--filter=status=rubbish")
+	c.Assert(result, icmd.Matches, icmd.Expected{
+		ExitCode: 1,
+		Err:      "Unrecognised filter value for status",
+	})
 
 	// Windows doesn't support pausing of containers
 	if daemonPlatform != "windows" {
@@ -700,7 +704,7 @@ func (s *DockerSuite) TestPsShowMounts(c *check.C) {
 
 	mp := prefix + slash + "test"
 
-	dockerCmd(c, "volume", "create", "--name", "ps-volume-test")
+	dockerCmd(c, "volume", "create", "ps-volume-test")
 	// volume mount containers
 	runSleepingContainer(c, "--name=volume-test-1", "--volume", "ps-volume-test:"+mp)
 	c.Assert(waitRun("volume-test-1"), checker.IsNil)
@@ -863,4 +867,38 @@ func (s *DockerSuite) TestPsListContainersFilterNetwork(c *check.C) {
 	containerOut = strings.TrimSpace(string(out))
 
 	c.Assert(containerOut, checker.Contains, "onbridgenetwork")
+}
+
+func (s *DockerSuite) TestPsByOrder(c *check.C) {
+	name1 := "xyz-abc"
+	out, err := runSleepingContainer(c, "--name", name1)
+	c.Assert(err, checker.NotNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	container1 := strings.TrimSpace(out)
+
+	name2 := "xyz-123"
+	out, err = runSleepingContainer(c, "--name", name2)
+	c.Assert(err, checker.NotNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+	container2 := strings.TrimSpace(out)
+
+	name3 := "789-abc"
+	out, err = runSleepingContainer(c, "--name", name3)
+	c.Assert(err, checker.NotNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	name4 := "789-123"
+	out, err = runSleepingContainer(c, "--name", name4)
+	c.Assert(err, checker.NotNil)
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
+
+	// Run multiple time should have the same result
+	out, err = dockerCmd(c, "ps", "--no-trunc", "-q", "-f", "name=xyz")
+	c.Assert(err, checker.NotNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, fmt.Sprintf("%s\n%s", container2, container1))
+
+	// Run multiple time should have the same result
+	out, err = dockerCmd(c, "ps", "--no-trunc", "-q", "-f", "name=xyz")
+	c.Assert(err, checker.NotNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, fmt.Sprintf("%s\n%s", container2, container1))
 }

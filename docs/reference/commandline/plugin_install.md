@@ -3,19 +3,24 @@
 title = "plugin install"
 description = "the plugin install command description and usage"
 keywords = ["plugin, install"]
+advisory = "experimental"
 [menu.main]
 parent = "smn_cli"
-advisory = "experimental"
 +++
 <![end-metadata]-->
 
 # plugin install (experimental)
 
-    Usage: docker plugin install PLUGIN
+```markdown
+Usage:  docker plugin install [OPTIONS] PLUGIN
 
-    Install a plugin
+Install a plugin
 
-      --help             Print usage
+Options:
+      --disable                 do not enable the plugin on install
+      --grant-all-permissions   grant all permissions necessary to run the plugin
+      --help                    Print usage
+```
 
 Installs and enables a plugin. Docker looks first for the plugin on your Docker
 host. If the plugin does not exist locally, then the plugin is pulled from
@@ -28,18 +33,22 @@ the plugin needs and enabling the plugin.
 
 ```bash
 $ docker plugin install tiborvass/no-remove
-Plugin "tiborvass/no-remove:latest" requested the following privileges:
- - Networking: host
- - Mounting host path: /data
+
+Plugin "tiborvass/no-remove" is requesting the following privileges:
+ - network: [host]
+ - mount: [/data]
+ - device: [/dev/cpu_dma_latency]
 Do you grant the above permissions? [y/N] y
+tiborvass/no-remove
 ```
 
 After the plugin is installed, it appears in the list of plugins:
 
 ```bash
 $ docker plugin ls
-NAME                	VERSION             ACTIVE
-tiborvass/no-remove   latest              true
+
+NAME                  TAG                 DESCRIPTION                ENABLED
+tiborvass/no-remove   latest              A test plugin for Docker   true
 ```
 
 ## Related information

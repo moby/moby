@@ -1,7 +1,9 @@
 package swarm
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	"golang.org/x/net/context"
 
@@ -9,53 +11,71 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+)
+
+const (
+	generatedSecretEntropyBytes = 16
+	generatedSecretBase         = 36
+	// floor(log(2^128-1, 36)) + 1
+	maxGeneratedSecretLength = 25
 )
 
 type initOptions struct {
-	listenAddr      NodeAddrOption
-	autoAccept      AutoAcceptOption
+	swarmOptions
+	listenAddr NodeAddrOption
+	// Not a NodeAddrOption because it has no default port.
+	advertiseAddr   string
 	forceNewCluster bool
-	secret          string
 }
 
 func newInitCommand(dockerCli *client.DockerCli) *cobra.Command {
 	opts := initOptions{
-		listenAddr: NewNodeAddrOption(),
-		autoAccept: NewAutoAcceptOption(),
+		listenAddr: NewListenAddrOption(),
 	}
 
 	cmd := &cobra.Command{
-		Use:   "init",
-		Short: "Initialize a Swarm.",
+		Use:   "init [OPTIONS]",
+		Short: "Initialize a swarm",
 		Args:  cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runInit(dockerCli, opts)
+			return runInit(dockerCli, cmd.Flags(), opts)
 		},
 	}
 
 	flags := cmd.Flags()
-	flags.Var(&opts.listenAddr, "listen-addr", "Listen address")
-	flags.Var(&opts.autoAccept, "auto-accept", "Auto acceptance policy (worker, manager, or none)")
-	flags.StringVar(&opts.secret, "secret", "", "Set secret value needed to accept nodes into cluster")
+	flags.Var(&opts.listenAddr, flagListenAddr, "Listen address (format: <ip|interface>[:port])")
+	flags.StringVar(&opts.advertiseAddr, flagAdvertiseAddr, "", "Advertised address (format: <ip|interface>[:port])")
 	flags.BoolVar(&opts.forceNewCluster, "force-new-cluster", false, "Force create a new cluster from current state.")
+	addSwarmFlags(flags, &opts.swarmOptions)
 	return cmd
 }
 
-func runInit(dockerCli *client.DockerCli, opts initOptions) error {
+func runInit(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts initOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
 	req := swarm.InitRequest{
 		ListenAddr:      opts.listenAddr.String(),
+		AdvertiseAddr:   opts.advertiseAddr,
 		ForceNewCluster: opts.forceNewCluster,
+		Spec:            opts.swarmOptions.ToSpec(),
 	}
-
-	req.Spec.AcceptancePolicy.Policies = opts.autoAccept.Policies(opts.secret)
 
 	nodeID, err := client.SwarmInit(ctx, req)
 	if err != nil {
+		if strings.Contains(err.Error(), "could not choose an IP address to advertise") || strings.Contains(err.Error(), "could not find the system's IP address") {
+			return errors.New(err.Error() + " - specify one with --advertise-addr")
+		}
 		return err
 	}
-	fmt.Printf("Swarm initialized: current node (%s) is now a manager.\n", nodeID)
+
+	fmt.Fprintf(dockerCli.Out(), "Swarm initialized: current node (%s) is now a manager.\n\n", nodeID)
+
+	if err := printJoinCommand(ctx, dockerCli, nodeID, true, false); err != nil {
+		return err
+	}
+
+	fmt.Fprint(dockerCli.Out(), "To add a manager to this swarm, run 'docker swarm join-token manager' and follow the instructions.\n\n")
 	return nil
 }

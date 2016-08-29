@@ -235,7 +235,7 @@ const (
 	UDP = 17
 )
 
-// Protocol represents a IP protocol number
+// Protocol represents an IP protocol number
 type Protocol uint8
 
 func (p Protocol) String() string {

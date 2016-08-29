@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/go-check/check"
 )
 
@@ -122,10 +123,8 @@ func (s *DockerSuite) TestExecEnv(c *check.C) {
 func (s *DockerSuite) TestExecExitStatus(c *check.C) {
 	runSleepingContainer(c, "-d", "--name", "top")
 
-	// Test normal (non-detached) case first
-	cmd := exec.Command(dockerBinary, "exec", "top", "sh", "-c", "exit 23")
-	ec, _ := runCommand(cmd)
-	c.Assert(ec, checker.Equals, 23)
+	result := icmd.RunCommand(dockerBinary, "exec", "top", "sh", "-c", "exit 23")
+	c.Assert(result, icmd.Matches, icmd.Expected{ExitCode: 23, Error: "exit status 23"})
 }
 
 func (s *DockerSuite) TestExecPausedContainer(c *check.C) {
@@ -214,7 +213,7 @@ func (s *DockerSuite) TestExecParseError(c *check.C) {
 	cmd := exec.Command(dockerBinary, "exec", "top")
 	_, stderr, _, err := runCommandWithStdoutStderr(cmd)
 	c.Assert(err, checker.NotNil)
-	c.Assert(stderr, checker.Contains, "See '"+dockerBinary+" exec --help'")
+	c.Assert(stderr, checker.Contains, "See 'docker exec --help'")
 }
 
 func (s *DockerSuite) TestExecStopNotHanging(c *check.C) {

@@ -24,7 +24,7 @@ type startOptions struct {
 	containers []string
 }
 
-// NewStartCommand creats a new cobra.Command for `docker start`
+// NewStartCommand creates a new cobra.Command for `docker start`
 func NewStartCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts startOptions
 
@@ -37,7 +37,6 @@ func NewStartCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runStart(dockerCli, &opts)
 		},
 	}
-	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.attach, "attach", "a", false, "Attach STDOUT/STDERR and forward signals")
@@ -63,8 +62,9 @@ func runStart(dockerCli *client.DockerCli, opts *startOptions) error {
 			return err
 		}
 
+		// We always use c.ID instead of container to maintain consistency during `docker start`
 		if !c.Config.Tty {
-			sigc := dockerCli.ForwardAllSignals(ctx, container)
+			sigc := dockerCli.ForwardAllSignals(ctx, c.ID)
 			defer signal.StopCatch(sigc)
 		}
 
@@ -86,11 +86,11 @@ func runStart(dockerCli *client.DockerCli, opts *startOptions) error {
 			in = dockerCli.In()
 		}
 
-		resp, errAttach := dockerCli.Client().ContainerAttach(ctx, container, options)
+		resp, errAttach := dockerCli.Client().ContainerAttach(ctx, c.ID, options)
 		if errAttach != nil && errAttach != httputil.ErrPersistEOF {
 			// ContainerAttach return an ErrPersistEOF (connection closed)
-			// means server met an error and put it in Hijacked connection
-			// keep the error and read detailed error message from hijacked connection
+			// means server met an error and already put it in Hijacked connection,
+			// we would keep the error and read the detailed error message from hijacked connection
 			return errAttach
 		}
 		defer resp.Close()
@@ -102,27 +102,36 @@ func runStart(dockerCli *client.DockerCli, opts *startOptions) error {
 			return errHijack
 		})
 
-		// 3. Start the container.
-		if err := dockerCli.Client().ContainerStart(ctx, container, types.ContainerStartOptions{}); err != nil {
+		// 3. We should open a channel for receiving status code of the container
+		// no matter it's detached, removed on daemon side(--rm) or exit normally.
+		statusChan, statusErr := waitExitOrRemoved(dockerCli, context.Background(), c.ID, c.HostConfig.AutoRemove)
+
+		// 4. Start the container.
+		if err := dockerCli.Client().ContainerStart(ctx, c.ID, types.ContainerStartOptions{}); err != nil {
 			cancelFun()
 			<-cErr
+			if c.HostConfig.AutoRemove && statusErr == nil {
+				// wait container to be removed
+				<-statusChan
+			}
 			return err
 		}
 
-		// 4. Wait for attachment to break.
+		// 5. Wait for attachment to break.
 		if c.Config.Tty && dockerCli.IsTerminalOut() {
-			if err := dockerCli.MonitorTtySize(ctx, container, false); err != nil {
+			if err := dockerCli.MonitorTtySize(ctx, c.ID, false); err != nil {
 				fmt.Fprintf(dockerCli.Err(), "Error monitoring TTY size: %s\n", err)
 			}
 		}
 		if attchErr := <-cErr; attchErr != nil {
 			return attchErr
 		}
-		_, status, err := getExitCode(dockerCli, ctx, container)
-		if err != nil {
-			return err
+
+		if statusErr != nil {
+			return fmt.Errorf("can't get container's exit code: %v", statusErr)
 		}
-		if status != 0 {
+
+		if status := <-statusChan; status != 0 {
 			return cli.StatusError{StatusCode: status}
 		}
 	} else {

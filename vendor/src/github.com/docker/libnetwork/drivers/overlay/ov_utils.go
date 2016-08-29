@@ -3,6 +3,7 @@ package overlay
 import (
 	"fmt"
 	"strings"
+	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/netutils"
@@ -51,11 +52,11 @@ func createVethPair() (string, string, error) {
 	return name1, name2, nil
 }
 
-func createVxlan(name string, vni uint32) error {
+func createVxlan(name string, vni uint32, mtu int) error {
 	defer osl.InitOSContext()()
 
 	vxlan := &netlink.Vxlan{
-		LinkAttrs: netlink.LinkAttrs{Name: name},
+		LinkAttrs: netlink.LinkAttrs{Name: name, MTU: mtu},
 		VxlanId:   int(vni),
 		Learning:  true,
 		Port:      vxlanPort,
@@ -128,7 +129,7 @@ func deleteVxlanByVNI(path string, vni uint32) error {
 		}
 		defer ns.Close()
 
-		nlh, err = netlink.NewHandleAt(ns)
+		nlh, err = netlink.NewHandleAt(ns, syscall.NETLINK_ROUTE)
 		if err != nil {
 			return fmt.Errorf("failed to get netlink handle for ns %s: %v", path, err)
 		}

@@ -13,7 +13,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -612,8 +611,7 @@ func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
 	errChan := make(chan error)
 	go func() {
 		defer close(errChan)
-		//changing memory to 40MB from 4MB due to an issue with GCCGO that test fails to start the container.
-		out, exitCode, _ := dockerCmdWithError("run", "-m", "40MB", "busybox", "sh", "-c", "x=a; while true; do x=$x$x$x$x; done")
+		out, exitCode, _ := dockerCmdWithError("run", "-m", "4MB", "busybox", "sh", "-c", "x=a; while true; do x=$x$x$x$x; done")
 		if expected := 137; exitCode != expected {
 			errChan <- fmt.Errorf("wrong exit code for OOM container: expected %d, got %d (output: %q)", expected, exitCode, out)
 		}
@@ -687,7 +685,7 @@ func (s *DockerSuite) TestRunWithMemoryReservationInvalid(c *check.C) {
 	testRequires(c, memoryReservationSupport)
 	out, _, err := dockerCmdWithError("run", "-m", "500M", "--memory-reservation", "800M", "busybox", "true")
 	c.Assert(err, check.NotNil)
-	expected := "Minimum memory limit should be larger than memory reservation limit"
+	expected := "Minimum memory limit can not be less than memory reservation limit"
 	c.Assert(strings.TrimSpace(out), checker.Contains, expected, check.Commentf("run container should fail with invalid memory reservation"))
 
 	out, _, err = dockerCmdWithError("run", "--memory-reservation", "1k", "busybox", "true")
@@ -829,6 +827,23 @@ func (s *DockerSuite) TestRunTmpfsMounts(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunTmpfsMountsOverrideImageVolumes(c *check.C) {
+	name := "img-with-volumes"
+	_, err := buildImage(
+		name,
+		`
+    FROM busybox
+    VOLUME /run
+    RUN touch /run/stuff
+    `,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	out, _ := dockerCmd(c, "run", "--tmpfs", "/run", name, "ls", "/run")
+	c.Assert(out, checker.Not(checker.Contains), "stuff")
+}
+
 // Test case for #22420
 func (s *DockerSuite) TestRunTmpfsMountsWithOptions(c *check.C) {
 	testRequires(c, DaemonIsLinux)
@@ -938,6 +953,14 @@ func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *check.C) {
 		{
 			"name": "chmod",
 			"action": "SCMP_ACT_ERRNO"
+		},
+		{
+			"name":"fchmod",
+			"action": "SCMP_ACT_ERRNO"
+		},
+		{
+			"name": "fchmodat",
+			"action":"SCMP_ACT_ERRNO"
 		}
 	]
 }`
@@ -1007,7 +1030,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyCloneUserns(c *check.C) {
 // TestRunSeccompUnconfinedCloneUserns checks that
 // 'docker run --security-opt seccomp=unconfined syscall-test' allows creating a userns.
 func (s *DockerSuite) TestRunSeccompUnconfinedCloneUserns(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled, UserNamespaceInKernel, NotUserNamespace)
+	testRequires(c, SameHostDaemon, seccompEnabled, UserNamespaceInKernel, NotUserNamespace, unprivilegedUsernsClone)
 
 	// make sure running w privileged is ok
 	runCmd := exec.Command(dockerBinary, "run", "--security-opt", "seccomp=unconfined", "syscall-test", "userns-test", "id")
@@ -1028,6 +1051,17 @@ func (s *DockerSuite) TestRunSeccompAllowPrivCloneUserns(c *check.C) {
 	}
 }
 
+// TestRunSeccompProfileAllow32Bit checks that 32 bit code can run on x86_64
+// with the default seccomp profile.
+func (s *DockerSuite) TestRunSeccompProfileAllow32Bit(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled, IsAmd64)
+
+	runCmd := exec.Command(dockerBinary, "run", "syscall-test", "exit32-test", "id")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		c.Fatalf("expected to be able to run 32 bit code, got %s: %v", out, err)
+	}
+}
+
 // TestRunSeccompAllowSetrlimit checks that 'docker run debian:jessie ulimit -v 1048510' succeeds.
 func (s *DockerSuite) TestRunSeccompAllowSetrlimit(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled)
@@ -1042,117 +1076,63 @@ func (s *DockerSuite) TestRunSeccompAllowSetrlimit(c *check.C) {
 func (s *DockerSuite) TestRunSeccompDefaultProfileAcct(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled, NotUserNamespace)
 
-	var group sync.WaitGroup
-	group.Add(5)
-	errChan := make(chan error, 5)
-	go func() {
-		out, _, err := dockerCmdWithError("run", "syscall-test", "acct-test")
-		if err == nil || !strings.Contains(out, "Operation not permitted") {
-			errChan <- fmt.Errorf("goroutine 0: expected Operation not permitted, got: %s", out)
-		}
-		group.Done()
-	}()
+	out, _, err := dockerCmdWithError("run", "syscall-test", "acct-test")
+	if err == nil || !strings.Contains(out, "Operation not permitted") {
+		c.Fatalf("test 0: expected Operation not permitted, got: %s", out)
+	}
 
-	go func() {
-		out, _, err := dockerCmdWithError("run", "--cap-add", "sys_admin", "syscall-test", "acct-test")
-		if err == nil || !strings.Contains(out, "Operation not permitted") {
-			errChan <- fmt.Errorf("goroutine 1: expected Operation not permitted, got: %s", out)
-		}
-		group.Done()
-	}()
+	out, _, err = dockerCmdWithError("run", "--cap-add", "sys_admin", "syscall-test", "acct-test")
+	if err == nil || !strings.Contains(out, "Operation not permitted") {
+		c.Fatalf("test 1: expected Operation not permitted, got: %s", out)
+	}
 
-	go func() {
-		out, _, err := dockerCmdWithError("run", "--cap-add", "sys_pacct", "syscall-test", "acct-test")
-		if err == nil || !strings.Contains(out, "No such file or directory") {
-			errChan <- fmt.Errorf("goroutine 2: expected No such file or directory, got: %s", out)
-		}
-		group.Done()
-	}()
+	out, _, err = dockerCmdWithError("run", "--cap-add", "sys_pacct", "syscall-test", "acct-test")
+	if err == nil || !strings.Contains(out, "No such file or directory") {
+		c.Fatalf("test 2: expected No such file or directory, got: %s", out)
+	}
 
-	go func() {
-		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "syscall-test", "acct-test")
-		if err == nil || !strings.Contains(out, "No such file or directory") {
-			errChan <- fmt.Errorf("goroutine 3: expected No such file or directory, got: %s", out)
-		}
-		group.Done()
-	}()
+	out, _, err = dockerCmdWithError("run", "--cap-add", "ALL", "syscall-test", "acct-test")
+	if err == nil || !strings.Contains(out, "No such file or directory") {
+		c.Fatalf("test 3: expected No such file or directory, got: %s", out)
+	}
 
-	go func() {
-		out, _, err := dockerCmdWithError("run", "--cap-drop", "ALL", "--cap-add", "sys_pacct", "syscall-test", "acct-test")
-		if err == nil || !strings.Contains(out, "No such file or directory") {
-			errChan <- fmt.Errorf("goroutine 4: expected No such file or directory, got: %s", out)
-		}
-		group.Done()
-	}()
-
-	group.Wait()
-	close(errChan)
-
-	for err := range errChan {
-		c.Assert(err, checker.IsNil)
+	out, _, err = dockerCmdWithError("run", "--cap-drop", "ALL", "--cap-add", "sys_pacct", "syscall-test", "acct-test")
+	if err == nil || !strings.Contains(out, "No such file or directory") {
+		c.Fatalf("test 4: expected No such file or directory, got: %s", out)
 	}
 }
 
 func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled, NotUserNamespace)
 
-	var group sync.WaitGroup
-	group.Add(6)
-	errChan := make(chan error, 6)
+	out, _, err := dockerCmdWithError("run", "syscall-test", "ns-test", "echo", "hello0")
+	if err == nil || !strings.Contains(out, "Operation not permitted") {
+		c.Fatalf("test 0: expected Operation not permitted, got: %s", out)
+	}
 
-	go func() {
-		out, _, err := dockerCmdWithError("run", "syscall-test", "ns-test", "echo", "hello0")
-		if err == nil || !strings.Contains(out, "Operation not permitted") {
-			errChan <- fmt.Errorf("goroutine 0: expected Operation not permitted, got: %s", out)
-		}
-		group.Done()
-	}()
+	out, _, err = dockerCmdWithError("run", "--cap-add", "sys_admin", "syscall-test", "ns-test", "echo", "hello1")
+	if err != nil || !strings.Contains(out, "hello1") {
+		c.Fatalf("test 1: expected hello1, got: %s, %v", out, err)
+	}
 
-	go func() {
-		out, _, err := dockerCmdWithError("run", "--cap-add", "sys_admin", "syscall-test", "ns-test", "echo", "hello1")
-		if err != nil || !strings.Contains(out, "hello1") {
-			errChan <- fmt.Errorf("goroutine 1: expected hello1, got: %s, %v", out, err)
-		}
-		group.Done()
-	}()
+	out, _, err = dockerCmdWithError("run", "--cap-drop", "all", "--cap-add", "sys_admin", "syscall-test", "ns-test", "echo", "hello2")
+	if err != nil || !strings.Contains(out, "hello2") {
+		c.Fatalf("test 2: expected hello2, got: %s, %v", out, err)
+	}
 
-	go func() {
-		out, _, err := dockerCmdWithError("run", "--cap-drop", "all", "--cap-add", "sys_admin", "syscall-test", "ns-test", "echo", "hello2")
-		if err != nil || !strings.Contains(out, "hello2") {
-			errChan <- fmt.Errorf("goroutine 2: expected hello2, got: %s, %v", out, err)
-		}
-		group.Done()
-	}()
+	out, _, err = dockerCmdWithError("run", "--cap-add", "ALL", "syscall-test", "ns-test", "echo", "hello3")
+	if err != nil || !strings.Contains(out, "hello3") {
+		c.Fatalf("test 3: expected hello3, got: %s, %v", out, err)
+	}
 
-	go func() {
-		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "syscall-test", "ns-test", "echo", "hello3")
-		if err != nil || !strings.Contains(out, "hello3") {
-			errChan <- fmt.Errorf("goroutine 3: expected hello3, got: %s, %v", out, err)
-		}
-		group.Done()
-	}()
+	out, _, err = dockerCmdWithError("run", "--cap-add", "ALL", "--security-opt", "seccomp=unconfined", "syscall-test", "acct-test")
+	if err == nil || !strings.Contains(out, "No such file or directory") {
+		c.Fatalf("test 4: expected No such file or directory, got: %s", out)
+	}
 
-	go func() {
-		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "--security-opt", "seccomp=unconfined", "syscall-test", "acct-test")
-		if err == nil || !strings.Contains(out, "No such file or directory") {
-			errChan <- fmt.Errorf("goroutine 4: expected No such file or directory, got: %s", out)
-		}
-		group.Done()
-	}()
-
-	go func() {
-		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "--security-opt", "seccomp=unconfined", "syscall-test", "ns-test", "echo", "hello4")
-		if err != nil || !strings.Contains(out, "hello4") {
-			errChan <- fmt.Errorf("goroutine 5: expected hello4, got: %s, %v", out, err)
-		}
-		group.Done()
-	}()
-
-	group.Wait()
-	close(errChan)
-
-	for err := range errChan {
-		c.Assert(err, checker.IsNil)
+	out, _, err = dockerCmdWithError("run", "--cap-add", "ALL", "--security-opt", "seccomp=unconfined", "syscall-test", "ns-test", "echo", "hello4")
+	if err != nil || !strings.Contains(out, "hello4") {
+		c.Fatalf("test 5: expected hello4, got: %s, %v", out, err)
 	}
 }
 

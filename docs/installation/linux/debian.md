@@ -37,15 +37,15 @@ Docker is supported on the following versions of Debian:
      $ uname -r
 
  Additionally, for users of Debian Wheezy, backports must be available. To enable backports in Wheezy:
- 
+
  1. Log into your machine and open a terminal with `sudo` or `root` privileges.
- 
+
  2. Open the `/etc/apt/sources.list.d/backports.list` file in your favorite editor.
 
      If the file doesn't exist, create it.
- 
+
  3. Remove any existing entries.
- 
+
  4. Add an entry for backports on Debian Wheezy.
 
      An example entry:
@@ -67,8 +67,8 @@ from the new repository:
 
  3. Purge any older repositories.
 
-         $ apt-get purge lxc-docker*
-         $ apt-get purge docker.io*
+         $ apt-get purge "lxc-docker*"
+         $ apt-get purge "docker.io*"
 
  4. Update package information, ensure that APT works with the `https` method, and that CA certificates are installed.
 

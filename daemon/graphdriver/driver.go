@@ -157,7 +157,7 @@ func getBuiltinDriver(name, home string, options []string, uidMaps, gidMaps []id
 // New creates the driver and initializes it at the specified root.
 func New(root string, name string, options []string, uidMaps, gidMaps []idtools.IDMap) (Driver, error) {
 	if name != "" {
-		logrus.Debugf("[graphdriver] trying provided driver %q", name) // so the logs show specified driver
+		logrus.Debugf("[graphdriver] trying provided driver: %s", name) // so the logs show specified driver
 		return GetDriver(name, root, options, uidMaps, gidMaps)
 	}
 
@@ -177,7 +177,7 @@ func New(root string, name string, options []string, uidMaps, gidMaps []idtools.
 				// state, and now it is no longer supported/prereq/compatible, so
 				// something changed and needs attention. Otherwise the daemon's
 				// images would just "disappear".
-				logrus.Errorf("[graphdriver] prior storage driver %q failed: %s", name, err)
+				logrus.Errorf("[graphdriver] prior storage driver %s failed: %s", name, err)
 				return nil, err
 			}
 
@@ -189,10 +189,10 @@ func New(root string, name string, options []string, uidMaps, gidMaps []idtools.
 					driversSlice = append(driversSlice, name)
 				}
 
-				return nil, fmt.Errorf("%q contains several valid graphdrivers: %s; Please cleanup or explicitly choose storage driver (-s <DRIVER>)", root, strings.Join(driversSlice, ", "))
+				return nil, fmt.Errorf("%s contains several valid graphdrivers: %s; Please cleanup or explicitly choose storage driver (-s <DRIVER>)", root, strings.Join(driversSlice, ", "))
 			}
 
-			logrus.Infof("[graphdriver] using prior storage driver %q", name)
+			logrus.Infof("[graphdriver] using prior storage driver: %s", name)
 			return driver, nil
 		}
 	}

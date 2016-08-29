@@ -49,9 +49,9 @@ func (cli *DockerCli) ResizeTtyTo(ctx context.Context, id string, height, width 
 	}
 }
 
-// getExecExitCode perform an inspect on the exec command. It returns
+// GetExecExitCode perform an inspect on the exec command. It returns
 // the running state and the exit code.
-func (cli *DockerCli) getExecExitCode(ctx context.Context, execID string) (bool, int, error) {
+func (cli *DockerCli) GetExecExitCode(ctx context.Context, execID string) (bool, int, error) {
 	resp, err := cli.client.ContainerExecInspect(ctx, execID)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
@@ -134,7 +134,7 @@ func CopyToFile(outfile string, r io.Reader) error {
 	return nil
 }
 
-// ForwardAllSignals forwards signals to the contianer
+// ForwardAllSignals forwards signals to the container
 // TODO: this can be unexported again once all container commands are under
 // api/client/container
 func (cli *DockerCli) ForwardAllSignals(ctx context.Context, cid string) chan os.Signal {

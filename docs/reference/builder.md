@@ -120,7 +120,7 @@ instruction must be \`FROM\`** in order to specify the [*Base
 Image*](glossary.md#base-image) from which you are building.
 
 Docker treats lines that *begin* with `#` as a comment, unless the line is
-a valid [parser directive](builder.md#parser directives). A `#` marker anywhere
+a valid [parser directive](builder.md#parser-directives). A `#` marker anywhere
 else in a line is treated as an argument. This allows statements like:
 
 ```Dockerfile
@@ -502,7 +502,7 @@ default is `/bin/sh -c` on Linux or `cmd /S /C` on Windows)
 - `RUN ["executable", "param1", "param2"]` (*exec* form)
 
 The `RUN` instruction will execute any commands in a new layer on top of the
-current image and commit the results. The resulting committed image will be
+current image and commit the results. The resulting comitted image will be
 used for the next step in the `Dockerfile`.
 
 Layering `RUN` instructions and generating commits conforms to the core
@@ -541,10 +541,13 @@ RUN /bin/bash -c 'source $HOME/.bashrc ; echo $HOME'
 > `RUN [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
 > If you want shell processing then either use the *shell* form or execute
 > a shell directly, for example: `RUN [ "sh", "-c", "echo $HOME" ]`.
+> When using the exec form and executing a shell directly, as in the case for
+> the shell form, it is the shell that is doing the environment variable
+> expansion, not docker.
 >
 > **Note**:
 > In the *JSON* form, it is necessary to escape backslashes. This is
-> particularly relevant on Windows where the backslash is the path seperator.
+> particularly relevant on Windows where the backslash is the path separator.
 > The following line would otherwise be treated as *shell* form due to not
 > being valid JSON, and fail in an unexpected way:
 > `RUN ["c:\windows\system32\tasklist.exe"]`
@@ -572,7 +575,7 @@ The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
   For systems that have recent aufs version (i.e., `dirperm1` mount option can
   be set), docker will attempt to fix the issue automatically by mounting
   the layers with `dirperm1` option. More details on `dirperm1` option can be
-  found at [`aufs` man page](http://aufs.sourceforge.net/aufs3/man.html)
+  found at [`aufs` man page](https://github.com/sfjro/aufs3-linux/tree/aufs3.18/Documentation/filesystems/aufs)
 
   If your system doesn't have support for `dirperm1`, the issue describes a workaround.
 
@@ -606,7 +609,10 @@ instruction as well.
 > This means that normal shell processing does not happen. For example,
 > `CMD [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
 > If you want shell processing then either use the *shell* form or execute
-> a shell directly, for example: `CMD [ "sh", "-c", "echo", "$HOME" ]`.
+> a shell directly, for example: `CMD [ "sh", "-c", "echo $HOME" ]`.
+> When using the exec form and executing a shell directly, as in the case for
+> the shell form, it is the shell that is doing the environment variable
+> expansion, not docker.
 
 When used in the shell or exec formats, the `CMD` instruction sets the command
 to be executed when running the image.
@@ -1074,9 +1080,10 @@ sys	0m 0.03s
 > This means that normal shell processing does not happen. For example,
 > `ENTRYPOINT [ "echo", "$HOME" ]` will not do variable substitution on `$HOME`.
 > If you want shell processing then either use the *shell* form or execute
-> a shell directly, for example: `ENTRYPOINT [ "sh", "-c", "echo", "$HOME" ]`.
-> Variables that are defined in the `Dockerfile`using `ENV`, will be substituted by
-> the `Dockerfile` parser.
+> a shell directly, for example: `ENTRYPOINT [ "sh", "-c", "echo $HOME" ]`.
+> When using the exec form and executing a shell directly, as in the case for
+> the shell form, it is the shell that is doing the environment variable
+> expansion, not docker.
 
 ### Shell form ENTRYPOINT example
 
@@ -1292,8 +1299,9 @@ subsequent line 3. The `USER` at line 4 evaluates to `what_user` as `user` is
 defined and the `what_user` value was passed on the command line. Prior to its definition by an
 `ARG` instruction, any use of a variable results in an empty string.
 
-> **Note:** It is not recommended to use build-time variables for
->  passing secrets like github keys, user credentials etc.
+> **Warning:** It is not recommended to use build-time variables for
+>  passing secrets like github keys, user credentials etc. Build-time variable
+>  values are visible to any user of the image with the `docker history` command.
 
 You can use an `ARG` or an `ENV` instruction to specify variables that are
 available to the `RUN` instruction. Environment variables defined using the
@@ -1523,10 +1531,7 @@ The possible values are:
 
 - 0: success - the container is healthy and ready for use
 - 1: unhealthy - the container is not working correctly
-- 2: starting - the container is not ready for use yet, but is working correctly
-
-If the probe returns 2 ("starting") when the container has already moved out of the
-"starting" state then it is treated as "unhealthy" instead.
+- 2: reserved - do not use this exit code
 
 For example, to check every five minutes or so that a web-server is able to
 serve the site's main page within three seconds:

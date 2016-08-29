@@ -15,11 +15,11 @@ type diffOptions struct {
 	container string
 }
 
-// NewDiffCommand creats a new cobra.Command for `docker diff`
+// NewDiffCommand creates a new cobra.Command for `docker diff`
 func NewDiffCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts diffOptions
 
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "diff CONTAINER",
 		Short: "Inspect changes on a container's filesystem",
 		Args:  cli.ExactArgs(1),
@@ -28,9 +28,6 @@ func NewDiffCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runDiff(dockerCli, &opts)
 		},
 	}
-	cmd.SetFlagErrorFunc(flagErrorFunc)
-
-	return cmd
 }
 
 func runDiff(dockerCli *client.DockerCli, opts *diffOptions) error {

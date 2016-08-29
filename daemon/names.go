@@ -72,7 +72,7 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 				logrus.Errorf("got unexpected error while looking up reserved name: %v", err)
 				return "", err
 			}
-			return "", fmt.Errorf("Conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to reuse that name.", name, id)
+			return "", fmt.Errorf("Conflict. The container name %q is already in use by container %s. You have to remove (or rename) that container to be able to reuse that name.", name, id)
 		}
 		return "", fmt.Errorf("error reserving name: %s, error: %v", name, err)
 	}

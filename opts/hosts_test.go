@@ -7,12 +7,10 @@ import (
 
 func TestParseHost(t *testing.T) {
 	invalid := []string{
-		"anything",
 		"something with spaces",
 		"://",
 		"unknown://",
 		"tcp://:port",
-		"tcp://invalid",
 		"tcp://invalid:port",
 	}
 
@@ -53,16 +51,13 @@ func TestParseHost(t *testing.T) {
 
 func TestParseDockerDaemonHost(t *testing.T) {
 	invalids := map[string]string{
-		"0.0.0.0":                       "Invalid bind address format: 0.0.0.0",
+
 		"tcp:a.b.c.d":                   "Invalid bind address format: tcp:a.b.c.d",
 		"tcp:a.b.c.d/path":              "Invalid bind address format: tcp:a.b.c.d/path",
 		"udp://127.0.0.1":               "Invalid bind address format: udp://127.0.0.1",
 		"udp://127.0.0.1:2375":          "Invalid bind address format: udp://127.0.0.1:2375",
-		"tcp://unix:///run/docker.sock": "Invalid bind address format: unix",
+		"tcp://unix:///run/docker.sock": "Invalid proto, expected tcp: unix:///run/docker.sock",
 		" tcp://:7777/path ":            "Invalid bind address format:  tcp://:7777/path ",
-		"tcp":                           "Invalid bind address format: tcp",
-		"unix":                          "Invalid bind address format: unix",
-		"fd":                            "Invalid bind address format: fd",
 		"":                              "Invalid bind address format: ",
 	}
 	valids := map[string]string{
@@ -88,7 +83,7 @@ func TestParseDockerDaemonHost(t *testing.T) {
 	}
 	for invalidAddr, expectedError := range invalids {
 		if addr, err := parseDockerDaemonHost(invalidAddr); err == nil || err.Error() != expectedError {
-			t.Errorf("tcp %v address expected error %v return, got %s and addr %v", invalidAddr, expectedError, err, addr)
+			t.Errorf("tcp %v address expected error %q return, got %q and addr %v", invalidAddr, expectedError, err, addr)
 		}
 	}
 	for validAddr, expectedAddr := range valids {
@@ -103,7 +98,6 @@ func TestParseTCP(t *testing.T) {
 		defaultHTTPHost = "tcp://127.0.0.1:2376"
 	)
 	invalids := map[string]string{
-		"0.0.0.0":              "Invalid bind address format: 0.0.0.0",
 		"tcp:a.b.c.d":          "Invalid bind address format: tcp:a.b.c.d",
 		"tcp:a.b.c.d/path":     "Invalid bind address format: tcp:a.b.c.d/path",
 		"udp://127.0.0.1":      "Invalid proto, expected tcp: udp://127.0.0.1",
@@ -130,12 +124,12 @@ func TestParseTCP(t *testing.T) {
 		"localhost:5555/path":         "tcp://localhost:5555/path",
 	}
 	for invalidAddr, expectedError := range invalids {
-		if addr, err := parseTCPAddr(invalidAddr, defaultHTTPHost); err == nil || err.Error() != expectedError {
+		if addr, err := ParseTCPAddr(invalidAddr, defaultHTTPHost); err == nil || err.Error() != expectedError {
 			t.Errorf("tcp %v address expected error %v return, got %s and addr %v", invalidAddr, expectedError, err, addr)
 		}
 	}
 	for validAddr, expectedAddr := range valids {
-		if addr, err := parseTCPAddr(validAddr, defaultHTTPHost); err != nil || addr != expectedAddr {
+		if addr, err := ParseTCPAddr(validAddr, defaultHTTPHost); err != nil || addr != expectedAddr {
 			t.Errorf("%v -> expected %v, got %v and addr %v", validAddr, expectedAddr, err, addr)
 		}
 	}

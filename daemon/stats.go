@@ -138,8 +138,10 @@ func (daemon *Daemon) GetContainerStats(container *container.Container) (*types.
 		return nil, err
 	}
 
-	if stats.Networks, err = daemon.getNetworkStats(container); err != nil {
-		return nil, err
+	if !container.Config.NetworkDisabled {
+		if stats.Networks, err = daemon.getNetworkStats(container); err != nil {
+			return nil, err
+		}
 	}
 
 	return stats, nil

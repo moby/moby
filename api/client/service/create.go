@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	"github.com/docker/engine-api/types"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -24,20 +25,44 @@ func newCreateCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runCreate(dockerCli, opts)
 		},
 	}
+	flags := cmd.Flags()
+	flags.StringVar(&opts.mode, flagMode, "replicated", "Service mode (replicated or global)")
 	addServiceFlags(cmd, opts)
-	cmd.Flags().SetInterspersed(false)
+
+	flags.VarP(&opts.labels, flagLabel, "l", "Service labels")
+	flags.Var(&opts.containerLabels, flagContainerLabel, "Container labels")
+	flags.VarP(&opts.env, flagEnv, "e", "Set environment variables")
+	flags.Var(&opts.mounts, flagMount, "Attach a mount to the service")
+	flags.StringSliceVar(&opts.constraints, flagConstraint, []string{}, "Placement constraints")
+	flags.StringSliceVar(&opts.networks, flagNetwork, []string{}, "Network attachments")
+	flags.VarP(&opts.endpoint.ports, flagPublish, "p", "Publish a port as a node port")
+
+	flags.SetInterspersed(false)
 	return cmd
 }
 
 func runCreate(dockerCli *client.DockerCli, opts *serviceOptions) error {
-	client := dockerCli.Client()
+	apiClient := dockerCli.Client()
+	createOpts := types.ServiceCreateOptions{}
 
 	service, err := opts.ToService()
 	if err != nil {
 		return err
 	}
 
-	response, err := client.ServiceCreate(context.Background(), service)
+	ctx := context.Background()
+
+	// only send auth if flag was set
+	if opts.registryAuth {
+		// Retrieve encoded auth token from the image reference
+		encodedAuth, err := dockerCli.RetrieveAuthTokenFromImage(ctx, opts.image)
+		if err != nil {
+			return err
+		}
+		createOpts.EncodedRegistryAuth = encodedAuth
+	}
+
+	response, err := apiClient.ServiceCreate(ctx, service, createOpts)
 	if err != nil {
 		return err
 	}

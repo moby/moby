@@ -97,7 +97,7 @@ type NetworkController interface {
 	// Sandboxes returns the list of Sandbox(s) managed by this controller.
 	Sandboxes() []Sandbox
 
-	// WlakSandboxes uses the provided function to walk the Sandbox(s) managed by this controller.
+	// WalkSandboxes uses the provided function to walk the Sandbox(s) managed by this controller.
 	WalkSandboxes(walker SandboxWalker)
 
 	// SandboxByID returns the Sandbox which has the passed id. If not found, a types.NotFoundError is returned.
@@ -144,7 +144,7 @@ type controller struct {
 	unWatchCh              chan *endpoint
 	svcRecords             map[string]svcInfo
 	nmap                   map[string]*netWatch
-	serviceBindings        map[string]*service
+	serviceBindings        map[serviceKey]*service
 	defOsSbox              osl.Sandbox
 	ingressSandbox         *sandbox
 	sboxOnce               sync.Once
@@ -167,7 +167,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		cfg:             config.ParseConfigOptions(cfgOptions...),
 		sandboxes:       sandboxTable{},
 		svcRecords:      make(map[string]svcInfo),
-		serviceBindings: make(map[string]*service),
+		serviceBindings: make(map[serviceKey]*service),
 		agentInitDone:   make(chan struct{}),
 	}
 
@@ -193,6 +193,11 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 			return nil, err
 		}
 	}
+
+	if err = initIPAMDrivers(drvRegistry, nil, c.getStore(datastore.GlobalScope)); err != nil {
+		return nil, err
+	}
+
 	c.drvRegistry = drvRegistry
 
 	if c.cfg != nil && c.cfg.Cluster.Watcher != nil {
@@ -202,6 +207,8 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 			log.Errorf("Failed to Initialize Discovery : %v", err)
 		}
 	}
+
+	c.WalkNetworks(populateSpecial)
 
 	// Reserve pools first before doing cleanup. Otherwise the
 	// cleanups of endpoint/network and sandbox below will
@@ -243,6 +250,21 @@ func (c *controller) SetKeys(keys []*types.EncryptionKey) error {
 	clusterConfigAvailable := c.clusterConfigAvailable
 	agent := c.agent
 	c.Unlock()
+
+	subsysKeys := make(map[string]int)
+	for _, key := range keys {
+		if key.Subsystem != subsysGossip &&
+			key.Subsystem != subsysIPSec {
+			return fmt.Errorf("key received for unrecognized subsystem")
+		}
+		subsysKeys[key.Subsystem]++
+	}
+	for s, count := range subsysKeys {
+		if count != keyringSize {
+			return fmt.Errorf("incorrect number of keys for susbsystem %v", s)
+		}
+	}
+
 	if len(existingKeys) == 0 {
 		c.Lock()
 		c.keys = keys
@@ -367,6 +389,10 @@ func (c *controller) ReloadConfiguration(cfgOptions ...config.Option) error {
 	if !update {
 		return nil
 	}
+
+	c.Lock()
+	c.cfg = cfg
+	c.Unlock()
 
 	var dsConfig *discoverapi.DatastoreConfigData
 	for scope, sCfg := range cfg.Scopes {
@@ -512,6 +538,8 @@ func (c *controller) Config() config.Config {
 }
 
 func (c *controller) isManager() bool {
+	c.Lock()
+	defer c.Unlock()
 	if c.cfg == nil || c.cfg.Daemon.ClusterProvider == nil {
 		return false
 	}
@@ -519,6 +547,8 @@ func (c *controller) isManager() bool {
 }
 
 func (c *controller) isAgent() bool {
+	c.Lock()
+	defer c.Unlock()
 	if c.cfg == nil || c.cfg.Daemon.ClusterProvider == nil {
 		return false
 	}
@@ -629,13 +659,18 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		return nil, err
 	}
 
-	if err = network.joinCluster(); err != nil {
-		log.Errorf("Failed to join network %s into agent cluster: %v", name, err)
-	}
-
-	network.addDriverWatches()
+	joinCluster(network)
 
 	return network, nil
+}
+
+var joinCluster NetworkWalker = func(nw Network) bool {
+	n := nw.(*network)
+	if err := n.joinCluster(); err != nil {
+		log.Errorf("Failed to join network %s (%s) into agent cluster: %v", n.Name(), n.ID(), err)
+	}
+	n.addDriverWatches()
+	return false
 }
 
 func (c *controller) reservePools() {
@@ -791,7 +826,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 			// If not a stub, then we already have a complete sandbox.
 			if !s.isStub {
 				c.Unlock()
-				return nil, types.BadRequestErrorf("container %s is already present: %v", containerID, s)
+				return nil, types.ForbiddenErrorf("container %s is already present: %v", containerID, s)
 			}
 
 			// We already have a stub sandbox from the
@@ -808,12 +843,13 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 	// Create sandbox and process options first. Key generation depends on an option
 	if sb == nil {
 		sb = &sandbox{
-			id:          stringid.GenerateRandomID(),
-			containerID: containerID,
-			endpoints:   epHeap{},
-			epPriority:  map[string]int{},
-			config:      containerConfig{},
-			controller:  c,
+			id:                 stringid.GenerateRandomID(),
+			containerID:        containerID,
+			endpoints:          epHeap{},
+			epPriority:         map[string]int{},
+			populatedEndpoints: map[string]struct{}{},
+			config:             containerConfig{},
+			controller:         c,
 		}
 	}
 	sBox = sb
@@ -825,7 +861,7 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 	c.Lock()
 	if sb.ingress && c.ingressSandbox != nil {
 		c.Unlock()
-		return nil, fmt.Errorf("ingress sandbox already present")
+		return nil, types.ForbiddenErrorf("ingress sandbox already present")
 	}
 
 	if sb.ingress {

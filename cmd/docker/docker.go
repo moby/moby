@@ -3,73 +3,77 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/client/command"
 	"github.com/docker/docker/cli"
-	"github.com/docker/docker/cli/cobraadaptor"
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/dockerversion"
-	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
-var (
-	commonFlags = cliflags.InitCommonFlags()
-	clientFlags = initClientFlags(commonFlags)
-	flHelp      = flag.Bool([]string{"h", "-help"}, false, "Print usage")
-	flVersion   = flag.Bool([]string{"v", "-version"}, false, "Print version information and quit")
-)
+func newDockerCommand(dockerCli *client.DockerCli) *cobra.Command {
+	opts := cliflags.NewClientOptions()
+	var flags *pflag.FlagSet
+
+	cmd := &cobra.Command{
+		Use:              "docker [OPTIONS] COMMAND [arg...]",
+		Short:            "A self-sufficient runtime for containers.",
+		SilenceUsage:     true,
+		SilenceErrors:    true,
+		TraverseChildren: true,
+		Args:             noArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if opts.Version {
+				showVersion()
+				return nil
+			}
+			fmt.Fprintf(dockerCli.Err(), "\n"+cmd.UsageString())
+			return nil
+		},
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			// flags must be the top-level command flags, not cmd.Flags()
+			opts.Common.SetDefaultOptions(flags)
+			dockerPreRun(opts)
+			return dockerCli.Initialize(opts)
+		},
+	}
+	cli.SetupRootCommand(cmd)
+
+	flags = cmd.Flags()
+	flags.BoolVarP(&opts.Version, "version", "v", false, "Print version information and quit")
+	flags.StringVar(&opts.ConfigDir, "config", cliconfig.ConfigDir(), "Location of client config files")
+	opts.Common.InstallFlags(flags)
+
+	cmd.SetOutput(dockerCli.Out())
+	cmd.AddCommand(newDaemonCommand())
+	command.AddCommands(cmd, dockerCli)
+
+	return cmd
+}
+
+func noArgs(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return nil
+	}
+	return fmt.Errorf(
+		"docker: '%s' is not a docker command.\nSee 'docker --help'%s", args[0], ".")
+}
 
 func main() {
 	// Set terminal emulation based on platform as required.
 	stdin, stdout, stderr := term.StdStreams()
-
 	logrus.SetOutput(stderr)
 
-	flag.Merge(flag.CommandLine, clientFlags.FlagSet, commonFlags.FlagSet)
+	dockerCli := client.NewDockerCli(stdin, stdout, stderr)
+	cmd := newDockerCommand(dockerCli)
 
-	cobraAdaptor := cobraadaptor.NewCobraAdaptor(clientFlags)
-
-	flag.Usage = func() {
-		fmt.Fprint(stdout, "Usage: docker [OPTIONS] COMMAND [arg...]\n       docker [ --help | -v | --version ]\n\n")
-		fmt.Fprint(stdout, "A self-sufficient runtime for containers.\n\nOptions:\n")
-
-		flag.CommandLine.SetOutput(stdout)
-		flag.PrintDefaults()
-
-		help := "\nCommands:\n"
-
-		dockerCommands := append(cli.DockerCommandUsage, cobraAdaptor.Usage()...)
-		for _, cmd := range sortCommands(dockerCommands) {
-			help += fmt.Sprintf("    %-10.10s%s\n", cmd.Name, cmd.Description)
-		}
-
-		help += "\nRun 'docker COMMAND --help' for more information on a command."
-		fmt.Fprintf(stdout, "%s\n", help)
-	}
-
-	flag.Parse()
-
-	if *flVersion {
-		showVersion()
-		return
-	}
-
-	if *flHelp {
-		// if global flag --help is present, regardless of what other options and commands there are,
-		// just print the usage.
-		flag.Usage()
-		return
-	}
-
-	clientCli := client.NewDockerCli(stdin, stdout, stderr, clientFlags)
-
-	c := cli.New(clientCli, NewDaemonProxy(), cobraAdaptor)
-	if err := c.Run(flag.Args()...); err != nil {
+	if err := cmd.Execute(); err != nil {
 		if sterr, ok := err.(cli.StatusError); ok {
 			if sterr.Status != "" {
 				fmt.Fprintln(stderr, sterr.Status)
@@ -94,25 +98,14 @@ func showVersion() {
 	}
 }
 
-func initClientFlags(commonFlags *cliflags.CommonFlags) *cliflags.ClientFlags {
-	clientFlags := &cliflags.ClientFlags{FlagSet: new(flag.FlagSet), Common: commonFlags}
-	client := clientFlags.FlagSet
-	client.StringVar(&clientFlags.ConfigDir, []string{"-config"}, cliconfig.ConfigDir(), "Location of client config files")
+func dockerPreRun(opts *cliflags.ClientOptions) {
+	cliflags.SetDaemonLogLevel(opts.Common.LogLevel)
 
-	clientFlags.PostParse = func() {
-		clientFlags.Common.PostParse()
-
-		if clientFlags.ConfigDir != "" {
-			cliconfig.SetConfigDir(clientFlags.ConfigDir)
-		}
-
-		if clientFlags.Common.TrustKey == "" {
-			clientFlags.Common.TrustKey = filepath.Join(cliconfig.ConfigDir(), cliflags.DefaultTrustKeyFile)
-		}
-
-		if clientFlags.Common.Debug {
-			utils.EnableDebug()
-		}
+	if opts.ConfigDir != "" {
+		cliconfig.SetConfigDir(opts.ConfigDir)
 	}
-	return clientFlags
+
+	if opts.Common.Debug {
+		utils.EnableDebug()
+	}
 }

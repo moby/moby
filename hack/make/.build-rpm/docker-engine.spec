@@ -86,7 +86,7 @@ Requires: device-mapper >= 1.02.90-2
 # RE: rhbz#1195804 - ensure min NVR for selinux-policy
 %if 0%{?with_selinux}
 Requires: selinux-policy >= %{selinux_policyver}
-Requires(pre): %{name}-selinux >= %{epoch}:%{version}-%{release}
+Requires(pre): %{name}-selinux >= %{version}-%{release}
 %endif # with_selinux
 
 # conflicting packages
@@ -126,6 +126,7 @@ export DOCKER_GITCOMMIT=%{_gitcommit}
 install -d $RPM_BUILD_ROOT/%{_bindir}
 install -p -m 755 bundles/%{_origversion}/dynbinary-client/docker-%{_origversion} $RPM_BUILD_ROOT/%{_bindir}/docker
 install -p -m 755 bundles/%{_origversion}/dynbinary-daemon/dockerd-%{_origversion} $RPM_BUILD_ROOT/%{_bindir}/dockerd
+install -p -m 755 bundles/%{_origversion}/dynbinary-daemon/docker-proxy-%{_origversion} $RPM_BUILD_ROOT/%{_bindir}/docker-proxy
 
 # install containerd
 install -p -m 755 /usr/local/bin/containerd $RPM_BUILD_ROOT/%{_bindir}/docker-containerd
@@ -146,8 +147,7 @@ install -d $RPM_BUILD_ROOT/%{_initddir}
 
 %if 0%{?is_systemd}
 install -d $RPM_BUILD_ROOT/%{_unitdir}
-install -p -m 644 contrib/init/systemd/docker.service $RPM_BUILD_ROOT/%{_unitdir}/docker.service
-install -p -m 644 contrib/init/systemd/docker.socket $RPM_BUILD_ROOT/%{_unitdir}/docker.socket
+install -p -m 644 contrib/init/systemd/docker.service.rpm $RPM_BUILD_ROOT/%{_unitdir}/docker.service
 %else
 install -p -m 644 contrib/init/sysvinit-redhat/docker.sysconfig $RPM_BUILD_ROOT/etc/sysconfig/docker
 install -p -m 755 contrib/init/sysvinit-redhat/docker $RPM_BUILD_ROOT/%{_initddir}/docker
@@ -188,11 +188,11 @@ install -p -m 644 contrib/syntax/nano/Dockerfile.nanorc $RPM_BUILD_ROOT/usr/shar
 /%{_bindir}/docker-containerd
 /%{_bindir}/docker-containerd-shim
 /%{_bindir}/docker-containerd-ctr
+/%{_bindir}/docker-proxy
 /%{_bindir}/docker-runc
 /%{_sysconfdir}/udev/rules.d/80-docker.rules
 %if 0%{?is_systemd}
 /%{_unitdir}/docker.service
-/%{_unitdir}/docker.socket
 %else
 %config(noreplace,missingok) /etc/sysconfig/docker
 /%{_initddir}/docker

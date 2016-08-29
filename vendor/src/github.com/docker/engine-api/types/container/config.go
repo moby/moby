@@ -36,7 +36,7 @@ type HealthConfig struct {
 type Config struct {
 	Hostname        string                // Hostname
 	Domainname      string                // Domainname
-	User            string                // User that will run the command(s) inside the container
+	User            string                // User that will run the command(s) inside the container, also support user:group
 	AttachStdin     bool                  // Attach the standard input, makes possible user interaction
 	AttachStdout    bool                  // Attach the standard output
 	AttachStderr    bool                  // Attach the standard error

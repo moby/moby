@@ -5,6 +5,7 @@ description = "How to manage data with external volume plugins"
 keywords = ["Examples, Usage, volume, docker, data, volumes, plugin, api"]
 [menu.main]
 parent = "engine_extend"
+weight=6
 +++
 <![end-metadata]-->
 
@@ -126,7 +127,7 @@ name. This is called once per container start. If the same volume_name is reques
 more than once, the plugin may need to keep track of each new mount request and provision
 at the first mount request and deprovision at the last corresponding unmount request.
 
-`ID` is a unqiue ID for the caller that is requesting the mount.
+`ID` is a unique ID for the caller that is requesting the mount.
 
 **Response**:
 ```json
@@ -176,7 +177,7 @@ Indication that Docker no longer is using the named volume. This is called once
 per container stop.  Plugin may deduce that it is safe to deprovision it at
 this point.
 
-`ID` is a unqiue ID for the caller that is requesting the mount.
+`ID` is a unique ID for the caller that is requesting the mount.
 
 **Response**:
 ```json

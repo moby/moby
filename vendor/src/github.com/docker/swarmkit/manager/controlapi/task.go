@@ -1,6 +1,8 @@
 package controlapi
 
 import (
+	"fmt"
+
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
@@ -79,6 +81,8 @@ func (s *Server) ListTasks(ctx context.Context, request *api.ListTasksRequest) (
 		switch {
 		case request.Filters != nil && len(request.Filters.Names) > 0:
 			tasks, err = store.FindTasks(tx, buildFilters(store.ByName, request.Filters.Names))
+		case request.Filters != nil && len(request.Filters.NamePrefixes) > 0:
+			tasks, err = store.FindTasks(tx, buildFilters(store.ByNamePrefix, request.Filters.NamePrefixes))
 		case request.Filters != nil && len(request.Filters.IDPrefixes) > 0:
 			tasks, err = store.FindTasks(tx, buildFilters(store.ByIDPrefix, request.Filters.IDPrefixes))
 		case request.Filters != nil && len(request.Filters.ServiceIDs) > 0:
@@ -102,7 +106,22 @@ func (s *Server) ListTasks(ctx context.Context, request *api.ListTasksRequest) (
 	if request.Filters != nil {
 		tasks = filterTasks(tasks,
 			func(e *api.Task) bool {
-				return filterContains(e.ServiceAnnotations.Name, request.Filters.Names)
+				name := e.Annotations.Name
+				if name == "" {
+					// If Task name is not assigned then calculated name is used like before.
+					// This might be removed in the future.
+					name = fmt.Sprintf("%v.%v.%v", e.ServiceAnnotations.Name, e.Slot, e.ID)
+				}
+				return filterContains(name, request.Filters.Names)
+			},
+			func(e *api.Task) bool {
+				name := e.Annotations.Name
+				if name == "" {
+					// If Task name is not assigned then calculated name is used like before
+					// This might be removed in the future.
+					name = fmt.Sprintf("%v.%v.%v", e.ServiceAnnotations.Name, e.Slot, e.ID)
+				}
+				return filterContainsPrefix(name, request.Filters.NamePrefixes)
 			},
 			func(e *api.Task) bool {
 				return filterContainsPrefix(e.ID, request.Filters.IDPrefixes)

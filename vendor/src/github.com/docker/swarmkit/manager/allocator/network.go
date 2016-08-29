@@ -23,28 +23,31 @@ const (
 	ingressSubnet      = "10.255.0.0/16"
 )
 
-var ingressNetwork = &api.Network{
-	Spec: api.NetworkSpec{
-		Annotations: api.Annotations{
-			Name: ingressNetworkName,
-			Labels: map[string]string{
-				"com.docker.swarm.internal": "true",
+func newIngressNetwork() *api.Network {
+	return &api.Network{
+		Spec: api.NetworkSpec{
+			Annotations: api.Annotations{
+				Name: ingressNetworkName,
+				Labels: map[string]string{
+					"com.docker.swarm.internal": "true",
+				},
 			},
-		},
-		DriverConfig: &api.Driver{},
-		IPAM: &api.IPAMOptions{
-			Driver: &api.Driver{},
-			Configs: []*api.IPAMConfig{
-				{
-					Subnet: ingressSubnet,
+			DriverConfig: &api.Driver{},
+			IPAM: &api.IPAMOptions{
+				Driver: &api.Driver{},
+				Configs: []*api.IPAMConfig{
+					{
+						Subnet: ingressSubnet,
+					},
 				},
 			},
 		},
-	},
+	}
 }
 
 // Network context information which is used throughout the network allocation code.
 type networkContext struct {
+	ingressNetwork *api.Network
 	// Instance of the low-level network allocator which performs
 	// the actual network allocation.
 	nwkAllocator *networkallocator.NetworkAllocator
@@ -52,6 +55,16 @@ type networkContext struct {
 	// A table of unallocated tasks which will be revisited if any thing
 	// changes in system state that might help task allocation.
 	unallocatedTasks map[string]*api.Task
+
+	// A table of unallocated services which will be revisited if
+	// any thing changes in system state that might help service
+	// allocation.
+	unallocatedServices map[string]*api.Service
+
+	// A table of unallocated networks which will be revisited if
+	// any thing changes in system state that might help network
+	// allocation.
+	unallocatedNetworks map[string]*api.Network
 }
 
 func (a *Allocator) doNetworkInit(ctx context.Context) error {
@@ -61,8 +74,11 @@ func (a *Allocator) doNetworkInit(ctx context.Context) error {
 	}
 
 	nc := &networkContext{
-		nwkAllocator:     na,
-		unallocatedTasks: make(map[string]*api.Task),
+		nwkAllocator:        na,
+		unallocatedTasks:    make(map[string]*api.Task),
+		unallocatedServices: make(map[string]*api.Service),
+		unallocatedNetworks: make(map[string]*api.Network),
+		ingressNetwork:      newIngressNetwork(),
 	}
 
 	// Check if we have the ingress network. If not found create
@@ -71,7 +87,7 @@ func (a *Allocator) doNetworkInit(ctx context.Context) error {
 	a.store.View(func(tx store.ReadTx) {
 		networks, err = store.FindNetworks(tx, store.ByName(ingressNetworkName))
 		if len(networks) > 0 {
-			ingressNetwork = networks[0]
+			nc.ingressNetwork = networks[0]
 		}
 	})
 	if err != nil {
@@ -82,8 +98,8 @@ func (a *Allocator) doNetworkInit(ctx context.Context) error {
 	// using the predefined template.
 	if len(networks) == 0 {
 		if err := a.store.Update(func(tx store.Tx) error {
-			ingressNetwork.ID = identity.NewID()
-			if err := store.CreateNetwork(tx, ingressNetwork); err != nil {
+			nc.ingressNetwork.ID = identity.NewID()
+			if err := store.CreateNetwork(tx, nc.ingressNetwork); err != nil {
 				return err
 			}
 
@@ -95,7 +111,7 @@ func (a *Allocator) doNetworkInit(ctx context.Context) error {
 		a.store.View(func(tx store.ReadTx) {
 			networks, err = store.FindNetworks(tx, store.ByName(ingressNetworkName))
 			if len(networks) > 0 {
-				ingressNetwork = networks[0]
+				nc.ingressNetwork = networks[0]
 			}
 		})
 		if err != nil {
@@ -107,14 +123,14 @@ func (a *Allocator) doNetworkInit(ctx context.Context) error {
 	// Try to complete ingress network allocation before anything else so
 	// that the we can get the preferred subnet for ingress
 	// network.
-	if !na.IsAllocated(ingressNetwork) {
-		if err := a.allocateNetwork(ctx, nc, ingressNetwork); err != nil {
+	if !na.IsAllocated(nc.ingressNetwork) {
+		if err := a.allocateNetwork(ctx, nc, nc.ingressNetwork); err != nil {
 			log.G(ctx).Errorf("failed allocating ingress network during init: %v", err)
 		}
 
 		// Update store after allocation
 		if err := a.store.Update(func(tx store.Tx) error {
-			if err := store.UpdateNetwork(tx, ingressNetwork); err != nil {
+			if err := store.UpdateNetwork(tx, nc.ingressNetwork); err != nil {
 				return err
 			}
 
@@ -161,7 +177,7 @@ func (a *Allocator) doNetworkInit(ctx context.Context) error {
 			node.Attachment = &api.NetworkAttachment{}
 		}
 
-		node.Attachment.Network = ingressNetwork.Copy()
+		node.Attachment.Network = nc.ingressNetwork.Copy()
 		if err := a.allocateNode(ctx, nc, node); err != nil {
 			log.G(ctx).Errorf("Failed to allocate network resources for node %s during init: %v", node.ID, err)
 		}
@@ -177,11 +193,7 @@ func (a *Allocator) doNetworkInit(ctx context.Context) error {
 	}
 
 	for _, s := range services {
-		if s.Spec.Endpoint == nil {
-			continue
-		}
-
-		if na.IsServiceAllocated(s) {
+		if nc.nwkAllocator.IsServiceAllocated(s) {
 			continue
 		}
 
@@ -292,7 +304,7 @@ func (a *Allocator) doNetworkAlloc(ctx context.Context, ev events.Event) {
 	case state.EventCreateService:
 		s := v.Service.Copy()
 
-		if !serviceAllocationNeeded(s, nc) {
+		if nc.nwkAllocator.IsServiceAllocated(s) {
 			break
 		}
 
@@ -303,7 +315,7 @@ func (a *Allocator) doNetworkAlloc(ctx context.Context, ev events.Event) {
 	case state.EventUpdateService:
 		s := v.Service.Copy()
 
-		if !serviceAllocationNeeded(s, nc) {
+		if nc.nwkAllocator.IsServiceAllocated(s) {
 			break
 		}
 
@@ -314,18 +326,20 @@ func (a *Allocator) doNetworkAlloc(ctx context.Context, ev events.Event) {
 	case state.EventDeleteService:
 		s := v.Service.Copy()
 
-		if serviceAllocationNeeded(s, nc) {
-			break
-		}
-
 		if err := nc.nwkAllocator.ServiceDeallocate(s); err != nil {
 			log.G(ctx).Errorf("Failed deallocation during delete of service %s: %v", s.ID, err)
 		}
+
+		// Remove it from unallocatedServices just in case
+		// it's still there.
+		delete(nc.unallocatedServices, s.ID)
 	case state.EventCreateNode, state.EventUpdateNode, state.EventDeleteNode:
 		a.doNodeAlloc(ctx, nc, ev)
 	case state.EventCreateTask, state.EventUpdateTask, state.EventDeleteTask:
 		a.doTaskAlloc(ctx, nc, ev)
 	case state.EventCommit:
+		a.procUnallocatedNetworks(ctx, nc)
+		a.procUnallocatedServices(ctx, nc)
 		a.procUnallocatedTasksNetwork(ctx, nc)
 		return
 	}
@@ -361,28 +375,11 @@ func (a *Allocator) doNodeAlloc(ctx context.Context, nc *networkContext, ev even
 			node.Attachment = &api.NetworkAttachment{}
 		}
 
-		node.Attachment.Network = ingressNetwork.Copy()
+		node.Attachment.Network = nc.ingressNetwork.Copy()
 		if err := a.allocateNode(ctx, nc, node); err != nil {
-			log.G(ctx).Errorf("Fauled to allocate network resources for node %s: %v", node.ID, err)
+			log.G(ctx).Errorf("Failed to allocate network resources for node %s: %v", node.ID, err)
 		}
 	}
-}
-
-// serviceAllocationNeeded returns if a service needs allocation or not.
-func serviceAllocationNeeded(s *api.Service, nc *networkContext) bool {
-	// Service needs allocation if:
-	// Spec has network attachments and endpoint resolution mode is VIP OR
-	// Spec has non-zero number of exposed ports and ingress routing is SwarmPort
-	if (len(s.Spec.Networks) != 0 &&
-		(s.Spec.Endpoint == nil ||
-			(s.Spec.Endpoint != nil &&
-				s.Spec.Endpoint.Mode == api.ResolutionModeVirtualIP))) ||
-		(s.Spec.Endpoint != nil &&
-			len(s.Spec.Endpoint.Ports) != 0) {
-		return !nc.nwkAllocator.IsServiceAllocated(s)
-	}
-
-	return false
 }
 
 // taskRunning checks whether a task is either actively running, or in the
@@ -406,7 +403,7 @@ func taskReadyForNetworkVote(t *api.Task, s *api.Service, nc *networkContext) bo
 	// network configured or service endpoints have been
 	// allocated.
 	return (len(t.Networks) == 0 || nc.nwkAllocator.IsTaskAllocated(t)) &&
-		(s == nil || !serviceAllocationNeeded(s, nc))
+		(s == nil || nc.nwkAllocator.IsServiceAllocated(s))
 }
 
 func taskUpdateNetworks(t *api.Task, networks []*api.NetworkAttachment) {
@@ -435,14 +432,18 @@ func (a *Allocator) taskCreateNetworkAttachments(t *api.Task, s *api.Service) {
 	// ports to the external world. Automatically attach the task
 	// to the ingress network.
 	if s.Spec.Endpoint != nil && len(s.Spec.Endpoint.Ports) != 0 {
-		networks = append(networks, &api.NetworkAttachment{Network: ingressNetwork})
+		networks = append(networks, &api.NetworkAttachment{Network: a.netCtx.ingressNetwork})
 	}
 
 	a.store.View(func(tx store.ReadTx) {
 		for _, na := range s.Spec.Networks {
 			n := store.GetNetwork(tx, na.Target)
 			if n != nil {
-				networks = append(networks, &api.NetworkAttachment{Network: n})
+				var aliases []string
+				for _, a := range na.Aliases {
+					aliases = append(aliases, a)
+				}
+				networks = append(networks, &api.NetworkAttachment{Network: n, Aliases: aliases})
 			}
 		}
 	})
@@ -550,30 +551,51 @@ func (a *Allocator) allocateNode(ctx context.Context, nc *networkContext, node *
 }
 
 func (a *Allocator) allocateService(ctx context.Context, nc *networkContext, s *api.Service) error {
-	// The service is trying to expose ports to the external
-	// world. Automatically attach the service to the ingress
-	// network only if it is not already done.
-	if s.Spec.Endpoint != nil && len(s.Spec.Endpoint.Ports) != 0 {
+	if s.Spec.Endpoint != nil {
 		if s.Endpoint == nil {
-			s.Endpoint = &api.Endpoint{}
-		}
-
-		var found bool
-		for _, vip := range s.Endpoint.VirtualIPs {
-			if vip.NetworkID == ingressNetwork.ID {
-				found = true
-				break
+			s.Endpoint = &api.Endpoint{
+				Spec: s.Spec.Endpoint.Copy(),
 			}
 		}
 
-		if !found {
-			s.Endpoint.VirtualIPs = append(s.Endpoint.VirtualIPs,
-				&api.Endpoint_VirtualIP{NetworkID: ingressNetwork.ID})
+		// The service is trying to expose ports to the external
+		// world. Automatically attach the service to the ingress
+		// network only if it is not already done.
+		if len(s.Spec.Endpoint.Ports) != 0 {
+			var found bool
+			for _, vip := range s.Endpoint.VirtualIPs {
+				if vip.NetworkID == nc.ingressNetwork.ID {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				s.Endpoint.VirtualIPs = append(s.Endpoint.VirtualIPs,
+					&api.Endpoint_VirtualIP{NetworkID: nc.ingressNetwork.ID})
+			}
 		}
 	}
 
 	if err := nc.nwkAllocator.ServiceAllocate(s); err != nil {
+		nc.unallocatedServices[s.ID] = s
 		return err
+	}
+
+	// If the service doesn't expose ports any more and if we have
+	// any lingering virtual IP references for ingress network
+	// clean them up here.
+	if s.Spec.Endpoint == nil || len(s.Spec.Endpoint.Ports) == 0 {
+		if s.Endpoint != nil {
+			for i, vip := range s.Endpoint.VirtualIPs {
+				if vip.NetworkID == nc.ingressNetwork.ID {
+					n := len(s.Endpoint.VirtualIPs)
+					s.Endpoint.VirtualIPs[i], s.Endpoint.VirtualIPs[n-1] = s.Endpoint.VirtualIPs[n-1], nil
+					s.Endpoint.VirtualIPs = s.Endpoint.VirtualIPs[:n-1]
+					break
+				}
+			}
+		}
 	}
 
 	if err := a.store.Update(func(tx store.Tx) error {
@@ -607,6 +629,7 @@ func (a *Allocator) allocateService(ctx context.Context, nc *networkContext, s *
 
 func (a *Allocator) allocateNetwork(ctx context.Context, nc *networkContext, n *api.Network) error {
 	if err := nc.nwkAllocator.Allocate(n); err != nil {
+		nc.unallocatedNetworks[n.ID] = n
 		return fmt.Errorf("failed during network allocation for network %s: %v", n.ID, err)
 	}
 
@@ -646,7 +669,7 @@ func (a *Allocator) allocateTask(ctx context.Context, nc *networkContext, tx sto
 				return nil, fmt.Errorf("could not find service %s", t.ServiceID)
 			}
 
-			if serviceAllocationNeeded(s, nc) {
+			if !nc.nwkAllocator.IsServiceAllocated(s) {
 				return nil, fmt.Errorf("service %s to which this task %s belongs has pending allocations", s.ID, t.ID)
 			}
 
@@ -662,6 +685,8 @@ func (a *Allocator) allocateTask(ctx context.Context, nc *networkContext, tx sto
 			if !nc.nwkAllocator.IsAllocated(n) {
 				return nil, fmt.Errorf("network %s attached to task %s not allocated yet", n.ID, t.ID)
 			}
+
+			na.Network = n
 		}
 
 		if err := nc.nwkAllocator.AllocateTask(t); err != nil {
@@ -690,6 +715,32 @@ func (a *Allocator) allocateTask(ctx context.Context, nc *networkContext, tx sto
 	}
 
 	return storeT, nil
+}
+
+func (a *Allocator) procUnallocatedNetworks(ctx context.Context, nc *networkContext) {
+	for _, n := range nc.unallocatedNetworks {
+		if !nc.nwkAllocator.IsAllocated(n) {
+			if err := a.allocateNetwork(ctx, nc, n); err != nil {
+				log.G(ctx).Debugf("Failed allocation of unallocated network %s: %v", n.ID, err)
+				continue
+			}
+		}
+
+		delete(nc.unallocatedNetworks, n.ID)
+	}
+}
+
+func (a *Allocator) procUnallocatedServices(ctx context.Context, nc *networkContext) {
+	for _, s := range nc.unallocatedServices {
+		if !nc.nwkAllocator.IsServiceAllocated(s) {
+			if err := a.allocateService(ctx, nc, s); err != nil {
+				log.G(ctx).Debugf("Failed allocation of unallocated service %s: %v", s.ID, err)
+				continue
+			}
+		}
+
+		delete(nc.unallocatedServices, s.ID)
+	}
 }
 
 func (a *Allocator) procUnallocatedTasksNetwork(ctx context.Context, nc *networkContext) {

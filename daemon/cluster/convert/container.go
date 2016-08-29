@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	mounttypes "github.com/docker/engine-api/types/mount"
 	types "github.com/docker/engine-api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/protobuf/ptypes"
@@ -22,26 +23,26 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 
 	// Mounts
 	for _, m := range c.Mounts {
-		mount := types.Mount{
+		mount := mounttypes.Mount{
 			Target:   m.Target,
 			Source:   m.Source,
-			Type:     types.MountType(strings.ToLower(swarmapi.Mount_MountType_name[int32(m.Type)])),
-			Writable: m.Writable,
+			Type:     mounttypes.Type(strings.ToLower(swarmapi.Mount_MountType_name[int32(m.Type)])),
+			ReadOnly: m.ReadOnly,
 		}
 
 		if m.BindOptions != nil {
-			mount.BindOptions = &types.BindOptions{
-				Propagation: types.MountPropagation(strings.ToLower(swarmapi.Mount_BindOptions_MountPropagation_name[int32(m.BindOptions.Propagation)])),
+			mount.BindOptions = &mounttypes.BindOptions{
+				Propagation: mounttypes.Propagation(strings.ToLower(swarmapi.Mount_BindOptions_MountPropagation_name[int32(m.BindOptions.Propagation)])),
 			}
 		}
 
 		if m.VolumeOptions != nil {
-			mount.VolumeOptions = &types.VolumeOptions{
-				Populate: m.VolumeOptions.Populate,
-				Labels:   m.VolumeOptions.Labels,
+			mount.VolumeOptions = &mounttypes.VolumeOptions{
+				NoCopy: m.VolumeOptions.NoCopy,
+				Labels: m.VolumeOptions.Labels,
 			}
 			if m.VolumeOptions.DriverConfig != nil {
-				mount.VolumeOptions.DriverConfig = &types.Driver{
+				mount.VolumeOptions.DriverConfig = &mounttypes.Driver{
 					Name:    m.VolumeOptions.DriverConfig.Name,
 					Options: m.VolumeOptions.DriverConfig.Options,
 				}
@@ -77,7 +78,7 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		mount := swarmapi.Mount{
 			Target:   m.Target,
 			Source:   m.Source,
-			Writable: m.Writable,
+			ReadOnly: m.ReadOnly,
 		}
 
 		if mountType, ok := swarmapi.Mount_MountType_value[strings.ToUpper(string(m.Type))]; ok {
@@ -98,8 +99,8 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 
 		if m.VolumeOptions != nil {
 			mount.VolumeOptions = &swarmapi.Mount_VolumeOptions{
-				Populate: m.VolumeOptions.Populate,
-				Labels:   m.VolumeOptions.Labels,
+				NoCopy: m.VolumeOptions.NoCopy,
+				Labels: m.VolumeOptions.Labels,
 			}
 			if m.VolumeOptions.DriverConfig != nil {
 				mount.VolumeOptions.DriverConfig = &swarmapi.Driver{

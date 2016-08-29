@@ -73,10 +73,10 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 
 	// Inspect the options
 	out, _ = dockerCmd(c, "inspect",
-		"--format='timeout={{.Config.Healthcheck.Timeout}} "+
+		"--format=timeout={{.Config.Healthcheck.Timeout}} "+
 			"interval={{.Config.Healthcheck.Interval}} "+
 			"retries={{.Config.Healthcheck.Retries}} "+
-			"test={{.Config.Healthcheck.Test}}'", name)
+			"test={{.Config.Healthcheck.Test}}", name)
 	c.Check(out, checker.Equals, "timeout=30s interval=1s retries=0 test=[CMD-SHELL cat /status]\n")
 
 	// Start
@@ -127,12 +127,10 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 	c.Check(last.ExitCode, checker.Equals, 0)
 	c.Check(last.Output, checker.Equals, "OK\n")
 
-	// Fail the check, which should now make it exit
+	// Fail the check
 	dockerCmd(c, "exec", "fatal_healthcheck", "rm", "/status")
-	waitForStatus(c, "fatal_healthcheck", "running", "exited")
+	waitForHealthStatus(c, "fatal_healthcheck", "healthy", "unhealthy")
 
-	out, _ = dockerCmd(c, "inspect", "--format={{.State.Health.Status}}", "fatal_healthcheck")
-	c.Check(out, checker.Equals, "unhealthy\n")
 	failsStr, _ := dockerCmd(c, "inspect", "--format={{.State.Health.FailingStreak}}", "fatal_healthcheck")
 	fails, err := strconv.Atoi(strings.TrimSpace(failsStr))
 	c.Check(err, check.IsNil)

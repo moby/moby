@@ -10,12 +10,15 @@ parent = "smn_cli"
 
 # push
 
-    Usage: docker push [OPTIONS] NAME[:TAG]
+```markdown
+Usage:  docker push [OPTIONS] NAME[:TAG]
 
-    Push an image or a repository to the registry
+Push an image or a repository to a registry
 
-      --disable-content-trust=true   Skip image signing
-      --help                         Print usage
+Options:
+      --disable-content-trust   Skip image verification (default true)
+      --help                    Print usage
+```
 
 Use `docker push` to share your images to the [Docker Hub](https://hub.docker.com)
 registry or to a self-hosted one.

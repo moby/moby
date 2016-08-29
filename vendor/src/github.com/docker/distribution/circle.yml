@@ -49,9 +49,10 @@ test:
     # - gvm use old && go version
     - gvm use stable && go version
 
+  # todo(richard): replace with a more robust vendoring solution. Removed due to a fundamental disagreement in godep philosophies.
   # Ensure validation of dependencies
-    - gvm use stable && if test -n "`git diff --stat=1000 master | grep -Ei \"vendor|godeps\"`"; then make dep-validate; fi:
-        pwd: $BASE_STABLE
+  #    - gvm use stable && if test -n "`git diff --stat=1000 master | grep -Ei \"vendor|godeps\"`"; then make dep-validate; fi:
+  #      pwd: $BASE_STABLE
 
   # First thing: build everything. This will catch compile errors, and it's
   # also necessary for go vet to work properly (see #807).
@@ -73,7 +74,7 @@ test:
   override:
   # Test stable, and report
      - gvm use stable; export ROOT_PACKAGE=$(go list .); go list -tags "$DOCKER_BUILDTAGS" ./... | grep -v "/vendor/" | xargs -L 1 -I{} bash -c 'export PACKAGE={}; godep go test -tags "$DOCKER_BUILDTAGS" -test.short -coverprofile=$GOPATH/src/$PACKAGE/coverage.out -coverpkg=$(./coverpkg.sh $PACKAGE $ROOT_PACKAGE) $PACKAGE':
-         timeout: 600
+         timeout: 1000
          pwd: $BASE_STABLE
 
   post:

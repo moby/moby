@@ -1,10 +1,12 @@
 package node
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/spf13/cobra"
@@ -12,89 +14,108 @@ import (
 	"golang.org/x/net/context"
 )
 
+var (
+	errNoRoleChange = errors.New("role was already set to the requested value")
+)
+
 func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
-	var opts nodeOptions
-	var flags *pflag.FlagSet
+	nodeOpts := newNodeOptions()
 
 	cmd := &cobra.Command{
 		Use:   "update [OPTIONS] NODE",
 		Short: "Update a node",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runUpdate(dockerCli, args[0], mergeNodeUpdate(flags))
+			return runUpdate(dockerCli, cmd.Flags(), args[0])
 		},
 	}
 
-	flags = cmd.Flags()
-	flags.StringVar(&opts.role, "role", "", "Role of the node (worker/manager)")
-	flags.StringVar(&opts.membership, "membership", "", "Membership of the node (accepted/rejected)")
-	flags.StringVar(&opts.availability, "availability", "", "Availability of the node (active/pause/drain)")
+	flags := cmd.Flags()
+	flags.StringVar(&nodeOpts.role, flagRole, "", "Role of the node (worker/manager)")
+	flags.StringVar(&nodeOpts.availability, flagAvailability, "", "Availability of the node (active/pause/drain)")
+	flags.Var(&nodeOpts.annotations.labels, flagLabelAdd, "Add or update a node label (key=value)")
+	labelKeys := opts.NewListOpts(nil)
+	flags.Var(&labelKeys, flagLabelRemove, "Remove a node label if exists")
 	return cmd
 }
 
-func runUpdate(dockerCli *client.DockerCli, nodeID string, mergeNode func(node *swarm.Node)) error {
+func runUpdate(dockerCli *client.DockerCli, flags *pflag.FlagSet, nodeID string) error {
+	success := func(_ string) {
+		fmt.Fprintln(dockerCli.Out(), nodeID)
+	}
+	return updateNodes(dockerCli, []string{nodeID}, mergeNodeUpdate(flags), success)
+}
+
+func updateNodes(dockerCli *client.DockerCli, nodes []string, mergeNode func(node *swarm.Node) error, success func(nodeID string)) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
-	node, err := client.NodeInspect(ctx, nodeID)
-	if err != nil {
-		return err
-	}
+	for _, nodeID := range nodes {
+		node, _, err := client.NodeInspectWithRaw(ctx, nodeID)
+		if err != nil {
+			return err
+		}
 
-	mergeNode(&node)
-	err = client.NodeUpdate(ctx, node.ID, node.Version, node.Spec)
-	if err != nil {
-		return err
+		err = mergeNode(&node)
+		if err != nil {
+			if err == errNoRoleChange {
+				continue
+			}
+			return err
+		}
+		err = client.NodeUpdate(ctx, node.ID, node.Version, node.Spec)
+		if err != nil {
+			return err
+		}
+		success(nodeID)
 	}
-
-	fmt.Fprintf(dockerCli.Out(), "%s\n", nodeID)
 	return nil
 }
 
-func mergeNodeUpdate(flags *pflag.FlagSet) func(*swarm.Node) {
-	return func(node *swarm.Node) {
-		mergeString := func(flag string, field *string) {
-			if flags.Changed(flag) {
-				*field, _ = flags.GetString(flag)
-			}
-		}
-
-		mergeRole := func(flag string, field *swarm.NodeRole) {
-			if flags.Changed(flag) {
-				str, _ := flags.GetString(flag)
-				*field = swarm.NodeRole(str)
-			}
-		}
-
-		mergeMembership := func(flag string, field *swarm.NodeMembership) {
-			if flags.Changed(flag) {
-				str, _ := flags.GetString(flag)
-				*field = swarm.NodeMembership(str)
-			}
-		}
-
-		mergeAvailability := func(flag string, field *swarm.NodeAvailability) {
-			if flags.Changed(flag) {
-				str, _ := flags.GetString(flag)
-				*field = swarm.NodeAvailability(str)
-			}
-		}
-
-		mergeLabels := func(flag string, field *map[string]string) {
-			if flags.Changed(flag) {
-				values, _ := flags.GetStringSlice(flag)
-				for key, value := range runconfigopts.ConvertKVStringsToMap(values) {
-					(*field)[key] = value
-				}
-			}
-		}
-
+func mergeNodeUpdate(flags *pflag.FlagSet) func(*swarm.Node) error {
+	return func(node *swarm.Node) error {
 		spec := &node.Spec
-		mergeString("name", &spec.Name)
-		// TODO: setting labels is not working
-		mergeLabels("label", &spec.Labels)
-		mergeRole("role", &spec.Role)
-		mergeMembership("membership", &spec.Membership)
-		mergeAvailability("availability", &spec.Availability)
+
+		if flags.Changed(flagRole) {
+			str, err := flags.GetString(flagRole)
+			if err != nil {
+				return err
+			}
+			spec.Role = swarm.NodeRole(str)
+		}
+		if flags.Changed(flagAvailability) {
+			str, err := flags.GetString(flagAvailability)
+			if err != nil {
+				return err
+			}
+			spec.Availability = swarm.NodeAvailability(str)
+		}
+		if spec.Annotations.Labels == nil {
+			spec.Annotations.Labels = make(map[string]string)
+		}
+		if flags.Changed(flagLabelAdd) {
+			labels := flags.Lookup(flagLabelAdd).Value.(*opts.ListOpts).GetAll()
+			for k, v := range runconfigopts.ConvertKVStringsToMap(labels) {
+				spec.Annotations.Labels[k] = v
+			}
+		}
+		if flags.Changed(flagLabelRemove) {
+			keys := flags.Lookup(flagLabelRemove).Value.(*opts.ListOpts).GetAll()
+			for _, k := range keys {
+				// if a key doesn't exist, fail the command explicitly
+				if _, exists := spec.Annotations.Labels[k]; !exists {
+					return fmt.Errorf("key %s doesn't exist in node's labels", k)
+				}
+				delete(spec.Annotations.Labels, k)
+			}
+		}
+		return nil
 	}
 }
+
+const (
+	flagRole         = "role"
+	flagAvailability = "availability"
+	flagLabelAdd     = "label-add"
+	flagLabelRemove  = "label-rm"
+)

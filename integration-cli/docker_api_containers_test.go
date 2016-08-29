@@ -215,28 +215,20 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
 
 	buf := &integration.ChannelBuffer{make(chan []byte, 1)}
 	defer buf.Close()
+
+	_, body, err := sockRequestRaw("GET", "/containers/"+id+"/stats?stream=1", nil, "application/json")
+	c.Assert(err, checker.IsNil)
+	defer body.Close()
+
 	chErr := make(chan error, 1)
 	go func() {
-		_, body, err := sockRequestRaw("GET", "/containers/"+id+"/stats?stream=1", nil, "application/json")
-		if err != nil {
-			chErr <- err
-		}
-		defer body.Close()
 		_, err = io.Copy(buf, body)
 		chErr <- err
-	}()
-	defer func() {
-		select {
-		case err := <-chErr:
-			c.Assert(err, checker.IsNil)
-		default:
-			return
-		}
 	}()
 
 	b := make([]byte, 32)
 	// make sure we've got some stats
-	_, err := buf.ReadTimeout(b, 2*time.Second)
+	_, err = buf.ReadTimeout(b, 2*time.Second)
 	c.Assert(err, checker.IsNil)
 
 	// Now remove without `-f` and make sure we are still pulling stats
@@ -245,7 +237,8 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
 	_, err = buf.ReadTimeout(b, 2*time.Second)
 	c.Assert(err, checker.IsNil)
 
-	dockerCmd(c, "kill", id)
+	dockerCmd(c, "rm", "-f", id)
+	c.Assert(<-chErr, checker.IsNil)
 }
 
 // regression test for gh13421
@@ -483,7 +476,7 @@ func (s *DockerSuite) TestContainerApiBadPort(c *check.C) {
 	status, body, err := sockRequest("POST", "/containers/create", config)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusInternalServerError)
-	c.Assert(getErrorMessage(c, body), checker.Equals, `Invalid port specification: "aa80"`, check.Commentf("Incorrect error msg: %s", body))
+	c.Assert(getErrorMessage(c, body), checker.Equals, `invalid port specification: "aa80"`, check.Commentf("Incorrect error msg: %s", body))
 }
 
 func (s *DockerSuite) TestContainerApiCreate(c *check.C) {
@@ -707,7 +700,67 @@ func (s *DockerSuite) TestContainerApiInvalidPortSyntax(c *check.C) {
 
 	b, err := readBody(body)
 	c.Assert(err, checker.IsNil)
-	c.Assert(string(b[:]), checker.Contains, "Invalid port")
+	c.Assert(string(b[:]), checker.Contains, "invalid port")
+}
+
+func (s *DockerSuite) TestContainerApiInvalidRestartPolicyName(c *check.C) {
+	config := `{
+		"Image": "busybox",
+		"HostConfig": {
+			"RestartPolicy": {
+				"Name": "something",
+				"MaximumRetryCount": 0
+			}
+		}
+	}`
+
+	res, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	c.Assert(err, checker.IsNil)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+
+	b, err := readBody(body)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(b[:]), checker.Contains, "invalid restart policy")
+}
+
+func (s *DockerSuite) TestContainerApiInvalidRestartPolicyRetryMismatch(c *check.C) {
+	config := `{
+		"Image": "busybox",
+		"HostConfig": {
+			"RestartPolicy": {
+				"Name": "always",
+				"MaximumRetryCount": 2
+			}
+		}
+	}`
+
+	res, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	c.Assert(err, checker.IsNil)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+
+	b, err := readBody(body)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(b[:]), checker.Contains, "maximum restart count not valid with restart policy")
+}
+
+func (s *DockerSuite) TestContainerApiInvalidRestartPolicyPositiveRetryCount(c *check.C) {
+	config := `{
+		"Image": "busybox",
+		"HostConfig": {
+			"RestartPolicy": {
+				"Name": "on-failure",
+				"MaximumRetryCount": -2
+			}
+		}
+	}`
+
+	res, body, err := sockRequestRaw("POST", "/containers/create", strings.NewReader(config), "application/json")
+	c.Assert(err, checker.IsNil)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+
+	b, err := readBody(body)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(b[:]), checker.Contains, "maximum restart count must be a positive integer")
 }
 
 // Issue 7941 - test to make sure a "null" in JSON is just ignored.
@@ -881,7 +934,7 @@ func (s *DockerSuite) TestContainerApiWait(c *check.C) {
 	if daemonPlatform == "windows" {
 		sleepCmd = "sleep"
 	}
-	dockerCmd(c, "run", "--name", name, "busybox", sleepCmd, "5")
+	dockerCmd(c, "run", "--name", name, "busybox", sleepCmd, "2")
 
 	status, body, err := sockRequest("POST", "/containers/"+name+"/wait", nil)
 	c.Assert(err, checker.IsNil)
@@ -1274,7 +1327,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeNegative(c *check.C) {
 	status, body, err := sockRequest("POST", "/containers/create", config)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusInternalServerError)
-	c.Assert(getErrorMessage(c, body), checker.Contains, "SHM size must be greater than 0")
+	c.Assert(getErrorMessage(c, body), checker.Contains, "SHM size can not be less than 0")
 }
 
 func (s *DockerSuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *check.C) {
@@ -1432,10 +1485,62 @@ func (s *DockerSuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *che
 	}
 }
 
-// test case for #22210 where an emtpy container name caused panic.
+// test case for #22210 where an empty container name caused panic.
 func (s *DockerSuite) TestContainerApiDeleteWithEmptyName(c *check.C) {
 	status, out, err := sockRequest("DELETE", "/containers/", nil)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusBadRequest)
 	c.Assert(string(out), checker.Contains, "No container name or ID supplied")
+}
+
+func (s *DockerSuite) TestContainerApiStatsWithNetworkDisabled(c *check.C) {
+	// Problematic on Windows as Windows does not support stats
+	testRequires(c, DaemonIsLinux)
+
+	name := "testing-network-disabled"
+	config := map[string]interface{}{
+		"Image":           "busybox",
+		"Cmd":             []string{"top"},
+		"NetworkDisabled": true,
+	}
+
+	status, _, err := sockRequest("POST", "/containers/create?name="+name, config)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusCreated)
+
+	status, _, err = sockRequest("POST", "/containers/"+name+"/start", nil)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusNoContent)
+
+	c.Assert(waitRun(name), check.IsNil)
+
+	type b struct {
+		status int
+		body   []byte
+		err    error
+	}
+	bc := make(chan b, 1)
+	go func() {
+		status, body, err := sockRequest("GET", "/containers/"+name+"/stats", nil)
+		bc <- b{status, body, err}
+	}()
+
+	// allow some time to stream the stats from the container
+	time.Sleep(4 * time.Second)
+	dockerCmd(c, "rm", "-f", name)
+
+	// collect the results from the stats stream or timeout and fail
+	// if the stream was not disconnected.
+	select {
+	case <-time.After(2 * time.Second):
+		c.Fatal("stream was not closed after container was removed")
+	case sr := <-bc:
+		c.Assert(sr.err, checker.IsNil)
+		c.Assert(sr.status, checker.Equals, http.StatusOK)
+
+		// decode only one object from the stream
+		var s *types.Stats
+		dec := json.NewDecoder(bytes.NewBuffer(sr.body))
+		c.Assert(dec.Decode(&s), checker.IsNil)
+	}
 }

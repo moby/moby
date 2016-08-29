@@ -19,7 +19,7 @@ import (
 	"path/filepath"
 	"unsafe"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 const (
@@ -54,7 +54,7 @@ func Mounted(fsType FsMagic, mountPath string) (bool, error) {
 	// on Solaris buf.f_basetype contains ['z', 'f', 's', 0 ... ]
 	if (buf.f_basetype[0] != 122) || (buf.f_basetype[1] != 102) || (buf.f_basetype[2] != 115) ||
 		(buf.f_basetype[3] != 0) {
-		log.Debugf("[zfs] no zfs dataset found for rootdir '%s'", mountPath)
+		logrus.Debugf("[zfs] no zfs dataset found for rootdir '%s'", mountPath)
 		C.free(unsafe.Pointer(buf))
 		return false, ErrPrerequisites
 	}

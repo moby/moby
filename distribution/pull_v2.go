@@ -32,7 +32,11 @@ import (
 	"golang.org/x/net/context"
 )
 
-var errRootFSMismatch = errors.New("layers from manifest don't match image configuration")
+var (
+	errRootFSMismatch  = errors.New("layers from manifest don't match image configuration")
+	errMediaTypePlugin = errors.New("target is a plugin")
+	errRootFSInvalid   = errors.New("invalid rootfs in image configuration")
+)
 
 // ImageConfigPullError is an error pulling the image config blob
 // (only applies to schema2).
@@ -356,6 +360,12 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 		return false, fmt.Errorf("image manifest does not exist for tag or digest %q", tagOrDigest)
 	}
 
+	if m, ok := manifest.(*schema2.DeserializedManifest); ok {
+		if m.Manifest.Config.MediaType == schema2.MediaTypePluginConfig {
+			return false, errMediaTypePlugin
+		}
+	}
+
 	// If manSvc.Get succeeded, we can be confident that the registry on
 	// the other side speaks the v2 protocol.
 	p.confirmedV2 = true
@@ -393,7 +403,7 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 	oldTagImageID, err := p.config.ReferenceStore.Get(ref)
 	if err == nil {
 		if oldTagImageID == imageID {
-			return false, nil
+			return false, addDigestReference(p.config.ReferenceStore, ref, manifestDigest, imageID)
 		}
 	} else if err != reference.ErrDoesNotExist {
 		return false, err
@@ -403,10 +413,14 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 		if err = p.config.ReferenceStore.AddDigest(canonical, imageID, true); err != nil {
 			return false, err
 		}
-	} else if err = p.config.ReferenceStore.AddTag(ref, imageID, true); err != nil {
-		return false, err
+	} else {
+		if err = addDigestReference(p.config.ReferenceStore, ref, manifestDigest, imageID); err != nil {
+			return false, err
+		}
+		if err = p.config.ReferenceStore.AddTag(ref, imageID, true); err != nil {
+			return false, err
+		}
 	}
-
 	return true, nil
 }
 
@@ -418,10 +432,6 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Named, unverif
 	}
 
 	rootFS := image.NewRootFS()
-
-	if err := detectBaseLayer(p.config.ImageStore, verifiedManifest, rootFS); err != nil {
-		return "", "", err
-	}
 
 	// remove duplicate layers and check parent chain validity
 	err = fixManifestLayers(verifiedManifest)
@@ -538,19 +548,14 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 		unmarshalledConfig image.Image  // deserialized image config
 		downloadRootFS     image.RootFS // rootFS to use for registering layers.
 	)
-	if runtime.GOOS == "windows" {
-		configJSON, unmarshalledConfig, err = receiveConfig(configChan, errChan)
-		if err != nil {
-			return "", "", err
-		}
-		if unmarshalledConfig.RootFS == nil {
-			return "", "", errors.New("image config has no rootfs section")
-		}
-		downloadRootFS = *unmarshalledConfig.RootFS
-		downloadRootFS.DiffIDs = []layer.DiffID{}
-	} else {
-		downloadRootFS = *image.NewRootFS()
+
+	// https://github.com/docker/docker/issues/24766 - Err on the side of caution,
+	// explicitly blocking images intended for linux from the Windows daemon
+	if runtime.GOOS == "windows" && unmarshalledConfig.OS == "linux" {
+		return "", "", fmt.Errorf("image operating system %q cannot be used on this platform", unmarshalledConfig.OS)
 	}
+
+	downloadRootFS = *image.NewRootFS()
 
 	rootFS, release, err := p.config.DownloadManager.Download(ctx, downloadRootFS, descriptors, p.config.ProgressOutput)
 	if err != nil {
@@ -577,6 +582,10 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 		if err != nil {
 			return "", "", err
 		}
+	}
+
+	if unmarshalledConfig.RootFS == nil {
+		return "", "", errRootFSInvalid
 	}
 
 	// The DiffIDs returned in rootFS MUST match those in the config.

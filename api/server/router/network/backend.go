@@ -15,6 +15,6 @@ type Backend interface {
 	GetNetworks() []libnetwork.Network
 	CreateNetwork(nc types.NetworkCreateRequest) (*types.NetworkCreateResponse, error)
 	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error
-	DisconnectContainerFromNetwork(containerName string, network libnetwork.Network, force bool) error
+	DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error
 	DeleteNetwork(name string) error
 }

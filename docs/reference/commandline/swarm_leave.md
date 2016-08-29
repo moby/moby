@@ -8,29 +8,30 @@ parent = "smn_cli"
 +++
 <![end-metadata]-->
 
-**Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
-
 # swarm leave
 
-	Usage:	docker swarm leave
+```markdown
+Usage:  docker swarm leave [OPTIONS]
 
-	Leave a Swarm swarm.
+Leave a swarm
 
-	Options:
-	      --help   Print usage
+Options:
+      --force   Force leave ignoring warnings.
+      --help    Print usage
+```
 
 This command causes the node to leave the swarm.
 
 On a manager node:
 ```bash
 $ docker node ls
-ID              NAME           STATUS  AVAILABILITY/MEMBERSHIP  MANAGER STATUS  LEADER
-04zm7ue1fd1q    swarm-node-02  READY   ACTIVE                                   
-2fg70txcrde2    swarm-node-01  READY   ACTIVE                   REACHABLE       
-3l1f6uzcuoa3 *  swarm-master   READY   ACTIVE                   REACHABLE       Yes
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+7ln70fl22uw2dvjn2ft53m3q5    worker2   Ready   Active
+dkp8vy1dq1kxleu9g4u78tlag    worker1   Ready   Active        Reachable
+dvfxp4zseq4s0rih1selh0d20 *  manager1  Ready   Active        Leader
 ```
 
-On a worker node:
+On a worker node, worker2 in the following example:
 ```bash
 $ docker swarm leave
 Node left the default swarm.
@@ -39,10 +40,10 @@ Node left the default swarm.
 On a manager node:
 ```bash
 $ docker node ls
-ID              NAME           STATUS  AVAILABILITY/MEMBERSHIP  MANAGER STATUS  LEADER
-04zm7ue1fd1q    swarm-node-02  DOWN    ACTIVE                                   
-2fg70txcrde2    swarm-node-01  READY   ACTIVE                   REACHABLE       
-3l1f6uzcuoa3 *  swarm-master   READY   ACTIVE                   REACHABLE       Yes
+ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+7ln70fl22uw2dvjn2ft53m3q5    worker2   Down    Active
+dkp8vy1dq1kxleu9g4u78tlag    worker1   Ready   Active        Reachable
+dvfxp4zseq4s0rih1selh0d20 *  manager1  Ready   Active        Leader
 ```
 
 ## Related information

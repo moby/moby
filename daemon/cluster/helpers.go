@@ -42,7 +42,7 @@ func getNode(ctx context.Context, c swarmapi.ControlClient, input string) (*swar
 		}
 
 		if l := len(rl.Nodes); l > 1 {
-			return nil, fmt.Errorf("node %s is ambigious (%d matches found)", input, l)
+			return nil, fmt.Errorf("node %s is ambiguous (%d matches found)", input, l)
 		}
 
 		return rl.Nodes[0], nil
@@ -70,7 +70,7 @@ func getService(ctx context.Context, c swarmapi.ControlClient, input string) (*s
 		}
 
 		if l := len(rl.Services); l > 1 {
-			return nil, fmt.Errorf("service %s is ambigious (%d matches found)", input, l)
+			return nil, fmt.Errorf("service %s is ambiguous (%d matches found)", input, l)
 		}
 
 		return rl.Services[0], nil
@@ -99,7 +99,7 @@ func getTask(ctx context.Context, c swarmapi.ControlClient, input string) (*swar
 		}
 
 		if l := len(rl.Tasks); l > 1 {
-			return nil, fmt.Errorf("task %s is ambigious (%d matches found)", input, l)
+			return nil, fmt.Errorf("task %s is ambiguous (%d matches found)", input, l)
 		}
 
 		return rl.Tasks[0], nil

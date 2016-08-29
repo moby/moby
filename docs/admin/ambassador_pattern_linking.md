@@ -6,7 +6,7 @@ description = "Using the Ambassador pattern to abstract (network) services"
 keywords = ["Examples, Usage, links, docker, documentation, examples, names, name,  container naming"]
 [menu.main]
 parent = "engine_admin"
-weight = 6
+weight = 15
 +++
 <![end-metadata]-->
 
@@ -70,7 +70,7 @@ On the Docker host (192.168.1.52) that Redis will run on:
     # start actual redis server
     $ docker run -d --name redis crosbymichael/redis
 
-    # get a redis-cli container for connection testing
+    # get a redis-cli image for connection testing
     $ docker pull relateiq/redis-cli
 
     # test the redis server by talking to it directly

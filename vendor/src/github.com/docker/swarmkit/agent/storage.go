@@ -1,8 +1,6 @@
 package agent
 
 import (
-	"bytes"
-
 	"github.com/boltdb/bolt"
 	"github.com/docker/swarmkit/api"
 	"github.com/gogo/protobuf/proto"
@@ -21,12 +19,6 @@ var (
 	bucketKeyData           = []byte("data")
 	bucketKeyStatus         = []byte("status")
 )
-
-type bucketKeyPath [][]byte
-
-func (bk bucketKeyPath) String() string {
-	return string(bytes.Join([][]byte(bk), []byte("/")))
-}
 
 // InitDB prepares a database for writing task data.
 //
@@ -126,10 +118,10 @@ func WalkTaskStatus(tx *bolt.Tx, fn func(id string, status *api.TaskStatus) erro
 // PutTask places the task into the database.
 func PutTask(tx *bolt.Tx, task *api.Task) error {
 	return withCreateTaskBucketIfNotExists(tx, task.ID, func(bkt *bolt.Bucket) error {
-		task = task.Copy()
-		task.Status = api.TaskStatus{} // blank out the status.
+		taskCopy := *task
+		taskCopy.Status = api.TaskStatus{} // blank out the status.
 
-		p, err := proto.Marshal(task)
+		p, err := proto.Marshal(&taskCopy)
 		if err != nil {
 			return err
 		}

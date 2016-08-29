@@ -3,6 +3,7 @@ package daemon
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -20,6 +21,7 @@ var acceptedVolumeFilterTags = map[string]bool{
 	"dangling": true,
 	"name":     true,
 	"driver":   true,
+	"label":    true,
 }
 
 var acceptedPsFilterTags = map[string]bool{
@@ -86,20 +88,18 @@ type listContext struct {
 	*types.ContainerListOptions
 }
 
+// byContainerCreated is a temporary type used to sort a list of containers by creation time.
+type byContainerCreated []*container.Container
+
+func (r byContainerCreated) Len() int      { return len(r) }
+func (r byContainerCreated) Swap(i, j int) { r[i], r[j] = r[j], r[i] }
+func (r byContainerCreated) Less(i, j int) bool {
+	return r[i].Created.UnixNano() < r[j].Created.UnixNano()
+}
+
 // Containers returns the list of containers to show given the user's filtering.
 func (daemon *Daemon) Containers(config *types.ContainerListOptions) ([]*types.Container, error) {
 	return daemon.reduceContainers(config, daemon.transformContainer)
-}
-
-// ListContainersForNode returns all containerID that match the specified nodeID
-func (daemon *Daemon) ListContainersForNode(nodeID string) []string {
-	var ids []string
-	for _, c := range daemon.List() {
-		if c.Config.Labels["com.docker.swarm.node.id"] == nodeID {
-			ids = append(ids, c.ID)
-		}
-	}
-	return ids
 }
 
 func (daemon *Daemon) filterByNameIDMatches(ctx *listContext) []*container.Container {
@@ -147,8 +147,15 @@ func (daemon *Daemon) filterByNameIDMatches(ctx *listContext) []*container.Conta
 
 	cntrs := make([]*container.Container, 0, len(matches))
 	for id := range matches {
-		cntrs = append(cntrs, daemon.containers.Get(id))
+		if c := daemon.containers.Get(id); c != nil {
+			cntrs = append(cntrs, c)
+		}
 	}
+
+	// Restore sort-order after filtering
+	// Created gives us nanosec resolution for sorting
+	sort.Sort(sort.Reverse(byContainerCreated(cntrs)))
+
 	return cntrs
 }
 
@@ -465,6 +472,7 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 			GlobalIPv6Address:   network.GlobalIPv6Address,
 			GlobalIPv6PrefixLen: network.GlobalIPv6PrefixLen,
 			MacAddress:          network.MacAddress,
+			NetworkID:           network.NetworkID,
 		}
 		if network.IPAMConfig != nil {
 			networks[name].IPAMConfig = &networktypes.EndpointIPAMConfig{
@@ -568,6 +576,15 @@ func (daemon *Daemon) filterVolumes(vols []volume.Volume, filter filters.Args) (
 		}
 		if filter.Include("driver") {
 			if !filter.Match("driver", vol.DriverName()) {
+				continue
+			}
+		}
+		if filter.Include("label") {
+			v, ok := vol.(volume.LabeledVolume)
+			if !ok {
+				continue
+			}
+			if !filter.MatchKVList("label", v.Labels()) {
 				continue
 			}
 		}

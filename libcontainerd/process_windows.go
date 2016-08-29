@@ -2,8 +2,6 @@ package libcontainerd
 
 import (
 	"io"
-	"strconv"
-	"strings"
 
 	"github.com/Microsoft/hcsshim"
 )
@@ -38,12 +36,7 @@ func fixStdinBackspaceBehavior(w io.WriteCloser, osversion string, tty bool) io.
 	if !tty {
 		return w
 	}
-	v := strings.Split(osversion, ".")
-	if len(v) < 3 {
-		return w
-	}
-
-	if build, err := strconv.Atoi(v[2]); err != nil || build >= 14350 {
+	if build := buildFromVersion(osversion); build == 0 || build >= 14350 {
 		return w
 	}
 

@@ -87,6 +87,13 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 			if !ok {
 				logrus.Debug("logs: end stream")
 				logs.Close()
+				if cLog != container.LogDriver {
+					// Since the logger isn't cached in the container, which occurs if it is running, it
+					// must get explicitly closed here to avoid leaking it and any file handles it has.
+					if err := cLog.Close(); err != nil {
+						logrus.Errorf("Error closing logger: %v", err)
+					}
+				}
 				return nil
 			}
 			logLine := msg.Line
@@ -141,6 +148,10 @@ func (daemon *Daemon) StartLogging(container *container.Container) error {
 func (daemon *Daemon) mergeAndVerifyLogConfig(cfg *containertypes.LogConfig) error {
 	if cfg.Type == "" {
 		cfg.Type = daemon.defaultLogConfig.Type
+	}
+
+	if cfg.Config == nil {
+		cfg.Config = make(map[string]string)
 	}
 
 	if cfg.Type == daemon.defaultLogConfig.Type {

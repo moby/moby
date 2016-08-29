@@ -272,10 +272,11 @@ release_binaries() {
 	# TODO create redirect from builds/*/i686 to builds/*/i386
 
 	cat <<EOF | write_to_s3 s3://$BUCKET_PATH/builds/index
-# To install, run the following command as root:
-curl -sSL -O $(s3_url)/builds/Linux/x86_64/docker-$VERSION.tgz && sudo tar zxf docker-$VERSION.tgz -C /
+# To install, run the following commands as root:
+curl -fsSLO $(s3_url)/builds/Linux/x86_64/docker-$VERSION.tgz && tar --strip-components=1 -xvzf docker-$VERSION.tgz -C /usr/local/bin
+
 # Then start docker in daemon mode:
-sudo /usr/local/bin/docker daemon
+/usr/local/bin/dockerd
 EOF
 
 	# Add redirect at /builds/info for URL-backwards-compatibility
@@ -311,8 +312,8 @@ echo "Use the following text to announce the release:"
 echo
 echo "We have just pushed $VERSION to $(s3_url). You can download it with the following:"
 echo
-echo "Darwin/OSX 64bit client tgz: $(s3_url)/builds/Darwin/x86_64/docker-$VERSION.tgz"
 echo "Linux 64bit tgz: $(s3_url)/builds/Linux/x86_64/docker-$VERSION.tgz"
-echo "Windows 64bit client zip: $(s3_url)/builds/Windows/x86_64/docker-$VERSION.zip"
+echo "Darwin/OSX 64bit client tgz: $(s3_url)/builds/Darwin/x86_64/docker-$VERSION.tgz"
+echo "Windows 64bit zip: $(s3_url)/builds/Windows/x86_64/docker-$VERSION.zip"
 echo "Windows 32bit client zip: $(s3_url)/builds/Windows/i386/docker-$VERSION.zip"
 echo

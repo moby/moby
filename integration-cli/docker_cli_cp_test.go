@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/go-check/check"
 )
 
@@ -399,10 +400,9 @@ func (s *DockerSuite) TestCpUnprivilegedUser(c *check.C) {
 
 	c.Assert(os.Chmod(tmpdir, 0777), checker.IsNil)
 
-	path := cpTestName
-
-	_, _, err = runCommandWithOutput(exec.Command("su", "unprivilegeduser", "-c", dockerBinary+" cp "+containerID+":"+path+" "+tmpdir))
-	c.Assert(err, checker.IsNil, check.Commentf("couldn't copy with unprivileged user: %s:%s", containerID, path))
+	result := icmd.RunCommand("su", "unprivilegeduser", "-c",
+		fmt.Sprintf("%s cp %s:%s %s", dockerBinary, containerID, cpTestName, tmpdir))
+	result.Assert(c, icmd.Expected{})
 }
 
 func (s *DockerSuite) TestCpSpecialFiles(c *check.C) {

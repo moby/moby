@@ -30,13 +30,25 @@ var (
 		func() bool { return daemonPlatform == "linux" },
 		"Test requires a Linux daemon",
 	}
+	ExperimentalDaemon = testRequirement{
+		func() bool { return utils.ExperimentalBuild() },
+		"Test requires an experimental daemon",
+	}
 	NotExperimentalDaemon = testRequirement{
 		func() bool { return !utils.ExperimentalBuild() },
 		"Test requires a non experimental daemon",
 	}
+	IsAmd64 = testRequirement{
+		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") == "amd64" },
+		"Test requires a daemon running on amd64",
+	}
 	NotArm = testRequirement{
 		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "arm" },
 		"Test requires a daemon not running on ARM",
+	}
+	NotArm64 = testRequirement{
+		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "arm64" },
+		"Test requires a daemon not running on arm64",
 	}
 	NotPpc64le = testRequirement{
 		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "ppc64le" },
@@ -141,16 +153,6 @@ var (
 		},
 		"Test requires support for IPv6",
 	}
-	NotGCCGO = testRequirement{
-		func() bool {
-			out, err := exec.Command("go", "version").Output()
-			if err == nil && strings.Contains(string(out), "gccgo") {
-				return false
-			}
-			return true
-		},
-		"Test requires native Golang compiler instead of GCCGO",
-	}
 	UserNamespaceInKernel = testRequirement{
 		func() bool {
 			if _, err := os.Stat("/proc/self/uid_map"); os.IsNotExist(err) {
@@ -163,6 +165,7 @@ var (
 
 			// We need extra check on redhat based distributions
 			if f, err := os.Open("/sys/module/user_namespace/parameters/enable"); err == nil {
+				defer f.Close()
 				b := make([]byte, 1)
 				_, _ = f.Read(b)
 				if string(b) == "N" {

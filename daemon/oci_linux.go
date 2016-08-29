@@ -23,7 +23,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/user"
-	"github.com/opencontainers/specs/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func setResources(s *specs.Spec, r containertypes.Resources) error {
@@ -459,7 +459,7 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 		userMounts[m.Destination] = struct{}{}
 	}
 
-	// Filter out mounts that are overriden by user supplied mounts
+	// Filter out mounts that are overridden by user supplied mounts
 	var defaultMounts []specs.Mount
 	_, mountDev := userMounts["/dev"]
 	for _, m := range s.Mounts {
@@ -480,9 +480,10 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 		}
 
 		if m.Source == "tmpfs" {
-			options := []string{"noexec", "nosuid", "nodev", volume.DefaultPropagationMode}
-			if m.Data != "" {
-				options = append(options, strings.Split(m.Data, ",")...)
+			data := c.HostConfig.Tmpfs[m.Destination]
+			options := []string{"noexec", "nosuid", "nodev", string(volume.DefaultPropagationMode)}
+			if data != "" {
+				options = append(options, strings.Split(data, ",")...)
 			}
 
 			merged, err := mount.MergeTmpfsOptions(options)

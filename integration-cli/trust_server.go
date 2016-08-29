@@ -61,10 +61,10 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 	}
 	confPath := filepath.Join(tmp, "config.json")
 	config, err := os.Create(confPath)
-	defer config.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer config.Close()
 
 	workingDir, err := os.Getwd()
 	if err != nil {
@@ -78,10 +78,11 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 	// generate client config
 	clientConfPath := filepath.Join(tmp, "client-config.json")
 	clientConfig, err := os.Create(clientConfPath)
-	defer clientConfig.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer clientConfig.Close()
+
 	template = `{
 	"trust_dir" : "%s",
 	"remote_server": {
@@ -152,7 +153,7 @@ func (t *testNotary) Ping() error {
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("notary ping replied with an unexpected status code %d", resp.StatusCode)
 	}
 	return nil

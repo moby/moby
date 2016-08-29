@@ -223,7 +223,7 @@ docker exec -it cid3 /bin/sh
 
 VLANs (Virtual Local Area Networks) have long been a primary means of virtualizing data center networks and are still in virtually all existing networks today. VLANs work by tagging a Layer-2 isolation domain with a 12-bit identifier ranging from 1-4094 that is inserted into a packet header that enables a logical grouping of a single or multiple subnets of both IPv4 and IPv6. It is very common for network operators to separate traffic using VLANs based on a subnet(s) function or security profile such as `web`, `db` or any other isolation needs.
 
-It is very common to have a compute host requirement of running multiple virtual networks concurrently on a host. Linux networking has long supported VLAN tagging, also known by it's standard 802.1q, for maintaining datapath isolation between networks. The Ethernet link connected to a Docker host can be configured to support the 802.1q VLAN IDs, by creating Linux sub-interfaces, each one dedicated to a unique VLAN ID.
+It is very common to have a compute host requirement of running multiple virtual networks concurrently on a host. Linux networking has long supported VLAN tagging, also known by its standard 802.1q, for maintaining datapath isolation between networks. The Ethernet link connected to a Docker host can be configured to support the 802.1q VLAN IDs, by creating Linux sub-interfaces, each one dedicated to a unique VLAN ID.
 
 ![Simple Ipvlan L2 Mode Example](images/multi_tenant_8021q_vlans.png)
 
@@ -596,7 +596,7 @@ root@3cce0d3575f3:/# ip -6 route
 default via 2001:db8:abc9::22 dev eth0  metric 1024
 ```
 
-Start a second container with a specific `--ip4` address and ping the first host using ipv4 packets:
+Start a second container with a specific `--ip4` address and ping the first host using IPv4 packets:
 
 ```
 docker run --net=ipvlan140 --ip=192.168.140.10 -it --rm alpine /bin/sh
@@ -627,7 +627,7 @@ docker network  create  -d ipvlan \
 
 
 # Start a few of containers on the network (ipnet110) 
-# in seperate terminals and check connectivity
+# in separate terminals and check connectivity
 docker run --net=ipnet110 -it --rm alpine /bin/sh
 # Start a second container specifying the v6 address
 docker run --net=ipnet110 --ip6=2001:db8:abc6::10 -it --rm alpine /bin/sh

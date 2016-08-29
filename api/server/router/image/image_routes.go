@@ -201,17 +201,14 @@ func (s *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter,
 	}
 	quiet := httputils.BoolValueOrDefault(r, "quiet", true)
 
-	if !quiet {
-		w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json")
 
-		output := ioutils.NewWriteFlusher(w)
-		defer output.Close()
-		if err := s.backend.LoadImage(r.Body, output, quiet); err != nil {
-			output.Write(streamformatter.NewJSONStreamFormatter().FormatError(err))
-		}
-		return nil
+	output := ioutils.NewWriteFlusher(w)
+	defer output.Close()
+	if err := s.backend.LoadImage(r.Body, output, quiet); err != nil {
+		output.Write(streamformatter.NewJSONStreamFormatter().FormatError(err))
 	}
-	return s.backend.LoadImage(r.Body, w, quiet)
+	return nil
 }
 
 func (s *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

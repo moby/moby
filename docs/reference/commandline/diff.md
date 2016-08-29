@@ -10,11 +10,14 @@ parent = "smn_cli"
 
 # diff
 
-    Usage: docker diff [OPTIONS] CONTAINER
+```markdown
+Usage:  docker diff CONTAINER
 
-    Inspect changes on a container's filesystem
+Inspect changes on a container's filesystem
 
-      --help              Print usage
+Options:
+      --help   Print usage
+```
 
 List the changed files and directories in a container᾿s filesystem
  There are 3 events that are listed in the `diff`:

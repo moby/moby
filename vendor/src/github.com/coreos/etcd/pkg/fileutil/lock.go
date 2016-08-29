@@ -1,4 +1,4 @@
-// Copyright 2016 CoreOS, Inc.
+// Copyright 2016 The etcd Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,16 +14,13 @@
 
 package fileutil
 
-type Lock interface {
-	// Name returns the name of the file.
-	Name() string
-	// TryLock acquires exclusivity on the lock without blocking.
-	TryLock() error
-	// Lock acquires exclusivity on the lock.
-	Lock() error
-	// Unlock unlocks the lock.
-	Unlock() error
-	// Destroy should be called after Unlock to clean up
-	// the resources.
-	Destroy() error
-}
+import (
+	"errors"
+	"os"
+)
+
+var (
+	ErrLocked = errors.New("fileutil: file already locked")
+)
+
+type LockedFile struct{ *os.File }

@@ -2,8 +2,6 @@ package hcsshim
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"io"
 	"syscall"
 	"time"
@@ -11,13 +9,7 @@ import (
 	"github.com/Sirupsen/logrus"
 )
 
-type ProcessError struct {
-	Process   *process
-	Operation string
-	ExtraInfo string
-	Err       error
-}
-
+// ContainerError is an error encountered in HCS
 type process struct {
 	handle         hcsProcess
 	processID      int
@@ -48,7 +40,7 @@ type closeHandle struct {
 }
 
 type processStatus struct {
-	ProcessId      uint32
+	ProcessID      uint32
 	Exited         bool
 	ExitCode       uint32
 	LastWaitResult int32
@@ -79,9 +71,7 @@ func (process *process) Kill() error {
 	var resultp *uint16
 	err := hcsTerminateProcess(process.handle, &resultp)
 	err = processHcsResult(err, resultp)
-	if err == ErrVmcomputeOperationPending {
-		return ErrVmcomputeOperationPending
-	} else if err != nil {
+	if err != nil {
 		return makeProcessError(process, operation, "", err)
 	}
 
@@ -126,8 +116,9 @@ func (process *process) WaitTimeout(timeout time.Duration) error {
 	} else {
 		finished, err := waitTimeoutHelper(process, timeout)
 		if !finished {
-			return ErrTimeout
-		} else if err != nil {
+			err = ErrTimeout
+		}
+		if err != nil {
 			return makeProcessError(process, operation, "", err)
 		}
 	}
@@ -168,7 +159,7 @@ func (process *process) ExitCode() (int, error) {
 	}
 
 	if properties.Exited == false {
-		return 0, ErrInvalidProcessState
+		return 0, makeProcessError(process, operation, "", ErrInvalidProcessState)
 	}
 
 	logrus.Debugf(title+" succeeded processid=%d exitCode=%d", process.processID, properties.ExitCode)
@@ -219,11 +210,11 @@ func (process *process) properties() (*processStatus, error) {
 	err := hcsGetProcessProperties(process.handle, &propertiesp, &resultp)
 	err = processHcsResult(err, resultp)
 	if err != nil {
-		return nil, makeProcessError(process, operation, "", err)
+		return nil, err
 	}
 
 	if propertiesp == nil {
-		return nil, errors.New("Unexpected result from hcsGetProcessProperties, properties should never be nil")
+		return nil, ErrUnexpectedValue
 	}
 	propertiesRaw := convertAndFreeCoTaskMemBytes(propertiesp)
 
@@ -268,7 +259,7 @@ func (process *process) Stdio() (io.WriteCloser, io.ReadCloser, io.ReadCloser, e
 
 	pipes, err := makeOpenFiles([]syscall.Handle{stdIn, stdOut, stdErr})
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, makeProcessError(process, operation, "", err)
 	}
 
 	logrus.Debugf(title+" succeeded processid=%d", process.processID)
@@ -395,47 +386,4 @@ func (process *process) unregisterCallback() error {
 	handle = 0
 
 	return nil
-}
-
-func (e *ProcessError) Error() string {
-	if e == nil {
-		return "<nil>"
-	}
-
-	if e.Process == nil {
-		return "Unexpected nil process for error: " + e.Err.Error()
-	}
-
-	s := fmt.Sprintf("process %d", e.Process.processID)
-
-	if e.Process.container != nil {
-		s += " in container " + e.Process.container.id
-	}
-
-	if e.Operation != "" {
-		s += " " + e.Operation
-	}
-
-	if e.Err != nil {
-		s += fmt.Sprintf(" failed in Win32: %s (0x%x)", e.Err, win32FromError(e.Err))
-	}
-
-	return s
-}
-
-func makeProcessError(process *process, operation string, extraInfo string, err error) error {
-	// Don't wrap errors created in hcsshim
-	if err == ErrTimeout ||
-		err == ErrUnexpectedProcessAbort ||
-		err == ErrUnexpectedContainerExit ||
-		err == ErrHandleClose ||
-		err == ErrInvalidProcessState ||
-		err == ErrInvalidNotificationType ||
-		err == ErrVmcomputeOperationPending {
-		return err
-	}
-
-	processError := &ProcessError{Process: process, Operation: operation, ExtraInfo: extraInfo, Err: err}
-	logrus.Error(processError)
-	return processError
 }

@@ -78,7 +78,7 @@ message ServiceSpec {
 	// instructing Swarm on how this service should work on the particular
 	// network.
 	message NetworkAttachmentConfig {
-		// Target specifies the target network for attachement. This value may be a
+		// Target specifies the target network for attachment. This value may be a
 		// network name or identifier. Only identifiers are supported at this time.
 		string target = 1;
 		// Aliases specifies a list of discoverable alternate names for the service on this Target.
@@ -91,12 +91,12 @@ message ServiceSpec {
 	EndpointSpec endpoint = 8;
 }
 
-// ReplicatedService set the reconcilation target to certain number of replicas.
+// ReplicatedService sets the reconciliation target to certain number of replicas.
 message ReplicatedService {
 	uint64 replicas = 1;
 }
 
-// GlobalService represent global service.
+// GlobalService represents global service.
 message GlobalService {
 	// Empty message for now.
 }
@@ -114,6 +114,10 @@ message TaskSpec {
 
 	// Placement specifies node selection constraints
 	Placement placement = 5;
+
+	// LogDriver specifies the log driver to use for the task. Any runtime will
+	// direct logs into the specified driver for the duration of the task.
+	Driver log_driver = 6;
 }
 
 // Container specifies runtime parameters for a container.
@@ -127,11 +131,6 @@ message ContainerSpec {
 	// that don't change or verifiable digests.
 	string image = 1;
 
-	// RegistryAuth is the registry auth token obtained from the client, required
-	// to pull private images
-	// TODO(nishanttotla): This field will later be deprecated
-	string registry_auth = 64;
-
 	// Labels defines labels to be added to the container at creation time. If
 	// collisions with system labels occur, these labels will be overridden.
 	//
@@ -143,10 +142,13 @@ message ContainerSpec {
 	// executable and the following elements are treated as arguments.
 	//
 	// If command is empty, execution will fall back to the image's entrypoint.
+	//
+	// Command should only be used when overriding entrypoint.
 	repeated string command = 3;
 
 	// Args specifies arguments provided to the image's entrypoint.
-	// Ignored if command is specified.
+	//
+	// If Command and Args are provided, Args will be appended to Command.
 	repeated string args = 4;
 
 	// Env specifies the environment variables for the container in NAME=VALUE
@@ -158,13 +160,32 @@ message ContainerSpec {
 	string dir = 6;
 
 	// User specifies the user that should be employed to run the container.
+	//
+	// Note that the primary group may be specified by appending the group name
+	// or id to the user name, separated by a `:`. This syntax is
+	// `<user>:<group>`.
 	string user = 7;
+
+	// Groups specifies supplementary groups available to the user.
+	repeated string groups = 11;
 
 	repeated Mount mounts = 8 [(gogoproto.nullable) = false];
 
 	// StopGracePeriod the grace period for stopping the container before
 	// forcefully killing the container.
 	Duration stop_grace_period = 9;
+
+	// PullOptions allows one to parameterize an image pull.
+	message PullOptions {
+		// RegistryAuth is the registry auth token obtained from the client, required
+		// to pull private images. This is the unmodified JSON used as part of
+		// the `X-Registry-Auth` header.
+		// TODO(nishanttotla): This field will later be deprecated
+		string registry_auth = 64;
+	}
+
+	// PullOptions parameterize the behavior of image pulls.
+	PullOptions pull_options = 10;
 }
 
 // EndpointSpec defines the properties that can be configured to
@@ -219,8 +240,10 @@ message NetworkSpec {
 message ClusterSpec {
 	Annotations annotations = 1 [(gogoproto.nullable) = false];
 
-	// AcceptancePolicy defines the certificate issuance policy.
-	AcceptancePolicy acceptance_policy = 2 [(gogoproto.nullable) = false];
+	// DEPRECATED: AcceptancePolicy defines the certificate issuance policy.
+	// Acceptance policy is no longer customizable, and secrets have been
+	// replaced with join tokens.
+	AcceptancePolicy acceptance_policy = 2 [deprecated=true, (gogoproto.nullable) = false];
 
 	// Orchestration defines cluster-level orchestration settings.
 	OrchestrationConfig orchestration = 3 [(gogoproto.nullable) = false];
@@ -233,4 +256,7 @@ message ClusterSpec {
 
 	// CAConfig defines cluster-level certificate authority settings.
 	CAConfig ca_config = 6 [(gogoproto.nullable) = false, (gogoproto.customname) = "CAConfig"];
+
+	// TaskDefaults specifies the default values to use for task creation.
+	TaskDefaults task_defaults = 7 [(gogoproto.nullable) = false];
 }

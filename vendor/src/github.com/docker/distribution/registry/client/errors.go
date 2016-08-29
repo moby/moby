@@ -11,7 +11,7 @@ import (
 	"github.com/docker/distribution/registry/api/errcode"
 )
 
-// ErrNoErrorsInBody is returned when a HTTP response body parses to an empty
+// ErrNoErrorsInBody is returned when an HTTP response body parses to an empty
 // errcode.Errors slice.
 var ErrNoErrorsInBody = errors.New("no error details found in HTTP response body")
 
@@ -54,10 +54,7 @@ func parseHTTPErrorResponse(statusCode int, r io.Reader) error {
 		switch statusCode {
 		case http.StatusUnauthorized:
 			return errcode.ErrorCodeUnauthorized.WithMessage(detailsErr.Details)
-		// FIXME: go1.5 doesn't export http.StatusTooManyRequests while
-		// go1.6 does. Update the hardcoded value to the constant once
-		// Docker updates golang version to 1.6.
-		case 429:
+		case http.StatusTooManyRequests:
 			return errcode.ErrorCodeTooManyRequests.WithMessage(detailsErr.Details)
 		default:
 			return errcode.ErrorCodeUnknown.WithMessage(detailsErr.Details)

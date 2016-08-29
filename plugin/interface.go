@@ -6,4 +6,5 @@ import "github.com/docker/docker/pkg/plugins"
 type Plugin interface {
 	Client() *plugins.Client
 	Name() string
+	IsLegacy() bool
 }

@@ -7,13 +7,17 @@ docker-info - Display system-wide information
 # SYNOPSIS
 **docker info**
 [**--help**]
-
+[**-f**|**--format**[=*FORMAT*]]
 
 # DESCRIPTION
 This command displays system wide information regarding the Docker installation.
 Information displayed includes the kernel version, number of containers and images.
 The number of images shown is the number of unique images. The same image tagged
 under different names is counted only once.
+
+If a format is specified, the given template will be executed instead of the
+default format. Go's **text/template** package
+describes all the details of the format.
 
 Depending on the storage driver in use, additional information can be shown, such
 as pool name, data file, metadata file, data space used, total data space, metadata
@@ -28,6 +32,9 @@ available on the volume where `/var/lib/docker` is mounted.
 **--help**
   Print usage statement
 
+**-f**, **--format**=""
+  Format the output using the given go template
+
 # EXAMPLES
 
 ## Display Docker system information
@@ -41,14 +48,22 @@ storage driver:
      Paused: 1
      Stopped: 10
     Images: 52
-    Server Version: 1.11.1
+    Server Version: 1.12.0-dev
     Storage Driver: overlay
      Backing Filesystem: extfs
     Logging Driver: json-file
     Cgroup Driver: cgroupfs
     Plugins:
      Volume: local
-     Network: bridge null host
+     Network: bridge null host overlay
+    Swarm: 
+     NodeID: 0gac67oclbxq7
+     IsManager: YES
+     Managers: 2
+     Nodes: 2
+    Runtimes: default
+    Default Runtime: default
+    Security Options: apparmor seccomp
     Kernel Version: 4.4.0-21-generic
     Operating System: Ubuntu 16.04 LTS
     OSType: linux
@@ -131,6 +146,11 @@ information about the devicemapper storage driver is shown:
     Insecure registries:
      myinsecurehost:5000
      127.0.0.0/8
+
+You can also specify the output format:
+
+    $ docker info --format '{{json .}}'
+	{"ID":"I54V:OLXT:HVMM:TPKO:JPHQ:CQCD:JNLC:O3BZ:4ZVJ:43XJ:PFHZ:6N2S","Containers":14, ...}
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)

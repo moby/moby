@@ -23,7 +23,7 @@ type attachOptions struct {
 	container string
 }
 
-// NewAttachCommand creats a new cobra.Command for `docker attach`
+// NewAttachCommand creates a new cobra.Command for `docker attach`
 func NewAttachCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts attachOptions
 
@@ -36,7 +36,6 @@ func NewAttachCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runAttach(dockerCli, &opts)
 		},
 	}
-	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	flags := cmd.Flags()
 	flags.BoolVar(&opts.noStdin, "no-stdin", false, "Do not attach STDIN")

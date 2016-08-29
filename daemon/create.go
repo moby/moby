@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -20,28 +21,28 @@ import (
 )
 
 // CreateManagedContainer creates a container that is managed by a Service
-func (daemon *Daemon) CreateManagedContainer(params types.ContainerCreateConfig) (types.ContainerCreateResponse, error) {
-	return daemon.containerCreate(params, true)
+func (daemon *Daemon) CreateManagedContainer(params types.ContainerCreateConfig, validateHostname bool) (types.ContainerCreateResponse, error) {
+	return daemon.containerCreate(params, true, validateHostname)
 }
 
 // ContainerCreate creates a regular container
-func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (types.ContainerCreateResponse, error) {
-	return daemon.containerCreate(params, false)
+func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig, validateHostname bool) (types.ContainerCreateResponse, error) {
+	return daemon.containerCreate(params, false, validateHostname)
 }
 
-func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, managed bool) (types.ContainerCreateResponse, error) {
+func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, managed bool, validateHostname bool) (types.ContainerCreateResponse, error) {
 	if params.Config == nil {
 		return types.ContainerCreateResponse{}, fmt.Errorf("Config cannot be empty in order to create a container")
 	}
 
-	warnings, err := daemon.verifyContainerSettings(params.HostConfig, params.Config, false)
+	warnings, err := daemon.verifyContainerSettings(params.HostConfig, params.Config, false, validateHostname)
 	if err != nil {
 		return types.ContainerCreateResponse{Warnings: warnings}, err
 	}
 
 	err = daemon.verifyNetworkingConfig(params.NetworkingConfig)
 	if err != nil {
-		return types.ContainerCreateResponse{}, err
+		return types.ContainerCreateResponse{Warnings: warnings}, err
 	}
 
 	if params.HostConfig == nil {
@@ -90,7 +91,7 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	}
 	defer func() {
 		if retErr != nil {
-			if err := daemon.cleanupContainer(container, true); err != nil {
+			if err := daemon.cleanupContainer(container, true, true); err != nil {
 				logrus.Errorf("failed to cleanup container on create error: %v", err)
 			}
 		}
@@ -118,13 +119,6 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	if err := daemon.setHostConfig(container, params.HostConfig); err != nil {
 		return nil, err
 	}
-	defer func() {
-		if retErr != nil {
-			if err := daemon.removeMountPoints(container, true); err != nil {
-				logrus.Error(err)
-			}
-		}
-	}()
 
 	if err := daemon.createContainerPlatformSpecificSettings(container, params.Config, params.HostConfig); err != nil {
 		return nil, err
@@ -240,6 +234,10 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *i
 			return err
 		}
 	}
+	// Reset the Entrypoint if it is [""]
+	if len(config.Entrypoint) == 1 && config.Entrypoint[0] == "" {
+		config.Entrypoint = nil
+	}
 	if len(config.Entrypoint) == 0 && len(config.Cmd) == 0 {
 		return fmt.Errorf("No command specified")
 	}
@@ -247,8 +245,22 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *i
 }
 
 // Checks if the client set configurations for more than one network while creating a container
+// Also checks if the IPAMConfig is valid
 func (daemon *Daemon) verifyNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
-	if nwConfig == nil || len(nwConfig.EndpointsConfig) <= 1 {
+	if nwConfig == nil || len(nwConfig.EndpointsConfig) == 0 {
+		return nil
+	}
+	if len(nwConfig.EndpointsConfig) == 1 {
+		for _, v := range nwConfig.EndpointsConfig {
+			if v.IPAMConfig != nil {
+				if v.IPAMConfig.IPv4Address != "" && net.ParseIP(v.IPAMConfig.IPv4Address).To4() == nil {
+					return errors.NewBadRequestError(fmt.Errorf("invalid IPv4 address: %s", v.IPAMConfig.IPv4Address))
+				}
+				if v.IPAMConfig.IPv6Address != "" && net.ParseIP(v.IPAMConfig.IPv6Address).To16() == nil {
+					return errors.NewBadRequestError(fmt.Errorf("invalid IPv6 address: %s", v.IPAMConfig.IPv6Address))
+				}
+			}
+		}
 		return nil
 	}
 	l := make([]string, 0, len(nwConfig.EndpointsConfig))

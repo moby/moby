@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	mounttypes "github.com/docker/engine-api/types/mount"
 )
 
 // read-write modes
@@ -152,7 +154,7 @@ func ValidMountMode(mode string) bool {
 			rwModeCount++
 		case labelModes[o]:
 			labelModeCount++
-		case propagationModes[o]:
+		case propagationModes[mounttypes.Propagation(o)]:
 			propagationModeCount++
 		case copyModeExists(o):
 			copyModeCount++

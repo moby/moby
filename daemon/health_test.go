@@ -17,6 +17,28 @@ func reset(c *container.Container) {
 	c.State.Health.Status = types.Starting
 }
 
+func TestNoneHealthcheck(t *testing.T) {
+	c := &container.Container{
+		CommonContainer: container.CommonContainer{
+			ID:   "container_id",
+			Name: "container_name",
+			Config: &containertypes.Config{
+				Image: "image_name",
+				Healthcheck: &containertypes.HealthConfig{
+					Test: []string{"NONE"},
+				},
+			},
+			State: &container.State{},
+		},
+	}
+	daemon := &Daemon{}
+
+	daemon.initHealthMonitor(c)
+	if c.State.Health != nil {
+		t.Errorf("Expecting Health to be nil, but was not")
+	}
+}
+
 func TestHealthStates(t *testing.T) {
 	e := events.New()
 	_, l, _ := e.Subscribe()
@@ -70,22 +92,6 @@ func TestHealthStates(t *testing.T) {
 	expect("health_status: healthy")
 
 	handleResult(c.State.StartedAt.Add(3*time.Second), 1)
-	expect("health_status: unhealthy")
-
-	// starting -> starting -> starting ->
-	// healthy -> starting (invalid transition)
-
-	reset(c)
-
-	handleResult(c.State.StartedAt.Add(20*time.Second), 2)
-	handleResult(c.State.StartedAt.Add(40*time.Second), 2)
-	if c.State.Health.Status != types.Starting {
-		t.Errorf("Expecting starting, but got %#v\n", c.State.Health.Status)
-	}
-
-	handleResult(c.State.StartedAt.Add(50*time.Second), 0)
-	expect("health_status: healthy")
-	handleResult(c.State.StartedAt.Add(60*time.Second), 2)
 	expect("health_status: unhealthy")
 
 	// Test retries

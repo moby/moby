@@ -10,13 +10,21 @@ parent = "smn_cli"
 
 # docker network ls
 
-    Usage:  docker network ls [OPTIONS]
+```markdown
+Usage:  docker network ls [OPTIONS]
 
-    Lists all the networks created by the user
-      -f, --filter=[]       Filter output based on conditions provided
-      --help                Print usage
-      --no-trunc            Do not truncate the output
-      -q, --quiet           Only display numeric IDs
+List networks
+
+Aliases:
+  ls, list
+
+Options:
+  -f, --filter value   Provide filter values (i.e. 'dangling=true') (default [])
+      --format string  Pretty-print networks using a Go template
+      --help           Print usage
+      --no-trunc       Do not truncate the output
+  -q, --quiet          Only display volume names
+```
 
 Lists all the networks the Engine `daemon` knows about. This includes the
 networks that span across multiple hosts in a cluster, for example:
@@ -35,10 +43,10 @@ Use the `--no-trunc` option to display the full network id:
 ```bash
 docker network ls --no-trunc
 NETWORK ID                                                         NAME                DRIVER
-18a2866682b85619a026c81b98a5e375bd33e1b0936a26cc497c283d27bae9b3   none                null                
-c288470c46f6c8949c5f7e5099b5b7947b07eabe8d9a27d79a9cbf111adcbf47   host                host                
-7b369448dccbf865d397c8d2be0cda7cf7edc6b0945f77d2529912ae917a0185   bridge              bridge              
-95e74588f40db048e86320c6526440c504650a1ff3e9f7d60a497c4d2163e5bd   foo                 bridge    
+18a2866682b85619a026c81b98a5e375bd33e1b0936a26cc497c283d27bae9b3   none                null
+c288470c46f6c8949c5f7e5099b5b7947b07eabe8d9a27d79a9cbf111adcbf47   host                host
+7b369448dccbf865d397c8d2be0cda7cf7edc6b0945f77d2529912ae917a0185   bridge              bridge
+95e74588f40db048e86320c6526440c504650a1ff3e9f7d60a497c4d2163e5bd   foo                 bridge
 63d1ff1f77b07ca51070a8c227e962238358bd310bde1529cf62e6c307ade161   dev                 bridge
 ```
 
@@ -46,7 +54,7 @@ c288470c46f6c8949c5f7e5099b5b7947b07eabe8d9a27d79a9cbf111adcbf47   host         
 
 The filtering flag (`-f` or `--filter`) format is a `key=value` pair. If there
 is more than one filter, then pass multiple flags (e.g. `--filter "foo=bar" --filter "bif=baz"`).
-Multiple filter flags are combined as an `OR` filter. For example, 
+Multiple filter flags are combined as an `OR` filter. For example,
 `-f type=custom -f type=builtin` returns both `custom` and `builtin` networks.
 
 The currently supported filters are:
@@ -105,7 +113,7 @@ The following filter matches networks with the `usage` label regardless of its v
 ```bash
 $ docker network ls -f "label=usage"
 NETWORK ID          NAME                DRIVER
-db9db329f835        test1               bridge              
+db9db329f835        test1               bridge
 f6e212da9dfd        test2               bridge
 ```
 
@@ -162,6 +170,38 @@ $ docker network rm `docker network ls --filter type=custom -q`
 A warning will be issued when trying to remove a network that has containers
 attached.
 
+## Formatting
+
+The formatting options (`--format`) pretty-prints networks output
+using a Go template.
+
+Valid placeholders for the Go template are listed below:
+
+Placeholder | Description
+------------|------------------------------------------------------------------------------------------
+`.ID`       | Network ID 
+`.Name`     | Network name
+`.Driver`   | Network driver
+`.Scope`    | Network scope (local, global)
+`.IPv6`     | Whether IPv6 is enabled on the network or not.
+`.Internal` | Whether the network is internal or not.
+`.Labels`   | All labels assigned to the network.
+`.Label`    | Value of a specific label for this network. For example `{{.Label "project.version"}}`
+
+When using the `--format` option, the `network ls` command will either
+output the data exactly as the template declares or, when using the
+`table` directive, includes column headers as well.
+
+The following example uses a template without headers and outputs the
+`ID` and `Driver` entries separated by a colon for all networks:
+
+```bash
+$ docker network ls --format "{{.ID}}: {{.Driver}}"
+afaaab448eb2: bridge
+d1584f8dc718: host
+391df270dc66: null
+```
+
 ## Related information
 
 * [network disconnect ](network_disconnect.md)
@@ -169,4 +209,4 @@ attached.
 * [network create](network_create.md)
 * [network inspect](network_inspect.md)
 * [network rm](network_rm.md)
-* [Understand Docker container networks](../../userguide/networking/dockernetworks.md)
+* [Understand Docker container networks](../../userguide/networking/index.md)

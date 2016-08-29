@@ -26,7 +26,7 @@ type createOptions struct {
 	name string
 }
 
-// NewCreateCommand creats a new cobra.Command for `docker create`
+// NewCreateCommand creates a new cobra.Command for `docker create`
 func NewCreateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts createOptions
 	var copts *runconfigopts.ContainerOptions
@@ -43,7 +43,6 @@ func NewCreateCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runCreate(dockerCli, cmd.Flags(), &opts, copts)
 		},
 	}
-	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	flags := cmd.Flags()
 	flags.SetInterspersed(false)

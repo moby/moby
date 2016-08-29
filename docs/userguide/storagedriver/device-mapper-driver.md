@@ -182,6 +182,7 @@ You can detect the mode by viewing the `docker info` command:
 
 ```bash
 $ sudo docker info
+
 Containers: 0
 Images: 0
 Storage Driver: devicemapper
@@ -209,13 +210,13 @@ you how to configure a Docker host to use the `devicemapper` storage driver in
 a `direct-lvm` configuration.
 
 > **Caution:** If you have already run the Docker daemon on your Docker host
-> and have images you want to keep, `push` them Docker Hub or your private
+> and have images you want to keep, `push` them to Docker Hub or your private
 > Docker Trusted Registry before attempting this procedure.
 
 The procedure below will create a logical volume configured as a thin pool to
 use as backing for the storage pool. It assumes that you have a spare block
 device at `/dev/xvdf` with enough free space to complete the task. The device
-identifier and volume sizes may be be different in your environment and you
+identifier and volume sizes may be different in your environment and you
 should substitute your own values throughout the procedure. The procedure also
 assumes that the Docker daemon is in the `stopped` state.
 
@@ -312,7 +313,7 @@ assumes that the Docker daemon is in the `stopped` state.
 
 14. Configure the Docker daemon with specific devicemapper options.
 
-	There are two ways to do this. You can set options on the commmand line if you start the daemon there:
+	There are two ways to do this. You can set options on the command line if you start the daemon there:
 
 	```bash
 	--storage-driver=devicemapper --storage-opt=dm.thinpooldev=/dev/mapper/docker-thinpool --storage-opt dm.use_deferred_removal=true
@@ -358,7 +359,7 @@ If you run into repeated problems with thin pool, you can use the
 `dm.min_free_space` option to tune the Engine behavior. This value ensures that
 operations fail with a warning when the free space is at or near the minimum.
 For information, see <a
-href="../../../reference/commandline/dockerd.md#storage-driver-options"
+href="../../../reference/commandline/dockerd/#storage-driver-options"
 target="_blank">the storage driver options in the Engine daemon reference</a>.
 
 
@@ -416,12 +417,13 @@ the specifics of the existing configuration use `docker info`:
 
 ```bash
 $ sudo docker info
+
 Containers: 0
  Running: 0
  Paused: 0
  Stopped: 0
 Images: 2
-Server Version: 1.11.0-rc2
+Server Version: 1.11.0
 Storage Driver: devicemapper
  Pool Name: docker-8:1-123141-pool
  Pool Blocksize: 65.54 kB
@@ -440,7 +442,7 @@ Storage Driver: devicemapper
  Deferred Deletion Enabled: false
  Deferred Deleted Device Count: 0
  Data loop file: /var/lib/docker/devicemapper/devicemapper/data
- WARNING: Usage of loopback devices is strongly discouraged for production use. Either use `--storage-opt dm.thinpooldev` or use `--storage-opt dm.no_warn_on_loop_devices=true` to suppress this warning.
+ WARNING: Usage of loopback devices is strongly discouraged for production use. Use `--storage-opt dm.thinpooldev` to specify a custom block storage device.
  Metadata loop file: /var/lib/docker/devicemapper/devicemapper/metadata
  Library Version: 1.02.90 (2014-09-01)
 Logging Driver: json-file
@@ -453,6 +455,7 @@ The `Data Space` values show that the pool is 100GB total. This example extends 
 
 	```bash
 	$ sudo ls -lh /var/lib/docker/devicemapper/devicemapper/
+
 	total 1175492
 	-rw------- 1 root root 100G Mar 30 05:22 data
 	-rw------- 1 root root 2.0G Mar 31 11:17 metadata
@@ -468,6 +471,7 @@ The `Data Space` values show that the pool is 100GB total. This example extends 
 
 	```bash
 	$ sudo ls -lh /var/lib/docker/devicemapper/devicemapper/
+
 	total 1.2G
 	-rw------- 1 root root 200G Apr 14 08:47 data
 	-rw------- 1 root root 2.0G Apr 19 13:27 metadata
@@ -477,9 +481,13 @@ The `Data Space` values show that the pool is 100GB total. This example extends 
 
 	```bash
 	$ sudo blockdev --getsize64 /dev/loop0
+
 	107374182400
+
 	$ sudo losetup -c /dev/loop0
+
 	$ sudo blockdev --getsize64 /dev/loop0
+
 	214748364800
 	```
 
@@ -489,6 +497,7 @@ The `Data Space` values show that the pool is 100GB total. This example extends 
 
 	```bash
 	$ sudo dmsetup status | grep pool
+
 	docker-8:1-123141-pool: 0 209715200 thin-pool 91
 	422/524288 18338/1638400 - rw discard_passdown queue_if_no_space -
 	```
@@ -499,6 +508,7 @@ The `Data Space` values show that the pool is 100GB total. This example extends 
 
 	```bash
 	$ sudo dmsetup table docker-8:1-123141-pool
+
 	0 209715200 thin-pool 7:1 7:0 128 32768 1 skip_block_zeroing
 	```
 
@@ -540,6 +550,7 @@ disk partition.
 
 	```bash
 	$ sudo vgextend vg-docker /dev/sdh1
+
 	Volume group "vg-docker" successfully extended
 	```
 
@@ -549,6 +560,7 @@ disk partition.
 
 	```bash
 	$ sudo lvextend  -l+100%FREE -n vg-docker/data
+
 	Extending logical volume data to 200 GiB
 	Logical volume data successfully resized
 	```
@@ -559,6 +571,7 @@ disk partition.
 
 	```bash
 	$ sudo dmsetup status | grep pool
+
 	docker-253:17-1835016-pool: 0 96460800 thin-pool 51593 6270/1048576 701943/753600 - rw no_discard_passdown queue_if_no_space
 	```
 
@@ -568,6 +581,7 @@ disk partition.
 
 	```bash
 	$ sudo dmsetup table docker-253:17-1835016-pool
+
 	0 96460800 thin-pool 252:0 252:1 128 32768 1 skip_block_zeroing
 	```
 
@@ -580,6 +594,7 @@ disk partition.
 
 	```bash
 	$ sudo blockdev --getsize64 /dev/vg-docker/data
+
 	264132100096
 	```
 

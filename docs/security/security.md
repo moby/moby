@@ -12,7 +12,7 @@ weight =-99
 
 # Docker security
 
-There are three major areas to consider when reviewing Docker security:
+There are four major areas to consider when reviewing Docker security:
 
  - the intrinsic security of the kernel and its support for
    namespaces and cgroups;
@@ -51,7 +51,7 @@ common Ethernet switch; no more, no less.
 How mature is the code providing kernel namespaces and private
 networking? Kernel namespaces were introduced [between kernel version
 2.6.15 and
-2.6.26](http://lxc.sourceforge.net/index.php/about/kernel-namespaces/).
+2.6.26](http://man7.org/linux/man-pages/man7/namespaces.7.html).
 This means that since July 2008 (date of the 2.6.26 release
 ), namespace code has been exercised and scrutinized on a large
 number of production systems. And there is more: the design and
@@ -120,13 +120,11 @@ certificates](https.md).
 
 The daemon is also potentially vulnerable to other inputs, such as image
 loading from either disk with 'docker load', or from the network with
-'docker pull'. This has been a focus of improvement in the community,
-especially for 'pull' security. While these overlap, it should be noted
-that 'docker load' is a mechanism for backup and restore and is not
-currently considered a secure mechanism for loading images. As of
-Docker 1.3.2, images are now extracted in a chrooted subprocess on
-Linux/Unix platforms, being the first-step in a wider effort toward
-privilege separation.
+'docker pull'. As of Docker 1.3.2, images are now extracted in a chrooted
+subprocess on Linux/Unix platforms, being the first-step in a wider effort
+toward privilege separation. As of Docker 1.10.0, all images are stored and
+accessed by the cryptographic checksums of their contents, limiting the
+possibility of an attacker causing a collision with an existing image.
 
 Eventually, it is expected that the Docker daemon will run restricted
 privileges, delegating operations well-audited sub-processes,
@@ -274,3 +272,4 @@ pull requests, and communicate via the mailing list.
 * [Seccomp security profiles for Docker](../security/seccomp.md)
 * [AppArmor security profiles for Docker](../security/apparmor.md)
 * [On the Security of Containers (2014)](https://medium.com/@ewindisch/on-the-security-of-containers-2c60ffe25a9e)
+* [Docker swarm mode overlay network security model](../userguide/networking/overlay-security-model.md)

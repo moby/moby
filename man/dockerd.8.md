@@ -6,6 +6,7 @@ dockerd - Enable daemon mode
 
 # SYNOPSIS
 **dockerd**
+[**--add-runtime**[=*[]*]]
 [**--api-cors-header**=[=*API-CORS-HEADER*]]
 [**--authorization-plugin**[=*[]*]]
 [**-b**|**--bridge**[=*BRIDGE*]]
@@ -54,6 +55,7 @@ dockerd - Enable daemon mode
 [**-s**|**--storage-driver**[=*STORAGE-DRIVER*]]
 [**--selinux-enabled**]
 [**--storage-opt**[=*[]*]]
+[**--swarm-default-advertise-addr**[=*IP|INTERFACE*]]
 [**--tls**]
 [**--tlscacert**[=*~/.docker/ca.pem*]]
 [**--tlscert**[=*~/.docker/cert.pem*]]
@@ -74,6 +76,9 @@ format.
 **dockerd [OPTIONS]**
 
 # OPTIONS
+
+**--add-runtime**=[]
+  Set additional OCI compatible runtime.
 
 **--api-cors-header**=""
   Set CORS headers in the remote API. Default is cors disabled. Give urls like "http://foo, http://bar, ...". Give "*" to allow all.
@@ -117,10 +122,10 @@ format.
   IPv6 address of the container default gateway
 
 **--default-ulimit**=[]
-  Set default ulimits for containers.
+  Default ulimits for containers.
 
 **--disable-legacy-registry**=*true*|*false*
-  Do not contact legacy registries
+  Disable contacting legacy registries
 
 **--dns**=""
   Force Docker to use specific DNS servers
@@ -234,6 +239,11 @@ output otherwise.
 
 **--storage-opt**=[]
   Set storage driver options. See STORAGE DRIVER OPTIONS.
+
+**--swarm-default-advertise-addr**=*IP|INTERFACE*
+  Set default address or interface for swarm to advertise as its externally-reachable address to other cluster
+  members. This can be a hostname, an IP address, or an interface such as `eth0`. A port cannot be specified with
+  this option.
 
 **--tls**=*true*|*false*
   Use TLS; implied by --tlsverify. Default is false.

@@ -51,7 +51,7 @@ func Push(name string, rs registry.Service, metaHeader http.Header, authConfig *
 			return "", err
 		}
 		if !confirmedV2 {
-			return "", ErrUnSupportedRegistry
+			return "", ErrUnsupportedRegistry
 		}
 		logrus.Debugf("Trying to push %s to %s %s", repoInfo.Name(), endpoint.URL, endpoint.Version)
 		// This means that we found an endpoint. and we are ready to push
@@ -74,13 +74,14 @@ func Push(name string, rs registry.Service, metaHeader http.Header, authConfig *
 		r := io.TeeReader(f, h)
 		_, err = io.Copy(bw, r)
 		if err != nil {
+			f.Close()
 			logrus.Debugf("Error in io.Copy: %v", err)
 			return "", err
 		}
 		f.Close()
-		mt := MediaTypeLayer
+		mt := schema2.MediaTypeLayer
 		if i == 0 {
-			mt = MediaTypeConfig
+			mt = schema2.MediaTypePluginConfig
 		}
 		// Commit completes the write process to the BlobService.
 		// The descriptor arg to Commit is called the "provisional" descriptor and
@@ -97,7 +98,7 @@ func Push(name string, rs registry.Service, metaHeader http.Header, authConfig *
 			return "", err
 		}
 		// The canonical descriptor is set the mediatype again, just in case.
-		// Dont touch the digest or the size here.
+		// Don't touch the digest or the size here.
 		desc.MediaType = mt
 		logrus.Debugf("pushed blob: %s %s", desc.MediaType, desc.Digest)
 		descs = append(descs, desc)
