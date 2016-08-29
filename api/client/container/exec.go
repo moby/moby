@@ -11,6 +11,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/promise"
+	apiclient "github.com/docker/docker/client"
+	"github.com/docker/engine-api/types"
 	"github.com/spf13/cobra"
 )
 
@@ -66,8 +68,9 @@ func runExec(dockerCli *client.DockerCli, opts *execOptions, container string, e
 	execConfig.DetachKeys = dockerCli.ConfigFile().DetachKeys
 
 	ctx := context.Background()
+	client := dockerCli.Client()
 
-	response, err := dockerCli.Client().ContainerExecCreate(ctx, container, *execConfig)
+	response, err := client.ContainerExecCreate(ctx, container, *execConfig)
 	if err != nil {
 		return err
 	}
@@ -89,7 +92,7 @@ func runExec(dockerCli *client.DockerCli, opts *execOptions, container string, e
 			Tty:    execConfig.Tty,
 		}
 
-		if err := dockerCli.Client().ContainerExecStart(ctx, execID, execStartCheck); err != nil {
+		if err := client.ContainerExecStart(ctx, execID, execStartCheck); err != nil {
 			return err
 		}
 		// For now don't print this - wait for when we support exec wait()
@@ -118,7 +121,7 @@ func runExec(dockerCli *client.DockerCli, opts *execOptions, container string, e
 		}
 	}
 
-	resp, err := dockerCli.Client().ContainerExecAttach(ctx, execID, *execConfig)
+	resp, err := client.ContainerExecAttach(ctx, execID, *execConfig)
 	if err != nil {
 		return err
 	}
@@ -128,7 +131,7 @@ func runExec(dockerCli *client.DockerCli, opts *execOptions, container string, e
 	})
 
 	if execConfig.Tty && dockerCli.In().IsTerminal() {
-		if err := dockerCli.MonitorTtySize(ctx, execID, true); err != nil {
+		if err := MonitorTtySize(ctx, dockerCli, execID, true); err != nil {
 			fmt.Fprintf(dockerCli.Err(), "Error monitoring TTY size: %s\n", err)
 		}
 	}
@@ -139,7 +142,7 @@ func runExec(dockerCli *client.DockerCli, opts *execOptions, container string, e
 	}
 
 	var status int
-	if _, status, err = dockerCli.GetExecExitCode(ctx, execID); err != nil {
+	if _, status, err = getExecExitCode(ctx, client, execID); err != nil {
 		return err
 	}
 
@@ -148,6 +151,21 @@ func runExec(dockerCli *client.DockerCli, opts *execOptions, container string, e
 	}
 
 	return nil
+}
+
+// getExecExitCode perform an inspect on the exec command. It returns
+// the running state and the exit code.
+func getExecExitCode(ctx context.Context, client apiclient.ContainerAPIClient, execID string) (bool, int, error) {
+	resp, err := client.ContainerExecInspect(ctx, execID)
+	if err != nil {
+		// If we can't connect, then the daemon probably died.
+		if err != apiclient.ErrConnectionFailed {
+			return false, -1, err
+		}
+		return false, -1, nil
+	}
+
+	return resp.Running, resp.ExitCode, nil
 }
 
 // parseExec parses the specified args for the specified command and generates

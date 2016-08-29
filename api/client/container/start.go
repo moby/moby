@@ -64,7 +64,7 @@ func runStart(dockerCli *client.DockerCli, opts *startOptions) error {
 
 		// We always use c.ID instead of container to maintain consistency during `docker start`
 		if !c.Config.Tty {
-			sigc := dockerCli.ForwardAllSignals(ctx, c.ID)
+			sigc := ForwardAllSignals(ctx, dockerCli, c.ID)
 			defer signal.StopCatch(sigc)
 		}
 
@@ -119,7 +119,7 @@ func runStart(dockerCli *client.DockerCli, opts *startOptions) error {
 
 		// 5. Wait for attachment to break.
 		if c.Config.Tty && dockerCli.Out().IsTerminal() {
-			if err := dockerCli.MonitorTtySize(ctx, c.ID, false); err != nil {
+			if err := MonitorTtySize(ctx, dockerCli, c.ID, false); err != nil {
 				fmt.Fprintf(dockerCli.Err(), "Error monitoring TTY size: %s\n", err)
 			}
 		}

@@ -146,7 +146,7 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 		return runStartContainerErr(err)
 	}
 	if opts.sigProxy {
-		sigc := dockerCli.ForwardAllSignals(ctx, createResponse.ID)
+		sigc := ForwardAllSignals(ctx, dockerCli, createResponse.ID)
 		defer signal.StopCatch(sigc)
 	}
 	var (
@@ -235,7 +235,7 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 	}
 
 	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && dockerCli.Out().IsTerminal() {
-		if err := dockerCli.MonitorTtySize(ctx, createResponse.ID, false); err != nil {
+		if err := MonitorTtySize(ctx, dockerCli, createResponse.ID, false); err != nil {
 			fmt.Fprintf(stderr, "Error monitoring TTY size: %s\n", err)
 		}
 	}
