@@ -463,6 +463,8 @@ __docker_complete_events_filter() {
     return ret
 }
 
+# BO network
+
 __docker_network_complete_ls_filters() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
@@ -649,6 +651,8 @@ __docker_network_subcommand() {
 
     return ret
 }
+
+# EO network
 
 # BO node
 
@@ -1252,6 +1256,8 @@ __docker_swarm_subcommand() {
 
 # EO swarm
 
+# BO volume
+
 __docker_volume_complete_ls_filters() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
@@ -1332,12 +1338,12 @@ __docker_volume_subcommand() {
 
     case "$words[1]" in
         (create)
-            _arguments $(__docker_arguments) \
+            _arguments $(__docker_arguments) -A '-*' \
                 $opts_help \
                 "($help -d --driver)"{-d=,--driver=}"[Volume driver name]:Driver name:(local)" \
                 "($help)*--label=[Set metadata for a volume]:label=value: " \
-                "($help)--name=[Volume name]" \
-                "($help)*"{-o=,--opt=}"[Driver specific options]:Driver option: " && ret=0
+                "($help)*"{-o=,--opt=}"[Driver specific options]:Driver option: " \
+                "($help -)1:Volume name: " && ret=0
             ;;
         (inspect)
             _arguments $(__docker_arguments) \
@@ -1370,6 +1376,8 @@ __docker_volume_subcommand() {
 
     return ret
 }
+
+# EO volume
 
 __docker_caching_policy() {
   oldp=( "$1"(Nmh+1) )     # 1 hour
