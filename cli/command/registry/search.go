@@ -1,4 +1,4 @@
-package image
+package registry
 
 import (
 	"fmt"

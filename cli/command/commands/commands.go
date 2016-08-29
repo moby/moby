@@ -33,6 +33,7 @@ func AddCommands(cmd *cobra.Command, dockerCli *command.DockerCli) {
 		system.NewEventsCommand(dockerCli),
 		registry.NewLoginCommand(dockerCli),
 		registry.NewLogoutCommand(dockerCli),
+		registry.NewSearchCommand(dockerCli),
 		system.NewVersionCommand(dockerCli),
 		volume.NewVolumeCommand(dockerCli),
 		system.NewInfoCommand(dockerCli),
@@ -66,7 +67,6 @@ func AddCommands(cmd *cobra.Command, dockerCli *command.DockerCli) {
 		hide(image.NewPushCommand(dockerCli)),
 		hide(image.NewRemoveCommand(dockerCli)),
 		hide(image.NewSaveCommand(dockerCli)),
-		hide(image.NewSearchCommand(dockerCli)),
 		hide(image.NewTagCommand(dockerCli)),
 		hide(system.NewInspectCommand(dockerCli)),
 	)
