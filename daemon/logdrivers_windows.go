@@ -7,4 +7,5 @@ import (
 	_ "github.com/docker/docker/daemon/logger/etwlogs"
 	_ "github.com/docker/docker/daemon/logger/jsonfilelog"
 	_ "github.com/docker/docker/daemon/logger/splunk"
+	_ "github.com/docker/docker/daemon/logger/syslog"
 )

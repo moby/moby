@@ -1,11 +1,10 @@
-// +build linux
-
 package syslog
 
 import (
-	syslog "github.com/RackSec/srslog"
 	"reflect"
 	"testing"
+
+	syslog "github.com/RackSec/srslog"
 )
 
 func functionMatches(expectedFun interface{}, actualFun interface{}) bool {
