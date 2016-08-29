@@ -100,6 +100,23 @@ func TestUpdateEnvironmentWithDuplicateKeys(t *testing.T) {
 	assert.Equal(t, envs[0], "A=b")
 }
 
+func TestUpdateGroups(t *testing.T) {
+	flags := newUpdateCommand(nil).Flags()
+	flags.Set("group-add", "wheel")
+	flags.Set("group-add", "docker")
+	flags.Set("group-rm", "root")
+	flags.Set("group-add", "foo")
+	flags.Set("group-rm", "docker")
+
+	groups := []string{"bar", "root"}
+
+	updateGroups(flags, &groups)
+	assert.Equal(t, len(groups), 3)
+	assert.Equal(t, groups[0], "bar")
+	assert.Equal(t, groups[1], "foo")
+	assert.Equal(t, groups[2], "wheel")
+}
+
 func TestUpdateMounts(t *testing.T) {
 	flags := newUpdateCommand(nil).Flags()
 	flags.Set("mount-add", "type=volume,target=/toadd")

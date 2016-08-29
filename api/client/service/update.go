@@ -39,6 +39,7 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	addServiceFlags(cmd, opts)
 
 	flags.Var(newListOptsVar(), flagEnvRemove, "Remove an environment variable")
+	flags.Var(newListOptsVar(), flagGroupRemove, "Remove previously added user groups from the container")
 	flags.Var(newListOptsVar(), flagLabelRemove, "Remove a label by its key")
 	flags.Var(newListOptsVar(), flagContainerLabelRemove, "Remove a container label by its key")
 	flags.Var(newListOptsVar(), flagMountRemove, "Remove a mount by its target path")
@@ -211,6 +212,12 @@ func updateService(flags *pflag.FlagSet, spec *swarm.ServiceSpec) error {
 		spec.EndpointSpec.Mode = swarm.ResolutionMode(value)
 	}
 
+	if anyChanged(flags, flagGroupAdd, flagGroupRemove) {
+		if err := updateGroups(flags, &cspec.Groups); err != nil {
+			return err
+		}
+	}
+
 	if anyChanged(flags, flagPublishAdd, flagPublishRemove) {
 		if spec.EndpointSpec == nil {
 			spec.EndpointSpec = &swarm.EndpointSpec{}
@@ -368,6 +375,29 @@ func updateMounts(flags *pflag.FlagSet, mounts *[]mounttypes.Mount) {
 		}
 	}
 	*mounts = newMounts
+}
+
+func updateGroups(flags *pflag.FlagSet, groups *[]string) error {
+	if flags.Changed(flagGroupAdd) {
+		values, err := flags.GetStringSlice(flagGroupAdd)
+		if err != nil {
+			return err
+		}
+		*groups = append(*groups, values...)
+	}
+	toRemove := buildToRemoveSet(flags, flagGroupRemove)
+
+	newGroups := []string{}
+	for _, group := range *groups {
+		if _, exists := toRemove[group]; !exists {
+			newGroups = append(newGroups, group)
+		}
+	}
+	// Sort so that result is predictable.
+	sort.Strings(newGroups)
+
+	*groups = newGroups
+	return nil
 }
 
 type byPortConfig []swarm.PortConfig
