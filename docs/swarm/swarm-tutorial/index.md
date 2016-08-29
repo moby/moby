@@ -58,7 +58,41 @@ Mac or Docker for Windows.
 features of swarm mode, like creating a swarm and creating a service. Multi-node
 features like joining additional nodes and scaling a service are not available.
 
-Verify that the Docker Engine daemon is running on each of the machines.
+* [install Docker Engine on Linux machines](#install-docker-engine-on-linux-machines)
+
+* [use Docker for Mac or Docker for Windows](#use-docker-for-mac-or-docker-for-windows)
+
+#### Install Docker Engine on Linux machines
+
+If you are using Linux based physical computers or cloud-provided computers as
+hosts, simply follow the [Linux install
+instructions](../../installation/index.md) for your platform. Spin up the three
+machines, and you are ready. You can test both
+single-node and multi-node swarm scenarios on Linux machines.
+
+#### Use Docker for Mac or Docker for Windows
+
+Alternatively, install the latest [Docker for Mac](/docker-for-mac/index.md) or
+[Docker for Windows](/docker-for-windows/index.md) application on a one
+computer. You can test both single-node and multi-node swarm from this computer,
+but you will need to use Docker Machine to test the multi-node scenarios.
+
+* You can use Docker for Mac or Windows to test _single-node_ features of swarm
+mode, including initializing a swarm with a single node, creating services,
+and scaling services. Docker "Moby" on Hyperkit (Mac) or Hyper-V (Windows)
+will serve as the single swarm node.
+
+<p />
+
+* Currently, you cannot use Docker for Mac or Windows alone to test a
+_multi-node_ swarm. However, you can use the included version of [Docker
+Machine](/machine/overview.md) to create the swarm nodes, then follow the
+tutorial for all multi-node features. For this scenario, you run commands from
+a Docker for Mac or Docker for Windows host, but that Docker host itself is
+_not_ participating in the swarm (i.e., it will not be `manager1`, `worker1`,
+or `worker2` in our example). After you create the nodes, you can run all
+swarm commands as shown from the Mac terminal or Windows PowerShell with
+Docker for Mac or Docker for Windows running.
 
 ### The IP address of the manager machine
 
