@@ -84,5 +84,5 @@ func runImport(dockerCli *client.DockerCli, opts importOptions) error {
 	}
 	defer responseBody.Close()
 
-	return jsonmessage.DisplayJSONMessagesStream(responseBody, dockerCli.Out(), dockerCli.OutFd(), dockerCli.IsTerminalOut(), nil)
+	return jsonmessage.DisplayJSONMessagesToStream(responseBody, dockerCli.Out(), nil)
 }

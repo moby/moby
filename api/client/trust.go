@@ -440,14 +440,14 @@ func (cli *DockerCli) TrustedPush(ctx context.Context, repoInfo *registry.Reposi
 	// We want trust signatures to always take an explicit tag,
 	// otherwise it will act as an untrusted push.
 	if tag == "" {
-		if err = jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut, nil); err != nil {
+		if err = jsonmessage.DisplayJSONMessagesToStream(responseBody, cli.Out(), nil); err != nil {
 			return err
 		}
 		fmt.Fprintln(cli.out, "No tag specified, skipping trust metadata push")
 		return nil
 	}
 
-	if err = jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut, handleTarget); err != nil {
+	if err = jsonmessage.DisplayJSONMessagesToStream(responseBody, cli.Out(), handleTarget); err != nil {
 		return err
 	}
 
@@ -580,7 +580,7 @@ func (cli *DockerCli) ImagePullPrivileged(ctx context.Context, authConfig types.
 	}
 	defer responseBody.Close()
 
-	return jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut, nil)
+	return jsonmessage.DisplayJSONMessagesToStream(responseBody, cli.Out(), nil)
 }
 
 // ImagePushPrivileged push the image

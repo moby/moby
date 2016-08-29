@@ -17,11 +17,11 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/docker/pkg/term"
+	"github.com/docker/engine-api/types"
 )
 
 func (cli *DockerCli) resizeTty(ctx context.Context, id string, isExec bool) {
-	height, width := cli.GetTtySize()
+	height, width := cli.Out().GetTtySize()
 	cli.ResizeTtyTo(ctx, id, height, width, isExec)
 }
 
@@ -70,10 +70,10 @@ func (cli *DockerCli) MonitorTtySize(ctx context.Context, id string, isExec bool
 
 	if runtime.GOOS == "windows" {
 		go func() {
-			prevH, prevW := cli.GetTtySize()
+			prevH, prevW := cli.Out().GetTtySize()
 			for {
 				time.Sleep(time.Millisecond * 250)
-				h, w := cli.GetTtySize()
+				h, w := cli.Out().GetTtySize()
 
 				if prevW != w || prevH != h {
 					cli.resizeTty(ctx, id, isExec)
@@ -92,21 +92,6 @@ func (cli *DockerCli) MonitorTtySize(ctx context.Context, id string, isExec bool
 		}()
 	}
 	return nil
-}
-
-// GetTtySize returns the height and width in characters of the tty
-func (cli *DockerCli) GetTtySize() (int, int) {
-	if !cli.isTerminalOut {
-		return 0, 0
-	}
-	ws, err := term.GetWinsize(cli.outFd)
-	if err != nil {
-		logrus.Debugf("Error getting size: %s", err)
-		if ws == nil {
-			return 0, 0
-		}
-	}
-	return int(ws.Height), int(ws.Width)
 }
 
 // CopyToFile writes the content of the reader to the specified file

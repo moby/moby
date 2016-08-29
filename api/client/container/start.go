@@ -118,7 +118,7 @@ func runStart(dockerCli *client.DockerCli, opts *startOptions) error {
 		}
 
 		// 5. Wait for attachment to break.
-		if c.Config.Tty && dockerCli.IsTerminalOut() {
+		if c.Config.Tty && dockerCli.Out().IsTerminal() {
 			if err := dockerCli.MonitorTtySize(ctx, c.ID, false); err != nil {
 				fmt.Fprintf(dockerCli.Err(), "Error monitoring TTY size: %s\n", err)
 			}

@@ -135,7 +135,7 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 	// a far better user experience rather than relying on subsequent resizes
 	// to cause things to catch up.
 	if runtime.GOOS == "windows" {
-		hostConfig.ConsoleSize[0], hostConfig.ConsoleSize[1] = dockerCli.GetTtySize()
+		hostConfig.ConsoleSize[0], hostConfig.ConsoleSize[1] = dockerCli.Out().GetTtySize()
 	}
 
 	ctx, cancelFun := context.WithCancel(context.Background())
@@ -234,7 +234,7 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 		return runStartContainerErr(err)
 	}
 
-	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && dockerCli.IsTerminalOut() {
+	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && dockerCli.Out().IsTerminal() {
 		if err := dockerCli.MonitorTtySize(ctx, createResponse.ID, false); err != nil {
 			fmt.Fprintf(stderr, "Error monitoring TTY size: %s\n", err)
 		}

@@ -95,8 +95,8 @@ func runAttach(dockerCli *client.DockerCli, opts *attachOptions) error {
 	}
 	defer resp.Close()
 
-	if c.Config.Tty && dockerCli.IsTerminalOut() {
-		height, width := dockerCli.GetTtySize()
+	if c.Config.Tty && dockerCli.Out().IsTerminal() {
+		height, width := dockerCli.Out().GetTtySize()
 		// To handle the case where a user repeatedly attaches/detaches without resizing their
 		// terminal, the only way to get the shell prompt to display for attaches 2+ is to artificially
 		// resize it, then go back to normal. Without this, every attach after the first will

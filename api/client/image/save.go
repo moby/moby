@@ -38,7 +38,7 @@ func NewSaveCommand(dockerCli *client.DockerCli) *cobra.Command {
 }
 
 func runSave(dockerCli *client.DockerCli, opts saveOptions) error {
-	if opts.output == "" && dockerCli.IsTerminalOut() {
+	if opts.output == "" && dockerCli.Out().IsTerminal() {
 		return errors.New("Cowardly refusing to save to a terminal. Use the -o flag or redirect.")
 	}
 

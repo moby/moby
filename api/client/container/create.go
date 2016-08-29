@@ -103,8 +103,8 @@ func pullImage(ctx context.Context, dockerCli *client.DockerCli, image string, o
 	return jsonmessage.DisplayJSONMessagesStream(
 		responseBody,
 		out,
-		dockerCli.OutFd(),
-		dockerCli.IsTerminalOut(),
+		dockerCli.Out().FD(),
+		dockerCli.Out().IsTerminal(),
 		nil)
 }
 
