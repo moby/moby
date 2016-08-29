@@ -62,7 +62,7 @@ func NewBuildCommand(dockerCli *command.DockerCli) *cobra.Command {
 	ulimits := make(map[string]*units.Ulimit)
 	options := buildOptions{
 		tags:      opts.NewListOpts(validateTag),
-		buildArgs: opts.NewListOpts(runconfigopts.ValidateEnv),
+		buildArgs: opts.NewListOpts(runconfigopts.ValidateArg),
 		ulimits:   runconfigopts.NewUlimitOpt(&ulimits),
 	}
 
