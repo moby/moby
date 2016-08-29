@@ -25,11 +25,6 @@ func (daemon *Daemon) containerUnpause(container *container.Container) error {
 	container.Lock()
 	defer container.Unlock()
 
-	// We cannot unpause the container which is not running
-	if !container.Running {
-		return errNotRunning{container.ID}
-	}
-
 	// We cannot unpause the container which is not paused
 	if !container.Paused {
 		return fmt.Errorf("Container %s is not paused", container.ID)
