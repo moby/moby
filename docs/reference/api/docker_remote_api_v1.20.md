@@ -220,7 +220,7 @@ Create a container
 -   **AttachStdout** - Boolean value, attaches to `stdout`.
 -   **AttachStderr** - Boolean value, attaches to `stderr`.
 -   **Tty** - Boolean value, Attach standard streams to a `tty`, including `stdin` if it is not closed.
--   **OpenStdin** - Boolean value, opens stdin,
+-   **OpenStdin** - Boolean value, opens `stdin`,
 -   **StdinOnce** - Boolean value, close `stdin` after the 1 attached client disconnects.
 -   **Env** - A list of environment variables in the form of `["VAR=value"[,"VAR2=value2"]]`
 -   **Labels** - Adds a map of labels to a container. To specify a map: `{"key":"value"[,"key2":"value2"]}`
@@ -332,7 +332,7 @@ Return low-level information on the container `id`
     HTTP/1.1 200 OK
     Content-Type: application/json
 
-    {
+	{
 		"AppArmorProfile": "",
 		"Args": [
 			"-c",
@@ -440,7 +440,7 @@ Return low-level information on the container `id`
 			"Paused": false,
 			"Pid": 0,
 			"Restarting": false,
-			"Running": false,
+			"Running": true,
 			"StartedAt": "2015-01-06T15:47:32.072697474Z"
 		},
 		"Mounts": [
@@ -1375,13 +1375,17 @@ or being killed.
 
 **Query parameters**:
 
--   **dockerfile** - Path within the build context to the Dockerfile. This is
-        ignored if `remote` is specified and points to an individual filename.
--   **t** – A repository name (and optionally a tag) to apply to
-        the resulting image in case of success.
--   **remote** – A Git repository URI or HTTP/HTTPS URI build source. If the
-        URI specifies a filename, the file's contents are placed into a file
-        called `Dockerfile`.
+-   **dockerfile** - Path within the build context to the `Dockerfile`. This is
+        ignored if `remote` is specified and points to an external `Dockerfile`.
+-   **t** – A name and optional tag to apply to the image in the `name:tag` format.
+        If you omit the `tag` the default `latest` value is assumed.
+-   **remote** – A Git repository URI or HTTP/HTTPS context URI. If the
+        URI points to a single text file, the file's contents are placed into
+        a file called `Dockerfile` and the image is built from that file. If
+        the URI points to a tarball, the file is downloaded by the daemon and
+        the contents therein used as the context for the build. If the URI
+        points to a tarball and the `dockerfile` parameter is also specified,
+        there must be a file with the corresponding path inside the tarball.
 -   **q** – Suppress verbose build output.
 -   **nocache** – Do not use the cache when building the image.
 -   **pull** - Attempt to pull the image even if an older image exists locally.
@@ -1394,7 +1398,7 @@ or being killed.
 -   **cpuperiod** - The length of a CPU period in microseconds.
 -   **cpuquota** - Microseconds of CPU time that the container can get in a CPU period.
 
-    Request Headers:
+**Request Headers**:
 
 -   **Content-type** – Set to `"application/tar"`.
 -   **X-Registry-Config** – A base64-url-safe-encoded Registry Auth Config JSON
@@ -1457,7 +1461,7 @@ a base64-encoded AuthConfig object.
 -   **repo** – Repository name.
 -   **tag** – Tag.
 
-    Request Headers:
+**Request Headers**:
 
 -   **X-Registry-Auth** – base64-encoded AuthConfig object
 
@@ -1484,34 +1488,33 @@ Return low-level information on the image `name`
     Content-Type: application/json
 
     {
-         "Created": "2013-03-23T22:24:18.818426-07:00",
-         "Container": "3d67245a8d72ecf13f33dffac9f79dcdf70f75acb84d308770391510e0c23ad0",
-         "ContainerConfig":
-                 {
-                         "Hostname": "",
-                         "User": "",
-                         "AttachStdin": false,
-                         "AttachStdout": false,
-                         "AttachStderr": false,
-                         "Tty": true,
-                         "OpenStdin": true,
-                         "StdinOnce": false,
-                         "Env": null,
-                         "Cmd": ["/bin/bash"],
-                         "Dns": null,
-                         "Image": "ubuntu",
-                         "Labels": {
-                             "com.example.vendor": "Acme",
-                             "com.example.license": "GPL",
-                             "com.example.version": "1.0"
-                         },
-                         "Volumes": null,
-                         "VolumesFrom": "",
-                         "WorkingDir": ""
-                 },
-         "Id": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
-         "Parent": "27cf784147099545",
-         "Size": 6824592
+       "Created": "2013-03-23T22:24:18.818426-07:00",
+       "Container": "3d67245a8d72ecf13f33dffac9f79dcdf70f75acb84d308770391510e0c23ad0",
+       "ContainerConfig": {
+          "Hostname": "",
+          "User": "",
+          "AttachStdin": false,
+          "AttachStdout": false,
+          "AttachStderr": false,
+          "Tty": true,
+          "OpenStdin": true,
+          "StdinOnce": false,
+          "Env": null,
+          "Cmd": ["/bin/bash"],
+          "Dns": null,
+          "Image": "ubuntu",
+          "Labels": {
+             "com.example.vendor": "Acme",
+             "com.example.license": "GPL",
+             "com.example.version": "1.0"
+          },
+          "Volumes": null,
+          "VolumesFrom": "",
+          "WorkingDir": ""
+       },
+       "Id": "b750fe79269d2ec9a3c593ef05b4332b1d1a02a62b4accb2c21d589ff2f5f2dc",
+       "Parent": "27cf784147099545",
+       "Size": 6824592
     }
 
 **Status codes**:
@@ -1607,10 +1610,9 @@ then be used in the URL. This duplicates the command line's flow.
 
 -   **tag** – The tag to associate with the image on the registry. This is optional.
 
-Request Headers:
+**Request Headers**:
 
--   **X-Registry-Auth** – Include a base64-encoded AuthConfig.
-        object.
+-   **X-Registry-Auth** – base64-encoded AuthConfig object.
 
 **Status codes**:
 
@@ -1746,8 +1748,8 @@ Get the default username and email
     Content-Type: application/json
 
     {
-         "username":" hannibal",
-         "password: "xxxx",
+         "username": "hannibal",
+         "password": "xxxx",
          "email": "hannibal@a-team.com",
          "serveraddress": "https://index.docker.io/v1/"
     }
@@ -1966,7 +1968,7 @@ Docker containers report the following events:
 
     attach, commit, copy, create, destroy, die, exec_create, exec_start, export, kill, oom, pause, rename, resize, restart, start, stop, top, unpause
 
-and Docker images report:
+Docker images report the following events:
 
     delete, import, pull, push, tag, untag
 
@@ -2028,7 +2030,7 @@ See the [image tarball format](#image-tarball-format) for more details.
 -   **200** – no error
 -   **500** – server error
 
-### Get a tarball containing all images.
+### Get a tarball containing all images
 
 `GET /images/get`
 

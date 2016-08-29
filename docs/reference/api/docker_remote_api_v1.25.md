@@ -1,15 +1,15 @@
 <!--[metadata]>
 +++
-title = "Remote API v1.24"
+title = "Remote API v1.25"
 description = "API Documentation for Docker"
 keywords = ["API, Docker, rcli, REST,  documentation"]
 [menu.main]
 parent="engine_remoteapi"
-weight=-5
+weight=-6
 +++
 <![end-metadata]-->
 
-# Docker Remote API v1.24
+# Docker Remote API v1.25
 
 # 1. Brief introduction
 
@@ -325,9 +325,9 @@ Create a container
              "CapDrop": ["MKNOD"],
              "GroupAdd": ["newgroup"],
              "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
+             "AutoRemove": true,
              "NetworkMode": "bridge",
              "Devices": [],
-             "Sysctls": { "net.ipv4.ip_forward": "1" },
              "Ulimits": [{}],
              "LogConfig": { "Type": "json-file", "Config": {} },
              "SecurityOpt": [],
@@ -378,7 +378,9 @@ Create a container
 -   **Labels** - Adds a map of labels to a container. To specify a map: `{"key":"value"[,"key2":"value2"]}`
 -   **Cmd** - Command to run specified as a string or an array of strings.
 -   **Entrypoint** - Set the entry point for the container as a string or an array
-      of strings.
+      of strings. If the array consists of exactly one empty string (`[""]`) then the entry point
+      is reset to system default (i.e., the entry point used by docker when there is no `ENTRYPOINT`
+      instruction in the Dockerfile).
 -   **Image** - A string specifying the image name to use for the container.
 -   **Volumes** - An object mapping mount point paths (strings) inside the
       container to empty objects.
@@ -457,6 +459,8 @@ Create a container
             The default is not to restart. (optional)
             An ever increasing delay (double the previous delay, starting at 100mS)
             is added before each restart to prevent flooding the server.
+    -   **AutoRemove** - Boolean value, set to `true` to automatically remove the container on daemon side
+            when the container's process exits. Note that `RestartPolicy` other than `none` is exclusive to `AutoRemove`.
     -   **UsernsMode**  - Sets the usernamespace mode for the container when usernamespace remapping option is enabled.
            supported values are: `host`.
     -   **NetworkMode** - Sets the networking mode for the container. Supported
@@ -598,6 +602,7 @@ Return low-level information on the container `id`
 				"MaximumRetryCount": 2,
 				"Name": "on-failure"
 			},
+			"AutoRemove": true,
 			"LogConfig": {
 				"Config": null,
 				"Type": "json-file"
@@ -2287,13 +2292,13 @@ Show the docker version information
     Content-Type: application/json
 
     {
-         "Version": "1.12.0",
+         "Version": "1.13.0",
          "Os": "linux",
          "KernelVersion": "3.19.0-23-generic",
          "GoVersion": "go1.6.3",
          "GitCommit": "deadbee",
          "Arch": "amd64",
-         "ApiVersion": "1.24",
+         "ApiVersion": "1.25",
          "BuildTime": "2016-06-14T07:09:13.444803460+00:00",
          "Experimental": true
     }
@@ -2691,14 +2696,14 @@ See the [image tarball format](#image-tarball-format) for more details.
 **Example response**:
 
 If the "quiet" query parameter is set to `true` / `1` (`?quiet=1`), progress 
-details are suppressed, and only a confirmation message is returned as plain text
-once the action completes.
+details are suppressed, and only a confirmation message is returned once the
+action completes.
 
     HTTP/1.1 200 OK
-    Content-Length: 29
-    Content-Type: text/plain; charset=utf-8
+    Content-Type: application/json
+    Transfer-Encoding: chunked
 
-    Loaded image: busybox:latest
+    {"stream":"Loaded image: busybox:latest\n"}
 
 **Query parameters**:
 
@@ -2912,7 +2917,10 @@ Return low-level information about the `exec` command `id`.
           "Name": "tardis",
           "Driver": "local",
           "Mountpoint": "/var/lib/docker/volumes/tardis",
-          "Labels": null,
+          "Labels":{
+            "com.example.some-label": "some-value",
+            "com.example.some-other-label": "some-other-value"
+          },
           "Scope": "local"
         }
       ],
@@ -3180,7 +3188,7 @@ Content-Type: application/json
     "Config": [
       {
         "Subnet": "172.19.0.0/16",
-        "Gateway": "172.19.0.1/16"
+        "Gateway": "172.19.0.1"
       }
     ],
     "Options": {
@@ -3387,7 +3395,7 @@ Instruct the driver to remove the network (`id`).
 -   **404** - no such network
 -   **500** - server error
 
-## 3.6 Plugins (experimental)
+## 3.6 Plugins
 
 ### List plugins
 
@@ -3714,6 +3722,17 @@ Content-Type: application/json
 -   **200** - no error
 -   **404** - plugin not installed
 
+<!-- TODO Document "docker plugin set" endpoint once implemented
+### Configure a plugin
+
+`POST /plugins/(plugin name)/set`
+
+**Status codes**:
+
+-   **500** - not implemented
+
+-->
+
 ### Enable a plugin
 
 `POST /plugins/(plugin name)/enable`
@@ -3791,6 +3810,12 @@ HTTP/1.1 200 OK
 Content-Length: 0
 Content-Type: text/plain; charset=utf-8
 ```
+
+**Query parameters**:
+
+- **force** - Boolean value, set to `1` / `True` / `true` to force removing the
+    plugin. Forcing removal disables the plugin before removing, but may result
+    in issues if the plugin is in use by a container.
 
 **Status codes**:
 
@@ -4855,7 +4880,7 @@ image](#create-an-image) section for more details.
 -   **200** – no error
 -   **404** – no such service
 -   **500** – server error
- 
+
 ## 3.10 Tasks
 
 **Note**: Task operations require the engine to be part of a swarm.
