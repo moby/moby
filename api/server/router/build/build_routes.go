@@ -163,7 +163,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		return progress.NewProgressReader(in, progressOutput, r.ContentLength, "Downloading context", remoteURL)
 	}
 
-	var out io.Writer = output
+	out := io.Writer(output)
 	if buildOptions.SuppressOutput {
 		out = notVerboseBuffer
 	}
