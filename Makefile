@@ -1,4 +1,4 @@
-.PHONY: all binary build cross deb docs help init-go-pkg-cache install manpages rpm run shell test test-docker-py test-integration-cli tgz test-unit validate win
+.PHONY: all binary build cross deb docs help init-go-pkg-cache install manpages rpm run shell test test-docker-py test-integration-cli test-unit tgz validate win
 
 # set the graph driver as the current graphdriver if not set
 DOCKER_GRAPHDRIVER := $(if $(DOCKER_GRAPHDRIVER),$(DOCKER_GRAPHDRIVER),$(shell docker info 2>&1 | grep "Storage Driver" | sed 's/.*: //'))
@@ -84,17 +84,8 @@ build: bundles init-go-pkg-cache
 bundles:
 	mkdir bundles
 
-init-go-pkg-cache:
-	mkdir -p $(shell echo $(PKGCACHE_MAP) | sed -E 's@([^: ]*):[^ ]*@$(PKGCACHE_DIR)/\1@g')
-
 cross: build ## cross build the binaries for darwin, freebsd and\nwindows
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross
-
-win: build ## cross build the binary for windows
-	$(DOCKER_RUN_DOCKER) hack/make.sh win
-
-tgz: build ## build the archives (.zip on windows and .tgz\notherwise) containing the binaries
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross tgz
 
 deb: build  ## build the deb packages
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-deb
@@ -102,8 +93,20 @@ deb: build  ## build the deb packages
 docs: ## build the docs
 	$(MAKE) -C docs docs
 
+help: ## this help
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {sub("\\\\n",sprintf("\n%22c"," "), $$2);printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+init-go-pkg-cache:
+	mkdir -p $(shell echo $(PKGCACHE_MAP) | sed -E 's@([^: ]*):[^ ]*@$(PKGCACHE_DIR)/\1@g')
+
 install: ## install the linux binaries
 	KEEPBUNDLE=1 hack/make.sh install-binary
+
+manpages: ## Generate man pages from go source and markdown
+	docker build -t docker-manpage-dev -f "man/$(DOCKERFILE)" ./man
+	docker run --rm \
+		-v $(PWD):/go/src/github.com/docker/docker/ \
+		docker-manpage-dev
 
 rpm: build ## build the rpm packages
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-rpm
@@ -126,15 +129,12 @@ test-integration-cli: build ## run the integration tests
 test-unit: build ## run the unit tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh test-unit
 
+tgz: build ## build the archives (.zip on windows and .tgz\notherwise) containing the binaries
+	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross tgz
+
 validate: build ## validate DCO, Seccomp profile generation, gofmt,\n./pkg/ isolation, golint, tests, tomls, go vet and vendor
 	$(DOCKER_RUN_DOCKER) hack/make.sh validate-dco validate-default-seccomp validate-gofmt validate-pkg validate-lint validate-test validate-toml validate-vet validate-vendor
 
-manpages: ## Generate man pages from go source and markdown
-	docker build -t docker-manpage-dev -f "man/$(DOCKERFILE)" ./man
-	docker run --rm \
-		-v $(PWD):/go/src/github.com/docker/docker/ \
-		docker-manpage-dev
-
-help: ## this help
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {sub("\\\\n",sprintf("\n%22c"," "), $$2);printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+win: build ## cross build the binary for windows
+	$(DOCKER_RUN_DOCKER) hack/make.sh win
 
