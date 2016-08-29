@@ -9,13 +9,13 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/types"
+	apiclient "github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/signal"
-	apiclient "github.com/docker/engine-api/client"
-	"github.com/docker/engine-api/types"
 	"golang.org/x/net/context"
 )
 
-// ResizeTtyTo resizes tty to specific height and width
+// resizeTtyTo resizes tty to specific height and width
 func resizeTtyTo(ctx context.Context, client apiclient.ContainerAPIClient, id string, height, width int, isExec bool) {
 	if height == 0 && width == 0 {
 		return

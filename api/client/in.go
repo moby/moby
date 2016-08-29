@@ -36,7 +36,8 @@ func (i *InStream) IsTerminal() bool {
 	return i.isTerminal
 }
 
-func (i *InStream) setRawTerminal() (err error) {
+// SetRawTerminal sets raw mode on the input terminal
+func (i *InStream) SetRawTerminal() (err error) {
 	if os.Getenv("NORAW") != "" || !i.isTerminal {
 		return nil
 	}
@@ -44,7 +45,8 @@ func (i *InStream) setRawTerminal() (err error) {
 	return err
 }
 
-func (i *InStream) restoreTerminal() {
+// RestoreTerminal restores normal mode to the terminal
+func (i *InStream) RestoreTerminal() {
 	if i.state != nil {
 		term.RestoreTerminal(i.fd, i.state)
 	}

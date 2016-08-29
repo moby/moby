@@ -95,7 +95,7 @@ func runStart(dockerCli *client.DockerCli, opts *startOptions) error {
 		}
 		defer resp.Close()
 		cErr := promise.Go(func() error {
-			errHijack := dockerCli.HoldHijackedConnection(ctx, c.Config.Tty, in, dockerCli.Out(), dockerCli.Err(), resp)
+			errHijack := holdHijackedConnection(ctx, dockerCli, c.Config.Tty, in, dockerCli.Out(), dockerCli.Err(), resp)
 			if errHijack == nil {
 				return errAttach
 			}

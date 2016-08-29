@@ -1,30 +1,36 @@
-package client
+package container
 
 import (
 	"io"
+	"runtime"
 	"sync"
 
-	"golang.org/x/net/context"
-
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stdcopy"
+	"golang.org/x/net/context"
 )
 
-// HoldHijackedConnection handles copying input to and output from streams to the
+type streams interface {
+	In() *client.InStream
+	Out() *client.OutStream
+}
+
+// holdHijackedConnection handles copying input to and output from streams to the
 // connection
-func (cli *DockerCli) HoldHijackedConnection(ctx context.Context, tty bool, inputStream io.ReadCloser, outputStream, errorStream io.Writer, resp types.HijackedResponse) error {
+func holdHijackedConnection(ctx context.Context, streams streams, tty bool, inputStream io.ReadCloser, outputStream, errorStream io.Writer, resp types.HijackedResponse) error {
 	var (
 		err         error
 		restoreOnce sync.Once
 	)
 	if inputStream != nil && tty {
-		if err := cli.setRawTerminal(); err != nil {
+		if err := setRawTerminal(streams); err != nil {
 			return err
 		}
 		defer func() {
 			restoreOnce.Do(func() {
-				cli.restoreTerminal(inputStream)
+				restoreTerminal(streams, inputStream)
 			})
 		}()
 	}
@@ -39,7 +45,7 @@ func (cli *DockerCli) HoldHijackedConnection(ctx context.Context, tty bool, inpu
 				// so any following print messages will be in normal type.
 				if inputStream != nil {
 					restoreOnce.Do(func() {
-						cli.restoreTerminal(inputStream)
+						restoreTerminal(streams, inputStream)
 					})
 				}
 			} else {
@@ -59,7 +65,7 @@ func (cli *DockerCli) HoldHijackedConnection(ctx context.Context, tty bool, inpu
 			// so any following print messages will be in normal type.
 			if tty {
 				restoreOnce.Do(func() {
-					cli.restoreTerminal(inputStream)
+					restoreTerminal(streams, inputStream)
 				})
 			}
 			logrus.Debug("[hijack] End of stdin")
@@ -91,5 +97,25 @@ func (cli *DockerCli) HoldHijackedConnection(ctx context.Context, tty bool, inpu
 	case <-ctx.Done():
 	}
 
+	return nil
+}
+
+func setRawTerminal(streams streams) error {
+	if err := streams.In().SetRawTerminal(); err != nil {
+		return err
+	}
+	return streams.Out().SetRawTerminal()
+}
+
+func restoreTerminal(streams streams, in io.Closer) error {
+	streams.In().RestoreTerminal()
+	streams.Out().RestoreTerminal()
+	// WARNING: DO NOT REMOVE THE OS CHECK !!!
+	// For some reason this Close call blocks on darwin..
+	// As the client exists right after, simply discard the close
+	// until we find a better solution.
+	if in != nil && runtime.GOOS != "darwin" {
+		return in.Close()
+	}
 	return nil
 }

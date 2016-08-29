@@ -57,31 +57,12 @@ func (cli *DockerCli) ConfigFile() *configfile.ConfigFile {
 	return cli.configFile
 }
 
-func (cli *DockerCli) setRawTerminal() error {
-	if err := cli.in.setRawTerminal(); err != nil {
-		return err
-	}
-	return cli.out.setRawTerminal()
-}
-
-func (cli *DockerCli) restoreTerminal(in io.Closer) error {
-	cli.in.restoreTerminal()
-	cli.out.restoreTerminal()
-	// WARNING: DO NOT REMOVE THE OS CHECK !!!
-	// For some reason this Close call blocks on darwin..
-	// As the client exists right after, simply discard the close
-	// until we find a better solution.
-	if in != nil && runtime.GOOS != "darwin" {
-		return in.Close()
-	}
-	return nil
-}
-
 // Initialize the dockerCli runs initialization that must happen after command
 // line flags are parsed.
-func (cli *DockerCli) Initialize(opts *cliflags.ClientOptions) (err error) {
+func (cli *DockerCli) Initialize(opts *cliflags.ClientOptions) error {
 	cli.configFile = LoadDefaultConfigFile(cli.err)
 
+	var err error
 	cli.client, err = NewAPIClientFromFlags(opts.Common, cli.configFile)
 	if err != nil {
 		return err
