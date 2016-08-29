@@ -17,7 +17,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/dockerversion"
 	dopts "github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/term"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
 )
@@ -25,30 +24,12 @@ import (
 // DockerCli represents the docker command line client.
 // Instances of the client can be returned from NewDockerCli.
 type DockerCli struct {
-	// initializing closure
-	init func() error
-
-	// configFile has the client configuration file
 	configFile *configfile.ConfigFile
-	// in holds the input stream and closer (io.ReadCloser) for the client.
-	// TODO: remove
-	in io.ReadCloser
-	// err holds the error stream (io.Writer) for the client.
-	err io.Writer
-	// keyFile holds the key file as a string.
-	keyFile string
-	// inFd holds the file descriptor of the client's STDIN (if valid).
-	// TODO: remove
-	inFd uintptr
-	// isTerminalIn indicates whether the client's STDIN is a TTY
-	// TODO: remove
-	isTerminalIn bool
-	// client is the http client that performs all API operations
-	client client.APIClient
-	// inState holds the terminal input state
-	// TODO: remove
-	inState *term.State
-	out     *OutStream
+	in         *InStream
+	out        *OutStream
+	err        io.Writer
+	keyFile    string
+	client     client.APIClient
 }
 
 // Client returns the APIClient
@@ -67,7 +48,7 @@ func (cli *DockerCli) Err() io.Writer {
 }
 
 // In returns the reader used for stdin
-func (cli *DockerCli) In() io.ReadCloser {
+func (cli *DockerCli) In() *InStream {
 	return cli.in
 }
 
@@ -76,48 +57,15 @@ func (cli *DockerCli) ConfigFile() *configfile.ConfigFile {
 	return cli.configFile
 }
 
-// IsTerminalIn returns true if the clients stdin is a TTY
-// TODO: remove
-func (cli *DockerCli) IsTerminalIn() bool {
-	return cli.isTerminalIn
-}
-
-// CheckTtyInput checks if we are trying to attach to a container tty
-// from a non-tty client input stream, and if so, returns an error.
-func (cli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
-	// In order to attach to a container tty, input stream for the client must
-	// be a tty itself: redirecting or piping the client standard input is
-	// incompatible with `docker run -t`, `docker exec -t` or `docker attach`.
-	if ttyMode && attachStdin && !cli.isTerminalIn {
-		eText := "the input device is not a TTY"
-		if runtime.GOOS == "windows" {
-			return errors.New(eText + ".  If you are using mintty, try prefixing the command with 'winpty'")
-		}
-		return errors.New(eText)
-	}
-	return nil
-}
-
 func (cli *DockerCli) setRawTerminal() error {
-	if os.Getenv("NORAW") == "" {
-		if cli.isTerminalIn {
-			state, err := term.SetRawTerminal(cli.inFd)
-			if err != nil {
-				return err
-			}
-			cli.inState = state
-		}
-		if err := cli.out.setRawTerminal(); err != nil {
-			return err
-		}
+	if err := cli.in.setRawTerminal(); err != nil {
+		return err
 	}
-	return nil
+	return cli.out.setRawTerminal()
 }
 
 func (cli *DockerCli) restoreTerminal(in io.Closer) error {
-	if cli.inState != nil {
-		term.RestoreTerminal(cli.inFd, cli.inState)
-	}
+	cli.in.restoreTerminal()
 	cli.out.restoreTerminal()
 	// WARNING: DO NOT REMOVE THE OS CHECK !!!
 	// For some reason this Close call blocks on darwin..
@@ -138,11 +86,6 @@ func (cli *DockerCli) Initialize(opts *cliflags.ClientOptions) (err error) {
 	if err != nil {
 		return err
 	}
-
-	if cli.in != nil {
-		cli.inFd, cli.isTerminalIn = term.GetFdInfo(cli.in)
-	}
-
 	if opts.Common.TrustKey == "" {
 		cli.keyFile = filepath.Join(cliconfig.ConfigDir(), cliflags.DefaultTrustKeyFile)
 	} else {
@@ -154,7 +97,7 @@ func (cli *DockerCli) Initialize(opts *cliflags.ClientOptions) (err error) {
 
 // NewDockerCli returns a DockerCli instance with IO output and error streams set by in, out and err.
 func NewDockerCli(in io.ReadCloser, out, err io.Writer) *DockerCli {
-	return &DockerCli{in: in, out: NewOutStream(out), err: err}
+	return &DockerCli{in: NewInStream(in), out: NewOutStream(out), err: err}
 }
 
 // LoadDefaultConfigFile attempts to load the default config file and returns

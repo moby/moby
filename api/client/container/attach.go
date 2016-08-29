@@ -60,7 +60,7 @@ func runAttach(dockerCli *client.DockerCli, opts *attachOptions) error {
 		return fmt.Errorf("You cannot attach to a paused container, unpause it first")
 	}
 
-	if err := dockerCli.CheckTtyInput(!opts.noStdin, c.Config.Tty); err != nil {
+	if err := dockerCli.In().CheckTty(!opts.noStdin, c.Config.Tty); err != nil {
 		return err
 	}
 

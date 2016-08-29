@@ -80,7 +80,7 @@ func runExec(dockerCli *client.DockerCli, opts *execOptions, container string, e
 
 	//Temp struct for execStart so that we don't need to transfer all the execConfig
 	if !execConfig.Detach {
-		if err := dockerCli.CheckTtyInput(execConfig.AttachStdin, execConfig.Tty); err != nil {
+		if err := dockerCli.In().CheckTty(execConfig.AttachStdin, execConfig.Tty); err != nil {
 			return err
 		}
 	} else {
@@ -127,7 +127,7 @@ func runExec(dockerCli *client.DockerCli, opts *execOptions, container string, e
 		return dockerCli.HoldHijackedConnection(ctx, execConfig.Tty, in, out, stderr, resp)
 	})
 
-	if execConfig.Tty && dockerCli.IsTerminalIn() {
+	if execConfig.Tty && dockerCli.In().IsTerminal() {
 		if err := dockerCli.MonitorTtySize(ctx, execID, true); err != nil {
 			fmt.Fprintf(dockerCli.Err(), "Error monitoring TTY size: %s\n", err)
 		}

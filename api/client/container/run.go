@@ -109,7 +109,7 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 	config.ArgsEscaped = false
 
 	if !opts.detach {
-		if err := dockerCli.CheckTtyInput(config.AttachStdin, config.Tty); err != nil {
+		if err := dockerCli.In().CheckTty(config.AttachStdin, config.Tty); err != nil {
 			return err
 		}
 	} else {
