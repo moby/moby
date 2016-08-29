@@ -27,7 +27,7 @@ This tutorial uses Docker Engine CLI commands entered on the command line of a
 terminal window. You should be able to install Docker on networked machines and
 be comfortable running commands in the shell of your choice.
 
-If you’re brand new to Docker, see [About Docker Engine](../../index.md).
+If you are brand new to Docker, see [About Docker Engine](../../index.md).
 
 ## Set up
 
@@ -48,15 +48,16 @@ provider. This tutorial uses the following machine names:
 * worker1
 * worker2
 
-###  Docker Engine 1.12 or later
+>**Note:** You can follow many of the tutorial steps to test single-node swarm
+as well, in which case you need only one host. Multi-node commands will not
+work, but you can initialize a swarm, create services, and scale them.
 
-To use swarm mode, you must [install Docker Engine](../../installation/index.md)
-on each one of the host machines. Alternatively, install the latest Docker for
-Mac or Docker for Windows.
+###  Docker Engine 1.12 or newer
 
->**Note**: Docker for Mac and Docker for Windows let you use single-node
-features of swarm mode, like creating a swarm and creating a service. Multi-node
-features like joining additional nodes and scaling a service are not available.
+This tutorial requires Docker Engine 1.12 or newer on each of the host machines.
+Install Docker Engine and verify that the Docker Engine daemon is running on
+each of the machines. You can get the latest version of Docker Engine as
+follows:
 
 * [install Docker Engine on Linux machines](#install-docker-engine-on-linux-machines)
 
@@ -96,18 +97,25 @@ Docker for Mac or Docker for Windows running.
 
 ### The IP address of the manager machine
 
-The IP address must be assigned to an a network interface available to the host
-operating system. All nodes in the swarm must be able to access the manager at the IP address.
+The IP address must be assigned to a network interface available to the host
+operating system. All nodes in the swarm must be able to access the manager at
+the IP address.
 
 Because other nodes contact the manager node on its IP address, you should use a
 fixed IP address.
 
->**Tip**: You can run `ifconfig` on Linux or Mac OS X to see a list of the
+You can run `ifconfig` on Linux or Mac OS X to see a list of the
 available network interfaces.
+
+If you are using Docker Machine, you can get the manager IP with either
+`docker-machine ls` or `docker-machine ip <MACHINE-NAME>` &#8212; for example,
+`docker-machine ip manager1`.
 
 The tutorial uses `manager1` : `192.168.99.100`.
 
 ### Open ports between the hosts
+
+The following ports must be available. On some systems, these ports are open by default.
 
 * **TCP port 2377** for cluster management communications
 * **TCP** and **UDP port 7946** for communication among nodes
@@ -115,4 +123,4 @@ The tutorial uses `manager1` : `192.168.99.100`.
 
 ## What's next?
 
-After you have set up your environment, you're ready to [create a swarm](create-swarm.md).
+After you have set up your environment, you are ready to [create a swarm](create-swarm.md).
