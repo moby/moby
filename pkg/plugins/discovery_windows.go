@@ -5,4 +5,4 @@ import (
 	"path/filepath"
 )
 
-var specPaths = []string{filepath.Join(os.Getenv("programdata"), "docker", "plugins")}
+var specsPaths = []string{filepath.Join(os.Getenv("programdata"), "docker", "plugins")}
