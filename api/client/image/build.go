@@ -421,7 +421,7 @@ func replaceDockerfileTarWrapper(ctx context.Context, inputTarStream io.ReadClos
 				return
 			}
 
-			var content io.Reader = tarReader
+			content := io.Reader(tarReader)
 			if hdr.Name == dockerfileName {
 				// This entry is the Dockerfile. Since the tar archive was
 				// generated from a directory on the local filesystem, the
