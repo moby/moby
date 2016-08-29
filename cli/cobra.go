@@ -13,7 +13,7 @@ func SetupRootCommand(rootCmd *cobra.Command) {
 	rootCmd.SetHelpTemplate(helpTemplate)
 	rootCmd.SetFlagErrorFunc(FlagErrorFunc)
 
-	rootCmd.PersistentFlags().BoolP("help", "h", false, "Print usage")
+	rootCmd.PersistentFlags().BoolP("help", false, "Print usage")
 	rootCmd.PersistentFlags().MarkShorthandDeprecated("help", "please use --help")
 }
 
