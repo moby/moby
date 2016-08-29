@@ -17,8 +17,6 @@ import (
 const attachWait = 5 * time.Second
 
 func (s *DockerSuite) TestAttachMultipleAndRestart(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-
 	endGroup := &sync.WaitGroup{}
 	startGroup := &sync.WaitGroup{}
 	endGroup.Add(3)
@@ -89,7 +87,6 @@ func (s *DockerSuite) TestAttachMultipleAndRestart(c *check.C) {
 }
 
 func (s *DockerSuite) TestAttachTTYWithoutStdin(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "-ti", "busybox")
 
 	id := strings.TrimSpace(out)
