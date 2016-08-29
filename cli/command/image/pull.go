@@ -78,9 +78,9 @@ func runPull(dockerCli *command.DockerCli, opts pullOptions) error {
 
 	if command.IsTrusted() && !registryRef.HasDigest() {
 		// Check if tag is digest
-		err = dockerCli.TrustedPull(ctx, repoInfo, registryRef, authConfig, requestPrivilege)
+		err = trustedPull(ctx, dockerCli, repoInfo, registryRef, authConfig, requestPrivilege)
 	} else {
-		err = dockerCli.ImagePullPrivileged(ctx, authConfig, distributionRef.String(), requestPrivilege, opts.all)
+		err = imagePullPrivileged(ctx, dockerCli, authConfig, distributionRef.String(), requestPrivilege, opts.all)
 	}
 	if err != nil {
 		if strings.Contains(err.Error(), "target is a plugin") {

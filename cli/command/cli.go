@@ -21,6 +21,13 @@ import (
 	"github.com/docker/go-connections/tlsconfig"
 )
 
+// Streams is an interface which exposes the standard input and output streams
+type Streams interface {
+	In() *InStream
+	Out() *OutStream
+	Err() io.Writer
+}
+
 // DockerCli represents the docker command line client.
 // Instances of the client can be returned from NewDockerCli.
 type DockerCli struct {
@@ -105,7 +112,7 @@ func NewAPIClientFromFlags(opts *cliflags.CommonOptions, configFile *configfile.
 	if customHeaders == nil {
 		customHeaders = map[string]string{}
 	}
-	customHeaders["User-Agent"] = clientUserAgent()
+	customHeaders["User-Agent"] = UserAgent()
 
 	verStr := api.DefaultVersion
 	if tmpStr := os.Getenv("DOCKER_API_VERSION"); tmpStr != "" {
@@ -159,6 +166,7 @@ func newHTTPClient(host string, tlsOptions *tlsconfig.Options) (*http.Client, er
 	}, nil
 }
 
-func clientUserAgent() string {
+// UserAgent returns the user agent string used for making API requests
+func UserAgent() string {
 	return "Docker-Client/" + dockerversion.Version + " (" + runtime.GOOS + ")"
 }
