@@ -136,7 +136,7 @@ func (o *NamedListOpts) Name() string {
 	return o.name
 }
 
-//MapOpts holds a map of values and a validation function.
+// MapOpts holds a map of values and a validation function.
 type MapOpts struct {
 	values    map[string]string
 	validator ValidatorFctType

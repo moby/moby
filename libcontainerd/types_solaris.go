@@ -20,7 +20,7 @@ type Process struct {
 // Stats contains a stats properties from containerd.
 type Stats struct{}
 
-// Summary container a container summary from containerd
+// Summary contains a container summary from containerd
 type Summary struct{}
 
 // StateInfo contains description about the new state container has entered.
