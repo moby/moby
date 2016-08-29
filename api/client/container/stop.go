@@ -18,7 +18,7 @@ type stopOptions struct {
 	containers []string
 }
 
-// NewStopCommand creats a new cobra.Command for `docker stop`
+// NewStopCommand creates a new cobra.Command for `docker stop`
 func NewStopCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts stopOptions
 
@@ -31,7 +31,6 @@ func NewStopCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runStop(dockerCli, &opts)
 		},
 	}
-	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	flags := cmd.Flags()
 	flags.IntVarP(&opts.time, "time", "t", 10, "Seconds to wait for stop before killing it")
@@ -43,7 +42,8 @@ func runStop(dockerCli *client.DockerCli, opts *stopOptions) error {
 
 	var errs []string
 	for _, container := range opts.containers {
-		if err := dockerCli.Client().ContainerStop(ctx, container, time.Duration(opts.time)*time.Second); err != nil {
+		timeout := time.Duration(opts.time) * time.Second
+		if err := dockerCli.Client().ContainerStop(ctx, container, &timeout); err != nil {
 			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(dockerCli.Out(), "%s\n", container)

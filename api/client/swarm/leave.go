@@ -18,8 +18,8 @@ func newLeaveCommand(dockerCli *client.DockerCli) *cobra.Command {
 	opts := leaveOptions{}
 
 	cmd := &cobra.Command{
-		Use:   "leave",
-		Short: "Leave a Swarm.",
+		Use:   "leave [OPTIONS]",
+		Short: "Leave a swarm",
 		Args:  cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runLeave(dockerCli, opts)
@@ -39,6 +39,6 @@ func runLeave(dockerCli *client.DockerCli, opts leaveOptions) error {
 		return err
 	}
 
-	fmt.Fprintln(dockerCli.Out(), "Node left the default swarm.")
+	fmt.Fprintln(dockerCli.Out(), "Node left the swarm.")
 	return nil
 }

@@ -14,9 +14,7 @@
 package prometheus
 
 import (
-	"bytes"
 	"fmt"
-	"hash"
 	"sync"
 )
 
@@ -26,15 +24,9 @@ import (
 // type. GaugeVec, CounterVec, SummaryVec, and UntypedVec are examples already
 // provided in this package.
 type MetricVec struct {
-	mtx      sync.RWMutex // Protects not only children, but also hash and buf.
+	mtx      sync.RWMutex // Protects the children.
 	children map[uint64]Metric
 	desc     *Desc
-
-	// hash is our own hash instance to avoid repeated allocations.
-	hash hash.Hash64
-	// buf is used to copy string contents into it for hashing,
-	// again to avoid allocations.
-	buf bytes.Buffer
 
 	newMetric func(labelValues ...string) Metric
 }
@@ -80,13 +72,20 @@ func (m *MetricVec) Collect(ch chan<- Metric) {
 // with a performance overhead (for creating and processing the Labels map).
 // See also the GaugeVec example.
 func (m *MetricVec) GetMetricWithLabelValues(lvs ...string) (Metric, error) {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-
 	h, err := m.hashLabelValues(lvs)
 	if err != nil {
 		return nil, err
 	}
+
+	m.mtx.RLock()
+	metric, ok := m.children[h]
+	m.mtx.RUnlock()
+	if ok {
+		return metric, nil
+	}
+
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
 	return m.getOrCreateMetric(h, lvs...), nil
 }
 
@@ -103,17 +102,24 @@ func (m *MetricVec) GetMetricWithLabelValues(lvs ...string) (Metric, error) {
 // GetMetricWithLabelValues(...string). See there for pros and cons of the two
 // methods.
 func (m *MetricVec) GetMetricWith(labels Labels) (Metric, error) {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-
 	h, err := m.hashLabels(labels)
 	if err != nil {
 		return nil, err
 	}
+
+	m.mtx.RLock()
+	metric, ok := m.children[h]
+	m.mtx.RUnlock()
+	if ok {
+		return metric, nil
+	}
+
 	lvs := make([]string, len(labels))
 	for i, label := range m.desc.variableLabels {
 		lvs[i] = labels[label]
 	}
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
 	return m.getOrCreateMetric(h, lvs...), nil
 }
 
@@ -162,7 +168,7 @@ func (m *MetricVec) DeleteLabelValues(lvs ...string) bool {
 	if err != nil {
 		return false
 	}
-	if _, has := m.children[h]; !has {
+	if _, ok := m.children[h]; !ok {
 		return false
 	}
 	delete(m.children, h)
@@ -187,7 +193,7 @@ func (m *MetricVec) Delete(labels Labels) bool {
 	if err != nil {
 		return false
 	}
-	if _, has := m.children[h]; !has {
+	if _, ok := m.children[h]; !ok {
 		return false
 	}
 	delete(m.children, h)
@@ -208,30 +214,26 @@ func (m *MetricVec) hashLabelValues(vals []string) (uint64, error) {
 	if len(vals) != len(m.desc.variableLabels) {
 		return 0, errInconsistentCardinality
 	}
-	m.hash.Reset()
+	h := hashNew()
 	for _, val := range vals {
-		m.buf.Reset()
-		m.buf.WriteString(val)
-		m.hash.Write(m.buf.Bytes())
+		h = hashAdd(h, val)
 	}
-	return m.hash.Sum64(), nil
+	return h, nil
 }
 
 func (m *MetricVec) hashLabels(labels Labels) (uint64, error) {
 	if len(labels) != len(m.desc.variableLabels) {
 		return 0, errInconsistentCardinality
 	}
-	m.hash.Reset()
+	h := hashNew()
 	for _, label := range m.desc.variableLabels {
 		val, ok := labels[label]
 		if !ok {
 			return 0, fmt.Errorf("label name %q missing in label map", label)
 		}
-		m.buf.Reset()
-		m.buf.WriteString(val)
-		m.hash.Write(m.buf.Bytes())
+		h = hashAdd(h, val)
 	}
-	return m.hash.Sum64(), nil
+	return h, nil
 }
 
 func (m *MetricVec) getOrCreateMetric(hash uint64, labelValues ...string) Metric {

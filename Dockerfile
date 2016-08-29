@@ -9,7 +9,7 @@
 # docker run -v `pwd`:/go/src/github.com/docker/docker --privileged -i -t docker bash
 #
 # # Run the test suite:
-# docker run --privileged docker hack/make.sh test
+# docker run --privileged docker hack/make.sh test-unit test-integration-cli test-docker-py
 #
 # # Publish a release:
 # docker run --privileged \
@@ -92,7 +92,7 @@ RUN cd /usr/local/lvm2 \
 
 # Configure the container for OSX cross compilation
 ENV OSX_SDK MacOSX10.11.sdk
-ENV OSX_CROSS_COMMIT 8aa9b71a394905e6c5f4b59e2b97b87a004658a4
+ENV OSX_CROSS_COMMIT a9317c18a3a457ca0a657f08cc4d0d43c6cf8953
 RUN set -x \
 	&& export OSXCROSS_PATH="/osxcross" \
 	&& git clone https://github.com/tpoechtrager/osxcross.git $OSXCROSS_PATH \
@@ -120,7 +120,7 @@ RUN set -x \
 # IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines
 #            will need updating, to avoid errors. Ping #docker-maintainers on IRC
 #            with a heads-up.
-ENV GO_VERSION 1.6.2
+ENV GO_VERSION 1.7
 RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" \
 	| tar -xzC /usr/local
 
@@ -134,18 +134,11 @@ ENV DOCKER_CROSSPLATFORMS \
 	freebsd/amd64 freebsd/386 freebsd/arm \
 	windows/amd64 windows/386
 
-# This has been commented out and kept as reference because we don't support compiling with older Go anymore.
-# ENV GOFMT_VERSION 1.3.3
-# RUN curl -sSL https://storage.googleapis.com/golang/go${GOFMT_VERSION}.$(go env GOOS)-$(go env GOARCH).tar.gz | tar -C /go/bin -xz --strip-components=2 go/bin/gofmt
-
+# Dependency for golint
 ENV GO_TOOLS_COMMIT 823804e1ae08dbb14eb807afc7db9993bc9e3cc3
-# Grab Go's cover tool for dead-simple code coverage testing
-# Grab Go's vet tool for examining go code to find suspicious constructs
-# and help prevent errors that the compiler might not catch
 RUN git clone https://github.com/golang/tools.git /go/src/golang.org/x/tools \
-	&& (cd /go/src/golang.org/x/tools && git checkout -q $GO_TOOLS_COMMIT) \
-	&& go install -v golang.org/x/tools/cmd/cover \
-	&& go install -v golang.org/x/tools/cmd/vet
+	&& (cd /go/src/golang.org/x/tools && git checkout -q $GO_TOOLS_COMMIT)
+
 # Grab Go's lint tool
 ENV GO_LINT_COMMIT 32a87160691b3c96046c0c678fe57c5bef761456
 RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint \
@@ -182,7 +175,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Get the "docker-py" source so we can run their integration tests
-ENV DOCKER_PY_COMMIT 7befe694bd21e3c54bb1d7825270ea4bd6864c13
+ENV DOCKER_PY_COMMIT e2655f658408f9ad1f62abdef3eb6ed43c0cf324
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT \
@@ -201,6 +194,8 @@ ENV DOCKER_BUILDTAGS apparmor pkcs11 seccomp selinux
 
 # Let us use a .bashrc file
 RUN ln -sfv $PWD/.bashrc ~/.bashrc
+# Add integration helps to bashrc
+RUN echo "source $PWD/hack/make/.integration-test-helpers" >> /etc/bash.bashrc
 
 # Register Docker's bash completion.
 RUN ln -sv $PWD/contrib/completion/bash/docker /etc/bash_completion.d/docker
@@ -217,7 +212,7 @@ RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
 # Download man page generator
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
-	&& git clone --depth 1 -b v1.0.4 https://github.com/cpuguy83/go-md2man.git "$GOPATH/src/github.com/cpuguy83/go-md2man" \
+	&& git clone --depth 1 -b v1.0.5 https://github.com/cpuguy83/go-md2man.git "$GOPATH/src/github.com/cpuguy83/go-md2man" \
 	&& git clone --depth 1 -b v1.4 https://github.com/russross/blackfriday.git "$GOPATH/src/github.com/russross/blackfriday" \
 	&& go get -v -d github.com/cpuguy83/go-md2man \
 	&& go build -v -o /usr/local/bin/go-md2man github.com/cpuguy83/go-md2man \
@@ -233,10 +228,10 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install runc
-ENV RUNC_COMMIT 5ce88a95f6cf218ba7f3309562f95464a968e890
+ENV RUNC_COMMIT cc29e3dded8e27ba8f65738f40d251c885030a28
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
-	&& git clone https://github.com/crosbymichael/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
+	&& git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc" \
 	&& cd "$GOPATH/src/github.com/opencontainers/runc" \
 	&& git checkout -q "$RUNC_COMMIT" \
 	&& make static BUILDTAGS="seccomp apparmor selinux" \
@@ -244,7 +239,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install containerd
-ENV CONTAINERD_COMMIT 860f3a94940894ac0a106eff4bd1616a67407ee2
+ENV CONTAINERD_COMMIT 8508d2bec90b96403143a1104cdcbd56f6aeb361
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/containerd.git "$GOPATH/src/github.com/docker/containerd" \

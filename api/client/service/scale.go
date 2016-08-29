@@ -9,12 +9,13 @@ import (
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	"github.com/docker/engine-api/types"
 	"github.com/spf13/cobra"
 )
 
 func newScaleCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return &cobra.Command{
-		Use:   "scale SERVICE=SCALE [SERVICE=SCALE...]",
+		Use:   "scale SERVICE=REPLICAS [SERVICE=REPLICAS...]",
 		Short: "Scale one or multiple services",
 		Args:  scaleArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -61,7 +62,8 @@ func runServiceScale(dockerCli *client.DockerCli, serviceID string, scale string
 	client := dockerCli.Client()
 	ctx := context.Background()
 
-	service, err := client.ServiceInspect(ctx, serviceID)
+	service, _, err := client.ServiceInspectWithRaw(ctx, serviceID)
+
 	if err != nil {
 		return err
 	}
@@ -76,7 +78,7 @@ func runServiceScale(dockerCli *client.DockerCli, serviceID string, scale string
 	}
 	serviceMode.Replicated.Replicas = &uintScale
 
-	err = client.ServiceUpdate(ctx, service.ID, service.Version, service.Spec)
+	err = client.ServiceUpdate(ctx, service.ID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	if err != nil {
 		return err
 	}

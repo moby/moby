@@ -22,6 +22,9 @@ const (
 	FAMILY_V6  = syscall.AF_INET6
 )
 
+// SupportedNlFamilies contains the list of netlink families this netlink package supports
+var SupportedNlFamilies = []int{syscall.NETLINK_ROUTE, syscall.NETLINK_XFRM}
+
 var nextSeqNr uint32
 
 // GetIPFamily returns the family type of a net.IP.
@@ -175,9 +178,8 @@ func (a *RtAttr) Serialize() []byte {
 
 type NetlinkRequest struct {
 	syscall.NlMsghdr
-	Data        []NetlinkRequestData
-	RouteSocket *NetlinkSocket
-	XfmrSocket  *NetlinkSocket
+	Data    []NetlinkRequestData
+	Sockets map[int]*SocketHandle
 }
 
 // Serialize the Netlink Request into a byte array
@@ -209,7 +211,7 @@ func (req *NetlinkRequest) AddData(data NetlinkRequestData) {
 }
 
 // Execute the request against a the given sockType.
-// Returns a list of netlink messages in seriaized format, optionally filtered
+// Returns a list of netlink messages in serialized format, optionally filtered
 // by resType.
 func (req *NetlinkRequest) Execute(sockType int, resType uint16) ([][]byte, error) {
 	var (
@@ -217,15 +219,12 @@ func (req *NetlinkRequest) Execute(sockType int, resType uint16) ([][]byte, erro
 		err error
 	)
 
-	switch sockType {
-	case syscall.NETLINK_XFRM:
-		s = req.XfmrSocket
-	case syscall.NETLINK_ROUTE:
-		s = req.RouteSocket
-	default:
-		return nil, fmt.Errorf("Socket type %d is not handled", sockType)
+	if req.Sockets != nil {
+		if sh, ok := req.Sockets[sockType]; ok {
+			s = sh.Socket
+			req.Seq = atomic.AddUint32(&sh.Seq, 1)
+		}
 	}
-
 	sharedSocket := s != nil
 
 	if s == nil {
@@ -332,24 +331,63 @@ func getNetlinkSocket(protocol int) (*NetlinkSocket, error) {
 // moves back into it when done. If newNs is close, the socket will be opened
 // in the current network namespace.
 func GetNetlinkSocketAt(newNs, curNs netns.NsHandle, protocol int) (*NetlinkSocket, error) {
-	var err error
+	c, err := executeInNetns(newNs, curNs)
+	if err != nil {
+		return nil, err
+	}
+	defer c()
+	return getNetlinkSocket(protocol)
+}
 
+// executeInNetns sets execution of the code following this call to the
+// network namespace newNs, then moves the thread back to curNs if open,
+// otherwise to the current netns at the time the function was invoked
+// In case of success, the caller is expected to execute the returned function
+// at the end of the code that needs to be executed in the network namespace.
+// Example:
+// func jobAt(...) error {
+//      d, err := executeInNetns(...)
+//      if err != nil { return err}
+//      defer d()
+//      < code which needs to be executed in specific netns>
+//  }
+// TODO: his function probably belongs to netns pkg.
+func executeInNetns(newNs, curNs netns.NsHandle) (func(), error) {
+	var (
+		err       error
+		moveBack  func(netns.NsHandle) error
+		closeNs   func() error
+		unlockThd func()
+	)
+	restore := func() {
+		// order matters
+		if moveBack != nil {
+			moveBack(curNs)
+		}
+		if closeNs != nil {
+			closeNs()
+		}
+		if unlockThd != nil {
+			unlockThd()
+		}
+	}
 	if newNs.IsOpen() {
 		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
+		unlockThd = runtime.UnlockOSThread
 		if !curNs.IsOpen() {
 			if curNs, err = netns.Get(); err != nil {
+				restore()
 				return nil, fmt.Errorf("could not get current namespace while creating netlink socket: %v", err)
 			}
-			defer curNs.Close()
+			closeNs = curNs.Close
 		}
 		if err := netns.Set(newNs); err != nil {
+			restore()
 			return nil, fmt.Errorf("failed to set into network namespace %d while creating netlink socket: %v", newNs, err)
 		}
-		defer netns.Set(curNs)
+		moveBack = netns.Set
 	}
-
-	return getNetlinkSocket(protocol)
+	return restore, nil
 }
 
 // Create a netlink socket with a given protocol (e.g. NETLINK_ROUTE)
@@ -376,6 +414,18 @@ func Subscribe(protocol int, groups ...uint) (*NetlinkSocket, error) {
 	}
 
 	return s, nil
+}
+
+// SubscribeAt works like Subscribe plus let's the caller choose the network
+// namespace in which the socket would be opened (newNs). Then control goes back
+// to curNs if open, otherwise to the netns at the time this function was called.
+func SubscribeAt(newNs, curNs netns.NsHandle, protocol int, groups ...uint) (*NetlinkSocket, error) {
+	c, err := executeInNetns(newNs, curNs)
+	if err != nil {
+		return nil, err
+	}
+	defer c()
+	return Subscribe(protocol, groups...)
 }
 
 func (s *NetlinkSocket) Close() {
@@ -485,4 +535,18 @@ func netlinkRouteAttrAndValue(b []byte) (*syscall.RtAttr, []byte, int, error) {
 		return nil, nil, 0, syscall.EINVAL
 	}
 	return a, b[syscall.SizeofRtAttr:], rtaAlignOf(int(a.Len)), nil
+}
+
+// SocketHandle contains the netlink socket and the associated
+// sequence counter for a specific netlink family
+type SocketHandle struct {
+	Seq    uint32
+	Socket *NetlinkSocket
+}
+
+// Close closes the netlink socket
+func (sh *SocketHandle) Close() {
+	if sh.Socket != nil {
+		sh.Socket.Close()
+	}
 }

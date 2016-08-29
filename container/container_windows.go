@@ -54,7 +54,8 @@ func (container *Container) UnmountVolumes(forceSyscall bool, volumeEventLog fun
 
 // TmpfsMounts returns the list of tmpfs mounts
 func (container *Container) TmpfsMounts() []Mount {
-	return nil
+	var mounts []Mount
+	return mounts
 }
 
 // UpdateContainer updates configuration of a container
@@ -71,6 +72,9 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 	}
 	// update HostConfig of container
 	if hostConfig.RestartPolicy.Name != "" {
+		if container.HostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
+			return fmt.Errorf("Restart policy cannot be updated because AutoRemove is enabled for the container")
+		}
 		container.HostConfig.RestartPolicy = hostConfig.RestartPolicy
 	}
 	return nil

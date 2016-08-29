@@ -31,7 +31,7 @@ func CleanPatterns(patterns []string) ([]string, [][]string, bool, error) {
 	// Loop over exclusion patterns and:
 	// 1. Clean them up.
 	// 2. Indicate whether we are dealing with any exception rules.
-	// 3. Error if we see a single exclusion marker on it's own (!).
+	// 3. Error if we see a single exclusion marker on its own (!).
 	cleanedPatterns := []string{}
 	patternDirs := [][]string{}
 	exceptions := false

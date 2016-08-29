@@ -6,11 +6,14 @@ import (
 
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
+	"github.com/docker/swarmkit/picker"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
+
+const dispatcherRPCTimeout = 5 * time.Second
 
 var (
 	errSessionDisconnect = errors.New("agent: session disconnect") // instructed to disconnect
@@ -25,8 +28,10 @@ var (
 // flow into the agent, such as task assignment, are called back into the
 // agent through errs, messages and tasks.
 type session struct {
+	conn *grpc.ClientConn
+	addr string
+
 	agent     *Agent
-	nodeID    string
 	sessionID string
 	session   api.Dispatcher_SessionClient
 	errs      chan error
@@ -37,15 +42,31 @@ type session struct {
 	closed     chan struct{}
 }
 
-func newSession(ctx context.Context, agent *Agent, delay time.Duration) *session {
+func newSession(ctx context.Context, agent *Agent, delay time.Duration, sessionID string) *session {
 	s := &session{
 		agent:      agent,
-		errs:       make(chan error),
+		sessionID:  sessionID,
+		errs:       make(chan error, 1),
 		messages:   make(chan *api.SessionMessage),
 		tasks:      make(chan *api.TasksMessage),
 		registered: make(chan struct{}),
 		closed:     make(chan struct{}),
 	}
+	peer, err := agent.config.Managers.Select()
+	if err != nil {
+		s.errs <- err
+		return s
+	}
+	cc, err := grpc.Dial(peer.Addr,
+		grpc.WithTransportCredentials(agent.config.Credentials),
+		grpc.WithTimeout(dispatcherRPCTimeout),
+	)
+	if err != nil {
+		s.errs <- err
+		return s
+	}
+	s.addr = peer.Addr
+	s.conn = cc
 
 	go s.run(ctx, delay)
 	return s
@@ -76,8 +97,6 @@ func (s *session) run(ctx context.Context, delay time.Duration) {
 func (s *session) start(ctx context.Context) error {
 	log.G(ctx).Debugf("(*session).start")
 
-	client := api.NewDispatcherClient(s.agent.config.Conn)
-
 	description, err := s.agent.config.Executor.Describe(ctx)
 	if err != nil {
 		log.G(ctx).WithError(err).WithField("executor", s.agent.config.Executor).
@@ -89,16 +108,42 @@ func (s *session) start(ctx context.Context) error {
 		description.Hostname = s.agent.config.Hostname
 	}
 
-	stream, err := client.Session(ctx, &api.SessionRequest{
-		Description: description,
-	})
-	if err != nil {
-		return err
-	}
+	errChan := make(chan error, 1)
+	var (
+		msg    *api.SessionMessage
+		stream api.Dispatcher_SessionClient
+	)
+	// Note: we don't defer cancellation of this context, because the
+	// streaming RPC is used after this function returned. We only cancel
+	// it in the timeout case to make sure the goroutine completes.
+	sessionCtx, cancelSession := context.WithCancel(ctx)
 
-	msg, err := stream.Recv()
-	if err != nil {
-		return err
+	// Need to run Session in a goroutine since there's no way to set a
+	// timeout for an individual Recv call in a stream.
+	go func() {
+		client := api.NewDispatcherClient(s.conn)
+
+		stream, err = client.Session(sessionCtx, &api.SessionRequest{
+			Description: description,
+			SessionID:   s.sessionID,
+		})
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+		msg, err = stream.Recv()
+		errChan <- err
+	}()
+
+	select {
+	case err := <-errChan:
+		if err != nil {
+			return err
+		}
+	case <-time.After(dispatcherRPCTimeout):
+		cancelSession()
+		return errors.New("session initiation timed out")
 	}
 
 	s.sessionID = msg.SessionID
@@ -109,16 +154,18 @@ func (s *session) start(ctx context.Context) error {
 
 func (s *session) heartbeat(ctx context.Context) error {
 	log.G(ctx).Debugf("(*session).heartbeat")
-	client := api.NewDispatcherClient(s.agent.config.Conn)
+	client := api.NewDispatcherClient(s.conn)
 	heartbeat := time.NewTimer(1) // send out a heartbeat right away
 	defer heartbeat.Stop()
 
 	for {
 		select {
 		case <-heartbeat.C:
-			resp, err := client.Heartbeat(ctx, &api.HeartbeatRequest{
+			heartbeatCtx, cancel := context.WithTimeout(ctx, dispatcherRPCTimeout)
+			resp, err := client.Heartbeat(heartbeatCtx, &api.HeartbeatRequest{
 				SessionID: s.sessionID,
 			})
+			cancel()
 			if err != nil {
 				if grpc.Code(err) == codes.NotFound {
 					err = errNodeNotRegistered
@@ -169,7 +216,7 @@ func (s *session) handleSessionMessage(ctx context.Context, msg *api.SessionMess
 
 func (s *session) watch(ctx context.Context) error {
 	log.G(ctx).Debugf("(*session).watch")
-	client := api.NewDispatcherClient(s.agent.config.Conn)
+	client := api.NewDispatcherClient(s.conn)
 	watch, err := client.Tasks(ctx, &api.TasksRequest{
 		SessionID: s.sessionID})
 	if err != nil {
@@ -195,7 +242,7 @@ func (s *session) watch(ctx context.Context) error {
 // sendTaskStatus uses the current session to send the status of a single task.
 func (s *session) sendTaskStatus(ctx context.Context, taskID string, status *api.TaskStatus) error {
 
-	client := api.NewDispatcherClient(s.agent.config.Conn)
+	client := api.NewDispatcherClient(s.conn)
 	if _, err := client.UpdateTaskStatus(ctx, &api.UpdateTaskStatusRequest{
 		SessionID: s.sessionID,
 		Updates: []*api.UpdateTaskStatusRequest_TaskStatusUpdate{
@@ -236,7 +283,7 @@ func (s *session) sendTaskStatuses(ctx context.Context, updates ...*api.UpdateTa
 		return updates, ctx.Err()
 	}
 
-	client := api.NewDispatcherClient(s.agent.config.Conn)
+	client := api.NewDispatcherClient(s.conn)
 	n := batchSize
 
 	if len(updates) < n {
@@ -259,6 +306,10 @@ func (s *session) close() error {
 	case <-s.closed:
 		return errSessionClosed
 	default:
+		if s.conn != nil {
+			s.agent.config.Managers.ObserveIfExists(api.Peer{Addr: s.addr}, -picker.DefaultObservationWeight)
+			s.conn.Close()
+		}
 		close(s.closed)
 		return nil
 	}

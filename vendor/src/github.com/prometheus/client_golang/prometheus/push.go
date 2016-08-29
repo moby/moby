@@ -20,7 +20,7 @@
 package prometheus
 
 // Push triggers a metric collection by the default registry and pushes all
-// collected metrics to the Pushgateway specified by addr. See the Pushgateway
+// collected metrics to the Pushgateway specified by url. See the Pushgateway
 // documentation for detailed implications of the job and instance
 // parameter. instance can be left empty. You can use just host:port or ip:port
 // as url, in which case 'http://' is added automatically. You can also include

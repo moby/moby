@@ -56,7 +56,7 @@ Here is an example of how to generate a 2048-bit RSA portion key (all RSA keys
 must be at least 2048 bits):
 
 ```
-$ opensl genrsa -out delegation.key 2048
+$ openssl genrsa -out delegation.key 2048
 Generating RSA private key, 2048 bit long modulus
 ....................................................+++
 ............+++

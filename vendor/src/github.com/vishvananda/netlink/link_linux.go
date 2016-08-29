@@ -10,9 +10,15 @@ import (
 	"unsafe"
 
 	"github.com/vishvananda/netlink/nl"
+	"github.com/vishvananda/netns"
 )
 
 const SizeofLinkStats = 0x5c
+
+const (
+	TUNTAP_MODE_TUN TuntapMode = syscall.IFF_TUN
+	TUNTAP_MODE_TAP TuntapMode = syscall.IFF_TAP
+)
 
 var native = nl.NativeEndian()
 var lookupByDump = false
@@ -420,7 +426,7 @@ func addVxlanAttrs(vxlan *Vxlan, linkInfo *nl.RtAttr) {
 		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_UDP_CSUM, boolAttr(vxlan.UDPCSum))
 	}
 	if vxlan.GBP {
-		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_GBP, boolAttr(vxlan.GBP))
+		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_GBP, []byte{})
 	}
 	if vxlan.NoAge {
 		nl.NewRtAttrChild(data, nl.IFLA_VXLAN_AGEING, nl.Uint32Attr(0))
@@ -671,6 +677,11 @@ func (h *Handle) LinkAdd(link Link) error {
 		data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
 		nl.NewRtAttrChild(data, nl.IFLA_IPVLAN_MODE, nl.Uint16Attr(uint16(ipv.Mode)))
 	} else if macv, ok := link.(*Macvlan); ok {
+		if macv.Mode != MACVLAN_MODE_DEFAULT {
+			data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
+			nl.NewRtAttrChild(data, nl.IFLA_MACVLAN_MODE, nl.Uint32Attr(macvlanModes[macv.Mode]))
+		}
+	} else if macv, ok := link.(*Macvtap); ok {
 		if macv.Mode != MACVLAN_MODE_DEFAULT {
 			data := nl.NewRtAttrChild(linkInfo, nl.IFLA_INFO_DATA, nil)
 			nl.NewRtAttrChild(data, nl.IFLA_MACVLAN_MODE, nl.Uint32Attr(macvlanModes[macv.Mode]))
@@ -1001,7 +1012,17 @@ type LinkUpdate struct {
 // LinkSubscribe takes a chan down which notifications will be sent
 // when links change.  Close the 'done' chan to stop subscription.
 func LinkSubscribe(ch chan<- LinkUpdate, done <-chan struct{}) error {
-	s, err := nl.Subscribe(syscall.NETLINK_ROUTE, syscall.RTNLGRP_LINK)
+	return linkSubscribe(netns.None(), netns.None(), ch, done)
+}
+
+// LinkSubscribeAt works like LinkSubscribe plus it allows the caller
+// to choose the network namespace in which to subscribe (ns).
+func LinkSubscribeAt(ns netns.NsHandle, ch chan<- LinkUpdate, done <-chan struct{}) error {
+	return linkSubscribe(ns, netns.None(), ch, done)
+}
+
+func linkSubscribe(newNs, curNs netns.NsHandle, ch chan<- LinkUpdate, done <-chan struct{}) error {
+	s, err := nl.SubscribeAt(newNs, curNs, syscall.NETLINK_ROUTE, syscall.RTNLGRP_LINK)
 	if err != nil {
 		return err
 	}
@@ -1142,7 +1163,7 @@ func parseVxlanData(link Link, data []syscall.NetlinkRouteAttr) {
 		case nl.IFLA_VXLAN_UDP_CSUM:
 			vxlan.UDPCSum = int8(datum.Value[0]) != 0
 		case nl.IFLA_VXLAN_GBP:
-			vxlan.GBP = int8(datum.Value[0]) != 0
+			vxlan.GBP = true
 		case nl.IFLA_VXLAN_AGEING:
 			vxlan.Age = int(native.Uint32(datum.Value[0:4]))
 			vxlan.NoAge = vxlan.Age == 0

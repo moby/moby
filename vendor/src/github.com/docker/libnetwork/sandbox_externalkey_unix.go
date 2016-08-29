@@ -15,7 +15,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
-const udsBase = "/var/lib/docker/network/files/"
+const udsBase = "/run/docker/libnetwork/"
 const success = "success"
 
 // processSetKeyReexec is a private function that must be called only on an reexec path
@@ -135,6 +135,8 @@ func (c *controller) acceptClientConnections(sock string, l net.Listener) {
 			continue
 		}
 		go func() {
+			defer conn.Close()
+
 			err := c.processExternalKey(conn)
 			ret := success
 			if err != nil {

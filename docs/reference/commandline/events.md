@@ -10,14 +10,17 @@ parent = "smn_cli"
 
 # events
 
-    Usage: docker events [OPTIONS]
+```markdown
+Usage:  docker events [OPTIONS]
 
-    Get real time events from the server
+Get real time events from the server
 
-      -f, --filter=[]    Filter output based on conditions provided
-      --help             Print usage
-      --since=""         Show all events created since timestamp
-      --until=""         Stream events until this timestamp
+Options:
+  -f, --filter value   Filter output based on conditions provided (default [])
+      --help           Print usage
+      --since string   Show all events created since timestamp
+      --until string   Stream events until this timestamp
+```
 
 Docker containers report the following events:
 
@@ -26,6 +29,10 @@ Docker containers report the following events:
 Docker images report the following events:
 
     delete, import, load, pull, push, save, tag, untag
+
+Docker plugins(experimental) report the following events:
+
+    install, enable, disable, remove
 
 Docker volumes report the following events:
 
@@ -71,6 +78,7 @@ The currently supported filters are:
 * container (`container=<name or id>`)
 * event (`event=<event action>`)
 * image (`image=<tag or id>`)
+* plugin (experimental) (`plugin=<name or id>`)
 * label (`label=<key>` or `label=<key>=<value>`)
 * type (`type=<container or image or volume or network or daemon>`)
 * volume (`volume=<name or id>`)
@@ -168,3 +176,7 @@ relative to the current time on the client machine:
     $ docker events --filter 'type=network'
     2015-12-23T21:38:24.705709133Z network create 8b111217944ba0ba844a65b13efcd57dc494932ee2527577758f939315ba2c5b (name=test-event-network-local, type=bridge)
     2015-12-23T21:38:25.119625123Z network connect 8b111217944ba0ba844a65b13efcd57dc494932ee2527577758f939315ba2c5b (name=test-event-network-local, container=b4be644031a3d90b400f88ab3d4bdf4dc23adb250e696b6328b85441abe2c54e, type=bridge)
+
+    $ docker events --filter 'type=plugin' (experimental)
+    2016-07-25T17:30:14.825557616Z plugin pull ec7b87f2ce84330fe076e666f17dfc049d2d7ae0b8190763de94e1f2d105993f (name=tiborvass/no-remove:latest)
+    2016-07-25T17:30:14.888127370Z plugin enable ec7b87f2ce84330fe076e666f17dfc049d2d7ae0b8190763de94e1f2d105993f (name=tiborvass/no-remove:latest)

@@ -14,7 +14,7 @@ The information in this section explains container communication within the
 Docker default bridge. This is a `bridge` network named `bridge` created
 automatically when you install Docker.  
 
-**Note**: The [Docker networks feature](../dockernetworks.md) allows you to create user-defined networks in addition to the default bridge network.
+**Note**: The [Docker networks feature](../index.md) allows you to create user-defined networks in addition to the default bridge network.
 
 ## Communicating to the outside world
 
@@ -31,20 +31,24 @@ set `--ip-forward=false` and your system's kernel has it enabled, the
 or to turn it on manually:
 ```
   $ sysctl net.ipv4.conf.all.forwarding
+
   net.ipv4.conf.all.forwarding = 0
+
   $ sysctl net.ipv4.conf.all.forwarding=1
+
   $ sysctl net.ipv4.conf.all.forwarding
+
   net.ipv4.conf.all.forwarding = 1
 ```
 
 > **Note**: this setting does not affect containers that use the host
-> network stack (`--net=host`).
+> network stack (`--network=host`).
 
 Many using Docker will want `ip_forward` to be on, to at least make
 communication _possible_ between containers and the wider world. May also be
 needed for inter-container communication if you are in a multiple bridge setup.
 
-Docker will   never make changes to your system `iptables` rules if you set
+Docker will never make changes to your system `iptables` rules if you set
 `--iptables=false` when the daemon starts.  Otherwise the Docker server will
 append forwarding rules to the `DOCKER` filter chain.
 
@@ -98,6 +102,7 @@ You can run the `iptables` command on your Docker host to see whether the `FORWA
 # When --icc=false, you should see a DROP rule:
 
 $ sudo iptables -L -n
+
 ...
 Chain FORWARD (policy ACCEPT)
 target     prot opt source               destination
@@ -110,6 +115,7 @@ DROP       all  --  0.0.0.0/0            0.0.0.0/0
 # the subsequent DROP policy for all other packets:
 
 $ sudo iptables -L -n
+
 ...
 Chain FORWARD (policy ACCEPT)
 target     prot opt source               destination

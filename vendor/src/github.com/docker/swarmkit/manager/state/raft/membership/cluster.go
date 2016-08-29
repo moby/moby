@@ -8,6 +8,7 @@ import (
 
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/manager/state/watch"
 	"github.com/gogo/protobuf/proto"
 )
 
@@ -27,14 +28,14 @@ var (
 // Cluster represents a set of active
 // raft Members
 type Cluster struct {
-	id uint64
-
 	mu      sync.RWMutex
 	members map[uint64]*Member
 
 	// removed contains the list of removed Members,
 	// those ids cannot be reused
 	removed map[uint64]bool
+
+	PeersBroadcast *watch.Queue
 }
 
 // Member represents a raft Cluster Member
@@ -51,8 +52,9 @@ func NewCluster() *Cluster {
 	// TODO(abronan): generate Cluster ID for federation
 
 	return &Cluster{
-		members: make(map[uint64]*Member),
-		removed: make(map[uint64]bool),
+		members:        make(map[uint64]*Member),
+		removed:        make(map[uint64]bool),
+		PeersBroadcast: watch.NewQueue(),
 	}
 }
 
@@ -85,6 +87,17 @@ func (c *Cluster) GetMember(id uint64) *Member {
 	return c.members[id]
 }
 
+func (c *Cluster) broadcastUpdate() {
+	peers := make([]*api.Peer, 0, len(c.members))
+	for _, m := range c.members {
+		peers = append(peers, &api.Peer{
+			NodeID: m.NodeID,
+			Addr:   m.Addr,
+		})
+	}
+	c.PeersBroadcast.Publish(peers)
+}
+
 // AddMember adds a node to the Cluster Memberlist.
 func (c *Cluster) AddMember(member *Member) error {
 	c.mu.Lock()
@@ -95,6 +108,7 @@ func (c *Cluster) AddMember(member *Member) error {
 	}
 
 	c.members[member.RaftID] = member
+	c.broadcastUpdate()
 	return nil
 }
 
@@ -103,17 +117,44 @@ func (c *Cluster) RemoveMember(id uint64) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.members[id] == nil {
-		return ErrIDNotFound
-	}
-
-	conn := c.members[id].Conn
-	if conn != nil {
-		_ = conn.Close()
+	if c.members[id] != nil {
+		conn := c.members[id].Conn
+		if conn != nil {
+			_ = conn.Close()
+		}
+		delete(c.members, id)
 	}
 
 	c.removed[id] = true
-	delete(c.members, id)
+	c.broadcastUpdate()
+	return nil
+}
+
+// ReplaceMemberConnection replaces the member's GRPC connection and GRPC
+// client.
+func (c *Cluster) ReplaceMemberConnection(id uint64, oldConn *Member, newConn *Member) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	oldMember, ok := c.members[id]
+	if !ok {
+		return ErrIDNotFound
+	}
+
+	if oldConn.Conn != oldMember.Conn {
+		// The connection was already replaced. Don't do it again.
+		newConn.Conn.Close()
+		return nil
+	}
+
+	oldMember.Conn.Close()
+
+	newMember := *oldMember
+	newMember.Conn = newConn.Conn
+	newMember.RaftClient = newConn.RaftClient
+
+	c.members[id] = &newMember
+
 	return nil
 }
 
@@ -169,19 +210,15 @@ func (c *Cluster) ValidateConfigurationChange(cc raftpb.ConfChange) error {
 // that might block or harm the Cluster on Member recovery
 func (c *Cluster) CanRemoveMember(from uint64, id uint64) bool {
 	members := c.Members()
-
-	nmembers := 0
-	nreachable := 0
+	nreachable := 0 // reachable managers after removal
 
 	for _, m := range members {
-		// Skip the node that is going to be deleted
 		if m.RaftID == id {
 			continue
 		}
 
 		// Local node from where the remove is issued
 		if m.RaftID == from {
-			nmembers++
 			nreachable++
 			continue
 		}
@@ -190,16 +227,9 @@ func (c *Cluster) CanRemoveMember(from uint64, id uint64) bool {
 		if err == nil && connState == grpc.Ready {
 			nreachable++
 		}
-
-		nmembers++
 	}
 
-	// Special case of 2 managers
-	if nreachable == 1 && len(members) <= 2 {
-		return false
-	}
-
-	nquorum := nmembers/2 + 1
+	nquorum := (len(members)-1)/2 + 1
 	if nreachable < nquorum {
 		return false
 	}

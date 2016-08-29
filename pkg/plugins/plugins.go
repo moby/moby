@@ -83,6 +83,11 @@ func (p *Plugin) Client() *Client {
 	return p.client
 }
 
+// IsLegacy returns true for legacy plugins and false otherwise.
+func (p *Plugin) IsLegacy() bool {
+	return true
+}
+
 // NewLocalPlugin creates a new local plugin.
 func NewLocalPlugin(name, addr string) *Plugin {
 	return &Plugin{

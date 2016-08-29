@@ -1,13 +1,12 @@
 package volume
 
 import (
-	"fmt"
 	"sort"
-	"text/tabwriter"
 
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/client/formatter"
 	"github.com/docker/docker/cli"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
@@ -24,6 +23,7 @@ func (r byVolumeName) Less(i, j int) bool {
 
 type listOptions struct {
 	quiet  bool
+	format string
 	filter []string
 }
 
@@ -31,9 +31,10 @@ func newListCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts listOptions
 
 	cmd := &cobra.Command{
-		Use:     "ls",
+		Use:     "ls [OPTIONS]",
 		Aliases: []string{"list"},
 		Short:   "List volumes",
+		Long:    listDescription,
 		Args:    cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runList(dockerCli, opts)
@@ -42,7 +43,8 @@ func newListCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "Only display volume names")
-	flags.StringSliceVarP(&opts.filter, "filter", "f", []string{}, "Provide filter values (i.e. 'dangling=true')")
+	flags.StringVar(&opts.format, "format", "", "Pretty-print networks using a Go template")
+	flags.StringSliceVarP(&opts.filter, "filter", "f", []string{}, "Provide filter values (e.g. 'dangling=true')")
 
 	return cmd
 }
@@ -64,23 +66,43 @@ func runList(dockerCli *client.DockerCli, opts listOptions) error {
 		return err
 	}
 
-	w := tabwriter.NewWriter(dockerCli.Out(), 20, 1, 3, ' ', 0)
-	if !opts.quiet {
-		for _, warn := range volumes.Warnings {
-			fmt.Fprintln(dockerCli.Err(), warn)
+	f := opts.format
+	if len(f) == 0 {
+		if len(dockerCli.ConfigFile().VolumesFormat) > 0 && !opts.quiet {
+			f = dockerCli.ConfigFile().VolumesFormat
+		} else {
+			f = "table"
 		}
-		fmt.Fprintf(w, "DRIVER \tVOLUME NAME")
-		fmt.Fprintf(w, "\n")
 	}
 
 	sort.Sort(byVolumeName(volumes.Volumes))
-	for _, vol := range volumes.Volumes {
-		if opts.quiet {
-			fmt.Fprintln(w, vol.Name)
-			continue
-		}
-		fmt.Fprintf(w, "%s\t%s\n", vol.Driver, vol.Name)
+
+	volumeCtx := formatter.VolumeContext{
+		Context: formatter.Context{
+			Output: dockerCli.Out(),
+			Format: f,
+			Quiet:  opts.quiet,
+		},
+		Volumes: volumes.Volumes,
 	}
-	w.Flush()
+
+	volumeCtx.Write()
+
 	return nil
 }
+
+var listDescription = `
+
+Lists all the volumes Docker knows about. You can filter using the **-f** or
+**--filter** flag. The filtering format is a **key=value** pair. To specify
+more than one filter,  pass multiple flags (for example,
+**--filter "foo=bar" --filter "bif=baz"**)
+
+The currently supported filters are:
+
+* **dangling** (boolean - **true** or **false**, **1** or **0**)
+* **driver** (a volume driver's name)
+* **label** (**label=<key>** or **label=<key>=<value>**)
+* **name** (a volume's name)
+
+`

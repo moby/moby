@@ -8,62 +8,100 @@ parent = "smn_cli"
 +++
 <![end-metadata]-->
 
-**Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
-
 # swarm init
 
-	Usage:	docker swarm init [OPTIONS]
+```markdown
+Usage:  docker swarm init [OPTIONS]
 
-	Initialize a Swarm.
+Initialize a swarm
 
-	Options:
-	      --auto-accept value   Acceptance policy (default [worker,manager])
-	      --force-new-cluster   Force create a new cluster from current state.
-	      --help                Print usage
-	      --listen-addr value   Listen address (default 0.0.0.0:2377)
-	      --secret string       Set secret value needed to accept nodes into cluster
+Options:
+      --advertise-addr value            Advertised address (format: <ip|interface>[:port])
+      --cert-expiry duration            Validity period for node certificates (default 2160h0m0s)
+      --dispatcher-heartbeat duration   Dispatcher heartbeat period (default 5s)
+      --external-ca value               Specifications of one or more certificate signing endpoints
+      --force-new-cluster               Force create a new cluster from current state.
+      --help                            Print usage
+      --listen-addr value               Listen address (format: <ip|interface>[:port])
+      --task-history-limit int          Task history retention limit (default 5)
+```
 
-Initialize a Swarm cluster. The docker engine targeted by this command becomes a manager
-in the newly created one node Swarm cluster.
+Initialize a swarm. The docker engine targeted by this command becomes a manager
+in the newly created single-node swarm.
 
 
 ```bash
-$ docker swarm init --listen-addr 192.168.99.121:2377
-Initializing a new swarm
-$ docker node ls
-ID              NAME          STATUS  AVAILABILITY/MEMBERSHIP  MANAGER STATUS  LEADER
-3l1f6uzcuoa3 *  swarm-master  READY   ACTIVE                   REACHABLE       Yes
+$ docker swarm init --advertise-addr 192.168.99.121
+Swarm initialized: current node (bvz81updecsj6wjz393c09vti) is now a manager.
+
+To add a worker to this swarm, run the following command:
+
+    docker swarm join \
+    --token SWMTKN-1-3pu6hszjas19xyp7ghgosyx9k8atbfcr8p2is99znpy26u2lkl-1awxwuwd3z9j1z3puu7rcgdbx \
+    172.17.0.2:2377
+
+To add a manager to this swarm, run 'docker swarm join-token manager' and follow the instructions.
 ```
 
-###	--auto-accept value
+`docker swarm init` generates two random tokens, a worker token and a manager token. When you join
+a new node to the swarm, the node joins as a worker or manager node based upon the token you pass
+to [swarm join](swarm_join.md).
 
-This flag controls node acceptance into the cluster. By default, both `worker` and `manager`
-nodes are auto accepted by the cluster. This can be changed by specifing what kinds of nodes
-can be auto-accepted into the cluster. If auto-accept is not turned on, then 
-[node accept](node_accept.md) can be used to explicitly accept a node into the cluster.
+After you create the swarm, you can display or rotate the token using
+[swarm join-token](swarm_join_token.md).
 
-For example, the following initializes a cluster with auto-acceptance of workers, but not managers
+### `--cert-expiry`
 
+This flag sets the validity period for node certificates.
 
-```bash
-$ docker swarm init --listen-addr 192.168.99.121:2377 --auto-accept worker
-Initializing a new swarm
-```
+### `--dispatcher-heartbeat`
+
+This flags sets the frequency with which nodes are told to use as a
+period to report their health.
+
+### `--external-ca value`
+
+This flag sets up the swarm to use an external CA to issue node certificates. The value takes
+the form `protocol=X,url=Y`. The value for `protocol` specifies what protocol should be used
+to send signing requests to the external CA. Currently, the only supported value is `cfssl`.
+The URL specifies the endpoint where signing requests should be submitted.
 
 ### `--force-new-cluster`
 
-This flag forces an existing node that was part of a quorum that was lost to restart as a single node Manager without losing its data
+This flag forces an existing node that was part of a quorum that was lost to restart as a single node Manager without losing its data.
 
 ### `--listen-addr value`
 
-The node listens for inbound Swarm manager traffic on this IP:PORT
+The node listens for inbound Swarm manager traffic on this address. The default is to listen on
+0.0.0.0:2377. It is also possible to specify a network interface to listen on that interface's
+address; for example `--listen-addr eth0:2377`.
 
-### `--secret string`
+Specifying a port is optional. If the value is a bare IP address or interface
+name, the default port 2377 will be used.
 
-Secret value needed to accept nodes into the Swarm
+### `--advertise-addr value`
+
+This flag specifies the address that will be advertised to other members of the
+swarm for API access and overlay networking. If unspecified, Docker will check
+if the system has a single IP address, and use that IP address with with the
+listening port (see `--listen-addr`). If the system has multiple IP addresses,
+`--advertise-addr` must be specified so that the correct address is chosen for
+inter-manager communication and overlay networking.
+
+It is also possible to specify a network interface to advertise that interface's address;
+for example `--advertise-addr eth0:2377`.
+
+Specifying a port is optional. If the value is a bare IP address or interface
+name, the default port 2377 will be used.
+
+### `--task-history-limit`
+
+This flag sets up task history retention limit.
 
 ## Related information
 
 * [swarm join](swarm_join.md)
 * [swarm leave](swarm_leave.md)
 * [swarm update](swarm_update.md)
+* [swarm join-token](swarm_join_token.md)
+* [node rm](node_rm.md)

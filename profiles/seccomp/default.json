@@ -687,6 +687,21 @@
 			"args": []
 		},
 		{
+			"name": "mlock",
+			"action": "SCMP_ACT_ALLOW",
+			"args": []
+		},
+		{
+			"name": "mlock2",
+			"action": "SCMP_ACT_ALLOW",
+			"args": []
+		},
+		{
+			"name": "mlockall",
+			"action": "SCMP_ACT_ALLOW",
+			"args": []
+		},
+		{
 			"name": "mmap",
 			"action": "SCMP_ACT_ALLOW",
 			"args": []

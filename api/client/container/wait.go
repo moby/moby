@@ -15,7 +15,7 @@ type waitOptions struct {
 	containers []string
 }
 
-// NewWaitCommand creats a new cobra.Command for `docker wait`
+// NewWaitCommand creates a new cobra.Command for `docker wait`
 func NewWaitCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts waitOptions
 
@@ -28,8 +28,6 @@ func NewWaitCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runWait(dockerCli, &opts)
 		},
 	}
-	cmd.SetFlagErrorFunc(flagErrorFunc)
-
 	return cmd
 }
 

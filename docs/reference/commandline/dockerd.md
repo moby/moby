@@ -12,34 +12,39 @@ weight = -1
 
 # daemon
 
-    Usage: dockerd [OPTIONS]
+```markdown
+Usage: dockerd [OPTIONS]
 
-    A self-sufficient runtime for linux containers.
+A self-sufficient runtime for containers.
 
-    Options:
-      --api-cors-header=""                   Set CORS headers in the remote API
-      --authorization-plugin=[]              Set authorization plugins to load
-      -b, --bridge=""                        Attach containers to a network bridge
-      --bip=""                               Specify network bridge IP
-      --cgroup-parent=                       Set parent cgroup for all containers
-      --cluster-store=""                     URL of the distributed storage backend
-      --cluster-advertise=""                 Address of the daemon instance on the cluster
-      --cluster-store-opt=map[]              Set cluster options
+Options:
+
+      --add-runtime=[]                       Register an additional OCI compatible runtime
+      --api-cors-header                      Set CORS headers in the remote API
+      --authorization-plugin=[]              Authorization plugins to load
+      -b, --bridge                           Attach containers to a network bridge
+      --bip                                  Specify network bridge IP
+      --cgroup-parent                        Set parent cgroup for all containers
+      --cluster-advertise                    Address or interface name to advertise
+      --cluster-store                        URL of the distributed storage backend
+      --cluster-store-opt=map[]              Set cluster store options
       --config-file=/etc/docker/daemon.json  Daemon configuration file
       --containerd                           Path to containerd socket
       -D, --debug                            Enable debug mode
-      --default-gateway=""                   Container default gateway IPv4 address
-      --default-gateway-v6=""                Container default gateway IPv6 address
+      --default-gateway                      Container default gateway IPv4 address
+      --default-gateway-v6                   Container default gateway IPv6 address
+      --default-runtime=runc                 Default OCI runtime for containers
+      --default-ulimit=[]                    Default ulimits for containers
+      --disable-legacy-registry              Disable contacting legacy registries
       --dns=[]                               DNS server to use
       --dns-opt=[]                           DNS options to use
       --dns-search=[]                        DNS search domains to use
-      --default-ulimit=[]                    Set default ulimit settings for containers
-      --exec-opt=[]                          Set runtime execution options
-      --exec-root="/var/run/docker"          Root directory for execution state files
-      --fixed-cidr=""                        IPv4 subnet for fixed IPs
-      --fixed-cidr-v6=""                     IPv6 subnet for fixed IPs
-      -G, --group="docker"                   Group for the unix socket
-      -g, --graph="/var/lib/docker"          Root of the Docker runtime
+      --exec-opt=[]                          Runtime execution options
+      --exec-root=/var/run/docker            Root directory for execution state files
+      --fixed-cidr                           IPv4 subnet for fixed IPs
+      --fixed-cidr-v6                        IPv6 subnet for fixed IPs
+      -G, --group=docker                     Group for the unix socket
+      -g, --graph=/var/lib/docker            Root of the Docker runtime
       -H, --host=[]                          Daemon socket(s) to connect to
       --help                                 Print usage
       --icc=true                             Enable inter-container communication
@@ -49,28 +54,31 @@ weight = -1
       --ip-masq=true                         Enable IP masquerading
       --iptables=true                        Enable addition of iptables rules
       --ipv6                                 Enable IPv6 networking
-      -l, --log-level="info"                 Set the logging level
+      -l, --log-level=info                   Set the logging level
       --label=[]                             Set key=value labels to the daemon
-      --log-driver="json-file"               Default driver for container logs
-      --log-opt=[]                           Log driver specific options
-      --mtu=0                                Set the containers network MTU
+      --live-restore                         Enables keeping containers alive during daemon downtime
+      --log-driver=json-file                 Default driver for container logs
+      --log-opt=map[]                        Default log driver options for containers
       --max-concurrent-downloads=3           Set the max concurrent downloads for each pull
       --max-concurrent-uploads=5             Set the max concurrent uploads for each push
-      --disable-legacy-registry              Do not contact legacy registries
-      -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
+      --mtu                                  Set the containers network MTU
+      --oom-score-adjust=-500                Set the oom_score_adj for the daemon
+      -p, --pidfile=/var/run/docker.pid      Path to use for daemon PID file
       --raw-logs                             Full timestamps without ANSI coloring
       --registry-mirror=[]                   Preferred Docker registry mirror
-      --add-runtime=[]                       Register an additional OCI compatible runtime
-      -s, --storage-driver=""                Storage driver to use
+      -s, --storage-driver                   Storage driver to use
       --selinux-enabled                      Enable selinux support
-      --storage-opt=[]                       Set storage driver options
+      --storage-opt=[]                       Storage driver options
+      --swarm-default-advertise-addr         Set default address or interface for swarm advertised address
       --tls                                  Use TLS; implied by --tlsverify
-      --tlscacert="~/.docker/ca.pem"         Trust certs signed only by this CA
-      --tlscert="~/.docker/cert.pem"         Path to TLS certificate file
-      --tlskey="~/.docker/key.pem"           Path to TLS key file
+      --tlscacert=~/.docker/ca.pem           Trust certs signed only by this CA
+      --tlscert=~/.docker/cert.pem           Path to TLS certificate file
+      --tlskey=~/.docker/key.pem             Path to TLS key file
       --tlsverify                            Use TLS and verify the remote
-      --userns-remap="default"               Enable user namespace remapping
       --userland-proxy=true                  Use userland proxy for loopback traffic
+      --userns-remap                         User/Group setting for user namespaces
+      -v, --version                          Print version information and quit
+```
 
 Options with [] may be specified multiple times.
 
@@ -209,10 +217,9 @@ drivers: `aufs`, `devicemapper`, `btrfs`, `zfs`, `overlay` and `overlay2`.
 
 The `aufs` driver is the oldest, but is based on a Linux kernel patch-set that
 is unlikely to be merged into the main kernel. These are also known to cause
-some serious kernel crashes. However, `aufs` is also the only storage driver
-that allows containers to share executable and shared library memory, so is a
-useful choice when running thousands of containers with the same program or
-libraries.
+some serious kernel crashes. However, `aufs` allows containers to share
+executable and shared library memory, so is a useful choice when running
+thousands of containers with the same program or libraries.
 
 The `devicemapper` driver uses thin provisioning and Copy on Write (CoW)
 snapshots. For each devicemapper graph location – typically
@@ -234,7 +241,10 @@ cached only once. Use `dockerd -s zfs`. To select a different zfs filesystem
 set `zfs.fsname` option as described in [Storage driver options](#storage-driver-options).
 
 The `overlay` is a very fast union filesystem. It is now merged in the main
-Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137). Call
+Linux kernel as of [3.18.0](https://lkml.org/lkml/2014/10/26/137). `overlay`
+also supports page cache sharing, this means multiple containers accessing
+the same file can share a single page cache entry (or entries), it makes
+`overlay` as efficient with memory as `aufs` driver. Call
 `dockerd -s overlay` to use it.
 
 > **Note:**
@@ -564,12 +574,23 @@ options for `zfs` start with `zfs` and options for `btrfs` start with `btrfs`.
     **size** cannot be smaller than **btrfs.min_space**.
 
     Example use:
-        $ docker daemon -s btrfs --storage-opt btrfs.min_space=10G
+        $ dockerd -s btrfs --storage-opt btrfs.min_space=10G
+
+#### Overlay2 options
+
+* `overlay2.override_kernel_check`
+
+    Overrides the Linux kernel version check allowing overlay2. Support for
+    specifying multiple lower directories needed by overlay2 was added to the
+    Linux kernel in 4.0.0. However some older kernel versions may be patched
+    to add multiple lower directory support for OverlayFS. This option should
+    only be used after verifying this support exists in the kernel. Applying
+    this option on a kernel without this support will cause failures on mount.
 
 ## Docker runtime execution options
 
 The Docker daemon relies on a
-[OCI](https://github.com/opencontainers/specs) compliant runtime
+[OCI](https://github.com/opencontainers/runtime-spec) compliant runtime
 (invoked via the `containerd` daemon) as its interface to the Linux
 kernel `namespaces`, `cgroups`, and `SELinux`.
 
@@ -910,8 +931,8 @@ This option will completely disable user namespace mapping for the container's u
 The following standard Docker features are currently incompatible when
 running a Docker daemon with user namespaces enabled:
 
- - sharing PID or NET namespaces with the host (`--pid=host` or `--net=host`)
- - A `--readonly` container filesystem (this is a Linux kernel restriction against remounting with modified flags of a currently mounted filesystem when inside a user namespace)
+ - sharing PID or NET namespaces with the host (`--pid=host` or `--network=host`)
+ - A `--read-only` container filesystem (this is a Linux kernel restriction against remounting with modified flags of a currently mounted filesystem when inside a user namespace)
  - external (volume or graph) drivers which are unaware/incapable of using daemon user mappings
  - Using `--privileged` mode flag on `docker run` (unless also specifying `--userns=host`)
 
@@ -975,9 +996,7 @@ the `--cgroup-parent` option on the daemon.
 The `--config-file` option allows you to set any configuration option
 for the daemon in a JSON format. This file uses the same flag names as keys,
 except for flags that allow several entries, where it uses the plural
-of the flag name, e.g., `labels` for the `label` flag. By default,
-docker tries to load a configuration file from `/etc/docker/daemon.json`
-on Linux and `%programdata%\docker\config\daemon.json` on Windows.
+of the flag name, e.g., `labels` for the `label` flag.
 
 The options set in the configuration file must not conflict with options set
 via flags. The docker daemon fails to start if an option is duplicated between
@@ -985,9 +1004,15 @@ the file and the flags, regardless their value. We do this to avoid
 silently ignore changes introduced in configuration reloads.
 For example, the daemon fails to start if you set daemon labels
 in the configuration file and also set daemon labels via the `--label` flag.
-
 Options that are not present in the file are ignored when the daemon starts.
-This is a full example of the allowed configuration options in the file:
+
+### Linux configuration file
+
+The default location of the configuration file on Linux is
+`/etc/docker/daemon.json`. The `--config-file` flag can be used to specify a
+ non-default location.
+
+This is a full example of the allowed configuration options on Linux:
 
 ```json
 {
@@ -1000,8 +1025,9 @@ This is a full example of the allowed configuration options in the file:
 	"storage-driver": "",
 	"storage-opts": [],
 	"labels": [],
+	"live-restore": true,
 	"log-driver": "",
-	"log-opts": [],
+	"log-opts": {},
 	"mtu": 0,
 	"pidfile": "",
 	"graph": "",
@@ -1018,6 +1044,7 @@ This is a full example of the allowed configuration options in the file:
 	"tlscacert": "",
 	"tlscert": "",
 	"tlskey": "",
+	"swarm-default-advertise-addr": "",
 	"api-cors-header": "",
 	"selinux-enabled": false,
 	"userns-remap": "",
@@ -1042,6 +1069,7 @@ This is a full example of the allowed configuration options in the file:
 	"insecure-registries": [],
 	"disable-legacy-registry": false,
 	"default-runtime": "runc",
+	"oom-score-adjust": -500,
 	"runtimes": {
 		"runc": {
 			"path": "runc"
@@ -1053,6 +1081,50 @@ This is a full example of the allowed configuration options in the file:
 			]
 		}
 	}
+}
+```
+
+### Windows configuration file
+
+The default location of the configuration file on Windows is
+ `%programdata%\docker\config\daemon.json`. The `--config-file` flag can be
+ used to specify a non-default location.
+
+This is a full example of the allowed configuration options on Windows:
+
+```json
+{
+    "authorization-plugins": [],
+    "dns": [],
+    "dns-opts": [],
+    "dns-search": [],
+    "exec-opts": [],
+    "storage-driver": "",
+    "storage-opts": [],
+    "labels": [],
+    "live-restore": true,
+    "log-driver": "",
+    "mtu": 0,
+    "pidfile": "",
+    "graph": "",
+    "cluster-store": "",
+    "cluster-advertise": "",
+    "debug": true,
+    "hosts": [],
+    "log-level": "",
+    "tlsverify": true,
+    "tlscacert": "",
+    "tlscert": "",
+    "tlskey": "",
+    "swarm-default-advertise-addr": "",
+    "group": "",
+    "default-ulimits": {},
+    "bridge": "",
+    "fixed-cidr": "",
+    "raw-logs": false,
+    "registry-mirrors": [],
+    "insecure-registries": [],
+    "disable-legacy-registry": false
 }
 ```
 
@@ -1072,6 +1144,7 @@ The list of currently supported options that can be reconfigured is this:
 - `cluster-store-opts`: it uses the new options to reload the discovery store.
 - `cluster-advertise`: it modifies the address advertised after reloading.
 - `labels`: it replaces the daemon labels with a new set of labels.
+- `live-restore`: Enables [keeping containers alive during daemon downtime](../../admin/live-restore.md).
 - `max-concurrent-downloads`: it updates the max concurrent downloads for each pull.
 - `max-concurrent-uploads`: it updates the max concurrent uploads for each push.
 - `default-runtime`: it updates the runtime to be used if not is
@@ -1079,6 +1152,7 @@ The list of currently supported options that can be reconfigured is this:
   the runtime shipped with the official docker packages.
 - `runtimes`: it updates the list of available OCI runtimes that can
   be used to run containers
+- `authorization-plugin`: specifies the authorization plugins to use.
 
 Updating and reloading the cluster configurations such as `--cluster-store`,
 `--cluster-advertise` and `--cluster-store-opts` will take effect only if
@@ -1108,6 +1182,7 @@ The following daemon options must be configured for each daemon:
 -g, --graph=/var/lib/docker            Root of the Docker runtime
 -p, --pidfile=/var/run/docker.pid      Path to use for daemon PID file
 -H, --host=[]                          Daemon socket(s) to connect to
+--iptables=true                        Enable addition of iptables rules
 --config-file=/etc/docker/daemon.json  Daemon configuration file
 --tlscacert="~/.docker/ca.pem"         Trust certs signed only by this CA
 --tlscert="~/.docker/cert.pem"         Path to TLS certificate file
@@ -1126,6 +1201,10 @@ set this parameter separately for each daemon.
 - `-p, --pidfile=/var/run/docker.pid` is the path where the process ID of the daemon is stored. Specify the path for your
 pid file here.
 - `--host=[]` specifies where the Docker daemon will listen for client connections. If unspecified, it defaults to `/var/run/docker.sock`.
+- `--iptables=false` prevents the Docker daemon from adding iptables rules. If
+  multiple daemons manage iptables rules, they may overwrite rules set by
+  another daemon. Be aware that disabling this option requires you to manually
+  add iptables rules to expose container ports.
 - `--config-file=/etc/docker/daemon.json` is the path where configuration file is stored. You can use it instead of
 daemon flags. Specify the path for each daemon.
 - `--tls*` Docker daemon supports `--tlsverify` mode that enforces encrypted and authenticated remote connections.
@@ -1134,7 +1213,7 @@ The `--tls*` options enable use of specific certificates for individual daemons.
 Example script for a separate “bootstrap” instance of the Docker daemon without network:
 
 ```bash
-$ docker daemon \
+$ dockerd \
         -H unix:///var/run/docker-bootstrap.sock \
         -p /var/run/docker-bootstrap.pid \
         --iptables=false \

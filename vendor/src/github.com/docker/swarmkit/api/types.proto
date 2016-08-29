@@ -139,20 +139,21 @@ message Mount {
 
 		BIND = 0 [(gogoproto.enumvalue_customname) = "MountTypeBind"]; // Bind mount host dir
 		VOLUME = 1 [(gogoproto.enumvalue_customname) = "MountTypeVolume"];  // Remote storage volumes
+		TMPFS = 2 [(gogoproto.enumvalue_customname) = "MountTypeTmpfs"]; // Mount a tmpfs
 	}
 
 	// Type defines the nature of the mount.
 	Type type = 1;
 
-	// Source path to mount
+	// Source specifies the name of the mount. Depending on mount type, this
+	// may be a volume name or a host path, or even ignored.
 	string source = 2;
 
 	// Target path in container
 	string target = 3;
 
-	// Writable should be set to true if the mount should be writable from the
-	// container.
-	bool writable = 4;
+	// ReadOnly should be set to true if the mount should not be writable.
+	bool readonly = 4 [(gogoproto.customname) = "ReadOnly"];
 
 	// BindOptions specifies options that are specific to a bind mount.
 	message BindOptions {
@@ -174,8 +175,8 @@ message Mount {
 
 	// VolumeOptions contains parameters for mounting the volume.
 	message VolumeOptions {
-		// populate volume with data from target
-		bool populate = 1;
+		// nocopy prevents automatic copying of data to the volume with data from target
+		bool nocopy = 1 [(gogoproto.customname) = "NoCopy"];
 
 		// labels to apply to the volume if creating
 		map<string, string> labels = 2;
@@ -187,13 +188,57 @@ message Mount {
 		Driver driver_config = 3;
 	}
 
+	message TmpfsOptions {
+		// Size sets the size of the tmpfs, in bytes.
+		//
+		// This will be converted to an operating system specific value
+		// depending on the host. For example, on linux, it will be convered to
+		// use a 'k', 'm' or 'g' syntax. BSD, though not widely supported with
+		// docker, uses a straight byte value.
+		//
+		// Percentages are not supported.
+		int64 size_bytes = 1;
+
+		// Mode of the tmpfs upon creation
+		int32 mode = 2 [(gogoproto.customtype) = "os.FileMode", (gogoproto.nullable) = false];
+
+		// TODO(stevvooe): There are several more tmpfs flags, specified in the
+		// daemon, that are accepted. Only the most basic are added for now.
+		//
+		// From docker/docker/pkg/mount/flags.go:
+		//
+		// var validFlags = map[string]bool{
+		// 	"":          true,
+		// 	"size":      true, X
+		// 	"mode":      true, X
+		// 	"uid":       true,
+		// 	"gid":       true,
+		// 	"nr_inodes": true,
+		// 	"nr_blocks": true,
+		// 	"mpol":      true,
+		// }
+		//
+		// Some of these may be straightforward to add, but others, such as
+		// uid/gid have implications in a clustered system.
+	}
+
 	// Depending on type, one of bind_options or volumes_options will be set.
 
 	// BindOptions configures properties of a bind mount type.
+	//
+	// For mounts of type bind, the source must be an absolute host path.
 	BindOptions bind_options = 5;
 
 	// VolumeOptions configures the properties specific to a volume mount type.
+	//
+	// For mounts of type volume, the source will be used as the volume name.
 	VolumeOptions volume_options = 6;
+
+	// TmpfsOptions allows one to set options for mounting a temporary
+	// filesystem.
+	//
+	// The source field will be ignored when using mounts of type tmpfs.
+	TmpfsOptions tmpfs_options = 7;
 
 	// TODO(stevvooe): It be better to use a oneof field above, although the
 	// type is enough to make the decision, while being primary to the
@@ -232,6 +277,54 @@ message UpdateConfig {
 
 	// Amount of time between updates.
 	Duration delay = 2 [(gogoproto.nullable) = false];
+
+	enum FailureAction {
+		PAUSE = 0;
+		CONTINUE = 1;
+		// TODO(aaronl): Add ROLLBACK as a supported failure mode.
+		// (#486)
+	}
+
+	// FailureAction is the action to take when an update failures.
+	// Currently, a failure is defined as a single updated task failing to
+	// reach the RUNNING state. In the future, there will be configuration
+	// to define what is treated as a failure (see #486 for a proposal).
+	FailureAction failure_action = 3;
+}
+
+// UpdateStatus is the status of an update in progress.
+message UpdateStatus {
+	enum UpdateState {
+		UNKNOWN = 0;
+		UPDATING = 1;
+		PAUSED = 2;
+		COMPLETED = 3;
+		// TODO(aaronl): add ROLLING_BACK, ROLLED_BACK as part of
+		// rollback support.
+	}
+
+	// State is the state of this update. It indicates whether the
+	// update is in progress, completed, or is paused.
+	UpdateState state = 1;
+
+	// StartedAt is the time at which the update was started.
+	Timestamp started_at = 2;
+
+	// CompletedAt is the time at which the update completed.
+	Timestamp completed_at = 3;
+
+	// TODO(aaronl): Consider adding a timestamp showing when the most
+	// recent task update took place. Currently, this is nontrivial
+	// because each service update kicks off a replacement update, so
+	// updating the service object with a timestamp at every step along
+	// the rolling update would cause the rolling update to be constantly
+	// restarted.
+
+	// Message explains how the update got into its current state. For
+	// example, if the update is paused, it will explain what is preventing
+	// the update from proceeding (typically the failure of a task to start up
+	// when OnFailure is PAUSE).
+	string message = 4;
 }
 
 // TaskState enumerates the states that a task progresses through within an
@@ -427,10 +520,10 @@ message IssuanceStatus {
 
 message AcceptancePolicy {
 	message RoleAdmissionPolicy {
-		message HashedSecret {
-			// The actual hashed content
+		message Secret {
+			// The actual content (possibly hashed)
 			bytes data = 1;
-			// The type of hash we are using
+			// The type of hash we are using, or "plaintext"
 			string alg = 2;
 		}
 
@@ -440,16 +533,35 @@ message AcceptancePolicy {
 		bool autoaccept = 2;
 		// Secret represents a user-provided string that is necessary for new
 		// nodes to join the cluster
-		HashedSecret secret = 3;
+		Secret secret = 3;
 	}
 
 	repeated RoleAdmissionPolicy policies = 1;
 }
 
+message ExternalCA {
+	enum CAProtocol {
+		CFSSL = 0 [(gogoproto.enumvalue_customname) = "CAProtocolCFSSL"];
+	}
+
+	// Protocol is the protocol used by this external CA.
+	CAProtocol protocol = 1;
+
+	// URL is the URL where the external CA can be reached.
+	string url = 2 [(gogoproto.customname) = "URL"];
+
+	// Options is a set of additional key/value pairs whose interpretation
+	// depends on the specified CA type.
+	map<string, string> options = 3;
+}
 
 message CAConfig {
 	// NodeCertExpiry is the duration certificates should be issued for
 	Duration node_cert_expiry = 1;
+
+	// ExternalCAs is a list of CAs to which a manager node will make
+	// certificate signing requests for node certificates.
+	repeated ExternalCA external_cas = 2 [(gogoproto.customname) = "ExternalCAs"];
 }
 
 // OrchestrationConfig defines cluster-level orchestration settings.
@@ -457,13 +569,24 @@ message OrchestrationConfig {
 	// TaskHistoryRetentionLimit is the number of historic tasks to keep per instance or
 	// node. If negative, never remove completed or failed tasks.
 	int64 task_history_retention_limit = 1;
+
+}
+
+// TaskDefaults specifies default values for task creation.
+message TaskDefaults {
+	// LogDriver specifies the log driver to use for the cluster if not
+	// specified for each task.
+	//
+	// If this is changed, only new tasks will pick up the new log driver.
+	// Existing tasks will continue to use the previous default until rescheduled.
+	Driver log_driver = 1;
 }
 
 // DispatcherConfig defines cluster-level dispatcher settings.
 message DispatcherConfig {
 	// HeartbeatPeriod defines how often agent should send heartbeats to
 	// dispatcher.
-	uint64 heartbeat_period = 1;
+	Duration heartbeat_period = 1;
 }
 
 // RaftConfig defines raft settings for the cluster.
@@ -490,6 +613,15 @@ message Placement {
 	repeated string constraints = 1;
 }
 
+// JoinToken contains the join tokens for workers and managers.
+message JoinTokens {
+	// Worker is the join token workers may use to join the swarm.
+	string worker = 1;
+
+	// Manager is the join token workers may use to join the swarm.
+	string manager = 2;
+}
+
 message RootCA {
 	// CAKey is the root CA private key.
 	bytes ca_key = 1 [(gogoproto.customname) = "CAKey"];
@@ -499,6 +631,9 @@ message RootCA {
 
 	// CACertHash is the digest of the CA Certificate.
 	string ca_cert_hash = 3 [(gogoproto.customname) = "CACertHash"];
+
+	// JoinTokens contains the join tokens for workers and managers.
+	JoinTokens join_tokens = 4 [(gogoproto.nullable) = false];
 }
 
 

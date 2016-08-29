@@ -63,6 +63,11 @@ func runRemove(dockerCli *client.DockerCli, opts removeOptions) error {
 		}
 	}
 
+	if len(services) == 0 && len(networks) == 0 {
+		fmt.Fprintf(dockerCli.Out(), "Nothing found in stack: %s\n", namespace)
+		return nil
+	}
+
 	if hasError {
 		return fmt.Errorf("Failed to remove some resources")
 	}

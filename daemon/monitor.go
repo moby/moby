@@ -8,8 +8,10 @@ import (
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/engine-api/types"
 )
 
 // StateChanged updates daemon state changes from containerd
@@ -28,6 +30,14 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 		daemon.updateHealthMonitor(c)
 		daemon.LogContainerEvent(c, "oom")
 	case libcontainerd.StateExit:
+		// if containers AutoRemove flag is set, remove it after clean up
+		if c.HostConfig.AutoRemove {
+			defer func() {
+				if err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+					logrus.Errorf("can't remove container %s: %v", c.ID, err)
+				}
+			}()
+		}
 		c.Lock()
 		defer c.Unlock()
 		c.Wait()
@@ -89,11 +99,17 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 	case libcontainerd.StatePause:
 		// Container is already locked in this case
 		c.Paused = true
+		if err := c.ToDisk(); err != nil {
+			return err
+		}
 		daemon.updateHealthMonitor(c)
 		daemon.LogContainerEvent(c, "pause")
 	case libcontainerd.StateResume:
 		// Container is already locked in this case
 		c.Paused = false
+		if err := c.ToDisk(); err != nil {
+			return err
+		}
 		daemon.updateHealthMonitor(c)
 		daemon.LogContainerEvent(c, "unpause")
 	}
@@ -103,10 +119,15 @@ func (daemon *Daemon) StateChanged(id string, e libcontainerd.StateInfo) error {
 
 // AttachStreams is called by libcontainerd to connect the stdio.
 func (daemon *Daemon) AttachStreams(id string, iop libcontainerd.IOPipe) error {
-	var s *runconfig.StreamConfig
+	var (
+		s  *runconfig.StreamConfig
+		ec *exec.Config
+	)
+
 	c := daemon.containers.Get(id)
 	if c == nil {
-		ec, err := daemon.getExecConfig(id)
+		var err error
+		ec, err = daemon.getExecConfig(id)
 		if err != nil {
 			return fmt.Errorf("no such exec/container: %s", id)
 		}
@@ -116,22 +137,6 @@ func (daemon *Daemon) AttachStreams(id string, iop libcontainerd.IOPipe) error {
 		if err := daemon.StartLogging(c); err != nil {
 			c.Reset(false)
 			return err
-		}
-	}
-
-	if stdin := s.Stdin(); stdin != nil {
-		if iop.Stdin != nil {
-			go func() {
-				io.Copy(iop.Stdin, stdin)
-				iop.Stdin.Close()
-			}()
-		}
-	} else {
-		if c != nil && !c.Config.Tty {
-			// tty is enabled, so dont close containerd's iopipe stdin.
-			if iop.Stdin != nil {
-				iop.Stdin.Close()
-			}
 		}
 	}
 
@@ -150,6 +155,25 @@ func (daemon *Daemon) AttachStreams(id string, iop libcontainerd.IOPipe) error {
 	}
 	if iop.Stderr != nil {
 		copyFunc(s.Stderr(), iop.Stderr)
+	}
+
+	if stdin := s.Stdin(); stdin != nil {
+		if iop.Stdin != nil {
+			go func() {
+				io.Copy(iop.Stdin, stdin)
+				iop.Stdin.Close()
+			}()
+		}
+	} else {
+		//TODO(swernli): On Windows, not closing stdin when no tty is requested by the exec Config
+		// results in a hang. We should re-evaluate generalizing this fix for all OSes if
+		// we can determine that is the right thing to do more generally.
+		if (c != nil && !c.Config.Tty) || (ec != nil && !ec.Tty && runtime.GOOS == "windows") {
+			// tty is enabled, so dont close containerd's iopipe stdin.
+			if iop.Stdin != nil {
+				iop.Stdin.Close()
+			}
+		}
 	}
 
 	return nil

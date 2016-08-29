@@ -12,26 +12,36 @@ import (
 )
 
 func addBundlefileFlag(opt *string, flags *pflag.FlagSet) {
-	flags.StringVarP(
+	flags.StringVar(
 		opt,
-		"bundle", "f", "",
-		"Path to a bundle (Default: STACK.dsb)")
+		"file", "",
+		"Path to a Distributed Application Bundle file (Default: STACK.dab)")
+}
+
+func addRegistryAuthFlag(opt *bool, flags *pflag.FlagSet) {
+	flags.BoolVar(opt, "with-registry-auth", false, "Send registry authentication details to Swarm agents")
 }
 
 func loadBundlefile(stderr io.Writer, namespace string, path string) (*bundlefile.Bundlefile, error) {
-	defaultPath := fmt.Sprintf("%s.dsb", namespace)
+	defaultPath := fmt.Sprintf("%s.dab", namespace)
 
 	if path == "" {
 		path = defaultPath
 	}
 	if _, err := os.Stat(path); err != nil {
 		return nil, fmt.Errorf(
-			"Bundle %s not found. Specify the path with -f or --bundle",
+			"Bundle %s not found. Specify the path with --file",
 			path)
 	}
 
 	fmt.Fprintf(stderr, "Loading bundle from %s\n", path)
-	bundle, err := bundlefile.LoadFile(path)
+	reader, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+
+	bundle, err := bundlefile.LoadFile(reader)
 	if err != nil {
 		return nil, fmt.Errorf("Error reading %s: %v\n", path, err)
 	}

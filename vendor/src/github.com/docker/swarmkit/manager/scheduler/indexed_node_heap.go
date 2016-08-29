@@ -2,9 +2,12 @@ package scheduler
 
 import (
 	"container/heap"
+	"errors"
 
 	"github.com/docker/swarmkit/api"
 )
+
+var errNodeNotFound = errors.New("node not found in scheduler heap")
 
 // A nodeHeap implements heap.Interface for nodes. It also includes an index
 // by node id.
@@ -48,28 +51,18 @@ func (nh *nodeHeap) alloc(n int) {
 	nh.index = make(map[string]int, n)
 }
 
-func (nh *nodeHeap) peek() *NodeInfo {
-	if len(nh.heap) == 0 {
-		return nil
-	}
-	return &nh.heap[0]
-}
-
 // nodeInfo returns the NodeInfo struct for a given node identified by its ID.
-func (nh *nodeHeap) nodeInfo(nodeID string) NodeInfo {
+func (nh *nodeHeap) nodeInfo(nodeID string) (NodeInfo, error) {
 	index, ok := nh.index[nodeID]
 	if ok {
-		return nh.heap[index]
+		return nh.heap[index], nil
 	}
-	return NodeInfo{}
+	return NodeInfo{}, errNodeNotFound
 }
 
 // addOrUpdateNode sets the number of tasks for a given node. It adds the node
 // to the heap if it wasn't already tracked.
 func (nh *nodeHeap) addOrUpdateNode(n NodeInfo) {
-	if n.Node == nil {
-		return
-	}
 	index, ok := nh.index[n.ID]
 	if ok {
 		nh.heap[index] = n
@@ -82,9 +75,6 @@ func (nh *nodeHeap) addOrUpdateNode(n NodeInfo) {
 // updateNode sets the number of tasks for a given node. It ignores the update
 // if the node isn't already tracked in the heap.
 func (nh *nodeHeap) updateNode(n NodeInfo) {
-	if n.Node == nil {
-		return
-	}
 	index, ok := nh.index[n.ID]
 	if ok {
 		nh.heap[index] = n
@@ -95,9 +85,7 @@ func (nh *nodeHeap) updateNode(n NodeInfo) {
 func (nh *nodeHeap) remove(nodeID string) {
 	index, ok := nh.index[nodeID]
 	if ok {
-		nh.heap[index].Tasks = nil
-		heap.Fix(nh, index)
-		heap.Pop(nh)
+		heap.Remove(nh, index)
 	}
 }
 

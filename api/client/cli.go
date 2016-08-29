@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"runtime"
 
 	"github.com/docker/docker/api"
@@ -14,7 +15,7 @@ import (
 	"github.com/docker/docker/cliconfig/configfile"
 	"github.com/docker/docker/cliconfig/credentials"
 	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/opts"
+	dopts "github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/engine-api/client"
 	"github.com/docker/go-connections/sockets"
@@ -47,17 +48,10 @@ type DockerCli struct {
 	isTerminalOut bool
 	// client is the http client that performs all API operations
 	client client.APIClient
-	// state holds the terminal state
-	state *term.State
-}
-
-// Initialize calls the init function that will setup the configuration for the client
-// such as the TLS, tcp and other parameters used to run the client.
-func (cli *DockerCli) Initialize() error {
-	if cli.init == nil {
-		return nil
-	}
-	return cli.init()
+	// inState holds the terminal input state
+	inState *term.State
+	// outState holds the terminal output state
+	outState *term.State
 }
 
 // Client returns the APIClient
@@ -85,7 +79,12 @@ func (cli *DockerCli) ConfigFile() *configfile.ConfigFile {
 	return cli.configFile
 }
 
-// IsTerminalOut returns true if the clients stdin is a TTY
+// IsTerminalIn returns true if the clients stdin is a TTY
+func (cli *DockerCli) IsTerminalIn() bool {
+	return cli.isTerminalIn
+}
+
+// IsTerminalOut returns true if the clients stdout is a TTY
 func (cli *DockerCli) IsTerminalOut() bool {
 	return cli.isTerminalOut
 }
@@ -111,32 +110,32 @@ func (cli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
 	return nil
 }
 
-// PsFormat returns the format string specified in the configuration.
-// String contains columns and format specification, for example {{ID}}\t{{Name}}.
-func (cli *DockerCli) PsFormat() string {
-	return cli.configFile.PsFormat
-}
-
-// ImagesFormat returns the format string specified in the configuration.
-// String contains columns and format specification, for example {{ID}}\t{{Name}}.
-func (cli *DockerCli) ImagesFormat() string {
-	return cli.configFile.ImagesFormat
-}
-
 func (cli *DockerCli) setRawTerminal() error {
-	if cli.isTerminalIn && os.Getenv("NORAW") == "" {
-		state, err := term.SetRawTerminal(cli.inFd)
-		if err != nil {
-			return err
+	if os.Getenv("NORAW") == "" {
+		if cli.isTerminalIn {
+			state, err := term.SetRawTerminal(cli.inFd)
+			if err != nil {
+				return err
+			}
+			cli.inState = state
 		}
-		cli.state = state
+		if cli.isTerminalOut {
+			state, err := term.SetRawTerminalOutput(cli.outFd)
+			if err != nil {
+				return err
+			}
+			cli.outState = state
+		}
 	}
 	return nil
 }
 
 func (cli *DockerCli) restoreTerminal(in io.Closer) error {
-	if cli.state != nil {
-		term.RestoreTerminal(cli.inFd, cli.state)
+	if cli.inState != nil {
+		term.RestoreTerminal(cli.inFd, cli.inState)
+	}
+	if cli.outState != nil {
+		term.RestoreTerminal(cli.outFd, cli.outState)
 	}
 	// WARNING: DO NOT REMOVE THE OS CHECK !!!
 	// For some reason this Close call blocks on darwin..
@@ -148,40 +147,41 @@ func (cli *DockerCli) restoreTerminal(in io.Closer) error {
 	return nil
 }
 
+// Initialize the dockerCli runs initialization that must happen after command
+// line flags are parsed.
+func (cli *DockerCli) Initialize(opts *cliflags.ClientOptions) error {
+	cli.configFile = LoadDefaultConfigFile(cli.err)
+
+	client, err := NewAPIClientFromFlags(opts.Common, cli.configFile)
+	if err != nil {
+		return err
+	}
+
+	cli.client = client
+
+	if cli.in != nil {
+		cli.inFd, cli.isTerminalIn = term.GetFdInfo(cli.in)
+	}
+	if cli.out != nil {
+		cli.outFd, cli.isTerminalOut = term.GetFdInfo(cli.out)
+	}
+
+	if opts.Common.TrustKey == "" {
+		cli.keyFile = filepath.Join(cliconfig.ConfigDir(), cliflags.DefaultTrustKeyFile)
+	} else {
+		cli.keyFile = opts.Common.TrustKey
+	}
+
+	return nil
+}
+
 // NewDockerCli returns a DockerCli instance with IO output and error streams set by in, out and err.
-// The key file, protocol (i.e. unix) and address are passed in as strings, along with the tls.Config. If the tls.Config
-// is set the client scheme will be set to https.
-// The client will be given a 32-second timeout (see https://github.com/docker/docker/pull/8035).
-func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cliflags.ClientFlags) *DockerCli {
-	cli := &DockerCli{
-		in:      in,
-		out:     out,
-		err:     err,
-		keyFile: clientFlags.Common.TrustKey,
+func NewDockerCli(in io.ReadCloser, out, err io.Writer) *DockerCli {
+	return &DockerCli{
+		in:  in,
+		out: out,
+		err: err,
 	}
-
-	cli.init = func() error {
-		clientFlags.PostParse()
-		cli.configFile = LoadDefaultConfigFile(err)
-
-		client, err := NewAPIClientFromFlags(clientFlags, cli.configFile)
-		if err != nil {
-			return err
-		}
-
-		cli.client = client
-
-		if cli.in != nil {
-			cli.inFd, cli.isTerminalIn = term.GetFdInfo(cli.in)
-		}
-		if cli.out != nil {
-			cli.outFd, cli.isTerminalOut = term.GetFdInfo(cli.out)
-		}
-
-		return nil
-	}
-
-	return cli
 }
 
 // LoadDefaultConfigFile attempts to load the default config file and returns
@@ -198,8 +198,8 @@ func LoadDefaultConfigFile(err io.Writer) *configfile.ConfigFile {
 }
 
 // NewAPIClientFromFlags creates a new APIClient from command line flags
-func NewAPIClientFromFlags(clientFlags *cliflags.ClientFlags, configFile *configfile.ConfigFile) (client.APIClient, error) {
-	host, err := getServerHost(clientFlags.Common.Hosts, clientFlags.Common.TLSOptions)
+func NewAPIClientFromFlags(opts *cliflags.CommonOptions, configFile *configfile.ConfigFile) (client.APIClient, error) {
+	host, err := getServerHost(opts.Hosts, opts.TLSOptions)
 	if err != nil {
 		return &client.Client{}, err
 	}
@@ -215,7 +215,7 @@ func NewAPIClientFromFlags(clientFlags *cliflags.ClientFlags, configFile *config
 		verStr = tmpStr
 	}
 
-	httpClient, err := newHTTPClient(host, clientFlags.Common.TLSOptions)
+	httpClient, err := newHTTPClient(host, opts.TLSOptions)
 	if err != nil {
 		return &client.Client{}, err
 	}
@@ -233,7 +233,7 @@ func getServerHost(hosts []string, tlsOptions *tlsconfig.Options) (host string, 
 		return "", errors.New("Please specify only one -H")
 	}
 
-	host, err = opts.ParseHost(tlsOptions != nil, host)
+	host, err = dopts.ParseHost(tlsOptions != nil, host)
 	return
 }
 

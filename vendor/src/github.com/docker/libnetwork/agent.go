@@ -3,12 +3,10 @@ package libnetwork
 //go:generate protoc -I.:Godeps/_workspace/src/github.com/gogo/protobuf  --gogo_out=import_path=github.com/docker/libnetwork,Mgogoproto/gogo.proto=github.com/gogo/protobuf/gogoproto:. agent.proto
 
 import (
-	"encoding/hex"
 	"fmt"
 	"net"
 	"os"
 	"sort"
-	"strconv"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-events"
@@ -18,6 +16,12 @@ import (
 	"github.com/docker/libnetwork/networkdb"
 	"github.com/docker/libnetwork/types"
 	"github.com/gogo/protobuf/proto"
+)
+
+const (
+	subsysGossip = "networking:gossip"
+	subsysIPSec  = "networking:ipsec"
+	keyringSize  = 3
 )
 
 // ByTime implements sort.Interface for []*types.EncryptionKey based on
@@ -31,6 +35,7 @@ func (b ByTime) Less(i, j int) bool { return b[i].LamportTime < b[j].LamportTime
 type agent struct {
 	networkDB         *networkdb.NetworkDB
 	bindAddr          string
+	advertiseAddr     string
 	epTblCancel       func()
 	driverCancelFuncs map[string][]func()
 }
@@ -80,8 +85,37 @@ func resolveAddr(addrOrInterface string) (string, error) {
 func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 	drvEnc := discoverapi.DriverEncryptionUpdate{}
 
-	// Find the new key and add it to the key ring
 	a := c.agent
+	// Find the deleted key. If the deleted key was the primary key,
+	// a new primary key should be set before removing if from keyring.
+	deleted := []byte{}
+	j := len(c.keys)
+	for i := 0; i < j; {
+		same := false
+		for _, key := range keys {
+			if same = key.LamportTime == c.keys[i].LamportTime; same {
+				break
+			}
+		}
+		if !same {
+			cKey := c.keys[i]
+			if cKey.Subsystem == subsysGossip {
+				deleted = cKey.Key
+			}
+
+			if cKey.Subsystem == subsysIPSec {
+				drvEnc.Prune = cKey.Key
+				drvEnc.PruneTag = cKey.LamportTime
+			}
+			c.keys[i], c.keys[j-1] = c.keys[j-1], c.keys[i]
+			c.keys[j-1] = nil
+			j--
+		}
+		i++
+	}
+	c.keys = c.keys[:j]
+
+	// Find the new key and add it to the key ring
 	for _, key := range keys {
 		same := false
 		for _, cKey := range c.keys {
@@ -91,53 +125,30 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 		}
 		if !same {
 			c.keys = append(c.keys, key)
-			if key.Subsystem == "networking:gossip" {
+			if key.Subsystem == subsysGossip {
 				a.networkDB.SetKey(key.Key)
 			}
-			if key.Subsystem == "networking:gossip" /*"networking:ipsec"*/ {
-				drvEnc.Key = hex.EncodeToString(key.Key)
-				drvEnc.Tag = strconv.FormatUint(key.LamportTime, 10)
+
+			if key.Subsystem == subsysIPSec {
+				drvEnc.Key = key.Key
+				drvEnc.Tag = key.LamportTime
 			}
-			break
-		}
-	}
-	// Find the deleted key. If the deleted key was the primary key,
-	// a new primary key should be set before removing if from keyring.
-	deleted := []byte{}
-	for i, cKey := range c.keys {
-		same := false
-		for _, key := range keys {
-			if same = key.LamportTime == cKey.LamportTime; same {
-				break
-			}
-		}
-		if !same {
-			if cKey.Subsystem == "networking:gossip" {
-				deleted = cKey.Key
-			}
-			if cKey.Subsystem == "networking:gossip" /*"networking:ipsec"*/ {
-				drvEnc.Prune = hex.EncodeToString(cKey.Key)
-				drvEnc.PruneTag = strconv.FormatUint(cKey.LamportTime, 10)
-			}
-			c.keys = append(c.keys[:i], c.keys[i+1:]...)
-			break
 		}
 	}
 
-	sort.Sort(ByTime(c.keys))
-	for _, key := range c.keys {
-		if key.Subsystem == "networking:gossip" {
-			a.networkDB.SetPrimaryKey(key.Key)
-			break
-		}
+	key, tag, err := c.getPrimaryKeyTag(subsysGossip)
+	if err != nil {
+		return err
 	}
-	for _, key := range c.keys {
-		if key.Subsystem == "networking:gossip" /*"networking:ipsec"*/ {
-			drvEnc.Primary = hex.EncodeToString(key.Key)
-			drvEnc.PrimaryTag = strconv.FormatUint(key.LamportTime, 10)
-			break
-		}
+	a.networkDB.SetPrimaryKey(key)
+
+	key, tag, err = c.getPrimaryKeyTag(subsysIPSec)
+	if err != nil {
+		return err
 	}
+	drvEnc.Primary = key
+	drvEnc.PrimaryTag = tag
+
 	if len(deleted) > 0 {
 		a.networkDB.RemoveKey(deleted)
 	}
@@ -156,25 +167,14 @@ func (c *controller) handleKeyChange(keys []*types.EncryptionKey) error {
 func (c *controller) agentSetup() error {
 	clusterProvider := c.cfg.Daemon.ClusterProvider
 
-	bindAddr, _, _ := net.SplitHostPort(clusterProvider.GetListenAddress())
+	bindAddr := clusterProvider.GetLocalAddress()
+	advAddr := clusterProvider.GetAdvertiseAddress()
 	remote := clusterProvider.GetRemoteAddress()
 	remoteAddr, _, _ := net.SplitHostPort(remote)
 
-	// Determine the BindAddress from RemoteAddress or through best-effort routing
-	if !isValidClusteringIP(bindAddr) {
-		if !isValidClusteringIP(remoteAddr) {
-			remote = "8.8.8.8:53"
-		}
-		conn, err := net.Dial("udp", remote)
-		if err == nil {
-			bindHostPort := conn.LocalAddr().String()
-			bindAddr, _, _ = net.SplitHostPort(bindHostPort)
-			conn.Close()
-		}
-	}
-
-	if bindAddr != "" && c.agent == nil {
-		if err := c.agentInit(bindAddr); err != nil {
+	logrus.Infof("Initializing Libnetwork Agent Local-addr=%s Adv-addr=%s Remote-addr =%s", bindAddr, advAddr, remoteAddr)
+	if advAddr != "" && c.agent == nil {
+		if err := c.agentInit(bindAddr, advAddr); err != nil {
 			logrus.Errorf("Error in agentInit : %v", err)
 		} else {
 			c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
@@ -197,25 +197,41 @@ func (c *controller) agentSetup() error {
 	return nil
 }
 
-func (c *controller) agentInit(bindAddrOrInterface string) error {
-	if !c.isAgent() {
-		return nil
-	}
-
-	drvEnc := discoverapi.DriverEncryptionConfig{}
-
-	// sort the keys by lamport time
+// For a given subsystem getKeys sorts the keys by lamport time and returns
+// slice of keys and lamport time which can used as a unique tag for the keys
+func (c *controller) getKeys(subsys string) ([][]byte, []uint64) {
 	sort.Sort(ByTime(c.keys))
 
-	gossipkey := [][]byte{}
+	keys := [][]byte{}
+	tags := []uint64{}
 	for _, key := range c.keys {
-		if key.Subsystem == "networking:gossip" {
-			gossipkey = append(gossipkey, key.Key)
+		if key.Subsystem == subsys {
+			keys = append(keys, key.Key)
+			tags = append(tags, key.LamportTime)
 		}
-		if key.Subsystem == "networking:gossip" /*"networking:ipsec"*/ {
-			drvEnc.Keys = append(drvEnc.Keys, hex.EncodeToString(key.Key))
-			drvEnc.Tags = append(drvEnc.Tags, strconv.FormatUint(key.LamportTime, 10))
+	}
+
+	keys[0], keys[1] = keys[1], keys[0]
+	tags[0], tags[1] = tags[1], tags[0]
+	return keys, tags
+}
+
+// getPrimaryKeyTag returns the primary key for a given subsystem from the
+// list of sorted key and the associated tag
+func (c *controller) getPrimaryKeyTag(subsys string) ([]byte, uint64, error) {
+	sort.Sort(ByTime(c.keys))
+	keys := []*types.EncryptionKey{}
+	for _, key := range c.keys {
+		if key.Subsystem == subsys {
+			keys = append(keys, key)
 		}
+	}
+	return keys[1].Key, keys[1].LamportTime, nil
+}
+
+func (c *controller) agentInit(bindAddrOrInterface, advertiseAddr string) error {
+	if !c.isAgent() {
+		return nil
 	}
 
 	bindAddr, err := resolveAddr(bindAddrOrInterface)
@@ -223,11 +239,12 @@ func (c *controller) agentInit(bindAddrOrInterface string) error {
 		return err
 	}
 
+	keys, tags := c.getKeys(subsysGossip)
 	hostname, _ := os.Hostname()
 	nDB, err := networkdb.New(&networkdb.Config{
-		BindAddr: bindAddr,
-		NodeName: hostname,
-		Keys:     gossipkey,
+		AdvertiseAddr: advertiseAddr,
+		NodeName:      hostname,
+		Keys:          keys,
 	})
 
 	if err != nil {
@@ -239,11 +256,17 @@ func (c *controller) agentInit(bindAddrOrInterface string) error {
 	c.agent = &agent{
 		networkDB:         nDB,
 		bindAddr:          bindAddr,
+		advertiseAddr:     advertiseAddr,
 		epTblCancel:       cancel,
 		driverCancelFuncs: make(map[string][]func()),
 	}
 
 	go c.handleTableEvents(ch, c.handleEpTableEvent)
+
+	drvEnc := discoverapi.DriverEncryptionConfig{}
+	keys, tags = c.getKeys(subsysIPSec)
+	drvEnc.Keys = keys
+	drvEnc.Tags = tags
 
 	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
 		err := driver.DiscoverNew(discoverapi.EncryptionKeysConfig, drvEnc)
@@ -252,6 +275,8 @@ func (c *controller) agentInit(bindAddrOrInterface string) error {
 		}
 		return false
 	})
+
+	c.WalkNetworks(joinCluster)
 
 	return nil
 }
@@ -270,17 +295,16 @@ func (c *controller) agentDriverNotify(d driverapi.Driver) {
 	}
 
 	d.DiscoverNew(discoverapi.NodeDiscovery, discoverapi.NodeDiscoveryData{
-		Address: c.agent.bindAddr,
-		Self:    true,
+		Address:     c.agent.advertiseAddr,
+		BindAddress: c.agent.bindAddr,
+		Self:        true,
 	})
 
 	drvEnc := discoverapi.DriverEncryptionConfig{}
-	for _, key := range c.keys {
-		if key.Subsystem == "networking:gossip" /*"networking:ipsec"*/ {
-			drvEnc.Keys = append(drvEnc.Keys, hex.EncodeToString(key.Key))
-			drvEnc.Tags = append(drvEnc.Tags, strconv.FormatUint(key.LamportTime, 10))
-		}
-	}
+	keys, tags := c.getKeys(subsysIPSec)
+	drvEnc.Keys = keys
+	drvEnc.Tags = tags
+
 	c.drvRegistry.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
 		err := driver.DiscoverNew(discoverapi.EncryptionKeysConfig, drvEnc)
 		if err != nil {
@@ -353,7 +377,7 @@ func (ep *endpoint) addToCluster() error {
 				ingressPorts = ep.ingressPorts
 			}
 
-			if err := c.addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.virtualIP, ingressPorts, ep.Iface().Address().IP); err != nil {
+			if err := c.addServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.virtualIP, ingressPorts, ep.svcAliases, ep.Iface().Address().IP); err != nil {
 				return err
 			}
 		}
@@ -364,6 +388,8 @@ func (ep *endpoint) addToCluster() error {
 			ServiceID:    ep.svcID,
 			VirtualIP:    ep.virtualIP.String(),
 			IngressPorts: ingressPorts,
+			Aliases:      ep.svcAliases,
+			TaskAliases:  ep.myAliases,
 			EndpointIP:   ep.Iface().Address().IP.String(),
 		})
 
@@ -399,7 +425,7 @@ func (ep *endpoint) deleteFromCluster() error {
 				ingressPorts = ep.ingressPorts
 			}
 
-			if err := c.rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.virtualIP, ingressPorts, ep.Iface().Address().IP); err != nil {
+			if err := c.rmServiceBinding(ep.svcName, ep.svcID, n.ID(), ep.ID(), ep.virtualIP, ingressPorts, ep.svcAliases, ep.Iface().Address().IP); err != nil {
 				return err
 			}
 		}
@@ -442,7 +468,10 @@ func (n *network) addDriverWatches() {
 		}
 
 		c.agent.networkDB.WalkTable(tableName, func(nid, key string, value []byte) bool {
-			d.EventNotify(driverapi.Create, n.ID(), tableName, key, value)
+			if nid == n.ID() {
+				d.EventNotify(driverapi.Create, nid, tableName, key, value)
+			}
+
 			return false
 		})
 	}
@@ -554,6 +583,8 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 	vip := net.ParseIP(epRec.VirtualIP)
 	ip := net.ParseIP(epRec.EndpointIP)
 	ingressPorts := epRec.IngressPorts
+	aliases := epRec.Aliases
+	taskaliases := epRec.TaskAliases
 
 	if name == "" || ip == nil {
 		logrus.Errorf("Invalid endpoint name/ip received while handling service table event %s", value)
@@ -562,21 +593,27 @@ func (c *controller) handleEpTableEvent(ev events.Event) {
 
 	if isAdd {
 		if svcID != "" {
-			if err := c.addServiceBinding(svcName, svcID, nid, eid, vip, ingressPorts, ip); err != nil {
+			if err := c.addServiceBinding(svcName, svcID, nid, eid, vip, ingressPorts, aliases, ip); err != nil {
 				logrus.Errorf("Failed adding service binding for value %s: %v", value, err)
 				return
 			}
 		}
 
 		n.addSvcRecords(name, ip, nil, true)
+		for _, alias := range taskaliases {
+			n.addSvcRecords(alias, ip, nil, true)
+		}
 	} else {
 		if svcID != "" {
-			if err := c.rmServiceBinding(svcName, svcID, nid, eid, vip, ingressPorts, ip); err != nil {
+			if err := c.rmServiceBinding(svcName, svcID, nid, eid, vip, ingressPorts, aliases, ip); err != nil {
 				logrus.Errorf("Failed adding service binding for value %s: %v", value, err)
 				return
 			}
 		}
 
 		n.deleteSvcRecords(name, ip, nil, true)
+		for _, alias := range taskaliases {
+			n.deleteSvcRecords(alias, ip, nil, true)
+		}
 	}
 }

@@ -8,19 +8,14 @@ import (
 	"text/tabwriter"
 	"text/template"
 
-	"github.com/docker/docker/reference"
 	"github.com/docker/docker/utils/templates"
-	"github.com/docker/engine-api/types"
 )
 
 const (
 	tableFormatKey = "table"
 	rawFormatKey   = "raw"
 
-	defaultContainerTableFormat       = "table {{.ID}}\t{{.Image}}\t{{.Command}}\t{{.RunningFor}} ago\t{{.Status}}\t{{.Ports}}\t{{.Names}}"
-	defaultImageTableFormat           = "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedSince}} ago\t{{.Size}}"
-	defaultImageTableFormatWithDigest = "table {{.Repository}}\t{{.Tag}}\t{{.Digest}}\t{{.ID}}\t{{.CreatedSince}} ago\t{{.Size}}"
-	defaultQuietFormat                = "{{.ID}}"
+	defaultQuietFormat = "{{.ID}}"
 )
 
 // Context contains information required by the formatter to print the output as desired.
@@ -92,156 +87,4 @@ func (c *Context) contextFormat(tmpl *template.Template, subContext subContext) 
 	}
 	c.buffer.WriteString("\n")
 	return nil
-}
-
-// ContainerContext contains container specific information required by the formater, encapsulate a Context struct.
-type ContainerContext struct {
-	Context
-	// Size when set to true will display the size of the output.
-	Size bool
-	// Containers
-	Containers []types.Container
-}
-
-// ImageContext contains image specific information required by the formater, encapsulate a Context struct.
-type ImageContext struct {
-	Context
-	Digest bool
-	// Images
-	Images []types.Image
-}
-
-func (ctx ContainerContext) Write() {
-	switch ctx.Format {
-	case tableFormatKey:
-		if ctx.Quiet {
-			ctx.Format = defaultQuietFormat
-		} else {
-			ctx.Format = defaultContainerTableFormat
-			if ctx.Size {
-				ctx.Format += `\t{{.Size}}`
-			}
-		}
-	case rawFormatKey:
-		if ctx.Quiet {
-			ctx.Format = `container_id: {{.ID}}`
-		} else {
-			ctx.Format = `container_id: {{.ID}}\nimage: {{.Image}}\ncommand: {{.Command}}\ncreated_at: {{.CreatedAt}}\nstatus: {{.Status}}\nnames: {{.Names}}\nlabels: {{.Labels}}\nports: {{.Ports}}\n`
-			if ctx.Size {
-				ctx.Format += `size: {{.Size}}\n`
-			}
-		}
-	}
-
-	ctx.buffer = bytes.NewBufferString("")
-	ctx.preformat()
-
-	tmpl, err := ctx.parseFormat()
-	if err != nil {
-		return
-	}
-
-	for _, container := range ctx.Containers {
-		containerCtx := &containerContext{
-			trunc: ctx.Trunc,
-			c:     container,
-		}
-		err = ctx.contextFormat(tmpl, containerCtx)
-		if err != nil {
-			return
-		}
-	}
-
-	ctx.postformat(tmpl, &containerContext{})
-}
-
-func (ctx ImageContext) Write() {
-	switch ctx.Format {
-	case tableFormatKey:
-		ctx.Format = defaultImageTableFormat
-		if ctx.Digest {
-			ctx.Format = defaultImageTableFormatWithDigest
-		}
-		if ctx.Quiet {
-			ctx.Format = defaultQuietFormat
-		}
-	case rawFormatKey:
-		if ctx.Quiet {
-			ctx.Format = `image_id: {{.ID}}`
-		} else {
-			if ctx.Digest {
-				ctx.Format = `repository: {{ .Repository }}
-tag: {{.Tag}}
-digest: {{.Digest}}
-image_id: {{.ID}}
-created_at: {{.CreatedAt}}
-virtual_size: {{.Size}}
-`
-			} else {
-				ctx.Format = `repository: {{ .Repository }}
-tag: {{.Tag}}
-image_id: {{.ID}}
-created_at: {{.CreatedAt}}
-virtual_size: {{.Size}}
-`
-			}
-		}
-	}
-
-	ctx.buffer = bytes.NewBufferString("")
-	ctx.preformat()
-	if ctx.table && ctx.Digest && !strings.Contains(ctx.Format, "{{.Digest}}") {
-		ctx.finalFormat += "\t{{.Digest}}"
-	}
-
-	tmpl, err := ctx.parseFormat()
-	if err != nil {
-		return
-	}
-
-	for _, image := range ctx.Images {
-
-		repoTags := image.RepoTags
-		repoDigests := image.RepoDigests
-
-		if len(repoTags) == 1 && repoTags[0] == "<none>:<none>" && len(repoDigests) == 1 && repoDigests[0] == "<none>@<none>" {
-			// dangling image - clear out either repoTags or repoDigests so we only show it once below
-			repoDigests = []string{}
-		}
-		// combine the tags and digests lists
-		tagsAndDigests := append(repoTags, repoDigests...)
-		for _, repoAndRef := range tagsAndDigests {
-			repo := "<none>"
-			tag := "<none>"
-			digest := "<none>"
-
-			if !strings.HasPrefix(repoAndRef, "<none>") {
-				ref, err := reference.ParseNamed(repoAndRef)
-				if err != nil {
-					continue
-				}
-				repo = ref.Name()
-
-				switch x := ref.(type) {
-				case reference.Canonical:
-					digest = x.Digest().String()
-				case reference.NamedTagged:
-					tag = x.Tag()
-				}
-			}
-			imageCtx := &imageContext{
-				trunc:  ctx.Trunc,
-				i:      image,
-				repo:   repo,
-				tag:    tag,
-				digest: digest,
-			}
-			err = ctx.contextFormat(tmpl, imageCtx)
-			if err != nil {
-				return
-			}
-		}
-	}
-
-	ctx.postformat(tmpl, &imageContext{})
 }

@@ -37,3 +37,7 @@ func InitOSContext() func() {
 func SetupTestOSContext(t *testing.T) func() {
 	return func() {}
 }
+
+// SetBasePath sets the base url prefix for the ns path
+func SetBasePath(path string) {
+}

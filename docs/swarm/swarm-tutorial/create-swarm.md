@@ -1,81 +1,95 @@
 <!--[metadata]>
 +++
-title = "Create a Swarm"
-description = "Initialize the Swarm"
-keywords = ["tutorial, cluster management, swarm"]
+title = "Create a swarm"
+description = "Initialize the swarm"
+keywords = ["tutorial, cluster management, swarm mode"]
 [menu.main]
 identifier="initialize-swarm"
 parent="swarm-tutorial"
 weight=12
-advisory = "rc"
 +++
 <![end-metadata]-->
 
-# Create a Swarm
+# Create a swarm
 
 After you complete the [tutorial setup](index.md) steps, you're ready
-to create a Swarm. Make sure the Docker Engine daemon is started on the host
+to create a swarm. Make sure the Docker Engine daemon is started on the host
 machines.
 
 1. Open a terminal and ssh into the machine where you want to run your manager
 node. For example, the tutorial uses a machine named `manager1`.
 
-2. Run the following command to create a new Swarm:
+2. Run the following command to create a new swarm:
 
-    ```
-    docker swarm init --listen-addr <MANAGER-IP>:<PORT>
-    ```
-
-    In the tutorial, the following command creates a Swarm on the `manager1` machine:
-
-    ```
-    $ docker swarm init --listen-addr 192.168.99.100:2377
-
-    Swarm initialized: current node (09fm6su6c24qn) is now a manager.
+    ```bash
+    docker swarm init --advertise-addr <MANAGER-IP>
     ```
 
-    The `--listen-addr` flag configures the manager node to listen on port
-    `2377`. The other nodes in the Swarm must be able to access the manager at
-    the IP address.
+    >**Note:** If you are using Docker for Mac or Docker for Windows to test
+single-node swarm, simply run `docker swarm init` with no arguments. There is no
+need to specify ` --advertise-addr` in this case. To learn more, see the topic
+on how to [Use Docker for Mac or Docker for
+Windows](index.md#use-docker-for-mac-or-docker-for-windows) with Swarm.
 
-3. Run `docker info` to view the current state of the Swarm:
+    In the tutorial, the following command creates a swarm on the `manager1`
+    machine:
 
-     ```
-     $ docker info
+    ```bash
+    $ docker swarm init --advertise-addr 192.168.99.100
+    Swarm initialized: current node (dxn1zf6l61qsb1josjja83ngz) is now a manager.
 
-     Containers: 2
-      Running: 0
-      Paused: 0
-      Stopped: 2
-     ...snip...
-     Swarm:
-      NodeID: 09fm6su6c24qn
-      IsManager: YES
+    To add a worker to this swarm, run the following command:
+
+        docker swarm join \
+        --token SWMTKN-1-49nj1cmql0jkz5s954yi3oex3nedyz0fb0xx14ie39trti4wxv-8vxv8rssmk743ojnwacrr2e7c \
+        192.168.99.100:2377
+
+    To add a manager to this swarm, run 'docker swarm join-token manager' and follow the instructions.
+    ```
+
+    The `--advertise-addr` flag configures the manager node to publish its
+    address as `192.168.99.100`. The other nodes in the swarm must be able
+    to access the manager at the IP address.
+
+    The output incudes the commands to join new nodes to the swarm. Nodes will
+    join as managers or workers depending on the value for the `--token`
+    flag.
+
+2. Run `docker info` to view the current state of the swarm:
+
+    ```bash
+    $ docker info
+
+    Containers: 2
+    Running: 0
+    Paused: 0
+    Stopped: 2
+      ...snip...
+    Swarm: active
+      NodeID: dxn1zf6l61qsb1josjja83ngz
+      Is Manager: true
       Managers: 1
       Nodes: 1
-     ...snip...
-     ```
-
-4. Run the `docker node ls` command to view information about nodes:
-
+      ...snip...
     ```
+
+3. Run the `docker node ls` command to view information about nodes:
+
+    ```bash
     $ docker node ls
 
-    ID              NAME      MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
-09fm6su6c24q *  manager1  Accepted    Ready   Active        Reachable       Yes
+    ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+    dxn1zf6l61qsb1josjja83ngz *  manager1  Ready   Active        Leader
 
     ```
 
-     The `*` next to the node id, indicates that you're currently connected on
-     this node.
+    The `*` next to the node id indicates that you're currently connected on
+    this node.
 
-     Docker Swarm automatically names the node for the machine host name. The
-     tutorial covers other columns in later steps.
+    Docker Engine swarm mode automatically names the node for the machine host
+    name. The tutorial covers other columns in later steps.
 
 ## What's next?
 
 In the next section of the tutorial, we'll [add two more nodes](add-nodes.md) to
 the cluster.
-
-
-<p style="margin-bottom:300px">&nbsp;</p>

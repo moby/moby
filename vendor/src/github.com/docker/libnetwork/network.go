@@ -320,6 +320,7 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 	dstN.id = n.id
 	dstN.networkType = n.networkType
 	dstN.scope = n.scope
+	dstN.dynamic = n.dynamic
 	dstN.ipamType = n.ipamType
 	dstN.enableIPv6 = n.enableIPv6
 	dstN.persist = n.persist
@@ -701,12 +702,13 @@ func (n *network) driver(load bool) (driverapi.Driver, error) {
 	}
 
 	c := n.getController()
+	isAgent := c.isAgent()
 	n.Lock()
 	// If load is not required, driver, cap and err may all be nil
 	if cap != nil {
 		n.scope = cap.DataScope
 	}
-	if c.isAgent() {
+	if isAgent || n.dynamic {
 		// If we are running in agent mode then all networks
 		// in libnetwork are local scope regardless of the
 		// backing driver.
@@ -1099,14 +1101,26 @@ func (n *network) getSvcRecords(ep *endpoint) []etchosts.Record {
 	n.Lock()
 	defer n.Unlock()
 
+	if ep == nil {
+		return nil
+	}
+
 	var recs []etchosts.Record
+
+	epName := ep.Name()
+
+	n.ctrlr.Lock()
+	defer n.ctrlr.Unlock()
 	sr, _ := n.ctrlr.svcRecords[n.id]
 
 	for h, ip := range sr.svcMap {
-		if ep != nil && strings.Split(h, ".")[0] == ep.Name() {
+		if strings.Split(h, ".")[0] == epName {
 			continue
 		}
-
+		if len(ip) == 0 {
+			log.Warnf("Found empty list of IP addresses for service %s on network %s (%s)", h, n.Name(), n.ID())
+			continue
+		}
 		recs = append(recs, etchosts.Record{
 			Hosts: h,
 			IP:    ip[0].String(),
@@ -1123,8 +1137,7 @@ func (n *network) getController() *controller {
 }
 
 func (n *network) ipamAllocate() error {
-	// For now also exclude bridge from using new ipam
-	if n.Type() == "host" || n.Type() == "null" {
+	if n.hasSpecialDriver() {
 		return nil
 	}
 
@@ -1170,7 +1183,7 @@ func (n *network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, preferredPo
 		}
 
 		// If the network belongs to global scope or the pool was
-		// explicitely chosen or it is invalid, do not perform the overlap check.
+		// explicitly chosen or it is invalid, do not perform the overlap check.
 		if n.Scope() == datastore.GlobalScope || preferredPool != "" || !types.IsIPNetValid(pool) {
 			return poolID, pool, meta, nil
 		}
@@ -1194,7 +1207,7 @@ func (n *network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, preferredPo
 		}()
 
 		// If this is a preferred pool request and the network
-		// is local scope and there is a overlap, we fail the
+		// is local scope and there is an overlap, we fail the
 		// network creation right here. The pool will be
 		// released in the defer.
 		if preferredPool != "" {
@@ -1295,8 +1308,7 @@ func (n *network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 }
 
 func (n *network) ipamRelease() {
-	// For now exclude host and null
-	if n.Type() == "host" || n.Type() == "null" {
+	if n.hasSpecialDriver() {
 		return
 	}
 	ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
@@ -1503,4 +1515,9 @@ func (n *network) TableEventRegister(tableName string) error {
 
 	n.driverTables = append(n.driverTables, tableName)
 	return nil
+}
+
+// Special drivers are ones which do not need to perform any network plumbing
+func (n *network) hasSpecialDriver() bool {
+	return n.Type() == "host" || n.Type() == "null"
 }

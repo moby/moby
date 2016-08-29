@@ -1,11 +1,14 @@
 package ca
 
 import (
+	cryptorand "crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"math/rand"
 	"path/filepath"
 	"strings"
@@ -28,9 +31,7 @@ const (
 	nodeTLSCertFilename = "swarm-node.crt"
 	nodeTLSKeyFilename  = "swarm-node.key"
 	nodeCSRFilename     = "swarm-node.csr"
-)
 
-const (
 	rootCN = "swarm-ca"
 	// ManagerRole represents the Manager node type, and is used for authorization to endpoints
 	ManagerRole = "swarm-manager"
@@ -38,6 +39,13 @@ const (
 	AgentRole = "swarm-worker"
 	// CARole represents the CA node type, and is used for clients attempting to get new certificates issued
 	CARole = "swarm-ca"
+
+	generatedSecretEntropyBytes = 16
+	joinTokenBase               = 36
+	// ceil(log(2^128-1, 36))
+	maxGeneratedSecretLength = 25
+	// ceil(log(2^256-1, 36))
+	base36DigestLen = 50
 )
 
 // SecurityConfig is used to represent a node's security configuration. It includes information about
@@ -45,7 +53,8 @@ const (
 type SecurityConfig struct {
 	mu sync.Mutex
 
-	rootCA *RootCA
+	rootCA     *RootCA
+	externalCA *ExternalCA
 
 	ServerTLSCreds *MutableTLSCreds
 	ClientTLSCreds *MutableTLSCreds
@@ -60,8 +69,19 @@ type CertificateUpdate struct {
 
 // NewSecurityConfig initializes and returns a new SecurityConfig.
 func NewSecurityConfig(rootCA *RootCA, clientTLSCreds, serverTLSCreds *MutableTLSCreds) *SecurityConfig {
+	// Make a new TLS config for the external CA client without a
+	// ServerName value set.
+	clientTLSConfig := clientTLSCreds.Config()
+
+	externalCATLSConfig := &tls.Config{
+		Certificates: clientTLSConfig.Certificates,
+		RootCAs:      clientTLSConfig.RootCAs,
+		MinVersion:   tls.VersionTLS12,
+	}
+
 	return &SecurityConfig{
 		rootCA:         rootCA,
+		externalCA:     NewExternalCA(rootCA, externalCATLSConfig),
 		ClientTLSCreds: clientTLSCreds,
 		ServerTLSCreds: serverTLSCreds,
 	}
@@ -89,12 +109,6 @@ func (s *SecurityConfig) UpdateRootCA(cert, key []byte, certExpiry time.Duration
 	return err
 }
 
-// DefaultPolicy is the default policy used by the signers to ensure that the only fields
-// from the remote CSRs we trust are: PublicKey, PublicKeyAlgorithm and SignatureAlgorithm.
-func DefaultPolicy() *cfconfig.Signing {
-	return SigningPolicy(DefaultNodeCertExpiration)
-}
-
 // SigningPolicy creates a policy used by the signer to ensure that the only fields
 // from the remote CSRs we trust are: PublicKey, PublicKeyAlgorithm and SignatureAlgorithm.
 // It receives the duration a certificate will be valid for
@@ -104,10 +118,14 @@ func SigningPolicy(certExpiry time.Duration) *cfconfig.Signing {
 		certExpiry = DefaultNodeCertExpiration
 	}
 
+	// Add the backdate
+	certExpiry = certExpiry + CertBackdate
+
 	return &cfconfig.Signing{
 		Default: &cfconfig.SigningProfile{
-			Usage:  []string{"signing", "key encipherment", "server auth", "client auth"},
-			Expiry: certExpiry,
+			Usage:    []string{"signing", "key encipherment", "server auth", "client auth"},
+			Expiry:   certExpiry,
+			Backdate: CertBackdate,
 			// Only trust the key components from the CSR. Everything else should
 			// come directly from API call params.
 			CSRWhitelist: &cfconfig.CSRWhitelist{
@@ -136,10 +154,36 @@ func NewConfigPaths(baseCertDir string) *SecurityConfigPaths {
 	}
 }
 
+// GenerateJoinToken creates a new join token.
+func GenerateJoinToken(rootCA *RootCA) string {
+	var secretBytes [generatedSecretEntropyBytes]byte
+
+	if _, err := cryptorand.Read(secretBytes[:]); err != nil {
+		panic(fmt.Errorf("failed to read random bytes: %v", err))
+	}
+
+	var nn, digest big.Int
+	nn.SetBytes(secretBytes[:])
+	digest.SetString(rootCA.Digest.Hex(), 16)
+	return fmt.Sprintf("SWMTKN-1-%0[1]*s-%0[3]*s", base36DigestLen, digest.Text(joinTokenBase), maxGeneratedSecretLength, nn.Text(joinTokenBase))
+}
+
+func getCAHashFromToken(token string) (digest.Digest, error) {
+	split := strings.Split(token, "-")
+	if len(split) != 4 || split[0] != "SWMTKN" || split[1] != "1" {
+		return "", errors.New("invalid join token")
+	}
+
+	var digestInt big.Int
+	digestInt.SetString(split[2], joinTokenBase)
+
+	return digest.ParseDigest(fmt.Sprintf("sha256:%0[1]*s", 64, digestInt.Text(16)))
+}
+
 // LoadOrCreateSecurityConfig encapsulates the security logic behind joining a cluster.
 // Every node requires at least a set of TLS certificates with which to join the cluster with.
 // In the case of a manager, these certificates will be used both for client and server credentials.
-func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, caHash, secret, proposedRole string, picker *picker.Picker, nodeInfo chan<- string) (*SecurityConfig, error) {
+func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, token, proposedRole string, picker *picker.Picker, nodeInfo chan<- api.IssueNodeCertificateResponse) (*SecurityConfig, error) {
 	paths := NewConfigPaths(baseCertDir)
 
 	var (
@@ -159,13 +203,26 @@ func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, caHash, secret
 		// Get a digest for the optional CA hash string that we've been provided
 		// If we were provided a non-empty string, and it is an invalid hash, return
 		// otherwise, allow the invalid digest through.
-		d, err := digest.ParseDigest(caHash)
-		if err != nil && caHash != "" {
-			return nil, err
+		var d digest.Digest
+		if token != "" {
+			d, err = getCAHashFromToken(token)
+			if err != nil {
+				return nil, err
+			}
 		}
 
-		// Get the remote CA certificate, verify integrity with the hash provided
-		rootCA, err = GetRemoteCA(ctx, d, picker)
+		// Get the remote CA certificate, verify integrity with the
+		// hash provided. Retry up to 5 times, in case the manager we
+		// first try to contact is not responding properly (it may have
+		// just been demoted, for example).
+
+		for i := 0; i != 5; i++ {
+			rootCA, err = GetRemoteCA(ctx, d, picker)
+			if err == nil {
+				break
+			}
+			log.Warningf("failed to retrieve remote root CA certificate: %v", err)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -180,9 +237,9 @@ func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, caHash, secret
 		return nil, err
 	}
 
-	// At this point we've successfully loaded the CA details from disk, or successfully
-	// downloaded them remotely.
-	// The next step is to try to load our certificates.
+	// At this point we've successfully loaded the CA details from disk, or
+	// successfully downloaded them remotely. The next step is to try to
+	// load our certificates.
 	clientTLSCreds, serverTLSCreds, err = LoadTLSCreds(rootCA, paths.Node)
 	if err != nil {
 		log.Debugf("no valid local TLS credentials found: %v", err)
@@ -198,17 +255,22 @@ func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, caHash, secret
 			org := identity.NewID()
 
 			if nodeInfo != nil {
-				nodeInfo <- cn
+				nodeInfo <- api.IssueNodeCertificateResponse{
+					NodeID:         cn,
+					NodeMembership: api.NodeMembershipAccepted,
+				}
 			}
 			tlsKeyPair, err = rootCA.IssueAndSaveNewCertificates(paths.Node, cn, proposedRole, org)
-		} else {
-			// There was an error loading our Credentials, let's get a new certificate issued
-			// Last argument is nil because at this point we don't have any valid TLS creds
-			tlsKeyPair, err = rootCA.RequestAndSaveNewCertificates(ctx, paths.Node, proposedRole, secret, picker, nil, nodeInfo)
 			if err != nil {
 				return nil, err
 			}
-
+		} else {
+			// There was an error loading our Credentials, let's get a new certificate issued
+			// Last argument is nil because at this point we don't have any valid TLS creds
+			tlsKeyPair, err = rootCA.RequestAndSaveNewCertificates(ctx, paths.Node, token, picker, nil, nodeInfo)
+			if err != nil {
+				return nil, err
+			}
 		}
 		// Create the Server TLS Credentials for this node. These will not be used by agents.
 		serverTLSCreds, err = rootCA.NewServerTLSCredentials(tlsKeyPair)
@@ -225,17 +287,15 @@ func LoadOrCreateSecurityConfig(ctx context.Context, baseCertDir, caHash, secret
 		log.Debugf("new TLS credentials generated: %s.", paths.Node.Cert)
 	} else {
 		if nodeInfo != nil {
-			nodeInfo <- clientTLSCreds.NodeID()
+			nodeInfo <- api.IssueNodeCertificateResponse{
+				NodeID:         clientTLSCreds.NodeID(),
+				NodeMembership: api.NodeMembershipAccepted,
+			}
 		}
 		log.Debugf("loaded local TLS credentials: %s.", paths.Node.Cert)
 	}
 
-	return &SecurityConfig{
-		rootCA: &rootCA,
-
-		ServerTLSCreds: serverTLSCreds,
-		ClientTLSCreds: clientTLSCreds,
-	}, nil
+	return NewSecurityConfig(&rootCA, clientTLSCreds, serverTLSCreds), nil
 }
 
 // RenewTLSConfig will continuously monitor for the necessity of renewing the local certificates, either by
@@ -279,11 +339,10 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, baseCertDir string, 
 			}
 			log.Infof("Renewing TLS Certificate.")
 
-			// Let's request new certs. Renewals don't require a secret.
+			// Let's request new certs. Renewals don't require a token.
 			rootCA := s.RootCA()
 			tlsKeyPair, err := rootCA.RequestAndSaveNewCertificates(ctx,
 				paths.Node,
-				s.ClientTLSCreds.Role(),
 				"",
 				picker,
 				s.ClientTLSCreds,
@@ -311,6 +370,14 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, baseCertDir string, 
 				updates <- CertificateUpdate{Err: err}
 			}
 
+			// Update the external CA to use the new client TLS
+			// config using a copy without a serverName specified.
+			s.externalCA.UpdateTLSConfig(&tls.Config{
+				Certificates: clientTLSConfig.Certificates,
+				RootCAs:      clientTLSConfig.RootCAs,
+				MinVersion:   tls.VersionTLS12,
+			})
+
 			err = s.ServerTLSCreds.LoadNewTLSConfig(serverTLSConfig)
 			if err != nil {
 				log.Debugf("failed to update the server TLS credentials: %v", err)
@@ -327,7 +394,7 @@ func RenewTLSConfig(ctx context.Context, s *SecurityConfig, baseCertDir string, 
 // calculateRandomExpiry returns a random duration between 50% and 80% of the original
 // duration
 func calculateRandomExpiry(expiresIn time.Duration) time.Duration {
-	if expiresIn.Minutes() < 1 {
+	if expiresIn.Minutes() <= 1 {
 		return time.Second
 	}
 
@@ -399,7 +466,7 @@ func LoadTLSCreds(rootCA RootCA, paths CertPaths) (*MutableTLSCreds, *MutableTLS
 		}
 
 		keyPair, newErr = tls.X509KeyPair(cert, key)
-		if err != nil {
+		if newErr != nil {
 			return nil, nil, err
 		}
 	}

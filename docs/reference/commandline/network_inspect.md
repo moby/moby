@@ -10,12 +10,15 @@ parent = "smn_cli"
 
 # network inspect
 
-    Usage:  docker network inspect [OPTIONS] NETWORK [NETWORK..]
+```markdown
+Usage:  docker network inspect [OPTIONS] NETWORK [NETWORK...]
 
-    Displays detailed information on a network
+Display detailed information on one or more networks
 
-      -f, --format=       Format the output using the given go template.
-      --help             Print usage
+Options:
+  -f, --format string   Format the output using the given go template
+      --help            Print usage
+```
 
 Returns information about one or more networks. By default, this command renders all results in a JSON object. For example, if you connect two containers to the default `bridge` network:
 
@@ -99,7 +102,7 @@ $ docker network inspect simple-network
             "Config": [
                 {
                     "Subnet": "172.22.0.0/16",
-                    "Gateway": "172.22.0.1/16"
+                    "Gateway": "172.22.0.1"
                 }
             ]
         },
@@ -116,4 +119,4 @@ $ docker network inspect simple-network
 * [network create](network_create.md)
 * [network ls](network_ls.md)
 * [network rm](network_rm.md)
-* [Understand Docker container networks](../../userguide/networking/dockernetworks.md)
+* [Understand Docker container networks](../../userguide/networking/index.md)

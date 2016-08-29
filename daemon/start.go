@@ -14,11 +14,12 @@ import (
 	"github.com/docker/docker/errors"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/engine-api/types"
 	containertypes "github.com/docker/engine-api/types/container"
 )
 
 // ContainerStart starts a container.
-func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.HostConfig) error {
+func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.HostConfig, validateHostname bool) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -68,7 +69,7 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 
 	// check if hostConfig is in line with the current system settings.
 	// It may happen cgroups are umounted or the like.
-	if _, err = daemon.verifyContainerSettings(container.HostConfig, nil, false); err != nil {
+	if _, err = daemon.verifyContainerSettings(container.HostConfig, nil, false, validateHostname); err != nil {
 		return err
 	}
 	// Adapt for old containers in case we have updates in this function and
@@ -112,6 +113,14 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 			}
 			container.ToDisk()
 			daemon.Cleanup(container)
+			// if containers AutoRemove flag is set, remove it after clean up
+			if container.HostConfig.AutoRemove {
+				container.Unlock()
+				if err := daemon.ContainerRm(container.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+					logrus.Errorf("can't remove container %s: %v", container.ID, err)
+				}
+				container.Lock()
+			}
 		}
 	}()
 
@@ -156,6 +165,12 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 		// set to 126 for container cmd can't be invoked errors
 		if strings.Contains(errDesc, syscall.EACCES.Error()) {
 			container.SetExitCode(126)
+		}
+
+		// attempted to mount a file onto a directory, or a directory onto a file, maybe from user specified bind mounts
+		if strings.Contains(errDesc, syscall.ENOTDIR.Error()) {
+			errDesc += ": Are you trying to mount a directory onto a file (or vice-versa)? Check if the specified host path exists and is the expected type"
+			container.SetExitCode(127)
 		}
 
 		container.Reset(false)

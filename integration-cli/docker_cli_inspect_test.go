@@ -85,7 +85,7 @@ func (s *DockerSuite) TestInspectTypeFlagContainer(c *check.C) {
 
 	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "top")
 
-	formatStr := "--format='{{.State.Running}}'"
+	formatStr := "--format={{.State.Running}}"
 	out, _ := dockerCmd(c, "inspect", "--type=container", formatStr, "busybox")
 	c.Assert(out, checker.Equals, "true\n") // not a container JSON
 }
@@ -137,7 +137,7 @@ func (s *DockerSuite) TestInspectImageFilterInt(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf("failed to inspect size of the image: %s, %v", out, err))
 
 	//now see if the size turns out to be the same
-	formatStr := fmt.Sprintf("--format='{{eq .Size %d}}'", size)
+	formatStr := fmt.Sprintf("--format={{eq .Size %d}}", size)
 	out, _ = dockerCmd(c, "inspect", formatStr, imageTest)
 	result, err := strconv.ParseBool(strings.TrimSuffix(out, "\n"))
 	c.Assert(err, checker.IsNil)
@@ -159,7 +159,7 @@ func (s *DockerSuite) TestInspectContainerFilterInt(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf("failed to inspect exitcode of the container: %s, %v", out, err))
 
 	//now get the exit code to verify
-	formatStr := fmt.Sprintf("--format='{{eq .State.ExitCode %d}}'", exitCode)
+	formatStr := fmt.Sprintf("--format={{eq .State.ExitCode %d}}", exitCode)
 	out, _ = dockerCmd(c, "inspect", formatStr, id)
 	result, err := strconv.ParseBool(strings.TrimSuffix(out, "\n"))
 	c.Assert(err, checker.IsNil)
@@ -227,7 +227,7 @@ func (s *DockerSuite) TestInspectBindMountPoint(c *check.C) {
 	vol := inspectFieldJSON(c, "test", "Mounts")
 
 	var mp []types.MountPoint
-	err := unmarshalJSON([]byte(vol), &mp)
+	err := json.Unmarshal([]byte(vol), &mp)
 	c.Assert(err, checker.IsNil)
 
 	// check that there is only one mountpoint
@@ -239,8 +239,33 @@ func (s *DockerSuite) TestInspectBindMountPoint(c *check.C) {
 	c.Assert(m.Driver, checker.Equals, "")
 	c.Assert(m.Source, checker.Equals, prefix+slash+"data")
 	c.Assert(m.Destination, checker.Equals, prefix+slash+"data")
-	c.Assert(m.Mode, checker.Equals, "ro"+modifier)
+	if daemonPlatform != "windows" { // Windows does not set mode
+		c.Assert(m.Mode, checker.Equals, "ro"+modifier)
+	}
 	c.Assert(m.RW, checker.Equals, false)
+}
+
+func (s *DockerSuite) TestInspectNamedMountPoint(c *check.C) {
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
+
+	dockerCmd(c, "run", "-d", "--name", "test", "-v", "data:"+prefix+slash+"data", "busybox", "cat")
+
+	vol := inspectFieldJSON(c, "test", "Mounts")
+
+	var mp []types.MountPoint
+	err := json.Unmarshal([]byte(vol), &mp)
+	c.Assert(err, checker.IsNil)
+
+	// check that there is only one mountpoint
+	c.Assert(mp, checker.HasLen, 1)
+
+	m := mp[0]
+
+	c.Assert(m.Name, checker.Equals, "data")
+	c.Assert(m.Driver, checker.Equals, "local")
+	c.Assert(m.Source, checker.Not(checker.Equals), "")
+	c.Assert(m.Destination, checker.Equals, prefix+slash+"data")
+	c.Assert(m.RW, checker.Equals, true)
 }
 
 // #14947
@@ -287,7 +312,7 @@ func (s *DockerSuite) TestInspectNoSizeFlagContainer(c *check.C) {
 
 	runSleepingContainer(c, "--name=busybox", "-d")
 
-	formatStr := "--format='{{.SizeRw}},{{.SizeRootFs}}'"
+	formatStr := "--format={{.SizeRw}},{{.SizeRootFs}}"
 	out, _ := dockerCmd(c, "inspect", "--type=container", formatStr, "busybox")
 	c.Assert(strings.TrimSpace(out), check.Equals, "<nil>,<nil>", check.Commentf("Exepcted not to display size info: %s", out))
 }
@@ -301,18 +326,6 @@ func (s *DockerSuite) TestInspectSizeFlagContainer(c *check.C) {
 
 	c.Assert(strings.TrimSpace(sz[0]), check.Not(check.Equals), "<nil>")
 	c.Assert(strings.TrimSpace(sz[1]), check.Not(check.Equals), "<nil>")
-}
-
-func (s *DockerSuite) TestInspectSizeFlagImage(c *check.C) {
-	runSleepingContainer(c, "-d")
-
-	formatStr := "--format='{{.SizeRw}},{{.SizeRootFs}}'"
-	out, _, err := dockerCmdWithError("inspect", "-s", "--type=image", formatStr, "busybox")
-
-	// Template error rather than <no value>
-	// This is a more correct behavior because images don't have sizes associated.
-	c.Assert(err, check.Not(check.IsNil))
-	c.Assert(out, checker.Contains, "Template parsing error")
 }
 
 func (s *DockerSuite) TestInspectTemplateError(c *check.C) {
@@ -331,7 +344,7 @@ func (s *DockerSuite) TestInspectTemplateError(c *check.C) {
 
 func (s *DockerSuite) TestInspectJSONFields(c *check.C) {
 	runSleepingContainer(c, "--name=busybox", "-d")
-	out, _, err := dockerCmdWithError("inspect", "--type=container", "--format='{{.HostConfig.Dns}}'", "busybox")
+	out, _, err := dockerCmdWithError("inspect", "--type=container", "--format={{.HostConfig.Dns}}", "busybox")
 
 	c.Assert(err, check.IsNil)
 	c.Assert(out, checker.Equals, "[]\n")

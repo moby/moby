@@ -3,8 +3,7 @@ package convert
 import (
 	"fmt"
 	"strings"
-
-	"golang.org/x/crypto/bcrypt"
+	"time"
 
 	types "github.com/docker/engine-api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
@@ -14,25 +13,39 @@ import (
 // SwarmFromGRPC converts a grpc Cluster to a Swarm.
 func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 	swarm := types.Swarm{
-		ID: c.ID,
-		Spec: types.Spec{
-			Orchestration: types.OrchestrationConfig{
-				TaskHistoryRetentionLimit: c.Spec.Orchestration.TaskHistoryRetentionLimit,
+		ClusterInfo: types.ClusterInfo{
+			ID: c.ID,
+			Spec: types.Spec{
+				Orchestration: types.OrchestrationConfig{
+					TaskHistoryRetentionLimit: c.Spec.Orchestration.TaskHistoryRetentionLimit,
+				},
+				Raft: types.RaftConfig{
+					SnapshotInterval:           c.Spec.Raft.SnapshotInterval,
+					KeepOldSnapshots:           c.Spec.Raft.KeepOldSnapshots,
+					LogEntriesForSlowFollowers: c.Spec.Raft.LogEntriesForSlowFollowers,
+					HeartbeatTick:              c.Spec.Raft.HeartbeatTick,
+					ElectionTick:               c.Spec.Raft.ElectionTick,
+				},
 			},
-			Raft: types.RaftConfig{
-				SnapshotInterval:           c.Spec.Raft.SnapshotInterval,
-				KeepOldSnapshots:           c.Spec.Raft.KeepOldSnapshots,
-				LogEntriesForSlowFollowers: c.Spec.Raft.LogEntriesForSlowFollowers,
-				HeartbeatTick:              c.Spec.Raft.HeartbeatTick,
-				ElectionTick:               c.Spec.Raft.ElectionTick,
-			},
-			Dispatcher: types.DispatcherConfig{
-				HeartbeatPeriod: c.Spec.Dispatcher.HeartbeatPeriod,
-			},
+		},
+		JoinTokens: types.JoinTokens{
+			Worker:  c.RootCA.JoinTokens.Worker,
+			Manager: c.RootCA.JoinTokens.Manager,
 		},
 	}
 
+	heartbeatPeriod, _ := ptypes.Duration(c.Spec.Dispatcher.HeartbeatPeriod)
+	swarm.Spec.Dispatcher.HeartbeatPeriod = uint64(heartbeatPeriod)
+
 	swarm.Spec.CAConfig.NodeCertExpiry, _ = ptypes.Duration(c.Spec.CAConfig.NodeCertExpiry)
+
+	for _, ca := range c.Spec.CAConfig.ExternalCAs {
+		swarm.Spec.CAConfig.ExternalCAs = append(swarm.Spec.CAConfig.ExternalCAs, &types.ExternalCA{
+			Protocol: types.ExternalCAProtocol(strings.ToLower(ca.Protocol.String())),
+			URL:      ca.URL,
+			Options:  ca.Options,
+		})
+	}
 
 	// Meta
 	swarm.Version.Index = c.Meta.Version.Index
@@ -42,17 +55,6 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 	// Annotations
 	swarm.Spec.Name = c.Spec.Annotations.Name
 	swarm.Spec.Labels = c.Spec.Annotations.Labels
-
-	for _, policy := range c.Spec.AcceptancePolicy.Policies {
-		p := types.Policy{
-			Role:       types.NodeRole(strings.ToLower(policy.Role.String())),
-			Autoaccept: policy.Autoaccept,
-		}
-		if policy.Secret != nil {
-			p.Secret = string(policy.Secret.Data)
-		}
-		swarm.Spec.AcceptancePolicy.Policies = append(swarm.Spec.AcceptancePolicy.Policies, p)
-	}
 
 	return swarm
 }
@@ -75,42 +77,24 @@ func SwarmSpecToGRPC(s types.Spec) (swarmapi.ClusterSpec, error) {
 			ElectionTick:               s.Raft.ElectionTick,
 		},
 		Dispatcher: swarmapi.DispatcherConfig{
-			HeartbeatPeriod: s.Dispatcher.HeartbeatPeriod,
+			HeartbeatPeriod: ptypes.DurationProto(time.Duration(s.Dispatcher.HeartbeatPeriod)),
 		},
 		CAConfig: swarmapi.CAConfig{
 			NodeCertExpiry: ptypes.DurationProto(s.CAConfig.NodeCertExpiry),
 		},
 	}
 
-	if err := SwarmSpecUpdateAcceptancePolicy(&spec, s.AcceptancePolicy); err != nil {
-		return swarmapi.ClusterSpec{}, err
-	}
-	return spec, nil
-}
-
-// SwarmSpecUpdateAcceptancePolicy updates a grpc ClusterSpec using AcceptancePolicy.
-func SwarmSpecUpdateAcceptancePolicy(spec *swarmapi.ClusterSpec, acceptancePolicy types.AcceptancePolicy) error {
-	spec.AcceptancePolicy.Policies = nil
-	for _, p := range acceptancePolicy.Policies {
-		role, ok := swarmapi.NodeRole_value[strings.ToUpper(string(p.Role))]
+	for _, ca := range s.CAConfig.ExternalCAs {
+		protocol, ok := swarmapi.ExternalCA_CAProtocol_value[strings.ToUpper(string(ca.Protocol))]
 		if !ok {
-			return fmt.Errorf("invalid Role: %q", p.Role)
+			return swarmapi.ClusterSpec{}, fmt.Errorf("invalid protocol: %q", ca.Protocol)
 		}
-
-		policy := &swarmapi.AcceptancePolicy_RoleAdmissionPolicy{
-			Role:       swarmapi.NodeRole(role),
-			Autoaccept: p.Autoaccept,
-		}
-
-		if p.Secret != "" {
-			hashPwd, _ := bcrypt.GenerateFromPassword([]byte(p.Secret), 0)
-			policy.Secret = &swarmapi.AcceptancePolicy_RoleAdmissionPolicy_HashedSecret{
-				Data: hashPwd,
-				Alg:  "bcrypt",
-			}
-		}
-
-		spec.AcceptancePolicy.Policies = append(spec.AcceptancePolicy.Policies, policy)
+		spec.CAConfig.ExternalCAs = append(spec.CAConfig.ExternalCAs, &swarmapi.ExternalCA{
+			Protocol: swarmapi.ExternalCA_CAProtocol(protocol),
+			URL:      ca.URL,
+			Options:  ca.Options,
+		})
 	}
-	return nil
+
+	return spec, nil
 }

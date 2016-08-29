@@ -51,6 +51,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	meminfo, err := system.ReadMemInfo()
 	if err != nil {
 		logrus.Errorf("Could not read system memory info: %v", err)
+		meminfo = &system.MemInfo{}
 	}
 
 	sysInfo := sysinfo.New(true)
@@ -71,7 +72,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	if sysInfo.AppArmor {
 		securityOptions = append(securityOptions, "apparmor")
 	}
-	if sysInfo.Seccomp {
+	if sysInfo.Seccomp && supportsSeccomp {
 		securityOptions = append(securityOptions, "seccomp")
 	}
 	if selinuxEnabled() {
@@ -104,7 +105,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		OSType:             platform.OSType,
 		Architecture:       platform.Architecture,
 		RegistryConfig:     daemon.RegistryService.ServiceConfig(),
-		NCPU:               runtime.NumCPU(),
+		NCPU:               sysinfo.NumCPU(),
 		MemTotal:           meminfo.MemTotal,
 		DockerRootDir:      daemon.configStore.Root,
 		Labels:             daemon.configStore.Labels,
@@ -116,6 +117,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		HTTPSProxy:         sockets.GetProxyEnv("https_proxy"),
 		NoProxy:            sockets.GetProxyEnv("no_proxy"),
 		SecurityOptions:    securityOptions,
+		LiveRestoreEnabled: daemon.configStore.LiveRestoreEnabled,
 	}
 
 	// TODO Windows. Refactor this more once sysinfo is refactored into
@@ -173,12 +175,7 @@ func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {
 	var pluginsInfo types.PluginsInfo
 
 	pluginsInfo.Volume = volumedrivers.GetDriverList()
-
-	networkDriverList := daemon.GetNetworkDriverList()
-	for nd := range networkDriverList {
-		pluginsInfo.Network = append(pluginsInfo.Network, nd)
-	}
-
+	pluginsInfo.Network = daemon.GetNetworkDriverList()
 	pluginsInfo.Authorization = daemon.configStore.AuthorizationPlugins
 
 	return pluginsInfo

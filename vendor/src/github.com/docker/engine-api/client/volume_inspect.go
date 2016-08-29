@@ -16,7 +16,7 @@ func (cli *Client) VolumeInspect(ctx context.Context, volumeID string) (types.Vo
 	return volume, err
 }
 
-// VolumeInspectWithRaw returns the information about a specific volume in the docker host and it's raw representation
+// VolumeInspectWithRaw returns the information about a specific volume in the docker host and its raw representation
 func (cli *Client) VolumeInspectWithRaw(ctx context.Context, volumeID string) (types.Volume, []byte, error) {
 	var volume types.Volume
 	resp, err := cli.get(ctx, "/volumes/"+volumeID, nil, nil)

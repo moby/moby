@@ -182,7 +182,7 @@ on how to query labels set on a container.
 
 ## Daemon labels
 
-    docker daemon \
+    dockerd \
       --dns 8.8.8.8 \
       --dns 8.8.4.4 \
       -H unix:///var/run/docker.sock \
@@ -192,6 +192,7 @@ on how to query labels set on a container.
 These labels appear as part of the `docker info` output for the daemon:
 
     $ docker -D info
+
     Containers: 12
      Running: 5
      Paused: 2

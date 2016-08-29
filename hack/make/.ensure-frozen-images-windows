@@ -3,7 +3,7 @@ set -e
 
 # This scripts sets up the required images for Windows to Windows CI
 
-# Tag windowsservercore as latest
+# Tag (microsoft/)windowsservercore as latest
 set +e
 ! BUILD=$(docker images | grep windowsservercore | grep -v latest | awk '{print $2}')
 if [ -z $BUILD ]; then
@@ -11,11 +11,18 @@ if [ -z $BUILD ]; then
 	exit 1
 fi
 
+# Get the name. Around 2016 6D TP5, these have the microsoft/ prefix, hence cater for both.
+! IMAGENAME=$(docker images | grep windowsservercore | grep -v latest | awk '{print $1}')
+if [ -z $IMAGENAME ]; then
+	echo "ERROR: Could not find windowsservercore image"
+	exit 1
+fi
+
 ! LATESTCOUNT=$(docker images | grep windowsservercore | grep -v $BUILD | wc -l)
 if [ $LATESTCOUNT -ne 1 ]; then
 	set -e
-	docker tag windowsservercore:$BUILD windowsservercore:latest
-	echo "INFO: Tagged windowsservercore:$BUILD with latest"
+	docker tag $IMAGENAME:$BUILD windowsservercore:latest
+	echo "INFO: Tagged $IMAGENAME:$BUILD as windowsservercore:latest"
 fi
 
 # Busybox (requires windowsservercore)

@@ -211,7 +211,7 @@ func NewGoCollector() *goCollector {
 					"Number of seconds since 1970 of last garbage collection.",
 					nil, nil,
 				),
-				eval:    func(ms *runtime.MemStats) float64 { return float64(ms.LastGC*10 ^ 9) },
+				eval:    func(ms *runtime.MemStats) float64 { return float64(ms.LastGC) / 1e9 },
 				valType: GaugeValue,
 			},
 		},

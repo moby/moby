@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/docker/distribution"
@@ -213,28 +214,35 @@ func (t *tags) All(ctx context.Context) ([]string, error) {
 		return tags, err
 	}
 
-	resp, err := t.client.Get(u)
-	if err != nil {
-		return tags, err
-	}
-	defer resp.Body.Close()
-
-	if SuccessStatus(resp.StatusCode) {
-		b, err := ioutil.ReadAll(resp.Body)
+	for {
+		resp, err := t.client.Get(u)
 		if err != nil {
 			return tags, err
 		}
+		defer resp.Body.Close()
 
-		tagsResponse := struct {
-			Tags []string `json:"tags"`
-		}{}
-		if err := json.Unmarshal(b, &tagsResponse); err != nil {
-			return tags, err
+		if SuccessStatus(resp.StatusCode) {
+			b, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				return tags, err
+			}
+
+			tagsResponse := struct {
+				Tags []string `json:"tags"`
+			}{}
+			if err := json.Unmarshal(b, &tagsResponse); err != nil {
+				return tags, err
+			}
+			tags = append(tags, tagsResponse.Tags...)
+			if link := resp.Header.Get("Link"); link != "" {
+				u = strings.Trim(strings.Split(link, ";")[0], "<>")
+			} else {
+				return tags, nil
+			}
+		} else {
+			return tags, HandleErrorResponse(resp)
 		}
-		tags = tagsResponse.Tags
-		return tags, nil
 	}
-	return tags, HandleErrorResponse(resp)
 }
 
 func descriptorFromResponse(response *http.Response) (distribution.Descriptor, error) {
@@ -394,11 +402,26 @@ func (o etagOption) Apply(ms distribution.ManifestService) error {
 	return fmt.Errorf("etag options is a client-only option")
 }
 
+// ReturnContentDigest allows a client to set a the content digest on
+// a successful request from the 'Docker-Content-Digest' header. This
+// returned digest is represents the digest which the registry uses
+// to refer to the content and can be used to delete the content.
+func ReturnContentDigest(dgst *digest.Digest) distribution.ManifestServiceOption {
+	return contentDigestOption{dgst}
+}
+
+type contentDigestOption struct{ digest *digest.Digest }
+
+func (o contentDigestOption) Apply(ms distribution.ManifestService) error {
+	return nil
+}
+
 func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...distribution.ManifestServiceOption) (distribution.Manifest, error) {
 	var (
 		digestOrTag string
 		ref         reference.Named
 		err         error
+		contentDgst *digest.Digest
 	)
 
 	for _, option := range options {
@@ -408,6 +431,8 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 			if err != nil {
 				return nil, err
 			}
+		} else if opt, ok := option.(contentDigestOption); ok {
+			contentDgst = opt.digest
 		} else {
 			err := option.Apply(ms)
 			if err != nil {
@@ -450,6 +475,12 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 	if resp.StatusCode == http.StatusNotModified {
 		return nil, distribution.ErrManifestNotModified
 	} else if SuccessStatus(resp.StatusCode) {
+		if contentDgst != nil {
+			dgst, err := digest.ParseDigest(resp.Header.Get("Docker-Content-Digest"))
+			if err == nil {
+				*contentDgst = dgst
+			}
+		}
 		mt := resp.Header.Get("Content-Type")
 		body, err := ioutil.ReadAll(resp.Body)
 
@@ -649,15 +680,6 @@ func (bs *blobs) Put(ctx context.Context, mediaType string, p []byte) (distribut
 	return writer.Commit(ctx, desc)
 }
 
-// createOptions is a collection of blob creation modifiers relevant to general
-// blob storage intended to be configured by the BlobCreateOption.Apply method.
-type createOptions struct {
-	Mount struct {
-		ShouldMount bool
-		From        reference.Canonical
-	}
-}
-
 type optionFunc func(interface{}) error
 
 func (f optionFunc) Apply(v interface{}) error {
@@ -668,7 +690,7 @@ func (f optionFunc) Apply(v interface{}) error {
 // mounted from the given canonical reference.
 func WithMountFrom(ref reference.Canonical) distribution.BlobCreateOption {
 	return optionFunc(func(v interface{}) error {
-		opts, ok := v.(*createOptions)
+		opts, ok := v.(*distribution.CreateOptions)
 		if !ok {
 			return fmt.Errorf("unexpected options type: %T", v)
 		}
@@ -681,7 +703,7 @@ func WithMountFrom(ref reference.Canonical) distribution.BlobCreateOption {
 }
 
 func (bs *blobs) Create(ctx context.Context, options ...distribution.BlobCreateOption) (distribution.BlobWriter, error) {
-	var opts createOptions
+	var opts distribution.CreateOptions
 
 	for _, option := range options {
 		err := option.Apply(&opts)

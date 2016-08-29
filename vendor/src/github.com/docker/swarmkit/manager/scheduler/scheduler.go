@@ -61,8 +61,8 @@ func (s *Scheduler) setupTasksList(tx store.ReadTx) error {
 	tasksByNode := make(map[string]map[string]*api.Task)
 	for _, t := range tasks {
 		// Ignore all tasks that have not reached ALLOCATED
-		// state.
-		if t.Status.State < api.TaskStateAllocated {
+		// state and tasks that no longer consume resources.
+		if t.Status.State < api.TaskStateAllocated || t.Status.State > api.TaskStateRunning {
 			continue
 		}
 
@@ -109,7 +109,30 @@ func (s *Scheduler) Run(ctx context.Context) error {
 	// Queue all unassigned tasks before processing changes.
 	s.tick(ctx)
 
+	const (
+		// commitDebounceGap is the amount of time to wait between
+		// commit events to debounce them.
+		commitDebounceGap = 50 * time.Millisecond
+		// maxLatency is a time limit on the debouncing.
+		maxLatency = time.Second
+	)
+	var (
+		debouncingStarted     time.Time
+		commitDebounceTimer   *time.Timer
+		commitDebounceTimeout <-chan time.Time
+	)
+
 	pendingChanges := 0
+
+	schedule := func() {
+		if len(s.preassignedTasks) > 0 {
+			s.processPreassignedTasks(ctx)
+		}
+		if pendingChanges > 0 {
+			s.tick(ctx)
+			pendingChanges = 0
+		}
+	}
 
 	// Watch for changes.
 	for {
@@ -131,15 +154,25 @@ func (s *Scheduler) Run(ctx context.Context) error {
 			case state.EventDeleteNode:
 				s.nodeHeap.remove(v.Node.ID)
 			case state.EventCommit:
-				if len(s.preassignedTasks) > 0 {
-					s.processPreassignedTasks(ctx)
-				}
-				if pendingChanges > 0 {
-					s.tick(ctx)
-					pendingChanges = 0
+				if commitDebounceTimer != nil {
+					if time.Since(debouncingStarted) > maxLatency {
+						commitDebounceTimer.Stop()
+						commitDebounceTimer = nil
+						commitDebounceTimeout = nil
+						schedule()
+					} else {
+						commitDebounceTimer.Reset(commitDebounceGap)
+					}
+				} else {
+					commitDebounceTimer = time.NewTimer(commitDebounceGap)
+					commitDebounceTimeout = commitDebounceTimer.C
+					debouncingStarted = time.Now()
 				}
 			}
-
+		case <-commitDebounceTimeout:
+			schedule()
+			commitDebounceTimer = nil
+			commitDebounceTimeout = nil
 		case <-s.stopChan:
 			return nil
 		}
@@ -177,8 +210,8 @@ func (s *Scheduler) createTask(ctx context.Context, t *api.Task) int {
 		return 0
 	}
 
-	nodeInfo := s.nodeHeap.nodeInfo(t.NodeID)
-	if nodeInfo.addTask(t) {
+	nodeInfo, err := s.nodeHeap.nodeInfo(t.NodeID)
+	if err == nil && nodeInfo.addTask(t) {
 		s.nodeHeap.updateNode(nodeInfo)
 	}
 
@@ -224,8 +257,8 @@ func (s *Scheduler) updateTask(ctx context.Context, t *api.Task) int {
 	}
 
 	s.allTasks[t.ID] = t
-	nodeInfo := s.nodeHeap.nodeInfo(t.NodeID)
-	if nodeInfo.addTask(t) {
+	nodeInfo, err := s.nodeHeap.nodeInfo(t.NodeID)
+	if err == nil && nodeInfo.addTask(t) {
 		s.nodeHeap.updateNode(nodeInfo)
 	}
 
@@ -235,24 +268,26 @@ func (s *Scheduler) updateTask(ctx context.Context, t *api.Task) int {
 func (s *Scheduler) deleteTask(ctx context.Context, t *api.Task) {
 	delete(s.allTasks, t.ID)
 	delete(s.preassignedTasks, t.ID)
-	nodeInfo := s.nodeHeap.nodeInfo(t.NodeID)
-	if nodeInfo.removeTask(t) {
+	nodeInfo, err := s.nodeHeap.nodeInfo(t.NodeID)
+	if err == nil && nodeInfo.removeTask(t) {
 		s.nodeHeap.updateNode(nodeInfo)
 	}
 }
 
 func (s *Scheduler) createOrUpdateNode(n *api.Node) {
-	nodeInfo := s.nodeHeap.nodeInfo(n.ID)
+	nodeInfo, _ := s.nodeHeap.nodeInfo(n.ID)
+	var resources api.Resources
 	if n.Description != nil && n.Description.Resources != nil {
-		if nodeInfo.AvailableResources == nil {
-			// if nodeInfo.AvailableResources hasn't been initialized
-			// we copy resources information from node description and
-			// pass it to nodeInfo
-			resources := *n.Description.Resources
-			nodeInfo.AvailableResources = &resources
+		resources = *n.Description.Resources
+		// reconcile resources by looping over all tasks in this node
+		for _, task := range nodeInfo.Tasks {
+			reservations := taskReservations(task.Spec)
+			resources.MemoryBytes -= reservations.MemoryBytes
+			resources.NanoCPUs -= reservations.NanoCPUs
 		}
 	}
 	nodeInfo.Node = n
+	nodeInfo.AvailableResources = resources
 	s.nodeHeap.addOrUpdateNode(nodeInfo)
 }
 
@@ -273,9 +308,10 @@ func (s *Scheduler) processPreassignedTasks(ctx context.Context) {
 	}
 	for _, decision := range failed {
 		s.allTasks[decision.old.ID] = decision.old
-		nodeInfo := s.nodeHeap.nodeInfo(decision.new.NodeID)
-		nodeInfo.removeTask(decision.new)
-		s.nodeHeap.updateNode(nodeInfo)
+		nodeInfo, err := s.nodeHeap.nodeInfo(decision.new.NodeID)
+		if err == nil && nodeInfo.removeTask(decision.new) {
+			s.nodeHeap.updateNode(nodeInfo)
+		}
 	}
 }
 
@@ -307,9 +343,10 @@ func (s *Scheduler) tick(ctx context.Context) {
 	for _, decision := range failed {
 		s.allTasks[decision.old.ID] = decision.old
 
-		nodeInfo := s.nodeHeap.nodeInfo(decision.new.NodeID)
-		nodeInfo.removeTask(decision.new)
-		s.nodeHeap.updateNode(nodeInfo)
+		nodeInfo, err := s.nodeHeap.nodeInfo(decision.new.NodeID)
+		if err == nil && nodeInfo.removeTask(decision.new) {
+			s.nodeHeap.updateNode(nodeInfo)
+		}
 
 		// enqueue task for next scheduling attempt
 		s.enqueue(decision.old)
@@ -366,7 +403,11 @@ func (s *Scheduler) applySchedulingDecisions(ctx context.Context, schedulingDeci
 
 // taskFitNode checks if a node has enough resource to accommodate a task
 func (s *Scheduler) taskFitNode(ctx context.Context, t *api.Task, nodeID string) *api.Task {
-	nodeInfo := s.nodeHeap.nodeInfo(nodeID)
+	nodeInfo, err := s.nodeHeap.nodeInfo(nodeID)
+	if err != nil {
+		// node does not exist in heap (it may have been deleted)
+		return nil
+	}
 	s.pipeline.SetTask(t)
 	if !s.pipeline.Process(&nodeInfo) {
 		// this node cannot accommodate this task
@@ -405,8 +446,8 @@ func (s *Scheduler) scheduleTask(ctx context.Context, t *api.Task) *api.Task {
 	}
 	s.allTasks[t.ID] = &newT
 
-	nodeInfo := s.nodeHeap.nodeInfo(n.ID)
-	if nodeInfo.addTask(&newT) {
+	nodeInfo, err := s.nodeHeap.nodeInfo(n.ID)
+	if err == nil && nodeInfo.addTask(&newT) {
 		s.nodeHeap.updateNode(nodeInfo)
 	}
 	return &newT
@@ -422,10 +463,9 @@ func (s *Scheduler) buildNodeHeap(tx store.ReadTx, tasksByNode map[string]map[st
 
 	i := 0
 	for _, n := range nodes {
-		var resources *api.Resources
+		var resources api.Resources
 		if n.Description != nil && n.Description.Resources != nil {
-			resources = &api.Resources{NanoCPUs: n.Description.Resources.NanoCPUs,
-				MemoryBytes: n.Description.Resources.MemoryBytes}
+			resources = *n.Description.Resources
 		}
 		s.nodeHeap.heap = append(s.nodeHeap.heap, newNodeInfo(n, tasksByNode[n.ID], resources))
 		s.nodeHeap.index[n.ID] = i

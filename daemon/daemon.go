@@ -117,11 +117,13 @@ func (daemon *Daemon) restore() error {
 		return err
 	}
 
+	containerCount := 0
 	for _, v := range dir {
 		id := v.Name()
 		container, err := daemon.load(id)
 		if !debug && logrus.GetLevel() == logrus.InfoLevel {
 			fmt.Print(".")
+			containerCount++
 		}
 		if err != nil {
 			logrus.Errorf("Failed to load container %v: %v", id, err)
@@ -145,6 +147,7 @@ func (daemon *Daemon) restore() error {
 	}
 
 	var migrateLegacyLinks bool
+	removeContainers := make(map[string]*container.Container)
 	restartContainers := make(map[*container.Container]chan struct{})
 	activeSandboxes := make(map[string]interface{})
 	for _, c := range containers {
@@ -176,10 +179,10 @@ func (daemon *Daemon) restore() error {
 			rm := c.RestartManager(false)
 			if c.IsRunning() || c.IsPaused() {
 				if err := daemon.containerd.Restore(c.ID, libcontainerd.WithRestartManager(rm)); err != nil {
-					logrus.Errorf("Failed to restore with containerd: %q", err)
+					logrus.Errorf("Failed to restore %s with containerd: %s", c.ID, err)
 					return
 				}
-				if !c.HostConfig.NetworkMode.IsContainer() {
+				if !c.HostConfig.NetworkMode.IsContainer() && c.IsRunning() {
 					options, err := daemon.buildSandboxOptions(c)
 					if err != nil {
 						logrus.Warnf("Failed build sandbox option to restore container %s: %v", c.ID, err)
@@ -192,10 +195,14 @@ func (daemon *Daemon) restore() error {
 			}
 			// fixme: only if not running
 			// get list of containers we need to restart
-			if daemon.configStore.AutoRestart && !c.IsRunning() && !c.IsPaused() && c.ShouldRestart() {
-				mapLock.Lock()
-				restartContainers[c] = make(chan struct{})
-				mapLock.Unlock()
+			if !c.IsRunning() && !c.IsPaused() {
+				if daemon.configStore.AutoRestart && c.ShouldRestart() {
+					mapLock.Lock()
+					restartContainers[c] = make(chan struct{})
+					mapLock.Unlock()
+				} else if c.HostConfig != nil && c.HostConfig.AutoRemove {
+					removeContainers[c.ID] = c
+				}
 			}
 
 			if c.RemovalInProgress {
@@ -281,6 +288,18 @@ func (daemon *Daemon) restore() error {
 	}
 	group.Wait()
 
+	removeGroup := sync.WaitGroup{}
+	for id := range removeContainers {
+		removeGroup.Add(1)
+		go func(cid string) {
+			if err := daemon.ContainerRm(cid, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true}); err != nil {
+				logrus.Errorf("Failed to remove container %s: %s", cid, err)
+			}
+			removeGroup.Done()
+		}(id)
+	}
+	removeGroup.Wait()
+
 	// any containers that were started above would already have had this done,
 	// however we need to now prepare the mountpoints for the rest of the containers as well.
 	// This shouldn't cause any issue running on the containers that already had this run.
@@ -293,7 +312,11 @@ func (daemon *Daemon) restore() error {
 		// has a volume and the volume dirver is not available.
 		if _, ok := restartContainers[c]; ok {
 			continue
+		} else if _, ok := removeContainers[c.ID]; ok {
+			// container is automatically removed, skip it.
+			continue
 		}
+
 		group.Add(1)
 		go func(c *container.Container) {
 			defer group.Done()
@@ -306,7 +329,7 @@ func (daemon *Daemon) restore() error {
 	group.Wait()
 
 	if !debug {
-		if logrus.GetLevel() == logrus.InfoLevel {
+		if logrus.GetLevel() == logrus.InfoLevel && containerCount > 0 {
 			fmt.Println()
 		}
 		logrus.Info("Loading containers: done.")
@@ -324,7 +347,7 @@ func (daemon *Daemon) waitForNetworks(c *container.Container) {
 	}
 	// Make sure if the container has a network that requires discovery that the discovery service is available before starting
 	for netName := range c.NetworkSettings.Networks {
-		// If we get `ErrNoSuchNetwork` here, it can assumed that it is due to discovery not being ready
+		// If we get `ErrNoSuchNetwork` here, we can assume that it is due to discovery not being ready
 		// Most likely this is because the K/V store used for discovery is in a container and needs to be started
 		if _, err := daemon.netController.NetworkByName(netName); err != nil {
 			if _, ok := err.(libnetwork.ErrNoSuchNetwork); !ok {
@@ -365,7 +388,7 @@ func (daemon *Daemon) registerLink(parent, child *container.Container, alias str
 	return nil
 }
 
-// SetClusterProvider sets a component for quering the current cluster state.
+// SetClusterProvider sets a component for querying the current cluster state.
 func (daemon *Daemon) SetClusterProvider(clusterProvider cluster.Provider) {
 	daemon.clusterProvider = clusterProvider
 	daemon.netController.SetClusterProvider(clusterProvider)
@@ -384,6 +407,11 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 // requests from the webserver.
 func NewDaemon(config *Config, registryService registry.Service, containerdRemote libcontainerd.Remote) (daemon *Daemon, err error) {
 	setDefaultMtu(config)
+
+	// Ensure that we have a correct root key limit for launching containers.
+	if err := ModifyRootKeyLimit(); err != nil {
+		logrus.Warnf("unable to modify root key limit, number of containers could be limitied by this quota: %v", err)
+	}
 
 	// Ensure we have compatible and valid configuration options
 	if err := verifyDaemonSettings(config); err != nil {
@@ -405,7 +433,7 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 
 	// set up SIGUSR1 handler on Unix-like systems, or a Win32 global event
 	// on Windows to dump Go routine stacks
-	setupDumpStackTrap()
+	setupDumpStackTrap(config.Root)
 
 	uidMaps, gidMaps, err := setupRemappedRoot(config)
 	if err != nil {
@@ -427,7 +455,11 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		}
 	}
 
-	if err = setupDaemonRoot(config, realRoot, rootUID, rootGID); err != nil {
+	if err := setupDaemonRoot(config, realRoot, rootUID, rootGID); err != nil {
+		return nil, err
+	}
+
+	if err := setupDaemonProcess(config); err != nil {
 		return nil, err
 	}
 
@@ -538,10 +570,6 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		return nil, fmt.Errorf("Couldn't create Tag store repositories: %s", err)
 	}
 
-	if err := restoreCustomImage(d.imageStore, d.layerStore, referenceStore); err != nil {
-		return nil, fmt.Errorf("Couldn't restore custom images: %s", err)
-	}
-
 	migrationStart := time.Now()
 	if err := v1.Migrate(config.Root, graphDriver, d.layerStore, d.imageStore, referenceStore, distributionMetadataStore); err != nil {
 		logrus.Errorf("Graph migration failed: %q. Your old graph data was found to be too inconsistent for upgrading to content-addressable storage. Some of the old data was probably not upgraded. We recommend starting over with a clean storage directory if possible.", err)
@@ -597,6 +625,10 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		return nil, err
 	}
 
+	if err := pluginInit(d, config, containerdRemote); err != nil {
+		return nil, err
+	}
+
 	return d, nil
 }
 
@@ -606,10 +638,10 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 		// To terminate a process in freezer cgroup, we should send
 		// SIGTERM to this process then unfreeze it, and the process will
 		// force to terminate immediately.
-		logrus.Debugf("Found container %s is paused, sending SIGTERM before unpause it", c.ID)
+		logrus.Debugf("Found container %s is paused, sending SIGTERM before unpausing it", c.ID)
 		sig, ok := signal.SignalMap["TERM"]
 		if !ok {
-			return fmt.Errorf("System doesn not support SIGTERM")
+			return fmt.Errorf("System does not support SIGTERM")
 		}
 		if err := daemon.kill(c, int(sig)); err != nil {
 			return fmt.Errorf("sending SIGTERM to container %s with error: %v", c.ID, err)
@@ -618,7 +650,7 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 			return fmt.Errorf("Failed to unpause container %s with error: %v", c.ID, err)
 		}
 		if _, err := c.WaitStop(10 * time.Second); err != nil {
-			logrus.Debugf("container %s failed to exit in 10 second of SIGTERM, sending SIGKILL to force", c.ID)
+			logrus.Debugf("container %s failed to exit in 10 seconds of SIGTERM, sending SIGKILL to force", c.ID)
 			sig, ok := signal.SignalMap["KILL"]
 			if !ok {
 				return fmt.Errorf("System does not support SIGKILL")
@@ -632,7 +664,7 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 	}
 	// If container failed to exit in 10 seconds of SIGTERM, then using the force
 	if err := daemon.containerStop(c, 10); err != nil {
-		return fmt.Errorf("Stop container %s with error: %v", c.ID, err)
+		return fmt.Errorf("Failed to stop container %s with error: %v", c.ID, err)
 	}
 
 	c.WaitStop(-1 * time.Second)
@@ -644,9 +676,16 @@ func (daemon *Daemon) Shutdown() error {
 	daemon.shutdown = true
 	// Keep mounts and networking running on daemon shutdown if
 	// we are to keep containers running and restore them.
-	if daemon.configStore.LiveRestore {
-		return nil
+
+	pluginShutdown()
+
+	if daemon.configStore.LiveRestoreEnabled && daemon.containers != nil {
+		// check if there are any running containers, if none we should do some cleanup
+		if ls, err := daemon.Containers(&types.ContainerListOptions{}); len(ls) != 0 || err != nil {
+			return nil
+		}
 	}
+
 	if daemon.containers != nil {
 		logrus.Debug("starting clean shutdown of all containers...")
 		daemon.containers.ApplyAll(func(c *container.Container) {
@@ -713,6 +752,42 @@ func (daemon *Daemon) Unmount(container *container.Container) error {
 		return err
 	}
 	return nil
+}
+
+// V4Subnets returns the IPv4 subnets of networks that are managed by Docker.
+func (daemon *Daemon) V4Subnets() []net.IPNet {
+	var subnets []net.IPNet
+
+	managedNetworks := daemon.netController.Networks()
+
+	for _, managedNetwork := range managedNetworks {
+		v4Infos, _ := managedNetwork.Info().IpamInfo()
+		for _, v4Info := range v4Infos {
+			if v4Info.IPAMData.Pool != nil {
+				subnets = append(subnets, *v4Info.IPAMData.Pool)
+			}
+		}
+	}
+
+	return subnets
+}
+
+// V6Subnets returns the IPv6 subnets of networks that are managed by Docker.
+func (daemon *Daemon) V6Subnets() []net.IPNet {
+	var subnets []net.IPNet
+
+	managedNetworks := daemon.netController.Networks()
+
+	for _, managedNetwork := range managedNetworks {
+		_, v6Infos := managedNetwork.Info().IpamInfo()
+		for _, v6Info := range v6Infos {
+			if v6Info.IPAMData.Pool != nil {
+				subnets = append(subnets, *v6Info.IPAMData.Pool)
+			}
+		}
+	}
+
+	return subnets
 }
 
 func writeDistributionProgress(cancelFunc func(), outStream io.Writer, progressChan <-chan progress.Progress) {
@@ -862,8 +937,8 @@ func (daemon *Daemon) Reload(config *Config) error {
 		daemon.configStore.Debug = config.Debug
 	}
 	if config.IsValueSet("live-restore") {
-		daemon.configStore.LiveRestore = config.LiveRestore
-		if err := daemon.containerdRemote.UpdateOptions(libcontainerd.WithLiveRestore(config.LiveRestore)); err != nil {
+		daemon.configStore.LiveRestoreEnabled = config.LiveRestoreEnabled
+		if err := daemon.containerdRemote.UpdateOptions(libcontainerd.WithLiveRestore(config.LiveRestoreEnabled)); err != nil {
 			return err
 		}
 
@@ -897,6 +972,7 @@ func (daemon *Daemon) Reload(config *Config) error {
 
 	// We emit daemon reload event here with updatable configurations
 	attributes["debug"] = fmt.Sprintf("%t", daemon.configStore.Debug)
+	attributes["live-restore"] = fmt.Sprintf("%t", daemon.configStore.LiveRestoreEnabled)
 	attributes["cluster-store"] = daemon.configStore.ClusterStore
 	if daemon.configStore.ClusterOpts != nil {
 		opts, _ := json.Marshal(daemon.configStore.ClusterOpts)
@@ -992,6 +1068,7 @@ func (daemon *Daemon) networkOptions(dconfig *Config, activeSandboxes map[string
 	}
 
 	options = append(options, nwconfig.OptionDataDir(dconfig.Root))
+	options = append(options, nwconfig.OptionExecRoot(dconfig.GetExecRoot()))
 
 	dd := runconfig.DefaultDaemonNetworkMode()
 	dn := runconfig.DefaultDaemonNetworkMode().NetworkName()
@@ -1021,7 +1098,7 @@ func (daemon *Daemon) networkOptions(dconfig *Config, activeSandboxes map[string
 	options = append(options, nwconfig.OptionLabels(dconfig.Labels))
 	options = append(options, driverOptions(dconfig)...)
 
-	if daemon.configStore != nil && daemon.configStore.LiveRestore && len(activeSandboxes) != 0 {
+	if daemon.configStore != nil && daemon.configStore.LiveRestoreEnabled && len(activeSandboxes) != 0 {
 		options = append(options, nwconfig.OptionActiveSandboxes(activeSandboxes))
 	}
 

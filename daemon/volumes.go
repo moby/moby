@@ -129,7 +129,8 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			return err
 		}
 
-		if binds[bind.Destination] {
+		_, tmpfsExists := hostConfig.Tmpfs[bind.Destination]
+		if binds[bind.Destination] || tmpfsExists {
 			return fmt.Errorf("Duplicate mount point '%s'", bind.Destination)
 		}
 

@@ -10,7 +10,7 @@ description = "Getting started with Docker"
 keywords = ["beginner, getting started, Docker"]
 [menu.main]
 identifier = "getstart_build_image"
-parent = "getstart_all"
+parent = "tutorial_getstart_menu"
 weight = 4
 +++
 <![end-metadata]-->
@@ -60,15 +60,13 @@ commands to run. Your recipe is going to be very short.
 
         FROM docker/whalesay:latest
 
-  The `FROM` keyword tells Docker which image your image is based on. Whalesay is cute and has the `cowsay` program already, so we'll start there.
+      The `FROM` keyword tells Docker which image your image is based on. Whalesay is cute and has the `cowsay` program already, so we'll start there.
 
 7. Now, add the `fortunes` program to the image.
 
         RUN apt-get -y update && apt-get install -y fortunes
 
-  The `fortunes` program has a command that prints out wise sayings for our
-  whale to say. So, the first step is to install it. This line installs the
-  software into the image.
+      The `fortunes` program has a command that prints out wise sayings for our whale to say. So, the first step is to install it. This line installs the software into the image.
 
 8. Once the image has the software it needs, you instruct the software to run
     when the image is loaded.
@@ -187,7 +185,7 @@ In this step, you verify the new images is on your computer and then you run you
     This command, you might remember, lists the images you have locally.
 
         $ docker images
-        REPOSITORY           TAG          IMAGE ID          CREATED             VIRTUAL SIZE
+        REPOSITORY           TAG          IMAGE ID          CREATED             SIZE
         docker-whale         latest       7d9495d03763      4 minutes ago       273.7 MB
         docker/whalesay      latest       fb434121fc77      4 hours ago         247 MB
         hello-world          latest       91c95931e552      5 weeks ago         910 B

@@ -62,6 +62,10 @@ message Service {
 	// the optional fields like node_port or virtual_ip and it
 	// could be auto allocated by the system.
 	Endpoint endpoint = 4;
+
+	// UpdateStatus contains the status of an update, if one is in
+	// progress.
+	UpdateStatus update_status = 5;
 }
 
 // Endpoint specified all the network parameters required to
@@ -155,6 +159,16 @@ message Task {
 	// A copy of runtime state of service endpoint from Service
 	// object to be distributed to agents as part of the task.
 	Endpoint endpoint = 12;
+
+	// LogDriver specifies the selected log driver to use for the task. Agent
+	// processes should always favor the value in this field.
+	//
+	// If present in the TaskSpec, this will be a copy of that value. The
+	// orchestrator may choose to insert a value here, which should be honored,
+	// such a cluster default or policy-based value.
+	//
+	// If not present, the daemon's default will be used.
+	Driver log_driver = 13;
 }
 
 // NetworkAttachment specifies the network parameters of attachment to
@@ -168,6 +182,9 @@ message NetworkAttachment {
 	// List of IPv4/IPv6 addresses that are assigned to the object
 	// as part of getting attached to this network.
 	repeated string addresses = 2;
+
+	// List of aliases by which a task is resolved in a network
+	repeated string aliases = 3;
 }
 
 message Network {

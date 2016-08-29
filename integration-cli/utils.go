@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration"
+	"github.com/docker/docker/pkg/integration/cmd"
 )
 
 func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
@@ -16,44 +17,37 @@ func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
 	return "", "/"
 }
 
-func getExitCode(err error) (int, error) {
-	return integration.GetExitCode(err)
+// TODO: update code to call cmd.RunCmd directly, and remove this function
+func runCommandWithOutput(execCmd *exec.Cmd) (string, int, error) {
+	result := cmd.RunCmd(transformCmd(execCmd))
+	return result.Combined(), result.ExitCode, result.Error
 }
 
-func processExitCode(err error) (exitCode int) {
-	return integration.ProcessExitCode(err)
+// TODO: update code to call cmd.RunCmd directly, and remove this function
+func runCommandWithStdoutStderr(execCmd *exec.Cmd) (string, string, int, error) {
+	result := cmd.RunCmd(transformCmd(execCmd))
+	return result.Stdout(), result.Stderr(), result.ExitCode, result.Error
 }
 
-func isKilled(err error) bool {
-	return integration.IsKilled(err)
+// TODO: update code to call cmd.RunCmd directly, and remove this function
+func runCommand(execCmd *exec.Cmd) (exitCode int, err error) {
+	result := cmd.RunCmd(transformCmd(execCmd))
+	return result.ExitCode, result.Error
 }
 
-func runCommandWithOutput(cmd *exec.Cmd) (output string, exitCode int, err error) {
-	return integration.RunCommandWithOutput(cmd)
-}
-
-func runCommandWithStdoutStderr(cmd *exec.Cmd) (stdout string, stderr string, exitCode int, err error) {
-	return integration.RunCommandWithStdoutStderr(cmd)
-}
-
-func runCommandWithOutputForDuration(cmd *exec.Cmd, duration time.Duration) (output string, exitCode int, timedOut bool, err error) {
-	return integration.RunCommandWithOutputForDuration(cmd, duration)
-}
-
-func runCommandWithOutputAndTimeout(cmd *exec.Cmd, timeout time.Duration) (output string, exitCode int, err error) {
-	return integration.RunCommandWithOutputAndTimeout(cmd, timeout)
-}
-
-func runCommand(cmd *exec.Cmd) (exitCode int, err error) {
-	return integration.RunCommand(cmd)
+// Temporary shim for migrating commands to the new function
+func transformCmd(execCmd *exec.Cmd) cmd.Cmd {
+	return cmd.Cmd{
+		Command: execCmd.Args,
+		Env:     execCmd.Env,
+		Dir:     execCmd.Dir,
+		Stdin:   execCmd.Stdin,
+		Stdout:  execCmd.Stdout,
+	}
 }
 
 func runCommandPipelineWithOutput(cmds ...*exec.Cmd) (output string, exitCode int, err error) {
 	return integration.RunCommandPipelineWithOutput(cmds...)
-}
-
-func unmarshalJSON(data []byte, result interface{}) error {
-	return integration.UnmarshalJSON(data, result)
 }
 
 func convertSliceOfStringsToMap(input []string) map[string]struct{} {

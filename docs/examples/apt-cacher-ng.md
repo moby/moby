@@ -54,7 +54,10 @@ use:
 
     $ docker logs -f test_apt_cacher_ng
 
-To get your Debian-based containers to use the proxy, you have following options
+To get your Debian-based containers to use the proxy, you have
+following options.  Note that you must replace `dockerhost` with the
+IP address or FQDN of the host running the `test_apt_cacher_ng`
+container.
 
 1. Add an apt Proxy setting
    `echo 'Acquire::http { Proxy "http://dockerhost:3142"; };' >> /etc/apt/conf.d/01proxy`
@@ -90,8 +93,8 @@ too.
 **Option 5** creates a custom network of APT proxy server and Debian-based containers:
 
     $ docker network create mynetwork
-    $ docker run -d -p 3142:3142 --net=mynetwork --name test_apt_cacher_ng eg_apt_cacher_ng
-    $ docker run --rm -it --net=mynetwork -e http_proxy=http://test_apt_cacher_ng:3142/ debian bash
+    $ docker run -d -p 3142:3142 --network=mynetwork --name test_apt_cacher_ng eg_apt_cacher_ng
+    $ docker run --rm -it --network=mynetwork -e http_proxy=http://test_apt_cacher_ng:3142/ debian bash
 
 Apt-cacher-ng has some tools that allow you to manage the repository,
 and they can be used by leveraging the `VOLUME`

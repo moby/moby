@@ -38,6 +38,7 @@ const (
 type Task struct {
 	ID string
 	Meta
+	Annotations
 
 	Spec                TaskSpec            `json:",omitempty"`
 	ServiceID           string              `json:",omitempty"`
@@ -54,6 +55,11 @@ type TaskSpec struct {
 	Resources     *ResourceRequirements `json:",omitempty"`
 	RestartPolicy *RestartPolicy        `json:",omitempty"`
 	Placement     *Placement            `json:",omitempty"`
+
+	// LogDriver specifies the LogDriver to use for tasks created from this
+	// spec. If not present, the one on cluster default on swarm.Spec will be
+	// used, finally falling back to the engine default if not specified.
+	LogDriver *Driver `json:",omitempty"`
 }
 
 // Resources represents resources (CPU/Memory).
@@ -88,7 +94,7 @@ const (
 	// RestartPolicyConditionNone NONE
 	RestartPolicyConditionNone RestartPolicyCondition = "none"
 	// RestartPolicyConditionOnFailure ON_FAILURE
-	RestartPolicyConditionOnFailure RestartPolicyCondition = "on_failure"
+	RestartPolicyConditionOnFailure RestartPolicyCondition = "on-failure"
 	// RestartPolicyConditionAny ANY
 	RestartPolicyConditionAny RestartPolicyCondition = "any"
 )

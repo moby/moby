@@ -330,7 +330,7 @@ func (c *networkConfiguration) conflictsWithNetworks(id string, others []*bridge
 		// bridges. This could not be completely caught by the config conflict
 		// check, because networks which config does not specify the AddressIPv4
 		// get their address and subnet selected by the driver (see electBridgeIPv4())
-		if c.AddressIPv4 != nil {
+		if c.AddressIPv4 != nil && nwBridge.bridgeIPv4 != nil {
 			if nwBridge.bridgeIPv4.Contains(c.AddressIPv4.IP) ||
 				c.AddressIPv4.Contains(nwBridge.bridgeIPv4.IP) {
 				return types.ForbiddenErrorf("conflicts with network %s (%s) by ip network", nwID, nwConfig.BridgeName)
@@ -564,7 +564,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 	}
 	d.Unlock()
 
-	// Parse and validate the config. It should not conflict with existing networks' config
+	// Parse and validate the config. It should not be conflict with existing networks' config
 	config, err := parseNetworkOptions(id, option)
 	if err != nil {
 		return err
@@ -588,13 +588,26 @@ func (d *driver) createNetwork(config *networkConfiguration) error {
 	defer osl.InitOSContext()()
 
 	networkList := d.getNetworks()
-	for _, nw := range networkList {
+	for i, nw := range networkList {
 		nw.Lock()
 		nwConfig := nw.config
 		nw.Unlock()
 		if err := nwConfig.Conflicts(config); err != nil {
-			return types.ForbiddenErrorf("cannot create network %s (%s): conflicts with network %s (%s): %s",
-				config.ID, config.BridgeName, nwConfig.ID, nwConfig.BridgeName, err.Error())
+			if config.DefaultBridge {
+				// We encountered and identified a stale default network
+				// We must delete it as libnetwork is the source of thruth
+				// The default network being created must be the only one
+				// This can happen only from docker 1.12 on ward
+				logrus.Infof("Removing stale default bridge network %s (%s)", nwConfig.ID, nwConfig.BridgeName)
+				if err := d.DeleteNetwork(nwConfig.ID); err != nil {
+					logrus.Warnf("Failed to remove stale default network: %s (%s): %v. Will remove from store.", nwConfig.ID, nwConfig.BridgeName, err)
+					d.storeDelete(nwConfig)
+				}
+				networkList = append(networkList[:i], networkList[i+1:]...)
+			} else {
+				return types.ForbiddenErrorf("cannot create network %s (%s): conflicts with network %s (%s): %s",
+					config.ID, config.BridgeName, nwConfig.ID, nwConfig.BridgeName, err.Error())
+			}
 		}
 	}
 
@@ -759,12 +772,6 @@ func (d *driver) DeleteNetwork(nid string) error {
 	// Sanity check
 	if n == nil {
 		err = driverapi.ErrNoNetwork(nid)
-		return err
-	}
-
-	// Cannot remove network if endpoints are still present
-	if len(n.endpoints) != 0 {
-		err = ActiveEndpointsError(n.id)
 		return err
 	}
 
@@ -1013,7 +1020,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 
 	if err = d.storeUpdate(endpoint); err != nil {
-		return fmt.Errorf("failed to save bridge endpoint %s to store: %v", ep.id[0:7], err)
+		return fmt.Errorf("failed to save bridge endpoint %s to store: %v", endpoint.id[0:7], err)
 	}
 
 	return nil

@@ -9,7 +9,6 @@ import (
 )
 
 var (
-	errInvalidScope = errors.New("invalid scope")
 	errNoSuchVolume = errors.New("no such volume")
 )
 
@@ -89,7 +88,7 @@ func (a *volumeDriverAdapter) getCapabilities() volume.Capability {
 	if err != nil {
 		// `GetCapabilities` is a not a required endpoint.
 		// On error assume it's a local-only driver
-		logrus.Warnf("Volume driver %s returned an error while trying to query it's capabilities, using default capabilties: %v", a.name, err)
+		logrus.Warnf("Volume driver %s returned an error while trying to query its capabilities, using default capabilties: %v", a.name, err)
 		return volume.Capability{Scope: volume.LocalScope}
 	}
 

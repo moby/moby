@@ -3,6 +3,7 @@ package networkdb
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	rnd "math/rand"
@@ -13,7 +14,7 @@ import (
 	"github.com/hashicorp/memberlist"
 )
 
-const reapInterval = 2 * time.Second
+const reapInterval = 30 * time.Second
 
 type logWriter struct{}
 
@@ -36,6 +37,7 @@ func (l *logWriter) Write(p []byte) (int, error) {
 
 // SetKey adds a new key to the key ring
 func (nDB *NetworkDB) SetKey(key []byte) {
+	logrus.Debugf("Adding key %s", hex.EncodeToString(key)[0:5])
 	for _, dbKey := range nDB.config.Keys {
 		if bytes.Equal(key, dbKey) {
 			return
@@ -50,6 +52,7 @@ func (nDB *NetworkDB) SetKey(key []byte) {
 // SetPrimaryKey sets the given key as the primary key. This should have
 // been added apriori through SetKey
 func (nDB *NetworkDB) SetPrimaryKey(key []byte) {
+	logrus.Debugf("Primary Key %s", hex.EncodeToString(key)[0:5])
 	for _, dbKey := range nDB.config.Keys {
 		if bytes.Equal(key, dbKey) {
 			if nDB.keyring != nil {
@@ -63,6 +66,7 @@ func (nDB *NetworkDB) SetPrimaryKey(key []byte) {
 // RemoveKey removes a key from the key ring. The key being removed
 // can't be the primary key
 func (nDB *NetworkDB) RemoveKey(key []byte) {
+	logrus.Debugf("Remove Key %s", hex.EncodeToString(key)[0:5])
 	for i, dbKey := range nDB.config.Keys {
 		if bytes.Equal(key, dbKey) {
 			nDB.config.Keys = append(nDB.config.Keys[:i], nDB.config.Keys[i+1:]...)
@@ -77,7 +81,7 @@ func (nDB *NetworkDB) RemoveKey(key []byte) {
 func (nDB *NetworkDB) clusterInit() error {
 	config := memberlist.DefaultLANConfig()
 	config.Name = nDB.config.NodeName
-	config.BindAddr = nDB.config.BindAddr
+	config.AdvertiseAddr = nDB.config.AdvertiseAddr
 
 	if nDB.config.BindPort != 0 {
 		config.BindPort = nDB.config.BindPort
@@ -90,6 +94,9 @@ func (nDB *NetworkDB) clusterInit() error {
 
 	var err error
 	if len(nDB.config.Keys) > 0 {
+		for i, key := range nDB.config.Keys {
+			logrus.Debugf("Encryption key %d: %s", i+1, hex.EncodeToString(key)[0:5])
+		}
 		nDB.keyring, err = memberlist.NewKeyring(nDB.config.Keys, nDB.config.Keys[0])
 		if err != nil {
 			return err
@@ -298,7 +305,10 @@ func (nDB *NetworkDB) gossip() {
 func (nDB *NetworkDB) bulkSyncTables() {
 	var networks []string
 	nDB.RLock()
-	for nid := range nDB.networks[nDB.config.NodeName] {
+	for nid, network := range nDB.networks[nDB.config.NodeName] {
+		if network.leaving {
+			continue
+		}
 		networks = append(networks, nid)
 	}
 	nDB.RUnlock()
@@ -330,11 +340,15 @@ func (nDB *NetworkDB) bulkSyncTables() {
 		// successfully completed bulk sync in this iteration.
 		updatedNetworks := make([]string, 0, len(networks))
 		for _, nid := range networks {
+			var found bool
 			for _, completedNid := range completed {
 				if nid == completedNid {
-					continue
+					found = true
+					break
 				}
+			}
 
+			if !found {
 				updatedNetworks = append(updatedNetworks, nid)
 			}
 		}
@@ -347,6 +361,10 @@ func (nDB *NetworkDB) bulkSync(nid string, nodes []string, all bool) ([]string, 
 	if !all {
 		// If not all, then just pick one.
 		nodes = nDB.mRandomNodes(1, nodes)
+	}
+
+	if len(nodes) == 0 {
+		return nil, nil
 	}
 
 	logrus.Debugf("%s: Initiating bulk sync with nodes %v", nDB.config.NodeName, nodes)
@@ -390,6 +408,12 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 		nDB.indexes[byNetwork].WalkPrefix(fmt.Sprintf("/%s", nid), func(path string, v interface{}) bool {
 			entry, ok := v.(*entry)
 			if !ok {
+				return false
+			}
+
+			// Do not bulk sync state which is in the
+			// process of getting deleted.
+			if entry.deleting {
 				return false
 			}
 
@@ -449,8 +473,9 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 	// Wait on a response only if it is unsolicited.
 	if unsolicited {
 		startTime := time.Now()
+		t := time.NewTimer(30 * time.Second)
 		select {
-		case <-time.After(30 * time.Second):
+		case <-t.C:
 			logrus.Errorf("Bulk sync to node %s timed out", node)
 		case <-ch:
 			nDB.Lock()
@@ -459,6 +484,7 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 
 			logrus.Debugf("%s: Bulk sync to node %s took %s", nDB.config.NodeName, node, time.Now().Sub(startTime))
 		}
+		t.Stop()
 	}
 
 	return nil

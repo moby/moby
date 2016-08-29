@@ -200,6 +200,8 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from import' -l help -d 'Pri
 
 # info
 complete -c docker -f -n '__fish_docker_no_subcommand' -a info -d 'Display system-wide information'
+complete -c docker -A -f -n '__fish_seen_subcommand_from info' -s f -l format  -d 'Format the output using the given go template'
+complete -c docker -A -f -n '__fish_seen_subcommand_from info' -l help -d 'Print usage'
 
 # inspect
 complete -c docker -f -n '__fish_docker_no_subcommand' -a inspect -d 'Return low-level information on a container or image'
@@ -393,6 +395,8 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from unpause' -a '(__fish_pr
 
 # version
 complete -c docker -f -n '__fish_docker_no_subcommand' -a version -d 'Show the Docker version information'
+complete -c docker -A -f -n '__fish_seen_subcommand_from version' -s f -l format  -d 'Format the output using the given go template'
+complete -c docker -A -f -n '__fish_seen_subcommand_from version' -l help -d 'Print usage'
 
 # wait
 complete -c docker -f -n '__fish_docker_no_subcommand' -a wait -d 'Block until a container stops, then print its exit code'

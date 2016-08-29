@@ -47,7 +47,7 @@ func (s *DockerSuite) TestEventsRedirectStdout(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsOOMDisableFalse(c *check.C) {
-	testRequires(c, DaemonIsLinux, oomControl, memoryLimitSupport, NotGCCGO, swapMemorySupport)
+	testRequires(c, DaemonIsLinux, oomControl, memoryLimitSupport, swapMemorySupport)
 
 	errChan := make(chan error)
 	go func() {
@@ -77,7 +77,7 @@ func (s *DockerSuite) TestEventsOOMDisableFalse(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsOOMDisableTrue(c *check.C) {
-	testRequires(c, DaemonIsLinux, oomControl, memoryLimitSupport, NotGCCGO, NotArm, swapMemorySupport)
+	testRequires(c, DaemonIsLinux, oomControl, memoryLimitSupport, NotArm, swapMemorySupport)
 
 	errChan := make(chan error)
 	observer, err := newEventObserver(c)
@@ -178,7 +178,7 @@ func (s *DockerSuite) TestVolumeEvents(c *check.C) {
 	since := daemonUnixTime(c)
 
 	// Observe create/mount volume actions
-	dockerCmd(c, "volume", "create", "--name", "test-event-volume-local")
+	dockerCmd(c, "volume", "create", "test-event-volume-local")
 	dockerCmd(c, "run", "--name", "test-volume-container", "--volume", "test-event-volume-local:/foo", "-d", "busybox", "true")
 	waitRun("test-volume-container")
 
@@ -244,14 +244,14 @@ func (s *DockerSuite) TestEventsContainerWithMultiNetwork(c *check.C) {
 	out, _ := dockerCmd(c, "events", "--since", since, "--until", until, "-f", "type=network")
 	netEvents := strings.Split(strings.TrimSpace(out), "\n")
 
-	// NOTE: order in which disconnect takes place is undetermined,
-	// so don't check for the *full* name
+	// received two network disconnect events
 	c.Assert(len(netEvents), checker.Equals, 2)
 	c.Assert(netEvents[0], checker.Contains, "disconnect")
-	c.Assert(netEvents[0], checker.Contains, "test-event-network-local-")
-
 	c.Assert(netEvents[1], checker.Contains, "disconnect")
-	c.Assert(netEvents[1], checker.Contains, "test-event-network-local-")
+
+	//both networks appeared in the network event output
+	c.Assert(out, checker.Contains, "test-event-network-local-1")
+	c.Assert(out, checker.Contains, "test-event-network-local-2")
 }
 
 func (s *DockerSuite) TestEventsStreaming(c *check.C) {
@@ -355,7 +355,7 @@ func (s *DockerSuite) TestEventsFilterVolumeAndNetworkType(c *check.C) {
 	since := daemonUnixTime(c)
 
 	dockerCmd(c, "network", "create", "test-event-network-type")
-	dockerCmd(c, "volume", "create", "--name", "test-event-volume-type")
+	dockerCmd(c, "volume", "create", "test-event-volume-type")
 
 	out, _ := dockerCmd(c, "events", "--filter", "type=volume", "--filter", "type=network", "--since", since, "--until", daemonUnixTime(c))
 	events := strings.Split(strings.TrimSpace(out), "\n")
@@ -373,7 +373,7 @@ func (s *DockerSuite) TestEventsFilterVolumeID(c *check.C) {
 
 	since := daemonUnixTime(c)
 
-	dockerCmd(c, "volume", "create", "--name", "test-event-volume-id")
+	dockerCmd(c, "volume", "create", "test-event-volume-id")
 	out, _ := dockerCmd(c, "events", "--filter", "volume=test-event-volume-id", "--since", since, "--until", daemonUnixTime(c))
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	c.Assert(events, checker.HasLen, 1)
@@ -437,7 +437,7 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *check.C) {
 	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c))
 	c.Assert(err, checker.IsNil)
 
-	c.Assert(out, checker.Contains, fmt.Sprintf("daemon reload %s (cluster-advertise=, cluster-store=, cluster-store-opts={}, debug=true, default-runtime=default, labels=[\"bar=foo\"], max-concurrent-downloads=1, max-concurrent-uploads=5, name=%s, runtimes=default:{docker-runc []})", daemonID, daemonName))
+	c.Assert(out, checker.Contains, fmt.Sprintf("daemon reload %s (cluster-advertise=, cluster-store=, cluster-store-opts={}, debug=true, default-runtime=runc, labels=[\"bar=foo\"], live-restore=false, max-concurrent-downloads=1, max-concurrent-uploads=5, name=%s, runtimes=runc:{docker-runc []})", daemonID, daemonName))
 }
 
 func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *check.C) {

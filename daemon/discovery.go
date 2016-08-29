@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/discovery"
 
 	// Register the libkv backends for discovery.
@@ -115,7 +115,7 @@ func (d *daemonDiscoveryReloader) advertiseHeartbeat(address string) {
 		select {
 		case <-d.ticker.C:
 			if err := d.backend.Register(address); err != nil {
-				log.Warnf("Registering as %q in discovery failed: %v", address, err)
+				logrus.Warnf("Registering as %q in discovery failed: %v", address, err)
 			} else {
 				if !ready {
 					close(d.readyCh)

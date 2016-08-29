@@ -134,7 +134,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 	// rmi tagged in multiple repos should have failed without force
 	c.Assert(err, checker.NotNil)
 	// rmi tagged in multiple repos should have failed without force
-	c.Assert(out, checker.Contains, "(must be forced) - image is referenced in one or more repositories", check.Commentf("out: %s; err: %v;", out, err))
+	c.Assert(out, checker.Contains, "(must be forced) - image is referenced in multiple repositories", check.Commentf("out: %s; err: %v;", out, err))
 
 	dockerCmd(c, "rmi", "-f", imgID)
 	{

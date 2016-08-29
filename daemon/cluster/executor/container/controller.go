@@ -2,13 +2,16 @@ package container
 
 import (
 	"fmt"
-	"strings"
+	"os"
 
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/events"
+	"github.com/docker/libnetwork"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -17,16 +20,19 @@ import (
 // Most operations against docker's API are done through the container name,
 // which is unique to the task.
 type controller struct {
-	backend executorpkg.Backend
 	task    *api.Task
 	adapter *containerAdapter
 	closed  chan struct{}
 	err     error
+
+	pulled     chan struct{} // closed after pull
+	cancelPull func()        // cancels pull context if not nil
+	pullErr    error         // pull error, only read after pulled closed
 }
 
 var _ exec.Controller = &controller{}
 
-// NewController returns a dockerexec runner for the provided task.
+// NewController returns a docker exec runner for the provided task.
 func newController(b executorpkg.Backend, task *api.Task) (*controller, error) {
 	adapter, err := newContainerAdapter(b, task)
 	if err != nil {
@@ -34,7 +40,6 @@ func newController(b executorpkg.Backend, task *api.Task) (*controller, error) {
 	}
 
 	return &controller{
-		backend: b,
 		task:    task,
 		adapter: adapter,
 		closed:  make(chan struct{}),
@@ -59,7 +64,6 @@ func (r *controller) ContainerStatus(ctx context.Context) (*api.ContainerStatus,
 
 // Update tasks a recent task update and applies it to the container.
 func (r *controller) Update(ctx context.Context, t *api.Task) error {
-	log.G(ctx).Warnf("task updates not yet supported")
 	// TODO(stevvooe): While assignment of tasks is idempotent, we do allow
 	// updates of metadata, such as labelling, as well as any other properties
 	// that make sense.
@@ -80,35 +84,59 @@ func (r *controller) Prepare(ctx context.Context) error {
 	}
 
 	// Make sure all the volumes that the task needs are created.
-	if err := r.adapter.createVolumes(ctx, r.backend); err != nil {
+	if err := r.adapter.createVolumes(ctx); err != nil {
 		return err
 	}
 
-	for {
-		if err := r.checkClosed(); err != nil {
-			return err
-		}
-		if err := r.adapter.create(ctx, r.backend); err != nil {
-			if isContainerCreateNameConflict(err) {
-				if _, err := r.adapter.inspect(ctx); err != nil {
-					return err
-				}
+	if os.Getenv("DOCKER_SERVICE_PREFER_OFFLINE_IMAGE") != "1" {
+		if r.pulled == nil {
+			// Fork the pull to a different context to allow pull to continue
+			// on re-entrant calls to Prepare. This ensures that Prepare can be
+			// idempotent and not incur the extra cost of pulling when
+			// cancelled on updates.
+			var pctx context.Context
 
-				// container is already created. success!
-				return exec.ErrTaskPrepared
-			}
+			r.pulled = make(chan struct{})
+			pctx, r.cancelPull = context.WithCancel(context.Background()) // TODO(stevvooe): Bind a context to the entire controller.
 
-			if !strings.Contains(err.Error(), "No such image") { // todo: better error detection
-				return err
-			}
-			if err := r.adapter.pullImage(ctx); err != nil {
-				return err
-			}
-
-			continue // retry to create the container
+			go func() {
+				defer close(r.pulled)
+				r.pullErr = r.adapter.pullImage(pctx) // protected by closing r.pulled
+			}()
 		}
 
-		break
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-r.pulled:
+			if r.pullErr != nil {
+				// NOTE(stevvooe): We always try to pull the image to make sure we have
+				// the most up to date version. This will return an error, but we only
+				// log it. If the image truly doesn't exist, the create below will
+				// error out.
+				//
+				// This gives us some nice behavior where we use up to date versions of
+				// mutable tags, but will still run if the old image is available but a
+				// registry is down.
+				//
+				// If you don't want this behavior, lock down your image to an
+				// immutable tag or digest.
+				log.G(ctx).WithError(r.pullErr).Error("pulling image failed")
+			}
+		}
+	}
+
+	if err := r.adapter.create(ctx); err != nil {
+		if isContainerCreateNameConflict(err) {
+			if _, err := r.adapter.inspect(ctx); err != nil {
+				return err
+			}
+
+			// container is already created. success!
+			return exec.ErrTaskPrepared
+		}
+
+		return err
 	}
 
 	return nil
@@ -134,11 +162,77 @@ func (r *controller) Start(ctx context.Context) error {
 		return exec.ErrTaskStarted
 	}
 
-	if err := r.adapter.start(ctx); err != nil {
-		return err
+	for {
+		if err := r.adapter.start(ctx); err != nil {
+			if _, ok := err.(libnetwork.ErrNoSuchNetwork); ok {
+				// Retry network creation again if we
+				// failed because some of the networks
+				// were not found.
+				if err := r.adapter.createNetworks(ctx); err != nil {
+					return err
+				}
+
+				continue
+			}
+
+			return errors.Wrap(err, "starting container failed")
+		}
+
+		break
 	}
 
-	return nil
+	// no health check
+	if ctnr.Config == nil || ctnr.Config.Healthcheck == nil {
+		return nil
+	}
+
+	healthCmd := ctnr.Config.Healthcheck.Test
+
+	if len(healthCmd) == 0 || healthCmd[0] == "NONE" {
+		return nil
+	}
+
+	// wait for container to be healthy
+	eventq := r.adapter.events(ctx)
+
+	var healthErr error
+	for {
+		select {
+		case event := <-eventq:
+			if !r.matchevent(event) {
+				continue
+			}
+
+			switch event.Action {
+			case "die": // exit on terminal events
+				ctnr, err := r.adapter.inspect(ctx)
+				if err != nil {
+					return errors.Wrap(err, "die event received")
+				} else if ctnr.State.ExitCode != 0 {
+					return &exitError{code: ctnr.State.ExitCode, cause: healthErr}
+				}
+
+				return nil
+			case "destroy":
+				// If we get here, something has gone wrong but we want to exit
+				// and report anyways.
+				return ErrContainerDestroyed
+			case "health_status: unhealthy":
+				// in this case, we stop the container and report unhealthy status
+				if err := r.Shutdown(ctx); err != nil {
+					return errors.Wrap(err, "unhealthy container shutdown failed")
+				}
+				// set health check error, and wait for container to fully exit ("die" event)
+				healthErr = ErrContainerUnhealthy
+			case "health_status: healthy":
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-r.closed:
+			return r.err
+		}
+	}
 }
 
 // Wait on the container to exit.
@@ -150,22 +244,39 @@ func (r *controller) Wait(pctx context.Context) error {
 	ctx, cancel := context.WithCancel(pctx)
 	defer cancel()
 
+	healthErr := make(chan error, 1)
+	go func() {
+		ectx, cancel := context.WithCancel(ctx) // cancel event context on first event
+		defer cancel()
+		if err := r.checkHealth(ectx); err == ErrContainerUnhealthy {
+			healthErr <- ErrContainerUnhealthy
+			if err := r.Shutdown(ectx); err != nil {
+				log.G(ectx).WithError(err).Debug("shutdown failed on unhealthy")
+			}
+		}
+	}()
+
 	err := r.adapter.wait(ctx)
-	if err != nil {
-		return err
-	}
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
+
 	if err != nil {
 		ee := &exitError{}
-		if err.Error() != "" {
-			ee.cause = err
-		}
 		if ec, ok := err.(exec.ExitCoder); ok {
 			ee.code = ec.ExitCode()
 		}
+		select {
+		case e := <-healthErr:
+			ee.cause = e
+		default:
+			if err.Error() != "" {
+				ee.cause = err
+			}
+		}
+		return ee
 	}
+
 	return nil
 }
 
@@ -173,6 +284,10 @@ func (r *controller) Wait(pctx context.Context) error {
 func (r *controller) Shutdown(ctx context.Context) error {
 	if err := r.checkClosed(); err != nil {
 		return err
+	}
+
+	if r.cancelPull != nil {
+		r.cancelPull()
 	}
 
 	if err := r.adapter.shutdown(ctx); err != nil {
@@ -192,6 +307,10 @@ func (r *controller) Terminate(ctx context.Context) error {
 		return err
 	}
 
+	if r.cancelPull != nil {
+		r.cancelPull()
+	}
+
 	if err := r.adapter.terminate(ctx); err != nil {
 		if isUnknownContainer(err) {
 			return nil
@@ -207,6 +326,10 @@ func (r *controller) Terminate(ctx context.Context) error {
 func (r *controller) Remove(ctx context.Context) error {
 	if err := r.checkClosed(); err != nil {
 		return err
+	}
+
+	if r.cancelPull != nil {
+		r.cancelPull()
 	}
 
 	// It may be necessary to shut down the task before removing it.
@@ -243,10 +366,29 @@ func (r *controller) Close() error {
 	case <-r.closed:
 		return r.err
 	default:
+		if r.cancelPull != nil {
+			r.cancelPull()
+		}
+
 		r.err = exec.ErrControllerClosed
 		close(r.closed)
 	}
 	return nil
+}
+
+func (r *controller) matchevent(event events.Message) bool {
+	if event.Type != events.ContainerEventType {
+		return false
+	}
+
+	// TODO(stevvooe): Filter based on ID matching, in addition to name.
+
+	// Make sure the events are for this container.
+	if event.Actor.Attributes["name"] != r.adapter.container.name() {
+		return false
+	}
+
+	return true
 }
 
 func (r *controller) checkClosed() error {
@@ -287,4 +429,27 @@ func (e *exitError) ExitCode() int {
 
 func (e *exitError) Cause() error {
 	return e.cause
+}
+
+// checkHealth blocks until unhealthy container is detected or ctx exits
+func (r *controller) checkHealth(ctx context.Context) error {
+	eventq := r.adapter.events(ctx)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-r.closed:
+			return nil
+		case event := <-eventq:
+			if !r.matchevent(event) {
+				continue
+			}
+
+			switch event.Action {
+			case "health_status: unhealthy":
+				return ErrContainerUnhealthy
+			}
+		}
+	}
 }

@@ -61,6 +61,7 @@ func (cli *DaemonCli) setupConfigReloadTrap() {
 func (cli *DaemonCli) getPlatformRemoteOptions() []libcontainerd.RemoteOption {
 	opts := []libcontainerd.RemoteOption{
 		libcontainerd.WithDebugLog(cli.Config.Debug),
+		libcontainerd.WithOOMScore(cli.Config.OOMScoreAdjust),
 	}
 	if cli.Config.ContainerdAddr != "" {
 		opts = append(opts, libcontainerd.WithRemoteAddr(cli.Config.ContainerdAddr))
@@ -71,7 +72,7 @@ func (cli *DaemonCli) getPlatformRemoteOptions() []libcontainerd.RemoteOption {
 		args := []string{"--systemd-cgroup=true"}
 		opts = append(opts, libcontainerd.WithRuntimeArgs(args))
 	}
-	if cli.Config.LiveRestore {
+	if cli.Config.LiveRestoreEnabled {
 		opts = append(opts, libcontainerd.WithLiveRestore(true))
 	}
 	opts = append(opts, libcontainerd.WithRuntimePath(daemon.DefaultRuntimeBinary))

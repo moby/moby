@@ -18,7 +18,7 @@ type topOptions struct {
 	args []string
 }
 
-// NewTopCommand creats a new cobra.Command for `docker top`
+// NewTopCommand creates a new cobra.Command for `docker top`
 func NewTopCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts topOptions
 
@@ -32,7 +32,6 @@ func NewTopCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runTop(dockerCli, &opts)
 		},
 	}
-	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	flags := cmd.Flags()
 	flags.SetInterspersed(false)

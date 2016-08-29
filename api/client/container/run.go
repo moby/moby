@@ -24,13 +24,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-const (
-	errCmdNotFound          = "not found or does not exist"
-	errCmdCouldNotBeInvoked = "could not be invoked"
-)
-
 type runOptions struct {
-	autoRemove bool
 	detach     bool
 	sigProxy   bool
 	name       string
@@ -54,13 +48,11 @@ func NewRunCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runRun(dockerCli, cmd.Flags(), &opts, copts)
 		},
 	}
-	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	flags := cmd.Flags()
 	flags.SetInterspersed(false)
 
 	// These are flags not stored in Config/HostConfig
-	flags.BoolVar(&opts.autoRemove, "rm", false, "Automatically remove the container when it exits")
 	flags.BoolVarP(&opts.detach, "detach", "d", false, "Run container in background and print container ID")
 	flags.BoolVar(&opts.sigProxy, "sig-proxy", true, "Proxy received signals to the process")
 	flags.StringVar(&opts.name, "name", "", "Assign a name to the container")
@@ -92,7 +84,6 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 		flAttach                              *opttypes.ListOpts
 		ErrConflictAttachDetach               = fmt.Errorf("Conflicting options: -a and -d")
 		ErrConflictRestartPolicyAndAutoRemove = fmt.Errorf("Conflicting options: --restart and --rm")
-		ErrConflictDetachAutoRemove           = fmt.Errorf("Conflicting options: --rm and -d")
 	)
 
 	config, hostConfig, networkingConfig, err := runconfigopts.Parse(flags, copts)
@@ -103,6 +94,9 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 		return cli.StatusError{StatusCode: 125}
 	}
 
+	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
+		return ErrConflictRestartPolicyAndAutoRemove
+	}
 	if hostConfig.OomKillDisable != nil && *hostConfig.OomKillDisable && hostConfig.Memory == 0 {
 		fmt.Fprintf(stderr, "WARNING: Disabling the OOM killer on containers without setting a '-m/--memory' limit may be dangerous.\n")
 	}
@@ -131,9 +125,6 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 			if flAttach.Len() != 0 {
 				return ErrConflictAttachDetach
 			}
-		}
-		if opts.autoRemove {
-			return ErrConflictDetachAutoRemove
 		}
 
 		config.AttachStdin = false
@@ -176,9 +167,6 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 			defer close(waitDisplayID)
 			fmt.Fprintf(stdout, "%s\n", createResponse.ID)
 		}()
-	}
-	if opts.autoRemove && (hostConfig.RestartPolicy.IsAlways() || hostConfig.RestartPolicy.IsOnFailure()) {
-		return ErrConflictRestartPolicyAndAutoRemove
 	}
 	attach := config.AttachStdin || config.AttachStdout || config.AttachStderr
 	if attach {
@@ -230,14 +218,9 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 		})
 	}
 
-	if opts.autoRemove {
-		defer func() {
-			// Explicitly not sharing the context as it could be "Done" (by calling cancelFun)
-			// and thus the container would not be removed.
-			if err := removeContainer(dockerCli, context.Background(), createResponse.ID, true, false, true); err != nil {
-				fmt.Fprintf(stderr, "%v\n", err)
-			}
-		}()
+	statusChan, err := waitExitOrRemoved(dockerCli, context.Background(), createResponse.ID, hostConfig.AutoRemove)
+	if err != nil {
+		return fmt.Errorf("Error waiting container's exit code: %v", err)
 	}
 
 	//start the container
@@ -251,6 +234,10 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 		}
 
 		reportError(stderr, cmdPath, err.Error(), false)
+		if hostConfig.AutoRemove {
+			// wait container to be removed
+			<-statusChan
+		}
 		return runStartContainerErr(err)
 	}
 
@@ -274,33 +261,7 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 		return nil
 	}
 
-	var status int
-
-	// Attached mode
-	if opts.autoRemove {
-		// Autoremove: wait for the container to finish, retrieve
-		// the exit code and remove the container
-		if status, err = client.ContainerWait(ctx, createResponse.ID); err != nil {
-			return runStartContainerErr(err)
-		}
-		if _, status, err = getExitCode(dockerCli, ctx, createResponse.ID); err != nil {
-			return err
-		}
-	} else {
-		// No Autoremove: Simply retrieve the exit code
-		if !config.Tty && hostConfig.RestartPolicy.IsNone() {
-			// In non-TTY mode, we can't detach, so we must wait for container exit
-			if status, err = client.ContainerWait(ctx, createResponse.ID); err != nil {
-				return err
-			}
-		} else {
-			// In TTY mode, there is a race: if the process dies too slowly, the state could
-			// be updated after the getExitCode call and result in the wrong exit code being reported
-			if _, status, err = getExitCode(dockerCli, ctx, createResponse.ID); err != nil {
-				return err
-			}
-		}
-	}
+	status := <-statusChan
 	if status != 0 {
 		return cli.StatusError{StatusCode: status}
 	}

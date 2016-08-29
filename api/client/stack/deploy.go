@@ -21,8 +21,9 @@ const (
 )
 
 type deployOptions struct {
-	bundlefile string
-	namespace  string
+	bundlefile       string
+	namespace        string
+	sendRegistryAuth bool
 }
 
 func newDeployCommand(dockerCli *client.DockerCli) *cobra.Command {
@@ -31,7 +32,7 @@ func newDeployCommand(dockerCli *client.DockerCli) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "deploy [OPTIONS] STACK",
 		Aliases: []string{"up"},
-		Short:   "Create and update a stack",
+		Short:   "Create and update a stack from a Distributed Application Bundle (DAB)",
 		Args:    cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.namespace = args[0]
@@ -41,6 +42,7 @@ func newDeployCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	addBundlefileFlag(&opts.bundlefile, flags)
+	addRegistryAuthFlag(&opts.sendRegistryAuth, flags)
 	return cmd
 }
 
@@ -50,13 +52,21 @@ func runDeploy(dockerCli *client.DockerCli, opts deployOptions) error {
 		return err
 	}
 
+	info, err := dockerCli.Client().Info(context.Background())
+	if err != nil {
+		return err
+	}
+	if !info.Swarm.ControlAvailable {
+		return fmt.Errorf("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
+	}
+
 	networks := getUniqueNetworkNames(bundle.Services)
 	ctx := context.Background()
 
 	if err := updateNetworks(ctx, dockerCli, networks, opts.namespace); err != nil {
 		return err
 	}
-	return deployServices(ctx, dockerCli, bundle.Services, opts.namespace)
+	return deployServices(ctx, dockerCli, bundle.Services, opts.namespace, opts.sendRegistryAuth)
 }
 
 func getUniqueNetworkNames(services map[string]bundlefile.Service) []string {
@@ -129,6 +139,7 @@ func deployServices(
 	dockerCli *client.DockerCli,
 	services map[string]bundlefile.Service,
 	namespace string,
+	sendAuth bool,
 ) error {
 	apiClient := dockerCli.Client()
 	out := dockerCli.Out()
@@ -165,6 +176,10 @@ func deployServices(
 					Command: service.Command,
 					Args:    service.Args,
 					Env:     service.Env,
+					// Service Labels will not be copied to Containers
+					// automatically during the deployment so we apply
+					// it here.
+					Labels: getStackLabels(namespace, nil),
 				},
 			},
 			EndpointSpec: &swarm.EndpointSpec{
@@ -181,21 +196,40 @@ func deployServices(
 			cspec.User = *service.User
 		}
 
+		encodedAuth := ""
+		if sendAuth {
+			// Retrieve encoded auth token from the image reference
+			image := serviceSpec.TaskTemplate.ContainerSpec.Image
+			encodedAuth, err = dockerCli.RetrieveAuthTokenFromImage(ctx, image)
+			if err != nil {
+				return err
+			}
+		}
+
 		if service, exists := existingServiceMap[name]; exists {
 			fmt.Fprintf(out, "Updating service %s (id: %s)\n", name, service.ID)
 
+			updateOpts := types.ServiceUpdateOptions{}
+			if sendAuth {
+				updateOpts.EncodedRegistryAuth = encodedAuth
+			}
 			if err := apiClient.ServiceUpdate(
 				ctx,
 				service.ID,
 				service.Version,
 				serviceSpec,
+				updateOpts,
 			); err != nil {
 				return err
 			}
 		} else {
 			fmt.Fprintf(out, "Creating service %s\n", name)
 
-			if _, err := apiClient.ServiceCreate(ctx, serviceSpec); err != nil {
+			createOpts := types.ServiceCreateOptions{}
+			if sendAuth {
+				createOpts.EncodedRegistryAuth = encodedAuth
+			}
+			if _, err := apiClient.ServiceCreate(ctx, serviceSpec, createOpts); err != nil {
 				return err
 			}
 		}

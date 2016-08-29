@@ -22,12 +22,17 @@ import (
 	"github.com/docker/engine-api/types"
 )
 
-const (
-	defaultPluginRuntimeDestination = "/run/docker/plugins"
-	defaultPluginStateDestination   = "/state"
-)
+const defaultPluginRuntimeDestination = "/run/docker/plugins"
 
-var manager *Manager
+var (
+	manager *Manager
+
+	/* allowV1PluginsFallback determines daemon's support for V1 plugins.
+	 * When the time comes to remove support for V1 plugins, flipping
+	 * this bool is all that will be needed.
+	 */
+	allowV1PluginsFallback = true
+)
 
 // ErrNotFound indicates that a plugin was not found locally.
 type ErrNotFound string
@@ -46,50 +51,69 @@ func (e ErrInadequateCapability) Error() string {
 
 type plugin struct {
 	//sync.RWMutex TODO
-	p                 types.Plugin
+	PluginObj         types.Plugin `json:"plugin"`
 	client            *plugins.Client
 	restartManager    restartmanager.RestartManager
-	stateSourcePath   string
 	runtimeSourcePath string
+	exitChan          chan bool
 }
 
 func (p *plugin) Client() *plugins.Client {
 	return p.client
 }
 
+// IsLegacy returns true for legacy plugins and false otherwise.
+func (p *plugin) IsLegacy() bool {
+	return false
+}
+
 func (p *plugin) Name() string {
-	return p.p.Name
+	name := p.PluginObj.Name
+	if len(p.PluginObj.Tag) > 0 {
+		// TODO: this feels hacky, maybe we should be storing the distribution reference rather than splitting these
+		name += ":" + p.PluginObj.Tag
+	}
+	return name
 }
 
 func (pm *Manager) newPlugin(ref reference.Named, id string) *plugin {
 	p := &plugin{
-		p: types.Plugin{
+		PluginObj: types.Plugin{
 			Name: ref.Name(),
 			ID:   id,
 		},
-		stateSourcePath:   filepath.Join(pm.libRoot, id, "state"),
 		runtimeSourcePath: filepath.Join(pm.runRoot, id),
 	}
 	if ref, ok := ref.(reference.NamedTagged); ok {
-		p.p.Tag = ref.Tag()
+		p.PluginObj.Tag = ref.Tag()
 	}
 	return p
 }
 
-// TODO: figure out why save() doesn't json encode *plugin object
+func (pm *Manager) restorePlugin(p *plugin) error {
+	p.runtimeSourcePath = filepath.Join(pm.runRoot, p.PluginObj.ID)
+	if p.PluginObj.Enabled {
+		return pm.restore(p)
+	}
+	return nil
+}
+
 type pluginMap map[string]*plugin
+type eventLogger func(id, name, action string)
 
 // Manager controls the plugin subsystem.
 type Manager struct {
 	sync.RWMutex
-	libRoot          string
-	runRoot          string
-	plugins          pluginMap // TODO: figure out why save() doesn't json encode *plugin object
-	nameToID         map[string]string
-	handlers         map[string]func(string, *plugins.Client)
-	containerdClient libcontainerd.Client
-	registryService  registry.Service
-	handleLegacy     bool
+	libRoot           string
+	runRoot           string
+	plugins           pluginMap // TODO: figure out why save() doesn't json encode *plugin object
+	nameToID          map[string]string
+	handlers          map[string]func(string, *plugins.Client)
+	containerdClient  libcontainerd.Client
+	registryService   registry.Service
+	liveRestore       bool
+	shutdown          bool
+	pluginEventLogger eventLogger
 }
 
 // GetManager returns the singleton plugin Manager
@@ -99,36 +123,30 @@ func GetManager() *Manager {
 
 // Init (was NewManager) instantiates the singleton Manager.
 // TODO: revert this to NewManager once we get rid of all the singletons.
-func Init(root, execRoot string, remote libcontainerd.Remote, rs registry.Service) (err error) {
+func Init(root string, remote libcontainerd.Remote, rs registry.Service, liveRestore bool, evL eventLogger) (err error) {
 	if manager != nil {
 		return nil
 	}
 
 	root = filepath.Join(root, "plugins")
-	execRoot = filepath.Join(execRoot, "plugins")
-	for _, dir := range []string{root, execRoot} {
-		if err := os.MkdirAll(dir, 0700); err != nil {
-			return err
-		}
-	}
-
 	manager = &Manager{
-		libRoot:         root,
-		runRoot:         execRoot,
-		plugins:         make(map[string]*plugin),
-		nameToID:        make(map[string]string),
-		handlers:        make(map[string]func(string, *plugins.Client)),
-		registryService: rs,
-		handleLegacy:    true,
+		libRoot:           root,
+		runRoot:           "/run/docker",
+		plugins:           make(map[string]*plugin),
+		nameToID:          make(map[string]string),
+		handlers:          make(map[string]func(string, *plugins.Client)),
+		registryService:   rs,
+		liveRestore:       liveRestore,
+		pluginEventLogger: evL,
 	}
 	if err := os.MkdirAll(manager.runRoot, 0700); err != nil {
 		return err
 	}
-	if err := manager.init(); err != nil {
-		return err
-	}
 	manager.containerdClient, err = remote.Client(manager)
 	if err != nil {
+		return err
+	}
+	if err := manager.init(); err != nil {
 		return err
 	}
 	return nil
@@ -139,49 +157,58 @@ func Init(root, execRoot string, remote libcontainerd.Remote, rs registry.Servic
 func Handle(capability string, callback func(string, *plugins.Client)) {
 	pluginType := fmt.Sprintf("docker.%s/1", strings.ToLower(capability))
 	manager.handlers[pluginType] = callback
-	if manager.handleLegacy {
+	if allowV1PluginsFallback {
 		plugins.Handle(capability, callback)
 	}
 }
 
 func (pm *Manager) get(name string) (*plugin, error) {
 	pm.RLock()
+	defer pm.RUnlock()
+
 	id, nameOk := pm.nameToID[name]
-	p, idOk := pm.plugins[id]
-	pm.RUnlock()
-	if !nameOk || !idOk {
+	if !nameOk {
 		return nil, ErrNotFound(name)
 	}
+
+	p, idOk := pm.plugins[id]
+	if !idOk {
+		return nil, ErrNotFound(name)
+	}
+
 	return p, nil
 }
 
 // FindWithCapability returns a list of plugins matching the given capability.
 func FindWithCapability(capability string) ([]Plugin, error) {
-	handleLegacy := true
 	result := make([]Plugin, 0, 1)
+
+	/* Daemon start always calls plugin.Init thereby initializing a manager.
+	 * So manager on experimental builds can never be nil, even while
+	 * handling legacy plugins. However, there are legacy plugin unit
+	 * tests where volume subsystem directly talks with the plugin,
+	 * bypassing the daemon. For such tests, this check is necessary.*/
 	if manager != nil {
-		handleLegacy = manager.handleLegacy
 		manager.RLock()
-		defer manager.RUnlock()
-	pluginLoop:
 		for _, p := range manager.plugins {
-			for _, typ := range p.p.Manifest.Interface.Types {
-				if typ.Capability != capability || typ.Prefix != "docker" {
-					continue pluginLoop
+			for _, typ := range p.PluginObj.Manifest.Interface.Types {
+				if strings.EqualFold(typ.Capability, capability) && typ.Prefix == "docker" {
+					result = append(result, p)
+					break
 				}
 			}
-			result = append(result, p)
 		}
+		manager.RUnlock()
 	}
-	if handleLegacy {
+
+	// Lookup with legacy model.
+	if allowV1PluginsFallback {
 		pl, err := plugins.GetAll(capability)
 		if err != nil {
 			return nil, fmt.Errorf("legacy plugin: %v", err)
 		}
 		for _, p := range pl {
-			if _, ok := manager.nameToID[p.Name()]; !ok {
-				result = append(result, p)
-			}
+			result = append(result, p)
 		}
 	}
 	return result, nil
@@ -193,40 +220,67 @@ func LookupWithCapability(name, capability string) (Plugin, error) {
 		p   *plugin
 		err error
 	)
-	handleLegacy := true
+
+	// Lookup using new model.
 	if manager != nil {
-		p, err = manager.get(name)
-		if err != nil {
-			if _, ok := err.(ErrNotFound); !ok {
-				return nil, err
+		fullName := name
+		if named, err := reference.ParseNamed(fullName); err == nil { // FIXME: validate
+			if reference.IsNameOnly(named) {
+				named = reference.WithDefaultTag(named)
 			}
-			handleLegacy = manager.handleLegacy
-		} else {
-			handleLegacy = false
+			ref, ok := named.(reference.NamedTagged)
+			if !ok {
+				return nil, fmt.Errorf("invalid name: %s", named.String())
+			}
+			fullName = ref.String()
+		}
+		p, err = manager.get(fullName)
+		if err == nil {
+			capability = strings.ToLower(capability)
+			for _, typ := range p.PluginObj.Manifest.Interface.Types {
+				if typ.Capability == capability && typ.Prefix == "docker" {
+					return p, nil
+				}
+			}
+			return nil, ErrInadequateCapability{name, capability}
+		}
+		if _, ok := err.(ErrNotFound); !ok {
+			return nil, err
 		}
 	}
-	if handleLegacy {
+
+	// Lookup using legacy model
+	if allowV1PluginsFallback {
 		p, err := plugins.Get(name, capability)
 		if err != nil {
 			return nil, fmt.Errorf("legacy plugin: %v", err)
 		}
 		return p, nil
-	} else if err != nil {
-		return nil, err
 	}
 
-	capability = strings.ToLower(capability)
-	for _, typ := range p.p.Manifest.Interface.Types {
-		if typ.Capability == capability && typ.Prefix == "docker" {
-			return p, nil
-		}
-	}
-	return nil, ErrInadequateCapability{name, capability}
+	return nil, err
 }
 
-// StateChanged updates daemon inter...
+// StateChanged updates plugin internals using libcontainerd events.
 func (pm *Manager) StateChanged(id string, e libcontainerd.StateInfo) error {
-	logrus.Debugf("plugin statechanged %s %#v", id, e)
+	logrus.Debugf("plugin state changed %s %#v", id, e)
+
+	switch e.State {
+	case libcontainerd.StateExit:
+		var shutdown bool
+		pm.RLock()
+		shutdown = pm.shutdown
+		pm.RUnlock()
+		if shutdown {
+			pm.RLock()
+			p, idOk := pm.plugins[id]
+			pm.RUnlock()
+			if !idOk {
+				return ErrNotFound(id)
+			}
+			close(p.exitChan)
+		}
+	}
 
 	return nil
 }
@@ -257,57 +311,86 @@ func (pm *Manager) init() error {
 		}
 		return err
 	}
-	// TODO: Populate pm.plugins
-	if err := json.NewDecoder(dt).Decode(&pm.nameToID); err != nil {
+	defer dt.Close()
+
+	if err := json.NewDecoder(dt).Decode(&pm.plugins); err != nil {
 		return err
 	}
-	// FIXME: validate, restore
 
-	return nil
+	var group sync.WaitGroup
+	group.Add(len(pm.plugins))
+	for _, p := range pm.plugins {
+		go func(p *plugin) {
+			defer group.Done()
+			if err := pm.restorePlugin(p); err != nil {
+				logrus.Errorf("failed to restore plugin '%s': %s", p.Name(), err)
+				return
+			}
+
+			pm.Lock()
+			pm.nameToID[p.Name()] = p.PluginObj.ID
+			requiresManualRestore := !pm.liveRestore && p.PluginObj.Enabled
+			pm.Unlock()
+
+			if requiresManualRestore {
+				// if liveRestore is not enabled, the plugin will be stopped now so we should enable it
+				if err := pm.enable(p, true); err != nil {
+					logrus.Errorf("failed to enable plugin '%s': %s", p.Name(), err)
+				}
+			}
+		}(p)
+	}
+	group.Wait()
+	return pm.save()
 }
 
 func (pm *Manager) initPlugin(p *plugin) error {
-	dt, err := os.Open(filepath.Join(pm.libRoot, p.p.ID, "manifest.json"))
+	dt, err := os.Open(filepath.Join(pm.libRoot, p.PluginObj.ID, "manifest.json"))
 	if err != nil {
 		return err
 	}
-	err = json.NewDecoder(dt).Decode(&p.p.Manifest)
+	err = json.NewDecoder(dt).Decode(&p.PluginObj.Manifest)
 	dt.Close()
 	if err != nil {
 		return err
 	}
 
-	p.p.Config.Mounts = make([]types.PluginMount, len(p.p.Manifest.Mounts))
-	for i, mount := range p.p.Manifest.Mounts {
-		p.p.Config.Mounts[i] = mount
+	p.PluginObj.Config.Mounts = make([]types.PluginMount, len(p.PluginObj.Manifest.Mounts))
+	for i, mount := range p.PluginObj.Manifest.Mounts {
+		p.PluginObj.Config.Mounts[i] = mount
 	}
-	p.p.Config.Env = make([]string, 0, len(p.p.Manifest.Env))
-	for _, env := range p.p.Manifest.Env {
+	p.PluginObj.Config.Env = make([]string, 0, len(p.PluginObj.Manifest.Env))
+	for _, env := range p.PluginObj.Manifest.Env {
 		if env.Value != nil {
-			p.p.Config.Env = append(p.p.Config.Env, fmt.Sprintf("%s=%s", env.Name, *env.Value))
+			p.PluginObj.Config.Env = append(p.PluginObj.Config.Env, fmt.Sprintf("%s=%s", env.Name, *env.Value))
 		}
 	}
-	copy(p.p.Config.Args, p.p.Manifest.Args.Value)
+	copy(p.PluginObj.Config.Args, p.PluginObj.Manifest.Args.Value)
 
-	f, err := os.Create(filepath.Join(pm.libRoot, p.p.ID, "plugin-config.json"))
+	f, err := os.Create(filepath.Join(pm.libRoot, p.PluginObj.ID, "plugin-config.json"))
 	if err != nil {
 		return err
 	}
-	err = json.NewEncoder(f).Encode(&p.p.Config)
+	err = json.NewEncoder(f).Encode(&p.PluginObj.Config)
 	f.Close()
 	return err
 }
 
-func (pm *Manager) remove(p *plugin) error {
-	if p.p.Active {
-		return fmt.Errorf("plugin %s is active", p.p.Name)
+func (pm *Manager) remove(p *plugin, force bool) error {
+	if p.PluginObj.Enabled {
+		if !force {
+			return fmt.Errorf("plugin %s is enabled", p.Name())
+		}
+		if err := pm.disable(p); err != nil {
+			logrus.Errorf("failed to disable plugin '%s': %s", p.Name(), err)
+		}
 	}
 	pm.Lock() // fixme: lock single record
 	defer pm.Unlock()
-	os.RemoveAll(p.stateSourcePath)
-	delete(pm.plugins, p.p.Name)
+	delete(pm.plugins, p.PluginObj.ID)
+	delete(pm.nameToID, p.Name())
 	pm.save()
-	return nil
+	return os.RemoveAll(filepath.Join(pm.libRoot, p.PluginObj.ID))
 }
 
 func (pm *Manager) set(p *plugin, args []string) error {
@@ -315,7 +398,7 @@ func (pm *Manager) set(p *plugin, args []string) error {
 	for _, arg := range args {
 		i := strings.Index(arg, "=")
 		if i < 0 {
-			return fmt.Errorf("No equal sign '=' found in %s", arg)
+			return fmt.Errorf("no equal sign '=' found in %s", arg)
 		}
 		m[arg[:i]] = arg[i+1:]
 	}
@@ -326,9 +409,9 @@ func (pm *Manager) set(p *plugin, args []string) error {
 func (pm *Manager) save() error {
 	filePath := filepath.Join(pm.libRoot, "plugins.json")
 
-	jsonData, err := json.Marshal(pm.nameToID)
+	jsonData, err := json.Marshal(pm.plugins)
 	if err != nil {
-		logrus.Debugf("Error in json.Marshal: %v", err)
+		logrus.Debugf("failure in json.Marshal: %v", err)
 		return err
 	}
 	ioutils.AtomicWriteFile(filePath, jsonData, 0600)

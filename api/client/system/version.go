@@ -37,14 +37,14 @@ type versionOptions struct {
 	format string
 }
 
-// NewVersionCommand creats a new cobra.Command for `docker version`
+// NewVersionCommand creates a new cobra.Command for `docker version`
 func NewVersionCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts versionOptions
 
 	cmd := &cobra.Command{
 		Use:   "version [OPTIONS]",
 		Short: "Show the Docker version information",
-		Args:  cli.ExactArgs(0),
+		Args:  cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runVersion(dockerCli, &opts)
 		},

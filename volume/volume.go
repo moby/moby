@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
+	mounttypes "github.com/docker/engine-api/types/mount"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
@@ -34,7 +35,7 @@ type Driver interface {
 	List() ([]Volume, error)
 	// Get retrieves the volume with the requested name
 	Get(name string) (Volume, error)
-	// Scope returns the scope of the driver (e.g. `golbal` or `local`).
+	// Scope returns the scope of the driver (e.g. `global` or `local`).
 	// Scope determines how the driver is handled at a cluster level
 	Scope() string
 }
@@ -92,8 +93,8 @@ type MountPoint struct {
 	Mode string `json:"Relabel"` // Originally field was `Relabel`"
 
 	// Note Propagation is not used on Windows
-	Propagation string // Mount propagation string
-	Named       bool   // specifies if the mountpoint was specified by name
+	Propagation mounttypes.Propagation // Mount propagation string
+	Named       bool                   // specifies if the mountpoint was specified by name
 
 	// Specifies if data should be copied from the container before the first mount
 	// Use a pointer here so we can tell if the user set this value explicitly
@@ -143,18 +144,18 @@ func (m *MountPoint) Path() string {
 // Type returns the type of mount point
 func (m *MountPoint) Type() string {
 	if m.Name != "" {
-		return "VOLUME"
+		return "volume"
 	}
 	if m.Source != "" {
-		return "BIND"
+		return "bind"
 	}
-	return "EPHEMERAL"
+	return "ephemeral"
 }
 
 // ParseVolumesFrom ensures that the supplied volumes-from is valid.
 func ParseVolumesFrom(spec string) (string, string, error) {
 	if len(spec) == 0 {
-		return "", "", fmt.Errorf("malformed volumes-from specification: %s", spec)
+		return "", "", fmt.Errorf("volumes-from specification cannot be an empty string")
 	}
 
 	specParts := strings.SplitN(spec, ":", 2)

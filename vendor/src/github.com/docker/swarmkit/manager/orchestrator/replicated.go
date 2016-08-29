@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/docker/swarmkit/api"
@@ -27,10 +28,12 @@ type ReplicatedOrchestrator struct {
 
 	updater  *UpdateSupervisor
 	restarts *RestartSupervisor
+
+	cluster *api.Cluster // local cluster instance
 }
 
-// New creates a new ReplicatedOrchestrator.
-func New(store *store.MemoryStore) *ReplicatedOrchestrator {
+// NewReplicatedOrchestrator creates a new ReplicatedOrchestrator.
+func NewReplicatedOrchestrator(store *store.MemoryStore) *ReplicatedOrchestrator {
 	restartSupervisor := NewRestartSupervisor(store)
 	updater := NewUpdateSupervisor(store, restartSupervisor)
 	return &ReplicatedOrchestrator{
@@ -60,7 +63,14 @@ func (r *ReplicatedOrchestrator) Run(ctx context.Context) error {
 		if err = r.initTasks(ctx, readTx); err != nil {
 			return
 		}
-		err = r.initServices(readTx)
+
+		if err = r.initServices(readTx); err != nil {
+			return
+		}
+
+		if err = r.initCluster(readTx); err != nil {
+			return
+		}
 	})
 	if err != nil {
 		return err
@@ -74,9 +84,11 @@ func (r *ReplicatedOrchestrator) Run(ctx context.Context) error {
 			// TODO(stevvooe): Use ctx to limit running time of operation.
 			r.handleTaskEvent(ctx, event)
 			r.handleServiceEvent(ctx, event)
-			switch event.(type) {
+			switch v := event.(type) {
 			case state.EventCommit:
 				r.tick(ctx)
+			case state.EventUpdateCluster:
+				r.cluster = v.Cluster
 			}
 		case <-r.stopChan:
 			return nil
@@ -99,22 +111,38 @@ func (r *ReplicatedOrchestrator) tick(ctx context.Context) {
 	r.tickServices(ctx)
 }
 
-func newTask(service *api.Service, instance uint64) *api.Task {
-	// NOTE(stevvooe): For now, we don't override the container naming and
-	// labeling scheme in the agent. If we decide to do this in the future,
-	// they should be overridden here.
+func newTask(cluster *api.Cluster, service *api.Service, slot uint64) *api.Task {
+	var logDriver *api.Driver
+	if service.Spec.Task.LogDriver != nil {
+		// use the log driver specific to the task, if we have it.
+		logDriver = service.Spec.Task.LogDriver
+	} else if cluster != nil {
+		// pick up the cluster default, if available.
+		logDriver = cluster.Spec.TaskDefaults.LogDriver // nil is okay here.
+	}
+
+	taskID := identity.NewID()
+	// We use the following scheme to assign Task names to Annotations:
+	// Annotations.Name := <ServiceAnnotations.Name>.<Slot>.<TaskID>
+	name := fmt.Sprintf("%v.%v.%v", service.Spec.Annotations.Name, slot, taskID)
+
 	return &api.Task{
-		ID:                 identity.NewID(),
+		ID:                 taskID,
+		Annotations:        api.Annotations{Name: name},
 		ServiceAnnotations: service.Spec.Annotations,
 		Spec:               service.Spec.Task,
 		ServiceID:          service.ID,
-		Slot:               instance,
+		Slot:               slot,
 		Status: api.TaskStatus{
 			State:     api.TaskStateNew,
 			Timestamp: ptypes.MustTimestampProto(time.Now()),
 			Message:   "created",
 		},
+		Endpoint: &api.Endpoint{
+			Spec: service.Spec.Endpoint.Copy(),
+		},
 		DesiredState: api.TaskStateRunning,
+		LogDriver:    logDriver,
 	}
 }
 

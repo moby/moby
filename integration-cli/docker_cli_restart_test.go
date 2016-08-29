@@ -240,3 +240,15 @@ func (s *DockerSuite) TestRestartContainerwithRestartPolicy(c *check.C) {
 	dockerCmd(c, "start", id1)
 	dockerCmd(c, "start", id2)
 }
+
+func (s *DockerSuite) TestRestartAutoRemoveContainer(c *check.C) {
+	out, _ := runSleepingContainer(c, "--rm")
+
+	id := strings.TrimSpace(string(out))
+	dockerCmd(c, "restart", id)
+	err := waitInspect(id, "{{ .State.Restarting }} {{ .State.Running }}", "false true", 15*time.Second)
+	c.Assert(err, checker.IsNil)
+
+	out, _ = dockerCmd(c, "ps")
+	c.Assert(out, checker.Contains, id[:12], check.Commentf("container should be restarted instead of removed: %v", out))
+}

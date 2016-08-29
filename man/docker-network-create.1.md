@@ -144,19 +144,19 @@ to create an externally isolated `overlay` network, you can specify the
 
 # OPTIONS
 **--aux-address**=map[]
-  Auxiliary ipv4 or ipv6 addresses used by network driver
+  Auxiliary IPv4 or IPv6 addresses used by network driver
 
 **-d**, **--driver**=*DRIVER*
   Driver to manage the Network bridge or overlay. The default is bridge.
 
 **--gateway**=[]
-  ipv4 or ipv6 Gateway for the master subnet
+  IPv4 or IPv6 Gateway for the master subnet
 
 **--help**
   Print usage
 
 **--internal**
-  Restricts external access to the network
+  Restrict external access to the network
 
 **--ip-range**=[]
   Allocate container ip from a sub-range

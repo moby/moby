@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	listItemFmt = "%s\t%s\t%s\t%s\t%s\t%s\n"
+	listItemFmt = "%s\t%s\t%s\t%s\t%s\n"
 )
 
 type listOptions struct {
@@ -28,7 +28,7 @@ func newListCommand(dockerCli *client.DockerCli) *cobra.Command {
 	opts := listOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
-		Use:     "ls",
+		Use:     "ls [OPTIONS]",
 		Aliases: []string{"list"},
 		Short:   "List nodes in the swarm",
 		Args:    cli.NoArgs,
@@ -74,15 +74,10 @@ func printTable(out io.Writer, nodes []swarm.Node, info types.Info) {
 	// Ignore flushing errors
 	defer writer.Flush()
 
-	fmt.Fprintf(writer, listItemFmt, "ID", "NAME", "MEMBERSHIP", "STATUS", "AVAILABILITY", "MANAGER STATUS")
+	fmt.Fprintf(writer, listItemFmt, "ID", "HOSTNAME", "STATUS", "AVAILABILITY", "MANAGER STATUS")
 	for _, node := range nodes {
-		name := node.Spec.Name
+		name := node.Description.Hostname
 		availability := string(node.Spec.Availability)
-		membership := string(node.Spec.Membership)
-
-		if name == "" {
-			name = node.Description.Hostname
-		}
 
 		reachability := ""
 		if node.ManagerStatus != nil {
@@ -103,7 +98,6 @@ func printTable(out io.Writer, nodes []swarm.Node, info types.Info) {
 			listItemFmt,
 			ID,
 			name,
-			client.PrettyPrint(membership),
 			client.PrettyPrint(string(node.Status.State)),
 			client.PrettyPrint(availability),
 			client.PrettyPrint(reachability))

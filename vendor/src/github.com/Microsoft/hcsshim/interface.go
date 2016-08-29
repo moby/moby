@@ -1,31 +1,8 @@
 package hcsshim
 
 import (
-	"errors"
 	"io"
 	"time"
-)
-
-var (
-	// ErrInvalidNotificationType is an error encountered when an invalid notification type is used
-	ErrInvalidNotificationType = errors.New("hcsshim: invalid notification type")
-
-	// ErrTimeout is an error encountered when waiting on a notification times out
-	ErrTimeout = errors.New("hcsshim: timeout waiting for notification")
-
-	// ErrHandleClose is an error returned when the handle generating the notification being waited on has been closed
-	ErrHandleClose = errors.New("hcsshim: the handle generating this notification has been closed")
-
-	// ErrInvalidProcessState is an error encountered when the process is not in a valid state for the requested operation
-	ErrInvalidProcessState = errors.New("the process is in an invalid state for the attempted operation")
-
-	// ErrUnexpectedContainerExit is the error returned when a container exits while waiting for
-	// a different expected notification
-	ErrUnexpectedContainerExit = errors.New("unexpected container exit")
-
-	// ErrUnexpectedProcessAbort is the error returned when communication with the compute service
-	// is lost while waiting for a notification
-	ErrUnexpectedProcessAbort = errors.New("lost communication with compute service")
 )
 
 // ProcessConfig is used as both the input of Container.CreateProcess
@@ -54,12 +31,12 @@ type MappedDir struct {
 }
 
 type HvRuntime struct {
-	ImagePath string `json:",omitempty"`
+	ImagePath    string `json:",omitempty"`
+	SkipTemplate bool   `json:",omitempty"`
 }
 
 // ContainerConfig is used as both the input of CreateContainer
 // and to convert the parameters to JSON for passing onto the HCS
-// TODO Windows: @darrenstahlmsft Add ProcessorCount
 type ContainerConfig struct {
 	SystemType              string      // HCS requires this to be hard-coded to "Container"
 	Name                    string      // Name of the container. We use the docker ID.
@@ -70,6 +47,7 @@ type ContainerConfig struct {
 	LayerFolderPath         string      // Where the layer folders are located
 	Layers                  []Layer     // List of storage layers
 	Credentials             string      `json:",omitempty"` // Credentials information
+	ProcessorCount          uint32      `json:",omitempty"` // Number of processors to assign to the container.
 	ProcessorWeight         uint64      `json:",omitempty"` // CPU Shares 0..10000 on Windows; where 0 will be omitted and HCS will default.
 	ProcessorMaximum        int64       `json:",omitempty"` // CPU maximum usage percent 1..100
 	StorageIOPSMaximum      uint64      `json:",omitempty"` // Maximum Storage IOPS
@@ -84,18 +62,6 @@ type ContainerConfig struct {
 	HvRuntime               *HvRuntime  // Hyper-V container settings
 	Servicing               bool        // True if this container is for servicing
 }
-
-const (
-	notificationTypeNone           string = "None"
-	notificationTypeGracefulExit   string = "GracefulExit"
-	notificationTypeForcedExit     string = "ForcedExit"
-	notificationTypeUnexpectedExit string = "UnexpectedExit"
-	notificationTypeReboot         string = "Reboot"
-	notificationTypeConstructed    string = "Constructed"
-	notificationTypeStarted        string = "Started"
-	notificationTypePaused         string = "Paused"
-	notificationTypeUnknown        string = "Unknown"
-)
 
 // Container represents a created (but not necessarily running) container.
 type Container interface {
@@ -123,6 +89,12 @@ type Container interface {
 
 	// HasPendingUpdates returns true if the container has updates pending to install.
 	HasPendingUpdates() (bool, error)
+
+	// Statistics returns statistics for a container.
+	Statistics() (Statistics, error)
+
+	// ProcessList returns details for the processes in a container.
+	ProcessList() ([]ProcessListItem, error)
 
 	// CreateProcess launches a new process within the container.
 	CreateProcess(c *ProcessConfig) (Process, error)

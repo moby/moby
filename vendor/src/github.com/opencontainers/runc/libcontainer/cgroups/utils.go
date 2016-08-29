@@ -262,6 +262,8 @@ func readProcsFile(dir string) ([]int, error) {
 	return out, nil
 }
 
+// ParseCgroupFile parses the given cgroup file, typically from
+// /proc/<pid>/cgroup, into a map of subgroups to cgroup names.
 func ParseCgroupFile(path string) (map[string]string, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -269,7 +271,12 @@ func ParseCgroupFile(path string) (map[string]string, error) {
 	}
 	defer f.Close()
 
-	s := bufio.NewScanner(f)
+	return parseCgroupFromReader(f)
+}
+
+// helper function for ParseCgroupFile to make testing easier
+func parseCgroupFromReader(r io.Reader) (map[string]string, error) {
+	s := bufio.NewScanner(r)
 	cgroups := make(map[string]string)
 
 	for s.Scan() {
@@ -278,7 +285,16 @@ func ParseCgroupFile(path string) (map[string]string, error) {
 		}
 
 		text := s.Text()
-		parts := strings.Split(text, ":")
+		// from cgroups(7):
+		// /proc/[pid]/cgroup
+		// ...
+		// For each cgroup hierarchy ... there is one entry
+		// containing three colon-separated fields of the form:
+		//     hierarchy-ID:subsystem-list:cgroup-path
+		parts := strings.SplitN(text, ":", 3)
+		if len(parts) < 3 {
+			return nil, fmt.Errorf("invalid cgroup entry: must contain at least two colons: %v", text)
+		}
 
 		for _, subs := range strings.Split(parts[1], ",") {
 			cgroups[subs] = parts[2]

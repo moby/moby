@@ -23,21 +23,21 @@ func NewNodeCommand(dockerCli *client.DockerCli) *cobra.Command {
 		},
 	}
 	cmd.AddCommand(
-		newAcceptCommand(dockerCli),
 		newDemoteCommand(dockerCli),
 		newInspectCommand(dockerCli),
 		newListCommand(dockerCli),
 		newPromoteCommand(dockerCli),
 		newRemoveCommand(dockerCli),
-		newTasksCommand(dockerCli),
+		newPSCommand(dockerCli),
 		newUpdateCommand(dockerCli),
 	)
 	return cmd
 }
 
-func nodeReference(client apiclient.APIClient, ctx context.Context, ref string) (string, error) {
-	// The special value "self" for a node reference is mapped to the current
-	// node, hence the node ID is retrieved using the `/info` endpoint.
+// Reference returns the reference of a node. The special value "self" for a node
+// reference is mapped to the current node, hence the node ID is retrieved using
+// the `/info` endpoint.
+func Reference(client apiclient.APIClient, ctx context.Context, ref string) (string, error) {
 	if ref == "self" {
 		info, err := client.Info(ctx)
 		if err != nil {

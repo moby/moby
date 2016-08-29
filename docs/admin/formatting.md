@@ -5,7 +5,7 @@ description = "CLI and log output formatting reference"
 keywords = ["format, formatting, output, templates, log"]
 [menu.main]
 parent = "engine_admin"
-weight=-90
+weight=7
 +++
 <![end-metadata]-->
 
@@ -15,13 +15,13 @@ Docker uses [Go templates](https://golang.org/pkg/text/template/) to allow users
 of certain commands and log drivers. Each command a driver provides a detailed
 list of elements they support in their templates:
 
-- [Docker Images formatting](https://docs.docker.com/engine/reference/commandline/images/#formatting)
-- [Docker Inspect formatting](https://docs.docker.com/engine/reference/commandline/inspect/#examples)
-- [Docker Log Tag formatting](https://docs.docker.com/engine/admin/logging/log_tags/)
-- [Docker Network Inspect formatting](https://docs.docker.com/engine/reference/commandline/network_inspect/)
-- [Docker PS formatting](https://docs.docker.com/engine/reference/commandline/ps/#formatting)
-- [Docker Volume Inspect formatting](https://docs.docker.com/engine/reference/commandline/volume_inspect/)
-- [Docker Version formatting](https://docs.docker.com/engine/reference/commandline/version/#examples)
+- [Docker Images formatting](../reference/commandline/images.md#formatting)
+- [Docker Inspect formatting](../reference/commandline/inspect.md#examples)
+- [Docker Log Tag formatting](logging/log_tags.md)
+- [Docker Network Inspect formatting](../reference/commandline/network_inspect.md)
+- [Docker PS formatting](../reference/commandline/ps.md#formatting)
+- [Docker Volume Inspect formatting](../reference/commandline/volume_inspect.md)
+- [Docker Version formatting](../reference/commandline/version.md#examples)
 
 ## Template functions
 

@@ -7,6 +7,9 @@ import (
 	"github.com/docker/docker/utils/templates"
 )
 
+// DefaultTemplate defines the defaults template logger should use.
+const DefaultTemplate = "{{.ID}}"
+
 // ParseLogTag generates a context aware tag for consistency across different
 // log drivers based on the context of the running container.
 func ParseLogTag(ctx logger.Context, defaultTemplate string) (string, error) {

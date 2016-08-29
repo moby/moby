@@ -8,6 +8,8 @@ import (
 	"strings"
 	"syscall"
 
+	"golang.org/x/net/context"
+
 	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
 )
@@ -36,7 +38,7 @@ const defaultOwner = "docker"
 // Create is the entrypoint to create a container from a spec, and if successfully
 // created, start it too.
 func (clnt *client) Create(containerID string, spec Spec, options ...CreateOption) error {
-	logrus.Debugln("LCD client.Create() with spec", spec)
+	logrus.Debugln("libcontainerd: client.Create() with spec", spec)
 
 	configuration := &hcsshim.ContainerConfig{
 		SystemType: "Container",
@@ -74,16 +76,21 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 			if spec.Windows.Resources.Storage.Iops != nil {
 				configuration.StorageIOPSMaximum = *spec.Windows.Resources.Storage.Iops
 			}
-			if spec.Windows.Resources.Storage.SandboxSize != nil {
-				configuration.StorageSandboxSize = *spec.Windows.Resources.Storage.SandboxSize
-			}
 		}
 	}
 
 	if spec.Windows.HvRuntime != nil {
+		configuration.VolumePath = "" // Always empty for Hyper-V containers
 		configuration.HvPartition = true
 		configuration.HvRuntime = &hcsshim.HvRuntime{
 			ImagePath: spec.Windows.HvRuntime.ImagePath,
+		}
+
+		// Images with build version < 14350 don't support running with clone, but
+		// Windows cannot automatically detect this. Explicitly block cloning in this
+		// case.
+		if build := buildFromVersion(spec.Platform.OSVersion); build > 0 && build < 14350 {
+			configuration.HvRuntime.SkipTemplate = true
 		}
 	}
 
@@ -148,28 +155,27 @@ func (clnt *client) Create(containerID string, spec Spec, options ...CreateOptio
 	container.options = options
 	for _, option := range options {
 		if err := option.Apply(container); err != nil {
-			logrus.Error(err)
+			logrus.Errorf("libcontainerd: %v", err)
 		}
 	}
 
 	// Call start, and if it fails, delete the container from our
 	// internal structure, start will keep HCS in sync by deleting the
 	// container there.
-	logrus.Debugf("Create() id=%s, Calling start()", containerID)
+	logrus.Debugf("libcontainerd: Create() id=%s, Calling start()", containerID)
 	if err := container.start(); err != nil {
 		clnt.deleteContainer(containerID)
 		return err
 	}
 
-	logrus.Debugf("Create() id=%s completed successfully", containerID)
+	logrus.Debugf("libcontainerd: Create() id=%s completed successfully", containerID)
 	return nil
 
 }
 
 // AddProcess is the handler for adding a process to an already running
 // container. It's called through docker exec.
-func (clnt *client) AddProcess(containerID, processFriendlyName string, procToAdd Process) error {
-
+func (clnt *client) AddProcess(ctx context.Context, containerID, processFriendlyName string, procToAdd Process) error {
 	clnt.lock(containerID)
 	defer clnt.unlock(containerID)
 	container, err := clnt.getContainer(containerID)
@@ -201,20 +207,20 @@ func (clnt *client) AddProcess(containerID, processFriendlyName string, procToAd
 	createProcessParms.Environment = setupEnvironmentVariables(procToAdd.Env)
 	createProcessParms.CommandLine = strings.Join(procToAdd.Args, " ")
 
-	logrus.Debugf("commandLine: %s", createProcessParms.CommandLine)
+	logrus.Debugf("libcontainerd: commandLine: %s", createProcessParms.CommandLine)
 
 	// Start the command running in the container.
 	var stdout, stderr io.ReadCloser
 	var stdin io.WriteCloser
 	newProcess, err := container.hcsContainer.CreateProcess(&createProcessParms)
 	if err != nil {
-		logrus.Errorf("AddProcess %s CreateProcess() failed %s", containerID, err)
+		logrus.Errorf("libcontainerd: AddProcess(%s) CreateProcess() failed %s", containerID, err)
 		return err
 	}
 
 	stdin, stdout, stderr, err = newProcess.Stdio()
 	if err != nil {
-		logrus.Errorf("%s getting std pipes failed %s", containerID, err)
+		logrus.Errorf("libcontainerd: %s getting std pipes failed %s", containerID, err)
 		return err
 	}
 
@@ -283,21 +289,20 @@ func (clnt *client) Signal(containerID string, sig int) error {
 
 	cont.manualStopRequested = true
 
-	logrus.Debugf("lcd: Signal() containerID=%s sig=%d pid=%d", containerID, sig, cont.systemPid)
+	logrus.Debugf("libcontainerd: Signal() containerID=%s sig=%d pid=%d", containerID, sig, cont.systemPid)
 
 	if syscall.Signal(sig) == syscall.SIGKILL {
 		// Terminate the compute system
 		if err := cont.hcsContainer.Terminate(); err != nil {
-			if err != hcsshim.ErrVmcomputeOperationPending {
-				logrus.Errorf("Failed to terminate %s - %q", containerID, err)
+			if !hcsshim.IsPending(err) {
+				logrus.Errorf("libcontainerd: failed to terminate %s - %q", containerID, err)
 			}
 		}
 	} else {
 		// Terminate Process
-		if err := cont.hcsProcess.Kill(); err != nil {
-			logrus.Warnf("Failed to terminate pid %d in %s: %q", cont.systemPid, containerID, err)
-			// Ignore errors
-			err = nil
+		if err := cont.hcsProcess.Kill(); err != nil && !hcsshim.IsAlreadyStopped(err) {
+			// ignore errors
+			logrus.Warnf("libcontainerd: failed to terminate pid %d in %s: %q", cont.systemPid, containerID, err)
 		}
 	}
 
@@ -316,7 +321,7 @@ func (clnt *client) SignalProcess(containerID string, processFriendlyName string
 
 	for _, p := range cont.processes {
 		if p.friendlyName == processFriendlyName {
-			return hcsshim.TerminateProcessInComputeSystem(containerID, p.systemPid)
+			return p.hcsProcess.Kill()
 		}
 	}
 
@@ -337,13 +342,13 @@ func (clnt *client) Resize(containerID, processFriendlyName string, width, heigh
 	h, w := uint16(height), uint16(width)
 
 	if processFriendlyName == InitFriendlyName {
-		logrus.Debugln("Resizing systemPID in", containerID, cont.process.systemPid)
+		logrus.Debugln("libcontainerd: resizing systemPID in", containerID, cont.process.systemPid)
 		return cont.process.hcsProcess.ResizeConsole(w, h)
 	}
 
 	for _, p := range cont.processes {
 		if p.friendlyName == processFriendlyName {
-			logrus.Debugln("Resizing exec'd process", containerID, p.systemPid)
+			logrus.Debugln("libcontainerd: resizing exec'd process", containerID, p.systemPid)
 			return p.hcsProcess.ResizeConsole(w, h)
 		}
 	}
@@ -370,7 +375,7 @@ func (clnt *client) Stats(containerID string) (*Stats, error) {
 // Restore is the handler for restoring a container
 func (clnt *client) Restore(containerID string, unusedOnWindows ...CreateOption) error {
 	// TODO Windows: Implement this. For now, just tell the backend the container exited.
-	logrus.Debugf("lcd Restore %s", containerID)
+	logrus.Debugf("libcontainerd: Restore(%s)", containerID)
 	return clnt.backend.StateChanged(containerID, StateInfo{
 		CommonStateInfo: CommonStateInfo{
 			State:    StateExit,

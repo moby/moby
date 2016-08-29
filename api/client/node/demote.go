@@ -7,34 +7,30 @@ import (
 	"github.com/docker/docker/cli"
 	"github.com/docker/engine-api/types/swarm"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 func newDemoteCommand(dockerCli *client.DockerCli) *cobra.Command {
-	var flags *pflag.FlagSet
-
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "demote NODE [NODE...]",
-		Short: "Demote a node from manager in the swarm",
+		Short: "Demote one or more nodes from manager in the swarm",
 		Args:  cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runDemote(dockerCli, flags, args)
+			return runDemote(dockerCli, args)
 		},
 	}
-
-	flags = cmd.Flags()
-	return cmd
 }
 
-func runDemote(dockerCli *client.DockerCli, flags *pflag.FlagSet, args []string) error {
-	for _, id := range args {
-		if err := runUpdate(dockerCli, id, func(node *swarm.Node) {
-			node.Spec.Role = swarm.NodeRoleWorker
-		}); err != nil {
-			return err
+func runDemote(dockerCli *client.DockerCli, nodes []string) error {
+	demote := func(node *swarm.Node) error {
+		if node.Spec.Role == swarm.NodeRoleWorker {
+			fmt.Fprintf(dockerCli.Out(), "Node %s is already a worker.\n", node.ID)
+			return errNoRoleChange
 		}
-		fmt.Println(id, "attempting to demote a manager in the swarm.")
+		node.Spec.Role = swarm.NodeRoleWorker
+		return nil
 	}
-
-	return nil
+	success := func(nodeID string) {
+		fmt.Fprintf(dockerCli.Out(), "Manager %s demoted in the swarm.\n", nodeID)
+	}
+	return updateNodes(dockerCli, nodes, demote, success)
 }

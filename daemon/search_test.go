@@ -347,6 +347,7 @@ func TestSearchRegistryForImages(t *testing.T) {
 					expectedResult.IsOfficial == result.IsOfficial &&
 					expectedResult.StarCount == result.StarCount {
 					found = true
+					break
 				}
 			}
 			if !found {

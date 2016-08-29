@@ -93,7 +93,7 @@ func init() {
 // such as `RUN` in ONBUILD RUN foo. There is special case logic in here to
 // deal with that, at least until it becomes more of a general concern with new
 // features.
-func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
+func (b *Builder) dispatch(stepN int, stepTotal int, ast *parser.Node) error {
 	cmd := ast.Value
 	upperCasedCmd := strings.ToUpper(cmd)
 
@@ -107,7 +107,7 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 	original := ast.Original
 	flags := ast.Flags
 	strList := []string{}
-	msg := fmt.Sprintf("Step %d : %s", stepN+1, upperCasedCmd)
+	msg := fmt.Sprintf("Step %d/%d : %s", stepN+1, stepTotal, upperCasedCmd)
 
 	if len(ast.Flags) > 0 {
 		msg += " " + strings.Join(ast.Flags, " ")

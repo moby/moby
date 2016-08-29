@@ -61,7 +61,9 @@
 // It also exports some stats about the HTTP usage of the /metrics
 // endpoint. (See the Handler function for more detail.)
 //
-// Two more advanced metric types are the Summary and Histogram.
+// Two more advanced metric types are the Summary and Histogram. A more
+// thorough description of metric types can be found in the prometheus docs:
+// https://prometheus.io/docs/concepts/metric_types/
 //
 // In addition to the fundamental metric types Gauge, Counter, Summary, and
 // Histogram, a very important part of the Prometheus data model is the

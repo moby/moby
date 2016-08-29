@@ -6,7 +6,7 @@ import (
 	"syscall"
 
 	"github.com/docker/engine-api/types"
-	"github.com/opencontainers/specs/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	libseccomp "github.com/seccomp/libseccomp-golang"
 )
 
@@ -718,6 +718,21 @@ func DefaultProfile(rs *specs.Spec) *types.Seccomp {
 		},
 		{
 			Name:   "mknodat",
+			Action: types.ActAllow,
+			Args:   []*types.Arg{},
+		},
+		{
+			Name:   "mlock",
+			Action: types.ActAllow,
+			Args:   []*types.Arg{},
+		},
+		{
+			Name:   "mlock2",
+			Action: types.ActAllow,
+			Args:   []*types.Arg{},
+		},
+		{
+			Name:   "mlockall",
 			Action: types.ActAllow,
 			Args:   []*types.Arg{},
 		},
@@ -1653,30 +1668,7 @@ func DefaultProfile(rs *specs.Spec) *types.Seccomp {
 		case "CAP_DAC_READ_SEARCH":
 			syscalls = append(syscalls, []*types.Syscall{
 				{
-					Name:   "name_to_handle_at",
-					Action: types.ActAllow,
-					Args:   []*types.Arg{},
-				},
-				{
 					Name:   "open_by_handle_at",
-					Action: types.ActAllow,
-					Args:   []*types.Arg{},
-				},
-			}...)
-		case "CAP_IPC_LOCK":
-			syscalls = append(syscalls, []*types.Syscall{
-				{
-					Name:   "mlock",
-					Action: types.ActAllow,
-					Args:   []*types.Arg{},
-				},
-				{
-					Name:   "mlock2",
-					Action: types.ActAllow,
-					Args:   []*types.Arg{},
-				},
-				{
-					Name:   "mlockall",
 					Action: types.ActAllow,
 					Args:   []*types.Arg{},
 				},
@@ -1706,6 +1698,11 @@ func DefaultProfile(rs *specs.Spec) *types.Seccomp {
 				},
 				{
 					Name:   "mount",
+					Action: types.ActAllow,
+					Args:   []*types.Arg{},
+				},
+				{
+					Name:   "name_to_handle_at",
 					Action: types.ActAllow,
 					Args:   []*types.Arg{},
 				},

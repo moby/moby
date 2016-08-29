@@ -3,6 +3,7 @@ package daemon
 import (
 	"fmt"
 	"net"
+	"sort"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -127,6 +128,14 @@ func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nod
 				return
 			}
 
+			// Cleanup any stale endpoints that might be left over during previous iterations
+			epList := n.Endpoints()
+			for _, ep := range epList {
+				if err := ep.Delete(true); err != nil {
+					logrus.Errorf("Failed to delete endpoint %s (%s): %v", ep.Name(), ep.ID(), err)
+				}
+			}
+
 			if err := n.Delete(); err != nil {
 				logrus.Errorf("Failed to delete stale ingress network %s: %v", n.ID(), err)
 				return
@@ -152,7 +161,9 @@ func (daemon *Daemon) SetupIngress(create clustertypes.NetworkCreateRequest, nod
 
 		sb, err := controller.NewSandbox("ingress-sbox", libnetwork.OptionIngress())
 		if err != nil {
-			logrus.Errorf("Failed creating ingress sanbox: %v", err)
+			if _, ok := err.(networktypes.ForbiddenError); !ok {
+				logrus.Errorf("Failed creating ingress sandbox: %v", err)
+			}
 			return
 		}
 
@@ -305,34 +316,38 @@ func (daemon *Daemon) ConnectContainerToNetwork(containerName, networkName strin
 
 // DisconnectContainerFromNetwork disconnects the given container from
 // the given network. If either cannot be found, an err is returned.
-func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, network libnetwork.Network, force bool) error {
+func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error {
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {
 		if force {
-			return daemon.ForceEndpointDelete(containerName, network)
+			return daemon.ForceEndpointDelete(containerName, networkName)
 		}
 		return err
 	}
-	return daemon.DisconnectFromNetwork(container, network, force)
+	return daemon.DisconnectFromNetwork(container, networkName, force)
 }
 
 // GetNetworkDriverList returns the list of plugins drivers
 // registered for network.
-func (daemon *Daemon) GetNetworkDriverList() map[string]bool {
-	pluginList := make(map[string]bool)
+func (daemon *Daemon) GetNetworkDriverList() []string {
+	pluginList := []string{}
+	pluginMap := make(map[string]bool)
 
 	if !daemon.NetworkControllerEnabled() {
 		return nil
 	}
-	c := daemon.netController
-	networks := c.Networks()
+	networks := daemon.netController.Networks()
 
 	for _, network := range networks {
-		driver := network.Type()
-		pluginList[driver] = true
+		if !pluginMap[network.Type()] {
+			pluginList = append(pluginList, network.Type())
+			pluginMap[network.Type()] = true
+		}
 	}
 	// TODO : Replace this with proper libnetwork API
-	pluginList["overlay"] = true
+	pluginList = append(pluginList, "overlay")
+
+	sort.Strings(pluginList)
 
 	return pluginList
 }

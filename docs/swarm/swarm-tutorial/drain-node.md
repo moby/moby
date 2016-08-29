@@ -1,7 +1,7 @@
 <!--[metadata]>
 +++
 title = "Drain a node"
-description = "Drain nodes on the Swarm"
+description = "Drain nodes on the swarm"
 keywords = ["tutorial, cluster management, swarm, service, drain"]
 [menu.main]
 identifier="swarm-tutorial-drain-node"
@@ -10,15 +10,15 @@ weight=21
 +++
 <![end-metadata]-->
 
-# Drain a node on the Swarm
+# Drain a node on the swarm
 
 In earlier steps of the tutorial, all the nodes have been running with `ACTIVE`
-availability. The Swarm manager can assign tasks to any `ACTIVE` node, so all
-nodes have been available to receive tasks.
+availability. The swarm manager can assign tasks to any `ACTIVE` node, so up to
+now all nodes have been available to receive tasks.
 
 Sometimes, such as planned maintenance times, you need to set a node to `DRAIN`
-availabilty. `DRAIN` availabilty  prevents a node from receiving new tasks
-from the Swarm manager. It also means the manager stops tasks running on the
+availability. `DRAIN` availability  prevents a node from receiving new tasks
+from the swarm manager. It also means the manager stops tasks running on the
 node and launches replica tasks on a node with `ACTIVE` availability.
 
 1. If you haven't already, open a terminal and ssh into the machine where you
@@ -27,92 +27,99 @@ run your manager node. For example, the tutorial uses a machine named
 
 2. Verify that all your nodes are actively available.
 
-    ```
+    ```bash
     $ docker node ls
 
-    ID               NAME      MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS  LEADER
-    1x2bldyhie1cj    worker1   Accepted    Ready   Active
-    1y3zuia1z224i    worker2   Accepted    Ready   Active
-    2p5bfd34mx4op *  manager1  Accepted    Ready   Active        Reachable       Yes
+    ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+    1bcef6utixb0l0ca7gxuivsj0    worker2   Ready   Active
+    38ciaotwjuritcdtn9npbnkuz    worker1   Ready   Active
+    e216jshn25ckzbvmwlnh5jr3g *  manager1  Ready   Active        Leader
     ```
 
-2. If you aren't still running the `redis` service from the [rolling
+3. If you aren't still running the `redis` service from the [rolling
 update](rolling-update.md) tutorial, start it now:
 
     ```bash
-    $ docker service create --replicas 3 --name redis --update-delay 10s --update-parallelism 1 redis:3.0.6
+    $ docker service create --replicas 3 --name redis --update-delay 10s redis:3.0.6
 
-    69uh57k8o03jtqj9uvmteodbb
+    c5uo6kdmzpon37mgj9mwglcfw
     ```
 
-3. Run `docker service tasks redis` to see how the Swarm manager assigned the
+4. Run `docker service ps redis` to see how the swarm manager assigned the
 tasks to different nodes:
 
-    ```
-    $ docker service tasks redis
+    ```bash
+    $ docker service ps redis
 
     ID                         NAME     SERVICE  IMAGE        LAST STATE          DESIRED STATE  NODE
-    3wfqsgxecktpwoyj2zjcrcn4r  redis.1  redis    redis:3.0.6  RUNNING 13 minutes  RUNNING        worker2
-    8lcm041z3v80w0gdkczbot0gg  redis.2  redis    redis:3.0.6  RUNNING 13 minutes  RUNNING        worker1
-    d48skceeph9lkz4nbttig1z4a  redis.3  redis    redis:3.0.6  RUNNING 12 minutes  RUNNING        manager1
+    7q92v0nr1hcgts2amcjyqg3pq  redis.1  redis    redis:3.0.6  Running 26 seconds  Running        manager1
+    7h2l8h3q3wqy5f66hlv9ddmi6  redis.2  redis    redis:3.0.6  Running 26 seconds  Running        worker1
+    9bg7cezvedmkgg6c8yzvbhwsd  redis.3  redis    redis:3.0.6  Running 26 seconds  Running        worker2
     ```
 
-    In this case the Swarm manager distributed one task to each node. You may
+    In this case the swarm manager distributed one task to each node. You may
     see the tasks distributed differently among the nodes in your environment.
 
-4. Run `docker node update --availability drain <NODE-ID>` to drain a node that
+5. Run `docker node update --availability drain <NODE-ID>` to drain a node that
 had a task assigned to it:
 
     ```bash
     docker node update --availability drain worker1
+
     worker1
     ```
 
-5. Inspect the node to check its availability:
+6. Inspect the node to check its availability:
 
-    ```
+    ```bash
     $ docker node inspect --pretty worker1
-    ID:			1x2bldyhie1cj
+
+    ID:			38ciaotwjuritcdtn9npbnkuz
     Hostname:		worker1
     Status:
-     State:			READY
-     Availability:		DRAIN
+     State:			Ready
+     Availability:		Drain
     ...snip...
     ```
 
     The drained node shows `Drain` for `AVAILABILITY`.
 
-6. Run `docker service tasks redis` to see how the Swarm manager updated the
+7. Run `docker service ps redis` to see how the swarm manager updated the
 task assignments for the `redis` service:
 
-    ```
-    ID                         NAME     SERVICE  IMAGE        LAST STATE          DESIRED STATE  NODE
-    3wfqsgxecktpwoyj2zjcrcn4r  redis.1  redis    redis:3.0.6  RUNNING 26 minutes  RUNNING        worker2
-    ah7o4u5upostw3up1ns9vbqtc  redis.2  redis    redis:3.0.6  RUNNING 9 minutes   RUNNING        manager1
-    d48skceeph9lkz4nbttig1z4a  redis.3  redis    redis:3.0.6  RUNNING 26 minutes  RUNNING        manager1
+    ```bash
+    $ docker service ps redis
+
+    ID                         NAME          IMAGE        NODE      DESIRED STATE  CURRENT STATE           ERROR
+    7q92v0nr1hcgts2amcjyqg3pq  redis.1       redis:3.0.6  manager1  Running        Running 4 minutes
+    b4hovzed7id8irg1to42egue8  redis.2       redis:3.0.6  worker2   Running        Running About a minute
+    7h2l8h3q3wqy5f66hlv9ddmi6   \_ redis.2   redis:3.0.6  worker1   Shutdown       Shutdown 2 minutes ago
+    9bg7cezvedmkgg6c8yzvbhwsd  redis.3       redis:3.0.6  worker2   Running        Running 4 minutes
     ```
 
     The Swarm manager maintains the desired state by ending the task on a node
     with `Drain` availability and creating a new task on a node with `Active`
     availability.
 
-7. Run  `docker node update --availability active <NODE-ID>` to return the
+8. Run  `docker node update --availability active <NODE-ID>` to return the
 drained node to an active state:
 
     ```bash
     $ docker node update --availability active worker1
+
     worker1
     ```
 
-8. Inspect the node to see the updated state:
+9. Inspect the node to see the updated state:
 
-   ```
+   ```bash
    $ docker node inspect --pretty worker1
-   ID:			1x2bldyhie1cj
+
+   ID:			38ciaotwjuritcdtn9npbnkuz
    Hostname:		worker1
    Status:
-    State:			READY
-    Availability:		ACTIVE
+    State:			Ready
+    Availability:		Active
   ...snip...
   ```
 
@@ -122,5 +129,3 @@ drained node to an active state:
   * during a rolling update
   * when you set another node to `Drain` availability
   * when a task fails on another active node
-
-<p style="margin-bottom:300px">&nbsp;</p>

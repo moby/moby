@@ -72,10 +72,17 @@ func (eq *Queue) run() {
 		}
 
 		if err := eq.dst.Write(event); err != nil {
+			// TODO(aaronl): Dropping events could be bad depending
+			// on the application. We should have a way of
+			// communicating this condition. However, logging
+			// at a log level above debug may not be appropriate.
+			// Eventually, go-events should not use logrus at all,
+			// and should bubble up conditions like this through
+			// error values.
 			logrus.WithFields(logrus.Fields{
 				"event": event,
 				"sink":  eq.dst,
-			}).WithError(err).Warnf("eventqueue: dropped event")
+			}).WithError(err).Debug("eventqueue: dropped event")
 		}
 	}
 }

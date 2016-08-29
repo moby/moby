@@ -3,7 +3,10 @@
 package plugin
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -22,7 +25,11 @@ func (pm *Manager) Disable(name string) error {
 	if err != nil {
 		return err
 	}
-	return pm.disable(p)
+	if err := pm.disable(p); err != nil {
+		return err
+	}
+	pm.pluginEventLogger(p.PluginObj.ID, name, "disable")
+	return nil
 }
 
 // Enable activates a plugin, which implies that they are ready to be used by containers.
@@ -31,7 +38,11 @@ func (pm *Manager) Enable(name string) error {
 	if err != nil {
 		return err
 	}
-	return pm.enable(p)
+	if err := pm.enable(p, false); err != nil {
+		return err
+	}
+	pm.pluginEventLogger(p.PluginObj.ID, name, "enable")
+	return nil
 }
 
 // Inspect examines a plugin manifest
@@ -40,10 +51,10 @@ func (pm *Manager) Inspect(name string) (tp types.Plugin, err error) {
 	if err != nil {
 		return tp, err
 	}
-	return p.p, nil
+	return p.PluginObj, nil
 }
 
-// Pull pulls a plugin and enables it.
+// Pull pulls a plugin and computes the privileges required to install it.
 func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.AuthConfig) (types.PluginPrivileges, error) {
 	ref, err := reference.ParseNamed(name)
 	if err != nil {
@@ -76,10 +87,6 @@ func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.A
 	}
 
 	p := pm.newPlugin(ref, pluginID)
-	if ref, ok := ref.(reference.NamedTagged); ok {
-		p.p.Tag = ref.Tag()
-	}
-
 	if err := pm.initPlugin(p); err != nil {
 		return nil, err
 	}
@@ -90,14 +97,15 @@ func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.A
 	pm.save()
 	pm.Unlock()
 
-	return computePrivileges(&p.p.Manifest), nil
+	pm.pluginEventLogger(pluginID, name, "pull")
+	return computePrivileges(&p.PluginObj.Manifest), nil
 }
 
 // List displays the list of plugins and associated metadata.
 func (pm *Manager) List() ([]types.Plugin, error) {
 	out := make([]types.Plugin, 0, len(pm.plugins))
 	for _, p := range pm.plugins {
-		out = append(out, p.p)
+		out = append(out, p.PluginObj)
 	}
 	return out, nil
 }
@@ -105,28 +113,44 @@ func (pm *Manager) List() ([]types.Plugin, error) {
 // Push pushes a plugin to the store.
 func (pm *Manager) Push(name string, metaHeader http.Header, authConfig *types.AuthConfig) error {
 	p, err := pm.get(name)
-	dest := filepath.Join(pm.libRoot, p.p.ID)
-	config, err := os.Open(filepath.Join(dest, "manifest.json"))
 	if err != nil {
 		return err
 	}
+	dest := filepath.Join(pm.libRoot, p.PluginObj.ID)
+	config, err := ioutil.ReadFile(filepath.Join(dest, "manifest.json"))
+	if err != nil {
+		return err
+	}
+
+	var dummy types.Plugin
+	err = json.Unmarshal(config, &dummy)
+	if err != nil {
+		return err
+	}
+
 	rootfs, err := archive.Tar(filepath.Join(dest, "rootfs"), archive.Gzip)
 	if err != nil {
 		return err
 	}
-	_, err = distribution.Push(name, pm.registryService, metaHeader, authConfig, config, rootfs)
+	defer rootfs.Close()
+
+	_, err = distribution.Push(name, pm.registryService, metaHeader, authConfig, ioutil.NopCloser(bytes.NewReader(config)), rootfs)
 	// XXX: Ignore returning digest for now.
 	// Since digest needs to be written to the ProgressWriter.
-	return nil
+	return err
 }
 
 // Remove deletes plugin's root directory.
-func (pm *Manager) Remove(name string) error {
+func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
 	p, err := pm.get(name)
 	if err != nil {
 		return err
 	}
-	return pm.remove(p)
+	if err := pm.remove(p, config.ForceRemove); err != nil {
+		return err
+	}
+	pm.pluginEventLogger(p.PluginObj.ID, name, "remove")
+	return nil
 }
 
 // Set sets plugin args

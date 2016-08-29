@@ -78,6 +78,47 @@ func addFile(drv graphdriver.Driver, layer, filename string, content []byte) err
 	return ioutil.WriteFile(path.Join(root, filename), content, 0755)
 }
 
+func addDirectory(drv graphdriver.Driver, layer, dir string) error {
+	root, err := drv.Get(layer, "")
+	if err != nil {
+		return err
+	}
+	defer drv.Put(layer)
+
+	return os.MkdirAll(path.Join(root, dir), 0755)
+}
+
+func removeAll(drv graphdriver.Driver, layer string, names ...string) error {
+	root, err := drv.Get(layer, "")
+	if err != nil {
+		return err
+	}
+	defer drv.Put(layer)
+
+	for _, filename := range names {
+		if err := os.RemoveAll(path.Join(root, filename)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func checkFileRemoved(drv graphdriver.Driver, layer, filename string) error {
+	root, err := drv.Get(layer, "")
+	if err != nil {
+		return err
+	}
+	defer drv.Put(layer)
+
+	if _, err := os.Stat(path.Join(root, filename)); err == nil {
+		return fmt.Errorf("file still exists: %s", path.Join(root, filename))
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	return nil
+}
+
 func addManyFiles(drv graphdriver.Driver, layer string, count int, seed int64) error {
 	root, err := drv.Get(layer, "")
 	if err != nil {
