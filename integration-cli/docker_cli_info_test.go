@@ -200,3 +200,19 @@ func (s *DockerSuite) TestInsecureRegistries(c *check.C) {
 	c.Assert(out, checker.Contains, fmt.Sprintf(" %s\n", registryHost))
 	c.Assert(out, checker.Contains, fmt.Sprintf(" %s\n", registryCIDR))
 }
+
+func (s *DockerDaemonSuite) TestRegistryMirrors(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	registryMirror1 := "https://192.168.1.2"
+	registryMirror2 := "http://registry.mirror.com:5000"
+
+	err := s.d.Start("--registry-mirror="+registryMirror1, "--registry-mirror="+registryMirror2)
+	c.Assert(err, checker.IsNil)
+
+	out, err := s.d.Cmd("info")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "Registry Mirrors:\n")
+	c.Assert(out, checker.Contains, fmt.Sprintf(" %s", registryMirror1))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" %s", registryMirror2))
+}

@@ -237,6 +237,13 @@ func prettyPrintInfo(dockerCli *client.DockerCli, info types.Info) error {
 		}
 	}
 
+	if info.RegistryConfig != nil && len(info.RegistryConfig.Mirrors) > 0 {
+		fmt.Fprintln(dockerCli.Out(), "Registry Mirrors:")
+		for _, mirror := range info.RegistryConfig.Mirrors {
+			fmt.Fprintf(dockerCli.Out(), " %s\n", mirror)
+		}
+	}
+
 	fmt.Fprintf(dockerCli.Out(), "Live Restore Enabled: %v\n", info.LiveRestoreEnabled)
 
 	return nil
