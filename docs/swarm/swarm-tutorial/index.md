@@ -83,7 +83,8 @@ mode, including initializing a swarm with a single node, creating services,
 and scaling services. Docker "Moby" on Hyperkit (Mac) or Hyper-V (Windows)
 will serve as the single swarm node.
 
-<br /><br />
+<p />
+
 * Currently, you cannot use Docker for Mac or Windows alone to test a
 _multi-node_ swarm. However, you can use the included version of [Docker
 Machine](/machine/overview.md) to create the swarm nodes, then follow the
