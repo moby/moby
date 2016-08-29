@@ -29,7 +29,7 @@ type Flag struct {
 	Value    string
 }
 
-// NewBFlags return the new BFlags struct
+// NewBFlags returns the new BFlags struct
 func NewBFlags() *BFlags {
 	return &BFlags{
 		flags: make(map[string]*Flag),
