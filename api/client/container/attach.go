@@ -29,7 +29,7 @@ func NewAttachCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "attach [OPTIONS] CONTAINER",
-		Short: "Attach to a running container",
+		Short: "Attach to a container",
 		Args:  cli.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.container = args[0]
@@ -53,7 +53,9 @@ func runAttach(dockerCli *client.DockerCli, opts *attachOptions) error {
 	}
 
 	if !c.State.Running {
-		return fmt.Errorf("You cannot attach to a stopped container, start it first")
+		if err := dockerCli.Client().ContainerStart(ctx, c.ID, types.ContainerStartOptions{}); err != nil {
+			return err
+		}
 	}
 
 	if c.State.Paused {
