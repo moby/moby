@@ -1168,3 +1168,21 @@ func (s *DockerSwarmSuite) TestApiSwarmRestartCluster(c *check.C) {
 
 	checkClusterHealth(c, nodes, mCount, wCount)
 }
+
+func (s *DockerSwarmSuite) TestApiSwarmServicesUpdateWithName(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	instances := 2
+	id := d.createService(c, simpleTestService, setInstances(instances))
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, instances)
+
+	service := d.getService(c, id)
+	instances = 5
+
+	setInstances(instances)(service)
+	url := fmt.Sprintf("/services/%s/update?version=%d", service.Spec.Name, service.Version.Index)
+	status, out, err := d.SockRequest("POST", url, service.Spec)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusOK, check.Commentf("output: %q", string(out)))
+	waitAndAssert(c, defaultReconciliationTimeout, d.checkActiveContainerCount, checker.Equals, instances)
+}
