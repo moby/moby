@@ -8,7 +8,6 @@ import (
 )
 
 func (s *DockerSuite) TestCommitAfterContainerIsDone(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-i", "-a", "stdin", "busybox", "echo", "foo")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -55,7 +54,6 @@ func (s *DockerSuite) TestCommitPausedContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestCommitNewFile(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "commiter", "busybox", "/bin/sh", "-c", "echo koye > /foo")
 
 	imageID, _ := dockerCmd(c, "commit", "commiter")
@@ -87,7 +85,6 @@ func (s *DockerSuite) TestCommitHardlink(c *check.C) {
 }
 
 func (s *DockerSuite) TestCommitTTY(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-t", "--name", "tty", "busybox", "/bin/ls")
 
 	imageID, _ := dockerCmd(c, "commit", "tty", "ttytest")
