@@ -201,7 +201,9 @@ func (daemon *Daemon) restore() error {
 					restartContainers[c] = make(chan struct{})
 					mapLock.Unlock()
 				} else if c.HostConfig != nil && c.HostConfig.AutoRemove {
+					mapLock.Lock()
 					removeContainers[c.ID] = c
+					mapLock.Unlock()
 				}
 			}
 
