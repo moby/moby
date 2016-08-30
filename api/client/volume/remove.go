@@ -20,7 +20,7 @@ func newRemoveCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts removeOptions
 
 	cmd := &cobra.Command{
-		Use:     "rm [OPTIONS] VOLUME [VOLUME]...",
+		Use:     "rm [OPTIONS] VOLUME [VOLUME...]",
 		Aliases: []string{"remove"},
 		Short:   "Remove one or more volumes",
 		Long:    removeDescription,
