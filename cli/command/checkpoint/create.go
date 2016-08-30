@@ -32,7 +32,7 @@ func newCreateCommand(dockerCli *command.DockerCli) *cobra.Command {
 	}
 
 	flags := cmd.Flags()
-	flags.BoolVar(&opts.leaveRunning, "leave-running", false, "leave the container running after checkpoing")
+	flags.BoolVar(&opts.leaveRunning, "leave-running", false, "leave the container running after checkpoint")
 
 	return cmd
 }
