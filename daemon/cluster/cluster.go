@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/errors"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/runconfig"
 	apitypes "github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
@@ -560,6 +561,8 @@ func (c *Cluster) Leave(force bool) error {
 		return fmt.Errorf(msg)
 	}
 	if err := c.stopNode(); err != nil {
+		logrus.Errorf("failed to shut down cluster node: %v", err)
+		signal.DumpStacks("")
 		c.Unlock()
 		return err
 	}
