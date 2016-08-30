@@ -68,7 +68,6 @@ func (s *DockerSuite) TestExecInteractive(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecAfterContainerRestart(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := runSleepingContainer(c)
 	cleanedContainerID := strings.TrimSpace(out)
 	c.Assert(waitRun(cleanedContainerID), check.IsNil)
@@ -166,8 +165,6 @@ func (s *DockerSuite) TestExecTTYCloseStdin(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecTTYWithoutStdin(c *check.C) {
-	// TODO Windows CI: This requires some work to port to Windows.
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "-ti", "busybox")
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
