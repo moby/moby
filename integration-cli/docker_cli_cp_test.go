@@ -36,7 +36,6 @@ func (s *DockerSuite) TestCpLocalOnly(c *check.C) {
 // Test for #5656
 // Check that garbage paths don't escape the container's rootfs
 func (s *DockerSuite) TestCpGarbagePath(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
 
 	containerID := strings.TrimSpace(out)
@@ -79,7 +78,6 @@ func (s *DockerSuite) TestCpGarbagePath(c *check.C) {
 
 // Check that relative paths are relative to the container's rootfs
 func (s *DockerSuite) TestCpRelativePath(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
 
 	containerID := strings.TrimSpace(out)
@@ -128,7 +126,6 @@ func (s *DockerSuite) TestCpRelativePath(c *check.C) {
 
 // Check that absolute paths are relative to the container's rootfs
 func (s *DockerSuite) TestCpAbsolutePath(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath)
 
 	containerID := strings.TrimSpace(out)
@@ -519,7 +516,6 @@ func (s *DockerSuite) TestCpVolumePath(c *check.C) {
 }
 
 func (s *DockerSuite) TestCpToDot(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
 
 	containerID := strings.TrimSpace(out)
@@ -541,7 +537,6 @@ func (s *DockerSuite) TestCpToDot(c *check.C) {
 }
 
 func (s *DockerSuite) TestCpToStdout(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /test")
 
 	containerID := strings.TrimSpace(out)
