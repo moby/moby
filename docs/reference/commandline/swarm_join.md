@@ -59,7 +59,7 @@ dvfxp4zseq4s0rih1selh0d20 *  manager1  Ready   Active        Leader
 
 ### `--listen-addr value`
 
-If the node is a manager, it will listen for inbound Swarm manager traffic on this
+If the node is a manager, it will listen for inbound swarm manager traffic on this
 address. The default is to listen on 0.0.0.0:2377. It is also possible to specify a
 network interface to listen on that interface's address; for example `--listen-addr eth0:2377`.
 
