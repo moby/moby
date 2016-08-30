@@ -159,6 +159,7 @@ func (n *networkRouter) buildNetworkResource(nw libnetwork.Network) *types.Netwo
 	info := nw.Info()
 	r.Name = nw.Name()
 	r.ID = nw.ID()
+	r.Created = info.Created()
 	r.Scope = info.Scope()
 	if n.clusterProvider.IsManager() {
 		if _, err := n.clusterProvider.GetNetwork(nw.Name()); err == nil {
