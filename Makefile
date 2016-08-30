@@ -59,6 +59,7 @@ DOCKER_DOCS_IMAGE := docker-docs$(if $(GIT_BRANCH_CLEAN),:$(GIT_BRANCH_CLEAN))
 DOCKER_PORT_FORWARD := $(if $(DOCKER_PORT),-p "$(DOCKER_PORT)",)
 
 DOCKER_FLAGS := docker run --rm -i --privileged $(DOCKER_ENVS) $(DOCKER_MOUNT) $(DOCKER_PORT_FORWARD)
+BUILD_APT_MIRROR := $(if $(DOCKER_BUILD_APT_MIRROR),--build-arg APT_MIRROR=$(DOCKER_BUILD_APT_MIRROR))
 
 # if this session isn't interactive, then we don't want to allocate a
 # TTY, which would fail, but if it is interactive, we do want to attach
@@ -79,7 +80,7 @@ binary: build ## build the linux binaries
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary
 
 build: bundles init-go-pkg-cache
-	docker build ${DOCKER_BUILD_ARGS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
+	docker build ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
 
 bundles:
 	mkdir bundles
