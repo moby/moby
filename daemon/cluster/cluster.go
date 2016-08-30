@@ -903,7 +903,7 @@ func (c *Cluster) GetService(input string) (types.Service, error) {
 }
 
 // UpdateService updates existing service to match new properties.
-func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec types.ServiceSpec, encodedAuth string) error {
+func (c *Cluster) UpdateService(serviceID string, version uint64, spec types.ServiceSpec, encodedAuth string) error {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -924,11 +924,6 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 		return err
 	}
 
-	currentService, err := getService(ctx, c.client, serviceIDOrName)
-	if err != nil {
-		return err
-	}
-
 	if encodedAuth != "" {
 		ctnr := serviceSpec.Task.GetContainer()
 		if ctnr == nil {
@@ -938,6 +933,10 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 	} else {
 		// this is needed because if the encodedAuth isn't being updated then we
 		// shouldn't lose it, and continue to use the one that was already present
+		currentService, err := getService(ctx, c.client, serviceID)
+		if err != nil {
+			return err
+		}
 		ctnr := currentService.Spec.Task.GetContainer()
 		if ctnr == nil {
 			return fmt.Errorf("service does not use container tasks")
@@ -948,7 +947,7 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 	_, err = c.client.UpdateService(
 		ctx,
 		&swarmapi.UpdateServiceRequest{
-			ServiceID: currentService.ID,
+			ServiceID: serviceID,
 			Spec:      &serviceSpec,
 			ServiceVersion: &swarmapi.Version{
 				Index: version,
