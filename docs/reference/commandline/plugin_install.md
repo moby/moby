@@ -17,8 +17,8 @@ Usage:  docker plugin install [OPTIONS] PLUGIN
 Install a plugin
 
 Options:
-      --disable                 do not enable the plugin on install
-      --grant-all-permissions   grant all permissions necessary to run the plugin
+      --disable                 Do not enable the plugin on install
+      --grant-all-permissions   Grant all permissions necessary to run the plugin
       --help                    Print usage
 ```
 
