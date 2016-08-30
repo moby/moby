@@ -2764,3 +2764,41 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithAutoRemoveContainer(c *check.C)
 	c.Assert(out, checker.Contains, "top1", check.Commentf("top1 should exist after daemon restarts"))
 	c.Assert(out, checker.Not(checker.Contains), "top2", check.Commentf("top2 should be removed after daemon restarts"))
 }
+
+func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *check.C) {
+	err := s.d.StartWithBusybox()
+	c.Assert(err, checker.IsNil)
+
+	containerName := "error-values"
+	runError := "oci runtime error: exec: \"toto\": executable file not found in $PATH"
+	// Make a container with both a non 0 exit code and an error message
+	out, err := s.d.Cmd("run", "--name", containerName, "busybox", "toto")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, runError)
+
+	// Check that those values were saved on disk
+	out, err = s.d.Cmd("inspect", "-f", "{{.State.ExitCode}}", containerName)
+	out = strings.TrimSpace(out)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Equals, "127")
+
+	out, err = s.d.Cmd("inspect", "-f", "{{.State.Error}}", containerName)
+	out = strings.TrimSpace(out)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Equals, runError)
+
+	// now restart daemon
+	err = s.d.Restart()
+	c.Assert(err, checker.IsNil)
+
+	// Check that those values are still around
+	out, err = s.d.Cmd("inspect", "-f", "{{.State.ExitCode}}", containerName)
+	out = strings.TrimSpace(out)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Equals, "127")
+
+	out, err = s.d.Cmd("inspect", "-f", "{{.State.Error}}", containerName)
+	out = strings.TrimSpace(out)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Equals, runError)
+}

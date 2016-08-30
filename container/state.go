@@ -24,12 +24,38 @@ type State struct {
 	RemovalInProgress bool // Not need for this to be persistent on disk.
 	Dead              bool
 	Pid               int
-	exitCode          int
-	error             string // contains last known error when starting the container
+	ExitCodeValue     int    `json:"ExitCode"`
+	ErrorMsg          string `json:"Error"` // contains last known error when starting the container
 	StartedAt         time.Time
 	FinishedAt        time.Time
 	waitChan          chan struct{}
 	Health            *Health
+}
+
+// StateStatus is used to return an error type implementing both
+// exec.ExitCode and error.
+// This type is needed as State include a sync.Mutex field which make
+// copying it unsafe.
+type StateStatus struct {
+	exitCode int
+	error    string
+}
+
+func newStateStatus(ec int, err string) *StateStatus {
+	return &StateStatus{
+		exitCode: ec,
+		error:    err,
+	}
+}
+
+// ExitCode returns current exitcode for the state.
+func (ss *StateStatus) ExitCode() int {
+	return ss.exitCode
+}
+
+// Error returns current error for the state.
+func (ss *StateStatus) Error() string {
+	return ss.error
 }
 
 // NewState creates a default state object with a fresh channel for state changes.
@@ -46,7 +72,7 @@ func (s *State) String() string {
 			return fmt.Sprintf("Up %s (Paused)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
 		}
 		if s.Restarting {
-			return fmt.Sprintf("Restarting (%d) %s ago", s.exitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
+			return fmt.Sprintf("Restarting (%d) %s ago", s.ExitCodeValue, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 		}
 
 		if h := s.Health; h != nil {
@@ -71,7 +97,7 @@ func (s *State) String() string {
 		return ""
 	}
 
-	return fmt.Sprintf("Exited (%d) %s ago", s.exitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
+	return fmt.Sprintf("Exited (%d) %s ago", s.ExitCodeValue, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
 }
 
 // StateString returns a single string to describe state
@@ -134,7 +160,7 @@ func wait(waitChan <-chan struct{}, timeout time.Duration) error {
 func (s *State) WaitStop(timeout time.Duration) (int, error) {
 	s.Lock()
 	if !s.Running {
-		exitCode := s.exitCode
+		exitCode := s.ExitCodeValue
 		s.Unlock()
 		return exitCode, nil
 	}
@@ -154,24 +180,24 @@ func (s *State) WaitWithContext(ctx context.Context) error {
 	// todo(tonistiigi): make other wait functions use this
 	s.Lock()
 	if !s.Running {
-		state := *s
+		state := newStateStatus(s.ExitCode(), s.Error())
 		defer s.Unlock()
-		if state.exitCode == 0 {
+		if state.ExitCode() == 0 {
 			return nil
 		}
-		return &state
+		return state
 	}
 	waitChan := s.waitChan
 	s.Unlock()
 	select {
 	case <-waitChan:
 		s.Lock()
-		state := *s
+		state := newStateStatus(s.ExitCode(), s.Error())
 		s.Unlock()
-		if state.exitCode == 0 {
+		if state.ExitCode() == 0 {
 			return nil
 		}
-		return &state
+		return state
 	case <-ctx.Done():
 		return ctx.Err()
 	}
@@ -196,22 +222,21 @@ func (s *State) GetPID() int {
 // ExitCode returns current exitcode for the state. Take lock before if state
 // may be shared.
 func (s *State) ExitCode() int {
-	res := s.exitCode
-	return res
+	return s.ExitCodeValue
 }
 
 // SetExitCode sets current exitcode for the state. Take lock before if state
 // may be shared.
 func (s *State) SetExitCode(ec int) {
-	s.exitCode = ec
+	s.ExitCodeValue = ec
 }
 
 // SetRunning sets the state of the container to "running".
 func (s *State) SetRunning(pid int, initial bool) {
-	s.error = ""
+	s.ErrorMsg = ""
 	s.Running = true
 	s.Restarting = false
-	s.exitCode = 0
+	s.ExitCodeValue = 0
 	s.Pid = pid
 	if initial {
 		s.StartedAt = time.Now().UTC()
@@ -263,7 +288,7 @@ func (s *State) SetRestarting(exitStatus *ExitStatus) {
 // know the error that occurred when container transits to another state
 // when inspecting it
 func (s *State) SetError(err error) {
-	s.error = err.Error()
+	s.ErrorMsg = err.Error()
 }
 
 // IsPaused returns whether the container is paused or not.
@@ -310,5 +335,5 @@ func (s *State) SetDead() {
 
 // Error returns current error for the state.
 func (s *State) Error() string {
-	return s.error
+	return s.ErrorMsg
 }
