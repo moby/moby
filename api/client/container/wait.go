@@ -21,7 +21,7 @@ func NewWaitCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "wait CONTAINER [CONTAINER...]",
-		Short: "Block until a container stops, then print its exit code",
+		Short: "Block until one or more containers stop, then print their exit codes",
 		Args:  cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.containers = args
