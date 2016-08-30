@@ -267,6 +267,11 @@ func (n *network) connectedLoadbalancers() []*loadBalancer {
 func (sb *sandbox) populateLoadbalancers(ep *endpoint) {
 	var gwIP net.IP
 
+	// This is an interface less endpoint. Nothing to do.
+	if ep.Iface() == nil {
+		return
+	}
+
 	n := ep.getNetwork()
 	eIP := ep.Iface().Address()
 
