@@ -521,14 +521,19 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 	}
 
 	chainExists := iptables.ExistChain(ingressChain, iptables.Nat)
+	filterChainExists := iptables.ExistChain(ingressChain, iptables.Filter)
 
 	ingressOnce.Do(func() {
+		// Flush nat table and filter table ingress chain rules during init if it
+		// exists. It might contain stale rules from previous life.
 		if chainExists {
-			// Flush ingress chain rules during init if it
-			// exists. It might contain stale rules from
-			// previous life.
 			if err := iptables.RawCombinedOutput("-t", "nat", "-F", ingressChain); err != nil {
-				logrus.Errorf("Could not flush ingress chain rules during init: %v", err)
+				logrus.Errorf("Could not flush nat table ingress chain rules during init: %v", err)
+			}
+		}
+		if filterChainExists {
+			if err := iptables.RawCombinedOutput("-F", ingressChain); err != nil {
+				logrus.Errorf("Could not flush filter table ingress chain rules during init: %v", err)
 			}
 		}
 	})
@@ -539,10 +544,21 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 				return fmt.Errorf("failed to create ingress chain: %v", err)
 			}
 		}
+		if !filterChainExists {
+			if err := iptables.RawCombinedOutput("-N", ingressChain); err != nil {
+				return fmt.Errorf("failed to create filter table ingress chain: %v", err)
+			}
+		}
 
 		if !iptables.Exists(iptables.Nat, ingressChain, "-j", "RETURN") {
 			if err := iptables.RawCombinedOutput("-t", "nat", "-A", ingressChain, "-j", "RETURN"); err != nil {
-				return fmt.Errorf("failed to add return rule in ingress chain: %v", err)
+				return fmt.Errorf("failed to add return rule in nat table ingress chain: %v", err)
+			}
+		}
+
+		if !iptables.Exists(iptables.Filter, ingressChain, "-j", "RETURN") {
+			if err := iptables.RawCombinedOutput("-A", ingressChain, "-j", "RETURN"); err != nil {
+				return fmt.Errorf("failed to add return rule to filter table ingress chain: %v", err)
 			}
 		}
 
@@ -551,6 +567,12 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 				if err := iptables.RawCombinedOutput("-t", "nat", "-I", chain, "-m", "addrtype", "--dst-type", "LOCAL", "-j", ingressChain); err != nil {
 					return fmt.Errorf("failed to add jump rule in %s to ingress chain: %v", chain, err)
 				}
+			}
+		}
+
+		if !iptables.Exists(iptables.Filter, "FORWARD", "-j", ingressChain) {
+			if err := iptables.RawCombinedOutput("-I", "FORWARD", "-j", ingressChain); err != nil {
+				return fmt.Errorf("failed to add jump rule to %s in filter table forward chain: %v", ingressChain, err)
 			}
 		}
 
@@ -586,12 +608,52 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 			}
 		}
 
+		// Filter table rules to allow a published service to be accessible in the local node from..
+		// 1) service tasks attached to other networks
+		// 2) unmanaged containers on bridge networks
+		rule := strings.Fields(fmt.Sprintf("%s %s -m state -p %s --sport %d --state ESTABLISHED,RELATED -j ACCEPT",
+			addDelOpt, ingressChain, strings.ToLower(PortConfig_Protocol_name[int32(iPort.Protocol)]), iPort.PublishedPort))
+		if err := iptables.RawCombinedOutput(rule...); err != nil {
+			errStr := fmt.Sprintf("setting up rule failed, %v: %v", rule, err)
+			if !isDelete {
+				return fmt.Errorf("%s", errStr)
+			}
+			logrus.Warnf("%s", errStr)
+		}
+
+		rule = strings.Fields(fmt.Sprintf("%s %s -p %s --dport %d -j ACCEPT",
+			addDelOpt, ingressChain, strings.ToLower(PortConfig_Protocol_name[int32(iPort.Protocol)]), iPort.PublishedPort))
+		if err := iptables.RawCombinedOutput(rule...); err != nil {
+			errStr := fmt.Sprintf("setting up rule failed, %v: %v", rule, err)
+			if !isDelete {
+				return fmt.Errorf("%s", errStr)
+			}
+
+			logrus.Warnf("%s", errStr)
+		}
+
 		if err := plumbProxy(iPort, isDelete); err != nil {
 			logrus.Warnf("failed to create proxy for port %d: %v", iPort.PublishedPort, err)
 		}
 	}
 
 	return nil
+}
+
+// In the filter table FORWARD chain first rule should be to jump to INGRESS-CHAIN
+// This chain has the rules to allow access to the published ports for swarm tasks
+// from local bridge networks and docker_gwbridge (ie:taks on other swarm netwroks)
+func arrangeIngressFilterRule() {
+	if iptables.ExistChain(ingressChain, iptables.Filter) {
+		if iptables.Exists(iptables.Filter, "FORWARD", "-j", ingressChain) {
+			if err := iptables.RawCombinedOutput("-D", "FORWARD", "-j", ingressChain); err != nil {
+				logrus.Warnf("failed to delete jump rule to ingressChain in filter table: %v", err)
+			}
+		}
+		if err := iptables.RawCombinedOutput("-I", "FORWARD", "-j", ingressChain); err != nil {
+			logrus.Warnf("failed to add jump rule to ingressChain in filter table: %v", err)
+		}
+	}
 }
 
 func findOIFName(ip net.IP) (string, error) {
