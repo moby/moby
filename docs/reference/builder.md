@@ -1068,7 +1068,7 @@ user	0m 0.03s
 sys	0m 0.03s
 ```
 
-> **Note:** you can over ride the `ENTRYPOINT` setting using `--entrypoint`,
+> **Note:** you can override the `ENTRYPOINT` setting using `--entrypoint`,
 > but this can only set the binary to *exec* (no `sh -c` will be used).
 
 > **Note**:
