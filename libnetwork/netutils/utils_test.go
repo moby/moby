@@ -213,35 +213,44 @@ func TestNetworkRequest(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 	ipamutils.InitNetworks()
 
-	_, exp, err := net.ParseCIDR("172.17.0.0/16")
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	nw, err := FindAvailableNetwork(ipamutils.PredefinedBroadNetworks)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !types.CompareIPNet(exp, nw) {
-		t.Fatalf("exected %s. got %s", exp, nw)
+
+	var found bool
+	for _, exp := range ipamutils.PredefinedBroadNetworks {
+		if types.CompareIPNet(exp, nw) {
+			found = true
+			break
+		}
 	}
 
-	_, exp, err = net.ParseCIDR("10.0.0.0/24")
-	if err != nil {
-		t.Fatal(err)
+	if !found {
+		t.Fatalf("Found unexpected broad network %s", nw)
 	}
+
 	nw, err = FindAvailableNetwork(ipamutils.PredefinedGranularNetworks)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !types.CompareIPNet(exp, nw) {
-		t.Fatalf("exected %s. got %s", exp, nw)
+
+	found = false
+	for _, exp := range ipamutils.PredefinedGranularNetworks {
+		if types.CompareIPNet(exp, nw) {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Fatalf("Found unexpected granular network %s", nw)
 	}
 
 	// Add iface and ssert returned address on request
 	createInterface(t, "test", "172.17.42.1/16")
 
-	_, exp, err = net.ParseCIDR("172.18.0.0/16")
+	_, exp, err := net.ParseCIDR("172.18.0.0/16")
 	if err != nil {
 		t.Fatal(err)
 	}
