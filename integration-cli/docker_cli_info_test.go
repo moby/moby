@@ -63,17 +63,15 @@ func (s *DockerSuite) TestInfoFormat(c *check.C) {
 
 // TestInfoDiscoveryBackend verifies that a daemon run with `--cluster-advertise` and
 // `--cluster-store` properly show the backend's endpoint in info output.
-func (s *DockerSuite) TestInfoDiscoveryBackend(c *check.C) {
+func (s *DockerDaemonSuite) TestInfoDiscoveryBackend(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	d := NewDaemon(c)
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
 	discoveryAdvertise := "1.1.1.1:2375"
-	err := d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend), fmt.Sprintf("--cluster-advertise=%s", discoveryAdvertise))
+	err := s.d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend), fmt.Sprintf("--cluster-advertise=%s", discoveryAdvertise))
 	c.Assert(err, checker.IsNil)
-	defer d.Stop()
 
-	out, err := d.Cmd("info")
+	out, err := s.d.Cmd("info")
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Store: %s\n", discoveryBackend))
 	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Advertise: %s\n", discoveryAdvertise))
@@ -81,33 +79,30 @@ func (s *DockerSuite) TestInfoDiscoveryBackend(c *check.C) {
 
 // TestInfoDiscoveryInvalidAdvertise verifies that a daemon run with
 // an invalid `--cluster-advertise` configuration
-func (s *DockerSuite) TestInfoDiscoveryInvalidAdvertise(c *check.C) {
+func (s *DockerDaemonSuite) TestInfoDiscoveryInvalidAdvertise(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	d := NewDaemon(c)
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
 
 	// --cluster-advertise with an invalid string is an error
-	err := d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend), "--cluster-advertise=invalid")
+	err := s.d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend), "--cluster-advertise=invalid")
 	c.Assert(err, checker.Not(checker.IsNil))
 
 	// --cluster-advertise without --cluster-store is also an error
-	err = d.Start("--cluster-advertise=1.1.1.1:2375")
+	err = s.d.Start("--cluster-advertise=1.1.1.1:2375")
 	c.Assert(err, checker.Not(checker.IsNil))
 }
 
 // TestInfoDiscoveryAdvertiseInterfaceName verifies that a daemon run with `--cluster-advertise`
 // configured with interface name properly show the advertise ip-address in info output.
-func (s *DockerSuite) TestInfoDiscoveryAdvertiseInterfaceName(c *check.C) {
+func (s *DockerDaemonSuite) TestInfoDiscoveryAdvertiseInterfaceName(c *check.C) {
 	testRequires(c, SameHostDaemon, Network, DaemonIsLinux)
 
-	d := NewDaemon(c)
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
 	discoveryAdvertise := "eth0"
 
-	err := d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend), fmt.Sprintf("--cluster-advertise=%s:2375", discoveryAdvertise))
+	err := s.d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend), fmt.Sprintf("--cluster-advertise=%s:2375", discoveryAdvertise))
 	c.Assert(err, checker.IsNil)
-	defer d.Stop()
 
 	iface, err := net.InterfaceByName(discoveryAdvertise)
 	c.Assert(err, checker.IsNil)
@@ -117,7 +112,7 @@ func (s *DockerSuite) TestInfoDiscoveryAdvertiseInterfaceName(c *check.C) {
 	ip, _, err := net.ParseCIDR(addrs[0].String())
 	c.Assert(err, checker.IsNil)
 
-	out, err := d.Cmd("info")
+	out, err := s.d.Cmd("info")
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Store: %s\n", discoveryBackend))
 	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Advertise: %s:2375\n", ip.String()))
@@ -164,15 +159,13 @@ func (s *DockerSuite) TestInfoDisplaysStoppedContainers(c *check.C) {
 	c.Assert(out, checker.Contains, fmt.Sprintf(" Stopped: %d\n", 1))
 }
 
-func (s *DockerSuite) TestInfoDebug(c *check.C) {
+func (s *DockerDaemonSuite) TestInfoDebug(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	d := NewDaemon(c)
-	err := d.Start("--debug")
+	err := s.d.Start("--debug")
 	c.Assert(err, checker.IsNil)
-	defer d.Stop()
 
-	out, err := d.Cmd("--debug", "info")
+	out, err := s.d.Cmd("--debug", "info")
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, "Debug Mode (client): true\n")
 	c.Assert(out, checker.Contains, "Debug Mode (server): true\n")
@@ -183,18 +176,16 @@ func (s *DockerSuite) TestInfoDebug(c *check.C) {
 	c.Assert(out, checker.Contains, "Docker Root Dir")
 }
 
-func (s *DockerSuite) TestInsecureRegistries(c *check.C) {
+func (s *DockerDaemonSuite) TestInsecureRegistries(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	registryCIDR := "192.168.1.0/24"
 	registryHost := "insecurehost.com:5000"
 
-	d := NewDaemon(c)
-	err := d.Start("--insecure-registry="+registryCIDR, "--insecure-registry="+registryHost)
+	err := s.d.Start("--insecure-registry="+registryCIDR, "--insecure-registry="+registryHost)
 	c.Assert(err, checker.IsNil)
-	defer d.Stop()
 
-	out, err := d.Cmd("info")
+	out, err := s.d.Cmd("info")
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, "Insecure Registries:\n")
 	c.Assert(out, checker.Contains, fmt.Sprintf(" %s\n", registryHost))
