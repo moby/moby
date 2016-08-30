@@ -1125,7 +1125,7 @@ func (n *network) getSvcRecords(ep *endpoint) []etchosts.Record {
 			continue
 		}
 		if len(ip) == 0 {
-			log.Warnf("Found empty list of IP addresses for service %s on network %s (%s)", h, n.Name(), n.ID())
+			log.Warnf("Found empty list of IP addresses for service %s on network %s (%s)", h, n.name, n.id)
 			continue
 		}
 		recs = append(recs, etchosts.Record{
