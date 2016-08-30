@@ -28,7 +28,7 @@ func NewExecCommand(dockerCli *client.DockerCli) *cobra.Command {
 	var opts execOptions
 
 	cmd := &cobra.Command{
-		Use:   "exec CONTAINER COMMAND [ARG...]",
+		Use:   "exec [OPTIONS] CONTAINER COMMAND [ARG...]",
 		Short: "Run a command in a running container",
 		Args:  cli.RequiresMinArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
