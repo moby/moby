@@ -51,7 +51,7 @@ Windows](index.md#use-docker-for-mac-or-docker-for-windows) with Swarm.
     address as `192.168.99.100`. The other nodes in the swarm must be able
     to access the manager at the IP address.
 
-    The output incudes the commands to join new nodes to the swarm. Nodes will
+    The output includes the commands to join new nodes to the swarm. Nodes will
     join as managers or workers depending on the value for the `--token`
     flag.
 
