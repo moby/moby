@@ -2048,7 +2048,6 @@ func (s *DockerSuite) TestBuildContextCleanup(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildContextCleanupFailedBuild(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	testRequires(c, SameHostDaemon)
 
 	name := "testbuildcontextcleanup"
@@ -2057,7 +2056,7 @@ func (s *DockerSuite) TestBuildContextCleanupFailedBuild(c *check.C) {
 		c.Fatalf("failed to list contents of tmp dir: %s", err)
 	}
 	_, err = buildImage(name,
-		`FROM scratch
+		`FROM `+minimalBaseImage()+`
 	RUN /non/existing/command`,
 		true)
 	if err == nil {
@@ -3092,10 +3091,6 @@ func (s *DockerSuite) TestBuildVerifyIntString(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildDockerignore(c *check.C) {
-	testRequires(c, DaemonIsLinux) // TODO Windows: This test passes on Windows,
-	// but currently adds a disproportionate amount of time for the value it has.
-	// Removing it from Windows CI for now, but this will be revisited in the
-	// TP5 timeframe when perf is better.
 	name := "testbuilddockerignore"
 	dockerfile := `
         FROM busybox
@@ -3162,10 +3157,6 @@ func (s *DockerSuite) TestBuildDockerignoreCleanPaths(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildDockerignoreExceptions(c *check.C) {
-	testRequires(c, DaemonIsLinux) // TODO Windows: This test passes on Windows,
-	// but currently adds a disproportionate amount of time for the value it has.
-	// Removing it from Windows CI for now, but this will be revisited in the
-	// TP5 timeframe when perf is better.
 	name := "testbuilddockerignoreexceptions"
 	dockerfile := `
         FROM busybox
@@ -3432,8 +3423,6 @@ func (s *DockerSuite) TestBuildDockerignoringWildTopDir(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildDockerignoringWildDirs(c *check.C) {
-	testRequires(c, DaemonIsLinux) // TODO Windows: Fix this test; also perf
-
 	dockerfile := `
         FROM busybox
 		COPY . /
@@ -4068,7 +4057,6 @@ func (s *DockerSuite) TestBuildFromGITwithF(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildFromRemoteTarball(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildfromremotetarball"
 
 	buffer := new(bytes.Buffer)
@@ -4941,8 +4929,6 @@ RUN echo from Dockerfile`,
 }
 
 func (s *DockerSuite) TestBuildFromURLWithF(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-
 	server, err := fakeStorage(map[string]string{"baz": `FROM busybox
 RUN echo from baz
 COPY * /tmp/
@@ -5649,7 +5635,6 @@ func (s *DockerSuite) TestBuildBuildTimeArg(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgHistory(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -5675,7 +5660,6 @@ func (s *DockerSuite) TestBuildBuildTimeArgHistory(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgCacheHit(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -5702,7 +5686,6 @@ func (s *DockerSuite) TestBuildBuildTimeArgCacheHit(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgCacheMissExtraArg(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -5734,7 +5717,6 @@ func (s *DockerSuite) TestBuildBuildTimeArgCacheMissExtraArg(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgCacheMissSameArgDiffVal(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -6028,7 +6010,6 @@ func (s *DockerSuite) TestBuildBuildTimeArgDefaultOverride(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgUnconsumedArg(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Windows does not support --build-arg
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -6049,7 +6030,6 @@ func (s *DockerSuite) TestBuildBuildTimeArgUnconsumedArg(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgQuotedValVariants(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	envKey1 := "foo1"
@@ -6095,7 +6075,6 @@ func (s *DockerSuite) TestBuildBuildTimeArgEmptyValVariants(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgDefintionWithNoEnvInjection(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	args := []string{}
@@ -6172,7 +6151,6 @@ func (s *DockerSuite) TestBuildMultipleTags(c *check.C) {
 
 // #17290
 func (s *DockerSuite) TestBuildCacheBrokenSymlink(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildbrokensymlink"
 	ctx, err := fakeContext(`
 	FROM busybox
@@ -6202,7 +6180,6 @@ func (s *DockerSuite) TestBuildCacheBrokenSymlink(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildFollowSymlinkToFile(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildbrokensymlink"
 	ctx, err := fakeContext(`
 	FROM busybox
@@ -6235,7 +6212,6 @@ func (s *DockerSuite) TestBuildFollowSymlinkToFile(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildFollowSymlinkToDir(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildbrokensymlink"
 	ctx, err := fakeContext(`
 	FROM busybox
