@@ -143,7 +143,6 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 }
 
 func (s *DockerSuite) TestHelpExitCodesHelpOutput(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	// Test to make sure the exit code and output (stdout vs stderr) of
 	// various good and bad cases are what we expect
 
