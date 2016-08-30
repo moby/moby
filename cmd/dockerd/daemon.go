@@ -256,6 +256,7 @@ func (cli *DaemonCli) start(opts daemonOptions) (err error) {
 		Backend:                d,
 		NetworkSubnetsProvider: d,
 		DefaultAdvertiseAddr:   cli.Config.SwarmDefaultAdvertiseAddr,
+		RuntimeRoot:            cli.getSwarmRunRoot(),
 	})
 	if err != nil {
 		logrus.Fatalf("Error creating cluster component: %v", err)
