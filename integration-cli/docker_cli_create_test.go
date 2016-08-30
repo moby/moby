@@ -105,8 +105,6 @@ func (s *DockerSuite) TestCreateHostConfig(c *check.C) {
 }
 
 func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
-	// Windows does not currently support port ranges.
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "create", "-p", "3300-3303:3300-3303/tcp", "busybox", "echo")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -136,8 +134,6 @@ func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
 }
 
 func (s *DockerSuite) TestCreateWithLargePortRange(c *check.C) {
-	// Windows does not currently support port ranges.
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "create", "-p", "1-65535:1-65535/tcp", "busybox", "echo")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -481,7 +477,6 @@ func (s *DockerSuite) TestCreate64ByteHexID(c *check.C) {
 
 // Test case for #23498
 func (s *DockerSuite) TestCreateUnsetEntrypoint(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "test-entrypoint"
 	dockerfile := `FROM busybox
 ADD entrypoint.sh /entrypoint.sh
