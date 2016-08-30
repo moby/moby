@@ -10,6 +10,6 @@ func (r *checkpointRouter) initRoutes() {
 	r.routes = []router.Route{
 		router.NewGetRoute("/containers/{name:.*}/checkpoints", r.getContainerCheckpoints),
 		router.NewPostRoute("/containers/{name:.*}/checkpoints", r.postContainerCheckpoint),
-		router.NewDeleteRoute("/containers/{name:.*}/checkpoints/{checkpoint:.*}", r.deleteContainerCheckpoint),
+		router.NewDeleteRoute("/containers/{name}/checkpoints/{checkpoint}", r.deleteContainerCheckpoint),
 	}
 }

@@ -398,18 +398,23 @@ func loadDaemonCliConfig(opts daemonOptions) (*daemon.Config, error) {
 func initRouter(s *apiserver.Server, d *daemon.Daemon, c *cluster.Cluster) {
 	decoder := runconfig.ContainerDecoder{}
 
-	routers := []router.Router{
+	routers := []router.Router{}
+
+	// we need to add the checkpoint router before the container router or the DELETE gets masked
+	routers = addExperimentalRouters(routers, d, decoder)
+
+	routers = append(routers, []router.Router{
 		container.NewRouter(d, decoder),
 		image.NewRouter(d, decoder),
 		systemrouter.NewRouter(d, c),
 		volume.NewRouter(d),
 		build.NewRouter(dockerfile.NewBuildManager(d)),
 		swarmrouter.NewRouter(c),
-	}
+	}...)
+
 	if d.NetworkControllerEnabled() {
 		routers = append(routers, network.NewRouter(d, c))
 	}
-	routers = addExperimentalRouters(routers, d, decoder)
 
 	s.InitRouter(utils.IsDebugEnabled(), routers...)
 }
