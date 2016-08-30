@@ -349,17 +349,15 @@ func (s *DockerDaemonSuite) TestDaemonIptablesCreate(c *check.C) {
 
 // TestDaemonIPv6Enabled checks that when the daemon is started with --ipv6=true that the docker0 bridge
 // has the fe80::1 address and that a container is assigned a link-local address
-func (s *DockerSuite) TestDaemonIPv6Enabled(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonIPv6Enabled(c *check.C) {
 	testRequires(c, IPv6)
 
 	setupV6(c)
 	defer teardownV6(c)
-	d := NewDaemon(c)
 
-	if err := d.StartWithBusybox("--ipv6"); err != nil {
+	if err := s.d.StartWithBusybox("--ipv6"); err != nil {
 		c.Fatal(err)
 	}
-	defer d.Stop()
 
 	iface, err := net.InterfaceByName("docker0")
 	if err != nil {
@@ -385,11 +383,11 @@ func (s *DockerSuite) TestDaemonIPv6Enabled(c *check.C) {
 		c.Fatalf("Bridge does not have an IPv6 Address")
 	}
 
-	if out, err := d.Cmd("run", "-itd", "--name=ipv6test", "busybox:latest"); err != nil {
+	if out, err := s.d.Cmd("run", "-itd", "--name=ipv6test", "busybox:latest"); err != nil {
 		c.Fatalf("Could not run container: %s, %v", out, err)
 	}
 
-	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.LinkLocalIPv6Address}}'", "ipv6test")
+	out, err := s.d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.LinkLocalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
 	if err != nil {
@@ -400,7 +398,7 @@ func (s *DockerSuite) TestDaemonIPv6Enabled(c *check.C) {
 		c.Fatalf("Container should have a link-local IPv6 address")
 	}
 
-	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
+	out, err = s.d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
 	if err != nil {
@@ -890,19 +888,16 @@ func (s *DockerDaemonSuite) TestDaemonDefaultNetworkInvalidClusterConfig(c *chec
 	defaultNetworkBridge := "docker0"
 	deleteInterface(c, defaultNetworkBridge)
 
-	d := NewDaemon(c)
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
-	err := d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend))
+	err := s.d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend))
 	c.Assert(err, checker.IsNil)
 
 	// Start daemon with docker0 bridge
 	result := icmd.RunCommand("ifconfig", defaultNetworkBridge)
 	c.Assert(result, icmd.Matches, icmd.Success)
 
-	err = d.Restart(fmt.Sprintf("--cluster-store=%s", discoveryBackend))
+	err = s.d.Restart(fmt.Sprintf("--cluster-store=%s", discoveryBackend))
 	c.Assert(err, checker.IsNil)
-
-	d.Stop()
 }
 
 func (s *DockerDaemonSuite) TestDaemonIP(c *check.C) {
@@ -1948,9 +1943,7 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *check.C) {
 
 // Test daemon restart with container links + auto restart
 func (s *DockerDaemonSuite) TestDaemonRestartContainerLinksRestart(c *check.C) {
-	d := NewDaemon(c)
-	defer d.Stop()
-	err := d.StartWithBusybox()
+	err := s.d.StartWithBusybox()
 	c.Assert(err, checker.IsNil)
 
 	parent1Args := []string{}
@@ -1970,7 +1963,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartContainerLinksRestart(c *check.C) {
 		}
 
 		go func() {
-			_, err = d.Cmd("run", "-d", "--name", name, "--restart=always", "busybox", "top")
+			_, err = s.d.Cmd("run", "-d", "--name", name, "--restart=always", "busybox", "top")
 			chErr <- err
 			wg.Done()
 		}()
@@ -1987,24 +1980,24 @@ func (s *DockerDaemonSuite) TestDaemonRestartContainerLinksRestart(c *check.C) {
 	parent2Args = append([]string{"run", "-d"}, parent2Args...)
 	parent2Args = append(parent2Args, []string{"--name=parent2", "--restart=always", "busybox", "top"}...)
 
-	_, err = d.Cmd(parent1Args...)
+	_, err = s.d.Cmd(parent1Args...)
 	c.Assert(err, check.IsNil)
-	_, err = d.Cmd(parent2Args...)
+	_, err = s.d.Cmd(parent2Args...)
 	c.Assert(err, check.IsNil)
 
-	err = d.Stop()
+	err = s.d.Stop()
 	c.Assert(err, check.IsNil)
 	// clear the log file -- we don't need any of it but may for the next part
 	// can ignore the error here, this is just a cleanup
-	os.Truncate(d.LogFileName(), 0)
-	err = d.Start()
+	os.Truncate(s.d.LogFileName(), 0)
+	err = s.d.Start()
 	c.Assert(err, check.IsNil)
 
 	for _, num := range []string{"1", "2"} {
-		out, err := d.Cmd("inspect", "-f", "{{ .State.Running }}", "parent"+num)
+		out, err := s.d.Cmd("inspect", "-f", "{{ .State.Running }}", "parent"+num)
 		c.Assert(err, check.IsNil)
 		if strings.TrimSpace(out) != "true" {
-			log, _ := ioutil.ReadFile(d.LogFileName())
+			log, _ := ioutil.ReadFile(s.d.LogFileName())
 			c.Fatalf("parent container is not running\n%s", string(log))
 		}
 	}
@@ -2299,7 +2292,6 @@ func (s *DockerDaemonSuite) TestRunLinksChanged(c *check.C) {
 
 func (s *DockerDaemonSuite) TestDaemonStartWithoutColors(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotPpc64le)
-	newD := NewDaemon(c)
 
 	infoLog := "\x1b[34mINFO\x1b"
 
@@ -2314,21 +2306,20 @@ func (s *DockerDaemonSuite) TestDaemonStartWithoutColors(c *check.C) {
 	go io.Copy(b, p)
 
 	// Enable coloring explicitly
-	newD.StartWithLogFile(tty, "--raw-logs=false")
-	newD.Stop()
+	s.d.StartWithLogFile(tty, "--raw-logs=false")
+	s.d.Stop()
 	c.Assert(b.String(), checker.Contains, infoLog)
 
 	b.Reset()
 
 	// Disable coloring explicitly
-	newD.StartWithLogFile(tty, "--raw-logs=true")
-	newD.Stop()
+	s.d.StartWithLogFile(tty, "--raw-logs=true")
+	s.d.Stop()
 	c.Assert(b.String(), check.Not(checker.Contains), infoLog)
 }
 
 func (s *DockerDaemonSuite) TestDaemonDebugLog(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotPpc64le)
-	newD := NewDaemon(c)
 
 	debugLog := "\x1b[37mDEBU\x1b"
 
@@ -2342,12 +2333,12 @@ func (s *DockerDaemonSuite) TestDaemonDebugLog(c *check.C) {
 	b := bytes.NewBuffer(nil)
 	go io.Copy(b, p)
 
-	newD.StartWithLogFile(tty, "--debug")
-	newD.Stop()
+	s.d.StartWithLogFile(tty, "--debug")
+	s.d.Stop()
 	c.Assert(b.String(), checker.Contains, debugLog)
 }
 
-func (s *DockerSuite) TestDaemonDiscoveryBackendConfigReload(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonDiscoveryBackendConfigReload(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	// daemon config file
@@ -2363,12 +2354,10 @@ func (s *DockerSuite) TestDaemonDiscoveryBackendConfigReload(c *check.C) {
 	_, err = configFile.Write([]byte(daemonConfig))
 	c.Assert(err, checker.IsNil)
 
-	d := NewDaemon(c)
 	// --log-level needs to be set so that d.Start() doesn't add --debug causing
 	// a conflict with the config
-	err = d.Start("--config-file", configFilePath, "--log-level=info")
+	err = s.d.Start("--config-file", configFilePath, "--log-level=info")
 	c.Assert(err, checker.IsNil)
-	defer d.Stop()
 
 	// daemon config file
 	daemonConfig = `{
@@ -2385,10 +2374,10 @@ func (s *DockerSuite) TestDaemonDiscoveryBackendConfigReload(c *check.C) {
 	_, err = configFile.Write([]byte(daemonConfig))
 	c.Assert(err, checker.IsNil)
 
-	err = d.reloadConfig()
+	err = s.d.reloadConfig()
 	c.Assert(err, checker.IsNil, check.Commentf("error reloading daemon config"))
 
-	out, err := d.Cmd("info")
+	out, err := s.d.Cmd("info")
 	c.Assert(err, checker.IsNil)
 
 	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Store: consul://consuladdr:consulport/some/path"))
