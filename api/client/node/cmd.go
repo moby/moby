@@ -28,7 +28,7 @@ func NewNodeCommand(dockerCli *client.DockerCli) *cobra.Command {
 		newListCommand(dockerCli),
 		newPromoteCommand(dockerCli),
 		newRemoveCommand(dockerCli),
-		newPSCommand(dockerCli),
+		newPsCommand(dockerCli),
 		newUpdateCommand(dockerCli),
 	)
 	return cmd

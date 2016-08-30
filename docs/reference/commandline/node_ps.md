@@ -12,9 +12,9 @@ parent = "smn_cli"
 # node ps
 
 ```markdown
-Usage:  docker node ps [OPTIONS] self|NODE
+Usage:  docker node ps [OPTIONS] [NODE]
 
-List tasks running on a node
+List tasks running on a node, defaults to current node.
 
 Options:
   -a, --all            Display all instances

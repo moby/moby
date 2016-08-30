@@ -19,16 +19,21 @@ type psOptions struct {
 	filter    opts.FilterOpt
 }
 
-func newPSCommand(dockerCli *client.DockerCli) *cobra.Command {
+func newPsCommand(dockerCli *client.DockerCli) *cobra.Command {
 	opts := psOptions{filter: opts.NewFilterOpt()}
 
 	cmd := &cobra.Command{
-		Use:   "ps [OPTIONS] self|NODE",
-		Short: "List tasks running on a node",
-		Args:  cli.ExactArgs(1),
+		Use:   "ps [OPTIONS] [NODE]",
+		Short: "List tasks running on a node, defaults to current node",
+		Args:  cli.RequiresRangeArgs(0, 1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			opts.nodeID = args[0]
-			return runPS(dockerCli, opts)
+			opts.nodeID = "self"
+
+			if len(args) != 0 {
+				opts.nodeID = args[0]
+			}
+
+			return runPs(dockerCli, opts)
 		},
 	}
 	flags := cmd.Flags()
@@ -39,7 +44,7 @@ func newPSCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func runPS(dockerCli *client.DockerCli, opts psOptions) error {
+func runPs(dockerCli *client.DockerCli, opts psOptions) error {
 	client := dockerCli.Client()
 	ctx := context.Background()
 
