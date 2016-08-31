@@ -599,13 +599,7 @@ func configureMaxThreads(config *Config) error {
 // configureKernelSecuritySupport configures and validates security support for the kernel
 func configureKernelSecuritySupport(config *Config, driverName string) error {
 	if config.EnableSelinuxSupport {
-		if selinuxEnabled() {
-			// As Docker on overlayFS and SELinux are incompatible at present, error on overlayfs being enabled
-			if driverName == "overlay" {
-				return fmt.Errorf("SELinux is not supported with the %s graph driver", driverName)
-			}
-			logrus.Debug("SELinux enabled successfully")
-		} else {
+		if !selinuxEnabled() {
 			logrus.Warn("Docker could not enable SELinux on the host system")
 		}
 	} else {
