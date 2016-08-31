@@ -537,7 +537,7 @@ built-in network drivers. For example:
 You can inspect it, add containers to and from it, and so forth. Of course,
 different plugins may make use of different technologies or frameworks. Custom
 networks can include features not present in Docker's default networks. For more
-information on writing plugins, see [Extending Docker](../../extend/plugins.md) and
+information on writing plugins, see [Extending Docker](../../extend/legacy_plugins.md) and
 [Writing a network driver plugin](../../extend/plugins_network.md).
 
 ### Docker embedded DNS server
