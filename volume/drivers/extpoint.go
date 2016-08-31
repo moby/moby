@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/pkg/locker"
-	"github.com/docker/docker/plugin"
+	pluginStore "github.com/docker/docker/plugin/store"
 	"github.com/docker/docker/volume"
 )
 
@@ -102,7 +102,7 @@ func lookup(name string) (volume.Driver, error) {
 		return ext, nil
 	}
 
-	p, err := plugin.LookupWithCapability(name, extName)
+	p, err := pluginStore.LookupWithCapability(name, extName)
 	if err != nil {
 		return nil, fmt.Errorf("Error looking up volume plugin %s: %v", name, err)
 	}
@@ -151,7 +151,7 @@ func GetDriverList() []string {
 
 // GetAllDrivers lists all the registered drivers
 func GetAllDrivers() ([]volume.Driver, error) {
-	plugins, err := plugin.FindWithCapability(extName)
+	plugins, err := pluginStore.FindWithCapability(extName)
 	if err != nil {
 		return nil, fmt.Errorf("error listing plugins: %v", err)
 	}

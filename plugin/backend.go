@@ -15,39 +15,40 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/plugin/distribution"
+	"github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 )
 
 // Disable deactivates a plugin, which implies that they cannot be used by containers.
 func (pm *Manager) Disable(name string) error {
-	p, err := pm.get(name)
+	p, err := pm.pluginStore.GetByName(name)
 	if err != nil {
 		return err
 	}
 	if err := pm.disable(p); err != nil {
 		return err
 	}
-	pm.pluginEventLogger(p.PluginObj.ID, name, "disable")
+	pm.pluginEventLogger(p.GetID(), name, "disable")
 	return nil
 }
 
 // Enable activates a plugin, which implies that they are ready to be used by containers.
 func (pm *Manager) Enable(name string) error {
-	p, err := pm.get(name)
+	p, err := pm.pluginStore.GetByName(name)
 	if err != nil {
 		return err
 	}
 	if err := pm.enable(p, false); err != nil {
 		return err
 	}
-	pm.pluginEventLogger(p.PluginObj.ID, name, "enable")
+	pm.pluginEventLogger(p.GetID(), name, "enable")
 	return nil
 }
 
 // Inspect examines a plugin manifest
 func (pm *Manager) Inspect(name string) (tp types.Plugin, err error) {
-	p, err := pm.get(name)
+	p, err := pm.pluginStore.GetByName(name)
 	if err != nil {
 		return tp, err
 	}
@@ -63,7 +64,7 @@ func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.A
 	}
 	name = ref.String()
 
-	if p, _ := pm.get(name); p != nil {
+	if p, _ := pm.pluginStore.GetByName(name); p != nil {
 		logrus.Debugf("plugin already exists")
 		return nil, fmt.Errorf("%s exists", name)
 	}
@@ -86,25 +87,25 @@ func (pm *Manager) Pull(name string, metaHeader http.Header, authConfig *types.A
 		return nil, err
 	}
 
-	p := pm.newPlugin(ref, pluginID)
-	if err := pm.initPlugin(p); err != nil {
+	var tag string
+	if ref, ok := ref.(reference.NamedTagged); ok {
+		tag = ref.Tag()
+	}
+	p := v2.NewPlugin(ref.Name(), pluginID, pm.runRoot, tag)
+	if err := p.InitPlugin(pm.libRoot); err != nil {
 		return nil, err
 	}
-
-	pm.Lock()
-	pm.plugins[pluginID] = p
-	pm.nameToID[name] = pluginID
-	pm.save()
-	pm.Unlock()
+	pm.pluginStore.Add(p)
 
 	pm.pluginEventLogger(pluginID, name, "pull")
-	return computePrivileges(&p.PluginObj.Manifest), nil
+	return p.ComputePrivileges(), nil
 }
 
 // List displays the list of plugins and associated metadata.
 func (pm *Manager) List() ([]types.Plugin, error) {
-	out := make([]types.Plugin, 0, len(pm.plugins))
-	for _, p := range pm.plugins {
+	plugins := pm.pluginStore.GetAll()
+	out := make([]types.Plugin, 0, len(plugins))
+	for _, p := range plugins {
 		out = append(out, p.PluginObj)
 	}
 	return out, nil
@@ -112,11 +113,11 @@ func (pm *Manager) List() ([]types.Plugin, error) {
 
 // Push pushes a plugin to the store.
 func (pm *Manager) Push(name string, metaHeader http.Header, authConfig *types.AuthConfig) error {
-	p, err := pm.get(name)
+	p, err := pm.pluginStore.GetByName(name)
 	if err != nil {
 		return err
 	}
-	dest := filepath.Join(pm.libRoot, p.PluginObj.ID)
+	dest := filepath.Join(pm.libRoot, p.GetID())
 	config, err := ioutil.ReadFile(filepath.Join(dest, "manifest.json"))
 	if err != nil {
 		return err
@@ -142,22 +143,28 @@ func (pm *Manager) Push(name string, metaHeader http.Header, authConfig *types.A
 
 // Remove deletes plugin's root directory.
 func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
-	p, err := pm.get(name)
+	p, err := pm.pluginStore.GetByName(name)
 	if err != nil {
 		return err
 	}
-	if err := pm.remove(p, config.ForceRemove); err != nil {
-		return err
+	if p.IsEnabled() {
+		if !config.ForceRemove {
+			return fmt.Errorf("plugin %s is enabled", p.Name())
+		}
+		if err := pm.disable(p); err != nil {
+			logrus.Errorf("failed to disable plugin '%s': %s", p.Name(), err)
+		}
 	}
-	pm.pluginEventLogger(p.PluginObj.ID, name, "remove")
+	pm.pluginStore.Remove(p)
+	pm.pluginEventLogger(p.GetID(), name, "remove")
 	return nil
 }
 
 // Set sets plugin args
 func (pm *Manager) Set(name string, args []string) error {
-	p, err := pm.get(name)
+	p, err := pm.pluginStore.GetByName(name)
 	if err != nil {
 		return err
 	}
-	return pm.set(p, args)
+	return p.Set(args)
 }
