@@ -467,11 +467,13 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 	}
 
 	var advertiseAddr string
-	advertiseHost, advertisePort, err := c.resolveAdvertiseAddr(req.AdvertiseAddr, listenPort)
-	// For joining, we don't need to provide an advertise address,
-	// since the remote side can detect it.
-	if err == nil {
-		advertiseAddr = net.JoinHostPort(advertiseHost, advertisePort)
+	if req.AdvertiseAddr != "" {
+		advertiseHost, advertisePort, err := c.resolveAdvertiseAddr(req.AdvertiseAddr, listenPort)
+		// For joining, we don't need to provide an advertise address,
+		// since the remote side can detect it.
+		if err == nil {
+			advertiseAddr = net.JoinHostPort(advertiseHost, advertisePort)
+		}
 	}
 
 	// todo: check current state existing
