@@ -18,6 +18,18 @@ func TestDiscoveryOpts(t *testing.T) {
 		t.Fatalf("discovery.ttl == discovery.heartbeat must fail")
 	}
 
+	clusterOpts = map[string]string{"discovery.heartbeat": "-10", "discovery.ttl": "10"}
+	heartbeat, ttl, err = discoveryOpts(clusterOpts)
+	if err == nil {
+		t.Fatalf("negative discovery.heartbeat must fail")
+	}
+
+	clusterOpts = map[string]string{"discovery.heartbeat": "10", "discovery.ttl": "-10"}
+	heartbeat, ttl, err = discoveryOpts(clusterOpts)
+	if err == nil {
+		t.Fatalf("negative discovery.ttl must fail")
+	}
+
 	clusterOpts = map[string]string{"discovery.heartbeat": "invalid"}
 	heartbeat, ttl, err = discoveryOpts(clusterOpts)
 	if err == nil {
