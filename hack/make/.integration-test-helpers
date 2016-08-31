@@ -24,6 +24,9 @@ go_test_dir() {
 	testcoverprofile=()
 	testbinary="$ABS_DEST/integration.test"
 
+    # TODO: remove
+    PROFILE_TEST_SUITE=1
+
     if [ "$PROFILE_TEST_SUITE" ]; then
         cpuprof="$ABS_DEST/cpu.prof"
         blockprof="$ABS_DEST/block.prof"
