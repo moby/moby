@@ -343,7 +343,7 @@ func (d *dnetConnection) UpdateAttachment(string, string, *network.NetworkingCon
 	return nil
 }
 
-func (d *dnetConnection) WaitForDetachment(context.Context, string, string, string) error {
+func (d *dnetConnection) WaitForDetachment(context.Context, string, string, string, string) error {
 	return nil
 }
 

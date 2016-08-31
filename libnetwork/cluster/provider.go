@@ -16,5 +16,5 @@ type Provider interface {
 	AttachNetwork(string, string, []string) (*network.NetworkingConfig, error)
 	DetachNetwork(string, string) error
 	UpdateAttachment(string, string, *network.NetworkingConfig) error
-	WaitForDetachment(context.Context, string, string, string) error
+	WaitForDetachment(context.Context, string, string, string, string) error
 }
