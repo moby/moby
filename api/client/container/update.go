@@ -46,7 +46,6 @@ func NewUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 			return runUpdate(dockerCli, &opts)
 		},
 	}
-	cmd.SetFlagErrorFunc(flagErrorFunc)
 
 	flags := cmd.Flags()
 	flags.Uint16Var(&opts.blkioWeight, "blkio-weight", 0, "Block IO (relative weight), between 10 and 1000")
