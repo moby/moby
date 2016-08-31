@@ -59,6 +59,7 @@
 
 		people = [
 			"jamtur01",
+			"misty",
 			"moxiegirl",
 			"sfsmithcha",
 			"sven",
@@ -252,6 +253,11 @@
 	Name = "Morgan Bauer"
 	Email = "mbauer@us.ibm.com"
 	GitHub = "mhbauer"
+
+	[people.misty]
+	Name = "Misty Stanley-Jones"
+	Email = "misty@docker.com"
+	GitHub = "mstanleyjones"
 
 	[people.mlaventure]
 	Name = "Kenfe-Mickaël Laventure"
