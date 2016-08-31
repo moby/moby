@@ -52,7 +52,7 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 		if os.IsNotExist(err) {
 			return l.legacyLoad(tmpDir, outStream, progressOutput)
 		}
-		return manifestFile.Close()
+		return err
 	}
 	defer manifestFile.Close()
 
@@ -230,10 +230,7 @@ func (l *tarexporter) legacyLoad(tmpDir string, outStream io.Writer, progressOut
 	}
 	repositoriesFile, err := os.Open(repositoriesPath)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-		return repositoriesFile.Close()
+		return err
 	}
 	defer repositoriesFile.Close()
 
