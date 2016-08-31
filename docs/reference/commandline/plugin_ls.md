@@ -12,7 +12,7 @@ parent = "smn_cli"
 # plugin ls (experimental)
 
 ```markdown
-Usage:  docker plugin ls
+Usage:  docker plugin ls [OPTIONS]
 
 List plugins
 

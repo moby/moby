@@ -11,7 +11,7 @@ parent = "smn_cli"
 # info
 
 ```markdown
-Usage:  docker info
+Usage:  docker info [OPTIONS]
 
 Display system-wide information
 
