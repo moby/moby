@@ -211,7 +211,7 @@ $ docker run -d -P \
 ```
 
 A list of available plugins, including volume plugins, is available
-[here](../extend/plugins.md).
+[here](../extend/legacy_plugins.md).
 
 ### Volume labels
 
