@@ -135,13 +135,21 @@ func runUpdate(dockerCli *client.DockerCli, opts *updateOptions) error {
 
 	ctx := context.Background()
 
-	var errs []string
+	var (
+		warns []string
+		errs  []string
+	)
 	for _, container := range opts.containers {
-		if err := dockerCli.Client().ContainerUpdate(ctx, container, updateConfig); err != nil {
+		r, err := dockerCli.Client().ContainerUpdate(ctx, container, updateConfig)
+		if err != nil {
 			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(dockerCli.Out(), "%s\n", container)
 		}
+		warns = append(warns, r.Warnings...)
+	}
+	if len(warns) > 0 {
+		fmt.Fprintf(dockerCli.Out(), "%s", strings.Join(warns, "\n"))
 	}
 	if len(errs) > 0 {
 		return fmt.Errorf("%s", strings.Join(errs, "\n"))

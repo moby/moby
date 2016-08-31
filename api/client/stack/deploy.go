@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/api/client/bundlefile"
 	"github.com/docker/docker/cli"
 	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/network"
 	"github.com/docker/engine-api/types/swarm"
 )
 
@@ -105,8 +104,6 @@ func updateNetworks(
 	createOpts := types.NetworkCreate{
 		Labels: getStackLabels(namespace, nil),
 		Driver: defaultNetworkDriver,
-		// TODO: remove when engine-api uses omitempty for IPAM
-		IPAM: network.IPAM{Driver: "default"},
 	}
 
 	for _, internalName := range networks {

@@ -51,10 +51,11 @@ type Task struct {
 
 // TaskSpec represents the spec of a task.
 type TaskSpec struct {
-	ContainerSpec ContainerSpec         `json:",omitempty"`
-	Resources     *ResourceRequirements `json:",omitempty"`
-	RestartPolicy *RestartPolicy        `json:",omitempty"`
-	Placement     *Placement            `json:",omitempty"`
+	ContainerSpec ContainerSpec             `json:",omitempty"`
+	Resources     *ResourceRequirements     `json:",omitempty"`
+	RestartPolicy *RestartPolicy            `json:",omitempty"`
+	Placement     *Placement                `json:",omitempty"`
+	Networks      []NetworkAttachmentConfig `json:",omitempty"`
 
 	// LogDriver specifies the LogDriver to use for tasks created from this
 	// spec. If not present, the one on cluster default on swarm.Spec will be

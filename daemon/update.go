@@ -3,23 +3,24 @@ package daemon
 import (
 	"fmt"
 
+	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 )
 
 // ContainerUpdate updates configuration of the container
-func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig, validateHostname bool) ([]string, error) {
+func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig, validateHostname bool) (types.ContainerUpdateResponse, error) {
 	var warnings []string
 
 	warnings, err := daemon.verifyContainerSettings(hostConfig, nil, true, validateHostname)
 	if err != nil {
-		return warnings, err
+		return types.ContainerUpdateResponse{Warnings: warnings}, err
 	}
 
 	if err := daemon.update(name, hostConfig); err != nil {
-		return warnings, err
+		return types.ContainerUpdateResponse{Warnings: warnings}, err
 	}
 
-	return warnings, nil
+	return types.ContainerUpdateResponse{Warnings: warnings}, nil
 }
 
 // ContainerUpdateCmdOnBuild updates Path and Args for the container with ID cID.

@@ -67,7 +67,7 @@ var defaultSpec = types.Spec{
 		NodeCertExpiry: 90 * 24 * time.Hour,
 	},
 	Dispatcher: types.DispatcherConfig{
-		HeartbeatPeriod: uint64((5 * time.Second).Nanoseconds()),
+		HeartbeatPeriod: 5 * time.Second,
 	},
 	Orchestration: types.OrchestrationConfig{
 		TaskHistoryRetentionLimit: 10,

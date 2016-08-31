@@ -17,9 +17,13 @@ type ServiceSpec struct {
 
 	// TaskTemplate defines how the service should construct new tasks when
 	// orchestrating this service.
-	TaskTemplate TaskSpec                  `json:",omitempty"`
-	Mode         ServiceMode               `json:",omitempty"`
-	UpdateConfig *UpdateConfig             `json:",omitempty"`
+	TaskTemplate TaskSpec      `json:",omitempty"`
+	Mode         ServiceMode   `json:",omitempty"`
+	UpdateConfig *UpdateConfig `json:",omitempty"`
+
+	// Networks field in ServiceSpec is being deprecated. Users of
+	// engine-api should start using the same field in
+	// TaskSpec. This field will be removed in future releases.
 	Networks     []NetworkAttachmentConfig `json:",omitempty"`
 	EndpointSpec *EndpointSpec             `json:",omitempty"`
 }

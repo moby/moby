@@ -94,7 +94,7 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 
 	options := types.NetworkCreate{
 		Driver: na.Network.DriverState.Name,
-		IPAM: network.IPAM{
+		IPAM: &network.IPAM{
 			Driver: na.Network.IPAM.Driver.Name,
 		},
 		Options:        na.Network.DriverState.Options,

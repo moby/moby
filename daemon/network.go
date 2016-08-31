@@ -234,18 +234,21 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 		driver = c.Config().Daemon.DefaultDriver
 	}
 
-	ipam := create.IPAM
-	v4Conf, v6Conf, err := getIpamConfig(ipam.Config)
-	if err != nil {
-		return nil, err
-	}
-
 	nwOptions := []libnetwork.NetworkOption{
-		libnetwork.NetworkOptionIpam(ipam.Driver, "", v4Conf, v6Conf, ipam.Options),
 		libnetwork.NetworkOptionEnableIPv6(create.EnableIPv6),
 		libnetwork.NetworkOptionDriverOpts(create.Options),
 		libnetwork.NetworkOptionLabels(create.Labels),
 	}
+
+	if create.IPAM != nil {
+		ipam := create.IPAM
+		v4Conf, v6Conf, err := getIpamConfig(ipam.Config)
+		if err != nil {
+			return nil, err
+		}
+		nwOptions = append(nwOptions, libnetwork.NetworkOptionIpam(ipam.Driver, "", v4Conf, v6Conf, ipam.Options))
+	}
+
 	if create.Internal {
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionInternalNetwork())
 	}

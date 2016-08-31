@@ -23,8 +23,8 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 					SnapshotInterval:           c.Spec.Raft.SnapshotInterval,
 					KeepOldSnapshots:           c.Spec.Raft.KeepOldSnapshots,
 					LogEntriesForSlowFollowers: c.Spec.Raft.LogEntriesForSlowFollowers,
-					HeartbeatTick:              c.Spec.Raft.HeartbeatTick,
-					ElectionTick:               c.Spec.Raft.ElectionTick,
+					HeartbeatTick:              int(c.Spec.Raft.HeartbeatTick),
+					ElectionTick:               int(c.Spec.Raft.ElectionTick),
 				},
 			},
 		},
@@ -35,7 +35,7 @@ func SwarmFromGRPC(c swarmapi.Cluster) types.Swarm {
 	}
 
 	heartbeatPeriod, _ := ptypes.Duration(c.Spec.Dispatcher.HeartbeatPeriod)
-	swarm.Spec.Dispatcher.HeartbeatPeriod = uint64(heartbeatPeriod)
+	swarm.Spec.Dispatcher.HeartbeatPeriod = heartbeatPeriod
 
 	swarm.Spec.CAConfig.NodeCertExpiry, _ = ptypes.Duration(c.Spec.CAConfig.NodeCertExpiry)
 
@@ -73,8 +73,8 @@ func SwarmSpecToGRPC(s types.Spec) (swarmapi.ClusterSpec, error) {
 			SnapshotInterval:           s.Raft.SnapshotInterval,
 			KeepOldSnapshots:           s.Raft.KeepOldSnapshots,
 			LogEntriesForSlowFollowers: s.Raft.LogEntriesForSlowFollowers,
-			HeartbeatTick:              s.Raft.HeartbeatTick,
-			ElectionTick:               s.Raft.ElectionTick,
+			HeartbeatTick:              uint32(s.Raft.HeartbeatTick),
+			ElectionTick:               uint32(s.Raft.ElectionTick),
 		},
 		Dispatcher: swarmapi.DispatcherConfig{
 			HeartbeatPeriod: ptypes.DurationProto(time.Duration(s.Dispatcher.HeartbeatPeriod)),

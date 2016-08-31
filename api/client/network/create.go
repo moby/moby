@@ -79,7 +79,7 @@ func runCreate(dockerCli *client.DockerCli, opts createOptions) error {
 	nc := types.NetworkCreate{
 		Driver:  opts.driver,
 		Options: opts.driverOpts.GetAll(),
-		IPAM: network.IPAM{
+		IPAM: &network.IPAM{
 			Driver:  opts.ipamDriver,
 			Config:  ipamCfg,
 			Options: opts.ipamOpt.GetAll(),
