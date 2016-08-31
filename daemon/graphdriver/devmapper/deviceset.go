@@ -122,6 +122,7 @@ type DeviceSet struct {
 	uidMaps               []idtools.IDMap
 	gidMaps               []idtools.IDMap
 	minFreeSpacePercent   uint32 //min free space percentage in thinpool
+	xfsNospaceRetries     string // max retries when xfs receives ENOSPC
 }
 
 // DiskUsage contains information about disk usage and is used when reporting Status of a device.
@@ -2308,6 +2309,38 @@ func (devices *DeviceSet) Shutdown(home string) error {
 	return nil
 }
 
+// Recent XFS changes allow changing behavior of filesystem in case of errors.
+// When thin pool gets full and XFS gets ENOSPC error, currently it tries
+// IO infinitely and sometimes it can block the container process
+// and process can't be killWith 0 value, XFS will not retry upon error
+// and instead will shutdown filesystem.
+
+func (devices *DeviceSet) xfsSetNospaceRetries(info *devInfo) error {
+	dmDevicePath, err := os.Readlink(info.DevName())
+	if err != nil {
+		return fmt.Errorf("devmapper: readlink failed for device %v:%v", info.DevName(), err)
+	}
+
+	dmDeviceName := path.Base(dmDevicePath)
+	filePath := "/sys/fs/xfs/" + dmDeviceName + "/error/metadata/ENOSPC/max_retries"
+	maxRetriesFile, err := os.OpenFile(filePath, os.O_WRONLY, 0)
+	if err != nil {
+		// Older kernels don't have this feature/file
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("devmapper: Failed to open file %v:%v", filePath, err)
+	}
+	defer maxRetriesFile.Close()
+
+	// Set max retries to 0
+	_, err = maxRetriesFile.WriteString(devices.xfsNospaceRetries)
+	if err != nil {
+		return fmt.Errorf("devmapper: Failed to write string %v to file %v:%v", devices.xfsNospaceRetries, filePath, err)
+	}
+	return nil
+}
+
 // MountDevice mounts the device if not already mounted.
 func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 	info, err := devices.lookupDeviceWithLock(hash)
@@ -2346,6 +2379,12 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 
 	if err := mount.Mount(info.DevName(), path, fstype, options); err != nil {
 		return fmt.Errorf("devmapper: Error mounting '%s' on '%s': %s", info.DevName(), path, err)
+	}
+
+	if fstype == "xfs" && devices.xfsNospaceRetries != "" {
+		if err := devices.xfsSetNospaceRetries(info); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -2668,6 +2707,12 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 			}
 
 			devices.minFreeSpacePercent = uint32(minFreeSpacePercent)
+		case "dm.xfs_nospace_max_retries":
+			_, err := strconv.ParseUint(val, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			devices.xfsNospaceRetries = val
 		default:
 			return nil, fmt.Errorf("devmapper: Unknown option %s\n", key)
 		}
