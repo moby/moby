@@ -203,7 +203,7 @@ The following example also creates the `my-named-volume` volume, this time
 using the `docker volume create` command.
 
 ```bash
-$ docker volume create -d flocker my-named-volume -o size=20GB
+$ docker volume create -d flocker -o size=20GB my-named-volume
 
 $ docker run -d -P \
   -v my-named-volume:/opt/webapp \
