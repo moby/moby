@@ -308,8 +308,13 @@ RUN echo 2 #layer2
 }
 
 func (*DockerSuite) TestRmiParentImageFail(c *check.C) {
-	parent := inspectField(c, "busybox", "Parent")
-	out, _, err := dockerCmdWithError("rmi", parent)
+	_, err := buildImage("test", `
+	FROM busybox
+	RUN echo hello`, false)
+	c.Assert(err, checker.IsNil)
+
+	id := inspectField(c, "busybox", "ID")
+	out, _, err := dockerCmdWithError("rmi", id)
 	c.Assert(err, check.NotNil)
 	if !strings.Contains(out, "image has dependent child images") {
 		c.Fatalf("rmi should have failed because it's a parent image, got %s", out)

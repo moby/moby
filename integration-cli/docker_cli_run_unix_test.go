@@ -1019,6 +1019,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
 // with a the default seccomp profile exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyCloneUserns(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled)
+	ensureSyscallTest(c)
 
 	runCmd := exec.Command(dockerBinary, "run", "syscall-test", "userns-test", "id")
 	out, _, err := runCommandWithOutput(runCmd)
@@ -1031,6 +1032,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyCloneUserns(c *check.C) {
 // 'docker run --security-opt seccomp=unconfined syscall-test' allows creating a userns.
 func (s *DockerSuite) TestRunSeccompUnconfinedCloneUserns(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled, UserNamespaceInKernel, NotUserNamespace, unprivilegedUsernsClone)
+	ensureSyscallTest(c)
 
 	// make sure running w privileged is ok
 	runCmd := exec.Command(dockerBinary, "run", "--security-opt", "seccomp=unconfined", "syscall-test", "userns-test", "id")
@@ -1043,6 +1045,7 @@ func (s *DockerSuite) TestRunSeccompUnconfinedCloneUserns(c *check.C) {
 // allows creating a userns.
 func (s *DockerSuite) TestRunSeccompAllowPrivCloneUserns(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled, UserNamespaceInKernel, NotUserNamespace)
+	ensureSyscallTest(c)
 
 	// make sure running w privileged is ok
 	runCmd := exec.Command(dockerBinary, "run", "--privileged", "syscall-test", "userns-test", "id")
@@ -1055,6 +1058,7 @@ func (s *DockerSuite) TestRunSeccompAllowPrivCloneUserns(c *check.C) {
 // with the default seccomp profile.
 func (s *DockerSuite) TestRunSeccompProfileAllow32Bit(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled, IsAmd64)
+	ensureSyscallTest(c)
 
 	runCmd := exec.Command(dockerBinary, "run", "syscall-test", "exit32-test", "id")
 	if out, _, err := runCommandWithOutput(runCmd); err != nil {
@@ -1075,6 +1079,7 @@ func (s *DockerSuite) TestRunSeccompAllowSetrlimit(c *check.C) {
 
 func (s *DockerSuite) TestRunSeccompDefaultProfileAcct(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled, NotUserNamespace)
+	ensureSyscallTest(c)
 
 	out, _, err := dockerCmdWithError("run", "syscall-test", "acct-test")
 	if err == nil || !strings.Contains(out, "Operation not permitted") {
@@ -1104,6 +1109,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileAcct(c *check.C) {
 
 func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled, NotUserNamespace)
+	ensureSyscallTest(c)
 
 	out, _, err := dockerCmdWithError("run", "syscall-test", "ns-test", "echo", "hello0")
 	if err == nil || !strings.Contains(out, "Operation not permitted") {
@@ -1140,6 +1146,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *check.C) {
 // effective uid transtions on executing setuid binaries.
 func (s *DockerSuite) TestRunNoNewPrivSetuid(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, SameHostDaemon)
+	ensureNNPTest(c)
 
 	// test that running a setuid binary results in no effective uid transition
 	runCmd := exec.Command(dockerBinary, "run", "--security-opt", "no-new-privileges", "--user", "1000", "nnp-test", "/usr/bin/nnp-test")
