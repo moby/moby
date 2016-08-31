@@ -11,7 +11,7 @@ parent = "smn_cli"
 # network create
 
 ```markdown
-Usage:	docker network create [OPTIONS]
+Usage:	docker network create [OPTIONS] NETWORK
 
 Create a network
 
