@@ -12,7 +12,7 @@ parent = "smn_cli"
 # plugin inspect (experimental)
 
 ```markdown
-Usage:  docker plugin inspect PLUGIN
+Usage:  docker plugin inspect [OPTIONS] PLUGIN [PLUGIN...]
 
 Inspect a plugin
 
