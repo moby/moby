@@ -535,8 +535,6 @@ func (s *DockerSuite) TestContainerApiCreateMultipleNetworksConfig(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiCreateWithHostName(c *check.C) {
-	// TODO Windows: Port this test once hostname is supported
-	testRequires(c, DaemonIsLinux)
 	hostName := "test-host"
 	config := map[string]interface{}{
 		"Image":    "busybox",
@@ -560,8 +558,6 @@ func (s *DockerSuite) TestContainerApiCreateWithHostName(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiCreateWithDomainName(c *check.C) {
-	// TODO Windows: Port this test once domain name is supported
-	testRequires(c, DaemonIsLinux)
 	domainName := "test-domain"
 	config := map[string]interface{}{
 		"Image":      "busybox",
@@ -766,9 +762,6 @@ func (s *DockerSuite) TestContainerApiInvalidRestartPolicyPositiveRetryCount(c *
 // Issue 7941 - test to make sure a "null" in JSON is just ignored.
 // W/o this fix a null in JSON would be parsed into a string var as "null"
 func (s *DockerSuite) TestContainerApiPostCreateNull(c *check.C) {
-	// TODO Windows to Windows CI. Bit of this with alternate fields checked
-	// can probably be ported.
-	testRequires(c, DaemonIsLinux)
 	config := `{
 		"Hostname":"",
 		"Domainname":"",
@@ -833,8 +826,6 @@ func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiRename(c *check.C) {
-	// TODO Windows: Debug why this sometimes fails on TP5. For now, leave disabled
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "--name", "TestContainerApiRename", "-d", "busybox", "sh")
 
 	containerID := strings.TrimSpace(out)
@@ -947,8 +938,6 @@ func (s *DockerSuite) TestContainerApiWait(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiCopyNotExistsAnyMore(c *check.C) {
-	// TODO Windows to Windows CI. This can be ported.
-	testRequires(c, DaemonIsLinux)
 	name := "test-container-api-copy"
 	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
 
@@ -962,8 +951,7 @@ func (s *DockerSuite) TestContainerApiCopyNotExistsAnyMore(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiCopyPre124(c *check.C) {
-	// TODO Windows to Windows CI. This can be ported.
-	testRequires(c, DaemonIsLinux)
+
 	name := "test-container-api-copy"
 	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
 
@@ -993,8 +981,6 @@ func (s *DockerSuite) TestContainerApiCopyPre124(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiCopyResourcePathEmptyPr124(c *check.C) {
-	// TODO Windows to Windows CI. This can be ported.
-	testRequires(c, DaemonIsLinux)
 	name := "test-container-api-copy-resource-empty"
 	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test.txt")
 
@@ -1009,8 +995,6 @@ func (s *DockerSuite) TestContainerApiCopyResourcePathEmptyPr124(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiCopyResourcePathNotFoundPre124(c *check.C) {
-	// TODO Windows to Windows CI. This can be ported.
-	testRequires(c, DaemonIsLinux)
 	name := "test-container-api-copy-resource-not-found"
 	dockerCmd(c, "run", "--name", name, "busybox")
 
@@ -1126,9 +1110,6 @@ func (s *DockerSuite) TestContainerApiDeleteRemoveVolume(c *check.C) {
 
 // Regression test for https://github.com/docker/docker/issues/6231
 func (s *DockerSuite) TestContainerApiChunkedEncoding(c *check.C) {
-	// TODO Windows CI: This can be ported
-	testRequires(c, DaemonIsLinux)
-
 	conn, err := sockConn(time.Duration(10*time.Second), "")
 	c.Assert(err, checker.IsNil)
 	client := httputil.NewClientConn(conn, nil)
