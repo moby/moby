@@ -67,13 +67,6 @@ func NewRunCommand(dockerCli *client.DockerCli) *cobra.Command {
 	return cmd
 }
 
-func flagErrorFunc(cmd *cobra.Command, err error) error {
-	return cli.StatusError{
-		Status:     cli.FlagErrorFunc(cmd, err).Error(),
-		StatusCode: 125,
-	}
-}
-
 func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions, copts *runconfigopts.ContainerOptions) error {
 	stdout, stderr, stdin := dockerCli.Out(), dockerCli.Err(), dockerCli.In()
 	client := dockerCli.Client()
