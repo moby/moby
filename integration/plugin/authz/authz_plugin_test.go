@@ -381,7 +381,7 @@ func TestAuthZPluginEnsureLoadImportWorking(t *testing.T) {
 
 func imageSave(client client.APIClient, path, image string) error {
 	ctx := context.Background()
-	responseReader, err := client.ImageSave(ctx, []string{image})
+	responseReader, err := client.ImageSave(ctx, []string{image}, types.ImageSaveOptions{})
 	if err != nil {
 		return err
 	}
@@ -403,7 +403,7 @@ func imageLoad(client client.APIClient, path string) error {
 	defer file.Close()
 	quiet := true
 	ctx := context.Background()
-	response, err := client.ImageLoad(ctx, file, quiet)
+	response, err := client.ImageLoad(ctx, file, types.ImageLoadOptions{Quiet: quiet})
 	if err != nil {
 		return err
 	}

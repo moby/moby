@@ -37,14 +37,27 @@ type saveSession struct {
 }
 
 func (l *tarexporter) Save(names []string, outStream io.Writer) error {
-	images, err := l.parseNames(names)
-	if err != nil {
-		return err
+	switch l.format {
+	case "":
+		images, err := l.parseNames(names)
+		if err != nil {
+			return err
+		}
+		// Release all the image top layer references
+		defer l.releaseLayerReferences(images)
+		return (&saveSession{tarexporter: l, images: images}).save(outStream)
+	case "oci.v1":
+		if !l.experimental {
+			return fmt.Errorf("saving to OCI format is experimental, please run the daemon with --experimental")
+		}
+		images, err := l.parseOCINames(names)
+		if err != nil {
+			return err
+		}
+		defer l.releaseLayerReferences(images)
+		return (&ociSaveSession{tarexporter: l, images: images}).save(outStream)
 	}
-
-	// Release all the image top layer references
-	defer l.releaseLayerReferences(images)
-	return (&saveSession{tarexporter: l, images: images}).save(outStream)
+	return fmt.Errorf("format %q unsupported", l.format)
 }
 
 // parseNames will parse the image names to a map which contains image.ID to *imageDescriptor.
@@ -184,7 +197,6 @@ func (s *saveSession) save(outStream io.Writer) error {
 	s.savedLayers = make(map[string]struct{})
 	s.diffIDPaths = make(map[layer.DiffID]string)
 
-	// get image json
 	tempDir, err := ioutil.TempDir("", "docker-export-")
 	if err != nil {
 		return err

@@ -43,30 +43,20 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 	if err := chrootarchive.Untar(inTar, tmpDir, nil); err != nil {
 		return err
 	}
-	// read manifest, if no file then load in legacy mode
-	manifestPath, err := safePath(tmpDir, manifestFileName)
+
+	loader, err := l.Loader(tmpDir, outStream, progressOutput)
 	if err != nil {
 		return err
 	}
-	manifestFile, err := os.Open(manifestPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return l.legacyLoad(tmpDir, outStream, progressOutput)
-		}
-		return err
-	}
-	defer manifestFile.Close()
+	return loader.Load()
+}
 
-	var manifest []manifestItem
-	if err := json.NewDecoder(manifestFile).Decode(&manifest); err != nil {
-		return err
-	}
-
+func (l *tarexporter) loadHelper(manifests []manifestItem, outStream io.Writer, progressOutput progress.Output, tmpDir string) error {
 	var parentLinks []parentLink
 	var imageIDsStr string
 	var imageRefCount int
 
-	for _, m := range manifest {
+	for _, m := range manifests {
 		configPath, err := safePath(tmpDir, m.Config)
 		if err != nil {
 			return err
@@ -159,6 +149,57 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 	}
 
 	return nil
+}
+
+func (l *tarexporter) Loader(tmpDir string, outStream io.Writer, progressOutput progress.Output) (loader, error) {
+	// check and try to load an OCI image layout
+	ociLayoutPath, err := safePath(tmpDir, "oci-layout")
+	if err != nil {
+		return nil, err
+	}
+	if _, err := os.Stat(ociLayoutPath); err == nil {
+		if !l.experimental {
+			return nil, fmt.Errorf("loading from OCI format is experimental, please run daemon with --experimental")
+		}
+		return &ociLoader{
+			tr:             l,
+			tmpDir:         tmpDir,
+			outStream:      outStream,
+			progressOutput: progressOutput,
+		}, nil
+	}
+
+	// read manifest, if no file then load in legacy mode
+	manifestPath, err := safePath(tmpDir, manifestFileName)
+	if err != nil {
+		return nil, err
+	}
+	manifestFile, err := os.Open(manifestPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return &v0TarLoader{
+				tr:             l,
+				tmpDir:         tmpDir,
+				outStream:      outStream,
+				progressOutput: progressOutput,
+			}, nil
+		}
+		return nil, err
+	}
+	defer manifestFile.Close()
+
+	var manifest []manifestItem
+	if err := json.NewDecoder(manifestFile).Decode(&manifest); err != nil {
+		return nil, err
+	}
+
+	return &dockerLoader{
+		manifests:      manifest,
+		tr:             l,
+		tmpDir:         tmpDir,
+		outStream:      outStream,
+		progressOutput: progressOutput,
+	}, nil
 }
 
 func (l *tarexporter) setParentID(id, parentID image.ID) error {
