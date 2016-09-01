@@ -165,7 +165,7 @@ inside it)
   See **docker-restart(1)** for full documentation on the **restart** command.
 
 **rm**
-  Remove one or more containers
+  Remove one or more stopped containers
   See **docker-rm(1)** for full documentation on the **rm** command.
 
 **rmi**
