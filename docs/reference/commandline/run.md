@@ -657,7 +657,7 @@ network namespace, run this command:
     $ docker run --sysctl net.ipv4.ip_forward=1 someimage
 
 
-> **Note**: Not all sysctls are namespaced. docker does not support changing sysctls
+> **Note**: Not all sysctls are namespaced. Docker does not support changing sysctls
 > inside of a container that also modify the host system. As the kernel 
 > evolves we expect to see more sysctls become namespaced.
 
