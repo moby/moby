@@ -6,14 +6,18 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/spf13/cobra"
 )
 
 type saveOptions struct {
 	images []string
 	output string
+	format string
+	refs   []string
 }
 
 // NewSaveCommand creates a new `docker save` command
@@ -33,6 +37,8 @@ func NewSaveCommand(dockerCli *command.DockerCli) *cobra.Command {
 	flags := cmd.Flags()
 
 	flags.StringVarP(&opts.output, "output", "o", "", "Write to a file, instead of STDOUT")
+	flags.StringVarP(&opts.format, "format", "f", "", "Specify the format of the output tar archive")
+	flags.StringSliceVar(&opts.refs, "ref", []string{}, "References to use when loading an OCI image layout tar archive")
 
 	return cmd
 }
@@ -42,7 +48,12 @@ func runSave(dockerCli *command.DockerCli, opts saveOptions) error {
 		return errors.New("Cowardly refusing to save to a terminal. Use the -o flag or redirect.")
 	}
 
-	responseBody, err := dockerCli.Client().ImageSave(context.Background(), opts.images)
+	imageSaveOpts := types.ImageSaveOptions{
+		Format: opts.format,
+		Refs:   runconfigopts.ConvertKVStringsToMap(opts.refs),
+	}
+
+	responseBody, err := dockerCli.Client().ImageSave(context.Background(), opts.images, imageSaveOpts)
 	if err != nil {
 		return err
 	}

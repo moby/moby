@@ -137,6 +137,21 @@ func (h *HijackedResponse) CloseWrite() error {
 	return nil
 }
 
+// ImageSaveOptions holds the information
+// necessary to save a set of images.
+type ImageSaveOptions struct {
+	Format string
+	Refs   map[string]string
+}
+
+// ImageLoadOptions holds the information
+// necessary to load a set of images.
+type ImageLoadOptions struct {
+	Quiet bool
+	Name  string
+	Refs  map[string]string
+}
+
 // ImageBuildOptions holds the information
 // necessary to build images.
 type ImageBuildOptions struct {

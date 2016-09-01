@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/docker/docker/api/types"
+
 	"golang.org/x/net/context"
 
 	"strings"
@@ -17,7 +19,7 @@ func TestImageSaveError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ImageSave(context.Background(), []string{"nothing"})
+	_, err := client.ImageSave(context.Background(), []string{"nothing"}, types.ImageSaveOptions{})
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server error, got %v", err)
 	}
@@ -43,7 +45,7 @@ func TestImageSave(t *testing.T) {
 			}, nil
 		}),
 	}
-	saveResponse, err := client.ImageSave(context.Background(), []string{"image_id1", "image_id2"})
+	saveResponse, err := client.ImageSave(context.Background(), []string{"image_id1", "image_id2"}, types.ImageSaveOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

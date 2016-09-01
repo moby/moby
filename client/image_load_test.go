@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types"
+
 	"golang.org/x/net/context"
 )
 
@@ -16,7 +18,7 @@ func TestImageLoadError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
-	_, err := client.ImageLoad(context.Background(), nil, true)
+	_, err := client.ImageLoad(context.Background(), nil, types.ImageLoadOptions{Quiet: true})
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server Error, got %v", err)
 	}
@@ -77,7 +79,7 @@ func TestImageLoad(t *testing.T) {
 		}
 
 		input := bytes.NewReader([]byte(expectedInput))
-		imageLoadResponse, err := client.ImageLoad(context.Background(), input, loadCase.quiet)
+		imageLoadResponse, err := client.ImageLoad(context.Background(), input, types.ImageLoadOptions{Quiet: loadCase.quiet})
 		if err != nil {
 			t.Fatal(err)
 		}
