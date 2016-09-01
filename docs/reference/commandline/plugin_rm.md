@@ -14,7 +14,7 @@ parent = "smn_cli"
 ```markdown
 Usage:  docker plugin rm [OPTIONS] PLUGIN [PLUGIN...]
 
-Remove a plugin
+Remove one or more plugins
 
 Aliases:
   rm, remove
