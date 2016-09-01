@@ -478,7 +478,7 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 	options := types.NetworkCreate{
 		// ID:     na.Network.ID,
 		Driver: na.Network.DriverState.Name,
-		IPAM: network.IPAM{
+		IPAM: &network.IPAM{
 			Driver: na.Network.IPAM.Driver.Name,
 		},
 		Options:        na.Network.DriverState.Options,

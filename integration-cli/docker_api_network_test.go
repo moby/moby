@@ -109,7 +109,7 @@ func (s *DockerSuite) TestApiNetworkInspect(c *check.C) {
 		Name: "br0",
 		NetworkCreate: types.NetworkCreate{
 			Driver:  "bridge",
-			IPAM:    ipam,
+			IPAM:    &ipam,
 			Options: map[string]string{"foo": "bar", "opts": "dopts"},
 		},
 	}
@@ -181,7 +181,7 @@ func (s *DockerSuite) TestApiNetworkIpamMultipleBridgeNetworks(c *check.C) {
 		Name: "test0",
 		NetworkCreate: types.NetworkCreate{
 			Driver: "bridge",
-			IPAM:   ipam0,
+			IPAM:   &ipam0,
 		},
 	}
 	id0 := createNetwork(c, config0, true)
@@ -196,7 +196,7 @@ func (s *DockerSuite) TestApiNetworkIpamMultipleBridgeNetworks(c *check.C) {
 		Name: "test1",
 		NetworkCreate: types.NetworkCreate{
 			Driver: "bridge",
-			IPAM:   ipam1,
+			IPAM:   &ipam1,
 		},
 	}
 	createNetwork(c, config1, false)
@@ -211,7 +211,7 @@ func (s *DockerSuite) TestApiNetworkIpamMultipleBridgeNetworks(c *check.C) {
 		Name: "test2",
 		NetworkCreate: types.NetworkCreate{
 			Driver: "bridge",
-			IPAM:   ipam2,
+			IPAM:   &ipam2,
 		},
 	}
 	createNetwork(c, config2, true)

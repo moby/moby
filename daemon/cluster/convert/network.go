@@ -179,21 +179,23 @@ func BasicNetworkCreateToGRPC(create basictypes.NetworkCreateRequest) swarmapi.N
 		},
 		Ipv6Enabled: create.EnableIPv6,
 		Internal:    create.Internal,
-		IPAM: &swarmapi.IPAMOptions{
+	}
+	if create.IPAM != nil {
+		ns.IPAM = &swarmapi.IPAMOptions{
 			Driver: &swarmapi.Driver{
 				Name:    create.IPAM.Driver,
 				Options: create.IPAM.Options,
 			},
-		},
+		}
+		ipamSpec := make([]*swarmapi.IPAMConfig, 0, len(create.IPAM.Config))
+		for _, ipamConfig := range create.IPAM.Config {
+			ipamSpec = append(ipamSpec, &swarmapi.IPAMConfig{
+				Subnet:  ipamConfig.Subnet,
+				Range:   ipamConfig.IPRange,
+				Gateway: ipamConfig.Gateway,
+			})
+		}
+		ns.IPAM.Configs = ipamSpec
 	}
-	ipamSpec := make([]*swarmapi.IPAMConfig, 0, len(create.IPAM.Config))
-	for _, ipamConfig := range create.IPAM.Config {
-		ipamSpec = append(ipamSpec, &swarmapi.IPAMConfig{
-			Subnet:  ipamConfig.Subnet,
-			Range:   ipamConfig.IPRange,
-			Gateway: ipamConfig.Gateway,
-		})
-	}
-	ns.IPAM.Configs = ipamSpec
 	return ns
 }
