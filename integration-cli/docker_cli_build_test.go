@@ -2632,7 +2632,6 @@ func (s *DockerSuite) TestBuildAddCurrentDirWithoutCache(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildAddRemoteFileWithCache(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Windows doesn't have httpserver image yet
 	name := "testbuildaddremotefilewithcache"
 	server, err := fakeStorage(map[string]string{
 		"baz": "hello",
@@ -2643,7 +2642,7 @@ func (s *DockerSuite) TestBuildAddRemoteFileWithCache(c *check.C) {
 	defer server.Close()
 
 	id1, err := buildImage(name,
-		fmt.Sprintf(`FROM scratch
+		fmt.Sprintf(`FROM `+minimalBaseImage()+`
         MAINTAINER dockerio
         ADD %s/baz /usr/lib/baz/quux`, server.URL()),
 		true)
@@ -2651,7 +2650,7 @@ func (s *DockerSuite) TestBuildAddRemoteFileWithCache(c *check.C) {
 		c.Fatal(err)
 	}
 	id2, err := buildImage(name,
-		fmt.Sprintf(`FROM scratch
+		fmt.Sprintf(`FROM `+minimalBaseImage()+`
         MAINTAINER dockerio
         ADD %s/baz /usr/lib/baz/quux`, server.URL()),
 		true)
@@ -2664,7 +2663,6 @@ func (s *DockerSuite) TestBuildAddRemoteFileWithCache(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildAddRemoteFileWithoutCache(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Windows doesn't have httpserver image yet
 	name := "testbuildaddremotefilewithoutcache"
 	name2 := "testbuildaddremotefilewithoutcache2"
 	server, err := fakeStorage(map[string]string{
@@ -2676,7 +2674,7 @@ func (s *DockerSuite) TestBuildAddRemoteFileWithoutCache(c *check.C) {
 	defer server.Close()
 
 	id1, err := buildImage(name,
-		fmt.Sprintf(`FROM scratch
+		fmt.Sprintf(`FROM `+minimalBaseImage()+`
         MAINTAINER dockerio
         ADD %s/baz /usr/lib/baz/quux`, server.URL()),
 		true)
@@ -2684,7 +2682,7 @@ func (s *DockerSuite) TestBuildAddRemoteFileWithoutCache(c *check.C) {
 		c.Fatal(err)
 	}
 	id2, err := buildImage(name2,
-		fmt.Sprintf(`FROM scratch
+		fmt.Sprintf(`FROM `+minimalBaseImage()+`
         MAINTAINER dockerio
         ADD %s/baz /usr/lib/baz/quux`, server.URL()),
 		false)
@@ -2697,7 +2695,6 @@ func (s *DockerSuite) TestBuildAddRemoteFileWithoutCache(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildAddRemoteFileMTime(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Windows doesn't have httpserver image yet
 	name := "testbuildaddremotefilemtime"
 	name2 := name + "2"
 	name3 := name + "3"
@@ -2709,7 +2706,7 @@ func (s *DockerSuite) TestBuildAddRemoteFileMTime(c *check.C) {
 	}
 	defer server.Close()
 
-	ctx, err := fakeContext(fmt.Sprintf(`FROM scratch
+	ctx, err := fakeContext(fmt.Sprintf(`FROM `+minimalBaseImage()+`
         MAINTAINER dockerio
         ADD %s/baz /usr/lib/baz/quux`, server.URL()), nil)
 	if err != nil {
@@ -2742,7 +2739,7 @@ func (s *DockerSuite) TestBuildAddRemoteFileMTime(c *check.C) {
 	}
 	defer server2.Close()
 
-	ctx2, err := fakeContext(fmt.Sprintf(`FROM scratch
+	ctx2, err := fakeContext(fmt.Sprintf(`FROM `+minimalBaseImage()+`
         MAINTAINER dockerio
         ADD %s/baz /usr/lib/baz/quux`, server2.URL()), nil)
 	if err != nil {
@@ -2759,7 +2756,6 @@ func (s *DockerSuite) TestBuildAddRemoteFileMTime(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildAddLocalAndRemoteFilesWithCache(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Windows doesn't have httpserver image yet
 	name := "testbuildaddlocalandremotefilewithcache"
 	server, err := fakeStorage(map[string]string{
 		"baz": "hello",
@@ -2769,7 +2765,7 @@ func (s *DockerSuite) TestBuildAddLocalAndRemoteFilesWithCache(c *check.C) {
 	}
 	defer server.Close()
 
-	ctx, err := fakeContext(fmt.Sprintf(`FROM scratch
+	ctx, err := fakeContext(fmt.Sprintf(`FROM `+minimalBaseImage()+`
         MAINTAINER dockerio
         ADD foo /usr/lib/bla/bar
         ADD %s/baz /usr/lib/baz/quux`, server.URL()),
@@ -2844,7 +2840,6 @@ func (s *DockerSuite) TestBuildNoContext(c *check.C) {
 
 // TODO: TestCaching
 func (s *DockerSuite) TestBuildAddLocalAndRemoteFilesWithoutCache(c *check.C) {
-	testRequires(c, DaemonIsLinux) // Windows doesn't have httpserver image yet
 	name := "testbuildaddlocalandremotefilewithoutcache"
 	name2 := "testbuildaddlocalandremotefilewithoutcache2"
 	server, err := fakeStorage(map[string]string{
@@ -2855,7 +2850,7 @@ func (s *DockerSuite) TestBuildAddLocalAndRemoteFilesWithoutCache(c *check.C) {
 	}
 	defer server.Close()
 
-	ctx, err := fakeContext(fmt.Sprintf(`FROM scratch
+	ctx, err := fakeContext(fmt.Sprintf(`FROM `+minimalBaseImage()+`
         MAINTAINER dockerio
         ADD foo /usr/lib/bla/bar
         ADD %s/baz /usr/lib/baz/quux`, server.URL()),
@@ -2875,7 +2870,7 @@ func (s *DockerSuite) TestBuildAddLocalAndRemoteFilesWithoutCache(c *check.C) {
 		c.Fatal(err)
 	}
 	if id1 == id2 {
-		c.Fatal("The cache should have been invalided but hasn't.")
+		c.Fatal("The cache should have been invalidated but hasn't.")
 	}
 }
 
