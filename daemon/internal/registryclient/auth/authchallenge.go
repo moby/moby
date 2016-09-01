@@ -54,8 +54,13 @@ type simpleChallengeManager struct {
 	Challanges map[string][]Challenge
 }
 
-func (m *simpleChallengeManager) GetChallenges(endpoint url.URL) ([]Challenge, error) {
+func normalizeURL(endpoint *url.URL) {
 	endpoint.Host = strings.ToLower(endpoint.Host)
+	endpoint.Host = CanonicalAddr(endpoint)
+}
+
+func (m *simpleChallengeManager) GetChallenges(endpoint url.URL) ([]Challenge, error) {
+	normalizeURL(&endpoint)
 
 	m.RLock()
 	defer m.RUnlock()
@@ -70,11 +75,12 @@ func (m *simpleChallengeManager) AddResponse(resp *http.Response) error {
 	}
 	urlCopy := url.URL{
 		Path:   resp.Request.URL.Path,
-		Host:   strings.ToLower(resp.Request.URL.Host),
+		Host:   resp.Request.URL.Host,
 		Scheme: resp.Request.URL.Scheme,
 	}
 	m.Lock()
 	defer m.Unlock()
+	normalizeURL(&urlCopy)
 	m.Challanges[urlCopy.String()] = challenges
 	return nil
 }

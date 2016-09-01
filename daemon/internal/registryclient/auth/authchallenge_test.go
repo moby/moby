@@ -44,6 +44,7 @@ func TestAuthChallengeParse(t *testing.T) {
 func TestAuthChallengeNormalization(t *testing.T) {
 	testAuthChallengeNormalization(t, "reg.EXAMPLE.com")
 	testAuthChallengeNormalization(t, "bɿɒʜɔiɿ-ɿɘƚƨim-ƚol-ɒ-ƨʞnɒʜƚ.com")
+	testAuthChallengeNormalization(t, "reg.example.com:80")
 	testAuthChallengeConcurrent(t, "reg.EXAMPLE.com")
 }
 
@@ -72,6 +73,7 @@ func testAuthChallengeNormalization(t *testing.T, host string) {
 
 	lowered := *url
 	lowered.Host = strings.ToLower(lowered.Host)
+	lowered.Host = CanonicalAddr(&lowered)
 	c, err := scm.GetChallenges(lowered)
 	if err != nil {
 		t.Fatal(err)
