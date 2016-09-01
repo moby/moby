@@ -4142,7 +4142,7 @@ Inspect swarm
 
 `POST /swarm/init`
 
-Initialize a new swarm
+Initialize a new swarm. The body of the HTTP response includes the node ID.
 
 **Example request**:
 
@@ -4164,8 +4164,12 @@ Initialize a new swarm
 **Example response**:
 
     HTTP/1.1 200 OK
-    Content-Length: 0
-    Content-Type: text/plain; charset=utf-8
+    Content-Length: 28
+    Content-Type: application/json
+    Date: Thu, 01 Sep 2016 21:49:13 GMT
+    Server: Docker/1.12.0 (linux)
+
+    "7v2t30z9blmxuhnyo6s4cpenp"
 
 **Status codes**:
 
