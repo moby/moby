@@ -1749,4 +1749,10 @@ func (s *DockerNetworkSuite) TestDockerNetworkValidateIP(c *check.C) {
 	c.Assert(err.Error(), checker.Contains, "invalid IPv4 address")
 	_, _, err = dockerCmdWithError("run", "--net=mynet", "--ip", "172.28.99.99", "--ip6", "mynet_ip6", "busybox", "top")
 	c.Assert(err.Error(), checker.Contains, "invalid IPv6 address")
+	// This is a case of IPv4 address to `--ip6`
+	_, _, err = dockerCmdWithError("run", "--net=mynet", "--ip6", "172.28.99.99", "busybox", "top")
+	c.Assert(err.Error(), checker.Contains, "invalid IPv6 address")
+	// This is a special case of an IPv4-mapped IPv6 address
+	_, _, err = dockerCmdWithError("run", "--net=mynet", "--ip6", "::ffff:172.28.99.99", "busybox", "top")
+	c.Assert(err.Error(), checker.Contains, "invalid IPv6 address")
 }

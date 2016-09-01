@@ -256,8 +256,13 @@ func (daemon *Daemon) verifyNetworkingConfig(nwConfig *networktypes.NetworkingCo
 				if v.IPAMConfig.IPv4Address != "" && net.ParseIP(v.IPAMConfig.IPv4Address).To4() == nil {
 					return errors.NewBadRequestError(fmt.Errorf("invalid IPv4 address: %s", v.IPAMConfig.IPv4Address))
 				}
-				if v.IPAMConfig.IPv6Address != "" && net.ParseIP(v.IPAMConfig.IPv6Address).To16() == nil {
-					return errors.NewBadRequestError(fmt.Errorf("invalid IPv6 address: %s", v.IPAMConfig.IPv6Address))
+				if v.IPAMConfig.IPv6Address != "" {
+					n := net.ParseIP(v.IPAMConfig.IPv6Address)
+					// if the address is an invalid network address (ParseIP == nil) or if it is
+					// an IPv4 address (To4() != nil), then it is an invalid IPv6 address
+					if n == nil || n.To4() != nil {
+						return errors.NewBadRequestError(fmt.Errorf("invalid IPv6 address: %s", v.IPAMConfig.IPv6Address))
+					}
 				}
 			}
 		}
