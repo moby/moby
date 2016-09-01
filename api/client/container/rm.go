@@ -26,7 +26,7 @@ func NewRmCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "rm [OPTIONS] CONTAINER [CONTAINER...]",
-		Short: "Remove one or more containers",
+		Short: "Remove one or more stopped containers",
 		Args:  cli.RequiresMinArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.containers = args

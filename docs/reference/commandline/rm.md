@@ -13,7 +13,7 @@ parent = "smn_cli"
 ```markdown
 Usage:  docker rm [OPTIONS] CONTAINER [CONTAINER...]
 
-Remove one or more containers
+Remove one or more stopped containers
 
 Options:
   -f, --force     Force the removal of a running container (uses SIGKILL)
