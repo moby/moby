@@ -38,7 +38,7 @@ to the MAJOR.MINOR.PATCH format."
 
 ## Vendoring cadence
 In order to avoid huge vendoring changes, it is recommended to have a regular
-cadence for vendoring updates. eg. monthly.
+cadence for vendoring updates. e.g. monthly.
 
 ## Pre-merge vendoring tests
 All related repos will be vendored into docker/docker.
