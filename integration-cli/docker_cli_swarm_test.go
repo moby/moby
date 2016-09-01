@@ -25,7 +25,7 @@ func (s *DockerSwarmSuite) TestSwarmUpdate(c *check.C) {
 
 	spec := getSpec()
 	c.Assert(spec.CAConfig.NodeCertExpiry, checker.Equals, 30*time.Hour)
-	c.Assert(spec.Dispatcher.HeartbeatPeriod, checker.Equals, uint64(11*time.Second))
+	c.Assert(spec.Dispatcher.HeartbeatPeriod, checker.Equals, 11*time.Second)
 
 	// setting anything under 30m for cert-expiry is not allowed
 	out, err = d.Cmd("swarm", "update", "--cert-expiry", "15m")
@@ -48,7 +48,7 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *check.C) {
 
 	spec := getSpec()
 	c.Assert(spec.CAConfig.NodeCertExpiry, checker.Equals, 30*time.Hour)
-	c.Assert(spec.Dispatcher.HeartbeatPeriod, checker.Equals, uint64(11*time.Second))
+	c.Assert(spec.Dispatcher.HeartbeatPeriod, checker.Equals, 11*time.Second)
 
 	c.Assert(d.Leave(true), checker.IsNil)
 	time.Sleep(500 * time.Millisecond) // https://github.com/docker/swarmkit/issues/1421
@@ -57,7 +57,7 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *check.C) {
 
 	spec = getSpec()
 	c.Assert(spec.CAConfig.NodeCertExpiry, checker.Equals, 90*24*time.Hour)
-	c.Assert(spec.Dispatcher.HeartbeatPeriod, checker.Equals, uint64(5*time.Second))
+	c.Assert(spec.Dispatcher.HeartbeatPeriod, checker.Equals, 5*time.Second)
 }
 
 func (s *DockerSwarmSuite) TestSwarmInitIPv6(c *check.C) {

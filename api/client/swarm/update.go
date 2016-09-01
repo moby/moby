@@ -63,7 +63,7 @@ func mergeSwarm(swarm *swarm.Swarm, flags *pflag.FlagSet) error {
 
 	if flags.Changed(flagDispatcherHeartbeat) {
 		if v, err := flags.GetDuration(flagDispatcherHeartbeat); err == nil {
-			spec.Dispatcher.HeartbeatPeriod = uint64(v.Nanoseconds())
+			spec.Dispatcher.HeartbeatPeriod = v
 		}
 	}
 

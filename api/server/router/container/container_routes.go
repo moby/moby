@@ -327,14 +327,12 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 
 	name := vars["name"]
 	validateHostname := versions.GreaterThanOrEqualTo(version, "1.24")
-	warnings, err := s.backend.ContainerUpdate(name, hostConfig, validateHostname)
+	resp, err := s.backend.ContainerUpdate(name, hostConfig, validateHostname)
 	if err != nil {
 		return err
 	}
 
-	return httputils.WriteJSON(w, http.StatusOK, &types.ContainerUpdateResponse{
-		Warnings: warnings,
-	})
+	return httputils.WriteJSON(w, http.StatusOK, resp)
 }
 
 func (s *containerRouter) postContainersCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

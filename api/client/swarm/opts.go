@@ -172,7 +172,7 @@ func addSwarmFlags(flags *pflag.FlagSet, opts *swarmOptions) {
 func (opts *swarmOptions) ToSpec() swarm.Spec {
 	spec := swarm.Spec{}
 	spec.Orchestration.TaskHistoryRetentionLimit = opts.taskHistoryLimit
-	spec.Dispatcher.HeartbeatPeriod = uint64(opts.dispatcherHeartbeat.Nanoseconds())
+	spec.Dispatcher.HeartbeatPeriod = opts.dispatcherHeartbeat
 	spec.CAConfig.NodeCertExpiry = opts.nodeCertExpiry
 	spec.CAConfig.ExternalCAs = opts.externalCA.Value()
 	return spec
