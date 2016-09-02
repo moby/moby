@@ -37,9 +37,16 @@ func setSeccomp(daemon *Daemon, rs *specs.Spec, c *container.Container) error {
 			return err
 		}
 	} else {
-		profile, err = seccomp.GetDefaultProfile(rs)
-		if err != nil {
-			return err
+		if daemon.seccompProfile != nil {
+			profile, err = seccomp.LoadProfile(string(daemon.seccompProfile), rs)
+			if err != nil {
+				return err
+			}
+		} else {
+			profile, err = seccomp.GetDefaultProfile(rs)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

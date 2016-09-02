@@ -46,8 +46,10 @@ func TestInfo(t *testing.T) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
 			info := &types.Info{
-				ID:         "daemonID",
-				Containers: 3,
+				InfoBase: &types.InfoBase{
+					ID:         "daemonID",
+					Containers: 3,
+				},
 			}
 			b, err := json.Marshal(info)
 			if err != nil {

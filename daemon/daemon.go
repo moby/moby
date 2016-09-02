@@ -104,6 +104,9 @@ type Daemon struct {
 	defaultIsolation          containertypes.Isolation // Default isolation mode on Windows
 	clusterProvider           cluster.Provider
 	cluster                   Cluster
+
+	seccompProfile     []byte
+	seccompProfilePath string
 }
 
 // HasExperimental returns whether the experimental features of the daemon are enabled or not
@@ -529,6 +532,10 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 			}
 		}
 	}()
+
+	if err := d.setupSeccompProfile(); err != nil {
+		return nil, err
+	}
 
 	// Set the default isolation mode (only applicable on Windows)
 	if err := d.setDefaultIsolation(); err != nil {

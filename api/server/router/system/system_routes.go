@@ -42,10 +42,20 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 	if versions.LessThan(httputils.VersionFromContext(ctx), "1.25") {
 		// TODO: handle this conversion in engine-api
 		type oldInfo struct {
-			*types.Info
+			*types.InfoBase
 			ExecutionDriver string
+			SecurityOptions []string
 		}
-		return httputils.WriteJSON(w, http.StatusOK, &oldInfo{Info: info, ExecutionDriver: "<not supported>"})
+		old := &oldInfo{
+			InfoBase:        info.InfoBase,
+			ExecutionDriver: "<not supported>",
+		}
+		for _, s := range info.SecurityOptions {
+			if s.Key == "Name" {
+				old.SecurityOptions = append(old.SecurityOptions, s.Value)
+			}
+		}
+		return httputils.WriteJSON(w, http.StatusOK, old)
 	}
 	return httputils.WriteJSON(w, http.StatusOK, info)
 }

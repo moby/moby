@@ -1375,3 +1375,37 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *check.C) {
 	c.Assert(err, check.NotNil)
 	c.Assert(out, checker.Contains, "'architectures' and 'archMap' were specified in the seccomp profile, use either 'architectures' or 'archMap'")
 }
+
+func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled)
+
+	err := s.d.StartWithBusybox()
+	c.Assert(err, check.IsNil)
+
+	// 1) verify I can run containers with the Docker default shipped profile which allows chmod
+	_, err = s.d.Cmd("run", "busybox", "chmod", "777", ".")
+	c.Assert(err, check.IsNil)
+
+	jsonData := `{
+	"defaultAction": "SCMP_ACT_ALLOW",
+	"syscalls": [
+		{
+			"name": "chmod",
+			"action": "SCMP_ACT_ERRNO"
+		}
+	]
+}`
+	tmpFile, err := ioutil.TempFile("", "profile.json")
+	c.Assert(err, check.IsNil)
+	defer tmpFile.Close()
+	_, err = tmpFile.Write([]byte(jsonData))
+	c.Assert(err, check.IsNil)
+
+	// 2) restart the daemon and add a custom seccomp profile in which we deny chmod
+	err = s.d.Restart("--seccomp-profile=" + tmpFile.Name())
+	c.Assert(err, check.IsNil)
+
+	out, err := s.d.Cmd("run", "busybox", "chmod", "777", ".")
+	c.Assert(err, check.NotNil)
+	c.Assert(out, checker.Contains, "Operation not permitted")
+}

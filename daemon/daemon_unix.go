@@ -4,6 +4,7 @@ package daemon
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -1242,6 +1243,23 @@ func (daemon *Daemon) initCgroupsPath(path string) error {
 			return err
 		}
 	}
+	return nil
+}
 
+func (daemon *Daemon) setupSeccompProfile() error {
+	if daemon.configStore.SeccompProfile != "" {
+		daemon.seccompProfilePath = daemon.configStore.SeccompProfile
+		b, err := ioutil.ReadFile(daemon.configStore.SeccompProfile)
+		if err != nil {
+			return fmt.Errorf("opening seccomp profile (%s) failed: %v", daemon.configStore.SeccompProfile, err)
+		}
+		daemon.seccompProfile = b
+		p := struct {
+			DefaultAction string `json:"defaultAction"`
+		}{}
+		if err := json.Unmarshal(daemon.seccompProfile, &p); err != nil {
+			return err
+		}
+	}
 	return nil
 }

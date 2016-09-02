@@ -142,9 +142,9 @@ type Version struct {
 	BuildTime     string `json:",omitempty"`
 }
 
-// Info contains response of Remote API:
+// InfoBase contains the base response of Remote API:
 // GET "/info"
-type Info struct {
+type InfoBase struct {
 	ID                 string
 	Containers         int
 	ContainersRunning  int
@@ -191,7 +191,6 @@ type Info struct {
 	ServerVersion      string
 	ClusterStore       string
 	ClusterAdvertise   string
-	SecurityOptions    []string
 	Runtimes           map[string]Runtime
 	DefaultRuntime     string
 	Swarm              swarm.Info
@@ -200,6 +199,18 @@ type Info struct {
 	// running containers are detected
 	LiveRestoreEnabled bool
 	Isolation          container.Isolation
+}
+
+// SecurityOpt holds key/value pair about a security option
+type SecurityOpt struct {
+	Key, Value string
+}
+
+// Info contains response of Remote API:
+// GET "/info"
+type Info struct {
+	*InfoBase
+	SecurityOptions []SecurityOpt
 }
 
 // PluginsInfo is a temp struct holding Plugins name
