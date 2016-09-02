@@ -38,7 +38,7 @@ Plugin "tiborvass/no-remove" is requesting the following privileges:
  - network: [host]
  - mount: [/data]
  - device: [/dev/cpu_dma_latency]
-Do you grant the above permissions? [y/N] y
+Do you grant the above permissions? [Y/N] Y
 tiborvass/no-remove
 ```
 
