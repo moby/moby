@@ -139,9 +139,9 @@ metadata](../../userguide/labels-custom-metadata.md).
 
 ### Set service mode
 
-Is this a replicated service or a global service. A replicated service runs as
-many tasks as specified, while a global service runs on each active node in the
-swarm.
+You can set the service mode to "replicated" (default) or to "global". A 
+replicated  service runs  as many tasks as specified, while a global service 
+runs on each  active node in the swarm.
 
 The following command creates a "global" service:
 
