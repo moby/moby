@@ -15,7 +15,8 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM ppc64le/gcc:6.1
+# ppc64le/golang is a debian:jessie based image with golang installed
+FROM ppc64le/golang:1.6.3
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
@@ -87,20 +88,26 @@ RUN set -x \
         && rm -rf "$SECCOMP_PATH"
 
 
-## BUILD GOLANG 1.6
+# Install Go
+# ppc64le doesn't have official go binaries, so use the version of go installed from the image
+# to build go from source.
 # NOTE: ppc64le has compatibility issues with older versions of go, so make sure the version >= 1.6
 ENV GO_VERSION 1.7
 ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz
-ENV GOROOT_BOOTSTRAP /usr/local
 
-RUN curl -fsSL "$GO_DOWNLOAD_URL" -o golang.tar.gz \
-    && tar -C /usr/src -xzf golang.tar.gz \
-    && rm golang.tar.gz \
-    && cd /usr/src/go/src && ./make.bash 2>&1
+RUN set -x \
+	&& TEMPDIR="$(mktemp -d)" \
+	&& mv /usr/local/go $TEMPDIR \
+	&& GOROOT_BOOTSTRAP=$TEMPDIR/go \
+	&& cd /usr/local \
+	&& curl -fsSL "$GO_DOWNLOAD_URL" -o golang.tar.gz \
+	&& tar -C /usr/local -xzf golang.tar.gz \
+	&& rm golang.tar.gz \
+	&& cd go/src && ./make.bash 2>&1 \
+	&& rm -rf $TEMPDIR 
 
-ENV GOROOT_BOOTSTRAP /usr/src/
-
-ENV PATH /usr/src/go/bin/:/go/bin:$PATH
+ENV GOROOT_BOOTSTRAP /usr/local/go
+ENV PATH /usr/local/go/bin/:$PATH
 ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
 
 # Dependency for golint
