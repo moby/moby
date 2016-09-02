@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
+	dockeropts "github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/engine-api/types"
@@ -17,7 +18,7 @@ import (
 type importOptions struct {
 	source    string
 	reference string
-	changes   []string
+	changes   dockeropts.ListOpts
 	message   string
 }
 
@@ -40,7 +41,8 @@ func NewImportCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 
-	flags.StringSliceVarP(&opts.changes, "change", "c", []string{}, "Apply Dockerfile instruction to the created image")
+	opts.changes = dockeropts.NewListOpts(nil)
+	flags.VarP(&opts.changes, "change", "c", "Apply Dockerfile instruction to the created image")
 	flags.StringVarP(&opts.message, "message", "m", "", "Set commit message for imported image")
 
 	return cmd
@@ -71,7 +73,7 @@ func runImport(dockerCli *client.DockerCli, opts importOptions) error {
 
 	options := types.ImageImportOptions{
 		Message: opts.message,
-		Changes: opts.changes,
+		Changes: opts.changes.GetAll(),
 	}
 
 	clnt := dockerCli.Client()
