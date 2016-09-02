@@ -21,7 +21,7 @@ the documentation sources.
 
 ### How much does Engine cost?
 
-Docker Engine is 100% free. It is open source, so you can use it without paying.
+The open source Docker Engine is available for free. Commercial support is also available for the Docker Engine as a standalone product or as part of the Docker Datacenter subscription. Pricing details are available at [https://www.docker.com/pricing](www.docker.com/pricing)
 
 ### What open source license are you using?
 
@@ -31,16 +31,7 @@ https://github.com/docker/docker/blob/master/LICENSE)
 
 ### Does Docker run on Mac OS X or Windows?
 
-Docker Engine currently runs only on Linux, but you can use VirtualBox to run
-Engine in a virtual machine on your box, and get the best of both worlds. Check
-out the [*Mac OS X*](installation/mac.md) and [*Microsoft
-Windows*](installation/windows.md) installation guides. The small Linux
-distribution boot2docker can be set up using the Docker Machine tool to be run
-inside virtual machines on these two operating systems.
-
->**Note:** if you are using a remote Docker Engine daemon on a VM through Docker
->Machine, then _do not_ type the `sudo` before the `docker` commands shown in
->the documentation's examples.
+Docker Engine currently runs only on Linux and is available for your Mac or PC computer with Docker for Mac and Docker for Windows. Download these native desktop applications for running your local Docker development environment here [https://www.docker.com/getdocker](www.docker.com/getdocker) Documentation to get started using Docker is available [https://docs.docker.com/docker-for-mac/](here)
 
 ### How do containers compare to virtual machines?
 
