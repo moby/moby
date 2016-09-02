@@ -2,7 +2,7 @@
 % Docker Community
 % JUNE 2014
 # NAME
-docker-restart - Restart a container
+docker-restart - Restart one or more containers
 
 # SYNOPSIS
 **docker restart**
