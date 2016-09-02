@@ -1660,7 +1660,8 @@ __docker_subcommand() {
                 $opts_help \
                 "($help)*"{-f=,--filter=}"[Filter values]:filter:__docker_complete_events_filter" \
                 "($help)--since=[Events created since this timestamp]:timestamp: " \
-                "($help)--until=[Events created until this timestamp]:timestamp: " && ret=0
+                "($help)--until=[Events created until this timestamp]:timestamp: " \
+                "($help)--format=[Format the output using the given go template]:template: " && ret=0
             ;;
         (exec)
             local state

@@ -10,6 +10,7 @@ docker-events - Get real time events from the server
 [**-f**|**--filter**[=*[]*]]
 [**--since**[=*SINCE*]]
 [**--until**[=*UNTIL*]]
+[**--format**[=*FORMAT*]]
 
 
 # DESCRIPTION
@@ -44,6 +45,9 @@ Docker networks report the following events:
 
 **--until**=""
    Stream events until this timestamp
+
+**--format**=""
+   Format the output using the given go template
 
 The `--since` and `--until` parameters can be Unix timestamps, date formatted
 timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed
@@ -95,6 +99,31 @@ relative to the current time on the client machine:
 
 If you do not provide the --since option, the command returns only new and/or
 live events.
+
+## Format
+
+If a format (`--format`) is specified, the given template will be executed
+instead of the default format. Go's **text/template** package describes all the
+details of the format.
+
+    # docker events --filter 'type=container' --format 'Type={{.Type}}  Status={{.Status}}  ID={{.ID}}'
+    Type=container  Status=create  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299c126a87812311951e26
+    Type=container  Status=attach  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299c126a87812311951e26
+    Type=container  Status=start  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299c126a87812311951e26
+    Type=container  Status=resize  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299c126a87812311951e26
+    Type=container  Status=die  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299c126a87812311951e26
+    Type=container  Status=destroy  ID=2ee349dac409e97974ce8d01b70d250b85e0ba8189299c126a87812311951e26
+
+If a format is set to `{{json .}}`, the events are streamed as valid JSON
+Lines. For information about JSON Lines, please refer to http://jsonlines.org/ .
+
+    # docker events --format '{{json .}}'
+    {"status":"create","id":"196016a57679bf42424484918746a9474cd905dd993c4d0f4..
+    {"status":"attach","id":"196016a57679bf42424484918746a9474cd905dd993c4d0f4..
+    {"Type":"network","Action":"connect","Actor":{"ID":"1b50a5bf755f6021dfa78e..
+    {"status":"start","id":"196016a57679bf42424484918746a9474cd905dd993c4d0f42..
+    {"status":"resize","id":"196016a57679bf42424484918746a9474cd905dd993c4d0f4..
+
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)

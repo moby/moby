@@ -164,6 +164,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from events' -s f -l filter 
 complete -c docker -A -f -n '__fish_seen_subcommand_from events' -l help -d 'Print usage'
 complete -c docker -A -f -n '__fish_seen_subcommand_from events' -l since -d 'Show all events created since timestamp'
 complete -c docker -A -f -n '__fish_seen_subcommand_from events' -l until -d 'Stream events until this timestamp'
+complete -c docker -A -f -n '__fish_seen_subcommand_from events' -l format -d 'Format the output using the given go template'
 
 # exec
 complete -c docker -f -n '__fish_docker_no_subcommand' -a exec -d 'Run a command in a running container'
