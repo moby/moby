@@ -4,7 +4,7 @@
 
 bundle_test_integration_cli() {
 	TESTFLAGS="$TESTFLAGS -check.v -check.timeout=${TIMEOUT} -test.timeout=360m"
-	go_test_dir ./integration-cli
+	go_test_dir integration-cli $DOCKER_INTEGRATION_TESTS_VERIFIED
 }
 
 # If $TESTFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
@@ -19,16 +19,17 @@ bundle_test_integration_cli() {
 #
 go_test_dir() {
 	dir=$1
-	coverpkg=$2
+	precompiled=$2
+	testbinary="$DEST/test.main"
 	testcover=()
 	testcoverprofile=()
-	testbinary="$DEST/test.main"
 	(
 		mkdir -p "$DEST/coverprofiles"
-		echo '+ go test' $TESTFLAGS "${DOCKER_PKG}${dir#.}"
-		cd "$dir"
 		export DEST="$ABS_DEST" # in a subshell this is safe -- our integration-cli tests need DEST, and "cd" screws it up
-		go test -c -o "$testbinary" -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}"
+		if [ -z $precompiled ]; then
+			ensure_test_dir $1 $testbinary
+		fi
+		cd "$dir"
 		i=0
 		while ((++i)); do
 			test_env "$testbinary" $TESTFLAGS
@@ -40,22 +41,37 @@ go_test_dir() {
 	)
 }
 
+ensure_test_dir() {
+	(
+		# make sure a test dir will compile
+		dir="$1"
+		out="$2"
+		echo Building test dir: "$dir"
+		set -xe
+		cd "$dir"
+		go test -c -o "$out" -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}"
+	)
+}
+
 test_env() {
-	# use "env -i" to tightly control the environment variables that bleed into the tests
-	env -i \
-		DEST="$DEST" \
-		DOCKER_TLS_VERIFY="$DOCKER_TEST_TLS_VERIFY" \
-		DOCKER_CERT_PATH="$DOCKER_TEST_CERT_PATH" \
-		DOCKER_ENGINE_GOARCH="$DOCKER_ENGINE_GOARCH" \
-		DOCKER_GRAPHDRIVER="$DOCKER_GRAPHDRIVER" \
-		DOCKER_USERLANDPROXY="$DOCKER_USERLANDPROXY" \
-		DOCKER_HOST="$DOCKER_HOST" \
-		DOCKER_REMAP_ROOT="$DOCKER_REMAP_ROOT" \
-		DOCKER_REMOTE_DAEMON="$DOCKER_REMOTE_DAEMON" \
-		GOPATH="$GOPATH" \
-		GOTRACEBACK=all \
-		HOME="$ABS_DEST/fake-HOME" \
-		PATH="$PATH" \
-		TEMP="$TEMP" \
-		"$@"
+	(
+		set -xe
+		# use "env -i" to tightly control the environment variables that bleed into the tests
+		env -i \
+			DEST="$DEST" \
+			DOCKER_TLS_VERIFY="$DOCKER_TEST_TLS_VERIFY" \
+			DOCKER_CERT_PATH="$DOCKER_TEST_CERT_PATH" \
+			DOCKER_ENGINE_GOARCH="$DOCKER_ENGINE_GOARCH" \
+			DOCKER_GRAPHDRIVER="$DOCKER_GRAPHDRIVER" \
+			DOCKER_USERLANDPROXY="$DOCKER_USERLANDPROXY" \
+			DOCKER_HOST="$DOCKER_HOST" \
+			DOCKER_REMAP_ROOT="$DOCKER_REMAP_ROOT" \
+			DOCKER_REMOTE_DAEMON="$DOCKER_REMOTE_DAEMON" \
+			GOPATH="$GOPATH" \
+			GOTRACEBACK=all \
+			HOME="$ABS_DEST/fake-HOME" \
+			PATH="$PATH" \
+			TEMP="$TEMP" \
+			"$@"
+	)
 }
