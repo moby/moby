@@ -319,6 +319,13 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 
 	fmt.Fprintf(dockerCli.Out(), "Live Restore Enabled: %v\n", info.LiveRestoreEnabled)
 
+	if len(info.ProxyEnv) > 0 {
+		fmt.Fprintln(dockerCli.Out(), "Proxy Environment Variables:")
+		for _, v := range info.ProxyEnv {
+			fmt.Fprintf(dockerCli.Out(), " %s\n", v)
+		}
+	}
+
 	return nil
 }
 

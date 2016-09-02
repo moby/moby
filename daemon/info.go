@@ -129,6 +129,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		LiveRestoreEnabled: daemon.configStore.LiveRestoreEnabled,
 		SecurityOptions:    securityOptions,
 		Isolation:          daemon.defaultIsolation,
+		ProxyEnv:           daemon.proxyEnv,
 	}
 
 	// Retrieve platform specific info

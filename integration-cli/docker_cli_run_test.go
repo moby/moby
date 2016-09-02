@@ -4439,3 +4439,19 @@ func (s *DockerSuite) TestWindowsRunAsSystem(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--net=none", `--user=nt authority\system`, "--hostname=XYZZY", minimalBaseImage(), "cmd", "/c", `@echo %USERNAME%`)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "XYZZY$")
 }
+
+func (s *DockerDaemonSuite) TestRunWithProxyEnv(c *check.C) {
+	expectedOutput := "HTTP_PROXY=127.0.0.1:3001"
+	s.d.StartWithBusybox(c, "--debug", "--proxy-env", expectedOutput)
+	out, err := s.d.Cmd("run", "busybox", "env")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, expectedOutput)
+}
+
+func (s *DockerDaemonSuite) TestRunWithProxyEnvOverride(c *check.C) {
+	s.d.StartWithBusybox(c, "--debug", "--proxy-env", "HTTP_PROXY=127.0.0.1:3001")
+	expectedOutput := "HTTP_PROXY=127.0.0.1:3003"
+	out, err := s.d.Cmd("run", "-e", expectedOutput, "busybox", "env")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, expectedOutput)
+}

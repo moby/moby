@@ -303,6 +303,27 @@ func ValidateSysctl(val string) (string, error) {
 	return "", fmt.Errorf("sysctl '%s' is not whitelisted", val)
 }
 
+// ValidateProxyEnv checks proxy environment variables for validity
+func ValidateProxyEnv(val string) (string, error) {
+	permitted := []string{"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "FTP_PROXY"}
+	matched := false
+	varName := strings.TrimSpace(strings.Split(val, "=")[0])
+	for _, p := range permitted {
+		if varName == p {
+			matched = true
+			break
+		}
+		if varName == strings.ToLower(p) {
+			matched = true
+			break
+		}
+	}
+	if !matched {
+		return "", fmt.Errorf("Variable %s is not a permitted proxy variable", val)
+	}
+	return val, nil
+}
+
 // FilterOpt is a flag type for validating filters
 type FilterOpt struct {
 	filter filters.Args
