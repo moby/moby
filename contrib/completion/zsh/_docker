@@ -1108,6 +1108,8 @@ __docker_service_subcommand() {
         "($help)--stop-grace-period=[Time to wait before force killing a container]:grace period: "
         "($help)--update-delay=[Delay between updates]:delay: "
         "($help)--update-failure-action=[Action on update failure]:mode:(pause continue)"
+        "($help)--update-max-failure-ratio=[Failure rate to tolerate during an update]:fraction: "
+        "($help)--update-monitor=[Duration after each task update to monitor for failure]:window: "
         "($help)--update-parallelism=[Maximum number of tasks updated simultaneously]:number: "
         "($help -u --user)"{-u=,--user=}"[Username or UID]:user:_users"
         "($help)--with-registry-auth[Send registry authentication details to swarm agents]"
@@ -1185,6 +1187,7 @@ __docker_service_subcommand() {
                 "($help)*--container-label-rm=[Remove a container label by its key]:label: " \
                 "($help)*--group-rm=[Remove previously added user groups from the container]:group:_groups" \
                 "($help)--image=[Service image tag]:image:__docker_repositories" \
+                "($help)--rollback[Rollback to previous specification]" \
                 "($help -)1:service:__docker_complete_services" && ret=0
             ;;
         (help)

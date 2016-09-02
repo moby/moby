@@ -90,16 +90,16 @@ type UpdateConfig struct {
 	// be used.
 	Monitor time.Duration `json:",omitempty"`
 
-	// AllowedFailureFraction is the fraction of tasks that may fail during
+	// MaxFailureRatio is the fraction of tasks that may fail during
 	// an update before the failure action is invoked. Any task created by
 	// the current update which ends up in one of the states REJECTED,
 	// COMPLETED or FAILED within Monitor from its creation counts as a
 	// failure. The number of failures is divided by the number of tasks
 	// being updated, and if this fraction is greater than
-	// AllowedFailureFraction, the failure action is invoked.
+	// MaxFailureRatio, the failure action is invoked.
 	//
 	// If the failure action is CONTINUE, there is no effect.
 	// If the failure action is PAUSE, no more tasks will be updated until
 	// another update is started.
-	AllowedFailureFraction float32
+	MaxFailureRatio float32
 }

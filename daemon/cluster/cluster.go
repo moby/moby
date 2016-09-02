@@ -913,7 +913,7 @@ func (c *Cluster) GetService(input string) (types.Service, error) {
 }
 
 // UpdateService updates existing service to match new properties.
-func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec types.ServiceSpec, encodedAuth string) error {
+func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec types.ServiceSpec, encodedAuth string, registryAuthFrom string) error {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -948,7 +948,18 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 	} else {
 		// this is needed because if the encodedAuth isn't being updated then we
 		// shouldn't lose it, and continue to use the one that was already present
-		ctnr := currentService.Spec.Task.GetContainer()
+		var ctnr *swarmapi.ContainerSpec
+		switch registryAuthFrom {
+		case apitypes.RegistryAuthFromSpec, "":
+			ctnr = currentService.Spec.Task.GetContainer()
+		case apitypes.RegistryAuthFromPreviousSpec:
+			if currentService.PreviousSpec == nil {
+				return fmt.Errorf("service does not have a previous spec")
+			}
+			ctnr = currentService.PreviousSpec.Task.GetContainer()
+		default:
+			return fmt.Errorf("unsupported registryAuthFromValue")
+		}
 		if ctnr == nil {
 			return fmt.Errorf("service does not use container tasks")
 		}
