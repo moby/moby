@@ -1162,7 +1162,7 @@ _docker_events() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--filter -f --help --since --until" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--filter -f --help --since --until --format" -- "$cur" ) )
 			;;
 	esac
 }
