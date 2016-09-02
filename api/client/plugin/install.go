@@ -92,7 +92,7 @@ func acceptPrivileges(dockerCli *client.DockerCli, name string) func(privileges 
 			fmt.Fprintf(dockerCli.Out(), " - %s: %v\n", privilege.Name, privilege.Value)
 		}
 
-		fmt.Fprint(dockerCli.Out(), "Do you grant the above permissions? [y/N] ")
+		fmt.Fprint(dockerCli.Out(), "Do you grant the above permissions? [Y/N] ")
 		reader := bufio.NewReader(dockerCli.In())
 		line, _, err := reader.ReadLine()
 		if err != nil {
