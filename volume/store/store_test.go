@@ -7,195 +7,206 @@ import (
 
 	"github.com/docker/docker/volume/drivers"
 	vt "github.com/docker/docker/volume/testutils"
+	"github.com/go-check/check"
 )
 
-func TestCreate(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestCreate(c *check.C) {
 	volumedrivers.Register(vt.NewFakeDriver("fake"), "fake")
 	defer volumedrivers.Unregister("fake")
-	s, err := New("")
+	st, err := New("")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
-	v, err := s.Create("fake1", "fake", nil, nil)
+	v, err := st.Create("fake1", "fake", nil, nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if v.Name() != "fake1" {
-		t.Fatalf("Expected fake1 volume, got %v", v)
+		c.Fatalf("Expected fake1 volume, got %v", v)
 	}
-	if l, _, _ := s.List(); len(l) != 1 {
-		t.Fatalf("Expected 1 volume in the store, got %v: %v", len(l), l)
-	}
-
-	if _, err := s.Create("none", "none", nil, nil); err == nil {
-		t.Fatalf("Expected unknown driver error, got nil")
+	if l, _, _ := st.List(); len(l) != 1 {
+		c.Fatalf("Expected 1 volume in the store, got %v: %v", len(l), l)
 	}
 
-	_, err = s.Create("fakeerror", "fake", map[string]string{"error": "create error"}, nil)
+	if _, err := st.Create("none", "none", nil, nil); err == nil {
+		c.Fatalf("Expected unknown driver error, got nil")
+	}
+
+	_, err = st.Create("fakeerror", "fake", map[string]string{"error": "create error"}, nil)
 	expected := &OpErr{Op: "create", Name: "fakeerror", Err: errors.New("create error")}
 	if err != nil && err.Error() != expected.Error() {
-		t.Fatalf("Expected create fakeError: create error, got %v", err)
+		c.Fatalf("Expected create fakeError: create error, got %v", err)
 	}
 }
 
-func TestRemove(t *testing.T) {
+func (s *DockerSuite) TestRemove(c *check.C) {
 	volumedrivers.Register(vt.NewFakeDriver("fake"), "fake")
 	volumedrivers.Register(vt.NewFakeDriver("noop"), "noop")
 	defer volumedrivers.Unregister("fake")
 	defer volumedrivers.Unregister("noop")
-	s, err := New("")
+	st, err := New("")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// doing string compare here since this error comes directly from the driver
 	expected := "no such volume"
-	if err := s.Remove(vt.NoopVolume{}); err == nil || !strings.Contains(err.Error(), expected) {
-		t.Fatalf("Expected error %q, got %v", expected, err)
+	if err := st.Remove(vt.NoopVolume{}); err == nil || !strings.Contains(err.Error(), expected) {
+		c.Fatalf("Expected error %q, got %v", expected, err)
 	}
 
-	v, err := s.CreateWithRef("fake1", "fake", "fake", nil, nil)
+	v, err := st.CreateWithRef("fake1", "fake", "fake", nil, nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
-	if err := s.Remove(v); !IsInUse(err) {
-		t.Fatalf("Expected ErrVolumeInUse error, got %v", err)
+	if err := st.Remove(v); !IsInUse(err) {
+		c.Fatalf("Expected ErrVolumeInUse error, got %v", err)
 	}
-	s.Dereference(v, "fake")
-	if err := s.Remove(v); err != nil {
-		t.Fatal(err)
+	st.Dereference(v, "fake")
+	if err := st.Remove(v); err != nil {
+		c.Fatal(err)
 	}
-	if l, _, _ := s.List(); len(l) != 0 {
-		t.Fatalf("Expected 0 volumes in the store, got %v, %v", len(l), l)
+	if l, _, _ := st.List(); len(l) != 0 {
+		c.Fatalf("Expected 0 volumes in the store, got %v, %v", len(l), l)
 	}
 }
 
-func TestList(t *testing.T) {
+func (s *DockerSuite) TestList(c *check.C) {
 	volumedrivers.Register(vt.NewFakeDriver("fake"), "fake")
 	volumedrivers.Register(vt.NewFakeDriver("fake2"), "fake2")
 	defer volumedrivers.Unregister("fake")
 	defer volumedrivers.Unregister("fake2")
 
-	s, err := New("")
+	st, err := New("")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
-	if _, err := s.Create("test", "fake", nil, nil); err != nil {
-		t.Fatal(err)
+	if _, err := st.Create("test", "fake", nil, nil); err != nil {
+		c.Fatal(err)
 	}
-	if _, err := s.Create("test2", "fake2", nil, nil); err != nil {
-		t.Fatal(err)
+	if _, err := st.Create("test2", "fake2", nil, nil); err != nil {
+		c.Fatal(err)
 	}
 
-	ls, _, err := s.List()
+	ls, _, err := st.List()
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if len(ls) != 2 {
-		t.Fatalf("expected 2 volumes, got: %d", len(ls))
+		c.Fatalf("expected 2 volumes, got: %d", len(ls))
 	}
 
 	// and again with a new store
-	s, err = New("")
+	st, err = New("")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
-	ls, _, err = s.List()
+	ls, _, err = st.List()
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if len(ls) != 2 {
-		t.Fatalf("expected 2 volumes, got: %d", len(ls))
+		c.Fatalf("expected 2 volumes, got: %d", len(ls))
 	}
 }
 
-func TestFilterByDriver(t *testing.T) {
+func (s *DockerSuite) TestFilterByDriver(c *check.C) {
 	volumedrivers.Register(vt.NewFakeDriver("fake"), "fake")
 	volumedrivers.Register(vt.NewFakeDriver("noop"), "noop")
 	defer volumedrivers.Unregister("fake")
 	defer volumedrivers.Unregister("noop")
-	s, err := New("")
+	st, err := New("")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
-	if _, err := s.Create("fake1", "fake", nil, nil); err != nil {
-		t.Fatal(err)
+	if _, err := st.Create("fake1", "fake", nil, nil); err != nil {
+		c.Fatal(err)
 	}
-	if _, err := s.Create("fake2", "fake", nil, nil); err != nil {
-		t.Fatal(err)
+	if _, err := st.Create("fake2", "fake", nil, nil); err != nil {
+		c.Fatal(err)
 	}
-	if _, err := s.Create("fake3", "noop", nil, nil); err != nil {
-		t.Fatal(err)
-	}
-
-	if l, _ := s.FilterByDriver("fake"); len(l) != 2 {
-		t.Fatalf("Expected 2 volumes, got %v, %v", len(l), l)
+	if _, err := st.Create("fake3", "noop", nil, nil); err != nil {
+		c.Fatal(err)
 	}
 
-	if l, _ := s.FilterByDriver("noop"); len(l) != 1 {
-		t.Fatalf("Expected 1 volume, got %v, %v", len(l), l)
+	if l, _ := st.FilterByDriver("fake"); len(l) != 2 {
+		c.Fatalf("Expected 2 volumes, got %v, %v", len(l), l)
+	}
+
+	if l, _ := st.FilterByDriver("noop"); len(l) != 1 {
+		c.Fatalf("Expected 1 volume, got %v, %v", len(l), l)
 	}
 }
 
-func TestFilterByUsed(t *testing.T) {
+func (s *DockerSuite) TestFilterByUsed(c *check.C) {
 	volumedrivers.Register(vt.NewFakeDriver("fake"), "fake")
 	volumedrivers.Register(vt.NewFakeDriver("noop"), "noop")
+	defer volumedrivers.Unregister("fake")
+	defer volumedrivers.Unregister("noop")
 
-	s, err := New("")
+	st, err := New("")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
-	if _, err := s.CreateWithRef("fake1", "fake", "volReference", nil, nil); err != nil {
-		t.Fatal(err)
+	if _, err := st.CreateWithRef("fake1", "fake", "volReference", nil, nil); err != nil {
+		c.Fatal(err)
 	}
-	if _, err := s.Create("fake2", "fake", nil, nil); err != nil {
-		t.Fatal(err)
+	if _, err := st.Create("fake2", "fake", nil, nil); err != nil {
+		c.Fatal(err)
 	}
 
-	vols, _, err := s.List()
+	vols, _, err := st.List()
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
-	dangling := s.FilterByUsed(vols, false)
+	dangling := st.FilterByUsed(vols, false)
 	if len(dangling) != 1 {
-		t.Fatalf("expected 1 danging volume, got %v", len(dangling))
+		c.Fatalf("expected 1 danging volume, got %v", len(dangling))
 	}
 	if dangling[0].Name() != "fake2" {
-		t.Fatalf("expected danging volume fake2, got %s", dangling[0].Name())
+		c.Fatalf("expected danging volume fake2, got %s", dangling[0].Name())
 	}
 
-	used := s.FilterByUsed(vols, true)
+	used := st.FilterByUsed(vols, true)
 	if len(used) != 1 {
-		t.Fatalf("expected 1 used volume, got %v", len(used))
+		c.Fatalf("expected 1 used volume, got %v", len(used))
 	}
 	if used[0].Name() != "fake1" {
-		t.Fatalf("expected used volume fake1, got %s", used[0].Name())
+		c.Fatalf("expected used volume fake1, got %s", used[0].Name())
 	}
 }
 
-func TestDerefMultipleOfSameRef(t *testing.T) {
+func (s *DockerSuite) TestDerefMultipleOfSameRef(c *check.C) {
 	volumedrivers.Register(vt.NewFakeDriver("fake"), "fake")
+	defer volumedrivers.Unregister("fake")
 
-	s, err := New("")
+	st, err := New("")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
-	v, err := s.CreateWithRef("fake1", "fake", "volReference", nil, nil)
+	v, err := st.CreateWithRef("fake1", "fake", "volReference", nil, nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
-	if _, err := s.GetWithRef("fake1", "fake", "volReference"); err != nil {
-		t.Fatal(err)
+	if _, err := st.GetWithRef("fake1", "fake", "volReference"); err != nil {
+		c.Fatal(err)
 	}
 
-	s.Dereference(v, "volReference")
-	if err := s.Remove(v); err != nil {
-		t.Fatal(err)
+	st.Dereference(v, "volReference")
+	if err := st.Remove(v); err != nil {
+		c.Fatal(err)
 	}
 }

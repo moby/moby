@@ -7,11 +7,11 @@ import (
 	"io/ioutil"
 	"runtime"
 	"strings"
-	"testing"
 
 	"github.com/docker/engine-api/types/container"
 	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/docker/engine-api/types/strslice"
+	"github.com/go-check/check"
 )
 
 type f struct {
@@ -19,7 +19,7 @@ type f struct {
 	entrypoint strslice.StrSlice
 }
 
-func TestDecodeContainerConfig(t *testing.T) {
+func (s *DockerSuite) TestDecodeContainerConfig(c *check.C) {
 
 	var (
 		fixtures []f
@@ -43,24 +43,24 @@ func TestDecodeContainerConfig(t *testing.T) {
 	for _, f := range fixtures {
 		b, err := ioutil.ReadFile(f.file)
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 
-		c, h, _, err := DecodeContainerConfig(bytes.NewReader(b))
+		cc, h, _, err := DecodeContainerConfig(bytes.NewReader(b))
 		if err != nil {
-			t.Fatal(fmt.Errorf("Error parsing %s: %v", f, err))
+			c.Fatal(fmt.Errorf("Error parsing %s: %v", f, err))
 		}
 
-		if c.Image != image {
-			t.Fatalf("Expected %s image, found %s\n", image, c.Image)
+		if cc.Image != image {
+			c.Fatalf("Expected %s image, found %s\n", image, cc.Image)
 		}
 
-		if len(c.Entrypoint) != len(f.entrypoint) {
-			t.Fatalf("Expected %v, found %v\n", f.entrypoint, c.Entrypoint)
+		if len(cc.Entrypoint) != len(f.entrypoint) {
+			c.Fatalf("Expected %v, found %v\n", f.entrypoint, cc.Entrypoint)
 		}
 
 		if h != nil && h.Memory != 1000 {
-			t.Fatalf("Expected memory to be 1000, found %d\n", h.Memory)
+			c.Fatalf("Expected memory to be 1000, found %d\n", h.Memory)
 		}
 	}
 }
@@ -68,34 +68,34 @@ func TestDecodeContainerConfig(t *testing.T) {
 // TestDecodeContainerConfigIsolation validates isolation passed
 // to the daemon in the hostConfig structure. Note this is platform specific
 // as to what level of container isolation is supported.
-func TestDecodeContainerConfigIsolation(t *testing.T) {
+func (s *DockerSuite) TestDecodeContainerConfigIsolation(c *check.C) {
 
 	// An invalid isolation level
 	if _, _, _, err := callDecodeContainerConfigIsolation("invalid"); err != nil {
 		if !strings.Contains(err.Error(), `invalid --isolation: "invalid"`) {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 	}
 
 	// Blank isolation (== default)
 	if _, _, _, err := callDecodeContainerConfigIsolation(""); err != nil {
-		t.Fatal("Blank isolation should have succeeded")
+		c.Fatal("Blank isolation should have succeeded")
 	}
 
 	// Default isolation
 	if _, _, _, err := callDecodeContainerConfigIsolation("default"); err != nil {
-		t.Fatal("default isolation should have succeeded")
+		c.Fatal("default isolation should have succeeded")
 	}
 
 	// Process isolation (Valid on Windows only)
 	if runtime.GOOS == "windows" {
 		if _, _, _, err := callDecodeContainerConfigIsolation("process"); err != nil {
-			t.Fatal("process isolation should have succeeded")
+			c.Fatal("process isolation should have succeeded")
 		}
 	} else {
 		if _, _, _, err := callDecodeContainerConfigIsolation("process"); err != nil {
 			if !strings.Contains(err.Error(), `invalid --isolation: "process"`) {
-				t.Fatal(err)
+				c.Fatal(err)
 			}
 		}
 	}
@@ -103,12 +103,12 @@ func TestDecodeContainerConfigIsolation(t *testing.T) {
 	// Hyper-V Containers isolation (Valid on Windows only)
 	if runtime.GOOS == "windows" {
 		if _, _, _, err := callDecodeContainerConfigIsolation("hyperv"); err != nil {
-			t.Fatal("hyperv isolation should have succeeded")
+			c.Fatal("hyperv isolation should have succeeded")
 		}
 	} else {
 		if _, _, _, err := callDecodeContainerConfigIsolation("hyperv"); err != nil {
 			if !strings.Contains(err.Error(), `invalid --isolation: "hyperv"`) {
-				t.Fatal(err)
+				c.Fatal(err)
 			}
 		}
 	}

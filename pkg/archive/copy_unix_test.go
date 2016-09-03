@@ -14,7 +14,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
 func removeAllPaths(paths ...string) {
@@ -23,15 +24,15 @@ func removeAllPaths(paths ...string) {
 	}
 }
 
-func getTestTempDirs(t *testing.T) (tmpDirA, tmpDirB string) {
+func getTestTempDirs(c *check.C) (tmpDirA, tmpDirB string) {
 	var err error
 
 	if tmpDirA, err = ioutil.TempDir("", "archive-copy-test"); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if tmpDirB, err = ioutil.TempDir("", "archive-copy-test"); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	return
@@ -47,8 +48,8 @@ func joinTrailingSep(pathElements ...string) string {
 	return fmt.Sprintf("%s%c", joined, filepath.Separator)
 }
 
-func fileContentsEqual(t *testing.T, filenameA, filenameB string) (err error) {
-	t.Logf("checking for equal file contents: %q and %q\n", filenameA, filenameB)
+func fileContentsEqual(c *check.C, filenameA, filenameB string) (err error) {
+	c.Logf("checking for equal file contents: %q and %q\n", filenameA, filenameB)
 
 	fileA, err := os.Open(filenameA)
 	if err != nil {
@@ -84,8 +85,8 @@ func fileContentsEqual(t *testing.T, filenameA, filenameB string) (err error) {
 	return
 }
 
-func dirContentsEqual(t *testing.T, newDir, oldDir string) (err error) {
-	t.Logf("checking for equal directory contents: %q and %q\n", newDir, oldDir)
+func dirContentsEqual(c *check.C, newDir, oldDir string) (err error) {
+	c.Logf("checking for equal directory contents: %q and %q\n", newDir, oldDir)
 
 	var changes []Change
 
@@ -100,10 +101,10 @@ func dirContentsEqual(t *testing.T, newDir, oldDir string) (err error) {
 	return
 }
 
-func logDirContents(t *testing.T, dirPath string) {
+func logDirContents(c *check.C, dirPath string) {
 	logWalkedPaths := filepath.WalkFunc(func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			t.Errorf("stat error for path %q: %s", path, err)
+			c.Errorf("stat error for path %q: %s", path, err)
 			return nil
 		}
 
@@ -111,26 +112,26 @@ func logDirContents(t *testing.T, dirPath string) {
 			path = joinTrailingSep(path)
 		}
 
-		t.Logf("\t%s", path)
+		c.Logf("\t%s", path)
 
 		return nil
 	})
 
-	t.Logf("logging directory contents: %q", dirPath)
+	c.Logf("logging directory contents: %q", dirPath)
 
 	if err := filepath.Walk(dirPath, logWalkedPaths); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
-func testCopyHelper(t *testing.T, srcPath, dstPath string) (err error) {
-	t.Logf("copying from %q to %q (not follow symbol link)", srcPath, dstPath)
+func testCopyHelper(c *check.C, srcPath, dstPath string) (err error) {
+	c.Logf("copying from %q to %q (not follow symbol link)", srcPath, dstPath)
 
 	return CopyResource(srcPath, dstPath, false)
 }
 
-func testCopyHelperFSym(t *testing.T, srcPath, dstPath string) (err error) {
-	t.Logf("copying from %q to %q (follow symbol link)", srcPath, dstPath)
+func testCopyHelperFSym(c *check.C, srcPath, dstPath string) (err error) {
+	c.Logf("copying from %q to %q (follow symbol link)", srcPath, dstPath)
 
 	return CopyResource(srcPath, dstPath, true)
 }
@@ -144,54 +145,54 @@ func testCopyHelperFSym(t *testing.T, srcPath, dstPath string) (err error) {
 // First get these easy error cases out of the way.
 
 // Test for error when SRC does not exist.
-func TestCopyErrSrcNotExists(t *testing.T) {
-	tmpDirA, tmpDirB := getTestTempDirs(t)
+func (s *DockerSuite) TestCopyErrSrcNotExists(c *check.C) {
+	tmpDirA, tmpDirB := getTestTempDirs(c)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
 	if _, err := CopyInfoSourcePath(filepath.Join(tmpDirA, "file1"), false); !os.IsNotExist(err) {
-		t.Fatalf("expected IsNotExist error, but got %T: %s", err, err)
+		c.Fatalf("expected IsNotExist error, but got %T: %s", err, err)
 	}
 }
 
 // Test for error when SRC ends in a trailing
 // path separator but it exists as a file.
-func TestCopyErrSrcNotDir(t *testing.T) {
-	tmpDirA, tmpDirB := getTestTempDirs(t)
+func (s *DockerSuite) TestCopyErrSrcNotDir(c *check.C) {
+	tmpDirA, tmpDirB := getTestTempDirs(c)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
 	// Load A with some sample files and directories.
-	createSampleDir(t, tmpDirA)
+	createSampleDir(c, tmpDirA)
 
 	if _, err := CopyInfoSourcePath(joinTrailingSep(tmpDirA, "file1"), false); !isNotDir(err) {
-		t.Fatalf("expected IsNotDir error, but got %T: %s", err, err)
+		c.Fatalf("expected IsNotDir error, but got %T: %s", err, err)
 	}
 }
 
 // Test for error when SRC is a valid file or directory,
 // but the DST parent directory does not exist.
-func TestCopyErrDstParentNotExists(t *testing.T) {
-	tmpDirA, tmpDirB := getTestTempDirs(t)
+func (s *DockerSuite) TestCopyErrDstParentNotExists(c *check.C) {
+	tmpDirA, tmpDirB := getTestTempDirs(c)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
 	// Load A with some sample files and directories.
-	createSampleDir(t, tmpDirA)
+	createSampleDir(c, tmpDirA)
 
 	srcInfo := CopyInfo{Path: filepath.Join(tmpDirA, "file1"), Exists: true, IsDir: false}
 
 	// Try with a file source.
 	content, err := TarResource(srcInfo)
 	if err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 	defer content.Close()
 
 	// Copy to a file whose parent does not exist.
 	if err = CopyTo(content, srcInfo, filepath.Join(tmpDirB, "fakeParentDir", "file1")); err == nil {
-		t.Fatal("expected IsNotExist error, but got nil instead")
+		c.Fatal("expected IsNotExist error, but got nil instead")
 	}
 
 	if !os.IsNotExist(err) {
-		t.Fatalf("expected IsNotExist error, but got %T: %s", err, err)
+		c.Fatalf("expected IsNotExist error, but got %T: %s", err, err)
 	}
 
 	// Try with a directory source.
@@ -199,45 +200,45 @@ func TestCopyErrDstParentNotExists(t *testing.T) {
 
 	content, err = TarResource(srcInfo)
 	if err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 	defer content.Close()
 
 	// Copy to a directory whose parent does not exist.
 	if err = CopyTo(content, srcInfo, joinTrailingSep(tmpDirB, "fakeParentDir", "fakeDstDir")); err == nil {
-		t.Fatal("expected IsNotExist error, but got nil instead")
+		c.Fatal("expected IsNotExist error, but got nil instead")
 	}
 
 	if !os.IsNotExist(err) {
-		t.Fatalf("expected IsNotExist error, but got %T: %s", err, err)
+		c.Fatalf("expected IsNotExist error, but got %T: %s", err, err)
 	}
 }
 
 // Test for error when DST ends in a trailing
 // path separator but exists as a file.
-func TestCopyErrDstNotDir(t *testing.T) {
-	tmpDirA, tmpDirB := getTestTempDirs(t)
+func (s *DockerSuite) TestCopyErrDstNotDir(c *check.C) {
+	tmpDirA, tmpDirB := getTestTempDirs(c)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
 	// Load A and B with some sample files and directories.
-	createSampleDir(t, tmpDirA)
-	createSampleDir(t, tmpDirB)
+	createSampleDir(c, tmpDirA)
+	createSampleDir(c, tmpDirB)
 
 	// Try with a file source.
 	srcInfo := CopyInfo{Path: filepath.Join(tmpDirA, "file1"), Exists: true, IsDir: false}
 
 	content, err := TarResource(srcInfo)
 	if err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 	defer content.Close()
 
 	if err = CopyTo(content, srcInfo, joinTrailingSep(tmpDirB, "file1")); err == nil {
-		t.Fatal("expected IsNotDir error, but got nil instead")
+		c.Fatal("expected IsNotDir error, but got nil instead")
 	}
 
 	if !isNotDir(err) {
-		t.Fatalf("expected IsNotDir error, but got %T: %s", err, err)
+		c.Fatalf("expected IsNotDir error, but got %T: %s", err, err)
 	}
 
 	// Try with a directory source.
@@ -245,16 +246,16 @@ func TestCopyErrDstNotDir(t *testing.T) {
 
 	content, err = TarResource(srcInfo)
 	if err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 	defer content.Close()
 
 	if err = CopyTo(content, srcInfo, joinTrailingSep(tmpDirB, "file1")); err == nil {
-		t.Fatal("expected IsNotDir error, but got nil instead")
+		c.Fatal("expected IsNotDir error, but got nil instead")
 	}
 
 	if !isNotDir(err) {
-		t.Fatalf("expected IsNotDir error, but got %T: %s", err, err)
+		c.Fatalf("expected IsNotDir error, but got %T: %s", err, err)
 	}
 }
 
@@ -277,24 +278,24 @@ func TestCopyErrDstNotDir(t *testing.T) {
 // A. SRC specifies a file and DST (no trailing path separator) doesn't
 //    exist. This should create a file with the name DST and copy the
 //    contents of the source file into it.
-func TestCopyCaseA(t *testing.T) {
-	tmpDirA, tmpDirB := getTestTempDirs(t)
+func (s *DockerSuite) TestCopyCaseA(c *check.C) {
+	tmpDirA, tmpDirB := getTestTempDirs(c)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
 	// Load A with some sample files and directories.
-	createSampleDir(t, tmpDirA)
+	createSampleDir(c, tmpDirA)
 
 	srcPath := filepath.Join(tmpDirA, "file1")
 	dstPath := filepath.Join(tmpDirB, "itWorks.txt")
 
 	var err error
 
-	if err = testCopyHelper(t, srcPath, dstPath); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelper(c, srcPath, dstPath); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = fileContentsEqual(t, srcPath, dstPath); err != nil {
-		t.Fatal(err)
+	if err = fileContentsEqual(c, srcPath, dstPath); err != nil {
+		c.Fatal(err)
 	}
 	os.Remove(dstPath)
 
@@ -302,66 +303,66 @@ func TestCopyCaseA(t *testing.T) {
 	symlinkPath1 := filepath.Join(tmpDirA, "symlink4")
 	linkTarget := filepath.Join(tmpDirA, "file1")
 
-	if err = testCopyHelperFSym(t, symlinkPath, dstPath); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelperFSym(c, symlinkPath, dstPath); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = fileContentsEqual(t, linkTarget, dstPath); err != nil {
-		t.Fatal(err)
+	if err = fileContentsEqual(c, linkTarget, dstPath); err != nil {
+		c.Fatal(err)
 	}
 	os.Remove(dstPath)
-	if err = testCopyHelperFSym(t, symlinkPath1, dstPath); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelperFSym(c, symlinkPath1, dstPath); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = fileContentsEqual(t, linkTarget, dstPath); err != nil {
-		t.Fatal(err)
+	if err = fileContentsEqual(c, linkTarget, dstPath); err != nil {
+		c.Fatal(err)
 	}
 }
 
 // B. SRC specifies a file and DST (with trailing path separator) doesn't
 //    exist. This should cause an error because the copy operation cannot
 //    create a directory when copying a single file.
-func TestCopyCaseB(t *testing.T) {
-	tmpDirA, tmpDirB := getTestTempDirs(t)
+func (s *DockerSuite) TestCopyCaseB(c *check.C) {
+	tmpDirA, tmpDirB := getTestTempDirs(c)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
 	// Load A with some sample files and directories.
-	createSampleDir(t, tmpDirA)
+	createSampleDir(c, tmpDirA)
 
 	srcPath := filepath.Join(tmpDirA, "file1")
 	dstDir := joinTrailingSep(tmpDirB, "testDir")
 
 	var err error
 
-	if err = testCopyHelper(t, srcPath, dstDir); err == nil {
-		t.Fatal("expected ErrDirNotExists error, but got nil instead")
+	if err = testCopyHelper(c, srcPath, dstDir); err == nil {
+		c.Fatal("expected ErrDirNotExists error, but got nil instead")
 	}
 
 	if err != ErrDirNotExists {
-		t.Fatalf("expected ErrDirNotExists error, but got %T: %s", err, err)
+		c.Fatalf("expected ErrDirNotExists error, but got %T: %s", err, err)
 	}
 
 	symlinkPath := filepath.Join(tmpDirA, "symlink3")
 
-	if err = testCopyHelperFSym(t, symlinkPath, dstDir); err == nil {
-		t.Fatal("expected ErrDirNotExists error, but got nil instead")
+	if err = testCopyHelperFSym(c, symlinkPath, dstDir); err == nil {
+		c.Fatal("expected ErrDirNotExists error, but got nil instead")
 	}
 	if err != ErrDirNotExists {
-		t.Fatalf("expected ErrDirNotExists error, but got %T: %s", err, err)
+		c.Fatalf("expected ErrDirNotExists error, but got %T: %s", err, err)
 	}
 
 }
 
 // C. SRC specifies a file and DST exists as a file. This should overwrite
 //    the file at DST with the contents of the source file.
-func TestCopyCaseC(t *testing.T) {
-	tmpDirA, tmpDirB := getTestTempDirs(t)
+func (s *DockerSuite) TestCopyCaseC(c *check.C) {
+	tmpDirA, tmpDirB := getTestTempDirs(c)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
 	// Load A and B with some sample files and directories.
-	createSampleDir(t, tmpDirA)
-	createSampleDir(t, tmpDirB)
+	createSampleDir(c, tmpDirA)
+	createSampleDir(c, tmpDirB)
 
 	srcPath := filepath.Join(tmpDirA, "file1")
 	dstPath := filepath.Join(tmpDirB, "file2")
@@ -369,29 +370,29 @@ func TestCopyCaseC(t *testing.T) {
 	var err error
 
 	// Ensure they start out different.
-	if err = fileContentsEqual(t, srcPath, dstPath); err == nil {
-		t.Fatal("expected different file contents")
+	if err = fileContentsEqual(c, srcPath, dstPath); err == nil {
+		c.Fatal("expected different file contents")
 	}
 
-	if err = testCopyHelper(t, srcPath, dstPath); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelper(c, srcPath, dstPath); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = fileContentsEqual(t, srcPath, dstPath); err != nil {
-		t.Fatal(err)
+	if err = fileContentsEqual(c, srcPath, dstPath); err != nil {
+		c.Fatal(err)
 	}
 }
 
 // C. Symbol link following version:
 //    SRC specifies a file and DST exists as a file. This should overwrite
 //    the file at DST with the contents of the source file.
-func TestCopyCaseCFSym(t *testing.T) {
-	tmpDirA, tmpDirB := getTestTempDirs(t)
+func (s *DockerSuite) TestCopyCaseCFSym(c *check.C) {
+	tmpDirA, tmpDirB := getTestTempDirs(c)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
 	// Load A and B with some sample files and directories.
-	createSampleDir(t, tmpDirA)
-	createSampleDir(t, tmpDirB)
+	createSampleDir(c, tmpDirA)
+	createSampleDir(c, tmpDirB)
 
 	symlinkPathBad := filepath.Join(tmpDirA, "symlink1")
 	symlinkPath := filepath.Join(tmpDirA, "symlink3")
@@ -401,35 +402,35 @@ func TestCopyCaseCFSym(t *testing.T) {
 	var err error
 
 	// first to test broken link
-	if err = testCopyHelperFSym(t, symlinkPathBad, dstPath); err == nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelperFSym(c, symlinkPathBad, dstPath); err == nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
 	// test symbol link -> symbol link -> target
 	// Ensure they start out different.
-	if err = fileContentsEqual(t, linkTarget, dstPath); err == nil {
-		t.Fatal("expected different file contents")
+	if err = fileContentsEqual(c, linkTarget, dstPath); err == nil {
+		c.Fatal("expected different file contents")
 	}
 
-	if err = testCopyHelperFSym(t, symlinkPath, dstPath); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelperFSym(c, symlinkPath, dstPath); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = fileContentsEqual(t, linkTarget, dstPath); err != nil {
-		t.Fatal(err)
+	if err = fileContentsEqual(c, linkTarget, dstPath); err != nil {
+		c.Fatal(err)
 	}
 }
 
 // D. SRC specifies a file and DST exists as a directory. This should place
 //    a copy of the source file inside it using the basename from SRC. Ensure
 //    this works whether DST has a trailing path separator or not.
-func TestCopyCaseD(t *testing.T) {
-	tmpDirA, tmpDirB := getTestTempDirs(t)
+func (s *DockerSuite) TestCopyCaseD(c *check.C) {
+	tmpDirA, tmpDirB := getTestTempDirs(c)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
 	// Load A and B with some sample files and directories.
-	createSampleDir(t, tmpDirA)
-	createSampleDir(t, tmpDirB)
+	createSampleDir(c, tmpDirA)
+	createSampleDir(c, tmpDirB)
 
 	srcPath := filepath.Join(tmpDirA, "file1")
 	dstDir := filepath.Join(tmpDirB, "dir1")
@@ -439,35 +440,35 @@ func TestCopyCaseD(t *testing.T) {
 
 	// Ensure that dstPath doesn't exist.
 	if _, err = os.Stat(dstPath); !os.IsNotExist(err) {
-		t.Fatalf("did not expect dstPath %q to exist", dstPath)
+		c.Fatalf("did not expect dstPath %q to exist", dstPath)
 	}
 
-	if err = testCopyHelper(t, srcPath, dstDir); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelper(c, srcPath, dstDir); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = fileContentsEqual(t, srcPath, dstPath); err != nil {
-		t.Fatal(err)
+	if err = fileContentsEqual(c, srcPath, dstPath); err != nil {
+		c.Fatal(err)
 	}
 
 	// Now try again but using a trailing path separator for dstDir.
 
 	if err = os.RemoveAll(dstDir); err != nil {
-		t.Fatalf("unable to remove dstDir: %s", err)
+		c.Fatalf("unable to remove dstDir: %s", err)
 	}
 
 	if err = os.MkdirAll(dstDir, os.FileMode(0755)); err != nil {
-		t.Fatalf("unable to make dstDir: %s", err)
+		c.Fatalf("unable to make dstDir: %s", err)
 	}
 
 	dstDir = joinTrailingSep(tmpDirB, "dir1")
 
-	if err = testCopyHelper(t, srcPath, dstDir); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelper(c, srcPath, dstDir); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = fileContentsEqual(t, srcPath, dstPath); err != nil {
-		t.Fatal(err)
+	if err = fileContentsEqual(c, srcPath, dstPath); err != nil {
+		c.Fatal(err)
 	}
 }
 
@@ -475,13 +476,13 @@ func TestCopyCaseD(t *testing.T) {
 //    SRC specifies a file and DST exists as a directory. This should place
 //    a copy of the source file inside it using the basename from SRC. Ensure
 //    this works whether DST has a trailing path separator or not.
-func TestCopyCaseDFSym(t *testing.T) {
-	tmpDirA, tmpDirB := getTestTempDirs(t)
+func (s *DockerSuite) TestCopyCaseDFSym(c *check.C) {
+	tmpDirA, tmpDirB := getTestTempDirs(c)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
 	// Load A and B with some sample files and directories.
-	createSampleDir(t, tmpDirA)
-	createSampleDir(t, tmpDirB)
+	createSampleDir(c, tmpDirA)
+	createSampleDir(c, tmpDirB)
 
 	srcPath := filepath.Join(tmpDirA, "symlink4")
 	linkTarget := filepath.Join(tmpDirA, "file1")
@@ -492,35 +493,35 @@ func TestCopyCaseDFSym(t *testing.T) {
 
 	// Ensure that dstPath doesn't exist.
 	if _, err = os.Stat(dstPath); !os.IsNotExist(err) {
-		t.Fatalf("did not expect dstPath %q to exist", dstPath)
+		c.Fatalf("did not expect dstPath %q to exist", dstPath)
 	}
 
-	if err = testCopyHelperFSym(t, srcPath, dstDir); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelperFSym(c, srcPath, dstDir); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = fileContentsEqual(t, linkTarget, dstPath); err != nil {
-		t.Fatal(err)
+	if err = fileContentsEqual(c, linkTarget, dstPath); err != nil {
+		c.Fatal(err)
 	}
 
 	// Now try again but using a trailing path separator for dstDir.
 
 	if err = os.RemoveAll(dstDir); err != nil {
-		t.Fatalf("unable to remove dstDir: %s", err)
+		c.Fatalf("unable to remove dstDir: %s", err)
 	}
 
 	if err = os.MkdirAll(dstDir, os.FileMode(0755)); err != nil {
-		t.Fatalf("unable to make dstDir: %s", err)
+		c.Fatalf("unable to make dstDir: %s", err)
 	}
 
 	dstDir = joinTrailingSep(tmpDirB, "dir1")
 
-	if err = testCopyHelperFSym(t, srcPath, dstDir); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelperFSym(c, srcPath, dstDir); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = fileContentsEqual(t, linkTarget, dstPath); err != nil {
-		t.Fatal(err)
+	if err = fileContentsEqual(c, linkTarget, dstPath); err != nil {
+		c.Fatal(err)
 	}
 }
 
@@ -528,43 +529,43 @@ func TestCopyCaseDFSym(t *testing.T) {
 //    directory at DST and copy the contents of the SRC directory into the DST
 //    directory. Ensure this works whether DST has a trailing path separator or
 //    not.
-func TestCopyCaseE(t *testing.T) {
-	tmpDirA, tmpDirB := getTestTempDirs(t)
+func (s *DockerSuite) TestCopyCaseE(c *check.C) {
+	tmpDirA, tmpDirB := getTestTempDirs(c)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
 	// Load A with some sample files and directories.
-	createSampleDir(t, tmpDirA)
+	createSampleDir(c, tmpDirA)
 
 	srcDir := filepath.Join(tmpDirA, "dir1")
 	dstDir := filepath.Join(tmpDirB, "testDir")
 
 	var err error
 
-	if err = testCopyHelper(t, srcDir, dstDir); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelper(c, srcDir, dstDir); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, dstDir, srcDir); err != nil {
-		t.Log("dir contents not equal")
-		logDirContents(t, tmpDirA)
-		logDirContents(t, tmpDirB)
-		t.Fatal(err)
+	if err = dirContentsEqual(c, dstDir, srcDir); err != nil {
+		c.Log("dir contents not equal")
+		logDirContents(c, tmpDirA)
+		logDirContents(c, tmpDirB)
+		c.Fatal(err)
 	}
 
 	// Now try again but using a trailing path separator for dstDir.
 
 	if err = os.RemoveAll(dstDir); err != nil {
-		t.Fatalf("unable to remove dstDir: %s", err)
+		c.Fatalf("unable to remove dstDir: %s", err)
 	}
 
 	dstDir = joinTrailingSep(tmpDirB, "testDir")
 
-	if err = testCopyHelper(t, srcDir, dstDir); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelper(c, srcDir, dstDir); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, dstDir, srcDir); err != nil {
-		t.Fatal(err)
+	if err = dirContentsEqual(c, dstDir, srcDir); err != nil {
+		c.Fatal(err)
 	}
 }
 
@@ -573,12 +574,12 @@ func TestCopyCaseE(t *testing.T) {
 //    directory at DST and copy the contents of the SRC directory into the DST
 //    directory. Ensure this works whether DST has a trailing path separator or
 //    not.
-func TestCopyCaseEFSym(t *testing.T) {
-	tmpDirA, tmpDirB := getTestTempDirs(t)
+func (s *DockerSuite) TestCopyCaseEFSym(c *check.C) {
+	tmpDirA, tmpDirB := getTestTempDirs(c)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
 	// Load A with some sample files and directories.
-	createSampleDir(t, tmpDirA)
+	createSampleDir(c, tmpDirA)
 
 	srcDir := filepath.Join(tmpDirA, "dirSymlink")
 	linkTarget := filepath.Join(tmpDirA, "dir1")
@@ -586,43 +587,43 @@ func TestCopyCaseEFSym(t *testing.T) {
 
 	var err error
 
-	if err = testCopyHelperFSym(t, srcDir, dstDir); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelperFSym(c, srcDir, dstDir); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, dstDir, linkTarget); err != nil {
-		t.Log("dir contents not equal")
-		logDirContents(t, tmpDirA)
-		logDirContents(t, tmpDirB)
-		t.Fatal(err)
+	if err = dirContentsEqual(c, dstDir, linkTarget); err != nil {
+		c.Log("dir contents not equal")
+		logDirContents(c, tmpDirA)
+		logDirContents(c, tmpDirB)
+		c.Fatal(err)
 	}
 
 	// Now try again but using a trailing path separator for dstDir.
 
 	if err = os.RemoveAll(dstDir); err != nil {
-		t.Fatalf("unable to remove dstDir: %s", err)
+		c.Fatalf("unable to remove dstDir: %s", err)
 	}
 
 	dstDir = joinTrailingSep(tmpDirB, "testDir")
 
-	if err = testCopyHelperFSym(t, srcDir, dstDir); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelperFSym(c, srcDir, dstDir); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, dstDir, linkTarget); err != nil {
-		t.Fatal(err)
+	if err = dirContentsEqual(c, dstDir, linkTarget); err != nil {
+		c.Fatal(err)
 	}
 }
 
 // F. SRC specifies a directory and DST exists as a file. This should cause an
 //    error as it is not possible to overwrite a file with a directory.
-func TestCopyCaseF(t *testing.T) {
-	tmpDirA, tmpDirB := getTestTempDirs(t)
+func (s *DockerSuite) TestCopyCaseF(c *check.C) {
+	tmpDirA, tmpDirB := getTestTempDirs(c)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
 	// Load A and B with some sample files and directories.
-	createSampleDir(t, tmpDirA)
-	createSampleDir(t, tmpDirB)
+	createSampleDir(c, tmpDirA)
+	createSampleDir(c, tmpDirB)
 
 	srcDir := filepath.Join(tmpDirA, "dir1")
 	symSrcDir := filepath.Join(tmpDirA, "dirSymlink")
@@ -630,34 +631,34 @@ func TestCopyCaseF(t *testing.T) {
 
 	var err error
 
-	if err = testCopyHelper(t, srcDir, dstFile); err == nil {
-		t.Fatal("expected ErrCannotCopyDir error, but got nil instead")
+	if err = testCopyHelper(c, srcDir, dstFile); err == nil {
+		c.Fatal("expected ErrCannotCopyDir error, but got nil instead")
 	}
 
 	if err != ErrCannotCopyDir {
-		t.Fatalf("expected ErrCannotCopyDir error, but got %T: %s", err, err)
+		c.Fatalf("expected ErrCannotCopyDir error, but got %T: %s", err, err)
 	}
 
 	// now test with symbol link
-	if err = testCopyHelperFSym(t, symSrcDir, dstFile); err == nil {
-		t.Fatal("expected ErrCannotCopyDir error, but got nil instead")
+	if err = testCopyHelperFSym(c, symSrcDir, dstFile); err == nil {
+		c.Fatal("expected ErrCannotCopyDir error, but got nil instead")
 	}
 
 	if err != ErrCannotCopyDir {
-		t.Fatalf("expected ErrCannotCopyDir error, but got %T: %s", err, err)
+		c.Fatalf("expected ErrCannotCopyDir error, but got %T: %s", err, err)
 	}
 }
 
 // G. SRC specifies a directory and DST exists as a directory. This should copy
 //    the SRC directory and all its contents to the DST directory. Ensure this
 //    works whether DST has a trailing path separator or not.
-func TestCopyCaseG(t *testing.T) {
-	tmpDirA, tmpDirB := getTestTempDirs(t)
+func (s *DockerSuite) TestCopyCaseG(c *check.C) {
+	tmpDirA, tmpDirB := getTestTempDirs(c)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
 	// Load A and B with some sample files and directories.
-	createSampleDir(t, tmpDirA)
-	createSampleDir(t, tmpDirB)
+	createSampleDir(c, tmpDirA)
+	createSampleDir(c, tmpDirB)
 
 	srcDir := filepath.Join(tmpDirA, "dir1")
 	dstDir := filepath.Join(tmpDirB, "dir2")
@@ -665,32 +666,32 @@ func TestCopyCaseG(t *testing.T) {
 
 	var err error
 
-	if err = testCopyHelper(t, srcDir, dstDir); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelper(c, srcDir, dstDir); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, resultDir, srcDir); err != nil {
-		t.Fatal(err)
+	if err = dirContentsEqual(c, resultDir, srcDir); err != nil {
+		c.Fatal(err)
 	}
 
 	// Now try again but using a trailing path separator for dstDir.
 
 	if err = os.RemoveAll(dstDir); err != nil {
-		t.Fatalf("unable to remove dstDir: %s", err)
+		c.Fatalf("unable to remove dstDir: %s", err)
 	}
 
 	if err = os.MkdirAll(dstDir, os.FileMode(0755)); err != nil {
-		t.Fatalf("unable to make dstDir: %s", err)
+		c.Fatalf("unable to make dstDir: %s", err)
 	}
 
 	dstDir = joinTrailingSep(tmpDirB, "dir2")
 
-	if err = testCopyHelper(t, srcDir, dstDir); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelper(c, srcDir, dstDir); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, resultDir, srcDir); err != nil {
-		t.Fatal(err)
+	if err = dirContentsEqual(c, resultDir, srcDir); err != nil {
+		c.Fatal(err)
 	}
 }
 
@@ -698,13 +699,13 @@ func TestCopyCaseG(t *testing.T) {
 //    SRC specifies a directory and DST exists as a directory. This should copy
 //    the SRC directory and all its contents to the DST directory. Ensure this
 //    works whether DST has a trailing path separator or not.
-func TestCopyCaseGFSym(t *testing.T) {
-	tmpDirA, tmpDirB := getTestTempDirs(t)
+func (s *DockerSuite) TestCopyCaseGFSym(c *check.C) {
+	tmpDirA, tmpDirB := getTestTempDirs(c)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
 	// Load A and B with some sample files and directories.
-	createSampleDir(t, tmpDirA)
-	createSampleDir(t, tmpDirB)
+	createSampleDir(c, tmpDirA)
+	createSampleDir(c, tmpDirB)
 
 	srcDir := filepath.Join(tmpDirA, "dirSymlink")
 	linkTarget := filepath.Join(tmpDirA, "dir1")
@@ -713,32 +714,32 @@ func TestCopyCaseGFSym(t *testing.T) {
 
 	var err error
 
-	if err = testCopyHelperFSym(t, srcDir, dstDir); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelperFSym(c, srcDir, dstDir); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, resultDir, linkTarget); err != nil {
-		t.Fatal(err)
+	if err = dirContentsEqual(c, resultDir, linkTarget); err != nil {
+		c.Fatal(err)
 	}
 
 	// Now try again but using a trailing path separator for dstDir.
 
 	if err = os.RemoveAll(dstDir); err != nil {
-		t.Fatalf("unable to remove dstDir: %s", err)
+		c.Fatalf("unable to remove dstDir: %s", err)
 	}
 
 	if err = os.MkdirAll(dstDir, os.FileMode(0755)); err != nil {
-		t.Fatalf("unable to make dstDir: %s", err)
+		c.Fatalf("unable to make dstDir: %s", err)
 	}
 
 	dstDir = joinTrailingSep(tmpDirB, "dir2")
 
-	if err = testCopyHelperFSym(t, srcDir, dstDir); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelperFSym(c, srcDir, dstDir); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, resultDir, linkTarget); err != nil {
-		t.Fatal(err)
+	if err = dirContentsEqual(c, resultDir, linkTarget); err != nil {
+		c.Fatal(err)
 	}
 }
 
@@ -746,46 +747,46 @@ func TestCopyCaseGFSym(t *testing.T) {
 //    should create a directory at DST and copy the contents of the SRC
 //    directory (but not the directory itself) into the DST directory. Ensure
 //    this works whether DST has a trailing path separator or not.
-func TestCopyCaseH(t *testing.T) {
-	tmpDirA, tmpDirB := getTestTempDirs(t)
+func (s *DockerSuite) TestCopyCaseH(c *check.C) {
+	tmpDirA, tmpDirB := getTestTempDirs(c)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
 	// Load A with some sample files and directories.
-	createSampleDir(t, tmpDirA)
+	createSampleDir(c, tmpDirA)
 
 	srcDir := joinTrailingSep(tmpDirA, "dir1") + "."
 	dstDir := filepath.Join(tmpDirB, "testDir")
 
 	var err error
 
-	if err = testCopyHelper(t, srcDir, dstDir); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelper(c, srcDir, dstDir); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, dstDir, srcDir); err != nil {
-		t.Log("dir contents not equal")
-		logDirContents(t, tmpDirA)
-		logDirContents(t, tmpDirB)
-		t.Fatal(err)
+	if err = dirContentsEqual(c, dstDir, srcDir); err != nil {
+		c.Log("dir contents not equal")
+		logDirContents(c, tmpDirA)
+		logDirContents(c, tmpDirB)
+		c.Fatal(err)
 	}
 
 	// Now try again but using a trailing path separator for dstDir.
 
 	if err = os.RemoveAll(dstDir); err != nil {
-		t.Fatalf("unable to remove dstDir: %s", err)
+		c.Fatalf("unable to remove dstDir: %s", err)
 	}
 
 	dstDir = joinTrailingSep(tmpDirB, "testDir")
 
-	if err = testCopyHelper(t, srcDir, dstDir); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelper(c, srcDir, dstDir); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, dstDir, srcDir); err != nil {
-		t.Log("dir contents not equal")
-		logDirContents(t, tmpDirA)
-		logDirContents(t, tmpDirB)
-		t.Fatal(err)
+	if err = dirContentsEqual(c, dstDir, srcDir); err != nil {
+		c.Log("dir contents not equal")
+		logDirContents(c, tmpDirA)
+		logDirContents(c, tmpDirB)
+		c.Fatal(err)
 	}
 }
 
@@ -794,12 +795,12 @@ func TestCopyCaseH(t *testing.T) {
 //    should create a directory at DST and copy the contents of the SRC
 //    directory (but not the directory itself) into the DST directory. Ensure
 //    this works whether DST has a trailing path separator or not.
-func TestCopyCaseHFSym(t *testing.T) {
-	tmpDirA, tmpDirB := getTestTempDirs(t)
+func (s *DockerSuite) TestCopyCaseHFSym(c *check.C) {
+	tmpDirA, tmpDirB := getTestTempDirs(c)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
 	// Load A with some sample files and directories.
-	createSampleDir(t, tmpDirA)
+	createSampleDir(c, tmpDirA)
 
 	srcDir := joinTrailingSep(tmpDirA, "dirSymlink") + "."
 	linkTarget := filepath.Join(tmpDirA, "dir1")
@@ -807,47 +808,47 @@ func TestCopyCaseHFSym(t *testing.T) {
 
 	var err error
 
-	if err = testCopyHelperFSym(t, srcDir, dstDir); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelperFSym(c, srcDir, dstDir); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, dstDir, linkTarget); err != nil {
-		t.Log("dir contents not equal")
-		logDirContents(t, tmpDirA)
-		logDirContents(t, tmpDirB)
-		t.Fatal(err)
+	if err = dirContentsEqual(c, dstDir, linkTarget); err != nil {
+		c.Log("dir contents not equal")
+		logDirContents(c, tmpDirA)
+		logDirContents(c, tmpDirB)
+		c.Fatal(err)
 	}
 
 	// Now try again but using a trailing path separator for dstDir.
 
 	if err = os.RemoveAll(dstDir); err != nil {
-		t.Fatalf("unable to remove dstDir: %s", err)
+		c.Fatalf("unable to remove dstDir: %s", err)
 	}
 
 	dstDir = joinTrailingSep(tmpDirB, "testDir")
 
-	if err = testCopyHelperFSym(t, srcDir, dstDir); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelperFSym(c, srcDir, dstDir); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, dstDir, linkTarget); err != nil {
-		t.Log("dir contents not equal")
-		logDirContents(t, tmpDirA)
-		logDirContents(t, tmpDirB)
-		t.Fatal(err)
+	if err = dirContentsEqual(c, dstDir, linkTarget); err != nil {
+		c.Log("dir contents not equal")
+		logDirContents(c, tmpDirA)
+		logDirContents(c, tmpDirB)
+		c.Fatal(err)
 	}
 }
 
 // I. SRC specifies a directory's contents only and DST exists as a file. This
 //    should cause an error as it is not possible to overwrite a file with a
 //    directory.
-func TestCopyCaseI(t *testing.T) {
-	tmpDirA, tmpDirB := getTestTempDirs(t)
+func (s *DockerSuite) TestCopyCaseI(c *check.C) {
+	tmpDirA, tmpDirB := getTestTempDirs(c)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
 	// Load A and B with some sample files and directories.
-	createSampleDir(t, tmpDirA)
-	createSampleDir(t, tmpDirB)
+	createSampleDir(c, tmpDirA)
+	createSampleDir(c, tmpDirB)
 
 	srcDir := joinTrailingSep(tmpDirA, "dir1") + "."
 	symSrcDir := filepath.Join(tmpDirB, "dirSymlink")
@@ -855,21 +856,21 @@ func TestCopyCaseI(t *testing.T) {
 
 	var err error
 
-	if err = testCopyHelper(t, srcDir, dstFile); err == nil {
-		t.Fatal("expected ErrCannotCopyDir error, but got nil instead")
+	if err = testCopyHelper(c, srcDir, dstFile); err == nil {
+		c.Fatal("expected ErrCannotCopyDir error, but got nil instead")
 	}
 
 	if err != ErrCannotCopyDir {
-		t.Fatalf("expected ErrCannotCopyDir error, but got %T: %s", err, err)
+		c.Fatalf("expected ErrCannotCopyDir error, but got %T: %s", err, err)
 	}
 
 	// now try with symbol link of dir
-	if err = testCopyHelperFSym(t, symSrcDir, dstFile); err == nil {
-		t.Fatal("expected ErrCannotCopyDir error, but got nil instead")
+	if err = testCopyHelperFSym(c, symSrcDir, dstFile); err == nil {
+		c.Fatal("expected ErrCannotCopyDir error, but got nil instead")
 	}
 
 	if err != ErrCannotCopyDir {
-		t.Fatalf("expected ErrCannotCopyDir error, but got %T: %s", err, err)
+		c.Fatalf("expected ErrCannotCopyDir error, but got %T: %s", err, err)
 	}
 }
 
@@ -877,13 +878,13 @@ func TestCopyCaseI(t *testing.T) {
 //    This should copy the contents of the SRC directory (but not the directory
 //    itself) into the DST directory. Ensure this works whether DST has a
 //    trailing path separator or not.
-func TestCopyCaseJ(t *testing.T) {
-	tmpDirA, tmpDirB := getTestTempDirs(t)
+func (s *DockerSuite) TestCopyCaseJ(c *check.C) {
+	tmpDirA, tmpDirB := getTestTempDirs(c)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
 	// Load A and B with some sample files and directories.
-	createSampleDir(t, tmpDirA)
-	createSampleDir(t, tmpDirB)
+	createSampleDir(c, tmpDirA)
+	createSampleDir(c, tmpDirB)
 
 	srcDir := joinTrailingSep(tmpDirA, "dir1") + "."
 	dstDir := filepath.Join(tmpDirB, "dir5")
@@ -892,35 +893,35 @@ func TestCopyCaseJ(t *testing.T) {
 
 	// first to create an empty dir
 	if err = os.MkdirAll(dstDir, os.FileMode(0755)); err != nil {
-		t.Fatalf("unable to make dstDir: %s", err)
+		c.Fatalf("unable to make dstDir: %s", err)
 	}
 
-	if err = testCopyHelper(t, srcDir, dstDir); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelper(c, srcDir, dstDir); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, dstDir, srcDir); err != nil {
-		t.Fatal(err)
+	if err = dirContentsEqual(c, dstDir, srcDir); err != nil {
+		c.Fatal(err)
 	}
 
 	// Now try again but using a trailing path separator for dstDir.
 
 	if err = os.RemoveAll(dstDir); err != nil {
-		t.Fatalf("unable to remove dstDir: %s", err)
+		c.Fatalf("unable to remove dstDir: %s", err)
 	}
 
 	if err = os.MkdirAll(dstDir, os.FileMode(0755)); err != nil {
-		t.Fatalf("unable to make dstDir: %s", err)
+		c.Fatalf("unable to make dstDir: %s", err)
 	}
 
 	dstDir = joinTrailingSep(tmpDirB, "dir5")
 
-	if err = testCopyHelper(t, srcDir, dstDir); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelper(c, srcDir, dstDir); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, dstDir, srcDir); err != nil {
-		t.Fatal(err)
+	if err = dirContentsEqual(c, dstDir, srcDir); err != nil {
+		c.Fatal(err)
 	}
 }
 
@@ -929,13 +930,13 @@ func TestCopyCaseJ(t *testing.T) {
 //    This should copy the contents of the SRC directory (but not the directory
 //    itself) into the DST directory. Ensure this works whether DST has a
 //    trailing path separator or not.
-func TestCopyCaseJFSym(t *testing.T) {
-	tmpDirA, tmpDirB := getTestTempDirs(t)
+func (s *DockerSuite) TestCopyCaseJFSym(c *check.C) {
+	tmpDirA, tmpDirB := getTestTempDirs(c)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
 	// Load A and B with some sample files and directories.
-	createSampleDir(t, tmpDirA)
-	createSampleDir(t, tmpDirB)
+	createSampleDir(c, tmpDirA)
+	createSampleDir(c, tmpDirB)
 
 	srcDir := joinTrailingSep(tmpDirA, "dirSymlink") + "."
 	linkTarget := filepath.Join(tmpDirA, "dir1")
@@ -945,34 +946,34 @@ func TestCopyCaseJFSym(t *testing.T) {
 
 	// first to create an empty dir
 	if err = os.MkdirAll(dstDir, os.FileMode(0755)); err != nil {
-		t.Fatalf("unable to make dstDir: %s", err)
+		c.Fatalf("unable to make dstDir: %s", err)
 	}
 
-	if err = testCopyHelperFSym(t, srcDir, dstDir); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelperFSym(c, srcDir, dstDir); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, dstDir, linkTarget); err != nil {
-		t.Fatal(err)
+	if err = dirContentsEqual(c, dstDir, linkTarget); err != nil {
+		c.Fatal(err)
 	}
 
 	// Now try again but using a trailing path separator for dstDir.
 
 	if err = os.RemoveAll(dstDir); err != nil {
-		t.Fatalf("unable to remove dstDir: %s", err)
+		c.Fatalf("unable to remove dstDir: %s", err)
 	}
 
 	if err = os.MkdirAll(dstDir, os.FileMode(0755)); err != nil {
-		t.Fatalf("unable to make dstDir: %s", err)
+		c.Fatalf("unable to make dstDir: %s", err)
 	}
 
 	dstDir = joinTrailingSep(tmpDirB, "dir5")
 
-	if err = testCopyHelperFSym(t, srcDir, dstDir); err != nil {
-		t.Fatalf("unexpected error %T: %s", err, err)
+	if err = testCopyHelperFSym(c, srcDir, dstDir); err != nil {
+		c.Fatalf("unexpected error %T: %s", err, err)
 	}
 
-	if err = dirContentsEqual(t, dstDir, linkTarget); err != nil {
-		t.Fatal(err)
+	if err = dirContentsEqual(c, dstDir, linkTarget); err != nil {
+		c.Fatal(err)
 	}
 }

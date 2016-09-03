@@ -16,7 +16,15 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 var (
 	tmpOuter = path.Join(os.TempDir(), "aufs-tests")
@@ -27,50 +35,50 @@ func init() {
 	reexec.Init()
 }
 
-func testInit(dir string, t testing.TB) graphdriver.Driver {
+func testInit(dir string, c *check.C) graphdriver.Driver {
 	d, err := Init(dir, nil, nil, nil)
 	if err != nil {
 		if err == graphdriver.ErrNotSupported {
-			t.Skip(err)
+			c.Skip(err.Error())
 		} else {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 	}
 	return d
 }
 
-func newDriver(t testing.TB) *Driver {
+func newDriver(c *check.C) *Driver {
 	if err := os.MkdirAll(tmp, 0755); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
-	d := testInit(tmp, t)
+	d := testInit(tmp, c)
 	return d.(*Driver)
 }
 
-func TestNewDriver(t *testing.T) {
+func (s *DockerSuite) TestNewDriver(c *check.C) {
 	if err := os.MkdirAll(tmp, 0755); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
-	d := testInit(tmp, t)
+	d := testInit(tmp, c)
 	defer os.RemoveAll(tmp)
 	if d == nil {
-		t.Fatalf("Driver should not be nil")
+		c.Fatalf("Driver should not be nil")
 	}
 }
 
-func TestAufsString(t *testing.T) {
-	d := newDriver(t)
+func (s *DockerSuite) TestAufsString(c *check.C) {
+	d := newDriver(c)
 	defer os.RemoveAll(tmp)
 
 	if d.String() != "aufs" {
-		t.Fatalf("Expected aufs got %s", d.String())
+		c.Fatalf("Expected aufs got %s", d.String())
 	}
 }
 
-func TestCreateDirStructure(t *testing.T) {
-	newDriver(t)
+func (s *DockerSuite) TestCreateDirStructure(c *check.C) {
+	newDriver(c)
 	defer os.RemoveAll(tmp)
 
 	paths := []string{
@@ -81,37 +89,37 @@ func TestCreateDirStructure(t *testing.T) {
 
 	for _, p := range paths {
 		if _, err := os.Stat(path.Join(tmp, p)); err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 	}
 }
 
 // We should be able to create two drivers with the same dir structure
-func TestNewDriverFromExistingDir(t *testing.T) {
+func (s *DockerSuite) TestNewDriverFromExistingDir(c *check.C) {
 	if err := os.MkdirAll(tmp, 0755); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
-	testInit(tmp, t)
-	testInit(tmp, t)
+	testInit(tmp, c)
+	testInit(tmp, c)
 	os.RemoveAll(tmp)
 }
 
-func TestCreateNewDir(t *testing.T) {
-	d := newDriver(t)
+func (s *DockerSuite) TestCreateNewDir(c *check.C) {
+	d := newDriver(c)
 	defer os.RemoveAll(tmp)
 
 	if err := d.Create("1", "", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
-func TestCreateNewDirStructure(t *testing.T) {
-	d := newDriver(t)
+func (s *DockerSuite) TestCreateNewDirStructure(c *check.C) {
+	d := newDriver(c)
 	defer os.RemoveAll(tmp)
 
 	if err := d.Create("1", "", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	paths := []string{
@@ -122,21 +130,21 @@ func TestCreateNewDirStructure(t *testing.T) {
 
 	for _, p := range paths {
 		if _, err := os.Stat(path.Join(tmp, p, "1")); err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 	}
 }
 
-func TestRemoveImage(t *testing.T) {
-	d := newDriver(t)
+func (s *DockerSuite) TestRemoveImage(c *check.C) {
+	d := newDriver(c)
 	defer os.RemoveAll(tmp)
 
 	if err := d.Create("1", "", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if err := d.Remove("1"); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	paths := []string{
@@ -147,186 +155,186 @@ func TestRemoveImage(t *testing.T) {
 
 	for _, p := range paths {
 		if _, err := os.Stat(path.Join(tmp, p, "1")); err == nil {
-			t.Fatalf("Error should not be nil because dirs with id 1 should be delted: %s", p)
+			c.Fatalf("Error should not be nil because dirs with id 1 should be delted: %s", p)
 		}
 	}
 }
 
-func TestGetWithoutParent(t *testing.T) {
-	d := newDriver(t)
+func (s *DockerSuite) TestGetWithoutParent(c *check.C) {
+	d := newDriver(c)
 	defer os.RemoveAll(tmp)
 
 	if err := d.Create("1", "", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	diffPath, err := d.Get("1", "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	expected := path.Join(tmp, "diff", "1")
 	if diffPath != expected {
-		t.Fatalf("Expected path %s got %s", expected, diffPath)
+		c.Fatalf("Expected path %s got %s", expected, diffPath)
 	}
 }
 
-func TestCleanupWithNoDirs(t *testing.T) {
-	d := newDriver(t)
+func (s *DockerSuite) TestCleanupWithNoDirs(c *check.C) {
+	d := newDriver(c)
 	defer os.RemoveAll(tmp)
 
 	if err := d.Cleanup(); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
-func TestCleanupWithDir(t *testing.T) {
-	d := newDriver(t)
+func (s *DockerSuite) TestCleanupWithDir(c *check.C) {
+	d := newDriver(c)
 	defer os.RemoveAll(tmp)
 
 	if err := d.Create("1", "", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if err := d.Cleanup(); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
-func TestMountedFalseResponse(t *testing.T) {
-	d := newDriver(t)
+func (s *DockerSuite) TestMountedFalseResponse(c *check.C) {
+	d := newDriver(c)
 	defer os.RemoveAll(tmp)
 
 	if err := d.Create("1", "", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	response, err := d.mounted(d.getDiffPath("1"))
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if response != false {
-		t.Fatalf("Response if dir id 1 is mounted should be false")
+		c.Fatalf("Response if dir id 1 is mounted should be false")
 	}
 }
 
-func TestMountedTrueReponse(t *testing.T) {
-	d := newDriver(t)
+func (s *DockerSuite) TestMountedTrueReponse(c *check.C) {
+	d := newDriver(c)
 	defer os.RemoveAll(tmp)
 	defer d.Cleanup()
 
 	if err := d.Create("1", "", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := d.Create("2", "1", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	_, err := d.Get("2", "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	response, err := d.mounted(d.pathCache["2"])
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if response != true {
-		t.Fatalf("Response if dir id 2 is mounted should be true")
+		c.Fatalf("Response if dir id 2 is mounted should be true")
 	}
 }
 
-func TestMountWithParent(t *testing.T) {
-	d := newDriver(t)
+func (s *DockerSuite) TestMountWithParent(c *check.C) {
+	d := newDriver(c)
 	defer os.RemoveAll(tmp)
 
 	if err := d.Create("1", "", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := d.Create("2", "1", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	defer func() {
 		if err := d.Cleanup(); err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 	}()
 
 	mntPath, err := d.Get("2", "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if mntPath == "" {
-		t.Fatal("mntPath should not be empty string")
+		c.Fatal("mntPath should not be empty string")
 	}
 
 	expected := path.Join(tmp, "mnt", "2")
 	if mntPath != expected {
-		t.Fatalf("Expected %s got %s", expected, mntPath)
+		c.Fatalf("Expected %s got %s", expected, mntPath)
 	}
 }
 
-func TestRemoveMountedDir(t *testing.T) {
-	d := newDriver(t)
+func (s *DockerSuite) TestRemoveMountedDir(c *check.C) {
+	d := newDriver(c)
 	defer os.RemoveAll(tmp)
 
 	if err := d.Create("1", "", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := d.Create("2", "1", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	defer func() {
 		if err := d.Cleanup(); err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 	}()
 
 	mntPath, err := d.Get("2", "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if mntPath == "" {
-		t.Fatal("mntPath should not be empty string")
+		c.Fatal("mntPath should not be empty string")
 	}
 
 	mounted, err := d.mounted(d.pathCache["2"])
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if !mounted {
-		t.Fatalf("Dir id 2 should be mounted")
+		c.Fatalf("Dir id 2 should be mounted")
 	}
 
 	if err := d.Remove("2"); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
-func TestCreateWithInvalidParent(t *testing.T) {
-	d := newDriver(t)
+func (s *DockerSuite) TestCreateWithInvalidParent(c *check.C) {
+	d := newDriver(c)
 	defer os.RemoveAll(tmp)
 
 	if err := d.Create("1", "docker", "", nil); err == nil {
-		t.Fatalf("Error should not be nil with parent does not exist")
+		c.Fatalf("Error should not be nil with parent does not exist")
 	}
 }
 
-func TestGetDiff(t *testing.T) {
-	d := newDriver(t)
+func (s *DockerSuite) TestGetDiff(c *check.C) {
+	d := newDriver(c)
 	defer os.RemoveAll(tmp)
 
 	if err := d.CreateReadWrite("1", "", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	diffPath, err := d.Get("1", "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Add a file to the diff path with a fixed size
@@ -334,127 +342,127 @@ func TestGetDiff(t *testing.T) {
 
 	f, err := os.Create(path.Join(diffPath, "test_file"))
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := f.Truncate(size); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	f.Close()
 
 	a, err := d.Diff("1", "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if a == nil {
-		t.Fatalf("Archive should not be nil")
+		c.Fatalf("Archive should not be nil")
 	}
 }
 
-func TestChanges(t *testing.T) {
-	d := newDriver(t)
+func (s *DockerSuite) TestChanges(c *check.C) {
+	d := newDriver(c)
 	defer os.RemoveAll(tmp)
 
 	if err := d.Create("1", "", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := d.CreateReadWrite("2", "1", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	defer func() {
 		if err := d.Cleanup(); err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 	}()
 
 	mntPoint, err := d.Get("2", "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Create a file to save in the mountpoint
 	f, err := os.Create(path.Join(mntPoint, "test.txt"))
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if _, err := f.WriteString("testline"); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := f.Close(); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	changes, err := d.Changes("2", "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if len(changes) != 1 {
-		t.Fatalf("Dir 2 should have one change from parent got %d", len(changes))
+		c.Fatalf("Dir 2 should have one change from parent got %d", len(changes))
 	}
 	change := changes[0]
 
 	expectedPath := "/test.txt"
 	if change.Path != expectedPath {
-		t.Fatalf("Expected path %s got %s", expectedPath, change.Path)
+		c.Fatalf("Expected path %s got %s", expectedPath, change.Path)
 	}
 
 	if change.Kind != archive.ChangeAdd {
-		t.Fatalf("Change kind should be ChangeAdd got %s", change.Kind)
+		c.Fatalf("Change kind should be ChangeAdd got %s", change.Kind)
 	}
 
 	if err := d.CreateReadWrite("3", "2", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	mntPoint, err = d.Get("3", "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Create a file to save in the mountpoint
 	f, err = os.Create(path.Join(mntPoint, "test2.txt"))
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if _, err := f.WriteString("testline"); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := f.Close(); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	changes, err = d.Changes("3", "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if len(changes) != 1 {
-		t.Fatalf("Dir 2 should have one change from parent got %d", len(changes))
+		c.Fatalf("Dir 2 should have one change from parent got %d", len(changes))
 	}
 	change = changes[0]
 
 	expectedPath = "/test2.txt"
 	if change.Path != expectedPath {
-		t.Fatalf("Expected path %s got %s", expectedPath, change.Path)
+		c.Fatalf("Expected path %s got %s", expectedPath, change.Path)
 	}
 
 	if change.Kind != archive.ChangeAdd {
-		t.Fatalf("Change kind should be ChangeAdd got %s", change.Kind)
+		c.Fatalf("Change kind should be ChangeAdd got %s", change.Kind)
 	}
 }
 
-func TestDiffSize(t *testing.T) {
-	d := newDriver(t)
+func (s *DockerSuite) TestDiffSize(c *check.C) {
+	d := newDriver(c)
 	defer os.RemoveAll(tmp)
 
 	if err := d.CreateReadWrite("1", "", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	diffPath, err := d.Get("1", "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Add a file to the diff path with a fixed size
@@ -462,41 +470,41 @@ func TestDiffSize(t *testing.T) {
 
 	f, err := os.Create(path.Join(diffPath, "test_file"))
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := f.Truncate(size); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
-	s, err := f.Stat()
+	fs, err := f.Stat()
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
-	size = s.Size()
+	size = fs.Size()
 	if err := f.Close(); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	diffSize, err := d.DiffSize("1", "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if diffSize != size {
-		t.Fatalf("Expected size to be %d got %d", size, diffSize)
+		c.Fatalf("Expected size to be %d got %d", size, diffSize)
 	}
 }
 
-func TestChildDiffSize(t *testing.T) {
-	d := newDriver(t)
+func (s *DockerSuite) TestChildDiffSize(c *check.C) {
+	d := newDriver(c)
 	defer os.RemoveAll(tmp)
 	defer d.Cleanup()
 
 	if err := d.CreateReadWrite("1", "", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	diffPath, err := d.Get("1", "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Add a file to the diff path with a fixed size
@@ -504,101 +512,101 @@ func TestChildDiffSize(t *testing.T) {
 
 	f, err := os.Create(path.Join(diffPath, "test_file"))
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := f.Truncate(size); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
-	s, err := f.Stat()
+	fs, err := f.Stat()
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
-	size = s.Size()
+	size = fs.Size()
 	if err := f.Close(); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	diffSize, err := d.DiffSize("1", "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if diffSize != size {
-		t.Fatalf("Expected size to be %d got %d", size, diffSize)
+		c.Fatalf("Expected size to be %d got %d", size, diffSize)
 	}
 
 	if err := d.Create("2", "1", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	diffSize, err = d.DiffSize("2", "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	// The diff size for the child should be zero
 	if diffSize != 0 {
-		t.Fatalf("Expected size to be %d got %d", 0, diffSize)
+		c.Fatalf("Expected size to be %d got %d", 0, diffSize)
 	}
 }
 
-func TestExists(t *testing.T) {
-	d := newDriver(t)
+func (s *DockerSuite) TestExists(c *check.C) {
+	d := newDriver(c)
 	defer os.RemoveAll(tmp)
 	defer d.Cleanup()
 
 	if err := d.Create("1", "", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if d.Exists("none") {
-		t.Fatal("id none should not exist in the driver")
+		c.Fatal("id none should not exist in the driver")
 	}
 
 	if !d.Exists("1") {
-		t.Fatal("id 1 should exist in the driver")
+		c.Fatal("id 1 should exist in the driver")
 	}
 }
 
-func TestStatus(t *testing.T) {
-	d := newDriver(t)
+func (s *DockerSuite) TestStatus(c *check.C) {
+	d := newDriver(c)
 	defer os.RemoveAll(tmp)
 	defer d.Cleanup()
 
 	if err := d.Create("1", "", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	status := d.Status()
 	if status == nil || len(status) == 0 {
-		t.Fatal("Status should not be nil or empty")
+		c.Fatal("Status should not be nil or empty")
 	}
 	rootDir := status[0]
 	dirs := status[2]
 	if rootDir[0] != "Root Dir" {
-		t.Fatalf("Expected Root Dir got %s", rootDir[0])
+		c.Fatalf("Expected Root Dir got %s", rootDir[0])
 	}
 	if rootDir[1] != d.rootPath() {
-		t.Fatalf("Expected %s got %s", d.rootPath(), rootDir[1])
+		c.Fatalf("Expected %s got %s", d.rootPath(), rootDir[1])
 	}
 	if dirs[0] != "Dirs" {
-		t.Fatalf("Expected Dirs got %s", dirs[0])
+		c.Fatalf("Expected Dirs got %s", dirs[0])
 	}
 	if dirs[1] != "1" {
-		t.Fatalf("Expected 1 got %s", dirs[1])
+		c.Fatalf("Expected 1 got %s", dirs[1])
 	}
 }
 
-func TestApplyDiff(t *testing.T) {
-	d := newDriver(t)
+func (s *DockerSuite) TestApplyDiff(c *check.C) {
+	d := newDriver(c)
 	defer os.RemoveAll(tmp)
 	defer d.Cleanup()
 
 	if err := d.CreateReadWrite("1", "", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	diffPath, err := d.Get("1", "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Add a file to the diff path with a fixed size
@@ -606,37 +614,37 @@ func TestApplyDiff(t *testing.T) {
 
 	f, err := os.Create(path.Join(diffPath, "test_file"))
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := f.Truncate(size); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	f.Close()
 
 	diff, err := d.Diff("1", "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if err := d.Create("2", "", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := d.Create("3", "2", "", nil); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if err := d.applyDiff("3", diff); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// Ensure that the file is in the mount point for id 3
 
 	mountPoint, err := d.Get("3", "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if _, err := os.Stat(path.Join(mountPoint, "test_file")); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
@@ -646,13 +654,13 @@ func hash(c string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func testMountMoreThan42Layers(t *testing.T, mountPath string) {
+func testMountMoreThan42Layers(c *check.C, mountPath string) {
 	if err := os.MkdirAll(mountPath, 0755); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	defer os.RemoveAll(mountPath)
-	d := testInit(mountPath, t).(*Driver)
+	d := testInit(mountPath, c).(*Driver)
 	defer d.Cleanup()
 	var last string
 	var expected int
@@ -672,25 +680,25 @@ func testMountMoreThan42Layers(t *testing.T, mountPath string) {
 		current = hash(current)
 
 		if err := d.CreateReadWrite(current, parent, "", nil); err != nil {
-			t.Logf("Current layer %d", i)
-			t.Error(err)
+			c.Logf("Current layer %d", i)
+			c.Error(err)
 		}
 		point, err := d.Get(current, "")
 		if err != nil {
-			t.Logf("Current layer %d", i)
-			t.Error(err)
+			c.Logf("Current layer %d", i)
+			c.Error(err)
 		}
 		f, err := os.Create(path.Join(point, current))
 		if err != nil {
-			t.Logf("Current layer %d", i)
-			t.Error(err)
+			c.Logf("Current layer %d", i)
+			c.Error(err)
 		}
 		f.Close()
 
 		if i%10 == 0 {
 			if err := os.Remove(path.Join(point, parent)); err != nil {
-				t.Logf("Current layer %d", i)
-				t.Error(err)
+				c.Logf("Current layer %d", i)
+				c.Error(err)
 			}
 			expected--
 		}
@@ -700,23 +708,23 @@ func testMountMoreThan42Layers(t *testing.T, mountPath string) {
 	// Perform the actual mount for the top most image
 	point, err := d.Get(last, "")
 	if err != nil {
-		t.Error(err)
+		c.Error(err)
 	}
 	files, err := ioutil.ReadDir(point)
 	if err != nil {
-		t.Error(err)
+		c.Error(err)
 	}
 	if len(files) != expected {
-		t.Errorf("Expected %d got %d", expected, len(files))
+		c.Errorf("Expected %d got %d", expected, len(files))
 	}
 }
 
-func TestMountMoreThan42Layers(t *testing.T) {
+func (s *DockerSuite) TestMountMoreThan42Layers(c *check.C) {
 	os.RemoveAll(tmpOuter)
-	testMountMoreThan42Layers(t, tmp)
+	testMountMoreThan42Layers(c, tmp)
 }
 
-func TestMountMoreThan42LayersMatchingPathLength(t *testing.T) {
+func (s *DockerSuite) TestMountMoreThan42LayersMatchingPathLength(c *check.C) {
 	defer os.RemoveAll(tmpOuter)
 	zeroes := "0"
 	for {
@@ -727,19 +735,19 @@ func TestMountMoreThan42LayersMatchingPathLength(t *testing.T) {
 		pathLength := 77 + len(mountPath)
 
 		if mod := 4095 % pathLength; mod == 0 || mod > pathLength-2 {
-			t.Logf("Using path: %s", mountPath)
-			testMountMoreThan42Layers(t, mountPath)
+			c.Logf("Using path: %s", mountPath)
+			testMountMoreThan42Layers(c, mountPath)
 			return
 		}
 		zeroes += "0"
 	}
 }
 
-func BenchmarkConcurrentAccess(b *testing.B) {
-	b.StopTimer()
-	b.ResetTimer()
+func (s *DockerSuite) BenchmarkConcurrentAccess(c *check.C) {
+	c.StopTimer()
+	c.ResetTimer()
 
-	d := newDriver(b)
+	d := newDriver(c)
 	defer os.RemoveAll(tmp)
 	defer d.Cleanup()
 
@@ -751,11 +759,11 @@ func BenchmarkConcurrentAccess(b *testing.B) {
 	}
 
 	if err := d.Create(ids[0], "", "", nil); err != nil {
-		b.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if err := d.Create(ids[1], ids[0], "", nil); err != nil {
-		b.Fatal(err)
+		c.Fatal(err)
 	}
 
 	parent := ids[1]
@@ -764,19 +772,19 @@ func BenchmarkConcurrentAccess(b *testing.B) {
 	chErr := make(chan error, numConcurent)
 	var outerGroup sync.WaitGroup
 	outerGroup.Add(len(ids))
-	b.StartTimer()
+	c.StartTimer()
 
 	// here's the actual bench
 	for _, id := range ids {
 		go func(id string) {
 			defer outerGroup.Done()
 			if err := d.Create(id, parent, "", nil); err != nil {
-				b.Logf("Create %s failed", id)
+				c.Logf("Create %s failed", id)
 				chErr <- err
 				return
 			}
 			var innerGroup sync.WaitGroup
-			for i := 0; i < b.N; i++ {
+			for i := 0; i < c.N; i++ {
 				innerGroup.Add(1)
 				go func() {
 					d.Get(id, "")
@@ -790,12 +798,12 @@ func BenchmarkConcurrentAccess(b *testing.B) {
 	}
 
 	outerGroup.Wait()
-	b.StopTimer()
+	c.StopTimer()
 	close(chErr)
 	for err := range chErr {
 		if err != nil {
-			b.Log(err)
-			b.Fail()
+			c.Log(err)
+			c.Fail()
 		}
 	}
 }

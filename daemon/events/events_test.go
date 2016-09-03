@@ -8,9 +8,17 @@ import (
 	"github.com/docker/docker/daemon/events/testutils"
 	"github.com/docker/engine-api/types/events"
 	timetypes "github.com/docker/engine-api/types/time"
+	"github.com/go-check/check"
 )
 
-func TestEventsLog(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestEventsLog(c *check.C) {
 	e := New()
 	_, l1, _ := e.Subscribe()
 	_, l2, _ := e.Subscribe()
@@ -18,7 +26,7 @@ func TestEventsLog(t *testing.T) {
 	defer e.Evict(l2)
 	count := e.SubscribersCount()
 	if count != 2 {
-		t.Fatalf("Must be 2 subscribers, got %d", count)
+		c.Fatalf("Must be 2 subscribers, got %d", count)
 	}
 	actor := events.Actor{
 		ID:         "cont",
@@ -29,68 +37,68 @@ func TestEventsLog(t *testing.T) {
 	case msg := <-l1:
 		jmsg, ok := msg.(events.Message)
 		if !ok {
-			t.Fatalf("Unexpected type %T", msg)
+			c.Fatalf("Unexpected type %T", msg)
 		}
 		if len(e.events) != 1 {
-			t.Fatalf("Must be only one event, got %d", len(e.events))
+			c.Fatalf("Must be only one event, got %d", len(e.events))
 		}
 		if jmsg.Status != "test" {
-			t.Fatalf("Status should be test, got %s", jmsg.Status)
+			c.Fatalf("Status should be test, got %s", jmsg.Status)
 		}
 		if jmsg.ID != "cont" {
-			t.Fatalf("ID should be cont, got %s", jmsg.ID)
+			c.Fatalf("ID should be cont, got %s", jmsg.ID)
 		}
 		if jmsg.From != "image" {
-			t.Fatalf("From should be image, got %s", jmsg.From)
+			c.Fatalf("From should be image, got %s", jmsg.From)
 		}
 	case <-time.After(1 * time.Second):
-		t.Fatal("Timeout waiting for broadcasted message")
+		c.Fatal("Timeout waiting for broadcasted message")
 	}
 	select {
 	case msg := <-l2:
 		jmsg, ok := msg.(events.Message)
 		if !ok {
-			t.Fatalf("Unexpected type %T", msg)
+			c.Fatalf("Unexpected type %T", msg)
 		}
 		if len(e.events) != 1 {
-			t.Fatalf("Must be only one event, got %d", len(e.events))
+			c.Fatalf("Must be only one event, got %d", len(e.events))
 		}
 		if jmsg.Status != "test" {
-			t.Fatalf("Status should be test, got %s", jmsg.Status)
+			c.Fatalf("Status should be test, got %s", jmsg.Status)
 		}
 		if jmsg.ID != "cont" {
-			t.Fatalf("ID should be cont, got %s", jmsg.ID)
+			c.Fatalf("ID should be cont, got %s", jmsg.ID)
 		}
 		if jmsg.From != "image" {
-			t.Fatalf("From should be image, got %s", jmsg.From)
+			c.Fatalf("From should be image, got %s", jmsg.From)
 		}
 	case <-time.After(1 * time.Second):
-		t.Fatal("Timeout waiting for broadcasted message")
+		c.Fatal("Timeout waiting for broadcasted message")
 	}
 }
 
-func TestEventsLogTimeout(t *testing.T) {
+func (s *DockerSuite) TestEventsLogTimeout(c *check.C) {
 	e := New()
 	_, l, _ := e.Subscribe()
 	defer e.Evict(l)
 
-	c := make(chan struct{})
+	ch := make(chan struct{})
 	go func() {
 		actor := events.Actor{
 			ID: "image",
 		}
 		e.Log("test", events.ImageEventType, actor)
-		close(c)
+		close(ch)
 	}()
 
 	select {
-	case <-c:
+	case <-ch:
 	case <-time.After(time.Second):
-		t.Fatal("Timeout publishing message")
+		c.Fatal("Timeout publishing message")
 	}
 }
 
-func TestLogEvents(t *testing.T) {
+func (s *DockerSuite) TestLogEvents(c *check.C) {
 	e := New()
 
 	for i := 0; i < eventsLimit+16; i++ {
@@ -119,7 +127,7 @@ func TestLogEvents(t *testing.T) {
 		e.Log(action, events.ContainerEventType, actor)
 	}
 	if len(e.events) != eventsLimit {
-		t.Fatalf("Must be %d events, got %d", eventsLimit, len(e.events))
+		c.Fatalf("Must be %d events, got %d", eventsLimit, len(e.events))
 	}
 
 	var msgs []events.Message
@@ -127,29 +135,29 @@ func TestLogEvents(t *testing.T) {
 		m := <-l
 		jm, ok := (m).(events.Message)
 		if !ok {
-			t.Fatalf("Unexpected type %T", m)
+			c.Fatalf("Unexpected type %T", m)
 		}
 		msgs = append(msgs, jm)
 	}
 	if len(current) != eventsLimit {
-		t.Fatalf("Must be %d events, got %d", eventsLimit, len(current))
+		c.Fatalf("Must be %d events, got %d", eventsLimit, len(current))
 	}
 	first := current[0]
 	if first.Status != "action_16" {
-		t.Fatalf("First action is %s, must be action_16", first.Status)
+		c.Fatalf("First action is %s, must be action_16", first.Status)
 	}
 	last := current[len(current)-1]
 	if last.Status != "action_79" {
-		t.Fatalf("Last action is %s, must be action_79", last.Status)
+		c.Fatalf("Last action is %s, must be action_79", last.Status)
 	}
 
 	firstC := msgs[0]
 	if firstC.Status != "action_80" {
-		t.Fatalf("First action is %s, must be action_80", firstC.Status)
+		c.Fatalf("First action is %s, must be action_80", firstC.Status)
 	}
 	lastC := msgs[len(msgs)-1]
 	if lastC.Status != "action_89" {
-		t.Fatalf("Last action is %s, must be action_89", lastC.Status)
+		c.Fatalf("Last action is %s, must be action_89", lastC.Status)
 	}
 }
 
@@ -159,106 +167,106 @@ func TestLogEvents(t *testing.T) {
 //2016-03-07T17:28:03.022433271+02:00 container die 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)
 //2016-03-07T17:28:03.091719377+02:00 network disconnect 19c5ed41acb798f26b751e0035cd7821741ab79e2bbd59a66b5fd8abf954eaa0 (type=bridge, container=0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079, name=bridge)
 //2016-03-07T17:28:03.129014751+02:00 container destroy 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)
-func TestLoadBufferedEvents(t *testing.T) {
+func (s *DockerSuite) TestLoadBufferedEvents(c *check.C) {
 	now := time.Now()
 	f, err := timetypes.GetTimestamp("2016-03-07T17:28:03.100000000+02:00", now)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
-	s, sNano, err := timetypes.ParseTimestamps(f, -1)
+	st, sNano, err := timetypes.ParseTimestamps(f, -1)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	m1, err := eventstestutils.Scan("2016-03-07T17:28:03.022433271+02:00 container die 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	m2, err := eventstestutils.Scan("2016-03-07T17:28:03.091719377+02:00 network disconnect 19c5ed41acb798f26b751e0035cd7821741ab79e2bbd59a66b5fd8abf954eaa0 (type=bridge, container=0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079, name=bridge)")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	m3, err := eventstestutils.Scan("2016-03-07T17:28:03.129014751+02:00 container destroy 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	events := &Events{
 		events: []events.Message{*m1, *m2, *m3},
 	}
 
-	since := time.Unix(s, sNano)
+	since := time.Unix(st, sNano)
 	until := time.Time{}
 
 	out := events.loadBufferedEvents(since, until, nil)
 	if len(out) != 1 {
-		t.Fatalf("expected 1 message, got %d: %v", len(out), out)
+		c.Fatalf("expected 1 message, got %d: %v", len(out), out)
 	}
 }
 
-func TestLoadBufferedEventsOnlyFromPast(t *testing.T) {
+func (s *DockerSuite) TestLoadBufferedEventsOnlyFromPast(c *check.C) {
 	now := time.Now()
 	f, err := timetypes.GetTimestamp("2016-03-07T17:28:03.090000000+02:00", now)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
-	s, sNano, err := timetypes.ParseTimestamps(f, 0)
+	st, sNano, err := timetypes.ParseTimestamps(f, 0)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	f, err = timetypes.GetTimestamp("2016-03-07T17:28:03.100000000+02:00", now)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	u, uNano, err := timetypes.ParseTimestamps(f, 0)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	m1, err := eventstestutils.Scan("2016-03-07T17:28:03.022433271+02:00 container die 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	m2, err := eventstestutils.Scan("2016-03-07T17:28:03.091719377+02:00 network disconnect 19c5ed41acb798f26b751e0035cd7821741ab79e2bbd59a66b5fd8abf954eaa0 (type=bridge, container=0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079, name=bridge)")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	m3, err := eventstestutils.Scan("2016-03-07T17:28:03.129014751+02:00 container destroy 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	events := &Events{
 		events: []events.Message{*m1, *m2, *m3},
 	}
 
-	since := time.Unix(s, sNano)
+	since := time.Unix(st, sNano)
 	until := time.Unix(u, uNano)
 
 	out := events.loadBufferedEvents(since, until, nil)
 	if len(out) != 1 {
-		t.Fatalf("expected 1 message, got %d: %v", len(out), out)
+		c.Fatalf("expected 1 message, got %d: %v", len(out), out)
 	}
 
 	if out[0].Type != "network" {
-		t.Fatalf("expected network event, got %s", out[0].Type)
+		c.Fatalf("expected network event, got %s", out[0].Type)
 	}
 }
 
 // #13753
-func TestIngoreBufferedWhenNoTimes(t *testing.T) {
+func (s *DockerSuite) TestIngoreBufferedWhenNoTimes(c *check.C) {
 	m1, err := eventstestutils.Scan("2016-03-07T17:28:03.022433271+02:00 container die 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	m2, err := eventstestutils.Scan("2016-03-07T17:28:03.091719377+02:00 network disconnect 19c5ed41acb798f26b751e0035cd7821741ab79e2bbd59a66b5fd8abf954eaa0 (type=bridge, container=0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079, name=bridge)")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	m3, err := eventstestutils.Scan("2016-03-07T17:28:03.129014751+02:00 container destroy 0b863f2a26c18557fc6cdadda007c459f9ec81b874780808138aea78a3595079 (image=ubuntu, name=small_hoover)")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	events := &Events{
@@ -270,6 +278,6 @@ func TestIngoreBufferedWhenNoTimes(t *testing.T) {
 
 	out := events.loadBufferedEvents(since, until, nil)
 	if len(out) != 0 {
-		t.Fatalf("expected 0 buffered events, got %q", out)
+		c.Fatalf("expected 0 buffered events, got %q", out)
 	}
 }

@@ -7,9 +7,18 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestDownload(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestDownload(c *check.C) {
 	expected := "Hello, docker !"
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, expected)
@@ -17,18 +26,18 @@ func TestDownload(t *testing.T) {
 	defer ts.Close()
 	response, err := Download(ts.URL)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	actual, err := ioutil.ReadAll(response.Body)
 	response.Body.Close()
 
 	if err != nil || string(actual) != expected {
-		t.Fatalf("Expected the response %q, got err:%v, response:%v, actual:%s", expected, err, response, string(actual))
+		c.Fatalf("Expected the response %q, got err:%v, response:%v, actual:%s", expected, err, response, string(actual))
 	}
 }
 
-func TestDownload400Errors(t *testing.T) {
+func (s *DockerSuite) TestDownload400Errors(c *check.C) {
 	expectedError := "Got HTTP status code >= 400: 403 Forbidden"
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// 403
@@ -37,17 +46,17 @@ func TestDownload400Errors(t *testing.T) {
 	defer ts.Close()
 	// Expected status code = 403
 	if _, err := Download(ts.URL); err == nil || err.Error() != expectedError {
-		t.Fatalf("Expected the the error %q, got %v", expectedError, err)
+		c.Fatalf("Expected the the error %q, got %v", expectedError, err)
 	}
 }
 
-func TestDownloadOtherErrors(t *testing.T) {
+func (s *DockerSuite) TestDownloadOtherErrors(c *check.C) {
 	if _, err := Download("I'm not an url.."); err == nil || !strings.Contains(err.Error(), "unsupported protocol scheme") {
-		t.Fatalf("Expected an error with 'unsupported protocol scheme', got %v", err)
+		c.Fatalf("Expected an error with 'unsupported protocol scheme', got %v", err)
 	}
 }
 
-func TestNewHTTPRequestError(t *testing.T) {
+func (s *DockerSuite) TestNewHTTPRequestError(c *check.C) {
 	errorMessage := "Some error message"
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// 403
@@ -56,14 +65,14 @@ func TestNewHTTPRequestError(t *testing.T) {
 	defer ts.Close()
 	httpResponse, err := http.Get(ts.URL)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := NewHTTPRequestError(errorMessage, httpResponse); err.Error() != errorMessage {
-		t.Fatalf("Expected err to be %q, got %v", errorMessage, err)
+		c.Fatalf("Expected err to be %q, got %v", errorMessage, err)
 	}
 }
 
-func TestParseServerHeader(t *testing.T) {
+func (s *DockerSuite) TestParseServerHeader(c *check.C) {
 	inputs := map[string][]string{
 		"bad header":           {"error"},
 		"(bad header)":         {"error"},
@@ -87,27 +96,27 @@ func TestParseServerHeader(t *testing.T) {
 		serverHeader, err := ParseServerHeader(header)
 		if err != nil {
 			if err != errInvalidHeader {
-				t.Fatalf("Failed to parse %q, and got some unexpected error: %q", header, err)
+				c.Fatalf("Failed to parse %q, and got some unexpected error: %q", header, err)
 			}
 			if values[0] == "error" {
 				continue
 			}
-			t.Fatalf("Header %q failed to parse when it shouldn't have", header)
+			c.Fatalf("Header %q failed to parse when it shouldn't have", header)
 		}
 		if values[0] == "error" {
-			t.Fatalf("Header %q parsed ok when it should have failed(%q).", header, serverHeader)
+			c.Fatalf("Header %q parsed ok when it should have failed(%q).", header, serverHeader)
 		}
 
 		if serverHeader.App != values[0] {
-			t.Fatalf("Expected serverHeader.App for %q to equal %q, got %q", header, values[0], serverHeader.App)
+			c.Fatalf("Expected serverHeader.App for %q to equal %q, got %q", header, values[0], serverHeader.App)
 		}
 
 		if serverHeader.Ver != values[1] {
-			t.Fatalf("Expected serverHeader.Ver for %q to equal %q, got %q", header, values[1], serverHeader.Ver)
+			c.Fatalf("Expected serverHeader.Ver for %q to equal %q, got %q", header, values[1], serverHeader.Ver)
 		}
 
 		if serverHeader.OS != values[2] {
-			t.Fatalf("Expected serverHeader.OS for %q to equal %q, got %q", header, values[2], serverHeader.OS)
+			c.Fatalf("Expected serverHeader.OS for %q to equal %q, got %q", header, values[2], serverHeader.OS)
 		}
 
 	}

@@ -11,7 +11,15 @@ import (
 
 	"github.com/docker/docker/pkg/plugins/transport"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 var (
 	mux    *http.ServeMux
@@ -30,15 +38,15 @@ func teardownRemotePluginServer() {
 	}
 }
 
-func TestFailedConnection(t *testing.T) {
-	c, _ := NewClient("tcp://127.0.0.1:1", &tlsconfig.Options{InsecureSkipVerify: true})
-	_, err := c.callWithRetry("Service.Method", nil, false)
+func (s *DockerSuite) TestFailedConnection(c *check.C) {
+	cli, _ := NewClient("tcp://127.0.0.1:1", &tlsconfig.Options{InsecureSkipVerify: true})
+	_, err := cli.callWithRetry("Service.Method", nil, false)
 	if err == nil {
-		t.Fatal("Unexpected successful connection")
+		c.Fatal("Unexpected successful connection")
 	}
 }
 
-func TestEchoInputOutput(t *testing.T) {
+func (s *DockerSuite) TestEchoInputOutput(c *check.C) {
 	addr := setupRemotePluginServer()
 	defer teardownRemotePluginServer()
 
@@ -46,7 +54,7 @@ func TestEchoInputOutput(t *testing.T) {
 
 	mux.HandleFunc("/Test.Echo", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
-			t.Fatalf("Expected POST, got %s\n", r.Method)
+			c.Fatalf("Expected POST, got %s\n", r.Method)
 		}
 
 		header := w.Header()
@@ -55,23 +63,23 @@ func TestEchoInputOutput(t *testing.T) {
 		io.Copy(w, r.Body)
 	})
 
-	c, _ := NewClient(addr, &tlsconfig.Options{InsecureSkipVerify: true})
+	cli, _ := NewClient(addr, &tlsconfig.Options{InsecureSkipVerify: true})
 	var output Manifest
-	err := c.Call("Test.Echo", m, &output)
+	err := cli.Call("Test.Echo", m, &output)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if !reflect.DeepEqual(output, m) {
-		t.Fatalf("Expected %v, was %v\n", m, output)
+		c.Fatalf("Expected %v, was %v\n", m, output)
 	}
-	err = c.Call("Test.Echo", nil, nil)
+	err = cli.Call("Test.Echo", nil, nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
-func TestBackoff(t *testing.T) {
+func (s *DockerSuite) TestBackoff(c *check.C) {
 	cases := []struct {
 		retries    int
 		expTimeOff time.Duration
@@ -84,15 +92,15 @@ func TestBackoff(t *testing.T) {
 		{10, time.Duration(30)},
 	}
 
-	for _, c := range cases {
-		s := c.expTimeOff * time.Second
-		if d := backoff(c.retries); d != s {
-			t.Fatalf("Retry %v, expected %v, was %v\n", c.retries, s, d)
+	for _, ca := range cases {
+		sec := ca.expTimeOff * time.Second
+		if d := backoff(ca.retries); d != sec {
+			c.Fatalf("Retry %v, expected %v, was %v\n", ca.retries, sec, d)
 		}
 	}
 }
 
-func TestAbortRetry(t *testing.T) {
+func (s *DockerSuite) TestAbortRetry(c *check.C) {
 	cases := []struct {
 		timeOff  time.Duration
 		expAbort bool
@@ -104,15 +112,15 @@ func TestAbortRetry(t *testing.T) {
 		{time.Duration(40), true},
 	}
 
-	for _, c := range cases {
-		s := c.timeOff * time.Second
-		if a := abort(time.Now(), s); a != c.expAbort {
-			t.Fatalf("Duration %v, expected %v, was %v\n", c.timeOff, s, a)
+	for _, ca := range cases {
+		sec := ca.timeOff * time.Second
+		if a := abort(time.Now(), sec); a != ca.expAbort {
+			c.Fatalf("Duration %v, expected %v, was %v\n", ca.timeOff, sec, a)
 		}
 	}
 }
 
-func TestClientScheme(t *testing.T) {
+func (s *DockerSuite) TestClientScheme(c *check.C) {
 	cases := map[string]string{
 		"tcp://127.0.0.1:8080":          "http",
 		"unix:///usr/local/plugins/foo": "http",
@@ -123,12 +131,12 @@ func TestClientScheme(t *testing.T) {
 	for addr, scheme := range cases {
 		u, err := url.Parse(addr)
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
-		s := httpScheme(u)
+		sc := httpScheme(u)
 
-		if s != scheme {
-			t.Fatalf("URL scheme mismatch, expected %s, got %s", scheme, s)
+		if sc != scheme {
+			c.Fatalf("URL scheme mismatch, expected %s, got %s", scheme, sc)
 		}
 	}
 }

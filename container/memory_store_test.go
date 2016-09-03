@@ -1,106 +1,107 @@
 package container
 
 import (
-	"testing"
 	"time"
+
+	"github.com/go-check/check"
 )
 
-func TestNewMemoryStore(t *testing.T) {
-	s := NewMemoryStore()
-	m, ok := s.(*memoryStore)
+func (s *DockerSuite) TestNewMemoryStore(c *check.C) {
+	ms := NewMemoryStore()
+	m, ok := ms.(*memoryStore)
 	if !ok {
-		t.Fatalf("store is not a memory store %v", s)
+		c.Fatalf("store is not a memory store %v", ms)
 	}
 	if m.s == nil {
-		t.Fatal("expected store map to not be nil")
+		c.Fatal("expected store map to not be nil")
 	}
 }
 
-func TestAddContainers(t *testing.T) {
-	s := NewMemoryStore()
-	s.Add("id", NewBaseContainer("id", "root"))
-	if s.Size() != 1 {
-		t.Fatalf("expected store size 1, got %v", s.Size())
+func (s *DockerSuite) TestAddContainers(c *check.C) {
+	ms := NewMemoryStore()
+	ms.Add("id", NewBaseContainer("id", "root"))
+	if ms.Size() != 1 {
+		c.Fatalf("expected store size 1, got %v", ms.Size())
 	}
 }
 
-func TestGetContainer(t *testing.T) {
-	s := NewMemoryStore()
-	s.Add("id", NewBaseContainer("id", "root"))
-	c := s.Get("id")
-	if c == nil {
-		t.Fatal("expected container to not be nil")
+func (s *DockerSuite) TestGetContainer(c *check.C) {
+	ms := NewMemoryStore()
+	ms.Add("id", NewBaseContainer("id", "root"))
+	id := ms.Get("id")
+	if id == nil {
+		c.Fatal("expected container to not be nil")
 	}
 }
 
-func TestDeleteContainer(t *testing.T) {
-	s := NewMemoryStore()
-	s.Add("id", NewBaseContainer("id", "root"))
-	s.Delete("id")
-	if c := s.Get("id"); c != nil {
-		t.Fatalf("expected container to be nil after removal, got %v", c)
+func (s *DockerSuite) TestDeleteContainer(c *check.C) {
+	ms := NewMemoryStore()
+	ms.Add("id", NewBaseContainer("id", "root"))
+	ms.Delete("id")
+	if id := ms.Get("id"); id != nil {
+		c.Fatalf("expected container to be nil after removal, got %v", id)
 	}
 
-	if s.Size() != 0 {
-		t.Fatalf("expected store size to be 0, got %v", s.Size())
+	if ms.Size() != 0 {
+		c.Fatalf("expected store size to be 0, got %v", ms.Size())
 	}
 }
 
-func TestListContainers(t *testing.T) {
-	s := NewMemoryStore()
+func (s *DockerSuite) TestListContainers(c *check.C) {
+	ms := NewMemoryStore()
 
 	cont := NewBaseContainer("id", "root")
 	cont.Created = time.Now()
 	cont2 := NewBaseContainer("id2", "root")
 	cont2.Created = time.Now().Add(24 * time.Hour)
 
-	s.Add("id", cont)
-	s.Add("id2", cont2)
+	ms.Add("id", cont)
+	ms.Add("id2", cont2)
 
-	list := s.List()
+	list := ms.List()
 	if len(list) != 2 {
-		t.Fatalf("expected list size 2, got %v", len(list))
+		c.Fatalf("expected list size 2, got %v", len(list))
 	}
 	if list[0].ID != "id2" {
-		t.Fatalf("expected older container to be first, got %v", list[0].ID)
+		c.Fatalf("expected older container to be first, got %v", list[0].ID)
 	}
 }
 
-func TestFirstContainer(t *testing.T) {
-	s := NewMemoryStore()
+func (s *DockerSuite) TestFirstContainer(c *check.C) {
+	ms := NewMemoryStore()
 
-	s.Add("id", NewBaseContainer("id", "root"))
-	s.Add("id2", NewBaseContainer("id2", "root"))
+	ms.Add("id", NewBaseContainer("id", "root"))
+	ms.Add("id2", NewBaseContainer("id2", "root"))
 
-	first := s.First(func(cont *Container) bool {
+	first := ms.First(func(cont *Container) bool {
 		return cont.ID == "id2"
 	})
 
 	if first == nil {
-		t.Fatal("expected container to not be nil")
+		c.Fatal("expected container to not be nil")
 	}
 	if first.ID != "id2" {
-		t.Fatalf("expected id2, got %v", first)
+		c.Fatalf("expected id2, got %v", first)
 	}
 }
 
-func TestApplyAllContainer(t *testing.T) {
-	s := NewMemoryStore()
+func (s *DockerSuite) TestApplyAllContainer(c *check.C) {
+	ms := NewMemoryStore()
 
-	s.Add("id", NewBaseContainer("id", "root"))
-	s.Add("id2", NewBaseContainer("id2", "root"))
+	ms.Add("id", NewBaseContainer("id", "root"))
+	ms.Add("id2", NewBaseContainer("id2", "root"))
 
-	s.ApplyAll(func(cont *Container) {
+	ms.ApplyAll(func(cont *Container) {
 		if cont.ID == "id2" {
 			cont.ID = "newID"
 		}
 	})
 
-	cont := s.Get("id2")
+	cont := ms.Get("id2")
 	if cont == nil {
-		t.Fatal("expected container to not be nil")
+		c.Fatal("expected container to not be nil")
 	}
 	if cont.ID != "newID" {
-		t.Fatalf("expected newID, got %v", cont)
+		c.Fatalf("expected newID, got %v", cont)
 	}
 }

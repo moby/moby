@@ -4,12 +4,21 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestTailFile(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestTailFile(c *check.C) {
 	f, err := ioutil.TempFile("", "tail-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer f.Close()
 	defer os.RemoveAll(f.Name())
@@ -40,28 +49,28 @@ last fourth line
 last fifth line
 truncated line`)
 	if _, err := f.Write(testFile); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if _, err := f.Seek(0, os.SEEK_SET); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	expected := []string{"last fourth line", "last fifth line"}
 	res, err := TailFile(f, 2)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	for i, l := range res {
-		t.Logf("%s", l)
+		c.Logf("%s", l)
 		if expected[i] != string(l) {
-			t.Fatalf("Expected line %s, got %s", expected[i], l)
+			c.Fatalf("Expected line %s, got %s", expected[i], l)
 		}
 	}
 }
 
-func TestTailFileManyLines(t *testing.T) {
+func (s *DockerSuite) TestTailFileManyLines(c *check.C) {
 	f, err := ioutil.TempFile("", "tail-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer f.Close()
 	defer os.RemoveAll(f.Name())
@@ -69,44 +78,44 @@ func TestTailFileManyLines(t *testing.T) {
 second line
 truncated line`)
 	if _, err := f.Write(testFile); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if _, err := f.Seek(0, os.SEEK_SET); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	expected := []string{"first line", "second line"}
 	res, err := TailFile(f, 10000)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	for i, l := range res {
-		t.Logf("%s", l)
+		c.Logf("%s", l)
 		if expected[i] != string(l) {
-			t.Fatalf("Expected line %s, got %s", expected[i], l)
+			c.Fatalf("Expected line %s, got %s", expected[i], l)
 		}
 	}
 }
 
-func TestTailEmptyFile(t *testing.T) {
+func (s *DockerSuite) TestTailEmptyFile(c *check.C) {
 	f, err := ioutil.TempFile("", "tail-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer f.Close()
 	defer os.RemoveAll(f.Name())
 	res, err := TailFile(f, 10000)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if len(res) != 0 {
-		t.Fatal("Must be empty slice from empty file")
+		c.Fatal("Must be empty slice from empty file")
 	}
 }
 
-func TestTailNegativeN(t *testing.T) {
+func (s *DockerSuite) TestTailNegativeN(c *check.C) {
 	f, err := ioutil.TempFile("", "tail-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer f.Close()
 	defer os.RemoveAll(f.Name())
@@ -114,35 +123,35 @@ func TestTailNegativeN(t *testing.T) {
 second line
 truncated line`)
 	if _, err := f.Write(testFile); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if _, err := f.Seek(0, os.SEEK_SET); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if _, err := TailFile(f, -1); err != ErrNonPositiveLinesNumber {
-		t.Fatalf("Expected ErrNonPositiveLinesNumber, got %s", err)
+		c.Fatalf("Expected ErrNonPositiveLinesNumber, got %s", err)
 	}
 	if _, err := TailFile(f, 0); err != ErrNonPositiveLinesNumber {
-		t.Fatalf("Expected ErrNonPositiveLinesNumber, got %s", err)
+		c.Fatalf("Expected ErrNonPositiveLinesNumber, got %s", err)
 	}
 }
 
-func BenchmarkTail(b *testing.B) {
+func (s *DockerSuite) BenchmarkTail(c *check.C) {
 	f, err := ioutil.TempFile("", "tail-test")
 	if err != nil {
-		b.Fatal(err)
+		c.Fatal(err)
 	}
 	defer f.Close()
 	defer os.RemoveAll(f.Name())
 	for i := 0; i < 10000; i++ {
 		if _, err := f.Write([]byte("tailfile pretty interesting line\n")); err != nil {
-			b.Fatal(err)
+			c.Fatal(err)
 		}
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	c.ResetTimer()
+	for i := 0; i < c.N; i++ {
 		if _, err := TailFile(f, 1000); err != nil {
-			b.Fatal(err)
+			c.Fatal(err)
 		}
 	}
 }

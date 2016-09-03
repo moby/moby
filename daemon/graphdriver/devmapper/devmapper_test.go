@@ -9,7 +9,15 @@ import (
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/graphtest"
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 func init() {
 	// Reduce the size the the base fs and loopback for the tests
@@ -24,45 +32,45 @@ func init() {
 
 // This avoids creating a new driver for each test if all tests are run
 // Make sure to put new tests between TestDevmapperSetup and TestDevmapperTeardown
-func TestDevmapperSetup(t *testing.T) {
-	graphtest.GetDriver(t, "devicemapper")
+func (s *DockerSuite) TestDevmapperSetup(c *check.C) {
+	graphtest.GetDriver(c, "devicemapper")
 }
 
-func TestDevmapperCreateEmpty(t *testing.T) {
-	graphtest.DriverTestCreateEmpty(t, "devicemapper")
+func (s *DockerSuite) TestDevmapperCreateEmpty(c *check.C) {
+	graphtest.DriverTestCreateEmpty(c, "devicemapper")
 }
 
-func TestDevmapperCreateBase(t *testing.T) {
-	graphtest.DriverTestCreateBase(t, "devicemapper")
+func (s *DockerSuite) TestDevmapperCreateBase(c *check.C) {
+	graphtest.DriverTestCreateBase(c, "devicemapper")
 }
 
-func TestDevmapperCreateSnap(t *testing.T) {
-	graphtest.DriverTestCreateSnap(t, "devicemapper")
+func (s *DockerSuite) TestDevmapperCreateSnap(c *check.C) {
+	graphtest.DriverTestCreateSnap(c, "devicemapper")
 }
 
-func TestDevmapperTeardown(t *testing.T) {
-	graphtest.PutDriver(t)
+func (s *DockerSuite) TestDevmapperTeardown(c *check.C) {
+	graphtest.PutDriver(c)
 }
 
-func TestDevmapperReduceLoopBackSize(t *testing.T) {
+func (s *DockerSuite) TestDevmapperReduceLoopBackSize(c *check.C) {
 	tenMB := int64(10 * 1024 * 1024)
-	testChangeLoopBackSize(t, -tenMB, defaultDataLoopbackSize, defaultMetaDataLoopbackSize)
+	testChangeLoopBackSize(c, -tenMB, defaultDataLoopbackSize, defaultMetaDataLoopbackSize)
 }
 
-func TestDevmapperIncreaseLoopBackSize(t *testing.T) {
+func (s *DockerSuite) TestDevmapperIncreaseLoopBackSize(c *check.C) {
 	tenMB := int64(10 * 1024 * 1024)
-	testChangeLoopBackSize(t, tenMB, defaultDataLoopbackSize+tenMB, defaultMetaDataLoopbackSize+tenMB)
+	testChangeLoopBackSize(c, tenMB, defaultDataLoopbackSize+tenMB, defaultMetaDataLoopbackSize+tenMB)
 }
 
-func testChangeLoopBackSize(t *testing.T, delta, expectDataSize, expectMetaDataSize int64) {
-	driver := graphtest.GetDriver(t, "devicemapper").(*graphtest.Driver).Driver.(*graphdriver.NaiveDiffDriver).ProtoDriver.(*Driver)
-	defer graphtest.PutDriver(t)
+func testChangeLoopBackSize(c *check.C, delta, expectDataSize, expectMetaDataSize int64) {
+	driver := graphtest.GetDriver(c, "devicemapper").(*graphtest.Driver).Driver.(*graphdriver.NaiveDiffDriver).ProtoDriver.(*Driver)
+	defer graphtest.PutDriver(c)
 	// make sure data or metadata loopback size are the default size
 	if s := driver.DeviceSet.Status(); s.Data.Total != uint64(defaultDataLoopbackSize) || s.Metadata.Total != uint64(defaultMetaDataLoopbackSize) {
-		t.Fatalf("data or metadata loop back size is incorrect")
+		c.Fatalf("data or metadata loop back size is incorrect")
 	}
 	if err := driver.Cleanup(); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	//Reload
 	d, err := Init(driver.home, []string{
@@ -70,21 +78,21 @@ func testChangeLoopBackSize(t *testing.T, delta, expectDataSize, expectMetaDataS
 		fmt.Sprintf("dm.loopmetadatasize=%d", defaultMetaDataLoopbackSize+delta),
 	}, nil, nil)
 	if err != nil {
-		t.Fatalf("error creating devicemapper driver: %v", err)
+		c.Fatalf("error creating devicemapper driver: %v", err)
 	}
 	driver = d.(*graphdriver.NaiveDiffDriver).ProtoDriver.(*Driver)
 	if s := driver.DeviceSet.Status(); s.Data.Total != uint64(expectDataSize) || s.Metadata.Total != uint64(expectMetaDataSize) {
-		t.Fatalf("data or metadata loop back size is incorrect")
+		c.Fatalf("data or metadata loop back size is incorrect")
 	}
 	if err := driver.Cleanup(); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
 // Make sure devices.Lock() has been release upon return from cleanupDeletedDevices() function
-func TestDevmapperLockReleasedDeviceDeletion(t *testing.T) {
-	driver := graphtest.GetDriver(t, "devicemapper").(*graphtest.Driver).Driver.(*graphdriver.NaiveDiffDriver).ProtoDriver.(*Driver)
-	defer graphtest.PutDriver(t)
+func (s *DockerSuite) TestDevmapperLockReleasedDeviceDeletion(c *check.C) {
+	driver := graphtest.GetDriver(c, "devicemapper").(*graphtest.Driver).Driver.(*graphdriver.NaiveDiffDriver).ProtoDriver.(*Driver)
+	defer graphtest.PutDriver(c)
 
 	// Call cleanupDeletedDevices() and after the call take and release
 	// DeviceSet Lock. If lock has not been released, this will hang.
@@ -104,7 +112,7 @@ func TestDevmapperLockReleasedDeviceDeletion(t *testing.T) {
 		// function return and we are deadlocked. Release lock
 		// here so that cleanup could succeed and fail the test.
 		driver.DeviceSet.Unlock()
-		t.Fatalf("Could not acquire devices lock after call to cleanupDeletedDevices()")
+		c.Fatalf("Could not acquire devices lock after call to cleanupDeletedDevices()")
 	case <-doneChan:
 	}
 }

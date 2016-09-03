@@ -2,7 +2,16 @@ package parser
 
 import (
 	"testing"
+
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 var invalidJSONArraysOfStrings = []string{
 	`["a",42,"b"]`,
@@ -26,27 +35,27 @@ var validJSONArraysOfStrings = map[string][]string{
 	`["abc 123", "♥", "☃", "\" \\ \/ \b \f \n \r \t \u0000"]`: {"abc 123", "♥", "☃", "\" \\ / \b \f \n \r \t \u0000"},
 }
 
-func TestJSONArraysOfStrings(t *testing.T) {
+func (s *DockerSuite) TestJSONArraysOfStrings(c *check.C) {
 	for json, expected := range validJSONArraysOfStrings {
 		d := Directive{}
 		SetEscapeToken(DefaultEscapeToken, &d)
 
 		if node, _, err := parseJSON(json, &d); err != nil {
-			t.Fatalf("%q should be a valid JSON array of strings, but wasn't! (err: %q)", json, err)
+			c.Fatalf("%q should be a valid JSON array of strings, but wasn't! (err: %q)", json, err)
 		} else {
 			i := 0
 			for node != nil {
 				if i >= len(expected) {
-					t.Fatalf("expected result is shorter than parsed result (%d vs %d+) in %q", len(expected), i+1, json)
+					c.Fatalf("expected result is shorter than parsed result (%d vs %d+) in %q", len(expected), i+1, json)
 				}
 				if node.Value != expected[i] {
-					t.Fatalf("expected %q (not %q) in %q at pos %d", expected[i], node.Value, json, i)
+					c.Fatalf("expected %q (not %q) in %q at pos %d", expected[i], node.Value, json, i)
 				}
 				node = node.Next
 				i++
 			}
 			if i != len(expected) {
-				t.Fatalf("expected result is longer than parsed result (%d vs %d) in %q", len(expected), i+1, json)
+				c.Fatalf("expected result is longer than parsed result (%d vs %d) in %q", len(expected), i+1, json)
 			}
 		}
 	}
@@ -55,7 +64,7 @@ func TestJSONArraysOfStrings(t *testing.T) {
 		SetEscapeToken(DefaultEscapeToken, &d)
 
 		if _, _, err := parseJSON(json, &d); err != errDockerfileNotStringArray {
-			t.Fatalf("%q should be an invalid JSON array of strings, but wasn't!", json)
+			c.Fatalf("%q should be an invalid JSON array of strings, but wasn't!", json)
 		}
 	}
 }

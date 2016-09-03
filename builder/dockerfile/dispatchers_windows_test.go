@@ -2,9 +2,9 @@
 
 package dockerfile
 
-import "testing"
+import "github.com/go-check/check"
 
-func TestNormaliseWorkdir(t *testing.T) {
+func (s *DockerSuite) TestNormaliseWorkdir(c *check.C) {
 	tests := []struct{ current, requested, expected, etext string }{
 		{``, ``, ``, `cannot normalise nothing`},
 		{``, `a`, `C:\a`, ``},
@@ -20,15 +20,15 @@ func TestNormaliseWorkdir(t *testing.T) {
 		r, e := normaliseWorkdir(i.current, i.requested)
 
 		if i.etext != "" && e == nil {
-			t.Fatalf("TestNormaliseWorkingDir Expected error %s", i.etext)
+			c.Fatalf("TestNormaliseWorkingDir Expected error %s", i.etext)
 		}
 
 		if i.etext != "" && e.Error() != i.etext {
-			t.Fatalf("TestNormaliseWorkingDir Expected error %s, got %s", i.etext, e.Error())
+			c.Fatalf("TestNormaliseWorkingDir Expected error %s, got %s", i.etext, e.Error())
 		}
 
 		if r != i.expected {
-			t.Fatalf("TestNormaliseWorkingDir Expected %s for %s %s", i.expected, i.current, i.requested)
+			c.Fatalf("TestNormaliseWorkingDir Expected %s for %s %s", i.expected, i.current, i.requested)
 		}
 	}
 }

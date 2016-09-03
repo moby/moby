@@ -8,98 +8,106 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-check/check"
 	"gopkg.in/fsnotify.v1"
 )
 
-func TestPollerAddRemove(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestPollerAddRemove(c *check.C) {
 	w := NewPollingWatcher()
 
 	if err := w.Add("no-such-file"); err == nil {
-		t.Fatal("should have gotten error when adding a non-existent file")
+		c.Fatal("should have gotten error when adding a non-existent file")
 	}
 	if err := w.Remove("no-such-file"); err == nil {
-		t.Fatal("should have gotten error when removing non-existent watch")
+		c.Fatal("should have gotten error when removing non-existent watch")
 	}
 
 	f, err := ioutil.TempFile("", "asdf")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(f.Name())
 
 	if err := w.Add(f.Name()); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if err := w.Remove(f.Name()); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
-func TestPollerEvent(t *testing.T) {
+func (s *DockerSuite) TestPollerEvent(c *check.C) {
 	if runtime.GOOS == "windows" {
-		t.Skip("No chmod on Windows")
+		c.Skip("No chmod on Windows")
 	}
 	w := NewPollingWatcher()
 
 	f, err := ioutil.TempFile("", "test-poller")
 	if err != nil {
-		t.Fatal("error creating temp file")
+		c.Fatal("error creating temp file")
 	}
 	defer os.RemoveAll(f.Name())
 	f.Close()
 
 	if err := w.Add(f.Name()); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	select {
 	case <-w.Events():
-		t.Fatal("got event before anything happened")
+		c.Fatal("got event before anything happened")
 	case <-w.Errors():
-		t.Fatal("got error before anything happened")
+		c.Fatal("got error before anything happened")
 	default:
 	}
 
 	if err := ioutil.WriteFile(f.Name(), []byte("hello"), 644); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := assertEvent(w, fsnotify.Write); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if err := os.Chmod(f.Name(), 600); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := assertEvent(w, fsnotify.Chmod); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if err := os.Remove(f.Name()); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := assertEvent(w, fsnotify.Remove); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
-func TestPollerClose(t *testing.T) {
+func (s *DockerSuite) TestPollerClose(c *check.C) {
 	w := NewPollingWatcher()
 	if err := w.Close(); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	// test double-close
 	if err := w.Close(); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	f, err := ioutil.TempFile("", "asdf")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(f.Name())
 	if err := w.Add(f.Name()); err == nil {
-		t.Fatal("should have gotten error adding watch for closed watcher")
+		c.Fatal("should have gotten error adding watch for closed watcher")
 	}
 }
 

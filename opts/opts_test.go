@@ -3,120 +3,121 @@ package opts
 import (
 	"fmt"
 	"strings"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestValidateIPAddress(t *testing.T) {
+func (s *DockerSuite) TestValidateIPAddress(c *check.C) {
 	if ret, err := ValidateIPAddress(`1.2.3.4`); err != nil || ret == "" {
-		t.Fatalf("ValidateIPAddress(`1.2.3.4`) got %s %s", ret, err)
+		c.Fatalf("ValidateIPAddress(`1.2.3.4`) got %s %s", ret, err)
 	}
 
 	if ret, err := ValidateIPAddress(`127.0.0.1`); err != nil || ret == "" {
-		t.Fatalf("ValidateIPAddress(`127.0.0.1`) got %s %s", ret, err)
+		c.Fatalf("ValidateIPAddress(`127.0.0.1`) got %s %s", ret, err)
 	}
 
 	if ret, err := ValidateIPAddress(`::1`); err != nil || ret == "" {
-		t.Fatalf("ValidateIPAddress(`::1`) got %s %s", ret, err)
+		c.Fatalf("ValidateIPAddress(`::1`) got %s %s", ret, err)
 	}
 
 	if ret, err := ValidateIPAddress(`127`); err == nil || ret != "" {
-		t.Fatalf("ValidateIPAddress(`127`) got %s %s", ret, err)
+		c.Fatalf("ValidateIPAddress(`127`) got %s %s", ret, err)
 	}
 
 	if ret, err := ValidateIPAddress(`random invalid string`); err == nil || ret != "" {
-		t.Fatalf("ValidateIPAddress(`random invalid string`) got %s %s", ret, err)
+		c.Fatalf("ValidateIPAddress(`random invalid string`) got %s %s", ret, err)
 	}
 
 }
 
-func TestMapOpts(t *testing.T) {
+func (s *DockerSuite) TestMapOpts(c *check.C) {
 	tmpMap := make(map[string]string)
 	o := NewMapOpts(tmpMap, logOptsValidator)
 	o.Set("max-size=1")
 	if o.String() != "map[max-size:1]" {
-		t.Errorf("%s != [map[max-size:1]", o.String())
+		c.Errorf("%s != [map[max-size:1]", o.String())
 	}
 
 	o.Set("max-file=2")
 	if len(tmpMap) != 2 {
-		t.Errorf("map length %d != 2", len(tmpMap))
+		c.Errorf("map length %d != 2", len(tmpMap))
 	}
 
 	if tmpMap["max-file"] != "2" {
-		t.Errorf("max-file = %s != 2", tmpMap["max-file"])
+		c.Errorf("max-file = %s != 2", tmpMap["max-file"])
 	}
 
 	if tmpMap["max-size"] != "1" {
-		t.Errorf("max-size = %s != 1", tmpMap["max-size"])
+		c.Errorf("max-size = %s != 1", tmpMap["max-size"])
 	}
 	if o.Set("dummy-val=3") == nil {
-		t.Errorf("validator is not being called")
+		c.Errorf("validator is not being called")
 	}
 }
 
-func TestListOptsWithoutValidator(t *testing.T) {
+func (s *DockerSuite) TestListOptsWithoutValidator(c *check.C) {
 	o := NewListOpts(nil)
 	o.Set("foo")
 	if o.String() != "[foo]" {
-		t.Errorf("%s != [foo]", o.String())
+		c.Errorf("%s != [foo]", o.String())
 	}
 	o.Set("bar")
 	if o.Len() != 2 {
-		t.Errorf("%d != 2", o.Len())
+		c.Errorf("%d != 2", o.Len())
 	}
 	o.Set("bar")
 	if o.Len() != 3 {
-		t.Errorf("%d != 3", o.Len())
+		c.Errorf("%d != 3", o.Len())
 	}
 	if !o.Get("bar") {
-		t.Error("o.Get(\"bar\") == false")
+		c.Error("o.Get(\"bar\") == false")
 	}
 	if o.Get("baz") {
-		t.Error("o.Get(\"baz\") == true")
+		c.Error("o.Get(\"baz\") == true")
 	}
 	o.Delete("foo")
 	if o.String() != "[bar bar]" {
-		t.Errorf("%s != [bar bar]", o.String())
+		c.Errorf("%s != [bar bar]", o.String())
 	}
 	listOpts := o.GetAll()
 	if len(listOpts) != 2 || listOpts[0] != "bar" || listOpts[1] != "bar" {
-		t.Errorf("Expected [[bar bar]], got [%v]", listOpts)
+		c.Errorf("Expected [[bar bar]], got [%v]", listOpts)
 	}
 	mapListOpts := o.GetMap()
 	if len(mapListOpts) != 1 {
-		t.Errorf("Expected [map[bar:{}]], got [%v]", mapListOpts)
+		c.Errorf("Expected [map[bar:{}]], got [%v]", mapListOpts)
 	}
 
 }
 
-func TestListOptsWithValidator(t *testing.T) {
+func (s *DockerSuite) TestListOptsWithValidator(c *check.C) {
 	// Re-using logOptsvalidator (used by MapOpts)
 	o := NewListOpts(logOptsValidator)
 	o.Set("foo")
 	if o.String() != "[]" {
-		t.Errorf("%s != []", o.String())
+		c.Errorf("%s != []", o.String())
 	}
 	o.Set("foo=bar")
 	if o.String() != "[]" {
-		t.Errorf("%s != []", o.String())
+		c.Errorf("%s != []", o.String())
 	}
 	o.Set("max-file=2")
 	if o.Len() != 1 {
-		t.Errorf("%d != 1", o.Len())
+		c.Errorf("%d != 1", o.Len())
 	}
 	if !o.Get("max-file=2") {
-		t.Error("o.Get(\"max-file=2\") == false")
+		c.Error("o.Get(\"max-file=2\") == false")
 	}
 	if o.Get("baz") {
-		t.Error("o.Get(\"baz\") == true")
+		c.Error("o.Get(\"baz\") == true")
 	}
 	o.Delete("max-file=2")
 	if o.String() != "[]" {
-		t.Errorf("%s != []", o.String())
+		c.Errorf("%s != []", o.String())
 	}
 }
 
-func TestValidateDNSSearch(t *testing.T) {
+func (s *DockerSuite) TestValidateDNSSearch(c *check.C) {
 	valid := []string{
 		`.`,
 		`a`,
@@ -162,31 +163,31 @@ func TestValidateDNSSearch(t *testing.T) {
 
 	for _, domain := range valid {
 		if ret, err := ValidateDNSSearch(domain); err != nil || ret == "" {
-			t.Fatalf("ValidateDNSSearch(`"+domain+"`) got %s %s", ret, err)
+			c.Fatalf("ValidateDNSSearch(`"+domain+"`) got %s %s", ret, err)
 		}
 	}
 
 	for _, domain := range invalid {
 		if ret, err := ValidateDNSSearch(domain); err == nil || ret != "" {
-			t.Fatalf("ValidateDNSSearch(`"+domain+"`) got %s %s", ret, err)
+			c.Fatalf("ValidateDNSSearch(`"+domain+"`) got %s %s", ret, err)
 		}
 	}
 }
 
-func TestValidateLabel(t *testing.T) {
+func (s *DockerSuite) TestValidateLabel(c *check.C) {
 	if _, err := ValidateLabel("label"); err == nil || err.Error() != "bad attribute format: label" {
-		t.Fatalf("Expected an error [bad attribute format: label], go %v", err)
+		c.Fatalf("Expected an error [bad attribute format: label], go %v", err)
 	}
 	if actual, err := ValidateLabel("key1=value1"); err != nil || actual != "key1=value1" {
-		t.Fatalf("Expected [key1=value1], got [%v,%v]", actual, err)
+		c.Fatalf("Expected [key1=value1], got [%v,%v]", actual, err)
 	}
 	// Validate it's working with more than one =
 	if actual, err := ValidateLabel("key1=value1=value2"); err != nil {
-		t.Fatalf("Expected [key1=value1=value2], got [%v,%v]", actual, err)
+		c.Fatalf("Expected [key1=value1=value2], got [%v,%v]", actual, err)
 	}
 	// Validate it's working with one more
 	if actual, err := ValidateLabel("key1=value1=value2=value3"); err != nil {
-		t.Fatalf("Expected [key1=value1=value2=value2], got [%v,%v]", actual, err)
+		c.Fatalf("Expected [key1=value1=value2=value2], got [%v,%v]", actual, err)
 	}
 }
 
@@ -199,34 +200,34 @@ func logOptsValidator(val string) (string, error) {
 	return "", fmt.Errorf("invalid key %s", vals[0])
 }
 
-func TestNamedListOpts(t *testing.T) {
+func (s *DockerSuite) TestNamedListOpts(c *check.C) {
 	var v []string
 	o := NewNamedListOptsRef("foo-name", &v, nil)
 
 	o.Set("foo")
 	if o.String() != "[foo]" {
-		t.Errorf("%s != [foo]", o.String())
+		c.Errorf("%s != [foo]", o.String())
 	}
 	if o.Name() != "foo-name" {
-		t.Errorf("%s != foo-name", o.Name())
+		c.Errorf("%s != foo-name", o.Name())
 	}
 	if len(v) != 1 {
-		t.Errorf("expected foo to be in the values, got %v", v)
+		c.Errorf("expected foo to be in the values, got %v", v)
 	}
 }
 
-func TestNamedMapOpts(t *testing.T) {
+func (s *DockerSuite) TestNamedMapOpts(c *check.C) {
 	tmpMap := make(map[string]string)
 	o := NewNamedMapOpts("max-name", tmpMap, nil)
 
 	o.Set("max-size=1")
 	if o.String() != "map[max-size:1]" {
-		t.Errorf("%s != [map[max-size:1]", o.String())
+		c.Errorf("%s != [map[max-size:1]", o.String())
 	}
 	if o.Name() != "max-name" {
-		t.Errorf("%s != max-name", o.Name())
+		c.Errorf("%s != max-name", o.Name())
 	}
 	if _, exist := tmpMap["max-size"]; !exist {
-		t.Errorf("expected map-size to be in the values, got %v", tmpMap)
+		c.Errorf("expected map-size to be in the values, got %v", tmpMap)
 	}
 }

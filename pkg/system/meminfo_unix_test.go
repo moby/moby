@@ -4,13 +4,14 @@ package system
 
 import (
 	"strings"
-	"testing"
 
-	"github.com/docker/go-units"
+	units "src/github.com/docker/go-units"
+
+	"github.com/go-check/check"
 )
 
 // TestMemInfo tests parseMemInfo with a static meminfo string
-func TestMemInfo(t *testing.T) {
+func (s *DockerSuite) TestMemInfo(c *check.C) {
 	const input = `
 	MemTotal:      1 kB
 	MemFree:       2 kB
@@ -23,18 +24,18 @@ func TestMemInfo(t *testing.T) {
 	`
 	meminfo, err := parseMemInfo(strings.NewReader(input))
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if meminfo.MemTotal != 1*units.KiB {
-		t.Fatalf("Unexpected MemTotal: %d", meminfo.MemTotal)
+		c.Fatalf("Unexpected MemTotal: %d", meminfo.MemTotal)
 	}
 	if meminfo.MemFree != 2*units.KiB {
-		t.Fatalf("Unexpected MemFree: %d", meminfo.MemFree)
+		c.Fatalf("Unexpected MemFree: %d", meminfo.MemFree)
 	}
 	if meminfo.SwapTotal != 3*units.KiB {
-		t.Fatalf("Unexpected SwapTotal: %d", meminfo.SwapTotal)
+		c.Fatalf("Unexpected SwapTotal: %d", meminfo.SwapTotal)
 	}
 	if meminfo.SwapFree != 4*units.KiB {
-		t.Fatalf("Unexpected SwapFree: %d", meminfo.SwapFree)
+		c.Fatalf("Unexpected SwapFree: %d", meminfo.SwapFree)
 	}
 }

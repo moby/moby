@@ -4,9 +4,17 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/digest"
+	"github.com/go-check/check"
 )
 
-func TestValidateReferenceName(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestValidateReferenceName(c *check.C) {
 	validRepoNames := []string{
 		"docker/docker",
 		"library/debian",
@@ -38,19 +46,19 @@ func TestValidateReferenceName(t *testing.T) {
 	for _, name := range invalidRepoNames {
 		_, err := ParseNamed(name)
 		if err == nil {
-			t.Fatalf("Expected invalid repo name for %q", name)
+			c.Fatalf("Expected invalid repo name for %q", name)
 		}
 	}
 
 	for _, name := range validRepoNames {
 		_, err := ParseNamed(name)
 		if err != nil {
-			t.Fatalf("Error parsing repo name %s, got: %q", name, err)
+			c.Fatalf("Error parsing repo name %s, got: %q", name, err)
 		}
 	}
 }
 
-func TestValidateRemoteName(t *testing.T) {
+func (s *DockerSuite) TestValidateRemoteName(c *check.C) {
 	validRepositoryNames := []string{
 		// Sanity check.
 		"docker/docker",
@@ -77,7 +85,7 @@ func TestValidateRemoteName(t *testing.T) {
 	for _, repositoryName := range validRepositoryNames {
 		_, err := ParseNamed(repositoryName)
 		if err != nil {
-			t.Errorf("Repository name should be valid: %v. Error: %v", repositoryName, err)
+			c.Errorf("Repository name should be valid: %v. Error: %v", repositoryName, err)
 		}
 	}
 
@@ -114,12 +122,12 @@ func TestValidateRemoteName(t *testing.T) {
 	}
 	for _, repositoryName := range invalidRepositoryNames {
 		if _, err := ParseNamed(repositoryName); err == nil {
-			t.Errorf("Repository name should be invalid: %v", repositoryName)
+			c.Errorf("Repository name should be invalid: %v", repositoryName)
 		}
 	}
 }
 
-func TestParseRepositoryInfo(t *testing.T) {
+func (s *DockerSuite) TestParseRepositoryInfo(c *check.C) {
 	type tcase struct {
 		RemoteName, NormalizedName, FullName, AmbiguousName, Hostname string
 	}
@@ -214,62 +222,62 @@ func TestParseRepositoryInfo(t *testing.T) {
 		for _, r := range refStrings {
 			named, err := ParseNamed(r)
 			if err != nil {
-				t.Fatal(err)
+				c.Fatal(err)
 			}
 			refs = append(refs, named)
 			named, err = WithName(r)
 			if err != nil {
-				t.Fatal(err)
+				c.Fatal(err)
 			}
 			refs = append(refs, named)
 		}
 
 		for _, r := range refs {
 			if expected, actual := tcase.NormalizedName, r.Name(); expected != actual {
-				t.Fatalf("Invalid normalized reference for %q. Expected %q, got %q", r, expected, actual)
+				c.Fatalf("Invalid normalized reference for %q. Expected %q, got %q", r, expected, actual)
 			}
 			if expected, actual := tcase.FullName, r.FullName(); expected != actual {
-				t.Fatalf("Invalid normalized reference for %q. Expected %q, got %q", r, expected, actual)
+				c.Fatalf("Invalid normalized reference for %q. Expected %q, got %q", r, expected, actual)
 			}
 			if expected, actual := tcase.Hostname, r.Hostname(); expected != actual {
-				t.Fatalf("Invalid hostname for %q. Expected %q, got %q", r, expected, actual)
+				c.Fatalf("Invalid hostname for %q. Expected %q, got %q", r, expected, actual)
 			}
 			if expected, actual := tcase.RemoteName, r.RemoteName(); expected != actual {
-				t.Fatalf("Invalid remoteName for %q. Expected %q, got %q", r, expected, actual)
+				c.Fatalf("Invalid remoteName for %q. Expected %q, got %q", r, expected, actual)
 			}
 
 		}
 	}
 }
 
-func TestParseReferenceWithTagAndDigest(t *testing.T) {
+func (s *DockerSuite) TestParseReferenceWithTagAndDigest(c *check.C) {
 	ref, err := ParseNamed("busybox:latest@sha256:86e0e091d0da6bde2456dbb48306f3956bbeb2eae1b5b9a43045843f69fe4aaa")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if _, isTagged := ref.(NamedTagged); isTagged {
-		t.Fatalf("Reference from %q should not support tag", ref)
+		c.Fatalf("Reference from %q should not support tag", ref)
 	}
 	if _, isCanonical := ref.(Canonical); !isCanonical {
-		t.Fatalf("Reference from %q should not support digest", ref)
+		c.Fatalf("Reference from %q should not support digest", ref)
 	}
 	if expected, actual := "busybox@sha256:86e0e091d0da6bde2456dbb48306f3956bbeb2eae1b5b9a43045843f69fe4aaa", ref.String(); actual != expected {
-		t.Fatalf("Invalid parsed reference for %q: expected %q, got %q", ref, expected, actual)
+		c.Fatalf("Invalid parsed reference for %q: expected %q, got %q", ref, expected, actual)
 	}
 }
 
-func TestInvalidReferenceComponents(t *testing.T) {
+func (s *DockerSuite) TestInvalidReferenceComponents(c *check.C) {
 	if _, err := WithName("-foo"); err == nil {
-		t.Fatal("Expected WithName to detect invalid name")
+		c.Fatal("Expected WithName to detect invalid name")
 	}
 	ref, err := WithName("busybox")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if _, err := WithTag(ref, "-foo"); err == nil {
-		t.Fatal("Expected WithName to detect invalid tag")
+		c.Fatal("Expected WithName to detect invalid tag")
 	}
 	if _, err := WithDigest(ref, digest.Digest("foo")); err == nil {
-		t.Fatal("Expected WithName to detect invalid digest")
+		c.Fatal("Expected WithName to detect invalid digest")
 	}
 }

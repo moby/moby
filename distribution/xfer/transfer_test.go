@@ -2,19 +2,19 @@ package xfer
 
 import (
 	"sync/atomic"
-	"testing"
 	"time"
 
 	"github.com/docker/docker/pkg/progress"
+	"github.com/go-check/check"
 )
 
-func TestTransfer(t *testing.T) {
+func (s *DockerSuite) TestTransfer(c *check.C) {
 	makeXferFunc := func(id string) DoFunc {
 		return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
 			select {
 			case <-start:
 			default:
-				t.Fatalf("transfer function not started even though concurrency limit not reached")
+				c.Fatalf("transfer function not started even though concurrency limit not reached")
 			}
 
 			xfer := NewTransfer()
@@ -38,7 +38,7 @@ func TestTransfer(t *testing.T) {
 		for p := range progressChan {
 			val, present := receivedProgress[p.ID]
 			if present && p.Current <= val {
-				t.Fatalf("got unexpected progress value: %d (expected %d)", p.Current, val+1)
+				c.Fatalf("got unexpected progress value: %d (expected %d)", p.Current, val+1)
 			}
 			receivedProgress[p.ID] = p.Current
 		}
@@ -62,12 +62,12 @@ func TestTransfer(t *testing.T) {
 
 	for _, id := range ids {
 		if receivedProgress[id] != 10 {
-			t.Fatalf("final progress value %d instead of 10", receivedProgress[id])
+			c.Fatalf("final progress value %d instead of 10", receivedProgress[id])
 		}
 	}
 }
 
-func TestConcurrencyLimit(t *testing.T) {
+func (s *DockerSuite) TestConcurrencyLimit(c *check.C) {
 	concurrencyLimit := 3
 	var runningJobs int32
 
@@ -78,7 +78,7 @@ func TestConcurrencyLimit(t *testing.T) {
 				<-start
 				totalJobs := atomic.AddInt32(&runningJobs, 1)
 				if int(totalJobs) > concurrencyLimit {
-					t.Fatalf("too many jobs running")
+					c.Fatalf("too many jobs running")
 				}
 				for i := 0; i <= 10; i++ {
 					progressChan <- progress.Progress{ID: id, Action: "testing", Current: int64(i), Total: 10}
@@ -120,12 +120,12 @@ func TestConcurrencyLimit(t *testing.T) {
 
 	for _, id := range ids {
 		if receivedProgress[id] != 10 {
-			t.Fatalf("final progress value %d instead of 10", receivedProgress[id])
+			c.Fatalf("final progress value %d instead of 10", receivedProgress[id])
 		}
 	}
 }
 
-func TestInactiveJobs(t *testing.T) {
+func (s *DockerSuite) TestInactiveJobs(c *check.C) {
 	concurrencyLimit := 3
 	var runningJobs int32
 	testDone := make(chan struct{})
@@ -137,7 +137,7 @@ func TestInactiveJobs(t *testing.T) {
 				<-start
 				totalJobs := atomic.AddInt32(&runningJobs, 1)
 				if int(totalJobs) > concurrencyLimit {
-					t.Fatalf("too many jobs running")
+					c.Fatalf("too many jobs running")
 				}
 				for i := 0; i <= 10; i++ {
 					progressChan <- progress.Progress{ID: id, Action: "testing", Current: int64(i), Total: 10}
@@ -182,12 +182,12 @@ func TestInactiveJobs(t *testing.T) {
 
 	for _, id := range ids {
 		if receivedProgress[id] != 10 {
-			t.Fatalf("final progress value %d instead of 10", receivedProgress[id])
+			c.Fatalf("final progress value %d instead of 10", receivedProgress[id])
 		}
 	}
 }
 
-func TestWatchRelease(t *testing.T) {
+func (s *DockerSuite) TestWatchRelease(c *check.C) {
 	ready := make(chan struct{})
 
 	makeXferFunc := func(id string) DoFunc {
@@ -278,7 +278,7 @@ func TestWatchRelease(t *testing.T) {
 	}
 }
 
-func TestWatchFinishedTransfer(t *testing.T) {
+func (s *DockerSuite) TestWatchFinishedTransfer(c *check.C) {
 	makeXferFunc := func(id string) DoFunc {
 		return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
 			xfer := NewTransfer()
@@ -316,7 +316,7 @@ func TestWatchFinishedTransfer(t *testing.T) {
 	<-xfer.Released()
 }
 
-func TestDuplicateTransfer(t *testing.T) {
+func (s *DockerSuite) TestDuplicateTransfer(c *check.C) {
 	ready := make(chan struct{})
 
 	var xferFuncCalls int32
@@ -385,7 +385,7 @@ func TestDuplicateTransfer(t *testing.T) {
 
 	// Confirm that the transfer function was called exactly once.
 	if xferFuncCalls != 1 {
-		t.Fatal("transfer function wasn't called exactly once")
+		c.Fatal("transfer function wasn't called exactly once")
 	}
 
 	// Release one watcher every 5ms

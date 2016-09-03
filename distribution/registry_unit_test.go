@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"testing"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/reference"
@@ -14,6 +13,7 @@ import (
 	"github.com/docker/docker/utils"
 	"github.com/docker/engine-api/types"
 	registrytypes "github.com/docker/engine-api/types/registry"
+	"github.com/go-check/check"
 	"golang.org/x/net/context"
 )
 
@@ -37,16 +37,16 @@ func (h *tokenPassThruHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-func testTokenPassThru(t *testing.T, ts *httptest.Server) {
+func testTokenPassThru(c *check.C, ts *httptest.Server) {
 	tmp, err := utils.TestDirectory("")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(tmp)
 
 	uri, err := url.Parse(ts.URL)
 	if err != nil {
-		t.Fatalf("could not parse url from test server: %v", err)
+		c.Fatalf("could not parse url from test server: %v", err)
 	}
 
 	endpoint := registry.APIEndpoint{
@@ -77,13 +77,13 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 	}
 	puller, err := newPuller(endpoint, repoInfo, imagePullConfig)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	p := puller.(*v2Puller)
 	ctx := context.Background()
 	p.repo, _, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	logrus.Debug("About to pull")
@@ -92,22 +92,22 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 	_ = p.pullV2Repository(ctx, tag)
 }
 
-func TestTokenPassThru(t *testing.T) {
+func (s *DockerSuite) TestTokenPassThru(c *check.C) {
 	handler := &tokenPassThruHandler{shouldSend401: func(url string) bool { return url == "/v2/" }}
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
-	testTokenPassThru(t, ts)
+	testTokenPassThru(c, ts)
 
 	if !handler.reached {
-		t.Fatal("Handler not reached")
+		c.Fatal("Handler not reached")
 	}
 	if !handler.gotToken {
-		t.Fatal("Failed to receive registry token")
+		c.Fatal("Failed to receive registry token")
 	}
 }
 
-func TestTokenPassThruDifferentHost(t *testing.T) {
+func (s *DockerSuite) TestTokenPassThruDifferentHost(c *check.C) {
 	handler := new(tokenPassThruHandler)
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
@@ -122,12 +122,12 @@ func TestTokenPassThruDifferentHost(t *testing.T) {
 	}))
 	defer tsredirect.Close()
 
-	testTokenPassThru(t, tsredirect)
+	testTokenPassThru(c, tsredirect)
 
 	if !handler.reached {
-		t.Fatal("Handler not reached")
+		c.Fatal("Handler not reached")
 	}
 	if handler.gotToken {
-		t.Fatal("Redirect should not forward Authorization header to another host")
+		c.Fatal("Redirect should not forward Authorization header to another host")
 	}
 }

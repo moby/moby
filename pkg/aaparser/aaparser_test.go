@@ -2,14 +2,23 @@ package aaparser
 
 import (
 	"testing"
+
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 type versionExpected struct {
 	output  string
 	version int
 }
 
-func TestParseVersion(t *testing.T) {
+func (s *DockerSuite) TestParseVersion(c *check.C) {
 	versions := []versionExpected{
 		{
 			output: `AppArmor parser version 2.10
@@ -64,10 +73,10 @@ Copyright 2009-2012 Canonical Ltd.
 	for _, v := range versions {
 		version, err := parseVersion(v.output)
 		if err != nil {
-			t.Fatalf("expected error to be nil for %#v, got: %v", v, err)
+			c.Fatalf("expected error to be nil for %#v, got: %v", v, err)
 		}
 		if version != v.version {
-			t.Fatalf("expected version to be %d, was %d, for: %#v\n", v.version, version, v)
+			c.Fatalf("expected version to be %d, was %d, for: %#v\n", v.version, version, v)
 		}
 	}
 }

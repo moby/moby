@@ -2,12 +2,10 @@
 
 package btrfs
 
-import (
-	"testing"
-)
+import "github.com/go-check/check"
 
-func TestLibVersion(t *testing.T) {
+func (s *DockerSuite) TestLibVersion(c *check.C) {
 	if btrfsLibVersion() <= 0 {
-		t.Errorf("expected output from btrfs lib version > 0")
+		c.Errorf("expected output from btrfs lib version > 0")
 	}
 }

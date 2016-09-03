@@ -3,16 +3,25 @@ package parsers
 import (
 	"reflect"
 	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestParseKeyValueOpt(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestParseKeyValueOpt(c *check.C) {
 	invalids := map[string]string{
 		"":    "Unable to parse key/value option: ",
 		"key": "Unable to parse key/value option: key",
 	}
 	for invalid, expectedError := range invalids {
 		if _, _, err := ParseKeyValueOpt(invalid); err == nil || err.Error() != expectedError {
-			t.Fatalf("Expected error %v for %v, got %v", expectedError, invalid, err)
+			c.Fatalf("Expected error %v for %v, got %v", expectedError, invalid, err)
 		}
 	}
 	valids := map[string][]string{
@@ -24,15 +33,15 @@ func TestParseKeyValueOpt(t *testing.T) {
 	for valid, expectedKeyValue := range valids {
 		key, value, err := ParseKeyValueOpt(valid)
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		if key != expectedKeyValue[0] || value != expectedKeyValue[1] {
-			t.Fatalf("Expected {%v: %v} got {%v: %v}", expectedKeyValue[0], expectedKeyValue[1], key, value)
+			c.Fatalf("Expected {%v: %v} got {%v: %v}", expectedKeyValue[0], expectedKeyValue[1], key, value)
 		}
 	}
 }
 
-func TestParseUintList(t *testing.T) {
+func (s *DockerSuite) TestParseUintList(c *check.C) {
 	valids := map[string]map[int]bool{
 		"":             {},
 		"7":            {7: true},
@@ -47,10 +56,10 @@ func TestParseUintList(t *testing.T) {
 	for k, v := range valids {
 		out, err := ParseUintList(k)
 		if err != nil {
-			t.Fatalf("Expected not to fail, got %v", err)
+			c.Fatalf("Expected not to fail, got %v", err)
 		}
 		if !reflect.DeepEqual(out, v) {
-			t.Fatalf("Expected %v, got %v", v, out)
+			c.Fatalf("Expected %v, got %v", v, out)
 		}
 	}
 
@@ -64,7 +73,7 @@ func TestParseUintList(t *testing.T) {
 	}
 	for _, v := range invalids {
 		if out, err := ParseUintList(v); err == nil {
-			t.Fatalf("Expected failure with %s but got %v", v, out)
+			c.Fatalf("Expected failure with %s but got %v", v, out)
 		}
 	}
 }

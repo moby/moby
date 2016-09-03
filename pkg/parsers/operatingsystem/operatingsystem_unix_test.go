@@ -7,9 +7,18 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestGetOperatingSystem(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestGetOperatingSystem(c *check.C) {
 	var backup = etcOsRelease
 
 	invalids := []struct {
@@ -118,26 +127,26 @@ PRETTY_NAME="Source Mage"`,
 
 	for _, elt := range invalids {
 		if err := ioutil.WriteFile(etcOsRelease, []byte(elt.content), 0600); err != nil {
-			t.Fatalf("failed to write to %s: %v", etcOsRelease, err)
+			c.Fatalf("failed to write to %s: %v", etcOsRelease, err)
 		}
 		s, err := GetOperatingSystem()
 		if err == nil || err.Error() != elt.errorExpected {
-			t.Fatalf("Expected an error %q, got %q (err: %v)", elt.errorExpected, s, err)
+			c.Fatalf("Expected an error %q, got %q (err: %v)", elt.errorExpected, s, err)
 		}
 	}
 
 	for _, elt := range valids {
 		if err := ioutil.WriteFile(etcOsRelease, []byte(elt.content), 0600); err != nil {
-			t.Fatalf("failed to write to %s: %v", etcOsRelease, err)
+			c.Fatalf("failed to write to %s: %v", etcOsRelease, err)
 		}
 		s, err := GetOperatingSystem()
 		if err != nil || s != elt.expected {
-			t.Fatalf("Expected %q, got %q (err: %v)", elt.expected, s, err)
+			c.Fatalf("Expected %q, got %q (err: %v)", elt.expected, s, err)
 		}
 	}
 }
 
-func TestIsContainerized(t *testing.T) {
+func (s *DockerSuite) TestIsContainerized(c *check.C) {
 	var (
 		backup                                = proc1Cgroup
 		nonContainerizedProc1Cgroupsystemd226 = []byte(`9:memory:/init.scope
@@ -184,40 +193,40 @@ func TestIsContainerized(t *testing.T) {
 	}()
 
 	if err := ioutil.WriteFile(proc1Cgroup, nonContainerizedProc1Cgroup, 0600); err != nil {
-		t.Fatalf("failed to write to %s: %v", proc1Cgroup, err)
+		c.Fatalf("failed to write to %s: %v", proc1Cgroup, err)
 	}
 	inContainer, err := IsContainerized()
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if inContainer {
-		t.Fatal("Wrongly assuming containerized")
+		c.Fatal("Wrongly assuming containerized")
 	}
 
 	if err := ioutil.WriteFile(proc1Cgroup, nonContainerizedProc1Cgroupsystemd226, 0600); err != nil {
-		t.Fatalf("failed to write to %s: %v", proc1Cgroup, err)
+		c.Fatalf("failed to write to %s: %v", proc1Cgroup, err)
 	}
 	inContainer, err = IsContainerized()
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if inContainer {
-		t.Fatal("Wrongly assuming containerized for systemd /init.scope cgroup layout")
+		c.Fatal("Wrongly assuming containerized for systemd /init.scope cgroup layout")
 	}
 
 	if err := ioutil.WriteFile(proc1Cgroup, containerizedProc1Cgroup, 0600); err != nil {
-		t.Fatalf("failed to write to %s: %v", proc1Cgroup, err)
+		c.Fatalf("failed to write to %s: %v", proc1Cgroup, err)
 	}
 	inContainer, err = IsContainerized()
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if !inContainer {
-		t.Fatal("Wrongly assuming non-containerized")
+		c.Fatal("Wrongly assuming non-containerized")
 	}
 }
 
-func TestOsReleaseFallback(t *testing.T) {
+func (s *DockerSuite) TestOsReleaseFallback(c *check.C) {
 	var backup = etcOsRelease
 	var altBackup = altOsRelease
 	dir := os.TempDir()
@@ -238,10 +247,10 @@ SUPPORT_URL="http://www.gentoo.org/main/en/support.xml"
 BUG_REPORT_URL="https://bugs.gentoo.org/"
 `
 	if err := ioutil.WriteFile(altOsRelease, []byte(content), 0600); err != nil {
-		t.Fatalf("failed to write to %s: %v", etcOsRelease, err)
+		c.Fatalf("failed to write to %s: %v", etcOsRelease, err)
 	}
-	s, err := GetOperatingSystem()
-	if err != nil || s != "Gentoo/Linux" {
-		t.Fatalf("Expected %q, got %q (err: %v)", "Gentoo/Linux", s, err)
+	ops, err := GetOperatingSystem()
+	if err != nil || ops != "Gentoo/Linux" {
+		c.Fatalf("Expected %q, got %q (err: %v)", "Gentoo/Linux", ops, err)
 	}
 }

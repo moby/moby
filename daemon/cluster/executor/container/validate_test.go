@@ -9,7 +9,15 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/swarmkit/api"
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 func newTestControllerWithMount(m api.Mount) (*controller, error) {
 	return newController(&daemon.Daemon{}, &api.Task{
@@ -29,14 +37,14 @@ func newTestControllerWithMount(m api.Mount) (*controller, error) {
 	})
 }
 
-func TestControllerValidateMountBind(t *testing.T) {
+func (s *DockerSuite) TestControllerValidateMountBind(c *check.C) {
 	// with improper source
 	if _, err := newTestControllerWithMount(api.Mount{
 		Type:   api.MountTypeBind,
 		Source: "foo",
 		Target: testAbsPath,
 	}); err == nil || !strings.Contains(err.Error(), "invalid bind mount source") {
-		t.Fatalf("expected  error, got: %v", err)
+		c.Fatalf("expected  error, got: %v", err)
 	}
 
 	// with non-existing source
@@ -45,13 +53,13 @@ func TestControllerValidateMountBind(t *testing.T) {
 		Source: "/some-non-existing-host-path/",
 		Target: testAbsPath,
 	}); err == nil || !strings.Contains(err.Error(), "invalid bind mount source") {
-		t.Fatalf("expected  error, got: %v", err)
+		c.Fatalf("expected  error, got: %v", err)
 	}
 
 	// with proper source
 	tmpdir, err := ioutil.TempDir("", "TestControllerValidateMountBind")
 	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
+		c.Fatalf("failed to create temp dir: %v", err)
 	}
 	defer os.Remove(tmpdir)
 
@@ -60,18 +68,18 @@ func TestControllerValidateMountBind(t *testing.T) {
 		Source: tmpdir,
 		Target: testAbsPath,
 	}); err != nil {
-		t.Fatalf("expected  error, got: %v", err)
+		c.Fatalf("expected  error, got: %v", err)
 	}
 }
 
-func TestControllerValidateMountVolume(t *testing.T) {
+func (s *DockerSuite) TestControllerValidateMountVolume(c *check.C) {
 	// with improper source
 	if _, err := newTestControllerWithMount(api.Mount{
 		Type:   api.MountTypeVolume,
 		Source: testAbsPath,
 		Target: testAbsPath,
 	}); err == nil || !strings.Contains(err.Error(), "invalid volume mount source") {
-		t.Fatalf("expected error, got: %v", err)
+		c.Fatalf("expected error, got: %v", err)
 	}
 
 	// with proper source
@@ -80,14 +88,14 @@ func TestControllerValidateMountVolume(t *testing.T) {
 		Source: "foo",
 		Target: testAbsPath,
 	}); err != nil {
-		t.Fatalf("expected error, got: %v", err)
+		c.Fatalf("expected error, got: %v", err)
 	}
 }
 
-func TestControllerValidateMountTarget(t *testing.T) {
+func (s *DockerSuite) TestControllerValidateMountTarget(c *check.C) {
 	tmpdir, err := ioutil.TempDir("", "TestControllerValidateMountTarget")
 	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
+		c.Fatalf("failed to create temp dir: %v", err)
 	}
 	defer os.Remove(tmpdir)
 
@@ -97,7 +105,7 @@ func TestControllerValidateMountTarget(t *testing.T) {
 		Source: testAbsPath,
 		Target: "foo",
 	}); err == nil || !strings.Contains(err.Error(), "invalid mount target") {
-		t.Fatalf("expected error, got: %v", err)
+		c.Fatalf("expected error, got: %v", err)
 	}
 
 	// with proper target
@@ -106,18 +114,18 @@ func TestControllerValidateMountTarget(t *testing.T) {
 		Source: tmpdir,
 		Target: testAbsPath,
 	}); err != nil {
-		t.Fatalf("expected no error, got: %v", err)
+		c.Fatalf("expected no error, got: %v", err)
 	}
 }
 
-func TestControllerValidateMountTmpfs(t *testing.T) {
+func (s *DockerSuite) TestControllerValidateMountTmpfs(c *check.C) {
 	// with improper target
 	if _, err := newTestControllerWithMount(api.Mount{
 		Type:   api.MountTypeTmpfs,
 		Source: "foo",
 		Target: testAbsPath,
 	}); err == nil || !strings.Contains(err.Error(), "invalid tmpfs source") {
-		t.Fatalf("expected error, got: %v", err)
+		c.Fatalf("expected error, got: %v", err)
 	}
 
 	// with proper target
@@ -125,17 +133,17 @@ func TestControllerValidateMountTmpfs(t *testing.T) {
 		Type:   api.MountTypeTmpfs,
 		Target: testAbsPath,
 	}); err != nil {
-		t.Fatalf("expected no error, got: %v", err)
+		c.Fatalf("expected no error, got: %v", err)
 	}
 }
 
-func TestControllerValidateMountInvalidType(t *testing.T) {
+func (s *DockerSuite) TestControllerValidateMountInvalidType(c *check.C) {
 	// with improper target
 	if _, err := newTestControllerWithMount(api.Mount{
 		Type:   api.Mount_MountType(9999),
 		Source: "foo",
 		Target: testAbsPath,
 	}); err == nil || !strings.Contains(err.Error(), "invalid mount type") {
-		t.Fatalf("expected error, got: %v", err)
+		c.Fatalf("expected error, got: %v", err)
 	}
 }

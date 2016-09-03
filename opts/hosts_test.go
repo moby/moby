@@ -3,9 +3,18 @@ package opts
 import (
 	"fmt"
 	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestParseHost(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestParseHost(c *check.C) {
 	invalid := []string{
 		"something with spaces",
 		"://",
@@ -38,18 +47,18 @@ func TestParseHost(t *testing.T) {
 
 	for _, value := range invalid {
 		if _, err := ParseHost(false, value); err == nil {
-			t.Errorf("Expected an error for %v, got [nil]", value)
+			c.Errorf("Expected an error for %v, got [nil]", value)
 		}
 	}
 
 	for value, expected := range valid {
 		if actual, err := ParseHost(false, value); err != nil || actual != expected {
-			t.Errorf("Expected for %v [%v], got [%v, %v]", value, expected, actual, err)
+			c.Errorf("Expected for %v [%v], got [%v, %v]", value, expected, actual, err)
 		}
 	}
 }
 
-func TestParseDockerDaemonHost(t *testing.T) {
+func (s *DockerSuite) TestParseDockerDaemonHost(c *check.C) {
 	invalids := map[string]string{
 
 		"tcp:a.b.c.d":                   "Invalid bind address format: tcp:a.b.c.d",
@@ -83,17 +92,17 @@ func TestParseDockerDaemonHost(t *testing.T) {
 	}
 	for invalidAddr, expectedError := range invalids {
 		if addr, err := parseDockerDaemonHost(invalidAddr); err == nil || err.Error() != expectedError {
-			t.Errorf("tcp %v address expected error %q return, got %q and addr %v", invalidAddr, expectedError, err, addr)
+			c.Errorf("tcp %v address expected error %q return, got %q and addr %v", invalidAddr, expectedError, err, addr)
 		}
 	}
 	for validAddr, expectedAddr := range valids {
 		if addr, err := parseDockerDaemonHost(validAddr); err != nil || addr != expectedAddr {
-			t.Errorf("%v -> expected %v, got (%v) addr (%v)", validAddr, expectedAddr, err, addr)
+			c.Errorf("%v -> expected %v, got (%v) addr (%v)", validAddr, expectedAddr, err, addr)
 		}
 	}
 }
 
-func TestParseTCP(t *testing.T) {
+func (s *DockerSuite) TestParseTCP(c *check.C) {
 	var (
 		defaultHTTPHost = "tcp://127.0.0.1:2376"
 	)
@@ -125,24 +134,24 @@ func TestParseTCP(t *testing.T) {
 	}
 	for invalidAddr, expectedError := range invalids {
 		if addr, err := ParseTCPAddr(invalidAddr, defaultHTTPHost); err == nil || err.Error() != expectedError {
-			t.Errorf("tcp %v address expected error %v return, got %s and addr %v", invalidAddr, expectedError, err, addr)
+			c.Errorf("tcp %v address expected error %v return, got %s and addr %v", invalidAddr, expectedError, err, addr)
 		}
 	}
 	for validAddr, expectedAddr := range valids {
 		if addr, err := ParseTCPAddr(validAddr, defaultHTTPHost); err != nil || addr != expectedAddr {
-			t.Errorf("%v -> expected %v, got %v and addr %v", validAddr, expectedAddr, err, addr)
+			c.Errorf("%v -> expected %v, got %v and addr %v", validAddr, expectedAddr, err, addr)
 		}
 	}
 }
 
-func TestParseInvalidUnixAddrInvalid(t *testing.T) {
+func (s *DockerSuite) TestParseInvalidUnixAddrInvalid(c *check.C) {
 	if _, err := parseSimpleProtoAddr("unix", "tcp://127.0.0.1", "unix:///var/run/docker.sock"); err == nil || err.Error() != "Invalid proto, expected unix: tcp://127.0.0.1" {
-		t.Fatalf("Expected an error, got %v", err)
+		c.Fatalf("Expected an error, got %v", err)
 	}
 	if _, err := parseSimpleProtoAddr("unix", "unix://tcp://127.0.0.1", "/var/run/docker.sock"); err == nil || err.Error() != "Invalid proto, expected unix: tcp://127.0.0.1" {
-		t.Fatalf("Expected an error, got %v", err)
+		c.Fatalf("Expected an error, got %v", err)
 	}
 	if v, err := parseSimpleProtoAddr("unix", "", "/var/run/docker.sock"); err != nil || v != "unix:///var/run/docker.sock" {
-		t.Fatalf("Expected an %v, got %v", v, "unix:///var/run/docker.sock")
+		c.Fatalf("Expected an %v, got %v", v, "unix:///var/run/docker.sock")
 	}
 }

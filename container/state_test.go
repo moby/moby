@@ -2,86 +2,87 @@ package container
 
 import (
 	"sync/atomic"
-	"testing"
 	"time"
+
+	"github.com/go-check/check"
 )
 
-func TestStateRunStop(t *testing.T) {
-	s := NewState()
+func (s *DockerSuite) TestStateRunStop(c *check.C) {
+	ns := NewState()
 	for i := 1; i < 3; i++ { // full lifecycle two times
-		s.Lock()
-		s.SetRunning(i+100, false)
-		s.Unlock()
+		ns.Lock()
+		ns.SetRunning(i+100, false)
+		ns.Unlock()
 
-		if !s.IsRunning() {
-			t.Fatal("State not running")
+		if !ns.IsRunning() {
+			c.Fatal("State not running")
 		}
-		if s.Pid != i+100 {
-			t.Fatalf("Pid %v, expected %v", s.Pid, i+100)
+		if ns.Pid != i+100 {
+			c.Fatalf("Pid %v, expected %v", ns.Pid, i+100)
 		}
-		if s.ExitCode() != 0 {
-			t.Fatalf("ExitCode %v, expected 0", s.ExitCode())
+		if ns.ExitCode() != 0 {
+			c.Fatalf("ExitCode %v, expected 0", ns.ExitCode())
 		}
 
 		stopped := make(chan struct{})
 		var exit int64
 		go func() {
-			exitCode, _ := s.WaitStop(-1 * time.Second)
+			exitCode, _ := ns.WaitStop(-1 * time.Second)
 			atomic.StoreInt64(&exit, int64(exitCode))
 			close(stopped)
 		}()
-		s.SetStoppedLocking(&ExitStatus{ExitCode: i})
-		if s.IsRunning() {
-			t.Fatal("State is running")
+		ns.SetStoppedLocking(&ExitStatus{ExitCode: i})
+		if ns.IsRunning() {
+			c.Fatal("State is running")
 		}
-		if s.ExitCode() != i {
-			t.Fatalf("ExitCode %v, expected %v", s.ExitCode(), i)
+		if ns.ExitCode() != i {
+			c.Fatalf("ExitCode %v, expected %v", ns.ExitCode(), i)
 		}
-		if s.Pid != 0 {
-			t.Fatalf("Pid %v, expected 0", s.Pid)
+		if ns.Pid != 0 {
+			c.Fatalf("Pid %v, expected 0", ns.Pid)
 		}
 		select {
 		case <-time.After(100 * time.Millisecond):
-			t.Fatal("Stop callback doesn't fire in 100 milliseconds")
+			c.Fatal("Stop callback doesn't fire in 100 milliseconds")
 		case <-stopped:
-			t.Log("Stop callback fired")
+			c.Log("Stop callback fired")
 		}
 		exitCode := int(atomic.LoadInt64(&exit))
 		if exitCode != i {
-			t.Fatalf("ExitCode %v, expected %v", exitCode, i)
+			c.Fatalf("ExitCode %v, expected %v", exitCode, i)
 		}
-		if exitCode, err := s.WaitStop(-1 * time.Second); err != nil || exitCode != i {
-			t.Fatalf("WaitStop returned exitCode: %v, err: %v, expected exitCode: %v, err: %v", exitCode, err, i, nil)
+		if exitCode, err := ns.WaitStop(-1 * time.Second); err != nil || exitCode != i {
+			c.Fatalf("WaitStop returned exitCode: %v, err: %v, expected exitCode: %v, err: %v", exitCode, err, i, nil)
 		}
 	}
 }
 
-func TestStateTimeoutWait(t *testing.T) {
-	s := NewState()
+func (s *DockerSuite) TestStateTimeoutWait(c *check.C) {
+	ns := NewState()
 	stopped := make(chan struct{})
 	go func() {
-		s.WaitStop(100 * time.Millisecond)
+		ns.WaitStop(100 * time.Millisecond)
 		close(stopped)
 	}()
 	select {
 	case <-time.After(200 * time.Millisecond):
-		t.Fatal("Stop callback doesn't fire in 200 milliseconds")
+		c.Fatal("Stop callback doesn't fire in 200 milliseconds")
 	case <-stopped:
-		t.Log("Stop callback fired")
+		c.Log("Stop callback fired")
 	}
 
-	s.SetStoppedLocking(&ExitStatus{ExitCode: 1})
+	ns.SetStoppedLocking(&ExitStatus{ExitCode: 1})
 
 	stopped = make(chan struct{})
 	go func() {
-		s.WaitStop(100 * time.Millisecond)
+		ns.WaitStop(100 * time.Millisecond)
 		close(stopped)
 	}()
 	select {
 	case <-time.After(200 * time.Millisecond):
-		t.Fatal("Stop callback doesn't fire in 100 milliseconds")
+		c.Fatal("Stop callback doesn't fire in 100 milliseconds")
 	case <-stopped:
-		t.Log("Stop callback fired")
+		c.Log("Stop callback fired")
 	}
 
 }

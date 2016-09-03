@@ -9,16 +9,24 @@ import (
 
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/term"
+	"github.com/go-check/check"
 )
 
-func TestError(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestError(c *check.C) {
 	je := JSONError{404, "Not found"}
 	if je.Error() != "Not found" {
-		t.Fatalf("Expected 'Not found' got '%s'", je.Error())
+		c.Fatalf("Expected 'Not found' got '%s'", je.Error())
 	}
 }
 
-func TestProgress(t *testing.T) {
+func (s *DockerSuite) TestProgress(c *check.C) {
 	termsz, err := term.GetWinsize(0)
 	if err != nil {
 		// we can safely ignore the err here
@@ -26,13 +34,13 @@ func TestProgress(t *testing.T) {
 	}
 	jp := JSONProgress{}
 	if jp.String() != "" {
-		t.Fatalf("Expected empty string, got '%s'", jp.String())
+		c.Fatalf("Expected empty string, got '%s'", jp.String())
 	}
 
 	expected := "     1 B"
 	jp2 := JSONProgress{Current: 1}
 	if jp2.String() != expected {
-		t.Fatalf("Expected %q, got %q", expected, jp2.String())
+		c.Fatalf("Expected %q, got %q", expected, jp2.String())
 	}
 
 	expectedStart := "[==========>                                        ]     20 B/100 B"
@@ -43,7 +51,7 @@ func TestProgress(t *testing.T) {
 	// Just look at the start of the string
 	// (the remaining time is really hard to test -_-)
 	if jp3.String()[:len(expectedStart)] != expectedStart {
-		t.Fatalf("Expected to start with %q, got %q", expectedStart, jp3.String())
+		c.Fatalf("Expected to start with %q, got %q", expectedStart, jp3.String())
 	}
 
 	expected = "[=========================>                         ]     50 B/100 B"
@@ -52,7 +60,7 @@ func TestProgress(t *testing.T) {
 	}
 	jp4 := JSONProgress{Current: 50, Total: 100}
 	if jp4.String() != expected {
-		t.Fatalf("Expected %q, got %q", expected, jp4.String())
+		c.Fatalf("Expected %q, got %q", expected, jp4.String())
 	}
 
 	// this number can't be negative gh#7136
@@ -62,11 +70,11 @@ func TestProgress(t *testing.T) {
 	}
 	jp5 := JSONProgress{Current: 50, Total: 40}
 	if jp5.String() != expected {
-		t.Fatalf("Expected %q, got %q", expected, jp5.String())
+		c.Fatalf("Expected %q, got %q", expected, jp5.String())
 	}
 }
 
-func TestJSONMessageDisplay(t *testing.T) {
+func (s *DockerSuite) TestJSONMessageDisplay(c *check.C) {
 	now := time.Now()
 	messages := map[JSONMessage][]string{
 		// Empty
@@ -141,40 +149,40 @@ func TestJSONMessageDisplay(t *testing.T) {
 		// Without terminal
 		data := bytes.NewBuffer([]byte{})
 		if err := jsonMessage.Display(data, false); err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		if data.String() != expectedMessages[0] {
-			t.Fatalf("Expected [%v], got [%v]", expectedMessages[0], data.String())
+			c.Fatalf("Expected [%v], got [%v]", expectedMessages[0], data.String())
 		}
 		// With terminal
 		data = bytes.NewBuffer([]byte{})
 		if err := jsonMessage.Display(data, true); err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		if data.String() != expectedMessages[1] {
-			t.Fatalf("Expected [%v], got [%v]", expectedMessages[1], data.String())
+			c.Fatalf("Expected [%v], got [%v]", expectedMessages[1], data.String())
 		}
 	}
 }
 
 // Test JSONMessage with an Error. It will return an error with the text as error, not the meaning of the HTTP code.
-func TestJSONMessageDisplayWithJSONError(t *testing.T) {
+func (s *DockerSuite) TestJSONMessageDisplayWithJSONError(c *check.C) {
 	data := bytes.NewBuffer([]byte{})
 	jsonMessage := JSONMessage{Error: &JSONError{404, "Can't find it"}}
 
 	err := jsonMessage.Display(data, true)
 	if err == nil || err.Error() != "Can't find it" {
-		t.Fatalf("Expected a JSONError 404, got [%v]", err)
+		c.Fatalf("Expected a JSONError 404, got [%v]", err)
 	}
 
 	jsonMessage = JSONMessage{Error: &JSONError{401, "Anything"}}
 	err = jsonMessage.Display(data, true)
 	if err == nil || err.Error() != "Authentication is required." {
-		t.Fatalf("Expected an error [Authentication is required.], got [%v]", err)
+		c.Fatalf("Expected an error [Authentication is required.], got [%v]", err)
 	}
 }
 
-func TestDisplayJSONMessagesStreamInvalidJSON(t *testing.T) {
+func (s *DockerSuite) TestDisplayJSONMessagesStreamInvalidJSON(c *check.C) {
 	var (
 		inFd uintptr
 	)
@@ -183,11 +191,11 @@ func TestDisplayJSONMessagesStreamInvalidJSON(t *testing.T) {
 	inFd, _ = term.GetFdInfo(reader)
 
 	if err := DisplayJSONMessagesStream(reader, data, inFd, false, nil); err == nil && err.Error()[:17] != "invalid character" {
-		t.Fatalf("Should have thrown an error (invalid character in ..), got [%v]", err)
+		c.Fatalf("Should have thrown an error (invalid character in ..), got [%v]", err)
 	}
 }
 
-func TestDisplayJSONMessagesStream(t *testing.T) {
+func (s *DockerSuite) TestDisplayJSONMessagesStream(c *check.C) {
 	var (
 		inFd uintptr
 	)
@@ -225,20 +233,20 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 
 		// Without terminal
 		if err := DisplayJSONMessagesStream(reader, data, inFd, false, nil); err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		if data.String() != expectedMessages[0] {
-			t.Fatalf("Expected an [%v], got [%v]", expectedMessages[0], data.String())
+			c.Fatalf("Expected an [%v], got [%v]", expectedMessages[0], data.String())
 		}
 
 		// With terminal
 		data = bytes.NewBuffer([]byte{})
 		reader = strings.NewReader(jsonMessage)
 		if err := DisplayJSONMessagesStream(reader, data, inFd, true, nil); err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		if data.String() != expectedMessages[1] {
-			t.Fatalf("Expected an [%v], got [%v]", expectedMessages[1], data.String())
+			c.Fatalf("Expected an [%v], got [%v]", expectedMessages[1], data.String())
 		}
 	}
 

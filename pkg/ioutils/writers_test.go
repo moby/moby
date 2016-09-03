@@ -3,10 +3,11 @@ package ioutils
 import (
 	"bytes"
 	"strings"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestWriteCloserWrapperClose(t *testing.T) {
+func (s *DockerSuite) TestWriteCloserWrapperClose(c *check.C) {
 	called := false
 	writer := bytes.NewBuffer([]byte{})
 	wrapper := NewWriteCloserWrapper(writer, func() error {
@@ -14,34 +15,34 @@ func TestWriteCloserWrapperClose(t *testing.T) {
 		return nil
 	})
 	if err := wrapper.Close(); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if !called {
-		t.Fatalf("writeCloserWrapper should have call the anonymous function.")
+		c.Fatalf("writeCloserWrapper should have call the anonymous function.")
 	}
 }
 
-func TestNopWriteCloser(t *testing.T) {
+func (s *DockerSuite) TestNopWriteCloser(c *check.C) {
 	writer := bytes.NewBuffer([]byte{})
 	wrapper := NopWriteCloser(writer)
 	if err := wrapper.Close(); err != nil {
-		t.Fatal("NopWriteCloser always return nil on Close.")
+		c.Fatal("NopWriteCloser always return nil on Close.")
 	}
 
 }
 
-func TestNopWriter(t *testing.T) {
+func (s *DockerSuite) TestNopWriter(c *check.C) {
 	nw := &NopWriter{}
 	l, err := nw.Write([]byte{'c'})
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if l != 1 {
-		t.Fatalf("Expected 1 got %d", l)
+		c.Fatalf("Expected 1 got %d", l)
 	}
 }
 
-func TestWriteCounter(t *testing.T) {
+func (s *DockerSuite) TestWriteCounter(c *check.C) {
 	dummy1 := "This is a dummy string."
 	dummy2 := "This is another dummy string."
 	totalLength := int64(len(dummy1) + len(dummy2))
@@ -56,10 +57,10 @@ func TestWriteCounter(t *testing.T) {
 	reader2.WriteTo(wc)
 
 	if wc.Count != totalLength {
-		t.Errorf("Wrong count: %d vs. %d", wc.Count, totalLength)
+		c.Errorf("Wrong count: %d vs. %d", wc.Count, totalLength)
 	}
 
 	if buffer.String() != dummy1+dummy2 {
-		t.Error("Wrong message written")
+		c.Error("Wrong message written")
 	}
 }

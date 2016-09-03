@@ -5,39 +5,47 @@ import (
 	"testing"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/go-check/check"
 )
 
-func TestEnableDebug(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestEnableDebug(c *check.C) {
 	defer func() {
 		os.Setenv("DEBUG", "")
 		logrus.SetLevel(logrus.InfoLevel)
 	}()
 	EnableDebug()
 	if os.Getenv("DEBUG") != "1" {
-		t.Fatalf("expected DEBUG=1, got %s\n", os.Getenv("DEBUG"))
+		c.Fatalf("expected DEBUG=1, got %s\n", os.Getenv("DEBUG"))
 	}
 	if logrus.GetLevel() != logrus.DebugLevel {
-		t.Fatalf("expected log level %v, got %v\n", logrus.DebugLevel, logrus.GetLevel())
+		c.Fatalf("expected log level %v, got %v\n", logrus.DebugLevel, logrus.GetLevel())
 	}
 }
 
-func TestDisableDebug(t *testing.T) {
+func (s *DockerSuite) TestDisableDebug(c *check.C) {
 	DisableDebug()
 	if os.Getenv("DEBUG") != "" {
-		t.Fatalf("expected DEBUG=\"\", got %s\n", os.Getenv("DEBUG"))
+		c.Fatalf("expected DEBUG=\"\", got %s\n", os.Getenv("DEBUG"))
 	}
 	if logrus.GetLevel() != logrus.InfoLevel {
-		t.Fatalf("expected log level %v, got %v\n", logrus.InfoLevel, logrus.GetLevel())
+		c.Fatalf("expected log level %v, got %v\n", logrus.InfoLevel, logrus.GetLevel())
 	}
 }
 
-func TestDebugEnabled(t *testing.T) {
+func (s *DockerSuite) TestDebugEnabled(c *check.C) {
 	EnableDebug()
 	if !IsDebugEnabled() {
-		t.Fatal("expected debug enabled, got false")
+		c.Fatal("expected debug enabled, got false")
 	}
 	DisableDebug()
 	if IsDebugEnabled() {
-		t.Fatal("expected debug disabled, got true")
+		c.Fatal("expected debug disabled, got true")
 	}
 }

@@ -5,17 +5,17 @@ package daemon
 import (
 	"io/ioutil"
 	"os"
-	"testing"
 
 	"github.com/docker/docker/container"
 	containertypes "github.com/docker/engine-api/types/container"
+	"github.com/go-check/check"
 )
 
 // Unix test as uses settings which are not available on Windows
-func TestAdjustCPUShares(t *testing.T) {
+func (s *DockerSuite) TestAdjustCPUShares(c *check.C) {
 	tmp, err := ioutil.TempDir("", "docker-daemon-unix-test-")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(tmp)
 	daemon := &Daemon{
@@ -28,33 +28,33 @@ func TestAdjustCPUShares(t *testing.T) {
 	}
 	daemon.adaptContainerSettings(hostConfig, true)
 	if hostConfig.CPUShares != linuxMinCPUShares {
-		t.Errorf("Expected CPUShares to be %d", linuxMinCPUShares)
+		c.Errorf("Expected CPUShares to be %d", linuxMinCPUShares)
 	}
 
 	hostConfig.CPUShares = linuxMaxCPUShares + 1
 	daemon.adaptContainerSettings(hostConfig, true)
 	if hostConfig.CPUShares != linuxMaxCPUShares {
-		t.Errorf("Expected CPUShares to be %d", linuxMaxCPUShares)
+		c.Errorf("Expected CPUShares to be %d", linuxMaxCPUShares)
 	}
 
 	hostConfig.CPUShares = 0
 	daemon.adaptContainerSettings(hostConfig, true)
 	if hostConfig.CPUShares != 0 {
-		t.Error("Expected CPUShares to be unchanged")
+		c.Error("Expected CPUShares to be unchanged")
 	}
 
 	hostConfig.CPUShares = 1024
 	daemon.adaptContainerSettings(hostConfig, true)
 	if hostConfig.CPUShares != 1024 {
-		t.Error("Expected CPUShares to be unchanged")
+		c.Error("Expected CPUShares to be unchanged")
 	}
 }
 
 // Unix test as uses settings which are not available on Windows
-func TestAdjustCPUSharesNoAdjustment(t *testing.T) {
+func (s *DockerSuite) TestAdjustCPUSharesNoAdjustment(c *check.C) {
 	tmp, err := ioutil.TempDir("", "docker-daemon-unix-test-")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(tmp)
 	daemon := &Daemon{
@@ -67,114 +67,114 @@ func TestAdjustCPUSharesNoAdjustment(t *testing.T) {
 	}
 	daemon.adaptContainerSettings(hostConfig, false)
 	if hostConfig.CPUShares != linuxMinCPUShares-1 {
-		t.Errorf("Expected CPUShares to be %d", linuxMinCPUShares-1)
+		c.Errorf("Expected CPUShares to be %d", linuxMinCPUShares-1)
 	}
 
 	hostConfig.CPUShares = linuxMaxCPUShares + 1
 	daemon.adaptContainerSettings(hostConfig, false)
 	if hostConfig.CPUShares != linuxMaxCPUShares+1 {
-		t.Errorf("Expected CPUShares to be %d", linuxMaxCPUShares+1)
+		c.Errorf("Expected CPUShares to be %d", linuxMaxCPUShares+1)
 	}
 
 	hostConfig.CPUShares = 0
 	daemon.adaptContainerSettings(hostConfig, false)
 	if hostConfig.CPUShares != 0 {
-		t.Error("Expected CPUShares to be unchanged")
+		c.Error("Expected CPUShares to be unchanged")
 	}
 
 	hostConfig.CPUShares = 1024
 	daemon.adaptContainerSettings(hostConfig, false)
 	if hostConfig.CPUShares != 1024 {
-		t.Error("Expected CPUShares to be unchanged")
+		c.Error("Expected CPUShares to be unchanged")
 	}
 }
 
 // Unix test as uses settings which are not available on Windows
-func TestParseSecurityOptWithDeprecatedColon(t *testing.T) {
+func (s *DockerSuite) TestParseSecurityOptWithDeprecatedColon(c *check.C) {
 	container := &container.Container{}
 	config := &containertypes.HostConfig{}
 
 	// test apparmor
 	config.SecurityOpt = []string{"apparmor=test_profile"}
 	if err := parseSecurityOpt(container, config); err != nil {
-		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
+		c.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
 	if container.AppArmorProfile != "test_profile" {
-		t.Fatalf("Unexpected AppArmorProfile, expected: \"test_profile\", got %q", container.AppArmorProfile)
+		c.Fatalf("Unexpected AppArmorProfile, expected: \"test_profile\", got %q", container.AppArmorProfile)
 	}
 
 	// test seccomp
 	sp := "/path/to/seccomp_test.json"
 	config.SecurityOpt = []string{"seccomp=" + sp}
 	if err := parseSecurityOpt(container, config); err != nil {
-		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
+		c.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
 	if container.SeccompProfile != sp {
-		t.Fatalf("Unexpected AppArmorProfile, expected: %q, got %q", sp, container.SeccompProfile)
+		c.Fatalf("Unexpected AppArmorProfile, expected: %q, got %q", sp, container.SeccompProfile)
 	}
 
 	// test valid label
 	config.SecurityOpt = []string{"label=user:USER"}
 	if err := parseSecurityOpt(container, config); err != nil {
-		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
+		c.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
 
 	// test invalid label
 	config.SecurityOpt = []string{"label"}
 	if err := parseSecurityOpt(container, config); err == nil {
-		t.Fatal("Expected parseSecurityOpt error, got nil")
+		c.Fatal("Expected parseSecurityOpt error, got nil")
 	}
 
 	// test invalid opt
 	config.SecurityOpt = []string{"test"}
 	if err := parseSecurityOpt(container, config); err == nil {
-		t.Fatal("Expected parseSecurityOpt error, got nil")
+		c.Fatal("Expected parseSecurityOpt error, got nil")
 	}
 }
 
-func TestParseSecurityOpt(t *testing.T) {
+func (s *DockerSuite) TestParseSecurityOpt(c *check.C) {
 	container := &container.Container{}
 	config := &containertypes.HostConfig{}
 
 	// test apparmor
 	config.SecurityOpt = []string{"apparmor=test_profile"}
 	if err := parseSecurityOpt(container, config); err != nil {
-		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
+		c.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
 	if container.AppArmorProfile != "test_profile" {
-		t.Fatalf("Unexpected AppArmorProfile, expected: \"test_profile\", got %q", container.AppArmorProfile)
+		c.Fatalf("Unexpected AppArmorProfile, expected: \"test_profile\", got %q", container.AppArmorProfile)
 	}
 
 	// test seccomp
 	sp := "/path/to/seccomp_test.json"
 	config.SecurityOpt = []string{"seccomp=" + sp}
 	if err := parseSecurityOpt(container, config); err != nil {
-		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
+		c.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
 	if container.SeccompProfile != sp {
-		t.Fatalf("Unexpected SeccompProfile, expected: %q, got %q", sp, container.SeccompProfile)
+		c.Fatalf("Unexpected SeccompProfile, expected: %q, got %q", sp, container.SeccompProfile)
 	}
 
 	// test valid label
 	config.SecurityOpt = []string{"label=user:USER"}
 	if err := parseSecurityOpt(container, config); err != nil {
-		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
+		c.Fatalf("Unexpected parseSecurityOpt error: %v", err)
 	}
 
 	// test invalid label
 	config.SecurityOpt = []string{"label"}
 	if err := parseSecurityOpt(container, config); err == nil {
-		t.Fatal("Expected parseSecurityOpt error, got nil")
+		c.Fatal("Expected parseSecurityOpt error, got nil")
 	}
 
 	// test invalid opt
 	config.SecurityOpt = []string{"test"}
 	if err := parseSecurityOpt(container, config); err == nil {
-		t.Fatal("Expected parseSecurityOpt error, got nil")
+		c.Fatal("Expected parseSecurityOpt error, got nil")
 	}
 }
 
-func TestNetworkOptions(t *testing.T) {
+func (s *DockerSuite) TestNetworkOptions(c *check.C) {
 	daemon := &Daemon{}
 	dconfigCorrect := &Config{
 		CommonConfig: CommonConfig{
@@ -184,7 +184,7 @@ func TestNetworkOptions(t *testing.T) {
 	}
 
 	if _, err := daemon.networkOptions(dconfigCorrect, nil); err != nil {
-		t.Fatalf("Expect networkOptions success, got error: %v", err)
+		c.Fatalf("Expect networkOptions success, got error: %v", err)
 	}
 
 	dconfigWrong := &Config{
@@ -194,6 +194,6 @@ func TestNetworkOptions(t *testing.T) {
 	}
 
 	if _, err := daemon.networkOptions(dconfigWrong, nil); err == nil {
-		t.Fatalf("Expected networkOptions error, got nil")
+		c.Fatalf("Expected networkOptions error, got nil")
 	}
 }

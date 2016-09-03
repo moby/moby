@@ -6,10 +6,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"testing"
 
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/go-check/check"
 )
 
 const (
@@ -21,11 +21,11 @@ func init() {
 	reexec.Init()
 }
 
-func TestCloseRootDirectory(t *testing.T) {
+func (s *DockerSuite) TestCloseRootDirectory(c *check.C) {
 	contextDir, err := ioutil.TempDir("", "builder-tarsum-test")
 
 	if err != nil {
-		t.Fatalf("Error with creating temporary directory: %s", err)
+		c.Fatalf("Error with creating temporary directory: %s", err)
 	}
 
 	tarsum := &tarSumContext{root: contextDir}
@@ -33,29 +33,29 @@ func TestCloseRootDirectory(t *testing.T) {
 	err = tarsum.Close()
 
 	if err != nil {
-		t.Fatalf("Error while executing Close: %s", err)
+		c.Fatalf("Error while executing Close: %s", err)
 	}
 
 	_, err = os.Stat(contextDir)
 
 	if !os.IsNotExist(err) {
-		t.Fatalf("Directory should not exist at this point")
+		c.Fatalf("Directory should not exist at this point")
 		defer os.RemoveAll(contextDir)
 	}
 }
 
-func TestOpenFile(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
+func (s *DockerSuite) TestOpenFile(c *check.C) {
+	contextDir, cleanup := createTestTempDir(c, "", "builder-tarsum-test")
 	defer cleanup()
 
-	createTestTempFile(t, contextDir, filename, contents, 0777)
+	createTestTempFile(c, contextDir, filename, contents, 0777)
 
 	tarSum := &tarSumContext{root: contextDir}
 
 	file, err := tarSum.Open(filename)
 
 	if err != nil {
-		t.Fatalf("Error when executing Open: %s", err)
+		c.Fatalf("Error when executing Open: %s", err)
 	}
 
 	defer file.Close()
@@ -68,13 +68,13 @@ func TestOpenFile(t *testing.T) {
 	}
 
 	if contents != buff.String() {
-		t.Fatalf("Contents are not equal. Expected: %s, got: %s", contents, buff.String())
+		c.Fatalf("Contents are not equal. Expected: %s, got: %s", contents, buff.String())
 	}
 
 }
 
-func TestOpenNotExisting(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
+func (s *DockerSuite) TestOpenNotExisting(c *check.C) {
+	contextDir, cleanup := createTestTempDir(c, "", "builder-tarsum-test")
 	defer cleanup()
 
 	tarSum := &tarSumContext{root: contextDir}
@@ -82,70 +82,70 @@ func TestOpenNotExisting(t *testing.T) {
 	file, err := tarSum.Open("not-existing")
 
 	if file != nil {
-		t.Fatal("Opened file should be nil")
+		c.Fatal("Opened file should be nil")
 	}
 
 	if !os.IsNotExist(err) {
-		t.Fatalf("Error when executing Open: %s", err)
+		c.Fatalf("Error when executing Open: %s", err)
 	}
 }
 
-func TestStatFile(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
+func (s *DockerSuite) TestStatFile(c *check.C) {
+	contextDir, cleanup := createTestTempDir(c, "", "builder-tarsum-test")
 	defer cleanup()
 
-	testFilename := createTestTempFile(t, contextDir, filename, contents, 0777)
+	testFilename := createTestTempFile(c, contextDir, filename, contents, 0777)
 
 	tarSum := &tarSumContext{root: contextDir}
 
 	relPath, fileInfo, err := tarSum.Stat(filename)
 
 	if err != nil {
-		t.Fatalf("Error when executing Stat: %s", err)
+		c.Fatalf("Error when executing Stat: %s", err)
 	}
 
 	if relPath != filename {
-		t.Fatalf("Relative path should be equal to %s, got %s", filename, relPath)
+		c.Fatalf("Relative path should be equal to %s, got %s", filename, relPath)
 	}
 
 	if fileInfo.Path() != testFilename {
-		t.Fatalf("Full path should be equal to %s, got %s", testFilename, fileInfo.Path())
+		c.Fatalf("Full path should be equal to %s, got %s", testFilename, fileInfo.Path())
 	}
 }
 
-func TestStatSubdir(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
+func (s *DockerSuite) TestStatSubdir(c *check.C) {
+	contextDir, cleanup := createTestTempDir(c, "", "builder-tarsum-test")
 	defer cleanup()
 
-	contextSubdir := createTestTempSubdir(t, contextDir, "builder-tarsum-test-subdir")
+	contextSubdir := createTestTempSubdir(c, contextDir, "builder-tarsum-test-subdir")
 
-	testFilename := createTestTempFile(t, contextSubdir, filename, contents, 0777)
+	testFilename := createTestTempFile(c, contextSubdir, filename, contents, 0777)
 
 	tarSum := &tarSumContext{root: contextDir}
 
 	relativePath, err := filepath.Rel(contextDir, testFilename)
 
 	if err != nil {
-		t.Fatalf("Error when getting relative path: %s", err)
+		c.Fatalf("Error when getting relative path: %s", err)
 	}
 
 	relPath, fileInfo, err := tarSum.Stat(relativePath)
 
 	if err != nil {
-		t.Fatalf("Error when executing Stat: %s", err)
+		c.Fatalf("Error when executing Stat: %s", err)
 	}
 
 	if relPath != relativePath {
-		t.Fatalf("Relative path should be equal to %s, got %s", relativePath, relPath)
+		c.Fatalf("Relative path should be equal to %s, got %s", relativePath, relPath)
 	}
 
 	if fileInfo.Path() != testFilename {
-		t.Fatalf("Full path should be equal to %s, got %s", testFilename, fileInfo.Path())
+		c.Fatalf("Full path should be equal to %s, got %s", testFilename, fileInfo.Path())
 	}
 }
 
-func TestStatNotExisting(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
+func (s *DockerSuite) TestStatNotExisting(c *check.C) {
+	contextDir, cleanup := createTestTempDir(c, "", "builder-tarsum-test")
 	defer cleanup()
 
 	tarSum := &tarSumContext{root: contextDir}
@@ -153,28 +153,28 @@ func TestStatNotExisting(t *testing.T) {
 	relPath, fileInfo, err := tarSum.Stat("not-existing")
 
 	if relPath != "" {
-		t.Fatal("Relative path should be nil")
+		c.Fatal("Relative path should be nil")
 	}
 
 	if fileInfo != nil {
-		t.Fatalf("File info should be nil")
+		c.Fatalf("File info should be nil")
 	}
 
 	if !os.IsNotExist(err) {
-		t.Fatalf("This file should not exist: %s", err)
+		c.Fatalf("This file should not exist: %s", err)
 	}
 }
 
-func TestRemoveDirectory(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
+func (s *DockerSuite) TestRemoveDirectory(c *check.C) {
+	contextDir, cleanup := createTestTempDir(c, "", "builder-tarsum-test")
 	defer cleanup()
 
-	contextSubdir := createTestTempSubdir(t, contextDir, "builder-tarsum-test-subdir")
+	contextSubdir := createTestTempSubdir(c, contextDir, "builder-tarsum-test-subdir")
 
 	relativePath, err := filepath.Rel(contextDir, contextSubdir)
 
 	if err != nil {
-		t.Fatalf("Error when getting relative path: %s", err)
+		c.Fatalf("Error when getting relative path: %s", err)
 	}
 
 	tarSum := &tarSumContext{root: contextDir}
@@ -182,26 +182,26 @@ func TestRemoveDirectory(t *testing.T) {
 	err = tarSum.Remove(relativePath)
 
 	if err != nil {
-		t.Fatalf("Error when executing Remove: %s", err)
+		c.Fatalf("Error when executing Remove: %s", err)
 	}
 
 	_, err = os.Stat(contextSubdir)
 
 	if !os.IsNotExist(err) {
-		t.Fatalf("Directory should not exist at this point")
+		c.Fatalf("Directory should not exist at this point")
 	}
 }
 
-func TestMakeSumTarContext(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
+func (s *DockerSuite) TestMakeSumTarContext(c *check.C) {
+	contextDir, cleanup := createTestTempDir(c, "", "builder-tarsum-test")
 	defer cleanup()
 
-	createTestTempFile(t, contextDir, filename, contents, 0777)
+	createTestTempFile(c, contextDir, filename, contents, 0777)
 
 	tarStream, err := archive.Tar(contextDir, archive.Uncompressed)
 
 	if err != nil {
-		t.Fatalf("error: %s", err)
+		c.Fatalf("error: %s", err)
 	}
 
 	defer tarStream.Close()
@@ -209,21 +209,21 @@ func TestMakeSumTarContext(t *testing.T) {
 	tarSum, err := MakeTarSumContext(tarStream)
 
 	if err != nil {
-		t.Fatalf("Error when executing MakeSumContext: %s", err)
+		c.Fatalf("Error when executing MakeSumContext: %s", err)
 	}
 
 	if tarSum == nil {
-		t.Fatalf("Tar sum context should not be nil")
+		c.Fatalf("Tar sum context should not be nil")
 	}
 }
 
-func TestWalkWithoutError(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
+func (s *DockerSuite) TestWalkWithoutError(c *check.C) {
+	contextDir, cleanup := createTestTempDir(c, "", "builder-tarsum-test")
 	defer cleanup()
 
-	contextSubdir := createTestTempSubdir(t, contextDir, "builder-tarsum-test-subdir")
+	contextSubdir := createTestTempSubdir(c, contextDir, "builder-tarsum-test-subdir")
 
-	createTestTempFile(t, contextSubdir, filename, contents, 0777)
+	createTestTempFile(c, contextSubdir, filename, contents, 0777)
 
 	tarSum := &tarSumContext{root: contextDir}
 
@@ -234,7 +234,7 @@ func TestWalkWithoutError(t *testing.T) {
 	err := tarSum.Walk(contextSubdir, walkFun)
 
 	if err != nil {
-		t.Fatalf("Error when executing Walk: %s", err)
+		c.Fatalf("Error when executing Walk: %s", err)
 	}
 }
 
@@ -245,11 +245,11 @@ func (we WalkError) Error() string {
 	return "Error when executing Walk"
 }
 
-func TestWalkWithError(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
+func (s *DockerSuite) TestWalkWithError(c *check.C) {
+	contextDir, cleanup := createTestTempDir(c, "", "builder-tarsum-test")
 	defer cleanup()
 
-	contextSubdir := createTestTempSubdir(t, contextDir, "builder-tarsum-test-subdir")
+	contextSubdir := createTestTempSubdir(c, contextDir, "builder-tarsum-test-subdir")
 
 	tarSum := &tarSumContext{root: contextDir}
 
@@ -260,6 +260,6 @@ func TestWalkWithError(t *testing.T) {
 	err := tarSum.Walk(contextSubdir, walkFun)
 
 	if err == nil {
-		t.Fatalf("Error should not be nil")
+		c.Fatalf("Error should not be nil")
 	}
 }

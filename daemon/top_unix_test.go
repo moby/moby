@@ -2,11 +2,9 @@
 
 package daemon
 
-import (
-	"testing"
-)
+import "github.com/go-check/check"
 
-func TestContainerTopValidatePSArgs(t *testing.T) {
+func (s *DockerSuite) TestContainerTopValidatePSArgs(c *check.C) {
 	tests := map[string]bool{
 		"ae -o uid=PID":             true,
 		"ae -o \"uid= PID\"":        true,  // ascii space (0x20)
@@ -23,17 +21,17 @@ func TestContainerTopValidatePSArgs(t *testing.T) {
 	}
 	for psArgs, errExpected := range tests {
 		err := validatePSArgs(psArgs)
-		t.Logf("tested %q, got err=%v", psArgs, err)
+		c.Logf("tested %q, got err=%v", psArgs, err)
 		if errExpected && err == nil {
-			t.Fatalf("expected error, got %v (%q)", err, psArgs)
+			c.Fatalf("expected error, got %v (%q)", err, psArgs)
 		}
 		if !errExpected && err != nil {
-			t.Fatalf("expected nil, got %v (%q)", err, psArgs)
+			c.Fatalf("expected nil, got %v (%q)", err, psArgs)
 		}
 	}
 }
 
-func TestContainerTopParsePSOutput(t *testing.T) {
+func (s *DockerSuite) TestContainerTopParsePSOutput(c *check.C) {
 	tests := []struct {
 		output      []byte
 		pids        []int
@@ -65,12 +63,12 @@ func TestContainerTopParsePSOutput(t *testing.T) {
 
 	for _, f := range tests {
 		_, err := parsePSOutput(f.output, f.pids)
-		t.Logf("tested %q, got err=%v", string(f.output), err)
+		c.Logf("tested %q, got err=%v", string(f.output), err)
 		if f.errExpected && err == nil {
-			t.Fatalf("expected error, got %v (%q)", err, string(f.output))
+			c.Fatalf("expected error, got %v (%q)", err, string(f.output))
 		}
 		if !f.errExpected && err != nil {
-			t.Fatalf("expected nil, got %v (%q)", err, string(f.output))
+			c.Fatalf("expected nil, got %v (%q)", err, string(f.output))
 		}
 	}
 }

@@ -1,6 +1,6 @@
 package tarsum
 
-import "testing"
+import "github.com/go-check/check"
 
 func newFileInfoSums() FileInfoSums {
 	return FileInfoSums{
@@ -13,14 +13,14 @@ func newFileInfoSums() FileInfoSums {
 	}
 }
 
-func TestSortFileInfoSums(t *testing.T) {
+func (s *DockerSuite) TestSortFileInfoSums(c *check.C) {
 	dups := newFileInfoSums().GetAllFile("dup1")
 	if len(dups) != 2 {
-		t.Errorf("expected length 2, got %d", len(dups))
+		c.Errorf("expected length 2, got %d", len(dups))
 	}
 	dups.SortByNames()
 	if dups[0].Pos() != 4 {
-		t.Errorf("sorted dups should be ordered by position. Expected 4, got %d", dups[0].Pos())
+		c.Errorf("sorted dups should be ordered by position. Expected 4, got %d", dups[0].Pos())
 	}
 
 	fis := newFileInfoSums()
@@ -28,7 +28,7 @@ func TestSortFileInfoSums(t *testing.T) {
 	fis.SortBySums()
 	got := fis[0].Sum()
 	if got != expected {
-		t.Errorf("Expected %q, got %q", expected, got)
+		c.Errorf("Expected %q, got %q", expected, got)
 	}
 
 	fis = newFileInfoSums()
@@ -36,27 +36,27 @@ func TestSortFileInfoSums(t *testing.T) {
 	fis.SortByNames()
 	gotFis := fis[0]
 	if gotFis.Name() != expected {
-		t.Errorf("Expected %q, got %q", expected, gotFis.Name())
+		c.Errorf("Expected %q, got %q", expected, gotFis.Name())
 	}
 	// since a duplicate is first, ensure it is ordered first by position too
 	if gotFis.Pos() != 4 {
-		t.Errorf("Expected %d, got %d", 4, gotFis.Pos())
+		c.Errorf("Expected %d, got %d", 4, gotFis.Pos())
 	}
 
 	fis = newFileInfoSums()
 	fis.SortByPos()
 	if fis[0].Pos() != 0 {
-		t.Errorf("sorted fileInfoSums by Pos should order them by position.")
+		c.Errorf("sorted fileInfoSums by Pos should order them by position.")
 	}
 
 	fis = newFileInfoSums()
 	expected = "deadbeef1"
 	gotFileInfoSum := fis.GetFile("dup1")
 	if gotFileInfoSum.Sum() != expected {
-		t.Errorf("Expected %q, got %q", expected, gotFileInfoSum)
+		c.Errorf("Expected %q, got %q", expected, gotFileInfoSum)
 	}
 	if fis.GetFile("noPresent") != nil {
-		t.Errorf("Should have return nil if name not found.")
+		c.Errorf("Should have return nil if name not found.")
 	}
 
 }

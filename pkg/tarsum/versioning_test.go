@@ -1,49 +1,47 @@
 package tarsum
 
-import (
-	"testing"
-)
+import "github.com/go-check/check"
 
-func TestVersionLabelForChecksum(t *testing.T) {
+func (s *DockerSuite) TestVersionLabelForChecksum(c *check.C) {
 	version := VersionLabelForChecksum("tarsum+sha256:deadbeef")
 	if version != "tarsum" {
-		t.Fatalf("Version should have been 'tarsum', was %v", version)
+		c.Fatalf("Version should have been 'tarsum', was %v", version)
 	}
 	version = VersionLabelForChecksum("tarsum.v1+sha256:deadbeef")
 	if version != "tarsum.v1" {
-		t.Fatalf("Version should have been 'tarsum.v1', was %v", version)
+		c.Fatalf("Version should have been 'tarsum.v1', was %v", version)
 	}
 	version = VersionLabelForChecksum("something+somethingelse")
 	if version != "something" {
-		t.Fatalf("Version should have been 'something', was %v", version)
+		c.Fatalf("Version should have been 'something', was %v", version)
 	}
 	version = VersionLabelForChecksum("invalidChecksum")
 	if version != "" {
-		t.Fatalf("Version should have been empty, was %v", version)
+		c.Fatalf("Version should have been empty, was %v", version)
 	}
 }
 
-func TestVersion(t *testing.T) {
+func (s *DockerSuite) TestVersion(c *check.C) {
 	expected := "tarsum"
 	var v Version
 	if v.String() != expected {
-		t.Errorf("expected %q, got %q", expected, v.String())
+		c.Errorf("expected %q, got %q", expected, v.String())
 	}
 
 	expected = "tarsum.v1"
 	v = 1
 	if v.String() != expected {
-		t.Errorf("expected %q, got %q", expected, v.String())
+		c.Errorf("expected %q, got %q", expected, v.String())
 	}
 
 	expected = "tarsum.dev"
 	v = 2
 	if v.String() != expected {
-		t.Errorf("expected %q, got %q", expected, v.String())
+		c.Errorf("expected %q, got %q", expected, v.String())
 	}
 }
 
-func TestGetVersion(t *testing.T) {
+func (s *DockerSuite) TestGetVersion(c *check.C) {
 	testSet := []struct {
 		Str      string
 		Expected Version
@@ -58,10 +56,10 @@ func TestGetVersion(t *testing.T) {
 	for _, ts := range testSet {
 		v, err := GetVersionFromTarsum(ts.Str)
 		if err != nil {
-			t.Fatalf("%q : %s", err, ts.Str)
+			c.Fatalf("%q : %s", err, ts.Str)
 		}
 		if v != ts.Expected {
-			t.Errorf("expected %d (%q), got %d (%q)", ts.Expected, ts.Expected, v, v)
+			c.Errorf("expected %d (%q), got %d (%q)", ts.Expected, ts.Expected, v, v)
 		}
 	}
 
@@ -69,11 +67,11 @@ func TestGetVersion(t *testing.T) {
 	str := "weak+md5:abcdeabcde"
 	_, err := GetVersionFromTarsum(str)
 	if err != ErrNotVersion {
-		t.Fatalf("%q : %s", err, str)
+		c.Fatalf("%q : %s", err, str)
 	}
 }
 
-func TestGetVersions(t *testing.T) {
+func (s *DockerSuite) TestGetVersions(c *check.C) {
 	expected := []Version{
 		Version0,
 		Version1,
@@ -81,10 +79,10 @@ func TestGetVersions(t *testing.T) {
 	}
 	versions := GetVersions()
 	if len(versions) != len(expected) {
-		t.Fatalf("Expected %v versions, got %v", len(expected), len(versions))
+		c.Fatalf("Expected %v versions, got %v", len(expected), len(versions))
 	}
 	if !containsVersion(versions, expected[0]) || !containsVersion(versions, expected[1]) || !containsVersion(versions, expected[2]) {
-		t.Fatalf("Expected [%v], got [%v]", expected, versions)
+		c.Fatalf("Expected [%v], got [%v]", expected, versions)
 	}
 }
 

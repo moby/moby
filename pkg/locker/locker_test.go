@@ -4,29 +4,38 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/go-check/check"
 )
 
-func TestLockCounter(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestLockCounter(c *check.C) {
 	l := &lockCtr{}
 	l.inc()
 
 	if l.waiters != 1 {
-		t.Fatal("counter inc failed")
+		c.Fatal("counter inc failed")
 	}
 
 	l.dec()
 	if l.waiters != 0 {
-		t.Fatal("counter dec failed")
+		c.Fatal("counter dec failed")
 	}
 }
 
-func TestLockerLock(t *testing.T) {
+func (s *DockerSuite) TestLockerLock(c *check.C) {
 	l := New()
 	l.Lock("test")
 	ctr := l.locks["test"]
 
 	if ctr.count() != 0 {
-		t.Fatalf("expected waiters to be 0, got :%d", ctr.waiters)
+		c.Fatalf("expected waiters to be 0, got :%d", ctr.waiters)
 	}
 
 	chDone := make(chan struct{})
@@ -48,31 +57,31 @@ func TestLockerLock(t *testing.T) {
 	select {
 	case <-chWaiting:
 	case <-time.After(3 * time.Second):
-		t.Fatal("timed out waiting for lock waiters to be incremented")
+		c.Fatal("timed out waiting for lock waiters to be incremented")
 	}
 
 	select {
 	case <-chDone:
-		t.Fatal("lock should not have returned while it was still held")
+		c.Fatal("lock should not have returned while it was still held")
 	default:
 	}
 
 	if err := l.Unlock("test"); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	select {
 	case <-chDone:
 	case <-time.After(3 * time.Second):
-		t.Fatalf("lock should have completed")
+		c.Fatalf("lock should have completed")
 	}
 
 	if ctr.count() != 0 {
-		t.Fatalf("expected waiters to be 0, got: %d", ctr.count())
+		c.Fatalf("expected waiters to be 0, got: %d", ctr.count())
 	}
 }
 
-func TestLockerUnlock(t *testing.T) {
+func (s *DockerSuite) TestLockerUnlock(c *check.C) {
 	l := New()
 
 	l.Lock("test")
@@ -87,11 +96,11 @@ func TestLockerUnlock(t *testing.T) {
 	select {
 	case <-chDone:
 	case <-time.After(3 * time.Second):
-		t.Fatalf("lock should not be blocked")
+		c.Fatalf("lock should not be blocked")
 	}
 }
 
-func TestLockerConcurrency(t *testing.T) {
+func (s *DockerSuite) TestLockerConcurrency(c *check.C) {
 	l := New()
 
 	var wg sync.WaitGroup
@@ -114,11 +123,11 @@ func TestLockerConcurrency(t *testing.T) {
 	select {
 	case <-chDone:
 	case <-time.After(10 * time.Second):
-		t.Fatal("timeout waiting for locks to complete")
+		c.Fatal("timeout waiting for locks to complete")
 	}
 
 	// Since everything has unlocked this should not exist anymore
 	if ctr, exists := l.locks["test"]; exists {
-		t.Fatalf("lock should not exist: %v", ctr)
+		c.Fatalf("lock should not exist: %v", ctr)
 	}
 }

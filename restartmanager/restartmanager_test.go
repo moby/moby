@@ -5,30 +5,38 @@ import (
 	"time"
 
 	"github.com/docker/engine-api/types/container"
+	"github.com/go-check/check"
 )
 
-func TestRestartManagerTimeout(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestRestartManagerTimeout(c *check.C) {
 	rm := New(container.RestartPolicy{Name: "always"}, 0).(*restartManager)
 	should, _, err := rm.ShouldRestart(0, false, 1*time.Second)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if !should {
-		t.Fatal("container should be restarted")
+		c.Fatal("container should be restarted")
 	}
 	if rm.timeout != 100*time.Millisecond {
-		t.Fatalf("restart manager should have a timeout of 100ms but has %s", rm.timeout)
+		c.Fatalf("restart manager should have a timeout of 100ms but has %s", rm.timeout)
 	}
 }
 
-func TestRestartManagerTimeoutReset(t *testing.T) {
+func (s *DockerSuite) TestRestartManagerTimeoutReset(c *check.C) {
 	rm := New(container.RestartPolicy{Name: "always"}, 0).(*restartManager)
 	rm.timeout = 5 * time.Second
 	_, _, err := rm.ShouldRestart(0, false, 10*time.Second)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if rm.timeout != 100*time.Millisecond {
-		t.Fatalf("restart manager should have a timeout of 100ms but has %s", rm.timeout)
+		c.Fatalf("restart manager should have a timeout of 100ms but has %s", rm.timeout)
 	}
 }

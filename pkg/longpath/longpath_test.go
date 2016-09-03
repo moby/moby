@@ -3,20 +3,29 @@ package longpath
 import (
 	"strings"
 	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestStandardLongPath(t *testing.T) {
-	c := `C:\simple\path`
-	longC := AddPrefix(c)
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestStandardLongPath(c *check.C) {
+	sp := `C:\simple\path`
+	longC := AddPrefix(sp)
 	if !strings.EqualFold(longC, `\\?\C:\simple\path`) {
-		t.Errorf("Wrong long path returned. Original = %s ; Long = %s", c, longC)
+		c.Errorf("Wrong long path returned. Original = %s ; Long = %s", sp, longC)
 	}
 }
 
-func TestUNCLongPath(t *testing.T) {
-	c := `\\server\share\path`
-	longC := AddPrefix(c)
+func (s *DockerSuite) TestUNCLongPath(c *check.C) {
+	sp := `\\server\share\path`
+	longC := AddPrefix(sp)
 	if !strings.EqualFold(longC, `\\?\UNC\server\share\path`) {
-		t.Errorf("Wrong UNC long path returned. Original = %s ; Long = %s", c, longC)
+		c.Errorf("Wrong UNC long path returned. Original = %s ; Long = %s", sp, longC)
 	}
 }

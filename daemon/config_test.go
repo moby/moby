@@ -8,20 +8,28 @@ import (
 
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/go-check/check"
 	"github.com/spf13/pflag"
 )
 
-func TestDaemonConfigurationMerge(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestDaemonConfigurationMerge(c *check.C) {
 	f, err := ioutil.TempFile("", "docker-config-")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	configFile := f.Name()
 	f.Write([]byte(`{"debug": true}`))
 	f.Close()
 
-	c := &Config{
+	cf := &Config{
 		CommonConfig: CommonConfig{
 			AutoRestart: true,
 			LogConfig: LogConfig{
@@ -31,32 +39,32 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 		},
 	}
 
-	cc, err := MergeDaemonConfigurations(c, nil, configFile)
+	cc, err := MergeDaemonConfigurations(cf, nil, configFile)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if !cc.Debug {
-		t.Fatalf("expected %v, got %v\n", true, cc.Debug)
+		c.Fatalf("expected %v, got %v\n", true, cc.Debug)
 	}
 	if !cc.AutoRestart {
-		t.Fatalf("expected %v, got %v\n", true, cc.AutoRestart)
+		c.Fatalf("expected %v, got %v\n", true, cc.AutoRestart)
 	}
 	if cc.LogConfig.Type != "syslog" {
-		t.Fatalf("expected syslog config, got %q\n", cc.LogConfig)
+		c.Fatalf("expected syslog config, got %q\n", cc.LogConfig)
 	}
 }
 
-func TestDaemonConfigurationNotFound(t *testing.T) {
+func (s *DockerSuite) TestDaemonConfigurationNotFound(c *check.C) {
 	_, err := MergeDaemonConfigurations(&Config{}, nil, "/tmp/foo-bar-baz-docker")
 	if err == nil || !os.IsNotExist(err) {
-		t.Fatalf("expected does not exist error, got %v", err)
+		c.Fatalf("expected does not exist error, got %v", err)
 	}
 }
 
-func TestDaemonBrokenConfiguration(t *testing.T) {
+func (s *DockerSuite) TestDaemonBrokenConfiguration(c *check.C) {
 	f, err := ioutil.TempFile("", "docker-config-")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	configFile := f.Name()
@@ -65,55 +73,55 @@ func TestDaemonBrokenConfiguration(t *testing.T) {
 
 	_, err = MergeDaemonConfigurations(&Config{}, nil, configFile)
 	if err == nil {
-		t.Fatalf("expected error, got %v", err)
+		c.Fatalf("expected error, got %v", err)
 	}
 }
 
-func TestParseClusterAdvertiseSettings(t *testing.T) {
+func (s *DockerSuite) TestParseClusterAdvertiseSettings(c *check.C) {
 	_, err := parseClusterAdvertiseSettings("something", "")
 	if err != errDiscoveryDisabled {
-		t.Fatalf("expected discovery disabled error, got %v\n", err)
+		c.Fatalf("expected discovery disabled error, got %v\n", err)
 	}
 
 	_, err = parseClusterAdvertiseSettings("", "something")
 	if err == nil {
-		t.Fatalf("expected discovery store error, got %v\n", err)
+		c.Fatalf("expected discovery store error, got %v\n", err)
 	}
 
 	_, err = parseClusterAdvertiseSettings("etcd", "127.0.0.1:8080")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
-func TestFindConfigurationConflicts(t *testing.T) {
+func (s *DockerSuite) TestFindConfigurationConflicts(c *check.C) {
 	config := map[string]interface{}{"authorization-plugins": "foobar"}
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 
 	flags.String("authorization-plugins", "", "")
-	assert.NilError(t, flags.Set("authorization-plugins", "asdf"))
+	assert.NilError(c, flags.Set("authorization-plugins", "asdf"))
 
-	assert.Error(t,
+	assert.Error(c,
 		findConfigurationConflicts(config, flags),
 		"authorization-plugins: (from flag: asdf, from file: foobar)")
 }
 
-func TestFindConfigurationConflictsWithNamedOptions(t *testing.T) {
+func (s *DockerSuite) TestFindConfigurationConflictsWithNamedOptions(c *check.C) {
 	config := map[string]interface{}{"hosts": []string{"qwer"}}
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 
 	var hosts []string
 	flags.VarP(opts.NewNamedListOptsRef("hosts", &hosts, opts.ValidateHost), "host", "H", "Daemon socket(s) to connect to")
-	assert.NilError(t, flags.Set("host", "tcp://127.0.0.1:4444"))
-	assert.NilError(t, flags.Set("host", "unix:///var/run/docker.sock"))
+	assert.NilError(c, flags.Set("host", "tcp://127.0.0.1:4444"))
+	assert.NilError(c, flags.Set("host", "unix:///var/run/docker.sock"))
 
-	assert.Error(t, findConfigurationConflicts(config, flags), "hosts")
+	assert.Error(c, findConfigurationConflicts(config, flags), "hosts")
 }
 
-func TestDaemonConfigurationMergeConflicts(t *testing.T) {
+func (s *DockerSuite) TestDaemonConfigurationMergeConflicts(c *check.C) {
 	f, err := ioutil.TempFile("", "docker-config-")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	configFile := f.Name()
@@ -126,17 +134,17 @@ func TestDaemonConfigurationMergeConflicts(t *testing.T) {
 
 	_, err = MergeDaemonConfigurations(&Config{}, flags, configFile)
 	if err == nil {
-		t.Fatal("expected error, got nil")
+		c.Fatal("expected error, got nil")
 	}
 	if !strings.Contains(err.Error(), "debug") {
-		t.Fatalf("expected debug conflict, got %v", err)
+		c.Fatalf("expected debug conflict, got %v", err)
 	}
 }
 
-func TestDaemonConfigurationMergeConflictsWithInnerStructs(t *testing.T) {
+func (s *DockerSuite) TestDaemonConfigurationMergeConflictsWithInnerStructs(c *check.C) {
 	f, err := ioutil.TempFile("", "docker-config-")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	configFile := f.Name()
@@ -149,28 +157,28 @@ func TestDaemonConfigurationMergeConflictsWithInnerStructs(t *testing.T) {
 
 	_, err = MergeDaemonConfigurations(&Config{}, flags, configFile)
 	if err == nil {
-		t.Fatal("expected error, got nil")
+		c.Fatal("expected error, got nil")
 	}
 	if !strings.Contains(err.Error(), "tlscacert") {
-		t.Fatalf("expected tlscacert conflict, got %v", err)
+		c.Fatalf("expected tlscacert conflict, got %v", err)
 	}
 }
 
-func TestFindConfigurationConflictsWithUnknownKeys(t *testing.T) {
+func (s *DockerSuite) TestFindConfigurationConflictsWithUnknownKeys(c *check.C) {
 	config := map[string]interface{}{"tls-verify": "true"}
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 
 	flags.Bool("tlsverify", false, "")
 	err := findConfigurationConflicts(config, flags)
 	if err == nil {
-		t.Fatal("expected error, got nil")
+		c.Fatal("expected error, got nil")
 	}
 	if !strings.Contains(err.Error(), "the following directives don't match any configuration option: tls-verify") {
-		t.Fatalf("expected tls-verify conflict, got %v", err)
+		c.Fatalf("expected tls-verify conflict, got %v", err)
 	}
 }
 
-func TestFindConfigurationConflictsWithMergedValues(t *testing.T) {
+func (s *DockerSuite) TestFindConfigurationConflictsWithMergedValues(c *check.C) {
 	var hosts []string
 	config := map[string]interface{}{"hosts": "tcp://127.0.0.1:2345"}
 	flags := pflag.NewFlagSet("base", pflag.ContinueOnError)
@@ -178,20 +186,20 @@ func TestFindConfigurationConflictsWithMergedValues(t *testing.T) {
 
 	err := findConfigurationConflicts(config, flags)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	flags.Set("host", "unix:///var/run/docker.sock")
 	err = findConfigurationConflicts(config, flags)
 	if err == nil {
-		t.Fatal("expected error, got nil")
+		c.Fatal("expected error, got nil")
 	}
 	if !strings.Contains(err.Error(), "hosts: (from flag: [unix:///var/run/docker.sock], from file: tcp://127.0.0.1:2345)") {
-		t.Fatalf("expected hosts conflict, got %v", err)
+		c.Fatalf("expected hosts conflict, got %v", err)
 	}
 }
 
-func TestValidateConfiguration(t *testing.T) {
+func (s *DockerSuite) TestValidateConfiguration(c *check.C) {
 	c1 := &Config{
 		CommonConfig: CommonConfig{
 			Labels: []string{"one"},
@@ -200,7 +208,7 @@ func TestValidateConfiguration(t *testing.T) {
 
 	err := ValidateConfiguration(c1)
 	if err == nil {
-		t.Fatal("expected error, got nil")
+		c.Fatal("expected error, got nil")
 	}
 
 	c2 := &Config{
@@ -211,7 +219,7 @@ func TestValidateConfiguration(t *testing.T) {
 
 	err = ValidateConfiguration(c2)
 	if err != nil {
-		t.Fatalf("expected no error, got error %v", err)
+		c.Fatalf("expected no error, got error %v", err)
 	}
 
 	c3 := &Config{
@@ -222,7 +230,7 @@ func TestValidateConfiguration(t *testing.T) {
 
 	err = ValidateConfiguration(c3)
 	if err != nil {
-		t.Fatalf("expected no error, got error %v", err)
+		c.Fatalf("expected no error, got error %v", err)
 	}
 
 	c4 := &Config{
@@ -233,7 +241,7 @@ func TestValidateConfiguration(t *testing.T) {
 
 	err = ValidateConfiguration(c4)
 	if err == nil {
-		t.Fatal("expected error, got nil")
+		c.Fatal("expected error, got nil")
 	}
 
 	c5 := &Config{
@@ -244,7 +252,7 @@ func TestValidateConfiguration(t *testing.T) {
 
 	err = ValidateConfiguration(c5)
 	if err != nil {
-		t.Fatalf("expected no error, got error %v", err)
+		c.Fatalf("expected no error, got error %v", err)
 	}
 
 	c6 := &Config{
@@ -255,6 +263,6 @@ func TestValidateConfiguration(t *testing.T) {
 
 	err = ValidateConfiguration(c6)
 	if err == nil {
-		t.Fatal("expected error, got nil")
+		c.Fatal("expected error, got nil")
 	}
 }

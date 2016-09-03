@@ -4,24 +4,32 @@ import (
 	"testing"
 
 	"github.com/docker/engine-api/types"
+	"github.com/go-check/check"
 )
 
-func TestEncodeAuth(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestEncodeAuth(c *check.C) {
 	newAuthConfig := &types.AuthConfig{Username: "ken", Password: "test"}
 	authStr := encodeAuth(newAuthConfig)
 	decAuthConfig := &types.AuthConfig{}
 	var err error
 	decAuthConfig.Username, decAuthConfig.Password, err = decodeAuth(authStr)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if newAuthConfig.Username != decAuthConfig.Username {
-		t.Fatal("Encode Username doesn't match decoded Username")
+		c.Fatal("Encode Username doesn't match decoded Username")
 	}
 	if newAuthConfig.Password != decAuthConfig.Password {
-		t.Fatal("Encode Password doesn't match decoded Password")
+		c.Fatal("Encode Password doesn't match decoded Password")
 	}
 	if authStr != "a2VuOnRlc3Q=" {
-		t.Fatal("AuthString encoding isn't correct.")
+		c.Fatal("AuthString encoding isn't correct.")
 	}
 }

@@ -9,17 +9,26 @@ import (
 	"path/filepath"
 	"syscall"
 	"testing"
+
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 type node struct {
 	uid int
 	gid int
 }
 
-func TestMkdirAllAs(t *testing.T) {
+func (s *DockerSuite) TestMkdirAllAs(c *check.C) {
 	dirName, err := ioutil.TempDir("", "mkdirall")
 	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
+		c.Fatalf("Couldn't create temp dir: %v", err)
 	}
 	defer os.RemoveAll(dirName)
 
@@ -32,55 +41,55 @@ func TestMkdirAllAs(t *testing.T) {
 	}
 
 	if err := buildTree(dirName, testTree); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// test adding a directory to a pre-existing dir; only the new dir is owned by the uid/gid
 	if err := MkdirAllAs(filepath.Join(dirName, "usr", "share"), 0755, 99, 99); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	testTree["usr/share"] = node{99, 99}
 	verifyTree, err := readTree(dirName, "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := compareTrees(testTree, verifyTree); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// test 2-deep new directories--both should be owned by the uid/gid pair
 	if err := MkdirAllAs(filepath.Join(dirName, "lib", "some", "other"), 0755, 101, 101); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	testTree["lib/some"] = node{101, 101}
 	testTree["lib/some/other"] = node{101, 101}
 	verifyTree, err = readTree(dirName, "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := compareTrees(testTree, verifyTree); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// test a directory that already exists; should be chowned, but nothing else
 	if err := MkdirAllAs(filepath.Join(dirName, "usr"), 0755, 102, 102); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	testTree["usr"] = node{102, 102}
 	verifyTree, err = readTree(dirName, "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := compareTrees(testTree, verifyTree); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
-func TestMkdirAllNewAs(t *testing.T) {
+func (s *DockerSuite) TestMkdirAllNewAs(c *check.C) {
 
 	dirName, err := ioutil.TempDir("", "mkdirnew")
 	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
+		c.Fatalf("Couldn't create temp dir: %v", err)
 	}
 	defer os.RemoveAll(dirName)
 
@@ -93,54 +102,54 @@ func TestMkdirAllNewAs(t *testing.T) {
 	}
 
 	if err := buildTree(dirName, testTree); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// test adding a directory to a pre-existing dir; only the new dir is owned by the uid/gid
 	if err := MkdirAllNewAs(filepath.Join(dirName, "usr", "share"), 0755, 99, 99); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	testTree["usr/share"] = node{99, 99}
 	verifyTree, err := readTree(dirName, "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := compareTrees(testTree, verifyTree); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// test 2-deep new directories--both should be owned by the uid/gid pair
 	if err := MkdirAllNewAs(filepath.Join(dirName, "lib", "some", "other"), 0755, 101, 101); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	testTree["lib/some"] = node{101, 101}
 	testTree["lib/some/other"] = node{101, 101}
 	verifyTree, err = readTree(dirName, "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := compareTrees(testTree, verifyTree); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// test a directory that already exists; should NOT be chowned
 	if err := MkdirAllNewAs(filepath.Join(dirName, "usr"), 0755, 102, 102); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	verifyTree, err = readTree(dirName, "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := compareTrees(testTree, verifyTree); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
-func TestMkdirAs(t *testing.T) {
+func (s *DockerSuite) TestMkdirAs(c *check.C) {
 
 	dirName, err := ioutil.TempDir("", "mkdir")
 	if err != nil {
-		t.Fatalf("Couldn't create temp dir: %v", err)
+		c.Fatalf("Couldn't create temp dir: %v", err)
 	}
 	defer os.RemoveAll(dirName)
 
@@ -148,38 +157,38 @@ func TestMkdirAs(t *testing.T) {
 		"usr": {0, 0},
 	}
 	if err := buildTree(dirName, testTree); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// test a directory that already exists; should just chown to the requested uid/gid
 	if err := MkdirAs(filepath.Join(dirName, "usr"), 0755, 99, 99); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	testTree["usr"] = node{99, 99}
 	verifyTree, err := readTree(dirName, "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := compareTrees(testTree, verifyTree); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// create a subdir under a dir which doesn't exist--should fail
 	if err := MkdirAs(filepath.Join(dirName, "usr", "bin", "subdir"), 0755, 102, 102); err == nil {
-		t.Fatalf("Trying to create a directory with Mkdir where the parent doesn't exist should have failed")
+		c.Fatalf("Trying to create a directory with Mkdir where the parent doesn't exist should have failed")
 	}
 
 	// create a subdir under an existing dir; should only change the ownership of the new subdir
 	if err := MkdirAs(filepath.Join(dirName, "usr", "bin"), 0755, 102, 102); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	testTree["usr/bin"] = node{102, 102}
 	verifyTree, err = readTree(dirName, "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := compareTrees(testTree, verifyTree); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
@@ -242,10 +251,10 @@ func compareTrees(left, right map[string]node) error {
 	return nil
 }
 
-func TestParseSubidFileWithNewlinesAndComments(t *testing.T) {
+func (s *DockerSuite) TestParseSubidFileWithNewlinesAndComments(c *check.C) {
 	tmpDir, err := ioutil.TempDir("", "parsesubid")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	fnamePath := filepath.Join(tmpDir, "testsubuid")
 	fcontent := `tss:100000:65536
@@ -253,19 +262,19 @@ func TestParseSubidFileWithNewlinesAndComments(t *testing.T) {
 
 dockremap:231072:65536`
 	if err := ioutil.WriteFile(fnamePath, []byte(fcontent), 0644); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	ranges, err := parseSubidFile(fnamePath, "dockremap")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if len(ranges) != 1 {
-		t.Fatalf("wanted 1 element in ranges, got %d instead", len(ranges))
+		c.Fatalf("wanted 1 element in ranges, got %d instead", len(ranges))
 	}
 	if ranges[0].Start != 231072 {
-		t.Fatalf("wanted 231072, got %d instead", ranges[0].Start)
+		c.Fatalf("wanted 231072, got %d instead", ranges[0].Start)
 	}
 	if ranges[0].Length != 65536 {
-		t.Fatalf("wanted 65536, got %d instead", ranges[0].Length)
+		c.Fatalf("wanted 65536, got %d instead", ranges[0].Length)
 	}
 }

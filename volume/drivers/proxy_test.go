@@ -6,13 +6,13 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
-	"testing"
 
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/go-check/check"
 )
 
-func TestVolumeRequestError(t *testing.T) {
+func (s *DockerSuite) TestVolumeRequestError(c *check.C) {
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -60,73 +60,73 @@ func TestVolumeRequestError(t *testing.T) {
 	u, _ := url.Parse(server.URL)
 	client, err := plugins.NewClient("tcp://"+u.Host, &tlsconfig.Options{InsecureSkipVerify: true})
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	driver := volumeDriverProxy{client}
 
 	if err = driver.Create("volume", nil); err == nil {
-		t.Fatal("Expected error, was nil")
+		c.Fatal("Expected error, was nil")
 	}
 
 	if !strings.Contains(err.Error(), "Cannot create volume") {
-		t.Fatalf("Unexpected error: %v\n", err)
+		c.Fatalf("Unexpected error: %v\n", err)
 	}
 
 	_, err = driver.Mount("volume", "123")
 	if err == nil {
-		t.Fatal("Expected error, was nil")
+		c.Fatal("Expected error, was nil")
 	}
 
 	if !strings.Contains(err.Error(), "Cannot mount volume") {
-		t.Fatalf("Unexpected error: %v\n", err)
+		c.Fatalf("Unexpected error: %v\n", err)
 	}
 
 	err = driver.Unmount("volume", "123")
 	if err == nil {
-		t.Fatal("Expected error, was nil")
+		c.Fatal("Expected error, was nil")
 	}
 
 	if !strings.Contains(err.Error(), "Cannot unmount volume") {
-		t.Fatalf("Unexpected error: %v\n", err)
+		c.Fatalf("Unexpected error: %v\n", err)
 	}
 
 	err = driver.Remove("volume")
 	if err == nil {
-		t.Fatal("Expected error, was nil")
+		c.Fatal("Expected error, was nil")
 	}
 
 	if !strings.Contains(err.Error(), "Cannot remove volume") {
-		t.Fatalf("Unexpected error: %v\n", err)
+		c.Fatalf("Unexpected error: %v\n", err)
 	}
 
 	_, err = driver.Path("volume")
 	if err == nil {
-		t.Fatal("Expected error, was nil")
+		c.Fatal("Expected error, was nil")
 	}
 
 	if !strings.Contains(err.Error(), "Unknown volume") {
-		t.Fatalf("Unexpected error: %v\n", err)
+		c.Fatalf("Unexpected error: %v\n", err)
 	}
 
 	_, err = driver.List()
 	if err == nil {
-		t.Fatal("Expected error, was nil")
+		c.Fatal("Expected error, was nil")
 	}
 	if !strings.Contains(err.Error(), "Cannot list volumes") {
-		t.Fatalf("Unexpected error: %v\n", err)
+		c.Fatalf("Unexpected error: %v\n", err)
 	}
 
 	_, err = driver.Get("volume")
 	if err == nil {
-		t.Fatal("Expected error, was nil")
+		c.Fatal("Expected error, was nil")
 	}
 	if !strings.Contains(err.Error(), "Cannot get volume") {
-		t.Fatalf("Unexpected error: %v\n", err)
+		c.Fatalf("Unexpected error: %v\n", err)
 	}
 
 	_, err = driver.Capabilities()
 	if err == nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }

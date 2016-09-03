@@ -3,13 +3,13 @@ package formatter
 import (
 	"bytes"
 	"strings"
-	"testing"
 
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/engine-api/types"
+	"github.com/go-check/check"
 )
 
-func TestVolumeContext(t *testing.T) {
+func (s *DockerSuite) TestVolumeContext(c *check.C) {
 	volumeName := stringid.GenerateRandomID()
 
 	var ctx volumeContext
@@ -39,23 +39,23 @@ func TestVolumeContext(t *testing.T) {
 		}, "label1=value1,label2=value2", labelsHeader, ctx.Labels},
 	}
 
-	for _, c := range cases {
-		ctx = c.volumeCtx
-		v := c.call()
+	for _, ca := range cases {
+		ctx = ca.volumeCtx
+		v := ca.call()
 		if strings.Contains(v, ",") {
-			compareMultipleValues(t, v, c.expValue)
-		} else if v != c.expValue {
-			t.Fatalf("Expected %s, was %s\n", c.expValue, v)
+			compareMultipleValues(c, v, ca.expValue)
+		} else if v != ca.expValue {
+			c.Fatalf("Expected %s, was %s\n", ca.expValue, v)
 		}
 
 		h := ctx.fullHeader()
-		if h != c.expHeader {
-			t.Fatalf("Expected %s, was %s\n", c.expHeader, h)
+		if h != ca.expHeader {
+			c.Fatalf("Expected %s, was %s\n", ca.expHeader, h)
 		}
 	}
 }
 
-func TestVolumeContextWrite(t *testing.T) {
+func (s *DockerSuite) TestVolumeContextWrite(c *check.C) {
 	contexts := []struct {
 		context  VolumeContext
 		expected string
@@ -175,7 +175,7 @@ foobar_bar
 		context.context.Write()
 		actual := out.String()
 		if actual != context.expected {
-			t.Fatalf("Expected \n%s, got \n%s", context.expected, actual)
+			c.Fatalf("Expected \n%s, got \n%s", context.expected, actual)
 		}
 		// Clean buffer
 		out.Reset()

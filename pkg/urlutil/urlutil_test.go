@@ -1,6 +1,17 @@
 package urlutil
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/go-check/check"
+)
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 var (
 	gitUrls = []string{
@@ -27,44 +38,44 @@ var (
 	}
 )
 
-func TestValidGitTransport(t *testing.T) {
+func (s *DockerSuite) TestValidGitTransport(c *check.C) {
 	for _, url := range gitUrls {
 		if IsGitTransport(url) == false {
-			t.Fatalf("%q should be detected as valid Git prefix", url)
+			c.Fatalf("%q should be detected as valid Git prefix", url)
 		}
 	}
 
 	for _, url := range incompleteGitUrls {
 		if IsGitTransport(url) == true {
-			t.Fatalf("%q should not be detected as valid Git prefix", url)
+			c.Fatalf("%q should not be detected as valid Git prefix", url)
 		}
 	}
 }
 
-func TestIsGIT(t *testing.T) {
+func (s *DockerSuite) TestIsGIT(c *check.C) {
 	for _, url := range gitUrls {
 		if IsGitURL(url) == false {
-			t.Fatalf("%q should be detected as valid Git url", url)
+			c.Fatalf("%q should be detected as valid Git url", url)
 		}
 	}
 
 	for _, url := range incompleteGitUrls {
 		if IsGitURL(url) == false {
-			t.Fatalf("%q should be detected as valid Git url", url)
+			c.Fatalf("%q should be detected as valid Git url", url)
 		}
 	}
 
 	for _, url := range invalidGitUrls {
 		if IsGitURL(url) == true {
-			t.Fatalf("%q should not be detected as valid Git prefix", url)
+			c.Fatalf("%q should not be detected as valid Git prefix", url)
 		}
 	}
 }
 
-func TestIsTransport(t *testing.T) {
+func (s *DockerSuite) TestIsTransport(c *check.C) {
 	for _, url := range transportUrls {
 		if IsTransportURL(url) == false {
-			t.Fatalf("%q should be detected as valid Transport url", url)
+			c.Fatalf("%q should be detected as valid Transport url", url)
 		}
 	}
 }

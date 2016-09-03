@@ -5,35 +5,36 @@ package system
 import (
 	"os"
 	"syscall"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
 // TestFromStatT tests fromStatT for a tempfile
-func TestFromStatT(t *testing.T) {
-	file, _, _, dir := prepareFiles(t)
+func (s *DockerSuite) TestFromStatT(c *check.C) {
+	file, _, _, dir := prepareFiles(c)
 	defer os.RemoveAll(dir)
 
 	stat := &syscall.Stat_t{}
 	err := syscall.Lstat(file, stat)
 
-	s, err := fromStatT(stat)
+	st, err := fromStatT(stat)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
-	if stat.Mode != s.Mode() {
-		t.Fatal("got invalid mode")
+	if stat.Mode != st.Mode() {
+		c.Fatal("got invalid mode")
 	}
-	if stat.Uid != s.UID() {
-		t.Fatal("got invalid uid")
+	if stat.Uid != st.UID() {
+		c.Fatal("got invalid uid")
 	}
-	if stat.Gid != s.GID() {
-		t.Fatal("got invalid gid")
+	if stat.Gid != st.GID() {
+		c.Fatal("got invalid gid")
 	}
-	if stat.Rdev != s.Rdev() {
-		t.Fatal("got invalid rdev")
+	if stat.Rdev != st.Rdev() {
+		c.Fatal("got invalid rdev")
 	}
-	if stat.Mtim != s.Mtim() {
-		t.Fatal("got invalid mtim")
+	if stat.Mtim != st.Mtim() {
+		c.Fatal("got invalid mtim")
 	}
 }

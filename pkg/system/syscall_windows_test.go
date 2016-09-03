@@ -1,9 +1,9 @@
 package system
 
-import "testing"
+import "github.com/go-check/check"
 
-func TestHasWin32KSupport(t *testing.T) {
-	s := HasWin32KSupport() // make sure this doesn't panic
+func (s *DockerSuite) TestHasWin32KSupport(c *check.C) {
+	sp := HasWin32KSupport() // make sure this doesn't panic
 
-	t.Logf("win32k: %v", s) // will be different on different platforms -- informative only
+	c.Logf("win32k: %v", sp) // will be different on different platforms -- informative only
 }

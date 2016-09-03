@@ -4,9 +4,18 @@ package journald
 
 import (
 	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestSanitizeKeyMod(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestSanitizeKeyMod(c *check.C) {
 	entries := map[string]string{
 		"io.kubernetes.pod.name":      "IO_KUBERNETES_POD_NAME",
 		"io?.kubernetes.pod.name":     "IO__KUBERNETES_POD_NAME",
@@ -17,7 +26,7 @@ func TestSanitizeKeyMod(t *testing.T) {
 	}
 	for k, v := range entries {
 		if sanitizeKeyMod(k) != v {
-			t.Fatalf("Failed to sanitize %s, got %s, expected %s", k, sanitizeKeyMod(k), v)
+			c.Fatalf("Failed to sanitize %s, got %s, expected %s", k, sanitizeKeyMod(k), v)
 		}
 	}
 }

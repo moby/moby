@@ -15,8 +15,16 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
+	"github.com/go-check/check"
 	"golang.org/x/net/context"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 const maxDownloadConcurrency = 3
 
@@ -245,10 +253,10 @@ func downloadDescriptors(currentDownloads *int32) []DownloadDescriptor {
 	}
 }
 
-func TestSuccessfulDownload(t *testing.T) {
+func (s *DockerSuite) TestSuccessfulDownload(c *check.C) {
 	// TODO Windows: Fix this unit text
 	if runtime.GOOS == "windows" {
-		t.Skip("Needs fixing on Windows")
+		c.Skip("Needs fixing on Windows")
 	}
 	layerStore := &mockLayerStore{make(map[layer.ChainID]*mockLayer)}
 	ldm := NewLayerDownloadManager(layerStore, maxDownloadConcurrency)
@@ -272,13 +280,13 @@ func TestSuccessfulDownload(t *testing.T) {
 	// Pre-register the first layer to simulate an already-existing layer
 	l, err := layerStore.Register(firstDescriptor.mockTarStream(), "")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	firstDescriptor.diffID = l.DiffID()
 
 	rootFS, releaseFunc, err := ldm.Download(context.Background(), *image.NewRootFS(), descriptors, progress.ChanOutput(progressChan))
 	if err != nil {
-		t.Fatalf("download error: %v", err)
+		c.Fatalf("download error: %v", err)
 	}
 
 	releaseFunc()
@@ -287,7 +295,7 @@ func TestSuccessfulDownload(t *testing.T) {
 	<-progressDone
 
 	if len(rootFS.DiffIDs) != len(descriptors) {
-		t.Fatal("got wrong number of diffIDs in rootfs")
+		c.Fatal("got wrong number of diffIDs in rootfs")
 	}
 
 	for i, d := range descriptors {
@@ -295,23 +303,23 @@ func TestSuccessfulDownload(t *testing.T) {
 
 		if descriptor.diffID != "" {
 			if receivedProgress[d.ID()].Action != "Already exists" {
-				t.Fatalf("did not get 'Already exists' message for %v", d.ID())
+				c.Fatalf("did not get 'Already exists' message for %v", d.ID())
 			}
 		} else if receivedProgress[d.ID()].Action != "Pull complete" {
-			t.Fatalf("did not get 'Pull complete' message for %v", d.ID())
+			c.Fatalf("did not get 'Pull complete' message for %v", d.ID())
 		}
 
 		if rootFS.DiffIDs[i] != descriptor.expectedDiffID {
-			t.Fatalf("rootFS item %d has the wrong diffID (expected: %v got: %v)", i, descriptor.expectedDiffID, rootFS.DiffIDs[i])
+			c.Fatalf("rootFS item %d has the wrong diffID (expected: %v got: %v)", i, descriptor.expectedDiffID, rootFS.DiffIDs[i])
 		}
 
 		if descriptor.diffID == "" && descriptor.registeredDiffID != rootFS.DiffIDs[i] {
-			t.Fatal("diffID mismatch between rootFS and Registered callback")
+			c.Fatal("diffID mismatch between rootFS and Registered callback")
 		}
 	}
 }
 
-func TestCancelledDownload(t *testing.T) {
+func (s *DockerSuite) TestCancelledDownload(c *check.C) {
 	ldm := NewLayerDownloadManager(&mockLayerStore{make(map[layer.ChainID]*mockLayer)}, maxDownloadConcurrency)
 
 	progressChan := make(chan progress.Progress)
@@ -333,7 +341,7 @@ func TestCancelledDownload(t *testing.T) {
 	descriptors := downloadDescriptors(nil)
 	_, _, err := ldm.Download(ctx, *image.NewRootFS(), descriptors, progress.ChanOutput(progressChan))
 	if err != context.Canceled {
-		t.Fatal("expected download to be cancelled")
+		c.Fatal("expected download to be cancelled")
 	}
 
 	close(progressChan)

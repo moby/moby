@@ -4,15 +4,16 @@ import (
 	"bufio"
 	"os"
 	"strings"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestShellParser4EnvVars(t *testing.T) {
+func (s *DockerSuite) TestShellParser4EnvVars(c *check.C) {
 	fn := "envVarTest"
 
 	file, err := os.Open(fn)
 	if err != nil {
-		t.Fatalf("Can't open '%s': %s", err, fn)
+		c.Fatalf("Can't open '%s': %s", err, fn)
 	}
 	defer file.Close()
 
@@ -34,7 +35,7 @@ func TestShellParser4EnvVars(t *testing.T) {
 
 		words := strings.Split(line, "|")
 		if len(words) != 2 {
-			t.Fatalf("Error in '%s' - should be exactly one | in:%q", fn, line)
+			c.Fatalf("Error in '%s' - should be exactly one | in:%q", fn, line)
 		}
 
 		words[0] = strings.TrimSpace(words[0])
@@ -47,17 +48,17 @@ func TestShellParser4EnvVars(t *testing.T) {
 		}
 
 		if newWord != words[1] {
-			t.Fatalf("Error. Src: %s  Calc: %s  Expected: %s", words[0], newWord, words[1])
+			c.Fatalf("Error. Src: %s  Calc: %s  Expected: %s", words[0], newWord, words[1])
 		}
 	}
 }
 
-func TestShellParser4Words(t *testing.T) {
+func (s *DockerSuite) TestShellParser4Words(c *check.C) {
 	fn := "wordsTest"
 
 	file, err := os.Open(fn)
 	if err != nil {
-		t.Fatalf("Can't open '%s': %s", err, fn)
+		c.Fatalf("Can't open '%s': %s", err, fn)
 	}
 	defer file.Close()
 
@@ -78,7 +79,7 @@ func TestShellParser4Words(t *testing.T) {
 
 		words := strings.Split(line, "|")
 		if len(words) != 2 {
-			t.Fatalf("Error in '%s' - should be exactly one | in: %q", fn, line)
+			c.Fatalf("Error in '%s' - should be exactly one | in: %q", fn, line)
 		}
 		test := strings.TrimSpace(words[0])
 		expected := strings.Split(strings.TrimLeft(words[1], " "), ",")
@@ -90,17 +91,17 @@ func TestShellParser4Words(t *testing.T) {
 		}
 
 		if len(result) != len(expected) {
-			t.Fatalf("Error. %q was suppose to result in %q, but got %q instead", test, expected, result)
+			c.Fatalf("Error. %q was suppose to result in %q, but got %q instead", test, expected, result)
 		}
 		for i, w := range expected {
 			if w != result[i] {
-				t.Fatalf("Error. %q was suppose to result in %q, but got %q instead", test, expected, result)
+				c.Fatalf("Error. %q was suppose to result in %q, but got %q instead", test, expected, result)
 			}
 		}
 	}
 }
 
-func TestGetEnv(t *testing.T) {
+func (s *DockerSuite) TestGetEnv(c *check.C) {
 	sw := &shellWord{
 		word: "",
 		envs: nil,
@@ -109,35 +110,35 @@ func TestGetEnv(t *testing.T) {
 
 	sw.envs = []string{}
 	if sw.getEnv("foo") != "" {
-		t.Fatalf("2 - 'foo' should map to ''")
+		c.Fatalf("2 - 'foo' should map to ''")
 	}
 
 	sw.envs = []string{"foo"}
 	if sw.getEnv("foo") != "" {
-		t.Fatalf("3 - 'foo' should map to ''")
+		c.Fatalf("3 - 'foo' should map to ''")
 	}
 
 	sw.envs = []string{"foo="}
 	if sw.getEnv("foo") != "" {
-		t.Fatalf("4 - 'foo' should map to ''")
+		c.Fatalf("4 - 'foo' should map to ''")
 	}
 
 	sw.envs = []string{"foo=bar"}
 	if sw.getEnv("foo") != "bar" {
-		t.Fatalf("5 - 'foo' should map to 'bar'")
+		c.Fatalf("5 - 'foo' should map to 'bar'")
 	}
 
 	sw.envs = []string{"foo=bar", "car=hat"}
 	if sw.getEnv("foo") != "bar" {
-		t.Fatalf("6 - 'foo' should map to 'bar'")
+		c.Fatalf("6 - 'foo' should map to 'bar'")
 	}
 	if sw.getEnv("car") != "hat" {
-		t.Fatalf("7 - 'car' should map to 'hat'")
+		c.Fatalf("7 - 'car' should map to 'hat'")
 	}
 
 	// Make sure we grab the first 'car' in the list
 	sw.envs = []string{"foo=bar", "car=hat", "car=bike"}
 	if sw.getEnv("car") != "hat" {
-		t.Fatalf("8 - 'car' should map to 'hat'")
+		c.Fatalf("8 - 'car' should map to 'hat'")
 	}
 }

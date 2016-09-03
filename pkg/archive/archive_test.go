@@ -13,7 +13,16 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/go-check/check"
 )
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
 
 var tmp string
 
@@ -24,213 +33,213 @@ func init() {
 	}
 }
 
-func TestIsArchiveNilHeader(t *testing.T) {
+func (s *DockerSuite) TestIsArchiveNilHeader(c *check.C) {
 	out := IsArchive(nil)
 	if out {
-		t.Fatalf("isArchive should return false as nil is not a valid archive header")
+		c.Fatalf("isArchive should return false as nil is not a valid archive header")
 	}
 }
 
-func TestIsArchiveInvalidHeader(t *testing.T) {
+func (s *DockerSuite) TestIsArchiveInvalidHeader(c *check.C) {
 	header := []byte{0x00, 0x01, 0x02}
 	out := IsArchive(header)
 	if out {
-		t.Fatalf("isArchive should return false as %s is not a valid archive header", header)
+		c.Fatalf("isArchive should return false as %s is not a valid archive header", header)
 	}
 }
 
-func TestIsArchiveBzip2(t *testing.T) {
+func (s *DockerSuite) TestIsArchiveBzip2(c *check.C) {
 	header := []byte{0x42, 0x5A, 0x68}
 	out := IsArchive(header)
 	if !out {
-		t.Fatalf("isArchive should return true as %s is a bz2 header", header)
+		c.Fatalf("isArchive should return true as %s is a bz2 header", header)
 	}
 }
 
-func TestIsArchive7zip(t *testing.T) {
+func (s *DockerSuite) TestIsArchive7zip(c *check.C) {
 	header := []byte{0x50, 0x4b, 0x03, 0x04}
 	out := IsArchive(header)
 	if out {
-		t.Fatalf("isArchive should return false as %s is a 7z header and it is not supported", header)
+		c.Fatalf("isArchive should return false as %s is a 7z header and it is not supported", header)
 	}
 }
 
-func TestIsArchivePathDir(t *testing.T) {
+func (s *DockerSuite) TestIsArchivePathDir(c *check.C) {
 	cmd := exec.Command("sh", "-c", "mkdir -p /tmp/archivedir")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Fail to create an archive file for test : %s.", output)
+		c.Fatalf("Fail to create an archive file for test : %s.", output)
 	}
 	if IsArchivePath(tmp + "archivedir") {
-		t.Fatalf("Incorrectly recognised directory as an archive")
+		c.Fatalf("Incorrectly recognised directory as an archive")
 	}
 }
 
-func TestIsArchivePathInvalidFile(t *testing.T) {
+func (s *DockerSuite) TestIsArchivePathInvalidFile(c *check.C) {
 	cmd := exec.Command("sh", "-c", "dd if=/dev/zero bs=1K count=1 of=/tmp/archive && gzip --stdout /tmp/archive > /tmp/archive.gz")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Fail to create an archive file for test : %s.", output)
+		c.Fatalf("Fail to create an archive file for test : %s.", output)
 	}
 	if IsArchivePath(tmp + "archive") {
-		t.Fatalf("Incorrectly recognised invalid tar path as archive")
+		c.Fatalf("Incorrectly recognised invalid tar path as archive")
 	}
 	if IsArchivePath(tmp + "archive.gz") {
-		t.Fatalf("Incorrectly recognised invalid compressed tar path as archive")
+		c.Fatalf("Incorrectly recognised invalid compressed tar path as archive")
 	}
 }
 
-func TestIsArchivePathTar(t *testing.T) {
+func (s *DockerSuite) TestIsArchivePathTar(c *check.C) {
 	cmd := exec.Command("sh", "-c", "touch /tmp/archivedata && tar -cf /tmp/archive /tmp/archivedata && gzip --stdout /tmp/archive > /tmp/archive.gz")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Fail to create an archive file for test : %s.", output)
+		c.Fatalf("Fail to create an archive file for test : %s.", output)
 	}
 	if !IsArchivePath(tmp + "/archive") {
-		t.Fatalf("Did not recognise valid tar path as archive")
+		c.Fatalf("Did not recognise valid tar path as archive")
 	}
 	if !IsArchivePath(tmp + "archive.gz") {
-		t.Fatalf("Did not recognise valid compressed tar path as archive")
+		c.Fatalf("Did not recognise valid compressed tar path as archive")
 	}
 }
 
-func TestDecompressStreamGzip(t *testing.T) {
+func (s *DockerSuite) TestDecompressStreamGzip(c *check.C) {
 	cmd := exec.Command("sh", "-c", "touch /tmp/archive && gzip -f /tmp/archive")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Fail to create an archive file for test : %s.", output)
+		c.Fatalf("Fail to create an archive file for test : %s.", output)
 	}
 	archive, err := os.Open(tmp + "archive.gz")
 	if err != nil {
-		t.Fatalf("Fail to open file archive.gz")
+		c.Fatalf("Fail to open file archive.gz")
 	}
 	defer archive.Close()
 
 	_, err = DecompressStream(archive)
 	if err != nil {
-		t.Fatalf("Failed to decompress a gzip file.")
+		c.Fatalf("Failed to decompress a gzip file.")
 	}
 }
 
-func TestDecompressStreamBzip2(t *testing.T) {
+func (s *DockerSuite) TestDecompressStreamBzip2(c *check.C) {
 	cmd := exec.Command("sh", "-c", "touch /tmp/archive && bzip2 -f /tmp/archive")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Fail to create an archive file for test : %s.", output)
+		c.Fatalf("Fail to create an archive file for test : %s.", output)
 	}
 	archive, err := os.Open(tmp + "archive.bz2")
 	if err != nil {
-		t.Fatalf("Fail to open file archive.bz2")
+		c.Fatalf("Fail to open file archive.bz2")
 	}
 	defer archive.Close()
 
 	_, err = DecompressStream(archive)
 	if err != nil {
-		t.Fatalf("Failed to decompress a bzip2 file.")
+		c.Fatalf("Failed to decompress a bzip2 file.")
 	}
 }
 
-func TestDecompressStreamXz(t *testing.T) {
+func (s *DockerSuite) TestDecompressStreamXz(c *check.C) {
 	if runtime.GOOS == "windows" {
-		t.Skip("Xz not present in msys2")
+		c.Skip("Xz not present in msys2")
 	}
 	cmd := exec.Command("sh", "-c", "touch /tmp/archive && xz -f /tmp/archive")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Fail to create an archive file for test : %s.", output)
+		c.Fatalf("Fail to create an archive file for test : %s.", output)
 	}
 	archive, err := os.Open(tmp + "archive.xz")
 	if err != nil {
-		t.Fatalf("Fail to open file archive.xz")
+		c.Fatalf("Fail to open file archive.xz")
 	}
 	defer archive.Close()
 	_, err = DecompressStream(archive)
 	if err != nil {
-		t.Fatalf("Failed to decompress an xz file.")
+		c.Fatalf("Failed to decompress an xz file.")
 	}
 }
 
-func TestCompressStreamXzUnsuported(t *testing.T) {
+func (s *DockerSuite) TestCompressStreamXzUnsuported(c *check.C) {
 	dest, err := os.Create(tmp + "dest")
 	if err != nil {
-		t.Fatalf("Fail to create the destination file")
+		c.Fatalf("Fail to create the destination file")
 	}
 	defer dest.Close()
 
 	_, err = CompressStream(dest, Xz)
 	if err == nil {
-		t.Fatalf("Should fail as xz is unsupported for compression format.")
+		c.Fatalf("Should fail as xz is unsupported for compression format.")
 	}
 }
 
-func TestCompressStreamBzip2Unsupported(t *testing.T) {
+func (s *DockerSuite) TestCompressStreamBzip2Unsupported(c *check.C) {
 	dest, err := os.Create(tmp + "dest")
 	if err != nil {
-		t.Fatalf("Fail to create the destination file")
+		c.Fatalf("Fail to create the destination file")
 	}
 	defer dest.Close()
 
 	_, err = CompressStream(dest, Xz)
 	if err == nil {
-		t.Fatalf("Should fail as xz is unsupported for compression format.")
+		c.Fatalf("Should fail as xz is unsupported for compression format.")
 	}
 }
 
-func TestCompressStreamInvalid(t *testing.T) {
+func (s *DockerSuite) TestCompressStreamInvalid(c *check.C) {
 	dest, err := os.Create(tmp + "dest")
 	if err != nil {
-		t.Fatalf("Fail to create the destination file")
+		c.Fatalf("Fail to create the destination file")
 	}
 	defer dest.Close()
 
 	_, err = CompressStream(dest, -1)
 	if err == nil {
-		t.Fatalf("Should fail as xz is unsupported for compression format.")
+		c.Fatalf("Should fail as xz is unsupported for compression format.")
 	}
 }
 
-func TestExtensionInvalid(t *testing.T) {
+func (s *DockerSuite) TestExtensionInvalid(c *check.C) {
 	compression := Compression(-1)
 	output := compression.Extension()
 	if output != "" {
-		t.Fatalf("The extension of an invalid compression should be an empty string.")
+		c.Fatalf("The extension of an invalid compression should be an empty string.")
 	}
 }
 
-func TestExtensionUncompressed(t *testing.T) {
+func (s *DockerSuite) TestExtensionUncompressed(c *check.C) {
 	compression := Uncompressed
 	output := compression.Extension()
 	if output != "tar" {
-		t.Fatalf("The extension of an uncompressed archive should be 'tar'.")
+		c.Fatalf("The extension of an uncompressed archive should be 'tar'.")
 	}
 }
-func TestExtensionBzip2(t *testing.T) {
+func (s *DockerSuite) TestExtensionBzip2(c *check.C) {
 	compression := Bzip2
 	output := compression.Extension()
 	if output != "tar.bz2" {
-		t.Fatalf("The extension of a bzip2 archive should be 'tar.bz2'")
+		c.Fatalf("The extension of a bzip2 archive should be 'tar.bz2'")
 	}
 }
-func TestExtensionGzip(t *testing.T) {
+func (s *DockerSuite) TestExtensionGzip(c *check.C) {
 	compression := Gzip
 	output := compression.Extension()
 	if output != "tar.gz" {
-		t.Fatalf("The extension of a bzip2 archive should be 'tar.gz'")
+		c.Fatalf("The extension of a bzip2 archive should be 'tar.gz'")
 	}
 }
-func TestExtensionXz(t *testing.T) {
+func (s *DockerSuite) TestExtensionXz(c *check.C) {
 	compression := Xz
 	output := compression.Extension()
 	if output != "tar.xz" {
-		t.Fatalf("The extension of a bzip2 archive should be 'tar.xz'")
+		c.Fatalf("The extension of a bzip2 archive should be 'tar.xz'")
 	}
 }
 
-func TestCmdStreamLargeStderr(t *testing.T) {
+func (s *DockerSuite) TestCmdStreamLargeStderr(c *check.C) {
 	cmd := exec.Command("sh", "-c", "dd if=/dev/zero bs=1k count=1000 of=/dev/stderr; echo hello")
 	out, _, err := cmdStream(cmd, nil)
 	if err != nil {
-		t.Fatalf("Failed to start command: %s", err)
+		c.Fatalf("Failed to start command: %s", err)
 	}
 	errCh := make(chan error)
 	go func() {
@@ -240,49 +249,49 @@ func TestCmdStreamLargeStderr(t *testing.T) {
 	select {
 	case err := <-errCh:
 		if err != nil {
-			t.Fatalf("Command should not have failed (err=%.100s...)", err)
+			c.Fatalf("Command should not have failed (err=%.100s...)", err)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatalf("Command did not complete in 5 seconds; probable deadlock")
+		c.Fatalf("Command did not complete in 5 seconds; probable deadlock")
 	}
 }
 
-func TestCmdStreamBad(t *testing.T) {
+func (s *DockerSuite) TestCmdStreamBad(c *check.C) {
 	// TODO Windows: Figure out why this is failing in CI but not locally
 	if runtime.GOOS == "windows" {
-		t.Skip("Failing on Windows CI machines")
+		c.Skip("Failing on Windows CI machines")
 	}
 	badCmd := exec.Command("sh", "-c", "echo hello; echo >&2 error couldn\\'t reverse the phase pulser; exit 1")
 	out, _, err := cmdStream(badCmd, nil)
 	if err != nil {
-		t.Fatalf("Failed to start command: %s", err)
+		c.Fatalf("Failed to start command: %s", err)
 	}
 	if output, err := ioutil.ReadAll(out); err == nil {
-		t.Fatalf("Command should have failed")
+		c.Fatalf("Command should have failed")
 	} else if err.Error() != "exit status 1: error couldn't reverse the phase pulser\n" {
-		t.Fatalf("Wrong error value (%s)", err)
+		c.Fatalf("Wrong error value (%s)", err)
 	} else if s := string(output); s != "hello\n" {
-		t.Fatalf("Command output should be '%s', not '%s'", "hello\\n", output)
+		c.Fatalf("Command output should be '%s', not '%s'", "hello\\n", output)
 	}
 }
 
-func TestCmdStreamGood(t *testing.T) {
+func (s *DockerSuite) TestCmdStreamGood(c *check.C) {
 	cmd := exec.Command("sh", "-c", "echo hello; exit 0")
 	out, _, err := cmdStream(cmd, nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if output, err := ioutil.ReadAll(out); err != nil {
-		t.Fatalf("Command should not have failed (err=%s)", err)
+		c.Fatalf("Command should not have failed (err=%s)", err)
 	} else if s := string(output); s != "hello\n" {
-		t.Fatalf("Command output should be '%s', not '%s'", "hello\\n", output)
+		c.Fatalf("Command output should be '%s', not '%s'", "hello\\n", output)
 	}
 }
 
-func TestUntarPathWithInvalidDest(t *testing.T) {
+func (s *DockerSuite) TestUntarPathWithInvalidDest(c *check.C) {
 	tempFolder, err := ioutil.TempDir("", "docker-archive-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(tempFolder)
 	invalidDestFolder := filepath.Join(tempFolder, "invalidDest")
@@ -303,31 +312,31 @@ func TestUntarPathWithInvalidDest(t *testing.T) {
 	cmd := exec.Command("sh", "-c", "tar cf "+tarFileU+" "+srcFileU)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	err = UntarPath(tarFile, invalidDestFolder)
 	if err == nil {
-		t.Fatalf("UntarPath with invalid destination path should throw an error.")
+		c.Fatalf("UntarPath with invalid destination path should throw an error.")
 	}
 }
 
-func TestUntarPathWithInvalidSrc(t *testing.T) {
+func (s *DockerSuite) TestUntarPathWithInvalidSrc(c *check.C) {
 	dest, err := ioutil.TempDir("", "docker-archive-test")
 	if err != nil {
-		t.Fatalf("Fail to create the destination file")
+		c.Fatalf("Fail to create the destination file")
 	}
 	defer os.RemoveAll(dest)
 	err = UntarPath("/invalid/path", dest)
 	if err == nil {
-		t.Fatalf("UntarPath with invalid src path should throw an error.")
+		c.Fatalf("UntarPath with invalid src path should throw an error.")
 	}
 }
 
-func TestUntarPath(t *testing.T) {
+func (s *DockerSuite) TestUntarPath(c *check.C) {
 	tmpFolder, err := ioutil.TempDir("", "docker-archive-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(tmpFolder)
 	srcFile := filepath.Join(tmpFolder, "src")
@@ -337,7 +346,7 @@ func TestUntarPath(t *testing.T) {
 	destFolder := filepath.Join(tmpFolder, "dest")
 	err = os.MkdirAll(destFolder, 0740)
 	if err != nil {
-		t.Fatalf("Fail to create the destination file")
+		c.Fatalf("Fail to create the destination file")
 	}
 
 	// Translate back to Unix semantics as next exec.Command is run under sh
@@ -350,25 +359,25 @@ func TestUntarPath(t *testing.T) {
 	cmd := exec.Command("sh", "-c", "tar cf "+tarFileU+" "+srcFileU)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	err = UntarPath(tarFile, destFolder)
 	if err != nil {
-		t.Fatalf("UntarPath shouldn't throw an error, %s.", err)
+		c.Fatalf("UntarPath shouldn't throw an error, %s.", err)
 	}
 	expectedFile := filepath.Join(destFolder, srcFileU)
 	_, err = os.Stat(expectedFile)
 	if err != nil {
-		t.Fatalf("Destination folder should contain the source file but did not.")
+		c.Fatalf("Destination folder should contain the source file but did not.")
 	}
 }
 
 // Do the same test as above but with the destination as file, it should fail
-func TestUntarPathWithDestinationFile(t *testing.T) {
+func (s *DockerSuite) TestUntarPathWithDestinationFile(c *check.C) {
 	tmpFolder, err := ioutil.TempDir("", "docker-archive-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(tmpFolder)
 	srcFile := filepath.Join(tmpFolder, "src")
@@ -385,26 +394,26 @@ func TestUntarPathWithDestinationFile(t *testing.T) {
 	cmd := exec.Command("sh", "-c", "tar cf "+tarFileU+" "+srcFileU)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	destFile := filepath.Join(tmpFolder, "dest")
 	_, err = os.Create(destFile)
 	if err != nil {
-		t.Fatalf("Fail to create the destination file")
+		c.Fatalf("Fail to create the destination file")
 	}
 	err = UntarPath(tarFile, destFile)
 	if err == nil {
-		t.Fatalf("UntarPath should throw an error if the destination if a file")
+		c.Fatalf("UntarPath should throw an error if the destination if a file")
 	}
 }
 
 // Do the same test as above but with the destination folder already exists
 // and the destination file is a directory
 // It's working, see https://github.com/docker/docker/issues/10040
-func TestUntarPathWithDestinationSrcFileAsFolder(t *testing.T) {
+func (s *DockerSuite) TestUntarPathWithDestinationSrcFileAsFolder(c *check.C) {
 	tmpFolder, err := ioutil.TempDir("", "docker-archive-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(tmpFolder)
 	srcFile := filepath.Join(tmpFolder, "src")
@@ -422,68 +431,68 @@ func TestUntarPathWithDestinationSrcFileAsFolder(t *testing.T) {
 	cmd := exec.Command("sh", "-c", "tar cf "+tarFileU+" "+srcFileU)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	destFolder := filepath.Join(tmpFolder, "dest")
 	err = os.MkdirAll(destFolder, 0740)
 	if err != nil {
-		t.Fatalf("Fail to create the destination folder")
+		c.Fatalf("Fail to create the destination folder")
 	}
 	// Let's create a folder that will has the same path as the extracted file (from tar)
 	destSrcFileAsFolder := filepath.Join(destFolder, srcFileU)
 	err = os.MkdirAll(destSrcFileAsFolder, 0740)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	err = UntarPath(tarFile, destFolder)
 	if err != nil {
-		t.Fatalf("UntarPath should throw not throw an error if the extracted file already exists and is a folder")
+		c.Fatalf("UntarPath should throw not throw an error if the extracted file already exists and is a folder")
 	}
 }
 
-func TestCopyWithTarInvalidSrc(t *testing.T) {
+func (s *DockerSuite) TestCopyWithTarInvalidSrc(c *check.C) {
 	tempFolder, err := ioutil.TempDir("", "docker-archive-test")
 	if err != nil {
-		t.Fatal(nil)
+		c.Fatal(nil)
 	}
 	destFolder := filepath.Join(tempFolder, "dest")
 	invalidSrc := filepath.Join(tempFolder, "doesnotexists")
 	err = os.MkdirAll(destFolder, 0740)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	err = CopyWithTar(invalidSrc, destFolder)
 	if err == nil {
-		t.Fatalf("archiver.CopyWithTar with invalid src path should throw an error.")
+		c.Fatalf("archiver.CopyWithTar with invalid src path should throw an error.")
 	}
 }
 
-func TestCopyWithTarInexistentDestWillCreateIt(t *testing.T) {
+func (s *DockerSuite) TestCopyWithTarInexistentDestWillCreateIt(c *check.C) {
 	tempFolder, err := ioutil.TempDir("", "docker-archive-test")
 	if err != nil {
-		t.Fatal(nil)
+		c.Fatal(nil)
 	}
 	srcFolder := filepath.Join(tempFolder, "src")
 	inexistentDestFolder := filepath.Join(tempFolder, "doesnotexists")
 	err = os.MkdirAll(srcFolder, 0740)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	err = CopyWithTar(srcFolder, inexistentDestFolder)
 	if err != nil {
-		t.Fatalf("CopyWithTar with an inexistent folder shouldn't fail.")
+		c.Fatalf("CopyWithTar with an inexistent folder shouldn't fail.")
 	}
 	_, err = os.Stat(inexistentDestFolder)
 	if err != nil {
-		t.Fatalf("CopyWithTar with an inexistent folder should create it.")
+		c.Fatalf("CopyWithTar with an inexistent folder should create it.")
 	}
 }
 
 // Test CopyWithTar with a file as src
-func TestCopyWithTarSrcFile(t *testing.T) {
+func (s *DockerSuite) TestCopyWithTarSrcFile(c *check.C) {
 	folder, err := ioutil.TempDir("", "docker-archive-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(folder)
 	dest := filepath.Join(folder, "dest")
@@ -491,120 +500,120 @@ func TestCopyWithTarSrcFile(t *testing.T) {
 	src := filepath.Join(folder, filepath.Join("src", "src"))
 	err = os.MkdirAll(srcFolder, 0740)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	err = os.MkdirAll(dest, 0740)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	ioutil.WriteFile(src, []byte("content"), 0777)
 	err = CopyWithTar(src, dest)
 	if err != nil {
-		t.Fatalf("archiver.CopyWithTar shouldn't throw an error, %s.", err)
+		c.Fatalf("archiver.CopyWithTar shouldn't throw an error, %s.", err)
 	}
 	_, err = os.Stat(dest)
 	// FIXME Check the content
 	if err != nil {
-		t.Fatalf("Destination file should be the same as the source.")
+		c.Fatalf("Destination file should be the same as the source.")
 	}
 }
 
 // Test CopyWithTar with a folder as src
-func TestCopyWithTarSrcFolder(t *testing.T) {
+func (s *DockerSuite) TestCopyWithTarSrcFolder(c *check.C) {
 	folder, err := ioutil.TempDir("", "docker-archive-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(folder)
 	dest := filepath.Join(folder, "dest")
 	src := filepath.Join(folder, filepath.Join("src", "folder"))
 	err = os.MkdirAll(src, 0740)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	err = os.MkdirAll(dest, 0740)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	ioutil.WriteFile(filepath.Join(src, "file"), []byte("content"), 0777)
 	err = CopyWithTar(src, dest)
 	if err != nil {
-		t.Fatalf("archiver.CopyWithTar shouldn't throw an error, %s.", err)
+		c.Fatalf("archiver.CopyWithTar shouldn't throw an error, %s.", err)
 	}
 	_, err = os.Stat(dest)
 	// FIXME Check the content (the file inside)
 	if err != nil {
-		t.Fatalf("Destination folder should contain the source file but did not.")
+		c.Fatalf("Destination folder should contain the source file but did not.")
 	}
 }
 
-func TestCopyFileWithTarInvalidSrc(t *testing.T) {
+func (s *DockerSuite) TestCopyFileWithTarInvalidSrc(c *check.C) {
 	tempFolder, err := ioutil.TempDir("", "docker-archive-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(tempFolder)
 	destFolder := filepath.Join(tempFolder, "dest")
 	err = os.MkdirAll(destFolder, 0740)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	invalidFile := filepath.Join(tempFolder, "doesnotexists")
 	err = CopyFileWithTar(invalidFile, destFolder)
 	if err == nil {
-		t.Fatalf("archiver.CopyWithTar with invalid src path should throw an error.")
+		c.Fatalf("archiver.CopyWithTar with invalid src path should throw an error.")
 	}
 }
 
-func TestCopyFileWithTarInexistentDestWillCreateIt(t *testing.T) {
+func (s *DockerSuite) TestCopyFileWithTarInexistentDestWillCreateIt(c *check.C) {
 	tempFolder, err := ioutil.TempDir("", "docker-archive-test")
 	if err != nil {
-		t.Fatal(nil)
+		c.Fatal(nil)
 	}
 	defer os.RemoveAll(tempFolder)
 	srcFile := filepath.Join(tempFolder, "src")
 	inexistentDestFolder := filepath.Join(tempFolder, "doesnotexists")
 	_, err = os.Create(srcFile)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	err = CopyFileWithTar(srcFile, inexistentDestFolder)
 	if err != nil {
-		t.Fatalf("CopyWithTar with an inexistent folder shouldn't fail.")
+		c.Fatalf("CopyWithTar with an inexistent folder shouldn't fail.")
 	}
 	_, err = os.Stat(inexistentDestFolder)
 	if err != nil {
-		t.Fatalf("CopyWithTar with an inexistent folder should create it.")
+		c.Fatalf("CopyWithTar with an inexistent folder should create it.")
 	}
 	// FIXME Test the src file and content
 }
 
-func TestCopyFileWithTarSrcFolder(t *testing.T) {
+func (s *DockerSuite) TestCopyFileWithTarSrcFolder(c *check.C) {
 	folder, err := ioutil.TempDir("", "docker-archive-copyfilewithtar-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(folder)
 	dest := filepath.Join(folder, "dest")
 	src := filepath.Join(folder, "srcfolder")
 	err = os.MkdirAll(src, 0740)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	err = os.MkdirAll(dest, 0740)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	err = CopyFileWithTar(src, dest)
 	if err == nil {
-		t.Fatalf("CopyFileWithTar should throw an error with a folder.")
+		c.Fatalf("CopyFileWithTar should throw an error with a folder.")
 	}
 }
 
-func TestCopyFileWithTarSrcFile(t *testing.T) {
+func (s *DockerSuite) TestCopyFileWithTarSrcFile(c *check.C) {
 	folder, err := ioutil.TempDir("", "docker-archive-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(folder)
 	dest := filepath.Join(folder, "dest")
@@ -612,35 +621,35 @@ func TestCopyFileWithTarSrcFile(t *testing.T) {
 	src := filepath.Join(folder, filepath.Join("src", "src"))
 	err = os.MkdirAll(srcFolder, 0740)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	err = os.MkdirAll(dest, 0740)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	ioutil.WriteFile(src, []byte("content"), 0777)
 	err = CopyWithTar(src, dest+"/")
 	if err != nil {
-		t.Fatalf("archiver.CopyFileWithTar shouldn't throw an error, %s.", err)
+		c.Fatalf("archiver.CopyFileWithTar shouldn't throw an error, %s.", err)
 	}
 	_, err = os.Stat(dest)
 	if err != nil {
-		t.Fatalf("Destination folder should contain the source file but did not.")
+		c.Fatalf("Destination folder should contain the source file but did not.")
 	}
 }
 
-func TestTarFiles(t *testing.T) {
+func (s *DockerSuite) TestTarFiles(c *check.C) {
 	// TODO Windows: Figure out how to port this test.
 	if runtime.GOOS == "windows" {
-		t.Skip("Failing on Windows")
+		c.Skip("Failing on Windows")
 	}
 	// try without hardlinks
 	if err := checkNoChanges(1000, false); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	// try with hardlinks
 	if err := checkNoChanges(1000, true); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
@@ -677,10 +686,10 @@ func checkNoChanges(fileNum int, hardlinks bool) error {
 	return nil
 }
 
-func tarUntar(t *testing.T, origin string, options *TarOptions) ([]Change, error) {
+func tarUntar(c *check.C, origin string, options *TarOptions) ([]Change, error) {
 	archive, err := TarWithOptions(origin, options)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer archive.Close()
 
@@ -711,63 +720,63 @@ func tarUntar(t *testing.T, origin string, options *TarOptions) ([]Change, error
 	return ChangesDirs(origin, tmp)
 }
 
-func TestTarUntar(t *testing.T) {
+func (s *DockerSuite) TestTarUntar(c *check.C) {
 	// TODO Windows: Figure out how to fix this test.
 	if runtime.GOOS == "windows" {
-		t.Skip("Failing on Windows")
+		c.Skip("Failing on Windows")
 	}
 	origin, err := ioutil.TempDir("", "docker-test-untar-origin")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(origin)
 	if err := ioutil.WriteFile(filepath.Join(origin, "1"), []byte("hello world"), 0700); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := ioutil.WriteFile(filepath.Join(origin, "2"), []byte("welcome!"), 0700); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := ioutil.WriteFile(filepath.Join(origin, "3"), []byte("will be ignored"), 0700); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
-	for _, c := range []Compression{
+	for _, com := range []Compression{
 		Uncompressed,
 		Gzip,
 	} {
-		changes, err := tarUntar(t, origin, &TarOptions{
-			Compression:     c,
+		changes, err := tarUntar(c, origin, &TarOptions{
+			Compression:     com,
 			ExcludePatterns: []string{"3"},
 		})
 
 		if err != nil {
-			t.Fatalf("Error tar/untar for compression %s: %s", c.Extension(), err)
+			c.Fatalf("Error tar/untar for compression %s: %s", com.Extension(), err)
 		}
 
 		if len(changes) != 1 || changes[0].Path != "/3" {
-			t.Fatalf("Unexpected differences after tarUntar: %v", changes)
+			c.Fatalf("Unexpected differences after tarUntar: %v", changes)
 		}
 	}
 }
 
-func TestTarWithOptions(t *testing.T) {
+func (s *DockerSuite) TestTarWithOptions(c *check.C) {
 	// TODO Windows: Figure out how to fix this test.
 	if runtime.GOOS == "windows" {
-		t.Skip("Failing on Windows")
+		c.Skip("Failing on Windows")
 	}
 	origin, err := ioutil.TempDir("", "docker-test-untar-origin")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if _, err := ioutil.TempDir(origin, "folder"); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(origin)
 	if err := ioutil.WriteFile(filepath.Join(origin, "1"), []byte("hello world"), 0700); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if err := ioutil.WriteFile(filepath.Join(origin, "2"), []byte("welcome!"), 0700); err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	cases := []struct {
@@ -781,12 +790,12 @@ func TestTarWithOptions(t *testing.T) {
 		{&TarOptions{IncludeFiles: []string{"1"}, RebaseNames: map[string]string{"1": "test"}}, 4},
 	}
 	for _, testCase := range cases {
-		changes, err := tarUntar(t, origin, testCase.opts)
+		changes, err := tarUntar(c, origin, testCase.opts)
 		if err != nil {
-			t.Fatalf("Error tar/untar when testing inclusion/exclusion: %s", err)
+			c.Fatalf("Error tar/untar when testing inclusion/exclusion: %s", err)
 		}
 		if len(changes) != testCase.numChanges {
-			t.Errorf("Expected %d changes, got %d for %+v:",
+			c.Errorf("Expected %d changes, got %d for %+v:",
 				testCase.numChanges, len(changes), testCase.opts)
 		}
 	}
@@ -795,25 +804,25 @@ func TestTarWithOptions(t *testing.T) {
 // Some tar archives such as http://haproxy.1wt.eu/download/1.5/src/devel/haproxy-1.5-dev21.tar.gz
 // use PAX Global Extended Headers.
 // Failing prevents the archives from being uncompressed during ADD
-func TestTypeXGlobalHeaderDoesNotFail(t *testing.T) {
+func (s *DockerSuite) TestTypeXGlobalHeaderDoesNotFail(c *check.C) {
 	hdr := tar.Header{Typeflag: tar.TypeXGlobalHeader}
 	tmpDir, err := ioutil.TempDir("", "docker-test-archive-pax-test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 	err = createTarFile(filepath.Join(tmpDir, "pax_global_header"), tmpDir, &hdr, nil, true, nil, false)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
 // Some tar have both GNU specific (huge uid) and Ustar specific (long name) things.
 // Not supposed to happen (should use PAX instead of Ustar for long name) but it does and it should still work.
-func TestUntarUstarGnuConflict(t *testing.T) {
+func (s *DockerSuite) TestUntarUstarGnuConflict(c *check.C) {
 	f, err := os.Open("testdata/broken.tar")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	defer f.Close()
 
@@ -827,7 +836,7 @@ func TestUntarUstarGnuConflict(t *testing.T) {
 			break
 		}
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		if hdr.Name == "root/.cpanm/work/1395823785.24209/Plack-1.0030/blib/man3/Plack::Middleware::LighttpdScriptNameFix.3pm" {
 			found = true
@@ -835,7 +844,7 @@ func TestUntarUstarGnuConflict(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatalf("%s not found in the archive", "root/.cpanm/work/1395823785.24209/Plack-1.0030/blib/man3/Plack::Middleware::LighttpdScriptNameFix.3pm")
+		c.Fatalf("%s not found in the archive", "root/.cpanm/work/1395823785.24209/Plack-1.0030/blib/man3/Plack::Middleware::LighttpdScriptNameFix.3pm")
 	}
 }
 
@@ -856,66 +865,66 @@ func prepareUntarSourceDirectory(numberOfFiles int, targetPath string, makeLinks
 	return totalSize, nil
 }
 
-func BenchmarkTarUntar(b *testing.B) {
+func (s *DockerSuite) BenchmarkTarUntar(c *check.C) {
 	origin, err := ioutil.TempDir("", "docker-test-untar-origin")
 	if err != nil {
-		b.Fatal(err)
+		c.Fatal(err)
 	}
 	tempDir, err := ioutil.TempDir("", "docker-test-untar-destination")
 	if err != nil {
-		b.Fatal(err)
+		c.Fatal(err)
 	}
 	target := filepath.Join(tempDir, "dest")
 	n, err := prepareUntarSourceDirectory(100, origin, false)
 	if err != nil {
-		b.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(origin)
 	defer os.RemoveAll(tempDir)
 
-	b.ResetTimer()
-	b.SetBytes(int64(n))
-	for n := 0; n < b.N; n++ {
+	c.ResetTimer()
+	c.SetBytes(int64(n))
+	for n := 0; n < c.N; n++ {
 		err := TarUntar(origin, target)
 		if err != nil {
-			b.Fatal(err)
+			c.Fatal(err)
 		}
 		os.RemoveAll(target)
 	}
 }
 
-func BenchmarkTarUntarWithLinks(b *testing.B) {
+func (s *DockerSuite) BenchmarkTarUntarWithLinks(c *check.C) {
 	origin, err := ioutil.TempDir("", "docker-test-untar-origin")
 	if err != nil {
-		b.Fatal(err)
+		c.Fatal(err)
 	}
 	tempDir, err := ioutil.TempDir("", "docker-test-untar-destination")
 	if err != nil {
-		b.Fatal(err)
+		c.Fatal(err)
 	}
 	target := filepath.Join(tempDir, "dest")
 	n, err := prepareUntarSourceDirectory(100, origin, true)
 	if err != nil {
-		b.Fatal(err)
+		c.Fatal(err)
 	}
 	defer os.RemoveAll(origin)
 	defer os.RemoveAll(tempDir)
 
-	b.ResetTimer()
-	b.SetBytes(int64(n))
-	for n := 0; n < b.N; n++ {
+	c.ResetTimer()
+	c.SetBytes(int64(n))
+	for n := 0; n < c.N; n++ {
 		err := TarUntar(origin, target)
 		if err != nil {
-			b.Fatal(err)
+			c.Fatal(err)
 		}
 		os.RemoveAll(target)
 	}
 }
 
-func TestUntarInvalidFilenames(t *testing.T) {
+func (s *DockerSuite) TestUntarInvalidFilenames(c *check.C) {
 	// TODO Windows: Figure out how to fix this test.
 	if runtime.GOOS == "windows" {
-		t.Skip("Passes but hits breakoutError: platform and architecture is not supported")
+		c.Skip("Passes but hits breakoutError: platform and architecture is not supported")
 	}
 	for i, headers := range [][]*tar.Header{
 		{
@@ -935,15 +944,15 @@ func TestUntarInvalidFilenames(t *testing.T) {
 		},
 	} {
 		if err := testBreakout("untar", "docker-TestUntarInvalidFilenames", headers); err != nil {
-			t.Fatalf("i=%d. %v", i, err)
+			c.Fatalf("i=%d. %v", i, err)
 		}
 	}
 }
 
-func TestUntarHardlinkToSymlink(t *testing.T) {
+func (s *DockerSuite) TestUntarHardlinkToSymlink(c *check.C) {
 	// TODO Windows. There may be a way of running this, but turning off for now
 	if runtime.GOOS == "windows" {
-		t.Skip("hardlinks on Windows")
+		c.Skip("hardlinks on Windows")
 	}
 	for i, headers := range [][]*tar.Header{
 		{
@@ -967,15 +976,15 @@ func TestUntarHardlinkToSymlink(t *testing.T) {
 		},
 	} {
 		if err := testBreakout("untar", "docker-TestUntarHardlinkToSymlink", headers); err != nil {
-			t.Fatalf("i=%d. %v", i, err)
+			c.Fatalf("i=%d. %v", i, err)
 		}
 	}
 }
 
-func TestUntarInvalidHardlink(t *testing.T) {
+func (s *DockerSuite) TestUntarInvalidHardlink(c *check.C) {
 	// TODO Windows. There may be a way of running this, but turning off for now
 	if runtime.GOOS == "windows" {
-		t.Skip("hardlinks on Windows")
+		c.Skip("hardlinks on Windows")
 	}
 	for i, headers := range [][]*tar.Header{
 		{ // try reading victim/hello (../)
@@ -1051,15 +1060,15 @@ func TestUntarInvalidHardlink(t *testing.T) {
 		},
 	} {
 		if err := testBreakout("untar", "docker-TestUntarInvalidHardlink", headers); err != nil {
-			t.Fatalf("i=%d. %v", i, err)
+			c.Fatalf("i=%d. %v", i, err)
 		}
 	}
 }
 
-func TestUntarInvalidSymlink(t *testing.T) {
+func (s *DockerSuite) TestUntarInvalidSymlink(c *check.C) {
 	// TODO Windows. There may be a way of running this, but turning off for now
 	if runtime.GOOS == "windows" {
-		t.Skip("hardlinks on Windows")
+		c.Skip("hardlinks on Windows")
 	}
 	for i, headers := range [][]*tar.Header{
 		{ // try reading victim/hello (../)
@@ -1149,22 +1158,22 @@ func TestUntarInvalidSymlink(t *testing.T) {
 		},
 	} {
 		if err := testBreakout("untar", "docker-TestUntarInvalidSymlink", headers); err != nil {
-			t.Fatalf("i=%d. %v", i, err)
+			c.Fatalf("i=%d. %v", i, err)
 		}
 	}
 }
 
-func TestTempArchiveCloseMultipleTimes(t *testing.T) {
+func (s *DockerSuite) TestTempArchiveCloseMultipleTimes(c *check.C) {
 	reader := ioutil.NopCloser(strings.NewReader("hello"))
 	tempArchive, err := NewTempArchive(reader, "")
 	buf := make([]byte, 10)
 	n, err := tempArchive.Read(buf)
 	if n != 5 {
-		t.Fatalf("Expected to read 5 bytes. Read %d instead", n)
+		c.Fatalf("Expected to read 5 bytes. Read %d instead", n)
 	}
 	for i := 0; i < 3; i++ {
 		if err = tempArchive.Close(); err != nil {
-			t.Fatalf("i=%d. Unexpected error closing temp archive: %v", i, err)
+			c.Fatalf("i=%d. Unexpected error closing temp archive: %v", i, err)
 		}
 	}
 }

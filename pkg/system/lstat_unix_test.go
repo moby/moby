@@ -4,27 +4,28 @@ package system
 
 import (
 	"os"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
 // TestLstat tests Lstat for existing and non existing files
-func TestLstat(t *testing.T) {
-	file, invalid, _, dir := prepareFiles(t)
+func (s *DockerSuite) TestLstat(c *check.C) {
+	file, invalid, _, dir := prepareFiles(c)
 	defer os.RemoveAll(dir)
 
 	statFile, err := Lstat(file)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if statFile == nil {
-		t.Fatal("returned empty stat for existing file")
+		c.Fatal("returned empty stat for existing file")
 	}
 
 	statInvalid, err := Lstat(invalid)
 	if err == nil {
-		t.Fatal("did not return error for non-existing file")
+		c.Fatal("did not return error for non-existing file")
 	}
 	if statInvalid != nil {
-		t.Fatal("returned non-nil stat for non-existing file")
+		c.Fatal("returned non-nil stat for non-existing file")
 	}
 }

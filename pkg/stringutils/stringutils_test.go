@@ -1,25 +1,36 @@
 package stringutils
 
-import "testing"
+import (
+	"testing"
 
-func testLengthHelper(generator func(int) string, t *testing.T) {
+	"github.com/go-check/check"
+)
+
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func testLengthHelper(generator func(int) string, c *check.C) {
 	expectedLength := 20
-	s := generator(expectedLength)
-	if len(s) != expectedLength {
-		t.Fatalf("Length of %s was %d but expected length %d", s, len(s), expectedLength)
+	str := generator(expectedLength)
+	if len(str) != expectedLength {
+		c.Fatalf("Length of %s was %d but expected length %d", str, len(str), expectedLength)
 	}
 }
 
-func testUniquenessHelper(generator func(int) string, t *testing.T) {
+func testUniquenessHelper(generator func(int) string, c *check.C) {
 	repeats := 25
 	set := make(map[string]struct{}, repeats)
 	for i := 0; i < repeats; i = i + 1 {
 		str := generator(64)
 		if len(str) != 64 {
-			t.Fatalf("Id returned is incorrect: %s", str)
+			c.Fatalf("Id returned is incorrect: %s", str)
 		}
 		if _, ok := set[str]; ok {
-			t.Fatalf("Random number is repeated")
+			c.Fatalf("Random number is repeated")
 		}
 		set[str] = struct{}{}
 	}
@@ -34,88 +45,88 @@ func isASCII(s string) bool {
 	return true
 }
 
-func TestGenerateRandomAlphaOnlyStringLength(t *testing.T) {
-	testLengthHelper(GenerateRandomAlphaOnlyString, t)
+func (s *DockerSuite) TestGenerateRandomAlphaOnlyStringLength(c *check.C) {
+	testLengthHelper(GenerateRandomAlphaOnlyString, c)
 }
 
-func TestGenerateRandomAlphaOnlyStringUniqueness(t *testing.T) {
-	testUniquenessHelper(GenerateRandomAlphaOnlyString, t)
+func (s *DockerSuite) TestGenerateRandomAlphaOnlyStringUniqueness(c *check.C) {
+	testUniquenessHelper(GenerateRandomAlphaOnlyString, c)
 }
 
-func TestGenerateRandomAsciiStringLength(t *testing.T) {
-	testLengthHelper(GenerateRandomASCIIString, t)
+func (s *DockerSuite) TestGenerateRandomAsciiStringLength(c *check.C) {
+	testLengthHelper(GenerateRandomASCIIString, c)
 }
 
-func TestGenerateRandomAsciiStringUniqueness(t *testing.T) {
-	testUniquenessHelper(GenerateRandomASCIIString, t)
+func (s *DockerSuite) TestGenerateRandomAsciiStringUniqueness(c *check.C) {
+	testUniquenessHelper(GenerateRandomASCIIString, c)
 }
 
-func TestGenerateRandomAsciiStringIsAscii(t *testing.T) {
+func (s *DockerSuite) TestGenerateRandomAsciiStringIsAscii(c *check.C) {
 	str := GenerateRandomASCIIString(64)
 	if !isASCII(str) {
-		t.Fatalf("%s contained non-ascii characters", str)
+		c.Fatalf("%s contained non-ascii characters", str)
 	}
 }
 
-func TestEllipsis(t *testing.T) {
+func (s *DockerSuite) TestEllipsis(c *check.C) {
 	str := "t🐳ststring"
 	newstr := Ellipsis(str, 3)
 	if newstr != "t🐳s" {
-		t.Fatalf("Expected t🐳s, got %s", newstr)
+		c.Fatalf("Expected t🐳s, got %s", newstr)
 	}
 	newstr = Ellipsis(str, 8)
 	if newstr != "t🐳sts..." {
-		t.Fatalf("Expected tests..., got %s", newstr)
+		c.Fatalf("Expected tests..., got %s", newstr)
 	}
 	newstr = Ellipsis(str, 20)
 	if newstr != "t🐳ststring" {
-		t.Fatalf("Expected t🐳ststring, got %s", newstr)
+		c.Fatalf("Expected t🐳ststring, got %s", newstr)
 	}
 }
 
-func TestTruncate(t *testing.T) {
+func (s *DockerSuite) TestTruncate(c *check.C) {
 	str := "t🐳ststring"
 	newstr := Truncate(str, 4)
 	if newstr != "t🐳st" {
-		t.Fatalf("Expected t🐳st, got %s", newstr)
+		c.Fatalf("Expected t🐳st, got %s", newstr)
 	}
 	newstr = Truncate(str, 20)
 	if newstr != "t🐳ststring" {
-		t.Fatalf("Expected t🐳ststring, got %s", newstr)
+		c.Fatalf("Expected t🐳ststring, got %s", newstr)
 	}
 }
 
-func TestInSlice(t *testing.T) {
+func (s *DockerSuite) TestInSlice(c *check.C) {
 	slice := []string{"t🐳st", "in", "slice"}
 
 	test := InSlice(slice, "t🐳st")
 	if !test {
-		t.Fatalf("Expected string t🐳st to be in slice")
+		c.Fatalf("Expected string t🐳st to be in slice")
 	}
 	test = InSlice(slice, "SLICE")
 	if !test {
-		t.Fatalf("Expected string SLICE to be in slice")
+		c.Fatalf("Expected string SLICE to be in slice")
 	}
 	test = InSlice(slice, "notinslice")
 	if test {
-		t.Fatalf("Expected string notinslice not to be in slice")
+		c.Fatalf("Expected string notinslice not to be in slice")
 	}
 }
 
-func TestShellQuoteArgumentsEmpty(t *testing.T) {
+func (s *DockerSuite) TestShellQuoteArgumentsEmpty(c *check.C) {
 	actual := ShellQuoteArguments([]string{})
 	expected := ""
 	if actual != expected {
-		t.Fatalf("Expected an empty string")
+		c.Fatalf("Expected an empty string")
 	}
 }
 
-func TestShellQuoteArguments(t *testing.T) {
+func (s *DockerSuite) TestShellQuoteArguments(c *check.C) {
 	simpleString := "simpleString"
 	complexString := "This is a 'more' complex $tring with some special char *"
 	actual := ShellQuoteArguments([]string{simpleString, complexString})
 	expected := "simpleString 'This is a '\\''more'\\'' complex $tring with some special char *'"
 	if actual != expected {
-		t.Fatalf("Expected \"%v\", got \"%v\"", expected, actual)
+		c.Fatalf("Expected \"%v\", got \"%v\"", expected, actual)
 	}
 }

@@ -6,12 +6,12 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
-	"testing"
 
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 	registrytypes "github.com/docker/engine-api/types/registry"
+	"github.com/go-check/check"
 )
 
 var (
@@ -23,19 +23,19 @@ const (
 	REPO    = "foo42/bar"
 )
 
-func spawnTestRegistrySession(t *testing.T) *Session {
+func spawnTestRegistrySession(c *check.C) *Session {
 	authConfig := &types.AuthConfig{}
 	endpoint, err := NewV1Endpoint(makeIndex("/v1/"), "", nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	userAgent := "docker test client"
-	var tr http.RoundTripper = debugTransport{NewTransport(nil), t.Log}
+	var tr http.RoundTripper = debugTransport{NewTransport(nil), c.Log}
 	tr = transport.NewTransport(AuthTransport(tr, authConfig, false), DockerHeaders(userAgent, nil)...)
 	client := HTTPClient(tr)
 	r, err := NewSession(client, authConfig, endpoint)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	// In a normal scenario for the v1 registry, the client should send a `X-Docker-Token: true`
 	// header while authenticating, in order to retrieve a token that can be later used to
@@ -51,18 +51,18 @@ func spawnTestRegistrySession(t *testing.T) *Session {
 	return r
 }
 
-func TestPingRegistryEndpoint(t *testing.T) {
+func (s *DockerSuite) TestPingRegistryEndpoint(c *check.C) {
 	testPing := func(index *registrytypes.IndexInfo, expectedStandalone bool, assertMessage string) {
 		ep, err := NewV1Endpoint(index, "", nil)
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		regInfo, err := ep.Ping()
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 
-		assertEqual(t, regInfo.Standalone, expectedStandalone, assertMessage)
+		assertEqual(c, regInfo.Standalone, expectedStandalone, assertMessage)
 	}
 
 	testPing(makeIndex("/v1/"), true, "Expected standalone to be true (default)")
@@ -70,12 +70,12 @@ func TestPingRegistryEndpoint(t *testing.T) {
 	testPing(makePublicIndex(), false, "Expected standalone to be false for public index")
 }
 
-func TestEndpoint(t *testing.T) {
+func (s *DockerSuite) TestEndpoint(c *check.C) {
 	// Simple wrapper to fail test if err != nil
 	expandEndpoint := func(index *registrytypes.IndexInfo) *V1Endpoint {
 		endpoint, err := NewV1Endpoint(index, "", nil)
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		return endpoint
 	}
@@ -83,50 +83,50 @@ func TestEndpoint(t *testing.T) {
 	assertInsecureIndex := func(index *registrytypes.IndexInfo) {
 		index.Secure = true
 		_, err := NewV1Endpoint(index, "", nil)
-		assertNotEqual(t, err, nil, index.Name+": Expected error for insecure index")
-		assertEqual(t, strings.Contains(err.Error(), "insecure-registry"), true, index.Name+": Expected insecure-registry  error for insecure index")
+		assertNotEqual(c, err, nil, index.Name+": Expected error for insecure index")
+		assertEqual(c, strings.Contains(err.Error(), "insecure-registry"), true, index.Name+": Expected insecure-registry  error for insecure index")
 		index.Secure = false
 	}
 
 	assertSecureIndex := func(index *registrytypes.IndexInfo) {
 		index.Secure = true
 		_, err := NewV1Endpoint(index, "", nil)
-		assertNotEqual(t, err, nil, index.Name+": Expected cert error for secure index")
-		assertEqual(t, strings.Contains(err.Error(), "certificate signed by unknown authority"), true, index.Name+": Expected cert error for secure index")
+		assertNotEqual(c, err, nil, index.Name+": Expected cert error for secure index")
+		assertEqual(c, strings.Contains(err.Error(), "certificate signed by unknown authority"), true, index.Name+": Expected cert error for secure index")
 		index.Secure = false
 	}
 
 	index := &registrytypes.IndexInfo{}
 	index.Name = makeURL("/v1/")
 	endpoint := expandEndpoint(index)
-	assertEqual(t, endpoint.String(), index.Name, "Expected endpoint to be "+index.Name)
+	assertEqual(c, endpoint.String(), index.Name, "Expected endpoint to be "+index.Name)
 	assertInsecureIndex(index)
 
 	index.Name = makeURL("")
 	endpoint = expandEndpoint(index)
-	assertEqual(t, endpoint.String(), index.Name+"/v1/", index.Name+": Expected endpoint to be "+index.Name+"/v1/")
+	assertEqual(c, endpoint.String(), index.Name+"/v1/", index.Name+": Expected endpoint to be "+index.Name+"/v1/")
 	assertInsecureIndex(index)
 
 	httpURL := makeURL("")
 	index.Name = strings.SplitN(httpURL, "://", 2)[1]
 	endpoint = expandEndpoint(index)
-	assertEqual(t, endpoint.String(), httpURL+"/v1/", index.Name+": Expected endpoint to be "+httpURL+"/v1/")
+	assertEqual(c, endpoint.String(), httpURL+"/v1/", index.Name+": Expected endpoint to be "+httpURL+"/v1/")
 	assertInsecureIndex(index)
 
 	index.Name = makeHTTPSURL("/v1/")
 	endpoint = expandEndpoint(index)
-	assertEqual(t, endpoint.String(), index.Name, "Expected endpoint to be "+index.Name)
+	assertEqual(c, endpoint.String(), index.Name, "Expected endpoint to be "+index.Name)
 	assertSecureIndex(index)
 
 	index.Name = makeHTTPSURL("")
 	endpoint = expandEndpoint(index)
-	assertEqual(t, endpoint.String(), index.Name+"/v1/", index.Name+": Expected endpoint to be "+index.Name+"/v1/")
+	assertEqual(c, endpoint.String(), index.Name+"/v1/", index.Name+": Expected endpoint to be "+index.Name+"/v1/")
 	assertSecureIndex(index)
 
 	httpsURL := makeHTTPSURL("")
 	index.Name = strings.SplitN(httpsURL, "://", 2)[1]
 	endpoint = expandEndpoint(index)
-	assertEqual(t, endpoint.String(), httpsURL+"/v1/", index.Name+": Expected endpoint to be "+httpsURL+"/v1/")
+	assertEqual(c, endpoint.String(), httpsURL+"/v1/", index.Name+": Expected endpoint to be "+httpsURL+"/v1/")
 	assertSecureIndex(index)
 
 	badEndpoints := []string{
@@ -139,137 +139,137 @@ func TestEndpoint(t *testing.T) {
 	for _, address := range badEndpoints {
 		index.Name = address
 		_, err := NewV1Endpoint(index, "", nil)
-		checkNotEqual(t, err, nil, "Expected error while expanding bad endpoint")
+		checkNotEqual(c, err, nil, "Expected error while expanding bad endpoint")
 	}
 }
 
-func TestGetRemoteHistory(t *testing.T) {
-	r := spawnTestRegistrySession(t)
+func (s *DockerSuite) TestGetRemoteHistory(c *check.C) {
+	r := spawnTestRegistrySession(c)
 	hist, err := r.GetRemoteHistory(imageID, makeURL("/v1/"))
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
-	assertEqual(t, len(hist), 2, "Expected 2 images in history")
-	assertEqual(t, hist[0], imageID, "Expected "+imageID+"as first ancestry")
-	assertEqual(t, hist[1], "77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
+	assertEqual(c, len(hist), 2, "Expected 2 images in history")
+	assertEqual(c, hist[0], imageID, "Expected "+imageID+"as first ancestry")
+	assertEqual(c, hist[1], "77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
 		"Unexpected second ancestry")
 }
 
-func TestLookupRemoteImage(t *testing.T) {
-	r := spawnTestRegistrySession(t)
+func (s *DockerSuite) TestLookupRemoteImage(c *check.C) {
+	r := spawnTestRegistrySession(c)
 	err := r.LookupRemoteImage(imageID, makeURL("/v1/"))
-	assertEqual(t, err, nil, "Expected error of remote lookup to nil")
+	assertEqual(c, err, nil, "Expected error of remote lookup to nil")
 	if err := r.LookupRemoteImage("abcdef", makeURL("/v1/")); err == nil {
-		t.Fatal("Expected error of remote lookup to not nil")
+		c.Fatal("Expected error of remote lookup to not nil")
 	}
 }
 
-func TestGetRemoteImageJSON(t *testing.T) {
-	r := spawnTestRegistrySession(t)
+func (s *DockerSuite) TestGetRemoteImageJSON(c *check.C) {
+	r := spawnTestRegistrySession(c)
 	json, size, err := r.GetRemoteImageJSON(imageID, makeURL("/v1/"))
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
-	assertEqual(t, size, int64(154), "Expected size 154")
+	assertEqual(c, size, int64(154), "Expected size 154")
 	if len(json) == 0 {
-		t.Fatal("Expected non-empty json")
+		c.Fatal("Expected non-empty json")
 	}
 
 	_, _, err = r.GetRemoteImageJSON("abcdef", makeURL("/v1/"))
 	if err == nil {
-		t.Fatal("Expected image not found error")
+		c.Fatal("Expected image not found error")
 	}
 }
 
-func TestGetRemoteImageLayer(t *testing.T) {
-	r := spawnTestRegistrySession(t)
+func (s *DockerSuite) TestGetRemoteImageLayer(c *check.C) {
+	r := spawnTestRegistrySession(c)
 	data, err := r.GetRemoteImageLayer(imageID, makeURL("/v1/"), 0)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if data == nil {
-		t.Fatal("Expected non-nil data result")
+		c.Fatal("Expected non-nil data result")
 	}
 
 	_, err = r.GetRemoteImageLayer("abcdef", makeURL("/v1/"), 0)
 	if err == nil {
-		t.Fatal("Expected image not found error")
+		c.Fatal("Expected image not found error")
 	}
 }
 
-func TestGetRemoteTag(t *testing.T) {
-	r := spawnTestRegistrySession(t)
+func (s *DockerSuite) TestGetRemoteTag(c *check.C) {
+	r := spawnTestRegistrySession(c)
 	repoRef, err := reference.ParseNamed(REPO)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	tag, err := r.GetRemoteTag([]string{makeURL("/v1/")}, repoRef, "test")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
-	assertEqual(t, tag, imageID, "Expected tag test to map to "+imageID)
+	assertEqual(c, tag, imageID, "Expected tag test to map to "+imageID)
 
 	bazRef, err := reference.ParseNamed("foo42/baz")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	_, err = r.GetRemoteTag([]string{makeURL("/v1/")}, bazRef, "foo")
 	if err != ErrRepoNotFound {
-		t.Fatal("Expected ErrRepoNotFound error when fetching tag for bogus repo")
+		c.Fatal("Expected ErrRepoNotFound error when fetching tag for bogus repo")
 	}
 }
 
-func TestGetRemoteTags(t *testing.T) {
-	r := spawnTestRegistrySession(t)
+func (s *DockerSuite) TestGetRemoteTags(c *check.C) {
+	r := spawnTestRegistrySession(c)
 	repoRef, err := reference.ParseNamed(REPO)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	tags, err := r.GetRemoteTags([]string{makeURL("/v1/")}, repoRef)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
-	assertEqual(t, len(tags), 2, "Expected two tags")
-	assertEqual(t, tags["latest"], imageID, "Expected tag latest to map to "+imageID)
-	assertEqual(t, tags["test"], imageID, "Expected tag test to map to "+imageID)
+	assertEqual(c, len(tags), 2, "Expected two tags")
+	assertEqual(c, tags["latest"], imageID, "Expected tag latest to map to "+imageID)
+	assertEqual(c, tags["test"], imageID, "Expected tag test to map to "+imageID)
 
 	bazRef, err := reference.ParseNamed("foo42/baz")
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	_, err = r.GetRemoteTags([]string{makeURL("/v1/")}, bazRef)
 	if err != ErrRepoNotFound {
-		t.Fatal("Expected ErrRepoNotFound error when fetching tags for bogus repo")
+		c.Fatal("Expected ErrRepoNotFound error when fetching tags for bogus repo")
 	}
 }
 
-func TestGetRepositoryData(t *testing.T) {
-	r := spawnTestRegistrySession(t)
+func (s *DockerSuite) TestGetRepositoryData(c *check.C) {
+	r := spawnTestRegistrySession(c)
 	parsedURL, err := url.Parse(makeURL("/v1/"))
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	host := "http://" + parsedURL.Host + "/v1/"
 	repoRef, err := reference.ParseNamed(REPO)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	data, err := r.GetRepositoryData(repoRef)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
-	assertEqual(t, len(data.ImgList), 2, "Expected 2 images in ImgList")
-	assertEqual(t, len(data.Endpoints), 2,
+	assertEqual(c, len(data.ImgList), 2, "Expected 2 images in ImgList")
+	assertEqual(c, len(data.Endpoints), 2,
 		fmt.Sprintf("Expected 2 endpoints in Endpoints, found %d instead", len(data.Endpoints)))
-	assertEqual(t, data.Endpoints[0], host,
+	assertEqual(c, data.Endpoints[0], host,
 		fmt.Sprintf("Expected first endpoint to be %s but found %s instead", host, data.Endpoints[0]))
-	assertEqual(t, data.Endpoints[1], "http://test.example.com/v1/",
+	assertEqual(c, data.Endpoints[1], "http://test.example.com/v1/",
 		fmt.Sprintf("Expected first endpoint to be http://test.example.com/v1/ but found %s instead", data.Endpoints[1]))
 
 }
 
-func TestPushImageJSONRegistry(t *testing.T) {
-	r := spawnTestRegistrySession(t)
+func (s *DockerSuite) TestPushImageJSONRegistry(c *check.C) {
+	r := spawnTestRegistrySession(c)
 	imgData := &ImgData{
 		ID:       "77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
 		Checksum: "sha256:1ac330d56e05eef6d438586545ceff7550d3bdcb6b19961f12c5ba714ee1bb37",
@@ -277,20 +277,20 @@ func TestPushImageJSONRegistry(t *testing.T) {
 
 	err := r.PushImageJSONRegistry(imgData, []byte{0x42, 0xdf, 0x0}, makeURL("/v1/"))
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
-func TestPushImageLayerRegistry(t *testing.T) {
-	r := spawnTestRegistrySession(t)
+func (s *DockerSuite) TestPushImageLayerRegistry(c *check.C) {
+	r := spawnTestRegistrySession(c)
 	layer := strings.NewReader("")
 	_, _, err := r.PushImageLayerRegistry(imageID, layer, makeURL("/v1/"), []byte{})
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
-func TestParseRepositoryInfo(t *testing.T) {
+func (s *DockerSuite) TestParseRepositoryInfo(c *check.C) {
 	type staticRepositoryInfo struct {
 		Index         *registrytypes.IndexInfo
 		RemoteName    string
@@ -505,34 +505,34 @@ func TestParseRepositoryInfo(t *testing.T) {
 	for reposName, expectedRepoInfo := range expectedRepoInfos {
 		named, err := reference.WithName(reposName)
 		if err != nil {
-			t.Error(err)
+			c.Error(err)
 		}
 
 		repoInfo, err := ParseRepositoryInfo(named)
 		if err != nil {
-			t.Error(err)
+			c.Error(err)
 		} else {
-			checkEqual(t, repoInfo.Index.Name, expectedRepoInfo.Index.Name, reposName)
-			checkEqual(t, repoInfo.RemoteName(), expectedRepoInfo.RemoteName, reposName)
-			checkEqual(t, repoInfo.Name(), expectedRepoInfo.LocalName, reposName)
-			checkEqual(t, repoInfo.FullName(), expectedRepoInfo.CanonicalName, reposName)
-			checkEqual(t, repoInfo.Index.Official, expectedRepoInfo.Index.Official, reposName)
-			checkEqual(t, repoInfo.Official, expectedRepoInfo.Official, reposName)
+			checkEqual(c, repoInfo.Index.Name, expectedRepoInfo.Index.Name, reposName)
+			checkEqual(c, repoInfo.RemoteName(), expectedRepoInfo.RemoteName, reposName)
+			checkEqual(c, repoInfo.Name(), expectedRepoInfo.LocalName, reposName)
+			checkEqual(c, repoInfo.FullName(), expectedRepoInfo.CanonicalName, reposName)
+			checkEqual(c, repoInfo.Index.Official, expectedRepoInfo.Index.Official, reposName)
+			checkEqual(c, repoInfo.Official, expectedRepoInfo.Official, reposName)
 		}
 	}
 }
 
-func TestNewIndexInfo(t *testing.T) {
+func (s *DockerSuite) TestNewIndexInfo(c *check.C) {
 	testIndexInfo := func(config *serviceConfig, expectedIndexInfos map[string]*registrytypes.IndexInfo) {
 		for indexName, expectedIndexInfo := range expectedIndexInfos {
 			index, err := newIndexInfo(config, indexName)
 			if err != nil {
-				t.Fatal(err)
+				c.Fatal(err)
 			} else {
-				checkEqual(t, index.Name, expectedIndexInfo.Name, indexName+" name")
-				checkEqual(t, index.Official, expectedIndexInfo.Official, indexName+" is official")
-				checkEqual(t, index.Secure, expectedIndexInfo.Secure, indexName+" is secure")
-				checkEqual(t, len(index.Mirrors), len(expectedIndexInfo.Mirrors), indexName+" mirrors")
+				checkEqual(c, index.Name, expectedIndexInfo.Name, indexName+" name")
+				checkEqual(c, index.Official, expectedIndexInfo.Official, indexName+" is official")
+				checkEqual(c, index.Secure, expectedIndexInfo.Secure, indexName+" is secure")
+				checkEqual(c, len(index.Mirrors), len(expectedIndexInfo.Mirrors), indexName+" mirrors")
 			}
 		}
 	}
@@ -652,7 +652,7 @@ func TestNewIndexInfo(t *testing.T) {
 	testIndexInfo(config, expectedIndexInfos)
 }
 
-func TestMirrorEndpointLookup(t *testing.T) {
+func (s *DockerSuite) TestMirrorEndpointLookup(c *check.C) {
 	containsMirror := func(endpoints []APIEndpoint) bool {
 		for _, pe := range endpoints {
 			if pe.URL.Host == "my.mirror" {
@@ -661,43 +661,43 @@ func TestMirrorEndpointLookup(t *testing.T) {
 		}
 		return false
 	}
-	s := DefaultService{config: makeServiceConfig([]string{"my.mirror"}, nil)}
+	df := DefaultService{config: makeServiceConfig([]string{"my.mirror"}, nil)}
 
 	imageName, err := reference.WithName(IndexName + "/test/image")
 	if err != nil {
-		t.Error(err)
+		c.Error(err)
 	}
-	pushAPIEndpoints, err := s.LookupPushEndpoints(imageName.Hostname())
+	pushAPIEndpoints, err := df.LookupPushEndpoints(imageName.Hostname())
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if containsMirror(pushAPIEndpoints) {
-		t.Fatal("Push endpoint should not contain mirror")
+		c.Fatal("Push endpoint should not contain mirror")
 	}
 
-	pullAPIEndpoints, err := s.LookupPullEndpoints(imageName.Hostname())
+	pullAPIEndpoints, err := df.LookupPullEndpoints(imageName.Hostname())
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if !containsMirror(pullAPIEndpoints) {
-		t.Fatal("Pull endpoint should contain mirror")
+		c.Fatal("Pull endpoint should contain mirror")
 	}
 }
 
-func TestPushRegistryTag(t *testing.T) {
-	r := spawnTestRegistrySession(t)
+func (s *DockerSuite) TestPushRegistryTag(c *check.C) {
+	r := spawnTestRegistrySession(c)
 	repoRef, err := reference.ParseNamed(REPO)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	err = r.PushRegistryTag(repoRef, imageID, "stable", makeURL("/v1/"))
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 }
 
-func TestPushImageJSONIndex(t *testing.T) {
-	r := spawnTestRegistrySession(t)
+func (s *DockerSuite) TestPushImageJSONIndex(c *check.C) {
+	r := spawnTestRegistrySession(c)
 	imgData := []*ImgData{
 		{
 			ID:       "77dbf71da1d00e3fbddc480176eac8994025630c6590d11cfc8fe1209c2a1d20",
@@ -710,55 +710,55 @@ func TestPushImageJSONIndex(t *testing.T) {
 	}
 	repoRef, err := reference.ParseNamed(REPO)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	repoData, err := r.PushImageJSONIndex(repoRef, imgData, false, nil)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if repoData == nil {
-		t.Fatal("Expected RepositoryData object")
+		c.Fatal("Expected RepositoryData object")
 	}
 	repoData, err = r.PushImageJSONIndex(repoRef, imgData, true, []string{r.indexEndpoint.String()})
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if repoData == nil {
-		t.Fatal("Expected RepositoryData object")
+		c.Fatal("Expected RepositoryData object")
 	}
 }
 
-func TestSearchRepositories(t *testing.T) {
-	r := spawnTestRegistrySession(t)
+func (s *DockerSuite) TestSearchRepositories(c *check.C) {
+	r := spawnTestRegistrySession(c)
 	results, err := r.SearchRepositories("fakequery", 25)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if results == nil {
-		t.Fatal("Expected non-nil SearchResults object")
+		c.Fatal("Expected non-nil SearchResults object")
 	}
-	assertEqual(t, results.NumResults, 1, "Expected 1 search results")
-	assertEqual(t, results.Query, "fakequery", "Expected 'fakequery' as query")
-	assertEqual(t, results.Results[0].StarCount, 42, "Expected 'fakeimage' to have 42 stars")
+	assertEqual(c, results.NumResults, 1, "Expected 1 search results")
+	assertEqual(c, results.Query, "fakequery", "Expected 'fakequery' as query")
+	assertEqual(c, results.Results[0].StarCount, 42, "Expected 'fakeimage' to have 42 stars")
 }
 
-func TestTrustedLocation(t *testing.T) {
+func (s *DockerSuite) TestTrustedLocation(c *check.C) {
 	for _, url := range []string{"http://example.com", "https://example.com:7777", "http://docker.io", "http://test.docker.com", "https://fakedocker.com"} {
 		req, _ := http.NewRequest("GET", url, nil)
 		if trustedLocation(req) == true {
-			t.Fatalf("'%s' shouldn't be detected as a trusted location", url)
+			c.Fatalf("'%s' shouldn't be detected as a trusted location", url)
 		}
 	}
 
 	for _, url := range []string{"https://docker.io", "https://test.docker.com:80"} {
 		req, _ := http.NewRequest("GET", url, nil)
 		if trustedLocation(req) == false {
-			t.Fatalf("'%s' should be detected as a trusted location", url)
+			c.Fatalf("'%s' should be detected as a trusted location", url)
 		}
 	}
 }
 
-func TestAddRequiredHeadersToRedirectedRequests(t *testing.T) {
+func (s *DockerSuite) TestAddRequiredHeadersToRedirectedRequests(c *check.C) {
 	for _, urls := range [][]string{
 		{"http://docker.io", "https://docker.com"},
 		{"https://foo.docker.io:7777", "http://bar.docker.com"},
@@ -772,15 +772,15 @@ func TestAddRequiredHeadersToRedirectedRequests(t *testing.T) {
 		addRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
 
 		if len(reqTo.Header) != 1 {
-			t.Fatalf("Expected 1 headers, got %d", len(reqTo.Header))
+			c.Fatalf("Expected 1 headers, got %d", len(reqTo.Header))
 		}
 
 		if reqTo.Header.Get("Content-Type") != "application/json" {
-			t.Fatal("'Content-Type' should be 'application/json'")
+			c.Fatal("'Content-Type' should be 'application/json'")
 		}
 
 		if reqTo.Header.Get("Authorization") != "" {
-			t.Fatal("'Authorization' should be empty")
+			c.Fatal("'Authorization' should be empty")
 		}
 	}
 
@@ -796,20 +796,20 @@ func TestAddRequiredHeadersToRedirectedRequests(t *testing.T) {
 		addRequiredHeadersToRedirectedRequests(reqTo, []*http.Request{reqFrom})
 
 		if len(reqTo.Header) != 2 {
-			t.Fatalf("Expected 2 headers, got %d", len(reqTo.Header))
+			c.Fatalf("Expected 2 headers, got %d", len(reqTo.Header))
 		}
 
 		if reqTo.Header.Get("Content-Type") != "application/json" {
-			t.Fatal("'Content-Type' should be 'application/json'")
+			c.Fatal("'Content-Type' should be 'application/json'")
 		}
 
 		if reqTo.Header.Get("Authorization") != "super_secret" {
-			t.Fatal("'Authorization' should be 'super_secret'")
+			c.Fatal("'Authorization' should be 'super_secret'")
 		}
 	}
 }
 
-func TestIsSecureIndex(t *testing.T) {
+func (s *DockerSuite) TestIsSecureIndex(c *check.C) {
 	tests := []struct {
 		addr               string
 		insecureRegistries []string
@@ -844,7 +844,7 @@ func TestIsSecureIndex(t *testing.T) {
 	for _, tt := range tests {
 		config := makeServiceConfig(nil, tt.insecureRegistries)
 		if sec := isSecureIndex(config, tt.addr); sec != tt.expected {
-			t.Errorf("isSecureIndex failed for %q %v, expected %v got %v", tt.addr, tt.insecureRegistries, tt.expected, sec)
+			c.Errorf("isSecureIndex failed for %q %v, expected %v got %v", tt.addr, tt.insecureRegistries, tt.expected, sec)
 		}
 	}
 }

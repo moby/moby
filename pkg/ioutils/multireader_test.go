@@ -7,10 +7,11 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestMultiReadSeekerReadAll(t *testing.T) {
+func (s *DockerSuite) TestMultiReadSeekerReadAll(c *check.C) {
 	str := "hello world"
 	s1 := strings.NewReader(str + " 1")
 	s2 := strings.NewReader(str + " 2")
@@ -21,42 +22,42 @@ func TestMultiReadSeekerReadAll(t *testing.T) {
 
 	b, err := ioutil.ReadAll(mr)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	expected := "hello world 1hello world 2hello world 3"
 	if string(b) != expected {
-		t.Fatalf("ReadAll failed, got: %q, expected %q", string(b), expected)
+		c.Fatalf("ReadAll failed, got: %q, expected %q", string(b), expected)
 	}
 
 	size, err := mr.Seek(0, os.SEEK_END)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if size != expectedSize {
-		t.Fatalf("reader size does not match, got %d, expected %d", size, expectedSize)
+		c.Fatalf("reader size does not match, got %d, expected %d", size, expectedSize)
 	}
 
 	// Reset the position and read again
 	pos, err := mr.Seek(0, os.SEEK_SET)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if pos != 0 {
-		t.Fatalf("expected position to be set to 0, got %d", pos)
+		c.Fatalf("expected position to be set to 0, got %d", pos)
 	}
 
 	b, err = ioutil.ReadAll(mr)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	if string(b) != expected {
-		t.Fatalf("ReadAll failed, got: %q, expected %q", string(b), expected)
+		c.Fatalf("ReadAll failed, got: %q, expected %q", string(b), expected)
 	}
 }
 
-func TestMultiReadSeekerReadEach(t *testing.T) {
+func (s *DockerSuite) TestMultiReadSeekerReadEach(c *check.C) {
 	str := "hello world"
 	s1 := strings.NewReader(str + " 1")
 	s2 := strings.NewReader(str + " 2")
@@ -70,36 +71,36 @@ func TestMultiReadSeekerReadEach(t *testing.T) {
 		expected := []byte(fmt.Sprintf("%s %d", str, i+1))
 
 		if _, err := mr.Read(buf); err != nil && err != io.EOF {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 
 		if !bytes.Equal(buf, expected) {
-			t.Fatalf("expected %q to be %q", string(buf), string(expected))
+			c.Fatalf("expected %q to be %q", string(buf), string(expected))
 		}
 
 		pos, err := mr.Seek(0, os.SEEK_CUR)
 		if err != nil {
-			t.Fatalf("iteration: %d, error: %v", i+1, err)
+			c.Fatalf("iteration: %d, error: %v", i+1, err)
 		}
 
 		// check that the total bytes read is the current position of the seeker
 		totalBytes += sLen
 		if pos != totalBytes {
-			t.Fatalf("expected current position to be: %d, got: %d, iteration: %d", totalBytes, pos, i+1)
+			c.Fatalf("expected current position to be: %d, got: %d, iteration: %d", totalBytes, pos, i+1)
 		}
 
 		// This tests not only that SEEK_SET and SEEK_CUR give the same values, but that the next iteration is in the expected position as well
 		newPos, err := mr.Seek(pos, os.SEEK_SET)
 		if err != nil {
-			t.Fatal(err)
+			c.Fatal(err)
 		}
 		if newPos != pos {
-			t.Fatalf("expected to get same position when calling SEEK_SET with value from SEEK_CUR, cur: %d, set: %d", pos, newPos)
+			c.Fatalf("expected to get same position when calling SEEK_SET with value from SEEK_CUR, cur: %d, set: %d", pos, newPos)
 		}
 	}
 }
 
-func TestMultiReadSeekerReadSpanningChunks(t *testing.T) {
+func (s *DockerSuite) TestMultiReadSeekerReadSpanningChunks(c *check.C) {
 	str := "hello world"
 	s1 := strings.NewReader(str + " 1")
 	s2 := strings.NewReader(str + " 2")
@@ -109,17 +110,17 @@ func TestMultiReadSeekerReadSpanningChunks(t *testing.T) {
 	buf := make([]byte, s1.Len()+3)
 	_, err := mr.Read(buf)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 	// expected is the contents of s1 + 3 bytes from s2, ie, the `hel` at the end of this string
 	expected := "hello world 1hel"
 	if string(buf) != expected {
-		t.Fatalf("expected %s to be %s", string(buf), expected)
+		c.Fatalf("expected %s to be %s", string(buf), expected)
 	}
 }
 
-func TestMultiReadSeekerNegativeSeek(t *testing.T) {
+func (s *DockerSuite) TestMultiReadSeekerNegativeSeek(c *check.C) {
 	str := "hello world"
 	s1 := strings.NewReader(str + " 1")
 	s2 := strings.NewReader(str + " 2")
@@ -130,25 +131,25 @@ func TestMultiReadSeekerNegativeSeek(t *testing.T) {
 	s2Len := s2.Len()
 	s3Len := s3.Len()
 
-	s, err := mr.Seek(int64(-1*s3.Len()), os.SEEK_END)
+	sk, err := mr.Seek(int64(-1*s3.Len()), os.SEEK_END)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
-	if s != int64(s1Len+s2Len) {
-		t.Fatalf("expected %d to be %d", s, s1.Len()+s2.Len())
+	if sk != int64(s1Len+s2Len) {
+		c.Fatalf("expected %d to be %d", sk, s1.Len()+s2.Len())
 	}
 
 	buf := make([]byte, s3Len)
 	if _, err := mr.Read(buf); err != nil && err != io.EOF {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	expected := fmt.Sprintf("%s %d", str, 3)
 	if string(buf) != fmt.Sprintf("%s %d", str, 3) {
-		t.Fatalf("expected %q to be %q", string(buf), expected)
+		c.Fatalf("expected %q to be %q", string(buf), expected)
 	}
 }
 
-func TestMultiReadSeekerCurAfterSet(t *testing.T) {
+func (s *DockerSuite) TestMultiReadSeekerCurAfterSet(c *check.C) {
 	str := "hello world"
 	s1 := strings.NewReader(str + " 1")
 	s2 := strings.NewReader(str + " 2")
@@ -159,32 +160,32 @@ func TestMultiReadSeekerCurAfterSet(t *testing.T) {
 
 	size, err := mr.Seek(mid, os.SEEK_SET)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if size != mid {
-		t.Fatalf("reader size does not match, got %d, expected %d", size, mid)
+		c.Fatalf("reader size does not match, got %d, expected %d", size, mid)
 	}
 
 	size, err = mr.Seek(3, os.SEEK_CUR)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if size != mid+3 {
-		t.Fatalf("reader size does not match, got %d, expected %d", size, mid+3)
+		c.Fatalf("reader size does not match, got %d, expected %d", size, mid+3)
 	}
 	size, err = mr.Seek(5, os.SEEK_CUR)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if size != mid+8 {
-		t.Fatalf("reader size does not match, got %d, expected %d", size, mid+8)
+		c.Fatalf("reader size does not match, got %d, expected %d", size, mid+8)
 	}
 
 	size, err = mr.Seek(10, os.SEEK_CUR)
 	if err != nil {
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if size != mid+18 {
-		t.Fatalf("reader size does not match, got %d, expected %d", size, mid+18)
+		c.Fatalf("reader size does not match, got %d, expected %d", size, mid+18)
 	}
 }

@@ -5,9 +5,18 @@ import (
 	"io"
 	"io/ioutil"
 	"testing"
+
+	"github.com/go-check/check"
 )
 
-func TestOutputOnPrematureClose(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DockerSuite struct{}
+
+var _ = check.Suite(&DockerSuite{})
+
+func (s *DockerSuite) TestOutputOnPrematureClose(c *check.C) {
 	content := []byte("TESTING")
 	reader := ioutil.NopCloser(bytes.NewReader(content))
 	progressChan := make(chan Progress, 10)
@@ -18,7 +27,7 @@ func TestOutputOnPrematureClose(t *testing.T) {
 	_, err := io.ReadFull(pr, part)
 	if err != nil {
 		pr.Close()
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 
 drainLoop:
@@ -35,11 +44,11 @@ drainLoop:
 	select {
 	case <-progressChan:
 	default:
-		t.Fatalf("Expected some output when closing prematurely")
+		c.Fatalf("Expected some output when closing prematurely")
 	}
 }
 
-func TestCompleteSilently(t *testing.T) {
+func (s *DockerSuite) TestCompleteSilently(c *check.C) {
 	content := []byte("TESTING")
 	reader := ioutil.NopCloser(bytes.NewReader(content))
 	progressChan := make(chan Progress, 10)
@@ -49,11 +58,11 @@ func TestCompleteSilently(t *testing.T) {
 	out, err := ioutil.ReadAll(pr)
 	if err != nil {
 		pr.Close()
-		t.Fatal(err)
+		c.Fatal(err)
 	}
 	if string(out) != "TESTING" {
 		pr.Close()
-		t.Fatalf("Unexpected output %q from reader", string(out))
+		c.Fatalf("Unexpected output %q from reader", string(out))
 	}
 
 drainLoop:
@@ -69,7 +78,7 @@ drainLoop:
 
 	select {
 	case <-progressChan:
-		t.Fatalf("Should have closed silently when read is complete")
+		c.Fatalf("Should have closed silently when read is complete")
 	default:
 	}
 }
