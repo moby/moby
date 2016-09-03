@@ -132,7 +132,7 @@ func (cli *DockerCli) getNotaryRepository(repoInfo *registry.RepositoryInfo, aut
 		return nil, err
 	}
 
-	var cfg = tlsconfig.ClientDefault
+	var cfg = tlsconfig.ClientDefault()
 	cfg.InsecureSkipVerify = !repoInfo.Index.Secure
 
 	// Get certificate base directory
@@ -142,7 +142,7 @@ func (cli *DockerCli) getNotaryRepository(repoInfo *registry.RepositoryInfo, aut
 	}
 	logrus.Debugf("reading certificate directory: %s", certDir)
 
-	if err := registry.ReadCertsDirectory(&cfg, certDir); err != nil {
+	if err := registry.ReadCertsDirectory(cfg, certDir); err != nil {
 		return nil, err
 	}
 
@@ -154,7 +154,7 @@ func (cli *DockerCli) getNotaryRepository(repoInfo *registry.RepositoryInfo, aut
 			DualStack: true,
 		}).Dial,
 		TLSHandshakeTimeout: 10 * time.Second,
-		TLSClientConfig:     &cfg,
+		TLSClientConfig:     cfg,
 		DisableKeepAlives:   true,
 	}
 
