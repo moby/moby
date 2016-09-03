@@ -214,7 +214,7 @@ func TestFrom(t *testing.T) {
 		}
 
 		if b.noBaseImage != true {
-			t.Fatalf("Image should not have any base image, got: %s", b.noBaseImage)
+			t.Fatalf("Image should not have any base image, got: %v", b.noBaseImage)
 		}
 	}
 }

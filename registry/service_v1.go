@@ -7,8 +7,7 @@ import (
 )
 
 func (s *DefaultService) lookupV1Endpoints(hostname string) (endpoints []APIEndpoint, err error) {
-	var cfg = tlsconfig.ServerDefault
-	tlsConfig := &cfg
+	tlsConfig := tlsconfig.ServerDefault()
 	if hostname == DefaultNamespace {
 		endpoints = append(endpoints, APIEndpoint{
 			URL:          DefaultV1Registry,

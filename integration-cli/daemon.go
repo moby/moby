@@ -17,9 +17,9 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/engine-api/types/events"
 	"github.com/docker/go-connections/sockets"
+	"github.com/docker/go-connections/tlsconfig"
 	"github.com/go-check/check"
 )
 
