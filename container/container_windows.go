@@ -37,7 +37,7 @@ func (container *Container) CreateDaemonEnvironment(linkedEnv []string) []string
 	return utils.ReplaceOrAppendEnvValues(linkedEnv, container.Config.Env)
 }
 
-// UnmountIpcMounts unmount Ipc related mounts.
+// UnmountIpcMounts unmounts Ipc related mounts.
 // This is a NOOP on windows.
 func (container *Container) UnmountIpcMounts(unmount func(pth string) error) {
 }

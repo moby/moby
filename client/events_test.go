@@ -38,7 +38,7 @@ func TestEventsErrorInOptions(t *testing.T) {
 		}
 		_, err := client.Events(context.Background(), e.options)
 		if err == nil || !strings.Contains(err.Error(), e.expectedError) {
-			t.Fatalf("expected a error %q, got %v", e.expectedError, err)
+			t.Fatalf("expected an error %q, got %v", e.expectedError, err)
 		}
 	}
 }

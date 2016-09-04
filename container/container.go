@@ -960,7 +960,7 @@ type attachContext struct {
 	mu     sync.Mutex
 }
 
-// InitAttachContext initialize or returns existing context for attach calls to
+// InitAttachContext initializes or returns existing context for attach calls to
 // track container liveness.
 func (container *Container) InitAttachContext() context.Context {
 	container.attachContext.mu.Lock()
@@ -971,7 +971,7 @@ func (container *Container) InitAttachContext() context.Context {
 	return container.attachContext.ctx
 }
 
-// CancelAttachContext cancel attach context. All attach calls should detach
+// CancelAttachContext cancels attach context. All attach calls should detach
 // after this call.
 func (container *Container) CancelAttachContext() {
 	container.attachContext.mu.Lock()
