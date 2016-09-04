@@ -225,5 +225,5 @@ func (c *imageContext) CreatedAt() string {
 
 func (c *imageContext) Size() string {
 	c.addHeader(sizeHeader)
-	return units.HumanSize(float64(c.i.Size))
+	return units.HumanSizeWithPrecision(float64(c.i.Size), 3)
 }

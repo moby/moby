@@ -194,8 +194,8 @@ func (s *containerStats) Display(w io.Writer) error {
 		s.CPUPercentage,
 		units.BytesSize(s.Memory), units.BytesSize(s.MemoryLimit),
 		s.MemoryPercentage,
-		units.HumanSize(s.NetworkRx), units.HumanSize(s.NetworkTx),
-		units.HumanSize(s.BlockRead), units.HumanSize(s.BlockWrite),
+		units.HumanSizeWithPrecision(s.NetworkRx, 3), units.HumanSizeWithPrecision(s.NetworkTx, 3),
+		units.HumanSizeWithPrecision(s.BlockRead, 3), units.HumanSizeWithPrecision(s.BlockWrite, 3),
 		s.PidsCurrent)
 	return nil
 }
