@@ -688,6 +688,8 @@ container:
 | `--device-write-bps=""`    | Limit write rate to a device (format: `<device-path>:<number>[<unit>]`). Number is a positive integer. Unit can be one of `kb`, `mb`, or `gb`.  |
 | `--device-read-iops="" `   | Limit read rate (IO per second) from a device (format: `<device-path>:<number>`). Number is a positive integer.                                 |
 | `--device-write-iops="" `  | Limit write rate (IO per second) to a device (format: `<device-path>:<number>`). Number is a positive integer.                                  |
+| `--interface-priority="" ` | Set the priority of network traffic (format: `<interface-name>:<number>`). Number is a positive integer.                                  |
+| `--net-classid="" `        | Tag network packets with a class identifier. Number is a positive integer.                                  |
 | `--oom-kill-disable=false` | Whether to disable OOM Killer for the container or not.                                                                                         |
 | `--oom-score-adj=0`        | Tune container's OOM preferences (-1000 to 1000)                                                                                                |
 | `--memory-swappiness=""`   | Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.                                                            |
@@ -1073,6 +1075,20 @@ For example, this command creates a container and limits the write rate to
 
 Both flags take limits in the `<device-path>:<limit>` format. Both read and
 write rates must be a positive integer.
+
+## Network traffic constraints
+You can change the default priority of network traffic per each network interface
+by specifying the `--interface-priority` flag. For example, this command creates
+a container and set the priority of network interface eth0 to 5 :
+
+    $ docker run -ti --interface-priority eth0:5 busybox
+
+## Network class identifier
+You can tag network packets with a class identifier by specifying the `--net-classid`
+flag. For example, this command creates a container and tag network packets with the
+class identifier 0x1000200 :
+
+    $ docker run -ti --net-classid 0x1000200 busybox
 
 ## Additional groups
     --group-add: Add additional groups to run as

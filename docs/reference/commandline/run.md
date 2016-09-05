@@ -53,6 +53,7 @@ Options:
       --help                        Print usage
   -h, --hostname string             Container host name
   -i, --interactive                 Keep STDIN open even if not attached
+      --interface-priority value    Set the priority of network traffic (default [])
       --io-maxbandwidth string      Maximum IO bandwidth limit for the system drive (Windows only)
                                     (Windows only). The format is `<number><unit>`.
                                     Unit is optional and can be `b` (bytes per second),
@@ -78,6 +79,7 @@ Options:
       --memory-swap string          Swap limit equal to memory plus swap: '-1' to enable unlimited swap
       --memory-swappiness int       Tune container memory swappiness (0 to 100) (default -1).
       --name string                 Assign a name to the container
+      --net-classid value           Tag network packets with a class identifier (classid)
       --network-alias value         Add network-scoped alias for the container (default [])
       --network string              Connect a container to a network
                                     'bridge': create a network stack on the default Docker bridge

@@ -103,6 +103,8 @@ type ContainerOptions struct {
 	healthRetries     int
 	runtime           string
 	autoRemove        bool
+	classID           uint32
+	ifPriority        IfPriorityOpt
 
 	Image string
 	Args  []string
@@ -142,6 +144,7 @@ func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 		ulimits:           NewUlimitOpt(nil),
 		volumes:           opts.NewListOpts(nil),
 		volumesFrom:       opts.NewListOpts(nil),
+		ifPriority:        NewIfPriorityOpt(ValidateIfPriority),
 	}
 
 	// General purpose flags
@@ -234,6 +237,8 @@ func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 	flags.BoolVar(&copts.oomKillDisable, "oom-kill-disable", false, "Disable OOM Killer")
 	flags.IntVar(&copts.oomScoreAdj, "oom-score-adj", 0, "Tune host's OOM preferences (-1000 to 1000)")
 	flags.Int64Var(&copts.pidsLimit, "pids-limit", 0, "Tune container pids limit (set -1 for unlimited)")
+	flags.Uint32Var(&copts.classID, "net-classid", 0, "Tag network packets with a class identifier (classid)")
+	flags.Var(&copts.ifPriority, "interface-priority", "Set the priority of network traffic")
 
 	// Low-level execution (cgroups, namespaces, ...)
 	flags.StringVar(&copts.cgroupParent, "cgroup-parent", "", "Optional parent cgroup for the container")
@@ -498,6 +503,13 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 		}
 	}
 
+	// if classID doesn't specified, use nil to avoid setting cgroup.
+	// In host that does't support net_cls cgroup, setting will incure a failure.
+	classID := &copts.classID
+	if *classID == 0 {
+		classID = nil
+	}
+
 	resources := container.Resources{
 		CgroupParent:         copts.cgroupParent,
 		Memory:               memory,
@@ -523,6 +535,8 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 		IOMaximumBandwidth:   uint64(maxIOBandwidth),
 		Ulimits:              copts.ulimits.GetList(),
 		Devices:              deviceMappings,
+		IfPriorities:         copts.ifPriority.GetList(),
+		NetClassID:           classID,
 	}
 
 	config := &container.Config{

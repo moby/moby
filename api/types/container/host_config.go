@@ -1,6 +1,7 @@
 package container
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/docker/docker/api/types/blkiodev"
@@ -229,6 +230,16 @@ type LogConfig struct {
 	Config map[string]string
 }
 
+// IfPriority represents the priority of network traffic for the specific network interface
+type IfPriority struct {
+	Name     string
+	Priority uint32
+}
+
+func (p *IfPriority) String() string {
+	return fmt.Sprintf("%s:%d", p.Name, p.Priority)
+}
+
 // Resources contains container's resources (cgroups config, ulimits...)
 type Resources struct {
 	// Applicable to all platforms
@@ -256,6 +267,8 @@ type Resources struct {
 	OomKillDisable       *bool           // Whether to disable OOM Killer or not
 	PidsLimit            int64           // Setting pids limit for a container
 	Ulimits              []*units.Ulimit // List of ulimits to be set in the container
+	IfPriorities         []*IfPriority   // priority of network traffic for container
+	NetClassID           *uint32         // class identifier for container's network packets
 
 	// Applicable to Windows
 	CPUCount           int64  `json:"CpuCount"`   // CPU count

@@ -50,6 +50,12 @@ func New(quiet bool) *SysInfo {
 	_, ok := cgMounts["devices"]
 	sysInfo.CgroupDevicesEnabled = ok
 
+	_, ok = cgMounts["net_cls"]
+	sysInfo.CgroupNetclsEnabled = ok
+
+	_, ok = cgMounts["net_prio"]
+	sysInfo.CgroupNetprioEnabled = ok
+
 	sysInfo.IPv4ForwardingDisabled = !readProcBool("/proc/sys/net/ipv4/ip_forward")
 	sysInfo.BridgeNFCallIPTablesDisabled = !readProcBool("/proc/sys/net/bridge/bridge-nf-call-iptables")
 	sysInfo.BridgeNFCallIP6TablesDisabled = !readProcBool("/proc/sys/net/bridge/bridge-nf-call-ip6tables")

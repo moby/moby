@@ -116,6 +116,8 @@ This section lists each version from latest to oldest.  Each listing includes a 
 
 [Docker Remote API v1.25](docker_remote_api_v1.25.md) documentation
 
+* `POST /containers/create` now takes `IfPriorities` in HostConfig, to set the priority of network traffic.
+* `POST /containers/create` now takes `NetClassID` in HostConfig, to tag network packets with a class identifier.
 * `POST /containers/create` now takes `AutoRemove` in HostConfig, to enable auto-removal of the container on daemon side when the container's process exits.
 * `GET /containers/json` and `GET /containers/(id or name)/json` now return `"removing"` as a value for the `State.Status` field if the container is being removed. Previously, "exited" was returned as status.
 * `GET /containers/json` now accepts `removing` as a valid value for the `status` filter.

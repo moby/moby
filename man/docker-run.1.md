@@ -26,6 +26,8 @@ docker-run - Run a command in a new container
 [**--device-read-iops**[=*[]*]]
 [**--device-write-bps**[=*[]*]]
 [**--device-write-iops**[=*[]*]]
+[**--interface-priority**[=*[]*]]
+[**--net-classid**[=*[0]*]]
 [**--dns**[=*[]*]]
 [**--dns-opt**[=*[]*]]
 [**--dns-search**[=*[]*]]
@@ -221,6 +223,12 @@ See **config-json(5)** for documentation on using a configuration file.
 
 **--device-write-iops**=[]
    Limit write rate to a device (e.g. --device-write-iops=/dev/sda:1000)
+
+**--interface-priority**=[]
+   Set the priority of network traffic (e.g. --interface-priority=eth0:5)
+
+**--net-classid**=*0*
+   Tag network packets with a class identifier (classid)
 
 **--dns-search**=[]
    Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)

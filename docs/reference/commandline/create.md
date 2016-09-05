@@ -53,6 +53,7 @@ Options:
       --help                        Print usage
   -h, --hostname string             Container host name
   -i, --interactive                 Keep STDIN open even if not attached
+      --interface-priority value    Set the priority of network traffic (default [])
       --io-maxbandwidth string      Maximum IO bandwidth limit for the system drive (Windows only)
       --io-maxiops uint             Maximum IOps limit for the system drive (Windows only)
       --ip string                   Container IPv4 address (e.g. 172.30.100.104)
@@ -83,6 +84,7 @@ Options:
       --oom-kill-disable            Disable OOM Killer
       --oom-score-adj int           Tune host's OOM preferences (-1000 to 1000)
       --pid string                  PID namespace to use
+      --net-classid value           Tag network packets with a class identifier (classid)
       --pids-limit int              Tune container pids limit (set -1 for unlimited), kernel >= 4.3
       --privileged                  Give extended privileges to this container
   -p, --publish value               Publish a container's port(s) to the host (default [])

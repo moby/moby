@@ -24,6 +24,8 @@ docker-create - Create a new container
 [**--device-read-iops**[=*[]*]]
 [**--device-write-bps**[=*[]*]]
 [**--device-write-iops**[=*[]*]]
+[**--interface-priority**[=*[]*]]
+[**--net-classid**[=*[0]*]]
 [**--dns**[=*[]*]]
 [**--dns-search**[=*[]*]]
 [**--dns-opt**[=*[]*]]
@@ -149,6 +151,12 @@ two memory nodes.
 
 **--device-write-iops**=[]
     Limit write rate (IO per second) to a device (e.g. --device-write-iops=/dev/sda:1000)
+
+**--interface-priority**=[]
+    Set the priority of network traffic (e.g. --interface-priority=eth0:5)
+
+**--net-classid**=*0*
+    Tag network packets with a class identifier (classid)
 
 **--dns**=[]
    Set custom DNS servers

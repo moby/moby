@@ -1357,3 +1357,37 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *check.C) {
 	c.Assert(err, check.NotNil)
 	c.Assert(out, checker.Contains, "'architectures' and 'archMap' were specified in the seccomp profile, use either 'architectures' or 'archMap'")
 }
+
+func (s *DockerSuite) TestRunWithInterfacePriority(c *check.C) {
+	testRequires(c, netprioEnable)
+
+	file := "/sys/fs/cgroup/net_prio/net_prio.ifpriomap"
+	out, _ := dockerCmd(c, "run", "--interface-priority", "lo:5", "--name", "test", "busybox", "cat", file)
+	c.Assert(strings.Index(out, "lo 5"), checker.GreaterOrEqualThan, 0)
+
+	out = inspectField(c, "test", "HostConfig.IfPriorities")
+	c.Assert(out, checker.Equals, "[lo:5]", check.Commentf("setting the net priority failed"))
+}
+
+func (s *DockerSuite) TestRunWithInvalidInterfacePriority(c *check.C) {
+	testRequires(c, netprioEnable)
+	out, _, err := dockerCmdWithError("run", "--interface-priority", "Invalid:5", "busybox", "true")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+}
+
+func (s *DockerSuite) TestRunWithClassid(c *check.C) {
+	testRequires(c, netclsEnable)
+
+	file := "/sys/fs/cgroup/net_cls/net_cls.classid"
+	out, _ := dockerCmd(c, "run", "--net-classid", "3", "--name", "test", "busybox", "cat", file)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "3")
+
+	out = inspectField(c, "test", "HostConfig.NetClassID")
+	c.Assert(out, checker.Equals, "3", check.Commentf("setting the net classid failed"))
+}
+
+func (s *DockerSuite) TestRunWithInvalidClassid(c *check.C) {
+	testRequires(c, netclsEnable)
+	out, _, err := dockerCmdWithError("run", "--net-classid", "Invalid", "busybox", "true")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+}
