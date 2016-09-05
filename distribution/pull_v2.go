@@ -559,10 +559,6 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 
 	rootFS, release, err := p.config.DownloadManager.Download(ctx, downloadRootFS, descriptors, p.config.ProgressOutput)
 	if err != nil {
-		if configJSON != nil {
-			// Already received the config
-			return "", "", err
-		}
 		select {
 		case err = <-errChan:
 			return "", "", err
@@ -577,11 +573,9 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	}
 	defer release()
 
-	if configJSON == nil {
-		configJSON, unmarshalledConfig, err = receiveConfig(configChan, errChan)
-		if err != nil {
-			return "", "", err
-		}
+	configJSON, unmarshalledConfig, err = receiveConfig(configChan, errChan)
+	if err != nil {
+		return "", "", err
 	}
 
 	if unmarshalledConfig.RootFS == nil {
