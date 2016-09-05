@@ -23,7 +23,7 @@ Options:
       --format string  Pretty-print networks using a Go template
       --help           Print usage
       --no-trunc       Do not truncate the output
-  -q, --quiet          Only display volume names
+  -q, --quiet          Only display network IDs
 ```
 
 Lists all the networks the Engine `daemon` knows about. This includes the
