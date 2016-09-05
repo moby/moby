@@ -641,7 +641,10 @@ func (d *driver) createNetwork(config *networkConfiguration) error {
 	d.Unlock()
 
 	// Create or retrieve the bridge L3 interface
-	bridgeIface := newInterface(d.nlh, config)
+	bridgeIface, err := newInterface(d.nlh, config)
+	if err != nil {
+		return err
+	}
 	network.bridge = bridgeIface
 
 	// Verify the network configuration does not conflict with previously installed
