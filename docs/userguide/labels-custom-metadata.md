@@ -11,7 +11,7 @@ weight=90
 
 # Apply custom metadata
 
-You can apply metadata to your images, containers, or daemons via
+You can apply metadata to your images, containers, volumes, networks, nodes, services or daemons via
 labels. Labels serve a wide range of uses, such as adding notes or licensing
 information to an image, or to identify a host.
 
