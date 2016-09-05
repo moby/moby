@@ -1756,3 +1756,16 @@ func (s *DockerNetworkSuite) TestDockerNetworkValidateIP(c *check.C) {
 	_, _, err = dockerCmdWithError("run", "--net=mynet", "--ip6", "::ffff:172.28.99.99", "busybox", "top")
 	c.Assert(err.Error(), checker.Contains, "invalid IPv6 address")
 }
+
+// Test case for 26220
+func (s *DockerNetworkSuite) TestDockerNetworkDisconnectFromBridge(c *check.C) {
+	out, _ := dockerCmd(c, "network", "inspect", "--format", "{{.Id}}", "bridge")
+
+	network := strings.TrimSpace(out)
+
+	name := "test"
+	dockerCmd(c, "create", "--rm", "--name", name, "busybox", "top")
+
+	_, _, err := dockerCmdWithError("network", "disconnect", network, name)
+	c.Assert(err, check.IsNil)
+}

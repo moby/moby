@@ -129,6 +129,11 @@ func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, netw
 		if container.RemovalInProgress || container.Dead {
 			return errRemovalContainer(container.ID)
 		}
+		// In case networkName is resolved we will use n.Name()
+		// this will cover the case where network id is passed.
+		if n != nil {
+			networkName = n.Name()
+		}
 		if _, ok := container.NetworkSettings.Networks[networkName]; !ok {
 			return fmt.Errorf("container %s is not connected to the network %s", container.ID, networkName)
 		}
