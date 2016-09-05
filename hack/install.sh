@@ -396,11 +396,7 @@ do_install() {
 				fi
 			}
 
-			if [ "$lsb_dist" = "raspbian" ]; then
-				# Create Raspbian specific systemd drop-in file, use overlay by default
-				( set -x; $sh_c "mkdir -p /etc/systemd/system/docker.service.d" )
-				( set -x; $sh_c "echo '[Service]\nExecStart=\nExecStart=/usr/bin/dockerd --storage-driver overlay -H fd://' > /etc/systemd/system/docker.service.d/overlay.conf" )
-			else
+			if [ "$lsb_dist" != "raspbian" ]; then
 				# aufs is preferred over devicemapper; try to ensure the driver is available.
 				if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
 					if uname -r | grep -q -- '-generic' && dpkg -l 'linux-image-*-generic' | grep -qE '^ii|^hi' 2>/dev/null; then
