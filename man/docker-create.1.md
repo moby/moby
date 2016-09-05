@@ -64,6 +64,7 @@ docker-create - Create a new container
 [**--privileged**]
 [**--read-only**]
 [**--restart**[=*RESTART*]]
+[**--rm**]
 [**--security-opt**[=*[]*]]
 [**--storage-opt**[=*[]*]]
 [**--stop-signal**[=*SIGNAL*]]
@@ -316,6 +317,9 @@ unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
 
 **--restart**="*no*"
    Restart policy to apply when a container exits (no, on-failure[:max-retry], always, unless-stopped).
+
+**--rm**=*true*|*false*
+   Automatically remove the container when it exits. The default is *false*.
 
 **--shm-size**=""
    Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.
