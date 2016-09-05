@@ -26,7 +26,7 @@ Options:
   --config=~/.docker              Location of client config files
   -D, --debug                     Enable debug mode
   -H, --host=[]                   Daemon socket(s) to connect to
-  -h, --help                      Print usage
+  --help                          Print usage
   -l, --log-level=info            Set the logging level
   --tls                           Use TLS; implied by --tlsverify
   --tlscacert=~/.docker/ca.pem    Trust certs signed only by this CA
