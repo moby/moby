@@ -95,3 +95,8 @@ The diagram below shows a three-service replica in yellow and a global service
 in gray.
 
 ![global vs replicated services](../images/replicated-vs-global.png)
+
+## Learn More
+
+* Read about how swarm mode [nodes](services.md) work.
+* Learn how [PKI](pki.md) works in swarm mode.
