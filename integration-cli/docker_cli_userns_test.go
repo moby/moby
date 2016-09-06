@@ -7,11 +7,13 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
 	"github.com/go-check/check"
 )
@@ -29,6 +31,10 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *check.C) {
 
 	defer os.RemoveAll(tmpDir)
 
+	// Set a non-existent path
+	tmpDirNotExists := path.Join(os.TempDir(), "userns"+stringid.GenerateRandomID())
+	defer os.RemoveAll(tmpDirNotExists)
+
 	// we need to find the uid and gid of the remapped root from the daemon's root dir info
 	uidgid := strings.Split(filepath.Base(s.d.root), ".")
 	c.Assert(uidgid, checker.HasLen, 2, check.Commentf("Should have gotten uid/gid strings from root dirname: %s", filepath.Base(s.d.root)))
@@ -40,10 +46,16 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *check.C) {
 	// writable by the remapped root UID/GID pair
 	c.Assert(os.Chown(tmpDir, uid, gid), checker.IsNil)
 
-	out, err := s.d.Cmd("run", "-d", "--name", "userns", "-v", tmpDir+":/goofy", "busybox", "sh", "-c", "touch /goofy/testfile; top")
+	out, err := s.d.Cmd("run", "-d", "--name", "userns", "-v", tmpDir+":/goofy", "-v", tmpDirNotExists+":/donald", "busybox", "sh", "-c", "touch /goofy/testfile; top")
 	c.Assert(err, checker.IsNil, check.Commentf("Output: %s", out))
 	user := s.findUser(c, "userns")
 	c.Assert(uidgid[0], checker.Equals, user)
+
+	// check that the created directory is owned by remapped uid:gid
+	statNotExists, err := system.Stat(tmpDirNotExists)
+	c.Assert(err, checker.IsNil)
+	c.Assert(statNotExists.UID(), checker.Equals, uint32(uid), check.Commentf("Created directory not owned by remapped root UID"))
+	c.Assert(statNotExists.GID(), checker.Equals, uint32(gid), check.Commentf("Created directory not owned by remapped root GID"))
 
 	pid, err := s.d.Cmd("inspect", "--format={{.State.Pid}}", "userns")
 	c.Assert(err, checker.IsNil, check.Commentf("Could not inspect running container: out: %q", pid))
