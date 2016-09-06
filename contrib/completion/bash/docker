@@ -1103,6 +1103,7 @@ _docker_events() {
 				exec_detach
 				exec_start
 				export
+				health_status
 				import
 				kill
 				load
