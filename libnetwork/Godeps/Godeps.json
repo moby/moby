@@ -1,6 +1,7 @@
 {
 	"ImportPath": "github.com/docker/libnetwork",
 	"GoVersion": "go1.5",
+	"GodepVersion": "v74",
 	"Packages": [
 		"./..."
 	],
@@ -172,11 +173,6 @@
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/term/windows",
-			"Comment": "v1.4.1-12227-g86a7632",
-			"Rev": "86a7632d63bdddb95aaf1472648056a4fb737d38"
-		},
-		{
-			"ImportPath": "github.com/docker/docker/pkg/tlsconfig",
 			"Comment": "v1.4.1-12227-g86a7632",
 			"Rev": "86a7632d63bdddb95aaf1472648056a4fb737d38"
 		},
