@@ -22,16 +22,29 @@ go_test_dir() {
 	coverpkg=$2
 	testcover=()
 	testcoverprofile=()
-	testbinary="$DEST/test.main"
+	testbinary="$ABS_DEST/integration.test"
+
+    # TODO: remove
+    PROFILE_TEST_SUITE=1
+
+    if [ "$PROFILE_TEST_SUITE" ]; then
+        cpuprof="$ABS_DEST/cpu.prof"
+        blockprof="$ABS_DEST/block.prof"
+        echo "Test profiles in $cpuprof $blockprof"
+        PROFRUNFLAGS="-test.cpuprofile $cpuprof -test.blockprofile $blockprof"
+        PROFCOMPILEFLAGS="-cpuprofile $cpuprof -blockprofile $blockprof"
+    fi
+
 	(
 		mkdir -p "$DEST/coverprofiles"
-		echo '+ go test' $TESTFLAGS "${DOCKER_PKG}${dir#.}"
 		cd "$dir"
-		export DEST="$ABS_DEST" # in a subshell this is safe -- our integration-cli tests need DEST, and "cd" screws it up
-		go test -c -o "$testbinary" -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}"
+		export DEST="$ABS_DEST"
+        set -x
+		go test -c -o "$testbinary" $PROFCOMPILEFLAGS -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}"
+        set +x
 		i=0
 		while ((++i)); do
-			test_env "$testbinary" $TESTFLAGS
+			test_env "$testbinary" $PROFRUNFLAGS $TESTFLAGS
 			if [ $i -gt "$TEST_REPEAT" ]; then
 				break
 			fi
