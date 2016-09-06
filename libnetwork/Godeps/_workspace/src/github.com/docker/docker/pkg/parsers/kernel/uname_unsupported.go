@@ -1,4 +1,4 @@
-// +build !linux
+// +build !linux,!solaris
 
 package kernel
 
