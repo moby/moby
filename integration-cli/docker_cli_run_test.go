@@ -2276,18 +2276,19 @@ func (s *DockerSuite) TestRunCreateVolumeEtc(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumesNoCopyData(c *check.C) {
-	// TODO Windows (Post TP5). Windows does not support volumes which
+	// TODO Windows (Post RS1). Windows does not support volumes which
 	// are pre-populated such as is built in the dockerfile used in this test.
 	testRequires(c, DaemonIsLinux)
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	if _, err := buildImage("dataimage",
 		`FROM busybox
-		RUN mkdir -p /foo
-		RUN touch /foo/bar`,
+		RUN ["mkdir", "-p", "/foo"]
+		RUN ["touch", "/foo/bar"]`,
 		true); err != nil {
 		c.Fatal(err)
 	}
 
-	dockerCmd(c, "run", "--name", "test", "-v", "/foo", "busybox")
+	dockerCmd(c, "run", "--name", "test", "-v", prefix+slash+"foo", "busybox")
 
 	if out, _, err := dockerCmdWithError("run", "--volumes-from", "test", "dataimage", "ls", "-lh", "/foo/bar"); err == nil || !strings.Contains(out, "No such file or directory") {
 		c.Fatalf("Data was copied on volumes-from but shouldn't be:\n%q", out)
