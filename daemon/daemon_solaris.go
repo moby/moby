@@ -165,3 +165,10 @@ func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
 func setupDaemonProcess(config *Config) error {
 	return nil
 }
+
+// verifyVolumesInfo is a no-op on solaris.
+// This is called during daemon initialization to migrate volumes from pre-1.7.
+// Solaris was not supported on pre-1.7 daemons.
+func (daemon *Daemon) verifyVolumesInfo(container *container.Container) error {
+	return nil
+}

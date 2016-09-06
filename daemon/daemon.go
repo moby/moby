@@ -160,6 +160,12 @@ func (daemon *Daemon) restore() error {
 			continue
 		}
 
+		// verify that all volumes valid and have been migrated from the pre-1.7 layout
+		if err := daemon.verifyVolumesInfo(c); err != nil {
+			// don't skip the container due to error
+			logrus.Errorf("Failed to verify volumes for container '%s': %v", c.ID, err)
+		}
+
 		// The LogConfig.Type is empty if the container was created before docker 1.12 with default log driver.
 		// We should rewrite it to use the daemon defaults.
 		// Fixes https://github.com/docker/docker/issues/22536
