@@ -43,11 +43,7 @@ func (pm *Manager) enable(p *v2.Plugin, force bool) error {
 	}
 
 	pm.pluginStore.SetState(p, true)
-	for _, typ := range p.GetTypes() {
-		if handler := pm.handlers[typ.String()]; handler != nil {
-			handler(p.Name(), p.Client())
-		}
-	}
+	pm.pluginStore.CallHandler(p)
 
 	return nil
 }

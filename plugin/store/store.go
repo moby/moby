@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -32,7 +33,11 @@ func (name ErrNotFound) Error() string { return fmt.Sprintf("plugin %q not found
 // PluginStore manages the plugin inventory in memory and on-disk
 type PluginStore struct {
 	sync.RWMutex
-	plugins  map[string]*v2.Plugin
+	plugins map[string]*v2.Plugin
+	/* handlers are necessary for transition path of legacy plugins
+	 * to the new model. Legacy plugins use Handle() for registering an
+	 * activation callback.*/
+	handlers map[string]func(string, *plugins.Client)
 	nameToID map[string]string
 	plugindb string
 }
@@ -41,6 +46,7 @@ type PluginStore struct {
 func NewPluginStore(libRoot string) *PluginStore {
 	store = &PluginStore{
 		plugins:  make(map[string]*v2.Plugin),
+		handlers: make(map[string]func(string, *plugins.Client)),
 		nameToID: make(map[string]string),
 		plugindb: filepath.Join(libRoot, "plugins.json"),
 	}
@@ -221,4 +227,28 @@ func FindWithCapability(capability string) ([]CompatPlugin, error) {
 		}
 	}
 	return result, nil
+}
+
+// Handle sets a callback for a given capability. It is only used by network
+// and ipam drivers during plugin registration. The callback registers the
+// driver with the subsystem (network, ipam).
+func Handle(capability string, callback func(string, *plugins.Client)) {
+	pluginType := fmt.Sprintf("docker.%s/1", strings.ToLower(capability))
+
+	// Register callback with new plugin model.
+	store.handlers[pluginType] = callback
+
+	// Register callback with legacy plugin model.
+	if allowV1PluginsFallback {
+		plugins.Handle(capability, callback)
+	}
+}
+
+// CallHandler calls the registered callback. It is invoked during plugin enable.
+func (ps *PluginStore) CallHandler(p *v2.Plugin) {
+	for _, typ := range p.GetTypes() {
+		if handler := ps.handlers[typ.String()]; handler != nil {
+			handler(p.Name(), p.Client())
+		}
+	}
 }

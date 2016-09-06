@@ -623,11 +623,12 @@ func NewDaemon(config *Config, registryService registry.Service, containerdRemot
 		return nil, err
 	}
 
-	if err := d.restore(); err != nil {
+	// Plugin system initialization should happen before restore. Dont change order.
+	if err := pluginInit(d, config, containerdRemote); err != nil {
 		return nil, err
 	}
 
-	if err := pluginInit(d, config, containerdRemote); err != nil {
+	if err := d.restore(); err != nil {
 		return nil, err
 	}
 

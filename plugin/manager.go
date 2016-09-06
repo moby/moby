@@ -4,16 +4,13 @@ package plugin
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/libcontainerd"
-	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/plugin/store"
 	"github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/registry"
@@ -21,12 +18,6 @@ import (
 
 var (
 	manager *Manager
-
-	/* allowV1PluginsFallback determines daemon's support for V1 plugins.
-	 * When the time comes to remove support for V1 plugins, flipping
-	 * this bool is all that will be needed.
-	 */
-	allowV1PluginsFallback = true
 )
 
 func (pm *Manager) restorePlugin(p *v2.Plugin) error {
@@ -45,7 +36,6 @@ type Manager struct {
 	libRoot           string
 	runRoot           string
 	pluginStore       *store.PluginStore
-	handlers          map[string]func(string, *plugins.Client)
 	containerdClient  libcontainerd.Client
 	registryService   registry.Service
 	liveRestore       bool
@@ -70,7 +60,6 @@ func Init(root string, remote libcontainerd.Remote, rs registry.Service, liveRes
 		libRoot:           root,
 		runRoot:           "/run/docker",
 		pluginStore:       store.NewPluginStore(root),
-		handlers:          make(map[string]func(string, *plugins.Client)),
 		registryService:   rs,
 		liveRestore:       liveRestore,
 		pluginEventLogger: evL,
@@ -86,16 +75,6 @@ func Init(root string, remote libcontainerd.Remote, rs registry.Service, liveRes
 		return err
 	}
 	return nil
-}
-
-// Handle sets a callback for a given capability. The callback will be called for every plugin with a given capability.
-// TODO: append instead of set?
-func Handle(capability string, callback func(string, *plugins.Client)) {
-	pluginType := fmt.Sprintf("docker.%s/1", strings.ToLower(capability))
-	manager.handlers[pluginType] = callback
-	if allowV1PluginsFallback {
-		plugins.Handle(capability, callback)
-	}
 }
 
 // StateChanged updates plugin internals using libcontainerd events.
