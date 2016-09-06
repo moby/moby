@@ -134,7 +134,7 @@ docker run -v /Users/<path>:/<container path> ...
 On Windows, mount directories using:
 
 ```bash
-docker run -v /c/Users/<path>:/<container path> ...`
+docker run -v c:\<path>:/c:\<container path>
 ```
 
 All other paths come from your virtual machine's filesystem, so if you want
