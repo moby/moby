@@ -5,6 +5,7 @@ package client
 import (
 	"github.com/docker/engine-api/types"
 	"golang.org/x/net/context"
+	"golang.org/x/net/websocket"
 )
 
 // APIClient is an interface that clients that talk with a docker server must implement.
@@ -12,6 +13,7 @@ type APIClient interface {
 	CommonAPIClient
 	CheckpointAPIClient
 	PluginAPIClient
+	TunnelAPIClient
 }
 
 // CheckpointAPIClient defines API client methods for the checkpoints
@@ -31,6 +33,11 @@ type PluginAPIClient interface {
 	PluginPush(ctx context.Context, name string, registryAuth string) error
 	PluginSet(ctx context.Context, name string, args []string) error
 	PluginInspectWithRaw(ctx context.Context, name string) (*types.Plugin, []byte, error)
+}
+
+// TunnelAPIClient defines API client methods for the tunnel
+type TunnelAPIClient interface {
+	Tunnel(ctx context.Context, port int) (*websocket.Conn, error)
 }
 
 // Ensure that Client always implements APIClient.

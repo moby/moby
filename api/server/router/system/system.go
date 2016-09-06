@@ -20,14 +20,14 @@ func NewRouter(b Backend, c *cluster.Cluster) router.Router {
 		clusterProvider: c,
 	}
 
-	r.routes = []router.Route{
+	r.routes = append([]router.Route{
 		router.NewOptionsRoute("/{anyroute:.*}", optionsHandler),
 		router.NewGetRoute("/_ping", pingHandler),
 		router.Cancellable(router.NewGetRoute("/events", r.getEvents)),
 		router.NewGetRoute("/info", r.getInfo),
 		router.NewGetRoute("/version", r.getVersion),
 		router.NewPostRoute("/auth", r.postAuth),
-	}
+	}, newExperimentalRoutes(r)...)
 
 	return r
 }
