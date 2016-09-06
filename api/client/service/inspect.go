@@ -12,8 +12,8 @@ import (
 	"github.com/docker/docker/api/client/inspect"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
+	apiclient "github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/ioutils"
-	apiclient "github.com/docker/engine-api/client"
 	"github.com/docker/go-units"
 	"github.com/spf13/cobra"
 )

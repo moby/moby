@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
-	clientapi "github.com/docker/engine-api/client"
+	clientapi "github.com/docker/docker/client"
 )
 
 func waitExitOrRemoved(dockerCli *client.DockerCli, ctx context.Context, containerID string, waitRemove bool) (chan int, error) {

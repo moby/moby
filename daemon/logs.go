@@ -68,7 +68,8 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 	close(started)
 	wf.Flush()
 
-	var outStream io.Writer = wf
+	var outStream io.Writer
+	outStream = wf
 	errStream := outStream
 	if !container.Config.Tty {
 		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)

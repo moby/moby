@@ -8,9 +8,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
-	basictypes "github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/filters"
-	types "github.com/docker/engine-api/types/swarm"
+	basictypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
+	types "github.com/docker/docker/api/types/swarm"
 	"golang.org/x/net/context"
 )
 

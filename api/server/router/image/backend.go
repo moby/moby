@@ -3,9 +3,9 @@ package image
 import (
 	"io"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/registry"
+	"github.com/docker/docker/api/types/registry"
 	"golang.org/x/net/context"
 )
 

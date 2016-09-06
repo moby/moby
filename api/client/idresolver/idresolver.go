@@ -6,7 +6,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/engine-api/client"
+	"github.com/docker/docker/client"
 )
 
 // IDResolver provides ID to Name resolution.

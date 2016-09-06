@@ -6,10 +6,10 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/container"
 )
 
 // execBackend includes functions to implement to provide exec functionality.
