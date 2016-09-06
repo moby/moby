@@ -8,8 +8,8 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
-	"github.com/docker/engine-api/types/swarm"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )

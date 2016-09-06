@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/backend"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/dockerversion"
@@ -16,7 +17,6 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/reference"
-	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/docker/go-connections/nat"
 )
 

@@ -13,10 +13,10 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/api/client/system"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/cli"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/events"
-	"github.com/docker/engine-api/types/filters"
 	"github.com/spf13/cobra"
 )
 

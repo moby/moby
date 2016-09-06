@@ -1,9 +1,9 @@
 package client
 
 import (
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cliconfig/configfile"
 	"github.com/docker/docker/cliconfig/credentials"
-	"github.com/docker/engine-api/types"
 )
 
 // GetCredentials loads the user credentials from a credentials store.

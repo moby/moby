@@ -7,9 +7,9 @@ import (
 	"net/url"
 	"strings"
 
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/reference"
-	registrytypes "github.com/docker/engine-api/types/registry"
 	"github.com/spf13/pflag"
 )
 

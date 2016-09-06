@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/api/types"
 )
 
 const (

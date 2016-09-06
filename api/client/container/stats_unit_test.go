@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/api/types"
 )
 
 func TestDisplay(t *testing.T) {

@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
@@ -18,7 +19,6 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types/container"
 )
 
 // ImportImage imports an image, getting the archived layer data either from

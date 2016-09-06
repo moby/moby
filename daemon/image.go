@@ -3,11 +3,11 @@ package daemon
 import (
 	"fmt"
 
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/runconfig"
-	containertypes "github.com/docker/engine-api/types/container"
 )
 
 // ErrImageDoesNotExist is error returned when no image can be found for a reference.

@@ -16,6 +16,8 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
+	containertypes "github.com/docker/docker/api/types/container"
+	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
@@ -31,8 +33,6 @@ import (
 	"github.com/docker/docker/runconfig"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/docker/volume"
-	containertypes "github.com/docker/engine-api/types/container"
-	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"

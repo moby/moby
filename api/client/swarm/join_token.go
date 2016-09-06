@@ -7,8 +7,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
-	"github.com/docker/engine-api/types/swarm"
 	"golang.org/x/net/context"
 )
 

@@ -3,9 +3,9 @@ package daemon
 import (
 	"fmt"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/reference"
-	"github.com/docker/engine-api/types"
 )
 
 // ImageHistory returns a slice of ImageHistory structures for the specified image

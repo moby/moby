@@ -6,8 +6,8 @@ package backend
 import (
 	"io"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/engine-api/types"
 )
 
 // ContainerAttachConfig holds the streams to use when connecting to a container to view logs.

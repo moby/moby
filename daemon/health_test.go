@@ -4,11 +4,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
+	eventtypes "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
-	"github.com/docker/engine-api/types"
-	containertypes "github.com/docker/engine-api/types/container"
-	eventtypes "github.com/docker/engine-api/types/events"
 )
 
 func reset(c *container.Container) {

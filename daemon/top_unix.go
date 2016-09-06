@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/api/types"
 )
 
 func validatePSArgs(psArgs string) error {

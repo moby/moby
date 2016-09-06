@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/volume"
-	"github.com/docker/engine-api/types"
-	containertypes "github.com/docker/engine-api/types/container"
 )
 
 var (

@@ -8,10 +8,10 @@ import (
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/engine-api/types"
 )
 
 // StateChanged updates daemon state changes from containerd

@@ -3,8 +3,8 @@
 package main
 
 import (
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/engine-api/types/swarm"
 	"github.com/go-check/check"
 )
 

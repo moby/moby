@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/caps"
 	"github.com/docker/docker/libcontainerd"
@@ -19,7 +20,6 @@ import (
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/volume"
-	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/user"

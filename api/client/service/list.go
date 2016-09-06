@@ -7,12 +7,12 @@ import (
 	"text/tabwriter"
 
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/filters"
-	"github.com/docker/engine-api/types/swarm"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )

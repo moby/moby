@@ -3,8 +3,8 @@ package daemon
 import (
 	"fmt"
 
-	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/container"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 )
 
 // ContainerUpdate updates configuration of the container

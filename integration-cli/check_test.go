@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/docker/engine-api/types/swarm"
 	"github.com/go-check/check"
 )
 

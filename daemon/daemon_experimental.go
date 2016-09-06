@@ -3,9 +3,9 @@
 package daemon
 
 import (
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/plugin"
-	"github.com/docker/engine-api/types/container"
 )
 
 func (daemon *Daemon) verifyExperimentalContainerSettings(hostConfig *container.HostConfig, config *container.Config) ([]string, error) {

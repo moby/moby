@@ -3,7 +3,7 @@ package convert
 import (
 	"strings"
 
-	types "github.com/docker/engine-api/types/swarm"
+	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 )

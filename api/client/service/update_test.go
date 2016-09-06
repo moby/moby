@@ -4,9 +4,9 @@ import (
 	"sort"
 	"testing"
 
+	mounttypes "github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/pkg/testutil/assert"
-	mounttypes "github.com/docker/engine-api/types/mount"
-	"github.com/docker/engine-api/types/swarm"
 )
 
 func TestUpdateServiceArgs(t *testing.T) {

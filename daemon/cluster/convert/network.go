@@ -3,9 +3,9 @@ package convert
 import (
 	"strings"
 
-	basictypes "github.com/docker/engine-api/types"
-	networktypes "github.com/docker/engine-api/types/network"
-	types "github.com/docker/engine-api/types/swarm"
+	basictypes "github.com/docker/docker/api/types"
+	networktypes "github.com/docker/docker/api/types/network"
+	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 )

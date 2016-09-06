@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/engine-api/types/swarm"
+	"github.com/docker/docker/api/types/swarm"
 )
 
 func TestPrettyPrintWithNoUpdateConfig(t *testing.T) {

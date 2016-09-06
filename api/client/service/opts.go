@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
+	mounttypes "github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/opts"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
-	mounttypes "github.com/docker/engine-api/types/mount"
-	"github.com/docker/engine-api/types/swarm"
 	"github.com/docker/go-connections/nat"
 	units "github.com/docker/go-units"
 	"github.com/spf13/cobra"

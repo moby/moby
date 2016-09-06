@@ -5,7 +5,7 @@ package seccomp
 import (
 	"syscall"
 
-	"github.com/docker/engine-api/types"
+	"github.com/docker/docker/api/types"
 )
 
 func arches() []types.Architecture {

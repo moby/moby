@@ -3,7 +3,9 @@ package credentials
 import (
 	"github.com/docker/docker/cliconfig/configfile"
 	"github.com/docker/docker/registry"
-	"github.com/docker/engine-api/types"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/cliconfig/configfile"
 )
 
 // fileStore implements a credentials store using

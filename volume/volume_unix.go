@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	mounttypes "github.com/docker/engine-api/types/mount"
+	mounttypes "github.com/docker/docker/api/types/mount"
 )
 
 // read-write modes
