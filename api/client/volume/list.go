@@ -43,7 +43,7 @@ func newListCommand(dockerCli *client.DockerCli) *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.quiet, "quiet", "q", false, "Only display volume names")
-	flags.StringVar(&opts.format, "format", "", "Pretty-print networks using a Go template")
+	flags.StringVar(&opts.format, "format", "", "Pretty-print volumes using a Go template")
 	flags.StringSliceVarP(&opts.filter, "filter", "f", []string{}, "Provide filter values (e.g. 'dangling=true')")
 
 	return cmd
