@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/pkg/integration/checker"
 	icmd "github.com/docker/docker/pkg/integration/cmd"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libtrust"
@@ -2790,4 +2791,84 @@ func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *check.C) {
 	out = strings.TrimSpace(out)
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Equals, runError)
+}
+
+func (s *DockerDaemonSuite) TestDaemonBackcompatPre17Volumes(c *check.C) {
+	testRequires(c, SameHostDaemon)
+	d := s.d
+	err := d.StartWithBusybox()
+	c.Assert(err, checker.IsNil)
+
+	// hack to be able to side-load a container config
+	out, err := d.Cmd("create", "busybox:latest")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	id := strings.TrimSpace(out)
+
+	out, err = d.Cmd("inspect", "--type=image", "--format={{.ID}}", "busybox:latest")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(d.Stop(), checker.IsNil)
+	<-d.wait
+
+	imageID := strings.TrimSpace(out)
+	volumeID := stringid.GenerateNonCryptoID()
+	vfsPath := filepath.Join(d.root, "vfs", "dir", volumeID)
+	c.Assert(os.MkdirAll(vfsPath, 0755), checker.IsNil)
+
+	config := []byte(`
+		{
+			"ID": "` + id + `",
+			"Name": "hello",
+			"Driver": "` + d.storageDriver + `",
+			"Image": "` + imageID + `",
+			"Config": {"Image": "busybox:latest"},
+			"NetworkSettings": {},
+			"Volumes": {
+				"/bar":"/foo",
+				"/foo": "` + vfsPath + `",
+				"/quux":"/quux"
+			},
+			"VolumesRW": {
+				"/bar": true,
+				"/foo": true,
+				"/quux": false
+			}
+		}
+	`)
+
+	configPath := filepath.Join(d.root, "containers", id, "config.v2.json")
+	err = ioutil.WriteFile(configPath, config, 600)
+	err = d.Start()
+	c.Assert(err, checker.IsNil)
+
+	out, err = d.Cmd("inspect", "--type=container", "--format={{ json .Mounts }}", id)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	type mount struct {
+		Name        string
+		Source      string
+		Destination string
+		Driver      string
+		RW          bool
+	}
+
+	ls := []mount{}
+	err = json.NewDecoder(strings.NewReader(out)).Decode(&ls)
+	c.Assert(err, checker.IsNil)
+
+	expected := []mount{
+		{Source: "/foo", Destination: "/bar", RW: true},
+		{Name: volumeID, Destination: "/foo", RW: true},
+		{Source: "/quux", Destination: "/quux", RW: false},
+	}
+	c.Assert(ls, checker.HasLen, len(expected))
+
+	for _, m := range ls {
+		var matched bool
+		for _, x := range expected {
+			if m.Source == x.Source && m.Destination == x.Destination && m.RW == x.RW || m.Name != x.Name {
+				matched = true
+				break
+			}
+		}
+		c.Assert(matched, checker.True, check.Commentf("did find match for %+v", m))
+	}
 }

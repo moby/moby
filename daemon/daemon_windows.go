@@ -434,3 +434,10 @@ func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
 func setupDaemonProcess(config *Config) error {
 	return nil
 }
+
+// verifyVolumesInfo is a no-op on windows.
+// This is called during daemon initialization to migrate volumes from pre-1.7.
+// volumes were not supported on windows pre-1.7
+func (daemon *Daemon) verifyVolumesInfo(container *container.Container) error {
+	return nil
+}
