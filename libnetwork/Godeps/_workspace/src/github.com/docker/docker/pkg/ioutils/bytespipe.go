@@ -133,8 +133,9 @@ func (bp *BytesPipe) Read(p []byte) (n int, err error) {
 		}
 		bp.wait.Wait()
 		if bp.bufLen == 0 && bp.closeErr != nil {
+			err := bp.closeErr
 			bp.mu.Unlock()
-			return 0, bp.closeErr
+			return 0, err
 		}
 	}
 
