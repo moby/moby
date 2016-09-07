@@ -141,6 +141,11 @@ func prettyPrintInfo(dockerCli *command.DockerCli, info types.Info) error {
 		fmt.Fprintf(dockerCli.Out(), "\n")
 	}
 
+	// Isolation only has meaning on a Windows daemon.
+	if info.OSType == "windows" {
+		fmt.Fprintf(dockerCli.Out(), "Default Isolation: %v\n", info.Isolation)
+	}
+
 	ioutils.FprintfIfNotEmpty(dockerCli.Out(), "Kernel Version: %s\n", info.KernelVersion)
 	ioutils.FprintfIfNotEmpty(dockerCli.Out(), "Operating System: %s\n", info.OperatingSystem)
 	ioutils.FprintfIfNotEmpty(dockerCli.Out(), "OSType: %s\n", info.OSType)

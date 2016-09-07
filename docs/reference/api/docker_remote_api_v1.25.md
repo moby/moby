@@ -2221,7 +2221,7 @@ Display system-wide information
 
     GET /info HTTP/1.1
 
-**Example response**:
+**Example response (Linux)**:
 
     HTTP/1.1 200 OK
     Content-Type: application/json
@@ -2297,6 +2297,109 @@ Display system-wide information
         "SwapLimit": false,
         "SystemStatus": [["State", "Healthy"]],
         "SystemTime": "2015-03-10T11:11:23.730591467-07:00"
+    }
+
+
+**Example response (Windows)**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+        "ID": "NYMS:B5VK:UMSL:FVDZ:EWB5:FKVK:LPFL:FJMQ:H6FT:BZJ6:L2TD:XH62",
+        "Containers": 1,
+        "ContainersRunning": 0,
+        "ContainersPaused": 0,
+        "ContainersStopped": 1,
+        "Images": 17,
+        "Driver": "windowsfilter",
+        "DriverStatus": [
+            ["Windows", ""]
+        ],
+        "SystemStatus": null,
+            "Plugins": {
+                "Volume": ["local"],
+                "Network": ["nat", "null", "overlay"],
+                "Authorization": null
+            },
+        "MemoryLimit": false,
+        "SwapLimit": false,
+        "KernelMemory": false,
+        "CpuCfsPeriod": false,
+        "CpuCfsQuota": false,
+        "CPUShares": false,
+        "CPUSet": false,
+        "IPv4Forwarding": true,
+        "BridgeNfIptables": true,
+        "BridgeNfIp6tables": true,
+        "Debug": false,
+        "NFd": -1,
+        "OomKillDisable": false,
+        "NGoroutines": 11,
+        "SystemTime": "2016-09-23T11:59:58.9843533-07:00",
+        "LoggingDriver": "json-file",
+        "CgroupDriver": "",
+        "NEventsListener": 0,
+        "KernelVersion": "10.0 14393 (14393.206.amd64fre.rs1_release.160912-1937)",
+        "OperatingSystem": "Windows Server 2016 Datacenter",
+        "OSType": "windows",
+        "Architecture": "x86_64",
+        "IndexServerAddress": "https://index.docker.io/v1/",
+        "RegistryConfig": {
+                "InsecureRegistryCIDRs": ["127.0.0.0/8"],
+                "IndexConfigs": {
+                    "docker.io": {
+                        "Name": "docker.io",
+                        "Mirrors": null,
+                        "Secure": true,
+                        "Official": true
+                    }
+                },
+                "Mirrors": null
+        },
+        "NCPU": 8,
+        "MemTotal": 4293828608,
+        "DockerRootDir": "C:\\control",
+        "HttpProxy": "",
+        "HttpsProxy": "",
+        "NoProxy": "",
+        "Name": "WIN-V0V70C0LU5P",
+        "Labels": null,
+        "ExperimentalBuild": false,
+        "ServerVersion": "1.13.0-dev",
+        "ClusterStore": "",
+        "ClusterAdvertise": "",
+        "SecurityOptions": null,
+        "Runtimes": null,
+        "DefaultRuntime": "",
+        "Swarm": {
+            "NodeID": "",
+            "NodeAddr": "",
+            "LocalNodeState": "inactive",
+            "ControlAvailable": false,
+            "Error": "",
+            "RemoteManagers": null,
+            "Nodes": 0,
+            "Managers": 0,
+            "Cluster": {
+                "ID": "",
+                "Version": {},
+                "CreatedAt": "0001-01-01T00:00:00Z",
+                "UpdatedAt": "0001-01-01T00:00:00Z",
+                "Spec": {
+                    "Orchestration": {},
+                    "Raft": {
+                        "ElectionTick": 0,
+                        "HeartbeatTick": 0
+                    },
+                    "Dispatcher": {},
+                    "CAConfig": {},
+                    "TaskDefaults": {}
+                }
+            }
+        },
+        "LiveRestoreEnabled": false,
+        "Isolation": "process"
     }
 
 **Status codes**:
