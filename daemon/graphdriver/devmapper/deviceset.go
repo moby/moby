@@ -2325,11 +2325,7 @@ func (devices *DeviceSet) xfsSetNospaceRetries(info *devInfo) error {
 	filePath := "/sys/fs/xfs/" + dmDeviceName + "/error/metadata/ENOSPC/max_retries"
 	maxRetriesFile, err := os.OpenFile(filePath, os.O_WRONLY, 0)
 	if err != nil {
-		// Older kernels don't have this feature/file
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("devmapper: Failed to open file %v:%v", filePath, err)
+		return fmt.Errorf("devmapper: user specified daemon option dm.xfs_nospace_max_retries but it does not seem to be supported on this system :%v", err)
 	}
 	defer maxRetriesFile.Close()
 
@@ -2383,6 +2379,8 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 
 	if fstype == "xfs" && devices.xfsNospaceRetries != "" {
 		if err := devices.xfsSetNospaceRetries(info); err != nil {
+			syscall.Unmount(path, syscall.MNT_DETACH)
+			devices.deactivateDevice(info)
 			return err
 		}
 	}
