@@ -196,7 +196,6 @@ You can `attach` to a running `container` and investigate its configuration:
 $ docker attach container1
 
 root@0cb243cd1293:/# ifconfig
-ifconfig
 eth0      Link encap:Ethernet  HWaddr 02:42:AC:11:00:02
           inet addr:172.17.0.2  Bcast:0.0.0.0  Mask:255.255.0.0
           inet6 addr: fe80::42:acff:fe11:2/64 Scope:Link
@@ -251,7 +250,6 @@ To detach from a `container1` and leave it running use `CTRL-p CTRL-q`.Then, att
 $ docker attach container2
 
 root@0cb243cd1293:/# ifconfig
-
 eth0      Link encap:Ethernet  HWaddr 02:42:AC:11:00:03
           inet addr:172.17.0.3  Bcast:0.0.0.0  Mask:255.255.0.0
           inet6 addr: fe80::42:acff:fe11:3/64 Scope:Link
