@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"strings"
 
-	flag "github.com/docker/docker/pkg/mflag"
+	flag "github.com/docker/libnetwork/client/mflag"
 )
 
 // CallFunc provides environment specific call utility to invoke backend functions from UI
