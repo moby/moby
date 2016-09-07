@@ -38,6 +38,7 @@ func newUpdateCommand(dockerCli *client.DockerCli) *cobra.Command {
 	flags.String("args", "", "Service command args")
 	addServiceFlags(cmd, opts)
 
+	flags.StringVar(&opts.mode, flagMode, "replicated", "Service mode (replicated or global)")
 	flags.Var(newListOptsVar(), flagEnvRemove, "Remove an environment variable")
 	flags.Var(newListOptsVar(), flagGroupRemove, "Remove previously added user groups from the container")
 	flags.Var(newListOptsVar(), flagLabelRemove, "Remove a label by its key")
