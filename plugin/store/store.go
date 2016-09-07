@@ -160,7 +160,7 @@ func (ps *PluginStore) updatePluginDB() error {
 }
 
 // LookupWithCapability returns a plugin matching the given name and capability.
-func LookupWithCapability(name, capability string) (CompatPlugin, error) {
+func LookupWithCapability(name, capability string, mode int) (CompatPlugin, error) {
 	var (
 		p   *v2.Plugin
 		err error
@@ -181,6 +181,9 @@ func LookupWithCapability(name, capability string) (CompatPlugin, error) {
 		}
 		p, err = store.GetByName(fullName)
 		if err == nil {
+			p.Lock()
+			p.RefCount += mode
+			p.Unlock()
 			return p.FilterByCap(capability)
 		}
 		if _, ok := err.(ErrNotFound); !ok {
