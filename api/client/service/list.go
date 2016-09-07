@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/docker/docker/api/client"
 	"github.com/docker/docker/cli"
@@ -13,12 +14,13 @@ import (
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/engine-api/types/swarm"
+	"github.com/docker/go-units"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
 
 const (
-	listItemFmt = "%s\t%s\t%s\t%s\t%s\n"
+	listItemFmt = "%s\t%s\t%s\t%s\t%s\t%s\n"
 )
 
 type listOptions struct {
@@ -105,7 +107,7 @@ func printTable(out io.Writer, services []swarm.Service, running map[string]int)
 	// Ignore flushing errors
 	defer writer.Flush()
 
-	fmt.Fprintf(writer, listItemFmt, "ID", "NAME", "REPLICAS", "IMAGE", "COMMAND")
+	fmt.Fprintf(writer, listItemFmt, "ID", "NAME", "UPDATE STATUS", "REPLICAS", "IMAGE", "COMMAND")
 	for _, service := range services {
 		replicas := ""
 		if service.Spec.Mode.Replicated != nil && service.Spec.Mode.Replicated.Replicas != nil {
@@ -113,11 +115,28 @@ func printTable(out io.Writer, services []swarm.Service, running map[string]int)
 		} else if service.Spec.Mode.Global != nil {
 			replicas = "global"
 		}
+
+		updateStatus := ""
+		status := service.UpdateStatus
+		switch status.State {
+		case swarm.UpdateStateUpdating:
+			updateStatus = fmt.Sprintf("%s since %s ago",
+				client.PrettyPrint(status.State),
+				strings.ToLower(units.HumanDuration(time.Since(status.StartedAt))))
+		case swarm.UpdateStatePaused:
+			updateStatus = fmt.Sprintf("%s", client.PrettyPrint(status.State))
+		case swarm.UpdateStateCompleted:
+			updateStatus = fmt.Sprintf("%s %s ago",
+				client.PrettyPrint(status.State),
+				strings.ToLower(units.HumanDuration(time.Since(status.CompletedAt))))
+		}
+
 		fmt.Fprintf(
 			writer,
 			listItemFmt,
 			stringid.TruncateID(service.ID),
 			service.Spec.Name,
+			updateStatus,
 			replicas,
 			service.Spec.TaskTemplate.ContainerSpec.Image,
 			strings.Join(service.Spec.TaskTemplate.ContainerSpec.Args, " "))
